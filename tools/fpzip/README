@@ -1,0 +1,46 @@
+INTRODUCTION
+
+  This is fpzip 1.0.1, a C++ library for lossless or lossy compression
+  of 2D or 3D floating-point scalar fields.  fpzip was written by Peter
+  Lindstrom at LLNL, and is based on the algorithm described in the
+  following paper:
+
+    Peter Lindstrom and Martin Isenburg
+    "Fast and Efficient Compression of Floating-Point Data"
+    IEEE Transactions on Visualization and Computer Graphics,
+      12(5):1245-1250, September-October 2006.
+
+  For information on the API, usage, and licensing, please see the header
+  file inc/fpzip.h.
+
+INSTALLATION
+
+  The library has been written for Linux, but will probably compile on most
+  other platforms.  To compile the library, type:
+
+    cd src
+    make
+
+  There is an example program in the examples subdirectory that compresses
+  and decompresses multidimensional arrays of single- or double-precision
+  floating-point scalar fields.  The example is meant to illustrate how to
+  use the fpzip API, and can also be used to validate correct functionality
+  of the library.  If the program fails, please consult examples/README and
+  the Makefiles under examples and src for compile-time macros that may fix
+  the problem.
+
+REVISIONS
+
+  fpzip 1.0.1, August 7, 2008
+
+    - Added modes for bitwise type conversions beyond reinterpret_cast,
+      which caused aliasing problems with gcc 4.1.2.
+
+  fpzip 1.0.0, March 20, 2008
+
+    - Initial release.
+
+QUESTIONS AND COMMENTS
+
+  For bug reports and other questions, please contact Peter Lindstrom
+  at pl@llnl.gov.

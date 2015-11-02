@@ -1,0 +1,145 @@
+/*
+ *  Layer.h
+ *  VM2D
+ *
+ *  Created by Diego Rossinelli on 2/9/09.
+ *  Copyright 2009 CSE Lab, ETH Zurich. All rights reserved.
+ *
+ */
+#pragma once 
+#include <math.h>
+#include <string>
+#include <vector>
+using namespace std;
+#include <assert.h>
+
+#include "Matrix2D.h"
+#include "common.h"
+
+struct Layer
+{
+	const int sizeX;
+	const int sizeY;
+	const int nDim;
+
+	Real * data;
+	
+	Layer(const int sizeX, const int sizeY, const int nDim) : sizeX(sizeX), sizeY(sizeY), nDim(nDim)
+	{
+		data = new Real[nDim*sizeX*sizeY];
+	}
+	
+	~Layer()
+	{
+		delete [] data;
+	}
+
+	inline Real& operator()(int ix = 0, int iy=0, int dim = 0)
+	{
+		assert(ix>=0 && ix<sizeX);
+		assert(iy>=0 && iy<sizeY);
+		
+		return data[dim*sizeX*sizeY + iy*sizeX + ix];
+	}
+
+	inline Real read(int ix = 0, int iy=0, int dim = 0) const
+	{
+		assert(ix>=0 && ix<sizeX);
+		assert(iy>=0 && iy<sizeY);
+		
+		return data[dim*sizeX*sizeY + iy*sizeX + ix];
+	}
+
+	const Layer& operator=(const Real val)
+	{
+		for(int idim = 0; idim<nDim; idim++)
+		for(int iy = 0; iy<sizeY; iy++)
+		for(int ix = 0; ix<sizeX; ix++)
+			data[idim*sizeX*sizeY + iy*sizeX + ix] = val;
+		
+		return *this;
+	}
+
+	const Layer& operator=(const Layer& l)
+	{
+		for(int idim = 0; idim<nDim; idim++)
+			for(int iy = 0; iy<sizeY; iy++)
+				for(int ix = 0; ix<sizeX; ix++)
+					data[idim*sizeX*sizeY + iy*sizeX + ix] = l.data[idim*sizeX*sizeY + iy*sizeX + ix];
+		
+		return *this;
+	}
+
+	template<int dim>
+	void clear(Real val)
+	{
+		for(int iy = 0; iy<sizeY; iy++)
+		for(int ix = 0; ix<sizeX; ix++)
+			data[dim*sizeX*sizeY + iy*sizeX + ix] = val;
+	}
+	
+	double getH0() const
+	{
+		return 1./(double)sizeX;
+	}
+	
+	double getH1() const
+	{
+		return 1./(double)sizeY;
+	}
+
+	const vector<double> operator -(const Layer& layer)
+	{
+		vector<double> result;
+		
+		//compute linf distance
+		{
+			double LInf_diff = 0;
+			for(int idim = 0; idim<nDim; idim++)
+				for(int iy = 0; iy<sizeY; iy++)
+					for(int ix = 0; ix<sizeX; ix++)
+						LInf_diff = max(LInf_diff, (double)fabs(data[idim*sizeX*sizeY + iy*sizeX + ix] - layer.data[idim*sizeX*sizeY + iy*sizeX + ix]));
+			
+			result.push_back(LInf_diff);
+		}
+		
+		//compute linf distance
+		{
+			double L2error = 0;
+			for(int idim = 0; idim<nDim; idim++)
+				for(int iy = 0; iy<sizeY; iy++)
+					for(int ix = 0; ix<sizeX; ix++)
+						L2error += pow(data[idim*sizeX*sizeY + iy*sizeX + ix] - layer.data[idim*sizeX*sizeY + iy*sizeX + ix], 2);
+			
+			result.push_back(sqrt((double)L2error/(sizeY*sizeX)));
+		}
+		
+		return result;
+	}
+	
+	
+	void difference(const Layer& input, Layer& difference)
+	{
+		for(int idim = 0; idim<nDim; idim++)
+			for(int iy = 0; iy<sizeY; iy++)
+				for(int ix = 0; ix<sizeX; ix++)
+					difference.data[idim*sizeX*sizeY + iy*sizeX + ix]= data[idim*sizeX*sizeY + iy*sizeX + ix] - input.data[idim*sizeX*sizeY + iy*sizeX + ix];
+	}
+
+	template<int iDim>
+	Real * getPlane() 
+	{
+		return (Real*)&data[iDim*sizeX*sizeY];
+	}
+};
+
+
+#include <xmmintrin.h>
+template <typename LayerT> 
+LayerT * allocate()
+{
+	void * data = _mm_malloc(sizeof(LayerT), 64);
+	return new (data) LayerT;
+}
+
+

@@ -1,0 +1,27 @@
+This example program shows how to use the fpzip library.  The program can
+be compiled for single- or double-precision data (see the Makefile).  The
+usage is:
+
+  testfpzip <infile> <nx> [ny [nz [nf [outfile]]]]
+
+where nx, ny, and nz specify the size of a 3D array
+
+  f[nz][ny][nx]
+
+and nf specifying the number of contiguous scalar fields in the file.
+
+To run the program on the single-precision example data set:
+
+  testfpzip float16x16x16x1 16 16 16 1 output.fpz
+
+Alternatively, one may consider compressing this 3D scalar field as a stack
+of 2D fields:
+
+  testfpzip float16x16x16x1 16 16 1 16 output.fpz
+
+or as a single 1D field:
+
+  testfpzip float16x16x16x1 4096 1 1 1 output.fpz
+
+As expected, compression usually degrades with lower dimensionality.  The
+output file is an optional argument.

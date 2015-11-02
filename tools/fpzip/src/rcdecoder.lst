@@ -1,0 +1,695 @@
+IBM XL C/C++ for Blue Gene, Version 12.1.0.9 --- rcdecoder.cpp Mon 01 Dec 2014 11:39:50 CET (C++)
+
+>>>>> OPTIONS SECTION <<<<<
+
+SIMD=AUTO       INLINE=NOAUTO:LEVEL=5           LINEDEBUG       LIST            
+SOURCE          NOSTRICT_INDUCTION              THREADED        
+ALIAS=ANSI:NOTYPEPTR:NOALLPTRS:NOADDRTAKEN:RESTRICT:NOGLOBAL    ARCH=QP         
+CACHE=LEVEL=1:TYPE=D:SIZE=16:LINE=64:ASSOC=8:COST=6             
+CACHE=LEVEL=1:TYPE=I:SIZE=16:LINE=64:ASSOC=4:COST=6             
+CACHE=LEVEL=2:TYPE=D:SIZE=33554:LINE=128:ASSOC=16:COST=80       
+CACHE=LEVEL=2:TYPE=I:SIZE=33554:LINE=128:ASSOC=16:COST=80       
+HOT=NOARRAYPAD:ARRAYPAD=0:VECTOR:LEVEL=1:FASTMATH               OPT=2           
+OBJECTMODE=64   PACK_SEMANTIC=GNU               PIC=SMALL       REPORT          
+SHOWPDF=NO      SMP             SMP=AUTO        SMP=OPT         SMP=NOOMP       
+SMP=SPECULATIVE SMP=OSTLS       SUPPRESS=CPPC0900:CPPC0922      TLS=DEFAULT     
+TMPLPARSE=NO    TUNE=QP         
+
+>>>>> SOURCE SECTION <<<<<
+ 
+            1 | #include "rcdecoder.h"
+            2 | 
+            3 | // initialize decoder
+            4 | void RCdecoder::init()
+            5 | {
+            6 |   get(4);
+            7 | }
+            8 | 
+            9 | // decode a bit
+           10 | bool RCdecoder::decode()
+           11 | {
+           12 |   range >>= 1;
+           13 |   bool s = code >= low + range;
+           14 |   if (s)
+           15 |     low += range;
+           16 |   normalize();
+           17 |   return s;
+           18 | }
+           19 | 
+           20 | // decode a symbol using probability modeling
+           21 | unsigned RCdecoder::decode(RCmodel* rm)
+           22 | {
+           23 |   rm->normalize(range);
+           24 |   unsigned l = (code - low) / range;
+           25 |   unsigned r, s = rm->decode(l, r);
+           26 |   low += range * l;
+           27 |   range *= r;
+           28 |   normalize();
+           29 |   return s;
+           30 | }
+           31 | 
+           32 | // decode a number s : 0 <= s < 2^n <= 2^16
+           33 | unsigned RCdecoder::decode_shift(unsigned n)
+           34 | {
+           35 |   range >>= n;
+           36 |   unsigned s = (code - low) / range;
+           37 |   low += range * s;
+           38 |   normalize();
+           39 |   return s;
+           40 | }
+           41 | 
+           42 | // decode a number s : 0 <= s < n <= 2^16
+           43 | unsigned RCdecoder::decode_ratio(unsigned n)
+           44 | {
+           45 |   range /= n;
+           46 |   unsigned s = (code - low) / range;
+           47 |   low += range * s;
+           48 |   normalize();
+           49 |   return s;
+           50 | }
+           51 | 
+           52 | // normalize the range and input data
+           53 | void RCdecoder::normalize()
+           54 | {
+           55 |   while (!((low ^ (low + range)) >> 24)) {
+           56 |     // top 8 bits are fixed; output them
+           57 |     get(1);
+           58 |     range <<= 8;
+           59 |   }
+           60 |   if (!(range >> 16)) {
+           61 |     // top 8 bits are not fixed but range is small;
+           62 |     // fudge range to avoid carry and input 16 bits
+           63 |     get(2);
+           64 |     range = -low;
+           65 |   }
+           66 | }
+
+
+>>>>> FILE TABLE SECTION <<<<<
+    1  =  ../inc/rcdecoder.h
+    2  =  ../inc/rcmodel.h
+    3  =  ../inc/rcdecoder.inl
+
+
+>>>>> COMPILATION EPILOGUE SECTION <<<<<
+
+ IBM C and C++ Compilers Language Summary of Diagnosed Conditions
+
+TOTAL   UNRECOVERABLE  SEVERE       ERROR     WARNING    INFORMATIONAL
+               (U)       (S)         (E)        (W)          (I)
+    0           0         0           0          0            0
+Compilation succeeded for file rcdecoder.cpp.
+
+>>>>> OBJECT SECTION, OPTIMIZATION <<<<<
+     4 |  void RCdecoder::init()(RCdecoder *this)
+     5 |  {
+    35 |    *((unsigned int *)((char *)this + 16)) = *((unsigned int *)((char *)this + 16)) << 8;
+    36 |    $$SFX0 = *((unsigned int *)((char *)this + 16));
+            $$RET0 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns1.(this);
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    35 |    *((unsigned int *)((char *)this + 16)) = ($$RET0 | $$SFX0) << 8;
+    36 |    $$SFX0 = ($$RET0 | $$SFX0) << 8;
+            $$RET0 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns1.cfp0.(this);
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    35 |    *((unsigned int *)((char *)this + 16)) = ($$RET0 | $$SFX0) << 8;
+    36 |    $$SFX0 = ($$RET0 | $$SFX0) << 8;
+            $$RET0 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns1.cfp1.(this);
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    35 |    *((unsigned int *)((char *)this + 16)) = ($$RET0 | $$SFX0) << 8;
+    36 |    $$SFX0 = ($$RET0 | $$SFX0) << 8;
+            $$RET0 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns1.cfp2.(this);
+            *((unsigned int *)((char *)this + 16)) = $$RET0 | $$SFX0;
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+     7 |    return;
+          } /* function */ 
+
+
+
+Source        Source        Loop Id       Action / Information                                      
+File          Line                                                                                  
+----------    ----------    ----------    ----------------------------------------------------------
+         3            34                  Loop cannot be automatically parallelized.  Loop 
+                                          contains a call to "(unsigned int ()vf).rns1." that 
+                                          may have side effects.
+         3            34                  Loop has been completely unrolled because its 
+                                          iteration count is less than 32.
+
+    10 |  char RCdecoder::decode()(RCdecoder *this)
+    11 |  {
+    12 |    *((unsigned int *)((char *)this + 12)) = *((unsigned int *)((char *)this + 12)) >> 1;
+    13 |    s = (char) (*((unsigned int *)((char *)this + 16)) >= *((unsigned int *)((char *)this + 8)) + *((unsigned int *)((char *)this + 12)));
+    14 |    if (!(s != 0u)) goto lab_1;
+    15 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) + *((unsigned int *)((char *)this + 12));
+          lab_1:
+    16 |    RCdecoder::normalize()(this)
+    17 |    rstr = s;
+            return rstr;
+    18 |  } /* function */ 
+
+
+    21 |  unsigned int RCdecoder::decode(RCmodel*)(RCdecoder *this, RCmodel *rm)
+    22 |  {
+    23 |    ((funcaddr *)(*((char * *)rm)))[32ll / 8]->(void (unsigned int &)vf).rns11.(rm,(this + 12))
+    25 |    $$l.nat.2 = (*((unsigned int *)((char *)this + 16)) - *((unsigned int *)((char *)this + 8))) / *((unsigned int *)((char *)this + 12));
+            l = $$l.nat.2;
+            s = ((funcaddr *)(*((char * *)rm)))[24ll / 8]->(unsigned int (unsigned int &, unsigned int &)vf).rns15.(rm,&l,&r);
+    26 |    *((unsigned int *)((char *)this + 8)) = l * *((unsigned int *)((char *)this + 12)) + *((unsigned int *)((char *)this + 8));
+    27 |    *((unsigned int *)((char *)this + 12)) = r * *((unsigned int *)((char *)this + 12));
+    28 |    RCdecoder::normalize()(this)
+    29 |    rstr = s;
+            return rstr;
+    30 |  } /* function */ 
+
+
+    33 |  unsigned int RCdecoder::decode_shift(unsigned int)(RCdecoder *this, unsigned int n)
+    34 |  {
+    35 |    *((unsigned int *)((char *)this + 12)) = *((unsigned int *)((char *)this + 12)) >> n;
+    36 |    s = (*((unsigned int *)((char *)this + 16)) - *((unsigned int *)((char *)this + 8))) / *((unsigned int *)((char *)this + 12));
+    37 |    *((unsigned int *)((char *)this + 8)) = ((*((unsigned int *)((char *)this + 16)) - *((unsigned int *)((char *)this + 8))) / *((unsigned int *)((char *)this + 12))) * *((unsigned int *)((char *)this + 12)) + *((unsigned int *)((char *)this + 8));
+    38 |    RCdecoder::normalize()(this)
+    39 |    rstr = s;
+            return rstr;
+    40 |  } /* function */ 
+
+
+    43 |  unsigned int RCdecoder::decode_ratio(unsigned int)(RCdecoder *this, unsigned int n)
+    44 |  {
+    45 |    *((unsigned int *)((char *)this + 12)) = *((unsigned int *)((char *)this + 12)) / n;
+    46 |    s = (*((unsigned int *)((char *)this + 16)) - *((unsigned int *)((char *)this + 8))) / *((unsigned int *)((char *)this + 12));
+    47 |    *((unsigned int *)((char *)this + 8)) = ((*((unsigned int *)((char *)this + 16)) - *((unsigned int *)((char *)this + 8))) / *((unsigned int *)((char *)this + 12))) * *((unsigned int *)((char *)this + 12)) + *((unsigned int *)((char *)this + 8));
+    48 |    RCdecoder::normalize()(this)
+    49 |    rstr = s;
+            return rstr;
+    50 |  } /* function */ 
+
+
+    53 |  void RCdecoder::normalize()(RCdecoder *this)
+    54 |  {
+    55 |    if (0u != (*((unsigned int *)((char *)this + 12)) + *((unsigned int *)((char *)this + 8)) ^ *((unsigned int *)((char *)this + 8))) >> 24) goto lab_3;
+            do {   /* id=2 guarded */ /* ~1 */ 
+              /* region = 11 */
+    35 |      *((unsigned int *)((char *)this + 16)) = *((unsigned int *)((char *)this + 16)) << 8;
+    36 |      $$SFX1 = *((unsigned int *)((char *)this + 16));
+              $$RET1 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns30.(this);
+              *((unsigned int *)((char *)this + 16)) = $$RET1 | $$SFX1;
+    37 |      *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    58 |      *((unsigned int *)((char *)this + 12)) = *((unsigned int *)((char *)this + 12)) << 8;
+    55 |    } while (!(0u != (*((unsigned int *)((char *)this + 8)) + *((unsigned int *)((char *)this + 12)) ^ *((unsigned int *)((char *)this + 8))) >> 24));   /* ~1 */
+          lab_3:
+    60 |    if (0u != *((unsigned int *)((char *)this + 12)) >> 16) goto lab_7;
+    35 |    *((unsigned int *)((char *)this + 16)) = *((unsigned int *)((char *)this + 16)) << 8;
+    36 |    $$SFX2 = *((unsigned int *)((char *)this + 16));
+            $$RET2 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns33.(this);
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    35 |    *((unsigned int *)((char *)this + 16)) = ($$RET2 | $$SFX2) << 8;
+    36 |    $$SFX2 = ($$RET2 | $$SFX2) << 8;
+            $$RET2 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns33.cfp3.(this);
+            *((unsigned int *)((char *)this + 16)) = $$RET2 | $$SFX2;
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    64 |    *((unsigned int *)((char *)this + 12)) = *((unsigned int *)((char *)this + 8)) * 4294967295u;
+    65 |  lab_7:
+    66 |    return;
+          } /* function */ 
+
+
+
+Source        Source        Loop Id       Action / Information                                      
+File          Line                                                                                  
+----------    ----------    ----------    ----------------------------------------------------------
+         3            34                  Loop cannot be automatically parallelized.  Loop 
+                                          contains a call to "(unsigned int ()vf).rns30." that 
+                                          may have side effects.
+         3            34                  Loop has been completely unrolled because its 
+                                          iteration count is less than 32.
+         3            34                  Loop cannot be automatically parallelized.  Loop 
+                                          contains a call to "(unsigned int ()vf).rns33." that 
+                                          may have side effects.
+         3            34                  Loop has been completely unrolled because its 
+                                          iteration count is less than 32.
+
+     4 |  void RCdecoder::init()(RCdecoder *this)
+     5 |  {
+    35 |    *((unsigned int *)((char *)this + 16)) = *((unsigned int *)((char *)this + 16)) << 8;
+    36 |    $$SFX0 = *((unsigned int *)((char *)this + 16));
+            $$RET0 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns1.(this);
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    35 |    *((unsigned int *)((char *)this + 16)) = ($$RET0 | $$SFX0) << 8;
+    36 |    $$SFX0 = ($$RET0 | $$SFX0) << 8;
+            $$RET0 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns1.cfp0.(this);
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    35 |    *((unsigned int *)((char *)this + 16)) = ($$RET0 | $$SFX0) << 8;
+    36 |    $$SFX0 = ($$RET0 | $$SFX0) << 8;
+            $$RET0 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns1.cfp1.(this);
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    35 |    *((unsigned int *)((char *)this + 16)) = ($$RET0 | $$SFX0) << 8;
+    36 |    $$SFX0 = ($$RET0 | $$SFX0) << 8;
+            $$RET0 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns1.cfp2.(this);
+            *((unsigned int *)((char *)this + 16)) = $$RET0 | $$SFX0;
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+     7 |    return;
+          } /* function */ 
+
+
+    10 |  char RCdecoder::decode()(RCdecoder *this)
+    11 |  {
+    12 |    $$csx0 = *((unsigned int *)((char *)this + 12)) >> 1;
+            *((unsigned int *)((char *)this + 12)) = $$csx0;
+    13 |    s = (char) (*((unsigned int *)((char *)this + 16)) >= *((unsigned int *)((char *)this + 8)) + $$csx0);
+    14 |    if (!(s != 0u)) goto lab_1;
+    15 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) + $$csx0;
+          lab_1:
+    16 |    RCdecoder::normalize()(this)
+    17 |    rstr = s;
+            return rstr;
+    18 |  } /* function */ 
+
+
+    21 |  unsigned int RCdecoder::decode(RCmodel*)(RCdecoder *this, RCmodel *rm)
+    22 |  {
+    23 |    ((funcaddr *)(*((char * *)rm)))[32ll / 8]->(void (unsigned int &)vf).rns11.(rm,(this + 12))
+    25 |    $$l.nat.2 = (*((unsigned int *)((char *)this + 16)) - *((unsigned int *)((char *)this + 8))) / *((unsigned int *)((char *)this + 12));
+            l = $$l.nat.2;
+            s = ((funcaddr *)(*((char * *)rm)))[24ll / 8]->(unsigned int (unsigned int &, unsigned int &)vf).rns15.(rm,&l,&r);
+    26 |    *((unsigned int *)((char *)this + 8)) = l * *((unsigned int *)((char *)this + 12)) + *((unsigned int *)((char *)this + 8));
+    27 |    *((unsigned int *)((char *)this + 12)) = r * *((unsigned int *)((char *)this + 12));
+    28 |    RCdecoder::normalize()(this)
+    29 |    rstr = s;
+            return rstr;
+    30 |  } /* function */ 
+
+
+    33 |  unsigned int RCdecoder::decode_shift(unsigned int)(RCdecoder *this, unsigned int n)
+    34 |  {
+    35 |    *((unsigned int *)((char *)this + 12)) = *((unsigned int *)((char *)this + 12)) >> n;
+    36 |    s = (*((unsigned int *)((char *)this + 16)) - *((unsigned int *)((char *)this + 8))) / *((unsigned int *)((char *)this + 12));
+    37 |    *((unsigned int *)((char *)this + 8)) = ((*((unsigned int *)((char *)this + 16)) - *((unsigned int *)((char *)this + 8))) / *((unsigned int *)((char *)this + 12))) * *((unsigned int *)((char *)this + 12)) + *((unsigned int *)((char *)this + 8));
+    38 |    RCdecoder::normalize()(this)
+    39 |    rstr = s;
+            return rstr;
+    40 |  } /* function */ 
+
+
+    43 |  unsigned int RCdecoder::decode_ratio(unsigned int)(RCdecoder *this, unsigned int n)
+    44 |  {
+    45 |    *((unsigned int *)((char *)this + 12)) = *((unsigned int *)((char *)this + 12)) / n;
+    46 |    s = (*((unsigned int *)((char *)this + 16)) - *((unsigned int *)((char *)this + 8))) / *((unsigned int *)((char *)this + 12));
+    47 |    *((unsigned int *)((char *)this + 8)) = ((*((unsigned int *)((char *)this + 16)) - *((unsigned int *)((char *)this + 8))) / *((unsigned int *)((char *)this + 12))) * *((unsigned int *)((char *)this + 12)) + *((unsigned int *)((char *)this + 8));
+    48 |    RCdecoder::normalize()(this)
+    49 |    rstr = s;
+            return rstr;
+    50 |  } /* function */ 
+
+
+    53 |  void RCdecoder::normalize()(RCdecoder *this)
+    54 |  {
+    55 |    if (0u != (*((unsigned int *)((char *)this + 12)) + *((unsigned int *)((char *)this + 8)) ^ *((unsigned int *)((char *)this + 8))) >> 24) goto lab_3;
+            do {   /* id=2 guarded */ /* ~1 */ 
+              /* region = 11 */
+    35 |      *((unsigned int *)((char *)this + 16)) = *((unsigned int *)((char *)this + 16)) << 8;
+    36 |      $$SFX1 = *((unsigned int *)((char *)this + 16));
+              $$RET1 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns30.(this);
+              *((unsigned int *)((char *)this + 16)) = $$RET1 | $$SFX1;
+    37 |      *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    58 |      *((unsigned int *)((char *)this + 12)) = *((unsigned int *)((char *)this + 12)) << 8;
+    55 |    } while (!(0u != (*((unsigned int *)((char *)this + 8)) + *((unsigned int *)((char *)this + 12)) ^ *((unsigned int *)((char *)this + 8))) >> 24));   /* ~1 */
+          lab_3:
+    60 |    if (0u != *((unsigned int *)((char *)this + 12)) >> 16) goto lab_7;
+    35 |    *((unsigned int *)((char *)this + 16)) = *((unsigned int *)((char *)this + 16)) << 8;
+    36 |    $$SFX2 = *((unsigned int *)((char *)this + 16));
+            $$RET2 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns33.(this);
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    35 |    *((unsigned int *)((char *)this + 16)) = ($$RET2 | $$SFX2) << 8;
+    36 |    $$SFX2 = ($$RET2 | $$SFX2) << 8;
+            $$RET2 = ((funcaddr *)(*((char * *)this)))[16ll / 8]->(unsigned int ()vf).rns33.cfp3.(this);
+            *((unsigned int *)((char *)this + 16)) = $$RET2 | $$SFX2;
+    37 |    *((unsigned int *)((char *)this + 8)) = *((unsigned int *)((char *)this + 8)) << 8;
+    64 |    *((unsigned int *)((char *)this + 12)) = *((unsigned int *)((char *)this + 8)) * 4294967295u;
+    65 |  lab_7:
+    66 |    return;
+          } /* function */ 
+
+
+ GPR's set/used:   ssus ssss ssss s---  ---- ---- ---- --ss
+ FPR's set/used:   ssss ssss ssss ss--  ---- ---- ---- ----
+ CCR's set/used:   ss-- -sss
+     | 000000                           PDEF     RCdecoder::init()
+     | 000000                           AKA       _ZN9RCdecoder4initEv
+    4|                                  PROC      this,gr3
+    0| 000000 std      FBE1FFF8   1     ST8       #stack(gr1,-8)=gr31
+    0| 000004 std      FBC1FFF0   1     ST8       #stack(gr1,-16)=gr30
+    0| 000008 mfspr    7C0802A6   1     LFLR      gr0=lr
+    0| 00000C std      F8010010   1     ST8       #stack(gr1,16)=gr0
+    0| 000010 stdu     F821FF61   1     ST8U      gr1,#stack(gr1,-160)=gr1
+   36| 000014 ld       E8830000   1     L8        gr4=(RCdecoder)[]@0.rns4.(gr3,0)
+   35| 000018 lwz      80030010   1     L4Z       gr0=(RCdecoder).code@10.rns3.(gr3,16)
+   36| 00001C std      F8410028   1     ST8       #cur_toc(gr1,40)=gr2
+    0| 000020 or       7C7E1B78   1     LR        gr30=gr3
+   36| 000024 ld       E8840010   1     L8        gr4=(unsigned int (*)();__vftTypeGCCV3).rns0.(gr4,16)
+   35| 000028 rlwinm   541F402E   1     SLL4      gr31=gr0,8
+   35| 00002C stw      93FE0010   1     ST4Z      (RCdecoder).code@10.rns3.(gr30,16)=gr31
+   36| 000030 ld       E8040000   1     L8        gr0=#fnc_adr(gr4,0)
+   36| 000034 ld       E9640010   1     L8        gr11=#new_env(gr4,16)
+   36| 000038 mtspr    7C0903A6   1     LCTR      ctr=gr0
+   36| 00003C ld       E8440008   1     CALL      gr3=gr4,1,(char).rns2.",gr3,#ProcAlias",fcr",#MX_TEMP1",(unsigned int ()vf).rns1.",gr1,cr[01567]",gr0",gr4"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr",#fnc_adr,#cur_toc,ctr,gr11,#new_env,#(glue_dr_n,0,(unsigned int ()vf).rns1."
+   36| 000040 bcctrl   4E800421   1
+   36| 000044 ld       E8410028   1
+   36| 000048 ld       E89E0000   1     L8        gr4=(RCdecoder)[]@0.rns4.(gr30,0)
+   37| 00004C lwz      801E0008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr30,8)
+   35| 000050 or       7C63FB78   1     O         gr3=gr3,gr31
+   35| 000054 rlwinm   547F402E   1     SLL4      gr31=gr3,8
+   36| 000058 or       7FC3F378   1     LR        gr3=gr30
+   35| 00005C stw      93FE0010   1     ST4Z      (RCdecoder).code@10.rns3.(gr30,16)=gr31
+   36| 000060 ld       E8840010   1     L8        gr4=(unsigned int (*)();__vftTypeGCCV3).rns0.(gr4,16)
+   37| 000064 rlwinm   5400402E   1     SLL4      gr0=gr0,8
+   37| 000068 stw      901E0008   1     ST4Z      (RCdecoder).low@8.rns5.(gr30,8)=gr0
+   36| 00006C ld       E8040000   1     L8        gr0=#fnc_adr(gr4,0)
+   36| 000070 ld       E9640010   1     L8        gr11=#new_env(gr4,16)
+   36| 000074 mtspr    7C0903A6   1     LCTR      ctr=gr0
+   36| 000078 ld       E8440008   1     CALL      gr3=gr4,1,(char).rns2.",gr3,#ProcAlias",fcr",#MX_TEMP1",(unsigned int ()vf).rns1.cfp0.",gr1,cr[01567]",gr0",gr4"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr",#fnc_adr,#cur_toc,ctr,gr11,#new_env,#(glue_dr_n,0,(unsigned int ()vf).rns1.cfp0."
+   36| 00007C bcctrl   4E800421   1
+   36| 000080 ld       E8410028   1
+   36| 000084 ld       E89E0000   1     L8        gr4=(RCdecoder)[]@0.rns4.(gr30,0)
+   37| 000088 lwz      801E0008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr30,8)
+   35| 00008C or       7C63FB78   1     O         gr3=gr3,gr31
+   35| 000090 rlwinm   547F402E   1     SLL4      gr31=gr3,8
+   36| 000094 or       7FC3F378   1     LR        gr3=gr30
+   35| 000098 stw      93FE0010   1     ST4Z      (RCdecoder).code@10.rns3.(gr30,16)=gr31
+   36| 00009C ld       E8840010   1     L8        gr4=(unsigned int (*)();__vftTypeGCCV3).rns0.(gr4,16)
+   37| 0000A0 rlwinm   5400402E   1     SLL4      gr0=gr0,8
+   37| 0000A4 stw      901E0008   1     ST4Z      (RCdecoder).low@8.rns5.(gr30,8)=gr0
+   36| 0000A8 ld       E8040000   1     L8        gr0=#fnc_adr(gr4,0)
+   36| 0000AC ld       E9640010   1     L8        gr11=#new_env(gr4,16)
+   36| 0000B0 mtspr    7C0903A6   1     LCTR      ctr=gr0
+   36| 0000B4 ld       E8440008   1     CALL      gr3=gr4,1,(char).rns2.",gr3,#ProcAlias",fcr",#MX_TEMP1",(unsigned int ()vf).rns1.cfp1.",gr1,cr[01567]",gr0",gr4"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr",#fnc_adr,#cur_toc,ctr,gr11,#new_env,#(glue_dr_n,0,(unsigned int ()vf).rns1.cfp1."
+   36| 0000B8 bcctrl   4E800421   1
+   36| 0000BC ld       E8410028   1
+   36| 0000C0 ld       E89E0000   1     L8        gr4=(RCdecoder)[]@0.rns4.(gr30,0)
+   37| 0000C4 lwz      801E0008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr30,8)
+   35| 0000C8 or       7C63FB78   1     O         gr3=gr3,gr31
+   35| 0000CC rlwinm   547F402E   1     SLL4      gr31=gr3,8
+   36| 0000D0 or       7FC3F378   1     LR        gr3=gr30
+   35| 0000D4 stw      93FE0010   1     ST4Z      (RCdecoder).code@10.rns3.(gr30,16)=gr31
+   36| 0000D8 ld       E8840010   1     L8        gr4=(unsigned int (*)();__vftTypeGCCV3).rns0.(gr4,16)
+   37| 0000DC rlwinm   5400402E   1     SLL4      gr0=gr0,8
+   37| 0000E0 stw      901E0008   1     ST4Z      (RCdecoder).low@8.rns5.(gr30,8)=gr0
+   36| 0000E4 ld       E8040000   1     L8        gr0=#fnc_adr(gr4,0)
+   36| 0000E8 ld       E9640010   1     L8        gr11=#new_env(gr4,16)
+   36| 0000EC mtspr    7C0903A6   1     LCTR      ctr=gr0
+   36| 0000F0 ld       E8440008   1     CALL      gr3=gr4,1,(char).rns2.",gr3,#ProcAlias",fcr",#MX_TEMP1",(unsigned int ()vf).rns1.cfp2.",gr1,cr[01567]",gr0",gr4"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr",#fnc_adr,#cur_toc,ctr,gr11,#new_env,#(glue_dr_n,0,(unsigned int ()vf).rns1.cfp2."
+   36| 0000F4 bcctrl   4E800421   1
+   36| 0000F8 ld       E8410028   1
+   37| 0000FC lwz      801E0008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr30,8)
+    7| 000100 ld       E98100B0   1     L8        gr12=#stack(gr1,176)
+    7| 000104 addi     382100A0   1     AI        gr1=gr1,160
+   36| 000108 or       7C63FB78   1     O         gr3=gr3,gr31
+   36| 00010C stw      907E0010   1     ST4Z      (RCdecoder).code@10.rns3.(gr30,16)=gr3
+    7| 000110 ld       EBE1FFF8   1     L8        gr31=#stack(gr1,-8)
+   37| 000114 rlwinm   5400402E   1     SLL4      gr0=gr0,8
+    7| 000118 mtspr    7D8803A6   1     LLR       lr=gr12
+   37| 00011C stw      901E0008   1     ST4Z      (RCdecoder).low@8.rns5.(gr30,8)=gr0
+    7| 000120 ld       EBC1FFF0   1     L8        gr30=#stack(gr1,-16)
+    7| 000124 bclr     4E800020   1     BA        lr
+     |               Tag Table
+     | 000128        00000000 00092041 80020100 00000000 00000128 00145F5A
+     | 000140        4E395243 6465636F 64657234 696E6974 4576
+     |               Instruction count           74
+     |               Straight-line exec time     74
+ GPR's set/used:   ssus ssss ssss s---  ---- ---- ---- --ss
+ FPR's set/used:   ssss ssss ssss ss--  ---- ---- ---- ----
+ CCR's set/used:   ss-- -sss
+     | 000000                           PDEF     RCdecoder::normalize()
+     | 000000                           AKA       _ZN9RCdecoder9normalizeEv
+   53|                                  PROC      this,gr3
+    0| 000160 std      FBE1FFF8   1     ST8       #stack(gr1,-8)=gr31
+    0| 000164 std      FBC1FFF0   1     ST8       #stack(gr1,-16)=gr30
+    0| 000168 mfspr    7C0802A6   1     LFLR      gr0=lr
+    0| 00016C std      F8010010   1     ST8       #stack(gr1,16)=gr0
+    0| 000170 stdu     F821FF61   1     ST8U      gr1,#stack(gr1,-160)=gr1
+   55| 000174 lwz      8083000C   1     L4Z       gr4=(RCdecoder).range@c.rns7.(gr3,12)
+   55| 000178 lwz      80030008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr3,8)
+   36| 00017C std      F8410028   1     ST8       #cur_toc(gr1,40)=gr2
+    0| 000180 or       7C7E1B78   1     LR        gr30=gr3
+   55| 000184 add      7C602214   1     A         gr3=gr0,gr4
+   55| 000188 xor      7C001A78   1     X         gr0=gr0,gr3
+   55| 00018C rlwinm   5400463F   1     SRL4_R    gr0,cr0=gr0,24
+   55| 000190 bc       418200C0   1     BT        CL.101,cr0,0x4/eq,taken=50%(0,0)
+   60| 000194 rlwinm   5480843F   1     SRL4_R    gr0,cr0=gr4,16
+   60| 000198 bc       408200AC   1     BF        CL.105,cr0,0x4/eq,taken=30%(30,70)
+    0|                              CL.100:
+   36| 00019C ld       E89E0000   1     L8        gr4=(RCdecoder)[]@0.rns4.(gr30,0)
+   35| 0001A0 lwz      801E0010   1     L4Z       gr0=(RCdecoder).code@10.rns3.(gr30,16)
+   36| 0001A4 or       7FC3F378   1     LR        gr3=gr30
+   36| 0001A8 ld       E8840010   1     L8        gr4=(unsigned int (*)();__vftTypeGCCV3).rns0.(gr4,16)
+   35| 0001AC rlwinm   541F402E   1     SLL4      gr31=gr0,8
+   35| 0001B0 stw      93FE0010   1     ST4Z      (RCdecoder).code@10.rns3.(gr30,16)=gr31
+   36| 0001B4 ld       E8040000   1     L8        gr0=#fnc_adr(gr4,0)
+   36| 0001B8 ld       E9640010   1     L8        gr11=#new_env(gr4,16)
+   36| 0001BC mtspr    7C0903A6   1     LCTR      ctr=gr0
+   36| 0001C0 ld       E8440008   1     CALL      gr3=gr4,1,(char).rns2.",gr3,#ProcAlias",fcr",#MX_TEMP2",(unsigned int ()vf).rns33.",gr1,cr[01567]",gr0",gr4"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr",#fnc_adr,#cur_toc,ctr,gr11,#new_env,#(glue_dr_n,0,(unsigned int ()vf).rns33."
+   36| 0001C4 bcctrl   4E800421   1
+   36| 0001C8 ld       E8410028   1
+   36| 0001CC ld       E89E0000   1     L8        gr4=(RCdecoder)[]@0.rns4.(gr30,0)
+   37| 0001D0 lwz      801E0008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr30,8)
+   35| 0001D4 or       7C63FB78   1     O         gr3=gr3,gr31
+   35| 0001D8 rlwinm   547F402E   1     SLL4      gr31=gr3,8
+   36| 0001DC or       7FC3F378   1     LR        gr3=gr30
+   35| 0001E0 stw      93FE0010   1     ST4Z      (RCdecoder).code@10.rns3.(gr30,16)=gr31
+   36| 0001E4 ld       E8840010   1     L8        gr4=(unsigned int (*)();__vftTypeGCCV3).rns0.(gr4,16)
+   37| 0001E8 rlwinm   5400402E   1     SLL4      gr0=gr0,8
+   37| 0001EC stw      901E0008   1     ST4Z      (RCdecoder).low@8.rns5.(gr30,8)=gr0
+   36| 0001F0 ld       E8040000   1     L8        gr0=#fnc_adr(gr4,0)
+   36| 0001F4 ld       E9640010   1     L8        gr11=#new_env(gr4,16)
+   36| 0001F8 mtspr    7C0903A6   1     LCTR      ctr=gr0
+   36| 0001FC ld       E8440008   1     CALL      gr3=gr4,1,(char).rns2.",gr3,#ProcAlias",fcr",#MX_TEMP2",(unsigned int ()vf).rns33.cfp3.",gr1,cr[01567]",gr0",gr4"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr",#fnc_adr,#cur_toc,ctr,gr11,#new_env,#(glue_dr_n,0,(unsigned int ()vf).rns33.cfp3."
+   36| 000200 bcctrl   4E800421   1
+   36| 000204 ld       E8410028   1
+   37| 000208 lwz      801E0008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr30,8)
+   64| 00020C addi     3880FFFF   1     LI        gr4=-1
+   36| 000210 or       7C63FB78   1     O         gr3=gr3,gr31
+   36| 000214 stw      907E0010   1     ST4Z      (RCdecoder).code@10.rns3.(gr30,16)=gr3
+   64| 000218 rldicl   78830020   1     RN8       gr3=gr4,0,0xFFFFFFFF
+   37| 00021C rlwinm   5400402E   1     SLL4      gr0=gr0,8
+   37| 000220 stw      901E0008   1     ST4Z      (RCdecoder).low@8.rns5.(gr30,8)=gr0
+   64| 000224 mulld    7C0019D2   1     M         gr0=gr0,gr3
+   64| 000228 stw      901E000C   1     ST4Z      (RCdecoder).range@c.rns7.(gr30,12)=gr0
+   66|                              CL.90:
+   66| 00022C ld       E98100B0   1     L8        gr12=#stack(gr1,176)
+   66| 000230 addi     382100A0   1     AI        gr1=gr1,160
+   66| 000234 ld       EBC1FFF0   1     L8        gr30=#stack(gr1,-16)
+   66| 000238 ld       EBE1FFF8   1     L8        gr31=#stack(gr1,-8)
+   66| 00023C mtspr    7D8803A6   1     LLR       lr=gr12
+   66| 000240 bclr     4E800020   1     BA        lr
+   60|                              CL.105:
+   66| 000244 ld       EBC10090   1     L8        gr30=#stack(gr1,144)
+   66| 000248 addi     382100A0   1     AI        gr1=gr1,160
+   66| 00024C bclr     4E800020   1     BA        lr
+    0|                              CL.101:
+    0| 000250 lwz      80DE0010   1     L4Z       gr6=(RCdecoder).code@10.rns3.(gr30,16)
+    0| 000254 ori      60210000   1     XNOP      
+   55|                              CL.35:
+   36| 000258 ld       E89E0000   1     L8        gr4=(RCdecoder)[]@0.rns4.(gr30,0)
+   35| 00025C rlwinm   54DF402E   1     SLL4      gr31=gr6,8
+   36| 000260 or       7FC3F378   1     LR        gr3=gr30
+   35| 000264 stw      93FE0010   1     ST4Z      (RCdecoder).code@10.rns3.(gr30,16)=gr31
+   36| 000268 ld       E8840010   1     L8        gr4=(unsigned int (*)();__vftTypeGCCV3).rns0.(gr4,16)
+   36| 00026C ld       E8040000   1     L8        gr0=#fnc_adr(gr4,0)
+   36| 000270 ld       E9640010   1     L8        gr11=#new_env(gr4,16)
+   36| 000274 mtspr    7C0903A6   1     LCTR      ctr=gr0
+   36| 000278 ld       E8440008   1     CALL      gr3=gr4,1,(char).rns2.",gr3,#ProcAlias",fcr",#MX_TEMP2",(unsigned int ()vf).rns30.",gr1,cr[01567]",gr0",gr4"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr",#fnc_adr,#cur_toc,ctr,gr11,#new_env,#(glue_dr_n,0,(unsigned int ()vf).rns30."
+   36| 00027C bcctrl   4E800421   1
+   36| 000280 ld       E8410028   1
+   37| 000284 lwz      801E0008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr30,8)
+   58| 000288 lwz      809E000C   1     L4Z       gr4=(RCdecoder).range@c.rns7.(gr30,12)
+   36| 00028C or       7C66FB78   1     O         gr6=gr3,gr31
+   37| 000290 rlwinm   5400402E   1     SLL4      gr0=gr0,8
+   58| 000294 rlwinm   5484402E   1     SLL4      gr4=gr4,8
+   37| 000298 stw      901E0008   1     ST4Z      (RCdecoder).low@8.rns5.(gr30,8)=gr0
+   58| 00029C stw      909E000C   1     ST4Z      (RCdecoder).range@c.rns7.(gr30,12)=gr4
+   55| 0002A0 add      7CA02214   1     A         gr5=gr0,gr4
+   55| 0002A4 xor      7C002A78   1     X         gr0=gr0,gr5
+   55| 0002A8 rlwinm   5400463F   1     SRL4_R    gr0,cr0=gr0,24
+   55| 0002AC bc       4182FFAC   1     BT        CL.35,cr0,0x4/eq,taken=80%(80,20)
+   60| 0002B0 rlwinm   5480843F   1     SRL4_R    gr0,cr0=gr4,16
+   34| 0002B4 or       7CC33378   1     LR        gr3=gr6
+   36| 0002B8 stw      907E0010   1     ST4Z      (RCdecoder).code@10.rns3.(gr30,16)=gr3
+   60| 0002BC bc       4182FEE0   1     BT        CL.100,cr0,0x4/eq,taken=40%(40,60)
+   60| 0002C0 b        4BFFFF6C   1     B         CL.90,-1
+     |               Tag Table
+     | 0002C4        00000000 00092041 80020100 00000000 00000164 00195F5A
+     | 0002DC        4E395243 6465636F 64657239 6E6F726D 616C697A 654576
+     |               Instruction count           89
+     |               Straight-line exec time     89
+ GPR's set/used:   ss-s ssss ssss s---  ---- ---- ---- ---s
+ FPR's set/used:   ssss ssss ssss ss--  ---- ---- ---- ----
+ CCR's set/used:   ss-- -sss
+     | 000000                           PDEF     RCdecoder::decode()
+     | 000000                           AKA       _ZN9RCdecoder6decodeEv
+   10|                                  PROC      this,gr3
+    0| 000300 std      FBE1FFF8   1     ST8       #stack(gr1,-8)=gr31
+    0| 000304 mfspr    7C0802A6   1     LFLR      gr0=lr
+    0| 000308 std      F8010010   1     ST8       #stack(gr1,16)=gr0
+    0| 00030C stdu     F821FF61   1     ST8U      gr1,#stack(gr1,-160)=gr1
+   12| 000310 lwz      80A3000C   1     L4Z       gr5=(RCdecoder).range@c.rns7.(gr3,12)
+   13| 000314 lwz      80030008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr3,8)
+   13| 000318 lwz      80830010   1     L4Z       gr4=(RCdecoder).code@10.rns3.(gr3,16)
+   12| 00031C rlwinm   54A5F87E   1     SRL4      gr5=gr5,1
+   12| 000320 stw      90A3000C   1     ST4Z      (RCdecoder).range@c.rns7.(gr3,12)=gr5
+   13| 000324 add      7C002A14   1     A         gr0=gr0,gr5
+   13| 000328 subf     7CA02050   1     S         gr5=gr4,gr0
+   13| 00032C cmplw    7C040040   1     CL4       cr0=gr4,gr0
+   13| 000330 rldicl   78A40FE0   1     SRL8      gr4=gr5,63
+   13| 000334 xori     689F0001   1     XIL       gr31=gr4,0x1
+   14| 000338 bc       41800008   1     BT        CL.80,cr0,0x8/llt,taken=50%(0,0)
+   15| 00033C stw      90030008   1     ST4Z      (RCdecoder).low@8.rns5.(gr3,8)=gr0
+   15|                              CL.80:
+   16| 000340 bl       4BFFFE21   1     CALL      RCdecoder::normalize(),1,(char).rns2.",gr3,#ProcAlias",RCdecoder::normalize()",fcr",#MX_TEMP3",gr1,cr[01567]",gr0",gr3"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr"
+   16| 000344 ori      60000000   1
+   18| 000348 ld       E98100B0   1     L8        gr12=#stack(gr1,176)
+   18| 00034C addi     382100A0   1     AI        gr1=gr1,160
+   17| 000350 or       7FE3FB78   1     LR        gr3=gr31
+   18| 000354 ld       EBE1FFF8   1     L8        gr31=#stack(gr1,-8)
+   18| 000358 mtspr    7D8803A6   1     LLR       lr=gr12
+   18| 00035C bclr     4E800020   1     BA        lr
+     |               Tag Table
+     | 000360        00000000 00092041 80010100 00000000 00000060 00165F5A
+     | 000378        4E395243 6465636F 64657236 6465636F 64654576
+     |               Instruction count           24
+     |               Straight-line exec time     24
+ GPR's set/used:   ssus ssss ssss s---  ---- ---- ---- --ss
+ FPR's set/used:   ssss ssss ssss ss--  ---- ---- ---- ----
+ CCR's set/used:   ss-- -sss
+     | 000000                           PDEF     RCdecoder::decode(RCmodel *)
+     | 000000                           AKA       _ZN9RCdecoder6decodeEP7RCmodel
+   21|                                  PROC      this,rm,gr3,gr4
+    0| 000390 std      FBE1FFF8   1     ST8       #stack(gr1,-8)=gr31
+    0| 000394 std      FBC1FFF0   1     ST8       #stack(gr1,-16)=gr30
+    0| 000398 mfspr    7C0802A6   1     LFLR      gr0=lr
+    0| 00039C std      F8010010   1     ST8       #stack(gr1,16)=gr0
+    0| 0003A0 stdu     F821FF41   1     ST8U      gr1,#stack(gr1,-192)=gr1
+   23| 0003A4 std      F8410028   1     ST8       #cur_toc(gr1,40)=gr2
+   23| 0003A8 ld       E8A40000   1     L8        gr5=(RCmodel)[]@0.rns17.(gr4,0)
+    0| 0003AC or       7C9F2378   1     LR        gr31=gr4
+    0| 0003B0 or       7C7E1B78   1     LR        gr30=gr3
+   23| 0003B4 addi     3883000C   1     AI        gr4=gr3,12
+   23| 0003B8 or       7FE3FB78   1     LR        gr3=gr31
+   23| 0003BC ld       E8A50020   1     L8        gr5=(unsigned int (*)();__vftTypeGCCV3).rns0.(gr5,32)
+   23| 0003C0 ld       E8050000   1     L8        gr0=#fnc_adr(gr5,0)
+   23| 0003C4 ld       E9650010   1     L8        gr11=#new_env(gr5,16)
+   23| 0003C8 mtspr    7C0903A6   1     LCTR      ctr=gr0
+   23| 0003CC ld       E8450008   1     CALL      gr5,2,(char).rns2.",gr3,(unsigned int).rns12.",gr4,#ProcAlias",fcr",#MX_TEMP4",(void (unsigned int &)vf).rns11.",gr1,cr[01567]",gr0",gr3"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr",#fnc_adr,#cur_toc,ctr,gr11,#new_env,#(glue_dr_n,0,(void (unsigned int &)vf).rns11."
+   23| 0003D0 bcctrl   4E800421   1
+   23| 0003D4 ld       E8410028   1
+   25| 0003D8 lwz      801E0010   1     L4Z       gr0=(RCdecoder).code@10.rns3.(gr30,16)
+   25| 0003DC lwz      80FE0008   1     L4Z       gr7=(RCdecoder).low@8.rns5.(gr30,8)
+   25| 0003E0 lwz      811E000C   1     L4Z       gr8=(RCdecoder).range@c.rns7.(gr30,12)
+   25| 0003E4 ld       E8DF0000   1     L8        gr6=(RCmodel)[]@0.rns17.(gr31,0)
+   25| 0003E8 addi     38810080   1     AI        gr4=gr1,128
+   25| 0003EC addi     38A10084   1     AI        gr5=gr1,132
+   25| 0003F0 or       7FE3FB78   1     LR        gr3=gr31
+   25| 0003F4 subf     7C070050   1     S         gr0=gr0,gr7
+   25| 0003F8 divwu    7C004396   1     DIVWU     gr0=gr0,gr8
+   25| 0003FC ld       E8C60018   1     L8        gr6=(unsigned int (*)();__vftTypeGCCV3).rns0.(gr6,24)
+   25| 000400 stw      90010080   1     ST4Z      l(gr1,128)=gr0
+   25| 000404 ld       E8060000   1     L8        gr0=#fnc_adr(gr6,0)
+   25| 000408 ld       E9660010   1     L8        gr11=#new_env(gr6,16)
+   25| 00040C mtspr    7C0903A6   1     LCTR      ctr=gr0
+   25| 000410 ld       E8460008   1     CALL      gr3=gr6,3,(char).rns2.",gr3,l",gr4,r",gr5,#ProcAlias",fcr",#MX_TEMP4",(unsigned int (unsigned int &, unsigned int &)vf).rns15.",gr1,cr[01567]",gr0",gr4"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr",#fnc_adr,#cur_toc,ctr,gr11,#new_env,#(glue_dr_n,0,(unsigned int (unsigned int &, unsigned int &)vf).rns15."
+   25| 000414 bcctrl   4E800421   1
+   25| 000418 ld       E8410028   1
+   26| 00041C lwz      80010080   1     L4Z       gr0=l(gr1,128)
+   26| 000420 lwz      809E000C   1     L4Z       gr4=(RCdecoder).range@c.rns7.(gr30,12)
+   27| 000424 lwz      80A10084   1     L4Z       gr5=r(gr1,132)
+   26| 000428 lwz      80DE0008   1     L4Z       gr6=(RCdecoder).low@8.rns5.(gr30,8)
+   25| 00042C rlwinm   547F003E   1     RN4       gr31=gr3,0,0xFFFFFFFF
+   28| 000430 or       7FC3F378   1     LR        gr3=gr30
+   26| 000434 mulld    7C0021D2   1     M         gr0=gr0,gr4
+   27| 000438 mulld    7C8429D2   1     M         gr4=gr4,gr5
+   26| 00043C add      7C003214   1     A         gr0=gr0,gr6
+   27| 000440 stw      909E000C   1     ST4Z      (RCdecoder).range@c.rns7.(gr30,12)=gr4
+   26| 000444 stw      901E0008   1     ST4Z      (RCdecoder).low@8.rns5.(gr30,8)=gr0
+   28| 000448 bl       4BFFFD19   1     CALL      RCdecoder::normalize(),1,(char).rns2.",gr3,#ProcAlias",RCdecoder::normalize()",fcr",#MX_TEMP4",gr1,cr[01567]",gr0",gr3"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr"
+   28| 00044C ori      60000000   1
+   30| 000450 ld       E98100D0   1     L8        gr12=#stack(gr1,208)
+   30| 000454 addi     382100C0   1     AI        gr1=gr1,192
+   29| 000458 or       7FE3FB78   1     LR        gr3=gr31
+   30| 00045C ld       EBC1FFF0   1     L8        gr30=#stack(gr1,-16)
+   30| 000460 ld       EBE1FFF8   1     L8        gr31=#stack(gr1,-8)
+   30| 000464 mtspr    7D8803A6   1     LLR       lr=gr12
+   30| 000468 bclr     4E800020   1     BA        lr
+     |               Tag Table
+     | 00046C        00000000 00092041 80020200 00000000 000000DC 001E5F5A
+     | 000484        4E395243 6465636F 64657236 6465636F 64654550 3752436D
+     | 00049C        6F64656C
+     |               Instruction count           55
+     |               Straight-line exec time     54
+ GPR's set/used:   ss-s ssss ssss s---  ---- ---- ---- ---s
+ FPR's set/used:   ssss ssss ssss ss--  ---- ---- ---- ----
+ CCR's set/used:   ss-- -sss
+     | 000000                           PDEF     RCdecoder::decode_shift(unsigned int)
+     | 000000                           AKA       _ZN9RCdecoder12decode_shiftEj
+   33|                                  PROC      this,n,gr3,gr4
+    0| 0004A0 std      FBE1FFF8   1     ST8       #stack(gr1,-8)=gr31
+    0| 0004A4 mfspr    7C0802A6   1     LFLR      gr0=lr
+    0| 0004A8 std      F8010010   1     ST8       #stack(gr1,16)=gr0
+    0| 0004AC stdu     F821FF61   1     ST8U      gr1,#stack(gr1,-160)=gr1
+   35| 0004B0 lwz      80A3000C   1     L4Z       gr5=(RCdecoder).range@c.rns7.(gr3,12)
+   36| 0004B4 lwz      80C30010   1     L4Z       gr6=(RCdecoder).code@10.rns3.(gr3,16)
+   36| 0004B8 lwz      80030008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr3,8)
+   35| 0004BC srw      7CA42430   1     SRL4      gr4=gr5,gr4
+   35| 0004C0 stw      9083000C   1     ST4Z      (RCdecoder).range@c.rns7.(gr3,12)=gr4
+   36| 0004C4 subf     7CA03050   1     S         gr5=gr6,gr0
+   36| 0004C8 divwu    7CA52396   1     DIVWU     gr5=gr5,gr4
+   37| 0004CC mulld    7C8429D2   1     M         gr4=gr4,gr5
+   36| 0004D0 rlwinm   54BF003E   1     RN4       gr31=gr5,0,0xFFFFFFFF
+   37| 0004D4 add      7C002214   1     A         gr0=gr0,gr4
+   37| 0004D8 stw      90030008   1     ST4Z      (RCdecoder).low@8.rns5.(gr3,8)=gr0
+   38| 0004DC bl       4BFFFC85   1     CALL      RCdecoder::normalize(),1,(char).rns2.",gr3,#ProcAlias",RCdecoder::normalize()",fcr",#MX_TEMP5",gr1,cr[01567]",gr0",gr3"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr"
+   38| 0004E0 ori      60000000   1
+   40| 0004E4 ld       E98100B0   1     L8        gr12=#stack(gr1,176)
+   40| 0004E8 addi     382100A0   1     AI        gr1=gr1,160
+   39| 0004EC or       7FE3FB78   1     LR        gr3=gr31
+   40| 0004F0 ld       EBE1FFF8   1     L8        gr31=#stack(gr1,-8)
+   40| 0004F4 mtspr    7D8803A6   1     LLR       lr=gr12
+   40| 0004F8 bclr     4E800020   1     BA        lr
+     |               Tag Table
+     | 0004FC        00000000 00092041 80010200 00000000 0000005C 001D5F5A
+     | 000514        4E395243 6465636F 64657231 32646563 6F64655F 73686966
+     | 00052C        74456A
+     |               Instruction count           23
+     |               Straight-line exec time     22
+ GPR's set/used:   ss-s ssss ssss s---  ---- ---- ---- ---s
+ FPR's set/used:   ssss ssss ssss ss--  ---- ---- ---- ----
+ CCR's set/used:   ss-- -sss
+     | 000000                           PDEF     RCdecoder::decode_ratio(unsigned int)
+     | 000000                           AKA       _ZN9RCdecoder12decode_ratioEj
+   43|                                  PROC      this,n,gr3,gr4
+    0| 000530 std      FBE1FFF8   1     ST8       #stack(gr1,-8)=gr31
+    0| 000534 mfspr    7C0802A6   1     LFLR      gr0=lr
+    0| 000538 std      F8010010   1     ST8       #stack(gr1,16)=gr0
+    0| 00053C stdu     F821FF61   1     ST8U      gr1,#stack(gr1,-160)=gr1
+   45| 000540 lwz      80A3000C   1     L4Z       gr5=(RCdecoder).range@c.rns7.(gr3,12)
+   46| 000544 lwz      80C30010   1     L4Z       gr6=(RCdecoder).code@10.rns3.(gr3,16)
+   46| 000548 lwz      80030008   1     L4Z       gr0=(RCdecoder).low@8.rns5.(gr3,8)
+   45| 00054C divwu    7C852396   1     DIVWU     gr4=gr5,gr4
+   46| 000550 subf     7CA03050   1     S         gr5=gr6,gr0
+   45| 000554 stw      9083000C   1     ST4Z      (RCdecoder).range@c.rns7.(gr3,12)=gr4
+   46| 000558 divwu    7CA52396   1     DIVWU     gr5=gr5,gr4
+   45| 00055C rlwinm   5486003E   1     RN4       gr6=gr4,0,0xFFFFFFFF
+   46| 000560 rlwinm   54BF003E   1     RN4       gr31=gr5,0,0xFFFFFFFF
+   47| 000564 mulld    7C8531D2   1     M         gr4=gr5,gr6
+   47| 000568 add      7C002214   1     A         gr0=gr0,gr4
+   47| 00056C stw      90030008   1     ST4Z      (RCdecoder).low@8.rns5.(gr3,8)=gr0
+   48| 000570 bl       4BFFFBF1   1     CALL      RCdecoder::normalize(),1,(char).rns2.",gr3,#ProcAlias",RCdecoder::normalize()",fcr",#MX_TEMP6",gr1,cr[01567]",gr0",gr3"-gr12",fp0"-fp13",mq",lr",fcr",xer",fsr",ca",ctr"
+   48| 000574 ori      60000000   1
+   50| 000578 ld       E98100B0   1     L8        gr12=#stack(gr1,176)
+   50| 00057C addi     382100A0   1     AI        gr1=gr1,160
+   49| 000580 or       7FE3FB78   1     LR        gr3=gr31
+   50| 000584 ld       EBE1FFF8   1     L8        gr31=#stack(gr1,-8)
+   50| 000588 mtspr    7D8803A6   1     LLR       lr=gr12
+   50| 00058C bclr     4E800020   1     BA        lr
+     |               Tag Table
+     | 000590        00000000 00092041 80010200 00000000 00000060 001D5F5A
+     | 0005A8        4E395243 6465636F 64657231 32646563 6F64655F 72617469
+     | 0005C0        6F456A
+     |               Instruction count           24
+     |               Straight-line exec time     22

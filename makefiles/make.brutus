@@ -1,0 +1,6 @@
+vtk-inc = /cluster/work/infk/cconti/VTK5.8_gcc/include/vtk-5.8/
+vtk-lib = /cluster/work/infk/cconti/VTK5.8_gcc/lib/vtk-5.8/
+fftw-inc = /cluster/work/infk/wvanrees/apps/fftw-3.3.2/include
+fftw-lib = /cluster/work/infk/wvanrees/apps/fftw-3.3.2/lib
+hypre-inc = /cluster/work/infk/cconti/hypre-2.10.0b/src/hypre/include
+hypre-lib = /cluster/work/infk/cconti/hypre-2.10.0b/src/hypre/lib
