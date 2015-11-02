@@ -23,8 +23,8 @@ protected:
 	double rhoS;
 	const int bpd;
 	
-	Real uBody[2], omegaBody;
-	Real gravity[2];
+	Real uBody[3], omegaBody;
+	Real gravity[3];
 	
 	// penalization parameter
 	Real lambda;

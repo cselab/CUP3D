@@ -21,27 +21,32 @@ void TestBoundaryConditions::_ic()
     {
         BlockInfo info = vInfo[i];
         FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        
-        for(int iy=0; iy<FluidBlock::sizeY; iy++)
+		
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+		for(int iy=0; iy<FluidBlock::sizeY; iy++)
             for(int ix=0; ix<FluidBlock::sizeX; ix++)
             {
                 double p[3];
-                info.pos(p, ix, iy);
-                p[0] = p[0]*2.-1.;
-                p[1] = p[1]*2.-1.;
-                
+                info.pos(p, ix, iy, iz);
+				p[0] = p[0]*2.-1.;
+				p[1] = p[1]*2.-1.;
+				p[2] = p[2]*2.-1.;
+				
                 // this is a test for:
                 //	0-dirichlet on x=0
                 //	0-neumann on x=1
                 
                 const int size = 1/dh;
-                const int bx = info.index[0]*FluidBlock::sizeX;
-                const int by = info.index[1]*FluidBlock::sizeY;
-                p[0] = (bx+ix+.5)/(double)size;
-                p[1] = (by+iy+.5)/(double)size;
+				const int bx = info.index[0]*FluidBlock::sizeX;
+				const int by = info.index[1]*FluidBlock::sizeY;
+				const int bz = info.index[2]*FluidBlock::sizeZ;
+				p[0] = (bx+ix+.5)/(double)size;
+				p[1] = (by+iy+.5)/(double)size;
+				p[2] = (bz+iz+.5)/(double)size;
                 double x = 4*p[0]*M_PI;
-                double y = 3*p[1]*M_PI_2;
-                b(ix,iy).divU = cos(y)*sin(x);
+				double y = 3*p[1]*M_PI_2;
+				double z = 4*p[2]*M_PI;
+                b(ix,iy).divU = cos(y)*sin(x)*sin(z);
             }
     }
     
@@ -58,7 +63,7 @@ TestBoundaryConditions::TestBoundaryConditions(const int argc, const char ** arg
     path2file = parser("-file").asString("../data/testBC");
     offset = parser("-offset").asInt(2);
     
-    grid = new FluidGrid(2,2,1);
+    grid = new FluidGrid(2,2,2);
     
     // setup initial condition
     _ic();
@@ -75,10 +80,10 @@ void TestBoundaryConditions::run()
     BlockInfo * ary = &vInfo.front();
     const int N = vInfo.size();
     
-    const int stencil_start[3] = {-offset  ,-offset  , 0};
-    const int stencil_end[3]   = { offset+1, offset+1, 1};
+    const int stencil_start[3] = {-offset  ,-offset  ,-offset};
+    const int stencil_end[3]   = { offset+1, offset+1, offset+1};
     
-    // 4 channels: N,S,W,E
+    // 6 channels: N,S,W,E,F,B
     
 #pragma omp parallel
     {
@@ -94,14 +99,17 @@ void TestBoundaryConditions::run()
             FluidBlock& b = *(FluidBlock*)info.ptrBlock;
             
             const double inv2h = info.h_gridpoint;
-            
-            for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
                 {
-                    b(ix,iy).u   = lab(ix       ,iy-offset).divU; // N
-                    b(ix,iy).v   = lab(ix       ,iy+offset).divU; // S
-                    b(ix,iy).p   = lab(ix+offset,iy       ).divU; // W
-                    b(ix,iy).chi = lab(ix-offset,iy       ).divU; // E
+					b(ix,iy).u   = lab(ix       ,iy-offset,iz       ).divU; // N
+					b(ix,iy).v   = lab(ix       ,iy+offset,iz       ).divU; // S
+					b(ix,iy).p   = lab(ix+offset,iy       ,iz       ).divU; // W
+					b(ix,iy).chi = lab(ix-offset,iy       ,iz       ).divU; // E
+					b(ix,iy).w   = lab(ix       ,iy       ,iz-offset).divU; // F
+					b(ix,iy).rho = lab(ix       ,iy       ,iz+offset).divU; // B
                 }
         }
     }

@@ -30,7 +30,7 @@ protected:
 	FluidGrid * grid;
 	
 	void _ic();
-	void _analytical(Real x, Real y, double t, Real &u, Real &v, Real &p);
+	void _analytical(Real x, Real y, Real z, double t, Real &u, Real &v, Real &w, Real &p);
 	
 public:
 	TestPoiseuille(const int argc, const char ** argv, const int bpd);

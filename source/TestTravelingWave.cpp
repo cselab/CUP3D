@@ -14,14 +14,16 @@
 #include "CoordinatorDiffusion.h"
 #include "CoordinatorPressure.h"
 
-void TestTravelingWave::_analytical(Real x, Real y, double t, Real &u, Real &v, Real &p)
+void TestTravelingWave::_analytical(Real x, Real y, Real z, double t, Real &u, Real &v, Real &w, Real &p)
 {
 	const Real fx = 2*M_PI*(x-t);
 	const Real fy = 2*M_PI*(y-t);
+	const Real fz = 0;
 	const Real ft = -8*M_PI*M_PI*nu*t;
 	
 	u = 1 + 2 * cos(fx) * sin(fy) * exp(ft);
 	v = 1 - 2 * sin(fx) * cos(fy) * exp(ft);
+	w = 0;
 	p = -(cos(2*fx) + cos(2*fy)) * exp(2*ft);
 }
 
@@ -37,28 +39,31 @@ void TestTravelingWave::_ic()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 			{
-				Real p[2];
-				info.pos(p, ix, iy);
+				Real p[3];
+				info.pos(p, ix, iy, iz);
 				
-				b(ix,iy).rho = 1.;
+				b(ix,iy,iz).rho = 1.;
 				
-				Real velU, velV, pressure;
-				_analytical(p[0], p[1], 0, velU, velV, pressure);
+				Real velU, velV, velW, pressure;
+				_analytical(p[0], p[1], p[1], 0, velU, velV, velW, pressure);
 				
-				b(ix,iy).u = velU;
-				b(ix,iy).v = velV;
-				b(ix,iy).p = pressure;
+				b(ix,iy,iz).u = velU;
+				b(ix,iy,iz).v = velV;
+				b(ix,iy,iz).w = velW;
+				b(ix,iy,iz).p = pressure;
 				
-				b(ix,iy).chi = 0;
-				b(ix,iy).divU = 0;
-				b(ix,iy).pOld = 0;
+				b(ix,iy,iz).chi = 0;
+				b(ix,iy,iz).divU = 0;
+				b(ix,iy,iz).pOld = 0;
 				
-				b(ix,iy).tmpU = 0;
-				b(ix,iy).tmpV = 0;
-				b(ix,iy).tmp  = 0;
+				b(ix,iy,iz).tmpU = 0;
+				b(ix,iy,iz).tmpV = 0;
+				b(ix,iy,iz).tmpW = 0;
+				b(ix,iy,iz).tmp  = 0;
 			}
 	}
 	
@@ -77,7 +82,7 @@ TestTravelingWave::TestTravelingWave(const int argc, const char ** argv, const i
 	// output settings
 	path2file = parser("-file").asString("../data/testTravelingWave");
 	
-	grid = new FluidGrid(bpd,bpd,1);
+	grid = new FluidGrid(bpd,bpd,bpd);
 	
 #ifdef _MULTIGRID_
 	if (rank==0)
@@ -95,7 +100,7 @@ TestTravelingWave::TestTravelingWave(const int argc, const char ** argv, const i
 	pipeline.push_back(new CoordinatorPressureSimple<Lab>(grid)); // need to also test with Hypre!
 #else
 	bool bSplit = false;
-	Real g[2] = {0,0};
+	Real g[3] = {0,0,0};
 	pipeline.push_back(new CoordinatorPressure<Lab>(1, g, &step, bSplit, grid, rank, nprocs));
 #endif
 }
@@ -209,18 +214,19 @@ void TestTravelingWave::check()
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
+			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 			for(int iy=0; iy<FluidBlock::sizeY; iy++)
 				for(int ix=0; ix<FluidBlock::sizeX; ix++)
 				{
 					double p[3];
-					info.pos(p, ix, iy);
+					info.pos(p, ix, iy, iz);
 					
-					Real velU, velV, pressure;
-					_analytical(p[0], p[1], time, velU, velV, pressure);
+					Real velU, velV, velW, pressure;
+					_analytical(p[0], p[1], p[2], time, velU, velV, velW, pressure);
 					
-					double errorU = b(ix, iy).u - velU;
-					double errorV = b(ix, iy).v - velV;
-					double errorP = b(ix, iy).p - pressure;
+					double errorU = b(ix, iy, iz).u - velU;
+					double errorV = b(ix, iy, iz).v - velV;
+					double errorP = b(ix, iy, iz).p - pressure;
 					
 					Linf_u = max(Linf_u,abs(errorU));
 					L1_u += abs(errorU);
@@ -236,12 +242,12 @@ void TestTravelingWave::check()
 				}
 		}
 		
-		L2_u = sqrt(L2_u)/(double)size;
-		L2_v = sqrt(L2_v)/(double)size;
+		L2_u = sqrt(L2_u)/(double)size*size;
+		L2_v = sqrt(L2_v)/(double)size*size;
 		L2_p = sqrt(L2_p)/(double)size;
-		L1_u /= (double)size*size;
-		L1_v /= (double)size*size;
-		L1_p /= (double)size*size;
+		L1_u /= (double)size*size*size;
+		L1_v /= (double)size*size*size;
+		L1_p /= (double)size*size*size;
 		
 		stringstream ss;
 		ss << path2file << "_diagnostics.dat";

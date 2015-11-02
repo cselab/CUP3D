@@ -17,19 +17,23 @@
 #define _THIN_
 #define _VARDENSITY_
 
-void TestShearLayer::_getRefs(const int ix, const int iy, const int ratio, Real &u, Real &v)
+void TestShearLayer::_getRefs(const int ix, const int iy, const int iz, const int ratio, Real &u, Real &v, Real &w)
 {
 	const int ixRef = ix * ratio;
 	const int iyRef = iy * ratio;
+	const int izRef = iz * ratio;
 	
 	const int ilx = ixRef % FluidBlock::sizeX;
 	const int ily = iyRef % FluidBlock::sizeY;
+	const int ilz = izRef % FluidBlock::sizeZ;
 	const int bx = (ixRef-ilx) / FluidBlock::sizeX;
 	const int by = (iyRef-ily) / FluidBlock::sizeY;
+	const int bz = (izRef-ilz) / FluidBlock::sizeZ;
 	
-	FluidBlock& b = (*gridRef)(bx,by);
+	FluidBlock& b = (*gridRef)(bx,by,bz);
 	u = b(ilx,ily).u;
 	v = b(ilx,ily).v;
+	w = b(ilx,ily).w;
 }
 
 void TestShearLayer::_ic()
@@ -51,31 +55,34 @@ void TestShearLayer::_ic()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 			{
-				Real p[2];
-				info.pos(p, ix, iy);
+				Real p[3];
+				info.pos(p, ix, iy, iz);
 				
 #ifndef _VARDENSITY_
-				b(ix,iy).rho = 1;
+				b(ix,iy,iz).rho = 1;
 #else
 				const double rhoS = 7.2314;
 				const double rescale = (rhoS-1)*.5;
-				b(ix,iy).rho = p[1]<.5 ? 1 + rescale * (1 + tanh(r * (p[1]-.25))) : 1 + rescale * (1 + tanh(r * (.75 - p[1])));
+				b(ix,iy,iz).rho = p[1]<.5 ? 1 + rescale * (1 + tanh(r * (p[1]-.25))) : 1 + rescale * (1 + tanh(r * (.75 - p[1])));
 #endif
 				
-				b(ix,iy).u = p[1]<.5 ? tanh(r * (p[1]-.25)) : tanh(r * (.75 - p[1]));
-				b(ix,iy).v = delta * sin(2*M_PI*(p[0]+.25));
-				b(ix,iy).p = 0;
+				b(ix,iy,iz).u = p[1]<.5 ? tanh(r * (p[1]-.25)) : tanh(r * (.75 - p[1]));
+				b(ix,iy,iz).v = delta * sin(2*M_PI*(p[0]+.25));
+				b(ix,iy,iz).w = 0;
+				b(ix,iy,iz).p = 0;
 				
-				b(ix,iy).chi = 0;
-				b(ix,iy).divU = 0;
-				b(ix,iy).pOld = 0;
+				b(ix,iy,iz).chi = 0;
+				b(ix,iy,iz).divU = 0;
+				b(ix,iy,iz).pOld = 0;
 				
-				b(ix,iy).tmpU = 0;
-				b(ix,iy).tmpV = 0;
-				b(ix,iy).tmp  = 0;
+				b(ix,iy,iz).tmpU = 0;
+				b(ix,iy,iz).tmpV = 0;
+				b(ix,iy,iz).tmpW = 0;
+				b(ix,iy,iz).tmp  = 0;
 			}
 	}
 	
@@ -94,31 +101,34 @@ void TestShearLayer::_ic()
 		BlockInfo infoRef = vInfoRef[i];
 		FluidBlock& b = *(FluidBlock*)infoRef.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 			{
-				Real p[2];
-				infoRef.pos(p, ix, iy);
+				Real p[3];
+				infoRef.pos(p, ix, iy, iz);
 				
 				
 #ifndef _VARDENSITY_
-				b(ix,iy).rho = 1;
+				b(ix,iy,iz).rho = 1;
 #else
 				const double rescale = (rhoS-1)*.5;
-				b(ix,iy).rho = p[1]<.5 ? 1 + rescale * (1 + tanh(r * (p[1]-.25))) : 1 + rescale * (1 + tanh(r * (.75 - p[1])));
+				b(ix,iy,iz).rho = p[1]<.5 ? 1 + rescale * (1 + tanh(r * (p[1]-.25))) : 1 + rescale * (1 + tanh(r * (.75 - p[1])));
 #endif
 				
-				b(ix,iy).u = p[1]<.5 ? tanh(r * (p[1]-.25)) : tanh(r * (.75 - p[1]));
-				b(ix,iy).v = delta * sin(2*M_PI*(p[0]+.25));
-				b(ix,iy).p = 0;
+				b(ix,iy,iz).u = p[1]<.5 ? tanh(r * (p[1]-.25)) : tanh(r * (.75 - p[1]));
+				b(ix,iy,iz).v = delta * sin(2*M_PI*(p[0]+.25));
+				b(ix,iy,iz).w = 0;
+				b(ix,iy,iz).p = 0;
 				
-				b(ix,iy).chi = 0;
-				b(ix,iy).divU = 0;
-				b(ix,iy).pOld = 0;
+				b(ix,iy,iz).chi = 0;
+				b(ix,iy,iz).divU = 0;
+				b(ix,iy,iz).pOld = 0;
 				
-				b(ix,iy).tmpU = 0;
-				b(ix,iy).tmpV = 0;
-				b(ix,iy).tmp  = 0;
+				b(ix,iy,iz).tmpU = 0;
+				b(ix,iy,iz).tmpV = 0;
+				b(ix,iy,iz).tmpW = 0;
+				b(ix,iy,iz).tmp  = 0;
 			}
 	}
 	
@@ -147,8 +157,8 @@ endTime(1.5)
 	// output settings
 	path2file = parser("-file").asString("../data/testShearLayer");
 	
-	grid = new FluidGrid(bpd,bpd,1);
-	gridRef = new FluidGrid(bpdRef,bpdRef,1);
+	grid = new FluidGrid(bpd,bpd,bpd);
+	gridRef = new FluidGrid(bpdRef,bpdRef,bpdRef);
 	
 	_ic();
 	
@@ -166,7 +176,7 @@ endTime(1.5)
 #ifndef _VARDENSITY_
 	pipeline.push_back(new CoordinatorPressureSimple<Lab>(grid)); // need to also test with Hypre!
 #else
-	Real g[2] = {0,0};
+	Real g[3] = {0,0,0};
 	bool bSplit = false;
 	const double minRho = min(1.,rhoS);
 	pipeline.push_back(new CoordinatorPressure<Lab>(minRho, g, &step, bSplit, grid, rank, nprocs));
@@ -309,17 +319,19 @@ void TestShearLayer::check()
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
+			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 			for(int iy=0; iy<FluidBlock::sizeY; iy++)
 				for(int ix=0; ix<FluidBlock::sizeX; ix++)
 				{
 					double p[3];
-					info.pos(p, ix, iy);
+					info.pos(p, ix, iy, iz);
 					
-					Real refU, refV;
-					_getRefs(ix+info.index[0]*FluidBlock::sizeX,iy+info.index[1]*FluidBlock::sizeY,resRatio,refU,refV);
+					Real refU, refV, refW;
+					_getRefs(ix+info.index[0]*FluidBlock::sizeX,iy+info.index[1]*FluidBlock::sizeY,iz+info.index[2]*FluidBlock::sizeZ,resRatio,refU,refV,refW);
 					
 					double errorU = b(ix, iy).u - refU;
 					double errorV = b(ix, iy).v - refV;
+					double errorW = b(ix, iy).w - refW;
 					
 					Linf_u = max(Linf_u,abs(errorU));
 					L1_u += abs(errorU);
@@ -331,10 +343,10 @@ void TestShearLayer::check()
 				}
 		}
 		
-		L2_u = sqrt(L2_u)/(double)size;
-		L2_v = sqrt(L2_v)/(double)size;
-		L1_u /= (double)size*size;
-		L1_v /= (double)size*size;
+		L2_u = sqrt(L2_u)/(double)size*size;
+		L2_v = sqrt(L2_v)/(double)size*size;
+		L1_u /= (double)size*size*size;
+		L1_v /= (double)size*size*size;
 		
 		stringstream ss;
 		ss << path2file << "_diagnostics.dat";

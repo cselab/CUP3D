@@ -16,18 +16,19 @@
 
 void TestRotation::_ic()
 {
-	Real center[2] = {.5,.5};
-	Real semiAxis[2] = {.05,.4};
+	Real center[3] = {.5,.5,.5};
+	Real semiAxis[3] = {.05,.4,.2};
 	vector<BlockInfo> vInfo = grid->getBlocksInfo();
-    bool bPeriodic[2] = {false,false};
+    bool bPeriodic[3] = {false,false,false};
     
-    const Real domainSize[2] = { FluidBlock::sizeX * grid->getBlocksPerDimension(0) * vInfo[0].h_gridpoint,
-        FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint};
+	const Real domainSize[3] = { FluidBlock::sizeX * grid->getBlocksPerDimension(0) * vInfo[0].h_gridpoint,
+								 FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint,
+								 FluidBlock::sizeZ * grid->getBlocksPerDimension(2) * vInfo[0].h_gridpoint};
 	
 	const Real moll = 2;
 	const Real rho = 2;
 	const Real angle = M_PI/4.;
-	shape = new Ellipse(center, semiAxis, angle, rho, moll, moll, bPeriodic, domainSize);
+	shape = new Ellipsoid(center, semiAxis, angle, rho, moll, moll, bPeriodic, domainSize);
 
 	const double dh = vInfo[0].h_gridpoint;
 	
@@ -37,34 +38,36 @@ void TestRotation::_ic()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 		for(int ix=0; ix<FluidBlock::sizeX; ix++)
 		{
-			Real p[2];
-			info.pos(p, ix, iy);
+			Real p[3];
+			info.pos(p, ix, iy, iz);
 			
-			const Real dist[2] = {p[0]-center[0],p[1]-center[1]};
+			const Real dist[3] = {p[0]-center[0],p[1]-center[1],p[2]-center[2]};
 			
 			// this is for testCase==1, no effect on testCase==0
-			b(ix,iy).u = -dist[1] * M_PI / 50;
-			b(ix,iy).v =  dist[0] * M_PI / 50;
+			b(ix,iy,iz).u = -dist[1] * M_PI / 50;
+			b(ix,iy,iz).v =  dist[0] * M_PI / 50;
+			b(ix,iy,iz).w = 0;
 			
-			b(ix,iy).chi = shape->chi(p, info.h_gridpoint);
+			b(ix,iy,iz).chi = shape->chi(p, info.h_gridpoint);
 			
 			// assume fluid with density 1
-			b(ix,iy).rho = shape->rho(p, info.h_gridpoint);
+			b(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint);
 			
 			// this is for testing purposes only! do it the clean way!!
-			b(ix,iy).p = 0;
-			b(ix,iy).divU = 0;
-			b(ix,iy).pOld = 0;
+			b(ix,iy,iz).p = 0;
+			b(ix,iy,iz).divU = 0;
+			b(ix,iy,iz).pOld = 0;
 		}
 	}
 }
 
 TestRotation::TestRotation(const int argc, const char ** argv, const int testCase, const int bpd, const double dt) : Test(argc,argv), testCase(testCase), bpd(bpd), dt(dt)
 {
-	grid = new FluidGrid(bpd,bpd,1);
+	grid = new FluidGrid(bpd,bpd,bpd);
 	
 	path2file = parser("-file").asString("../data/testRotation");
 	_ic();
@@ -80,12 +83,13 @@ void TestRotation::run()
 {
 	const int sizeX = bpd * FluidBlock::sizeX;
 	const int sizeY = bpd * FluidBlock::sizeY;
+	const int sizeZ = bpd * FluidBlock::sizeZ;
 	
-	Real u[2] = {0,0};
+	Real u[3] = {0,0,0};
 	Real omega = 0;
 	Real lambda = 1;
-	CoordinatorComputeShape coordComputeShape(&u[0], &u[1], &omega, shape, grid);
-	CoordinatorBodyVelocities coordBodyVelocities(&u[0], &u[1], &omega, &lambda, shape->getRhoS(), grid);
+	CoordinatorComputeShape coordComputeShape(&u[0], &u[1], &u[2], &omega, shape, grid);
+	CoordinatorBodyVelocities coordBodyVelocities(&u[0], &u[1], &u[2], &omega, &lambda, shape->getRhoS(), grid);
 	
 	for (int step=0; step<100; step++)
 	{
@@ -108,7 +112,7 @@ void TestRotation::run()
 			
 			dumper.Write(*grid, ss.str());
 			
-			Layer vorticity(sizeX,sizeY,1);
+			Layer vorticity(sizeX,sizeY,sizeZ);
 			processOMP<Lab, OperatorVorticity>(vorticity,vInfo,*grid);
 			stringstream sVort;
 			sVort << path2file << "Vorticity-" << bpd << "-" << step << ".vti";

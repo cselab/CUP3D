@@ -19,7 +19,7 @@ class TestTranslation : public Test
 {
 private:
 	int bpd;
-	Real uBody[2];
+	Real uBody[3];
 	Shape * shape;
 	const int testCase; // 0: forced, 1: from flow
 	double dt;

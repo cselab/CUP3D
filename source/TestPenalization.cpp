@@ -24,7 +24,7 @@ void TestPenalization::_ic()
 								 FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint,
 								 FluidBlock::sizeZ * grid->getBlocksPerDimension(2) * vInfo[0].h_gridpoint};
 	
-	shape = new Disk(center, radius, (Real).1, (Real)2, (Real)2, bPeriodic, domainSize);
+	shape = new Sphere(center, radius, (Real).1, (Real)2, (Real)2, bPeriodic, domainSize);
 	
 	CoordinatorIC coordIC(shape,1.,grid);
 	coordIC(0);
