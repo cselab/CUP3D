@@ -20,8 +20,8 @@ double findMaxAOMP(vector<BlockInfo>& myInfo, FluidGrid & grid)
 	BlockInfo * ary = &myInfo.front();
 	const int N = myInfo.size();
 	
-	const int stencil_start[3] = {-1,-1, 0};
-	const int stencil_end[3]   = { 2, 2, 1};
+	const int stencil_start[3] = {-1,-1,-1};
+	const int stencil_end[3]   = { 2, 2, 2};
 	
 #pragma omp parallel
 	{
@@ -38,15 +38,26 @@ double findMaxAOMP(vector<BlockInfo>& myInfo, FluidGrid & grid)
 			
 			const double inv2h = info.h_gridpoint;
 			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 				{
-					double dudx = (lab(ix+1,iy  ).u-lab(ix-1,iy  ).u) * inv2h;
-					double dudy = (lab(ix  ,iy+1).u-lab(ix  ,iy-1).u) * inv2h;
-					double dvdx = (lab(ix+1,iy  ).v-lab(ix-1,iy  ).v) * inv2h;
-					double dvdy = (lab(ix  ,iy+1).v-lab(ix  ,iy-1).v) * inv2h;
+					double dudx = (lab(ix+1,iy  ,iz  ).u-lab(ix-1,iy  ,iz  ).u) * inv2h;
+					double dudy = (lab(ix  ,iy+1,iz  ).u-lab(ix  ,iy-1,iz  ).u) * inv2h;
+					double dudz = (lab(ix  ,iy  ,iz+1).u-lab(ix  ,iy  ,iz-1).u) * inv2h;
 					
-					maxA = max(max(dudx,dudy),max(dvdx,dvdy));
+					double dvdx = (lab(ix+1,iy  ,iz  ).v-lab(ix-1,iy  ,iz  ).v) * inv2h;
+					double dvdy = (lab(ix  ,iy+1,iz  ).v-lab(ix  ,iy-1,iz  ).v) * inv2h;
+					double dvdz = (lab(ix  ,iy  ,iz+1).v-lab(ix  ,iy  ,iz-1).v) * inv2h;
+					
+					double dwdx = (lab(ix+1,iy  ,iz  ).v-lab(ix-1,iy  ,iz  ).v) * inv2h;
+					double dwdy = (lab(ix  ,iy+1,iz  ).v-lab(ix  ,iy-1,iz  ).v) * inv2h;
+					double dwdz = (lab(ix  ,iy  ,iz+1).v-lab(ix  ,iy  ,iz-1).v) * inv2h;
+					
+					maxA = max(max(max(dudx,dudy),
+							       max(dvdx,dvdy)),
+							   max(max(dudz,dvdz),
+								   max(max(dwdx,dwdy),dwdz)));
 				}
 		}
 	}
@@ -127,5 +138,5 @@ void processOMP(Layer& outputField, const Real rho0, const Real dt, const int st
 }
 
 double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGrid & grid);
-void computeForcesFromVorticity(vector<BlockInfo>& myInfo, FluidGrid & grid, Real ub[2], Real oldAccVort[2], Real rhoS);
+void computeForcesFromVorticity(vector<BlockInfo>& myInfo, FluidGrid & grid, Real ub[3], Real oldAccVort[3], Real rhoS);
 #endif

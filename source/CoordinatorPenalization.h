@@ -33,9 +33,9 @@ public:
 		
 #pragma omp parallel
 		{
-			Real com[2];
+			Real com[3];
 			shape->getPosition(com);
-			OperatorPenalization kernel(dt, 0, 0, 0, com[0], com[1], *lambda);
+			OperatorPenalization kernel(dt, 0, 0, 0, com[0], com[1], com[2], *lambda);
 			
 #pragma omp for schedule(static)
 			for(int i=0; i<N; i++)
@@ -54,12 +54,12 @@ public:
 class CoordinatorPenalization : public GenericCoordinator
 {
 protected:
-	Real *uBody, *vBody, *omegaBody;
+	Real *uBody, *vBody, *wBody, *omegaBody;
 	Shape * shape;
 	Real * lambda;
 	
 public:
-	CoordinatorPenalization(Real * uBody, Real * vBody, Real * omegaBody, Shape * shape, Real * lambda, FluidGrid * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), omegaBody(omegaBody), shape(shape), lambda(lambda)
+	CoordinatorPenalization(Real * uBody, Real * vBody, Real * wBody, Real * omegaBody, Shape * shape, Real * lambda, FluidGrid * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), omegaBody(omegaBody), shape(shape), lambda(lambda)
 	{
 	}
 	
@@ -72,9 +72,9 @@ public:
 		
 #pragma omp parallel
 		{
-			Real com[2];
+			Real com[3];
 			shape->getPosition(com);
-			OperatorPenalization kernel(dt, *uBody, *vBody, *omegaBody, com[0], com[1], *lambda);
+			OperatorPenalization kernel(dt, *uBody, *vBody, *wBody, *omegaBody, com[0], com[1], *lambda);
 			
 #pragma omp for schedule(static)
 			for(int i=0; i<N; i++)

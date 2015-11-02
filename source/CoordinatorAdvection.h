@@ -17,7 +17,7 @@ template <typename Lab>
 class CoordinatorAdvection : public GenericCoordinator
 {
 protected:
-    Real *uBody, *vBody;
+    Real *uBody, *vBody, *wBody;
 #ifdef _MULTIPHASE_
 	Real rhoS;
 #endif
@@ -32,13 +32,15 @@ protected:
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 				{
-					b(ix,iy).tmpU = 0;
-					b(ix,iy).tmpV = 0;
+					b(ix,iy,iz).tmpU = 0;
+					b(ix,iy,iz).tmpV = 0;
+					b(ix,iy,iz).tmpW = 0;
 #ifdef _MULTIPHASE_
-					b(ix,iy).tmp = 0;
+					b(ix,iy,iz).tmp = 0;
 #endif // _MULTIPHASE_
 				}
 		}
@@ -54,23 +56,24 @@ protected:
 				BlockInfo info = vInfo[i];
 				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 				
+				for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 					{
-						b(ix,iy).u = b(ix,iy).tmpU;
-						b(ix,iy).v = b(ix,iy).tmpV;
+						b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
+						b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
 #ifdef _MULTIPHASE_
 						//b(ix,iy).chi = b(ix,iy).tmp;
 						//b(ix,iy).rho = b(ix,iy).chi * rhoS + (1-b(ix,iy).chi);
 						
 						// threshold density
 #ifdef _PARTICLES_
-						Real density = min(max(b(ix,iy).tmp,min((Real)1.,rhoS)),max((Real)1.,rhoS));
-						b(ix,iy).rho = density;
+						Real density = min(max(b(ix,iy,iz).tmp,min((Real)1.,rhoS)),max((Real)1.,rhoS));
+						b(ix,iy,iz).rho = density;
 #else // _PARTICLES_
 						//b(ix,iy).rho = b(ix,iy).tmp;
-						Real density = min(max(b(ix,iy).tmp,min((Real)1.,rhoS)),max((Real)1.,rhoS));
-						b(ix,iy).rho = density;
+						Real density = min(max(b(ix,iy,iz).tmp,min((Real)1.,rhoS)),max((Real)1.,rhoS));
+						b(ix,iy,iz).rho = density;
 #endif // _PARTICLES_
 #endif // _MULTIPHASE_
 					}
@@ -85,13 +88,14 @@ protected:
 #pragma omp parallel
 		{
 #ifndef _PARTICLES_
-			OperatorAdvectionUpwind3rdOrder kernel(dt,uBody,vBody,0);
+			OperatorAdvectionUpwind3rdOrder kernel(dt,uBody,vBody,wBody,0);
 			//OperatorAdvectionFD kernel(dt);
 			
             Lab mylab;
 #ifdef _MOVING_FRAME_
-            mylab.pDirichlet.u = 0;
-            mylab.pDirichlet.v = *vBody;
+			mylab.pDirichlet.u = 0;
+			mylab.pDirichlet.v = *vBody;
+			mylab.pDirichlet.w = 0;
 #endif
 			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
 #else // _PARTICLES_
@@ -102,8 +106,9 @@ protected:
 			
             Lab mylab;
 #ifdef _MOVING_FRAME_
-            mylab.pDirichlet.u = 0;
-            mylab.pDirichlet.v = *vBody;
+			mylab.pDirichlet.u = 0;
+			mylab.pDirichlet.v = *vBody;
+			mylab.pDirichlet.w = 0;
 #endif
 			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, true);
 #endif // _PARTICLES_
@@ -122,13 +127,14 @@ protected:
 #pragma omp parallel
 		{
 			// this is wrong - using -u instead of u?
-			OperatorAdvectionUpwind3rdOrder kernel(dt,uBody,vBody,1);
+			OperatorAdvectionUpwind3rdOrder kernel(dt,uBody,vBody,wBody,1);
 			//OperatorAdvectionFD kernel(dt);
 			
             Lab mylab;
 #ifdef _MOVING_FRAME_
             mylab.pDirichlet.u = 0;
-            mylab.pDirichlet.v = *vBody;
+			mylab.pDirichlet.v = *vBody;
+			mylab.pDirichlet.w = 0;
 #endif
 			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
 			
@@ -146,9 +152,9 @@ protected:
 	
 public:
 #ifndef _MULTIPHASE_
-    CoordinatorAdvection(Real * uBody, Real * vBody, FluidGrid * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody)
+    CoordinatorAdvection(Real * uBody, Real * vBody, Real * wBody, FluidGrid * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody)
 #else
-    CoordinatorAdvection(Real * uBody, Real * vBody, FluidGrid * grid, Real rhoS) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), rhoS(rhoS)
+    CoordinatorAdvection(Real * uBody, Real * vBody, Real * wBody, FluidGrid * grid, Real rhoS) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), rhoS(rhoS)
 #endif
     {
     }
@@ -156,7 +162,7 @@ public:
 #ifndef _MULTIPHASE_
     CoordinatorAdvection(FluidGrid * grid) : GenericCoordinator(grid), uBody(NULL), vBody(NULL)
 #else
-    CoordinatorAdvection(FluidGrid * grid, Real rhoS) : GenericCoordinator(grid), uBody(NULL), vBody(NULL), rhoS(rhoS)
+    CoordinatorAdvection(FluidGrid * grid, Real rhoS) : GenericCoordinator(grid), uBody(NULL), vBody(NULL), wBody(NULL), rhoS(rhoS)
 #endif
     {
     }
@@ -191,10 +197,11 @@ protected:
         {
             BlockInfo info = vInfo[i];
             FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-            
-            for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-                    b(ix,iy).tmp = 0;
+                    b(ix,iy,iz).tmp = 0;
         }
     };
     
@@ -207,10 +214,11 @@ protected:
         {
             BlockInfo info = vInfo[i];
             FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-            
-            for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-                    b(ix,iy).rho = b(ix,iy).tmp;
+                    b(ix,iy,iz).rho = b(ix,iy,iz).tmp;
         }
     }
     
@@ -286,7 +294,7 @@ class CoordinatorTransportTimeTest : public GenericCoordinator
 protected:
     double time;
     
-    double _analyticalRHS(double px, double py, double t)
+    double _analyticalRHS(double px, double py, double pz, double t)
     {
         return 8 * M_PI * cos((px+t) * 8. * M_PI);
     }
@@ -300,10 +308,11 @@ protected:
         {
             BlockInfo info = vInfo[i];
             FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-            
-            for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-                    b(ix,iy).tmp = 0;
+                    b(ix,iy,iz).tmp = 0;
         }
     };
     
@@ -316,10 +325,11 @@ protected:
         {
             BlockInfo info = vInfo[i];
             FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-            
-            for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-                    b(ix,iy).rho = b(ix,iy).tmp;
+                    b(ix,iy,iz).rho = b(ix,iy,iz).tmp;
         }
     }
     

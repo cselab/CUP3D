@@ -15,10 +15,10 @@
 class CoordinatorPressureGradient : public GenericCoordinator
 {
 protected:
-	Real gradient[2];
+	Real gradient[3];
 	
 public:
-	CoordinatorPressureGradient(Real gradient[2], FluidGrid * grid) : GenericCoordinator(grid), gradient{gradient[0],gradient[1]}
+	CoordinatorPressureGradient(Real gradient[3], FluidGrid * grid) : GenericCoordinator(grid), gradient{gradient[0],gradient[1],gradient[2]}
 	{
 	}
 	

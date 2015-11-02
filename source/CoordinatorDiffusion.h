@@ -29,13 +29,15 @@ protected:
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 				{
-					b(ix,iy).tmpU = 0;
-					b(ix,iy).tmpV = 0;
+					b(ix,iy,iz).tmpU = 0;
+					b(ix,iy,iz).tmpV = 0;
+					b(ix,iy,iz).tmpW = 0;
 #ifdef _DENSITYDIFF_
-					b(ix,iy).tmp = 0;
+					b(ix,iy,iz).tmp = 0;
 #endif
 				}
 		}
@@ -51,13 +53,15 @@ protected:
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 				{
-					b(ix,iy).u = b(ix,iy).tmpU;
-					b(ix,iy).v = b(ix,iy).tmpV;
+					b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
+					b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
+					b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
 #ifdef _DENSITYDIFF_
-					b(ix,iy).rho = b(ix,iy).tmp;
+					b(ix,iy,iz).rho = b(ix,iy,iz).tmp;
 #endif
 				}
 		}
@@ -75,8 +79,9 @@ protected:
 			
             Lab mylab;
 #ifdef _MOVING_FRAME_
-            mylab.pDirichlet.u = 0;
-            mylab.pDirichlet.v = *vBody;
+			mylab.pDirichlet.u = 0;
+			mylab.pDirichlet.v = *vBody;
+			mylab.pDirichlet.w = 0;
 #endif
 			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
 			
@@ -90,11 +95,11 @@ protected:
 	}
 	
 public:
-	CoordinatorDiffusion(const double coeff, Real * uBody, Real * vBody, FluidGrid * grid) : GenericCoordinator(grid), coeff(coeff), uBody(uBody), vBody(vBody)
+	CoordinatorDiffusion(const double coeff, Real * uBody, Real * vBody, Real * wBody, FluidGrid * grid) : GenericCoordinator(grid), coeff(coeff), uBody(uBody), vBody(vBody), wBody(wBody)
 	{
 	}
 	
-    CoordinatorDiffusion(const double coeff, FluidGrid * grid) : GenericCoordinator(grid), coeff(coeff), uBody(NULL), vBody(NULL)
+    CoordinatorDiffusion(const double coeff, FluidGrid * grid) : GenericCoordinator(grid), coeff(coeff), uBody(NULL), vBody(NULL), wBody(NULL)
     {
     }
     
@@ -126,14 +131,14 @@ protected:
     double time;
     const double freq;
     
-    double _analytical(double px, double py, double t)
+    double _analytical(double px, double py, double pz, double t)
     {
-        return sin(px*2.*freq*M_PI) * sin(py*2.*freq*M_PI) * exp(-4.*2*freq*freq*coeff*M_PI*M_PI*t);
+        return sin(px*2.*freq*M_PI) * sin(py*2.*freq*M_PI) * sin(pz*2.*freq*M_PI) * exp(-4.*2*freq*freq*coeff*M_PI*M_PI*t);
     }
     
-    double _analyticalRHS(double px, double py, double t)
+    double _analyticalRHS(double px, double py, double pz, double t)
     {
-        return -freq*freq*4.*2.*M_PI*M_PI*_analytical(px,py,t);
+        return -freq*freq*4.*2.*M_PI*M_PI*_analytical(px,py,pz,t);
     }
     
     inline void reset()
@@ -145,14 +150,16 @@ protected:
         {
             BlockInfo info = vInfo[i];
             FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-            
-            for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
                 {
-                    b(ix,iy).tmpU = 0;
-                    b(ix,iy).tmpV = 0;
+					b(ix,iy,iz).tmpU = 0;
+					b(ix,iy,iz).tmpV = 0;
+					b(ix,iy,iz).tmpW = 0;
 #ifdef _DENSITYDIFF_
-                    b(ix,iy).tmp = 0;
+                    b(ix,iy,iz).tmp = 0;
 #endif
                 }
         }
@@ -167,14 +174,16 @@ protected:
         {
             BlockInfo info = vInfo[i];
             FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-            
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
             for(int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
                 {
-                    b(ix,iy).u = b(ix,iy).tmpU;
-                    b(ix,iy).v = b(ix,iy).tmpV;
+					b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
+					b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
+					b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
 #ifdef _DENSITYDIFF_
-                    b(ix,iy).rho = b(ix,iy).tmp;
+                    b(ix,iy,iz).rho = b(ix,iy,iz).tmp;
 #endif
                 }
         }
@@ -190,18 +199,20 @@ protected:
             BlockInfo info = vInfo[i];
             FluidBlock& b = *(FluidBlock*)info.ptrBlock;
             const double prefactor = coeff * dt * ((stage==0)?.5:1);
-            
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
             for(int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
                 {
                     double p[3];
-                    info.pos(p, ix, iy);
+                    info.pos(p, ix, iy, iz);
                     
                     if (stage==0)
-                        b(ix,iy).tmpU = b(ix,iy).u + prefactor * _analyticalRHS(p[0],p[1],time);
+                        b(ix,iy,iz).tmpU = b(ix,iy,iz).u + prefactor * _analyticalRHS(p[0],p[1],p[2],time);
                     else if (stage==1)
-                        b(ix,iy).tmpU = b(ix,iy).u + prefactor * _analyticalRHS(p[0],p[1],time+dt*.5);
-                    b(ix,iy).tmpV = b(ix,iy).v;
+					b(ix,iy,iz).tmpU = b(ix,iy,iz).u + prefactor * _analyticalRHS(p[0],p[1],p[2],time+dt*.5);
+					b(ix,iy,iz).tmpV = b(ix,iy,iz).v;
+					b(ix,iy,iz).tmpW = b(ix,iy,iz).w;
                 }
         }
     }
