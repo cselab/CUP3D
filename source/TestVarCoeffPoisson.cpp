@@ -21,36 +21,39 @@ void TestVarCoeffPoisson::_ic()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 			for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
 				double p[3];
-				info.pos(p, ix, iy);
+				info.pos(p, ix, iy, iz);
 				p[0] = p[0]*2.-1.;
 				p[1] = p[1]*2.-1.;
+				p[2] = p[2]*2.-1.;
 				
 				double x = p[0]*M_PI;
 				double y = p[1]*M_PI;
-				b(ix, iy).v   = 0;
-				b(ix, iy).chi = 0;
+				double z = p[2]*M_PI;
+				b(ix, iy, iz).v   = 0;
+				b(ix, iy, iz).chi = 0;
 				
 				// initial guess
-				b(ix, iy).tmp = 0;
+				b(ix, iy, iz).tmp = 0;
 				
 				
 				if (ic==0)
 				{
 					// constant coefficients coefficients - v1
-					b(ix, iy).rho = 1;
-					b(ix, iy).u   = 1./(4.*M_PI*M_PI)*cos(x); // expected solution
-					b(ix, iy).divU = -cos(x); // rhs
+					b(ix, iy, iz).rho = 1;
+					b(ix, iy, iz).u   = 1./(4.*M_PI*M_PI)*cos(x); // expected solution
+					b(ix, iy, iz).divU = -cos(x); // rhs
 				}
 				else if (ic==1)
 				{
 					// variable coefficients - v1
-					b(ix, iy).rho = (M_PI*(cos(x) + 2));
-					b(ix, iy).u   = sin(x); // expected solution - why the factor 1/4?
-					b(ix, iy).divU = -8*M_PI*sin(x)/((cos(x)+2)*(cos(x)+2)); // rhs
+					b(ix, iy, iz).rho = (M_PI*(cos(x) + 2));
+					b(ix, iy, iz).u   = sin(x); // expected solution - why the factor 1/4?
+					b(ix, iy, iz).divU = -8*M_PI*sin(x)/((cos(x)+2)*(cos(x)+2)); // rhs
 					
 					/*
 					b(ix, iy).rho = (M_PI*(cos(x) + 2));
@@ -125,18 +128,21 @@ void TestVarCoeffPoisson::check()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 			for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
 				double p[3];
-				info.pos(p, ix, iy);
+				info.pos(p, ix, iy, iz);
 				p[0] = p[0]*2.-1.;
 				p[1] = p[1]*2.-1.;
+				p[2] = p[2]*2.-1.;
 				
 				double x = p[0]*M_PI;
 				double y = p[1]*M_PI;
+				double z = p[2]*M_PI;
 				
-				double error = b(ix,iy).tmp - b(ix,iy).u;
+				double error = b(ix,iy,iz).tmp - b(ix,iy,iz).u;
 				//if (error > 1e5)
 				//	cout << error << "\t" << b(ix,iy).tmp << "\t" << b(ix,iy).u << endl;
 				
@@ -146,8 +152,8 @@ void TestVarCoeffPoisson::check()
 			}
 	}
 	
-	L1 *= dh*dh;
-	L2 = sqrt(L2)*dh;
+	L1 *= dh*dh*dh;
+	L2 = sqrt(L2)*dh*dh;
 	cout << "\t" << Linf << "\t" << L1 << "\t" << L2 << endl;
 	myfile << FluidBlock::sizeX*bpd << " " << Linf << " " << L1 << " " << L2 << endl;
 }

@@ -19,7 +19,7 @@ private:
 	int bpd;
 	double dt;
 	
-	Real gravity[2];
+	Real gravity[3];
 	
 	string path2file;
 	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;

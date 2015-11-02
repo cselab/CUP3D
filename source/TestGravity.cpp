@@ -23,19 +23,20 @@ void TestGravity::_ic()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 			for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
 				double p[3];
-				info.pos(p, ix, iy);
+				info.pos(p, ix, iy, iz);
 				
-				b(ix, iy).rho = 0;
-				b(ix, iy).u   = 0;
-				b(ix, iy).v   = p[0];
-				b(ix, iy).p   = 0;
-				b(ix, iy).chi = 0;
-				b(ix, iy).tmpU = 0;
-				b(ix, iy).tmpV = 0;
+				b(ix, iy, iz).rho = 0;
+				b(ix, iy, iz).u   = 0;
+				b(ix, iy, iz).v   = p[0];
+				b(ix, iy, iz).p   = 0;
+				b(ix, iy, iz).chi = 0;
+				b(ix, iy, iz).tmpU = 0;
+				b(ix, iy, iz).tmpV = 0;
 			}
 	}
 	
@@ -46,9 +47,9 @@ void TestGravity::_ic()
 	dumper.Write(*grid, ss.str());
 }
 
-TestGravity::TestGravity(const int argc, const char ** argv, const int bpd, const double dt) : Test(argc, argv), time(0), gravity{0,-9.81}, bpd(bpd), dt(dt)
+TestGravity::TestGravity(const int argc, const char ** argv, const int bpd, const double dt) : Test(argc, argv), time(0), gravity{0,-9.81,0}, bpd(bpd), dt(dt)
 {
-	grid = new FluidGrid(bpd,bpd,1);
+	grid = new FluidGrid(bpd,bpd,bpd);
 	
 	path2file = parser("-file").asString("../data/testGravity");
 	_ic();
@@ -107,14 +108,15 @@ void TestGravity::check()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 			for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
 				double p[3];
-				info.pos(p, ix, iy);
+				info.pos(p, ix, iy, iz);
 				
-				double uError = b(ix, iy).u - gravity[0]*time;
-				double vError = b(ix, iy).v - gravity[1]*time - p[0];
+				double uError = b(ix, iy, iz).u - gravity[0]*time;
+				double vError = b(ix, iy, iz).v - gravity[1]*time - p[0];
 				
 				uLinf = max(uLinf,abs(uError));
 				uL1 += abs(uError);
@@ -126,10 +128,10 @@ void TestGravity::check()
 			}
 	}
 	
-	uL1 *= dh*dh;
-	vL1 *= dh*dh;
-	uL2 = sqrt(uL2)*dh;
-	vL2 = sqrt(vL2)*dh;
+	uL1 *= dh*dh*dh;
+	vL1 *= dh*dh*dh;
+	uL2 = sqrt(uL2)*dh*dh;
+	vL2 = sqrt(vL2)*dh*dh;
 	const int size = bpd * FluidBlock::sizeX;
 	cout << "\t" << uLinf << "\t" << vLinf << "\t" << uL1 << "\t" << vL1 << "\t" << uL2 << "\t" << vL2 << endl;
 	myfile << size << " " << uLinf << " " << vLinf << " " << uL1 << " " << vL1 << " " << uL2 << " " << vL2 << endl;

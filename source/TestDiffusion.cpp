@@ -11,9 +11,9 @@
 #include <sstream>
 #include <cmath>
 
-double TestDiffusion::_analytical(double px, double py, double t)
+double TestDiffusion::_analytical(double px, double py, double pz, double t)
 {
-    return sin(px*2.*freq*M_PI) * sin(py*2.*freq*M_PI) * exp(-4.*2*freq*freq*nu*M_PI*M_PI*t);
+    return sin(px*2.*freq*M_PI) * sin(py*2.*freq*M_PI) * sin(pz*2.*freq*M_PI) * exp(-8.*2*freq*freq*nu*M_PI*M_PI*t);
 }
 
 void TestDiffusion::_ic()
@@ -27,19 +27,22 @@ void TestDiffusion::_ic()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 			for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
 				double p[3];
-				info.pos(p, ix, iy);
+				info.pos(p, ix, iy, iz);
 				
-				b(ix, iy).rho = 1;
-				b(ix, iy).u   = _analytical(p[0],p[1],0);
-				b(ix, iy).v   = 0;
-				b(ix, iy).chi = 0;
+				b(ix, iy, iz).rho = 1;
+				b(ix, iy, iz).u   = _analytical(p[0],p[1],p[2],0);
+				b(ix, iy, iz).v   = 0;
+				b(ix, iy, iz).w   = 0;
+				b(ix, iy, iz).chi = 0;
 				
-				b(ix, iy).tmpU = 0;
-				b(ix, iy).tmpV = 0;
+				b(ix, iy, iz).tmpU = 0;
+				b(ix, iy, iz).tmpV = 0;
+				b(ix, iy, iz).tmpW = 0;
 			}
 	}
 	
@@ -59,7 +62,7 @@ TestDiffusion::TestDiffusion(const int argc, const char ** argv, const int bpd, 
 	// output settings
 	path2file = parser("-file").asString("../data/testDiffusion");
 	
-	grid = new FluidGrid(bpd,bpd,1);
+	grid = new FluidGrid(bpd,bpd,bpd);
 	
 	// setup initial condition
 	_ic();
@@ -125,21 +128,22 @@ void TestDiffusion::check()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 			for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
 				double p[3];
 				info.pos(p, ix, iy);
 				
-				double error = b(ix, iy).u - _analytical(p[0],p[1],time);
+				double error = b(ix, iy, iz).u - _analytical(p[0],p[1],p[2],time);
 				Linf = max(Linf,abs(error));
 				L1 += abs(error);
 				L2 += error*error;
 			}
 	}
 	
-	L2 = sqrt(L2)/(double)size;
-	L1 /= (double)size*size;
+	L2 = sqrt(L2)/(double)size*size;
+	L1 /= (double)size*size*size;
 	cout << Linf << "\t" << L1 << "\t" << L2 << endl;
 	myfile << size << " " << dt << " " << Linf << " " << L1 << " " << L2 << endl;
 }

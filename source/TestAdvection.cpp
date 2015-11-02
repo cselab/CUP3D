@@ -42,16 +42,18 @@ void TestAdvection::_icLinear()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 			for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
 				double p[3];
-				info.pos(p, ix, iy);
+				info.pos(p, ix, iy, iz);
 				
-                b(ix, iy).rho = sin(p[0]*8.*M_PI);//*sin(p[1]*2.*M_PI);
-				b(ix, iy).u   = 1;
-				b(ix, iy).v   = 1;
-				b(ix, iy).chi = 0;
+                b(ix, iy, iz).rho = sin(p[0]*8.*M_PI);//*sin(p[1]*2.*M_PI);
+				b(ix, iy, iz).u   = 1;
+				b(ix, iy, iz).v   = 1;
+				b(ix, iy, iz).w   = 1;
+				b(ix, iy, iz).chi = 0;
 			}
 	}
 	
@@ -65,7 +67,7 @@ void TestAdvection::_icLinear()
 
 void TestAdvection::_icVortex()
 {
-	const double center[2] = {.5,.5};
+	const double center[3] = {.5,.5,.5};
 	
 	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	const double dh = vInfo[0].h_gridpoint;
@@ -76,22 +78,25 @@ void TestAdvection::_icVortex()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 			for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
 				double p[3];
-				info.pos(p, ix, iy);
+				info.pos(p, ix, iy, iz);
 				
 				p[0] = p[0]*2.-1.;
 				p[1] = p[1]*2.-1.;
+				p[2] = p[2]*2.-1.;
 				
-                const Real r = sqrt(p[0]*p[0] + p[1]*p[1]);
+                const Real r = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
                 const Real invR = 1./r;
 								
-                b(ix, iy).rho = r;
-				b(ix, iy).u   =   sin(p[1])*cos(r*M_PI/2)*invR;//-p[1];//
-				b(ix, iy).v   =  -sin(p[0])*cos(r*M_PI/2)*invR;// p[0];//
-				b(ix, iy).chi = 0;
+                b(ix, iy, iz).rho = r;
+				b(ix, iy, iz).u   =   sin(p[1])*cos(r*M_PI/2)*invR;//-p[1];//
+				b(ix, iy, iz).v   =  -sin(p[0])*cos(r*M_PI/2)*invR;// p[0];//
+				b(ix, iy, iz).w   =  0;
+				b(ix, iy, iz).chi = 0;
 				/*
 				if (r>.5)
 				{
@@ -146,7 +151,8 @@ void TestAdvection::_icVortex()
 	
 	const int sizeX = bpd * FluidBlock::sizeX;
 	const int sizeY = bpd * FluidBlock::sizeY;
-	vorticityIC = new Layer(sizeX,sizeY,1);
+	const int sizeZ = bpd * FluidBlock::sizeZ;
+	vorticityIC = new Layer(sizeX,sizeY,sizeZ);
 	processOMP<Lab, OperatorVorticity>(*vorticityIC,vInfo,*grid);
 	stringstream sVort;
 	sVort << path2file << "Vorticity-IC.vti";
@@ -164,16 +170,18 @@ void TestAdvection::_icBurger()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
+		for(int iz=0; iy<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 			for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
 				double p[3];
 				info.pos(p, ix, iy);
 				
-				b(ix, iy).rho = 1;
-				b(ix, iy).u   = ix<FluidBlock::sizeX/2 ? p[0] : (1-p[0]);//1-p[0];//1-cos(p[0]*M_PI*2);
-				b(ix, iy).v   = 0;
-				b(ix, iy).chi = 0;
+				b(ix, iy, iz).rho = 1;
+				b(ix, iy, iz).u   = ix<FluidBlock::sizeX/2 ? p[0] : (1-p[0]);//1-p[0];//1-cos(p[0]*M_PI*2);
+				b(ix, iy, iz).v   = 0;
+				b(ix, iy, iz).z   = 0;
+				b(ix, iy, iz).chi = 0;
 			}
 	}
 	
@@ -187,7 +195,7 @@ void TestAdvection::_icBurger()
 
 TestAdvection::TestAdvection(const int argc, const char ** argv, int testCase, const int bpd, const double dt, const int nsteps) : Test(argc, argv), time(0), testCase(testCase), bpd(bpd), dt(dt), nsteps(nsteps)
 {
-	grid = new FluidGrid(bpd,bpd,1);
+	grid = new FluidGrid(bpd,bpd,bpd);
 	
 	// setup initial condition
 	if (testCase==0)
@@ -249,7 +257,7 @@ void TestAdvection::run()
 
 void TestAdvection::check()
 {
-	const double center[2] = {.5,.5};
+	const double center[3] = {.5,.5,.5};
 	
 	//cout << "\tErrors (uLinf, uL1, uL2):\t";
 	double uLinf = 0.;
@@ -266,6 +274,7 @@ void TestAdvection::check()
 	
 	const int sizeX = bpd * FluidBlock::sizeX;
 	const int sizeY = bpd * FluidBlock::sizeY;
+	const int sizeZ = bpd * FluidBlock::sizeZ;
 	
 	if (testCase==0)
 	{
@@ -275,11 +284,12 @@ void TestAdvection::check()
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
+			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 			for(int iy=0; iy<FluidBlock::sizeY; iy++)
 				for(int ix=0; ix<FluidBlock::sizeX; ix++)
 				{
 					double p[3];
-					info.pos(p, ix, iy);
+					info.pos(p, ix, iy, iz);
 					
 					double error;
                     error = b(ix, iy).rho - sin((p[0]-time)*8.*M_PI);//*sin((p[1]+dt)*2.*M_PI);
@@ -300,18 +310,20 @@ void TestAdvection::check()
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
+			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 			for(int iy=0; iy<FluidBlock::sizeY; iy++)
 				for(int ix=0; ix<FluidBlock::sizeX; ix++)
 				{
 					double p[3];
-					info.pos(p, ix, iy);
+					info.pos(p, ix, iy, iz);
 					
 					p[0] = p[0]*2.-1.;
 					p[1] = p[1]*2.-1.;
+					p[2] = p[2]*2.-1.;
 					
-					Real r = sqrt(p[0]*p[0] + p[1]*p[1]);
+					Real r = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
 					
-                    double error = b(ix, iy).rho - r;
+                    double error = b(ix, iy, iz).rho - r;
 					b(ix,iy).chi = error;
 					
 					uLinf = max(uLinf,abs(error));
@@ -366,8 +378,8 @@ void TestAdvection::check()
 	ssol << path2file << "-solution" << testCase << "-bpd" << bpd << ".vti";
 	dumper.Write(*grid, ssol.str());
 	
-	uL1 *= dh*dh;
-	uL2 = sqrt(uL2)*dh;
+	uL1 *= dh*dh*dh;
+	uL2 = sqrt(uL2)*dh*dh;
 	cout << uLinf << "\t" << uL1 << "\t" << uL2 << endl;
 	myfile << sizeX << " " << uLinf << " " << uL1 << " " << uL2 << endl;
 }

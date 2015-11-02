@@ -19,20 +19,6 @@
 #include "MultigridHypre.h"
 #endif // _MULTIGRID_
 
-void initializeNUMA(Layer& layer)
-{
-	for(int ic = 0; ic < layer.nDim; ic++)
-#pragma omp parallel for
-		for(int iy = 0; iy < layer.sizeY; iy++)
-		{
-			for(int ix=0; ix<layer.sizeX; ix++)
-			{
-				layer.data[ic*layer.sizeX*layer.sizeY + iy*layer.sizeX + ix] = 0;
-				
-			}
-		}
-}
-
 class BS4
 {
 public:
@@ -75,30 +61,34 @@ void TestPressure::_ic()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
-			for(int iy=0; iy<FluidBlock::sizeY; iy++)
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 				for(int ix=0; ix<FluidBlock::sizeX; ix++)
 				{
 					double p[3];
-					info.pos(p, ix, iy);
+					info.pos(p, ix, iy, iz);
 					p[0] = p[0]*2.-1.;
 					p[1] = p[1]*2.-1.;
+					p[2] = p[2]*2.-1.;
 					
 					if (ic==0)
 					{
 						double x = p[0]*M_PI;
 						double y = p[1]*M_PI;
+						double y = p[2]*M_PI;
 						
 						b(ix, iy).u   = 1./(4.*M_PI*M_PI)*cos(x); // expected solution
 						b(ix, iy).divU = -cos(x); // rhs
 					}
 					else if (ic==1)
 					{
-						const Real IrI  = sqrt(p[0]*p[0] + p[1]*p[1]);
+						const Real IrI  = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
 						const double strength = 100./(1+IrI*IrI)*BS4::eval(IrI/0.5*2.5);
 						
 						b(ix, iy).rho = 1./(4.*M_PI*M_PI)*cos(p[0]*M_PI);
 						b(ix, iy).u   = -p[1]*strength;
 						b(ix, iy).v   =  p[0]*strength;
+						b(ix, iy).w   = 0;
 						b(ix, iy).chi = 0;
 						
 						b(ix, iy).divU = -cos(p[0]*M_PI);
@@ -114,12 +104,15 @@ void TestPressure::_ic()
                         b(ix,iy).rho = b(ix,iy).divU;
                         //*/
 						const int size = 1/dh;
-                        const int bx = info.index[0]*FluidBlock::sizeX;
-                        const int by = info.index[1]*FluidBlock::sizeY;
-                        p[0] = (bx+ix+.5)/(double)size;
-                        p[1] = (by+iy+.5)/(double)size;
-                        double x = 4*p[0]*M_PI;
-                        double y = 3*p[1]*M_PI_2;
+						const int bx = info.index[0]*FluidBlock::sizeX;
+						const int by = info.index[1]*FluidBlock::sizeY;
+						const int bz = info.index[2]*FluidBlock::sizeY;
+						p[0] = (bx+ix+.5)/(double)size;
+						p[1] = (by+iy+.5)/(double)size;
+						p[2] = (bz+iz+.5)/(double)size;
+						double x = 4*p[0]*M_PI;
+						double y = 3*p[1]*M_PI_2;
+						double z = 4*p[2]*M_PI;
                         //b(ix,iy).divU = 81*M_PI_2*M_PI_2 * cos(y);
                         //b(ix,iy).divU = -64*M_PI_2*M_PI_2 * cos(x);
                         //b(ix,iy).divU = -9*M_PI_2*M_PI_2 * cos(y) + -64*M_PI_2*M_PI_2 * sin(x);
@@ -146,7 +139,7 @@ TestPressure::TestPressure(const int argc, const char ** argv, const int solver,
 	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 #endif // _MULTIGRID_
 	
-	grid = new FluidGrid(bpd,bpd,1);
+	grid = new FluidGrid(bpd,bpd,bpd);
 	
 	// output settings
 	path2file = parser("-file").asString("../data/testPressure");
@@ -261,7 +254,7 @@ void TestPressure::check()
 		vector<BlockInfo> vInfo = grid->getBlocksInfo();
 		const int size = bpd * FluidBlock::sizeX;
 		
-        Layer divergence(size,size,1);
+        Layer divergence(size,size,size);
         if (ic!=0 && ic!=2)
             processOMP<Lab, OperatorDivergenceLayer>(divergence,vInfo,*grid);
         
@@ -282,15 +275,16 @@ void TestPressure::check()
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
+			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 			for(int iy=0; iy<FluidBlock::sizeY; iy++)
 				for(int ix=0; ix<FluidBlock::sizeX; ix++)
 				{
                     double error=0;
 					if (ic==0)
-						error = b(ix,iy).divU - b(ix,iy).rho;
+						error = b(ix,iy,iz).divU - b(ix,iy,iz).rho;
                     else if (ic==2)
                     {
-                        error = b(ix,iy).divU - b(ix,iy).u;
+                        error = b(ix,iy,iz).divU - b(ix,iy,iz).u;
                         //error = b(ix,iy).v - b(ix,iy).rho;
                         /*
                         // exclude y-boundaries
@@ -308,7 +302,7 @@ void TestPressure::check()
                          //*/
                     }
                     else
-						error = divergence(ix,iy);
+						error = divergence(ix,iy,iz);
 					
 					Linf = max(Linf,abs(error));
 					L1 += abs(error);
@@ -316,8 +310,8 @@ void TestPressure::check()
 				}
 		}
 		
-		L1 *= dh*dh;
-		L2 = sqrt(L2)*dh;
+		L1 *= dh*dh*dh;
+		L2 = sqrt(L2)*dh*dh;
 		cout << "\t" << Linf << "\t" << L1 << "\t" << L2 << endl;
 		myfile << size << " " << Linf << " " << L1 << " " << L2 << endl;
 	}

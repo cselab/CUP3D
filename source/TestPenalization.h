@@ -19,7 +19,7 @@ private:
 	int bpd;
 	double dt;
 	Real lambda;
-	Real uBody[2];
+	Real uBody[3];
 	Shape * shape;
 	
 	string path2file;

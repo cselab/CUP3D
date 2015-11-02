@@ -27,7 +27,7 @@ private:
     FluidGrid * grid;
     
     void _ic();
-    double _analytical(double ix, double iy, double t);
+    double _analytical(double ix, double iy, double iz, double t);
     
 public:
     TestDiffusion(const int argc, const char ** argv, const int bpd, const double dt, const int nsteps, const double freq);

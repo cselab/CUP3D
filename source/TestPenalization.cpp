@@ -15,23 +15,24 @@
 
 void TestPenalization::_ic()
 {
-	Real center[2] = {.5,.5};
+	Real center[3] = {.5,.5,.5};
 	Real radius = .1;
 	vector<BlockInfo> vInfo = grid->getBlocksInfo();
-    bool bPeriodic[2] = {false,false};
+    bool bPeriodic[3] = {false,false,false};
     
-    const Real domainSize[2] = { FluidBlock::sizeX * grid->getBlocksPerDimension(0) * vInfo[0].h_gridpoint,
-        FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint};
-    
+	const Real domainSize[3] = { FluidBlock::sizeX * grid->getBlocksPerDimension(0) * vInfo[0].h_gridpoint,
+								 FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint,
+								 FluidBlock::sizeZ * grid->getBlocksPerDimension(2) * vInfo[0].h_gridpoint};
+	
 	shape = new Disk(center, radius, (Real).1, (Real)2, (Real)2, bPeriodic, domainSize);
 	
 	CoordinatorIC coordIC(shape,1.,grid);
 	coordIC(0);
 }
 
-TestPenalization::TestPenalization(const int argc, const char ** argv, const int bpd, const double dt) : Test(argc, argv), bpd(bpd), lambda(1e4), uBody{0,0.5}, dt(dt)
+TestPenalization::TestPenalization(const int argc, const char ** argv, const int bpd, const double dt) : Test(argc, argv), bpd(bpd), lambda(1e4), uBody{0,0.5,0}, dt(dt)
 {
-	grid = new FluidGrid(bpd,bpd,1);
+	grid = new FluidGrid(bpd,bpd,bpd);
 	
 	// setup initial condition
 	
@@ -51,7 +52,7 @@ void TestPenalization::run()
 	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	
 	Real omegaBody = 0;
-	CoordinatorPenalization coordPenalization(&uBody[0], &uBody[1], &omegaBody, shape, &lambda, grid);
+	CoordinatorPenalization coordPenalization(&uBody[0], &uBody[1], &uBody[2], &omegaBody, shape, &lambda, grid);
 	
 	for (int i=0; i<10; i++)
 	{
