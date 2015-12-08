@@ -19,7 +19,6 @@ class TestRotation : public Test
 {
 private:
 	int bpd;
-	Real omegaBody;
 	Shape * shape;
 	const int testCase; // 0: forced, 1: from flow
 	double dt;

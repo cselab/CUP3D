@@ -11,6 +11,9 @@ bs ?= 32
 vertexcentered ?= false
 particles ?= false
 dlm ?= false
+ct ?= false
+
+hdf ?= true
 
 constnu ?= false
 densitydiff ?= false
@@ -20,7 +23,7 @@ movingframe ?= false
 
 rk2 ?= true
 
-CPPFLAGS+= -w
+CPPFLAGS+= -w -D_ALIGNBYTES_=16
 
 ifeq "$(bc)" "periodic"
 	CPPFLAGS += -D_PERIODIC_
@@ -70,6 +73,11 @@ ifeq "$(dlm)" "true"
 	CPPFLAGS += -D_DLM_
 endif
 
+ifeq "$(hdf)" "true"
+	CPPFLAGS += -I$(hdf-inc) -D_USE_HDF_
+	LIBS += -L$(hdf-lib) -lhdf5
+endif
+
 ifeq "$(constnu)" "true"
 	CPPFLAGS += -D_CONSTNU_
 endif
@@ -80,6 +88,10 @@ endif
 
 ifeq "$(avgu)" "true"
 CPPFLAGS += -D_AVGU_
+endif
+
+ifeq "$(ct)" "true"
+CPPFLAGS += -D_CT_
 endif
 
 ifeq "$(rk2)" "true"
@@ -158,8 +170,8 @@ endif
 BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
-OBJECTS = PoissonSolverScalarFFTW.o ProcessOperatorsOMP.o Sim_Jet.o Sim_RayleighTaylor.o Sim_Bubble.o Sim_FSI_Gravity.o Sim_FSI_Moving.o Sim_FSI_Fixed.o Profiler.o main.o
-OBJECTS_TEST = PoissonSolverScalarFFTW.o ProcessOperatorsOMP.o TestBoundaryConditions.o TestAddedMass.o TestPoiseuille.o TestShearLayer.o TestTravelingWave.o TestRotation.o TestTranslation.o TestPenalization.o TestGravity.o TestVarCoeffPoisson.o TestPressure.o TestAdvection.o TestDiffusion.o Profiler.o mainTest.o
+OBJECTS = GeometryReader.o WavefrontReader.o CTReader.o PoissonSolverScalarFFTW.o ProcessOperatorsOMP.o Sim_Jet.o Sim_RayleighTaylor.o Sim_Bubble.o Sim_FSI_Gravity.o Sim_FSI_Moving.o Sim_FSI_Fixed.o Profiler.o main.o
+OBJECTS_TEST = GeometryReader.o WavefrontReader.o CTReader.o PoissonSolverScalarFFTW.o ProcessOperatorsOMP.o TestBoundaryConditions.o TestAddedMass.o TestPoiseuille.o TestShearLayer.o TestTravelingWave.o TestGeometry.o TestRotation.o TestTranslation.o TestPenalization.o TestGravity.o TestVarCoeffPoisson.o TestPressure.o TestAdvection.o TestDiffusion.o Profiler.o mainTest.o
 
 VPATH := $(SRC_DIR):$(CUBISM_DIR)
 

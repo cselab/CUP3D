@@ -523,7 +523,11 @@ private:
     }
     
 public:
-    MultigridHypre() : nprocsX(8), nprocsY(4), bSetup(false), bConstantCoefficients(false) {}
+    MultigridHypre() : nprocsX(8), nprocsY(4), bSetup(false), bConstantCoefficients(false)
+	{
+		cout << "MG not implemented for 3D\n";
+		abort();
+	}
     
     ~MultigridHypre() {}
     

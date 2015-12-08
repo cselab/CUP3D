@@ -260,14 +260,6 @@ void TestShearLayer::run()
 			stringstream ss;
 			ss << path2file << bpd << "-" << step <<  ".vti";
 			dumper.Write(*grid, ss.str());
-			/*
-			 const int size = bpd * FluidBlock::sizeX;
-			 Layer vorticity(size,size,1);
-			 processOMP<Lab, OperatorDivergenceLayer>(vorticity,vInfo,*grid);
-			 stringstream sVort;
-			 sVort << path2file << "Vorticity-" << bpd << "-" << step << ".vti";
-			 dumpLayer2VTK(step,sVort.str(),vorticity,1);
-			 */
 			nextDumpTime += dumpTime;
 		}
 		
@@ -343,10 +335,11 @@ void TestShearLayer::check()
 				}
 		}
 		
-		L2_u = sqrt(L2_u)/(double)size*size;
-		L2_v = sqrt(L2_v)/(double)size*size;
-		L1_u /= (double)size*size*size;
-		L1_v /= (double)size*size*size;
+		const double invh3 = 1./((double)size*size*size);
+		L2_u = sqrt(L2_u*invh3);
+		L2_v = sqrt(L2_v*invh3);
+		L1_u *= invh3;
+		L1_v *= invh3;
 		
 		stringstream ss;
 		ss << path2file << "_diagnostics.dat";

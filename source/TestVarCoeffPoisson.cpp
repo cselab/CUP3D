@@ -153,7 +153,7 @@ void TestVarCoeffPoisson::check()
 	}
 	
 	L1 *= dh*dh*dh;
-	L2 = sqrt(L2)*dh*dh;
+	L2 = sqrt(L2*dh*dh*dh);
 	cout << "\t" << Linf << "\t" << L1 << "\t" << L2 << endl;
 	myfile << FluidBlock::sizeX*bpd << " " << Linf << " " << L1 << " " << L2 << endl;
 }

@@ -8,7 +8,6 @@
 
 #include "TestAdvection.h"
 #include "ProcessOperatorsOMP.h"
-#include "OperatorVorticity.h"
 #include <sstream>
 #include <cmath>
 
@@ -147,16 +146,6 @@ void TestAdvection::_icVortex()
 	ss << path2file << "-IC.vti";
 	
 	dumper.Write(*grid, ss.str());
-	
-	
-	const int sizeX = bpd * FluidBlock::sizeX;
-	const int sizeY = bpd * FluidBlock::sizeY;
-	const int sizeZ = bpd * FluidBlock::sizeZ;
-	vorticityIC = new Layer(sizeX,sizeY,sizeZ);
-	processOMP<Lab, OperatorVorticity>(*vorticityIC,vInfo,*grid);
-	stringstream sVort;
-	sVort << path2file << "Vorticity-IC.vti";
-	dumpLayer2VTK(0,sVort.str(),*vorticityIC,1);
 }
 
 void TestAdvection::_icBurger()
@@ -170,7 +159,7 @@ void TestAdvection::_icBurger()
 		BlockInfo info = vInfo[i];
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
-		for(int iz=0; iy<FluidBlock::sizeZ; iz++)
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 			for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
@@ -180,7 +169,7 @@ void TestAdvection::_icBurger()
 				b(ix, iy, iz).rho = 1;
 				b(ix, iy, iz).u   = ix<FluidBlock::sizeX/2 ? p[0] : (1-p[0]);//1-p[0];//1-cos(p[0]*M_PI*2);
 				b(ix, iy, iz).v   = 0;
-				b(ix, iy, iz).z   = 0;
+				b(ix, iy, iz).w   = 0;
 				b(ix, iy, iz).chi = 0;
 			}
 	}
@@ -372,14 +361,13 @@ void TestAdvection::check()
 	
 	//stringstream sVort;
 	//sVort << path2file << "VorticityDiff-" << bpd << ".vti";
-	//dumpLayer2VTK(0,sVort.str(),vorticityDiff,1);
 	
 	stringstream ssol;
 	ssol << path2file << "-solution" << testCase << "-bpd" << bpd << ".vti";
 	dumper.Write(*grid, ssol.str());
 	
 	uL1 *= dh*dh*dh;
-	uL2 = sqrt(uL2)*dh*dh;
+	uL2 = sqrt(uL2*dh*dh*dh);
 	cout << uLinf << "\t" << uL1 << "\t" << uL2 << endl;
 	myfile << sizeX << " " << uLinf << " " << uL1 << " " << uL2 << endl;
 }

@@ -18,7 +18,7 @@ protected:
 	Real gravity[3];
 	
 public:
-	CoordinatorGravity(Real gravity[3], FluidGrid * grid) : GenericCoordinator(grid), gravity{gravity[0],gravity[1]}
+	CoordinatorGravity(Real gravity[3], FluidGrid * grid) : GenericCoordinator(grid), gravity{gravity[0],gravity[1],gravity[2]}
 	{
 	}
 	

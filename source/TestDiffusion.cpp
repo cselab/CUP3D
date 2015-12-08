@@ -13,7 +13,7 @@
 
 double TestDiffusion::_analytical(double px, double py, double pz, double t)
 {
-    return sin(px*2.*freq*M_PI) * sin(py*2.*freq*M_PI) * sin(pz*2.*freq*M_PI) * exp(-8.*2*freq*freq*nu*M_PI*M_PI*t);
+    return sin(px*2.*freq*M_PI) * sin(py*2.*freq*M_PI) * sin(pz*2.*freq*M_PI) * exp(-4.*3*freq*freq*nu*M_PI*M_PI*t);
 }
 
 void TestDiffusion::_ic()
@@ -48,7 +48,7 @@ void TestDiffusion::_ic()
 	
 	
 	stringstream ss;
-	ss << path2file << "-IC.vti" ;
+	ss << path2file << bpd << "-IC.vti" ;
 	//cout << ss.str() << endl;
 	
 	dumper.Write(*grid, ss.str());
@@ -130,10 +130,10 @@ void TestDiffusion::check()
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
-			for(int ix=0; ix<FluidBlock::sizeX; ix++)
+		for(int ix=0; ix<FluidBlock::sizeX; ix++)
 			{
 				double p[3];
-				info.pos(p, ix, iy);
+				info.pos(p, ix, iy, iz);
 				
 				double error = b(ix, iy, iz).u - _analytical(p[0],p[1],p[2],time);
 				Linf = max(Linf,abs(error));
@@ -142,8 +142,9 @@ void TestDiffusion::check()
 			}
 	}
 	
-	L2 = sqrt(L2)/(double)size*size;
-	L1 /= (double)size*size*size;
+	const double invh3 = 1./((double)size*size*size);
+	L2 = sqrt(L2*invh3);
+	L1 *= invh3;
 	cout << Linf << "\t" << L1 << "\t" << L2 << endl;
 	myfile << size << " " << dt << " " << Linf << " " << L1 << " " << L2 << endl;
 }

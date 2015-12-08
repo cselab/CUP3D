@@ -11,7 +11,6 @@
 
 #include <stdio.h>
 #include "Test.h"
-#include "Layer.h"
 
 class TestAdvection : public Test
 {
@@ -25,8 +24,6 @@ private:
 	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
 	
 	FluidGrid * grid;
-	
-	Layer * vorticityIC;
 	
 	void _icLinear();
 	void _icVortex();

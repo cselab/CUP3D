@@ -9,7 +9,6 @@
 #include "Sim_FSI_Gravity.h"
 
 #include "ProcessOperatorsOMP.h"
-#include "OperatorVorticity.h"
 
 #include "CoordinatorIC.h"
 #include "CoordinatorAdvection.h"
@@ -71,14 +70,14 @@ void Sim_FSI_Gravity::_diagnostics()
 	cD = abs(uBody[1])>0 ? cD : 1e10;
 	const Real Re_uBody = shape->getCharLength()*sqrt(uBody[0]*uBody[0]+uBody[1]*uBody[1]+uBody[2]*uBody[2])/nu;
 	Real center[3];
-	shape->getPosition(center);
+	shape->getCenterOfMass(center);
 	
 	stringstream ss;
 	ss << path2file << "_diagnostics.dat";
 	ofstream myfile(ss.str(), fstream::app);
 	if (verbose)
-		cout << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << " " << shape->getOrientation() << " " << omegaBody << endl;
-	myfile << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << " " << shape->getOrientation() << " " << omegaBody << endl;
+		cout << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << endl;
+	myfile << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << endl;
 }
 
 void Sim_FSI_Gravity::_dumpSettings(ostream& outStream)
@@ -93,7 +92,7 @@ void Sim_FSI_Gravity::_dumpSettings(ostream& outStream)
 		outStream << "\tnu\t" << nu << endl;
 		outStream << "\tRhoS\t" << shape->getRhoS() << endl;
 		Real center[3];
-		shape->getPosition(center);
+		shape->getCenterOfMass(center);
 		outStream << "\tyPos\t" << center[1] << endl;
 		
 		outStream << "\nSimulation Settings\n";
@@ -151,7 +150,6 @@ void Sim_FSI_Gravity::_outputSettings(ostream &outStream)
 	outStream << "uBody " << uBody[0] << endl;
 	outStream << "vBody " << uBody[1] << endl;
 	outStream << "zBody " << uBody[2] << endl;
-	outStream << "omegaBody " << omegaBody << endl;
 	outStream << "re " << re << endl;
 	outStream << "nu " << nu << endl;
 	
@@ -180,9 +178,6 @@ void Sim_FSI_Gravity::_inputSettings(istream& inStream)
 	assert(variableName=="wBody");
 	inStream >> uBody[2];
 	inStream >> variableName;
-	assert(variableName=="omegaBody");
-	inStream >> omegaBody;
-	inStream >> variableName;
 	assert(variableName=="re");
 	inStream >> re;
 	inStream >> variableName;
@@ -192,7 +187,7 @@ void Sim_FSI_Gravity::_inputSettings(istream& inStream)
 	Simulation_FSI::_inputSettings(inStream);
 }
 
-Sim_FSI_Gravity::Sim_FSI_Gravity(const int argc, const char ** argv) : Simulation_FSI(argc, argv), uBody{0,0,0}, omegaBody(0), gravity{0,-9.81,0}, dtCFL(0), dtFourier(0), dtBody(0), re(0), nu(0), minRho(0), bSplit(false)
+Sim_FSI_Gravity::Sim_FSI_Gravity(const int argc, const char ** argv) : Simulation_FSI(argc, argv), uBody{0,0,0}, gravity{0,-9.81,0}, dtCFL(0), dtFourier(0), dtBody(0), re(0), nu(0), minRho(0), bSplit(false)
 {
 #ifdef _MULTIGRID_
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -220,14 +215,55 @@ void Sim_FSI_Gravity::init()
 	
 	if (!bRestart)
 	{
+		delete shape;
+		lambda = parser("-lambda").asDouble(1e5);
+		dlm = parser("-dlm").asDouble(1.);
+		
+		double rhoS = parser("-rhoS").asDouble(1);
+		const Real aspectRatio = 1;
+		cout << "WARNING - Aspect ratio for correct positioning of sphere not implemented yet\n";
+		Real center[3] = {parser("-xpos").asDouble(.5*aspectRatio),parser("-ypos").asDouble(.85),parser("-zpos").asDouble(.5*aspectRatio)};
+		
+		string shapeType = parser("-shape").asString("sphere");
+		const int eps = 2;
+		if (shapeType=="sphere")
+		{
+			Real radius = parser("-radius").asDouble(0.1);
+			shape = new Sphere(center, radius, rhoS, eps, eps);
+		}
+		else if (shapeType=="samara")
+		{
+			const Real center[3] = {.5,.5,.5};
+			const Real rhoS = 1;
+			const Real moll = 2;
+			const int gridsize = 1024;
+			const Real scale = .025;
+			const Real tx = .12;
+			const Real ty = .9;
+			const Real tz = .08;
+			Geometry::Quaternion q1(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
+			Geometry::Quaternion q2(1, 0, 0, 0);
+			//Geometry::Quaternion q2(cos(.25*M_PI), sin(.25*M_PI), 0, 0);
+			Geometry::Quaternion q = q1*q2;
+			
+			double qm = q.magnitude();
+			q.w /= qm;
+			q.x /= qm;
+			q.y /= qm;
+			q.z /= qm;
+			const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
+			shape = new GeometryMesh(filename, gridsize, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+		}
+		else
+		{
+			cout << "Error - this shape is not currently implemented! Aborting now\n";
+			abort();
+		}
+		
 		// simulation settings
 		bSplit = parser("-split").asBool(false);
 		nu = parser("-nu").asDouble(1e-2);
 		minRho = min((Real)1.,shape->getRhoS());
-		
-		const Real aspectRatio = (Real)bpdx/(Real)bpdy; // needs fixing
-		Real center[3] = {parser("-xpos").asDouble(.5*aspectRatio),parser("-ypos").asDouble(.85),parser("-zpos").asDouble(.5*aspectRatio)};
-		shape->setPosition(center);
 		
 		stringstream ss;
 		ss << path2file << "_settings.dat";
@@ -252,10 +288,10 @@ void Sim_FSI_Gravity::init()
 #endif
 	pipeline.push_back(new CoordinatorDiffusion<Lab>(nu,&uBody[0],&uBody[1],&uBody[2],grid));
 	pipeline.push_back(new CoordinatorGravity(gravity, grid));
-	pipeline.push_back(new CoordinatorPressure<Lab>(minRho, gravity, &uBody[0], &uBody[1],&uBody[2], &step, bSplit, grid, rank, nprocs));
-	pipeline.push_back(new CoordinatorBodyVelocities(&uBody[0], &uBody[1],&uBody[2], &omegaBody, &lambda, shape->getRhoS(), grid));
-	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1],&uBody[2], &omegaBody, shape, &lambda, grid));
-	pipeline.push_back(new CoordinatorComputeShape(&uBody[0], &uBody[1],&uBody[2], &omegaBody, shape, grid));
+	pipeline.push_back(new CoordinatorPressure<Lab>(minRho, gravity, &uBody[0], &uBody[1], &uBody[2], &step, bSplit, grid, rank, nprocs));
+	pipeline.push_back(new CoordinatorBodyVelocities(&uBody[0], &uBody[1], &uBody[2], &lambda, shape, grid));
+	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], shape, &lambda, grid));
+	pipeline.push_back(new CoordinatorComputeShape(shape, grid));
 	
 	if (rank==0)
 	{
@@ -342,8 +378,8 @@ void Sim_FSI_Gravity::simulate()
 				// this still needs to be corrected to the frame of reference!
 				double accM = (uBody[1]-vOld)/dt;
 				vOld = uBody[1];
-				double accT = (shape->getRhoS()-1)/(shape->getRhoS()+1) * gravity[1];
-				double accN = (shape->getRhoS()-1)/(shape->getRhoS()  ) * gravity[1];
+				double accT = (shape->getRhoS()-1)/(shape->getRhoS()+.5) * gravity[1];
+				double accN = (shape->getRhoS()-1)/(shape->getRhoS()   ) * gravity[1];
 				if (verbose) cout << "Acceleration with added mass (measured, expected, no added mass)\t" << accM << "\t" << accT << "\t" << accN << endl;
 				stringstream ss;
 				ss << path2file << "_addedmass.dat";
@@ -379,13 +415,6 @@ void Sim_FSI_Gravity::simulate()
 				cout << ss.str() << endl;
 				
 				dumper.Write(*grid, ss.str());
-				
-				vector<BlockInfo> vInfo = grid->getBlocksInfo();
-				Layer vorticity(sizeX,sizeY,1);
-				processOMP<Lab, OperatorVorticity>(vorticity,vInfo,*grid);
-				stringstream sVort;
-				sVort << path2file << "Vorticity-Final.vti";
-				dumpLayer2VTK(step,sVort.str(),vorticity,1);
 				profiler.pop_stop();
 				
 				profiler.printSummary();

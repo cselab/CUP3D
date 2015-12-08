@@ -14,9 +14,10 @@
 
 #include "Definitions.h"
 #include "ProcessOperatorsOMP.h"
-#include "OperatorVorticity.h"
 #include "GenericCoordinator.h"
 #include "GenericOperator.h"
+
+//#include "SerializerIO_WaveletCompression.h"
 
 #include <vector>
 #include <sys/types.h>
@@ -58,6 +59,8 @@ protected:
 	double dumpTime;
 	string path2file;
 	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
+//	SerializerIO_WaveletCompression_SimpleBlocking<FluidGrid, FluidVPStreamer> waveletdumper_grid;
+//	SerializerIO_WaveletCompression_SimpleBlocking<FluidGrid, TmpVPStreamer> waveletdumper_vorticity;
 	
 	virtual void _diagnostics() = 0;
 	virtual void _ic() = 0;
@@ -117,12 +120,80 @@ protected:
 		{
 			nextDumpTime += dumpTime;
 			
+#ifndef _USE_HDF_
 			stringstream ss;
 			ss << path2file << "-" << step << ".vti";
 			cout << ss.str() << endl;
 			
 			dumper.Write(*grid, ss.str());
+#else
+			DumpHDF5<FluidGrid, StreamerHDF5>(*grid, step, path2file, "");
+#endif
 			_serialize();
+			
+			/*
+			// VP
+			std::stringstream streamer;
+			streamer << path2file << "-datawavelet";
+			streamer.setf(ios::dec | ios::right);
+			streamer.width(6);
+			streamer.fill('0');
+			streamer << step;
+				
+			double vpeps = parser("-vpeps").asDouble(1e-3);
+			int wavelet_type = parser("-wtype").asInt(1);
+				
+			waveletdumper_grid.verbose();
+			waveletdumper_grid.set_wtype_write(wavelet_type);
+				
+			waveletdumper_grid.set_threshold (vpeps);
+			if (vpchannels.find('0') != std::string::npos)
+				waveletdumper_grid.Write<0>(grid, streamer.str());
+				
+			waveletdumper_grid.set_threshold (vpeps);
+			if (vpchannels.find('1') != std::string::npos)
+				waveletdumper_grid.Write<1>(grid, streamer.str());
+				
+			waveletdumper_grid.set_threshold (vpeps);
+			if (vpchannels.find('2') != std::string::npos)
+				waveletdumper_grid.Write<2>(grid, streamer.str());
+				
+			waveletdumper_grid.set_threshold (vpeps);
+			if (vpchannels.find('3') != std::string::npos)
+				waveletdumper_grid.Write<3>(grid, streamer.str());
+				
+			waveletdumper_grid.set_threshold (vpeps);
+			if (vpchannels.find('4') != std::string::npos)
+				waveletdumper_grid.Write<4>(grid, streamer.str());
+				
+			waveletdumper_grid.set_threshold (vpeps);
+			if (vpchannels.find('5') != std::string::npos)
+				waveletdumper_grid.Write<5>(grid, streamer.str());
+				
+			waveletdumper_vorticity.verbose();
+			waveletdumper_vorticity.set_wtype_write(wavelet_type);
+			waveletdumper_vorticity.set_threshold (vpeps);
+			if (vpchannels.find('w') != std::string::npos || vpchannels.find('W') != std::string::npos)
+				waveletdumper_vorticity.Write<5>(grid, streamer.str());
+				
+			waveletdumper_sos.verbose();
+			waveletdumper_sos.set_wtype_write(wavelet_type);
+			waveletdumper_sos.set_threshold (10*vpeps);
+			if (vpchannels.find('c') != std::string::npos)
+				waveletdumper_sos.Write<0>(grid, streamer.str());
+				
+			waveletdumper_mach.verbose();
+			waveletdumper_mach.set_wtype_write(wavelet_type);
+			waveletdumper_mach.set_threshold (vpeps);
+			if (vpchannels.find('M') != std::string::npos)
+				waveletdumper_mach.Write<0>(grid, streamer.str());
+				
+			waveletdumper_velocity_magnitude.verbose();
+			waveletdumper_velocity_magnitude.set_wtype_write(wavelet_type);
+			waveletdumper_velocity_magnitude.set_threshold (vpeps);
+			if (vpchannels.find('m') != std::string::npos)
+				waveletdumper_velocity_magnitude.Write<0>(grid, streamer.str());
+			 */
 		}
 	}
 	

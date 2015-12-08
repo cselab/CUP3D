@@ -10,7 +10,6 @@
 
 #include "ProcessOperatorsOMP.h"
 #include "OperatorDivergence.h"
-#include "OperatorVorticity.h"
 #include "PoissonSolverScalarFFTW.h"
 #include "OperatorGradP.h"
 
@@ -83,7 +82,6 @@ void Sim_FSI_Moving::_outputSettings(ostream &outStream)
 	outStream << "uBody " << uBody[0] << endl;
 	outStream << "vBody " << uBody[1] << endl;
 	outStream << "wBody " << uBody[1] << endl;
-	outStream << "omegaBody " << omegaBody << endl; // extra angle
 	outStream << "re " << re << endl;
 	outStream << "nu " << nu << endl;
 	
@@ -112,9 +110,6 @@ void Sim_FSI_Moving::_inputSettings(istream& inStream)
 	assert(variableName=="wBody");
 	inStream >> uBody[2];
 	inStream >> variableName;
-	assert(variableName=="omegaBody"); // extra angle
-	inStream >> omegaBody;
-	inStream >> variableName;
 	assert(variableName=="re");
 	inStream >> re;
 	inStream >> variableName;
@@ -124,7 +119,7 @@ void Sim_FSI_Moving::_inputSettings(istream& inStream)
 	Simulation_FSI::_inputSettings(inStream);
 }
 
-Sim_FSI_Moving::Sim_FSI_Moving(const int argc, const char ** argv) : Simulation_FSI(argc, argv), uBody{0,0,0}, omegaBody(0), re(0), nu(0), dtBody(0), dtCFL(0), dtFourier(0) // extra angle
+Sim_FSI_Moving::Sim_FSI_Moving(const int argc, const char ** argv) : Simulation_FSI(argc, argv), uBody{0,0,0}, re(0), nu(0), dtBody(0), dtCFL(0), dtFourier(0)
 {
 	int rank = 0;
 #ifdef _MULTIGRID_
@@ -154,10 +149,7 @@ void Sim_FSI_Moving::init()
 	{
 		// simulation settings
 		re = parser("-Re").asDouble(100);
-		
 		uBody[0] = - parser("-uBody").asDouble(0.1);
-		Real center[3] = {.85,.5,.5};
-		shape->setPosition(center);
 		nu = shape->getCharLength()*abs(uBody[0])/re;
 		
 		_ic();
@@ -171,8 +163,8 @@ void Sim_FSI_Moving::init()
 #endif
 	pipeline.push_back(new CoordinatorDiffusion<Lab>(nu, grid));
 	pipeline.push_back(new CoordinatorPressureSimple<Lab>(grid));
-	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], &omegaBody, shape, &lambda, grid)); // extra angle
-	pipeline.push_back(new CoordinatorComputeShape(&uBody[0], &uBody[1], &uBody[2], &omegaBody, shape, grid)); // extra angle
+	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], shape, &lambda, grid));
+	pipeline.push_back(new CoordinatorComputeShape(shape, grid));
 	
 	cout << "Coordinator/Operator ordering:\n";
 	for (int c=0; c<pipeline.size(); c++)
@@ -255,12 +247,6 @@ void Sim_FSI_Moving::simulate()
 			cout << ss.str() << endl;
 			
 			dumper.Write(*grid, ss.str());
-			
-			Layer vorticity(sizeX,sizeY,1);
-			processOMP<Lab, OperatorVorticity>(vorticity,vInfo,*grid);
-			stringstream sVort;
-			sVort << path2file << "Vorticity-Final.vti";
-			dumpLayer2VTK(step,sVort.str(),vorticity,1);
 			profiler.pop_stop();
 			
 			profiler.printSummary();

@@ -236,12 +236,13 @@ void TestPoiseuille::check()
 				}
 		}
 		
-		L2_u = sqrt(L2_u)/(double)size*size;
-		L2_v = sqrt(L2_v)/(double)size*size;
-		L2_p = sqrt(L2_p)/(double)size*size;
-		L1_u /= (double)size*size*size;
-		L1_v /= (double)size*size*size;
-		L1_p /= (double)size*size*size;
+		const double invh3 = 1./((double)size*size*size);
+		L2_u = sqrt(L2_u*invh3);
+		L2_v = sqrt(L2_v*invh3);
+		L2_p = sqrt(L2_p*invh3);
+		L1_u *= invh3;
+		L1_v *= invh3;
+		L1_p *= invh3;
 		
 		stringstream ss;
 		ss << path2file << "_diagnostics.dat";

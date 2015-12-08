@@ -30,15 +30,9 @@ void TestAddedMass::_ic()
 	minRho = min((Real)1.,(Real)rhoS);
 	
 	Real centerOfMass[3] = {.5,.5,.5};
-    bool bPeriodic[3] = {false,false,false};
-    
-    vector<BlockInfo> vInfo = grid->getBlocksInfo();
-	const Real domainSize[3] = { FluidBlock::sizeX * grid->getBlocksPerDimension(0) * vInfo[0].h_gridpoint,
-								 FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint,
-								 FluidBlock::sizeZ * grid->getBlocksPerDimension(2) * vInfo[0].h_gridpoint};
 	
     Real radius = parser("-radius").asDouble(0.1);
-	shape = new Disk(centerOfMass, radius, rhoS, 2, 2, bPeriodic, domainSize);
+	shape = new Sphere(centerOfMass, radius, rhoS, 2, 2);
 	
 #ifdef _MULTIGRID_
 	if (rank==0)
@@ -50,7 +44,7 @@ void TestAddedMass::_ic()
 	}
 }
 
-TestAddedMass::TestAddedMass(const int argc, const char ** argv, const int bpd) : Test(argc, argv), parser(argc,argv), bpd(bpd), gravity{0,-9.81,0}, uBody{0,0,0}, omegaBody(0), bSplit(false), step(0), rank(0), nprocs(1)
+TestAddedMass::TestAddedMass(const int argc, const char ** argv, const int bpd) : Test(argc, argv), parser(argc,argv), bpd(bpd), gravity{0,-9.81,0}, uBody{0,0,0}, bSplit(false), step(0), rank(0), nprocs(1)
 {
 	// output settings
 	path2file = parser("-file").asString("../data/TestAddedMass");
@@ -69,9 +63,9 @@ TestAddedMass::TestAddedMass(const int argc, const char ** argv, const int bpd) 
 	pipeline.push_back(new CoordinatorDiffusion<Lab>(nu, &uBody[0], &uBody[1], &uBody[2], grid));
 	pipeline.push_back(new CoordinatorGravity(gravity, grid));
 	pipeline.push_back(new CoordinatorPressure<Lab>(minRho, gravity, &step, bSplit, grid, rank, nprocs));
-	pipeline.push_back(new CoordinatorBodyVelocities(&uBody[0], &uBody[1], &uBody[2], &omegaBody, &lambda, shape->getRhoS(), grid));
-	pipeline.push_back(new CoordinatorComputeShape(&uBody[0], &uBody[1], &uBody[2], &omegaBody, shape, grid));
-	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], &omegaBody, shape, &lambda, grid));
+	pipeline.push_back(new CoordinatorBodyVelocities(&uBody[0], &uBody[1], &uBody[2], &lambda, shape, grid));
+	pipeline.push_back(new CoordinatorComputeShape(shape, grid));
+	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], shape, &lambda, grid));
 }
 
 TestAddedMass::~TestAddedMass()
@@ -118,7 +112,7 @@ void TestAddedMass::run()
 			double accM = (uBody[1]-vOld)/dt;
 			vOld = uBody[1];
 			double accT = (shape->getRhoS()-1)/(shape->getRhoS()+.5) * gravity[1];
-			double accN = (shape->getRhoS()-1)/(shape->getRhoS()  ) * gravity[1];
+			double accN = (shape->getRhoS()-1)/(shape->getRhoS()   ) * gravity[1];
 			cout << bpd << "\t" << rhoS << "\t" << step << "\t" << accM << "\t" << accT << "\t" << accN << endl;
 			stringstream ss;
 			ss << path2file << "_addedmass.dat";

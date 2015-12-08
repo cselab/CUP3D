@@ -32,6 +32,7 @@ typedef float Real;
 #include <Grid.h>
 #include <BlockInfo.h>
 #include <SerializerIO_ImageVTK.h>
+#include <HDF5Dumper.h>
 #include <ZBinDumper.h>
 #include <BlockLab.h>
 #include <Profiler.h>

@@ -9,7 +9,6 @@
 #include "Sim_Bubble.h"
 
 #include "ProcessOperatorsOMP.h"
-#include "OperatorVorticity.h"
 
 #include "CoordinatorIC.h"
 #include "CoordinatorAdvection.h"
@@ -83,14 +82,7 @@ void Sim_Bubble::_ic()
 		else
 			centerOfMass[1] = .15;
 		
-        bool bPeriodic[3] = {false,false,false};
-        
-        vector<BlockInfo> vInfo = grid->getBlocksInfo();
-		const Real domainSize[3] = { FluidBlock::sizeX * grid->getBlocksPerDimension(0) * vInfo[0].h_gridpoint,
-									 FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint,
-									 FluidBlock::sizeZ * grid->getBlocksPerDimension(2) * vInfo[0].h_gridpoint};
-		
-		shape = new Sphere(centerOfMass, radius, rhoS, 2, 2, bPeriodic, domainSize);
+		shape = new Sphere(centerOfMass, radius, rhoS, 2, 2);
 		CoordinatorIC coordIC(shape,0,grid);
 		profiler.push_start(coordIC.getName());
 		coordIC(0);
@@ -266,13 +258,6 @@ void Sim_Bubble::simulate()
 				cout << ss.str() << endl;
 				
 				dumper.Write(*grid, ss.str());
-				
-				vector<BlockInfo> vInfo = grid->getBlocksInfo();
-				Layer vorticity(sizeX,sizeY,sizeZ);
-				processOMP<Lab, OperatorVorticity>(vorticity,vInfo,*grid);
-				stringstream sVort;
-				sVort << path2file << "Vorticity-Final.vti";
-				dumpLayer2VTK(step,sVort.str(),vorticity,1);
 				profiler.pop_stop();
 				
 				profiler.printSummary();

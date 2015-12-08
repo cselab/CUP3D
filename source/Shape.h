@@ -14,15 +14,21 @@
 #ifndef CubismUP_3D_Shape_h
 #define CubismUP_3D_Shape_h
 
+#include "GeometryReader.h"
+#include "WavefrontReader.h"
+#include "CTReader.h"
+
 class Shape
 {
 protected:
-	Real center[2], orientation;
-	const Real rhoS;
-    
-    const Real domainSize[2];
-    const bool bPeriodic[2];
+	// general quantities
+	Geometry::Properties properties;
 	
+	// scale,translate
+	Real scaleFactor;
+	Geometry::Point translationFactor;
+	
+	// smoothing
 	const Real mollChi;
 	const Real mollRho; // currently not used - need to change in rho method
 	
@@ -36,91 +42,159 @@ protected:
 			return (Real) ((1.+cos(M_PI*((rR-radius)/eps+.5)))*.5);
 	}
 	
-	// TODO: need to include boundary conditions in case of periodicity
-	
 public:
-    Shape(Real center[2], Real orientation, const Real rhoS, const Real mollChi, const Real mollRho, bool bPeriodic[2], Real domainSize[2]) : center{center[0],center[1]}, domainSize{domainSize[0],domainSize[1]}, bPeriodic{bPeriodic[0],bPeriodic[1]}, orientation(orientation), rhoS(rhoS), mollChi(mollChi), mollRho(mollRho)
+	Shape(Real center[3], const Real rhoS, const Real mollChi, const Real mollRho, Real scale=1, Real tX=0, Real tY=0, Real tZ=0, Geometry::Quaternion orientation=Geometry::Quaternion()) : mollChi(mollChi), mollRho(mollRho), scaleFactor(scale), translationFactor(tX,tY,tZ)
 	{
-		if (bPeriodic[0] || bPeriodic[1])
-		{
-			cout << "Periodic shapes are currently unsupported\n";
-			abort();
-		}
+		properties.com.x = center[0];
+		properties.com.y = center[1];
+		properties.com.z = center[2];
+		
+		properties.centroid.x = center[0];
+		properties.centroid.y = center[1];
+		properties.centroid.z = center[2];
+		
+		properties.ut.x = 0;
+		properties.ut.y = 0;
+		properties.ut.z = 0;
+		
+		properties.dthetadt.x = 0;
+		properties.dthetadt.y = 0;
+		properties.dthetadt.z = 0;
+		
+		properties.density = rhoS;
+		
+		properties.q = orientation;
+		
+		properties.rotation[0][0] = 1-2*(properties.q.y*properties.q.y + properties.q.z*properties.q.z);
+		properties.rotation[0][1] =   2*(properties.q.x*properties.q.y - properties.q.w*properties.q.z);
+		properties.rotation[0][2] =   2*(properties.q.x*properties.q.z + properties.q.w*properties.q.y);
+		properties.rotation[1][0] =   2*(properties.q.x*properties.q.y + properties.q.w*properties.q.z);
+		properties.rotation[1][1] = 1-2*(properties.q.x*properties.q.x + properties.q.z*properties.q.z);
+		properties.rotation[1][2] =   2*(properties.q.y*properties.q.z - properties.q.w*properties.q.x);
+		properties.rotation[2][0] =   2*(properties.q.x*properties.q.z - properties.q.w*properties.q.y);
+		properties.rotation[2][1] =   2*(properties.q.y*properties.q.z + properties.q.w*properties.q.x);
+		properties.rotation[2][2] = 1-2*(properties.q.x*properties.q.x + properties.q.y*properties.q.y);
+		
+		//cout << properties.q.w << " " << properties.q.x << " " << properties.q.y << " " << properties.q.z << endl;
+		//cout << properties.rotation[0][0] << " " << properties.rotation[0][1] << " " << properties.rotation[0][2] << endl;
+		//cout << properties.rotation[1][0] << " " << properties.rotation[1][1] << " " << properties.rotation[1][2] << endl;
+		//cout << properties.rotation[2][0] << " " << properties.rotation[2][1] << " " << properties.rotation[2][2] << endl;
+		
+		cout << "WARNING - shape not completely initialized\n";
+		// to initialize: mass, minb, maxb, J
 	}
 	
 	virtual ~Shape() {}
 	
-	virtual Real chi(Real p[2], Real h) const = 0;
+	virtual Real chi(Real p[3], Real h) const = 0;
 	virtual Real getCharLength() const = 0;
 	
-	
-	void updatePosition(Real u[2], Real omega, Real dt)
+	virtual void updatePosition(Real u[3], Real dthetadt[3], Real J[6], Real mass, Real dt)
 	{
-		center[0] += dt*u[0];
-#ifndef _MOVING_FRAME_
-        center[1] += dt*u[1];
-#endif
-		orientation += dt*omega;
-		orientation = orientation>2*M_PI ? orientation-2*M_PI : (orientation<0 ? orientation+2*M_PI : orientation);
+		properties.ut.x = u[0];
+		properties.ut.y = u[1];
+		properties.ut.z = u[2];
+		
+		for (int i=0; i<6; i++)
+			properties.J[i] = J[i];
+		//	cout << "Inertia difference for component " << i << "\t" << abs(properties.J[i] - J[i]) << "(" << properties.J[i] << " " << J[i] << " " << properties.J[i]/J[i] << ")" << endl;
+		
+		const double detJ = properties.J[0]*(properties.J[1]*properties.J[2] - properties.J[5]*properties.J[5]) +
+		properties.J[3]*(properties.J[4]*properties.J[5] - properties.J[2]*properties.J[3]) +
+		properties.J[4]*(properties.J[3]*properties.J[5] - properties.J[1]*properties.J[4]);
+		assert(abs(detJ)>numeric_limits<double>::epsilon());
+		const double invDetJ = 1./detJ;
+		
+		const double invJ[6] = {
+			invDetJ * (properties.J[1]*properties.J[2] - properties.J[5]*properties.J[5]),
+			invDetJ * (properties.J[0]*properties.J[2] - properties.J[4]*properties.J[4]),
+			invDetJ * (properties.J[0]*properties.J[1] - properties.J[3]*properties.J[3]),
+			invDetJ * (properties.J[4]*properties.J[5] - properties.J[2]*properties.J[3]),
+			invDetJ * (properties.J[3]*properties.J[5] - properties.J[1]*properties.J[4]),
+			invDetJ * (properties.J[3]*properties.J[4] - properties.J[0]*properties.J[5])
+		};
+		
+		// J-1 * dthetadt
+		// angular velocity from angular momentum
+		properties.dthetadt.x = (invJ[0]*dthetadt[0] + invJ[3]*dthetadt[1] + invJ[4]*dthetadt[2]);
+		properties.dthetadt.y = (invJ[3]*dthetadt[0] + invJ[1]*dthetadt[1] + invJ[5]*dthetadt[2]);
+		properties.dthetadt.z = (invJ[4]*dthetadt[0] + invJ[5]*dthetadt[1] + invJ[2]*dthetadt[2]);
+		
+		properties.update(dt);
 	}
 	
-	void setPosition(Real com[2])
+	void getCentroid(Real centroid[3])
 	{
-		center[0] = com[0];
-		center[1] = com[1];
+		centroid[0] = properties.centroid.x;
+		centroid[1] = properties.centroid.y;
+		centroid[2] = properties.centroid.z;
 	}
 	
-	void getPosition(Real com[2])
+	void getCenterOfMass(Real com[3])
 	{
-		com[0] = center[0];
-		com[1] = center[1];
+		com[0] = properties.com.x;
+		com[1] = properties.com.y;
+		com[3] = properties.com.z;
 	}
 	
-	Real getOrientation() const
+	void getOrientation(Real rotation[3][3]) const
 	{
-		return orientation;
+		rotation[0][0] = properties.rotation[0][0];
+		rotation[0][1] = properties.rotation[0][1];
+		rotation[0][2] = properties.rotation[0][2];
+		rotation[1][0] = properties.rotation[1][0];
+		rotation[1][1] = properties.rotation[1][1];
+		rotation[1][2] = properties.rotation[1][2];
+		rotation[2][0] = properties.rotation[2][0];
+		rotation[2][1] = properties.rotation[2][1];
+		rotation[2][2] = properties.rotation[2][2];
 	}
 	
-	inline Real getRhoS() const
+	virtual inline Real getRhoS() const
 	{
-		return rhoS;
+		return properties.density;
 	}
 	
-	Real rho(Real p[2], Real h)
+	virtual Real rho(Real p[3], Real h, Real mask) const
+	{
+		return properties.density*mask + 1.*(1.-mask);
+	}
+	
+	virtual Real rho(Real p[3], Real h) const
 	{
 		Real mask = chi(p,h);
-		
-		return rhoS*mask + 1.*(1.-mask);
+		return rho(p,h,mask);
 	}
 	
 	virtual void outputSettings(ostream &outStream)
 	{
-		outStream << "centerX " << center[0] << endl;
-		outStream << "centerY " << center[1] << endl;
-		outStream << "orientation " << orientation << endl;
-		outStream << "rhoS " << rhoS << endl;
+		outStream << "centerX " << properties.centroid.x << endl;
+		outStream << "centerY " << properties.centroid.y << endl;
+		outStream << "centerZ " << properties.centroid.z << endl;
+		outStream << "centerMassX " << properties.com.x << endl;
+		outStream << "centerMassY " << properties.com.y << endl;
+		outStream << "centerMassZ " << properties.com.z << endl;
+		//outStream << "orientation " << orientation << endl;
+		outStream << "rhoS " << properties.density << endl;
 		outStream << "mollChi " << mollChi << endl;
 		outStream << "mollRho " << mollRho << endl;
 	}
 };
 
-class Disk : public Shape
+class Sphere : public Shape
 {
 protected:
 	Real radius;
 	
 public:
-	Disk(Real center[2], Real radius, const Real rhoS, const Real mollChi, const Real mollRho, bool bPeriodic[2], Real domainSize[2]) : Shape(center, 0, rhoS, mollChi, mollRho, bPeriodic, domainSize), radius(radius)
-    {
-    }
+	Sphere(Real center[3], Real radius, const Real rhoS, const Real mollChi, const Real mollRho) : Shape(center, rhoS, mollChi, mollRho), radius(radius)
+	{
+	}
 	
-	Real chi(Real p[2], Real h) const
-    {
-        const Real centerPeriodic[2] = {center[0] - floor(center[0]/domainSize[0]) * bPeriodic[0],
-                                        center[1] - floor(center[1]/domainSize[1]) * bPeriodic[1]};
-        
-        const Real d[2] = { abs(p[0]-centerPeriodic[0]), abs(p[1]-centerPeriodic[1]) };
-		const Real dist = sqrt(d[0]*d[0]+d[1]*d[1]);
+	Real chi(Real p[3], Real h) const
+	{
+		const Real d[3] = { abs(p[0]-properties.centroid.x), abs(p[1]-properties.centroid.y), abs(p[2]-properties.centroid.z) };
+		const Real dist = sqrt(d[0]*d[0]+d[1]*d[1]+d[2]*d[2]);
 		
 		return smoothHeaviside(dist, radius, mollChi*sqrt(2)*h);
 	}
@@ -132,316 +206,45 @@ public:
 	
 	void outputSettings(ostream &outStream)
 	{
-		outStream << "Disk\n";
+		outStream << "Sphere\n";
 		outStream << "radius " << radius << endl;
 		
 		Shape::outputSettings(outStream);
 	}
 };
 
-class Ellipse : public Shape
+class GeometryMesh : public Shape
 {
 protected:
-	// these quantities are defined in the local coordinates of the ellipse
-	Real semiAxis[2];
-	
-	// code from http://www.geometrictools.com/
-	//----------------------------------------------------------------------------
-	// The ellipse is (x0/semiAxis0)^2 + (x1/semiAxis1)^2 = 1.  The query point is (y0,y1).
-	// The function returns the distance from the query point to the ellipse.
-	// It also computes the ellipse point (x0,x1) that is closest to (y0,y1).
-	//----------------------------------------------------------------------------
-	Real DistancePointEllipseSpecial (const Real e[2], const Real y[2], Real x[2])
-	{
-		Real distance = (Real)0;
-		if (y[1] > (Real)0)
-		{
-			if (y[0] > (Real)0)
-			{
-				// Bisect to compute the root of F(t) for t >= -e1*e1.
-				Real esqr[2] = { e[0]*e[0], e[1]*e[1] };
-				Real ey[2] = { e[0]*y[0], e[1]*y[1] };
-				Real t0 = -esqr[1] + ey[1];
-				Real t1 = -esqr[1] + sqrt(ey[0]*ey[0] + ey[1]*ey[1]);
-				Real t = t0;
-				const int imax = 2*std::numeric_limits<Real>::max_exponent;
-				for (int i = 0; i < imax; ++i)
-				{
-					t = ((Real)0.5)*(t0 + t1);
-					if (t == t0 || t == t1)
-					{
-						break;
-					}
-					
-					Real r[2] = { ey[0]/(t + esqr[0]), ey[1]/(t + esqr[1]) };
-					Real f = r[0]*r[0] + r[1]*r[1] - (Real)1;
-					if (f > (Real)0)
-					{
-						t0 = t;
-					}
-					else if (f < (Real)0)
-					{
-						t1 = t;
-					}
-					else
-					{
-						break;
-					}
-				}
-				
-				x[0] = esqr[0]*y[0]/(t + esqr[0]);
-				x[1] = esqr[1]*y[1]/(t + esqr[1]);
-				Real d[2] = { x[0] - y[0], x[1] - y[1] };
-				distance = sqrt(d[0]*d[0] + d[1]*d[1]);
-			}
-			else  // y0 == 0
-			{
-				x[0] = (Real)0;
-				x[1] = e[1];
-				distance = fabs(y[1] - e[1]);
-			}
-		}
-		else  // y1 == 0
-		{
-			Real denom0 = e[0]*e[0] - e[1]*e[1];
-			Real e0y0 = e[0]*y[0];
-			if (e0y0 < denom0)
-			{
-				// y0 is inside the subinterval.
-				Real x0de0 = e0y0/denom0;
-				Real x0de0sqr = x0de0*x0de0;
-				x[0] = e[0]*x0de0;
-				x[1] = e[1]*sqrt(fabs((Real)1 - x0de0sqr));
-				Real d0 = x[0] - y[0];
-				distance = sqrt(d0*d0 + x[1]*x[1]);
-			}
-			else
-			{
-				// y0 is outside the subinterval.  The closest ellipse point has
-				// x1 == 0 and is on the domain-boundary interval (x0/e0)^2 = 1.
-				x[0] = e[0];
-				x[1] = (Real)0;
-				distance = fabs(y[0] - e[0]);
-			}
-		}
-		return distance;
-	}
-	
-	Real DistancePointEllipse(const Real y[2], Real x[2])
-	{
-		// Determine reflections for y to the first quadrant.
-		bool reflect[2];
-		int i, j;
-		for (i = 0; i < 2; ++i)
-		{
-			reflect[i] = (y[i] < (Real)0);
-		}
-		
-		// Determine the axis order for decreasing extents.
-		int permute[2];
-		if (semiAxis[0] < semiAxis[1])
-		{
-			permute[0] = 1;  permute[1] = 0;
-		}
-		else
-		{
-			permute[0] = 0;  permute[1] = 1;
-		}
-		
-		int invpermute[2];
-		for (i = 0; i < 2; ++i)
-		{
-			invpermute[permute[i]] = i;
-		}
-		
-		Real locE[2], locY[2];
-		for (i = 0; i < 2; ++i)
-		{
-			j = permute[i];
-			locE[i] = semiAxis[j];
-			locY[i] = y[j];
-			if (reflect[j])
-			{
-				locY[i] = -locY[i];
-			}
-		}
-		
-		Real locX[2];
-		Real distance = DistancePointEllipseSpecial(locE, locY, locX);
-		
-		// Restore the axis order and reflections.
-		for (i = 0; i < 2; ++i)
-		{
-			j = invpermute[i];
-			if (reflect[j])
-			{
-				locX[j] = -locX[j];
-			}
-			x[i] = locX[j];
-		}
-		
-		return distance;
-	}
+	GeometryReader * geometry;
 	
 public:
-	Ellipse(Real center[2], Real semiAxis[2], Real orientation, const Real rhoS, const Real mollChi, const Real mollRho, bool bPeriodic[2], Real domainSize[2]) : Shape(center, orientation, rhoS, mollChi, mollRho, bPeriodic, domainSize), semiAxis{semiAxis[0],semiAxis[1]} {}
+	GeometryMesh(const string filename, const int gridsize, Real center[3], const Real rhoS, const Real mollChi, const Real mollRho, Real scale=1, Real tX=0, Real tY=0, Real tZ=0, Geometry::Quaternion orientation=Geometry::Quaternion()) : Shape(center, rhoS, mollChi, mollRho, scale, tX, tY, tZ, orientation)
+	{
+		Geometry::Point transFactor(tX,tY,tZ);
+#ifdef _CT_
+		geometry = new GeometryReaderCT(filename,properties,gridsize,scale,transFactor);
+#else
+		geometry = new GeometryReaderOBJ(filename,properties,gridsize,scale,transFactor);
+#endif
+	}
 	
-	Real chi(Real p[2], Real h) const
-    {
-		/*
-		// based on https://www.spaceroots.org/documents/distance/distance-to-ellipse.pdf
-		const int maxIter = 100;
-		const Real threshold  = .001;
-		const Real thresholdC = .001;
-		Real theta, g;
-		Real a,b,c,d,k;
-		Real q,r,e;
-		Real t, tTmp, phiTmp, phi;
-		
-		p[0] -= center[0];
-		p[1] -= center[1];
-		const Real dist = sqrt(p[0]*p[0]+p[1]*p[1]);
-		
-		const Real ae = max(semiAxis[0],semiAxis[1]);
-		const Real ap = min(semiAxis[0],semiAxis[1]);
-		const Real f = 1. - ap/ae;
-		const Real omf2 = (1.-f)*(1.-f);
-		
-		if (dist < threshold * ae)
-		{
-			g = -ap;
-			return g;//smoothHeaviside(g, 0, mollChi*sqrt(2)*h);
-		}
-		
-		const Real radius = omf2 * (p[0]*p[0]-ae*ae) + p[1]*p[1];
-		const bool bInside = radius <= 0;
-		
-		const Real cosz = p[0]/dist;
-		const Real sinz = p[1]/dist;
-		t = p[1]/(p[0]+dist);
-		
-		// distance to the ellipse along the current line as the root of a 2nd degree
-		// polynom closest to zero: ak2 −2bk +c = 0
-		a = omf2 * cosz*cosz + sinz*sinz;
-		b = omf2 * p[0]*cosz + p[1]*sinz;
-		c = radius;
-		k = c / (b - sqrt(b*b-a*c));
-		phi = atan2(p[1] - k*sinz, omf2*(p[0]-k*cosz));
-		
-		if (abs(k) < threshold*dist)
-		{
-			g = k;
-			return g;//smoothHeaviside(g, 0, mollChi*sqrt(2)*h);
-		}
-		
-		for (int i=0; i<maxIter; i++)
-		{
-			a = omf2*((p[0]+k)*(p[0]+k) - ae*ae) + p[1]*p[1];
-			b = -4.*k*p[1]/a;
-			c = 2. * (omf2*(p[0]*p[0] - k*k - ae*ae) + 2.*k*k + p[1]*p[1]) / a;
-			d = b;
-			
-			b += t;
-			c += t;
-			d += t;
-			
-			q = (3.*c - b*b) / 9.;
-			r = (b*(9.*c-2.*b*b) - 27.*d) / 54.;
-			e = q*q*q + r*r;
-			
-			if (e >= 0)
-			{
-				tTmp = cbrt(r+sqrt(e)) + cbrt(r-sqrt(e)) - b/3.;
-				phiTmp = atan2(p[1] * (1. + tTmp*tTmp) - 2.*k*tTmp, omf2 * (p[0] * (1.+tTmp*tTmp) - k*(1.-tTmp*tTmp)));
-			}
-			else
-			{
-				q = -q;
-				theta = acos(r) / (q*sqrt(q));
-				tTmp = 2.*sqrt(q)*cos(theta/3.) - b/3.;
-				phiTmp = atan2(p[1] * (1. + tTmp*tTmp) - 2.*k*tTmp, omf2 * (p[0] * (1.+tTmp*tTmp) - k*(1.-tTmp*tTmp)));
-				
-				if (phi*phiTmp < 0)
-				{
-					tTmp = 2.*sqrt(q)*cos((theta+2.*M_PI)/3.) - b/3.;
-					phiTmp = atan2(p[1] * (1. + tTmp*tTmp) - 2.*k*tTmp, omf2 * (p[0] * (1.+tTmp*tTmp) - k*(1.-tTmp*tTmp)));
-					
-					
-					if (phi*phiTmp < 0)
-					{
-						tTmp = 2.*sqrt(q)*cos((theta+4.*M_PI)/3.) - b/3.;
-						phiTmp = atan2(p[1] * (1. + tTmp*tTmp) - 2.*k*tTmp, omf2 * (p[0] * (1.+tTmp*tTmp) - k*(1.-tTmp*tTmp)));
-						
-					}
-				}
-			}
-			
-			const Real deltaPhi = abs(phiTmp-phi) / 2.;
-			phi = (phi+phiTmp) / 2.;
-			
-			if (deltaPhi < thresholdC)
-			{
-				g = p[0]*cos(phi) + p[1]*sin(phi) - ae * sqrt(1.-f*(2.-f)*sin(phi)*sin(phi));
-				return g;//smoothHeaviside(g, 0, mollChi*sqrt(2)*h);
-			}
-			
-			const Real deltaX = p[0] - ae        * cos(phi) / sqrt(1.-f*(2.-f)*sin(phi)*sin(phi));
-			const Real deltaY = p[1] - ae * omf2 * sin(phi) / sqrt(1.-f*(2.-f)*sin(phi)*sin(phi));
-			k = sqrt(deltaX*deltaX + deltaY*deltaY);
-			
-			if (bInside) k = -k;
-			
-			t = deltaY/(deltaX+k);
-		}
-		*/
-		//*
-		const Real centerPeriodic[2] = {center[0] - floor(center[0]/domainSize[0]) * bPeriodic[0],
-										center[1] - floor(center[1]/domainSize[1]) * bPeriodic[1]};
-		Real x[2] = {0,0};
-		p[0]-=centerPeriodic[0];
-		p[1]-=centerPeriodic[1];
-		
-		const Real rotatedP[2] = { cos(orientation)*p[1] - sin(orientation)*p[0],
-								   sin(orientation)*p[1] + cos(orientation)*p[0] };
-		const Real dist = DistancePointEllipse(rotatedP, x);
-		const int sign = ( (rotatedP[0]*rotatedP[0]+rotatedP[1]*rotatedP[1]) > (x[0]*x[0]+x[1]*x[1]) ) ? 1 : -1;
-		
-		return smoothHeaviside(sign*dist,0,mollChi*sqrt(2)*h);
-		
-		/*/
-        const Real centerPeriodic[2] = {center[0] - floor(center[0]/domainSize[0]) * bPeriodic[0],
-                                        center[1] - floor(center[1]/domainSize[1]) * bPeriodic[1]};
-        
-		const Real angle = atan2(p[1]-centerPeriodic[1],p[0]-centerPeriodic[0]) - orientation;
-		const Real x = semiAxis[0]*cos(angle);
-		const Real y = semiAxis[1]*sin(angle);
-		const Real radius = semiAxis[0]*semiAxis[1] / sqrt(x*x + y*y);
-		const Real dist = sqrt( (p[0]-centerPeriodic[0])*(p[0]-centerPeriodic[0]) + (p[1]-centerPeriodic[1])*(p[1]-centerPeriodic[1]) );
-		return smoothHeaviside(dist, radius, mollChi*sqrt(2)*h);
-		/*/
-		/*
-		 // need to account for rotations!
-		const Real focus = sqrt(semiAxis[1]*semiAxis[1]-semiAxis[0]*semiAxis[0]);
-		const Real distF1 = sqrt((p[0]-(center[0]-focus))*(p[0]-(center[0]-focus))+(p[1]-center[1])*(p[1]-center[1]));
-		const Real distF2 = sqrt((p[0]-(center[0]+focus))*(p[0]-(center[0]+focus))+(p[1]-center[1])*(p[1]-center[1]));
-		const Real dist = distF1+distF2 - (2*semiAxis[1]);
-		return smoothHeaviside(dist, 0, mollChi*sqrt(2)*h);
-		return smoothHeaviside(distF1+distF2, 2*semiAxis[1], mollChi*sqrt(2)*h);
-		//*/
+	Real chi(Real p[3], Real h) const
+	{
+		return smoothHeaviside(geometry->distance(p[0], p[1], p[2]), 0.01, mollChi*sqrt(2)*h);
+		//return smoothHeaviside(geometry->distance(p[0], p[1], p[2]), 0.004, mollChi*sqrt(2)*h);
 	}
 	
 	Real getCharLength() const
 	{
-		return 2 * semiAxis[1];
+		//cout << "Not implemented yet\n";
+		return .1;
 	}
 	
 	void outputSettings(ostream &outStream)
 	{
-		outStream << "Ellipse\n";
-		outStream << "semiAxisX " << semiAxis[0] << endl;
-		outStream << "semiAxisY " << semiAxis[1] << endl;
-		
-		Shape::outputSettings(outStream);
+		//cout << "Not implemented yet\n";
+		//abort();
 	}
 };
 

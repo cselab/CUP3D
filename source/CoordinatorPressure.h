@@ -27,14 +27,14 @@ protected:
 	const double minRho;
 	Real gravity[3];
 	int * step;
-    const bool bSplit;
-    Real *uBody, *vBody;
+	const bool bSplit;
+	Real *uBody, *vBody, *wBody;
 	
 #ifdef _SPLIT_
 #ifndef _MIXED_
 	PoissonSolverScalarFFTW<FluidGrid, StreamerDiv> pressureSolver;
 #else // _MIXED_
-    PoissonSolverScalarFFTW_DCT<FluidGrid, StreamerDiv> pressureSolver;
+	PoissonSolverScalarFFTW_DCT<FluidGrid, StreamerDiv> pressureSolver;
 #endif // _MIXED_
 #endif // _SPLIT_
 	
@@ -53,13 +53,13 @@ protected:
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-				{
-					b(ix,iy,iz).u -= dt*gravity[0]/b(ix,iy,iz).rho;
-					b(ix,iy,iz).v -= dt*gravity[1]/b(ix,iy,iz).rho;
-					b(ix,iy,iz).w -= dt*gravity[2]/b(ix,iy,iz).rho;
-				}
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
+						b(ix,iy,iz).u -= dt*gravity[0]/b(ix,iy,iz).rho;
+						b(ix,iy,iz).v -= dt*gravity[1]/b(ix,iy,iz).rho;
+						b(ix,iy,iz).w -= dt*gravity[2]/b(ix,iy,iz).rho;
+					}
 		}
 	}
 	
@@ -74,12 +74,12 @@ protected:
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-				{
-					b(ix,iy,iz).pOld = b(ix,iy,iz).p;
-					b(ix,iy,iz).p    = b(ix,iy,iz).divU;
-				}
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
+						b(ix,iy,iz).pOld = b(ix,iy,iz).p;
+						b(ix,iy,iz).p    = b(ix,iy,iz).divU;
+					}
 		}
 	}
 	
@@ -115,7 +115,7 @@ protected:
 		{
 			Operator kernel(dt);
 			
-            Lab mylab;
+			Lab mylab;
 #ifdef _MOVING_FRAME_
 			mylab.pDirichlet.u = 0;
 			mylab.pDirichlet.v = *vBody;
@@ -140,13 +140,13 @@ public:
 #endif // _SPLIT_
 	{
 	}
-    
-    CoordinatorPressure(const double minRho, const Real gravity[3], int * step, const bool bSplit, FluidGrid * grid, const int rank, const int nprocs) : GenericCoordinator(grid), rank(rank), nprocs(nprocs), minRho(minRho), step(step), bSplit(bSplit), uBody(NULL), vBody(NULL), gravity{gravity[0],gravity[1],gravity[2]}
+	
+	CoordinatorPressure(const double minRho, const Real gravity[3], int * step, const bool bSplit, FluidGrid * grid, const int rank, const int nprocs) : GenericCoordinator(grid), rank(rank), nprocs(nprocs), minRho(minRho), step(step), bSplit(bSplit), uBody(NULL), vBody(NULL), gravity{gravity[0],gravity[1],gravity[2]}
 #ifdef _SPLIT_
-    , pressureSolver(NTHREADS,*grid)
+	, pressureSolver(NTHREADS,*grid)
 #endif // _SPLIT_
-    {
-    }
+	{
+	}
 	
 	void operator()(const double dt)
 	{
@@ -180,9 +180,9 @@ public:
 		check("pressure - preMG");
 		mg.setup(grid, bSplit, rank, nprocs);
 		mg();
-        
+		
 		MPI_Barrier(MPI_COMM_WORLD);
-        
+		
 		check("pressure - postMG");
 		if (rank==0)
 		{
@@ -212,9 +212,9 @@ class CoordinatorPressureSimple : public GenericCoordinator
 {
 protected:
 #ifndef _MIXED_
-    PoissonSolverScalarFFTW<FluidGrid, StreamerDiv> pressureSolver;
+	PoissonSolverScalarFFTW<FluidGrid, StreamerDiv> pressureSolver;
 #else
-    PoissonSolverScalarFFTW_DCT<FluidGrid, StreamerDiv> pressureSolver;
+	PoissonSolverScalarFFTW_DCT<FluidGrid, StreamerDiv> pressureSolver;
 #endif // _MIXED_
 	
 	inline void updatePressure()
@@ -228,12 +228,12 @@ protected:
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-				{
-					b(ix,iy,iz).pOld = b(ix,iy,iz).p;
-					b(ix,iy,iz).p    = b(ix,iy,iz).divU;
-				}
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
+						b(ix,iy,iz).pOld = b(ix,iy,iz).p;
+						b(ix,iy,iz).p    = b(ix,iy,iz).divU;
+					}
 		}
 	}
 	

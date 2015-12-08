@@ -29,6 +29,7 @@ using namespace std;
 #include "TestPoiseuille.h"
 #include "TestAddedMass.h"
 #include "TestBoundaryConditions.h"
+#include "TestGeometry.h"
 #include "Definitions.h"
 
 void spatialConvergence(int argc, const char **argv, const int solver, const int ic, const string test, const int minBPD, const int maxBPD, const double dt)
@@ -458,6 +459,15 @@ void baseTest(int argc, const char **argv, const int solver, const int ic, const
 		am->run();
 		am->check();
 		delete am;
+	}
+	else if (test=="geometry")
+	{
+		cout << "========================================================================================\n";
+		cout << "\t\tGeometry Test\n";
+		cout << "========================================================================================\n";
+		TestGeometry * geometry = new TestGeometry(argc, argv, bpd);
+		geometry->run();
+		delete geometry;
 	}
 	else
 		throw std::invalid_argument("This test setting does not exist!");

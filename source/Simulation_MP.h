@@ -19,7 +19,7 @@ protected:
 	double minRho, rhoS;
 	bool bSplit;
 	
-	Real gravity[2];
+	Real gravity[3];
 	
 	void _outputSettings(ostream& outStream)
 	{

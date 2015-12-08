@@ -12,7 +12,6 @@
 #include "OperatorGradP.h"
 #include "PoissonSolverScalarFFTW.h"
 #include "ProcessOperatorsOMP.h"
-#include "LayerToVTK.h"
 #include <sstream>
 #include <cmath>
 #ifdef _MULTIGRID_
@@ -75,23 +74,23 @@ void TestPressure::_ic()
 					{
 						double x = p[0]*M_PI;
 						double y = p[1]*M_PI;
-						double y = p[2]*M_PI;
+						double z = p[2]*M_PI;
 						
-						b(ix, iy).u   = 1./(4.*M_PI*M_PI)*cos(x); // expected solution
-						b(ix, iy).divU = -cos(x); // rhs
+						b(ix, iy, iz).u   = 1./(4.*M_PI*M_PI)*cos(x); // expected solution
+						b(ix, iy, iz).divU = -cos(x); // rhs
 					}
 					else if (ic==1)
 					{
 						const Real IrI  = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
 						const double strength = 100./(1+IrI*IrI)*BS4::eval(IrI/0.5*2.5);
 						
-						b(ix, iy).rho = 1./(4.*M_PI*M_PI)*cos(p[0]*M_PI);
-						b(ix, iy).u   = -p[1]*strength;
-						b(ix, iy).v   =  p[0]*strength;
-						b(ix, iy).w   = 0;
-						b(ix, iy).chi = 0;
+						b(ix, iy, iz).rho = 1./(4.*M_PI*M_PI)*cos(p[0]*M_PI);
+						b(ix, iy, iz).u   = -p[1]*strength;
+						b(ix, iy, iz).v   =  p[0]*strength;
+						b(ix, iy, iz).w   = 0;
+						b(ix, iy, iz).chi = 0;
 						
-						b(ix, iy).divU = -cos(p[0]*M_PI);
+						b(ix, iy, iz).divU = -cos(p[0]*M_PI);
 					}
 					else if (ic==2)
 					{
@@ -106,7 +105,7 @@ void TestPressure::_ic()
 						const int size = 1/dh;
 						const int bx = info.index[0]*FluidBlock::sizeX;
 						const int by = info.index[1]*FluidBlock::sizeY;
-						const int bz = info.index[2]*FluidBlock::sizeY;
+						const int bz = info.index[2]*FluidBlock::sizeZ;
 						p[0] = (bx+ix+.5)/(double)size;
 						p[1] = (by+iy+.5)/(double)size;
 						p[2] = (bz+iz+.5)/(double)size;
@@ -116,12 +115,12 @@ void TestPressure::_ic()
                         //b(ix,iy).divU = 81*M_PI_2*M_PI_2 * cos(y);
                         //b(ix,iy).divU = -64*M_PI_2*M_PI_2 * cos(x);
                         //b(ix,iy).divU = -9*M_PI_2*M_PI_2 * cos(y) + -64*M_PI_2*M_PI_2 * sin(x);
-                        b(ix,iy).divU = -(64+9)*M_PI_2*M_PI_2 * cos(y) * sin(x);
-                        b(ix,iy).rho = b(ix,iy).divU;
+                        b(ix,iy,iz).divU = -(64+64+9)*M_PI_2*M_PI_2 * cos(y) * sin(x) * sin(z);
+                        b(ix,iy,iz).rho = b(ix,iy,iz).divU;
                         //b(ix,iy).u = -cos(y);
                         //b(ix,iy).u = cos(x);
                         //b(ix,iy).u = cos(y)+sin(x);
-                        b(ix,iy).u = cos(y)*sin(x);
+                        b(ix,iy,iz).u = cos(y)*sin(x)*sin(z);
 					}
 				}
 	}
@@ -170,6 +169,7 @@ void TestPressure::run()
         {
             PoissonSolverScalarFFTW<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
             pressureSolver.solve(*grid,false);
+			cout << "Pressure done\n";
         }
         else
         {
@@ -213,10 +213,10 @@ void TestPressure::run()
 	
 	if (ic==1 && rank==0)
 		processOMP<Lab, OperatorGradP>(dt, vInfo, *grid);
-    
+	
     
     if (ic==2)
-    {
+	{
         BlockInfo * ary = &vInfo.front();
         const int N = vInfo.size();
         
@@ -233,7 +233,7 @@ void TestPressure::run()
                 mylab.load(ary[i], 0);
                 kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
             }
-        }
+		}
     }
 	
 	if (rank==0)
@@ -254,7 +254,7 @@ void TestPressure::check()
 		vector<BlockInfo> vInfo = grid->getBlocksInfo();
 		const int size = bpd * FluidBlock::sizeX;
 		
-        Layer divergence(size,size,size);
+        Layer divergence(size,size,size,1);
         if (ic!=0 && ic!=2)
             processOMP<Lab, OperatorDivergenceLayer>(divergence,vInfo,*grid);
         
@@ -311,7 +311,7 @@ void TestPressure::check()
 		}
 		
 		L1 *= dh*dh*dh;
-		L2 = sqrt(L2)*dh*dh;
+		L2 = sqrt(L2*dh*dh*dh);
 		cout << "\t" << Linf << "\t" << L1 << "\t" << L2 << endl;
 		myfile << size << " " << Linf << " " << L1 << " " << L2 << endl;
 	}

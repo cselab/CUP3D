@@ -8,7 +8,6 @@
 
 #include "TestTranslation.h"
 #include "ProcessOperatorsOMP.h"
-#include "OperatorVorticity.h"
 #include "CoordinatorComputeShape.h"
 #include "CoordinatorBodyVelocities.h"
 #include <sstream>
@@ -16,7 +15,8 @@
 void TestTranslation::_ic()
 {
 	Real center[3] = {.25,.25,.25};
-	Real semiAxis[3] = {.05,.15, .1};
+	Real radius = .05;
+	Real rhoS = 2;
 	vector<BlockInfo> vInfo = grid->getBlocksInfo();
     bool bPeriodic[3] = {false,false,false};
     
@@ -24,7 +24,7 @@ void TestTranslation::_ic()
 								 FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint,
 								 FluidBlock::sizeZ * grid->getBlocksPerDimension(2) * vInfo[0].h_gridpoint};
 	
-	shape = new Ellipsoid(center, semiAxis, (Real)M_PI/4, (Real)2, (Real)2, (Real)2, bPeriodic, domainSize);
+	shape = new Sphere(center, radius, rhoS, (Real)2, (Real)2);
 	
 	const double dh = vInfo[0].h_gridpoint;
 	
@@ -43,8 +43,8 @@ void TestTranslation::_ic()
 			
 			// this is for testCase==1, no effect on testCase==0
 			b(ix,iy,iz).u = 1;
-			b(ix,iy,iz).v = 1;
-			b(ix,iy,iz).w = 1;
+			b(ix,iy,iz).v = .5;
+			b(ix,iy,iz).w = .25;
 			
 			b(ix,iy,iz).chi = shape->chi(p, info.h_gridpoint);
 			
@@ -82,8 +82,8 @@ void TestTranslation::run()
 	Real u[3] = {0,0,0};
 	Real omega = 0;
 	Real lambda = 1;
-	CoordinatorComputeShape coordComputeShape(&u[0], &u[1], &u[2], &omega, shape, grid);
-	CoordinatorBodyVelocities coordBodyVelocities(&u[0], &u[1], &u[2], &omega, &lambda, shape->getRhoS(), grid);
+	CoordinatorComputeShape coordComputeShape(shape, grid);
+	CoordinatorBodyVelocities coordBodyVelocities(&u[0], &u[1], &u[2], &lambda, shape, grid);
 	
 	for (int step=0; step<50; step++)
 	{
@@ -92,8 +92,8 @@ void TestTranslation::run()
 		if (testCase==0)
 		{
 			u[0] = 1;
-			u[1] = 1;
-			u[2] = 1;
+			u[1] = .5;
+			u[2] = .25;
 		}
 		else if (testCase==1)
 			coordBodyVelocities(dt);
@@ -109,12 +109,6 @@ void TestTranslation::run()
 			ss << path2file << "-" << bpd << "-" << step << ".vti";
 			
 			dumper.Write(*grid, ss.str());
-			
-			Layer vorticity(sizeX,sizeY,sizeZ);
-			processOMP<Lab, OperatorVorticity>(vorticity,vInfo,*grid);
-			stringstream sVort;
-			sVort << path2file << "Vorticity-" << bpd << "-" << step << ".vti";
-			dumpLayer2VTK(step,sVort.str(),vorticity,1);
 		}
 	}
 }
@@ -123,8 +117,8 @@ void TestTranslation::check()
 {
 	// the only thing to check here is the orientation
 	Real p[3];
-	shape->getPosition(p);
-	cout << "Translation error X: " << p[0] - .75 << endl;
-	cout << "Translation error Y: " << p[1] - .75 << endl;
-	cout << "Translation error Z: " << p[2] - .75 << endl;
+	shape->getCenterOfMass(p);
+	cout << "Translation error X: " << p[0] - dt*50*1   << endl;
+	cout << "Translation error Y: " << p[1] - dt*50*.5  << endl;
+	cout << "Translation error Z: " << p[2] - dt*50*.25 << endl;
 }

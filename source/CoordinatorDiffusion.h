@@ -17,7 +17,7 @@ class CoordinatorDiffusion : public GenericCoordinator
 {
 protected:
     const double coeff;
-    Real *uBody, *vBody;
+    Real *uBody, *vBody, *wBody;
 	
 	inline void reset()
 	{
@@ -133,12 +133,12 @@ protected:
     
     double _analytical(double px, double py, double pz, double t)
     {
-        return sin(px*2.*freq*M_PI) * sin(py*2.*freq*M_PI) * sin(pz*2.*freq*M_PI) * exp(-4.*2*freq*freq*coeff*M_PI*M_PI*t);
+		return sin(px*2.*freq*M_PI) * sin(py*2.*freq*M_PI) * sin(pz*2.*freq*M_PI) * exp(-4.*3*freq*freq*coeff*M_PI*M_PI*t);
     }
-    
+	
     double _analyticalRHS(double px, double py, double pz, double t)
     {
-        return -freq*freq*4.*2.*M_PI*M_PI*_analytical(px,py,pz,t);
+        return -freq*freq*4.*3.*M_PI*M_PI*_analytical(px,py,pz,t);
     }
     
     inline void reset()
@@ -210,7 +210,7 @@ protected:
                     if (stage==0)
                         b(ix,iy,iz).tmpU = b(ix,iy,iz).u + prefactor * _analyticalRHS(p[0],p[1],p[2],time);
                     else if (stage==1)
-					b(ix,iy,iz).tmpU = b(ix,iy,iz).u + prefactor * _analyticalRHS(p[0],p[1],p[2],time+dt*.5);
+						b(ix,iy,iz).tmpU = b(ix,iy,iz).u + prefactor * _analyticalRHS(p[0],p[1],p[2],time+dt*.5);
 					b(ix,iy,iz).tmpV = b(ix,iy,iz).v;
 					b(ix,iy,iz).tmpW = b(ix,iy,iz).w;
                 }

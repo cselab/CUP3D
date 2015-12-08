@@ -14,7 +14,7 @@
 class Sim_FSI_Moving : public Simulation_FSI
 {
 protected:
-	Real uBody[3], omegaBody; // need an extra angle
+	Real uBody[3]; // need an extra angle
 	double dtBody, dtCFL, dtLCFL, dtFourier;
 	double re, nu;
 	

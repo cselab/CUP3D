@@ -130,8 +130,8 @@ void TestGravity::check()
 	
 	uL1 *= dh*dh*dh;
 	vL1 *= dh*dh*dh;
-	uL2 = sqrt(uL2)*dh*dh;
-	vL2 = sqrt(vL2)*dh*dh;
+	uL2 = sqrt(uL2*dh*dh*dh);
+	vL2 = sqrt(vL2*dh*dh*dh);
 	const int size = bpd * FluidBlock::sizeX;
 	cout << "\t" << uLinf << "\t" << vLinf << "\t" << uL1 << "\t" << vL1 << "\t" << uL2 << "\t" << vL2 << endl;
 	myfile << size << " " << uLinf << " " << vLinf << " " << uL1 << " " << vL1 << " " << uL2 << " " << vL2 << endl;

@@ -9,7 +9,6 @@
 #include "Sim_Jet.h"
 
 #include "ProcessOperatorsOMP.h"
-#include "OperatorVorticity.h"
 
 #include "CoordinatorIC.h"
 #include "CoordinatorAdvection.h"
@@ -246,13 +245,6 @@ void Sim_Jet::simulate()
 				cout << ss.str() << endl;
 				
 				dumper.Write(*grid, ss.str());
-				
-				vector<BlockInfo> vInfo = grid->getBlocksInfo();
-				Layer vorticity(sizeX,sizeY,sizeZ);
-				processOMP<Lab, OperatorVorticity>(vorticity,vInfo,*grid);
-				stringstream sVort;
-				sVort << path2file << "Vorticity-Final.vti";
-				dumpLayer2VTK(step,sVort.str(),vorticity,1);
 				profiler.pop_stop();
 				
 				profiler.printSummary();

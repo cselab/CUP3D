@@ -16,11 +16,10 @@
 class CoordinatorComputeShape : public GenericCoordinator
 {
 protected:
-	Real *uBody, *vBody, *wBody, *omegaBody;
 	Shape * shape;
     
 public:
-	CoordinatorComputeShape(Real * uBody, Real * vBody, Real * wBody, Real * omegaBody, Shape * shape, FluidGrid * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), omegaBody(omegaBody), shape(shape)
+	CoordinatorComputeShape(Shape * shape, FluidGrid * grid) : GenericCoordinator(grid), shape(shape)
 	{
 	}
 	
@@ -31,14 +30,11 @@ public:
 		BlockInfo * ary = &vInfo.front();
 		const int N = vInfo.size();
 		
-		Real ub[3] = { *uBody, *vBody, *wBody };
-		shape->updatePosition(ub, *omegaBody, dt);
-		
 		Real domainSize[3] = { grid->getBlocksPerDimension(0)*FluidBlock::sizeX*vInfo[0].h_gridpoint,
-			grid->getBlocksPerDimension(1)*FluidBlock::sizeY*vInfo[0].h_gridpoint,
-			grid->getBlocksPerDimension(2)*FluidBlock::sizeZ*vInfo[0].h_gridpoint};
+							   grid->getBlocksPerDimension(1)*FluidBlock::sizeY*vInfo[0].h_gridpoint,
+							   grid->getBlocksPerDimension(2)*FluidBlock::sizeZ*vInfo[0].h_gridpoint};
 		Real p[3] = {0,0,0};
-		shape->getPosition(p);
+		shape->getCenterOfMass(p);
 		
 		if (p[0]<0 || p[0]>domainSize[0] || p[1]<0 || p[1]>domainSize[1] || p[2]<0 || p[2]>domainSize[2])
 			exit(0);

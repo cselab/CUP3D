@@ -9,15 +9,19 @@
 #ifndef CubismUP_3D_CoordinatorComputeBodyVelocities_h
 #define CubismUP_3D_CoordinatorComputeBodyVelocities_h
 
+#include "GenericCoordinator.h"
+#include "Shape.h"
+
 class CoordinatorBodyVelocities : public GenericCoordinator
 {
 protected:
-	Real *uBody, *vBody, *wBody, *omegaBody;
+	Real *uBody, *vBody, *wBody;
 	Real *lambda;
 	Real rhoS;
+	Shape *shape;
 	
 public:
-	CoordinatorBodyVelocities(Real * uBody, Real * vBody, Real * wBody, Real * omegaBody, Real * lambda, Real rhoS, FluidGrid * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), omegaBody(omegaBody), lambda(lambda), rhoS(rhoS)
+	CoordinatorBodyVelocities(Real * uBody, Real * vBody, Real * wBody, Real * lambda, Shape * shape, FluidGrid * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), lambda(lambda), shape(shape)
 	{
 	}
 	
@@ -31,9 +35,16 @@ public:
 		double u = 0;
 		double v = 0;
 		double w = 0;
-		double momOfInertia = 0;
-		double angularMomentum = 0;
+		double dtdtx = 0;
+		double dtdty = 0;
+		double dtdtz = 0;
 		const int N = vInfo.size();
+		Real J0 = 0;
+		Real J1 = 0;
+		Real J2 = 0;
+		Real J3 = 0;
+		Real J4 = 0;
+		Real J5 = 0;
 		
 #pragma omp parallel for schedule(static) reduction(+:centerTmpX) reduction(+:centerTmpY) reduction(+:centerTmpZ) reduction(+:mass)
 		for(int i=0; i<N; i++)
@@ -64,7 +75,7 @@ public:
 		centerTmpZ /= mass;
 		
 		//*
-#pragma omp parallel for schedule(static) reduction(+:u) reduction(+:v) reduction(+:w) reduction(+:momOfInertia) reduction(+:angularMomentum)
+#pragma omp parallel for schedule(static) reduction(+:u) reduction(+:v) reduction(+:w) reduction(+:dtdtx) reduction(+:dtdty) reduction(+:dtdtz) reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5)
 		for(int i=0; i<N; i++)
 		{
 			BlockInfo info = vInfo[i];
@@ -83,16 +94,32 @@ public:
 					u += b(ix,iy,iz).u * rhochi;
 					v += b(ix,iy,iz).v * rhochi;
 					w += b(ix,iy,iz).w * rhochi;
-					momOfInertia    += rhochi * ((p[0]-centerTmpX)*(p[0]-centerTmpX) + (p[1]-centerTmpY)*(p[1]-centerTmpY)); // need to be corrected for 3D
-					angularMomentum += rhochi * ((p[0]-centerTmpX)*b(ix,iy,iz).v     - (p[1]-centerTmpY)*b(ix,iy,iz).u);
 #else
 					double chi = b(ix,iy,iz).chi;
 					u += b(ix,iy,iz).u * chi;
 					v += b(ix,iy,iz).v * chi;
 					w += b(ix,iy,iz).w * chi;
-					momOfInertia    += chi * ((p[0]-centerTmpX)*(p[0]-centerTmpX) + (p[1]-centerTmpY)*(p[1]-centerTmpY));
-					angularMomentum += chi * ((p[0]-centerTmpX)*b(ix,iy,iz).v     - (p[1]-centerTmpY)*b(ix,iy,iz).u);
 #endif
+					
+					p[0] -= centerTmpX;
+					p[1] -= centerTmpY;
+					p[2] -= centerTmpZ;
+					
+					Real cp[3];
+					cp[0] = p[1]*w - p[2]*v;
+					cp[1] = p[2]*u - p[0]*w;
+					cp[2] = p[0]*v - p[1]*u;
+					
+					dtdtx += cp[0] * rhochi;
+					dtdty += cp[1] * rhochi;
+					dtdtz += cp[2] * rhochi;
+					
+					J0 += rhochi * (p[1]*p[1] + p[2]*p[2]);
+					J1 += rhochi * (p[0]*p[0] + p[2]*p[2]);
+					J2 += rhochi * (p[0]*p[0] + p[1]*p[1]);
+					J3 -= rhochi * p[0] * p[1];
+					J4 -= rhochi * p[0] * p[2];
+					J5 -= rhochi * p[1] * p[2];
 				}
 		}
 	
@@ -105,32 +132,12 @@ public:
 		*vBody = v / volume;
 		*wBody = w / volume;
 #endif
-		*omegaBody = angularMomentum / momOfInertia;
 		
-		/*/
-		u=0;
-		v=0;
-#pragma omp parallel for schedule(static) reduction(+:u) reduction(+:v)
-		for(int i=0; i<N; i++)
-		{
-		 BlockInfo info = vInfo[i];
-		 FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-		 
-		 Real h = info.h_gridpoint;
-		 
-		 for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-			{
-				u += (b(ix,iy).u-(*uBody)) * b(ix,iy).chi;
-				v += (b(ix,iy).v-(*vBody)) * b(ix,iy).chi;
-			}
-		}
+		const Real ub[3] = { *uBody, *vBody, *wBody };
+		const Real dthetadt[3] = { dtdtx, dtdty, dtdtz };
+		const Real J[6] = { J0, J1, J2, J3, J4, J5 };
 		
-		*uBody += dt*u*(*lambda) / mass;
-		*vBody += dt*v*(*lambda) / mass;
-		
-		cout << "vBody is " << *vBody << endl;
-		//*/
+		shape->updatePosition(ub, dthetadt, J, mass, dt);
 	}
 	
 	string getName()

@@ -10,7 +10,6 @@
 
 #include "ProcessOperatorsOMP.h"
 #include "OperatorDivergence.h"
-#include "OperatorVorticity.h"
 #include "OperatorGradP.h"
 #include "OperatorComputeShape.h"
 
@@ -140,9 +139,6 @@ void Sim_FSI_Fixed::init()
 		uinf = parser("-uinf").asDouble(0.1);
 		re = parser("-Re").asDouble(100);
 		
-		//Real center[2] = {.15,.5};
-		Real center[3] = {.125,.125,.125};
-		shape->setPosition(center);
 		nu = shape->getCharLength()*uinf/re;
 		
 		_ic();
@@ -195,20 +191,24 @@ void Sim_FSI_Fixed::simulate()
 			dt = min(dt,endTime-_nonDimensionalTime());
 		if (verbose)
 			cout << "dt (Fourier, CFL): " << dtFourier << " " << dtCFL << endl;
-#ifdef _DLM_
-		lambda = dlm/dt;
-#endif
 		profiler.pop_stop();
 		
-		for (int c=0; c<pipeline.size(); c++)
+		if (dt!=0)
 		{
-			profiler.push_start(pipeline[c]->getName());
-			(*pipeline[c])(dt);
-			profiler.pop_stop();
+#ifdef _DLM_
+			lambda = dlm/dt;
+#endif
+			
+			for (int c=0; c<pipeline.size(); c++)
+			{
+				profiler.push_start(pipeline[c]->getName());
+				(*pipeline[c])(dt);
+				profiler.pop_stop();
+			}
+			
+			time += dt;
+			step++;
 		}
-		
-		time += dt;
-		step++;
 		
 		
 		// compute diagnostics
@@ -240,12 +240,6 @@ void Sim_FSI_Fixed::simulate()
 			cout << ss.str() << endl;
 			
 			dumper.Write(*grid, ss.str());
-			
-			Layer vorticity(sizeX,sizeY,1);
-			processOMP<Lab, OperatorVorticity>(vorticity,vInfo,*grid);
-			stringstream sVort;
-			sVort << path2file << "Vorticity-Final.vti";
-			dumpLayer2VTK(step,sVort.str(),vorticity,1);
 			profiler.pop_stop();
 			
 			profiler.printSummary();

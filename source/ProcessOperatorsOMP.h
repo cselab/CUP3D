@@ -50,9 +50,9 @@ double findMaxAOMP(vector<BlockInfo>& myInfo, FluidGrid & grid)
 					double dvdy = (lab(ix  ,iy+1,iz  ).v-lab(ix  ,iy-1,iz  ).v) * inv2h;
 					double dvdz = (lab(ix  ,iy  ,iz+1).v-lab(ix  ,iy  ,iz-1).v) * inv2h;
 					
-					double dwdx = (lab(ix+1,iy  ,iz  ).v-lab(ix-1,iy  ,iz  ).v) * inv2h;
-					double dwdy = (lab(ix  ,iy+1,iz  ).v-lab(ix  ,iy-1,iz  ).v) * inv2h;
-					double dwdz = (lab(ix  ,iy  ,iz+1).v-lab(ix  ,iy  ,iz-1).v) * inv2h;
+					double dwdx = (lab(ix+1,iy  ,iz  ).w-lab(ix-1,iy  ,iz  ).w) * inv2h;
+					double dwdy = (lab(ix  ,iy+1,iz  ).w-lab(ix  ,iy-1,iz  ).w) * inv2h;
+					double dwdz = (lab(ix  ,iy  ,iz+1).w-lab(ix  ,iy  ,iz-1).w) * inv2h;
 					
 					maxA = max(max(max(dudx,dudy),
 							       max(dvdx,dvdy)),
@@ -138,5 +138,4 @@ void processOMP(Layer& outputField, const Real rho0, const Real dt, const int st
 }
 
 double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGrid & grid);
-void computeForcesFromVorticity(vector<BlockInfo>& myInfo, FluidGrid & grid, Real ub[3], Real oldAccVort[3], Real rhoS);
 #endif

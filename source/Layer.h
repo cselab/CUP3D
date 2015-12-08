@@ -13,20 +13,20 @@
 using namespace std;
 #include <assert.h>
 
-#include "Matrix2D.h"
 #include "common.h"
 
 struct Layer
 {
 	const int sizeX;
 	const int sizeY;
+	const int sizeZ;
 	const int nDim;
 
 	Real * data;
 	
-	Layer(const int sizeX, const int sizeY, const int nDim) : sizeX(sizeX), sizeY(sizeY), nDim(nDim)
+	Layer(const int sizeX, const int sizeY, const int sizeZ, const int nDim) : sizeX(sizeX), sizeY(sizeY), sizeZ(sizeZ), nDim(nDim)
 	{
-		data = new Real[nDim*sizeX*sizeY];
+		data = new Real[nDim*sizeX*sizeY*sizeZ];
 	}
 	
 	~Layer()
@@ -34,28 +34,31 @@ struct Layer
 		delete [] data;
 	}
 
-	inline Real& operator()(int ix = 0, int iy=0, int dim = 0)
+	inline Real& operator()(int ix=0, int iy=0, int iz=0, int dim=0)
 	{
 		assert(ix>=0 && ix<sizeX);
 		assert(iy>=0 && iy<sizeY);
+		assert(iz>=0 && iz<sizeZ);
 		
-		return data[dim*sizeX*sizeY + iy*sizeX + ix];
+		return data[dim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix];
 	}
 
-	inline Real read(int ix = 0, int iy=0, int dim = 0) const
+	inline Real read(int ix=0, int iy=0, int iz=0, int dim=0) const
 	{
 		assert(ix>=0 && ix<sizeX);
 		assert(iy>=0 && iy<sizeY);
+		assert(iz>=0 && iz<sizeZ);
 		
-		return data[dim*sizeX*sizeY + iy*sizeX + ix];
+		return data[dim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix];
 	}
 
 	const Layer& operator=(const Real val)
 	{
 		for(int idim = 0; idim<nDim; idim++)
-		for(int iy = 0; iy<sizeY; iy++)
+			for(int iz = 0; iz<sizeZ; iz++)
+				for(int iy = 0; iy<sizeY; iy++)
 		for(int ix = 0; ix<sizeX; ix++)
-			data[idim*sizeX*sizeY + iy*sizeX + ix] = val;
+			data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix] = val;
 		
 		return *this;
 	}
@@ -63,9 +66,10 @@ struct Layer
 	const Layer& operator=(const Layer& l)
 	{
 		for(int idim = 0; idim<nDim; idim++)
+			for(int iz = 0; iz<sizeZ; iz++)
 			for(int iy = 0; iy<sizeY; iy++)
 				for(int ix = 0; ix<sizeX; ix++)
-					data[idim*sizeX*sizeY + iy*sizeX + ix] = l.data[idim*sizeX*sizeY + iy*sizeX + ix];
+					data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix] = l.data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix];
 		
 		return *this;
 	}
@@ -73,9 +77,10 @@ struct Layer
 	template<int dim>
 	void clear(Real val)
 	{
+		for(int iz = 0; iz<sizeZ; iz++)
 		for(int iy = 0; iy<sizeY; iy++)
 		for(int ix = 0; ix<sizeX; ix++)
-			data[dim*sizeX*sizeY + iy*sizeX + ix] = val;
+			data[dim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix] = val;
 	}
 	
 	double getH0() const
@@ -87,6 +92,11 @@ struct Layer
 	{
 		return 1./(double)sizeY;
 	}
+	
+	double getH2() const
+	{
+		return 1./(double)sizeZ;
+	}
 
 	const vector<double> operator -(const Layer& layer)
 	{
@@ -96,9 +106,10 @@ struct Layer
 		{
 			double LInf_diff = 0;
 			for(int idim = 0; idim<nDim; idim++)
+				for(int iz = 0; iz<sizeZ; iz++)
 				for(int iy = 0; iy<sizeY; iy++)
 					for(int ix = 0; ix<sizeX; ix++)
-						LInf_diff = max(LInf_diff, (double)fabs(data[idim*sizeX*sizeY + iy*sizeX + ix] - layer.data[idim*sizeX*sizeY + iy*sizeX + ix]));
+						LInf_diff = max(LInf_diff, (double)fabs(data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix] - layer.data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix]));
 			
 			result.push_back(LInf_diff);
 		}
@@ -107,9 +118,10 @@ struct Layer
 		{
 			double L2error = 0;
 			for(int idim = 0; idim<nDim; idim++)
+				for(int iz = 0; iz<sizeZ; iz++)
 				for(int iy = 0; iy<sizeY; iy++)
 					for(int ix = 0; ix<sizeX; ix++)
-						L2error += pow(data[idim*sizeX*sizeY + iy*sizeX + ix] - layer.data[idim*sizeX*sizeY + iy*sizeX + ix], 2);
+						L2error += pow(data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix] - layer.data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix], 2);
 			
 			result.push_back(sqrt((double)L2error/(sizeY*sizeX)));
 		}
@@ -121,15 +133,16 @@ struct Layer
 	void difference(const Layer& input, Layer& difference)
 	{
 		for(int idim = 0; idim<nDim; idim++)
+			for(int iz = 0; iz<sizeZ; iz++)
 			for(int iy = 0; iy<sizeY; iy++)
 				for(int ix = 0; ix<sizeX; ix++)
-					difference.data[idim*sizeX*sizeY + iy*sizeX + ix]= data[idim*sizeX*sizeY + iy*sizeX + ix] - input.data[idim*sizeX*sizeY + iy*sizeX + ix];
+					difference.data[idim*sizeX*sizeY + iy*sizeX + ix]= data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix] - input.data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix];
 	}
 
 	template<int iDim>
 	Real * getPlane() 
 	{
-		return (Real*)&data[iDim*sizeX*sizeY];
+		return (Real*)&data[iDim*sizeZ*sizeX*sizeY];
 	}
 };
 

@@ -58,7 +58,6 @@ protected:
 		
 		inStream >> variableName;
 		Real center[3];
-		bool bPeriodic[3] = {false,false,false};
 		Real rhoS;
 		Real mollChi, mollRho;
 		if (variableName=="Sphere")
@@ -78,9 +77,6 @@ protected:
 			assert(variableName=="centerZ");
 			inStream >> center[2];
 			inStream >> variableName;
-			assert(variableName=="orientation");
-			inStream >> variableName;
-			inStream >> variableName;
 			assert(variableName=="rhoS");
 			inStream >> rhoS;
 			inStream >> variableName;
@@ -89,55 +85,7 @@ protected:
 			inStream >> variableName;
 			assert(variableName=="mollRho");
 			inStream >> mollRho;
-            
-            vector<BlockInfo> vInfo = grid->getBlocksInfo();
-			const Real domainSize[3] = { FluidBlock::sizeX * grid->getBlocksPerDimension(0) * vInfo[0].h_gridpoint,
-										 FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint,
-										 FluidBlock::sizeZ * grid->getBlocksPerDimension(2) * vInfo[0].h_gridpoint};
-			shape = new Sphere(center, radius, rhoS, mollChi, mollRho, bPeriodic, domainSize);
-		}
-		else if (variableName=="Ellipsoid")
-		{
-			Real semiAxis[3];
-			Real angle; // need one more angle
-			
-			
-			inStream >> variableName;
-			assert(variableName=="semiAxisX");
-			inStream >> semiAxis[0];
-			inStream >> variableName;
-			assert(variableName=="semiAxisY");
-			inStream >> semiAxis[1];
-			inStream >> variableName;
-			assert(variableName=="semiAxisZ");
-			inStream >> semiAxis[2];
-			inStream >> variableName;
-			assert(variableName=="centerX");
-			inStream >> center[0];
-			inStream >> variableName;
-			assert(variableName=="centerY");
-			inStream >> center[1];
-			inStream >> variableName;
-			assert(variableName=="centerZ");
-			inStream >> center[2];
-			inStream >> variableName;
-			assert(variableName=="orientation");
-			inStream >> angle;
-			inStream >> variableName;
-			assert(variableName=="rhoS");
-			inStream >> rhoS;
-			inStream >> variableName;
-			assert(variableName=="mollChi");
-			inStream >> mollChi;
-			inStream >> variableName;
-			assert(variableName=="mollRho");
-            inStream >> mollRho;
-            
-            vector<BlockInfo> vInfo = grid->getBlocksInfo();
-			const Real domainSize[3] = { FluidBlock::sizeX * grid->getBlocksPerDimension(0) * vInfo[0].h_gridpoint,
-										 FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint,
-										 FluidBlock::sizeZ * grid->getBlocksPerDimension(2) * vInfo[0].h_gridpoint};
-			shape = new Ellipsoid(center, semiAxis, angle, rhoS, mollChi, mollRho, bPeriodic, domainSize);
+			shape = new Sphere(center, radius, rhoS, mollChi, mollRho);
 		}
 		else
 		{
@@ -160,29 +108,42 @@ public:
 		if (!bRestart)
 		{
 			lambda = parser("-lambda").asDouble(1e5);
-			dlm = parser("-lambda").asDouble(1.);
+			dlm = parser("-dlm").asDouble(1.);
 			
 			double rhoS = parser("-rhoS").asDouble(1);
-			Real centerOfMass[3] = {0,0,0};
-			bool bPeriodic[3] = {false,false,false};
-            
-            vector<BlockInfo> vInfo = grid->getBlocksInfo();
-            const Real domainSize[3] = { FluidBlock::sizeX * grid->getBlocksPerDimension(0) * vInfo[0].h_gridpoint,
-										 FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint,
-										 FluidBlock::sizeZ * grid->getBlocksPerDimension(2) * vInfo[0].h_gridpoint};
+			const Real aspectRatio = 1;
+			cout << "WARNING - Aspect ratio for correct positioning of sphere not implemented yet\n";
+			Real center[3] = {parser("-xpos").asDouble(.5*aspectRatio),parser("-ypos").asDouble(.85),parser("-zpos").asDouble(.5*aspectRatio)};
 			
-			string shapeType = parser("-shape").asString("disk");
+			string shapeType = parser("-shape").asString("sphere");
             const int eps = 2;
-			if (shapeType=="disk")
+			if (shapeType=="sphere")
 			{
 				Real radius = parser("-radius").asDouble(0.1);
-				shape = new Sphere(centerOfMass, radius, rhoS, eps, eps, bPeriodic, domainSize);
+				shape = new Sphere(center, radius, rhoS, eps, eps);
 			}
-			else if (shapeType=="ellipse")
+			else if (shapeType=="samara")
 			{
-				Real semiAxis[3] = {parser("-semiAxisX").asDouble(0.1),parser("-semiAxisY").asDouble(0.2),parser("-semiAxisZ").asDouble(0.05)};
-				Real angle = parser("-angle").asDouble(0.0);
-				shape = new Ellipsoid(centerOfMass, semiAxis, angle, rhoS, eps, eps, bPeriodic, domainSize);
+				const Real center[3] = {.5,.5,.5};
+				const Real rhoS = 1;
+				const Real moll = 2;
+				const int gridsize = 1024;
+				const Real scale = .12;
+				const Real tx = .07;
+				const Real ty = .18;
+				const Real tz = .08;
+				Geometry::Quaternion q1(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
+				//Geometry::Quaternion q2(1, 0, 0, 0);
+				Geometry::Quaternion q2(cos(45./360.*M_PI), sin(45./360.*M_PI), 0, 0);
+				Geometry::Quaternion q = q1*q2;
+				
+				double qm = q.magnitude();
+				q.w /= qm;
+				q.x /= qm;
+				q.y /= qm;
+				q.z /= qm;
+				const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
+				shape = new GeometryMesh(filename, gridsize, center, rhoS, moll, moll, scale, tx, ty, tz, q);
 			}
 			else
 			{

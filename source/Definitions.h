@@ -11,7 +11,6 @@
 
 #include "common.h"
 #include "Layer.h"
-#include "LayerToVTK.h"
 #include "BoundaryConditions.h"
 
 #ifndef _BS_
@@ -23,19 +22,18 @@ struct FluidElement
     Real rho, u, v, w, chi, p, pOld;
 	Real tmpU, tmpV, tmpW, tmp;
 	Real divU;
-	Real x, y;
+	Real x, y, z;
     
-    FluidElement() : rho(0), u(0), v(0), w(0), chi(0), p(0), pOld(0), divU(0), tmpU(0), tmpV(0), tmpW(0), tmp(0), x(0), y(0) {}
+    FluidElement() : rho(0), u(0), v(0), w(0), chi(0), p(0), pOld(0), divU(0), tmpU(0), tmpV(0), tmpW(0), tmp(0), x(0), y(0), z(0) {}
     
     void clear()
     {
         rho = u = v = w = chi = p = pOld = 0;
 		tmpU = tmpV = tmpW = tmp = 0;
 		divU = 0;
-		x = y = 0;
+		x = y = z = 0;
     }
 };
-
 
 struct FluidVTKStreamer
 {
@@ -196,6 +194,137 @@ template <> inline void FluidBlock::Read<StreamerGridPoint>(ifstream& input, Str
 }
 
 
+// VP Streamers
+struct FluidVPStreamer
+{
+	static const int channels = 6;
+	
+	FluidBlock * ref;
+	FluidVPStreamer(FluidBlock& b): ref(&b) {}
+	FluidVPStreamer(): ref(NULL) {}
+	
+	template<int channel>
+	static inline Real operate(const FluidElement& input) { abort(); return 0; }
+	
+	inline Real operate(const int ix, const int iy, const int iz) const
+	{
+		cout << "You must not call this operate method of FluidVPStreamer" << endl;
+		abort();
+		return 0;
+	}
+	
+	const char * name() { return "FluidVPStreamer" ; }
+};
+
+template<> inline Real FluidVPStreamer::operate<0>(const FluidElement& e) { return e.rho; }
+template<> inline Real FluidVPStreamer::operate<1>(const FluidElement& e) { return e.u; }
+template<> inline Real FluidVPStreamer::operate<2>(const FluidElement& e) { return e.v; }
+template<> inline Real FluidVPStreamer::operate<3>(const FluidElement& e) { return e.w; }
+template<> inline Real FluidVPStreamer::operate<4>(const FluidElement& e) { return e.p; }
+template<> inline Real FluidVPStreamer::operate<5>(const FluidElement& e) { return e.chi; }
+
+struct TmpVPStreamer
+{
+	static const int channels = 1;
+	
+	FluidBlock * ref;
+	TmpVPStreamer(FluidBlock& b): ref(&b) {}
+	TmpVPStreamer(): ref(NULL) {  }
+	
+	template<int channel>
+	static inline Real operate(const FluidElement& input) { abort(); return 0; }
+	
+	inline Real operate(const int ix, const int iy, const int iz) const
+	{
+		cout << "You must not call this operate method of TmpVPStreamer" << endl;
+		abort();
+		return 0;
+	}
+	
+	const char * name() { return "TmpVPStreamer" ; }
+};
+
+template<> inline Real TmpVPStreamer::operate<0>(const FluidElement& e) { return e.tmp; }
+
+
+struct ScalarStreamer
+{
+	static const int channels = 1;
+	
+	void operate(Real input, Real output[1])
+	{
+		output[0] = input;
+	}
+};
+
+struct ScalarBlock
+{
+	static const int sizeX = _BS_/2;
+	static const int sizeY = _BS_/2;
+	static const int sizeZ = _BS_/2;
+	typedef Real ElementType;
+	
+	Real  data[sizeZ][sizeY][sizeX];
+	Real  tmp[sizeZ][sizeY][sizeX];
+	
+	void clear_data()
+	{
+		const int N = sizeX*sizeY*sizeZ;
+		Real * const e = &data[0][0][0];
+		for(int i=0; i<N; ++i) e[i] = 0;
+	}
+	
+	void clear_tmp()
+	{
+		const int N = sizeX*sizeY*sizeZ;
+		Real * const e = &tmp[0][0][0];
+		for(int i=0; i<N; ++i) e[i] = 0;
+	}
+	
+	void clear()
+	{
+		clear_data();
+		clear_tmp();
+	}
+	
+	inline Real& operator()(int ix, int iy=0, int iz=0)
+	{
+		assert(ix>=0 && ix<sizeX);
+		assert(iy>=0 && iy<sizeY);
+		assert(iz>=0 && iz<sizeZ);
+		
+		return data[iz][iy][ix];
+	}
+	
+	template <typename Streamer>
+	inline void Write(ofstream& output, Streamer streamer) const
+	{
+		for(int iz=0; iz<sizeZ; iz++)
+		for(int iy=0; iy<sizeY; iy++)
+		for(int ix=0; ix<sizeX; ix++)
+		streamer.operate(data[iz][iy][ix], output);
+	}
+	
+	template <typename Streamer>
+	inline void Read(ifstream& input, Streamer streamer)
+	{
+		for(int iz=0; iz<sizeZ; iz++)
+		for(int iy=0; iy<sizeY; iy++)
+		for(int ix=0; ix<sizeX; ix++)
+		streamer.operate(input, data[iz][iy][ix]);
+	}
+};
+
+template <> inline void ScalarBlock::Write<StreamerGridPoint>(ofstream& output, StreamerGridPoint streamer) const
+{
+	output.write((const char *)&data[0][0][0], sizeof(Real)*sizeX*sizeY*sizeZ);
+}
+
+template <> inline void ScalarBlock::Read<StreamerGridPoint>(ifstream& input, StreamerGridPoint streamer)
+{
+	input.read((char *)&data[0][0][0], sizeof(Real)*sizeX*sizeY*sizeZ);
+}
+
 
 struct StreamerSerialization
 {
@@ -286,6 +415,75 @@ struct StreamerSerialization
 	static const char * getAttributeName() { return "Tensor"; }
 };
 
+struct StreamerHDF5
+{
+	static const int NCHANNELS = 7;
+	
+	FluidBlock& ref;
+	
+	StreamerHDF5(FluidBlock& b): ref(b) {}
+	
+	void operate(const int ix, const int iy, const int iz, Real output[7]) const
+	{
+		const FluidElement& input = ref.data[iz][iy][ix];
+		
+		output[0]  = input.rho;
+		output[1]  = input.u;
+		output[2]  = input.v;
+		output[3]  = input.w;
+		output[4]  = input.chi;
+		output[5]  = input.p;
+		output[6]  = input.tmp;
+	}
+	
+	void operate(const Real input[7], const int ix, const int iy, const int iz) const
+	{
+		FluidElement& output = ref.data[iz][iy][ix];
+		
+		output.rho  = input[0];
+		output.u    = input[1];
+		output.v    = input[2];
+		output.w    = input[3];
+		output.chi  = input[4];
+		output.p    = input[5];
+		output.tmp  = input[6];
+	}
+	
+	void operate(const int ix, const int iy, const int iz, Real *ovalue, const int field) const
+	{
+		const FluidElement& input = ref.data[iz][iy][ix];
+		
+		switch(field) {
+			case 0: *ovalue  = input.rho; break;
+			case 1: *ovalue  = input.u; break;
+			case 2: *ovalue  = input.v; break;
+			case 3: *ovalue  = input.w; break;
+			case 4: *ovalue  = input.chi; break;
+			case 5: *ovalue  = input.p; break;
+			case 6: *ovalue  = input.tmp; break;
+			default: throw std::invalid_argument("unknown field!"); break;
+		}
+	}
+	
+	void operate(const Real ivalue, const int ix, const int iy, const int iz, const int field) const
+	{
+		FluidElement& output = ref.data[iz][iy][ix];
+		
+		switch(field) {
+			case 0:  output.rho  = ivalue; break;
+			case 1:  output.u    = ivalue; break;
+			case 2:  output.v    = ivalue; break;
+			case 3:  output.w    = ivalue; break;
+			case 4:  output.chi  = ivalue; break;
+			case 5:  output.p    = ivalue; break;
+			case 6:  output.tmp = ivalue; break;
+			default: throw std::invalid_argument("unknown field!"); break;
+		}
+	}
+	
+	static const char * getAttributeName() { return "Tensor"; }
+};
+
 template<typename BlockType, template<typename X> class allocator=std::allocator>
 class BlockLabBottomWall : public BlockLab<BlockType,allocator>
 {
@@ -338,27 +536,6 @@ public:
 };
 
 template<typename BlockType, template<typename X> class allocator=std::allocator>
-class BlockLabBox : public BlockLab<BlockType,allocator>
-{
-	typedef typename BlockType::ElementType ElementTypeBlock;
-	
-public:
-	BlockLabBox(): BlockLab<BlockType,allocator>(){}
-	
-	void _apply_bc(const BlockInfo& info, const Real t=0)
-	{
-		BoundaryCondition<BlockType,ElementTypeBlock,allocator> bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
-		
-		if (info.index[0]==0)		   bc.template applyBC_mixedBottom<0,0>();
-		if (info.index[0]==this->NX-1) bc.template applyBC_mixedBottom<0,1>();
-		if (info.index[1]==0)		   bc.template applyBC_mixedBottom<1,0>();
-		if (info.index[1]==this->NY-1) bc.template applyBC_mixedTop<1,1>();
-		if (info.index[2]==0)		   bc.template applyBC_mixedBottom<2,0>();
-		if (info.index[2]==this->NZ-1) bc.template applyBC_mixedBottom<2,1>();
-	}
-};
-
-template<typename BlockType, template<typename X> class allocator=std::allocator>
 class BlockLabVortex : public BlockLab<BlockType,allocator>
 {
 	typedef typename BlockType::ElementType ElementTypeBlock;
@@ -380,6 +557,7 @@ public:
 };
 
 typedef Grid<FluidBlock, std::allocator> FluidGrid;
+typedef Grid<ScalarBlock, std::allocator> ScalarGrid;
 
 #ifdef _MIXED_
 typedef BlockLabBottomWall<FluidBlock, std::allocator> Lab;

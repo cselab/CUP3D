@@ -25,6 +25,7 @@ using namespace std;
 
 #include "BlockInfo.h"
 
+#if 0
 template<typename TGrid, typename Streamer>
 void DumpHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 {
@@ -279,3 +280,4 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 #warning USE OF HDF WAS DISABLED AT COMPILE TIME
 #endif // _USE_HDF_
 }
+#endif

@@ -34,7 +34,7 @@ protected:
 	FluidGrid * gridRef;
 	
 	void _ic();
-	void _getRefs(const int ix, const int iy, const int ratio, Real &u, Real &v);
+	void _getRefs(const int ix, const int iy, const int iz, const int ratio, Real &u, Real &v, Real &w);
 	
 public:
 	TestShearLayer(const int argc, const char ** argv, const int bpd);

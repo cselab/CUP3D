@@ -56,8 +56,6 @@
 //			10 - u[0]
 //			11 - u[1]
 //			12 - u[2]
-//			13 - orientation
-//			14 - omegaBody
 //
 //  Created by Christian Conti on 1/26/15.
 //  Copyright (c) 2015 ETHZ. All rights reserved.
@@ -71,7 +69,7 @@
 class Sim_FSI_Gravity : public Simulation_FSI
 {
 protected:
-	Real uBody[3], omegaBody; // extra angle
+	Real uBody[3]; // extra angle
 	double dtCFL, dtLCFL, dtFourier, dtBody;
 	double re, nu;
 	double minRho;

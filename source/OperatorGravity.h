@@ -18,22 +18,21 @@ class OperatorGravity : public GenericOperator
 {
 private:
 	const double dt;
-	const Real g[2];
+	const Real g[3];
 	
 public:
-	OperatorGravity(Real g[2], double dt) : dt(dt), g{g[0],g[1]} {}
+	OperatorGravity(Real g[3], double dt) : dt(dt), g{g[0],g[1],g[2]} {}
 	~OperatorGravity() {}
 	
 	void operator()(const BlockInfo& info, FluidBlock& block) const
 	{
-		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 			{
-				Real p[2];
-				info.pos(p, ix, iy);
-				
-				block(ix,iy).u += dt * g[0];
-				block(ix,iy).v += dt * g[1];
+				block(ix,iy,iz).u += dt * g[0];
+				block(ix,iy,iz).v += dt * g[1];
+				block(ix,iy,iz).w += dt * g[2];
 			}
 	}
 };

@@ -4,3 +4,5 @@ fftw-inc = /cluster/work/infk/wvanrees/apps/fftw-3.3.2/include
 fftw-lib = /cluster/work/infk/wvanrees/apps/fftw-3.3.2/lib
 hypre-inc = /cluster/work/infk/cconti/hypre-2.10.0b/src/hypre/include
 hypre-lib = /cluster/work/infk/cconti/hypre-2.10.0b/src/hypre/lib
+hdf-inc = /cluster/work/infk/hbabak/apps/hdf5-1.8.8_gcc_serial/include/
+hdf-lib = /cluster/work/infk/hbabak/apps/hdf5-1.8.8_gcc_serial/lib/

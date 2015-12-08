@@ -62,6 +62,7 @@ protected:
 					{
 						b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
 						b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
+						b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
 #ifdef _MULTIPHASE_
 						//b(ix,iy).chi = b(ix,iy).tmp;
 						//b(ix,iy).rho = b(ix,iy).chi * rhoS + (1-b(ix,iy).chi);

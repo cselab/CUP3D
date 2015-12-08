@@ -50,9 +50,9 @@ public:
 		stencilEnd[2] = se[2];
 	}
 	
-	TElement& operator()(int ix, int iy)
+	TElement& operator()(int ix, int iy, int iz)
 	{
-		return cacheBlock->Access(ix-stencilStart[0],iy-stencilStart[1], 0);
+		return cacheBlock->Access(ix-stencilStart[0],iy-stencilStart[1],iz-stencilStart[2]);
 	}
 	
 	template<int dir, int side>
