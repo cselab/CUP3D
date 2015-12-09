@@ -49,7 +49,7 @@ void TestTranslation::_ic()
 			b(ix,iy,iz).chi = shape->chi(p, info.h_gridpoint);
 			
 			// assume fluid with density 1
-			b(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint);
+			b(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint, b(ix,iy,iz).chi);
 			
 			// this is for testing purposes only! do it the clean way!!
 			b(ix,iy,iz).p = 0;
@@ -59,7 +59,7 @@ void TestTranslation::_ic()
 	}
 }
 
-TestTranslation::TestTranslation(const int argc, const char ** argv, const int testCase, const int bpd, const double dt) : Test(argc,argv), testCase(testCase), bpd(bpd), dt(dt)
+TestTranslation::TestTranslation(const int argc, const char ** argv, const int testCase, const int bpd, const double dt) : Test(argc,argv), testCase(testCase), bpd(bpd), dt(dt), nsteps(10)
 {
 	grid = new FluidGrid(bpd,bpd,bpd);
 	
@@ -80,12 +80,11 @@ void TestTranslation::run()
 	const int sizeZ = bpd * FluidBlock::sizeZ;
 	
 	Real u[3] = {0,0,0};
-	Real omega = 0;
 	Real lambda = 1;
 	CoordinatorComputeShape coordComputeShape(shape, grid);
 	CoordinatorBodyVelocities coordBodyVelocities(&u[0], &u[1], &u[2], &lambda, shape, grid);
 	
-	for (int step=0; step<50; step++)
+	for (int step=0; step<nsteps; step++)
 	{
 		vector<BlockInfo> vInfo = grid->getBlocksInfo();
 		
@@ -94,9 +93,15 @@ void TestTranslation::run()
 			u[0] = 1;
 			u[1] = .5;
 			u[2] = .25;
+			const Real mass = 1;
+			const Real dthetadt[3] = { 0,0,0 };
+			const Real J[6] = { 1,1,1,0,0,0 };
+			shape->updatePosition(u, dthetadt, J, mass, dt);
 		}
 		else if (testCase==1)
+		{
 			coordBodyVelocities(dt);
+		}
 		else
 			abort();
 		
@@ -118,7 +123,7 @@ void TestTranslation::check()
 	// the only thing to check here is the orientation
 	Real p[3];
 	shape->getCenterOfMass(p);
-	cout << "Translation error X: " << p[0] - dt*50*1   << endl;
-	cout << "Translation error Y: " << p[1] - dt*50*.5  << endl;
-	cout << "Translation error Z: " << p[2] - dt*50*.25 << endl;
+	cout << "Translation error X: " << p[0] - (.25 + dt*nsteps*1)   << endl;
+	cout << "Translation error Y: " << p[1] - (.25 + dt*nsteps*.5)  << endl;
+	cout << "Translation error Z: " << p[2] - (.25 + dt*nsteps*.25) << endl;
 }

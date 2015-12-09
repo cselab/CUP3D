@@ -114,6 +114,9 @@ public:
 			invDetJ * (properties.J[3]*properties.J[4] - properties.J[0]*properties.J[5])
 		};
 		
+		
+		//cout << "Jinv:\t" << invJ[0] << " " << invJ[1] << " " << invJ[2] << " " << invJ[3] << " " << invJ[4] << " " << invJ[5] << endl;
+		
 		// J-1 * dthetadt
 		// angular velocity from angular momentum
 		properties.dthetadt.x = (invJ[0]*dthetadt[0] + invJ[3]*dthetadt[1] + invJ[4]*dthetadt[2]);
@@ -134,7 +137,21 @@ public:
 	{
 		com[0] = properties.com.x;
 		com[1] = properties.com.y;
-		com[3] = properties.com.z;
+		com[2] = properties.com.z;
+	}
+	
+	void setCentroid(Real centroid[3])
+	{
+		properties.centroid.x = centroid[0];
+		properties.centroid.y = centroid[1];
+		properties.centroid.z = centroid[2];
+	}
+	
+	void setCenterOfMass(Real com[3])
+	{
+		properties.com.x = com[0];
+		properties.com.y = com[1];
+		properties.com.z = com[2];
 	}
 	
 	void getOrientation(Real rotation[3][3]) const

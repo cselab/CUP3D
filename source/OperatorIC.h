@@ -40,7 +40,7 @@ public:
 				block(ix,iy,iz).chi = shape->chi(p, info.h_gridpoint);
 				
 				// assume fluid with density 1
-				block(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint);
+				block(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint, block(ix,iy,iz).chi);
 				
 				block(ix,iy,iz).p = 0;
 				block(ix,iy,iz).divU = 0;

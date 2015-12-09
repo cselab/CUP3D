@@ -52,27 +52,31 @@ public:
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
-			double h = info.h_gridpoint;
+			const Real h = info.h_gridpoint;
+			const Real h3 = h*h*h;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-				{
-					double p[3] = {0,0,0};
-					info.pos(p, ix, iy, iz);
-					double rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
-					centerTmpX += p[0] * rhochi;
-					centerTmpY += p[1] * rhochi;
-					centerTmpZ += p[2] * rhochi;
-					mass += rhochi;
-					volume += b(ix,iy,iz).chi;
-				}
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
+						double p[3] = {0,0,0};
+						info.pos(p, ix, iy, iz);
+						double rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
+						centerTmpX += p[0] * rhochi * h3;
+						centerTmpY += p[1] * rhochi * h3;
+						centerTmpZ += p[2] * rhochi * h3;
+						mass += rhochi * h3;
+						volume += b(ix,iy,iz).chi * h3;
+					}
 		}
 		
-        // needs to be fixed for periodicity
+		// needs to be fixed for periodicity
 		centerTmpX /= mass;
 		centerTmpY /= mass;
 		centerTmpZ /= mass;
+		
+		//Real com[3] = {centerTmpX,centerTmpY,centerTmpZ};
+		//shape->setCenterOfMass(com);
 		
 		//*
 #pragma omp parallel for schedule(static) reduction(+:u) reduction(+:v) reduction(+:w) reduction(+:dtdtx) reduction(+:dtdty) reduction(+:dtdtz) reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5)
@@ -81,48 +85,48 @@ public:
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
-			double h = info.h_gridpoint;
+			const Real h = info.h_gridpoint;
+			const Real h3 = h*h*h;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-				{
-					double p[3] = {0,0,0};
-					info.pos(p, ix, iy, iz);
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
 #ifndef _AVGU_
-					double rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
-					u += b(ix,iy,iz).u * rhochi;
-					v += b(ix,iy,iz).v * rhochi;
-					w += b(ix,iy,iz).w * rhochi;
+						const Real rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
+						u += b(ix,iy,iz).u * rhochi * h3;
+						v += b(ix,iy,iz).v * rhochi * h3;
+						w += b(ix,iy,iz).w * rhochi * h3;
 #else
-					double chi = b(ix,iy,iz).chi;
-					u += b(ix,iy,iz).u * chi;
-					v += b(ix,iy,iz).v * chi;
-					w += b(ix,iy,iz).w * chi;
+						const Real chi = b(ix,iy,iz).chi;
+						u += b(ix,iy,iz).u * chi * h3;
+						v += b(ix,iy,iz).v * chi * h3;
+						w += b(ix,iy,iz).w * chi * h3;
 #endif
-					
-					p[0] -= centerTmpX;
-					p[1] -= centerTmpY;
-					p[2] -= centerTmpZ;
-					
-					Real cp[3];
-					cp[0] = p[1]*w - p[2]*v;
-					cp[1] = p[2]*u - p[0]*w;
-					cp[2] = p[0]*v - p[1]*u;
-					
-					dtdtx += cp[0] * rhochi;
-					dtdty += cp[1] * rhochi;
-					dtdtz += cp[2] * rhochi;
-					
-					J0 += rhochi * (p[1]*p[1] + p[2]*p[2]);
-					J1 += rhochi * (p[0]*p[0] + p[2]*p[2]);
-					J2 += rhochi * (p[0]*p[0] + p[1]*p[1]);
-					J3 -= rhochi * p[0] * p[1];
-					J4 -= rhochi * p[0] * p[2];
-					J5 -= rhochi * p[1] * p[2];
-				}
+						double p[3] = {0,0,0};
+						info.pos(p, ix, iy, iz);
+						p[0] -= centerTmpX;
+						p[1] -= centerTmpY;
+						p[2] -= centerTmpZ;
+						
+						Real cp[3];
+						cp[0] = p[1]* b(ix,iy,iz).w - p[2]* b(ix,iy,iz).v;
+						cp[1] = p[2]* b(ix,iy,iz).u - p[0]* b(ix,iy,iz).w;
+						cp[2] = p[0]* b(ix,iy,iz).v - p[1]* b(ix,iy,iz).u;
+						
+						dtdtx += cp[0] * rhochi * h3;
+						dtdty += cp[1] * rhochi * h3;
+						dtdtz += cp[2] * rhochi * h3;
+						
+						J0 += rhochi * (p[1]*p[1] + p[2]*p[2]) * h3; //       y^2 + z^2
+						J1 += rhochi * (p[0]*p[0] + p[2]*p[2]) * h3; // x^2 +     + z^2
+						J2 += rhochi * (p[0]*p[0] + p[1]*p[1]) * h3; // x^2 + y^2
+						J3 -= rhochi * p[0] * p[1] * h3; // xy
+						J4 -= rhochi * p[0] * p[2] * h3; // xz
+						J5 -= rhochi * p[1] * p[2] * h3; // yz
+					}
 		}
-	
+		
 #ifndef _AVGU_
 		*uBody = u / mass;
 		*vBody = v / mass;
@@ -136,7 +140,13 @@ public:
 		const Real ub[3] = { *uBody, *vBody, *wBody };
 		const Real dthetadt[3] = { dtdtx, dtdty, dtdtz };
 		const Real J[6] = { J0, J1, J2, J3, J4, J5 };
+		//const Real dthetadt[3] = { 0, 0, 2*M_PI };
+		//const Real J[6] = { 1, 1, 1, 0, 0, 0 };
 		
+		//cout << "\tMass:\t" << mass << endl;
+		//cout << "\tCoM:\t" << centerTmpX << " " << centerTmpY << " " << centerTmpZ << endl;
+		//cout << "\tL:\t" << dtdtx << " " << dtdty << " " << dtdtz << endl;
+		//cout << "\tJ:\t" << J0 << " " << J1 << " " << J2 << " " << J3 << " " << J4 << " " << J5 << endl;
 		shape->updatePosition(ub, dthetadt, J, mass, dt);
 	}
 	

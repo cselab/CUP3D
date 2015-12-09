@@ -34,7 +34,7 @@ public:
                 
 				Real chi = shape->chi(p, info.h_gridpoint);
 				block(ix,iy,iz).chi = chi;
-				block(ix,iy,iz).rho = shape->getRhoS()*chi + 1.*(1.-chi);//shape->rho(p, info.h_gridpoint);
+				block(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint, chi);
 			}
 	}
 };

@@ -13,7 +13,7 @@ particles ?= false
 dlm ?= false
 ct ?= false
 
-hdf ?= true
+hdf ?= false
 
 constnu ?= false
 densitydiff ?= false

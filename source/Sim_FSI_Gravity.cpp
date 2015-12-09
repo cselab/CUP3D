@@ -234,17 +234,13 @@ void Sim_FSI_Gravity::init()
 		else if (shapeType=="samara")
 		{
 			const Real center[3] = {.5,.5,.5};
-			const Real rhoS = 1;
 			const Real moll = 2;
 			const int gridsize = 1024;
 			const Real scale = .025;
 			const Real tx = .12;
 			const Real ty = .9;
 			const Real tz = .08;
-			Geometry::Quaternion q1(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
-			Geometry::Quaternion q2(1, 0, 0, 0);
-			//Geometry::Quaternion q2(cos(.25*M_PI), sin(.25*M_PI), 0, 0);
-			Geometry::Quaternion q = q1*q2;
+			Geometry::Quaternion q(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
 			
 			double qm = q.magnitude();
 			q.w /= qm;

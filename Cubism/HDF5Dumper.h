@@ -8,15 +8,16 @@
 #pragma once
 
 #include <vector>
+#include <iostream>
 
 #ifdef _USE_HDF_
 #include <hdf5.h>
 #endif // _USE_NUMA_
 
-#ifdef _SP_COMP_
-typedef float Real;
-#else
+#ifndef _SP_COMP_
 typedef double Real;
+#else // _SP_COMP_
+typedef float Real;
 #endif // _SP_COMP_
 
 #ifdef _SP_COMP_
@@ -45,7 +46,7 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	const unsigned int NZ = grid.getBlocksPerDimension(2)*B::sizeZ;
 	
 	Real * array_all = new Real[NX * NY * NZ * NCHANNELS];
-
+	
 	vector<BlockInfo> vInfo_local = grid.getBlocksInfo();
 	
 	const unsigned int sX = 0;
@@ -68,7 +69,7 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	
 	hsize_t offset[4] = {0, 0, 0, 0};
 	
-	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
+	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str(), iCounter);
 	
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -82,14 +83,14 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 		const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
-
-                for(unsigned int ix=sX; ix<eX; ix++)
-                  for(unsigned int iy=sY; iy<eY; iy++)
-                    for(unsigned int iz=sZ; iz<eZ; iz++)
-		      { 					
+		
+		for(unsigned int ix=sX; ix<eX; ix++)
+			for(unsigned int iy=sY; iy<eY; iy++)
+				for(unsigned int iz=sZ; iz<eZ; iz++)
+				{
 					Real output[NCHANNELS];
-					for(unsigned int i=0; i<NCHANNELS; ++i)
-						output[i] = 0;
+					for(unsigned int c=0; c<NCHANNELS; ++c)
+						output[c] = 0;
 					
 					streamer.operate(ix, iy, iz, (Real*)output);
 					
@@ -99,8 +100,8 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 					
 					Real * const ptr = array_all + NCHANNELS*(gz + NZ * (gy + NY * gx));
 					
-					for(unsigned int i=0; i<NCHANNELS; ++i)
-						ptr[i] = output[i];
+					for(unsigned int c=0; c<NCHANNELS; ++c)
+						ptr[c] = output[c];
 				}
 	}
 	
@@ -110,7 +111,7 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	dataset_id = H5Dcreate(file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 	fspace_id = H5Dget_space(dataset_id);
 	H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
-	mspace_id = H5Screate_simple(4, count, NULL);        
+	mspace_id = H5Screate_simple(4, count, NULL);
 	status = H5Dwrite(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
 	
 	status = H5Sclose(mspace_id);
@@ -124,7 +125,7 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	
 	{
 		char wrapper[256];
-		sprintf(wrapper, "%s/%s.xmf", dump_path.c_str(), f_name.c_str());
+		sprintf(wrapper, "%s/%s.xmf", dump_path.c_str(), f_name.c_str(), iCounter);
 		FILE *xmf = 0;
 		xmf = fopen(wrapper, "w");
 		fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
@@ -212,7 +213,7 @@ void ReadHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	fspace_id = H5Dget_space(dataset_id);
 	H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
 	
-	mspace_id = H5Screate_simple(4, count, NULL);        
+	mspace_id = H5Screate_simple(4, count, NULL);
 	status = H5Dread(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
 	
 #pragma omp parallel for
@@ -226,7 +227,7 @@ void ReadHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 		for(int iz=sZ; iz<eZ; iz++)
 			for(int iy=sY; iy<eY; iy++)
 				for(int ix=sX; ix<eX; ix++)
-				{     
+				{
 					const int gx = idx[0]*B::sizeX + ix;
 					const int gy = idx[1]*B::sizeY + iy;
 					const int gz = idx[2]*B::sizeZ + iz;
@@ -238,7 +239,7 @@ void ReadHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	}
 	
 	status = H5Pclose(fapl_id);
-	status = H5Dclose(dataset_id);       
+	status = H5Dclose(dataset_id);
 	status = H5Sclose(fspace_id);
 	status = H5Sclose(mspace_id);
 	status = H5Fclose(file_id);

@@ -19,9 +19,11 @@ class TestRotation : public Test
 {
 private:
 	int bpd;
+	Real dthetadt[3];
 	Shape * shape;
 	const int testCase; // 0: forced, 1: from flow
 	double dt;
+	const int nsteps;
 	
 	string path2file;
 	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;

@@ -46,7 +46,7 @@ protected:
 		
 #pragma omp parallel
 		{
-			OperatorVorticity kernel(dt, coeff, stage);
+			OperatorVorticity kernel;
 			
 			Lab mylab;
 			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);

@@ -5,7 +5,7 @@ export LD_LIBRARY_PATH=/cluster/home/infk/cconti/Visualization/Software/mitsuba-
 BASEPATH=/cluster/scratch_xp/public/cconti/CubismUP/
 BASENAME=FlowPastSamara_test_0812_
 
-cd ../makefiles/;make clean;make config=production bc=periodic precision=single particles=false dlm=true -j;cd ../launch/
+cd ../makefiles/;make clean;make config=production bc=periodic precision=single particles=false dlm=true hdf=true -j;cd ../launch/
 
 for CFL in 0.1
 do
@@ -22,8 +22,10 @@ do
 	mkdir ${FOLDER}
 	cp ../makefiles/simulation ${FOLDER}
 	cp FlowPastSamara.sh ${FOLDER}
-#	bsub -n 48 -W 10:00 -o ${BASENAME}${NAME_RE100} -J ${BASENAME}${NAME_RE100} ${FOLDER}/simulation -file ${FOLDER}/${BASENAME}${NAME_RE100} -sim fixed -Re 1100 -tend 1000 ${OPTIONS}
-	${FOLDER}/simulation -file ${FOLDER}/${BASENAME}${NAME_RE100} -sim fixed -Re 1100 -tend 1000 ${OPTIONS}
+	cd ${FOLDER}
+#	bsub -n 48 -W 10:00 -o ${BASENAME}${NAME_RE100} -J ${BASENAME}${NAME_RE100} ./simulation -file ${BASENAME}${NAME_RE100} -sim fixed -Re 1100 -tend 1000 ${OPTIONS}
+	./simulation -file ${BASENAME}${NAME_RE100} -sim fixed -Re 1100 -tend 1000 ${OPTIONS}
+	cd -
 done
 done
 done

@@ -16,7 +16,6 @@
 
 // utmost import to be defined before including cubism
 
-// double precision fftw not installed currently
 #ifndef _SP_COMP_
 typedef double Real;
 #else // _SP_COMP_

@@ -17,6 +17,8 @@
 #include "GenericCoordinator.h"
 #include "GenericOperator.h"
 
+#include "CoordinatorVorticity.h"
+
 //#include "SerializerIO_WaveletCompression.h"
 
 #include <vector>
@@ -127,7 +129,12 @@ protected:
 			
 			dumper.Write(*grid, ss.str());
 #else
-			DumpHDF5<FluidGrid, StreamerHDF5>(*grid, step, path2file, "");
+			CoordinatorVorticity<Lab> coordVorticity(grid);
+			coordVorticity(dt);
+			stringstream ss;
+			ss << path2file << "-" << std::setfill('0') << std::setw(6) << step;
+			cout << ss.str() << endl;
+			DumpHDF5<FluidGrid, StreamerHDF5>(*grid, step, ss.str());
 #endif
 			_serialize();
 			

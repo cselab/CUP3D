@@ -417,26 +417,28 @@ struct StreamerSerialization
 
 struct StreamerHDF5
 {
-	static const int NCHANNELS = 7;
+	static const int NCHANNELS = 9;
 	
 	FluidBlock& ref;
 	
 	StreamerHDF5(FluidBlock& b): ref(b) {}
 	
-	void operate(const int ix, const int iy, const int iz, Real output[7]) const
+	void operate(const int ix, const int iy, const int iz, Real output[NCHANNELS]) const
 	{
 		const FluidElement& input = ref.data[iz][iy][ix];
 		
-		output[0]  = input.rho;
-		output[1]  = input.u;
-		output[2]  = input.v;
-		output[3]  = input.w;
-		output[4]  = input.chi;
-		output[5]  = input.p;
-		output[6]  = input.tmp;
+		output[0] = input.rho;
+		output[1] = input.u;
+		output[2] = input.v;
+		output[3] = input.w;
+		output[4] = input.chi;
+		output[5] = input.p;
+		output[6] = input.tmp;
+		output[7] = 0;
+		output[8] = 0;
 	}
 	
-	void operate(const Real input[7], const int ix, const int iy, const int iz) const
+	void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
 	{
 		FluidElement& output = ref.data[iz][iy][ix];
 		

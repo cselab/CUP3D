@@ -37,7 +37,6 @@ public:
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 		for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 		{
-			FluidElement& phi = lab(ix,iy,iz);
 			FluidElement& phiW = lab(ix-1,iy  ,iz  );
 			FluidElement& phiE = lab(ix+1,iy  ,iz  );
 			FluidElement& phiS = lab(ix  ,iy-1,iz  );
@@ -51,6 +50,6 @@ public:
 			o(ix,iy,iz).tmp = sqrt(o(ix,iy,iz).tmpU*o(ix,iy,iz).tmpU + o(ix,iy,iz).tmpV*o(ix,iy,iz).tmpV + o(ix,iy,iz).tmpW*o(ix,iy,iz).tmpW);
 		}
 	}
-}
+};
 
 #endif /* OperatorVorticity_h */
