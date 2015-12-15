@@ -18,6 +18,7 @@ using namespace std;
 #include "Simulation_Fluid.h"
 #include "Sim_FSI_Fixed.h"
 #include "Sim_FSI_Moving.h"
+#include "Sim_FSI_Rotation.h"
 #include "Sim_FSI_Gravity.h"
 #include "Sim_RayleighTaylor.h"
 #include "Sim_Bubble.h"
@@ -49,6 +50,8 @@ int main(int argc, const char **argv)
 		sim = new Sim_FSI_Fixed(argc, argv);
 	else if (simSetting=="moving")
 		sim = new Sim_FSI_Moving(argc, argv);
+	else if (simSetting=="rotating")
+		sim = new Sim_FSI_Rotation(argc, argv);
 	else if (simSetting=="falling")
 		sim = new Sim_FSI_Gravity(argc, argv);
 	else if (simSetting=="rti")

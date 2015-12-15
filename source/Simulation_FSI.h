@@ -124,6 +124,7 @@ public:
 			}
 			else if (shapeType=="samara")
 			{
+				/*
 				const Real center[3] = {.5,.5,.5};
 				const Real rhoS = 1;
 				const Real moll = 2;
@@ -132,6 +133,7 @@ public:
 				const Real tx = .07;
 				const Real ty = .18;
 				const Real tz = .08;
+				const Real isosurface = parser("-isosurface").asDouble(.004);
 				Geometry::Quaternion q1(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
 				//Geometry::Quaternion q2(1, 0, 0, 0);
 				Geometry::Quaternion q2(cos(45./360.*M_PI), sin(45./360.*M_PI), 0, 0);
@@ -143,7 +145,8 @@ public:
 				q.y /= qm;
 				q.z /= qm;
 				const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
-				shape = new GeometryMesh(filename, gridsize, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+				shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+				 */
 			}
 			else
 			{

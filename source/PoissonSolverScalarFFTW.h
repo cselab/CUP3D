@@ -9,8 +9,6 @@
 
 #include "common.h"
 
-#define _DCT_
-
 #ifndef _SP_COMP_
 // double
 typedef fftw_complex mycomplex;
@@ -88,11 +86,10 @@ protected:
 	bool initialized;
 	
 	myplan fwd, bwd;
-	Real * data; // rhs in _setup, out in cub2fftw and fftw2cub
 	
 protected:
 	
-	virtual void _setup(Real *& rhs , const size_t nx, const size_t ny, const size_t nz)
+	virtual void _setup(Real *& rhs, const size_t nx, const size_t ny, const size_t nz)
 	{
 		if (!initialized)
 		{
@@ -125,13 +122,13 @@ protected:
 			const BlockInfo info = infos[i];
 			BlockType& b = *(BlockType*)infos[i].ptrBlock;
 			
-			const size_t offset = BlockType::sizeZ*info.index[2]+(nz/2+1)*2*( BlockType::sizeY*info.index[1]+mybpd[1]*BlockType::sizeY*BlockType::sizeX*info.index[0]);
+			const size_t offset = BlockType::sizeZ*info.index[2]+nz_hat*2*( BlockType::sizeY*info.index[1]+mybpd[1]*BlockType::sizeY*BlockType::sizeX*info.index[0]);
 			
 			for(int iz=0; iz<BlockType::sizeZ; iz++)
 				for(int iy=0; iy<BlockType::sizeY; iy++)
 					for(int ix=0; ix<BlockType::sizeX; ix++)
 					{
-						const size_t dest_index = TStreamer::channels*(offset + iz + 2*(nz/2+1)*( iy + BlockType::sizeY*mybpd[1]*ix ));
+						const size_t dest_index = TStreamer::channels*(offset + iz + 2*nz_hat*( iy + BlockType::sizeY*mybpd[1]*ix ));
 						
 						//assert(dest_index>=0 && dest_index<nx*ny*nz_hat*2); // linking error with openmp: http://lists.apple.com/archives/xcode-users/2011/Oct/msg00252.html
 						TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
@@ -141,12 +138,6 @@ protected:
 	
 	virtual void _solve(mycomplex * in_out, const size_t nx, const size_t ny, const size_t nz, const size_t nz_hat, const Real norm_factor, const Real h)
 	{
-		if (TStreamer::channels != 1)
-		{
-			cout << "PoissonSolverScalar::PoissonSolverScalar(): Error: TStreamer::channels is " << TStreamer::channels << " and it should be 1. Aborting\n";
-			abort();
-		}
-		
 		const Real h2 = h*h;
 		const Real factor = h2*norm_factor;
 		
@@ -174,12 +165,6 @@ protected:
 	
 	virtual void _solveSpectral(mycomplex * in_out, const size_t nx, const size_t ny, const size_t nz, const size_t nz_hat, const Real norm_factor, const Real h)
 	{
-		if (TStreamer::channels != 1)
-		{
-			cout << "PoissonSolverScalar::PoissonSolverScalar(): Error: TStreamer::channels is " << TStreamer::channels << " and it should be 1. Aborting\n";
-			abort();
-		}
-		
 		const Real waveFactX = 2.0*M_PI/(nx*h);
 		const Real waveFactY = 2.0*M_PI/(ny*h);
 		const Real waveFactZ = 2.0*M_PI/(nz*h);
@@ -235,9 +220,16 @@ protected:
 	}
 	
 public:
+	Real * data; // rhs in _setup, out in cub2fftw and fftw2cub
 	
 	PoissonSolverScalarFFTW(const int desired_threads, TGrid& grid): FFTWBase(desired_threads), initialized(false)
 	{
+		if (TStreamer::channels != 1)
+		{
+			cout << "PoissonSolverScalar::PoissonSolverScalar(): Error: TStreamer::channels is " << TStreamer::channels << " and it should be 1. Aborting\n";
+			abort();
+		}
+		
 		// dimensions of blocks and whole grid
 		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
 		const size_t gsize[3] = {grid.getBlocksPerDimension(0)*bs[0], grid.getBlocksPerDimension(1)*bs[1], grid.getBlocksPerDimension(2)*bs[2]};
@@ -252,9 +244,11 @@ public:
 		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
 		const size_t gsize[3] = {grid.getBlocksPerDimension(0)*bs[0], grid.getBlocksPerDimension(1)*bs[1], grid.getBlocksPerDimension(2)*bs[2]};
 		
+#ifndef _SPLIT_
 		profiler.push_start("CUB2FFTW");
 		_cub2fftw(grid, data, gsize[0], gsize[1], gsize[2], gsize[2]/2+1);
 		profiler.pop_stop();
+#endif
 		
 		profiler.push_start("FFTW FORWARD");
 #ifndef _SP_COMP_
@@ -324,7 +318,6 @@ protected:
 	bool initialized;
 	
 	myplan fwd, bwd;
-	Real * data; // rhs in _setup, out in cub2fftw and fftw2cub
 	
 protected:
 	
@@ -391,19 +384,34 @@ protected:
 		const Real h2 = h*h;
 		const Real factor = h2*norm_factor;
 		
+		const Real fx = 2.*M_PI/nx;
+		const Real fy =    M_PI/ny;
+		const Real fz = 2.*M_PI/nz;
+		
 #pragma omp parallel for
 		for(int i=0; i<nx; ++i)
+		{
+			const Real cosi = cos(fx*i);
+			const Real cos2i = cos(2.*fx*i);
+			
 			for(int j=0; j<ny; ++j)
+			{
+				const Real cosj = cos(fy*(j+.5));
+				const Real cos2j = cos(2*fy*(j+.5));
+				
 				for(int k=0; k<nz; ++k)
 				{
 					const int linidx = i*nz*ny+j*nz+k;
 					assert(linidx >=0 && linidx<nx*ny*nz); // linking error with openmp
 					
 					// based on the 5 point stencil in 1D (h^4 error)
-					const Real denomY = 32.*cos(M_PI*(j+.5)/ny) - 2.*cos(2*M_PI*(j+.5)/ny) - 30.;
-					const Real denomX = 32.*cos(2.*M_PI*i/nx)   - 2.*cos(4.*M_PI*i/nx)     - 30.;
-					const Real denomZ = 32.*cos(2.*M_PI*k/nz)   - 2.*cos(4.*M_PI*k/nz)     - 30.;
+					/*
+					const Real denomY = 32.*cos(fy*(j+.5)) - 2.*cos(2*fy*(j+.5)) - 30.;
+					const Real denomX = 32.*cos(fx*i)      - 2.*cos(2.*fx*i)     - 30.;
+					const Real denomZ = 32.*cos(fz*k)      - 2.*cos(2.*fz*k)     - 30.;
 					const Real denom = denomX + denomY + denomZ;
+					*/
+					const Real denom = 32. * (cosj + cosi + cos(fz*k)) - 2. * (cos2j + cos2i + cos(2.*fz*k)) - 90.;
 					const Real inv_denom = (denom==0)? 0.:1./denom;
 					const Real fatfactor = 12. * inv_denom * factor;
 					
@@ -416,6 +424,8 @@ protected:
 					//const Real fatfactor = norm_factor;
 					in_out[linidx] *= fatfactor;
 				}
+			}
+		}
 		
 		//this is sparta!
 		//in_out[0] = 0; // WTF? this prevents correct fw/bw if not transformations happen, but has no influence on the 2nd derivative
@@ -424,6 +434,7 @@ protected:
 	
 	virtual void _solveSpectral(Real * in_out, const size_t nx, const size_t ny, const size_t nz, const Real norm_factor, const Real h)
 	{
+		cout << "Spectral not implemented yet\n";
 		abort();
 		if (TStreamer::channels != 1)
 		{
@@ -486,6 +497,7 @@ protected:
 	}
 	
 public:
+	Real * data; // rhs in _setup, out in cub2fftw and fftw2cub
 	
 	PoissonSolverScalarFFTW_DCT(const int desired_threads, TGrid& grid): FFTWBase(desired_threads), initialized(false)
 	{
@@ -504,9 +516,11 @@ public:
 		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
 		const size_t gsize[3] = {grid.getBlocksPerDimension(0)*bs[0], grid.getBlocksPerDimension(1)*bs[1], grid.getBlocksPerDimension(2)*bs[2]};
 		
+#ifndef _SPLIT_
 		profiler.push_start("CUB2FFTW");
 		_cub2fftw(grid, data, gsize[0], gsize[1], gsize[2]);
 		profiler.pop_stop();
+#endif
 		
 		profiler.push_start("FFTW FORWARD");
 #ifndef _SP_COMP_
@@ -521,7 +535,7 @@ public:
 		assert(1./gsize[0]==h);
 		
 		profiler.push_start("SOLVE");
-		if(spectral)
+		if (spectral)
 			_solveSpectral(data, gsize[0], gsize[1], gsize[2], norm_factor, h);
 		else
 			_solve(data, gsize[0], gsize[1], gsize[2], norm_factor, h);

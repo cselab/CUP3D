@@ -44,20 +44,22 @@ protected:
 	//	3: unset
 	int * gridlut;
 	
+	const Real isosurface;
+	
 	SerializerIO_ImageVTK<GScalar, ScalarStreamer> dumper;
 	
 	void parse(string filename);
 	
 public:
 	// constructor loading OBJ file	
-	GeometryReaderOBJ(const string filename, Geometry::Properties & properties, int gridsize, const Real scaleFactor, const Geometry::Point transFactor);
+	GeometryReaderOBJ(const string filename, Geometry::Properties & properties, int gridsize, const Real scaleFactor, const Geometry::Point transFactor, const Real isosurface);
 	
 	// clean up
 	~GeometryReaderOBJ();
 	
 	virtual void load(const string filename);
 	
-	virtual void sdf(double comx, double comy, double comz);
+	virtual void sdf();
 	
 	// check if a point lies inside the body
 	virtual int isPointInside(int ix, int iy, int iz);

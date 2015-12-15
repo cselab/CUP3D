@@ -78,11 +78,6 @@ protected:
 			//OperatorDiffusionHighOrder kernel(dt, coeff, stage);
 			
             Lab mylab;
-#ifdef _MOVING_FRAME_
-			mylab.pDirichlet.u = 0;
-			mylab.pDirichlet.v = *vBody;
-			mylab.pDirichlet.w = 0;
-#endif
 			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
 			
 #pragma omp for schedule(static)
@@ -107,7 +102,7 @@ public:
 	{
 		check("diffusion - start");
 		
-		reset();
+		//reset();
 		diffuse(dt,0);
 #ifdef _RK2_
 		diffuse(dt,1);

@@ -29,14 +29,61 @@ public:
 		BlockInfo * ary = &vInfo.front();
 		const int N = vInfo.size();
 		
-#pragma omp parallel
+		const double dh = vInfo[0].h_gridpoint;
+		
+		Real cx = 0;
+		Real cy = 0;
+		Real cz = 0;
+		Real vol = 0;
+		Real com[3];
+		shape->getCenterOfMass(com);
+		
+#pragma omp parallel for reduction(+:cx) reduction(+:cy) reduction(+:cz) reduction(+:vol)
+		for(int i=0; i<(int)vInfo.size(); i++)
 		{
-			OperatorIC kernel(shape, uinf);
+			BlockInfo info = vInfo[i];
+			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
-#pragma omp for schedule(static)
-			for (int i=0; i<N; i++)
-				kernel(ary[i], *(FluidBlock*)ary[i].ptrBlock);
+			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+				for(int iy=0; iy<FluidBlock::sizeY; iy++)
+					for(int ix=0; ix<FluidBlock::sizeX; ix++)
+					{
+						Real p[3];
+						info.pos(p, ix, iy, iz);
+						
+						b(ix,iy,iz).u = uinf;
+						b(ix,iy,iz).v = 0;
+						b(ix,iy,iz).w = 0;
+						b(ix,iy,iz).chi = shape->chi(p, info.h_gridpoint);
+						
+						// assume fluid with density 1
+						b(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint, b(ix,iy,iz).chi);
+						
+						b(ix,iy,iz).p = 0;
+						b(ix,iy,iz).divU = 0;
+						b(ix,iy,iz).pOld = 0;
+						
+						b(ix,iy,iz).tmpU = 0;
+						b(ix,iy,iz).tmpV = 0;
+						b(ix,iy,iz).tmpW = 0;
+						b(ix,iy,iz).tmp  = 0;
+						
+						const Real rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
+						cx += p[0] * rhochi * dh*dh*dh;
+						cy += p[1] * rhochi * dh*dh*dh;
+						cz += p[2] * rhochi * dh*dh*dh;
+						vol += rhochi * dh*dh*dh;
+					}
 		}
+		
+		cx /= vol;
+		cy /= vol;
+		cz /= vol;
+		com[0] = cx;
+		com[1] = cy;
+		com[2] = cz;
+		shape->setCenterOfMass(com);
+		shape->setCentroid(com);
 		
 		check("IC - end");
 	}

@@ -97,11 +97,10 @@ public:
 		
 		for (int i=0; i<6; i++)
 			properties.J[i] = J[i];
-		//	cout << "Inertia difference for component " << i << "\t" << abs(properties.J[i] - J[i]) << "(" << properties.J[i] << " " << J[i] << " " << properties.J[i]/J[i] << ")" << endl;
 		
 		const double detJ = properties.J[0]*(properties.J[1]*properties.J[2] - properties.J[5]*properties.J[5]) +
-		properties.J[3]*(properties.J[4]*properties.J[5] - properties.J[2]*properties.J[3]) +
-		properties.J[4]*(properties.J[3]*properties.J[5] - properties.J[1]*properties.J[4]);
+							properties.J[3]*(properties.J[4]*properties.J[5] - properties.J[2]*properties.J[3]) +
+							properties.J[4]*(properties.J[3]*properties.J[5] - properties.J[1]*properties.J[4]);
 		assert(abs(detJ)>numeric_limits<double>::epsilon());
 		const double invDetJ = 1./detJ;
 		
@@ -113,9 +112,6 @@ public:
 			invDetJ * (properties.J[3]*properties.J[5] - properties.J[1]*properties.J[4]),
 			invDetJ * (properties.J[3]*properties.J[4] - properties.J[0]*properties.J[5])
 		};
-		
-		
-		//cout << "Jinv:\t" << invJ[0] << " " << invJ[1] << " " << invJ[2] << " " << invJ[3] << " " << invJ[4] << " " << invJ[5] << endl;
 		
 		// J-1 * dthetadt
 		// angular velocity from angular momentum
@@ -152,6 +148,12 @@ public:
 		properties.com.x = com[0];
 		properties.com.y = com[1];
 		properties.com.z = com[2];
+	}
+	
+	void setInertiaMatrix(Real J[6])
+	{
+		for (int i=0; i<6; i++)
+			properties.J[i] = J[i];
 	}
 	
 	void getOrientation(Real rotation[3][3]) const
@@ -234,28 +236,28 @@ class GeometryMesh : public Shape
 {
 protected:
 	GeometryReader * geometry;
+	const Real isosurface;
 	
 public:
-	GeometryMesh(const string filename, const int gridsize, Real center[3], const Real rhoS, const Real mollChi, const Real mollRho, Real scale=1, Real tX=0, Real tY=0, Real tZ=0, Geometry::Quaternion orientation=Geometry::Quaternion()) : Shape(center, rhoS, mollChi, mollRho, scale, tX, tY, tZ, orientation)
+	GeometryMesh(const string filename, const int gridsize, const Real isosurface, Real center[3], const Real rhoS, const Real mollChi, const Real mollRho, Real scale=1, Real tX=0, Real tY=0, Real tZ=0, Geometry::Quaternion orientation=Geometry::Quaternion()) : Shape(center, rhoS, mollChi, mollRho, scale, tX, tY, tZ, orientation), isosurface(isosurface)
 	{
 		Geometry::Point transFactor(tX,tY,tZ);
 #ifdef _CT_
-		geometry = new GeometryReaderCT(filename,properties,gridsize,scale,transFactor);
+		geometry = new GeometryReaderCT(filename,properties,gridsize,scale,transFactor,isosurface);
 #else
-		geometry = new GeometryReaderOBJ(filename,properties,gridsize,scale,transFactor);
+		geometry = new GeometryReaderOBJ(filename,properties,gridsize,scale,transFactor,isosurface);
 #endif
 	}
 	
 	Real chi(Real p[3], Real h) const
 	{
-		return smoothHeaviside(geometry->distance(p[0], p[1], p[2]), 0.01, mollChi*sqrt(2)*h);
-		//return smoothHeaviside(geometry->distance(p[0], p[1], p[2]), 0.004, mollChi*sqrt(2)*h);
+		return smoothHeaviside(geometry->distance(p[0], p[1], p[2]), isosurface, mollChi*sqrt(2)*h);
 	}
 	
 	Real getCharLength() const
 	{
 		//cout << "Not implemented yet\n";
-		return .1;
+		return .01;
 	}
 	
 	void outputSettings(ostream &outStream)

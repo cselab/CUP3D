@@ -138,10 +138,16 @@ namespace Geometry
 		
 		const Quaternion operator*(const Quaternion& b)
 		{
-			return Quaternion(this->w * b.w - this->x * b.x - this->y * b.y - this->z * b.z,
-							  this->w * b.x + this->x * b.w + this->y * b.z - this->z * b.y,
-							  this->w * b.y - this->x * b.z + this->y * b.w + this->z * b.x,
-							  this->w * b.z + this->x * b.y - this->y * b.x + this->z * b.w);
+			Quaternion q(this->w * b.w - this->x * b.x - this->y * b.y - this->z * b.z,
+						 this->w * b.x + this->x * b.w + this->y * b.z - this->z * b.y,
+						 this->w * b.y - this->x * b.z + this->y * b.w + this->z * b.x,
+						 this->w * b.z + this->x * b.y - this->y * b.x + this->z * b.w);
+			double qm = q.magnitude();
+			q.w /= qm;
+			q.x /= qm;
+			q.y /= qm;
+			q.z /= qm;
+			return q;
 		}
 	};
 	
@@ -196,6 +202,7 @@ namespace Geometry
 			// movements in global coordinates
 			//cout << "Current velocity is " << ut.x << " " << ut.y << " " << ut.z << endl;
 			
+#ifndef _MOVING_FRAME_
 			// x_cm += u_T * dt
 			com.x += ut.x * dt;
 			com.y += ut.y * dt;
@@ -205,12 +212,20 @@ namespace Geometry
 			centroid.y += ut.y * dt;
 			centroid.z += ut.z * dt;
 			
+			//cout << "CoM\t" << com.x << " " << com.y << " " << com.z << endl;
+			
 			minb.x += ut.x * dt;
 			minb.y += ut.y * dt;
 			minb.z += ut.z * dt;
 			maxb.x += ut.x * dt;
 			maxb.y += ut.y * dt;
 			maxb.z += ut.z * dt;
+#endif
+			
+			//cout << "\tomega:\t" << dthetadt.x << " " << dthetadt.y << " " << dthetadt.z << endl;
+			//dthetadt.x = 0;
+			//dthetadt.y = M_PI;
+			//dthetadt.z = 0;
 			
 			//cout << "Mass is " << mass << endl;
 			
@@ -238,6 +253,8 @@ namespace Geometry
 				q.y = num.y * invDenum;
 				q.z = num.z * invDenum;
 			}
+			
+			//cout << "\tq\t" << q.w << " " << q.x << " " << q.y << " " << q.z << endl;
 			
 			// check that the quaternion is a unit quaternion
 			const Real d = q.magnitude();

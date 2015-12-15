@@ -930,66 +930,95 @@ public:
 				for (int iy=0; iy<FluidBlock::sizeY; ++iy)
 					for (int ix=0; ix<FluidBlock::sizeX; ++ix)
 					{
-						const Real dudx[2] = {  2*lab(ix+1,iy  ,iz  ).u + 3*lab(ix  ,iy  ,iz  ).u - 6*lab(ix-1,iy  ,iz  ).u +   lab(ix-2,iy  ,iz  ).u,
-											   -  lab(ix+2,iy  ,iz  ).u + 6*lab(ix+1,iy  ,iz  ).u - 3*lab(ix  ,iy  ,iz  ).u - 2*lab(ix-1,iy  ,iz  ).u};
+						FluidElement& phi  = lab(ix,iy,iz);
+						FluidElement& phiW = lab(ix-1,iy  ,iz  );
+						FluidElement& phiE = lab(ix+1,iy  ,iz  );
+						FluidElement& phiS = lab(ix  ,iy-1,iz  );
+						FluidElement& phiN = lab(ix  ,iy+1,iz  );
+						FluidElement& phiF = lab(ix  ,iy  ,iz-1);
+						FluidElement& phiB = lab(ix  ,iy  ,iz+1);
+						FluidElement& phiW2 = lab(ix-2,iy  ,iz  );
+						FluidElement& phiE2 = lab(ix+2,iy  ,iz  );
+						FluidElement& phiS2 = lab(ix  ,iy-2,iz  );
+						FluidElement& phiN2 = lab(ix  ,iy+2,iz  );
+						FluidElement& phiF2 = lab(ix  ,iy  ,iz-2);
+						FluidElement& phiB2 = lab(ix  ,iy  ,iz+2);
 						
-						const Real dudy[2] = {  2*lab(ix  ,iy+1,iz  ).u + 3*lab(ix  ,iy  ,iz  ).u - 6*lab(ix  ,iy-1,iz  ).u +   lab(ix  ,iy-2,iz  ).u,
-											   -  lab(ix  ,iy+2,iz  ).u + 6*lab(ix  ,iy+1,iz  ).u - 3*lab(ix  ,iy  ,iz  ).u - 2*lab(ix  ,iy-1,iz  ).u};
+						const Real u3 = 3*phi.u;
+						const Real v3 = 3*phi.v;
+						const Real w3 = 3*phi.w;
 						
-						const Real dudz[2] = {  2*lab(ix  ,iy  ,iz+1).u + 3*lab(ix  ,iy  ,iz  ).u - 6*lab(ix  ,iy  ,iz-1).u +   lab(ix  ,iy  ,iz-2).u,
-											   -  lab(ix  ,iy  ,iz+2).u + 6*lab(ix  ,iy  ,iz+1).u - 3*lab(ix  ,iy  ,iz  ).u - 2*lab(ix  ,iy  ,iz-1).u};
+						const Real dudx[2] = {  2*phiE.u + u3 - 6*phiW.u +   phiW2.u,
+											   -  phiE2.u + 6*phiE.u - u3 - 2*phiW.u};
 						
-						const Real dvdx[2] = {  2*lab(ix+1,iy  ,iz  ).v + 3*lab(ix  ,iy  ,iz  ).v - 6*lab(ix-1,iy  ,iz  ).v +   lab(ix-2,iy  ,iz  ).v,
-											   -  lab(ix+2,iy  ,iz  ).v + 6*lab(ix+1,iy  ,iz  ).v - 3*lab(ix  ,iy  ,iz  ).v - 2*lab(ix-1,iy  ,iz  ).v};
+						const Real dudy[2] = {  2*phiN.u + u3 - 6*phiS.u +   phiS2.u,
+											   -  phiN2.u + 6*phiN.u - u3 - 2*phiS.u};
 						
-						const Real dvdy[2] = {  2*lab(ix  ,iy+1,iz  ).v + 3*lab(ix  ,iy  ,iz  ).v - 6*lab(ix  ,iy-1,iz  ).v +   lab(ix  ,iy-2,iz  ).v,
-											   -  lab(ix  ,iy+2,iz  ).v + 6*lab(ix  ,iy+1,iz  ).v - 3*lab(ix  ,iy  ,iz  ).v - 2*lab(ix  ,iy-1,iz  ).v};
+						const Real dudz[2] = {  2*phiB.u + u3 - 6*phiF.u +   phiF2.u,
+											   -  phiB2.u + 6*phiB.u - u3 - 2*phiF.u};
 						
-						const Real dvdz[2] = {  2*lab(ix  ,iy  ,iz+1).v + 3*lab(ix  ,iy  ,iz  ).v - 6*lab(ix  ,iy  ,iz-1).v +   lab(ix  ,iy  ,iz-2).v,
-											   -  lab(ix  ,iy  ,iz+2).v + 6*lab(ix  ,iy  ,iz+1).v - 3*lab(ix  ,iy  ,iz  ).v - 2*lab(ix  ,iy  ,iz-1).v};
+						const Real dvdx[2] = {  2*phiE.v + v3 - 6*phiW.v +   phiW2.v,
+											   -  phiE2.v + 6*phiE.v - v3 - 2*phiW.v};
 						
-						const Real dwdx[2] = {  2*lab(ix+1,iy  ,iz  ).w + 3*lab(ix  ,iy  ,iz  ).w - 6*lab(ix-1,iy  ,iz  ).w +   lab(ix-2,iy  ,iz  ).w,
-											   -  lab(ix+2,iy  ,iz  ).w + 6*lab(ix+1,iy  ,iz  ).w - 3*lab(ix  ,iy  ,iz  ).w - 2*lab(ix-1,iy  ,iz  ).w};
+						const Real dvdy[2] = {  2*phiN.v + v3 - 6*phiS.v +   phiS2.v,
+											   -  phiN2.v + 6*phiN.v - v3 - 2*phiS.v};
 						
-						const Real dwdy[2] = {  2*lab(ix  ,iy+1,iz  ).w + 3*lab(ix  ,iy  ,iz  ).w - 6*lab(ix  ,iy-1,iz  ).w +   lab(ix  ,iy-2,iz  ).w,
-											   -  lab(ix  ,iy+2,iz  ).w + 6*lab(ix  ,iy+1,iz  ).w - 3*lab(ix  ,iy  ,iz  ).w - 2*lab(ix  ,iy-1,iz  ).w};
+						const Real dvdz[2] = {  2*phiB.v + v3 - 6*phiF.v +   phiF2.v,
+											   -  phiB2.v + 6*phiB.v - v3 - 2*phiF.v};
 						
-						const Real dwdz[2] = {  2*lab(ix  ,iy  ,iz+1).w + 3*lab(ix  ,iy  ,iz  ).w - 6*lab(ix  ,iy  ,iz-1).w +   lab(ix  ,iy  ,iz-2).w,
-											   -  lab(ix  ,iy  ,iz+2).w + 6*lab(ix  ,iy  ,iz+1).w - 3*lab(ix  ,iy  ,iz  ).w - 2*lab(ix  ,iy  ,iz-1).w};
+						const Real dwdx[2] = {  2*phiE.w + w3 - 6*phiW.w +   phiW2.w,
+											   -  phiE2.w + 6*phiE.w - w3 - 2*phiW.w};
 						
-						const Real u = o(ix,iy,iz).u;
+						const Real dwdy[2] = {  2*phiN.w + w3 - 6*phiS.w +   phiS2.w,
+											   -  phiN2.w + 6*phiN.w - w3 - 2*phiS.w};
+						
+						const Real dwdz[2] = {  2*phiB.w + w3 - 6*phiF.w +   phiF2.w,
+											   -  phiB2.w + 6*phiB.w - w3 - 2*phiF.w};
+						
 #ifndef _MOVING_FRAME_
+						const Real u = o(ix,iy,iz).u;
 						const Real v = o(ix,iy,iz).v;
-#else
-						const Real v = o(ix,iy,iz).v - *vBody;
-#endif
 						const Real w = o(ix,iy,iz).w;
+#else
+						const Real u = o(ix,iy,iz).u - *uBody;
+						const Real v = o(ix,iy,iz).v - *vBody;
+						const Real w = o(ix,iy,iz).w - *wBody;
+#endif
 						
-						o(ix,iy,iz).tmpU = u + factor*(max(u,(Real)0) * dudx[0] + min(u,(Real)0) * dudx[1] +
-													   max(v,(Real)0) * dudy[0] + min(v,(Real)0) * dudy[1] +
-													   max(w,(Real)0) * dudz[0] + min(w,(Real)0) * dudz[1]);
-						o(ix,iy,iz).tmpV = v + factor*(max(u,(Real)0) * dvdx[0] + min(u,(Real)0) * dvdx[1] +
-													   max(v,(Real)0) * dvdy[0] + min(v,(Real)0) * dvdy[1] +
-													   max(w,(Real)0) * dvdz[0] + min(w,(Real)0) * dvdz[1]);
-						o(ix,iy,iz).tmpW = w + factor*(max(u,(Real)0) * dwdx[0] + min(u,(Real)0) * dwdx[1] +
-													   max(v,(Real)0) * dwdy[0] + min(v,(Real)0) * dwdy[1] +
-													   max(w,(Real)0) * dwdz[0] + min(w,(Real)0) * dwdz[1]);
+						const Real maxu = max(u,(Real)0);
+						const Real maxv = max(v,(Real)0);
+						const Real maxw = max(w,(Real)0);
+						const Real minu = min(u,(Real)0);
+						const Real minv = min(v,(Real)0);
+						const Real minw = min(w,(Real)0);
+						
+						o(ix,iy,iz).tmpU = o(ix,iy,iz).u + factor*(maxu * dudx[0] + minu * dudx[1] +
+																   maxv * dudy[0] + minv * dudy[1] +
+																   maxw * dudz[0] + minw * dudz[1]);
+						o(ix,iy,iz).tmpV = o(ix,iy,iz).v + factor*(maxu * dvdx[0] + minu * dvdx[1] +
+																   maxv * dvdy[0] + minv * dvdy[1] +
+																   maxw * dvdz[0] + minw * dvdz[1]);
+						o(ix,iy,iz).tmpW = o(ix,iy,iz).w + factor*(maxu * dwdx[0] + minu * dwdx[1] +
+																   maxv * dwdy[0] + minv * dwdy[1] +
+																   maxw * dwdz[0] + minw * dwdz[1]);
 #ifndef _RK2_
 #ifdef _MULTIPHASE_
-						const Real drdx[2] = {  2*lab(ix+1,iy  ,iz  ).rho + 3*lab(ix  ,iy  ,iz  ).rho - 6*lab(ix-1,iy  ,iz  ).rho +   lab(ix-2,iy  ,iz  ).rho,
-											   -  lab(ix+2,iy  ,iz  ).rho + 6*lab(ix+1,iy  ,iz  ).rho - 3*lab(ix  ,iy  ,iz  ).rho - 2*lab(ix-1,iy  ,iz  ).rho};
+						const Real r3 = 3*phi.rho;
 						
-						const Real drdy[2] = {  2*lab(ix  ,iy+1,iz  ).rho + 3*lab(ix  ,iy  ,iz  ).rho - 6*lab(ix  ,iy-1,iz  ).rho +   lab(ix  ,iy-2,iz  ).rho,
-											   -  lab(ix  ,iy+2,iz  ).rho + 6*lab(ix  ,iy+1,iz  ).rho - 3*lab(ix  ,iy  ,iz  ).rho - 2*lab(ix  ,iy-1,iz  ).rho};
+						const Real drdx[2] = {  2*phiE.rho + r3 - 6*phiW.rho +   phiW2.rho,
+											   -  phiE2.rho + 6*phiE.rho - r3 - 2*phiW.rho};
 						
-						const Real drdz[2] = {  2*lab(ix  ,iy  ,iz+1).rho + 3*lab(ix  ,iy  ,iz  ).rho - 6*lab(ix  ,iy  ,iz-1).rho +   lab(ix  ,iy  ,iz-2).rho,
-											   -  lab(ix  ,iy  ,iz+2).rho + 6*lab(ix  ,iy  ,iz+1).rho - 3*lab(ix  ,iy  ,iz  ).rho - 2*lab(ix  ,iy  ,iz-1).rho};
+						const Real drdy[2] = {  2*phiN.rho + r3 - 6*phiS.rho +   phiS2.rho,
+											   -  phiN2.rho + 6*phiN.rho - r3 - 2*phiS.rho};
+						
+						const Real drdz[2] = {  2*phiB.rho + r3 - 6*phiF.rho +   phiF2.rho,
+											   -  phiB2.rho + 6*phiB.rho - r3 - 2*phiF.rho};
 						
 						const Real r = o(ix,iy,iz).rho;
 						
-						o(ix,iy,iz).tmp  = r + factor*(max(u,(Real)0) * drdx[0] + min(u,(Real)0) * drdx[1] +
-													   max(v,(Real)0) * drdy[0] + min(v,(Real)0) * drdy[1] +
-													   max(w,(Real)0) * drdz[0] + min(w,(Real)0) * drdz[1]);
+						o(ix,iy,iz).tmp  = r + factor*(maxu * drdx[0] + minu * drdx[1] +
+													   maxv * drdy[0] + minv * drdy[1] +
+													   maxw * drdz[0] + minw * drdz[1]);
 #endif // _MULTIPHASE_
 #endif // _RK2_
 					}
@@ -999,64 +1028,91 @@ public:
 				for (int iy=0; iy<FluidBlock::sizeY; ++iy)
 					for (int ix=0; ix<FluidBlock::sizeX; ++ix)
 					{
-						const Real dudx[2] = {  2*lab(ix+1,iy  ,iz  ).tmpU + 3*lab(ix  ,iy  ,iz  ).tmpU - 6*lab(ix-1,iy  ,iz  ).tmpU +   lab(ix-2,iy  ,iz  ).tmpU,
-											   -  lab(ix+2,iy  ,iz  ).tmpU + 6*lab(ix+1,iy  ,iz  ).tmpU - 3*lab(ix  ,iy  ,iz  ).tmpU - 2*lab(ix-1,iy  ,iz  ).tmpU};
+						FluidElement& phi  = lab(ix,iy,iz);
+						FluidElement& phiW = lab(ix-1,iy  ,iz  );
+						FluidElement& phiE = lab(ix+1,iy  ,iz  );
+						FluidElement& phiS = lab(ix  ,iy-1,iz  );
+						FluidElement& phiN = lab(ix  ,iy+1,iz  );
+						FluidElement& phiF = lab(ix  ,iy  ,iz-1);
+						FluidElement& phiB = lab(ix  ,iy  ,iz+1);
+						FluidElement& phiW2 = lab(ix-2,iy  ,iz  );
+						FluidElement& phiE2 = lab(ix+2,iy  ,iz  );
+						FluidElement& phiS2 = lab(ix  ,iy-2,iz  );
+						FluidElement& phiN2 = lab(ix  ,iy+2,iz  );
+						FluidElement& phiF2 = lab(ix  ,iy  ,iz-2);
+						FluidElement& phiB2 = lab(ix  ,iy  ,iz+2);
 						
-						const Real dudy[2] = {  2*lab(ix  ,iy+1,iz  ).tmpU + 3*lab(ix  ,iy  ,iz  ).tmpU - 6*lab(ix  ,iy-1,iz  ).tmpU +   lab(ix  ,iy-2,iz  ).tmpU,
-											   -  lab(ix  ,iy+2,iz  ).tmpU + 6*lab(ix  ,iy+1,iz  ).tmpU - 3*lab(ix  ,iy  ,iz  ).tmpU - 2*lab(ix  ,iy-1,iz  ).tmpU};
+						const Real u3 = 3*phi.tmpU;
+						const Real v3 = 3*phi.tmpV;
+						const Real w3 = 3*phi.tmpW;
+						const Real r3 = 3*phi.tmp;
 						
-						const Real dudz[2] = {  2*lab(ix  ,iy  ,iz+1).tmpU + 3*lab(ix  ,iy  ,iz  ).tmpU - 6*lab(ix  ,iy  ,iz-1).tmpU +   lab(ix  ,iy  ,iz-2).tmpU,
-											   -  lab(ix  ,iy  ,iz+2).tmpU + 6*lab(ix  ,iy  ,iz+1).tmpU - 3*lab(ix  ,iy  ,iz  ).tmpU - 2*lab(ix  ,iy  ,iz-1).tmpU};
+						const Real dudx[2] = {  2*phiE.tmpU + u3 - 6*phiW.tmpU +   phiW2.tmpU,
+											   -  phiE2.tmpU + 6*phiE.tmpU - u3 - 2*phiW.tmpU};
 						
-						const Real dvdx[2] = {  2*lab(ix+1,iy  ,iz  ).tmpV + 3*lab(ix  ,iy  ,iz  ).tmpV - 6*lab(ix-1,iy  ,iz  ).tmpV +   lab(ix-2,iy  ,iz  ).tmpV,
-											   -  lab(ix+2,iy  ,iz  ).tmpV + 6*lab(ix+1,iy  ,iz  ).tmpV - 3*lab(ix  ,iy  ,iz  ).tmpV - 2*lab(ix-1,iy  ,iz  ).tmpV};
+						const Real dudy[2] = {  2*phiS.tmpU + u3 - 6*phiS.tmpU +   phiS2.tmpU,
+											   -  phiN2.tmpU + 6*phiS.tmpU - u3 - 2*phiS.tmpU};
 						
-						const Real dvdy[2] = {  2*lab(ix  ,iy+1,iz  ).tmpV + 3*lab(ix  ,iy  ,iz  ).tmpV - 6*lab(ix  ,iy-1,iz  ).tmpV +   lab(ix  ,iy-2,iz  ).tmpV,
-											   -  lab(ix  ,iy+2,iz  ).tmpV + 6*lab(ix  ,iy+1,iz  ).tmpV - 3*lab(ix  ,iy  ,iz  ).tmpV - 2*lab(ix  ,iy-1,iz  ).tmpV};
+						const Real dudz[2] = {  2*phiB.tmpU + u3 - 6*phiF.tmpU +   phiF2.tmpU,
+											   -  phiB2.tmpU + 6*phiB.tmpU - u3 - 2*phiF.tmpU};
 						
-						const Real dvdz[2] = {  2*lab(ix  ,iy  ,iz+1).tmpV + 3*lab(ix  ,iy  ,iz  ).tmpV - 6*lab(ix  ,iy  ,iz-1).tmpV +   lab(ix  ,iy  ,iz-2).tmpV,
-											   -  lab(ix  ,iy  ,iz+2).tmpV + 6*lab(ix  ,iy  ,iz+1).tmpV - 3*lab(ix  ,iy  ,iz  ).tmpV - 2*lab(ix  ,iy  ,iz-1).tmpV};
+						const Real dvdx[2] = {  2*phiE.tmpV + v3 - 6*phiW.tmpV +   phiW2.tmpV,
+											   -  phiE2.tmpV + 6*phiE.tmpV - v3 - 2*phiW.tmpV};
 						
-						const Real dwdx[2] = {  2*lab(ix+1,iy  ,iz  ).tmpW + 3*lab(ix  ,iy  ,iz  ).tmpW - 6*lab(ix-1,iy  ,iz  ).tmpW +   lab(ix-2,iy  ,iz  ).tmpW,
-											   -  lab(ix+2,iy  ,iz  ).tmpW + 6*lab(ix+1,iy  ,iz  ).tmpW - 3*lab(ix  ,iy  ,iz  ).tmpW - 2*lab(ix-1,iy  ,iz  ).tmpW};
+						const Real dvdy[2] = {  2*phiS.tmpV + v3 - 6*phiS.tmpV +   phiS2.tmpV,
+											   -  phiN2.tmpV + 6*phiS.tmpV - v3 - 2*phiS.tmpV};
 						
-						const Real dwdy[2] = {  2*lab(ix  ,iy+1,iz  ).tmpW + 3*lab(ix  ,iy  ,iz  ).tmpW - 6*lab(ix  ,iy-1,iz  ).tmpW +   lab(ix  ,iy-2,iz  ).tmpW,
-											   -  lab(ix  ,iy+2,iz  ).tmpW + 6*lab(ix  ,iy+1,iz  ).tmpW - 3*lab(ix  ,iy  ,iz  ).tmpW - 2*lab(ix  ,iy-1,iz  ).tmpW};
+						const Real dvdz[2] = {  2*phiB.tmpV + v3 - 6*phiF.tmpV +   phiF2.tmpV,
+											   -  phiB2.tmpV + 6*phiB.tmpV - v3 - 2*phiF.tmpV};
 						
-						const Real dwdz[2] = {  2*lab(ix  ,iy  ,iz+1).tmpW + 3*lab(ix  ,iy  ,iz  ).tmpW - 6*lab(ix  ,iy  ,iz-1).tmpW +   lab(ix  ,iy  ,iz-2).tmpW,
-											   -  lab(ix  ,iy  ,iz+2).tmpW + 6*lab(ix  ,iy  ,iz+1).tmpW - 3*lab(ix  ,iy  ,iz  ).tmpW - 2*lab(ix  ,iy  ,iz-1).tmpW};
+						const Real dwdx[2] = {  2*phiE.tmpW + w3 - 6*phiW.tmpW +   phiW2.tmpW,
+											   -  phiE2.tmpW + 6*phiE.tmpW - w3 - 2*phiW.tmpW};
 						
-						const Real drdx[2] = {  2*lab(ix+1,iy  ,iz  ).tmp + 3*lab(ix  ,iy  ,iz  ).tmp - 6*lab(ix-1,iy  ,iz  ).tmp +   lab(ix-2,iy  ,iz  ).tmp,
-											   -  lab(ix+2,iy  ,iz  ).tmp + 6*lab(ix+1,iy  ,iz  ).tmp - 3*lab(ix  ,iy  ,iz  ).tmp - 2*lab(ix-1,iy  ,iz  ).tmp};
+						const Real dwdy[2] = {  2*phiS.tmpW + w3 - 6*phiS.tmpW +   phiS2.tmpW,
+											   -  phiN2.tmpW + 6*phiS.tmpW - w3 - 2*phiS.tmpW};
 						
-						const Real drdy[2] = {  2*lab(ix  ,iy+1,iz  ).tmp + 3*lab(ix  ,iy  ,iz  ).tmp - 6*lab(ix  ,iy-1,iz  ).tmp +   lab(ix  ,iy-2,iz  ).tmp,
-											   -  lab(ix  ,iy+2,iz  ).tmp + 6*lab(ix  ,iy+1,iz  ).tmp - 3*lab(ix  ,iy  ,iz  ).tmp - 2*lab(ix  ,iy-1,iz  ).tmp};
+						const Real dwdz[2] = {  2*phiB.tmpW + w3 - 6*phiF.tmpW +   phiF2.tmpW,
+											   -  phiB2.tmpW + 6*phiB.tmpW - w3 - 2*phiF.tmpW};
 						
-						const Real drdz[2] = {  2*lab(ix  ,iy  ,iz+1).tmp + 3*lab(ix  ,iy  ,iz  ).tmp - 6*lab(ix  ,iy  ,iz-1).tmp +   lab(ix  ,iy  ,iz-2).tmp,
-											   -  lab(ix  ,iy  ,iz+2).tmp + 6*lab(ix  ,iy  ,iz+1).tmp - 3*lab(ix  ,iy  ,iz  ).tmp - 2*lab(ix  ,iy  ,iz-1).tmp};
-						
-						const Real u = lab(ix,iy,iz).tmpU;
 #ifndef _MOVING_FRAME_
-						const Real v = lab(ix,iy,iz).tmpV;
+						const Real u = phi.tmpU;
+						const Real v = phi.tmpV;
+						const Real w = phi.tmpW;
 #else
-						const Real v = lab(ix,iy,iz).tmpV - *vBody;
+						const Real u = phi.tmpU - *uBody;
+						const Real v = phi.tmpV - *vBody;
+						const Real w = phi.tmpW - *wBody;
 #endif
-						const Real w = lab(ix,iy,iz).tmpW;
 						
-						o(ix,iy,iz).tmpU = o(ix,iy,iz).u + factor*(max(u,(Real)0) * dudx[0] + min(u,(Real)0) * dudx[1] +
-																   max(v,(Real)0) * dudy[0] + min(v,(Real)0) * dudy[1] +
-																   max(w,(Real)0) * dudz[0] + min(w,(Real)0) * dudz[1]);
-						o(ix,iy,iz).tmpV = o(ix,iy,iz).v + factor*(max(u,(Real)0) * dvdx[0] + min(u,(Real)0) * dvdx[1] +
-																   max(v,(Real)0) * dvdy[0] + min(v,(Real)0) * dvdy[1] +
-																   max(w,(Real)0) * dvdz[0] + min(w,(Real)0) * dvdz[1]);
-						o(ix,iy,iz).tmpW = o(ix,iy,iz).w + factor*(max(u,(Real)0) * dwdx[0] + min(u,(Real)0) * dwdx[1] +
-																   max(v,(Real)0) * dwdy[0] + min(v,(Real)0) * dwdy[1] +
-																   max(w,(Real)0) * dwdz[0] + min(w,(Real)0) * dwdz[1]);
+						const Real maxu = max(u,(Real)0);
+						const Real maxv = max(v,(Real)0);
+						const Real maxw = max(w,(Real)0);
+						const Real minu = min(u,(Real)0);
+						const Real minv = min(v,(Real)0);
+						const Real minw = min(w,(Real)0);
+						
+						o(ix,iy,iz).tmpU = o(ix,iy,iz).u + factor*(maxu * dudx[0] + minu * dudx[1] +
+																   maxv * dudy[0] + minv * dudy[1] +
+																   maxw * dudz[0] + minw * dudz[1]);
+						o(ix,iy,iz).tmpV = o(ix,iy,iz).v + factor*(maxu * dvdx[0] + minu * dvdx[1] +
+																   maxv * dvdy[0] + minv * dvdy[1] +
+																   maxw * dvdz[0] + minw * dvdz[1]);
+						o(ix,iy,iz).tmpW = o(ix,iy,iz).w + factor*(maxu * dwdx[0] + minu * dwdx[1] +
+																   maxv * dwdy[0] + minv * dwdy[1] +
+																   maxw * dwdz[0] + minw * dwdz[1]);
 #ifdef _MULTIPHASE_
-						const Real r = lab(ix,iy,iz).rho;
-						o(ix,iy,iz).tmp = r + factor*(max(u,(Real)0) * drdx[0] + min(u,(Real)0) * drdx[1] +
-													  max(v,(Real)0) * drdy[0] + min(v,(Real)0) * drdy[1] +
-													  max(w,(Real)0) * drdz[0] + min(w,(Real)0) * drdz[1]);
+						const Real drdx[2] = {  2*phiE.rho + 3*phi.rho - 6*phiW.rho +   phiW2.rho,
+											   -  phiE2.rho + 6*phiE.rho - 3*phi.rho - 2*phiW.rho};
+						
+						const Real drdy[2] = {  2*phiS.rho + 3*phi.rho - 6*phiS.rho +   phiS2.rho,
+											   -  phiN2.rho + 6*phiS.rho - 3*phi.rho - 2*phiS.rho};
+						
+						const Real drdz[2] = {  2*phiB.rho + 3*phi.rho - 6*phiF.rho +   phiF2.rho,
+											   -  phiB2.rho + 6*phiB.rho - 3*phi.rho - 2*phiF.rho};
+						
+						o(ix,iy,iz).tmp = phi.rho + factor*(maxu * drdx[0] + minu * drdx[1] +
+															maxv * drdy[0] + minv * drdy[1] +
+															maxw * drdz[0] + minw * drdz[1]);
 #endif // _MULTIPHASE
 					}
 #endif // _RK2_

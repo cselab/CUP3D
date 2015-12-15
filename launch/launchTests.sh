@@ -14,8 +14,8 @@ cd ../launch/
 #export OMP_NUM_THREADS=48;../makefiles/test -minBPD 4 -maxBPD 4 -test penalization -minDT 1e-4 -maxDT 1e-4 > results_penalization
 export OMP_NUM_THREADS=48;../makefiles/test -minBPD 1 -maxBPD 64 -test translation -minDT 1e-2 -maxDT 1e-2 -ic 0 > results_translation_ic0_body
 export OMP_NUM_THREADS=48;../makefiles/test -minBPD 1 -maxBPD 64 -test translation -minDT 1e-2 -maxDT 1e-2 -ic 1 > results_translation_ic1_fromFlow
-export OMP_NUM_THREADS=48;../makefiles/test -minBPD 1 -maxBPD 64 -test rotation -minDT 1 -maxDT 1 -ic 0 > results_rotation_ic0_body
-export OMP_NUM_THREADS=48;../makefiles/test -minBPD 1 -maxBPD 64 -test rotation -minDT 1 -maxDT 1 -ic 1 > results_rotation_ic1_fromFlow
+export OMP_NUM_THREADS=48;../makefiles/test -minBPD 1 -maxBPD 8 -test rotation -minDT 1 -maxDT 1 -ic 0 > results_rotation_ic0_body
+export OMP_NUM_THREADS=48;../makefiles/test -minBPD 1 -maxBPD 8 -test rotation -minDT 1 -maxDT 1 -ic 1 > results_rotation_ic1_fromFlow
 
 
 #cd ../makefiles

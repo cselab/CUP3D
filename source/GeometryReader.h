@@ -55,7 +55,7 @@ public:
 	
 	virtual void load(const string filename) = 0;
 	
-	virtual void sdf(double comx, double comy, double comz) = 0;
+	virtual void sdf() = 0;
 	
 	virtual void serialize(string path) const;
 	virtual void deserialize(string path);

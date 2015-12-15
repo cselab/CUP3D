@@ -22,16 +22,24 @@ struct FluidElement
     Real rho, u, v, w, chi, p, pOld;
 	Real tmpU, tmpV, tmpW, tmp;
 	Real divU;
+#ifndef _PARTICLES_
 	Real x, y, z;
-    
-    FluidElement() : rho(0), u(0), v(0), w(0), chi(0), p(0), pOld(0), divU(0), tmpU(0), tmpV(0), tmpW(0), tmp(0), x(0), y(0), z(0) {}
+#endif
+	
+    FluidElement() : rho(0), u(0), v(0), w(0), chi(0), p(0), pOld(0), divU(0), tmpU(0), tmpV(0), tmpW(0), tmp(0)
+#ifndef _PARTICLES_
+	, x(0), y(0), z(0)
+#endif
+	{}
     
     void clear()
     {
         rho = u = v = w = chi = p = pOld = 0;
 		tmpU = tmpV = tmpW = tmp = 0;
 		divU = 0;
+#ifndef _PARTICLES_
 		x = y = z = 0;
+#endif
     }
 };
 

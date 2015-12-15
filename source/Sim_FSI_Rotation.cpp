@@ -1,12 +1,12 @@
 //
-//  Sim_FSI_Moving.cpp
+//  Sim_FSI_Rotation.cpp
 //  CubismUP_3D
 //
-//  Created by Christian Conti on 1/26/15.
-//  Copyright (c) 2015 ETHZ. All rights reserved.
+//  Created by Christian Conti on 12/10/15.
+//  Copyright © 2015 ETHZ. All rights reserved.
 //
 
-#include "Sim_FSI_Moving.h"
+#include "Sim_FSI_Rotation.h"
 
 #include "ProcessOperatorsOMP.h"
 #include "OperatorDivergence.h"
@@ -19,47 +19,21 @@
 #include "CoordinatorPenalization.h"
 #include "CoordinatorComputeShape.h"
 #include "CoordinatorPressure.h"
+#include "CoordinatorBodyVelocities.h"
 
-void Sim_FSI_Moving::_diagnostics()
+void Sim_FSI_Rotation::_diagnostics()
 {
 	vector<BlockInfo> vInfo = grid->getBlocksInfo();
-	
-	double drag = 0;
-	double volume = 0;
-	const double dh = vInfo[0].h_gridpoint;
-	
-#pragma omp parallel for schedule(static) reduction(+:drag) reduction(+:volume)
-	for(int i=0; i<vInfo.size(); i++)
-	{
-		BlockInfo info = vInfo[i];
-		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-		
-		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-			{
-				if (b(ix,iy).chi>0)
-				{
-					drag += (b(ix,iy,iz).u-uBody[0]) * b(ix,iy,iz).chi;
-					volume += b(ix,iy,iz).chi;
-				}
-			}
-	}
-	
-	drag *= dh*dh*dh*lambda;
-	volume *= dh*dh*dh;
-	
-	const double cD = 2*drag/(uBody[0]*uBody[0]*shape->getCharLength());
 	
 	stringstream ss;
 	ss << path2file << "_diagnostics.dat";
 	ofstream myfile(ss.str(), fstream::app);
 	if (verbose)
-		cout << step << " " << _nonDimensionalTime() << " " << bpdx << " " << dt << " " << dtCFL << " " << dtFourier << " " << drag << " " << lambda << endl;
-	myfile << step << " " << _nonDimensionalTime() << " " << bpdx << " " << dt << " " << dtCFL << " " << dtFourier << " " << cD << " " << lambda << endl;
+		cout << step << " " << _nonDimensionalTime() << " " << bpdx << " " << dt << " " << lambda << endl;
+	myfile << step << " " << _nonDimensionalTime() << " " << bpdx << " " << dt << " " << lambda << endl;
 }
 
-void Sim_FSI_Moving::_ic()
+void Sim_FSI_Rotation::_ic()
 {
 	CoordinatorIC coordIC(shape,0,grid);
 	profiler.push_start(coordIC.getName());
@@ -71,44 +45,44 @@ void Sim_FSI_Moving::_ic()
 	profiler.pop_stop();
 }
 
-double Sim_FSI_Moving::_nonDimensionalTime()
+double Sim_FSI_Rotation::_nonDimensionalTime()
 {
-	return 2*time*abs(uBody[0])/shape->getCharLength();
+	return time;
 }
 
-void Sim_FSI_Moving::_outputSettings(ostream &outStream)
+void Sim_FSI_Rotation::_outputSettings(ostream &outStream)
 {
-	outStream << "Moving_FSI\n";
-	outStream << "uBody " << uBody[0] << endl;
-	outStream << "vBody " << uBody[1] << endl;
-	outStream << "wBody " << uBody[2] << endl;
+	outStream << "Rotation_FSI\n";
+	outStream << "uBody " << omegaBody[0] << endl;
+	outStream << "vBody " << omegaBody[1] << endl;
+	outStream << "wBody " << omegaBody[2] << endl;
 	outStream << "re " << re << endl;
 	outStream << "nu " << nu << endl;
 	
 	Simulation_FSI::_outputSettings(outStream);
 }
 
-void Sim_FSI_Moving::_inputSettings(istream& inStream)
+void Sim_FSI_Rotation::_inputSettings(istream& inStream)
 {
 	string variableName;
 	
 	inStream >> variableName;
-	if (variableName != "Moving_FSI")
+	if (variableName != "Rotation_FSI")
 	{
-		cout << "Error in deserialization - Simulation_Moving_FSI\n";
+		cout << "Error in deserialization - Simulation_Rotation_FSI\n";
 		abort();
 	}
 	
 	// read data
 	inStream >> variableName;
-	assert(variableName=="uBody");
-	inStream >> uBody[0];
+	assert(variableName=="omegaBodyX");
+	inStream >> omegaBody[0];
 	inStream >> variableName;
-	assert(variableName=="vBody");
-	inStream >> uBody[1];
+	assert(variableName=="omegaBodyY");
+	inStream >> omegaBody[1];
 	inStream >> variableName;
-	assert(variableName=="wBody");
-	inStream >> uBody[2];
+	assert(variableName=="omegaBodyZ");
+	inStream >> omegaBody[2];
 	inStream >> variableName;
 	assert(variableName=="re");
 	inStream >> re;
@@ -119,7 +93,7 @@ void Sim_FSI_Moving::_inputSettings(istream& inStream)
 	Simulation_FSI::_inputSettings(inStream);
 }
 
-Sim_FSI_Moving::Sim_FSI_Moving(const int argc, const char ** argv) : Simulation_FSI(argc, argv), uBody{0,0,0}, re(0), nu(0), dtBody(0), dtCFL(0), dtFourier(0)
+Sim_FSI_Rotation::Sim_FSI_Rotation(const int argc, const char ** argv) : Simulation_FSI(argc, argv), omegaBody{0,0,0}, uBody{0,0,0}, re(0), nu(0), dtBody(0), dtCFL(0), dtFourier(0)
 {
 	int rank = 0;
 #ifdef _MULTIGRID_
@@ -132,16 +106,16 @@ Sim_FSI_Moving::Sim_FSI_Moving(const int argc, const char ** argv) : Simulation_
 	if (rank==0)
 	{
 		cout << "====================================================================================================================\n";
-		cout << "\t\t\tFlow past a moving body\n";
+		cout << "\t\t\tFlow with a rotating body\n";
 		cout << "====================================================================================================================\n";
 	}
 }
 
-Sim_FSI_Moving::~Sim_FSI_Moving()
+Sim_FSI_Rotation::~Sim_FSI_Rotation()
 {
 }
 
-void Sim_FSI_Moving::init()
+void Sim_FSI_Rotation::init()
 {
 	Simulation_FSI::init();
 	
@@ -149,8 +123,49 @@ void Sim_FSI_Moving::init()
 	{
 		// simulation settings
 		re = parser("-Re").asDouble(100);
-		uBody[0] = - parser("-uBody").asDouble(0.1);
-		nu = shape->getCharLength()*abs(uBody[0])/re;
+		omegaBody[2] = parser("-omegaBody").asDouble(M_PI/4.);
+		nu = parser("-nu").asDouble(1e-2);
+		
+		profiler.push_start("Geometry");
+		delete shape;
+		lambda = parser("-lambda").asDouble(1e5);
+		dlm = parser("-dlm").asDouble(1.);
+		
+		double rhoS = parser("-rhoS").asDouble(1);
+		const Real aspectRatio = 1;
+		cout << "WARNING - Aspect ratio for correct positioning of sphere not implemented yet\n";
+		Real center[3] = {parser("-xpos").asDouble(.5*aspectRatio),parser("-ypos").asDouble(.85),parser("-zpos").asDouble(.5*aspectRatio)};
+		
+		string shapeType = parser("-shape").asString("sphere");
+		const int eps = 2;
+		if (shapeType=="sphere")
+		{
+			Real radius = parser("-radius").asDouble(0.1);
+			shape = new Sphere(center, radius, rhoS, eps, eps);
+		}
+		else if (shapeType=="samara")
+		{
+			const Real center[3] = {.5,.5,.5};
+			const Real moll = 2;
+			const int gridsize = 1024;
+			const Real scale = .18;
+			const Real tx = .5;
+			const Real ty = .3;
+			const Real tz = .5;
+			Geometry::Quaternion q1(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
+			Geometry::Quaternion q2(cos(.125*M_PI), sin(.125*M_PI), 0, 0);
+			Geometry::Quaternion q = q1*q2;
+			const Real isosurface = parser("-isosurface").asDouble(.004);
+			
+			const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+		}
+		else
+		{
+			cout << "Error - this shape is not currently implemented! Aborting now\n";
+			abort();
+		}
+		profiler.pop_stop();
 		
 		_ic();
 	}
@@ -163,6 +178,7 @@ void Sim_FSI_Moving::init()
 #endif
 	pipeline.push_back(new CoordinatorDiffusion<Lab>(nu, grid));
 	pipeline.push_back(new CoordinatorPressureSimple<Lab>(grid));
+	pipeline.push_back(new CoordinatorBodyVelocitiesForcedRot(&omegaBody[0], &omegaBody[1], &omegaBody[2], &lambda, shape, grid));
 	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], shape, &lambda, grid));
 	pipeline.push_back(new CoordinatorComputeShape(shape, grid));
 	
@@ -173,14 +189,14 @@ void Sim_FSI_Moving::init()
 	assert(uBody[1] == 0);
 }
 
-void Sim_FSI_Moving::simulate()
+void Sim_FSI_Rotation::simulate()
 {
 	const int sizeX = bpdx * FluidBlock::sizeX;
 	const int sizeY = bpdy * FluidBlock::sizeY;
 	const int sizeZ = bpdz * FluidBlock::sizeZ;
 	
 	double nextDumpTime = time;
-	double maxU = uBody[0];
+	double maxU = 0;
 	double maxA = 0;
 	
 	while (true)
@@ -190,9 +206,9 @@ void Sim_FSI_Moving::simulate()
 		// choose dt (CFL, Fourier)
 		profiler.push_start("DT");
 		maxU = findMaxUOMP(vInfo,*grid);
-		dtFourier = CFL*vInfo[0].h_gridpoint*vInfo[0].h_gridpoint/nu;
-		dtCFL     = CFL*vInfo[0].h_gridpoint/abs(maxU);
-		dtBody    = CFL*vInfo[0].h_gridpoint/abs(uBody[0]);
+		dtFourier = CFL*vInfo[0].h_gridpoint*vInfo[0].h_gridpoint/nu*min(shape->getRhoS(),(Real)1);
+		dtCFL     = maxU==0 ? 1e5 : CFL*vInfo[0].h_gridpoint/abs(maxU);
+		dtBody    = max(max(abs(uBody[0]),abs(uBody[1])),abs(uBody[2]))==0 ? 1e5 : CFL*vInfo[0].h_gridpoint/max(max(abs(uBody[0]),abs(uBody[1])),abs(uBody[2]));
 		dt = min(min(dtCFL,dtFourier),dtBody);
 #ifdef _PARTICLES_
 		maxA = findMaxAOMP<Lab>(vInfo,*grid);
@@ -205,20 +221,24 @@ void Sim_FSI_Moving::simulate()
 			dt = min(dt,endTime-_nonDimensionalTime());
 		if (verbose)
 			cout << "dt (Fourier, CFL, body): " << dtFourier << " " << dtCFL << " " << dtBody << endl;
-#ifdef _DLM_
-		lambda = dlm/dt;
-#endif
 		profiler.pop_stop();
 		
-		for (int c=0; c<pipeline.size(); c++)
-		{
-			profiler.push_start(pipeline[c]->getName());
-			(*pipeline[c])(dt);
-			profiler.pop_stop();
-		}
 		
-		time += dt;
-		step++;
+		if (dt!=0)
+		{
+#ifdef _DLM_
+			lambda = dlm/dt;
+#endif
+			for (int c=0; c<pipeline.size(); c++)
+			{
+				profiler.push_start(pipeline[c]->getName());
+				(*pipeline[c])(dt);
+				profiler.pop_stop();
+			}
+			
+			time += dt;
+			step++;
+		}
 		
 		
 		// compute diagnostics

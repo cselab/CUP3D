@@ -105,6 +105,31 @@ protected:
 		}
 	}
 	
+#ifdef _SPLIT_
+	template <typename Operator>
+	void computeSplitFFTW(const double dt)
+	{
+		BlockInfo * ary = &vInfo.front();
+		const int N = vInfo.size();
+		
+#pragma omp parallel
+		{
+			int dim[3] = {grid->getBlocksPerDimension(0)*FluidBlock::sizeX, grid->getBlocksPerDimension(1)*FluidBlock::sizeY, grid->getBlocksPerDimension(2)*FluidBlock::sizeZ};
+			Operator kernel(dt, minRho, *step, pressureSolver.data, dim);
+			
+			Lab mylab;
+			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
+			
+#pragma omp for schedule(static)
+			for (int i=0; i<N; i++)
+			{
+				mylab.load(ary[i], 0);
+				kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
+			}
+		}
+	}
+#endif
+	
 	template <typename Operator>
 	void compute(const double dt)
 	{
@@ -116,11 +141,6 @@ protected:
 			Operator kernel(dt);
 			
 			Lab mylab;
-#ifdef _MOVING_FRAME_
-			mylab.pDirichlet.u = 0;
-			mylab.pDirichlet.v = *vBody;
-			mylab.pDirichlet.w = 0;
-#endif
 			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, true);
 			
 #pragma omp for schedule(static)
@@ -162,9 +182,10 @@ public:
 #ifdef _HYDROSTATIC_
 		addHydrostaticPressure(dt);
 #endif // _HYDROSTATIC_
-		computeSplit<OperatorDivergenceSplit>(dt);
+		//computeSplit<OperatorDivergenceSplit>(dt); // this part could be done directly in the correct data structure
+		computeSplitFFTW<OperatorDivergenceSplitFFTW>(dt); // this part could be done directly in the correct data structure
 		pressureSolver.solve(*grid,false);
-		computeSplit<OperatorGradPSplit>(dt);
+		computeSplit<OperatorGradPSplit>(dt); // this part could be done directly in the correct data structure
 #endif // _SPLIT_
 #ifdef _MULTIGRID_
 		if (rank==0)

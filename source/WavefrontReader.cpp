@@ -26,7 +26,6 @@ void GeometryReaderOBJ::parse(string filename)
 	while (type != "vn")
 		f >> type;
 	
-	cout << "\tvertices\n";
 	while (type == "vn")
 	{
 		Geometry::Point n;
@@ -57,7 +56,6 @@ void GeometryReaderOBJ::parse(string filename)
 	while (type != "f")
 		f >> type;
 	
-	cout << "\ttriangles\n";
 	while (type == "f" && !f.eof())
 	{
 		// TODO: unsafe - if the mesh is not only triangles, it might cause a problem!
@@ -88,14 +86,13 @@ void GeometryReaderOBJ::parse(string filename)
 	properties.maxb.x = properties.maxb.x*baseScale + baseTranslation.x;
 	properties.maxb.y = properties.maxb.y*baseScale + baseTranslation.y;
 	properties.maxb.z = properties.maxb.z*baseScale + baseTranslation.z;
-	cout << "\tDone\n";
 }
 
 // constructor loading OBJ file
-GeometryReaderOBJ::GeometryReaderOBJ(const string filename, Geometry::Properties & properties, int gridsize, const Real scaleFactor, const Geometry::Point transFactor) : GeometryReader(filename,properties,gridsize,scaleFactor,transFactor), cgrid(NULL), gridlut(NULL)
+GeometryReaderOBJ::GeometryReaderOBJ(const string filename, Geometry::Properties & properties, int gridsize, const Real scaleFactor, const Geometry::Point transFactor, const Real isosurface) : GeometryReader(filename,properties,gridsize,scaleFactor,transFactor), cgrid(NULL), gridlut(NULL), isosurface(isosurface)
 {
 	load(filename);
-	sdf(1.,1.,1.);
+	sdf();
 }
 
 // clean up
@@ -195,7 +192,7 @@ void GeometryReaderOBJ::load(const string filename)
 	bGeometryLoaded = true;
 }
 
-void GeometryReaderOBJ::sdf(double comx, double comy, double comz)
+void GeometryReaderOBJ::sdf()
 {
 	if (!bGeometryLoaded)
 	{
@@ -435,7 +432,7 @@ void GeometryReaderOBJ::sdf(double comx, double comy, double comz)
 		cout << "Computing center of mass\n";
 	
 	double centerx = 0, centery = 0, centerz = 0;
-	int count = 0;
+	double count = 0;
 	
 #pragma omp parallel for reduction(+:centerx) reduction(+:centery) reduction(+:centerz) reduction(+:count)
 	for (int i=0; i<vInfo.size(); i++)
@@ -512,10 +509,9 @@ void GeometryReaderOBJ::sdf(double comx, double comy, double comz)
 	centerz *= scalingsize;
 	
 	// center of mass, global coordinates
-	cout << "\n\nCAUTION - PLAYING WITH CENTER OF MASS\n\n\n";
-	properties.com.x = centerx*comx + properties.minb.x;
-	properties.com.y = centery*comy + properties.minb.y;
-	properties.com.z = centerz*comz + properties.minb.z;
+	properties.com.x = centerx + properties.minb.x;
+	properties.com.y = centery + properties.minb.y;
+	properties.com.z = centerz + properties.minb.z;
 	
 	// centroid, global coordinates
 	properties.centroid.x = centerx + properties.minb.x;
@@ -592,9 +588,12 @@ double GeometryReaderOBJ::distance(double fx, double fy, double fz)
 	//cout << properties.rotation[2][0] << " " << properties.rotation[2][1] << " " << properties.rotation[2][2] << endl;
 	//abort();
 	
-	double rfx = (fx-com[0])*properties.rotation[0][0] + (fy-com[1])*properties.rotation[0][1] + (fz-com[2])*properties.rotation[0][2] + com[0];
-	double rfy = (fx-com[0])*properties.rotation[1][0] + (fy-com[1])*properties.rotation[1][1] + (fz-com[2])*properties.rotation[1][2] + com[1];
-	double rfz = (fx-com[0])*properties.rotation[2][0] + (fy-com[1])*properties.rotation[2][1] + (fz-com[2])*properties.rotation[2][2] + com[2];
+	//double rfx = (fx-com[0])*properties.rotation[0][0] + (fy-com[1])*properties.rotation[0][1] + (fz-com[2])*properties.rotation[0][2] + com[0];
+	//double rfy = (fx-com[0])*properties.rotation[1][0] + (fy-com[1])*properties.rotation[1][1] + (fz-com[2])*properties.rotation[1][2] + com[1];
+	//double rfz = (fx-com[0])*properties.rotation[2][0] + (fy-com[1])*properties.rotation[2][1] + (fz-com[2])*properties.rotation[2][2] + com[2];
+	double rfx = (fx-com[0])*properties.rotation[0][0] + (fy-com[1])*properties.rotation[1][0] + (fz-com[2])*properties.rotation[2][0] + com[0];
+	double rfy = (fx-com[0])*properties.rotation[0][1] + (fy-com[1])*properties.rotation[1][1] + (fz-com[2])*properties.rotation[2][1] + com[1];
+	double rfz = (fx-com[0])*properties.rotation[0][2] + (fy-com[1])*properties.rotation[1][2] + (fz-com[2])*properties.rotation[2][2] + com[2];
 	
 	if (!bSDFComputed)
 	{

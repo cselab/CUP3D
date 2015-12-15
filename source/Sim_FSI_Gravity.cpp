@@ -71,13 +71,15 @@ void Sim_FSI_Gravity::_diagnostics()
 	const Real Re_uBody = shape->getCharLength()*sqrt(uBody[0]*uBody[0]+uBody[1]*uBody[1]+uBody[2]*uBody[2])/nu;
 	Real center[3];
 	shape->getCenterOfMass(center);
+	Real rotation[3][3];
+	shape->getOrientation(rotation);
 	
 	stringstream ss;
 	ss << path2file << "_diagnostics.dat";
 	ofstream myfile(ss.str(), fstream::app);
 	if (verbose)
-		cout << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << endl;
-	myfile << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << endl;
+		cout << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << rotation[0][0] << " " << rotation[0][1] << " " << rotation[0][2] << " " << rotation[1][0] << " " << rotation[1][1] << " " << rotation[1][2] << " " << rotation[2][0] << " " << rotation[2][1] << " " << rotation[2][2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << endl;
+	myfile << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << rotation[0][0] << " " << rotation[0][1] << " " << rotation[0][2] << " " << rotation[1][0] << " " << rotation[1][1] << " " << rotation[1][2] << " " << rotation[2][0] << " " << rotation[2][1] << " " << rotation[2][2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << endl;
 }
 
 void Sim_FSI_Gravity::_dumpSettings(ostream& outStream)
@@ -131,10 +133,21 @@ void Sim_FSI_Gravity::_ic()
 		CoordinatorIC coordIC(shape,0,grid);
 		profiler.push_start(coordIC.getName());
 		coordIC(0);
+		profiler.pop_stop();
 		
+		profiler.push_start("DumpIC");
+#ifndef _USE_HDF_
 		stringstream ss;
 		ss << path2file << "-IC.vti";
 		dumper.Write(*grid, ss.str());
+#else
+		CoordinatorVorticity<Lab> coordVorticity(grid);
+		coordVorticity(dt);
+		stringstream ss;
+		ss << path2file << "-IC";
+		cout << ss.str() << endl;
+		DumpHDF5<FluidGrid, StreamerHDF5>(*grid, step, ss.str());
+#endif
 		profiler.pop_stop();
 	}
 }
@@ -215,6 +228,7 @@ void Sim_FSI_Gravity::init()
 	
 	if (!bRestart)
 	{
+		profiler.push_start("Geometry");
 		delete shape;
 		lambda = parser("-lambda").asDouble(1e5);
 		dlm = parser("-dlm").asDouble(1.);
@@ -233,28 +247,45 @@ void Sim_FSI_Gravity::init()
 		}
 		else if (shapeType=="samara")
 		{
+#ifndef _MOVING_FRAME_
 			const Real center[3] = {.5,.5,.5};
 			const Real moll = 2;
 			const int gridsize = 1024;
-			const Real scale = .025;
+			const Real scale = .04;
 			const Real tx = .12;
 			const Real ty = .9;
-			const Real tz = .08;
-			Geometry::Quaternion q(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
+			const Real tz = .12;
+#else
+			const Real center[3] = {.5,.5,.5};
+			const Real moll = 2;
+			const int gridsize = 1024;
+			const Real scale = .04;
+			const Real tx = .12;
+			const Real ty = .9;
+			const Real tz = .12;
+			//const Real center[3] = {.5,.5,.5};
+			//const Real moll = 2;
+			//const int gridsize = 1024;
+			//const Real scale = .15;
+			//const Real tx = .45;
+			//const Real ty = .5;
+			//const Real tz = .4;
+#endif
+			//Geometry::Quaternion q1(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
+			//Geometry::Quaternion q2(cos(0*M_PI), sin(0*M_PI), 0, 0);
+			//Geometry::Quaternion q = q1*q2;
+			Geometry::Quaternion q(1,0,0,0);
+			const Real isosurface = parser("-isosurface").asDouble(.0);
 			
-			double qm = q.magnitude();
-			q.w /= qm;
-			q.x /= qm;
-			q.y /= qm;
-			q.z /= qm;
 			const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
-			shape = new GeometryMesh(filename, gridsize, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
 		}
 		else
 		{
 			cout << "Error - this shape is not currently implemented! Aborting now\n";
 			abort();
 		}
+		profiler.pop_stop();
 		
 		// simulation settings
 		bSplit = parser("-split").asBool(false);
@@ -285,9 +316,9 @@ void Sim_FSI_Gravity::init()
 	pipeline.push_back(new CoordinatorDiffusion<Lab>(nu,&uBody[0],&uBody[1],&uBody[2],grid));
 	pipeline.push_back(new CoordinatorGravity(gravity, grid));
 	pipeline.push_back(new CoordinatorPressure<Lab>(minRho, gravity, &uBody[0], &uBody[1], &uBody[2], &step, bSplit, grid, rank, nprocs));
-	pipeline.push_back(new CoordinatorBodyVelocities(&uBody[0], &uBody[1], &uBody[2], &lambda, shape, grid));
-	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], shape, &lambda, grid));
-	pipeline.push_back(new CoordinatorComputeShape(shape, grid));
+	pipeline.push_back(new CoordinatorBodyVelocities(&uBody[0], &uBody[1], &uBody[2], &lambda, shape, &maxU, grid));
+	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], shape, &lambda, grid)); // also computes new shape
+	//pipeline.push_back(new CoordinatorComputeShape(shape, grid));
 	
 	if (rank==0)
 	{
@@ -309,7 +340,7 @@ void Sim_FSI_Gravity::simulate()
 	MPI_Barrier(MPI_COMM_WORLD);
 #endif // _MULTIGRID_
 	double nextDumpTime = time;
-	double maxU = 0;
+	maxU = 0;
 	double maxA = 0;
 	
 	while (true)
@@ -319,8 +350,8 @@ void Sim_FSI_Gravity::simulate()
 			vector<BlockInfo> vInfo = grid->getBlocksInfo();
 			
 			// choose dt (CFL, Fourier)
-			profiler.push_start("DT");
-			maxU = findMaxUOMP(vInfo,*grid);
+			//profiler.push_start("DT");
+			//maxU = findMaxUOMP(vInfo,*grid);
 			dtFourier = CFL*vInfo[0].h_gridpoint*vInfo[0].h_gridpoint/nu*min(shape->getRhoS(),(Real)1);
 			dtCFL     = maxU==0 ? 1e5 : CFL*vInfo[0].h_gridpoint/abs(maxU);
 			dtBody    = max(max(abs(uBody[0]),abs(uBody[1])),abs(uBody[2]))==0 ? 1e5 : CFL*vInfo[0].h_gridpoint/max(max(abs(uBody[0]),abs(uBody[1])),abs(uBody[2]));
@@ -341,7 +372,7 @@ void Sim_FSI_Gravity::simulate()
 				dt = min(dt,endTime-_nonDimensionalTime());
 			if (verbose)
 				cout << "dt (Fourier, CFL, body): " << dt << " " << dtFourier << " " << dtCFL << " " << dtBody << endl;
-			profiler.pop_stop();
+			//profiler.pop_stop();
 		}
 #ifdef _MULTIGRID_
 		MPI_Bcast(&dt,1,MPI_DOUBLE,0,MPI_COMM_WORLD);

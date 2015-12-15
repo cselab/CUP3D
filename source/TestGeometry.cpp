@@ -33,7 +33,7 @@ void TestGeometry::_ic()
 	q.y /= qm;
 	q.z /= qm;
 	const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
-	shape = new GeometryMesh(filename, gridsize, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+	shape = new GeometryMesh(filename, gridsize, .004, center, rhoS, moll, moll, scale, tx, ty, tz, q);
 	
 	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	const double dh = vInfo[0].h_gridpoint;

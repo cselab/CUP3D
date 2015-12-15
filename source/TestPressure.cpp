@@ -11,6 +11,7 @@
 #include "OperatorDiffusion.h"
 #include "OperatorGradP.h"
 #include "PoissonSolverScalarFFTW.h"
+#include "PoissonSolverScalarFFTW_MPI.h"
 #include "ProcessOperatorsOMP.h"
 #include <sstream>
 #include <cmath>
@@ -167,14 +168,18 @@ void TestPressure::run()
 	{
         if (ic!=2)
         {
-            PoissonSolverScalarFFTW<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
-            pressureSolver.solve(*grid,false);
+			PoissonSolverScalarFFTW<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
+			pressureSolver.solve(*grid,false);
+			//PoissonSolverScalarFFTW_MPI<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
+			//pressureSolver.solve(*grid);
 			cout << "Pressure done\n";
         }
         else
-        {
-            PoissonSolverScalarFFTW_DCT<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
-            pressureSolver.solve(*grid,false);
+		{
+			PoissonSolverScalarFFTW_DCT<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
+			pressureSolver.solve(*grid,false);
+			//PoissonSolverScalarFFTW_MPI_DCT<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
+            //pressureSolver.solve(*grid);
         }
 	}
 	else if (solver==1)

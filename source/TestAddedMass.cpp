@@ -44,7 +44,7 @@ void TestAddedMass::_ic()
 	}
 }
 
-TestAddedMass::TestAddedMass(const int argc, const char ** argv, const int bpd) : Test(argc, argv), parser(argc,argv), bpd(bpd), gravity{0,-9.81,0}, uBody{0,0,0}, bSplit(false), step(0), rank(0), nprocs(1)
+TestAddedMass::TestAddedMass(const int argc, const char ** argv, const int bpd) : Test(argc, argv), parser(argc,argv), bpd(bpd), gravity{0,-9.81,0}, uBody{0,0,0}, bSplit(false), step(0), rank(0), nprocs(1), maxU(0)
 {
 	// output settings
 	path2file = parser("-file").asString("../data/TestAddedMass");
@@ -63,7 +63,7 @@ TestAddedMass::TestAddedMass(const int argc, const char ** argv, const int bpd) 
 	pipeline.push_back(new CoordinatorDiffusion<Lab>(nu, &uBody[0], &uBody[1], &uBody[2], grid));
 	pipeline.push_back(new CoordinatorGravity(gravity, grid));
 	pipeline.push_back(new CoordinatorPressure<Lab>(minRho, gravity, &step, bSplit, grid, rank, nprocs));
-	pipeline.push_back(new CoordinatorBodyVelocities(&uBody[0], &uBody[1], &uBody[2], &lambda, shape, grid));
+	pipeline.push_back(new CoordinatorBodyVelocities(&uBody[0], &uBody[1], &uBody[2], &lambda, shape, &maxU, grid));
 	pipeline.push_back(new CoordinatorComputeShape(shape, grid));
 	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], shape, &lambda, grid));
 }

@@ -27,10 +27,12 @@
 		DD838C401AB6DEA300018A75 /* TestTranslation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD838C3E1AB6DEA300018A75 /* TestTranslation.cpp */; };
 		DD8BE00D1AEF7C6E008467AA /* TestTravelingWave.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD8BE00B1AEF7C6E008467AA /* TestTravelingWave.cpp */; };
 		DD8BE0121AEFACAE008467AA /* TestShearLayer.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD8BE0101AEFACAE008467AA /* TestShearLayer.cpp */; };
+		DD9BCBED1C1990B50091FD1C /* Sim_FSI_Rotation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD9BCBEB1C1990B50091FD1C /* Sim_FSI_Rotation.cpp */; };
 		DDB892851C05FA5900E2C551 /* GeometryReader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDB892831C05FA5900E2C551 /* GeometryReader.cpp */; };
 		DDB892881C05FB5700E2C551 /* WavefrontReader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDB892861C05FB5700E2C551 /* WavefrontReader.cpp */; };
 		DDB8928B1C05FBF300E2C551 /* CTReader.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDB892891C05FBF300E2C551 /* CTReader.cpp */; };
 		DDBBA0071A7292670041496C /* TestVarCoeffPoisson.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDBBA0051A7292670041496C /* TestVarCoeffPoisson.cpp */; };
+		DDBC58DB1C1ED46900E42817 /* PoissonSolverScalarFFTW_MPI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDBC58D91C1ED46900E42817 /* PoissonSolverScalarFFTW_MPI.cpp */; };
 		DDD305B11C15E929004DEFC3 /* WaveletCompressor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDD305AE1C15E929004DEFC3 /* WaveletCompressor.cpp */; };
 		DDE2516D1AD8228A00F6029B /* Sim_RayleighTaylor.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDE2516B1AD8228A00F6029B /* Sim_RayleighTaylor.cpp */; };
 		DDE251701AD822C400F6029B /* Sim_Jet.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DDE2516E1AD822C400F6029B /* Sim_Jet.cpp */; };
@@ -68,7 +70,6 @@
 		DD1AD63F1BD7950000231777 /* plotAndersen.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotAndersen.py; sourceTree = "<group>"; };
 		DD1D1C3D1BD928D200E8A55B /* plotVelocityEllipses.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotVelocityEllipses.py; sourceTree = "<group>"; };
 		DD20D2DB1B417166003741F6 /* plotKolomenskiy.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotKolomenskiy.py; sourceTree = "<group>"; };
-		DD20D2DD1B417379003741F6 /* Kolomenskiy.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Kolomenskiy.sh; sourceTree = "<group>"; };
 		DD20D2DE1B41ADA2003741F6 /* plotDrag.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotDrag.py; sourceTree = "<group>"; };
 		DD2A4CE71ADFA06200C3C034 /* Guermond.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Guermond.sh; sourceTree = "<group>"; };
 		DD2A4CEB1ADFA09500C3C034 /* Jets.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Jets.sh; sourceTree = "<group>"; };
@@ -149,7 +150,6 @@
 		DD7795041C11F608003013F8 /* TestGeometry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestGeometry.cpp; sourceTree = "<group>"; };
 		DD7795051C11F608003013F8 /* TestGeometry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestGeometry.h; sourceTree = "<group>"; };
 		DD780F701B3BEF90007ED7B7 /* plotFallingCylinder.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotFallingCylinder.py; sourceTree = "<group>"; };
-		DD7D01CF1AC0691A00695EC9 /* Glowinski.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Glowinski.sh; sourceTree = "<group>"; };
 		DD838C3A1AB6DE8A00018A75 /* TestRotation.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestRotation.cpp; sourceTree = "<group>"; };
 		DD838C3B1AB6DE8A00018A75 /* TestRotation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestRotation.h; sourceTree = "<group>"; };
 		DD838C3E1AB6DEA300018A75 /* TestTranslation.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestTranslation.cpp; sourceTree = "<group>"; };
@@ -162,6 +162,10 @@
 		DD8BE0111AEFACAE008467AA /* TestShearLayer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestShearLayer.h; sourceTree = "<group>"; };
 		DD8BE0131AEFB422008467AA /* ShearLayerCFL.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = ShearLayerCFL.sh; sourceTree = "<group>"; };
 		DD90D83C1B01D8B800013E04 /* Herrmann.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Herrmann.sh; sourceTree = "<group>"; };
+		DD9BCBEB1C1990B50091FD1C /* Sim_FSI_Rotation.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Sim_FSI_Rotation.cpp; sourceTree = "<group>"; };
+		DD9BCBEC1C1990B50091FD1C /* Sim_FSI_Rotation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sim_FSI_Rotation.h; sourceTree = "<group>"; };
+		DD9BCBEE1C1996140091FD1C /* RotatingSamara.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = RotatingSamara.sh; sourceTree = "<group>"; };
+		DD9BCBEF1C19D7750091FD1C /* FallingSamaraFixed.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingSamaraFixed.sh; sourceTree = "<group>"; };
 		DD9DC1441AB2F6B0009BFBEE /* Andersen.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Andersen.sh; sourceTree = "<group>"; };
 		DD9DC1461AB2F6B6009BFBEE /* Namkoong.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Namkoong.sh; sourceTree = "<group>"; };
 		DDA9C81C1AC5C07D008D69E4 /* GenericCoordinator.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GenericCoordinator.h; sourceTree = "<group>"; };
@@ -187,6 +191,9 @@
 		DDB8928A1C05FBF300E2C551 /* CTReader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CTReader.h; sourceTree = "<group>"; };
 		DDBBA0051A7292670041496C /* TestVarCoeffPoisson.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestVarCoeffPoisson.cpp; sourceTree = "<group>"; };
 		DDBBA0061A7292670041496C /* TestVarCoeffPoisson.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestVarCoeffPoisson.h; sourceTree = "<group>"; };
+		DDBC58D51C1EB2F900E42817 /* MordantFixed.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = MordantFixed.sh; sourceTree = "<group>"; };
+		DDBC58D91C1ED46900E42817 /* PoissonSolverScalarFFTW_MPI.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = PoissonSolverScalarFFTW_MPI.cpp; sourceTree = "<group>"; };
+		DDBC58DA1C1ED46900E42817 /* PoissonSolverScalarFFTW_MPI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = PoissonSolverScalarFFTW_MPI.h; sourceTree = "<group>"; };
 		DDBFCB871AC92C640031708C /* CoordinatorComputeShape.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordinatorComputeShape.h; sourceTree = "<group>"; };
 		DDBFCB881AC937670031708C /* CoordinatorPressure.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordinatorPressure.h; sourceTree = "<group>"; };
 		DDBFCB8A1AC974E40031708C /* CoordinatorGravity.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordinatorGravity.h; sourceTree = "<group>"; };
@@ -202,7 +209,6 @@
 		DDD305B41C15E9BD004DEFC3 /* WaveletsOnInterval.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WaveletsOnInterval.h; sourceTree = "<group>"; };
 		DDD305B51C15F6B3004DEFC3 /* FallingSamara.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingSamara.sh; sourceTree = "<group>"; };
 		DDD30B801AA99056008F9EE1 /* Shape.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Shape.h; sourceTree = "<group>"; };
-		DDDA9F371A78D69E0042FA80 /* OperatorSplitP.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OperatorSplitP.h; sourceTree = "<group>"; };
 		DDE251611AD5054700F6029B /* LosslessCompression.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LosslessCompression.h; sourceTree = "<group>"; };
 		DDE251621AD5054700F6029B /* ZBinDumper_MPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ZBinDumper_MPI.h; sourceTree = "<group>"; };
 		DDE251631AD5054700F6029B /* ZBinDumper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ZBinDumper.h; sourceTree = "<group>"; };
@@ -231,9 +237,6 @@
 		DD1AD6401BD7CCA100231777 /* Other */ = {
 			isa = PBXGroup;
 			children = (
-				DD7D01CF1AC0691A00695EC9 /* Glowinski.sh */,
-				DDFE3D071B46B53200092857 /* Mordant.sh */,
-				DD20D2DD1B417379003741F6 /* Kolomenskiy.sh */,
 				DD20D2DB1B417166003741F6 /* plotKolomenskiy.py */,
 				DD078FDB1BD785B800BEE021 /* Fields.sh */,
 				DD0423E41B395242002FEC70 /* plotEllipses.py */,
@@ -246,6 +249,8 @@
 		DD2A4CE91ADFA07100C3C034 /* FallingBodies */ = {
 			isa = PBXGroup;
 			children = (
+				DDFE3D071B46B53200092857 /* Mordant.sh */,
+				DDBC58D51C1EB2F900E42817 /* MordantFixed.sh */,
 				DD1AD6401BD7CCA100231777 /* Other */,
 				DD0D8F621B32C83600BEC57C /* AddedMass.sh */,
 				DD9DC1441AB2F6B0009BFBEE /* Andersen.sh */,
@@ -296,6 +301,8 @@
 			children = (
 				DD132E301C1458AB006CFEE7 /* FlowPastSamara.sh */,
 				DDD305B51C15F6B3004DEFC3 /* FallingSamara.sh */,
+				DD9BCBEF1C19D7750091FD1C /* FallingSamaraFixed.sh */,
+				DD9BCBEE1C1996140091FD1C /* RotatingSamara.sh */,
 				DD2A4CEA1ADFA08800C3C034 /* RTI */,
 				DD2A4CE91ADFA07100C3C034 /* FallingBodies */,
 				DD30657A1BD0D615009A5291 /* testBC.sh */,
@@ -330,7 +337,6 @@
 				DD58CAE61A602C1700291455 /* OperatorDivergence.h */,
 				DD64F6DA1A68299500D17B72 /* OperatorGradP.h */,
 				DD0C48C21A712FA500CC0C89 /* OperatorGravity.h */,
-				DDDA9F371A78D69E0042FA80 /* OperatorSplitP.h */,
 				DDAD48CF1AA9EBCD00A2C354 /* InterpolationKernels.h */,
 				DD6717F11A7B952700BFDF78 /* MultigridHypre.h */,
 				DDB174C61B072F5600458CBA /* OperatorPressureGradient.h */,
@@ -430,6 +436,8 @@
 		DD64F6D71A67D6CE00D17B72 /* PoissonSolverCubism */ = {
 			isa = PBXGroup;
 			children = (
+				DDBC58D91C1ED46900E42817 /* PoissonSolverScalarFFTW_MPI.cpp */,
+				DDBC58DA1C1ED46900E42817 /* PoissonSolverScalarFFTW_MPI.h */,
 				DD64F6D31A67D6C800D17B72 /* PoissonSolverScalarFFTW.cpp */,
 				DD64F6D41A67D6C800D17B72 /* PoissonSolverScalarFFTW.h */,
 			);
@@ -493,6 +501,8 @@
 				DD58CAAD1A5E7B9E00291455 /* Sim_FSI_Fixed.cpp */,
 				DD66B5DD1A7649B6003FE36B /* Sim_FSI_Moving.h */,
 				DD66B5DC1A7649B6003FE36B /* Sim_FSI_Moving.cpp */,
+				DD9BCBEC1C1990B50091FD1C /* Sim_FSI_Rotation.h */,
+				DD9BCBEB1C1990B50091FD1C /* Sim_FSI_Rotation.cpp */,
 				DD66B5E11A764CEC003FE36B /* Sim_FSI_Gravity.h */,
 				DD66B5E01A764CEC003FE36B /* Sim_FSI_Gravity.cpp */,
 			);
@@ -592,6 +602,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				DDBBA0071A7292670041496C /* TestVarCoeffPoisson.cpp in Sources */,
+				DD9BCBED1C1990B50091FD1C /* Sim_FSI_Rotation.cpp in Sources */,
 				DD66B5DE1A7649B6003FE36B /* Sim_FSI_Moving.cpp in Sources */,
 				DDB892881C05FB5700E2C551 /* WavefrontReader.cpp in Sources */,
 				DD0984031B33130100AB357D /* TestAddedMass.cpp in Sources */,
@@ -600,6 +611,7 @@
 				DD58CAD41A5ECB8200291455 /* mainTest.cpp in Sources */,
 				DD838C3C1AB6DE8A00018A75 /* TestRotation.cpp in Sources */,
 				DD58CAAF1A5E7B9E00291455 /* Sim_FSI_Fixed.cpp in Sources */,
+				DDBC58DB1C1ED46900E42817 /* PoissonSolverScalarFFTW_MPI.cpp in Sources */,
 				DD355D241A8118FE00711A51 /* TestPenalization.cpp in Sources */,
 				DD58CAD11A5ECA9000291455 /* TestDiffusion.cpp in Sources */,
 				DD838C401AB6DEA300018A75 /* TestTranslation.cpp in Sources */,

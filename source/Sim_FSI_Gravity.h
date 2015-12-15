@@ -70,10 +70,11 @@ class Sim_FSI_Gravity : public Simulation_FSI
 {
 protected:
 	Real uBody[3]; // extra angle
-	double dtCFL, dtLCFL, dtFourier, dtBody;
-	double re, nu;
-	double minRho;
+	Real dtCFL, dtLCFL, dtFourier, dtBody;
+	Real re, nu;
+	Real minRho;
 	bool bSplit;
+	Real maxU;
 	
 	Real gravity[3];
 	

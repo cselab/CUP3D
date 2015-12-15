@@ -78,11 +78,12 @@ void TestTranslation::run()
 	const int sizeX = bpd * FluidBlock::sizeX;
 	const int sizeY = bpd * FluidBlock::sizeY;
 	const int sizeZ = bpd * FluidBlock::sizeZ;
+	Real maxU = 0;
 	
 	Real u[3] = {0,0,0};
 	Real lambda = 1;
 	CoordinatorComputeShape coordComputeShape(shape, grid);
-	CoordinatorBodyVelocities coordBodyVelocities(&u[0], &u[1], &u[2], &lambda, shape, grid);
+	CoordinatorBodyVelocities coordBodyVelocities(&u[0], &u[1], &u[2], &lambda, shape, &maxU, grid);
 	
 	for (int step=0; step<nsteps; step++)
 	{
