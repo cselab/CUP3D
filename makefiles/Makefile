@@ -10,11 +10,9 @@ poisson ?= split-fftw
 multiphase ?= false
 bs ?= 32
 vertexcentered ?= false
-particles ?= false
 dlm ?= false
-ct ?= false
 
-hdf ?= false
+hdf ?= true
 
 constnu ?= true
 densitydiff ?= false
@@ -24,6 +22,8 @@ movingframe ?= false
 rk2 ?= true
 
 CPPFLAGS+= -w -D_ALIGNBYTES_=16
+
+CPPFLAGS+= -Wunused
 
 ifeq "$(bc)" "periodic"
 	CPPFLAGS += -D_PERIODIC_
@@ -65,10 +65,6 @@ ifeq "$(vertexcentered)" "true"
 	CPPFLAGS += -D_VERTEXCENTERED_
 endif
 
-ifeq "$(particles)" "true"
-	CPPFLAGS += -D_PARTICLES_
-endif
-
 ifeq "$(dlm)" "true"
 	CPPFLAGS += -D_DLM_
 endif
@@ -84,10 +80,6 @@ endif
 
 ifeq "$(densitydiff)" "true"
 	CPPFLAGS += -D_DENSITYDIFF_
-endif
-
-ifeq "$(ct)" "true"
-CPPFLAGS += -D_CT_
 endif
 
 ifeq "$(rk2)" "true"
@@ -146,10 +138,10 @@ LIBS += -lstdc++ -lm \
 	-L$(fftw-lib)
 
 ifeq "$(precision)" "single"
-    LIBS += -lfftw3 -lfftw3f -lfftw3f_threads
+    LIBS += -lfftw3 -lfftw3f -lfftw3f_threads -lfftw3_mpi
 endif
 ifeq "$(precision)" "double"
-    LIBS += -lfftw3 -lfftw3_threads
+    LIBS += -lfftw3 -lfftw3_threads -lfftw3_mpi
 endif
 
 LIBS += -L../tools/fpzip/lib -lfpzip
@@ -167,7 +159,7 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 OBJECTS = GeometryReader.o WavefrontReader.o CTReader.o PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o ProcessOperatorsOMP.o Sim_Jet.o Sim_RayleighTaylor.o Sim_Bubble.o Sim_FSI_Gravity.o Sim_FSI_Rotation.o Sim_FSI_Moving.o Sim_FSI_Fixed.o Profiler.o main.o
-OBJECTS_TEST = GeometryReader.o WavefrontReader.o CTReader.o PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o ProcessOperatorsOMP.o TestBoundaryConditions.o TestAddedMass.o TestPoiseuille.o TestShearLayer.o TestTravelingWave.o TestGeometry.o TestRotation.o TestTranslation.o TestPenalization.o TestGravity.o TestVarCoeffPoisson.o TestPressure.o TestAdvection.o TestDiffusion.o Profiler.o mainTest.o
+OBJECTS_TEST = GeometryReader.o WavefrontReader.o CTReader.o PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o ProcessOperatorsOMP.o TestMPI.o TestBoundaryConditions.o TestAddedMass.o TestPoiseuille.o TestShearLayer.o TestTravelingWave.o TestGeometry.o TestRotation.o TestTranslation.o TestPenalization.o TestGravity.o TestVarCoeffPoisson.o TestPressure.o TestAdvection.o TestDiffusion.o Profiler.o mainTest.o
 
 VPATH := $(SRC_DIR):$(CUBISM_DIR)
 

@@ -19,16 +19,12 @@ class TestVarCoeffPoisson : public Test
 {
 private:
 	const int ic;
-	const int bpd;
 	
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
 	
 #ifdef _MULTIGRID_
 	MultigridHypre mg;
 #endif // _MULTIGRID_
-	
-	FluidGrid * grid;
 	
 	void _ic();
 	

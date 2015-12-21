@@ -19,11 +19,11 @@ typedef struct _header
 	long size[8];
 } header;
 
-#ifndef _SP_COMP_
-typedef double Real;
-#else // _SP_COMP_
+#ifdef _SP_COMP_
 typedef float Real;
-#endif // _SP_COMP_
+#else
+typedef double Real;
+#endif
 
 using namespace std;
 
@@ -67,7 +67,7 @@ void DumpZBin_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 //	Real * array_all = new Real[NX * NY * NZ * NCHANNELS];
 	Real * array_all = new Real[NX * NY * NZ];
 	
-	vector<BlockInfo> vInfo_local = grid.getResidentBlocksInfo();
+	vector<BlockInfo> vInfo_local = grid.getBlocksInfo();
 	
 	static const unsigned int sX = 0;
 	static const unsigned int sY = 0;
@@ -197,7 +197,7 @@ void ReadZBin_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	
 	Real * array_all = new Real[NX * NY * NZ * NCHANNELS];
 	
-	vector<BlockInfo> vInfo_local = grid.getResidentBlocksInfo();
+	vector<BlockInfo> vInfo_local = grid.getBlocksInfo();
 	
 	static const int sX = 0;
 	static const int sY = 0;

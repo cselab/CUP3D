@@ -86,6 +86,9 @@ protected:
 	template <typename Operator>
 	void computeSplit(const double dt)
 	{
+		Operator kernel(dt, minRho, *step);
+		compute(kernel);
+		/*
 		BlockInfo * ary = &vInfo.front();
 		const int N = vInfo.size();
 		
@@ -93,16 +96,17 @@ protected:
 		{
 			Operator kernel(dt, minRho, *step);
 			
-			Lab mylab;
-			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
+			Lab lab;
+			lab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
 			
 #pragma omp for schedule(static)
 			for (int i=0; i<N; i++)
 			{
-				mylab.load(ary[i], 0);
-				kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
+				lab.load(ary[i], 0);
+				kernel(lab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
 			}
 		}
+		*/
 	}
 	
 #ifdef _SPLIT_
@@ -117,22 +121,25 @@ protected:
 			int dim[3] = {grid->getBlocksPerDimension(0)*FluidBlock::sizeX, grid->getBlocksPerDimension(1)*FluidBlock::sizeY, grid->getBlocksPerDimension(2)*FluidBlock::sizeZ};
 			Operator kernel(dt, minRho, *step, pressureSolver.data, dim);
 			
-			Lab mylab;
-			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
+			Lab lab;
+			lab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
 			
 #pragma omp for schedule(static)
 			for (int i=0; i<N; i++)
 			{
-				mylab.load(ary[i], 0);
-				kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
+				lab.load(ary[i], 0);
+				kernel(lab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
 			}
 		}
 	}
 #endif
 	
 	template <typename Operator>
-	void compute(const double dt)
+	void computeUnsplit(const double dt)
 	{
+		Operator kernel(dt);
+		compute(kernel);
+		/*
 		BlockInfo * ary = &vInfo.front();
 		const int N = vInfo.size();
 		
@@ -140,17 +147,18 @@ protected:
 		{
 			Operator kernel(dt);
 			
-			Lab mylab;
-			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, true);
+			Lab lab;
+			lab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, true);
 			
 #pragma omp for schedule(static)
 			for (int i=0; i<N; i++)
 			{
-				mylab.load(ary[i], 0);
+				lab.load(ary[i], 0);
 				
-				kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
+				kernel(lab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
 			}
 		}
+		 */
 	}
 	
 public:
@@ -171,9 +179,7 @@ public:
 	void operator()(const double dt)
 	{
 		// need an interface that is the same for all solvers - this way the defines can be removed more cleanly
-#ifdef _MULTIGRID_
 		MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 		
 		check("pressure - start");
 		
@@ -182,8 +188,8 @@ public:
 #ifdef _HYDROSTATIC_
 		addHydrostaticPressure(dt);
 #endif // _HYDROSTATIC_
-		//computeSplit<OperatorDivergenceSplit>(dt); // this part could be done directly in the correct data structure
-		computeSplitFFTW<OperatorDivergenceSplitFFTW>(dt); // this part could be done directly in the correct data structure
+		computeSplit<OperatorDivergenceSplit>(dt); // this part could be done directly in the correct data structure
+		//computeSplitFFTW<OperatorDivergenceSplitFFTW>(dt); // this part could be done directly in the correct data structure
 		pressureSolver.solve(*grid,false);
 		computeSplit<OperatorGradPSplit>(dt); // this part could be done directly in the correct data structure
 #endif // _SPLIT_
@@ -210,14 +216,11 @@ public:
 			if (bSplit)
 				computeSplit<OperatorGradPSplit>(dt);
 			else
-				compute<OperatorGradP>(dt);
+				computeUnsplit<OperatorGradP>(dt);
 		}
 #endif // _MULTIGRID_
 		
-#ifdef _MULTIGRID_
-		if (rank==0)
-#endif // _MULTIGRID_
-			updatePressure();
+		updatePressure();
 		
 		check("pressure - end");
 	}
@@ -259,7 +262,7 @@ protected:
 	}
 	
 	template <typename Operator>
-	void compute(const double dt)
+	void computeUnsplit(const double dt)
 	{
 		BlockInfo * ary = &vInfo.front();
 		const int N = vInfo.size();
@@ -268,15 +271,14 @@ protected:
 		{
 			Operator kernel(dt);
 			
-			Lab mylab;
-			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, true);
+			Lab lab;
+			lab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, true);
 			
 #pragma omp for schedule(static)
 			for (int i=0; i<N; i++)
 			{
-				mylab.load(ary[i], 0);
-				
-				kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
+				lab.load(ary[i], 0);
+				kernel(lab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
 			}
 		}
 	}
@@ -288,9 +290,9 @@ public:
 	
 	void operator()(const double dt)
 	{
-		compute<OperatorDivergence>(dt);
+		computeUnsplit<OperatorDivergence>(dt);
 		pressureSolver.solve(*grid,true);
-		compute<OperatorGradP>(dt);
+		computeUnsplit<OperatorGradP>(dt);
 		
 		updatePressure();
 	}

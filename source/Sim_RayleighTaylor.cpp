@@ -22,18 +22,21 @@ void Sim_RayleighTaylor::_diagnostics()
 
 void Sim_RayleighTaylor::_ic()
 {
-#ifdef _MULTIGRID_
 	if (rank==0)
-#endif // _MULTIGRID_
 	{
 		// setup initial conditions
 		CoordinatorIC_RT coordIC(rhoS, grid);
 		profiler.push_start(coordIC.getName());
 		coordIC(0);
 		
+#ifdef _USE_HDF_
+		CoordinatorVorticity<Lab> coordVorticity(grid);
+		coordVorticity(dt);
 		stringstream ss;
-		ss << path2file << "-IC.vti";
-		dumper.Write(*grid, ss.str());
+		ss << path2file << "-IC";
+		cout << ss.str() << endl;
+		DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 		profiler.pop_stop();
 	}
 }
@@ -66,13 +69,11 @@ void Sim_RayleighTaylor::_inputSettings(istream& inStream)
 
 Sim_RayleighTaylor::Sim_RayleighTaylor(const int argc, const char ** argv) : Simulation_MP(argc, argv)
 {
-#ifdef _MULTIGRID_
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 	
 	if (rank!=0)
 		omp_set_num_threads(1);
-#endif // _MULTIGRID_
 	
 	if (rank==0)
 	{
@@ -117,9 +118,8 @@ void Sim_RayleighTaylor::simulate()
 	const int sizeY = bpdy * FluidBlock::sizeY;
 	const int sizeZ = bpdz * FluidBlock::sizeZ;
 	
-#ifdef _MULTIGRID_
 	MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
+	
 	double nextDumpTime = time;
 	double maxU = 0;
 	double maxA = 0;
@@ -128,7 +128,6 @@ void Sim_RayleighTaylor::simulate()
 	{
 		if (rank==0)
 		{
-			vector<BlockInfo> vInfo = grid->getBlocksInfo();
 			profiler.push_start("DT");
 			/*
 			// choose dt (CFL, Fourier)
@@ -137,11 +136,6 @@ void Sim_RayleighTaylor::simulate()
 			dtCFL     = maxU==0 ? 1e5 : CFL*vInfo[0].h_gridpoint/abs(maxU);
 			assert(!std::isnan(maxU));
 			dt = min(dtCFL,dtFourier);
-#ifdef _PARTICLES_
-			maxA = findMaxAOMP<Lab>(vInfo,*grid);
-			dtLCFL = maxA==0 ? 1e5 : LCFL/abs(maxA);
-			dt = min(dt,dtLCFL);
-#endif
 			 */
 			dt = 0.00025/(double)bpdx;
 			 
@@ -154,17 +148,14 @@ void Sim_RayleighTaylor::simulate()
 				cout << "t, dt (Fourier, CFL, LCFL): " << _nonDimensionalTime() << "\t" << dt << " " << dtFourier << " " << dtCFL << " " << dtLCFL << endl;
 			profiler.pop_stop();
 		}
-#ifdef _MULTIGRID_
 		MPI_Bcast(&dt,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 		
 		if (dt!=0)
 		{
 			for (int c=0; c<pipeline.size(); c++)
 			{
-#ifdef _MULTIGRID_
 				MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
+				
 				profiler.push_start(pipeline[c]->getName());
 				if (rank == 0 || pipeline[c]->getName()=="Pressure")
 					(*pipeline[c])(dt);
@@ -200,11 +191,15 @@ void Sim_RayleighTaylor::simulate()
 			if (rank==0)
 			{
 				profiler.push_start("Dump");
+#ifdef _USE_HDF_
+				CoordinatorVorticity<Lab> coordVorticity(grid);
+				coordVorticity(dt);
 				stringstream ss;
-				ss << path2file << "-Final.vti";
+				ss << path2file << "-Final";
 				cout << ss.str() << endl;
-				
-				dumper.Write(*grid, ss.str());
+				DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
+				profiler.pop_stop();
 				profiler.printSummary();
 			}
 			exit(0);

@@ -18,7 +18,6 @@
 class TestTranslation : public Test
 {
 private:
-	int bpd;
 	Real uBody[3];
 	Shape * shape;
 	const int testCase; // 0: forced, 1: from flow
@@ -26,9 +25,6 @@ private:
 	const int nsteps;
 	
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
-	
-	FluidGrid * grid;
 	
 	void _ic();
 	

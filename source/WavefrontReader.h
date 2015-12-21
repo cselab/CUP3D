@@ -22,9 +22,7 @@
 
 #include <HDF5Dumper.h>
 
-#include "GeometryHelpers.h"
 #include "GeometryReader.h"
-#include "Definitions.h"
 
 typedef ScalarGrid GScalar;
 
@@ -45,8 +43,6 @@ protected:
 	int * gridlut;
 	
 	const Real isosurface;
-	
-	SerializerIO_ImageVTK<GScalar, ScalarStreamer> dumper;
 	
 	void parse(string filename);
 	

@@ -7,24 +7,24 @@
 //
 #pragma once
 
-#include <vector>
 #include <iostream>
+#include <vector>
 
 #ifdef _USE_HDF_
 #include <hdf5.h>
-#endif // _USE_NUMA_
-
-#ifndef _SP_COMP_
-typedef double Real;
-#else // _SP_COMP_
-typedef float Real;
-#endif // _SP_COMP_
+#endif
 
 #ifdef _SP_COMP_
+typedef float Real;
+#else
+typedef double Real;
+#endif
+
+#ifdef _FLOAT_PRECISION_
 #define HDF_REAL H5T_NATIVE_FLOAT
 #else
 #define HDF_REAL H5T_NATIVE_DOUBLE
-#endif // _SP_COMP_
+#endif
 
 #include "BlockInfo.h"
 
@@ -45,8 +45,13 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	const unsigned int NY = grid.getBlocksPerDimension(1)*B::sizeY;
 	const unsigned int NZ = grid.getBlocksPerDimension(2)*B::sizeZ;
 	
+    cout << "Writing HDF5 file\n";
+    cout << "Allocating " << (NX * NY * NZ * NCHANNELS)/(1024.*1024.*1024.) << "GB of HDF5 data";
+   
 	Real * array_all = new Real[NX * NY * NZ * NCHANNELS];
-	
+
+    cout << " ...done\n";
+    
 	vector<BlockInfo> vInfo_local = grid.getBlocksInfo();
 	
 	const unsigned int sX = 0;
@@ -69,7 +74,7 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	
 	hsize_t offset[4] = {0, 0, 0, 0};
 	
-	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str(), iCounter);
+	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
 	
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -78,19 +83,19 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	
 #pragma omp parallel for
 	for(int i=0; i<(int)vInfo_local.size(); i++)
-	{
+	{       
 		BlockInfo& info = vInfo_local[i];
 		const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
-		
-		for(unsigned int ix=sX; ix<eX; ix++)
-			for(unsigned int iy=sY; iy<eY; iy++)
-				for(unsigned int iz=sZ; iz<eZ; iz++)
-				{
+
+                for(unsigned int ix=sX; ix<eX; ix++)
+                  for(unsigned int iy=sY; iy<eY; iy++)
+                    for(unsigned int iz=sZ; iz<eZ; iz++)
+		      { 					
 					Real output[NCHANNELS];
-					for(unsigned int c=0; c<NCHANNELS; ++c)
-						output[c] = 0;
+					for(unsigned int i=0; i<NCHANNELS; ++i)
+						output[i] = 0;
 					
 					streamer.operate(ix, iy, iz, (Real*)output);
 					
@@ -99,20 +104,29 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 					const unsigned int gz = idx[2]*B::sizeZ + iz;
 					
 					Real * const ptr = array_all + NCHANNELS*(gz + NZ * (gy + NY * gx));
-					
-					for(unsigned int c=0; c<NCHANNELS; ++c)
-						ptr[c] = output[c];
+                  
+					for(unsigned int i=0; i<NCHANNELS; ++i)
+						ptr[i] = output[i];
 				}
 	}
-	
+	   
 	fapl_id = H5Pcreate(H5P_DATASET_XFER);
 	
 	fspace_id = H5Screate_simple(4, dims, NULL);
+#ifndef _ON_FERMI_
 	dataset_id = H5Dcreate(file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+#else
+        dataset_id = H5Dcreate2(file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+#endif
+
 	fspace_id = H5Dget_space(dataset_id);
+
 	H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
+
 	mspace_id = H5Screate_simple(4, count, NULL);
+
 	status = H5Dwrite(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
+    cout << "writing done\n";
 	
 	status = H5Sclose(mspace_id);
 	status = H5Sclose(fspace_id);
@@ -121,11 +135,12 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	status = H5Fclose(file_id);
 	H5close();
 	
+     cout << "closing done\n";
 	delete [] array_all;
-	
+	 cout << "deallocating done\n";
 	{
 		char wrapper[256];
-		sprintf(wrapper, "%s/%s.xmf", dump_path.c_str(), f_name.c_str(), iCounter);
+		sprintf(wrapper, "%s/%s.xmf", dump_path.c_str(), f_name.c_str());
 		FILE *xmf = 0;
 		xmf = fopen(wrapper, "w");
 		fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
@@ -155,9 +170,9 @@ void DumpHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 		fprintf(xmf, "</Xdmf>\n");
 		fclose(xmf);
 	}
-#else // _USE_HDF_
+#else
 #warning USE OF HDF WAS DISABLED AT COMPILE TIME
-#endif // _USE_HDF_
+#endif
 }
 
 
@@ -213,7 +228,7 @@ void ReadHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	fspace_id = H5Dget_space(dataset_id);
 	H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
 	
-	mspace_id = H5Screate_simple(4, count, NULL);
+	mspace_id = H5Screate_simple(4, count, NULL);        
 	status = H5Dread(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
 	
 #pragma omp parallel for
@@ -227,7 +242,7 @@ void ReadHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 		for(int iz=sZ; iz<eZ; iz++)
 			for(int iy=sY; iy<eY; iy++)
 				for(int ix=sX; ix<eX; ix++)
-				{
+				{     
 					const int gx = idx[0]*B::sizeX + ix;
 					const int gy = idx[1]*B::sizeY + iy;
 					const int gz = idx[2]*B::sizeZ + iz;
@@ -239,7 +254,7 @@ void ReadHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	}
 	
 	status = H5Pclose(fapl_id);
-	status = H5Dclose(dataset_id);
+	status = H5Dclose(dataset_id);       
 	status = H5Sclose(fspace_id);
 	status = H5Sclose(mspace_id);
 	status = H5Fclose(file_id);
@@ -247,7 +262,7 @@ void ReadHDF5(TGrid &grid, const int iCounter, const string f_name, const string
 	H5close();
 	
 	delete [] array_all;
-#else // _USE_HDF_
+#else
 #warning USE OF HDF WAS DISABLED AT COMPILE TIME
-#endif // _USE_HDF_
+#endif
 }

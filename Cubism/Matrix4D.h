@@ -92,18 +92,22 @@ m_nElementsPerCube(0)
 
 template <class DataType, bool bPrimitiveType, template <typename T> class allocator> inline DataType & Matrix4D<DataType, bPrimitiveType, allocator>::Access(unsigned int ix, unsigned int iy, unsigned int iz, unsigned int iw) const
 {
+#ifdef _DEBUG
 	if (!(ix<m_vSize[0]) || !(iy<m_vSize[1]) || !(iz<m_vSize[2]) || !(iw<m_vSize[3])) printf("excpetion %d %d %d %d\n", ix,iy,iz, iw);
 	assert(ix<m_vSize[0]);
 	assert(iy<m_vSize[1]);
 	assert(iz<m_vSize[2]);
 	assert(iw<m_vSize[3]);
+#endif
 	
 	return m_pData[iw*m_nElementsPerCube + iz*m_nElementsPerSlice + iy*m_vSize[0] + ix];
 }
 
 template <class DataType, bool bPrimitiveType, template <typename T> class allocator> inline DataType & Matrix4D<DataType, bPrimitiveType, allocator>::LinAccess(unsigned int i) const
 {
+#ifdef _DEBUG
 	assert(i<m_nElements);
+#endif
 	return m_pData[i];
 }
 

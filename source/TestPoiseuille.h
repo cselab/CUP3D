@@ -18,16 +18,12 @@ protected:
 	double nu;
 	double dtCFL, dtLCFL, dtFourier;
 	double time, endTime;
-	const int bpd;
 	int step;
 	int rank, nprocs;
 	
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
 	
 	vector<GenericCoordinator *> pipeline;
-	
-	FluidGrid * grid;
 	
 	void _ic();
 	void _analytical(Real x, Real y, Real z, double t, Real &u, Real &v, Real &w, Real &p);

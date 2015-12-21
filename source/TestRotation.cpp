@@ -36,8 +36,6 @@ void TestRotation::_ic()
 	
 	cout << "\tGeometricCoM:\t" << com[0] << " " << com[1] << " " << com[2] << endl;
 	
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
-	
 	const double dh = vInfo[0].h_gridpoint;
 	
 	Real cx = 0;
@@ -58,8 +56,8 @@ void TestRotation::_ic()
 					Real p[3];
 					info.pos(p, ix, iy, iz);
 					
-					b(ix,iy,iz).chi = shape->chi(p, info.h_gridpoint);
-					b(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint, b(ix,iy,iz).chi);
+					b(ix,iy,iz).chi = shape->chi(p, dh);
+					b(ix,iy,iz).rho = shape->rho(p, dh, b(ix,iy,iz).chi);
 					
 					// this is for testing purposes only! do it the clean way!!
 					b(ix,iy,iz).p = 0;
@@ -115,16 +113,18 @@ void TestRotation::_ic()
 				}
 	}
 	
+#ifdef _USE_HDF_
+	CoordinatorVorticity<Lab> coordVorticity(grid);
+	coordVorticity(dt);
 	stringstream ss;
-	ss << path2file << "-" << bpd << "-IC.vti";
-	
-	dumper.Write(*grid, ss.str());
+	ss << path2file << bpd << "-IC";
+	cout << ss.str() << endl;
+	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, 0, ss.str());
+#endif
 }
 
-TestRotation::TestRotation(const int argc, const char ** argv, const int testCase, const int bpd, const double dt) : Test(argc,argv), testCase(testCase), bpd(bpd), dt(1./100.), nsteps(100)
+TestRotation::TestRotation(const int argc, const char ** argv, const int testCase, const int bpd, const double dt) : Test(argc,argv,bpd), testCase(testCase), dt(1./100.), nsteps(100)
 {
-	grid = new FluidGrid(bpd,bpd,bpd);
-	
 	path2file = parser("-file").asString("../data/testRotation");
 	_ic();
 	
@@ -132,7 +132,6 @@ TestRotation::TestRotation(const int argc, const char ** argv, const int testCas
 
 TestRotation::~TestRotation()
 {
-	delete grid;
 }
 
 void TestRotation::run()
@@ -153,8 +152,6 @@ void TestRotation::run()
 	
 	for (int step=0; step<nsteps; step++)
 	{
-		vector<BlockInfo> vInfo = grid->getBlocksInfo();
-		
 		if (testCase==0)
 		{
 			u[0] = 0;
@@ -177,10 +174,14 @@ void TestRotation::run()
 			shape->getOrientation(rotation);
 			cout << "Orientation (step " << step << "): " << rotation[0][0] << " " << rotation[0][1] << " " << rotation[0][2] << " " << rotation[1][0] << " " << rotation[1][1] << " " << rotation[1][2] << " " << rotation[2][0] << " " << rotation[2][1] << " " << rotation[2][2] << " " << endl;
 			
+#ifdef _USE_HDF_
+			CoordinatorVorticity<Lab> coordVorticity(grid);
+			coordVorticity(dt);
 			stringstream ss;
-			ss << path2file << "-" << bpd << "-" << step << ".vti";
-			
-			dumper.Write(*grid, ss.str());
+			ss << path2file << bpd << "-" << step;
+			cout << ss.str() << endl;
+			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 		}
 		//*/
 	}

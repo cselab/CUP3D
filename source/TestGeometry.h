@@ -16,15 +16,11 @@
 class TestGeometry : public Test
 {
 private:
-	int bpd;
 	Shape * shape;
 	const int testCase; // 0: forced, 1: from flow
 	double dt;
 	
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
-	
-	FluidGrid * grid;
 	
 	void _ic();
 	

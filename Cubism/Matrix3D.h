@@ -25,15 +25,16 @@ public:
 	{
 		if (m_pData != NULL)
 		{
-			allocator<DataType> alloc;
+			//allocator<DataType> alloc;
 			
 			if (!bPrimitiveType)
 			{
-				for(int i=0; i<m_nElements; i++)
-					alloc.destroy(m_pData+i);
+			//	for(int i=0; i<m_nElements; i++)
+			//		alloc.destroy(m_pData+i);
 			}
 			
-			alloc.deallocate(m_pData, m_nElements);
+			free(m_pData);
+			//alloc.deallocate(m_pData, m_nElements);
 			
 			m_pData = NULL;
 		}
@@ -51,16 +52,18 @@ public:
 		
 		m_nElements = nSizeX*nSizeY*nSizeZ;
 		
-		allocator<DataType> alloc;
-		m_pData = alloc.allocate(m_nElements);
-		
+		//allocator<DataType> alloc;
+		//m_pData = alloc.allocate(m_nElements);
+		const int retval = posix_memalign((void **)&m_pData, max(8, _ALIGNBYTES_), sizeof(DataType)*m_nElements);
+//		printf("Allocated %d bytes at 0x%lx\n", sizeof(DataType)*m_nElements, m_pData);	// peh
+		assert(retval == 0);
 		assert(m_pData != NULL);
-		
+		/*
 		if (!bPrimitiveType)
 		{
 			for(int i=0; i<m_nElements; i++)
 				alloc.construct(m_pData+i, DataType());
-		}
+		}*/
 	}
 
 	
@@ -126,23 +129,26 @@ public:
 	
 	inline DataType& Access(unsigned int ix, unsigned int iy, unsigned int iz) const
 	{
+#ifndef NDEBUG
 		if (ix>=m_vSize[0])
 		{
 			printf("fail: ix=%d and m_vsize[0] is %d\n",ix, m_vSize[0]);
 			assert(ix<m_vSize[0]);
 		}
-		
 		assert(iy<m_vSize[1]);
 		assert(iz<m_vSize[2]);
+#endif
 		
 		return m_pData[iz*m_nElementsPerSlice + iy*m_vSize[0] + ix];
 	}
-	
+
 	inline const DataType& Read(unsigned int ix, unsigned int iy, unsigned int iz) const
 	{
+#ifndef NDEBUG
 		assert(ix<m_vSize[0]);
 		assert(iy<m_vSize[1]);
 		assert(iz<m_vSize[2]);
+#endif
 		
 		return m_pData[iz*m_nElementsPerSlice + iy*m_vSize[0] + ix];
 	}
@@ -150,19 +156,30 @@ public:
 	
 	inline DataType& LinAccess(unsigned int i) const
 	{
+#ifndef NDEBUG
 		assert(i<m_nElements);
-		
+#endif
 		return m_pData[i];
 	}
 	
-	inline unsigned int  getNumberOfElements() const
+	inline unsigned int getNumberOfElements() const
 	{
 		return m_nElements;
+	}
+
+	inline unsigned int getNumberOfElementsPerSlice() const	// peh
+	{
+		return m_nElementsPerSlice;
 	}
 	
 	inline unsigned int * getSize() const
 	{
 		return (unsigned int *)m_vSize;
+	}
+
+	inline unsigned int getSize(int dim) const	// peh
+	{
+		return m_vSize[dim];
 	}
 	
 	inline Matrix3D& operator=(DataType d)

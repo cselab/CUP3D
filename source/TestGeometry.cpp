@@ -35,7 +35,6 @@ void TestGeometry::_ic()
 	const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
 	shape = new GeometryMesh(filename, gridsize, .004, center, rhoS, moll, moll, scale, tx, ty, tz, q);
 	
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	const double dh = vInfo[0].h_gridpoint;
 	
 	//#pragma omp parallel for
@@ -57,8 +56,8 @@ void TestGeometry::_ic()
 					b(ix,iy,iz).v = 0;
 					b(ix,iy,iz).w = 0;
 					
-					b(ix,iy,iz).chi = shape->chi(p, info.h_gridpoint);
-					b(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint,b(ix,iy,iz).chi);
+					b(ix,iy,iz).chi = shape->chi(p, dh);
+					b(ix,iy,iz).rho = shape->rho(p, dh, b(ix,iy,iz).chi);
 					
 					b(ix,iy,iz).p = 0;
 					b(ix,iy,iz).divU = 0;
@@ -67,22 +66,22 @@ void TestGeometry::_ic()
 	}
 	
 	
+#ifdef _USE_HDF_
 	stringstream ss;
-	ss << path2file << "-IC.vti";
-	dumper.Write(*grid, ss.str());
+	ss << path2file << "-IC";
+	cout << ss.str() << endl;
+	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, 0, ss.str());
+#endif
 }
 
-TestGeometry::TestGeometry(const int argc, const char ** argv, const int bpd) : Test(argc,argv), bpd(bpd)
+TestGeometry::TestGeometry(const int argc, const char ** argv, const int bpd) : Test(argc,argv,bpd)
 {
-	grid = new FluidGrid(bpd,bpd,bpd);
-	
 	path2file = parser("-file").asString("../data/testGeometry");
 	_ic();
 }
 
 TestGeometry::~TestGeometry()
 {
-	delete grid;
 }
 
 void TestGeometry::run()

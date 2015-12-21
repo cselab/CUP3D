@@ -22,6 +22,8 @@ private:
 public:
 	OperatorGradP(double dt) : dt(dt)
 	{
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 2, 0,11);
+		
 		stencil_start[0] = -1;
 		stencil_start[1] = -1;
 		stencil_start[2] = -1;
@@ -71,6 +73,8 @@ private:
 public:
 	OperatorGradPSplit(double dt, double rho0, int step) : rho0(rho0), dt(dt), step(step)
 	{
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, 0,5,6,11);
+		
 		stencil_start[0] = -1;
 		stencil_start[1] = -1;
 		stencil_start[2] = -1;
@@ -147,6 +151,8 @@ private:
 public:
 	OperatorGradPSplitHighOrder(double dt, double rho0, int step) : rho0(rho0), dt(dt), step(step)
 	{
+		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 4, 0,5,6,11);
+		
 		stencil_start[0] = -2;
 		stencil_start[1] = -2;
 		stencil_start[2] = -2;

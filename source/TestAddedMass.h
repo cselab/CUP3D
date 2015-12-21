@@ -21,7 +21,6 @@ protected:
 	double nu;
 	double minRho;
 	double rhoS;
-	const int bpd;
 	
 	Real uBody[3];
 	Real gravity[3];
@@ -31,11 +30,8 @@ protected:
 	Real lambda;
 	
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
 	
 	vector<GenericCoordinator *> pipeline;
-	
-	FluidGrid * grid;
 	
 	// body
 	Shape * shape;

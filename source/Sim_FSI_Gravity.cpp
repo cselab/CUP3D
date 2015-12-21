@@ -21,8 +21,6 @@
 
 void Sim_FSI_Gravity::_diagnostics()
 {
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
-	
 	double drag = 0;
 	double volS = 0;
 	double volF = 0;
@@ -37,29 +35,29 @@ void Sim_FSI_Gravity::_diagnostics()
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-			{
-				pMin = min(pMin,(double)b(ix,iy,iz).p);
-				pMax = max(pMax,(double)b(ix,iy,iz).p);
-				
-				if (b(ix,iy,iz).chi>0)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 				{
-					drag += (b(ix,iy,iz).v-uBody[1]) * b(ix,iy,iz).chi; // this depends on the direction of movement - here vertical!
-					volS += b(ix,iy,iz).chi;
-					volF += (1-b(ix,iy,iz).chi);
+					pMin = min(pMin,(double)b(ix,iy,iz).p);
+					pMax = max(pMax,(double)b(ix,iy,iz).p);
+					
+					if (b(ix,iy,iz).chi>0)
+					{
+						drag += (b(ix,iy,iz).v-uBody[1]) * b(ix,iy,iz).chi; // this depends on the direction of movement - here vertical!
+						volS += b(ix,iy,iz).chi;
+						volF += (1-b(ix,iy,iz).chi);
+					}
+					
+					if (std::isnan(b(ix,iy,iz).u) ||
+						std::isnan(b(ix,iy,iz).v) ||
+						std::isnan(b(ix,iy,iz).rho) ||
+						std::isnan(b(ix,iy,iz).chi) ||
+						std::isnan(b(ix,iy,iz).p))
+					{
+						cout << "NaN Error - Aborting now!\n";
+						abort();
+					}
 				}
-				
-				if (std::isnan(b(ix,iy,iz).u) ||
-					std::isnan(b(ix,iy,iz).v) ||
-					std::isnan(b(ix,iy,iz).rho) ||
-					std::isnan(b(ix,iy,iz).chi) ||
-					std::isnan(b(ix,iy,iz).p))
-				{
-					cout << "NaN Error - Aborting now!\n";
-					abort();
-				}
-			}
 	}
 	
 	drag *= dh*dh*dh*lambda;
@@ -84,9 +82,7 @@ void Sim_FSI_Gravity::_diagnostics()
 
 void Sim_FSI_Gravity::_dumpSettings(ostream& outStream)
 {
-#ifdef _MULTIGRID_
 	if (rank==0)
-#endif // _MULTIGRID_
 	{
 		outStream << "--------------------------------------------------------------------\n";
 		outStream << "Physical Settings\n";
@@ -103,11 +99,11 @@ void Sim_FSI_Gravity::_dumpSettings(ostream& outStream)
 		outStream << "\tlambda\t" << lambda << endl;
 #ifdef _MULTIGRID_
 		outStream << "\tsplit\t" << (bSplit ? "true" : "false") << endl;
-#endif // _MULTIGRID_
+#endif
 		outStream << "\tpath2file\t" << path2file << endl;
-		outStream << "\tbpdx\t" << bpdx << endl;
-		outStream << "\tbpdy\t" << bpdy << endl;
-		outStream << "\tbpdz\t" << bpdz << endl;
+		outStream << "\tbpdx\t" << nprocsx << "x" << bpdx << endl;
+		outStream << "\tbpdy\t" << nprocsy << "x" << bpdy << endl;
+		outStream << "\tbpdz\t" << nprocsz << "x" << bpdz << endl;
 #ifdef _PERIODIC_
 		outStream << "\tBC\t\tperiodic\n";
 #else // _PERIODIC_
@@ -125,31 +121,23 @@ void Sim_FSI_Gravity::_dumpSettings(ostream& outStream)
 
 void Sim_FSI_Gravity::_ic()
 {
-#ifdef _MULTIGRID_
-	if (rank==0)
-#endif // _MULTIGRID_
-	{
-		// setup initial conditions
-		CoordinatorIC coordIC(shape,0,grid);
-		profiler.push_start(coordIC.getName());
-		coordIC(0);
-		profiler.pop_stop();
-		
-		profiler.push_start("DumpIC");
-#ifndef _USE_HDF_
-		stringstream ss;
-		ss << path2file << "-IC.vti";
-		dumper.Write(*grid, ss.str());
-#else
-		CoordinatorVorticity<Lab> coordVorticity(grid);
-		coordVorticity(dt);
-		stringstream ss;
-		ss << path2file << "-IC";
-		cout << ss.str() << endl;
-		DumpHDF5<FluidGrid, StreamerHDF5>(*grid, step, ss.str());
+	// setup initial conditions
+	profiler.push_start("IC");
+	CoordinatorIC coordIC(shape,0,grid);
+	profiler.push_start(coordIC.getName());
+	coordIC(0);
+	profiler.pop_stop();
+	
+	profiler.push_start("DumpIC");
+#ifdef _USE_HDF_
+	CoordinatorVorticity<LabMPI> coordVorticity(grid);
+	coordVorticity(dt);
+	stringstream ss;
+	ss << path2file << "-IC";
+	cout << ss.str() << endl;
+	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
 #endif
-		profiler.pop_stop();
-	}
+	profiler.pop_stop();
 }
 
 double Sim_FSI_Gravity::_nonDimensionalTime()
@@ -202,14 +190,6 @@ void Sim_FSI_Gravity::_inputSettings(istream& inStream)
 
 Sim_FSI_Gravity::Sim_FSI_Gravity(const int argc, const char ** argv) : Simulation_FSI(argc, argv), uBody{0,0,0}, gravity{0,-9.81,0}, dtCFL(0), dtFourier(0), dtBody(0), re(0), nu(0), minRho(0), bSplit(false)
 {
-#ifdef _MULTIGRID_
-	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
-	
-	if (rank!=0)
-		omp_set_num_threads(1);
-#endif // _MULTIGRID_
-	
 	if (rank==0)
 	{
 		cout << "====================================================================================================================\n";
@@ -299,10 +279,14 @@ void Sim_FSI_Gravity::init()
 		_dumpSettings(myfile);
 		
 		if (rank==0)
+#ifndef _SPLIT_
 			if (bSplit)
+#endif
 				cout << "Using split method with constant coefficients Poisson solver\n";
+#ifndef _SPLIT_
 			else
 				cout << "Solving full variable coefficient Poisson equation for pressure\n";
+#endif
 		
 		_ic();
 	}
@@ -336,19 +320,15 @@ void Sim_FSI_Gravity::simulate()
 	
 	double vOld = 0;
 	
-#ifdef _MULTIGRID_
 	MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
+	
 	double nextDumpTime = time;
 	maxU = 0;
-	double maxA = 0;
 	
 	while (true)
 	{
 		if (rank==0)
 		{
-			vector<BlockInfo> vInfo = grid->getBlocksInfo();
-			
 			// choose dt (CFL, Fourier)
 			//profiler.push_start("DT");
 			//maxU = findMaxUOMP(vInfo,*grid);
@@ -356,16 +336,10 @@ void Sim_FSI_Gravity::simulate()
 			dtCFL     = maxU==0 ? 1e5 : CFL*vInfo[0].h_gridpoint/abs(maxU);
 			dtBody    = max(max(abs(uBody[0]),abs(uBody[1])),abs(uBody[2]))==0 ? 1e5 : CFL*vInfo[0].h_gridpoint/max(max(abs(uBody[0]),abs(uBody[1])),abs(uBody[2]));
 			assert(!std::isnan(maxU));
-			assert(!std::isnan(maxA));
 			assert(!std::isnan(uBody[0]));
 			assert(!std::isnan(uBody[1]));
 			assert(!std::isnan(uBody[2]));
 			dt = min(min(dtCFL,dtFourier),dtBody);
-#ifdef _PARTICLES_
-			maxA = findMaxAOMP<Lab>(vInfo,*grid);
-			dtLCFL = maxA==0 ? 1e5 : LCFL/abs(maxA);
-			dt = min(dt,dtLCFL);
-#endif
 			if (dumpTime>0)
 				dt = min(dt,nextDumpTime-_nonDimensionalTime());
 			if (endTime>0)
@@ -374,9 +348,7 @@ void Sim_FSI_Gravity::simulate()
 				cout << "dt (Fourier, CFL, body): " << dt << " " << dtFourier << " " << dtCFL << " " << dtBody << endl;
 			//profiler.pop_stop();
 		}
-#ifdef _MULTIGRID_
 		MPI_Bcast(&dt,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 		
 		if (dt!=0)
 		{
@@ -385,15 +357,15 @@ void Sim_FSI_Gravity::simulate()
 #endif
 			for (int c=0; c<pipeline.size(); c++)
 			{
-#ifdef _MULTIGRID_
 				MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 				profiler.push_start(pipeline[c]->getName());
+#ifdef _MULTIGRID_
 				if (rank == 0 || pipeline[c]->getName()=="Pressure")
+#endif
 					(*pipeline[c])(dt);
 				profiler.pop_stop();
 			}
-		
+			
 			time += dt;
 			step++;
 		}
@@ -421,31 +393,34 @@ void Sim_FSI_Gravity::simulate()
 				_diagnostics();
 				profiler.pop_stop();
 			}
-			
-			//dump some time steps every now and then
-			profiler.push_start("Dump");
-			_dump(nextDumpTime);
-			profiler.pop_stop();
-			
-			if (step % 100 == 0)
-				profiler.printSummary();
 		}
+		
+		//dump some time steps every now and then
+		profiler.push_start("Dump");
+		_dump(nextDumpTime);
+		profiler.pop_stop();
+		
+		if (rank==0 && step % 100 == 0)
+			profiler.printSummary();
 		
 		// check nondimensional time
 		if ((endTime>0 && abs(_nonDimensionalTime()-endTime) < 10*std::numeric_limits<Real>::epsilon()) || (nsteps!=0 && step>=nsteps))
 		{
+			profiler.push_start("Dump");
+#ifdef _USE_HDF_
+			CoordinatorVorticity<Lab> coordVorticity(grid);
+			coordVorticity(dt);
+			stringstream ss;
+			ss << path2file << "-Final";
+			cout << ss.str() << endl;
+			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
+			profiler.pop_stop();
+			
 			if (rank==0)
-			{
-				profiler.push_start("Dump");
-				stringstream ss;
-				ss << path2file << "-Final.vti";
-				cout << ss.str() << endl;
-				
-				dumper.Write(*grid, ss.str());
-				profiler.pop_stop();
-				
 				profiler.printSummary();
-			}
+				
+			MPI_Finalize();
 			exit(0);
 		}
 	}

@@ -6,10 +6,9 @@
  *  Copyright 2011 ETH Zurich. All rights reserved.
  *
  */
-
 #pragma once
+
 #include "GridMPI.h"
-#include "SynchronizerMPI.h"
 
 template<typename MyBlockLab>
 class BlockLabMPI : public MyBlockLab
@@ -82,4 +81,9 @@ public:
 		
 		if (applybc) MyBlockLab::_apply_bc(info, t);
 	}
+    
+    void release()
+    {
+        MyBlockLab::release();
+    }
 };

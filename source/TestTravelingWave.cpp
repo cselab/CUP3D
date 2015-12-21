@@ -30,7 +30,6 @@ void TestTravelingWave::_analytical(Real x, Real y, Real z, double t, Real &u, R
 void TestTravelingWave::_ic()
 {
 	// setup initial conditions
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	const int N = vInfo.size();
 	
 #pragma omp parallel for schedule(static)
@@ -40,53 +39,52 @@ void TestTravelingWave::_ic()
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-			{
-				Real p[3];
-				info.pos(p, ix, iy, iz);
-				
-				b(ix,iy,iz).rho = 1.;
-				
-				Real velU, velV, velW, pressure;
-				_analytical(p[0], p[1], p[1], 0, velU, velV, velW, pressure);
-				
-				b(ix,iy,iz).u = velU;
-				b(ix,iy,iz).v = velV;
-				b(ix,iy,iz).w = velW;
-				b(ix,iy,iz).p = pressure;
-				
-				b(ix,iy,iz).chi = 0;
-				b(ix,iy,iz).divU = 0;
-				b(ix,iy,iz).pOld = 0;
-				
-				b(ix,iy,iz).tmpU = 0;
-				b(ix,iy,iz).tmpV = 0;
-				b(ix,iy,iz).tmpW = 0;
-				b(ix,iy,iz).tmp  = 0;
-			}
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+				{
+					Real p[3];
+					info.pos(p, ix, iy, iz);
+					
+					b(ix,iy,iz).rho = 1.;
+					
+					Real velU, velV, velW, pressure;
+					_analytical(p[0], p[1], p[1], 0, velU, velV, velW, pressure);
+					
+					b(ix,iy,iz).u = velU;
+					b(ix,iy,iz).v = velV;
+					b(ix,iy,iz).w = velW;
+					b(ix,iy,iz).p = pressure;
+					
+					b(ix,iy,iz).chi = 0;
+					b(ix,iy,iz).divU = 0;
+					b(ix,iy,iz).pOld = 0;
+					
+					b(ix,iy,iz).tmpU = 0;
+					b(ix,iy,iz).tmpV = 0;
+					b(ix,iy,iz).tmpW = 0;
+					b(ix,iy,iz).tmp  = 0;
+				}
 	}
 	
+#ifdef _USE_HDF_
+	CoordinatorVorticity<Lab> coordVorticity(grid);
+	coordVorticity(0);
 	stringstream ss;
-	ss << path2file << "-IC.vti";
-	dumper.Write(*grid, ss.str());
+	ss << path2file << "-IC";
+	cout << ss.str() << endl;
+	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 }
 
-TestTravelingWave::TestTravelingWave(const int argc, const char ** argv, const int bpd) : Test(argc, argv), dtCFL(0), dtFourier(0), time(0), bpd(bpd), nu(0.01), endTime(0.7), step(0), rank(0), nprocs(1)
+TestTravelingWave::TestTravelingWave(const int argc, const char ** argv, const int bpd) : Test(argc, argv, bpd), dtCFL(0), dtFourier(0), time(0), nu(0.01), endTime(0.7), step(0), rank(0), nprocs(1)
 {
-#ifdef _MULTIGRID_
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
-#endif // _MULTIGRID_
 	
 	// output settings
 	path2file = parser("-file").asString("../data/testTravelingWave");
 	
-	grid = new FluidGrid(bpd,bpd,bpd);
-	
-#ifdef _MULTIGRID_
 	if (rank==0)
-#endif // _MULTIGRID_
 		_ic();
 	
 	pipeline.clear();
@@ -107,8 +105,6 @@ TestTravelingWave::TestTravelingWave(const int argc, const char ** argv, const i
 
 TestTravelingWave::~TestTravelingWave()
 {
-	delete grid;
-	
 	while(!pipeline.empty())
 	{
 		GenericCoordinator * g = pipeline.back();
@@ -129,33 +125,22 @@ void TestTravelingWave::run()
 	{
 		if (rank==0)
 		{
-			
-			vector<BlockInfo> vInfo = grid->getBlocksInfo();
-			
 			// choose dt (CFL, Fourier)
 			maxU = findMaxUOMP(vInfo,*grid);
-			dtFourier = CFL*vInfo[0].h_gridpoint*vInfo[0].h_gridpoint/nu;
+			dtFourier = CFL*vInfo[0].h_gridpoint * vInfo[0].h_gridpoint/nu;
 			dtCFL     = CFL*vInfo[0].h_gridpoint/abs(maxU);
 			assert(!std::isnan(maxU));
 			dt = min(dtCFL,dtFourier);
-#ifdef _PARTICLES_
-			maxA = findMaxAOMP<Lab>(vInfo,*grid);
-			dtLCFL = maxA==0 ? 1e5 : LCFL/abs(maxA);
-			dt = min(dt,dtLCFL);
-#endif
 			if (endTime>0)
 				dt = min(dt,endTime-time);
 		}
-#ifdef _MULTIGRID_
 		MPI_Bcast(&dt,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 		
 		
 		for (int c=0; c<pipeline.size(); c++)
 		{
-#ifdef _MULTIGRID_
 			MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
+			
 			if (rank == 0 || pipeline[c]->getName()=="Pressure")
 				(*pipeline[c])(dt);
 		}
@@ -163,21 +148,26 @@ void TestTravelingWave::run()
 		time += dt;
 		step++;
 		/*
-		if (step%10==0)
-		{
+		 if (step%10==0)
+		 {
 			stringstream sstmp;
 			sstmp << path2file << bpd << "-" << step << ".vti";
 			dumper.Write(*grid, sstmp.str());
-		}
+		 }
 		 */
 		
 		// check nondimensional time
 		if (rank==0 && abs(time-endTime) < 10*std::numeric_limits<Real>::epsilon())
 		{
-			stringstream ss;
-			ss << path2file << bpd << "-Final.vti";
 			
-			dumper.Write(*grid, ss.str());
+#ifdef _USE_HDF_
+			CoordinatorVorticity<Lab> coordVorticity(grid);
+			coordVorticity(dt);
+			stringstream ss;
+			ss << path2file << "-Final";
+			cout << ss.str() << endl;
+			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 			
 			return;
 		}
@@ -189,11 +179,11 @@ void TestTravelingWave::check()
 	if (rank==0)
 	{
 #ifdef _MULTIGRID_
-		cout << "Hypre - double";
+		cout << "Hypre";
 #else
-		cout << "FFTW - single";
+		cout << "FFTW";
 #endif
-//		cout << "\tErrors (Linf_u, L1_u, L2_u, Linf_v, L1_v, L2_v, Linf_p, L1_p, L2_p):\t";
+		//		cout << "\tErrors (Linf_u, L1_u, L2_u, Linf_v, L1_v, L2_v, Linf_p, L1_p, L2_p):\t";
 		double Linf_u = 0.;
 		double L1_u = 0.;
 		double L2_u = 0.;
@@ -206,8 +196,6 @@ void TestTravelingWave::check()
 		
 		const int size = bpd * FluidBlock::sizeX;
 		
-		vector<BlockInfo> vInfo = grid->getBlocksInfo();
-		
 #pragma omp parallel for reduction(max:Linf_u) reduction(+:L1_u) reduction(+:L2_u) reduction(max:Linf_v) reduction(+:L1_v) reduction(+:L2_v) reduction(max:Linf_p) reduction(+:L1_p) reduction(+:L2_p)
 		for(int i=0; i<(int)vInfo.size(); i++)
 		{
@@ -215,31 +203,31 @@ void TestTravelingWave::check()
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-			for(int iy=0; iy<FluidBlock::sizeY; iy++)
-				for(int ix=0; ix<FluidBlock::sizeX; ix++)
-				{
-					double p[3];
-					info.pos(p, ix, iy, iz);
-					
-					Real velU, velV, velW, pressure;
-					_analytical(p[0], p[1], p[2], time, velU, velV, velW, pressure);
-					
-					double errorU = b(ix, iy, iz).u - velU;
-					double errorV = b(ix, iy, iz).v - velV;
-					double errorP = b(ix, iy, iz).p - pressure;
-					
-					Linf_u = max(Linf_u,abs(errorU));
-					L1_u += abs(errorU);
-					L2_u += errorU*errorU;
-					
-					Linf_v = max(Linf_v,abs(errorV));
-					L1_v += abs(errorV);
-					L2_v += errorV*errorV;
-					
-					Linf_p = max(Linf_p,abs(errorP));
-					L1_p += abs(errorP);
-					L2_p += errorP*errorP;
-				}
+				for(int iy=0; iy<FluidBlock::sizeY; iy++)
+					for(int ix=0; ix<FluidBlock::sizeX; ix++)
+					{
+						double p[3];
+						info.pos(p, ix, iy, iz);
+						
+						Real velU, velV, velW, pressure;
+						_analytical(p[0], p[1], p[2], time, velU, velV, velW, pressure);
+						
+						double errorU = b(ix, iy, iz).u - velU;
+						double errorV = b(ix, iy, iz).v - velV;
+						double errorP = b(ix, iy, iz).p - pressure;
+						
+						Linf_u = max(Linf_u,abs(errorU));
+						L1_u += abs(errorU);
+						L2_u += errorU*errorU;
+						
+						Linf_v = max(Linf_v,abs(errorV));
+						L1_v += abs(errorV);
+						L2_v += errorV*errorV;
+						
+						Linf_p = max(Linf_p,abs(errorP));
+						L1_p += abs(errorP);
+						L2_p += errorP*errorP;
+					}
 		}
 		
 		const double invh3 = 1./((double)size*size*size);

@@ -16,15 +16,11 @@ class TestGravity : public Test
 {
 private:
 	double time;
-	int bpd;
 	double dt;
 	
 	Real gravity[3];
 	
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
-	
-	FluidGrid * grid;
 	
 	void _ic();
 	

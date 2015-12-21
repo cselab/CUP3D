@@ -18,7 +18,7 @@ protected:
 	double nu;
 	double dtCFL, dtLCFL, dtFourier;
 	double time, endTime;
-	const int bpd, bpdRef;
+	const int bpdRef;
 	int step;
 	const double rhoS;
 	
@@ -26,11 +26,9 @@ protected:
 	int rank, nprocs;
 	
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
 	
 	vector<GenericCoordinator *> pipeline;
 	
-	FluidGrid * grid;
 	FluidGrid * gridRef;
 	
 	void _ic();

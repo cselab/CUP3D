@@ -27,6 +27,7 @@ public:
 	
 	void operator()(const BlockInfo& info, FluidBlock& block) const
 	{
+		const Real dh = info.h_gridpoint;
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -37,10 +38,10 @@ public:
 					block(ix,iy,iz).u = uinf;
 					block(ix,iy,iz).v = 0;
 					block(ix,iy,iz).w = 0;
-					block(ix,iy,iz).chi = shape->chi(p, info.h_gridpoint);
+					block(ix,iy,iz).chi = shape->chi(p, dh);
 					
 					// assume fluid with density 1
-					block(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint, block(ix,iy,iz).chi);
+					block(ix,iy,iz).rho = shape->rho(p, dh, block(ix,iy,iz).chi);
 					
 					block(ix,iy,iz).p = 0;
 					block(ix,iy,iz).divU = 0;

@@ -43,15 +43,26 @@ public:
 		Real J4 = 0;
 		Real J5 = 0;
 		Real maxU = 0;
-		Real cx = 0;
-		Real cy = 0;
-		Real cz = 0;
-		Real vol = 0;
+		
+		double massG = 0;
+		double uG = 0;
+		double vG = 0;
+		double wG = 0;
+		double dtdtxG = 0;
+		double dtdtyG = 0;
+		double dtdtzG = 0;
+		Real J0G = 0;
+		Real J1G = 0;
+		Real J2G = 0;
+		Real J3G = 0;
+		Real J4G = 0;
+		Real J5G = 0;
+		Real maxUG = 0;
 		
 		Real com[3];
 		shape->getCenterOfMass(com);
 		
-#pragma omp parallel for schedule(static) reduction(+:u) reduction(+:v) reduction(+:w), reduction(+:mass) reduction(+:cx) reduction(+:cy) reduction(+:cz) reduction(+:vol)
+#pragma omp parallel for schedule(static) reduction(+:u) reduction(+:v) reduction(+:w), reduction(+:mass)
 		for(int i=0; i<N; i++)
 		{
 			BlockInfo info = vInfo[i];
@@ -77,23 +88,17 @@ public:
 						w += wLocal * rhochi * h3;
 						
 						mass += rhochi * h3;
-						
-						cx += p[0] * rhochi * h3;
-						cy += p[1] * rhochi * h3;
-						cz += p[2] * rhochi * h3;
-						vol += rhochi * h3;
 					}
 		}
 		
-		cx /= vol;
-		cy /= vol;
-		cz /= vol;
-		//cout << "\tGeometricCoM:\t" << com[0] << " " << com[1] << " " << com[2] << endl;
-		//cout << "\tGridCM:\t" << cx << " " << cy << " " << cz << endl;
+		MPI::COMM_WORLD.Allreduce(&u, &uG, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&v, &vG, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&w, &wG, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&mass, &massG, 1, MPI::DOUBLE, MPI::SUM);
 		
-		*uBody = u / mass;
-		*vBody = v / mass;
-		*wBody = w / mass;
+		*uBody = uG / massG;
+		*vBody = vG / massG;
+		*wBody = wG / massG;
 		
 #pragma omp parallel for schedule(static) reduction(+:dtdtx) reduction(+:dtdty) reduction(+:dtdtz) reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5) reduction(max:maxU)
 		for(int i=0; i<N; i++)
@@ -150,14 +155,25 @@ public:
 					}
 		}
 		
-		*uFlowMax = maxU;
+		MPI::COMM_WORLD.Allreduce(&dtdtx, &dtdtxG, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&dtdty, &dtdtyG, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&dtdtz, &dtdtzG, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J0, &J0G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J1, &J1G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J2, &J2G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J3, &J3G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J4, &J4G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J5, &J5G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&maxU, &maxUG, 1, MPI::DOUBLE, MPI::MAX);
+		
+		*uFlowMax = maxUG;
 		
 		const Real ub[3] = { *uBody, *vBody, *wBody };
-		Real dthetadt[3] = { dtdtx, dtdty, dtdtz };
+		Real dthetadt[3] = { dtdtxG, dtdtyG, dtdtzG };
 		const Real weaken = .001;
-		const Real J[6] = { J0*weaken, J1*weaken, J2*weaken, J3*weaken, J4*weaken, J5*weaken };
+		const Real J[6] = { J0G*weaken, J1G*weaken, J2G*weaken, J3G*weaken, J4G*weaken, J5G*weaken };
 		
-		shape->updatePosition(ub, dthetadt, J, mass, dt);
+		shape->updatePosition(ub, dthetadt, J, massG, dt);
 	}
 	
 	string getName()
@@ -177,6 +193,8 @@ protected:
 public:
 	CoordinatorBodyVelocitiesForcedRot(Real * omegaBodyX, Real * omegaBodyY, Real * omegaBodyZ, Real * lambda, Shape * shape, FluidGrid * grid) : GenericCoordinator(grid), omegaBodyX(omegaBodyX), omegaBodyY(omegaBodyY), omegaBodyZ(omegaBodyZ), lambda(lambda), shape(shape)
 	{
+		cout << "Not supported yet\n";
+		abort();
 	}
 	
 	void operator()(const double dt)

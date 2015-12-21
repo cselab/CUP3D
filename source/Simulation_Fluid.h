@@ -32,19 +32,21 @@ protected:
 	ArgumentParser parser;
 	Profiler profiler;
 	
+	vector<BlockInfo> vInfo;
+	
 	// Serialization
 	bool bPing; // needed for ping-pong scheme
 	string path4serialization;
 	bool bRestart;
 	
-	// MPI stuff - required for Hypre
 	int rank, nprocs;
 	
 	vector<GenericCoordinator *> pipeline;
 	
 	// grid
+	int nprocsx, nprocsy, nprocsz;
 	int bpdx, bpdy, bpdz;
-	FluidGrid * grid;
+	FluidGridMPI * grid;
 	
 	// simulation status
 	int step, nsteps;
@@ -60,9 +62,6 @@ protected:
 	int dumpFreq;
 	double dumpTime;
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
-//	SerializerIO_WaveletCompression_SimpleBlocking<FluidGrid, FluidVPStreamer> waveletdumper_grid;
-//	SerializerIO_WaveletCompression_SimpleBlocking<FluidGrid, TmpVPStreamer> waveletdumper_vorticity;
 	
 	virtual void _diagnostics() = 0;
 	virtual void _ic() = 0;
@@ -71,18 +70,15 @@ protected:
 	virtual void _dump(double & nextDumpTime)
 	{
 #ifndef NDEBUG
-		if (rank==0)
-		{
-			vector<BlockInfo> vInfo = grid->getBlocksInfo();
-			const int N = vInfo.size();
-			
+		const int N = vInfo.size();
+		
 #pragma omp parallel for schedule(static)
-			for(int i=0; i<N; i++)
-			{
-				BlockInfo info = vInfo[i];
-				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-				
-				for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+		for(int i=0; i<N; i++)
+		{
+			BlockInfo info = vInfo[i];
+			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 					{
@@ -109,96 +105,88 @@ protected:
 						assert(!std::isnan(b(ix,iy,iz).tmp));
 						assert(!std::isnan(b(ix,iy,iz).divU));
 					}
-			}
 		}
 #endif
 		
 		const int sizeX = bpdx * FluidBlock::sizeX;
 		const int sizeY = bpdy * FluidBlock::sizeY;
 		const int sizeZ = bpdz * FluidBlock::sizeZ;
-		vector<BlockInfo> vInfo = grid->getBlocksInfo();
 		
 		if(rank==0 && (dumpFreq>0 && step % dumpFreq == 0) || (dumpTime>0 && abs(nextDumpTime-_nonDimensionalTime()) < 10*std::numeric_limits<Real>::epsilon()))
 		{
 			nextDumpTime += dumpTime;
 			
-#ifndef _USE_HDF_
-			stringstream ss;
-			ss << path2file << "-" << step << ".vti";
-			cout << ss.str() << endl;
-			
-			dumper.Write(*grid, ss.str());
-#else
+#ifdef _USE_HDF_
 			CoordinatorVorticity<Lab> coordVorticity(grid);
 			coordVorticity(dt);
 			stringstream ss;
 			ss << path2file << "-" << std::setfill('0') << std::setw(6) << step;
 			cout << ss.str() << endl;
-			DumpHDF5<FluidGrid, StreamerHDF5>(*grid, step, ss.str());
+			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
 #endif
-			_serialize();
+			//_serialize();
 			
 			/*
-			// VP
-			std::stringstream streamer;
-			streamer << path2file << "-datawavelet";
-			streamer.setf(ios::dec | ios::right);
-			streamer.width(6);
-			streamer.fill('0');
-			streamer << step;
+			 // VP
+			 std::stringstream streamer;
+			 streamer << path2file << "-datawavelet";
+			 streamer.setf(ios::dec | ios::right);
+			 streamer.width(6);
+			 streamer.fill('0');
+			 streamer << step;
 				
-			double vpeps = parser("-vpeps").asDouble(1e-3);
-			int wavelet_type = parser("-wtype").asInt(1);
+			 double vpeps = parser("-vpeps").asDouble(1e-3);
+			 int wavelet_type = parser("-wtype").asInt(1);
 				
-			waveletdumper_grid.verbose();
-			waveletdumper_grid.set_wtype_write(wavelet_type);
+			 waveletdumper_grid.verbose();
+			 waveletdumper_grid.set_wtype_write(wavelet_type);
 				
-			waveletdumper_grid.set_threshold (vpeps);
-			if (vpchannels.find('0') != std::string::npos)
+			 waveletdumper_grid.set_threshold (vpeps);
+			 if (vpchannels.find('0') != std::string::npos)
 				waveletdumper_grid.Write<0>(grid, streamer.str());
 				
-			waveletdumper_grid.set_threshold (vpeps);
-			if (vpchannels.find('1') != std::string::npos)
+			 waveletdumper_grid.set_threshold (vpeps);
+			 if (vpchannels.find('1') != std::string::npos)
 				waveletdumper_grid.Write<1>(grid, streamer.str());
 				
-			waveletdumper_grid.set_threshold (vpeps);
-			if (vpchannels.find('2') != std::string::npos)
+			 waveletdumper_grid.set_threshold (vpeps);
+			 if (vpchannels.find('2') != std::string::npos)
 				waveletdumper_grid.Write<2>(grid, streamer.str());
 				
-			waveletdumper_grid.set_threshold (vpeps);
-			if (vpchannels.find('3') != std::string::npos)
+			 waveletdumper_grid.set_threshold (vpeps);
+			 if (vpchannels.find('3') != std::string::npos)
 				waveletdumper_grid.Write<3>(grid, streamer.str());
 				
-			waveletdumper_grid.set_threshold (vpeps);
-			if (vpchannels.find('4') != std::string::npos)
+			 waveletdumper_grid.set_threshold (vpeps);
+			 if (vpchannels.find('4') != std::string::npos)
 				waveletdumper_grid.Write<4>(grid, streamer.str());
 				
-			waveletdumper_grid.set_threshold (vpeps);
-			if (vpchannels.find('5') != std::string::npos)
+			 waveletdumper_grid.set_threshold (vpeps);
+			 if (vpchannels.find('5') != std::string::npos)
 				waveletdumper_grid.Write<5>(grid, streamer.str());
 				
-			waveletdumper_vorticity.verbose();
-			waveletdumper_vorticity.set_wtype_write(wavelet_type);
-			waveletdumper_vorticity.set_threshold (vpeps);
-			if (vpchannels.find('w') != std::string::npos || vpchannels.find('W') != std::string::npos)
+			 waveletdumper_vorticity.verbose();
+			 waveletdumper_vorticity.set_wtype_write(wavelet_type);
+			 waveletdumper_vorticity.set_threshold (vpeps);
+			 if (vpchannels.find('w') != std::string::npos || vpchannels.find('W') != std::string::npos)
 				waveletdumper_vorticity.Write<5>(grid, streamer.str());
 				
-			waveletdumper_sos.verbose();
-			waveletdumper_sos.set_wtype_write(wavelet_type);
-			waveletdumper_sos.set_threshold (10*vpeps);
-			if (vpchannels.find('c') != std::string::npos)
+			 waveletdumper_sos.verbose();
+			 waveletdumper_sos.set_wtype_write(wavelet_type);
+			 waveletdumper_sos.set_threshold (10*vpeps);
+			 if (vpchannels.find('c') != std::string::npos)
 				waveletdumper_sos.Write<0>(grid, streamer.str());
 				
-			waveletdumper_mach.verbose();
-			waveletdumper_mach.set_wtype_write(wavelet_type);
-			waveletdumper_mach.set_threshold (vpeps);
-			if (vpchannels.find('M') != std::string::npos)
+			 waveletdumper_mach.verbose();
+			 waveletdumper_mach.set_wtype_write(wavelet_type);
+			 waveletdumper_mach.set_threshold (vpeps);
+			 if (vpchannels.find('M') != std::string::npos)
 				waveletdumper_mach.Write<0>(grid, streamer.str());
 				
-			waveletdumper_velocity_magnitude.verbose();
-			waveletdumper_velocity_magnitude.set_wtype_write(wavelet_type);
-			waveletdumper_velocity_magnitude.set_threshold (vpeps);
-			if (vpchannels.find('m') != std::string::npos)
+			 waveletdumper_velocity_magnitude.verbose();
+			 waveletdumper_velocity_magnitude.set_wtype_write(wavelet_type);
+			 waveletdumper_velocity_magnitude.set_threshold (vpeps);
+			 if (vpchannels.find('m') != std::string::npos)
 				waveletdumper_velocity_magnitude.Write<0>(grid, streamer.str());
 			 */
 		}
@@ -276,28 +264,25 @@ protected:
 	
 	void _serialize()
 	{
-		if (rank==0)
+		stringstream ss;
+		ss << path4serialization << "Serialized-" << bPing << ".dat";
+		cout << ss.str() << endl;
+		
+		stringstream serializedGrid;
+		serializedGrid << "SerializedGrid-" << bPing << ".grid";
+		DumpZBin_MPI<FluidGridMPI, StreamerSerialization>(*grid, serializedGrid.str(), path4serialization);
+		
+		ofstream file;
+		file.open(ss.str());
+		
+		if (file.is_open())
 		{
-			stringstream ss;
-			ss << path4serialization << "Serialized-" << bPing << ".dat";
-			cout << ss.str() << endl;
+			_outputSettings(file);
 			
-			stringstream serializedGrid;
-			serializedGrid << "SerializedGrid-" << bPing << ".grid";
-			DumpZBin<FluidGrid, StreamerSerialization>(*grid, serializedGrid.str(), path4serialization);
-			
-			ofstream file;
-			file.open(ss.str());
-			
-			if (file.is_open())
-			{
-				_outputSettings(file);
-				
-				file.close();
-			}
-			
-			bPing = !bPing;
+			file.close();
 		}
+		
+		bPing = !bPing;
 	}
 	
 	void _deserialize()
@@ -327,17 +312,21 @@ protected:
 		grid = new FluidGrid(bpdx,bpdy,bpdz);
 		assert(grid != NULL);
 		
-		if (rank==0)
-		{
-			stringstream serializedGrid;
-			serializedGrid << "SerializedGrid-" << bPing << ".grid";
-			ReadZBin<FluidGrid, StreamerSerialization>(*grid, serializedGrid.str(), path4serialization);
-		}
+		stringstream serializedGrid;
+		serializedGrid << "SerializedGrid-" << bPing << ".grid";
+		ReadZBin_MPI<FluidGridMPI, StreamerSerialization>(*grid, serializedGrid.str(), path4serialization);
 	}
 	
 public:
 	Simulation_Fluid(const int argc, const char ** argv) : parser(argc,argv), step(0), time(0), dt(0), rank(0), nprocs(1), bPing(false)
 	{
+		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+		MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+		
+#ifdef _MULTIGRID_
+		if (rank!=0)
+			omp_set_num_threads(1);
+#endif
 	}
 	
 	virtual ~Simulation_Fluid()
@@ -362,10 +351,17 @@ public:
 		{
 			// initialize grid
 			parser.set_strict_mode();
+			nprocsx = parser("-nprocsx").asInt();
+			nprocsy = parser("-nprocsy").asInt();
+			nprocsz = parser("-nprocsz").asInt();
 			bpdx = parser("-bpdx").asInt();
 			bpdy = parser("-bpdy").asInt();
 			bpdz = parser("-bpdz").asInt();
-			grid = new FluidGrid(bpdx,bpdy,bpdz);
+			
+			grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz);
+			
+			vInfo = grid->getBlocksInfo();
+			
 			assert(grid != NULL);
 			
 			// simulation ending parameters
@@ -410,9 +406,7 @@ public:
 				_dump(d);
 			}
 			
-#ifdef _MULTIGRID_
 			MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 		}
 	}
 	

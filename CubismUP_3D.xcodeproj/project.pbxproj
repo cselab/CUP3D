@@ -22,6 +22,7 @@
 		DD64F6D61A67D6C800D17B72 /* PoissonSolverScalarFFTW.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD64F6D31A67D6C800D17B72 /* PoissonSolverScalarFFTW.cpp */; };
 		DD66B5DE1A7649B6003FE36B /* Sim_FSI_Moving.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD66B5DC1A7649B6003FE36B /* Sim_FSI_Moving.cpp */; };
 		DD66B5E21A764CEC003FE36B /* Sim_FSI_Gravity.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD66B5E01A764CEC003FE36B /* Sim_FSI_Gravity.cpp */; };
+		DD6881BE1C23FEED0002515E /* TestMPI.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD6881BC1C23FEED0002515E /* TestMPI.cpp */; };
 		DD7795061C11F608003013F8 /* TestGeometry.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD7795041C11F608003013F8 /* TestGeometry.cpp */; };
 		DD838C3C1AB6DE8A00018A75 /* TestRotation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD838C3A1AB6DE8A00018A75 /* TestRotation.cpp */; };
 		DD838C401AB6DEA300018A75 /* TestTranslation.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DD838C3E1AB6DEA300018A75 /* TestTranslation.cpp */; };
@@ -147,6 +148,10 @@
 		DD66B5E01A764CEC003FE36B /* Sim_FSI_Gravity.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = Sim_FSI_Gravity.cpp; sourceTree = "<group>"; };
 		DD66B5E11A764CEC003FE36B /* Sim_FSI_Gravity.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = Sim_FSI_Gravity.h; sourceTree = "<group>"; };
 		DD6717F11A7B952700BFDF78 /* MultigridHypre.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = MultigridHypre.h; sourceTree = "<group>"; };
+		DD6881BC1C23FEED0002515E /* TestMPI.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestMPI.cpp; sourceTree = "<group>"; };
+		DD6881BD1C23FEED0002515E /* TestMPI.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestMPI.h; sourceTree = "<group>"; };
+		DD6881BF1C2405020002515E /* OperatorTestDerivativesMPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OperatorTestDerivativesMPI.h; sourceTree = "<group>"; };
+		DD6881C01C2407980002515E /* testMPI.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = testMPI.sh; sourceTree = "<group>"; };
 		DD7795041C11F608003013F8 /* TestGeometry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestGeometry.cpp; sourceTree = "<group>"; };
 		DD7795051C11F608003013F8 /* TestGeometry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestGeometry.h; sourceTree = "<group>"; };
 		DD780F701B3BEF90007ED7B7 /* plotFallingCylinder.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotFallingCylinder.py; sourceTree = "<group>"; };
@@ -306,6 +311,7 @@
 				DD2A4CEA1ADFA08800C3C034 /* RTI */,
 				DD2A4CE91ADFA07100C3C034 /* FallingBodies */,
 				DD30657A1BD0D615009A5291 /* testBC.sh */,
+				DD6881C01C2407980002515E /* testMPI.sh */,
 				DD609B751B00D8C600E2C31A /* testAdvection.sh */,
 				DD609B761B00D8C600E2C31A /* testDiffusion.sh */,
 				DD2CF51C1B0E433F003C912A /* testPoisson.sh */,
@@ -341,6 +347,7 @@
 				DD6717F11A7B952700BFDF78 /* MultigridHypre.h */,
 				DDB174C61B072F5600458CBA /* OperatorPressureGradient.h */,
 				DD0AD51A1C16D92A0017B3AB /* OperatorVorticity.h */,
+				DD6881BF1C2405020002515E /* OperatorTestDerivativesMPI.h */,
 			);
 			name = Operators;
 			sourceTree = "<group>";
@@ -421,6 +428,8 @@
 				DD0984011B33130100AB357D /* TestAddedMass.cpp */,
 				DD3065781BD0D15A009A5291 /* TestBoundaryConditions.h */,
 				DD3065771BD0D15A009A5291 /* TestBoundaryConditions.cpp */,
+				DD6881BD1C23FEED0002515E /* TestMPI.h */,
+				DD6881BC1C23FEED0002515E /* TestMPI.cpp */,
 			);
 			name = TestingUnits;
 			sourceTree = "<group>";
@@ -613,6 +622,7 @@
 				DD58CAAF1A5E7B9E00291455 /* Sim_FSI_Fixed.cpp in Sources */,
 				DDBC58DB1C1ED46900E42817 /* PoissonSolverScalarFFTW_MPI.cpp in Sources */,
 				DD355D241A8118FE00711A51 /* TestPenalization.cpp in Sources */,
+				DD6881BE1C23FEED0002515E /* TestMPI.cpp in Sources */,
 				DD58CAD11A5ECA9000291455 /* TestDiffusion.cpp in Sources */,
 				DD838C401AB6DEA300018A75 /* TestTranslation.cpp in Sources */,
 				DD54FE9E1B03A33F00101525 /* TestPoiseuille.cpp in Sources */,

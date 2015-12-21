@@ -20,6 +20,7 @@ class GenericLabOperator
 public:
 	int stencil_start[3];
 	int stencil_end[3];
+	StencilInfo stencil;
 	
 	// cannot put the templated operator here!
 };

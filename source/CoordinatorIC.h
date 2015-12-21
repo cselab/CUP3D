@@ -54,10 +54,10 @@ public:
 						b(ix,iy,iz).u = uinf;
 						b(ix,iy,iz).v = 0;
 						b(ix,iy,iz).w = 0;
-						b(ix,iy,iz).chi = shape->chi(p, info.h_gridpoint);
+						b(ix,iy,iz).chi = shape->chi(p, dh);
 						
 						// assume fluid with density 1
-						b(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint, b(ix,iy,iz).chi);
+						b(ix,iy,iz).rho = shape->rho(p, dh, b(ix,iy,iz).chi);
 						
 						b(ix,iy,iz).p = 0;
 						b(ix,iy,iz).divU = 0;

@@ -12,9 +12,9 @@
 #include <map>
 #include <set>
 #include <vector>
-using namespace std;
-
 #include <cassert>
+
+using namespace std;
 
 struct Region {
 	int s[3], e[3];
@@ -298,7 +298,7 @@ public:
 				}
 		
 		finalized = true;
-	}
+    }
 	
 	void received(Request req)
 	{

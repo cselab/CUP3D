@@ -18,8 +18,6 @@
 
 void Sim_Bubble::_diagnostics()
 {
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
-	
 	double vBubble = 0;
 	double volume = 0;
 	
@@ -30,30 +28,30 @@ void Sim_Bubble::_diagnostics()
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-			{
-				if (abs(b(ix,iy,iz).rho-rhoS) < 10*std::numeric_limits<Real>::epsilon())
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 				{
-					vBubble += b(ix,iy,iz).v;
-					volume += 1;
+					if (abs(b(ix,iy,iz).rho-rhoS) < 10*std::numeric_limits<Real>::epsilon())
+					{
+						vBubble += b(ix,iy,iz).v;
+						volume += 1;
+					}
+					
+					if (std::isnan(b(ix,iy,iz).u) ||
+						std::isnan(b(ix,iy,iz).v) ||
+						std::isnan(b(ix,iy,iz).w) ||
+						std::isnan(b(ix,iy,iz).rho) ||
+						std::isnan(b(ix,iy,iz).chi) ||
+						std::isnan(b(ix,iy,iz).p))
+					{
+						cout << "NaN Error - Aborting now!\n";
+						abort();
+					}
 				}
-				
-				if (std::isnan(b(ix,iy,iz).u) ||
-					std::isnan(b(ix,iy,iz).v) ||
-					std::isnan(b(ix,iy,iz).w) ||
-					std::isnan(b(ix,iy,iz).rho) ||
-					std::isnan(b(ix,iy,iz).chi) ||
-					std::isnan(b(ix,iy,iz).p))
-				{
-					cout << "NaN Error - Aborting now!\n";
-					abort();
-				}
-			}
 	}
 	
 	vBubble /= volume;
-	volume *= vInfo[0].h_gridpoint*vInfo[0].h_gridpoint*vInfo[0].h_gridpoint;
+	volume *= vInfo[0].h_gridpoint * vInfo[0].h_gridpoint * vInfo[0].h_gridpoint;
 	double vPredicted = time*gravity[1]*(rhoS-1)/(rhoS+.5);
 	double vPredictedNoAM = time*gravity[1]*(rhoS-1)/(rhoS);
 	
@@ -67,9 +65,7 @@ void Sim_Bubble::_diagnostics()
 
 void Sim_Bubble::_ic()
 {
-#ifdef _MULTIGRID_
 	if (rank==0)
-#endif // _MULTIGRID_
 	{
 		// setup initial conditions
 		Shape * shape;
@@ -87,9 +83,14 @@ void Sim_Bubble::_ic()
 		profiler.push_start(coordIC.getName());
 		coordIC(0);
 		
+#ifdef _USE_HDF_
+		CoordinatorVorticity<Lab> coordVorticity(grid);
+		coordVorticity(dt);
 		stringstream ss;
-		ss << path2file << "-IC.vti";
-		dumper.Write(*grid, ss.str());
+		ss << path2file << "-IC";
+		cout << ss.str() << endl;
+		DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 		profiler.pop_stop();
 	}
 }
@@ -122,13 +123,11 @@ void Sim_Bubble::_inputSettings(istream& inStream)
 
 Sim_Bubble::Sim_Bubble(const int argc, const char ** argv) : Simulation_MP(argc, argv)
 {
-#ifdef _MULTIGRID_
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 	
 	if (rank!=0)
 		omp_set_num_threads(1);
-#endif // _MULTIGRID_
 	
 	if (rank==0)
 	{
@@ -174,9 +173,7 @@ void Sim_Bubble::simulate()
 	
 	double vOld = 0;
 	
-#ifdef _MULTIGRID_
 	MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 	double nextDumpTime = time;
 	double maxU = 0;
 	double maxA = 0;
@@ -185,8 +182,6 @@ void Sim_Bubble::simulate()
 	{
 		if (rank==0)
 		{
-			vector<BlockInfo> vInfo = grid->getBlocksInfo();
-			
 			// choose dt (CFL, Fourier)
 			profiler.push_start("DT");
 			maxU = findMaxUOMP(vInfo,*grid);
@@ -194,11 +189,6 @@ void Sim_Bubble::simulate()
 			dtCFL     = maxU==0 ? 1e5 : CFL*vInfo[0].h_gridpoint/abs(maxU);
 			assert(!std::isnan(maxU));
 			dt = min(dtCFL,dtFourier);
-#ifdef _PARTICLES_
-			maxA = findMaxAOMP<Lab>(vInfo,*grid);
-			dtLCFL = maxA==0 ? 1e5 : LCFL/abs(maxA);
-			dt = min(dt,dtLCFL);
-#endif
 			if (dumpTime>0)
 				dt = min(dt,nextDumpTime-_nonDimensionalTime());
 			if (endTime>0)
@@ -207,17 +197,13 @@ void Sim_Bubble::simulate()
 				cout << "dt (Fourier, CFL): " << dt << " " << dtFourier << " " << dtCFL << endl;
 			profiler.pop_stop();
 		}
-#ifdef _MULTIGRID_
 		MPI_Bcast(&dt,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 		
 		if (dt!=0)
 		{
 			for (int c=0; c<pipeline.size(); c++)
 			{
-#ifdef _MULTIGRID_
 				MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 				profiler.push_start(pipeline[c]->getName());
 				if (rank == 0 || pipeline[c]->getName()=="Pressure")
 					(*pipeline[c])(dt);
@@ -253,13 +239,15 @@ void Sim_Bubble::simulate()
 			if (rank==0)
 			{
 				profiler.push_start("Dump");
+#ifdef _USE_HDF_
+				CoordinatorVorticity<Lab> coordVorticity(grid);
+				coordVorticity(dt);
 				stringstream ss;
-				ss << path2file << "-Final.vti";
+				ss << path2file << "-Final";
 				cout << ss.str() << endl;
-				
-				dumper.Write(*grid, ss.str());
+				DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 				profiler.pop_stop();
-				
 				profiler.printSummary();
 			}
 			exit(0);

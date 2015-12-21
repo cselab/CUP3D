@@ -15,15 +15,10 @@
 class TestPressure : public Test
 {
 private:
-	int bpd;
 	const int ic, solver;
 	double dt;
 	
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
-	
-	FluidGrid * grid;
-	int rank, nprocs;
 	
 	void _ic();
 	

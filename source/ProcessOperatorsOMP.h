@@ -9,130 +9,126 @@
 #ifndef CubismUP_3D_ProcessOperators_h
 #define CubismUP_3D_ProcessOperators_h
 
-#include "Definitions.h"
 #include "Shape.h"
-
-template<typename Lab>
-double findMaxAOMP(vector<BlockInfo>& myInfo, FluidGrid & grid)
-{
-	double maxA = 0;
-	
-	BlockInfo * ary = &myInfo.front();
-	const int N = myInfo.size();
-	
-	const int stencil_start[3] = {-1,-1,-1};
-	const int stencil_end[3]   = { 2, 2, 2};
-	
-#pragma omp parallel
-	{
-		Lab lab;
-		lab.prepare(grid, stencil_start, stencil_end, true);
-		
-#pragma omp for schedule(static) reduction(max:maxA)
-		for (int i=0; i<N; i++)
-		{
-			lab.load(ary[i], 0);
-			
-			BlockInfo info = myInfo[i];
-			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-			
-			const double inv2h = info.h_gridpoint;
-			
-			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-				{
-					double dudx = (lab(ix+1,iy  ,iz  ).u-lab(ix-1,iy  ,iz  ).u) * inv2h;
-					double dudy = (lab(ix  ,iy+1,iz  ).u-lab(ix  ,iy-1,iz  ).u) * inv2h;
-					double dudz = (lab(ix  ,iy  ,iz+1).u-lab(ix  ,iy  ,iz-1).u) * inv2h;
-					
-					double dvdx = (lab(ix+1,iy  ,iz  ).v-lab(ix-1,iy  ,iz  ).v) * inv2h;
-					double dvdy = (lab(ix  ,iy+1,iz  ).v-lab(ix  ,iy-1,iz  ).v) * inv2h;
-					double dvdz = (lab(ix  ,iy  ,iz+1).v-lab(ix  ,iy  ,iz-1).v) * inv2h;
-					
-					double dwdx = (lab(ix+1,iy  ,iz  ).w-lab(ix-1,iy  ,iz  ).w) * inv2h;
-					double dwdy = (lab(ix  ,iy+1,iz  ).w-lab(ix  ,iy-1,iz  ).w) * inv2h;
-					double dwdz = (lab(ix  ,iy  ,iz+1).w-lab(ix  ,iy  ,iz-1).w) * inv2h;
-					
-					maxA = max(max(max(dudx,dudy),
-							       max(dvdx,dvdy)),
-							   max(max(dudz,dvdz),
-								   max(max(dwdx,dwdy),dwdz)));
-				}
-		}
-	}
-	
-	return maxA;
-}
+#include "Definitions.h"
 
 // -gradp, divergence, advection
 template<typename Lab, typename Kernel>
-void processOMP(double dt, vector<BlockInfo>& myInfo, FluidGrid & grid)
+void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 {
-	BlockInfo * ary = &myInfo.front();
-	const int N = myInfo.size();
+	Kernel kernel(dt);
+	
+	SynchronizerMPI& Synch = grid.sync(kernel);
+	
+	vector<BlockInfo> avail0, avail1;
+	
+	const int nthreads = omp_get_max_threads();
+	
+	LabMPI * labs = new LabMPI[nthreads];
+	
+	for(int i = 0; i < nthreads; ++i)
+		labs[i].prepare(grid, Synch);
+	
+	static int rounds = -1;
+	static int one_less = 1;
+	if (rounds == -1)
+	{
+		char *s = getenv("MYROUNDS");
+		if (s != NULL)
+			rounds = atoi(s);
+		else
+			rounds = 0;
+		
+		char *s2 = getenv("USEMAXTHREADS");
+		if (s2 != NULL)
+			one_less = !atoi(s2);
+	}
+	
+	MPI::COMM_WORLD.Barrier();
+	
+	avail0 = Synch.avail_inner();
+	const int Ninner = avail0.size();
+	BlockInfo * ary0 = &avail0.front();
+	
+	int nthreads_first;
+	if (one_less)
+		nthreads_first = nthreads-1;
+	else
+		nthreads_first = nthreads;
+	
+	if (nthreads_first == 0) nthreads_first = 1;
+	
+	int Ninner_first = (nthreads_first)*rounds;
+	if (Ninner_first > Ninner) Ninner_first = Ninner;
+	int Ninner_rest = Ninner - Ninner_first;
+	
+	
+#pragma omp parallel num_threads(nthreads_first)
+	{
+		int tid = omp_get_thread_num();
+		LabMPI& lab = labs[tid];
+		
+#pragma omp for schedule(dynamic,1)
+		for(int i=0; i<Ninner_first; i++)
+		{
+			lab.load(ary0[i], 0);
+			kernel(lab, ary0[i], *(FluidBlock*)ary0[i].ptrBlock); // why is this using the local blockInfo? or is it global? is dh correct?
+		}
+	}
+	
+	avail1 = Synch.avail_halo();
+	const int Nhalo = avail1.size();
+	BlockInfo * ary1 = &avail1.front();
+	
+#pragma omp parallel num_threads(nthreads)
+	{
+		int tid = omp_get_thread_num();
+		LabMPI& lab = labs[tid];
+		
+#pragma omp for schedule(dynamic,1)
+		for(int i=-Ninner_rest; i<Nhalo; i++)
+		{
+			if (i < 0)
+			{
+				int ii = i + Ninner;
+				lab.load(ary0[ii], 0);
+				kernel(lab, ary0[ii], *(FluidBlock*)ary0[ii].ptrBlock);
+			}
+			else
+			{
+				lab.load(ary1[i], 0);
+				kernel(lab, ary1[i], *(FluidBlock*)ary1[i].ptrBlock);
+			}
+		}
+	}
+	
+	if(labs!=NULL)
+	{
+		delete[] labs;
+		labs=NULL;
+	}
+	
+	MPI::COMM_WORLD.Barrier();
+}
+
+template<typename Lab, typename Kernel>
+void processOMPold(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
+{
+	BlockInfo * ary = &vInfo.front();
+	const int N = vInfo.size();
 	
 #pragma omp parallel
 	{
 		Kernel kernel(dt);
 		
-		Lab mylab;
-		mylab.prepare(grid, kernel.stencil_start, kernel.stencil_end, true);
+		Lab lab;
+		lab.prepare(grid, kernel.stencil_start, kernel.stencil_end, true);
 		
 #pragma omp for schedule(static)
 		for (int i=0; i<N; i++)
 		{
-			mylab.load(ary[i], 0);
-			
-			kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
-		}
-	}
-}
-
-// divergence with layer - still useful for diagnostics
-template<typename Lab, typename Kernel>
-void processOMP(Layer& outputField, vector<BlockInfo>& myInfo, FluidGrid & grid)
-{
-	BlockInfo * ary = &myInfo.front();
-	const int N = myInfo.size();
-	
-#pragma omp parallel
-	{
-		Kernel kernel(outputField);
-		
-		Lab mylab;
-		mylab.prepare(grid, kernel.stencil_start, kernel.stencil_end, true);
-		
-#pragma omp for schedule(static)
-		for (int i=0; i<N; i++)
-		{
-			mylab.load(ary[i], 0, false);
-			
-			kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
-		}
-	}
-}
-
-// divergence split with layer - still useful for diagnostics
-template<typename Lab, typename Kernel>
-void processOMP(Layer& outputField, const Real rho0, const Real dt, const int step, vector<BlockInfo>& myInfo, FluidGrid & grid)
-{
-	BlockInfo * ary = &myInfo.front();
-	const int N = myInfo.size();
-	
-#pragma omp parallel
-	{
-		Kernel kernel(outputField, rho0, dt, step);
-		
-		Lab mylab;
-		mylab.prepare(grid, kernel.stencil_start, kernel.stencil_end, true);
-		
-#pragma omp for schedule(static)
-		for (int i=0; i<N; i++)
-		{
-			mylab.load(ary[i], 0, false);
-			
-			kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
+			lab.load(ary[i], 0);
+			kernel(lab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
 		}
 	}
 }

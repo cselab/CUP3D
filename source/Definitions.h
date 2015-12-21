@@ -22,14 +22,8 @@ struct FluidElement
     Real rho, u, v, w, chi, p, pOld;
 	Real tmpU, tmpV, tmpW, tmp;
 	Real divU;
-#ifndef _PARTICLES_
-	Real x, y, z;
-#endif
 	
     FluidElement() : rho(0), u(0), v(0), w(0), chi(0), p(0), pOld(0), divU(0), tmpU(0), tmpV(0), tmpW(0), tmp(0)
-#ifndef _PARTICLES_
-	, x(0), y(0), z(0)
-#endif
 	{}
     
     void clear()
@@ -37,9 +31,6 @@ struct FluidElement
         rho = u = v = w = chi = p = pOld = 0;
 		tmpU = tmpV = tmpW = tmp = 0;
 		divU = 0;
-#ifndef _PARTICLES_
-		x = y = z = 0;
-#endif
     }
 };
 
@@ -150,9 +141,12 @@ struct FluidBlock
     static const int sizeX = _BS_;
     static const int sizeY = _BS_;
     static const int sizeZ = _BS_;
-    typedef FluidElement ElementType;
-    FluidElement data[sizeZ][sizeY][sizeX];
-    
+	
+	typedef FluidElement ElementType;
+	typedef FluidElement element_type;
+	
+	FluidElement data[sizeZ][sizeY][sizeX];
+	
     //required from Grid.h
     void clear()
     {
@@ -442,7 +436,7 @@ struct StreamerHDF5
 		output[4] = input.chi;
 		output[5] = input.p;
 		output[6] = input.tmp;
-		output[7] = 0;
+		output[7] = input.divU;
 		output[8] = 0;
 	}
 	
@@ -569,6 +563,8 @@ public:
 typedef Grid<FluidBlock, std::allocator> FluidGrid;
 typedef Grid<ScalarBlock, std::allocator> ScalarGrid;
 
+typedef GridMPI<FluidGrid> FluidGridMPI;
+
 #ifdef _MIXED_
 typedef BlockLabBottomWall<FluidBlock, std::allocator> Lab;
 #endif // _MIXED_
@@ -585,7 +581,6 @@ typedef BlockLabVortex<FluidBlock, std::allocator> Lab;
 typedef BlockLabPipe<FluidBlock, std::allocator> Lab;
 #endif // _PIPE_
 
-
-
+typedef BlockLabMPI<Lab> LabMPI;
 
 #endif

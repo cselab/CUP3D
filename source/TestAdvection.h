@@ -16,14 +16,10 @@ class TestAdvection : public Test
 {
 private:
 	double time, dt;
-	int bpd;
 	int testCase; // 0: linear, 1: rigid rotation
 	int nsteps;
 	
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
-	
-	FluidGrid * grid;
 	
 	void _icLinear();
 	void _icVortex();

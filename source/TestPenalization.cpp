@@ -24,10 +24,8 @@ void TestPenalization::_ic()
 	coordIC(0);
 }
 
-TestPenalization::TestPenalization(const int argc, const char ** argv, const int bpd, const double dt) : Test(argc, argv), bpd(bpd), lambda(1e6), uBody{0,0.5,0.1}, dt(dt)
-{
-	grid = new FluidGrid(bpd,bpd,bpd);
-	
+TestPenalization::TestPenalization(const int argc, const char ** argv, const int bpd, const double dt) : Test(argc, argv, bpd), lambda(1e6), uBody{0,0.5,0.1}, dt(dt)
+{	
 	// setup initial condition
 	
 	// output settings
@@ -37,25 +35,26 @@ TestPenalization::TestPenalization(const int argc, const char ** argv, const int
 
 TestPenalization::~TestPenalization()
 {
-	delete grid;
 	delete shape;
 }
 
 void TestPenalization::run()
 {
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
-	
 	Real omegaBody = 0;
 	CoordinatorPenalization coordPenalization(&uBody[0], &uBody[1], &uBody[2], shape, &lambda, grid);
 	
 	for (int i=0; i<10; i++)
 	{
 		coordPenalization(dt);
-	
+		
+#ifdef _USE_HDF_
+		CoordinatorVorticity<Lab> coordVorticity(grid);
+		coordVorticity(dt);
 		stringstream ss;
-		ss << path2file << "-bpd" << bpd << "-step" << i << ".vti";
-	
-		dumper.Write(*grid, ss.str());
+		ss << path2file << "-bpd" << bpd << "-step" << i;
+		cout << ss.str() << endl;
+		DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, i, ss.str());
+#endif
 	}
 }
 

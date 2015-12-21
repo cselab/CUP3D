@@ -13,21 +13,20 @@
 
 #ifdef _USE_HDF_
 #include <hdf5.h>
-#endif // _USE_HDF_
+#endif
 
-#ifdef _SP_COMP_
+#ifdef _FLOAT_PRECISION_
 #define HDF_REAL H5T_NATIVE_FLOAT
-#else // _SP_COMP_
+#else
 #define HDF_REAL H5T_NATIVE_DOUBLE
-#endif // _SP_COMP_
+#endif
 
 using namespace std;
 
 #include "BlockInfo.h"
 
-#if 0
 template<typename TGrid, typename Streamer>
-void DumpHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
+void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const string dump_path=".")
 {
 #ifdef _USE_HDF_
 	typedef typename TGrid::BlockType B;
@@ -47,14 +46,17 @@ void DumpHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	const unsigned int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
 	
-	if (rank==0) 
-	  {
-	    cout << "Writing HDF5 file\n";
-	    cout << "Allocating " << (NX * NY * NZ * NCHANNELS)/(1024.*1024.*1024.) << "GB of HDF5 data\n";
-	  }
+	/*
+	if (rank==0)
+	{
+		cout << "Writing HDF5 file\n";
+		cout << "Allocating " << (NX * NY * NZ * NCHANNELS)/(1024.*1024.*1024.) << "GB of HDF5 data\n";
+	}
+	 */
+	
 	Real * array_all = new Real[NX * NY * NZ * NCHANNELS];
 	
-	vector<BlockInfo> vInfo_local = grid.getResidentBlocksInfo();
+	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 	
 	static const unsigned int sX = 0;
 	static const unsigned int sY = 0;
@@ -88,10 +90,10 @@ void DumpHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	status = H5Pclose(fapl_id);
 	
 #pragma omp parallel for
-	for(unsigned int i=0; i<vInfo_local.size(); i++)
+	for(unsigned int i=0; i<vInfo.size(); i++)
 	{
-		BlockInfo& info = vInfo_local[i];
-		const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
+		BlockInfo& info = vInfo[i];
+		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
 		
@@ -102,10 +104,11 @@ void DumpHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 			{
 				const unsigned int gy = idx[1]*B::sizeY + iy;
 				for(unsigned int iz=sZ; iz<eZ; iz++)
-				{   
+				{
 					const unsigned int gz = idx[2]*B::sizeZ + iz;
 					
 					assert(NCHANNELS*(gz + NZ * (gy + NY * gx)) < NX * NY * NZ * NCHANNELS);
+					
 					Real * const ptr = array_all + NCHANNELS*(gz + NZ * (gy + NY * gx));
 					
 					Real output[NCHANNELS];
@@ -125,10 +128,15 @@ void DumpHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
 	
 	fspace_id = H5Screate_simple(4, dims, NULL);
+#ifndef _ON_FERMI_
 	dataset_id = H5Dcreate(file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+#else
+	dataset_id = H5Dcreate2(file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+#endif
+	
 	fspace_id = H5Dget_space(dataset_id);
 	H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
-	mspace_id = H5Screate_simple(4, count, NULL); 
+	mspace_id = H5Screate_simple(4, count, NULL);
 	status = H5Dwrite(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
 	
 	status = H5Sclose(mspace_id);
@@ -151,14 +159,14 @@ void DumpHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 		fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
 		fprintf(xmf, " <Domain>\n");
 		fprintf(xmf, "   <Grid GridType=\"Uniform\">\n");
-		fprintf(xmf, "     <Time Value=\"%05d\"/>\n", 0);
+		fprintf(xmf, "     <Time Value=\"%05d\"/>\n", iCounter);
 		fprintf(xmf, "     <Topology TopologyType=\"3DCORECTMesh\" Dimensions=\"%d %d %d\"/>\n", (int)dims[0], (int)dims[1], (int)dims[2]);
 		fprintf(xmf, "     <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n");
 		fprintf(xmf, "       <DataItem Name=\"Origin\" Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
 		fprintf(xmf, "        %e %e %e\n", 0.,0.,0.);
 		fprintf(xmf, "       </DataItem>\n");
 		fprintf(xmf, "       <DataItem Name=\"Spacing\" Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
-		fprintf(xmf, "        %e %e %e\n", 1./(Real)max(dims[0],max(dims[1],dims[2])),1./(Real)max(dims[0],max(dims[1],dims[2])),1./(Real)max(dims[0],max(dims[1],dims[2])));
+		fprintf(xmf, "        %e %e %e\n", grid.getH(), grid.getH(), grid.getH());
 		fprintf(xmf, "       </DataItem>\n");
 		fprintf(xmf, "     </Geometry>\n");
 		
@@ -173,11 +181,10 @@ void DumpHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 		fprintf(xmf, "</Xdmf>\n");
 		fclose(xmf);
 	}
-#else // _USE_HDF_
+#else
 #warning USE OF HDF WAS DISABLED AT COMPILE TIME
-#endif // _USE_HDF_
+#endif
 }
-
 
 template<typename TGrid, typename Streamer>
 void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
@@ -202,7 +209,7 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	
 	Real * array_all = new Real[NX * NY * NZ * NCHANNELS];
 	
-	vector<BlockInfo> vInfo_local = grid.getResidentBlocksInfo();
+	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 	
 	static const int sX = 0;
 	static const int sY = 0;
@@ -242,33 +249,32 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	fspace_id = H5Dget_space(dataset_id);
 	H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
 	
-	mspace_id = H5Screate_simple(4, count, NULL);        
+	mspace_id = H5Screate_simple(4, count, NULL);
 	status = H5Dread(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
 	
-	#pragma omp parallel for
-	for(int i=0; i<vInfo_local.size(); i++)
+#pragma omp parallel for
+	for(int i=0; i<vInfo.size(); i++)
 	{
-		BlockInfo& info = vInfo_local[i];
-		const int idx[3] = {info.index[0], info.index[1], info.index[2]};
+		BlockInfo& info = vInfo[i];
+		const int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
 		
-                for(int ix=sX; ix<eX; ix++)
-		  for(int iy=sY; iy<eY; iy++)
-		    for(int iz=sZ; iz<eZ; iz++)
-		      {
+		for(int ix=sX; ix<eX; ix++)
+			for(int iy=sY; iy<eY; iy++)
+				for(int iz=sZ; iz<eZ; iz++)
+				{
 					const int gx = idx[0]*B::sizeX + ix;
 					const int gy = idx[1]*B::sizeY + iy;
 					const int gz = idx[2]*B::sizeZ + iz;
 					
 					Real * const ptr_input = array_all + NCHANNELS*(gz + NZ * (gy + NY * gx));
-					
 					streamer.operate(ptr_input, ix, iy, iz);
 				}
 	}
 	
 	status = H5Pclose(fapl_id);
-	status = H5Dclose(dataset_id);       
+	status = H5Dclose(dataset_id);
 	status = H5Sclose(fspace_id);
 	status = H5Sclose(mspace_id);
 	status = H5Fclose(file_id);
@@ -276,8 +282,7 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	H5close();
 	
 	delete [] array_all;
-#else // _USE_HDF_
+#else
 #warning USE OF HDF WAS DISABLED AT COMPILE TIME
-#endif // _USE_HDF_
-}
 #endif
+}

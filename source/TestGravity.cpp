@@ -14,7 +14,6 @@
 
 void TestGravity::_ic()
 {
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	const double dh = vInfo[0].h_gridpoint;
 	
 #pragma omp parallel for
@@ -24,47 +23,46 @@ void TestGravity::_ic()
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-		for(int iy=0; iy<FluidBlock::sizeY; iy++)
-			for(int ix=0; ix<FluidBlock::sizeX; ix++)
-			{
-				double p[3];
-				info.pos(p, ix, iy, iz);
-				
-				b(ix, iy, iz).rho = 0;
-				b(ix, iy, iz).u   = 0;
-				b(ix, iy, iz).v   = p[0];
-				b(ix, iy, iz).p   = 0;
-				b(ix, iy, iz).chi = 0;
-				b(ix, iy, iz).tmpU = 0;
-				b(ix, iy, iz).tmpV = 0;
-			}
+			for(int iy=0; iy<FluidBlock::sizeY; iy++)
+				for(int ix=0; ix<FluidBlock::sizeX; ix++)
+				{
+					double p[3];
+					info.pos(p, ix, iy, iz);
+					
+					b(ix, iy, iz).rho = 0;
+					b(ix, iy, iz).u   = 0;
+					b(ix, iy, iz).v   = p[0];
+					b(ix, iy, iz).p   = 0;
+					b(ix, iy, iz).chi = 0;
+					b(ix, iy, iz).tmpU = 0;
+					b(ix, iy, iz).tmpV = 0;
+				}
 	}
 	
 	
+#ifdef _USE_HDF_
+	CoordinatorVorticity<Lab> coordVorticity(grid);
+	coordVorticity(dt);
 	stringstream ss;
-	ss << path2file << "-IC.vti";
-	
-	dumper.Write(*grid, ss.str());
+	ss << path2file << "-IC";
+	cout << ss.str() << endl;
+	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, 0, ss.str());
+#endif
 }
 
-TestGravity::TestGravity(const int argc, const char ** argv, const int bpd, const double dt) : Test(argc, argv), time(0), gravity{0,-9.81,0}, bpd(bpd), dt(dt)
+TestGravity::TestGravity(const int argc, const char ** argv, const int bpd, const double dt) : Test(argc, argv, bpd), time(0), gravity{0,-9.81,0}, dt(dt)
 {
-	grid = new FluidGrid(bpd,bpd,bpd);
-	
 	path2file = parser("-file").asString("../data/testGravity");
 	_ic();
 }
 
 TestGravity::~TestGravity()
 {
-	delete grid;
 }
 
 void TestGravity::run()
 {
 	time = 0;
-	
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	
 	const double dt = 1e-4;
 	
@@ -79,10 +77,15 @@ void TestGravity::run()
 		time += dt;
 	}
 	
-	stringstream ss;
-	ss << path2file << "-bpd" << bpd << ".vti";
 	
-	dumper.Write(*grid, ss.str());
+#ifdef _USE_HDF_
+	CoordinatorVorticity<Lab> coordVorticity(grid);
+	coordVorticity(dt);
+	stringstream ss;
+	ss << path2file << "-Final_" << bpd;
+	cout << ss.str() << endl;
+	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, 1, ss.str());
+#endif
 }
 
 void TestGravity::check()
@@ -99,7 +102,6 @@ void TestGravity::check()
 	ss << path2file << "_diagnostics.dat";
 	ofstream myfile(ss.str(), fstream::app);
 	
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	const double dh = vInfo[0].h_gridpoint;
 	
 #pragma omp parallel for reduction(max:uLinf) reduction(+:uL1) reduction(+:uL2) reduction(max:vLinf) reduction(+:vL1) reduction(+:vL2)
@@ -109,23 +111,23 @@ void TestGravity::check()
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-		for(int iy=0; iy<FluidBlock::sizeY; iy++)
-			for(int ix=0; ix<FluidBlock::sizeX; ix++)
-			{
-				double p[3];
-				info.pos(p, ix, iy, iz);
-				
-				double uError = b(ix, iy, iz).u - gravity[0]*time;
-				double vError = b(ix, iy, iz).v - gravity[1]*time - p[0];
-				
-				uLinf = max(uLinf,abs(uError));
-				uL1 += abs(uError);
-				uL2 += uError*uError;
-				
-				vLinf = max(vLinf,abs(vError));
-				vL1 += abs(vError);
-				vL2 += vError*vError;
-			}
+			for(int iy=0; iy<FluidBlock::sizeY; iy++)
+				for(int ix=0; ix<FluidBlock::sizeX; ix++)
+				{
+					double p[3];
+					info.pos(p, ix, iy, iz);
+					
+					double uError = b(ix, iy, iz).u - gravity[0]*time;
+					double vError = b(ix, iy, iz).v - gravity[1]*time - p[0];
+					
+					uLinf = max(uLinf,abs(uError));
+					uL1 += abs(uError);
+					uL2 += uError*uError;
+					
+					vLinf = max(vLinf,abs(vError));
+					vL1 += abs(vError);
+					vL2 += vError*vError;
+				}
 	}
 	
 	uL1 *= dh*dh*dh;

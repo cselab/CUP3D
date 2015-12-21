@@ -28,19 +28,22 @@ protected:
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-			{
-				b(ix,iy,iz).tmpU = 0;
-				b(ix,iy,iz).tmpV = 0;
-				b(ix,iy,iz).tmpW = 0;
-				b(ix,iy,iz).tmp = 0;
-			}
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
+						b(ix,iy,iz).tmpU = 0;
+						b(ix,iy,iz).tmpV = 0;
+						b(ix,iy,iz).tmpW = 0;
+						b(ix,iy,iz).tmp = 0;
+					}
 		}
 	};
 	
 	inline void vorticity()
 	{
+		OperatorVorticity kernel;
+		compute(kernel);
+		/*
 		BlockInfo * ary = &vInfo.front();
 		const int N = vInfo.size();
 		
@@ -48,16 +51,17 @@ protected:
 		{
 			OperatorVorticity kernel;
 			
-			Lab mylab;
-			mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
+			Lab lab;
+			lab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
 			
 #pragma omp for schedule(static)
 			for (int i=0; i<N; i++)
 			{
-				mylab.load(ary[i], 0);
-				kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
+				lab.load(ary[i], 0);
+				kernel(lab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
 			}
 		}
+		 */
 	}
 	
 public:

@@ -34,25 +34,8 @@ public:
 	}
 };
 
-
-class CubicBspline
-{
-public:
-    static inline double eval(double x)
-    {
-        const double t = fabs(x);
-        
-        if (t>2) return 0;
-        
-        if (t>1) return pow(2-t,3)/6;
-        
-        return (1 + 3*(1-t)*(1 + (1-t)*(1 - (1-t))))/6;
-    }
-};
-
 void TestPressure::_ic()
 {
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	const double dh = vInfo[0].h_gridpoint;
 	
 #pragma omp parallel for
@@ -62,7 +45,7 @@ void TestPressure::_ic()
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-		for(int iy=0; iy<FluidBlock::sizeY; iy++)
+			for(int iy=0; iy<FluidBlock::sizeY; iy++)
 				for(int ix=0; ix<FluidBlock::sizeX; ix++)
 				{
 					double p[3];
@@ -98,11 +81,6 @@ void TestPressure::_ic()
 						// this is a test for:
 						//	0-dirichlet on x=0
 						//	0-neumann on x=1
-                        /*
-                        info.pos(p, ix, iy);
-                        b(ix,iy).divU = 4*CubicBspline::eval(8*(p[1]-0.5));
-                        b(ix,iy).rho = b(ix,iy).divU;
-                        //*/
 						const int size = 1/dh;
 						const int bx = info.index[0]*FluidBlock::sizeX;
 						const int by = info.index[1]*FluidBlock::sizeY;
@@ -113,89 +91,64 @@ void TestPressure::_ic()
 						double x = 4*p[0]*M_PI;
 						double y = 3*p[1]*M_PI_2;
 						double z = 4*p[2]*M_PI;
-                        //b(ix,iy).divU = 81*M_PI_2*M_PI_2 * cos(y);
-                        //b(ix,iy).divU = -64*M_PI_2*M_PI_2 * cos(x);
-                        //b(ix,iy).divU = -9*M_PI_2*M_PI_2 * cos(y) + -64*M_PI_2*M_PI_2 * sin(x);
-                        b(ix,iy,iz).divU = -(64+64+9)*M_PI_2*M_PI_2 * cos(y) * sin(x) * sin(z);
-                        b(ix,iy,iz).rho = b(ix,iy,iz).divU;
-                        //b(ix,iy).u = -cos(y);
-                        //b(ix,iy).u = cos(x);
-                        //b(ix,iy).u = cos(y)+sin(x);
-                        b(ix,iy,iz).u = cos(y)*sin(x)*sin(z);
+						//b(ix,iy).divU = 81*M_PI_2*M_PI_2 * cos(y);
+						//b(ix,iy).divU = -64*M_PI_2*M_PI_2 * cos(x);
+						//b(ix,iy).divU = -9*M_PI_2*M_PI_2 * cos(y) + -64*M_PI_2*M_PI_2 * sin(x);
+						b(ix,iy,iz).divU = -(64+64+9)*M_PI_2*M_PI_2 * cos(y) * sin(x) * sin(z);
+						b(ix,iy,iz).rho = b(ix,iy,iz).divU;
+						//b(ix,iy).u = -cos(y);
+						//b(ix,iy).u = cos(x);
+						//b(ix,iy).u = cos(y)+sin(x);
+						b(ix,iy,iz).u = cos(y)*sin(x)*sin(z);
 					}
 				}
 	}
 	
+#ifdef _USE_HDF_
 	stringstream ss;
-	ss << path2file << "-ic" << ic << "-bpd" << bpd << "-IC.vti";
-	
-	dumper.Write(*grid, ss.str());
+	ss << path2file << "-IC";
+	cout << ss.str() << endl;
+	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, 0, ss.str());
+#endif
 }
 
-TestPressure::TestPressure(const int argc, const char ** argv, const int solver, const int ic, const int bpd, const double dt) : Test(argc, argv), solver(solver), ic(ic), bpd(bpd), dt(dt)
+TestPressure::TestPressure(const int argc, const char ** argv, const int solver, const int ic, const int bpd, const double dt) : Test(argc, argv, bpd), solver(solver), ic(ic), dt(dt)
 {
-#ifdef _MULTIGRID_
-	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
-#endif // _MULTIGRID_
-	
-	grid = new FluidGrid(bpd,bpd,bpd);
-	
 	// output settings
 	path2file = parser("-file").asString("../data/testPressure");
 	
-	// setup initial condition
-#ifdef _MULTIGRID_
-	if (rank==0)
-#endif // _MULTIGRID_
-		_ic();
+	// setup initial condition	
+	_ic();
 }
 
 TestPressure::~TestPressure()
 {
-	delete grid;
 }
 
 void TestPressure::run()
 {
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	const int size = bpd * FluidBlock::sizeX;
 	
 	if (ic==1 && rank==0)
-		processOMP<Lab, OperatorDivergence>(dt, vInfo, *grid);
+		processOMP<LabMPI, OperatorDivergence>(dt, vInfo, *grid);
 	
 	if (solver==0)
 	{
-        if (ic!=2)
-        {
-			PoissonSolverScalarFFTW<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
-			pressureSolver.solve(*grid,false);
-			//PoissonSolverScalarFFTW_MPI<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
-			//pressureSolver.solve(*grid);
-			cout << "Pressure done\n";
-        }
-        else
+		if (ic!=2)
 		{
-			PoissonSolverScalarFFTW_DCT<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
-			pressureSolver.solve(*grid,false);
-			//PoissonSolverScalarFFTW_MPI_DCT<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
-            //pressureSolver.solve(*grid);
-        }
+			PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> pressureSolver(NTHREADS,*grid);
+			pressureSolver.solve(*grid);
+		}
+		else
+		{
+			PoissonSolverScalarFFTW_MPI_DCT<FluidGridMPI, StreamerDiv> pressureSolver(NTHREADS,*grid);
+			pressureSolver.solve(*grid);
+		}
 	}
 	else if (solver==1)
 	{
-        if (ic!=2)
-        {
-            PoissonSolverScalarFFTW<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
-            pressureSolver.solve(*grid,true);
-        }
-        else
-        {
-            cout << "DCT spectral not supported - aborting now!\n";
-            abort();
-            PoissonSolverScalarFFTW_DCT<FluidGrid, StreamerDiv> pressureSolver(NTHREADS,*grid);
-            pressureSolver.solve(*grid,true);
-        }
+		cout << "spectral not supported - aborting now!\n";
+		abort();
 	}
 #ifdef _MULTIGRID_
 	else if (solver==2)
@@ -217,104 +170,58 @@ void TestPressure::run()
 #endif // _MULTIGRID_
 	
 	if (ic==1 && rank==0)
-		processOMP<Lab, OperatorGradP>(dt, vInfo, *grid);
+		processOMP<LabMPI, OperatorGradP>(dt, vInfo, *grid);
 	
-    
-    if (ic==2)
-	{
-        BlockInfo * ary = &vInfo.front();
-        const int N = vInfo.size();
-        
-#pragma omp parallel
-        {
-            OperatorLaplace kernel(dt);
-            
-            Lab mylab;
-            mylab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
-            
-#pragma omp for schedule(static)
-            for (int i=0; i<N; i++)
-            {
-                mylab.load(ary[i], 0);
-                kernel(mylab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
-            }
-		}
-    }
-	
-	if (rank==0)
-	{
-		stringstream ss;
-		ss << path2file << "-solver" << solver << "-ic" << ic << "-bpd" << bpd << ".vti";
-	
-		dumper.Write(*grid, ss.str());
-	}
+#ifdef _USE_HDF_
+	stringstream ss;
+	ss << path2file << "-Final";
+	cout << ss.str() << endl;
+	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, 1, ss.str());
+#endif
 }
 
 void TestPressure::check()
 {
-#ifdef _MULTIGRID_
-	if (rank==0)
-#endif // _MULTIGRID_
+	const int size = bpd * FluidBlock::sizeX;
+	
+	//cout << "\tErrors (Linf, L1, L2):\t";
+	double localLinf = 0.;
+	double localL1 = 0.;
+	double localL2 = 0.;
+	double Linf = 0;
+	double L1 = 0;
+	double L2 = 0;
+	
+	const double dh = vInfo[0].h_gridpoint;
+	
+#pragma omp parallel for reduction(max:localLinf) reduction(+:localL1) reduction(+:localL2)
+	for(int i=0; i<(int)vInfo.size(); i++)
 	{
-		vector<BlockInfo> vInfo = grid->getBlocksInfo();
-		const int size = bpd * FluidBlock::sizeX;
+		BlockInfo info = vInfo[i];
+		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
-        Layer divergence(size,size,size,1);
-        if (ic!=0 && ic!=2)
-            processOMP<Lab, OperatorDivergenceLayer>(divergence,vInfo,*grid);
-        
-		//cout << "\tErrors (Linf, L1, L2):\t";
-		double Linf = 0.;
-		double L1 = 0.;
-		double L2 = 0.;
-		
-		stringstream ss;
-		ss << path2file << "_diagnostics.dat";
-		ofstream myfile(ss.str(), fstream::app);
-		
-		const double dh = vInfo[0].h_gridpoint;
-		
-#pragma omp parallel for reduction(max:Linf) reduction(+:L1) reduction(+:L2)
-		for(int i=0; i<(int)vInfo.size(); i++)
-		{
-			BlockInfo info = vInfo[i];
-			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-			
-			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 			for(int iy=0; iy<FluidBlock::sizeY; iy++)
 				for(int ix=0; ix<FluidBlock::sizeX; ix++)
 				{
-                    double error=0;
-					if (ic==0)
-						error = b(ix,iy,iz).divU - b(ix,iy,iz).rho;
-                    else if (ic==2)
-                    {
-                        error = b(ix,iy,iz).divU - b(ix,iy,iz).u;
-                        //error = b(ix,iy).v - b(ix,iy).rho;
-                        /*
-                        // exclude y-boundaries
-                        if (info.index[1]==0 && iy<2)
-                            error = 0;
-                        
-                        if (info.index[1]==grid->getBlocksPerDimension(1)-1 && iy>FluidBlock::sizeY-3)
-                            error = 0;
-                        
-                        //if (error>0.01)
-                        //    cout << ix << " " << iy << " " << error << endl;
-                        
-                        //if (abs(error) > .2)
-                        //    cout << info.index[0]*FluidBlock::sizeX+ix << " " << info.index[1]*FluidBlock::sizeY+iy << " " << b(ix,iy).v << " " << b(ix,iy).rho << endl;
-                         //*/
-                    }
-                    else
-						error = divergence(ix,iy,iz);
+					double error=0;
+					error = b(ix,iy,iz).divU - b(ix,iy,iz).u;
 					
-					Linf = max(Linf,abs(error));
-					L1 += abs(error);
-					L2 += error*error;
+					localLinf = max(localLinf,abs(error));
+					localL1 += abs(error);
+					localL2 += error*error;
 				}
-		}
-		
+	}
+	
+	MPI::COMM_WORLD.Allreduce(&localLinf, &Linf, 1, MPI::DOUBLE, MPI::MAX);
+	MPI::COMM_WORLD.Allreduce(&localL1, &L1, 1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&localL2, &L2, 1, MPI::DOUBLE, MPI::SUM);
+	
+	if (rank==0)
+	{
+		stringstream ss;
+		ss << path2file << "_diagnostics.dat";
+		ofstream myfile(ss.str(), fstream::app);
 		L1 *= dh*dh*dh;
 		L2 = sqrt(L2*dh*dh*dh);
 		cout << "\t" << Linf << "\t" << L1 << "\t" << L2 << endl;

@@ -39,7 +39,6 @@ void TestShearLayer::_getRefs(const int ix, const int iy, const int iz, const in
 void TestShearLayer::_ic()
 {
 	// setup initial conditions
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
 	const int N = vInfo.size();
 	
 #ifndef _THIN_
@@ -56,39 +55,44 @@ void TestShearLayer::_ic()
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-			{
-				Real p[3];
-				info.pos(p, ix, iy, iz);
-				
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+				{
+					Real p[3];
+					info.pos(p, ix, iy, iz);
+					
 #ifndef _VARDENSITY_
-				b(ix,iy,iz).rho = 1;
+					b(ix,iy,iz).rho = 1;
 #else
-				const double rhoS = 7.2314;
-				const double rescale = (rhoS-1)*.5;
-				b(ix,iy,iz).rho = p[1]<.5 ? 1 + rescale * (1 + tanh(r * (p[1]-.25))) : 1 + rescale * (1 + tanh(r * (.75 - p[1])));
+					const double rhoS = 7.2314;
+					const double rescale = (rhoS-1)*.5;
+					b(ix,iy,iz).rho = p[1]<.5 ? 1 + rescale * (1 + tanh(r * (p[1]-.25))) : 1 + rescale * (1 + tanh(r * (.75 - p[1])));
 #endif
-				
-				b(ix,iy,iz).u = p[1]<.5 ? tanh(r * (p[1]-.25)) : tanh(r * (.75 - p[1]));
-				b(ix,iy,iz).v = delta * sin(2*M_PI*(p[0]+.25));
-				b(ix,iy,iz).w = 0;
-				b(ix,iy,iz).p = 0;
-				
-				b(ix,iy,iz).chi = 0;
-				b(ix,iy,iz).divU = 0;
-				b(ix,iy,iz).pOld = 0;
-				
-				b(ix,iy,iz).tmpU = 0;
-				b(ix,iy,iz).tmpV = 0;
-				b(ix,iy,iz).tmpW = 0;
-				b(ix,iy,iz).tmp  = 0;
-			}
+					
+					b(ix,iy,iz).u = p[1]<.5 ? tanh(r * (p[1]-.25)) : tanh(r * (.75 - p[1]));
+					b(ix,iy,iz).v = delta * sin(2*M_PI*(p[0]+.25));
+					b(ix,iy,iz).w = 0;
+					b(ix,iy,iz).p = 0;
+					
+					b(ix,iy,iz).chi = 0;
+					b(ix,iy,iz).divU = 0;
+					b(ix,iy,iz).pOld = 0;
+					
+					b(ix,iy,iz).tmpU = 0;
+					b(ix,iy,iz).tmpV = 0;
+					b(ix,iy,iz).tmpW = 0;
+					b(ix,iy,iz).tmp  = 0;
+				}
 	}
 	
+#ifdef _USE_HDF_
+	CoordinatorVorticity<Lab> coordVorticity(grid);
+	coordVorticity(0);
 	stringstream ss;
-	ss << path2file << "-IC.vti";
-	dumper.Write(*grid, ss.str());
+	ss << path2file << "-IC";
+	cout << ss.str() << endl;
+	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 	
 #ifndef _THIN_
 	// setup initial conditions for Ref
@@ -102,43 +106,43 @@ void TestShearLayer::_ic()
 		FluidBlock& b = *(FluidBlock*)infoRef.ptrBlock;
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-			{
-				Real p[3];
-				infoRef.pos(p, ix, iy, iz);
-				
-				
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+				{
+					Real p[3];
+					infoRef.pos(p, ix, iy, iz);
+					
+					
 #ifndef _VARDENSITY_
-				b(ix,iy,iz).rho = 1;
+					b(ix,iy,iz).rho = 1;
 #else
-				const double rescale = (rhoS-1)*.5;
-				b(ix,iy,iz).rho = p[1]<.5 ? 1 + rescale * (1 + tanh(r * (p[1]-.25))) : 1 + rescale * (1 + tanh(r * (.75 - p[1])));
+					const double rescale = (rhoS-1)*.5;
+					b(ix,iy,iz).rho = p[1]<.5 ? 1 + rescale * (1 + tanh(r * (p[1]-.25))) : 1 + rescale * (1 + tanh(r * (.75 - p[1])));
 #endif
-				
-				b(ix,iy,iz).u = p[1]<.5 ? tanh(r * (p[1]-.25)) : tanh(r * (.75 - p[1]));
-				b(ix,iy,iz).v = delta * sin(2*M_PI*(p[0]+.25));
-				b(ix,iy,iz).w = 0;
-				b(ix,iy,iz).p = 0;
-				
-				b(ix,iy,iz).chi = 0;
-				b(ix,iy,iz).divU = 0;
-				b(ix,iy,iz).pOld = 0;
-				
-				b(ix,iy,iz).tmpU = 0;
-				b(ix,iy,iz).tmpV = 0;
-				b(ix,iy,iz).tmpW = 0;
-				b(ix,iy,iz).tmp  = 0;
-			}
+					
+					b(ix,iy,iz).u = p[1]<.5 ? tanh(r * (p[1]-.25)) : tanh(r * (.75 - p[1]));
+					b(ix,iy,iz).v = delta * sin(2*M_PI*(p[0]+.25));
+					b(ix,iy,iz).w = 0;
+					b(ix,iy,iz).p = 0;
+					
+					b(ix,iy,iz).chi = 0;
+					b(ix,iy,iz).divU = 0;
+					b(ix,iy,iz).pOld = 0;
+					
+					b(ix,iy,iz).tmpU = 0;
+					b(ix,iy,iz).tmpV = 0;
+					b(ix,iy,iz).tmpW = 0;
+					b(ix,iy,iz).tmp  = 0;
+				}
 	}
 	
-	stringstream ssRef;
-	ssRef << path2file << "-ICRef.vti";
-	dumper.Write(*gridRef, ssRef.str());
+	//stringstream ssRef;
+	//ssRef << path2file << "-ICRef.vti";
+	//dumper.Write(*gridRef, ssRef.str());
 #endif
 }
 
-TestShearLayer::TestShearLayer(const int argc, const char ** argv, const int bpd) : Test(argc, argv), dtCFL(0), dtFourier(0), time(0), bpd(bpd), bpdRef(32), step(0), rhoS(7.2314),
+TestShearLayer::TestShearLayer(const int argc, const char ** argv, const int bpd) : Test(argc, argv, bpd), dtCFL(0), dtFourier(0), time(0), bpdRef(32), step(0), rhoS(7.2314),
 #ifndef _THIN_
 nu(0.002),
 #else
@@ -146,18 +150,15 @@ nu(0.0001),
 #endif
 endTime(1.5)
 {
-#ifdef _MULTIGRID_
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 	
 	if (rank!=0)
 		omp_set_num_threads(1);
-#endif // _MULTIGRID_
 	
 	// output settings
 	path2file = parser("-file").asString("../data/testShearLayer");
 	
-	grid = new FluidGrid(bpd,bpd,bpd);
 	gridRef = new FluidGrid(bpdRef,bpdRef,bpdRef);
 	
 	_ic();
@@ -185,7 +186,6 @@ endTime(1.5)
 
 TestShearLayer::~TestShearLayer()
 {
-	delete grid;
 	delete gridRef;
 	
 	while(!pipeline.empty())
@@ -210,19 +210,12 @@ void TestShearLayer::run()
 	{
 		if (rank==0)
 		{
-			vector<BlockInfo> vInfo = grid->getBlocksInfo();
-			
 			// choose dt (CFL, Fourier)
 			maxU = findMaxUOMP(vInfo,*grid);
 			dtFourier = CFL*vInfo[0].h_gridpoint*vInfo[0].h_gridpoint/nu;
 			dtCFL     = CFL*vInfo[0].h_gridpoint/abs(maxU);
 			assert(!std::isnan(maxU));
 			dt = min(dtCFL,dtFourier);
-#ifdef _PARTICLES_
-			maxA = findMaxAOMP<Lab>(vInfo,*grid);
-			dtLCFL = maxA==0 ? 1e5 : LCFL/abs(maxA);
-			dt = min(dt,dtLCFL);
-#endif
 			dt = min(dt,nextDumpTime-time);
 			dt = min(dt,endTime-time);
 			
@@ -234,18 +227,14 @@ void TestShearLayer::run()
 			else if (dt==endTime-time) cout << "endTime limited\n";
 			//*/
 		}
-#ifdef _MULTIGRID_
 		MPI_Bcast(&dt,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-#endif // _MULTIGRID_
-		
 		
 		if (dt!=0)
 		{
 			for (int c=0; c<pipeline.size(); c++)
 			{
-#ifdef _MULTIGRID_
 				MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
+				
 				if (rank == 0 || pipeline[c]->getName()=="Pressure")
 					(*pipeline[c])(dt);
 			}
@@ -257,27 +246,30 @@ void TestShearLayer::run()
 		
 		if (rank==0 && abs(time-nextDumpTime) < 10*std::numeric_limits<Real>::epsilon())
 		{
+#ifdef _USE_HDF_
+			CoordinatorVorticity<Lab> coordVorticity(grid);
+			coordVorticity(dt);
 			stringstream ss;
-			ss << path2file << bpd << "-" << step <<  ".vti";
-			dumper.Write(*grid, ss.str());
+			ss << path2file << bpd << "-" << step;
+			cout << ss.str() << endl;
+			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
+			
 			nextDumpTime += dumpTime;
 		}
 		
 		// check nondimensional time
 		if (rank==0 && abs(time-endTime) < 10*std::numeric_limits<Real>::epsilon())
 		{
+#ifdef _USE_HDF_
+			CoordinatorVorticity<Lab> coordVorticity(grid);
+			coordVorticity(dt);
 			stringstream ss;
-			ss << path2file << bpd << "-Final.vti";
-			
-			dumper.Write(*grid, ss.str());
+			ss << path2file << "-Final";
+			cout << ss.str() << endl;
+			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 		}
-	}
-	
-	if (bpd==32 && rank==0)
-	{
-		stringstream serializedGrid;
-		serializedGrid << "SerializedGrid.grid";
-		DumpZBin<FluidGrid, StreamerSerialization>(*grid, serializedGrid.str(), path2file);
 	}
 }
 
@@ -298,12 +290,8 @@ void TestShearLayer::check()
 		double L1_v = 0.;
 		double L2_v = 0.;
 		
-		
-		
 		const int size = bpd * FluidBlock::sizeX;
 		const int resRatio = bpdRef/bpd;
-		
-		vector<BlockInfo> vInfo = grid->getBlocksInfo();
 		
 #pragma omp parallel for reduction(max:Linf_u) reduction(+:L1_u) reduction(+:L2_u) reduction(max:Linf_v) reduction(+:L1_v) reduction(+:L2_v)
 		for(int i=0; i<(int)vInfo.size(); i++)
@@ -312,27 +300,27 @@ void TestShearLayer::check()
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-			for(int iy=0; iy<FluidBlock::sizeY; iy++)
-				for(int ix=0; ix<FluidBlock::sizeX; ix++)
-				{
-					double p[3];
-					info.pos(p, ix, iy, iz);
-					
-					Real refU, refV, refW;
-					_getRefs(ix+info.index[0]*FluidBlock::sizeX,iy+info.index[1]*FluidBlock::sizeY,iz+info.index[2]*FluidBlock::sizeZ,resRatio,refU,refV,refW);
-					
-					double errorU = b(ix, iy).u - refU;
-					double errorV = b(ix, iy).v - refV;
-					double errorW = b(ix, iy).w - refW;
-					
-					Linf_u = max(Linf_u,abs(errorU));
-					L1_u += abs(errorU);
-					L2_u += errorU*errorU;
-					
-					Linf_v = max(Linf_v,abs(errorV));
-					L1_v += abs(errorV);
-					L2_v += errorV*errorV;
-				}
+				for(int iy=0; iy<FluidBlock::sizeY; iy++)
+					for(int ix=0; ix<FluidBlock::sizeX; ix++)
+					{
+						double p[3];
+						info.pos(p, ix, iy, iz);
+						
+						Real refU, refV, refW;
+						_getRefs(ix+info.index[0]*FluidBlock::sizeX,iy+info.index[1]*FluidBlock::sizeY,iz+info.index[2]*FluidBlock::sizeZ,resRatio,refU,refV,refW);
+						
+						double errorU = b(ix, iy).u - refU;
+						double errorV = b(ix, iy).v - refV;
+						double errorW = b(ix, iy).w - refW;
+						
+						Linf_u = max(Linf_u,abs(errorU));
+						L1_u += abs(errorU);
+						L2_u += errorU*errorU;
+						
+						Linf_v = max(Linf_v,abs(errorV));
+						L1_v += abs(errorV);
+						L2_v += errorV*errorV;
+					}
 		}
 		
 		const double invh3 = 1./((double)size*size*size);

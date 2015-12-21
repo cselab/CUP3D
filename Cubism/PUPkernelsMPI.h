@@ -6,11 +6,13 @@
  *  Copyright 2011 ETH Zurich. All rights reserved.
  *
  */
-#pragma once
-#include <vector>
-#include <cassert>
 
-void pack(const Real * const srcbase, Real * const dst, 
+#include <cstring>
+using namespace std;
+
+#pragma once
+
+inline void pack(const Real * const srcbase, Real * const dst,
 			   const unsigned int gptfloats,
 			   int * selected_components, const int ncomponents,
 			   const int xstart, const int ystart, const int zstart,
@@ -20,14 +22,15 @@ void pack(const Real * const srcbase, Real * const dst,
 		for(int iy=ystart; iy<yend; ++iy)
 			for(int ix=xstart; ix<xend; ++ix)
 			{
-				const Real * src = srcbase + gptfloats*(ix + _BLOCKSIZEX_*(iy + _BLOCKSIZEY_*iz));
-				
+				const Real * src = srcbase + gptfloats*(ix + _BS_*(iy + _BS_*iz));
+
+				// bgq: s_c[ic] = ic! -> memcpy or stripes...
 				for(int ic=0; ic<ncomponents; ic++, idst++)
 					dst[idst] = src[selected_components[ic]];
 			}
 }
 
-void pack_stripes(const Real * const srcbase, Real * const dst, 
+inline void pack_stripes(const Real * const srcbase, Real * const dst,
 					   const unsigned int gptfloats, 
 					   const int selstart, const int selend, 
 					   const int xstart, const int ystart, const int zstart,
@@ -37,14 +40,14 @@ void pack_stripes(const Real * const srcbase, Real * const dst,
 		for(int iy=ystart; iy<yend; ++iy)
 			for(int ix=xstart; ix<xend; ++ix)
 			{
-				const Real * src = srcbase + gptfloats*(ix + _BLOCKSIZEX_*(iy + _BLOCKSIZEY_*iz));
+				const Real * src = srcbase + gptfloats*(ix + _BS_*(iy + _BS_*iz));
 				
 				for(int ic=selstart; ic<selend; ic++, idst++)
 					dst[idst] = src[ic];
 			}
 }
 
-void unpack(const Real * const pack, Real * const dstbase, 
+inline void unpack(const Real * const pack, Real * const dstbase,
 		  const unsigned int gptfloats,
 		  const int * const selected_components, const int ncomponents,
 		  const int nsrc,
@@ -62,7 +65,8 @@ void unpack(const Real * const pack, Real * const dstbase,
 			}
 }
 
-void unpack_subregion(const Real * const pack, Real * const dstbase, 
+
+inline void unpack_subregion(const Real * const pack, Real * const dstbase,
 			const unsigned int gptfloats,
 			const int * const selected_components, const int ncomponents,
 			const int srcxstart, const int srcystart, const int srczstart,

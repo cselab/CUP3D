@@ -22,8 +22,6 @@
 
 void Sim_FSI_Moving::_diagnostics()
 {
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
-	
 	double drag = 0;
 	double volume = 0;
 	const double dh = vInfo[0].h_gridpoint;
@@ -35,15 +33,15 @@ void Sim_FSI_Moving::_diagnostics()
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-			{
-				if (b(ix,iy).chi>0)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 				{
-					drag += (b(ix,iy,iz).u-uBody[0]) * b(ix,iy,iz).chi;
-					volume += b(ix,iy,iz).chi;
+					if (b(ix,iy).chi>0)
+					{
+						drag += (b(ix,iy,iz).u-uBody[0]) * b(ix,iy,iz).chi;
+						volume += b(ix,iy,iz).chi;
+					}
 				}
-			}
 	}
 	
 	drag *= dh*dh*dh*lambda;
@@ -65,9 +63,14 @@ void Sim_FSI_Moving::_ic()
 	profiler.push_start(coordIC.getName());
 	coordIC(0);
 	
+#ifdef _USE_HDF_
+	CoordinatorVorticity<Lab> coordVorticity(grid);
+	coordVorticity(dt);
 	stringstream ss;
-	ss << path2file << "-IC.vti";
-	dumper.Write(*grid, ss.str());
+	ss << path2file << "-IC";
+	cout << ss.str() << endl;
+	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 	profiler.pop_stop();
 }
 
@@ -121,14 +124,6 @@ void Sim_FSI_Moving::_inputSettings(istream& inStream)
 
 Sim_FSI_Moving::Sim_FSI_Moving(const int argc, const char ** argv) : Simulation_FSI(argc, argv), uBody{0,0,0}, re(0), nu(0), dtBody(0), dtCFL(0), dtFourier(0)
 {
-	int rank = 0;
-#ifdef _MULTIGRID_
-	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-	
-	if (rank!=0)
-		omp_set_num_threads(1);
-#endif // _MULTIGRID_
-	
 	if (rank==0)
 	{
 		cout << "====================================================================================================================\n";
@@ -185,8 +180,6 @@ void Sim_FSI_Moving::simulate()
 	
 	while (true)
 	{
-		vector<BlockInfo> vInfo = grid->getBlocksInfo();
-		
 		// choose dt (CFL, Fourier)
 		profiler.push_start("DT");
 		maxU = findMaxUOMP(vInfo,*grid);
@@ -194,11 +187,6 @@ void Sim_FSI_Moving::simulate()
 		dtCFL     = CFL*vInfo[0].h_gridpoint/abs(maxU);
 		dtBody    = CFL*vInfo[0].h_gridpoint/abs(uBody[0]);
 		dt = min(min(dtCFL,dtFourier),dtBody);
-#ifdef _PARTICLES_
-		maxA = findMaxAOMP<Lab>(vInfo,*grid);
-		dtLCFL = maxA==0 ? 1e5 : LCFL/abs(maxA);
-		dt = min(dt,dtLCFL);
-#endif
 		if (dumpTime>0)
 			dt = min(dt,nextDumpTime-_nonDimensionalTime());
 		if (endTime>0)
@@ -242,11 +230,14 @@ void Sim_FSI_Moving::simulate()
 		if ((endTime>0 && abs(_nonDimensionalTime()-endTime) < 10*std::numeric_limits<Real>::epsilon()) || (nsteps!=0 && step>=nsteps))
 		{
 			profiler.push_start("Dump");
+#ifdef _USE_HDF_
+			CoordinatorVorticity<Lab> coordVorticity(grid);
+			coordVorticity(dt);
 			stringstream ss;
-			ss << path2file << "-Final.vti";
+			ss << path2file << "-Final";
 			cout << ss.str() << endl;
-			
-			dumper.Write(*grid, ss.str());
+			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 			profiler.pop_stop();
 			
 			profiler.printSummary();

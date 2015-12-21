@@ -14,7 +14,7 @@
 #include <sstream>
 using namespace std;
 
-#include "common.h"
+#include "Definitions.h"
 
 #include "TestDiffusion.h"
 #include "TestAdvection.h"
@@ -30,7 +30,7 @@ using namespace std;
 #include "TestAddedMass.h"
 #include "TestBoundaryConditions.h"
 #include "TestGeometry.h"
-#include "Definitions.h"
+#include "TestMPI.h"
 
 void spatialConvergence(int argc, const char **argv, const int solver, const int ic, const string test, const int minBPD, const int maxBPD, const double dt)
 {
@@ -469,15 +469,23 @@ void baseTest(int argc, const char **argv, const int solver, const int ic, const
 		geometry->run();
 		delete geometry;
 	}
+	else if (test=="mpi")
+	{
+		cout << "========================================================================================\n";
+		cout << "\t\tMPI Test\n";
+		cout << "========================================================================================\n";
+		TestMPI * mpi = new TestMPI(argc, argv, bpd);
+		mpi->run();
+		mpi->check();
+		delete mpi;
+	}
 	else
 		throw std::invalid_argument("This test setting does not exist!");
 }
 
 int main(int argc, const char **argv)
 {
-#ifdef _MULTIGRID_
 	MPI_Init(&argc, &argv);
-#endif // _MULTIGRID_
 	
 	ArgumentParser parser(argc,argv);
 	int solver = parser("-solver").asInt(0);
@@ -499,9 +507,7 @@ int main(int argc, const char **argv)
 	else
 		baseTest(argc, argv, solver, ic, test, minBPD, minDT, tEnd);
 	
-#ifdef _MULTIGRID_
 	MPI_Finalize();
-#endif // _MULTIGRID_
 	
 	return 0;
 }

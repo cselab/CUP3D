@@ -9,10 +9,18 @@
 #pragma once
 
 #include <vector>
+#include <cstdarg>
+#include <cassert>
+#include <iostream>
+#include <cstdlib>
+
+#ifdef _SP_COMP_
+typedef float Real;
+#else
+typedef double Real;
+#endif
 
 using namespace std;
-
-#include <cstdarg>
 
 struct StencilInfo
 {

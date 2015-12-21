@@ -16,16 +16,12 @@
 class TestPenalization : public Test
 {
 private:
-	int bpd;
 	double dt;
 	Real lambda;
 	Real uBody[3];
 	Shape * shape;
 	
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
-	
-	FluidGrid * grid;
 	
 	void _ic();
 	

@@ -22,19 +22,21 @@ typedef double Real;
 typedef float Real;
 #endif // _SP_COMP_
 
-#ifdef _MULTIGRID_
 #include <mpi.h>
-#endif // _MULTIGRID_
+#include <omp.h>
 
 //this is all cubism file we need
 #include <ArgumentParser.h>
 #include <Grid.h>
+#include <GridMPI.h>
 #include <BlockInfo.h>
 #include <SerializerIO_ImageVTK.h>
-#include <HDF5Dumper.h>
-#include <ZBinDumper.h>
+#include <HDF5Dumper_MPI.h>
+#include <ZBinDumper_MPI.h>
 #include <BlockLab.h>
+#include <BlockLabMPI.h>
 #include <Profiler.h>
+#include <StencilInfo.h>
 
 #include "Timer.h"
 

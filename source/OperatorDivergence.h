@@ -170,6 +170,8 @@ private:
 public:
 	OperatorDivergenceSplit(double dt, double rho0, int step) : rho0(rho0), dt(dt), step(step)
 	{
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 6, 0,1,2,3,5,6);
+		
 		stencil_start[0] = -1;
 		stencil_start[1] = -1;
 		stencil_start[2] = -1;
@@ -279,6 +281,8 @@ public:
 	
 	OperatorDivergenceSplitFFTW(double dt, double rho0, int step, Real * data, int dim[3]) : rho0(rho0), dt(dt), step(step), data(data), dim{dim[0],dim[1],dim[2]}
 	{
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 6, 0,1,2,3,5,6);
+		
 		stencil_start[0] = -1;
 		stencil_start[1] = -1;
 		stencil_start[2] = -1;
@@ -390,6 +394,8 @@ private:
 public:
 	OperatorDivergenceSplitHighOrder(double dt, double rho0, int step) : rho0(rho0), dt(dt), step(step)
 	{
+		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 6, 0,1,2,3,5,6);
+		
 		stencil_start[0] = -2;
 		stencil_start[1] = -2;
 		stencil_start[2] = -2;

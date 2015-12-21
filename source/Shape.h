@@ -242,11 +242,7 @@ public:
 	GeometryMesh(const string filename, const int gridsize, const Real isosurface, Real center[3], const Real rhoS, const Real mollChi, const Real mollRho, Real scale=1, Real tX=0, Real tY=0, Real tZ=0, Geometry::Quaternion orientation=Geometry::Quaternion()) : Shape(center, rhoS, mollChi, mollRho, scale, tX, tY, tZ, orientation), isosurface(isosurface)
 	{
 		Geometry::Point transFactor(tX,tY,tZ);
-#ifdef _CT_
-		geometry = new GeometryReaderCT(filename,properties,gridsize,scale,transFactor,isosurface);
-#else
 		geometry = new GeometryReaderOBJ(filename,properties,gridsize,scale,transFactor,isosurface);
-#endif
 	}
 	
 	Real chi(Real p[3], Real h) const

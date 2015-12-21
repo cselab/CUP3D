@@ -12,14 +12,13 @@
 #ifndef CubismUP_3D_GeometryHelpers_h
 #define CubismUP_3D_GeometryHelpers_h
 
-#pragma once
-
 #include <vector>
 #include <iostream>
 #include <cstdio>
 #include <cstdlib>
 #include <limits>
-#include "common.h"
+
+#include "Definitions.h"
 
 using namespace std;
 

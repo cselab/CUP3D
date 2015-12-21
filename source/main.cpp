@@ -26,14 +26,12 @@ using namespace std;
 
 int main(int argc, const char **argv)
 {
-#ifdef _MULTIGRID_
 	MPI_Init(&argc, &argv);
 	
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 	
 	if (rank==0)
-#endif // _MULTIGRID_
 	{
 		cout << "====================================================================================================================\n";
 		cout << "\t\tCubism UP 3D (velocity-pressure 3D incompressible Navier-Stokes solver)\n";
@@ -66,9 +64,7 @@ int main(int argc, const char **argv)
 	sim->init();
 	sim->simulate();
 	
-#ifdef _MULTIGRID_
 	MPI_Finalize();
-#endif // _MULTIGRID_
 	
 	return 0;
 }

@@ -1,8 +1,8 @@
 vtk-inc = /cluster/work/infk/cconti/VTK5.8_gcc/include/vtk-5.8/
 vtk-lib = /cluster/work/infk/cconti/VTK5.8_gcc/lib/vtk-5.8/
-fftw-inc = /cluster/work/infk/wvanrees/apps/fftw-3.3.2/include
-fftw-lib = /cluster/work/infk/wvanrees/apps/fftw-3.3.2/lib
+fftw-inc = /cluster/apps/fftw/3.3.3/x86_64/gcc_4.8.2/openmpi_1.6.5/include/
+fftw-lib = /cluster/apps/fftw/3.3.3/x86_64/gcc_4.8.2/openmpi_1.6.5/lib64/
 hypre-inc = /cluster/work/infk/cconti/hypre-2.10.0b/src/hypre/include
 hypre-lib = /cluster/work/infk/cconti/hypre-2.10.0b/src/hypre/lib
-hdf-inc = /cluster/work/infk/hbabak/apps/hdf5-1.8.8_gcc_serial/include/
-hdf-lib = /cluster/work/infk/hbabak/apps/hdf5-1.8.8_gcc_serial/lib/
+hdf-inc = /cluster/apps/hdf5/1.8.12/x86_64/gcc_4.8.2/openmpi_1.6.5/include
+hdf-lib = /cluster/apps/hdf5/1.8.12/x86_64/gcc_4.8.2/openmpi_1.6.5/lib

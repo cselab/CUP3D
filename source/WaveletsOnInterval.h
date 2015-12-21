@@ -19,7 +19,7 @@ using namespace std;
 
 namespace WaveletsOnInterval 
 {	
-#ifdef _FLOAT_PRECISION_
+#ifdef _SP_COMP_
 	typedef float FwtAp;
 #else
 	typedef double FwtAp;

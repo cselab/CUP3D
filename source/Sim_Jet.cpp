@@ -27,7 +27,6 @@ void Sim_Jet::_ic()
 		profiler.push_start("IC - Jet");
 		
 		// setup initial conditions
-		vector<BlockInfo> vInfo = grid->getBlocksInfo();
 		const int N = vInfo.size();
 		
 		const double width = 0.01;
@@ -41,37 +40,42 @@ void Sim_Jet::_ic()
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-				{
-					Real p[3];
-					info.pos(p, ix, iy, iz);
-					
-					if (p[1]<.5-.5*width2 || p[1]>.5+.5*width2)
-						b(ix,iy,iz).rho = 1.;
-					else
-						b(ix,iy,iz).rho = rhoS;
-					
-					double aux = (width2 - 2. * abs(p[1]-.5)) / (4. * width);
-					b(ix,iy,iz).u = .5 * (1 + tanh(aux)) * (1 + ampl * sin(8. * M_PI * p[0]));
-					b(ix,iy,iz).v = 0;
-					b(ix,iy,iz).w = 0;
-					b(ix,iy,iz).chi = 0;
-					
-					b(ix,iy,iz).p = 0;
-					b(ix,iy,iz).divU = 0;
-					b(ix,iy,iz).pOld = 0;
-					
-					b(ix,iy,iz).tmpU = 0;
-					b(ix,iy,iz).tmpV = 0;
-					b(ix,iy,iz).tmpW = 0;
-					b(ix,iy,iz).tmp  = 0;
-				}
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
+						Real p[3];
+						info.pos(p, ix, iy, iz);
+						
+						if (p[1]<.5-.5*width2 || p[1]>.5+.5*width2)
+							b(ix,iy,iz).rho = 1.;
+						else
+							b(ix,iy,iz).rho = rhoS;
+						
+						double aux = (width2 - 2. * abs(p[1]-.5)) / (4. * width);
+						b(ix,iy,iz).u = .5 * (1 + tanh(aux)) * (1 + ampl * sin(8. * M_PI * p[0]));
+						b(ix,iy,iz).v = 0;
+						b(ix,iy,iz).w = 0;
+						b(ix,iy,iz).chi = 0;
+						
+						b(ix,iy,iz).p = 0;
+						b(ix,iy,iz).divU = 0;
+						b(ix,iy,iz).pOld = 0;
+						
+						b(ix,iy,iz).tmpU = 0;
+						b(ix,iy,iz).tmpV = 0;
+						b(ix,iy,iz).tmpW = 0;
+						b(ix,iy,iz).tmp  = 0;
+					}
 		}
 		
+#ifdef _USE_HDF_
+		CoordinatorVorticity<Lab> coordVorticity(grid);
+		coordVorticity(dt);
 		stringstream ss;
-		ss << path2file << "-IC.vti";
-		dumper.Write(*grid, ss.str());
+		ss << path2file << "-IC";
+		cout << ss.str() << endl;
+		DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 		profiler.pop_stop();
 	}
 }
@@ -104,13 +108,11 @@ void Sim_Jet::_inputSettings(istream& inStream)
 
 Sim_Jet::Sim_Jet(const int argc, const char ** argv) : Simulation_MP(argc, argv)
 {
-#ifdef _MULTIGRID_
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 	MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
 	
 	if (rank!=0)
 		omp_set_num_threads(1);
-#endif // _MULTIGRID_
 	
 	if (rank==0)
 	{
@@ -159,9 +161,8 @@ void Sim_Jet::simulate()
 	
 	double vOld = 0;
 	
-#ifdef _MULTIGRID_
 	MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
+	
 	double nextDumpTime = time;
 	double maxU = 0;
 	double maxA = 0;
@@ -170,8 +171,6 @@ void Sim_Jet::simulate()
 	{
 		if (rank==0)
 		{
-			vector<BlockInfo> vInfo = grid->getBlocksInfo();
-			
 			// choose dt (CFL, Fourier)
 			profiler.push_start("DT");
 			maxU = findMaxUOMP(vInfo,*grid);
@@ -179,11 +178,6 @@ void Sim_Jet::simulate()
 			dtCFL     = maxU==0 ? 1e5 : CFL*vInfo[0].h_gridpoint/abs(maxU);
 			assert(!std::isnan(maxU));
 			dt = min(dtCFL,dtFourier);
-#ifdef _PARTICLES_
-			maxA = findMaxAOMP<Lab>(vInfo,*grid);
-			dtLCFL = maxA==0 ? 1e5 : LCFL/abs(maxA);
-			dt = min(dt,dtLCFL);
-#endif
 			if (dumpTime>0)
 				dt = min(dt,nextDumpTime-_nonDimensionalTime());
 			if (endTime>0)
@@ -192,17 +186,14 @@ void Sim_Jet::simulate()
 				cout << "dt (Fourier, CFL): " << dt << " " << dtFourier << " " << dtCFL << endl;
 			profiler.pop_stop();
 		}
-#ifdef _MULTIGRID_
 		MPI_Bcast(&dt,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 		
 		if (dt!=0)
 		{
 			for (int c=0; c<pipeline.size(); c++)
 			{
-#ifdef _MULTIGRID_
 				MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
+				
 				profiler.push_start(pipeline[c]->getName());
 				if (rank == 0 || pipeline[c]->getName()=="Pressure")
 					(*pipeline[c])(dt);
@@ -216,13 +207,13 @@ void Sim_Jet::simulate()
 		if (rank==0)
 		{
 			/*
-			// compute diagnostics
-			if (step % 10 == 0)
-			{
+			 // compute diagnostics
+			 if (step % 10 == 0)
+			 {
 				profiler.push_start("Diagnostics");
 				_diagnostics();
 				profiler.pop_stop();
-			}
+			 }
 			 */
 			
 			//dump some time steps every now and then
@@ -240,11 +231,14 @@ void Sim_Jet::simulate()
 			if (rank==0)
 			{
 				profiler.push_start("Dump");
+#ifdef _USE_HDF_
+				CoordinatorVorticity<Lab> coordVorticity(grid);
+				coordVorticity(dt);
 				stringstream ss;
-				ss << path2file << "-Final.vti";
+				ss << path2file << "-Final";
 				cout << ss.str() << endl;
-				
-				dumper.Write(*grid, ss.str());
+				DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 				profiler.pop_stop();
 				
 				profiler.printSummary();

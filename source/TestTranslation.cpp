@@ -17,12 +17,6 @@ void TestTranslation::_ic()
 	Real center[3] = {.25,.25,.25};
 	Real radius = .05;
 	Real rhoS = 2;
-	vector<BlockInfo> vInfo = grid->getBlocksInfo();
-    bool bPeriodic[3] = {false,false,false};
-    
-	const Real domainSize[3] = { FluidBlock::sizeX * grid->getBlocksPerDimension(0) * vInfo[0].h_gridpoint,
-								 FluidBlock::sizeY * grid->getBlocksPerDimension(1) * vInfo[0].h_gridpoint,
-								 FluidBlock::sizeZ * grid->getBlocksPerDimension(2) * vInfo[0].h_gridpoint};
 	
 	shape = new Sphere(center, radius, rhoS, (Real)2, (Real)2);
 	
@@ -35,34 +29,32 @@ void TestTranslation::_ic()
 		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-		for(int iy=0; iy<FluidBlock::sizeY; iy++)
-		for(int ix=0; ix<FluidBlock::sizeX; ix++)
-		{
-			Real p[3];
-			info.pos(p, ix, iy, iz);
-			
-			// this is for testCase==1, no effect on testCase==0
-			b(ix,iy,iz).u = 1;
-			b(ix,iy,iz).v = .5;
-			b(ix,iy,iz).w = .25;
-			
-			b(ix,iy,iz).chi = shape->chi(p, info.h_gridpoint);
-			
-			// assume fluid with density 1
-			b(ix,iy,iz).rho = shape->rho(p, info.h_gridpoint, b(ix,iy,iz).chi);
-			
-			// this is for testing purposes only! do it the clean way!!
-			b(ix,iy,iz).p = 0;
-			b(ix,iy,iz).divU = 0;
-			b(ix,iy,iz).pOld = 0;
-		}
+			for(int iy=0; iy<FluidBlock::sizeY; iy++)
+				for(int ix=0; ix<FluidBlock::sizeX; ix++)
+				{
+					Real p[3];
+					info.pos(p, ix, iy, iz);
+					
+					// this is for testCase==1, no effect on testCase==0
+					b(ix,iy,iz).u = 1;
+					b(ix,iy,iz).v = .5;
+					b(ix,iy,iz).w = .25;
+					
+					b(ix,iy,iz).chi = shape->chi(p, dh);
+					
+					// assume fluid with density 1
+					b(ix,iy,iz).rho = shape->rho(p, dh, b(ix,iy,iz).chi);
+					
+					// this is for testing purposes only! do it the clean way!!
+					b(ix,iy,iz).p = 0;
+					b(ix,iy,iz).divU = 0;
+					b(ix,iy,iz).pOld = 0;
+				}
 	}
 }
 
-TestTranslation::TestTranslation(const int argc, const char ** argv, const int testCase, const int bpd, const double dt) : Test(argc,argv), testCase(testCase), bpd(bpd), dt(dt), nsteps(10)
+TestTranslation::TestTranslation(const int argc, const char ** argv, const int testCase, const int bpd, const double dt) : Test(argc,argv,bpd), testCase(testCase), dt(dt), nsteps(10)
 {
-	grid = new FluidGrid(bpd,bpd,bpd);
-	
 	path2file = parser("-file").asString("../data/testTranslation");
 	_ic();
 	
@@ -70,7 +62,6 @@ TestTranslation::TestTranslation(const int argc, const char ** argv, const int t
 
 TestTranslation::~TestTranslation()
 {
-	delete grid;
 }
 
 void TestTranslation::run()
@@ -87,8 +78,6 @@ void TestTranslation::run()
 	
 	for (int step=0; step<nsteps; step++)
 	{
-		vector<BlockInfo> vInfo = grid->getBlocksInfo();
-		
 		if (testCase==0)
 		{
 			u[0] = 1;
@@ -111,10 +100,14 @@ void TestTranslation::run()
 		// dump
 		if (step%10==0)
 		{
+#ifdef _USE_HDF_
+			CoordinatorVorticity<Lab> coordVorticity(grid);
+			coordVorticity(dt);
 			stringstream ss;
-			ss << path2file << "-" << bpd << "-" << step << ".vti";
-			
-			dumper.Write(*grid, ss.str());
+			ss << path2file << bpd << "-" << step;
+			cout << ss.str() << endl;
+			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#endif
 		}
 	}
 }

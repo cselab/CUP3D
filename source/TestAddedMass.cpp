@@ -34,9 +34,7 @@ void TestAddedMass::_ic()
     Real radius = parser("-radius").asDouble(0.1);
 	shape = new Sphere(centerOfMass, radius, rhoS, 2, 2);
 	
-#ifdef _MULTIGRID_
 	if (rank==0)
-#endif // _MULTIGRID_
 	{
 		// setup initial conditions
 		CoordinatorIC coordIC(shape,0,grid);
@@ -44,12 +42,10 @@ void TestAddedMass::_ic()
 	}
 }
 
-TestAddedMass::TestAddedMass(const int argc, const char ** argv, const int bpd) : Test(argc, argv), parser(argc,argv), bpd(bpd), gravity{0,-9.81,0}, uBody{0,0,0}, bSplit(false), step(0), rank(0), nprocs(1), maxU(0)
+TestAddedMass::TestAddedMass(const int argc, const char ** argv, const int bpd) : Test(argc, argv, bpd), parser(argc,argv), gravity{0,-9.81,0}, uBody{0,0,0}, bSplit(false), step(0), rank(0), nprocs(1), maxU(0)
 {
 	// output settings
 	path2file = parser("-file").asString("../data/TestAddedMass");
-	
-	grid = new FluidGrid(bpd,bpd,bpd);
 	
 	_ic();
 	
@@ -70,8 +66,6 @@ TestAddedMass::TestAddedMass(const int argc, const char ** argv, const int bpd) 
 
 TestAddedMass::~TestAddedMass()
 {
-	delete grid;
-	
 	while(!pipeline.empty())
 	{
 		GenericCoordinator * g = pipeline.back();
@@ -84,9 +78,7 @@ void TestAddedMass::run()
 {
 	double vOld = 0;
 	
-#ifdef _MULTIGRID_
 	MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
 	
 	nsteps = parser("-nsteps").asInt(3);
 	double dt = 1e-07;
@@ -95,18 +87,22 @@ void TestAddedMass::run()
 	{
 		for (int c=0; c<pipeline.size(); c++)
 		{
-#ifdef _MULTIGRID_
 			MPI_Barrier(MPI_COMM_WORLD);
-#endif // _MULTIGRID_
+			
 			if (rank == 0 || pipeline[c]->getName()=="Pressure")
 				(*pipeline[c])(dt);
 		}
 		
 		if (rank==0 && step==nsteps-1)
 		{
+#ifdef _USE_HDF_
+			CoordinatorVorticity<Lab> coordVorticity(grid);
+			coordVorticity(dt);
 			stringstream sstmp;
-			sstmp << path2file << bpd << "-" << step << ".vti";
-			dumper.Write(*grid, sstmp.str());
+			sstmp << path2file << "-" << std::setfill('0') << std::setw(6) << step;
+			cout << sstmp.str() << endl;
+			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, sstmp.str());
+#endif
 			
 			// this still needs to be corrected to the frame of reference!
 			double accM = (uBody[1]-vOld)/dt;

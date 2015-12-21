@@ -17,14 +17,10 @@ class TestDiffusion : public Test
 private:
 	double nu;
     double time, dt;
-	const int bpd;
 	const int nsteps;
     const double freq;
     
     string path2file;
-    SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
-    
-    FluidGrid * grid;
     
     void _ic();
     double _analytical(double ix, double iy, double iz, double t);
