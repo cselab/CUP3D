@@ -6,7 +6,10 @@ export OMP_NUM_THREADS=48
 BASEPATH=/cluster/scratch_xp/public/cconti/CubismUP/
 BASENAME=FallingSamara_MPI_${P}11_2112_.001Inertia_
 
-cd ../makefiles/;make clean;make CC=mpic++ config=production bc=mixed precision=double dlm=true nthreads=48 -j;cd ../launch/
+cd ../makefiles/
+make clean
+make CC=mpic++ config=production bc=mixed precision=double dlm=true nthreads=48 -j
+cd ../launch/
 
 for B in 2
 #4

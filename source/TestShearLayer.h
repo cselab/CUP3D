@@ -18,7 +18,6 @@ protected:
 	double nu;
 	double dtCFL, dtLCFL, dtFourier;
 	double time, endTime;
-	const int bpdRef;
 	int step;
 	const double rhoS;
 	
@@ -29,10 +28,7 @@ protected:
 	
 	vector<GenericCoordinator *> pipeline;
 	
-	FluidGrid * gridRef;
-	
 	void _ic();
-	void _getRefs(const int ix, const int iy, const int iz, const int ratio, Real &u, Real &v, Real &w);
 	
 public:
 	TestShearLayer(const int argc, const char ** argv, const int bpd);

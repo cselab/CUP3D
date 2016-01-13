@@ -166,7 +166,7 @@ namespace Geometry
 		double density;
 		Point minb, maxb; // bounding box
 		Quaternion q; //quaternion representing 3D rotation: qw + i qx + j qy + k qz = [qw,qx,qy,qz]
-		double J[6]; // 00,11,22,01,02,12
+		double J[6], J0[6]; // 00,11,22,01,02,12
 		double rotation[3][3];
 		
 		Properties()

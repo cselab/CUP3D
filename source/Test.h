@@ -36,6 +36,8 @@ public:
 		nprocsy = parser("-nprocsy").asInt(1);
 		nprocsz = parser("-nprocsz").asInt(1);
 		
+		cout << nprocsx << " " << nprocsy << " " << nprocsz << endl;
+		cout << bpd/nprocsx << " " << bpd/nprocsy << " " << bpd/nprocsz << endl;
 		grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpd/nprocsx, bpd/nprocsy, bpd/nprocsz);
 		
 		vInfo = grid->getBlocksInfo();

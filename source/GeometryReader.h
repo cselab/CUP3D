@@ -78,7 +78,7 @@ public:
 	
 	void setScale(double scale);
 	void setTranslation(double tX, double tY, double tZ);
-	void setBodyIntegrals(double ut[3], double dthetadt[3], double J[6], double mass, double a, double dt);
+	//void setBodyIntegrals(double ut[3], double dthetadt[3], double J[6], double mass, double a, double dt);
 	void setConstIntegrals(double J[6], double volume);
 	
 	void moveBody(double dt);

@@ -35,8 +35,12 @@ public:
 		Real cy = 0;
 		Real cz = 0;
 		Real vol = 0;
+		Real gcx = 0;
+		Real gcy = 0;
+		Real gcz = 0;
+		Real gvol = 0;
 		Real com[3];
-		shape->getCenterOfMass(com);
+		//shape->getCenterOfMass(com);
 		
 #pragma omp parallel for reduction(+:cx) reduction(+:cy) reduction(+:cz) reduction(+:vol)
 		for(int i=0; i<(int)vInfo.size(); i++)
@@ -76,12 +80,17 @@ public:
 					}
 		}
 		
-		cx /= vol;
-		cy /= vol;
-		cz /= vol;
-		com[0] = cx;
-		com[1] = cy;
-		com[2] = cz;
+		MPI::COMM_WORLD.Allreduce(&cx, &gcx, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&cy, &gcy, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&cz, &gcz, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&vol, &gvol, 1, MPI::DOUBLE, MPI::SUM);
+		
+		gcx /= gvol;
+		gcy /= gvol;
+		gcz /= gvol;
+		com[0] = gcx;
+		com[1] = gcy;
+		com[2] = gcz;
 		shape->setCenterOfMass(com);
 		shape->setCentroid(com);
 		

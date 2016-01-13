@@ -170,7 +170,7 @@ public:
 		
 		const Real ub[3] = { *uBody, *vBody, *wBody };
 		Real dthetadt[3] = { dtdtxG, dtdtyG, dtdtzG };
-		const Real weaken = .001;
+		const Real weaken = 1.;
 		const Real J[6] = { J0G*weaken, J1G*weaken, J2G*weaken, J3G*weaken, J4G*weaken, J5G*weaken };
 		
 		shape->updatePosition(ub, dthetadt, J, massG, dt);

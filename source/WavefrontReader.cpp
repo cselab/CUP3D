@@ -482,6 +482,66 @@ void GeometryReaderOBJ::sdf()
 				}
 	}
 	
+	centerx /= count;
+	centery /= count;
+	centerz /= count;
+	
+	double scalingsize = max(max(properties.maxb.x - properties.minb.x,properties.maxb.y - properties.minb.y),properties.maxb.z - properties.minb.z);
+	cout << centerx << " " << centery << " " << centerz << endl;
+	centerx *= scalingsize;
+	centery *= scalingsize;
+	centerz *= scalingsize;
+	/*
+	if (bVerbose)
+		cout << "Computing inertia matrix\n";
+	
+	double J0 = 0, J1 = 0, J2 = 0, J3 = 0, J4 = 0, J5 = 0;
+	
+#pragma omp parallel for reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5)
+	for (int i=0; i<vInfo.size(); i++)
+	{
+		BlockInfo info = vInfo[i];
+		ScalarBlock& b = *(ScalarBlock*)info.ptrBlock;
+		
+		for (int iz=0; iz<ScalarBlock::sizeZ; iz++)
+			for (int iy=0; iy<ScalarBlock::sizeY; iy++)
+				for (int ix=0; ix<ScalarBlock::sizeX; ix++)
+				{
+					// need to be reloaded for every point as it is updated while iterating
+					const int lutvalue = gridlut[info.index[0] + cgrid->getBlocksPerDimension(0) * (info.index[1] + cgrid->getBlocksPerDimension(1) * info.index[2])];
+					
+					Real p[3];
+					info.pos(p,ix,iy,iz);
+					p[0] = p[0]*scalingsize - centerx;
+					p[1] = p[1]*scalingsize - centery;
+					p[2] = p[2]*scalingsize - centerz;
+					
+					float sign = 0;
+					
+					if (lutvalue==2)
+						sign = -1;
+					else if (lutvalue==0)
+						sign = 1;
+					else if (lutvalue==1)
+						sign = b(ix,iy,iz);
+					else
+					{
+						cout << "if you are here, something went wrong with the lookup table!\n";
+						abort();
+					}
+					
+					// Assumes constant density
+					double volume = sign<0?1.:0.;
+					
+					J0 += volume * (p[1]*p[1] + p[2]*p[2]); //       y^2 + z^2
+					J1 += volume * (p[0]*p[0] + p[2]*p[2]); // x^2 +     + z^2
+					J2 += volume * (p[0]*p[0] + p[1]*p[1]); // x^2 + y^2
+					J3 -= volume * p[0] * p[1]; // xy
+					J4 -= volume * p[0] * p[2]; // xz
+					J5 -= volume * p[1] * p[2]; // yz
+				}
+	}
+	*/
 	//const string filename_sdf = "seed_sdf";
 	//const string filepath_sdf = "/cluster/scratch_xl/public/cconti/";
 	//DumpHDF5<ScalarGrid, StreamerMesh>(*cgrid, 0, filename_sdf, filepath_sdf);
@@ -498,15 +558,24 @@ void GeometryReaderOBJ::sdf()
 		cout << endl;
 	}
 	*/
+	/*
+	const double factor = 1;//128.*128.*128.*128.*128.;
+	properties.J0[0] = J0 * scalingsize*scalingsize*scalingsize/factor;
+	properties.J0[1] = J1 * scalingsize*scalingsize*scalingsize/factor;
+	properties.J0[2] = J2 * scalingsize*scalingsize*scalingsize/factor;
+	properties.J0[3] = J3 * scalingsize*scalingsize*scalingsize/factor;
+	properties.J0[4] = J4 * scalingsize*scalingsize*scalingsize/factor;
+	properties.J0[5] = J5 * scalingsize*scalingsize*scalingsize/factor;
 	
-	centerx /= count;
-	centery /= count;
-	centerz /= count;
-	
-	double scalingsize = max(max(properties.maxb.x - properties.minb.x,properties.maxb.y - properties.minb.y),properties.maxb.z - properties.minb.z);
-	centerx *= scalingsize;
-	centery *= scalingsize;
-	centerz *= scalingsize;
+	cout << scalingsize << endl;
+	cout << centerx << " " << centery << " " << centerz << endl;
+	cout << properties.J0[0] << " " << J0 << endl;
+	cout << properties.J0[1] << " " << J1 << endl;
+	cout << properties.J0[2] << " " << J2 << endl;
+	cout << properties.J0[3] << " " << J3 << endl;
+	cout << properties.J0[4] << " " << J4 << endl;
+	cout << properties.J0[5] << " " << J5 << endl;
+	*/
 	
 	// center of mass, global coordinates
 	properties.com.x = centerx + properties.minb.x;

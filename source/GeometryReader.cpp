@@ -135,6 +135,7 @@ void GeometryReader::deserialize(string path)
 
 // equivalent to "finalize" from Wim
 // gravity is not currently used
+/*
 void GeometryReader::setBodyIntegrals(double ut[3], double dthetadt[3], double J[6], double mass, double a, double dt)
 {
 	//cout << "Mass difference " << abs(properties.mass - volume * properties.density) << "(" << properties.mass << " " << volume * properties.density << " " << properties.mass/(volume * properties.density) << ")" << endl;
@@ -171,6 +172,7 @@ void GeometryReader::setBodyIntegrals(double ut[3], double dthetadt[3], double J
 	
 	//cout << properties.dthetadt.x << " " << properties.dthetadt.y << " " << properties.dthetadt.z << endl;
 }
+ */
 
 void GeometryReader::setConstIntegrals(double J[6], double volume)
 {

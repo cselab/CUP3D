@@ -95,8 +95,35 @@ public:
 		properties.ut.y = u[1];
 		properties.ut.z = u[2];
 		
+		/*
+		int idxI[3][3] = { 0,3,4, 3,1,5, 4,5,2 };
+		
+		for (int i=0; i<6; i++)
+			properties.J[i] = 0;
+		
+		//cout << properties.rotation[0][0] << " " << properties.rotation[0][1] << " " << properties.rotation[0][2] << endl;
+		//cout << properties.rotation[1][0] << " " << properties.rotation[1][1] << " " << properties.rotation[1][2] << endl;
+		//cout << properties.rotation[2][0] << " " << properties.rotation[2][1] << " " << properties.rotation[2][2] << endl;
+		
+		cout << "WARNING - this can only be done if J0 is set!\n";
+		for (int m=0; m<3; m++)
+			for (int n=0; n<3; n++)
+			{
+				properties.J[0] += properties.rotation[0][m] * properties.J0[idxI[m][n]] * properties.rotation[n][0];
+				properties.J[1] += properties.rotation[1][m] * properties.J0[idxI[m][n]] * properties.rotation[n][1];
+				properties.J[2] += properties.rotation[2][m] * properties.J0[idxI[m][n]] * properties.rotation[n][2];
+				properties.J[3] += properties.rotation[0][m] * properties.J0[idxI[m][n]] * properties.rotation[n][1];
+				properties.J[4] += properties.rotation[0][m] * properties.J0[idxI[m][n]] * properties.rotation[n][2];
+				properties.J[5] += properties.rotation[1][m] * properties.J0[idxI[m][n]] * properties.rotation[n][2];
+			}
+		*/
+		
 		for (int i=0; i<6; i++)
 			properties.J[i] = J[i];
+			//cout << "Inertia difference for component " << i << "\t" << abs(properties.J[i] - J[i]) << " (" << properties.J[i] << " " << J[i] << " " << properties.J[i]/J[i] << ")" << endl;
+		
+		//for (int i=0; i<6; i++)
+		//	properties.J[i] = J[i];
 		
 		const double detJ = properties.J[0]*(properties.J[1]*properties.J[2] - properties.J[5]*properties.J[5]) +
 							properties.J[3]*(properties.J[4]*properties.J[5] - properties.J[2]*properties.J[3]) +
@@ -154,6 +181,12 @@ public:
 	{
 		for (int i=0; i<6; i++)
 			properties.J[i] = J[i];
+	}
+	
+	void setInertiaMatrix0(Real J[6])
+	{
+		for (int i=0; i<6; i++)
+			properties.J0[i] = J[i];
 	}
 	
 	void getOrientation(Real rotation[3][3]) const

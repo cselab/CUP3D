@@ -31,6 +31,7 @@ class Simulation_Fluid
 protected:
 	ArgumentParser parser;
 	Profiler profiler;
+	bool bDump;
 	
 	vector<BlockInfo> vInfo;
 	
@@ -112,8 +113,9 @@ protected:
 		const int sizeY = bpdy * FluidBlock::sizeY;
 		const int sizeZ = bpdz * FluidBlock::sizeZ;
 		
-		if(rank==0 && (dumpFreq>0 && step % dumpFreq == 0) || (dumpTime>0 && abs(nextDumpTime-_nonDimensionalTime()) < 10*std::numeric_limits<Real>::epsilon()))
+		if((dumpFreq>0 && step % dumpFreq == 0) || (dumpTime>0 && bDump))
 		{
+			bDump = false;
 			nextDumpTime += dumpTime;
 			
 #ifdef _USE_HDF_
@@ -318,7 +320,7 @@ protected:
 	}
 	
 public:
-	Simulation_Fluid(const int argc, const char ** argv) : parser(argc,argv), step(0), time(0), dt(0), rank(0), nprocs(1), bPing(false)
+	Simulation_Fluid(const int argc, const char ** argv) : parser(argc,argv), step(0), time(0), dt(0), rank(0), nprocs(1), bPing(false), bDump(false)
 	{
 		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 		MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
