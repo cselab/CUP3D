@@ -30,6 +30,7 @@ public:
 		const int N = vInfo.size();
 		
 		const double dh = vInfo[0].h_gridpoint;
+		cout << dh << endl;
 		
 		Real cx = 0;
 		Real cy = 0;

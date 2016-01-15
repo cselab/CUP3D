@@ -135,7 +135,7 @@ public:
 						p[2] -= com[2];
 						
 						Real cp[3];
-						cp[0] = p[1] * (wLocal-*wBody) - p[2] * (vLocal-*vBody);
+						cp[0] = p[1] * (wLocal-*wBody) - p[2] * (vLocal-*vBody); // does this only use the translational component? not from the equations, double check
 						cp[1] = p[2] * (uLocal-*uBody) - p[0] * (wLocal-*wBody);
 						cp[2] = p[0] * (vLocal-*vBody) - p[1] * (uLocal-*uBody);
 						//cp[0] = p[1] * (wLocal) - p[2] * (vLocal);
@@ -185,16 +185,15 @@ public:
 class CoordinatorBodyVelocitiesForcedRot : public GenericCoordinator
 {
 protected:
-	Real *omegaBodyX, *omegaBodyY, *omegaBodyZ;
 	Real *lambda;
 	Real rhoS;
 	Shape *shape;
 	
 public:
-	CoordinatorBodyVelocitiesForcedRot(Real * omegaBodyX, Real * omegaBodyY, Real * omegaBodyZ, Real * lambda, Shape * shape, FluidGrid * grid) : GenericCoordinator(grid), omegaBodyX(omegaBodyX), omegaBodyY(omegaBodyY), omegaBodyZ(omegaBodyZ), lambda(lambda), shape(shape)
+	CoordinatorBodyVelocitiesForcedRot(Real * lambda, Shape * shape, FluidGrid * grid) : GenericCoordinator(grid), lambda(lambda), shape(shape)
 	{
-		cout << "Not supported yet\n";
-		abort();
+		//cout << "Not supported yet\n";
+		//abort();
 	}
 	
 	void operator()(const double dt)
@@ -214,7 +213,7 @@ public:
 		
 		Real com[3];
 		shape->getCenterOfMass(com);
-		
+		/*
 #pragma omp parallel for schedule(static) reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5) reduction(+:dtdtx) reduction(+:dtdty) reduction(+:dtdtz)
 		for(int i=0; i<N; i++)
 		{
@@ -257,12 +256,13 @@ public:
 						J5 -= rhochi * p[1] * p[2] * h3; // yz
 					}
 		}
+		*/
 		
 		Real mass = 1;
 		
 		const Real ub[3] = { 0,0,0 };
-		const Real dthetadt[3] = { 0, 0, .1 };
-		const Real J[6] = { J0, J1, J2, J3, J4, J5 };
+		const Real dthetadt[3] = { 0, .1, 0 };
+		const Real J[6] = { 1,1,1,0,0,0 };//{ J0, J1, J2, J3, J4, J5 };
 		
 		shape->updatePosition(ub, dthetadt, J, mass, dt);
 	}
