@@ -1,0 +1,6 @@
+fftw-inc = ${FFTW_INC}
+fftw-lib = ${FFTW_DIR}
+#hdf-inc = ${HDF5_DIR}/include
+#hdf-lib = ${HDF5_DIR}/lib
+CPPFLAGS += -I$(CRAY_MPICH2_DIR)/include/
+LIBS += -L$(CRAY_MPICH2_DIR)/lib/ -lmpich -lmpichcxx

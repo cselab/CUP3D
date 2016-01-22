@@ -17,6 +17,18 @@
 #define _BS_ 32
 #endif // _BS_
 
+#ifndef _BSX_
+#define _BSX_ 32
+#endif // _BSX_
+
+#ifndef _BSY_
+#define _BSY_ 32
+#endif // _BSY_
+
+#ifndef _BSZ_
+#define _BSZ_ 32
+#endif // _BSZ_
+
 struct FluidElement
 {
     Real rho, u, v, w, chi, p, pOld;
@@ -138,9 +150,9 @@ struct StreamerDiv
 struct FluidBlock
 {
     //these identifiers are required by cubism!
-    static const int sizeX = _BS_;
-    static const int sizeY = _BS_;
-    static const int sizeZ = _BS_;
+    static const int sizeX = _BSX_;
+    static const int sizeY = _BSY_;
+    static const int sizeZ = _BSZ_;
 	
 	typedef FluidElement ElementType;
 	typedef FluidElement element_type;

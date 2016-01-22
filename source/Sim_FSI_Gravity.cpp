@@ -115,9 +115,9 @@ void Sim_FSI_Gravity::_dumpSettings(ostream& outStream)
 		outStream << "\tsplit\t" << (bSplit ? "true" : "false") << endl;
 #endif
 		outStream << "\tpath2file\t" << path2file << endl;
-		outStream << "\tbpdx\t" << nprocsx << "x" << bpdx << endl;
-		outStream << "\tbpdy\t" << nprocsy << "x" << bpdy << endl;
-		outStream << "\tbpdz\t" << nprocsz << "x" << bpdz << endl;
+		outStream << "\tsize x\t" << nprocsx << "x" << bpdx << "x" << FluidBlock::sizeX << endl;
+		outStream << "\tsize y\t" << nprocsy << "x" << bpdy << "x" << FluidBlock::sizeY << endl;
+		outStream << "\tsize z\t" << nprocsz << "x" << bpdz << "x" << FluidBlock::sizeZ << endl;
 #ifdef _PERIODIC_
 		outStream << "\tBC\t\tperiodic\n";
 #else // _PERIODIC_
@@ -140,7 +140,7 @@ void Sim_FSI_Gravity::_ic()
 	CoordinatorIC coordIC(shape,0,grid);
 	profiler.push_start(coordIC.getName());
 	coordIC(0);
-	//profiler.pop_stop();
+	profiler.pop_stop();
 	
 	//profiler.push_start("DumpIC");
 #ifdef _USE_HDF_
@@ -151,6 +151,7 @@ void Sim_FSI_Gravity::_ic()
 	cout << ss.str() << endl;
 	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
 #endif
+	cout << "Dump of IC done\n";
 	//profiler.pop_stop();
 	
 	//profiler.push_start("Diagnostics");
@@ -226,7 +227,7 @@ void Sim_FSI_Gravity::init()
 	
 	if (!bRestart)
 	{
-		profiler.push_start("Geometry");
+		profiler.push_start("IC Geometry");
 		delete shape;
 		lambda = parser("-lambda").asDouble(1e5);
 		dlm = parser("-dlm").asDouble(1.);
@@ -266,9 +267,9 @@ void Sim_FSI_Gravity::init()
 			const Real center[3] = {.5,.5,.5};
 			const Real moll = 2;
 			const int gridsize = 1024;
-			const Real scale = .125;
+			const Real scale = .15;//.125;
 			const Real tx = .45;
-			const Real ty = .5;
+			const Real ty = .3;
 			const Real tz = .4;
 			//*/
 #endif
@@ -280,7 +281,7 @@ void Sim_FSI_Gravity::init()
 			Geometry::Quaternion q(cos(.25*M_PI), 0, 0, sin(.25*M_PI));
 			const Real isosurface = parser("-isosurface").asDouble(.0);
 			
-			const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
+			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
 			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
 		}
 		else
@@ -302,14 +303,16 @@ void Sim_FSI_Gravity::init()
 		_dumpSettings(myfile);
 		
 		if (rank==0)
+		{
 #ifndef _SPLIT_
 		if (bSplit)
 #endif
-		cout << "Using split method with constant coefficients Poisson solver\n";
+			cout << "Using split method with constant coefficients Poisson solver\n";
 #ifndef _SPLIT_
 		else
-		cout << "Solving full variable coefficient Poisson equation for pressure\n";
+			cout << "Solving full variable coefficient Poisson equation for pressure\n";
 #endif
+		}
 		
 		_ic();
 	}
@@ -372,7 +375,10 @@ void Sim_FSI_Gravity::simulate()
 		MPI_Bcast(&dt,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
 		
 		if (dumpTime>nextDumpTime)
-		bDump = true;
+		{
+			bDump = true;
+			nextDumpTime += dumpTime;
+		}
 		
 		if (dt!=0)
 		{

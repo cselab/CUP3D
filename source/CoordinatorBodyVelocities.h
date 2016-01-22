@@ -185,16 +185,15 @@ public:
 class CoordinatorBodyVelocitiesForcedRot : public GenericCoordinator
 {
 protected:
-	Real *omegaBodyX, *omegaBodyY, *omegaBodyZ;
 	Real *lambda;
 	Real rhoS;
 	Shape *shape;
 	
 public:
-	CoordinatorBodyVelocitiesForcedRot(Real * omegaBodyX, Real * omegaBodyY, Real * omegaBodyZ, Real * lambda, Shape * shape, FluidGrid * grid) : GenericCoordinator(grid), omegaBodyX(omegaBodyX), omegaBodyY(omegaBodyY), omegaBodyZ(omegaBodyZ), lambda(lambda), shape(shape)
+	CoordinatorBodyVelocitiesForcedRot(Real * lambda, Shape * shape, FluidGrid * grid) : GenericCoordinator(grid), lambda(lambda), shape(shape)
 	{
-		cout << "Not supported yet\n";
-		abort();
+		//cout << "Not supported yet\n";
+		//abort();
 	}
 	
 	void operator()(const double dt)
@@ -214,10 +213,10 @@ public:
 		
 		Real com[3];
 		shape->getCenterOfMass(com);
-		
-#pragma omp parallel for schedule(static) reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5) reduction(+:dtdtx) reduction(+:dtdty) reduction(+:dtdtz)
-		for(int i=0; i<N; i++)
-		{
+		/*
+		 #pragma omp parallel for schedule(static) reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5) reduction(+:dtdtx) reduction(+:dtdty) reduction(+:dtdtz)
+		 for(int i=0; i<N; i++)
+		 {
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
@@ -225,44 +224,45 @@ public:
 			const Real h3 = h*h*h;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-					{
-						Real p[3];
-						info.pos(p, ix, iy, iz);
-						
-						const Real rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
-						p[0] -= com[0];
-						p[1] -= com[1];
-						p[2] -= com[2];
-						
-						const Real uLocal = -p[2] * .2 * M_PI;
-						const Real vLocal = 0;
-						const Real wLocal =  p[0] * .2 * M_PI;
-						
-						Real cp[3];
-						cp[0] = p[1]* wLocal - p[2]* vLocal;
-						cp[1] = p[2]* uLocal - p[0]* wLocal;
-						cp[2] = p[0]* vLocal - p[1]* uLocal;
-						
-						dtdtx += cp[0] * rhochi * h3;
-						dtdty += cp[1] * rhochi * h3;
-						dtdtz += cp[2] * rhochi * h3;
-						
-						J0 += rhochi * (p[1]*p[1] + p[2]*p[2]) * h3; //       y^2 + z^2
-						J1 += rhochi * (p[0]*p[0] + p[2]*p[2]) * h3; // x^2 +     + z^2
-						J2 += rhochi * (p[0]*p[0] + p[1]*p[1]) * h3; // x^2 + y^2
-						J3 -= rhochi * p[0] * p[1] * h3; // xy
-						J4 -= rhochi * p[0] * p[2] * h3; // xz
-						J5 -= rhochi * p[1] * p[2] * h3; // yz
-					}
-		}
+		 for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+		 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+		 {
+		 Real p[3];
+		 info.pos(p, ix, iy, iz);
+		 
+		 const Real rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
+		 p[0] -= com[0];
+		 p[1] -= com[1];
+		 p[2] -= com[2];
+		 
+		 const Real uLocal = -p[2] * .2 * M_PI;
+		 const Real vLocal = 0;
+		 const Real wLocal =  p[0] * .2 * M_PI;
+		 
+		 Real cp[3];
+		 cp[0] = p[1]* wLocal - p[2]* vLocal;
+		 cp[1] = p[2]* uLocal - p[0]* wLocal;
+		 cp[2] = p[0]* vLocal - p[1]* uLocal;
+		 
+		 dtdtx += cp[0] * rhochi * h3;
+		 dtdty += cp[1] * rhochi * h3;
+		 dtdtz += cp[2] * rhochi * h3;
+		 
+		 J0 += rhochi * (p[1]*p[1] + p[2]*p[2]) * h3; //       y^2 + z^2
+		 J1 += rhochi * (p[0]*p[0] + p[2]*p[2]) * h3; // x^2 +     + z^2
+		 J2 += rhochi * (p[0]*p[0] + p[1]*p[1]) * h3; // x^2 + y^2
+		 J3 -= rhochi * p[0] * p[1] * h3; // xy
+		 J4 -= rhochi * p[0] * p[2] * h3; // xz
+		 J5 -= rhochi * p[1] * p[2] * h3; // yz
+		 }
+		 }
+		 */
 		
 		Real mass = 1;
 		
 		const Real ub[3] = { 0,0,0 };
-		const Real dthetadt[3] = { 0, 0, .1 };
-		const Real J[6] = { J0, J1, J2, J3, J4, J5 };
+		const Real dthetadt[3] = { 0, .1, 0 };
+		const Real J[6] = { 1,1,1,0,0,0 };//{ J0, J1, J2, J3, J4, J5 };
 		
 		shape->updatePosition(ub, dthetadt, J, mass, dt);
 	}

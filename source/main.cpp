@@ -26,7 +26,9 @@ using namespace std;
 
 int main(int argc, const char **argv)
 {
-	MPI_Init(&argc, &argv);
+	//MPI_Init(&argc, &argv);
+	int provided;
+	MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
 	
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);

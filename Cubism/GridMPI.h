@@ -78,12 +78,14 @@ public:
 														max(getBlocksPerDimension(1)*blocksize[1], 
 															getBlocksPerDimension(2)*blocksize[2]));
 			
-            info.h = info.h_gridpoint * blocksize[0];// only for blocksize[0]=blocksize[1]=blocksize[2]
+			info.h = maxextent / (double)max (getBlocksPerDimension(0),
+											  max(getBlocksPerDimension(1),
+												  getBlocksPerDimension(2)));
             
             for(int j=0; j<3; ++j)
 			{
 				info.index[j] += mypeindex[j]*mybpd[j];
-				info.origin[j] = info.index[j]*info.h;				
+				info.origin[j] = info.index[j]*info.h_gridpoint*blocksize[j];
 			}
 			
 			cached_blockinfo.push_back(info);
@@ -169,6 +171,7 @@ public:
 		queryresult->sync(sizeof(typename Block::element_type)/sizeof(Real), sizeof(Real)>4 ? MPI_DOUBLE : MPI_FLOAT, timestamp);
 
 		timestamp++;
+		timestamp = timestamp % 32768;
 		
 		return *queryresult;
 	}

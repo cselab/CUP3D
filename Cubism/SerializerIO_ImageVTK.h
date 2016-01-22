@@ -7,6 +7,7 @@
  *
  */
 
+#ifdef _VTK_
 #pragma once
 #include <vtkPoints.h> 
 #include <vtkCell.h>
@@ -153,3 +154,4 @@ public:
 		img->Delete();
 	}
 };
+#endif

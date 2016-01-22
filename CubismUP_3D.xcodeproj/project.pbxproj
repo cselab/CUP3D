@@ -155,6 +155,9 @@
 		DD7795041C11F608003013F8 /* TestGeometry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestGeometry.cpp; sourceTree = "<group>"; };
 		DD7795051C11F608003013F8 /* TestGeometry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestGeometry.h; sourceTree = "<group>"; };
 		DD780F701B3BEF90007ED7B7 /* plotFallingCylinder.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotFallingCylinder.py; sourceTree = "<group>"; };
+		DD797C7C1C46365600C8EAE1 /* FallingSamaraFixedDaint.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingSamaraFixedDaint.sh; sourceTree = "<group>"; };
+		DD797C7D1C46367600C8EAE1 /* make.daint */ = {isa = PBXFileReference; lastKnownFileType = text; name = make.daint; path = makefiles/make.daint; sourceTree = "<group>"; };
+		DD797C7E1C463C7400C8EAE1 /* submit_daint_fallingSamaraFixed */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_daint_fallingSamaraFixed; sourceTree = "<group>"; };
 		DD838C3A1AB6DE8A00018A75 /* TestRotation.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestRotation.cpp; sourceTree = "<group>"; };
 		DD838C3B1AB6DE8A00018A75 /* TestRotation.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestRotation.h; sourceTree = "<group>"; };
 		DD838C3E1AB6DEA300018A75 /* TestTranslation.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestTranslation.cpp; sourceTree = "<group>"; };
@@ -304,6 +307,8 @@
 		DD58CAA31A5D9A3700291455 /* launch */ = {
 			isa = PBXGroup;
 			children = (
+				DD797C7C1C46365600C8EAE1 /* FallingSamaraFixedDaint.sh */,
+				DD797C7E1C463C7400C8EAE1 /* submit_daint_fallingSamaraFixed */,
 				DD132E301C1458AB006CFEE7 /* FlowPastSamara.sh */,
 				DDD305B51C15F6B3004DEFC3 /* FallingSamara.sh */,
 				DD9BCBEF1C19D7750091FD1C /* FallingSamaraFixed.sh */,
@@ -537,6 +542,7 @@
 			children = (
 				DD5FCAAE1B2F1E6B000232B9 /* make.brutus */,
 				DD5FCAAF1B2F1E6B000232B9 /* make.euler */,
+				DD797C7D1C46367600C8EAE1 /* make.daint */,
 				DD5FCAB01B2F1E6B000232B9 /* Makefile */,
 				DD5FCAB11B2F1E6B000232B9 /* makeTest.sh */,
 				DD58CAB31A5E8A7000291455 /* Cubism */,

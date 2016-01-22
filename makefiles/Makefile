@@ -9,10 +9,14 @@ precision ?= double
 poisson ?= split-fftw
 multiphase ?= false
 bs ?= 32
+bsx ?= $(bs)
+bsy ?= $(bs)
+bsz ?= $(bs)
 vertexcentered ?= false
 dlm ?= false
 
 hdf ?= true
+vtk ?= false
 
 constnu ?= true
 densitydiff ?= false
@@ -43,6 +47,9 @@ ifeq "$(precision)" "single"
 endif
 
 CPPFLAGS+= -D_BS_=$(bs)
+CPPFLAGS+= -D_BSX_=$(bsx)
+CPPFLAGS+= -D_BSY_=$(bsy)
+CPPFLAGS+= -D_BSZ_=$(bsz)
 
 ifeq "$(config)" "production"
 	CPPFLAGS += -DNDEBUG -O3
@@ -70,8 +77,8 @@ ifeq "$(dlm)" "true"
 endif
 
 ifeq "$(hdf)" "true"
-	CPPFLAGS += -I$(hdf-inc) -D_USE_HDF_
-	LIBS += -L$(hdf-lib) -lhdf5
+	CPPFLAGS += -D_USE_HDF_
+	LIBS += -lhdf5
 endif
 
 ifeq "$(constnu)" "true"
@@ -87,36 +94,39 @@ ifeq "$(rk2)" "true"
 endif
 
 ifeq "$(movingframe)" "true"
-CPPFLAGS += -D_MOVING_FRAME_
+	CPPFLAGS += -D_MOVING_FRAME_
 endif
 
-vtk-inc ?= 
+vtk-inc ?=
 vtk-lib ?=
-fftw-inc ?= 
-fftw-lib ?= 
-hypre-inc ?= 
+fftw-inc ?=
+fftw-lib ?=
+hypre-inc ?=
 hypre-lib ?=
 
 # needed in order to compile on nodes
-include make.brutus
+include make.daint
 
 ifneq "$(findstring brutus,$(shell hostname))" ""
-include make.brutus
+	include make.brutus
 endif
 
 ifneq "$(findstring euler,$(shell hostname))" ""
-include make.euler
+	include make.euler
 endif
 
 CPPFLAGS += -std=c++11 -fopenmp -fpermissive
 CPPFLAGS += -DNTHREADS=$(nthreads)
-CPPFLAGS += -I../source/ -I../Cubism/ -I$(vtk-inc) -I$(fftw-inc)
+CPPFLAGS += -I../source/ -I../Cubism/ -I$(fftw-inc)
 CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
 
-LIBS += -lstdc++ -lm \
-	-L$(vtk-lib) \
+LIBS += -lstdc++ -lm -lz
+
+ifeq "$(vtk)" "true"
+CPPFLAGS += -D_VTK_ -I$(vtk-inc)
+LIBS +=	-L$(vtk-lib) \
 	-lvtkHybrid \
 	-lvtkVolumeRendering \
 	-lvtkRendering \
@@ -134,23 +144,23 @@ LIBS += -lstdc++ -lm \
 	-lvtkpng \
 	-lvtkjpeg \
 	-lvtkzlib \
-	-lvtksys -lz \
-	-L$(fftw-lib)
+	-lvtksys
+endif
 
 ifeq "$(precision)" "single"
-    LIBS += -lfftw3 -lfftw3f -lfftw3f_threads -lfftw3_mpi
+	LIBS += -L$(fftw-lib) -lfftw3 -lfftw3f -lfftw3f_threads -lfftw3_mpi
 endif
 ifeq "$(precision)" "double"
-    LIBS += -lfftw3 -lfftw3_threads -lfftw3_mpi
+	LIBS += -L$(fftw-lib) -lfftw3 -lfftw3_threads -lfftw3_mpi
 endif
 
 LIBS += -L../tools/fpzip/lib -lfpzip
 
 ifeq "$(poisson)" "hypre"
-	CC=mpic++
-	LD=$(CC)
-	CPPFLAGS += -I$(hypre-inc)
-	LIBS += -L$(hypre-lib) -lHYPRE
+CC=mpic++
+LD=$(CC)
+CPPFLAGS += -I$(hypre-inc)
+LIBS += -L$(hypre-lib) -lHYPRE
 endif
 
 

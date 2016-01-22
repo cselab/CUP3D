@@ -149,6 +149,13 @@ public:
 		properties.update(dt);
 	}
 	
+	void getAngularVelocity(Real omega[3])
+	{
+		omega[0] = properties.dthetadt.x;
+		omega[1] = properties.dthetadt.y;
+		omega[2] = properties.dthetadt.z;
+	}
+	
 	void getCentroid(Real centroid[3])
 	{
 		centroid[0] = properties.centroid.x;

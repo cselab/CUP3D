@@ -22,7 +22,7 @@ inline void pack(const Real * const srcbase, Real * const dst,
 		for(int iy=ystart; iy<yend; ++iy)
 			for(int ix=xstart; ix<xend; ++ix)
 			{
-				const Real * src = srcbase + gptfloats*(ix + _BS_*(iy + _BS_*iz));
+				const Real * src = srcbase + gptfloats*(ix + _BSX_*(iy + _BSY_*iz));
 
 				// bgq: s_c[ic] = ic! -> memcpy or stripes...
 				for(int ic=0; ic<ncomponents; ic++, idst++)
@@ -40,7 +40,7 @@ inline void pack_stripes(const Real * const srcbase, Real * const dst,
 		for(int iy=ystart; iy<yend; ++iy)
 			for(int ix=xstart; ix<xend; ++ix)
 			{
-				const Real * src = srcbase + gptfloats*(ix + _BS_*(iy + _BS_*iz));
+				const Real * src = srcbase + gptfloats*(ix + _BSX_*(iy + _BSY_*iz));
 				
 				for(int ic=selstart; ic<selend; ic++, idst++)
 					dst[idst] = src[ic];

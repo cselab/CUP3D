@@ -30,7 +30,9 @@ typedef float Real;
 #include <Grid.h>
 #include <GridMPI.h>
 #include <BlockInfo.h>
+#ifdef _VTK_
 #include <SerializerIO_ImageVTK.h>
+#endif
 #include <HDF5Dumper_MPI.h>
 #include <ZBinDumper_MPI.h>
 #include <BlockLab.h>
