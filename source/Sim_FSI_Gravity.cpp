@@ -151,7 +151,6 @@ void Sim_FSI_Gravity::_ic()
 	cout << ss.str() << endl;
 	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
 #endif
-	cout << "Dump of IC done\n";
 	//profiler.pop_stop();
 	
 	//profiler.push_start("Diagnostics");

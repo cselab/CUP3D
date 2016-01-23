@@ -587,7 +587,7 @@ void GeometryReaderOBJ::sdf()
 	properties.centroid.y = centery + properties.minb.y;
 	properties.centroid.z = centerz + properties.minb.z;
 	
-	cout << "SDF done\n";
+	//cout << "SDF done\n";
 	bSDFComputed = true;
 }
 

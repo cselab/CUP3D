@@ -14,7 +14,7 @@
 
 
 // constructor loading OBJ file
-GeometryReader::GeometryReader(const string filename, Geometry::Properties & properties, int gridsize, const Real scaleFactor, const Geometry::Point transFactor) : bGeometryLoaded(false), gridsize(gridsize), bVerbose(true), filename(filename), baseScale(scaleFactor), baseTranslation(transFactor), properties(properties)
+GeometryReader::GeometryReader(const string filename, Geometry::Properties & properties, int gridsize, const Real scaleFactor, const Geometry::Point transFactor) : bGeometryLoaded(false), gridsize(gridsize), bVerbose(false), filename(filename), baseScale(scaleFactor), baseTranslation(transFactor), properties(properties)
 {
 }
 

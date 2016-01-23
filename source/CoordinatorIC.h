@@ -55,9 +55,9 @@ public:
 						Real p[3];
 						info.pos(p, ix, iy, iz);
 						
-						b(ix,iy,iz).u = p[0];//uinf;
-						b(ix,iy,iz).v = p[1];//0;
-						b(ix,iy,iz).w = p[2];//0;
+						b(ix,iy,iz).u = uinf;
+						b(ix,iy,iz).v = 0;
+						b(ix,iy,iz).w = 0;
 						b(ix,iy,iz).chi = shape->chi(p, dh);
 						
 						// assume fluid with density 1
