@@ -142,13 +142,13 @@ void Sim_FSI_Rotation::init()
 			const Real center[3] = {.5,.5,.5};
 			const Real moll = 2;
 			const int gridsize = 1024;
-			const Real scale = .18;
-			const Real tx = .5;
-			const Real ty = .3;
-			const Real tz = .5;
-			Geometry::Quaternion q1(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
-			Geometry::Quaternion q2(cos(.125*M_PI), sin(.125*M_PI), 0, 0);
-			Geometry::Quaternion q = q1*q2;
+			const Real scale = .2;
+			const Real tx = .4;
+			const Real ty = .5;
+			const Real tz = .4;
+			Geometry::Quaternion q1(cos(.0625*M_PI), 0, 0, sin(.0625*M_PI));
+			Geometry::Quaternion q2(cos(.0625*M_PI), sin(.0625*M_PI), 0, 0);
+			Geometry::Quaternion q = q2*q1;//q1*q2;
 			const Real isosurface = parser("-isosurface").asDouble(.004);
 			
 			const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";

@@ -135,7 +135,7 @@ public:
 						p[2] -= com[2];
 						
 						Real cp[3];
-						cp[0] = p[1] * (wLocal-*wBody) - p[2] * (vLocal-*vBody);
+						cp[0] = p[1] * (wLocal-*wBody) - p[2] * (vLocal-*vBody); // does this only use the translational component? not from the equations, double check
 						cp[1] = p[2] * (uLocal-*uBody) - p[0] * (wLocal-*wBody);
 						cp[2] = p[0] * (vLocal-*vBody) - p[1] * (uLocal-*uBody);
 						//cp[0] = p[1] * (wLocal) - p[2] * (vLocal);
@@ -214,9 +214,9 @@ public:
 		Real com[3];
 		shape->getCenterOfMass(com);
 		/*
-		 #pragma omp parallel for schedule(static) reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5) reduction(+:dtdtx) reduction(+:dtdty) reduction(+:dtdtz)
-		 for(int i=0; i<N; i++)
-		 {
+#pragma omp parallel for schedule(static) reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5) reduction(+:dtdtx) reduction(+:dtdty) reduction(+:dtdtz)
+		for(int i=0; i<N; i++)
+		{
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
@@ -224,39 +224,39 @@ public:
 			const Real h3 = h*h*h;
 			
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		 for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-		 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-		 {
-		 Real p[3];
-		 info.pos(p, ix, iy, iz);
-		 
-		 const Real rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
-		 p[0] -= com[0];
-		 p[1] -= com[1];
-		 p[2] -= com[2];
-		 
-		 const Real uLocal = -p[2] * .2 * M_PI;
-		 const Real vLocal = 0;
-		 const Real wLocal =  p[0] * .2 * M_PI;
-		 
-		 Real cp[3];
-		 cp[0] = p[1]* wLocal - p[2]* vLocal;
-		 cp[1] = p[2]* uLocal - p[0]* wLocal;
-		 cp[2] = p[0]* vLocal - p[1]* uLocal;
-		 
-		 dtdtx += cp[0] * rhochi * h3;
-		 dtdty += cp[1] * rhochi * h3;
-		 dtdtz += cp[2] * rhochi * h3;
-		 
-		 J0 += rhochi * (p[1]*p[1] + p[2]*p[2]) * h3; //       y^2 + z^2
-		 J1 += rhochi * (p[0]*p[0] + p[2]*p[2]) * h3; // x^2 +     + z^2
-		 J2 += rhochi * (p[0]*p[0] + p[1]*p[1]) * h3; // x^2 + y^2
-		 J3 -= rhochi * p[0] * p[1] * h3; // xy
-		 J4 -= rhochi * p[0] * p[2] * h3; // xz
-		 J5 -= rhochi * p[1] * p[2] * h3; // yz
-		 }
-		 }
-		 */
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
+						Real p[3];
+						info.pos(p, ix, iy, iz);
+						
+						const Real rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
+						p[0] -= com[0];
+						p[1] -= com[1];
+						p[2] -= com[2];
+						
+						const Real uLocal = -p[2] * .2 * M_PI;
+						const Real vLocal = 0;
+						const Real wLocal =  p[0] * .2 * M_PI;
+						
+						Real cp[3];
+						cp[0] = p[1]* wLocal - p[2]* vLocal;
+						cp[1] = p[2]* uLocal - p[0]* wLocal;
+						cp[2] = p[0]* vLocal - p[1]* uLocal;
+						
+						dtdtx += cp[0] * rhochi * h3;
+						dtdty += cp[1] * rhochi * h3;
+						dtdtz += cp[2] * rhochi * h3;
+						
+						J0 += rhochi * (p[1]*p[1] + p[2]*p[2]) * h3; //       y^2 + z^2
+						J1 += rhochi * (p[0]*p[0] + p[2]*p[2]) * h3; // x^2 +     + z^2
+						J2 += rhochi * (p[0]*p[0] + p[1]*p[1]) * h3; // x^2 + y^2
+						J3 -= rhochi * p[0] * p[1] * h3; // xy
+						J4 -= rhochi * p[0] * p[2] * h3; // xz
+						J5 -= rhochi * p[1] * p[2] * h3; // yz
+					}
+		}
+		*/
 		
 		Real mass = 1;
 		
