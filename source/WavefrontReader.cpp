@@ -14,7 +14,7 @@
 void GeometryReaderOBJ::parse(string filename)
 {
 	vertices.clear();
-	cout << "loading file " << filename.c_str() << endl;
+	if (bVerbose) cout << "loading file " << filename.c_str() << endl;
 	ifstream f(filename.c_str());
 	
 	properties.minb.x = properties.minb.y = properties.minb.z =  100.;
@@ -187,8 +187,12 @@ void GeometryReaderOBJ::load(const string filename)
 	 */
 	
 	
-	cout << "parsed " << vertices.size() << " vertices\n";
-	cout << "parsed " << triangles.size() << " triangles\n";
+	if (bVerbose)
+	{
+		cout << "parsed " << vertices.size() << " vertices\n";
+		cout << "parsed " << triangles.size() << " triangles\n";
+	}
+	
 	bGeometryLoaded = true;
 }
 
@@ -487,7 +491,7 @@ void GeometryReaderOBJ::sdf()
 	centerz /= count;
 	
 	double scalingsize = max(max(properties.maxb.x - properties.minb.x,properties.maxb.y - properties.minb.y),properties.maxb.z - properties.minb.z);
-	cout << centerx << " " << centery << " " << centerz << endl;
+	//cout << centerx << " " << centery << " " << centerz << endl;
 	centerx *= scalingsize;
 	centery *= scalingsize;
 	centerz *= scalingsize;

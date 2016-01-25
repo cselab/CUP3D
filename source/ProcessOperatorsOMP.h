@@ -133,5 +133,5 @@ void processOMPold(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 	}
 }
 
-double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGrid & grid);
+double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI & grid);
 #endif

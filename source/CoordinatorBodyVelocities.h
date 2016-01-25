@@ -22,7 +22,7 @@ protected:
 	Shape *shape;
 	
 public:
-	CoordinatorBodyVelocities(Real * uBody, Real * vBody, Real * wBody, Real * lambda, Shape * shape, Real * uFlowMax, FluidGrid * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), lambda(lambda), shape(shape), uFlowMax(uFlowMax)
+	CoordinatorBodyVelocities(Real * uBody, Real * vBody, Real * wBody, Real * lambda, Shape * shape, Real * uFlowMax, FluidGridMPI * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), lambda(lambda), shape(shape), uFlowMax(uFlowMax)
 	{
 	}
 	
@@ -190,7 +190,7 @@ protected:
 	Shape *shape;
 	
 public:
-	CoordinatorBodyVelocitiesForcedRot(Real * lambda, Shape * shape, FluidGrid * grid) : GenericCoordinator(grid), lambda(lambda), shape(shape)
+	CoordinatorBodyVelocitiesForcedRot(Real * lambda, Shape * shape, FluidGridMPI * grid) : GenericCoordinator(grid), lambda(lambda), shape(shape)
 	{
 		//cout << "Not supported yet\n";
 		//abort();

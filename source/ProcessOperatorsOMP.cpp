@@ -9,7 +9,7 @@
 #include "ProcessOperatorsOMP.h"
 #include <cmath>
 
-double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGrid & grid)
+double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI & grid)
 {
 	double maxU = 0;
 	const int N = myInfo.size();

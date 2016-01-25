@@ -12,7 +12,7 @@
 #include "GenericCoordinator.h"
 #include "OperatorDivergence.h"
 #include "OperatorGradP.h"
-#include "PoissonSolverScalarFFTW.h"
+#include "PoissonSolverScalarFFTW_MPI.h"
 #ifdef _MULTIGRID_
 #include "MultigridHypre.h"
 #endif // _MULTIGRID_
@@ -32,9 +32,9 @@ protected:
 	
 #ifdef _SPLIT_
 #ifndef _MIXED_
-	PoissonSolverScalarFFTW<FluidGrid, StreamerDiv> pressureSolver;
+	PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> pressureSolver;
 #else // _MIXED_
-	PoissonSolverScalarFFTW_DCT<FluidGrid, StreamerDiv> pressureSolver;
+	PoissonSolverScalarFFTW_MPI_DCT<FluidGridMPI, StreamerDiv> pressureSolver;
 #endif // _MIXED_
 #endif // _SPLIT_
 	
@@ -162,14 +162,14 @@ protected:
 	}
 	
 public:
-	CoordinatorPressure(const double minRho, const Real gravity[3], Real * uBody, Real * vBody, Real * wBody, int * step, const bool bSplit, FluidGrid * grid, const int rank, const int nprocs) : GenericCoordinator(grid), rank(rank), nprocs(nprocs), minRho(minRho), step(step), bSplit(bSplit), uBody(uBody), vBody(vBody), wBody(wBody), gravity{gravity[0],gravity[1],gravity[2]}
+	CoordinatorPressure(const double minRho, const Real gravity[3], Real * uBody, Real * vBody, Real * wBody, int * step, const bool bSplit, FluidGridMPI * grid, const int rank, const int nprocs) : GenericCoordinator(grid), rank(rank), nprocs(nprocs), minRho(minRho), step(step), bSplit(bSplit), uBody(uBody), vBody(vBody), wBody(wBody), gravity{gravity[0],gravity[1],gravity[2]}
 #ifdef _SPLIT_
 	, pressureSolver(NTHREADS,*grid)
 #endif // _SPLIT_
 	{
 	}
 	
-	CoordinatorPressure(const double minRho, const Real gravity[3], int * step, const bool bSplit, FluidGrid * grid, const int rank, const int nprocs) : GenericCoordinator(grid), rank(rank), nprocs(nprocs), minRho(minRho), step(step), bSplit(bSplit), uBody(NULL), vBody(NULL), gravity{gravity[0],gravity[1],gravity[2]}
+	CoordinatorPressure(const double minRho, const Real gravity[3], int * step, const bool bSplit, FluidGridMPI * grid, const int rank, const int nprocs) : GenericCoordinator(grid), rank(rank), nprocs(nprocs), minRho(minRho), step(step), bSplit(bSplit), uBody(NULL), vBody(NULL), gravity{gravity[0],gravity[1],gravity[2]}
 #ifdef _SPLIT_
 	, pressureSolver(NTHREADS,*grid)
 #endif // _SPLIT_
@@ -189,8 +189,8 @@ public:
 		addHydrostaticPressure(dt);
 #endif // _HYDROSTATIC_
 		computeSplit<OperatorDivergenceSplit>(dt); // this part could be done directly in the correct data structure
-		//computeSplitFFTW<OperatorDivergenceSplitFFTW>(dt); // this part could be done directly in the correct data structure
-		pressureSolver.solve(*grid,false);
+		//computeSplitFFTW<OperatorDivergenceSplitFFTW>(dt); // when using this, remove from FFTW C2F, in both solvers
+		pressureSolver.solve(*grid);
 		computeSplit<OperatorGradPSplit>(dt); // this part could be done directly in the correct data structure
 #endif // _SPLIT_
 #ifdef _MULTIGRID_
@@ -236,9 +236,9 @@ class CoordinatorPressureSimple : public GenericCoordinator
 {
 protected:
 #ifndef _MIXED_
-	PoissonSolverScalarFFTW<FluidGrid, StreamerDiv> pressureSolver;
+	PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> pressureSolver;
 #else
-	PoissonSolverScalarFFTW_DCT<FluidGrid, StreamerDiv> pressureSolver;
+	PoissonSolverScalarFFTW_MPI_DCT<FluidGridMPI, StreamerDiv> pressureSolver;
 #endif // _MIXED_
 	
 	inline void updatePressure()
@@ -284,14 +284,14 @@ protected:
 	}
 	
 public:
-	CoordinatorPressureSimple(FluidGrid * grid) : GenericCoordinator(grid), pressureSolver(NTHREADS,*grid)
+	CoordinatorPressureSimple(FluidGridMPI * grid) : GenericCoordinator(grid), pressureSolver(NTHREADS,*grid)
 	{
 	}
 	
 	void operator()(const double dt)
 	{
 		computeUnsplit<OperatorDivergence>(dt);
-		pressureSolver.solve(*grid,true);
+		pressureSolver.solve(*grid);
 		computeUnsplit<OperatorGradP>(dt);
 		
 		updatePressure();

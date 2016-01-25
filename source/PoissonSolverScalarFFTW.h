@@ -388,14 +388,13 @@ protected:
 		const Real fy =    M_PI/ny;
 		const Real fz = 2.*M_PI/nz;
 		
-#pragma omp parallel for
+#pragma omp parallel for collapse(2)
 		for(int i=0; i<nx; ++i)
 		{
-			const Real cosi = cos(fx*i);
-			const Real cos2i = cos(2.*fx*i);
-			
 			for(int j=0; j<ny; ++j)
 			{
+				const Real cosi = cos(fx*i);
+				const Real cos2i = cos(2.*fx*i);
 				const Real cosj = cos(fy*(j+.5));
 				const Real cos2j = cos(2*fy*(j+.5));
 				

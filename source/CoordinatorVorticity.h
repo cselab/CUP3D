@@ -65,7 +65,7 @@ protected:
 	}
 	
 public:
-	CoordinatorVorticity(FluidGrid * grid) : GenericCoordinator(grid)
+	CoordinatorVorticity(FluidGridMPI * grid) : GenericCoordinator(grid)
 	{
 	}
 	

@@ -79,17 +79,17 @@ protected:
 	
 public:
 #ifndef _MULTIPHASE_
-	CoordinatorAdvection(Real * uBody, Real * vBody, Real * wBody, FluidGrid * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody)
+	CoordinatorAdvection(Real * uBody, Real * vBody, Real * wBody, FluidGridMPI * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody)
 #else
-	CoordinatorAdvection(Real * uBody, Real * vBody, Real * wBody, FluidGrid * grid, Real rhoS) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), rhoS(rhoS)
+	CoordinatorAdvection(Real * uBody, Real * vBody, Real * wBody, FluidGridMPI * grid, Real rhoS) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), rhoS(rhoS)
 #endif
 	{
 	}
 	
 #ifndef _MULTIPHASE_
-	CoordinatorAdvection(FluidGrid * grid) : GenericCoordinator(grid), uBody(NULL), vBody(NULL)
+	CoordinatorAdvection(FluidGridMPI * grid) : GenericCoordinator(grid), uBody(NULL), vBody(NULL)
 #else
-	CoordinatorAdvection(FluidGrid * grid, Real rhoS) : GenericCoordinator(grid), uBody(NULL), vBody(NULL), wBody(NULL), rhoS(rhoS)
+	CoordinatorAdvection(FluidGridMPI * grid, Real rhoS) : GenericCoordinator(grid), uBody(NULL), vBody(NULL), wBody(NULL), rhoS(rhoS)
 #endif
 	{
 	}
@@ -152,7 +152,7 @@ protected:
 	}
 	
 public:
-	CoordinatorTransport(FluidGrid * grid) : GenericCoordinator(grid)
+	CoordinatorTransport(FluidGridMPI * grid) : GenericCoordinator(grid)
 	{
 	}
 	
@@ -270,7 +270,7 @@ protected:
 	}
 	
 public:
-	CoordinatorTransportTimeTest(FluidGrid * grid) : GenericCoordinator(grid)
+	CoordinatorTransportTimeTest(FluidGridMPI * grid) : GenericCoordinator(grid)
 	{
 	}
 	

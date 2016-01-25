@@ -80,7 +80,7 @@ public:
 		//cout << properties.rotation[1][0] << " " << properties.rotation[1][1] << " " << properties.rotation[1][2] << endl;
 		//cout << properties.rotation[2][0] << " " << properties.rotation[2][1] << " " << properties.rotation[2][2] << endl;
 		
-		cout << "WARNING - shape not completely initialized\n";
+		//cout << "WARNING - shape not completely initialized\n";
 		// to initialize: mass, minb, maxb, J
 	}
 	

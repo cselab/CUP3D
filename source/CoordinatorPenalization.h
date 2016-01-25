@@ -20,7 +20,7 @@ protected:
 	Real * lambda;
 	
 public:
-	CoordinatorPenalizationFixed(Shape * shape, Real * lambda, FluidGrid * grid) : GenericCoordinator(grid), shape(shape), lambda(lambda)
+	CoordinatorPenalizationFixed(Shape * shape, Real * lambda, FluidGridMPI * grid) : GenericCoordinator(grid), shape(shape), lambda(lambda)
 	{
 	}
 	
@@ -57,7 +57,7 @@ protected:
 	Real * lambda;
 	
 public:
-	CoordinatorPenalization(Real * uBody, Real * vBody, Real * wBody, Shape * shape, Real * lambda, FluidGrid * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), shape(shape), lambda(lambda)
+	CoordinatorPenalization(Real * uBody, Real * vBody, Real * wBody, Shape * shape, Real * lambda, FluidGridMPI * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), shape(shape), lambda(lambda)
 	{
 	}
 	

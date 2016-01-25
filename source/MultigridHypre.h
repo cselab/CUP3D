@@ -35,7 +35,7 @@ private:
     int rankX, rankY, nranks;
     const int nprocsX, nprocsY;
     
-    FluidGrid * fluidgrid;
+    FluidGridMPI * fluidgrid;
     
     inline void _neighbor(Real c, Real e, Real w, Real n, Real s, Real& avgE, Real& avgW, Real& avgN, Real& avgS)
     {
@@ -531,7 +531,7 @@ public:
     
     ~MultigridHypre() {}
     
-    void setup(FluidGrid * inputGrid, bool bConstCoeffs, const int rank, const int nprocs)
+    void setup(FluidGridMPI * inputGrid, bool bConstCoeffs, const int rank, const int nprocs)
     {
         nranks = nprocs;
         fluidgrid = inputGrid;

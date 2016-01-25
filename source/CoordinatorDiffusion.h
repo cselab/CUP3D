@@ -50,11 +50,11 @@ protected:
 	}
 	
 public:
-	CoordinatorDiffusion(const double coeff, Real * uBody, Real * vBody, Real * wBody, FluidGrid * grid) : GenericCoordinator(grid), coeff(coeff), uBody(uBody), vBody(vBody), wBody(wBody)
+	CoordinatorDiffusion(const double coeff, Real * uBody, Real * vBody, Real * wBody, FluidGridMPI * grid) : GenericCoordinator(grid), coeff(coeff), uBody(uBody), vBody(vBody), wBody(wBody)
 	{
 	}
 	
-	CoordinatorDiffusion(const double coeff, FluidGrid * grid) : GenericCoordinator(grid), coeff(coeff), uBody(NULL), vBody(NULL), wBody(NULL)
+	CoordinatorDiffusion(const double coeff, FluidGridMPI * grid) : GenericCoordinator(grid), coeff(coeff), uBody(NULL), vBody(NULL), wBody(NULL)
 	{
 	}
 	
@@ -172,7 +172,7 @@ protected:
 	}
 	
 public:
-	CoordinatorDiffusionTimeTest(const double coeff, const double freq, FluidGrid * grid) : GenericCoordinator(grid), coeff(coeff), freq(freq), time(0)
+	CoordinatorDiffusionTimeTest(const double coeff, const double freq, FluidGridMPI * grid) : GenericCoordinator(grid), coeff(coeff), freq(freq), time(0)
 	{
 	}
 	

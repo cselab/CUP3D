@@ -19,7 +19,7 @@ protected:
 	Shape * shape;
     
 public:
-	CoordinatorComputeShape(Shape * shape, FluidGrid * grid) : GenericCoordinator(grid), shape(shape)
+	CoordinatorComputeShape(Shape * shape, FluidGridMPI * grid) : GenericCoordinator(grid), shape(shape)
 	{
 	}
 	

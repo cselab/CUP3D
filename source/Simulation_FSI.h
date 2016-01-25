@@ -112,7 +112,7 @@ public:
 			
 			double rhoS = parser("-rhoS").asDouble(1);
 			const Real aspectRatio = 1;
-			cout << "WARNING - Aspect ratio for correct positioning of sphere not implemented yet\n";
+			if (rank==0) cout << "WARNING - Aspect ratio for correct positioning of sphere not implemented yet\n";
 			Real center[3] = {parser("-xpos").asDouble(.5*aspectRatio),parser("-ypos").asDouble(.85),parser("-zpos").asDouble(.5*aspectRatio)};
 			
 			string shapeType = parser("-shape").asString("sphere");

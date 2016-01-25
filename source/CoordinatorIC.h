@@ -20,7 +20,7 @@ protected:
 	const double uinf;
 	
 public:
-	CoordinatorIC(Shape * shape, const double uinf, FluidGrid * grid) : GenericCoordinator(grid), shape(shape), uinf(uinf)
+	CoordinatorIC(Shape * shape, const double uinf, FluidGridMPI * grid) : GenericCoordinator(grid), shape(shape), uinf(uinf)
 	{
 	}
 	
@@ -30,7 +30,6 @@ public:
 		const int N = vInfo.size();
 		
 		const double dh = vInfo[0].h_gridpoint;
-		cout << dh << endl;
 		
 		Real cx = 0;
 		Real cy = 0;
@@ -110,7 +109,7 @@ protected:
 	const double rhoS;
 	
 public:
-	CoordinatorIC_RT(const double rhoS, FluidGrid * grid) : GenericCoordinator(grid), rhoS(rhoS)
+	CoordinatorIC_RT(const double rhoS, FluidGridMPI * grid) : GenericCoordinator(grid), rhoS(rhoS)
 	{
 	}
 	

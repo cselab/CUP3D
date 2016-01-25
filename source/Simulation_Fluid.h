@@ -117,15 +117,16 @@ protected:
 		{
 			bDump = false;
 			nextDumpTime += dumpTime;
-			
+//*
 #ifdef _USE_HDF_
 			CoordinatorVorticity<Lab> coordVorticity(grid);
 			coordVorticity(dt);
 			stringstream ss;
 			ss << path2file << "-" << std::setfill('0') << std::setw(6) << step;
-			cout << ss.str() << endl;
+			if (rank==0) cout << ss.str() << endl;
 			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
 #endif
+//*/
 			//_serialize();
 			
 			/*
@@ -190,7 +191,7 @@ protected:
 			 waveletdumper_velocity_magnitude.set_threshold (vpeps);
 			 if (vpchannels.find('m') != std::string::npos)
 				waveletdumper_velocity_magnitude.Write<0>(grid, streamer.str());
-			 */
+			 //*/
 		}
 	}
 	

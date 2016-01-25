@@ -18,7 +18,7 @@ protected:
 	Real gradient[3];
 	
 public:
-	CoordinatorPressureGradient(Real gradient[3], FluidGrid * grid) : GenericCoordinator(grid), gradient{gradient[0],gradient[1],gradient[2]}
+	CoordinatorPressureGradient(Real gradient[3], FluidGridMPI * grid) : GenericCoordinator(grid), gradient{gradient[0],gradient[1],gradient[2]}
 	{
 	}
 	

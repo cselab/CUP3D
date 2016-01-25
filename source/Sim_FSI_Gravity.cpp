@@ -211,7 +211,7 @@ Sim_FSI_Gravity::Sim_FSI_Gravity(const int argc, const char ** argv) : Simulatio
 	if (rank==0)
 	{
 		cout << "====================================================================================================================\n";
-		cout << "\t\t\tFlow past a falling cylinder\n";
+		cout << "\t\t\tFlow past a falling body\n";
 		cout << "====================================================================================================================\n";
 	}
 }
@@ -233,7 +233,7 @@ void Sim_FSI_Gravity::init()
 		
 		double rhoS = parser("-rhoS").asDouble(1);
 		const Real aspectRatio = 1;
-		cout << "WARNING - Aspect ratio for correct positioning of sphere not implemented yet\n";
+		if (rank==0) cout << "WARNING - Aspect ratio for correct positioning of sphere not implemented yet\n";
 		Real center[3] = {parser("-xpos").asDouble(.5*aspectRatio),parser("-ypos").asDouble(.85),parser("-zpos").asDouble(.5*aspectRatio)};
 		
 		string shapeType = parser("-shape").asString("sphere");
@@ -431,8 +431,11 @@ void Sim_FSI_Gravity::simulate()
 		_dump(nextDumpTime);
 		profiler.pop_stop();
 		
-		if (rank==0 && step % 100 == 0)
+		if (rank==0 && step % 10 == 0)
+		{
 			profiler.printSummary();
+			abort();
+		}
 		
 		// check nondimensional time
 		if ((endTime>0 && abs(_nonDimensionalTime()-endTime) < 10*std::numeric_limits<Real>::epsilon()) || (nsteps!=0 && step>=nsteps))
