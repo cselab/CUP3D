@@ -12,7 +12,7 @@
 #include "common.h"
 #include "Layer.h"
 #include "BoundaryConditions.h"
-
+/*
 #ifndef _BS_
 #define _BS_ 32
 #endif // _BS_
@@ -28,7 +28,7 @@
 #ifndef _BSZ_
 #define _BSZ_ 32
 #endif // _BSZ_
-
+*/
 struct FluidElement
 {
     Real rho, u, v, w, chi, p, pOld;

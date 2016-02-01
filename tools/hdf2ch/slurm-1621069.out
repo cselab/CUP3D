@@ -1,0 +1,59 @@
+/ufs/slurm/spool/daint05/job1621069/slurm_script[25]: .: /opt/modules/default/init/bashexport: cannot open [No such file or directory]
+////////////////////////////////////////////////////////////
+////////////      TEST IO Compressed MPI     ///////////////
+////////////////////////////////////////////////////////////
+coords = 0,0,0
+NX,NY,NZ = 512,512,512
+coords = 1,1,1
+NX,NY,NZ = 512,512,512
+coords = 1,1,0
+NX,NY,NZ = 512,512,512
+coords = 1,0,1
+NX,NY,NZ = 512,512,512
+coords = 1,0,0
+NX,NY,NZ = 512,512,512
+coords = 0,1,1
+NX,NY,NZ = 512,512,512
+coords = 0,1,0
+NX,NY,NZ = 512,512,512
+coords = 0,0,1
+NX,NY,NZ = 512,512,512
+before barrier
+before barrier
+before barrier
+before barrier
+before barrier
+before barrier
+before barrier
+before barrier
+after barrier
+after barrier
+after barrier
+after barrier
+after barrier
+after barrier
+after barrier
+after barrier
+_pmiu_daemon(SIGCHLD): [NID 00372] [c1-0c2s13n0] [Mon Feb  1 13:51:42 2016] PE RANK 7 exit signal Segmentation fault
+[NID 00372] 2016-02-01 13:51:42 Apid 6835833: initiated application termination
+Application 6835833 exit codes: 139
+Application 6835833 exit signals: Killed
+Application 6835833 resources: utime ~142s, stime ~55s, Rss ~5274344, inblocks ~37847574, outblocks ~256696
+-simdata is chi00000.StreamerGridPointIterative.channel0
+-simdata2 is 
+-simdata3 is 
+-h5file is outChi
+-xs is 
+-xe is 
+-ys is 
+-ye is 
+-zs is 
+-ze is 
+-wtype is 
+Assertion `file` failed in ../reader/Reader_WaveletCompression.h line 202: 
+AAATTENZIONE:
+Oooops could not open the file. Path: chi00000.StreamerGridPointIterative.channel0
+[NID 00365] 2016-02-01 13:52:21 Apid 6835926: initiated application termination
+Application 6835926 exit codes: 1
+Application 6835926 exit signals: Killed
+Application 6835926 resources: utime ~0s, stime ~1s, Rss ~7364, inblocks ~99620, outblocks ~260640

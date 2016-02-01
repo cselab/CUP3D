@@ -265,7 +265,7 @@ void Sim_FSI_Gravity::init()
 			 /*/
 			const Real center[3] = {.5,.5,.5};
 			const Real moll = 2;
-			const int gridsize = 1024;
+			const int gridsize = 1536;
 			const Real scale = .15;//.125;
 			const Real tx = .45;
 			const Real ty = .3;
@@ -373,10 +373,10 @@ void Sim_FSI_Gravity::simulate()
 		}
 		MPI_Bcast(&dt,1,MPI_DOUBLE,0,MPI_COMM_WORLD);
 		
-		if (dumpTime>nextDumpTime)
+		if (time>nextDumpTime)
 		{
 			bDump = true;
-			nextDumpTime += dumpTime;
+			//nextDumpTime += dumpTime; // this is already done in _dump
 		}
 		
 		if (dt!=0)
@@ -431,10 +431,9 @@ void Sim_FSI_Gravity::simulate()
 		_dump(nextDumpTime);
 		profiler.pop_stop();
 		
-		if (rank==0 && step % 10 == 0)
+		if (rank==0 && step % 100 == 0)
 		{
 			profiler.printSummary();
-			abort();
 		}
 		
 		// check nondimensional time

@@ -44,6 +44,8 @@ protected:
 	
 	vector<GenericCoordinator *> pipeline;
 	
+	//SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, FluidVPStreamer> waveletdumper_grid;
+	
 	// grid
 	int nprocsx, nprocsy, nprocsz;
 	int bpdx, bpdy, bpdz;
@@ -138,53 +140,25 @@ protected:
 			 streamer.fill('0');
 			 streamer << step;
 				
-			 double vpeps = parser("-vpeps").asDouble(1e-3);
+			 double vpeps = parser("-vpeps").asDouble(1e-5);
 			 int wavelet_type = parser("-wtype").asInt(1);
 				
 			 waveletdumper_grid.verbose();
 			 waveletdumper_grid.set_wtype_write(wavelet_type);
 				
 			 waveletdumper_grid.set_threshold (vpeps);
-			 if (vpchannels.find('0') != std::string::npos)
-				waveletdumper_grid.Write<0>(grid, streamer.str());
-				
-			 waveletdumper_grid.set_threshold (vpeps);
-			 if (vpchannels.find('1') != std::string::npos)
-				waveletdumper_grid.Write<1>(grid, streamer.str());
-				
-			 waveletdumper_grid.set_threshold (vpeps);
-			 if (vpchannels.find('2') != std::string::npos)
-				waveletdumper_grid.Write<2>(grid, streamer.str());
-				
-			 waveletdumper_grid.set_threshold (vpeps);
-			 if (vpchannels.find('3') != std::string::npos)
-				waveletdumper_grid.Write<3>(grid, streamer.str());
-				
-			 waveletdumper_grid.set_threshold (vpeps);
-			 if (vpchannels.find('4') != std::string::npos)
-				waveletdumper_grid.Write<4>(grid, streamer.str());
-				
-			 waveletdumper_grid.set_threshold (vpeps);
-			 if (vpchannels.find('5') != std::string::npos)
-				waveletdumper_grid.Write<5>(grid, streamer.str());
-				
+			 waveletdumper_grid.Write<0>(grid, streamer.str());
+			 waveletdumper_grid.Write<1>(grid, streamer.str());
+			 waveletdumper_grid.Write<2>(grid, streamer.str());
+			 waveletdumper_grid.Write<3>(grid, streamer.str());
+			 waveletdumper_grid.Write<4>(grid, streamer.str());
+			 waveletdumper_grid.Write<5>(grid, streamer.str());
+				/*
 			 waveletdumper_vorticity.verbose();
 			 waveletdumper_vorticity.set_wtype_write(wavelet_type);
 			 waveletdumper_vorticity.set_threshold (vpeps);
 			 if (vpchannels.find('w') != std::string::npos || vpchannels.find('W') != std::string::npos)
 				waveletdumper_vorticity.Write<5>(grid, streamer.str());
-				
-			 waveletdumper_sos.verbose();
-			 waveletdumper_sos.set_wtype_write(wavelet_type);
-			 waveletdumper_sos.set_threshold (10*vpeps);
-			 if (vpchannels.find('c') != std::string::npos)
-				waveletdumper_sos.Write<0>(grid, streamer.str());
-				
-			 waveletdumper_mach.verbose();
-			 waveletdumper_mach.set_wtype_write(wavelet_type);
-			 waveletdumper_mach.set_threshold (vpeps);
-			 if (vpchannels.find('M') != std::string::npos)
-				waveletdumper_mach.Write<0>(grid, streamer.str());
 				
 			 waveletdumper_velocity_magnitude.verbose();
 			 waveletdumper_velocity_magnitude.set_wtype_write(wavelet_type);

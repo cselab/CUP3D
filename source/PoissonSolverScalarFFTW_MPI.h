@@ -484,7 +484,7 @@ public:
 		_fftw2cub(data, grid, gsize[0], gsize[1], gsize[2]);
 		profiler.pop_stop();
 		
-		profiler.printSummary();
+		//profiler.printSummary();
 	}
 	
 	void dispose()
