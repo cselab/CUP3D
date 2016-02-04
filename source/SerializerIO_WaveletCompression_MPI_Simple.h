@@ -152,7 +152,7 @@ protected:
 	template<int channel>
 	void _compress(const vector<BlockInfo>& vInfo, const int NBLOCKS, IterativeStreamer streamer)
 	{
-#pragma omp parallel num_threads(omp_get_max_threads()/2)  
+#pragma omp parallel num_threads(omp_get_max_threads())
 		{			
 		  const int tid = omp_get_thread_num();
 
@@ -787,8 +787,8 @@ public:
 	
 	SerializerIO_WaveletCompression_MPI_SimpleBlocking(): 
 	threshold(0), halffloat(false), verbosity(false), 
-	workload_total(omp_get_max_threads()/2), workload_fwt(omp_get_max_threads()/2), workload_encode(omp_get_max_threads()/2),
-	workbuffer(omp_get_max_threads()/2), 
+	workload_total(omp_get_max_threads()), workload_fwt(omp_get_max_threads()), workload_encode(omp_get_max_threads()),
+	workbuffer(omp_get_max_threads()),
 	written_bytes(0), pending_writes(0)
 	{
 		wtype_write = 1;	// peh

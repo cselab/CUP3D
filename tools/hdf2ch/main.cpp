@@ -27,12 +27,12 @@ int main (int argc, char ** argv)
 	const bool isroot = myrank == 0;
 	
 	ArgumentParser parser (argc, (const char **)argv);
-  
+	
 	parser.set_strict_mode();
 	
 	if (!isroot)
 		parser.mute();
-  
+	
 	//if ( parser("-sim").asString() == "statistics" )
 	//	sim = new Test_Statistics (isroot, argc, (const char **)argv);
 	if ( parser("-sim").asString() == "io" )
@@ -44,8 +44,8 @@ int main (int argc, char ** argv)
 			printf("usage: %s -inputpath <path> -outputpath <path> -stepid <number> -channel <number> [-swap] [-restart] [-wtype_read <type1>] [-wtype_write <type2>]\n", argv[0]);
 			//abort();
 		}
-			MPI_Abort(MPI_COMM_WORLD, 1);
-	} 
+		MPI_Abort(MPI_COMM_WORLD, 1);
+	}
  
 	sim->setup();
 	

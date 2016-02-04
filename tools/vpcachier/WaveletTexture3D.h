@@ -17,7 +17,7 @@ using namespace std;
 
 #include <mpi.h>
 
-#include "../../MPCFnode/source/WaveletCompressor.h"
+#include "../../source/WaveletCompressor.h"
 
 #ifndef MYASSERT
 //MACRO TAKEN FROM http://stackoverflow.com/questions/3767869/adding-message-to-assert

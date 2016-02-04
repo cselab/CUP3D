@@ -25,7 +25,7 @@ using namespace std;
 class Simulation
 {
 public:
-    
+	
 	virtual void setup() { }
 	virtual void dispose() { }
 	virtual ~Simulation() { }
@@ -33,16 +33,16 @@ public:
 
 struct FluidElement
 {
-    Real u;
-
-    void clear() { u = 0; }
-    
-    FluidElement& operator = (const FluidElement & gp)
-    {       
-        this->u = gp.u;
-        
-        return *this;
-    }
+	Real u;
+	
+	void clear() { u = 0; }
+	
+	FluidElement& operator = (const FluidElement & gp)
+	{
+		this->u = gp.u;
+		
+		return *this;
+	}
 };
 
 struct FluidBlock
@@ -50,26 +50,26 @@ struct FluidBlock
 	static const int sizeX = _BLOCKSIZE_;
 	static const int sizeY = _BLOCKSIZE_;
 	static const int sizeZ = _BLOCKSIZE_;
-        
+	
 	static const int gptfloats = sizeof(FluidElement)/sizeof(Real);
 	
 	typedef FluidElement ElementType;
 	typedef FluidElement element_type;
 	
 	FluidElement __attribute__((__aligned__(_ALIGNBYTES_))) data[_BLOCKSIZE_][_BLOCKSIZE_][_BLOCKSIZE_];
-    
+	
 	void clear_data()
 	{
 		const int N = sizeX*sizeY*sizeZ;
 		FluidElement * const e = &data[0][0][0];
 		for(int i=0; i<N; ++i) e[i].clear();
 	}
-    
+	
 	void clear()
 	{
 		clear_data();
 	}
-         
+	
 	inline FluidElement& operator()(int ix, int iy=0, int iz=0)
 	{
 		assert(ix>=0 && ix<sizeX);
@@ -78,12 +78,12 @@ struct FluidBlock
 		
 		return data[iz][iy][ix];
 	}
-		
+	
 	template <typename Streamer>
 	inline void minmax(Real minval[Streamer::channels], Real maxval[Streamer::channels], Streamer streamer = Streamer())
 	{
 		enum { NCHANNELS = Streamer::channels };
-				
+		
 		streamer.operate(data[0][0][0], minval);
 		streamer.operate(data[0][0][0], maxval);
 		
@@ -107,23 +107,23 @@ struct FluidBlock
 
 struct StreamerGridPointIterative
 {
-    static const int channels = 1;
-
-    FluidBlock * ref;
-    StreamerGridPointIterative(FluidBlock& b): ref(&b) {}
-    StreamerGridPointIterative(): ref(NULL) {}
-
+	static const int channels = 1;
+	
+	FluidBlock * ref;
+	StreamerGridPointIterative(FluidBlock& b): ref(&b) {}
+	StreamerGridPointIterative(): ref(NULL) {}
+	
 	template<int channel>
-        static inline Real operate(const FluidElement& input) { abort(); return 0; }
-
+	static inline Real operate(const FluidElement& input) { abort(); return 0; }
+	
 	inline Real operate(const int ix, const int iy, const int iz) const
-        {
-        cout << "You must not call this operate method of StreamerGridPointIterative" << endl;
-        abort();
-        return 0;
+	{
+		cout << "You must not call this operate method of StreamerGridPointIterative" << endl;
+		abort();
+		return 0;
 	}
-
-        const char * name() { return "StreamerGridPointIterative" ; }
+	
+	const char * name() { return "StreamerGridPointIterative" ; }
 };
 
 template<> inline Real StreamerGridPointIterative::operate<0>(const FluidElement& e) { return e.u; }
