@@ -15,7 +15,7 @@
 #include <hdf5.h>
 #endif
 
-#ifdef _FLOAT_PRECISION_
+#ifdef _SP_COMP_
 #define HDF_REAL H5T_NATIVE_FLOAT
 #else
 #define HDF_REAL H5T_NATIVE_DOUBLE

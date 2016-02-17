@@ -36,12 +36,12 @@ public:
 		double dtdty = 0;
 		double dtdtz = 0;
 		const int N = vInfo.size();
-		Real J0 = 0;
-		Real J1 = 0;
-		Real J2 = 0;
-		Real J3 = 0;
-		Real J4 = 0;
-		Real J5 = 0;
+		double J0 = 0;
+		double J1 = 0;
+		double J2 = 0;
+		double J3 = 0;
+		double J4 = 0;
+		double J5 = 0;
 		Real maxU = 0;
 		
 		double massG = 0;
@@ -51,12 +51,12 @@ public:
 		double dtdtxG = 0;
 		double dtdtyG = 0;
 		double dtdtzG = 0;
-		Real J0G = 0;
-		Real J1G = 0;
-		Real J2G = 0;
-		Real J3G = 0;
-		Real J4G = 0;
-		Real J5G = 0;
+		double J0G = 0;
+		double J1G = 0;
+		double J2G = 0;
+		double J3G = 0;
+		double J4G = 0;
+		double J5G = 0;
 		Real maxUG = 0;
 		
 		Real com[3];
@@ -171,7 +171,7 @@ public:
 		const Real ub[3] = { *uBody, *vBody, *wBody };
 		Real dthetadt[3] = { dtdtxG, dtdtyG, dtdtzG };
 		const Real weaken = 1.;
-		const Real J[6] = { J0G*weaken, J1G*weaken, J2G*weaken, J3G*weaken, J4G*weaken, J5G*weaken };
+		const double J[6] = { J0G*weaken, J1G*weaken, J2G*weaken, J3G*weaken, J4G*weaken, J5G*weaken };
 		
 		shape->updatePosition(ub, dthetadt, J, massG, dt);
 	}
@@ -262,7 +262,7 @@ public:
 		
 		const Real ub[3] = { 0,0,0 };
 		const Real dthetadt[3] = { 0, .1, 0 };
-		const Real J[6] = { 1,1,1,0,0,0 };//{ J0, J1, J2, J3, J4, J5 };
+		const double J[6] = { 1,1,1,0,0,0 };//{ J0, J1, J2, J3, J4, J5 };
 		
 		shape->updatePosition(ub, dthetadt, J, mass, dt);
 	}

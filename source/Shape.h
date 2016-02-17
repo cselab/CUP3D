@@ -84,12 +84,16 @@ public:
 		// to initialize: mass, minb, maxb, J
 	}
 	
+	Shape()
+	{
+	}
+	
 	virtual ~Shape() {}
 	
 	virtual Real chi(Real p[3], Real h) const = 0;
 	virtual Real getCharLength() const = 0;
 	
-	virtual void updatePosition(Real u[3], Real dthetadt[3], Real J[6], Real mass, Real dt)
+	virtual void updatePosition(Real u[3], Real dthetadt[3], double J[6], Real mass, Real dt)
 	{
 		properties.ut.x = u[0];
 		properties.ut.y = u[1];
@@ -225,19 +229,17 @@ public:
 		return rho(p,h,mask);
 	}
 	
-	virtual void outputSettings(ostream &outStream)
+	virtual void serialize(ostream &outStream)
 	{
-		outStream << "centerX " << properties.centroid.x << endl;
-		outStream << "centerY " << properties.centroid.y << endl;
-		outStream << "centerZ " << properties.centroid.z << endl;
-		outStream << "centerMassX " << properties.com.x << endl;
-		outStream << "centerMassY " << properties.com.y << endl;
-		outStream << "centerMassZ " << properties.com.z << endl;
-		//outStream << "orientation " << orientation << endl;
-		outStream << "rhoS " << properties.density << endl;
+		outStream << "scaleFactor " << scaleFactor << endl;
+		outStream << "translationFactor " << translationFactor.x << " " << translationFactor.y << " " << translationFactor.z << endl;
 		outStream << "mollChi " << mollChi << endl;
 		outStream << "mollRho " << mollRho << endl;
+		
+		properties.serialize(outStream);
 	}
+	
+	// no need for deserialization - this task is delegated to static function of descendants
 };
 
 class Sphere : public Shape
@@ -263,13 +265,15 @@ public:
 		return 2 * radius;
 	}
 	
+	/*
 	void outputSettings(ostream &outStream)
 	{
 		outStream << "Sphere\n";
 		outStream << "radius " << radius << endl;
 		
-		Shape::outputSettings(outStream);
+		Shape::serialize(outStream);
 	}
+	*/
 };
 
 class GeometryMesh : public Shape
@@ -295,11 +299,64 @@ public:
 		//cout << "Not implemented yet\n";
 		return .01;
 	}
-	
+	/*
 	void outputSettings(ostream &outStream)
 	{
 		//cout << "Not implemented yet\n";
 		//abort();
+	}
+	*/
+	virtual void serialize(ostream &outStream)
+	{
+		// these are information necessary for the constructor on restart!
+		outStream << "filename " << geometry->filename << endl;
+		outStream << "gridsize " << geometry->gridsize << endl;
+		outStream << "isosurface " << isosurface << endl;
+		
+		Shape::serialize(outStream);
+	}
+	
+	static GeometryMesh * deserialize(istream& inStream)
+	{
+		string variableName;
+		string filename;
+		Real scale;
+		Real tX,tY,tZ;
+		int gridsize;
+		Real isosurface;
+		Real mChi, mRho;
+		
+		inStream >> variableName;
+		assert(variableName=="filename");
+		inStream >> filename;
+		inStream >> variableName;
+		assert(variableName=="gridsize");
+		inStream >> gridsize;
+		inStream >> variableName;
+		assert(variableName=="isosurface");
+		inStream >> isosurface;
+		
+		inStream >> variableName;
+		assert(variableName=="scaleFactor");
+		inStream >> scale;
+		inStream >> variableName;
+		assert(variableName=="translationFactor");
+		inStream >> tX;
+		inStream >> tY;
+		inStream >> tZ;
+		inStream >> variableName;
+		assert(variableName=="mollChi");
+		inStream >> mChi;
+		inStream >> variableName;
+		assert(variableName=="mollRho");
+		inStream >> mRho;
+		
+		Geometry::Properties properties;
+		properties.deserialize(inStream);
+		
+		Real center[3] = { properties.com.x, properties.com.y, properties.com.z };
+		
+		return new GeometryMesh(filename,gridsize,isosurface,center,properties.density,mChi,mRho,scale,tX,tY,tZ,properties.q);
 	}
 };
 

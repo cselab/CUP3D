@@ -16,6 +16,121 @@
 #include "InterpolationKernels.h"
 #include "GenericOperator.h"
 
+#ifdef _ISPC_
+#include "Advection_ispc.h"
+
+using namespace ispc;
+
+class OperatorAdvectionUpwind3rdOrderISPC : public GenericLabOperator
+{
+private:
+	double dt;
+	const int stage;
+	Real *uBody, *vBody, *wBody;
+	
+	Real *uLab, *vLab, *wLab;
+	Real *u, *v, *w;
+	Real *uTmp, *vTmp, *wTmp;
+	
+	enum {
+		_BSX2_ = _BSX_+4,
+		_BSY2_ = _BSY_+4,
+		_BSZ2_ = _BSZ_+4,
+		SLICESIZE = _BSX_*_BSY_,
+		SLICESIZE2 = (_BSX_+4)*(_BSY_+4),
+		SIZE = _BSX_*_BSY_*_BSZ_,
+		SIZE2 = (_BSX_+4)*(_BSY_+4)*(_BSZ_+4)
+	};
+	
+public:
+	OperatorAdvectionUpwind3rdOrderISPC(double dt, Real * uBody, Real * vBody, Real * wBody, Real * u, Real * v, Real * w, Real * uTmp, Real * vTmp, Real * wTmp, Real * uLab, Real * vLab, Real * wLab, const int stage) : dt(dt), uBody(uBody), vBody(vBody), wBody(wBody), stage(stage), u(u), v(v), w(w), uTmp(uTmp), vTmp(vTmp), wTmp(wTmp), uLab(uLab), vLab(vLab), wLab(wLab)
+	{
+		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 8, 0,1,2,3,7,8,9,10);
+		
+		stencil_start[0] = -2;
+		stencil_start[1] = -2;
+		stencil_start[2] = -2;
+		
+		stencil_end[0] = 3;
+		stencil_end[1] = 3;
+		stencil_end[2] = 3;
+	}
+	
+	OperatorAdvectionUpwind3rdOrderISPC(double dt, Real * u, Real * v, Real * w, Real * uTmp, Real * vTmp, Real * wTmp, Real * uLab, Real * vLab, Real * wLab, const int stage) : dt(dt), uBody(NULL), vBody(NULL), wBody(NULL), stage(stage), u(u), v(v), w(w), uTmp(uTmp), vTmp(vTmp), wTmp(wTmp), uLab(uLab), vLab(vLab), wLab(wLab)
+	{
+		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 8, 0,1,2,3,7,8,9,10);
+		
+		stencil_start[0] = -2;
+		stencil_start[1] = -2;
+		stencil_start[2] = -2;
+		
+		stencil_end[0] = 3;
+		stencil_end[1] = 3;
+		stencil_end[2] = 3;
+	}
+	
+	~OperatorAdvectionUpwind3rdOrderISPC()
+	{
+	}
+	
+	template <typename Lab, typename BlockType>
+	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	{
+		const Real factor = -dt/(6.*info.h_gridpoint);
+		
+		const int tid = omp_get_thread_num();
+		/*
+		 // AoS -> SoA
+		for (int iz=0; iz<_BSZ2_; ++iz)
+			for (int iy=0; iy<_BSY2_; ++iy)
+				for (int ix=0; ix<_BSX2_; ++ix)
+				{
+					const int idx = ix + iy*_BSX2_ + iz*SLICESIZE2;
+					assert(idx>=0 && idx<SIZE2);
+					
+					uLab[tid*SIZE2 + idx] = lab(ix-2,iy-2,iz-2).u;
+					vLab[tid*SIZE2 + idx] = lab(ix-2,iy-2,iz-2).v;
+					wLab[tid*SIZE2 + idx] = lab(ix-2,iy-2,iz-2).w;
+				}
+		 
+		for (int iz=0; iz<_BSZ_; ++iz)
+			for (int iy=0; iy<_BSY_; ++iy)
+				for (int ix=0; ix<_BSX_; ++ix)
+				{
+					const int idx = ix + iy*_BSX_ + iz*SLICESIZE;
+					assert(idx>=0 && idx<SIZE);
+					
+					u[tid*SIZE + idx] = o(ix,iy,iz).u;
+					v[tid*SIZE + idx] = o(ix,iy,iz).v;
+					w[tid*SIZE + idx] = o(ix,iy,iz).w;
+				}
+		*/
+		// ISPC
+		const int offset = tid*SIZE2 + 2*(1 + _BSX2_ + SLICESIZE2);
+#ifdef _MOVING_FRAME_
+		advect_ispc(u,v,w,uTmp,vTmp,wTmp,uLab+offset,vLab+offset,wLab+offset,*uBody,*vBody,*wBody,factor);
+#else
+		advect_ispc(u,v,w,uTmp,vTmp,wTmp,uLab+offset,vLab+offset,wLab+offset,factor);
+#endif
+		/*
+		// SoA -> AoS
+		for (int iz=0; iz<_BSZ_; ++iz)
+			for (int iy=0; iy<_BSY_; ++iy)
+				for (int ix=0; ix<_BSX_; ++ix)
+				{
+					const int idx = ix + iy*_BSX_ + iz*SLICESIZE;
+					assert(idx>=0 && idx<SIZE);
+					
+					o(ix,iy,iz).tmpU = uTmp[tid*SIZE + idx];
+					o(ix,iy,iz).tmpV = vTmp[tid*SIZE + idx];
+					o(ix,iy,iz).tmpW = wTmp[tid*SIZE + idx];
+				}
+		 */
+	}
+	
+};
+#endif
+
 class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
 {
 private:

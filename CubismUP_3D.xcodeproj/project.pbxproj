@@ -85,6 +85,7 @@
 		DD355D221A8118FE00711A51 /* TestPenalization.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestPenalization.cpp; sourceTree = "<group>"; };
 		DD355D231A8118FE00711A51 /* TestPenalization.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestPenalization.h; sourceTree = "<group>"; };
 		DD4134711B8768AA00CCAAE4 /* ShearLayer2.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = ShearLayer2.sh; sourceTree = "<group>"; };
+		DD43FFF91C6CF23800C40A1F /* samara.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = samara.sh; sourceTree = "<group>"; };
 		DD54FE9C1B03A33F00101525 /* TestPoiseuille.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestPoiseuille.cpp; sourceTree = "<group>"; };
 		DD54FE9D1B03A33F00101525 /* TestPoiseuille.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestPoiseuille.h; sourceTree = "<group>"; };
 		DD54FEA01B03A5B300101525 /* Poiseuille.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Poiseuille.sh; sourceTree = "<group>"; };
@@ -208,6 +209,7 @@
 		DDBFCB8B1AC984F80031708C /* CoordinatorBodyVelocities.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordinatorBodyVelocities.h; sourceTree = "<group>"; };
 		DDC1D09E1AC2CB9D00BC2E88 /* Simulation_Fluid.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Simulation_Fluid.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		DDC1D09F1AC2D0B600BC2E88 /* Simulation_FSI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Simulation_FSI.h; sourceTree = "<group>"; };
+		DDC2A1751C63326D009DF9C0 /* Advection.ispc */ = {isa = PBXFileReference; lastKnownFileType = text; path = Advection.ispc; sourceTree = "<group>"; };
 		DDD305AC1C15E8D6004DEFC3 /* SerializerIO_WaveletCompression.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SerializerIO_WaveletCompression.h; sourceTree = "<group>"; };
 		DDD305AD1C15E929004DEFC3 /* FullWaveletTransform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FullWaveletTransform.h; sourceTree = "<group>"; };
 		DDD305AE1C15E929004DEFC3 /* WaveletCompressor.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = WaveletCompressor.cpp; sourceTree = "<group>"; };
@@ -309,6 +311,7 @@
 			children = (
 				DD797C7C1C46365600C8EAE1 /* FallingSamaraFixedDaint.sh */,
 				DD797C7E1C463C7400C8EAE1 /* submit_daint_fallingSamaraFixed */,
+				DD43FFF91C6CF23800C40A1F /* samara.sh */,
 				DD132E301C1458AB006CFEE7 /* FlowPastSamara.sh */,
 				DDD305B51C15F6B3004DEFC3 /* FallingSamara.sh */,
 				DD9BCBEF1C19D7750091FD1C /* FallingSamaraFixed.sh */,
@@ -337,6 +340,7 @@
 		DD58CAB01A5E7BA500291455 /* Operators */ = {
 			isa = PBXGroup;
 			children = (
+				DDC2A1741C633256009DF9C0 /* ISPC */,
 				DD64F6D71A67D6CE00D17B72 /* PoissonSolverCubism */,
 				DD58CADD1A6022D800291455 /* Layer */,
 				DDAD48D01AA9ECA600A2C354 /* GenericOperator.h */,
@@ -476,6 +480,14 @@
 				DD0AD5191C16D8780017B3AB /* CoordinatorVorticity.h */,
 			);
 			name = Coordinators;
+			sourceTree = "<group>";
+		};
+		DDC2A1741C633256009DF9C0 /* ISPC */ = {
+			isa = PBXGroup;
+			children = (
+				DDC2A1751C63326D009DF9C0 /* Advection.ispc */,
+			);
+			name = ISPC;
 			sourceTree = "<group>";
 		};
 		DDD305B21C15E92B004DEFC3 /* WaveletDumper */ = {

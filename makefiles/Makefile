@@ -15,6 +15,8 @@ bsz ?= $(bs)
 vertexcentered ?= false
 dlm ?= false
 
+ispc ?= false
+
 hdf ?= true
 vtk ?= false
 
@@ -25,9 +27,7 @@ movingframe ?= false
 
 rk2 ?= true
 
-CPPFLAGS+= -w -D_ALIGNBYTES_=16
-
-CPPFLAGS+= -Wunused
+CPPFLAGS+= -w -D_ALIGNBYTES_=16 -Wunused
 
 ifeq "$(bc)" "periodic"
 	CPPFLAGS += -D_PERIODIC_
@@ -44,15 +44,25 @@ endif
 
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_SP_COMP_
+	ISPCFLAGS += -D_SP_COMP_ --target=avx1-i32x8
+else
+	ISPCFLAGS += --target=avx1-i64x4
 endif
 
-CPPFLAGS+= -D_BS_=$(bs)
-CPPFLAGS+= -D_BSX_=$(bsx)
-CPPFLAGS+= -D_BSY_=$(bsy)
-CPPFLAGS+= -D_BSZ_=$(bsz)
+CPPFLAGS += -D_BS_=$(bs)
+CPPFLAGS += -D_BSX_=$(bsx)
+CPPFLAGS += -D_BSY_=$(bsy)
+CPPFLAGS += -D_BSZ_=$(bsz)
+
+ISPCFLAGS += --colored-output
+ISPCFLAGS += -D_BS_=$(bs)
+ISPCFLAGS += -D_BSX_=$(bsx)
+ISPCFLAGS += -D_BSY_=$(bsy)
+ISPCFLAGS += -D_BSZ_=$(bsz)
 
 ifeq "$(config)" "production"
 	CPPFLAGS += -DNDEBUG -O3
+	ISPCFLAGS += -O3
 else
 	CPPFLAGS += -g
 endif
@@ -95,6 +105,11 @@ endif
 
 ifeq "$(movingframe)" "true"
 	CPPFLAGS += -D_MOVING_FRAME_
+	ISPCFLAGS += -D_MOVING_FRAME_
+endif
+
+ifeq "$(ispc)" "true"
+	CPPFLAGS += -D_ISPC_
 endif
 
 vtk-inc ?=
@@ -106,6 +121,7 @@ hypre-lib ?=
 
 # needed in order to compile on nodes
 include make.daint
+ISPC += --cpu=sandybridge
 
 ifneq "$(findstring brutus,$(shell hostname))" ""
 	include make.brutus
@@ -168,8 +184,14 @@ endif
 BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
+
 OBJECTS = GeometryReader.o WavefrontReader.o CTReader.o PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o ProcessOperatorsOMP.o Sim_Jet.o Sim_RayleighTaylor.o Sim_Bubble.o Sim_FSI_Gravity.o Sim_FSI_Rotation.o Sim_FSI_Moving.o Sim_FSI_Fixed.o Profiler.o main.o
 OBJECTS_TEST = GeometryReader.o WavefrontReader.o CTReader.o PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o ProcessOperatorsOMP.o TestMPI.o TestBoundaryConditions.o TestAddedMass.o TestPoiseuille.o TestShearLayer.o TestTravelingWave.o TestGeometry.o TestRotation.o TestTranslation.o TestPenalization.o TestGravity.o TestVarCoeffPoisson.o TestPressure.o TestAdvection.o TestDiffusion.o Profiler.o mainTest.o
+
+ifeq "$(ispc)" "true"
+	OBJECTS += Advection_ispc.o
+	OBJECTS_TEST += Advection_ispc.o
+endif
 
 VPATH := $(SRC_DIR):$(CUBISM_DIR)
 
@@ -191,9 +213,15 @@ test: $(OBJECTS_TEST)
 	$(LD) $(OBJECTS_TEST) -o $@ $(LIBS) $(LDFLAGS)
 #	echo ************************
 
-%.o: $(SRC_DIR)/%.cpp
+%.o: $(SRC_DIR)/%.cpp $(SRC_DIR)/Advection_ispc.h
 #	echo PRODUCING $@
 	$(CC) $(CPPFLAGS) -c -o $@ $<
+
+$(SRC_DIR)/Advection_ispc.h Advection_ispc.o: $(SRC_DIR)/Advection.ispc
+	ispc $(ISPCFLAGS) $< -o Advection_ispc.o -h $(SRC_DIR)/Advection_ispc.h
+
+asm:
+	ispc $(ISPCFLAGS) --emit-asm $(SRC_DIR)/Advection.ispc -o advection.s
 
 clean:
 	rm -f simulation test

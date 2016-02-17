@@ -24,6 +24,7 @@ protected:
 	Real lambda, dlm;
 	
 	// body
+	string shapeType;
 	Shape * shape;
 	
 	
@@ -32,7 +33,9 @@ protected:
 		outStream << "Simulation_FSI\n";
 		outStream << "lambda " << lambda << endl;
 		outStream << "dlm " << dlm << endl;
-		shape->outputSettings(outStream);
+		outStream << "shapeType " << shapeType << endl;
+		
+		shape->serialize(outStream);
 		
 		Simulation_Fluid::_outputSettings(outStream);
 	}
@@ -55,7 +58,19 @@ protected:
 		inStream >> variableName;
 		assert(variableName=="dlm");
 		inStream >> dlm;
+		inStream >> variableName;
+		assert(variableName=="shapeType");
+		inStream >> shapeType;
 		
+		if (shapeType=="samara")
+			shape = GeometryMesh::deserialize(inStream);
+		else
+		{
+			cout << "Deserialization for this shape not implemented yet\n";
+			abort();
+		}
+		
+		/*
 		inStream >> variableName;
 		Real center[3];
 		Real rhoS;
@@ -92,6 +107,7 @@ protected:
 			cout << "Error - this shape is not currently implemented! Aborting now\n";
 			abort();
 		}
+		*/
 		
 		Simulation_Fluid::_inputSettings(inStream);
 	}
@@ -122,7 +138,7 @@ public:
 				Real radius = parser("-radius").asDouble(0.1);
 				shape = new Sphere(center, radius, rhoS, eps, eps);
 			}
-			else if (shapeType=="samara")
+			else if (shapeType=="samara" || shapeType=="triangle")
 			{
 				/*
 				const Real center[3] = {.5,.5,.5};
@@ -153,6 +169,12 @@ public:
 				cout << "Error - this shape is not currently implemented! Aborting now\n";
 				abort();
 			}
+		}
+		else
+		{
+			// shape stuff
+			cout << "Restart - Simulation_FSI\n";
+			//abort();
 		}
 		
 		// nothing needs to be done on restart

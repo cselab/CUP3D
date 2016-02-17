@@ -149,6 +149,11 @@ void Sim_FSI_Moving::init()
 		
 		_ic();
 	}
+	else
+	{
+		cout << "restart - Simulation_Moving\n";
+		abort();
+	}
 	
 	pipeline.clear();
 #ifndef _MULTIPHASE_

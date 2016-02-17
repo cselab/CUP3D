@@ -27,6 +27,8 @@ typedef double Real;
 
 using namespace std;
 
+//#define DBG 1
+
 #include "BlockInfo.h"
 #include "LosslessCompression.h"
 
@@ -54,6 +56,7 @@ void DumpZBin_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
 	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
 	const unsigned int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
+	
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
 	
 	if (rank==0) 
@@ -91,81 +94,83 @@ void DumpZBin_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 
 	for (unsigned int ichannel = 0; ichannel < NCHANNELS; ichannel++)
 	{
-
-
 #pragma omp parallel for
-	for(unsigned int i=0; i<vInfo_local.size(); i++)
-	{
-		BlockInfo& info = vInfo_local[i];
-		const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
-		B & b = *(B*)info.ptrBlock;
-		Streamer streamer(b);
-		
-		for(unsigned int ix=sX; ix<eX; ix++)
+		for(unsigned int i=0; i<vInfo_local.size(); i++)
 		{
-			const unsigned int gx = idx[0]*B::sizeX + ix;
-			for(unsigned int iy=sY; iy<eY; iy++)
+			BlockInfo& info = vInfo_local[i];
+			const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
+			B & b = *(B*)info.ptrBlock;
+			Streamer streamer(b);
+			
+			for(unsigned int ix=sX; ix<eX; ix++)
 			{
-				const unsigned int gy = idx[1]*B::sizeY + iy;
-				for(unsigned int iz=sZ; iz<eZ; iz++)
-				{   
-					const unsigned int gz = idx[2]*B::sizeZ + iz;
-					
-					assert((gz + NZ * (gy + NY * gx)) < NX * NY * NZ);
-
-					Real * const ptr = array_all + (gz + NZ * (gy + NY * gx));
-
-					//Real output[NCHANNELS];
-					//for(int i=0; i<NCHANNELS; ++i)
-					//	output[i] = 0;
-					//for(int i=0; i<NCHANNELS; ++i) ptr[i] = output[i];
-					//ptr[0] = output[ichannel];
-					
-					//streamer.operate(ix, iy, iz, (Real*)output);	// point -> output, todo: add an extra argument for channel
-
-					Real output;
-					streamer.operate(ix, iy, iz, &output, ichannel);	// point -> output,
-					ptr[0] = output;
-
-					
+				const unsigned int gx = idx[0]*B::sizeX + ix;
+				for(unsigned int iy=sY; iy<eY; iy++)
+				{
+					const unsigned int gy = idx[1]*B::sizeY + iy;
+					for(unsigned int iz=sZ; iz<eZ; iz++)
+					{
+						const unsigned int gz = idx[2]*B::sizeZ + iz;
+						
+						assert((gz + NZ * (gy + NY * gx)) < NX * NY * NZ);
+						
+						Real * const ptr = array_all + (gz + NZ * (gy + NY * gx));
+						
+						//Real output[NCHANNELS];
+						//for(int i=0; i<NCHANNELS; ++i)
+						//	output[i] = 0;
+						//for(int i=0; i<NCHANNELS; ++i) ptr[i] = output[i];
+						//ptr[0] = output[ichannel];
+						
+						//streamer.operate(ix, iy, iz, (Real*)output);	// point -> output, todo: add an extra argument for channel
+						
+						Real output;
+						streamer.operate(ix, iy, iz, &output, ichannel);	// point -> output,
+						ptr[0] = output;
+						
+						
+					}
 				}
 			}
 		}
-	}
-
-//	long local_count = NX * NY * NZ * NCHANNELS;
-	long local_count = NX * NY * NZ * 1;
-	long local_bytes =  local_count * sizeof(Real);
-	long offset; // global offset 
-
-	unsigned int max = local_bytes;
-//	int layout[4] = {NCHANNELS, NX, NY, NZ};
-	int layout[4] = {NX, NY, NZ, 1};
-	long compressed_bytes = ZZcompress((unsigned char *)array_all, local_bytes, layout, &max);	// "in place"
+		
+		//	long local_count = NX * NY * NZ * NCHANNELS;
+		long local_count = NX * NY * NZ * 1;
+		long local_bytes =  local_count * sizeof(Real);
+		long offset; // global offset
+		
+		unsigned int max = local_bytes;
+		//	int layout[4] = {NCHANNELS, NX, NY, NZ};
+		int layout[4] = {NX, NY, NZ, 1};
+		long compressed_bytes = ZZcompress((unsigned char *)array_all, local_bytes, layout, &max);	// "in place"
+		MPI_Barrier(MPI_COMM_WORLD);
 #if DBG
-	printf("Writing %ld bytes of Compressed data (cr = %.2f)\n", compressed_bytes, local_bytes*1.0/compressed_bytes);
+		printf("Writing %ld bytes of Compressed data (cr = %.2f)\n", compressed_bytes, local_bytes*1.0/compressed_bytes);
+		MPI_Barrier(MPI_COMM_WORLD);
 #endif
-	MPI_Exscan( &compressed_bytes, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
-
-	if (rank == 0) offset = 0;
-
+		MPI_Exscan( &compressed_bytes, &offset, 1, MPI_LONG, MPI_SUM, MPI_COMM_WORLD);
+		
+		if (rank == 0) offset = 0;
+		
 #if DBG
-	printf("rank %d, offset = %ld, size = %ld\n", rank, offset, compressed_bytes); fflush(0);
+		printf("rank %d, offset = %ld, size = %ld\n", rank, offset, compressed_bytes); fflush(0);
+		MPI_Barrier(MPI_COMM_WORLD);
 #endif
-
-//	header tag; 
-	tag.offset[ichannel] = offset + previous_offset;
-	tag.size[ichannel] = compressed_bytes;
+		
+		//	header tag;
+		tag.offset[ichannel] = offset + previous_offset;
+		tag.size[ichannel] = compressed_bytes;
 #if DBG
-	printf("rank %d, offset = %ld, size = %ld\n", rank, tag.offset[ichannel], tag.size[ichannel]); fflush(0);
+		printf("rank %d, offset = %ld, size = %ld\n", rank, tag.offset[ichannel], tag.size[ichannel]); fflush(0);
+		MPI_Barrier(MPI_COMM_WORLD);
 #endif
-	previous_offset = (tag.offset[ichannel] + tag.size[ichannel]);
-	MPI_Bcast(&previous_offset, 1, MPI_LONG, nranks-1, MPI_COMM_WORLD); 
-
-	long base = MAX_MPI_PROCS*sizeof(tag); 	// full Header 
-
-	MPI_File_write_at(file_id, base + tag.offset[ichannel], (char *)array_all, tag.size[ichannel], MPI_CHAR, &status);
-
+		previous_offset = (tag.offset[ichannel] + tag.size[ichannel]);
+		MPI_Bcast(&previous_offset, 1, MPI_LONG, nranks-1, MPI_COMM_WORLD);
+		
+		long base = MAX_MPI_PROCS*sizeof(tag); 	// full Header
+		
+		MPI_File_write_at(file_id, base + tag.offset[ichannel], (char *)array_all, tag.size[ichannel], MPI_CHAR, &status);
+		
 	}	/* ichannel */
 
 	MPI_File_write_at(file_id, rank*sizeof(tag), &tag, 2*8, MPI_LONG, &status);

@@ -273,6 +273,97 @@ namespace Geometry
 			rotation[2][1] =   2*(q.y*q.z + q.w*q.x);
 			rotation[2][2] = 1-2*(q.x*q.x + q.y*q.y);
 		}
+		
+		
+		void serialize(ostream &outStream)
+		{
+			outStream << "com " << com.x << " " << com.y << " " << com.z << endl;
+			outStream << "centroid " << centroid.x << " " << centroid.y << " " << centroid.z << endl;
+			outStream << "ut " << ut.x << " " << ut.y << " " << ut.z << endl;
+			outStream << "dthetadt " << dthetadt.x << " " << dthetadt.y << " " << dthetadt.z << endl;
+			outStream << "mass " << mass << endl;
+			outStream << "density " << density << endl;
+			outStream << "minb " << minb.x << " " << minb.y << " " << minb.z << endl;
+			outStream << "maxb " << maxb.x << " " << maxb.y << " " << maxb.z << endl;
+			outStream << "q " << q.w << " " << q.x << " " << q.y << " " << q.z << endl;
+			outStream << "J " << J[0] << " " << J[1] << " " << J[2] << " " << J[3] << " " << J[4] << " " << J[5] << endl;
+			outStream << "J0 " << J0[0] << " " << J0[1] << " " << J0[2] << " " << J0[3] << " " << J0[4] << " " << J0[5] << endl;
+			
+		}
+		
+		void deserialize(istream& inStream)
+		{
+			string variableName;
+			
+			inStream >> variableName;
+			assert(variableName=="com");
+			inStream >> com.x;
+			inStream >> com.y;
+			inStream >> com.z;
+			inStream >> variableName;
+			assert(variableName=="centroid");
+			inStream >> centroid.x;
+			inStream >> centroid.y;
+			inStream >> centroid.z;
+			inStream >> variableName;
+			assert(variableName=="ut");
+			inStream >> ut.x;
+			inStream >> ut.y;
+			inStream >> ut.z;
+			inStream >> variableName;
+			assert(variableName=="dthetadt");
+			inStream >> dthetadt.x;
+			inStream >> dthetadt.y;
+			inStream >> dthetadt.z;
+			inStream >> variableName;
+			assert(variableName=="mass");
+			inStream >> mass;
+			inStream >> variableName;
+			assert(variableName=="density");
+			inStream >> density;
+			inStream >> variableName;
+			assert(variableName=="minb");
+			inStream >> minb.x;
+			inStream >> minb.y;
+			inStream >> minb.z;
+			inStream >> variableName;
+			assert(variableName=="maxb");
+			inStream >> maxb.x;
+			inStream >> maxb.y;
+			inStream >> maxb.z;
+			inStream >> variableName;
+			assert(variableName=="q");
+			inStream >> q.w;
+			inStream >> q.x;
+			inStream >> q.y;
+			inStream >> q.z;
+			inStream >> variableName;
+			assert(variableName=="J");
+			inStream >> J[0];
+			inStream >> J[1];
+			inStream >> J[2];
+			inStream >> J[3];
+			inStream >> J[4];
+			inStream >> J[5];
+			inStream >> variableName;
+			assert(variableName=="J0");
+			inStream >> J0[0];
+			inStream >> J0[1];
+			inStream >> J0[2];
+			inStream >> J0[3];
+			inStream >> J0[4];
+			inStream >> J0[5];
+			
+			rotation[0][0] = 1-2*(q.y*q.y + q.z*q.z);
+			rotation[0][1] =   2*(q.x*q.y - q.w*q.z);
+			rotation[0][2] =   2*(q.x*q.z + q.w*q.y);
+			rotation[1][0] =   2*(q.x*q.y + q.w*q.z);
+			rotation[1][1] = 1-2*(q.x*q.x + q.z*q.z);
+			rotation[1][2] =   2*(q.y*q.z - q.w*q.x);
+			rotation[2][0] =   2*(q.x*q.z - q.w*q.y);
+			rotation[2][1] =   2*(q.y*q.z + q.w*q.x);
+			rotation[2][2] = 1-2*(q.x*q.x + q.y*q.y);
+		}
 	};
 }
 

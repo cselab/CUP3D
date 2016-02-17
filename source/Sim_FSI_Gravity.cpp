@@ -171,6 +171,9 @@ void Sim_FSI_Gravity::_outputSettings(ostream &outStream)
 	outStream << "zBody " << uBody[2] << endl;
 	outStream << "re " << re << endl;
 	outStream << "nu " << nu << endl;
+	outStream << "minRho " << minRho << endl;
+	outStream << "bSplit " << bSplit << endl;
+	outStream << "maxU " << maxU << endl; // this is needed as maxU is computed only at the end of an iteration
 	
 	Simulation_FSI::_outputSettings(outStream);
 }
@@ -202,6 +205,12 @@ void Sim_FSI_Gravity::_inputSettings(istream& inStream)
 	inStream >> variableName;
 	assert(variableName=="nu");
 	inStream >> nu;
+	inStream >> variableName;
+	assert(variableName=="minRho");
+	inStream >> minRho;
+	inStream >> variableName;
+	assert(variableName=="bSplit");
+	inStream >> bSplit;
 	
 	Simulation_FSI::_inputSettings(inStream);
 }
@@ -226,17 +235,17 @@ void Sim_FSI_Gravity::init()
 	
 	if (!bRestart)
 	{
-		profiler.push_start("IC Geometry");
-		delete shape;
 		lambda = parser("-lambda").asDouble(1e5);
 		dlm = parser("-dlm").asDouble(1.);
-		
 		double rhoS = parser("-rhoS").asDouble(1);
+		
+		profiler.push_start("IC Geometry");
+		delete shape;
 		const Real aspectRatio = 1;
 		if (rank==0) cout << "WARNING - Aspect ratio for correct positioning of sphere not implemented yet\n";
 		Real center[3] = {parser("-xpos").asDouble(.5*aspectRatio),parser("-ypos").asDouble(.85),parser("-zpos").asDouble(.5*aspectRatio)};
 		
-		string shapeType = parser("-shape").asString("sphere");
+		shapeType = parser("-shape").asString("sphere");
 		const int eps = 2;
 		if (shapeType=="sphere")
 		{
@@ -282,6 +291,10 @@ void Sim_FSI_Gravity::init()
 			
 			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
 			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			
+			Real com[3];
+			shape->getCenterOfMass(com);
+			if (rank==0) cout << "Center of mass set to " << com[0] << " " << com[1] << " " << com[2] << endl;
 		}
 		else
 		{
@@ -313,7 +326,63 @@ void Sim_FSI_Gravity::init()
 #endif
 		}
 		
+		maxU = 0;
+		
 		_ic();
+	}
+	else
+	{
+		cout << "restart - Simulation_Gravity\n";
+		/*
+		profiler.push_start("Restart Geometry");
+		delete shape;
+		const Real aspectRatio = 1;
+		if (rank==0) cout << "WARNING - Aspect ratio for correct positioning of sphere not implemented yet\n";
+		
+		const int eps = 2;
+		
+		// shapeType is read from the restart file
+		if (shapeType=="samara")
+		{
+#ifndef _MOVING_FRAME_
+			const Real center[3] = {.5,.5,.5};
+			const Real moll = 2;
+			const int gridsize = 1024;
+			const Real scale = .04;
+			const Real tx = .12;
+			const Real ty = .9;
+			const Real tz = .12;
+#else
+			const Real center[3] = {.5,.5,.5}; // this should come from the shape
+			const Real moll = 2;
+			const int gridsize = 1536;
+			const Real scale = .15;//.125; // this should come from the shape
+			const Real tx = .45; // this should come from the shape
+			const Real ty = .3; // this should come from the shape
+			const Real tz = .4; // this should come from the shape
+#endif
+			//Geometry::Quaternion q1(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
+			//Geometry::Quaternion q2(cos(0*M_PI), sin(0*M_PI), 0, 0);
+			//Geometry::Quaternion q = q1*q2;
+			//Geometry::Quaternion q(1,0,0,0);
+			//Geometry::Quaternion q(cos(-.25*M_PI), 0, 0, sin(-.25*M_PI));
+			Geometry::Quaternion q(cos(.25*M_PI), 0, 0, sin(.25*M_PI));
+			const Real isosurface = parser("-isosurface").asDouble(.0); // this should come from the shape
+			
+			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			
+			Real com[3];
+			shape->getCenterOfMass(com);
+			cout << "Center of mass set to " << com[0] << " " << com[1] << " " << com[2] << endl;
+		}
+		else
+		{
+			cout << "Error - this shape is not currently implemented for restart! Aborting now\n";
+			abort();
+		}
+		profiler.pop_stop();
+		 */
 	}
 	
 	pipeline.clear();
@@ -348,7 +417,6 @@ void Sim_FSI_Gravity::simulate()
 	MPI_Barrier(MPI_COMM_WORLD);
 	
 	double nextDumpTime = time;
-	maxU = 0;
 	
 	while (true)
 	{
@@ -410,7 +478,7 @@ void Sim_FSI_Gravity::simulate()
 				vOld = uBody[1];
 				double accT = (shape->getRhoS()-1)/(shape->getRhoS()+.5) * gravity[1];
 				double accN = (shape->getRhoS()-1)/(shape->getRhoS()   ) * gravity[1];
-				if (verbose) cout << "Acceleration with added mass (measured, expected, no added mass)\t" << accM << "\t" << accT << "\t" << accN << endl;
+				if (verbose) cout << "Acceleration with added mass (measured, expected, no added mass)\t" << accM << "\t" << accT << "\t" << accN << " " << uBody[1] << " " << vOld << endl;
 				stringstream ss;
 				ss << path2file << "_addedmass.dat";
 				ofstream myfile(ss.str(), fstream::app);
@@ -419,7 +487,7 @@ void Sim_FSI_Gravity::simulate()
 		}
 		
 		// compute diagnostics
-		if (step % 10 == 0)
+		if (step % 1 == 0)
 		{
 			profiler.push_start("Diagnostics");
 			_diagnostics();

@@ -138,6 +138,11 @@ void Sim_FSI_Fixed::init()
 		
 		_ic();
 	}
+	else
+	{
+		cout << "restart - Simulation_Fixed\n";
+		abort();
+	}
 	
 	pipeline.clear();
 #ifndef _MULTIPHASE_

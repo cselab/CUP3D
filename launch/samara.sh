@@ -1,0 +1,1 @@
+cat /scratch/daint/cconti/FallingSamaraFixed_DP_1024_070216/FallingSamaraFixed_DP_1024_070216_diagnostics.dat | awk '{ step=$1;t=$2;dt=$3;u=$20;v=$21;w=$22;px+=dt*u;py+=dt*v;pz+=dt*w;print step,t,px,py,pz,u,v,w }'

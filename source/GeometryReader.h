@@ -29,15 +29,12 @@ protected:
 	bool bGeometryLoaded;
 	bool bSDFComputed;
 	
-	string filename;
-	
 	const Real baseScale;
 	const Geometry::Point baseTranslation;
 	
 	bool bVerbose;
 	
 	Geometry::Properties & properties;
-	int gridsize;
 	
 	virtual void parse(string filename) = 0;
 	
@@ -46,6 +43,9 @@ public:
 	// it could be eventually placed outside of this class and
 	// be a cubism grid
 	Geometry::Grid grid;
+	
+	const string filename;
+	int gridsize;
 	
 	// constructor loading OBJ file
 	GeometryReader(const string filename, Geometry::Properties & properties, int gridsize, const Real scaleFactor, const Geometry::Point transFactor);
@@ -56,9 +56,6 @@ public:
 	virtual void load(const string filename) = 0;
 	
 	virtual void sdf() = 0;
-	
-	virtual void serialize(string path) const;
-	virtual void deserialize(string path);
 	
 	// check if a point lies inside the body
 	virtual int isPointInside(int ix, int iy, int iz) = 0;

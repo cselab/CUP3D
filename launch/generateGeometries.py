@@ -6,13 +6,13 @@ from paraview.simple import *
 #### disable automatic camera reset on 'Show'
 paraview.simple._DisableFirstRenderCameraReset()
 
-rootDir = '/scratch/daint/cconti/FallingSamaraFixed_24h_1024_310116/'
+rootDir = '/scratch/daint/cconti/FallingSamaraFixed_DP_1024_070216/'
 
 for dirName, subDirList, fileList in os.walk(rootDir):
 	print(dirName)
 	for f in fileList:
 		if f.endswith('.xmf'):
-			frame = re.search('FallingSamaraFixed_24h_1024_310116-(.+?).xmf', f)
+			frame = re.search('FallingSamaraFixed_DP_1024_070216-(.+?).xmf', f)
 			pathChi = dirName+'/Chi'+frame.group(1)+'.ply'
 			pathVort = dirName+'/Vorticity'+frame.group(1)+'.ply'
 			

@@ -129,7 +129,7 @@ protected:
 			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
 #endif
 //*/
-			//_serialize();
+			_serialize();
 			
 			/*
 			 // VP
@@ -188,6 +188,11 @@ protected:
 		outStream << "path2file " << path2file << endl;
 		
 		outStream << "Grid " << bpdx << " " << bpdy << " " << bpdz << endl;
+		
+		outStream << "bDump " << bDump << endl;
+		outStream << "bPing " << bPing << endl;
+		
+		outStream << "dt " << dt << endl;
 	}
 	
 	virtual void _inputSettings(istream& inStream)
@@ -237,27 +242,39 @@ protected:
 		inStream >> bpdx;
 		inStream >> bpdy;
 		inStream >> bpdz;
+		inStream >> variableName;
+		assert(variableName=="bDump");
+		inStream >> bDump;
+		inStream >> variableName;
+		assert(variableName=="bPing");
+		inStream >> bPing;
+		inStream >> variableName;
+		assert(variableName=="dt");
+		inStream >> dt;
 	}
 	
 	void _serialize()
 	{
 		stringstream ss;
 		ss << path4serialization << "Serialized-" << bPing << ".dat";
-		cout << ss.str() << endl;
+		if (rank==0) cout << ss.str() << endl;
 		
 		stringstream serializedGrid;
 		serializedGrid << "SerializedGrid-" << bPing << ".grid";
 		DumpZBin_MPI<FluidGridMPI, StreamerSerialization>(*grid, serializedGrid.str(), path4serialization);
-		
+		if (rank==0) "grid dump done\n";
+			
 		ofstream file;
 		file.open(ss.str());
 		
 		if (file.is_open())
 		{
+			if (rank==0) "data dump\n";
 			_outputSettings(file);
 			
 			file.close();
 		}
+		if (rank==0) "done\n";
 		
 		bPing = !bPing;
 	}
@@ -350,7 +367,7 @@ public:
 			dumpFreq = parser("-fdump").asDouble(0);	// dumpFreq==0 means that this dumping frequency (in #steps) is not active
 			dumpTime = parser("-tdump").asDouble(0);	// dumpTime==0 means that this dumping frequency (in time)   is not active
 			path2file = parser("-file").asString("../data/Simulation_Fluid");
-			path4serialization = parser("-serialization").asString(path2file);
+			path4serialization = parser("-serialization").asString(".");
 			
 			CFL = parser("-CFL").asDouble(.25);
 			LCFL = parser("-LCFL").asDouble(.1);
@@ -366,6 +383,8 @@ public:
 			path4serialization = parser("-serialization").asString();
 			parser.unset_strict_mode();
 			_deserialize();
+			
+			vInfo = grid->getBlocksInfo();
 			
 			// evenutally read new endTime, nsteps
 			nsteps = parser("-nsteps").asInt(nsteps);

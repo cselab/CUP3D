@@ -33,11 +33,13 @@ void Sim_FSI_Rotation::_diagnostics()
 
 void Sim_FSI_Rotation::_ic()
 {
+	cout << "Initial Conditions\n";
 	CoordinatorIC coordIC(shape,0,grid);
 	profiler.push_start(coordIC.getName());
 	coordIC(0);
 	
 #ifdef _USE_HDF_
+	cout << "IC Dump\n";
 	CoordinatorVorticity<Lab> coordVorticity(grid);
 	coordVorticity(dt);
 	stringstream ss;
@@ -151,17 +153,41 @@ void Sim_FSI_Rotation::init()
 			Geometry::Quaternion q = q2*q1;//q1*q2;
 			const Real isosurface = parser("-isosurface").asDouble(.004);
 			
-			const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
+			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
 			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+		}
+		else if (shapeType=="triangle")
+		{
+			const Real center[3] = {.5,.5,.5};
+			const Real moll = 2;
+			const int gridsize = 512;
+			const Real scale = .2;
+			const Real tx = .4;
+			const Real ty = .5;
+			const Real tz = .4;
+			Geometry::Quaternion q1(cos(.0625*M_PI), 0, 0, sin(.0625*M_PI));
+			Geometry::Quaternion q2(cos(.0625*M_PI), sin(.0625*M_PI), 0, 0);
+			Geometry::Quaternion q = q2*q1;//q1*q2;
+			const Real isosurface = parser("-isosurface").asDouble(.004);
+			
+			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/TriangleSub.obj";
+			cout << "Loading geometry\n";
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			cout << "Done\n";
 		}
 		else
 		{
-			cout << "Error - this shape is not currently implemented! Aborting now\n";
+			cout << "Error - this shape (" << shapeType << ") is not currently implemented! Aborting now\n";
 			abort();
 		}
 		profiler.pop_stop();
 		
 		_ic();
+	}
+	else
+	{
+		cout << "restart - Simulation_Rotation\n";
+		abort();
 	}
 	
 	pipeline.clear();

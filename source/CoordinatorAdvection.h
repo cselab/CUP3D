@@ -22,6 +22,28 @@ protected:
 	Real rhoS;
 #endif
 	
+#ifdef _ISPC_
+	enum {
+		_BSX2_ = _BSX_+4,
+		_BSY2_ = _BSY_+4,
+		_BSZ2_ = _BSZ_+4,
+		SLICESIZE = _BSX_*_BSY_,
+		SLICESIZE2 = (_BSX_+4)*(_BSY_+4),
+		SIZE = _BSX_*_BSY_*_BSZ_,
+		SIZE2 = (_BSX_+4)*(_BSY_+4)*(_BSZ_+4)
+	};
+	
+	Real * uLab;
+	Real * vLab;
+	Real * wLab;
+	Real * u;
+	Real * v;
+	Real * w;
+	Real * uTmp;
+	Real * vTmp;
+	Real * wTmp;
+#endif
+	
 	inline void update()
 	{
 		const int N = vInfo.size();
@@ -54,27 +76,24 @@ protected:
 	
 	inline void advect(const double dt, const int stage)
 	{
+#ifndef _ISPC_
 		OperatorAdvectionUpwind3rdOrder kernel(dt,uBody,vBody,wBody,stage);
+#else // _ISPC_
+#ifdef _MULTIPHASE_
+#warning ISPC with MULTIPHASE unsupported
+		cout << "ISPC advection with MULTIPHASE unsupported yet!\n";
+		abort();
+#else // _MULTIPHASE_
+#ifndef _RK2_
+		OperatorAdvectionUpwind3rdOrderISPC kernel(dt,uBody,vBody,wBody,u,v,w,uTmp,vTmp,wTmp,uLab,vLab,wLab,stage);
+#else // _RK2_
+#warning ISPC with RK2 unsupported
+		cout << "ISPC advection with RK2 unsupported yet!\n";
+		abort();
+#endif // _RK2_
+#endif // _MULTIPHASE_
+#endif // _ISPC_
 		compute(kernel);
-		/*
-		BlockInfo * ary = &vInfo.front();
-		const int N = vInfo.size();
-		
-#pragma omp parallel
-		{
-			OperatorAdvectionUpwind3rdOrder kernel(dt,uBody,vBody,wBody,stage);
-			
-			Lab lab;
-			lab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
-			
-#pragma omp for schedule(static)
-			for (int i=0; i<N; i++)
-			{
-				lab.load(ary[i], 0);
-				kernel(lab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
-			}
-		}
-		 */
 	}
 	
 public:
@@ -84,6 +103,17 @@ public:
 	CoordinatorAdvection(Real * uBody, Real * vBody, Real * wBody, FluidGridMPI * grid, Real rhoS) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), rhoS(rhoS)
 #endif
 	{
+#ifdef _ISPC_
+		uLab = new Real[SIZE2*NTHREADS];
+		vLab = new Real[SIZE2*NTHREADS];
+		wLab = new Real[SIZE2*NTHREADS];
+		u = new Real[SIZE*NTHREADS];
+		v = new Real[SIZE*NTHREADS];
+		w = new Real[SIZE*NTHREADS];
+		uTmp = new Real[SIZE*NTHREADS];
+		vTmp = new Real[SIZE*NTHREADS];
+		wTmp = new Real[SIZE*NTHREADS];
+#endif
 	}
 	
 #ifndef _MULTIPHASE_
@@ -92,6 +122,32 @@ public:
 	CoordinatorAdvection(FluidGridMPI * grid, Real rhoS) : GenericCoordinator(grid), uBody(NULL), vBody(NULL), wBody(NULL), rhoS(rhoS)
 #endif
 	{
+#ifdef _ISPC_
+		uLab = new Real[SIZE2*NTHREADS];
+		vLab = new Real[SIZE2*NTHREADS];
+		wLab = new Real[SIZE2*NTHREADS];
+		u = new Real[SIZE*NTHREADS];
+		v = new Real[SIZE*NTHREADS];
+		w = new Real[SIZE*NTHREADS];
+		uTmp = new Real[SIZE*NTHREADS];
+		vTmp = new Real[SIZE*NTHREADS];
+		wTmp = new Real[SIZE*NTHREADS];
+#endif
+	}
+	
+	~CoordinatorAdvection()
+	{
+#ifdef _ISPC_
+		delete [] uLab;
+		delete [] vLab;
+		delete [] wLab;
+		delete [] u;
+		delete [] v;
+		delete [] w;
+		delete [] uTmp;
+		delete [] vTmp;
+		delete [] wTmp;
+#endif
 	}
 	
 	void operator()(const double dt)
