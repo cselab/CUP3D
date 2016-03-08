@@ -12,6 +12,8 @@ bs ?= 32
 bsx ?= $(bs)
 bsy ?= $(bs)
 bsz ?= $(bs)
+sy ?= 1
+sz ?= 1
 vertexcentered ?= false
 dlm ?= false
 
@@ -54,6 +56,9 @@ CPPFLAGS += -D_BSX_=$(bsx)
 CPPFLAGS += -D_BSY_=$(bsy)
 CPPFLAGS += -D_BSZ_=$(bsz)
 
+CPPFLAGS += -D_SY_=$(sy)
+CPPFLAGS += -D_SZ_=$(sz)
+
 ISPCFLAGS += --colored-output
 ISPCFLAGS += -D_BS_=$(bs)
 ISPCFLAGS += -D_BSX_=$(bsx)
@@ -61,7 +66,7 @@ ISPCFLAGS += -D_BSY_=$(bsy)
 ISPCFLAGS += -D_BSZ_=$(bsz)
 
 ifeq "$(config)" "production"
-	CPPFLAGS += -DNDEBUG -O3
+	CPPFLAGS += -DNDEBUG -O3 -march=native
 	ISPCFLAGS += -O3
 else
 	CPPFLAGS += -g

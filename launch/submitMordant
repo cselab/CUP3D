@@ -1,0 +1,31 @@
+#!/usr/bin/ksh
+## submit with sbatch
+#SBATCH --ntasks=32
+#SBATCH --ntasks-per-node=2
+#SBATCH --cpus-per-task=12
+#SBATCH --time=2:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=cconti@mavt.ethz.ch
+
+#SBATCH --job-name=FallingEllipsoid_OBJ_DLMtest_rho200
+#SBATCH --account=s436
+##SBATCH --partition=viz
+
+export SCR=/scratch/daint/cconti/${SLURM_JOB_NAME}
+mkdir -p $SCR
+
+cp ../makefiles/simulation_ellipsoid $SCR/.
+cp FallingEllipsoid.sh $SCR/.
+cp submit_fallingEllipsoid $SCR/.
+cd $SCR
+
+source /opt/modules/default/init/bashexport
+
+MPICH_MAX_THREAD_SAFETY=multiple
+export MPICH_NEMESIS_ASYNC_PROGRESS=1
+export OMP_WAIT_POLICY=PASSIVE
+
+BPDYZ=16
+
+export OMP_NUM_THREADS=12
+aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 12 ./simulation_ellipsoid -file ${SLURM_JOB_NAME} -sim falling -tend 1000 -nprocsx ${SLURM_NTASKS} -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy ${BPDYZ} -bpdz ${BPDYZ} -CFL .1 -shape ellipsoid -rhoS 200 -dlm 1. -nu 0.000371824711397428 -isosurface .0 -tdump .05

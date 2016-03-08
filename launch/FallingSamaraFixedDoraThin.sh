@@ -1,0 +1,7 @@
+cd ../makefiles/
+make clean
+make config=production nthreads=12 bc=mixed precision=double particles=false dlm=true hdf=true movingframe=true bs=16 bsx=4 -j
+mv simulation simulation_dora
+cd ../launch/
+
+sbatch submit_dora_fallingSamaraFixedThin

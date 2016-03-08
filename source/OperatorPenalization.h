@@ -51,9 +51,16 @@ public:
 										omegaBody[0]*r[1]-omegaBody[1]*r[0] };
 					
 					Real dtChiLambda = dt * lambda * block(ix,iy,iz).chi;
+					
+//#ifdef _DLM_
+//					block(ix,iy,iz).u += dtChiLambda * (uBody[0]+urBody[0] - block(ix,iy,iz).u);
+//					block(ix,iy,iz).v += dtChiLambda * (uBody[1]+urBody[1] - block(ix,iy,iz).v);
+//					block(ix,iy,iz).w += dtChiLambda * (uBody[2]+urBody[2] - block(ix,iy,iz).w);
+//#else
 					block(ix,iy,iz).u = (block(ix,iy,iz).u + dtChiLambda * (uBody[0]+urBody[0])) / (1. + dtChiLambda);
 					block(ix,iy,iz).v = (block(ix,iy,iz).v + dtChiLambda * (uBody[1]+urBody[1])) / (1. + dtChiLambda);
 					block(ix,iy,iz).w = (block(ix,iy,iz).w + dtChiLambda * (uBody[2]+urBody[2])) / (1. + dtChiLambda);
+//#endif
 					
 					Real chi = shape->chi(p, info.h_gridpoint);
 					block(ix,iy,iz).chi = chi;

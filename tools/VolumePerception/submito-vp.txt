@@ -2,14 +2,12 @@
 
 #SBATCH --job-name=VP2.0
 #SBATCH --partition=viz
-#SBATCH --time=00:30:00
+#SBATCH --time=04:00:00
 #SBATCH --constraint=startx
 #SBATCH --nodes=1
 #SBATCH --ntasks=1
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
-#SBATCH --mail-type=ALL
-#SBATCH --mail-user=cconti@mavt.ethz.ch
 #SBATCH --account=s436
 #SBATCH --output=vp.%j.o
 #SBATCH --error=vp.%j.e
@@ -17,11 +15,12 @@
 #export DISPLAY=:0
 export OMP_NUM_THREADS=8
 #export LD_LIBRARY_PATH=/opt/cray/nvidia/default/lib64/:$LD_LIBRARY_PATH:/apps/daint/glew/1.10.0/lib64/
-export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/apps/daint/Viz/glew-1.10.0/lib
+export LD_LIBRARY_PATH=$LD_LIBRARY_PATH:/apps/daint/glew/1.10.0/lib64
 #export CRAY_CUDA_MPS=1
 
 module load cudatoolkit
 module load cray-mpich
 module load viz
 
-aprun -B -cc none ./vp-batch-NEW -scene=samara-scene.txt -dlist=file_list.txt -outputfolder=/scratch/daint/cconti/FallingSamaraFixed_24h_1024_310116/vpoutput -caching=0 -start=0 -stop=1 -camstart=0 -camend=1 -tpd=1 -spd=3
+export SAMPLINGFACTOR=16
+aprun -B -cc none ./CC-VP2.0 -scene=samara-scene.txt -dlist=fullList.txt -outputfolder=/scratch/daint/cconti/FallingSamaraFixed_long_DP_512_180216_Dora/renderings/ -caching=0 -start=293 -stop=100000 -camstart=0 -camend=1 -tpd=1 -spd=1

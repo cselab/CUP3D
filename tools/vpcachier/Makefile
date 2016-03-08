@@ -3,7 +3,7 @@ bgq ?= 1
 qpx = 1
 bs ?= 32
 #vs ?= 512
-vs ?= 64
+vs ?= 256
 hpm = 0
 config=release
 

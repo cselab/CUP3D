@@ -185,6 +185,10 @@ public:
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
+		// need to insert the backward semi-Lagrangian step to interpolate the pressure!
+		// should be based on body velocity and not gridpoint value - can be optimized because the translation and interpolation weights are constant at each timestep
+		
+		
 		const Real invH2 = 1./(info.h_gridpoint*info.h_gridpoint);
 		const Real factor = rho0 * 0.5/(info.h_gridpoint * dt);
 		
@@ -281,6 +285,11 @@ public:
 	
 	OperatorDivergenceSplitFFTW(double dt, double rho0, int step, Real * data, int dim[3]) : rho0(rho0), dt(dt), step(step), data(data), dim{dim[0],dim[1],dim[2]}
 	{
+#ifdef _MOVING_FRAME_
+		cout << "OperatorDivergenceSplitFFTW with moving frame not finished - missing semiLagrangian step\n";
+		abort();
+#endif
+		
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 6, 0,1,2,3,5,6);
 		
 		stencil_start[0] = -1;

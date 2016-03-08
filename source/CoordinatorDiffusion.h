@@ -17,7 +17,6 @@ class CoordinatorDiffusion : public GenericCoordinator
 {
 protected:
 	const double coeff;
-	Real *uBody, *vBody, *wBody;
 	
 	inline void update()
 	{
@@ -50,11 +49,7 @@ protected:
 	}
 	
 public:
-	CoordinatorDiffusion(const double coeff, Real * uBody, Real * vBody, Real * wBody, FluidGridMPI * grid) : GenericCoordinator(grid), coeff(coeff), uBody(uBody), vBody(vBody), wBody(wBody)
-	{
-	}
-	
-	CoordinatorDiffusion(const double coeff, FluidGridMPI * grid) : GenericCoordinator(grid), coeff(coeff), uBody(NULL), vBody(NULL), wBody(NULL)
+	CoordinatorDiffusion(const double coeff, FluidGridMPI * grid) : GenericCoordinator(grid), coeff(coeff)
 	{
 	}
 	

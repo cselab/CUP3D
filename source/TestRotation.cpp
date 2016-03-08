@@ -39,14 +39,14 @@ void TestRotation::_ic()
 	
 	const double dh = vInfo[0].h_gridpoint;
 	
-	Real cx = 0;
-	Real cy = 0;
-	Real cz = 0;
-	Real vol = 0;
-	Real cxG = 0;
-	Real cyG = 0;
-	Real czG = 0;
-	Real volG = 0;
+	double cx = 0;
+	double cy = 0;
+	double cz = 0;
+	double vol = 0;
+	double cxG = 0;
+	double cyG = 0;
+	double czG = 0;
+	double volG = 0;
 	
 #pragma omp parallel for reduction(+:cx) reduction(+:cy) reduction(+:cz) reduction(+:vol)
 	for(int i=0; i<(int)vInfo.size(); i++)
@@ -92,18 +92,18 @@ void TestRotation::_ic()
 	com[2] = czG;
 	shape->setCenterOfMass(com);
 	shape->setCentroid(com);
-	Real J0 = 0;
-	Real J1 = 0;
-	Real J2 = 0;
-	Real J3 = 0;
-	Real J4 = 0;
-	Real J5 = 0;
-	Real J0G = 0;
-	Real J1G = 0;
-	Real J2G = 0;
-	Real J3G = 0;
-	Real J4G = 0;
-	Real J5G = 0;
+	double J0 = 0;
+	double J1 = 0;
+	double J2 = 0;
+	double J3 = 0;
+	double J4 = 0;
+	double J5 = 0;
+	double J0G = 0;
+	double J1G = 0;
+	double J2G = 0;
+	double J3G = 0;
+	double J4G = 0;
+	double J5G = 0;
 	
 #pragma omp parallel for reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5)
 	for(int i=0; i<(int)vInfo.size(); i++)
@@ -188,7 +188,7 @@ void TestRotation::run()
 	
 	Real u[3] = {0,0,0};
 	Real lambda = 1;
-	Real maxU = 0;
+	double maxU = 0;
 	CoordinatorComputeShape coordComputeShape(shape, grid);
 	CoordinatorBodyVelocities coordBodyVelocities(&u[0], &u[1], &u[2], &lambda, shape, &maxU, grid);
 	
@@ -204,7 +204,7 @@ void TestRotation::run()
 			u[1] = 0;
 			u[2] = 0;
 			const Real mass = 1;
-			const Real dthetadt[3] = { 0, -2*M_PI, 0 };
+			const double dthetadt[3] = { 0, -2*M_PI, 0 };
 			const double J[6] = { 1,1,1,0,0,0 };
 			shape->updatePosition(u, dthetadt, J, mass, dt);
 		}

@@ -69,7 +69,7 @@ void TestTranslation::run()
 	const int sizeX = bpd * FluidBlock::sizeX;
 	const int sizeY = bpd * FluidBlock::sizeY;
 	const int sizeZ = bpd * FluidBlock::sizeZ;
-	Real maxU = 0;
+	double maxU = 0;
 	
 	Real u[3] = {0,0,0};
 	Real lambda = 1;
@@ -84,7 +84,7 @@ void TestTranslation::run()
 			u[1] = .5;
 			u[2] = .25;
 			const Real mass = 1;
-			const Real dthetadt[3] = { 0,0,0 };
+			const double dthetadt[3] = { 0,0,0 };
 			const double J[6] = { 1,1,1,0,0,0 };
 			shape->updatePosition(u, dthetadt, J, mass, dt);
 		}

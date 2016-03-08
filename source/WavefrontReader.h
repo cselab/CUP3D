@@ -20,6 +20,7 @@
 #include <omp.h>
 #include <cassert>
 
+#include "common.h"
 #include <HDF5Dumper.h>
 
 #include "GeometryReader.h"

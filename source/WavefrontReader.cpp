@@ -339,9 +339,20 @@ void GeometryReaderOBJ::sdf()
 		}
 	}
 	
-	//stringstream ss;
-	//ss << "/cluster/scratch_xp/public/cconti/CubismUP/sdf.vti";
-	//dumper.Write(*cgrid, ss.str());
+	//*
+	int rank;
+	 MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+	 MPI_Barrier(MPI_COMM_WORLD);
+	if (rank==0)
+	{
+		cout << "Dumping SDF\n";
+		stringstream ss;
+		ss << "sdf";
+		DumpHDF5<ScalarGrid,StreamerScalarHDF5>(*cgrid, 0, ss.str());
+	}
+	MPI_Barrier(MPI_COMM_WORLD);
+	//abort();
+	//*/
 	
 	if (bVerbose)
 		cout << "LUT computation\n";
@@ -683,7 +694,7 @@ double GeometryReaderOBJ::distance(double fx, double fy, double fz)
 		int iy = (int)((rfy-properties.minb.y)/(double)grid_maxsize*gridsize);
 		int iz = (int)((rfz-properties.minb.z)/(double)grid_maxsize*gridsize);
 		
-#if 0
+#if 1
 		// trilinear interpolation - should be ok since the signed distance function is a linear function
 		int dx = (rfx-properties.minb.x)/(double)grid_maxsize*gridsize - ix;
 		int dy = (rfy-properties.minb.y)/(double)grid_maxsize*gridsize - iy;

@@ -12,6 +12,7 @@
 #include "GenericCoordinator.h"
 #include "OperatorDivergence.h"
 #include "OperatorGradP.h"
+#include "OperatorMovingPressure.h"
 #include "PoissonSolverScalarFFTW_MPI.h"
 #ifdef _MULTIGRID_
 #include "MultigridHypre.h"
@@ -79,6 +80,25 @@ protected:
 					{
 						b(ix,iy,iz).pOld = b(ix,iy,iz).p;
 						b(ix,iy,iz).p    = b(ix,iy,iz).divU;
+					}
+		}
+	}
+	
+	inline void updateOldPressure()
+	{
+		const int N = vInfo.size();
+		
+#pragma omp parallel for schedule(static)
+		for(int i=0; i<N; i++)
+		{
+			BlockInfo info = vInfo[i];
+			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
+						b(ix,iy,iz).pOld = b(ix,iy,iz).divU;
 					}
 		}
 	}
@@ -169,11 +189,13 @@ public:
 	{
 	}
 	
-	CoordinatorPressure(const double minRho, const Real gravity[3], int * step, const bool bSplit, FluidGridMPI * grid, const int rank, const int nprocs) : GenericCoordinator(grid), rank(rank), nprocs(nprocs), minRho(minRho), step(step), bSplit(bSplit), uBody(NULL), vBody(NULL), gravity{gravity[0],gravity[1],gravity[2]}
+	CoordinatorPressure(const double minRho, const Real gravity[3], int * step, const bool bSplit, FluidGridMPI * grid, const int rank, const int nprocs) : GenericCoordinator(grid), rank(rank), nprocs(nprocs), minRho(minRho), step(step), bSplit(bSplit), uBody(NULL), vBody(NULL), wBody(NULL), gravity{gravity[0],gravity[1],gravity[2]}
 #ifdef _SPLIT_
 	, pressureSolver(NTHREADS,*grid)
 #endif // _SPLIT_
 	{
+		cout << "don't use this Pressure constructor\n";
+		abort();
 	}
 	
 	void operator()(const double dt)
@@ -188,6 +210,14 @@ public:
 #ifdef _HYDROSTATIC_
 		addHydrostaticPressure(dt);
 #endif // _HYDROSTATIC_
+#ifdef _MOVING_FRAME_
+		if (*step>=2)
+		{
+			OperatorMovingPressure kernel(dt,*uBody,*vBody,*wBody);
+			compute(kernel);
+			updateOldPressure();
+		}
+#endif
 		computeSplit<OperatorDivergenceSplit>(dt); // this part could be done directly in the correct data structure
 		//computeSplitFFTW<OperatorDivergenceSplitFFTW>(dt); // when using this, remove from FFTW C2F, in both solvers
 		pressureSolver.solve(*grid);
@@ -202,7 +232,7 @@ public:
 			if (bSplit)
 				computeSplit<OperatorDivergenceSplit>(dt);
 			else
-				compute<OperatorDivergence>(dt);
+				computeUnsplit<OperatorDivergence>(dt);
 		}
 		check("pressure - preMG");
 		mg.setup(grid, bSplit, rank, nprocs);

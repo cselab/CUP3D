@@ -94,7 +94,7 @@ static void fpz_compress3D(void *in, unsigned int inbytes, int layout[4], void *
 //	if (bs > 0) for (i = 0; i < 3; i++) dim[i] = layout[i];
 	for (i = 0; i < 3; i++) dim[i] = layout[i];
 
-	printf("fpz_compress3D\n");
+	//printf("fpz_compress3D\n");
 	if (isfloat) {
 		prec[0]  = precbits;
 		prec[1]  = precbits;

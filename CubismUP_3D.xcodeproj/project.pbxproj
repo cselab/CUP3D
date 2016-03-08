@@ -72,6 +72,10 @@
 		DD1D1C3D1BD928D200E8A55B /* plotVelocityEllipses.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotVelocityEllipses.py; sourceTree = "<group>"; };
 		DD20D2DB1B417166003741F6 /* plotKolomenskiy.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotKolomenskiy.py; sourceTree = "<group>"; };
 		DD20D2DE1B41ADA2003741F6 /* plotDrag.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotDrag.py; sourceTree = "<group>"; };
+		DD28AD211C7C50DC00359D03 /* submit_dora_fallingSamaraFixedSP */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_dora_fallingSamaraFixedSP; sourceTree = "<group>"; };
+		DD28AD221C7C50DC00359D03 /* FallingSamaraFixedDoraSP.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingSamaraFixedDoraSP.sh; sourceTree = "<group>"; };
+		DD28AD231C7C50DC00359D03 /* submit_daint_fallingSamaraFixedSP */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_daint_fallingSamaraFixedSP; sourceTree = "<group>"; };
+		DD28AD241C7C50DC00359D03 /* FallingSamaraFixedDaintSP.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingSamaraFixedDaintSP.sh; sourceTree = "<group>"; };
 		DD2A4CE71ADFA06200C3C034 /* Guermond.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Guermond.sh; sourceTree = "<group>"; };
 		DD2A4CEB1ADFA09500C3C034 /* Jets.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Jets.sh; sourceTree = "<group>"; };
 		DD2CF51C1B0E433F003C912A /* testPoisson.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = testPoisson.sh; sourceTree = "<group>"; };
@@ -86,6 +90,8 @@
 		DD355D231A8118FE00711A51 /* TestPenalization.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestPenalization.h; sourceTree = "<group>"; };
 		DD4134711B8768AA00CCAAE4 /* ShearLayer2.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = ShearLayer2.sh; sourceTree = "<group>"; };
 		DD43FFF91C6CF23800C40A1F /* samara.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = samara.sh; sourceTree = "<group>"; };
+		DD4D63A31C85FC7C0013B5EA /* submit_dora_fallingTriangle */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_dora_fallingTriangle; sourceTree = "<group>"; };
+		DD4D63A41C85FCBC0013B5EA /* FallingTriangleDoraSP.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingTriangleDoraSP.sh; sourceTree = "<group>"; };
 		DD54FE9C1B03A33F00101525 /* TestPoiseuille.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestPoiseuille.cpp; sourceTree = "<group>"; };
 		DD54FE9D1B03A33F00101525 /* TestPoiseuille.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestPoiseuille.h; sourceTree = "<group>"; };
 		DD54FEA01B03A5B300101525 /* Poiseuille.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Poiseuille.sh; sourceTree = "<group>"; };
@@ -198,6 +204,7 @@
 		DDB892871C05FB5700E2C551 /* WavefrontReader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = WavefrontReader.h; sourceTree = "<group>"; };
 		DDB892891C05FBF300E2C551 /* CTReader.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CTReader.cpp; sourceTree = "<group>"; };
 		DDB8928A1C05FBF300E2C551 /* CTReader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CTReader.h; sourceTree = "<group>"; };
+		DDBA0EAE1C8F0A3F00EC3DE3 /* OperatorMovingPressure.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OperatorMovingPressure.h; sourceTree = "<group>"; };
 		DDBBA0051A7292670041496C /* TestVarCoeffPoisson.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestVarCoeffPoisson.cpp; sourceTree = "<group>"; };
 		DDBBA0061A7292670041496C /* TestVarCoeffPoisson.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestVarCoeffPoisson.h; sourceTree = "<group>"; };
 		DDBC58D51C1EB2F900E42817 /* MordantFixed.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = MordantFixed.sh; sourceTree = "<group>"; };
@@ -219,6 +226,8 @@
 		DDD305B41C15E9BD004DEFC3 /* WaveletsOnInterval.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = WaveletsOnInterval.h; sourceTree = "<group>"; };
 		DDD305B51C15F6B3004DEFC3 /* FallingSamara.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingSamara.sh; sourceTree = "<group>"; };
 		DDD30B801AA99056008F9EE1 /* Shape.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Shape.h; sourceTree = "<group>"; };
+		DDDD2AFD1C75D0C20080F90F /* submit_dora_fallingSamaraFixed */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_dora_fallingSamaraFixed; sourceTree = "<group>"; };
+		DDDD2AFE1C75D0C20080F90F /* FallingSamaraFixedDora.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingSamaraFixedDora.sh; sourceTree = "<group>"; };
 		DDE251611AD5054700F6029B /* LosslessCompression.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = LosslessCompression.h; sourceTree = "<group>"; };
 		DDE251621AD5054700F6029B /* ZBinDumper_MPI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ZBinDumper_MPI.h; sourceTree = "<group>"; };
 		DDE251631AD5054700F6029B /* ZBinDumper.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = ZBinDumper.h; sourceTree = "<group>"; };
@@ -309,8 +318,16 @@
 		DD58CAA31A5D9A3700291455 /* launch */ = {
 			isa = PBXGroup;
 			children = (
+				DD4D63A41C85FCBC0013B5EA /* FallingTriangleDoraSP.sh */,
+				DD4D63A31C85FC7C0013B5EA /* submit_dora_fallingTriangle */,
+				DD28AD241C7C50DC00359D03 /* FallingSamaraFixedDaintSP.sh */,
+				DD28AD231C7C50DC00359D03 /* submit_daint_fallingSamaraFixedSP */,
+				DD28AD221C7C50DC00359D03 /* FallingSamaraFixedDoraSP.sh */,
+				DD28AD211C7C50DC00359D03 /* submit_dora_fallingSamaraFixedSP */,
 				DD797C7C1C46365600C8EAE1 /* FallingSamaraFixedDaint.sh */,
 				DD797C7E1C463C7400C8EAE1 /* submit_daint_fallingSamaraFixed */,
+				DDDD2AFE1C75D0C20080F90F /* FallingSamaraFixedDora.sh */,
+				DDDD2AFD1C75D0C20080F90F /* submit_dora_fallingSamaraFixed */,
 				DD43FFF91C6CF23800C40A1F /* samara.sh */,
 				DD132E301C1458AB006CFEE7 /* FlowPastSamara.sh */,
 				DDD305B51C15F6B3004DEFC3 /* FallingSamara.sh */,
@@ -357,6 +374,7 @@
 				DDB174C61B072F5600458CBA /* OperatorPressureGradient.h */,
 				DD0AD51A1C16D92A0017B3AB /* OperatorVorticity.h */,
 				DD6881BF1C2405020002515E /* OperatorTestDerivativesMPI.h */,
+				DDBA0EAE1C8F0A3F00EC3DE3 /* OperatorMovingPressure.h */,
 			);
 			name = Operators;
 			sourceTree = "<group>";

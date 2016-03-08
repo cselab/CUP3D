@@ -70,6 +70,8 @@ protected:
 			abort();
 		}
 		
+		if (rank==0) cout << "Simulation_FSI deserialization done\n";
+		
 		/*
 		inStream >> variableName;
 		Real center[3];
@@ -138,7 +140,7 @@ public:
 				Real radius = parser("-radius").asDouble(0.1);
 				shape = new Sphere(center, radius, rhoS, eps, eps);
 			}
-			else if (shapeType=="samara" || shapeType=="triangle")
+			else if (shapeType=="samara" || shapeType=="triangle" || shapeType=="sphereOBJ" || shapeType=="plate" || shapeType=="ellipsoid")
 			{
 				/*
 				const Real center[3] = {.5,.5,.5};
@@ -173,7 +175,7 @@ public:
 		else
 		{
 			// shape stuff
-			cout << "Restart - Simulation_FSI\n";
+			if (rank==0) cout << "Restart - Simulation_Gravity\n";
 			//abort();
 		}
 		

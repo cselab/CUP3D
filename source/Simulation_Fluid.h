@@ -129,7 +129,8 @@ protected:
 			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
 #endif
 //*/
-			_serialize();
+			if (rank==0) _serialize();
+			MPI_Barrier(MPI_COMM_WORLD);
 			
 			/*
 			 // VP
@@ -251,30 +252,30 @@ protected:
 		inStream >> variableName;
 		assert(variableName=="dt");
 		inStream >> dt;
+		
+		if (rank==0) cout << "Simulation_Fluid deserialization done\n";
+		if (rank==0) _outputSettings(cout);
 	}
 	
 	void _serialize()
 	{
 		stringstream ss;
-		ss << path4serialization << "Serialized-" << bPing << ".dat";
+		ss << path4serialization << "/Serialized-" << bPing << ".dat";
 		if (rank==0) cout << ss.str() << endl;
 		
-		stringstream serializedGrid;
-		serializedGrid << "SerializedGrid-" << bPing << ".grid";
-		DumpZBin_MPI<FluidGridMPI, StreamerSerialization>(*grid, serializedGrid.str(), path4serialization);
-		if (rank==0) "grid dump done\n";
-			
+		//stringstream serializedGrid;
+		//serializedGrid << "SerializedGrid-" << bPing << ".grid";
+		//DumpZBin_MPI<FluidGridMPI, StreamerSerialization>(*grid, serializedGrid.str(), path4serialization);
+		
 		ofstream file;
 		file.open(ss.str());
 		
 		if (file.is_open())
 		{
-			if (rank==0) "data dump\n";
 			_outputSettings(file);
 			
 			file.close();
 		}
-		if (rank==0) "done\n";
 		
 		bPing = !bPing;
 	}
@@ -283,32 +284,82 @@ protected:
 	{
 		stringstream ss0, ss1, ss;
 		struct stat st0, st1;
-		ss0 << path4serialization << "Serialized-0.dat";
-		ss1 << path4serialization << "Serialized-1.dat";
+		ss0 << "Serialized-0.dat";
+		ss1 << "Serialized-1.dat";
 		stat(ss0.str().c_str(), &st0);
 		stat(ss1.str().c_str(), &st1);
 		
 		
 		// direct comparison of the two quantities leads to segfault
-		bPing = st0.st_mtime<st1.st_mtime ? false : true;
+		if (rank==0)
+		{
+			cout << endl;
+			cout << ss0.str() << endl;
+			cout << "\t" << st0.st_size << endl;
+			cout << "\t" << st0.st_atime << endl;
+			cout << "\t" << st0.st_mtime << endl;
+			cout << "\t" << st0.st_ctime << endl;
+			cout << ss1.str() << endl;
+			cout << "\t" << st1.st_size << endl;
+			cout << "\t" << st1.st_atime << endl;
+			cout << "\t" << st1.st_mtime << endl;
+			cout << "\t" << st1.st_ctime << endl;
+		}
+		
+		bPing = st0.st_size > st1.st_size ? false : true;
 		ss << (!bPing ? ss0.str() : ss1.str());
+		
+		if (rank==0) cout << "Deserializing from " << ss.str() << endl;
 		
 		ifstream file;
 		file.open(ss.str());
 		
 		if (file.is_open())
 		{
+			if (rank==0) cout << "Reading .dat\n";
 			_inputSettings(file);
 			
 			file.close();
 		}
+		else
+		{
+			if (rank==0) cout << "Failed to open " << ss.str() << endl;
+			abort();
+		}
 		
-		grid = new FluidGrid(bpdx,bpdy,bpdz);
+		MPI_Barrier(MPI_COMM_WORLD);
+		
+		if (rank==0) cout << "Allocating grid\n";
+		parser.set_strict_mode();
+		nprocsx = parser("-nprocsx").asInt();
+		nprocsy = parser("-nprocsy").asInt();
+		nprocsz = parser("-nprocsz").asInt();
+		bpdx = parser("-bpdx").asInt();
+		bpdy = parser("-bpdy").asInt();
+		bpdz = parser("-bpdz").asInt();
+		parser.unset_strict_mode();
+		grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz);
 		assert(grid != NULL);
 		
+		/*
+		if (rank==0) cout << "Reading Zbin\n";
 		stringstream serializedGrid;
 		serializedGrid << "SerializedGrid-" << bPing << ".grid";
+		if (rank==0) cout << serializedGrid.str() << endl;
 		ReadZBin_MPI<FluidGridMPI, StreamerSerialization>(*grid, serializedGrid.str(), path4serialization);
+		if (rank==0) cout << "Done\n";
+		*/
+		//*
+#ifdef _USE_HDF_
+		MPI_Barrier(MPI_COMM_WORLD);
+		if (rank==0) cout << "Reading HDF5\n";
+		stringstream ssHDF;
+		ssHDF << path2file << "-" << std::setfill('0') << std::setw(6) << step;
+		if (rank==0) cout << ssHDF.str() << endl;
+		ReadHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, ssHDF.str());
+		if (rank==0) cout << "Done\n";
+#endif
+		//*/
 	}
 	
 public:
@@ -382,6 +433,7 @@ public:
 			parser.set_strict_mode();
 			path4serialization = parser("-serialization").asString();
 			parser.unset_strict_mode();
+			
 			_deserialize();
 			
 			vInfo = grid->getBlocksInfo();

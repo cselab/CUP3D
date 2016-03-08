@@ -500,6 +500,51 @@ struct StreamerHDF5
 	static const char * getAttributeName() { return "Tensor"; }
 };
 
+struct StreamerScalarHDF5
+{
+	static const int NCHANNELS = 1;
+	
+	ScalarBlock& ref;
+	
+	StreamerScalarHDF5(ScalarBlock& b): ref(b) {}
+	
+	void operate(const int ix, const int iy, const int iz, Real output[NCHANNELS]) const
+	{
+		const Real& input = ref.data[iz][iy][ix];
+		
+		output[0] = input;
+	}
+	
+	void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
+	{
+		Real& output = ref.data[iz][iy][ix];
+		
+		output  = input[0];
+	}
+	
+	void operate(const int ix, const int iy, const int iz, Real *ovalue, const int field) const
+	{
+		const Real& input = ref.data[iz][iy][ix];
+		
+		switch(field) {
+			case 0: *ovalue = input; break;
+			default: throw std::invalid_argument("unknown field!"); break;
+		}
+	}
+	
+	void operate(const Real ivalue, const int ix, const int iy, const int iz, const int field) const
+	{
+		Real& output = ref.data[iz][iy][ix];
+		
+		switch(field) {
+			case 0:  output = ivalue; break;
+			default: throw std::invalid_argument("unknown field!"); break;
+		}
+	}
+	
+	static const char * getAttributeName() { return "Scalar"; }
+};
+
 template<typename BlockType, template<typename X> class allocator=std::allocator>
 class BlockLabBottomWall : public BlockLab<BlockType,allocator>
 {

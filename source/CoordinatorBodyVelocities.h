@@ -16,13 +16,13 @@ class CoordinatorBodyVelocities : public GenericCoordinator
 {
 protected:
 	Real *uBody, *vBody, *wBody;
-	Real *uFlowMax;
+	double *uFlowMax;
 	Real *lambda;
 	Real rhoS;
 	Shape *shape;
 	
 public:
-	CoordinatorBodyVelocities(Real * uBody, Real * vBody, Real * wBody, Real * lambda, Shape * shape, Real * uFlowMax, FluidGridMPI * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), lambda(lambda), shape(shape), uFlowMax(uFlowMax)
+	CoordinatorBodyVelocities(Real * uBody, Real * vBody, Real * wBody, Real * lambda, Shape * shape, double * uFlowMax, FluidGridMPI * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), lambda(lambda), shape(shape), uFlowMax(uFlowMax)
 	{
 	}
 	
@@ -42,7 +42,7 @@ public:
 		double J3 = 0;
 		double J4 = 0;
 		double J5 = 0;
-		Real maxU = 0;
+		double maxU = 0;
 		
 		double massG = 0;
 		double uG = 0;
@@ -57,7 +57,7 @@ public:
 		double J3G = 0;
 		double J4G = 0;
 		double J5G = 0;
-		Real maxUG = 0;
+		double maxUG = 0;
 		
 		Real com[3];
 		shape->getCenterOfMass(com);
@@ -118,13 +118,13 @@ public:
 						Real wLocal = b(ix,iy,iz).w;
 						
 #ifndef _MOVING_FRAME_
-						maxU = max(maxU,(Real)abs(uLocal));
-						maxU = max(maxU,(Real)abs(vLocal));
-						maxU = max(maxU,(Real)abs(wLocal));
+						maxU = max(maxU,(double)abs(uLocal));
+						maxU = max(maxU,(double)abs(vLocal));
+						maxU = max(maxU,(double)abs(wLocal));
 #else
-						maxU = max(maxU,(Real)abs(uLocal-*uBody));
-						maxU = max(maxU,(Real)abs(vLocal-*vBody));
-						maxU = max(maxU,(Real)abs(wLocal-*wBody));
+						maxU = max(maxU,(double)abs(uLocal-*uBody));
+						maxU = max(maxU,(double)abs(vLocal-*vBody));
+						maxU = max(maxU,(double)abs(wLocal-*wBody));
 #endif
 						
 						const Real rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
@@ -135,23 +135,23 @@ public:
 						p[2] -= com[2];
 						
 						Real cp[3];
-						cp[0] = p[1] * (wLocal-*wBody) - p[2] * (vLocal-*vBody); // does this only use the translational component? not from the equations, double check
+						cp[0] = p[1] * (wLocal-*wBody) - p[2] * (vLocal-*vBody);
 						cp[1] = p[2] * (uLocal-*uBody) - p[0] * (wLocal-*wBody);
 						cp[2] = p[0] * (vLocal-*vBody) - p[1] * (uLocal-*uBody);
 						//cp[0] = p[1] * (wLocal) - p[2] * (vLocal);
 						//cp[1] = p[2] * (uLocal) - p[0] * (wLocal);
 						//cp[2] = p[0] * (vLocal) - p[1] * (uLocal);
 						
-						dtdtx += cp[0] * rhochi * h3;
-						dtdty += cp[1] * rhochi * h3;
-						dtdtz += cp[2] * rhochi * h3;
+						dtdtx += cp[0] * rhochi;
+						dtdty += cp[1] * rhochi;
+						dtdtz += cp[2] * rhochi;
 						
-						J0 += rhochi * (p[1]*p[1] + p[2]*p[2]) * h3; //       y^2 + z^2
-						J1 += rhochi * (p[0]*p[0] + p[2]*p[2]) * h3; // x^2 +     + z^2
-						J2 += rhochi * (p[0]*p[0] + p[1]*p[1]) * h3; // x^2 + y^2
-						J3 -= rhochi * p[0] * p[1] * h3; // xy
-						J4 -= rhochi * p[0] * p[2] * h3; // xz
-						J5 -= rhochi * p[1] * p[2] * h3; // yz
+						J0 += rhochi * (p[1]*p[1] + p[2]*p[2]); //       y^2 + z^2
+						J1 += rhochi * (p[0]*p[0] + p[2]*p[2]); // x^2 +     + z^2
+						J2 += rhochi * (p[0]*p[0] + p[1]*p[1]); // x^2 + y^2
+						J3 -= rhochi * p[0] * p[1]; // xy
+						J4 -= rhochi * p[0] * p[2]; // xz
+						J5 -= rhochi * p[1] * p[2]; // yz
 					}
 		}
 		
@@ -168,10 +168,12 @@ public:
 		
 		*uFlowMax = maxUG;
 		
+		const double h = vInfo[0].h_gridpoint;
+		const double h3 = h*h*h;
+		
 		const Real ub[3] = { *uBody, *vBody, *wBody };
-		Real dthetadt[3] = { dtdtxG, dtdtyG, dtdtzG };
-		const Real weaken = 1.;
-		const double J[6] = { J0G*weaken, J1G*weaken, J2G*weaken, J3G*weaken, J4G*weaken, J5G*weaken };
+		double dthetadt[3] = { dtdtxG*h3, dtdtyG*h3, dtdtzG*h3 };
+		const double J[6] = { J0G*h3, J1G*h3, J2G*h3, J3G*h3, J4G*h3, J5G*h3 };
 		
 		shape->updatePosition(ub, dthetadt, J, massG, dt);
 	}
@@ -192,23 +194,23 @@ protected:
 public:
 	CoordinatorBodyVelocitiesForcedRot(Real * lambda, Shape * shape, FluidGridMPI * grid) : GenericCoordinator(grid), lambda(lambda), shape(shape)
 	{
-		//cout << "Not supported yet\n";
-		//abort();
+		cout << "Not supported yet\n";
+		abort();
 	}
 	
 	void operator()(const double dt)
 	{
-		Real maxU = 0;
+		double maxU = 0;
 		const int N = vInfo.size();
-		Real J0 = 0;
-		Real J1 = 0;
-		Real J2 = 0;
-		Real J3 = 0;
-		Real J4 = 0;
-		Real J5 = 0;
-		Real dtdtx = 0;
-		Real dtdty = 0;
-		Real dtdtz = 0;
+		double J0 = 0;
+		double J1 = 0;
+		double J2 = 0;
+		double J3 = 0;
+		double J4 = 0;
+		double J5 = 0;
+		double dtdtx = 0;
+		double dtdty = 0;
+		double dtdtz = 0;
 		
 		
 		Real com[3];
@@ -261,7 +263,7 @@ public:
 		Real mass = 1;
 		
 		const Real ub[3] = { 0,0,0 };
-		const Real dthetadt[3] = { 0, .1, 0 };
+		const double dthetadt[3] = { 0, .1, 0 };
 		const double J[6] = { 1,1,1,0,0,0 };//{ J0, J1, J2, J3, J4, J5 };
 		
 		shape->updatePosition(ub, dthetadt, J, mass, dt);

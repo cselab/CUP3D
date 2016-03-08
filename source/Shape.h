@@ -93,7 +93,7 @@ public:
 	virtual Real chi(Real p[3], Real h) const = 0;
 	virtual Real getCharLength() const = 0;
 	
-	virtual void updatePosition(Real u[3], Real dthetadt[3], double J[6], Real mass, Real dt)
+	virtual void updatePosition(Real u[3], double dthetadt[3], double J[6], Real mass, Real dt)
 	{
 		properties.ut.x = u[0];
 		properties.ut.y = u[1];
@@ -133,6 +133,14 @@ public:
 							properties.J[3]*(properties.J[4]*properties.J[5] - properties.J[2]*properties.J[3]) +
 							properties.J[4]*(properties.J[3]*properties.J[5] - properties.J[1]*properties.J[4]);
 		assert(abs(detJ)>numeric_limits<double>::epsilon());
+		/*
+		//if (detJ==0)
+		{
+			//cout << "Warning - determinant is 0!\n";
+			cout << "Matrix elements are: " << J[0] << " " << J[1] << " " << J[2] << " " << J[3] << " " << J[4] << " " << J[5] << endl;
+			//abort();
+		}
+		*/
 		const double invDetJ = 1./detJ;
 		
 		const double invJ[6] = {
@@ -239,6 +247,11 @@ public:
 		properties.serialize(outStream);
 	}
 	
+	void setProperties(Geometry::Properties p)
+	{
+		properties = p;
+	}
+	
 	// no need for deserialization - this task is delegated to static function of descendants
 };
 
@@ -297,7 +310,7 @@ public:
 	Real getCharLength() const
 	{
 		//cout << "Not implemented yet\n";
-		return .01;
+		return .06;
 	}
 	/*
 	void outputSettings(ostream &outStream)
@@ -356,7 +369,9 @@ public:
 		
 		Real center[3] = { properties.com.x, properties.com.y, properties.com.z };
 		
-		return new GeometryMesh(filename,gridsize,isosurface,center,properties.density,mChi,mRho,scale,tX,tY,tZ,properties.q);
+		GeometryMesh * mesh = new GeometryMesh(filename,gridsize,isosurface,center,properties.density,mChi,mRho,scale,tX,tY,tZ,properties.q);
+		mesh->setProperties(properties);
+		return mesh;
 	}
 };
 

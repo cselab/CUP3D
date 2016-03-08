@@ -13,7 +13,7 @@
 
 export OMP_NUM_THREADS=8
 
-NAME=FallingSamaraFixed_24h_1024_310116
+NAME=FallingSamaraFixed_long_DP_512_180216_Dora
 export SCR=/scratch/daint/cconti/${NAME}
 mkdir -p $SCR
 
@@ -31,5 +31,5 @@ export OMP_WAIT_POLICY=PASSIVE
 CHI_OUT="chi"
 VORT_OUT="vorticity"
 
-aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./hdf2ch -xpesize 4 -ypesize 4 -zpesize 4 -bpdx 8 -bpdy 8 -bpdz 8 -sim io -simdata ${NAME}-062360.h5 -stepid 62360 -threshold 1e-10 -channel 6 -outdata ${VORT_OUT}
-aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./hdf2ch -xpesize 4 -ypesize 4 -zpesize 4 -bpdx 8 -bpdy 8 -bpdz 8 -sim io -simdata ${NAME}-062360.h5 -stepid 62360 -threshold 1e-10 -channel 4 -outdata ${CHI_OUT}
+aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./hdf2ch -xpesize 4 -ypesize 4 -zpesize 4 -bpdx 4 -bpdy 4 -bpdz 4 -sim io -simdata ${NAME}-698704.h5 -stepid 698704 -threshold 1e-10 -channel 6 -outdata ${VORT_OUT}
+aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./hdf2ch -xpesize 4 -ypesize 4 -zpesize 4 -bpdx 4 -bpdy 4 -bpdz 4 -sim io -simdata ${NAME}-698704.h5 -stepid 698704 -threshold 1e-10 -channel 4 -outdata ${CHI_OUT}

@@ -31,14 +31,14 @@ public:
 		
 		const double dh = vInfo[0].h_gridpoint;
 		
-		Real cx = 0;
-		Real cy = 0;
-		Real cz = 0;
-		Real vol = 0;
-		Real gcx = 0;
-		Real gcy = 0;
-		Real gcz = 0;
-		Real gvol = 0;
+		double cx = 0;
+		double cy = 0;
+		double cz = 0;
+		double vol = 0;
+		double gcx = 0;
+		double gcy = 0;
+		double gcz = 0;
+		double gvol = 0;
 		Real com[3];
 		//shape->getCenterOfMass(com);
 		
@@ -73,10 +73,10 @@ public:
 						b(ix,iy,iz).tmp  = 0;
 						
 						const Real rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
-						cx += p[0] * rhochi * dh*dh*dh;
-						cy += p[1] * rhochi * dh*dh*dh;
-						cz += p[2] * rhochi * dh*dh*dh;
-						vol += rhochi * dh*dh*dh;
+						cx += p[0] * rhochi;
+						cy += p[1] * rhochi;
+						cz += p[2] * rhochi;
+						vol += rhochi;
 					}
 		}
 		
@@ -89,10 +89,11 @@ public:
 		gcy /= gvol;
 		gcz /= gvol;
 		com[0] = gcx;
-		com[1] = gcy;
-		com[2] = gcz;
+		com[1] = gcy*_SY_;//*1.02;//*1.05;
+		com[2] = gcz*_SZ_;//*0.98;//*0.95;
 		shape->setCenterOfMass(com);
 		shape->setCentroid(com);
+		cout << "Center of mass (after IC) set to " << com[0] << " " << com[1] << " " << com[2] << endl;
 		
 		check("IC - end");
 	}

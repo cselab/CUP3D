@@ -24,7 +24,7 @@ protected:
 	
 	Real uBody[3];
 	Real gravity[3];
-	Real maxU;
+	double maxU;
 	
 	// penalization parameter
 	Real lambda;
