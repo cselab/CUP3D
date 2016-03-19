@@ -72,6 +72,7 @@
 		DD1A32B01C9BFE8100A4C72D /* extractGeometries.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; name = extractGeometries.sh; path = launch/extractGeometries.sh; sourceTree = "<group>"; };
 		DD1AD63F1BD7950000231777 /* plotAndersen.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotAndersen.py; path = launch/plotAndersen.py; sourceTree = "<group>"; };
 		DD1D1C3D1BD928D200E8A55B /* plotVelocityEllipses.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotVelocityEllipses.py; path = launch/plotVelocityEllipses.py; sourceTree = "<group>"; };
+		DD1DA02A1C9D8A2F00AD4EB1 /* generateGeometries768.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = generateGeometries768.py; path = launch/generateGeometries768.py; sourceTree = "<group>"; };
 		DD20D2DB1B417166003741F6 /* plotKolomenskiy.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotKolomenskiy.py; path = launch/plotKolomenskiy.py; sourceTree = "<group>"; };
 		DD20D2DE1B41ADA2003741F6 /* plotDrag.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotDrag.py; path = launch/plotDrag.py; sourceTree = "<group>"; };
 		DD28AD211C7C50DC00359D03 /* submit_dora_fallingSamaraFixedSP */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_dora_fallingSamaraFixedSP; sourceTree = "<group>"; };
@@ -264,6 +265,7 @@
 			isa = PBXGroup;
 			children = (
 				DD1A32AF1C9BFE7B00A4C72D /* generateGeometries.py */,
+				DD1DA02A1C9D8A2F00AD4EB1 /* generateGeometries768.py */,
 				DD1A32B01C9BFE8100A4C72D /* extractGeometries.sh */,
 				DD20D2DE1B41ADA2003741F6 /* plotDrag.py */,
 				DD20D2DB1B417166003741F6 /* plotKolomenskiy.py */,

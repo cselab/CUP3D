@@ -98,11 +98,55 @@ for dirName, subDirList, fileList in os.walk(rootDir):
 				SetActiveSource(filename)
 
 				# create a new 'Calculator'
-				calculator2 = Calculator(Input=filename)
+				calculator1 = Calculator(Input=filename)
+				calculator1.Function = ''
+
+				# Properties modified on calculator1
+				calculator1.Function = 'data_1*iHat+data_2*jHat+data_3*kHat'
+
+				# get active view
+				renderView1 = GetActiveViewOrCreate('RenderView')
+				# uncomment following to set a specific view size
+				# renderView1.ViewSize = [1628, 1098]
+
+				# show data in view
+				calculator1Display = Show(calculator1, renderView1)
+				# trace defaults for the display properties.
+				calculator1Display.Representation = 'Outline'
+				calculator1Display.ColorArrayName = [None, '']
+				calculator1Display.GlyphType = 'Arrow'
+				calculator1Display.ScalarOpacityUnitDistance = 0.0033096687538939264
+				calculator1Display.Slice = 255
+
+				# hide data in view
+				Hide(filename, renderView1)
+
+				# create a new 'Compute Derivatives'
+				computeDerivatives1 = ComputeDerivatives(Input=calculator1)
+				computeDerivatives1.Scalars = [None, '']
+				computeDerivatives1.Vectors = ['POINTS', 'Result']
+
+				# Properties modified on computeDerivatives1
+				computeDerivatives1.OutputVectorType = 'Vorticity'
+
+				# show data in view
+				computeDerivatives1Display = Show(computeDerivatives1, renderView1)
+				# trace defaults for the display properties.
+				computeDerivatives1Display.Representation = 'Outline'
+				computeDerivatives1Display.ColorArrayName = [None, '']
+				computeDerivatives1Display.GlyphType = 'Arrow'
+				computeDerivatives1Display.ScalarOpacityUnitDistance = 0.0033096687538939264
+				computeDerivatives1Display.Slice = 255
+
+				# hide data in view
+				Hide(calculator1, renderView1)
+
+				# create a new 'Calculator'
+				calculator2 = Calculator(Input=computeDerivatives1)
 				calculator2.Function = ''
 
 				# Properties modified on calculator2
-				calculator2.Function = 'data_6'
+				calculator2.Function = 'mag(Result)'
 
 				# show data in view
 				calculator2Display = Show(calculator2, renderView1)
@@ -110,27 +154,27 @@ for dirName, subDirList, fileList in os.walk(rootDir):
 				calculator2Display.Representation = 'Outline'
 				calculator2Display.ColorArrayName = ['POINTS', '']
 				calculator2Display.GlyphType = 'Arrow'
-				calculator2Display.ScalarOpacityUnitDistance = 0.0016772642744068997
-				calculator2Display.Slice = 511
+				calculator2Display.ScalarOpacityUnitDistance = 0.0033096687538939264
+				calculator2Display.Slice = 255
 
 				# hide data in view
-				Hide(filename, renderView1)
+				Hide(computeDerivatives1, renderView1)
 
 				# create a new 'Contour'
 				contour2 = Contour(Input=calculator2)
 				contour2.ContourBy = ['POINTS', 'Result']
-				contour2.Isosurfaces = [50.0]
+				contour2.Isosurfaces = [1.0]
 				contour2.PointMergeMethod = 'Uniform Binning'
 
 				# show data in view
-				contour2Display = Show(contour2, renderView1)
+				contour1Display = Show(contour1, renderView1)
 				# trace defaults for the display properties.
-				contour2Display.ColorArrayName = [None, '']
-				contour2Display.GlyphType = 'Arrow'
-				contour2Display.SetScaleArray = [None, '']
-				contour2Display.ScaleTransferFunction = 'PiecewiseFunction'
-				contour2Display.OpacityArray = [None, '']
-				contour2Display.OpacityTransferFunction = 'PiecewiseFunction'
+				contour1Display.ColorArrayName = [None, '']
+				contour1Display.GlyphType = 'Arrow'
+				contour1Display.SetScaleArray = ['POINTS', 'Result']
+				contour1Display.ScaleTransferFunction = 'PiecewiseFunction'
+				contour1Display.OpacityArray = ['POINTS', 'Result']
+				contour1Display.OpacityTransferFunction = 'PiecewiseFunction'
 
 				# save data
 				SaveData(pathVort, proxy=contour2)
