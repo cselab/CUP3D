@@ -65,6 +65,8 @@ private:
 public:
 	OperatorDivergence(double dt) : dt(dt)
 	{
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+		
 		stencil_start[0] = -1;
 		stencil_start[1] = -1;
 		stencil_start[2] = -1;

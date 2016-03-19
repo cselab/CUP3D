@@ -53,7 +53,7 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		DD0423E41B395242002FEC70 /* plotEllipses.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotEllipses.py; sourceTree = "<group>"; };
+		DD0423E41B395242002FEC70 /* plotEllipses.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotEllipses.py; path = launch/plotEllipses.py; sourceTree = "<group>"; };
 		DD078FDA1BD6629800BEE021 /* FallingDensities.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingDensities.sh; sourceTree = "<group>"; };
 		DD078FDB1BD785B800BEE021 /* Fields.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Fields.sh; sourceTree = "<group>"; };
 		DD0984011B33130100AB357D /* TestAddedMass.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestAddedMass.cpp; sourceTree = "<group>"; };
@@ -65,13 +65,15 @@
 		DD0C48C11A710A2B00CC0C89 /* OperatorComputeShape.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OperatorComputeShape.h; sourceTree = "<group>"; };
 		DD0C48C21A712FA500CC0C89 /* OperatorGravity.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OperatorGravity.h; sourceTree = "<group>"; };
 		DD0C7DF71B3AEFC8006B5880 /* Fields_parameter_study.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Fields_parameter_study.sh; sourceTree = "<group>"; };
-		DD0C7DF81B3AF492006B5880 /* plotParamTest.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotParamTest.py; sourceTree = "<group>"; };
+		DD0C7DF81B3AF492006B5880 /* plotParamTest.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotParamTest.py; path = launch/plotParamTest.py; sourceTree = "<group>"; };
 		DD0D8F621B32C83600BEC57C /* AddedMass.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = AddedMass.sh; sourceTree = "<group>"; };
 		DD132E301C1458AB006CFEE7 /* FlowPastSamara.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FlowPastSamara.sh; sourceTree = "<group>"; };
-		DD1AD63F1BD7950000231777 /* plotAndersen.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotAndersen.py; sourceTree = "<group>"; };
-		DD1D1C3D1BD928D200E8A55B /* plotVelocityEllipses.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotVelocityEllipses.py; sourceTree = "<group>"; };
-		DD20D2DB1B417166003741F6 /* plotKolomenskiy.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotKolomenskiy.py; sourceTree = "<group>"; };
-		DD20D2DE1B41ADA2003741F6 /* plotDrag.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotDrag.py; sourceTree = "<group>"; };
+		DD1A32AF1C9BFE7B00A4C72D /* generateGeometries.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = generateGeometries.py; path = launch/generateGeometries.py; sourceTree = "<group>"; };
+		DD1A32B01C9BFE8100A4C72D /* extractGeometries.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; name = extractGeometries.sh; path = launch/extractGeometries.sh; sourceTree = "<group>"; };
+		DD1AD63F1BD7950000231777 /* plotAndersen.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotAndersen.py; path = launch/plotAndersen.py; sourceTree = "<group>"; };
+		DD1D1C3D1BD928D200E8A55B /* plotVelocityEllipses.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotVelocityEllipses.py; path = launch/plotVelocityEllipses.py; sourceTree = "<group>"; };
+		DD20D2DB1B417166003741F6 /* plotKolomenskiy.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotKolomenskiy.py; path = launch/plotKolomenskiy.py; sourceTree = "<group>"; };
+		DD20D2DE1B41ADA2003741F6 /* plotDrag.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotDrag.py; path = launch/plotDrag.py; sourceTree = "<group>"; };
 		DD28AD211C7C50DC00359D03 /* submit_dora_fallingSamaraFixedSP */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_dora_fallingSamaraFixedSP; sourceTree = "<group>"; };
 		DD28AD221C7C50DC00359D03 /* FallingSamaraFixedDoraSP.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingSamaraFixedDoraSP.sh; sourceTree = "<group>"; };
 		DD28AD231C7C50DC00359D03 /* submit_daint_fallingSamaraFixedSP */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_daint_fallingSamaraFixedSP; sourceTree = "<group>"; };
@@ -139,6 +141,7 @@
 		DD58CAE61A602C1700291455 /* OperatorDivergence.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OperatorDivergence.h; sourceTree = "<group>"; };
 		DD58CAE71A60320400291455 /* TestPressure.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestPressure.cpp; sourceTree = "<group>"; };
 		DD58CAE81A60320400291455 /* TestPressure.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestPressure.h; sourceTree = "<group>"; };
+		DD5CAA4D1C91739700FA845D /* submit_testRotation */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_testRotation; sourceTree = "<group>"; };
 		DD5FCAAD1B2EF32C000232B9 /* Bubble.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Bubble.sh; sourceTree = "<group>"; };
 		DD5FCAAE1B2F1E6B000232B9 /* make.brutus */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = make.brutus; path = makefiles/make.brutus; sourceTree = "<group>"; };
 		DD5FCAAF1B2F1E6B000232B9 /* make.euler */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = make.euler; path = makefiles/make.euler; sourceTree = "<group>"; };
@@ -161,7 +164,7 @@
 		DD6881C01C2407980002515E /* testMPI.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = testMPI.sh; sourceTree = "<group>"; };
 		DD7795041C11F608003013F8 /* TestGeometry.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestGeometry.cpp; sourceTree = "<group>"; };
 		DD7795051C11F608003013F8 /* TestGeometry.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestGeometry.h; sourceTree = "<group>"; };
-		DD780F701B3BEF90007ED7B7 /* plotFallingCylinder.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotFallingCylinder.py; sourceTree = "<group>"; };
+		DD780F701B3BEF90007ED7B7 /* plotFallingCylinder.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotFallingCylinder.py; path = launch/plotFallingCylinder.py; sourceTree = "<group>"; };
 		DD797C7C1C46365600C8EAE1 /* FallingSamaraFixedDaint.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = FallingSamaraFixedDaint.sh; sourceTree = "<group>"; };
 		DD797C7D1C46367600C8EAE1 /* make.daint */ = {isa = PBXFileReference; lastKnownFileType = text; name = make.daint; path = makefiles/make.daint; sourceTree = "<group>"; };
 		DD797C7E1C463C7400C8EAE1 /* submit_daint_fallingSamaraFixed */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_daint_fallingSamaraFixed; sourceTree = "<group>"; };
@@ -194,9 +197,9 @@
 		DDB174C61B072F5600458CBA /* OperatorPressureGradient.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OperatorPressureGradient.h; sourceTree = "<group>"; };
 		DDB174C91B0731A200458CBA /* CoordinatorPressureGradient.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CoordinatorPressureGradient.h; sourceTree = "<group>"; };
 		DDB58F6F1BDFB96D00403C7C /* Andersen_ParameterStudy.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = Andersen_ParameterStudy.sh; sourceTree = "<group>"; };
-		DDB58F701BDFC14000403C7C /* plotAndersenParamStudy.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotAndersenParamStudy.py; sourceTree = "<group>"; };
-		DDB58F711BE0D81200403C7C /* plotParamStudyEllipses.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotParamStudyEllipses.py; sourceTree = "<group>"; };
-		DDB58F721BE1204B00403C7C /* plotNamkoong.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; path = plotNamkoong.py; sourceTree = "<group>"; };
+		DDB58F701BDFC14000403C7C /* plotAndersenParamStudy.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotAndersenParamStudy.py; path = launch/plotAndersenParamStudy.py; sourceTree = "<group>"; };
+		DDB58F711BE0D81200403C7C /* plotParamStudyEllipses.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotParamStudyEllipses.py; path = launch/plotParamStudyEllipses.py; sourceTree = "<group>"; };
+		DDB58F721BE1204B00403C7C /* plotNamkoong.py */ = {isa = PBXFileReference; lastKnownFileType = text.script.python; name = plotNamkoong.py; path = launch/plotNamkoong.py; sourceTree = "<group>"; };
 		DDB892811C05F96E00E2C551 /* GeometryHelpers.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = GeometryHelpers.h; sourceTree = "<group>"; };
 		DDB892831C05FA5900E2C551 /* GeometryReader.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = GeometryReader.cpp; sourceTree = "<group>"; };
 		DDB892841C05FA5900E2C551 /* GeometryReader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = GeometryReader.h; sourceTree = "<group>"; };
@@ -205,6 +208,9 @@
 		DDB892891C05FBF300E2C551 /* CTReader.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = CTReader.cpp; sourceTree = "<group>"; };
 		DDB8928A1C05FBF300E2C551 /* CTReader.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CTReader.h; sourceTree = "<group>"; };
 		DDBA0EAE1C8F0A3F00EC3DE3 /* OperatorMovingPressure.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = OperatorMovingPressure.h; sourceTree = "<group>"; };
+		DDBA0EAF1C8F156100EC3DE3 /* submit_Mordant */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_Mordant; sourceTree = "<group>"; };
+		DDBA0EB01C8F156100EC3DE3 /* MordantDaint.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = MordantDaint.sh; sourceTree = "<group>"; };
+		DDBA0EB11C8F1BFC00EC3DE3 /* submit_MordantTungsten */ = {isa = PBXFileReference; lastKnownFileType = text; path = submit_MordantTungsten; sourceTree = "<group>"; };
 		DDBBA0051A7292670041496C /* TestVarCoeffPoisson.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = TestVarCoeffPoisson.cpp; sourceTree = "<group>"; };
 		DDBBA0061A7292670041496C /* TestVarCoeffPoisson.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = TestVarCoeffPoisson.h; sourceTree = "<group>"; };
 		DDBC58D51C1EB2F900E42817 /* MordantFixed.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; path = MordantFixed.sh; sourceTree = "<group>"; };
@@ -217,6 +223,7 @@
 		DDC1D09E1AC2CB9D00BC2E88 /* Simulation_Fluid.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Simulation_Fluid.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		DDC1D09F1AC2D0B600BC2E88 /* Simulation_FSI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Simulation_FSI.h; sourceTree = "<group>"; };
 		DDC2A1751C63326D009DF9C0 /* Advection.ispc */ = {isa = PBXFileReference; lastKnownFileType = text; path = Advection.ispc; sourceTree = "<group>"; };
+		DDC77BBF1C9860AD00600E10 /* CoordinatorDivergence.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordinatorDivergence.h; sourceTree = "<group>"; };
 		DDD305AC1C15E8D6004DEFC3 /* SerializerIO_WaveletCompression.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SerializerIO_WaveletCompression.h; sourceTree = "<group>"; };
 		DDD305AD1C15E929004DEFC3 /* FullWaveletTransform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FullWaveletTransform.h; sourceTree = "<group>"; };
 		DDD305AE1C15E929004DEFC3 /* WaveletCompressor.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; path = WaveletCompressor.cpp; sourceTree = "<group>"; };
@@ -253,14 +260,30 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		DD1A32AE1C9BFE3C00A4C72D /* PostProcessing */ = {
+			isa = PBXGroup;
+			children = (
+				DD1A32AF1C9BFE7B00A4C72D /* generateGeometries.py */,
+				DD1A32B01C9BFE8100A4C72D /* extractGeometries.sh */,
+				DD20D2DE1B41ADA2003741F6 /* plotDrag.py */,
+				DD20D2DB1B417166003741F6 /* plotKolomenskiy.py */,
+				DD0423E41B395242002FEC70 /* plotEllipses.py */,
+				DD0C7DF81B3AF492006B5880 /* plotParamTest.py */,
+				DD1AD63F1BD7950000231777 /* plotAndersen.py */,
+				DD1D1C3D1BD928D200E8A55B /* plotVelocityEllipses.py */,
+				DDB58F701BDFC14000403C7C /* plotAndersenParamStudy.py */,
+				DDB58F711BE0D81200403C7C /* plotParamStudyEllipses.py */,
+				DDB58F721BE1204B00403C7C /* plotNamkoong.py */,
+				DD780F701B3BEF90007ED7B7 /* plotFallingCylinder.py */,
+			);
+			name = PostProcessing;
+			sourceTree = "<group>";
+		};
 		DD1AD6401BD7CCA100231777 /* Other */ = {
 			isa = PBXGroup;
 			children = (
-				DD20D2DB1B417166003741F6 /* plotKolomenskiy.py */,
 				DD078FDB1BD785B800BEE021 /* Fields.sh */,
-				DD0423E41B395242002FEC70 /* plotEllipses.py */,
 				DD0C7DF71B3AEFC8006B5880 /* Fields_parameter_study.sh */,
-				DD0C7DF81B3AF492006B5880 /* plotParamTest.py */,
 			);
 			name = Other;
 			sourceTree = "<group>";
@@ -273,16 +296,10 @@
 				DD1AD6401BD7CCA100231777 /* Other */,
 				DD0D8F621B32C83600BEC57C /* AddedMass.sh */,
 				DD9DC1441AB2F6B0009BFBEE /* Andersen.sh */,
-				DD1AD63F1BD7950000231777 /* plotAndersen.py */,
-				DD1D1C3D1BD928D200E8A55B /* plotVelocityEllipses.py */,
 				DDB58F6F1BDFB96D00403C7C /* Andersen_ParameterStudy.sh */,
-				DDB58F701BDFC14000403C7C /* plotAndersenParamStudy.py */,
-				DDB58F711BE0D81200403C7C /* plotParamStudyEllipses.py */,
 				DD9DC1461AB2F6B6009BFBEE /* Namkoong.sh */,
-				DDB58F721BE1204B00403C7C /* plotNamkoong.py */,
 				DD078FDA1BD6629800BEE021 /* FallingDensities.sh */,
 				DD2E83231B8D9AB9006EB00A /* FallingRe40.sh */,
-				DD780F701B3BEF90007ED7B7 /* plotFallingCylinder.py */,
 			);
 			name = FallingBodies;
 			sourceTree = "<group>";
@@ -333,6 +350,10 @@
 				DDD305B51C15F6B3004DEFC3 /* FallingSamara.sh */,
 				DD9BCBEF1C19D7750091FD1C /* FallingSamaraFixed.sh */,
 				DD9BCBEE1C1996140091FD1C /* RotatingSamara.sh */,
+				DDBA0EB01C8F156100EC3DE3 /* MordantDaint.sh */,
+				DDBA0EAF1C8F156100EC3DE3 /* submit_Mordant */,
+				DDBA0EB11C8F1BFC00EC3DE3 /* submit_MordantTungsten */,
+				DD5CAA4D1C91739700FA845D /* submit_testRotation */,
 				DD2A4CEA1ADFA08800C3C034 /* RTI */,
 				DD2A4CE91ADFA07100C3C034 /* FallingBodies */,
 				DD30657A1BD0D615009A5291 /* testBC.sh */,
@@ -347,7 +368,6 @@
 				DD4134711B8768AA00CCAAE4 /* ShearLayer2.sh */,
 				DD58CAA41A5D9A3700291455 /* launchSimulation.sh */,
 				DD838C411ABAD1F200018A75 /* launchValidationDrag.sh */,
-				DD20D2DE1B41ADA2003741F6 /* plotDrag.py */,
 				DD0C48BE1A7100B300CC0C89 /* launchInteractiveSimulation.sh */,
 				DD58CAD51A5ECBB900291455 /* launchTests.sh */,
 			);
@@ -496,6 +516,7 @@
 				DDBFCB8B1AC984F80031708C /* CoordinatorBodyVelocities.h */,
 				DDB174C91B0731A200458CBA /* CoordinatorPressureGradient.h */,
 				DD0AD5191C16D8780017B3AB /* CoordinatorVorticity.h */,
+				DDC77BBF1C9860AD00600E10 /* CoordinatorDivergence.h */,
 			);
 			name = Coordinators;
 			sourceTree = "<group>";
@@ -576,6 +597,7 @@
 				DD5FCAB01B2F1E6B000232B9 /* Makefile */,
 				DD5FCAB11B2F1E6B000232B9 /* makeTest.sh */,
 				DD58CAB31A5E8A7000291455 /* Cubism */,
+				DD1A32AE1C9BFE3C00A4C72D /* PostProcessing */,
 				DD58CAA31A5D9A3700291455 /* launch */,
 				DD58CA9D1A5D977C00291455 /* source */,
 				DDFAAA111A5D971200BCE3E7 /* Products */,

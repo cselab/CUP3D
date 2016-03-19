@@ -140,7 +140,7 @@ public:
 				Real radius = parser("-radius").asDouble(0.1);
 				shape = new Sphere(center, radius, rhoS, eps, eps);
 			}
-			else if (shapeType=="samara" || shapeType=="triangle" || shapeType=="sphereOBJ" || shapeType=="plate" || shapeType=="ellipsoid")
+			else if (shapeType=="samara" || shapeType=="samaraBlender" || shapeType=="triangle" || shapeType=="sphereOBJ" || shapeType=="plate" || shapeType=="ellipsoid")
 			{
 				/*
 				const Real center[3] = {.5,.5,.5};

@@ -42,6 +42,19 @@ public:
 		Real com[3];
 		//shape->getCenterOfMass(com);
 		
+		double J0 = 0;
+		double J1 = 0;
+		double J2 = 0;
+		double J3 = 0;
+		double J4 = 0;
+		double J5 = 0;
+		double J0G = 0;
+		double J1G = 0;
+		double J2G = 0;
+		double J3G = 0;
+		double J4G = 0;
+		double J5G = 0;
+		
 #pragma omp parallel for reduction(+:cx) reduction(+:cy) reduction(+:cz) reduction(+:vol)
 		for(int i=0; i<(int)vInfo.size(); i++)
 		{
@@ -93,7 +106,54 @@ public:
 		com[2] = gcz*_SZ_;//*0.98;//*0.95;
 		shape->setCenterOfMass(com);
 		shape->setCentroid(com);
+		shape->setMass(gvol);
+		
 		cout << "Center of mass (after IC) set to " << com[0] << " " << com[1] << " " << com[2] << endl;
+		
+		
+#pragma omp parallel for reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5)
+		for(int i=0; i<(int)vInfo.size(); i++)
+		{
+			BlockInfo info = vInfo[i];
+			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+			
+			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+				for(int iy=0; iy<FluidBlock::sizeY; iy++)
+					for(int ix=0; ix<FluidBlock::sizeX; ix++)
+					{
+						Real p[3];
+						info.pos(p, ix, iy, iz);
+						p[0] -= com[0];
+						p[1] -= com[1];
+						p[2] -= com[2];
+						
+						const Real rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
+						
+						J0 += rhochi * (p[1]*p[1] + p[2]*p[2]); //       y^2 + z^2
+						J1 += rhochi * (p[0]*p[0] + p[2]*p[2]); // x^2 +     + z^2
+						J2 += rhochi * (p[0]*p[0] + p[1]*p[1]); // x^2 + y^2
+						J3 -= rhochi * p[0] * p[1]; // xy
+						J4 -= rhochi * p[0] * p[2]; // xz
+						J5 -= rhochi * p[1] * p[2]; // yz
+					}
+		}
+		
+		MPI::COMM_WORLD.Allreduce(&J0, &J0G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J1, &J1G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J2, &J2G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J3, &J3G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J4, &J4G, 1, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&J5, &J5G, 1, MPI::DOUBLE, MPI::SUM);
+		
+		
+		//const double h = vInfo[0].h_gridpoint;
+		//const double h3 = h*h*h;
+		
+		const double J[6] = { J0G, J1G, J2G, J3G, J4G, J5G };
+		
+		shape->setInertiaMatrix0(J);
+		
+		cout << "Inertia matrix (after IC, without h3) set to " << J[0] << " " << J[1] << " " << J[2] << " " << J[3] << " " << J[4] << " " << J[5] << endl;
 		
 		check("IC - end");
 	}

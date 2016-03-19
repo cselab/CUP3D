@@ -449,7 +449,7 @@ struct StreamerHDF5
 		output[5] = input.p;
 		output[6] = input.tmp;
 		output[7] = input.divU;
-		output[8] = 0;
+		output[8] = input.pOld;
 	}
 	
 	void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
@@ -463,6 +463,8 @@ struct StreamerHDF5
 		output.chi  = input[4];
 		output.p    = input[5];
 		output.tmp  = input[6];
+		output.divU = input[7];
+		output.pOld = input[8];
 	}
 	
 	void operate(const int ix, const int iy, const int iz, Real *ovalue, const int field) const
@@ -477,6 +479,8 @@ struct StreamerHDF5
 			case 4: *ovalue  = input.chi; break;
 			case 5: *ovalue  = input.p; break;
 			case 6: *ovalue  = input.tmp; break;
+			case 7: *ovalue  = input.divU; break;
+			case 8: *ovalue  = input.pOld; break;
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
@@ -492,7 +496,9 @@ struct StreamerHDF5
 			case 3:  output.w    = ivalue; break;
 			case 4:  output.chi  = ivalue; break;
 			case 5:  output.p    = ivalue; break;
-			case 6:  output.tmp = ivalue; break;
+			case 6:  output.tmp  = ivalue; break;
+			case 7:  output.divU = ivalue; break;
+			case 8:  output.pOld = ivalue; break;
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}

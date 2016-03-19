@@ -26,6 +26,7 @@ void TestGeometry::_ic()
 	Geometry::Quaternion q1(cos(.5*M_PI), 0, 0, sin(.5*M_PI));
 	Geometry::Quaternion q2(cos(45./360.*M_PI), sin(45./360.*M_PI), 0, 0);
 	Geometry::Quaternion q = q1*q2;
+	const Real charSize = 0.06;
 	
 	double qm = q.magnitude();
 	q.w /= qm;
@@ -33,7 +34,7 @@ void TestGeometry::_ic()
 	q.y /= qm;
 	q.z /= qm;
 	const string filename = "/cluster/home/infk/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
-	shape = new GeometryMesh(filename, gridsize, .004, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+	shape = new GeometryMesh(filename, gridsize, .004, center, charSize, rhoS, moll, moll, scale, tx, ty, tz, q);
 	
 	const double dh = vInfo[0].h_gridpoint;
 	

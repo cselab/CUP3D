@@ -1,0 +1,48 @@
+#!/usr/bin/ksh
+## submit with sbatch
+#SBATCH --ntasks=32
+#SBATCH --ntasks-per-node=2
+#SBATCH --cpus-per-task=12
+#SBATCH --time=12:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=cconti@mavt.ethz.ch
+
+#SBATCH --job-name=vpcachier
+#SBATCH --account=s436
+
+export OMP_NUM_THREADS=12
+
+NAME=Samara_512_SP_160316_Dora_Euler_DLM1_lowDump
+export SCR=/scratch/daint/cconti/${NAME}
+mkdir -p $SCR
+
+cp vpcachier.sh $SCR/.
+cp submit_daint_vpcachier $SCR/.
+cp vpcachier $SCR/.
+cd $SCR
+
+#source /opt/modules/default/init/bashexport
+
+MPICH_MAX_THREAD_SAFETY=multiple
+export MPICH_NEMESIS_ASYNC_PROGRESS=1
+export OMP_WAIT_POLICY=PASSIVE
+
+for F in $(ls *.channel0)
+do
+	S=$(awk 'BEGIN {FS="[.]"} {print $1}' <<< $F)
+	if [[ ! -f cached/$S.vpcache ]]
+	then
+		if [[ $S == chi* ]]
+		then
+			aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./vpcachier -wtype_read 1 -wtype_write 3 -eps 0 -min 0.4 -max 0.6 -simdata $S.StreamerGridPointIterative.channel0 -vp cached/$S.vpcache
+		fi
+		if [[ $S == vorticity* ]]
+		then
+			aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./vpcachier -wtype_read 1 -wtype_write 3 -eps 0 -min 0 -max 250 -simdata $S.StreamerGridPointIterative.channel0 -vp cached/$S.vpcache
+		fi
+		if [[ $S == p* ]]
+                then
+                        aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./vpcachier -wtype_read 1 -wtype_write 3 -eps 0 -min -10 -max 10 -simdata $S.StreamerGridPointIterative.channel0 -vp cached/$S.vpcache
+                fi
+	fi
+done

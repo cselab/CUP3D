@@ -25,6 +25,7 @@ protected:
 #ifndef NDEBUG
 		int rank;
 		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+		MPI_Barrier(MPI_COMM_WORLD);
 		
 		const int N = vInfo.size();
 		
@@ -70,6 +71,7 @@ protected:
 						assert(b(ix,iy,iz).p < 1e10);
 					}
 		}
+		MPI_Barrier(MPI_COMM_WORLD);
 #endif
 	}
 	

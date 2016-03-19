@@ -93,54 +93,55 @@ public:
 	virtual Real chi(Real p[3], Real h) const = 0;
 	virtual Real getCharLength() const = 0;
 	
-	virtual void updatePosition(Real u[3], double dthetadt[3], double J[6], Real mass, Real dt)
+	virtual void updatePosition(Real u[3], Real dthetadt[3], double J[6], Real mass, Real dt)
 	{
 		properties.ut.x = u[0];
 		properties.ut.y = u[1];
 		properties.ut.z = u[2];
 		
-		/*
+#ifdef _J0_
 		int idxI[3][3] = { 0,3,4, 3,1,5, 4,5,2 };
 		
-		for (int i=0; i<6; i++)
-			properties.J[i] = 0;
-		
-		//cout << properties.rotation[0][0] << " " << properties.rotation[0][1] << " " << properties.rotation[0][2] << endl;
-		//cout << properties.rotation[1][0] << " " << properties.rotation[1][1] << " " << properties.rotation[1][2] << endl;
-		//cout << properties.rotation[2][0] << " " << properties.rotation[2][1] << " " << properties.rotation[2][2] << endl;
-		
-		cout << "WARNING - this can only be done if J0 is set!\n";
-		for (int m=0; m<3; m++)
-			for (int n=0; n<3; n++)
+		Real J0[3][3], Jtmp[3][3], Jin[3][3];
+		for (int k=0; k<3; k++)
+			for (int i=0; i<3; i++)
 			{
-				properties.J[0] += properties.rotation[0][m] * properties.J0[idxI[m][n]] * properties.rotation[n][0];
-				properties.J[1] += properties.rotation[1][m] * properties.J0[idxI[m][n]] * properties.rotation[n][1];
-				properties.J[2] += properties.rotation[2][m] * properties.J0[idxI[m][n]] * properties.rotation[n][2];
-				properties.J[3] += properties.rotation[0][m] * properties.J0[idxI[m][n]] * properties.rotation[n][1];
-				properties.J[4] += properties.rotation[0][m] * properties.J0[idxI[m][n]] * properties.rotation[n][2];
-				properties.J[5] += properties.rotation[1][m] * properties.J0[idxI[m][n]] * properties.rotation[n][2];
+				J0[i][k] = 0;
+				Jtmp[i][k] = 0;
+				Jin[i][k] = properties.J0[idxI[i][k]];
 			}
-		*/
 		
+		for (int k=0; k<3; k++)
+			for (int j=0; j<3; j++)
+				for (int i=0; i<3; i++)
+					Jtmp[i][k] += Jin[i][j] * properties.rotation[k][j];
+		
+		for (int k=0; k<3; k++)
+			for (int j=0; j<3; j++)
+				for (int i=0; i<3; i++)
+					J0[i][k] += properties.rotation[i][j] * Jtmp[j][k];
+		
+		properties.J[0] = J0[0][0];
+		properties.J[1] = J0[1][1];
+		properties.J[2] = J0[2][2];
+		properties.J[3] = J0[0][1];
+		properties.J[4] = J0[0][2];
+		properties.J[5] = J0[1][2];
+		
+		//cout << "J comp\t" << properties.J[0] << " " << properties.J[1] << " " << properties.J[2] << " " << properties.J[3] << " " << properties.J[4] << " " << properties.J[5] << endl;
+		//cout << "J input\t" << J[0] << " " << J[1] << " " << J[2] << " " << J[3] << " " << J[4] << " " << J[5] << endl;
+		
+#else
 		for (int i=0; i<6; i++)
 			properties.J[i] = J[i];
-			//cout << "Inertia difference for component " << i << "\t" << abs(properties.J[i] - J[i]) << " (" << properties.J[i] << " " << J[i] << " " << properties.J[i]/J[i] << ")" << endl;
+#endif
 		
-		//for (int i=0; i<6; i++)
-		//	properties.J[i] = J[i];
-		
+		//cout << "J\t" << properties.J[0] << " " << properties.J[1] << " " << properties.J[2] << " " << properties.J[3] << " " << properties.J[4] << " " << properties.J[5] << endl;
 		const double detJ = properties.J[0]*(properties.J[1]*properties.J[2] - properties.J[5]*properties.J[5]) +
 							properties.J[3]*(properties.J[4]*properties.J[5] - properties.J[2]*properties.J[3]) +
 							properties.J[4]*(properties.J[3]*properties.J[5] - properties.J[1]*properties.J[4]);
 		assert(abs(detJ)>numeric_limits<double>::epsilon());
-		/*
-		//if (detJ==0)
-		{
-			//cout << "Warning - determinant is 0!\n";
-			cout << "Matrix elements are: " << J[0] << " " << J[1] << " " << J[2] << " " << J[3] << " " << J[4] << " " << J[5] << endl;
-			//abort();
-		}
-		*/
+
 		const double invDetJ = 1./detJ;
 		
 		const double invJ[6] = {
@@ -152,11 +153,18 @@ public:
 			invDetJ * (properties.J[3]*properties.J[4] - properties.J[0]*properties.J[5])
 		};
 		
+		//cout << "J\t" << J[0] << " " << J[1] << " " << J[2] << " " << J[3] << " " << J[4] << " " << J[5] << endl;
+		//cout << "J0\t" << properties.J[0] << " " << properties.J[1] << " " << properties.J[2] << " " << properties.J[3] << " " << properties.J[4] << " " << properties.J[5] << endl;
+		//cout << "invJ\t" << invJ[0] << " " << invJ[1] << " " << invJ[2] << " " << invJ[3] << " " << invJ[4] << " " << invJ[5] << endl;
+		
 		// J-1 * dthetadt
 		// angular velocity from angular momentum
 		properties.dthetadt.x = (invJ[0]*dthetadt[0] + invJ[3]*dthetadt[1] + invJ[4]*dthetadt[2]);
 		properties.dthetadt.y = (invJ[3]*dthetadt[0] + invJ[1]*dthetadt[1] + invJ[5]*dthetadt[2]);
 		properties.dthetadt.z = (invJ[4]*dthetadt[0] + invJ[5]*dthetadt[1] + invJ[2]*dthetadt[2]);
+		
+		//cout << dthetadt[0] << " " << dthetadt[1] << " " << dthetadt[2] << endl;
+		//cout << properties.dthetadt.x << " " << properties.dthetadt.y << " " << properties.dthetadt.z << endl;
 		
 		properties.update(dt);
 	}
@@ -196,16 +204,82 @@ public:
 		properties.com.z = com[2];
 	}
 	
+	double getMass()
+	{
+		return properties.mass;
+	}
+	
+	void setMass(double mass)
+	{
+		properties.mass = mass;
+	}
+	
+	void getInertiaMatrix(Real J[6])
+	{
+		for (int i=0; i<6; i++)
+			J[i] = properties.J[i];
+	}
+	
 	void setInertiaMatrix(Real J[6])
 	{
 		for (int i=0; i<6; i++)
 			properties.J[i] = J[i];
 	}
 	
-	void setInertiaMatrix0(Real J[6])
+	void setInertiaMatrix0(double J[6])
 	{
 		for (int i=0; i<6; i++)
-			properties.J0[i] = J[i];
+			properties.J0[i] = 0;//J[i];//
+		//*
+		// put into system of reference of unrotated shape - using transposed matrix
+		Real J0[3][3], Jtmp[3][3], Jin[3][3];
+		//Real Jinvtmp[3][3], Jinv[3][3];
+		int idxI[3][3] = { 0,3,4, 3,1,5, 4,5,2 };
+		for (int k=0; k<3; k++)
+			for (int i=0; i<3; i++)
+			{
+				J0[i][k] = 0;
+				Jtmp[i][k] = 0;
+				//Jinvtmp[i][k] = 0;
+				//Jinv[i][k] = 0;
+				Jin[i][k] = J[idxI[i][k]];
+			}
+		
+		for (int k=0; k<3; k++)
+			for (int j=0; j<3; j++)
+				for (int i=0; i<3; i++)
+					Jtmp[i][k] += Jin[i][j] * properties.rotation[j][k];
+		
+		for (int k=0; k<3; k++)
+			for (int j=0; j<3; j++)
+				for (int i=0; i<3; i++)
+					J0[i][k] += properties.rotation[j][i] * Jtmp[j][k];
+		
+		/*
+		for (int k=0; k<3; k++)
+			for (int j=0; j<3; j++)
+				for (int i=0; i<3; i++)
+					Jinvtmp[i][k] += J0[i][j] * properties.rotation[k][j];
+		
+		for (int k=0; k<3; k++)
+			for (int j=0; j<3; j++)
+				for (int i=0; i<3; i++)
+					Jinv[i][k] += properties.rotation[i][j] * Jinvtmp[j][k];
+		*/
+		properties.J0[0] = J0[0][0];
+		properties.J0[1] = J0[1][1];
+		properties.J0[2] = J0[2][2];
+		properties.J0[3] = J0[0][1];
+		properties.J0[4] = J0[0][2];
+		properties.J0[5] = J0[1][2];
+				
+		
+		//cout << "J0 input\t" << J[0] << " " << J[1] << " " << J[2] << " " << J[3] << " " << J[4] << " " << J[5] << endl;
+		//cout << "J0 matrix\t" << Jin[0][0] << " " << Jin[0][1] << " " << Jin[0][2] << " " << Jin[1][0] << " " << Jin[1][1] << " " << Jin[1][2] << " " << Jin[2][0] << " " << Jin[2][1] << " " << Jin[2][2] << endl;
+		//cout << "J0ref mat\t" << J0[0][0] << " " << J0[0][1] << " " << J0[0][2] << " " << J0[1][0] << " " << J0[1][1] << " " << J0[1][2] << " " << J0[2][0] << " " << J0[2][1] << " " << J0[2][2] << endl;
+		//cout << "J0ref mat\t" << J0[0][0] << " " << J0[1][1] << " " << J0[2][2] << " " << J0[0][1] << " " << J0[0][2] << " " << J0[1][2] << endl;
+		//cout << "Jinv mat\t" << Jinv[0][0] << " " << Jinv[0][1] << " " << Jinv[0][2] << " " << Jinv[1][0] << " " << Jinv[1][1] << " " << Jinv[1][2] << " " << Jinv[2][0] << " " << Jinv[2][1] << " " << Jinv[2][2] << endl;
+		//cout << "Jinv mat\t" << Jinv[0][0] << " " << Jinv[1][1] << " " << Jinv[2][2] << " " << Jinv[0][1] << " " << Jinv[0][2] << " " << Jinv[1][2] << endl;
 	}
 	
 	void getOrientation(Real rotation[3][3]) const
@@ -219,6 +293,14 @@ public:
 		rotation[2][0] = properties.rotation[2][0];
 		rotation[2][1] = properties.rotation[2][1];
 		rotation[2][2] = properties.rotation[2][2];
+	}
+	
+	void getOrientation(Real q0, Real q1, Real q2, Real q3) const
+	{
+		q0 = properties.q.w;
+		q1 = properties.q.x;
+		q2 = properties.q.y;
+		q3 = properties.q.z;
 	}
 	
 	virtual inline Real getRhoS() const
@@ -289,14 +371,31 @@ public:
 	*/
 };
 
+class Ellipsoid : public Shape
+{
+protected:
+	Real semiAxis[3];
+	
+public:
+	Ellipsoid(Real center[3], Real semiAxis[3], const Real rhoS, const Real mollChi, const Real mollRho) : Shape(center, rhoS, mollChi, mollRho), semiAxis{semiAxis[0],semiAxis[1],semiAxis[2]}
+	{
+	}
+	
+	Real getCharLength() const
+	{
+		return 2 * semiAxis[1];
+	}
+};
+
 class GeometryMesh : public Shape
 {
 protected:
 	GeometryReader * geometry;
 	const Real isosurface;
+	const Real charSize;
 	
 public:
-	GeometryMesh(const string filename, const int gridsize, const Real isosurface, Real center[3], const Real rhoS, const Real mollChi, const Real mollRho, Real scale=1, Real tX=0, Real tY=0, Real tZ=0, Geometry::Quaternion orientation=Geometry::Quaternion()) : Shape(center, rhoS, mollChi, mollRho, scale, tX, tY, tZ, orientation), isosurface(isosurface)
+	GeometryMesh(const string filename, const int gridsize, const Real isosurface, Real center[3], const Real charSize, const Real rhoS, const Real mollChi, const Real mollRho, Real scale=1, Real tX=0, Real tY=0, Real tZ=0, Geometry::Quaternion orientation=Geometry::Quaternion()) : Shape(center, rhoS, mollChi, mollRho, scale, tX, tY, tZ, orientation), isosurface(isosurface), charSize(charSize)
 	{
 		Geometry::Point transFactor(tX,tY,tZ);
 		geometry = new GeometryReaderOBJ(filename,properties,gridsize,scale,transFactor,isosurface);
@@ -309,8 +408,7 @@ public:
 	
 	Real getCharLength() const
 	{
-		//cout << "Not implemented yet\n";
-		return .06;
+		return charSize;
 	}
 	/*
 	void outputSettings(ostream &outStream)
@@ -325,6 +423,7 @@ public:
 		outStream << "filename " << geometry->filename << endl;
 		outStream << "gridsize " << geometry->gridsize << endl;
 		outStream << "isosurface " << isosurface << endl;
+		outStream << "charSize " << charSize << endl;
 		
 		Shape::serialize(outStream);
 	}
@@ -338,6 +437,7 @@ public:
 		int gridsize;
 		Real isosurface;
 		Real mChi, mRho;
+		Real charSize;
 		
 		inStream >> variableName;
 		assert(variableName=="filename");
@@ -348,6 +448,9 @@ public:
 		inStream >> variableName;
 		assert(variableName=="isosurface");
 		inStream >> isosurface;
+		inStream >> variableName;
+		assert(variableName=="charSize");
+		inStream >> charSize;
 		
 		inStream >> variableName;
 		assert(variableName=="scaleFactor");
@@ -369,7 +472,7 @@ public:
 		
 		Real center[3] = { properties.com.x, properties.com.y, properties.com.z };
 		
-		GeometryMesh * mesh = new GeometryMesh(filename,gridsize,isosurface,center,properties.density,mChi,mRho,scale,tX,tY,tZ,properties.q);
+		GeometryMesh * mesh = new GeometryMesh(filename,gridsize,isosurface,center,charSize,properties.density,mChi,mRho,scale,tX,tY,tZ,properties.q);
 		mesh->setProperties(properties);
 		return mesh;
 	}

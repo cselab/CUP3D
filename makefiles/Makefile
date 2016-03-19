@@ -16,6 +16,7 @@ sy ?= 1
 sz ?= 1
 vertexcentered ?= false
 dlm ?= false
+j0 ?= false
 
 ispc ?= false
 
@@ -89,6 +90,10 @@ endif
 
 ifeq "$(dlm)" "true"
 	CPPFLAGS += -D_DLM_
+endif
+
+ifeq "$(j0)" "true"
+	CPPFLAGS += -D_J0_
 endif
 
 ifeq "$(hdf)" "true"

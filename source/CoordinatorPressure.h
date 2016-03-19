@@ -211,12 +211,14 @@ public:
 		addHydrostaticPressure(dt);
 #endif // _HYDROSTATIC_
 #ifdef _MOVING_FRAME_
+		/*
 		if (*step>=2)
 		{
 			OperatorMovingPressure kernel(dt,*uBody,*vBody,*wBody);
 			compute(kernel);
 			updateOldPressure();
 		}
+		//*/
 #endif
 		computeSplit<OperatorDivergenceSplit>(dt); // this part could be done directly in the correct data structure
 		//computeSplitFFTW<OperatorDivergenceSplitFFTW>(dt); // when using this, remove from FFTW C2F, in both solvers

@@ -152,9 +152,10 @@ void Sim_FSI_Rotation::init()
 			Geometry::Quaternion q2(cos(.0625*M_PI), sin(.0625*M_PI), 0, 0);
 			Geometry::Quaternion q = q2*q1;//q1*q2;
 			const Real isosurface = parser("-isosurface").asDouble(.004);
+			const Real charSize = 0.06;
 			
 			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
-			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, charSize, rhoS, moll, moll, scale, tx, ty, tz, q);
 		}
 		else if (shapeType=="triangle")
 		{
@@ -169,10 +170,11 @@ void Sim_FSI_Rotation::init()
 			Geometry::Quaternion q2(cos(.0625*M_PI), sin(.0625*M_PI), 0, 0);
 			Geometry::Quaternion q = q2*q1;//q1*q2;
 			const Real isosurface = parser("-isosurface").asDouble(.004);
+			const Real charSize = 0.06;
 			
 			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/TriangleSub.obj";
 			cout << "Loading geometry\n";
-			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, charSize, rhoS, moll, moll, scale, tx, ty, tz, q);
 			cout << "Done\n";
 		}
 		else

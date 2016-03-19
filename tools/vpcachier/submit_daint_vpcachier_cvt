@@ -1,0 +1,39 @@
+#!/usr/bin/ksh
+## submit with sbatch
+#SBATCH --ntasks=32
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=8
+#SBATCH --time=24:00:00
+#SBATCH --partition=viz
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=cconti@mavt.ethz.ch
+
+#SBATCH --job-name=vpcachier
+#SBATCH --account=s436
+#SBATCH --partition=viz
+
+export OMP_NUM_THREADS=8
+
+NAME=CVT_Re10k_M.1
+export SCR=/scratch/daint/cconti/CVT/${NAME}
+mkdir -p $SCR
+
+cp vpcachier.sh $SCR/.
+cp submit_daint_vpcachier_cvt $SCR/.
+cp vpcachier $SCR/.
+cd $SCR
+
+#source /opt/modules/default/init/bashexport
+
+MPICH_MAX_THREAD_SAFETY=multiple
+export MPICH_NEMESIS_ASYNC_PROGRESS=1
+export OMP_WAIT_POLICY=PASSIVE
+
+for F in $(ls *.channel0)
+do
+	S=$(awk 'BEGIN {FS="[.]"} {print $1}' <<< $F)
+	if [[ ! -f cached/$S.vpcache ]]
+	then
+		aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./vpcachier -wtype_read 1 -wtype_write 3 -eps 0 -min 0 -max 20 -simdata $S.StreamerGridPointIterative.channel0 -vp cached/$S.vpcache
+	fi
+done

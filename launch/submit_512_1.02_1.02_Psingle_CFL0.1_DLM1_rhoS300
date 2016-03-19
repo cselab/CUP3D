@@ -1,0 +1,25 @@
+#!/usr/bin/ksh
+## submit with sbatch
+#SBATCH --ntasks=32
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=8
+#SBATCH --time=2:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=cconti@mavt.ethz.ch
+
+#SBATCH --job-name=Samara_ParamStudy_512_1.02_1.02_Psingle_CFL0.1_DLM1_rhoS300
+#SBATCH --account=s436
+#SBATCH --partition=viz
+
+cp ../makefiles/simulation_daint_8_1.02_1.02_single /scratch/daint/cconti/Samara_ParamStudy_512_1.02_1.02_Psingle_CFL0.1_DLM1_rhoS300/.
+cd /scratch/daint/cconti/Samara_ParamStudy_512_1.02_1.02_Psingle_CFL0.1_DLM1_rhoS300
+
+source /opt/modules/default/init/bashexport
+
+MPICH_MAX_THREAD_SAFETY=multiple
+export MPICH_NEMESIS_ASYNC_PROGRESS=1
+export OMP_WAIT_POLICY=PASSIVE
+
+export OMP_NUM_THREADS=8
+aprun -r 1 -n 32 -N 1 -d 8 ./simulation_daint_8_1.02_1.02_single -file Samara_ParamStudy_512_1.02_1.02_Psingle_CFL0.1_DLM1_rhoS300 -sim falling -tend 1000 -nprocsx 32 -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy 16 -bpdz 16 -CFL 0.1 -shape samara -rhoS 300 -dlm 1 -nu 0.000654041451953662 -isosurface .0 -tdump .5
+

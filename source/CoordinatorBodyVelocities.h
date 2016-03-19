@@ -83,11 +83,11 @@ public:
 						Real wLocal = b(ix,iy,iz).w;
 						
 						const Real rhochi = b(ix,iy,iz).rho * b(ix,iy,iz).chi;
-						u += uLocal * rhochi * h3;
-						v += vLocal * rhochi * h3;
-						w += wLocal * rhochi * h3;
+						u += uLocal * rhochi;
+						v += vLocal * rhochi;
+						w += wLocal * rhochi;
 						
-						mass += rhochi * h3;
+						mass += rhochi; // h3 removed everywhere
 					}
 		}
 		
@@ -96,9 +96,18 @@ public:
 		MPI::COMM_WORLD.Allreduce(&w, &wG, 1, MPI::DOUBLE, MPI::SUM);
 		MPI::COMM_WORLD.Allreduce(&mass, &massG, 1, MPI::DOUBLE, MPI::SUM);
 		
+#ifdef _J0_
+		massG = shape->getMass();
+#endif
+		
 		*uBody = uG / massG;
 		*vBody = vG / massG;
 		*wBody = wG / massG;
+		
+		//cout << u << " " << v << " " << w << " " << mass << " " << uG << " " << vG << " " << wG << " " << massG << " " << *uBody << " " << *vBody << " " << *wBody << endl;
+		//cout << uG << " " << vG << " " << wG << " " << massG << " " << *uBody << " " << *vBody << " " << *wBody << endl;
+		//MPI_Barrier(MPI_COMM_WORLD);
+		//abort();
 		
 #pragma omp parallel for schedule(static) reduction(+:dtdtx) reduction(+:dtdty) reduction(+:dtdtz) reduction(+:J0) reduction(+:J1) reduction(+:J2) reduction(+:J3) reduction(+:J4) reduction(+:J5) reduction(max:maxU)
 		for(int i=0; i<N; i++)
@@ -168,14 +177,18 @@ public:
 		
 		*uFlowMax = maxUG;
 		
-		const double h = vInfo[0].h_gridpoint;
-		const double h3 = h*h*h;
+		//const double h = vInfo[0].h_gridpoint;
+		//const double h3 = h*h*h;
 		
 		const Real ub[3] = { *uBody, *vBody, *wBody };
-		double dthetadt[3] = { dtdtxG*h3, dtdtyG*h3, dtdtzG*h3 };
-		const double J[6] = { J0G*h3, J1G*h3, J2G*h3, J3G*h3, J4G*h3, J5G*h3 };
+		Real dthetadt[3] = { dtdtxG, dtdtyG, dtdtzG };
+		const double J[6] = { J0G, J1G, J2G, J3G, J4G, J5G };
 		
 		shape->updatePosition(ub, dthetadt, J, massG, dt);
+		
+		//cout << *uBody << " " << *vBody << " " << *wBody << " " << dthetadt[0] << " " << dthetadt[1] << " " << dthetadt[2] << endl;
+		//MPI_Barrier(MPI_COMM_WORLD);
+		//abort();
 	}
 	
 	string getName()
@@ -263,7 +276,7 @@ public:
 		Real mass = 1;
 		
 		const Real ub[3] = { 0,0,0 };
-		const double dthetadt[3] = { 0, .1, 0 };
+		const Real dthetadt[3] = { 0, .1, 0 };
 		const double J[6] = { 1,1,1,0,0,0 };//{ J0, J1, J2, J3, J4, J5 };
 		
 		shape->updatePosition(ub, dthetadt, J, mass, dt);

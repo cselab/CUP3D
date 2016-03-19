@@ -84,7 +84,7 @@ void TestTranslation::run()
 			u[1] = .5;
 			u[2] = .25;
 			const Real mass = 1;
-			const double dthetadt[3] = { 0,0,0 };
+			const Real dthetadt[3] = { 0,0,0 };
 			const double J[6] = { 1,1,1,0,0,0 };
 			shape->updatePosition(u, dthetadt, J, mass, dt);
 		}

@@ -18,7 +18,11 @@
 class TestRotation : public Test
 {
 private:
+	Real orientationIC[3][3];
 	Real dthetadt[3];
+	Real u[3];
+	Real radius;
+	Real rhoS;
 	Shape * shape;
 	const int testCase; // 0: forced, 1: from flow
 	double dt;

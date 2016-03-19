@@ -53,11 +53,16 @@ class CoordinatorPenalization : public GenericCoordinator
 {
 protected:
 	Real *uBody, *vBody, *wBody;
+	Real aBody[3];
 	Shape * shape;
 	Real * lambda;
 	
 public:
-	CoordinatorPenalization(Real * uBody, Real * vBody, Real * wBody, Shape * shape, Real * lambda, FluidGridMPI * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), shape(shape), lambda(lambda)
+	CoordinatorPenalization(Real * uBody, Real * vBody, Real * wBody, Shape * shape, Real * lambda, FluidGridMPI * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), aBody{0,0,0}, shape(shape), lambda(lambda)
+	{
+	}
+	
+	CoordinatorPenalization(Real * uBody, Real * vBody, Real * wBody, Real aBody[3], Shape * shape, Real * lambda, FluidGridMPI * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), aBody{aBody[0],aBody[1],aBody[2]}, shape(shape), lambda(lambda)
 	{
 	}
 	
@@ -70,7 +75,11 @@ public:
 		
 #pragma omp parallel
 		{
+#ifndef _MOVING_FRAME_
 			OperatorPenalization kernel(dt, *uBody, *vBody, *wBody, shape, *lambda);
+#else
+			OperatorPenalizationMovingFrame kernel(dt, *uBody, *vBody, *wBody, aBody, shape, *lambda);
+#endif
 			
 #pragma omp for schedule(static)
 			for(int i=0; i<N; i++)

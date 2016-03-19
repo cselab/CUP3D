@@ -1,0 +1,32 @@
+#!/usr/bin/ksh
+## submit with sbatch
+#SBATCH --ntasks=128
+#SBATCH --ntasks-per-node=1
+#SBATCH --cpus-per-task=8
+#SBATCH --time=00:15:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=cconti@mavt.ethz.ch
+
+#SBATCH --job-name=FallingSamaraFixed_512_040216
+#SBATCH --account=s436
+
+export OMP_NUM_THREADS=8
+
+export SCR=/scratch/daint/cconti/${SLURM_JOB_NAME}
+mkdir -p $SCR
+
+cp ../makefiles/simulation $SCR/.
+cp FallingSamaraFixedDaint.sh $SCR/.
+cp submit_daint_fallingSamaraFixed $SCR/.
+cd $SCR
+
+source /opt/modules/default/init/bashexport
+
+MPICH_MAX_THREAD_SAFETY=multiple
+export MPICH_NEMESIS_ASYNC_PROGRESS=1
+export OMP_WAIT_POLICY=PASSIVE
+
+BPDYZ=32
+
+aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./simulation -file ${SLURM_JOB_NAME} -sim falling -tend 1000 -nprocsx ${SLURM_NTASKS} -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy ${BPDYZ} -bpdz ${BPDYZ} -CFL .1 -shape samara -rhoS 284.96 -lambda 1 -dlm .1 -nu 0.000654041451953662 -isosurface .002 -tdump .02
+#-fdump 500

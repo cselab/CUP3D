@@ -82,6 +82,11 @@ void Sim_FSI_Gravity::_diagnostics()
 	shape->getCenterOfMass(center);
 	Real rotation[3][3];
 	shape->getOrientation(rotation);
+	Real J[6];
+	shape->getInertiaMatrix(J);
+	Real mass = shape->getMass();
+	Real omega[3];
+	shape->getAngularVelocity(omega);
 	
 	if (rank==0)
 	{
@@ -91,7 +96,7 @@ void Sim_FSI_Gravity::_diagnostics()
 		if (verbose)
 			cout << step << " " << time << " " << center[0] << " " << center[1] << " " << center[2] << endl;
 		//cout << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << rotation[0][0] << " " << rotation[0][1] << " " << rotation[0][2] << " " << rotation[1][0] << " " << rotation[1][1] << " " << rotation[1][2] << " " << rotation[2][0] << " " << rotation[2][1] << " " << rotation[2][2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << endl;
-		myfile << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << rotation[0][0] << " " << rotation[0][1] << " " << rotation[0][2] << " " << rotation[1][0] << " " << rotation[1][1] << " " << rotation[1][2] << " " << rotation[2][0] << " " << rotation[2][1] << " " << rotation[2][2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << endl;
+		myfile << step << " " << time << " " << dt << " " << bpdx << " " << lambda << " " << cD << " " << Re_uBody << " " << center[0] << " " << center[1] << " " << center[2] << " " << rotation[0][0] << " " << rotation[0][1] << " " << rotation[0][2] << " " << rotation[1][0] << " " << rotation[1][1] << " " << rotation[1][2] << " " << rotation[2][0] << " " << rotation[2][1] << " " << rotation[2][2] << " " << uBody[0] << " " << uBody[1] << " " << uBody[2] << " " << omega[0] << " " << omega[1] << " " << omega[2] << " " << mass*dh*dh*dh << " " << J[0]*dh*dh*dh << " " << J[1]*dh*dh*dh << " " << J[2]*dh*dh*dh << " " << J[3]*dh*dh*dh << " " << J[4]*dh*dh*dh << " " << J[5]*dh*dh*dh << endl;
 	}
 }
 
@@ -221,7 +226,7 @@ void Sim_FSI_Gravity::_inputSettings(istream& inStream)
 	Simulation_FSI::_inputSettings(inStream);
 }
 
-Sim_FSI_Gravity::Sim_FSI_Gravity(const int argc, const char ** argv) : Simulation_FSI(argc, argv), uBody{0,0,0}, gravity{0,-9.81,0}, dtCFL(0), dtFourier(0), dtBody(0), re(0), nu(0), minRho(0), bSplit(false)
+Sim_FSI_Gravity::Sim_FSI_Gravity(const int argc, const char ** argv) : Simulation_FSI(argc, argv), uBody{0,0,0}, aBody{0,0,0}, uBodyOld{0,0,0}, gravity{0,-9.81,0}, dtCFL(0), dtFourier(0), dtBody(0), re(0), nu(0), minRho(0), bSplit(false)
 {
 	if (rank==0)
 	{
@@ -265,6 +270,7 @@ void Sim_FSI_Gravity::init()
 			const Real moll = 2;
 			const int gridsize = 1024;
 			const Real scale = .04;
+			const Real charSize = .1;
 			const Real tx = .12;
 			const Real ty = .9;
 			const Real tz = .12;
@@ -281,9 +287,10 @@ void Sim_FSI_Gravity::init()
 			const Real center[3] = {.5,.5,.5};
 			const Real moll = 2;
 			const int gridsize = 2048;
-			const Real scale = .15;//.125;
+			const Real scale = .15;//0.075;//.125;
+			const Real charSize = .06;//.03;//
 			const Real tx = .45;
-			const Real ty = .3;
+			const Real ty = .25;//0.3;
 			const Real tz = .4;
 			//*/
 #endif
@@ -298,7 +305,28 @@ void Sim_FSI_Gravity::init()
 			const Real isosurface = parser("-isosurface").asDouble(.0);
 			
 			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/Samara_v3.obj";
-			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, charSize, rhoS, moll, moll, scale, tx, ty, tz, q);
+			
+			Real com[3];
+			shape->getCenterOfMass(com);
+			if (rank==0) cout << "Center of mass set to " << com[0] << " " << com[1] << " " << com[2] << endl;
+		}
+		else if (shapeType=="samaraBlender")
+		{
+			const Real center[3] = {.5,.5,.5};
+			const Real moll = 2;
+			const int gridsize = 2048;
+			const Real scale = .15;//.125;
+			const Real tx = .45;
+			const Real ty = .3;
+			const Real tz = .4;
+			const Real charSize = .06;
+			
+			Geometry::Quaternion q(cos(.25*M_PI), 0, 0, sin(.25*M_PI));
+			const Real isosurface = parser("-isosurface").asDouble(.0);
+			
+			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/SamaraBlender.obj";
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, charSize, rhoS, moll, moll, scale, tx, ty, tz, q);
 			
 			Real com[3];
 			shape->getCenterOfMass(com);
@@ -306,15 +334,6 @@ void Sim_FSI_Gravity::init()
 		}
 		else if (shapeType=="triangle")
 		{
-#ifndef _MOVING_FRAME_
-			const Real center[3] = {.5,.5,.5};
-			const Real moll = 2;
-			const int gridsize = 1024;
-			const Real scale = .04;
-			const Real tx = .12;
-			const Real ty = .9;
-			const Real tz = .12;
-#else
 			const Real center[3] = {.5,.5,.5};
 			const Real moll = 2;
 			const int gridsize = 1536;
@@ -322,12 +341,13 @@ void Sim_FSI_Gravity::init()
 			const Real tx = .45;
 			const Real ty = .3;
 			const Real tz = .4;
-#endif
+			const Real charSize = .06;
+			
 			Geometry::Quaternion q(1,0,0,0);
 			const Real isosurface = parser("-isosurface").asDouble(.0);
 			
 			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/TriangleSub.obj";
-			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, charSize, rhoS, moll, moll, scale, tx, ty, tz, q);
 			
 			Real com[3];
 			shape->getCenterOfMass(com);
@@ -353,11 +373,12 @@ void Sim_FSI_Gravity::init()
 			const Real ty = .5;
 			const Real tz = .4;
 #endif
+			const Real charSize = .06;
 			Geometry::Quaternion q(1,0,0,0);
 			const Real isosurface = parser("-isosurface").asDouble(.0);
 			
 			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/Sphere.obj";
-			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, charSize, rhoS, moll, moll, scale, tx, ty, tz, q);
 			
 			Real com[3];
 			shape->getCenterOfMass(com);
@@ -383,16 +404,16 @@ void Sim_FSI_Gravity::init()
 			const Real ty = .5;
 			const Real tz = .4;
 #endif
+			const Real charSize = .06;
 			Geometry::Quaternion q(1,0,0,0);
 			const Real isosurface = parser("-isosurface").asDouble(.0);
 			
 			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/Ellipsoid.obj";
-			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, charSize, rhoS, moll, moll, scale, tx, ty, tz, q);
 			
 			Real com[3];
 			shape->getCenterOfMass(com);
 			if (rank==0) cout << "Center of mass set to " << com[0] << " " << com[1] << " " << com[2] << endl;
-			
 		}
 		else if (shapeType=="plate")
 		{
@@ -413,11 +434,12 @@ void Sim_FSI_Gravity::init()
 			const Real ty = .4;
 			const Real tz = .4;
 #endif
+			const Real charSize = .06;
 			Geometry::Quaternion q(1,0,0,0);
 			const Real isosurface = parser("-isosurface").asDouble(.0);
 			
 			const string filename = "/users/cconti/CubismUP_3D/launch/geometries/Plate.obj";
-			shape = new GeometryMesh(filename, gridsize, isosurface, center, rhoS, moll, moll, scale, tx, ty, tz, q);
+			shape = new GeometryMesh(filename, gridsize, isosurface, center, charSize, rhoS, moll, moll, scale, tx, ty, tz, q);
 			
 			Real com[3];
 			shape->getCenterOfMass(com);
@@ -523,7 +545,7 @@ void Sim_FSI_Gravity::init()
 	pipeline.push_back(new CoordinatorGravity(gravity, grid));
 	pipeline.push_back(new CoordinatorPressure<Lab>(minRho, gravity, &uBody[0], &uBody[1], &uBody[2], &step, bSplit, grid, rank, nprocs));
 	pipeline.push_back(new CoordinatorBodyVelocities(&uBody[0], &uBody[1], &uBody[2], &lambda, shape, &maxU, grid));
-	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], shape, &lambda, grid)); // also computes new shape
+	pipeline.push_back(new CoordinatorPenalization(&uBody[0], &uBody[1], &uBody[2], aBody, shape, &lambda, grid)); // also computes new shape
 	//pipeline.push_back(new CoordinatorComputeShape(shape, grid));
 	
 	if (rank==0)
@@ -540,11 +562,9 @@ void Sim_FSI_Gravity::simulate()
 	const int sizeY = bpdy * FluidBlock::sizeY;
 	const int sizeZ = bpdz * FluidBlock::sizeZ;
 	
-	double vOld = 0;
-	
 	MPI_Barrier(MPI_COMM_WORLD);
 	
-	double nextDumpTime = dumpTime;
+	double nextDumpTime = time+dumpTime;
 	
 	while (true)
 	{
@@ -596,22 +616,23 @@ void Sim_FSI_Gravity::simulate()
 			step++;
 		}
 		
+		// this still needs to be corrected to the frame of reference!
+		aBody[0] = (uBody[0]-uBodyOld[0])/dt;
+		aBody[1] = (uBody[1]-uBodyOld[1])/dt;
+		aBody[2] = (uBody[2]-uBodyOld[2])/dt;
+		uBodyOld[0] = uBody[0];
+		uBodyOld[1] = uBody[1];
+		uBodyOld[2] = uBody[2];
 		
-		if (rank==0)
+		if (rank==0 && shapeType=="sphere")
 		{
-			//if (step<100)
-			{
-				// this still needs to be corrected to the frame of reference!
-				double accM = (uBody[1]-vOld)/dt;
-				vOld = uBody[1];
-				double accT = (shape->getRhoS()-1)/(shape->getRhoS()+.5) * gravity[1];
-				double accN = (shape->getRhoS()-1)/(shape->getRhoS()   ) * gravity[1];
-				if (verbose) cout << "Acceleration with added mass (measured, expected, no added mass)\t" << accM << "\t" << accT << "\t" << accN << " " << uBody[1] << " " << vOld << endl;
-				stringstream ss;
-				ss << path2file << "_addedmass.dat";
-				ofstream myfile(ss.str(), fstream::app);
-				myfile << step << " " << time << " " << accM << " " << accT << " " << accN << endl;
-			}
+			double accT = (shape->getRhoS()-1)/(shape->getRhoS()+.5) * gravity[1];
+			double accN = (shape->getRhoS()-1)/(shape->getRhoS()   ) * gravity[1];
+			if (verbose) cout << "Acceleration with added mass (measured, expected, no added mass)\t" << aBody[1] << "\t" << accT << "\t" << accN << " " << uBody[1] << " " << uBodyOld[1] << endl;
+			stringstream ss;
+			ss << path2file << "_addedmass.dat";
+			ofstream myfile(ss.str(), fstream::app);
+			myfile << step << " " << time << " " << aBody[1] << " " << accT << " " << accN << endl;
 		}
 		
 		// compute diagnostics

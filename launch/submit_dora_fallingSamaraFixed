@@ -1,19 +1,19 @@
 #!/usr/bin/ksh
 ## submit with sbatch
 #SBATCH --ntasks=128
-#SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=24
-#SBATCH --time=00:30:00
+#SBATCH --ntasks-per-node=2
+#SBATCH --cpus-per-task=12
+#SBATCH --time=6:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=cconti@mavt.ethz.ch
 
-#SBATCH --job-name=FallingSamaraFixed_DP_1024_180216_Dora
+#SBATCH --job-name=Samara_1024_DP_DLM1._130316_Dora_Euler_iso0.002
 #SBATCH --account=s436
 
 export SCR=/scratch/daint/cconti/${SLURM_JOB_NAME}
 mkdir -p $SCR
 
-cp ../makefiles/simulation $SCR/.
+cp ../makefiles/simulation_dora_dp $SCR/.
 cp FallingSamaraFixedDora.sh $SCR/.
 cp submit_dora_fallingSamaraFixed $SCR/.
 cd $SCR
@@ -24,13 +24,10 @@ MPICH_MAX_THREAD_SAFETY=multiple
 export MPICH_NEMESIS_ASYNC_PROGRESS=1
 export OMP_WAIT_POLICY=PASSIVE
 
-BPDYZ=16
+BPDYZ=64
 
 export OMP_NUM_THREADS=24
-#aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./simulation -file ${SLURM_JOB_NAME} -sim falling -tend 1000 -nprocsx ${SLURM_NTASKS} -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy ${BPDYZ} -bpdz ${BPDYZ} -CFL .1 -shape samara -rhoS 284.96 -lambda 1 -dlm .1 -nu 0.00012587033611554 -isosurface .02 -tdump .01 -verbose
-
-
-aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 24 ./simulation -file ${SLURM_JOB_NAME} -sim falling -tend 1000 -nprocsx ${SLURM_NTASKS} -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy ${BPDYZ} -bpdz ${BPDYZ} -CFL .1 -shape samara -rhoS 284.96 -lambda 1 -dlm .1 -nu 0.00012587033611554 -isosurface .002 -tdump .01
+aprun -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 12 ./simulation_dora_dp -file ${SLURM_JOB_NAME} -sim falling -tend 1000 -nprocsx ${SLURM_NTASKS} -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy ${BPDYZ} -bpdz ${BPDYZ} -CFL .1 -shape samara -rhoS 280 -dlm 1.0 -nu 0.000371824711397428 -isosurface .002 -tdump .1
 
 #restart
-#aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./simulation -file ${SLURM_JOB_NAME} -sim falling -nprocsx ${SLURM_NTASKS} -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy ${BPDYZ} -bpdz ${BPDYZ} -restart -serialization ./
+#aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 12 ./simulation_dora_dp -file ${SLURM_JOB_NAME} -sim falling -nprocsx ${SLURM_NTASKS} -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy ${BPDYZ} -bpdz ${BPDYZ} -restart -serialization ./

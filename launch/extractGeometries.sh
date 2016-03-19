@@ -1,16 +1,16 @@
 #!/bin/bash
-#SBATCH --job-name="PV-geo"
+#SBATCH --job-name="PV-samara-768"
 #SBATCH --nodes=4
 #SBATCH --ntasks=32
 #SBATCH --partition=viz
 #SBATCH --account=s436
 #SBATCH --gres=gpu:1
 #SBATCH --exclusive
-#SBATCH --time=24:00:00
+#SBATCH --time=12:00:00
 #SBATCH --mail-type=ALL
 #SBATCH --mail-user=cconti@mavt.ethz.ch
-#SBATCH --output=pvbatch-daint-OUT.log
-#SBATCH --error=pvbatch-daint-ERR.log
+#SBATCH --output=pvbatch768-daint-OUT.log
+#SBATCH --error=pvbatch768-daint-ERR.log
 
 #SBATCH --constraint=startx
 

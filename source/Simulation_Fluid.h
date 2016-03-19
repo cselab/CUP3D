@@ -18,6 +18,7 @@
 #include "GenericOperator.h"
 
 #include "CoordinatorVorticity.h"
+#include "CoordinatorDivergence.h"
 
 //#include "SerializerIO_WaveletCompression.h"
 
@@ -121,7 +122,9 @@ protected:
 			nextDumpTime += dumpTime;
 //*
 #ifdef _USE_HDF_
-			CoordinatorVorticity<Lab> coordVorticity(grid);
+			CoordinatorDivergence<LabMPI> coordDivergence(grid);
+			coordDivergence(dt);
+			CoordinatorVorticity<LabMPI> coordVorticity(grid);
 			coordVorticity(dt);
 			stringstream ss;
 			ss << path2file << "-" << std::setfill('0') << std::setw(6) << step;

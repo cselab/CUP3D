@@ -1,0 +1,33 @@
+#!/usr/bin/ksh
+## submit with sbatch
+#SBATCH --ntasks=32
+#SBATCH --ntasks-per-node=2
+#SBATCH --cpus-per-task=12
+#SBATCH --time=4:00:00
+#SBATCH --mail-type=ALL
+#SBATCH --mail-user=cconti@mavt.ethz.ch
+
+#SBATCH --job-name=FallingTriangle_DLM1.0_256_SP_030316_Dora
+#SBATCH --account=s436
+
+export SCR=/scratch/daint/cconti/${SLURM_JOB_NAME}
+mkdir -p $SCR
+
+cp ../makefiles/simulation_dora $SCR/.
+cp FallingTriangleDoraSP.sh $SCR/.
+cp submit_dora_fallingTriangle $SCR/.
+cd $SCR
+
+source /opt/modules/default/init/bashexport
+
+MPICH_MAX_THREAD_SAFETY=multiple
+export MPICH_NEMESIS_ASYNC_PROGRESS=1
+export OMP_WAIT_POLICY=PASSIVE
+
+BPDYZ=16
+
+export OMP_NUM_THREADS=12
+aprun -ss -S 1 -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 12 ./simulation_dora -file ${SLURM_JOB_NAME} -sim falling -tend 1000 -nprocsx ${SLURM_NTASKS} -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy ${BPDYZ} -bpdz ${BPDYZ} -CFL .2 -shape triangle -rhoS 280 -dlm 1. -nu 0.000371824711397428 -isosurface .0 -tdump .05
+
+#restart
+#aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 12 ./simulation_dora -file ${SLURM_JOB_NAME} -sim falling -nprocsx ${SLURM_NTASKS} -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy ${BPDYZ} -bpdz ${BPDYZ} -restart -serialization ./

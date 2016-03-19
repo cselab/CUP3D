@@ -1,0 +1,547 @@
+/ufs/slurm/spool/daint02/job1743771/slurm_script[25]: .: /opt/modules/default/init/bashexport: cannot open [No such file or directory]
+-simdata is vorticity16021.StreamerGridPointIterative.channel0
+-simdata2 is 
+-simdata3 is 
+-h5file is hdf/vorticity16021
+-xs is 
+-xe is 
+-ys is 
+-ye is 
+-zs is 
+-ze is 
+-wtype is 
+
+==============START-ASCI-HEADER==============
+Endianess: <little>
+sizeofReal: <4>
+sizeofsize_t: <8>
+sizeofBlockMetadata: <20>
+sizeofHeaderLUT: <12>
+sizeofCompressedBlock: <20>
+Blocksize: <32>
+Blocks: 16 x 32 x 24
+Extent: <0.500000> x <1.000000> x <0.750000>
+SubdomainBlocks: <4 x 8 x 6>
+HalfFloat: <no>
+Wavelets: <InterpWavelet4thOrder>
+WaveletThreshold: <0.000000>
+Encoder: <zlib>
+==============END ASCI-HEADER==============
+
+the header data is taking 0.23 MB
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+Init time = 0.026 seconds
+Elapsed time = 19.805 seconds
+Application 7465768 resources: utime ~1249s, stime ~5s, Rss ~22152, inblocks ~10177033, outblocks ~5230854
+-simdata is vorticity16258.StreamerGridPointIterative.channel0
+-simdata2 is 
+-simdata3 is 
+-h5file is hdf/vorticity16258
+-xs is 
+-xe is 
+-ys is 
+-ye is 
+-zs is 
+-ze is 
+-wtype is 
+
+==============START-ASCI-HEADER==============
+Endianess: <little>
+sizeofReal: <4>
+sizeofsize_t: <8>
+sizeofBlockMetadata: <20>
+sizeofHeaderLUT: <12>
+sizeofCompressedBlock: <20>
+Blocksize: <32>
+Blocks: 16 x 32 x 24
+Extent: <0.500000> x <1.000000> x <0.750000>
+SubdomainBlocks: <4 x 8 x 6>
+HalfFloat: <no>
+Wavelets: <InterpWavelet4thOrder>
+WaveletThreshold: <0.000000>
+Encoder: <zlib>
+==============END ASCI-HEADER==============
+
+the header data is taking 0.23 MB
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+Init time = 0.026 seconds
+Elapsed time = 14.530 seconds
+Application 7465769 resources: utime ~934s, stime ~2s, Rss ~23112, inblocks ~10177032, outblocks ~5230854
+-simdata is vorticity16495.StreamerGridPointIterative.channel0
+-simdata2 is 
+-simdata3 is 
+-h5file is hdf/vorticity16495
+-xs is 
+-xe is 
+-ys is 
+-ye is 
+-zs is 
+-ze is 
+-wtype is 
+
+==============START-ASCI-HEADER==============
+Endianess: <little>
+sizeofReal: <4>
+sizeofsize_t: <8>
+sizeofBlockMetadata: <20>
+sizeofHeaderLUT: <12>
+sizeofCompressedBlock: <20>
+Blocksize: <32>
+Blocks: 16 x 32 x 24
+Extent: <0.500000> x <1.000000> x <0.750000>
+SubdomainBlocks: <4 x 8 x 6>
+HalfFloat: <no>
+Wavelets: <InterpWavelet4thOrder>
+WaveletThreshold: <0.000000>
+Encoder: <zlib>
+==============END ASCI-HEADER==============
+
+the header data is taking 0.23 MB
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+I found in total 16x32x24 blocks.
+ROI = [0,15]x[0,31]x[0,23]
+aprun.x: Apid 7465772: Caught signal Terminated, sending to application
+_pmiu_daemon(SIGCHLD): [NID 00272] [c1-0c1s4n0] [Fri Mar 11 12:32:50 2016] PE RANK 0 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00279] [c1-0c1s5n3] [Fri Mar 11 12:32:50 2016] PE RANK 7 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00285] [c1-0c1s7n1] [Fri Mar 11 12:32:50 2016] PE RANK 13 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00317] [c1-0c1s15n1] [Fri Mar 11 12:32:50 2016] PE RANK 17 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00363] [c1-0c2s10n3] [Fri Mar 11 12:32:50 2016] PE RANK 63 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00359] [c1-0c2s9n3] [Fri Mar 11 12:32:50 2016] PE RANK 59 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00357] [c1-0c2s9n1] [Fri Mar 11 12:32:50 2016] PE RANK 57 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00355] [c1-0c2s8n3] [Fri Mar 11 12:32:50 2016] PE RANK 55 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00353] [c1-0c2s8n1] [Fri Mar 11 12:32:50 2016] PE RANK 53 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00351] [c1-0c2s7n3] [Fri Mar 11 12:32:50 2016] PE RANK 51 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00349] [c1-0c2s7n1] [Fri Mar 11 12:32:50 2016] PE RANK 49 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00345] [c1-0c2s6n1] [Fri Mar 11 12:32:50 2016] PE RANK 45 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00343] [c1-0c2s5n3] [Fri Mar 11 12:32:50 2016] PE RANK 43 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00340] [c1-0c2s5n0] [Fri Mar 11 12:32:50 2016] PE RANK 40 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00337] [c1-0c2s4n1] [Fri Mar 11 12:32:50 2016] PE RANK 37 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00333] [c1-0c2s3n1] [Fri Mar 11 12:32:50 2016] PE RANK 33 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00331] [c1-0c2s2n3] [Fri Mar 11 12:32:50 2016] PE RANK 31 exit signal Terminated
+slurmstepd: error: *** JOB 1743771 CANCELLED AT 12:32:50 ***
+aprun.x: Apid 7465772: Caught signal Terminated, sending to application
+_pmiu_daemon(SIGCHLD): [NID 00329] [c1-0c2s2n1] [Fri Mar 11 12:32:50 2016] PE RANK 29 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00325] [c1-0c2s1n1] [Fri Mar 11 12:32:50 2016] PE RANK 25 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00323] [c1-0c2s0n3] [Fri Mar 11 12:32:50 2016] PE RANK 23 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00319] [c1-0c1s15n3] [Fri Mar 11 12:32:50 2016] PE RANK 19 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00318] [c1-0c1s15n2] [Fri Mar 11 12:32:50 2016] PE RANK 18 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00316] [c1-0c1s15n0] [Fri Mar 11 12:32:50 2016] PE RANK 16 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00286] [c1-0c1s7n2] [Fri Mar 11 12:32:50 2016] PE RANK 14 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00284] [c1-0c1s7n0] [Fri Mar 11 12:32:50 2016] PE RANK 12 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00281] [c1-0c1s6n1] [Fri Mar 11 12:32:50 2016] PE RANK 9 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00278] [c1-0c1s5n2] [Fri Mar 11 12:32:50 2016] PE RANK 6 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00275] [c1-0c1s4n3] [Fri Mar 11 12:32:50 2016] PE RANK 3 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00273] [c1-0c1s4n1] [Fri Mar 11 12:32:50 2016] PE RANK 1 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00274] [c1-0c1s4n2] [Fri Mar 11 12:32:50 2016] PE RANK 2 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00276] [c1-0c1s5n0] [Fri Mar 11 12:32:50 2016] PE RANK 4 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00277] [c1-0c1s5n1] [Fri Mar 11 12:32:50 2016] PE RANK 5 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00282] [c1-0c1s6n2] [Fri Mar 11 12:32:50 2016] PE RANK 10 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00283] [c1-0c1s6n3] [Fri Mar 11 12:32:50 2016] PE RANK 11 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00287] [c1-0c1s7n3] [Fri Mar 11 12:32:50 2016] PE RANK 15 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00320] [c1-0c2s0n0] [Fri Mar 11 12:32:50 2016] PE RANK 20 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00321] [c1-0c2s0n1] [Fri Mar 11 12:32:50 2016] PE RANK 21 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00324] [c1-0c2s1n0] [Fri Mar 11 12:32:50 2016] PE RANK 24 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00326] [c1-0c2s1n2] [Fri Mar 11 12:32:50 2016] PE RANK 26 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00327] [c1-0c2s1n3] [Fri Mar 11 12:32:50 2016] PE RANK 27 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00334] [c1-0c2s3n2] [Fri Mar 11 12:32:50 2016] PE RANK 34 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00335] [c1-0c2s3n3] [Fri Mar 11 12:32:50 2016] PE RANK 35 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00339] [c1-0c2s4n3] [Fri Mar 11 12:32:50 2016] PE RANK 39 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00341] [c1-0c2s5n1] [Fri Mar 11 12:32:50 2016] PE RANK 41 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00346] [c1-0c2s6n2] [Fri Mar 11 12:32:50 2016] PE RANK 46 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00347] [c1-0c2s6n3] [Fri Mar 11 12:32:50 2016] PE RANK 47 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00350] [c1-0c2s7n2] [Fri Mar 11 12:32:50 2016] PE RANK 50 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00352] [c1-0c2s8n0] [Fri Mar 11 12:32:50 2016] PE RANK 52 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00354] [c1-0c2s8n2] [Fri Mar 11 12:32:50 2016] PE RANK 54 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00361] [c1-0c2s10n1] [Fri Mar 11 12:32:50 2016] PE RANK 61 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00362] [c1-0c2s10n2] [Fri Mar 11 12:32:50 2016] PE RANK 62 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00360] [c1-0c2s10n0] [Fri Mar 11 12:32:50 2016] PE RANK 60 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00358] [c1-0c2s9n2] [Fri Mar 11 12:32:50 2016] PE RANK 58 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00348] [c1-0c2s7n0] [Fri Mar 11 12:32:50 2016] PE RANK 48 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00344] [c1-0c2s6n0] [Fri Mar 11 12:32:50 2016] PE RANK 44 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00342] [c1-0c2s5n2] [Fri Mar 11 12:32:50 2016] PE RANK 42 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00338] [c1-0c2s4n2] [Fri Mar 11 12:32:50 2016] PE RANK 38 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00332] [c1-0c2s3n0] [Fri Mar 11 12:32:50 2016] PE RANK 32 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00330] [c1-0c2s2n2] [Fri Mar 11 12:32:50 2016] PE RANK 30 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00328] [c1-0c2s2n0] [Fri Mar 11 12:32:50 2016] PE RANK 28 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00322] [c1-0c2s0n2] [Fri Mar 11 12:32:50 2016] PE RANK 22 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00336] [c1-0c2s4n0] [Fri Mar 11 12:32:50 2016] PE RANK 36 exit signal Terminated
+_pmiu_daemon(SIGCHLD): [NID 00356] [c1-0c2s9n0] [Fri Mar 11 12:32:50 2016] PE RANK 56 exit signal Terminated

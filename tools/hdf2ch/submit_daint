@@ -1,6 +1,6 @@
 #!/usr/bin/ksh
 ## submit with sbatch
-#SBATCH --ntasks=64
+#SBATCH --ntasks=16
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=8
 #SBATCH --time=12:00:00
@@ -14,7 +14,7 @@
 
 export OMP_NUM_THREADS=8
 
-NAME=FallingSamaraFixed_long_DP_512_180216_Dora
+NAME=Samara_512_SP_160316_Dora_Euler_DLM1_lowDump
 export SCR=/scratch/daint/cconti/${NAME}
 mkdir -p $SCR
 
@@ -31,16 +31,21 @@ export OMP_WAIT_POLICY=PASSIVE
 
 CHI_OUT="chi"
 VORT_OUT="vorticity"
+P_OUT="pressure"
 
 for F in $(ls *.h5)
 do
    S=$(awk 'BEGIN {FS="[-|.]"} {print $2}' <<< $F)
    if [ ! -f ${CHI_OUT}${S}.StreamerGridPointIterative.channel0 ];
    then
-        aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./hdf2ch -xpesize 4 -ypesize 4 -zpesize 4 -bpdx 4 -bpdy 4 -bpdz 4 -sim io -simdata ${NAME}-${S}.h5 -stepid ${S} -threshold 1e-10 -channel 6 -outdata ${VORT_OUT}
+        aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./hdf2ch -xpesize 4 -ypesize 4 -zpesize 4 -bpdx 4 -bpdy 4 -bpdz 4 -sim io -simdata ${NAME}-${S}.h5 -stepid ${S} -threshold 1e-10 -channel 4 -outdata ${VORT_OUT}
    fi
    if [ ! -f ${VORT_OUT}${S}.StreamerGridPointIterative.channel0 ];
    then
-        aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./hdf2ch -xpesize 4 -ypesize 4 -zpesize 4 -bpdx 4 -bpdy 4 -bpdz 4 -sim io -simdata ${NAME}-${S}.h5 -stepid ${S} -threshold 1e-10 -channel 4 -outdata ${CHI_OUT}
+        aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./hdf2ch -xpesize 4 -ypesize 4 -zpesize 4 -bpdx 4 -bpdy 4 -bpdz 4 -sim io -simdata ${NAME}-${S}.h5 -stepid ${S} -threshold 1e-10 -channel 6 -outdata ${CHI_OUT}
+   fi
+   if [ ! -f ${P_OUT}${S}.StreamerGridPointIterative.channel0 ];
+   then
+        aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./hdf2ch -xpesize 4 -ypesize 4 -zpesize 4 -bpdx 4 -bpdy 4 -bpdz 4 -sim io -simdata ${NAME}-${S}.h5 -stepid ${S} -threshold 1e-10 -channel 5 -outdata ${P_OUT}
    fi
 done

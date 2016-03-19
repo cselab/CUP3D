@@ -38,7 +38,7 @@ WaveletCompressor.o: ../../source/WaveletCompressor.cpp
 	$(CC) $(CPPFLAGS) -c ../../source/WaveletCompressor.cpp -o WaveletCompressor.o
 
 %.o: %.cpp 
-	$(CC)  $(OPTFLAGS) $(CPPFLAGS) -c $^ -o $@
+	$(CC) $(OPTFLAGS) $(CPPFLAGS) -c $^ -o $@
 
 clean:
 	rm -f *.o hdf2ch
