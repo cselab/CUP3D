@@ -4,4 +4,4 @@ make config=production nthreads=12 bc=mixed precision=single particles=false rk2
 mv simulation simulation_dora
 cd ../launch/
 
-#sbatch submit_dora_fallingSamaraFixedSP
+sbatch submit_dora_fallingSamaraFixedSP

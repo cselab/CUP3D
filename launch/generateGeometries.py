@@ -8,8 +8,8 @@ paraview.simple._DisableFirstRenderCameraReset()
 
 #rootDir = '/scratch/daint/cconti/FallingSamaraFixed_DP_1024_070216/'
 #rootDir = '/scratch/daint/cconti/FallingSamaraFixed_long_DP_512_180216_Dora/'
-#rootDir = '/scratch/daint/cconti/Samara_512_SP_160316_Dora_Euler_DLM1_lowDump/'
-rootDir = '/scratch/daint/cconti/SamaraSP_768_180316_Dora_lowDump/'
+rootDir = '/scratch/daint/cconti/Samara_512_SP_160316_Dora_Euler_DLM1_lowDump/'
+#rootDir = '/scratch/daint/cconti/SamaraSP_768_180316_Dora_lowDump/'
 
 for dirName, subDirList, fileList in os.walk(rootDir):
 	print(dirName)

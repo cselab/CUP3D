@@ -47,7 +47,7 @@ public:
 					FluidElement& phiB = lab(ix  ,iy  ,iz+1);
 					
 					o(ix,iy,iz).tmpU = inv2h * (phiN.w-phiS.w) - inv2h * (phiB.v-phiF.v);
-					o(ix,iy,iz).tmpV = inv2h * (phiB.u-phiB.u) - inv2h * (phiE.w-phiW.w);
+					o(ix,iy,iz).tmpV = inv2h * (phiB.u-phiF.u) - inv2h * (phiE.w-phiW.w);
 					o(ix,iy,iz).tmpW = inv2h * (phiE.v-phiW.v) - inv2h * (phiN.u-phiS.u);
 					o(ix,iy,iz).tmp = sqrt(o(ix,iy,iz).tmpU*o(ix,iy,iz).tmpU + o(ix,iy,iz).tmpV*o(ix,iy,iz).tmpV + o(ix,iy,iz).tmpW*o(ix,iy,iz).tmpW);
 				}
