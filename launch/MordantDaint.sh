@@ -5,4 +5,4 @@ mv simulation simulation_mordant
 cd ../launch/
 
 sbatch submit_Mordant
-sbatch submit_MordantTungsten
+#sbatch submit_MordantTungsten

@@ -7,7 +7,7 @@
 #SBATCH --output=Mordant.%j.o
 #SBATCH --error=Mordant.%j.e
 
-#SBATCH --job-name=Mordant2_SP_1024_190316
+#SBATCH --job-name=Mordant2_SP_1024_200316
 #SBATCH --account=s436
 #SBATCH --partition=viz
 
@@ -25,8 +25,8 @@ MPICH_MAX_THREAD_SAFETY=multiple
 export MPICH_NEMESIS_ASYNC_PROGRESS=1
 export OMP_WAIT_POLICY=PASSIVE
 
-BPDY=16
-BPDZ=16
+BPDY=32
+BPDZ=32
 
 export OMP_NUM_THREADS=8
 aprun -r 1 -n ${SLURM_NTASKS} -N ${SLURM_NTASKS_PER_NODE} -d 8 ./simulation_mordant -file ${SLURM_JOB_NAME} -sim falling -tend 10. -nprocsx ${SLURM_NTASKS} -nprocsy 1 -nprocsz 1 -bpdx 1 -bpdy ${BPDY} -bpdz ${BPDZ} -CFL .1 -radius 0.06 -rhoS 2.56 -dlm 1. -ypos .3 -nu 0.000649950425459939 -tdump 1.

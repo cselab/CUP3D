@@ -64,6 +64,11 @@ protected:
 		
 		if (shapeType=="samara")
 			shape = GeometryMesh::deserialize(inStream);
+		/*else if (shapeType=="sphere")
+		{
+			Real radius = parser("-radius").asDouble();
+			shape = new Sphere(radius);
+		}*/
 		else
 		{
 			cout << "Deserialization for this shape not implemented yet\n";

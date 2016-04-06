@@ -224,6 +224,7 @@
 		DDC1D09E1AC2CB9D00BC2E88 /* Simulation_Fluid.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Simulation_Fluid.h; sourceTree = "<group>"; xcLanguageSpecificationIdentifier = xcode.lang.cpp; };
 		DDC1D09F1AC2D0B600BC2E88 /* Simulation_FSI.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = Simulation_FSI.h; sourceTree = "<group>"; };
 		DDC2A1751C63326D009DF9C0 /* Advection.ispc */ = {isa = PBXFileReference; lastKnownFileType = text; path = Advection.ispc; sourceTree = "<group>"; };
+		DDC5B9931C9EF51800F318C0 /* extractGeometries768.sh */ = {isa = PBXFileReference; lastKnownFileType = text.script.sh; name = extractGeometries768.sh; path = launch/extractGeometries768.sh; sourceTree = "<group>"; };
 		DDC77BBF1C9860AD00600E10 /* CoordinatorDivergence.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CoordinatorDivergence.h; sourceTree = "<group>"; };
 		DDD305AC1C15E8D6004DEFC3 /* SerializerIO_WaveletCompression.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = SerializerIO_WaveletCompression.h; sourceTree = "<group>"; };
 		DDD305AD1C15E929004DEFC3 /* FullWaveletTransform.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = FullWaveletTransform.h; sourceTree = "<group>"; };
@@ -267,6 +268,7 @@
 				DD1A32AF1C9BFE7B00A4C72D /* generateGeometries.py */,
 				DD1DA02A1C9D8A2F00AD4EB1 /* generateGeometries768.py */,
 				DD1A32B01C9BFE8100A4C72D /* extractGeometries.sh */,
+				DDC5B9931C9EF51800F318C0 /* extractGeometries768.sh */,
 				DD20D2DE1B41ADA2003741F6 /* plotDrag.py */,
 				DD20D2DB1B417166003741F6 /* plotKolomenskiy.py */,
 				DD0423E41B395242002FEC70 /* plotEllipses.py */,
