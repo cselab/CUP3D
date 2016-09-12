@@ -9,7 +9,7 @@
 #include "ProcessOperatorsOMP.h"
 #include <cmath>
 
-double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI & grid)
+double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI & grid, const Real* const uInf)
 {
 	double maxU = 0;
 	const int N = myInfo.size();
@@ -22,12 +22,11 @@ double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI & grid)
 		
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-			{
-				maxU = max(maxU,(double)abs(b(ix,iy,iz).u));
-				maxU = max(maxU,(double)abs(b(ix,iy,iz).v));
-				maxU = max(maxU,(double)abs(b(ix,iy,iz).w));
-			}
+		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+			maxU = max(maxU,(double)abs(b(ix,iy,iz).u +uInf[0]));
+			maxU = max(maxU,(double)abs(b(ix,iy,iz).v +uInf[1]));
+			maxU = max(maxU,(double)abs(b(ix,iy,iz).w +uInf[2]));
+		}
 	}
 	
 	return maxU;

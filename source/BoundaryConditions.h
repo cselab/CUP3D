@@ -67,8 +67,8 @@ public:
 			for(int iy=s[1]; iy<e[1]; iy++)
 				for(int ix=s[0]; ix<e[0]; ix++)
         		{
-                	(*this)(ix,iy,iz).rho  = p.rho;
-                	(*this)(ix,iy,iz).tmp  = p.tmp;
+                	//(*this)(ix,iy,iz).rho  = p.rho;
+                	//(*this)(ix,iy,iz).tmp  = p.tmp;
                 	(*this)(ix,iy,iz).chi  = 0;
                 
                 	// dirichlet BC
@@ -82,7 +82,7 @@ public:
                 	// Neumann BC
                 	(*this)(ix,iy,iz).p    = (*this)(ix, -iy-1,iz).p;
                 	(*this)(ix,iy,iz).pOld = (*this)(ix, -iy-1,iz).pOld;
-                	(*this)(ix,iy,iz).divU = (*this)(ix, -iy-1,iz).divU;
+                	//(*this)(ix,iy,iz).divU = (*this)(ix, -iy-1,iz).divU;
 				}
 	}
 	
@@ -98,14 +98,14 @@ public:
 			for(int iy=s[1]; iy<e[1]; iy++)
 				for(int ix=s[0]; ix<e[0]; ix++)
            		{
-                	(*this)(ix,iy,iz).rho  = (*this)(ix, TBlock::sizeY-1,iz).rho;//p.rho;
-               		(*this)(ix,iy,iz).tmp  = (*this)(ix, TBlock::sizeY-1,iz).tmp;//p.rho;
+                	//(*this)(ix,iy,iz).rho  = (*this)(ix, TBlock::sizeY-1,iz).rho;//p.rho;
+               		//(*this)(ix,iy,iz).tmp  = (*this)(ix, TBlock::sizeY-1,iz).tmp;//p.rho;
                 	(*this)(ix,iy,iz).chi  = 0;
                 
                 	// dirichlet BC
 					(*this)(ix,iy,iz).p    = 2*p.p    - (*this)(ix,2*TBlock::sizeY-1-iy,iz).p;
                 	(*this)(ix,iy,iz).pOld = 2*p.pOld - (*this)(ix,2*TBlock::sizeY-1-iy,iz).pOld;
-                	(*this)(ix,iy,iz).divU = 2*p.divU - (*this)(ix,2*TBlock::sizeY-1-iy,iz).divU; // needed because we compute gradP on this!
+                	//(*this)(ix,iy,iz).divU = 2*p.divU - (*this)(ix,2*TBlock::sizeY-1-iy,iz).divU; // needed because we compute gradP on this!
                 
                 	// Neumann BC
 					(*this)(ix,iy,iz).u = (*this)(ix, 2*TBlock::sizeY-1-iy,iz).u;
@@ -136,7 +136,7 @@ public:
                 const Real r = sqrt(p[0]*p[0] + p[1]*p[1] + p[2]*p[2]);
 				const Real invR = 1./r;
                 
-                (*this)(ix,iy,iz).rho = r;
+                //(*this)(ix,iy,iz).rho = r;
 				(*this)(ix,iy,iz).u   =   sin(p[1])*cos(r*M_PI/2)*invR;//-p[1];//
 				(*this)(ix,iy,iz).v   =  -sin(p[0])*cos(r*M_PI/2)*invR;// p[0];//
 				(*this)(ix,iy,iz).w   =  -sin(p[0])*cos(r*M_PI/2)*invR;// p[0];//

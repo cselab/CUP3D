@@ -4,7 +4,11 @@
 //
 //  Created by Christian Conti on 11/2/15.
 //  Copyright (c) 2015 ETHZ. All rights reserved.
-//
+/*
+ * TODO pre-compile test:
+- import the communicator, execute, state and reward methods
+- write the main from the cubism2d and cubism3d cases
+ */
 
 #ifndef CubismUP_3D_common_h
 #define CubismUP_3D_common_h

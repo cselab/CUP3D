@@ -31,89 +31,81 @@
 */
 struct FluidElement
 {
-    Real rho, u, v, w, chi, p, pOld;
-	Real tmpU, tmpV, tmpW, tmp;
-	Real divU;
+    Real u, v, w, chi, p, pOld, tmpU, tmpV, tmpW, tmp;
 	
-    FluidElement() : rho(0), u(0), v(0), w(0), chi(0), p(0), pOld(0), divU(0), tmpU(0), tmpV(0), tmpW(0), tmp(0)
+    FluidElement() : u(0), v(0), w(0), chi(0), p(0), pOld(0), tmpU(0), tmpV(0), tmpW(0), tmp(0)
 	{}
     
     void clear()
     {
-        rho = u = v = w = chi = p = pOld = 0;
-		tmpU = tmpV = tmpW = tmp = 0;
-		divU = 0;
+        u = v = w = chi = p = pOld = tmpU = tmpV = tmpW = tmp = 0;
     }
 };
 
 struct FluidVTKStreamer
 {
-	static const int channels = 9;
+	static const int channels = 8;
 	
-	void operate(FluidElement input, Real output[9])
+	void operate(FluidElement input, Real output[channels])
 	{
-		output[0] = input.rho;
-		output[1] = input.u;
-		output[2] = input.v;
-		output[3] = input.w;
+		output[0] = input.u;
+		output[1] = input.v;
+		output[2] = input.w;
+		output[3] = input.chi;
 		output[4] = input.p;
-		output[5] = input.chi;
-		output[6] = input.divU;
-		output[7] = input.pOld;
-		output[8] = input.tmp;
+		output[5] = input.tmpU;
+		output[6] = input.tmpV;
+		output[7] = input.tmpW;
 	}
 };
 
 // this is used for serialization - important that ALL the quantities are streamed
 struct StreamerGridPoint
 {
-	static const int channels = 12;
+	static const int channels = 10;
 	
-	void operate(const FluidElement& input, Real output[12]) const
+	void operate(const FluidElement& input, Real output[channels]) const
 	{
 		abort();
-		output[0] = input.rho;
-		output[1] = input.u;
-		output[2] = input.v;
-		output[3] = input.w;
-		output[4] = input.chi;
-		output[5] = input.p;
-		output[6] = input.pOld;
-		output[7] = input.tmpU;
-		output[8] = input.tmpV;
+		output[0] = input.u;
+		output[1] = input.v;
+		output[2] = input.w;
+		output[3] = input.chi;
+		output[4] = input.p;
+		output[5] = input.pOld;
+		output[6] = input.tmpU;
+		output[7] = input.tmpV;
 		output[8] = input.tmpW;
-		output[10] = input.tmp;
-		output[11] = input.divU;
+		output[9] = input.tmp;
 	}
 	
-	void operate(const Real input[12], FluidElement& output) const
+	void operate(const Real input[channels], FluidElement& output) const
 	{
 		abort();
-		output.rho  = input[0];
-		output.u    = input[1];
-		output.v    = input[2];
-		output.w    = input[3];
-		output.chi  = input[4];
-		output.p    = input[5];
-		output.pOld = input[6];
-		output.tmpU = input[7];
-		output.tmpV = input[8];
-		output.tmpW = input[9];
-		output.tmp  = input[10];
-		output.divU = input[11];
+		output.u    = input[0];
+		output.v    = input[1];
+		output.w    = input[2];
+		output.chi  = input[3];
+		output.p    = input[4];
+		output.pOld = input[5];
+		output.tmpU = input[6];
+		output.tmpV = input[7];
+		output.tmpW = input[8];
+		output.tmp = input[9];
 	}
 };
 
 struct StreamerGridPointASCII
-{
+{ //TODO: how to terminate operate output?? endl? " "?
 	void operate(const FluidElement& input, ofstream& output) const
 	{
-		output << input.rho << " " << input.u << " " << input.v << " " << input.w << " " << input.chi << " " << input.p << " " << input.pOld << " " << input.tmpU << " " << input.tmpV << " " << input.tmpW << " " << input.tmp << " " << input.divU;
+		output << input.u << " " << input.v << " " << input.w << " "
+				<< input.chi << " " << input.p << " " << input.pOld << " "
+				<< input.tmpU << " " << input.tmpV << " " << input.tmpW << " " << input.tmp;
 	}
 	
 	void operate(ifstream& input, FluidElement& output) const
 	{
-		input >> output.rho;
 		input >> output.u;
 		input >> output.v;
 		input >> output.w;
@@ -124,7 +116,6 @@ struct StreamerGridPointASCII
 		input >> output.tmpV;
 		input >> output.tmpW;
 		input >> output.tmp;
-		input >> output.divU;
 	}
 };
 
@@ -133,17 +124,27 @@ struct StreamerDiv
 	static const int channels = 1;
 	static void operate(const FluidElement& input, Real output[1])
 	{
-		output[0] = input.divU;
+		output[0] = input.tmp;
     }
     
     static void operate(const Real input[1], FluidElement& output)
     {
-        output.divU = input[0];
-    }
-    
-    static void setTmp(const Real input[1], FluidElement& output)
-    {
         output.tmp = input[0];
+    }
+};
+
+struct ObstacleBlock
+{
+    static const int sizeX = _BSX_;
+    static const int sizeY = _BSY_;
+    static const int sizeZ = _BSZ_;
+    Real chi[sizeX][sizeY][sizeZ];
+    Real udef[sizeX][sizeY][sizeZ][3];
+
+    void clear()
+    {
+        memset(chi, 0, sizeof(Real)*sizeX*sizeY*sizeZ);
+        memset(udef, 0, sizeof(Real)*sizeX*sizeY*sizeZ*3);
     }
 };
 
@@ -197,6 +198,228 @@ struct FluidBlock
 	}
 };
 
+struct surfData
+{
+    int blockID, ix, iy, iz;
+    double dchidx, dchidy, dchidz, delta;
+
+    surfData(const int _blockID, const int _ix, const int _iy, const int _iz, const double _dchidx, const double _dchidy, const double _dchidz, const double _delta)
+    : blockID(_blockID), ix(_ix), iy(_iy), iy(_iz), dchidx(_dchidx), dchidy(_dchidy), dchidz(_dchidz), delta(_delta)
+    {}
+
+    void set(const int _blockID, const int _ix, const int _iy, const int _iz, const double _dchidx, const double _dchidy, const double _dchidz, const double _delta)
+    {
+        blockID=_blockID; ix=_ix; iy=_iy; iz=_iz; dchidx=_dchidx; dchidy=_dchidy; dchidz=_dchidz; delta=_delta;
+    }
+};
+
+struct surfaceBlocks
+{
+public:
+	int Ndata
+    vector<surfData*> Set;
+
+	surfaceBlocks() : Ndata(0) {}
+
+	~surfaceBlocks()
+	{
+		for (auto & trash : Set) {
+			if(trash == nullptr) continue;
+			delete trash;
+			trash = nullptr;
+		}
+	}
+
+    void add(const int blockID, const int ix, const int iy, const int iz, const double dchidx, const double dchidy, const double dchidz, const double delta)
+    {
+        if(Ndata+1>Set.size()) {
+        	surfData * tmp = new surfData(blockID,ix,iy,iz,dchidx,dchidy,dchidz,delta);
+            Set.push_back(tmp);
+        } else Set[Ndata]->set(blockID,ix,iy,iz,dchidx,dchidy,dchidz,delta);
+        Ndata++;
+    }
+};
+
+struct surfacePoints
+{
+public:
+    Real *pX, *pY, *pZ, *P, *fX, *fY, *fZ, *fxP, *fyP, *fzP, *fxV, *fyV, *fzV, *vx, *vy, *vz, *vxDef, *vyDef, *vzDef;
+    int Ndata, nAlloc, nMapped, *gridMap;
+    vector<surfData*> Set;
+
+    surfacePoints() :
+    	Ndata(0), nAlloc(0), nMapped(0), pX(nullptr), pY(nullptr), pZ(nullptr), P(nullptr),
+    fX(nullptr), fY(nullptr), fZ(nullptr), fxP(nullptr), fyP(nullptr), fzP(nullptr), fxV(nullptr), fyV(nullptr), fzV(nullptr),
+    vx(nullptr), vy(nullptr), vz(nullptr), vxDef(nullptr), vyDef(nullptr), vzDef(nullptr), gridMap(nullptr)
+    {
+    }
+
+    ~surfacePoints()
+    {
+        if(pX      not_eq nullptr){delete[] pX;      pX=nullptr;     }
+        if(pY      not_eq nullptr){delete[] pY;      pY=nullptr;     }
+        if(pZ      not_eq nullptr){delete[] pZ;      pZ=nullptr;     }
+        if(P       not_eq nullptr){delete[] P;   	 P =nullptr;  	 }
+        if(fX      not_eq nullptr){delete[] fX;      fX=nullptr;     }
+        if(fY      not_eq nullptr){delete[] fY;      fY=nullptr;     }
+        if(fZ      not_eq nullptr){delete[] fZ;      fZ=nullptr;     }
+        if(fxP     not_eq nullptr){delete[] fxP;     fxP=nullptr;    }
+        if(fyP     not_eq nullptr){delete[] fyP;     fyP=nullptr;    }
+        if(fzP     not_eq nullptr){delete[] fzP;     fzP=nullptr;    }
+        if(fxV     not_eq nullptr){delete[] fxV;     fxV=nullptr;    }
+        if(fyV     not_eq nullptr){delete[] fyV;     fyV=nullptr;    }
+        if(fzV     not_eq nullptr){delete[] fzV;     fzV=nullptr;    }
+        if(vx      not_eq nullptr){delete[] vx;      vx=nullptr;     }
+        if(vy      not_eq nullptr){delete[] vy;      vy=nullptr;     }
+        if(vz      not_eq nullptr){delete[] vz;      vz=nullptr;     }
+        if(vxDef   not_eq nullptr){delete[] vxDef;   vxDef=nullptr;  }
+        if(vyDef   not_eq nullptr){delete[] vyDef;   vyDef=nullptr;  }
+        if(vzDef   not_eq nullptr){delete[] vzDef;   vzDef=nullptr;  }
+        if(gridMap not_eq nullptr){delete[] gridMap; gridMap=nullptr;}
+    }
+
+    void _add(const surfData* c)
+    {
+        if(Ndata+1>Set.size()) {
+        	surfData * tmp = new surfData(c->blockID,c->ix,c->iy,c->iz,c->dchidx,c->dchidy,c->dchidz,c->delta);
+            Set.push_back(tmp);
+        } else Set[Ndata]->set(c->blockID,c->ix,c->iy,c->iz,c->dchidx,c->dchidy,c->dchidz,c->delta);
+        Ndata++;
+    }
+
+    void finalizeOnGrid(vector<surfaceBlocks>& blocksPerThread)
+    {
+    	Ndata = 0;
+    	for(int i=0; i<blocksPerThread.size(); i++) {
+    		for (auto & elem : blocksPerThread[i].Set) _add(elem);
+    	}
+
+        if (Ndata > nAlloc) {
+            nAlloc = Ndata;
+            if(pX      not_eq nullptr){delete[] pX;      pX=nullptr;     }
+            if(pY      not_eq nullptr){delete[] pY;      pY=nullptr;     }
+            if(pZ      not_eq nullptr){delete[] pZ;      pZ=nullptr;     }
+            if(P       not_eq nullptr){delete[] P;   	 P =nullptr;  	 }
+            if(fX      not_eq nullptr){delete[] fX;      fX=nullptr;     }
+            if(fY      not_eq nullptr){delete[] fY;      fY=nullptr;     }
+            if(fZ      not_eq nullptr){delete[] fZ;      fZ=nullptr;     }
+            if(fxP     not_eq nullptr){delete[] fxP;     fxP=nullptr;    }
+            if(fyP     not_eq nullptr){delete[] fyP;     fyP=nullptr;    }
+            if(fzP     not_eq nullptr){delete[] fzP;     fzP=nullptr;    }
+            if(fxV     not_eq nullptr){delete[] fxV;     fxV=nullptr;    }
+            if(fyV     not_eq nullptr){delete[] fyV;     fyV=nullptr;    }
+            if(fzV     not_eq nullptr){delete[] fzV;     fzV=nullptr;    }
+            if(vx      not_eq nullptr){delete[] vx;      vx=nullptr;     }
+            if(vy      not_eq nullptr){delete[] vy;      vy=nullptr;     }
+            if(vz      not_eq nullptr){delete[] vz;      vz=nullptr;     }
+            if(vxDef   not_eq nullptr){delete[] vxDef;   vxDef=nullptr;  }
+            if(vyDef   not_eq nullptr){delete[] vyDef;   vyDef=nullptr;  }
+            if(vzDef   not_eq nullptr){delete[] vzDef;   vzDef=nullptr;  }
+            if(gridMap not_eq nullptr){delete[] gridMap; gridMap=nullptr;}
+
+            pX      = new Real[nAlloc];
+            pY      = new Real[nAlloc];
+            pZ      = new Real[nAlloc];
+            P       = new Real[nAlloc];
+            fX      = new Real[nAlloc];
+            fY      = new Real[nAlloc];
+            fZ      = new Real[nAlloc];
+            fxP     = new Real[nAlloc];
+            fyP     = new Real[nAlloc];
+            fzP     = new Real[nAlloc];
+            fxV     = new Real[nAlloc];
+            fyV     = new Real[nAlloc];
+            fzV     = new Real[nAlloc];
+            vx      = new Real[nAlloc];
+            vy      = new Real[nAlloc];
+            vz      = new Real[nAlloc];
+            vxDef   = new Real[nAlloc];
+            vyDef   = new Real[nAlloc];
+            vzDef   = new Real[nAlloc];
+            gridMap = new int[nAlloc];
+        }
+    }
+
+    void sort(const Real* const skinX, const Real* const skinY, const Real* const skinZ, const int skinN)
+    { //this works if N > skinN
+        nMapped = skinN;
+        #pragma omp parallel for
+        for(int k = 0; k < Ndata; k++) {
+            Real dist = 1;
+            for(int j=0; j<skinN; j++) {
+                const Real _d = std::pow(skinX[j] - pX[k],2)
+                               +std::pow(skinY[j] - pY[k],2)
+                			   +std::pow(skinZ[j] - pZ[k],2);
+                if (_d < dist) {
+                    gridMap[k] = j;
+                    dist = _d;
+                }
+            }
+        }
+    }
+
+    void print(const int ID, const int stepNumber)
+    {
+        ofstream fileskin;
+        char buf[500];
+        sprintf(buf, "skinDistrib_%1d_%07d.txt", ID, stepNumber);
+        string filename(buf);
+        fileskin.open(filename, ios::trunc);
+
+        for(int i=0; i<Ndata; ++i) {
+            fileskin<<pX[i]<<" "<<pY[i]<<" "<<pZ[i]<<" "<<P[i]<<" "<<
+					  fxP[i]<<" "<<fyP[i]<<" "<<fzP[i]<<" "<<fxV[i]<<" "<<fyV[i]<<" "<<fzV[i]<<" "<<
+					  vx[i]<<" "<<vy[i]<<" "<<vz[i]<<" "<<vxDef[i]<<" "<<vyDef[i]<<" "<<vzDef[i]<<endl;
+        }
+        fileskin.close();
+    }
+
+    void printSorted(const int ID, const int stepNumber)
+    {
+        ofstream fileskin;
+        char buf[500];
+        sprintf(buf, "skinDistribSorted_%1d_%07d.txt", ID, stepNumber);
+        string filename(buf);
+        fileskin.open(filename, ios::trunc);
+
+        for (int j=0; j<nMapped; j++) {
+            double Fx(0.), Fy(0.), Fz(0.), FxP(0.), FyP(0.), FzP(0.), FxV(0.), FyV(0.), FzV(0.), p(0.);
+            double Vx(0.), Vy(0.), Vz(0.), VxDef(0.), VyDef(0.), VzDef(0.), Px(0.), Py(0.), Pz(0.);
+            int cnt(0);
+
+            for(int k = 0; k < Ndata; k++) {
+                if (j not_eq gridMap[k]) continue;
+
+                cnt++;
+                 VxDef += vxDef[k]; VyDef += vyDef[k]; VzDef += vzDef[k];
+                 Vx += vx[k];    Vy += vy[k];    Vz += vz[k];
+                 Fx += fX[k];    Fy += fY[k];    Fz += fZ[k];
+                FxP += fxP[k];  FyP += fyP[k];  FzP += fzP[k];
+                FxV += fxV[k];  FyV += fxV[k];  FzV += fzV[k];
+                 Px += pX[k];    Py += pY[k];    Pz += pZ[k]; p += P[k];
+            }
+            //TMP
+            const double ds = .1*M_PI/(double)Ndata;
+            Fx  /= ds; Fy  /= ds; Fz  /= ds;
+            FxP /= ds; FyP /= ds; FzP /= ds;
+            FxV /= ds; FyV /= ds; FzV /= ds;
+            Vx /= (double)cnt;
+            Vy /= (double)cnt;
+            Vz /= (double)cnt;
+            Px /= (double)cnt;
+            Py /= (double)cnt;
+            Pz /= (double)cnt;
+            p  /= (double)cnt;
+
+            fileskin<<Px<<" "<<Py<<" "<<Pz<<" "<<p<<" "<<Fx<<" "<<Fy<<" "<<Fz<<" "
+                    <<FxP<<" "<<FyP<<" "<<FzP<<" "<<FxV<<" "<<FyV<<" "<<FzV<<" "
+                    <<Vx<<" "<<Vy<<" "<<Vz<<" "<<VxDef<<" "<<VyDef<<" "<<VzDef<<" "<<endl;
+        }
+        fileskin.close();
+    }
+};
+
+
 template <> inline void FluidBlock::Write<StreamerGridPoint>(ofstream& output, StreamerGridPoint streamer) const
 {
 	output.write((const char *)&data[0][0][0], sizeof(FluidElement)*sizeX*sizeY*sizeZ);
@@ -208,6 +431,7 @@ template <> inline void FluidBlock::Read<StreamerGridPoint>(ifstream& input, Str
 }
 
 
+/*
 // VP Streamers
 struct FluidVPStreamer
 {
@@ -259,7 +483,7 @@ struct TmpVPStreamer
 };
 
 template<> inline Real TmpVPStreamer::operate<0>(const FluidElement& e) { return e.tmp; }
-
+*/
 
 struct ScalarStreamer
 {
@@ -341,47 +565,43 @@ template <> inline void ScalarBlock::Read<StreamerGridPoint>(ifstream& input, St
 
 
 struct StreamerSerialization
-{
-	static const int NCHANNELS = 12;
-	
+{ //TODO: why save also the tmp fields?? why chi field? (would reduce save time&size by ~50%)
+	//static const int NCHANNELS = 10;
+	static const int NCHANNELS = 6;
 	FluidBlock& ref;
 	
 	StreamerSerialization(FluidBlock& b): ref(b) {}
 	
-	void operate(const int ix, const int iy, const int iz, Real output[12]) const
+	void operate(const int ix, const int iy, const int iz, Real output[NCHANNELS]) const
 	{
 		const FluidElement& input = ref.data[iz][iy][ix];
 		
-		output[0]  = input.rho;
-		output[1]  = input.u;
-		output[2]  = input.v;
-		output[3]  = input.w;
-		output[4]  = input.chi;
-		output[5]  = input.p;
-		output[6]  = input.pOld;
-		output[7]  = input.tmpU;
-		output[8]  = input.tmpV;
-		output[9]  = input.tmpW;
-		output[10] = input.tmp;
-		output[11] = input.divU;
+		output[0]  = input.u;
+		output[1]  = input.v;
+		output[2]  = input.w;
+		output[3]  = input.chi;
+		output[4]  = input.p;
+		output[5]  = input.pOld;
+		//output[6]  = input.tmpU;
+		//output[7]  = input.tmpV;
+		//output[8]  = input.tmpW;
+		//output[9]  = input.tmp;
 	}
 	
-	void operate(const Real input[12], const int ix, const int iy, const int iz) const
+	void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
 	{
 		FluidElement& output = ref.data[iz][iy][ix];
 		
-		output.rho  = input[0];
-		output.u    = input[1];
-		output.v    = input[2];
-		output.w    = input[3];
-		output.chi  = input[4];
-		output.p    = input[5];
-		output.pOld = input[6];
-		output.tmpU = input[7];
-		output.tmpV = input[8];
-		output.tmpW = input[9];
-		output.tmp  = input[10];
-		output.divU = input[11];
+		output.u    = input[0];
+		output.v    = input[1];
+		output.w    = input[2];
+		output.chi  = input[3];
+		output.p    = input[4];
+		output.pOld = input[5];
+		//output.tmpU = input[6];
+		//output.tmpV = input[7];
+		//output.tmpW = input[8];
+		//output.tmp  = input[9];
 	}
 	
 	void operate(const int ix, const int iy, const int iz, Real *ovalue, const int field) const
@@ -389,18 +609,18 @@ struct StreamerSerialization
 		const FluidElement& input = ref.data[iz][iy][ix];
 		
 		switch(field) {
-			case 0: *ovalue  = input.rho; break;
-			case 1: *ovalue  = input.u; break;
-			case 2: *ovalue  = input.v; break;
-			case 3: *ovalue  = input.w; break;
-			case 4: *ovalue  = input.chi; break;
-			case 5: *ovalue  = input.p; break;
-			case 6: *ovalue  = input.pOld; break;
-			case 7: *ovalue  = input.tmpU; break;
-			case 8: *ovalue  = input.tmpV; break;
-			case 9: *ovalue  = input.tmpW; break;
-			case 10: *ovalue = input.tmp; break;
-			case 11: *ovalue = input.divU; break;
+			case 0: *ovalue  = input.u; break;
+			case 1: *ovalue  = input.v; break;
+			case 2: *ovalue  = input.w; break;
+			case 3: *ovalue  = input.chi; break;
+			case 4: *ovalue  = input.p; break;
+			case 5: *ovalue  = input.pOld; break;
+			/*
+			case 6: *ovalue  = input.tmpU; break;
+			case 7: *ovalue  = input.tmpV; break;
+			case 8: *ovalue  = input.tmpW; break;
+			case 9: *ovalue  = input.tmp;  break;
+			*/
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
@@ -410,18 +630,18 @@ struct StreamerSerialization
 		FluidElement& output = ref.data[iz][iy][ix];
 		
 		switch(field) {
-			case 0:  output.rho  = ivalue; break;
-			case 1:  output.u    = ivalue; break;
-			case 2:  output.v    = ivalue; break;
-			case 3:  output.w    = ivalue; break;
-			case 4:  output.chi  = ivalue; break;
-			case 5:  output.p    = ivalue; break;
-			case 6:  output.pOld = ivalue; break;
-			case 7:  output.tmpU = ivalue; break;
-			case 8:  output.tmpV = ivalue; break;
-			case 9:  output.tmpW = ivalue; break;
-			case 10: output.tmp  = ivalue; break;
-			case 11: output.divU = ivalue; break;
+			case 0:  output.u    = ivalue; break;
+			case 1:  output.v    = ivalue; break;
+			case 2:  output.w    = ivalue; break;
+			case 3:  output.chi  = ivalue; break;
+			case 4:  output.p    = ivalue; break;
+			case 5:  output.pOld = ivalue; break;
+			/*
+			case 6:  output.tmpU = ivalue; break;
+			case 7:  output.tmpV = ivalue; break;
+			case 8:  output.tmpW = ivalue; break;
+			case 9:  output.tmp  = ivalue; break;
+			*/
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
@@ -431,7 +651,7 @@ struct StreamerSerialization
 
 struct StreamerHDF5
 {
-	static const int NCHANNELS = 9;
+	static const int NCHANNELS = 8;
 	
 	FluidBlock& ref;
 	
@@ -441,30 +661,28 @@ struct StreamerHDF5
 	{
 		const FluidElement& input = ref.data[iz][iy][ix];
 		
-		output[0] = input.rho;
-		output[1] = input.u;
-		output[2] = input.v;
-		output[3] = input.w;
-		output[4] = input.chi;
-		output[5] = input.p;
-		output[6] = input.tmp;
-		output[7] = input.divU;
-		output[8] = input.pOld;
+		output[0] = input.u;
+		output[1] = input.v;
+		output[2] = input.w;
+		output[3] = input.chi;
+		output[4] = input.p;
+		output[5] = input.tmpU;
+		output[6] = input.tmpV;
+		output[7] = input.tmpW;
 	}
 	
 	void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
 	{
 		FluidElement& output = ref.data[iz][iy][ix];
 		
-		output.rho  = input[0];
-		output.u    = input[1];
-		output.v    = input[2];
-		output.w    = input[3];
-		output.chi  = input[4];
-		output.p    = input[5];
-		output.tmp  = input[6];
-		output.divU = input[7];
-		output.pOld = input[8];
+		output.u    = input[0];
+		output.v    = input[1];
+		output.w    = input[2];
+		output.chi  = input[3];
+		output.p    = input[4];
+		output.tmpU = input[5];
+		output.tmpV = input[6];
+		output.tmpW = input[7];
 	}
 	
 	void operate(const int ix, const int iy, const int iz, Real *ovalue, const int field) const
@@ -472,15 +690,14 @@ struct StreamerHDF5
 		const FluidElement& input = ref.data[iz][iy][ix];
 		
 		switch(field) {
-			case 0: *ovalue  = input.rho; break;
-			case 1: *ovalue  = input.u; break;
-			case 2: *ovalue  = input.v; break;
-			case 3: *ovalue  = input.w; break;
-			case 4: *ovalue  = input.chi; break;
-			case 5: *ovalue  = input.p; break;
-			case 6: *ovalue  = input.tmp; break;
-			case 7: *ovalue  = input.divU; break;
-			case 8: *ovalue  = input.pOld; break;
+			case 0: *ovalue  = input.u; break;
+			case 1: *ovalue  = input.v; break;
+			case 2: *ovalue  = input.w; break;
+			case 3: *ovalue  = input.chi; break;
+			case 4: *ovalue  = input.p; break;
+			case 5: *ovalue  = input.tmpU; break;
+			case 6: *ovalue  = input.tmpV; break;
+			case 7: *ovalue  = input.tmpW; break;
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
@@ -490,15 +707,14 @@ struct StreamerHDF5
 		FluidElement& output = ref.data[iz][iy][ix];
 		
 		switch(field) {
-			case 0:  output.rho  = ivalue; break;
-			case 1:  output.u    = ivalue; break;
-			case 2:  output.v    = ivalue; break;
-			case 3:  output.w    = ivalue; break;
-			case 4:  output.chi  = ivalue; break;
-			case 5:  output.p    = ivalue; break;
-			case 6:  output.tmp  = ivalue; break;
-			case 7:  output.divU = ivalue; break;
-			case 8:  output.pOld = ivalue; break;
+			case 0:  output.u    = ivalue; break;
+			case 1:  output.v    = ivalue; break;
+			case 2:  output.w    = ivalue; break;
+			case 3:  output.chi  = ivalue; break;
+			case 4:  output.p    = ivalue; break;
+			case 5:  output.tmpU = ivalue; break;
+			case 6:  output.tmpV = ivalue; break;
+			case 7:  output.tmpW = ivalue; break;
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
@@ -517,14 +733,12 @@ struct StreamerScalarHDF5
 	void operate(const int ix, const int iy, const int iz, Real output[NCHANNELS]) const
 	{
 		const Real& input = ref.data[iz][iy][ix];
-		
 		output[0] = input;
 	}
 	
 	void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
 	{
 		Real& output = ref.data[iz][iy][ix];
-		
 		output  = input[0];
 	}
 	
@@ -561,18 +775,16 @@ public:
     
 	BlockLabBottomWall(): BlockLab<BlockType,allocator>()
     {
-        pDirichlet.rho = 1;
         pDirichlet.chi = 0;
 		pDirichlet.u = 0;
 		pDirichlet.v = 0;
 		pDirichlet.w = 0;
         pDirichlet.p = 0;
         pDirichlet.pOld = 0;
-        pDirichlet.divU = 0;
-        pDirichlet.tmp = 1;
 		pDirichlet.tmpU = 0;
 		pDirichlet.tmpV = 0;
 		pDirichlet.tmpW = 0;
+		pDirichlet.tmp  = 0;
     }
 	
 	void _apply_bc(const BlockInfo& info, const Real t=0)
@@ -628,21 +840,21 @@ typedef Grid<ScalarBlock, std::allocator> ScalarGrid;
 
 typedef GridMPI<FluidGrid> FluidGridMPI;
 
-#ifdef _MIXED_
-typedef BlockLabBottomWall<FluidBlock, std::allocator> Lab;
-#endif // _MIXED_
+//#ifdef _MIXED_
+//typedef BlockLabBottomWall<FluidBlock, std::allocator> Lab;
+//#endif // _MIXED_
 
-#ifdef _PERIODIC_
+//#ifdef _PERIODIC_
 typedef BlockLab<FluidBlock, std::allocator> Lab;
-#endif // _PERIODIC_
+//#endif // _PERIODIC_
 
-#ifdef _VORTEX_
-typedef BlockLabVortex<FluidBlock, std::allocator> Lab;
-#endif // _VORTEX_
+//#ifdef _VORTEX_
+//typedef BlockLabVortex<FluidBlock, std::allocator> Lab;
+//#endif // _VORTEX_
 
-#ifdef _PIPE_
-typedef BlockLabPipe<FluidBlock, std::allocator> Lab;
-#endif // _PIPE_
+//#ifdef _PIPE_
+//typedef BlockLabPipe<FluidBlock, std::allocator> Lab;
+//#endif // _PIPE_
 
 typedef BlockLabMPI<Lab> LabMPI;
 

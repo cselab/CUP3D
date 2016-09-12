@@ -14,15 +14,7 @@
 using namespace std;
 
 #include "Definitions.h"
-
-#include "Simulation_Fluid.h"
-#include "Sim_FSI_Fixed.h"
-#include "Sim_FSI_Moving.h"
-#include "Sim_FSI_Rotation.h"
-#include "Sim_FSI_Gravity.h"
-#include "Sim_RayleighTaylor.h"
-#include "Sim_Bubble.h"
-#include "Sim_Jet.h"
+#include "Simulation.h"
 
 int main(int argc, const char **argv)
 {
@@ -33,8 +25,7 @@ int main(int argc, const char **argv)
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 	
-	if (rank==0)
-	{
+	if (rank==0) {
 		cout << "====================================================================================================================\n";
 		cout << "\t\tCubism UP 3D (velocity-pressure 3D incompressible Navier-Stokes solver)\n";
 		cout << "====================================================================================================================\n";
@@ -46,23 +37,7 @@ int main(int argc, const char **argv)
 	string simSetting = parser("-sim").asString();
 	Simulation_Fluid * sim;
 	
-	if (simSetting=="fixed")
-		sim = new Sim_FSI_Fixed(argc, argv);
-	else if (simSetting=="moving")
-		sim = new Sim_FSI_Moving(argc, argv);
-	else if (simSetting=="rotating")
-		sim = new Sim_FSI_Rotation(argc, argv);
-	else if (simSetting=="falling")
-		sim = new Sim_FSI_Gravity(argc, argv);
-	else if (simSetting=="rti")
-		sim = new Sim_RayleighTaylor(argc, argv);
-	else if (simSetting=="bubble")
-		sim = new Sim_Bubble(argc, argv);
-	else if (simSetting=="jet")
-		sim = new Sim_Jet(argc, argv);
-	else
-		throw std::invalid_argument("This simulation setting does not exist!");
-	
+	sim = new Simulation(argc, argv);
 	sim->init();
 	sim->simulate();
 	

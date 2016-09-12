@@ -16,38 +16,46 @@
 class CoordinatorComputeShape : public GenericCoordinator
 {
 protected:
-	Shape * shape;
+	IF2D_ObstacleVector** const obstacleVector;
+    const double* const time;
+    const double* const Uinf;
+    const int* const stepID;
     
 public:
-	CoordinatorComputeShape(Shape * shape, FluidGridMPI * grid) : GenericCoordinator(grid), shape(shape)
+    CoordinatorComputeShape(FluidGrid * grid, IF2D_ObstacleVector** const myobstacles, const int* const stepID, const double * const time, const double * const Uinf)
+    : GenericCoordinator(grid), obstacleVector(myobstacles), time(time), Uinf(Uinf), stepID(stepID)
 	{
+    	//std::vector<IF2D_ObstacleOperator*>* my_obstacles = (*obstacleVector)->getObstacleVector();
+    	//for(const auto & obstacle_ptr : * my_obstacles) obstacle_ptr->create(*stepID, *time, 0);
+    	(*obstacleVector)->create(*stepID,*time, 0);
 	}
 	
 	void operator()(const double dt)
 	{
 		check("shape - start");
 		
-		BlockInfo * ary = &vInfo.front();
-		const int N = vInfo.size();
-		
-		Real domainSize[3] = { grid->getBlocksPerDimension(0)*FluidBlock::sizeX*vInfo[0].h_gridpoint,
-							   grid->getBlocksPerDimension(1)*FluidBlock::sizeY*vInfo[0].h_gridpoint,
-							   grid->getBlocksPerDimension(2)*FluidBlock::sizeZ*vInfo[0].h_gridpoint};
-		Real p[3] = {0,0,0};
-		shape->getCenterOfMass(p);
-		
-		if (p[0]<0 || p[0]>domainSize[0] || p[1]<0 || p[1]>domainSize[1] || p[2]<0 || p[2]>domainSize[2])
-			exit(0);
-		
+        //std::vector<IF2D_ObstacleOperator*>* my_obstacles = (*obstacleVector)->getObstacleVector();
+        //for(const auto & obstacle_ptr : * my_obstacles) obstacle_ptr->update(*stepID,*time, dt);
+		(*obstacleVector)->update(*stepID,*time, dt);
+
 #pragma omp parallel
-		{
-			OperatorComputeShape kernel(shape);
-			
+        {
 #pragma omp for schedule(static)
-			for(int i=0; i<N; i++)
-				kernel(ary[i], *(FluidBlock*)ary[i].ptrBlock);
-		}
-		
+        	for(int i=0; i<vInfo.size(); i++) {
+        		BlockInfo info = vInfo[i];
+        		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+
+                for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+					b(ix,iy,iz).chi = 0;
+					b(ix,iy,iz).tmp = 0;
+				}
+        	}
+        }
+
+        //for(const auto & obstacle_ptr : * my_obstacles) obstacle_ptr->create(*stepID, *time, dt);
+        (*obstacleVector)->create(*stepID,*time, dt);
 		check("shape - end");
 	}
 	
@@ -55,6 +63,67 @@ public:
 	{
 		return "ComputeShape";
 	}
+};
+
+
+class CoordinatorComputeForces : public GenericCoordinator
+{
+protected:
+    IF2D_ObstacleVector** obstacleVector;
+    const double* const time;
+    const double* const Uinf;
+    const double* const NU;
+    const bool * const bDump;
+    const int* const stepID;
+public:
+    CoordinatorComputeForces(FluidGrid * grid, IF2D_ObstacleVector** myobstacles, const int* const stepID, const double* const time, const double* const NU, const bool* const bDump, const double* const Uinf)
+: GenericCoordinator(grid), obstacleVector(myobstacles), stepID(stepID), time(time), NU(NU), bDump(bDump), Uinf(Uinf)
+    {    }
+
+    void operator()(const double dt)
+    {
+        check((string)"obst. forces - start");
+
+        //std::vector<IF2D_ObstacleOperator*>* my_obstacles = (*obstacleVector)->getObstacleVector();
+        //for(const auto & obstacle_ptr : * my_obstacles) obstacle_ptr->computeForces(*stepID, *time, Uinf, *NU, *bDump);
+        (*obstacleVector)->computeForces(*stepID, *time, Uinf, *NU, *bDump);
+        check((string)"obst. forces - end");
+    }
+
+    string getName()
+    {
+        return "ComputeForces";
+    }
+};
+
+
+class CoordinatorComputeDiagnostics : public GenericCoordinator
+{
+protected:
+    IF2D_ObstacleVector** const obstacleVector;
+    const double* const time;
+    const double* const lambda;
+    const double* const Uinf;
+    const int* const stepID;
+public:
+    CoordinatorComputeDiagnostics(FluidGrid * grid, IF2D_ObstacleVector** const myobstacles, const int* const stepID, const double* const time, const double* const lambda, const double* const Uinf)
+: GenericCoordinator(grid), obstacleVector(myobstacles), stepID(stepID), time(time), lambda(lambda), Uinf(Uinf)
+    {    }
+
+    void operator()(const double dt)
+    {
+        check((string)"obst. diagnostics - start");
+
+        //std::vector<IF2D_ObstacleOperator*>* my_obstacles = (*obstacleVector)->getObstacleVector();
+        //for(const auto & obstacle_ptr : * my_obstacles) obstacle_ptr->computeDiagnostics(*stepID, *time, Uinf, *lambda);
+        (*obstacleVector)->computeDiagnostics(*stepID, *time, Uinf, *bDump);
+        check((string)"obst. diagnostics - end");
+    }
+
+    string getName()
+    {
+        return "ComputeObstDiag";
+    }
 };
 
 #endif

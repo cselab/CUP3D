@@ -364,13 +364,11 @@ protected:
 			const Real cosj = cos(fy*(local_1_start+j));
 			const Real cos2j = cos(2*fy*(local_1_start+j));
 			
-			for(int i=0; i<nx; ++i)
-			{
+			for(int i=0; i<nx; ++i) {
 				const Real cosi = cos(fx*(i+.5));
 				const Real cos2i = cos(2.*fx*(i+.5));
 				
-				for(int k=0; k<nz; ++k)
-				{
+				for(int k=0; k<nz; ++k) {
 					const int linidx = i*nz+j*nz*nx+k;
 					assert(linidx >=0 && linidx<nx*local_n1*nz); // linking error with openmp
 					assert(linidx < alloc_local);
@@ -412,8 +410,7 @@ protected:
 		const size_t mybpd[3] = {grid.getResidentBlocksPerDimension(0), grid.getResidentBlocksPerDimension(1), grid.getResidentBlocksPerDimension(2)};
 		
 #pragma omp parallel for
-		for(int i=0; i<N; ++i)
-		{
+		for(int i=0; i<N; ++i) {
 			const BlockInfo info = infos[i];
 			BlockType& b = *(BlockType*)infos[i].ptrBlock;
 			

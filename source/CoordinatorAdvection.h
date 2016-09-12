@@ -10,47 +10,203 @@
 #define CubismUP_3D_CoordinatorAdvection_h
 
 #include "GenericCoordinator.h"
-#include "OperatorAdvection.h"
+#include "InterpolationKernels.h"
+#include "GenericOperator.h"
 #include <cmath>
+
+class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
+{
+private:
+	const double dt;
+	const int stage;
+	const Real* const uInf;
+
+public:
+	OperatorAdvectionUpwind3rdOrder(const double dt, const Real* const uInf, const int stage)
+: dt(dt), uInf(uInf), stage(stage)
+	{
+		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 8, 0,1,2,3,7,8,9,10);
+
+		stencil_start[0] = -2;
+		stencil_start[1] = -2;
+		stencil_start[2] = -2;
+
+		stencil_end[0] = 3;
+		stencil_end[1] = 3;
+		stencil_end[2] = 3;
+	}
+
+	~OperatorAdvectionUpwind3rdOrder() {}
+
+	template <typename Lab, typename BlockType>
+	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	{
+#ifndef _RK2_
+		const Real factor = -dt/(6.*info.h_gridpoint);
+#else
+		const Real factor = -dt*(stage==0 ? .5 : 1)/(6.*info.h_gridpoint);
+#endif
+
+		if (stage==0)
+			for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+				for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
+						FluidElement& phi  = lab(ix,iy,iz);
+						FluidElement& phiW = lab(ix-1,iy  ,iz  );
+						FluidElement& phiE = lab(ix+1,iy  ,iz  );
+						FluidElement& phiS = lab(ix  ,iy-1,iz  );
+						FluidElement& phiN = lab(ix  ,iy+1,iz  );
+						FluidElement& phiF = lab(ix  ,iy  ,iz-1);
+						FluidElement& phiB = lab(ix  ,iy  ,iz+1);
+						FluidElement& phiW2 = lab(ix-2,iy  ,iz  );
+						FluidElement& phiE2 = lab(ix+2,iy  ,iz  );
+						FluidElement& phiS2 = lab(ix  ,iy-2,iz  );
+						FluidElement& phiN2 = lab(ix  ,iy+2,iz  );
+						FluidElement& phiF2 = lab(ix  ,iy  ,iz-2);
+						FluidElement& phiB2 = lab(ix  ,iy  ,iz+2);
+
+						const Real u3 = 3*phi.u;
+						const Real v3 = 3*phi.v;
+						const Real w3 = 3*phi.w;
+
+						const Real dudx[2] = {  2*phiE.u + u3 - 6*phiW.u +   phiW2.u,
+											   -  phiE2.u + 6*phiE.u - u3 - 2*phiW.u};
+
+						const Real dudy[2] = {  2*phiN.u + u3 - 6*phiS.u +   phiS2.u,
+											   -  phiN2.u + 6*phiN.u - u3 - 2*phiS.u};
+
+						const Real dudz[2] = {  2*phiB.u + u3 - 6*phiF.u +   phiF2.u,
+											   -  phiB2.u + 6*phiB.u - u3 - 2*phiF.u};
+
+						const Real dvdx[2] = {  2*phiE.v + v3 - 6*phiW.v +   phiW2.v,
+											   -  phiE2.v + 6*phiE.v - v3 - 2*phiW.v};
+
+						const Real dvdy[2] = {  2*phiN.v + v3 - 6*phiS.v +   phiS2.v,
+											   -  phiN2.v + 6*phiN.v - v3 - 2*phiS.v};
+
+						const Real dvdz[2] = {  2*phiB.v + v3 - 6*phiF.v +   phiF2.v,
+											   -  phiB2.v + 6*phiB.v - v3 - 2*phiF.v};
+
+						const Real dwdx[2] = {  2*phiE.w + w3 - 6*phiW.w +   phiW2.w,
+											   -  phiE2.w + 6*phiE.w - w3 - 2*phiW.w};
+
+						const Real dwdy[2] = {  2*phiN.w + w3 - 6*phiS.w +   phiS2.w,
+											   -  phiN2.w + 6*phiN.w - w3 - 2*phiS.w};
+
+						const Real dwdz[2] = {  2*phiB.w + w3 - 6*phiF.w +   phiF2.w,
+											   -  phiB2.w + 6*phiB.w - w3 - 2*phiF.w};
+
+						const Real u = o(ix,iy,iz).u + uInf[0];
+						const Real v = o(ix,iy,iz).v + uInf[1];
+						const Real w = o(ix,iy,iz).w + uInf[2];
+
+						const Real maxu = max(u,(Real)0);
+						const Real maxv = max(v,(Real)0);
+						const Real maxw = max(w,(Real)0);
+						const Real minu = min(u,(Real)0);
+						const Real minv = min(v,(Real)0);
+						const Real minw = min(w,(Real)0);
+
+						o(ix,iy,iz).tmpU = o(ix,iy,iz).u + factor*(maxu * dudx[0] + minu * dudx[1] +
+																   maxv * dudy[0] + minv * dudy[1] +
+																   maxw * dudz[0] + minw * dudz[1]);
+						o(ix,iy,iz).tmpV = o(ix,iy,iz).v + factor*(maxu * dvdx[0] + minu * dvdx[1] +
+																   maxv * dvdy[0] + minv * dvdy[1] +
+																   maxw * dvdz[0] + minw * dvdz[1]);
+						o(ix,iy,iz).tmpW = o(ix,iy,iz).w + factor*(maxu * dwdx[0] + minu * dwdx[1] +
+																   maxv * dwdy[0] + minv * dwdy[1] +
+																   maxw * dwdz[0] + minw * dwdz[1]);
+
+					}
+#ifdef _RK2_
+		else if (stage==1)
+			for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+				for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+					{
+						FluidElement& phi  = lab(ix,iy,iz);
+						FluidElement& phiW = lab(ix-1,iy  ,iz  );
+						FluidElement& phiE = lab(ix+1,iy  ,iz  );
+						FluidElement& phiS = lab(ix  ,iy-1,iz  );
+						FluidElement& phiN = lab(ix  ,iy+1,iz  );
+						FluidElement& phiF = lab(ix  ,iy  ,iz-1);
+						FluidElement& phiB = lab(ix  ,iy  ,iz+1);
+						FluidElement& phiW2 = lab(ix-2,iy  ,iz  );
+						FluidElement& phiE2 = lab(ix+2,iy  ,iz  );
+						FluidElement& phiS2 = lab(ix  ,iy-2,iz  );
+						FluidElement& phiN2 = lab(ix  ,iy+2,iz  );
+						FluidElement& phiF2 = lab(ix  ,iy  ,iz-2);
+						FluidElement& phiB2 = lab(ix  ,iy  ,iz+2);
+
+						const Real u3 = 3*phi.tmpU;
+						const Real v3 = 3*phi.tmpV;
+						const Real w3 = 3*phi.tmpW;
+						const Real r3 = 3*phi.tmp;
+
+						const Real dudx[2] = {  2*phiE.tmpU + u3 - 6*phiW.tmpU +   phiW2.tmpU,
+											   -  phiE2.tmpU + 6*phiE.tmpU - u3 - 2*phiW.tmpU};
+
+						const Real dudy[2] = {  2*phiS.tmpU + u3 - 6*phiS.tmpU +   phiS2.tmpU,
+											   -  phiN2.tmpU + 6*phiS.tmpU - u3 - 2*phiS.tmpU};
+
+						const Real dudz[2] = {  2*phiB.tmpU + u3 - 6*phiF.tmpU +   phiF2.tmpU,
+											   -  phiB2.tmpU + 6*phiB.tmpU - u3 - 2*phiF.tmpU};
+
+						const Real dvdx[2] = {  2*phiE.tmpV + v3 - 6*phiW.tmpV +   phiW2.tmpV,
+											   -  phiE2.tmpV + 6*phiE.tmpV - v3 - 2*phiW.tmpV};
+
+						const Real dvdy[2] = {  2*phiS.tmpV + v3 - 6*phiS.tmpV +   phiS2.tmpV,
+											   -  phiN2.tmpV + 6*phiS.tmpV - v3 - 2*phiS.tmpV};
+
+						const Real dvdz[2] = {  2*phiB.tmpV + v3 - 6*phiF.tmpV +   phiF2.tmpV,
+											   -  phiB2.tmpV + 6*phiB.tmpV - v3 - 2*phiF.tmpV};
+
+						const Real dwdx[2] = {  2*phiE.tmpW + w3 - 6*phiW.tmpW +   phiW2.tmpW,
+											   -  phiE2.tmpW + 6*phiE.tmpW - w3 - 2*phiW.tmpW};
+
+						const Real dwdy[2] = {  2*phiS.tmpW + w3 - 6*phiS.tmpW +   phiS2.tmpW,
+											   -  phiN2.tmpW + 6*phiS.tmpW - w3 - 2*phiS.tmpW};
+
+						const Real dwdz[2] = {  2*phiB.tmpW + w3 - 6*phiF.tmpW +   phiF2.tmpW,
+											   -  phiB2.tmpW + 6*phiB.tmpW - w3 - 2*phiF.tmpW};
+
+						const Real u = phi.tmpU + uInf[0];
+						const Real v = phi.tmpV + uInf[1];
+						const Real w = phi.tmpW + uInf[2];
+						const Real maxu = max(u,(Real)0);
+						const Real maxv = max(v,(Real)0);
+						const Real maxw = max(w,(Real)0);
+						const Real minu = min(u,(Real)0);
+						const Real minv = min(v,(Real)0);
+						const Real minw = min(w,(Real)0);
+
+						o(ix,iy,iz).tmpU = o(ix,iy,iz).u + factor*(maxu * dudx[0] + minu * dudx[1] +
+																   maxv * dudy[0] + minv * dudy[1] +
+																   maxw * dudz[0] + minw * dudz[1]);
+						o(ix,iy,iz).tmpV = o(ix,iy,iz).v + factor*(maxu * dvdx[0] + minu * dvdx[1] +
+																   maxv * dvdy[0] + minv * dvdy[1] +
+																   maxw * dvdz[0] + minw * dvdz[1]);
+						o(ix,iy,iz).tmpW = o(ix,iy,iz).w + factor*(maxu * dwdx[0] + minu * dwdx[1] +
+																   maxv * dwdy[0] + minv * dwdy[1] +
+																   maxw * dwdz[0] + minw * dwdz[1]);
+					}
+#endif // _RK2_
+	}
+};
 
 template <typename Lab>
 class CoordinatorAdvection : public GenericCoordinator
 {
 protected:
-	Real *uBody, *vBody, *wBody;
-#ifdef _MULTIPHASE_
-	Real rhoS;
-#endif
-	
-#ifdef _ISPC_
-	enum {
-		_BSX2_ = _BSX_+4,
-		_BSY2_ = _BSY_+4,
-		_BSZ2_ = _BSZ_+4,
-		SLICESIZE = _BSX_*_BSY_,
-		SLICESIZE2 = (_BSX_+4)*(_BSY_+4),
-		SIZE = _BSX_*_BSY_*_BSZ_,
-		SIZE2 = (_BSX_+4)*(_BSY_+4)*(_BSZ_+4)
-	};
-	
-	Real * uLab;
-	Real * vLab;
-	Real * wLab;
-	Real * u;
-	Real * v;
-	Real * w;
-	Real * uTmp;
-	Real * vTmp;
-	Real * wTmp;
-#endif
+	const Real* const uInf;
 	
 	inline void update()
 	{
 		const int N = vInfo.size();
 		
 #pragma omp parallel for schedule(static)
-		for(int i=0; i<N; i++)
-		{
+		for(int i=0; i<N; i++) {
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 			
@@ -61,94 +217,23 @@ protected:
 						b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
 						b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
 						b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
-#ifdef _MULTIPHASE_
-						//b(ix,iy).chi = b(ix,iy).tmp;
-						//b(ix,iy).rho = b(ix,iy).chi * rhoS + (1-b(ix,iy).chi);
-						
-						// threshold density
-						//b(ix,iy).rho = b(ix,iy).tmp;
-						Real density = min(max(b(ix,iy,iz).tmp,min((Real)1.,rhoS)),max((Real)1.,rhoS));
-						b(ix,iy,iz).rho = density;
-#endif // _MULTIPHASE_
 					}
 		}
 	}
 	
 	inline void advect(const double dt, const int stage)
 	{
-#ifndef _ISPC_
-		OperatorAdvectionUpwind3rdOrder kernel(dt,uBody,vBody,wBody,stage);
-#else // _ISPC_
-#ifdef _MULTIPHASE_
-#warning ISPC with MULTIPHASE unsupported
-		cout << "ISPC advection with MULTIPHASE unsupported yet!\n";
-		abort();
-#else // _MULTIPHASE_
-#ifndef _RK2_
-		OperatorAdvectionUpwind3rdOrderISPC kernel(dt,uBody,vBody,wBody,u,v,w,uTmp,vTmp,wTmp,uLab,vLab,wLab,stage);
-#else // _RK2_
-#warning ISPC with RK2 unsupported
-		cout << "ISPC advection with RK2 unsupported yet!\n";
-		abort();
-#endif // _RK2_
-#endif // _MULTIPHASE_
-#endif // _ISPC_
+		OperatorAdvectionUpwind3rdOrder kernel(dt,uInf,stage);
 		compute(kernel);
 	}
 	
 public:
-#ifndef _MULTIPHASE_
-	CoordinatorAdvection(Real * uBody, Real * vBody, Real * wBody, FluidGridMPI * grid) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody)
-#else
-	CoordinatorAdvection(Real * uBody, Real * vBody, Real * wBody, FluidGridMPI * grid, Real rhoS) : GenericCoordinator(grid), uBody(uBody), vBody(vBody), wBody(wBody), rhoS(rhoS)
-#endif
-	{
-#ifdef _ISPC_
-		uLab = new Real[SIZE2*NTHREADS];
-		vLab = new Real[SIZE2*NTHREADS];
-		wLab = new Real[SIZE2*NTHREADS];
-		u = new Real[SIZE*NTHREADS];
-		v = new Real[SIZE*NTHREADS];
-		w = new Real[SIZE*NTHREADS];
-		uTmp = new Real[SIZE*NTHREADS];
-		vTmp = new Real[SIZE*NTHREADS];
-		wTmp = new Real[SIZE*NTHREADS];
-#endif
-	}
-	
-#ifndef _MULTIPHASE_
-	CoordinatorAdvection(FluidGridMPI * grid) : GenericCoordinator(grid), uBody(NULL), vBody(NULL)
-#else
-	CoordinatorAdvection(FluidGridMPI * grid, Real rhoS) : GenericCoordinator(grid), uBody(NULL), vBody(NULL), wBody(NULL), rhoS(rhoS)
-#endif
-	{
-#ifdef _ISPC_
-		uLab = new Real[SIZE2*NTHREADS];
-		vLab = new Real[SIZE2*NTHREADS];
-		wLab = new Real[SIZE2*NTHREADS];
-		u = new Real[SIZE*NTHREADS];
-		v = new Real[SIZE*NTHREADS];
-		w = new Real[SIZE*NTHREADS];
-		uTmp = new Real[SIZE*NTHREADS];
-		vTmp = new Real[SIZE*NTHREADS];
-		wTmp = new Real[SIZE*NTHREADS];
-#endif
-	}
+	CoordinatorAdvection(const Real* const uInf, FluidGridMPI * grid)
+	: GenericCoordinator(grid), uInf(uInf)
+	{ }
 	
 	~CoordinatorAdvection()
-	{
-#ifdef _ISPC_
-		delete [] uLab;
-		delete [] vLab;
-		delete [] wLab;
-		delete [] u;
-		delete [] v;
-		delete [] w;
-		delete [] uTmp;
-		delete [] vTmp;
-		delete [] wTmp;
-#endif
-	}
+	{ }
 	
 	void operator()(const double dt)
 	{
@@ -168,187 +253,4 @@ public:
 		return "Advection";
 	}
 };
-
-template <typename Lab>
-class CoordinatorTransport : public GenericCoordinator
-{
-protected:
-	inline void reset()
-	{
-		const int N = vInfo.size();
-		
-#pragma omp parallel for schedule(static)
-		for(int i=0; i<N; i++)
-		{
-			BlockInfo info = vInfo[i];
-			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-			
-			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-						b(ix,iy,iz).tmp = 0;
-		}
-	};
-	
-	inline void update()
-	{
-		const int N = vInfo.size();
-		
-#pragma omp parallel for schedule(static)
-		for(int i=0; i<N; i++)
-		{
-			BlockInfo info = vInfo[i];
-			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-			
-			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-						b(ix,iy,iz).rho = b(ix,iy,iz).tmp;
-		}
-	}
-	
-public:
-	CoordinatorTransport(FluidGridMPI * grid) : GenericCoordinator(grid)
-	{
-	}
-	
-	void operator()(const double dt)
-	{
-		BlockInfo * ary = &vInfo.front();
-		const int N = vInfo.size();
-		
-		reset();
-		
-#pragma omp parallel
-		{
-			OperatorTransportUpwind3rdOrder kernel(dt,0);
-			
-			Lab lab;
-			lab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
-			
-#pragma omp for schedule(static)
-			for (int i=0; i<N; i++)
-			{
-				lab.load(ary[i], 0);
-				kernel(lab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
-			}
-		}
-		
-#ifdef _RK2_
-#pragma omp parallel
-		{
-			OperatorTransportUpwind3rdOrder kernel(dt,1);
-			
-			Lab lab;
-			lab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, true);
-			
-#pragma omp for schedule(static)
-			for (int i=0; i<N; i++)
-			{
-				lab.load(ary[i], 0);
-				kernel(lab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
-			}
-		}
-#endif // _RK2_
-		
-		update();
-	}
-	
-	string getName()
-	{
-		return "Transport";
-	}
-};
-
-template <typename Lab>
-class CoordinatorTransportTimeTest : public GenericCoordinator
-{
-protected:
-	double time;
-	
-	double _analyticalRHS(double px, double py, double pz, double t)
-	{
-		return 8 * M_PI * cos((px+t) * 8. * M_PI);
-	}
-	
-	inline void reset()
-	{
-		const int N = vInfo.size();
-		
-#pragma omp parallel for schedule(static)
-		for(int i=0; i<N; i++)
-		{
-			BlockInfo info = vInfo[i];
-			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-			
-			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-						b(ix,iy,iz).tmp = 0;
-		}
-	};
-	
-	inline void update()
-	{
-		const int N = vInfo.size();
-		
-#pragma omp parallel for schedule(static)
-		for(int i=0; i<N; i++)
-		{
-			BlockInfo info = vInfo[i];
-			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-			
-			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-						b(ix,iy,iz).rho = b(ix,iy,iz).tmp;
-		}
-	}
-	
-	inline void advect(const double dt, const int stage)
-	{
-		BlockInfo * ary = &vInfo.front();
-		const int N = vInfo.size();
-#pragma omp parallel
-		{
-			OperatorTransportUpwind3rdOrder kernel(dt,stage);
-			
-			Lab lab;
-			lab.prepare(*grid, kernel.stencil_start, kernel.stencil_end, false);
-			
-#pragma omp for schedule(static)
-			for (int i=0; i<N; i++)
-			{
-				lab.load(ary[i], 0);
-				kernel(lab, ary[i], *(FluidBlock*)ary[i].ptrBlock);
-			}
-		}
-	}
-	
-public:
-	CoordinatorTransportTimeTest(FluidGridMPI * grid) : GenericCoordinator(grid)
-	{
-	}
-	
-	void operator()(const double dt)
-	{
-		check("advection - start");
-		
-		reset();
-		advect(dt,0);
-#ifdef _RK2_
-		advect(dt,1);
-#endif
-		update();
-		time+=dt;
-		
-		check("advection - end");
-	}
-	
-	string getName()
-	{
-		return "Transport";
-	}
-};
-
 #endif
