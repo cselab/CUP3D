@@ -11,14 +11,14 @@ if [ $# -gt 1 ] ; then
 fi
 
 BASEPATH=/cluster/scratch_xp/public/novatig/CubismUP3D/
-BASENAME=FlowPastCarlingFishRe0550_Validate_
+BASENAME=FlowPastCarlingFishRe4000_BurstCoast_
 NPROCESSORS=$((${NNODE}*48))
 
 CFL=0.5
 LAMBDA=1e5
-BPDX=15
-BPDY=24
-BPDZ=18
+BPDX=20
+BPDY=32
+BPDZ=24
 
 NAME_RUN=BPD${BPDX}_CFL${CFL}_${1}RANKS
 
@@ -27,8 +27,9 @@ mkdir -p ${FOLDER}
 
 cp factoryCarling ${FOLDER}/factory
 cp ../makefiles/simulation ${FOLDER}
-cp launchValidationCarling.sh ${FOLDER}
-cp runValidationCarling.sh ${FOLDER}/run.sh
+cp launchValidationCarlingRe4000.sh ${FOLDER}
+cp runValidationCarlingRe4000.sh ${FOLDER}/run.sh
+cp burst_coast_carling_params.txt ${FOLDER}/burst_coast_carling_params.txt
 
 #CURRDIR=`pwd`
 cd $FOLDER
@@ -46,7 +47,7 @@ if [ $INTERACTIVE -eq 1 ] ; then
     #mpirun -np ${NNODE} -bynode ./simulation -tend 8 ${OPTIONS} 
     mpich_run -np ${NNODE} -ppn 1 -bind-to none -launcher ssh -f lsf_hostfile ./simulation -tend 8 ${OPTIONS}
 else
-    bsub -n ${NPROCESSORS} -R span[ptile=48] -W 12:00 -J ${BASENAME}${NAME_RUN} ./run.sh $NNODE 
+    bsub -n ${NPROCESSORS} -R span[ptile=48] -W 48:00 -J ${BASENAME}${NAME_RUN} ./run.sh $NNODE 
 fi
 
    #cd $CURRDIR

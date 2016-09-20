@@ -10,6 +10,8 @@
 #define CubismUP_3D_DataStructures_h
 
 //#include <cassert>
+
+#define BBURST 1
 #include <sstream>
 #include <cmath>
 #include <cstdio>
