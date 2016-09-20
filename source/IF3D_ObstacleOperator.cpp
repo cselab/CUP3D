@@ -112,7 +112,7 @@ struct ForcesOnSkin : public GenericLabOperator
 	}
 };
 
-void IF3D_ObstacleOperator::_computeUdefMoments(double* lin_momenta, double* ang_momenta, const double CoM[3])
+void IF3D_ObstacleOperator::_computeUdefMoments(double (&lin_momenta)[3], double (&ang_momenta)[3], const double CoM[3])
 {
 	const int N = vInfo.size();
 	const double dv = std::pow(vInfo[0].h_gridpoint,3);
@@ -215,7 +215,7 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
 
 #ifndef DNDEBUG
     double dummy_ang[3], dummy_lin[3];
-    _computeUdefMoments(dummy_ang, dummy_ang, CoM);
+    _computeUdefMoments(dummy_lin, dummy_ang, CoM);
     printf("Post correction linear momentum %f %f ang vel %f\n", dummy_lin[0], dummy_lin[1], dummy_ang[2]);
 #endif
 }
