@@ -17,6 +17,7 @@
 const int NPPSEG = 50.; //was 100
 const int NPPEXT = 3; //was 3
 const int TGTPPB = 4.; //was 2 i think
+const int TSTART = 2.;
 
 namespace Fish
 {
@@ -67,14 +68,14 @@ namespace Fish
         double Rmatrix2D[2][2];
         double Rmatrix3D[3][3];
 
-        inline void _rotate2D(double &x, double &y)
+        inline void _rotate2D(double &x, double &y) const
         {
         	const double p[2] = {x,y};
         	x = Rmatrix2D[0][0]*p[0] + Rmatrix2D[0][1]*p[1];
         	y = Rmatrix2D[1][0]*p[0] + Rmatrix2D[1][1]*p[1];
         }
 
-        inline void _translateAndRotate2D(const double pos[2], double &x, double &y)
+        inline void _translateAndRotate2D(const double pos[2], double &x, double &y) const
         {
         	const double p[2] = {
         			x-pos[0],
@@ -92,33 +93,10 @@ namespace Fish
         	Rmatrix2D[1][0] = -Rmatrix2D[0][1];
         }
 
-        inline void _subtractAngularVelocity(const double angvel, const double x, const double y, double & vx, double & vy)
+        inline void _subtractAngularVelocity(const double angvel, const double x, const double y, double & vx, double & vy) const
         {
         	vx += angvel*y;
         	vy -= angvel*x;
-        }
-
-        void _get_rX_from_rY()
-        {
-            rX[0] = 0.0;
-            for(int i=1;i<Nm;++i) {
-                const double dy = rY[i]-rY[i-1];
-                const double ds = rS[i] - rS[i-1];
-                const double dx = std::sqrt(ds*ds-dy*dy);
-                rX[i] = rX[i-1] + dx;
-            }
-        }
-
-        void _get_vX_from_vY()
-        {
-            vX[0] = 0.0; //rX[0] is constant
-            for(int i=1;i<Nm;++i) {
-                const double dy = rY[i]-rY[i-1];
-                const double dx = rX[i]-rX[i-1];
-                const double dVy = vY[i]-vY[i-1];
-                assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
-                vX[i] = vX[i-1] - dy/dx * dVy; // use ds^2 = dx^2 + dy^2 --> ddx = -dy/dx*ddy
-            }
         }
 
         void _computeWidthsHeights()
@@ -154,6 +132,7 @@ namespace Fish
 
         void _computeMidlineNormals()
         {
+#pragma omp parallel for
             for(int i=0; i<Nm-1; i++) {
                 const double ds = rS[i+1]-rS[i];
                 const double tX = rX[i+1]-rX[i];
@@ -171,19 +150,19 @@ namespace Fish
             vNorY[Nm-1] = vNorY[Nm-2];
         }
 
-        inline double _integrationFac1(const int idx)
+        inline double _integrationFac1(const int idx) const
         {
             return width[idx]*height[idx];
         }
 
-        inline double _integrationFac2(const int idx)
+        inline double _integrationFac2(const int idx) const
         {
             const double dnorXi = _d_ds(idx, norX, Nm);
             const double dnorYi = _d_ds(idx, norY, Nm);
             return 0.25*std::pow(width[idx],3)*height[idx]*(dnorXi*norY[idx] - dnorYi*norX[idx]);
         }
 
-        inline double _integrationFac3(const int idx)
+        inline double _integrationFac3(const int idx) const
         {
             const double drXi = _d_ds(idx, rX, Nm);
             const double drYi = _d_ds(idx, rY, Nm);
@@ -191,24 +170,24 @@ namespace Fish
             return 0.25*std::pow(width[idx],3)*height[idx];
         }
 
-        inline void _updateVolumeIntegration(const double fac1, const double ds, double & vol)
+        inline void _updateVolumeIntegration(const double fac1, const double ds, double & vol) const
         {
             vol+=0.5*fac1*ds;
         }
 
-        inline void _updateCoMIntegration(const int idx, const double fac1, const double fac2, const double ds, double CoM[2])
+        inline void _updateCoMIntegration(const int idx, const double fac1, const double fac2, const double ds, double CoM[2]) const
         {
             CoM[0] += 0.5*(rX[idx]*fac1 + norX[idx]*fac2)*ds;
             CoM[1] += 0.5*(rY[idx]*fac1 + norY[idx]*fac2)*ds;
         }
 
-        inline void _updateLinMomIntegration(const int idx, const double fac1, const double fac2, const double ds, double linMom[2])
+        inline void _updateLinMomIntegration(const int idx, const double fac1, const double fac2, const double ds, double linMom[2]) const
         {
             linMom[0] += 0.5*(vX[idx]*fac1 + vNorX[idx]*fac2)*ds;
             linMom[1] += 0.5*(vY[idx]*fac1 + vNorY[idx]*fac2)*ds;
         }
 
-        inline void _updateAngMomIntegration(const int idx, const double fac1, const double fac2, const double fac3, const double ds, double & angMom)
+        inline void _updateAngMomIntegration(const int idx, const double fac1, const double fac2, const double fac3, const double ds, double & angMom) const
         {
             double tmpSum = 0.0;
             tmpSum += (rX[idx]*vY[idx] - rY[idx]*vX[idx])*fac1;
@@ -217,7 +196,7 @@ namespace Fish
             angMom += 0.5*tmpSum*ds;
         }
 
-        inline void _updateJIntegration(const int idx, const double fac1, const double fac2, const double fac3, const double ds, double & J)
+        inline void _updateJIntegration(const int idx, const double fac1, const double fac2, const double fac3, const double ds, double & J) const
         {
             double tmpSum = 0.0;
             tmpSum += (rX[idx]*rX[idx] + rY[idx]*rY[idx])*fac1;
@@ -377,6 +356,7 @@ public:
         void changeToCoMFrameAngular(const double theta_internal, const double angvel_internal)
         {
             _prepareRotation2D(theta_internal);
+#pragma omp parallel for
             for(int i=0;i<Nm;++i) {
                 _rotate2D(rX[i],rY[i]);
                 _rotate2D(vX[i],vY[i]);
@@ -503,17 +483,17 @@ public:
         //burst-coast:
         double t0, t1, t2, t3;
 
-    	inline double rampFactorSine(const Real t, const Real T)
+    	inline double rampFactorSine(const Real t, const Real T) const
     	{
     		return (t<T ? std::sin(0.5*M_PI*t/T) : 1.0);
     	}
 
-    	inline double rampFactorVelSine(const Real t, const Real T)
+    	inline double rampFactorVelSine(const Real t, const Real T) const
     	{
     		return (t<T ? 0.5*M_PI/T * std::cos(0.5*M_PI*t/T) : 0.0);
     	}
 
-    	inline double midline(const double s, const Real t, const Real L, const Real T, const Real phaseShift)
+    	inline double midline(const double s, const Real t, const Real L, const Real T, const Real phaseShift) const
     	{
     		const double arg = 2.0*M_PI*(s/L - t/T + phaseShift);
         	const double fac = 0.1212121212121212;
@@ -550,7 +530,7 @@ public:
 #endif
     	}
 
-    	inline double midlineVel(const double s, const Real t, const Real L, const Real T, const Real phaseShift)
+    	inline double midlineVel(const double s, const Real t, const Real L, const Real T, const Real phaseShift) const
     	{
         	const double arg = 2.0*M_PI*(s/L - t/T + phaseShift);
         	const double fac = 0.1212121212121212;

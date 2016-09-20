@@ -679,8 +679,8 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     const int Nm = NPPSEG*(int)std::ceil(target_Nm/NPPSEG) + 1;
     assert((Nm-1)%Nsegments==0);
     if (bCorrectTrajectory) {
-        Real velx_tot = Uinf[0]-transVel[0];
-        Real vely_tot = Uinf[1]-transVel[1];
+        Real velx_tot = Uinf[0] - transVel[0];
+        Real vely_tot = Uinf[1] - transVel[1];
         Real AngDiff  = atan2(vely_tot,velx_tot);
         adjTh = (1.-dt) * adjTh + dt * AngDiff;
         const Real B = (AngDiff*angVel[2]>0) ? 0.25/M_PI : 0;
