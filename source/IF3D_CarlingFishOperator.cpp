@@ -732,11 +732,11 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
                 {std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest()}
             };
             for(int ss=idx; ss<=next_idx; ++ss) {
-                const double xBnd[2] = {(myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss]),
-                						(myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss])};
-                const double yBnd[2] = {(myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss]),
-                						(myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss])};
-                const double zBnd[2] = {(-myFish->height[ss]), (+myFish->height[ss])};
+                const double xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
+                						myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
+                const double yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
+                						myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss]};
+                const double zBnd[2] = {-myFish->height[ss], +myFish->height[ss]};
                 bbox[0][0] = std::min({bbox[0][0],xBnd[0],xBnd[1]});
                 bbox[0][1] = std::max({bbox[0][1],xBnd[0],xBnd[1]});
                 bbox[1][0] = std::min({bbox[1][0],yBnd[0],yBnd[1]});
@@ -745,14 +745,14 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
                 bbox[2][1] = std::max({bbox[2][1],zBnd[0],zBnd[1]});
             }
             
-            // create a new segment
-            VolumeSegment_OBB volumeSegment(std::make_pair(idx, next_idx), bbox);
+            VolumeSegment_OBB volumeSegment(std::make_pair(idx, next_idx), bbox); //create a new segment
             vSegments.push_back(volumeSegment);
         }
     }
     assert(vSegments.size()==Nsegments);
 
     // 5.
+#pragma omp parallel for
     for(int i=0;i<Nsegments;++i)
         vSegments[i].changeToComputationalFrame(position,quaternion);
 

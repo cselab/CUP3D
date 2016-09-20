@@ -517,10 +517,10 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time, c
 		vector<int> firstInfo; //first element of surfData occupied by each surf. block
 							   //(the elems of surfData are grouped together by blockID)
 		for(int i=0; i<surfData.Ndata; i++) {
-			bool unique(true);
+			bool unique = true;
 			for(int k=0; k<usefulIDs.size(); k++)
 				if (surfData.Set[i]->blockID == usefulIDs[k])
-				{ unique = false; break; } //Ive already seen that block
+					{ unique = false; break; } //Ive already seen that block
 			if (unique) {
 				usefulIDs.push_back(surfData.Set[i]->blockID);
 				firstInfo.push_back(i);
