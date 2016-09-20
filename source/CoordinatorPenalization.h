@@ -11,66 +11,104 @@
 
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
-//#include "OperatorPenalization.h"
-//#include "Shape.h"
+#include "IF3D_ObstacleVector.h"
 
+// for schooling: split first compute uinf (comp velocity with uinf = 0) and then penalize
 struct PenalizationObstacleVisitor : ObstacleVisitor
 {
-    FluidGrid * grid;
-    const double dt, lambda, *uInf;
+	FluidGridMPI * grid;
+    const double dt, lambda;
+    double * const uInf;
+    //double ext_X, ext_Y, ext_Z;
     vector<BlockInfo> vInfo;
 
-    PenalizationObstacleVisitor(FluidGrid * grid, const double dt, const double lambda,const double* uInf)
+    PenalizationObstacleVisitor(FluidGridMPI * grid, const double dt, const double lambda, double* const uInf)
     : grid(grid), dt(dt), lambda(lambda), uInf(uInf)
     {
         vInfo = grid->getBlocksInfo();
+        /*
+        const double extent = grid->maxextent;
+        const unsigned int maxbpd = max(grid->NX*FluidBlock::sizeX,
+        							max(grid->NY*FluidBlock::sizeY,
+        								grid->NZ*FluidBlock::sizeZ));
+        const double scale[3] = {
+        		(double)(grid->NX*FluidBlock::sizeX)/(double)maxbpd,
+        		(double)(grid->NY*FluidBlock::sizeY)/(double)maxbpd,
+        		(double)(grid->NZ*FluidBlock::sizeZ)/(double)maxbpd
+        };
+        ext_X = scale[0]*extent;
+        ext_Y = scale[1]*extent;
+        ext_Z = scale[2]*extent;
+        */
     }
 
-     void visit(IF2D_ObstacleOperator* const obstacle)
+     void visit(IF3D_ObstacleOperator* const obstacle)
      {
-        obstacle->computeVelocities(uInf);
+    	 const bool bFixFrameOfRef = obstacle->bFixFrameOfRef;
+    	 if (bFixFrameOfRef) {
+    		 if (obstacle->obstacleID!=0) {printf("Can only fix first obstacle.\n"); abort();}
+             double dummy[3] = {0.0,0.0,0.0}; // compute velocities with zero uinf
+             obstacle->computeVelocities(dummy);
+             double leadU[3];
+             obstacle->getTranslationVelocity(leadU);
+             uInf[0] = -leadU[0]; //uInf now is speed of this obstacle
+             uInf[1] = -leadU[1];
+             uInf[2] = -leadU[2];
+             leadU[0] += uInf[0]; //set obstacle speed to zero
+             leadU[1] += uInf[1];
+             leadU[2] += uInf[2];
+             obstacle->setTranslationVelocity(leadU);
+    	 } else {
+    		 obstacle->computeVelocities(uInf);
+    	 }
 
 #pragma omp parallel
          {
             const std::map<int, ObstacleBlock*> obstblocks = obstacle->getObstacleBlocks();
-            const Real factor = 0.5/(vInfo[0].h_gridpoint * dt);
             Real uBody[3], omegaBody[3], centerOfMass[3];
             obstacle->getCenterOfMass(centerOfMass);
             obstacle->getTranslationVelocity(uBody);
             obstacle->getAngularVelocity(omegaBody);
-
+            /*
+			#pragma omp master
+            printf("%f %f %f %f %f %f %f %f %f %f %f %f\n",
+            		uBody[0],uBody[1],uBody[2],omegaBody[0],omegaBody[1],omegaBody[2],
+            		centerOfMass[0],centerOfMass[1],centerOfMass[2],uInf[0],uInf[1],uInf[2]);
+			*/
 #pragma omp for schedule(static)
-             for(int i=0; i<vInfo.size(); i++) {
-                 const auto pos = obstblocks.find(i);
-                 if(pos == obstblocks.end()) continue;
+            for(int i=0; i<vInfo.size(); i++) {
+            	BlockInfo info = vInfo[i];
+            	const auto pos = obstblocks.find(info.blockID);
+            	if(pos == obstblocks.end()) continue;
+            	FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
-                 BlockInfo info = vInfo[i];
-                 FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+            	for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+				if (pos->second->chi[iz][iy][ix] > 0) {
+					Real p[3];
+					info.pos(p, ix, iy, iz);
+					p[0]-=centerOfMass[0];
+					p[1]-=centerOfMass[1];
+					p[2]-=centerOfMass[2];
 
-				 for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				 for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-				 if (pos->second->chi[iz][iy][ix] > 0) {
-					 Real p[3];
-					 info.pos(p, ix, iy, iz);
-					 p[0]-=centerOfMass[0];
-					 p[1]-=centerOfMass[1];
-					 p[2]-=centerOfMass[2];
-
-					 const Real lamdtX  = dt * lambda * pos->second->chi[iz][iy][ix];
-					 const Real object_UR[3] = {
+					const Real lamdtX  = dt * lambda * pos->second->chi[iz][iy][ix];
+					const Real object_UR[3] = {
 							omegaBody[1]*p[2]-omegaBody[2]*p[1],
 							omegaBody[2]*p[0]-omegaBody[0]*p[2],
 							omegaBody[0]*p[1]-omegaBody[1]*p[0]
-					 };
-					 const Real object_UDEF[3] = {
-							 pos->second->udef[iz][iy][ix][0],
-							 pos->second->udef[iz][iy][ix][1],
-							 pos->second->udef[iz][iy][ix][2]
-					 };
-					 b(ix,iy,iz).u = (b(ix,iy,iz).u + lamdtX * (uBody[0]+object_UR[0]+object_UDEF[0]-uInf[0])) / (1. + lamdtX);
-					 b(ix,iy,iz).v = (b(ix,iy,iz).v + lamdtX * (uBody[1]+object_UR[1]+object_UDEF[1]-uInf[1])) / (1. + lamdtX);
-					 b(ix,iy,iz).w = (b(ix,iy,iz).w + lamdtX * (uBody[2]+object_UR[2]+object_UDEF[2]-uInf[2])) / (1. + lamdtX);
+					};
+					const Real object_UDEF[3] = {
+							pos->second->udef[iz][iy][ix][0],
+							pos->second->udef[iz][iy][ix][1],
+							pos->second->udef[iz][iy][ix][2]
+					};
+					const Real alpha = 1./(1.+lamdtX);
+
+					b(ix,iy,iz).u = alpha*b(ix,iy,iz).u + (1.-alpha)*(uBody[0]+object_UR[0]+object_UDEF[0]-uInf[0]);
+					b(ix,iy,iz).v = alpha*b(ix,iy,iz).v + (1.-alpha)*(uBody[1]+object_UR[1]+object_UDEF[1]-uInf[1]);
+					b(ix,iy,iz).w = alpha*b(ix,iy,iz).w + (1.-alpha)*(uBody[2]+object_UR[2]+object_UDEF[2]-uInf[2]);
+				}
              }
          }
      }
@@ -79,11 +117,11 @@ struct PenalizationObstacleVisitor : ObstacleVisitor
 class CoordinatorPenalization : public GenericCoordinator
 {
 protected:
-    IF2D_ObstacleVector** const obstacleVector;
-    const double* const lambda;
-    const double* const uInf;
+    IF3D_ObstacleVector** const obstacleVector;
+    double* const lambda;
+    double* const uInf;
 public:
-	CoordinatorPenalization(FluidGridMPI * grid, IF2D_ObstacleVector** const myobstacles, const double* const lambda, const double* const Uinf)
+	CoordinatorPenalization(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles, double* const lambda, double* const Uinf)
 	: GenericCoordinator(grid), obstacleVector(myobstacles), lambda(lambda), uInf(Uinf)
 	{ }
 	
@@ -91,9 +129,7 @@ public:
 	{
 		check((string)"penalization - start");
 
-        PenalizationObstacleVisitor* penalizationVisitor = new PenalizationObstacleVisitor(grid, dt, *lambda, uInf);
-        //std::vector<IF2D_ObstacleOperator*>* my_obstacles = (*obstacleVector)->getObstacleVector();
-        //for(auto& obstacle : * my_obstacles) obstacle->Accept(penalizationVisitor);
+        ObstacleVisitor* penalizationVisitor = new PenalizationObstacleVisitor(grid, dt, *lambda, uInf);
         (*obstacleVector)->Accept(penalizationVisitor); // accept you son of a french cow
         delete penalizationVisitor;
 

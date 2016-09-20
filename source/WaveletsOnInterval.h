@@ -8,7 +8,7 @@
  */
 
 #ifndef _WAVELETSONINTERVAL_H_
-#define _WAVELETSONINTERVAL_H_ 1
+#define _WAVELETSONINTERVAL_H_
 
 #pragma once
 #include <cmath>

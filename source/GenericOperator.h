@@ -8,6 +8,7 @@
 
 #ifndef CubismUP_3D_Operator_h
 #define CubismUP_3D_Operator_h
+#include "Definitions.h"
 
 class GenericOperator
 {
@@ -21,7 +22,6 @@ public:
 	int stencil_start[3];
 	int stencil_end[3];
 	StencilInfo stencil;
-	
 	// cannot put the templated operator here!
 };
 

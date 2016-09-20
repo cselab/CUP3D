@@ -32,7 +32,7 @@ protected:
 	enum 
 	{
 		NCHANNELS = IterativeStreamer::channels,
-		NPTS = _BLOCKSIZE_ * _BLOCKSIZE_ * _BLOCKSIZE_
+		NPTS = _BS_ * _BS_ * _BS_
 	};
 
 	enum //some considerations about the per-thread working set                                                                                                  
@@ -180,14 +180,14 @@ protected:
 					for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 						for(int iy=0; iy<FluidBlock::sizeY; iy++)
 							for(int ix=0; ix<FluidBlock::sizeX; ix++)
-								mysoabuffer[ix + _BLOCKSIZE_ * (iy + _BLOCKSIZE_ * iz)] = streamer.template operate<channel>(b(ix, iy, iz));
+								mysoabuffer[ix + _BS_ * (iy + _BS_ * iz)] = streamer.template operate<channel>(b(ix, iy, iz));
 #else
 					if(streamer.name() == "StreamerGridPointIterative")
 					{
 					for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 						for(int iy=0; iy<FluidBlock::sizeY; iy++)
 							for(int ix=0; ix<FluidBlock::sizeX; ix++)
-								mysoabuffer[ix + _BLOCKSIZE_ * (iy + _BLOCKSIZE_ * iz)] = streamer.template operate<channel>(b(ix, iy, iz));
+								mysoabuffer[ix + _BS_ * (iy + _BS_ * iz)] = streamer.template operate<channel>(b(ix, iy, iz));
 					}
 					else
 					{
@@ -195,7 +195,7 @@ protected:
 					for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 						for(int iy=0; iy<FluidBlock::sizeY; iy++)
 							for(int ix=0; ix<FluidBlock::sizeX; ix++)
-								mysoabuffer[ix + _BLOCKSIZE_ * (iy + _BLOCKSIZE_ * iz)] = mystreamer.operate(ix, iy, iz);
+								mysoabuffer[ix + _BS_ * (iy + _BS_ * iz)] = mystreamer.operate(ix, iy, iz);
 					}
 #endif
 					
@@ -374,9 +374,9 @@ protected:
 				const int ybpd = inputGrid.getResidentBlocksPerDimension(1);
 				const int zbpd = inputGrid.getResidentBlocksPerDimension(2);
 				
-				const double xExtent = inputGrid.getH()*xtotalbpd*_BLOCKSIZE_;
-				const double yExtent = inputGrid.getH()*ytotalbpd*_BLOCKSIZE_;
-				const double zExtent = inputGrid.getH()*ztotalbpd*_BLOCKSIZE_;
+				const double xExtent = inputGrid.getH()*xtotalbpd*_BS_;
+				const double yExtent = inputGrid.getH()*ytotalbpd*_BS_;
+				const double zExtent = inputGrid.getH()*ztotalbpd*_BS_;
 
 				std::stringstream ss;
 				
@@ -394,7 +394,7 @@ protected:
 				ss << "sizeofBlockMetadata: " << sizeof(BlockMetadata) << "\n";
 				ss << "sizeofHeaderLUT: " << sizeof(HeaderLUT) << "\n";
 				ss << "sizeofCompressedBlock: " << sizeof(CompressedBlock) << "\n";
-				ss << "Blocksize: " << _BLOCKSIZE_ << "\n";
+				ss << "Blocksize: " << _BS_ << "\n";
 				ss << "Blocks: " << xtotalbpd << " x "  << ytotalbpd << " x " << ztotalbpd  << "\n";
 				ss << "Extent: " << xExtent << " " << yExtent << " " << zExtent << "\n"; 
 				ss << "SubdomainBlocks: " << xbpd << " x "  << ybpd << " x " << zbpd  << "\n";
@@ -537,7 +537,7 @@ protected:
 				
 				int bsize = -1;
 				fscanf(file, "Blocksize: %d\n", &bsize);
-				assert(bsize == _BLOCKSIZE_);
+				assert(bsize == _BS_);
 				fscanf(file, "Blocks: %d x %d x %d\n", totalbpd, totalbpd + 1, totalbpd + 2);
 				fscanf(file, "SubdomainBlocks: %d x %d x %d\n", bpd, bpd + 1, bpd + 2);
 				
@@ -748,7 +748,7 @@ protected:
 				
 			}
 			
-			Real MYBLOCK[_BLOCKSIZE_][_BLOCKSIZE_][_BLOCKSIZE_];
+			Real MYBLOCK[_BS_][_BS_][_BS_];
 			
 			{
 				int nbytes = *(int *)&waveletbuf[readbytes];
@@ -765,9 +765,9 @@ protected:
 			}
 			
 			printf("OK FINAL TEST: THE DATA\n");
-			for(int iz = 0; iz< _BLOCKSIZE_; ++iz)
-				for(int iy = 0; iy< _BLOCKSIZE_; ++iy)
-					for(int ix = 0; ix< _BLOCKSIZE_; ++ix)
+			for(int iz = 0; iz< _BS_; ++iz)
+				for(int iy = 0; iy< _BS_; ++iy)
+					for(int ix = 0; ix< _BS_; ++ix)
 						printf("%d %d %d: %e\n", ix, iy, iz, MYBLOCK[iz][iy][ix]);
 			
 			fclose(f);

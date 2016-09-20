@@ -16,21 +16,28 @@ void Simulation::_ic()
     CoordinatorIC coordIC(grid);
     profiler.push_start(coordIC.getName());
     coordIC(0);
+	profiler.pop_stop();
 }
 	
 void Simulation::setupGrid()
 {
 	parser.set_strict_mode();
-	nprocsx = parser("-nprocsx").asInt();
-	nprocsy = parser("-nprocsy").asInt();
-	nprocsz = parser("-nprocsz").asInt();
 	bpdx = parser("-bpdx").asInt();
 	bpdy = parser("-bpdy").asInt();
 	bpdz = parser("-bpdz").asInt();
+	nprocsx = parser("-nprocsx").asInt();
+	parser.unset_strict_mode();
+	nprocsy = parser("-nprocsy").asInt(1);
+	nprocsz = parser("-nprocsz").asInt(1);
 
+	if(rank==0)
+		printf("Creating grid %d %d %d %d %d %d ...\n",bpdx,bpdy,bpdz,nprocsx,nprocsy,nprocsz);
+	fflush(0);
 	grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz);
+	if(rank==0)
+		printf("..done.\n");
+	fflush(0);
 	assert(grid != NULL);
-
     vInfo = grid->getBlocksInfo();
 }
 
@@ -41,10 +48,11 @@ void Simulation::parseArguments()
     parser.unset_strict_mode();
     theta = 0.5;
     bRestart = parser("-restart").asBool(false);
+    bDLM = parser("-use-dlm").asBool(false);
     dumpFreq = parser("-fdump").asDouble(0);	// dumpFreq==0 means that this dumping frequency (in #steps) is not active
     dumpTime = parser("-tdump").asDouble(0.25);	// dumpTime==0 means that this dumping frequency (in time)   is not active
     saveFreq = parser("-fsave").asDouble(0);	// dumpFreq==0 means that this dumping frequency (in #steps) is not active
-    saveTime = parser("-tsave").asDouble(1.0);	// dumpTime==0 means that this dumping frequency (in time)   is not active
+    saveTime = parser("-tsave").asDouble(10.0);	// dumpTime==0 means that this dumping frequency (in time)   is not active
     nsteps = parser("-nsteps").asInt(0);		// nsteps==0   means that this stopping criteria is not active
     endTime = parser("-tend").asDouble(8);		// endTime==0  means that this stopping criteria is not active
     
@@ -53,38 +61,57 @@ void Simulation::parseArguments()
     lambda = parser("-lambda").asDouble(.25);
     CFL = parser("-CFL").asDouble(.25);
     LCFL = parser("-LCFL").asDouble(.1);
-    uinf[0] = parser("-uinf").asDouble(0.0);
+    uinf[0] = parser("-uinfx").asDouble(0.0);
+    uinf[1] = parser("-uinfy").asDouble(0.0);
+    uinf[2] = parser("-uinfz").asDouble(0.0);
     length = parser("-length").asDouble(0.0);
+    if(rank==0)
     printf("Fluid kinematic viscosity: %20.20e (length scale = %20.20e)\n", nu, length);
     verbose = parser("-verbose").asBool(false);
     
-    parser.save_options();
+    //parser.save_options();
 }
     
 void Simulation::setupObstacles()
 {
-    IF2D_ObstacleFactory obstacleFactory(grid, uinf);
-    obstacle_vector = new IF2D_ObstacleVector(grid, obstacleFactory.create(parser));
+    IF3D_ObstacleFactory obstacleFactory(grid, uinf);
+    obstacle_vector = new IF3D_ObstacleVector(grid, obstacleFactory.create(parser));
     parser.unset_strict_mode();
+    //const int nObst = obstacle_vector->nObstacles();
+    //_D.resize(nObst);
+    //obstacle_vector->_getData(_D);
 }
     
 void Simulation::setupOperators()
 {
     pipeline.clear();
     pipeline.push_back(new CoordinatorComputeShape(grid, &obstacle_vector, &step, &time, uinf));
-    pipeline.push_back(new CoordinatorAdvection<Lab>(uinf, grid));
-    pipeline.push_back(new CoordinatorDiffusion<Lab>(nu, grid));
+    pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
+    pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
     pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
-    pipeline.push_back(new CoordinatorPressure<Lab>(grid, &obstacle_vector));
+    pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
+    //pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
+    //pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
 
-    pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
-    pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
-    
-    cout << "Coordinator/Operator ordering:\n";
-    for (int c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;
+
+    if(rank==0) {
+    	cout << "Coordinator/Operator ordering:\n";
+    	for (int c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;
+    }
 }
 
-void Simulation::_dump(double & nextDumpTime)
+void Simulation::areWeDumping(double & nextDumpTime)
+{
+	bDump = (dumpFreq>0 && step%dumpFreq==0) || (dumpTime>0 && time>=nextDumpTime);
+	if (bDump) nextDumpTime += dumpTime;
+#ifdef _BSMART_
+	for (int i=0; i<obstacle_vector->nObstacles(); i++)
+	{if (t+DT>=_D[i]->t_next_comm) bDump=true;}
+	if (bDump) obstacle_vector->getFieldOfView();
+#endif
+}
+
+void Simulation::_dump(const string append = string())
 {
 #ifndef NDEBUG
     if (rank==0) {
@@ -103,19 +130,16 @@ void Simulation::_dump(double & nextDumpTime)
                     std::isnan(b(ix,iy,iz).v) ||
                     std::isnan(b(ix,iy,iz).w) ||
                     std::isnan(b(ix,iy,iz).chi) ||
-                    std::isnan(b(ix,iy,iz).p) ||
-                    std::isnan(b(ix,iy,iz).pOld))
+                    std::isnan(b(ix,iy,iz).p) )
                     cout << "dump" << endl;
                 assert(!std::isnan(b(ix,iy,iz).u));
                 assert(!std::isnan(b(ix,iy,iz).v));
                 assert(!std::isnan(b(ix,iy,iz).w));
                 assert(!std::isnan(b(ix,iy,iz).chi));
                 assert(!std::isnan(b(ix,iy,iz).p));
-                assert(!std::isnan(b(ix,iy,iz).pOld));
                 assert(!std::isnan(b(ix,iy,iz).tmpU));
                 assert(!std::isnan(b(ix,iy,iz).tmpV));
                 assert(!std::isnan(b(ix,iy,iz).tmpW));
-                assert(!std::isnan(b(ix,iy,iz).tmp));
             }
         }
     }
@@ -125,82 +149,72 @@ void Simulation::_dump(double & nextDumpTime)
     const int sizeY = bpdy * FluidBlock::sizeY;
 	const int sizeZ = bpdz * FluidBlock::sizeZ;
     vector<BlockInfo> vInfo = grid->getBlocksInfo();
+
+    CoordinatorVorticity<LabMPI> coordVorticity(grid);
+    coordVorticity(dt);
     
-    if((dumpFreq>0 && step%dumpFreq==0)||(dumpTime>0 && time>nextDumpTime)) {
-        nextDumpTime += dumpTime;
-        
-#ifdef _USE_HDF_
-			CoordinatorVorticity<LabMPI> coordVorticity(grid);
-			coordVorticity(dt);
-			stringstream ss;
-			ss << path2file << "-" << std::setfill('0') << std::setw(6) << step;
-			if (rank==0) cout << ss.str() << endl;
-			DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+    stringstream ss;
+    ss << path2file << append << "-" << std::setfill('0') << std::setw(6) << step;
+    if (rank==0) cout << ss.str() << endl;
+
+#if defined(_USE_HDF_)
+    DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+#else if defined(_USE_LZ4_)
+    MPI_Barrier(MPI_COMM_WORLD);
+    double vpeps = parser("-vpeps").asDouble(1e-5);
+    int wavelet_type = parser("-wtype").asInt(1);
+
+    waveletdumper_grid.verbose();
+    waveletdumper_grid.set_wtype_write(wavelet_type);
+    waveletdumper_grid.set_threshold (vpeps);
+    waveletdumper_grid.Write<0>(grid, ss.str());
+    waveletdumper_grid.Write<1>(grid, ss.str());
+    waveletdumper_grid.Write<2>(grid, ss.str());
+    waveletdumper_grid.Write<3>(grid, ss.str());
+    waveletdumper_grid.Write<4>(grid, ss.str());
+    waveletdumper_grid.Write<5>(grid, ss.str());
+    waveletdumper_grid.Write<6>(grid, ss.str());
+    waveletdumper_grid.Write<7>(grid, ss.str());
+    /*
+		waveletdumper_vorticity.verbose();
+		waveletdumper_vorticity.set_wtype_write(wavelet_type);
+		waveletdumper_vorticity.set_threshold (vpeps);
+		if (vpchannels.find('w') != std::string::npos || vpchannels.find('W') != std::string::npos)
+			waveletdumper_vorticity.Write<5>(grid, ss.str());
+
+		waveletdumper_velocity_magnitude.verbose();
+		waveletdumper_velocity_magnitude.set_wtype_write(wavelet_type);
+		waveletdumper_velocity_magnitude.set_threshold (vpeps);
+		if (vpchannels.find('m') != std::string::npos)
+			waveletdumper_velocity_magnitude.Write<0>(grid, ss.str());
+     */
 #endif
-			// if (rank==0) _serialize(); TODO: ask
-			MPI_Barrier(MPI_COMM_WORLD);
-			/* VP
-				 std::stringstream streamer;
-				 streamer << path2file << "-datawavelet";
-				 streamer.setf(ios::dec | ios::right);
-				 streamer.width(6);
-				 streamer.fill('0');
-				 streamer << step;
-
-				 double vpeps = parser("-vpeps").asDouble(1e-5);
-				 int wavelet_type = parser("-wtype").asInt(1);
-
-				 waveletdumper_grid.verbose();
-				 waveletdumper_grid.set_wtype_write(wavelet_type);
-
-				 waveletdumper_grid.set_threshold (vpeps);
-				 waveletdumper_grid.Write<0>(grid, streamer.str());
-				 waveletdumper_grid.Write<1>(grid, streamer.str());
-				 waveletdumper_grid.Write<2>(grid, streamer.str());
-				 waveletdumper_grid.Write<3>(grid, streamer.str());
-				 waveletdumper_grid.Write<4>(grid, streamer.str());
-				 waveletdumper_grid.Write<5>(grid, streamer.str());
-					/*
-				 waveletdumper_vorticity.verbose();
-				 waveletdumper_vorticity.set_wtype_write(wavelet_type);
-				 waveletdumper_vorticity.set_threshold (vpeps);
-				 if (vpchannels.find('w') != std::string::npos || vpchannels.find('W') != std::string::npos)
-					waveletdumper_vorticity.Write<5>(grid, streamer.str());
-
-				 waveletdumper_velocity_magnitude.verbose();
-				 waveletdumper_velocity_magnitude.set_wtype_write(wavelet_type);
-				 waveletdumper_velocity_magnitude.set_threshold (vpeps);
-				 if (vpchannels.find('m') != std::string::npos)
-					waveletdumper_velocity_magnitude.Write<0>(grid, streamer.str());
-			*/
-    }
 }
     
 void Simulation::_selectDT()
 {
-    const double maxU = findMaxUOMP(vInfo,*grid,uinf);
+    double local_maxU = findMaxUOMP(vInfo,*grid,uinf);
+    double global_maxU;
+    MPI::COMM_WORLD.Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX);
     dtFourier = CFL*vInfo[0].h_gridpoint*vInfo[0].h_gridpoint/nu;
-    dtCFL     = CFL*vInfo[0].h_gridpoint/abs(maxU);
+    dtCFL     = CFL*vInfo[0].h_gridpoint/abs(global_maxU);
     dt = min(dtCFL,dtFourier);
-#ifdef _PARTICLES_
-    //const double maxA = findMaxAOMP<Lab>(vInfo,*grid);
-    //dtLCFL = maxA==0 ? 1e5 : LCFL/abs(maxA);
-    //dt = min(dt,dtLCFL);
-#endif
-    
-    printf("maxU %f dtF %f dtC %f dt %f\n",maxU,dtFourier,dtCFL,dt);
+
+    if(rank==0)
+    printf("maxU %f dtF %f dtC %f dt %f\n",global_maxU,dtFourier,dtCFL,dt);
     //if (dumpTime>0) dt = min(dt,nextDumpTime-time);
     //if (saveTime>0) dt = min(dt,nextSaveTime-time);
     //if (endTime>0)  dt = min(dt,endTime-time);
-    
+    /*
     if ( step<1000 ) {
         const double dt_max = 0.01;
         const double dt_min = 1e-6;
         const double dt_ramp = dt_min + step*(dt_max - dt_min)/1000.;
         dt = min(dt,dt_ramp);
+        if(rank==0)
         printf("dt_ramp %f dt %f\n",dt_ramp,dt);
     }
-
+	*/
     //if (verbose) cout << "dt (Fourier, CFL): " << dtFourier << " " << dtCFL << endl;
 }
 
@@ -300,6 +314,12 @@ void Simulation::_deserialize()
     
 void Simulation::init()
 {
+	char hostname[1024];
+	hostname[1023] = '\0';
+	gethostname(hostname, 1023);
+	const int nthreads = omp_get_max_threads();
+	printf("Available %d threads on host Hostname: %s\n", nthreads, hostname);
+
     parseArguments();
     setupGrid();
     setupObstacles();
@@ -348,38 +368,87 @@ void Simulation::simulate()
     {
         profiler.push_start("DT");
         _selectDT();
+        areWeDumping(nextDumpTime);
         profiler.pop_stop();
-        bDump = (dumpTime>0 && time+dt>nextDumpTime);
-        
-        if(bDLM)
-        	lambda = 1.0/dt;
+        /*
+        if(time>0) {
+        	double FU = -1.;
+        	step = 11111111;
+        	_dump(FU); FU = -1.; //dump pre step
+        	(*pipeline[0])(dt);
+        	step = 11111112;
+        	_dump(FU); FU = -1.;//dump create shape
+        	(*pipeline[1])(dt);
+        	step = 11111113;
+        	_dump(FU); FU = -1.; //dump advect
+        	(*pipeline[2])(dt);
+        	step = 11111114;
+        	_dump(FU); FU = -1.; //dump diffusion
+        	(*pipeline[3])(dt);
+        	step = 11111115;
+        	_dump(FU); FU = -1.; //dump dump penalization
+        	(*pipeline[4])(dt);
+        	step = 11111116;
+        	_dump(FU); FU = -1.; //dump pressure projection
+        	exit(0);
+        }
+		*/
+#ifdef _BSMART_
+        profiler.push_start("LEARN");
+        bool bDoOver = false;
+        const int nO = obstacle_vector->nObstacles();
+        for(int i=1; i<nO; i++) {
+        	bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp, length);
+        	if (bDoOver) {
+        		if (i>0) _D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel,  _D[0]->thExp, _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
+        		_D[i]->info = 2;
+        		obstacle_vector->execute(comm, i, t);
+        		return;
+        	}
+        }
+        for(int i=0; i<nO; i++) if(t>=_D[i]->t_next_comm) {
+        	if (i>0) _D[i]->finalize(_D[0]->Xrel,  _D[0]->Yrel,  _D[0]->thExp, _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
+        	obstacle_vector->execute(comm, i, t);
+        }
+        if (bDoOver) exit(0);
+        profiler.pop_stop();
+#endif
+        if(bDLM) lambda = 1.0/dt;
 
-        for (int c=0; c<pipeline.size(); c++) {
+        for (int c=0; c<pipeline.size(); c++)
+        {
+        	//cout << pipeline[c]->getName() << " start" << endl;
             profiler.push_start(pipeline[c]->getName());
             (*pipeline[c])(dt);
             profiler.pop_stop();
+            //double always = -1.;
+            //_dump(always);
+            //step++;
+        	//cout << pipeline[c]->getName() << " stop" << endl;
         }
+
+        step++;
+        time += dt;
+        if(rank==0)
+        printf("Step %d time %f\n",step,time);
 
         profiler.push_start("Dump");
+        if(bDump)
         {
-            _dump(nextDumpTime);
+            _dump();
         }
         profiler.pop_stop();
-
 
         profiler.push_start("Save");
         {
         	_serialize(nextSaveTime);
         }
         profiler.pop_stop();
-
-        time += dt;
-        step++;
-        printf("Step %d time %f\n",step,time);
         
-        if (step % 1000 == 0) profiler.printSummary();
-        if ((endTime>0 && time>endTime) || (nsteps!=0 && step>=nsteps)) {
-        	cout<<"Finished at time "<<time<<" (target end time "<<endTime<<") in "<<step<<" step of "<<nsteps<<endl;
+        if (step % 100 == 0) profiler.printSummary();
+        if ((endTime>0 && time>endTime) || (nsteps!=0 && step>=nsteps))
+        {
+        	cout<<"Finished at time "<<time<<" in "<<step<<" step of "<<nsteps<<endl;
 			exit(0);
         }
     }

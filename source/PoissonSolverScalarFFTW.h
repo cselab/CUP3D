@@ -7,7 +7,7 @@
 
 #include <fftw3.h>
 
-#include "common.h"
+#include "Definitions.h"
 
 #ifndef _SP_COMP_
 // double

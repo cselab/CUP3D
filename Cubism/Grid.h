@@ -26,10 +26,6 @@ class Grid
 	Block * m_blocks;
 	
 protected:
-	
-	const double maxextent;
-	const unsigned int N, NX, NY, NZ;
-	
 	void _dealloc()
 	{
 		allocator<Block> alloc;
@@ -75,7 +71,8 @@ protected:
 	}
 	
 public:
-	
+	const double maxextent;
+	const unsigned int N, NX, NY, NZ;
 	typedef Block BlockType;
 	
 	Grid(const unsigned int NX, const unsigned int NY = 1, const unsigned int NZ = 1, const double maxextent = 1) : 

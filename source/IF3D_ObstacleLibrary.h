@@ -9,6 +9,7 @@
 #ifndef IncompressibleFluids3D_IF3D_ObstacleLibrary_h
 #define IncompressibleFluids3D_IF3D_ObstacleLibrary_h
 
+#include "IF2D_Interpolation1D.h"
 namespace SphereObstacle
 {
     struct FillBlocks
@@ -58,10 +59,10 @@ namespace SphereObstacle
             Real min_pos[3], max_pos[3];
             
             info.pos(min_pos, 0,0,0);
-            info.pos(max_pos, FluidBlock3D::sizeX-1, FluidBlock3D::sizeY-1, FluidBlock3D::sizeZ-1);
+            info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
             for(int i=0;i<3;++i) {
-                min_pos[i]-=buffer_dx*info.h[i];
-                max_pos[i]+=buffer_dx*info.h[i];
+                min_pos[i]-=buffer_dx*info.h_gridpoint;
+                max_pos[i]+=buffer_dx*info.h_gridpoint;
             }
             return _is_touching(min_pos,max_pos);
         }
@@ -93,7 +94,9 @@ namespace SphereObstacle
                             if(dist > +2*h || dist < -2*h) {
                             	const double H = dist > 0 ? 1.0 : 0.0;
                             	defblock->chi[iz][iy][ix] = H;
-                            	b(ix,iy,iz).tmp = std::max(defblock->chi[iz][iy][ix], b(ix,iy,iz).tmp);
+                            	b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+                    			//printf("%f %f %f %f %f\n",x,y,z,p[0],p[1],p[2],dist,H);
+                            	continue;
                             }
 
                             const double distPx = distanceToSphere(x+h,y,z);
@@ -120,35 +123,36 @@ namespace SphereObstacle
                             const double gradUX = inv2h * (distPx - distMx);
                             const double gradUY = inv2h * (distPy - distMy);
                             const double gradUZ = inv2h * (distPz - distMz);
-                            const double gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
+                            const double gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ;
                             // gradI
 							const double gradIX = inv2h * (IplusX - IminuX);
                             const double gradIY = inv2h * (IplusY - IminuY);
                             const double gradIZ = inv2h * (IplusZ - IminuZ);
-                            const double numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
+                            const double numH = gradIX*gradUX+gradIY*gradUY+gradIZ*gradUZ;
 
                             const double gradHX = inv2h * (HplusX - HminuX);
                             const double gradHY = inv2h * (HplusY - HminuY);
                             const double gradHZ = inv2h * (HplusZ - HminuZ);
-                            const double numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
+                            const double numD = gradHX*gradUX+gradHY*gradUY+gradHZ*gradUZ;
 
-                            const double Delta = std::abs(gradUSq) < eps ? numD : numD/gradUSq;
-                            const double H     = std::abs(gradUSq) < eps ? numH : numH/gradUSq;
+                            const double Delta = std::abs(gradUSq)<eps ? numD : numD/gradUSq;
+                            const double H     = std::abs(gradUSq)<eps ? numH : numH/gradUSq;
 
                             if (Delta>1e-6) { //will always be multiplied by h^2
                             	const double dchidx = -Delta*gradUX;
                             	const double dchidy = -Delta*gradUY;
                             	const double dchidz = -Delta*gradUZ;
-                            	surf.add(info.blockID, ix, iy, iz, dchidx, dchidy, dchidz, Delta);
+                            	surf.add(info.blockID,ix,iy,iz,dchidx,dchidy,dchidz,Delta);
                             }
 
                             //        assert(H>=0 && H<=1);
 #ifndef NDEBUG
                             if(H<0 || H>1)
-                            	printf("invalid H?: %10.10e %10.10e %10.10e: %10.10e\n",x,y,z,H);
+							printf("invalid H?: %10.10e %10.10e %10.10e: %10.10e\n",x,y,z,H);
 #endif
                 			defblock->chi[iz][iy][ix] = H;
-                			b(ix,iy,iz).tmp = std::max(defblock->chi[iz][iy][ix], b(ix,iy,iz).tmp);
+                			b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+                			//printf("%f %f %f %f %f\n",x,y,z,p[0],p[1],p[2],dist,H);
                         }
             }
         }
@@ -212,11 +216,11 @@ namespace TorusObstacle
             Real min_pos[3], max_pos[3];
             
             info.pos(min_pos, 0,0,0);
-            info.pos(max_pos, FluidBlock3D::sizeX-1, FluidBlock3D::sizeY-1, FluidBlock3D::sizeZ-1);
+            info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
             for(int i=0;i<3;++i)
             {
-                min_pos[i]-=buffer_dx*info.h[i];
-                max_pos[i]+=buffer_dx*info.h[i];
+                min_pos[i]-=buffer_dx*info.h_gridpoint;
+                max_pos[i]+=buffer_dx*info.h_gridpoint;
             }
             return _is_touching(min_pos,max_pos);
         }
@@ -229,14 +233,14 @@ namespace TorusObstacle
         }
 
         
-        inline void operator()(const BlockInfo& info, FluidBlock3D& b) const
+        inline void operator()(const BlockInfo& info, FluidBlock& b) const
         {
             if(_is_touching(info))
                 //	if(true)
             {
-                for(int iz=0; iz<FluidBlock3D::sizeZ; iz++)
-                    for(int iy=0; iy<FluidBlock3D::sizeY; iy++)
-                        for(int ix=0; ix<FluidBlock3D::sizeX; ix++)
+                for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+                    for(int iy=0; iy<FluidBlock::sizeY; iy++)
+                        for(int ix=0; ix<FluidBlock::sizeX; ix++)
                         {
                             Real p[3];
                             info.pos(p, ix, iy, iz);
@@ -260,7 +264,7 @@ namespace TorusObstacle
                                 
                                 const Real d = sqrt(pow(t[0]-c[0], 2) +  pow(t[1]-c[1], 2) + pow(t[2]-c[2], 2));
                                 const Real chi = mollified_heaviside(d-small_r, smoothing_length);
-                                b(ix, iy, iz).tmp = std::max(chi, b(ix, iy, iz).tmp);
+                                b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
                             }
                         }
             }
@@ -698,16 +702,16 @@ namespace EllipsoidObstacle
             Real min_pos[3], max_pos[3];
             
             info.pos(min_pos, 0,0,0);
-            info.pos(max_pos, FluidBlock3D::sizeX-1, FluidBlock3D::sizeY-1, FluidBlock3D::sizeZ-1);
+            info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
             for(int i=0;i<3;++i)
             {
-                min_pos[i]-=buffer_dx*info.h[i];
-                max_pos[i]+=buffer_dx*info.h[i];
+                min_pos[i]-=buffer_dx*info.h_gridpoint;
+                max_pos[i]+=buffer_dx*info.h_gridpoint;
             }
             return _is_touching(min_pos,max_pos);
         }
         
-        inline void operator()(const BlockInfo& info, FluidBlock3D& b) const
+        inline void operator()(const BlockInfo& info, FluidBlock& b) const
         {
             
             const Real w = quaternion[0];
@@ -723,9 +727,9 @@ namespace EllipsoidObstacle
             
             if(_is_touching(info))
             {
-                for(int iz=0; iz<FluidBlock3D::sizeZ; iz++)
-                    for(int iy=0; iy<FluidBlock3D::sizeY; iy++)
-                        for(int ix=0; ix<FluidBlock3D::sizeX; ix++)
+                for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+                    for(int iy=0; iy<FluidBlock::sizeY; iy++)
+                        for(int ix=0; ix<FluidBlock::sizeX; ix++)
                         {
                             Real p[3];
                             info.pos(p, ix, iy, iz);
@@ -748,7 +752,7 @@ namespace EllipsoidObstacle
                             const Real dist=DistancePointEllipsoid (e, t, xs);
                             const int sign = ( (t[0]*t[0]+t[1]*t[1]+t[2]*t[2]) > (xs[0]*xs[0]+xs[1]*xs[1]+xs[2]*xs[2]) ) ? 1 : -1;
                             const Real chi =  mollified_heaviside(sign*dist, smoothing_length);
-                            b(ix, iy, iz).tmp = std::max(chi, b(ix, iy, iz).tmp);
+                            b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
                         }
             }
         }
@@ -895,7 +899,7 @@ namespace EllipsoidObstacle
         bool _is_touching(const BlockInfo& info, const int buffer_dx=0) const
         {
             
-            const Real safe_distance_info = 2.0*info.h[0]; // two points on each side needed for towers
+            const Real safe_distance_info = 2.0*info.h_gridpoint; // two points on each side needed for towers
             
             // AABB - OBB intersection.
             // ellipsoid is inside OBB with normals normalI,normalJ,normalK and widths e0,e1,e2
@@ -904,12 +908,12 @@ namespace EllipsoidObstacle
             Real start[3], end[3];
             
             info.pos(start, 0,0,0);
-            info.pos(end, FluidBlock3D::sizeX-1, FluidBlock3D::sizeY-1, FluidBlock3D::sizeZ-1);
+            info.pos(end, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
             
             for(int i=0;i<3;++i)
             {
-                start[i]-=(safe_distance_info + buffer_dx*info.h[i]);
-                end[i] += (safe_distance_info + buffer_dx*info.h[i]);
+                start[i]-=(safe_distance_info + buffer_dx*info.h_gridpoint);
+                end[i] += (safe_distance_info + buffer_dx*info.h_gridpoint);
             }
             
             return _is_touching(start,end);
@@ -976,13 +980,13 @@ namespace EllipsoidObstacle
         }
         
         
-        inline void operator()(const BlockInfo& info, FluidBlock3D& b) const
+        inline void operator()(const BlockInfo& info, FluidBlock& b) const
         {
             if(_is_touching(info))
             {
-                for(int iz=0; iz<FluidBlock3D::sizeZ; iz++)
-                    for(int iy=0; iy<FluidBlock3D::sizeY; iy++)
-                        for(int ix=0; ix<FluidBlock3D::sizeX; ix++)
+                for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+                    for(int iy=0; iy<FluidBlock::sizeY; iy++)
+                        for(int ix=0; ix<FluidBlock::sizeX; ix++)
                         {
                             Real p[3];
                             info.pos(p, ix, iy, iz);
@@ -999,8 +1003,8 @@ namespace EllipsoidObstacle
                                 rotationMatrix[2][0]*p[0] + rotationMatrix[2][1]*p[1] + rotationMatrix[2][2]*p[2]
                             };
 
-                            const Real chi = getHeavisideFDMH1(t[0],t[1],t[2],info.h[0]);
-                            b(ix, iy, iz).tmp = std::max(chi, b(ix, iy, iz).tmp);
+                            const Real chi = getHeavisideFDMH1(t[0],t[1],t[2],info.h_gridpoint);
+                            b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
                         }
             }
         }
@@ -1071,11 +1075,11 @@ namespace VAWTObstacle
             Real min_pos[3], max_pos[3];
             
             info.pos(min_pos, 0,0,0);
-            info.pos(max_pos, FluidBlock3D::sizeX-1, FluidBlock3D::sizeY-1, FluidBlock3D::sizeZ-1);
+            info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
             for(int i=0;i<3;++i)
             {
-                min_pos[i]-=buffer_dx*info.h[i];
-                max_pos[i]+=buffer_dx*info.h[i];
+                min_pos[i]-=buffer_dx*info.h_gridpoint;
+                max_pos[i]+=buffer_dx*info.h_gridpoint;
             }
             return _is_touching(min_pos,max_pos);
         }
@@ -1157,7 +1161,7 @@ namespace VAWTObstacle
             return H;
         }
         
-        inline void operator()(const BlockInfo& info, FluidBlock3D& b) const
+        inline void operator()(const BlockInfo& info, FluidBlock& b) const
         {
             if(_is_touching(info))
             {
@@ -1171,9 +1175,9 @@ namespace VAWTObstacle
                     bladePosY[i] = radius * std::sin(bladeAngle);
                 }
                 
-                for(int iz=0; iz<FluidBlock3D::sizeZ; iz++)
-                    for(int iy=0; iy<FluidBlock3D::sizeY; iy++)
-                        for(int ix=0; ix<FluidBlock3D::sizeX; ix++)
+                for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+                    for(int iy=0; iy<FluidBlock::sizeY; iy++)
+                        for(int ix=0; ix<FluidBlock::sizeX; ix++)
                         {
                             Real p[3];
                             info.pos(p, ix, iy, iz);
@@ -1197,8 +1201,8 @@ namespace VAWTObstacle
                             p[0]-=bladePosX[minIdx];
                             p[1]-=bladePosY[minIdx];
 
-                            const Real chi = getHeavisideFDMH1(p[0],p[1],p[2],info.h[0],minIdx);
-                            b(ix, iy, iz).tmp = std::max(chi, b(ix, iy, iz).tmp);
+                            const Real chi = getHeavisideFDMH1(p[0],p[1],p[2],info.h_gridpoint,minIdx);
+                            b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
                         }
             }
         }
@@ -1390,23 +1394,26 @@ namespace Schedulers
     		const double _1oT = 1./Twave;
             // the fish goes through (as function of t and s) a wave function that describes the curvature
             for(int i=0;i<Nfine;++i) {
-                const double c = positions_fine[i]*_1oL - (t-t0)*_1oT; //traveling wave coord
+                const double c = positions_fine[i]*_1oL - (t - this->t0)*_1oT; //traveling wave coord
             	bool bCheck = true;
 
                 if (c < positions[0]) { // Are you before latest wave node?
-                    IF2D_Interpolation1D::cubicInterpolation(c, positions[0], c, parameters_t0[0], parameters_t0[0],
-                    														parameters_fine[i], dparameters_fine[i]);
+                    IF2D_Interpolation1D::cubicInterpolation(c, positions[0], c,
+                    		this->parameters_t0[0], this->parameters_t0[0],
+							parameters_fine[i], dparameters_fine[i]);
                     bCheck = false;
                 }
                 else if (c > positions[Npoints-1]) {// Are you after oldest wave node?
-                    IF2D_Interpolation1D::cubicInterpolation(positions[Npoints-1],c,c,parameters_t0[Npoints-1],parameters_t0[Npoints-1],
-                    														parameters_fine[i],dparameters_fine[i]);
+                    IF2D_Interpolation1D::cubicInterpolation(positions[Npoints-1], c, c,
+                    		this->parameters_t0[Npoints-1], this->parameters_t0[Npoints-1],
+							parameters_fine[i], dparameters_fine[i]);
                     bCheck = false;
                 } else {
                     for (int j=1; j<Npoints; ++j) { // Check at which point of the travelling wave we are
                         if (( c >= positions[j-1] ) && ( c <= positions[j] )) {
-                            IF2D_Interpolation1D::cubicInterpolation(positions[j-1],positions[j],c,parameters_t0[j-1],parameters_t0[j],
-                            												parameters_fine[i],dparameters_fine[i]);
+                            IF2D_Interpolation1D::cubicInterpolation(positions[j-1], positions[j], c,
+                            		this->parameters_t0[j-1], this->parameters_t0[j],
+									parameters_fine[i], dparameters_fine[i]);
                             dparameters_fine[i] = -dparameters_fine[i]*_1oT; // df/dc * dc/dt
                             bCheck = false;
                         }
@@ -1418,10 +1425,10 @@ namespace Schedulers
 
         void Turn(const double b, const double t_turn) // each decision adds a node at the beginning of the wave (left, right, straight) and pops last node
         {
-        	t0 = t_turn;
-            for(int i=Npoints-1; i>0; --i) parameters_t0[i] = parameters_t0[i-2];
-            parameters_t0[1] = b;
-            parameters_t0[0] = 0;
+        	this->t0 = t_turn;
+            for(int i=Npoints-1; i>0; --i) this->parameters_t0[i] = this->parameters_t0[i-2];
+            this->parameters_t0[1] = b;
+            this->parameters_t0[0] = 0;
         }
     };
 }

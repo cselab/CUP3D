@@ -8,7 +8,7 @@
  */
 
 #ifndef _WAVELETCOMPRESSOR_H_
-#define _WAVELETCOMPRESSOR_H_ 1
+#define _WAVELETCOMPRESSOR_H_
 
 #pragma once
 
@@ -125,7 +125,7 @@ public:
 		}
 
 		deflateEnd( &datastream );
-#else /* _USE_LZ4 */
+#else if defined(_USE_LZ4)/* _USE_LZ4 */
 		compressedbytes = LZ4_compress((char*) WaveletCompressorGeneric<DATASIZE1D, DataType>::compressed_data(), (char *)bufzlib, ninputbytes);
 		if (compressedbytes < 0)
 		{
@@ -160,7 +160,7 @@ public:
 		}
 
 		deflateEnd( &datastream );
-#else /* _USE_LZ4 */
+#else if defined(_USE_LZ4)/* _USE_LZ4 */
 		compressedbytes = LZ4_compress((char*) WaveletCompressorGeneric<DATASIZE1D, DataType>::compressed_data(), (char *)bufzlib, ninputbytes);
 		if (compressedbytes < 0)
 		{
@@ -197,9 +197,8 @@ public:
 		inflateEnd(&datastream);
 		
 		WaveletCompressorGeneric<DATASIZE1D, DataType>::decompress(float16, decompressedbytes, wtype);
-#else /* _USE_LZ4 */
-                decompressedbytes = LZ4_uncompress_unknownOutputSize((char *)bufzlib, (char*) WaveletCompressorGeneric<DATASIZE1D, DataType>::compressed_data(),
-									ninputbytes, WaveletCompressorGeneric<DATASIZE1D, DataType>::BUFMAXSIZE);
+#else if defined(_USE_LZ4) /* _USE_LZ4 */
+		decompressedbytes = LZ4_uncompress_unknownOutputSize((char *)bufzlib, (char*) WaveletCompressorGeneric<DATASIZE1D, DataType>::compressed_data(), ninputbytes, WaveletCompressorGeneric<DATASIZE1D, DataType>::BUFMAXSIZE);
 		if (decompressedbytes < 0)
 		{
 			printf("LZ4 DECOMPRESSION FAILURE!!\n");
@@ -209,9 +208,9 @@ public:
 	}
 };
 
-#ifdef _BLOCKSIZE_
-typedef WaveletCompressorGeneric<_BLOCKSIZE_, Real> WaveletCompressor;
-typedef WaveletCompressorGeneric_zlib<_BLOCKSIZE_, Real> WaveletCompressor_zlib;
+#ifdef _USE_LZ4_
+typedef WaveletCompressorGeneric<_BS_, Real> WaveletCompressor;
+typedef WaveletCompressorGeneric_zlib<_BS_, Real> WaveletCompressor_zlib;
 #endif
 
 

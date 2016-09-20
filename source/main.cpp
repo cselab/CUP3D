@@ -13,31 +13,41 @@
 #include <sstream>
 using namespace std;
 
-#include "Definitions.h"
 #include "Simulation.h"
 
-int main(int argc, const char **argv)
+int main(int argc, char **argv)
 {
-	//MPI_Init(&argc, &argv);
+	Communicator * communicator = nullptr;
 	int provided;
-	MPI_Init_thread(&argc, &argv, MPI_THREAD_MULTIPLE, &provided);
-	
+	MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
+	if (provided < MPI_THREAD_FUNNELED) {
+		printf("ERROR: The MPI implementation does not have required thread support\n");
+		MPI_Abort(MPI_COMM_WORLD, 1);
+	}
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+	ArgumentParser parser(argc,argv);
+	parser.set_strict_mode();
 	
 	if (rank==0) {
 		cout << "====================================================================================================================\n";
 		cout << "\t\tCubism UP 3D (velocity-pressure 3D incompressible Navier-Stokes solver)\n";
 		cout << "====================================================================================================================\n";
+#ifdef _BSMART_
+		parser.unset_strict_mode();
+		const int _sockID = parser("-sock").asInt(0);
+		if (parser("-Tstartlearn").asDouble(-1.0)>0.) {
+			printf("Communicating over sock %d\n", _sockID);
+			const int NpLatLine = parser("-NpLatLine").asInt(0);
+			const int nActions = parser("-nActions").asInt(0);
+			const int nStates = (nActions==1) ? 20+10*NpLatLine : 25+10*NpLatLine;
+			communicator = new Communicator(_sockID,nStates,nActions);
+		}
+#endif
 	}
-	
-	ArgumentParser parser(argc,argv);
-	parser.set_strict_mode();
-	
-	string simSetting = parser("-sim").asString();
-	Simulation_Fluid * sim;
-	
-	sim = new Simulation(argc, argv);
+
+	Simulation * sim = new Simulation(argc, argv, communicator);
 	sim->init();
 	sim->simulate();
 	

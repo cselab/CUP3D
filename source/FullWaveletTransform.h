@@ -8,7 +8,7 @@
  */
 
 #ifndef _FULLWAVELETTRANFORM_H_
-#define _FULLWAVELETTRANFORM_H_ 1
+#define _FULLWAVELETTRANFORM_H_
 
 #pragma once
 
@@ -212,6 +212,6 @@ namespace WaveletsOnInterval
 			FullTransformEngine<BS, BS, BS, BS>::template load<DataType>(datastream, mask, data);
 		}
 	};
-}
+};
 
 #endif

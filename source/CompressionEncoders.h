@@ -8,7 +8,7 @@
  */
 
 #ifndef _COMPRESSIONENCODERS_H_
-#define _COMPRESSIONENCODERS_H_ 1
+#define _COMPRESSIONENCODERS_H_
 
 #pragma once
 
@@ -154,7 +154,8 @@ inline int deflate_inplace(z_stream *strm, unsigned char *buf, unsigned len,
     *max = strm->next_out - buf;
     return ret == Z_OK ? Z_BUF_ERROR : (ret == Z_STREAM_END ? Z_OK : ret);
 #else	/* _USE_LZ4_ */
-	#define ZBUFSIZE (4*1024*1024)	/* fix this */
+    const int ZBUFSIZE = (4*1024*1024);
+
 	static char bufzlib[ZBUFSIZE];	/* and this per thread (threadprivate or better an small cyclic array of buffers ) */
 
 	if (ZBUFSIZE < *max) {

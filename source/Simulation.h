@@ -12,7 +12,7 @@
 #ifndef CubismUP_2D_Simulation_Fluid_h
 #define CubismUP_2D_Simulation_Fluid_h
 
-#include "Definitions.h"
+//#include "Definitions.h"
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
 #include "ProcessOperatorsOMP.h"
@@ -24,20 +24,22 @@
 #include "CoordinatorPenalization.h"
 #include "CoordinatorComputeShape.h"
 #include "CoordinatorPressure.h"
-#include "CoordinatorPressureGradient.h"
 
 #include "IF3D_ObstacleVector.h"
-#include "IF2D_ObstacleFactory.h"
-//#include "IF2D_StefanFishOperator.h"
-#include "IF2D_CarlingFishOperator.h"
-#include "IF3D_SphereObstacleOperator.h"
-#include "IF3D_ForcedSphereObstacleOperator.h"
-
+#include "IF3D_ObstacleFactory.h"
+//#include "IF3D_StefanFishOperator.h"
+//#include "IF3D_CarlingFishOperator.h"
+//#include "IF3D_SphereObstacleOperator.h"
+//#include "IF3D_ForcedSphereObstacleOperator.h"
+#ifdef _USE_LZ4_
+#include "SerializerIO_WaveletCompression_MPI_Simple.h"
+#endif
 
 #include <vector>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
+
 /*
 namespace ComputationDiagnostics
 {
@@ -131,7 +133,7 @@ namespace FlowDiagnostics
             // do we need a finite state machine coordinating operators?
             diagContainer blockData;
             blockData=Real(0);
-            
+            This works only for 2D and this text ensures that you will not compile this D:
             for(int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for(int ix=0; ix<FluidBlock::sizeX; ++ix)
                 {
@@ -169,15 +171,18 @@ class Simulation
 protected:
 	ArgumentParser parser;
 	Profiler profiler;
-	
+#ifdef _USE_LZ4_
+	SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, FluidVPStreamer> waveletdumper_grid;
+#endif
 	// Serialization
 	bool bPing; // needed for ping-pong scheme
 	string path4serialization;
 	
 	//The protagonist
-    IF2D_ObstacleVector* obstacle_vector;
+    IF3D_ObstacleVector* obstacle_vector;
     //The antagonist
 	vector<GenericCoordinator*> pipeline;
+	Communicator * communicator;
 
 	// grid
 	int rank, nprocs;
@@ -202,7 +207,7 @@ protected:
 	double dumpTime, saveTime;
     //double nextDumpTime, nextSaveTime;
 	string path2file;
-	SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
+	//SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
 	
     void _ic();
 	
@@ -214,8 +219,8 @@ protected:
     
     virtual void setupOperators();
     
-    virtual void _dump(double & nextDumpTime);
-    
+    virtual void _dump(const string append);
+    void areWeDumping(double & nextDumpTime);
     virtual void _selectDT();
     
     void _serialize(double & nextSaveTime);
@@ -223,11 +228,11 @@ protected:
     void _deserialize();
 	
 public:
-    Simulation(const int argc, const char ** argv) :
+    Simulation(const int argc, char ** argv, Communicator* comm) :
     parser(argc,argv), bpdx(-1), bpdy(-1), step(0), nsteps(0), endTime(0), time(0), dt(0),
 	rank(0), nprocs(1), bPing(false), uinf{0.0,0.0}, uinf_dummy{0.0,0.0}, re(0), length(0), nu(0),
 	dtCFL(0), dtLCFL(0), dtFourier(0), CFL(0), LCFL(0), lambda(0), bDump(false), bRestart(false),
-	verbose(false), bDLM(false), dumpFreq(0), saveFreq(0), dumpTime(0), saveTime(0)
+	verbose(false), bDLM(false), dumpFreq(0), saveFreq(0), dumpTime(0), saveTime(0), communicator(comm)
 	{
 		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 		MPI_Comm_size(MPI_COMM_WORLD,&nprocs);

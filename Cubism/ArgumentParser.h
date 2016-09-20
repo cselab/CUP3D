@@ -43,33 +43,19 @@ public:
 
 	double asDouble(double def=0)
 	{
-		if (content == "")
-        {
-            ostringstream sbuf;
-            sbuf << def;
-            content = sbuf.str();
-        }
+		if (content == "") return def;
 		return (double) atof(content.c_str());
 	}
 
 	int asInt(int def=0)
 	{
-		if (content == "")
-        {
-            ostringstream sbuf;
-            sbuf << def;
-            content = sbuf.str();
-        }
+		if (content == "") return def;
 		return atoi(content.c_str());
 	}
 
 	bool asBool(bool def=false)
 	{
-		if (content == "")
-        {
-            if (def) content = "true";
-            else     content = "false";
-        }
+		if (content == "") return def;
 		if (content == "0") return false;
 		if (content == "false") return false;
 
@@ -78,20 +64,17 @@ public:
 
 	string asString(string def="")
 	{
-		if (content == "") content = def;
-
+		if (content == "") return def;
 		return content;
 	}
 };
 
-class CommandlineParser
+class ArgumentParser
 {
-private:
-	const int iArgC;
-	const char** vArgV;
-	bool bStrictMode, bVerbose;
-
 protected:
+	const int iArgC;
+	char** vArgV;
+	bool bStrictMode, bVerbose;
 	map<string,Value> mapArguments;
 
 public:
@@ -118,7 +101,9 @@ public:
 		return mapArguments.find(arg) != mapArguments.end();
 	}
 
-	CommandlineParser(const int argc, const char ** argv) : mapArguments(), iArgC(argc), vArgV(argv), bStrictMode(false), bVerbose(true)
+	ArgumentParser() : mapArguments(), iArgC(0), vArgV(nullptr), bStrictMode(false), bVerbose(false) {}
+
+	ArgumentParser(const int argc, char ** argv) : mapArguments(), iArgC(argc), vArgV(argv), bStrictMode(false), bVerbose(true)
 	{
 		for (int i=1; i<argc; i++)
 			if (argv[i][0] == '-')
@@ -151,7 +136,7 @@ public:
 
 	int getargc() const { return iArgC; }
 
-	const char** getargv() const { return vArgV; }
+	char** getargv() { return vArgV; }
 
 	void set_strict_mode()
 	{
@@ -202,7 +187,7 @@ public:
 		}
     }
 };
-
+/*
 
 class ArgumentParser: public CommandlineParser
 {
@@ -373,3 +358,4 @@ public:
         }
     }
 };
+*/

@@ -1,13 +1,16 @@
 #pragma once
-#include <mpi.h>
-#include <vector>
-#include <cassert>
-#include <cmath>
-#include <iostream>
+
+//#include <mpi.h>
+//#include <vector>
+//#include <cassert>
+//#include <cmath>
+//#include <iostream>
+
+
+#include "Definitions.h"
 
 #include <fftw3.h>
-
-#include "common.h"
+#include <fftw3-mpi.h>
 
 #ifndef _SP_COMP_
 typedef fftw_complex mycomplex;
@@ -16,7 +19,6 @@ typedef fftw_plan myplan;
 typedef fftwf_complex mycomplex;
 typedef fftwf_plan myplan;
 #endif
-#include <fftw3-mpi.h>
 
 using namespace std;
 
@@ -29,30 +31,27 @@ class FFTWBase_MPI
 	
 	static void _setup(const int desired_threads)
 	{
-		if (!initialized)
-		{
+		if (!initialized) {
 			initialized = true;
-			
 			const int supported_threads = MPI::Query_thread();
-			
-			if (supported_threads>=MPI_THREAD_FUNNELED)
-			{
+			if (supported_threads>=MPI_THREAD_FUNNELED) {
+				printf("FFTW should be multithreaded\n");
 #ifndef _SP_COMP_
 				const int retval = fftw_init_threads();
 #else
 				const int retval = fftwf_init_threads();
 #endif
-				if(retval==0)
-				{
+				if(retval==0) {
 					cout << "FFTWBase::setup(): Oops the call to fftw_init_threads() returned zero. Aborting\n";
 					abort();
 				}
-				else
+				else {
 #ifndef _SP_COMP_
-				fftw_plan_with_nthreads(desired_threads);
+					fftw_plan_with_nthreads(desired_threads);
 #else
-				fftwf_plan_with_nthreads(desired_threads);
+					fftwf_plan_with_nthreads(desired_threads);
 #endif
+				}
 			}
 			
 #ifndef _SP_COMP_
@@ -73,8 +72,7 @@ public:
 	{
 		registered_objects--;
 		
-		if (registered_objects == 0)
-		{
+		if (registered_objects == 0) {
 #ifndef _SP_COMP_
 			fftw_mpi_cleanup();
 #else
@@ -99,21 +97,16 @@ protected:
 	
 	void _setup(Real *& rhs , const size_t nx, const size_t ny, const size_t nz)
 	{
-		if (!initialized)
-		{
+		if (!initialized) {
 			initialized = true;
 #ifndef _SP_COMP_
 			alloc_local = fftw_mpi_local_size_3d_transposed(nx, ny, nz/2+1, MPI::COMM_WORLD, &local_n0, &local_0_start, &local_n1, &local_1_start);
-			
 			rhs = fftw_alloc_real(2*alloc_local);
-			
 			fwd = fftw_mpi_plan_dft_r2c_3d(nx, ny, nz, rhs, (mycomplex *)rhs, MPI::COMM_WORLD, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
 			bwd = fftw_mpi_plan_dft_c2r_3d(nx, ny, nz, (mycomplex *)rhs, rhs, MPI::COMM_WORLD, FFTW_MPI_TRANSPOSED_IN | FFTW_MEASURE);
 #else
 			alloc_local = fftwf_mpi_local_size_3d_transposed(nx, ny, nz/2+1, MPI::COMM_WORLD, &local_n0, &local_0_start, &local_n1, &local_1_start);
-			
 			rhs = fftwf_alloc_real(2*alloc_local);
-			
 			fwd = fftwf_mpi_plan_dft_r2c_3d(nx, ny, nz, rhs, (mycomplex *)rhs, MPI::COMM_WORLD, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
 			bwd = fftwf_mpi_plan_dft_c2r_3d(nx, ny, nz, (mycomplex *)rhs, rhs, MPI::COMM_WORLD, FFTW_MPI_TRANSPOSED_IN | FFTW_MEASURE);
 #endif
@@ -122,28 +115,29 @@ protected:
 	
 	void _cub2fftw(TGrid& grid, Real * out, const size_t nx, const size_t ny, const size_t nz, const size_t nz_hat) const
 	{
+		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
 		vector<BlockInfo> infos = grid.getBlocksInfo();
-		
 		const size_t N = infos.size();
-		
-		const size_t mybpd[3] = {grid.getResidentBlocksPerDimension(0), grid.getResidentBlocksPerDimension(1), grid.getResidentBlocksPerDimension(2)};
+		const size_t mybpd[3] = {
+				grid.getResidentBlocksPerDimension(0),
+				grid.getResidentBlocksPerDimension(1),
+				grid.getResidentBlocksPerDimension(2)
+		};
 		
 #pragma omp parallel for
-		for(int i=0; i<N; ++i)
-		{
+		for(int i=0; i<N; ++i) {
 			const BlockInfo info = infos[i];
-			BlockType& b = *(BlockType*)infos[i].ptrBlock;
+			BlockType& b = *(BlockType*)info.ptrBlock;
 			
-			const size_t offset = BlockType::sizeZ*info.indexLocal[2]+nz_hat*2*( BlockType::sizeY*info.indexLocal[1]+mybpd[1]*BlockType::sizeY*BlockType::sizeX*info.indexLocal[0]);
+			const size_t offset = bs[2]*info.indexLocal[2]+nz_hat*2*(bs[1]*info.indexLocal[1]+mybpd[1]*bs[1]*bs[0]*info.indexLocal[0]);
 			
 			for(int iz=0; iz<BlockType::sizeZ; iz++)
-				for(int iy=0; iy<BlockType::sizeY; iy++)
-					for(int ix=0; ix<BlockType::sizeX; ix++)
-					{
-						const size_t dest_index = offset + iz + 2*nz_hat*( iy + BlockType::sizeY*mybpd[1]*ix );
-						assert(dest_index>=0 && dest_index<nx*ny*nz_hat*2);
-						TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
-					}
+			for(int iy=0; iy<BlockType::sizeY; iy++)
+			for(int ix=0; ix<BlockType::sizeX; ix++) {
+				const size_t dest_index = offset + iz + 2*nz_hat*( iy + BlockType::sizeY*mybpd[1]*ix );
+				assert(dest_index>=0 && dest_index<nx*ny*nz_hat*2);
+				TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
+			}
 		}
 	}
 	
@@ -154,27 +148,21 @@ protected:
 		
 #pragma omp parallel for
 		for(int j=0; j<local_n1; ++j)
-			for(int i=0; i<nx; ++i)
-				for(int k = 0; k<nz_hat; ++k)
-				{
-					const int linidx = (j*nx+i)*nz_hat + k;
-					assert(linidx >=0 && linidx<nx*local_n1*nz_hat);
-					assert(linidx < alloc_local);
-					
-					const Real denom = 32.*(cos(2.*M_PI*i/nx) +
-											cos(2.*M_PI*(local_1_start+j)/ny) +
-											cos(2.0*M_PI*k/nz)) -
-										2.*(cos(4.*M_PI*i/nx) +
-											cos(4.*M_PI*(local_1_start+j)/ny) +
-											cos(4.*M_PI*k/nz)) -
-										90.;
-					
-					const Real inv_denom = (denom==0)? 0.:1./denom;
-					const Real fatfactor = 12. * inv_denom * factor;
-					
-					in_out[linidx][0] *= fatfactor;
-					in_out[linidx][1] *= fatfactor;
-				}
+		for(int i=0; i<nx; ++i)
+		for(int k = 0; k<nz_hat; ++k) {
+			const int linidx = (j*nx+i)*nz_hat + k;
+			assert(linidx >=0 && linidx<nx*local_n1*nz_hat);
+			assert(linidx < alloc_local);
+
+			const Real denom = 32.*(cos(2.*M_PI*i/nx) + cos(2.*M_PI*(local_1_start+j)/ny) + cos(2.*M_PI*k/nz)) -
+								2.*(cos(4.*M_PI*i/nx) + cos(4.*M_PI*(local_1_start+j)/ny) + cos(4.*M_PI*k/nz)) - 90.;
+
+			const Real inv_denom = (denom==0)? 0.:1./denom;
+			const Real fatfactor = 12. * inv_denom * factor;
+
+			in_out[linidx][0] *= fatfactor;
+			in_out[linidx][1] *= fatfactor;
+		}
 		
 		//this is sparta!
 		if (local_1_start == 0)
@@ -183,27 +171,29 @@ protected:
 	
 	void _fftw2cub(Real * out, TGrid& grid, const size_t nx, const size_t ny, const size_t nz, const size_t nz_hat) const
 	{
+		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
 		vector<BlockInfo> infos = grid.getBlocksInfo();
-		
 		const size_t N = infos.size();
-		
-		const size_t mybpd[3] = {grid.getResidentBlocksPerDimension(0), grid.getResidentBlocksPerDimension(1), grid.getResidentBlocksPerDimension(2)};
+		const size_t mybpd[3] = {
+				grid.getResidentBlocksPerDimension(0),
+				grid.getResidentBlocksPerDimension(1),
+				grid.getResidentBlocksPerDimension(2)
+		};
 		
 #pragma omp parallel for
-		for(int i=0; i<N; ++i)
-		{
+		for(int i=0; i<N; ++i) {
 			const BlockInfo info = infos[i];
 			BlockType& b = *(BlockType*)infos[i].ptrBlock;
 			
-			const size_t offset = BlockType::sizeZ*info.indexLocal[2] + nz_hat*2*( BlockType::sizeY*info.indexLocal[1]+mybpd[1]*BlockType::sizeY*BlockType::sizeX*info.indexLocal[0]);
+			const size_t offset = bs[2]*info.indexLocal[2]+nz_hat*2*(bs[1]*info.indexLocal[1]+mybpd[1]*bs[1]*bs[0]*info.indexLocal[0]);
+
 			for(int iz=0; iz<BlockType::sizeZ; iz++)
-				for(int iy=0; iy<BlockType::sizeY; iy++)
-					for(int ix=0; ix<BlockType::sizeX; ix++)
-					{
-						const size_t src_index = offset + iz + 2*nz_hat*( iy + BlockType::sizeY*mybpd[1]*ix );
-						assert(src_index>=0 && src_index<nx*ny*nz_hat*2);
-						TStreamer::operate(&out[src_index], b.data[iz][iy][ix]);
-					}
+			for(int iy=0; iy<BlockType::sizeY; iy++)
+			for(int ix=0; ix<BlockType::sizeX; ix++) {
+				const size_t src_index = offset + iz + 2*nz_hat*( iy + BlockType::sizeY*mybpd[1]*ix );
+				assert(src_index>=0 && src_index<nx*ny*nz_hat*2);
+				TStreamer::operate(&out[src_index], b.data[iz][iy][ix]);
+			}
 		}
 	}
 	
@@ -212,21 +202,28 @@ public:
 	
 	PoissonSolverScalarFFTW_MPI(const int desired_threads, TGrid& grid): FFTWBase_MPI(desired_threads), initialized(false)
 	{
-		if (TStreamer::channels != 1)
-		{
-			cout << "PoissonSolverScalar_MPI::PoissonSolverScalar_MPI(): Error: TStreamer::channels is " << TStreamer::channels << " and it should be 1. Aborting\n";
+		if (TStreamer::channels != 1) {
+			cout << "PoissonSolverScalar_MPI(): Error: TStreamer::channels is " << TStreamer::channels << " (should be 1).\n";
 			abort();
 		}
 		
 		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
-		const size_t gsize[3] = {grid.getBlocksPerDimension(0)*bs[0], grid.getBlocksPerDimension(1)*bs[1], grid.getBlocksPerDimension(2)*bs[2]};
+		const size_t gsize[3] = {
+				grid.getBlocksPerDimension(0)*bs[0],
+				grid.getBlocksPerDimension(1)*bs[1],
+				grid.getBlocksPerDimension(2)*bs[2]
+		};
 		_setup(data, gsize[0], gsize[1], gsize[2]);
 	}
 	
 	void solve(TGrid& grid)
 	{
 		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
-		const size_t gsize[3] = {grid.getBlocksPerDimension(0)*bs[0], grid.getBlocksPerDimension(1)*bs[1], grid.getBlocksPerDimension(2)*bs[2]};
+		const size_t gsize[3] = {
+				grid.getBlocksPerDimension(0)*bs[0],
+				grid.getBlocksPerDimension(1)*bs[1],
+				grid.getBlocksPerDimension(2)*bs[2]
+		};
 		
 		_cub2fftw(grid, data, local_n0, gsize[1], gsize[2], gsize[2]/2+1);
 		
@@ -251,19 +248,16 @@ public:
 	
 	void dispose()
 	{
-		if (initialized)
-		{
+		if (initialized) {
 			initialized = false;
 			
 #ifndef _SP_COMP_
 			fftw_destroy_plan(fwd);
 			fftw_destroy_plan(bwd);
-			
 			fftw_free(data);
 #else
 			fftwf_destroy_plan(fwd);
 			fftwf_destroy_plan(bwd);
-			
 			fftwf_free(data);
 #endif
 			FFTWBase_MPI::dispose();
@@ -289,8 +283,7 @@ protected:
 	
 	virtual void _setup(Real *& rhs, const size_t nx, const size_t ny, const size_t nz)
 	{
-		if (!initialized)
-		{
+		if (!initialized) {
 			initialized = true;
 			
 			//  Forward X:  FFT
@@ -300,13 +293,11 @@ protected:
 #ifndef _SP_COMP_
 			alloc_local = fftw_mpi_local_size_3d_transposed(nx, ny, nz, MPI::COMM_WORLD, &local_n0, &local_0_start, &local_n1, &local_1_start);
 			rhs = fftw_alloc_real(alloc_local);
-			
 			fwd = fftw_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, MPI::COMM_WORLD, FFTW_R2HC, FFTW_REDFT11, FFTW_R2HC, FFTW_MEASURE);
 			bwd = fftw_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, MPI::COMM_WORLD, FFTW_HC2R, FFTW_REDFT11, FFTW_HC2R, FFTW_MEASURE);
 #else // _SP_COMP_
 			alloc_local = fftwf_mpi_local_size_3d_transposed(nx, ny, nz, MPI::COMM_WORLD, &local_n0, &local_0_start, &local_n1, &local_1_start);
 			rhs = fftwf_alloc_real(alloc_local);
-			
 			fwd = fftwf_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, MPI::COMM_WORLD, FFTW_R2HC, FFTW_REDFT11, FFTW_R2HC, FFTW_MEASURE);
 			bwd = fftwf_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, MPI::COMM_WORLD, FFTW_HC2R, FFTW_REDFT11, FFTW_HC2R, FFTW_MEASURE);
 #endif // _SP_COMP_
@@ -316,14 +307,15 @@ protected:
 	void _cub2fftw(TGrid& grid, Real * out, const size_t nx, const size_t ny, const size_t nz) const
 	{
 		vector<BlockInfo> infos = grid.getBlocksInfo();
-		
 		const size_t N = infos.size();
-		
-		const size_t mybpd[3] = {grid.getResidentBlocksPerDimension(0), grid.getResidentBlocksPerDimension(1), grid.getResidentBlocksPerDimension(2)};
+		const size_t mybpd[3] = {
+				grid.getResidentBlocksPerDimension(0),
+				grid.getResidentBlocksPerDimension(1),
+				grid.getResidentBlocksPerDimension(2)
+		};
 		
 #pragma omp parallel for
-		for(int i=0; i<N; ++i)
-		{
+		for(int i=0; i<N; ++i) {
 			const BlockInfo info = infos[i];
 			BlockType& b = *(BlockType*)infos[i].ptrBlock;
 			
@@ -331,22 +323,20 @@ protected:
 			const size_t offset = BlockType::sizeZ*info.indexLocal[2] + nz*BlockType::sizeY*info.indexLocal[1] + nz*mybpd[1]*BlockType::sizeY*BlockType::sizeX*info.indexLocal[0];
 			
 			for(int iz=0; iz<BlockType::sizeZ; iz++)
-				for(int iy=0; iy<BlockType::sizeY; iy++)
-					for(int ix=0; ix<BlockType::sizeX; ix++)
-					{
-						// indexing for fftw - [x][y] (y is the fastest running index), local part of the index
-						const size_t dest_index = offset + iz + nz*iy +  BlockType::sizeY*mybpd[1]*nz*ix;
-						
-						assert(dest_index>=0 && dest_index<nx*ny*nz); // linking error with openmp: http://lists.apple.com/archives/xcode-users/2011/Oct/msg00252.html
-						TStreamer::operate(b(ix,iy,iz), &out[dest_index]);
-					}
+			for(int iy=0; iy<BlockType::sizeY; iy++)
+			for(int ix=0; ix<BlockType::sizeX; ix++) {
+				// indexing for fftw - [x][y] (y is the fastest running index), local part of the index
+				const size_t dest_index = offset + iz + nz*iy +  BlockType::sizeY*mybpd[1]*nz*ix;
+
+				assert(dest_index>=0 && dest_index<nx*ny*nz); // linking error with openmp: http://lists.apple.com/archives/xcode-users/2011/Oct/msg00252.html
+				TStreamer::operate(b(ix,iy,iz), &out[dest_index]);
+			}
 		}
 	}
 	
 	virtual void _solve(Real * in_out, const size_t nx, const size_t ny, const size_t nz, const Real norm_factor, const Real h)
 	{
-		if (TStreamer::channels != 1)
-		{
+		if (TStreamer::channels != 1) {
 			cout << "PoissonSolverScalar::PoissonSolverScalar(): Error: TStreamer::channels is " << TStreamer::channels << " and it should be 1. Aborting\n";
 			abort();
 		}
@@ -359,8 +349,7 @@ protected:
 		const Real fz = 2.*M_PI/nz;
 		
 #pragma omp parallel for
-		for(int j = 0; j<local_n1; ++j)
-		{
+		for(int j = 0; j<local_n1; ++j) {
 			const Real cosj = cos(fy*(local_1_start+j));
 			const Real cos2j = cos(2*fy*(local_1_start+j));
 			
@@ -395,7 +384,6 @@ protected:
 				}
 			}
 		}
-		
 		//this is sparta!
 		//in_out[0] = 0; // WTF? this prevents correct fw/bw if not transformations happen, but has no influence on the 2nd derivative
 		// this element should be removed for the FFT but not for the DCT! how to solve this issue?
@@ -404,10 +392,12 @@ protected:
 	void _fftw2cub(Real * out, TGrid& grid, const size_t nx, const size_t ny, const size_t nz) const
 	{
 		vector<BlockInfo> infos = grid.getBlocksInfo();
-		
 		const size_t N = infos.size();
-		
-		const size_t mybpd[3] = {grid.getResidentBlocksPerDimension(0), grid.getResidentBlocksPerDimension(1), grid.getResidentBlocksPerDimension(2)};
+		const size_t mybpd[3] = {
+				grid.getResidentBlocksPerDimension(0),
+				grid.getResidentBlocksPerDimension(1),
+				grid.getResidentBlocksPerDimension(2)
+		};
 		
 #pragma omp parallel for
 		for(int i=0; i<N; ++i) {
@@ -417,14 +407,13 @@ protected:
 			const size_t offset = BlockType::sizeZ*info.indexLocal[2] + nz*BlockType::sizeY*info.indexLocal[1] + mybpd[1]*BlockType::sizeY*nz*BlockType::sizeX*info.indexLocal[0];
 			
 			for(int iz=0; iz<BlockType::sizeZ; iz++)
-				for(int iy=0; iy<BlockType::sizeY; iy++)
-					for(int ix=0; ix<BlockType::sizeX; ix++)
-					{
-						const size_t src_index = offset + iz + nz*iy + BlockType::sizeY*mybpd[1]*nz*ix;
-						
-						assert(src_index>=0 && src_index<nx*ny*nz); // linking error with openmp
-						TStreamer::operate(&out[src_index], b(ix,iy,iz));
-					}
+			for(int iy=0; iy<BlockType::sizeY; iy++)
+			for(int ix=0; ix<BlockType::sizeX; ix++) {
+				const size_t src_index = offset + iz + nz*iy + BlockType::sizeY*mybpd[1]*nz*ix;
+
+				assert(src_index>=0 && src_index<nx*ny*nz); // linking error with openmp
+				TStreamer::operate(&out[src_index], b(ix,iy,iz));
+			}
 		}
 	}
 	
@@ -466,9 +455,8 @@ public:
 		
 		profiler.push_start("SOLVE");
 		_solve(data, gsize[0], gsize[1], gsize[2], norm_factor, h);
-		
 		profiler.pop_stop();
-		
+
 		profiler.push_start("FFTW INVERSE");
 #ifndef _SP_COMP_
 		fftw_execute(bwd);
@@ -486,8 +474,7 @@ public:
 	
 	void dispose()
 	{
-		if (initialized)
-		{
+		if (initialized) {
 			initialized = false;
 			
 #ifndef _SP_COMP_

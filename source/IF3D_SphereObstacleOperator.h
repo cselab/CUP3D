@@ -15,24 +15,22 @@
  */
 #pragma once
 
-#include "IF3D_Headers.h"
-#include "IF3D_Types.h"
-#include "IF3D_FixedObstacleOperator.h"
+#include "IF3D_ObstacleOperator.h"
 
 #include <cmath>
 
-class IF3D_SphereObstacleOperator: public IF3D_FixedObstacleOperator
+class IF3D_SphereObstacleOperator: public IF3D_ObstacleOperator
 {
 	Real radius;
 	
 public:
 	
  IF3D_SphereObstacleOperator(FluidGridMPI * grid, ArgumentParser & parser) //const Real radius, const double position[3], const Real smoothing_length=-1):
-	: IF3D_FixedObstacleOperator(grid, parser)//, radius(radius), smoothing_length(smoothing_length)
+	: IF3D_ObstacleOperator(grid, parser)//, radius(radius), smoothing_length(smoothing_length)
 	{
 	 	 _parseArguments(parser);
 	}
 
- 	void create() override;
+ 	void create(const int step_id,const double time, const double dt, const double *Uinf) override;
     void _parseArguments(ArgumentParser & parser) override;
 };

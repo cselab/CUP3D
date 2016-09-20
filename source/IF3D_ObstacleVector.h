@@ -19,25 +19,24 @@ protected:
 
 public:
 
-    IF3D_ObstacleVector(FluidGrid* grid) : IF3D_ObstacleOperator(grid) {}
-    IF3D_ObstacleVector(FluidGrid* grid, std::vector<IF3D_ObstacleOperator*> obstacles_in)
+    IF3D_ObstacleVector(FluidGridMPI* grid) : IF3D_ObstacleOperator(grid) {}
+    IF3D_ObstacleVector(FluidGridMPI* grid, std::vector<IF3D_ObstacleOperator*> obstacles_in)
     : IF3D_ObstacleOperator(grid), obstacles(obstacles_in)
     {}
+    ~IF3D_ObstacleVector();
 
-    void characteristic_function();
+    void characteristic_function() override;
+    int nObstacles() const {return obstacles.size();}
     void computeVelocities(const double* Uinf) override;
-    void update(const int step_id, const double t, const double dt) override;
+    void update(const int step_id, const double t, const double dt, const double* Uinf) override;
     void restart(const double t, std::string filename = std::string()) override;
     void save(const int step_id, const double t, std::string filename = std::string()) override;
-    std::vector<int> intersectingBlockIDs(const std::vector<BlockInfo> & vInfo, const int buffer) const override;
+    std::vector<int> intersectingBlockIDs(const int buffer) const override;
     void computeDiagnostics(const int stepID, const double time, const double* Uinf, const double lambda) override;
     void computeForces(const int stepID, const double time, const double* Uinf, const double NU, const bool bDump) override;
-
-    void Accept(ObstacleVisitor * visitor)
-    {
-    	for(int i=0;i<obstacles.size();++i)
-    		obstacles[i]->Accept(visitor);
-    }
+    void create(const int step_id,const double time, const double dt, const double *Uinf) override;
+    void execute(Communicator * comm, const int iAgent, const double time);
+    void Accept(ObstacleVisitor * visitor) override;
 
     void addObstacle(IF3D_ObstacleOperator * obstacle)
     {
@@ -49,13 +48,11 @@ public:
         return obstacles;
     }
 
-    Real getD() const
+    Real getD() const override
     {
         abort();
         return -1;
     }
-
-    virtual ~IF3D_ObstacleVector();
 };
 
 #endif

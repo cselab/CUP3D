@@ -19,7 +19,7 @@ private:
 public:
 	OperatorVorticity()
 	{
-		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
 
 		stencil_start[0] = -1;
 		stencil_start[1] = -1;

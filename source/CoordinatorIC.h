@@ -27,18 +27,21 @@ public:
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 				for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-					block(ix,iy,iz).u = uinf;
-					block(ix,iy,iz).v = 0;
-					block(ix,iy,iz).w = 0;
+					/*
+					Real p[3];
+					info.pos(p, ix, iy, iz);
+					const Real x = 2*M_PI*p[0];
+					const Real y = 4*M_PI*p[1];
+					const Real z = 4*M_PI*p[2];
+					 */
+					block(ix,iy,iz).u = 0;//.05*cos(x+0.00*M_PI)*cos(y+0.75*M_PI)*cos(z+1.50*M_PI);
+					block(ix,iy,iz).v = 0;//.05*cos(x+0.25*M_PI)*cos(y+1.00*M_PI)*cos(z+1.75*M_PI);
+					block(ix,iy,iz).w = 0;//.05*cos(x+0.50*M_PI)*cos(y+1.25*M_PI)*cos(z+2.00*M_PI);
 					block(ix,iy,iz).chi = 0;
-
 					block(ix,iy,iz).p = 0;
-					block(ix,iy,iz).pOld = 0;
-
 					block(ix,iy,iz).tmpU = 0;
 					block(ix,iy,iz).tmpV = 0;
 					block(ix,iy,iz).tmpW = 0;
-					block(ix,iy,iz).tmp  = 0;
 				}
 	}
 };
@@ -64,10 +67,7 @@ public:
 					Real x = p[0] - d*.5;
 					Real y = p[1] - d*2.5;
 					Real z = p[2] - d*.5;
-					Real eta = -.1*a*cos(2*M_PI*x/d);
-
-					//block(ix,iy).rho = 2. + tanh((y-eta)/(.01*d));
-
+					//Real eta = -.1*a*cos(2*M_PI*x/d);
 					Real eta = -a*.25*cos(2*M_PI*x/d)*cos(2*M_PI*z/d);
 
 					block(ix,iy,iz).u = 0;
@@ -76,38 +76,34 @@ public:
 					block(ix,iy,iz).chi = .5+.5*tanh((y-eta)/info.h_gridpoint);
 
 					block(ix,iy,iz).p = 0;
-					block(ix,iy,iz).pOld = 0;
 
 					block(ix,iy,iz).tmpU = 0;
 					block(ix,iy,iz).tmpV = 0;
 					block(ix,iy,iz).tmpW = 0;
-					block(ix,iy,iz).tmp  = 0;
 				}
 	}
 };
 
 class CoordinatorIC : public GenericCoordinator
 {
-protected:
-	const double uinf;
-	
 public:
-	CoordinatorIC(const double uinf, FluidGridMPI * grid) : GenericCoordinator(grid), uinf(uinf)
+	CoordinatorIC(FluidGridMPI * grid) : GenericCoordinator(grid)
 	{
 	}
 	
 	void operator()(const double dt)
 	{
-		BlockInfo * ary = &vInfo.front();
 		const int N = vInfo.size();
 		
 #pragma omp parallel
 		{
-			OperatorIC kernel(rhoS);
-			
+			OperatorIC kernel(0.);
 #pragma omp for schedule(static)
-			for (int i=0; i<N; i++)
-				kernel(ary[i], *(FluidBlock*)ary[i].ptrBlock);
+			for (int i=0; i<N; i++) {
+				BlockInfo info = vInfo[i];
+				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+				kernel(info, b);
+			}
 		}
 		check("IC - end");
 	}
@@ -120,26 +116,24 @@ public:
 
 class CoordinatorIC_RT : public GenericCoordinator
 {
-protected:
-	const double rhoS;
-	
 public:
-	CoordinatorIC_RT(const double rhoS, FluidGridMPI * grid) : GenericCoordinator(grid), rhoS(rhoS)
+	CoordinatorIC_RT(FluidGridMPI * grid) : GenericCoordinator(grid)
 	{
 	}
 	
 	void operator()(const double dt)
 	{
-		BlockInfo * ary = &vInfo.front();
 		const int N = vInfo.size();
 		
 #pragma omp parallel
 		{
-			OperatorIC_RT kernel(rhoS);
-			
+			OperatorIC_RT kernel(0.);
 #pragma omp for schedule(static)
-			for (int i=0; i<N; i++)
-				kernel(ary[i], *(FluidBlock*)ary[i].ptrBlock);
+			for (int i=0; i<N; i++) {
+				BlockInfo info = vInfo[i];
+				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+				kernel(info, b);
+			}
 		}
 		
 		check("IC - end");

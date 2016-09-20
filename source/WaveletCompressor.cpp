@@ -216,9 +216,9 @@ void WaveletCompressorGeneric<DATASIZE1D, DataType>::decompress(const bool float
 	full.iwt(wtype);
 }
 
-#ifdef _BLOCKSIZE_
-template class WaveletCompressorGeneric<_BLOCKSIZE_, Real>;
-template class WaveletCompressorGeneric_zlib<_BLOCKSIZE_, Real>;
+#ifdef _USE_LZ4_
+template class WaveletCompressorGeneric<_BS_, Real>;
+template class WaveletCompressorGeneric_zlib<_BS_, Real>;
 #endif
 
 #ifdef _VOXELS_ //mammamia whattahack
