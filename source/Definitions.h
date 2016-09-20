@@ -11,7 +11,7 @@
 
 //#include <cassert>
 
-#define BBURST 1
+//#define BBURST 1
 #include <sstream>
 #include <cmath>
 #include <cstdio>

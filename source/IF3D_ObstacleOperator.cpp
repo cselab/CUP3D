@@ -112,11 +112,10 @@ struct ForcesOnSkin : public GenericLabOperator
 	}
 };
 
-void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
+void IF3D_ObstacleOperator::_computeUdefMoments(double* lin_momenta, double* ang_momenta, const double CoM[3])
 {
 	const int N = vInfo.size();
 	const double dv = std::pow(vInfo[0].h_gridpoint,3);
-
 	//local variables
 	double V(0.0), J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
 	double lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
@@ -143,27 +142,19 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
 			p[0]-=CoM[0];
 			p[1]-=CoM[1];
 			p[2]-=CoM[2];
-
-			const double u[3] = {
-					pos->second->udef[iz][iy][ix][0],
-					pos->second->udef[iz][iy][ix][1],
-					pos->second->udef[iz][iy][ix][2]
-			};
-
-			V     += Xs;
-			lm0   += Xs * u[0];
-			lm1   += Xs * u[1];
-			lm2   += Xs * u[2];
-			am0 += Xs*(p[1]*u[2] - p[2]*u[1]);
-			am1 += Xs*(p[2]*u[0] - p[0]*u[2]);
-			am2 += Xs*(p[0]*u[1] - p[1]*u[0]);
-
-			J0+=Xs*(p[1]*p[1]+p[2]*p[2]);
-			J1+=Xs*(p[0]*p[0]+p[2]*p[2]);
-			J2+=Xs*(p[0]*p[0]+p[1]*p[1]);
-			J3-=Xs*p[0]*p[1];
-			J4-=Xs*p[0]*p[2];
-			J5-=Xs*p[1]*p[2];
+			V   += Xs;
+			lm0 += Xs *       pos->second->udef[iz][iy][ix][0];
+			lm1 += Xs *       pos->second->udef[iz][iy][ix][1];
+			lm2 += Xs *       pos->second->udef[iz][iy][ix][2];
+			am0 += Xs * (p[1]*pos->second->udef[iz][iy][ix][2] - p[2]*pos->second->udef[iz][iy][ix][1]);
+			am1 += Xs * (p[2]*pos->second->udef[iz][iy][ix][0] - p[0]*pos->second->udef[iz][iy][ix][2]);
+			am2 += Xs * (p[0]*pos->second->udef[iz][iy][ix][1] - p[1]*pos->second->udef[iz][iy][ix][0]);
+			J0  += Xs * (p[1]*p[1]+p[2]*p[2]);
+			J1  += Xs * (p[0]*p[0]+p[2]*p[2]);
+			J2  += Xs * (p[0]*p[0]+p[1]*p[1]);
+			J3  -= Xs *  p[0]*p[1];
+			J4  -= Xs *  p[0]*p[2];
+			J5  -= Xs *  p[1]*p[2];
 		}
 	}
 	//TODO: faster to place these vars into an array, single reduce and unpack?
@@ -173,28 +164,33 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
 	MPI::COMM_WORLD.Allreduce(&am0, &gam0, 1, MPI::DOUBLE, MPI::SUM);
 	MPI::COMM_WORLD.Allreduce(&am1, &gam1, 1, MPI::DOUBLE, MPI::SUM);
 	MPI::COMM_WORLD.Allreduce(&am2, &gam2, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J0, &gJ0, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J1, &gJ1, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J2, &gJ2, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J3, &gJ3, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J4, &gJ4, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J5, &gJ5, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&V, &gV, 1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&J0,  &gJ0,  1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&J1,  &gJ1,  1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&J2,  &gJ2,  1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&J3,  &gJ3,  1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&J4,  &gJ4,  1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&J5,  &gJ5,  1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&V,   &gV,   1, MPI::DOUBLE, MPI::SUM);
 
-	transVel_correction[0] = glm0/gV;
-	transVel_correction[1] = glm1/gV;
-	transVel_correction[2] = glm2/gV;
+	lin_momenta[0] = glm0/gV;
+	lin_momenta[1] = glm1/gV;
+	lin_momenta[2] = glm2/gV;
     const Real _J[6] = {gJ0, gJ1, gJ2, gJ3, gJ4, gJ5};
-    _finalizeAngVel(angVel_correction, _J, gam0, gam1, gam2);
+    _finalizeAngVel(ang_momenta, _J, gam0, gam1, gam2);
     if(bFixToPlanar) { //TODO: why this step?
-    	angVel_correction[0] = angVel_correction[1] = 0.0;
-    	angVel_correction[2] = gam2/gJ2;
+    	ang_momenta[0] = ang_momenta[1] = 0.0;
+    	ang_momenta[2] = gam2/gJ2;
     }
+}
+
+void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
+{
+	_computeUdefMoments(transVel_correction, angVel_correction, CoM);
 
 #pragma omp parallel for schedule(static)
     for(int i=0; i<vInfo.size(); i++) {
         BlockInfo info = vInfo[i];
-        std::map<int,ObstacleBlock* >::const_iterator pos = obstacleBlocks.find(info.blockID);
+        const auto pos = obstacleBlocks.find(info.blockID);
         if(pos == obstacleBlocks.end()) continue;
         FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
@@ -206,18 +202,22 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
             p[0]-=CoM[0];
             p[1]-=CoM[1];
             p[2]-=CoM[2];
-
             const double correctVel[3] = {
 				transVel_correction[0] + (angVel_correction[1]*p[2] - angVel_correction[2]*p[1]),
 				transVel_correction[1] + (angVel_correction[2]*p[0] - angVel_correction[0]*p[2]),
 				transVel_correction[2] + (angVel_correction[0]*p[1] - angVel_correction[1]*p[0])
             };
-
             pos->second->udef[iz][iy][ix][0] -= correctVel[0];
             pos->second->udef[iz][iy][ix][1] -= correctVel[1];
             pos->second->udef[iz][iy][ix][2] -= correctVel[2];
         }
     }
+
+#ifndef DNDEBUG
+    double dummy_ang[3], dummy_lin[3];
+    _computeUdefMoments(dummy_ang, dummy_ang, CoM);
+    printf("Post correction linear momentum %f %f ang vel %f\n", dummy_lin[0], dummy_lin[1], dummy_ang[2]);
+#endif
 }
 
 void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)

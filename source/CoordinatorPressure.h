@@ -201,7 +201,7 @@ public:
 		{
 			pressureSolver.solve(*grid);
 		}
-		{
+		{ //pressure correction dudt* = - grad P / rho
 			OperatorGradP kernelGradP(dt);
 			compute(kernelGradP);
 		}
