@@ -18,19 +18,17 @@ struct VolumeSegment_OBB
     double w[3]; // halfwidth
     double c[3]; // center
     
-    VolumeSegment_OBB(std::pair<int, int> s_range, const double bbox[3][2]):s_range(s_range)
+    VolumeSegment_OBB(std::pair<int, int> s_range, const double bbox[3][2])
+    : s_range(s_range)
     {
         normalI[1]=normalI[2]=normalJ[0]=normalJ[2]=normalK[0]=normalK[1]=0.0;
         normalI[0]=normalJ[1]=normalK[2]=1.0;
-        w[0] = 0.5*(bbox[0][1]-bbox[0][0]);
-        c[0] = bbox[0][0] + w[0];
-        assert(w[0]>0);
-        w[1] = 0.5*(bbox[1][1]-bbox[1][0]);
-        c[1] = bbox[1][0] + w[1];
-        assert(w[1]>0);
-        w[2] = 0.5*(bbox[2][1]-bbox[2][0]);
-        c[2] = bbox[2][0] + w[2];
-        assert(w[2]>0);
+        for(int i=0;i<3;++i) {
+        	w[i] = 0.5*(bbox[i][1]-bbox[i][0]);
+        	c[i] = bbox[i][0] + w[i];
+        	assert(w[i]>0);
+        }
+
     }
     
     void normalizeNormals()
@@ -56,30 +54,25 @@ struct VolumeSegment_OBB
     void changeToComputationalFrame(const double position[3], const double quaternion[4])
     {
         // we are in CoM frame and change to comp frame --> first rotate around CoM (which is at (0,0) in CoM frame), then update center
-        
         const double w = quaternion[0];
         const double x = quaternion[1];
         const double y = quaternion[2];
         const double z = quaternion[3];
-        
         const double Rmatrix3D[3][3] = {
             {1.-2*(y*y+z*z),  2*(x*y-z*w),    2*(x*z+y*w)},
             {2*(x*y+z*w),    1.-2*(x*x+z*z),  2*(y*z-x*w)},
             {2*(x*z-y*w),    2*(y*z+x*w),    1.-2*(x*x+y*y)}
         };
-        
         const double p[3] = {c[0],c[1],c[2]};
         const double nx[3] = {normalI[0],normalI[1],normalI[2]};
         const double ny[3] = {normalJ[0],normalJ[1],normalJ[2]};
         const double nz[3] = {normalK[0],normalK[1],normalK[2]};
-        
         for(int i=0;i<3;++i) {
             c[i] = Rmatrix3D[i][0]*p[0] + Rmatrix3D[i][1]*p[1] + Rmatrix3D[i][2]*p[2];
             normalI[i] = Rmatrix3D[i][0]*nx[0] + Rmatrix3D[i][1]*nx[1] + Rmatrix3D[i][2]*nx[2];
             normalJ[i] = Rmatrix3D[i][0]*ny[0] + Rmatrix3D[i][1]*ny[1] + Rmatrix3D[i][2]*ny[2];
             normalK[i] = Rmatrix3D[i][0]*nz[0] + Rmatrix3D[i][1]*nz[1] + Rmatrix3D[i][2]*nz[2];
         }
-        
         c[0] +=position[0];
         c[1] +=position[1];
         c[2] +=position[2];
@@ -102,7 +95,6 @@ struct VolumeSegment_OBB
         assert(AABB_w[0]>0);
         assert(AABB_w[1]>0);
         assert(AABB_w[2]>0);
-        
         bool intersects = true;
         double r;
         {
@@ -762,7 +754,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     obstacleBlocks.clear();
 
     // 6. & 7.    
-    std::map<int, std::vector<VolumeSegment_OBB> > segmentsPerBlock;
+    std::map<int, std::vector<VolumeSegment_OBB>> segmentsPerBlock;
     {
         for(int i=0;i<vInfo.size();++i) {
             const BlockInfo & info = vInfo[i];
@@ -786,7 +778,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     
     //assert(not segmentsPerBlock.empty()); //killed this assert: distributed fish
     assert(segmentsPerBlock.size() == obstacleBlocks.size());
-    //  printf("segmentsPerBlock.size() %d\n",segmentsPerBlock.size());
+
     // 8.
     {
 #pragma omp parallel
@@ -824,13 +816,11 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     	const int nthreads = omp_get_max_threads();
     	vector<surfaceBlocks> dataPerThread(nthreads);
     	vector<array<double,4>> momenta(nthreads);
-
     	vector<PutFishOnBlocks_Finalize> finalize;
     	for(int i = 0; i < nthreads; ++i)
     	finalize.push_back(PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]));
 
     	compute(finalize);
-
     	double sumX[4], totX[4];
     	for(int i=0; i<nthreads; i++) {
     		sumX[0] += momenta[i][0];
@@ -839,12 +829,8 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     		sumX[3] += momenta[i][3];
     	}
     	MPI::COMM_WORLD.Allreduce(sumX, totX, 4, MPI::DOUBLE, MPI::SUM);
-
     	surfData.finalizeOnGrid(dataPerThread);
-
-        if (totX[0] < std::numeric_limits<double>::epsilon()) {
-        	totX[0] = 1;
-        }
+        assert(totX[0]>std::numeric_limits<double>::epsilon());
         CoM_interpolated[0]=totX[1]/totX[0];
         CoM_interpolated[1]=totX[2]/totX[0];
         CoM_interpolated[2]=totX[3]/totX[0];
@@ -889,7 +875,6 @@ void IF3D_CarlingFishOperator::update(const int stepID, const double t, const do
 void IF3D_CarlingFishOperator::_parseArguments(ArgumentParser & parser)
 {
 	IF3D_ObstacleOperator::_parseArguments(parser);
-
 	parser.set_strict_mode();
 	Tperiod = parser("-T").asDouble();
     parser.unset_strict_mode();

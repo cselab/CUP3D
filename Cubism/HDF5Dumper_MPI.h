@@ -240,7 +240,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 		BlockInfo& info = vInfo[i];
 		Real ini[3], fin[3];
 		info.pos(ini, sX, sY, sZ);
-		info.pos(fin, eX, eY, eZ);
+		info.pos(fin, eX-1, eY-1, eZ-1);
 		if (ini[2]>.5 || fin[2]<.5) continue;
 		const Real invh = 1.0/info.h_gridpoint;
 		const int mid = (int)std::floor((0.5-ini[2])*invh);

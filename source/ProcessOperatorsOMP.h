@@ -16,7 +16,7 @@ template<typename Lab, typename Kernel>
 void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 {
 	Kernel kernel(dt);
-#if 0
+#if 1
 	SynchronizerMPI& Synch = grid.sync(kernel);
 	
 	vector<BlockInfo> avail0, avail1;

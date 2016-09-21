@@ -67,7 +67,7 @@ protected:
 	template <typename Kernel>
 	void compute(Kernel kernel)
 	{
-#if 0
+#if 1
 		SynchronizerMPI& Synch = grid->sync(kernel);
 		vector<BlockInfo> avail0, avail1;
 		

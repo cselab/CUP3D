@@ -25,7 +25,7 @@ struct ForcesOnSkin : public GenericLabOperator
     			 surfacePoints* const surface, 						      //most info I/O
 				 const map<int,pair<int,int>>* const surfaceBlocksFilter, //skip useless blocks
 				 array<double,19>* const measures)     	                  //additive quantities
-	: t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), measures(measures), surfData(surfData),
+	: t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures), surfData(surfData),
 	  surfaceBlocksFilter(surfaceBlocksFilter), obstacleBlocks(obstacleBlocks)
 	{
     	stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);

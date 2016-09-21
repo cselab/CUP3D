@@ -154,7 +154,7 @@ public:
 	template <typename Kernel>
 	void compute(vector<Kernel> kernels)
 	{
-#if 0
+#if 1
 		SynchronizerMPI& Synch = grid->sync(kernels[0]);
 		const int nthreads = omp_get_max_threads();
 		LabMPI * labs = new LabMPI[nthreads];

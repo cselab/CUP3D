@@ -194,7 +194,6 @@ protected:
 	// simulation status
 	int step, nsteps;
 	double dt, time, endTime;
-    
     double uinf[3], uinf_dummy[3], re, nu, length;
     double dtCFL, dtLCFL, dtFourier;
 	
@@ -209,23 +208,17 @@ protected:
 	string path2file;
 	//SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
 	
-    void _ic();
-	
-    void setupGrid();
-    
-    virtual void parseArguments();
-    
-    virtual void setupObstacles();
-    
-    virtual void setupOperators();
-    
-    virtual void _dump(const string append);
     void areWeDumping(double & nextDumpTime);
-    virtual void _selectDT();
-    
     void _serialize(double & nextSaveTime);
-	
+    void _dump(const string append);
     void _deserialize();
+
+    void parseArguments();
+    void setupObstacles();
+    void setupOperators();
+    void _selectDT();
+    void setupGrid();
+    void _ic();
 	
 public:
     Simulation(const int argc, char ** argv, Communicator* comm) :

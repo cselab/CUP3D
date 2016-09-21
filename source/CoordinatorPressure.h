@@ -19,7 +19,7 @@ struct PressureObstacleVisitor : ObstacleVisitor
 	FluidGridMPI * grid;
     vector<BlockInfo> vInfo;
 
-    PressureObstacleVisitor(FluidGridMPI * grid):grid(grid)
+    PressureObstacleVisitor(FluidGridMPI * grid) : grid(grid)
     {
         vInfo = grid->getBlocksInfo();
     }
@@ -59,7 +59,6 @@ public:
 	OperatorDivergenceMinusDivTmpU(double dt) : dt(dt)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 6, 0,1,2,5,6,7);
-		
 		stencil_start[0] = -1;
 		stencil_start[1] = -1;
 		stencil_start[2] = -1;
@@ -78,23 +77,20 @@ public:
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
 			// Poisson solver reads field p for the rhs
-			const Real uW = lab(ix-1,iy  ,iz  ).u;
-			const Real uE = lab(ix+1,iy  ,iz  ).u;
-			const Real vS = lab(ix  ,iy-1,iz  ).v;
-			const Real vN = lab(ix  ,iy+1,iz  ).v;
-			const Real wF = lab(ix  ,iy  ,iz-1).w;
-			const Real wB = lab(ix  ,iy  ,iz+1).w;
-
+			const Real uW    = lab(ix-1,iy  ,iz  ).u;
+			const Real uE    = lab(ix+1,iy  ,iz  ).u;
+			const Real vS    = lab(ix  ,iy-1,iz  ).v;
+			const Real vN    = lab(ix  ,iy+1,iz  ).v;
+			const Real wF    = lab(ix  ,iy  ,iz-1).w;
+			const Real wB    = lab(ix  ,iy  ,iz+1).w;
 			const Real uWdef = lab(ix-1,iy  ,iz  ).tmpU;
 			const Real uEdef = lab(ix+1,iy  ,iz  ).tmpU;
 			const Real vSdef = lab(ix  ,iy-1,iz  ).tmpV;
 			const Real vNdef = lab(ix  ,iy+1,iz  ).tmpV;
 			const Real wFdef = lab(ix  ,iy  ,iz-1).tmpW;
 			const Real wBdef = lab(ix  ,iy  ,iz+1).tmpW;
-
-			const Real divU = factor * (uE - uW + vN - vS + wB - wF
-					-lab(ix,iy,iz).chi*(uEdef-uWdef+vNdef-vSdef+wBdef-wFdef) );
-			o(ix, iy, iz).p = divU;
+			o(ix,iy,iz).p = factor * (uE - uW + vN - vS + wB - wF
+					-o(ix,iy,iz).chi*(uEdef-uWdef+vNdef-vSdef+wBdef-wFdef));
 		}
 	}
 };
@@ -134,12 +130,7 @@ public:
 			const Real divUN = lab(ix  ,iy+1,iz  ).p;
 			const Real divUF = lab(ix  ,iy  ,iz-1).p;
 			const Real divUB = lab(ix  ,iy  ,iz+1).p;
-			/*
-			if(ix==0)
-				printf("LB %d %d %d: %f | %f \n",info.blockID,iy,iz,lab(ix-1,iy  ,iz  ).p,lab(ix,iy  ,iz  ).p);
-			if(ix==FluidBlock::sizeX-1)
-				printf("UB %d %d %d: %f | %f \n",info.blockID,iy,iz,lab(ix,iy  ,iz  ).p,lab(ix+1,iy  ,iz  ).p);
-			 */
+
 			o(ix,iy,iz).u += prefactor * (divUE - divUW);//
 			o(ix,iy,iz).v += prefactor * (divUN - divUS);//
 			o(ix,iy,iz).w += prefactor * (divUB - divUF);//

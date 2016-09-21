@@ -47,10 +47,9 @@ struct PenalizationObstacleVisitor : ObstacleVisitor
     	 const bool bFixFrameOfRef = obstacle->bFixFrameOfRef;
     	 if (bFixFrameOfRef) {
     		 if (obstacle->obstacleID!=0) {printf("Can only fix first obstacle.\n"); abort();}
-             double dummy[3] = {0.0,0.0,0.0}; // compute velocities with zero uinf
-             obstacle->computeVelocities(dummy);
-             double leadU[3];
+             double leadU[3], dummy[3] = {0.0, 0.0, 0.0}; // compute velocities with zero uinf
              obstacle->getTranslationVelocity(leadU);
+             obstacle->computeVelocities(dummy);
              uInf[0] = -leadU[0]; //uInf now is speed of this obstacle
              uInf[1] = -leadU[1];
              uInf[2] = -leadU[2];
@@ -83,15 +82,14 @@ struct PenalizationObstacleVisitor : ObstacleVisitor
             	FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
             	for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 				if (pos->second->chi[iz][iy][ix] > 0) {
 					Real p[3];
 					info.pos(p, ix, iy, iz);
 					p[0]-=centerOfMass[0];
 					p[1]-=centerOfMass[1];
 					p[2]-=centerOfMass[2];
-
 					const Real lamdtX  = dt * lambda * pos->second->chi[iz][iy][ix];
 					const Real object_UR[3] = {
 							omegaBody[1]*p[2]-omegaBody[2]*p[1],
@@ -103,11 +101,15 @@ struct PenalizationObstacleVisitor : ObstacleVisitor
 							pos->second->udef[iz][iy][ix][1],
 							pos->second->udef[iz][iy][ix][2]
 					};
+					const Real U_TOT[3] = {
+							uBody[0]+object_UR[0]+object_UDEF[0]-uInf[0],
+							uBody[1]+object_UR[1]+object_UDEF[1]-uInf[1],
+							uBody[2]+object_UR[2]+object_UDEF[2]-uInf[2]
+					};
 					const Real alpha = 1./(1.+lamdtX);
-
-					b(ix,iy,iz).u = alpha*b(ix,iy,iz).u + (1.-alpha)*(uBody[0]+object_UR[0]+object_UDEF[0]-uInf[0]);
-					b(ix,iy,iz).v = alpha*b(ix,iy,iz).v + (1.-alpha)*(uBody[1]+object_UR[1]+object_UDEF[1]-uInf[1]);
-					b(ix,iy,iz).w = alpha*b(ix,iy,iz).w + (1.-alpha)*(uBody[2]+object_UR[2]+object_UDEF[2]-uInf[2]);
+					b(ix,iy,iz).u = alpha*b(ix,iy,iz).u + (1.-alpha)*(U_TOT[0]);
+					b(ix,iy,iz).v = alpha*b(ix,iy,iz).v + (1.-alpha)*(U_TOT[1]);
+					b(ix,iy,iz).w = alpha*b(ix,iy,iz).w + (1.-alpha)*(U_TOT[2]);
 				}
              }
          }

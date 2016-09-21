@@ -632,18 +632,18 @@ public:
             _computeMidlineCoordinates(time);
             _computeMidlineVelocities(time);
             _computeMidlineNormals();
-            if(false)
-    		{ // we dump the profile
-            	int rank;
-        		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-        		if (rank!=0) return;
-    			FILE * f = fopen("fish_profile","w");
-    			for(int i=0;i<Nm;++i)
-    				fprintf(f,"%d %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e\n",
-    						i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i],vNorX[i],vNorY[i],width[i],height[i]);
-    			fclose(f);
-    			printf("Dumped midline\n");
-    		}
+#ifndef DNDEBUG
+    		// we dump the profile
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+			if (rank!=0) return;
+			FILE * f = fopen("fish_profile","w");
+			for(int i=0;i<Nm;++i)
+				fprintf(f,"%d %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e\n",
+						i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i],vNorX[i],vNorY[i],width[i],height[i]);
+			fclose(f);
+			printf("Dumped midline\n");
+#endif
         }
     };
 }
