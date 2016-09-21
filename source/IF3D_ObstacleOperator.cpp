@@ -35,10 +35,10 @@ struct ForcesOnSkin : public GenericLabOperator
     template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
 	{
-		if(surfaceBlocksFilter->find(info.blockID) == surfaceBlocksFilter->end()) return;
-		//this made me laugh so hard I can now die happy:
-		const int first = surfaceBlocksFilter->find(info.blockID)->second.first;
-		const int second = surfaceBlocksFilter->find(info.blockID)->second.second;
+    		const auto pos = surfaceBlocksFilter->find(info.blockID);
+		if(pos == surfaceBlocksFilter->end()) return;
+		const int first  = pos->second.first;
+		const int second = pos->second.second;
 		const double _h3 = std::pow(info.h_gridpoint,3);
 		const double _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
 
@@ -520,8 +520,12 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time, c
 			}
 		}
 		firstInfo.push_back(surfData.Ndata);
-		for(int i=0; i<usefulIDs.size(); i++) //now i arrange them in a map because Im lazy
+		for(int i=0; i<usefulIDs.size(); i++) { //now i arrange them in a map because Im lazy
 		surfaceBlocksFilter[usefulIDs[i]] = make_pair(firstInfo[i],firstInfo[i+1]);
+
+		const auto pos = surfaceBlocksFilter.find(usefulIDs[i]);
+		printf("%d block id %d (%d) occupies from %d to %d\n",rank,usefulIDs[i],pos->first,pos->second.first,pos->second.second);
+		}
     }
     
 	double CM[3];

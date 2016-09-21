@@ -265,7 +265,7 @@ public:
     void add(const int blockID, const int ix, const int iy, const int iz, const double dchidx, const double dchidy, const double dchidz, const double delta)
     {
         if(Ndata+1>Set.size()) {
-        	surfData * tmp = new surfData(blockID,ix,iy,iz,dchidx,dchidy,dchidz,delta);
+        		surfData * tmp = new surfData(blockID,ix,iy,iz,dchidx,dchidy,dchidz,delta);
             Set.push_back(tmp);
         } else Set[Ndata]->set(blockID,ix,iy,iz,dchidx,dchidy,dchidz,delta);
         Ndata++;
@@ -283,15 +283,14 @@ public:
     	Ndata(0), nAlloc(0), nMapped(0), pX(nullptr), pY(nullptr), pZ(nullptr), P(nullptr),
     fX(nullptr), fY(nullptr), fZ(nullptr), fxP(nullptr), fyP(nullptr), fzP(nullptr), fxV(nullptr), fyV(nullptr), fzV(nullptr),
     vx(nullptr), vy(nullptr), vz(nullptr), vxDef(nullptr), vyDef(nullptr), vzDef(nullptr), gridMap(nullptr)
-    {
-    }
+    { }
 
     ~surfacePoints()
     {
         if(pX      not_eq nullptr){delete[] pX;      pX=nullptr;     }
         if(pY      not_eq nullptr){delete[] pY;      pY=nullptr;     }
         if(pZ      not_eq nullptr){delete[] pZ;      pZ=nullptr;     }
-        if(P       not_eq nullptr){delete[] P;   	 P =nullptr;  	 }
+        if(P       not_eq nullptr){delete[] P;   	 P=nullptr;  	}
         if(fX      not_eq nullptr){delete[] fX;      fX=nullptr;     }
         if(fY      not_eq nullptr){delete[] fY;      fY=nullptr;     }
         if(fZ      not_eq nullptr){delete[] fZ;      fZ=nullptr;     }
@@ -313,7 +312,7 @@ public:
     void _add(const surfData* c)
     {
         if(Ndata+1>Set.size()) {
-        	surfData * tmp = new surfData(c->blockID,c->ix,c->iy,c->iz,c->dchidx,c->dchidy,c->dchidz,c->delta);
+        		surfData * tmp = new surfData(c->blockID,c->ix,c->iy,c->iz,c->dchidx,c->dchidy,c->dchidz,c->delta);
             Set.push_back(tmp);
         } else Set[Ndata]->set(c->blockID,c->ix,c->iy,c->iz,c->dchidx,c->dchidy,c->dchidz,c->delta);
         Ndata++;
@@ -321,17 +320,16 @@ public:
 
     void finalizeOnGrid(vector<surfaceBlocks>& blocksPerThread)
     {
-    	Ndata = 0;
-    	for(int i=0; i<blocksPerThread.size(); i++) {
-    		for (auto & elem : blocksPerThread[i].Set) _add(elem);
-    	}
+		Ndata = 0;
+		for(int i=0; i<blocksPerThread.size(); i++)
+			for (auto & elem : blocksPerThread[i].Set)
+				_add(elem);
 
         if (Ndata > nAlloc) {
             nAlloc = Ndata;
             if(pX      not_eq nullptr){delete[] pX;      pX=nullptr;     }
             if(pY      not_eq nullptr){delete[] pY;      pY=nullptr;     }
             if(pZ      not_eq nullptr){delete[] pZ;      pZ=nullptr;     }
-            if(P       not_eq nullptr){delete[] P;   	 P =nullptr;  	 }
             if(fX      not_eq nullptr){delete[] fX;      fX=nullptr;     }
             if(fY      not_eq nullptr){delete[] fY;      fY=nullptr;     }
             if(fZ      not_eq nullptr){delete[] fZ;      fZ=nullptr;     }
@@ -347,29 +345,24 @@ public:
             if(vxDef   not_eq nullptr){delete[] vxDef;   vxDef=nullptr;  }
             if(vyDef   not_eq nullptr){delete[] vyDef;   vyDef=nullptr;  }
             if(vzDef   not_eq nullptr){delete[] vzDef;   vzDef=nullptr;  }
+            if(P       not_eq nullptr){delete[] P;   	P =nullptr;  	}
             if(gridMap not_eq nullptr){delete[] gridMap; gridMap=nullptr;}
 
-            pX      = new Real[nAlloc];
-            pY      = new Real[nAlloc];
-            pZ      = new Real[nAlloc];
-            P       = new Real[nAlloc];
-            fX      = new Real[nAlloc];
-            fY      = new Real[nAlloc];
-            fZ      = new Real[nAlloc];
-            fxP     = new Real[nAlloc];
-            fyP     = new Real[nAlloc];
-            fzP     = new Real[nAlloc];
-            fxV     = new Real[nAlloc];
-            fyV     = new Real[nAlloc];
-            fzV     = new Real[nAlloc];
-            vx      = new Real[nAlloc];
-            vy      = new Real[nAlloc];
-            vz      = new Real[nAlloc];
-            vxDef   = new Real[nAlloc];
-            vyDef   = new Real[nAlloc];
-            vzDef   = new Real[nAlloc];
-            gridMap = new int[nAlloc];
+            pX      = new Real[nAlloc]; pY      = new Real[nAlloc]; pZ      = new Real[nAlloc];
+            fX      = new Real[nAlloc]; fY      = new Real[nAlloc]; fZ      = new Real[nAlloc];
+            fxP     = new Real[nAlloc]; fyP     = new Real[nAlloc]; fzP     = new Real[nAlloc];
+            fxV     = new Real[nAlloc]; fyV     = new Real[nAlloc]; fzV     = new Real[nAlloc];
+            vx      = new Real[nAlloc]; vy      = new Real[nAlloc]; vz      = new Real[nAlloc];
+            vxDef   = new Real[nAlloc]; vyDef   = new Real[nAlloc]; vzDef   = new Real[nAlloc];
+            P       = new Real[nAlloc]; gridMap = new  int[nAlloc];
         }
+
+#ifndef NDEBUG
+		int checksum = 0;
+		for(int i=0; i<blocksPerThread.size(); i++) checksum += blocksPerThread[i].Ndata;
+		assert(checksum==Ndata);
+		printf("Random assortment of numbers in the surface blocks stuff: %d == %d <= %d\n",checksum,Ndata, nAlloc);
+#endif
     }
 
     void sort(const Real* const skinX, const Real* const skinY, const Real* const skinZ, const int skinN)
