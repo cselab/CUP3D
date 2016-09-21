@@ -191,7 +191,6 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 {
 #ifdef _USE_HDF_
 	typedef typename TGrid::BlockType B;
-
 	int rank;
 	char filename[256];
 	herr_t status;
@@ -226,8 +225,8 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 		coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX,
 		coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
 		0, 0};
+	printf("Coords %d %d %d %e\n",coords[0],coords[1],coords[2],grid.getH());
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
-
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
 	status = H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
@@ -244,6 +243,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 		if (ini[2]>.5 || fin[2]<.5) continue;
 		const Real invh = 1.0/info.h_gridpoint;
 		const int mid = (int)std::floor((0.5-ini[2])*invh);
+		assert(mid>=0 && mid<eZ);
 		const unsigned int idx[2] = {info.indexLocal[0], info.indexLocal[1]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
@@ -266,7 +266,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 	H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
 	fspace_id = H5Screate_simple(4, dims, NULL);
 #ifndef _ON_FERMI_
-	dataset_id = H5Dcreate(file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+	dataset_id = H5Dcreate( file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 #else
 	dataset_id = H5Dcreate2(file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
 #endif
