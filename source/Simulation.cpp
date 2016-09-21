@@ -158,7 +158,7 @@ void Simulation::_dump(const string append = string())
     if (rank==0) cout << ss.str() << endl;
 
 #if defined(_USE_HDF_)
-    DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+    DumpHDF5flat_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
 #else if defined(_USE_LZ4_)
     MPI_Barrier(MPI_COMM_WORLD);
     double vpeps = parser("-vpeps").asDouble(1e-5);
