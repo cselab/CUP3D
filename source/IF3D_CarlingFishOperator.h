@@ -693,7 +693,7 @@ public:
 	void save(const int step_id, const double t, std::string filename = std::string()) override;
 	void restart(const double t, std::string filename = std::string()) override;
     void update(const int step_id, const double t, const double dt, const double *Uinf) override;
-    void getCenterOfMass(double (&CM)[3]) const override;
+    void getCenterOfMass(double CM[3]) const override;
     void create(const int step_id,const double time, const double dt, const double *Uinf) override;
     void _parseArguments(ArgumentParser & parser);
 };

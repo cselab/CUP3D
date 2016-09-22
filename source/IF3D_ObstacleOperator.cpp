@@ -35,13 +35,13 @@ struct ForcesOnSkin : public GenericLabOperator
     template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
 	{
-		if(surfaceBlocksFilter->find(info.blockID) == surfaceBlocksFilter->end()) return;
-		//this made me laugh so hard I can now die happy:
-		const int first = surfaceBlocksFilter->find(info.blockID)->second.first;
-		const int second = surfaceBlocksFilter->find(info.blockID)->second.second;
+    		const auto pos = surfaceBlocksFilter->find(info.blockID);
+		if(pos == surfaceBlocksFilter->end()) return;
+		const int first  = pos->second.first;
+		const int second = pos->second.second;
 		const double _h3 = std::pow(info.h_gridpoint,3);
 		const double _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
-
+		printf("%d %d\n",first,second);
 		for(int i=first; i<second; i++) { //i now is a fluid >element<
 			double p[3];
 			const int ix = surfData->Set[i]->ix;
@@ -111,7 +111,7 @@ struct ForcesOnSkin : public GenericLabOperator
 	}
 };
 
-void IF3D_ObstacleOperator::_computeUdefMoments(double (&lin_momenta)[3], double (&ang_momenta)[3], const double CoM[3])
+void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3], double ang_momenta[3], const double CoM[3])
 {
 	const int N = vInfo.size();
 	const double dv = std::pow(vInfo[0].h_gridpoint,3);
@@ -446,7 +446,7 @@ void IF3D_ObstacleOperator::computeVelocities(const double* Uinf)
     }
 }
 
-void IF3D_ObstacleOperator::_finalizeAngVel(Real (&AV)[3], const Real (&J)[6], const Real& gam0, const Real& gam1, const Real& gam2)
+void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2)
 {
 	// try QR factorization to avoid dealing with determinant
 	const double u1[3] = {J[0], J[3], J[4]};
@@ -520,8 +520,13 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time, c
 			}
 		}
 		firstInfo.push_back(surfData.Ndata);
-		for(int i=0; i<usefulIDs.size(); i++) //now i arrange them in a map because Im lazy
-		surfaceBlocksFilter[usefulIDs[i]] = make_pair(firstInfo[i],firstInfo[i+1]);
+		for(int i=0; i<usefulIDs.size(); i++) { //now i arrange them in a map because Im lazy
+			assert(surfaceBlocksFilter.find(usefulIDs[i]) == surfaceBlocksFilter.end());
+			surfaceBlocksFilter[usefulIDs[i]] = make_pair(firstInfo[i],firstInfo[i+1]);
+
+		//const auto pos = surfaceBlocksFilter.find(usefulIDs[i]);
+		//printf("%d block id %d (%d) occupies from %d to %d\n",rank,usefulIDs[i],pos->first,pos->second.first,pos->second.second);
+		}
     }
     
 	double CM[3];
@@ -676,7 +681,7 @@ std::vector<int> IF3D_ObstacleOperator::intersectingBlockIDs(const int buffer) c
 	return retval;
 }
 
-void IF3D_ObstacleOperator::getTranslationVelocity(Real (&UT)[3]) const
+void IF3D_ObstacleOperator::getTranslationVelocity(Real UT[3]) const
 {
     UT[0]=transVel[0];
     UT[1]=transVel[1];
@@ -690,7 +695,7 @@ void IF3D_ObstacleOperator::setTranslationVelocity(Real UT[3])
     transVel[2]=UT[2];
 }
 
-void IF3D_ObstacleOperator::getAngularVelocity(Real (&W)[3]) const
+void IF3D_ObstacleOperator::getAngularVelocity(Real W[3]) const
 {
     W[0]=angVel[0];
     W[1]=angVel[1];
@@ -704,7 +709,7 @@ void IF3D_ObstacleOperator::setAngularVelocity(const Real W[3])
 	angVel[2]=W[2];
 }
 
-void IF3D_ObstacleOperator::getCenterOfMass(Real (&CM)[3]) const
+void IF3D_ObstacleOperator::getCenterOfMass(Real CM[3]) const
 {
     CM[0]=position[0];
     CM[1]=position[1];
