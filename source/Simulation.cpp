@@ -205,16 +205,18 @@ void Simulation::_selectDT()
     //if (dumpTime>0) dt = min(dt,nextDumpTime-time);
     //if (saveTime>0) dt = min(dt,nextSaveTime-time);
     //if (endTime>0)  dt = min(dt,endTime-time);
-    /*
-    if ( step<1000 ) {
-        const double dt_max = 0.01;
-        const double dt_min = 1e-6;
-        const double dt_ramp = dt_min + step*(dt_max - dt_min)/1000.;
-        dt = min(dt,dt_ramp);
-        if(rank==0)
-        printf("dt_ramp %f dt %f\n",dt_ramp,dt);
+
+    if ( step<100 ) {
+        const double dt_max = 0.01*CFL;
+        const double dt_min = 1e-4*CFL;
+        const double dt_ramp = dt_min + step*(dt_max - dt_min)/100.;
+        if (dt_ramp<dt) {
+        	dt = dt_ramp;
+        	if(rank==0)
+        		printf("Dt bounded by ramp-up: dt_ramp=%f\n",dt_ramp);
+        }
     }
-	*/
+
     //if (verbose) cout << "dt (Fourier, CFL): " << dtFourier << " " << dtCFL << endl;
 }
 

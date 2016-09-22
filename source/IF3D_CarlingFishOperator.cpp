@@ -31,6 +31,21 @@ struct VolumeSegment_OBB
 
     }
     
+    VolumeSegment_OBB() { }
+
+    void prepare(std::pair<int, int> _s_range, const double bbox[3][2])
+	{
+    	normalI[1]=normalI[2]=normalJ[0]=normalJ[2]=normalK[0]=normalK[1]=0.0;
+		normalI[0]=normalJ[1]=normalK[2]=1.0;
+    	s_range.first = _s_range.first;
+    	s_range.second = _s_range.second;
+		for(int i=0;i<3;++i) {
+			w[i] = 0.5*(bbox[i][1]-bbox[i][0]);
+			c[i] = bbox[i][0] + w[i];
+			assert(w[i]>0);
+		}
+	}
+
     void normalizeNormals()
     {
         const double magI = std::sqrt(normalI[0]*normalI[0]+normalI[1]*normalI[1]+normalI[2]*normalI[2]);
@@ -710,6 +725,35 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
 #endif
     
     // 4.
+    std::vector<VolumeSegment_OBB> vSegments(Nsegments);
+#pragma omp parallel for
+	for(int i=0;i<Nsegments;++i) {
+		const int next_idx = (i+1)*(Nm-1)/Nsegments;
+		const int idx = i * (Nm-1)/Nsegments;
+		// find bounding box based on this
+		double bbox[3][2] = {
+			{std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest()},
+			{std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest()},
+			{std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest()}
+		};
+		for(int ss=idx; ss<=next_idx; ++ss) {
+			const double xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
+									myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
+			const double yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
+									myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss]};
+			const double zBnd[2] = {-myFish->height[ss], +myFish->height[ss]};
+			bbox[0][0] = std::min({bbox[0][0],xBnd[0],xBnd[1]});
+			bbox[0][1] = std::max({bbox[0][1],xBnd[0],xBnd[1]});
+			bbox[1][0] = std::min({bbox[1][0],yBnd[0],yBnd[1]});
+			bbox[1][1] = std::max({bbox[1][1],yBnd[0],yBnd[1]});
+			bbox[2][0] = std::min({bbox[2][0],zBnd[0],zBnd[1]});
+			bbox[2][1] = std::max({bbox[2][1],zBnd[0],zBnd[1]});
+		}
+		vSegments[i].prepare(std::make_pair(idx, next_idx), bbox); //create a new segment
+		vSegments[i].changeToComputationalFrame(position,quaternion);
+	}
+
+    /*
     std::vector<VolumeSegment_OBB> vSegments;
     vSegments.reserve(Nsegments);
     {
@@ -746,6 +790,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
 #pragma omp parallel for
     for(int i=0;i<Nsegments;++i)
         vSegments[i].changeToComputationalFrame(position,quaternion);
+    */
 
     // clear deformation velocities
     for(auto & entry : obstacleBlocks)

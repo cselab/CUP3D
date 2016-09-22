@@ -225,7 +225,6 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 		coords[0]*grid.getResidentBlocksPerDimension(0)*eX,
 		coords[1]*grid.getResidentBlocksPerDimension(1)*eY,
 		0, 0};
-	printf("Coords %d %d %d %e\n",coords[0],coords[1],coords[2],grid.getH());
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
