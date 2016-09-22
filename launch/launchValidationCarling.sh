@@ -11,14 +11,14 @@ if [ $# -gt 1 ] ; then
 fi
 
 BASEPATH=/cluster/scratch_xp/public/novatig/CubismUP3D/
-BASENAME=FlowPastCarlingFishRe0550_Validate_
+BASENAME=FlowPastCarlingFishRe0550_Dump2D_
 NPROCESSORS=$((${NNODE}*48))
 
 CFL=0.5
-LAMBDA=1e5
-BPDX=15
-BPDY=24
-BPDZ=18
+LAMBDA=1e4
+BPDX=20
+BPDY=32
+BPDZ=24
 
 NAME_RUN=BPD${BPDX}_CFL${CFL}_${1}RANKS
 
@@ -44,7 +44,7 @@ if [ $INTERACTIVE -eq 1 ] ; then
     OPTIONS=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ} -nprocsx ${NNODE} -CFL ${CFL} -length 0.2 -lambda ${LAMBDA} -nu 0.00001"
     sort $LSB_DJOB_HOSTFILE | uniq  > lsf_hostfile      
     #mpirun -np ${NNODE} -bynode ./simulation -tend 8 ${OPTIONS} 
-    mpich_run -np ${NNODE} -ppn 1 -bind-to none -launcher ssh -f lsf_hostfile ./simulation -tend 8 ${OPTIONS}
+    mpich_run -np ${NNODE} -ppn 1 -bind-to none -launcher ssh -f lsf_hostfile valgrind ./simulation --tool=memcheck --track-origins=yes --leak-check=yes -tend 8 ${OPTIONS}
 else
     bsub -n ${NPROCESSORS} -R span[ptile=48] -W 12:00 -J ${BASENAME}${NAME_RUN} ./run.sh $NNODE 
 fi

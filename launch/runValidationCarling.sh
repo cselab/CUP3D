@@ -9,10 +9,10 @@ export LD_LIBRARY_PATH=/cluster/home03/mavt/novatig/fftw-3.3.5/lib/:$LD_LIBRARY_
 #LD_LIBRARY_PATH=/cluster/apps/openmpi/1.6.5/x86_64/gcc_4.9.2/lib/:$LD_LIBRARY_PATH
 
 CFL=0.5
-LAMBDA=1e5
-BPDX=15
-BPDY=24
-BPDZ=18
+LAMBDA=1e4
+BPDX=20
+BPDY=32
+BPDZ=24
 
 OPTIONS=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ} -nprocsx ${NNODE} -CFL ${CFL} -length 0.2 -lambda ${LAMBDA} -nu 0.00007272727273"
 

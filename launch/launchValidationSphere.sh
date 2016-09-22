@@ -12,13 +12,13 @@ if [ $# -gt 1 ] ; then
 fi
 
 BASEPATH=/cluster/scratch_xp/public/novatig/CubismUP3D/
-BASENAME=FlowPastFixedSphereRe200_Validate_
+BASENAME=FlowPastFixedSphereRe200_Validate3_
 NPROCESSORS=$((${NNODE}*${NTHREADSPERNODE}))
 
-CFL=0.25
-LAMBDA=1e5
-BPDX=8
-BPDY=16
+CFL=0.1
+LAMBDA=1e4
+BPDX=20
+BPDY=32
 
 NAME_RUN=BPD${BPDX}_CFL${CFL}
 
