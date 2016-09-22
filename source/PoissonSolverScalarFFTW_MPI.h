@@ -35,7 +35,6 @@ class FFTWBase_MPI
 			initialized = true;
 			const int supported_threads = MPI::Query_thread();
 			if (supported_threads>=MPI_THREAD_FUNNELED) {
-				printf("FFTW should be multithreaded\n");
 #ifndef _SP_COMP_
 				const int retval = fftw_init_threads();
 #else
