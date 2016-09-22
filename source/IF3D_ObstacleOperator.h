@@ -49,8 +49,8 @@ protected:
     virtual void _writeComputedVelToFile(const int step_id, const Real t, const double * uInf);
     virtual void _writeDiagForcesToFile(const int step_id, const Real t);
     void _makeDefVelocitiesMomentumFree(const double CoM[3]);
-    void _computeUdefMoments(double (&lin_momenta)[3], double (&ang_momenta)[3], const double CoM[3]);
-    void _finalizeAngVel(Real (&AV)[3], const Real (&J)[6], const Real& gam0, const Real& gam1, const Real& gam2);
+    void _computeUdefMoments(double lin_momenta[3], double ang_momenta[3], const double CoM[3]);
+    void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
 
 public:
     int obstacleID;
@@ -142,9 +142,9 @@ public:
         obstacleBlocks.clear();
     }
     
-    virtual void getTranslationVelocity(Real (&UT)[3]) const;
-    virtual void getAngularVelocity(Real (&W)[3]) const;
-    virtual void getCenterOfMass(Real (&CM)[3]) const;
+    virtual void getTranslationVelocity(Real UT[3]) const;
+    virtual void getAngularVelocity(Real W[3]) const;
+    virtual void getCenterOfMass(Real CM[3]) const;
     virtual void setTranslationVelocity(Real UT[3]);
     virtual void setAngularVelocity(const Real W[3]);
     virtual double getForceX() const;

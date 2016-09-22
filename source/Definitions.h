@@ -322,8 +322,9 @@ public:
     {
 		Ndata = 0;
 		for(int i=0; i<blocksPerThread.size(); i++)
-			for (auto & elem : blocksPerThread[i].Set)
-				_add(elem);
+			for(int j=0; j<blocksPerThread[i].Set.size(); j++)
+				_add(blocksPerThread[i].Set[j]);
+			//for (auto & elem : blocksPerThread[i].Set) _add(elem);
 
         if (Ndata > nAlloc) {
             nAlloc = Ndata;

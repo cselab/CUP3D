@@ -555,9 +555,8 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 		stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
 	}
     
-//, ObstacleBlock* const defblock,surfaceBlocks& surf,double (&tmp)[4], const int& blockID
     template <typename Lab, typename BlockType>
-	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)//, const int blockID)
+	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
 	{
 		if(obstacleBlocks->find(info.blockID) == obstacleBlocks->end()) return;
 		ObstacleBlock* const defblock = obstacleBlocks->find(info.blockID)->second;
@@ -821,7 +820,8 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     	finalize.push_back(PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]));
 
     	compute(finalize);
-    	double sumX[4], totX[4];
+    	double sumX[4] = {0,0,0,0};
+    	double totX[4] = {0,0,0,0};
     	for(int i=0; i<nthreads; i++) {
     		sumX[0] += momenta[i][0];
     		sumX[1] += momenta[i][1];
@@ -829,11 +829,11 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     		sumX[3] += momenta[i][3];
     	}
     	MPI::COMM_WORLD.Allreduce(sumX, totX, 4, MPI::DOUBLE, MPI::SUM);
-    	surfData.finalizeOnGrid(dataPerThread);
         assert(totX[0]>std::numeric_limits<double>::epsilon());
         CoM_interpolated[0]=totX[1]/totX[0];
         CoM_interpolated[1]=totX[2]/totX[0];
         CoM_interpolated[2]=totX[3]/totX[0];
+        printf("CoM [%f %f %f], pos [%f %f %f]\n",CoM_interpolated[0],CoM_interpolated[1],CoM_interpolated[2],position[0],position[1],position[2]);
         _makeDefVelocitiesMomentumFree(CoM_interpolated);
 
         /*
@@ -1074,7 +1074,7 @@ void IF3D_StefanLearnTurnOperator::execute(Communicator * comm, const int iAgent
 }
 */
 
-void IF3D_CarlingFishOperator::getCenterOfMass(double (&CM)[3]) const
+void IF3D_CarlingFishOperator::getCenterOfMass(double CM[3]) const
 {
 	// return computation CoM, not the one were advecting
 	CM[0]=CoM_interpolated[0];
