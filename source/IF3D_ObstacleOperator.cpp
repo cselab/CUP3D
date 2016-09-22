@@ -212,7 +212,7 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
         }
     }
 
-#ifndef DNDEBUG
+#ifndef NDEBUG
     double dummy_ang[3], dummy_lin[3];
     _computeUdefMoments(dummy_lin, dummy_ang, CoM);
     printf("Post correction linear momentum %f %f ang vel %f\n", dummy_lin[0], dummy_lin[1], dummy_ang[2]);

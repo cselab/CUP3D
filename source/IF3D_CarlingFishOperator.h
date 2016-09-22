@@ -632,7 +632,7 @@ public:
             _computeMidlineCoordinates(time);
             _computeMidlineVelocities(time);
             _computeMidlineNormals();
-#ifndef DNDEBUG
+#ifndef NDEBUG
     		// we dump the profile
 			int rank;
 			MPI_Comm_rank(MPI_COMM_WORLD,&rank);

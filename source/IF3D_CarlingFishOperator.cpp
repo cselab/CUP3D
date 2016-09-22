@@ -693,7 +693,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     //theta_internal -= 0.5*sim_dt*(angvel_internal+angvel_internal_prev);//negative: we subtracted this angvel
     myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
 
-#ifndef DNDEBUG
+#ifndef NDEBUG
     {/**/
         double dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
         // check that things are zero
@@ -833,11 +833,10 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
         CoM_interpolated[0]=totX[1]/totX[0];
         CoM_interpolated[1]=totX[2]/totX[0];
         CoM_interpolated[2]=totX[3]/totX[0];
-        printf("CoM [%f %f %f], pos [%f %f %f]\n",CoM_interpolated[0],CoM_interpolated[1],CoM_interpolated[2],position[0],position[1],position[2]);
         _makeDefVelocitiesMomentumFree(CoM_interpolated);
 
         /*
-#ifndef DNDEBUG
+#ifndef NDEBUG
         {
 		ComputeAll computeall(vInfo,grid.getBlockCollection(),CoM_interpolated,obstacleBlocks);
 		tbb::parallel_reduce(blocked_range<int>(0,vInfo.size(),1),computeall);
