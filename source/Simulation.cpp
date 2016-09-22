@@ -91,7 +91,7 @@ void Simulation::setupOperators()
     pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
     pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
     pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
-    //pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
+    pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
 
 
     if(rank==0) {
@@ -126,11 +126,7 @@ void Simulation::_dump(const string append = string())
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
             for(int iy=0; iy<FluidBlock::sizeY; ++iy)
             for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-                if (std::isnan(b(ix,iy,iz).u) ||
-                    std::isnan(b(ix,iy,iz).v) ||
-                    std::isnan(b(ix,iy,iz).w) ||
-                    std::isnan(b(ix,iy,iz).chi) ||
-                    std::isnan(b(ix,iy,iz).p) )
+            if (std::isnan(b(ix,iy,iz).u)||std::isnan(b(ix,iy,iz).v)||std::isnan(b(ix,iy,iz).w)||std::isnan(b(ix,iy,iz).chi)||std::isnan(b(ix,iy,iz).p))
                     cout << "dump" << endl;
                 assert(!std::isnan(b(ix,iy,iz).u));
                 assert(!std::isnan(b(ix,iy,iz).v));
@@ -152,9 +148,15 @@ void Simulation::_dump(const string append = string())
 
     CoordinatorVorticity<LabMPI> coordVorticity(grid);
     coordVorticity(dt);
-    
+    {
+    	stringstream ss;
+		ss << path2file << append_2D << "-" << std::setfill('0') << std::setw(6) << step;
+		if (rank==0) cout << ss.str() << endl;
+		DumpHDF52D_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+    }
+    {
     stringstream ss;
-    ss << path2file << append << "-" << std::setfill('0') << std::setw(6) << step;
+    ss << path2file << append_flat << "-" << std::setfill('0') << std::setw(6) << step;
     if (rank==0) cout << ss.str() << endl;
 
 #if defined(_USE_HDF_)
@@ -188,6 +190,7 @@ void Simulation::_dump(const string append = string())
 		if (vpchannels.find('m') != std::string::npos)
 			waveletdumper_velocity_magnitude.Write<0>(grid, ss.str());
      */
+    }
 #endif
 }
     
