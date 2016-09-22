@@ -65,9 +65,9 @@ protected:
 	}
 	
 	template <typename Kernel>
-	void compute(Kernel kernel)
+	void compute(const Kernel kernel)
 	{
-#if 1
+#if 0
 		SynchronizerMPI& Synch = grid->sync(kernel);
 		vector<BlockInfo> avail0, avail1;
 		
@@ -149,7 +149,6 @@ protected:
 		MPI::COMM_WORLD.Barrier();
 #else
 		SynchronizerMPI& Synch = grid->sync(kernel);
-		vector<BlockInfo> avail0, avail1;
 
 		const int nthreads = omp_get_max_threads();
 		LabMPI * labs = new LabMPI[nthreads];
@@ -157,7 +156,7 @@ protected:
 			labs[i].prepare(*grid, Synch);
 
 		MPI::COMM_WORLD.Barrier();
-		avail0 = Synch.avail_inner();
+		vector<BlockInfo> avail0 = Synch.avail_inner();
 		const int Ninner = avail0.size();
 
 #pragma omp parallel
@@ -174,7 +173,7 @@ protected:
 			}
 		}
 
-		avail1 = Synch.avail_halo();
+		vector<BlockInfo> avail1 = Synch.avail_halo();
 		const int Nhalo = avail1.size();
 
 #pragma omp parallel
