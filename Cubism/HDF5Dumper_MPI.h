@@ -214,16 +214,16 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 	static const unsigned int eZ = B::sizeZ;
 
 	hsize_t count[4] = {
-		grid.getResidentBlocksPerDimension(0)*B::sizeX,
-		grid.getResidentBlocksPerDimension(1)*B::sizeY,
+		grid.getResidentBlocksPerDimension(0)*eX,
+		grid.getResidentBlocksPerDimension(1)*eY,
 		1, NCHANNELS};
 	hsize_t dims[4] = {
-		grid.getBlocksPerDimension(0)*B::sizeX,
-		grid.getBlocksPerDimension(1)*B::sizeY,
+		grid.getBlocksPerDimension(0)*eX,
+		grid.getBlocksPerDimension(1)*eY,
 		1, NCHANNELS};
 	hsize_t offset[4] = {
-		coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX,
-		coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
+		coords[0]*grid.getResidentBlocksPerDimension(0)*eX,
+		coords[1]*grid.getResidentBlocksPerDimension(1)*eY,
 		0, 0};
 	printf("Coords %d %d %d %e\n",coords[0],coords[1],coords[2],grid.getH());
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
