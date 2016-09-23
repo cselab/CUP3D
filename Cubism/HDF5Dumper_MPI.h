@@ -424,13 +424,13 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 		fprintf(xmf, " <Domain>\n");
 		fprintf(xmf, "   <Grid GridType=\"Uniform\">\n");
 		fprintf(xmf, "     <Time Value=\"%05d\"/>\n", iCounter);
-		fprintf(xmf, "     <Topology TopologyType=\"2DCORECTMesh\" Dimensions=\"%d %d \"/>\n", (int)dims[0], (int)dims[1]);
+		fprintf(xmf, "     <Topology TopologyType=\"2DCORECTMesh\" Dimensions=\"%d %d\"/>\n", (int)dims[0], (int)dims[1]);
 		fprintf(xmf, "     <Geometry GeometryType=\"ORIGIN_DXDY\">\n");
 		fprintf(xmf, "       <DataItem Name=\"Origin\" Dimensions=\"2\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
 		fprintf(xmf, "        %e %e \n", 0.,0.);
 		fprintf(xmf, "       </DataItem>\n");
 		fprintf(xmf, "       <DataItem Name=\"Spacing\" Dimensions=\"2\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
-		fprintf(xmf, "        %e %e %e\n", grid.getH(), grid.getH());
+		fprintf(xmf, "        %e %e \n", grid.getH(), grid.getH());
 		fprintf(xmf, "       </DataItem>\n");
 		fprintf(xmf, "     </Geometry>\n");
 		fprintf(xmf, "     <Attribute Name=\"data\" AttributeType=\"%s\" Center=\"Node\">\n", Streamer::getAttributeName());
