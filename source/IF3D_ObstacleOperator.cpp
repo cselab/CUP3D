@@ -24,7 +24,7 @@ struct ForcesOnSkin : public GenericLabOperator
 					surfacePoints* const surface, 						    //most info I/O
 					const map<int,pair<int,int>>* const surfaceBlocksFilter, //skip useless blocks
 					array<double,19>* const measures)     	                //additive quantities
-	: t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures), surfData(surfData),
+	: t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures), surfData(surface),
 	  surfaceBlocksFilter(surfaceBlocksFilter), obstacleBlocks(obstacleBlocks)
 	{
     		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
@@ -41,7 +41,6 @@ struct ForcesOnSkin : public GenericLabOperator
 		const int second = pos->second.second;
 		const double _h3 = std::pow(info.h_gridpoint,3);
 		const double _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
-		printf("%d %d\n",first,second);
 		for(int i=first; i<second; i++) { //i now is a fluid >element<
 			double p[3];
 			const int ix = surfData->Set[i]->ix;

@@ -72,7 +72,7 @@ namespace SphereObstacle
             return radius - std::sqrt(x*x+y*y+z*z); // pos inside, neg outside
         }
         
-        inline void operator()(const BlockInfo& info,FluidBlock& b,ObstacleBlock* const defblock,surfaceBlocks& surf) const
+        inline void operator()(const BlockInfo& info,FluidBlock& b,ObstacleBlock* const defblock,surfaceBlocks* const surf) const
         {
             if(_is_touching(info)) {
             	const double h = info.h_gridpoint;
@@ -142,7 +142,7 @@ namespace SphereObstacle
                             	const double dchidx = -Delta*gradUX;
                             	const double dchidy = -Delta*gradUY;
                             	const double dchidz = -Delta*gradUZ;
-                            	surf.add(info.blockID,ix,iy,iz,dchidx,dchidy,dchidz,Delta);
+                            	surf->add(info.blockID,ix,iy,iz,dchidx,dchidy,dchidz,Delta);
                             }
 
                             //        assert(H>=0 && H<=1);

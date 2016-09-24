@@ -865,6 +865,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     	finalize.push_back(PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]));
 
     	compute(finalize);
+
     	double sumX[4] = {0,0,0,0};
     	double totX[4] = {0,0,0,0};
     	for(int i=0; i<nthreads; i++) {
@@ -873,11 +874,16 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     		sumX[2] += momenta[i][2];
     		sumX[3] += momenta[i][3];
     	}
+
     	MPI::COMM_WORLD.Allreduce(sumX, totX, 4, MPI::DOUBLE, MPI::SUM);
+
+    	surfData.finalizeOnGrid(dataPerThread);
+
         assert(totX[0]>std::numeric_limits<double>::epsilon());
         CoM_interpolated[0]=totX[1]/totX[0];
         CoM_interpolated[1]=totX[2]/totX[0];
         CoM_interpolated[2]=totX[3]/totX[0];
+
         _makeDefVelocitiesMomentumFree(CoM_interpolated);
 
         /*

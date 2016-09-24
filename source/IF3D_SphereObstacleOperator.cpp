@@ -44,7 +44,7 @@ void IF3D_SphereObstacleOperator::create(const int step_id,const double time, co
 			auto pos = obstacleBlocks.find(info.blockID);
 			if(pos == obstacleBlocks.end()) continue;
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-			fill(info, b, pos->second, dataPerThread[tid]);
+			fill(info, b, pos->second, &dataPerThread[tid]);
 		}
 	}
 	surfData.finalizeOnGrid(dataPerThread);

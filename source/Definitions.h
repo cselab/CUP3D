@@ -321,9 +321,14 @@ public:
     void finalizeOnGrid(vector<surfaceBlocks>& blocksPerThread)
     {
 		Ndata = 0;
-		for(int i=0; i<blocksPerThread.size(); i++)
+		for(int i=0; i<blocksPerThread.size(); i++) {
+			//printf("Processing chunk %d of size %d, current size is %d (%d)\n", i,blocksPerThread[i].Set.size(),Ndata,Set.size());
 			for(int j=0; j<blocksPerThread[i].Set.size(); j++)
 				_add(blocksPerThread[i].Set[j]);
+
+
+			//printf("Processed chunk %d of size %d, current size is %d (%d)\n", i,blocksPerThread[i].Set.size(),Ndata,Set.size());
+		}
 			//for (auto & elem : blocksPerThread[i].Set) _add(elem);
 
         if (Ndata > nAlloc) {
