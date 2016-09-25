@@ -223,7 +223,9 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 		coords[1]*grid.getResidentBlocksPerDimension(1)*eY, 0};
 
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
-	printf("%d %d %d %d %d\n",rank,grid.getResidentBlocksPerDimension(0),grid.getResidentBlocksPerDimension(1),grid.getBlocksPerDimension(0),grid.getBlocksPerDimension(1));
+	printf("rank %d res_bpd %d %d tot_bpd %d %d\n",
+			rank,grid.getResidentBlocksPerDimension(0),grid.getResidentBlocksPerDimension(1),
+			grid.getBlocksPerDimension(0),grid.getBlocksPerDimension(1));
 
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -320,42 +322,37 @@ template<typename TGrid, typename Streamer>
 void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const string dump_path=".")
 {
 #ifdef _USE_HDF_
-	typedef typename TGrid::BlockType B;
 
-	int rank;
 	char filename[256];
+	int rank, coords[3];
+	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	grid.peindex(coords);
+
 	herr_t status;
 	hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
 
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-
-	int coords[3];
-	grid.peindex(coords);
-
-	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
-	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
+	static const unsigned int eX = TGrid::BlockType::sizeX;
+	static const unsigned int eY = TGrid::BlockType::sizeY;
+	static const unsigned int eZ = TGrid::BlockType::sizeZ;
+	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*eX;
+	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*eY;
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
+
 	Real * array_all = new Real[NX * NY * NCHANNELS];
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 
-	static const unsigned int sX = 0;
-	static const unsigned int sY = 0;
-	static const unsigned int sZ = 0;
-	static const unsigned int eX = B::sizeX;
-	static const unsigned int eY = B::sizeY;
-	static const unsigned int eZ = B::sizeZ;
-
-	hsize_t count[3] = {
-		grid.getResidentBlocksPerDimension(0)*B::sizeX,
-		grid.getResidentBlocksPerDimension(1)*B::sizeY, NCHANNELS};
+	hsize_t offset[3] = {coords[0]*NX, coords[1]*NY, 0};
+	hsize_t count[3] = {NX, NY, NCHANNELS};
 	hsize_t dims[3] = {
-		grid.getBlocksPerDimension(0)*B::sizeX,
-		grid.getBlocksPerDimension(1)*B::sizeY, NCHANNELS};
-	hsize_t offset[3] = {
-		coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX,
-		coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY, 0};
-	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
+		grid.getBlocksPerDimension(0)*eX,
+		grid.getBlocksPerDimension(1)*eY, NCHANNELS};
 
+	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
+	printf("rank %d resident %d %d total %d %d\n", rank,
+				grid.getResidentBlocksPerDimension(0),
+				grid.getResidentBlocksPerDimension(1),
+				grid.getBlocksPerDimension(0),
+				grid.getBlocksPerDimension(1) );
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
 	status = H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
@@ -364,35 +361,34 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 
 #pragma omp parallel for
 	for(unsigned int i=0; i<vInfo.size(); i++) {
-		BlockInfo& info = vInfo[i];
 		Real ini[3], fin[3];
-		info.pos(ini, sX, sY, sZ);
-		info.pos(fin, eX-1, eY-1, eZ-1);
+		BlockInfo& info = vInfo[i];
+		info.pos(ini,   0,   0,   0);
+		info.pos(fin,eX-1,eY-1,eZ-1);
 		if (ini[2]>.5 || fin[2]<.5) continue;
 		const Real invh = 1.0/info.h_gridpoint;
-		const int mid = (int)std::floor((0.5-ini[2])*invh);
+		const int mid = (int)std::floor((.5-ini[2])*invh);
 		assert(mid>=0 && mid<eZ);
 		const unsigned int idx[2] = {info.indexLocal[0], info.indexLocal[1]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
 
-		for(unsigned int ix=sX; ix<eX; ix++) {
-			const unsigned int gx = idx[0]*B::sizeX + ix;
-			for(unsigned int iy=sY; iy<eY; iy++) {
-				const unsigned int gy = idx[1]*B::sizeY + iy;
-				assert(NCHANNELS*(gy + NY * gx) < NX * NY * NCHANNELS);
-				Real* const ptr = array_all + NCHANNELS*(gy + NY * gx);
-				Real output[NCHANNELS];
-				for(int i=0; i<NCHANNELS; ++i) output[i] = 0;
-				streamer.operate(ix, iy, mid, (Real*)output);
-				for(int i=0; i<NCHANNELS; ++i) ptr[i] = output[i];
-			}
+		for(unsigned int ix=0; ix<eX; ix++)
+		for(unsigned int iy=0; iy<eY; iy++) {
+			const unsigned int gx = idx[0]*eX + ix;
+			const unsigned int gy = idx[1]*eY + iy;
+			printf("Local index %d %d\n",gx,gy);
+			assert(NCHANNELS*(gy + NY * gx) < NX * NY * NCHANNELS);
+			Real* const ptr = array_all + NCHANNELS*(gy + NY * gx);
+			Real output[NCHANNELS];
+			for(int i=0; i<NCHANNELS; ++i) output[i] = 0;
+			streamer.operate(ix, iy, mid, (Real*)output);
+			for(int i=0; i<NCHANNELS; ++i) ptr[i] = output[i];
 		}
 	}
 
 	fapl_id = H5Pcreate(H5P_DATASET_XFER);
 	H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
-
 	fspace_id = H5Screate_simple(3, dims, NULL);
 #ifndef _ON_FERMI_
 	dataset_id = H5Dcreate(file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
@@ -434,7 +430,7 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 		fprintf(xmf, "       </DataItem>\n");
 		fprintf(xmf, "     </Geometry>\n");
 		fprintf(xmf, "     <Attribute Name=\"data\" AttributeType=\"%s\" Center=\"Node\">\n", Streamer::getAttributeName());
-		fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", (int)dims[0], (int)dims[1], (int)dims[3]);
+		fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", (int)dims[0], (int)dims[1], (int)dims[2]);
 		fprintf(xmf, "        %s:/data\n",(f_name+".h5").c_str());
 		fprintf(xmf, "       </DataItem>\n");
 		fprintf(xmf, "     </Attribute>\n");

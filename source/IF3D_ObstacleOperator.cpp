@@ -42,6 +42,7 @@ struct ForcesOnSkin : public GenericLabOperator
 		const double _h3 = std::pow(info.h_gridpoint,3);
 		const double _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
 		for(int i=first; i<second; i++) { //i now is a fluid >element<
+			assert(first<second && surfData->Set.size()>=second);
 			double p[3];
 			const int ix = surfData->Set[i]->ix;
 			const int iy = surfData->Set[i]->iy;
