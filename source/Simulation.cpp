@@ -50,7 +50,7 @@ void Simulation::parseArguments()
     bRestart = parser("-restart").asBool(false);
     bDLM = parser("-use-dlm").asBool(false);
     dumpFreq = parser("-fdump").asDouble(0);	// dumpFreq==0 means that this dumping frequency (in #steps) is not active
-    dumpTime = parser("-tdump").asDouble(0.25);	// dumpTime==0 means that this dumping frequency (in time)   is not active
+    dumpTime = parser("-tdump").asDouble(0.05);	// dumpTime==0 means that this dumping frequency (in time)   is not active
     saveFreq = parser("-fsave").asDouble(0);	// dumpFreq==0 means that this dumping frequency (in #steps) is not active
     saveTime = parser("-tsave").asDouble(10.0);	// dumpTime==0 means that this dumping frequency (in time)   is not active
     nsteps = parser("-nsteps").asInt(0);		// nsteps==0   means that this stopping criteria is not active
@@ -149,14 +149,14 @@ void Simulation::_dump(const string append = string())
     CoordinatorVorticity<LabMPI> coordVorticity(grid);
     coordVorticity(dt);
     {
-    	stringstream ss;
-		ss << path2file << append_2D << "-" << std::setfill('0') << std::setw(6) << step;
-		if (rank==0) cout << ss.str() << endl;
-		DumpHDF52D_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+    	//stringstream ss;
+		//ss << path2file << append << "2D" << "-" << std::setfill('0') << std::setw(6) << step;
+		//if (rank==0) cout << ss.str() << endl;
+		//DumpHDF52D_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
     }
     {
     stringstream ss;
-    ss << path2file << append_flat << "-" << std::setfill('0') << std::setw(6) << step;
+    ss << path2file << append << "flat" << "-" << std::setfill('0') << std::setw(6) << step;
     if (rank==0) cout << ss.str() << endl;
 
 #if defined(_USE_HDF_)
@@ -190,8 +190,8 @@ void Simulation::_dump(const string append = string())
 		if (vpchannels.find('m') != std::string::npos)
 			waveletdumper_velocity_magnitude.Write<0>(grid, ss.str());
      */
-    }
 #endif
+   }
 }
     
 void Simulation::_selectDT()
@@ -209,9 +209,11 @@ void Simulation::_selectDT()
     //if (saveTime>0) dt = min(dt,nextSaveTime-time);
     //if (endTime>0)  dt = min(dt,endTime-time);
 
-    if ( step<100 ) {
-        const double dt_max = 0.01*CFL;
-        const double dt_min = 1e-4*CFL;
+    //if ( step<100 ) 
+    if(false)
+    {
+        const double dt_max = 0.1*CFL;
+        const double dt_min = 1e-3*CFL;
         const double dt_ramp = dt_min + step*(dt_max - dt_min)/100.;
         if (dt_ramp<dt) {
         	dt = dt_ramp;

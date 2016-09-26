@@ -11,7 +11,7 @@ if [ $# -gt 1 ] ; then
 fi
 
 BASEPATH=/cluster/scratch_xp/public/novatig/CubismUP3D/
-BASENAME=FlowPastCarlingFishRe0550_Dump2D_
+BASENAME=FlowPastCarlingFishRe0550_dump2d_0_
 NPROCESSORS=$((${NNODE}*48))
 
 CFL=0.5

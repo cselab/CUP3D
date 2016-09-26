@@ -208,19 +208,22 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*eX;
 	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*eY;
 	const unsigned int NZ = 1;
+   const unsigned int maxExt = grid.getBlocksPerDimension(0)*eX;
+   const unsigned int zExt = grid.getBlocksPerDimension(2)*eZ;
+   const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
 	Real * array_all = new Real[NX * NY * NCHANNELS];
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 
 	hsize_t count[4] = {
-		1, grid.getResidentBlocksPerDimension(0)*eX,
-		grid.getResidentBlocksPerDimension(1)*eY, NCHANNELS};
+		grid.getResidentBlocksPerDimension(0)*eX,
+		grid.getResidentBlocksPerDimension(1)*eY, 1, NCHANNELS};
 	hsize_t dims[4] = {
-		1, grid.getBlocksPerDimension(0)*eX,
-		grid.getBlocksPerDimension(1)*eY, NCHANNELS};
+		grid.getBlocksPerDimension(0)*eX,
+		grid.getBlocksPerDimension(1)*eY, 1, NCHANNELS};
 	hsize_t offset[4] = {
-		0, coords[0]*grid.getResidentBlocksPerDimension(0)*eX,
-		coords[1]*grid.getResidentBlocksPerDimension(1)*eY, 0};
+		coords[0]*grid.getResidentBlocksPerDimension(0)*eX,
+		coords[1]*grid.getResidentBlocksPerDimension(1)*eY, 0, 0};
 
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
 	printf("rank %d res_bpd %d %d tot_bpd %d %d\n",
@@ -232,7 +235,8 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 	status = H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
-
+   const Real invh = 1.0/grid.getH();
+   const Real halfH = 0.5*grid.getH();
 #pragma omp parallel for
 	for(unsigned int i=0; i<vInfo.size(); i++)
 	{
@@ -240,10 +244,12 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 		Real ini[3], fin[3];
 		info.pos(ini, sX, sY, sZ);
 		info.pos(fin, eX-1, eY-1, eZ-1);
-		if (ini[2]>.5 || fin[2]<.5) continue;
-		const Real invh = 1.0/info.h_gridpoint;
-		const int mid = (int)std::floor((0.5-ini[2])*invh);
-		assert(mid>=0 && mid<eZ);
+      printf("We are in %f %f %f\n",ini[2],fin[2],sliceZ);
+		if (ini[2]>sliceZ+halfH || fin[2]<sliceZ-halfH) continue;
+
+		int mid = (int)std::floor((sliceZ-ini[2])*invh);
+		if (mid<0)   mid=0; 
+      if (mid>=eZ) mid=eZ-1;
 		const unsigned int idx[2] = {info.indexLocal[0], info.indexLocal[1]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
@@ -322,7 +328,7 @@ template<typename TGrid, typename Streamer>
 void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const string dump_path=".")
 {
 #ifdef _USE_HDF_
-
+   typedef typename TGrid::BlockType B;
 	char filename[256];
 	int rank, coords[3];
 	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -330,12 +336,14 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 
 	herr_t status;
 	hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
-
 	static const unsigned int eX = TGrid::BlockType::sizeX;
 	static const unsigned int eY = TGrid::BlockType::sizeY;
 	static const unsigned int eZ = TGrid::BlockType::sizeZ;
 	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*eX;
 	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*eY;
+   const unsigned int maxExt = grid.getBlocksPerDimension(0)*eX;
+   const unsigned int zExt = grid.getBlocksPerDimension(2)*eZ;
+   const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
 
 	Real * array_all = new Real[NX * NY * NCHANNELS];
@@ -348,16 +356,18 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 		grid.getBlocksPerDimension(1)*eY, NCHANNELS};
 
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
-	printf("rank %d resident %d %d total %d %d\n", rank,
-				grid.getResidentBlocksPerDimension(0),
-				grid.getResidentBlocksPerDimension(1),
-				grid.getBlocksPerDimension(0),
-				grid.getBlocksPerDimension(1) );
+	//printf("rank %d resident %d %d total %d %d\n", rank,
+	//			grid.getResidentBlocksPerDimension(0),
+	//			grid.getResidentBlocksPerDimension(1),
+	//			grid.getBlocksPerDimension(0),
+	//			grid.getBlocksPerDimension(1) );
+
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
 	status = H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
+   const Real halfH = 0.5*grid.getH();
 
 #pragma omp parallel for
 	for(unsigned int i=0; i<vInfo.size(); i++) {
@@ -365,10 +375,12 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 		BlockInfo& info = vInfo[i];
 		info.pos(ini,   0,   0,   0);
 		info.pos(fin,eX-1,eY-1,eZ-1);
-		if (ini[2]>.5 || fin[2]<.5) continue;
+      printf("We are in %f %f (%f)\n",ini[2],fin[2],sliceZ);
+		if (ini[2]>sliceZ+halfH || fin[2]<sliceZ-halfH) continue;
 		const Real invh = 1.0/info.h_gridpoint;
-		const int mid = (int)std::floor((.5-ini[2])*invh);
-		assert(mid>=0 && mid<eZ);
+		int mid = (int)std::floor((sliceZ-ini[2])*invh);
+		if (mid<0)   mid=0; 
+      if (mid>=eZ) mid=eZ-1;
 		const unsigned int idx[2] = {info.indexLocal[0], info.indexLocal[1]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
@@ -377,7 +389,7 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 		for(unsigned int iy=0; iy<eY; iy++) {
 			const unsigned int gx = idx[0]*eX + ix;
 			const unsigned int gy = idx[1]*eY + iy;
-			printf("Local index %d %d\n",gx,gy);
+			printf("Local index %u %u \n", gx, gy);
 			assert(NCHANNELS*(gy + NY * gx) < NX * NY * NCHANNELS);
 			Real* const ptr = array_all + NCHANNELS*(gy + NY * gx);
 			Real output[NCHANNELS];

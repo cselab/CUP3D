@@ -12,10 +12,10 @@ if [ $# -gt 1 ] ; then
 fi
 
 BASEPATH=/cluster/scratch_xp/public/novatig/CubismUP3D/
-BASENAME=FlowPastFixedSphereRe200_Validate3_
+BASENAME=FlowPastFixedSphereRe200_ValidateDump_0_
 NPROCESSORS=$((${NNODE}*${NTHREADSPERNODE}))
 
-CFL=0.1
+CFL=0.5
 LAMBDA=1e4
 BPDX=20
 BPDY=32
@@ -39,7 +39,7 @@ if [ $INTERACTIVE -eq 1 ] ; then
     export LD_LIBRARY_PATH=/cluster/home03/mavt/novatig/fftw-3.3.5/lib/:$LD_LIBRARY_PATH
     OPTIONS=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDY} -nprocsx ${NNODE} -CFL ${CFL} -length 0.1 -uinfx 0.1 -lambda ${LAMBDA} -nu 0.00005"
     sort $LSB_DJOB_HOSTFILE | uniq  > lsf_hostfile      
-    mpich_run -np ${NNODE} -ppn 1 -bind-to none -launcher ssh -f lsf_hostfile ./simulation -tend 8 ${OPTIONS}
+    mpich_run -np ${NNODE} -ppn 1 -bind-to none -launcher ssh -f lsf_hostfile valgrind --tool=memcheck --track-origins=yes --leak-check=yes ./simulation -tend 8 ${OPTIONS}
 else
     bsub -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -W 12:00 -J ${BASENAME}${NAME_RUN} ./run.sh $NNODE 
 fi
