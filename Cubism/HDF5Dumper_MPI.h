@@ -208,9 +208,9 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*eX;
 	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*eY;
 	const unsigned int NZ = 1;
-   const unsigned int maxExt = grid.getBlocksPerDimension(0)*eX;
-   const unsigned int zExt = grid.getBlocksPerDimension(2)*eZ;
-   const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
+	const unsigned int maxExt = grid.getBlocksPerDimension(0)*eX;
+	const unsigned int zExt = grid.getBlocksPerDimension(2)*eZ;
+	const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
 	Real * array_all = new Real[NX * NY * NCHANNELS];
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
@@ -226,9 +226,6 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 		coords[1]*grid.getResidentBlocksPerDimension(1)*eY, 0, 0};
 
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
-	printf("rank %d res_bpd %d %d tot_bpd %d %d\n",
-			rank,grid.getResidentBlocksPerDimension(0),grid.getResidentBlocksPerDimension(1),
-			grid.getBlocksPerDimension(0),grid.getBlocksPerDimension(1));
 
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -240,18 +237,17 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 #pragma omp parallel for
 	for(unsigned int i=0; i<vInfo.size(); i++)
 	{
-		BlockInfo& info = vInfo[i];
+		const BlockInfo& info = vInfo[i];
 		Real ini[3], fin[3];
 		info.pos(ini, sX, sY, sZ);
 		info.pos(fin, eX-1, eY-1, eZ-1);
-      printf("We are in %f %f %f\n",ini[2],fin[2],sliceZ);
 		if (ini[2]>sliceZ+halfH || fin[2]<sliceZ-halfH) continue;
 
 		int mid = (int)std::floor((sliceZ-ini[2])*invh);
 		if (mid<0)   mid=0; 
-      if (mid>=eZ) mid=eZ-1;
+		if (mid>=eZ) mid=eZ-1;
 		const unsigned int idx[2] = {info.indexLocal[0], info.indexLocal[1]};
-		B & b = *(B*)info.ptrBlock;
+		const B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
 
 		for(unsigned int ix=sX; ix<eX; ix++) {
@@ -324,6 +320,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 #endif
 }
 
+/*
 template<typename TGrid, typename Streamer>
 void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const string dump_path=".")
 {
@@ -356,11 +353,6 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 		grid.getBlocksPerDimension(1)*eY, NCHANNELS};
 
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
-	//printf("rank %d resident %d %d total %d %d\n", rank,
-	//			grid.getResidentBlocksPerDimension(0),
-	//			grid.getResidentBlocksPerDimension(1),
-	//			grid.getBlocksPerDimension(0),
-	//			grid.getBlocksPerDimension(1) );
 
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -375,12 +367,11 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 		BlockInfo& info = vInfo[i];
 		info.pos(ini,   0,   0,   0);
 		info.pos(fin,eX-1,eY-1,eZ-1);
-      printf("We are in %f %f (%f)\n",ini[2],fin[2],sliceZ);
 		if (ini[2]>sliceZ+halfH || fin[2]<sliceZ-halfH) continue;
 		const Real invh = 1.0/info.h_gridpoint;
 		int mid = (int)std::floor((sliceZ-ini[2])*invh);
 		if (mid<0)   mid=0; 
-      if (mid>=eZ) mid=eZ-1;
+		if (mid>=eZ) mid=eZ-1;
 		const unsigned int idx[2] = {info.indexLocal[0], info.indexLocal[1]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
@@ -389,7 +380,6 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 		for(unsigned int iy=0; iy<eY; iy++) {
 			const unsigned int gx = idx[0]*eX + ix;
 			const unsigned int gy = idx[1]*eY + iy;
-			printf("Local index %u %u \n", gx, gy);
 			assert(NCHANNELS*(gy + NY * gx) < NX * NY * NCHANNELS);
 			Real* const ptr = array_all + NCHANNELS*(gy + NY * gx);
 			Real output[NCHANNELS];
@@ -455,6 +445,7 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 #warning USE OF HDF WAS DISABLED AT COMPILE TIME
 #endif
 }
+*/
 
 template<typename TGrid, typename Streamer>
 void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")

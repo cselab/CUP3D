@@ -114,22 +114,15 @@ struct ForcesOnSkin : public GenericLabOperator
 void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3], double ang_momenta[3], const double CoM[3])
 {
 	const int N = vInfo.size();
-	const double dv = std::pow(vInfo[0].h_gridpoint,3);
-	//local variables
-	double V(0.0), J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
-	double lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
-	double am0(0.0), am1(0.0), am2(0.0); //angular momenta
-	//global allReduce
-	double gV(0.0), gJ0(0.0), gJ1(0.0), gJ2(0.0), gJ3(0.0), gJ4(0.0), gJ5(0.0);
-	double glm0(0.0), glm1(0.0), glm2(0.0); //linear momenta
-	double gam0(0.0), gam1(0.0), gam2(0.0); //angular momenta
+	double  V(0.0),  J0(0.0),  J1(0.0),  J2(0.0),  J3(0.0),  J4(0.0),  J5(0.0);
+	double  lm0(0.0),  lm1(0.0),  lm2(0.0); //linear momenta
+	double  am0(0.0),  am1(0.0),  am2(0.0); //angular momenta
 
 #pragma omp parallel for schedule(static) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
 	for(int i=0; i<vInfo.size(); i++) {
 		BlockInfo info = vInfo[i];
 		const auto pos = obstacleBlocks.find(info.blockID);
 		if(pos == obstacleBlocks.end()) continue;
-		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -156,42 +149,48 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3], double an
 			J5  -= Xs *  p[1]*p[2];
 		}
 	}
-	//TODO: faster to place these vars into an array, single reduce and unpack?
-	MPI::COMM_WORLD.Allreduce(&lm0, &glm0, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&lm1, &glm1, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&lm2, &glm2, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&am0, &gam0, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&am1, &gam1, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&am2, &gam2, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J0,  &gJ0,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J1,  &gJ1,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J2,  &gJ2,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J3,  &gJ3,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J4,  &gJ4,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J5,  &gJ5,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&V,   &gV,   1, MPI::DOUBLE, MPI::SUM);
 
-	lin_momenta[0] = glm0/gV;
-	lin_momenta[1] = glm1/gV;
-	lin_momenta[2] = glm2/gV;
-    const Real _J[6] = {gJ0, gJ1, gJ2, gJ3, gJ4, gJ5};
-    _finalizeAngVel(ang_momenta, _J, gam0, gam1, gam2);
+    double globals[13];
+    double locals[13] = {lm0,lm1,lm2,am0,am1,am2,J0,J1,J2,J3,J4,J5,V};
+	MPI::COMM_WORLD.Allreduce(locals, globals, 13, MPI::DOUBLE, MPI::SUM);
+
+    assert(globals[12] > std::numeric_limits<double>::epsilon());
+    const double dv = std::pow(vInfo[0].h_gridpoint,3);
+    lin_momenta[0] = globals[0]/globals[12];
+    lin_momenta[1] = globals[1]/globals[12];
+    lin_momenta[2] = globals[2]/globals[12];
+    double tmp_AV[3] = {
+    		globals[3]* dv,
+			globals[4]* dv,
+			globals[5]* dv
+    };
+    double tmp_J[6] = {
+    		globals[6] * dv,
+			globals[7] * dv,
+			globals[8] * dv,
+			globals[9] * dv,
+			globals[10]* dv,
+			globals[11]* dv
+    }
+
+    _finalizeAngVel(ang_momenta, tmp_J, tmp_AV[0], tmp_AV[1], tmp_AV[1]);
+
     if(bFixToPlanar) { //TODO: why this step?
     		ang_momenta[0] = ang_momenta[1] = 0.0;
-    		ang_momenta[2] = gam2/gJ2;
+    		ang_momenta[2] = globals[5]/globals[8]; // av2/j2
     }
 }
 
 void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
 {
 	_computeUdefMoments(transVel_correction, angVel_correction, CoM);
+    printf("Correction of lin: %f %f ang: %f\n", transVel_correction[0], transVel_correction[1], angVel_correction[2]);
 
 #pragma omp parallel for schedule(static)
     for(int i=0; i<vInfo.size(); i++) {
         BlockInfo info = vInfo[i];
         const auto pos = obstacleBlocks.find(info.blockID);
         if(pos == obstacleBlocks.end()) continue;
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -215,7 +214,6 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
 #ifndef NDEBUG
     double dummy_ang[3], dummy_lin[3];
     _computeUdefMoments(dummy_lin, dummy_ang, CoM);
-    printf("Post correction linear momentum %f %f ang vel %f\n", dummy_lin[0], dummy_lin[1], dummy_ang[2]);
 #endif
 }
 
@@ -223,10 +221,10 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
 {
     parser.set_strict_mode();
     position[0] = parser("-xpos").asDouble();
+    position[1] = parser("-ypos").asDouble();
+    position[2] = parser("-zpos").asDouble();
     length = parser("-L").asDouble();
     parser.unset_strict_mode();
-    position[1] = parser("-ypos").asDouble(0.5);
-    position[2] = parser("-zpos").asDouble(0.5);
     quaternion[0] = parser("-quat0").asDouble(1.0);
     quaternion[1] = parser("-quat1").asDouble(0.0);
     quaternion[2] = parser("-quat2").asDouble(0.0);
@@ -301,7 +299,6 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
 	double CM[3];
 	this->getCenterOfMass(CM);
     const int N = vInfo.size();
-    const double h = vInfo[0].h_gridpoint;
     double _area(0.0), _forcex(0.0), _forcey(0.0), _forcez(0.0), _torquex(0.0), _torquey(0.0), _torquez(0.0);
     double garea(0.0), gforcex(0.0), gforcey(0.0), gforcez(0.0), gtorquex(0.0), gtorquey(0.0), gtorquez(0.0);
 
@@ -323,7 +320,7 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
             p[1]-=CM[1];
             p[2]-=CM[2];
 		    const double object_UR[3] = {
-		    		angVel[1]*p[2]-angVel[2]*p[1],
+				angVel[1]*p[2]-angVel[2]*p[1],
 				angVel[2]*p[0]-angVel[0]*p[2],
 				angVel[0]*p[1]-angVel[1]*p[0]
 		    };
@@ -346,22 +343,19 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
             _torquez += (p[0]*U[1]-p[1]*U[0])*Xs;
         }
     }
-	MPI::COMM_WORLD.Allreduce(&_forcex,  &gforcex,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&_forcey,  &gforcey,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&_forcez,  &gforcez,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&_torquex, &gtorquex, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&_torquey, &gtorquey, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&_torquez, &gtorquez, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&_area,    &garea,    1, MPI::DOUBLE, MPI::SUM);
 
-    const Real dA = std::pow(h, 3);
-    mass      =  garea  *dA;
-    force[0]  =  gforcex*dA*lambda;
-    force[1]  =  gforcey*dA*lambda;
-    force[2]  =  gforcez*dA*lambda;
-    torque[0] = gtorquex*dA*lambda;
-    torque[1] = gtorquey*dA*lambda;
-    torque[2] = gtorquez*dA*lambda;
+    double globals[7];
+    double locals[7] = {_forcex,_forcey,_forcez,_torquex,_torquey,_torquez,_area};
+    MPI::COMM_WORLD.Allreduce(locals, globals, 7, MPI::DOUBLE, MPI::SUM);
+
+    const Real dV = std::pow(vInfo[0].h_gridpoint, 3);
+    force[0]  = globals[0]*dV*lambda;
+    force[1]  = globals[1]*dV*lambda;
+    force[2]  = globals[2]*dV*lambda;
+    torque[0] = globals[3]*dV*lambda;
+    torque[1] = globals[4]*dV*lambda;
+    torque[2] = globals[5]*dV*lambda;
+    mass      = globals[6]*dV;
     
     _writeDiagForcesToFile(stepID, time);
 }
@@ -376,11 +370,6 @@ void IF3D_ObstacleOperator::computeVelocities(const double* Uinf)
     double V(0.0), J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
     double lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
     double am0(0.0), am1(0.0), am2(0.0); //angular momenta
-
-    //global allReduce
-    double gV(0.0), gJ0(0.0), gJ1(0.0), gJ2(0.0), gJ3(0.0), gJ4(0.0), gJ5(0.0);
-    double glm0(0.0), glm1(0.0), glm2(0.0); //linear momenta
-    double gam0(0.0), gam1(0.0), gam2(0.0); //angular momenta
 
 #pragma omp parallel for schedule(static) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
     for(int i=0; i<vInfo.size(); i++) {
@@ -415,56 +404,56 @@ void IF3D_ObstacleOperator::computeVelocities(const double* Uinf)
         }
     }
 
-	MPI::COMM_WORLD.Allreduce(&lm0, &glm0, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&lm1, &glm1, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&lm2, &glm2, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&am0, &gam0, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&am1, &gam1, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&am2, &gam2, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J0,  &gJ0,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J1,  &gJ1,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J2,  &gJ2,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J3,  &gJ3,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J4,  &gJ4,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J5,  &gJ5,  1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&V,   &gV,   1, MPI::DOUBLE, MPI::SUM);
+    double globals[13];
+    double locals[13] = {lm0,lm1,lm2,am0,am1,am2,J0,J1,J2,J3,J4,J5,V};
+	MPI::COMM_WORLD.Allreduce(locals, globals, 13, MPI::DOUBLE, MPI::SUM);
 
-    transVel[0] = glm0/gV + Uinf[0];
-    transVel[1] = glm1/gV + Uinf[1];
-    transVel[2] = glm2/gV + Uinf[2];
-    const Real _J[6] = {gJ0, gJ1, gJ2, gJ3, gJ4, gJ5};
-    _finalizeAngVel(angVel, _J, gam0, gam1, gam2);
-    const double dv = pow(vInfo[0].h_gridpoint,3);
-    volume = gV * dv;
-    J[0] = gJ0 * dv; J[1] = gJ1 * dv; J[2] = gJ2 * dv;
-    J[3] = gJ3 * dv; J[4] = gJ4 * dv; J[5] = gJ5 * dv;
-    //printf("%f %f %f\n",transVel[0] ,transVel[1] ,transVel[2] );
+    assert(globals[12] > std::numeric_limits<double>::epsilon());
+    const double dv = std::pow(vInfo[0].h_gridpoint,3);
+    transVel[0] = globals[0]/globals[12] + Uinf[0];
+    transVel[1] = globals[1]/globals[12] + Uinf[1];
+    transVel[2] = globals[2]/globals[12] + Uinf[2];
+    double tmp_AV[3] = {
+    		globals[3]* dv,
+			globals[4]* dv,
+			globals[5]* dv
+    };
+    J[0] = globals[6] * dv;
+    J[1] = globals[7] * dv;
+    J[2] = globals[8] * dv;
+    J[3] = globals[9] * dv;
+    J[4] = globals[10]* dv;
+    J[5] = globals[11]* dv;
+    volume = globals[12] * dv;
+
+    _finalizeAngVel(angVel, J, tmp_AV[0], tmp_AV[1], tmp_AV[1]);
+
     if(bFixToPlanar) {
         transVel[2] = 0.0;
         angVel[0] = angVel[1] = 0.0;
-        angVel[2] = gam2/gJ2;
+        angVel[2] = globals[5]/globals[8]; // av2/j2
     }
 }
 
-void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2)
+void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real _J[6], const Real& gam0, const Real& gam1, const Real& gam2)
 {
 	// try QR factorization to avoid dealing with determinant
-	const double u1[3] = {J[0], J[3], J[4]};
+	const double u1[3] = {_J[0], _J[3], _J[4]};
 	const double magu1sq = u1[0]*u1[0] + u1[1]*u1[1] + u1[2]*u1[2];
 	// subtract projection of a2 onto u1
-	const double proj1 = u1[0]*J[3] + u1[1]*J[1] + u1[2]*J[5];
+	const double proj1 = u1[0]*_J[3] + u1[1]*_J[1] + u1[2]*_J[5];
 	const double u2[3] = {
-			J[3] - proj1*u1[0]/magu1sq,
-			J[1] - proj1*u1[1]/magu1sq,
-			J[5] - proj1*u1[2]/magu1sq
+			_J[3] - proj1*u1[0]/magu1sq,
+			_J[1] - proj1*u1[1]/magu1sq,
+			_J[5] - proj1*u1[2]/magu1sq
 	};
 	const double magu2sq = u2[0]*u2[0] + u2[1]*u2[1] + u2[2]*u2[2];
 	// subtract projection of a3 onto u1
-	const double proj2 = u1[0]*J[4] + u1[1]*J[5] + u1[2]*J[2];
+	const double proj2 = u1[0]*_J[4] + u1[1]*_J[5] + u1[2]*_J[2];
 	const double u3_tmp[3] = {
-			J[4] - proj2*u1[0]/magu1sq,
-			J[5] - proj2*u1[1]/magu1sq,
-			J[2] - proj2*u1[2]/magu1sq
+			_J[4] - proj2*u1[0]/magu1sq,
+			_J[5] - proj2*u1[1]/magu1sq,
+			_J[2] - proj2*u1[2]/magu1sq
 	};
 	// subtract projection of u3_tmp onto u2
 	const double proj3 = u2[0]*u3_tmp[0] + u2[1]*u3_tmp[1] + u2[2]*u3_tmp[2];
@@ -484,9 +473,9 @@ void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real J[6], const R
 	};
 	// find out if Q is orthogonal
 	const double R[3][3] = {
-			{Q[0][0]*J[0] + Q[1][0]*J[3] + Q[2][0]*J[4], Q[0][0]*J[3] + Q[1][0]*J[1] + Q[2][0]*J[5], Q[0][0]*J[4] + Q[1][0]*J[5] + Q[2][0]*J[2]},
-			{Q[0][1]*J[0] + Q[1][1]*J[3] + Q[2][1]*J[4], Q[0][1]*J[3] + Q[1][1]*J[1] + Q[2][1]*J[5], Q[0][1]*J[4] + Q[1][1]*J[5] + Q[2][1]*J[2]},
-			{Q[0][2]*J[0] + Q[1][2]*J[3] + Q[2][2]*J[4], Q[0][2]*J[3] + Q[1][2]*J[1] + Q[2][2]*J[5], Q[0][2]*J[4] + Q[1][2]*J[5] + Q[2][2]*J[2]}
+			{Q[0][0]*_J[0] + Q[1][0]*_J[3] + Q[2][0]*_J[4], Q[0][0]*_J[3] + Q[1][0]*_J[1] + Q[2][0]*_J[5], Q[0][0]*_J[4] + Q[1][0]*_J[5] + Q[2][0]*_J[2]},
+			{Q[0][1]*_J[0] + Q[1][1]*_J[3] + Q[2][1]*_J[4], Q[0][1]*_J[3] + Q[1][1]*_J[1] + Q[2][1]*_J[5], Q[0][1]*_J[4] + Q[1][1]*_J[5] + Q[2][1]*_J[2]},
+			{Q[0][2]*_J[0] + Q[1][2]*_J[3] + Q[2][2]*_J[4], Q[0][2]*_J[3] + Q[1][2]*_J[1] + Q[2][2]*_J[5], Q[0][2]*_J[4] + Q[1][2]*_J[5] + Q[2][2]*_J[2]}
 	};
 	// d = Q^T b
 	const double d[3] = {

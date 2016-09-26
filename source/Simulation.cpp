@@ -47,7 +47,9 @@ void Simulation::parseArguments()
     
     parser.unset_strict_mode();
     theta = 0.5;
+
     bRestart = parser("-restart").asBool(false);
+    b2Ddump = parser("-2Ddump").asDouble(true);
     bDLM = parser("-use-dlm").asBool(false);
     dumpFreq = parser("-fdump").asDouble(0);	// dumpFreq==0 means that this dumping frequency (in #steps) is not active
     dumpTime = parser("-tdump").asDouble(0.05);	// dumpTime==0 means that this dumping frequency (in time)   is not active
@@ -55,7 +57,7 @@ void Simulation::parseArguments()
     saveTime = parser("-tsave").asDouble(10.0);	// dumpTime==0 means that this dumping frequency (in time)   is not active
     nsteps = parser("-nsteps").asInt(0);		// nsteps==0   means that this stopping criteria is not active
     endTime = parser("-tend").asDouble(8);		// endTime==0  means that this stopping criteria is not active
-    
+
     path2file = parser("-file").asString("./paternoster");
     path4serialization = parser("-serialization").asString("./");
     lambda = parser("-lambda").asDouble(.25);
@@ -93,7 +95,6 @@ void Simulation::setupOperators()
     pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
     pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
 
-
     if(rank==0) {
     	cout << "Coordinator/Operator ordering:\n";
     	for (int c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;
@@ -113,55 +114,23 @@ void Simulation::areWeDumping(double & nextDumpTime)
 
 void Simulation::_dump(const string append = string())
 {
-#ifndef NDEBUG
-    if (rank==0) {
-        vector<BlockInfo> vInfo = grid->getBlocksInfo();
-        const int N = vInfo.size();
-        
-        #pragma omp parallel for schedule(static)
-        for(int i=0; i<N; i++) {
-            BlockInfo info = vInfo[i];
-            FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-
-			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-            for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-            for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-            if (std::isnan(b(ix,iy,iz).u)||std::isnan(b(ix,iy,iz).v)||std::isnan(b(ix,iy,iz).w)||std::isnan(b(ix,iy,iz).chi)||std::isnan(b(ix,iy,iz).p))
-                    cout << "dump" << endl;
-                assert(!std::isnan(b(ix,iy,iz).u));
-                assert(!std::isnan(b(ix,iy,iz).v));
-                assert(!std::isnan(b(ix,iy,iz).w));
-                assert(!std::isnan(b(ix,iy,iz).chi));
-                assert(!std::isnan(b(ix,iy,iz).p));
-                assert(!std::isnan(b(ix,iy,iz).tmpU));
-                assert(!std::isnan(b(ix,iy,iz).tmpV));
-                assert(!std::isnan(b(ix,iy,iz).tmpW));
-            }
-        }
-    }
-#endif
-    
-    const int sizeX = bpdx * FluidBlock::sizeX;
-    const int sizeY = bpdy * FluidBlock::sizeY;
-	const int sizeZ = bpdz * FluidBlock::sizeZ;
     vector<BlockInfo> vInfo = grid->getBlocksInfo();
 
     CoordinatorVorticity<LabMPI> coordVorticity(grid);
     coordVorticity(dt);
-    {
-    	//stringstream ss;
-		//ss << path2file << append << "2D" << "-" << std::setfill('0') << std::setw(6) << step;
-		//if (rank==0) cout << ss.str() << endl;
-		//DumpHDF52D_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
-    }
-    {
+
     stringstream ss;
-    ss << path2file << append << "flat" << "-" << std::setfill('0') << std::setw(6) << step;
+    ss << path2file << append << "-" << std::setfill('0') << std::setw(6) << step;
     if (rank==0) cout << ss.str() << endl;
 
 #if defined(_USE_HDF_)
-    DumpHDF5flat_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
-#else if defined(_USE_LZ4_)
+
+    if(b2Ddump)
+    	DumpHDF5flat_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+    else
+    	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+
+#else if defined(_USE_LZ4_) //TODO: does not compile
     MPI_Barrier(MPI_COMM_WORLD);
     double vpeps = parser("-vpeps").asDouble(1e-5);
     int wavelet_type = parser("-wtype").asInt(1);
@@ -177,21 +146,7 @@ void Simulation::_dump(const string append = string())
     waveletdumper_grid.Write<5>(grid, ss.str());
     waveletdumper_grid.Write<6>(grid, ss.str());
     waveletdumper_grid.Write<7>(grid, ss.str());
-    /*
-		waveletdumper_vorticity.verbose();
-		waveletdumper_vorticity.set_wtype_write(wavelet_type);
-		waveletdumper_vorticity.set_threshold (vpeps);
-		if (vpchannels.find('w') != std::string::npos || vpchannels.find('W') != std::string::npos)
-			waveletdumper_vorticity.Write<5>(grid, ss.str());
-
-		waveletdumper_velocity_magnitude.verbose();
-		waveletdumper_velocity_magnitude.set_wtype_write(wavelet_type);
-		waveletdumper_velocity_magnitude.set_threshold (vpeps);
-		if (vpchannels.find('m') != std::string::npos)
-			waveletdumper_velocity_magnitude.Write<0>(grid, ss.str());
-     */
 #endif
-   }
 }
     
 void Simulation::_selectDT()
@@ -209,11 +164,10 @@ void Simulation::_selectDT()
     //if (saveTime>0) dt = min(dt,nextSaveTime-time);
     //if (endTime>0)  dt = min(dt,endTime-time);
 
-    //if ( step<100 ) 
-    if(false)
+    if ( step<100 )  //if(false)
     {
-        const double dt_max = 0.1*CFL;
-        const double dt_min = 1e-3*CFL;
+        const double dt_max = 1e-2*CFL;
+        const double dt_min = 1e-4*CFL;
         const double dt_ramp = dt_min + step*(dt_max - dt_min)/100.;
         if (dt_ramp<dt) {
         	dt = dt_ramp;
@@ -221,8 +175,6 @@ void Simulation::_selectDT()
         		printf("Dt bounded by ramp-up: dt_ramp=%f\n",dt_ramp);
         }
     }
-
-    //if (verbose) cout << "dt (Fourier, CFL): " << dtFourier << " " << dtCFL << endl;
 }
 
 void Simulation::_serialize(double & nextSaveTime)
@@ -362,14 +314,8 @@ void Simulation::init()
 	
 void Simulation::simulate()
 {
-    const int sizeX = bpdx * FluidBlock::sizeX;
-    const int sizeY = bpdy * FluidBlock::sizeY;
-	const int sizeZ = bpdz * FluidBlock::sizeZ;
-    
     double nextDumpTime = time;
     double nextSaveTime = time + saveTime;
-    double maxU = max(uinf[2],max(uinf[0],uinf[1]));
-    double maxA = 0;
     
     while (true)
     {

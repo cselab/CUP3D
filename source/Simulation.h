@@ -199,7 +199,7 @@ protected:
 	
 	// simulation settings
 	double CFL, LCFL, lambda, theta;
-    bool bDump, bRestart, bDLM, verbose;
+    bool bDump, bRestart, bDLM, verbose, b2Ddump;
 	
 	// output
 	int dumpFreq, saveFreq;
@@ -224,7 +224,7 @@ public:
     Simulation(const int argc, char ** argv, Communicator* comm) :
     parser(argc,argv), bpdx(-1), bpdy(-1), step(0), nsteps(0), endTime(0), time(0), dt(0),
 	rank(0), nprocs(1), bPing(false), uinf{0.0,0.0}, uinf_dummy{0.0,0.0}, re(0), length(0), nu(0),
-	dtCFL(0), dtLCFL(0), dtFourier(0), CFL(0), LCFL(0), lambda(0), bDump(false), bRestart(false),
+	dtCFL(0), dtLCFL(0), dtFourier(0), CFL(0), LCFL(0), lambda(0), bDump(false), bRestart(false), b2Ddump(false),
 	verbose(false), bDLM(false), dumpFreq(0), saveFreq(0), dumpTime(0), saveTime(0), communicator(comm)
 	{
 		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
