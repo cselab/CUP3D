@@ -133,6 +133,11 @@ public:
 	{
 		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 		MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
+		char hostname[1024];
+		hostname[1023] = '\0';
+		gethostname(hostname, 1023);
+		const int nthreads = omp_get_max_threads();
+		printf("Rank %d (of %d) with %d threads on host Hostname: %s\n", rank, nprocs, nthreads, hostname);
 	}
 	
 	virtual ~Simulation()

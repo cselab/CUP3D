@@ -64,20 +64,18 @@ IF3D_ObstacleVector::~IF3D_ObstacleVector()
 
 void IF3D_ObstacleVector::save(const int step_id, const Real t, std::string filename)
 {
-    std::string fname = (filename == std::string() ? "IF3D_ObstacleVector_restart" : filename);
     int cntr = 0;
     for(const auto & obstacle_ptr : obstacles) {
-        obstacle_ptr->save(step_id, t, fname+"_"+std::to_string(cntr));
+        obstacle_ptr->save(step_id, t, filename+"_"+std::to_string(cntr));
         cntr++;
     }
 }
 
 void IF3D_ObstacleVector::restart(const Real t, std::string filename)
 {
-    std::string fname = (filename == std::string() ? "IF3D_ObstacleVector_restart" : filename);
     int cntr = 0;
     for(const auto & obstacle_ptr : obstacles) {
-        obstacle_ptr->restart(t, fname+"_"+std::to_string(cntr));
+        obstacle_ptr->restart(t, filename+"_"+std::to_string(cntr));
         cntr++;
     }
 }
@@ -91,4 +89,15 @@ void IF3D_ObstacleVector::Accept(ObstacleVisitor * visitor)
 void IF3D_ObstacleVector::execute(Communicator * comm, const int iAgent, const Real time)
 {
    // obstacles[iAgent]->execute(comm, iAgent, time);
+}
+
+Real IF3D_ObstacleVector::getD() const
+{
+	Real maxL(0);
+	for(int i=0; i<obstacles.size(); ++i) {
+			const Real Li = obstacles[i]->getD();
+			maxL = std::max(maxL,Li);
+			assert(Li>0.);
+	}
+	return maxL;
 }

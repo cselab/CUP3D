@@ -1134,18 +1134,13 @@ void IF3D_CarlingFishOperator::getCenterOfMass(Real CM[3]) const
 
 void IF3D_CarlingFishOperator::save(const int stepID, const Real t, string filename)
 {
-    assert(std::abs(t-sim_time)<std::numeric_limits<Real>::epsilon());
-    
+    //assert(std::abs(t-sim_time)<std::numeric_limits<Real>::epsilon());
     std::ofstream savestream;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<Real>::digits10 + 1);
-    
-    if(filename==std::string())
-        savestream.open("restart_IF3D_Carling.txt");
-    else
-        savestream.open(filename + ".txt");
+    savestream.open(filename + ".txt");
 
-    savestream<<sim_time<<"\t"<<sim_dt<<std::endl;
+    savestream<<t<<"\t"<<sim_dt<<std::endl;
     savestream<<position[0]<<"\t"<<position[1]<<"\t"<<position[2]<<std::endl;
     savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
     savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
@@ -1158,15 +1153,9 @@ void IF3D_CarlingFishOperator::save(const int stepID, const Real t, string filen
 void IF3D_CarlingFishOperator::restart(const Real t, string filename)
 {
     std::ifstream restartstream;
-    
-    if(filename==std::string())
-        restartstream.open("restart_IF3D_Carling.txt");
-    else
-        restartstream.open(filename+".txt");
-    
+    restartstream.open(filename+".txt");
     restartstream >> sim_time >> sim_dt;
     assert(std::abs(sim_time-t) < std::numeric_limits<Real>::epsilon());
-    
     restartstream >> position[0] >> position[1] >> position[2];
     restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
     restartstream >> transVel[0] >> transVel[1] >> transVel[2];

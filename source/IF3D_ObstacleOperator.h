@@ -146,8 +146,6 @@ public:
     virtual void getCenterOfMass(Real CM[3]) const;
     virtual void setTranslationVelocity(Real UT[3]);
     virtual void setAngularVelocity(const Real W[3]);
-    virtual Real getForceX() const;
-    virtual Real getForceY() const;
 
     //THIS IS WHY I CAN NEVER HAVE NICE THINGS!!
 	template <typename Kernel>

@@ -48,11 +48,7 @@ public:
         return obstacles;
     }
 
-    Real getD() const override
-    {
-        abort();
-        return -1;
-    }
+    Real getD() const override;
 };
 
 #endif

@@ -74,8 +74,8 @@ public:
 			info.pos(x, ix, iy, iz);
 			const Real w[3] = {
 					b(ix,iy,iz).tmpU,
-               b(ix,iy,iz).tmpV,
-               b(ix,iy,iz).tmpW
+					b(ix,iy,iz).tmpV,
+					b(ix,iy,iz).tmpW
 			};
 			const Real u[3] = {
 					b(ix,iy,iz).u,
@@ -113,19 +113,6 @@ public:
 		(*quantities)[tid][10]+= enstrophy*dv;
 		(*quantities)[tid][11] = std::max(maxvortSq,(*quantities)[tid][11]);
 	}
-	/*
-	FILE * f = fopen("diagnostics.dat", "a");
-	if(step_id == 0 && !bRESTART)
-		fprintf(f,"%s  %s  %s  %s  %s  %s  %s  %s  %s  %s\n",
-				"# step_id","time","dt","circ","linImpX","linImpY","angImp","Eng","Ens","Maxvor");
-
-	fprintf(f, "%d  %10.10e  %10.10e  %10.10e  %10.10e  %10.10e  %10.10e  %10.10e  %10.10e  %10.10e\n",
-			step_id, t, dt, diags.data.circ,
-			diags.data.linImpulse[0], diags.data.linImpulse[1],diags.data.angImpulse,
-			keSolver,diags.data.ens,diags.data.maxvor);
-
-	fclose(f);
-	*/
 };
 
 template <typename Lab>
@@ -145,19 +132,47 @@ public:
 	string getName() { return "Vorticity"; }
 };
 
-template <typename Lab>
 class CoordinatorDiagnostics : public GenericCoordinator
 {
+private:
+	const Real t;
+	const int step;
+	int rank;
 public:
-	CoordinatorDiagnostics(FluidGridMPI * grid) : GenericCoordinator(grid) { }
+	CoordinatorDiagnostics(FluidGridMPI * grid, const Real t, const int step)
+	: GenericCoordinator(grid), t(t), step(step)
+	{
+		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+	}
 
 	void operator()(const Real dt)
 	{
 	    const int nthreads = omp_get_max_threads();
 	    vector<array<Real,12>> partialSums(nthreads);
-
 		OperatorDiagnostics kernel(&partialSums);
 		compute(kernel);
+
+		double localSum[11], globalSum[11], maxVortHere(0), maxVort(0);
+		for(int i=0; i<nthreads; i++) {
+			for(int j=0; j<11; j++)
+				localSum[j] += (double)partialSums[i][j];
+			maxVortHere = std::max((double)partialSums[i][11],maxVortHere);
+		}
+		MPI::COMM_WORLD.Allreduce(localSum, globalSum, 11, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(maxVortHere, maxVort, 1, MPI::DOUBLE, MPI::MAX);
+
+		if(rank==0) {
+			FILE * f = fopen("diagnostics.dat", "a");
+			if(step == 0)
+			fprintf(f,"%s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s\n",
+					"step_id","time","dt","circX","circY","circZ","linImpX","linImpY","linImpZ","angImpX","angImpY","angImpZ","Ens","Hel","Maxvor");
+
+			fprintf(f, "%d  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e\n",
+					step, t, dt,globalSum[0],globalSum[1],globalSum[2],globalSum[3],globalSum[4],globalSum[5],
+					globalSum[6],globalSum[7],globalSum[8],globalSum[10],globalSum[9],std::sqrt(maxVort));
+
+			fclose(f);
+		}
 	}
 
 	string getName() { return "Diagnostics"; }

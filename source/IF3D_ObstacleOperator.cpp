@@ -539,10 +539,9 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
 
     compute(finalize);
     double localSum[19], globalSum[19];
-
     for(int i=0; i<nthreads; i++)
     	for(int j=0; j<19; j++)
-    		localSum[i] += partialSums[i][j];
+    		localSum[j] += (double)partialSums[i][j];
     MPI::COMM_WORLD.Allreduce(localSum, globalSum, 19, MPI::DOUBLE, MPI::SUM);
 
     //additive quantities:
@@ -558,10 +557,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
     EffPDefBnd = Pthrust/(Pthrust-    defPowerBnd);
     
     if (bDump)  surfData.print(obstacleID, stepID, rank);
-    //if (bDump && pX not_eq nullptr && pY not_eq nullptr && pZ not_eq nullptr && Npts not_eq 0) {
-    //	surfData.sort(pX,pY,pZ,Npts);
-    //	surfData.printSorted(obstacleID, stepID);
-    //}
+
     if(rank==0)
     {
         ofstream fileForce;
@@ -705,16 +701,6 @@ void IF3D_ObstacleOperator::getCenterOfMass(Real CM[3]) const
     CM[2]=position[2];
 }
 
-Real IF3D_ObstacleOperator::getForceX() const
-{
-    return force[0];
-}
-
-Real IF3D_ObstacleOperator::getForceY() const
-{
-    return force[1];
-}
-
 void IF3D_ObstacleOperator::save(const int step_id, const Real t, std::string filename)
 {
 	if(rank!=0) return;
@@ -732,15 +718,11 @@ void IF3D_ObstacleOperator::save(const int step_id, const Real t, std::string fi
 void IF3D_ObstacleOperator::restart(const Real t, std::string filename)
 {
     std::ifstream restartstream;
-    
-    if(filename==std::string())
-        restartstream.open("restart_IF3D_MovingBody.txt");
-    else
-        restartstream.open(filename+".txt");
+    restartstream.open(filename+".txt");
     
     Real restart_time;
     restartstream >> restart_time;
-    assert(std::abs(restart_time-t) < std::numeric_limits<Real>::epsilon());
+    assert(std::abs(restart_time-t) < 1e-9);
     
     restartstream >> position[0] >> position[1] >> position[2];
     restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
