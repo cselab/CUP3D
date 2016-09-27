@@ -62,7 +62,7 @@ public:
 
 	~OperatorDiagnostis() {}
 
-	void operator()(const BlockInfo& info, FluidBlock& block) const
+	void operator()(const BlockInfo& info, FluidBlock& b) const
 	{
 		const Real dv = std::pow(info.h_gridpoint,3);
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -71,14 +71,14 @@ public:
 			Real x[3];
 			info.pos(x, ix, iy, iz);
 			const Real w[3] = {
-					b(ix,iy,iz).omega[0],
-					b(ix,iy,iz).omega[1],
-					b(ix,iy,iz).omega[2]
+					b(ix,iy,iz).tmpU,
+               b(ix,iy,iz).tmpV,
+               b(ix,iy,iz).tmpW
 			};
 			const Real u[3] = {
-					b(ix,iy,iz).u[0],
-					b(ix,iy,iz).u[1],
-					b(ix,iy,iz).u[2]
+					b(ix,iy,iz).u,
+					b(ix,iy,iz).v,
+					b(ix,iy,iz).w
 			};
 			const Real omegasq = w[0]*w[0] + w[1]*w[1] + w[2]*w[2];
 			const Real velsq   = u[0]*u[0] + u[1]*u[1] + u[2]*u[2];

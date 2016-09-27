@@ -10,6 +10,7 @@
 //
 
 #include "Simulation.h"
+#include <HDF5Dumper_MPI.h>
 	
 void Simulation::_ic()
 {

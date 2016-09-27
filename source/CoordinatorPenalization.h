@@ -48,8 +48,8 @@ struct PenalizationObstacleVisitor : ObstacleVisitor
     	 if (bFixFrameOfRef) {
     		 if (obstacle->obstacleID!=0) {printf("Can only fix first obstacle.\n"); abort();}
              Real leadU[3], dummy[3] = {0.0, 0.0, 0.0}; // compute velocities with zero uinf
-             obstacle->getTranslationVelocity(leadU);
              obstacle->computeVelocities(dummy);
+             obstacle->getTranslationVelocity(leadU);
              uInf[0] = -leadU[0]; //uInf now is speed of this obstacle
              uInf[1] = -leadU[1];
              uInf[2] = -leadU[2];
