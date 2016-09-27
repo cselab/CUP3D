@@ -53,18 +53,20 @@ public:
 	}
 };
 
-class OperatorDiagnostis : public GenericOperator
+class OperatorDiagnostics : public GenericOperator
 {
 public:
-	array<Real,12>* const quantities;
+	vector<array<Real,12>>* const quantities;
 
-	OperatorDiagnostis(array<Real,12>* const local) : quantities(local) {}
-
-	~OperatorDiagnostis() {}
+	OperatorDiagnostics(vector<array<Real,12>>* const local) : quantities(local) {}
 
 	void operator()(const BlockInfo& info, FluidBlock& block) const
 	{
-		const Real dv = std::pow(info.h_gridpoint,3);
+		Real circ[3]   = {0.,0.,0.};
+		Real linimp[3] = {0.,0.,0.};
+		Real angimp[3] = {0.,0.,0.};
+		Real helicity(0), enstrophy(0), maxvortSq(0);
+
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -83,32 +85,33 @@ public:
 			const Real omegasq = w[0]*w[0] + w[1]*w[1] + w[2]*w[2];
 			const Real velsq   = u[0]*u[0] + u[1]*u[1] + u[2]*u[2];
 			//circulation :
-			(*quantities)[0] += w[0];
-			(*quantities)[1] += w[1];
-			(*quantities)[2] += w[2];
+			circ[0] += w[0];
+			circ[1] += w[1];
+			circ[2] += w[2];
 			//linear impulse :
-			(*quantities)[3] += x[1]*w[2]-x[2]*w[1];
-			(*quantities)[4] += x[2]*w[0]-x[0]*w[2];
-			(*quantities)[5] += x[0]*w[1]-x[1]*w[0];
+			linimp[0] += x[1]*w[2]-x[2]*w[1];
+			linimp[1] += x[2]*w[0]-x[0]*w[2];
+			linimp[2] += x[0]*w[1]-x[1]*w[0];
 			//angular impulse :
-			(*quantities)[6] += x[0]*(x[1]*w[1]+x[2]*w[2]) - (x[1]*x[1]+x[2]*x[2])*w[0];
-			(*quantities)[7] += x[1]*(x[0]*w[0]+x[2]*w[2]) - (x[0]*x[0]+x[2]*x[2])*w[1];
-			(*quantities)[8] += x[2]*(x[0]*w[0]+x[1]*w[1]) - (x[0]*x[0]+x[1]*x[1])*w[2];
-			//helicity
-			(*quantities)[9] += (w[0]*u[0] + w[1]*u[1] + w[2]*u[2]);
-			//enstrophy
-			(*quantities)[10]+= omegasq;
-			//maxvor
-			(*quantities)[11] = std::max((*quantities)[11],omegasq);
+			angimp[0] += x[0]*(x[1]*w[1]+x[2]*w[2]) - (x[1]*x[1]+x[2]*x[2])*w[0];
+			angimp[1] += x[1]*(x[0]*w[0]+x[2]*w[2]) - (x[0]*x[0]+x[2]*x[2])*w[1];
+			angimp[2] += x[2]*(x[0]*w[0]+x[1]*w[1]) - (x[0]*x[0]+x[1]*x[1])*w[2];
+
+			helicity += (w[0]*u[0] + w[1]*u[1] + w[2]*u[2]);
+			enstrophy+= omegasq;
+			maxvortSq = std::max(maxvort,omegasq);
 		}
 
+		const Real dv = std::pow(info.h_gridpoint,3);
+		const int tid = omp_get_thread_num();
 		for(int i=0;i<3;i++) {
-			(*quantities)[  i] *= dv;
-			(*quantities)[3+i] *= 0.5*dv;
-			(*quantities)[6+i] *= dv/3.;
+			(*quantities)[tid][  i] += circ[i]*dv;
+			(*quantities)[tid][3+i] += linimp[i]*0.5*dv;
+			(*quantities)[tid][6+i] += angimp[i]*dv/3.;
 		}
-		(*quantities)[9] *= dv;
-		(*quantities)[10]*= dv;
+		(*quantities)[tid][9] += helicity*dv;
+		(*quantities)[tid][10]+= enstrophy*dv;
+		(*quantities)[tid][11] = std::max(maxvortSq,(*quantities)[tid][11]);
 	}
 	/*
 	FILE * f = fopen("diagnostics.dat", "a");
@@ -128,49 +131,36 @@ public:
 template <typename Lab>
 class CoordinatorVorticity : public GenericCoordinator
 {
-protected:
-	
-	inline void reset()
-	{
-		const int N = vInfo.size();
-		
-#pragma omp parallel for schedule(static)
-		for(int i=0; i<N; i++) {
-			BlockInfo info = vInfo[i];
-			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-			
-			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-					for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-						b(ix,iy,iz).tmpU = 0;
-						b(ix,iy,iz).tmpV = 0;
-						b(ix,iy,iz).tmpW = 0;
-					}
-		}
-	};
-	
 public:
-	CoordinatorVorticity(FluidGridMPI * grid) : GenericCoordinator(grid)
-	{
-	}
+	CoordinatorVorticity(FluidGridMPI * grid) : GenericCoordinator(grid) { }
 	
 	void operator()(const Real dt)
 	{
 		check("vorticity - start");
-		
-		//reset();
-
 		OperatorVorticity kernel;
 		compute(kernel);
-		
 		check("vorticity - end");
 	}
 	
-	string getName()
-	{
-		return "Vorticity";
-	}
+	string getName() { return "Vorticity"; }
 };
 
+template <typename Lab>
+class CoordinatorDiagnostics : public GenericCoordinator
+{
+public:
+	CoordinatorDiagnostics(FluidGridMPI * grid) : GenericCoordinator(grid) { }
+
+	void operator()(const Real dt)
+	{
+	    const int nthreads = omp_get_max_threads();
+	    vector<array<Real,12>> partialSums(nthreads);
+
+		OperatorDiagnostics kernel(&partialSums);
+		compute(kernel);
+	}
+
+	string getName() { return "Diagnostics"; }
+};
 
 #endif /* CoordinatorVorticity_h */
