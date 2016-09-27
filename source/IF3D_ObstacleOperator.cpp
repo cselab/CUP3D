@@ -102,11 +102,11 @@ struct ForcesOnSkin : public GenericLabOperator
 			//power output (and negative definite variant which ensures no elastic energy absorption)
 			const Real powOut = fXT*surfData->vx[i] + fYT*surfData->vy[i] + fZT*surfData->vz[i];
 			(*measures)[12] += powOut;
-			(*measures)[13] += min(0., powOut);
+			(*measures)[13] += min((Real)0., powOut);
 			//deformation power output (and negative definite variant which ensures no elastic energy absorption)
 			const Real powDef = fXT*surfData->vxDef[i] + fYT*surfData->vyDef[i] + fZT*surfData->vzDef[i];
 			(*measures)[14] += powDef;
-			(*measures)[15] += min(0., powDef);
+			(*measures)[15] += min((Real)0., powDef);
 		}
 	}
 };
@@ -171,7 +171,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3], Real ang_mo
 			globals[9] * dv,
 			globals[10]* dv,
 			globals[11]* dv
-    }
+    };
 
     _finalizeAngVel(ang_momenta, tmp_J, tmp_AV[0], tmp_AV[1], tmp_AV[1]);
 
@@ -554,7 +554,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
     //derived quantities:
     Pthrust    = thrust*vel_norm;
     Pdrag      =   drag*vel_norm;
-    EffPDef    = Pthrust/(Pthrust-min(defPower,0.));
+    EffPDef    = Pthrust/(Pthrust-min(defPower,(Real)0.));
     EffPDefBnd = Pthrust/(Pthrust-    defPowerBnd);
     
     if (bDump)  surfData.print(obstacleID, stepID, rank);

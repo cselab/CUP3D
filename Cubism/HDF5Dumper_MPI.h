@@ -247,7 +247,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 		if (mid<0)   mid=0; 
 		if (mid>=eZ) mid=eZ-1;
 		const unsigned int idx[2] = {info.indexLocal[0], info.indexLocal[1]};
-		const B & b = *(B*)info.ptrBlock;
+		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
 
 		for(unsigned int ix=sX; ix<eX; ix++) {
