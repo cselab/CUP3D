@@ -29,7 +29,6 @@ using namespace std;
 
 #include "BlockInfo.h"
 
-template <typename Streamer>
 class OperatorLoad : public GenericLabOperator
 {
 private:
@@ -37,7 +36,7 @@ private:
 	const int NX, NY, NZ, NCHANNELS;
 public:
 	OperatorLoad(Real* const dump_data, const int NX, const int NY, const int NZ)
-	: data(dump_data), NX(NX), NY(NY), NZ(NZ), NCHANNELS(Streamer::NCHANNELS)
+	: data(dump_data), NX(NX), NY(NY), NZ(NZ), NCHANNELS(StreamerHDF5::NCHANNELS)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
 		stencil_start[0] = -1;
@@ -95,7 +94,6 @@ public:
 	}
 };
 
-template <typename Lab, typename Streamer>
 class CoordinatorLoad : public GenericCoordinator
 {
 private:
@@ -113,11 +111,10 @@ public:
 	string getName() { return "Load"; }
 };
 
-template<typename TGrid, typename Lab, typename Streamer>
-void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const string dump_path=".")
+void DumpHDF5_MPI(FluidGridMPI &grid, const int iCounter, const string f_name, const string dump_path=".")
 {
 #ifdef _USE_HDF_
-	typedef typename TGrid::BlockType B;
+	typedef typename FluidGridMPI::BlockType B;
 	
 	int rank;
 	char filename[256];
@@ -132,7 +129,7 @@ void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const st
 	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
 	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
 	const unsigned int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
-	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
+	static const unsigned int NCHANNELS = StreamerHDF5::NCHANNELS;
 	Real * array_all = new float[NX * NY * NZ * NCHANNELS];
 	
 	static const unsigned int sX = 0;
@@ -166,7 +163,7 @@ void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const st
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
 	
-	OperatorLoad<Lab> coord(&grid, array_all);
+	CoordinatorLoad coord(&grid, array_all);
 	coord(0.);
 	
 	fapl_id = H5Pcreate(H5P_DATASET_XFER);
@@ -215,7 +212,7 @@ void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const st
 		fprintf(xmf, "       </DataItem>\n");
 		fprintf(xmf, "     </Geometry>\n");
 		
-		fprintf(xmf, "     <Attribute Name=\"data\" AttributeType=\"%s\" Center=\"Node\">\n", Streamer::getAttributeName());
+		fprintf(xmf, "     <Attribute Name=\"data\" AttributeType=\"%s\" Center=\"Node\">\n", StreamerHDF5::getAttributeName());
 		fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", (int)dims[0], (int)dims[1], (int)dims[2], (int)dims[3]);
 		fprintf(xmf, "        %s:/data\n",(f_name+".h5").c_str());
 		fprintf(xmf, "       </DataItem>\n");
