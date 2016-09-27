@@ -1,1 +1,1 @@
-IF3D_CarlingFish L=0.2 T=1 xpos=0.75 ypos=0.2 zpos=0.15 bFixToPlanar=1 bFixFrameOfRef=0
+IF3D_CarlingFish L=0.25 T=1 xpos=0.25 ypos=0.2 zpos=0.2 bFixToPlanar=1 bFixFrameOfRef=1

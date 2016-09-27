@@ -9,7 +9,7 @@
 #ifndef IF2D_ROCKS_IF2D_Frenet_h
 #define IF2D_ROCKS_IF2D_Frenet_h
 #include <limits>
-
+#include "Definitions.h"
 struct IF2D_Frenet2D
 {
     static void solve(const int Nm, const Real * const rS, const Real * const curv, const Real * const curv_dt, Real * const rX, Real * const rY, Real * const vX, Real * const vY, Real * const norX, Real * const norY, Real * const vNorX, Real * const vNorY)

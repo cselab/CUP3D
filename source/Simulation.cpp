@@ -166,8 +166,8 @@ void Simulation::_selectDT()
 
     if ( step<100 )  //if(false)
     {
-        const Real dt_max = 1e-2*CFL;
-        const Real dt_min = 1e-4*CFL;
+        const Real dt_max = 2e-2*CFL;
+        const Real dt_min = 2e-4*CFL;
         const Real dt_ramp = dt_min + step*(dt_max - dt_min)/100.;
         if (dt_ramp<dt) {
         	dt = dt_ramp;

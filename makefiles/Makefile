@@ -97,7 +97,7 @@ else
 endif
 
 ifeq "$(precision)" "single"
-	LIBS += -L$(fftw-lib) -lfftw3 -lfftw3f -lfftw3f_threads -lfftw3_mpi
+	LIBS += -L$(fftw-lib) -lfftw3f -lfftw3f_threads -lfftw3f_mpi
 endif
 ifeq "$(precision)" "double"
 	LIBS += -L$(fftw-lib) -lfftw3 -lfftw3_threads -lfftw3_mpi
