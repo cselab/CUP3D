@@ -15,11 +15,11 @@
 class OperatorDiffusion : public GenericLabOperator
 {
 private:
-	const double mu;
-	double dt;
+	const Real mu;
+	Real dt;
 
 public:
-	OperatorDiffusion(double dt, double mu) : mu(mu), dt(dt)
+	OperatorDiffusion(Real dt, Real mu) : mu(mu), dt(dt)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
 		stencil_start[0] = -1;
@@ -36,9 +36,9 @@ public:
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 #ifdef _RK2_
-		const double fac = mu * 0.5 * dt / (info.h_gridpoint*info.h_gridpoint);
+		const Real fac = mu * 0.5 * dt / (info.h_gridpoint*info.h_gridpoint);
 #else
-		const double fac = mu * dt / (info.h_gridpoint*info.h_gridpoint);
+		const Real fac = mu * dt / (info.h_gridpoint*info.h_gridpoint);
 #endif // _RK2_
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -63,11 +63,11 @@ public:
 class OperatorDiffusionStage2 : public GenericLabOperator
 {
 private:
-	const double mu;
-	double dt;
+	const Real mu;
+	Real dt;
 
 public:
-	OperatorDiffusionStage2(double dt, double mu) : mu(mu), dt(dt)
+	OperatorDiffusionStage2(Real dt, Real mu) : mu(mu), dt(dt)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 5,6,7);
 
@@ -84,7 +84,7 @@ public:
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
-		const double fac = mu * dt / (info.h_gridpoint*info.h_gridpoint);
+		const Real fac = mu * dt / (info.h_gridpoint*info.h_gridpoint);
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -109,7 +109,7 @@ template <typename Lab>
 class CoordinatorDiffusion : public GenericCoordinator
 {
 protected:
-	const double coeff;
+	const Real coeff;
 	
 	inline void update()
 	{
@@ -128,17 +128,17 @@ protected:
 		}
 	}
 	
-	inline void diffuse(const double dt, const int stage)
+	inline void diffuse(const Real dt, const int stage)
 	{
 
 	}
 	
 public:
-	CoordinatorDiffusion(const double coeff, FluidGridMPI * grid) : GenericCoordinator(grid), coeff(coeff)
+	CoordinatorDiffusion(const Real coeff, FluidGridMPI * grid) : GenericCoordinator(grid), coeff(coeff)
 	{
 	}
 	
-	void operator()(const double dt)
+	void operator()(const Real dt)
 	{
 		check("diffusion - start");
 		

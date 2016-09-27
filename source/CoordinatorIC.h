@@ -15,10 +15,10 @@
 class OperatorIC : public GenericOperator
 {
 private:
-	const double uinf;
+	const Real uinf;
 
 public:
-	OperatorIC(const double uinf) : uinf(uinf) {}
+	OperatorIC(const Real uinf) : uinf(uinf) {}
 
 	~OperatorIC() {}
 
@@ -49,7 +49,7 @@ public:
 class OperatorIC_RT : public GenericOperator
 {
 public:
-	OperatorIC_RT(const double rhoS) {}
+	OperatorIC_RT(const Real rhoS) {}
 
 	~OperatorIC_RT() {}
 
@@ -91,7 +91,7 @@ public:
 	{
 	}
 	
-	void operator()(const double dt)
+	void operator()(const Real dt)
 	{
 		const int N = vInfo.size();
 		
@@ -121,7 +121,7 @@ public:
 	{
 	}
 	
-	void operator()(const double dt)
+	void operator()(const Real dt)
 	{
 		const int N = vInfo.size();
 		

@@ -17,11 +17,11 @@
 class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
 {
 private:
-	const double dt;
+	const Real dt;
 	const Real* const uInf;
 
 public:
-	OperatorAdvectionUpwind3rdOrder(const double dt, const Real* const uInf)
+	OperatorAdvectionUpwind3rdOrder(const Real dt, const Real* const uInf)
 : dt(dt), uInf(uInf)
 	{
 		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 0,1,2);
@@ -122,11 +122,11 @@ public:
 class OperatorAdvectionUpwind3rdOrderStage2 : public GenericLabOperator
 {
 private:
-	const double dt;
+	const Real dt;
 	const Real* const uInf;
 
 public:
-	OperatorAdvectionUpwind3rdOrderStage2(const double dt, const Real* const uInf)
+	OperatorAdvectionUpwind3rdOrderStage2(const Real dt, const Real* const uInf)
 : dt(dt), uInf(uInf)
 	{
 		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 5,6,7);
@@ -252,7 +252,7 @@ public:
 	~CoordinatorAdvection()
 	{ }
 	
-	void operator()(const double dt)
+	void operator()(const Real dt)
 	{
 		check("advection - start");
 		

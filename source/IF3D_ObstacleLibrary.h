@@ -15,7 +15,7 @@ namespace SphereObstacle
     struct FillBlocks
     {
         const Real radius,safe_radius;
-        const double sphere_position[3];
+        const Real sphere_position[3];
         Real sphere_box[3][2];
         
         void _find_sphere_box()
@@ -28,7 +28,7 @@ namespace SphereObstacle
             sphere_box[2][1] = sphere_position[2] + safe_radius;
         }
         
-        FillBlocks(const Real radius, const Real max_dx, const double pos[3]):
+        FillBlocks(const Real radius, const Real max_dx, const Real pos[3]):
         radius(radius),safe_radius(radius+4*max_dx), sphere_position{pos[0],pos[1],pos[2]}
         {            
             _find_sphere_box();
@@ -75,10 +75,10 @@ namespace SphereObstacle
         inline void operator()(const BlockInfo& info,FluidBlock& b,ObstacleBlock* const defblock,surfaceBlocks* const surf) const
         {
             if(_is_touching(info)) {
-            	const double h = info.h_gridpoint;
-        		const double inv2h = 0.5/h;
-        		const double invh2 = 1/(h*h);
-        		const double eps = std::numeric_limits<Real>::epsilon();
+            	const Real h = info.h_gridpoint;
+        		const Real inv2h = 0.5/h;
+        		const Real invh2 = 1/(h*h);
+        		const Real eps = std::numeric_limits<Real>::epsilon();
 
                 for(int iz=0; iz<FluidBlock::sizeZ; iz++)
                     for(int iy=0; iy<FluidBlock::sizeY; iy++)
@@ -92,56 +92,56 @@ namespace SphereObstacle
                             const Real dist = distanceToSphere(x,y,z);
 
                             if(dist > +2*h || dist < -2*h) {
-                            	const double H = dist > 0 ? 1.0 : 0.0;
+                            	const Real H = dist > 0 ? 1.0 : 0.0;
                             	defblock->chi[iz][iy][ix] = H;
                             	b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
                     			//printf("%f %f %f %f %f\n",x,y,z,p[0],p[1],p[2],dist,H);
                             	continue;
                             }
 
-                            const double distPx = distanceToSphere(x+h,y,z);
-                            const double distMx = distanceToSphere(x-h,y,z);
-                            const double distPy = distanceToSphere(x,y+h,z);
-                            const double distMy = distanceToSphere(x,y-h,z);
-                            const double distPz = distanceToSphere(x,y,z+h);
-                            const double distMz = distanceToSphere(x,y,z-h);
+                            const Real distPx = distanceToSphere(x+h,y,z);
+                            const Real distMx = distanceToSphere(x-h,y,z);
+                            const Real distPy = distanceToSphere(x,y+h,z);
+                            const Real distMy = distanceToSphere(x,y-h,z);
+                            const Real distPz = distanceToSphere(x,y,z+h);
+                            const Real distMz = distanceToSphere(x,y,z-h);
 
-                            const double IplusX = distPx < 0 ? 0 : distPx;
-                            const double IminuX = distMx < 0 ? 0 : distMx;
-                            const double IplusY = distPy < 0 ? 0 : distPy;
-                            const double IminuY = distMy < 0 ? 0 : distMy;
-                            const double IplusZ = distPz < 0 ? 0 : distPz;
-                            const double IminuZ = distMz < 0 ? 0 : distMz;
+                            const Real IplusX = distPx < 0 ? 0 : distPx;
+                            const Real IminuX = distMx < 0 ? 0 : distMx;
+                            const Real IplusY = distPy < 0 ? 0 : distPy;
+                            const Real IminuY = distMy < 0 ? 0 : distMy;
+                            const Real IplusZ = distPz < 0 ? 0 : distPz;
+                            const Real IminuZ = distMz < 0 ? 0 : distMz;
 
-                            const double HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
-                            const double HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
-                            const double HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
-                            const double HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
-                            const double HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
-                            const double HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
+                            const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
+                            const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
+                            const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
+                            const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
+                            const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
+                            const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
 
-                            const double gradUX = inv2h * (distPx - distMx);
-                            const double gradUY = inv2h * (distPy - distMy);
-                            const double gradUZ = inv2h * (distPz - distMz);
-                            const double gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ;
+                            const Real gradUX = inv2h * (distPx - distMx);
+                            const Real gradUY = inv2h * (distPy - distMy);
+                            const Real gradUZ = inv2h * (distPz - distMz);
+                            const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ;
                             // gradI
-							const double gradIX = inv2h * (IplusX - IminuX);
-                            const double gradIY = inv2h * (IplusY - IminuY);
-                            const double gradIZ = inv2h * (IplusZ - IminuZ);
-                            const double numH = gradIX*gradUX+gradIY*gradUY+gradIZ*gradUZ;
+							const Real gradIX = inv2h * (IplusX - IminuX);
+                            const Real gradIY = inv2h * (IplusY - IminuY);
+                            const Real gradIZ = inv2h * (IplusZ - IminuZ);
+                            const Real numH = gradIX*gradUX+gradIY*gradUY+gradIZ*gradUZ;
 
-                            const double gradHX = inv2h * (HplusX - HminuX);
-                            const double gradHY = inv2h * (HplusY - HminuY);
-                            const double gradHZ = inv2h * (HplusZ - HminuZ);
-                            const double numD = gradHX*gradUX+gradHY*gradUY+gradHZ*gradUZ;
+                            const Real gradHX = inv2h * (HplusX - HminuX);
+                            const Real gradHY = inv2h * (HplusY - HminuY);
+                            const Real gradHZ = inv2h * (HplusZ - HminuZ);
+                            const Real numD = gradHX*gradUX+gradHY*gradUY+gradHZ*gradUZ;
 
-                            const double Delta = std::abs(gradUSq)<eps ? numD : numD/gradUSq;
-                            const double H     = std::abs(gradUSq)<eps ? numH : numH/gradUSq;
+                            const Real Delta = std::abs(gradUSq)<eps ? numD : numD/gradUSq;
+                            const Real H     = std::abs(gradUSq)<eps ? numH : numH/gradUSq;
 
                             if (Delta>1e-6) { //will always be multiplied by h^2
-                            	const double dchidx = -Delta*gradUX;
-                            	const double dchidy = -Delta*gradUY;
-                            	const double dchidz = -Delta*gradUZ;
+                            	const Real dchidx = -Delta*gradUX;
+                            	const Real dchidy = -Delta*gradUY;
+                            	const Real dchidz = -Delta*gradUZ;
                             	surf->add(info.blockID,ix,iy,iz,dchidx,dchidy,dchidz,Delta);
                             }
 
@@ -164,7 +164,7 @@ namespace TorusObstacle
     struct FillBlocks
     {
         const Real big_r, small_r, smoothing_length;
-        double position[3];
+        Real position[3];
         Real sphere_box[3][2];
         
         void _find_sphere_box()
@@ -177,7 +177,7 @@ namespace TorusObstacle
             sphere_box[2][1] = position[2] + 2*(big_r + small_r + smoothing_length);
         }
         
-        FillBlocks(Real big_r, Real small_r, Real smoothing_length,  double position[3]):
+        FillBlocks(Real big_r, Real small_r, Real smoothing_length,  Real position[3]):
         big_r(big_r), small_r(small_r), smoothing_length(smoothing_length)
         {
             this->position[0] = position[0];
@@ -252,11 +252,11 @@ namespace TorusObstacle
                             };
                             
                             //mappele //sqrt(t[1] * t[1] + t[2] * t[2]);//
-                            const double r = sqrt(t[1]*t[1] + t[2]*t[2]);
+                            const Real r = sqrt(t[1]*t[1] + t[2]*t[2]);
                             
                             if (r > 0)
                             {
-                                const double c[3] = {
+                                const Real c[3] = {
                                     0,
                                     big_r*t[1]/r,
                                     big_r*t[2]/r
@@ -630,8 +630,8 @@ namespace EllipsoidObstacle
     struct FillBlocksEllipsoid
     {
         const Real e0,e1,e2,smoothing_length;
-        double position[3];
-        double quaternion[4];
+        Real position[3];
+        Real quaternion[4];
         Real sphere_box[3][2];
         
         void _find_sphere_box()
@@ -645,7 +645,7 @@ namespace EllipsoidObstacle
             sphere_box[2][1] = position[2] + 2*(maxAxis + smoothing_length);
         }
         
-        FillBlocksEllipsoid(const Real e0, const Real e1, const Real e2, const Real smoothing_length, const double position[3], const double quaternion[4]):
+        FillBlocksEllipsoid(const Real e0, const Real e1, const Real e2, const Real smoothing_length, const Real position[3], const Real quaternion[4]):
         e0(e0),e1(e1),e2(e2), smoothing_length(smoothing_length)
         {
             this->position[0] = position[0];
@@ -763,8 +763,8 @@ namespace EllipsoidObstacle
     struct FillBlocks_Towers
     {
         const Real e0,e1,e2,safe_distance;
-        double position[3];
-        double quaternion[4];
+        Real position[3];
+        Real quaternion[4];
         Real normalI[3], normalJ[3], normalK[3];
         Real rotationMatrix[3][3];
         
@@ -818,7 +818,7 @@ namespace EllipsoidObstacle
             normalizeNormals();
         }
         
-        FillBlocks_Towers(const Real e0, const Real e1, const Real e2, const Real max_dx, const double position[3], const double quaternion[4]):
+        FillBlocks_Towers(const Real e0, const Real e1, const Real e2, const Real max_dx, const Real position[3], const Real quaternion[4]):
         e0(e0),e1(e1),e2(e2), safe_distance(max_dx)
         {
             this->position[0] = position[0];
@@ -1019,7 +1019,7 @@ namespace VAWTObstacle
         const Real radius,height,chord,thickness; // chord and thickness are actually haflchord and halfthickness
         const Real safe_distance;
         const int nBlades=3;
-        double position[3];
+        Real position[3];
         Real rotationAngle;
         Real bounding_box[3][2];
         const Real pitchAngle = 45.0*M_PI/180;
@@ -1036,7 +1036,7 @@ namespace VAWTObstacle
             bounding_box[2][1] = position[2] + 0.5*height + safe_distance;
         }
         
-        FillBlocks_Towers(const Real radius, const Real height, const Real chord, const Real thickness, const Real max_dx, const double position[3], const Real rotationAngle):
+        FillBlocks_Towers(const Real radius, const Real height, const Real chord, const Real thickness, const Real max_dx, const Real position[3], const Real rotationAngle):
         radius(radius),height(height),chord(chord),thickness(thickness), safe_distance(max_dx),rotationAngle(rotationAngle)
         {
             this->position[0] = position[0];
@@ -1214,16 +1214,16 @@ namespace Schedulers
     template<int Npoints>
     struct ParameterScheduler
     {
-        std::array<double, Npoints> parameters_t0; // parameters at t0
-        std::array<double, Npoints> parameters_t1; // parameters at t1
-        std::array<double, Npoints> dparameters_t0; // derivative at t0
-        double t0, t1; // t0 and t1
+        std::array<Real, Npoints> parameters_t0; // parameters at t0
+        std::array<Real, Npoints> parameters_t1; // parameters at t1
+        std::array<Real, Npoints> dparameters_t0; // derivative at t0
+        Real t0, t1; // t0 and t1
 
         void save(std::string filename)
         {
             std::ofstream savestream;
             savestream.setf(std::ios::scientific);
-            savestream.precision(std::numeric_limits<double>::digits10 + 1);
+            savestream.precision(std::numeric_limits<Real>::digits10 + 1);
             savestream.open(filename+".txt");
 
             savestream << t0 << "\t" << t1 << std::endl;
@@ -1246,12 +1246,12 @@ namespace Schedulers
         ParameterScheduler()
         {
             t0=-1;
-            parameters_t0 = std::array<double, Npoints>();
-            dparameters_t0 = std::array<double, Npoints>();
+            parameters_t0 = std::array<Real, Npoints>();
+            dparameters_t0 = std::array<Real, Npoints>();
         }
 
-        void transition(const double t, const double tstart, const double tend,
-        		const std::array<double, Npoints> parameters_tend,
+        void transition(const Real t, const Real tstart, const Real tend,
+        		const std::array<Real, Npoints> parameters_tend,
 				const bool UseCurrentDerivative = false)
         {
             if(t<tstart or t>tend) return; // this transition is out of scope
@@ -1259,8 +1259,8 @@ namespace Schedulers
 
             // we transition from whatever state we are in to a new state
             // the start point is where we are now: lets find out
-            std::array<double, Npoints> parameters;
-            std::array<double, Npoints> dparameters;
+            std::array<Real, Npoints> parameters;
+            std::array<Real, Npoints> dparameters;
             gimmeValues(tstart,parameters,dparameters);
 
             /*
@@ -1274,12 +1274,12 @@ namespace Schedulers
             t1 = tend;
             parameters_t0 = parameters;
             parameters_t1 = parameters_tend;
-            dparameters_t0 = UseCurrentDerivative ? dparameters : std::array<double, Npoints>();
+            dparameters_t0 = UseCurrentDerivative ? dparameters : std::array<Real, Npoints>();
         }
 
-        void transition(const double t, const double tstart, const double tend,
-        		const std::array<double, Npoints> parameters_tstart,
-				const std::array<double, Npoints> parameters_tend)
+        void transition(const Real t, const Real tstart, const Real tend,
+        		const std::array<Real, Npoints> parameters_tstart,
+				const std::array<Real, Npoints> parameters_tend)
         {
             if(t<tstart or t>tend) return; // this transition is out of scope
             if(tstart<t0) return; // this transition is not relevant: we are doing a next one already
@@ -1291,47 +1291,47 @@ namespace Schedulers
             parameters_t1 = parameters_tend;
         }
 
-        void gimmeValues(const double t,std::array<double, Npoints> & parameters, std::array<double, Npoints> & dparameters)
+        void gimmeValues(const Real t,std::array<Real, Npoints> & parameters, std::array<Real, Npoints> & dparameters)
         {
             // look at the different cases
             if(t<t0 or t0<0) { // no transition, we are in state 0
                 parameters = parameters_t0;
-                dparameters = std::array<double, Npoints>();
+                dparameters = std::array<Real, Npoints>();
             } else if(t>t1) { // no transition, we are in state 1
                 parameters = parameters_t1;
-                dparameters = std::array<double, Npoints>();
+                dparameters = std::array<Real, Npoints>();
             } else { // we are within transition: interpolate
                 for(int i=0;i<Npoints;++i)
                     IF2D_Interpolation1D::cubicInterpolation(t0,t1,t,parameters_t0[i],parameters_t1[i],dparameters_t0[i],0.0,parameters[i],dparameters[i]);
             }
         }
 
-        void gimmeValues(const double t,std::array<double, Npoints> & parameters)
+        void gimmeValues(const Real t,std::array<Real, Npoints> & parameters)
         {
-            std::array<double, Npoints> dparameters_whocares; // no derivative info
+            std::array<Real, Npoints> dparameters_whocares; // no derivative info
             return gimmeValues(t,parameters,dparameters_whocares);
         }
     };
 
     struct ParameterSchedulerScalar : ParameterScheduler<1>
     {
-        void transition(const double t, const double tstart, const double tend, const double parameter_tend, const bool UseCurrentDerivative = false)
+        void transition(const Real t, const Real tstart, const Real tend, const Real parameter_tend, const bool UseCurrentDerivative = false)
         {
-            const std::array<double, 1> myParameter = {parameter_tend};
+            const std::array<Real, 1> myParameter = {parameter_tend};
             return ParameterScheduler<1>::transition(t,tstart,tend,myParameter,UseCurrentDerivative);
         }
 
-        void gimmeValues(const double t, double & parameter, double & dparameter)
+        void gimmeValues(const Real t, Real & parameter, Real & dparameter)
         {
-            std::array<double, 1> myParameter, mydParameter;
+            std::array<Real, 1> myParameter, mydParameter;
             ParameterScheduler<1>::gimmeValues(t, myParameter, mydParameter);
             parameter = myParameter[0];
             dparameter = mydParameter[0];
         }
 
-        void gimmeValues(const double t, double & parameter)
+        void gimmeValues(const Real t, Real & parameter)
         {
-            std::array<double, 1> myParameter;
+            std::array<Real, 1> myParameter;
             ParameterScheduler<1>::gimmeValues(t, myParameter);
             parameter = myParameter[0];
         }
@@ -1340,13 +1340,13 @@ namespace Schedulers
     template<int Npoints>
     struct ParameterSchedulerVector : ParameterScheduler<Npoints>
     {
-        void gimmeValues(const double t, const std::array<double, Npoints> & positions, const int Nfine,
-        		const double * const positions_fine, double * const parameters_fine, double * const dparameters_fine)
+        void gimmeValues(const Real t, const std::array<Real, Npoints> & positions, const int Nfine,
+        		const Real * const positions_fine, Real * const parameters_fine, Real * const dparameters_fine)
         {
             // we interpolate in space the start and end point
-            double parameters_t0_fine[Nfine];
-            double parameters_t1_fine[Nfine];
-            double dparameters_t0_fine[Nfine];
+            Real parameters_t0_fine[Nfine];
+            Real parameters_t1_fine[Nfine];
+            Real dparameters_t0_fine[Nfine];
 
             IF2D_Interpolation1D::naturalCubicSpline(positions.data(), this->parameters_t0.data(), Npoints, positions_fine, parameters_t0_fine,  Nfine);
             IF2D_Interpolation1D::naturalCubicSpline(positions.data(), this->parameters_t1.data(), Npoints, positions_fine, parameters_t1_fine,  Nfine);
@@ -1373,12 +1373,12 @@ namespace Schedulers
             }
         }
 
-        void gimmeValues(const double t,std::array<double, Npoints> & parameters)
+        void gimmeValues(const Real t,std::array<Real, Npoints> & parameters)
         {
             ParameterScheduler<Npoints>::gimmeValues(t, parameters);
         }
 
-        void gimmeValues(const double t,std::array<double, Npoints> & parameters, std::array<double, Npoints> & dparameters)
+        void gimmeValues(const Real t,std::array<Real, Npoints> & parameters, std::array<Real, Npoints> & dparameters)
         {
             ParameterScheduler<Npoints>::gimmeValues(t, parameters, dparameters);
         }
@@ -1387,14 +1387,14 @@ namespace Schedulers
     template<int Npoints>
     struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
     {
-    	void gimmeValues(const double t, const double Twave, const double Length, const std::array<double, Npoints> & positions,
-    					const int Nfine, const double* const positions_fine, double* const parameters_fine, double* const dparameters_fine)
+    	void gimmeValues(const Real t, const Real Twave, const Real Length, const std::array<Real, Npoints> & positions,
+    					const int Nfine, const Real* const positions_fine, Real* const parameters_fine, Real* const dparameters_fine)
         {
-    		const double _1oL = 1./Length;
-    		const double _1oT = 1./Twave;
+    		const Real _1oL = 1./Length;
+    		const Real _1oT = 1./Twave;
             // the fish goes through (as function of t and s) a wave function that describes the curvature
             for(int i=0;i<Nfine;++i) {
-                const double c = positions_fine[i]*_1oL - (t - this->t0)*_1oT; //traveling wave coord
+                const Real c = positions_fine[i]*_1oL - (t - this->t0)*_1oT; //traveling wave coord
             	bool bCheck = true;
 
                 if (c < positions[0]) { // Are you before latest wave node?
@@ -1423,7 +1423,7 @@ namespace Schedulers
             }
         }
 
-        void Turn(const double b, const double t_turn) // each decision adds a node at the beginning of the wave (left, right, straight) and pops last node
+        void Turn(const Real b, const Real t_turn) // each decision adds a node at the beginning of the wave (left, right, straight) and pops last node
         {
         	this->t0 = t_turn;
             for(int i=Npoints-1; i>0; --i) this->parameters_t0[i] = this->parameters_t0[i-2];

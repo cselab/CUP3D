@@ -17,24 +17,24 @@
 struct PenalizationObstacleVisitor : ObstacleVisitor
 {
 	FluidGridMPI * grid;
-    const double dt, lambda;
-    double * const uInf;
-    //double ext_X, ext_Y, ext_Z;
+    const Real dt, lambda;
+    Real * const uInf;
+    //Real ext_X, ext_Y, ext_Z;
     vector<BlockInfo> vInfo;
 
-    PenalizationObstacleVisitor(FluidGridMPI * grid, const double dt, const double lambda, double* const uInf)
+    PenalizationObstacleVisitor(FluidGridMPI * grid, const Real dt, const Real lambda, Real* const uInf)
     : grid(grid), dt(dt), lambda(lambda), uInf(uInf)
     {
         vInfo = grid->getBlocksInfo();
         /*
-        const double extent = grid->maxextent;
+        const Real extent = grid->maxextent;
         const unsigned int maxbpd = max(grid->NX*FluidBlock::sizeX,
         							max(grid->NY*FluidBlock::sizeY,
         								grid->NZ*FluidBlock::sizeZ));
-        const double scale[3] = {
-        		(double)(grid->NX*FluidBlock::sizeX)/(double)maxbpd,
-        		(double)(grid->NY*FluidBlock::sizeY)/(double)maxbpd,
-        		(double)(grid->NZ*FluidBlock::sizeZ)/(double)maxbpd
+        const Real scale[3] = {
+        		(Real)(grid->NX*FluidBlock::sizeX)/(Real)maxbpd,
+        		(Real)(grid->NY*FluidBlock::sizeY)/(Real)maxbpd,
+        		(Real)(grid->NZ*FluidBlock::sizeZ)/(Real)maxbpd
         };
         ext_X = scale[0]*extent;
         ext_Y = scale[1]*extent;
@@ -47,7 +47,7 @@ struct PenalizationObstacleVisitor : ObstacleVisitor
     	 const bool bFixFrameOfRef = obstacle->bFixFrameOfRef;
     	 if (bFixFrameOfRef) {
     		 if (obstacle->obstacleID!=0) {printf("Can only fix first obstacle.\n"); abort();}
-             double leadU[3], dummy[3] = {0.0, 0.0, 0.0}; // compute velocities with zero uinf
+             Real leadU[3], dummy[3] = {0.0, 0.0, 0.0}; // compute velocities with zero uinf
              obstacle->getTranslationVelocity(leadU);
              obstacle->computeVelocities(dummy);
              uInf[0] = -leadU[0]; //uInf now is speed of this obstacle
@@ -120,14 +120,14 @@ class CoordinatorPenalization : public GenericCoordinator
 {
 protected:
     IF3D_ObstacleVector** const obstacleVector;
-    double* const lambda;
-    double* const uInf;
+    Real* const lambda;
+    Real* const uInf;
 public:
-	CoordinatorPenalization(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles, double* const lambda, double* const Uinf)
+	CoordinatorPenalization(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles, Real* const lambda, Real* const Uinf)
 	: GenericCoordinator(grid), obstacleVector(myobstacles), lambda(lambda), uInf(Uinf)
 	{ }
 	
-	void operator()(const double dt)
+	void operator()(const Real dt)
 	{
 		check((string)"penalization - start");
 

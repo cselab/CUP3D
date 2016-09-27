@@ -127,7 +127,7 @@ public:
 				for(int ix=s[0]; ix<e[0]; ix++)
 				{
 				// what to put here?
-				double p[3];
+				Real p[3];
 				info.pos(p, ix, iy,iz);
 				
 				p[0] = p[0]*2.-1.;

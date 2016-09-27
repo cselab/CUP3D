@@ -9,9 +9,9 @@
 #include "ProcessOperatorsOMP.h"
 #include <cmath>
 
-double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI & grid, const Real* const uInf)
+Real findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI & grid, const Real* const uInf)
 {
-	double maxU = 0;
+	Real maxU = 0;
 	const int N = myInfo.size();
 	
 #pragma omp parallel for schedule(static) reduction(max:maxU)
@@ -23,9 +23,9 @@ double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI & grid, const Real* c
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-			maxU = max(maxU,(double)abs(b(ix,iy,iz).u +uInf[0]));
-			maxU = max(maxU,(double)abs(b(ix,iy,iz).v +uInf[1]));
-			maxU = max(maxU,(double)abs(b(ix,iy,iz).w +uInf[2]));
+			maxU = max(maxU,(Real)abs(b(ix,iy,iz).u +uInf[0]));
+			maxU = max(maxU,(Real)abs(b(ix,iy,iz).v +uInf[1]));
+			maxU = max(maxU,(Real)abs(b(ix,iy,iz).w +uInf[2]));
 		}
 	}
 	

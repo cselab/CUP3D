@@ -205,7 +205,7 @@ public:
 		vInfo = grid->getBlocksInfo();
 	}
 	
-	virtual void operator()(const double dt) = 0;
+	virtual void operator()(const Real dt) = 0;
 	
 	virtual string getName() = 0;
 };

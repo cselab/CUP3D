@@ -233,13 +233,13 @@ struct FluidBlock
 struct surfData
 {
     int blockID, ix, iy, iz;
-    double dchidx, dchidy, dchidz, delta;
+    Real dchidx, dchidy, dchidz, delta;
 
-    surfData(const int _blockID, const int _ix, const int _iy, const int _iz, const double _dchidx, const double _dchidy, const double _dchidz, const double _delta)
+    surfData(const int _blockID, const int _ix, const int _iy, const int _iz, const Real _dchidx, const Real _dchidy, const Real _dchidz, const Real _delta)
     : blockID(_blockID), ix(_ix), iy(_iy), iz(_iz), dchidx(_dchidx), dchidy(_dchidy), dchidz(_dchidz), delta(_delta)
     {}
 
-    void set(const int _blockID, const int _ix, const int _iy, const int _iz, const double _dchidx, const double _dchidy, const double _dchidz, const double _delta)
+    void set(const int _blockID, const int _ix, const int _iy, const int _iz, const Real _dchidx, const Real _dchidy, const Real _dchidz, const Real _delta)
     {
         blockID=_blockID; ix=_ix; iy=_iy; iz=_iz; dchidx=_dchidx; dchidy=_dchidy; dchidz=_dchidz; delta=_delta;
     }
@@ -262,7 +262,7 @@ public:
 		}
 	}
 
-    void add(const int blockID, const int ix, const int iy, const int iz, const double dchidx, const double dchidy, const double dchidz, const double delta)
+    void add(const int blockID, const int ix, const int iy, const int iz, const Real dchidx, const Real dchidy, const Real dchidz, const Real delta)
     {
         if(Ndata+1>Set.size()) {
         		surfData * tmp = new surfData(blockID,ix,iy,iz,dchidx,dchidy,dchidz,delta);
@@ -414,8 +414,8 @@ public:
         fileskin.open(filename, ios::trunc);
 
         for (int j=0; j<nMapped; j++) {
-            double Fx(0.), Fy(0.), Fz(0.), FxP(0.), FyP(0.), FzP(0.), FxV(0.), FyV(0.), FzV(0.), p(0.);
-            double Vx(0.), Vy(0.), Vz(0.), VxDef(0.), VyDef(0.), VzDef(0.), Px(0.), Py(0.), Pz(0.);
+            Real Fx(0.), Fy(0.), Fz(0.), FxP(0.), FyP(0.), FzP(0.), FxV(0.), FyV(0.), FzV(0.), p(0.);
+            Real Vx(0.), Vy(0.), Vz(0.), VxDef(0.), VyDef(0.), VzDef(0.), Px(0.), Py(0.), Pz(0.);
             int cnt(0);
 
             for(int k = 0; k < Ndata; k++) {
@@ -430,17 +430,17 @@ public:
                  Px += pX[k];    Py += pY[k];    Pz += pZ[k]; p += P[k];
             }
             //TMP
-            const double ds = .1*M_PI/(double)Ndata;
+            const Real ds = .1*M_PI/(Real)Ndata;
             Fx  /= ds; Fy  /= ds; Fz  /= ds;
             FxP /= ds; FyP /= ds; FzP /= ds;
             FxV /= ds; FyV /= ds; FzV /= ds;
-            Vx /= (double)cnt;
-            Vy /= (double)cnt;
-            Vz /= (double)cnt;
-            Px /= (double)cnt;
-            Py /= (double)cnt;
-            Pz /= (double)cnt;
-            p  /= (double)cnt;
+            Vx /= (Real)cnt;
+            Vy /= (Real)cnt;
+            Vz /= (Real)cnt;
+            Px /= (Real)cnt;
+            Py /= (Real)cnt;
+            Pz /= (Real)cnt;
+            p  /= (Real)cnt;
 
             fileskin<<Px<<" "<<Py<<" "<<Pz<<" "<<p<<" "<<Fx<<" "<<Fy<<" "<<Fz<<" "
                     <<FxP<<" "<<FyP<<" "<<FzP<<" "<<FxV<<" "<<FyV<<" "<<FzV<<" "
@@ -947,47 +947,47 @@ struct Layer
 			data[dim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix] = val;
 	}
 
-	double getH0() const
+	Real getH0() const
 	{
-		return 1./(double)sizeX;
+		return 1./(Real)sizeX;
 	}
 
-	double getH1() const
+	Real getH1() const
 	{
-		return 1./(double)sizeY;
+		return 1./(Real)sizeY;
 	}
 
-	double getH2() const
+	Real getH2() const
 	{
-		return 1./(double)sizeZ;
+		return 1./(Real)sizeZ;
 	}
 
-	const vector<double> operator -(const Layer& layer)
+	const vector<Real> operator -(const Layer& layer)
 	{
-		vector<double> result;
+		vector<Real> result;
 
 		//compute linf distance
 		{
-			double LInf_diff = 0;
+			Real LInf_diff = 0;
 			for(int idim = 0; idim<nDim; idim++)
 				for(int iz = 0; iz<sizeZ; iz++)
 				for(int iy = 0; iy<sizeY; iy++)
 					for(int ix = 0; ix<sizeX; ix++)
-						LInf_diff = max(LInf_diff, (double)fabs(data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix] - layer.data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix]));
+						LInf_diff = max(LInf_diff, (Real)fabs(data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix] - layer.data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix]));
 
 			result.push_back(LInf_diff);
 		}
 
 		//compute linf distance
 		{
-			double L2error = 0;
+			Real L2error = 0;
 			for(int idim = 0; idim<nDim; idim++)
 				for(int iz = 0; iz<sizeZ; iz++)
 				for(int iy = 0; iy<sizeY; iy++)
 					for(int ix = 0; ix<sizeX; ix++)
 						L2error += pow(data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix] - layer.data[idim*sizeX*sizeY*sizeZ + iz*sizeX*sizeY + iy*sizeX + ix], 2);
 
-			result.push_back(sqrt((double)L2error/(sizeY*sizeX)));
+			result.push_back(sqrt((Real)L2error/(sizeY*sizeX)));
 		}
 
 		return result;

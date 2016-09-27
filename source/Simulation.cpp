@@ -101,7 +101,7 @@ void Simulation::setupOperators()
     }
 }
 
-void Simulation::areWeDumping(double & nextDumpTime)
+void Simulation::areWeDumping(Real & nextDumpTime)
 {
 	bDump = (dumpFreq>0 && step%dumpFreq==0) || (dumpTime>0 && time>=nextDumpTime);
 	if (bDump) nextDumpTime += dumpTime;
@@ -132,7 +132,7 @@ void Simulation::_dump(const string append = string())
 
 #else if defined(_USE_LZ4_) //TODO: does not compile
     MPI_Barrier(MPI_COMM_WORLD);
-    double vpeps = parser("-vpeps").asDouble(1e-5);
+    Real vpeps = parser("-vpeps").asDouble(1e-5);
     int wavelet_type = parser("-wtype").asInt(1);
 
     waveletdumper_grid.verbose();
@@ -151,8 +151,8 @@ void Simulation::_dump(const string append = string())
     
 void Simulation::_selectDT()
 {
-    double local_maxU = findMaxUOMP(vInfo,*grid,uinf);
-    double global_maxU;
+	double local_maxU = (double)findMaxUOMP(vInfo,*grid,uinf);
+	double global_maxU;
     MPI::COMM_WORLD.Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX);
     dtFourier = CFL*vInfo[0].h_gridpoint*vInfo[0].h_gridpoint/nu;
     dtCFL     = CFL*vInfo[0].h_gridpoint/abs(global_maxU);
@@ -166,9 +166,9 @@ void Simulation::_selectDT()
 
     if ( step<100 )  //if(false)
     {
-        const double dt_max = 1e-2*CFL;
-        const double dt_min = 1e-4*CFL;
-        const double dt_ramp = dt_min + step*(dt_max - dt_min)/100.;
+        const Real dt_max = 1e-2*CFL;
+        const Real dt_min = 1e-4*CFL;
+        const Real dt_ramp = dt_min + step*(dt_max - dt_min)/100.;
         if (dt_ramp<dt) {
         	dt = dt_ramp;
         	if(rank==0)
@@ -177,7 +177,7 @@ void Simulation::_selectDT()
     }
 }
 
-void Simulation::_serialize(double & nextSaveTime)
+void Simulation::_serialize(Real & nextSaveTime)
 {
 	/*
 	 * MUSINGS TODO:
@@ -299,7 +299,7 @@ void Simulation::init()
         
         if (rank==0)
         {
-            double d = _nonDimensionalTime();
+            Real d = _nonDimensionalTime();
             _dump(d);
         }
         
@@ -314,8 +314,8 @@ void Simulation::init()
 	
 void Simulation::simulate()
 {
-    double nextDumpTime = time;
-    double nextSaveTime = time + saveTime;
+    Real nextDumpTime = time;
+    Real nextSaveTime = time + saveTime;
     
     while (true)
     {
@@ -325,7 +325,7 @@ void Simulation::simulate()
         profiler.pop_stop();
         /*
         if(time>0) {
-        	double FU = -1.;
+        	Real FU = -1.;
         	step = 11111111;
         	_dump(FU); FU = -1.; //dump pre step
         	(*pipeline[0])(dt);
@@ -374,7 +374,7 @@ void Simulation::simulate()
             profiler.push_start(pipeline[c]->getName());
             (*pipeline[c])(dt);
             profiler.pop_stop();
-            //double always = -1.;
+            //Real always = -1.;
             //_dump(always);
             //step++;
         	//cout << pipeline[c]->getName() << " stop" << endl;

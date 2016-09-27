@@ -12,13 +12,13 @@
 struct VolumeSegment_OBB
 {
     std::pair<int, int> s_range;
-    double normalI[3]; // should be normalized and >=0
-    double normalJ[3];
-    double normalK[3];
-    double w[3]; // halfwidth
-    double c[3]; // center
+    Real normalI[3]; // should be normalized and >=0
+    Real normalJ[3];
+    Real normalK[3];
+    Real w[3]; // halfwidth
+    Real c[3]; // center
     
-    VolumeSegment_OBB(std::pair<int, int> s_range, const double bbox[3][2])
+    VolumeSegment_OBB(std::pair<int, int> s_range, const Real bbox[3][2])
     : s_range(s_range)
     {
         normalI[1]=normalI[2]=normalJ[0]=normalJ[2]=normalK[0]=normalK[1]=0.0;
@@ -33,7 +33,7 @@ struct VolumeSegment_OBB
     
     VolumeSegment_OBB() { }
 
-    void prepare(std::pair<int, int> _s_range, const double bbox[3][2])
+    void prepare(std::pair<int, int> _s_range, const Real bbox[3][2])
 	{
     	normalI[1]=normalI[2]=normalJ[0]=normalJ[2]=normalK[0]=normalK[1]=0.0;
 		normalI[0]=normalJ[1]=normalK[2]=1.0;
@@ -48,15 +48,15 @@ struct VolumeSegment_OBB
 
     void normalizeNormals()
     {
-        const double magI = std::sqrt(normalI[0]*normalI[0]+normalI[1]*normalI[1]+normalI[2]*normalI[2]);
-        const double magJ = std::sqrt(normalJ[0]*normalJ[0]+normalJ[1]*normalJ[1]+normalJ[2]*normalJ[2]);
-        const double magK = std::sqrt(normalK[0]*normalK[0]+normalK[1]*normalK[1]+normalK[2]*normalK[2]);
-        assert(magI > std::numeric_limits<double>::epsilon());
-        assert(magJ > std::numeric_limits<double>::epsilon());
-        assert(magK > std::numeric_limits<double>::epsilon());        
-        const double invMagI = 1.0/magI;
-        const double invMagJ = 1.0/magJ;
-        const double invMagK = 1.0/magK;
+        const Real magI = std::sqrt(normalI[0]*normalI[0]+normalI[1]*normalI[1]+normalI[2]*normalI[2]);
+        const Real magJ = std::sqrt(normalJ[0]*normalJ[0]+normalJ[1]*normalJ[1]+normalJ[2]*normalJ[2]);
+        const Real magK = std::sqrt(normalK[0]*normalK[0]+normalK[1]*normalK[1]+normalK[2]*normalK[2]);
+        assert(magI > std::numeric_limits<Real>::epsilon());
+        assert(magJ > std::numeric_limits<Real>::epsilon());
+        assert(magK > std::numeric_limits<Real>::epsilon());
+        const Real invMagI = 1.0/magI;
+        const Real invMagJ = 1.0/magJ;
+        const Real invMagK = 1.0/magK;
         
         for(int i=0;i<3;++i) {
 	    // also take absolute value since thats what we need when doing intersection checks later
@@ -66,22 +66,22 @@ struct VolumeSegment_OBB
         }
     }
 
-    void changeToComputationalFrame(const double position[3], const double quaternion[4])
+    void changeToComputationalFrame(const Real position[3], const Real quaternion[4])
     {
         // we are in CoM frame and change to comp frame --> first rotate around CoM (which is at (0,0) in CoM frame), then update center
-        const double w = quaternion[0];
-        const double x = quaternion[1];
-        const double y = quaternion[2];
-        const double z = quaternion[3];
-        const double Rmatrix3D[3][3] = {
+        const Real w = quaternion[0];
+        const Real x = quaternion[1];
+        const Real y = quaternion[2];
+        const Real z = quaternion[3];
+        const Real Rmatrix3D[3][3] = {
             {1.-2*(y*y+z*z),  2*(x*y-z*w),    2*(x*z+y*w)},
             {2*(x*y+z*w),    1.-2*(x*x+z*z),  2*(y*z-x*w)},
             {2*(x*z-y*w),    2*(y*z+x*w),    1.-2*(x*x+y*y)}
         };
-        const double p[3] = {c[0],c[1],c[2]};
-        const double nx[3] = {normalI[0],normalI[1],normalI[2]};
-        const double ny[3] = {normalJ[0],normalJ[1],normalJ[2]};
-        const double nz[3] = {normalK[0],normalK[1],normalK[2]};
+        const Real p[3] = {c[0],c[1],c[2]};
+        const Real nx[3] = {normalI[0],normalI[1],normalI[2]};
+        const Real ny[3] = {normalJ[0],normalJ[1],normalJ[2]};
+        const Real nz[3] = {normalK[0],normalK[1],normalK[2]};
         for(int i=0;i<3;++i) {
             c[i] = Rmatrix3D[i][0]*p[0] + Rmatrix3D[i][1]*p[1] + Rmatrix3D[i][2]*p[2];
             normalI[i] = Rmatrix3D[i][0]*nx[0] + Rmatrix3D[i][1]*nx[1] + Rmatrix3D[i][2]*nx[2];
@@ -94,15 +94,15 @@ struct VolumeSegment_OBB
         normalizeNormals();
     }
     
-    bool isIntersectingWithAABB(const double start[3],const double end[3], const double safe_distance = 0.0) const
+    bool isIntersectingWithAABB(const Real start[3],const Real end[3], const Real safe_distance = 0.0) const
     {
     	//start and end are two diagonally opposed corners of grid block
-        const double AABB_w[3] = { //half block width + safe distance
+        const Real AABB_w[3] = { //half block width + safe distance
             0.5*(end[0] - start[0]) + 2.0*safe_distance,
             0.5*(end[1] - start[1]) + 2.0*safe_distance,
             0.5*(end[2] - start[2]) + 2.0*safe_distance
         };
-        const double AABB_c[3] = { //block center
+        const Real AABB_c[3] = { //block center
             start[0] + AABB_w[0] - safe_distance,
             start[1] + AABB_w[1] - safe_distance,
             start[2] + AABB_w[2] - safe_distance
@@ -111,7 +111,7 @@ struct VolumeSegment_OBB
         assert(AABB_w[1]>0);
         assert(AABB_w[2]>0);
         bool intersects = true;
-        double r;
+        Real r;
         {
         	/*
         	 * What is this r? dont think of it as scalar product
@@ -162,11 +162,11 @@ struct VolumeSegment_OBB
 struct PutFishOnBlocks
 {    
     const Fish::FishMidlineData * cfish;
-    double position[3];
-    double quaternion[4];
-    double Rmatrix3D[3][3];
+    Real position[3];
+    Real quaternion[4];
+    Real Rmatrix3D[3][3];
 
-    PutFishOnBlocks(const Fish::FishMidlineData* const cfish, const double pos[3], const double quat[4]):
+    PutFishOnBlocks(const Fish::FishMidlineData* const cfish, const Real pos[3], const Real quat[4]):
 	cfish(cfish)
 	{
         position[0]=pos[0];
@@ -181,11 +181,11 @@ struct PutFishOnBlocks
     
     void computeRotationMatrix()
     {
-        const double w = quaternion[0];
-        const double x = quaternion[1];
-        const double y = quaternion[2];
-        const double z = quaternion[3];
-        const double R[3][3] = {
+        const Real w = quaternion[0];
+        const Real x = quaternion[1];
+        const Real y = quaternion[2];
+        const Real z = quaternion[3];
+        const Real R[3][3] = {
             {1-2*(y*y+z*z),  2*(x*y-z*w),    2*(x*z+y*w)},
             {2*(x*y+z*w),    1-2*(x*x+z*z),  2*(y*z-x*w)},
             {2*(x*z-y*w),    2*(y*z+x*w),    1-2*(x*x+y*y)}
@@ -193,12 +193,12 @@ struct PutFishOnBlocks
         memcpy(Rmatrix3D, R, sizeof(R));
     }
     
-    inline int find_closest_dist(const int s, const int dir, const double x[3], double & oldDistSq) const
+    inline int find_closest_dist(const int s, const int dir, const Real x[3], Real & oldDistSq) const
     {        
         if((s+dir)<cfish->iFishStart or (s+dir)>cfish->iFishEnd)
             return s;
         
-        const double newDistSq = (x[0]-cfish->rX[s+dir])*(x[0]-cfish->rX[s+dir])
+        const Real newDistSq = (x[0]-cfish->rX[s+dir])*(x[0]-cfish->rX[s+dir])
         		               + (x[1]-cfish->rY[s+dir])*(x[1]-cfish->rY[s+dir])
 							   + (x[2])*(x[2]);
         
@@ -210,9 +210,9 @@ struct PutFishOnBlocks
         }
     }
     
-    void changeVelocityToComputationalFrame(double x[3]) const
+    void changeVelocityToComputationalFrame(Real x[3]) const
     {
-        const double p[3] = {x[0],x[1],x[2]};
+        const Real p[3] = {x[0],x[1],x[2]};
         
         // rotate (around CoM)
         x[0]=Rmatrix3D[0][0]*p[0] + Rmatrix3D[0][1]*p[1] + Rmatrix3D[0][2]*p[2];
@@ -252,16 +252,16 @@ struct PutFishOnBlocks
         x[2]=Rmatrix3D[0][2]*p[0] + Rmatrix3D[1][2]*p[1] + Rmatrix3D[2][2]*p[2];
     }
 
-    double getSmallerDistToMidline(const int start_s, const double x[3], int & final_s) const
+    Real getSmallerDistToMidline(const int start_s, const Real x[3], int & final_s) const
     {
-        double relX[3] = {x[0],x[1],x[2]};
+        Real relX[3] = {x[0],x[1],x[2]};
         changeFromComputationalFrame(relX);
         
-        const double curDistSq =  std::pow(relX[0]-cfish->rX[start_s],2)
+        const Real curDistSq =  std::pow(relX[0]-cfish->rX[start_s],2)
         					    + std::pow(relX[1]-cfish->rY[start_s],2)
         						+ std::pow(relX[2],2);
         
-        double distSq;
+        Real distSq;
 
         distSq = curDistSq; // check right
         const int sRight = find_closest_dist(start_s, +1, relX, distSq);
@@ -329,9 +329,9 @@ struct PutFishOnBlocks
         			const Real theta = tt*dtheta + offset;
         			// create a surface point
         			// special treatment of tail (width = 0 --> no ellipse, just line)
-        			const double hght = cfish->width[ss] == 0 ? cfish->height[ss]*(2*tt/((Real)Ntheta-1) - 1)
+        			const Real hght = cfish->width[ss] == 0 ? cfish->height[ss]*(2*tt/((Real)Ntheta-1) - 1)
         					: cfish->height[ss]*std::sin(theta);
-        			double myP[3] = {
+        			Real myP[3] = {
         					(cfish->rX[ss] + cfish->width[ss]*std::cos(theta)*cfish->norX[ss]),
 							(cfish->rY[ss] + cfish->width[ss]*std::cos(theta)*cfish->norY[ss]),
 							hght
@@ -354,10 +354,10 @@ struct PutFishOnBlocks
 							std::min(+3, FluidBlock::sizeY - iap[1]),
 							std::min(+3, FluidBlock::sizeZ - iap[2])
 					};
-					const double myP_distToMidlineSq = cfish->width[ss] == 0 ? std::pow(hght,2) :
-							(double)(std::pow(cfish->width[ss]*std::cos(theta),2) + std::pow(cfish->height[ss]*std::sin(theta),2));
+					const Real myP_distToMidlineSq = cfish->width[ss] == 0 ? std::pow(hght,2) :
+							(Real)(std::pow(cfish->width[ss]*std::cos(theta),2) + std::pow(cfish->height[ss]*std::sin(theta),2));
 
-					if(myP_distToMidlineSq<std::numeric_limits<double>::epsilon()) {
+					if(myP_distToMidlineSq<std::numeric_limits<Real>::epsilon()) {
 						// if ss==iFishStart or ss==iFishEnd, the surface point lies on the midline --> myP_distToMidlineSq=0.
 								// here our in/out criterion fails
 						for(int sz=start[2]; sz<end[2];++sz)
@@ -372,17 +372,17 @@ struct PutFishOnBlocks
 							assert(idx[1]>=0 && idx[1]<FluidBlock::sizeY);
 							assert(idx[2]>=0 && idx[2]<FluidBlock::sizeZ);
 
-							double p[3];
+							Real p[3];
 							info.pos(p, idx[0],idx[1],idx[2]);
-							const double diff[3] = {p[0]-myP[0], p[1]-myP[1], p[2]-myP[2]};
-							const double distSq = std::pow(diff[0],2) + std::pow(diff[1],2) + std::pow(diff[2],2);
+							const Real diff[3] = {p[0]-myP[0], p[1]-myP[1], p[2]-myP[2]};
+							const Real distSq = std::pow(diff[0],2) + std::pow(diff[1],2) + std::pow(diff[2],2);
 							int closest_s;
-							const double distToMidlineSq = getSmallerDistToMidline(ss, p, closest_s);
+							const Real distToMidlineSq = getSmallerDistToMidline(ss, p, closest_s);
 
 							changeFromComputationalFrame(p);
-							const double distPlanar = std::sqrt( std::pow(p[0]-cfish->rX[closest_s],2) +
+							const Real distPlanar = std::sqrt( std::pow(p[0]-cfish->rX[closest_s],2) +
 									std::pow(p[1]-cfish->rY[closest_s],2) );
-							const double distHeight = std::abs(p[2]);
+							const Real distHeight = std::abs(p[2]);
 							const Real sign = (distPlanar > cfish->width[closest_s] or distHeight > cfish->height[closest_s]) ? -1.0 : 1.0;
 
 							defblock->chi[idx[2]][idx[1]][idx[0]] =
@@ -402,12 +402,12 @@ struct PutFishOnBlocks
 							assert(idx[1]>=0 && idx[1]<FluidBlock::sizeY);
 							assert(idx[2]>=0 && idx[2]<FluidBlock::sizeZ);
 
-							double p[3];
+							Real p[3];
 							info.pos(p, idx[0],idx[1],idx[2]);
-							const double diff[3] = {p[0]-myP[0], p[1]-myP[1], p[2]-myP[2]};
-							const double distSq = std::pow(diff[0],2) + std::pow(diff[1],2) + std::pow(diff[2],2);
+							const Real diff[3] = {p[0]-myP[0], p[1]-myP[1], p[2]-myP[2]};
+							const Real distSq = std::pow(diff[0],2) + std::pow(diff[1],2) + std::pow(diff[2],2);
 							int closest_s;
-							const double distToMidlineSq = getSmallerDistToMidline(ss, p, closest_s);
+							const Real distToMidlineSq = getSmallerDistToMidline(ss, p, closest_s);
 							const Real sign = distToMidlineSq >= myP_distToMidlineSq ? -1.0 : 1.0;
 							defblock->chi[idx[2]][idx[1]][idx[0]] =
 									(std::abs(defblock->chi[idx[2]][idx[1]][idx[0]]) > distSq) ? sign*distSq
@@ -424,27 +424,27 @@ struct PutFishOnBlocks
         	for(int ss=vSegments[i].s_range.first;ss<=vSegments[i].s_range.second;++ss) {
         		assert(ss>=0 && ss<=cfish->Nm-1);
         		// P2M udef of a slice at this s
-        		const double myWidth =  (ss < cfish->iFishStart ? cfish->width[ cfish->iFishStart]
+        		const Real myWidth =  (ss < cfish->iFishStart ? cfish->width[ cfish->iFishStart]
 									  : (ss > cfish->iFishEnd   ? cfish->width[ cfish->iFishEnd] : cfish->width[ss]));
-        		const double myHeight = (ss < cfish->iFishStart ? cfish->height[cfish->iFishStart]
+        		const Real myHeight = (ss < cfish->iFishStart ? cfish->height[cfish->iFishStart]
 									  : (ss > cfish->iFishEnd   ? cfish->height[cfish->iFishEnd] : cfish->height[ss]));
-        		const double ds_defGrid = info.h_gridpoint;
+        		const Real ds_defGrid = info.h_gridpoint;
         		// towers needs 1dx on each side, smooth needs 2dx --> make it 3 to be nice (and so we can floor!)
-        		const double extension = NPPEXT*info.h_gridpoint; //G tmp changed back to 2
+        		const Real extension = NPPEXT*info.h_gridpoint; //G tmp changed back to 2
 
         		const int Nh = std::floor( (myHeight+extension)/ds_defGrid );
 
         		for(int ih=-Nh;ih<=Nh; ++ih) {
         			const Real offsetH = ih*ds_defGrid;
         			// add an extra extension when width == 0 (to deal with large curvatures near head and/or tail):
-        			const double currentWidth = myWidth== 0 ? extension : myWidth * std::sqrt(1 - std::pow(offsetH/(myHeight+extension),2));
-        			const double actualWidth = (cfish->height[ss] == 0 or std::abs(offsetH)>=cfish->height[ss]) ? 0.0
+        			const Real currentWidth = myWidth== 0 ? extension : myWidth * std::sqrt(1 - std::pow(offsetH/(myHeight+extension),2));
+        			const Real actualWidth = (cfish->height[ss] == 0 or std::abs(offsetH)>=cfish->height[ss]) ? 0.0
         										: cfish->width[ss] * std::sqrt(1 - std::pow(offsetH/cfish->height[ss],2));
         			const int Nw = std::floor( (currentWidth+extension)/ds_defGrid); // add extension here to make sure we have it in each direction
 
         			for(int iw=-Nw;iw<=Nw; ++iw) {
         				const Real offsetW = iw*ds_defGrid;
-        				double xp[3] = {
+        				Real xp[3] = {
         						(cfish->rX[ss] + offsetW*cfish->norX[ss]),
 								(cfish->rY[ss] + offsetW*cfish->norY[ss]),
 								offsetH
@@ -453,7 +453,7 @@ struct PutFishOnBlocks
         				xp[0] = (xp[0]-org[0])*invh;
         				xp[1] = (xp[1]-org[1])*invh;
         				xp[2] = (xp[2]-org[2])*invh;
-        				double udef[3] = {
+        				Real udef[3] = {
         						(cfish->vX[ss] + offsetW*cfish->vNorX[ss]),
 								(cfish->vY[ss] + offsetW*cfish->vNorY[ss]),
 								0.0
@@ -553,7 +553,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 {
     Real t;
 	int stencil_start[3], stencil_end[3];
-	array<double,4>* const momenta;
+	array<Real,4>* const momenta;
     surfaceBlocks* const surface;
     std::map<int,ObstacleBlock*>* const obstacleBlocks;
 
@@ -562,7 +562,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 
     PutFishOnBlocks_Finalize(map<int,ObstacleBlock*>* const obstacleBlocks, //to write chi
     						 surfaceBlocks* const surface, 					//to write gradChi
-							 array<double,4>* const momenta)     			//compute CM
+							 array<Real,4>* const momenta)     			//compute CM
 	: t(0), momenta(momenta),surface(surface), obstacleBlocks(obstacleBlocks)
 	{
     	stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 5);
@@ -575,18 +575,18 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 	{
 		if(obstacleBlocks->find(info.blockID) == obstacleBlocks->end()) return;
 		ObstacleBlock* const defblock = obstacleBlocks->find(info.blockID)->second;
-		const double eps = std::numeric_limits<Real>::epsilon();
-		const double h = info.h_gridpoint;
-		const double invh2 = 1./(h*h);
-		const double inv2h = .5/h;
+		const Real eps = std::numeric_limits<Real>::epsilon();
+		const Real h = info.h_gridpoint;
+		const Real invh2 = 1./(h*h);
+		const Real inv2h = .5/h;
 
 		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
 		for(int ix=0; ix<FluidBlock::sizeX; ix++) {
-			double p[3];
+			Real p[3];
 			info.pos(p, ix,iy,iz);
 			if (lab(ix,iy,iz).tmpU >= +2*h || lab(ix,iy,iz).tmpU <= -2*h) {
-				const double H = lab(ix,iy,iz).tmpU > 0 ? 1.0 : 0.0;
+				const Real H = lab(ix,iy,iz).tmpU > 0 ? 1.0 : 0.0;
 				(*momenta)[0] += H;
 				(*momenta)[1] += p[0]*H;
 				(*momenta)[2] += p[1]*H;
@@ -598,51 +598,51 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 				continue;
 			}
 
-			const double distPx = lab(ix+1,iy,iz).tmpU;
-			const double distMx = lab(ix-1,iy,iz).tmpU;
-			const double distPy = lab(ix,iy+1,iz).tmpU;
-			const double distMy = lab(ix,iy-1,iz).tmpU;
-			const double distPz = lab(ix,iy,iz+1).tmpU;
-			const double distMz = lab(ix,iy,iz-1).tmpU;
+			const Real distPx = lab(ix+1,iy,iz).tmpU;
+			const Real distMx = lab(ix-1,iy,iz).tmpU;
+			const Real distPy = lab(ix,iy+1,iz).tmpU;
+			const Real distMy = lab(ix,iy-1,iz).tmpU;
+			const Real distPz = lab(ix,iy,iz+1).tmpU;
+			const Real distMz = lab(ix,iy,iz-1).tmpU;
 
-			const double IplusX = distPx < 0 ? 0 : distPx;
-			const double IminuX = distMx < 0 ? 0 : distMx;
-			const double IplusY = distPy < 0 ? 0 : distPy;
-			const double IminuY = distMy < 0 ? 0 : distMy;
-			const double IplusZ = distPz < 0 ? 0 : distPz;
-			const double IminuZ = distMz < 0 ? 0 : distMz;
+			const Real IplusX = distPx < 0 ? 0 : distPx;
+			const Real IminuX = distMx < 0 ? 0 : distMx;
+			const Real IplusY = distPy < 0 ? 0 : distPy;
+			const Real IminuY = distMy < 0 ? 0 : distMy;
+			const Real IplusZ = distPz < 0 ? 0 : distPz;
+			const Real IminuZ = distMz < 0 ? 0 : distMz;
 
-			const double HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
-			const double HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
-			const double HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
-			const double HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
-			const double HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
-			const double HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
+			const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
+			const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
+			const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
+			const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
+			const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
+			const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
 
 			// gradU
-			const double gradUX = inv2h * (distPx - distMx);
-			const double gradUY = inv2h * (distPy - distMy);
-			const double gradUZ = inv2h * (distPz - distMz);
-			const double gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
+			const Real gradUX = inv2h * (distPx - distMx);
+			const Real gradUY = inv2h * (distPy - distMy);
+			const Real gradUZ = inv2h * (distPz - distMz);
+			const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
 
 			// gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
-			const double gradIX = inv2h * (IplusX - IminuX);
-			const double gradIY = inv2h * (IplusY - IminuY);
-			const double gradIZ = inv2h * (IplusZ - IminuZ);
-			const double numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
+			const Real gradIX = inv2h * (IplusX - IminuX);
+			const Real gradIY = inv2h * (IplusY - IminuY);
+			const Real gradIZ = inv2h * (IplusZ - IminuZ);
+			const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
 
-			const double gradHX = inv2h * (HplusX - HminuX);
-			const double gradHY = inv2h * (HplusY - HminuY);
-			const double gradHZ = inv2h * (HplusZ - HminuZ);
-			const double numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
+			const Real gradHX = inv2h * (HplusX - HminuX);
+			const Real gradHY = inv2h * (HplusY - HminuY);
+			const Real gradHZ = inv2h * (HplusZ - HminuZ);
+			const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
 
-			const double Delta = std::abs(gradUSq) < eps ? numD : numD/gradUSq;
-			const double H     = std::abs(gradUSq) < eps ? numH : numH/gradUSq;
+			const Real Delta = std::abs(gradUSq) < eps ? numD : numD/gradUSq;
+			const Real H     = std::abs(gradUSq) < eps ? numH : numH/gradUSq;
 
 			if (Delta>1e-6) {
-				const double dchidx = -Delta*gradUX;
-				const double dchidy = -Delta*gradUY;
-				const double dchidz = -Delta*gradUZ;
+				const Real dchidx = -Delta*gradUX;
+				const Real dchidy = -Delta*gradUY;
+				const Real dchidz = -Delta*gradUZ;
 				surface->add(info.blockID, ix, iy, iz, dchidx, dchidy, dchidz, Delta);
 			}
 			(*momenta)[0] += H;
@@ -655,7 +655,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 	}
 };
 
-void IF3D_CarlingFishOperator::create(const int step_id,const double time, const double dt, const double *Uinf)
+void IF3D_CarlingFishOperator::create(const int step_id,const Real time, const Real dt, const Real *Uinf)
 {
     // STRATEGY
     // we need some things already
@@ -698,7 +698,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     
     // 2. & 3.
     volume_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
-    assert(volume_internal > std::numeric_limits<double>::epsilon());
+    assert(volume_internal > std::numeric_limits<Real>::epsilon());
     myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
     
     angvel_internal_prev = angvel_internal;
@@ -710,9 +710,9 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
 
 #ifndef NDEBUG
     {/**/
-        double dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
+        Real dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
         // check that things are zero
-        const double volume_internal_check = myFish->integrateLinearMomentum(dummy_CoM_internal,dummy_vCoM_internal);
+        const Real volume_internal_check = myFish->integrateLinearMomentum(dummy_CoM_internal,dummy_vCoM_internal);
         myFish->integrateAngularMomentum(dummy_angvel_internal);
         
         assert(std::abs(dummy_CoM_internal[0])<100*std::numeric_limits<Real>::epsilon());
@@ -731,17 +731,17 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
 		const int next_idx = (i+1)*(Nm-1)/Nsegments;
 		const int idx = i * (Nm-1)/Nsegments;
 		// find bounding box based on this
-		double bbox[3][2] = {
-			{std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest()},
-			{std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest()},
-			{std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest()}
+		Real bbox[3][2] = {
+			{std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()},
+			{std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()},
+			{std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()}
 		};
 		for(int ss=idx; ss<=next_idx; ++ss) {
-			const double xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
+			const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
 									myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
-			const double yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
+			const Real yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
 									myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss]};
-			const double zBnd[2] = {-myFish->height[ss], +myFish->height[ss]};
+			const Real zBnd[2] = {-myFish->height[ss], +myFish->height[ss]};
 			bbox[0][0] = std::min({bbox[0][0],xBnd[0],xBnd[1]});
 			bbox[0][1] = std::max({bbox[0][1],xBnd[0],xBnd[1]});
 			bbox[1][0] = std::min({bbox[1][0],yBnd[0],yBnd[1]});
@@ -761,17 +761,17 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
             const int next_idx = (i+1)*(Nm-1)/Nsegments;
             const int idx = i * (Nm-1)/Nsegments;
             // find bounding box based on this
-            double bbox[3][2] = {
-                {std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest()},
-                {std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest()},
-                {std::numeric_limits<double>::max(), std::numeric_limits<double>::lowest()}
+            Real bbox[3][2] = {
+                {std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()},
+                {std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()},
+                {std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()}
             };
             for(int ss=idx; ss<=next_idx; ++ss) {
-                const double xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
+                const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
                 						myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
-                const double yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
+                const Real yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
                 						myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss]};
-                const double zBnd[2] = {-myFish->height[ss], +myFish->height[ss]};
+                const Real zBnd[2] = {-myFish->height[ss], +myFish->height[ss]};
                 bbox[0][0] = std::min({bbox[0][0],xBnd[0],xBnd[1]});
                 bbox[0][1] = std::max({bbox[0][1],xBnd[0],xBnd[1]});
                 bbox[1][0] = std::min({bbox[1][0],yBnd[0],yBnd[1]});
@@ -802,10 +802,10 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     {
         for(int i=0;i<vInfo.size();++i) {
             const BlockInfo & info = vInfo[i];
-            double pStart[3], pEnd[3];
+            Real pStart[3], pEnd[3];
             info.pos(pStart, 0, 0, 0);
             info.pos(pEnd, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-            const double safe_distance = 2.0*info.h_gridpoint; // two points on each side
+            const Real safe_distance = 2.0*info.h_gridpoint; // two points on each side
 
             for(int s=0;s<Nsegments;++s)
                 if(vSegments[s].isIntersectingWithAABB(pStart,pEnd,safe_distance))
@@ -859,7 +859,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     {
     	const int nthreads = omp_get_max_threads();
     	vector<surfaceBlocks> dataPerThread(nthreads);
-    	vector<array<double,4>> momenta(nthreads);
+    	vector<array<Real,4>> momenta(nthreads);
     	vector<PutFishOnBlocks_Finalize> finalize;
     	for(int i = 0; i < nthreads; ++i)
     	finalize.push_back(PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]));
@@ -911,7 +911,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const double time, const
     }
 }
 
-void IF3D_CarlingFishOperator::update(const int stepID, const double t, const double dt, const double *Uinf)
+void IF3D_CarlingFishOperator::update(const int stepID, const Real t, const Real dt, const Real *Uinf)
 {
     // synchronize internal time
     sim_time = t + dt;
@@ -981,7 +981,7 @@ void IF3D_CarlingFishOperator::_parseArguments(ArgumentParser & parser)
 }
 
 /*
-void IF3D_StefanLearnTurnOperator::execute(Communicator * comm, const int iAgent, const double time)
+void IF3D_StefanLearnTurnOperator::execute(Communicator * comm, const int iAgent, const Real time)
 {
     if (time < Tstartlearn) {
         sr->resetAverage();
@@ -1124,7 +1124,7 @@ void IF3D_StefanLearnTurnOperator::execute(Communicator * comm, const int iAgent
 }
 */
 
-void IF3D_CarlingFishOperator::getCenterOfMass(double CM[3]) const
+void IF3D_CarlingFishOperator::getCenterOfMass(Real CM[3]) const
 {
 	// return computation CoM, not the one were advecting
 	CM[0]=CoM_interpolated[0];
@@ -1132,13 +1132,13 @@ void IF3D_CarlingFishOperator::getCenterOfMass(double CM[3]) const
 	CM[2]=CoM_interpolated[2];
 }
 
-void IF3D_CarlingFishOperator::save(const int stepID, const double t, string filename)
+void IF3D_CarlingFishOperator::save(const int stepID, const Real t, string filename)
 {
     assert(std::abs(t-sim_time)<std::numeric_limits<Real>::epsilon());
     
     std::ofstream savestream;
     savestream.setf(std::ios::scientific);
-    savestream.precision(std::numeric_limits<double>::digits10 + 1);
+    savestream.precision(std::numeric_limits<Real>::digits10 + 1);
     
     if(filename==std::string())
         savestream.open("restart_IF3D_Carling.txt");
@@ -1155,7 +1155,7 @@ void IF3D_CarlingFishOperator::save(const int stepID, const double t, string fil
     
 }
 
-void IF3D_CarlingFishOperator::restart(const double t, string filename)
+void IF3D_CarlingFishOperator::restart(const Real t, string filename)
 {
     std::ifstream restartstream;
     
@@ -1190,7 +1190,7 @@ void IF3D_CarlingFishOperator::writeToFile(const int step_id, const Real t, std:
 
     std::ofstream savestream;
     savestream.setf(std::ios::scientific);
-    savestream.precision(std::numeric_limits<double>::digits10 + 1);
+    savestream.precision(std::numeric_limits<Real>::digits10 + 1);
     
     savestream.open(fname+"_interpolated.dat", ios::app | ios::out);
     if(step_id==0)

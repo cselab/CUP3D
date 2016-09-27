@@ -34,7 +34,7 @@ public:
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
-		const double inv2h = .5 / info.h_gridpoint;
+		const Real inv2h = .5 / info.h_gridpoint;
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -82,7 +82,7 @@ public:
 	{
 	}
 	
-	void operator()(const double dt)
+	void operator()(const Real dt)
 	{
 		check("vorticity - start");
 		

@@ -31,6 +31,6 @@ public:
 	 	 _parseArguments(parser);
 	}
 
- 	void create(const int step_id,const double time, const double dt, const double *Uinf) override;
+ 	void create(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
     void _parseArguments(ArgumentParser & parser) override;
 };

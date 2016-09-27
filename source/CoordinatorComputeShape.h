@@ -16,18 +16,18 @@ class CoordinatorComputeShape : public GenericCoordinator
 {
 protected:
 	IF3D_ObstacleVector** const obstacleVector;
-    const double* const time;
-    const double* const Uinf;
+    const Real* const time;
+    const Real* const Uinf;
     const int* const stepID;
     
 public:
-    CoordinatorComputeShape(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles, const int* const stepID, const double * const time, const double * const Uinf)
+    CoordinatorComputeShape(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles, const int* const stepID, const Real * const time, const Real * const Uinf)
     : GenericCoordinator(grid), obstacleVector(myobstacles), time(time), Uinf(Uinf), stepID(stepID)
 	{
     	(*obstacleVector)->create(*stepID,*time, 0, Uinf);
 	}
 	
-	void operator()(const double dt)
+	void operator()(const Real dt)
 	{
 		check("shape - start");
         (*obstacleVector)->update(*stepID,*time, dt, Uinf);
@@ -62,17 +62,17 @@ class CoordinatorComputeForces : public GenericCoordinator
 {
 protected:
     IF3D_ObstacleVector** obstacleVector;
-    const double* const time;
-    const double* const Uinf;
-    const double* const NU;
+    const Real* const time;
+    const Real* const Uinf;
+    const Real* const NU;
     const bool * const bDump;
     const int* const stepID;
 public:
-    CoordinatorComputeForces(FluidGridMPI * grid, IF3D_ObstacleVector** myobstacles, const int* const stepID, const double* const time, const double* const NU, const bool* const bDump, const double* const Uinf)
+    CoordinatorComputeForces(FluidGridMPI * grid, IF3D_ObstacleVector** myobstacles, const int* const stepID, const Real* const time, const Real* const NU, const bool* const bDump, const Real* const Uinf)
 : GenericCoordinator(grid), obstacleVector(myobstacles), stepID(stepID), time(time), NU(NU), bDump(bDump), Uinf(Uinf)
     {    }
 
-    void operator()(const double dt)
+    void operator()(const Real dt)
     {
         check((string)"obst. forces - start");
         (*obstacleVector)->computeForces(*stepID, *time, Uinf, *NU, *bDump);
@@ -90,16 +90,16 @@ class CoordinatorComputeDiagnostics : public GenericCoordinator
 {
 protected:
     IF3D_ObstacleVector** const obstacleVector;
-    const double* const time;
-    const double* const lambda;
-    const double* const Uinf;
+    const Real* const time;
+    const Real* const lambda;
+    const Real* const Uinf;
     const int* const stepID;
 public:
-    CoordinatorComputeDiagnostics(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles, const int* const stepID, const double* const time, const double* const lambda, const double* const Uinf)
+    CoordinatorComputeDiagnostics(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles, const int* const stepID, const Real* const time, const Real* const lambda, const Real* const Uinf)
 : GenericCoordinator(grid), obstacleVector(myobstacles), stepID(stepID), time(time), lambda(lambda), Uinf(Uinf)
     {    }
 
-    void operator()(const double dt)
+    void operator()(const Real dt)
     {
         check((string)"obst. diagnostics - start");
         (*obstacleVector)->computeDiagnostics(*stepID, *time, Uinf, *lambda);

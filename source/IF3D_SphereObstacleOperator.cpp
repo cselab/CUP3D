@@ -13,7 +13,7 @@
 #include "IF3D_SphereObstacleOperator.h"
 #include "IF3D_ObstacleLibrary.h"
 
-void IF3D_SphereObstacleOperator::create(const int step_id,const double time, const double dt, const double *Uinf)
+void IF3D_SphereObstacleOperator::create(const int step_id,const Real time, const Real dt, const Real *Uinf)
 {
     for(auto & entry : obstacleBlocks)
         delete entry.second;

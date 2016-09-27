@@ -13,7 +13,7 @@
 
 // -gradp, divergence, advection
 template<typename Lab, typename Kernel>
-void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
+void processOMP(Real dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 {
 	const Kernel kernel(dt);
 #if 0
@@ -161,7 +161,7 @@ void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 }
 
 template<typename Lab, typename Kernel>
-void processOMPold(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
+void processOMPold(Real dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 {
 	const int N = vInfo.size();
 	
@@ -181,5 +181,5 @@ void processOMPold(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 	}
 }
 
-double findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI & grid, const Real* const uInf);
+Real findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI & grid, const Real* const uInf);
 #endif

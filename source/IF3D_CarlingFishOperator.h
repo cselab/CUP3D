@@ -21,24 +21,24 @@ const int TSTART = 2.;
 
 namespace Fish
 {
-	inline double width(const double s, const Real L)
+	inline Real width(const Real s, const Real L)
 	{
 		if(s<0 or s>L) return 0;
-		const double sb = .04*L;
-		const double st = .95*L;
-		const double wt = .01*L;
-		const double wh = .04*L;
+		const Real sb = .04*L;
+		const Real st = .95*L;
+		const Real wt = .01*L;
+		const Real wh = .04*L;
 
 		return (s<sb ? std::sqrt(2.0*wh*s-s*s) :
 				(s<st ? wh-(wh-wt)*std::pow((s-sb)/(st-sb),2) :
 						(wt * (L-s)/(L-st))));
 	}
 
-	inline double height(const double s, const Real L)
+	inline Real height(const Real s, const Real L)
 	{
 		if(s<0 or s>L) return 0;
-		const double a=0.51*L;
-		const double b=0.08*L;
+		const Real a=0.51*L;
+		const Real b=0.08*L;
 		return b*std::sqrt(1 - std::pow((s-a)/a,2));
 	}
 
@@ -46,18 +46,18 @@ namespace Fish
     {
     public:
         const int Nm;
-        double * const rS; // arclength discretization points
-        double * const rX; // coordinates of midline discretization points
-        double * const rY;
-        double * const vX; // midline discretization velocities
-        double * const vY;
-        double * const norX; // normal vector to the midline discretization points
-        double * const norY;
-        double * const vNorX;
-        double * const vNorY;
-        double * const width;
-        double * const height;
-        double linMom[2], vol, J, angMom; // for diagnostics
+        Real * const rS; // arclength discretization points
+        Real * const rX; // coordinates of midline discretization points
+        Real * const rY;
+        Real * const vX; // midline discretization velocities
+        Real * const vY;
+        Real * const norX; // normal vector to the midline discretization points
+        Real * const norY;
+        Real * const vNorX;
+        Real * const vNorY;
+        Real * const width;
+        Real * const height;
+        Real linMom[2], vol, J, angMom; // for diagnostics
         // start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
         const int iFishStart, iFishEnd;
 
@@ -65,19 +65,19 @@ namespace Fish
         const Real length;
         const Real Tperiod;
         const Real phaseShift;
-        double Rmatrix2D[2][2];
-        double Rmatrix3D[3][3];
+        Real Rmatrix2D[2][2];
+        Real Rmatrix3D[3][3];
 
-        inline void _rotate2D(double &x, double &y) const
+        inline void _rotate2D(Real &x, Real &y) const
         {
-        	const double p[2] = {x,y};
+        	const Real p[2] = {x,y};
         	x = Rmatrix2D[0][0]*p[0] + Rmatrix2D[0][1]*p[1];
         	y = Rmatrix2D[1][0]*p[0] + Rmatrix2D[1][1]*p[1];
         }
 
-        inline void _translateAndRotate2D(const double pos[2], double &x, double &y) const
+        inline void _translateAndRotate2D(const Real pos[2], Real &x, Real &y) const
         {
-        	const double p[2] = {
+        	const Real p[2] = {
         			x-pos[0],
 					y-pos[1]
         	};
@@ -86,14 +86,14 @@ namespace Fish
         	y = Rmatrix2D[1][0]*p[0] + Rmatrix2D[1][1]*p[1];
         }
 
-        void _prepareRotation2D(const double angle)
+        void _prepareRotation2D(const Real angle)
         {
         	Rmatrix2D[0][0] = Rmatrix2D[1][1] = std::cos(angle);
         	Rmatrix2D[0][1] = -std::sin(angle);
         	Rmatrix2D[1][0] = -Rmatrix2D[0][1];
         }
 
-        inline void _subtractAngularVelocity(const double angvel, const double x, const double y, double & vx, double & vy) const
+        inline void _subtractAngularVelocity(const Real angvel, const Real x, const Real y, Real & vx, Real & vy) const
         {
         	vx += angvel*y;
         	vy -= angvel*x;
@@ -107,7 +107,7 @@ namespace Fish
             }
         }
 
-        inline double _d_ds(const int idx, const double * const vals, const int maxidx) const
+        inline Real _d_ds(const int idx, const Real * const vals, const int maxidx) const
         {
             if(idx==0)
                 return (vals[idx+1]-vals[idx])/(rS[idx+1]-rS[idx]);
@@ -117,12 +117,12 @@ namespace Fish
                 return 0.5*( (vals[idx+1]-vals[idx])/(rS[idx+1]-rS[idx]) + (vals[idx]-vals[idx-1])/(rS[idx] - rS[idx-1]) );
         }
 
-        double * _alloc(const int N)
+        Real * _alloc(const int N)
         {
-            return new double[N];
+            return new Real[N];
         }
 
-        void _dealloc(double * ptr)
+        void _dealloc(Real * ptr)
         {
             if(ptr not_eq nullptr) {
                 delete [] ptr;
@@ -134,11 +134,11 @@ namespace Fish
         {
 #pragma omp parallel for
             for(int i=0; i<Nm-1; i++) {
-                const double ds = rS[i+1]-rS[i];
-                const double tX = rX[i+1]-rX[i];
-                const double tY = rY[i+1]-rY[i];
-                const double tVX = vX[i+1]-vX[i];
-                const double tVY = vY[i+1]-vY[i];
+                const Real ds = rS[i+1]-rS[i];
+                const Real tX = rX[i+1]-rX[i];
+                const Real tY = rY[i+1]-rY[i];
+                const Real tVX = vX[i+1]-vX[i];
+                const Real tVY = vY[i+1]-vY[i];
                 norX[i] = -tY/ds;
                 norY[i] =  tX/ds;
                 vNorX[i] = -tVY/ds;
@@ -150,55 +150,55 @@ namespace Fish
             vNorY[Nm-1] = vNorY[Nm-2];
         }
 
-        inline double _integrationFac1(const int idx) const
+        inline Real _integrationFac1(const int idx) const
         {
             return width[idx]*height[idx];
         }
 
-        inline double _integrationFac2(const int idx) const
+        inline Real _integrationFac2(const int idx) const
         {
-            const double dnorXi = _d_ds(idx, norX, Nm);
-            const double dnorYi = _d_ds(idx, norY, Nm);
+            const Real dnorXi = _d_ds(idx, norX, Nm);
+            const Real dnorYi = _d_ds(idx, norY, Nm);
             return 0.25*std::pow(width[idx],3)*height[idx]*(dnorXi*norY[idx] - dnorYi*norX[idx]);
         }
 
-        inline double _integrationFac3(const int idx) const
+        inline Real _integrationFac3(const int idx) const
         {
-            const double drXi = _d_ds(idx, rX, Nm);
-            const double drYi = _d_ds(idx, rY, Nm);
+            const Real drXi = _d_ds(idx, rX, Nm);
+            const Real drYi = _d_ds(idx, rY, Nm);
             // return 0.25*std::pow(width[idx],3)*height[idx]*(drXi*norY[idx] - drYi*norX[idx]);
             return 0.25*std::pow(width[idx],3)*height[idx];
         }
 
-        inline void _updateVolumeIntegration(const double fac1, const double ds, double & vol) const
+        inline void _updateVolumeIntegration(const Real fac1, const Real ds, Real & vol) const
         {
             vol+=0.5*fac1*ds;
         }
 
-        inline void _updateCoMIntegration(const int idx, const double fac1, const double fac2, const double ds, double CoM[2]) const
+        inline void _updateCoMIntegration(const int idx, const Real fac1, const Real fac2, const Real ds, Real CoM[2]) const
         {
             CoM[0] += 0.5*(rX[idx]*fac1 + norX[idx]*fac2)*ds;
             CoM[1] += 0.5*(rY[idx]*fac1 + norY[idx]*fac2)*ds;
         }
 
-        inline void _updateLinMomIntegration(const int idx, const double fac1, const double fac2, const double ds, double linMom[2]) const
+        inline void _updateLinMomIntegration(const int idx, const Real fac1, const Real fac2, const Real ds, Real linMom[2]) const
         {
             linMom[0] += 0.5*(vX[idx]*fac1 + vNorX[idx]*fac2)*ds;
             linMom[1] += 0.5*(vY[idx]*fac1 + vNorY[idx]*fac2)*ds;
         }
 
-        inline void _updateAngMomIntegration(const int idx, const double fac1, const double fac2, const double fac3, const double ds, double & angMom) const
+        inline void _updateAngMomIntegration(const int idx, const Real fac1, const Real fac2, const Real fac3, const Real ds, Real & angMom) const
         {
-            double tmpSum = 0.0;
+            Real tmpSum = 0.0;
             tmpSum += (rX[idx]*vY[idx] - rY[idx]*vX[idx])*fac1;
             tmpSum += (rX[idx]*vNorY[idx] - rY[idx]*vNorX[idx] + vY[idx]*norX[idx] - vX[idx]*norY[idx])*fac2;
             tmpSum += (norX[idx]*vNorY[idx] - norY[idx]*vNorX[idx])*fac3;
             angMom += 0.5*tmpSum*ds;
         }
 
-        inline void _updateJIntegration(const int idx, const double fac1, const double fac2, const double fac3, const double ds, double & J) const
+        inline void _updateJIntegration(const int idx, const Real fac1, const Real fac2, const Real fac3, const Real ds, Real & J) const
         {
-            double tmpSum = 0.0;
+            Real tmpSum = 0.0;
             tmpSum += (rX[idx]*rX[idx] + rY[idx]*rY[idx])*fac1;
             tmpSum += 2.0*(rX[idx]*norX[idx] + rY[idx]*norY[idx])*fac2;
             // tmpSum += (norX[idx]*norX[idx]+norY[idx]*norY[idx])*fac3;
@@ -222,8 +222,8 @@ public:
         		rS[i] = 0.0 - (Next- i) * dx_ext;
         	// interior points
         	for(int i=0;i<Nint;++i)
-        		rS[i+Next] = length * 0.5 * (1.0 - std::cos(i * M_PI/((double)Nint-1))); // cosine: more points near head and tail
-        	// rS[i] = i*length/((double)Nint-1); // linear: equally distributed points
+        		rS[i+Next] = length * 0.5 * (1.0 - std::cos(i * M_PI/((Real)Nint-1))); // cosine: more points near head and tail
+        	// rS[i] = i*length/((Real)Nint-1); // linear: equally distributed points
         	// extension tail
         	for(int i=0;i<Next;++i)
         		rS[i+Nint+Next] = length + (i + 1)*dx_ext;
@@ -245,7 +245,7 @@ public:
             _dealloc(width);
         }
 
-        double integrateLinearMomentum(double CoM[2], double vCoM[2])
+        Real integrateLinearMomentum(Real CoM[2], Real vCoM[2])
         {
             CoM[0]=0.0;
             CoM[1]=0.0;
@@ -256,9 +256,9 @@ public:
             // remaining integral done with composite trapezoidal rule
             // minimize rhs evaluations --> do first and last point separately
             {
-                const double ds0 = rS[1]-rS[0];
-                const double fac1 = _integrationFac1(0);
-                const double fac2 = _integrationFac2(0);
+                const Real ds0 = rS[1]-rS[0];
+                const Real fac1 = _integrationFac1(0);
+                const Real fac2 = _integrationFac2(0);
                 _updateVolumeIntegration(fac1,ds0,vol);
                 _updateCoMIntegration(0, fac1,fac2,ds0,CoM);
                 _updateLinMomIntegration(0, fac1,fac2,ds0,linMom);
@@ -266,18 +266,18 @@ public:
 
             for(int i=1;i<Nm-1;++i)
             {
-                const double ds = rS[i+1]-rS[i-1];
-                const double fac1 = _integrationFac1(i);
-                const double fac2 = _integrationFac2(i);
+                const Real ds = rS[i+1]-rS[i-1];
+                const Real fac1 = _integrationFac1(i);
+                const Real fac2 = _integrationFac2(i);
                 _updateVolumeIntegration(fac1,ds,vol);
                 _updateCoMIntegration(i, fac1,fac2,ds,CoM);
                 _updateLinMomIntegration(i, fac1,fac2,ds,linMom);
             }
 
             {
-                const double dse = rS[Nm-1]-rS[Nm-2];
-                const double fac1 = _integrationFac1(Nm-1);
-                const double fac2 = _integrationFac2(Nm-1);
+                const Real dse = rS[Nm-1]-rS[Nm-2];
+                const Real fac1 = _integrationFac1(Nm-1);
+                const Real fac2 = _integrationFac2(Nm-1);
                 _updateVolumeIntegration(fac1,dse,vol);
                 _updateCoMIntegration(Nm-1, fac1,fac2,dse,CoM);
                 _updateLinMomIntegration(Nm-1, fac1,fac2,dse,linMom);
@@ -289,8 +289,8 @@ public:
             linMom[0]*=M_PI;
             linMom[1]*=M_PI;
 
-            assert(vol> std::numeric_limits<double>::epsilon());
-            const double ivol = 1.0/vol;
+            assert(vol> std::numeric_limits<Real>::epsilon());
+            const Real ivol = 1.0/vol;
 
             CoM[0]*=ivol;
             CoM[1]*=ivol;
@@ -300,7 +300,7 @@ public:
             return vol;
         }
 
-        void integrateAngularMomentum(double & angVel)
+        void integrateAngularMomentum(Real & angVel)
         {
             // assume we have already translated CoM and vCoM to nullify linear momentum
             J=0;
@@ -310,40 +310,40 @@ public:
             // remaining integral done with composite trapezoidal rule
             // minimize rhs evaluations --> do first and last point separately
             {
-                const double ds0 = rS[1]-rS[0];
-                const double fac1 = _integrationFac1(0);
-                const double fac2 = _integrationFac2(0);
-                const double fac3 = _integrationFac3(0);
+                const Real ds0 = rS[1]-rS[0];
+                const Real fac1 = _integrationFac1(0);
+                const Real fac2 = _integrationFac2(0);
+                const Real fac3 = _integrationFac3(0);
                 _updateJIntegration(0, fac1, fac2, fac3, ds0, J);
                 _updateAngMomIntegration(0, fac1, fac2, fac3, ds0, angMom);
             }
 
             for(int i=1;i<Nm-1;++i)
             {
-                const double ds = rS[i+1]-rS[i-1];
-                const double fac1 = _integrationFac1(i);
-                const double fac2 = _integrationFac2(i);
-                const double fac3 = _integrationFac3(i);
+                const Real ds = rS[i+1]-rS[i-1];
+                const Real fac1 = _integrationFac1(i);
+                const Real fac2 = _integrationFac2(i);
+                const Real fac3 = _integrationFac3(i);
                 _updateJIntegration(i, fac1, fac2, fac3, ds, J);
                 _updateAngMomIntegration(i, fac1, fac2, fac3, ds, angMom);
             }
 
             {
-                const double dse = rS[Nm-1]-rS[Nm-2];
-                const double fac1 = _integrationFac1(Nm-1);
-                const double fac2 = _integrationFac2(Nm-1);
-                const double fac3 = _integrationFac3(Nm-1);
+                const Real dse = rS[Nm-1]-rS[Nm-2];
+                const Real fac1 = _integrationFac1(Nm-1);
+                const Real fac2 = _integrationFac2(Nm-1);
+                const Real fac3 = _integrationFac3(Nm-1);
                 _updateJIntegration(Nm-1, fac1, fac2, fac3, dse, J);
                 _updateAngMomIntegration(Nm-1, fac1, fac2, fac3, dse, angMom);
             }
 
             J*=M_PI;
             angMom*=M_PI;
-            assert(J>std::numeric_limits<double>::epsilon());
+            assert(J>std::numeric_limits<Real>::epsilon());
             angVel = angMom/J;
         }
 
-        void changeToCoMFrameLinear(const double CoM_internal[2], const double vCoM_internal[2])
+        void changeToCoMFrameLinear(const Real CoM_internal[2], const Real vCoM_internal[2])
         {
             for(int i=0;i<Nm;++i) {
                 rX[i]-=CoM_internal[0];
@@ -353,7 +353,7 @@ public:
             }
         }
 
-        void changeToCoMFrameAngular(const double theta_internal, const double angvel_internal)
+        void changeToCoMFrameAngular(const Real theta_internal, const Real angvel_internal)
         {
             _prepareRotation2D(theta_internal);
 #pragma omp parallel for
@@ -365,9 +365,9 @@ public:
             _computeMidlineNormals();
         }
 
-        virtual void computeMidline(const double time) = 0;
-        virtual void _correctTrajectory(const double dtheta, const double time, const double dt) {}
-        virtual void execute(const double time, const double l_tnext, const vector<Real>& input) {}
+        virtual void computeMidline(const Real time) = 0;
+        virtual void _correctTrajectory(const Real dtheta, const Real time, const Real dt) {}
+        virtual void execute(const Real time, const Real l_tnext, const vector<Real>& input) {}
     };
 
     struct CurvatureDefinedFishData : FishMidlineData
@@ -376,15 +376,15 @@ public:
     	Schedulers::ParameterSchedulerVector<6> curvScheduler;
         Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
     	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
-    	double * const rK;
-    	double * const vK;
-    	double * const rC;
-    	double * const vC;
-    	double * const rB;
-    	double * const vB;
-    	double * const rA;
-    	double * const vA;
-    	double l_Tp, time0, timeshift;
+    	Real * const rK;
+    	Real * const vK;
+    	Real * const rC;
+    	Real * const vC;
+    	Real * const rB;
+    	Real * const vB;
+    	Real * const rA;
+    	Real * const vA;
+    	Real l_Tp, time0, timeshift;
 
     public:
 
@@ -393,14 +393,14 @@ public:
 		rK(_alloc(Nm)),vK(_alloc(Nm)),rC(_alloc(Nm)),vC(_alloc(Nm)),rA(_alloc(Nm)),vA(_alloc(Nm)),rB(_alloc(Nm)),vB(_alloc(Nm))
     	{    	}
 
-    	void _correctTrajectory(const double dtheta, const double time, const double dt) override
+    	void _correctTrajectory(const Real dtheta, const Real time, const Real dt) override
     	{
-    		std::array<double,6> tmp_curv = std::array<double,6>();
+    		std::array<Real,6> tmp_curv = std::array<Real,6>();
     		for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta/M_PI;}
     		adjustScheduler.transition(time,time,time+2*dt,tmp_curv);
     	}
 
-        void execute(const double time, const double l_tnext, const vector<Real>& input) override
+        void execute(const Real time, const Real l_tnext, const vector<Real>& input) override
         {
             if (input.size()>1) {
                 baseScheduler.Turn(input[0], l_tnext);
@@ -425,20 +425,20 @@ public:
     		_dealloc(vA);
     	}
 
-    	void computeMidline(const double time)
+    	void computeMidline(const Real time)
     	{
-    		const double _1oL = 1./length;
-    		const std::array<double ,6> curvature_values = {
+    		const Real _1oL = 1./length;
+    		const std::array<Real ,6> curvature_values = {
     				0.82014*_1oL, 1.46515*_1oL, 2.57136*_1oL,
 					3.75425*_1oL, 5.09147*_1oL, 5.70449*_1oL
     		};
-    		const std::array<double ,6> curvature_points = {
+    		const std::array<Real ,6> curvature_points = {
     			0., .15*length, .4*length, .65*length, .9*length, length
     		};
-    		const std::array<double ,7> baseline_points = {
+    		const std::array<Real ,7> baseline_points = {
     				1.00, 0.75, 0.50, 0.25, 0.00, -0.25, -0.50
     		};
-    		const std::array<double, 6> curvature_zeros = std::array<double, 6>();
+    		const std::array<Real, 6> curvature_zeros = std::array<Real, 6>();
     		curvScheduler.transition(time,0.0,Tperiod,curvature_zeros,curvature_values);
 
     		// query the schedulers for current values
@@ -447,10 +447,10 @@ public:
     		adjustScheduler.gimmeValues(time, curvature_points, Nm, rS, rA, vA);
 
     		// construct the curvature
-    		const double _1oT = 1./l_Tp;
+    		const Real _1oT = 1./l_Tp;
 			for(unsigned int i=0; i<Nm; i++) {
-				const double darg = 2.*M_PI* _1oT;
-				const double arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
+				const Real darg = 2.*M_PI* _1oT;
+				const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
 				rK[i] = rC[i]*(std::sin(arg) + rB[i] + rA[i]);
 				vK[i] = vC[i]*(std::sin(arg) + rB[i] + rA[i]) + rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]);
 			}
@@ -458,7 +458,7 @@ public:
 #if 1==0
     		{ // we dump the profile points
     			FILE * f = fopen("stefan.dat","a");
-    			std::array<double, 6> curv,base;
+    			std::array<Real, 6> curv,base;
     			curvScheduler.ParameterScheduler<6>::gimmeValues(time, curv);
     			baseScheduler.ParameterScheduler<6>::gimmeValues(time, base);
     			fprintf(f,"%10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e\n",time,curv[0],curv[1],curv[2],curv[3],curv[4],curv[5],base[0],base[1],base[2],base[3],base[4],base[5]);
@@ -481,45 +481,45 @@ public:
     {
     protected:
         //burst-coast:
-        double t0, t1, t2, t3;
+        Real t0, t1, t2, t3;
 
-    	inline double rampFactorSine(const Real t, const Real T) const
+    	inline Real rampFactorSine(const Real t, const Real T) const
     	{
     		return (t<T ? std::sin(0.5*M_PI*t/T) : 1.0);
     	}
 
-    	inline double rampFactorVelSine(const Real t, const Real T) const
+    	inline Real rampFactorVelSine(const Real t, const Real T) const
     	{
     		return (t<T ? 0.5*M_PI/T * std::cos(0.5*M_PI*t/T) : 0.0);
     	}
 
-    	inline double midline(const double s, const Real t, const Real L, const Real T, const Real phaseShift) const
+    	inline Real midline(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
     	{
-    		const double arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-        	const double fac = 0.1212121212121212;
-        	const double inv = 0.03125;
+    		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
+        	const Real fac = 0.1212121212121212;
+        	const Real inv = 0.03125;
 
 #ifdef BBURST
-    		double f;
-    		double tcoast = TSTART;
+    		Real f;
+    		Real tcoast = TSTART;
     		if (t>=TSTART) {
-    			const double bct = t0 + t1 + t2 + t3;
-    			const double phase = std::floor((t-TSTART)/bct);
+    			const Real bct = t0 + t1 + t2 + t3;
+    			const Real phase = std::floor((t-TSTART)/bct);
     			tcoast = TSTART + phase*bct;
     		}
-    		double tfreeze = tcoast + t0;
-    		double tburst = tfreeze + t1;
-    		double tswim = tburst + t2;
+    		Real tfreeze = tcoast + t0;
+    		Real tburst = tfreeze + t1;
+    		Real tswim = tburst + t2;
 
     		if (t<tcoast) {
     			f = 1.0;
     		} else if (t<tfreeze) {
-    			const double d = (t-tcoast)/(tfreeze-tcoast);
+    			const Real d = (t-tcoast)/(tfreeze-tcoast);
     			f = 1 - 3*d*d + 2*d*d*d;
     		} else if (t<tburst) {
     			f = 0.0;
     		} else if (t<tswim) {
-    			const double d = (t-tburst)/(tswim-tburst);
+    			const Real d = (t-tburst)/(tswim-tburst);
     			f = 3*d*d - 2*d*d*d;
     		} else {
     			f = 1.0;
@@ -530,36 +530,36 @@ public:
 #endif
     	}
 
-    	inline double midlineVel(const double s, const Real t, const Real L, const Real T, const Real phaseShift) const
+    	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
     	{
-        	const double arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-        	const double fac = 0.1212121212121212;
-        	const double inv = 0.03125;
+        	const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
+        	const Real fac = 0.1212121212121212;
+        	const Real inv = 0.03125;
 
 #ifdef BBURST
-        	double f,df;
-        	double tcoast = TSTART;
+        	Real f,df;
+        	Real tcoast = TSTART;
         	if (t>=TSTART) {
-        		const double bct = t0 + t1 + t2 + t3;
-        		const double phase = std::floor((t-TSTART)/bct);
+        		const Real bct = t0 + t1 + t2 + t3;
+        		const Real phase = std::floor((t-TSTART)/bct);
         		tcoast = TSTART + phase*bct;
         	}
-        	double tfreeze = tcoast + t0;
-        	double tburst = tfreeze + t1;
-        	double tswim = tburst + t2;
+        	Real tfreeze = tcoast + t0;
+        	Real tburst = tfreeze + t1;
+        	Real tswim = tburst + t2;
 
         	if (t<tcoast) {
         		f = 1.0;
         		df = 0.0;
         	} else if (t<tfreeze) {
-        		const double d = (t-tcoast)/(tfreeze-tcoast);
+        		const Real d = (t-tcoast)/(tfreeze-tcoast);
         		f = 1 - 3*d*d + 2*d*d*d;
         		df = 6*(d*d - d)/(tfreeze-tcoast);
         	} else if (t<tburst) {
         		f = 0.0;
         		df = 0.0;
         	} else if (t<tswim) {
-        		const double d = (t-tburst)/(tswim-tburst);
+        		const Real d = (t-tburst)/(tswim-tburst);
         		f = 3*d*d - 2*d*d*d;
         		df = 6*(d - d*d)/(tswim-tburst);
         	} else {
@@ -573,25 +573,25 @@ public:
 #endif //Burst-coast
     	}
 
-        void _computeMidlineCoordinates(const double time)
+        void _computeMidlineCoordinates(const Real time)
         {
-        	const double rampFac = rampFactorSine(time, Tperiod);
+        	const Real rampFac = rampFactorSine(time, Tperiod);
         	rX[0] = 0.0;
         	rY[0] =   rampFac*midline(rS[0], time, length, Tperiod, phaseShift);
 
         	for(int i=1;i<Nm;++i) {
         		rY[i]=rampFac*midline(rS[i], time, length, Tperiod, phaseShift);
-        		const double dy = rY[i]-rY[i-1];
-        		const double ds = rS[i] - rS[i-1];
-        		const double dx = std::sqrt(ds*ds-dy*dy);
+        		const Real dy = rY[i]-rY[i-1];
+        		const Real ds = rS[i] - rS[i-1];
+        		const Real dx = std::sqrt(ds*ds-dy*dy);
         		rX[i] = rX[i-1] + dx;
         	}
         }
 
-        void _computeMidlineVelocities(const double time)
+        void _computeMidlineVelocities(const Real time)
         {
-        	const double rampFac =    rampFactorSine(time, Tperiod);
-        	const double rampFacVel = rampFactorVelSine(time, Tperiod);
+        	const Real rampFac =    rampFactorSine(time, Tperiod);
+        	const Real rampFacVel = rampFactorVelSine(time, Tperiod);
 
         	vX[0] = 0.0; //rX[0] is constant
         	vY[0] = rampFac*midlineVel(rS[0],time,length,Tperiod, phaseShift) +
@@ -600,9 +600,9 @@ public:
         	for(int i=1;i<Nm;++i) {
         		vY[i]=rampFac*midlineVel(rS[i],time,length,Tperiod, phaseShift) +
         			  rampFacVel*midline(rS[i],time,length,Tperiod, phaseShift);
-        		const double dy = rY[i]-rY[i-1];
-        		const double dx = rX[i]-rX[i-1];
-        		const double dVy = vY[i]-vY[i-1];
+        		const Real dy = rY[i]-rY[i-1];
+        		const Real dx = rX[i]-rX[i-1];
+        		const Real dVy = vY[i]-vY[i-1];
         		assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
         		vX[i] = vX[i-1] - dy/dx * dVy; // use ds^2 = dx^2 + dy^2 --> ddx = -dy/dx*ddy
         	}
@@ -627,7 +627,7 @@ public:
 #endif
     	}
 
-        void computeMidline(const double time)
+        void computeMidline(const Real time)
         {
             _computeMidlineCoordinates(time);
             _computeMidlineVelocities(time);
@@ -653,7 +653,7 @@ class IF3D_CarlingFishOperator: public IF3D_ObstacleOperator
 	Fish::CarlingFishMidlineData * myFish;
     Real Tperiod, phaseShift, phase, sim_time, sim_dt;
     
-    double volume_internal, J_internal, CoM_internal[2], vCoM_internal[2], theta_internal, angvel_internal, angvel_internal_prev, CoM_interpolated[3];
+    Real volume_internal, J_internal, CoM_internal[2], vCoM_internal[2], theta_internal, angvel_internal, angvel_internal_prev, CoM_interpolated[3];
     bool randomStart, randomActions, bSpiral, useLoadedActions, bCorrectTrajectory;
     //mt19937 * gen; //TODO... what to do? shared seed?
     //smarties:
@@ -690,11 +690,11 @@ public:
     	if(myFish not_eq nullptr) delete myFish;
     }
 
-	void save(const int step_id, const double t, std::string filename = std::string()) override;
-	void restart(const double t, std::string filename = std::string()) override;
-    void update(const int step_id, const double t, const double dt, const double *Uinf) override;
-    void getCenterOfMass(double CM[3]) const override;
-    void create(const int step_id,const double time, const double dt, const double *Uinf) override;
+	void save(const int step_id, const Real t, std::string filename = std::string()) override;
+	void restart(const Real t, std::string filename = std::string()) override;
+    void update(const int step_id, const Real t, const Real dt, const Real *Uinf) override;
+    void getCenterOfMass(Real CM[3]) const override;
+    void create(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
     void _parseArguments(ArgumentParser & parser);
 };
 

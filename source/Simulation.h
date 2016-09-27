@@ -193,23 +193,23 @@ protected:
 	
 	// simulation status
 	int step, nsteps;
-	double dt, time, endTime;
-    double uinf[3], uinf_dummy[3], re, nu, length;
-    double dtCFL, dtLCFL, dtFourier;
+	Real dt, time, endTime;
+    Real uinf[3], uinf_dummy[3], re, nu, length;
+    Real dtCFL, dtLCFL, dtFourier;
 	
 	// simulation settings
-	double CFL, LCFL, lambda, theta;
+	Real CFL, LCFL, lambda, theta;
     bool bDump, bRestart, bDLM, verbose, b2Ddump;
 	
 	// output
 	int dumpFreq, saveFreq;
-	double dumpTime, saveTime;
-    //double nextDumpTime, nextSaveTime;
+	Real dumpTime, saveTime;
+    //Real nextDumpTime, nextSaveTime;
 	string path2file;
 	//SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
 	
-    void areWeDumping(double & nextDumpTime);
-    void _serialize(double & nextSaveTime);
+    void areWeDumping(Real & nextDumpTime);
+    void _serialize(Real & nextSaveTime);
     void _dump(const string append);
     void _deserialize();
 

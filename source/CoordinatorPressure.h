@@ -53,10 +53,10 @@ struct PressureObstacleVisitor : ObstacleVisitor
 class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 {
 private:
-	double dt;
+	Real dt;
 	
 public:
-	OperatorDivergenceMinusDivTmpU(double dt) : dt(dt)
+	OperatorDivergenceMinusDivTmpU(Real dt) : dt(dt)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 6, 0,1,2,5,6,7);
 		stencil_start[0] = -1;
@@ -98,10 +98,10 @@ public:
 class OperatorGradP : public GenericLabOperator
 {
 private:
-	double dt;
+	Real dt;
 	
 public:
-	OperatorGradP(double dt) : dt(dt)
+	OperatorGradP(Real dt) : dt(dt)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
 		
@@ -118,7 +118,7 @@ public:
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
-		const double prefactor = -.5 * dt / (info.h_gridpoint);
+		const Real prefactor = -.5 * dt / (info.h_gridpoint);
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -159,7 +159,7 @@ public:
 	{
 	}
 	
-	void operator()(const double dt)
+	void operator()(const Real dt)
 	{
 #pragma omp parallel
 		{

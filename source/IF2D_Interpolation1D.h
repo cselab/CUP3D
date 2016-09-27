@@ -14,18 +14,18 @@ class IF2D_Interpolation1D
 {
 public:
 
-   static void naturalCubicSpline(const double * x, const double * y, const unsigned int n, const double * xx, double * yy, const unsigned int nn)
+   static void naturalCubicSpline(const Real * x, const Real * y, const unsigned int n, const Real * xx, Real * yy, const unsigned int nn)
 {
         return naturalCubicSpline(x,y,n,xx,yy,nn,0);
    }
    
-   static void naturalCubicSpline(const double * x, const double * y, const unsigned int n, const double * xx, double * yy, const unsigned int nn, const double offset)
+   static void naturalCubicSpline(const Real * x, const Real * y, const unsigned int n, const Real * xx, Real * yy, const unsigned int nn, const Real offset)
 	{
 		{
 			
-			double y2[n];
-			double u[n-1];
-			double p,qn,sig,un,h,b,a;
+			Real y2[n];
+			Real u[n-1];
+			Real p,qn,sig,un,h,b,a;
 			
 			y2[0] = 0.0;
 			u[0] = 0.0;
@@ -70,21 +70,21 @@ public:
 		}
 	}
     
-    static void cubicInterpolation(const double x0, const double x1, const double x, const double y0, const double y1, const double dy0, const double dy1, double & y, double & dy)
+    static void cubicInterpolation(const Real x0, const Real x1, const Real x, const Real y0, const Real y1, const Real dy0, const Real dy1, Real & y, Real & dy)
     {
-        const double xrel = (x-x0);
-        const double deltax = (x1-x0);
+        const Real xrel = (x-x0);
+        const Real deltax = (x1-x0);
         
-        const double a = ( dy0+dy1 )/(deltax*deltax) - 2*(y1-y0)/(deltax*deltax*deltax);
-        const double b = (-2*dy0-dy1)/deltax + 3*(y1-y0)/(deltax*deltax);
-        const double c = dy0;
-        const double d = y0;
+        const Real a = ( dy0+dy1 )/(deltax*deltax) - 2*(y1-y0)/(deltax*deltax*deltax);
+        const Real b = (-2*dy0-dy1)/deltax + 3*(y1-y0)/(deltax*deltax);
+        const Real c = dy0;
+        const Real d = y0;
         
         y = a*xrel*xrel*xrel + b*xrel*xrel + c*xrel + d;
         dy = 3*a*xrel*xrel + 2*b*xrel + c;
     }
     
-    static void cubicInterpolation(const double x0, const double x1, const double x, const double y0, const double y1, double & y, double & dy)
+    static void cubicInterpolation(const Real x0, const Real x1, const Real x, const Real y0, const Real y1, Real & y, Real & dy)
     {
         return cubicInterpolation(x0,x1,x,y0,y1,0.0,0.0,y,dy); // zero slope at end points
     }

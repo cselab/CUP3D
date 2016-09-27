@@ -27,15 +27,15 @@ public:
 
     void characteristic_function() override;
     int nObstacles() const {return obstacles.size();}
-    void computeVelocities(const double* Uinf) override;
-    void update(const int step_id, const double t, const double dt, const double* Uinf) override;
-    void restart(const double t, std::string filename = std::string()) override;
-    void save(const int step_id, const double t, std::string filename = std::string()) override;
+    void computeVelocities(const Real* Uinf) override;
+    void update(const int step_id, const Real t, const Real dt, const Real* Uinf) override;
+    void restart(const Real t, std::string filename = std::string()) override;
+    void save(const int step_id, const Real t, std::string filename = std::string()) override;
     std::vector<int> intersectingBlockIDs(const int buffer) const override;
-    void computeDiagnostics(const int stepID, const double time, const double* Uinf, const double lambda) override;
-    void computeForces(const int stepID, const double time, const double* Uinf, const double NU, const bool bDump) override;
-    void create(const int step_id,const double time, const double dt, const double *Uinf) override;
-    void execute(Communicator * comm, const int iAgent, const double time);
+    void computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda) override;
+    void computeForces(const int stepID, const Real time, const Real* Uinf, const Real NU, const bool bDump) override;
+    void create(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
+    void execute(Communicator * comm, const int iAgent, const Real time);
     void Accept(ObstacleVisitor * visitor) override;
 
     void addObstacle(IF3D_ObstacleOperator * obstacle)

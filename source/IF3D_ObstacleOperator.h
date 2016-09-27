@@ -38,18 +38,17 @@ protected:
     Real position[3], transVel[3], angVel[3], volume, J[6]; // moment of inertia
     Real mass, force[3], torque[3]; //from diagnostics
     Real totChi, surfForce[3], drag, thrust, Pout, PoutBnd, defPower, defPowerBnd, Pthrust, Pdrag, EffPDef, EffPDefBnd; //from compute forces
-    double transVel_correction[3], angVel_correction[3], length;
-    //double ext_X, ext_Y, ext_Z;
-    double *pX, *pY, *pZ; //dumb dum-dumb dum-duuuumb
-    int Npts, rank;
+    Real transVel_correction[3], angVel_correction[3], length;
+    //Real ext_X, ext_Y, ext_Z;
+    int rank;
     bool bFixToPlanar;
 
 
     virtual void _parseArguments(ArgumentParser & parser);
-    virtual void _writeComputedVelToFile(const int step_id, const Real t, const double * uInf);
+    virtual void _writeComputedVelToFile(const int step_id, const Real t, const Real * uInf);
     virtual void _writeDiagForcesToFile(const int step_id, const Real t);
-    void _makeDefVelocitiesMomentumFree(const double CoM[3]);
-    void _computeUdefMoments(double lin_momenta[3], double ang_momenta[3], const double CoM[3]);
+    void _makeDefVelocitiesMomentumFree(const Real CoM[3]);
+    void _computeUdefMoments(Real lin_momenta[3], Real ang_momenta[3], const Real CoM[3]);
     void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
 
 public:
@@ -57,19 +56,19 @@ public:
     bool bFixFrameOfRef;
     IF3D_ObstacleOperator(FluidGridMPI * grid, ArgumentParser& parser) :
     	grid(grid), obstacleID(0), quaternion{1.,0.,0.,0.}, transVel{0.,0.,0.}, angVel{0.,0.,0.},
-		volume(0.0), J{0.,0.,0.,0.,0.,0.}, pZ(nullptr), pY(nullptr), pX(nullptr), Npts(0)
+		volume(0.0), J{0.,0.,0.,0.,0.,0.}
     {
 		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
         vInfo = grid->getBlocksInfo();
         /*
-        const double extent = grid->maxextent;
+        const Real extent = grid->maxextent;
         const unsigned int maxbpd = max(grid->NX*FluidBlock::sizeX,
         							max(grid->NY*FluidBlock::sizeY,
         								grid->NZ*FluidBlock::sizeZ));
-        const double scale[3] = {
-        		(double)(grid->NX*FluidBlock::sizeX)/(double)maxbpd,
-        		(double)(grid->NY*FluidBlock::sizeY)/(double)maxbpd,
-        		(double)(grid->NZ*FluidBlock::sizeZ)/(double)maxbpd
+        const Real scale[3] = {
+        		(Real)(grid->NX*FluidBlock::sizeX)/(Real)maxbpd,
+        		(Real)(grid->NY*FluidBlock::sizeY)/(Real)maxbpd,
+        		(Real)(grid->NZ*FluidBlock::sizeZ)/(Real)maxbpd
         };
         ext_X = scale[0]*extent;
         ext_Y = scale[1]*extent;
@@ -80,19 +79,19 @@ public:
 
     IF3D_ObstacleOperator(FluidGridMPI * grid):
     grid(grid), obstacleID(0), quaternion{1.,0.,0.,0.}, transVel{0.,0.,0.}, angVel{0.,0.,0.},
-	volume(0.0), J{0.,0.,0.,0.,0.,0.}, pZ(nullptr), pY(nullptr), pX(nullptr), Npts(0)
+	volume(0.0), J{0.,0.,0.,0.,0.,0.}
 	{
 		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     	vInfo = grid->getBlocksInfo();
     	/*
-        const double extent = grid->maxextent;
+        const Real extent = grid->maxextent;
         const unsigned int maxbpd = max(grid->NX*FluidBlock::sizeX,
         							max(grid->NY*FluidBlock::sizeY,
         								grid->NZ*FluidBlock::sizeZ));
-        const double scale[3] = {
-        		(double)(grid->NX*FluidBlock::sizeX)/(double)maxbpd,
-        		(double)(grid->NY*FluidBlock::sizeY)/(double)maxbpd,
-        		(double)(grid->NZ*FluidBlock::sizeZ)/(double)maxbpd
+        const Real scale[3] = {
+        		(Real)(grid->NX*FluidBlock::sizeX)/(Real)maxbpd,
+        		(Real)(grid->NY*FluidBlock::sizeY)/(Real)maxbpd,
+        		(Real)(grid->NZ*FluidBlock::sizeZ)/(Real)maxbpd
         };
         ext_X = scale[0]*extent;
         ext_Y = scale[1]*extent;
@@ -104,17 +103,17 @@ public:
 
     virtual Real getD() const {return length;}
 
-    virtual void computeDiagnostics(const int stepID, const double time, const double* Uinf, const double lambda) ;
-    virtual void computeVelocities(const double* Uinf);
-    virtual void computeForces(const int stepID, const double time, const double* Uinf, const double NU, const bool bDump);
-    virtual void update(const int step_id, const double t, const double dt, const double* Uinf);
-    virtual void save(const int step_id, const double t, std::string filename = std::string());
-    virtual void restart(const double t, std::string filename = std::string());
+    virtual void computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda) ;
+    virtual void computeVelocities(const Real* Uinf);
+    virtual void computeForces(const int stepID, const Real time, const Real* Uinf, const Real NU, const bool bDump);
+    virtual void update(const int step_id, const Real t, const Real dt, const Real* Uinf);
+    virtual void save(const int step_id, const Real t, std::string filename = std::string());
+    virtual void restart(const Real t, std::string filename = std::string());
 
-    void execute(Communicator * comm, const int iAgent, const double time);
+    void execute(Communicator * comm, const int iAgent, const Real time);
     
     // some non-pure methods
-    virtual void create(const int step_id,const double time, const double dt, const double *Uinf) { }
+    virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf) { }
     
     //methods that work for all obstacles
     virtual std::map<int,ObstacleBlock*> getObstacleBlocks() const
@@ -147,8 +146,8 @@ public:
     virtual void getCenterOfMass(Real CM[3]) const;
     virtual void setTranslationVelocity(Real UT[3]);
     virtual void setAngularVelocity(const Real W[3]);
-    virtual double getForceX() const;
-    virtual double getForceY() const;
+    virtual Real getForceX() const;
+    virtual Real getForceY() const;
 
     //THIS IS WHY I CAN NEVER HAVE NICE THINGS!!
 	template <typename Kernel>

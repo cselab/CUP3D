@@ -12,18 +12,18 @@
 struct ForcesOnSkin : public GenericLabOperator
 {
     Real t;
-    const double NU, *vel_unit, *Uinf, *CM;
+    const Real NU, *vel_unit, *Uinf, *CM;
 	int stencil_start[3], stencil_end[3];
-	array<double,19>* const measures;
+	array<Real,19>* const measures;
 	surfacePoints* const surfData;
     map<int, pair<int, int>>* const surfaceBlocksFilter;
     std::map<int,ObstacleBlock*>* const obstacleBlocks;
 
-    ForcesOnSkin(const double NU, const double* vel_unit, const double* Uinf, const double * CM,
+    ForcesOnSkin(const Real NU, const Real* vel_unit, const Real* Uinf, const Real * CM,
     					const map<int,ObstacleBlock*>* const obstacleBlocks,     //to read udef
 					surfacePoints* const surface, 						    //most info I/O
 					const map<int,pair<int,int>>* const surfaceBlocksFilter, //skip useless blocks
-					array<double,19>* const measures)     	                //additive quantities
+					array<Real,19>* const measures)     	                //additive quantities
 	: t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures), surfData(surface),
 	  surfaceBlocksFilter(surfaceBlocksFilter), obstacleBlocks(obstacleBlocks)
 	{
@@ -39,11 +39,11 @@ struct ForcesOnSkin : public GenericLabOperator
 		if(pos == surfaceBlocksFilter->end()) return;
 		const int first  = pos->second.first;
 		const int second = pos->second.second;
-		const double _h3 = std::pow(info.h_gridpoint,3);
-		const double _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
+		const Real _h3 = std::pow(info.h_gridpoint,3);
+		const Real _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
 		for(int i=first; i<second; i++) { //i now is a fluid >element<
 			assert(first<second && surfData->Set.size()>=second);
-			double p[3];
+			Real p[3];
 			const int ix = surfData->Set[i]->ix;
 			const int iy = surfData->Set[i]->iy;
 			const int iz = surfData->Set[i]->iz;
@@ -51,28 +51,28 @@ struct ForcesOnSkin : public GenericLabOperator
 			assert(tempIt != obstacleBlocks->end());
 			info.pos(p, ix, iy, iz);
 			//shear stresses
-			const double D11 =    _1oH*(lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u);
-			const double D22 =    _1oH*(lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v);
-			const double D33 =    _1oH*(lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w);
-			const double D12 = .5*_1oH*(lab(ix,iy+1,iz).u - lab(ix,iy-1,iz).u
+			const Real D11 =    _1oH*(lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u);
+			const Real D22 =    _1oH*(lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v);
+			const Real D33 =    _1oH*(lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w);
+			const Real D12 = .5*_1oH*(lab(ix,iy+1,iz).u - lab(ix,iy-1,iz).u
 									   +lab(ix+1,iy,iz).v - lab(ix-1,iy,iz).v);
-			const double D13 = .5*_1oH*(lab(ix,iy,iz+1).u - lab(ix,iy,iz-1).u
+			const Real D13 = .5*_1oH*(lab(ix,iy,iz+1).u - lab(ix,iy,iz-1).u
 									   +lab(ix+1,iy,iz).w - lab(ix-1,iy,iz).w);
-			const double D23 = .5*_1oH*(lab(ix,iy+1,iz).w - lab(ix,iy-1,iz).w
+			const Real D23 = .5*_1oH*(lab(ix,iy+1,iz).w - lab(ix,iy-1,iz).w
 									   +lab(ix,iy,iz+1).v - lab(ix,iy,iz-1).v);
 			//normals computed with Towers 2009
-			const double normX = surfData->Set[i]->dchidx * _h3;
-			const double normY = surfData->Set[i]->dchidy * _h3;
-			const double normZ = surfData->Set[i]->dchidz * _h3;
-			const double fXV = D11 * normX + D12 * normY + D13 * normZ;
-			const double fYV = D12 * normX + D22 * normY + D23 * normZ;
-			const double fZV = D13 * normX + D23 * normY + D33 * normZ;
-			const double fXP = -b(ix,iy,iz).p * normX; //lab might not contain p!?
-			const double fYP = -b(ix,iy,iz).p * normY;
-			const double fZP = -b(ix,iy,iz).p * normZ;
-			const double fXT = fXV+fXP;
-			const double fYT = fYV+fYP;
-			const double fZT = fZV+fZP;
+			const Real normX = surfData->Set[i]->dchidx * _h3;
+			const Real normY = surfData->Set[i]->dchidy * _h3;
+			const Real normZ = surfData->Set[i]->dchidz * _h3;
+			const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
+			const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
+			const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
+			const Real fXP = -b(ix,iy,iz).p * normX; //lab might not contain p!?
+			const Real fYP = -b(ix,iy,iz).p * normY;
+			const Real fZP = -b(ix,iy,iz).p * normZ;
+			const Real fXT = fXV+fXP;
+			const Real fYT = fYV+fYP;
+			const Real fZT = fZV+fZP;
 			surfData->P[i]  = b(ix,iy,iz).p;
 			surfData->fX[i] = fXT;  surfData->fY[i] = fYT;  surfData->fZ[i] = fZT;
 			surfData->fxP[i] = fXP; surfData->fyP[i] = fYP; surfData->fzP[i] = fZP;
@@ -89,7 +89,7 @@ struct ForcesOnSkin : public GenericLabOperator
 			(*measures)[17] += (p[2]-CM[2])*fXT - (p[0]-CM[0])*fZV;
 			(*measures)[18] += (p[0]-CM[0])*fYT - (p[1]-CM[1])*fXT;
 			//thrust, drag:
-			const double forcePar = fXT*vel_unit[0] + fYT*vel_unit[1] + fZT*vel_unit[2];
+			const Real forcePar = fXT*vel_unit[0] + fYT*vel_unit[1] + fZT*vel_unit[2];
 			(*measures)[10] += .5*(forcePar + std::abs(forcePar));
 			(*measures)[11] -= .5*(forcePar - std::abs(forcePar));
 			//save velocities in case of dump:
@@ -100,23 +100,23 @@ struct ForcesOnSkin : public GenericLabOperator
 			surfData->vy[i] = lab(ix,iy,iz).v + Uinf[1];
 			surfData->vz[i] = lab(ix,iy,iz).w + Uinf[2];
 			//power output (and negative definite variant which ensures no elastic energy absorption)
-			const double powOut = fXT*surfData->vx[i] + fYT*surfData->vy[i] + fZT*surfData->vz[i];
+			const Real powOut = fXT*surfData->vx[i] + fYT*surfData->vy[i] + fZT*surfData->vz[i];
 			(*measures)[12] += powOut;
 			(*measures)[13] += min(0., powOut);
 			//deformation power output (and negative definite variant which ensures no elastic energy absorption)
-			const double powDef = fXT*surfData->vxDef[i] + fYT*surfData->vyDef[i] + fZT*surfData->vzDef[i];
+			const Real powDef = fXT*surfData->vxDef[i] + fYT*surfData->vyDef[i] + fZT*surfData->vzDef[i];
 			(*measures)[14] += powDef;
 			(*measures)[15] += min(0., powDef);
 		}
 	}
 };
 
-void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3], double ang_momenta[3], const double CoM[3])
+void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3], Real ang_momenta[3], const Real CoM[3])
 {
 	const int N = vInfo.size();
-	double  V(0.0),  J0(0.0),  J1(0.0),  J2(0.0),  J3(0.0),  J4(0.0),  J5(0.0);
-	double  lm0(0.0),  lm1(0.0),  lm2(0.0); //linear momenta
-	double  am0(0.0),  am1(0.0),  am2(0.0); //angular momenta
+	Real  V(0.0),  J0(0.0),  J1(0.0),  J2(0.0),  J3(0.0),  J4(0.0),  J5(0.0);
+	Real  lm0(0.0),  lm1(0.0),  lm2(0.0); //linear momenta
+	Real  am0(0.0),  am1(0.0),  am2(0.0); //angular momenta
 
 #pragma omp parallel for schedule(static) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
 	for(int i=0; i<vInfo.size(); i++) {
@@ -127,9 +127,9 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3], double an
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-			const double Xs = pos->second->chi[iz][iy][ix];
+			const Real Xs = pos->second->chi[iz][iy][ix];
 			if (Xs == 0) continue;
-			double p[3];
+			Real p[3];
 			info.pos(p, ix, iy, iz);
 			p[0]-=CoM[0];
 			p[1]-=CoM[1];
@@ -155,16 +155,16 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3], double an
 	MPI::COMM_WORLD.Allreduce(locals, globals, 13, MPI::DOUBLE, MPI::SUM);
 
     assert(globals[12] > std::numeric_limits<double>::epsilon());
-    const double dv = std::pow(vInfo[0].h_gridpoint,3);
+    const Real dv = std::pow(vInfo[0].h_gridpoint,3);
     lin_momenta[0] = globals[0]/globals[12];
     lin_momenta[1] = globals[1]/globals[12];
     lin_momenta[2] = globals[2]/globals[12];
-    double tmp_AV[3] = {
+    Real tmp_AV[3] = {
     		globals[3]* dv,
 			globals[4]* dv,
 			globals[5]* dv
     };
-    double tmp_J[6] = {
+    Real tmp_J[6] = {
     		globals[6] * dv,
 			globals[7] * dv,
 			globals[8] * dv,
@@ -181,7 +181,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3], double an
     }
 }
 
-void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
+void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
 {
 	_computeUdefMoments(transVel_correction, angVel_correction, CoM);
     printf("Correction of lin: %f %f ang: %f\n", transVel_correction[0], transVel_correction[1], angVel_correction[2]);
@@ -195,12 +195,12 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-            double p[3];
+            Real p[3];
             info.pos(p, ix, iy, iz);
             p[0]-=CoM[0];
             p[1]-=CoM[1];
             p[2]-=CoM[2];
-            const double correctVel[3] = {
+            const Real correctVel[3] = {
 				transVel_correction[0] + (angVel_correction[1]*p[2] - angVel_correction[2]*p[1]),
 				transVel_correction[1] + (angVel_correction[2]*p[0] - angVel_correction[0]*p[2]),
 				transVel_correction[2] + (angVel_correction[0]*p[1] - angVel_correction[1]*p[0])
@@ -212,7 +212,7 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
     }
 
 #ifndef NDEBUG
-    double dummy_ang[3], dummy_lin[3];
+    Real dummy_ang[3], dummy_lin[3];
     _computeUdefMoments(dummy_lin, dummy_ang, CoM);
 #endif
 }
@@ -229,16 +229,16 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
     quaternion[1] = parser("-quat1").asDouble(0.0);
     quaternion[2] = parser("-quat2").asDouble(0.0);
     quaternion[3] = parser("-quat3").asDouble(0.0);
-    const double one = sqrt(quaternion[0]*quaternion[0]
+    const Real one = sqrt(quaternion[0]*quaternion[0]
 						   +quaternion[1]*quaternion[1]
 						   +quaternion[2]*quaternion[2]
 						   +quaternion[3]*quaternion[3]);
 
-    if(fabs(one-1.0) > 5*numeric_limits<double>::epsilon()) {
+    if(fabs(one-1.0) > 5*numeric_limits<Real>::epsilon()) {
     	printf("Parsed quaternion length is not equal to one. It really ought to be.\n");
     	abort();
     }
-    if(length < 5*numeric_limits<double>::epsilon()) {
+    if(length < 5*numeric_limits<Real>::epsilon()) {
     	printf("Parsed length is equal to zero. It really ought not to be.\n");
     	abort();
     }
@@ -247,7 +247,7 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
     bFixFrameOfRef = parser("-bFixFrameOfRef").asBool(false);
 }
 
-void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const Real t, const double* Uinf)
+void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const Real t, const Real* Uinf)
 {
 	if(rank!=0) return;
 
@@ -294,13 +294,13 @@ void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const Real
     savestream.close();
 }
 
-void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double time, const double* Uinf, const double lambda)
+void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda)
 {
-	double CM[3];
+	Real CM[3];
 	this->getCenterOfMass(CM);
     const int N = vInfo.size();
-    double _area(0.0), _forcex(0.0), _forcey(0.0), _forcez(0.0), _torquex(0.0), _torquey(0.0), _torquez(0.0);
-    double garea(0.0), gforcex(0.0), gforcey(0.0), gforcez(0.0), gtorquex(0.0), gtorquey(0.0), gtorquez(0.0);
+    Real _area(0.0), _forcex(0.0), _forcey(0.0), _forcez(0.0), _torquex(0.0), _torquey(0.0), _torquez(0.0);
+    Real garea(0.0), gforcex(0.0), gforcey(0.0), gforcez(0.0), gtorquex(0.0), gtorquey(0.0), gtorquez(0.0);
 
     #pragma omp parallel for schedule(static) reduction(+:_area,_forcex,_forcey,_forcez,_torquex,_torquey,_torquez)
     for(int i=0; i<vInfo.size(); i++) {
@@ -312,24 +312,24 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-            const double Xs = pos->second->chi[iz][iy][ix];
+            const Real Xs = pos->second->chi[iz][iy][ix];
             if (Xs == 0) continue;
-            double p[3];
+            Real p[3];
             info.pos(p, ix, iy, iz);
             p[0]-=CM[0];
             p[1]-=CM[1];
             p[2]-=CM[2];
-		    const double object_UR[3] = {
+		    const Real object_UR[3] = {
 				angVel[1]*p[2]-angVel[2]*p[1],
 				angVel[2]*p[0]-angVel[0]*p[2],
 				angVel[0]*p[1]-angVel[1]*p[0]
 		    };
-            const double object_UDEF[3] = {
+            const Real object_UDEF[3] = {
                 pos->second->udef[iz][iy][ix][0],
                 pos->second->udef[iz][iy][ix][1],
                 pos->second->udef[iz][iy][ix][2]
             };
-            const double U[3] = {
+            const Real U[3] = {
                 b(ix,iy,iz).u+Uinf[0] - (transVel[0]+object_UR[0]+object_UDEF[0]),
                 b(ix,iy,iz).v+Uinf[1] - (transVel[1]+object_UR[1]+object_UDEF[1]),
                 b(ix,iy,iz).w+Uinf[2] - (transVel[2]+object_UR[2]+object_UDEF[2])
@@ -360,16 +360,16 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
     _writeDiagForcesToFile(stepID, time);
 }
 
-void IF3D_ObstacleOperator::computeVelocities(const double* Uinf)
+void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 {
-    double CM[3];
+    Real CM[3];
     this->getCenterOfMass(CM);
     const int N = vInfo.size();
 
     //local variables
-    double V(0.0), J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
-    double lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
-    double am0(0.0), am1(0.0), am2(0.0); //angular momenta
+    Real V(0.0), J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
+    Real lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
+    Real am0(0.0), am1(0.0), am2(0.0); //angular momenta
 
 #pragma omp parallel for schedule(static) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
     for(int i=0; i<vInfo.size(); i++) {
@@ -381,9 +381,9 @@ void IF3D_ObstacleOperator::computeVelocities(const double* Uinf)
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-            const double Xs = pos->second->chi[iz][iy][ix];
+            const Real Xs = pos->second->chi[iz][iy][ix];
             if (Xs == 0) continue;
-            double p[3];
+            Real p[3];
             info.pos(p, ix, iy, iz);
             p[0]-=CM[0];
             p[1]-=CM[1];
@@ -409,11 +409,11 @@ void IF3D_ObstacleOperator::computeVelocities(const double* Uinf)
 	MPI::COMM_WORLD.Allreduce(locals, globals, 13, MPI::DOUBLE, MPI::SUM);
 
     assert(globals[12] > std::numeric_limits<double>::epsilon());
-    const double dv = std::pow(vInfo[0].h_gridpoint,3);
+    const Real dv = std::pow(vInfo[0].h_gridpoint,3);
     transVel[0] = globals[0]/globals[12] + Uinf[0];
     transVel[1] = globals[1]/globals[12] + Uinf[1];
     transVel[2] = globals[2]/globals[12] + Uinf[2];
-    double tmp_AV[3] = {
+    Real tmp_AV[3] = {
     		globals[3]* dv,
 			globals[4]* dv,
 			globals[5]* dv
@@ -438,47 +438,47 @@ void IF3D_ObstacleOperator::computeVelocities(const double* Uinf)
 void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real _J[6], const Real& gam0, const Real& gam1, const Real& gam2)
 {
 	// try QR factorization to avoid dealing with determinant
-	const double u1[3] = {_J[0], _J[3], _J[4]};
-	const double magu1sq = u1[0]*u1[0] + u1[1]*u1[1] + u1[2]*u1[2];
+	const Real u1[3] = {_J[0], _J[3], _J[4]};
+	const Real magu1sq = u1[0]*u1[0] + u1[1]*u1[1] + u1[2]*u1[2];
 	// subtract projection of a2 onto u1
-	const double proj1 = u1[0]*_J[3] + u1[1]*_J[1] + u1[2]*_J[5];
-	const double u2[3] = {
+	const Real proj1 = u1[0]*_J[3] + u1[1]*_J[1] + u1[2]*_J[5];
+	const Real u2[3] = {
 			_J[3] - proj1*u1[0]/magu1sq,
 			_J[1] - proj1*u1[1]/magu1sq,
 			_J[5] - proj1*u1[2]/magu1sq
 	};
-	const double magu2sq = u2[0]*u2[0] + u2[1]*u2[1] + u2[2]*u2[2];
+	const Real magu2sq = u2[0]*u2[0] + u2[1]*u2[1] + u2[2]*u2[2];
 	// subtract projection of a3 onto u1
-	const double proj2 = u1[0]*_J[4] + u1[1]*_J[5] + u1[2]*_J[2];
-	const double u3_tmp[3] = {
+	const Real proj2 = u1[0]*_J[4] + u1[1]*_J[5] + u1[2]*_J[2];
+	const Real u3_tmp[3] = {
 			_J[4] - proj2*u1[0]/magu1sq,
 			_J[5] - proj2*u1[1]/magu1sq,
 			_J[2] - proj2*u1[2]/magu1sq
 	};
 	// subtract projection of u3_tmp onto u2
-	const double proj3 = u2[0]*u3_tmp[0] + u2[1]*u3_tmp[1] + u2[2]*u3_tmp[2];
-	const double u3[3] = {
+	const Real proj3 = u2[0]*u3_tmp[0] + u2[1]*u3_tmp[1] + u2[2]*u3_tmp[2];
+	const Real u3[3] = {
 			u3_tmp[0] - proj3*u2[0]/magu2sq,
 			u3_tmp[1] - proj3*u2[1]/magu2sq,
 			u3_tmp[2] - proj3*u2[2]/magu2sq
 	};
-	const double magu3sq = u3[0]*u3[0] + u3[1]*u3[1] + u3[2]*u3[2];
-	const double magu1 = std::sqrt(magu1sq);
-	const double magu2 = std::sqrt(magu2sq);
-	const double magu3 = std::sqrt(magu3sq);
-	const double Q[3][3] = {
+	const Real magu3sq = u3[0]*u3[0] + u3[1]*u3[1] + u3[2]*u3[2];
+	const Real magu1 = std::sqrt(magu1sq);
+	const Real magu2 = std::sqrt(magu2sq);
+	const Real magu3 = std::sqrt(magu3sq);
+	const Real Q[3][3] = {
 			{u1[0]/magu1, u2[0]/magu2, u3[0]/magu3},
 			{u1[1]/magu1, u2[1]/magu2, u3[1]/magu3},
 			{u1[2]/magu1, u2[2]/magu2, u3[2]/magu3}
 	};
 	// find out if Q is orthogonal
-	const double R[3][3] = {
+	const Real R[3][3] = {
 			{Q[0][0]*_J[0] + Q[1][0]*_J[3] + Q[2][0]*_J[4], Q[0][0]*_J[3] + Q[1][0]*_J[1] + Q[2][0]*_J[5], Q[0][0]*_J[4] + Q[1][0]*_J[5] + Q[2][0]*_J[2]},
 			{Q[0][1]*_J[0] + Q[1][1]*_J[3] + Q[2][1]*_J[4], Q[0][1]*_J[3] + Q[1][1]*_J[1] + Q[2][1]*_J[5], Q[0][1]*_J[4] + Q[1][1]*_J[5] + Q[2][1]*_J[2]},
 			{Q[0][2]*_J[0] + Q[1][2]*_J[3] + Q[2][2]*_J[4], Q[0][2]*_J[3] + Q[1][2]*_J[1] + Q[2][2]*_J[5], Q[0][2]*_J[4] + Q[1][2]*_J[5] + Q[2][2]*_J[2]}
 	};
 	// d = Q^T b
-	const double d[3] = {
+	const Real d[3] = {
 			Q[0][0]*gam0 + Q[1][0]*gam1 + Q[2][0]*gam2,
 			Q[0][1]*gam0 + Q[1][1]*gam1 + Q[2][1]*gam2,
 			Q[0][2]*gam0 + Q[1][2]*gam1 + Q[2][2]*gam2,
@@ -489,7 +489,7 @@ void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real _J[6], const 
 	AV[0] = (d[0] - R[0][1]*angVel[1] - R[0][2]*angVel[2])/R[0][0];
 }
 
-void IF3D_ObstacleOperator::computeForces(const int stepID, const double time, const double* Uinf, const double NU, const bool bDump)
+void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, const Real* Uinf, const Real NU, const bool bDump)
 {   //TODO: improve dumping: gather arrays before writing to file
 	//TODO: this kernel does an illegal read on the grid. Guack-a-bug!
     //ugly piece of code that creates a map that allows us to skip the non-surface blocks
@@ -518,11 +518,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time, c
 		}
     }
     
-	double CM[3];
+	Real CM[3];
     this->getCenterOfMass(CM);
     const int nthreads = omp_get_max_threads();
-    vector<array<double,19>> partialSums(nthreads);
-    double vel_unit[3] = {0., 0., 0.};
+    vector<array<Real,19>> partialSums(nthreads);
+    Real vel_unit[3] = {0., 0., 0.};
     const Real velx_tot = transVel[0]-Uinf[0];
     const Real vely_tot = transVel[1]-Uinf[1];
     const Real velz_tot = transVel[2]-Uinf[2];
@@ -580,12 +580,12 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time, c
     }
 }
 
-void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real dt, const double* Uinf)
+void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real dt, const Real* Uinf)
 {
     position[0] += dt*transVel[0];
     position[1] += dt*transVel[1];
     position[2] += dt*transVel[2];
-    const double dqdt[4] = {
+    const Real dqdt[4] = {
         0.5*(-angVel[0]*quaternion[1]-angVel[1]*quaternion[2]-angVel[2]*quaternion[3]),
         0.5*( angVel[0]*quaternion[0]+angVel[1]*quaternion[3]-angVel[2]*quaternion[2]),
         0.5*(-angVel[0]*quaternion[3]+angVel[1]*quaternion[0]+angVel[2]*quaternion[1]),
@@ -594,24 +594,24 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
 
     // normality preserving advection (Simulation of colliding constrained rigid bodies - Kleppmann 2007 Cambridge University, p51)
     // move the correct distance on the quaternion unit ball surface, end up with normalized quaternion
-    const double deltaq[4] = {
+    const Real deltaq[4] = {
         dqdt[0]*dt,
         dqdt[1]*dt,
         dqdt[2]*dt,
         dqdt[3]*dt
     };
 
-    const double deltaq_length = std::sqrt(deltaq[0]*deltaq[0]+deltaq[1]*deltaq[1]+deltaq[2]*deltaq[2]+deltaq[3]*deltaq[3]);
-    if(deltaq_length>std::numeric_limits<double>::epsilon()) {
-        const double tanfac = std::tan(deltaq_length)/deltaq_length;
-        const double num[4] = {
+    const Real deltaq_length = std::sqrt(deltaq[0]*deltaq[0]+deltaq[1]*deltaq[1]+deltaq[2]*deltaq[2]+deltaq[3]*deltaq[3]);
+    if(deltaq_length>std::numeric_limits<Real>::epsilon()) {
+        const Real tanfac = std::tan(deltaq_length)/deltaq_length;
+        const Real num[4] = {
             quaternion[0]+tanfac*deltaq[0],
             quaternion[1]+tanfac*deltaq[1],
             quaternion[2]+tanfac*deltaq[2],
             quaternion[3]+tanfac*deltaq[3],
         };
 
-        const double invDenum = 1./(std::sqrt(num[0]*num[0]+num[1]*num[1]+num[2]*num[2]+num[3]*num[3]));
+        const Real invDenum = 1./(std::sqrt(num[0]*num[0]+num[1]*num[1]+num[2]*num[2]+num[3]*num[3]));
         quaternion[0] = num[0]*invDenum;
         quaternion[1] = num[1]*invDenum;
         quaternion[2] = num[2]*invDenum;
@@ -626,11 +626,11 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
     	std::cout << "QUT: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
     	std::cout << "AVL: " << angVel[0] << " " << angVel[1] << " " << angVel[2] << std::endl;
     }
-    const double q_length=std::sqrt(quaternion[0]*quaternion[0]
+    const Real q_length=std::sqrt(quaternion[0]*quaternion[0]
 								   +quaternion[1]*quaternion[1]
 								   +quaternion[2]*quaternion[2]
 								   +quaternion[3]*quaternion[3]);
-    assert(std::abs(q_length-1.0) < 5*std::numeric_limits<double>::epsilon());
+    assert(std::abs(q_length-1.0) < 5*std::numeric_limits<Real>::epsilon());
 #endif
 
     _writeComputedVelToFile(step_id, t, Uinf);
@@ -705,12 +705,12 @@ void IF3D_ObstacleOperator::getCenterOfMass(Real CM[3]) const
     CM[2]=position[2];
 }
 
-double IF3D_ObstacleOperator::getForceX() const
+Real IF3D_ObstacleOperator::getForceX() const
 {
     return force[0];
 }
 
-double IF3D_ObstacleOperator::getForceY() const
+Real IF3D_ObstacleOperator::getForceY() const
 {
     return force[1];
 }
