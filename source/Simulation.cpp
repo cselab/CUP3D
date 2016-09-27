@@ -114,11 +114,6 @@ void Simulation::areWeDumping(Real & nextDumpTime)
 
 void Simulation::_dump(const string append = string())
 {
-    vector<BlockInfo> vInfo = grid->getBlocksInfo();
-
-    CoordinatorVorticity<LabMPI> coordVorticity(grid);
-    coordVorticity(dt);
-
     stringstream ss;
     ss << path2file << append << "-" << std::setfill('0') << std::setw(6) << step;
     if (rank==0) cout << ss.str() << endl;
@@ -126,11 +121,13 @@ void Simulation::_dump(const string append = string())
 #if defined(_USE_HDF_)
 
     if(b2Ddump)
-    	DumpHDF5flat_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+    	DumpHDF5flat_MPI<FluidGridMPI, LabMPI, StreamerHDF5>(*grid, step, ss.str());
     else
     	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
 
 #else if defined(_USE_LZ4_) //TODO: does not compile
+    CoordinatorVorticity<LabMPI> coordVorticity(grid);
+    coordVorticity(dt);
     MPI_Barrier(MPI_COMM_WORLD);
     Real vpeps = parser("-vpeps").asDouble(1e-5);
     int wavelet_type = parser("-wtype").asInt(1);

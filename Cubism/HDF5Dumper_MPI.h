@@ -15,6 +15,10 @@
 #include <hdf5.h>
 #endif
 
+//bad:
+#include "../source/GenericCoordinator.h"
+#include "../source/GenericOperator.h"
+
 //#ifdef _SP_COMP_
 #define HDF_REAL H5T_NATIVE_FLOAT
 //#else
@@ -25,7 +29,88 @@ using namespace std;
 
 #include "BlockInfo.h"
 
-template<typename TGrid, typename Streamer>
+template <typename Streamer>
+class OperatorLoad : public GenericLabOperator
+{
+private:
+	Real* const data;
+	const int NX, NY, NZ, NCHANNELS;
+public:
+	OperatorLoad(Real* const dump_data, const int NX, const int NY, const int NZ)
+	: data(dump_data), NX(NX), NY(NY), NZ(NZ), NCHANNELS(Streamer::NCHANNELS)
+	{
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
+		stencil_start[0] = -1;
+		stencil_start[1] = -1;
+		stencil_start[2] = -1;
+		stencil_end[0] = 2;
+		stencil_end[1] = 2;
+		stencil_end[2] = 2;
+	}
+
+	template <typename Lab, typename BlockType>
+	void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
+	{
+		const Real inv2h = .25 / info.h_gridpoint; // 0.5 * 1/(2h)
+		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
+		Streamer streamer(b);
+
+		for(unsigned int ix=0; ix<FluidBlock::sizeX; ix++)
+		for(unsigned int iy=0; iy<FluidBlock::sizeY; iy++)
+		for(unsigned int iz=0; iz<FluidBlock::sizeZ; iz++) {
+			const unsigned int gx = idx[0]*FluidBlock::sizeX + ix;
+			const unsigned int gy = idx[1]*FluidBlock::sizeY + iy;
+			const unsigned int gz = idx[2]*FluidBlock::sizeZ + iz;
+			assert(NCHANNELS*(gz + NZ * (gy + NY * gx)) < NX * NY * NZ * NCHANNELS);
+
+			Real * const ptr = data + NCHANNELS*(gz + NZ * (gy + NY * gx));
+
+			Real output[NCHANNELS];
+			for(int i=0; i<NCHANNELS; ++i) output[i] = 0;
+
+			streamer.operate(ix, iy, iz, (Real*)output);
+			FluidElement& phiW = lab(ix-1,iy  ,iz  );
+			FluidElement& phiE = lab(ix+1,iy  ,iz  );
+			FluidElement& phiS = lab(ix  ,iy-1,iz  );
+			FluidElement& phiN = lab(ix  ,iy+1,iz  );
+			FluidElement& phiF = lab(ix  ,iy  ,iz-1);
+			FluidElement& phiB = lab(ix  ,iy  ,iz+1);
+
+			const Real vorticX2 = inv2h * ((phiN.w-phiS.w) - (phiB.v-phiF.v));
+			const Real vorticY2 = inv2h * ((phiB.u-phiF.u) - (phiE.w-phiW.w));
+			const Real vorticZ2 = inv2h * ((phiE.v-phiW.v) - (phiN.u-phiS.u));
+			const Real strainXY = inv2h * ((phiE.v-phiW.v) + (phiN.u-phiS.u));
+			const Real strainYZ = inv2h * ((phiN.w-phiS.w) + (phiB.v-phiF.v));
+			const Real strainZX = inv2h * ((phiB.u-phiF.u) + (phiE.w-phiW.w));
+			const Real strainXX = inv2h * ((phiE.v-phiW.u) + (phiE.u-phiW.u));
+			const Real strainYY = inv2h * ((phiN.v-phiS.v) + (phiN.v-phiS.v));
+			const Real strainZZ = inv2h * ((phiB.w-phiF.w) + (phiB.w-phiF.w));
+			const float Q = -.5*(vorticX2*vorticX2+vorticY2*vorticY2+vorticZ2*vorticZ2+
+								 strainXX*strainXX+strainYY*strainYY+strainZZ*strainZZ+
+								 strainXY*strainXY+strainYZ*strainYZ+strainZX*strainZX);
+
+			for(int i=0; i<NCHANNELS; ++i) ptr[i] = (float)output[i];
+			ptr[NCHANNELS-1] = Q;
+		}
+	}
+};
+
+template <typename Lab, typename Streamer>
+class CoordinatorLoad : public GenericCoordinator
+{
+private:
+	Real* const data;
+public:
+	CoordinatorLoad(FluidGridMPI *grid, Real* const dump_data) : GenericCoordinator(grid), data(dump_data) { }
+	void operator()(const Real dt)
+	{
+		OperatorLoad kernel(data);
+		compute(kernel);
+	}
+	string getName() { return "Load"; }
+};
+
+template<typename TGrid, typename Lab, typename Streamer>
 void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const string dump_path=".")
 {
 #ifdef _USE_HDF_
@@ -45,18 +130,7 @@ void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const st
 	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
 	const unsigned int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
-	
-	/*
-	if (rank==0)
-	{
-		cout << "Writing HDF5 file\n";
-		cout << "Allocating " << (NX * NY * NZ * NCHANNELS)/(1024.*1024.*1024.) << "GB of HDF5 data\n";
-	}
-	 */
-	
 	Real * array_all = new float[NX * NY * NZ * NCHANNELS];
-	
-	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 	
 	static const unsigned int sX = 0;
 	static const unsigned int sY = 0;
@@ -89,40 +163,8 @@ void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const st
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
 	
-#pragma omp parallel for
-	for(unsigned int i=0; i<vInfo.size(); i++)
-	{
-		BlockInfo& info = vInfo[i];
-		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
-		B & b = *(B*)info.ptrBlock;
-		Streamer streamer(b);
-		
-		for(unsigned int ix=sX; ix<eX; ix++)
-		{
-			const unsigned int gx = idx[0]*B::sizeX + ix;
-			for(unsigned int iy=sY; iy<eY; iy++)
-			{
-				const unsigned int gy = idx[1]*B::sizeY + iy;
-				for(unsigned int iz=sZ; iz<eZ; iz++)
-				{
-					const unsigned int gz = idx[2]*B::sizeZ + iz;
-					
-					assert(NCHANNELS*(gz + NZ * (gy + NY * gx)) < NX * NY * NZ * NCHANNELS);
-					
-					Real * const ptr = array_all + NCHANNELS*(gz + NZ * (gy + NY * gx));
-					
-					Real output[NCHANNELS];
-					for(int i=0; i<NCHANNELS; ++i)
-						output[i] = 0;
-					
-					streamer.operate(ix, iy, iz, (Real*)output);
-					
-					for(int i=0; i<NCHANNELS; ++i)
-						ptr[i] = (float)output[i];
-				}
-			}
-		}
-	}
+	CoordinatorVorticity<Lab> coordVorticity(&grid);
+	coordVorticity(0.);
 	
 	fapl_id = H5Pcreate(H5P_DATASET_XFER);
 	H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);

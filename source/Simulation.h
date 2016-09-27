@@ -40,7 +40,6 @@
 #include <sys/stat.h>
 #include <unistd.h>
 
-/*
 namespace ComputationDiagnostics
 {
     static void print_memory_usage(long & peak_rss_bytes, long & current_rss_bytes)
@@ -70,101 +69,6 @@ namespace ComputationDiagnostics
         //printf("current resident set size = %ld bytes (%.2lf Mbytes)\n", current_rss_bytes, current_rss_bytes/(1024.0*1024.0));
     }
 }
-
-namespace FlowDiagnostics
-{
-    struct diagContainer
-    {
-        // three linear invariants (conserved in inviscid and viscous flows)
-        Real circ; // conservation of vorticity: int w dx = 0
-        Real linImpulse[2]; // conservation of linear impulse: int u dx = int (x cross w) dx
-        Real angImpulse; // conservation of angular impulse: int (x cross u)dx = 1/3 int (x cross (x cross w) )dx
-        
-        // two more important: maxvor and enstrophy
-        Real ens,maxvor;
-        
-        diagContainer()
-        {*this=0;}
-        
-        diagContainer & operator=(const Real & rhs)
-        {
-            circ = rhs;
-            linImpulse[0] = rhs;
-            linImpulse[1] = rhs;
-            angImpulse = rhs;
-            ens=rhs;
-            maxvor=rhs;
-            return *this;
-        }
-        
-        diagContainer & operator+=(const diagContainer & rhs)
-        {
-            circ += rhs.circ;
-            linImpulse[0] += rhs.linImpulse[0];
-            linImpulse[1] += rhs.linImpulse[1];
-            angImpulse += rhs.angImpulse;
-            ens += rhs.ens;
-            maxvor = std::max(maxvor,rhs.maxvor);
-            
-            return *this;
-        }
-    };
-    
-    struct basicDiagnostics
-    {
-        diagContainer data;
-        
-        basicDiagnostics()
-        {data=Real(0);}
-        
-        // split constructor (dont need copy constructor)
-        basicDiagnostics(const basicDiagnostics& c, tbb::split):vInfo(c.vInfo), coll(c.coll)
-        {data=Real(0);}
-        
-        void join(const basicDiagnostics& j)
-        {
-            data+=j.data;
-        }
-        
-        
-        void operator()(const BlockInfo& info, FluidBlock& block) const
-        {
-            // this implementation considers that the Euler updates has already happened
-            // do we need a finite state machine coordinating operators?
-            diagContainer blockData;
-            blockData=Real(0);
-            This works only for 2D and this text ensures that you will not compile this D:
-            for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-                for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-                {
-                    Real x[2] = {0,0};
-                    info.pos(x,ix,iy);
-                    
-                    const Real w = block(ix,iy).omega;
-                    const Real u[2] = { block(ix,iy).u,
-                                        block(ix,iy).v };
-                    
-                    blockData.circ += w;
-                    blockData.linImpulse[0] += x[1]*w;
-                    blockData.linImpulse[1] -= x[0]*w;
-                    blockData.angImpulse -= (x[0]*x[0]+x[1]*x[1])*w;
-                    
-                    blockData.ens += w*w;
-                    blockData.maxvor = std::max(blockData.maxvor,w);
-                }
-            const Real dA = info.h[0]*info.h[1];
-            
-            blockData.circ*=dA;
-            blockData.linImpulse[0]*=dA;
-            blockData.linImpulse[1]*=dA;
-            blockData.angImpulse*=dA;
-            blockData.ens*=dA;
-            
-            data+=blockData;
-        }
-    };
-}
-*/
 
 class Simulation
 {

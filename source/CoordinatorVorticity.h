@@ -53,6 +53,78 @@ public:
 	}
 };
 
+class OperatorDiagnostis : public GenericOperator
+{
+public:
+	array<Real,12>* const quantities;
+
+	OperatorDiagnostis(array<Real,12>* const local) : quantities(local) {}
+
+	~OperatorDiagnostis() {}
+
+	void operator()(const BlockInfo& info, FluidBlock& block) const
+	{
+		const Real dv = std::pow(info.h_gridpoint,3);
+		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+			Real x[3];
+			info.pos(x, ix, iy, iz);
+			const Real w[3] = {
+					b(ix,iy,iz).omega[0],
+					b(ix,iy,iz).omega[1],
+					b(ix,iy,iz).omega[2]
+			};
+			const Real u[3] = {
+					b(ix,iy,iz).u[0],
+					b(ix,iy,iz).u[1],
+					b(ix,iy,iz).u[2]
+			};
+			const Real omegasq = w[0]*w[0] + w[1]*w[1] + w[2]*w[2];
+			const Real velsq   = u[0]*u[0] + u[1]*u[1] + u[2]*u[2];
+			//circulation :
+			(*quantities)[0] += w[0];
+			(*quantities)[1] += w[1];
+			(*quantities)[2] += w[2];
+			//linear impulse :
+			(*quantities)[3] += x[1]*w[2]-x[2]*w[1];
+			(*quantities)[4] += x[2]*w[0]-x[0]*w[2];
+			(*quantities)[5] += x[0]*w[1]-x[1]*w[0];
+			//angular impulse :
+			(*quantities)[6] += x[0]*(x[1]*w[1]+x[2]*w[2]) - (x[1]*x[1]+x[2]*x[2])*w[0];
+			(*quantities)[7] += x[1]*(x[0]*w[0]+x[2]*w[2]) - (x[0]*x[0]+x[2]*x[2])*w[1];
+			(*quantities)[8] += x[2]*(x[0]*w[0]+x[1]*w[1]) - (x[0]*x[0]+x[1]*x[1])*w[2];
+			//helicity
+			(*quantities)[9] += (w[0]*u[0] + w[1]*u[1] + w[2]*u[2]);
+			//enstrophy
+			(*quantities)[10]+= omegasq;
+			//maxvor
+			(*quantities)[11] = std::max((*quantities)[11],omegasq);
+		}
+
+		for(int i=0;i<3;i++) {
+			(*quantities)[  i] *= dv;
+			(*quantities)[3+i] *= 0.5*dv;
+			(*quantities)[6+i] *= dv/3.;
+		}
+		(*quantities)[9] *= dv;
+		(*quantities)[10]*= dv;
+	}
+	/*
+	FILE * f = fopen("diagnostics.dat", "a");
+	if(step_id == 0 && !bRESTART)
+		fprintf(f,"%s  %s  %s  %s  %s  %s  %s  %s  %s  %s\n",
+				"# step_id","time","dt","circ","linImpX","linImpY","angImp","Eng","Ens","Maxvor");
+
+	fprintf(f, "%d  %10.10e  %10.10e  %10.10e  %10.10e  %10.10e  %10.10e  %10.10e  %10.10e  %10.10e\n",
+			step_id, t, dt, diags.data.circ,
+			diags.data.linImpulse[0], diags.data.linImpulse[1],diags.data.angImpulse,
+			keSolver,diags.data.ens,diags.data.maxvor);
+
+	fclose(f);
+	*/
+};
+
 template <typename Lab>
 class CoordinatorVorticity : public GenericCoordinator
 {
