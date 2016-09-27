@@ -15,11 +15,11 @@
 #include <hdf5.h>
 #endif
 
-#ifdef _SP_COMP_
+//#ifdef _SP_COMP_
 #define HDF_REAL H5T_NATIVE_FLOAT
-#else
-#define HDF_REAL H5T_NATIVE_DOUBLE
-#endif
+//#else
+//#define HDF_REAL H5T_NATIVE_DOUBLE
+//#endif
 
 using namespace std;
 
@@ -54,7 +54,7 @@ void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const st
 	}
 	 */
 	
-	Real * array_all = new Real[NX * NY * NZ * NCHANNELS];
+	Real * array_all = new float[NX * NY * NZ * NCHANNELS];
 	
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 	
@@ -118,7 +118,7 @@ void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const st
 					streamer.operate(ix, iy, iz, (Real*)output);
 					
 					for(int i=0; i<NCHANNELS; ++i)
-						ptr[i] = output[i];
+						ptr[i] = (float)output[i];
 				}
 			}
 		}
@@ -212,7 +212,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 	const unsigned int zExt = grid.getBlocksPerDimension(2)*eZ;
 	const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
-	Real * array_all = new Real[NX * NY * NCHANNELS];
+	Real * array_all = new float[NX * NY * NCHANNELS];
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 
 	hsize_t count[4] = {
@@ -259,7 +259,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 				Real output[NCHANNELS];
 				for(int i=0; i<NCHANNELS; ++i) output[i] = 0;
 				streamer.operate(ix, iy, mid, (Real*)output);
-				for(int i=0; i<NCHANNELS; ++i) ptr[i] = output[i];
+				for(int i=0; i<NCHANNELS; ++i) ptr[i] = (float)output[i];
 			}
 		}
 	}
@@ -468,7 +468,7 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	const int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
 	static const int NCHANNELS = Streamer::NCHANNELS;
 	
-	Real * array_all = new Real[NX * NY * NZ * NCHANNELS];
+	Real * array_all = new float[NX * NY * NZ * NCHANNELS];
 	
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 	
@@ -529,8 +529,10 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 					const int gy = idx[1]*B::sizeY + iy;
 					const int gz = idx[2]*B::sizeZ + iz;
 					
-					Real * const ptr_input = array_all + NCHANNELS*(gz + NZ * (gy + NY * gx));
-					streamer.operate(ptr_input, ix, iy, iz);
+					float* const ptr_input = array_all + NCHANNELS*(gz + NZ * (gy + NY * gx));
+					Real input[NCHANNELS];
+					for(int i=0; i<NCHANNELS; ++i) input[i] = (Real)ptr_input[i];
+					streamer.operate(input, ix, iy, iz);
 				}
 	}
 	

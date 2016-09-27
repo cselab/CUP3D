@@ -8,6 +8,12 @@
  */
 #pragma once
 
+#ifndef _SP_COMP_
+typedef double Real;
+#else // _SP_COMP_
+typedef float Real;
+#endif // _SP_COMP_
+
 #include <cstdlib>
 
 struct BlockInfo
@@ -17,9 +23,9 @@ struct BlockInfo
 	int index[3];
 	int indexLocal[3];
 	
-	double origin[3];
-	double originLocal[3];
-	double h, h_gridpoint;
+	Real origin[3];
+	Real originLocal[3];
+	Real h, h_gridpoint;
 	
 	template <typename T>
 	inline void pos(T p[2], int ix, int iy) const
