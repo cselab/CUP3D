@@ -121,9 +121,9 @@ void Simulation::_dump(const string append = string())
 #if defined(_USE_HDF_)
 
     if(b2Ddump)
-    	DumpHDF5flat_MPI(*grid, step, ss.str());
+    	DumpHDF5flat_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
     else
-    	DumpHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
+    	DumpHDF5_MPI(*grid, step, ss.str());
 
 #else if defined(_USE_LZ4_) //TODO: does not compile
 
