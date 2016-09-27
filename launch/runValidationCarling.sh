@@ -10,11 +10,11 @@ export LD_LIBRARY_PATH=/cluster/home03/mavt/novatig/fftw-3.3.5/lib/:$LD_LIBRARY_
 
 CFL=0.1
 LAMBDA=1e4
-BPDX=20
-BPDY=32
-BPDZ=32
+BPDX=15
+BPDY=30
+BPDZ=30
 
-OPTIONS=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ} -2Ddump 0 -nprocsx ${NNODE} -CFL ${CFL} -length 0.25 -lambda ${LAMBDA} -nu 0.0001136363636"
+OPTIONS=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ} -2Ddump 0 -nprocsx ${NNODE} -CFL ${CFL} -length 0.3 -lambda ${LAMBDA} -nu 0.0001636363636"
 
 sort $LSB_DJOB_HOSTFILE | uniq  > lsf_hostfile
 mpich_run -np ${NNODE} -ppn 1 -bind-to none -launcher ssh -f lsf_hostfile ./simulation -tend 8 ${OPTIONS}

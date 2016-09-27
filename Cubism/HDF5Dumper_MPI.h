@@ -32,10 +32,10 @@ using namespace std;
 class OperatorLoad : public GenericLabOperator
 {
 private:
-	Real* const data;
+	float* const data;
 	const int NX, NY, NZ, NCHANNELS;
 public:
-	OperatorLoad(Real* const dump_data, const int NX, const int NY, const int NZ)
+	OperatorLoad(float* const dump_data, const int NX, const int NY, const int NZ)
 	: data(dump_data), NX(NX), NY(NY), NZ(NZ), NCHANNELS(StreamerHDF5::NCHANNELS)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
@@ -50,9 +50,9 @@ public:
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
 	{
-		const Real inv2h = .25 / info.h_gridpoint; // 0.5 * 1/(2h)
+		const Real inv2h = .5 / info.h_gridpoint; 
 		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
-		Streamer streamer(b);
+		StreamerHDF5 streamer(b);
 
 		for(unsigned int ix=0; ix<FluidBlock::sizeX; ix++)
 		for(unsigned int iy=0; iy<FluidBlock::sizeY; iy++)
@@ -61,35 +61,33 @@ public:
 			const unsigned int gy = idx[1]*FluidBlock::sizeY + iy;
 			const unsigned int gz = idx[2]*FluidBlock::sizeZ + iz;
 			assert(NCHANNELS*(gz + NZ * (gy + NY * gx)) < NX * NY * NZ * NCHANNELS);
-
-			Real * const ptr = data + NCHANNELS*(gz + NZ * (gy + NY * gx));
+			float* const ptr = data + NCHANNELS*(gz + NZ * (gy + NY * gx));
 
 			Real output[NCHANNELS];
 			for(int i=0; i<NCHANNELS; ++i) output[i] = 0;
-
 			streamer.operate(ix, iy, iz, (Real*)output);
+
 			FluidElement& phiW = lab(ix-1,iy  ,iz  );
 			FluidElement& phiE = lab(ix+1,iy  ,iz  );
 			FluidElement& phiS = lab(ix  ,iy-1,iz  );
 			FluidElement& phiN = lab(ix  ,iy+1,iz  );
 			FluidElement& phiF = lab(ix  ,iy  ,iz-1);
 			FluidElement& phiB = lab(ix  ,iy  ,iz+1);
+         const Real vorticX2 = inv2h * ((phiN.w-phiS.w) - (phiB.v-phiF.v)) * 0.5;
+         const Real vorticY2 = inv2h * ((phiB.u-phiF.u) - (phiE.w-phiW.w)) * 0.5;
+         const Real vorticZ2 = inv2h * ((phiE.v-phiW.v) - (phiN.u-phiS.u)) * 0.5;
+         const Real strainXY = inv2h * ((phiE.v-phiW.v) + (phiN.u-phiS.u)) * 0.5;
+         const Real strainYZ = inv2h * ((phiN.w-phiS.w) + (phiB.v-phiF.v)) * 0.5;
+         const Real strainZX = inv2h * ((phiB.u-phiF.u) + (phiE.w-phiW.w)) * 0.5;
+         const Real strainXX = inv2h * (phiE.v-phiW.u);
+         const Real strainYY = inv2h * (phiN.v-phiS.v);
+         const Real strainZZ = inv2h * (phiB.w-phiF.w);
+         const Real OO = vorticX2*vorticX2+vorticY2*vorticY2+vorticZ2*vorticZ2;
+         const Real SS = strainXX*strainXX+strainYY*strainYY+strainZZ*strainZZ+  //
+                     strainXY*strainXY+strainYZ*strainYZ+strainZX*strainZX;
 
-			const Real vorticX2 = inv2h * ((phiN.w-phiS.w) - (phiB.v-phiF.v));
-			const Real vorticY2 = inv2h * ((phiB.u-phiF.u) - (phiE.w-phiW.w));
-			const Real vorticZ2 = inv2h * ((phiE.v-phiW.v) - (phiN.u-phiS.u));
-			const Real strainXY = inv2h * ((phiE.v-phiW.v) + (phiN.u-phiS.u));
-			const Real strainYZ = inv2h * ((phiN.w-phiS.w) + (phiB.v-phiF.v));
-			const Real strainZX = inv2h * ((phiB.u-phiF.u) + (phiE.w-phiW.w));
-			const Real strainXX = inv2h * ((phiE.v-phiW.u) + (phiE.u-phiW.u));
-			const Real strainYY = inv2h * ((phiN.v-phiS.v) + (phiN.v-phiS.v));
-			const Real strainZZ = inv2h * ((phiB.w-phiF.w) + (phiB.w-phiF.w));
-			const float Q = -.5*(vorticX2*vorticX2+vorticY2*vorticY2+vorticZ2*vorticZ2+
-								 strainXX*strainXX+strainYY*strainYY+strainZZ*strainZZ+
-								 strainXY*strainXY+strainYZ*strainYZ+strainZX*strainZX);
-
-			for(int i=0; i<NCHANNELS; ++i) ptr[i] = (float)output[i];
-			ptr[NCHANNELS-1] = Q;
+         for(int i=0; i<NCHANNELS; ++i) ptr[i] = (float)output[i];
+         ptr[NCHANNELS-1] = float(.5*(OO-SS));
 		}
 	}
 };
@@ -97,9 +95,9 @@ public:
 class CoordinatorLoad : public GenericCoordinator
 {
 private:
-	Real* const data;
+	float* const data;
 public:
-	CoordinatorLoad(FluidGridMPI *grid, Real* const dump_data) : GenericCoordinator(grid), data(dump_data) { }
+	CoordinatorLoad(FluidGridMPI *grid, float* const dump_data) : GenericCoordinator(grid), data(dump_data) { }
 	void operator()(const Real dt)
 	{
 		const int NX = grid->getResidentBlocksPerDimension(0)*FluidBlock::sizeX;
@@ -130,7 +128,7 @@ void DumpHDF5_MPI(FluidGridMPI &grid, const int iCounter, const string f_name, c
 	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
 	const unsigned int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
 	static const unsigned int NCHANNELS = StreamerHDF5::NCHANNELS;
-	Real * array_all = new float[NX * NY * NZ * NCHANNELS];
+	float* array_all = new float[NX * NY * NZ * NCHANNELS];
 	
 	static const unsigned int sX = 0;
 	static const unsigned int sY = 0;
@@ -254,7 +252,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 	const unsigned int zExt = grid.getBlocksPerDimension(2)*eZ;
 	const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
-	Real * array_all = new float[NX * NY * NCHANNELS];
+	float* array_all = new float[NX * NY * NCHANNELS];
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 
 	hsize_t count[4] = {
@@ -297,7 +295,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 			for(unsigned int iy=sY; iy<eY; iy++) {
 				const unsigned int gy = idx[1]*B::sizeY + iy;
 				assert(NCHANNELS*(gy + NY * gx) < NX * NY * NCHANNELS);
-				Real* const ptr = array_all + NCHANNELS*(gy + NY * gx);
+				float* const ptr = array_all + NCHANNELS*(gy + NY * gx);
 				Real output[NCHANNELS];
 				for(int i=0; i<NCHANNELS; ++i) output[i] = 0;
 				streamer.operate(ix, iy, mid, (Real*)output);
@@ -510,7 +508,7 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	const int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
 	static const int NCHANNELS = Streamer::NCHANNELS;
 	
-	Real * array_all = new float[NX * NY * NZ * NCHANNELS];
+	float* array_all = new float[NX * NY * NZ * NCHANNELS];
 	
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 	
