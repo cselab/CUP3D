@@ -104,7 +104,10 @@ public:
 	CoordinatorLoad(FluidGridMPI *grid, Real* const dump_data) : GenericCoordinator(grid), data(dump_data) { }
 	void operator()(const Real dt)
 	{
-		OperatorLoad kernel(data);
+		const int NX = grid->getResidentBlocksPerDimension(0)*FluidBlock::sizeX;
+		const int NY = grid->getResidentBlocksPerDimension(1)*FluidBlock::sizeY;
+		const int NZ = grid->getResidentBlocksPerDimension(2)*FluidBlock::sizeZ;
+		OperatorLoad kernel(data,NX,NY,NZ);
 		compute(kernel);
 	}
 	string getName() { return "Load"; }
@@ -163,8 +166,8 @@ void DumpHDF5_MPI(TGrid &grid, const int iCounter, const string f_name, const st
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
 	
-	CoordinatorVorticity<Lab> coordVorticity(&grid);
-	coordVorticity(0.);
+	OperatorLoad<Lab> coord(&grid, array_all);
+	coord(0.);
 	
 	fapl_id = H5Pcreate(H5P_DATASET_XFER);
 	H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
