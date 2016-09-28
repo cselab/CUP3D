@@ -53,7 +53,7 @@ void Simulation::parseArguments()
     b2Ddump = parser("-2Ddump").asDouble(true);
     bDLM = parser("-use-dlm").asBool(false);
     dumpFreq = parser("-fdump").asDouble(0);	// dumpFreq==0 means that this dumping frequency (in #steps) is not active
-    dumpTime = parser("-tdump").asDouble(0.1);	// dumpTime==0 means that this dumping frequency (in time)   is not active
+    dumpTime = parser("-tdump").asDouble(0.05);	// dumpTime==0 means that this dumping frequency (in time)   is not active
     saveFreq = parser("-fsave").asDouble(0);	// dumpFreq==0 means that this dumping frequency (in #steps) is not active
     saveTime = parser("-tsave").asDouble(10.0);	// dumpTime==0 means that this dumping frequency (in time)   is not active
     nsteps = parser("-nsteps").asInt(0);		// nsteps==0   means that this stopping criteria is not active
@@ -123,18 +123,32 @@ void Simulation::areWeDumping(Real & nextDumpTime)
 
 void Simulation::_dump(const string append = string())
 {
-    stringstream ss;
-    ss << path2file << append << "-" << std::setfill('0') << std::setw(6) << step;
-    if (rank==0) cout << ss.str() << endl;
+    //stringstream ss;
+    //ss << path2file << append << "-" << std::setfill('0') << std::setw(6) << step;
+
+    stringstream ssR;
+    ssR<<path4serialization<<"./restart_"<<std::setfill('0')<<std::setw(9)<<step;
+    if (rank==0) cout << ssR.str() << endl;
+
+    if (rank==0) { //rank 0 saves step id and obstacles
+    	obstacle_vector->save(step,time,ssR.str());
+    	//safety status in case of crash/timeout during grid save:
+    	string statusname = ssR.str()+".status";
+    	FILE * f = fopen(statusname.c_str(), "w");
+    	assert(f != NULL);
+    	fprintf(f, "time: %20.20e\n", time);
+    	fprintf(f, "stepid: %d\n", (int)step);
+    	//fprintf(f, "ping: %d\n", (int)bPing);
+    	fclose(f);
+    }
 
 #if defined(_USE_HDF_)
-
     if(b2Ddump)
-    	DumpHDF5flat_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ss.str());
-    else
-    	DumpHDF5_MPI(*grid, step, ss.str());
+    	DumpHDF5flat_MPI<FluidGridMPI, StreamerHDF5>(*grid, step, ssR.str());
 
-#else if defined(_USE_LZ4_) //TODO: does not compile
+    DumpHDF5_MPI(*grid, step, ss.str());
+#endif
+#if defined(_USE_LZ4_) //TODO: does not compile
 
     CoordinatorVorticity<LabMPI> coordVorticity(grid);
     coordVorticity(dt);
@@ -154,6 +168,20 @@ void Simulation::_dump(const string append = string())
     waveletdumper_grid.Write<6>(grid, ss.str());
     waveletdumper_grid.Write<7>(grid, ss.str());
 #endif
+
+	if (rank==0) { //saved the grid! Write status to remember most recent ping
+		string restart_status = path4serialization+"./restart.status";
+		FILE * f = fopen(restart_status.c_str(), "w");
+		assert(f != NULL);
+		fprintf(f, "time: %20.20e\n", time);
+		fprintf(f, "stepid: %d\n", (int)step);
+		//fprintf(f, "ping: %d\n", (int)bPing);
+		fclose(f);
+
+		printf( "time: %20.20e\n", time);
+		printf( "stepid: %d\n", (int)step);
+		//printf( "ping: %d\n", (int)bPing);
+	}
 
     CoordinatorDiagnostics coordDiags(grid,time,step);
     coordVorticity(dt);
@@ -185,42 +213,11 @@ void Simulation::_selectDT()
 }
 
 void Simulation::_serialize(Real & nextSaveTime)
-{
+{// FAKE LOLOLOLOLOLOLOLOLOLOLOL (read the dump)
 	bool bSaving = (saveFreq>0 && step%saveFreq==0)||(saveTime>0 && time>nextSaveTime);
 	if(!bSaving) return;
-	bPing = !bPing; //alternate files for safety
 	nextSaveTime += saveTime;
-
-	string pingname = "restart_"+std::to_string((int)bPing);
-	string basename = path4serialization + "./" + pingname;
-
-	if (rank==0) { //rank 0 saves step id and obstacles
-		obstacle_vector->save(step,time,basename);
-		//safety status in case of crash/timeout during grid save:
-		string filename = basename+".status";
-		FILE * f = fopen(filename.c_str(), "w");
-		assert(f != NULL);
-		fprintf(f, "time: %20.20e\n", time);
-		fprintf(f, "stepid: %d\n", (int)step);
-		fprintf(f, "ping: %d\n", (int)bPing);
-		fclose(f);
-	}
-
-	DumpZBin_MPI<FluidGridMPI, StreamerSerialization>(*grid, pingname.c_str(), path4serialization);
-
-	if (rank==0) { //saved the grid! Write status to remember most recent ping
-		string restart_status = path4serialization+"./restart.status";
-		FILE * f = fopen(restart_status.c_str(), "w");
-		assert(f != NULL);
-		fprintf(f, "time: %20.20e\n", time);
-		fprintf(f, "stepid: %d\n", (int)step);
-		fprintf(f, "ping: %d\n", (int)bPing);
-		fclose(f);
-
-		printf( "time: %20.20e\n", time);
-		printf( "stepid: %d\n", (int)step);
-		printf( "ping: %d\n", (int)bPing);
-	}
+	//DumpZBin_MPI<FluidGridMPI, StreamerSerialization>(*grid, pingname.c_str(), path4serialization);
 }
 	
 void Simulation::_deserialize()
@@ -236,19 +233,20 @@ void Simulation::_deserialize()
 	fscanf(f, "stepid: %d\n", &step_id_fake);
 	assert(step_id_fake >= 0);
 	step = step_id_fake;
-	int ping_fake = -1;
-	fscanf(f, "ping: %d\n", &ping_fake);
-	assert(ping_fake >= 0);
-	bPing = (bool)ping_fake;
+	//int ping_fake = -1;
+	//fscanf(f, "ping: %d\n", &ping_fake);
+	//assert(ping_fake >= 0);
+	//bPing = (bool)ping_fake;
 	fclose(f);
 
-	string pingname = "restart_"+std::to_string((int)bPing);
-	string basename = path4serialization + "./" + pingname;
-	if (rank==0) cout << "Restarting from " << basename << endl;
-	ReadHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, basename);
-	obstacle_vector->restart(time,basename);
+	stringstream ssR;
+	ssR<<path4serialization<<"./restart_"<<std::setfill('0')<<std::setw(9)<<step;
+	if (rank==0) cout << "Restarting from " << ssR.str() << endl;
+	MPI_Barrier(MPI_COMM_WORLD);
+	ReadHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, ssR.str());
+	obstacle_vector->restart(time,ssR.str());
 
-    printf("DESERIALIZATION with ping %d: time is %f and step id is %d\n", bPing, time, (int)step);
+    printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
 }
     
 void Simulation::init()

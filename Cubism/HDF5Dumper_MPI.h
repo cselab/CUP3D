@@ -35,7 +35,7 @@ private:
 	float* const data;
 	const int NX, NY, NZ, NCHANNELS;
 public:
-	OperatorLoad(float* const dump_data, const int NX, const int NY, const int NZ)
+	OperatorLoad(float* const dump_data, const int NX, const int NY, const int NZ, const double sliceZ)
 	: data(dump_data), NX(NX), NY(NY), NZ(NZ), NCHANNELS(StreamerHDF5::NCHANNELS)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
@@ -92,6 +92,78 @@ public:
 	}
 };
 
+class OperatorLoadFlat : public GenericLabOperator
+{
+private:
+	float* const data;
+	const int NX, NY, NZ, NCHANNELS;
+	const double sliceZ;
+public:
+	OperatorLoadFlat(float* const dump_data, const int NX, const int NY, const int NZ, const double sliceZ)
+	: data(dump_data), NX(NX), NY(NY), NZ(NZ), NCHANNELS(StreamerHDF5::NCHANNELS), sliceZ(sliceZ)
+	{
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
+		stencil_start[0] = -1;
+		stencil_start[1] = -1;
+		stencil_start[2] = -1;
+		stencil_end[0] = 2;
+		stencil_end[1] = 2;
+		stencil_end[2] = 2;
+	}
+
+	template <typename Lab, typename BlockType>
+	void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
+	{
+		const Real halfH = 0.5*info.h_gridpoint;
+		Real ini[3], fin[3];
+		info.pos(ini, 0, 0, 0);
+		info.pos(fin, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+		if (ini[2]>sliceZ+halfH || fin[2]<sliceZ-halfH) continue;
+		int iz = (int)std::floor((sliceZ-ini[2])/info.h_gridpoint);
+		if (iz<0)   iz=0;
+		if (iz>=eZ) iz=eZ-1;
+
+		const Real inv2h = .5 / info.h_gridpoint;
+		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
+		StreamerHDF5 streamer(b);
+
+		for(unsigned int ix=0; ix<FluidBlock::sizeX; ix++) {
+			const unsigned int gx = idx[0]*FluidBlock::sizeX + ix;
+			for(unsigned int iy=0; iy<FluidBlock::sizeY; iy++) {
+				const unsigned int gy = idx[1]*FluidBlock::sizeY + iy;
+				assert(NCHANNELS*(gy + NY * gx) < NX * NY * NCHANNELS);
+				float* const ptr = data + NCHANNELS*(gy + NY * gx);
+				Real output[NCHANNELS];
+				for(int i=0; i<NCHANNELS; ++i) output[i] = 0;
+				streamer.operate(ix, iy, iz, (Real*)output);
+
+				FluidElement& phiW = lab(ix-1,iy  ,iz  );
+				FluidElement& phiE = lab(ix+1,iy  ,iz  );
+				FluidElement& phiS = lab(ix  ,iy-1,iz  );
+				FluidElement& phiN = lab(ix  ,iy+1,iz  );
+				FluidElement& phiF = lab(ix  ,iy  ,iz-1);
+				FluidElement& phiB = lab(ix  ,iy  ,iz+1);
+				const Real vorticX2 = inv2h * ((phiN.w-phiS.w) - (phiB.v-phiF.v)) * 0.5;
+				const Real vorticY2 = inv2h * ((phiB.u-phiF.u) - (phiE.w-phiW.w)) * 0.5;
+				const Real vorticZ2 = inv2h * ((phiE.v-phiW.v) - (phiN.u-phiS.u)) * 0.5;
+				const Real strainXY = inv2h * ((phiE.v-phiW.v) + (phiN.u-phiS.u)) * 0.5;
+				const Real strainYZ = inv2h * ((phiN.w-phiS.w) + (phiB.v-phiF.v)) * 0.5;
+				const Real strainZX = inv2h * ((phiB.u-phiF.u) + (phiE.w-phiW.w)) * 0.5;
+				const Real strainXX = inv2h * (phiE.v-phiW.u);
+				const Real strainYY = inv2h * (phiN.v-phiS.v);
+				const Real strainZZ = inv2h * (phiB.w-phiF.w);
+				const Real OO = vorticX2*vorticX2+vorticY2*vorticY2+vorticZ2*vorticZ2;
+				const Real SS = strainXX*strainXX+strainYY*strainYY+strainZZ*strainZZ+  //
+						strainXY*strainXY+strainYZ*strainYZ+strainZX*strainZX;
+
+				for(int i=0; i<NCHANNELS; ++i) ptr[i] = (float)output[i];
+				ptr[NCHANNELS-1] = float(.5*(OO-SS));
+			}
+		}
+	}
+};
+
+template<typename Loader>
 class CoordinatorLoad : public GenericCoordinator
 {
 private:
@@ -100,10 +172,13 @@ public:
 	CoordinatorLoad(FluidGridMPI *grid, float* const dump_data) : GenericCoordinator(grid), data(dump_data) { }
 	void operator()(const Real dt)
 	{
+		const unsigned int maxExt = grid.getBlocksPerDimension(0)*FluidBlock::sizeX;
+		const unsigned int zExt = grid.getBlocksPerDimension(2)*FluidBlock::sizeZ;
+		const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
 		const int NX = grid->getResidentBlocksPerDimension(0)*FluidBlock::sizeX;
 		const int NY = grid->getResidentBlocksPerDimension(1)*FluidBlock::sizeY;
 		const int NZ = grid->getResidentBlocksPerDimension(2)*FluidBlock::sizeZ;
-		OperatorLoad kernel(data,NX,NY,NZ);
+		Loader kernel(data,NX,NY,NZ,sliceZ);
 		compute(kernel);
 	}
 	string getName() { return "Load"; }
@@ -161,7 +236,7 @@ void DumpHDF5_MPI(FluidGridMPI &grid, const int iCounter, const string f_name, c
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
 	
-	CoordinatorLoad coord(&grid, array_all);
+	CoordinatorLoad coord<OperatorLoad>(&grid, array_all);
 	coord(0.);
 	
 	fapl_id = H5Pcreate(H5P_DATASET_XFER);
@@ -272,37 +347,9 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 	status = H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
-   const Real invh = 1.0/grid.getH();
-   const Real halfH = 0.5*grid.getH();
-#pragma omp parallel for
-	for(unsigned int i=0; i<vInfo.size(); i++)
-	{
-		const BlockInfo& info = vInfo[i];
-		Real ini[3], fin[3];
-		info.pos(ini, sX, sY, sZ);
-		info.pos(fin, eX-1, eY-1, eZ-1);
-		if (ini[2]>sliceZ+halfH || fin[2]<sliceZ-halfH) continue;
 
-		int mid = (int)std::floor((sliceZ-ini[2])*invh);
-		if (mid<0)   mid=0; 
-		if (mid>=eZ) mid=eZ-1;
-		const unsigned int idx[2] = {info.indexLocal[0], info.indexLocal[1]};
-		B & b = *(B*)info.ptrBlock;
-		Streamer streamer(b);
-
-		for(unsigned int ix=sX; ix<eX; ix++) {
-			const unsigned int gx = idx[0]*B::sizeX + ix;
-			for(unsigned int iy=sY; iy<eY; iy++) {
-				const unsigned int gy = idx[1]*B::sizeY + iy;
-				assert(NCHANNELS*(gy + NY * gx) < NX * NY * NCHANNELS);
-				float* const ptr = array_all + NCHANNELS*(gy + NY * gx);
-				Real output[NCHANNELS];
-				for(int i=0; i<NCHANNELS; ++i) output[i] = 0;
-				streamer.operate(ix, iy, mid, (Real*)output);
-				for(int i=0; i<NCHANNELS; ++i) ptr[i] = (float)output[i];
-			}
-		}
-	}
+	CoordinatorLoad coord<OperatorLoadFlat>(&grid, array_all);
+	coord(0.);
 
 	fapl_id = H5Pcreate(H5P_DATASET_XFER);
 	H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
