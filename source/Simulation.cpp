@@ -41,7 +41,7 @@ void Simulation::setupGrid()
 	bpdz /= nprocsz;
 	grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz);
 	assert(grid != NULL);
-    vInfo = grid->getBlocksInfo();
+   vInfo = grid->getBlocksInfo();
 }
 
 void Simulation::parseArguments()
@@ -184,16 +184,17 @@ void Simulation::_dump(const string append = string())
 	}
 
     CoordinatorDiagnostics coordDiags(grid,time,step);
-    coordVorticity(dt);
+    coordDiags(dt);
 }
     
 void Simulation::_selectDT()
 {
 	double local_maxU = (double)findMaxUOMP(vInfo,*grid,uinf);
 	double global_maxU;
+   const double h = vInfo[0].h_gridpoint;
     MPI::COMM_WORLD.Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX);
-    dtFourier = CFL*vInfo[0].h_gridpoint*vInfo[0].h_gridpoint/nu;
-    dtCFL     = CFL*vInfo[0].h_gridpoint/abs(global_maxU);
+    dtFourier = CFL*h*h/nu;
+    dtCFL     = CFL*h/abs(global_maxU);
     dt = min(dtCFL,dtFourier);
 
     if(rank==0) printf("maxU %f dtF %f dtC %f dt %f\n",global_maxU,dtFourier,dtCFL,dt);

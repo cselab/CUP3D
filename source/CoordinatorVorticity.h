@@ -99,7 +99,7 @@ public:
 
 			helicity += (w[0]*u[0] + w[1]*u[1] + w[2]*u[2]);
 			enstrophy+= omegasq;
-			maxvortSq = std::max(maxvort,omegasq);
+			maxvortSq = std::max(maxvortSq,omegasq);
 		}
 
 		const Real dv = std::pow(info.h_gridpoint,3);
@@ -147,10 +147,19 @@ public:
 
 	void operator()(const Real dt)
 	{
-	    const int nthreads = omp_get_max_threads();
-	    vector<array<Real,12>> partialSums(nthreads);
-		OperatorDiagnostics kernel(&partialSums);
-		compute(kernel);
+	   const int nthreads = omp_get_max_threads();
+	   vector<array<Real,12>> partialSums(nthreads);
+      const int N = vInfo.size();
+#pragma omp parallel
+      {
+         OperatorDiagnostics kernel(&partialSums);
+#pragma omp for schedule(static)
+         for(int i=0; i<N; i++) {
+            BlockInfo info = vInfo[i];
+            FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+            kernel(info, b);
+         }
+      }
 
 		double localSum[11], globalSum[11], maxVortHere(0), maxVort(0);
 		for(int i=0; i<nthreads; i++) {
@@ -158,8 +167,8 @@ public:
 				localSum[j] += (double)partialSums[i][j];
 			maxVortHere = std::max((double)partialSums[i][11],maxVortHere);
 		}
-		MPI::COMM_WORLD.Allreduce(localSum, globalSum, 11, MPI::DOUBLE, MPI::SUM);
-		MPI::COMM_WORLD.Allreduce(maxVortHere, maxVort, 1, MPI::DOUBLE, MPI::MAX);
+		MPI::COMM_WORLD.Allreduce( localSum, globalSum, 11, MPI::DOUBLE, MPI::SUM);
+		MPI::COMM_WORLD.Allreduce(&maxVortHere,&maxVort, 1, MPI::DOUBLE, MPI::MAX);
 
 		if(rank==0) {
 			FILE * f = fopen("diagnostics.dat", "a");
