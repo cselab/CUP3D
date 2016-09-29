@@ -142,6 +142,7 @@ protected:
 	
 	void _solve(mycomplex * in_out, const size_t nx, const size_t ny, const size_t nz, const size_t nz_hat, const Real norm_factor, const Real h)
 	{
+#if 0
 		const Real h2 = h*h;
 		const Real factor = h2*norm_factor;
 		
@@ -162,10 +163,33 @@ protected:
 			in_out[linidx][0] *= fatfactor;
 			in_out[linidx][1] *= fatfactor;
 		}
+#else
+        const Real waveFactX = 2.0*M_PI/(nx*h);
+        const Real waveFactY = 2.0*M_PI/(ny*h);
+        const Real waveFactZ = 2.0*M_PI/(nz*h);
+
+#pragma omp parallel for
+		for(int j = 0; j<local_n1; ++j)
+		for(int i=0; i<nx; ++i)
+		for(int k = 0; k<nz_hat; ++k) {
+			const int linidx = (j*nx+i)*nz_hat + k;
+			//assert(linidx >=0 && linidx<nx*ny*nz_hat); // linking error with openmp
+
+			const int kx = (i <= nx/2) ? i : -(nx-i);
+			const int ky = (local_1_start+j <= ny/2) ? local_1_start+j : -(ny-(local_1_start+j));
+			const int kz = (k <= nz/2) ? k : -(nz-k);
+			const Real rkx = kx*waveFactX;
+			const Real rky = ky*waveFactY;
+			const Real rkz = kz*waveFactZ;
+
+			const Real kinv = (kx==0 && ky==0 && kz==0) ? 0.0 : -1.0/(rkx*rkx+rky*rky+rkz*rkz);
+			in_out[linidx][0] *= kinv*norm_factor;
+			in_out[linidx][1] *= kinv*norm_factor;
+		}
+#endif
 		
 		//this is sparta!
-		if (local_1_start == 0)
-			in_out[0][0] = in_out[0][1] = 0;
+		if (local_1_start == 0) in_out[0][0] = in_out[0][1] = 0;
 	}
 	
 	void _fftw2cub(Real * out, TGrid& grid, const size_t nx, const size_t ny, const size_t nz, const size_t nz_hat) const

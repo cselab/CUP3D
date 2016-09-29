@@ -203,7 +203,6 @@ public:
 					const Real minv = min(v,(Real)0);
 					const Real minw = min(w,(Real)0);
 
-					//TODO: shouldn't I write to u,v,w so that lab still reads the half-step velocities?
 					o(ix,iy,iz).u += factor*(maxu * dudx[0] + minu * dudx[1] +
 											 maxv * dudy[0] + minv * dudy[1] +
 											 maxw * dudz[0] + minw * dudz[1]);
