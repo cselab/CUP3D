@@ -35,7 +35,7 @@ private:
 	float* const data;
 	const int NX, NY, NZ, NCHANNELS;
 public:
-	OperatorLoad(float* const dump_data, const int NX, const int NY, const int NZ, const double sliceZ)
+	OperatorLoad(float* const dump_data, const int NX, const int NY, const int NZ, const Real sliceZ)
 	: data(dump_data), NX(NX), NY(NY), NZ(NZ), NCHANNELS(StreamerHDF5::NCHANNELS)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
@@ -100,11 +100,11 @@ class OperatorLoadFlat : public GenericLabOperator
 {
 private:
 	float* const data;
-	const int NX, NY, NZ, NCHANNELS;
-	const double sliceZ;
+	const int NX, NY, NCHANNELS;
+	const Real sliceZ;
 public:
-	OperatorLoadFlat(float* const dump_data, const int NX, const int NY, const int NZ, const double sliceZ)
-	: data(dump_data), NX(NX), NY(NY), NZ(NZ), NCHANNELS(StreamerHDF5::NCHANNELS), sliceZ(sliceZ)
+	OperatorLoadFlat(float* const dump_data, const int NX, const int NY, const int NZ, const Real sliceZ)
+	: data(dump_data), NX(NX), NY(NY), NCHANNELS(StreamerHDF5::NCHANNELS), sliceZ(sliceZ)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
 		stencil_start[0] = -1;
@@ -181,9 +181,9 @@ public:
 	CoordinatorLoad(FluidGridMPI *grid, float* const dump_data) : GenericCoordinator(grid), data(dump_data) { }
 	void operator()(const Real dt)
 	{
-		const unsigned int maxExt = grid->getBlocksPerDimension(0)*FluidBlock::sizeX;
-		const unsigned int zExt = grid->getBlocksPerDimension(2)*FluidBlock::sizeZ;
-		const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
+		const Real maxExt = grid->getBlocksPerDimension(0)*FluidBlock::sizeX;
+		const Real zExt = grid->getBlocksPerDimension(2)*FluidBlock::sizeZ;
+		const Real sliceZ = 0.5*zExt/maxExt;
 		const int NX = grid->getResidentBlocksPerDimension(0)*FluidBlock::sizeX;
 		const int NY = grid->getResidentBlocksPerDimension(1)*FluidBlock::sizeY;
 		const int NZ = grid->getResidentBlocksPerDimension(2)*FluidBlock::sizeZ;
@@ -332,9 +332,6 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*eX;
 	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*eY;
 	const unsigned int NZ = 1;
-	const unsigned int maxExt = grid.getBlocksPerDimension(0)*eX;
-	const unsigned int zExt = grid.getBlocksPerDimension(2)*eZ;
-	const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
 	float* array_all = new float[NX * NY * NCHANNELS];
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
@@ -436,7 +433,7 @@ void DumpHDF52D_MPI(TGrid &grid, const int iCounter, const string f_name, const 
 	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*eY;
    const unsigned int maxExt = grid.getBlocksPerDimension(0)*eX;
    const unsigned int zExt = grid.getBlocksPerDimension(2)*eZ;
-   const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
+   const Real sliceZ = 0.5*(Real)zExt/(Real)maxExt;
 	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
 
 	Real * array_all = new Real[NX * NY * NCHANNELS];
