@@ -11,14 +11,14 @@ if [ $# -gt 1 ] ; then
 fi
 
 BASEPATH=/cluster/scratch_xp/public/novatig/CubismUP3D/
-BASENAME=FlowPastCarlingFishRe0550_singleprec_fixed_
+BASENAME=FlowPastCarlingFishRe0550_sp_fixed_
 NPROCESSORS=$((${NNODE}*48))
 
-CFL=0.1
+CFL=0.01
 LAMBDA=1e4
-BPDX=15
-BPDY=30
-BPDZ=30
+BPDX=40
+BPDY=20
+BPDZ=20
 
 NAME_RUN=BPD${BPDX}_CFL${CFL}_${1}RANKS
 

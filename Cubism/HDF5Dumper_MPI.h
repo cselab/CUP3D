@@ -118,10 +118,10 @@ public:
 		Real ini[3], fin[3];
 		info.pos(ini, 0, 0, 0);
 		info.pos(fin, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-		if (ini[2]>sliceZ+halfH || fin[2]<sliceZ-halfH) continue;
+		if (ini[2]>sliceZ+halfH || fin[2]<sliceZ-halfH) return;
 		int iz = (int)std::floor((sliceZ-ini[2])/info.h_gridpoint);
 		if (iz<0)   iz=0;
-		if (iz>=eZ) iz=eZ-1;
+		if (iz>=FluidBlock::sizeZ) iz=FluidBlock::sizeZ-1;
 
 		const Real inv2h = .5 / info.h_gridpoint;
 		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
@@ -172,8 +172,8 @@ public:
 	CoordinatorLoad(FluidGridMPI *grid, float* const dump_data) : GenericCoordinator(grid), data(dump_data) { }
 	void operator()(const Real dt)
 	{
-		const unsigned int maxExt = grid.getBlocksPerDimension(0)*FluidBlock::sizeX;
-		const unsigned int zExt = grid.getBlocksPerDimension(2)*FluidBlock::sizeZ;
+		const unsigned int maxExt = grid->getBlocksPerDimension(0)*FluidBlock::sizeX;
+		const unsigned int zExt = grid->getBlocksPerDimension(2)*FluidBlock::sizeZ;
 		const Real sliceZ = 0.5*(double)zExt/(double)maxExt;
 		const int NX = grid->getResidentBlocksPerDimension(0)*FluidBlock::sizeX;
 		const int NY = grid->getResidentBlocksPerDimension(1)*FluidBlock::sizeY;
@@ -236,7 +236,7 @@ void DumpHDF5_MPI(FluidGridMPI &grid, const int iCounter, const string f_name, c
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
 	
-	CoordinatorLoad coord<OperatorLoad>(&grid, array_all);
+	CoordinatorLoad<OperatorLoad> coord(&grid, array_all);
 	coord(0.);
 	
 	fapl_id = H5Pcreate(H5P_DATASET_XFER);
@@ -348,7 +348,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
 
-	CoordinatorLoad coord<OperatorLoadFlat>(&grid, array_all);
+	CoordinatorLoad<OperatorLoadFlat> coord(&grid, array_all);
 	coord(0.);
 
 	fapl_id = H5Pcreate(H5P_DATASET_XFER);

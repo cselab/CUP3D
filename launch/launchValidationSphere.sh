@@ -12,15 +12,15 @@ if [ $# -gt 1 ] ; then
 fi
 
 BASEPATH=/cluster/scratch_xp/public/novatig/CubismUP3D/
-BASENAME=FlowPastFixedSphereRe200_ValidateDump_0_
+BASENAME=FlowPastFixedSphereRe050_sp_
 NPROCESSORS=$((${NNODE}*${NTHREADSPERNODE}))
 
 CFL=0.1
 LAMBDA=1e4
-BPDX=40
-BPDY=32
+BPDX=60
+BPDY=30
 
-NAME_RUN=BPD${BPDX}_CFL${CFL}
+NAME_RUN=BPD${BPDX}_CFL${CFL}_RANKS${NNODE}
 
 FOLDER=${BASEPATH}${BASENAME}${NAME_RUN}
 mkdir -p ${FOLDER}
@@ -41,7 +41,7 @@ if [ $INTERACTIVE -eq 1 ] ; then
     sort $LSB_DJOB_HOSTFILE | uniq  > lsf_hostfile      
     mpich_run -np ${NNODE} -ppn 1 -bind-to none -launcher ssh -f lsf_hostfile valgrind --tool=memcheck --track-origins=yes --leak-check=yes ./simulation -tend 8 ${OPTIONS}
 else
-    bsub -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -W 08:00 -J ${BASENAME}${NAME_RUN} ./run.sh $NNODE 
+    bsub -n ${NPROCESSORS} -R span[ptile=48] -sp 100 -W 12:00 -J ${BASENAME}${NAME_RUN} ./run.sh $NNODE 
 fi
 
 #cd $CURRDIR
