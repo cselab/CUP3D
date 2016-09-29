@@ -44,13 +44,13 @@ public:
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-			FluidElement& phi  = lab(ix,iy,iz);
-			FluidElement& phiW = lab(ix-1,iy  ,iz  );
-			FluidElement& phiE = lab(ix+1,iy  ,iz  );
-			FluidElement& phiS = lab(ix  ,iy-1,iz  );
-			FluidElement& phiN = lab(ix  ,iy+1,iz  );
-			FluidElement& phiF = lab(ix  ,iy  ,iz-1);
-			FluidElement& phiB = lab(ix  ,iy  ,iz+1);
+			const FluidElement& phi  = lab(ix,  iy,  iz  );
+			const FluidElement& phiW = lab(ix-1,iy  ,iz  );
+			const FluidElement& phiE = lab(ix+1,iy  ,iz  );
+			const FluidElement& phiS = lab(ix  ,iy-1,iz  );
+			const FluidElement& phiN = lab(ix  ,iy+1,iz  );
+			const FluidElement& phiF = lab(ix  ,iy  ,iz-1);
+			const FluidElement& phiB = lab(ix  ,iy  ,iz+1);
 
 			o(ix,iy,iz).tmpU = phi.u + fac * (phiN.u + phiS.u + phiE.u + phiW.u + phiF.u + phiB.u - phi.u*6.);
 			o(ix,iy,iz).tmpV = phi.v + fac * (phiN.v + phiS.v + phiE.v + phiW.v + phiF.v + phiB.v - phi.v*6.);
@@ -89,13 +89,13 @@ public:
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-			FluidElement& phi = lab(ix,iy,iz);
-			FluidElement& phiW = lab(ix-1,iy  ,iz  );
-			FluidElement& phiE = lab(ix+1,iy  ,iz  );
-			FluidElement& phiS = lab(ix  ,iy-1,iz  );
-			FluidElement& phiN = lab(ix  ,iy+1,iz  );
-			FluidElement& phiF = lab(ix  ,iy  ,iz-1);
-			FluidElement& phiB = lab(ix  ,iy  ,iz+1);
+			const FluidElement& phi  = lab(ix,  iy,  iz  );
+			const FluidElement& phiW = lab(ix-1,iy  ,iz  );
+			const FluidElement& phiE = lab(ix+1,iy  ,iz  );
+			const FluidElement& phiS = lab(ix  ,iy-1,iz  );
+			const FluidElement& phiN = lab(ix  ,iy+1,iz  );
+			const FluidElement& phiF = lab(ix  ,iy  ,iz-1);
+			const FluidElement& phiB = lab(ix  ,iy  ,iz+1);
 
 			o(ix,iy,iz).u += fac * (phiN.tmpU + phiS.tmpU + phiE.tmpU + phiW.tmpU + phiF.tmpU + phiB.tmpU - phi.tmpU*6.);
 			o(ix,iy,iz).v += fac * (phiN.tmpV + phiS.tmpV + phiE.tmpV + phiW.tmpV + phiF.tmpV + phiB.tmpV - phi.tmpV*6.);
