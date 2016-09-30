@@ -250,9 +250,9 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
 void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const Real t, const Real* Uinf)
 {
 	if(rank!=0) return;
-
-    const std::string fname = "computedVelocity_"+std::to_string(obstacleID)+".dat";
-    std::ofstream savestream(fname, ios::out | ios::app);
+	stringstream ssR;
+	ssR<<"computedVelocity_"<<obstacleID<<".dat";
+    std::ofstream savestream(ssR.str(), ios::out | ios::app);
     const std::string tab("\t");
     
     if(step_id==0)
@@ -276,9 +276,9 @@ void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const Rea
 void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const Real t)
 {
 	if(rank!=0) return;
-
-    const std::string forcefilename = "diagnosticsForces_"+std::to_string(obstacleID)+".dat";
-    std::ofstream savestream(forcefilename, ios::out | ios::app);
+	stringstream ssR;
+	ssR<<"diagnosticsForces_"<<obstacleID<<".dat";
+    std::ofstream savestream(ssR.str(), ios::out | ios::app);
     const std::string tab("\t");
     
     if(step_id==0)
@@ -562,14 +562,18 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
     {
         ofstream fileForce;
         ofstream filePower;
-        fileForce.open(("forceValues_"+std::to_string(obstacleID)+".txt").c_str(), ios::app);
+    	stringstream ssF, ssP;
+    	ssF<<"forceValues_"<<obstacleID<<".txt";
+    	ssP<<"powerValues_"<<obstacleID<<".txt";
+
+        fileForce.open(ssF.str().c_str(), ios::app);
         fileForce<<time<<" "<<surfForce[0] <<" "<<surfForce[1] <<" "<<surfForce[2] <<" "
 						    <<globalSum[4] <<" "<<globalSum[5] <<" "<<globalSum[6] <<" "
         		 		    <<globalSum[7] <<" "<<globalSum[8] <<" "<<globalSum[9] <<" "
         		 		    <<globalSum[16]<<" "<<globalSum[17]<<" "<<globalSum[18]<<" "
 						    << drag  <<" "<< thrust<<" "<< totChi<<endl;
         fileForce.close();
-        filePower.open(("powerValues_"+std::to_string(obstacleID)+".txt").c_str(), ios::app);
+        filePower.open(ssP.str().c_str(), ios::app);
         filePower<<time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
         		 <<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<endl;
         filePower.close();

@@ -66,7 +66,9 @@ void IF3D_ObstacleVector::save(const int step_id, const Real t, std::string file
 {
     int cntr = 0;
     for(const auto & obstacle_ptr : obstacles) {
-        obstacle_ptr->save(step_id, t, filename+"_"+std::to_string(cntr));
+    	stringstream ssR;
+    	ssR<<filename<<"_"<<cntr;
+        obstacle_ptr->save(step_id, t, ssR.str());
         cntr++;
     }
 }
@@ -75,7 +77,9 @@ void IF3D_ObstacleVector::restart(const Real t, std::string filename)
 {
     int cntr = 0;
     for(const auto & obstacle_ptr : obstacles) {
-        obstacle_ptr->restart(t, filename+"_"+std::to_string(cntr));
+    	stringstream ssR;
+    	ssR<<filename<<"_"<<cntr;
+        obstacle_ptr->restart(t, ssR.str());
         cntr++;
     }
 }
