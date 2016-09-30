@@ -12,12 +12,10 @@
 #include <cstring>
 #include <zlib.h>	// always needed
 
-#if defined(_USE_FPZIP_)
 extern "C"
 {
 #include "myfpzip.h" 
 }
-#endif
 
 inline size_t ZZcompress(unsigned char *buf, unsigned len, int layout[4], unsigned *max);
 inline size_t ZZdecompress(unsigned char * inputbuf, size_t ninputbytes, int layout[4], unsigned char * outputbuf, const size_t maxsize);

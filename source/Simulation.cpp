@@ -146,9 +146,9 @@ void Simulation::_dump(const string append = string())
     if(b2Ddump) {
       stringstream ssF;
       ssF<<path4serialization<<"./avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
-    	DumpHDF5flat_MPI(*grid, step, ssF.str());
+    	DumpHDF5flat_MPI(*grid, time, ssF.str());
     }
-    DumpHDF5_MPI(*grid, step, ssR.str());
+    DumpHDF5_MPI(*grid, time, ssR.str());
 #endif
 #if defined(_USE_LZ4_) //TODO: does not compile
 

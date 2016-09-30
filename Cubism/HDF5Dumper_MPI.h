@@ -10,6 +10,7 @@
 #pragma once
 
 #include <cassert>
+#include <cstdio>
 
 #ifdef _USE_HDF_
 #include <hdf5.h>
@@ -19,7 +20,7 @@
 #include "../source/GenericCoordinator.h"
 #include "../source/GenericOperator.h"
 
-//#ifdef _SP_COMP_
+//#ifdef _SP_COMP_ _FLOAT_PRECISION_
 #define HDF_REAL H5T_NATIVE_FLOAT
 //#else
 //#define HDF_REAL H5T_NATIVE_DOUBLE
@@ -54,14 +55,17 @@ public:
 		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
 		StreamerHDF5 streamer(b);
 
-		for(unsigned int ix=0; ix<FluidBlock::sizeX; ix++)
+		for(unsigned int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(unsigned int iy=0; iy<FluidBlock::sizeY; iy++)
-		for(unsigned int iz=0; iz<FluidBlock::sizeZ; iz++) {
+		for(unsigned int ix=0; ix<FluidBlock::sizeX; ix++){
 			const unsigned int gx = idx[0]*FluidBlock::sizeX + ix;
 			const unsigned int gy = idx[1]*FluidBlock::sizeY + iy;
 			const unsigned int gz = idx[2]*FluidBlock::sizeZ + iz;
-			assert(NCHANNELS*(gz + NZ * (gy + NY * gx)) < NX * NY * NZ * NCHANNELS);
-			float* const ptr = data + NCHANNELS*(gz + NZ * (gy + NY * gx));
+			const unsigned int idx = NCHANNELS * (gx + NX * (gy + NY * gz));
+			assert(idx < NX * NY * NZ * NCHANNELS);
+			float * const ptr = array_all + idx;
+			//assert(NCHANNELS*(gz + NZ * (gy + NY * gx)) < NX * NY * NZ * NCHANNELS);
+			//float* const ptr = data + NCHANNELS*(gz + NZ * (gy + NY * gx));
 
 			FluidElement& phiW = lab(ix-1,iy  ,iz  );
 			FluidElement& phiE = lab(ix+1,iy  ,iz  );
@@ -193,7 +197,7 @@ public:
 	string getName() { return "Load"; }
 };
 
-void DumpHDF5_MPI(FluidGridMPI &grid, const int iCounter, const string f_name, const string dump_path=".")
+void DumpHDF5_MPI(FluidGridMPI &grid, const Real absTime, const string f_name, const string dump_path=".")
 {
 #ifdef _USE_HDF_
 	typedef typename FluidGridMPI::BlockType B;
@@ -202,46 +206,47 @@ void DumpHDF5_MPI(FluidGridMPI &grid, const int iCounter, const string f_name, c
 	char filename[256];
 	herr_t status;
 	hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
-	
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-	
+
+    MPI_Comm comm = grid.getCartComm();
+	MPI_Comm_rank(comm, &rank);
+
 	int coords[3];
 	grid.peindex(coords);
 	
-	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
-	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
-	const unsigned int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
-	static const unsigned int NCHANNELS = StreamerHDF5::NCHANNELS;
+	const  int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
+	const  int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
+	const  int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
+	static const  int NCHANNELS = StreamerHDF5::NCHANNELS;
 	float* array_all = new float[NX * NY * NZ * NCHANNELS];
 	
-	static const unsigned int sX = 0;
-	static const unsigned int sY = 0;
-	static const unsigned int sZ = 0;
+	static const  int sX = 0;
+	static const  int sY = 0;
+	static const  int sZ = 0;
 	
-	static const unsigned int eX = B::sizeX;
-	static const unsigned int eY = B::sizeY;
-	static const unsigned int eZ = B::sizeZ;
+	static const  int eX = B::sizeX;
+	static const  int eY = B::sizeY;
+	static const  int eZ = B::sizeZ;
 	
 	hsize_t count[4] = {
-		grid.getResidentBlocksPerDimension(0)*B::sizeX,
+		grid.getResidentBlocksPerDimension(2)*B::sizeZ,
 		grid.getResidentBlocksPerDimension(1)*B::sizeY,
-		grid.getResidentBlocksPerDimension(2)*B::sizeZ, NCHANNELS};
-	
+		grid.getResidentBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+
 	hsize_t dims[4] = {
-		grid.getBlocksPerDimension(0)*B::sizeX,
+		grid.getBlocksPerDimension(2)*B::sizeZ,
 		grid.getBlocksPerDimension(1)*B::sizeY,
-		grid.getBlocksPerDimension(2)*B::sizeZ, NCHANNELS};
-	
+		grid.getBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+
 	hsize_t offset[4] = {
-		coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX,
+		coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ,
 		coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
-		coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ, 0};
-	
+		coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
+
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
 	
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-	status = H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+	status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
 	
@@ -283,7 +288,8 @@ void DumpHDF5_MPI(FluidGridMPI &grid, const int iCounter, const string f_name, c
 		fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
 		fprintf(xmf, " <Domain>\n");
 		fprintf(xmf, "   <Grid GridType=\"Uniform\">\n");
-		fprintf(xmf, "     <Time Value=\"%05d\"/>\n", iCounter);
+		//fprintf(xmf, "     <Time Value=\"%05d\"/>\n", iCounter);
+		fprintf(xmf, "     <Time Value=\"%e\"/>\n", absTime);
 		fprintf(xmf, "     <Topology TopologyType=\"3DCORECTMesh\" Dimensions=\"%d %d %d\"/>\n", (int)dims[0], (int)dims[1], (int)dims[2]);
 		fprintf(xmf, "     <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n");
 		fprintf(xmf, "       <DataItem Name=\"Origin\" Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
@@ -551,7 +557,8 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	herr_t status;
 	hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
 	
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm comm = grid.getCartComm();
+	MPI_Comm_rank(comm, &rank);
 	
 	int coords[3];
 	grid.peindex(coords);
@@ -563,7 +570,7 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	
 	float* array_all = new float[NX * NY * NZ * NCHANNELS];
 	
-	vector<BlockInfo> vInfo = grid.getBlocksInfo();
+	vector<BlockInfo> vInfo_local = grid.getResidentBlocksInfo();
 	
 	static const int sX = 0;
 	static const int sY = 0;
@@ -574,25 +581,25 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	const int eZ = B::sizeZ;
 	
 	hsize_t count[4] = {
-		grid.getResidentBlocksPerDimension(0)*B::sizeX,
-		grid.getResidentBlocksPerDimension(1)*B::sizeY,
-		grid.getResidentBlocksPerDimension(2)*B::sizeZ,NCHANNELS};
-	
+			grid.getResidentBlocksPerDimension(2)*B::sizeZ,
+			grid.getResidentBlocksPerDimension(1)*B::sizeY,
+			grid.getResidentBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+
 	hsize_t dims[4] = {
-		grid.getBlocksPerDimension(0)*B::sizeX,
-		grid.getBlocksPerDimension(1)*B::sizeY,
-		grid.getBlocksPerDimension(2)*B::sizeZ, NCHANNELS};
-	
+			grid.getBlocksPerDimension(2)*B::sizeZ,
+			grid.getBlocksPerDimension(1)*B::sizeY,
+			grid.getBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+
 	hsize_t offset[4] = {
-		coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX,
-		coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
-		coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ, 0};
+			coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ,
+			coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
+			coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
 	
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
 	
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-	status = H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+	status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
 	file_id = H5Fopen(filename, H5F_ACC_RDONLY, fapl_id);
 	status = H5Pclose(fapl_id);
 	
@@ -614,19 +621,17 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
 		
-		for(int ix=sX; ix<eX; ix++)
-			for(int iy=sY; iy<eY; iy++)
-				for(int iz=sZ; iz<eZ; iz++)
-				{
-					const int gx = idx[0]*B::sizeX + ix;
-					const int gy = idx[1]*B::sizeY + iy;
-					const int gz = idx[2]*B::sizeZ + iz;
-					
-					float* const ptr_input = array_all + NCHANNELS*(gz + NZ * (gy + NY * gx));
-					Real input[NCHANNELS];
-					for(int i=0; i<NCHANNELS; ++i) input[i] = (Real)ptr_input[i];
-					streamer.operate(input, ix, iy, iz);
-				}
+		for(int iz=sZ; iz<eZ; iz++)
+		for(int iy=sY; iy<eY; iy++)
+		for(int ix=sX; ix<eX; ix++) {
+			const int gx = idx[0]*B::sizeX + ix;
+			const int gy = idx[1]*B::sizeY + iy;
+			const int gz = idx[2]*B::sizeZ + iz;
+			Real * const ptr_input = array_all + NCHANNELS*(gx + NX * (gy + NY * gz));
+			Real input[NCHANNELS];
+			for(int i=0; i<NCHANNELS; ++i) input[i] = (Real)ptr_input[i];
+			streamer.operate(input, ix, iy, iz);
+		}
 	}
 	
 	status = H5Pclose(fapl_id);
