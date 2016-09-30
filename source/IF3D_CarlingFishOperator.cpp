@@ -731,11 +731,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const Real time, const R
 		const int next_idx = (i+1)*(Nm-1)/Nsegments;
 		const int idx = i * (Nm-1)/Nsegments;
 		// find bounding box based on this
-		Real bbox[3][2] = {
-			{std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()},
-			{std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()},
-			{std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()}
-		};
+		Real bbox[3][2] = {{1e9, -1e9}, {1e9, -1e9}, {1e9, -1e9}};
 		for(int ss=idx; ss<=next_idx; ++ss) {
 			const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
 									myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
