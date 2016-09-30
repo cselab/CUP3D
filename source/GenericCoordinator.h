@@ -87,7 +87,7 @@ protected:
 			if (s2 != NULL) one_less = !atoi(s2);
 		}
 		
-		MPI_Barrier(grid.getCartComm());
+		MPI_Barrier(grid->getCartComm());
 		avail0 = Synch.avail_inner();
 		const int Ninner = avail0.size();
 		//BlockInfo * ary0 = &avail0.front();
@@ -146,7 +146,7 @@ protected:
 			labs=NULL;
 		}
 		
-		MPI_Barrier(grid.getCartComm());
+		MPI_Barrier(grid->getCartComm());
 #else
 		SynchronizerMPI& Synch = grid->sync(kernel);
 
@@ -155,7 +155,7 @@ protected:
 		for(int i = 0; i < nthreads; ++i)
 			labs[i].prepare(*grid, Synch);
 
-		MPI_Barrier(grid.getCartComm());
+		MPI_Barrier(grid->getCartComm());
 		vector<BlockInfo> avail0 = Synch.avail_inner();
 		const int Ninner = avail0.size();
 
@@ -195,7 +195,7 @@ protected:
 			labs=NULL;
 		}
 
-		MPI_Barrier(grid.getCartComm());
+		MPI_Barrier(grid->getCartComm());
 #endif
 	}
 	

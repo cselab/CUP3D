@@ -52,7 +52,7 @@ public:
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
 	{
 		const Real inv2h = .5 / info.h_gridpoint; 
-		const unsigned int idx[2] = {
+		const unsigned int idx[3] = {
 				info.index[0]%NBX,
 				info.index[1]%NBY,
 				info.index[2]%NBZ
@@ -67,7 +67,7 @@ public:
 			const unsigned int gz = idx[2]*FluidBlock::sizeZ + iz;
 			const unsigned int idx = NCHANNELS * (gx + NX * (gy + NY * gz));
 			assert(idx < NX * NY * NZ * NCHANNELS);
-			float * const ptr = array_all + idx;
+			float * const ptr = data + idx;
 			//assert(NCHANNELS*(gz + NZ * (gy + NY * gx)) < NX * NY * NZ * NCHANNELS);
 			//float* const ptr = data + NCHANNELS*(gz + NZ * (gy + NY * gx));
 
@@ -621,10 +621,10 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	status = H5Dread(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
 	
 #pragma omp parallel for
-	for(int i=0; i<vInfo.size(); i++)
+	for(int i=0; i<vInfo_local.size(); i++)
 	{
-		BlockInfo& info = vInfo[i];
-		const int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
+		BlockInfo& info = vInfo_local[i];
+		const int idx[3] = {info.index[0], info.index[1], info.index[2]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
 		
