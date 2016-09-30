@@ -860,10 +860,11 @@ void IF3D_CarlingFishOperator::create(const int step_id,const Real time, const R
     	const int nthreads = omp_get_max_threads();
     	vector<surfaceBlocks> dataPerThread(nthreads);
     	vector<array<Real,4>> momenta(nthreads);
-    	vector<PutFishOnBlocks_Finalize> finalize;
-    	for(int i = 0; i < nthreads; ++i)
-    	finalize.push_back(PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]));
-
+    	vector<PutFishOnBlocks_Finalize*> finalize;
+    	for(int i = 0; i < nthreads; ++i) {
+    		PutFishOnBlocks_Finalize* tmp = new PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]);
+    		finalize.push_back(tmp);
+    	}
     	compute(finalize);
 
     	double sumX[4] = {0,0,0,0};

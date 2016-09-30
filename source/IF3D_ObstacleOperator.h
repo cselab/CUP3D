@@ -149,10 +149,10 @@ public:
 
     //THIS IS WHY I CAN NEVER HAVE NICE THINGS!!
 	template <typename Kernel>
-	void compute(vector<Kernel> kernels)
+	void compute(vector<Kernel*> kernels)
 	{
 #if 0
-		SynchronizerMPI& Synch = grid->sync(kernels[0]);
+		SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
 		const int nthreads = omp_get_max_threads();
 		LabMPI * labs = new LabMPI[nthreads];
 		vector<BlockInfo> avail0, avail1;
@@ -188,7 +188,7 @@ public:
 #pragma omp parallel num_threads(nthreads_first)
 		{
 			const int tid = omp_get_thread_num();
-			Kernel& kernel=kernels[tid];
+			Kernel& kernel=*(kernels[tid]);
 			LabMPI& lab = labs[tid];
 
 #pragma omp for schedule(dynamic,1)
@@ -205,7 +205,7 @@ public:
 #pragma omp parallel num_threads(nthreads)
 		{
 			const int tid = omp_get_thread_num();
-			Kernel& kernel=kernels[tid];
+			Kernel& kernel=*(kernels[tid]);
 			LabMPI& lab = labs[tid];
 
 #pragma omp for schedule(dynamic,1)
@@ -228,7 +228,7 @@ public:
 
 		MPI::COMM_WORLD.Barrier();
 #else
-		SynchronizerMPI& Synch = grid->sync(kernels[0]);
+		SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
 
 		const int nthreads = omp_get_max_threads();
 		LabMPI * labs = new LabMPI[nthreads];
@@ -242,7 +242,7 @@ public:
 #pragma omp parallel
 		{
 			int tid = omp_get_thread_num();
-			Kernel& kernel=kernels[tid];
+			Kernel& kernel=*(kernels[tid]);
 			LabMPI& lab = labs[tid];
 
 #pragma omp for schedule(dynamic,1)
@@ -260,7 +260,7 @@ public:
 #pragma omp parallel
 		{
 			int tid = omp_get_thread_num();
-			Kernel& kernel=kernels[tid];
+			Kernel& kernel=*(kernels[tid]);
 			LabMPI& lab = labs[tid];
 
 #pragma omp for schedule(dynamic,1)

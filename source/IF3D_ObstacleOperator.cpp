@@ -543,9 +543,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
         vel_unit[2] = velz_tot/vel_norm;
     }
 
-    vector<ForcesOnSkin> finalize;
-    for(int i = 0; i < nthreads; ++i)
-    	finalize.push_back(ForcesOnSkin(NU,vel_unit,Uinf,CM,&obstacleBlocks,&surfData,&surfaceBlocksFilter,&partialSums[i]));
+    vector<ForcesOnSkin*> finalize;
+    for(int i = 0; i < nthreads; ++i) {
+    	ForcesOnSkin* tmp = new ForcesOnSkin(NU,vel_unit,Uinf,CM,&obstacleBlocks,&surfData,&surfaceBlocksFilter,&partialSums[i]);
+    	finalize.push_back(tmp);
+    }
 
     compute(finalize);
     double localSum[19], globalSum[19];
