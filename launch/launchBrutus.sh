@@ -2,9 +2,16 @@
 SETTINGSNAME=$1
 BASEPATH=/cluster/scratch_xp/public/novatig/CubismUP3D/
 
+if [ $# -lt 2 ] ; then
+    WCLOCK=12:00
+    echo "Setting WCLOCK to ${WCLOCK}"
+else
+    WCLOCK=$2
+fi
+
 INTERACTIVE=0
-if [ $# -gt 1 ] ; then
-    if [ "${2}" = "node" ]; then
+if [ $# -gt 2 ] ; then
+    if [ "${3}" = "node" ]; then
         echo "Running on current node"
         INTERACTIVE=1
     fi
@@ -20,6 +27,7 @@ NPROCESSORS=$((${NNODE}*48))
 FOLDER=${BASEPATH}${BASENAME}
 mkdir -p ${FOLDER}
 
+cp $SETTINGSNAME ${FOLDER}/settings.sh
 cp ${FFACTORY} ${FOLDER}/factory
 cp ../makefiles/simulation ${FOLDER}
 cp launchBrutus.sh ${FOLDER}
@@ -34,7 +42,7 @@ if [ $INTERACTIVE -eq 1 ] ; then
    echo $OPTIONS > settings.txt
    mpirun -np ${NNODE} -ppn 1 ./simulation ${OPTIONS}
 else
-    bsub -n ${NPROCESSORS} -R span[ptile=48] -W 12:00 -J ${BASENAME} < run.sh 
+    bsub -n ${NPROCESSORS} -R span[ptile=48] -W ${WCLOCK} -J ${BASENAME} < run.sh 
 fi
 
 #cd $CURRDIR
