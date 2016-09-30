@@ -1,7 +1,3 @@
-#CPPFLAGS += -D_VTK62_
-vtk-inc = /cluster/home/cconti/libraries/VTK_5.10.1_gcc4.8.2/include/vtk-5.10/
-vtk-lib = /cluster/home/cconti/libraries/VTK_5.10.1_gcc4.8.2/lib/vtk-5.10/
-fftw-inc = /cluster/home/cconti/libraries/fftw-3.3.4/include/
-fftw-lib = /cluster/home/cconti/libraries/fftw-3.3.4/lib/
-hypre-inc = /cluster/home/cconti/libraries/hypre-2.10.0b/src/hypre/include/ 
-hypre-lib = /cluster/home/cconti/libraries/hypre-2.10.0b/src/hypre/lib/
+CC=mpic++
+LD=mpic++
+LIBS += -lmpi -lmpicxx -lmpich -lsz
