@@ -34,10 +34,10 @@ class OperatorLoad : public GenericLabOperator
 {
 private:
 	float* const data;
-	const int NX, NY, NZ, NCHANNELS;
+	const int NBX, NBY, NBZ, NX, NY, NZ, NCHANNELS;
 public:
-	OperatorLoad(float* const dump_data, const int NX, const int NY, const int NZ, const Real sliceZ)
-	: data(dump_data), NX(NX), NY(NY), NZ(NZ), NCHANNELS(StreamerHDF5::NCHANNELS)
+	OperatorLoad(float* const dump_data, const int nx, const int ny, const int nz, const Real sliceZ)
+	: data(dump_data), NBX(nx), NBY(ny), NBZ(nz), NX(nx*FluidBlock::sizeX), NY(ny*FluidBlock::sizeY), NZ(nz*FluidBlock::sizeZ), NCHANNELS(StreamerHDF5::NCHANNELS)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
 		stencil_start[0] = -1;
@@ -52,7 +52,11 @@ public:
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
 	{
 		const Real inv2h = .5 / info.h_gridpoint; 
-		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
+		const unsigned int idx[2] = {
+				info.index[0]%NBX,
+				info.index[1]%NBY,
+				info.index[2]%NBZ
+		};
 		StreamerHDF5 streamer(b);
 
 		for(unsigned int iz=0; iz<FluidBlock::sizeZ; iz++)
@@ -104,11 +108,11 @@ class OperatorLoadFlat : public GenericLabOperator
 {
 private:
 	float* const data;
-	const int NX, NY, NCHANNELS;
+	const int NBX, NBY, NX, NY, NCHANNELS;
 	const Real sliceZ;
 public:
-	OperatorLoadFlat(float* const dump_data, const int NX, const int NY, const int NZ, const Real sliceZ)
-	: data(dump_data), NX(NX), NY(NY), NCHANNELS(StreamerHDF5::NCHANNELS), sliceZ(sliceZ)
+	OperatorLoadFlat(float* const dump_data, const int nx, const int ny, const int nz, const Real sliceZ)
+	: data(dump_data), NBX(nx), NBY(ny), NX(nx*FluidBlock::sizeX), NY(ny*FluidBlock::sizeY), NCHANNELS(StreamerHDF5::NCHANNELS), sliceZ(sliceZ)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
 		stencil_start[0] = -1;
@@ -132,7 +136,10 @@ public:
 		if (iz>=FluidBlock::sizeZ) iz=FluidBlock::sizeZ-1;
 		
       const Real inv2h = .5 / info.h_gridpoint;
-		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
+		const unsigned int idx[2] = {
+				info.index[0]%NBX,
+				info.index[1]%NBY
+		};
 		StreamerHDF5 streamer(b);
 
 		for(unsigned int ix=0; ix<FluidBlock::sizeX; ix++) {
@@ -188,9 +195,9 @@ public:
 		const Real maxExt = grid->getBlocksPerDimension(0)*FluidBlock::sizeX;
 		const Real zExt = grid->getBlocksPerDimension(2)*FluidBlock::sizeZ;
 		const Real sliceZ = 0.5*zExt/maxExt;
-		const int NX = grid->getResidentBlocksPerDimension(0)*FluidBlock::sizeX;
-		const int NY = grid->getResidentBlocksPerDimension(1)*FluidBlock::sizeY;
-		const int NZ = grid->getResidentBlocksPerDimension(2)*FluidBlock::sizeZ;
+		const int NX = grid->getResidentBlocksPerDimension(0);
+		const int NY = grid->getResidentBlocksPerDimension(1);
+		const int NZ = grid->getResidentBlocksPerDimension(2);
 		Loader kernel(data,NX,NY,NZ,sliceZ);
 		compute(kernel);
 	}
