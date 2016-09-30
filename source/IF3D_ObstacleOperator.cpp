@@ -32,6 +32,16 @@ struct ForcesOnSkin : public GenericLabOperator
 		stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
 	}
 
+    ForcesOnSkin(const ForcesOnSkin& c):
+    	t(0), NU(c.NU), vel_unit(c.vel_unit), Uinf(c.Uinf), CM(c.CM), measures(c.measures),
+		surfData(c.surface), surfaceBlocksFilter(c.surfaceBlocksFilter), obstacleBlocks(c.obstacleBlocks)
+    {
+    	abort();
+    	stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
+    	stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
+    	stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
+    }
+
     template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
 	{
