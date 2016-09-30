@@ -16,7 +16,7 @@ struct ForcesOnSkin : public GenericLabOperator
 	int stencil_start[3], stencil_end[3];
 	array<Real,19>* const measures;
 	surfacePoints* const surfData;
-    map<int, pair<int, int>>* const surfaceBlocksFilter;
+	const map<int, pair<int, int>>* const surfaceBlocksFilter;
     std::map<int,ObstacleBlock*>* const obstacleBlocks;
 
     ForcesOnSkin(const Real NU, const Real* vel_unit, const Real* Uinf, const Real * CM,
