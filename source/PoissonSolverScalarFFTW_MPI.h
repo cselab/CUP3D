@@ -212,7 +212,7 @@ protected:
 			const BlockInfo info = local_infos[i];
 			BlockType& b = *(BlockType*)local_infos[i].ptrBlock;
 			
-			const size_t offset = bs[2]*info.info[2]+nz_hat*2*(bs[1]*info.info[1]+mybpd[1]*bs[1]*bs[0]*info.info[0]);
+			const size_t offset = bs[2]*info.index[2]+nz_hat*2*(bs[1]*info.index[1]+mybpd[1]*bs[1]*bs[0]*info.index[0]);
 
 			for(int iz=0; iz<BlockType::sizeZ; iz++)
 			for(int iy=0; iy<BlockType::sizeY; iy++)
