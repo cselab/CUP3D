@@ -95,9 +95,8 @@ class PoissonSolverScalarFFTW_MPI : FFTWBase_MPI
 	
 protected:
 	
-	void _setup(Real *& rhs , const size_t nx, const size_t ny, const size_t nz)
+	void _setup(Real *& rhs , const size_t nx, const size_t ny, const size_t nz, MPI_Comm comm)
 	{
-		MPI_Comm comm = grid.getCartComm();
 
 		if (!initialized) {
 			initialized = true;
@@ -130,7 +129,7 @@ protected:
 #pragma omp parallel for
 		for(int i=0; i<N; ++i) {
 			const BlockInfo info = local_infos[i];
-			BlockType& b = *(BlockType*)local_infos.ptrBlock;
+			BlockType& b = *(BlockType*)info.ptrBlock;
 			
 			const size_t offset = bs[2]*info.index[2]+nz_hat*2*(bs[1]*info.index[1]+mybpd[1]*bs[1]*bs[0]*info.index[0]);
 
@@ -210,7 +209,7 @@ protected:
 #pragma omp parallel for
 		for(int i=0; i<N; ++i) {
 			const BlockInfo info = local_infos[i];
-			BlockType& b = *(BlockType*)local_infos[i].ptrBlock;
+			BlockType& b = *(BlockType*)info.ptrBlock;
 			
 			const size_t offset = bs[2]*info.index[2]+nz_hat*2*(bs[1]*info.index[1]+mybpd[1]*bs[1]*bs[0]*info.index[0]);
 
@@ -233,6 +232,7 @@ public:
 			cout << "PoissonSolverScalar_MPI(): Error: TStreamer::channels is " << TStreamer::channels << " (should be 1).\n";
 			abort();
 		}
+		MPI_Comm comm = grid.getCartComm();
 
 		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
 		const size_t gsize[3] = {
@@ -240,7 +240,7 @@ public:
 				grid.getBlocksPerDimension(1)*bs[1],
 				grid.getBlocksPerDimension(2)*bs[2]
 		};
-		_setup(data, gsize[0], gsize[1], gsize[2]);
+		_setup(data, gsize[0], gsize[1], gsize[2],comm);
 	}
 	
 	void solve(TGrid& grid)
