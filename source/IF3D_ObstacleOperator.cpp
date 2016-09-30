@@ -20,9 +20,9 @@ struct ForcesOnSkin : public GenericLabOperator
     std::map<int,ObstacleBlock*>* const obstacleBlocks;
 
     ForcesOnSkin(const Real NU, const Real* vel_unit, const Real* Uinf, const Real * CM,
-    					const map<int,ObstacleBlock*>* const obstacleBlocks,     //to read udef
+    				map<int,ObstacleBlock*>* const obstacleBlocks,    	    //to read udef
 					surfacePoints* const surface, 						    //most info I/O
-					const map<int,pair<int,int>>* const surfaceBlocksFilter, //skip useless blocks
+					const map<int,pair<int,int>>* const surfaceBlocksFilter,//skip useless blocks
 					array<Real,19>* const measures)     	                //additive quantities
 	: t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures), surfData(surface),
 	  surfaceBlocksFilter(surfaceBlocksFilter), obstacleBlocks(obstacleBlocks)
