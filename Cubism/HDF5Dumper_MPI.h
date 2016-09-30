@@ -126,7 +126,8 @@ public:
 		int iz = (int)std::floor((sliceZ-ini[2])/info.h_gridpoint);
 		if (iz<0)   iz=0;
 		if (iz>=FluidBlock::sizeZ) iz=FluidBlock::sizeZ-1;
-
+		info.pos(fin, 0, 0, iz);
+		printf("Z pos = %f\n",fin[2]);
 		const Real inv2h = .5 / info.h_gridpoint;
 		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
 		StreamerHDF5 streamer(b);
@@ -310,11 +311,10 @@ void DumpHDF5_MPI(FluidGridMPI &grid, const int iCounter, const string f_name, c
 #endif
 }
 
-template<typename TGrid, typename Streamer>
-void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, const string dump_path=".")
+void DumpHDF5flat_MPI(FluidGridMPI &grid, const Real absTime, const string f_name, const string dump_path=".")
 {
 #ifdef _USE_HDF_
-	typedef typename TGrid::BlockType B;
+	typedef typename FluidGridMPI::BlockType B;
 	int rank;
 	char filename[256];
 	herr_t status;
@@ -388,7 +388,8 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 		fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
 		fprintf(xmf, " <Domain>\n");
 		fprintf(xmf, "   <Grid GridType=\"Uniform\">\n");
-		fprintf(xmf, "     <Time Value=\"%05d\"/>\n", iCounter);
+		//fprintf(xmf, "     <Time Value=\"%05d\"/>\n", iCounter);
+		fprintf(xmf, "     <Time Value=\"%e\"/>\n", absTime);
 		fprintf(xmf, "     <Topology TopologyType=\"3DCORECTMesh\" Dimensions=\"%d %d %d\"/>\n", (int)dims[0], (int)dims[1], (int)dims[2]);
 		fprintf(xmf, "     <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n");
 		fprintf(xmf, "       <DataItem Name=\"Origin\" Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
@@ -398,7 +399,7 @@ void DumpHDF5flat_MPI(TGrid &grid, const int iCounter, const string f_name, cons
 		fprintf(xmf, "        %e %e %e\n", grid.getH(), grid.getH(), grid.getH());
 		fprintf(xmf, "       </DataItem>\n");
 		fprintf(xmf, "     </Geometry>\n");
-		fprintf(xmf, "     <Attribute Name=\"data\" AttributeType=\"%s\" Center=\"Node\">\n", Streamer::getAttributeName());
+		fprintf(xmf, "     <Attribute Name=\"data\" AttributeType=\"%s\" Center=\"Node\">\n", StreamerHDF5::getAttributeName());
 		fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", (int)dims[0], (int)dims[1], (int)dims[2], (int)dims[3]);
 		fprintf(xmf, "        %s:/data\n",(f_name+".h5").c_str());
 		fprintf(xmf, "       </DataItem>\n");
