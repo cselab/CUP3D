@@ -49,7 +49,7 @@ ifneq "$(findstring euler,$(shell hostname))" ""
 	include make.euler
 endif
 
-CPPFLAGS += -std=c++11 -fopenmp -fpermissive
+CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
 CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/
 CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
