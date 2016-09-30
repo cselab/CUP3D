@@ -1,34 +1,9 @@
-CC=/cluster/home/mavt/chatzidp/usr/mpich3/bin/mpic++
-LD=/cluster/home/mavt/chatzidp/usr/mpich3/bin/mpic++
-vtk-inc=/cluster/work/infk/cconti/VTK5.8_gcc/include/vtk-5.8/
-vtk-lib=/cluster/work/infk/cconti/VTK5.8_gcc/lib/vtk-5.8/
-fftw-inc=/cluster/home03/mavt/novatig/fftw-3.3.5/include/
-fftw-lib=/cluster/home03/mavt/novatig/fftw-3.3.5/lib/
-hypre-inc=/cluster/work/infk/cconti/hypre-2.10.0b/src/hypre/include
-hypre-lib=/cluster/work/infk/cconti/hypre-2.10.0b/src/hypre/lib 
-hdf-inc=/cluster/home03/mavt/novatig/hdf5-1.8.17/include
-hdf-lib=/cluster/home03/mavt/novatig/hdf5-1.8.17/lib
-lz4-inc=/cluster/home03/mavt/novatig/lz4/
-lz4-lib=/cluster/home03/mavt/novatig/lz4/
+CC=mpic++
+LD=mpic++
 
-#fftw-inc = /cluster/apps/fftw/3.3.3/x86_64/gcc_4.8.2/openmpi_1.6.5/include/
-#fftw-lib = /cluster/apps/fftw/3.3.3/x86_64/gcc_4.8.2/openmpi_1.6.5/lib64/
-#hdf-inc = /cluster/apps/hdf5/1.8.12/x86_64/gcc_4.8.2/openmpi_1.6.5/include
-#hdf-lib = /cluster/apps/hdf5/1.8.12/x86_64/gcc_4.8.2/openmpi_1.6.5/lib
+LIBS += -lmpi -lmpicxx -lmpich
+CPPFLAGS += -I/cluster/home03/mavt/novatig/fftw-3.3.5/mvapich2.2.1/${_MY_CC_}/include/
+LIBS += -L/cluster/home03/mavt/novatig/fftw-3.3.5/mvapich2.2.1/${_MY_CC_}/lib/
+CPPFLAGS += -I/cluster/home03/mavt/novatig/hdf5-1.8.17/mvapich2.2.1/${_MY_CC_}/include/
+LIBS += -L/cluster/home03/mavt/novatig/hdf5-1.8.17/mvapich2.2.1/${_MY_CC_}/lib/
 
-export LD_LIBRARY_PATH=/cluster/home/mavt/chatzidp/usr/mpich3/lib/:$LD_LIBRARY_PATH
-#export PATH=/cluster/home/mavt/chatzidp/usr/mpich3/bin/:$PATH
-LIBS+= -L/cluster/home/mavt/chatzidp/usr/mpich3/lib
-CPPFLAGS+= -I/cluster/home/mavt/chatzidp/usr/mpich3/include
-
-
-
-#open_mpi:
-#CC = g++
-#LD =g++
-#LIBS += -L/cluster/apps/openmpi/1.6.5/x86_64/gcc_4.9.2/lib -lmpi -lmpi_cxx
-#CPPFLAGS+= -I/cluster/apps/openmpi/1.6.5/x86_64/gcc_4.9.2/include
-#hdf-inc = /cluster/apps/hdf5/1.8.12/x86_64/gcc_4.9.2/openmpi_1.6.5/include
-#hdf-lib = /cluster/apps/hdf5/1.8.12/x86_64/gcc_4.9.2/openmpi_1.6.5/lib
-#fftw-inc = /cluster/home03/mavt/novatig/fftw-3.3.5/build_with_openmpi/include/
-#fftw-lib = /cluster/home03/mavt/novatig/fftw-3.3.5/build_with_openmpi/lib/

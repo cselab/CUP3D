@@ -12,6 +12,7 @@
 //#include <cassert>
 
 //#define BBURST 1
+#include <stdexcept>
 #include <sstream>
 #include <cmath>
 #include <cstdio>
@@ -41,7 +42,7 @@ typedef float Real;
 #include <SerializerIO_ImageVTK.h>
 #endif
 //#include <HDF5Dumper_MPI.h>
-#include <ZBinDumper_MPI.h>
+//#include <ZBinDumper_MPI.h>
 #include <BlockLab.h>
 #include <BlockLabMPI.h>
 #include <Profiler.h>

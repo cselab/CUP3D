@@ -34,15 +34,6 @@ ifeq "$(rk2)" "true"
 	CPPFLAGS += -D_RK2_
 endif
 
-vtk-inc ?=
-vtk-lib ?=
-fftw-inc ?=
-fftw-lib ?=
-hdf-inc ?=
-hdf-lib ?=
-lz4-inc ?=
-lz4-lib ?=
-
 # needed in order to compile on nodes
 # include make.daint
 
@@ -60,7 +51,7 @@ endif
 
 CPPFLAGS += -std=c++11 -fopenmp -fpermissive
 CPPFLAGS += -DNTHREADS=$(nthreads)
-CPPFLAGS += -I../source/ -I../Cubism/ -I$(fftw-inc)
+CPPFLAGS += -I../source/ -I../Cubism/
 CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
@@ -89,18 +80,18 @@ LIBS +=	-L$(vtk-lib) \
 endif
 
 ifeq "$(hdf)" "true"
-	CPPFLAGS += -D_USE_HDF_ -I$(hdf-inc)
-	LIBS += -L$(hdf-lib) -lhdf5
+	CPPFLAGS += -D_USE_HDF_ 
+	LIBS += -lhdf5
 else
-	CPPFLAGS += -D_USE_LZ4_ -I$(lz4-inc) -I$(hdf-inc)
-	LIBS += -L$(lz4-lib) -L$(hdf-lib) -lhdf5
+	CPPFLAGS += -D_USE_LZ4_ 
+	LIBS += -lhdf5
 endif
 
 ifeq "$(precision)" "single"
-	LIBS += -L$(fftw-lib) -lfftw3f -lfftw3f_threads -lfftw3f_mpi
+	LIBS += -lfftw3f -lfftw3f_threads -lfftw3f_mpi
 endif
 ifeq "$(precision)" "double"
-	LIBS += -L$(fftw-lib) -lfftw3 -lfftw3_threads -lfftw3_mpi
+	LIBS += -lfftw3 -lfftw3_threads -lfftw3_mpi
 endif 
 
 LIBS += -L../tools/fpzip/lib -lfpzip
@@ -111,7 +102,8 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS = GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_CarlingFishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o main.o
+OBJECTS = PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_CarlingFishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o main.o
+#GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 VPATH := $(SRC_DIR):$(CUBISM_DIR)
 

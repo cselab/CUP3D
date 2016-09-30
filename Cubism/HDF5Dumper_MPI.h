@@ -126,9 +126,8 @@ public:
 		int iz = (int)std::floor((sliceZ-ini[2])/info.h_gridpoint);
 		if (iz<0)   iz=0;
 		if (iz>=FluidBlock::sizeZ) iz=FluidBlock::sizeZ-1;
-		info.pos(fin, 0, 0, iz);
-		printf("Z pos = %f\n",fin[2]);
-		const Real inv2h = .5 / info.h_gridpoint;
+		
+      const Real inv2h = .5 / info.h_gridpoint;
 		const unsigned int idx[3] = {info.indexLocal[0], info.indexLocal[1], info.indexLocal[2]};
 		StreamerHDF5 streamer(b);
 
@@ -332,7 +331,7 @@ void DumpHDF5flat_MPI(FluidGridMPI &grid, const Real absTime, const string f_nam
 	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*eX;
 	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*eY;
 	const unsigned int NZ = 1;
-	static const unsigned int NCHANNELS = Streamer::NCHANNELS;
+	static const unsigned int NCHANNELS = StreamerHDF5::NCHANNELS;
 	float* array_all = new float[NX * NY * NCHANNELS];
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 
