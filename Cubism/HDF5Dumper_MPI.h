@@ -634,7 +634,7 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 			const int gx = idx[0]*B::sizeX + ix;
 			const int gy = idx[1]*B::sizeY + iy;
 			const int gz = idx[2]*B::sizeZ + iz;
-			Real * const ptr_input = array_all + NCHANNELS*(gx + NX * (gy + NY * gz));
+			float * const ptr_input = array_all + NCHANNELS*(gx + NX * (gy + NY * gz));
 			Real input[NCHANNELS];
 			for(int i=0; i<NCHANNELS; ++i) input[i] = (Real)ptr_input[i];
 			streamer.operate(input, ix, iy, iz);
