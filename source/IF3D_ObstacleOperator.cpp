@@ -34,7 +34,7 @@ struct ForcesOnSkin : public GenericLabOperator
 
     ForcesOnSkin(const ForcesOnSkin& c):
     	t(0), NU(c.NU), vel_unit(c.vel_unit), Uinf(c.Uinf), CM(c.CM), measures(c.measures),
-		surfData(c.surface), surfaceBlocksFilter(c.surfaceBlocksFilter), obstacleBlocks(c.obstacleBlocks)
+		surfData(c.surfData), surfaceBlocksFilter(c.surfaceBlocksFilter), obstacleBlocks(c.obstacleBlocks)
     {
     	abort();
     	stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
