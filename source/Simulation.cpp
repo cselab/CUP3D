@@ -103,7 +103,7 @@ void Simulation::setupOperators()
     pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
     pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
     pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
-
+    pipeline.push_back(new CoordinatorFadeOut(grid));
     if(rank==0) {
     	cout << "Coordinator/Operator ordering:\n";
     	for (int c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;
