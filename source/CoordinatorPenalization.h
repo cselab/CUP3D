@@ -60,6 +60,11 @@ struct PenalizationObstacleVisitor : ObstacleVisitor
     	 } else {
     		 obstacle->computeVelocities(uInf);
     	 }
+    	 {
+    		 Real dummy[3];
+    		 obstacle->getTranslationVelocity(dummy);
+    		 printf("uInf = [%f %f %f], u obst = [%f %f %f]\n",uInf[0],uInf[1],uInf[2],dummy[0],dummy[1],dummy[2]);
+    	 }
 
 #pragma omp parallel
          {

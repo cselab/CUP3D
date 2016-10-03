@@ -709,7 +709,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const Real time, const R
     myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
 
 #ifndef NDEBUG
-    {/**/
+    {
         Real dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
         // check that things are zero
         const Real volume_internal_check = myFish->integrateLinearMomentum(dummy_CoM_internal,dummy_vCoM_internal);
@@ -756,12 +756,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const Real time, const R
         for(int i=0;i<Nsegments;++i) {
             const int next_idx = (i+1)*(Nm-1)/Nsegments;
             const int idx = i * (Nm-1)/Nsegments;
-            // find bounding box based on this
-            Real bbox[3][2] = {
-                {std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()},
-                {std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()},
-                {std::numeric_limits<Real>::max(), std::numeric_limits<Real>::lowest()}
-            };
+
             for(int ss=idx; ss<=next_idx; ++ss) {
                 const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
                 						myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
@@ -882,29 +877,6 @@ void IF3D_CarlingFishOperator::create(const int step_id,const Real time, const R
         CoM_interpolated[2]=totX[3]/totX[0];
 
         _makeDefVelocitiesMomentumFree(CoM_interpolated);
-
-        /*
-#ifndef NDEBUG
-        {
-		ComputeAll computeall(vInfo,grid.getBlockCollection(),CoM_interpolated,obstacleBlocks);
-		tbb::parallel_reduce(blocked_range<int>(0,vInfo.size(),1),computeall);
-
-		std::cout << computeall.properties.linearMomentum[0] << std::endl;
-		std::cout << computeall.properties.linearMomentum[1] << std::endl;
-		std::cout << computeall.properties.linearMomentum[2] << std::endl;
-		std::cout << computeall.properties.angularMomentum[0] << std::endl;
-		std::cout << computeall.properties.angularMomentum[1] << std::endl;
-		std::cout << computeall.properties.angularMomentum[2] << std::endl;
-
-		assert(std::abs(computeall.properties.linearMomentum[0])<std::numeric_limits<Real>::epsilon());
-		assert(std::abs(computeall.properties.linearMomentum[1])<std::numeric_limits<Real>::epsilon());
-		assert(std::abs(computeall.properties.linearMomentum[2])<std::numeric_limits<Real>::epsilon());
-		assert(std::abs(computeall.properties.angularMomentum[0])<std::numeric_limits<Real>::epsilon());
-		assert(std::abs(computeall.properties.angularMomentum[1])<std::numeric_limits<Real>::epsilon());
-		assert(std::abs(computeall.properties.angularMomentum[2])<std::numeric_limits<Real>::epsilon());
-        }
-#endif
-        */
     }
 }
 
