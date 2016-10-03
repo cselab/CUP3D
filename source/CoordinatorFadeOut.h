@@ -6,23 +6,19 @@
 //  Copyright (c) 2015 ETHZ. All rights reserved.
 //
 
-#ifndef CubismUP_3D_CoordinatorPenalization_h
-#define CubismUP_3D_CoordinatorPenalization_h
+#ifndef CubismUP_3D_CoordinatorFadeOut_h
+#define CubismUP_3D_CoordinatorFadeOut_h
 
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
-#include "IF3D_ObstacleVector.h"
 
 class OperatorFadeOut : public GenericOperator
 {
 private:
 	const Real extent[3];
 	const int buffer;
-public:
-	OperatorFadeOut(const int buffer, const Real extent[3])
-	: extent{extent[0],extent[1],extent[2]}, buffer(buffer) {}
-
-	inline bool _is_touching(const BlockInfo& info, const Real h) const
+	
+   inline bool _is_touching(const BlockInfo& info, const Real h) const
 	{
 		Real max_pos[3],min_pos[3];
 		info.pos(min_pos, 0, 0, 0);
@@ -36,7 +32,11 @@ public:
 				( max_pos[2]>(extent[2]-(2+buffer)*h ) ) ;
 	}
 
-	void operator()(const BlockInfo& info, FluidBlock& block) const
+public:
+	OperatorFadeOut(const int buffer, const Real extent[3])
+	: extent{extent[0],extent[1],extent[2]}, buffer(buffer) {}
+
+	void operator()(const BlockInfo& info, FluidBlock& b) const
 	{
 		const Real h = info.h_gridpoint;
 		if(_is_touching(info,h))
@@ -80,7 +80,7 @@ public:
 		check((string)"FadeOut - start");
 
 		const int N = vInfo.size();
-		const Real h = grid->getH()
+		const Real h = grid->getH();
 		const Real ext[3] = {
 				h*grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
 				h*grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
