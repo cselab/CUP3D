@@ -214,7 +214,7 @@ public:
             // remaining integral done with composite trapezoidal rule
             // minimize rhs evaluations --> do first and last point separately
             Real _vol(0), _cmx(0), _cmy(0), _lmx(0), _lmy(0);
-#pragma omp parallel for reduction(+:_vol,_cmx,_cmy,_lmx,lmy)
+#pragma omp parallel for reduction(+:_vol,_cmx,_cmy,_lmx,_lmy)
             for(int i=0;i<Nm;++i) {
                 const Real ds = (i==0) ? rS[1]-rS[0] :
                 		((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
