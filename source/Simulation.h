@@ -24,7 +24,7 @@
 #include "CoordinatorPenalization.h"
 #include "CoordinatorComputeShape.h"
 #include "CoordinatorPressure.h"
-
+#include "CoordinatorFadeOut.h"
 #include "IF3D_ObstacleVector.h"
 #include "IF3D_ObstacleFactory.h"
 //#include "IF3D_StefanFishOperator.h"
