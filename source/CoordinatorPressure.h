@@ -50,6 +50,138 @@ struct PressureObstacleVisitor : ObstacleVisitor
      }
 };
 
+struct PressurePenaltyVisitor : ObstacleVisitor
+{
+	FluidGridMPI * grid;
+    const Real dt, lambda;
+    Real * const uInf;
+    //Real ext_X, ext_Y, ext_Z;
+    vector<BlockInfo> vInfo;
+
+    PressurePenaltyVisitor(FluidGridMPI * grid, const Real dt, const Real lambda, Real* const uInf)
+    : grid(grid), dt(dt), lambda(lambda), uInf(uInf)
+    {
+        vInfo = grid->getBlocksInfo();
+        /*
+        const Real extent = grid->maxextent;
+        const unsigned int maxbpd = max(grid->NX*FluidBlock::sizeX,
+        							max(grid->NY*FluidBlock::sizeY,
+        								grid->NZ*FluidBlock::sizeZ));
+        const Real scale[3] = {
+        		(Real)(grid->NX*FluidBlock::sizeX)/(Real)maxbpd,
+        		(Real)(grid->NY*FluidBlock::sizeY)/(Real)maxbpd,
+        		(Real)(grid->NZ*FluidBlock::sizeZ)/(Real)maxbpd
+        };
+        ext_X = scale[0]*extent;
+        ext_Y = scale[1]*extent;
+        ext_Z = scale[2]*extent;
+        */
+    }
+
+     void visit(IF3D_ObstacleOperator* const obstacle)
+     {
+
+#pragma omp parallel
+         {
+            const std::map<int, ObstacleBlock*> obstblocks = obstacle->getObstacleBlocks();
+            Real uBody[3], omegaBody[3], centerOfMass[3];
+            obstacle->getCenterOfMass(centerOfMass);
+            obstacle->getTranslationVelocity(uBody);
+            obstacle->getAngularVelocity(omegaBody);
+            /*
+			#pragma omp master
+            printf("%f %f %f %f %f %f %f %f %f %f %f %f\n",
+            		uBody[0],uBody[1],uBody[2],omegaBody[0],omegaBody[1],omegaBody[2],
+            		centerOfMass[0],centerOfMass[1],centerOfMass[2],uInf[0],uInf[1],uInf[2]);
+			*/
+#pragma omp for schedule(static)
+            for(int i=0; i<vInfo.size(); i++) {
+            	BlockInfo info = vInfo[i];
+            	const auto pos = obstblocks.find(info.blockID);
+            	if(pos == obstblocks.end()) continue;
+            	FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+
+            	for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+				if (pos->second->chi[iz][iy][ix] > 0) {
+					Real p[3];
+					info.pos(p, ix, iy, iz);
+					p[0]-=centerOfMass[0];
+					p[1]-=centerOfMass[1];
+					p[2]-=centerOfMass[2];
+					const Real lambdaChi  = lambda * pos->second->chi[iz][iy][ix];
+					const Real object_UR[3] = {
+							omegaBody[1]*p[2]-omegaBody[2]*p[1],
+							omegaBody[2]*p[0]-omegaBody[0]*p[2],
+							omegaBody[0]*p[1]-omegaBody[1]*p[0]
+					};
+					const Real object_UDEF[3] = {
+							pos->second->udef[iz][iy][ix][0],
+							pos->second->udef[iz][iy][ix][1],
+							pos->second->udef[iz][iy][ix][2]
+					};
+					const Real U_TOT[3] = {
+							uBody[0]+object_UR[0]+object_UDEF[0]-uInf[0],
+							uBody[1]+object_UR[1]+object_UDEF[1]-uInf[1],
+							uBody[2]+object_UR[2]+object_UDEF[2]-uInf[2]
+					};
+    				b(ix,iy,iz).tmpU += lambdaChi*(U_TOT[0]-b(ix,iy,iz).u);
+    				b(ix,iy,iz).tmpV += lambdaChi*(U_TOT[1]-b(ix,iy,iz).v);
+    				b(ix,iy,iz).tmpW += lambdaChi*(U_TOT[2]-b(ix,iy,iz).v);
+				}
+             }
+         }
+     }
+};
+
+class PressRHSOperator : public GenericLabOperator
+{
+private:
+    double dt;
+
+public:
+    PressRHSOperator(double dt) : dt(dt)
+    {
+    	stencil = StencilInfo(-1,-1,-1, 2,2,2,false,6,0,1,2,5,6,7);
+        stencil_start[0] = -1;
+        stencil_start[1] = -1;
+        stencil_start[2] = -1;
+        stencil_end[0] = 2;
+        stencil_end[1] = 2;
+        stencil_end[2] = 2;
+    }
+
+    template <typename Lab, typename BlockType>
+    void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+    {
+    	const Real fac1 = 0.5/(info.h_gridpoint);
+    	const Real fac2 = .25/(info.h_gridpoint*info.h_gridpoint);
+    	for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    	for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+			const FluidElement& phiW = lab(ix-1,iy  ,iz  );
+			const FluidElement& phiE = lab(ix+1,iy  ,iz  );
+			const FluidElement& phiS = lab(ix  ,iy-1,iz  );
+			const FluidElement& phiN = lab(ix  ,iy+1,iz  );
+			const FluidElement& phiF = lab(ix  ,iy  ,iz-1);
+			const FluidElement& phiB = lab(ix  ,iy  ,iz+1);
+			const Real dudx = (phiE.u - phiW.u);
+			const Real dudy = (phiN.u - phiS.u);
+			const Real dudz = (phiB.u - phiF.u);
+			const Real dvdx = (phiE.v - phiW.v);
+			const Real dvdy = (phiN.v - phiS.v);
+			const Real dvdz = (phiB.v - phiF.v);
+			const Real dwdx = (phiE.w - phiW.w);
+			const Real dwdy = (phiN.w - phiS.w);
+			const Real dwdz = (phiB.w - phiF.w);
+			const Real divPen = phiE.tmpU-phiW.tmpU+phiN.tmpV-phiS.tmpV+phiB.tmpW-phiF.tmpW;
+			const Real contr = dudx*dudx+dvdy*dvdy+dwdz*dwdz+2*(dudy*dvdx+dudz*dwdx+dvdz*dwdy);
+			o(ix,iy,iz).p = fac1*divPen - fac2*contr;
+		}
+    }
+};
+
 class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 {
 private:
@@ -164,7 +296,6 @@ public:
 #pragma omp parallel
 		{
 			const int N = vInfo.size();
-
 #pragma omp for schedule(static)
 			for(int i=0; i<vInfo.size(); i++) {
 				BlockInfo info = vInfo[i];

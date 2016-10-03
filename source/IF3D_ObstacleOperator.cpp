@@ -194,7 +194,9 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3], Real ang_mo
 void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
 {
 	_computeUdefMoments(transVel_correction, angVel_correction, CoM);
-    printf("Correction of lin: %f %f ang: %f\n", transVel_correction[0], transVel_correction[1], angVel_correction[2]);
+    printf("Correction of: lin mom [%f %f %f] ang mom [%f %f %f]\n",
+    		transVel_correction[0], transVel_correction[1], transVel_correction[2],
+			angVel_correction[0], angVel_correction[1], angVel_correction[2]);
 
 #pragma omp parallel for schedule(static)
     for(int i=0; i<vInfo.size(); i++) {
@@ -224,6 +226,8 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
 #ifndef NDEBUG
     Real dummy_ang[3], dummy_lin[3];
     _computeUdefMoments(dummy_lin, dummy_ang, CoM);
+    printf("Momenta post correction: lin [%f %f %f], ang [%f %f %f]\n",
+    		dummy_lin[0], dummy_lin[1], dummy_lin[2], dummy_ang[0], dummy_ang[1], dummy_ang[2]);
 #endif
 }
 

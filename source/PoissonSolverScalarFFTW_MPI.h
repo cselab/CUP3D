@@ -117,9 +117,8 @@ protected:
 	void _cub2fftw(TGrid& grid, Real * out, const size_t nx, const size_t ny, const size_t nz, const size_t nz_hat) const
 	{
 		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
-
 		vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
-		        const size_t N = local_infos.size();
+		const size_t N = local_infos.size();
 		const size_t mybpd[3] = {
 				static_cast<size_t>(grid.getResidentBlocksPerDimension(0)),
 				static_cast<size_t>(grid.getResidentBlocksPerDimension(1)),
@@ -143,6 +142,34 @@ protected:
 		}
 	}
 	
+	void _fftw2cub(Real * out, TGrid& grid, const size_t nx, const size_t ny, const size_t nz, const size_t nz_hat) const
+	{
+		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
+		vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
+		const size_t N = local_infos.size();
+		const size_t mybpd[3] = {
+				grid.getResidentBlocksPerDimension(0),
+				grid.getResidentBlocksPerDimension(1),
+				grid.getResidentBlocksPerDimension(2)
+		};
+
+#pragma omp parallel for
+		for(int i=0; i<N; ++i) {
+			const BlockInfo info = local_infos[i];
+			BlockType& b = *(BlockType*)info.ptrBlock;
+
+			const size_t offset = bs[2]*info.index[2]+nz_hat*2*(bs[1]*info.index[1]+mybpd[1]*bs[1]*bs[0]*info.index[0]);
+
+			for(int iz=0; iz<BlockType::sizeZ; iz++)
+			for(int iy=0; iy<BlockType::sizeY; iy++)
+			for(int ix=0; ix<BlockType::sizeX; ix++) {
+				const size_t src_index = offset + iz + 2*nz_hat*( iy + BlockType::sizeY*mybpd[1]*ix );
+				assert(src_index>=0 && src_index<nx*ny*nz_hat*2);
+				TStreamer::operate(&out[src_index], b.data[iz][iy][ix]);
+			}
+		}
+	}
+
 	void _solve(mycomplex * in_out, const size_t nx, const size_t ny, const size_t nz, const size_t nz_hat, const Real norm_factor, const Real h)
 	{
 #if 0
@@ -193,34 +220,6 @@ protected:
 		
 		//this is sparta!
 		if (local_1_start == 0) in_out[0][0] = in_out[0][1] = 0;
-	}
-	
-	void _fftw2cub(Real * out, TGrid& grid, const size_t nx, const size_t ny, const size_t nz, const size_t nz_hat) const
-	{
-		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
-		vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
-		const size_t N = local_infos.size();
-		const size_t mybpd[3] = {
-				grid.getResidentBlocksPerDimension(0),
-				grid.getResidentBlocksPerDimension(1),
-				grid.getResidentBlocksPerDimension(2)
-		};
-		
-#pragma omp parallel for
-		for(int i=0; i<N; ++i) {
-			const BlockInfo info = local_infos[i];
-			BlockType& b = *(BlockType*)info.ptrBlock;
-			
-			const size_t offset = bs[2]*info.index[2]+nz_hat*2*(bs[1]*info.index[1]+mybpd[1]*bs[1]*bs[0]*info.index[0]);
-
-			for(int iz=0; iz<BlockType::sizeZ; iz++)
-			for(int iy=0; iy<BlockType::sizeY; iy++)
-			for(int ix=0; ix<BlockType::sizeX; ix++) {
-				const size_t src_index = offset + iz + 2*nz_hat*( iy + BlockType::sizeY*mybpd[1]*ix );
-				assert(src_index>=0 && src_index<nx*ny*nz_hat*2);
-				TStreamer::operate(&out[src_index], b.data[iz][iy][ix]);
-			}
-		}
 	}
 	
 public:

@@ -49,7 +49,7 @@ public:
 			for (int iy=0; iy<FluidBlock::sizeY; ++iy)
 				for (int ix=0; ix<FluidBlock::sizeX; ++ix)
 				{
-					const FluidElement& phi   = lab(ix,iy,iz);
+					const FluidElement& phi   = lab(ix  ,iy  ,iz  );
 					const FluidElement& phiW  = lab(ix-1,iy  ,iz  );
 					const FluidElement& phiE  = lab(ix+1,iy  ,iz  );
 					const FluidElement& phiS  = lab(ix  ,iy-1,iz  );
@@ -66,37 +66,30 @@ public:
 					const Real u3 = 3*phi.u;
 					const Real v3 = 3*phi.v;
 					const Real w3 = 3*phi.w;
-
-					const Real dudx[2] = {  2*phiE.u + u3 - 6*phiW.u +   phiW2.u,
-										   -  phiE2.u + 6*phiE.u - u3 - 2*phiW.u};
-
-					const Real dudy[2] = {  2*phiN.u + u3 - 6*phiS.u +   phiS2.u,
-										   -  phiN2.u + 6*phiN.u - u3 - 2*phiS.u};
-
-					const Real dudz[2] = {  2*phiB.u + u3 - 6*phiF.u +   phiF2.u,
-										   -  phiB2.u + 6*phiB.u - u3 - 2*phiF.u};
-
-					const Real dvdx[2] = {  2*phiE.v + v3 - 6*phiW.v +   phiW2.v,
-										   -  phiE2.v + 6*phiE.v - v3 - 2*phiW.v};
-
-					const Real dvdy[2] = {  2*phiN.v + v3 - 6*phiS.v +   phiS2.v,
-										   -  phiN2.v + 6*phiN.v - v3 - 2*phiS.v};
-
-					const Real dvdz[2] = {  2*phiB.v + v3 - 6*phiF.v +   phiF2.v,
-										   -  phiB2.v + 6*phiB.v - v3 - 2*phiF.v};
-
-					const Real dwdx[2] = {  2*phiE.w + w3 - 6*phiW.w +   phiW2.w,
-										   -  phiE2.w + 6*phiE.w - w3 - 2*phiW.w};
-
-					const Real dwdy[2] = {  2*phiN.w + w3 - 6*phiS.w +   phiS2.w,
-										   -  phiN2.w + 6*phiN.w - w3 - 2*phiS.w};
-
-					const Real dwdz[2] = {  2*phiB.w + w3 - 6*phiF.w +   phiF2.w,
-										   -  phiB2.w + 6*phiB.w - w3 - 2*phiF.w};
-
 					const Real u = phi.u + uInf[0];
 					const Real v = phi.v + uInf[1];
 					const Real w = phi.w + uInf[2];
+
+					const Real dudx[2] = {  2*phiE.u + u3 - 6*phiW.u +   phiW2.u,
+										   -  phiE2.u + 6*phiE.u - u3 - 2*phiW.u};
+					const Real dvdx[2] = {  2*phiE.v + v3 - 6*phiW.v +   phiW2.v,
+										   -  phiE2.v + 6*phiE.v - v3 - 2*phiW.v};
+					const Real dwdx[2] = {  2*phiE.w + w3 - 6*phiW.w +   phiW2.w,
+										   -  phiE2.w + 6*phiE.w - w3 - 2*phiW.w};
+
+					const Real dudy[2] = {  2*phiN.u + u3 - 6*phiS.u +   phiS2.u,
+										   -  phiN2.u + 6*phiN.u - u3 - 2*phiS.u};
+					const Real dvdy[2] = {  2*phiN.v + v3 - 6*phiS.v +   phiS2.v,
+										   -  phiN2.v + 6*phiN.v - v3 - 2*phiS.v};
+					const Real dwdy[2] = {  2*phiN.w + w3 - 6*phiS.w +   phiS2.w,
+										   -  phiN2.w + 6*phiN.w - w3 - 2*phiS.w};
+
+					const Real dudz[2] = {  2*phiB.u + u3 - 6*phiF.u +   phiF2.u,
+										   -  phiB2.u + 6*phiB.u - u3 - 2*phiF.u};
+					const Real dvdz[2] = {  2*phiB.v + v3 - 6*phiF.v +   phiF2.v,
+										   -  phiB2.v + 6*phiB.v - v3 - 2*phiF.v};
+					const Real dwdz[2] = {  2*phiB.w + w3 - 6*phiF.w +   phiF2.w,
+										   -  phiB2.w + 6*phiB.w - w3 - 2*phiF.w};
 
 					const Real maxu = max(u,(Real)0);
 					const Real maxv = max(v,(Real)0);
