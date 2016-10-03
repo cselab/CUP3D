@@ -223,6 +223,7 @@ public:
 			const Real wBdef = lab(ix  ,iy  ,iz+1).tmpW;
 			o(ix,iy,iz).p = factor * (uE - uW + vN - vS + wB - wF
 					-o(ix,iy,iz).chi*(uEdef-uWdef+vNdef-vSdef+wBdef-wFdef));
+			o(ix,iy,iz).chi = o(ix,iy,iz).p;
 		}
 	}
 };

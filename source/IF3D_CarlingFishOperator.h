@@ -170,42 +170,6 @@ namespace Fish
             return 0.25*std::pow(width[idx],3)*height[idx];
         }
 
-        inline void _updateVolumeIntegration(const Real fac1, const Real ds, Real & vol) const
-        {
-            vol+=0.5*fac1*ds;
-        }
-
-        inline void _updateCoMIntegration(const int idx, const Real fac1, const Real fac2, const Real ds, Real CoM[2]) const
-        {
-            CoM[0] += 0.5*(rX[idx]*fac1 + norX[idx]*fac2)*ds;
-            CoM[1] += 0.5*(rY[idx]*fac1 + norY[idx]*fac2)*ds;
-        }
-
-        inline void _updateLinMomIntegration(const int idx, const Real fac1, const Real fac2, const Real ds, Real linMom[2]) const
-        {
-            linMom[0] += 0.5*(vX[idx]*fac1 + vNorX[idx]*fac2)*ds;
-            linMom[1] += 0.5*(vY[idx]*fac1 + vNorY[idx]*fac2)*ds;
-        }
-
-        inline void _updateAngMomIntegration(const int idx, const Real fac1, const Real fac2, const Real fac3, const Real ds, Real & angMom) const
-        {
-            Real tmpSum = 0.0;
-            tmpSum += (rX[idx]*vY[idx] - rY[idx]*vX[idx])*fac1;
-            tmpSum += (rX[idx]*vNorY[idx] - rY[idx]*vNorX[idx] + vY[idx]*norX[idx] - vX[idx]*norY[idx])*fac2;
-            tmpSum += (norX[idx]*vNorY[idx] - norY[idx]*vNorX[idx])*fac3;
-            angMom += 0.5*tmpSum*ds;
-        }
-
-        inline void _updateJIntegration(const int idx, const Real fac1, const Real fac2, const Real fac3, const Real ds, Real & J) const
-        {
-            Real tmpSum = 0.0;
-            tmpSum += (rX[idx]*rX[idx] + rY[idx]*rY[idx])*fac1;
-            tmpSum += 2.0*(rX[idx]*norX[idx] + rY[idx]*norY[idx])*fac2;
-            // tmpSum += (norX[idx]*norX[idx]+norY[idx]*norY[idx])*fac3;
-            tmpSum += fac3;
-            J += 0.5*tmpSum*ds;
-        }
-
 public:
         FishMidlineData(const int Nm, const Real len, const Real Tp, const Real phase, const Real dx_ext):
         	Nm(Nm),length(len),Tperiod(Tp),phaseShift(phase),rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),
@@ -246,48 +210,28 @@ public:
         }
 
         Real integrateLinearMomentum(Real CoM[2], Real vCoM[2])
-        {
-            CoM[0]=0.0;
-            CoM[1]=0.0;
-            vol=0;
-            linMom[0]=linMom[1]=0;
-
-            // already worked out the integrals for r, theta on paper
+        {   // already worked out the integrals for r, theta on paper
             // remaining integral done with composite trapezoidal rule
             // minimize rhs evaluations --> do first and last point separately
-            {
-                const Real ds0 = rS[1]-rS[0];
-                const Real fac1 = _integrationFac1(0);
-                const Real fac2 = _integrationFac2(0);
-                _updateVolumeIntegration(fac1,ds0,vol);
-                _updateCoMIntegration(0, fac1,fac2,ds0,CoM);
-                _updateLinMomIntegration(0, fac1,fac2,ds0,linMom);
-            }
-
-            for(int i=1;i<Nm-1;++i)
-            {
-                const Real ds = rS[i+1]-rS[i-1];
+            Real _vol(0), _cmx(0), _cmy(0), _lmx(0), _lmy(0);
+#pragma omp parallel for reduction(+:_vol,_cmx,_cmy,_lmx,lmy)
+            for(int i=0;i<Nm;++i) {
+                const Real ds = (i==0) ? rS[1]-rS[0] :
+                		((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
                 const Real fac1 = _integrationFac1(i);
                 const Real fac2 = _integrationFac2(i);
-                _updateVolumeIntegration(fac1,ds,vol);
-                _updateCoMIntegration(i, fac1,fac2,ds,CoM);
-                _updateLinMomIntegration(i, fac1,fac2,ds,linMom);
+                _vol += 0.5*fac1*ds;
+                _cmx += 0.5*(rX[i]*fac1 + norX[i]*fac2)*ds;
+                _cmy += 0.5*(rY[i]*fac1 + norY[i]*fac2)*ds;
+                _lmx += 0.5*(vX[i]*fac1 + vNorX[i]*fac2)*ds;
+                _lmy += 0.5*(vY[i]*fac1 + vNorY[i]*fac2)*ds;
             }
 
-            {
-                const Real dse = rS[Nm-1]-rS[Nm-2];
-                const Real fac1 = _integrationFac1(Nm-1);
-                const Real fac2 = _integrationFac2(Nm-1);
-                _updateVolumeIntegration(fac1,dse,vol);
-                _updateCoMIntegration(Nm-1, fac1,fac2,dse,CoM);
-                _updateLinMomIntegration(Nm-1, fac1,fac2,dse,linMom);
-            }
-
-            vol*=M_PI;
-            CoM[0]*=M_PI;
-            CoM[1]*=M_PI;
-            linMom[0]*=M_PI;
-            linMom[1]*=M_PI;
+            vol=_vol*M_PI;
+            CoM[0]=_cmx*M_PI;
+            CoM[1]=_cmy*M_PI;
+            linMom[0]=_lmx*M_PI;
+            linMom[1]=_lmy*M_PI;
 
             assert(vol> std::numeric_limits<Real>::epsilon());
             const Real ivol = 1.0/vol;
@@ -303,42 +247,33 @@ public:
         void integrateAngularMomentum(Real & angVel)
         {
             // assume we have already translated CoM and vCoM to nullify linear momentum
-            J=0;
-            angMom=0;
 
             // already worked out the integrals for r, theta on paper
             // remaining integral done with composite trapezoidal rule
             // minimize rhs evaluations --> do first and last point separately
-            {
-                const Real ds0 = rS[1]-rS[0];
-                const Real fac1 = _integrationFac1(0);
-                const Real fac2 = _integrationFac2(0);
-                const Real fac3 = _integrationFac3(0);
-                _updateJIntegration(0, fac1, fac2, fac3, ds0, J);
-                _updateAngMomIntegration(0, fac1, fac2, fac3, ds0, angMom);
-            }
+            Real _J(0), _am(0);
 
-            for(int i=1;i<Nm-1;++i)
-            {
-                const Real ds = rS[i+1]-rS[i-1];
+            #pragma omp parallel for reduction(+:_J,_am)
+            for(int i=0;i<Nm;++i) {
+            	const Real ds = (i==0) ? rS[1]-rS[0] :
+            			((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
                 const Real fac1 = _integrationFac1(i);
                 const Real fac2 = _integrationFac2(i);
                 const Real fac3 = _integrationFac3(i);
-                _updateJIntegration(i, fac1, fac2, fac3, ds, J);
-                _updateAngMomIntegration(i, fac1, fac2, fac3, ds, angMom);
+                double tmp_J, tmp_M;
+                tmp_M  = (rX[i]*vY[i] - rY[i]*vX[i])*fac1;
+                tmp_M += (rX[i]*vNorY[i] - rY[i]*vNorX[i] + vY[i]*norX[i] - vX[i]*norY[i])*fac2;
+                tmp_M += (norX[i]*vNorY[i] - norY[i]*vNorX[i])*fac3;
+                _am += 0.5*tmp_M*ds;
+                tmp_J  = (rX[i]*rX[i] + rY[i]*rY[i])*fac1;
+                tmp_J += 2.0*(rX[i]*norX[i] + rY[i]*norY[i])*fac2;
+                //tmpSum += (norX[idx]*norX[idx]+norY[idx]*norY[idx])*fac3;
+                tmp_J += fac3;
+                _J += 0.5*tmp_J*ds;
             }
 
-            {
-                const Real dse = rS[Nm-1]-rS[Nm-2];
-                const Real fac1 = _integrationFac1(Nm-1);
-                const Real fac2 = _integrationFac2(Nm-1);
-                const Real fac3 = _integrationFac3(Nm-1);
-                _updateJIntegration(Nm-1, fac1, fac2, fac3, dse, J);
-                _updateAngMomIntegration(Nm-1, fac1, fac2, fac3, dse, angMom);
-            }
-
-            J*=M_PI;
-            angMom*=M_PI;
+            J=_J*M_PI;
+            angMom=_am*M_PI;
             assert(J>std::numeric_limits<Real>::epsilon());
             angVel = angMom/J;
         }

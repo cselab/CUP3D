@@ -17,7 +17,8 @@ struct VolumeSegment_OBB
     Real normalK[3];
     Real w[3]; // halfwidth
     Real c[3]; // center
-    
+
+#if 1==0
     VolumeSegment_OBB(std::pair<int, int> s_range, const Real bbox[3][2])
     : s_range(s_range)
     {
@@ -30,6 +31,7 @@ struct VolumeSegment_OBB
         }
 
     }
+#endif
     
     VolumeSegment_OBB() { }
 
@@ -113,14 +115,6 @@ struct VolumeSegment_OBB
         bool intersects = true;
         Real r;
         {
-        	/*
-        	 * What is this r? dont think of it as scalar product
-        	 * what is the biggest extent along the x direction?
-        	 * sum the projection of each component of the box size on the x direction
-        	 * Does it intercept my grid block?
-        	 * For sure it does not if that maximum extent is less than the block's minimum
-        	 * or if the minimum extent is greater than the block's maximum
-        	 */
             r = w[0]*normalI[0] + w[1]*normalJ[0] + w[2]*normalK[0];
             intersects &= ((c[0]-r <= AABB_c[0] + AABB_w[0]) && (c[0]+r >= AABB_c[0] - AABB_w[0]));
             
@@ -131,18 +125,6 @@ struct VolumeSegment_OBB
             intersects &= ((c[2]-r <= AABB_c[2] + AABB_w[2]) && (c[2]+r >= AABB_c[2] - AABB_w[2]));
         }
         {
-        	/*
-        	 * What is this crap then?
-        	 * NormalI is the vector of the I direction of the box in the frame of ref
-        	 * Now by logic i should be doing this:
-        	 * Is my block intercepting my box?
-        	 * Well for sure it does not if, in the frame of reference of the box
-        	 * the maximum extent of the block is less than the minimum box position
-        	 * or if the min ext is greater than the max box position
-        	 * But then i would have to project the max box extent ...
-        	 * I GIVE UP I THINK THIS IS FUCKED UP
-        	 * However, I can relax this constraint and will only make the computation a bit more expensive.
-        	 */
             //r = AABB_w[0]*normalI[0] + AABB_w[1]*normalI[1] + AABB_w[2]*normalI[2];
             r = AABB_w[0]*normalI[0] + AABB_w[1]*normalJ[0] + AABB_w[2]*normalK[0];
             intersects &= ((AABB_c[0]-r <= c[0] + w[0]) && (AABB_c[0]+r >= c[0] - w[0]));
@@ -310,13 +292,15 @@ struct PutFishOnBlocks
         
         // construct the shape (P2M with min(distance) as kernel) onto defblocks
         for(int i=0;i<vSegments.size();++i) {
-        	for(int ss=std::max(vSegments[i].s_range.first,cfish->iFishStart); ss<=std::min(vSegments[i].s_range.second, cfish->iFishEnd); ++ss)
-        	{
+        	//iterate over segments contained in the vSegm intersecting this block:
+        	const int firstSegm = std::max(vSegments[i].s_range.first,cfish->iFishStart);
+        	const int lastSegm = std::min(vSegments[i].s_range.second, cfish->iFishEnd);
+        	for(int ss=firstSegm; ss<=lastSegm; ++ss) {
         		assert(ss>=cfish->iFishStart && ss<=cfish->iFishEnd);
 
         		// fill chi
-        		const Real offset = cfish->height[ss] > cfish->width[ss] ? 0.5*M_PI : 0.0; // assume width is major axis, else correction
-
+        		// assume width is major axis, else correction:
+        		const Real offset = cfish->height[ss] > cfish->width[ss] ? 0.5*M_PI : 0.0;
         		const Real ell_a = (Real)std::max(cfish->height[ss],cfish->width[ss]);
         		//                    const Real dtheta_target = ell_a == 0 ? 2.0*M_PI : 0.25*info.h[0]/ell_a;
         		// maximum distance between two points is 2*ell_a * sin(theta). set this distance to dx/2 -->
@@ -469,7 +453,6 @@ struct PutFishOnBlocks
 								(int)ap[1],
 								(int)ap[2]
         				};
-
         				// now we P2M
 						const int start[3] = {
 								std::max(0, 0 - iap[0] ),
@@ -493,7 +476,6 @@ struct PutFishOnBlocks
         				}
 
         				const bool isInside = (std::abs(offsetW) < actualWidth) && (std::abs(offsetH) < cfish->height[ss]);
-
         				for(int sz=start[2]; sz<end[2];++sz) {
         					const Real wz = wghts[2][sz];
         					for(int sy=start[1];sy<end[1];++sy) {
@@ -509,17 +491,13 @@ struct PutFishOnBlocks
         							assert(idx[0]>=0 && idx[0]<FluidBlock::sizeX);
         							assert(idx[1]>=0 && idx[1]<FluidBlock::sizeY);
         							assert(idx[2]>=0 && idx[2]<FluidBlock::sizeZ);
-
         							defblock->udef[idx[2]][idx[1]][idx[0]][0] += wxwywz*udef[0];
         							defblock->udef[idx[2]][idx[1]][idx[0]][1] += wxwywz*udef[1];
         							defblock->udef[idx[2]][idx[1]][idx[0]][2] += wxwywz*udef[2];
-
         							b(idx[0],idx[1],idx[2]).tmpU += wxwywz;
         							// set sign for all interior points
 									if( (std::abs(defblock->chi[idx[2]][idx[1]][idx[0]] + 1) < 5*std::numeric_limits<Real>::epsilon()) && isInside)
 										defblock->chi[idx[2]][idx[1]][idx[0]] = 1.0;
-									//printf("%d %d %d %f\n",idx[0],idx[1],idx[2],wxwywz);
-									//printf("%f %f %f %f\n",udef[0],udef[1],udef[2],wxwywz);
         						}
         					}
         				}
@@ -537,7 +515,6 @@ struct PutFishOnBlocks
 				defblock->udef[iz][iy][ix][0] /= normfac;
 				defblock->udef[iz][iy][ix][1] /= normfac;
 				defblock->udef[iz][iy][ix][2] /= normfac;
-				//printf("%f %f %f %f\n",defblock->udef[iz][iy][ix][0],defblock->udef[iz][iy][ix][1],defblock->udef[iz][iy][ix][2],b(ix,iy,iz).tmpU);
 				// change from signed squared distance function to normal sdf
 				b(ix,iy,iz).tmpU = defblock->chi[iz][iy][ix] > 0 ?
 						 	 sqrt( defblock->chi[iz][iy][ix]) :
@@ -715,12 +692,12 @@ void IF3D_CarlingFishOperator::create(const int step_id,const Real time, const R
         const Real volume_internal_check = myFish->integrateLinearMomentum(dummy_CoM_internal,dummy_vCoM_internal);
         myFish->integrateAngularMomentum(dummy_angvel_internal);
         
-        assert(std::abs(dummy_CoM_internal[0])<100*std::numeric_limits<Real>::epsilon());
-        assert(std::abs(dummy_CoM_internal[1])<100*std::numeric_limits<Real>::epsilon());
-        assert(std::abs(myFish->linMom[0])<100*std::numeric_limits<Real>::epsilon());
-        assert(std::abs(myFish->linMom[1])<100*std::numeric_limits<Real>::epsilon());
-        assert(std::abs(myFish->angMom)<100*std::numeric_limits<Real>::epsilon());
-        assert(std::abs(volume_internal - volume_internal_check) < 100*std::numeric_limits<Real>::epsilon());
+        assert(std::abs(dummy_CoM_internal[0])<10*std::numeric_limits<Real>::epsilon());
+        assert(std::abs(dummy_CoM_internal[1])<10*std::numeric_limits<Real>::epsilon());
+        assert(std::abs(myFish->linMom[0])<10*std::numeric_limits<Real>::epsilon());
+        assert(std::abs(myFish->linMom[1])<10*std::numeric_limits<Real>::epsilon());
+        assert(std::abs(myFish->angMom)<10*std::numeric_limits<Real>::epsilon());
+        assert(std::abs(volume_internal - volume_internal_check) < 10*std::numeric_limits<Real>::epsilon());
     }
 #endif
     

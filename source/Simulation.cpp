@@ -127,7 +127,11 @@ void Simulation::_dump(const string append = string())
     //ss << path2file << append << "-" << std::setfill('0') << std::setw(6) << step;
 
     stringstream ssR;
-    ssR<<path4serialization<<"./restart_"<<std::setfill('0')<<std::setw(9)<<step;
+    if (append == string())
+    	ssR<<path4serialization<<"./restart_"<<std::setfill('0')<<std::setw(9)<<step;
+    else
+        ssR<<path4serialization<<"./"<<append<<std::setfill('0')<<std::setw(9)<<step;
+
     if (rank==0) cout << ssR.str() << endl;
 
     if (rank==0) { //rank 0 saves step id and obstacles
@@ -305,12 +309,9 @@ void Simulation::simulate()
             profiler.push_start(pipeline[c]->getName());
             (*pipeline[c])(dt);
             profiler.pop_stop();
-            //Real always = -1.;
-            //_dump(always);
-            //step++;
-        	//cout << pipeline[c]->getName() << " stop" << endl;
+            if(time>2)  _dump(pipeline[c]->getName());
         }
-
+        if(time>2) abort();
         step++;
         time += dt;
         if(rank==0)
