@@ -73,7 +73,7 @@ namespace SphereObstacle
             	const Real h = info.h_gridpoint;
 #if defined(_4thORDER_Towers)
         		const Real inv2h = 1./(12.*h);
-#else if defined(_3rdORDER_Towers)
+#elif defined(_3rdORDER_Towers)
         		const Real inv2h = 1./( 6.*h);
 #else
         		const Real inv2h = 0.5/h;
@@ -153,7 +153,7 @@ namespace SphereObstacle
                             const Real gradHX = inv2h * (-Hplus2X + 8*HplusX - 8*HminuX + Hminu2X);
                             const Real gradHY = inv2h * (-Hplus2Y + 8*HplusY - 8*HminuY + Hminu2Y);
                             const Real gradHZ = inv2h * (-Hplus2Z + 8*HplusZ - 8*HminuZ + Hminu2Z);
-#else if defined(_3rdORDER_Towers)
+#elif defined(_3rdORDER_Towers)
                             const Real I0th= dist < 0 ? 0 : dist;
                             const Real H0th= dist == 0 ? 0.5 : (dist < 0 ? 0 : 1);
                             Real gradUX, gradUY, gradUZ, gradIX, gradIY, gradIZ, gradHX, gradHY, gradHZ;
