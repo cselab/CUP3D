@@ -14,7 +14,7 @@
 #include "IF3D_ObstacleVector.h"
 
 // for schooling: split first compute uinf (comp velocity with uinf = 0) and then penalize
-struct PenalizationObstacleVisitor : ObstacleVisitor
+struct PenalizationObstacleVisitor : public ObstacleVisitor
 {
 	FluidGridMPI * grid;
     const Real dt, lambda;
@@ -63,7 +63,6 @@ struct PenalizationObstacleVisitor : ObstacleVisitor
     	 {
     		 Real dummy[3];
     		 obstacle->getTranslationVelocity(dummy);
-    		 printf("uInf = [%f %f %f], u obst = [%f %f %f]\n",uInf[0],uInf[1],uInf[2],dummy[0],dummy[1],dummy[2]);
     	 }
 
 #pragma omp parallel

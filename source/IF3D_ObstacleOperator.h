@@ -22,8 +22,8 @@ class IF3D_ObstacleVector;
 
 struct ObstacleVisitor
 {
-    virtual void visit(IF3D_ObstacleOperator * obstacle) {}
-    virtual void visit(IF3D_ObstacleVector * obstacle) {}
+    virtual void visit(IF3D_ObstacleOperator* const obstacle) = 0;
+    //virtual void visit(IF3D_ObstacleVector * obstacle) {}
 };
 
 class IF3D_ObstacleOperator
