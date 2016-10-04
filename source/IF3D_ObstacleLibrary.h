@@ -10,6 +10,7 @@
 #define IncompressibleFluids3D_IF3D_ObstacleLibrary_h
 #include <array>
 #include "IF2D_Interpolation1D.h"
+#define 4thORDER
 namespace SphereObstacle
 {
     struct FillBlocks
@@ -29,14 +30,8 @@ namespace SphereObstacle
         }
         
         FillBlocks(const Real radius, const Real max_dx, const Real pos[3]):
-        radius(radius),safe_radius(radius+4*max_dx), sphere_position{pos[0],pos[1],pos[2]}
+        radius(radius),safe_radius(radius+6*max_dx), sphere_position{pos[0],pos[1],pos[2]} //4h should be safe
         {            
-            _find_sphere_box();
-        }
-        
-        FillBlocks(const FillBlocks& c):
-        radius(c.radius),safe_radius(c.safe_radius),sphere_position{c.sphere_position[0],c.sphere_position[1],c.sphere_position[2]}
-        {
             _find_sphere_box();
         }
         
@@ -76,8 +71,11 @@ namespace SphereObstacle
         {
             if(_is_touching(info)) {
             	const Real h = info.h_gridpoint;
+#ifdef 4thORDER
+        		const Real inv2h = 1./(12.*h);
+#else
         		const Real inv2h = 0.5/h;
-        		const Real invh2 = 1/(h*h);
+#endif
         		const Real eps = std::numeric_limits<Real>::epsilon();
 
                 for(int iz=0; iz<FluidBlock::sizeZ; iz++)
@@ -90,12 +88,19 @@ namespace SphereObstacle
                             const Real y = p[1]-sphere_position[1];
                             const Real z = p[2]-sphere_position[2];
                             const Real dist = distanceToSphere(x,y,z);
-
-                            if(dist > +2*h || dist < -2*h) {
+                            /*
+                            const bool in_band= lab(ix,iy,iz)*lab(ix+1,iy,iz) <=0 ||
+												lab(ix,iy,iz)*lab(ix-1,iy,iz) <=0 ||
+												lab(ix,iy,iz)*lab(ix,iy+1,iz) <=0 ||
+												lab(ix,iy,iz)*lab(ix,iy-1,iz) <=0 ||
+												lab(ix,iy,iz)*lab(ix,iy,iz+1) <=0 ||
+												lab(ix,iy,iz)*lab(ix,iy,iz-1) <=0;
+							if(not in_band)
+                             */
+                            if(dist > +3*h || dist < -3*h) { //2 should be safe
                             	const Real H = dist > 0 ? 1.0 : 0.0;
                             	defblock->chi[iz][iy][ix] = H;
                             	b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-                    			//printf("%f %f %f %f %f\n",x,y,z,p[0],p[1],p[2],dist,H);
                             	continue;
                             }
 
@@ -112,31 +117,56 @@ namespace SphereObstacle
                             const Real IminuY = distMy < 0 ? 0 : distMy;
                             const Real IplusZ = distPz < 0 ? 0 : distPz;
                             const Real IminuZ = distMz < 0 ? 0 : distMz;
-
                             const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
                             const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
                             const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
                             const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
                             const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
                             const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
-
+#if 1 //the advantage of having 4th order derivatives is to spread the transition from chi 0 to 1 over 4 points
+                            const Real distP2x= distanceToSphere(x+2*h,y,z);
+                            const Real distM2x= distanceToSphere(x-2*h,y,z);
+                            const Real distP2y= distanceToSphere(x,y+2*h,z);
+                            const Real distM2y= distanceToSphere(x,y-2*h,z);
+                            const Real distP2z= distanceToSphere(x,y,z+2*h);
+                            const Real distM2z= distanceToSphere(x,y,z-2*h);
+                            const Real Iplus2X = distP2x < 0 ? 0 : distP2x;
+                            const Real Iminu2X = distM2x < 0 ? 0 : distM2x;
+                            const Real Iplus2Y = distP2y < 0 ? 0 : distP2y;
+                            const Real Iminu2Y = distM2y < 0 ? 0 : distM2y;
+                            const Real Iplus2Z = distP2z < 0 ? 0 : distP2z;
+                            const Real Iminu2Z = distM2z < 0 ? 0 : distM2z;
+                            const Real Hplus2X = distP2x == 0 ? 0.5 : (distP2x < 0 ? 0 : 1);
+                            const Real Hminu2X = distM2x == 0 ? 0.5 : (distM2x < 0 ? 0 : 1);
+                            const Real Hplus2Y = distP2y == 0 ? 0.5 : (distP2y < 0 ? 0 : 1);
+                            const Real Hminu2Y = distM2y == 0 ? 0.5 : (distM2y < 0 ? 0 : 1);
+                            const Real Hplus2Z = distP2z == 0 ? 0.5 : (distP2z < 0 ? 0 : 1);
+                            const Real Hminu2Z = distM2z == 0 ? 0.5 : (distM2z < 0 ? 0 : 1);
+                            const Real gradUX = inv2h * (-distP2x + 8*distPx - 8*distMx + distM2x);
+                            const Real gradUY = inv2h * (-distP2y + 8*distPy - 8*distMy + distM2y);
+                            const Real gradUZ = inv2h * (-distP2z + 8*distPz - 8*distMz + distM2z);
+							const Real gradIX = inv2h * (-Iplus2X + 8*IplusX - 8*IminuX + Iminu2X);
+                            const Real gradIY = inv2h * (-Iplus2Y + 8*IplusY - 8*IminuY + Iminu2Y);
+                            const Real gradIZ = inv2h * (-Iplus2Z + 8*IplusZ - 8*IminuZ + Iminu2Z);
+                            const Real gradHX = inv2h * (-Hplus2X + 8*HplusX - 8*HminuX + Hminu2X);
+                            const Real gradHY = inv2h * (-Hplus2Y + 8*HplusY - 8*HminuY + Hminu2Y);
+                            const Real gradHZ = inv2h * (-Hplus2Z + 8*HplusZ - 8*HminuZ + Hminu2Z);
+#else
                             const Real gradUX = inv2h * (distPx - distMx);
                             const Real gradUY = inv2h * (distPy - distMy);
                             const Real gradUZ = inv2h * (distPz - distMz);
-                            const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ;
-                            // gradI
 							const Real gradIX = inv2h * (IplusX - IminuX);
                             const Real gradIY = inv2h * (IplusY - IminuY);
                             const Real gradIZ = inv2h * (IplusZ - IminuZ);
-                            const Real numH = gradIX*gradUX+gradIY*gradUY+gradIZ*gradUZ;
-
                             const Real gradHX = inv2h * (HplusX - HminuX);
                             const Real gradHY = inv2h * (HplusY - HminuY);
                             const Real gradHZ = inv2h * (HplusZ - HminuZ);
-                            const Real numD = gradHX*gradUX+gradHY*gradUY+gradHZ*gradUZ;
-
-                            const Real Delta = std::abs(gradUSq)<eps ? numD : numD/gradUSq;
-                            const Real H     = std::abs(gradUSq)<eps ? numH : numH/gradUSq;
+#endif
+                            const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
+                            const Real numH    = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
+                            const Real numD    = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
+                            const Real Delta = std::abs(gradUSq) < eps ? numD : numD / gradUSq;
+                            const Real H     = std::abs(gradUSq) < eps ? numH : numH / gradUSq;
 
                             if (Delta>1e-6) { //will always be multiplied by h^2
                             	const Real dchidx = -Delta*gradUX;
@@ -145,14 +175,13 @@ namespace SphereObstacle
                             	surf->add(info.blockID,ix,iy,iz,dchidx,dchidy,dchidz,Delta);
                             }
 
-                            //        assert(H>=0 && H<=1);
+                            assert(H>=0-eps && H<=1+eps);
 #ifndef NDEBUG
                             if(H<0 || H>1)
 							printf("invalid H?: %10.10e %10.10e %10.10e: %10.10e\n",x,y,z,H);
 #endif
                 			defblock->chi[iz][iy][ix] = H;
                 			b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-                			//printf("%f %f %f %f %f\n",x,y,z,p[0],p[1],p[2],dist,H);
                         }
             }
         }
