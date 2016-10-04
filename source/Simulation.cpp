@@ -149,7 +149,10 @@ void Simulation::_dump(const string append = string())
 #if defined(_USE_HDF_)
     if(b2Ddump) {
       stringstream ssF;
-      ssF<<path4serialization<<"./avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
+      if (append == string())
+         ssF<<path4serialization<<"./avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
+      else
+         ssF<<path4serialization<<"./2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
     	DumpHDF5flat_MPI(*grid, time, ssF.str());
     }
     DumpHDF5_MPI(*grid, time, ssR.str());
@@ -309,9 +312,9 @@ void Simulation::simulate()
             profiler.push_start(pipeline[c]->getName());
             (*pipeline[c])(dt);
             profiler.pop_stop();
-            if(time>2)  _dump(pipeline[c]->getName());
+            if(time>10.25)  _dump(pipeline[c]->getName());
         }
-        if(time>2) abort();
+        if(time>10.25) abort();
         step++;
         time += dt;
         if(rank==0)

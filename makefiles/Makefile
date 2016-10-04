@@ -13,7 +13,7 @@ hdf ?= true
 vtk ?= false
 rk2 ?= true
 
-CPPFLAGS+= -w -D_ALIGNBYTES_=16 -Wunused
+CPPFLAGS+= -w -D_ALIGNBYTES_=16 
 
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_SP_COMP_

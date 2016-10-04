@@ -14,17 +14,17 @@
 #include "IF3D_ObstacleVector.h"
 #include "PoissonSolverScalarFFTW_MPI.h"
 
-struct PressureObstacleVisitor : ObstacleVisitor
+struct PressureObstacleVisitor : public ObstacleVisitor
 {
 	FluidGridMPI * grid;
     vector<BlockInfo> vInfo;
 
     PressureObstacleVisitor(FluidGridMPI * grid) : grid(grid)
     {
-        vInfo = grid->getBlocksInfo();
+      vInfo = grid->getBlocksInfo();
     }
 
-     void visit(const IF3D_ObstacleOperator* const obstacle)
+     void visit(IF3D_ObstacleOperator* const obstacle)
      {
 #pragma omp parallel
          {
@@ -34,6 +34,7 @@ struct PressureObstacleVisitor : ObstacleVisitor
             	 BlockInfo info = vInfo[i];
                  const auto pos = obstblocks.find(info.blockID);
                  if(pos == obstblocks.end()) continue;
+                 
                  FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
 
                  for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -311,19 +312,19 @@ public:
 			}
 		}
 
-		{	//store deformation velocities onto tmp fields
-			ObstacleVisitor * pressureVisitor = new PressureObstacleVisitor(grid);
-			(*obstacleVector)->Accept(pressureVisitor); // accept you son of a french cow
-			delete pressureVisitor;
-		}
+	   //store deformation velocities onto tmp fields
+		ObstacleVisitor * pressureVisitor = new PressureObstacleVisitor(grid);
+		(*obstacleVector)->Accept(pressureVisitor); // accept you son of a french cow
+		delete pressureVisitor;
+		
 		{ 	//place onto p: ( div u^(t+1) - div u^* ) / dt
 			//where i want div u^(t+1) to be equal to div udef
 			OperatorDivergenceMinusDivTmpU kernelDiv(dt);
 			compute(kernelDiv);
 		}
-		{
+		
 			pressureSolver.solve(*grid);
-		}
+		
 		{ //pressure correction dudt* = - grad P / rho
 			OperatorGradP kernelGradP(dt);
 			compute(kernelGradP);
