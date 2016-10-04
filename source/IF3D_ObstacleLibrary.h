@@ -10,7 +10,7 @@
 #define IncompressibleFluids3D_IF3D_ObstacleLibrary_h
 #include <array>
 #include "IF2D_Interpolation1D.h"
-#define 4thORDER
+#define _4thORDER_Towers
 namespace SphereObstacle
 {
     struct FillBlocks
@@ -71,7 +71,7 @@ namespace SphereObstacle
         {
             if(_is_touching(info)) {
             	const Real h = info.h_gridpoint;
-#ifdef 4thORDER
+#ifdef _4thORDER_Towers
         		const Real inv2h = 1./(12.*h);
 #else
         		const Real inv2h = 0.5/h;
@@ -123,29 +123,61 @@ namespace SphereObstacle
                             const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
                             const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
                             const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
-#if 1 //the advantage of having 4th order derivatives is to spread the transition from chi 0 to 1 over 4 points
+#ifdef _4thORDER_Towers //the advantage of having 4th order derivatives is to spread the transition from chi 0 to 1 over 4 points
                             const Real distP2x= distanceToSphere(x+2*h,y,z);
                             const Real distM2x= distanceToSphere(x-2*h,y,z);
                             const Real distP2y= distanceToSphere(x,y+2*h,z);
                             const Real distM2y= distanceToSphere(x,y-2*h,z);
                             const Real distP2z= distanceToSphere(x,y,z+2*h);
                             const Real distM2z= distanceToSphere(x,y,z-2*h);
-                            const Real Iplus2X = distP2x < 0 ? 0 : distP2x;
-                            const Real Iminu2X = distM2x < 0 ? 0 : distM2x;
-                            const Real Iplus2Y = distP2y < 0 ? 0 : distP2y;
-                            const Real Iminu2Y = distM2y < 0 ? 0 : distM2y;
-                            const Real Iplus2Z = distP2z < 0 ? 0 : distP2z;
-                            const Real Iminu2Z = distM2z < 0 ? 0 : distM2z;
-                            const Real Hplus2X = distP2x == 0 ? 0.5 : (distP2x < 0 ? 0 : 1);
-                            const Real Hminu2X = distM2x == 0 ? 0.5 : (distM2x < 0 ? 0 : 1);
-                            const Real Hplus2Y = distP2y == 0 ? 0.5 : (distP2y < 0 ? 0 : 1);
-                            const Real Hminu2Y = distM2y == 0 ? 0.5 : (distM2y < 0 ? 0 : 1);
-                            const Real Hplus2Z = distP2z == 0 ? 0.5 : (distP2z < 0 ? 0 : 1);
-                            const Real Hminu2Z = distM2z == 0 ? 0.5 : (distM2z < 0 ? 0 : 1);
+                            const Real Iplus2X= distP2x < 0 ? 0 : distP2x;
+                            const Real Iminu2X= distM2x < 0 ? 0 : distM2x;
+                            const Real Iplus2Y= distP2y < 0 ? 0 : distP2y;
+                            const Real Iminu2Y= distM2y < 0 ? 0 : distM2y;
+                            const Real Iplus2Z= distP2z < 0 ? 0 : distP2z;
+                            const Real Iminu2Z= distM2z < 0 ? 0 : distM2z;
+                            const Real Hplus2X= distP2x == 0 ? 0.5 : (distP2x < 0 ? 0 : 1);
+                            const Real Hminu2X= distM2x == 0 ? 0.5 : (distM2x < 0 ? 0 : 1);
+                            const Real Hplus2Y= distP2y == 0 ? 0.5 : (distP2y < 0 ? 0 : 1);
+                            const Real Hminu2Y= distM2y == 0 ? 0.5 : (distM2y < 0 ? 0 : 1);
+                            const Real Hplus2Z= distP2z == 0 ? 0.5 : (distP2z < 0 ? 0 : 1);
+                            const Real Hminu2Z= distM2z == 0 ? 0.5 : (distM2z < 0 ? 0 : 1);
                             const Real gradUX = inv2h * (-distP2x + 8*distPx - 8*distMx + distM2x);
                             const Real gradUY = inv2h * (-distP2y + 8*distPy - 8*distMy + distM2y);
                             const Real gradUZ = inv2h * (-distP2z + 8*distPz - 8*distMz + distM2z);
-							const Real gradIX = inv2h * (-Iplus2X + 8*IplusX - 8*IminuX + Iminu2X);
+                            const Real gradIX = inv2h * (-Iplus2X + 8*IplusX - 8*IminuX + Iminu2X);
+                            const Real gradIY = inv2h * (-Iplus2Y + 8*IplusY - 8*IminuY + Iminu2Y);
+                            const Real gradIZ = inv2h * (-Iplus2Z + 8*IplusZ - 8*IminuZ + Iminu2Z);
+                            const Real gradHX = inv2h * (-Hplus2X + 8*HplusX - 8*HminuX + Hminu2X);
+                            const Real gradHY = inv2h * (-Hplus2Y + 8*HplusY - 8*HminuY + Hminu2Y);
+                            const Real gradHZ = inv2h * (-Hplus2Z + 8*HplusZ - 8*HminuZ + Hminu2Z);
+#else if defined(_UPWIND_Towers)
+                            Real gradUX, gradUY, gradUZ, gradIX, gradIY, gradIZ, gradHX, gradHY, gradHZ;
+                            if (std::fabs(distPx) < std::fabs(distMx)) {
+                            } else {
+                            } 
+                            const Real distP2x= distanceToSphere(x+2*h,y,z);
+                            const Real distM2x= distanceToSphere(x-2*h,y,z);
+                            const Real distP2y= distanceToSphere(x,y+2*h,z);
+                            const Real distM2y= distanceToSphere(x,y-2*h,z);
+                            const Real distP2z= distanceToSphere(x,y,z+2*h);
+                            const Real distM2z= distanceToSphere(x,y,z-2*h);
+                            const Real Iplus2X= distP2x < 0 ? 0 : distP2x;
+                            const Real Iminu2X= distM2x < 0 ? 0 : distM2x;
+                            const Real Iplus2Y= distP2y < 0 ? 0 : distP2y;
+                            const Real Iminu2Y= distM2y < 0 ? 0 : distM2y;
+                            const Real Iplus2Z= distP2z < 0 ? 0 : distP2z;
+                            const Real Iminu2Z= distM2z < 0 ? 0 : distM2z;
+                            const Real Hplus2X= distP2x == 0 ? 0.5 : (distP2x < 0 ? 0 : 1);
+                            const Real Hminu2X= distM2x == 0 ? 0.5 : (distM2x < 0 ? 0 : 1);
+                            const Real Hplus2Y= distP2y == 0 ? 0.5 : (distP2y < 0 ? 0 : 1);
+                            const Real Hminu2Y= distM2y == 0 ? 0.5 : (distM2y < 0 ? 0 : 1);
+                            const Real Hplus2Z= distP2z == 0 ? 0.5 : (distP2z < 0 ? 0 : 1);
+                            const Real Hminu2Z= distM2z == 0 ? 0.5 : (distM2z < 0 ? 0 : 1);
+                            const Real gradUX = (distPx<distMx) ? inv2h * (-distP2x + 8*distPx - 8*distMx + distM2x);
+                            const Real gradUY = inv2h * (-distP2y + 8*distPy - 8*distMy + distM2y);
+                            const Real gradUZ = inv2h * (-distP2z + 8*distPz - 8*distMz + distM2z);
+                            const Real gradIX = inv2h * (-Iplus2X + 8*IplusX - 8*IminuX + Iminu2X);
                             const Real gradIY = inv2h * (-Iplus2Y + 8*IplusY - 8*IminuY + Iminu2Y);
                             const Real gradIZ = inv2h * (-Iplus2Z + 8*IplusZ - 8*IminuZ + Iminu2Z);
                             const Real gradHX = inv2h * (-Hplus2X + 8*HplusX - 8*HminuX + Hminu2X);
@@ -155,7 +187,7 @@ namespace SphereObstacle
                             const Real gradUX = inv2h * (distPx - distMx);
                             const Real gradUY = inv2h * (distPy - distMy);
                             const Real gradUZ = inv2h * (distPz - distMz);
-							const Real gradIX = inv2h * (IplusX - IminuX);
+							       const Real gradIX = inv2h * (IplusX - IminuX);
                             const Real gradIY = inv2h * (IplusY - IminuY);
                             const Real gradIZ = inv2h * (IplusZ - IminuZ);
                             const Real gradHX = inv2h * (HplusX - HminuX);
@@ -182,6 +214,8 @@ namespace SphereObstacle
 #endif
                 			defblock->chi[iz][iy][ix] = H;
                 			b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+                        b(ix,iy,iz).tmpU = dist;
+                        b(ix,iy,iz).tmpV = Delta;
                         }
             }
         }
