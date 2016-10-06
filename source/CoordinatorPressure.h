@@ -229,6 +229,67 @@ public:
 	}
 };
 
+class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
+{
+private:
+	Real dt;
+
+public:
+	OperatorDivergenceMinusDivTmpU(Real dt) : dt(dt)
+	{
+		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 6, 0,1,2,5,6,7);
+		stencil_start[0] = -2;
+		stencil_start[1] = -2;
+		stencil_start[2] = -2;
+		stencil_end[0] = 3;
+		stencil_end[1] = 3;
+		stencil_end[2] = 3;
+	}
+	~OperatorDivergenceMinusDivTmpU() {}
+
+	template <typename Lab, typename BlockType>
+	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	{
+		const Real factor = 1./(12.*info.h_gridpoint * dt);
+
+		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+			// Poisson solver reads field p for the rhs
+			const Real uW1    = lab(ix-1,iy  ,iz  ).u;
+			const Real uE1    = lab(ix+1,iy  ,iz  ).u;
+			const Real vS1    = lab(ix  ,iy-1,iz  ).v;
+			const Real vN1    = lab(ix  ,iy+1,iz  ).v;
+			const Real wF1    = lab(ix  ,iy  ,iz-1).w;
+			const Real wB1    = lab(ix  ,iy  ,iz+1).w;
+			const Real uW2    = lab(ix-2,iy  ,iz  ).u;
+			const Real uE2    = lab(ix+2,iy  ,iz  ).u;
+			const Real vS2    = lab(ix  ,iy-2,iz  ).v;
+			const Real vN2    = lab(ix  ,iy+2,iz  ).v;
+			const Real wF2    = lab(ix  ,iy  ,iz-2).w;
+			const Real wB2    = lab(ix  ,iy  ,iz+2).w;
+			const Real uWd1 = lab(ix-1,iy  ,iz  ).tmpU;
+			const Real uEd1 = lab(ix+1,iy  ,iz  ).tmpU;
+			const Real vSd1 = lab(ix  ,iy-1,iz  ).tmpV;
+			const Real vNd1 = lab(ix  ,iy+1,iz  ).tmpV;
+			const Real wFd1 = lab(ix  ,iy  ,iz-1).tmpW;
+			const Real wBd1 = lab(ix  ,iy  ,iz+1).tmpW;
+			const Real uWd2 = lab(ix-2,iy  ,iz  ).tmpU;
+			const Real uEd2 = lab(ix+2,iy  ,iz  ).tmpU;
+			const Real vSd2 = lab(ix  ,iy-2,iz  ).tmpV;
+			const Real vNd2 = lab(ix  ,iy+2,iz  ).tmpV;
+			const Real wFd2 = lab(ix  ,iy  ,iz-2).tmpW;
+			const Real wBd2 = lab(ix  ,iy  ,iz+2).tmpW;
+			const Real tmp1 = 8*(uE1 - uW1 + vN1 - vS1 + wB1 - wF1);
+			const Real tmp2 =  -(uE2 - uW2 + vN2 - vS2 + wB2 - wF2);
+			const Real tmp3 = 8*(uEd1 - uWd1 + vNd1 - vSd1 + wBd1 - wFd1);
+			const Real tmp4 =  -(uEd2 - uWd2 + vNd2 - vSd2 + wBd2 - wFd2);
+			o(ix,iy,iz).p = factor*(tmp1-tmp2 -o(ix,iy,iz).chi*(tmp3-tmp4));
+			//o(ix,iy,iz).chi = o(ix,iy,iz).p;
+		}
+	}
+};
+
 class OperatorGradP : public GenericLabOperator
 {
 private:
@@ -319,7 +380,7 @@ public:
 		
 		{ 	//place onto p: ( div u^(t+1) - div u^* ) / dt
 			//where i want div u^(t+1) to be equal to div udef
-			OperatorDivergenceMinusDivTmpU kernelDiv(dt);
+			OperatorDivergenceMinusDivTmpU2ndOrder kernelDiv(dt);
 			compute(kernelDiv);
 		}
 		
