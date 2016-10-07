@@ -637,7 +637,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 	}
 #else
     template <typename Lab, typename BlockType>
-	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
+	void operator()(const Lab& lab, const BlockInfo& info, BlockType& b)
 	{
 		if(obstacleBlocks->find(info.blockID) == obstacleBlocks->end()) return;
 		ObstacleBlock* const defblock = obstacleBlocks->find(info.blockID)->second;

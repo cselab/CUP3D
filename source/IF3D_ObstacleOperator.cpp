@@ -43,7 +43,7 @@ struct ForcesOnSkin : public GenericLabOperator
     }
 
     template <typename Lab, typename BlockType>
-	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
+	void operator()(const Lab& lab, const BlockInfo& info, BlockType& b)
 	{
     		const auto pos = surfaceBlocksFilter->find(info.blockID);
 		if(pos == surfaceBlocksFilter->end()) return;
