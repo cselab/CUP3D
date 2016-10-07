@@ -40,7 +40,7 @@ void _fourier_filter_gpu(myComplex *data_hat, const Real h);
 #endif
 
 template<typename TGrid, typename TStreamer>
-class ACCFFT_MPI
+class PoissonSolverScalarFFTW_ACC
 {
 	const int bs[3], mybpd[3], totbpd[3];
 	int nprocs, procid, isize[3],osize[3],istart[3],ostart[3], alloc_max;
@@ -54,8 +54,8 @@ class ACCFFT_MPI
 
 	void _cub2fft(TGrid& grid, Real * out) const
 	{
-		vector<BlockInfo> info = grid.getBlocksInfo();
-		const size_t N = info.size();
+		vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
+		const size_t N = local_infos.size();
 		const size_t myN[3] = {
 				mybpd[0]*bs[0],
 				mybpd[1]*bs[1],
@@ -64,12 +64,12 @@ class ACCFFT_MPI
 
 #pragma omp parallel for
 		for(int i=0; i<N; ++i) {
-			const BlockInfo info = info[i];
+			const BlockInfo info = local_infos[i];
 			BlockType& b = *(BlockType*)info.ptrBlock;
 			const int myIstart[3] = {
-					bs[0]*info.indexLocal[0],
-					bs[1]*info.indexLocal[1],
-					bs[2]*info.indexLocal[2]
+					bs[0]*info.index[0],
+					bs[1]*info.index[1],
+					bs[2]*info.index[2]
 			};
 			const size_t offset = myIstart[2]+
 						   myN[2]*myIstart[1]+
@@ -87,8 +87,8 @@ class ACCFFT_MPI
 	
 	void _fft2cub(Real * out, TGrid& grid) const
 	{
-		vector<BlockInfo> info = grid.getBlocksInfo();
-		const size_t N = info.size();
+		vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
+		const size_t N = local_infos.size();
 		const size_t myN[3] = {
 				mybpd[0]*bs[0],
 				mybpd[1]*bs[1],
@@ -97,12 +97,12 @@ class ACCFFT_MPI
 
 #pragma omp parallel for
 		for(int i=0; i<N; ++i) {
-			const BlockInfo info = info[i];
+			const BlockInfo info = local_infos[i];
 			BlockType& b = *(BlockType*)info[i].ptrBlock;
 			const int myIstart[3] = {
-					bs[0]*info.indexLocal[0],
-					bs[1]*info.indexLocal[1],
-					bs[2]*info.indexLocal[2]
+					bs[0]*info.index[0],
+					bs[1]*info.index[1],
+					bs[2]*info.index[2]
 			};
 			const size_t offset = myIstart[2]+
 						   myN[2]*myIstart[1]+
@@ -153,7 +153,7 @@ class ACCFFT_MPI
 
 
 public:
-	ACCFFT_MPI(const int desired_threads, TGrid& grid)
+	PoissonSolverScalarFFTW_ACC(const int desired_threads, TGrid& grid)
 	: bs{BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ},
 	  mybpd{grid.getResidentBlocksPerDimension(0), grid.getResidentBlocksPerDimension(1), grid.getResidentBlocksPerDimension(2)},
 	  totbpd{grid.getBlocksPerDimension(0), grid.getBlocksPerDimension(1), grid.getBlocksPerDimension(2)}
