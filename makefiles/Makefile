@@ -12,6 +12,7 @@ bsz ?= $(bs)
 hdf ?= true
 vtk ?= false
 rk2 ?= true
+accfft ?= false
 
 CPPFLAGS+= -w -D_ALIGNBYTES_=16 
 
@@ -102,8 +103,15 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS = PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_CarlingFishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o main.o
+OBJECTS = ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_CarlingFishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o main.o
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
+
+ifeq "$(accfft)" "true"
+	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) 
+	LIBS += -L$(accfft-lib) -laccfft 
+else
+	OBJECTS += PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o
+endif
 
 VPATH := $(SRC_DIR):$(CUBISM_DIR)
 

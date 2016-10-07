@@ -625,7 +625,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 				surface->add(info.blockID, ix, iy, iz, dchidx, dchidy, dchidz, FDD);
 			}
 #ifndef NDEBUG
-			if(FDH<0 || FDH>1) printf("invalid H?: %9.9e %9.9e %9.9e: %9.9e\n",x,y,z,FDH);
+	//		if(FDH<0 || FDH>1) printf("invalid H?: %9.9e %9.9e %9.9e: %9.9e\n",x,y,z,FDH);
 #endif
 			(*momenta)[0] += FDH;
 			(*momenta)[1] += p[0]*FDH;

@@ -6,4 +6,5 @@ CPPFLAGS += -I/cluster/home03/mavt/novatig/fftw-3.3.5/mvapich2.2.1/${_MY_CC_}/in
 LIBS += -L/cluster/home03/mavt/novatig/fftw-3.3.5/mvapich2.2.1/${_MY_CC_}/lib/
 CPPFLAGS += -I/cluster/home03/mavt/novatig/hdf5-1.8.17/mvapich2.2.1/${_MY_CC_}/include/
 LIBS += -L/cluster/home03/mavt/novatig/hdf5-1.8.17/mvapich2.2.1/${_MY_CC_}/lib/
-
+accfft-inc = /cluster/home03/mavt/novatig/accfft/include/
+accfft-lib = /cluster/home03/mavt/novatig/accfft/mvapich2.2.1/${_MY_CC_}/

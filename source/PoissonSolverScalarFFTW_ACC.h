@@ -42,6 +42,7 @@ void _fourier_filter_gpu(myComplex *data_hat, const Real h);
 template<typename TGrid, typename TStreamer>
 class PoissonSolverScalarFFTW_ACC
 {
+   typedef typename TGrid::BlockType BlockType;
 	const int bs[3], mybpd[3], totbpd[3];
 	int nprocs, procid, isize[3],osize[3],istart[3],ostart[3], alloc_max;
 	MPI_Comm c_comm;
@@ -98,7 +99,7 @@ class PoissonSolverScalarFFTW_ACC
 #pragma omp parallel for
 		for(int i=0; i<N; ++i) {
 			const BlockInfo info = local_infos[i];
-			BlockType& b = *(BlockType*)info[i].ptrBlock;
+			BlockType& b = *(BlockType*)info.ptrBlock;
 			const int myIstart[3] = {
 					bs[0]*info.index[0],
 					bs[1]*info.index[1],
@@ -160,7 +161,7 @@ public:
 	{
 		MPI_Comm_rank(MPI_COMM_WORLD, &procid);
 		MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
-		const int n[3] = {totbpd[0]*bs[0], totbpd[1]*bs[1], totbpd[2]*bs[2]};
+		int n[3] = {totbpd[0]*bs[0], totbpd[1]*bs[1], totbpd[2]*bs[2]};
 		int c_dims[2] = { totbpd[0]/mybpd[0], totbpd[1]/mybpd[1] };
 		assert(totbpd[0]%mybpd[0]==0 && totbpd[1]%mybpd[1]==0);
 		accfft_create_comm(MPI_COMM_WORLD,c_dims,&c_comm);
@@ -272,7 +273,7 @@ public:
 		_fft2cub(rho, grid);
 	}
 
-	~ACCFFT_MPI()
+	~PoissonSolverScalarFFTW_ACC()
 	{
 #ifndef _CUDA_COMP_
 		accfft_free(rho);
