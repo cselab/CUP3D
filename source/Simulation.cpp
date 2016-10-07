@@ -312,9 +312,9 @@ void Simulation::simulate()
             profiler.push_start(pipeline[c]->getName());
             (*pipeline[c])(dt);
             profiler.pop_stop();
-            if(time>10.25)  _dump(pipeline[c]->getName());
+            //if(time>.0025)  _dump(pipeline[c]->getName());
         }
-        if(time>10.25) abort();
+        //if(time>.0025) abort();
         step++;
         time += dt;
         if(rank==0)
