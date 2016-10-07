@@ -71,9 +71,9 @@ struct ForcesOnSkin : public GenericLabOperator
 			const Real D23 = .5*_1oH*(lab(ix,iy+1,iz).w - lab(ix,iy-1,iz).w
 									   +lab(ix,iy,iz+1).v - lab(ix,iy,iz-1).v);
 			//normals computed with Towers 2009
-			const Real normX = surfData->Set[i]->dchidx * _h3;
-			const Real normY = surfData->Set[i]->dchidy * _h3;
-			const Real normZ = surfData->Set[i]->dchidz * _h3;
+			const Real normX = surfData->Set[i]->dchidx;
+			const Real normY = surfData->Set[i]->dchidy;
+			const Real normZ = surfData->Set[i]->dchidz; // * _h3
 			const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
 			const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
 			const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
@@ -89,7 +89,7 @@ struct ForcesOnSkin : public GenericLabOperator
 			surfData->fxV[i] = fXV; surfData->fyV[i] = fYV; surfData->fzV[i] = fZV;
 			surfData->pX[i] = p[0]; surfData->pY[i] = p[1]; surfData->pZ[i] = p[2];
 			//perimeter:
-			(*measures)[0] += surfData->Set[i]->delta * _h3;
+			(*measures)[0] += surfData->Set[i]->delta;
 			//forces (total, visc, pressure):
 			(*measures)[1] += fXT; (*measures)[2] += fYT; (*measures)[3] += fZT;
 			(*measures)[4] += fXP; (*measures)[5] += fYP; (*measures)[6] += fZP;

@@ -66,18 +66,99 @@ namespace SphereObstacle
             return radius - std::sqrt(x*x+y*y+z*z); // pos inside, neg outside
         }
 
-        inline void _4thOrderDerivative(const Real field[3][4], Real grad[3], const Real h)
+        inline Real sign(const Real& val) const {
+            return (0. < val) - (val < 0.);
+        }
+#if 1
+        inline void operator()(const BlockInfo& info,FluidBlock& b,ObstacleBlock* const defblock,surfaceBlocks* const surf) const
         {
-        	const Real fac = 1./(12.*h);
-        	for(int i=0; i<3; i++)
-        		grad[i] = fac*(-field[i][0]+8*field[i][1]-8*field[i][2]+field[i][3]);
+        	if(_is_touching(info)) {
+        		const Real eps = std::numeric_limits<Real>::epsilon();
+        		const Real h = info.h_gridpoint;
+        		const Real invh = 1./h;
+        		const Real fac1 = .5/h;
+        		const Real fac2 = .5/(std::sqrt(2.)*h);
+        		const Real fac[9] = {fac1,fac1,fac1,fac2,fac2,fac2,fac2,fac2,fac2};
+
+        		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+				for(int iy=0; iy<FluidBlock::sizeY; iy++)
+				for(int ix=0; ix<FluidBlock::sizeX; ix++) {
+					Real p[3];
+					info.pos(p, ix, iy, iz);
+					const Real x = p[0]-sphere_position[0];
+					const Real y = p[1]-sphere_position[1];
+					const Real z = p[2]-sphere_position[2];
+					const Real U = distanceToSphere(x,y,z);
+					if(U > 2*h || U < -2*h) { //2 should be safe
+						const Real H = U > 0 ? 1.0 : 0.0;
+						defblock->chi[iz][iy][ix] = H;
+						b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+						continue;
+					}
+					const Real Up[9] = {
+							distanceToSphere(x+h,y,z),   distanceToSphere(x,y+h,z),   distanceToSphere(x,y,z+h),
+							distanceToSphere(x,y+h,z+h), distanceToSphere(x+h,y,z+h), distanceToSphere(x+h,y+h,z),
+							distanceToSphere(x,y+h,z-h), distanceToSphere(x+h,y,z-h), distanceToSphere(x+h,y-h,z)
+					};
+					const Real Um[9] = {
+							distanceToSphere(x-h,y,z),   distanceToSphere(x,y-h,z),   distanceToSphere(x,y,z-h),
+							distanceToSphere(x,y-h,z-h), distanceToSphere(x-h,y,z-h), distanceToSphere(x-h,y-h,z),
+							distanceToSphere(x,y-h,z+h), distanceToSphere(x-h,y,z+h), distanceToSphere(x-h,y+h,z)
+					};
+					Real Ip[9],Im[9];
+					for (int i=0; i<9; i++) {
+						Ip[i] = std::max(Up[i],(Real)0.);
+						Im[i] = std::max(Um[i],(Real)0.);
+					}
+					Real gradU[9], gradI[9];
+					for (int i=0; i<9; i++) {
+						gradU[i] = fac[i]*(Up[i]-Um[i]);
+						gradI[i] = fac[i]*(Ip[i]-Im[i]);
+					}
+					Real Hp[3], Hm[3];
+					for(int i=0; i<3; i++) {
+						Hp[i] = (Up[i]> h) ? h : (
+								(Up[i]<-h) ? 0 :
+								.5+(h*Up[i]-.5*sign(Up[i])*Up[i]*Up[i]));
+						Hm[i] = (Um[i]> h) ? h : (
+								(Um[i]<-h) ? 0 :
+								.5+(h*Um[i]-.5*sign(Um[i])*Um[i]*Um[i]));
+					}
+					const Real gradH[3] = {.5*(Hp[0]-Hm[0]), .5*(Hp[1]-Hm[1]), .5*(Hp[2]-Hm[2])};
+					Real gradUU[3], gradUI[3], gradUH[3];
+					for (int i=0; i<3; i++) {
+						gradUU[i] = gradU[i]*gradU[i] + gradU[i+3]*gradU[i+3] + gradU[i+6]*gradU[i+6];
+						gradUI[i] = gradU[i]*gradI[i] + gradU[i+3]*gradI[i+3] + gradU[i+6]*gradI[i+6];
+						gradUH[i] = gradU[i]*gradH[i];
+					}
+					for (int i=0; i<3; i++)  gradUU[i] = max(gradUU[i], eps);
+					const Real FDD = h*(gradUH[0] + gradUH[1] + gradUH[2])/gradUU[0];
+					const Real FDH = 1/3. * (gradUI[0]/gradUU[0]+gradUI[1]/gradUU[1]+gradUI[2]/gradUU[2]);
+
+					if (FDD>1e-6) {
+						const Real dchidx = -FDD*gradU[0];
+						const Real dchidy = -FDD*gradU[1];
+						const Real dchidz = -FDD*gradU[2];
+						surf->add(info.blockID,ix,iy,iz,dchidx,dchidy,dchidz,FDD);
+					}
+#ifndef NDEBUG
+					if(FDH<0 || FDH>1) printf("invalid H?: %9.9e %9.9e %9.9e: %9.9e\n",x,y,z,FDH);
+#endif
+					defblock->chi[iz][iy][ix] = FDH;
+					b(ix,iy,iz).chi = std::max(FDH, b(ix,iy,iz).chi);
+					//b(ix,iy,iz).tmpU = dist;
+					//b(ix,iy,iz).tmpV = Delta;
+				}
+        	}
         }
 
+#else
         inline void operator()(const BlockInfo& info,FluidBlock& b,ObstacleBlock* const defblock,surfaceBlocks* const surf) const
         {
             if(_is_touching(info)) {
             	const Real h = info.h_gridpoint;
-        		const Real inv2h = 0.5/h;
+        		const Real fac1 = 0.5/h;
+        		const Real fac2 = 0.5/(std::sqrt(2.)*h);
         		const Real eps = std::numeric_limits<Real>::epsilon();
 
                 for(int iz=0; iz<FluidBlock::sizeZ; iz++)
@@ -148,6 +229,7 @@ namespace SphereObstacle
 				}
             }
         }
+#endif
     };
 }
 

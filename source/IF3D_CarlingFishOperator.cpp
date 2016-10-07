@@ -546,7 +546,96 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
 		stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
 	}
-    
+#if 1
+    inline Real sign(const Real& val) const {
+    	return (0. < val) - (val < 0.);
+    }
+
+	void operator()(const Lab& lab, const BlockInfo& info, BlockType& b) const
+	{
+		if(obstacleBlocks->find(info.blockID) == obstacleBlocks->end()) return;
+		ObstacleBlock* const defblock = obstacleBlocks->find(info.blockID)->second;
+
+		const Real eps = std::numeric_limits<Real>::epsilon();
+		const Real h = info.h_gridpoint;
+		const Real fac1 = .5/h;
+		const Real fac2 = .5/(std::sqrt(2.)*h);
+		const Real fac[9] = {fac1,fac1,fac1,fac2,fac2,fac2,fac2,fac2,fac2};
+
+		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+		for(int iy=0; iy<FluidBlock::sizeY; iy++)
+		for(int ix=0; ix<FluidBlock::sizeX; ix++) {
+			Real p[3];
+			info.pos(p, ix,iy,iz);
+			if (lab(ix,iy,iz).tmpU > +2*h || lab(ix,iy,iz).tmpU < -2*h) {
+				const Real H = lab(ix,iy,iz).tmpU > 0 ? 1.0 : 0.0;
+				(*momenta)[0] += H;
+				(*momenta)[1] += p[0]*H;
+				(*momenta)[2] += p[1]*H;
+				(*momenta)[3] += p[2]*H;
+				b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+				defblock->chi[iz][iy][ix] = H;
+				continue;
+			}
+			const Real Up[9] = {
+				lab(ix+1,iy  ,iz  ).tmpU, lab(ix  ,iy+1,iz  ).tmpU, lab(ix  ,iy  ,iz+1).tmpU,
+				lab(ix  ,iy+1,iz+1).tmpU, lab(ix+1,iy  ,iz+1).tmpU, lab(ix+1,iy+1,iz  ).tmpU,
+				lab(ix  ,iy+1,iz-1).tmpU, lab(ix+1,iy  ,iz-1).tmpU, lab(ix+1,iy-1,iz  ).tmpU
+			};
+			const Real Um[9] = {
+				lab(ix-1,iy  ,iz  ).tmpU, lab(ix  ,iy-1,iz  ).tmpU, lab(ix  ,iy  ,iz-1).tmpU,
+				lab(ix  ,iy-1,iz-1).tmpU, lab(ix-1,iy  ,iz-1).tmpU, lab(ix-1,iy-1,iz  ).tmpU,
+				lab(ix  ,iy-1,iz+1).tmpU, lab(ix-1,iy  ,iz+1).tmpU, lab(ix-1,iy+1,iz  ).tmpU
+			};
+			Real Ip[9],Im[9];
+			for (int i=0; i<9; i++) {
+				Ip[i] = std::max(Up[i],(Real)0.);
+				Im[i] = std::max(Um[i],(Real)0.);
+			}
+			Real gradU[9], gradI[9];
+			for (int i=0; i<9; i++) {
+				gradU[i] = fac[i]*(Up[i]-Um[i]);
+				gradI[i] = fac[i]*(Ip[i]-Im[i]);
+			}
+			Real Hp[3], Hm[3];
+			for(int i=0; i<3; i++) {
+				Hp[i] = (Up[i]> h) ? h : (
+						(Up[i]<-h) ? 0 :
+						.5*h+(Up[i]-fac1*sign(Up[i])*Up[i]*Up[i]));
+				Hm[i] = (Um[i]> h) ? h : (
+						(Um[i]<-h) ? 0 :
+						.5*h+(Um[i]-fac1*sign(Um[i])*Um[i]*Um[i]));
+			}
+			const Real gradH[3] = {.5*(Hp[0]-Hm[0]), .5*(Hp[1]-Hm[1]), .5*(Hp[2]-Hm[2])};
+			Real gradUU[3], gradUI[3], gradUH[3];
+			for (int i=0; i<3; i++) {
+				gradUU[i] = gradU[i]*gradU[i] + gradU[i+3]*gradU[i+3] + gradU[i+6]*gradU[i+6];
+				gradUI[i] = gradU[i]*gradI[i] + gradU[i+3]*gradI[i+3] + gradU[i+6]*gradI[i+6];
+				gradUH[i] = gradU[i]*gradH[i];
+			}
+			for (int i=0; i<3; i++)  gradUU[i] = max(gradUU[i], eps);
+			const Real FDD = h*(gradUH[0] + gradUH[1] + gradUH[2])/gradUU[0];
+			const Real FDH = 1/3. * (gradUI[0]/gradUU[0]+gradUI[1]/gradUU[1]+gradUI[2]/gradUU[2]);
+
+
+			if (FDD>eps) {
+				const Real dchidx = -FDD*gradU[0];
+				const Real dchidy = -FDD*gradU[1];
+				const Real dchidz = -FDD*gradU[2];
+				surface->add(info.blockID, ix, iy, iz, dchidx, dchidy, dchidz, FDD);
+			}
+#ifndef NDEBUG
+			if(FDH<0 || FDH>1) printf("invalid H?: %9.9e %9.9e %9.9e: %9.9e\n",x,y,z,FDH);
+#endif
+			(*momenta)[0] += FDH;
+			(*momenta)[1] += p[0]*FDH;
+			(*momenta)[2] += p[1]*FDH;
+			(*momenta)[3] += p[2]*FDH;
+			defblock->chi[iz][iy][ix] = FDH;
+			b(ix,iy,iz).chi = std::max(FDH, b(ix,iy,iz).chi);
+		}
+	}
+#else
     template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
 	{
@@ -630,6 +719,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
 		}
 	}
+#endif
 };
 
 void IF3D_CarlingFishOperator::create(const int step_id,const Real time, const Real dt, const Real *Uinf)
