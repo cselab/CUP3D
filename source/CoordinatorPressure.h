@@ -248,7 +248,7 @@ public:
 	~OperatorDivergenceMinusDivTmpU2ndOrder() {}
 
 	template <typename Lab, typename BlockType>
-	void operaLabst Lab & lab, const BlockInfo& info, BlockType& o) const
+	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 		const Real factor = 1./(12.*info.h_gridpoint * dt);
 
