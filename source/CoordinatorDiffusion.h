@@ -33,7 +33,7 @@ public:
 	~OperatorDiffusion() {}
 
 	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	void operator()(const Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 #ifdef _RK2_
 		const Real fac = mu * 0.5 * dt / (info.h_gridpoint*info.h_gridpoint);
@@ -82,7 +82,7 @@ public:
 	~OperatorDiffusionStage2() {}
 
 	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	void operator()(const Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 		const Real fac = mu * dt / (info.h_gridpoint*info.h_gridpoint);
 

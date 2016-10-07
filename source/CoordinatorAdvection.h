@@ -37,7 +37,7 @@ public:
 	~OperatorAdvectionUpwind3rdOrder() {}
 
 	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	void operator()(const Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 #ifndef _RK2_
 		const Real factor = -dt/(6.*info.h_gridpoint);
@@ -134,7 +134,7 @@ public:
 	~OperatorAdvectionUpwind3rdOrderStage2() {}
 
 	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	void operator()(const Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 		const Real factor = -dt/(6.*info.h_gridpoint);
 

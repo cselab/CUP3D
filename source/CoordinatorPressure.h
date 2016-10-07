@@ -154,7 +154,7 @@ public:
     }
 
     template <typename Lab, typename BlockType>
-    void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+    void operator()(const Lab & lab, const BlockInfo& info, BlockType& o) const
     {
     	const Real fac1 = 0.5/(info.h_gridpoint);
     	const Real fac2 = .25/(info.h_gridpoint*info.h_gridpoint);
@@ -202,7 +202,7 @@ public:
 	~OperatorDivergenceMinusDivTmpU() {}
 	
 	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	void operator()(const Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 		const Real factor = 0.5/(info.h_gridpoint * dt);
 		
@@ -248,7 +248,7 @@ public:
 	~OperatorDivergenceMinusDivTmpU() {}
 
 	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	void operator()(const Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 		const Real factor = 1./(12.*info.h_gridpoint * dt);
 
@@ -311,7 +311,7 @@ public:
 	~OperatorGradP() {}
 	
 	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	void operator()(const Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 		const Real prefactor = -.5 * dt / (info.h_gridpoint);
 

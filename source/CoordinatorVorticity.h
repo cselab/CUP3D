@@ -32,7 +32,7 @@ public:
 	~OperatorVorticity() {}
 
 	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	void operator()(const Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 		const Real inv2h = .5 / info.h_gridpoint;
 
