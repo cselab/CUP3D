@@ -12,7 +12,11 @@
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
 #include "IF3D_ObstacleVector.h"
+#ifndef _ACCFFT_
+#include "PoissonSolverScalarFFTW_ACC.h"
+#else
 #include "PoissonSolverScalarFFTW_MPI.h"
+#endif
 
 struct PressureObstacleVisitor : public ObstacleVisitor
 {
@@ -346,7 +350,7 @@ protected:
     PoissonSolverScalarFFTW_ACC<FluidGridMPI, StreamerDiv> pressureSolver;
 #else
     PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> pressureSolver;
-#endif // _MIXED_
+#endif
 
 public:
 	CoordinatorPressure(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles) :
