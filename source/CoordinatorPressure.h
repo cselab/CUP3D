@@ -235,7 +235,7 @@ private:
 	Real dt;
 
 public:
-	OperatorDivergenceMinusDivTmpU(Real dt) : dt(dt)
+	OperatorDivergenceMinusDivTmpU2ndOrder(Real dt) : dt(dt)
 	{
 		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 6, 0,1,2,5,6,7);
 		stencil_start[0] = -2;
@@ -245,7 +245,7 @@ public:
 		stencil_end[1] = 3;
 		stencil_end[2] = 3;
 	}
-	~OperatorDivergenceMinusDivTmpU() {}
+	~OperatorDivergenceMinusDivTmpU2ndOrder() {}
 
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const

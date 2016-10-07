@@ -550,7 +550,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
     inline Real sign(const Real& val) const {
     	return (0. < val) - (val < 0.);
     }
-
+   template <typename Lab, typename BlockType>
 	void operator()(const Lab& lab, const BlockInfo& info, BlockType& b) const
 	{
 		if(obstacleBlocks->find(info.blockID) == obstacleBlocks->end()) return;
