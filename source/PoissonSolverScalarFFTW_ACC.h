@@ -180,7 +180,7 @@ public:
 		alloc_max = accfft_local_size_dft_r2cf(n,isize,istart,osize,ostart,c_comm);
 	#endif
 #endif
-		assert(isize[0]==mybpd[0] && isize[1]==mybpd[1] && isize[2]==mybpd[2]);
+      printf("[mpi rank %d] isize  %3d %3d %3d\n",procid,mybpd[0],mybpd[1],mybpd[2]);		
 		printf("[mpi rank %d] isize  %3d %3d %3d osize  %3d %3d %3d\n", procid,
 				isize[0],isize[1],isize[2],
 				osize[0],osize[1],osize[2]
@@ -189,6 +189,7 @@ public:
 				istart[0],istart[1],istart[2],
 				ostart[0],ostart[1],ostart[2]
 		);
+      assert(isize[0]==n[0] && isize[1]==n[1] && isize[2]==n[2]);
 
 #ifdef _CUDA_COMP_
 		rho=(Real*)malloc(isize[0]*isize[1]*isize[2]*sizeof(Real));
