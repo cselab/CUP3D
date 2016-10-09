@@ -360,6 +360,7 @@ public:
 	
 	void operator()(const Real dt)
 	{
+      check("pressure - start");   
 #pragma omp parallel
 		{
 			const int N = vInfo.size();
@@ -394,6 +395,7 @@ public:
 			OperatorGradP kernelGradP(dt);
 			compute(kernelGradP);
 		}
+      check("pressure - end");
 	}
 	
 	string getName()

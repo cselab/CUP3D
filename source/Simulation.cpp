@@ -155,7 +155,7 @@ void Simulation::_dump(const string append = string())
          ssF<<path4serialization<<"./2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
     	DumpHDF5flat_MPI(*grid, time, ssF.str());
     }
-    DumpHDF5_MPI(*grid, time, ssR.str());
+    //DumpHDF5_MPI(*grid, time, ssR.str());
 #endif
 #if defined(_USE_LZ4_) //TODO: does not compile
 
@@ -312,9 +312,9 @@ void Simulation::simulate()
             profiler.push_start(pipeline[c]->getName());
             (*pipeline[c])(dt);
             profiler.pop_stop();
-            //if(time>.0025)  _dump(pipeline[c]->getName());
+            if(time>=0)  _dump(pipeline[c]->getName());
         }
-        //if(time>.0025) abort();
+        if(step>10) abort();
         step++;
         time += dt;
         if(rank==0)
