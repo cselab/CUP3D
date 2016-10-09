@@ -546,7 +546,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
 		stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
 	}
-#if 1
+#if 0
     inline Real sign(const Real& val) const {
     	return (0. < val) - (val < 0.);
     }
@@ -643,7 +643,6 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 		ObstacleBlock* const defblock = obstacleBlocks->find(info.blockID)->second;
 		const Real eps = std::numeric_limits<Real>::epsilon();
 		const Real h = info.h_gridpoint;
-		const Real invh2 = 1./(h*h);
 		const Real inv2h = .5/h;
 
 		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
@@ -653,14 +652,12 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			info.pos(p, ix,iy,iz);
 			if (lab(ix,iy,iz).tmpU >= +2*h || lab(ix,iy,iz).tmpU <= -2*h) {
 				const Real H = lab(ix,iy,iz).tmpU > 0 ? 1.0 : 0.0;
-				(*momenta)[0] += H;
+				b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+				defblock->chi[iz][iy][ix] = H;
 				(*momenta)[1] += p[0]*H;
 				(*momenta)[2] += p[1]*H;
 				(*momenta)[3] += p[2]*H;
-				//printf("The fuck %f %f %f %f\n",H,p[0],p[1],p[2]);
-				//printf("The fuck %f %f %f %f\n",normfac,b(ix,iy,iz).tmpU,b(ix,iy,iz).tmpV,b(ix,iy,iz).tmpW);
-				b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-				defblock->chi[iz][iy][ix] = H;
+				(*momenta)[0] += H;
 				continue;
 			}
 
