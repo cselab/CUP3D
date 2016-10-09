@@ -158,7 +158,6 @@ namespace SphereObstacle
             if(_is_touching(info)) {
             	const Real h = info.h_gridpoint;
         		const Real fac1 = 0.5/h;
-        		const Real fac2 = 0.5/(std::sqrt(2.)*h);
         		const Real eps = std::numeric_limits<Real>::epsilon();
 
                 for(int iz=0; iz<FluidBlock::sizeZ; iz++)
@@ -171,7 +170,7 @@ namespace SphereObstacle
 					const Real z = p[2]-sphere_position[2];
 					const Real dist = distanceToSphere(x,y,z);
 
-					if(dist > h || dist < -h) { //2 should be safe
+					if(dist > 2*h || dist < -2*h) { //2 should be safe
 						const Real H = dist > 0 ? 1.0 : 0.0;
 						defblock->chi[iz][iy][ix] = H;
 						b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
