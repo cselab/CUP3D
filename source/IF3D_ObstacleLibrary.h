@@ -119,10 +119,10 @@ namespace SphereObstacle
 					for(int i=0; i<3; i++) {
 						Hp[i] = (Up[i]> h) ? h : (
 								(Up[i]<-h) ? 0 :
-								.5+(h*Up[i]-.5*sign(Up[i])*Up[i]*Up[i]));
+										.5*h+(Up[i]-fac1*sign(Up[i])*Up[i]*Up[i]));
 						Hm[i] = (Um[i]> h) ? h : (
 								(Um[i]<-h) ? 0 :
-								.5+(h*Um[i]-.5*sign(Um[i])*Um[i]*Um[i]));
+										.5*h+(Um[i]-fac1*sign(Um[i])*Um[i]*Um[i]));
 					}
 					const Real gradH[3] = {.5*(Hp[0]-Hm[0]), .5*(Hp[1]-Hm[1]), .5*(Hp[2]-Hm[2])};
 					Real gradUU[3], gradUI[3], gradUH[3];

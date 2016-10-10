@@ -546,7 +546,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
 		stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
 	}
-#if 0
+#if 1
     inline Real sign(const Real& val) const {
     	return (0. < val) - (val < 0.);
     }
@@ -597,7 +597,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 				gradU[i] = fac[i]*(Up[i]-Um[i]);
 				gradI[i] = fac[i]*(Ip[i]-Im[i]);
 			}
-			Real Hp[3], Hm[3];
+			Real Hp[3], Hm[3]; //only x y and z, the direction where i need gradChi
 			for(int i=0; i<3; i++) {
 				Hp[i] = (Up[i]> h) ? h : (
 						(Up[i]<-h) ? 0 :
@@ -614,7 +614,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 				gradUH[i] = gradU[i]*gradH[i];
 			}
 			for (int i=0; i<3; i++)  gradUU[i] = max(gradUU[i], eps);
-			const Real FDD = h*(gradUH[0] + gradUH[1] + gradUH[2])/gradUU[0];
+			const Real FDD = h*(gradUH[0] + gradUH[1] + gradUH[2])/gradUU[0]; // == delta * h^3
 			const Real FDH = 1/3. * (gradUI[0]/gradUU[0]+gradUI[1]/gradUU[1]+gradUI[2]/gradUU[2]);
 
 
@@ -751,7 +751,7 @@ void IF3D_CarlingFishOperator::create(const int step_id,const Real time, const R
     if (bCorrectTrajectory) {
         Real velx_tot = Uinf[0] - transVel[0];
         Real vely_tot = Uinf[1] - transVel[1];
-        Real AngDiff  = atan2(vely_tot,velx_tot);
+        Real AngDiff  = std::atan2(vely_tot,velx_tot);
         adjTh = (1.-dt) * adjTh + dt * AngDiff;
         const Real B = (AngDiff*angVel[2]>0) ? 0.25/M_PI : 0;
         const Real PID = .5*adjTh +B*AngDiff*fabs(angVel[2]);

@@ -34,9 +34,9 @@ class OperatorLoad : public GenericLabOperator
 {
 private:
 	float* const data;
-	const int NBX, NBY, NBZ, NX, NY, NZ, NCHANNELS;
+	const unsigned long int NBX, NBY, NBZ, NX, NY, NZ, NCHANNELS;
 public:
-	OperatorLoad(float* const dump_data, const int nx, const int ny, const int nz, const Real sliceZ)
+	OperatorLoad(float* const dump_data, const unsigned long int nx, const unsigned long int ny, const unsigned long int nz, const Real sliceZ)
 	: data(dump_data), NBX(nx), NBY(ny), NBZ(nz), NX(nx*FluidBlock::sizeX), NY(ny*FluidBlock::sizeY), NZ(nz*FluidBlock::sizeZ), NCHANNELS(StreamerHDF5::NCHANNELS)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
@@ -52,20 +52,20 @@ public:
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
 	{
 		const Real inv2h = .5 / info.h_gridpoint; 
-		const unsigned int idx[3] = {
+		const unsigned long int idx[3] = {
 				info.index[0]%NBX,
 				info.index[1]%NBY,
 				info.index[2]%NBZ
 		};
 		StreamerHDF5 streamer(b);
 
-		for(unsigned int iz=0; iz<FluidBlock::sizeZ; iz++)
-		for(unsigned int iy=0; iy<FluidBlock::sizeY; iy++)
-		for(unsigned int ix=0; ix<FluidBlock::sizeX; ix++){
-			const unsigned int gx = idx[0]*FluidBlock::sizeX + ix;
-			const unsigned int gy = idx[1]*FluidBlock::sizeY + iy;
-			const unsigned int gz = idx[2]*FluidBlock::sizeZ + iz;
-			const unsigned int idx = NCHANNELS * (gx + NX * (gy + NY * gz));
+		for(unsigned long int iz=0; iz<FluidBlock::sizeZ; iz++)
+		for(unsigned long int iy=0; iy<FluidBlock::sizeY; iy++)
+		for(unsigned long int ix=0; ix<FluidBlock::sizeX; ix++){
+			const unsigned long int gx = idx[0]*FluidBlock::sizeX + ix;
+			const unsigned long int gy = idx[1]*FluidBlock::sizeY + iy;
+			const unsigned long int gz = idx[2]*FluidBlock::sizeZ + iz;
+			const unsigned long int idx = NCHANNELS * (gx + NX * (gy + NY * gz));
 			assert(idx < NX * NY * NZ * NCHANNELS);
 			float * const ptr = data + idx;
 			//assert(NCHANNELS*(gz + NZ * (gy + NY * gx)) < NX * NY * NZ * NCHANNELS);
@@ -80,9 +80,9 @@ public:
 			const Real vorticX = inv2h * ((phiN.w-phiS.w) - (phiB.v-phiF.v));
 			const Real vorticY = inv2h * ((phiB.u-phiF.u) - (phiE.w-phiW.w));
 			const Real vorticZ = inv2h * ((phiE.v-phiW.v) - (phiN.u-phiS.u));
-			//b(ix,iy,iz).tmpU = vorticX;
-			//b(ix,iy,iz).tmpV = vorticY;
-			//b(ix,iy,iz).tmpW = vorticZ;
+			b(ix,iy,iz).tmpU = vorticX;
+			b(ix,iy,iz).tmpV = vorticY;
+			b(ix,iy,iz).tmpW = vorticZ;
 
 			Real output[NCHANNELS];
 			for(int i=0; i<NCHANNELS; ++i) output[i] = 0;
@@ -108,10 +108,10 @@ class OperatorLoadFlat : public GenericLabOperator
 {
 private:
 	float* const data;
-	const int NBX, NBY, NX, NY, NCHANNELS;
+	const unsigned long int NBX, NBY, NX, NY, NCHANNELS;
 	const Real sliceZ;
 public:
-	OperatorLoadFlat(float* const dump_data, const int nx, const int ny, const int nz, const Real sliceZ)
+	OperatorLoadFlat(float* const dump_data, const unsigned long int nx, const unsigned long int ny, const unsigned long int nz, const Real sliceZ)
 	: data(dump_data), NBX(nx), NBY(ny), NX(nx*FluidBlock::sizeX), NY(ny*FluidBlock::sizeY), NCHANNELS(StreamerHDF5::NCHANNELS), sliceZ(sliceZ)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
@@ -131,21 +131,22 @@ public:
 		info.pos(ini, 0, 0, 0);
 		info.pos(fin, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
 		if (ini[2]>sliceZ+halfH || fin[2]<sliceZ-halfH) return;
-		int iz = (int)std::floor((sliceZ-ini[2])/info.h_gridpoint);
-		if (iz<0)   iz=0;
-		if (iz>=FluidBlock::sizeZ) iz=FluidBlock::sizeZ-1;
+		int mid = (int)std::floor((sliceZ-ini[2])/info.h_gridpoint);
+		if (mid<0) mid=0;
+		if (mid>=FluidBlock::sizeZ) mid=FluidBlock::sizeZ-1;
+		unsigned long int iz = mid; //probably useless
 		
-      const Real inv2h = .5 / info.h_gridpoint;
-		const unsigned int idx[2] = {
+		const Real inv2h = .5 / info.h_gridpoint;
+		const unsigned long int idx[2] = {
 				info.index[0]%NBX,
 				info.index[1]%NBY
 		};
 		StreamerHDF5 streamer(b);
 
-		for(unsigned int ix=0; ix<FluidBlock::sizeX; ix++) {
-			const unsigned int gx = idx[0]*FluidBlock::sizeX + ix;
-			for(unsigned int iy=0; iy<FluidBlock::sizeY; iy++) {
-				const unsigned int gy = idx[1]*FluidBlock::sizeY + iy;
+		for(unsigned long int ix=0; ix<FluidBlock::sizeX; ix++) {
+			const unsigned long int gx = idx[0]*FluidBlock::sizeX + ix;
+			for(unsigned long int iy=0; iy<FluidBlock::sizeY; iy++) {
+				const unsigned long int gy = idx[1]*FluidBlock::sizeY + iy;
 				assert(NCHANNELS*(gy + NY * gx) < NX * NY * NCHANNELS);
 				float* const ptr = data + NCHANNELS*(gy + NY * gx);
 
@@ -195,9 +196,9 @@ public:
 		const Real maxExt = grid->getBlocksPerDimension(0)*FluidBlock::sizeX;
 		const Real zExt = grid->getBlocksPerDimension(2)*FluidBlock::sizeZ;
 		const Real sliceZ = 0.5*zExt/maxExt;
-		const int NX = grid->getResidentBlocksPerDimension(0);
-		const int NY = grid->getResidentBlocksPerDimension(1);
-		const int NZ = grid->getResidentBlocksPerDimension(2);
+		const unsigned long int NX = grid->getResidentBlocksPerDimension(0);
+		const unsigned long int NY = grid->getResidentBlocksPerDimension(1);
+		const unsigned long int NZ = grid->getResidentBlocksPerDimension(2);
 		Loader kernel(data,NX,NY,NZ,sliceZ);
 		compute(kernel);
 	}
@@ -220,19 +221,19 @@ void DumpHDF5_MPI(FluidGridMPI &grid, const Real absTime, const string f_name, c
 	int coords[3];
 	grid.peindex(coords);
 	
-	const  int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
-	const  int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
-	const  int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
-	static const  int NCHANNELS = StreamerHDF5::NCHANNELS;
+	const unsigned long int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
+	const unsigned long int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
+	const unsigned long int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
+	static const unsigned long int NCHANNELS = StreamerHDF5::NCHANNELS;
 	float* array_all = new float[NX * NY * NZ * NCHANNELS];
 	
-	static const  int sX = 0;
-	static const  int sY = 0;
-	static const  int sZ = 0;
+	static const unsigned long int sX = 0;
+	static const unsigned long int sY = 0;
+	static const unsigned long int sZ = 0;
 	
-	static const  int eX = B::sizeX;
-	static const  int eY = B::sizeY;
-	static const  int eZ = B::sizeZ;
+	static const unsigned long int eX = B::sizeX;
+	static const unsigned long int eY = B::sizeY;
+	static const unsigned long int eZ = B::sizeZ;
 	
 	hsize_t count[4] = {
 		grid.getResidentBlocksPerDimension(2)*B::sizeZ,
@@ -335,16 +336,16 @@ void DumpHDF5flat_MPI(FluidGridMPI &grid, const Real absTime, const string f_nam
 	int coords[3];
 	grid.peindex(coords);
 
-	static const unsigned int sX = 0;
-	static const unsigned int sY = 0;
-	static const unsigned int sZ = 0;
-	static const unsigned int eX = B::sizeX;
-	static const unsigned int eY = B::sizeY;
-	static const unsigned int eZ = B::sizeZ;
-	const unsigned int NX = grid.getResidentBlocksPerDimension(0)*eX;
-	const unsigned int NY = grid.getResidentBlocksPerDimension(1)*eY;
-	const unsigned int NZ = 1;
-	static const unsigned int NCHANNELS = StreamerHDF5::NCHANNELS;
+	static const unsigned long int sX = 0;
+	static const unsigned long int sY = 0;
+	static const unsigned long int sZ = 0;
+	static const unsigned long int eX = B::sizeX;
+	static const unsigned long int eY = B::sizeY;
+	static const unsigned long int eZ = B::sizeZ;
+	const unsigned long int NX = grid.getResidentBlocksPerDimension(0)*eX;
+	const unsigned long int NY = grid.getResidentBlocksPerDimension(1)*eY;
+	const unsigned long int NZ = 1;
+	static const unsigned long int NCHANNELS = StreamerHDF5::NCHANNELS;
 	float* array_all = new float[NX * NY * NCHANNELS];
 	vector<BlockInfo> vInfo = grid.getBlocksInfo();
 
