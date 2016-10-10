@@ -7,7 +7,7 @@
 //
 
 #include "IF3D_StefanFishOperator.h"
-#include "IF3D_ObstacleLibrary.h"
+#include "IF3D_FishLibrary.h"
 
 Fish::CurvatureDefinedFishData::CurvatureDefinedFishData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
 : FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), l_Tp(Tperiod), timeshift(0), time0(0),
