@@ -11,13 +11,9 @@
 
 #include <cmath>
 #include <array>
-#include "IF2D_Frenet.h"
 #include "IF3D_ObstacleOperator.h"
 
-struct FishMidlineData
-{
-	FishMidlineData
-};
+struct FishMidlineData;
 
 class IF3D_FishOperator: public IF3D_ObstacleOperator
 {

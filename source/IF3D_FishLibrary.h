@@ -11,6 +11,8 @@
 
 #include <cmath>
 #include <array>
+#include "IF2D_Interpolation1D.h"
+#include "GenericOperator.h"
 #include "IF2D_Frenet.h"
 
 const int NPPSEG = 50.; //was 100
