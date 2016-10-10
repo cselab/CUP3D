@@ -10,7 +10,7 @@
 #include "IF3D_FishLibrary.h"
 #include "GenericOperator.h"
 
-Fish::CarlingFishMidlineData::CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
+CarlingFishMidlineData::CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
 : FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext)
 {
 #ifdef BBURST
@@ -28,7 +28,7 @@ Fish::CarlingFishMidlineData::CarlingFishMidlineData(const int Nm, const Real le
 #endif
 }
 
-void Fish::CarlingFishMidlineData::computeMidline(const Real time)
+void CarlingFishMidlineData::computeMidline(const Real time)
 {
 	_computeMidlineCoordinates(time);
 	_computeMidlineVelocities(time);
@@ -47,7 +47,7 @@ void Fish::CarlingFishMidlineData::computeMidline(const Real time)
 #endif
 }
 
-void Fish::CarlingFishMidlineData::_computeMidlineCoordinates(const Real time)
+void CarlingFishMidlineData::_computeMidlineCoordinates(const Real time)
 {
 	const Real rampFac = rampFactorSine(time, Tperiod);
 	rX[0] = 0.0;
@@ -62,7 +62,7 @@ void Fish::CarlingFishMidlineData::_computeMidlineCoordinates(const Real time)
 	}
 }
 
-void Fish::CarlingFishMidlineData::_computeMidlineVelocities(const Real time)
+void CarlingFishMidlineData::_computeMidlineVelocities(const Real time)
 {
 	const Real rampFac =    rampFactorSine(time, Tperiod);
 	const Real rampFacVel = rampFactorVelSine(time, Tperiod);
@@ -92,7 +92,7 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 	printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
 	fflush(0);
 	// multiple of NPPSEG: TODO why?
-	myFish = new Fish::CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension);
+	myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension);
 }
 
 IF3D_CarlingFishOperator::~IF3D_CarlingFishOperator()

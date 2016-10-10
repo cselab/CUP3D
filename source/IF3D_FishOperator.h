@@ -14,14 +14,15 @@
 #include "IF2D_Frenet.h"
 #include "IF3D_ObstacleOperator.h"
 
-namespace Fish
+struct FishMidlineData
 {
-struct FishMidlineData;
-}
+	FishMidlineData
+};
+
 class IF3D_FishOperator: public IF3D_ObstacleOperator
 {
 protected:
-	Fish::FishMidlineData * myFish;
+	FishMidlineData * myFish;
     Real Tperiod, phaseShift, phase, sim_time, sim_dt;
     Real volume_internal, J_internal, CoM_internal[2], vCoM_internal[2];
     Real theta_internal, angvel_internal, angvel_internal_prev, CoM_interpolated[3];
