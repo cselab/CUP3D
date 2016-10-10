@@ -528,6 +528,7 @@ class CarlingFishMidlineData : public FishMidlineData
 protected:
 	//burst-coast:
 	Real t0, t1, t2, t3;
+	const Real fac, inv;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
 	{
@@ -542,8 +543,6 @@ protected:
 	inline Real midline(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-		const Real fac = 0.1212121212121212;
-		const Real inv = 0.03125;
 #ifdef BBURST
 		Real f;
 		Real tcoast = TSTART;
@@ -577,8 +576,6 @@ protected:
 	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-		const Real fac = 0.1212121212121212;
-		const Real inv = 0.03125;
 
 #ifdef BBURST
 		Real f,df;
@@ -651,8 +648,8 @@ protected:
 	}
 
 public:
-	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext)
+	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext) fac(_fac), inv(0.03125)
 	{
 #ifdef BBURST
 		ifstream reader("burst_coast_carling_params.txt");

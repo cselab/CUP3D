@@ -643,9 +643,9 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
     	std::cout << "AVL: " << angVel[0] << " " << angVel[1] << " " << angVel[2] << std::endl;
     }
     const Real q_length=std::sqrt(quaternion[0]*quaternion[0]
-								   +quaternion[1]*quaternion[1]
-								   +quaternion[2]*quaternion[2]
-								   +quaternion[3]*quaternion[3]);
+							   +  quaternion[1]*quaternion[1]
+							   +  quaternion[2]*quaternion[2]
+							   +  quaternion[3]*quaternion[3]);
     assert(std::abs(q_length-1.0) < 5*std::numeric_limits<Real>::epsilon());
 #endif
 
