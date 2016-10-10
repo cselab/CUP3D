@@ -11,7 +11,7 @@
 #define IF3D_ROCKS_IF3D_ObstacleOperator_h
 
 #include "Definitions.h"
-#include "IF3D_ObstacleLibrary.h"
+//#include "IF3D_ObstacleLibrary.h"
 #include "IF2D_FactoryFileLineParser.h"
 #include <fstream>
 
@@ -109,8 +109,7 @@ public:
     virtual void update(const int step_id, const Real t, const Real dt, const Real* Uinf);
     virtual void save(const int step_id, const Real t, std::string filename = std::string());
     virtual void restart(const Real t, std::string filename = std::string());
-
-    void execute(Communicator * comm, const int iAgent, const Real time);
+    virtual void execute(Communicator * comm, const int iAgent, const Real time) {};
     
     // some non-pure methods
     virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf) { }
