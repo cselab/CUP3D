@@ -174,7 +174,6 @@ void FishMidlineData::changeToCoMFrameAngular(const Real theta_internal, const R
 	_computeMidlineNormals();
 }
 
-
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser)
 : IF3D_ObstacleOperator(grid, parser), theta_internal(0.0), angvel_internal(0.0), sim_time(0.0),
   sim_dt(0.0), adjTh(adjTh), myFish(nullptr), angvel_integral{0.,0.,0.}

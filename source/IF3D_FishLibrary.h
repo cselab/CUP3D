@@ -368,7 +368,7 @@ public:
 	virtual void execute(const Real time, const Real l_tnext, const vector<Real>& input) {}
 };
 
-class CarlingFishMidlineData : FishMidlineData
+class CarlingFishMidlineData : public FishMidlineData
 {
 protected:
 	//burst-coast:
@@ -468,7 +468,7 @@ public:
 	void computeMidline(const Real time);
 };
 
-class CurvatureDefinedFishData : FishMidlineData
+class CurvatureDefinedFishData : public FishMidlineData
 {
 protected:
 	Schedulers::ParameterSchedulerVector<6> curvScheduler;
@@ -487,7 +487,7 @@ protected:
 public:
 
 	CurvatureDefinedFishData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext);
-	void _correctTrajectory(const Real dtheta, const Real time, const Real dt) override
+	void _correctTrajectory(const Real dtheta, const Real time, const Real dt) override;
 			void execute(const Real time, const Real l_tnext, const vector<Real>& input) override;
 	~CurvatureDefinedFishData();
 	void computeMidline(const Real time);
