@@ -7,7 +7,7 @@
 //
 
 #include "IF3D_FishOperator.h"
-#include "IF3D_ObstacleLibrary.h"
+#include "IF3D_FishLibrary.h"
 
 Fish::FishMidlineData::FishMidlineData(const int Nm, const Real len, const Real Tp, const Real phase, const Real dx_ext):
 Nm(Nm),length(len),Tperiod(Tp),phaseShift(phase),rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),

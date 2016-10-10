@@ -13,33 +13,6 @@
 #include <array>
 #include "IF3D_FishOperator.h"
 
-namespace Fish
-{
-struct CurvatureDefinedFishData : FishMidlineData
-{
-protected:
-	Schedulers::ParameterSchedulerVector<6> curvScheduler;
-	Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
-	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
-	Real * const rK;
-	Real * const vK;
-	Real * const rC;
-	Real * const vC;
-	Real * const rB;
-	Real * const vB;
-	Real * const rA;
-	Real * const vA;
-	Real l_Tp, time0, timeshift;
-
-public:
-
-	CurvatureDefinedFishData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext);
-	void _correctTrajectory(const Real dtheta, const Real time, const Real dt) override
-	void execute(const Real time, const Real l_tnext, const vector<Real>& input) override;
-	~CurvatureDefinedFishData();
-	void computeMidline(const Real time);
-};
-}
 
 class IF3D_StefanFishOperator: public IF3D_FishOperator
 {
