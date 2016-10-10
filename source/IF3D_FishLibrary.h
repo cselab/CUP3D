@@ -649,7 +649,7 @@ protected:
 
 public:
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext) fac(_fac), inv(0.03125)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125)
 	{
 #ifdef BBURST
 		ifstream reader("burst_coast_carling_params.txt");

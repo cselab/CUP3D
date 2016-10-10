@@ -14,7 +14,8 @@
 //#include "IF3D_CylinderObstacleOperator.h"
 #include "IF3D_SphereObstacleOperator.h"
 #include "IF3D_ForcedSphereObstacleOperator.h"
-//#include "IF3D_StefanFishOperator.h"
+#include "IF3D_StefanFishOperator.h"
+#include "IF3D_DeadFishOperator.h"
 #include "IF3D_CarlingFishOperator.h"
 /*
 #include "IF3D_EllipseObstacleOperator.h"
@@ -61,12 +62,14 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
         {
             retval.push_back(new IF3D_ForcedSphereObstacleOperator(grid,object.second));
         }
-        /*
+        else if( objectName == "IF3D_DeadFish" )
+        {
+            retval.push_back(new IF3D_DeadFishOperator(grid,object.second));
+        }
         else if( objectName == "IF3D_StefanFish" )
         {
             retval.push_back(new IF3D_StefanFishOperator(grid,object.second));
         }
-        */
         else if( objectName == "IF3D_CarlingFish" )
         {
             retval.push_back(new IF3D_CarlingFishOperator(grid,object.second));

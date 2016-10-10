@@ -6,11 +6,10 @@
 //
 //
 
-#include "IF3D_CarlingFishOperator.h"
+#include "IF3D_DeadFishOperator.h"
 #include "IF3D_FishLibrary.h"
-#include "GenericOperator.h"
 
-IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, ArgumentParser & parser)
+IF3D_DeadFishOperator::IF3D_DeadFishOperator(FluidGridMPI * grid, ArgumentParser & parser)
 : IF3D_FishOperator(grid, parser), ext_pos{0,0,0}
 {
 	_parseArguments(parser);
@@ -50,10 +49,10 @@ void IF3D_DeadFishOperator::update(const int step_id, const Real t, const Real d
 {
 	if (Atow>0) {
 		//constant acceleration
-		double accel = 4*Ltow*length/(Ttow*Tperiod)/(Ttow*Tperiod);
+		Real accel = 4*Ltow*length/(Ttow*Tperiod)/(Ttow*Tperiod);
 		//alternates between negative and positive
 		if (fmod(t/Tperiod,2.*Ttow)>Ttow) accel=-accel;
-		double s_c = 1.0;
+		Real s_c = 1.0;
 		//2 obstacles in antiphase
 		if (ID==0) {
 			accel=-accel;
@@ -66,13 +65,13 @@ void IF3D_DeadFishOperator::update(const int step_id, const Real t, const Real d
 		ext_pos[0] += dt*(transVel[0]-2*Ltow*length/(Ttow*Tperiod)) + 0.5*accel*dt*dt;
 		const Real arg = .5*M_PI*(P0-ext_pos[0])/Ltow/length;
 		position[1] = 0.5 + s_c*Atow*length*std::cos(arg);
-		const double fac1  = .5*s_c*Atow*M_PI/Ltow*sin(arg);
+		const Real fac1  = .5*s_c*Atow*M_PI/Ltow*sin(arg);
 		transVel[1] = fac1*transVel[0];
 		ext_pos[1] += dt*(transVel[1]-Uinf[1]);
-		angle = atan(fac1);
-		const double fac2  = -0.25*Atow*s_c*M_PI*M_PI/Ltow*cos(arg)*transVel[0]/Ltow/length;
+		const Real angle = atan(fac1);
+		const Real fac2  = -0.25*Atow*s_c*M_PI*M_PI/Ltow*cos(arg)*transVel[0]/Ltow/length;
 		angVel[2] = fac2/(1+fac1*fac1);
-
+      /*
 		const Real dqdt[4] = {
 				0.5*(-angVel[2]*quaternion[3]),
 				0.5*(-angVel[2]*quaternion[2]),
@@ -96,7 +95,11 @@ void IF3D_DeadFishOperator::update(const int step_id, const Real t, const Real d
 			quaternion[2] = num[2]*invDenum;
 			quaternion[3] = num[3]*invDenum;
 		}
-
+      */
+      quaternion[0] = std::cos(0.5*angle);
+      quaternion[1] = 0;
+      quaternion[2] = 0;
+      quaternion[3] = std::sin(0.5*angle);
 		printf("accel %f, posx %f, posy %f. velx %f, vely %f, angvel %f\n",
 				accel,position[0],position[1],transVel[0],transVel[1],angVel[2]);
 		//position[1] = 0.5 + Yamplit*sin(2*M_PI*(position[0]-P0)/Yperiod + M_PI*Yphase);

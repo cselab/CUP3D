@@ -6,8 +6,8 @@
 //
 //
 
-#ifndef __IncompressibleFluids3D__IF3D_CarlingFishOperator__
-#define __IncompressibleFluids3D__IF3D_CarlingFishOperator__
+#ifndef __IncompressibleFluids3D__IF3D_DeadFishOperator__
+#define __IncompressibleFluids3D__IF3D_DeadFishOperator__
 
 #include <cmath>
 #include <array>
