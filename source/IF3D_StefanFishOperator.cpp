@@ -10,7 +10,7 @@
 #include "IF3D_FishLibrary.h"
 
 IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI * grid, ArgumentParser & parser)
-: IF3D_ObstacleOperator(grid, parser), theta_internal(0.0), angvel_internal(0.0), sim_time(0.0), sim_dt(0.0), adjTh(adjTh), myFish(nullptr)
+: IF3D_FishOperator(grid, parser)
   {
 	_parseArguments(parser);
 	const Real target_Nm = TGTPPB*length/vInfo[0].h_gridpoint;
@@ -49,7 +49,7 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
     */
 }
 
-void IF3D_StefanLearnTurnOperator::execute(Communicator * comm, const int iAgent, const Real time)
+void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, const Real time)
 {
 	/*
     if (time < Tstartlearn) {

@@ -11,7 +11,7 @@
 #include "GenericOperator.h"
 
 IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, ArgumentParser & parser)
-: IF3D_ObstacleOperator(grid, parser), theta_internal(0.0), angvel_internal(0.0), sim_time(0.0), sim_dt(0.0), adjTh(adjTh), myFish(nullptr)
+: IF3D_FishOperator(grid, parser)
 {
 	_parseArguments(parser);
 	const Real target_Nm = TGTPPB*length/vInfo[0].h_gridpoint;

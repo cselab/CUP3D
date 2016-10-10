@@ -368,7 +368,7 @@ public:
 	virtual void execute(const Real time, const Real l_tnext, const vector<Real>& input) {}
 };
 
-class CarlingFishMidlineData : FishMidlineData
+class CarlingFishMidlineData : public FishMidlineData
 {
 protected:
 	//burst-coast:
@@ -468,7 +468,7 @@ public:
 	void computeMidline(const Real time);
 };
 
-class CurvatureDefinedFishData : FishMidlineData
+class CurvatureDefinedFishData : public FishMidlineData
 {
 protected:
 	Schedulers::ParameterSchedulerVector<6> curvScheduler;
@@ -487,7 +487,7 @@ protected:
 public:
 
 	CurvatureDefinedFishData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext);
-	void _correctTrajectory(const Real dtheta, const Real time, const Real dt) override
+	void _correctTrajectory(const Real dtheta, const Real time, const Real dt) override;
 			void execute(const Real time, const Real l_tnext, const vector<Real>& input) override;
 	~CurvatureDefinedFishData();
 	void computeMidline(const Real time);
@@ -664,14 +664,14 @@ CurvatureDefinedFishData::CurvatureDefinedFishData(const int Nm, const Real leng
   rK(_alloc(Nm)),vK(_alloc(Nm)),rC(_alloc(Nm)),vC(_alloc(Nm)),rA(_alloc(Nm)),vA(_alloc(Nm)),rB(_alloc(Nm)),vB(_alloc(Nm))
 {    	}
 
-void CurvatureDefinedFishData::_correctTrajectory(const Real dtheta, const Real time, const Real dt) override
+void CurvatureDefinedFishData::_correctTrajectory(const Real dtheta, const Real time, const Real dt)
 {
 	std::array<Real,6> tmp_curv = std::array<Real,6>();
 	for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta/M_PI;}
 	adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
 }
 
-void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, const vector<Real>& input) override
+void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, const vector<Real>& input) 
 {
 	if (input.size()>1) {
 		baseScheduler.Turn(input[0], l_tnext);
