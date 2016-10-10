@@ -13,7 +13,7 @@
 #include <array>
 #include "IF3D_ObstacleOperator.h"
 
-struct FishMidlineData;
+class FishMidlineData;
 
 class IF3D_FishOperator: public IF3D_ObstacleOperator
 {
