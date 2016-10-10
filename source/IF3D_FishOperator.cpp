@@ -9,7 +9,7 @@
 #include "IF3D_FishOperator.h"
 #include "IF3D_FishLibrary.h"
 
-Fish::FishMidlineData::FishMidlineData(const int Nm, const Real len, const Real Tp, const Real phase, const Real dx_ext):
+FishMidlineData::FishMidlineData(const int Nm, const Real len, const Real Tp, const Real phase, const Real dx_ext):
 Nm(Nm),length(len),Tperiod(Tp),phaseShift(phase),rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),
 vX(_alloc(Nm)),vY(_alloc(Nm)),norX(_alloc(Nm)),norY(_alloc(Nm)),vNorX(_alloc(Nm)),vNorY(_alloc(Nm)),
 width(_alloc(Nm)),height(_alloc(Nm)),iFishStart(4*NPPEXT),iFishEnd(Nm-1-4*NPPEXT)
@@ -32,7 +32,7 @@ width(_alloc(Nm)),height(_alloc(Nm)),iFishStart(4*NPPEXT),iFishEnd(Nm-1-4*NPPEXT
 	_computeWidthsHeights();
 }
 
-Fish::FishMidlineData::~FishMidlineData()
+FishMidlineData::~FishMidlineData()
 {
     _dealloc(rS);
     _dealloc(rX);
@@ -47,22 +47,22 @@ Fish::FishMidlineData::~FishMidlineData()
     _dealloc(width);
 }
 
-void Fish::FishMidlineData::_prepareRotation2D(const Real angle)
+void FishMidlineData::_prepareRotation2D(const Real angle)
 {
 	Rmatrix2D[0][0] = Rmatrix2D[1][1] = std::cos(angle);
 	Rmatrix2D[0][1] = -std::sin(angle);
 	Rmatrix2D[1][0] = -Rmatrix2D[0][1];
 }
 
-void Fish::FishMidlineData::_computeWidthsHeights()
+void FishMidlineData::_computeWidthsHeights()
 {
 	for(int i=0;i<Nm;++i) {
-		width[i]  = Fish::width(rS[i],length);
-		height[i] = Fish::height(rS[i],length);
+		width[i]  = _width(rS[i],length);
+		height[i] = _height(rS[i],length);
 	}
 }
 
-void Fish::FishMidlineData::_computeMidlineNormals()
+void FishMidlineData::_computeMidlineNormals()
 {
 #pragma omp parallel for
 	for(int i=0; i<Nm-1; i++) {
@@ -82,7 +82,7 @@ void Fish::FishMidlineData::_computeMidlineNormals()
 	vNorY[Nm-1] = vNorY[Nm-2];
 }
 
-Real Fish::FishMidlineData::integrateLinearMomentum(Real CoM[2], Real vCoM[2])
+Real FishMidlineData::integrateLinearMomentum(Real CoM[2], Real vCoM[2])
 {   // already worked out the integrals for r, theta on paper
 	// remaining integral done with composite trapezoidal rule
 	// minimize rhs evaluations --> do first and last point separately
@@ -117,7 +117,7 @@ Real Fish::FishMidlineData::integrateLinearMomentum(Real CoM[2], Real vCoM[2])
 	return vol;
 }
 
-void Fish::FishMidlineData::integrateAngularMomentum(Real & angVel)
+void FishMidlineData::integrateAngularMomentum(Real & angVel)
 {
 	// assume we have already translated CoM and vCoM to nullify linear momentum
 
@@ -151,7 +151,7 @@ void Fish::FishMidlineData::integrateAngularMomentum(Real & angVel)
 	angVel = angMom/J;
 }
 
-void Fish::FishMidlineData::changeToCoMFrameLinear(const Real CoM_internal[2], const Real vCoM_internal[2])
+void FishMidlineData::changeToCoMFrameLinear(const Real CoM_internal[2], const Real vCoM_internal[2])
 {
 	for(int i=0;i<Nm;++i) {
 		rX[i]-=CoM_internal[0];
@@ -161,7 +161,7 @@ void Fish::FishMidlineData::changeToCoMFrameLinear(const Real CoM_internal[2], c
 	}
 }
 
-void Fish::FishMidlineData::changeToCoMFrameAngular(const Real theta_internal, const Real angvel_internal)
+void FishMidlineData::changeToCoMFrameAngular(const Real theta_internal, const Real angvel_internal)
 {
 	_prepareRotation2D(theta_internal);
 #pragma omp parallel for

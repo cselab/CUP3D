@@ -376,12 +376,12 @@ struct VolumeSegment_OBB
 
 struct PutFishOnBlocks
 {
-	const Fish::FishMidlineData * cfish;
+	const FishMidlineData * cfish;
 	Real position[3];
 	Real quaternion[4];
 	Real Rmatrix3D[3][3];
 
-	PutFishOnBlocks(const Fish::FishMidlineData* const cfish, const Real pos[3], const Real quat[4]):
+	PutFishOnBlocks(const FishMidlineData* const cfish, const Real pos[3], const Real quat[4]):
 		cfish(cfish)
 	{
 		position[0]=pos[0];
@@ -952,29 +952,6 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 #endif
 };
 
-namespace Fish
-{
-inline Real width(const Real s, const Real L)
-{
-	if(s<0 or s>L) return 0;
-	const Real sb = .04*L;
-	const Real st = .95*L;
-	const Real wt = .01*L;
-	const Real wh = .04*L;
-
-	return (s<sb ? std::sqrt(2.0*wh*s-s*s) :
-			(s<st ? wh-(wh-wt)*std::pow((s-sb)/(st-sb),2) :
-					(wt * (L-s)/(L-st))));
-}
-
-inline Real height(const Real s, const Real L)
-{
-	if(s<0 or s>L) return 0;
-	const Real a=0.51*L;
-	const Real b=0.08*L;
-	return b*std::sqrt(1 - std::pow((s-a)/a,2));
-}
-
 struct FishMidlineData
 {
 public:
@@ -1000,6 +977,27 @@ protected:
 	const Real phaseShift;
 	Real Rmatrix2D[2][2];
 	Real Rmatrix3D[3][3];
+
+	inline Real _width(const Real s, const Real L)
+	{
+		if(s<0 or s>L) return 0;
+		const Real sb = .04*L;
+		const Real st = .95*L;
+		const Real wt = .01*L;
+		const Real wh = .04*L;
+
+		return (s<sb ? std::sqrt(2.0*wh*s-s*s) :
+				(s<st ? wh-(wh-wt)*std::pow((s-sb)/(st-sb),2) :
+						(wt * (L-s)/(L-st))));
+	}
+
+	inline Real _height(const Real s, const Real L)
+	{
+		if(s<0 or s>L) return 0;
+		const Real a=0.51*L;
+		const Real b=0.08*L;
+		return b*std::sqrt(1 - std::pow((s-a)/a,2));
+	}
 
 	inline void _rotate2D(Real &x, Real &y) const
 	{
@@ -1078,8 +1076,6 @@ public:
 	virtual void execute(const Real time, const Real l_tnext, const vector<Real>& input) {}
 };
 
-namespace Fish
-{
 struct CarlingFishMidlineData : FishMidlineData
 {
 protected:
@@ -1180,7 +1176,6 @@ public:
 	void computeMidline(const Real time);
 };
 
-
 struct CurvatureDefinedFishData : FishMidlineData
 {
 protected:
@@ -1205,8 +1200,6 @@ public:
 	~CurvatureDefinedFishData();
 	void computeMidline(const Real time);
 };
-}
-}
 
 
 #endif /* defined(__IncompressibleFluids3D__IF3D_CarlingFish__) */

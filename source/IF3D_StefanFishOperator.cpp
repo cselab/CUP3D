@@ -9,19 +9,19 @@
 #include "IF3D_StefanFishOperator.h"
 #include "IF3D_FishLibrary.h"
 
-Fish::CurvatureDefinedFishData::CurvatureDefinedFishData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
+CurvatureDefinedFishData::CurvatureDefinedFishData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
 : FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), l_Tp(Tperiod), timeshift(0), time0(0),
   rK(_alloc(Nm)),vK(_alloc(Nm)),rC(_alloc(Nm)),vC(_alloc(Nm)),rA(_alloc(Nm)),vA(_alloc(Nm)),rB(_alloc(Nm)),vB(_alloc(Nm))
 {    	}
 
-void Fish::CurvatureDefinedFishData::_correctTrajectory(const Real dtheta, const Real time, const Real dt) override
+void CurvatureDefinedFishData::_correctTrajectory(const Real dtheta, const Real time, const Real dt) override
 {
 	std::array<Real,6> tmp_curv = std::array<Real,6>();
 	for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta/M_PI;}
 	adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
 }
 
-void Fish::CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, const vector<Real>& input) override
+void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, const vector<Real>& input) override
 {
 	if (input.size()>1) {
 		baseScheduler.Turn(input[0], l_tnext);
@@ -34,7 +34,7 @@ void Fish::CurvatureDefinedFishData::execute(const Real time, const Real l_tnext
 	}
 }
 
-Fish::CurvatureDefinedFishData::~CurvatureDefinedFishData()
+CurvatureDefinedFishData::~CurvatureDefinedFishData()
 {
 	_dealloc(rK);
 	_dealloc(vK);
@@ -46,7 +46,7 @@ Fish::CurvatureDefinedFishData::~CurvatureDefinedFishData()
 	_dealloc(vA);
 }
 
-void Fish::CurvatureDefinedFishData::computeMidline(const Real time)
+void CurvatureDefinedFishData::computeMidline(const Real time)
 {
 	const Real _1oL = 1./length;
 	const std::array<Real ,6> curvature_values = {
@@ -109,7 +109,7 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI * grid, ArgumentPa
 	printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
 	fflush(0);
 	// multiple of NPPSEG: TODO why?
-	myFish = new Fish::CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension);
+	myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension);
   }
 
 void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
