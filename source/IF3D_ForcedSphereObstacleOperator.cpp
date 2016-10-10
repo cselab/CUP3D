@@ -8,6 +8,7 @@
 
 #include <limits>
 #include "IF3D_ForcedSphereObstacleOperator.h"
+#include "IF3D_ObstacleLibrary.h"
 
 
 void IF3D_ForcedSphereObstacleOperator::_parseArguments(ArgumentParser & parser)

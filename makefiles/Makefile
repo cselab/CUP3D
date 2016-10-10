@@ -26,7 +26,7 @@ CPPFLAGS += -D_BSY_=$(bsy)
 CPPFLAGS += -D_BSZ_=$(bsz)
 
 ifeq "$(config)" "prod"
-	CPPFLAGS += -DNDEBUG -O4 -fstrict-aliasing -march=native -mtune=native -ffast-math
+	CPPFLAGS += -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math
 else
 	CPPFLAGS += -g
 endif

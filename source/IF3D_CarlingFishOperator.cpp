@@ -7,6 +7,7 @@
 //
 
 #include "IF3D_CarlingFishOperator.h"
+#include "IF3D_ObstacleLibrary.h"
 #include "GenericOperator.h"
 
 Fish::CarlingFishMidlineData::CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
