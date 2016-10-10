@@ -17,7 +17,7 @@ class IF3D_DeadFishOperator: public IF3D_FishOperator
 {
 protected:
     double angVel_comp[3], transVel_comp[3], ext_pos[3]; // from computeVelocities
-    double Ltow, Ttow, Atow, VelX, P0;
+    double Ltow, Ttow, Atow, VelX, P0, Y0;
     bool bTilt;
     int ID;
 

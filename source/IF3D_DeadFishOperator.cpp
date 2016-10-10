@@ -29,6 +29,7 @@ void IF3D_DeadFishOperator::_parseArguments(ArgumentParser & parser)
 
 	parser.unset_strict_mode();
 	P0 = parser("-xpos").asDouble(0.0);
+	Y0 = parser("-ypos").asDouble(0.0);
 	VelX = parser("-VelX").asDouble(0.0);
 	Ltow = parser("-Ltow").asDouble(2.5);
 	Ttow = parser("-Ttow").asDouble(1.0);
@@ -36,8 +37,8 @@ void IF3D_DeadFishOperator::_parseArguments(ArgumentParser & parser)
 
 	if (Atow>0) {
 		transVel[0] = 2*Ltow*length/(Ttow*Tperiod);
-		if (ID==0) position[1] = 0.5 - Atow*length;
-		if (ID==1) position[1] = 0.5 + Atow*length;
+		if (ID==0) position[1] -= Atow*length;
+		if (ID==1) position[1] += Atow*length;
 		if (ID==1) transVel[0] -= 4*Ltow*length/(Ttow*Tperiod);
 	}
 
@@ -66,12 +67,12 @@ void IF3D_DeadFishOperator::update(const int step_id, const Real t, const Real d
 		//why here?
 		ext_pos[0] += dt*(transVel[0]-2*Ltow*length/(Ttow*Tperiod)) + 0.5*accel*dt*dt;
 		const Real arg = .5*M_PI*(P0-ext_pos[0])/Ltow/length;
-		position[1] = 0.5 + s_c*Atow*length*std::cos(arg);
-		const Real fac1  = .5*s_c*Atow*M_PI/Ltow*sin(arg);
+		position[1] = Y0 + s_c*Atow*length*std::cos(arg);
+		const Real fac1 = .5*s_c*Atow*M_PI/Ltow*sin(arg);
 		transVel[1] = fac1*transVel[0];
 		ext_pos[1] += dt*(transVel[1]-Uinf[1]);
 		const Real angle = atan(fac1);
-		const Real fac2  = -0.25*Atow*s_c*M_PI*M_PI/Ltow*cos(arg)*transVel[0]/Ltow/length;
+		const Real fac2  = -.25*Atow*s_c*M_PI*M_PI/Ltow*cos(arg)*transVel[0]/Ltow/length;
 		angVel[2] = fac2/(1+fac1*fac1);
 		/*
 		const Real dqdt[4] = {
