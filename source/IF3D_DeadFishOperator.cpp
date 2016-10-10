@@ -17,7 +17,6 @@ IF3D_DeadFishOperator::IF3D_DeadFishOperator(FluidGridMPI * grid, ArgumentParser
 	const Real dx_extension = 0.25*vInfo[0].h_gridpoint;
 	const int Nm = NPPSEG*(int)std::ceil(target_Nm/NPPSEG)+1;
 	printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
-	fflush(0);
 	// multiple of NPPSEG: TODO why?
 	myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, 0.);
 }
@@ -32,7 +31,7 @@ void IF3D_DeadFishOperator::_parseArguments(ArgumentParser & parser)
 	P0 = parser("-xpos").asDouble(0.0);
 	VelX = parser("-VelX").asDouble(0.0);
 	Ltow = parser("-Ltow").asDouble(2.5);
-	Ttow = parser("-Ttow").asDouble(10.0);
+	Ttow = parser("-Ttow").asDouble(1.0);
 	Atow = parser("-Atow").asDouble(-1.);
 
 	if (Atow>0) {
@@ -41,8 +40,14 @@ void IF3D_DeadFishOperator::_parseArguments(ArgumentParser & parser)
 		if (ID==1) position[1] = 0.5 + Atow*length;
 		if (ID==1) transVel[0] -= 4*Ltow*length/(Ttow*Tperiod);
 	}
-	printf("created IF2D_DeadFish: xpos=%f ypos=%f L=%f T=%\n",position[0],position[1],length,Tperiod);
-	printf("P0=%3.3f VelX=%3.3f Ltow=%3.3f Ttow=%3.3f Atow=%3.3f ID=%d \n",P0,VelX,Ltow,Ttow,Atow,ID);
+
+	ext_pos[0] = position[0];
+	ext_pos[1] = position[1];
+	ext_pos[2] = position[2];
+	printf("created IF2D_DeadFish: xpos=%f ypos=%f L=%f T=%\n",
+			position[0],position[1],length,Tperiod);
+	printf("P0=%3.3f VelX=%3.3f Ltow=%3.3f Ttow=%3.3f Atow=%3.3f ID=%d \n",
+			P0,VelX,Ltow,Ttow,Atow,ID);
 }
 
 void IF3D_DeadFishOperator::update(const int step_id, const Real t, const Real dt, const Real *Uinf)
@@ -54,10 +59,7 @@ void IF3D_DeadFishOperator::update(const int step_id, const Real t, const Real d
 		if (fmod(t/Tperiod,2.*Ttow)>Ttow) accel=-accel;
 		Real s_c = 1.0;
 		//2 obstacles in antiphase
-		if (ID==0) {
-			accel=-accel;
-			s_c=-s_c;
-		}
+		if (ID==0) { accel=-accel; s_c=-s_c; }
 		//integrate in time constant accel:
 		position[0] += dt*transVel[0] + 0.5*accel*dt*dt;
 		transVel[0] += accel*dt;
@@ -71,7 +73,7 @@ void IF3D_DeadFishOperator::update(const int step_id, const Real t, const Real d
 		const Real angle = atan(fac1);
 		const Real fac2  = -0.25*Atow*s_c*M_PI*M_PI/Ltow*cos(arg)*transVel[0]/Ltow/length;
 		angVel[2] = fac2/(1+fac1*fac1);
-      /*
+		/*
 		const Real dqdt[4] = {
 				0.5*(-angVel[2]*quaternion[3]),
 				0.5*(-angVel[2]*quaternion[2]),
@@ -95,11 +97,11 @@ void IF3D_DeadFishOperator::update(const int step_id, const Real t, const Real d
 			quaternion[2] = num[2]*invDenum;
 			quaternion[3] = num[3]*invDenum;
 		}
-      */
-      quaternion[0] = std::cos(0.5*angle);
-      quaternion[1] = 0;
-      quaternion[2] = 0;
-      quaternion[3] = std::sin(0.5*angle);
+		 */
+		quaternion[0] = std::cos(0.5*angle);
+		quaternion[1] = 0;
+		quaternion[2] = 0;
+		quaternion[3] = std::sin(0.5*angle);
 		printf("accel %f, posx %f, posy %f. velx %f, vely %f, angvel %f\n",
 				accel,position[0],position[1],transVel[0],transVel[1],angVel[2]);
 		//position[1] = 0.5 + Yamplit*sin(2*M_PI*(position[0]-P0)/Yperiod + M_PI*Yphase);
@@ -139,19 +141,19 @@ void IF3D_DeadFishOperator::computeVelocities(const Real* Uinf)
             p[0]-=CM[0];
             p[1]-=CM[1];
             p[2]-=CM[2];
-            V     += Xs;
-            lm0   += Xs * b(ix,iy,iz).u;
-            lm1   += Xs * b(ix,iy,iz).v;
-            lm2   += Xs * b(ix,iy,iz).w;
-            am0 += Xs*(p[1]*b(ix,iy,iz).w - p[2]*b(ix,iy,iz).v);
-            am1 += Xs*(p[2]*b(ix,iy,iz).u - p[0]*b(ix,iy,iz).w);
-            am2 += Xs*(p[0]*b(ix,iy,iz).v - p[1]*b(ix,iy,iz).u);
-            J0+=Xs*(p[1]*p[1]+p[2]*p[2]);
-            J1+=Xs*(p[0]*p[0]+p[2]*p[2]);
-            J2+=Xs*(p[0]*p[0]+p[1]*p[1]);
-            J3-=Xs*p[0]*p[1];
-            J4-=Xs*p[0]*p[2];
-            J5-=Xs*p[1]*p[2];
+            V   += Xs;
+            lm0 += Xs*b(ix,iy,iz).u;
+            lm1 += Xs*b(ix,iy,iz).v;
+            lm2 += Xs*b(ix,iy,iz).w;
+            am0 += Xs*(p[1]*b(ix,iy,iz).w-p[2]*b(ix,iy,iz).v);
+            am1 += Xs*(p[2]*b(ix,iy,iz).u-p[0]*b(ix,iy,iz).w);
+            am2 += Xs*(p[0]*b(ix,iy,iz).v-p[1]*b(ix,iy,iz).u);
+            J0  += Xs*(p[1]*p[1]+p[2]*p[2]);
+            J1  += Xs*(p[0]*p[0]+p[2]*p[2]);
+            J2  += Xs*(p[0]*p[0]+p[1]*p[1]);
+            J3  -= Xs*p[0]*p[1];
+            J4  -= Xs*p[0]*p[2];
+            J5  -= Xs*p[1]*p[2];
         }
     }
 
