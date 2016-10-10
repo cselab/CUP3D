@@ -95,11 +95,6 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 	myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension);
 }
 
-IF3D_CarlingFishOperator::~IF3D_CarlingFishOperator()
-{
-	if(myFish not_eq nullptr) delete myFish;
-}
-
 void IF3D_CarlingFishOperator::_parseArguments(ArgumentParser & parser)
 {
 	IF3D_FishOperator::_parseArguments(parser);
