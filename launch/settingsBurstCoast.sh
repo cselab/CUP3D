@@ -2,12 +2,15 @@
 
 BASENAME=CarlingFishRe4000_BurstCoast
 NNODE=2
+WCLOCK=12:00
+WSECS=43200
 FFACTORY=factoryCarling
 cp burst_coast_carling_params.txt ${FOLDER}/burst_coast_carling_params.txt
 
 OPTIONS=
 OPTIONS+=" -bpdx 64 -bpdy 32 -bpdz 32"
 OPTIONS+=" -2Ddump 1"
+OPTIONS+=" -Wtime ${WSECS}"
 OPTIONS+=" -nprocsx ${NNODE}"
 OPTIONS+=" -CFL 0.1"
 OPTIONS+=" -length 0.25"

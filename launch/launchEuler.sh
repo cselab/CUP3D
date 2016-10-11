@@ -2,16 +2,9 @@
 SETTINGSNAME=$1
 BASEPATH=/cluster/scratch/novatig/CubismUP3D/
 
-if [ $# -lt 2 ] ; then
-    WCLOCK=24:00
-    echo "Setting WCLOCK to ${WCLOCK}"
-else
-    WCLOCK=$2
-fi
-
 INTERACTIVE=0
-if [ $# -gt 2 ] ; then
-    if [ "${3}" = "node" ]; then
+if [ $# -gt 1 ] ; then
+    if [ "${2}" = "node" ]; then
         echo "Running on current node"
         INTERACTIVE=1
     fi

@@ -2,11 +2,14 @@
 
 BASENAME=FlowPastCarlingFishRe0550_double_spectral_
 NNODE=2
+WCLOCK=12:00
+WSECS=43200
 FFACTORY=factoryCarling
 
 OPTIONS=
 OPTIONS+=" -bpdx 64 -bpdy 32 -bpdz 32"
 OPTIONS+=" -2Ddump 1"
+OPTIONS+=" -Wtime ${WSECS}"
 OPTIONS+=" -nprocsx ${NNODE}"
 OPTIONS+=" -CFL 0.1"
 OPTIONS+=" -length 0.25"

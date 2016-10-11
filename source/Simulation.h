@@ -75,42 +75,35 @@ class Simulation
 protected:
 	ArgumentParser parser;
 	Profiler profiler;
+	Communicator * communicator;
 #ifdef _USE_LZ4_
 	SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, FluidVPStreamer> waveletdumper_grid;
 #endif
-	// Serialization
-	bool bPing; // needed for ping-pong scheme
-	string path4serialization;
 	
-	//The protagonist
-    IF3D_ObstacleVector* obstacle_vector;
-    //The antagonist
-	vector<GenericCoordinator*> pipeline;
-	Communicator * communicator;
-
 	// grid
 	int rank, nprocs;
 	int nprocsx, nprocsy, nprocsz;
 	int bpdx, bpdy, bpdz;
-	FluidGridMPI * grid;
-    vector<BlockInfo> vInfo;
 	
 	// simulation status
 	int step, nsteps;
-	Real dt, time, endTime;
-    Real uinf[3], uinf_dummy[3], re, nu, length;
-    Real dtCFL, dtLCFL, dtFourier;
+	Real dt, time, endTime, dtCFL, dtFourier;
 	
 	// simulation settings
-	Real CFL, LCFL, lambda, theta;
+    Real uinf[3], re, nu, length, CFL, lambda;
     bool bDump, bRestart, bDLM, verbose, b2Ddump;
 	
 	// output
 	int dumpFreq, saveFreq;
-	Real dumpTime, saveTime;
-    //Real nextDumpTime, nextSaveTime;
-	string path2file;
-	//SerializerIO_ImageVTK<FluidGrid, FluidVTKStreamer> dumper;
+	Real dumpTime, saveTime, saveClockPeriod, maxClockDuration;
+	string path2file, path4serialization;
+
+	FluidGridMPI * grid;
+    vector<BlockInfo> vInfo;
+	//The protagonist
+    IF3D_ObstacleVector* obstacle_vector;
+    //The antagonist
+	vector<GenericCoordinator*> pipeline;
 	
     void areWeDumping(Real & nextDumpTime);
     void _serialize(Real & nextSaveTime);
@@ -126,10 +119,11 @@ protected:
 	
 public:
     Simulation(const int argc, char ** argv, Communicator* comm) :
-    parser(argc,argv), bpdx(-1), bpdy(-1), step(0), nsteps(0), endTime(0), time(0), dt(0),
-	rank(0), nprocs(1), bPing(false), uinf{0.0,0.0}, uinf_dummy{0.0,0.0}, re(0), length(0), nu(0),
-	dtCFL(0), dtLCFL(0), dtFourier(0), CFL(0), LCFL(0), lambda(0), bDump(false), bRestart(false), b2Ddump(false),
-	verbose(false), bDLM(false), dumpFreq(0), saveFreq(0), dumpTime(0), saveTime(0), communicator(comm)
+    parser(argc,argv), communicator(comm), rank(0), nprocs(1), nprocsx(-1), nprocsy(-1),
+	nprocsz(-1), bpdx(-1), bpdy(-1), bpdz(-1), step(0), nsteps(0), dt(0), time(0), endTime(0),
+	dtCFL(0), dtFourier(0), uinf{0.0, 0.0, 0.0}, re(0), nu(0), length(0), CFL(0), lambda(0),
+	bDump(false), bRestart(false), bDLM(false), verbose(false), b2Ddump(false),
+	dumpFreq(0), saveFreq(0), dumpTime(0), saveTime(0), saveClockPeriod(0), maxClockDuration(1e9)
 	{
 		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 		MPI_Comm_size(MPI_COMM_WORLD,&nprocs);

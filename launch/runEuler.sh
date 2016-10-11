@@ -1,5 +1,10 @@
 #!/bin/bash
 export OMP_NUM_THREADS=24
+#export OMP_SCHEDULE=dynamic
+#export MPICH_NEMESIS_ASYNC_PROGRESS=1
+#export MPICH_MAX_THREAD_SAFETY=multiple
+export MYROUNDS=10000
+export USEMAXTHREADS=1
 #needed for thread safety:
 export MV2_ENABLE_AFFINITY=0
 
