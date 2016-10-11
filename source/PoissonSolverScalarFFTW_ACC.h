@@ -159,6 +159,11 @@ public:
 	  mybpd{grid.getResidentBlocksPerDimension(0), grid.getResidentBlocksPerDimension(1), grid.getResidentBlocksPerDimension(2)},
 	  totbpd{grid.getBlocksPerDimension(0), grid.getBlocksPerDimension(1), grid.getBlocksPerDimension(2)}
 	{
+		if (totbpd[2]!=mybpd[2]) {
+			printf("Poisson solver assumes grid is distrubuted in x and y directions.\n");
+			abort();
+		}
+
 		MPI_Comm_rank(MPI_COMM_WORLD, &procid);
 		MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 		int n[3] = {totbpd[0]*bs[0], totbpd[1]*bs[1], totbpd[2]*bs[2]};
