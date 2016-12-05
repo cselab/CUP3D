@@ -5,10 +5,12 @@ NNODE=8
 NNODEX=8
 NNODEY=1
 FFACTORY=factoryDeadFish
+WCLOCK=12:00
+# WSECS=43000
 
 OPTIONS=
 OPTIONS+=" -bpdx 64 -bpdy 32 -bpdz 32"
-OPTIONS+=" -2Ddump 1"
+OPTIONS+=" -2Ddump 1 restart 1"
 OPTIONS+=" -nprocsx ${NNODEX}"
 OPTIONS+=" -nprocsy ${NNODEY}"
 OPTIONS+=" -nprocsz 1"

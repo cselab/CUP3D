@@ -571,32 +571,32 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	int coords[3];
 	grid.peindex(coords);
 	
-	const int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
-	const int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
-	const int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
-	static const int NCHANNELS = Streamer::NCHANNELS;
+	const unsigned long int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
+	const unsigned long int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
+	const unsigned long int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
+	static const unsigned long int NCHANNELS = Streamer::NCHANNELS;
 	
 	float* array_all = new float[NX * NY * NZ * NCHANNELS];
 	
 	vector<BlockInfo> vInfo_local = grid.getResidentBlocksInfo();
 	
-	static const int sX = 0;
-	static const int sY = 0;
-	static const int sZ = 0;
+	static const unsigned long int sX = 0;
+	static const unsigned long int sY = 0;
+	static const unsigned long int sZ = 0;
 	
-	const int eX = B::sizeX;
-	const int eY = B::sizeY;
-	const int eZ = B::sizeZ;
+	const unsigned long int eX = B::sizeX;
+	const unsigned long int eY = B::sizeY;
+	const unsigned long int eZ = B::sizeZ;
 	
 	hsize_t count[4] = {
 			grid.getResidentBlocksPerDimension(2)*B::sizeZ,
 			grid.getResidentBlocksPerDimension(1)*B::sizeY,
-			grid.getResidentBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+			grid.getResidentBlocksPerDimension(0)*B::sizeX, Streamer::NCHANNELS};
 
 	hsize_t dims[4] = {
 			grid.getBlocksPerDimension(2)*B::sizeZ,
 			grid.getBlocksPerDimension(1)*B::sizeY,
-			grid.getBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+			grid.getBlocksPerDimension(0)*B::sizeX, Streamer::NCHANNELS};
 
 	hsize_t offset[4] = {
 			coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ,
@@ -625,16 +625,16 @@ void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 	for(int i=0; i<vInfo_local.size(); i++)
 	{
 		BlockInfo& info = vInfo_local[i];
-		const int idx[3] = {info.index[0], info.index[1], info.index[2]};
+		const unsigned long int idx[3] = {info.index[0], info.index[1], info.index[2]};
 		B & b = *(B*)info.ptrBlock;
 		Streamer streamer(b);
 		
 		for(int iz=sZ; iz<eZ; iz++)
 		for(int iy=sY; iy<eY; iy++)
 		for(int ix=sX; ix<eX; ix++) {
-			const int gx = idx[0]*B::sizeX + ix;
-			const int gy = idx[1]*B::sizeY + iy;
-			const int gz = idx[2]*B::sizeZ + iz;
+			const unsigned long int gx = idx[0]*B::sizeX + ix;
+			const unsigned long int gy = idx[1]*B::sizeY + iy;
+			const unsigned long int gz = idx[2]*B::sizeZ + iz;
 			float * const ptr_input = array_all + NCHANNELS*(gx + NX * (gy + NY * gz));
 			Real input[NCHANNELS];
 			for(int i=0; i<NCHANNELS; ++i) input[i] = (Real)ptr_input[i];

@@ -14,7 +14,9 @@ vtk ?= false
 rk2 ?= true
 accfft ?= false
 
-CPPFLAGS+= -w -D_ALIGNBYTES_=16 
+CPPFLAGS+= -w -D_ALIGNBYTES_=16 -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align
+CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
+CPPFLAGS+= -Wshadow -Woverloaded-virtual
 
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_SP_COMP_
@@ -81,10 +83,10 @@ LIBS +=	-L$(vtk-lib) \
 endif
 
 ifeq "$(hdf)" "true"
-	CPPFLAGS += -D_USE_HDF_ 
+	CPPFLAGS += -D_USE_HDF_
 	LIBS += -lhdf5
 else
-	CPPFLAGS += -D_USE_LZ4_ 
+	CPPFLAGS += -D_USE_LZ4_
 	LIBS += -lhdf5
 endif
 
@@ -93,7 +95,7 @@ ifeq "$(precision)" "single"
 endif
 ifeq "$(precision)" "double"
 	LIBS += -lfftw3 -lfftw3_threads -lfftw3_mpi
-endif 
+endif
 
 LIBS += -L../tools/fpzip/lib -lfpzip
 
@@ -107,8 +109,8 @@ OBJECTS = ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o I
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"
-	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) 
-	LIBS += -L$(accfft-lib) -laccfft 
+	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc)
+	LIBS += -L$(accfft-lib) -laccfft
 else
 	OBJECTS += PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o
 endif
@@ -123,7 +125,7 @@ simulation: $(OBJECTS)
 	#echo ************************
 	$(LD) $(OBJECTS) -o $@ $(LIBS) $(LDFLAGS)
 	#echo ************************
-    
+
 %.o: %.cpp
 	$(CC) $(CPPFLAGS) -c $< -o $@
 

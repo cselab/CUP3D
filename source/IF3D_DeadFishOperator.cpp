@@ -125,7 +125,7 @@ void IF3D_DeadFishOperator::computeVelocities(const Real* Uinf)
     Real lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
     Real am0(0.0), am1(0.0), am2(0.0); //angular momenta
 
-#pragma omp parallel for schedule(static) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
+#pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
     for(int i=0; i<vInfo.size(); i++) {
         BlockInfo info = vInfo[i];
         FluidBlock & b = *(FluidBlock*)info.ptrBlock;

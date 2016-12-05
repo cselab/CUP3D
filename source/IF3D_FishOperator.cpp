@@ -155,7 +155,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		{
 			PutFishOnBlocks putfish(myFish, position, quaternion);
 
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic)
 			for(int i=0; i<vInfo.size(); i++) {
 				BlockInfo info = vInfo[i];
 				auto pos = segmentsPerBlock.find(info.blockID);
@@ -427,7 +427,7 @@ void IF3D_FishOperator::save(const int stepID, const Real t, string filename)
     savestream<<angVel[0]<<"\t"<<angVel[1]<<"\t"<<angVel[2]<<std::endl;
     savestream<<theta_internal<<"\t"<<angvel_internal<<"\t"<<adjTh<<std::endl;
     savestream.close();
-    
+
 }
 
 void IF3D_FishOperator::restart(const Real t, string filename)
@@ -442,7 +442,7 @@ void IF3D_FishOperator::restart(const Real t, string filename)
     restartstream >> angVel[0] >> angVel[1] >> angVel[2];
     restartstream >> theta_internal >> angvel_internal >> adjTh;
     restartstream.close();
-    
+
 	std::cout<<"RESTARTED FISH: "<<std::endl;
 	std::cout<<"TIME, DT: "<<sim_time<<" "<<sim_dt<<std::endl;
 	std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
@@ -460,13 +460,13 @@ void IF3D_CarlingFishOperator::writeToFile(const int step_id, const Real t, std:
     std::ofstream savestream;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<Real>::digits10 + 1);
-    
+
     savestream.open(fname+"_interpolated.dat", ios::app | ios::out);
     if(step_id==0)
     {
         savestream << "step\t";
         savestream << "time\t";
-        savestream << "volume\t";        
+        savestream << "volume\t";
         savestream << "CoM[0]\t";
         savestream << "CoM[1]\t";
         savestream << "CoM[2]\t";
@@ -476,8 +476,8 @@ void IF3D_CarlingFishOperator::writeToFile(const int step_id, const Real t, std:
         savestream << "angMom[0]\t";
         savestream << "angMom[1]\t";
         savestream << "angMom[2]" << std::endl;
-    }    
-        
+    }
+
     savestream << step_id << "\t";
     savestream << sim_time << "\t";
     savestream << object_ongrid.volume << "\t";
@@ -492,7 +492,7 @@ void IF3D_CarlingFishOperator::writeToFile(const int step_id, const Real t, std:
     savestream << object_ongrid.angularMomentum[2] << "\t";
     savestream << object_ongrid.J[2] << std::endl;
     savestream.close();
-    
+
     savestream.open(fname+"_internal.dat", ios::app | ios::out);
     if(step_id==0)
     {
@@ -507,7 +507,7 @@ void IF3D_CarlingFishOperator::writeToFile(const int step_id, const Real t, std:
         savestream << "theta\t";
         savestream << "angvel" << std::endl;
     }
-    
+
     savestream << step_id << "\t";
     savestream << sim_time << "\t";
     savestream << volume_internal << "\t";
@@ -519,7 +519,7 @@ void IF3D_CarlingFishOperator::writeToFile(const int step_id, const Real t, std:
     savestream << theta_internal << "\t";
     savestream << angvel_internal << std::endl;
     savestream.close();
-    
+
     savestream.open(fname+"_computation.dat", ios::app | ios::out);
     if(step_id==0)
     {
@@ -537,9 +537,9 @@ void IF3D_CarlingFishOperator::writeToFile(const int step_id, const Real t, std:
         savestream << "transVel[2]\t";
         savestream << "angVel[0]\t";
         savestream << "angVel[1]\t";
-        savestream << "angVel[2]" << std::endl;        
+        savestream << "angVel[2]" << std::endl;
     }
-    
+
     savestream << step_id << "\t";
     savestream << sim_time << "\t";
     savestream << position[0] << "\t";

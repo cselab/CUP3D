@@ -33,12 +33,12 @@ struct PressureObstacleVisitor : public ObstacleVisitor
 #pragma omp parallel
          {
              const std::map<int,ObstacleBlock*> obstblocks = obstacle->getObstacleBlocks();
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic)
              for(int i=0; i<vInfo.size(); i++) {
             	 BlockInfo info = vInfo[i];
                  const auto pos = obstblocks.find(info.blockID);
                  if(pos == obstblocks.end()) continue;
-                 
+
                  FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
 
                  for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -99,7 +99,7 @@ struct PressurePenaltyVisitor : ObstacleVisitor
             		uBody[0],uBody[1],uBody[2],omegaBody[0],omegaBody[1],omegaBody[2],
             		centerOfMass[0],centerOfMass[1],centerOfMass[2],uInf[0],uInf[1],uInf[2]);
 			*/
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic)
             for(int i=0; i<vInfo.size(); i++) {
             	BlockInfo info = vInfo[i];
             	const auto pos = obstblocks.find(info.blockID);
@@ -191,7 +191,7 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 {
 private:
 	Real dt;
-	
+
 public:
 	OperatorDivergenceMinusDivTmpU(Real dt) : dt(dt)
 	{
@@ -204,12 +204,12 @@ public:
 		stencil_end[2] = 2;
 	}
 	~OperatorDivergenceMinusDivTmpU() {}
-	
+
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
 		const Real factor = 0.5/(info.h_gridpoint * dt);
-		
+
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -298,12 +298,12 @@ class OperatorGradP : public GenericLabOperator
 {
 private:
 	Real dt;
-	
+
 public:
 	OperatorGradP(Real dt) : dt(dt)
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
-		
+
 		stencil_start[0] = -1;
 		stencil_start[1] = -1;
 		stencil_start[2] = -1;
@@ -311,9 +311,9 @@ public:
 		stencil_end[1] = 2;
 		stencil_end[2] = 2;
 	}
-	
+
 	~OperatorGradP() {}
-	
+
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
@@ -357,10 +357,10 @@ public:
 		GenericCoordinator(grid), pressureSolver(NTHREADS,*grid), obstacleVector(myobstacles)
 	{
 	}
-	
+
 	void operator()(const Real dt)
 	{
-      check("pressure - start");   
+      check("pressure - start");
 #pragma omp parallel
 		{
 			const int N = vInfo.size();
@@ -382,22 +382,22 @@ public:
 		ObstacleVisitor * pressureVisitor = new PressureObstacleVisitor(grid);
 		(*obstacleVector)->Accept(pressureVisitor); // accept you son of a french cow
 		delete pressureVisitor;
-		
+
 		{ 	//place onto p: ( div u^(t+1) - div u^* ) / dt
 			//where i want div u^(t+1) to be equal to div udef
 			OperatorDivergenceMinusDivTmpU2ndOrder kernelDiv(dt);
 			compute(kernelDiv);
 		}
-		
+
 			pressureSolver.solve(*grid);
-		
+
 		{ //pressure correction dudt* = - grad P / rho
 			OperatorGradP kernelGradP(dt);
 			compute(kernelGradP);
 		}
       check("pressure - end");
 	}
-	
+
 	string getName()
 	{
 		return "Pressure";
