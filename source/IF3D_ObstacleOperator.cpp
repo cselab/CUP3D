@@ -194,6 +194,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3], Real ang_mo
 void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
 {
 	_computeUdefMoments(transVel_correction, angVel_correction, CoM);
+	if(rank==0)
     printf("Correction of: lin mom [%f %f %f] ang mom [%f %f %f]\n",
     		transVel_correction[0], transVel_correction[1], transVel_correction[2],
 			angVel_correction[0], angVel_correction[1], angVel_correction[2]);
@@ -487,9 +488,9 @@ void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real _J[6], const 
 	};
 	// find out if Q is orthogonal
 	const Real R[3][3] = {
-			{Q[0][0]*_J[0] + Q[1][0]*_J[3] + Q[2][0]*_J[4], Q[0][0]*_J[3] + Q[1][0]*_J[1] + Q[2][0]*_J[5], Q[0][0]*_J[4] + Q[1][0]*_J[5] + Q[2][0]*_J[2]},
-			{Q[0][1]*_J[0] + Q[1][1]*_J[3] + Q[2][1]*_J[4], Q[0][1]*_J[3] + Q[1][1]*_J[1] + Q[2][1]*_J[5], Q[0][1]*_J[4] + Q[1][1]*_J[5] + Q[2][1]*_J[2]},
-			{Q[0][2]*_J[0] + Q[1][2]*_J[3] + Q[2][2]*_J[4], Q[0][2]*_J[3] + Q[1][2]*_J[1] + Q[2][2]*_J[5], Q[0][2]*_J[4] + Q[1][2]*_J[5] + Q[2][2]*_J[2]}
+	{Q[0][0]*_J[0]+Q[1][0]*_J[3]+Q[2][0]*_J[4], Q[0][0]*_J[3]+Q[1][0]*_J[1]+Q[2][0]*_J[5], Q[0][0]*_J[4]+Q[1][0]*_J[5]+Q[2][0]*_J[2]},
+	{Q[0][1]*_J[0]+Q[1][1]*_J[3]+Q[2][1]*_J[4], Q[0][1]*_J[3]+Q[1][1]*_J[1]+Q[2][1]*_J[5], Q[0][1]*_J[4]+Q[1][1]*_J[5]+Q[2][1]*_J[2]},
+	{Q[0][2]*_J[0]+Q[1][2]*_J[3]+Q[2][2]*_J[4], Q[0][2]*_J[3]+Q[1][2]*_J[1]+Q[2][2]*_J[5], Q[0][2]*_J[4]+Q[1][2]*_J[5]+Q[2][2]*_J[2]}
 	};
 	// d = Q^T b
 	const Real d[3] = {
@@ -526,9 +527,6 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
 		for(int i=0; i<usefulIDs.size(); i++) { //now i arrange them in a map because Im lazy
 			assert(surfaceBlocksFilter.find(usefulIDs[i]) == surfaceBlocksFilter.end());
 			surfaceBlocksFilter[usefulIDs[i]] = make_pair(firstInfo[i],firstInfo[i+1]);
-
-		//const auto pos = surfaceBlocksFilter.find(usefulIDs[i]);
-		//printf("%d block id %d (%d) occupies from %d to %d\n",rank,usefulIDs[i],pos->first,pos->second.first,pos->second.second);
 		}
     }
 
@@ -583,6 +581,9 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
     	ssP<<"powerValues_"<<obstacleID<<".txt";
 
         fileForce.open(ssF.str().c_str(), ios::app);
+        if(stepID==0)
+		fileForce<<"Fx Fy Fz FxPres FyPres FzPres FxVisc FyVisc FzVisc TorqX TorqY TorqZ drag thrust surface\n"<<std::endl;
+
         fileForce<<time<<" "<<surfForce[0] <<" "<<surfForce[1] <<" "<<surfForce[2] <<" "
 						    <<globalSum[4] <<" "<<globalSum[5] <<" "<<globalSum[6] <<" "
         		 		    <<globalSum[7] <<" "<<globalSum[8] <<" "<<globalSum[9] <<" "

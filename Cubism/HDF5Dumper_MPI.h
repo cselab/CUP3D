@@ -91,12 +91,12 @@ public:
 			const Real strainXY = inv2h * ((phiE.v-phiW.v) + (phiN.u-phiS.u)) * 0.5;
 			const Real strainYZ = inv2h * ((phiN.w-phiS.w) + (phiB.v-phiF.v)) * 0.5;
 			const Real strainZX = inv2h * ((phiB.u-phiF.u) + (phiE.w-phiW.w)) * 0.5;
-			const Real strainXX = inv2h * (phiE.v-phiW.u);
+			const Real strainXX = inv2h * (phiE.u-phiW.u);
 			const Real strainYY = inv2h * (phiN.v-phiS.v);
 			const Real strainZZ = inv2h * (phiB.w-phiF.w);
 			const Real OO = 0.25 *vorticX*vorticX+vorticY*vorticY+vorticZ*vorticZ;
 			const Real SS = strainXX*strainXX+strainYY*strainYY+strainZZ*strainZZ+  //
-					strainXY*strainXY+strainYZ*strainYZ+strainZX*strainZX;
+							strainXY*strainXY+strainYZ*strainYZ+strainZX*strainZX;
 
 			for(int i=0; i<NCHANNELS; ++i) ptr[i] = (float)output[i];
 			ptr[NCHANNELS-1] = float(.5*(OO-SS));
@@ -173,9 +173,9 @@ public:
 				const Real strainXX = inv2h * (phiE.v-phiW.u);
 				const Real strainYY = inv2h * (phiN.v-phiS.v);
 				const Real strainZZ = inv2h * (phiB.w-phiF.w);
-				const Real OO = 0.25 *vorticX*vorticX+vorticY*vorticY+vorticZ*vorticZ;
+				const Real OO = .25*(vorticX*vorticX+vorticY*vorticY+vorticZ*vorticZ);
 				const Real SS = strainXX*strainXX+strainYY*strainYY+strainZZ*strainZZ+  //
-						strainXY*strainXY+strainYZ*strainYZ+strainZX*strainZX;
+								strainXY*strainXY+strainYZ*strainYZ+strainZX*strainZX;
 
 				for(int i=0; i<NCHANNELS; ++i) ptr[i] = (float)output[i];
 				ptr[NCHANNELS-1] = float(.5*(OO-SS));
