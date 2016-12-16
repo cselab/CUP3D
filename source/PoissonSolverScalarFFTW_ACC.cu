@@ -1,7 +1,20 @@
-typedef Real Complex[2];
+#include <cuda_runtime_api.h>
+#ifndef _SP_COMP_
+	#include <accfft_gpu.h>
+	typedef accfft_plan_gpu myplan;
+	typedef Complex myComplex;
+  typedef double Real;
+#else
+	#include <accfft_gpuf.h>
+	typedef accfft_plan_gpuf myplan;
+	typedef Complexf myComplex;
+  typedef float Real;
+#endif
+typedef Real myComplex[2];
 
 __global__
-void _fourier_filter_kernel(Complex *data_hat, const dim3 N, const dim3 isize, const dim3 istart, const Real h)
+void _fourier_filter_kernel(Complex *data_hat, const dim3 N, const dim3 isize,
+                            const dim3 istart, const Real h)
 {
     const Real waveFactX = 2.0*M_PI/(h*N.x);
     const Real waveFactY = 2.0*M_PI/(h*N.y);

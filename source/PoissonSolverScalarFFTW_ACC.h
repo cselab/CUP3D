@@ -35,7 +35,7 @@
 
 using namespace std;
 
-#ifndef _CUDA_COMP_
+#ifdef _CUDA_COMP_
 void _fourier_filter_gpu(myComplex *data_hat, const Real h);
 #endif
 
@@ -85,7 +85,7 @@ class PoissonSolverScalarFFTW_ACC
 			}
 		}
 	}
-	
+
 	void _fft2cub(Real * out, TGrid& grid) const
 	{
 		vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
@@ -185,7 +185,7 @@ public:
 		alloc_max = accfft_local_size_dft_r2cf(n,isize,istart,osize,ostart,c_comm);
 	#endif
 #endif
-      printf("[mpi rank %d] isize  %3d %3d %3d\n",procid,mybpd[0],mybpd[1],mybpd[2]);		
+      printf("[mpi rank %d] isize  %3d %3d %3d\n",procid,mybpd[0],mybpd[1],mybpd[2]);
 		printf("[mpi rank %d] isize  %3d %3d %3d osize  %3d %3d %3d\n", procid,
 				isize[0],isize[1],isize[2],
 				osize[0],osize[1],osize[2]
@@ -255,8 +255,9 @@ public:
 		const Real h = grid.getBlocksInfo().front().h_gridpoint;
 #ifdef _CUDA_COMP_
 		_fourier_filter_gpu(phi_hat, h);
-#endif
+#else
 		_fourier_filter(phi_hat, h);
+#endif
 
 		// Perform backward FFT
 #ifdef _CUDA_COMP_
