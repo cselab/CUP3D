@@ -33,7 +33,7 @@ public:
     void save(const int step_id, const Real t, std::string filename = std::string()) override;
     std::vector<int> intersectingBlockIDs(const int buffer) const override;
     void computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda) override;
-    void computeForces(const int stepID, const Real time, const Real* Uinf, const Real NU, const bool bDump) override;
+    void computeForces(const int stepID, const Real time, const Real dt, const Real* Uinf, const Real NU, const bool bDump) override;
     void create(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
     void Accept(ObstacleVisitor * visitor) override;
 

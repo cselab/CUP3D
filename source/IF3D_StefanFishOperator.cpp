@@ -27,7 +27,7 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
 	IF3D_FishOperator::_parseArguments(parser);
   sr.t_next_comm = Tstartlearn - 1/2.; //i want to reset time-averaged quantities before first actual comm
   sr.GoalDX = GoalDX;
-  sr.thExp = angle;
+  sr.thExp = _2Dangle;
 	/*
     randomActions = parser("-randomActions").asBool(false);
     if (randomActions) printf("Fish doing random turns\n");
@@ -57,16 +57,14 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
     if (time < Tstartlearn) {
         sr.resetAverage();
         sr.t_next_comm = Tstartlearn;
-
-        //TMP: first rnd action is going to be taken after a while
-        if (randomActions) sr.t_next_comm = Tstartlearn+6.;
-
         return;
     }
 
     if (not bInteractive) {
         sr.t_next_comm=1e6;
-    } else if (useLoadedActions) {
+    }
+    /*
+    else if (useLoadedActions) {
         vector<Real> actions(nActions);
         if (loadedActions.size()>1) {
             actions = loadedActions.back();
@@ -84,9 +82,9 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
         }
         sr.resetAverage();
 
-    } else {
-
-        const int nActions = 2;
+    }
+    */
+    else {
         const Real relT= fmod(time,1.); //1 is Tperiod
 #ifdef _NOVISION_
         const int nStates = (nActions==1) ? 20+ 8*20 : 25+  8*20;
@@ -164,8 +162,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
         ofstream filedrag;
         filedrag.open(("orders_"+to_string(iAgent)+".txt").c_str(), ios::app);
         filedrag<<time<<" "<<new_curv;
-        if(nActions==2)
-            filedrag<<" "<<new_Tp;
+        if(nActions==2) filedrag<<" "<<new_Tp;
         filedrag<<endl;
         filedrag.close();
         #endif //TRAINING

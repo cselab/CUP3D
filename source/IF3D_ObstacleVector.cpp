@@ -49,10 +49,10 @@ void IF3D_ObstacleVector::computeVelocities(const Real* Uinf)
 		obstacle_ptr->computeVelocities(Uinf);
 }
 
-void IF3D_ObstacleVector::computeForces(const int stepID, const Real time, const Real* Uinf, const Real NU, const bool bDump)
+void IF3D_ObstacleVector::computeForces(const int stepID, const Real time, const Real dt, const Real* Uinf, const Real NU, const bool bDump)
 {
 	for(const auto & obstacle_ptr : obstacles)
-		obstacle_ptr->computeForces(stepID,time,Uinf,NU,bDump);
+		obstacle_ptr->computeForces(stepID,time,dt,Uinf,NU,bDump);
 }
 
 IF3D_ObstacleVector::~IF3D_ObstacleVector()
