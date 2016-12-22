@@ -118,69 +118,114 @@ void IF3D_DeadFishOperator::computeVelocities(const Real* Uinf)
 {
     Real CM[3];
     this->getCenterOfMass(CM);
-    const int N = vInfo.size();
 
-    //local variables
-    Real V(0.0), J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
-    Real lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
-    Real am0(0.0), am1(0.0), am2(0.0); //angular momenta
+    {
+      Real V(0.0), lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
+      #pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2)
+      for(int i=0; i<vInfo.size(); i++) {
+          BlockInfo info = vInfo[i];
+          FluidBlock & b = *(FluidBlock*)info.ptrBlock;
+          const auto pos = obstacleBlocks.find(info.blockID);
+          if(pos == obstacleBlocks.end()) continue;
 
-#pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
-    for(int i=0; i<vInfo.size(); i++) {
-        BlockInfo info = vInfo[i];
-        FluidBlock & b = *(FluidBlock*)info.ptrBlock;
-        const auto pos = obstacleBlocks.find(info.blockID);
-        if(pos == obstacleBlocks.end()) continue;
+          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+          for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+              const Real Xs = pos->second->chi[iz][iy][ix];
+              if (Xs == 0) continue;
+              Real p[3];
+              info.pos(p, ix, iy, iz);
+              p[0]-=CM[0];
+              p[1]-=CM[1];
+              p[2]-=CM[2];
+              V     += Xs;
+              lm0   += Xs * b(ix,iy,iz).u;
+              lm1   += Xs * b(ix,iy,iz).v;
+              lm2   += Xs * b(ix,iy,iz).w;
+          }
+      }
 
-		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-            const Real Xs = pos->second->chi[iz][iy][ix];
-            if (Xs == 0) continue;
-            Real p[3];
-            info.pos(p, ix, iy, iz);
-            p[0]-=CM[0];
-            p[1]-=CM[1];
-            p[2]-=CM[2];
-            V   += Xs;
-            lm0 += Xs*b(ix,iy,iz).u;
-            lm1 += Xs*b(ix,iy,iz).v;
-            lm2 += Xs*b(ix,iy,iz).w;
-            am0 += Xs*(p[1]*b(ix,iy,iz).w-p[2]*b(ix,iy,iz).v);
-            am1 += Xs*(p[2]*b(ix,iy,iz).u-p[0]*b(ix,iy,iz).w);
-            am2 += Xs*(p[0]*b(ix,iy,iz).v-p[1]*b(ix,iy,iz).u);
-            J0  += Xs*(p[1]*p[1]+p[2]*p[2]);
-            J1  += Xs*(p[0]*p[0]+p[2]*p[2]);
-            J2  += Xs*(p[0]*p[0]+p[1]*p[1]);
-            J3  -= Xs*p[0]*p[1];
-            J4  -= Xs*p[0]*p[2];
-            J5  -= Xs*p[1]*p[2];
-        }
+      double globals[4];
+      double locals[4] = {lm0,lm1,lm2,V};
+      MPI::COMM_WORLD.Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM);
+      assert(globals[3] > std::numeric_limits<double>::epsilon());
+
+      const Real dv = std::pow(vInfo[0].h_gridpoint,3);
+      transVel_comp[0] = globals[0]/globals[3] + Uinf[0];
+      transVel_comp[1] = globals[1]/globals[3] + Uinf[1];
+      transVel_comp[2] = globals[2]/globals[3] + Uinf[2];
+      volume      = globals[3] * dv;
     }
+    {
+      Real J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
+      Real am0(0.0), am1(0.0), am2(0.0); //angular momenta
 
-    double globals[13];
-    double locals[13] = {lm0,lm1,lm2,am0,am1,am2,J0,J1,J2,J3,J4,J5,V};
-	MPI::COMM_WORLD.Allreduce(locals, globals, 13, MPI::DOUBLE, MPI::SUM);
+      #pragma omp parallel for schedule(dynamic) reduction(+:J0,J1,J2,J3,J4,J5,am0,am1,am2)
+      for(int i=0; i<vInfo.size(); i++) {
+          BlockInfo info = vInfo[i];
+          FluidBlock & b = *(FluidBlock*)info.ptrBlock;
+          const auto pos = obstacleBlocks.find(info.blockID);
+          if(pos == obstacleBlocks.end()) continue;
 
-    assert(globals[12] > std::numeric_limits<double>::epsilon());
-    const Real dv = std::pow(vInfo[0].h_gridpoint,3);
-    transVel_comp[0] = globals[0]/globals[12] + Uinf[0];
-    transVel_comp[1] = globals[1]/globals[12] + Uinf[1];
-    transVel_comp[2] = globals[2]/globals[12] + Uinf[2];
-    Real tmp_AV[3] = {
-    		globals[3]* dv,
-			globals[4]* dv,
-			globals[5]* dv
-    };
-    J[0] = globals[6] * dv;
-    J[1] = globals[7] * dv;
-    J[2] = globals[8] * dv;
-    J[3] = globals[9] * dv;
-    J[4] = globals[10]* dv;
-    J[5] = globals[11]* dv;
-    volume = globals[12] * dv;
+          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+          for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+              const Real Xs = pos->second->chi[iz][iy][ix];
+              if (Xs == 0) continue;
+              Real p[3];
+              info.pos(p, ix, iy, iz);
+              p[0]-=CM[0];
+              p[1]-=CM[1];
+              p[2]-=CM[2];
+              const Real u_ = b(ix,iy,iz).u;
+              const Real v_ = b(ix,iy,iz).v;
+              const Real w_ = b(ix,iy,iz).w;
 
-    _finalizeAngVel(angVel_comp, J, tmp_AV[0], tmp_AV[1], tmp_AV[1]);
+        			am0 += Xs * (p[1]*(w_-transVel_comp[2]) - p[2]*(v_-transVel_comp[1]));
+        			am1 += Xs * (p[2]*(u_-transVel_comp[0]) - p[0]*(w_-transVel_comp[2]));
+        			am1 += Xs * (p[0]*(v_-transVel_comp[1]) - p[1]*(u_-transVel_comp[0]));
+
+        			J0  += Xs * (p[1]*p[1]+p[2]*p[2]);
+        			J1  += Xs * (p[0]*p[0]+p[2]*p[2]);
+        			J2  += Xs * (p[0]*p[0]+p[1]*p[1]);
+        			J3  -= Xs *  p[0]*p[1];
+        			J4  -= Xs *  p[0]*p[2];
+        			J5  -= Xs *  p[1]*p[2];
+          }
+      }
+
+      double globals[9];
+      double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
+      MPI::COMM_WORLD.Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM);
+
+      //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
+      const Real AM[6] = {globals[0], globals[1], globals[2]};
+      const Real J_[6] = {globals[3], globals[4], globals[5],
+                          globals[6], globals[7], globals[8]};
+      const Real detJ = J_[0]*(J_[1]*J_[2] - J_[5]*J_[5])+
+                        J_[3]*(J_[4]*J_[5] - J_[2]*J_[3])+
+                        J_[4]*(J_[3]*J_[5] - J_[1]*J_[4]);
+      const Real invDetJ = 1./detJ;
+      const Real invJ[6] = {
+        invDetJ * (J_[1]*J_[2] - J_[5]*J_[5]),
+        invDetJ * (J_[0]*J_[2] - J_[4]*J_[4]),
+        invDetJ * (J_[0]*J_[1] - J_[3]*J_[3]),
+        invDetJ * (J_[4]*J_[5] - J_[2]*J_[3]),
+        invDetJ * (J_[3]*J_[5] - J_[1]*J_[4]),
+        invDetJ * (J_[3]*J_[4] - J_[0]*J_[5])
+      };
+
+      const Real dv = std::pow(vInfo[0].h_gridpoint,3);
+      angVel_comp[0] = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
+      angVel_comp[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
+      angVel_comp[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
+      J[0] = globals[3] * dv;
+      J[1] = globals[4] * dv;
+      J[2] = globals[5] * dv;
+      J[3] = globals[6] * dv;
+      J[4] = globals[7]* dv;
+      J[5] = globals[8]* dv;
+    }
 }
 
 void IF3D_DeadFishOperator::save(const int stepID, const Real t, string filename)
