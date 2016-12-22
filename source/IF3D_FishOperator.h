@@ -23,11 +23,11 @@ protected:
     Real volume_internal, J_internal, CoM_internal[2], vCoM_internal[2];
     Real theta_internal, angvel_internal, angvel_internal_prev, CoM_interpolated[3];
     Real Tstartlearn, GoalDX, new_curv, old_curv, new_Tp, adjTh, angvel_integral[3];
-    bool randomStart, bCorrectTrajectory;
+    bool randomStart, bCorrectTrajectory, bInteractive;
     int  nActions;
 
 public:
-	
+
     IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser);
     ~IF3D_FishOperator();
 	void save(const int step_id, const Real t, std::string filename = std::string()) override;

@@ -241,6 +241,8 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 	phaseShift = parser("-phi").asDouble(0.0);
 	Tstartlearn = parser("-Tstartlearn").asDouble(1e6);
 	bCorrectTrajectory = parser("-Correct").asBool(false);
+	bInteractive = parser("-Active").asBool(false);
+	/*
     randomStart = parser("-randomStart").asBool(false);
     if (randomStart) {
     	printf("Random start\n");
@@ -250,15 +252,7 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
     	position[0] += .5*length*dis(gen);
     	position[1] += .1*length*dis(gen);
     }
-    /*
-    //TODO state and reward:
-    sr->updateInstant(position[0], position[1], angle, 0., 0., 0.);
-    sr->t_next_comm = Tstartlearn - 1/2.; //i want to reset time-averages before first actual comm
-    bool bForgiving = parser("-easyFailBox").asBool(false);
-    sr->bForgiving = bForgiving;
-    sr->GoalDX = GoalDX;
-    sr->thExp = angle;
-    */
+		*/
 }
 
 /*

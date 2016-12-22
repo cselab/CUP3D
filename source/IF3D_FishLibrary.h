@@ -264,11 +264,11 @@ public:
 	Real linMom[2], vol, J, angMom; // for diagnostics
 	// start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
 	const int iFishStart, iFishEnd;
-
-protected:
 	const Real length;
 	const Real Tperiod;
 	const Real phaseShift;
+
+protected:
 	Real Rmatrix2D[2][2];
 	Real Rmatrix3D[3][3];
 
@@ -723,9 +723,10 @@ public:
 		if (input.size()>1) {
 			baseScheduler.Turn(input[0], l_tnext);
 			//first, shift time to  previous turn node
-			timeshift += (l_tnext-time0)/l_Tp;
-			time0 = l_tnext;
-			l_Tp = Tperiod*(1.+input[1]);
+			abort();
+			//timeshift += (l_tnext-time0)/l_Tp;
+			//time0 = l_tnext;
+			//l_Tp = Tperiod*(1.+input[1]);
 		} else if (input.size()>0) {
 			baseScheduler.Turn(input[0], l_tnext);
 		}

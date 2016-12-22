@@ -90,7 +90,7 @@ void IF3D_ObstacleVector::Accept(ObstacleVisitor * visitor)
 		obstacles[i]->Accept(visitor);
 }
 
-void IF2D_ObstacleVector::_getData(std::vector<StateReward*> & Data)
+void IF3D_ObstacleVector::_getData(std::vector<StateReward*> & Data)
 {
     int ind(0);
     for(const auto & obstacle_ptr : obstacles)
