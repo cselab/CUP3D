@@ -146,11 +146,6 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
   		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
   			const Real Xs = pos->second->chi[iz][iy][ix];
   			if (Xs == 0) continue;
-  			Real p[3];
-  			info.pos(p, ix, iy, iz);
-  			p[0]-=CoM[0];
-  			p[1]-=CoM[1];
-  			p[2]-=CoM[2];
   			V   += Xs;
   			lm0 += Xs * pos->second->udef[iz][iy][ix][0];
   			lm1 += Xs * pos->second->udef[iz][iy][ix][1];
@@ -158,7 +153,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
   		}
   	}
 
-    double globals[4];
+    double globals[4] = {0,0,0,0};
     double locals[4] = {lm0,lm1,lm2,V};
     MPI::COMM_WORLD.Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM);
 
@@ -170,8 +165,8 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
   }
 
   { //sum angular momenta to figure out ang velocity and moments
-    Real  J0(0.0),  J1(0.0),  J2(0.0),  J3(0.0),  J4(0.0),  J5(0.0);
-    Real  am0(0.0),  am1(0.0),  am2(0.0); //angular momenta
+    Real J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
+    Real am0(0.0), am1(0.0), am2(0.0); //angular momenta
     #pragma omp parallel for schedule(dynamic) reduction(+:J0,J1,J2,J3,J4,J5,am0,am1,am2)
   	for(int i=0; i<vInfo.size(); i++) {
   		BlockInfo info = vInfo[i];
@@ -205,19 +200,19 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
   		}
   	}
 
-    double globals[9];
+    double globals[9] = {0,0,0,0,0,0,0,0,0};
     double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
     MPI::COMM_WORLD.Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM);
 
     if(bFixToPlanar)
     {
     		ang_momenta[0] = ang_momenta[1] = 0.0;
-    		ang_momenta[2] = globals[5]/globals[8]; // av2/j2
+    		ang_momenta[2] = globals[2]/globals[5]; // av2/j2
     }
     else
     {
       //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
-      const Real AM[6] = {globals[0], globals[1], globals[2]};
+      const Real AM[3] = {globals[0], globals[1], globals[2]};
       const Real J_[6] = {globals[3], globals[4], globals[5],
                           globals[6], globals[7], globals[8]};
 
@@ -446,11 +441,6 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
           for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
               const Real Xs = pos->second->chi[iz][iy][ix];
               if (Xs == 0) continue;
-              Real p[3];
-              info.pos(p, ix, iy, iz);
-              p[0]-=CM[0];
-              p[1]-=CM[1];
-              p[2]-=CM[2];
               V     += Xs;
               lm0   += Xs * b(ix,iy,iz).u;
               lm1   += Xs * b(ix,iy,iz).v;
@@ -458,7 +448,7 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
           }
       }
 
-      double globals[4];
+      double globals[4] = {0,0,0,0};
       double locals[4] = {lm0,lm1,lm2,V};
       MPI::COMM_WORLD.Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM);
       assert(globals[3] > std::numeric_limits<double>::epsilon());
@@ -508,19 +498,19 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
           }
       }
 
-      double globals[9];
+      double globals[9] = {0,0,0,0,0,0,0,0,0};
       double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
       MPI::COMM_WORLD.Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM);
 
       if(bFixToPlanar)
       {
           angVel[0] = angVel[1] = 0.0;
-          angVel[2] = globals[5]/globals[8]; // av2/j2
+      		angVel[2] = globals[2]/globals[5]; // av2/j2
       }
       else
       {
         //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
-        const Real AM[6] = {globals[0], globals[1], globals[2]};
+        const Real AM[3] = {globals[0], globals[1], globals[2]};
         const Real J_[6] = {globals[3], globals[4], globals[5],
                             globals[6], globals[7], globals[8]};
         const Real detJ = J_[0]*(J_[1]*J_[2] - J_[5]*J_[5])+
