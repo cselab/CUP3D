@@ -39,7 +39,9 @@ struct ParameterScheduler
 
 		savestream << t0 << "\t" << t1 << std::endl;
 		for(int i=0;i<Npoints;++i)
-			savestream << parameters_t0[i] << "\t" << parameters_t1[i] << "\t" << dparameters_t0[i] << std::endl;
+			savestream << parameters_t0[i]  << "\t"
+								 << parameters_t1[i]  << "\t"
+								 << dparameters_t0[i] << std::endl;
 		savestream.close();
 	}
 
@@ -237,7 +239,7 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
 	void Turn(const Real b, const Real t_turn) // each decision adds a node at the beginning of the wave (left, right, straight) and pops last node
 	{
 		this->t0 = t_turn;
-		for(int i=Npoints-1; i>0; --i) this->parameters_t0[i] = this->parameters_t0[i-2];
+		for(int i=Npoints-1; i>1; --i) this->parameters_t0[i] = this->parameters_t0[i-2];
 		this->parameters_t0[1] = b;
 		this->parameters_t0[0] = 0;
 	}
@@ -431,7 +433,7 @@ public:
 		// remaining integral done with composite trapezoidal rule
 		// minimize rhs evaluations --> do first and last point separately
 		Real _vol(0), _cmx(0), _cmy(0), _lmx(0), _lmy(0);
-#pragma omp parallel for reduction(+:_vol,_cmx,_cmy,_lmx,_lmy)
+		#pragma omp parallel for reduction(+:_vol,_cmx,_cmy,_lmx,_lmy)
 		for(int i=0;i<Nm;++i) {
 			const Real ds = (i==0) ? rS[1]-rS[0] :
 					((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
@@ -470,7 +472,7 @@ public:
 		// minimize rhs evaluations --> do first and last point separately
 		Real _J(0), _am(0);
 
-#pragma omp parallel for reduction(+:_J,_am)
+		#pragma omp parallel for reduction(+:_J,_am)
 		for(int i=0;i<Nm;++i) {
 			const Real ds = (i==0) ? rS[1]-rS[0] :
 					((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
@@ -508,7 +510,7 @@ public:
 	void changeToCoMFrameAngular(const Real theta_internal, const Real angvel_internal)
 	{
 		_prepareRotation2D(theta_internal);
-#pragma omp parallel for
+		#pragma omp parallel for
 		for(int i=0;i<Nm;++i) {
 			_rotate2D(rX[i],rY[i]);
 			_rotate2D(vX[i],vY[i]);
@@ -543,7 +545,7 @@ protected:
 	inline Real midline(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-#ifdef BBURST
+		#ifdef BBURST
 		Real f;
 		Real tcoast = TSTART;
 		if (t>=TSTART) {
@@ -568,16 +570,16 @@ protected:
 			f = 1.0;
 		}
 		return f * fac * (s + inv*L)*std::sin(arg);
-#else
+		#else
 		return fac * (s + inv*L)*std::sin(arg);
-#endif
+		#endif
 	}
 
 	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
 
-#ifdef BBURST
+		#ifdef BBURST
 		Real f,df;
 		Real tcoast = TSTART;
 		if (t>=TSTART) {
@@ -607,9 +609,9 @@ protected:
 			df = 0.0;
 		}
 		return fac*(s + inv*L)*(df*std::sin(arg) - f*(2.0*M_PI/T)*std::cos(arg));
-#else
+		#else
 		return - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
-#endif //Burst-coast
+		#endif //Burst-coast
 	}
 
 	void _computeMidlineCoordinates(const Real time)

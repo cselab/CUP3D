@@ -46,25 +46,25 @@ namespace ComputationDiagnostics
     {
         peak_rss_bytes = -1;
         current_rss_bytes=-1;
-        
+
         struct rusage rusage;
         getrusage(RUSAGE_SELF, &rusage);
-        
+
         peak_rss_bytes = rusage.ru_maxrss*1024;
         //printf("peak resident set size = %ld bytes (%.2lf Mbytes)\n", peak_rss_bytes, peak_rss_bytes/(1024.0*1024.0));
-        
+
         long rss = 0;
         FILE* fp = NULL;
         if ( (fp = fopen( "/proc/self/statm", "r" )) == NULL ) {
             return;
         }
-        
+
         if ( fscanf( fp, "%*s%ld", &rss ) != 1 ) {
             fclose( fp );
             return;
         }
         fclose( fp );
-        
+
         current_rss_bytes = rss * sysconf( _SC_PAGESIZE);
         //printf("current resident set size = %ld bytes (%.2lf Mbytes)\n", current_rss_bytes, current_rss_bytes/(1024.0*1024.0));
     }
@@ -79,20 +79,20 @@ protected:
 #ifdef _USE_LZ4_
 	SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, FluidVPStreamer> waveletdumper_grid;
 #endif
-	
+
 	// grid
 	int rank, nprocs;
 	int nprocsx, nprocsy, nprocsz;
 	int bpdx, bpdy, bpdz;
-	
+
 	// simulation status
 	int step, nsteps;
 	Real dt, time, endTime, dtCFL, dtFourier;
-	
+
 	// simulation settings
     Real uinf[3], re, nu, length, CFL, lambda;
     bool bDump, bRestart, bDLM, verbose, b2Ddump;
-	
+
 	// output
 	int dumpFreq, saveFreq;
 	Real dumpTime, saveTime, saveClockPeriod, maxClockDuration;
@@ -104,7 +104,7 @@ protected:
     IF3D_ObstacleVector* obstacle_vector;
     //The antagonist
 	vector<GenericCoordinator*> pipeline;
-	
+
     void areWeDumping(Real & nextDumpTime);
     void _serialize(Real & nextSaveTime);
     void _dump(const string append);
@@ -116,9 +116,9 @@ protected:
     void _selectDT();
     void setupGrid();
     void _ic();
-	
+
 public:
-    Simulation(const int argc, char ** argv, Communicator* comm) :
+    Simulation(const int argc, char ** argv, Communicator* comm = nullptr) :
     parser(argc,argv), communicator(comm), rank(0), nprocs(1), nprocsx(-1), nprocsy(-1),
 	nprocsz(-1), bpdx(-1), bpdy(-1), bpdz(-1), step(0), nsteps(0), dt(0), time(0), endTime(0),
 	dtCFL(0), dtFourier(0), uinf{0.0, 0.0, 0.0}, re(0), nu(0), length(0), CFL(0), lambda(0),
@@ -133,7 +133,7 @@ public:
 		const int nthreads = omp_get_max_threads();
 		printf("Rank %d (of %d) with %d threads on host Hostname: %s\n", rank, nprocs, nthreads, hostname);
 	}
-	
+
 	virtual ~Simulation()
 	{
 		delete grid;
@@ -143,9 +143,9 @@ public:
 			delete g;
 		}
 	}
-    
+
     virtual void init();
-	
+
     virtual void simulate();
 };
 

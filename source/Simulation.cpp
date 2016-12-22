@@ -12,7 +12,7 @@
 #include "Simulation.h"
 #include <HDF5Dumper_MPI.h>
 #include <chrono>
-	
+
 void Simulation::_ic()
 {
     CoordinatorIC coordIC(grid);
@@ -20,7 +20,7 @@ void Simulation::_ic()
     coordIC(0);
 	profiler.pop_stop();
 }
-	
+
 void Simulation::setupGrid()
 {
 	parser.set_strict_mode();
@@ -71,7 +71,7 @@ void Simulation::parseArguments()
     length = parser("-length").asDouble(0.0);
     verbose = parser("-verbose").asBool(false);
 }
-    
+
 void Simulation::setupObstacles()
 {
     IF3D_ObstacleFactory obstacleFactory(grid, uinf);
@@ -90,7 +90,7 @@ void Simulation::setupObstacles()
     if(rank==0)
 	printf("Fluid kinematic viscosity: %9.9e, Reynolds number: %9.9e (length scale: %9.9e)\n",nu,re,length);
 }
-    
+
 void Simulation::setupOperators()
 {
     pipeline.clear();
@@ -186,7 +186,7 @@ void Simulation::_dump(const string append = string())
     CoordinatorDiagnostics coordDiags(grid,time,step);
     coordDiags(dt);
 }
-    
+
 void Simulation::_selectDT()
 {
 	double local_maxU = (double)findMaxUOMP(vInfo,*grid,uinf);
@@ -220,7 +220,7 @@ void Simulation::_serialize(Real & nextSaveTime)
 	nextSaveTime += saveTime;
 	//DumpZBin_MPI<FluidGridMPI,StreamerSerialization>(*grid,pingname.c_str(),path4serialization);
 }
-	
+
 void Simulation::_deserialize()
 {
 	string restartfile = path4serialization+"./restart.status";
@@ -245,7 +245,7 @@ void Simulation::_deserialize()
 
     printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
 }
-    
+
 void Simulation::init()
 {
     parseArguments();
@@ -255,10 +255,10 @@ void Simulation::init()
 
     if(bRestart) _deserialize();
     else _ic();
-    
+
     MPI_Barrier(MPI_COMM_WORLD);
 }
-	
+
 void Simulation::simulate()
 {
 	using namespace std::chrono;
@@ -270,32 +270,43 @@ void Simulation::simulate()
 
     while (true)
     {
+
+#ifdef __SMARTIES_
+				if (communicator not_eq nullptr)
+				{
+					profiler.push_start("RL");
+					bool bDoOver = false;
+					const int nO = obstacle_vector->nObstacles();
+					std::vector<StateReward*> _D(nO);
+					
+					for(int i=1; i<nO; i++) {
+						bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel,
+																			 _D[0]->thExp, length);
+						if (bDoOver) {
+							_D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel,  _D[0]->thExp,
+												 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
+							_D[i]->info = 2;
+							obstacle_vector->execute(comm, i, t);
+							return;
+						}
+					}
+					for(int i=0; i<nO; i++) if(t>=_D[i]->t_next_comm) {
+						_D[i]->finalize(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
+									 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
+						_D[i]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
+									 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
+						obstacle_vector->execute(comm, i, t);
+					}
+					if (bDoOver) exit(0);
+					profiler.pop_stop();
+				}
+#endif
+
         profiler.push_start("DT");
         _selectDT();
         if(bDLM) lambda = 1.0/dt;
         areWeDumping(nextDumpTime);
         profiler.pop_stop();
-
-#ifdef _BSMART_
-        profiler.push_start("LEARN");
-        bool bDoOver = false;
-        const int nO = obstacle_vector->nObstacles();
-        for(int i=1; i<nO; i++) {
-        	bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp, length);
-        	if (bDoOver) {
-        		if (i>0) _D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel,  _D[0]->thExp, _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
-        		_D[i]->info = 2;
-        		obstacle_vector->execute(comm, i, t);
-        		return;
-        	}
-        }
-        for(int i=0; i<nO; i++) if(t>=_D[i]->t_next_comm) {
-        	if (i>0) _D[i]->finalize(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp, _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
-        	obstacle_vector->execute(comm, i, t);
-        }
-        if (bDoOver) exit(0);
-        profiler.pop_stop();
-#endif
 
         for (int c=0; c<pipeline.size(); c++)
         {
@@ -335,7 +346,7 @@ void Simulation::simulate()
         	_serialize(nextSaveTime);
         }
         profiler.pop_stop();
-        
+
         if (step % 100 == 0) profiler.printSummary();
         if ((endTime>0 && time>endTime) || (nsteps!=0 && step>=nsteps))
         {

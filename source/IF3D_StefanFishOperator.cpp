@@ -25,6 +25,10 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI * grid, ArgumentPa
 void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
 {
 	IF3D_FishOperator::_parseArguments(parser);
+  sr->t_next_comm = Tstartlearn - 1/2.; //i want to reset time-averaged quantities before first actual comm
+  sr->bForgiving = bForgiving;
+  sr->GoalDX = GoalDX;
+  sr->thExp = angle;
 	/*
     randomActions = parser("-randomActions").asBool(false);
     if (randomActions) printf("Fish doing random turns\n");
@@ -51,7 +55,6 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
 
 void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, const Real time)
 {
-	/*
     if (time < Tstartlearn) {
         sr->resetAverage();
         sr->t_next_comm = Tstartlearn;
@@ -86,7 +89,6 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
         }
 
     } else if (useLoadedActions) {
-
         vector<Real> actions(nActions);
         if (loadedActions.size()>1) {
             actions = loadedActions.back();
@@ -106,11 +108,12 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
 
     } else {
 
+        const int nActions = 2;
         const Real relT= fmod(time,1.); //1 is Tperiod
 #ifdef _NOVISION_
-        const int nStates = (nActions==1) ? 20+ 8*NpLatLine : 25+  8*NpLatLine;
+        const int nStates = (nActions==1) ? 20+ 8*20 : 25+  8*20;
 #else
-        const int nStates = (nActions==1) ? 20+10*NpLatLine : 25+ 10*NpLatLine;
+        const int nStates = (nActions==1) ? 20+10*20 : 25+ 10*20;
 #endif
         vector<Real> state(nStates), actions(nActions);
 
@@ -121,7 +124,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
         state[k++] = relT;
         state[k++] = new_curv;
         state[k++] = old_curv;
-
+/*
         if(nActions==2) { //this is for backwards compatibility
             state[k++] = new_Tp;
                         //2.*M_PI*((time-time0)/l_Tp +timeshift -rS[i]/length) + M_PI*phaseShift
@@ -132,7 +135,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
             state[k++] = sr->VY;
             state[k++] = sr->AV;
         }
-
+*/
         state[k++] = sr->Dist;
         state[k++] = sr->Quad;
         state[k++] = sr->VxAvg;
@@ -147,7 +150,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
         state[k++] = sr->Pthrust;
         state[k++] = sr->Pdrag;
         state[k++] = sr->ToD;
-
+        /*
         for (int j=0; j<NpLatLine; j++) state[k++] = sr->VelNAbove[j];
         for (int j=0; j<NpLatLine; j++) state[k++] = sr->VelTAbove[j];
         for (int j=0; j<NpLatLine; j++) state[k++] = sr->VelNBelow[j];
@@ -159,6 +162,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
         #ifndef _NOVISION_
         for (int j=0; j<2*NpLatLine; j++) state[k++] = sr->raySight[j];
         #endif
+        */
         const Real reward = (sr->info==2) ? -10 : sr->EffPDefBnd;
         comm->sendState(iAgent-1, sr->info, state, reward); //TODO
         fflush(0);
@@ -171,12 +175,12 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
 
         old_curv = new_curv;
         new_curv = actions[0];
-        if(nActions==2) {
-            new_Tp = actions[1];
-            sr->t_next_comm += .5*myFish->l_Tp;
-        } else if (nActions==1) {
+        //if(nActions==2) {
+        //    new_Tp = actions[1];
+        //    sr->t_next_comm += .5*myFish->l_Tp;
+        //} else if (nActions==1) {
             sr->t_next_comm += .5*myFish->Tperiod;
-        }
+        //}
 
         #ifndef TRAINING
         ofstream filedrag;
@@ -190,5 +194,4 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
 
         sr->resetAverage();
     }
-    */
 }

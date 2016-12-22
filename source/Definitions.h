@@ -73,10 +73,10 @@ typedef float Real;
 struct FluidElement
 {
     Real u, v, w, chi, p, tmpU, tmpV, tmpW;
-	
+
     FluidElement() : u(0), v(0), w(0), chi(0), p(0), tmpU(0), tmpV(0), tmpW(0)
 	{}
-    
+
     void clear()
     {
         u = v = w = chi = p = tmpU = tmpV = tmpW = 0;
@@ -86,7 +86,7 @@ struct FluidElement
 struct FluidVTKStreamer
 {
 	static const int channels = 8;
-	
+
 	void operate(FluidElement input, Real output[channels])
 	{
 		output[0] = input.u;
@@ -104,7 +104,7 @@ struct FluidVTKStreamer
 struct StreamerGridPoint
 {
 	static const int channels = 8;
-	
+
 	void operate(const FluidElement& input, Real output[channels]) const
 	{
 		abort();
@@ -117,7 +117,7 @@ struct StreamerGridPoint
 		output[6] = input.tmpV;
 		output[7] = input.tmpW;
 	}
-	
+
 	void operate(const Real input[channels], FluidElement& output) const
 	{
 		abort();
@@ -139,7 +139,7 @@ struct StreamerGridPointASCII
 		output << input.u << " " << input.v << " " << input.w << " " << input.chi << " "
 			   << input.p << " " << input.tmpU << " " << input.tmpV << " " << input.tmpW;
 	}
-	
+
 	void operate(ifstream& input, FluidElement& output) const
 	{
 		input >> output.u;
@@ -160,7 +160,7 @@ struct StreamerDiv
 	{
 		output[0] = input.p;
     }
-    
+
     static void operate(const Real input[1], FluidElement& output)
     {
         output.p = input[0];
@@ -188,31 +188,31 @@ struct FluidBlock
     static const int sizeX = _BSX_;
     static const int sizeY = _BSY_;
     static const int sizeZ = _BSZ_;
-	
+
 	typedef FluidElement ElementType;
 	typedef FluidElement element_type;
-	
+
 	FluidElement data[sizeZ][sizeY][sizeX];
-	
+
     //required from Grid.h
     void clear()
     {
         FluidElement * entry = &data[0][0][0];
         const int N = sizeX*sizeY*sizeZ;
-        
+
         for(int i=0; i<N; ++i)
             entry[i].clear();
     }
-    
+
     FluidElement& operator()(int ix, int iy=0, int iz=0)
     {
 		assert(ix>=0); assert(ix<sizeX);
 		assert(iy>=0); assert(iy<sizeY);
 		assert(iz>=0); assert(iz<sizeZ);
-		
+
         return data[iz][iy][ix];
 	}
-	
+
 	template <typename Streamer>
 	inline void Write(ofstream& output, Streamer streamer) const
 	{
@@ -221,7 +221,7 @@ struct FluidBlock
 				for(int ix=0; ix<sizeX; ix++)
 					streamer.operate(data[iz][iy][ix], output);
 	}
-	
+
 	template <typename Streamer>
 	inline void Read(ifstream& input, Streamer streamer)
 	{
@@ -457,24 +457,27 @@ struct StateReward
     bool bRestart, bForgiving;
     int info, NpLatLine;
     Real t_next_comm, avg_wght, GoalDX;
-    Real Xrel, Xabs, Yrel, Yabs, Theta, VxAvg, VyAvg, AvAvg;
+    Real Xrel, Xabs, Xpov, Yrel, Yabs, Ypov, Theta, VxAvg, VyAvg, AvAvg;
     Real thExp, vxExp, vyExp, avExp, VxInst, VyInst, AvInst;
     Real Dist, Quad, RelAng, VX, VY, AV, ThetaAvg, ThetaVel;
     Real PoutBnd, Pout, defPowerBnd, defPower, EffPDefBnd, EffPDef, Pthrust, Pdrag, ToD;
-
+    Real battery;
+		/*
     vector<Real> VelNAbove, VelTAbove, VelNBelow, VelTBelow;
     vector<Real> FPAbove, FVAbove, FPBelow, FVBelow;
     vector<Real> PXAbove, PYAbove, PXBelow, PYBelow;
     vector<Real> nPointsAbove, nPointsBelow;
     vector<Real> raySight;
+    */
 
-    StateReward(const int _NpLatLine) : bRestart(false), bForgiving(false), NpLatLine(_NpLatLine), info(1), t_next_comm(1e6), GoalDX(0)
+    StateReward() :
+    bRestart(false), bForgiving(false), NpLatLine(0), info(1), t_next_comm(1e6), GoalDX(0), battery(1)
     {
         avg_wght = Xrel = Xabs = Yrel = Yabs = Theta = VxAvg = VyAvg = AvAvg = 0;
         thExp = vxExp = vyExp = avExp = VxInst = VyInst = AvInst = 0;
         Dist = Quad = RelAng = VX = VY = AV = ThetaAvg = ThetaVel = 0;
         Pout = PoutBnd = defPower = defPowerBnd = EffPDef = EffPDefBnd = Pthrust = Pdrag = ToD = 0;
-
+        /*
         VelNAbove.resize(NpLatLine); VelTAbove.resize(NpLatLine);
         VelNBelow.resize(NpLatLine); VelTBelow.resize(NpLatLine);
         FPAbove.resize(NpLatLine); FVAbove.resize(NpLatLine);
@@ -483,6 +486,7 @@ struct StateReward
         PXBelow.resize(NpLatLine); PYBelow.resize(NpLatLine);
         nPointsAbove.resize(NpLatLine); nPointsBelow.resize(NpLatLine);
         raySight.resize(2*NpLatLine);
+				*/
     }
 
     void updateAverages(const Real _dt, const Real _th, const Real _vx, const Real _vy,
@@ -490,38 +494,32 @@ struct StateReward
                         const Real _pW2, const Real _eff1, const Real _eff2, const Real _pT,
                         const Real _pD, const Real _T, const Real _D)
     {
-        if (_dt>0) {
-            const Real    W = avg_wght + _dt;
-            const Real _ToD = (_D<1e-9) ? 0 : _T/_D;
-            const Real _1oW = 1./W;
+        if (_dt<=0) return;
+    		const Real    W = avg_wght + _dt;
+    		const Real _ToD = (_D<1e-9) ? 0 : _T/_D;
+    		const Real _1oW = 1./W;
 
-            VxAvg = ( VxAvg * avg_wght + _vx * _dt )*_1oW;
-            VyAvg = ( VyAvg * avg_wght + _vy * _dt )*_1oW;
-            AvAvg = ( AvAvg * avg_wght + _av * _dt )*_1oW;
+    		VxAvg = ( VxAvg * avg_wght + _vx * _dt )*_1oW;
+    		VyAvg = ( VyAvg * avg_wght + _vy * _dt )*_1oW;
+    		AvAvg = ( AvAvg * avg_wght + _av * _dt )*_1oW;
+    		ThetaAvg = ( ThetaAvg * avg_wght + _th            * _dt )*_1oW;
+    		ThetaVel = ( ThetaVel * avg_wght + atan2(_vy,_vx) * _dt )*_1oW;
+    		Pout =    (Pout    * avg_wght + _pO1 * _dt)*_1oW;
+    		PoutBnd = (PoutBnd * avg_wght + _pO2 * _dt)*_1oW;
+    		defPower =    (defPower    * avg_wght + _pW1 * _dt)*_1oW;
+    		defPowerBnd = (defPowerBnd * avg_wght + _pW2 * _dt)*_1oW;
+    		EffPDef =    (EffPDef    * avg_wght + _eff1 * _dt)*_1oW;
+    		EffPDefBnd = (EffPDefBnd * avg_wght + _eff2 * _dt)*_1oW;
+    		Pthrust = ( Pthrust * avg_wght + _pT  * _dt )*_1oW;
+    		Pdrag =   ( Pdrag   * avg_wght + _pD  * _dt )*_1oW;
+    		ToD =     ( ToD     * avg_wght + _ToD * _dt )*_1oW;
+    		battery += defPowerBnd*_dt/1e-3; // roughly 30 swimming periods of solo guy (3.5e-5 ~ mean power per one swimming period)
+    		avg_wght += _dt;
 
-            ThetaAvg = ( ThetaAvg * avg_wght + _th            * _dt )*_1oW;
-            ThetaVel = ( ThetaVel * avg_wght + atan2(_vy,_vx) * _dt )*_1oW;
-
-            Pout =    (Pout    * avg_wght + _pO1 * _dt)*_1oW;
-            PoutBnd = (PoutBnd * avg_wght + _pO2 * _dt)*_1oW;
-
-            defPower =    (defPower    * avg_wght + _pW1 * _dt)*_1oW;
-            defPowerBnd = (defPowerBnd * avg_wght + _pW2 * _dt)*_1oW;
-
-            EffPDef =    (EffPDef    * avg_wght + _eff1 * _dt)*_1oW;
-            EffPDefBnd = (EffPDefBnd * avg_wght + _eff2 * _dt)*_1oW;
-
-            Pthrust = ( Pthrust * avg_wght + _pT  * _dt )*_1oW;
-            Pdrag =   ( Pdrag   * avg_wght + _pD  * _dt )*_1oW;
-            ToD =     ( ToD     * avg_wght + _ToD * _dt )*_1oW;
-
-            avg_wght += _dt;
-
-            thExp = (1.-_dt) * thExp + _dt * _th;
-            vxExp = (1.-_dt) * vxExp + _dt * _vx;
-            vyExp = (1.-_dt) * vyExp + _dt * _vy;
-            avExp = (1.-_dt) * avExp + _dt * _av;
-        }
+    		thExp = (1.-_dt) * thExp + _dt * _th;
+    		vxExp = (1.-_dt) * vxExp + _dt * _vx;
+    		vyExp = (1.-_dt) * vyExp + _dt * _vy;
+    		avExp = (1.-_dt) * avExp + _dt * _av;
     }
 
     void resetAverage()
@@ -537,7 +535,7 @@ struct StateReward
         if (Xrel>0.8 || Xrel<0.05 || Yrel>0.8 || Yrel<0.05) bRestart = true;
     }
 
-    void finalizePos(const Real xPov,   const Real yPov,  const Real thPov,
+    void finalizePos(const Real xFOR,   const Real yFOR,  const Real thFOR,
                      const Real vxPov,  const Real vyPov, const Real avPov,
                      const Real lscale, const Real tscale)
     {
@@ -546,34 +544,43 @@ struct StateReward
         const double forcescale = velscale*velscale*invlscale; //rho*l^2*l/t^2
         const double presscale  = forcescale*lscale;
         const double powerscale = forcescale*velscale; //rho*l^2*l^2/t^3
-        const double tmpPx = (Xrel-xPov)*invlscale;
-        const double tmpPy = (Yrel-yPov)*invlscale;
+        const double tmpPx = (Xrel-xFOR)*invlscale;
+        const double tmpPy = (Yrel-yFOR)*invlscale;
         const double tmpVx = VxAvg*velscale;
         const double tmpVy = VyAvg*velscale;
-
+				#ifdef _SCHOOL_
+        //velocity of reference from fish pov
+        VX = ((VxInst-vxPov)*cos(Theta)+(VyInst-vyPov)*sin(Theta))*velscale;
+        VY = ((VyInst-vyPov)*cos(Theta)-(VxInst-vxPov)*sin(Theta))*velscale;
+        AV =  (AvInst-avPov)/tscale;
+        //velocity of fish in reference pov
+        VxAvg = (VxInst*cos(thFOR)+VyInst*sin(thFOR))*velscale;
+        VyAvg = (VyInst*cos(thFOR)-VxInst*sin(thFOR))*velscale;
+        AvAvg = AvInst/tscale;
+        //position in reference frame
+        Xpov = tmpPx*cos(thFOR) + tmpPy*sin(thFOR);
+        Ypov = tmpPy*cos(thFOR) - tmpPx*sin(thFOR);
+        RelAng = Theta - thFOR;
+				#else
         //velocity of reference from fish pov
         VX = (tmpVx-vxPov*velscale)*cos(ThetaAvg)+(tmpVy-vyPov*velscale)*sin(ThetaAvg);
         VY = (tmpVy-vyPov*velscale)*cos(ThetaAvg)-(tmpVx-vxPov*velscale)*sin(ThetaAvg);
-        AV = (AvAvg-avPov)*tscale;
+        AV = (AvAvg-avPov)/tscale;
         //velocity of fish in reference pov
-        VxAvg = tmpVx*cos(thPov) + tmpVy*sin(thPov);
-        VyAvg = tmpVy*cos(thPov) - tmpVx*sin(thPov);
-        AvAvg*= tscale;
+        VxAvg = tmpVx*cos(thFOR) + tmpVy*sin(thFOR);
+        VyAvg = tmpVy*cos(thFOR) - tmpVx*sin(thFOR);
+        AvAvg/= tscale;
         //position in reference frame
-        Xrel = tmpPx*cos(thPov) + tmpPy*sin(thPov);
-        Yrel = tmpPy*cos(thPov) - tmpPx*sin(thPov);
-        RelAng = ThetaAvg - thPov;
-
+        Xpov = tmpPx*cos(thFOR) + tmpPy*sin(thFOR);
+        Ypov = tmpPy*cos(thFOR) - tmpPx*sin(thFOR);
+        RelAng = ThetaAvg - thFOR;
+				#endif
         Dist = sqrt(tmpPx*tmpPx + tmpPy*tmpPy);
-        Quad = atan2(Yrel,Xrel) -(Theta-thPov);
-
-        PoutBnd    *=powerscale; Pout    *=powerscale;
-        defPowerBnd*=powerscale; defPower*=powerscale;
-        Pthrust    *=powerscale; Pdrag   *=powerscale;
+        Quad = atan2(Ypov,Xpov) -(Theta-thFOR);
         //EffPDefBnd, EffPDef, ToD are non dimensional already
     }
 
-    void finalize(const Real xPov,   const Real yPov,  const Real thPov,
+    void finalize(const Real xFOR,   const Real yFOR,  const Real thFOR,
                   const Real vxPov,  const Real vyPov, const Real avPov,
                   const Real lscale, const Real tscale)
     {
@@ -582,11 +589,11 @@ struct StateReward
         const double forcescale = velscale*velscale*invlscale; //rho*l^2*l/t^2
         const double presscale  = forcescale*lscale;
         const double powerscale = forcescale*velscale; //rho*l^2*l^2/t^3
-        const double tmpPx = (Xrel-xPov)*invlscale;
-        const double tmpPy = (Yrel-yPov)*invlscale;
+        const double tmpPx = (Xrel-xFOR)*invlscale;
+        const double tmpPy = (Yrel-yFOR)*invlscale;
         const double tmpVx = VxAvg*velscale;
         const double tmpVy = VyAvg*velscale;
-
+        /*
         for (int k=0; k<NpLatLine; k++) {
             //subtract solid body velocity from velocity sensors & scale
             const double Uxu = VxInst - (PYAbove[k]-Yrel)*AvInst;
@@ -615,23 +622,7 @@ struct StateReward
         }
 
         for (int k=0; k<2*NpLatLine; k++) raySight[k] *= invlscale;
-
-        //velocity of reference from fish pov
-        VX = (tmpVx-vxPov*velscale)*cos(ThetaAvg)+(tmpVy-vyPov*velscale)*sin(ThetaAvg);
-        VY = (tmpVy-vyPov*velscale)*cos(ThetaAvg)-(tmpVx-vxPov*velscale)*sin(ThetaAvg);
-        AV = (AvAvg-avPov)*tscale;
-        //velocity of fish in reference pov
-        VxAvg = tmpVx*cos(thPov) + tmpVy*sin(thPov);
-        VyAvg = tmpVy*cos(thPov) - tmpVx*sin(thPov);
-        AvAvg*= tscale;
-        //position in reference frame
-        Xrel = tmpPx*cos(thPov) + tmpPy*sin(thPov);
-        Yrel = tmpPy*cos(thPov) - tmpPx*sin(thPov);
-        RelAng = ThetaAvg - thPov;
-
-        Dist = sqrt(tmpPx*tmpPx + tmpPy*tmpPy);
-        Quad = atan2(Yrel,Xrel) -(Theta-thPov);
-
+				*/
         PoutBnd    *=powerscale; Pout    *=powerscale;
         defPowerBnd*=powerscale; defPower*=powerscale;
         Pthrust    *=powerscale; Pdrag   *=powerscale;
@@ -641,7 +632,10 @@ struct StateReward
     bool checkFail(const Real xPov, const Real yPov, const Real thPov, const Real lscale)
     {
         bRestart = false;
-        if (Xrel>0.8||Xrel<0.05||Yrel>0.8||Yrel<0.05) bRestart = true;
+        if (Xrel>.95||Xrel<.05||Yrel>.95||Yrel<.05) {
+            printf("Out of bounds\n");
+            return true;
+        }
         const Real tmpPx = (Xrel-xPov)/lscale;
         const Real tmpPy = (Yrel-yPov)/lscale;
         const Real _Xrel = (GoalDX>0)?tmpPx*cos(thPov)+tmpPy*sin(thPov):0.;
@@ -650,34 +644,35 @@ struct StateReward
         const Real _Dist = tmpPx*tmpPx + tmpPy*tmpPy;
 
         if(not bForgiving) {
-            bRestart = bRestart || _Dist<0.25;
+            bRestart = _Dist<0.25;
             if(bRestart) {printf("Too close\n"); return bRestart;}
 
-            bRestart = bRestart || fabs(_Yrel)>1.;
+            bRestart = fabs(_Yrel)>1.;
             if(bRestart) {printf("Too much vertical distance\n"); return bRestart;}
 
-            bRestart = bRestart || fabs(_thRel)>1.5708;
+            bRestart = fabs(_thRel)>1.5708;
             if(bRestart) {printf("Too different inclination\n"); return bRestart;}
 
-            bRestart = bRestart || fabs(_Xrel-GoalDX)>1.;
+            bRestart = fabs(_Xrel-GoalDX)>1.;
             if(bRestart) {printf("Too far from horizontal goal\n"); return bRestart;}
         } else {
-            bRestart = bRestart || _Dist<0.1;
+            bRestart = _Dist<0.1;
             if(bRestart) {printf("Too close\n"); return bRestart;}
 
-            bRestart = bRestart || fabs(_Yrel)>2.;
+            bRestart = fabs(_Yrel)>2.;
             if(bRestart) {printf("Too much vertical distance\n"); return bRestart;}
 
-            bRestart = bRestart || fabs(_thRel)>M_PI;
+            bRestart = fabs(_thRel)>M_PI;
             if(bRestart) {printf("Too different inclination\n"); return bRestart;}
 
-            bRestart = bRestart || fabs(_Xrel-GoalDX)>2.;
+            bRestart = fabs(_Xrel-GoalDX)>2.;
             if(bRestart) {printf("Too far from horizontal goal\n"); return bRestart;}
         }
 
         return bRestart;
     }
-/*
+
+    /*
     void addToClosest(FishObstacle::FishSkin * upSkin, FishObstacle::FishSkin * dwSkin, PressurePoints * presData)
     { //todo ... create a general skin class?
         const int ND = presData->Ndata;
@@ -690,6 +685,7 @@ struct StateReward
         const Real * const vy = presData->vy;
         const int* const ID=presData->gridID;
 
+				#ifdef _useSkin_
         for (int k=0; k<NpLatLine; k++) {
             //const int gridIDU = upSkin->gridID[k];
             //const int gridIDL = dwSkin->gridID[k];
@@ -714,6 +710,10 @@ struct StateReward
             VelNBelow[k]*=fac; VelTBelow[k]*=fac;
             //printf("first %d %d %d %d\n",first, last, mid, mid+NP);
         }
+				#else
+        printf("TODO!\n"); abort();
+        //go through all gridpoints in data, pick closest and do the same
+				#endif
     }
     */
 
@@ -736,7 +736,7 @@ struct StateReward
             << ThetaAvg << "\t" << ThetaVel << "\t" << PoutBnd << "\t" << Pout << "\t"
             << defPowerBnd << "\t" << defPower << "\t" << EffPDefBnd<< "\t" << EffPDef << "\t"
             << Pthrust << "\t" << Pdrag << "\t" << ToD << std::endl;
-
+        /*
         for (int i=0; i<NpLatLine; i++) {
             savestream <<
             PXAbove[i] << "\t" << PYAbove[i] << "\t" <<
@@ -746,7 +746,7 @@ struct StateReward
             FPAbove[i] << "\t" << FVAbove[i] << "\t" <<
             FPBelow[i] << "\t" << FVBelow[i] << std::endl;
         }
-
+        */
         savestream.close();
     }
 
@@ -766,7 +766,7 @@ struct StateReward
         ThetaAvg >> ThetaVel >> PoutBnd >> Pout >>
         defPowerBnd >> defPower >> EffPDefBnd>> EffPDef >>
         Pthrust >> Pdrag >> ToD;
-
+        /*
         for (int i=0; i<NpLatLine; i++) {
             restartstream >>
             PXAbove[i] >> PYAbove[i] >>
@@ -776,7 +776,7 @@ struct StateReward
             FPAbove[i] >> FVAbove[i] >>
             FPBelow[i] >> FVBelow[i];
         }
-
+        */
         restartstream.close();
 
         {
@@ -790,7 +790,7 @@ struct StateReward
             << ThetaAvg << "\t" << ThetaVel << "\t" << PoutBnd << "\t" << Pout << "\t"
             << defPowerBnd << "\t" << defPower << "\t" << EffPDefBnd<< "\t" << EffPDef << "\t"
             << Pthrust << "\t" << Pdrag << "\t" << ToD << std::endl;
-
+            /*
             for (int i=0; i<NpLatLine; i++) {
             cout << PXAbove[i] << "\t" << PYAbove[i] << "\t" <<
                     PXBelow[i] << "\t" << PYBelow[i] << "\t" <<
@@ -799,11 +799,13 @@ struct StateReward
                     FPAbove[i] << "\t" << FVAbove[i] << "\t" <<
                     FPBelow[i] << "\t" << FVBelow[i] << std::endl;
             }
+						*/
         }
     }
 
     void print(const int ID, const int stepNumber, const Real time)
     {
+			/*
         {
             ofstream fileskin;
             char buf[500];
@@ -836,9 +838,9 @@ struct StateReward
                     << Pthrust << "\t" << Pdrag << "\t" << ToD << std::endl;
             fileskin.close();
         }
+				*/
     }
 };
-
 
 template <> inline void FluidBlock::Write<StreamerGridPoint>(ofstream& output, StreamerGridPoint streamer) const
 {
@@ -854,21 +856,21 @@ template <> inline void FluidBlock::Read<StreamerGridPoint>(ifstream& input, Str
 struct FluidVPStreamer
 {
 	static const int channels = 8;
-	
+
 	FluidBlock * ref;
 	FluidVPStreamer(FluidBlock& b): ref(&b) {}
 	FluidVPStreamer(): ref(NULL) {}
-	
+
 	template<int channel>
 	static inline Real operate(const FluidElement& input) { abort(); return 0; }
-	
+
 	inline Real operate(const int ix, const int iy, const int iz) const
 	{
 		cout << "You must not call this operate method of FluidVPStreamer" << endl;
 		abort();
 		return 0;
 	}
-	
+
 	const char * name() { return "FluidVPStreamer" ; }
 };
 
@@ -885,21 +887,21 @@ template<> inline Real FluidVPStreamer::operate<7>(const FluidElement& e) { retu
 struct TmpVPStreamer
 {
 	static const int channels = 1;
-	
+
 	FluidBlock * ref;
 	TmpVPStreamer(FluidBlock& b): ref(&b) {}
 	TmpVPStreamer(): ref(NULL) {  }
-	
+
 	template<int channel>
 	static inline Real operate(const FluidElement& input) { abort(); return 0; }
-	
+
 	inline Real operate(const int ix, const int iy, const int iz) const
 	{
 		cout << "You must not call this operate method of TmpVPStreamer" << endl;
 		abort();
 		return 0;
 	}
-	
+
 	const char * name() { return "TmpVPStreamer" ; }
 };
 
@@ -909,7 +911,7 @@ template<> inline Real TmpVPStreamer::operate<0>(const FluidElement& e) { return
 struct ScalarStreamer
 {
 	static const int channels = 1;
-	
+
 	void operate(Real input, Real output[1])
 	{
 		output[0] = input;
@@ -922,39 +924,39 @@ struct ScalarBlock
 	static const int sizeY = _BS_/2;
 	static const int sizeZ = _BS_/2;
 	typedef Real ElementType;
-	
+
 	Real  data[sizeZ][sizeY][sizeX];
 	Real  tmp[sizeZ][sizeY][sizeX];
-	
+
 	void clear_data()
 	{
 		const int N = sizeX*sizeY*sizeZ;
 		Real * const e = &data[0][0][0];
 		for(int i=0; i<N; ++i) e[i] = 0;
 	}
-	
+
 	void clear_tmp()
 	{
 		const int N = sizeX*sizeY*sizeZ;
 		Real * const e = &tmp[0][0][0];
 		for(int i=0; i<N; ++i) e[i] = 0;
 	}
-	
+
 	void clear()
 	{
 		clear_data();
 		clear_tmp();
 	}
-	
+
 	inline Real& operator()(int ix, int iy=0, int iz=0)
 	{
 		assert(ix>=0 && ix<sizeX);
 		assert(iy>=0 && iy<sizeY);
 		assert(iz>=0 && iz<sizeZ);
-		
+
 		return data[iz][iy][ix];
 	}
-	
+
 	template <typename Streamer>
 	inline void Write(ofstream& output, Streamer streamer) const
 	{
@@ -963,7 +965,7 @@ struct ScalarBlock
 		for(int ix=0; ix<sizeX; ix++)
 		streamer.operate(data[iz][iy][ix], output);
 	}
-	
+
 	template <typename Streamer>
 	inline void Read(ifstream& input, Streamer streamer)
 	{
@@ -990,13 +992,13 @@ struct StreamerSerialization
 	//static const int NCHANNELS = 10;
 	static const int NCHANNELS = 5;
 	FluidBlock& ref;
-	
+
 	StreamerSerialization(FluidBlock& b): ref(b) {}
-	
+
 	void operate(const int ix, const int iy, const int iz, Real output[NCHANNELS]) const
 	{
 		const FluidElement& input = ref.data[iz][iy][ix];
-		
+
 		output[0]  = input.u;
 		output[1]  = input.v;
 		output[2]  = input.w;
@@ -1006,11 +1008,11 @@ struct StreamerSerialization
 		output[6]  = input.tmpV;
 		output[7]  = input.tmpW;
 	}
-	
+
 	void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
 	{
 		FluidElement& output = ref.data[iz][iy][ix];
-		
+
 		output.u    = input[0];
 		output.v    = input[1];
 		output.w    = input[2];
@@ -1020,11 +1022,11 @@ struct StreamerSerialization
 		output.tmpV = input[6];
 		output.tmpW = input[7];
 	}
-	
+
 	void operate(const int ix, const int iy, const int iz, Real *ovalue, const int field) const
 	{
 		const FluidElement& input = ref.data[iz][iy][ix];
-		
+
 		switch(field) {
 			case 0: *ovalue  = input.u; break;
 			case 1: *ovalue  = input.v; break;
@@ -1037,11 +1039,11 @@ struct StreamerSerialization
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
-	
+
 	void operate(const Real ivalue, const int ix, const int iy, const int iz, const int field) const
 	{
 		FluidElement& output = ref.data[iz][iy][ix];
-		
+
 		switch(field) {
 			case 0:  output.u    = ivalue; break;
 			case 1:  output.v    = ivalue; break;
@@ -1054,22 +1056,22 @@ struct StreamerSerialization
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
-	
+
 	static const char * getAttributeName() { return "Tensor"; }
 };
 
 struct StreamerHDF5
 {
 	static const int NCHANNELS = 9;
-	
+
 	FluidBlock& ref;
-	
+
 	StreamerHDF5(FluidBlock& b): ref(b) {}
-	
+
 	void operate(const int ix, const int iy, const int iz, Real output[NCHANNELS]) const
 	{
 		const FluidElement& input = ref.data[iz][iy][ix];
-		
+
 		output[0] = input.u;
 		output[1] = input.v;
 		output[2] = input.w;
@@ -1080,11 +1082,11 @@ struct StreamerHDF5
 		output[7] = input.tmpW;
 		output[8] = 0;
 	}
-	
+
 	void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
 	{
 		FluidElement& output = ref.data[iz][iy][ix];
-		
+
 		output.u    = input[0];
 		output.v    = input[1];
 		output.w    = input[2];
@@ -1094,11 +1096,11 @@ struct StreamerHDF5
 		output.tmpV = input[6];
 		output.tmpW = input[7];
 	}
-	
+
 	void operate(const int ix, const int iy, const int iz, Real *ovalue, const int field) const
 	{
 		const FluidElement& input = ref.data[iz][iy][ix];
-		
+
 		switch(field) {
 			case 0: *ovalue  = input.u; break;
 			case 1: *ovalue  = input.v; break;
@@ -1112,11 +1114,11 @@ struct StreamerHDF5
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
-	
+
 	void operate(const Real ivalue, const int ix, const int iy, const int iz, const int field) const
 	{
 		FluidElement& output = ref.data[iz][iy][ix];
-		
+
 		switch(field) {
 			case 0:  output.u    = ivalue; break;
 			case 1:  output.v    = ivalue; break;
@@ -1130,50 +1132,50 @@ struct StreamerHDF5
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
-	
+
 	static const char * getAttributeName() { return "Tensor"; }
 };
 
 struct StreamerScalarHDF5
 {
 	static const int NCHANNELS = 1;
-	
+
 	ScalarBlock& ref;
-	
+
 	StreamerScalarHDF5(ScalarBlock& b): ref(b) {}
-	
+
 	void operate(const int ix, const int iy, const int iz, Real output[NCHANNELS]) const
 	{
 		const Real& input = ref.data[iz][iy][ix];
 		output[0] = input;
 	}
-	
+
 	void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
 	{
 		Real& output = ref.data[iz][iy][ix];
 		output  = input[0];
 	}
-	
+
 	void operate(const int ix, const int iy, const int iz, Real *ovalue, const int field) const
 	{
 		const Real& input = ref.data[iz][iy][ix];
-		
+
 		switch(field) {
 			case 0: *ovalue = input; break;
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
-	
+
 	void operate(const Real ivalue, const int ix, const int iy, const int iz, const int field) const
 	{
 		Real& output = ref.data[iz][iy][ix];
-		
+
 		switch(field) {
 			case 0:  output = ivalue; break;
 			default: throw std::invalid_argument("unknown field!"); break;
 		}
 	}
-	
+
 	static const char * getAttributeName() { return "Scalar"; }
 };
 
@@ -1182,10 +1184,10 @@ template<typename BlockType, template<typename X> class allocator=std::allocator
 class BlockLabBottomWall : public BlockLab<BlockType,allocator>
 {
 	typedef typename BlockType::ElementType ElementTypeBlock;
-	
+
 public:
     ElementTypeBlock pDirichlet;
-    
+
 	BlockLabBottomWall(): BlockLab<BlockType,allocator>()
     {
         pDirichlet.chi = 0;
@@ -1197,11 +1199,11 @@ public:
 		pDirichlet.tmpV = 0;
 		pDirichlet.tmpW = 0;
     }
-	
+
 	void _apply_bc(const BlockInfo& info, const Real t=0)
 	{
 		BoundaryCondition<BlockType,ElementTypeBlock,allocator> bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
-		
+
 		// keep periodicity in x,z direction
 		if (info.index[1]==0)		   bc.template applyBC_mixedBottom<1,0>(pDirichlet);
 		if (info.index[1]==this->NY-1) bc.template applyBC_mixedTop<1,1>(pDirichlet);
@@ -1212,14 +1214,14 @@ template<typename BlockType, template<typename X> class allocator=std::allocator
 class BlockLabPipe : public BlockLab<BlockType,allocator>
 {
 	typedef typename BlockType::ElementType ElementTypeBlock;
-	
+
 public:
 	BlockLabPipe(): BlockLab<BlockType,allocator>(){}
-	
+
 	void _apply_bc(const BlockInfo& info, const Real t=0)
 	{
 		BoundaryCondition<BlockType,ElementTypeBlock,allocator> bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
-		
+
 		if (info.index[1]==0)		   bc.template applyBC_mixedBottom<1,0>();
 		if (info.index[1]==this->NY-1) bc.template applyBC_mixedBottom<1,1>();
 	}
@@ -1229,14 +1231,14 @@ template<typename BlockType, template<typename X> class allocator=std::allocator
 class BlockLabVortex : public BlockLab<BlockType,allocator>
 {
 	typedef typename BlockType::ElementType ElementTypeBlock;
-	
+
 public:
 	BlockLabVortex(): BlockLab<BlockType,allocator>(){}
-	
+
 	void _apply_bc(const BlockInfo& info, const Real t=0)
 	{
 		BoundaryCondition<BlockType,ElementTypeBlock,allocator> bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
-		
+
 		if (info.index[0]==0)		   bc.template applyBC_vortex<0,0>(info);
 		if (info.index[0]==this->NX-1) bc.template applyBC_vortex<0,1>(info);
 		if (info.index[1]==0)		   bc.template applyBC_vortex<1,0>(info);
