@@ -106,7 +106,8 @@ public:
 
     virtual void computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda) ;
     virtual void computeVelocities(const Real* Uinf);
-    virtual void computeForces(const int stepID, const Real time, const Real* Uinf, const Real NU, const bool bDump);
+    virtual void computeForces(const int stepID, const Real time, const Real dt,
+                              const Real* Uinf, const Real NU, const bool bDump);
     virtual void update(const int step_id, const Real t, const Real dt, const Real* Uinf);
     virtual void save(const int step_id, const Real t, std::string filename = std::string());
     virtual void restart(const Real t, std::string filename = std::string());

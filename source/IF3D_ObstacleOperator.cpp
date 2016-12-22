@@ -495,9 +495,9 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
               const Real v_ = b(ix,iy,iz).v;
               const Real w_ = b(ix,iy,iz).w;
 
-        			am0 += Xs * (p[1]*(w_-lin_momenta[2]) - p[2]*(v_-lin_momenta[1]));
-        			am1 += Xs * (p[2]*(u_-lin_momenta[0]) - p[0]*(w_-lin_momenta[2]));
-        			am1 += Xs * (p[0]*(v_-lin_momenta[1]) - p[1]*(u_-lin_momenta[0]));
+        			am0 += Xs * (p[1]*(w_-transVel[2]) - p[2]*(v_-transVel[1]));
+        			am1 += Xs * (p[2]*(u_-transVel[0]) - p[0]*(w_-transVel[2]));
+        			am1 += Xs * (p[0]*(v_-transVel[1]) - p[1]*(u_-transVel[0]));
 
         			J0  += Xs * (p[1]*p[1]+p[2]*p[2]);
         			J1  += Xs * (p[0]*p[0]+p[2]*p[2]);
@@ -514,8 +514,8 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 
       if(bFixToPlanar)
       {
-          ang_momenta[0] = ang_momenta[1] = 0.0;
-          ang_momenta[2] = globals[5]/globals[8]; // av2/j2
+          angVel[0] = angVel[1] = 0.0;
+          angVel[2] = globals[5]/globals[8]; // av2/j2
       }
       else
       {
@@ -523,13 +523,10 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
         const Real AM[6] = {globals[0], globals[1], globals[2]};
         const Real J_[6] = {globals[3], globals[4], globals[5],
                             globals[6], globals[7], globals[8]};
-
         const Real detJ = J_[0]*(J_[1]*J_[2] - J_[5]*J_[5])+
                           J_[3]*(J_[4]*J_[5] - J_[2]*J_[3])+
                           J_[4]*(J_[3]*J_[5] - J_[1]*J_[4]);
-
         const Real invDetJ = 1./detJ;
-
         const Real invJ[6] = {
           invDetJ * (J_[1]*J_[2] - J_[5]*J_[5]),
           invDetJ * (J_[0]*J_[2] - J_[4]*J_[4]),
@@ -539,9 +536,10 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
           invDetJ * (J_[3]*J_[4] - J_[0]*J_[5])
         };
 
-        ang_momenta[0] = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
-        ang_momenta[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
-        ang_momenta[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
+        const Real dv = std::pow(vInfo[0].h_gridpoint,3);
+        angVel[0] = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
+        angVel[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
+        angVel[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
         J[0] = globals[3] * dv;
         J[1] = globals[4] * dv;
         J[2] = globals[5] * dv;
@@ -606,7 +604,8 @@ void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real _J[6], const 
 	AV[0] = (d[0] - R[0][1]*angVel[1] - R[0][2]*angVel[2])/R[0][0];
 }
 */
-void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, const Real* Uinf, const Real NU, const bool bDump)
+void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
+  const Real dt, const Real* Uinf, const Real NU, const bool bDump)
 {   //TODO: improve dumping: gather arrays before writing to file
 	//TODO: this kernel does an illegal read on the grid. Guack-a-bug!
     //ugly piece of code that creates a map that allows us to skip the non-surface blocks
@@ -674,7 +673,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
 
     if (bDump) {
       if(rank==0)
-      sr.print(ID, stepID, time);
+      sr.print(obstacleID, stepID, time);
       surfData.print(obstacleID, stepID, rank);
     }
 
