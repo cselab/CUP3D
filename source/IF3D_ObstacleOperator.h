@@ -29,7 +29,7 @@ struct ObstacleVisitor
 class IF3D_ObstacleOperator
 {
 protected:
-    StateReward * sr;
+    StateReward sr;
     FluidGridMPI * grid;
     surfacePoints surfData;
     vector<BlockInfo> vInfo;
