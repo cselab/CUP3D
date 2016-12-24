@@ -347,7 +347,7 @@ void Simulation::simulate()
         }
         profiler.pop_stop();
 
-        if (step % 100 == 0) profiler.printSummary();
+        if (step % 100 == 0 && !rank) profiler.printSummary();
         if ((endTime>0 && time>endTime) || (nsteps!=0 && step>=nsteps))
         {
         	if(rank==0)

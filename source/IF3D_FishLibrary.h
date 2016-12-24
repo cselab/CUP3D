@@ -8,7 +8,7 @@
 
 #ifndef __IncompressibleFluids3D__IF3D_FishLibrary__
 #define __IncompressibleFluids3D__IF3D_FishLibrary__
-#define BBURST
+//#define BBURST
 #include <cmath>
 #include <array>
 #include "IF2D_Interpolation1D.h"
