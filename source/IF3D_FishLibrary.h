@@ -412,7 +412,7 @@ protected:
   	gsl_vector_free(B);
 	}
 	#endif
-	
+
 	void _computeWidthsHeights()
 	{
 	#ifdef __BSPLINE
@@ -597,6 +597,7 @@ protected:
 	//burst-coast:
 	Real t0, t1, t2, t3;
 	const Real fac, inv;
+	const bool bBurst;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
 	{
@@ -611,73 +612,71 @@ protected:
 	inline Real midline(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-		#ifdef BBURST
-		Real f;
-		Real tcoast = TSTART;
-		if (t>=TSTART) {
-			const Real bct = t0 + t1 + t2 + t3;
-			const Real phase = std::floor((t-TSTART)/bct);
-			tcoast = TSTART + phase*bct;
-		}
-		Real tfreeze = tcoast + t0;
-		Real tburst = tfreeze + t1;
-		Real tswim = tburst + t2;
-		if (t<tcoast) {
-			f = 1.0;
-		} else if (t<tfreeze) {
-			const Real d = (t-tcoast)/(tfreeze-tcoast);
-			f = 1 - 3*d*d + 2*d*d*d;
-		} else if (t<tburst) {
-			f = 0.0;
-		} else if (t<tswim) {
-			const Real d = (t-tburst)/(tswim-tburst);
-			f = 3*d*d - 2*d*d*d;
-		} else {
-			f = 1.0;
-		}
-		return f * fac * (s + inv*L)*std::sin(arg);
-		#else
+		if (bBurst) {
+			Real f;
+			Real tcoast = TSTART;
+			if (t>=TSTART) {
+				const Real bct = t0 + t1 + t2 + t3;
+				const Real phase = std::floor((t-TSTART)/bct);
+				tcoast = TSTART + phase*bct;
+			}
+			Real tfreeze = tcoast + t0;
+			Real tburst = tfreeze + t1;
+			Real tswim = tburst + t2;
+			if (t<tcoast) {
+				f = 1.0;
+			} else if (t<tfreeze) {
+				const Real d = (t-tcoast)/(tfreeze-tcoast);
+				f = 1 - 3*d*d + 2*d*d*d;
+			} else if (t<tburst) {
+				f = 0.0;
+			} else if (t<tswim) {
+				const Real d = (t-tburst)/(tswim-tburst);
+				f = 3*d*d - 2*d*d*d;
+			} else {
+				f = 1.0;
+			}
+			return f * fac * (s + inv*L)*std::sin(arg);
+		} else
 		return fac * (s + inv*L)*std::sin(arg);
-		#endif
 	}
 
 	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
 
-		#ifdef BBURST
-		Real f,df;
-		Real tcoast = TSTART;
-		if (t>=TSTART) {
-			const Real bct = t0 + t1 + t2 + t3;
-			const Real phase = std::floor((t-TSTART)/bct);
-			tcoast = TSTART + phase*bct;
-		}
-		Real tfreeze = tcoast + t0;
-		Real tburst = tfreeze + t1;
-		Real tswim = tburst + t2;
-		if (t<tcoast) {
-			f = 1.0;
-			df = 0.0;
-		} else if (t<tfreeze) {
-			const Real d = (t-tcoast)/(tfreeze-tcoast);
-			f = 1 - 3*d*d + 2*d*d*d;
-			df = 6*(d*d - d)/(tfreeze-tcoast);
-		} else if (t<tburst) {
-			f = 0.0;
-			df = 0.0;
-		} else if (t<tswim) {
-			const Real d = (t-tburst)/(tswim-tburst);
-			f = 3*d*d - 2*d*d*d;
-			df = 6*(d - d*d)/(tswim-tburst);
-		} else {
-			f = 1.0;
-			df = 0.0;
-		}
-		return fac*(s + inv*L)*(df*std::sin(arg) - f*(2.0*M_PI/T)*std::cos(arg));
-		#else
+	  if (bBurst) {
+			Real f,df;
+			Real tcoast = TSTART;
+			if (t>=TSTART) {
+				const Real bct = t0 + t1 + t2 + t3;
+				const Real phase = std::floor((t-TSTART)/bct);
+				tcoast = TSTART + phase*bct;
+			}
+			Real tfreeze = tcoast + t0;
+			Real tburst = tfreeze + t1;
+			Real tswim = tburst + t2;
+			if (t<tcoast) {
+				f = 1.0;
+				df = 0.0;
+			} else if (t<tfreeze) {
+				const Real d = (t-tcoast)/(tfreeze-tcoast);
+				f = 1 - 3*d*d + 2*d*d*d;
+				df = 6*(d*d - d)/(tfreeze-tcoast);
+			} else if (t<tburst) {
+				f = 0.0;
+				df = 0.0;
+			} else if (t<tswim) {
+				const Real d = (t-tburst)/(tswim-tburst);
+				f = 3*d*d - 2*d*d*d;
+				df = 6*(d - d*d)/(tswim-tburst);
+			} else {
+				f = 1.0;
+				df = 0.0;
+			}
+			return fac*(s + inv*L)*(df*std::sin(arg) - f*(2.0*M_PI/T)*std::cos(arg));
+		} else
 		return - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
-		#endif //Burst-coast
 	}
 
 	void _computeMidlineCoordinates(const Real time)
@@ -716,11 +715,18 @@ protected:
 	}
 
 public:
-	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125)
+	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
+		const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false)
 	{
-#ifdef BBURST
-		ifstream reader("burst_coast_carling_params.txt");
+	}
+
+	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
+		const Real phaseShift, const Real dx_ext, const string fburstpar, const Real _fac = 0.1212121212121212)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(true)
+	{
+		//ifstream reader("burst_coast_carling_params.txt");
+		ifstream reader(fburstpar.c_str());
 		if (reader.is_open()) {
 			reader >> t0;
 			reader >> t1;
@@ -731,7 +737,6 @@ public:
 			cout << "Could not open params.txt" << endl;
 			abort();
 		}
-#endif
 	}
 
 	void computeMidline(const Real time)
