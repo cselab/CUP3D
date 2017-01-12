@@ -29,13 +29,14 @@ struct ObstacleVisitor
 class IF3D_ObstacleOperator
 {
 protected:
-	FluidGridMPI * grid;
+    StateReward sr;
+    FluidGridMPI * grid;
     surfacePoints surfData;
     vector<BlockInfo> vInfo;
     std::map<int,ObstacleBlock*> obstacleBlocks;
-    
-    Real quaternion[4]; //representing orientation
-    Real position[3], transVel[3], angVel[3], volume, J[6]; // moment of inertia
+
+    Real quaternion[4], _2Dangle; //representing orientation
+    Real position[3], absPos[3], transVel[3], angVel[3], volume, J[6]; // moment of inertia
     Real mass, force[3], torque[3]; //from diagnostics
     Real totChi, surfForce[3], drag, thrust, Pout, PoutBnd, defPower, defPowerBnd, Pthrust, Pdrag, EffPDef, EffPDefBnd; //from compute forces
     Real transVel_correction[3], angVel_correction[3], length;
@@ -49,16 +50,16 @@ protected:
     virtual void _writeDiagForcesToFile(const int step_id, const Real t);
     void _makeDefVelocitiesMomentumFree(const Real CoM[3]);
     void _computeUdefMoments(Real lin_momenta[3], Real ang_momenta[3], const Real CoM[3]);
-    void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
+    //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
 
 public:
     int obstacleID;
     bool bFixFrameOfRef;
     IF3D_ObstacleOperator(FluidGridMPI * grid, ArgumentParser& parser) :
-    	grid(grid), obstacleID(0), quaternion{1.,0.,0.,0.}, transVel{0.,0.,0.}, angVel{0.,0.,0.},
-		volume(0.0), J{0.,0.,0.,0.,0.,0.}
+    	grid(grid),obstacleID(0),quaternion{1,0,0,0},_2Dangle(0),position{0,0,0},
+      absPos{0,0,0},transVel{0,0,0},angVel{0,0,0},volume(0),J{0,0,0,0,0,0}
     {
-		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+		    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
         vInfo = grid->getBlocksInfo();
         /*
         const Real extent = grid->maxextent;
@@ -98,22 +99,24 @@ public:
         ext_Z = scale[2]*extent;
         */
 	}
-    
+
     virtual void Accept(ObstacleVisitor * visitor);
 
     virtual Real getD() const {return length;}
 
     virtual void computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda) ;
     virtual void computeVelocities(const Real* Uinf);
-    virtual void computeForces(const int stepID, const Real time, const Real* Uinf, const Real NU, const bool bDump);
+    virtual void computeForces(const int stepID, const Real time, const Real dt,
+                              const Real* Uinf, const Real NU, const bool bDump);
     virtual void update(const int step_id, const Real t, const Real dt, const Real* Uinf);
     virtual void save(const int step_id, const Real t, std::string filename = std::string());
     virtual void restart(const Real t, std::string filename = std::string());
+
     virtual void execute(Communicator * comm, const int iAgent, const Real time) {};
-    
+    StateReward* _getData() { return &sr; }
     // some non-pure methods
     virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf) { }
-    
+
     //methods that work for all obstacles
     virtual std::map<int,ObstacleBlock*> getObstacleBlocks() const
     {
@@ -124,7 +127,7 @@ public:
     {
         obstblock_ptr = &obstacleBlocks;
     }
-    
+
     virtual void characteristic_function();
 
     virtual std::vector<int> intersectingBlockIDs(const int buffer) const;
@@ -139,7 +142,7 @@ public:
         }
         obstacleBlocks.clear();
     }
-    
+
     virtual void getTranslationVelocity(Real UT[3]) const;
     virtual void getAngularVelocity(Real W[3]) const;
     virtual void getCenterOfMass(Real CM[3]) const;

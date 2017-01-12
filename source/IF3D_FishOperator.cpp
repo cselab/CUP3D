@@ -10,8 +10,8 @@
 #include "IF3D_FishLibrary.h"
 
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser)
-: IF3D_ObstacleOperator(grid, parser), theta_internal(0.0), angvel_internal(0.0), sim_time(0.0),
-  sim_dt(0.0), adjTh(adjTh), myFish(nullptr), angvel_integral{0.,0.,0.}
+: IF3D_ObstacleOperator(grid, parser), theta_internal(0.), angvel_internal(0.),
+sim_time(0.), sim_dt(0.), adjTh(0.), myFish(nullptr), angvel_integral{0.,0.,0.}
 {
 	volume=0;
 	for(int i=0;i<3;i++) transVel[i]=0;
@@ -188,7 +188,8 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		vector<array<Real,4>> momenta(nthreads);
 		vector<PutFishOnBlocks_Finalize*> finalize;
 		for(int i = 0; i < nthreads; ++i) {
-			PutFishOnBlocks_Finalize* tmp = new PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]);
+			PutFishOnBlocks_Finalize* tmp = new
+        PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]);
 			finalize.push_back(tmp);
 		}
 		compute(finalize);
@@ -240,6 +241,8 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 	phaseShift = parser("-phi").asDouble(0.0);
 	Tstartlearn = parser("-Tstartlearn").asDouble(1e6);
 	bCorrectTrajectory = parser("-Correct").asBool(false);
+	bInteractive = parser("-Active").asBool(false);
+	/*
     randomStart = parser("-randomStart").asBool(false);
     if (randomStart) {
     	printf("Random start\n");
@@ -249,15 +252,7 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
     	position[0] += .5*length*dis(gen);
     	position[1] += .1*length*dis(gen);
     }
-    /*
-    //TODO state and reward:
-    sr->updateInstant(position[0], position[1], angle, 0., 0., 0.);
-    sr->t_next_comm = Tstartlearn - 1/2.; //i want to reset time-averages before first actual comm
-    bool bForgiving = parser("-easyFailBox").asBool(false);
-    sr->bForgiving = bForgiving;
-    sr->GoalDX = GoalDX;
-    sr->thExp = angle;
-    */
+		*/
 }
 
 /*

@@ -45,150 +45,197 @@ struct ForcesOnSkin : public GenericLabOperator
     template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
 	{
-    		const auto pos = surfaceBlocksFilter->find(info.blockID);
-		if(pos == surfaceBlocksFilter->end()) return;
-		const int first  = pos->second.first;
-		const int second = pos->second.second;
-		const Real _h3 = std::pow(info.h_gridpoint,3);
-		const Real _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
-		for(int i=first; i<second; i++) { //i now is a fluid >element<
-			assert(first<second && surfData->Set.size()>=second);
-			Real p[3];
-			const int ix = surfData->Set[i]->ix;
-			const int iy = surfData->Set[i]->iy;
-			const int iz = surfData->Set[i]->iz;
-			const auto tempIt = obstacleBlocks->find(info.blockID);
-			assert(tempIt != obstacleBlocks->end());
-			info.pos(p, ix, iy, iz);
-			//shear stresses
-			const Real D11 =    _1oH*(lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u);
-			const Real D22 =    _1oH*(lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v);
-			const Real D33 =    _1oH*(lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w);
-			const Real D12 = .5*_1oH*(lab(ix,iy+1,iz).u - lab(ix,iy-1,iz).u
-									   +lab(ix+1,iy,iz).v - lab(ix-1,iy,iz).v);
-			const Real D13 = .5*_1oH*(lab(ix,iy,iz+1).u - lab(ix,iy,iz-1).u
-									   +lab(ix+1,iy,iz).w - lab(ix-1,iy,iz).w);
-			const Real D23 = .5*_1oH*(lab(ix,iy+1,iz).w - lab(ix,iy-1,iz).w
-									   +lab(ix,iy,iz+1).v - lab(ix,iy,iz-1).v);
-			//normals computed with Towers 2009
-			const Real normX = surfData->Set[i]->dchidx;
-			const Real normY = surfData->Set[i]->dchidy;
-			const Real normZ = surfData->Set[i]->dchidz; // * _h3
-			const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
-			const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
-			const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
-			const Real fXP = -b(ix,iy,iz).p * normX; //lab might not contain p!?
-			const Real fYP = -b(ix,iy,iz).p * normY;
-			const Real fZP = -b(ix,iy,iz).p * normZ;
-			const Real fXT = fXV+fXP;
-			const Real fYT = fYV+fYP;
-			const Real fZT = fZV+fZP;
-			surfData->P[i]  = b(ix,iy,iz).p;
-			surfData->fX[i] = fXT;  surfData->fY[i] = fYT;  surfData->fZ[i] = fZT;
-			surfData->fxP[i] = fXP; surfData->fyP[i] = fYP; surfData->fzP[i] = fZP;
-			surfData->fxV[i] = fXV; surfData->fyV[i] = fYV; surfData->fzV[i] = fZV;
-			surfData->pX[i] = p[0]; surfData->pY[i] = p[1]; surfData->pZ[i] = p[2];
-			//perimeter:
-			(*measures)[0] += surfData->Set[i]->delta;
-			//forces (total, visc, pressure):
-			(*measures)[1] += fXT; (*measures)[2] += fYT; (*measures)[3] += fZT;
-			(*measures)[4] += fXP; (*measures)[5] += fYP; (*measures)[6] += fZP;
-			(*measures)[7] += fXV; (*measures)[8] += fYV; (*measures)[9] += fZV;
-			//torques:
-			(*measures)[16] += (p[1]-CM[1])*fZV - (p[2]-CM[2])*fYT;
-			(*measures)[17] += (p[2]-CM[2])*fXT - (p[0]-CM[0])*fZV;
-			(*measures)[18] += (p[0]-CM[0])*fYT - (p[1]-CM[1])*fXT;
-			//thrust, drag:
-			const Real forcePar = fXT*vel_unit[0] + fYT*vel_unit[1] + fZT*vel_unit[2];
-			(*measures)[10] += .5*(forcePar + std::abs(forcePar));
-			(*measures)[11] -= .5*(forcePar - std::abs(forcePar));
-			//save velocities in case of dump:
-			surfData->vxDef[i] = tempIt->second->udef[iz][iy][ix][0];
-			surfData->vyDef[i] = tempIt->second->udef[iz][iy][ix][1];
-			surfData->vzDef[i] = tempIt->second->udef[iz][iy][ix][2];
-			surfData->vx[i] = lab(ix,iy,iz).u + Uinf[0];
-			surfData->vy[i] = lab(ix,iy,iz).v + Uinf[1];
-			surfData->vz[i] = lab(ix,iy,iz).w + Uinf[2];
-			//power output (and negative definite variant which ensures no elastic energy absorption)
-			const Real powOut = fXT*surfData->vx[i] + fYT*surfData->vy[i] + fZT*surfData->vz[i];
-			(*measures)[12] += powOut;
-			(*measures)[13] += min((Real)0., powOut);
-			//deformation power output (and negative definite variant which ensures no elastic energy absorption)
-			const Real powDef = fXT*surfData->vxDef[i] + fYT*surfData->vyDef[i] + fZT*surfData->vzDef[i];
-			(*measures)[14] += powDef;
-			(*measures)[15] += min((Real)0., powDef);
+      const auto pos = surfaceBlocksFilter->find(info.blockID);
+      if(pos == surfaceBlocksFilter->end()) return;
+
+      //mapping between non-zero gradChi points data and blocks
+      const int first  = pos->second.first;
+      const int second = pos->second.second;
+      const Real _h3 = std::pow(info.h_gridpoint,3);
+      const Real _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
+
+      //loop over elements of block info that have nonzero gradChi
+      for(int i=first; i<second; i++) { //i now is a fluid element
+          assert(first<second && surfData->Set.size()>=second);
+          Real p[3];
+          const int ix = surfData->Set[i]->ix;
+          const int iy = surfData->Set[i]->iy;
+          const int iz = surfData->Set[i]->iz;
+
+          //get also corresponding def-vel block
+          const auto tempIt = obstacleBlocks->find(info.blockID);
+          assert(tempIt != obstacleBlocks->end());
+          info.pos(p, ix, iy, iz);
+
+          //shear stresses
+          const Real D11 =    _1oH*(lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u);
+          const Real D22 =    _1oH*(lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v);
+          const Real D33 =    _1oH*(lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w);
+          const Real D12 = .5*_1oH*(lab(ix,iy+1,iz).u - lab(ix,iy-1,iz).u
+          				   +lab(ix+1,iy,iz).v - lab(ix-1,iy,iz).v);
+          const Real D13 = .5*_1oH*(lab(ix,iy,iz+1).u - lab(ix,iy,iz-1).u
+          				   +lab(ix+1,iy,iz).w - lab(ix-1,iy,iz).w);
+          const Real D23 = .5*_1oH*(lab(ix,iy+1,iz).w - lab(ix,iy-1,iz).w
+          				   +lab(ix,iy,iz+1).v - lab(ix,iy,iz-1).v);
+
+          //normals computed with Towers 2009
+          const Real normX = surfData->Set[i]->dchidx;
+          const Real normY = surfData->Set[i]->dchidy;
+          const Real normZ = surfData->Set[i]->dchidz; // * _h3
+          const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
+          const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
+          const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
+          const Real fXP = -b(ix,iy,iz).p * normX;
+          const Real fYP = -b(ix,iy,iz).p * normY;
+          const Real fZP = -b(ix,iy,iz).p * normZ;
+          const Real fXT = fXV+fXP;
+          const Real fYT = fYV+fYP;
+          const Real fZT = fZV+fZP;
+          //store:
+          surfData->P[i]  = b(ix,iy,iz).p;
+          surfData->fX[i] = fXT;  surfData->fY[i] = fYT;  surfData->fZ[i] = fZT;
+          surfData->fxP[i] = fXP; surfData->fyP[i] = fYP; surfData->fzP[i] = fZP;
+          surfData->fxV[i] = fXV; surfData->fyV[i] = fYV; surfData->fzV[i] = fZV;
+          surfData->pX[i] = p[0]; surfData->pY[i] = p[1]; surfData->pZ[i] = p[2];
+          //perimeter:
+          (*measures)[0] += surfData->Set[i]->delta;
+          //forces (total, visc, pressure):
+          (*measures)[1] += fXT; (*measures)[2] += fYT; (*measures)[3] += fZT;
+          (*measures)[4] += fXP; (*measures)[5] += fYP; (*measures)[6] += fZP;
+          (*measures)[7] += fXV; (*measures)[8] += fYV; (*measures)[9] += fZV;
+          //torques:
+          (*measures)[16] += (p[1]-CM[1])*fZV - (p[2]-CM[2])*fYT;
+          (*measures)[17] += (p[2]-CM[2])*fXT - (p[0]-CM[0])*fZV;
+          (*measures)[18] += (p[0]-CM[0])*fYT - (p[1]-CM[1])*fXT;
+          //thrust, drag:
+          const Real forcePar = fXT*vel_unit[0] + fYT*vel_unit[1] + fZT*vel_unit[2];
+          (*measures)[10] += .5*(forcePar + std::abs(forcePar));
+          (*measures)[11] -= .5*(forcePar - std::abs(forcePar));
+          //save velocities in case of dump:
+          surfData->vxDef[i] = tempIt->second->udef[iz][iy][ix][0];
+          surfData->vyDef[i] = tempIt->second->udef[iz][iy][ix][1];
+          surfData->vzDef[i] = tempIt->second->udef[iz][iy][ix][2];
+          surfData->vx[i] = lab(ix,iy,iz).u + Uinf[0];
+          surfData->vy[i] = lab(ix,iy,iz).v + Uinf[1];
+          surfData->vz[i] = lab(ix,iy,iz).w + Uinf[2];
+          //power output (and negative definite variant which ensures no elastic energy absorption)
+          const Real powOut = fXT*surfData->vx[i] + fYT*surfData->vy[i] + fZT*surfData->vz[i];
+          (*measures)[12] += powOut;
+          (*measures)[13] += min((Real)0., powOut);
+          //deformation power output (and negative definite variant which ensures no elastic energy absorption)
+          const Real powDef = fXT*surfData->vxDef[i] + fYT*surfData->vyDef[i] + fZT*surfData->vzDef[i];
+          (*measures)[14] += powDef;
+          (*measures)[15] += min((Real)0., powDef);
 		}
 	}
 };
 
-void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3], Real ang_momenta[3], const Real CoM[3])
+void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
+                                        Real ang_momenta[3], const Real CoM[3])
 {
-	const int N = vInfo.size();
-	Real  V(0.0),  J0(0.0),  J1(0.0),  J2(0.0),  J3(0.0),  J4(0.0),  J5(0.0);
-	Real  lm0(0.0),  lm1(0.0),  lm2(0.0); //linear momenta
-	Real  am0(0.0),  am1(0.0),  am2(0.0); //angular momenta
+  { //sum linear momenta to figure out velocity and mass
+    Real  V(0.0),  lm0(0.0),  lm1(0.0),  lm2(0.0); //linear momenta
+    #pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2)
+  	for(int i=0; i<vInfo.size(); i++) {
+  		BlockInfo info = vInfo[i];
+  		const auto pos = obstacleBlocks.find(info.blockID);
+  		if(pos == obstacleBlocks.end()) continue;
 
-#pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
-	for(int i=0; i<vInfo.size(); i++) {
-		BlockInfo info = vInfo[i];
-		const auto pos = obstacleBlocks.find(info.blockID);
-		if(pos == obstacleBlocks.end()) continue;
+  		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+  		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+  		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+  			const Real Xs = pos->second->chi[iz][iy][ix];
+  			if (Xs == 0) continue;
+  			V   += Xs;
+  			lm0 += Xs * pos->second->udef[iz][iy][ix][0];
+  			lm1 += Xs * pos->second->udef[iz][iy][ix][1];
+  			lm2 += Xs * pos->second->udef[iz][iy][ix][2];
+  		}
+  	}
 
-		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-			const Real Xs = pos->second->chi[iz][iy][ix];
-			if (Xs == 0) continue;
-			Real p[3];
-			info.pos(p, ix, iy, iz);
-			p[0]-=CoM[0];
-			p[1]-=CoM[1];
-			p[2]-=CoM[2];
-			V   += Xs;
-			lm0 += Xs *       pos->second->udef[iz][iy][ix][0];
-			lm1 += Xs *       pos->second->udef[iz][iy][ix][1];
-			lm2 += Xs *       pos->second->udef[iz][iy][ix][2];
-			am0 += Xs * (p[1]*pos->second->udef[iz][iy][ix][2] - p[2]*pos->second->udef[iz][iy][ix][1]);
-			am1 += Xs * (p[2]*pos->second->udef[iz][iy][ix][0] - p[0]*pos->second->udef[iz][iy][ix][2]);
-			am2 += Xs * (p[0]*pos->second->udef[iz][iy][ix][1] - p[1]*pos->second->udef[iz][iy][ix][0]);
-			J0  += Xs * (p[1]*p[1]+p[2]*p[2]);
-			J1  += Xs * (p[0]*p[0]+p[2]*p[2]);
-			J2  += Xs * (p[0]*p[0]+p[1]*p[1]);
-			J3  -= Xs *  p[0]*p[1];
-			J4  -= Xs *  p[0]*p[2];
-			J5  -= Xs *  p[1]*p[2];
-		}
-	}
+    double globals[4] = {0,0,0,0};
+    double locals[4] = {lm0,lm1,lm2,V};
+    MPI::COMM_WORLD.Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM);
 
-    double globals[13];
-    double locals[13] = {lm0,lm1,lm2,am0,am1,am2,J0,J1,J2,J3,J4,J5,V};
-	MPI::COMM_WORLD.Allreduce(locals, globals, 13, MPI::DOUBLE, MPI::SUM);
-
-    assert(globals[12] > std::numeric_limits<double>::epsilon());
+    assert(globals[3] > std::numeric_limits<double>::epsilon());
     const Real dv = std::pow(vInfo[0].h_gridpoint,3);
-    lin_momenta[0] = globals[0]/globals[12];
-    lin_momenta[1] = globals[1]/globals[12];
-    lin_momenta[2] = globals[2]/globals[12];
-    Real tmp_AV[3] = {
-    		globals[3]* dv,
-			globals[4]* dv,
-			globals[5]* dv
-    };
-    Real tmp_J[6] = {
-    		globals[6] * dv,
-			globals[7] * dv,
-			globals[8] * dv,
-			globals[9] * dv,
-			globals[10]* dv,
-			globals[11]* dv
-    };
+    lin_momenta[0] = globals[0]/globals[3];
+    lin_momenta[1] = globals[1]/globals[3];
+    lin_momenta[2] = globals[2]/globals[3];
+  }
 
-    _finalizeAngVel(ang_momenta, tmp_J, tmp_AV[0], tmp_AV[1], tmp_AV[1]);
+  { //sum angular momenta to figure out ang velocity and moments
+    Real J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
+    Real am0(0.0), am1(0.0), am2(0.0); //angular momenta
+    #pragma omp parallel for schedule(dynamic) reduction(+:J0,J1,J2,J3,J4,J5,am0,am1,am2)
+  	for(int i=0; i<vInfo.size(); i++) {
+  		BlockInfo info = vInfo[i];
+  		const auto pos = obstacleBlocks.find(info.blockID);
+  		if(pos == obstacleBlocks.end()) continue;
 
-    if(bFixToPlanar) { //TODO: why this step?
+  		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+  		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+  		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+  			const Real Xs = pos->second->chi[iz][iy][ix];
+  			if (Xs == 0) continue;
+  			Real p[3];
+  			info.pos(p, ix, iy, iz);
+  			p[0]-=CoM[0];
+  			p[1]-=CoM[1];
+  			p[2]-=CoM[2];
+        const Real u_ = pos->second->udef[iz][iy][ix][0];
+        const Real v_ = pos->second->udef[iz][iy][ix][1];
+        const Real w_ = pos->second->udef[iz][iy][ix][2];
+
+  			am0 += Xs * (p[1]*(w_-lin_momenta[2]) - p[2]*(v_-lin_momenta[1]));
+  			am1 += Xs * (p[2]*(u_-lin_momenta[0]) - p[0]*(w_-lin_momenta[2]));
+  			am1 += Xs * (p[0]*(v_-lin_momenta[1]) - p[1]*(u_-lin_momenta[0]));
+
+  			J0  += Xs * (p[1]*p[1]+p[2]*p[2]);
+  			J1  += Xs * (p[0]*p[0]+p[2]*p[2]);
+  			J2  += Xs * (p[0]*p[0]+p[1]*p[1]);
+  			J3  -= Xs *  p[0]*p[1];
+  			J4  -= Xs *  p[0]*p[2];
+  			J5  -= Xs *  p[1]*p[2];
+  		}
+  	}
+
+    double globals[9] = {0,0,0,0,0,0,0,0,0};
+    double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
+    MPI::COMM_WORLD.Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM);
+
+    if(bFixToPlanar)
+    {
     		ang_momenta[0] = ang_momenta[1] = 0.0;
-    		ang_momenta[2] = globals[5]/globals[8]; // av2/j2
+    		ang_momenta[2] = globals[2]/globals[5]; // av2/j2
     }
+    else
+    {
+      //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
+      const Real AM[3] = {globals[0], globals[1], globals[2]};
+      const Real J_[6] = {globals[3], globals[4], globals[5],
+                          globals[6], globals[7], globals[8]};
+
+      const Real detJ = J_[0]*(J_[1]*J_[2] - J_[5]*J_[5])+
+          							J_[3]*(J_[4]*J_[5] - J_[2]*J_[3])+
+          							J_[4]*(J_[3]*J_[5] - J_[1]*J_[4]);
+
+      const Real invDetJ = 1./detJ;
+
+  		const Real invJ[6] = {
+  			invDetJ * (J_[1]*J_[2] - J_[5]*J_[5]),
+  			invDetJ * (J_[0]*J_[2] - J_[4]*J_[4]),
+  			invDetJ * (J_[0]*J_[1] - J_[3]*J_[3]),
+  			invDetJ * (J_[4]*J_[5] - J_[2]*J_[3]),
+  			invDetJ * (J_[3]*J_[5] - J_[1]*J_[4]),
+  			invDetJ * (J_[3]*J_[4] - J_[0]*J_[5])
+  		};
+
+      ang_momenta[0] = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
+  		ang_momenta[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
+  		ang_momenta[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
+    }
+  }
 }
 
 void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
@@ -199,7 +246,7 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
     		transVel_correction[0], transVel_correction[1], transVel_correction[2],
 			angVel_correction[0], angVel_correction[1], angVel_correction[2]);
 
-#pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for schedule(dynamic)
     for(int i=0; i<vInfo.size(); i++) {
         BlockInfo info = vInfo[i];
         const auto pos = obstacleBlocks.find(info.blockID);
@@ -224,12 +271,12 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
         }
     }
 
-#ifndef NDEBUG
+    #ifndef NDEBUG
     Real dummy_ang[3], dummy_lin[3];
     _computeUdefMoments(dummy_lin, dummy_ang, CoM);
     printf("Momenta post correction: lin [%f %f %f], ang [%f %f %f]\n",
     		dummy_lin[0], dummy_lin[1], dummy_lin[2], dummy_ang[0], dummy_ang[1], dummy_ang[2]);
-#endif
+    #endif
 }
 
 void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
@@ -379,77 +426,120 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 {
     Real CM[3];
     this->getCenterOfMass(CM);
-    const int N = vInfo.size();
 
-    //local variables
-    Real V(0.0), J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
-    Real lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
-    Real am0(0.0), am1(0.0), am2(0.0); //angular momenta
+    {
+      Real V(0.0), lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
+      #pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2)
+      for(int i=0; i<vInfo.size(); i++) {
+          BlockInfo info = vInfo[i];
+          FluidBlock & b = *(FluidBlock*)info.ptrBlock;
+          const auto pos = obstacleBlocks.find(info.blockID);
+          if(pos == obstacleBlocks.end()) continue;
 
-#pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
-    for(int i=0; i<vInfo.size(); i++) {
-        BlockInfo info = vInfo[i];
-        FluidBlock & b = *(FluidBlock*)info.ptrBlock;
-        const auto pos = obstacleBlocks.find(info.blockID);
-        if(pos == obstacleBlocks.end()) continue;
+          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+          for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+              const Real Xs = pos->second->chi[iz][iy][ix];
+              if (Xs == 0) continue;
+              V     += Xs;
+              lm0   += Xs * b(ix,iy,iz).u;
+              lm1   += Xs * b(ix,iy,iz).v;
+              lm2   += Xs * b(ix,iy,iz).w;
+          }
+      }
 
-		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-            const Real Xs = pos->second->chi[iz][iy][ix];
-            if (Xs == 0) continue;
-            Real p[3];
-            info.pos(p, ix, iy, iz);
-            p[0]-=CM[0];
-            p[1]-=CM[1];
-            p[2]-=CM[2];
-            V     += Xs;
-            lm0   += Xs * b(ix,iy,iz).u;
-            lm1   += Xs * b(ix,iy,iz).v;
-            lm2   += Xs * b(ix,iy,iz).w;
-            am0 += Xs*(p[1]*b(ix,iy,iz).w - p[2]*b(ix,iy,iz).v);
-            am1 += Xs*(p[2]*b(ix,iy,iz).u - p[0]*b(ix,iy,iz).w);
-            am2 += Xs*(p[0]*b(ix,iy,iz).v - p[1]*b(ix,iy,iz).u);
-            J0+=Xs*(p[1]*p[1]+p[2]*p[2]);
-            J1+=Xs*(p[0]*p[0]+p[2]*p[2]);
-            J2+=Xs*(p[0]*p[0]+p[1]*p[1]);
-            J3-=Xs*p[0]*p[1];
-            J4-=Xs*p[0]*p[2];
-            J5-=Xs*p[1]*p[2];
-        }
+      double globals[4] = {0,0,0,0};
+      double locals[4] = {lm0,lm1,lm2,V};
+      MPI::COMM_WORLD.Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM);
+      assert(globals[3] > std::numeric_limits<double>::epsilon());
+
+      const Real dv = std::pow(vInfo[0].h_gridpoint,3);
+      transVel[0] = globals[0]/globals[3] + Uinf[0];
+      transVel[1] = globals[1]/globals[3] + Uinf[1];
+      transVel[2] = globals[2]/globals[3] + Uinf[2];
+      volume      = globals[3] * dv;
+      if(bFixToPlanar) transVel[2] = 0.0;
     }
+    {
+      Real J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
+      Real am0(0.0), am1(0.0), am2(0.0); //angular momenta
 
-    double globals[13];
-    double locals[13] = {lm0,lm1,lm2,am0,am1,am2,J0,J1,J2,J3,J4,J5,V};
-	MPI::COMM_WORLD.Allreduce(locals, globals, 13, MPI::DOUBLE, MPI::SUM);
+      #pragma omp parallel for schedule(dynamic) reduction(+:J0,J1,J2,J3,J4,J5,am0,am1,am2)
+      for(int i=0; i<vInfo.size(); i++) {
+          BlockInfo info = vInfo[i];
+          FluidBlock & b = *(FluidBlock*)info.ptrBlock;
+          const auto pos = obstacleBlocks.find(info.blockID);
+          if(pos == obstacleBlocks.end()) continue;
 
-    assert(globals[12] > std::numeric_limits<double>::epsilon());
-    const Real dv = std::pow(vInfo[0].h_gridpoint,3);
-    transVel[0] = globals[0]/globals[12] + Uinf[0];
-    transVel[1] = globals[1]/globals[12] + Uinf[1];
-    transVel[2] = globals[2]/globals[12] + Uinf[2];
-    Real tmp_AV[3] = {
-    		globals[3]* dv,
-			globals[4]* dv,
-			globals[5]* dv
-    };
-    J[0] = globals[6] * dv;
-    J[1] = globals[7] * dv;
-    J[2] = globals[8] * dv;
-    J[3] = globals[9] * dv;
-    J[4] = globals[10]* dv;
-    J[5] = globals[11]* dv;
-    volume = globals[12] * dv;
+          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+          for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+              const Real Xs = pos->second->chi[iz][iy][ix];
+              if (Xs == 0) continue;
+              Real p[3];
+              info.pos(p, ix, iy, iz);
+              p[0]-=CM[0];
+              p[1]-=CM[1];
+              p[2]-=CM[2];
+              const Real u_ = b(ix,iy,iz).u;
+              const Real v_ = b(ix,iy,iz).v;
+              const Real w_ = b(ix,iy,iz).w;
 
-    _finalizeAngVel(angVel, J, tmp_AV[0], tmp_AV[1], tmp_AV[1]);
+        			am0 += Xs * (p[1]*(w_-transVel[2]) - p[2]*(v_-transVel[1]));
+        			am1 += Xs * (p[2]*(u_-transVel[0]) - p[0]*(w_-transVel[2]));
+        			am1 += Xs * (p[0]*(v_-transVel[1]) - p[1]*(u_-transVel[0]));
 
-    if(bFixToPlanar) {
-        transVel[2] = 0.0;
-        angVel[0] = angVel[1] = 0.0;
-        angVel[2] = globals[5]/globals[8]; // av2/j2
+        			J0  += Xs * (p[1]*p[1]+p[2]*p[2]);
+        			J1  += Xs * (p[0]*p[0]+p[2]*p[2]);
+        			J2  += Xs * (p[0]*p[0]+p[1]*p[1]);
+        			J3  -= Xs *  p[0]*p[1];
+        			J4  -= Xs *  p[0]*p[2];
+        			J5  -= Xs *  p[1]*p[2];
+          }
+      }
+
+      double globals[9] = {0,0,0,0,0,0,0,0,0};
+      double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
+      MPI::COMM_WORLD.Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM);
+
+      if(bFixToPlanar)
+      {
+          angVel[0] = angVel[1] = 0.0;
+      		angVel[2] = globals[2]/globals[5]; // av2/j2
+      }
+      else
+      {
+        //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
+        const Real AM[3] = {globals[0], globals[1], globals[2]};
+        const Real J_[6] = {globals[3], globals[4], globals[5],
+                            globals[6], globals[7], globals[8]};
+        const Real detJ = J_[0]*(J_[1]*J_[2] - J_[5]*J_[5])+
+                          J_[3]*(J_[4]*J_[5] - J_[2]*J_[3])+
+                          J_[4]*(J_[3]*J_[5] - J_[1]*J_[4]);
+        const Real invDetJ = 1./detJ;
+        const Real invJ[6] = {
+          invDetJ * (J_[1]*J_[2] - J_[5]*J_[5]),
+          invDetJ * (J_[0]*J_[2] - J_[4]*J_[4]),
+          invDetJ * (J_[0]*J_[1] - J_[3]*J_[3]),
+          invDetJ * (J_[4]*J_[5] - J_[2]*J_[3]),
+          invDetJ * (J_[3]*J_[5] - J_[1]*J_[4]),
+          invDetJ * (J_[3]*J_[4] - J_[0]*J_[5])
+        };
+
+        const Real dv = std::pow(vInfo[0].h_gridpoint,3);
+        angVel[0] = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
+        angVel[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
+        angVel[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
+        J[0] = globals[3] * dv;
+        J[1] = globals[4] * dv;
+        J[2] = globals[5] * dv;
+        J[3] = globals[6] * dv;
+        J[4] = globals[7]* dv;
+        J[5] = globals[8]* dv;
+      }
     }
 }
-
+/*
 void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real _J[6], const Real& gam0, const Real& gam1, const Real& gam2)
 {
 	// try QR factorization to avoid dealing with determinant
@@ -503,8 +593,9 @@ void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real _J[6], const 
 	AV[1] = (d[1] - R[1][2]*angVel[2])/R[1][1];
 	AV[0] = (d[0] - R[0][1]*angVel[1] - R[0][2]*angVel[2])/R[0][0];
 }
-
-void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, const Real* Uinf, const Real NU, const bool bDump)
+*/
+void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
+  const Real dt, const Real* Uinf, const Real NU, const bool bDump)
 {   //TODO: improve dumping: gather arrays before writing to file
 	//TODO: this kernel does an illegal read on the grid. Guack-a-bug!
     //ugly piece of code that creates a map that allows us to skip the non-surface blocks
@@ -570,7 +661,14 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
     EffPDef    = Pthrust/(Pthrust-min(defPower,(Real)0.));
     EffPDefBnd = Pthrust/(Pthrust-    defPowerBnd);
 
-    if (bDump)  surfData.print(obstacleID, stepID, rank);
+    if (bDump) {
+      if(rank==0)
+      sr.print(obstacleID, stepID, time);
+      surfData.print(obstacleID, stepID, rank);
+    }
+
+    sr.updateAverages(dt,_2Dangle, velx_tot, vely_tot, angVel[2], Pout, PoutBnd,
+      defPower, defPowerBnd, EffPDef, EffPDefBnd, Pthrust, Pdrag, thrust, drag);
 
     if(rank==0)
     {
@@ -602,6 +700,7 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
     position[0] += dt*transVel[0];
     position[1] += dt*transVel[1];
     position[2] += dt*transVel[2];
+    _2Dangle += dt*angVel[2];
     const Real dqdt[4] = {
         0.5*(-angVel[0]*quaternion[1]-angVel[1]*quaternion[2]-angVel[2]*quaternion[3]),
         0.5*( angVel[0]*quaternion[0]+angVel[1]*quaternion[3]-angVel[2]*quaternion[2]),
@@ -635,7 +734,16 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
         quaternion[3] = num[3]*invDenum;
     }
 
-#ifndef NDEBUG
+    Real velx_tot = transVel[0]-Uinf[0];
+    Real vely_tot = transVel[1]-Uinf[1];
+    Real velz_tot = transVel[2]-Uinf[2];
+    absPos[0] += dt*velx_tot;
+    absPos[1] += dt*vely_tot;
+    absPos[2] += dt*velz_tot;
+    sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
+                      _2Dangle, velx_tot, vely_tot, angVel[2]);
+
+    #ifndef NDEBUG
     if(rank==0) {
     	std::cout << "POSITION INFO AFTER UPDATE T, DT: " << t << " " << dt << std::endl;
     	std::cout << "POS: " << position[0] << " " << position[1] << " " << position[2] << std::endl;
@@ -648,16 +756,16 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
 							   +  quaternion[2]*quaternion[2]
 							   +  quaternion[3]*quaternion[3]);
     assert(std::abs(q_length-1.0) < 5*std::numeric_limits<Real>::epsilon());
-#endif
+    #endif
 
     _writeComputedVelToFile(step_id, t, Uinf);
 }
 
 void IF3D_ObstacleOperator::characteristic_function()
 {
-#pragma omp parallel
+  #pragma omp parallel
 	{
-#pragma omp for schedule(dynamic)
+    #pragma omp for schedule(dynamic)
 		for(int i=0; i<vInfo.size(); i++) {
 			BlockInfo info = vInfo[i];
 			std::map<int,ObstacleBlock* >::const_iterator pos = obstacleBlocks.find(info.blockID);
@@ -710,9 +818,9 @@ void IF3D_ObstacleOperator::getAngularVelocity(Real W[3]) const
 
 void IF3D_ObstacleOperator::setAngularVelocity(const Real W[3])
 {
-	angVel[0]=W[0];
-	angVel[1]=W[1];
-	angVel[2]=W[2];
+  	angVel[0]=W[0];
+  	angVel[1]=W[1];
+  	angVel[2]=W[2];
 }
 
 void IF3D_ObstacleOperator::getCenterOfMass(Real CM[3]) const
@@ -731,9 +839,11 @@ void IF3D_ObstacleOperator::save(const int step_id, const Real t, std::string fi
     savestream.open(filename+".txt");
     savestream << t << std::endl;
     savestream << position[0] << "\t" << position[1] << "\t" << position[2] << std::endl;
+    savestream << absPos[0] << "\t" << absPos[1] << "\t" << absPos[2] << std::endl;
     savestream << quaternion[0] << "\t" << quaternion[1] << "\t" << quaternion[2] << "\t" << quaternion[3] << std::endl;
     savestream << transVel[0] << "\t" << transVel[1] << "\t" << transVel[2] << std::endl;
     savestream << angVel[0] << "\t" << angVel[1] << "\t" << angVel[2] << std::endl;
+    savestream << _2Dangle << std::endl;
 }
 
 void IF3D_ObstacleOperator::restart(const Real t, std::string filename)
@@ -746,18 +856,27 @@ void IF3D_ObstacleOperator::restart(const Real t, std::string filename)
     assert(std::abs(restart_time-t) < 1e-9);
 
     restartstream >> position[0] >> position[1] >> position[2];
+    restartstream >> absPos[0] >> absPos[1] >> absPos[2];
     restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
     restartstream >> transVel[0] >> transVel[1] >> transVel[2];
     restartstream >> angVel[0] >> angVel[1] >> angVel[2];
+    restartstream >> _2Dangle;
     restartstream.close();
 
     {
         std::cout << "RESTARTED BODY: " << std::endl;
         std::cout << "TIME: \t" << restart_time << std::endl;
-        std::cout << "POS : \t" << position[0] << " " << position[1] << " " << position[2] << std::endl;
-        std::cout << "ANGLE:\t" << quaternion[0] << " " << quaternion[1] << " " << quaternion[2] << " " << quaternion[3] << std::endl;
-        std::cout << "TVEL: \t" << transVel[0] << " " << transVel[1] << " " << transVel[2] << std::endl;
-        std::cout << "AVEL: \t" << angVel[0] << " " << angVel[1] << " " << angVel[2] << std::endl;
+        std::cout << "POS : \t" << position[0] << " " << position[1]
+                                << " " << position[2] << std::endl;
+        std::cout << "ABS POS : \t" << absPos[0] << " " << absPos[1]
+                                << " " << absPos[2] << std::endl;
+        std::cout << "ANGLE:\t" << quaternion[0] << " " << quaternion[1] << " "
+                                << quaternion[2] << " " << quaternion[3] << std::endl;
+        std::cout << "TVEL: \t" << transVel[0] << " " << transVel[1]
+                                << " " << transVel[2] << std::endl;
+        std::cout << "AVEL: \t" << angVel[0] << " " << angVel[1]
+                                << " " << angVel[2] << std::endl;
+        std::cout << "2D angle: \t" << _2Dangle << std::endl;
     }
 }
 

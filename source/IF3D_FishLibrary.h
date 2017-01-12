@@ -20,6 +20,12 @@ const int NPPEXT = 3; //was 3
 const int TGTPPB = 4.; //was 2 i think
 const int TSTART = 2.;
 
+#if 1
+#define __BSPLINE
+#include <gsl/gsl_bspline.h>
+#include <gsl/gsl_statistics.h>
+#endif
+
 namespace Schedulers
 {
 template<int Npoints>
@@ -39,7 +45,9 @@ struct ParameterScheduler
 
 		savestream << t0 << "\t" << t1 << std::endl;
 		for(int i=0;i<Npoints;++i)
-			savestream << parameters_t0[i] << "\t" << parameters_t1[i] << "\t" << dparameters_t0[i] << std::endl;
+			savestream << parameters_t0[i]  << "\t"
+								 << parameters_t1[i]  << "\t"
+								 << dparameters_t0[i] << std::endl;
 		savestream.close();
 	}
 
@@ -237,7 +245,7 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
 	void Turn(const Real b, const Real t_turn) // each decision adds a node at the beginning of the wave (left, right, straight) and pops last node
 	{
 		this->t0 = t_turn;
-		for(int i=Npoints-1; i>0; --i) this->parameters_t0[i] = this->parameters_t0[i-2];
+		for(int i=Npoints-1; i>1; --i) this->parameters_t0[i] = this->parameters_t0[i-2];
 		this->parameters_t0[1] = b;
 		this->parameters_t0[0] = 0;
 	}
@@ -262,14 +270,15 @@ public:
 	Real linMom[2], vol, J, angMom; // for diagnostics
 	// start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
 	const int iFishStart, iFishEnd;
-
-protected:
 	const Real length;
 	const Real Tperiod;
 	const Real phaseShift;
+
+protected:
 	Real Rmatrix2D[2][2];
 	Real Rmatrix3D[3][3];
 
+#ifndef __BSPLINE
 	inline Real _width(const Real s, const Real L)
 	{
 		if(s<0 or s>L) return 0;
@@ -290,6 +299,7 @@ protected:
 		const Real b=0.08*L;
 		return b*std::sqrt(1 - std::pow((s-a)/a,2));
 	}
+#endif
 
 	inline void _rotate2D(Real &x, Real &y) const
 	{
@@ -359,17 +369,75 @@ protected:
 		Rmatrix2D[1][0] = -Rmatrix2D[0][1];
 	}
 
+	#ifdef __BSPLINE
+	/*
+	function inputs: xc, yc are n sized arrays which contain the control points of the cubic b spline
+	function outputs onto res: assumed to be either the width or the height
+	*/
+	void integrateBSpline(Real* const res, const Real* const xc,
+																				 const Real* const yc, const int n)
+	{
+		double len = 0;
+	  for (int i=0; i<n-1; i++) {
+	    len += std::sqrt(std::pow(xc[i]-xc[i+1],2) +
+	                     std::pow(yc[i]-yc[i+1],2));
+	  }
+
+		gsl_bspline_workspace *bw;
+	  gsl_vector *B;
+	  // allocate a cubic bspline workspace (k = 4)
+	  bw = gsl_bspline_alloc(4, n-2);
+	  B = gsl_vector_alloc(n);
+	  gsl_bspline_knots_uniform(0.0, len, bw);
+
+	  double ti = 0;
+		for(int i=0;i<Nm;++i) {
+			res[i] = 0;
+			if (rS[i]>0 and rS[i]<length) {
+				const double dtt = 0.1*(rS[i]-rS[i-1]);
+				while (true) {
+					double xi = 0;
+			    gsl_bspline_eval(ti, B, bw);
+			    for (int j=0; j<n; j++)
+			      xi += xc[j]*gsl_vector_get(B, j);
+					if (xi >= rS[i]) break;
+					ti += dtt;
+				}
+
+				for (int j=0; j<n; j++)
+					res[i] += yc[j]*gsl_vector_get(B, j);
+			}
+		}
+  	gsl_bspline_free(bw);
+  	gsl_vector_free(B);
+	}
+	#endif
+
 	void _computeWidthsHeights()
 	{
+	#ifdef __BSPLINE
+		const int nh = 8;
+	  const Real xh[8] = {0, 0, .2*length, .4*length, .6*length,
+																			.8*length, length, length};
+	  const Real yh[8] = {0, 5.5e-2*length, 6.8e-2*length, 7.6e-2*length,
+												6.4e-2*length, 7.2e-3*length, 1.1e-1*length, 0};
+	  const int nw = 6;
+	  const Real xw[6] = {0, 0, length/3., 2*length/3., length, length};
+	  const Real yw[6] = {0, 8.9e-2*length, 1.7e-2*length,
+												1.6e-2*length, 1.3e-2*length, 0};
+		integrateBSpline(width,  xw, yw, nw);
+		integrateBSpline(height, xh, yh, nh);
+	#else
 		for(int i=0;i<Nm;++i) {
 			width[i]  = _width(rS[i],length);
 			height[i] = _height(rS[i],length);
 		}
+	#endif
 	}
 
 	void _computeMidlineNormals()
 	{
-#pragma omp parallel for
+		#pragma omp parallel for
 		for(int i=0; i<Nm-1; i++) {
 			const Real ds = rS[i+1]-rS[i];
 			const Real tX = rX[i+1]-rX[i];
@@ -431,7 +499,7 @@ public:
 		// remaining integral done with composite trapezoidal rule
 		// minimize rhs evaluations --> do first and last point separately
 		Real _vol(0), _cmx(0), _cmy(0), _lmx(0), _lmy(0);
-#pragma omp parallel for reduction(+:_vol,_cmx,_cmy,_lmx,_lmy)
+		#pragma omp parallel for reduction(+:_vol,_cmx,_cmy,_lmx,_lmy)
 		for(int i=0;i<Nm;++i) {
 			const Real ds = (i==0) ? rS[1]-rS[0] :
 					((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
@@ -470,7 +538,7 @@ public:
 		// minimize rhs evaluations --> do first and last point separately
 		Real _J(0), _am(0);
 
-#pragma omp parallel for reduction(+:_J,_am)
+		#pragma omp parallel for reduction(+:_J,_am)
 		for(int i=0;i<Nm;++i) {
 			const Real ds = (i==0) ? rS[1]-rS[0] :
 					((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
@@ -508,7 +576,7 @@ public:
 	void changeToCoMFrameAngular(const Real theta_internal, const Real angvel_internal)
 	{
 		_prepareRotation2D(theta_internal);
-#pragma omp parallel for
+		#pragma omp parallel for
 		for(int i=0;i<Nm;++i) {
 			_rotate2D(rX[i],rY[i]);
 			_rotate2D(vX[i],vY[i]);
@@ -529,6 +597,7 @@ protected:
 	//burst-coast:
 	Real t0, t1, t2, t3;
 	const Real fac, inv;
+	const bool bBurst;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
 	{
@@ -543,73 +612,71 @@ protected:
 	inline Real midline(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-#ifdef BBURST
-		Real f;
-		Real tcoast = TSTART;
-		if (t>=TSTART) {
-			const Real bct = t0 + t1 + t2 + t3;
-			const Real phase = std::floor((t-TSTART)/bct);
-			tcoast = TSTART + phase*bct;
-		}
-		Real tfreeze = tcoast + t0;
-		Real tburst = tfreeze + t1;
-		Real tswim = tburst + t2;
-		if (t<tcoast) {
-			f = 1.0;
-		} else if (t<tfreeze) {
-			const Real d = (t-tcoast)/(tfreeze-tcoast);
-			f = 1 - 3*d*d + 2*d*d*d;
-		} else if (t<tburst) {
-			f = 0.0;
-		} else if (t<tswim) {
-			const Real d = (t-tburst)/(tswim-tburst);
-			f = 3*d*d - 2*d*d*d;
-		} else {
-			f = 1.0;
-		}
-		return f * fac * (s + inv*L)*std::sin(arg);
-#else
+		if (bBurst) {
+			Real f;
+			Real tcoast = TSTART;
+			if (t>=TSTART) {
+				const Real bct = t0 + t1 + t2 + t3;
+				const Real phase = std::floor((t-TSTART)/bct);
+				tcoast = TSTART + phase*bct;
+			}
+			Real tfreeze = tcoast + t0;
+			Real tburst = tfreeze + t1;
+			Real tswim = tburst + t2;
+			if (t<tcoast) {
+				f = 1.0;
+			} else if (t<tfreeze) {
+				const Real d = (t-tcoast)/(tfreeze-tcoast);
+				f = 1 - 3*d*d + 2*d*d*d;
+			} else if (t<tburst) {
+				f = 0.0;
+			} else if (t<tswim) {
+				const Real d = (t-tburst)/(tswim-tburst);
+				f = 3*d*d - 2*d*d*d;
+			} else {
+				f = 1.0;
+			}
+			return f * fac * (s + inv*L)*std::sin(arg);
+		} else
 		return fac * (s + inv*L)*std::sin(arg);
-#endif
 	}
 
 	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
 
-#ifdef BBURST
-		Real f,df;
-		Real tcoast = TSTART;
-		if (t>=TSTART) {
-			const Real bct = t0 + t1 + t2 + t3;
-			const Real phase = std::floor((t-TSTART)/bct);
-			tcoast = TSTART + phase*bct;
-		}
-		Real tfreeze = tcoast + t0;
-		Real tburst = tfreeze + t1;
-		Real tswim = tburst + t2;
-		if (t<tcoast) {
-			f = 1.0;
-			df = 0.0;
-		} else if (t<tfreeze) {
-			const Real d = (t-tcoast)/(tfreeze-tcoast);
-			f = 1 - 3*d*d + 2*d*d*d;
-			df = 6*(d*d - d)/(tfreeze-tcoast);
-		} else if (t<tburst) {
-			f = 0.0;
-			df = 0.0;
-		} else if (t<tswim) {
-			const Real d = (t-tburst)/(tswim-tburst);
-			f = 3*d*d - 2*d*d*d;
-			df = 6*(d - d*d)/(tswim-tburst);
-		} else {
-			f = 1.0;
-			df = 0.0;
-		}
-		return fac*(s + inv*L)*(df*std::sin(arg) - f*(2.0*M_PI/T)*std::cos(arg));
-#else
+	  if (bBurst) {
+			Real f,df;
+			Real tcoast = TSTART;
+			if (t>=TSTART) {
+				const Real bct = t0 + t1 + t2 + t3;
+				const Real phase = std::floor((t-TSTART)/bct);
+				tcoast = TSTART + phase*bct;
+			}
+			Real tfreeze = tcoast + t0;
+			Real tburst = tfreeze + t1;
+			Real tswim = tburst + t2;
+			if (t<tcoast) {
+				f = 1.0;
+				df = 0.0;
+			} else if (t<tfreeze) {
+				const Real d = (t-tcoast)/(tfreeze-tcoast);
+				f = 1 - 3*d*d + 2*d*d*d;
+				df = 6*(d*d - d)/(tfreeze-tcoast);
+			} else if (t<tburst) {
+				f = 0.0;
+				df = 0.0;
+			} else if (t<tswim) {
+				const Real d = (t-tburst)/(tswim-tburst);
+				f = 3*d*d - 2*d*d*d;
+				df = 6*(d - d*d)/(tswim-tburst);
+			} else {
+				f = 1.0;
+				df = 0.0;
+			}
+			return fac*(s + inv*L)*(df*std::sin(arg) - f*(2.0*M_PI/T)*std::cos(arg));
+		} else
 		return - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
-#endif //Burst-coast
 	}
 
 	void _computeMidlineCoordinates(const Real time)
@@ -648,11 +715,18 @@ protected:
 	}
 
 public:
-	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125)
+	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
+		const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false)
 	{
-#ifdef BBURST
-		ifstream reader("burst_coast_carling_params.txt");
+	}
+
+	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
+		const Real phaseShift, const Real dx_ext, const string fburstpar, const Real _fac = 0.1212121212121212)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(true)
+	{
+		//ifstream reader("burst_coast_carling_params.txt");
+		ifstream reader(fburstpar.c_str());
 		if (reader.is_open()) {
 			reader >> t0;
 			reader >> t1;
@@ -663,7 +737,6 @@ public:
 			cout << "Could not open params.txt" << endl;
 			abort();
 		}
-#endif
 	}
 
 	void computeMidline(const Real time)
@@ -721,9 +794,10 @@ public:
 		if (input.size()>1) {
 			baseScheduler.Turn(input[0], l_tnext);
 			//first, shift time to  previous turn node
-			timeshift += (l_tnext-time0)/l_Tp;
-			time0 = l_tnext;
-			l_Tp = Tperiod*(1.+input[1]);
+			abort();
+			//timeshift += (l_tnext-time0)/l_Tp;
+			//time0 = l_tnext;
+			//l_Tp = Tperiod*(1.+input[1]);
 		} else if (input.size()>0) {
 			baseScheduler.Turn(input[0], l_tnext);
 		}

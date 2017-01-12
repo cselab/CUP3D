@@ -19,14 +19,14 @@ protected:
     const Real* const time;
     const Real* const Uinf;
     const int* const stepID;
-    
+
 public:
     CoordinatorComputeShape(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles, const int* const stepID, const Real * const time, const Real * const Uinf)
     : GenericCoordinator(grid), obstacleVector(myobstacles), time(time), Uinf(Uinf), stepID(stepID)
 	{
     	(*obstacleVector)->create(*stepID,*time, 0, Uinf);
 	}
-	
+
 	void operator()(const Real dt)
 	{
 		check("shape - start");
@@ -50,7 +50,7 @@ public:
         (*obstacleVector)->create(*stepID,*time, dt, Uinf);
 		check("shape - end");
 	}
-	
+
 	string getName()
 	{
 		return "ComputeShape";
@@ -75,7 +75,7 @@ public:
     void operator()(const Real dt)
     {
         check((string)"obst. forces - start");
-        (*obstacleVector)->computeForces(*stepID, *time, Uinf, *NU, *bDump);
+        (*obstacleVector)->computeForces(*stepID, *time, dt, Uinf, *NU, *bDump);
         check((string)"obst. forces - end");
     }
 

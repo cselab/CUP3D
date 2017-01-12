@@ -12,7 +12,7 @@
 #include <cmath>
 #include <sstream>
 using namespace std;
-
+#define __SMARTIES_
 #include "Simulation.h"
 
 int main(int argc, char **argv)
@@ -29,19 +29,18 @@ int main(int argc, char **argv)
 
 	ArgumentParser parser(argc,argv);
 	parser.set_strict_mode();
-	
+
 	if (rank==0) {
 		cout << "====================================================================================================================\n";
 		cout << "\t\tCubism UP 3D (velocity-pressure 3D incompressible Navier-Stokes solver)\n";
 		cout << "====================================================================================================================\n";
-#ifdef _BSMART_
+#ifdef __SMARTIES_
 		parser.unset_strict_mode();
-		const int _sockID = parser("-sock").asInt(0);
-		if (parser("-Tstartlearn").asDouble(-1.0)>0.) {
+		const int _sockID = parser("-sock").asInt(-1);
+		const int nActions = parser("-nActions").asInt(0);
+		const int nStates = (nActions==1) ? 20+200 : 25+200;
+		if (_sockID>=0 && nActions>0) {
 			printf("Communicating over sock %d\n", _sockID);
-			const int NpLatLine = parser("-NpLatLine").asInt(0);
-			const int nActions = parser("-nActions").asInt(0);
-			const int nStates = (nActions==1) ? 20+10*NpLatLine : 25+10*NpLatLine;
 			communicator = new Communicator(_sockID,nStates,nActions);
 		}
 #endif
@@ -50,8 +49,8 @@ int main(int argc, char **argv)
 	Simulation * sim = new Simulation(argc, argv, communicator);
 	sim->init();
 	sim->simulate();
-	
+
 	MPI_Finalize();
-	
+
 	return 0;
 }

@@ -1,17 +1,17 @@
 #!/bin/bash
 
-BASENAME=FlowPastCarlingFishRe0550_CFL01_gpu
+BASENAME=FlowPastCarlingFishRe0550_CFL01_finned_fixed
 NNODE=8
 NNODEX=8
 NNODEY=1
 #WCLOCK=48:00
 #WSECS=172000
-WCLOCK=12:00
+WCLOCK=48:00
 WSECS=43000
 FFACTORY=factoryCarling
 
 OPTIONS=
-OPTIONS+=" -bpdx 128 -bpdy 64 -bpdz 64"
+OPTIONS+=" -bpdx 64 -bpdy 32 -bpdz 32"
 OPTIONS+=" -2Ddump 1 -restart 0"
 OPTIONS+=" -nprocsx ${NNODEX}"
 OPTIONS+=" -nprocsy ${NNODEY}"

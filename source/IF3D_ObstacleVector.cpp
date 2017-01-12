@@ -49,10 +49,10 @@ void IF3D_ObstacleVector::computeVelocities(const Real* Uinf)
 		obstacle_ptr->computeVelocities(Uinf);
 }
 
-void IF3D_ObstacleVector::computeForces(const int stepID, const Real time, const Real* Uinf, const Real NU, const bool bDump)
+void IF3D_ObstacleVector::computeForces(const int stepID, const Real time, const Real dt, const Real* Uinf, const Real NU, const bool bDump)
 {
 	for(const auto & obstacle_ptr : obstacles)
-		obstacle_ptr->computeForces(stepID,time,Uinf,NU,bDump);
+		obstacle_ptr->computeForces(stepID,time,dt,Uinf,NU,bDump);
 }
 
 IF3D_ObstacleVector::~IF3D_ObstacleVector()
@@ -90,9 +90,16 @@ void IF3D_ObstacleVector::Accept(ObstacleVisitor * visitor)
 		obstacles[i]->Accept(visitor);
 }
 
+void IF3D_ObstacleVector::_getData(std::vector<StateReward*> & Data)
+{
+    int ind(0);
+    for(const auto & obstacle_ptr : obstacles)
+        Data[ind++] = obstacle_ptr->_getData();
+}
+
 void IF3D_ObstacleVector::execute(Communicator * comm, const int iAgent, const Real time)
 {
-   // obstacles[iAgent]->execute(comm, iAgent, time);
+   obstacles[iAgent]->execute(comm, iAgent, time);
 }
 
 Real IF3D_ObstacleVector::getD() const
