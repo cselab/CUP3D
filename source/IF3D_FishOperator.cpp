@@ -11,7 +11,7 @@
 
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser)
 : IF3D_ObstacleOperator(grid, parser), theta_internal(0.), angvel_internal(0.),
-sim_time(0.), sim_dt(0.), adjTh(0.), myFish(nullptr), angvel_integral{0.,0.,0.}
+sim_time(0.), sim_dt(0.), adjTh(0.), myFish(nullptr), angvel_integral{0.,0.,0.}, new_curv(0)
 {
 	volume=0;
 	for(int i=0;i<3;i++) transVel[i]=0;
@@ -421,6 +421,7 @@ void IF3D_FishOperator::save(const int stepID, const Real t, string filename)
     savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
     savestream<<angVel[0]<<"\t"<<angVel[1]<<"\t"<<angVel[2]<<std::endl;
     savestream<<theta_internal<<"\t"<<angvel_internal<<"\t"<<adjTh<<std::endl;
+    savestream<<_2Dangle;
     savestream.close();
 
 }
@@ -436,6 +437,7 @@ void IF3D_FishOperator::restart(const Real t, string filename)
     restartstream >> transVel[0] >> transVel[1] >> transVel[2];
     restartstream >> angVel[0] >> angVel[1] >> angVel[2];
     restartstream >> theta_internal >> angvel_internal >> adjTh;
+    restartstream >> _2Dangle;
     restartstream.close();
 
 	std::cout<<"RESTARTED FISH: "<<std::endl;
@@ -445,6 +447,7 @@ void IF3D_FishOperator::restart(const Real t, string filename)
 	std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
 	std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
 	std::cout<<"INTERN: "<<theta_internal<<" "<<angvel_internal<<std::endl;
+	std::cout<<"2D angle: \t"<<_2Dangle<<std::endl;
 }
 
 /*
