@@ -1,7 +1,15 @@
+//#include "PoissonSolverScalarFFTW_ACC.h"
+//#include <cuda_runtime_api.h>
+#ifndef _SP_COMP_
+        typedef double Real;
+#else
+        typedef float Real;
+#endif
 typedef Real Complex[2];
 
 __global__
-void _fourier_filter_kernel(Complex *data_hat, const dim3 N, const dim3 isize, const dim3 istart, const Real h)
+void _fourier_filter_kernel(Complex *data_hat, const dim3 N, const dim3 isize,
+                            const dim3 istart, const Real h)
 {
     const Real waveFactX = 2.0*M_PI/(h*N.x);
     const Real waveFactY = 2.0*M_PI/(h*N.y);
@@ -24,25 +32,25 @@ void _fourier_filter_kernel(Complex *data_hat, const dim3 N, const dim3 isize, c
 		const int kz = istart.z+k;
 		const Real kky = (ky>halfY) ? Real(ky-N.y) : (Real)ky;
 		const Real kkz = (kz>halfZ) ? Real(kz-N.z) : (Real)kz;
+		const Real rky = kky*waveFactY;
+		const Real rkz = kkz*waveFactZ;
 
 		for (int i=0, index=j*isize.z+k; i<isize.x; i++, index+=isize.y*isize.z)
 		{
 			const int kx = istart.x+i;
 			const Real kkx = (kx>halfX) ? Real(kx-N.x) : (Real)kx;
-
 			const Real rkx = kkx*waveFactX;
-			const Real rky = kky*waveFactY;
-			const Real rkz = kkz*waveFactZ;
 
 			const Real kinv = (kkx==0 && kky==0 && kkz==0) ? 0.0
 					: -norm_factor/(rkx*rkx+rky*rky+rkz*rkz);
-			const int index = (i*osize[1]+j)*osize[2]+k;
+			//const int index = (i*osize[1]+j)*osize[2]+k;
 			data_hat[index][0] *= kinv;
 			data_hat[index][1] *= kinv;
 		}
 	}
 }
 
+//extern "C" {
 #define POISSON_FILTER_DIMX 16
 #define POISSON_FILTER_DIMY 16
 void _fourier_filter_gpu(Complex *data_hat, const int N[3], const int isize[3], const int istart[3], const Real h)
@@ -61,3 +69,4 @@ void _fourier_filter_gpu(Complex *data_hat, const int N[3], const int isize[3], 
 	const dim3 DimBlock(POISSON_FILTER_DIMX, POISSON_FILTER_DIMY, 1);
 	_fourier_filter_kernel<<<DimGrid, DimBlock>>>(data_hat, NN, iisize, iistart, h);
 }
+//}

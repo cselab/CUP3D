@@ -72,7 +72,7 @@ public:
 class ArgumentParser
 {
 protected:
-	const int iArgC;
+	int iArgC;
 	char** vArgV;
 	bool bStrictMode, bVerbose;
 	map<string,Value> mapArguments;
@@ -103,7 +103,7 @@ public:
 
 	ArgumentParser() : mapArguments(), iArgC(0), vArgV(nullptr), bStrictMode(false), bVerbose(false) {}
 
-	ArgumentParser(const int argc, char ** argv) : mapArguments(), iArgC(argc), vArgV(argv), bStrictMode(false), bVerbose(true)
+	ArgumentParser(int argc, char ** argv) : mapArguments(), iArgC(argc), vArgV(argv), bStrictMode(false), bVerbose(true)
 	{
 		for (int i=1; i<argc; i++)
 			if (argv[i][0] == '-')
@@ -134,7 +134,7 @@ public:
 		//printf("found %ld arguments of %d\n",mapArguments.size(),argc);
 	}
 
-	int getargc() const { return iArgC; }
+	int getargc()  { return iArgC; }
 
 	char** getargv() { return vArgV; }
 

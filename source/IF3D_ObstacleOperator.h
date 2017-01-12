@@ -11,7 +11,7 @@
 #define IF3D_ROCKS_IF3D_ObstacleOperator_h
 
 #include "Definitions.h"
-#include "IF3D_ObstacleLibrary.h"
+//#include "IF3D_ObstacleLibrary.h"
 #include "IF2D_FactoryFileLineParser.h"
 #include <fstream>
 
@@ -22,8 +22,8 @@ class IF3D_ObstacleVector;
 
 struct ObstacleVisitor
 {
-    virtual void visit(IF3D_ObstacleOperator * obstacle) {}
-    virtual void visit(IF3D_ObstacleVector * obstacle) {}
+    virtual void visit(IF3D_ObstacleOperator* const obstacle) = 0;
+    //virtual void visit(IF3D_ObstacleVector * obstacle) {}
 };
 
 class IF3D_ObstacleOperator
@@ -109,8 +109,7 @@ public:
     virtual void update(const int step_id, const Real t, const Real dt, const Real* Uinf);
     virtual void save(const int step_id, const Real t, std::string filename = std::string());
     virtual void restart(const Real t, std::string filename = std::string());
-
-    void execute(Communicator * comm, const int iAgent, const Real time);
+    virtual void execute(Communicator * comm, const int iAgent, const Real time) {};
     
     // some non-pure methods
     virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf) { }
@@ -149,10 +148,10 @@ public:
 
     //THIS IS WHY I CAN NEVER HAVE NICE THINGS!!
 	template <typename Kernel>
-	void compute(vector<Kernel> kernels)
+	void compute(vector<Kernel*> kernels)
 	{
 #if 0
-		SynchronizerMPI& Synch = grid->sync(kernels[0]);
+		SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
 		const int nthreads = omp_get_max_threads();
 		LabMPI * labs = new LabMPI[nthreads];
 		vector<BlockInfo> avail0, avail1;
@@ -188,7 +187,7 @@ public:
 #pragma omp parallel num_threads(nthreads_first)
 		{
 			const int tid = omp_get_thread_num();
-			Kernel& kernel=kernels[tid];
+			Kernel& kernel=*(kernels[tid]);
 			LabMPI& lab = labs[tid];
 
 #pragma omp for schedule(dynamic,1)
@@ -205,7 +204,7 @@ public:
 #pragma omp parallel num_threads(nthreads)
 		{
 			const int tid = omp_get_thread_num();
-			Kernel& kernel=kernels[tid];
+			Kernel& kernel=*(kernels[tid]);
 			LabMPI& lab = labs[tid];
 
 #pragma omp for schedule(dynamic,1)
@@ -228,7 +227,7 @@ public:
 
 		MPI::COMM_WORLD.Barrier();
 #else
-		SynchronizerMPI& Synch = grid->sync(kernels[0]);
+		SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
 
 		const int nthreads = omp_get_max_threads();
 		LabMPI * labs = new LabMPI[nthreads];
@@ -242,7 +241,7 @@ public:
 #pragma omp parallel
 		{
 			int tid = omp_get_thread_num();
-			Kernel& kernel=kernels[tid];
+			Kernel& kernel=*(kernels[tid]);
 			LabMPI& lab = labs[tid];
 
 #pragma omp for schedule(dynamic,1)
@@ -260,7 +259,7 @@ public:
 #pragma omp parallel
 		{
 			int tid = omp_get_thread_num();
-			Kernel& kernel=kernels[tid];
+			Kernel& kernel=*(kernels[tid]);
 			LabMPI& lab = labs[tid];
 
 #pragma omp for schedule(dynamic,1)

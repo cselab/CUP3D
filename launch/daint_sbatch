@@ -1,0 +1,16 @@
+#!/bin/bash -l
+
+#SBATCH --account=s658
+#SBATCH --job-name=""
+#SBATCH --output=_%j.txt
+#SBATCH --error=_%j.txt
+#SBATCH --time=12:00
+#SBATCH --nodes=
+# #SBATCH --partition=viz
+#SBATCH --ntasks-per-node=
+
+module swap PrgEnv-cray PrgEnv-gnu
+module load daint-gpu fftw/3.3.4.10 cray-hdf5-parallel/1.10.0 cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1
+export OMP_NUM_THREADS=
+
+run.sh

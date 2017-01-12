@@ -16,13 +16,13 @@ struct ForcesOnSkin : public GenericLabOperator
 	int stencil_start[3], stencil_end[3];
 	array<Real,19>* const measures;
 	surfacePoints* const surfData;
-    map<int, pair<int, int>>* const surfaceBlocksFilter;
+	const map<int, pair<int, int>>* const surfaceBlocksFilter;
     std::map<int,ObstacleBlock*>* const obstacleBlocks;
 
     ForcesOnSkin(const Real NU, const Real* vel_unit, const Real* Uinf, const Real * CM,
-    					const map<int,ObstacleBlock*>* const obstacleBlocks,     //to read udef
+    				map<int,ObstacleBlock*>* const obstacleBlocks,    	    //to read udef
 					surfacePoints* const surface, 						    //most info I/O
-					const map<int,pair<int,int>>* const surfaceBlocksFilter, //skip useless blocks
+					const map<int,pair<int,int>>* const surfaceBlocksFilter,//skip useless blocks
 					array<Real,19>* const measures)     	                //additive quantities
 	: t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures), surfData(surface),
 	  surfaceBlocksFilter(surfaceBlocksFilter), obstacleBlocks(obstacleBlocks)
@@ -31,6 +31,16 @@ struct ForcesOnSkin : public GenericLabOperator
 		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
 		stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
 	}
+
+    ForcesOnSkin(const ForcesOnSkin& c):
+    	t(0), NU(c.NU), vel_unit(c.vel_unit), Uinf(c.Uinf), CM(c.CM), measures(c.measures),
+		surfData(c.surfData), surfaceBlocksFilter(c.surfaceBlocksFilter), obstacleBlocks(c.obstacleBlocks)
+    {
+    	abort();
+    	stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
+    	stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
+    	stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
+    }
 
     template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
@@ -61,9 +71,9 @@ struct ForcesOnSkin : public GenericLabOperator
 			const Real D23 = .5*_1oH*(lab(ix,iy+1,iz).w - lab(ix,iy-1,iz).w
 									   +lab(ix,iy,iz+1).v - lab(ix,iy,iz-1).v);
 			//normals computed with Towers 2009
-			const Real normX = surfData->Set[i]->dchidx * _h3;
-			const Real normY = surfData->Set[i]->dchidy * _h3;
-			const Real normZ = surfData->Set[i]->dchidz * _h3;
+			const Real normX = surfData->Set[i]->dchidx;
+			const Real normY = surfData->Set[i]->dchidy;
+			const Real normZ = surfData->Set[i]->dchidz; // * _h3
 			const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
 			const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
 			const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
@@ -79,7 +89,7 @@ struct ForcesOnSkin : public GenericLabOperator
 			surfData->fxV[i] = fXV; surfData->fyV[i] = fYV; surfData->fzV[i] = fZV;
 			surfData->pX[i] = p[0]; surfData->pY[i] = p[1]; surfData->pZ[i] = p[2];
 			//perimeter:
-			(*measures)[0] += surfData->Set[i]->delta * _h3;
+			(*measures)[0] += surfData->Set[i]->delta;
 			//forces (total, visc, pressure):
 			(*measures)[1] += fXT; (*measures)[2] += fYT; (*measures)[3] += fZT;
 			(*measures)[4] += fXP; (*measures)[5] += fYP; (*measures)[6] += fZP;
@@ -118,7 +128,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3], Real ang_mo
 	Real  lm0(0.0),  lm1(0.0),  lm2(0.0); //linear momenta
 	Real  am0(0.0),  am1(0.0),  am2(0.0); //angular momenta
 
-#pragma omp parallel for schedule(static) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
+#pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
 	for(int i=0; i<vInfo.size(); i++) {
 		BlockInfo info = vInfo[i];
 		const auto pos = obstacleBlocks.find(info.blockID);
@@ -184,9 +194,12 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3], Real ang_mo
 void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
 {
 	_computeUdefMoments(transVel_correction, angVel_correction, CoM);
-    printf("Correction of lin: %f %f ang: %f\n", transVel_correction[0], transVel_correction[1], angVel_correction[2]);
+	if(rank==0)
+    printf("Correction of: lin mom [%f %f %f] ang mom [%f %f %f]\n",
+    		transVel_correction[0], transVel_correction[1], transVel_correction[2],
+			angVel_correction[0], angVel_correction[1], angVel_correction[2]);
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for schedule(dynamic)
     for(int i=0; i<vInfo.size(); i++) {
         BlockInfo info = vInfo[i];
         const auto pos = obstacleBlocks.find(info.blockID);
@@ -214,6 +227,8 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
 #ifndef NDEBUG
     Real dummy_ang[3], dummy_lin[3];
     _computeUdefMoments(dummy_lin, dummy_ang, CoM);
+    printf("Momenta post correction: lin [%f %f %f], ang [%f %f %f]\n",
+    		dummy_lin[0], dummy_lin[1], dummy_lin[2], dummy_ang[0], dummy_ang[1], dummy_ang[2]);
 #endif
 }
 
@@ -250,18 +265,18 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
 void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const Real t, const Real* Uinf)
 {
 	if(rank!=0) return;
-
-    const std::string fname = "computedVelocity_"+std::to_string(obstacleID)+".dat";
-    std::ofstream savestream(fname, ios::out | ios::app);
+	stringstream ssR;
+	ssR<<"computedVelocity_"<<obstacleID<<".dat";
+    std::ofstream savestream(ssR.str(), ios::out | ios::app);
     const std::string tab("\t");
-    
+
     if(step_id==0)
         savestream << "step" << tab << "time" << tab << "CMx" << tab << "CMy" << tab << "CMz" << tab
 				   << "quat_0" << tab << "quat_1" << tab << "quat_2" << tab << "quat_3" << tab
 				   << "vel_x" << tab << "vel_y" << tab << "vel_z" << tab
 				   << "angvel_x" << tab << "angvel_y" << tab << "angvel_z" << tab << "volume" << tab
 				   << "J0" << tab << "J1" << tab << "J2" << tab << "J3" << tab << "J4" << tab << "J5" << std::endl;
-    
+
     savestream << step_id << tab;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<float>::digits10 + 1);
@@ -276,16 +291,16 @@ void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const Rea
 void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const Real t)
 {
 	if(rank!=0) return;
-
-    const std::string forcefilename = "diagnosticsForces_"+std::to_string(obstacleID)+".dat";
-    std::ofstream savestream(forcefilename, ios::out | ios::app);
+	stringstream ssR;
+	ssR<<"diagnosticsForces_"<<obstacleID<<".dat";
+    std::ofstream savestream(ssR.str(), ios::out | ios::app);
     const std::string tab("\t");
-    
+
     if(step_id==0)
         savestream << "step" << tab << "time" << tab << "mass" << tab
 				   << "force_x" << tab << "force_y" << tab << "force_z" << tab
 				   << "torque_x" << tab << "torque_y" << tab << "torque_z" << std::endl;
-    
+
     savestream << step_id << tab;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<float>::digits10 + 1);
@@ -302,7 +317,7 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const Real time
     Real _area(0.0), _forcex(0.0), _forcey(0.0), _forcez(0.0), _torquex(0.0), _torquey(0.0), _torquez(0.0);
     Real garea(0.0), gforcex(0.0), gforcey(0.0), gforcez(0.0), gtorquex(0.0), gtorquey(0.0), gtorquez(0.0);
 
-    #pragma omp parallel for schedule(static) reduction(+:_area,_forcex,_forcey,_forcez,_torquex,_torquey,_torquez)
+    #pragma omp parallel for schedule(dynamic) reduction(+:_area,_forcex,_forcey,_forcez,_torquex,_torquey,_torquez)
     for(int i=0; i<vInfo.size(); i++) {
         BlockInfo info = vInfo[i];
         std::map<int,ObstacleBlock*>::const_iterator pos = obstacleBlocks.find(info.blockID);
@@ -356,7 +371,7 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const Real time
     torque[1] = globals[4]*dV*lambda;
     torque[2] = globals[5]*dV*lambda;
     mass      = globals[6]*dV;
-    
+
     _writeDiagForcesToFile(stepID, time);
 }
 
@@ -371,7 +386,7 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
     Real lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
     Real am0(0.0), am1(0.0), am2(0.0); //angular momenta
 
-#pragma omp parallel for schedule(static) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
+#pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2,J0,J1,J2,J3,J4,J5,am0,am1,am2)
     for(int i=0; i<vInfo.size(); i++) {
         BlockInfo info = vInfo[i];
         FluidBlock & b = *(FluidBlock*)info.ptrBlock;
@@ -473,9 +488,9 @@ void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real _J[6], const 
 	};
 	// find out if Q is orthogonal
 	const Real R[3][3] = {
-			{Q[0][0]*_J[0] + Q[1][0]*_J[3] + Q[2][0]*_J[4], Q[0][0]*_J[3] + Q[1][0]*_J[1] + Q[2][0]*_J[5], Q[0][0]*_J[4] + Q[1][0]*_J[5] + Q[2][0]*_J[2]},
-			{Q[0][1]*_J[0] + Q[1][1]*_J[3] + Q[2][1]*_J[4], Q[0][1]*_J[3] + Q[1][1]*_J[1] + Q[2][1]*_J[5], Q[0][1]*_J[4] + Q[1][1]*_J[5] + Q[2][1]*_J[2]},
-			{Q[0][2]*_J[0] + Q[1][2]*_J[3] + Q[2][2]*_J[4], Q[0][2]*_J[3] + Q[1][2]*_J[1] + Q[2][2]*_J[5], Q[0][2]*_J[4] + Q[1][2]*_J[5] + Q[2][2]*_J[2]}
+	{Q[0][0]*_J[0]+Q[1][0]*_J[3]+Q[2][0]*_J[4], Q[0][0]*_J[3]+Q[1][0]*_J[1]+Q[2][0]*_J[5], Q[0][0]*_J[4]+Q[1][0]*_J[5]+Q[2][0]*_J[2]},
+	{Q[0][1]*_J[0]+Q[1][1]*_J[3]+Q[2][1]*_J[4], Q[0][1]*_J[3]+Q[1][1]*_J[1]+Q[2][1]*_J[5], Q[0][1]*_J[4]+Q[1][1]*_J[5]+Q[2][1]*_J[2]},
+	{Q[0][2]*_J[0]+Q[1][2]*_J[3]+Q[2][2]*_J[4], Q[0][2]*_J[3]+Q[1][2]*_J[1]+Q[2][2]*_J[5], Q[0][2]*_J[4]+Q[1][2]*_J[5]+Q[2][2]*_J[2]}
 	};
 	// d = Q^T b
 	const Real d[3] = {
@@ -512,12 +527,9 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
 		for(int i=0; i<usefulIDs.size(); i++) { //now i arrange them in a map because Im lazy
 			assert(surfaceBlocksFilter.find(usefulIDs[i]) == surfaceBlocksFilter.end());
 			surfaceBlocksFilter[usefulIDs[i]] = make_pair(firstInfo[i],firstInfo[i+1]);
-
-		//const auto pos = surfaceBlocksFilter.find(usefulIDs[i]);
-		//printf("%d block id %d (%d) occupies from %d to %d\n",rank,usefulIDs[i],pos->first,pos->second.first,pos->second.second);
 		}
     }
-    
+
 	Real CM[3];
     this->getCenterOfMass(CM);
     const int nthreads = omp_get_max_threads();
@@ -533,9 +545,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
         vel_unit[2] = velz_tot/vel_norm;
     }
 
-    vector<ForcesOnSkin> finalize;
-    for(int i = 0; i < nthreads; ++i)
-    	finalize.push_back(ForcesOnSkin(NU,vel_unit,Uinf,CM,&obstacleBlocks,&surfData,&surfaceBlocksFilter,&partialSums[i]));
+    vector<ForcesOnSkin*> finalize;
+    for(int i = 0; i < nthreads; ++i) {
+    	ForcesOnSkin* tmp = new ForcesOnSkin(NU,vel_unit,Uinf,CM,&obstacleBlocks,&surfData,&surfaceBlocksFilter,&partialSums[i]);
+    	finalize.push_back(tmp);
+    }
 
     compute(finalize);
     double localSum[19], globalSum[19];
@@ -555,21 +569,28 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time, con
     Pdrag      =   drag*vel_norm;
     EffPDef    = Pthrust/(Pthrust-min(defPower,(Real)0.));
     EffPDefBnd = Pthrust/(Pthrust-    defPowerBnd);
-    
+
     if (bDump)  surfData.print(obstacleID, stepID, rank);
 
     if(rank==0)
     {
         ofstream fileForce;
         ofstream filePower;
-        fileForce.open(("forceValues_"+std::to_string(obstacleID)+".txt").c_str(), ios::app);
+    	stringstream ssF, ssP;
+    	ssF<<"forceValues_"<<obstacleID<<".txt";
+    	ssP<<"powerValues_"<<obstacleID<<".txt";
+
+        fileForce.open(ssF.str().c_str(), ios::app);
+        if(stepID==0)
+		fileForce<<"Fx Fy Fz FxPres FyPres FzPres FxVisc FyVisc FzVisc TorqX TorqY TorqZ drag thrust surface\n"<<std::endl;
+
         fileForce<<time<<" "<<surfForce[0] <<" "<<surfForce[1] <<" "<<surfForce[2] <<" "
 						    <<globalSum[4] <<" "<<globalSum[5] <<" "<<globalSum[6] <<" "
         		 		    <<globalSum[7] <<" "<<globalSum[8] <<" "<<globalSum[9] <<" "
         		 		    <<globalSum[16]<<" "<<globalSum[17]<<" "<<globalSum[18]<<" "
 						    << drag  <<" "<< thrust<<" "<< totChi<<endl;
         fileForce.close();
-        filePower.open(("powerValues_"+std::to_string(obstacleID)+".txt").c_str(), ios::app);
+        filePower.open(ssP.str().c_str(), ios::app);
         filePower<<time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
         		 <<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<endl;
         filePower.close();
@@ -623,9 +644,9 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
     	std::cout << "AVL: " << angVel[0] << " " << angVel[1] << " " << angVel[2] << std::endl;
     }
     const Real q_length=std::sqrt(quaternion[0]*quaternion[0]
-								   +quaternion[1]*quaternion[1]
-								   +quaternion[2]*quaternion[2]
-								   +quaternion[3]*quaternion[3]);
+							   +  quaternion[1]*quaternion[1]
+							   +  quaternion[2]*quaternion[2]
+							   +  quaternion[3]*quaternion[3]);
     assert(std::abs(q_length-1.0) < 5*std::numeric_limits<Real>::epsilon());
 #endif
 
@@ -636,7 +657,7 @@ void IF3D_ObstacleOperator::characteristic_function()
 {
 #pragma omp parallel
 	{
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic)
 		for(int i=0; i<vInfo.size(); i++) {
 			BlockInfo info = vInfo[i];
 			std::map<int,ObstacleBlock* >::const_iterator pos = obstacleBlocks.find(info.blockID);
@@ -719,17 +740,17 @@ void IF3D_ObstacleOperator::restart(const Real t, std::string filename)
 {
     std::ifstream restartstream;
     restartstream.open(filename+".txt");
-    
+
     Real restart_time;
     restartstream >> restart_time;
     assert(std::abs(restart_time-t) < 1e-9);
-    
+
     restartstream >> position[0] >> position[1] >> position[2];
     restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
     restartstream >> transVel[0] >> transVel[1] >> transVel[2];
     restartstream >> angVel[0] >> angVel[1] >> angVel[2];
     restartstream.close();
-    
+
     {
         std::cout << "RESTARTED BODY: " << std::endl;
         std::cout << "TIME: \t" << restart_time << std::endl;

@@ -9,6 +9,12 @@
 //
 #pragma once
 
+#ifdef _SP_COMP_
+typedef float Real;
+#else
+typedef double Real;
+#endif
+
 #include "Matrix3D.h"
 #include "Grid.h"
 //#include "Concepts.h"

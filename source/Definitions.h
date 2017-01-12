@@ -12,12 +12,14 @@
 //#include <cassert>
 
 //#define BBURST 1
+#include <stdexcept>
 #include <sstream>
 #include <cmath>
 #include <cstdio>
 #include <math.h>
 #include <string>
 #include <vector>
+#include <array>
 using namespace std;
 //#include <assert.h>
 
@@ -449,6 +451,394 @@ public:
         fileskin.close();
     }
 };
+
+struct StateReward
+{
+    bool bRestart, bForgiving;
+    int info, NpLatLine;
+    Real t_next_comm, avg_wght, GoalDX;
+    Real Xrel, Xabs, Yrel, Yabs, Theta, VxAvg, VyAvg, AvAvg;
+    Real thExp, vxExp, vyExp, avExp, VxInst, VyInst, AvInst;
+    Real Dist, Quad, RelAng, VX, VY, AV, ThetaAvg, ThetaVel;
+    Real PoutBnd, Pout, defPowerBnd, defPower, EffPDefBnd, EffPDef, Pthrust, Pdrag, ToD;
+
+    vector<Real> VelNAbove, VelTAbove, VelNBelow, VelTBelow;
+    vector<Real> FPAbove, FVAbove, FPBelow, FVBelow;
+    vector<Real> PXAbove, PYAbove, PXBelow, PYBelow;
+    vector<Real> nPointsAbove, nPointsBelow;
+    vector<Real> raySight;
+
+    StateReward(const int _NpLatLine) : bRestart(false), bForgiving(false), NpLatLine(_NpLatLine), info(1), t_next_comm(1e6), GoalDX(0)
+    {
+        avg_wght = Xrel = Xabs = Yrel = Yabs = Theta = VxAvg = VyAvg = AvAvg = 0;
+        thExp = vxExp = vyExp = avExp = VxInst = VyInst = AvInst = 0;
+        Dist = Quad = RelAng = VX = VY = AV = ThetaAvg = ThetaVel = 0;
+        Pout = PoutBnd = defPower = defPowerBnd = EffPDef = EffPDefBnd = Pthrust = Pdrag = ToD = 0;
+
+        VelNAbove.resize(NpLatLine); VelTAbove.resize(NpLatLine);
+        VelNBelow.resize(NpLatLine); VelTBelow.resize(NpLatLine);
+        FPAbove.resize(NpLatLine); FVAbove.resize(NpLatLine);
+        FPBelow.resize(NpLatLine); FVBelow.resize(NpLatLine);
+        PXAbove.resize(NpLatLine); PYAbove.resize(NpLatLine);
+        PXBelow.resize(NpLatLine); PYBelow.resize(NpLatLine);
+        nPointsAbove.resize(NpLatLine); nPointsBelow.resize(NpLatLine);
+        raySight.resize(2*NpLatLine);
+    }
+
+    void updateAverages(const Real _dt, const Real _th, const Real _vx, const Real _vy,
+                        const Real _av, const Real _pO1, const Real _pO2, const Real _pW1,
+                        const Real _pW2, const Real _eff1, const Real _eff2, const Real _pT,
+                        const Real _pD, const Real _T, const Real _D)
+    {
+        if (_dt>0) {
+            const Real    W = avg_wght + _dt;
+            const Real _ToD = (_D<1e-9) ? 0 : _T/_D;
+            const Real _1oW = 1./W;
+
+            VxAvg = ( VxAvg * avg_wght + _vx * _dt )*_1oW;
+            VyAvg = ( VyAvg * avg_wght + _vy * _dt )*_1oW;
+            AvAvg = ( AvAvg * avg_wght + _av * _dt )*_1oW;
+
+            ThetaAvg = ( ThetaAvg * avg_wght + _th            * _dt )*_1oW;
+            ThetaVel = ( ThetaVel * avg_wght + atan2(_vy,_vx) * _dt )*_1oW;
+
+            Pout =    (Pout    * avg_wght + _pO1 * _dt)*_1oW;
+            PoutBnd = (PoutBnd * avg_wght + _pO2 * _dt)*_1oW;
+
+            defPower =    (defPower    * avg_wght + _pW1 * _dt)*_1oW;
+            defPowerBnd = (defPowerBnd * avg_wght + _pW2 * _dt)*_1oW;
+
+            EffPDef =    (EffPDef    * avg_wght + _eff1 * _dt)*_1oW;
+            EffPDefBnd = (EffPDefBnd * avg_wght + _eff2 * _dt)*_1oW;
+
+            Pthrust = ( Pthrust * avg_wght + _pT  * _dt )*_1oW;
+            Pdrag =   ( Pdrag   * avg_wght + _pD  * _dt )*_1oW;
+            ToD =     ( ToD     * avg_wght + _ToD * _dt )*_1oW;
+
+            avg_wght += _dt;
+
+            thExp = (1.-_dt) * thExp + _dt * _th;
+            vxExp = (1.-_dt) * vxExp + _dt * _vx;
+            vyExp = (1.-_dt) * vyExp + _dt * _vy;
+            avExp = (1.-_dt) * avExp + _dt * _av;
+        }
+    }
+
+    void resetAverage()
+    {
+        VxAvg = VyAvg = AvAvg = ThetaAvg = ThetaVel = Pout = PoutBnd = defPower = defPowerBnd = EffPDef = EffPDefBnd = Pthrust = Pdrag = ToD = avg_wght = 0;
+    }
+
+    void updateInstant(const Real _xR, const Real _xA, const Real _yR, const Real _yA,
+                       const Real _th, const Real _vx, const Real _vy, const Real _av)
+    {
+        Xrel = _xR; Xabs = _xA; Yrel = _yR; Yabs = _yA; Theta= _th;
+        VxInst=_vx; VyInst=_vy; AvInst=_av;
+        if (Xrel>0.8 || Xrel<0.05 || Yrel>0.8 || Yrel<0.05) bRestart = true;
+    }
+
+    void finalizePos(const Real xPov,   const Real yPov,  const Real thPov,
+                     const Real vxPov,  const Real vyPov, const Real avPov,
+                     const Real lscale, const Real tscale)
+    {
+        const double invlscale  = 1./lscale;
+        const double velscale   = tscale*invlscale; //all these are inverse
+        const double forcescale = velscale*velscale*invlscale; //rho*l^2*l/t^2
+        const double presscale  = forcescale*lscale;
+        const double powerscale = forcescale*velscale; //rho*l^2*l^2/t^3
+        const double tmpPx = (Xrel-xPov)*invlscale;
+        const double tmpPy = (Yrel-yPov)*invlscale;
+        const double tmpVx = VxAvg*velscale;
+        const double tmpVy = VyAvg*velscale;
+
+        //velocity of reference from fish pov
+        VX = (tmpVx-vxPov*velscale)*cos(ThetaAvg)+(tmpVy-vyPov*velscale)*sin(ThetaAvg);
+        VY = (tmpVy-vyPov*velscale)*cos(ThetaAvg)-(tmpVx-vxPov*velscale)*sin(ThetaAvg);
+        AV = (AvAvg-avPov)*tscale;
+        //velocity of fish in reference pov
+        VxAvg = tmpVx*cos(thPov) + tmpVy*sin(thPov);
+        VyAvg = tmpVy*cos(thPov) - tmpVx*sin(thPov);
+        AvAvg*= tscale;
+        //position in reference frame
+        Xrel = tmpPx*cos(thPov) + tmpPy*sin(thPov);
+        Yrel = tmpPy*cos(thPov) - tmpPx*sin(thPov);
+        RelAng = ThetaAvg - thPov;
+
+        Dist = sqrt(tmpPx*tmpPx + tmpPy*tmpPy);
+        Quad = atan2(Yrel,Xrel) -(Theta-thPov);
+
+        PoutBnd    *=powerscale; Pout    *=powerscale;
+        defPowerBnd*=powerscale; defPower*=powerscale;
+        Pthrust    *=powerscale; Pdrag   *=powerscale;
+        //EffPDefBnd, EffPDef, ToD are non dimensional already
+    }
+
+    void finalize(const Real xPov,   const Real yPov,  const Real thPov,
+                  const Real vxPov,  const Real vyPov, const Real avPov,
+                  const Real lscale, const Real tscale)
+    {
+        const double invlscale  = 1./lscale;
+        const double velscale   = tscale*invlscale; //all these are inverse
+        const double forcescale = velscale*velscale*invlscale; //rho*l^2*l/t^2
+        const double presscale  = forcescale*lscale;
+        const double powerscale = forcescale*velscale; //rho*l^2*l^2/t^3
+        const double tmpPx = (Xrel-xPov)*invlscale;
+        const double tmpPy = (Yrel-yPov)*invlscale;
+        const double tmpVx = VxAvg*velscale;
+        const double tmpVy = VyAvg*velscale;
+
+        for (int k=0; k<NpLatLine; k++) {
+            //subtract solid body velocity from velocity sensors & scale
+            const double Uxu = VxInst - (PYAbove[k]-Yrel)*AvInst;
+            const double Uxl = VxInst - (PYBelow[k]-Yrel)*AvInst;
+            const double Uyu = VyInst + (PXAbove[k]-Xrel)*AvInst;
+            const double Uyl = VyInst + (PXBelow[k]-Xrel)*AvInst;
+            const double tmpvxu = (VelNAbove[k]-Uxu)*velscale;
+            const double tmpvyu = (VelTAbove[k]-Uyu)*velscale;
+            const double tmpvxl = (VelNBelow[k]-Uxl)*velscale;
+            const double tmpvyl = (VelTBelow[k]-Uyl)*velscale;
+            const double tmpfxu = FPAbove[k]*forcescale;
+            const double tmpfyu = FVAbove[k]*forcescale;
+            const double tmpfxl = FPBelow[k]*forcescale;
+            const double tmpfyl = FVBelow[k]*forcescale;
+            //rotate in fish pov
+            const Real cosTh = std::cos(Theta);
+            const Real sinTh = std::sin(Theta);
+            VelNAbove[k]= tmpvxu*cosTh + tmpvyu*sinTh;
+            VelTAbove[k]= tmpvyu*cosTh - tmpvxu*sinTh;
+            VelNBelow[k]= tmpvxl*cosTh + tmpvyl*sinTh;
+            VelTBelow[k]= tmpvyl*cosTh - tmpvxl*sinTh;
+            FPAbove[k]  = tmpfxu*cosTh + tmpfyu*sinTh;
+            FVAbove[k]  = tmpfyu*cosTh - tmpfxu*sinTh;
+            FPBelow[k]  = tmpfxl*cosTh + tmpfyl*sinTh;
+            FVBelow[k]  = tmpfyl*cosTh - tmpfxl*sinTh;
+        }
+
+        for (int k=0; k<2*NpLatLine; k++) raySight[k] *= invlscale;
+
+        //velocity of reference from fish pov
+        VX = (tmpVx-vxPov*velscale)*cos(ThetaAvg)+(tmpVy-vyPov*velscale)*sin(ThetaAvg);
+        VY = (tmpVy-vyPov*velscale)*cos(ThetaAvg)-(tmpVx-vxPov*velscale)*sin(ThetaAvg);
+        AV = (AvAvg-avPov)*tscale;
+        //velocity of fish in reference pov
+        VxAvg = tmpVx*cos(thPov) + tmpVy*sin(thPov);
+        VyAvg = tmpVy*cos(thPov) - tmpVx*sin(thPov);
+        AvAvg*= tscale;
+        //position in reference frame
+        Xrel = tmpPx*cos(thPov) + tmpPy*sin(thPov);
+        Yrel = tmpPy*cos(thPov) - tmpPx*sin(thPov);
+        RelAng = ThetaAvg - thPov;
+
+        Dist = sqrt(tmpPx*tmpPx + tmpPy*tmpPy);
+        Quad = atan2(Yrel,Xrel) -(Theta-thPov);
+
+        PoutBnd    *=powerscale; Pout    *=powerscale;
+        defPowerBnd*=powerscale; defPower*=powerscale;
+        Pthrust    *=powerscale; Pdrag   *=powerscale;
+        //EffPDefBnd, EffPDef, ToD are non dimensional already
+    }
+
+    bool checkFail(const Real xPov, const Real yPov, const Real thPov, const Real lscale)
+    {
+        bRestart = false;
+        if (Xrel>0.8||Xrel<0.05||Yrel>0.8||Yrel<0.05) bRestart = true;
+        const Real tmpPx = (Xrel-xPov)/lscale;
+        const Real tmpPy = (Yrel-yPov)/lscale;
+        const Real _Xrel = (GoalDX>0)?tmpPx*cos(thPov)+tmpPy*sin(thPov):0.;
+        const Real _Yrel =            tmpPy*cos(thPov)-tmpPx*sin(thPov);
+        const Real _thRel= Theta - thPov;
+        const Real _Dist = tmpPx*tmpPx + tmpPy*tmpPy;
+
+        if(not bForgiving) {
+            bRestart = bRestart || _Dist<0.25;
+            if(bRestart) {printf("Too close\n"); return bRestart;}
+
+            bRestart = bRestart || fabs(_Yrel)>1.;
+            if(bRestart) {printf("Too much vertical distance\n"); return bRestart;}
+
+            bRestart = bRestart || fabs(_thRel)>1.5708;
+            if(bRestart) {printf("Too different inclination\n"); return bRestart;}
+
+            bRestart = bRestart || fabs(_Xrel-GoalDX)>1.;
+            if(bRestart) {printf("Too far from horizontal goal\n"); return bRestart;}
+        } else {
+            bRestart = bRestart || _Dist<0.1;
+            if(bRestart) {printf("Too close\n"); return bRestart;}
+
+            bRestart = bRestart || fabs(_Yrel)>2.;
+            if(bRestart) {printf("Too much vertical distance\n"); return bRestart;}
+
+            bRestart = bRestart || fabs(_thRel)>M_PI;
+            if(bRestart) {printf("Too different inclination\n"); return bRestart;}
+
+            bRestart = bRestart || fabs(_Xrel-GoalDX)>2.;
+            if(bRestart) {printf("Too far from horizontal goal\n"); return bRestart;}
+        }
+
+        return bRestart;
+    }
+/*
+    void addToClosest(FishObstacle::FishSkin * upSkin, FishObstacle::FishSkin * dwSkin, PressurePoints * presData)
+    { //todo ... create a general skin class?
+        const int ND = presData->Ndata;
+        const int NP = upSkin->Npoints - 1;
+        const Real * const x  = presData->pX;
+        const Real * const y  = presData->pY;
+        const Real * const fx = presData->fX;
+        const Real * const fy = presData->fY;
+        const Real * const vx = presData->vx;
+        const Real * const vy = presData->vy;
+        const int* const ID=presData->gridID;
+
+        for (int k=0; k<NpLatLine; k++) {
+            //const int gridIDU = upSkin->gridID[k];
+            //const int gridIDL = dwSkin->gridID[k];
+            //const int skinID  = upSkin->mapMidline[k]; //they are the same
+            const int first = k   *(Real)NP/(Real)NpLatLine;
+            const int last = (k+1)*(Real)NP/(Real)NpLatLine;
+              FPAbove[k]=0;   FPBelow[k]=0;   FVAbove[k]=0;   FVBelow[k]=0;
+            VelNAbove[k]=0; VelNBelow[k]=0; VelTAbove[k]=0; VelTBelow[k]=0;
+            for (int j=first; j<last; j++) {
+                  FPAbove[k]+=fx[j];   FPBelow[k]+=fx[j+NP];
+                  FVAbove[k]+=fy[j];   FVBelow[k]+=fy[j+NP];
+                VelNAbove[k]+=vx[ID[j]]; VelNBelow[k]+=vx[ID[j+NP]];
+                VelTAbove[k]+=vy[ID[j]]; VelTBelow[k]+=vy[ID[j+NP]];
+            }
+            const int mid = 0.5*(first+last);
+            PXAbove[k] = x[mid];
+            PYAbove[k] = y[mid];
+            PXBelow[k] = x[mid+NP];
+            PYBelow[k] = y[mid+NP];
+            const Real fac = 1./(Real)(last-first);
+            VelNAbove[k]*=fac; VelTAbove[k]*=fac;
+            VelNBelow[k]*=fac; VelTBelow[k]*=fac;
+            //printf("first %d %d %d %d\n",first, last, mid, mid+NP);
+        }
+    }
+    */
+
+    void save(const int step_id, string filename)
+    {
+        ofstream savestream;
+        savestream.setf(std::ios::scientific);
+        savestream.precision(std::numeric_limits<double>::digits10 + 1);
+        string fullFileName = filename==string() ? "restart_IF2D_Stefan" : filename;
+
+        savestream.open(fullFileName+"_save_data.txt");
+
+        savestream << bRestart << "\t" << info << "\t" << avg_wght << "\t" << t_next_comm << "\t"
+            << Xrel << "\t" << Xabs << "\t" << Yrel << "\t" << Yabs << "\t"
+            << Theta << "\t" << VxAvg << "\t" << VyAvg<< "\t" << AvAvg << "\t"
+            << thExp << "\t" << vxExp << "\t" << vyExp<< "\t" << avExp << "\t"
+            << VxInst << "\t" << VyInst<< "\t" << AvInst << "\t"
+            << Dist << "\t" << Quad << "\t" << RelAng<< "\t"
+            << VX << "\t" << VY << "\t" << AV << "\t"
+            << ThetaAvg << "\t" << ThetaVel << "\t" << PoutBnd << "\t" << Pout << "\t"
+            << defPowerBnd << "\t" << defPower << "\t" << EffPDefBnd<< "\t" << EffPDef << "\t"
+            << Pthrust << "\t" << Pdrag << "\t" << ToD << std::endl;
+
+        for (int i=0; i<NpLatLine; i++) {
+            savestream <<
+            PXAbove[i] << "\t" << PYAbove[i] << "\t" <<
+            PXBelow[i] << "\t" << PYBelow[i] << "\t" <<
+            VelNAbove[i] << "\t" << VelTAbove[i] << "\t" <<
+            VelNBelow[i] << "\t" << VelTBelow[i] << "\t" <<
+            FPAbove[i] << "\t" << FVAbove[i] << "\t" <<
+            FPBelow[i] << "\t" << FVBelow[i] << std::endl;
+        }
+
+        savestream.close();
+    }
+
+    void restart(string filename)
+    {
+        ifstream restartstream;
+        string fullFileName = filename;
+        restartstream.open(fullFileName+"_save_data.txt");
+
+        restartstream >> bRestart >> info >> avg_wght >> t_next_comm >>
+        Xrel >> Xabs >> Yrel >> Yabs >>
+        Theta >> VxAvg >> VyAvg >> AvAvg >>
+        thExp >> vxExp >> vyExp >> avExp >>
+        VxInst >> VyInst >> AvInst >>
+        Dist >> Quad >> RelAng >>
+        VX >> VY >> AV >>
+        ThetaAvg >> ThetaVel >> PoutBnd >> Pout >>
+        defPowerBnd >> defPower >> EffPDefBnd>> EffPDef >>
+        Pthrust >> Pdrag >> ToD;
+
+        for (int i=0; i<NpLatLine; i++) {
+            restartstream >>
+            PXAbove[i] >> PYAbove[i] >>
+            PXBelow[i] >> PYBelow[i] >>
+            VelNAbove[i] >> VelTAbove[i] >>
+            VelNBelow[i] >> VelTBelow[i] >>
+            FPAbove[i] >> FVAbove[i] >>
+            FPBelow[i] >> FVBelow[i];
+        }
+
+        restartstream.close();
+
+        {
+            cout << bRestart << "\t" << info << "\t" << avg_wght << "\t" << t_next_comm << "\t"
+            << Xrel << "\t" << Xabs << "\t" << Yrel << "\t" << Yabs << "\t"
+            << Theta << "\t" << VxAvg << "\t" << VyAvg<< "\t" << AvAvg << "\t"
+            << thExp << "\t" << vxExp << "\t" << vyExp<< "\t" << avExp << "\t"
+            << VxInst << "\t" << VyInst<< "\t" << AvInst << "\t"
+            << Dist << "\t" << Quad << "\t" << RelAng<< "\t"
+            << VX << "\t" << VY << "\t" << AV << "\t"
+            << ThetaAvg << "\t" << ThetaVel << "\t" << PoutBnd << "\t" << Pout << "\t"
+            << defPowerBnd << "\t" << defPower << "\t" << EffPDefBnd<< "\t" << EffPDef << "\t"
+            << Pthrust << "\t" << Pdrag << "\t" << ToD << std::endl;
+
+            for (int i=0; i<NpLatLine; i++) {
+            cout << PXAbove[i] << "\t" << PYAbove[i] << "\t" <<
+                    PXBelow[i] << "\t" << PYBelow[i] << "\t" <<
+                    VelNAbove[i] << "\t" << VelTAbove[i] << "\t" <<
+                    VelNBelow[i] << "\t" << VelTBelow[i] << "\t" <<
+                    FPAbove[i] << "\t" << FVAbove[i] << "\t" <<
+                    FPBelow[i] << "\t" << FVBelow[i] << std::endl;
+            }
+        }
+    }
+
+    void print(const int ID, const int stepNumber, const Real time)
+    {
+        {
+            ofstream fileskin;
+            char buf[500];
+            sprintf(buf, "sensorDistrib_%1d_%07d.txt", ID, stepNumber);
+            string filename(buf);
+            fileskin.open(filename, ios::trunc);
+            int k=0;
+            for(int i=0; i<NpLatLine; ++i)
+                fileskin<<PXAbove[i]<<"\t"<<PYAbove[i]<<"\t"<<VelNAbove[i] << "\t" << VelTAbove[i] << "\t" << FPAbove[i] << "\t" << FVAbove[i] << "\t" << raySight[k++] << std::endl;
+            for(int i=0; i<NpLatLine; ++i)
+                fileskin<<PXBelow[i]<<"\t"<<PYBelow[i]<<"\t"<<VelNBelow[i] << "\t" << VelTBelow[i] << "\t" << FPBelow[i] << "\t" << FVBelow[i] << "\t" << raySight[k++] << std::endl;
+            fileskin.close();
+        }
+        {
+            ofstream fileskin;
+            char buf[500];
+            sprintf(buf, "avgSensors_%1d.txt",ID);
+            string filename(buf);
+            fileskin.open(filename, ios::app);
+
+            fileskin<< avg_wght << "\t" << t_next_comm  << "\t"
+                    << Xrel << "\t" << Xabs << "\t" << Yrel << "\t" << Yabs << "\t"
+                    << Theta << "\t" << VxAvg << "\t" << VyAvg<< "\t" << AvAvg << "\t"
+                    << thExp << "\t" << vxExp << "\t" << vyExp<< "\t" << avExp << "\t"
+                    << VxInst << "\t" << VyInst<< "\t" << AvInst << "\t"
+                    << Dist << "\t" << Quad << "\t" << RelAng<< "\t"
+                    << VX << "\t" << VY << "\t" << AV << "\t"
+                    << ThetaAvg << "\t" << ThetaVel << "\t" << PoutBnd << "\t" << Pout << "\t"
+                    << defPowerBnd << "\t" << defPower << "\t" << EffPDefBnd<< "\t" << EffPDef << "\t"
+                    << Pthrust << "\t" << Pdrag << "\t" << ToD << std::endl;
+            fileskin.close();
+        }
+    }
+};
+
 
 template <> inline void FluidBlock::Write<StreamerGridPoint>(ofstream& output, StreamerGridPoint streamer) const
 {

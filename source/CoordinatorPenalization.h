@@ -14,7 +14,7 @@
 #include "IF3D_ObstacleVector.h"
 
 // for schooling: split first compute uinf (comp velocity with uinf = 0) and then penalize
-struct PenalizationObstacleVisitor : ObstacleVisitor
+struct PenalizationObstacleVisitor : public ObstacleVisitor
 {
 	FluidGridMPI * grid;
     const Real dt, lambda;
@@ -60,6 +60,10 @@ struct PenalizationObstacleVisitor : ObstacleVisitor
     	 } else {
     		 obstacle->computeVelocities(uInf);
     	 }
+    	 {
+    		 Real dummy[3];
+    		 obstacle->getTranslationVelocity(dummy);
+    	 }
 
 #pragma omp parallel
          {
@@ -74,7 +78,7 @@ struct PenalizationObstacleVisitor : ObstacleVisitor
             		uBody[0],uBody[1],uBody[2],omegaBody[0],omegaBody[1],omegaBody[2],
             		centerOfMass[0],centerOfMass[1],centerOfMass[2],uInf[0],uInf[1],uInf[2]);
 			*/
-#pragma omp for schedule(static)
+#pragma omp for schedule(dynamic)
             for(int i=0; i<vInfo.size(); i++) {
             	BlockInfo info = vInfo[i];
             	const auto pos = obstblocks.find(info.blockID);
@@ -126,7 +130,7 @@ public:
 	CoordinatorPenalization(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles, Real* const lambda, Real* const Uinf)
 	: GenericCoordinator(grid), obstacleVector(myobstacles), lambda(lambda), uInf(Uinf)
 	{ }
-	
+
 	void operator()(const Real dt)
 	{
 		check((string)"penalization - start");
@@ -137,7 +141,7 @@ public:
 
 		check((string)"penalization - end");
 	}
-	
+
 	string getName()
 	{
 		return "Penalization";
