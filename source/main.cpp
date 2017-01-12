@@ -12,7 +12,7 @@
 #include <cmath>
 #include <sstream>
 using namespace std;
-
+#define __SMARTIES_
 #include "Simulation.h"
 
 int main(int argc, char **argv)
@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 		const int _sockID = parser("-sock").asInt(-1);
 		const int nActions = parser("-nActions").asInt(0);
 		const int nStates = (nActions==1) ? 20+200 : 25+200;
-		if (_sockID>0 && nActions>0) {
+		if (_sockID>=0 && nActions>0) {
 			printf("Communicating over sock %d\n", _sockID);
 			communicator = new Communicator(_sockID,nStates,nActions);
 		}

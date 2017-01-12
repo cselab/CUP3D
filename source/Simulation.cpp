@@ -62,7 +62,7 @@ void Simulation::parseArguments()
 
     path2file = parser("-file").asString("./paternoster");
     path4serialization = parser("-serialization").asString("./");
-    maxClockDuration = parser("-Wtime").asDouble(1e9);
+    maxClockDuration = parser("-Wtime").asDouble(1e30);
     lambda = parser("-lambda").asDouble(1e4);
     CFL = parser("-CFL").asDouble(.1);
     uinf[0] = parser("-uinfx").asDouble(0.0);
@@ -113,11 +113,13 @@ void Simulation::areWeDumping(Real & nextDumpTime)
 {
 	bDump = (dumpFreq>0 && step%dumpFreq==0) || (dumpTime>0 && time>=nextDumpTime);
 	if (bDump) nextDumpTime += dumpTime;
-#ifdef _BSMART_
+
+  #ifdef __SMARTIES_
 	for (int i=0; i<obstacle_vector->nObstacles(); i++)
-	{if (t+DT>=_D[i]->t_next_comm) bDump=true;}
-	if (bDump) obstacle_vector->getFieldOfView();
-#endif
+	   if (t+DT>=_D[i]->t_next_comm) bDump=true;
+
+	//if (bDump) obstacle_vector->getFieldOfView();
+  #endif
 }
 
 void Simulation::_dump(const string append = string())
@@ -225,6 +227,10 @@ void Simulation::_deserialize()
 {
 	string restartfile = path4serialization+"./restart.status";
 	FILE * f = fopen(restartfile.c_str(), "r");
+  if (f == NULL) {
+    printf("Could not restart... starting a new sim.\n");
+    return;
+  }
 	assert(f != NULL);
 	float val = -1;
 	fscanf(f, "time: %e\n", &val);
@@ -278,7 +284,7 @@ void Simulation::simulate()
 					bool bDoOver = false;
 					const int nO = obstacle_vector->nObstacles();
 					std::vector<StateReward*> _D(nO);
-					
+
 					for(int i=1; i<nO; i++) {
 						bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel,
 																			 _D[0]->thExp, length);
@@ -329,11 +335,11 @@ void Simulation::simulate()
             this_save = high_resolution_clock::now();
             const Real dClock = duration<Real>(this_save-last_save).count();
             const Real totClock = duration<Real>(this_save-start_sim).count();
-            saveClockPeriod = std::max(saveClockPeriod,dClock);
-            if(maxClockDuration < totClock + saveClockPeriod*1.1) {
+            if(maxClockDuration < totClock + dClock*1.1) {
             	if(rank==0) {
             	cout<<"Save and exit at time "<<time<<" in "<<step<<" step of "<<nsteps<<endl;
-            	cout<<"Not enough allocated clock time to reach next dump point\n"<<endl;
+            	cout<<"Not enough allocated clock time to reach next dump point"<<endl;
+               cout<<"(time since last dump = "<<dClock<<" total duration of the sim = "<<totClock<<")\n"<<endl;
             	}
             	exit(0);
             }

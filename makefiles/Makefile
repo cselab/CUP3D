@@ -99,7 +99,7 @@ endif
 
 LIBS += -L../tools/fpzip/lib -lfpzip
 
-LIBS += -lstdc++ -lm -ldl -lz
+LIBS += -lstdc++ -lgsl -lgslcblas -lm -ldl -lz
 
 BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/

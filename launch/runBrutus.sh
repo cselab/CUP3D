@@ -20,4 +20,4 @@ source $SETTINGSNAME
 
 echo $OPTIONS > settings.txt
 
-mpirun -np ${NNODE} -ppn 1 ./simulation ${OPTIONS}
+mpirun -np ${NNODE} -ppn 1  ./simulation ${OPTIONS}
