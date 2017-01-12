@@ -88,7 +88,7 @@ void Simulation::setupObstacles()
     assert(length>0);
 
     if(rank==0)
-	printf("Fluid kinematic viscosity: %9.9e, Reynolds number: %9.9e (length scale: %9.9e)\n",nu,re,length);
+	   printf("Fluid kinematic viscosity: %9.9e, Reynolds number: %9.9e (length scale: %9.9e)\n",nu,re,length);
 }
 
 void Simulation::setupOperators()
@@ -115,9 +115,9 @@ void Simulation::areWeDumping(Real & nextDumpTime)
 	if (bDump) nextDumpTime += dumpTime;
 
   #ifdef __SMARTIES_
-	for (int i=0; i<obstacle_vector->nObstacles(); i++)
-	   if (t+DT>=_D[i]->t_next_comm) bDump=true;
-
+  //const auto _D = obstacle_vector->_getData();
+	//for (int i=0; i<obstacle_vector->nObstacles(); i++)
+	//   if (time+dt>=_D[i]->t_next_comm) bDump=true;
 	//if (bDump) obstacle_vector->getFieldOfView();
   #endif
 }
@@ -140,50 +140,59 @@ void Simulation::_dump(const string append = string())
     	assert(f != NULL);
     	fprintf(f, "time: %20.20e\n", time);
     	fprintf(f, "stepid: %d\n", (int)step);
+    	fprintf(f, "uinfx: %20.20e\n", uinf[0]);
+    	fprintf(f, "uinfy: %20.20e\n", uinf[1]);
+    	fprintf(f, "uinfz: %20.20e\n", uinf[2]);
     	fclose(f);
     }
 
-#if defined(_USE_HDF_)
-    if(b2Ddump) {
-      stringstream ssF;
-      if (append == string())
-         ssF<<path4serialization<<"./avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
-      else
-         ssF<<path4serialization<<"./2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
-    	DumpHDF5flat_MPI(*grid, time, ssF.str());
-    }
-    DumpHDF5_MPI(*grid, time, ssR.str());
-#endif
-#if defined(_USE_LZ4_) //TODO: does not compile
-    CoordinatorVorticity<LabMPI> coordVorticity(grid);
-    coordVorticity(dt);
-    MPI_Barrier(MPI_COMM_WORLD);
-    Real vpeps = parser("-vpeps").asDouble(1e-5);
-    int wavelet_type = parser("-wtype").asInt(1);
+    #if defined(_USE_HDF_)
+      if(b2Ddump) {
+        stringstream ssF;
+        if (append == string())
+           ssF<<path4serialization<<"./avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
+        else
+           ssF<<path4serialization<<"./2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
+      	DumpHDF5flat_MPI(*grid, time, ssF.str());
+      }
+      //DumpHDF5_MPI(*grid, time, ssR.str());
+    #endif
+    #if defined(_USE_LZ4_) //TODO: does not compile
+      CoordinatorVorticity<LabMPI> coordVorticity(grid);
+      coordVorticity(dt);
+      MPI_Barrier(MPI_COMM_WORLD);
+      Real vpeps = parser("-vpeps").asDouble(1e-5);
+      int wavelet_type = parser("-wtype").asInt(1);
 
-    waveletdumper_grid.verbose();
-    waveletdumper_grid.set_wtype_write(wavelet_type);
-    waveletdumper_grid.set_threshold (vpeps);
-    waveletdumper_grid.Write<0>(grid, ss.str());
-    waveletdumper_grid.Write<1>(grid, ss.str());
-    waveletdumper_grid.Write<2>(grid, ss.str());
-    waveletdumper_grid.Write<3>(grid, ss.str());
-    waveletdumper_grid.Write<4>(grid, ss.str());
-    waveletdumper_grid.Write<5>(grid, ss.str());
-    waveletdumper_grid.Write<6>(grid, ss.str());
-    waveletdumper_grid.Write<7>(grid, ss.str());
-#endif
+      waveletdumper_grid.verbose();
+      waveletdumper_grid.set_wtype_write(wavelet_type);
+      waveletdumper_grid.set_threshold (vpeps);
+      waveletdumper_grid.Write<0>(grid, ss.str());
+      waveletdumper_grid.Write<1>(grid, ss.str());
+      waveletdumper_grid.Write<2>(grid, ss.str());
+      waveletdumper_grid.Write<3>(grid, ss.str());
+      waveletdumper_grid.Write<4>(grid, ss.str());
+      waveletdumper_grid.Write<5>(grid, ss.str());
+      waveletdumper_grid.Write<6>(grid, ss.str());
+      waveletdumper_grid.Write<7>(grid, ss.str());
+    #endif
 
-	if (rank==0) { //saved the grid! Write status to remember most recent ping
-		string restart_status = path4serialization+"./restart.status";
-		FILE * f = fopen(restart_status.c_str(), "w");
-		assert(f != NULL);
-		fprintf(f, "time: %20.20e\n", time);
-		fprintf(f, "stepid: %d\n", (int)step);
-		fclose(f);
-		printf( "time: %20.20e\n", time);
-		printf( "stepid: %d\n", (int)step);
-	}
+	   if (rank==0) { //saved the grid! Write status to remember most recent ping
+  		string restart_status = path4serialization+"./restart.status";
+  		FILE * f = fopen(restart_status.c_str(), "w");
+  		assert(f != NULL);
+  		fprintf(f, "time: %20.20e\n", time);
+  		fprintf(f, "stepid: %d\n", (int)step);
+    	fprintf(f, "uinfx: %20.20e\n", uinf[0]);
+    	fprintf(f, "uinfy: %20.20e\n", uinf[1]);
+    	fprintf(f, "uinfz: %20.20e\n", uinf[2]);
+  		fclose(f);
+  		printf("time:  %20.20e\n", time);
+  		printf("stepid: %d\n", (int)step);
+    	printf("uinfx: %20.20e\n", uinf[0]);
+    	printf("uinfy: %20.20e\n", uinf[1]);
+    	printf("uinfz: %20.20e\n", uinf[2]);
+  	}
 
     CoordinatorDiagnostics coordDiags(grid,time,step);
     coordDiags(dt);
@@ -232,14 +241,23 @@ void Simulation::_deserialize()
     return;
   }
 	assert(f != NULL);
+
 	float val = -1;
 	fscanf(f, "time: %e\n", &val);
 	assert(val>=0);
 	time=val;
+
 	int step_id_fake = -1;
 	fscanf(f, "stepid: %d\n", &step_id_fake);
 	assert(step_id_fake >= 0);
 	step = step_id_fake;
+  int ret = 0;
+	ret = fscanf(f, "uinfx: %e\n", &val);
+  if (ret) uinf[0] = val;
+	ret = fscanf(f, "uinfy: %e\n", &val);
+  if (ret) uinf[1] = val;
+	ret = fscanf(f, "uinfz: %e\n", &val);
+  if (ret) uinf[2] = val;
 	fclose(f);
 
 	stringstream ssR;
@@ -249,7 +267,7 @@ void Simulation::_deserialize()
 	ReadHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, ssR.str());
 	obstacle_vector->restart(time,ssR.str());
 
-    printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
+  printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
 }
 
 void Simulation::init()
@@ -277,14 +295,14 @@ void Simulation::simulate()
     while (true)
     {
 
-#ifdef __SMARTIES_
+        #ifdef __SMARTIES_
 				if (communicator not_eq nullptr)
 				{
 					profiler.push_start("RL");
 					bool bDoOver = false;
 					const int nO = obstacle_vector->nObstacles();
-					std::vector<StateReward*> _D(nO);
-
+					const auto _D = obstacle_vector->_getData();
+          assert(_D.size() == nO);
 					for(int i=1; i<nO; i++) {
 						bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel,
 																			 _D[0]->thExp, length);
@@ -292,21 +310,26 @@ void Simulation::simulate()
 							_D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel,  _D[0]->thExp,
 												 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
 							_D[i]->info = 2;
-							obstacle_vector->execute(comm, i, t);
+							obstacle_vector->execute(communicator, i, time);
+              printf("Sim terminated\n");
 							return;
 						}
 					}
-					for(int i=0; i<nO; i++) if(t>=_D[i]->t_next_comm) {
+
+					for(int i=0; i<nO; i++) if(time >= _D[i]->t_next_comm) {
+            printf("trying to execute at t = %e\n", time);
+            if(i>0) {
 						_D[i]->finalize(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
 									 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
 						_D[i]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
 									 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
-						obstacle_vector->execute(comm, i, t);
+             }
+						obstacle_vector->execute(communicator, i, time);
 					}
 					if (bDoOver) exit(0);
 					profiler.pop_stop();
 				}
-#endif
+        #endif
 
         profiler.push_start("DT");
         _selectDT();
@@ -338,7 +361,7 @@ void Simulation::simulate()
             if(maxClockDuration < totClock + dClock*1.1) {
             	if(rank==0) {
             	cout<<"Save and exit at time "<<time<<" in "<<step<<" step of "<<nsteps<<endl;
-            	cout<<"Not enough allocated clock time to reach next dump point"<<endl;
+            	cout<<"Not enough allocated clock time ("<<maxClockDuration<<") to reach next dump point"<<endl;
                cout<<"(time since last dump = "<<dClock<<" total duration of the sim = "<<totClock<<")\n"<<endl;
             	}
             	exit(0);

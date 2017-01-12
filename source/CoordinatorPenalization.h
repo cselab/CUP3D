@@ -46,17 +46,20 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
      {
     	 const bool bFixFrameOfRef = obstacle->bFixFrameOfRef;
     	 if (bFixFrameOfRef) {
-    		 if (obstacle->obstacleID!=0) {printf("Can only fix first obstacle.\n"); abort();}
-             Real leadU[3], dummy[3] = {0.0, 0.0, 0.0}; // compute velocities with zero uinf
-             obstacle->computeVelocities(dummy);
-             obstacle->getTranslationVelocity(leadU);
-             uInf[0] = -leadU[0]; //uInf now is speed of this obstacle
-             uInf[1] = -leadU[1];
-             uInf[2] = -leadU[2];
-             leadU[0] += uInf[0]; //set obstacle speed to zero
-             leadU[1] += uInf[1];
-             leadU[2] += uInf[2];
-             obstacle->setTranslationVelocity(leadU);
+    		 if (obstacle->obstacleID!=0) {
+					 printf("Can only fix first obstacle.\n"); abort();
+				 }
+				 // compute velocities with zero uinf
+         Real leadU[3], dummy[3] = {0.0, 0.0, 0.0};
+         obstacle->computeVelocities(dummy);
+         obstacle->getTranslationVelocity(leadU);
+         uInf[0] = -leadU[0]; //uInf now is speed of this obstacle
+         uInf[1] = -leadU[1];
+         uInf[2] = -leadU[2];
+         leadU[0] += uInf[0]; //set obstacle speed to zero
+         leadU[1] += uInf[1];
+         leadU[2] += uInf[2];
+         obstacle->setTranslationVelocity(leadU);
     	 } else {
     		 obstacle->computeVelocities(uInf);
     	 }

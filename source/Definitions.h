@@ -12,6 +12,7 @@
 //#include <cassert>
 
 //#define BBURST 1
+#define __SMARTIES_
 #include <stdexcept>
 #include <sstream>
 #include <cmath>

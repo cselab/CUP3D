@@ -44,7 +44,7 @@ namespace ComputationDiagnostics
 {
     static void print_memory_usage(long & peak_rss_bytes, long & current_rss_bytes)
     {
-/*
+        /*
         peak_rss_bytes = -1;
         current_rss_bytes=-1;
 
