@@ -20,6 +20,9 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI * grid, ArgumentPa
 	fflush(0);
 	// multiple of NPPSEG: TODO why?
 	myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension);
+
+  sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
+                    _2Dangle, transVel[0], transVel[1], angVel[2]);
   }
 
 void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
@@ -86,11 +89,11 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
     */
     else {
         const Real relT= fmod(time,1.); //1 is Tperiod
-#ifdef _NOVISION_
-        const int nStates = (nActions==1) ? 20+ 8*20 : 25+  8*20;
-#else
-        const int nStates = (nActions==1) ? 20+10*20 : 25+ 10*20;
-#endif
+        #ifdef _NOVISION_
+          const int nStates = (nActions==1) ? 20+ 8*20 : 25+  8*20;
+        #else
+          const int nStates = (nActions==1) ? 20+10*20 : 25+ 10*20;
+        #endif
         vector<Real> state(nStates), actions(nActions);
 
         int k(0);
@@ -100,7 +103,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
         state[k++] = relT;
         state[k++] = new_curv;
         state[k++] = old_curv;
-/*
+        /*
         if(nActions==2) { //this is for backwards compatibility
             state[k++] = new_Tp;
                         //2.*M_PI*((time-time0)/l_Tp +timeshift -rS[i]/length) + M_PI*phaseShift
@@ -111,7 +114,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
             state[k++] = sr.VY;
             state[k++] = sr.AV;
         }
-*/
+        */
         state[k++] = sr.Dist;
         state[k++] = sr.Quad;
         state[k++] = sr.VxAvg;
@@ -139,12 +142,15 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
         for (int j=0; j<2*NpLatLine; j++) state[k++] = sr.raySight[j];
         #endif
         */
+        printf("About to ask state\n");
+        fflush(0);
         const Real reward = (sr.info==2) ? -10 : sr.EffPDefBnd;
         comm->sendState(iAgent-1, sr.info, state, reward); //TODO
         fflush(0);
         if (sr.info==2) return;
 
         sr.info = 0;
+        printf("About to ask action\n");
 
         comm->recvAction(actions);
         myFish->execute(time, sr.t_next_comm, actions);
@@ -158,14 +164,12 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
             sr.t_next_comm += .5*myFish->Tperiod;
         //}
 
-        #ifndef TRAINING
         ofstream filedrag;
         filedrag.open(("orders_"+to_string(iAgent)+".txt").c_str(), ios::app);
         filedrag<<time<<" "<<new_curv;
-        if(nActions==2) filedrag<<" "<<new_Tp;
+        //if(nActions==2) filedrag<<" "<<new_Tp;
         filedrag<<endl;
         filedrag.close();
-        #endif //TRAINING
 
         sr.resetAverage();
     }

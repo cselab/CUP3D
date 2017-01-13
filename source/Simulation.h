@@ -44,7 +44,7 @@ namespace ComputationDiagnostics
 {
     static void print_memory_usage(long & peak_rss_bytes, long & current_rss_bytes)
     {
-/*
+        /*
         peak_rss_bytes = -1;
         current_rss_bytes=-1;
 
@@ -68,7 +68,7 @@ namespace ComputationDiagnostics
 
         current_rss_bytes = rss * sysconf( _SC_PAGESIZE);
         //printf("current resident set size = %ld bytes (%.2lf Mbytes)\n", current_rss_bytes, current_rss_bytes/(1024.0*1024.0));
-        */
+*/
     }
 }
 

@@ -90,11 +90,13 @@ void IF3D_ObstacleVector::Accept(ObstacleVisitor * visitor)
 		obstacles[i]->Accept(visitor);
 }
 
-void IF3D_ObstacleVector::_getData(std::vector<StateReward*> & Data)
+std::vector<StateReward*> IF3D_ObstacleVector::_getData()
 {
-    int ind(0);
+    int ind = 0;
+    std::vector<StateReward*> _D(obstacles.size());
     for(const auto & obstacle_ptr : obstacles)
-        Data[ind++] = obstacle_ptr->_getData();
+        _D[ind++] = obstacle_ptr->_getData();
+    return _D;
 }
 
 void IF3D_ObstacleVector::execute(Communicator * comm, const int iAgent, const Real time)

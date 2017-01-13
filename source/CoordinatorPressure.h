@@ -140,6 +140,7 @@ struct PressurePenaltyVisitor : ObstacleVisitor
      }
 };
 
+/*
 class PressRHSOperator : public GenericLabOperator
 {
 	private:
@@ -186,6 +187,7 @@ class PressRHSOperator : public GenericLabOperator
 			}
     }
 };
+*/
 
 class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 {

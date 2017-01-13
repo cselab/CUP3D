@@ -392,9 +392,9 @@ protected:
 
 	  double ti = 0;
 		for(int i=0;i<Nm;++i) {
-			dest[i] = 0;
+			res[i] = 0;
 			if (rS[i]>0 and rS[i]<length) {
-				const double dtt = 0.1*(rS[i]-rS[i-1])
+				const double dtt = 0.1*(rS[i]-rS[i-1]);
 				while (true) {
 					double xi = 0;
 			    gsl_bspline_eval(ti, B, bw);
@@ -405,7 +405,7 @@ protected:
 				}
 
 				for (int j=0; j<n; j++)
-					dest[i] += yc[j]*gsl_vector_get(B, j);
+					res[i] += yc[j]*gsl_vector_get(B, j);
 			}
 		}
   	gsl_bspline_free(bw);

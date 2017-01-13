@@ -37,7 +37,7 @@ public:
     void create(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
     void Accept(ObstacleVisitor * visitor) override;
 
-    void _getData(std::vector<StateReward*> & Data);
+    std::vector<StateReward*> _getData();
     void execute(Communicator * comm, const int iAgent, const Real time) override;
 
     void addObstacle(IF3D_ObstacleOperator * obstacle)

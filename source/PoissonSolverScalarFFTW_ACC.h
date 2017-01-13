@@ -1,11 +1,9 @@
 #pragma once
-
 //#include <mpi.h>
 //#include <vector>
 //#include <cassert>
 //#include <cmath>
 //#include <iostream>
-
 
 #include "Definitions.h"
 #include <accfft_utils.h>
@@ -36,7 +34,7 @@
 using namespace std;
 
 #ifdef _CUDA_COMP_
-void _fourier_filter_gpu(myComplex *data_hat, const Real h);
+void _fourier_filter_gpu(myComplex *data_hat, const int N[3], const int isize[3], const int istart[3], const Real h);
 #endif
 
 template<typename TGrid, typename TStreamer>
@@ -163,7 +161,9 @@ public:
 			printf("Poisson solver assumes grid is distrubuted in x and y directions.\n");
 			abort();
 		}
-
+#ifdef _CUDA_COMP_
+		//printf("NO CUDA FOR YOU!\n" ); abort();
+#endif
 		MPI_Comm_rank(MPI_COMM_WORLD, &procid);
 		MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
 		int n[3] = {totbpd[0]*bs[0], totbpd[1]*bs[1], totbpd[2]*bs[2]};
@@ -186,14 +186,14 @@ public:
 	#endif
 #endif
       printf("[mpi rank %d] isize  %3d %3d %3d\n",procid,mybpd[0],mybpd[1],mybpd[2]);
-		printf("[mpi rank %d] isize  %3d %3d %3d osize  %3d %3d %3d\n", procid,
-				isize[0],isize[1],isize[2],
-				osize[0],osize[1],osize[2]
-		);
-		printf("[mpi rank %d] istart %3d %3d %3d ostart %3d %3d %3d\n", procid,
-				istart[0],istart[1],istart[2],
-				ostart[0],ostart[1],ostart[2]
-		);
+	printf("[mpi rank %d] isize  %3d %3d %3d osize  %3d %3d %3d\n", procid,
+			isize[0],isize[1],isize[2],
+			osize[0],osize[1],osize[2]
+	);
+	printf("[mpi rank %d] istart %3d %3d %3d ostart %3d %3d %3d\n", procid,
+			istart[0],istart[1],istart[2],
+			ostart[0],ostart[1],ostart[2]
+	);
       assert(isize[0]==n[0] && isize[1]==n[1] && isize[2]==n[2]);
 
 #ifdef _CUDA_COMP_
@@ -254,7 +254,8 @@ public:
 		MPI_Barrier(c_comm);
 		const Real h = grid.getBlocksInfo().front().h_gridpoint;
 #ifdef _CUDA_COMP_
-		_fourier_filter_gpu(phi_hat, h);
+		const int NN[3] = {totbpd[0]*bs[0], totbpd[1]*bs[1], totbpd[2]*bs[2]}; 
+		_fourier_filter_gpu(phi_hat, NN, osize, ostart, h);
 #else
 		_fourier_filter(phi_hat, h);
 #endif

@@ -1,5 +1,7 @@
 #CC ?= g++
 CC ?= mpic++
+NVCC?=nvcc
+NVFLAGS?=-O3 -code=sm_60 -arch=compute_60
 LD=$(CC)
 
 nthreads ?= 48
@@ -20,6 +22,7 @@ CPPFLAGS+= -Wshadow -Woverloaded-virtual
 
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_SP_COMP_
+	NVCCFLAGS += -D_SP_COMP_
 endif
 
 CPPFLAGS += -D_BS_=$(bs)
@@ -53,6 +56,7 @@ ifneq "$(findstring euler,$(shell hostname))" ""
 endif
 
 CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
+#NVFLAGS += -std=c++11 
 CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/
 CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
@@ -82,13 +86,8 @@ LIBS +=	-L$(vtk-lib) \
 	-lvtksys
 endif
 
-ifeq "$(hdf)" "true"
-	CPPFLAGS += -D_USE_HDF_
-	LIBS += -lhdf5
-else
-	CPPFLAGS += -D_USE_LZ4_
-	LIBS += -lhdf5
-endif
+CPPFLAGS += -D_USE_HDF_ #-I$(hdf-inc)
+LIBS += -lhdf5 #-L$(hdf-lib) -lhdf5
 
 ifeq "$(precision)" "single"
 	LIBS += -lfftw3f -lfftw3f_threads -lfftw3f_mpi
@@ -99,7 +98,7 @@ endif
 
 LIBS += -L../tools/fpzip/lib -lfpzip
 
-LIBS += -lstdc++ -lm -ldl -lz
+LIBS += -lstdc++ -lgsl -lgslcblas -lm -ldl -lz
 
 BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
@@ -109,9 +108,11 @@ OBJECTS = Communicator.o ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_Obsta
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"
-	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc)
-	LIBS += -L$(accfft-lib) -laccfft
+	CPPFLAGS += -D_ACCFFT_ -D_CUDA_COMP_ -I$(accfft-inc)
+	LIBS += -L$(accfft-lib) -laccfft 
+	NVOBJECTS = PoissonSolverScalarFFTW_ACC.o
 else
+	NVOBJECTS =
 	OBJECTS += PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o
 endif
 
@@ -119,16 +120,20 @@ VPATH := $(SRC_DIR):$(CUBISM_DIR)
 
 .DEFAULT_GOAL := simulation
 
-simulation: $(OBJECTS)
+simulation: $(OBJECTS) $(NVOBJECTS)
 	#echo Linking
 	#echo CC = $(CC) OBJECTS = $(OBJECTS)
 	#echo ************************
-	$(LD) $(OBJECTS) -o $@ $(LIBS) $(LDFLAGS)
+	$(LD) $(OBJECTS) $(NVOBJECTS) $(LIBS) $(LDFLAGS) -o $@
 	#echo ************************
 
 %.o: %.cpp
-	$(CC) $(CPPFLAGS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(LIBS) -c $< -o $@
+
+PoissonSolverScalarFFTW_ACC.o: PoissonSolverScalarFFTW_ACC.cu
+	nvcc $(NVFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJECTS)
 	rm -f simulation
+	rm -f PoissonSolverScalarFFTW*.o

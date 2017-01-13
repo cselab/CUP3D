@@ -317,20 +317,20 @@ void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const Rea
     const std::string tab("\t");
 
     if(step_id==0)
-        savestream << "step" << tab << "time" << tab << "CMx" << tab << "CMy" << tab << "CMz" << tab
-				   << "quat_0" << tab << "quat_1" << tab << "quat_2" << tab << "quat_3" << tab
-				   << "vel_x" << tab << "vel_y" << tab << "vel_z" << tab
-				   << "angvel_x" << tab << "angvel_y" << tab << "angvel_z" << tab << "volume" << tab
-				   << "J0" << tab << "J1" << tab << "J2" << tab << "J3" << tab << "J4" << tab << "J5" << std::endl;
+        savestream<<"step"<<tab<<"time"<<tab<<"CMx"<<tab<<"CMy"<<tab<<"CMz"<<tab
+				  <<"quat_0"<<tab<<"quat_1"<<tab<<"quat_2"<<tab<<"quat_3"<<tab
+				  <<"vel_x"<<tab<<"vel_y"<<tab<<"vel_z"<<tab
+				  <<"angvel_x"<<tab<<"angvel_y"<<tab<<"angvel_z"<<tab<<"volume"<<tab
+				  <<"J0"<<tab<<"J1"<<tab<<"J2"<<tab<<"J3"<<tab<<"J4"<<tab<<"J5"<<std::endl;
 
-    savestream << step_id << tab;
+    savestream<<step_id<<tab;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<float>::digits10 + 1);
-    savestream << t << tab << position[0] << tab << position[1] << tab << position[2] << tab
-    		   << quaternion[0] << tab << quaternion[1] << tab << quaternion[2] << tab << quaternion[3] << tab
-			   << transVel[0]-Uinf[0] << tab << transVel[1]-Uinf[1] << tab << transVel[2]-Uinf[2] << tab
-			   << angVel[0] << tab << angVel[1] << tab << angVel[2] << tab << volume << tab
-			   << J[0] << tab << J[1] << tab << J[2] << tab << J[3] << tab << J[4] << tab << J[5] << std::endl;
+    savestream<<t<<tab<<position[0]<<tab<<position[1]<<tab<<position[2]<<tab
+    		  <<quaternion[0]<<tab<<quaternion[1]<<tab<<quaternion[2]<<tab<<quaternion[3]<<tab
+			  <<transVel[0]-Uinf[0]<<tab<<transVel[1]-Uinf[1]<<tab<<transVel[2]-Uinf[2]<<tab
+			  <<angVel[0]<<tab<<angVel[1]<<tab<<angVel[2]<<tab<<volume<<tab
+			  <<J[0]<<tab<<J[1]<<tab<<J[2]<<tab<<J[3]<<tab<<J[4]<<tab<<J[5]<<std::endl;
     savestream.close();
 }
 
@@ -350,8 +350,8 @@ void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const Real
     savestream << step_id << tab;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<float>::digits10 + 1);
-    savestream << t << tab << mass << tab << force[0] << tab << force[1] << tab << force[2] << tab
-    		   << torque[0] << tab << torque[1] << tab << torque[2] << std::endl;
+    savestream<<t<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
+    		  <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
     savestream.close();
 }
 
@@ -629,7 +629,9 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
     const Real velx_tot = transVel[0]-Uinf[0];
     const Real vely_tot = transVel[1]-Uinf[1];
     const Real velz_tot = transVel[2]-Uinf[2];
-    const Real vel_norm = std::sqrt(velx_tot*velx_tot + vely_tot*vely_tot + velz_tot*velz_tot);
+    const Real vel_norm = std::sqrt(velx_tot*velx_tot
+                                  + vely_tot*vely_tot 
+                                  + velz_tot*velz_tot);
     if (vel_norm>1e-9) {
         vel_unit[0] = velx_tot/vel_norm;
         vel_unit[1] = vely_tot/vel_norm;
@@ -638,7 +640,8 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
 
     vector<ForcesOnSkin*> finalize;
     for(int i = 0; i < nthreads; ++i) {
-    	ForcesOnSkin* tmp = new ForcesOnSkin(NU,vel_unit,Uinf,CM,&obstacleBlocks,&surfData,&surfaceBlocksFilter,&partialSums[i]);
+    	ForcesOnSkin* tmp = new ForcesOnSkin(NU,vel_unit,Uinf,CM,&obstacleBlocks,
+                              &surfData,&surfaceBlocksFilter,&partialSums[i]);
     	finalize.push_back(tmp);
     }
 
@@ -686,11 +689,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
         if(stepID==0)
 		fileForce<<"Fx Fy Fz FxPres FyPres FzPres FxVisc FyVisc FzVisc TorqX TorqY TorqZ drag thrust surface\n"<<std::endl;
 
-        fileForce<<time<<" "<<surfForce[0] <<" "<<surfForce[1] <<" "<<surfForce[2] <<" "
-						    <<globalSum[4] <<" "<<globalSum[5] <<" "<<globalSum[6] <<" "
-        		 		    <<globalSum[7] <<" "<<globalSum[8] <<" "<<globalSum[9] <<" "
-        		 		    <<globalSum[16]<<" "<<globalSum[17]<<" "<<globalSum[18]<<" "
-						    << drag  <<" "<< thrust<<" "<< totChi<<endl;
+        fileForce<<time<<" "<<surfForce[0]<<" "<<surfForce[1]<<" "<<surfForce[2]
+                 <<" "<<globalSum[4] <<" "<<globalSum[5] <<" "<<globalSum[6]
+                 <<" "<<globalSum[7] <<" "<<globalSum[8] <<" "<<globalSum[9]
+                 <<" "<<globalSum[16]<<" "<<globalSum[17]<<" "<<globalSum[18]
+                 <<" " << drag <<" "<< thrust <<" "<< totChi <<endl;
         fileForce.close();
         filePower.open(ssP.str().c_str(), ios::app);
         filePower<<time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
@@ -749,11 +752,11 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
 
     #ifndef NDEBUG
     if(rank==0) {
-    	std::cout << "POSITION INFO AFTER UPDATE T, DT: " << t << " " << dt << std::endl;
-    	std::cout << "POS: " << position[0] << " " << position[1] << " " << position[2] << std::endl;
-    	std::cout << "TVL: " << transVel[0] << " " << transVel[1] << " " << transVel[2] << std::endl;
-    	std::cout << "QUT: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
-    	std::cout << "AVL: " << angVel[0] << " " << angVel[1] << " " << angVel[2] << std::endl;
+    	std::cout<<"POSITION INFO AFTER UPDATE T, DT: "<<t<<" "<<dt<<std::endl;
+    	std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
+    	std::cout<<"TVL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
+    	std::cout<<"QUT: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
+    	std::cout<<"AVL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
     }
     const Real q_length=std::sqrt(quaternion[0]*quaternion[0]
 							   +  quaternion[1]*quaternion[1]
@@ -836,51 +839,52 @@ void IF3D_ObstacleOperator::getCenterOfMass(Real CM[3]) const
 
 void IF3D_ObstacleOperator::save(const int step_id, const Real t, std::string filename)
 {
-	if(rank!=0) return;
+    if(rank!=0) return;
+    sr.save(step_id,filename);
     std::ofstream savestream;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<Real>::digits10 + 1);
     savestream.open(filename+".txt");
-    savestream << t << std::endl;
-    savestream << position[0] << "\t" << position[1] << "\t" << position[2] << std::endl;
-    savestream << absPos[0] << "\t" << absPos[1] << "\t" << absPos[2] << std::endl;
-    savestream << quaternion[0] << "\t" << quaternion[1] << "\t" << quaternion[2] << "\t" << quaternion[3] << std::endl;
-    savestream << transVel[0] << "\t" << transVel[1] << "\t" << transVel[2] << std::endl;
-    savestream << angVel[0] << "\t" << angVel[1] << "\t" << angVel[2] << std::endl;
-    savestream << _2Dangle << std::endl;
+    savestream<<t<<std::endl;
+    savestream<<position[0]<<"\t"<<position[1]<<"\t"<<position[2]<<std::endl;
+    savestream<<absPos[0]<<"\t"<<absPos[1]<<"\t"<<absPos[2]<<std::endl;
+    savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
+    savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
+    savestream<<angVel[0]<<"\t"<<angVel[1]<<"\t"<<angVel[2]<<std::endl;
+    savestream<<_2Dangle<<std::endl;
 }
 
 void IF3D_ObstacleOperator::restart(const Real t, std::string filename)
 {
+    sr.restart(filename);
     std::ifstream restartstream;
     restartstream.open(filename+".txt");
-
     Real restart_time;
     restartstream >> restart_time;
-    assert(std::abs(restart_time-t) < 1e-9);
+    //assert(std::abs(restart_time-t) < 1e-9);
 
-    restartstream >> position[0] >> position[1] >> position[2];
-    restartstream >> absPos[0] >> absPos[1] >> absPos[2];
-    restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
-    restartstream >> transVel[0] >> transVel[1] >> transVel[2];
-    restartstream >> angVel[0] >> angVel[1] >> angVel[2];
+    restartstream>>position[0]>>position[1]>>position[2];
+    restartstream>>absPos[0]>>absPos[1]>>absPos[2];
+    restartstream>>quaternion[0]>>quaternion[1]>>quaternion[2]>>quaternion[3];
+    restartstream>>transVel[0]>>transVel[1]>>transVel[2];
+    restartstream>>angVel[0]>>angVel[1]>>angVel[2];
     restartstream >> _2Dangle;
     restartstream.close();
 
     {
-        std::cout << "RESTARTED BODY: " << std::endl;
-        std::cout << "TIME: \t" << restart_time << std::endl;
-        std::cout << "POS : \t" << position[0] << " " << position[1]
-                                << " " << position[2] << std::endl;
-        std::cout << "ABS POS : \t" << absPos[0] << " " << absPos[1]
-                                << " " << absPos[2] << std::endl;
-        std::cout << "ANGLE:\t" << quaternion[0] << " " << quaternion[1] << " "
-                                << quaternion[2] << " " << quaternion[3] << std::endl;
-        std::cout << "TVEL: \t" << transVel[0] << " " << transVel[1]
-                                << " " << transVel[2] << std::endl;
-        std::cout << "AVEL: \t" << angVel[0] << " " << angVel[1]
-                                << " " << angVel[2] << std::endl;
-        std::cout << "2D angle: \t" << _2Dangle << std::endl;
+        std::cout<<"RESTARTED BODY: "<<std::endl;
+        std::cout<<"TIME: \t"<<restart_time<<std::endl;
+        std::cout<<"POS : \t"<<position[0]<<" "<<position[1]
+                               <<" "<<position[2]<<std::endl;
+        std::cout<<"ABS POS : \t"<<absPos[0]<<" "<<absPos[1]
+                               <<" "<<absPos[2]<<std::endl;
+        std::cout<<"ANGLE:\t"<<quaternion[0]<<" "<<quaternion[1]<<" "
+                               <<quaternion[2]<<" "<<quaternion[3]<<std::endl;
+        std::cout<<"TVEL: \t"<<transVel[0]<<" "<<transVel[1]
+                               <<" "<<transVel[2]<<std::endl;
+        std::cout<<"AVEL: \t"<<angVel[0]<<" "<<angVel[1]
+                               <<" "<<angVel[2]<<std::endl;
+        std::cout<<"2D angle: \t"<<_2Dangle<<std::endl;
     }
 }
 
