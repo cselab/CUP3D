@@ -292,7 +292,7 @@ public:
         if(pX      not_eq nullptr){delete[] pX;      pX=nullptr;     }
         if(pY      not_eq nullptr){delete[] pY;      pY=nullptr;     }
         if(pZ      not_eq nullptr){delete[] pZ;      pZ=nullptr;     }
-        if(P       not_eq nullptr){delete[] P;   	 P=nullptr;  	}
+        if(P       not_eq nullptr){delete[] P;       P=nullptr;  	   }
         if(fX      not_eq nullptr){delete[] fX;      fX=nullptr;     }
         if(fY      not_eq nullptr){delete[] fY;      fY=nullptr;     }
         if(fZ      not_eq nullptr){delete[] fZ;      fZ=nullptr;     }
@@ -322,16 +322,10 @@ public:
 
     void finalizeOnGrid(vector<surfaceBlocks>& blocksPerThread)
     {
-		Ndata = 0;
-		for(int i=0; i<blocksPerThread.size(); i++) {
-			//printf("Processing chunk %d of size %d, current size is %d (%d)\n", i,blocksPerThread[i].Set.size(),Ndata,Set.size());
-			for(int j=0; j<blocksPerThread[i].Set.size(); j++)
-				_add(blocksPerThread[i].Set[j]);
-
-
-			//printf("Processed chunk %d of size %d, current size is %d (%d)\n", i,blocksPerThread[i].Set.size(),Ndata,Set.size());
-		}
-			//for (auto & elem : blocksPerThread[i].Set) _add(elem);
+    		Ndata = 0;
+    		for(int i=0; i<blocksPerThread.size(); i++)
+    			for(int j=0; j<blocksPerThread[i].Set.size(); j++)
+    				_add(blocksPerThread[i].Set[j]);
 
         if (Ndata > nAlloc) {
             nAlloc = Ndata;
@@ -365,12 +359,12 @@ public:
             P       = new Real[nAlloc]; gridMap = new  int[nAlloc];
         }
 
-#ifndef NDEBUG
-		int checksum = 0;
-		for(int i=0; i<blocksPerThread.size(); i++) checksum += blocksPerThread[i].Ndata;
-		assert(checksum==Ndata);
-		printf("Random assortment of numbers in the surface blocks stuff: %d == %d <= %d\n",checksum,Ndata, nAlloc);
-#endif
+        #ifndef NDEBUG
+    		int checksum = 0;
+    		for(int i=0; i<blocksPerThread.size(); i++) checksum += blocksPerThread[i].Ndata;
+    		assert(checksum==Ndata);
+    		printf("Random assortment of numbers in the surface blocks stuff: %d == %d <= %d\n",checksum,Ndata, nAlloc);
+        #endif
     }
 
     void sort(const Real* const skinX, const Real* const skinY, const Real* const skinZ, const int skinN)
@@ -400,9 +394,11 @@ public:
         fileskin.open(filename, ios::trunc);
 
         for(int i=0; i<Ndata; ++i) {
-            fileskin<<pX[i]<<" "<<pY[i]<<" "<<pZ[i]<<" "<<P[i]<<" "<<
-					  fxP[i]<<" "<<fyP[i]<<" "<<fzP[i]<<" "<<fxV[i]<<" "<<fyV[i]<<" "<<fzV[i]<<" "<<
-					  vx[i]<<" "<<vy[i]<<" "<<vz[i]<<" "<<vxDef[i]<<" "<<vyDef[i]<<" "<<vzDef[i]<<endl;
+            fileskin<< pX[i]<<" "<< pY[i]<<" "<< pZ[i]<<" "<<P[i]<<" "
+                    <<fxP[i]<<" "<<fyP[i]<<" "<<fzP[i]<<" "
+                    <<fxV[i]<<" "<<fyV[i]<<" "<<fzV[i]<<" "
+                    << vx[i]<<" "<< vy[i]<<" "<< vz[i]<<" "
+                    <<vxDef[i]<<" "<<vyDef[i]<<" "<<vzDef[i]<<endl;
         }
         fileskin.close();
     }

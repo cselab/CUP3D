@@ -1393,8 +1393,6 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 	array<Real,4>* const momenta;
 	surfaceBlocks* const surface;
 	std::map<int,ObstacleBlock*>* const obstacleBlocks;
-
-
 	//PutFishOnBlocks_Finalize finalize(obstacleBlocks,dataPerThread[tid],tmp,blockID);
 
 	PutFishOnBlocks_Finalize(map<int,ObstacleBlock*>* const obstacleBlocks, //to write chi
@@ -1410,6 +1408,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 	inline Real sign(const Real& val) const {
 		return (0. < val) - (val < 0.);
 	}
+
 	template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
 	{
@@ -1460,12 +1459,13 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			Real Hp[3], Hm[3]; //only x y and z, the direction where i need gradChi
 			for(int i=0; i<3; i++) {
 				Hp[i] = (Up[i]> h) ? h : (
-						(Up[i]<-h) ? 0 :
-								.5*h+(Up[i]-fac1*sign(Up[i])*Up[i]*Up[i]));
+								(Up[i]<-h) ? 0 :
+														.5*h + (Up[i] - fac1*sign(Up[i])*Up[i]*Up[i]) );
 				Hm[i] = (Um[i]> h) ? h : (
-						(Um[i]<-h) ? 0 :
-								.5*h+(Um[i]-fac1*sign(Um[i])*Um[i]*Um[i]));
+								(Um[i]<-h) ? 0 :
+														.5*h + (Um[i] - fac1*sign(Um[i])*Um[i]*Um[i]) );
 			}
+
 			const Real gradH[3] = {.5*(Hp[0]-Hm[0]), .5*(Hp[1]-Hm[1]), .5*(Hp[2]-Hm[2])};
 			Real gradUU[3], gradUI[3], gradUH[3];
 			for (int i=0; i<3; i++) {
@@ -1474,9 +1474,10 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 				gradUH[i] = gradU[i]*gradH[i];
 			}
 			for (int i=0; i<3; i++)  gradUU[i] = max(gradUU[i], eps);
-			const Real FDD = h*(gradUH[0] + gradUH[1] + gradUH[2])/gradUU[0]; // == delta * h^3
-			const Real FDH = 1/3. * (gradUI[0]/gradUU[0]+gradUI[1]/gradUU[1]+gradUI[2]/gradUU[2]);
+			const Real FDH = 1/3. *(gradUI[0]/gradUU[0]+gradUI[1]/gradUU[1]+gradUI[2]/gradUU[2]);
 
+			const Real gradUSq = gradU[0]*gradI[0] + gradU[1]*gradI[1] + gradU[2]*gradI[2];
+			const Real FDD = gradUSq<eps?0:(gradUH[0]+gradUH[1]+gradUH[2])*h/gradUSq; // == delta * h^3
 
 			if (FDD>eps) {
 				const Real dchidx = -FDD*gradU[0];
@@ -1484,9 +1485,9 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 				const Real dchidz = -FDD*gradU[2];
 				surface->add(info.blockID, ix, iy, iz, dchidx, dchidy, dchidz, FDD);
 			}
-#ifndef NDEBUG
+			#ifndef NDEBUG
 			//		if(FDH<0 || FDH>1) printf("invalid H?: %9.9e %9.9e %9.9e: %9.9e\n",x,y,z,FDH);
-#endif
+			#endif
 			(*momenta)[0] += FDH;
 			(*momenta)[1] += p[0]*FDH;
 			(*momenta)[2] += p[1]*FDH;
@@ -1554,13 +1555,13 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			const Real gradIZ = inv2h * (IplusZ - IminuZ);
 			const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
 
-			const Real gradHX = inv2h * (HplusX - HminuX);
-			const Real gradHY = inv2h * (HplusY - HminuY);
-			const Real gradHZ = inv2h * (HplusZ - HminuZ);
+			const Real gradHX = 0.5 * (HplusX - HminuX);
+			const Real gradHY = 0.5 * (HplusY - HminuY);
+			const Real gradHZ = 0.5 * (HplusZ - HminuZ);
 			const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
 
-			const Real Delta = std::abs(gradUSq) < eps ? numD : numD/gradUSq;
-			const Real H     = std::abs(gradUSq) < eps ? numH : numH/gradUSq;
+			const Real Delta = std::fabs(gradUSq) < eps ? 0 : numD*h*h/gradUSq; //h^3 * Delta
+			const Real H     = std::fabs(gradUSq) < eps ? 0 : numH    /gradUSq;
 
 			if (Delta>1e-6) {
 				const Real dchidx = -Delta*gradUX;

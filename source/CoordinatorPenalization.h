@@ -22,7 +22,8 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
     //Real ext_X, ext_Y, ext_Z;
     vector<BlockInfo> vInfo;
 
-    PenalizationObstacleVisitor(FluidGridMPI * grid, const Real dt, const Real lambda, Real* const uInf)
+    PenalizationObstacleVisitor(FluidGridMPI * grid, const Real dt,
+																const Real lambda, Real* const uInf)
     : grid(grid), dt(dt), lambda(lambda), uInf(uInf)
     {
         vInfo = grid->getBlocksInfo();
@@ -73,12 +74,12 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
             obstacle->getTranslationVelocity(uBody);
             obstacle->getAngularVelocity(omegaBody);
             /*
-			#pragma omp master
+						#pragma omp master
             printf("%f %f %f %f %f %f %f %f %f %f %f %f\n",
             		uBody[0],uBody[1],uBody[2],omegaBody[0],omegaBody[1],omegaBody[2],
             		centerOfMass[0],centerOfMass[1],centerOfMass[2],uInf[0],uInf[1],uInf[2]);
-			*/
-#pragma omp for schedule(dynamic)
+								*/
+						#pragma omp for schedule(dynamic)
             for(int i=0; i<vInfo.size(); i++) {
             	BlockInfo info = vInfo[i];
             	const auto pos = obstblocks.find(info.blockID);
@@ -86,36 +87,36 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
             	FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
             	for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-				if (pos->second->chi[iz][iy][ix] > 0) {
-					Real p[3];
-					info.pos(p, ix, iy, iz);
-					p[0]-=centerOfMass[0];
-					p[1]-=centerOfMass[1];
-					p[2]-=centerOfMass[2];
-					const Real lamdtX  = dt * lambda * pos->second->chi[iz][iy][ix];
-					const Real object_UR[3] = {
-							omegaBody[1]*p[2]-omegaBody[2]*p[1],
-							omegaBody[2]*p[0]-omegaBody[0]*p[2],
-							omegaBody[0]*p[1]-omegaBody[1]*p[0]
-					};
-					const Real object_UDEF[3] = {
-							pos->second->udef[iz][iy][ix][0],
-							pos->second->udef[iz][iy][ix][1],
-							pos->second->udef[iz][iy][ix][2]
-					};
-					const Real U_TOT[3] = {
-							uBody[0]+object_UR[0]+object_UDEF[0]-uInf[0],
-							uBody[1]+object_UR[1]+object_UDEF[1]-uInf[1],
-							uBody[2]+object_UR[2]+object_UDEF[2]-uInf[2]
-					};
-					const Real alpha = 1./(1.+lamdtX);
-					b(ix,iy,iz).u = alpha*b(ix,iy,iz).u + (1.-alpha)*(U_TOT[0]);
-					b(ix,iy,iz).v = alpha*b(ix,iy,iz).v + (1.-alpha)*(U_TOT[1]);
-					b(ix,iy,iz).w = alpha*b(ix,iy,iz).w + (1.-alpha)*(U_TOT[2]);
-				}
-             }
+							for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+							for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+							if (pos->second->chi[iz][iy][ix] > 0) {
+								Real p[3];
+								info.pos(p, ix, iy, iz);
+								p[0]-=centerOfMass[0];
+								p[1]-=centerOfMass[1];
+								p[2]-=centerOfMass[2];
+								const Real lamdtX  = dt * lambda * pos->second->chi[iz][iy][ix];
+								const Real object_UR[3] = {
+										omegaBody[1]*p[2]-omegaBody[2]*p[1],
+										omegaBody[2]*p[0]-omegaBody[0]*p[2],
+										omegaBody[0]*p[1]-omegaBody[1]*p[0]
+								};
+								const Real object_UDEF[3] = {
+										pos->second->udef[iz][iy][ix][0],
+										pos->second->udef[iz][iy][ix][1],
+										pos->second->udef[iz][iy][ix][2]
+								};
+								const Real U_TOT[3] = {
+										uBody[0]+object_UR[0]+object_UDEF[0]-uInf[0],
+										uBody[1]+object_UR[1]+object_UDEF[1]-uInf[1],
+										uBody[2]+object_UR[2]+object_UDEF[2]-uInf[2]
+								};
+								const Real alpha = 1./(1.+lamdtX);
+								b(ix,iy,iz).u = alpha*b(ix,iy,iz).u + (1.-alpha)*(U_TOT[0]);
+								b(ix,iy,iz).v = alpha*b(ix,iy,iz).v + (1.-alpha)*(U_TOT[1]);
+								b(ix,iy,iz).w = alpha*b(ix,iy,iz).w + (1.-alpha)*(U_TOT[2]);
+							}
+           }
          }
      }
 };

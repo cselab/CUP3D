@@ -278,7 +278,7 @@ void Simulation::simulate()
 					bool bDoOver = false;
 					const int nO = obstacle_vector->nObstacles();
 					std::vector<StateReward*> _D(nO);
-					
+
 					for(int i=1; i<nO; i++) {
 						bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel,
 																			 _D[0]->thExp, length);

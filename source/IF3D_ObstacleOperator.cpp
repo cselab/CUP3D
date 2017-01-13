@@ -13,41 +13,44 @@ struct ForcesOnSkin : public GenericLabOperator
 {
     Real t;
     const Real NU, *vel_unit, *Uinf, *CM;
-	int stencil_start[3], stencil_end[3];
-	array<Real,19>* const measures;
-	surfacePoints* const surfData;
-	const map<int, pair<int, int>>* const surfaceBlocksFilter;
+  	int stencil_start[3], stencil_end[3];
+  	array<Real,19>* const measures;
+  	surfacePoints* const surfData;
+  	const map<int, pair<int, int>>* const surfaceBlocksFilter;
     std::map<int,ObstacleBlock*>* const obstacleBlocks;
 
-    ForcesOnSkin(const Real NU, const Real* vel_unit, const Real* Uinf, const Real * CM,
-    				map<int,ObstacleBlock*>* const obstacleBlocks,    	    //to read udef
-					surfacePoints* const surface, 						    //most info I/O
-					const map<int,pair<int,int>>* const surfaceBlocksFilter,//skip useless blocks
-					array<Real,19>* const measures)     	                //additive quantities
-	: t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures), surfData(surface),
-	  surfaceBlocksFilter(surfaceBlocksFilter), obstacleBlocks(obstacleBlocks)
+    ForcesOnSkin(const Real NU, const Real* vel_unit, const Real* Uinf, const Real* CM,
+    			map<int,ObstacleBlock*>* const obstblocks,    	  //to read udef
+					surfacePoints* const surface, 						        //most info I/O
+					const map<int,pair<int,int>>*const surfBFilter,   //skip useless blocks
+					array<Real,19>* const measures)     	            //additive quantities
+	: t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures),
+  surfData(surface),surfaceBlocksFilter(surfBFilter), obstacleBlocks(obstblocks)
 	{
     		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
-		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
-		stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
+    		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
+    		stencil_end[0]   = stencil_end[1]   = stencil_end[2]   = +2;
 	}
 
-    ForcesOnSkin(const ForcesOnSkin& c):
-    	t(0), NU(c.NU), vel_unit(c.vel_unit), Uinf(c.Uinf), CM(c.CM), measures(c.measures),
-		surfData(c.surfData), surfaceBlocksFilter(c.surfaceBlocksFilter), obstacleBlocks(c.obstacleBlocks)
-    {
-    	abort();
-    	stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
-    	stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
-    	stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
-    }
+  ForcesOnSkin(const ForcesOnSkin& c):
+  	t(0), NU(c.NU), vel_unit(c.vel_unit), Uinf(c.Uinf), CM(c.CM), measures(c.measures),
+	surfData(c.surfData), surfaceBlocksFilter(c.surfaceBlocksFilter), obstacleBlocks(c.obstacleBlocks)
+  {
+  	abort();
+  	stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
+  	stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
+  	stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
+  }
 
-    template <typename Lab, typename BlockType>
+  template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
 	{
       const auto pos = surfaceBlocksFilter->find(info.blockID);
       if(pos == surfaceBlocksFilter->end()) return;
 
+      //get also corresponding def-vel block
+      const auto tempIt = obstacleBlocks->find(info.blockID);
+      assert(tempIt != obstacleBlocks->end());
       //mapping between non-zero gradChi points data and blocks
       const int first  = pos->second.first;
       const int second = pos->second.second;
@@ -58,25 +61,21 @@ struct ForcesOnSkin : public GenericLabOperator
       for(int i=first; i<second; i++) { //i now is a fluid element
           assert(first<second && surfData->Set.size()>=second);
           Real p[3];
+          info.pos(p, ix, iy, iz);
           const int ix = surfData->Set[i]->ix;
           const int iy = surfData->Set[i]->iy;
           const int iz = surfData->Set[i]->iz;
-
-          //get also corresponding def-vel block
-          const auto tempIt = obstacleBlocks->find(info.blockID);
-          assert(tempIt != obstacleBlocks->end());
-          info.pos(p, ix, iy, iz);
 
           //shear stresses
           const Real D11 =    _1oH*(lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u);
           const Real D22 =    _1oH*(lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v);
           const Real D33 =    _1oH*(lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w);
           const Real D12 = .5*_1oH*(lab(ix,iy+1,iz).u - lab(ix,iy-1,iz).u
-          				   +lab(ix+1,iy,iz).v - lab(ix-1,iy,iz).v);
+          				                 +lab(ix+1,iy,iz).v - lab(ix-1,iy,iz).v);
           const Real D13 = .5*_1oH*(lab(ix,iy,iz+1).u - lab(ix,iy,iz-1).u
-          				   +lab(ix+1,iy,iz).w - lab(ix-1,iy,iz).w);
+        				                   +lab(ix+1,iy,iz).w - lab(ix-1,iy,iz).w);
           const Real D23 = .5*_1oH*(lab(ix,iy+1,iz).w - lab(ix,iy-1,iz).w
-          				   +lab(ix,iy,iz+1).v - lab(ix,iy,iz-1).v);
+          				                 +lab(ix,iy,iz+1).v - lab(ix,iy,iz-1).v);
 
           //normals computed with Towers 2009
           const Real normX = surfData->Set[i]->dchidx;
@@ -189,7 +188,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
 
   			am0 += Xs * (p[1]*(w_-lin_momenta[2]) - p[2]*(v_-lin_momenta[1]));
   			am1 += Xs * (p[2]*(u_-lin_momenta[0]) - p[0]*(w_-lin_momenta[2]));
-  			am1 += Xs * (p[0]*(v_-lin_momenta[1]) - p[1]*(u_-lin_momenta[0]));
+  			am2 += Xs * (p[0]*(v_-lin_momenta[1]) - p[1]*(u_-lin_momenta[0]));
 
   			J0  += Xs * (p[1]*p[1]+p[2]*p[2]);
   			J1  += Xs * (p[0]*p[0]+p[2]*p[2]);
@@ -204,12 +203,12 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
     double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
     MPI::COMM_WORLD.Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM);
 
-    if(bFixToPlanar)
-    {
-    		ang_momenta[0] = ang_momenta[1] = 0.0;
-    		ang_momenta[2] = globals[2]/globals[5]; // av2/j2
-    }
-    else
+    //if(bFixToPlanar)
+    //{
+    //		ang_momenta[0] = ang_momenta[1] = 0.0;
+    //		ang_momenta[2] = globals[2]/globals[5]; // av2/j2
+    //}
+    //else
     {
       //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
       const Real AM[3] = {globals[0], globals[1], globals[2]};
@@ -252,7 +251,7 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
         const auto pos = obstacleBlocks.find(info.blockID);
         if(pos == obstacleBlocks.end()) continue;
 
-		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+	      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
             Real p[3];
@@ -381,11 +380,11 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const Real time
             p[0]-=CM[0];
             p[1]-=CM[1];
             p[2]-=CM[2];
-		    const Real object_UR[3] = {
-				angVel[1]*p[2]-angVel[2]*p[1],
-				angVel[2]*p[0]-angVel[0]*p[2],
-				angVel[0]*p[1]-angVel[1]*p[0]
-		    };
+    		    const Real object_UR[3] = {
+        				angVel[1]*p[2]-angVel[2]*p[1],
+        				angVel[2]*p[0]-angVel[0]*p[2],
+        				angVel[0]*p[1]-angVel[1]*p[0]
+    		    };
             const Real object_UDEF[3] = {
                 pos->second->udef[iz][iy][ix][0],
                 pos->second->udef[iz][iy][ix][1],
@@ -406,7 +405,7 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const Real time
         }
     }
 
-    double globals[7];
+    double globals[7] = {0,0,0,0,0,0,0};
     double locals[7] = {_forcex,_forcey,_forcez,_torquex,_torquey,_torquez,_area};
     MPI::COMM_WORLD.Allreduce(locals, globals, 7, MPI::DOUBLE, MPI::SUM);
 
@@ -487,7 +486,7 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 
         			am0 += Xs * (p[1]*(w_-transVel[2]) - p[2]*(v_-transVel[1]));
         			am1 += Xs * (p[2]*(u_-transVel[0]) - p[0]*(w_-transVel[2]));
-        			am1 += Xs * (p[0]*(v_-transVel[1]) - p[1]*(u_-transVel[0]));
+        			am2 += Xs * (p[0]*(v_-transVel[1]) - p[1]*(u_-transVel[0]));
 
         			J0  += Xs * (p[1]*p[1]+p[2]*p[2]);
         			J1  += Xs * (p[0]*p[0]+p[2]*p[2]);
@@ -621,10 +620,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
 		}
     }
 
-	Real CM[3];
+	   Real CM[3];
     this->getCenterOfMass(CM);
     const int nthreads = omp_get_max_threads();
     vector<array<Real,19>> partialSums(nthreads);
+		for(int i=0; i<nthreads; i++) for(int j=0; j<19; j++) partialSums[i][j]=0;
     Real vel_unit[3] = {0., 0., 0.};
     const Real velx_tot = transVel[0]-Uinf[0];
     const Real vely_tot = transVel[1]-Uinf[1];
@@ -643,7 +643,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
     }
 
     compute(finalize);
-    double localSum[19], globalSum[19];
+
+		for(int i=0; i<nthreads; i++) delete finalize[i];
+
+    double localSum[19]  = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+    double globalSum[19] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
     for(int i=0; i<nthreads; i++)
     	for(int j=0; j<19; j++)
     		localSum[j] += (double)partialSums[i][j];

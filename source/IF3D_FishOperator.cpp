@@ -186,13 +186,16 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		const int nthreads = omp_get_max_threads();
 		vector<surfaceBlocks> dataPerThread(nthreads);
 		vector<array<Real,4>> momenta(nthreads);
+		for(int i=0; i<nthreads; i++) for(int j=0; j<4; j++) momenta[i][j]=0;
+
 		vector<PutFishOnBlocks_Finalize*> finalize;
-		for(int i = 0; i < nthreads; ++i) {
+		for(int i=0; i<nthreads; i++) {
 			PutFishOnBlocks_Finalize* tmp = new
         PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]);
 			finalize.push_back(tmp);
 		}
 		compute(finalize);
+		for(int i=0; i<nthreads; i++) delete finalize[i];
 
 		double sumX[4] = {0,0,0,0};
 		double totX[4] = {0,0,0,0};
