@@ -15,7 +15,7 @@
 #include "GenericOperator.h"
 #include "IF2D_Frenet.h"
 
-const int NPPSEG = 50.; //was 100
+const int NPPSEG = 100.; //was 100
 const int NPPEXT = 3; //was 3
 const int TGTPPB = 4.; //was 2 i think
 const int TSTART = 2.;
@@ -206,8 +206,9 @@ struct ParameterSchedulerVector : ParameterScheduler<Npoints>
 template<int Npoints>
 struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
 {
-	void gimmeValues(const Real t, const Real Twave, const Real Length, const std::array<Real, Npoints> & positions,
-			const int Nfine, const Real* const positions_fine, Real* const parameters_fine, Real* const dparameters_fine)
+	void gimmeValues(const Real t, const Real Twave, const Real Length,
+		const std::array<Real, Npoints> & positions, const int Nfine,
+		const Real* const positions_fine, Real* const parameters_fine, Real* const dparameters_fine)
 	{
 		const Real _1oL = 1./Length;
 		const Real _1oT = 1./Twave;
@@ -217,22 +218,25 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
 			bool bCheck = true;
 
 			if (c < positions[0]) { // Are you before latest wave node?
-				IF2D_Interpolation1D::cubicInterpolation(c, positions[0], c,
-						this->parameters_t0[0], this->parameters_t0[0],
-						parameters_fine[i], dparameters_fine[i]);
+				IF2D_Interpolation1D::cubicInterpolation(
+					c, positions[0], c,
+					this->parameters_t0[0], this->parameters_t0[0],
+					parameters_fine[i], dparameters_fine[i]);
 				bCheck = false;
 			}
 			else if (c > positions[Npoints-1]) {// Are you after oldest wave node?
-				IF2D_Interpolation1D::cubicInterpolation(positions[Npoints-1], c, c,
-						this->parameters_t0[Npoints-1], this->parameters_t0[Npoints-1],
-						parameters_fine[i], dparameters_fine[i]);
+				IF2D_Interpolation1D::cubicInterpolation(
+					positions[Npoints-1], c, c,
+					this->parameters_t0[Npoints-1], this->parameters_t0[Npoints-1],
+					parameters_fine[i], dparameters_fine[i]);
 				bCheck = false;
 			} else {
 				for (int j=1; j<Npoints; ++j) { // Check at which point of the travelling wave we are
 					if (( c >= positions[j-1] ) && ( c <= positions[j] )) {
-						IF2D_Interpolation1D::cubicInterpolation(positions[j-1], positions[j], c,
-								this->parameters_t0[j-1], this->parameters_t0[j],
-								parameters_fine[i], dparameters_fine[i]);
+						IF2D_Interpolation1D::cubicInterpolation(
+							positions[j-1], positions[j], c,
+							this->parameters_t0[j-1], this->parameters_t0[j],
+							parameters_fine[i], dparameters_fine[i]);
 						dparameters_fine[i] = -dparameters_fine[i]*_1oT; // df/dc * dc/dt
 						bCheck = false;
 					}
@@ -245,7 +249,8 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
 	void Turn(const Real b, const Real t_turn) // each decision adds a node at the beginning of the wave (left, right, straight) and pops last node
 	{
 		this->t0 = t_turn;
-		for(int i=Npoints-1; i>1; --i) this->parameters_t0[i] = this->parameters_t0[i-2];
+		for(int i=Npoints-1; i>1; --i)
+				this->parameters_t0[i] = this->parameters_t0[i-2];
 		this->parameters_t0[1] = b;
 		this->parameters_t0[0] = 0;
 	}
@@ -326,7 +331,8 @@ protected:
 		else if(idx==maxidx-1)
 			return (vals[idx]-vals[idx-1])/(rS[idx]-rS[idx-1]);
 		else
-			return 0.5*( (vals[idx+1]-vals[idx])/(rS[idx+1]-rS[idx]) + (vals[idx]-vals[idx-1])/(rS[idx] - rS[idx-1]) );
+			return 0.5*((vals[idx+1]-vals[idx])/(rS[idx+1]-rS[idx]) +
+			            (vals[idx]-vals[idx-1])/(rS[idx]-rS[idx-1]) );
 	}
 
 	Real * _alloc(const int N)
@@ -532,7 +538,6 @@ public:
 	void integrateAngularMomentum(Real & angVel)
 	{
 		// assume we have already translated CoM and vCoM to nullify linear momentum
-
 		// already worked out the integrals for r, theta on paper
 		// remaining integral done with composite trapezoidal rule
 		// minimize rhs evaluations --> do first and last point separately
@@ -739,12 +744,12 @@ public:
 		}
 	}
 
-	void computeMidline(const Real time)
+	void computeMidline(const Real time) override
 	{
 		_computeMidlineCoordinates(time);
 		_computeMidlineVelocities(time);
 		_computeMidlineNormals();
-#ifndef NDEBUG
+		#ifndef NDEBUG
 		// we dump the profile
 		int rank;
 		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -755,7 +760,7 @@ public:
 					i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i],vNorX[i],vNorY[i],width[i],height[i]);
 		fclose(f);
 		printf("Dumped midline\n");
-#endif
+		#endif
 	}
 };
 
@@ -779,18 +784,19 @@ public:
 
 	CurvatureDefinedFishData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
 	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), l_Tp(Tperiod), timeshift(0), time0(0),
-	  rK(_alloc(Nm)),vK(_alloc(Nm)),rC(_alloc(Nm)),vC(_alloc(Nm)),rA(_alloc(Nm)),vA(_alloc(Nm)),rB(_alloc(Nm)),vB(_alloc(Nm))
+	  rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
+		rA(_alloc(Nm)),vA(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm))
 	{    	}
 
 	void _correctTrajectory(const Real dtheta, const Real time, const Real dt) override
-			{
+	{
 		std::array<Real,6> tmp_curv = std::array<Real,6>();
 		for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta/M_PI;}
 		adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
-			}
+	}
 
 	void execute(const Real time, const Real l_tnext, const vector<Real>& input) override
-			{
+	{
 		if (input.size()>1) {
 			baseScheduler.Turn(input[0], l_tnext);
 			//first, shift time to  previous turn node
@@ -799,9 +805,10 @@ public:
 			//time0 = l_tnext;
 			//l_Tp = Tperiod*(1.+input[1]);
 		} else if (input.size()>0) {
+			printf("Turning by %g at time %g with period %g.\n", input[0], time, l_tnext);
 			baseScheduler.Turn(input[0], l_tnext);
 		}
-			}
+	}
 
 	~CurvatureDefinedFishData()
 	{
@@ -815,29 +822,28 @@ public:
 		_dealloc(vA);
 	}
 
-	void computeMidline(const Real time)
+	void computeMidline(const Real time) override
 	{
 		const Real _1oL = 1./length;
+		const Real _1oT = 1./l_Tp;
 		const std::array<Real ,6> curvature_values = {
 				0.82014*_1oL, 1.46515*_1oL, 2.57136*_1oL,
 				3.75425*_1oL, 5.09147*_1oL, 5.70449*_1oL
 		};
 		const std::array<Real ,6> curvature_points = {
-				0., .15*length, .4*length, .65*length, .9*length, length
+				0, .15*length, .4*length, .65*length, .9*length, length
 		};
-		const std::array<Real ,7> baseline_points = {
-				1.00, 0.75, 0.50, 0.25, 0.00, -0.25, -0.50
-		};
-		const std::array<Real, 6> curvature_zeros = std::array<Real, 6>();
+		const std::array<Real,7> baseline_points = {-.5,-.25,0,.25,.5,.75,1.};
+		const std::array<Real,6> curvature_zeros = std::array<Real, 6>();
 		curvScheduler.transition(time,0.0,Tperiod,curvature_zeros,curvature_values);
 
 		// query the schedulers for current values
-		curvScheduler.gimmeValues(time, curvature_points, Nm, rS, rC, vC);
-		baseScheduler.gimmeValues(time, l_Tp, length, baseline_points, Nm, rS, rB, vB);
-		adjustScheduler.gimmeValues(time, curvature_points, Nm, rS, rA, vA);
+		curvScheduler.gimmeValues(  time, 							curvature_points, Nm, rS, rC, vC);
+		baseScheduler.gimmeValues(  time, l_Tp, length, baseline_points, 	Nm, rS, rB, vB);
+		adjustScheduler.gimmeValues(time, 							curvature_points, Nm, rS, rA, vA);
 
+		//printf("%g %g %g %g\n", rB[12], rB[425], rB[838], rB[1238]);
 		// construct the curvature
-		const Real _1oT = 1./l_Tp;
 		for(unsigned int i=0; i<Nm; i++) {
 			const Real darg = 2.*M_PI* _1oT;
 			const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
@@ -845,7 +851,7 @@ public:
 			vK[i] = vC[i]*(std::sin(arg) + rB[i] + rA[i]) + rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]);
 		}
 
-#if 1==0
+		#if 1==0
 		{ // we dump the profile points
 			FILE * f = fopen("stefan.dat","a");
 			std::array<Real, 6> curv,base;
@@ -855,17 +861,23 @@ public:
 					time,curv[0],curv[1],curv[2],curv[3],curv[4],curv[5],base[0],base[1],base[2],base[3],base[4],base[5]);
 			fclose(f);
 		}
-		{ // we dump the profile
-			FILE * f = fopen("stefan_profile","w");
-			for(int i=0;i<Nm;++i)
-				fprintf(f,"%d %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e\n",
-						i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i],vNorX[i],vNorY[i],width[i]);
-			fclose(f);
-		}
-#endif
-
+		#endif
 		// solve frenet to compute midline parameters
 		IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
+		#if 1==0
+			//#ifndef NDEBUG
+		{
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+			if (rank!=0) return;
+			FILE * f = fopen("stefan_profile","w");
+			for(int i=0;i<Nm;++i)
+				fprintf(f,"%d %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e\n",
+					i,rS[i],rX[i],rY[i],vX[i],vY[i],vNorX[i],vNorY[i],width[i],height[i]);
+			fclose(f);
+		}
+		#endif
+
 	}
 };
 
@@ -878,7 +890,7 @@ struct VolumeSegment_OBB
 	Real w[3]; // halfwidth
 	Real c[3]; // center
 
-#if 1==0
+	#if 1==0
 	VolumeSegment_OBB(std::pair<int, int> s_range, const Real bbox[3][2])
 	: s_range(s_range)
 	{
@@ -891,7 +903,7 @@ struct VolumeSegment_OBB
 		}
 
 	}
-#endif
+	#endif
 
 	VolumeSegment_OBB() { }
 
@@ -973,31 +985,35 @@ struct VolumeSegment_OBB
 		assert(AABB_w[1]>0);
 		assert(AABB_w[2]>0);
 		bool intersects = true;
-		Real r;
-		{
-			r = w[0]*normalI[0] + w[1]*normalJ[0] + w[2]*normalK[0];
-			intersects &= ((c[0]-r <= AABB_c[0] + AABB_w[0]) && (c[0]+r >= AABB_c[0] - AABB_w[0]));
 
-			r = w[0]*normalI[1] + w[1]*normalJ[1] + w[2]*normalK[1];
-			intersects &= ((c[1]-r <= AABB_c[1] + AABB_w[1]) && (c[1]+r >= AABB_c[1] - AABB_w[1]));
+		const Real r1 = w[0]*normalI[0] + w[1]*normalJ[0] + w[2]*normalK[0];
+		if (not ((c[0]-r1 <= AABB_c[0] + AABB_w[0]) && (c[0]+r1 >= AABB_c[0] - AABB_w[0])))
+			return false;
 
-			r = w[0]*normalI[2] + w[1]*normalJ[2] + w[2]*normalK[2];
-			intersects &= ((c[2]-r <= AABB_c[2] + AABB_w[2]) && (c[2]+r >= AABB_c[2] - AABB_w[2]));
-		}
-		{
-			r = AABB_w[0]*normalI[0] + AABB_w[1]*normalI[1] + AABB_w[2]*normalI[2];
-			//r = AABB_w[0]*normalI[0] + AABB_w[1]*normalJ[0] + AABB_w[2]*normalK[0];
-			intersects &= ((AABB_c[0]-r <= c[0] + w[0]) && (AABB_c[0]+r >= c[0] - w[0]));
+		const Real r2 = w[0]*normalI[1] + w[1]*normalJ[1] + w[2]*normalK[1];
+		if (not ((c[1]-r2 <= AABB_c[1] + AABB_w[1]) && (c[1]+r2 >= AABB_c[1] - AABB_w[1])))
+			return false;
 
-			r = AABB_w[0]*normalJ[0] + AABB_w[1]*normalJ[1] + AABB_w[2]*normalJ[2];
-			//r = AABB_w[0]*normalI[1] + AABB_w[1]*normalJ[1] + AABB_w[2]*normalK[1];
-			intersects &= ((AABB_c[1]-r <= c[1] + w[1]) && (AABB_c[1]+r >= c[1] - w[1]));
+		const Real r3 = w[0]*normalI[2] + w[1]*normalJ[2] + w[2]*normalK[2];
+		if (not ((c[2]-r3 <= AABB_c[2] + AABB_w[2]) && (c[2]+r3 >= AABB_c[2] - AABB_w[2])))
+			return false;
 
-			r = AABB_w[0]*normalK[0] + AABB_w[1]*normalK[1] + AABB_w[2]*normalK[2];
-			//r = AABB_w[0]*normalI[2] + AABB_w[1]*normalJ[2] + AABB_w[2]*normalK[2];
-			intersects &= ((AABB_c[2]-r <= c[2] + w[2]) && (AABB_c[2]+r >= c[2] - w[2]));
-		}
-		return intersects;
+		const Real r4 = AABB_w[0]*normalI[0] + AABB_w[1]*normalI[1] + AABB_w[2]*normalI[2];
+		//const Real r4 = AABB_w[0]*normalI[0] + AABB_w[1]*normalJ[0] + AABB_w[2]*normalK[0];
+		if (not ((AABB_c[0]-r4 <= c[0] + w[0]) && (AABB_c[0]+r4 >= c[0] - w[0])))
+			return false;
+
+		const Real r5 = AABB_w[0]*normalJ[0] + AABB_w[1]*normalJ[1] + AABB_w[2]*normalJ[2];
+		//const Real r5 = AABB_w[0]*normalI[1] + AABB_w[1]*normalJ[1] + AABB_w[2]*normalK[1];
+		if (not ((AABB_c[1]-r5 <= c[1] + w[1]) && (AABB_c[1]+r5 >= c[1] - w[1])))
+			return false;
+
+		const Real r6 = AABB_w[0]*normalK[0] + AABB_w[1]*normalK[1] + AABB_w[2]*normalK[2];
+		//const Real r6 = AABB_w[0]*normalI[2] + AABB_w[1]*normalJ[2] + AABB_w[2]*normalK[2];
+		if (not ((AABB_c[2]-r6 <= c[2] + w[2]) && (AABB_c[2]+r6 >= c[2] - w[2])))
+			return false;
+
+		return true;
 	}
 };
 
@@ -1144,9 +1160,9 @@ struct PutFishOnBlocks
 			static const int n = FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX;
 			for(int i=0; i<n; i++) {
 				chi[i]=-1;
-				udef[3*i+0]=0;
-				udef[3*i+1]=0;
-				udef[3*i+2]=0;
+				//udef[3*i+0]=0;
+				//udef[3*i+1]=0;
+				//udef[3*i+2]=0;
 			}
 		}
 
@@ -1269,9 +1285,11 @@ struct PutFishOnBlocks
 				assert(ss>=0 && ss<=cfish->Nm-1);
 				// P2M udef of a slice at this s
 				const Real myWidth =  (ss < cfish->iFishStart ? cfish->width[ cfish->iFishStart]
-																			  : (ss > cfish->iFishEnd   ? cfish->width[ cfish->iFishEnd] : cfish->width[ss]));
+												  	: (ss > cfish->iFishEnd   ? cfish->width[ cfish->iFishEnd]
+																											: cfish->width[ss]));
 				const Real myHeight = (ss < cfish->iFishStart ? cfish->height[cfish->iFishStart]
-																			  : (ss > cfish->iFishEnd   ? cfish->height[cfish->iFishEnd] : cfish->height[ss]));
+													  : (ss > cfish->iFishEnd   ? cfish->height[cfish->iFishEnd]
+																											: cfish->height[ss]));
 				const Real ds_defGrid = info.h_gridpoint;
 				// towers needs 1dx on each side, smooth needs 2dx --> make it 3 to be nice (and so we can floor!)
 				const Real extension = NPPEXT*info.h_gridpoint; //G tmp changed back to 2
@@ -1328,14 +1346,15 @@ struct PutFishOnBlocks
 						Real wghts[3][2];
 						for(int c=0;c<3;++c) {
 							const Real t[2] = {
-									std::abs((Real)xp[c] - (ap[c]+0)),
-									std::abs((Real)xp[c] - (ap[c]+1))
+									std::fabs((Real)xp[c] - (ap[c]+0)),
+									std::fabs((Real)xp[c] - (ap[c]+1))
 							};
 							wghts[c][0] = 1.0 - t[0];
 							wghts[c][1] = 1.0 - t[1];
 						}
 
-						const bool isInside = (std::abs(offsetW) < actualWidth) && (std::abs(offsetH) < cfish->height[ss]);
+						const bool isInside =  (std::fabs(offsetW) < actualWidth)
+																&& (std::fabs(offsetH) < cfish->height[ss]);
 						for(int sz=start[2]; sz<end[2];++sz) {
 						const Real wz = wghts[2][sz];
 						for(int sy=start[1];sy<end[1];++sy) {
@@ -1356,7 +1375,8 @@ struct PutFishOnBlocks
 							defblock->udef[idx[2]][idx[1]][idx[0]][2] += wxwywz*udef[2];
 							b(idx[0],idx[1],idx[2]).tmpU += wxwywz;
 							// set sign for all interior points
-							if( (std::abs(defblock->chi[idx[2]][idx[1]][idx[0]] + 1) < 5*std::numeric_limits<Real>::epsilon()) && isInside)
+							if( (std::fabs(defblock->chi[idx[2]][idx[1]][idx[0]] + 1) <
+											5*std::numeric_limits<Real>::epsilon()) && isInside)
 								defblock->chi[idx[2]][idx[1]][idx[0]] = 1.0;
 						}
 							}
@@ -1404,7 +1424,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
 		stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
 	}
-#if 1
+	#if 0
 	inline Real sign(const Real& val) const {
 		return (0. < val) - (val < 0.);
 	}
@@ -1496,7 +1516,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			b(ix,iy,iz).chi = std::max(FDH, b(ix,iy,iz).chi);
 		}
 	}
-#else
+	#else
 	template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
 	{
@@ -1505,6 +1525,8 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 		const Real eps = std::numeric_limits<Real>::epsilon();
 		const Real h = info.h_gridpoint;
 		const Real inv2h = .5/h;
+		const Real fac1 = 0.5*h*h;
+		const Real fac2 = h*h*h;
 
 		for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 		for(int iy=0; iy<FluidBlock::sizeY; iy++)
@@ -1528,6 +1550,17 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			const Real distMy = lab(ix,iy-1,iz).tmpU;
 			const Real distPz = lab(ix,iy,iz+1).tmpU;
 			const Real distMz = lab(ix,iy,iz-1).tmpU;
+			// gradU
+			const Real gradUX = (distPx - distMx);
+			const Real gradUY = (distPy - distMy);
+			const Real gradUZ = (distPz - distMz);
+			const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
+
+			if (gradUSq < eps) {
+				b(ix,iy,iz).chi = std::max((Real)0, b(ix,iy,iz).chi);
+				defblock->chi[iz][iy][ix] = 0;
+				continue;
+			}
 
 			const Real IplusX = distPx < 0 ? 0 : distPx;
 			const Real IminuX = distMx < 0 ? 0 : distMx;
@@ -1535,7 +1568,6 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			const Real IminuY = distMy < 0 ? 0 : distMy;
 			const Real IplusZ = distPz < 0 ? 0 : distPz;
 			const Real IminuZ = distMz < 0 ? 0 : distMz;
-
 			const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
 			const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
 			const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
@@ -1543,31 +1575,24 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
 			const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
 
-			// gradU
-			const Real gradUX = inv2h * (distPx - distMx);
-			const Real gradUY = inv2h * (distPy - distMy);
-			const Real gradUZ = inv2h * (distPz - distMz);
-			const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
-
 			// gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
-			const Real gradIX = inv2h * (IplusX - IminuX);
-			const Real gradIY = inv2h * (IplusY - IminuY);
-			const Real gradIZ = inv2h * (IplusZ - IminuZ);
+			const Real gradIX = (IplusX - IminuX);
+			const Real gradIY = (IplusY - IminuY);
+			const Real gradIZ = (IplusZ - IminuZ);
+			const Real gradHX = (HplusX - HminuX);
+			const Real gradHY = (HplusY - HminuY);
+			const Real gradHZ = (HplusZ - HminuZ);
 			const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
-
-			const Real gradHX = 0.5 * (HplusX - HminuX);
-			const Real gradHY = 0.5 * (HplusY - HminuY);
-			const Real gradHZ = 0.5 * (HplusZ - HminuZ);
 			const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
-
-			const Real Delta = std::fabs(gradUSq) < eps ? 0 : numD*h*h/gradUSq; //h^3 * Delta
-			const Real H     = std::fabs(gradUSq) < eps ? 0 : numH    /gradUSq;
+			const Real Delta = numD/gradUSq; //h^3 * Delta
+			const Real H     = numH/gradUSq;
 
 			if (Delta>1e-6) {
-				const Real dchidx = -Delta*gradUX;
-				const Real dchidy = -Delta*gradUY;
-				const Real dchidz = -Delta*gradUZ;
-				surface->add(info.blockID, ix, iy, iz, dchidx, dchidy, dchidz, Delta);
+				const Real dchidx = -Delta*gradUX*fac1;
+				const Real dchidy = -Delta*gradUY*fac1;
+				const Real dchidz = -Delta*gradUZ*fac1;
+				const Real _Delta = Delta*fac2;
+				surface->add(info.blockID, ix, iy, iz, dchidx, dchidy, dchidz, _Delta);
 			}
 			(*momenta)[0] += H;
 			(*momenta)[1] += p[0]*H;
@@ -1577,7 +1602,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
 		}
 	}
-#endif
+	#endif
 };
 
 #endif /* defined(__IncompressibleFluids3D__IF3D_CarlingFish__) */

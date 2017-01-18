@@ -16,13 +16,13 @@
 
 class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
 {
-private:
+	private:
 	const Real dt;
 	const Real* const uInf;
 
-public:
+	public:
 	OperatorAdvectionUpwind3rdOrder(const Real dt, const Real* const uInf)
-: dt(dt), uInf(uInf)
+	: dt(dt), uInf(uInf)
 	{
 		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 0,1,2);
 
@@ -39,11 +39,11 @@ public:
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
-#ifndef _RK2_
+		#ifndef _RK2_
 		const Real factor = -dt/(6.*info.h_gridpoint);
-#else //perform half step
+		#else //perform half step
 		const Real factor = -dt/(12.*info.h_gridpoint);
-#endif
+		#endif
 
 		for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
 			for (int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -114,13 +114,13 @@ public:
 #ifdef _RK2_
 class OperatorAdvectionUpwind3rdOrderStage2 : public GenericLabOperator
 {
-private:
+	private:
 	const Real dt;
 	const Real* const uInf;
 
-public:
+	public:
 	OperatorAdvectionUpwind3rdOrderStage2(const Real dt, const Real* const uInf)
-: dt(dt), uInf(uInf)
+	: dt(dt), uInf(uInf)
 	{
 		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 5,6,7);
 		stencil_start[0] = -2;
@@ -160,7 +160,7 @@ public:
 					const Real w3 = 3*phi.tmpW;
 
 					const Real dudx[2] = {  2*phiE.tmpU + u3 - 6*phiW.tmpU +   phiW2.tmpU,
-										   -  phiE2.tmpU + 6*phiE.tmpU - u3 - 2*phiW.tmpU};
+										   -phiE2.tmpU + 6*phiE.tmpU - u3 - 2*phiW.tmpU};
 
 					const Real dudy[2] = {  2*phiS.tmpU + u3 - 6*phiS.tmpU +   phiS2.tmpU,
 										   -  phiN2.tmpU + 6*phiS.tmpU - u3 - 2*phiS.tmpU};
@@ -215,16 +215,16 @@ class CoordinatorAdvection : public GenericCoordinator
 {
 protected:
 	const Real* const uInf;
-	
+
 	inline void update()
 	{
 		const int N = vInfo.size();
-		
+
 #pragma omp parallel for schedule(static)
 		for(int i=0; i<N; i++) {
 			BlockInfo info = vInfo[i];
 			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-			
+
 			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -235,19 +235,19 @@ protected:
 					}
 		}
 	}
-	
+
 public:
 	CoordinatorAdvection(const Real* const uInf, FluidGridMPI * grid)
 	: GenericCoordinator(grid), uInf(uInf)
 	{ }
-	
+
 	~CoordinatorAdvection()
 	{ }
-	
+
 	void operator()(const Real dt)
 	{
 		check("advection - start");
-		
+
 		{
 			OperatorAdvectionUpwind3rdOrder kernel(dt,uInf);
 			compute(kernel);
@@ -260,10 +260,10 @@ public:
 #else
 		update();
 #endif
-		
+
 		check("advection - end");
 	}
-	
+
 	string getName()
 	{
 		return "Advection";

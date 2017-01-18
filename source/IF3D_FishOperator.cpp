@@ -8,6 +8,7 @@
 
 #include "IF3D_FishOperator.h"
 #include "IF3D_FishLibrary.h"
+#include <chrono>
 
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser)
 : IF3D_ObstacleOperator(grid, parser), theta_internal(0.), angvel_internal(0.),
@@ -45,7 +46,10 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	// 9. create the Chi out of the SDF. In same sweep, compute the actual CoM
 	// 10. compute all shit: linear momentum, angular momentum etc.
 	// 11. correct deformation velocity to nullify momenta for the final discrete representation
+	std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t23, t45, t67, t8, t910, t11;
 
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//t0 = std::chrono::high_resolution_clock::now();
 	const int Nsegments = NPPSEG;
 	const int Nextension = 4*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
 	const Real dx_extension = 0.25*vInfo[0].h_gridpoint;
@@ -53,7 +57,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	const Real target_Nm = length/target_ds;
 	const int Nm = NPPSEG*(int)std::ceil(target_Nm/NPPSEG) + 1;
 	assert((Nm-1)%Nsegments==0);
-	if (bCorrectTrajectory) {
+	if (bCorrectTrajectory && time>0.312) {
 		Real velx_tot = Uinf[0] - transVel[0];
 		Real vely_tot = Uinf[1] - transVel[1];
 		Real AngDiff  = std::atan2(vely_tot,velx_tot);
@@ -64,20 +68,23 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	}
 	// 1.
 	myFish->computeMidline(time);
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//t1 = std::chrono::high_resolution_clock::now();
 
 	// 2. & 3.
-	volume_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
-	assert(volume_internal > std::numeric_limits<Real>::epsilon());
-	myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
+	{
+		volume_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
+		assert(volume_internal > std::numeric_limits<Real>::epsilon());
+		myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
 
-	angvel_internal_prev = angvel_internal;
-	myFish->integrateAngularMomentum(angvel_internal);
-	J_internal = myFish->J;
-	// update theta now with new angvel info
-	//theta_internal -= 0.5*sim_dt*(angvel_internal+angvel_internal_prev);//negative: we subtracted this angvel
-	myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
-
-#ifndef NDEBUG
+		angvel_internal_prev = angvel_internal;
+		myFish->integrateAngularMomentum(angvel_internal);
+		J_internal = myFish->J;
+		// update theta now with new angvel info
+		//theta_internal -= 0.5*sim_dt*(angvel_internal+angvel_internal_prev);//negative: we subtracted this angvel
+		myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
+	}
+	#ifndef NDEBUG
 	{
 		Real dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
 		// check that things are zero
@@ -91,11 +98,13 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		assert(std::abs(myFish->angMom)<10*std::numeric_limits<Real>::epsilon());
 		assert(std::abs(volume_internal - volume_internal_check) < 10*std::numeric_limits<Real>::epsilon());
 	}
-#endif
+	#endif
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//t23 = std::chrono::high_resolution_clock::now();
 
-	// 4.
+	// 4. & 5.
 	std::vector<VolumeSegment_OBB> vSegments(Nsegments);
-#pragma omp parallel for
+	#pragma omp parallel for
 	for(int i=0;i<Nsegments;++i) {
 		const int next_idx = (i+1)*(Nm-1)/Nsegments;
 		const int idx = i * (Nm-1)/Nsegments;
@@ -123,6 +132,9 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		delete entry.second;
 	obstacleBlocks.clear();
 
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//t45 = std::chrono::high_resolution_clock::now();
+
 	// 6. & 7.
 	std::map<int, std::vector<VolumeSegment_OBB>> segmentsPerBlock;
 	{
@@ -145,17 +157,19 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 			}
 		}
 	}
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//t67 = std::chrono::high_resolution_clock::now();
 
 	//assert(not segmentsPerBlock.empty()); //killed this assert: distributed fish
 	assert(segmentsPerBlock.size() == obstacleBlocks.size());
 
 	// 8.
 	{
-#pragma omp parallel
+		#pragma omp parallel
 		{
 			PutFishOnBlocks putfish(myFish, position, quaternion);
 
-#pragma omp for schedule(dynamic)
+			#pragma omp for schedule(dynamic)
 			for(int i=0; i<vInfo.size(); i++) {
 				BlockInfo info = vInfo[i];
 				auto pos = segmentsPerBlock.find(info.blockID);
@@ -180,8 +194,10 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 			}
 		}
 	}
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//t8 = std::chrono::high_resolution_clock::now();
 
-	// 9. & 10. & 11.
+	// 9. & 10.
 	{
 		const int nthreads = omp_get_max_threads();
 		vector<surfaceBlocks> dataPerThread(nthreads);
@@ -214,9 +230,25 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		CoM_interpolated[0]=totX[1]/totX[0];
 		CoM_interpolated[1]=totX[2]/totX[0];
 		CoM_interpolated[2]=totX[3]/totX[0];
-
-		_makeDefVelocitiesMomentumFree(CoM_interpolated);
 	}
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//t910 = std::chrono::high_resolution_clock::now();
+
+	// 11.
+	_makeDefVelocitiesMomentumFree(CoM_interpolated);
+	//MPI_Barrier(MPI_COMM_WORLD);
+	//t11 = std::chrono::high_resolution_clock::now();
+	/*
+	if(!rank) {
+		const auto len1   = std::chrono::duration<Real>(t1-t0).count();
+		const auto len23  = std::chrono::duration<Real>(t23-t1).count();
+		const auto len45  = std::chrono::duration<Real>(t45-t23).count();
+		const auto len67  = std::chrono::duration<Real>(t67-t45).count();
+		const auto len8   = std::chrono::duration<Real>(t8-t67).count();
+		const auto len910 = std::chrono::duration<Real>(t910-t8).count();
+		const auto len11  = std::chrono::duration<Real>(t11-t910).count();
+		printf("Creation times: %g %g %g %g %g %g %g\n", len1, len23, len45, len67, len8, len910, len11);
+	}*/
 }
 
 void IF3D_FishOperator::update(const int stepID, const Real t, const Real dt, const Real *Uinf)

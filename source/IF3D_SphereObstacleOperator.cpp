@@ -22,23 +22,23 @@ void IF3D_SphereObstacleOperator::create(const int step_id,const Real time, cons
     SphereObstacle::FillBlocks kernel(radius,vInfo[0].h_gridpoint,position);
     for(int i=0; i<vInfo.size(); i++) {
     	BlockInfo info = vInfo[i];
-        const auto pos = obstacleBlocks.find(info.blockID);
-		if(kernel._is_touching(info)) { //position of sphere + radius + 2*h safety
-			assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
-			obstacleBlocks[info.blockID] = new ObstacleBlock;
-			obstacleBlocks[info.blockID]->clear(); //memset 0
-		}
+      //const auto pos = obstacleBlocks.find(info.blockID);
+  		if(kernel._is_touching(info)) { //position of sphere + radius + 2*h safety
+  			assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
+  			obstacleBlocks[info.blockID] = new ObstacleBlock;
+  			obstacleBlocks[info.blockID]->clear(); //memset 0
+  		}
     }
 
 	const int nthreads = omp_get_max_threads();
 	vector<surfaceBlocks> dataPerThread(nthreads);
 
-#pragma omp parallel
+  #pragma omp parallel
 	{
-		SphereObstacle::FillBlocks fill(radius,vInfo[0].h_gridpoint,position);
+		SphereObstacle::FillBlocks fill(radius, vInfo[0].h_gridpoint, position);
 		const int tid = omp_get_thread_num();
 
-#pragma omp for schedule(static)
+    #pragma omp for schedule(static)
 		for(int i=0; i<vInfo.size(); i++) {
 			BlockInfo info = vInfo[i];
 			auto pos = obstacleBlocks.find(info.blockID);
@@ -54,5 +54,5 @@ void IF3D_SphereObstacleOperator::_parseArguments(ArgumentParser & parser)
 {
 	//obstacleop parses x,y,z,quats and length!
 	IF3D_ObstacleOperator::_parseArguments(parser);
-    radius = .5*length;
+  radius = .5*length;
 }

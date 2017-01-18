@@ -1,5 +1,7 @@
 #!/bin/bash
 SETTINGSNAME=$1
+BASENAME=$2
+NNODE=$3
 
 MYNAME=`whoami`
 BASEPATH="/scratch/snx3000/${MYNAME}/CubismUP3D/"
@@ -30,7 +32,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --job-name="${BASENAME}"
 #SBATCH --output=${BASENAME}_%j.txt
 #SBATCH --error=${BASENAME}_%j.txt
-#SBATCH --time=00:30:00
+#SBATCH --time=02:00:00
 #SBATCH --nodes=${NNODE}
 # #SBATCH --partition=viz
 #SBATCH --ntasks-per-node=1
@@ -39,7 +41,7 @@ cat <<EOF >daint_sbatch
 export CRAY_CUDA_MPS=1
 
 
-export LD_LIBRARY_PATH=/users/novatig/accfft/build_cuda/:$LD_LIBRARY_PATH
+export LD_LIBRARY_PATH=/users/novatig/accfft/build_shared/:$LD_LIBRARY_PATH
 module load daint-gpu GSL/2.1-CrayGNU-2016.11 cray-hdf5-parallel/1.10.0
 module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1 fftw/3.3.4.10
 export OMP_NUM_THREADS=24

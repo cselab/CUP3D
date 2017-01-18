@@ -458,7 +458,7 @@ struct StateReward
     Real thExp, vxExp, vyExp, avExp, VxInst, VyInst, AvInst;
     Real Dist, Quad, RelAng, VX, VY, AV, ThetaAvg, ThetaVel;
     Real PoutBnd, Pout, defPowerBnd, defPower, EffPDefBnd, EffPDef, Pthrust, Pdrag, ToD;
-    Real battery;
+    Real battery, ext_X, ext_Y, ext_Z;;
 		/*
     vector<Real> VelNAbove, VelTAbove, VelNBelow, VelTBelow;
     vector<Real> FPAbove, FVAbove, FPBelow, FVBelow;
@@ -529,7 +529,9 @@ struct StateReward
     {
         Xrel = _xR; Xabs = _xA; Yrel = _yR; Yabs = _yA; Theta= _th;
         VxInst=_vx; VyInst=_vy; AvInst=_av;
-        if (Xrel>0.8 || Xrel<0.05 || Yrel>0.8 || Yrel<0.05) bRestart = true;
+        if (Xrel<0.05 || Yrel<0.025)  bRestart = true;
+        if (ext_X && ext_X-Xrel<0.2)  bRestart = true;
+        if (ext_Y && ext_Y-Yrel<.025) bRestart = true;
     }
 
     void finalizePos(const Real xFOR,   const Real yFOR,  const Real thFOR,
@@ -629,10 +631,11 @@ struct StateReward
     bool checkFail(const Real xPov, const Real yPov, const Real thPov, const Real lscale)
     {
         bRestart = false;
-        if (Xrel>.95||Xrel<.05||Yrel>.95||Yrel<.05) {
-            printf("Out of bounds\n");
-            return true;
-        }
+        if (Xrel<0.05 || Yrel<0.025)  bRestart = true;
+        if (ext_X && ext_X-Xrel<0.1)  bRestart = true;
+        if (ext_Y && ext_Y-Yrel<.025) bRestart = true;
+        if (bRestart) { printf("Out of bounds\n"); return true; }
+
         const Real tmpPx = (Xrel-xPov)/lscale;
         const Real tmpPy = (Yrel-yPov)/lscale;
         const Real _Xrel = (GoalDX>0)?tmpPx*cos(thPov)+tmpPy*sin(thPov):0.;
@@ -1094,7 +1097,8 @@ struct StreamerHDF5
 		output.tmpW = input[7];
 	}
 
-	void operate(const int ix, const int iy, const int iz, Real *ovalue, const int field) const
+	void dump(const int ix, const int iy, const int iz,
+            float* const ovalue, const int field) const
 	{
 		const FluidElement& input = ref.data[iz][iy][ix];
 
@@ -1112,7 +1116,7 @@ struct StreamerHDF5
 		}
 	}
 
-	void operate(const Real ivalue, const int ix, const int iy, const int iz, const int field) const
+	void load(const Real ivalue, const int ix, const int iy, const int iz, const int field) const
 	{
 		FluidElement& output = ref.data[iz][iy][ix];
 

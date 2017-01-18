@@ -1,7 +1,7 @@
 #!/bin/bash
 
-BASENAME=CarlingFishRe4000_BurstCoast_finned_vel
-NNODE=16
+BASENAME=CarlingFishRe4000_BurstCoast_finned_vel_notfixed
+NNODE=8
 #WCLOCK=48:00
 #WSECS=172500
 WCLOCK=12:00
@@ -12,10 +12,10 @@ cp burst_coast_carling_params_re4000_vel.txt ${BASEPATH}${BASENAME}/burst_coast_
 
 OPTIONS=
 OPTIONS+=" -bpdx 64 -bpdy 32 -bpdz 32"
-OPTIONS+=" -2Ddump 1 -restart 1"
+OPTIONS+=" -2Ddump 1 -restart 0"
 #OPTIONS+=" -Wtime ${WSECS}"
 OPTIONS+=" -nprocsx ${NNODE}"
-OPTIONS+=" -CFL 0.2"
+OPTIONS+=" -CFL 0.1"
 OPTIONS+=" -length 0.25"
-OPTIONS+=" -lambda 1e5"
+OPTIONS+=" -lambda 1e4"
 OPTIONS+=" -nu 0.000015625"

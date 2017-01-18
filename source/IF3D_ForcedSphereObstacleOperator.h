@@ -17,13 +17,16 @@ class IF3D_ForcedSphereObstacleOperator: public IF3D_SphereObstacleOperator
 {
 
 public:
-	
+
 	IF3D_ForcedSphereObstacleOperator(FluidGridMPI * grid, ArgumentParser & parser):
 	IF3D_SphereObstacleOperator(grid,parser)
 	{}
-    
+
     // no need to compute velocities, are fixed
-    void computeVelocities(const Real Uinf[3]) override {return;}
+    void computeVelocities(const Real Uinf[3]) override
+		{
+			computeVelocities_forced(Uinf);
+		}
     void _parseArguments(ArgumentParser & parser) override;
 };
 

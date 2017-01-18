@@ -386,8 +386,8 @@ public:
 
 		{ 	//place onto p: ( div u^(t+1) - div u^* ) / dt
 			//where i want div u^(t+1) to be equal to div udef
-			//OperatorDivergenceMinusDivTmpU kernelDiv(dt);
-			OperatorDivergenceMinusDivTmpU2ndOrder kernelDiv(dt);
+			OperatorDivergenceMinusDivTmpU kernelDiv(dt);
+			//OperatorDivergenceMinusDivTmpU2ndOrder kernelDiv(dt);
 			compute(kernelDiv);
 		}
 

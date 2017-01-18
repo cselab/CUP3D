@@ -6,26 +6,26 @@
 //#include <iostream>
 
 #include "Definitions.h"
-#include <accfft_utils.h>
+#include "accfft_utils.h"
 
 #ifdef _CUDA_COMP_
 #include <cuda_runtime_api.h>
 	#ifndef _SP_COMP_
-		#include <accfft_gpu.h>
+		#include "accfft_gpu.h"
 		typedef accfft_plan_gpu myplan;
 		typedef Complex myComplex;
 	#else
-		#include <accfft_gpuf.h>
+		#include "accfft_gpuf.h"
 		typedef accfft_plan_gpuf myplan;
 		typedef Complexf myComplex;
 	#endif
 #else
 	#ifndef _SP_COMP_
-		#include <accfft.h>
+		#include "accfft.h"
 		typedef accfft_plan myplan;
 		typedef Complex myComplex;
 	#else
-		#include <accfftf.h>
+		#include "accfftf.h"
 		typedef accfft_planf myplan;
 		typedef Complexf myComplex;
 	#endif

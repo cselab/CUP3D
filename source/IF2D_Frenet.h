@@ -12,7 +12,10 @@
 #include "Definitions.h"
 struct IF2D_Frenet2D
 {
-    static void solve(const int Nm, const Real * const rS, const Real * const curv, const Real * const curv_dt, Real * const rX, Real * const rY, Real * const vX, Real * const vY, Real * const norX, Real * const norY, Real * const vNorX, Real * const vNorY)
+  static void solve(const int Nm, const Real * const rS,
+    const Real * const curv, const Real * const curv_dt,
+    Real * const rX, Real * const rY, Real * const vX, Real * const vY,
+    Real * const norX, Real * const norY, Real * const vNorX, Real * const vNorY)
     {
         // initial conditions
         rX[0] = 0.0;
@@ -21,7 +24,7 @@ struct IF2D_Frenet2D
         norY[0] = 1.0;
         Real ksiX = 1.0;
         Real ksiY = 0.0;
-        
+
         // velocity variables
         vX[0] = 0.0;
         vY[0] = 0.0;
@@ -29,7 +32,7 @@ struct IF2D_Frenet2D
         vNorY[0] = 0.0;
         Real vKsiX = 0.0;
         Real vKsiY = 0.0;
-        
+
         for(unsigned int i=1; i<Nm; i++)
         {
             // compute derivatives positions
@@ -37,13 +40,13 @@ struct IF2D_Frenet2D
             const Real dksiY = curv[i-1]*norY[i-1];
             const Real dnuX = -curv[i-1]*ksiX;
             const Real dnuY = -curv[i-1]*ksiY;
-            
+
             // compute derivatives velocity
             const Real dvKsiX = curv_dt[i-1]*norX[i-1] + curv[i-1]*vNorX[i-1];
             const Real dvKsiY = curv_dt[i-1]*norY[i-1] + curv[i-1]*vNorY[i-1];
             const Real dvNuX = -curv_dt[i-1]*ksiX - curv[i-1]*vKsiX;
             const Real dvNuY = -curv_dt[i-1]*ksiY - curv[i-1]*vKsiY;
-            
+
             // compute current ds
             const Real ds = rS[i] - rS[i-1];
 
@@ -54,7 +57,7 @@ struct IF2D_Frenet2D
             norY[i] = norY[i-1] + ds*dnuY;
             ksiX += ds * dksiX;
             ksiY += ds * dksiY;
-            
+
             // update velocities
             vX[i] = vX[i-1] + ds*vKsiX;
             vY[i] = vY[i-1] + ds*vKsiY;
@@ -62,7 +65,7 @@ struct IF2D_Frenet2D
             vNorY[i] = vNorY[i-1] + ds*dvNuY;
             vKsiX += ds * dvKsiX;
             vKsiY += ds * dvKsiY;
-            
+
             // normalize unit vectors
             const Real d1 = ksiX*ksiX + ksiY*ksiY;
             const Real d2 = norX[i]*norX[i] + norY[i]*norY[i];

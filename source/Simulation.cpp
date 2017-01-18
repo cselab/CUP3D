@@ -126,16 +126,16 @@ void Simulation::_dump(const string append = string())
 {
     stringstream ssR;
     if (append == string())
-    	ssR<<path4serialization<<"./restart_"<<std::setfill('0')<<std::setw(9)<<step;
+    	ssR<<"restart_";
     else
-        ssR<<path4serialization<<"./"<<append<<std::setfill('0')<<std::setw(9)<<step;
-
+        ssR<<append;
+	ssR << std::setfill('0')<<std::setw(9)<<step;
     if (rank==0) cout << ssR.str() << endl;
 
     if (rank==0) { //rank 0 saves step id and obstacles
-    	obstacle_vector->save(step,time,ssR.str());
+    	obstacle_vector->save(step,time,path4serialization+"/"+ssR.str());
     	//safety status in case of crash/timeout during grid save:
-    	string statusname = ssR.str()+".status";
+    	string statusname = path4serialization+"/"+ssR.str()+".status";
     	FILE * f = fopen(statusname.c_str(), "w");
     	assert(f != NULL);
     	fprintf(f, "time: %20.20e\n", time);
@@ -150,12 +150,12 @@ void Simulation::_dump(const string append = string())
       if(b2Ddump) {
         stringstream ssF;
         if (append == string())
-           ssF<<path4serialization<<"./avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
+           ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
         else
-           ssF<<path4serialization<<"./2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
-      	DumpHDF5flat_MPI(*grid, time, ssF.str());
+           ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
+      	DumpHDF5flat_MPI(*grid, time, ssF.str(),path4serialization);
       }
-      DumpHDF5_MPI(*grid, time, ssR.str());
+      DumpHDF5_MPI_Channel<StreamerHDF5>(*grid, time, ssR.str(),path4serialization);
     #endif
     #if defined(_USE_LZ4_) //TODO: does not compile
       CoordinatorVorticity<LabMPI> coordVorticity(grid);
@@ -178,7 +178,7 @@ void Simulation::_dump(const string append = string())
     #endif
 
 	   if (rank==0) { //saved the grid! Write status to remember most recent ping
-  		string restart_status = path4serialization+"./restart.status";
+  		string restart_status = path4serialization+"/restart.status";
   		FILE * f = fopen(restart_status.c_str(), "w");
   		assert(f != NULL);
   		fprintf(f, "time: %20.20e\n", time);
@@ -234,7 +234,7 @@ void Simulation::_serialize(Real & nextSaveTime)
 
 void Simulation::_deserialize()
 {
-	string restartfile = path4serialization+"./restart.status";
+	string restartfile = path4serialization+"/restart.status";
 	FILE * f = fopen(restartfile.c_str(), "r");
   if (f == NULL) {
     printf("Could not restart... starting a new sim.\n");
@@ -261,13 +261,17 @@ void Simulation::_deserialize()
 	fclose(f);
 
 	stringstream ssR;
-	ssR<<path4serialization<<"./restart_"<<std::setfill('0')<<std::setw(9)<<step;
+	ssR<<"restart_";
+	ssR<<std::setfill('0')<<std::setw(9)<<step;
 	if (rank==0) cout << "Restarting from " << ssR.str() << endl;
 	MPI_Barrier(MPI_COMM_WORLD);
-	ReadHDF5_MPI<FluidGridMPI, StreamerHDF5>(*grid, ssR.str());
-	obstacle_vector->restart(time,ssR.str());
+	ReadHDF5_MPI_Channel<FluidGridMPI, StreamerHDF5>(*grid, ssR.str(),path4serialization);
+	obstacle_vector->restart(time,path4serialization+"/"+ssR.str());
 
   printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
+	//bDump=true;
+	//_dump("restarted");
+	//if (time>0.01) MPI_Abort(MPI_COMM_WORLD, 0);
 }
 
 void Simulation::init()
@@ -317,7 +321,7 @@ void Simulation::simulate()
 					}
 
 					for(int i=0; i<nO; i++) if(time >= _D[i]->t_next_comm) {
-            printf("trying to execute at t = %e\n", time);
+            if(!rank) printf("trying to execute at t = %e\n", time);
             if(i>0) {
 						_D[i]->finalize(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
 									 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
@@ -376,7 +380,7 @@ void Simulation::simulate()
         }
         profiler.pop_stop();
 
-        if (step % 100 == 0 && !rank) profiler.printSummary();
+        if (step % 50 == 0 && !rank) profiler.printSummary();
         if ((endTime>0 && time>endTime) || (nsteps!=0 && step>=nsteps))
         {
         	if(rank==0)

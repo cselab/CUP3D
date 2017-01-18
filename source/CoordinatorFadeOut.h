@@ -17,7 +17,7 @@ class OperatorFadeOut : public GenericOperator
 private:
 	const Real extent[3];
 	const int buffer;
-	
+
    inline bool _is_touching(const BlockInfo& info, const Real h) const
 	{
 		Real max_pos[3],min_pos[3];
@@ -71,10 +71,10 @@ class CoordinatorFadeOut : public GenericCoordinator
 protected:
 	const int buffer;
 public:
-    CoordinatorFadeOut(FluidGridMPI * grid, const int _buffer=5)
+    CoordinatorFadeOut(FluidGridMPI * grid, const int _buffer=8)
 	: GenericCoordinator(grid), buffer(_buffer)
 	{ }
-	
+
 	void operator()(const Real dt)
 	{
 		check((string)"FadeOut - start");
@@ -89,7 +89,7 @@ public:
 		#pragma omp parallel
 		{
 			OperatorFadeOut kernel(buffer,ext);
-#pragma omp for schedule(static)
+			#pragma omp for schedule(static)
 			for (int i=0; i<N; i++) {
 				BlockInfo info = vInfo[i];
 				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
@@ -99,7 +99,7 @@ public:
 
 		check((string)"FadeOut - end");
 	}
-	
+
 	string getName()
 	{
 		return "FadeOut";

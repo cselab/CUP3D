@@ -13,6 +13,7 @@
 #include <sstream>
 using namespace std;
 #include "Simulation.h"
+#include "Save_splicer.h"
 
 int main(int argc, char **argv)
 {
@@ -44,6 +45,14 @@ int main(int argc, char **argv)
 		communicator = new Communicator(_sockID,nStates,nActions,MPI_COMM_WORLD);
 	}
 	#endif
+
+	const bool io_job = parser("-saveSplicer").asBool(false);
+	if (io_job) {
+		Save_splicer * sim = new Save_splicer(argc, argv);
+		sim->run();
+		MPI_Finalize();
+		return 0;
+	}
 
 	Simulation * sim = new Simulation(argc, argv, communicator);
 	sim->init();

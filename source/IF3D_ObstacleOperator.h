@@ -40,7 +40,8 @@ protected:
     Real mass, force[3], torque[3]; //from diagnostics
     Real totChi, surfForce[3], drag, thrust, Pout, PoutBnd, defPower, defPowerBnd, Pthrust, Pdrag, EffPDef, EffPDefBnd; //from compute forces
     Real transVel_correction[3], angVel_correction[3], length;
-    //Real ext_X, ext_Y, ext_Z;
+    Real transVel_computed[3], angVel_computed[3];
+    Real ext_X, ext_Y, ext_Z;
     int rank;
     bool bFixToPlanar;
 
@@ -51,6 +52,8 @@ protected:
     void _makeDefVelocitiesMomentumFree(const Real CoM[3]);
     void _computeUdefMoments(Real lin_momenta[3], Real ang_momenta[3], const Real CoM[3]);
     //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
+    void computeVelocities_kernel(const Real* Uinf, Real* const linvel_target,
+                                                    Real* const angvel_target);
 
 public:
     int obstacleID;
@@ -61,44 +64,38 @@ public:
     {
 		    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
         vInfo = grid->getBlocksInfo();
-        /*
-        const Real extent = grid->maxextent;
-        const unsigned int maxbpd = max(grid->NX*FluidBlock::sizeX,
-        							max(grid->NY*FluidBlock::sizeY,
-        								grid->NZ*FluidBlock::sizeZ));
-        const Real scale[3] = {
-        		(Real)(grid->NX*FluidBlock::sizeX)/(Real)maxbpd,
-        		(Real)(grid->NY*FluidBlock::sizeY)/(Real)maxbpd,
-        		(Real)(grid->NZ*FluidBlock::sizeZ)/(Real)maxbpd
-        };
-        ext_X = scale[0]*extent;
-        ext_Y = scale[1]*extent;
-        ext_Z = scale[2]*extent;
-        */
+        const Real extent = 1;//grid->maxextent;
+        const Real NFE[3] ={ grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
+    						             grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
+  			                     grid->getBlocksPerDimension(2)*FluidBlock::sizeZ };
+        const Real maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
+        const Real scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
+        sr.ext_X = ext_X = scale[0]*extent;
+        sr.ext_Y = ext_Y = scale[1]*extent;
+        sr.ext_Z = ext_Z = scale[2]*extent;
+        if(!rank)
+        printf("Got sim extents %g %g %g\n", sr.ext_X, sr.ext_Y, sr.ext_Z);
         _parseArguments(parser);
     }
 
     IF3D_ObstacleOperator(FluidGridMPI * grid):
-    grid(grid), obstacleID(0), quaternion{1.,0.,0.,0.}, transVel{0.,0.,0.}, angVel{0.,0.,0.},
-	volume(0.0), J{0.,0.,0.,0.,0.,0.}
-	{
-		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    grid(grid), obstacleID(0), quaternion{1,0,0,0}, _2Dangle(0), position{0,0,0},
+    absPos{0,0,0}, transVel{0,0,0}, angVel{0,0,0}, volume(0), J{0,0,0,0,0,0}
+  	{
+  		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     	vInfo = grid->getBlocksInfo();
-    	/*
-        const Real extent = grid->maxextent;
-        const unsigned int maxbpd = max(grid->NX*FluidBlock::sizeX,
-        							max(grid->NY*FluidBlock::sizeY,
-        								grid->NZ*FluidBlock::sizeZ));
-        const Real scale[3] = {
-        		(Real)(grid->NX*FluidBlock::sizeX)/(Real)maxbpd,
-        		(Real)(grid->NY*FluidBlock::sizeY)/(Real)maxbpd,
-        		(Real)(grid->NZ*FluidBlock::sizeZ)/(Real)maxbpd
-        };
-        ext_X = scale[0]*extent;
-        ext_Y = scale[1]*extent;
-        ext_Z = scale[2]*extent;
-        */
-	}
+      const Real extent = 1;//grid->maxextent;
+      const Real NFE[3] ={ grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
+  						             grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
+			                     grid->getBlocksPerDimension(2)*FluidBlock::sizeZ };
+      const Real maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
+      const Real scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
+      sr.ext_X = ext_X = scale[0]*extent;
+      sr.ext_Y = ext_Y = scale[1]*extent;
+      sr.ext_Z = ext_Z = scale[2]*extent;
+      if(!rank)
+      printf("Got sim extents %g %g %g\n", sr.ext_X, sr.ext_Y, sr.ext_Z);
+  	}
 
     virtual void Accept(ObstacleVisitor * visitor);
 
@@ -106,6 +103,7 @@ public:
 
     virtual void computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda) ;
     virtual void computeVelocities(const Real* Uinf);
+    virtual void computeVelocities_forced(const Real* Uinf);
     virtual void computeForces(const int stepID, const Real time, const Real dt,
                               const Real* Uinf, const Real NU, const bool bDump);
     virtual void update(const int step_id, const Real t, const Real dt, const Real* Uinf);

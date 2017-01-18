@@ -56,7 +56,7 @@ ifneq "$(findstring euler,$(shell hostname))" ""
 endif
 
 CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
-#NVFLAGS += -std=c++11 
+#NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/
 CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
@@ -104,12 +104,12 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS = Communicator.o ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o main.o
+OBJECTS = Communicator.o ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o Save_splicer.o main.o
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"
 	CPPFLAGS += -D_ACCFFT_ -D_CUDA_COMP_ -I$(accfft-inc)
-	LIBS += -L$(accfft-lib) -laccfft 
+	LIBS += -L$(accfft-lib) -lcufft -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu
 	NVOBJECTS = PoissonSolverScalarFFTW_ACC.o
 else
 	NVOBJECTS =
