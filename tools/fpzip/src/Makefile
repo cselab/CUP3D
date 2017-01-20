@@ -22,7 +22,7 @@ FPZIP_CONV = -DWITH_UNION
 
 
 # no changes should be necessary below ----------------------------------------
-CC = mpic++
+CC = CC#mpic++
 zlib = 0
 qpx = 0
 bs = 32

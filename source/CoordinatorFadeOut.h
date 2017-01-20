@@ -24,12 +24,13 @@ private:
 		info.pos(min_pos, 0, 0, 0);
 		info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
 		// true: block within killing zone, false: block not within killing zone
-		return  ( min_pos[0]<(0.+(2+buffer)*h ) ) ||
-				( min_pos[1]<(0.+(2+buffer)*h ) ) ||
-				( min_pos[2]<(0.+(2+buffer)*h ) ) ||
-				( max_pos[0]>(extent[0]-(2+buffer)*h ) ) ||
-				( max_pos[1]>(extent[1]-(2+buffer)*h ) ) ||
-				( max_pos[2]>(extent[2]-(2+buffer)*h ) ) ;
+		return  ( min_pos[0]<(0.+(2+buffer)*h ) )
+			//	|| ( min_pos[1]<(0.+(2+buffer)*h ) )
+			//	|| ( min_pos[2]<(0.+(2+buffer)*h ) )
+			//	|| ( max_pos[0]>(extent[0]-(2+buffer)*h ) )
+			//	|| ( max_pos[1]>(extent[1]-(2+buffer)*h ) )
+			//	|| ( max_pos[2]>(extent[2]-(2+buffer)*h ) )
+				;
 	}
 
 public:
@@ -46,15 +47,16 @@ public:
 			Real p[3];
 			info.pos(p, ix, iy, iz);
 			// >0 iff p+(1+buffer)*h > extent
-			const Real argx1= max(0., ( p[0]-extent[0]+(2+buffer)*h) );
-			const Real argy1= max(0., ( p[1]-extent[1]+(2+buffer)*h) );
-			const Real argz1= max(0., ( p[2]-extent[2]+(2+buffer)*h) );
+			//const Real argx1= max(0., ( p[0]-extent[0]+(2+buffer)*h) );
+			//const Real argy1= max(0., ( p[1]-extent[1]+(2+buffer)*h) );
+			//const Real argz1= max(0., ( p[2]-extent[2]+(2+buffer)*h) );
 			// >0 iff (1+buffer)*h > p
 			const Real argx2= max(0., ( 0.0 -p[0]     +(2+buffer)*h) );
-			const Real argy2= max(0., ( 0.0 -p[1]     +(2+buffer)*h) );
-			const Real argz2= max(0., ( 0.0 -p[2]     +(2+buffer)*h) );
+			//const Real argy2= max(0., ( 0.0 -p[1]     +(2+buffer)*h) );
+			//const Real argz2= max(0., ( 0.0 -p[2]     +(2+buffer)*h) );
 			// max distance in killing zone 0 <= out <= (2+buffer)*h
-			const Real out = max(max(max(argx1,argx2),max(argy1,argy2)),max(argz1,argz2));
+			//const Real out = max(max(max(argx1,argx2),max(argy1,argy2)),max(argz1,argz2));
+			const Real out = argx2;
 			// 1 at buffer start, 0 at buffer end (2 grid points before border)
 			const Real fade = max(Real(0.0), cos(0.5*M_PI* out/(buffer*h)));
 			// smooth within killing zone (factor <= 1) and kill at very boundaries (factor < 0)

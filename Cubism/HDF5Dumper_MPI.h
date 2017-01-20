@@ -107,11 +107,11 @@ public:
 
 class OperatorLoadFlat : public GenericLabOperator
 {
-private:
+  private:
 	float* const data;
 	const unsigned long int NBX, NBY, NX, NY, NCHANNELS;
 	const Real sliceZ;
-public:
+  public:
 	OperatorLoadFlat(float* const dump_data, const unsigned long int nx, const unsigned long int ny, const unsigned long int nz, const Real sliceZ)
 	: data(dump_data), NBX(nx), NBY(ny), NX(nx*FluidBlock::sizeX), NY(ny*FluidBlock::sizeY), NCHANNELS(StreamerHDF5::NCHANNELS), sliceZ(sliceZ)
 	{
@@ -188,9 +188,9 @@ public:
 template<typename Loader>
 class CoordinatorLoad : public GenericCoordinator
 {
-private:
+  private:
 	float* const data;
-public:
+  public:
 	CoordinatorLoad(FluidGridMPI *grid, float* const dump_data) : GenericCoordinator(grid), data(dump_data) { }
 	void operator()(const Real dt)
 	{
@@ -417,8 +417,9 @@ static void DumpHDF5flat_MPI(FluidGridMPI &grid, const Real absTime, const strin
 	#endif
 }
 
-template<typename Streamer>
-static void DumpHDF5_MPI_Channel(FluidGridMPI &grid, const Real absTime, const string f_name, const string dump_path="")
+template<typename Streamer, int channel>
+static void DumpHDF5_MPI_Channel(FluidGridMPI &grid, const Real absTime,
+      const string f_name, const string dump_path="")
 {
 	#ifdef _USE_HDF_
 	typedef typename FluidGridMPI::BlockType B;
@@ -453,7 +454,8 @@ static void DumpHDF5_MPI_Channel(FluidGridMPI &grid, const Real absTime, const s
 		coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
 		coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
 
-	for (int channel=0; channel<5; channel++) {
+	//for (int channel=0; channel<5; channel++)
+  {
 		char filename[256];
     stringstream ssR;
   	ssR<<"channel"<<channel<<"_"<<f_name;
@@ -553,6 +555,142 @@ static void DumpHDF5_MPI_Channel(FluidGridMPI &grid, const Real absTime, const s
 	#endif
 }
 
+template<typename Streamer>
+static void DumpHDF5_MPI_Vector(FluidGridMPI &grid, const Real absTime, const string f_name, const string dump_path="")
+{
+	#ifdef _USE_HDF_
+	typedef typename FluidGridMPI::BlockType B;
+
+	int rank;
+	herr_t status;
+	hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
+  MPI_Comm comm = grid.getCartComm();
+	MPI_Comm_rank(comm, &rank);
+
+	int coords[3];
+	grid.peindex(coords);
+	vector<BlockInfo> vInfo_local = grid.getResidentBlocksInfo();
+
+	const unsigned long int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
+	const unsigned long int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
+	const unsigned long int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
+	static const unsigned long NCHANNELS = 3;
+	float* array_all = new float[NX * NY * NZ * NCHANNELS];
+
+	hsize_t count[4] = {
+		grid.getResidentBlocksPerDimension(2)*B::sizeZ,
+		grid.getResidentBlocksPerDimension(1)*B::sizeY,
+		grid.getResidentBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+
+	hsize_t dims[4] = {
+		grid.getBlocksPerDimension(2)*B::sizeZ,
+		grid.getBlocksPerDimension(1)*B::sizeY,
+		grid.getBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+
+	hsize_t offset[4] = {
+		coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ,
+		coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
+		coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
+
+	char filename[256];
+	string f_name_channel = f_name;
+	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name_channel.c_str());
+
+	//printf("Saving channel %d on file %s (%s)\n", channel, f_name_channel.c_str(), filename);
+  //fflush(0);
+
+	H5open();
+	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+	status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
+	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
+	status = H5Pclose(fapl_id);
+
+	#pragma omp parallel for
+	for(int i=0; i<vInfo_local.size(); i++) {
+		BlockInfo& info = vInfo_local[i];
+		const unsigned long idx[3] = {info.index[0], info.index[1], info.index[2]};
+		B & b = *(B*)info.ptrBlock;
+		//Streamer streamer(b);
+
+		for(int iz=0; iz<B::sizeZ; iz++)
+		for(int iy=0; iy<B::sizeY; iy++)
+		for(int ix=0; ix<B::sizeX; ix++) {
+			const unsigned long int gx = idx[0]*B::sizeX + ix;
+			const unsigned long int gy = idx[1]*B::sizeY + iy;
+			const unsigned long int gz = idx[2]*B::sizeZ + iz;
+      float * const ptr_output = array_all + NCHANNELS*(gx + NX * (gy + NY * gz));
+      ptr_output[0] = b(ix, iy, iz).u;
+      ptr_output[1] = b(ix, iy, iz).v;
+      ptr_output[2] = b(ix, iy, iz).w;
+			//streamer.dump(ix, iy, iz, ptr_output, channel);
+		}
+	}
+
+	fapl_id = H5Pcreate(H5P_DATASET_XFER);
+	H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
+
+	fspace_id = H5Screate_simple(4, dims, NULL);
+	#ifndef _ON_FERMI_
+		dataset_id = H5Dcreate(file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+	#else
+		dataset_id = H5Dcreate2(file_id, "data", HDF_REAL, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
+	#endif
+
+	fspace_id = H5Dget_space(dataset_id);
+	H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
+	mspace_id = H5Screate_simple(4, count, NULL);
+	status = H5Dwrite(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
+
+	status = H5Sclose(mspace_id);
+	status = H5Sclose(fspace_id);
+	status = H5Dclose(dataset_id);
+	status = H5Pclose(fapl_id);
+	status = H5Fclose(file_id);
+	H5close();
+
+	if (rank==0)
+	{
+		char wrapper[256];
+		sprintf(wrapper, "%s/%s.xmf", dump_path.c_str(), f_name_channel.c_str());
+		FILE *xmf = 0;
+		xmf = fopen(wrapper, "w");
+		fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
+		fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
+		fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
+		fprintf(xmf, " <Domain>\n");
+		fprintf(xmf, "   <Grid GridType=\"Uniform\">\n");
+		//fprintf(xmf, "     <Time Value=\"%05d\"/>\n", iCounter);
+		fprintf(xmf, "     <Time Value=\"%e\"/>\n", absTime);
+		fprintf(xmf, "     <Topology TopologyType=\"3DCORECTMesh\" Dimensions=\"%d %d %d\"/>\n",
+																		(int)dims[0], (int)dims[1], (int)dims[2]);
+		fprintf(xmf, "     <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n");
+		fprintf(xmf, "       <DataItem Name=\"Origin\" Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
+		fprintf(xmf, "        %e %e %e\n", 0.,0.,0.);
+		fprintf(xmf, "       </DataItem>\n");
+		fprintf(xmf, "       <DataItem Name=\"Spacing\" Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
+		fprintf(xmf, "        %e %e %e\n", grid.getH(), grid.getH(), grid.getH());
+		fprintf(xmf, "       </DataItem>\n");
+		fprintf(xmf, "     </Geometry>\n");
+
+		fprintf(xmf, "     <Attribute Name=\"data\" AttributeType=\"Vector\" Center=\"Node\">\n");
+		fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n",
+											(int)dims[0], (int)dims[1], (int)dims[2], (int)dims[3]);
+		fprintf(xmf, "        %s:/data\n",(f_name_channel+".h5").c_str());
+		fprintf(xmf, "       </DataItem>\n");
+		fprintf(xmf, "     </Attribute>\n");
+
+		fprintf(xmf, "   </Grid>\n");
+		fprintf(xmf, " </Domain>\n");
+		fprintf(xmf, "</Xdmf>\n");
+		fclose(xmf);
+	}
+
+	delete [] array_all;
+	#else
+	#warning USE OF HDF WAS DISABLED AT COMPILE TIME
+	#endif
+}
+
 template<typename TGrid, typename Streamer>
 static void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_path=".")
 {
@@ -603,7 +741,8 @@ static void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_pat
 			coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
 
 	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
-  printf("About to restart from %s\n",filename);
+  if(!rank)
+    printf("About to restart from %s\n",filename);
   fflush(0);
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -656,7 +795,7 @@ static void ReadHDF5_MPI(TGrid &grid, const string f_name, const string dump_pat
 	#endif
 }
 
-template<typename TGrid, typename Streamer>
+template<typename TGrid, typename Streamer, int channel>
 static void ReadHDF5_MPI_Channel(TGrid &grid, const string f_name, const string dump_path=".")
 {
 	#ifdef _USE_HDF_
@@ -697,10 +836,10 @@ static void ReadHDF5_MPI_Channel(TGrid &grid, const string f_name, const string 
 			coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
 			coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
 
-	for (int channel=0; channel<5; channel++)
+	//for (int channel=0; channel<5; channel++)
 	{
 		string f_name_channel = "channel" + to_string(channel) + "_" + f_name;
-		printf("About to read from %s\n", f_name_channel);
+		printf("About to read from %s\n", f_name_channel.c_str());
 		sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name_channel.c_str());
 		fapl_id = H5Pcreate(H5P_FILE_ACCESS);
 		status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
@@ -744,6 +883,102 @@ static void ReadHDF5_MPI_Channel(TGrid &grid, const string f_name, const string 
 
 		H5close();
 	}
+
+	delete [] array_all;
+	#else
+	#warning USE OF HDF WAS DISABLED AT COMPILE TIME
+	#endif
+}
+
+template<typename TGrid, typename Streamer>
+static void ReadHDF5_MPI_Vector(TGrid &grid, const string f_name, const string dump_path=".")
+{
+	#ifdef _USE_HDF_
+	typedef typename TGrid::BlockType B;
+
+	int rank;
+	char filename[256];
+	herr_t status;
+	hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
+
+	MPI_Comm comm = grid.getCartComm();
+	MPI_Comm_rank(comm, &rank);
+
+	int coords[3];
+	grid.peindex(coords);
+
+	const unsigned long int NX = grid.getResidentBlocksPerDimension(0)*B::sizeX;
+	const unsigned long int NY = grid.getResidentBlocksPerDimension(1)*B::sizeY;
+	const unsigned long int NZ = grid.getResidentBlocksPerDimension(2)*B::sizeZ;
+	static const unsigned long int NCHANNELS = 3;
+
+	float* array_all = new float[NX * NY * NZ * NCHANNELS];
+
+	vector<BlockInfo> vInfo_local = grid.getResidentBlocksInfo();
+
+	hsize_t count[4] = {
+			grid.getResidentBlocksPerDimension(2)*B::sizeZ,
+			grid.getResidentBlocksPerDimension(1)*B::sizeY,
+			grid.getResidentBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+
+	hsize_t dims[4] = {
+			grid.getBlocksPerDimension(2)*B::sizeZ,
+			grid.getBlocksPerDimension(1)*B::sizeY,
+			grid.getBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+
+	hsize_t offset[4] = {
+			coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ,
+			coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
+			coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
+
+	string f_name_channel = f_name;
+  if(!rank)
+	  printf("About to read from %s\n", f_name_channel.c_str());
+	sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name_channel.c_str());
+
+	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
+	status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
+	file_id = H5Fopen(filename, H5F_ACC_RDONLY, fapl_id);
+	status = H5Pclose(fapl_id);
+
+	dataset_id = H5Dopen2(file_id, "data", H5P_DEFAULT);
+	fapl_id = H5Pcreate(H5P_DATASET_XFER);
+	H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
+
+	fspace_id = H5Dget_space(dataset_id);
+	H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
+
+	mspace_id = H5Screate_simple(4, count, NULL);
+	status = H5Dread(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
+
+	#pragma omp parallel for
+	for(int i=0; i<vInfo_local.size(); i++)
+	{
+		BlockInfo& info = vInfo_local[i];
+		const unsigned long int idx[3] = {info.index[0], info.index[1], info.index[2]};
+		B & b = *(B*)info.ptrBlock;
+		Streamer streamer(b);
+
+		for(int iz=0; iz<B::sizeZ; iz++)
+		for(int iy=0; iy<B::sizeY; iy++)
+		for(int ix=0; ix<B::sizeX; ix++) {
+			const unsigned long int gx = idx[0]*B::sizeX + ix;
+			const unsigned long int gy = idx[1]*B::sizeY + iy;
+			const unsigned long int gz = idx[2]*B::sizeZ + iz;
+      float * const ptr_input = array_all + NCHANNELS*(gx + NX * (gy + NY * gz));
+      b(ix, iy, iz).u = ptr_input[0];
+      b(ix, iy, iz).v = ptr_input[1];
+      b(ix, iy, iz).w = ptr_input[2];
+		}
+	}
+
+	status = H5Pclose(fapl_id);
+	status = H5Dclose(dataset_id);
+	status = H5Sclose(fspace_id);
+	status = H5Sclose(mspace_id);
+	status = H5Fclose(file_id);
+
+	H5close();
 
 	delete [] array_all;
 	#else

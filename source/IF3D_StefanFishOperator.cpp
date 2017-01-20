@@ -9,6 +9,84 @@
 #include "IF3D_StefanFishOperator.h"
 #include "IF3D_FishLibrary.h"
 
+void IF3D_StefanFishOperator::save(const int step_id, const Real t, std::string filename)
+{
+	//assert(std::abs(t-sim_time)<std::numeric_limits<Real>::epsilon());
+	std::ofstream savestream;
+	savestream.setf(std::ios::scientific);
+	savestream.precision(std::numeric_limits<Real>::digits10 + 1);
+	savestream.open(filename + ".txt");
+
+	savestream<<t<<"\t"<<sim_dt<<std::endl;
+	savestream<<position[0]<<"\t"<<position[1]<<"\t"<<position[2]<<std::endl;
+	savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
+	savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
+	savestream<<angVel[0]<<"\t"<<angVel[1]<<"\t"<<angVel[2]<<std::endl;
+	savestream<<theta_internal<<"\t"<<angvel_internal<<"\t"<<adjTh<<std::endl;
+	savestream<<_2Dangle<<"\t"<<old_curv<<"\t"<<new_curv<<std::endl;
+	savestream.close();
+
+	myFish->curvScheduler.save(filename+"_curv");
+	myFish->baseScheduler.save(filename+"_base");
+	myFish->adjustScheduler.save(filename+"_adj");
+	sr.save(step_id, filename);
+}
+
+void IF3D_StefanFishOperator::restart(const Real t, string filename)
+{
+    std::ifstream restartstream;
+    restartstream.open(filename+".txt");
+    restartstream >> sim_time >> sim_dt;
+    assert(std::abs(sim_time-t) < std::numeric_limits<Real>::epsilon());
+    restartstream >> position[0] >> position[1] >> position[2];
+    restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
+    restartstream >> transVel[0] >> transVel[1] >> transVel[2];
+    restartstream >> angVel[0] >> angVel[1] >> angVel[2];
+    restartstream >> theta_internal >> angvel_internal >> adjTh;
+    restartstream >> _2Dangle >> old_curv >> new_curv;
+    restartstream.close();
+#if 1
+		sr.restart(filename);
+		myFish->curvScheduler.restart(filename+"_curv");
+		myFish->baseScheduler.restart(filename+"_base");
+		myFish->adjustScheduler.restart(filename+"_adj");
+#else
+		if (bCorrectTrajectory)
+		{
+			Real velx_tot = 4.67373623945047042549e-02 - transVel[0];
+			Real vely_tot = 4.67885955946669776506e-02 - transVel[1];
+			Real AngDiff  = std::atan2(vely_tot,velx_tot);
+			const Real B = (AngDiff*angVel[2]>0) ? 0.25/M_PI : 0;
+			const Real PID = (.5*adjTh +B*AngDiff*fabs(angVel[2]) );
+			myFish->adjustScheduler.t0 = sim_time;
+			myFish->adjustScheduler.t1 = sim_time + 0.00026;
+			for (int i=0; i<6; ++i) {
+				myFish->adjustScheduler.parameters_t0[i] = PID/M_PI;
+				myFish->adjustScheduler.parameters_t1[i] = PID/M_PI;
+			}
+			sr.t_next_comm = 1e5;
+		}
+		else
+		{
+			std::array<Real,7> tmp_curv = {0, -.592913, 0, .00590721, 0, -.131738, 0};
+			myFish->baseScheduler.parameters_t0 = tmp_curv;
+			myFish->baseScheduler.t0 = 4.5;
+			sr.t_next_comm = 5.;
+		}
+#endif
+		if(!rank)
+		{
+		std::cout<<"RESTARTED FISH: "<<std::endl;
+		std::cout<<"TIME, DT: "<<sim_time<<" "<<sim_dt<<std::endl;
+		std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
+		std::cout<<"ANGLE: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
+		std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
+		std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
+		std::cout<<"INTERN: "<<theta_internal<<" "<<angvel_internal<<std::endl;
+		std::cout<<"2D angle: \t"<<_2Dangle<<std::endl;
+		}
+}
+
 IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI * grid, ArgumentParser & parser)
 : IF3D_FishOperator(grid, parser)
 {
@@ -98,8 +176,8 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
         vector<Real> state(nStates), actions(nActions);
 
         int k(0);
-        state[k++] = sr.Xrel - GoalDX;
-        state[k++] = sr.Yrel;
+        state[k++] = sr.Xpov - GoalDX;
+        state[k++] = sr.Ypov;
         state[k++] = sr.RelAng;
         state[k++] = relT;
         state[k++] = new_curv;

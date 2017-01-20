@@ -130,16 +130,19 @@ isServer(_sockID==0), msgID(0), comm_MPI(comm)
   sizein  =    nActions*sizeof(double);
 
   sprintf(SOCK_PATH, "%s%d", "/tmp/smarties_sock_", workerid);
-  printf("SOCK_PATH=->%s<-\n", SOCK_PATH);
   dataout = (double *) malloc(sizeout);
   memset(dataout, 0, sizeout);
   datain  = (double *) malloc(sizein);
   memset(datain, 0, sizein);
-  printf("nStates:%d nActions:%d sizein:%d sizeout:%d\n",
-        nStates, nActions, sizein, sizeout);
 
   MPI_Comm_rank(comm_MPI,&rank_MPI);
   MPI_Comm_size(comm_MPI,&size_MPI);
+
+  if(!rank_MPI) {
+  printf("SOCK_PATH=->%s<-\n", SOCK_PATH);
+  printf("nStates:%d nActions:%d sizein:%d sizeout:%d\n",
+        nStates, nActions, sizein, sizeout);
+  }
 
   if(_sockID==0 && rank_MPI == 0) setupClient(0, std::string());
 }

@@ -3,25 +3,66 @@
  *  
  *
  *  Created by Diego Rossinelli on 3/27/13.
+ *  Extended by Panos Hadjidoukas.
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
  */
 
-#ifndef _COMPRESSIONENCODERS_H_
-#define _COMPRESSIONENCODERS_H_
-
 #pragma once
 
-#include <zlib.h>
+#include <zlib.h>	// always needed
+
 #if defined(_USE_LZ4_)
 #include <lz4.h>
 #endif
+
+#if defined(_USE_LZF_)
+extern "C"
+{
+#include "lzf.h" 
+}
+#endif
+
+#if defined(_USE_LZMA_)
+extern "C"
+{
+#include "mylzma.h" 
+}
+#endif
+
+#if defined(_USE_ZOPFLI_)
+extern "C"
+{
+#include "myzopfli.h" 
+}
+#endif
+
+#if defined(_USE_FPC_)||defined(_USE_FPC2_)
+extern "C"
+{
+#include "fpc.h" 
+}
+#endif
+
+#if defined(_USE_FPZIP_)||defined(_USE_FPZIP2_)
+extern "C"
+{
+#include "myfpzip.h" 
+}
+#endif
+
+#if defined(_USE_DRAIN_)
+#include "drain.h"
+#endif
+
 inline int deflate_inplace(z_stream *strm, unsigned char *buf, unsigned len, unsigned *max);
 inline size_t zdecompress(unsigned char * inputbuf, size_t ninputbytes, unsigned char * outputbuf, const size_t maxsize);
 
 
 inline size_t zdecompress(unsigned char * inputbuf, size_t ninputbytes, unsigned char * outputbuf, const size_t maxsize)
 {
+	printf("zdecompress has been called for %d input bytes\n", ninputbytes);
+
 	int decompressedbytes = 0;
 #if defined(_USE_ZLIB_)
 	z_stream datastream = {0};
@@ -43,13 +84,64 @@ inline size_t zdecompress(unsigned char * inputbuf, size_t ninputbytes, unsigned
 	}
 	
 	inflateEnd(&datastream);
-#else	/* _USE_LZ4_ */
+#elif defined(_USE_LZ4_)
 	decompressedbytes = LZ4_uncompress_unknownOutputSize((char *)inputbuf, (char*) outputbuf, ninputbytes, maxsize);
 	if (decompressedbytes < 0)
 	{
 		printf("LZ4 DECOMPRESSION FAILURE!!\n");
 		abort();
 	}
+#elif defined(_USE_LZF_)
+	decompressedbytes = lzf_decompress((const void *)inputbuf, ninputbytes, (void *) outputbuf, maxsize);
+	if (decompressedbytes < 0)
+	{
+		printf("LZF DECOMPRESSION FAILURE!!\n");
+		abort();
+	}
+#elif defined(_USE_LZMA_)
+#if 0
+	unsigned char *lzma_decompressed;
+	int rc = simpleDecompress(ELZMA_lzma, inputbuf, ninputbytes, &lzma_decompressed, (size_t *)&decompressedbytes);
+	if (rc != ELZMA_E_OK)
+	{
+		printf("LZMA DECOMPRESSION FAILURE!!\n");
+		abort();
+	}
+	memcpy(outputbuf, lzma_decompressed, decompressedbytes); 
+	free(lzma_decompressed);
+#else
+	decompressedbytes = lzma_decompress((unsigned char *) inputbuf, ninputbytes, (unsigned char *) outputbuf, maxsize);
+	if (decompressedbytes < 0)
+	{
+		printf("LZMA DECOMPRESSION FAILURE!!\n");
+		abort();
+	}
+#endif
+#elif defined(_USE_ZOPFLI_)
+	decompressedbytes = zopfli_decompress((const void *) inputbuf, ninputbytes, (void *) outputbuf, maxsize);
+	if (decompressedbytes < 0)
+	{
+		printf("ZOPFLI DECOMPRESSION FAILURE!!\n");
+		abort();
+	}
+#elif defined(_USE_FPC2_)
+	fpc_decompress((char *)inputbuf, ninputbytes, (char*) outputbuf, &decompressedbytes);
+	if (decompressedbytes < 0)
+	{
+		printf("FPC DECOMPRESSION FAILURE!!\n");
+		abort();
+	}
+#elif defined(_USE_FPZIP2_)	/* does not work as the buffer contains a mix of integers + floats */ 
+	fpz_decompress1D((char *)inputbuf, ninputbytes, (char *) outputbuf, (unsigned int *)&decompressedbytes, (sizeof(Real)==4)?1:0);
+	printf("fpz: %d to %d\n", ninputbytes, decompressedbytes);
+	if (decompressedbytes < 0)
+	{
+		printf("FPZIP DECOMPRESSION FAILURE!!\n");
+		abort();
+	}
+#else
+	decompressedbytes = ninputbytes;
+	memcpy(outputbuf, inputbuf, ninputbytes);
 #endif
 	return decompressedbytes;
 }
@@ -153,10 +245,11 @@ inline int deflate_inplace(z_stream *strm, unsigned char *buf, unsigned len,
     strm->zfree(strm->opaque, hold);
     *max = strm->next_out - buf;
     return ret == Z_OK ? Z_BUF_ERROR : (ret == Z_STREAM_END ? Z_OK : ret);
-#else	/* _USE_LZ4_ */
-    const int ZBUFSIZE = (4*1024*1024);
 
-	static char bufzlib[ZBUFSIZE];	/* and this per thread (threadprivate or better an small cyclic array of buffers ) */
+#elif defined(_USE_LZ4_)||defined(_USE_LZF_)||defined(_USE_LZMA_)||defined(_USE_ZOPFLI_)||defined(_USE_FPC2_)||defined(_USE_FPZIP2_)
+
+	#define ZBUFSIZE (4*1024*1024)	/* fix this */
+	static char bufzlib[ZBUFSIZE];	/* and this per thread (threadprivate or better a small cyclic array of buffers ) */
 
 	if (ZBUFSIZE < *max) {
 		printf("small ZBUFSIZE\n");
@@ -168,14 +261,87 @@ inline int deflate_inplace(z_stream *strm, unsigned char *buf, unsigned len,
 
 #pragma omp critical
 	{
-	compressedbytes = LZ4_compress((char*) buf, (char *)bufzlib, ninputbytes);
-	memcpy(buf, bufzlib, compressedbytes);	
+#if defined(_USE_LZ4_)
+		compressedbytes = LZ4_compress((char*) buf, (char *) bufzlib, ninputbytes);
+#elif defined(_USE_LZF_)
+		compressedbytes = lzf_compress((void *) buf, ninputbytes, (void *) bufzlib, ZBUFSIZE);
+#elif defined(_USE_LZMA_)
+#if 0
+		int rc;
+		unsigned char *lzma_compressed;
+		rc = simpleCompress(ELZMA_lzma, (unsigned char *) buf, ninputbytes, &lzma_compressed, (size_t *)&compressedbytes);
+//		printf("lzma compression: %ld -> %ld\n", ninputbytes, compressedbytes);
+		if (rc != ELZMA_E_OK) {
+			compressedbytes = -1;
+//			printf("rz != ELZMA_E_OK\n"); abort();
+		}
+		memcpy(bufzlib, lzma_compressed, compressedbytes);
+		free(lzma_compressed);	
+#else
+		compressedbytes = lzma_compress((unsigned char *) buf, ninputbytes, (unsigned char *)bufzlib, ZBUFSIZE);
+#endif
+#elif defined(_USE_ZOPFLI_)
+		compressedbytes = zopfli_compress((const unsigned char *) buf, ninputbytes, (unsigned char *) bufzlib);
+#elif defined(_USE_FPC2_)
+		fpc_compress((char *) buf, ninputbytes, (char *) bufzlib, &compressedbytes, 10);
+#elif defined(_USE_FPZIP2_)
+		fpz_compress1D((void *) buf, ninputbytes, (void *) bufzlib, (unsigned int *)&compressedbytes, (sizeof(Real)==4)?1:0);
+#endif
+		memcpy(buf, bufzlib, compressedbytes);	
 	}
 
 	strm->total_out = compressedbytes;
 	*max = compressedbytes;
         return (compressedbytes >= 0) ? Z_OK : Z_BUF_ERROR;
+
+#else	/* NO COMPRESSION */
+
+	int compressedbytes = len;
+	strm->total_out = compressedbytes;
+	*max = compressedbytes;
+        return Z_OK;
 #endif
 }
 
+
+#if defined(_USE_SHUFFLE_)
+void shuffle(char *in, int n, int s)
+{
+        int i, j, k;
+        int b;
+
+        char *tmp = (char *)malloc(n);
+
+        j = 0;
+	for (b = 0; b < s; b++)
+        {
+                for (i = b; i < n; i+= s) {
+                        tmp[j] = in[i];
+                        j++;
+                }
+        }
+
+	memcpy(in, tmp, n);
+        free(tmp);
+}
+
+void reshuffle(char *in, int n, int s)
+{
+        int i, j, k;
+        int b;
+
+        char *tmp = (char *)malloc(n);
+        int c = n/s;
+
+        j = 0;
+	for (i = 0; i < n/s; i++) {
+                for (b = 0; b < s; b++) {
+                        tmp[j] = in[i + b*c]; j++;
+
+                }
+        }
+
+	memcpy(in, tmp, n);
+        free(tmp);
+}
 #endif

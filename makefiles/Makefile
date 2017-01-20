@@ -15,6 +15,12 @@ hdf ?= true
 vtk ?= false
 rk2 ?= true
 accfft ?= false
+zlib ?= 1
+
+ifeq "$(zlib)" "1"
+	CPPFLAGS += -D_USE_ZLIB_ #-D_USE_WAVZ_
+	LIBS +=  -lz -lrt -lstdc++
+endif
 
 CPPFLAGS+= -w -D_ALIGNBYTES_=16 -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
@@ -25,13 +31,15 @@ ifeq "$(precision)" "single"
 	NVCCFLAGS += -D_SP_COMP_
 endif
 
+CPPFLAGS += -D_BLOCKSIZE_=$(bs)
 CPPFLAGS += -D_BS_=$(bs)
 CPPFLAGS += -D_BSX_=$(bsx)
 CPPFLAGS += -D_BSY_=$(bsy)
 CPPFLAGS += -D_BSZ_=$(bsz)
+CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
 ifeq "$(config)" "prod"
-	CPPFLAGS += -DNDEBUG -O4 -fstrict-aliasing -march=native -mtune=native -ffast-math
+	CPPFLAGS += -DNDEBUG -O4 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=16
 else
 	CPPFLAGS += -g
 endif
@@ -59,7 +67,7 @@ CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/
-CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
+#CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
 
@@ -96,7 +104,7 @@ ifeq "$(precision)" "double"
 	LIBS += -lfftw3 -lfftw3_threads -lfftw3_mpi
 endif
 
-LIBS += -L../tools/fpzip/lib -lfpzip
+#LIBS += -L../tools/fpzip/lib -lfpzip
 
 LIBS += -lstdc++ -lgsl -lgslcblas -lm -ldl -lz
 
@@ -104,12 +112,12 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS = Communicator.o ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o Save_splicer.o main.o
+OBJECTS = Communicator.o ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o Save_splicer.o WaveletCompressor.o main.o
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"
-	CPPFLAGS += -D_ACCFFT_ -D_CUDA_COMP_ -I$(accfft-inc)
-	LIBS += -L$(accfft-lib) -lcufft -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu
+	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -D_CUDA_COMP_
+	LIBS += -L$(accfft-lib) -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu -lcufft
 	NVOBJECTS = PoissonSolverScalarFFTW_ACC.o
 else
 	NVOBJECTS =

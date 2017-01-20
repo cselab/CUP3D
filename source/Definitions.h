@@ -871,17 +871,25 @@ struct FluidVPStreamer
 		return 0;
 	}
 
-	const char * name() { return "FluidVPStreamer" ; }
+	const char * name() { return "StreamerGridPointIterative" ; }
 };
 
-template<> inline Real FluidVPStreamer::operate<0>(const FluidElement& e) { return e.u; }
-template<> inline Real FluidVPStreamer::operate<1>(const FluidElement& e) { return e.v; }
-template<> inline Real FluidVPStreamer::operate<2>(const FluidElement& e) { return e.w; }
-template<> inline Real FluidVPStreamer::operate<3>(const FluidElement& e) { return e.chi; }
-template<> inline Real FluidVPStreamer::operate<4>(const FluidElement& e) { return e.p; }
-template<> inline Real FluidVPStreamer::operate<5>(const FluidElement& e) { return e.tmpU; }
-template<> inline Real FluidVPStreamer::operate<6>(const FluidElement& e) { return e.tmpV; }
-template<> inline Real FluidVPStreamer::operate<7>(const FluidElement& e) { return e.tmpW; }
+template<> inline Real FluidVPStreamer::operate<0>(const FluidElement& e)
+{ return e.u; }
+template<> inline Real FluidVPStreamer::operate<1>(const FluidElement& e)
+{ return e.v; }
+template<> inline Real FluidVPStreamer::operate<2>(const FluidElement& e)
+{ return e.w; }
+template<> inline Real FluidVPStreamer::operate<3>(const FluidElement& e)
+{ return e.chi; }
+template<> inline Real FluidVPStreamer::operate<4>(const FluidElement& e)
+{ return e.p; }
+template<> inline Real FluidVPStreamer::operate<5>(const FluidElement& e)
+{ return e.tmpU; }
+template<> inline Real FluidVPStreamer::operate<6>(const FluidElement& e)
+{ return e.tmpV; }
+template<> inline Real FluidVPStreamer::operate<7>(const FluidElement& e)
+{ return e.tmpW; }
 
 /*
 struct TmpVPStreamer
@@ -1180,86 +1188,45 @@ struct StreamerScalarHDF5
 	static const char * getAttributeName() { return "Scalar"; }
 };
 
-/*
 template<typename BlockType, template<typename X> class allocator=std::allocator>
-class BlockLabBottomWall : public BlockLab<BlockType,allocator>
+class BlockLabOpen: public BlockLab<BlockType,allocator>
 {
-	typedef typename BlockType::ElementType ElementTypeBlock;
-
-public:
-    ElementTypeBlock pDirichlet;
-
-	BlockLabBottomWall(): BlockLab<BlockType,allocator>()
+    typedef typename BlockType::ElementType ElementTypeBlock;
+  public:
+    //virtual inline std::string name() const { return "BlockLabOpen"; }
+    bool is_xperiodic() {return false;}
+    bool is_yperiodic() {return false;}
+    bool is_zperiodic() {return false;}
+    BlockLabOpen(): BlockLab<BlockType,allocator>(){}
+    void _apply_bc(const BlockInfo& info, const Real t=0)
     {
-        pDirichlet.chi = 0;
-		pDirichlet.u = 0;
-		pDirichlet.v = 0;
-		pDirichlet.w = 0;
-        pDirichlet.p = 0;
-		pDirichlet.tmpU = 0;
-		pDirichlet.tmpV = 0;
-		pDirichlet.tmpW = 0;
+        BoundaryCondition<BlockType,ElementTypeBlock,allocator>
+                bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
+
+        if (info.index[0]==0)           bc.template applyBC_absorbing<0,0>();
+        //if (info.index[0]==0)           bc.template applyBC_dirichlet_inflow<0,0>();
+        if (info.index[0]==this->NX-1)  bc.template applyBC_absorbing<0,1>();
+        if (info.index[1]==0)           bc.template applyBC_absorbing<1,0>();
+        if (info.index[1]==this->NY-1)  bc.template applyBC_absorbing<1,1>();
+        if (info.index[2]==0)           bc.template applyBC_absorbing<2,0>();
+        if (info.index[2]==this->NZ-1)  bc.template applyBC_absorbing<2,1>();
     }
-
-	void _apply_bc(const BlockInfo& info, const Real t=0)
-	{
-		BoundaryCondition<BlockType,ElementTypeBlock,allocator> bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
-
-		// keep periodicity in x,z direction
-		if (info.index[1]==0)		   bc.template applyBC_mixedBottom<1,0>(pDirichlet);
-		if (info.index[1]==this->NY-1) bc.template applyBC_mixedTop<1,1>(pDirichlet);
-	}
 };
 
-template<typename BlockType, template<typename X> class allocator=std::allocator>
-class BlockLabPipe : public BlockLab<BlockType,allocator>
-{
-	typedef typename BlockType::ElementType ElementTypeBlock;
-
-public:
-	BlockLabPipe(): BlockLab<BlockType,allocator>(){}
-
-	void _apply_bc(const BlockInfo& info, const Real t=0)
-	{
-		BoundaryCondition<BlockType,ElementTypeBlock,allocator> bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
-
-		if (info.index[1]==0)		   bc.template applyBC_mixedBottom<1,0>();
-		if (info.index[1]==this->NY-1) bc.template applyBC_mixedBottom<1,1>();
-	}
-};
-
-template<typename BlockType, template<typename X> class allocator=std::allocator>
-class BlockLabVortex : public BlockLab<BlockType,allocator>
-{
-	typedef typename BlockType::ElementType ElementTypeBlock;
-
-public:
-	BlockLabVortex(): BlockLab<BlockType,allocator>(){}
-
-	void _apply_bc(const BlockInfo& info, const Real t=0)
-	{
-		BoundaryCondition<BlockType,ElementTypeBlock,allocator> bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
-
-		if (info.index[0]==0)		   bc.template applyBC_vortex<0,0>(info);
-		if (info.index[0]==this->NX-1) bc.template applyBC_vortex<0,1>(info);
-		if (info.index[1]==0)		   bc.template applyBC_vortex<1,0>(info);
-		if (info.index[1]==this->NY-1) bc.template applyBC_vortex<1,1>(info);
-		if (info.index[2]==0)		   bc.template applyBC_vortex<2,0>(info);
-		if (info.index[2]==this->NZ-1) bc.template applyBC_vortex<2,1>(info);
-	}
-};
-*/
 typedef Grid<FluidBlock, std::allocator> FluidGrid;
 typedef Grid<ScalarBlock, std::allocator> ScalarGrid;
 typedef GridMPI<FluidGrid> FluidGridMPI;
 
+#define _OPEN_BC_
+#ifndef _OPEN_BC_
+typedef  Lab;
+#else
+typedef  BlockLabOpen<FluidBlock, std::allocator> Lab;
+#endif
+
 //#ifdef _MIXED_
 //typedef BlockLabBottomWall<FluidBlock, std::allocator> Lab;
 //#endif // _MIXED_
-
-//#ifdef _PERIODIC_
-//typedef  Lab;
-//#endif // _PERIODIC_
 
 //#ifdef _VORTEX_
 //typedef BlockLabVortex<FluidBlock, std::allocator> Lab;

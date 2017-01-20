@@ -36,29 +36,29 @@ class FFTWBase_MPI
 			int supported_threads;
 			MPI_Query_thread(&supported_threads);
 			if (supported_threads>=MPI_THREAD_FUNNELED) {
-#ifndef _SP_COMP_
+				#ifndef _SP_COMP_
 				const int retval = fftw_init_threads();
-#else
+				#else
 				const int retval = fftwf_init_threads();
-#endif
+				#endif
 				if(retval==0) {
 					cout << "FFTWBase::setup(): Oops the call to fftw_init_threads() returned zero. Aborting\n";
 					abort();
 				}
 				else {
-#ifndef _SP_COMP_
+					#ifndef _SP_COMP_
 					fftw_plan_with_nthreads(desired_threads);
-#else
+					#else
 					fftwf_plan_with_nthreads(desired_threads);
-#endif
+					#endif
 				}
 			}
 
-#ifndef _SP_COMP_
+			#ifndef _SP_COMP_
 			fftw_mpi_init();
-#else
+			#else
 			fftwf_mpi_init();
-#endif
+			#endif
 		}
 
 		registered_objects++;
@@ -73,11 +73,11 @@ public:
 		registered_objects--;
 
 		if (registered_objects == 0) {
-#ifndef _SP_COMP_
+			#ifndef _SP_COMP_
 			fftw_mpi_cleanup();
-#else
+			#else
 			fftwf_mpi_cleanup();
-#endif
+			#endif
 		}
 	}
 };
@@ -100,7 +100,7 @@ protected:
 
 		if (!initialized) {
 			initialized = true;
-#ifndef _SP_COMP_
+			#ifndef _SP_COMP_
 			alloc_local = fftw_mpi_local_size_3d_transposed(nx, ny, nz/2+1, comm,
 												&local_n0, &local_0_start, &local_n1, &local_1_start);
 			rhs = fftw_alloc_real(2*alloc_local);
@@ -108,7 +108,7 @@ protected:
 																			FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
 			bwd = fftw_mpi_plan_dft_c2r_3d(nx, ny, nz, (mycomplex *)rhs, rhs, comm,
 																			FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
-#else
+			#else
 			alloc_local = fftwf_mpi_local_size_3d_transposed(nx, ny, nz/2+1, comm,
 													&local_n0, &local_0_start, &local_n1, &local_1_start);
 			rhs = fftwf_alloc_real(2*alloc_local);
@@ -116,7 +116,7 @@ protected:
 																			FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
 			bwd = fftwf_mpi_plan_dft_c2r_3d(nx, ny, nz, (mycomplex *)rhs, rhs, comm,
 																			FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
-#endif
+			#endif
 		}
 	}
 
@@ -132,7 +132,7 @@ protected:
 				static_cast<size_t>(grid.getResidentBlocksPerDimension(2))
 		};
 
-#pragma omp parallel for
+		#pragma omp parallel for
 		for(int i=0; i<N; ++i) {
 			const BlockInfo info = local_infos[i];
 			BlockType& b = *(BlockType*)info.ptrBlock;
@@ -141,9 +141,9 @@ protected:
 															bs[1]*info.index[1] + mybpd[1] * bs[1] *
 																bs[0]*info.index[0]);
 
-			for(int iz=0; iz<BlockType::sizeZ; iz++)
+			for(int ix=0; ix<BlockType::sizeX; ix++)
 			for(int iy=0; iy<BlockType::sizeY; iy++)
-			for(int ix=0; ix<BlockType::sizeX; ix++) {
+			for(int iz=0; iz<BlockType::sizeZ; iz++) {
 				const size_t dest_index = offset + iz + 2*nz_hat*( iy + BlockType::sizeY*mybpd[1]*ix );
 				assert(dest_index>=0 && dest_index<nx*ny*nz_hat*2);
 				TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
@@ -163,7 +163,7 @@ protected:
 				grid.getResidentBlocksPerDimension(2)
 		};
 
-#pragma omp parallel for
+		#pragma omp parallel for
 		for(int i=0; i<N; ++i) {
 			const BlockInfo info = local_infos[i];
 			BlockType& b = *(BlockType*)info.ptrBlock;
@@ -172,9 +172,9 @@ protected:
 															bs[1]*info.index[1] + mybpd[1] * bs[1] *
 																bs[0]*info.index[0]);
 
-			for(int iz=0; iz<BlockType::sizeZ; iz++)
+			for(int ix=0; ix<BlockType::sizeX; ix++)
 			for(int iy=0; iy<BlockType::sizeY; iy++)
-			for(int ix=0; ix<BlockType::sizeX; ix++) {
+			for(int iz=0; iz<BlockType::sizeZ; iz++) {
 				const size_t src_index = offset + iz + 2*nz_hat*(iy + BlockType::sizeY*mybpd[1]*ix);
 				assert(src_index>=0 && src_index<nx*ny*nz_hat*2);
 				TStreamer::operate(&out[src_index], b.data[iz][iy][ix]);
@@ -185,11 +185,11 @@ protected:
 	void _solve(mycomplex * in_out, const size_t nx, const size_t ny,
 		const size_t nz, const size_t nz_hat, const Real norm_factor, const Real h)
 	{
-#if 0
+		#if 0
 		const Real h2 = h*h;
 		const Real factor = h2*norm_factor;
 
-#pragma omp parallel for
+		#pragma omp parallel for
 		for(int j=0; j<local_n1; ++j)
 		for(int i=0; i<nx; ++i)
 		for(int k = 0; k<nz_hat; ++k) {
@@ -206,12 +206,12 @@ protected:
 			in_out[linidx][0] *= fatfactor;
 			in_out[linidx][1] *= fatfactor;
 		}
-#else
+		#else
         const Real waveFactX = 2.0*M_PI/(nx*h);
         const Real waveFactY = 2.0*M_PI/(ny*h);
         const Real waveFactZ = 2.0*M_PI/(nz*h);
 
-#pragma omp parallel for
+		#pragma omp parallel for
 		for(int j = 0; j<local_n1; ++j)
 		for(int i=0; i<nx; ++i)
 		for(int k = 0; k<nz_hat; ++k) {
@@ -229,7 +229,7 @@ protected:
 			in_out[linidx][0] *= kinv*norm_factor;
 			in_out[linidx][1] *= kinv*norm_factor;
 		}
-#endif
+		#endif
 
 		//this is sparta!
 		if (local_1_start == 0) in_out[0][0] = in_out[0][1] = 0;
@@ -268,21 +268,21 @@ public:
 
 		_cub2fftw(grid, data, local_n0, gsize[1], gsize[2], gsize[2]/2+1);
 
-#ifndef _SP_COMP_
+		#ifndef _SP_COMP_
 		fftw_execute(fwd);
-#else
+		#else
 		fftwf_execute(fwd);
-#endif
+		#endif
 
 		const Real norm_factor = 1./(gsize[0]*gsize[1]*gsize[2]);
 		const Real h = grid.getBlocksInfo().front().h_gridpoint;
 		_solve((mycomplex *)data, gsize[0], gsize[1], gsize[2], gsize[2]/2+1, norm_factor, h);
 
-#ifndef _SP_COMP_
+		#ifndef _SP_COMP_
 		fftw_execute(bwd);
-#else
+		#else
 		fftwf_execute(bwd);
-#endif
+		#endif
 
 		_fftw2cub(data, grid, gsize[0], gsize[1], gsize[2], gsize[2]/2+1);
 	}
@@ -292,15 +292,15 @@ public:
 		if (initialized) {
 			initialized = false;
 
-#ifndef _SP_COMP_
+			#ifndef _SP_COMP_
 			fftw_destroy_plan(fwd);
 			fftw_destroy_plan(bwd);
 			fftw_free(data);
-#else
+			#else
 			fftwf_destroy_plan(fwd);
 			fftwf_destroy_plan(bwd);
 			fftwf_free(data);
-#endif
+			#endif
 			FFTWBase_MPI::dispose();
 		}
 	}

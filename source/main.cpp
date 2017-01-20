@@ -59,6 +59,8 @@ int main(int argc, char **argv)
 	sim->simulate();
 
 	MPI_Finalize();
-
+	if(communicator not_eq nullptr)
+			delete communicator;
+	delete sim;
 	return 0;
 }

@@ -68,7 +68,7 @@ void Simulation::parseArguments()
     uinf[0] = parser("-uinfx").asDouble(0.0);
     uinf[1] = parser("-uinfy").asDouble(0.0);
     uinf[2] = parser("-uinfz").asDouble(0.0);
-    length = parser("-length").asDouble(0.0);
+    length = parser("-length").asDouble();
     verbose = parser("-verbose").asBool(false);
 }
 
@@ -102,7 +102,9 @@ void Simulation::setupOperators()
     pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
     pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
     pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
+    //#ifndef _OPEN_BC_
     pipeline.push_back(new CoordinatorFadeOut(grid));
+    //#endif
     if(rank==0) {
     	cout << "Coordinator/Operator ordering:\n";
     	for (int c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;
@@ -111,7 +113,7 @@ void Simulation::setupOperators()
 
 void Simulation::areWeDumping(Real & nextDumpTime)
 {
-	bDump = (dumpFreq>0 && step%dumpFreq==0) || (dumpTime>0 && time>=nextDumpTime);
+	bDump = (dumpFreq>0 && step+1%dumpFreq==0) || (dumpTime>0 && time>=nextDumpTime);
 	if (bDump) nextDumpTime += dumpTime;
 
   #ifdef __SMARTIES_
@@ -128,8 +130,8 @@ void Simulation::_dump(const string append = string())
     if (append == string())
     	ssR<<"restart_";
     else
-        ssR<<append;
-	ssR << std::setfill('0')<<std::setw(9)<<step;
+      ssR<<append;
+      ssR << std::setfill('0')<<std::setw(9)<<step;
     if (rank==0) cout << ssR.str() << endl;
 
     if (rank==0) { //rank 0 saves step id and obstacles
@@ -148,51 +150,32 @@ void Simulation::_dump(const string append = string())
 
     #if defined(_USE_HDF_)
       if(b2Ddump) {
-        stringstream ssF;
-        if (append == string())
-           ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
-        else
-           ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
-      	DumpHDF5flat_MPI(*grid, time, ssF.str(),path4serialization);
+      stringstream ssF;
+      if (append == string())
+       ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
+      else
+       ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
+      DumpHDF5flat_MPI(*grid, time, ssF.str(),path4serialization);
       }
-      DumpHDF5_MPI_Channel<StreamerHDF5>(*grid, time, ssR.str(),path4serialization);
-    #endif
-    #if defined(_USE_LZ4_) //TODO: does not compile
-      CoordinatorVorticity<LabMPI> coordVorticity(grid);
-      coordVorticity(dt);
-      MPI_Barrier(MPI_COMM_WORLD);
-      Real vpeps = parser("-vpeps").asDouble(1e-5);
-      int wavelet_type = parser("-wtype").asInt(1);
-
-      waveletdumper_grid.verbose();
-      waveletdumper_grid.set_wtype_write(wavelet_type);
-      waveletdumper_grid.set_threshold (vpeps);
-      waveletdumper_grid.Write<0>(grid, ss.str());
-      waveletdumper_grid.Write<1>(grid, ss.str());
-      waveletdumper_grid.Write<2>(grid, ss.str());
-      waveletdumper_grid.Write<3>(grid, ss.str());
-      waveletdumper_grid.Write<4>(grid, ss.str());
-      waveletdumper_grid.Write<5>(grid, ss.str());
-      waveletdumper_grid.Write<6>(grid, ss.str());
-      waveletdumper_grid.Write<7>(grid, ss.str());
+      DumpHDF5_MPI_Vector<StreamerHDF5>(*grid, time, ssR.str(),path4serialization);
     #endif
 
-	   if (rank==0) { //saved the grid! Write status to remember most recent ping
-  		string restart_status = path4serialization+"/restart.status";
-  		FILE * f = fopen(restart_status.c_str(), "w");
-  		assert(f != NULL);
-  		fprintf(f, "time: %20.20e\n", time);
-  		fprintf(f, "stepid: %d\n", (int)step);
-    	fprintf(f, "uinfx: %20.20e\n", uinf[0]);
-    	fprintf(f, "uinfy: %20.20e\n", uinf[1]);
-    	fprintf(f, "uinfz: %20.20e\n", uinf[2]);
-  		fclose(f);
-  		printf("time:  %20.20e\n", time);
-  		printf("stepid: %d\n", (int)step);
-    	printf("uinfx: %20.20e\n", uinf[0]);
-    	printf("uinfy: %20.20e\n", uinf[1]);
-    	printf("uinfz: %20.20e\n", uinf[2]);
-  	}
+    if (rank==0) { //saved the grid! Write status to remember most recent ping
+      string restart_status = path4serialization+"/restart.status";
+      FILE * f = fopen(restart_status.c_str(), "w");
+      assert(f != NULL);
+      fprintf(f, "time: %20.20e\n", time);
+      fprintf(f, "stepid: %d\n", (int)step);
+      fprintf(f, "uinfx: %20.20e\n", uinf[0]);
+      fprintf(f, "uinfy: %20.20e\n", uinf[1]);
+      fprintf(f, "uinfz: %20.20e\n", uinf[2]);
+      fclose(f);
+      printf("time:  %20.20e\n", time);
+      printf("stepid: %d\n", (int)step);
+      printf("uinfx: %20.20e\n", uinf[0]);
+      printf("uinfy: %20.20e\n", uinf[1]);
+      printf("uinfz: %20.20e\n", uinf[2]);
+    }
 
     CoordinatorDiagnostics coordDiags(grid,time,step);
     coordDiags(dt);
@@ -265,7 +248,13 @@ void Simulation::_deserialize()
 	ssR<<std::setfill('0')<<std::setw(9)<<step;
 	if (rank==0) cout << "Restarting from " << ssR.str() << endl;
 	MPI_Barrier(MPI_COMM_WORLD);
-	ReadHDF5_MPI_Channel<FluidGridMPI, StreamerHDF5>(*grid, ssR.str(),path4serialization);
+  #if 1
+	ReadHDF5_MPI_Vector<FluidGridMPI, StreamerHDF5>(*grid, ssR.str(),path4serialization);
+  #else
+	ReadHDF5_MPI_Channel<FluidGridMPI, StreamerHDF5, 0>(*grid, ssR.str(),path4serialization);
+	ReadHDF5_MPI_Channel<FluidGridMPI, StreamerHDF5, 1>(*grid, ssR.str(),path4serialization);
+	ReadHDF5_MPI_Channel<FluidGridMPI, StreamerHDF5, 2>(*grid, ssR.str(),path4serialization);
+  #endif
 	obstacle_vector->restart(time,path4serialization+"/"+ssR.str());
 
   printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
@@ -290,7 +279,8 @@ void Simulation::init()
 void Simulation::simulate()
 {
 	using namespace std::chrono;
-    Real nextDumpTime = dumpTime>0 ? std::ceil(time/dumpTime) : 1e3; //next = if time=0 then 0, if restart time+dumpTime
+    Real nextDumpTime = dumpTime>0 ? std::ceil(time/dumpTime)*dumpTime : 1e3; //next = if time=0 then 0, if restart time+dumpTime
+    if(!rank) printf("First dump at %g (freq %g)\n",nextDumpTime,dumpTime);
     Real nextSaveTime = time + saveTime;
     time_point<high_resolution_clock> last_save, this_save, start_sim;
     start_sim = high_resolution_clock::now();
@@ -298,7 +288,6 @@ void Simulation::simulate()
 
     while (true)
     {
-
         #ifdef __SMARTIES_
 				if (communicator not_eq nullptr)
 				{
@@ -308,6 +297,9 @@ void Simulation::simulate()
 					const auto _D = obstacle_vector->_getData();
           assert(_D.size() == nO);
 					for(int i=1; i<nO; i++) {
+            if(!rank)
+            printf("LEader's pov is %g %g %g length %g\n",
+            _D[0]->Xrel, _D[0]->Yrel,  _D[0]->thExp, length);
 						bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel,
 																			 _D[0]->thExp, length);
 						if (bDoOver) {
@@ -359,6 +351,33 @@ void Simulation::simulate()
         if(bDump)
         {
             _dump();
+
+            #ifdef _USE_ZLIB_
+              profiler.pop_stop();
+              profiler.push_start("Zlib");
+              MPI_Barrier(MPI_COMM_WORLD);
+              const int wtype_write = parser("-wtype_write").asInt(1);
+              double threshold = parser("-wthreshold").asDouble(1e-4);
+
+              std::stringstream streamer;
+              streamer<<path4serialization;
+              streamer<<"/";
+              streamer<<"chi_channel_";
+              streamer<<std::setfill('0')<<std::setw(9)<<step;
+              if(!rank)
+                printf("Saving chi to %s, threshold %g\n",
+                        streamer.str().c_str(),threshold);
+
+              waveletdumper_grid.verbose();
+              waveletdumper_grid.set_threshold(threshold);
+              waveletdumper_grid.set_wtype_write(wtype_write);
+              waveletdumper_grid.Write<3>(*grid, streamer.str());
+            #else
+              stringstream ssR;
+              ssR<<"restart_"<< std::setfill('0')<<std::setw(9)<<step;
+              DumpHDF5_MPI_Channel<StreamerHDF5,3>(*grid, time, ssR.str(), path4serialization);
+            #endif
+
             this_save = high_resolution_clock::now();
             const Real dClock = duration<Real>(this_save-last_save).count();
             const Real totClock = duration<Real>(this_save-start_sim).count();

@@ -16,8 +16,8 @@
 #include "IF2D_Frenet.h"
 
 const int NPPSEG = 100.; //was 100
-const int NPPEXT = 3; //was 3
-const int TGTPPB = 4.; //was 2 i think
+const int NPPEXT = 2; //was 3
+const int TGTPPB = 3.; //was 2 i think
 const int TSTART = 2.;
 
 #if 1
@@ -278,12 +278,15 @@ public:
 	const Real length;
 	const Real Tperiod;
 	const Real phaseShift;
+	Schedulers::ParameterSchedulerVector<6> curvScheduler;
+	Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
+	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
 
 protected:
 	Real Rmatrix2D[2][2];
 	Real Rmatrix3D[3][3];
 
-#ifndef __BSPLINE
+	#ifndef __BSPLINE
 	inline Real _width(const Real s, const Real L)
 	{
 		if(s<0 or s>L) return 0;
@@ -304,7 +307,7 @@ protected:
 		const Real b=0.08*L;
 		return b*std::sqrt(1 - std::pow((s-a)/a,2));
 	}
-#endif
+	#endif
 
 	inline void _rotate2D(Real &x, Real &y) const
 	{
@@ -466,7 +469,7 @@ public:
 		Nm(Nm),length(len),Tperiod(Tp),phaseShift(phase),rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),
 		vX(_alloc(Nm)),vY(_alloc(Nm)),norX(_alloc(Nm)),norY(_alloc(Nm)),vNorX(_alloc(Nm)),vNorY(_alloc(Nm)),
 		width(_alloc(Nm)),height(_alloc(Nm)),iFishStart(4*NPPEXT),iFishEnd(Nm-1-4*NPPEXT)
-{
+	{
 		// extension_info contains number of extension points and extension dx
 		const int Nextension = 4*NPPEXT; // up to 3dx on each side (to get proper interpolation up to 2dx)
 		const int Next = Nextension; // number of points per extension
@@ -483,7 +486,7 @@ public:
 		for(int i=0;i<Next;++i)
 			rS[i+Nint+Next] = length + (i + 1)*dx_ext;
 		_computeWidthsHeights();
-}
+	}
 
 	~FishMidlineData()
 	{
@@ -767,9 +770,6 @@ public:
 class CurvatureDefinedFishData : public FishMidlineData
 {
 protected:
-	Schedulers::ParameterSchedulerVector<6> curvScheduler;
-	Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
-	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
 	Real * const rK;
 	Real * const vK;
 	Real * const rC;
@@ -1551,17 +1551,18 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			const Real distPz = lab(ix,iy,iz+1).tmpU;
 			const Real distMz = lab(ix,iy,iz-1).tmpU;
 			// gradU
-			const Real gradUX = (distPx - distMx);
-			const Real gradUY = (distPy - distMy);
-			const Real gradUZ = (distPz - distMz);
-			const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
+			const Real gradUX = inv2h*(distPx - distMx);
+			const Real gradUY = inv2h*(distPy - distMy);
+			const Real gradUZ = inv2h*(distPz - distMz);
+			const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ + eps;
 
+			/*
 			if (gradUSq < eps) {
 				b(ix,iy,iz).chi = std::max((Real)0, b(ix,iy,iz).chi);
 				defblock->chi[iz][iy][ix] = 0;
 				continue;
 			}
-
+			*/
 			const Real IplusX = distPx < 0 ? 0 : distPx;
 			const Real IminuX = distMx < 0 ? 0 : distMx;
 			const Real IplusY = distPy < 0 ? 0 : distPy;
@@ -1576,9 +1577,9 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
 
 			// gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
-			const Real gradIX = (IplusX - IminuX);
-			const Real gradIY = (IplusY - IminuY);
-			const Real gradIZ = (IplusZ - IminuZ);
+			const Real gradIX = inv2h*(IplusX - IminuX);
+			const Real gradIY = inv2h*(IplusY - IminuY);
+			const Real gradIZ = inv2h*(IplusZ - IminuZ);
 			const Real gradHX = (HplusX - HminuX);
 			const Real gradHY = (HplusY - HminuY);
 			const Real gradHZ = (HplusZ - HminuZ);
@@ -1588,10 +1589,10 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			const Real H     = numH/gradUSq;
 
 			if (Delta>1e-6) {
+				const Real _Delta =  Delta*fac1;
 				const Real dchidx = -Delta*gradUX*fac1;
 				const Real dchidy = -Delta*gradUY*fac1;
 				const Real dchidz = -Delta*gradUZ*fac1;
-				const Real _Delta = Delta*fac2;
 				surface->add(info.blockID, ix, iy, iz, dchidx, dchidy, dchidz, _Delta);
 			}
 			(*momenta)[0] += H;

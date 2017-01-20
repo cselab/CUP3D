@@ -3,12 +3,13 @@
  *  
  *
  *  Created by Diego Rossinelli and Babak Hejazialhosseini on 3/1/13.
+ *  Extended by Panos Hadjidoukas.
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
  */
 
 #ifndef _WAVELETSONINTERVAL_H_
-#define _WAVELETSONINTERVAL_H_
+#define _WAVELETSONINTERVAL_H_ 1
 
 #pragma once
 #include <cmath>
@@ -19,7 +20,7 @@ using namespace std;
 
 namespace WaveletsOnInterval 
 {	
-#ifdef _SP_COMP_
+#ifdef _FLOAT_PRECISION_
 	typedef float FwtAp;
 #else
 	typedef double FwtAp;
@@ -150,7 +151,7 @@ namespace WaveletsOnInterval
 				data[N-1] = interp_last(scalings[Nhalf-4], scalings[Nhalf-3], scalings[Nhalf-2], scalings[Nhalf-1]) + details[Nhalf-1];
 			}
 			}
-			else	// wtype == 3
+			else	// wtype == 3  (and wtype == 0 for the moment)
 			{
 			if (forward)
 			{

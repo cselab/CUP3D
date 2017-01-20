@@ -3,12 +3,13 @@
  *  
  *
  *  Created by Diego Rossinelli on 3/27/13.
+ *  Extended by Panos Hadjidoukas.
  *  Copyright 2013 ETH Zurich. All rights reserved.
  *
  */
 
 #ifndef _FULLWAVELETTRANFORM_H_
-#define _FULLWAVELETTRANFORM_H_
+#define _FULLWAVELETTRANFORM_H_ 1
 
 #pragma once
 
@@ -17,6 +18,9 @@
 #include <bitset>
 
 #include "WaveletsOnInterval.h"	// 4th and 3rd order wavelets in C++ 
+#if defined(_QPX_) || defined(_QPXEMU_)
+#include "WaveletsOnIntervalQPX.h"	// 4th order wavelets (no lifting) in QPX  
+#endif
 
 using namespace std;
 
@@ -212,6 +216,6 @@ namespace WaveletsOnInterval
 			FullTransformEngine<BS, BS, BS, BS>::template load<DataType>(datastream, mask, data);
 		}
 	};
-};
+}
 
 #endif

@@ -31,7 +31,7 @@
 //#include "IF3D_CarlingFishOperator.h"
 //#include "IF3D_SphereObstacleOperator.h"
 //#include "IF3D_ForcedSphereObstacleOperator.h"
-#ifdef _USE_LZ4_
+#ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
 #endif
 
@@ -78,7 +78,8 @@ protected:
 	ArgumentParser parser;
 	Profiler profiler;
 	Communicator * communicator;
-#ifdef _USE_LZ4_
+#ifdef _USE_ZLIB_
+  //SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, StreamerGridPointIterative> mywaveletdumper;
 	SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, FluidVPStreamer> waveletdumper_grid;
 #endif
 
