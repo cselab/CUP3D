@@ -48,7 +48,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	// 11. correct deformation velocity to nullify momenta for the final discrete representation
 	std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t23, t45, t67, t8, t910, t11;
 
-	//MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(grid->getCartComm());
 	//t0 = std::chrono::high_resolution_clock::now();
 	const int Nsegments = NPPSEG;
 	const int Nextension = 4*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
@@ -68,7 +68,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	}
 	// 1.
 	myFish->computeMidline(time);
-	//MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(grid->getCartComm());
 	//t1 = std::chrono::high_resolution_clock::now();
 
 	// 2. & 3.
@@ -99,7 +99,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		assert(std::abs(volume_internal - volume_internal_check) < 10*std::numeric_limits<Real>::epsilon());
 	}
 	#endif
-	//MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(grid->getCartComm());
 	//t23 = std::chrono::high_resolution_clock::now();
 
 	// 4. & 5.
@@ -132,7 +132,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		delete entry.second;
 	obstacleBlocks.clear();
 
-	//MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(grid->getCartComm());
 	//t45 = std::chrono::high_resolution_clock::now();
 
 	// 6. & 7.
@@ -157,7 +157,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 			}
 		}
 	}
-	//MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(grid->getCartComm());
 	//t67 = std::chrono::high_resolution_clock::now();
 
 	//assert(not segmentsPerBlock.empty()); //killed this assert: distributed fish
@@ -194,8 +194,17 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 			}
 		}
 	}
-	//MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(grid->getCartComm());
 	//t8 = std::chrono::high_resolution_clock::now();
+}
+
+void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real dt, const Real *Uinf)
+{
+	// STRATEGY
+	// 9. create the Chi out of the SDF. In same sweep, compute the actual CoM
+	// 10. compute all shit: linear momentum, angular momentum etc.
+	// 11. correct deformation velocity to nullify momenta for the final discrete representation
+	std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t23, t45, t67, t8, t910, t11;
 
 	// 9. & 10.
 	{
@@ -222,8 +231,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 			sumX[3] += momenta[i][3];
 		}
 
-		MPI::COMM_WORLD.Allreduce(sumX, totX, 4, MPI::DOUBLE, MPI::SUM);
-
+		MPI_Allreduce(sumX, totX, 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
 		surfData.finalizeOnGrid(dataPerThread);
 
 		assert(totX[0]>std::numeric_limits<double>::epsilon());
@@ -231,12 +239,12 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		CoM_interpolated[1]=totX[2]/totX[0];
 		CoM_interpolated[2]=totX[3]/totX[0];
 	}
-	//MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(grid->getCartComm());
 	//t910 = std::chrono::high_resolution_clock::now();
 
 	// 11.
 	_makeDefVelocitiesMomentumFree(CoM_interpolated);
-	//MPI_Barrier(MPI_COMM_WORLD);
+	//MPI_Barrier(grid->getCartComm());
 	//t11 = std::chrono::high_resolution_clock::now();
 	/*
 	if(!rank) {

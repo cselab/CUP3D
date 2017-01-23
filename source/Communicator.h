@@ -17,7 +17,6 @@ class Communicator
     int Socket, ListenerSocket, sizein, sizeout;
     std::ostringstream o;
     int msgID, rank_MPI, size_MPI;
-    MPI_Comm comm_MPI;
 
     char SOCK_PATH[256];
     struct sockaddr_un serverAddress;
@@ -25,6 +24,7 @@ class Communicator
     double *datain, *dataout;
 
 public:
+    MPI_Comm comm_MPI;
     void setupServer();
     void setupClient(const int iter, const std::string execpath);
     void closeSocket();

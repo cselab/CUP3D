@@ -16,8 +16,8 @@
 #include "IF2D_Frenet.h"
 
 const int NPPSEG = 100.; //was 100
-const int NPPEXT = 2; //was 3
-const int TGTPPB = 3.; //was 2 i think
+const int NPPEXT = 3; //was 3
+const int TGTPPB = 2.; //was 2 i think
 const int TSTART = 2.;
 
 #if 1
@@ -752,7 +752,8 @@ public:
 		_computeMidlineCoordinates(time);
 		_computeMidlineVelocities(time);
 		_computeMidlineNormals();
-		#ifndef NDEBUG
+		#if 0
+		#warning USED MPI COMM WORLD
 		// we dump the profile
 		int rank;
 		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
@@ -864,8 +865,8 @@ public:
 		#endif
 		// solve frenet to compute midline parameters
 		IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
-		#if 1==0
-			//#ifndef NDEBUG
+		#if 0
+		#warning USED MPI COMM WORLD
 		{
 			int rank;
 			MPI_Comm_rank(MPI_COMM_WORLD,&rank);

@@ -164,13 +164,39 @@ public:
 			printf("Poisson solver assumes grid is distrubuted in x and y directions.\n");
 			abort();
 		}
-		MPI_Comm_rank(MPI_COMM_WORLD, &procid);
-		MPI_Comm_size(MPI_COMM_WORLD, &nprocs);
+
+		MPI_Comm_rank(grid.getCartComm(), &procid);
+		MPI_Comm_size(grid.getCartComm(), &nprocs);
 		int n[3] = {totbpd[0]*bs[0], totbpd[1]*bs[1], totbpd[2]*bs[2]};
 		int loc[3] = {mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2]};
 		int c_dims[2] = { totbpd[0]/mybpd[0], totbpd[1]/mybpd[1] };
 		assert(totbpd[0]%mybpd[0]==0 && totbpd[1]%mybpd[1]==0);
-		accfft_create_comm(MPI_COMM_WORLD,c_dims,&c_comm);
+		accfft_create_comm(grid.getCartComm(),c_dims,&c_comm);
+		{
+				int accfft_left, accfft_right, accfft_bottom, accfft_top, accfft_front, accfft_back, accfft_rank;
+				MPI_Comm_rank( c_comm, &accfft_rank);
+				MPI_Cart_shift(c_comm, 0, 1, &accfft_left,   &accfft_right);
+				MPI_Cart_shift(c_comm, 1, 1, &accfft_bottom, &accfft_top);
+				//MPI_Cart_shift(c_comm, 2, 1, &accfft_front,  &accfft_back);
+				int cubism_left, cubism_right, cubism_bottom, cubism_top, cubism_front, cubism_back, cubism_rank;
+				MPI_Comm_rank( grid.getCartComm(), &cubism_rank);
+				MPI_Cart_shift(grid.getCartComm(), 0, 1, &cubism_left,   &cubism_right);
+				MPI_Cart_shift(grid.getCartComm(), 1, 1, &cubism_bottom, &cubism_top);
+				//MPI_Cart_shift(grid.getCartComm(), 2, 1, &cubism_front,  &cubism_back);
+				//note: accfft comm is not periodic and 2d, cubism is periodic adn 3d, rest must be the same
+				if( ( accfft_left  !=MPI_PROC_NULL && accfft_left  !=cubism_left   ) ||
+						( accfft_right !=MPI_PROC_NULL && accfft_right !=cubism_right  ) ||
+						( accfft_bottom!=MPI_PROC_NULL && accfft_bottom!=cubism_bottom ) ||
+						( accfft_top   !=MPI_PROC_NULL && accfft_top   !=cubism_top    )// ||
+					//	( accfft_front !=MPI_PROC_NULL && accfft_front !=cubism_front  ) ||
+					//	( accfft_back  !=MPI_PROC_NULL && accfft_back  !=cubism_back   )
+					 ) {
+							printf("AccFFT communicator does not match the one from Cubism. Aborting.\n");
+							fflush(0);
+							MPI_Abort(grid.getCartComm(), MPI_ERR_OTHER);
+						}
+
+		}
 
 		// Get the local pencil size and the allocation size
 		#ifdef _CUDA_COMP_

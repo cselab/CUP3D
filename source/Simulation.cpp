@@ -11,6 +11,7 @@
 
 #include "Simulation.h"
 #include <HDF5Dumper_MPI.h>
+#include "ProcessOperatorsOMP.h"
 #include <chrono>
 
 void Simulation::_ic()
@@ -32,17 +33,31 @@ void Simulation::setupGrid()
 	nprocsy = parser("-nprocsy").asInt(1);
 	nprocsz = parser("-nprocsz").asInt(1);
 	assert(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0);
-	if(rank==0) {
-		printf("Blocks per dimension: [%d %d %d]\n",bpdx,bpdy,bpdz);
-		printf("Nranks per dimension: [%d %d %d]\n",nprocsx,nprocsy,nprocsz);
-		printf("Resident blocks per dim: [%d %d %d]\n",bpdx/nprocsx,bpdy/nprocsy,bpdz/nprocsz);
-	}
+
 	bpdx /= nprocsx;
 	bpdy /= nprocsy;
 	bpdz /= nprocsz;
 	grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz);
+	dump = new  DumpGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz);
 	assert(grid != NULL);
-    vInfo = grid->getBlocksInfo();
+  vInfo = grid->getBlocksInfo();
+
+  MPI_Comm_rank(grid->getCartComm(),&rank);
+  MPI_Comm_size(grid->getCartComm(),&nprocs);
+  char hostname[1024];
+  hostname[1023] = '\0';
+  gethostname(hostname, 1023);
+  const int nthreads = omp_get_max_threads();
+  printf("Rank %d (of %d) with %d threads on host Hostname: %s\n",
+          rank, nprocs, nthreads, hostname);
+  if (communicator not_eq nullptr) //Yo dawg I heard you like communicators.
+    communicator->comm_MPI = grid->getCartComm();
+	if(rank==0) {
+		printf("Blocks per dimension: [%d %d %d]\n",bpdx,bpdy,bpdz);
+		printf("Nranks per dimension: [%d %d %d]\n",nprocsx,nprocsy,nprocsz);
+		printf("Resident blocks per dim: [%d %d %d]\n",
+          bpdx/nprocsx,bpdy/nprocsy,bpdz/nprocsz);
+	}
 }
 
 void Simulation::parseArguments()
@@ -149,6 +164,7 @@ void Simulation::_dump(const string append = string())
     }
 
     #if defined(_USE_HDF_)
+
       if(b2Ddump) {
       stringstream ssF;
       if (append == string())
@@ -157,7 +173,33 @@ void Simulation::_dump(const string append = string())
        ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
       DumpHDF5flat_MPI(*grid, time, ssF.str(),path4serialization);
       }
-      DumpHDF5_MPI_Vector<StreamerHDF5>(*grid, time, ssR.str(),path4serialization);
+      /*
+      copyDumpGrid(*grid, *dump);
+      if(dumper not_eq nullptr){
+        bool warned = false;
+        while(not dumper->joinable()) {
+          MPI_Barrier(grid->getCartComm());
+          if (!warned && rank==0) {
+            printf("Waiting for previous dump.\n");
+            fflush(0);
+            warned = true;
+          }
+        }
+        dumper->join();
+        if(dumper not_eq nullptr)
+          delete dumper;
+      }
+      //why do they even let me code?
+      string string_path = path4serialization;
+      string string_file = ssR.str();
+    	DumpGridMPI* ptr_dump = dump;
+    	Real dumptime = time;
+      dumper = new std::thread( [ptr_dump, dumptime, string_file, string_path] () {
+        DumpHDF5_MPI_Vector<DumpGridMPI, StreamerHDF5Dump>(*ptr_dump, dumptime, string_file, string_path);
+        DumpHDF5_MPI_Channel<DumpGridMPI,StreamerHDF5Dump,3>(*ptr_dump, dumptime, string_file, string_path);
+      });
+      */
+      DumpHDF5_MPI_Vector<FluidGridMPI,StreamerHDF5>(*grid, time, ssR.str(),path4serialization);
     #endif
 
     if (rank==0) { //saved the grid! Write status to remember most recent ping
@@ -177,8 +219,8 @@ void Simulation::_dump(const string append = string())
       printf("uinfz: %20.20e\n", uinf[2]);
     }
 
-    CoordinatorDiagnostics coordDiags(grid,time,step);
-    coordDiags(dt);
+    //CoordinatorDiagnostics coordDiags(grid,time,step);
+    //coordDiags(dt);
 }
 
 void Simulation::_selectDT()
@@ -186,7 +228,8 @@ void Simulation::_selectDT()
 	double local_maxU = (double)findMaxUOMP(vInfo,*grid,uinf);
 	double global_maxU;
    const double h = vInfo[0].h_gridpoint;
-    MPI::COMM_WORLD.Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX);
+
+ 		MPI_Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX, grid->getCartComm());
     dtFourier = CFL*h*h/nu;
     dtCFL     = CFL*h/abs(global_maxU);
     dt = min(dtCFL,dtFourier);
@@ -247,7 +290,7 @@ void Simulation::_deserialize()
 	ssR<<"restart_";
 	ssR<<std::setfill('0')<<std::setw(9)<<step;
 	if (rank==0) cout << "Restarting from " << ssR.str() << endl;
-	MPI_Barrier(MPI_COMM_WORLD);
+	MPI_Barrier(grid->getCartComm());
   #if 1
 	ReadHDF5_MPI_Vector<FluidGridMPI, StreamerHDF5>(*grid, ssR.str(),path4serialization);
   #else
@@ -260,7 +303,7 @@ void Simulation::_deserialize()
   printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
 	//bDump=true;
 	//_dump("restarted");
-	//if (time>0.01) MPI_Abort(MPI_COMM_WORLD, 0);
+	//if (time>0.01) MPI_Abort(grid->getCartComm(), 0);
 }
 
 void Simulation::init()
@@ -273,7 +316,7 @@ void Simulation::init()
     if(bRestart) _deserialize();
     else _ic();
 
-    MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Barrier(grid->getCartComm());
 }
 
 void Simulation::simulate()
@@ -355,7 +398,7 @@ void Simulation::simulate()
             #ifdef _USE_ZLIB_
               profiler.pop_stop();
               profiler.push_start("Zlib");
-              MPI_Barrier(MPI_COMM_WORLD);
+              MPI_Barrier(grid->getCartComm());
               const int wtype_write = parser("-wtype_write").asInt(1);
               double threshold = parser("-wthreshold").asDouble(1e-4);
 
@@ -375,7 +418,7 @@ void Simulation::simulate()
             #else
               stringstream ssR;
               ssR<<"restart_"<< std::setfill('0')<<std::setw(9)<<step;
-              DumpHDF5_MPI_Channel<StreamerHDF5,3>(*grid, time, ssR.str(), path4serialization);
+              DumpHDF5_MPI_Channel<FluidGridMPI,StreamerHDF5,3>(*grid, time, ssR.str(), path4serialization);
             #endif
 
             this_save = high_resolution_clock::now();

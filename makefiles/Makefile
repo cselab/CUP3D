@@ -13,12 +13,12 @@ bsy ?= $(bs)
 bsz ?= $(bs)
 hdf ?= true
 vtk ?= false
-rk2 ?= true
-accfft ?= false
-zlib ?= 1
+rk2 ?= false
+accfft ?= true
+zlib ?= 0
 
 ifeq "$(zlib)" "1"
-	CPPFLAGS += -D_USE_ZLIB_ #-D_USE_WAVZ_
+	CPPFLAGS += -D_USE_ZLIB_ -D_USE_WAVZ_
 	LIBS +=  -lz -lrt -lstdc++
 endif
 
@@ -106,13 +106,13 @@ endif
 
 #LIBS += -L../tools/fpzip/lib -lfpzip
 
-LIBS += -lstdc++ -lgsl -lgslcblas -lm -ldl -lz
+LIBS += -lstdc++ -lgsl -lgslcblas -lm -ldl -lz -lpthread
 
 BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS = Communicator.o ProcessOperatorsOMP.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o Save_splicer.o WaveletCompressor.o main.o
+OBJECTS = Communicator.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o Save_splicer.o WaveletCompressor.o main.o
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"

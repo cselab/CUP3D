@@ -62,7 +62,7 @@ public:
     	grid(grid),obstacleID(0),quaternion{1,0,0,0},_2Dangle(0),position{0,0,0},
       absPos{0,0,0},transVel{0,0,0},angVel{0,0,0},volume(0),J{0,0,0,0,0,0}
     {
-		    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+		    MPI_Comm_rank(grid->getCartComm(),&rank);
         vInfo = grid->getBlocksInfo();
         const Real extent = 1;//grid->maxextent;
         const Real NFE[3] ={ grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
@@ -82,7 +82,7 @@ public:
     grid(grid), obstacleID(0), quaternion{1,0,0,0}, _2Dangle(0), position{0,0,0},
     absPos{0,0,0}, transVel{0,0,0}, angVel{0,0,0}, volume(0), J{0,0,0,0,0,0}
   	{
-  		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  		MPI_Comm_rank(grid->getCartComm(),&rank);
     	vInfo = grid->getBlocksInfo();
       const Real extent = 1;//grid->maxextent;
       const Real NFE[3] ={ grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
@@ -114,6 +114,7 @@ public:
     StateReward* _getData() { return &sr; }
     // some non-pure methods
     virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf) { }
+    virtual void finalize(const int step_id,const Real time, const Real dt, const Real *Uinf) { }
 
     //methods that work for all obstacles
     virtual std::map<int,ObstacleBlock*> getObstacleBlocks() const
@@ -170,7 +171,7 @@ public:
 			if (s2 != NULL) one_less = !atoi(s2);
 		}
 
-		MPI::COMM_WORLD.Barrier();
+    MPI_Barrier(grid->getCartComm());
 
 		avail0 = Synch.avail_inner();
 		const int Ninner = avail0.size();
@@ -226,7 +227,7 @@ public:
 			labs=NULL;
 		}
 
-		MPI::COMM_WORLD.Barrier();
+    MPI_Barrier(grid->getCartComm());
 #else
 		SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
 
@@ -235,7 +236,7 @@ public:
 		for(int i = 0; i < nthreads; ++i)
 			labs[i].prepare(*grid, Synch);
 
-		MPI::COMM_WORLD.Barrier();
+    MPI_Barrier(grid->getCartComm());
 		vector<BlockInfo> avail0 = Synch.avail_inner();
 		const int Ninner = avail0.size();
 
@@ -277,7 +278,7 @@ public:
 			labs=NULL;
 		}
 
-		MPI::COMM_WORLD.Barrier();
+    MPI_Barrier(grid->getCartComm());
 #endif
 	}
 };

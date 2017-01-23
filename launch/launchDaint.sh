@@ -30,7 +30,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --job-name="${BASENAME}"
 #SBATCH --output=${BASENAME}_%j.txt
 #SBATCH --error=${BASENAME}_%j.txt
-#SBATCH --time=00:30:00
+#SBATCH --time=24:00:00
 #SBATCH --nodes=${NNODE}
 # #SBATCH --partition=viz
 #SBATCH --ntasks-per-node=1

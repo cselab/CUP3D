@@ -15,7 +15,6 @@
 //#include "Definitions.h"
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
-#include "ProcessOperatorsOMP.h"
 
 #include "CoordinatorIC.h"
 #include "CoordinatorVorticity.h"
@@ -31,11 +30,12 @@
 //#include "IF3D_CarlingFishOperator.h"
 //#include "IF3D_SphereObstacleOperator.h"
 //#include "IF3D_ForcedSphereObstacleOperator.h"
-#ifdef _USE_ZLIB_
+#if _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
 #endif
 
 #include <vector>
+#include <thread>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -78,9 +78,8 @@ protected:
 	ArgumentParser parser;
 	Profiler profiler;
 	Communicator * communicator;
-#ifdef _USE_ZLIB_
-  //SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, StreamerGridPointIterative> mywaveletdumper;
-	SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, FluidVPStreamer> waveletdumper_grid;
+#if _USE_ZLIB_
+	SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
 #endif
 
 	// grid
@@ -102,6 +101,9 @@ protected:
 	string path2file, path4serialization;
 
 	FluidGridMPI * grid;
+	DumpGridMPI * dump;
+  std::thread * dumper;
+
     vector<BlockInfo> vInfo;
 	//The protagonist
     IF3D_ObstacleVector* obstacle_vector;
@@ -125,21 +127,14 @@ public:
     parser(argc,argv), communicator(comm), rank(0), nprocs(1), nprocsx(-1), nprocsy(-1),
 	nprocsz(-1), bpdx(-1), bpdy(-1), bpdz(-1), step(0), nsteps(0), dt(0), time(0), endTime(0),
 	dtCFL(0), dtFourier(0), uinf{0.0, 0.0, 0.0}, re(0), nu(0), length(0), CFL(0), lambda(0),
-	bDump(false), bRestart(false), bDLM(false), verbose(false), b2Ddump(false),
+	bDump(false), bRestart(false), bDLM(false), verbose(false), b2Ddump(false), dumper(nullptr),
 	dumpFreq(0), saveFreq(0), dumpTime(0), saveTime(0), saveClockPeriod(0), maxClockDuration(1e9)
-	{
-		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-		MPI_Comm_size(MPI_COMM_WORLD,&nprocs);
-		char hostname[1024];
-		hostname[1023] = '\0';
-		gethostname(hostname, 1023);
-		const int nthreads = omp_get_max_threads();
-		printf("Rank %d (of %d) with %d threads on host Hostname: %s\n", rank, nprocs, nthreads, hostname);
-	}
+	{ 	}
 
 	virtual ~Simulation()
 	{
 		delete grid;
+    delete dump;
 		while(!pipeline.empty()) {
 			GenericCoordinator * g = pipeline.back();
 			pipeline.pop_back();

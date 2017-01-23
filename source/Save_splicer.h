@@ -15,7 +15,6 @@
 //#include "Definitions.h"
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
-#include "ProcessOperatorsOMP.h"
 
 #ifdef _USE_LZ4_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
@@ -32,7 +31,7 @@ class Save_splicer
 protected:
 	ArgumentParser parser;
   #ifdef _USE_LZ4_
-	SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, FluidVPStreamer> waveletdumper_grid;
+	//SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, FluidVPStreamer> waveletdumper_grid;
   #endif
 
 	// grid
@@ -54,7 +53,7 @@ protected:
 	void load_and_dump(string path2file);
   void parseArguments();
   void setupGrid();
-	
+
 public:
   Save_splicer(const int argc, char ** argv) :
   parser(argc,argv), rank(0), nprocs(1), nprocsx(-1), nprocsy(-1),

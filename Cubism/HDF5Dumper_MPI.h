@@ -33,10 +33,9 @@ using namespace std;
 
 class OperatorLoad : public GenericLabOperator
 {
-private:
 	float* const data;
 	const unsigned long int NBX, NBY, NBZ, NX, NY, NZ, NCHANNELS;
-public:
+ public:
 	OperatorLoad(float* const dump_data, const unsigned long int nx, const unsigned long int ny, const unsigned long int nz, const Real sliceZ)
 	: data(dump_data), NBX(nx), NBY(ny), NBZ(nz), NX(nx*FluidBlock::sizeX), NY(ny*FluidBlock::sizeY), NZ(nz*FluidBlock::sizeZ), NCHANNELS(StreamerHDF5::NCHANNELS)
 	{
@@ -95,9 +94,10 @@ public:
 			const Real strainXX = inv2h * (phiE.u-phiW.u);
 			const Real strainYY = inv2h * (phiN.v-phiS.v);
 			const Real strainZZ = inv2h * (phiB.w-phiF.w);
-			const Real OO = 0.25 *vorticX*vorticX+vorticY*vorticY+vorticZ*vorticZ;
+
+			const Real OO = 0.5*(vorticX*vorticX+vorticY*vorticY+vorticZ*vorticZ);
 			const Real SS = strainXX*strainXX+strainYY*strainYY+strainZZ*strainZZ+  //
-							strainXY*strainXY+strainYZ*strainYZ+strainZX*strainZX;
+							     2*(strainXY*strainXY+strainYZ*strainYZ+strainZX*strainZX);
 
 			for(int i=0; i<NCHANNELS; ++i) ptr[i] = (float)output[i];
 			ptr[NCHANNELS-1] = float(.5*(OO-SS));
@@ -107,11 +107,10 @@ public:
 
 class OperatorLoadFlat : public GenericLabOperator
 {
-  private:
 	float* const data;
 	const unsigned long int NBX, NBY, NX, NY, NCHANNELS;
 	const Real sliceZ;
-  public:
+ public:
 	OperatorLoadFlat(float* const dump_data, const unsigned long int nx, const unsigned long int ny, const unsigned long int nz, const Real sliceZ)
 	: data(dump_data), NBX(nx), NBY(ny), NX(nx*FluidBlock::sizeX), NY(ny*FluidBlock::sizeY), NCHANNELS(StreamerHDF5::NCHANNELS), sliceZ(sliceZ)
 	{
@@ -188,9 +187,8 @@ class OperatorLoadFlat : public GenericLabOperator
 template<typename Loader>
 class CoordinatorLoad : public GenericCoordinator
 {
-  private:
 	float* const data;
-  public:
+ public:
 	CoordinatorLoad(FluidGridMPI *grid, float* const dump_data) : GenericCoordinator(grid), data(dump_data) { }
 	void operator()(const Real dt)
 	{
@@ -328,7 +326,7 @@ static void DumpHDF5flat_MPI(FluidGridMPI &grid, const Real absTime, const strin
 	char filename[256];
 	herr_t status;
 	hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
-	MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+	MPI_Comm_rank(grid.getCartComm(), &rank);
 	int coords[3];
 	grid.peindex(coords);
 
@@ -353,7 +351,7 @@ static void DumpHDF5flat_MPI(FluidGridMPI &grid, const Real absTime, const strin
 
 	H5open();
 	fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-	status = H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+	status = H5Pset_fapl_mpio(fapl_id, grid.getCartComm(), MPI_INFO_NULL);
 	file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
 	status = H5Pclose(fapl_id);
 
@@ -417,12 +415,12 @@ static void DumpHDF5flat_MPI(FluidGridMPI &grid, const Real absTime, const strin
 	#endif
 }
 
-template<typename Streamer, int channel>
-static void DumpHDF5_MPI_Channel(FluidGridMPI &grid, const Real absTime,
+template<typename TGrid, typename Streamer, int channel>
+static void DumpHDF5_MPI_Channel(TGrid &grid, const Real absTime,
       const string f_name, const string dump_path="")
 {
 	#ifdef _USE_HDF_
-	typedef typename FluidGridMPI::BlockType B;
+	typedef typename TGrid::BlockType B;
 
 	int rank;
 	herr_t status;
@@ -555,11 +553,11 @@ static void DumpHDF5_MPI_Channel(FluidGridMPI &grid, const Real absTime,
 	#endif
 }
 
-template<typename Streamer>
-static void DumpHDF5_MPI_Vector(FluidGridMPI &grid, const Real absTime, const string f_name, const string dump_path="")
+template<typename TGrid, typename Streamer>
+static void DumpHDF5_MPI_Vector(TGrid &grid, const Real absTime, const string f_name, const string dump_path="")
 {
 	#ifdef _USE_HDF_
-	typedef typename FluidGridMPI::BlockType B;
+	typedef typename TGrid::BlockType B;
 
 	int rank;
 	herr_t status;
@@ -871,7 +869,7 @@ static void ReadHDF5_MPI_Channel(TGrid &grid, const string f_name, const string 
 				const unsigned long int gy = idx[1]*B::sizeY + iy;
 				const unsigned long int gz = idx[2]*B::sizeZ + iz;
 				float * const ptr_input = array_all + (gx + NX * (gy + NY * gz));
-				streamer.load(*ptr_input, ix, iy, iz, channel);
+				streamer.load<channel>(*ptr_input, ix, iy, iz);
 			}
 		}
 

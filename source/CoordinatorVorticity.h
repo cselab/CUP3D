@@ -120,7 +120,7 @@ class CoordinatorVorticity : public GenericCoordinator
 {
 public:
 	CoordinatorVorticity(FluidGridMPI * grid) : GenericCoordinator(grid) { }
-	
+
 	void operator()(const Real dt)
 	{
 		check("vorticity - start");
@@ -128,7 +128,7 @@ public:
 		compute(kernel);
 		check("vorticity - end");
 	}
-	
+
 	string getName() { return "Vorticity"; }
 };
 
@@ -142,7 +142,7 @@ public:
 	CoordinatorDiagnostics(FluidGridMPI * grid, const Real t, const int step)
 	: GenericCoordinator(grid), t(t), step(step)
 	{
-		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+		MPI_Comm_rank(grid->getCartComm(),&rank);
 	}
 
 	void operator()(const Real dt)
@@ -167,8 +167,9 @@ public:
 				localSum[j] += (double)partialSums[i][j];
 			maxVortHere = std::max((double)partialSums[i][11],maxVortHere);
 		}
-		MPI::COMM_WORLD.Allreduce( localSum, globalSum, 11, MPI::DOUBLE, MPI::SUM);
-		MPI::COMM_WORLD.Allreduce(&maxVortHere,&maxVort, 1, MPI::DOUBLE, MPI::MAX);
+
+		MPI_Allreduce( localSum, globalSum, 11, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+		MPI_Allreduce(&maxVortHere,&maxVort, 1, MPI::DOUBLE, MPI::MAX, grid->getCartComm());
 
 		if(rank==0) {
 			FILE * f = fopen("diagnostics.dat", "a");

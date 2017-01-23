@@ -25,6 +25,9 @@ void IF3D_ObstacleVector::create(const int step_id,const Real time, const Real d
 {
 	for(const auto & obstacle_ptr : obstacles)
 		obstacle_ptr->create(step_id,time,dt,Uinf);
+
+	for(const auto & obstacle_ptr : obstacles)
+		obstacle_ptr->finalize(step_id,time,dt,Uinf);
 }
 
 std::vector<int> IF3D_ObstacleVector::intersectingBlockIDs(const int buffer) const

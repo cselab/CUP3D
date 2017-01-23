@@ -156,7 +156,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
 
     double globals[4] = {0,0,0,0};
     double locals[4] = {lm0,lm1,lm2,V};
-    MPI::COMM_WORLD.Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM);
+		MPI_Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
 
     assert(globals[3] > std::numeric_limits<double>::epsilon());
     const Real computed_vol = globals[3] * dv;
@@ -208,7 +208,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
 
     double globals[9] = {0,0,0,0,0,0,0,0,0};
     double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
-    MPI::COMM_WORLD.Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM);
+		MPI_Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
 
     //if(bFixToPlanar)
     //{
@@ -429,7 +429,7 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const Real time
 
   double globals[7] = {0,0,0,0,0,0,0};
   double locals[7] = {_forcex,_forcey,_forcez,_torquex,_torquey,_torquez,_area};
-  MPI::COMM_WORLD.Allreduce(locals, globals, 7, MPI::DOUBLE, MPI::SUM);
+  MPI_Allreduce(locals, globals, 7, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
 
   const Real dV = std::pow(vInfo[0].h_gridpoint, 3);
   force[0]  = globals[0]*dV*lambda;
@@ -473,7 +473,7 @@ void IF3D_ObstacleOperator::computeVelocities_kernel(const Real* Uinf,
 
       double globals[4] = {0,0,0,0};
       double locals[4] = {lm0,lm1,lm2,V};
-      MPI::COMM_WORLD.Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM);
+  		MPI_Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
       assert(globals[3] > std::numeric_limits<double>::epsilon());
       linvel_dest[0] = globals[0]/globals[3] + Uinf[0];
       linvel_dest[1] = globals[1]/globals[3] + Uinf[1];
@@ -521,7 +521,7 @@ void IF3D_ObstacleOperator::computeVelocities_kernel(const Real* Uinf,
 
       double globals[9] = {0,0,0,0,0,0,0,0,0};
       double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
-      MPI::COMM_WORLD.Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM);
+  		MPI_Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
 
       if(bFixToPlanar) {
           angVel[0] = angVel[1] = 0.0;
@@ -681,7 +681,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
   for(int i=0; i<nthreads; i++)
   	for(int j=0; j<19; j++)
   		localSum[j] += (double)partialSums[i][j];
-  MPI::COMM_WORLD.Allreduce(localSum, globalSum, 19, MPI::DOUBLE, MPI::SUM);
+	MPI_Allreduce(localSum, globalSum, 19, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
 
   //additive quantities:
   totChi      = globalSum[0];
@@ -703,7 +703,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
   if (bDump) {
     if(rank==0)
     sr.print(obstacleID, stepID, time);
-    surfData.print(obstacleID, stepID, rank);
+    //surfData.print(obstacleID, stepID, rank);
   }
 
   sr.updateAverages(dt,_2Dangle, velx_tot, vely_tot, angVel[2], Pout, PoutBnd,

@@ -84,6 +84,13 @@ struct FluidElement
     }
 };
 
+struct DumpElement
+{
+    Real u, v, w, chi;
+    DumpElement() : u(0), v(0), w(0), chi(0) {}
+    void clear() { u = v = w = chi = 0; }
+};
+
 struct FluidVTKStreamer
 {
 	static const int channels = 8;
@@ -233,6 +240,47 @@ struct FluidBlock
 	}
 };
 
+struct DumpBlock
+{
+  //these identifiers are required by cubism!
+  static const int sizeX = _BSX_;
+  static const int sizeY = _BSY_;
+  static const int sizeZ = _BSZ_;
+	typedef DumpElement ElementType;
+	typedef DumpElement element_type;
+	DumpElement data[sizeZ][sizeY][sizeX];
+  //required from Grid.h
+  void clear()
+  {
+    DumpElement * entry = &data[0][0][0];
+    const int N = sizeX*sizeY*sizeZ;
+    for(int i=0; i<N; ++i) entry[i].clear();
+  }
+  DumpElement& operator()(int ix, int iy=0, int iz=0)
+  {
+		assert(ix>=0); assert(ix<sizeX);
+		assert(iy>=0); assert(iy<sizeY);
+		assert(iz>=0); assert(iz<sizeZ);
+    return data[iz][iy][ix];
+  }
+	template <typename Streamer>
+	inline void Write(ofstream& output, Streamer streamer) const
+	{
+		for(int iz=0; iz<sizeZ; iz++)
+			for(int iy=0; iy<sizeY; iy++)
+				for(int ix=0; ix<sizeX; ix++)
+					streamer.operate(data[iz][iy][ix], output);
+	}
+	template <typename Streamer>
+	inline void Read(ifstream& input, Streamer streamer)
+	{
+		for(int iz=0; iz<sizeZ; iz++)
+			for(int iy=0; iy<sizeY; iy++)
+				for(int ix=0; ix<sizeX; ix++)
+					streamer.operate(input, data[iz][iy][ix]);
+	}
+};
+
 struct surfData
 {
     int blockID, ix, iy, iz;
@@ -250,7 +298,7 @@ struct surfData
 
 struct surfaceBlocks
 {
-public:
+ public:
 	int Ndata;
     vector<surfData*> Set;
 
@@ -277,7 +325,7 @@ public:
 
 struct surfacePoints
 {
-public:
+ public:
     Real *pX, *pY, *pZ, *P, *fX, *fY, *fZ, *fxP, *fyP, *fzP, *fxV, *fyV, *fzV, *vx, *vy, *vz, *vxDef, *vyDef, *vzDef;
     int Ndata, nAlloc, nMapped, *gridMap;
     vector<surfData*> Set;
@@ -853,6 +901,24 @@ template <> inline void FluidBlock::Read<StreamerGridPoint>(ifstream& input, Str
 }
 
 // VP Streamers
+struct ChiStreamer
+{
+	static const int channels = 1;
+
+	FluidBlock* ref;
+	ChiStreamer(FluidBlock& b): ref(&b) {}
+  ChiStreamer(): ref(NULL) {}
+	inline Real operate(const int ix, const int iy, const int iz) const
+	{
+    const FluidElement& input = ref->data[iz][iy][ix];
+		return input.chi;
+	}
+  template<int channel>
+	static inline Real operate(const FluidElement& input) { abort(); return 0; }
+
+	const char * name() { return "ChiStreamer"; }
+};
+/*
 struct FluidVPStreamer
 {
 	static const int channels = 8;
@@ -914,7 +980,7 @@ struct TmpVPStreamer
 };
 
 template<> inline Real TmpVPStreamer::operate<0>(const FluidElement& e) { return e.tmp; }
-*/
+
 
 struct ScalarStreamer
 {
@@ -925,7 +991,6 @@ struct ScalarStreamer
 		output[0] = input;
 	}
 };
-
 struct ScalarBlock
 {
 	static const int sizeX = _BS_/2;
@@ -1068,6 +1133,61 @@ struct StreamerSerialization
 	static const char * getAttributeName() { return "Tensor"; }
 };
 
+*/
+struct StreamerHDF5Dump
+{
+	static const int NCHANNELS = 4;
+
+	DumpBlock& ref;
+
+	StreamerHDF5Dump(DumpBlock& b): ref(b) {}
+
+	void operate(const int ix, const int iy, const int iz, Real output[NCHANNELS]) const
+	{
+		const DumpElement& input = ref.data[iz][iy][ix];
+		output[0] = input.u;
+		output[1] = input.v;
+		output[2] = input.w;
+		output[3] = input.chi;
+	}
+
+	void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
+	{
+		DumpElement& output = ref.data[iz][iy][ix];
+		output.u    = input[0];
+		output.v    = input[1];
+		output.w    = input[2];
+		output.chi  = input[3];
+	}
+
+	inline void dump(const int ix, const int iy, const int iz, float* const ovalue, const int field) const
+	{
+		const DumpElement& input = ref.data[iz][iy][ix];
+		switch(field) {
+			case 0: *ovalue  = input.u; break;
+			case 1: *ovalue  = input.v; break;
+			case 2: *ovalue  = input.w; break;
+			case 3: *ovalue  = input.chi; break;
+			default: throw std::invalid_argument("unknown field!"); break;
+		}
+	}
+
+  template<int field>
+	inline void load(const Real ivalue, const int ix, const int iy, const int iz) const
+	{
+		DumpElement& output = ref.data[iz][iy][ix];
+		switch(field) {
+			case 0:  output.u    = ivalue; break;
+			case 1:  output.v    = ivalue; break;
+			case 2:  output.w    = ivalue; break;
+			case 3:  output.chi  = ivalue; break;
+			default: throw std::invalid_argument("unknown field!"); break;
+		}
+	}
+
+	static const char * getAttributeName() { return "Vector"; }
+};
+
 struct StreamerHDF5
 {
 	static const int NCHANNELS = 9;
@@ -1105,8 +1225,7 @@ struct StreamerHDF5
 		output.tmpW = input[7];
 	}
 
-	void dump(const int ix, const int iy, const int iz,
-            float* const ovalue, const int field) const
+	inline void dump(const int ix, const int iy, const int iz, float* const ovalue, const int field) const
 	{
 		const FluidElement& input = ref.data[iz][iy][ix];
 
@@ -1124,7 +1243,8 @@ struct StreamerHDF5
 		}
 	}
 
-	void load(const Real ivalue, const int ix, const int iy, const int iz, const int field) const
+  template<int field>
+	inline void load(const Real ivalue, const int ix, const int iy, const int iz) const
 	{
 		FluidElement& output = ref.data[iz][iy][ix];
 
@@ -1144,7 +1264,7 @@ struct StreamerHDF5
 
 	static const char * getAttributeName() { return "Tensor"; }
 };
-
+/*
 struct StreamerScalarHDF5
 {
 	static const int NCHANNELS = 1;
@@ -1187,7 +1307,7 @@ struct StreamerScalarHDF5
 
 	static const char * getAttributeName() { return "Scalar"; }
 };
-
+*/
 template<typename BlockType, template<typename X> class allocator=std::allocator>
 class BlockLabOpen: public BlockLab<BlockType,allocator>
 {
@@ -1214,8 +1334,10 @@ class BlockLabOpen: public BlockLab<BlockType,allocator>
 };
 
 typedef Grid<FluidBlock, std::allocator> FluidGrid;
-typedef Grid<ScalarBlock, std::allocator> ScalarGrid;
 typedef GridMPI<FluidGrid> FluidGridMPI;
+
+typedef Grid<DumpBlock, std::allocator> DumpGrid;
+typedef GridMPI<DumpGrid> DumpGridMPI;
 
 #define _OPEN_BC_
 #ifndef _OPEN_BC_
@@ -1238,7 +1360,7 @@ typedef  BlockLabOpen<FluidBlock, std::allocator> Lab;
 
 typedef BlockLabMPI<BlockLab<FluidBlock, std::allocator>> LabMPI;
 
-
+/*
 struct Layer
 {
 	const int sizeX;
@@ -1378,5 +1500,5 @@ LayerT * allocate()
 	void * data = _mm_malloc(sizeof(LayerT), 64);
 	return new (data) LayerT;
 };
-
+*/
 #endif

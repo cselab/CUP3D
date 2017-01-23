@@ -41,7 +41,8 @@ int main(int argc, char **argv)
 	const int nActions = parser("-nActions").asInt(0);
 	const int nStates = (nActions==1) ? 20+200 : 25+200;
 	if (_sockID>=0 && nActions>0) {
-		printf("Communicating over sock %d\n", _sockID);
+		if(!rank)
+			printf("Communicating over sock %d\n", _sockID);
 		communicator = new Communicator(_sockID,nStates,nActions,MPI_COMM_WORLD);
 	}
 	#endif

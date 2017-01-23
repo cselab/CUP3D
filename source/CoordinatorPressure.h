@@ -210,7 +210,7 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
-		const Real factor = 0.5/(info.h_gridpoint);
+		const Real factor = 0.5/info.h_gridpoint;
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -256,7 +256,7 @@ class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
-		const Real factor = 1./(12.*info.h_gridpoint * dt);
+		const Real factor = 1./(12.*info.h_gridpoint);
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -319,7 +319,7 @@ class OperatorGradP : public GenericLabOperator
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
-		const Real prefactor = -.5 / (info.h_gridpoint);
+		const Real prefactor = -.5 / info.h_gridpoint;
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -390,58 +390,14 @@ public:
 			//OperatorDivergenceMinusDivTmpU2ndOrder kernelDiv(dt);
 			compute(kernelDiv);
 		}
-		/*
-		{
-		Real min_val(1e6), max_val(-1e6);
-		#pragma omp parallel reduction(max : max_val) reduction(min : min_val)
-		{
-			const int N = vInfo.size();
-			#pragma omp for schedule(static)
-			for(int i=0; i<vInfo.size(); i++) {
-				BlockInfo info = vInfo[i];
-				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-				for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-					if(b(ix,iy,iz).p > max_val) max_val = b(ix,iy,iz).p;
-					if(b(ix,iy,iz).p < min_val) min_val = b(ix,iy,iz).p;
-				}
-			}
-		}
-		printf("Before %f %f, rank\n", min_val, max_val);
-		fflush(0);
-		}
-		*/
 
 		pressureSolver.solve(*grid);
-		/*
-		{
-		Real min_val(1e6), max_val(-1e6);
-		#pragma omp parallel reduction(max : max_val) reduction(min : min_val)
-		{
-			const int N = vInfo.size();
-			#pragma omp for schedule(static)
-			for(int i=0; i<vInfo.size(); i++) {
-				BlockInfo info = vInfo[i];
-				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-				for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-					if(b(ix,iy,iz).p > max_val) max_val = b(ix,iy,iz).p;
-					if(b(ix,iy,iz).p < min_val) min_val = b(ix,iy,iz).p;
-				}
-			}
-		}
 
-		printf("After %f %f, rank\n", min_val, max_val);
-		fflush(0);
-		}
-		*/
 		{ //pressure correction dudt* = - grad P / rho
 			OperatorGradP kernelGradP(dt);
 			compute(kernelGradP);
 		}
-#if 0 //NEEDED IF PLAN TO LOOK AT DUMPED PRESSURE!!! since we dont dump it, skip
+
 		#pragma omp parallel
 		{
 			const int N = vInfo.size();
@@ -456,8 +412,8 @@ public:
 					b(ix,iy,iz).p *= factor;
 			}
 		}
-#endif
-      check("pressure - end");
+
+    check("pressure - end");
 	}
 
 	string getName()

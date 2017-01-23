@@ -17,17 +17,17 @@ class IF3D_ObstacleFactory
     int rank;
     FluidGridMPI * grid;
     int _getlines(std::string filename);
-    
+
 public:
     IF3D_ObstacleFactory(FluidGridMPI * grid, const Real* Uinf)
 	: grid(grid), Uinf{Uinf[0],Uinf[1],Uinf[2]}
     {
-    	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    	MPI_Comm_rank(grid->getCartComm(),&rank);
     }
-    
+
     ~IF3D_ObstacleFactory()
     {}
-    
+
     std::vector<IF3D_ObstacleOperator * > create(ArgumentParser & parser);
 };
 

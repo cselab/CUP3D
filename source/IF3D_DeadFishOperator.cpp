@@ -147,7 +147,7 @@ void IF3D_DeadFishOperator::computeVelocities(const Real* Uinf)
 
       double globals[4];
       double locals[4] = {lm0,lm1,lm2,V};
-      MPI::COMM_WORLD.Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM);
+			MPI_Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
       assert(globals[3] > std::numeric_limits<double>::epsilon());
 
       const Real dv = std::pow(vInfo[0].h_gridpoint,3);
@@ -196,7 +196,7 @@ void IF3D_DeadFishOperator::computeVelocities(const Real* Uinf)
 
       double globals[9];
       double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
-      MPI::COMM_WORLD.Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM);
+			MPI_Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
 
       //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
       const Real AM[6] = {globals[0], globals[1], globals[2]};

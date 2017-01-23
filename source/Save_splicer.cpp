@@ -11,6 +11,7 @@
 
 #include "Save_splicer.h"
 #include <HDF5Dumper_MPI.h>
+#include "ProcessOperatorsOMP.h"
 #include <chrono>
 
 void Save_splicer::setupGrid()
@@ -92,7 +93,7 @@ void Save_splicer::load_and_dump(string path2file)
 	if (rank==0)  cout << "Saving into "<<path4serialization<<" "<< ssR.str() << endl;
 	fflush(0);
 	#if defined(_USE_HDF_)
-	DumpHDF5_MPI_Channel<StreamerHDF5,0>(*grid, time, ssR.str(), path4serialization);
+	//DumpHDF5_MPI_Channel<StreamerHDF5,0>(*grid, time, ssR.str(), path4serialization);
 	#endif
 	}
 }

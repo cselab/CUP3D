@@ -35,6 +35,7 @@ public:
     void update(const int step_id, const Real t, const Real dt, const Real *Uinf) override;
     void getCenterOfMass(Real CM[3]) const override;
     void create(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
+    void finalize(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
     void _parseArguments(ArgumentParser & parser);
 };
 
