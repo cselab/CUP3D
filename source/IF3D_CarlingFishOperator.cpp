@@ -14,15 +14,15 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 : IF3D_FishOperator(grid, parser)
 {
 	_parseArguments(parser);
+	const int Nextension = NEXTDX*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
 	const Real target_Nm = TGTPPB*length/vInfo[0].h_gridpoint;
-	const Real dx_extension = 0.25*vInfo[0].h_gridpoint;
-	const int Nm = NPPSEG*(int)std::ceil(target_Nm/NPPSEG)+1;
+	const Real dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
+	const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1)) + 1;
 
 	bool bInteractive = parser("-BurstCoast").asBool(false);
 	printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
 	fflush(0);
-	// multiple of NPPSEG: TODO why?
-	//
+
 	if (bInteractive) {
 		const string fburstpar = "burst_coast_carling_params.txt";
 		myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, fburstpar);

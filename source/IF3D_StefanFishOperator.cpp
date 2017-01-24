@@ -91,12 +91,13 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI * grid, ArgumentPa
 : IF3D_FishOperator(grid, parser)
 {
 	_parseArguments(parser);
+	const int Nextension = NEXTDX*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
 	const Real target_Nm = TGTPPB*length/vInfo[0].h_gridpoint;
-	const Real dx_extension = 0.25*vInfo[0].h_gridpoint;
-	const int Nm = NPPSEG*(int)std::ceil(target_Nm/NPPSEG)+1;
+	const Real dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
+	const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1)) + 1;
+
 	printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
 	fflush(0);
-	// multiple of NPPSEG: TODO why?
 	myFish = new CurvatureDefinedFishData(Nm, length, Tperiod, phaseShift, dx_extension);
 
   sr.updateInstant(position[0], absPos[0], position[1], absPos[1],

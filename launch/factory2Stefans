@@ -1,2 +1,2 @@
-IF3D_StefanFish L=0.15 T=1 xpos=0.175  ypos=0.25 zpos=0.0625 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1
-IF3D_StefanFish L=0.15 T=1 xpos=0.4375 ypos=0.25 zpos=0.0625 bFixToPlanar=1 bFixFrameOfRef=0 Tstartlearn=1000 GoalDX=2 nActions=0 Active=0
+IF3D_StefanFish L=0.2 T=1 xpos=0.125 ypos=0.25 zpos=0.0625 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1
+IF3D_StefanFish L=0.2 T=1 xpos=0.700 ypos=0.25 zpos=0.0625 bFixToPlanar=1 bFixFrameOfRef=0 Tstartlearn=1000 GoalDX=2 nActions=0 Active=0

@@ -9,7 +9,6 @@
 #include "IF3D_FishOperator.h"
 #include "IF3D_FishLibrary.h"
 #include <chrono>
-
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser)
 : IF3D_ObstacleOperator(grid, parser), theta_internal(0.), angvel_internal(0.),
 sim_time(0.), sim_dt(0.), adjTh(0.), myFish(nullptr), angvel_integral{0.,0.,0.}, new_curv(0)
@@ -49,13 +48,25 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t23, t45, t67, t8, t910, t11;
 
 	//MPI_Barrier(grid->getCartComm());
-	//t0 = std::chrono::high_resolution_clock::now();
-	const int Nsegments = NPPSEG;
-	const int Nextension = 4*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
-	const Real dx_extension = 0.25*vInfo[0].h_gridpoint;
+	t0 = std::chrono::high_resolution_clock::now();
+	//const int Nsegments = NPPSEG;
+	const int Nextension = NEXTDX*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
+	const Real dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
 	const Real target_ds = vInfo[0].h_gridpoint/TGTPPB;
 	const Real target_Nm = length/target_ds;
-	const int Nm = NPPSEG*(int)std::ceil(target_Nm/NPPSEG) + 1;
+	////const int Nm = NPPSEG*(int)std::ceil(target_Nm/NPPSEG) + 1;
+	//const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1)) + 1;
+	//const int Nsegments = (Nm-1)/(Nextension+1);
+	/*
+		- VolumeSegment_OBB's volume cannot be zero
+		- therefore no VolumeSegment_OBB can be only occupied by extension midline
+			points (which have width and height = 0)
+		- performance of create seems to decrease if VolumeSegment_OBB are bigger
+		- this is the smallest number of VolumeSegment_OBB (Nsegments) and points in
+			the midline (Nm) to ensure at least one non ext. point inside all segments
+	 */
+	const int Nsegments = std::ceil(target_Nm/(Nextension+1));
+	const int Nm = (Nextension+1)*Nsegments + 1;
 	assert((Nm-1)%Nsegments==0);
 	if (bCorrectTrajectory && time>0.312) {
 		Real velx_tot = Uinf[0] - transVel[0];
@@ -69,7 +80,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	// 1.
 	myFish->computeMidline(time);
 	//MPI_Barrier(grid->getCartComm());
-	//t1 = std::chrono::high_resolution_clock::now();
+	t1 = std::chrono::high_resolution_clock::now();
 
 	// 2. & 3.
 	{
@@ -100,7 +111,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	}
 	#endif
 	//MPI_Barrier(grid->getCartComm());
-	//t23 = std::chrono::high_resolution_clock::now();
+	t23 = std::chrono::high_resolution_clock::now();
 
 	// 4. & 5.
 	std::vector<VolumeSegment_OBB> vSegments(Nsegments);
@@ -133,7 +144,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	obstacleBlocks.clear();
 
 	//MPI_Barrier(grid->getCartComm());
-	//t45 = std::chrono::high_resolution_clock::now();
+	t45 = std::chrono::high_resolution_clock::now();
 
 	// 6. & 7.
 	std::map<int, std::vector<VolumeSegment_OBB>> segmentsPerBlock;
@@ -158,7 +169,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		}
 	}
 	//MPI_Barrier(grid->getCartComm());
-	//t67 = std::chrono::high_resolution_clock::now();
+	t67 = std::chrono::high_resolution_clock::now();
 
 	//assert(not segmentsPerBlock.empty()); //killed this assert: distributed fish
 	assert(segmentsPerBlock.size() == obstacleBlocks.size());
@@ -176,12 +187,15 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
 				//tmpU will contain SDF: neg outside positive inside
+				/*
 				if(pos == segmentsPerBlock.end()) {
 					for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 						for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 							for(int ix=0; ix<FluidBlock::sizeX; ++ix)
 								b(ix,iy,iz).tmpU = -1.; //-1 here to avoid gremlins at blocks' boundaries
 				} else {
+				*/
+				if(pos != segmentsPerBlock.end()) {
 					for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 						for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 							for(int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -195,7 +209,16 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		}
 	}
 	//MPI_Barrier(grid->getCartComm());
-	//t8 = std::chrono::high_resolution_clock::now();
+	t8 = std::chrono::high_resolution_clock::now();
+	{
+		const auto len1   = std::chrono::duration<Real>(t1-t0).count();
+		const auto len23  = std::chrono::duration<Real>(t23-t1).count();
+		const auto len45  = std::chrono::duration<Real>(t45-t23).count();
+		const auto len67  = std::chrono::duration<Real>(t67-t45).count();
+		const auto len8   = std::chrono::duration<Real>(t8-t67).count();
+		printf("Creation times %d %d: %g %g %g %g %g \n",rank, obstacleID, len1, len23, len45, len67, len8);
+		fflush(0);
+	}
 }
 
 void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real dt, const Real *Uinf)
@@ -206,6 +229,7 @@ void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real d
 	// 11. correct deformation velocity to nullify momenta for the final discrete representation
 	std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t23, t45, t67, t8, t910, t11;
 
+	t8 = std::chrono::high_resolution_clock::now();
 	// 9. & 10.
 	{
 		const int nthreads = omp_get_max_threads();
@@ -240,23 +264,19 @@ void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real d
 		CoM_interpolated[2]=totX[3]/totX[0];
 	}
 	//MPI_Barrier(grid->getCartComm());
-	//t910 = std::chrono::high_resolution_clock::now();
+	t910 = std::chrono::high_resolution_clock::now();
 
 	// 11.
 	_makeDefVelocitiesMomentumFree(CoM_interpolated);
 	//MPI_Barrier(grid->getCartComm());
-	//t11 = std::chrono::high_resolution_clock::now();
-	/*
-	if(!rank) {
-		const auto len1   = std::chrono::duration<Real>(t1-t0).count();
-		const auto len23  = std::chrono::duration<Real>(t23-t1).count();
-		const auto len45  = std::chrono::duration<Real>(t45-t23).count();
-		const auto len67  = std::chrono::duration<Real>(t67-t45).count();
-		const auto len8   = std::chrono::duration<Real>(t8-t67).count();
+	t11 = std::chrono::high_resolution_clock::now();
+
+	{
 		const auto len910 = std::chrono::duration<Real>(t910-t8).count();
 		const auto len11  = std::chrono::duration<Real>(t11-t910).count();
-		printf("Creation times: %g %g %g %g %g %g %g\n", len1, len23, len45, len67, len8, len910, len11);
-	}*/
+		printf("Finalization times %d %d: %g %g\n",rank, obstacleID, len910, len11);
+		fflush(0);
+	}
 }
 
 void IF3D_FishOperator::update(const int stepID, const Real t, const Real dt, const Real *Uinf)

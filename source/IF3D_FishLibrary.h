@@ -15,11 +15,10 @@
 #include "GenericOperator.h"
 #include "IF2D_Frenet.h"
 
-const int NPPSEG = 100.; //was 100
 const int NPPEXT = 3; //was 3
 const int TGTPPB = 2.; //was 2 i think
 const int TSTART = 2.;
-
+const int NEXTDX = 2;
 #if 1
 #define __BSPLINE
 #include <gsl/gsl_bspline.h>
@@ -468,10 +467,10 @@ public:
 	FishMidlineData(const int Nm, const Real len, const Real Tp, const Real phase, const Real dx_ext):
 		Nm(Nm),length(len),Tperiod(Tp),phaseShift(phase),rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),
 		vX(_alloc(Nm)),vY(_alloc(Nm)),norX(_alloc(Nm)),norY(_alloc(Nm)),vNorX(_alloc(Nm)),vNorY(_alloc(Nm)),
-		width(_alloc(Nm)),height(_alloc(Nm)),iFishStart(4*NPPEXT),iFishEnd(Nm-1-4*NPPEXT)
+		width(_alloc(Nm)),height(_alloc(Nm)),iFishStart(NEXTDX*NPPEXT),iFishEnd(Nm-1-NEXTDX*NPPEXT)
 	{
 		// extension_info contains number of extension points and extension dx
-		const int Nextension = 4*NPPEXT; // up to 3dx on each side (to get proper interpolation up to 2dx)
+		const int Nextension = NEXTDX*NPPEXT; // up to 3dx on each side (to get proper interpolation up to 2dx)
 		const int Next = Nextension; // number of points per extension
 		const int Nint = Nm -2*Next; // number of interior points
 
