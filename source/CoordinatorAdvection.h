@@ -99,14 +99,14 @@ class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
 					const Real minw = min(w,(Real)0);
 
 					o(ix,iy,iz).tmpU = phi.u + factor*(maxu * dudx[0] + minu * dudx[1] +
-													   maxv * dudy[0] + minv * dudy[1] +
-													   maxw * dudz[0] + minw * dudz[1]);
+																					   maxv * dudy[0] + minv * dudy[1] +
+																					   maxw * dudz[0] + minw * dudz[1]);
 					o(ix,iy,iz).tmpV = phi.v + factor*(maxu * dvdx[0] + minu * dvdx[1] +
-													   maxv * dvdy[0] + minv * dvdy[1] +
-													   maxw * dvdz[0] + minw * dvdz[1]);
+																					   maxv * dvdy[0] + minv * dvdy[1] +
+																					   maxw * dvdz[0] + minw * dvdz[1]);
 					o(ix,iy,iz).tmpW = phi.w + factor*(maxu * dwdx[0] + minu * dwdx[1] +
-													   maxv * dwdy[0] + minv * dwdy[1] +
-													   maxw * dwdz[0] + minw * dwdz[1]);
+																					   maxv * dwdy[0] + minv * dwdy[1] +
+																					   maxw * dwdz[0] + minw * dwdz[1]);
 				}
 	}
 };

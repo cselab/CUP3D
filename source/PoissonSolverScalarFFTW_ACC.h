@@ -87,10 +87,11 @@ class PoissonSolverScalarFFTW_ACC
 		}
 	}
 
-	void _fft2cub(Real * out, TGrid& grid) const
+	void _fft2cub(Real * out, TGrid& grid, const Real dt) const
 	{
 		vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
 		const size_t N = local_infos.size();
+		const Real factor = 1./dt;
 		const size_t myN[3] = {
 				mybpd[0]*bs[0],
 				mybpd[1]*bs[1],
@@ -115,7 +116,7 @@ class PoissonSolverScalarFFTW_ACC
 			for(int iz=0; iz<bs[2]; iz++) {
 				const size_t src_index = offset + iz + myN[2] * (iy + myN[1] * ix);
 				assert(src_index >= 0 && src_index < myN[0] * myN[1] * myN[2]);
-				TStreamer::operate(&out[src_index], b.data[iz][iy][ix]);
+				b(ix,iy,iz).p = factor * out[src_index];
 			}
 		}
 	}
@@ -255,7 +256,7 @@ public:
 		}
 	}
 
-	void solve(TGrid& grid)
+	void solve(TGrid& grid, const Real dt)
 	{
 		_cub2fft(grid, rho);
 		#ifdef _CUDA_COMP_
@@ -313,7 +314,7 @@ public:
 		cudaMemcpy(rho, rho_gpu, isize[0]*isize[1]*isize[2]*sizeof(Real),
 						cudaMemcpyDeviceToHost);
 		#endif
-		_fft2cub(rho, grid);
+		_fft2cub(rho, grid, dt);
 	}
 
 	~PoissonSolverScalarFFTW_ACC()

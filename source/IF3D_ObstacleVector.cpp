@@ -102,9 +102,10 @@ std::vector<StateReward*> IF3D_ObstacleVector::_getData()
     return _D;
 }
 
-void IF3D_ObstacleVector::execute(Communicator * comm, const int iAgent, const Real time)
+void IF3D_ObstacleVector::execute(Communicator * comm, const int iAgent,
+  const Real time, const int iLabel)
 {
-   obstacles[iAgent]->execute(comm, iAgent, time);
+   obstacles[iAgent]->execute(comm, iAgent, time, iLabel);
 }
 
 Real IF3D_ObstacleVector::getD() const

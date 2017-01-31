@@ -616,88 +616,84 @@ protected:
 		return (t<T ? 0.5*M_PI/T * std::cos(0.5*M_PI*t/T) : 0.0);
 	}
 
-	inline Real midline(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
+	inline Real midline(const Real s, const Real t, const Real L, const Real T,
+		const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-		if (bBurst) {
-			Real f;
-			Real tcoast = TSTART;
-			if (t>=TSTART) {
-				const Real bct = t0 + t1 + t2 + t3;
-				const Real phase = std::floor((t-TSTART)/bct);
-				tcoast = TSTART + phase*bct;
-			}
-			Real tfreeze = tcoast + t0;
-			Real tburst = tfreeze + t1;
-			Real tswim = tburst + t2;
-			if (t<tcoast) {
-				f = 1.0;
-			} else if (t<tfreeze) {
-				const Real d = (t-tcoast)/(tfreeze-tcoast);
-				f = 1 - 3*d*d + 2*d*d*d;
-			} else if (t<tburst) {
-				f = 0.0;
-			} else if (t<tswim) {
-				const Real d = (t-tburst)/(tswim-tburst);
-				f = 3*d*d - 2*d*d*d;
-			} else {
-				f = 1.0;
-			}
-			return f * fac * (s + inv*L)*std::sin(arg);
-		} else
 		return fac * (s + inv*L)*std::sin(arg);
 	}
 
-	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T, const Real phaseShift) const
+	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T,
+		const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-
-	  if (bBurst) {
-			Real f,df;
-			Real tcoast = TSTART;
-			if (t>=TSTART) {
-				const Real bct = t0 + t1 + t2 + t3;
-				const Real phase = std::floor((t-TSTART)/bct);
-				tcoast = TSTART + phase*bct;
-			}
-			Real tfreeze = tcoast + t0;
-			Real tburst = tfreeze + t1;
-			Real tswim = tburst + t2;
-			if (t<tcoast) {
-				f = 1.0;
-				df = 0.0;
-			} else if (t<tfreeze) {
-				const Real d = (t-tcoast)/(tfreeze-tcoast);
-				f = 1 - 3*d*d + 2*d*d*d;
-				df = 6*(d*d - d)/(tfreeze-tcoast);
-			} else if (t<tburst) {
-				f = 0.0;
-				df = 0.0;
-			} else if (t<tswim) {
-				const Real d = (t-tburst)/(tswim-tburst);
-				f = 3*d*d - 2*d*d*d;
-				df = 6*(d - d*d)/(tswim-tburst);
-			} else {
-				f = 1.0;
-				df = 0.0;
-			}
-			return fac*(s + inv*L)*(df*std::sin(arg) - f*(2.0*M_PI/T)*std::cos(arg));
-		} else
 		return - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
+	}
+
+	inline Real midlineBeC(const Real s, const Real t, const Real L, const Real T,
+		const Real phaseShift, const Real f) const
+	{
+		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
+		return f * fac * (s + inv*L)*std::sin(arg);
+	}
+
+	inline Real midlineVelBeC(const Real s, const Real t, const Real L, const Real T,
+		const Real phaseShift, const Real f, const Real df) const
+	{
+		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
+		return fac*(s + inv*L)*(df*std::sin(arg) - f*(2.0*M_PI/T)*std::cos(arg));
 	}
 
 	void _computeMidlineCoordinates(const Real time)
 	{
 		const Real rampFac = rampFactorSine(time, Tperiod);
-		rX[0] = 0.0;
-		rY[0] =   rampFac*midline(rS[0], time, length, Tperiod, phaseShift);
+		if (bBurst && time>=TSTART) {
+			Real f;
+			const Real bct     = t0 + t1 + t2 + t3;
+			assert(bct>0);
+			const Real shift   = std::floor((time-TSTART)/bct);
+			const Real tcoast  = TSTART  + shift*bct;
+			const Real tfreeze = tcoast  + t0;
+			const Real tburst  = tfreeze + t1;
+			const Real tswim   = tburst  + t2;
+			const Real phase   = (time<tfreeze) ?  shift   *0.5 + phaseShift
+																		 		  : (shift+1)*0.5 + phaseShift;
+			if (time<tcoast) {
+				printf("NCCUCDC.\n");
+				abort();
+				f = 1.0;
+			} else if (time<tfreeze) {
+				const Real d = (time-tcoast)/(tfreeze-tcoast);
+				f = 1 - 3*d*d + 2*d*d*d;
+			} else if (time<tburst) {
+				f = 0.0;
+			} else if (time<tswim) {
+				const Real d = (time-tburst)/(tswim-tburst);
+				f = 3*d*d - 2*d*d*d;
+			} else {
+				f = 1.0;
+			}
 
-		for(int i=1;i<Nm;++i) {
-			rY[i]=rampFac*midline(rS[i], time, length, Tperiod, phaseShift);
-			const Real dy = rY[i]-rY[i-1];
-			const Real ds = rS[i] - rS[i-1];
-			const Real dx = std::sqrt(ds*ds-dy*dy);
-			rX[i] = rX[i-1] + dx;
+			rX[0] = 0.0;
+			rY[0] = rampFac*midlineBeC(rS[0], time, length, Tperiod, phase, f);
+			for(int i=1;i<Nm;++i) {
+				rY[i]=rampFac*midlineBeC(rS[i], time, length, Tperiod, phase, f);
+				const Real dy = rY[i]-rY[i-1];
+				const Real ds = rS[i] - rS[i-1];
+				const Real dx = std::sqrt(ds*ds-dy*dy);
+				rX[i] = rX[i-1] + dx;
+			}
+		} else {
+			rX[0] = 0.0;
+			rY[0] = rampFac*midline(rS[0], time, length, Tperiod, phaseShift);
+
+			for(int i=1;i<Nm;++i) {
+				rY[i]=rampFac*midline(rS[i], time, length, Tperiod, phaseShift);
+				const Real dy = rY[i]-rY[i-1];
+				const Real ds = rS[i] - rS[i-1];
+				const Real dx = std::sqrt(ds*ds-dy*dy);
+				rX[i] = rX[i-1] + dx;
+			}
 		}
 	}
 
@@ -705,19 +701,67 @@ protected:
 	{
 		const Real rampFac =    rampFactorSine(time, Tperiod);
 		const Real rampFacVel = rampFactorVelSine(time, Tperiod);
+		if (bBurst && time>=TSTART) {
+			Real f, df;
+			const Real bct     = t0 + t1 + t2 + t3;
+			assert(bct>0);
+			const Real shift   = std::floor((time-TSTART)/bct);
+			const Real tcoast  = TSTART  + shift*bct;
+			const Real tfreeze = tcoast  + t0;
+			const Real tburst  = tfreeze + t1;
+			const Real tswim   = tburst  + t2;
+			const Real phase   = (time<tfreeze) ?  shift   *0.5 + phaseShift
+																		 		  : (shift+1)*0.5 + phaseShift;
+			if (time<tcoast) {
+				printf("NCCUCDC.\n");
+				abort();
+				f = 1.0;
+				df = 0.0;
+			} else if (time<tfreeze) {
+				const Real d = (time-tcoast)/(tfreeze-tcoast);
+				f = 1 - 3*d*d + 2*d*d*d;
+				df = 6*(d*d - d)/(tfreeze-tcoast);
+			} else if (time<tburst) {
+				f = 0.0;
+				df = 0.0;
+			} else if (time<tswim) {
+				const Real d = (time-tburst)/(tswim-tburst);
+				f = 3*d*d - 2*d*d*d;
+				df = 6*(d - d*d)/(tswim-tburst);
+			} else {
+				f = 1.0;
+				df = 0.0;
+			}
 
-		vX[0] = 0.0; //rX[0] is constant
-		vY[0] = rampFac*midlineVel(rS[0],time,length,Tperiod, phaseShift) +
-				rampFacVel*midline(rS[0],time,length,Tperiod, phaseShift);
+			vX[0] = 0.0; //rX[0] is constant
+			vY[0] = rampFac*midlineVelBeC(rS[0],time,length,Tperiod, phase, f, df) +
+					rampFacVel*midlineBeC(rS[0],time,length,Tperiod, phase, f);
 
-		for(int i=1;i<Nm;++i) {
-			vY[i]=rampFac*midlineVel(rS[i],time,length,Tperiod, phaseShift) +
-					rampFacVel*midline(rS[i],time,length,Tperiod, phaseShift);
-			const Real dy  = rY[i]-rY[i-1];
-			const Real dx  = rX[i]-rX[i-1];
-			const Real dVy = vY[i]-vY[i-1];
-			assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
-			vX[i] = vX[i-1] - dy/dx * dVy; // use ds^2 = dx^2 + dy^2 --> ddx = -dy/dx*ddy
+			for(int i=1;i<Nm;++i) {
+				vY[i]=rampFac*midlineVelBeC(rS[i],time,length,Tperiod, phase, f, df) +
+						rampFacVel*midlineBeC(rS[i],time,length,Tperiod, phase, f);
+				const Real dy  = rY[i]-rY[i-1];
+				const Real dx  = rX[i]-rX[i-1];
+				const Real dVy = vY[i]-vY[i-1];
+				assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
+				vX[i] = vX[i-1] - dy/dx * dVy; // use ds^2 = dx^2 + dy^2 --> ddx = -dy/dx*ddy
+			}
+		}
+		else
+		{
+			vX[0] = 0.0; //rX[0] is constant
+			vY[0] = rampFac*midlineVel(rS[0],time,length,Tperiod, phaseShift) +
+					rampFacVel*midline(rS[0],time,length,Tperiod, phaseShift);
+
+			for(int i=1;i<Nm;++i) {
+				vY[i]=rampFac*midlineVel(rS[i],time,length,Tperiod, phaseShift) +
+						rampFacVel*midline(rS[i],time,length,Tperiod, phaseShift);
+				const Real dy  = rY[i]-rY[i-1];
+				const Real dx  = rX[i]-rX[i-1];
+				const Real dVy = vY[i]-vY[i-1];
+				assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
+				vX[i] = vX[i-1] - dy/dx * dVy; // use ds^2 = dx^2 + dy^2 --> ddx = -dy/dx*ddy
+			}
 		}
 	}
 

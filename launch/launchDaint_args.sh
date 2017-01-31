@@ -50,8 +50,9 @@ cat <<EOF >daint_sbatch
 #SBATCH --time=02:00:00
 #SBATCH --nodes=${NNODE}
 # #SBATCH --partition=viz
+#SBATCH --threads-per-core=2
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=24
+#SBATCH --cpus-per-task=12
 #SBATCH --constraint=gpu
 export CRAY_CUDA_MPS=1
 
@@ -62,7 +63,7 @@ module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1 fftw/3.3.4.10
 export OMP_NUM_THREADS=24
 export MYROUNDS=10000
 export USEMAXTHREADS=1
-srun -n ${NNODE} --ntasks-per-node=1 --cpus-per-task=24 ./simulation ${OPTIONS}
+srun --ntasks ${NNODE} --threads-per-core=2 --ntasks-per-node=1 --cpus-per-task=12 ./simulation ${OPTIONS}
 EOF
 
 chmod 755 daint_sbatch

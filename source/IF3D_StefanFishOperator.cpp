@@ -134,7 +134,8 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
     */
 }
 
-void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, const Real time)
+void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
+																			const Real time, const int iLabel)
 {
     if (time < Tstartlearn) {
         sr.resetAverage();
@@ -225,7 +226,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent, con
         //printf("About to ask state\n");
         //fflush(0);
         const Real reward = (sr.info==2) ? -10 : sr.EffPDefBnd;
-        comm->sendState(iAgent-1, sr.info, state, reward); //TODO
+        comm->sendState(iLabel, sr.info, state, reward); //TODO
         if (sr.info==2) return;
         sr.info = 0;
         //printf("About to ask action\n");

@@ -17,130 +17,110 @@
 #else
 #include "PoissonSolverScalarFFTW_MPI.h"
 #endif
+//#define _bSmartTrick_ not that smart after all
 
 struct PressureObstacleVisitor : public ObstacleVisitor
 {
 	FluidGridMPI * grid;
-    vector<BlockInfo> vInfo;
+  vector<BlockInfo> vInfo;
 
-    PressureObstacleVisitor(FluidGridMPI * grid) : grid(grid)
-    {
-      vInfo = grid->getBlocksInfo();
-    }
+  PressureObstacleVisitor(FluidGridMPI * grid) : grid(grid)
+  {
+    vInfo = grid->getBlocksInfo();
+  }
 
-     void visit(IF3D_ObstacleOperator* const obstacle)
+   void visit(IF3D_ObstacleOperator* const obstacle)
+   {
+		 #pragma omp parallel
      {
-			 #pragma omp parallel
-         {
-             const std::map<int,ObstacleBlock*> obstblocks = obstacle->getObstacleBlocks();
-						 #pragma omp for schedule(dynamic)
-             for(int i=0; i<vInfo.size(); i++) {
-            	 BlockInfo info = vInfo[i];
-                 const auto pos = obstblocks.find(info.blockID);
-                 if(pos == obstblocks.end()) continue;
+       const std::map<int,ObstacleBlock*> obstblocks = obstacle->getObstacleBlocks();
+			 #pragma omp for schedule(dynamic)
+       for(int i=0; i<vInfo.size(); i++) {
+      	 BlockInfo info = vInfo[i];
+         const auto pos = obstblocks.find(info.blockID);
+         if(pos == obstblocks.end()) continue;
 
-                 FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+         FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
 
-                 for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-                 for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-								 for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-									 // what if multiple obstacles share a block??
-									 // let's plus equal and wake up during the night to stress about it
-									 b(ix,iy,iz).tmpU += pos->second->udef[iz][iy][ix][0];
-									 b(ix,iy,iz).tmpV += pos->second->udef[iz][iy][ix][1];
-									 b(ix,iy,iz).tmpW += pos->second->udef[iz][iy][ix][2];
-								 }
-             }
-         }
+         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				 for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+					 // what if multiple obstacles share a block??
+					 // let's plus equal and wake up during the night to stress about it
+					 b(ix,iy,iz).tmpU += pos->second->udef[iz][iy][ix][0];
+					 b(ix,iy,iz).tmpV += pos->second->udef[iz][iy][ix][1];
+					 b(ix,iy,iz).tmpW += pos->second->udef[iz][iy][ix][2];
+				 }
+       }
      }
+   }
 };
-
+/*
 struct PressurePenaltyVisitor : ObstacleVisitor
 {
 	FluidGridMPI * grid;
-    const Real dt, lambda;
-    Real * const uInf;
-    //Real ext_X, ext_Y, ext_Z;
-    vector<BlockInfo> vInfo;
+  const Real dt, lambda;
+  Real * const uInf;
+  //Real ext_X, ext_Y, ext_Z;
+  vector<BlockInfo> vInfo;
 
-    PressurePenaltyVisitor(FluidGridMPI * grid, const Real dt, const Real lambda, Real* const uInf)
-    : grid(grid), dt(dt), lambda(lambda), uInf(uInf)
-    {
-        vInfo = grid->getBlocksInfo();
-        /*
-        const Real extent = grid->maxextent;
-        const unsigned int maxbpd = max(grid->NX*FluidBlock::sizeX,
-        							max(grid->NY*FluidBlock::sizeY,
-        								grid->NZ*FluidBlock::sizeZ));
-        const Real scale[3] = {
-        		(Real)(grid->NX*FluidBlock::sizeX)/(Real)maxbpd,
-        		(Real)(grid->NY*FluidBlock::sizeY)/(Real)maxbpd,
-        		(Real)(grid->NZ*FluidBlock::sizeZ)/(Real)maxbpd
-        };
-        ext_X = scale[0]*extent;
-        ext_Y = scale[1]*extent;
-        ext_Z = scale[2]*extent;
-        */
-    }
+  PressurePenaltyVisitor(FluidGridMPI * grid, const Real dt, const Real lambda, Real* const uInf)
+  : grid(grid), dt(dt), lambda(lambda), uInf(uInf)
+  {
+      vInfo = grid->getBlocksInfo();
+  }
 
-     void visit(IF3D_ObstacleOperator* const obstacle)
+   void visit(IF3D_ObstacleOperator* const obstacle)
+   {
+		 #pragma omp parallel
      {
-			 #pragma omp parallel
-         {
-            const std::map<int, ObstacleBlock*> obstblocks = obstacle->getObstacleBlocks();
-            Real uBody[3], omegaBody[3], centerOfMass[3];
-            obstacle->getCenterOfMass(centerOfMass);
-            obstacle->getTranslationVelocity(uBody);
-            obstacle->getAngularVelocity(omegaBody);
-            /*
-						#pragma omp master
-            printf("%f %f %f %f %f %f %f %f %f %f %f %f\n",
-            		uBody[0],uBody[1],uBody[2],omegaBody[0],omegaBody[1],omegaBody[2],
-            		centerOfMass[0],centerOfMass[1],centerOfMass[2],uInf[0],uInf[1],uInf[2]);
-						*/
+        const std::map<int, ObstacleBlock*> obstblocks = obstacle->getObstacleBlocks();
+        Real uBody[3], omegaBody[3], centerOfMass[3];
+        obstacle->getCenterOfMass(centerOfMass);
+        obstacle->getTranslationVelocity(uBody);
+        obstacle->getAngularVelocity(omegaBody);
 
-						#pragma omp for schedule(dynamic)
-            for(int i=0; i<vInfo.size(); i++) {
-            	BlockInfo info = vInfo[i];
-            	const auto pos = obstblocks.find(info.blockID);
-            	if(pos == obstblocks.end()) continue;
-            	FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+				#pragma omp for schedule(dynamic)
+        for(int i=0; i<vInfo.size(); i++) {
+        	BlockInfo info = vInfo[i];
+        	const auto pos = obstblocks.find(info.blockID);
+        	if(pos == obstblocks.end()) continue;
+        	FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
-            	for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-							for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-							for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-								if (pos->second->chi[iz][iy][ix] > 0) {
-									Real p[3];
-									info.pos(p, ix, iy, iz);
-									p[0]-=centerOfMass[0];
-									p[1]-=centerOfMass[1];
-									p[2]-=centerOfMass[2];
-									const Real lambdaChi  = lambda * pos->second->chi[iz][iy][ix];
-									const Real object_UR[3] = {
-											omegaBody[1]*p[2]-omegaBody[2]*p[1],
-											omegaBody[2]*p[0]-omegaBody[0]*p[2],
-											omegaBody[0]*p[1]-omegaBody[1]*p[0]
-									};
-									const Real object_UDEF[3] = {
-											pos->second->udef[iz][iy][ix][0],
-											pos->second->udef[iz][iy][ix][1],
-											pos->second->udef[iz][iy][ix][2]
-									};
-									const Real U_TOT[3] = {
-											uBody[0]+object_UR[0]+object_UDEF[0]-uInf[0],
-											uBody[1]+object_UR[1]+object_UDEF[1]-uInf[1],
-											uBody[2]+object_UR[2]+object_UDEF[2]-uInf[2]
-									};
-			    				b(ix,iy,iz).tmpU += lambdaChi*(U_TOT[0]-b(ix,iy,iz).u);
-			    				b(ix,iy,iz).tmpV += lambdaChi*(U_TOT[1]-b(ix,iy,iz).v);
-			    				b(ix,iy,iz).tmpW += lambdaChi*(U_TOT[2]-b(ix,iy,iz).v);
-								}
-           }
-         }
+        	for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+					for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+					if (pos->second->chi[iz][iy][ix] > 0) {
+						Real p[3];
+						info.pos(p, ix, iy, iz);
+						p[0]-=centerOfMass[0];
+						p[1]-=centerOfMass[1];
+						p[2]-=centerOfMass[2];
+						const Real lambdaChi  = lambda * pos->second->chi[iz][iy][ix];
+						const Real object_UR[3] = {
+								omegaBody[1]*p[2]-omegaBody[2]*p[1],
+								omegaBody[2]*p[0]-omegaBody[0]*p[2],
+								omegaBody[0]*p[1]-omegaBody[1]*p[0]
+						};
+						const Real object_UDEF[3] = {
+								pos->second->udef[iz][iy][ix][0],
+								pos->second->udef[iz][iy][ix][1],
+								pos->second->udef[iz][iy][ix][2]
+						};
+						const Real U_TOT[3] = {
+								uBody[0]+object_UR[0]+object_UDEF[0]-uInf[0],
+								uBody[1]+object_UR[1]+object_UDEF[1]-uInf[1],
+								uBody[2]+object_UR[2]+object_UDEF[2]-uInf[2]
+						};
+    				b(ix,iy,iz).tmpU += lambdaChi*(U_TOT[0]-b(ix,iy,iz).u);
+    				b(ix,iy,iz).tmpV += lambdaChi*(U_TOT[1]-b(ix,iy,iz).v);
+    				b(ix,iy,iz).tmpW += lambdaChi*(U_TOT[2]-b(ix,iy,iz).w);
+					}
+       }
      }
+   }
 };
 
-/*
 class PressRHSOperator : public GenericLabOperator
 {
 	private:
@@ -192,10 +172,26 @@ class PressRHSOperator : public GenericLabOperator
 class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 {
 	private:
-	Real dt;
+	Real dt, extent[3];
+	static const int buffer = 16;
+	inline bool _is_touching(const BlockInfo& info, const Real h) const
+	{
+		 Real max_pos[3],min_pos[3];
+		 info.pos(min_pos, 0, 0, 0);
+		 info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+		 // true: block within killing zone, false: block not within killing zone
+		 return ( min_pos[0]<(0.       +(7+buffer)*h ) )
+				 || ( min_pos[1]<(0.       +(7+buffer)*h ) )
+				 || ( min_pos[2]<(0.       +(7+buffer)*h ) )
+				 || ( max_pos[0]>(extent[0]-(7+buffer)*h ) )
+				 || ( max_pos[1]>(extent[1]-(7+buffer)*h ) )
+				 || ( max_pos[2]>(extent[2]-(7+buffer)*h ) )
+				 		;
+  }
 
 	public:
-	OperatorDivergenceMinusDivTmpU(Real dt) : dt(dt)
+	OperatorDivergenceMinusDivTmpU(Real dt, const Real extent[3])
+	: dt(dt), extent{extent[0],extent[1],extent[2]}
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 6, 0,1,2,5,6,7);
 		stencil_start[0] = -1;
@@ -210,8 +206,48 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
-		const Real factor = 0.5/info.h_gridpoint;
+		const Real h = info.h_gridpoint;
+		const Real factor = 0.5/h;
 
+		#ifdef _bSmartTrick_
+		if (_is_touching(info, h)) {
+		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+			Real p[3];
+			info.pos(p, ix, iy, iz);
+			// Poisson solver reads field p for the rhs
+			const Real uW    = lab(ix-1,iy  ,iz  ).u;
+			const Real uE    = lab(ix+1,iy  ,iz  ).u;
+			const Real vS    = lab(ix  ,iy-1,iz  ).v;
+			const Real vN    = lab(ix  ,iy+1,iz  ).v;
+			const Real wF    = lab(ix  ,iy  ,iz-1).w;
+			const Real wB    = lab(ix  ,iy  ,iz+1).w;
+			const Real uWdef = lab(ix-1,iy  ,iz  ).tmpU;
+			const Real uEdef = lab(ix+1,iy  ,iz  ).tmpU;
+			const Real vSdef = lab(ix  ,iy-1,iz  ).tmpV;
+			const Real vNdef = lab(ix  ,iy+1,iz  ).tmpV;
+			const Real wFdef = lab(ix  ,iy  ,iz-1).tmpW;
+			const Real wBdef = lab(ix  ,iy  ,iz+1).tmpW;
+			// >0 iff p+(1+buffer)*h > extent
+			const Real argx1= max(0., (p[0]-extent[0]+(7+buffer)*h));
+			const Real argy1= max(0., (p[1]-extent[1]+(7+buffer)*h));
+			const Real argz1= max(0., (p[2]-extent[2]+(7+buffer)*h));
+			// >0 iff (1+buffer)*h > p
+			const Real argx2= max(0., (0.0 -p[0]     +(7+buffer)*h));
+			const Real argy2= max(0., (0.0 -p[1]     +(7+buffer)*h));
+			const Real argz2= max(0., (0.0 -p[2]     +(7+buffer)*h));
+			// max distance in killing zone 0 <= out <= (2+buffer)*h
+			const Real out = max(max(max(argx1,argx2),
+															 max(argy1,argy2) ),
+															 max(argz1,argz2)  );
+			// 1 at buffer start, 0 at border
+			const Real fade = max(Real(0.0), cos(0.5*M_PI* out/(buffer*h)));
+			o(ix,iy,iz).p = fade * factor * (uE - uW + vN - vS + wB - wF
+					-o(ix,iy,iz).chi*(uEdef-uWdef+vNdef-vSdef+wBdef-wFdef));
+		}
+		} else {
+		#endif
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
 		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -230,8 +266,10 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 			const Real wBdef = lab(ix  ,iy  ,iz+1).tmpW;
 			o(ix,iy,iz).p = factor * (uE - uW + vN - vS + wB - wF
 					-o(ix,iy,iz).chi*(uEdef-uWdef+vNdef-vSdef+wBdef-wFdef));
-			//o(ix,iy,iz).chi = o(ix,iy,iz).p;
 		}
+		#ifdef _bSmartTrick_
+		}
+		#endif
 	}
 };
 
@@ -299,13 +337,27 @@ class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
 class OperatorGradP : public GenericLabOperator
 {
 	private:
-	Real dt;
+	Real dt, extent[3];
+	static const int buffer = 8;
+	inline bool _is_touching(const BlockInfo& info, const Real h) const
+	{
+		 Real max_pos[3],min_pos[3];
+		 info.pos(min_pos, 0, 0, 0);
+		 info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+		 // true: block within killing zone, false: block not within killing zone
+		 return ( min_pos[0]<(0.       +(7+buffer)*h ) )
+				 || ( min_pos[1]<(0.       +(7+buffer)*h ) )
+				 || ( min_pos[2]<(0.       +(7+buffer)*h ) )
+				 || ( max_pos[0]>(extent[0]-(7+buffer)*h ) )
+				 || ( max_pos[1]>(extent[1]-(7+buffer)*h ) )
+				 || ( max_pos[2]>(extent[2]-(7+buffer)*h ) )
+				 		;
+  }
 
 	public:
-	OperatorGradP(Real dt) : dt(dt)
+	OperatorGradP(Real dt,const Real ext[3]) : dt(dt),extent{ext[0],ext[1],ext[2]}
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
-
 		stencil_start[0] = -1;
 		stencil_start[1] = -1;
 		stencil_start[2] = -1;
@@ -319,7 +371,47 @@ class OperatorGradP : public GenericLabOperator
 	template <typename Lab, typename BlockType>
 	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
 	{
-		const Real prefactor = -.5 / info.h_gridpoint;
+		const Real h = info.h_gridpoint;
+		const Real prefactor = - 0.5 * dt / h;
+
+		#ifdef _bSmartTrick_
+		if (_is_touching(info, h)) {
+			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+			for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+				// p contains the pressure correction after the Poisson solver
+				const Real divUW = lab(ix-1,iy  ,iz  ).p;
+				const Real divUE = lab(ix+1,iy  ,iz  ).p;
+				const Real divUS = lab(ix  ,iy-1,iz  ).p;
+				const Real divUN = lab(ix  ,iy+1,iz  ).p;
+				const Real divUF = lab(ix  ,iy  ,iz-1).p;
+				const Real divUB = lab(ix  ,iy  ,iz+1).p;
+
+				Real p[3];
+				info.pos(p, ix, iy, iz);
+				// >0 iff p+(1+buffer)*h > extent
+				const Real argx1= max(0., (p[0]-extent[0]+(7+buffer)*h));
+				const Real argy1= max(0., (p[1]-extent[1]+(7+buffer)*h));
+				const Real argz1= max(0., (p[2]-extent[2]+(7+buffer)*h));
+				// >0 iff (1+buffer)*h > p
+				const Real argx2= max(0., (0.0 -p[0]     +(7+buffer)*h));
+				const Real argy2= max(0., (0.0 -p[1]     +(7+buffer)*h));
+				const Real argz2= max(0., (0.0 -p[2]     +(7+buffer)*h));
+				// max distance in killing zone 0 <= out <= (2+buffer)*h
+				const Real out = max(max(max(argx1,argx2),
+																 max(argy1,argy2) ),
+																 max(argz1,argz2)  );
+				//const Real out = argx2;
+				// 1 at buffer start, 0 at border
+				const Real fade = max(Real(0.0), cos(0.5*M_PI* out/(buffer*h)));
+				// smooth within killing zone (factor <= 1) and kill at very boundaries (factor < 0)
+
+				o(ix,iy,iz).u += fade*prefactor * (divUE - divUW);
+				o(ix,iy,iz).v += fade*prefactor * (divUN - divUS);
+				o(ix,iy,iz).w += fade*prefactor * (divUB - divUF);
+			}
+		} else {
+		#endif
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -332,14 +424,18 @@ class OperatorGradP : public GenericLabOperator
 			const Real divUF = lab(ix  ,iy  ,iz-1).p;
 			const Real divUB = lab(ix  ,iy  ,iz+1).p;
 
-			o(ix,iy,iz).u += prefactor * (divUE - divUW);//
-			o(ix,iy,iz).v += prefactor * (divUN - divUS);//
-			o(ix,iy,iz).w += prefactor * (divUB - divUF);//
+			o(ix,iy,iz).u += prefactor * (divUE - divUW);
+			o(ix,iy,iz).v += prefactor * (divUN - divUS);
+			o(ix,iy,iz).w += prefactor * (divUB - divUF);
 
 			assert(!std::isnan(o(ix,iy,iz).u));
 			assert(!std::isnan(o(ix,iy,iz).v));
 			assert(!std::isnan(o(ix,iy,iz).w));
 		}
+
+		#ifdef _bSmartTrick_
+		}
+		#endif
 	}
 };
 
@@ -348,11 +444,11 @@ class CoordinatorPressure : public GenericCoordinator
 {
 protected:
     IF3D_ObstacleVector** const obstacleVector;
-#ifdef _ACCFFT_
+		#ifdef _ACCFFT_
     PoissonSolverScalarFFTW_ACC<FluidGridMPI, StreamerDiv> pressureSolver;
-#else
+		#else
     PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> pressureSolver;
-#endif
+		#endif
 
 public:
 	CoordinatorPressure(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles) :
@@ -361,24 +457,30 @@ public:
 
 	void operator()(const Real dt)
 	{
-      check("pressure - start");
-			#pragma omp parallel
-			{
-				const int N = vInfo.size();
-				#pragma omp for schedule(static)
-				for(int i=0; i<vInfo.size(); i++) {
-					BlockInfo info = vInfo[i];
-					FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-					for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-					for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-					for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-						b(ix,iy,iz).tmpU = 0;
-						b(ix,iy,iz).tmpV = 0;
-						b(ix,iy,iz).tmpW = 0; //zero fields, going to contain Udef
-					}
+    check("pressure - start");
+		#pragma omp parallel
+		{
+			const int N = vInfo.size();
+			#pragma omp for schedule(static)
+			for(int i=0; i<vInfo.size(); i++) {
+				BlockInfo info = vInfo[i];
+				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+				for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+					b(ix,iy,iz).tmpU = 0;
+					b(ix,iy,iz).tmpV = 0;
+					b(ix,iy,iz).tmpW = 0; //zero fields, going to contain Udef
 				}
 			}
+		}
 
+		const Real h = grid->getH();
+		const Real ext[3] = {
+				h*grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
+				h*grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
+				h*grid->getBlocksPerDimension(2)*FluidBlock::sizeZ
+		};
 	   //store deformation velocities onto tmp fields
 		ObstacleVisitor * pressureVisitor = new PressureObstacleVisitor(grid);
 		(*obstacleVector)->Accept(pressureVisitor); // accept you son of a french cow
@@ -386,31 +488,16 @@ public:
 
 		{ 	//place onto p: ( div u^(t+1) - div u^* ) / dt
 			//where i want div u^(t+1) to be equal to div udef
-			OperatorDivergenceMinusDivTmpU kernelDiv(dt);
+			OperatorDivergenceMinusDivTmpU kernelDiv(dt,ext);
 			//OperatorDivergenceMinusDivTmpU2ndOrder kernelDiv(dt);
 			compute(kernelDiv);
 		}
 
-		pressureSolver.solve(*grid);
+		pressureSolver.solve(*grid, dt);
 
 		{ //pressure correction dudt* = - grad P / rho
-			OperatorGradP kernelGradP(dt);
+			OperatorGradP kernelGradP(dt,ext);
 			compute(kernelGradP);
-		}
-
-		#pragma omp parallel
-		{
-			const int N = vInfo.size();
-			const Real factor = 1./dt;
-			#pragma omp for schedule(static)
-			for(int i=0; i<vInfo.size(); i++) {
-				BlockInfo info = vInfo[i];
-				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-				for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-					b(ix,iy,iz).p *= factor;
-			}
 		}
 
     check("pressure - end");

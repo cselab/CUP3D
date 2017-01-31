@@ -339,32 +339,68 @@ void Simulation::simulate()
 					const int nO = obstacle_vector->nObstacles();
 					const auto _D = obstacle_vector->_getData();
           assert(_D.size() == nO);
-					for(int i=1; i<nO; i++) {
-            if(!rank)
-            printf("LEader's pov is %g %g %g length %g\n",
-            _D[0]->Xrel, _D[0]->Yrel,  _D[0]->thExp, length);
-						bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel,
-																			 _D[0]->thExp, length);
+
+          #ifdef __2Leads_
+            assert(nO==3);
+						bDoOver = _D[2]->checkFail(0.5*(_D[0]->Xrel +_D[1]->Xrel),
+                                       0.5*(_D[0]->Yrel +_D[1]->Yrel),
+																			 0.5*(_D[0]->thExp+_D[1]->thExp),
+                                       length);
 						if (bDoOver) {
-							_D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel,  _D[0]->thExp,
-												 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
-							_D[i]->info = 2;
-							obstacle_vector->execute(communicator, i, time);
+							_D[2]->finalizePos( 0.5*(_D[0]->Xrel +_D[1]->Xrel),
+                                  0.5*(_D[0]->Yrel +_D[1]->Yrel),
+                                  0.5*(_D[0]->thExp+_D[1]->thExp),
+                                  0.5*(_D[0]->vxExp+_D[1]->vxExp),
+                                  0.5*(_D[0]->vyExp+_D[1]->vyExp),
+                                  0.5*(_D[0]->avExp+_D[1]->avExp),
+                                  length, 1.);
+							_D[2]->info = 2;
+							obstacle_vector->execute(communicator, 2, time, 0);
               printf("Sim terminated\n");
 							return;
 						}
-					}
 
-					for(int i=0; i<nO; i++) if(time >= _D[i]->t_next_comm) {
-            if(!rank) printf("trying to execute at t = %e\n", time);
-            if(i>0) {
-						_D[i]->finalize(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
-									 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
-						_D[i]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
-									 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
+  					if(time >= _D[2]->t_next_comm) {
+  						_D[2]->finalize(0.5*(_D[0]->Xrel +_D[1]->Xrel),
+                              0.5*(_D[0]->Yrel +_D[1]->Yrel),
+                              0.5*(_D[0]->thExp+_D[1]->thExp),
+                              0.5*(_D[0]->vxExp+_D[1]->vxExp),
+                              0.5*(_D[0]->vyExp+_D[1]->vyExp),
+                              0.5*(_D[0]->avExp+_D[1]->avExp),
+                              length, 1.0);
+  						_D[2]->finalizePos(0.5*(_D[0]->Xrel +_D[1]->Xrel),
+                                 0.5*(_D[0]->Yrel +_D[1]->Yrel),
+                                 0.5*(_D[0]->thExp+_D[1]->thExp),
+                                 0.5*(_D[0]->vxExp+_D[1]->vxExp),
+                                 0.5*(_D[0]->vyExp+_D[1]->vyExp),
+                                 0.5*(_D[0]->avExp+_D[1]->avExp),
+                                 length, 1.0);
+  						obstacle_vector->execute(communicator, 2, time, 0);
              }
-						obstacle_vector->execute(communicator, i, time);
-					}
+          #else
+            for(int i=1; i<nO; i++) {
+              bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel,
+                                         _D[0]->thExp, length);
+              if (bDoOver) {
+                _D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel,  _D[0]->thExp,
+                           _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
+                _D[i]->info = 2;
+                obstacle_vector->execute(communicator, i, time, i-1);
+                printf("Sim terminated\n");
+                return;
+              }
+            }
+
+            for(int i=0; i<nO; i++) if(time >= _D[i]->t_next_comm) {
+              if(i>0) {
+              _D[i]->finalize(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
+                     _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
+              _D[i]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
+                     _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
+               }
+              obstacle_vector->execute(communicator, i, time, i-1);
+            }
+          #endif
 					if (bDoOver) exit(0);
 					profiler.pop_stop();
 				}
@@ -447,7 +483,8 @@ void Simulation::simulate()
         {
         	if(rank==0)
         	cout<<"Finished at time "<<time<<" in "<<step<<" step of "<<nsteps<<endl;
-			exit(0);
+			//exit(0);
+		return;
         }
     }
 }

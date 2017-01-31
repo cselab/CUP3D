@@ -24,7 +24,7 @@ protected:
 	{
 		#ifndef NDEBUG
 		int rank;
-		MPI_Comm comm = grid.getCartComm();
+		MPI_Comm comm = grid->getCartComm();
 		MPI_Comm_rank(comm,&rank);
 		MPI_Barrier(comm);
 

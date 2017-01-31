@@ -10,7 +10,7 @@
 #define CubismUP_3D_DataStructures_h
 
 //#include <cassert>
-
+#define __2Leads_
 //#define BBURST 1
 #define __SMARTIES_
 #include <stdexcept>
@@ -1339,12 +1339,12 @@ typedef GridMPI<FluidGrid> FluidGridMPI;
 typedef Grid<DumpBlock, std::allocator> DumpGrid;
 typedef GridMPI<DumpGrid> DumpGridMPI;
 
-#define _OPEN_BC_
-#ifndef _OPEN_BC_
-typedef  Lab;
-#else
+//#define _OPEN_BC_
+//#ifndef _OPEN_BC_
+//typedef  Lab;
+//#else
 typedef  BlockLabOpen<FluidBlock, std::allocator> Lab;
-#endif
+//#endif
 
 //#ifdef _MIXED_
 //typedef BlockLabBottomWall<FluidBlock, std::allocator> Lab;
@@ -1358,7 +1358,7 @@ typedef  BlockLabOpen<FluidBlock, std::allocator> Lab;
 //typedef BlockLabPipe<FluidBlock, std::allocator> Lab;
 //#endif // _PIPE_
 
-typedef BlockLabMPI<BlockLab<FluidBlock, std::allocator>> LabMPI;
+typedef BlockLabMPI<BlockLabOpen<FluidBlock, std::allocator>> LabMPI;
 
 /*
 struct Layer

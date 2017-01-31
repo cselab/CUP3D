@@ -42,9 +42,6 @@ protected:
     Real transVel_correction[3], angVel_correction[3], length;
     Real transVel_computed[3], angVel_computed[3];
     Real ext_X, ext_Y, ext_Z;
-    int rank;
-    bool bFixToPlanar;
-
 
     virtual void _parseArguments(ArgumentParser & parser);
     virtual void _writeComputedVelToFile(const int step_id, const Real t, const Real * uInf);
@@ -56,8 +53,8 @@ protected:
                                                     Real* const angvel_target);
 
 public:
-    int obstacleID;
-    bool bFixFrameOfRef;
+    int obstacleID, rank;
+    bool bFixFrameOfRef, bFixToPlanar;
     IF3D_ObstacleOperator(FluidGridMPI * grid, ArgumentParser& parser) :
     	grid(grid),obstacleID(0),quaternion{1,0,0,0},_2Dangle(0),position{0,0,0},
       absPos{0,0,0},transVel{0,0,0},angVel{0,0,0},volume(0),J{0,0,0,0,0,0}
@@ -110,7 +107,7 @@ public:
     virtual void save(const int step_id, const Real t, std::string filename = std::string());
     virtual void restart(const Real t, std::string filename = std::string());
 
-    virtual void execute(Communicator * comm, const int iAgent, const Real time) {};
+    virtual void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) {};
     StateReward* _getData() { return &sr; }
     // some non-pure methods
     virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf) { }

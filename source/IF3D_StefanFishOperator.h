@@ -22,7 +22,7 @@ protected:
 public:
     IF3D_StefanFishOperator(FluidGridMPI * grid, ArgumentParser & parser);
     void _parseArguments(ArgumentParser & parser);
-    void execute(Communicator * comm, const int iAgent, const Real time) override;
+    void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) override;
   	void save(const int step_id, const Real t, std::string filename = std::string()) override;
     void restart(const Real t, string filename) override;
 };

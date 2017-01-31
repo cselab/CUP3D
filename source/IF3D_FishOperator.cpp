@@ -210,6 +210,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	}
 	//MPI_Barrier(grid->getCartComm());
 	t8 = std::chrono::high_resolution_clock::now();
+/*
 	{
 		const auto len1   = std::chrono::duration<Real>(t1-t0).count();
 		const auto len23  = std::chrono::duration<Real>(t23-t1).count();
@@ -219,6 +220,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		printf("Creation times %d %d: %g %g %g %g %g \n",rank, obstacleID, len1, len23, len45, len67, len8);
 		fflush(0);
 	}
+*/
 }
 
 void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real dt, const Real *Uinf)
@@ -270,13 +272,14 @@ void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real d
 	_makeDefVelocitiesMomentumFree(CoM_interpolated);
 	//MPI_Barrier(grid->getCartComm());
 	t11 = std::chrono::high_resolution_clock::now();
-
+/*
 	{
 		const auto len910 = std::chrono::duration<Real>(t910-t8).count();
 		const auto len11  = std::chrono::duration<Real>(t11-t910).count();
 		printf("Finalization times %d %d: %g %g\n",rank, obstacleID, len910, len11);
 		fflush(0);
 	}
+*/
 }
 
 void IF3D_FishOperator::update(const int stepID, const Real t, const Real dt, const Real *Uinf)

@@ -38,7 +38,7 @@ public:
     void Accept(ObstacleVisitor * visitor) override;
 
     std::vector<StateReward*> _getData();
-    void execute(Communicator * comm, const int iAgent, const Real time) override;
+    void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) override;
 
     void addObstacle(IF3D_ObstacleOperator * obstacle)
     {
