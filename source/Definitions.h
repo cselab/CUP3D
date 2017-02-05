@@ -10,8 +10,7 @@
 #define CubismUP_3D_DataStructures_h
 
 //#include <cassert>
-#define __2Leads_
-//#define BBURST 1
+//#define __2Leads_
 #define __SMARTIES_
 #include <stdexcept>
 #include <sstream>
@@ -74,14 +73,8 @@ typedef float Real;
 struct FluidElement
 {
     Real u, v, w, chi, p, tmpU, tmpV, tmpW;
-
-    FluidElement() : u(0), v(0), w(0), chi(0), p(0), tmpU(0), tmpV(0), tmpW(0)
-	{}
-
-    void clear()
-    {
-        u = v = w = chi = p = tmpU = tmpV = tmpW = 0;
-    }
+    FluidElement(): u(0),v(0),w(0),chi(0),p(0),tmpU(0),tmpV(0),tmpW(0) {}
+    void clear() { u = v = w = chi = p = tmpU = tmpV = tmpW = 0; }
 };
 
 struct DumpElement
@@ -115,6 +108,7 @@ struct StreamerGridPoint
 
 	void operate(const FluidElement& input, Real output[channels]) const
 	{
+    printf("Abort in StreamerGridPoint in!\n");
 		abort();
 		output[0] = input.u;
 		output[1] = input.v;
@@ -128,6 +122,7 @@ struct StreamerGridPoint
 
 	void operate(const Real input[channels], FluidElement& output) const
 	{
+    printf("Abort in StreamerGridPoint out!\n");
 		abort();
 		output.u    = input[0];
 		output.v    = input[1];
@@ -165,14 +160,10 @@ struct StreamerDiv
 {
 	static const int channels = 1;
 	static void operate(const FluidElement& input, Real output[1])
-	{
-		output[0] = input.p;
-    }
+	{ output[0] = input.p; }
 
-    static void operate(const Real input[1], FluidElement& output)
-    {
-        output.p = input[0];
-    }
+  static void operate(const Real input[1], FluidElement& output)
+  { output.p = input[0]; }
 };
 
 struct ObstacleBlock
@@ -192,33 +183,30 @@ struct ObstacleBlock
 
 struct FluidBlock
 {
-    //these identifiers are required by cubism!
-    static const int sizeX = _BSX_;
-    static const int sizeY = _BSY_;
-    static const int sizeZ = _BSZ_;
-
+  //these identifiers are required by cubism!
+  static const int sizeX = _BSX_;
+  static const int sizeY = _BSY_;
+  static const int sizeZ = _BSZ_;
 	typedef FluidElement ElementType;
 	typedef FluidElement element_type;
-
 	FluidElement data[sizeZ][sizeY][sizeX];
 
-    //required from Grid.h
-    void clear()
-    {
-        FluidElement * entry = &data[0][0][0];
-        const int N = sizeX*sizeY*sizeZ;
+  //required from Grid.h
+  void clear()
+  {
+      FluidElement * entry = &data[0][0][0];
+      const int N = sizeX*sizeY*sizeZ;
 
-        for(int i=0; i<N; ++i)
-            entry[i].clear();
-    }
+      for(int i=0; i<N; ++i)
+          entry[i].clear();
+  }
 
-    FluidElement& operator()(int ix, int iy=0, int iz=0)
-    {
-		assert(ix>=0); assert(ix<sizeX);
-		assert(iy>=0); assert(iy<sizeY);
-		assert(iz>=0); assert(iz<sizeZ);
-
-        return data[iz][iy][ix];
+  FluidElement& operator()(int ix, int iy=0, int iz=0)
+  {
+  	assert(ix>=0); assert(ix<sizeX);
+  	assert(iy>=0); assert(iy<sizeY);
+  	assert(iz>=0); assert(iz<sizeZ);
+    return data[iz][iy][ix];
 	}
 
 	template <typename Streamer>
@@ -914,7 +902,11 @@ struct ChiStreamer
 		return input.chi;
 	}
   template<int channel>
-	static inline Real operate(const FluidElement& input) { abort(); return 0; }
+	static inline Real operate(const FluidElement& input)
+  {
+    printf("Abort in ChiStreamer\n");
+    abort(); return 0;
+  }
 
 	const char * name() { return "ChiStreamer"; }
 };

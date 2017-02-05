@@ -14,6 +14,126 @@
 #include "GenericOperator.h"
 #include <cmath>
 
+class OperatorAdvection : public GenericLabOperator
+{
+	private:
+	const Real dt;
+	const Real* const uInf;
+
+	public:
+	OperatorAdvection(const Real dt, const Real* const uInf)
+	: dt(dt), uInf(uInf)
+	{
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
+		stencil_start[0] = -1;
+		stencil_start[1] = -1;
+		stencil_start[2] = -1;
+		stencil_end[0] = 2;
+		stencil_end[1] = 2;
+		stencil_end[2] = 2;
+	}
+
+	~OperatorAdvection() {}
+
+	template <typename Lab, typename BlockType>
+	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	{
+		#ifndef _RK2_
+		const Real factor = -dt/(2.*info.h_gridpoint);
+		#else //perform half step
+		const Real factor = -dt/(4.*info.h_gridpoint);
+		#endif
+
+		for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+		for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+		for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
+			const FluidElement& phi   = lab(ix  ,iy  ,iz  );
+			const FluidElement& phiW  = lab(ix-1,iy  ,iz  );
+			const FluidElement& phiE  = lab(ix+1,iy  ,iz  );
+			const FluidElement& phiS  = lab(ix  ,iy-1,iz  );
+			const FluidElement& phiN  = lab(ix  ,iy+1,iz  );
+			const FluidElement& phiF  = lab(ix  ,iy  ,iz-1);
+			const FluidElement& phiB  = lab(ix  ,iy  ,iz+1);
+
+			const Real dudx = phiE.u - phiW.u;
+			const Real dvdx = phiE.v - phiW.v;
+			const Real dwdx = phiE.w - phiW.w;
+			const Real dudy = phiN.u - phiS.u;
+			const Real dvdy = phiN.v - phiS.v;
+			const Real dwdy = phiN.w - phiS.w;
+			const Real dudz = phiB.u - phiF.u;
+			const Real dvdz = phiB.v - phiF.v;
+			const Real dwdz = phiB.w - phiF.w;
+			const Real u = phi.u + uInf[0];
+			const Real v = phi.v + uInf[1];
+			const Real w = phi.w + uInf[2];
+
+			o(ix,iy,iz).tmpU = phi.u + factor*(u * dudx + v * dudy + w * dudz);
+			o(ix,iy,iz).tmpV = phi.v + factor*(u * dvdx + v * dvdy + w * dvdz);
+			o(ix,iy,iz).tmpW = phi.w + factor*(u * dwdx + v * dwdy + w * dwdz);
+		}
+	}
+};
+
+#ifdef _RK2_
+class OperatorAdvectionStage2 : public GenericLabOperator
+{
+	private:
+	const Real dt;
+	const Real* const uInf;
+
+	public:
+	OperatorAdvectionStage2(const Real dt, const Real* const uInf)
+	: dt(dt), uInf(uInf)
+	{
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
+		stencil_start[0] = -1;
+		stencil_start[1] = -1;
+		stencil_start[2] = -1;
+		stencil_end[0] = 2;
+		stencil_end[1] = 2;
+		stencil_end[2] = 2;
+	}
+
+	~OperatorAdvectionStage2() {}
+
+	template <typename Lab, typename BlockType>
+	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+	{
+		const Real factor = -dt/(2.*info.h_gridpoint);
+
+		for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+		for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+		for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
+			const FluidElement& phi   = lab(ix  ,iy  ,iz  );
+			const FluidElement& phiW  = lab(ix-1,iy  ,iz  );
+			const FluidElement& phiE  = lab(ix+1,iy  ,iz  );
+			const FluidElement& phiS  = lab(ix  ,iy-1,iz  );
+			const FluidElement& phiN  = lab(ix  ,iy+1,iz  );
+			const FluidElement& phiF  = lab(ix  ,iy  ,iz-1);
+			const FluidElement& phiB  = lab(ix  ,iy  ,iz+1);
+
+			const Real dudx = phiE.tmpU - phiW.tmpU;
+			const Real dvdx = phiE.tmpV - phiW.tmpV;
+			const Real dwdx = phiE.tmpW - phiW.tmpW;
+			const Real dudy = phiN.tmpU - phiS.tmpU;
+			const Real dvdy = phiN.tmpV - phiS.tmpV;
+			const Real dwdy = phiN.tmpW - phiS.tmpW;
+			const Real dudz = phiB.tmpU - phiF.tmpU;
+			const Real dvdz = phiB.tmpV - phiF.tmpV;
+			const Real dwdz = phiB.tmpW - phiF.tmpW;
+			const Real u = phi.tmpU + uInf[0];
+			const Real v = phi.tmpV + uInf[1];
+			const Real w = phi.tmpW + uInf[2];
+
+			o(ix,iy,iz).u += factor*(u * dudx + v * dudy + w * dudz);
+			o(ix,iy,iz).v += factor*(u * dvdx + v * dvdy + w * dvdz);
+			o(ix,iy,iz).w += factor*(u * dwdx + v * dwdy + w * dwdz);
+		}
+	}
+};
+#endif // _RK2_
+
 class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
 {
 	private:

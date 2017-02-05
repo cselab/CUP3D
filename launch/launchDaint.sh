@@ -29,8 +29,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --account=s658
 #SBATCH --job-name="${BASENAME}"
 #SBATCH --output=${BASENAME}_out_%j.txt
-#SBATCH --error=${BASENAME}_err_%j.txt
-#SBATCH --time=24:00:00
+#SBATCH --error=${BASENAME}_out_%j.txt
+#SBATCH --time=01:00:00
 #SBATCH --nodes=${NNODE}
 # #SBATCH --partition=viz
 #SBATCH --ntasks-per-node=1
@@ -46,7 +46,8 @@ module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1 fftw/3.3.4.10
 export OMP_NUM_THREADS=24
 export MYROUNDS=10000
 export USEMAXTHREADS=1
-srun -n ${NNODE} --threads-per-core=2 --ntasks-per-node=1 --cpus-per-task=12 ./simulation ${OPTIONS}
+srun --ntasks ${NNODE} --threads-per-core=2 --ntasks-per-node=1 --cpus-per-task=12 ./simulation ${OPTIONS}
+#srun --ntasks ${NNODE} --threads-per-core=2 --ntasks-per-node=1 --cpus-per-task=12 valgrind --trace-syscalls=yes --num-callers=100 --tool=memcheck --leak-check=yes --track-origins=yes --show-reachable=yes ./simulation ${OPTIONS}
 EOF
 
 chmod 755 daint_sbatch

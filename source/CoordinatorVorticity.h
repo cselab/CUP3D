@@ -14,9 +14,7 @@
 
 class OperatorVorticity : public GenericLabOperator
 {
-private:
-
-public:
+ public:
 	OperatorVorticity()
 	{
 		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
@@ -55,7 +53,7 @@ public:
 
 class OperatorDiagnostics : public GenericOperator
 {
-public:
+ public:
 	vector<array<Real,12>>* const quantities;
 
 	OperatorDiagnostics(vector<array<Real,12>>* const local) : quantities(local) {}
@@ -118,7 +116,7 @@ public:
 template <typename Lab>
 class CoordinatorVorticity : public GenericCoordinator
 {
-public:
+ public:
 	CoordinatorVorticity(FluidGridMPI * grid) : GenericCoordinator(grid) { }
 
 	void operator()(const Real dt)
@@ -134,11 +132,11 @@ public:
 
 class CoordinatorDiagnostics : public GenericCoordinator
 {
-private:
+ private:
 	const Real t;
 	const int step;
 	int rank;
-public:
+ public:
 	CoordinatorDiagnostics(FluidGridMPI * grid, const Real t, const int step)
 	: GenericCoordinator(grid), t(t), step(step)
 	{
@@ -150,10 +148,10 @@ public:
 	   const int nthreads = omp_get_max_threads();
 	   vector<array<Real,12>> partialSums(nthreads);
       const int N = vInfo.size();
-#pragma omp parallel
+			#pragma omp parallel
       {
          OperatorDiagnostics kernel(&partialSums);
-#pragma omp for schedule(static)
+				 #pragma omp for schedule(static)
          for(int i=0; i<N; i++) {
             BlockInfo info = vInfo[i];
             FluidBlock& b = *(FluidBlock*)info.ptrBlock;
@@ -161,7 +159,9 @@ public:
          }
       }
 
-		double localSum[11], globalSum[11], maxVortHere(0), maxVort(0);
+		double localSum[11] = {0,0,0,0,0,0,0,0,0,0,0};
+		double globalSum[11] = {0,0,0,0,0,0,0,0,0,0,0};
+		double maxVortHere = 0, maxVort = 0;
 		for(int i=0; i<nthreads; i++) {
 			for(int j=0; j<11; j++)
 				localSum[j] += (double)partialSums[i][j];

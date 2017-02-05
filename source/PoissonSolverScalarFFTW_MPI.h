@@ -152,11 +152,12 @@ protected:
 	}
 
 	void _fftw2cub(Real * out, TGrid& grid, const size_t nx, const size_t ny,
-																		const size_t nz, const size_t nz_hat) const
+																		const size_t nz, const size_t nz_hat, const Real dt) const
 	{
 		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
 		vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
 		const size_t N = local_infos.size();
+		const Real factor = 1./dt;
 		const size_t mybpd[3] = {
 				grid.getResidentBlocksPerDimension(0),
 				grid.getResidentBlocksPerDimension(1),
@@ -177,7 +178,8 @@ protected:
 			for(int iz=0; iz<BlockType::sizeZ; iz++) {
 				const size_t src_index = offset + iz + 2*nz_hat*(iy + BlockType::sizeY*mybpd[1]*ix);
 				assert(src_index>=0 && src_index<nx*ny*nz_hat*2);
-				TStreamer::operate(&out[src_index], b.data[iz][iy][ix]);
+				b(ix,iy,iz).p = factor * out[src_index];
+				//TStreamer::operate(&out[src_index], b.data[iz][iy][ix]);
 			}
 		}
 	}
@@ -257,7 +259,7 @@ public:
 		_setup(data, gsize[0], gsize[1], gsize[2],comm);
 	}
 
-	void solve(TGrid& grid)
+	void solve(TGrid& grid, const Real dt)
 	{
 		const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
 		const size_t gsize[3] = {
@@ -284,7 +286,7 @@ public:
 		fftwf_execute(bwd);
 		#endif
 
-		_fftw2cub(data, grid, gsize[0], gsize[1], gsize[2], gsize[2]/2+1);
+		_fftw2cub(data, grid, gsize[0], gsize[1], gsize[2], gsize[2]/2+1, dt);
 	}
 
 	void dispose()

@@ -843,6 +843,7 @@ public:
 	{
 		if (input.size()>1) {
 			baseScheduler.Turn(input[0], l_tnext);
+			printf("Multiple actions not yet supported!!\n");
 			//first, shift time to  previous turn node
 			abort();
 			//timeshift += (l_tnext-time0)/l_Tp;

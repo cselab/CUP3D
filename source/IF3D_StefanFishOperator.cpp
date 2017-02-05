@@ -177,7 +177,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
         #endif
         vector<Real> state(nStates), actions(nActions);
 
-        int k(0);
+        int k = 0;
         state[k++] = sr.Xpov - GoalDX;
         state[k++] = sr.Ypov;
         state[k++] = sr.RelAng;

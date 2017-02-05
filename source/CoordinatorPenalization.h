@@ -236,7 +236,7 @@ public:
 	{
 		check((string)"penalization - start");
 #ifdef __2Leads_
-		int nSum;
+		int nSum = 0;
 		Real uSum[3] = {0,0,0};
     ObstacleVisitor* velocityVisitor =
 										new VelocityObstacleVisitor(grid, uInf, &nSum, uSum);

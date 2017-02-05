@@ -22,6 +22,7 @@ protected:
 
 	inline void check(string infoText)
 	{
+		/*
 		#ifndef NDEBUG
 		int rank;
 		MPI_Comm comm = grid->getCartComm();
@@ -63,6 +64,7 @@ protected:
 		}
 		MPI_Barrier(comm);
 #endif
+*/
 	}
 
 	template <typename Kernel>
