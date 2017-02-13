@@ -45,12 +45,12 @@ void IF3D_StefanFishOperator::restart(const Real t, string filename)
     restartstream >> theta_internal >> angvel_internal >> adjTh;
     restartstream >> _2Dangle >> old_curv >> new_curv;
     restartstream.close();
-#if 1
+		#if 1
 		sr.restart(filename);
 		myFish->curvScheduler.restart(filename+"_curv");
 		myFish->baseScheduler.restart(filename+"_base");
 		myFish->adjustScheduler.restart(filename+"_adj");
-#else
+		#else
 		if (bCorrectTrajectory)
 		{
 			Real velx_tot = 4.67373623945047042549e-02 - transVel[0];
@@ -73,7 +73,7 @@ void IF3D_StefanFishOperator::restart(const Real t, string filename)
 			myFish->baseScheduler.t0 = 4.5;
 			sr.t_next_comm = 5.;
 		}
-#endif
+		#endif
 		if(!rank)
 		{
 		std::cout<<"RESTARTED FISH: "<<std::endl;
@@ -113,25 +113,30 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
 	/*
     randomActions = parser("-randomActions").asBool(false);
     if (randomActions) printf("Fish doing random turns\n");
-    useLoadedActions = parser("-useLoadedActions").asBool(false);
-    if (useLoadedActions) {
-        Real dummy_time;
-        vector<Real> action(nActions);
-        ifstream in("orders_1.txt"); //FUCKING TODO NEED TO USE SOME POINTERS IN THIS SHIT
-        std::string line;
-        if(in.good()) {
-            while (getline(in, line)) {
-                istringstream line_in(line);
-                line_in >> dummy_time;
-                line_in >> action[0];
-                if(nActions==2) line_in >> action[1];
-                //i want to do pop back later:
-                loadedActions.insert(loadedActions.begin(),action);
-            }
-        } else { printf("Could not load actions from file orders_1.txt\n"); abort(); }
-        in.close();
-    }
-    */
+  */
+	useLoadedActions = parser("-useLoadedActions").asBool(false);
+	if (useLoadedActions) {
+		Real dummy_time;
+		vector<Real> action(nActions);
+		ifstream in("orders_1.txt");
+		std::string line;
+
+		if(in.good()) {
+			while (getline(in, line)) {
+				istringstream line_in(line);
+				line_in >> dummy_time;
+				line_in >> action[0];
+				if(nActions==2)
+					line_in >> action[1];
+				//i want to do pop back later:
+				loadedActions.insert(loadedActions.begin(),action);
+			}
+		} else {
+			printf("Could not load actions from file orders_1.txt\n");
+			abort();
+		}
+		in.close();
+	}
 }
 
 void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
@@ -144,115 +149,113 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
     }
 
     if (not bInteractive) {
-        sr.t_next_comm=1e6;
-        return;
-    }
-    /*
-    else if (useLoadedActions) {
-        vector<Real> actions(nActions);
-        if (loadedActions.size()>1) {
-            actions = loadedActions.back();
-            loadedActions.pop_back();
-        } //else zero actions
-        myFish->execute(time, sr.t_next_comm, actions);
+      sr.t_next_comm=1e6;
+      return;
+    } else if (useLoadedActions) {
+      vector<Real> actions(nActions);
+      if (loadedActions.size()>1) {
+          actions = loadedActions.back();
+          loadedActions.pop_back();
+      } //else zero actions
+			else
+			 MPI_Abort(grid->getCartComm(), MPI_ERR_OTHER);
 
-        old_curv = new_curv;
-        new_curv = actions[0];
-        if(nActions==2) {
-            new_Tp = actions[1];
-            sr.t_next_comm += .5*myFish->l_Tp;
-        } else if (nActions==1) {
-            sr.t_next_comm += .5*myFish->Tperiod;
-        }
-        sr.resetAverage();
+      myFish->execute(time, sr.t_next_comm, actions);
 
-    }
-    */
-    else {
-        const Real relT= fmod(time,1.); //1 is Tperiod
-        #ifdef _NOVISION_
-          const int nStates = (nActions==1) ? 20+ 8*20 : 25+  8*20;
-        #else
-          const int nStates = (nActions==1) ? 20+10*20 : 25+ 10*20;
-        #endif
-        vector<Real> state(nStates), actions(nActions);
+      old_curv = new_curv;
+      new_curv = actions[0];
+      if(nActions==2) {
+          new_Tp = actions[1];
+          sr.t_next_comm += .5*myFish->l_Tp;
+      } else if (nActions==1) {
+          sr.t_next_comm += .5*myFish->Tperiod;
+      }
+      sr.resetAverage();
+    } else {
+      const Real relT= fmod(time,1.); //1 is Tperiod
+      #ifdef _NOVISION_
+        const int nStates = (nActions==1) ? 20+ 8*20 : 25+  8*20;
+      #else
+        const int nStates = (nActions==1) ? 20+10*20 : 25+ 10*20;
+      #endif
+      vector<Real> state(nStates), actions(nActions);
 
-        int k = 0;
-        state[k++] = sr.Xpov - GoalDX;
-        state[k++] = sr.Ypov;
-        state[k++] = sr.RelAng;
-        state[k++] = relT;
-        state[k++] = new_curv;
-        state[k++] = old_curv;
-        /*
-        if(nActions==2) { //this is for backwards compatibility
-            state[k++] = new_Tp;
-                        //2.*M_PI*((time-time0)/l_Tp +timeshift -rS[i]/length) + M_PI*phaseShift
-            Real Fshift = 2.*((-myFish->time0)/myFish->l_Tp +myFish->timeshift)+myFish->phaseShift;
-            Fshift = fmod(Fshift,2.0);
-            state[k++] = (Fshift<0) ? 2.+Fshift : Fshift;
-            state[k++] = sr.VX;
-            state[k++] = sr.VY;
-            state[k++] = sr.AV;
-        }
-        */
-        state[k++] = sr.Dist;
-        state[k++] = sr.Quad;
-        state[k++] = sr.VxAvg;
-        state[k++] = sr.VyAvg;
-        state[k++] = sr.AvAvg;
-        state[k++] = sr.Pout;
-        state[k++] = sr.defPower;
-        state[k++] = sr.EffPDef;
-        state[k++] = sr.PoutBnd;
-        state[k++] = sr.defPowerBnd;
-        state[k++] = sr.EffPDefBnd;
-        state[k++] = sr.Pthrust;
-        state[k++] = sr.Pdrag;
-        state[k++] = sr.ToD;
-        /*
-        for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelNAbove[j];
-        for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelTAbove[j];
-        for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelNBelow[j];
-        for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelTBelow[j];
-        for (int j=0; j<NpLatLine; j++) state[k++] = sr.FPAbove[j];
-        for (int j=0; j<NpLatLine; j++) state[k++] = sr.FVAbove[j];
-        for (int j=0; j<NpLatLine; j++) state[k++] = sr.FPBelow[j];
-        for (int j=0; j<NpLatLine; j++) state[k++] = sr.FVBelow[j];
-        #ifndef _NOVISION_
-        for (int j=0; j<2*NpLatLine; j++) state[k++] = sr.raySight[j];
-        #endif
-        */
-        //printf("About to ask state\n");
-        //fflush(0);
-        const Real reward = (sr.info==2) ? -10 : sr.EffPDefBnd;
-        comm->sendState(iLabel, sr.info, state, reward); //TODO
-        if (sr.info==2) return;
-        sr.info = 0;
-        //printf("About to ask action\n");
+      int k = 0;
+      state[k++] = sr.Xpov - GoalDX;
+      state[k++] = sr.Ypov;
+      state[k++] = sr.RelAng;
+      state[k++] = relT;
+      state[k++] = new_curv;
+      state[k++] = old_curv;
+      /*
+      if(nActions==2) { //this is for backwards compatibility
+          state[k++] = new_Tp;
+                      //2.*M_PI*((time-time0)/l_Tp +timeshift -rS[i]/length) + M_PI*phaseShift
+          Real Fshift = 2.*((-myFish->time0)/myFish->l_Tp +myFish->timeshift)+myFish->phaseShift;
+          Fshift = fmod(Fshift,2.0);
+          state[k++] = (Fshift<0) ? 2.+Fshift : Fshift;
+          state[k++] = sr.VX;
+          state[k++] = sr.VY;
+          state[k++] = sr.AV;
+      }
+      */
+      state[k++] = sr.Dist;
+      state[k++] = sr.Quad;
+      state[k++] = sr.VxAvg;
+      state[k++] = sr.VyAvg;
+      state[k++] = sr.AvAvg;
+      state[k++] = sr.Pout;
+      state[k++] = sr.defPower;
+      state[k++] = sr.EffPDef;
+      state[k++] = sr.PoutBnd;
+      state[k++] = sr.defPowerBnd;
+      state[k++] = sr.EffPDefBnd;
+      state[k++] = sr.Pthrust;
+      state[k++] = sr.Pdrag;
+      state[k++] = sr.ToD;
+      /*
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelNAbove[j];
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelTAbove[j];
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelNBelow[j];
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelTBelow[j];
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FPAbove[j];
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FVAbove[j];
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FPBelow[j];
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FVBelow[j];
+      #ifndef _NOVISION_
+      for (int j=0; j<2*NpLatLine; j++) state[k++] = sr.raySight[j];
+      #endif
+      */
+      //printf("About to ask state\n");
+      //fflush(0);
+      const Real reward = (sr.info==2) ? -10 : sr.EffPDefBnd;
+      comm->sendState(iLabel, sr.info, state, reward); //TODO
+      if (sr.info==2) return;
+      sr.info = 0;
+      //printf("About to ask action\n");
 
-        comm->recvAction(actions);
-        myFish->execute(time, sr.t_next_comm, actions);
+      comm->recvAction(actions);
+      myFish->execute(time, sr.t_next_comm, actions);
 
-        old_curv = new_curv;
-        new_curv = actions[0];
-        //if(nActions==2) {
-        //    new_Tp = actions[1];
-        //    sr.t_next_comm += .5*myFish->l_Tp;
-        //} else if (nActions==1) {
-            sr.t_next_comm += .5*myFish->Tperiod;
-        //}
-        if(!rank) {
-          printf("Next action of agent %d at time %g\n", iAgent, sr.t_next_comm);
-          ofstream filedrag;
-          filedrag.open(("orders_"+to_string(iAgent)+".txt").c_str(), ios::app);
-          filedrag<<time<<" "<<new_curv;
-          //if(nActions==2) filedrag<<" "<<new_Tp;
-          filedrag<<endl;
-          filedrag.close();
-        }
+      old_curv = new_curv;
+      new_curv = actions[0];
+      //if(nActions==2) {
+      //    new_Tp = actions[1];
+      //    sr.t_next_comm += .5*myFish->l_Tp;
+      //} else if (nActions==1) {
+          sr.t_next_comm += .5*myFish->Tperiod;
+      //}
+      if(!rank) {
+        printf("Next action of agent %d at time %g\n", iAgent, sr.t_next_comm);
+        ofstream filedrag;
+        filedrag.open(("orders_"+to_string(iAgent)+".txt").c_str(), ios::app);
+        filedrag<<time<<" "<<new_curv;
+        //if(nActions==2) filedrag<<" "<<new_Tp;
+        filedrag<<endl;
+        filedrag.close();
+      }
 
-        sr.resetAverage();
-        fflush(0);
+      sr.resetAverage();
+      fflush(0);
     }
 }

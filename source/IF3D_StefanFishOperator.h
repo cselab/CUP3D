@@ -17,8 +17,9 @@
 class IF3D_StefanFishOperator: public IF3D_FishOperator
 {
 protected:
-	//bool randomActions, bSpiral, useLoadedActions;
-    //vector<vector<Real>> loadedActions;
+  bool useLoadedActions;
+	//bool randomActions, bSpiral;
+  vector<vector<Real>> loadedActions;
 public:
     IF3D_StefanFishOperator(FluidGridMPI * grid, ArgumentParser & parser);
     void _parseArguments(ArgumentParser & parser);
