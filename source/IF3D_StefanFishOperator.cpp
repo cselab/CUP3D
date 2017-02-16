@@ -116,26 +116,27 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
   */
 	useLoadedActions = parser("-useLoadedActions").asBool(false);
 	if (useLoadedActions) {
+		printf("Trying to load actionsi %d.\n",nActions);
+		fflush(0);
 		Real dummy_time;
 		vector<Real> action(nActions);
 		ifstream in("orders_1.txt");
 		std::string line;
-
 		if(in.good()) {
 			while (getline(in, line)) {
 				istringstream line_in(line);
-				line_in >> dummy_time;
-				line_in >> action[0];
 				if(nActions==2)
-					line_in >> action[1];
+                                       line_in >> dummy_time >> action[0] >> action[1];
+                                else
+                                       line_in >> dummy_time >> action[0];
 				//i want to do pop back later:
 				loadedActions.insert(loadedActions.begin(),action);
 			}
+			in.close();
 		} else {
 			printf("Could not load actions from file orders_1.txt\n");
-			abort();
+			MPI_Abort(grid->getCartComm(), MPI_ERR_OTHER);
 		}
-		in.close();
 	}
 }
 
@@ -148,10 +149,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
         return;
     }
 
-    if (not bInteractive) {
-      sr.t_next_comm=1e6;
-      return;
-    } else if (useLoadedActions) {
+    if (useLoadedActions) {
       vector<Real> actions(nActions);
       if (loadedActions.size()>1) {
           actions = loadedActions.back();
@@ -164,14 +162,17 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
 
       old_curv = new_curv;
       new_curv = actions[0];
-      if(nActions==2) {
-          new_Tp = actions[1];
-          sr.t_next_comm += .5*myFish->l_Tp;
-      } else if (nActions==1) {
+      //if(nActions==2) {
+      //    new_Tp = actions[1];
+      //    sr.t_next_comm += .5*myFish->l_Tp;
+      //} else if (nActions==1) {
           sr.t_next_comm += .5*myFish->Tperiod;
-      }
+      //}
       sr.resetAverage();
-    } else {
+    } else if (not bInteractive) {
+      sr.t_next_comm=1e6;
+      return;
+    } else if (comm not_eq nullptr) {
       const Real relT= fmod(time,1.); //1 is Tperiod
       #ifdef _NOVISION_
         const int nStates = (nActions==1) ? 20+ 8*20 : 25+  8*20;
@@ -226,13 +227,11 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
       for (int j=0; j<2*NpLatLine; j++) state[k++] = sr.raySight[j];
       #endif
       */
-      //printf("About to ask state\n");
       //fflush(0);
       const Real reward = (sr.info==2) ? -10 : sr.EffPDefBnd;
       comm->sendState(iLabel, sr.info, state, reward); //TODO
       if (sr.info==2) return;
       sr.info = 0;
-      //printf("About to ask action\n");
 
       comm->recvAction(actions);
       myFish->execute(time, sr.t_next_comm, actions);

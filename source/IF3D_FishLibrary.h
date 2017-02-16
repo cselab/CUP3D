@@ -14,16 +14,14 @@
 #include "IF2D_Interpolation1D.h"
 #include "GenericOperator.h"
 #include "IF2D_Frenet.h"
-
-const int NPPEXT = 3; //was 3
-const int TGTPPB = 2.; //was 2 i think
-const int TSTART = 2.;
-const int NEXTDX = 2;
-#if 1
-#define __BSPLINE
 #include <gsl/gsl_bspline.h>
 #include <gsl/gsl_statistics.h>
-#endif
+
+const int NPPEXT = 3; //was 3
+const int TGTPPB = 2; //was 2 i think
+const Real TSTART = 2.;
+const int NEXTDX = 2;
+#define __BSPLINE
 
 namespace Schedulers
 {
@@ -258,7 +256,7 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
 
 class FishMidlineData
 {
-public:
+ public:
 	const int Nm;
 	Real * const rS; // arclength discretization points
 	Real * const rX; // coordinates of midline discretization points
@@ -281,7 +279,7 @@ public:
 	Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
 	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
 
-protected:
+ protected:
 	Real Rmatrix2D[2][2];
 	Real Rmatrix3D[3][3];
 
@@ -463,7 +461,7 @@ protected:
 		vNorY[Nm-1] = vNorY[Nm-2];
 	}
 
-public:
+ public:
 	FishMidlineData(const int Nm, const Real len, const Real Tp, const Real phase, const Real dx_ext):
 		Nm(Nm),length(len),Tperiod(Tp),phaseShift(phase),rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),
 		vX(_alloc(Nm)),vY(_alloc(Nm)),norX(_alloc(Nm)),norY(_alloc(Nm)),vNorX(_alloc(Nm)),vNorY(_alloc(Nm)),
@@ -598,9 +596,105 @@ public:
 	virtual void execute(const Real time, const Real l_tnext, const vector<Real>& input) {}
 };
 
+class NacaMidlineData : public FishMidlineData
+{
+ protected:
+	inline Real _naca_width(const double s, const Real L)
+	{
+			if(s<0 or s>L) return 0;
+			const Real a = 0.2969;
+			const Real b =-0.1260;
+			const Real c =-0.3516;
+			const Real d = 0.2843;
+			const Real e =-0.1015;
+			const Real t = 0.12*L;
+			const Real p = s/L;
+			return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+	}
+
+	void _naca_integrateBSpline(Real* const res, const Real* const xc,
+													 const Real* const yc, const int n)
+	{
+		double len = 0;
+	  for (int i=0; i<n-1; i++)
+	    len += std::sqrt(std::pow(xc[i]-xc[i+1],2) +
+	                     std::pow(yc[i]-yc[i+1],2));
+
+		gsl_bspline_workspace *bw;
+	  gsl_vector *B;
+	  // allocate a cubic bspline workspace (k = 4)
+	  bw = gsl_bspline_alloc(4, n-2);
+	  B = gsl_vector_alloc(n);
+	  gsl_bspline_knots_uniform(0.0, len, bw);
+
+	  double ti = 0;
+		for(int i=0;i<Nm;++i) {
+			res[i] = 0;
+			if (rS[i]>0 and rS[i]<length) {
+				const double dtt = 0.1*(rS[i]-rS[i-1]);
+				while (true) {
+					double xi = 0;
+			    gsl_bspline_eval(ti, B, bw);
+			    for (int j=0; j<n; j++)
+			      xi += xc[j]*gsl_vector_get(B, j);
+					if (xi >= rS[i]) break;
+					ti += dtt;
+				}
+
+				for (int j=0; j<n; j++)
+					res[i] += yc[j]*gsl_vector_get(B, j);
+			}
+		}
+  	gsl_bspline_free(bw);
+  	gsl_vector_free(B);
+	}
+
+	void _naca_computeWidthsHeights()
+	{
+		const int nh = 5;
+	  const Real xh[nh] = {0.0, 0.0, length*.5, length, length};
+	  const Real yh[nh] = {0, .5*length, .5*length, .5*length, 0};
+		_naca_integrateBSpline(height, xh, yh, nh);
+		for(int i=0;i<Nm;++i)
+			width[i]  = _naca_width(rS[i],length);
+	}
+
+ public:
+	NacaMidlineData(const int Nm, const Real length, const Real dx_ext) :
+	FishMidlineData(Nm,length,1,0,dx_ext)
+	{
+		//just overwrite default width and height
+		_naca_computeWidthsHeights();
+		rX[0] = rY[0] = vX[0] = vY[0] = 0;
+		for(int i=1; i<Nm; ++i) {
+			rY[i] = vX[i] = vY[i] = 0;
+			rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
+		}
+		_computeMidlineNormals();
+
+		int rank;
+		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+		if (rank!=0) return;
+		FILE * f = fopen("fish_profile","w");
+    for (int i=0; i<Nm; ++i) printf("%g %g %g %g %g\n",rX[i],rY[i],rS[i],width[i],height[i]);
+		fclose(f);
+		printf("Dumped midline\n");
+
+	}
+	void computeMidline(const Real time) override
+	{
+		rX[0] = rY[0] = vX[0] = vY[0] = 0;
+		for(int i=1; i<Nm; ++i) {
+			rY[i] = vX[i] = vY[i] = 0;
+			rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
+		}
+		_computeMidlineNormals();
+	}
+};
+
 class CarlingFishMidlineData : public FishMidlineData
 {
-protected:
+ protected:
 	//burst-coast:
 	Real t0, t1, t2, t3;
 	const Real fac, inv;
@@ -765,7 +859,7 @@ protected:
 		}
 	}
 
-public:
+ public:
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 		const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
 	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false)

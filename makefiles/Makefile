@@ -24,7 +24,7 @@ endif
 
 CPPFLAGS+= -w -D_ALIGNBYTES_=16 -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
-CPPFLAGS+= -Wshadow -Woverloaded-virtual
+CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero -pedantic
 
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_SP_COMP_
@@ -38,10 +38,11 @@ CPPFLAGS += -D_BSY_=$(bsy)
 CPPFLAGS += -D_BSZ_=$(bsz)
 CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
+CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=16
 ifeq "$(config)" "prod"
-	CPPFLAGS += -DNDEBUG -O4 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=16
+	CPPFLAGS += -DNDEBUG
 else
-	CPPFLAGS += -g
+	CPPFLAGS += -g -fsanitize=address,leak,undefined -fPIE -pie -fno-omit-frame-pointer
 endif
 
 ifeq "$(rk2)" "true"
@@ -52,6 +53,7 @@ endif
 # include make.daint
 
 ifneq "$(findstring daint,$(shell hostname))" ""
+	#include make.daint_mpich
 	include make.daint
 endif
 
@@ -112,7 +114,7 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS = Communicator.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o Save_splicer.o WaveletCompressor.o main.o
+OBJECTS = Communicator.o IF3D_NacaOperator.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o Save_splicer.o WaveletCompressor.o main.o
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"

@@ -241,7 +241,7 @@ void Simulation::_selectDT()
 
     if ( step<100 ) {
         const Real dt_max = 2e-2*CFL;
-        const Real dt_min = 2e-4*CFL;
+        const Real dt_min = 2e-6*CFL;
         const Real dt_ramp = dt_min + step*(dt_max - dt_min)/100.;
         if (dt_ramp<dt) {
         	dt = dt_ramp;
@@ -332,7 +332,7 @@ void Simulation::simulate()
     while (true)
     {
         #ifdef __SMARTIES_
-				if (communicator not_eq nullptr)
+				//if (communicator not_eq nullptr)
 				{
 					profiler.push_start("RL");
 					bool bDoOver = false;
