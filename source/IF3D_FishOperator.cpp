@@ -111,7 +111,11 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	}
 	#endif
 	//MPI_Barrier(grid->getCartComm());
+	#ifdef __useSkin_
+	myFish->surfaceToCOMFrame(theta_internal,CoM_internal);
+	#endif
 	t23 = std::chrono::high_resolution_clock::now();
+
 
 	// 4. & 5.
 	std::vector<VolumeSegment_OBB> vSegments(Nsegments);
@@ -268,6 +272,9 @@ void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real d
 	//MPI_Barrier(grid->getCartComm());
 	t910 = std::chrono::high_resolution_clock::now();
 
+	#ifdef __useSkin_
+	myFish->surfaceToComputationalFrame(angle,CoM_interpolated);
+	#endif
 	// 11.
 	_makeDefVelocitiesMomentumFree(CoM_interpolated);
 	//MPI_Barrier(grid->getCartComm());

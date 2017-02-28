@@ -124,18 +124,18 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
 		if(in.good()) {
 			while (getline(in, line)) {
 				istringstream line_in(line);
-				line_in >> dummy_time;
-				line_in >> action[0];
 				if(nActions==2)
-					line_in >> action[1];
+					line_in >> dummy_time >> action[0] >> action[1];
+				else
+					line_in >> dummy_time >> action[0];
 				//i want to do pop back later:
 				loadedActions.insert(loadedActions.begin(),action);
 			}
+			in.close();
 		} else {
 			printf("Could not load actions from file orders_1.txt\n");
-			abort();
+		  MPI_Abort(grid->getCartComm(), MPI_ERR_OTHER);
 		}
-		in.close();
 	}
 }
 
