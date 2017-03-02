@@ -13,7 +13,6 @@
 #include <sstream>
 using namespace std;
 #include "Simulation.h"
-#include "Save_splicer.h"
 
 int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
 {
@@ -24,6 +23,11 @@ int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
 
 	ArgumentParser parser(argc,argv);
 	parser.set_strict_mode();
+
+	char hostname[1024];
+	hostname[1023] = '\0';
+	gethostname(hostname, 1023);
+	printf("Rank %d is on host %s\n", rank, hostname);
 
 	if (rank==0) {
 		cout << "====================================================================================================================\n";
@@ -43,21 +47,11 @@ int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
 	}
 	#endif
 
-	const bool io_job = parser("-saveSplicer").asBool(false);
-	if (io_job) {
-		Save_splicer * sim = new Save_splicer(argc, argv);
-		sim->run();
-		MPI_Finalize();
-		return 0;
-	}
-
 	Simulation * sim = new Simulation(argc, argv, app_comm, communicator);
 	sim->init();
 	sim->simulate();
 
-	MPI_Finalize();
-	if(communicator not_eq nullptr)
-			delete communicator;
+	if(communicator not_eq nullptr) delete communicator;
 	delete sim;
 	return 0;
 }

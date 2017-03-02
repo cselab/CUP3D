@@ -36,12 +36,15 @@ static int get_nprocs(MPI_Comm comm)
 int fd;
 fpos_t pos;
 
-void redirect_stdout_init()
+void redirect_stdout_init(const int rank)
 {
 	fflush(stdout);
 	fgetpos(stdout, &pos);
 	fd = dup(fileno(stdout));
-	freopen("stdout.out", "w", stdout);
+	char buf[500];
+	sprintf(buf, "stdout_%03d.status", (int)rank);
+	std::string numbered_stdout = std::string(buf);
+	freopen(numbered_stdout.c_str(), "w", stdout);
 }
 
 
@@ -208,7 +211,7 @@ void job_run(int i, MPI_Comm app_comm)
 	sprintf(newd,"%s/%s", initd, jobs[i].dir);
 	chdir(newd);	// go to the task private directory
 
-	redirect_stdout_init();
+	redirect_stdout_init(get_rank(app_comm));
 	cubism_main(app_comm, largc, largv);
 	redirect_stdout_finalize();
 

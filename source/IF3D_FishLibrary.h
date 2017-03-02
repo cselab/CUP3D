@@ -542,6 +542,14 @@ class FishMidlineData
 		_dealloc(vNorY);
 		_dealloc(height);
 		_dealloc(width);
+		if(upperSkin not_eq nullptr) {
+			delete upperSkin;
+			upperSkin=nullptr;
+		}
+		if(lowerSkin not_eq nullptr) {
+			delete lowerSkin;
+			lowerSkin=nullptr;
+		}
 	}
 
 	Real integrateLinearMomentum(Real CoM[2], Real vCoM[2])
@@ -850,15 +858,16 @@ class NacaMidlineData : public FishMidlineData
 			rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
 		}
 		_computeMidlineNormals();
-
-		int rank;
-		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-		if (rank!=0) return;
-		FILE * f = fopen("fish_profile","w");
-    for (int i=0; i<Nm; ++i) printf("%g %g %g %g %g\n",rX[i],rY[i],rS[i],width[i],height[i]);
-		fclose(f);
-		printf("Dumped midline\n");
-
+		#if 0
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+			if (rank!=0) return;
+			FILE * f = fopen("fish_profile","w");
+	    for (int i=0; i<Nm; ++i) printf("%g %g %g %g %g\n",
+			rX[i],rY[i],rS[i],width[i],height[i]);
+			fclose(f);
+			printf("Dumped midline\n");
+		#endif
 	}
 	void computeMidline(const Real time) override
 	{
@@ -1069,17 +1078,18 @@ class CarlingFishMidlineData : public FishMidlineData
 		_computeMidlineVelocities(time);
 		_computeMidlineNormals();
 		#if 0
-		#warning USED MPI COMM WORLD
-		// we dump the profile
-		int rank;
-		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-		if (rank!=0) return;
-		FILE * f = fopen("fish_profile","w");
-		for(int i=0;i<Nm;++i)
-			fprintf(f,"%d %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e %10.10e\n",
-					i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i],vNorX[i],vNorY[i],width[i],height[i]);
-		fclose(f);
-		printf("Dumped midline\n");
+			#warning USED MPI COMM WORLD
+			// we dump the profile
+			int rank;
+			MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+			if (rank!=0) return;
+			FILE * f = fopen("fish_profile","w");
+			for(int i=0;i<Nm;++i)
+				fprintf(f,"%d %g %g %g %g %g %g %g %g %g %g %g\n",
+						i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i],
+						vNorX[i],vNorY[i],width[i],height[i]);
+			fclose(f);
+			printf("Dumped midline\n");
 		#endif
 	}
 };
@@ -1165,35 +1175,37 @@ public:
 		for(unsigned int i=0; i<Nm; i++) {
 			const Real darg = 2.*M_PI* _1oT;
 			const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
-			rK[i] = rC[i]*(std::sin(arg) + rB[i] + rA[i]);
-			vK[i] = vC[i]*(std::sin(arg) + rB[i] + rA[i]) + rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]);
+			rK[i] = rC[i]*(std::sin(arg)      + rB[i] + rA[i]);
+			vK[i] = vC[i]*(std::sin(arg)      + rB[i] + rA[i])
+						+ rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]);
 		}
 
-		#if 1==0
-		{ // we dump the profile points
-			FILE * f = fopen("stefan.dat","a");
-			std::array<Real, 6> curv,base;
-			curvScheduler.ParameterScheduler<6>::gimmeValues(time, curv);
-			baseScheduler.ParameterScheduler<6>::gimmeValues(time, base);
-			fprintf(f,"%9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e\n",
-					time,curv[0],curv[1],curv[2],curv[3],curv[4],curv[5],base[0],base[1],base[2],base[3],base[4],base[5]);
-			fclose(f);
-		}
+		#if 0
+			{ // we dump the profile points
+				FILE * f = fopen("stefan.dat","a");
+				std::array<Real, 6> curv,base;
+				curvScheduler.ParameterScheduler<6>::gimmeValues(time, curv);
+				baseScheduler.ParameterScheduler<6>::gimmeValues(time, base);
+				fprintf(f,"%9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e\n",
+						time,curv[0],curv[1],curv[2],curv[3],curv[4],curv[5],base[0],base[1],base[2],base[3],base[4],base[5]);
+				fclose(f);
+			}
 		#endif
 		// solve frenet to compute midline parameters
 		IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
 		#if 0
-		#warning USED MPI COMM WORLD
-		{
-			int rank;
-			MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-			if (rank!=0) return;
-			FILE * f = fopen("stefan_profile","w");
-			for(int i=0;i<Nm;++i)
-				fprintf(f,"%d %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e\n",
-					i,rS[i],rX[i],rY[i],vX[i],vY[i],vNorX[i],vNorY[i],width[i],height[i]);
-			fclose(f);
-		}
+			#warning USED MPI COMM WORLD
+			{
+				int rank;
+				MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+				if (rank!=0) return;
+				FILE * f = fopen("stefan_profile","w");
+				for(int i=0;i<Nm;++i)
+					fprintf(f,"%d %g %g %g %g %g %g %g %g %g\n",
+						i,rS[i],rX[i],rY[i],vX[i],vY[i],
+						vNorX[i],vNorY[i],width[i],height[i]);
+				fclose(f);
+			}
 		#endif
 
 	}

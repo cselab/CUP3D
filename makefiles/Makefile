@@ -135,8 +135,8 @@ VPATH := $(SRC_DIR):$(CUBISM_DIR)
 simulation: $(EXEOBJ) $(NVOBJECTS)
 	$(LD) $(EXEOBJ) $(NVOBJECTS) $(LIBS) $(LDFLAGS) -o $@
 
-simulation.a: $(LIBOBJ) $(NVOBJECTS)
-	ar rs simulation.a $(LIBOBJ) $(NVOBJECTS)
+lib: $(LIBOBJ) $(NVOBJECTS)
+	ar rs libsimulation.a $(LIBOBJ) $(NVOBJECTS)
 
 %.o: %.cpp
 	$(CC) $(CPPFLAGS) $(LIBS) -c $< -o $@

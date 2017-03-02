@@ -11,7 +11,7 @@
 
 //#include <cassert>
 //#define __2Leads_
-#define __SMARTIES_
+//#define __SMARTIES_
 #include <stdexcept>
 #include <sstream>
 #include <cmath>

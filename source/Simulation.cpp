@@ -37,8 +37,8 @@ void Simulation::setupGrid()
 	bpdx /= nprocsx;
 	bpdy /= nprocsy;
 	bpdz /= nprocsz;
-	grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz, 1.0, app_comm);
-	dump = new  DumpGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz, 1.0, app_comm);
+	grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz, 1, app_comm);
+	//dump = new  DumpGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz, 1, app_comm);
 	assert(grid != NULL);
   vInfo = grid->getBlocksInfo();
 
@@ -52,6 +52,7 @@ void Simulation::setupGrid()
           rank, nprocs, nthreads, hostname);
   if (communicator not_eq nullptr) //Yo dawg I heard you like communicators.
     communicator->comm_MPI = grid->getCartComm();
+  fflush(0);
 	if(rank==0) {
 		printf("Blocks per dimension: [%d %d %d]\n",bpdx,bpdy,bpdz);
 		printf("Nranks per dimension: [%d %d %d]\n",nprocsx,nprocsy,nprocsz);
@@ -230,8 +231,9 @@ void Simulation::_selectDT()
    const double h = vInfo[0].h_gridpoint;
 
  		MPI_Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX, grid->getCartComm());
-    dtFourier = CFL*h*h/nu;
-    dtCFL     = CFL*h/abs(global_maxU);
+    const Real  _CFL = ( step<100 ) ? (step/100.+0.001) * CFL : CFL;
+    dtFourier = _CFL*h*h/nu;
+    dtCFL     = _CFL*h/abs(global_maxU);
     dt = min(dtCFL,dtFourier);
 
     if(rank==0) printf("maxU %f dtF %f dtC %f dt %f\n",global_maxU,dtFourier,dtCFL,dt);
