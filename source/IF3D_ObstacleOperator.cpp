@@ -703,7 +703,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
   if (bDump) {
     if(rank==0)
     sr.print(obstacleID, stepID, time);
-    //surfData.print(obstacleID, stepID, rank);
+    surfData.print(obstacleID, stepID, rank);
   }
 
   sr.updateAverages(dt,_2Dangle, velx_tot, vely_tot, angVel[2], Pout, PoutBnd,
@@ -809,7 +809,7 @@ void IF3D_ObstacleOperator::characteristic_function()
 			std::map<int,ObstacleBlock* >::const_iterator pos = obstacleBlocks.find(info.blockID);
 
 			if(pos != obstacleBlocks.end()) {
-                FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 				for(int iz=0; iz<FluidBlock::sizeZ; iz++)
 				for(int iy=0; iy<FluidBlock::sizeY; iy++)
 				for(int ix=0; ix<FluidBlock::sizeX; ix++)
@@ -831,6 +831,12 @@ std::vector<int> IF3D_ObstacleOperator::intersectingBlockIDs(const int buffer) c
 		if(pos != obstacleBlocks.end()) retval.push_back(info.blockID);
 	}
 	return retval;
+}
+
+void IF3D_ObstacleOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
+  Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
+{
+  abort();
 }
 
 void IF3D_ObstacleOperator::getTranslationVelocity(Real UT[3]) const

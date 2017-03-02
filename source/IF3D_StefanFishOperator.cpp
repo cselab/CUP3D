@@ -126,9 +126,9 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
 			while (getline(in, line)) {
 				istringstream line_in(line);
 				if(nActions==2)
-                                       line_in >> dummy_time >> action[0] >> action[1];
-                                else
-                                       line_in >> dummy_time >> action[0];
+					line_in >> dummy_time >> action[0] >> action[1];
+				else
+					line_in >> dummy_time >> action[0];
 				//i want to do pop back later:
 				loadedActions.insert(loadedActions.begin(),action);
 			}
@@ -143,6 +143,15 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
 void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
 																			const Real time, const int iLabel)
 {
+		#ifdef __useSkin_
+		assert(quaternion[1] == 0 && quaternion[2] == 0);
+
+		sr.nearestGridPoints(&surfData, myFish->upperSkin->Npoints, 
+													myFish->upperSkin->xSurf, myFish->upperSkin->ySurf,
+													myFish->lowerSkin->xSurf, myFish->lowerSkin->ySurf,
+													position[2], vInfo[0].h_gridpoint);
+		#endif
+
     if (time < Tstartlearn) {
         sr.resetAverage();
         sr.t_next_comm = Tstartlearn;

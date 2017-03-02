@@ -42,7 +42,7 @@ CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falig
 ifeq "$(config)" "prod"
 	CPPFLAGS += -DNDEBUG
 else
-	CPPFLAGS += -g -fsanitize=address,leak,undefined -fPIE -pie -fno-omit-frame-pointer
+	CPPFLAGS += -g #-fsanitize=address,leak,undefined -fPIE -pie -fno-omit-frame-pointer
 endif
 
 ifeq "$(rk2)" "true"
@@ -114,7 +114,9 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS = Communicator.o IF3D_NacaOperator.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o Save_splicer.o WaveletCompressor.o main.o
+OBJECTS = Communicator.o IF3D_NacaOperator.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o Save_splicer.o WaveletCompressor.o
+EXEOBJ = $(OBJECTS) main.o
+LIBOBJ = $(OBJECTS) cubism_main.o
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"
@@ -130,12 +132,11 @@ VPATH := $(SRC_DIR):$(CUBISM_DIR)
 
 .DEFAULT_GOAL := simulation
 
-simulation: $(OBJECTS) $(NVOBJECTS)
-	#echo Linking
-	#echo CC = $(CC) OBJECTS = $(OBJECTS)
-	#echo ************************
-	$(LD) $(OBJECTS) $(NVOBJECTS) $(LIBS) $(LDFLAGS) -o $@
-	#echo ************************
+simulation: $(EXEOBJ) $(NVOBJECTS)
+	$(LD) $(EXEOBJ) $(NVOBJECTS) $(LIBS) $(LDFLAGS) -o $@
+
+simulation.a: $(LIBOBJ) $(NVOBJECTS)
+	ar rs simulation.a $(LIBOBJ) $(NVOBJECTS)
 
 %.o: %.cpp
 	$(CC) $(CPPFLAGS) $(LIBS) -c $< -o $@
@@ -145,5 +146,4 @@ PoissonSolverScalarFFTW_ACC.o: PoissonSolverScalarFFTW_ACC.cu
 
 clean:
 	rm -f $(OBJECTS)
-	rm -f simulation
-	rm -f PoissonSolverScalarFFTW*.o
+	rm -f simulation simulation.a main.o cubism_main.o PoissonSolverScalarFFTW*.o

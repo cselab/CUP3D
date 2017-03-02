@@ -25,14 +25,16 @@ using namespace std;
 
 // utmost import to be defined before including cubism
 
-#ifndef _SP_COMP_
-typedef double Real;
-#else // _SP_COMP_
-typedef float Real;
-#endif // _SP_COMP_
-
 #include <mpi.h>
 #include <omp.h>
+
+#ifndef _SP_COMP_
+typedef double Real;
+#define MPI_DOUBLE MPI_REAL
+#else // _SP_COMP_
+typedef float Real;
+#define MPI_FLOAT MPI_REAL
+#endif // _SP_COMP_
 
 //this is all cubism file we need
 #include <ArgumentParser.h>
@@ -314,7 +316,9 @@ struct surfaceBlocks
 struct surfacePoints
 {
  public:
-    Real *pX, *pY, *pZ, *P, *fX, *fY, *fZ, *fxP, *fyP, *fzP, *fxV, *fyV, *fzV, *vx, *vy, *vz, *vxDef, *vyDef, *vzDef;
+    Real *pX, *pY, *pZ, *P, *fX, *fY, *fZ;
+    Real *fxP, *fyP, *fzP, *fxV, *fyV, *fzV;
+    Real *vx, *vy, *vz, *vxDef, *vyDef, *vzDef;
     int Ndata, nAlloc, nMapped, *gridMap;
     vector<surfData*> Set;
 
@@ -495,31 +499,41 @@ struct StateReward
     Real Dist, Quad, RelAng, VX, VY, AV, ThetaAvg, ThetaVel;
     Real PoutBnd, Pout, defPowerBnd, defPower, EffPDefBnd, EffPDef, Pthrust, Pdrag, ToD;
     Real battery, ext_X, ext_Y, ext_Z;;
-		/*
+
     vector<Real> VelNAbove, VelTAbove, VelNBelow, VelTBelow;
     vector<Real> FPAbove, FVAbove, FPBelow, FVBelow;
     vector<Real> PXAbove, PYAbove, PXBelow, PYBelow;
-    vector<Real> nPointsAbove, nPointsBelow;
     vector<Real> raySight;
-    */
 
-    StateReward() :
-    bRestart(false), bForgiving(false), NpLatLine(0), info(1), t_next_comm(1e6), GoalDX(0), battery(1)
+
+    StateReward(const int _NpLatLine = 0) :
+    bRestart(false), bForgiving(false), NpLatLine(_NpLatLine), info(1), t_next_comm(1e6), GoalDX(0), battery(1)
     {
         avg_wght = Xrel = Xabs = Yrel = Yabs = Theta = VxAvg = VyAvg = AvAvg = 0;
         thExp = vxExp = vyExp = avExp = VxInst = VyInst = AvInst = 0;
         Dist = Quad = RelAng = VX = VY = AV = ThetaAvg = ThetaVel = 0;
         Pout = PoutBnd = defPower = defPowerBnd = EffPDef = EffPDefBnd = Pthrust = Pdrag = ToD = 0;
-        /*
+
         VelNAbove.resize(NpLatLine); VelTAbove.resize(NpLatLine);
         VelNBelow.resize(NpLatLine); VelTBelow.resize(NpLatLine);
         FPAbove.resize(NpLatLine); FVAbove.resize(NpLatLine);
         FPBelow.resize(NpLatLine); FVBelow.resize(NpLatLine);
         PXAbove.resize(NpLatLine); PYAbove.resize(NpLatLine);
         PXBelow.resize(NpLatLine); PYBelow.resize(NpLatLine);
-        nPointsAbove.resize(NpLatLine); nPointsBelow.resize(NpLatLine);
         raySight.resize(2*NpLatLine);
-				*/
+
+    }
+
+    void set_NpLatLine(const int _NpLatLine)
+    {
+      NpLatLine = _NpLatLine;
+      VelNAbove.resize(_NpLatLine); VelTAbove.resize(_NpLatLine);
+      VelNBelow.resize(_NpLatLine); VelTBelow.resize(_NpLatLine);
+      FPAbove.resize(_NpLatLine); FVAbove.resize(_NpLatLine);
+      FPBelow.resize(_NpLatLine); FVBelow.resize(_NpLatLine);
+      PXAbove.resize(_NpLatLine); PYAbove.resize(_NpLatLine);
+      PXBelow.resize(_NpLatLine); PYBelow.resize(_NpLatLine);
+      raySight.resize(2*_NpLatLine);
     }
 
     void updateAverages(const Real _dt, const Real _th, const Real _vx, const Real _vy,
@@ -570,8 +584,8 @@ struct StateReward
         if (ext_Y && ext_Y-Yrel<.025) bRestart = true;
     }
 
-    void finalizePos(const Real xFOR,   const Real yFOR,  const Real thFOR,
-                     const Real vxPov,  const Real vyPov, const Real avPov,
+    void finalizePos(const Real  xFOR,   const Real yFOR, const Real thFOR,
+                     const Real vxFOR,  const Real vyFOR, const Real avFOR,
                      const Real lscale, const Real tscale)
     {
         const double invlscale  = 1./lscale;
@@ -581,35 +595,33 @@ struct StateReward
         const double powerscale = forcescale*velscale; //rho*l^2*l^2/t^3
         const double tmpPx = (Xrel-xFOR)*invlscale;
         const double tmpPy = (Yrel-yFOR)*invlscale;
-        const double tmpVx = VxAvg*velscale;
-        const double tmpVy = VyAvg*velscale;
-				#ifdef _SCHOOL_
-        //velocity of reference from fish pov
-        VX = ((VxInst-vxPov)*cos(Theta)+(VyInst-vyPov)*sin(Theta))*velscale;
-        VY = ((VyInst-vyPov)*cos(Theta)-(VxInst-vxPov)*sin(Theta))*velscale;
-        AV =  (AvInst-avPov)/tscale;
-        //velocity of fish in reference pov
-        VxAvg = (VxInst*cos(thFOR)+VyInst*sin(thFOR))*velscale;
-        VyAvg = (VyInst*cos(thFOR)-VxInst*sin(thFOR))*velscale;
-        AvAvg = AvInst/tscale;
-        //position in reference frame
-        Xpov = tmpPx*cos(thFOR) + tmpPy*sin(thFOR);
-        Ypov = tmpPy*cos(thFOR) - tmpPx*sin(thFOR);
-        RelAng = Theta - thFOR;
-				#else
-        //velocity of reference from fish pov
-        VX = (tmpVx-vxPov*velscale)*cos(ThetaAvg)+(tmpVy-vyPov*velscale)*sin(ThetaAvg);
-        VY = (tmpVy-vyPov*velscale)*cos(ThetaAvg)-(tmpVx-vxPov*velscale)*sin(ThetaAvg);
-        AV = (AvAvg-avPov)/tscale;
-        //velocity of fish in reference pov
-        VxAvg = tmpVx*cos(thFOR) + tmpVy*sin(thFOR);
-        VyAvg = tmpVy*cos(thFOR) - tmpVx*sin(thFOR);
-        AvAvg/= tscale;
-        //position in reference frame
-        Xpov = tmpPx*cos(thFOR) + tmpPy*sin(thFOR);
-        Ypov = tmpPy*cos(thFOR) - tmpPx*sin(thFOR);
-        RelAng = ThetaAvg - thFOR;
-				#endif
+        #ifdef _SCHOOL_
+          //velocity of reference from fish pov
+          VX = ((VxInst-vxFOR)*cos(Theta)+(VyInst-vyFOR)*sin(Theta))*velscale;
+          VY = ((VyInst-vyFOR)*cos(Theta)-(VxInst-vxFOR)*sin(Theta))*velscale;
+          AV =  (AvInst-avFOR)/tscale;
+          //velocity of fish in reference pov
+          VxAvg = (VxInst*cos(thFOR)+VyInst*sin(thFOR))*velscale;
+          VyAvg = (VyInst*cos(thFOR)-VxInst*sin(thFOR))*velscale;
+          AvAvg = AvInst/tscale;
+          //position in reference frame
+          Xpov = tmpPx*cos(thFOR) + tmpPy*sin(thFOR);
+          Ypov = tmpPy*cos(thFOR) - tmpPx*sin(thFOR);
+          RelAng = Theta - thFOR;
+        #else
+          //velocity of reference from fish pov
+          VX = ((VxInst-vxFOR)*cos(Theta)+(VyInst-vyFOR)*sin(Theta))*velscale;
+          VY = ((VyInst-vyFOR)*cos(Theta)-(VxInst-vxFOR)*sin(Theta))*velscale;
+          AV =  (AvInst-avFOR)/tscale;
+          //velocity of fish in reference pov
+          VxAvg = (VxAvg*cos(thFOR) + VyAvg*sin(thFOR))*velscale;
+          VyAvg = (VyAvg*cos(thFOR) - VxAvg*sin(thFOR))*velscale;
+          AvAvg =  AvAvg/tscale;
+          //position in reference frame
+          Xpov = tmpPx*cos(thFOR) + tmpPy*sin(thFOR);
+          Ypov = tmpPy*cos(thFOR) - tmpPx*sin(thFOR);
+          RelAng = ThetaAvg - thFOR;
+        #endif
         Dist = sqrt(tmpPx*tmpPx + tmpPy*tmpPy);
         Quad = atan2(Ypov,Xpov) -(Theta-thFOR);
         //EffPDefBnd, EffPDef, ToD are non dimensional already
@@ -626,9 +638,7 @@ struct StateReward
         const double powerscale = forcescale*velscale; //rho*l^2*l^2/t^3
         const double tmpPx = (Xrel-xFOR)*invlscale;
         const double tmpPy = (Yrel-yFOR)*invlscale;
-        const double tmpVx = VxAvg*velscale;
-        const double tmpVy = VyAvg*velscale;
-        /*
+
         for (int k=0; k<NpLatLine; k++) {
             //subtract solid body velocity from velocity sensors & scale
             const double Uxu = VxInst - (PYAbove[k]-Yrel)*AvInst;
@@ -647,17 +657,17 @@ struct StateReward
             const Real cosTh = std::cos(Theta);
             const Real sinTh = std::sin(Theta);
             VelNAbove[k]= tmpvxu*cosTh + tmpvyu*sinTh;
-            VelTAbove[k]= tmpvyu*cosTh - tmpvxu*sinTh;
             VelNBelow[k]= tmpvxl*cosTh + tmpvyl*sinTh;
+            VelTAbove[k]= tmpvyu*cosTh - tmpvxu*sinTh;
             VelTBelow[k]= tmpvyl*cosTh - tmpvxl*sinTh;
             FPAbove[k]  = tmpfxu*cosTh + tmpfyu*sinTh;
-            FVAbove[k]  = tmpfyu*cosTh - tmpfxu*sinTh;
             FPBelow[k]  = tmpfxl*cosTh + tmpfyl*sinTh;
+            FVAbove[k]  = tmpfyu*cosTh - tmpfxu*sinTh;
             FVBelow[k]  = tmpfyl*cosTh - tmpfxl*sinTh;
         }
 
         for (int k=0; k<2*NpLatLine; k++) raySight[k] *= invlscale;
-				*/
+
         PoutBnd    *=powerscale; Pout    *=powerscale;
         defPowerBnd*=powerscale; defPower*=powerscale;
         Pthrust    *=powerscale; Pdrag   *=powerscale;
@@ -708,50 +718,114 @@ struct StateReward
         return bRestart;
     }
 
-    /*
-    void addToClosest(FishObstacle::FishSkin * upSkin, FishObstacle::FishSkin * dwSkin, PressurePoints * presData)
-    { //todo ... create a general skin class?
-        const int ND = presData->Ndata;
-        const int NP = upSkin->Npoints - 1;
-        const Real * const x  = presData->pX;
-        const Real * const y  = presData->pY;
-        const Real * const fx = presData->fX;
-        const Real * const fy = presData->fY;
-        const Real * const vx = presData->vx;
-        const Real * const vy = presData->vy;
-        const int* const ID=presData->gridID;
+    struct skinForcesVels
+    {
+      skinForcesVels(const int _nDest) : nDest(_nDest), data(_alloc(4*_nDest))
+      {
+        memset(data, 0, sizeof(Real)*4*nDest);
+      }
 
-				#ifdef _useSkin_
-        for (int k=0; k<NpLatLine; k++) {
-            //const int gridIDU = upSkin->gridID[k];
-            //const int gridIDL = dwSkin->gridID[k];
-            //const int skinID  = upSkin->mapMidline[k]; //they are the same
-            const int first = k   *(Real)NP/(Real)NpLatLine;
-            const int last = (k+1)*(Real)NP/(Real)NpLatLine;
+      virtual ~skinForcesVels() { _dealloc(data); }
+
+      inline void storeNearest(const Real fx, const Real fy, const Real vx, const Real vy, const int i)
+      {
+          assert(data[i] == 0); //must not be assigned before
+          data[i+0*nDest] = fx;
+          data[i+1*nDest] = fy;
+          data[i+2*nDest] = vx;
+          data[i+3*nDest] = vy;
+      }
+
+      inline Real fx(const int i) { return data[i+0*nDest]; }
+      inline Real fy(const int i) { return data[i+1*nDest]; }
+      inline Real vx(const int i) { return data[i+2*nDest]; }
+      inline Real vy(const int i) { return data[i+3*nDest]; }
+
+      void synchronize(const MPI_Comm comm)
+      {
+        MPI_Allreduce(MPI_IN_PLACE, data, 4*nDest, MPI_REAL, MPI_SUM, comm);
+      }
+
+     private:
+      const int nDest;
+      Real*const data;
+      Real * _alloc(const int N) { return new Real[N]; }
+
+      void _dealloc(Real * ptr) {
+          if(ptr not_eq nullptr) {
+              delete [] ptr;
+              ptr=nullptr;
+          }
+      }
+    };
+
+    void nearestGridPoints(const surfacePoints*const surface, const int Nskin,
+      const Real*const xU, const Real*const yU, const Real*const xL, const Real*const yL,
+      const Real zObst, const Real h, const MPI_Comm comm)
+    {
+        skinForcesVels data(Nskin*2);
+        const int Nsurf        = surface->Ndata;
+        const Real*const xS    = surface->pX;
+        const Real*const yS    = surface->pY;
+        const Real*const zS    = surface->pZ;
+        const Real*const fx    = surface->fX;
+        const Real*const fy    = surface->fY;
+        const Real*const vx    = surface->vx;
+        const Real*const vy    = surface->vy;
+        const Real*const vxDef = surface->vxDef;
+        const Real*const vyDef = surface->vyDef;
+
+        //we know the spacing between non zero grad chi points: exploit it
+        const Real nearZ = std::round(zObst/h - 0.5)*h; //cubiz be cell centered
+        for (int i=0; i<Nskin; i++) {
+          const int k = i+Nskin; //index for lower skin
+          const Real nearXU = std::round(xU[i]/h - 0.5)*h;
+          const Real nearYU = std::round(yU[i]/h - 0.5)*h;
+          const Real nearXL = std::round(xL[i]/h - 0.5)*h;
+          const Real nearYL = std::round(yL[i]/h - 0.5)*h;
+
+          for (int j=0; j<Nsurf; j++) {
+            if(std::fabs(zS[j]-nearZ )>.5*h) continue;
+
+            if(std::fabs(yS[j]-nearYL)<.5*h &&
+               std::fabs(xS[j]-nearXL)<.5*h   )
+            data.storeNearest(fx[j], fy[j], vx[j]-vxDef[j], vy[j]-vyDef[j], k);
+
+            if(std::fabs(yS[j]-nearYU)<.5*h &&
+               std::fabs(xS[j]-nearXU)<.5*h   )
+            data.storeNearest(fx[j], fy[j], vx[j]-vxDef[j], vy[j]-vyDef[j], i);
+          }
+        }
+
+        data.synchronize(comm);
+
+        //now, feed the sensors
+        for (int k=0; k<NpLatLine; k++)
+        {
+            const int first = k   *(Real)Nskin/(Real)NpLatLine;
+            const int last = (k+1)*(Real)Nskin/(Real)NpLatLine;
               FPAbove[k]=0;   FPBelow[k]=0;   FVAbove[k]=0;   FVBelow[k]=0;
             VelNAbove[k]=0; VelNBelow[k]=0; VelTAbove[k]=0; VelTBelow[k]=0;
             for (int j=first; j<last; j++) {
-                  FPAbove[k]+=fx[j];   FPBelow[k]+=fx[j+NP];
-                  FVAbove[k]+=fy[j];   FVBelow[k]+=fy[j+NP];
-                VelNAbove[k]+=vx[ID[j]]; VelNBelow[k]+=vx[ID[j+NP]];
-                VelTAbove[k]+=vy[ID[j]]; VelTBelow[k]+=vy[ID[j+NP]];
+                  FPAbove[k]+=data.fx(j);
+                  FPBelow[k]+=data.fx(j+Nskin);
+                  FVAbove[k]+=data.fy(j);
+                  FVBelow[k]+=data.fy(j+Nskin);
+                VelNAbove[k]+=data.vx(j);
+                VelNBelow[k]+=data.vx(j+Nskin);
+                VelTAbove[k]+=data.vy(j);
+                VelTBelow[k]+=data.vy(j+Nskin);
             }
             const int mid = 0.5*(first+last);
-            PXAbove[k] = x[mid];
-            PYAbove[k] = y[mid];
-            PXBelow[k] = x[mid+NP];
-            PYBelow[k] = y[mid+NP];
+            PXAbove[k] = xU[mid];
+            PYAbove[k] = yU[mid];
+            PXBelow[k] = xL[mid];
+            PYBelow[k] = yL[mid];
             const Real fac = 1./(Real)(last-first);
             VelNAbove[k]*=fac; VelTAbove[k]*=fac;
             VelNBelow[k]*=fac; VelTBelow[k]*=fac;
-            //printf("first %d %d %d %d\n",first, last, mid, mid+NP);
         }
-				#else
-        printf("TODO!\n"); abort();
-        //go through all gridpoints in data, pick closest and do the same
-				#endif
     }
-    */
 
     void save(const int step_id, string filename)
     {
@@ -772,7 +846,7 @@ struct StateReward
             << ThetaAvg << "\t" << ThetaVel << "\t" << PoutBnd << "\t" << Pout << "\t"
             << defPowerBnd << "\t" << defPower << "\t" << EffPDefBnd<< "\t" << EffPDef << "\t"
             << Pthrust << "\t" << Pdrag << "\t" << ToD << std::endl;
-        /*
+
         for (int i=0; i<NpLatLine; i++) {
             savestream <<
             PXAbove[i] << "\t" << PYAbove[i] << "\t" <<
@@ -782,7 +856,7 @@ struct StateReward
             FPAbove[i] << "\t" << FVAbove[i] << "\t" <<
             FPBelow[i] << "\t" << FVBelow[i] << std::endl;
         }
-        */
+
         savestream.close();
     }
 
@@ -802,7 +876,7 @@ struct StateReward
         ThetaAvg >> ThetaVel >> PoutBnd >> Pout >>
         defPowerBnd >> defPower >> EffPDefBnd>> EffPDef >>
         Pthrust >> Pdrag >> ToD;
-        /*
+
         for (int i=0; i<NpLatLine; i++) {
             restartstream >>
             PXAbove[i] >> PYAbove[i] >>
@@ -812,7 +886,7 @@ struct StateReward
             FPAbove[i] >> FVAbove[i] >>
             FPBelow[i] >> FVBelow[i];
         }
-        */
+
         restartstream.close();
 
         {
@@ -826,7 +900,7 @@ struct StateReward
             << ThetaAvg << "\t" << ThetaVel << "\t" << PoutBnd << "\t" << Pout << "\t"
             << defPowerBnd << "\t" << defPower << "\t" << EffPDefBnd<< "\t" << EffPDef << "\t"
             << Pthrust << "\t" << Pdrag << "\t" << ToD << std::endl;
-            /*
+
             for (int i=0; i<NpLatLine; i++) {
             cout << PXAbove[i] << "\t" << PYAbove[i] << "\t" <<
                     PXBelow[i] << "\t" << PYBelow[i] << "\t" <<
@@ -835,13 +909,11 @@ struct StateReward
                     FPAbove[i] << "\t" << FVAbove[i] << "\t" <<
                     FPBelow[i] << "\t" << FVBelow[i] << std::endl;
             }
-						*/
         }
     }
 
     void print(const int ID, const int stepNumber, const Real time)
     {
-			/*
         {
             ofstream fileskin;
             char buf[500];
@@ -874,7 +946,6 @@ struct StateReward
                     << Pthrust << "\t" << Pdrag << "\t" << ToD << std::endl;
             fileskin.close();
         }
-				*/
     }
 };
 

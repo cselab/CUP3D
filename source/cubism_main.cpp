@@ -15,17 +15,12 @@ using namespace std;
 #include "Simulation.h"
 #include "Save_splicer.h"
 
-int main(int argc, char **argv)
+int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
 {
 	Communicator * communicator = nullptr;
-	int provided;
-	MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
-	if (provided < MPI_THREAD_FUNNELED) {
-		printf("ERROR: The MPI implementation does not have required thread support\n");
-		MPI_Abort(MPI_COMM_WORLD, 1);
-	}
+
 	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+	MPI_Comm_rank(app_comm, &rank);
 
 	ArgumentParser parser(argc,argv);
 	parser.set_strict_mode();
@@ -35,6 +30,7 @@ int main(int argc, char **argv)
 		cout << "\t\tCubism UP 3D (velocity-pressure 3D incompressible Navier-Stokes solver)\n";
 		cout << "====================================================================================================================\n";
 	}
+
 	#ifdef __SMARTIES_
 	parser.unset_strict_mode();
 	const int _sockID = parser("-sock").asInt(-1);
@@ -43,7 +39,7 @@ int main(int argc, char **argv)
 	if (_sockID>=0 && nActions>0) {
 		if(!rank)
 			printf("Communicating over sock %d\n", _sockID);
-		communicator = new Communicator(_sockID,nStates,nActions,MPI_COMM_WORLD);
+		communicator = new Communicator(_sockID, nStates, nActions, app_comm);
 	}
 	#endif
 
@@ -55,7 +51,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	Simulation * sim = new Simulation(argc, argv, MPI_COMM_WORLD, communicator);
+	Simulation * sim = new Simulation(argc, argv, app_comm, communicator);
 	sim->init();
 	sim->simulate();
 

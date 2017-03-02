@@ -74,13 +74,14 @@ namespace ComputationDiagnostics
 
 class Simulation
 {
-protected:
+ protected:
 	ArgumentParser parser;
 	Profiler profiler;
+  const MPI_Comm app_comm;
 	Communicator * communicator;
-#if _USE_ZLIB_
+  #if _USE_ZLIB_
 	SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
-#endif
+  #endif
 
 	// grid
 	int rank, nprocs;
@@ -92,8 +93,8 @@ protected:
 	Real dt, time, endTime, dtCFL, dtFourier;
 
 	// simulation settings
-    Real uinf[3], re, nu, length, CFL, lambda;
-    bool bDump, bRestart, bDLM, verbose, b2Ddump;
+  Real uinf[3], re, nu, length, CFL, lambda;
+  bool bDLM, bRestart, verbose, b2Ddump, bDump;
 
 	// output
 	int dumpFreq, saveFreq;
@@ -104,10 +105,10 @@ protected:
 	DumpGridMPI * dump;
   std::thread * dumper;
 
-    vector<BlockInfo> vInfo;
+  vector<BlockInfo> vInfo;
 	//The protagonist
-    IF3D_ObstacleVector* obstacle_vector;
-    //The antagonist
+  IF3D_ObstacleVector* obstacle_vector;
+  //The antagonist
 	vector<GenericCoordinator*> pipeline;
 
     void areWeDumping(Real & nextDumpTime);
@@ -121,14 +122,16 @@ protected:
     void _selectDT();
     void setupGrid();
     void _ic();
-
+    int _2Fish_RLstep(const int nO);
+    int _3Fish_RLstep(const int nO);
 public:
-    Simulation(const int argc, char ** argv, Communicator* comm = nullptr) :
-    parser(argc,argv), communicator(comm), rank(0), nprocs(1), nprocsx(-1), nprocsy(-1),
-	nprocsz(-1), bpdx(-1), bpdy(-1), bpdz(-1), step(0), nsteps(0), dt(0), time(0), endTime(0),
-	dtCFL(0), dtFourier(0), uinf{0.0, 0.0, 0.0}, re(0), nu(0), length(0), CFL(0), lambda(0),
-	bDump(false), bRestart(false), bDLM(false), verbose(false), b2Ddump(false), dumper(nullptr),
-	dumpFreq(0), saveFreq(0), dumpTime(0), saveTime(0), saveClockPeriod(0), maxClockDuration(1e9)
+  Simulation(int argc, char** argv, MPI_Comm mpicomm, Communicator* comm=nullptr):
+  parser(argc,argv), app_comm(mpicomm), communicator(comm), rank(0), nprocs(1),
+  nprocsx(-1), nprocsy(-1), nprocsz(-1), bpdx(-1), bpdy(-1), bpdz(-1), step(0),
+  nsteps(0), dt(0), time(0), endTime(0), dtCFL(0), dtFourier(0), uinf{0, 0, 0},
+  re(0), nu(0), length(0), CFL(0), lambda(0), bDLM(0), bRestart(0), verbose(0),
+  b2Ddump(0), bDump(0), dumper(nullptr), dumpFreq(0), saveFreq(0), dumpTime(0),
+  saveTime(0), saveClockPeriod(0), maxClockDuration(1e9)
 	{ 	}
 
 	virtual ~Simulation()
@@ -142,9 +145,9 @@ public:
 		}
 	}
 
-    virtual void init();
+  virtual void init();
 
-    virtual void simulate();
+  virtual void simulate();
 };
 
 #endif

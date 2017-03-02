@@ -37,6 +37,8 @@ public:
     virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
     virtual void finalize(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
     void _parseArguments(ArgumentParser & parser);
+		void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL,
+												Real*& pXU, Real*& pYU, int& Npts) override;
 };
 
 

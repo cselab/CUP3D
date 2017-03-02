@@ -36,7 +36,8 @@ public:
     void computeForces(const int stepID, const Real time, const Real dt, const Real* Uinf, const Real NU, const bool bDump) override;
     void create(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
     void Accept(ObstacleVisitor * visitor) override;
-
+    void getFieldOfView(const Real lengthscale);
+    vector<std::array<int, 2>> collidingObstacles();
     std::vector<StateReward*> _getData();
     void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) override;
 

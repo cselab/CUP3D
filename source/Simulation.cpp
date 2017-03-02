@@ -37,8 +37,8 @@ void Simulation::setupGrid()
 	bpdx /= nprocsx;
 	bpdy /= nprocsy;
 	bpdz /= nprocsz;
-	grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz);
-	dump = new  DumpGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz);
+	grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz, 1.0, app_comm);
+	dump = new  DumpGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz, 1.0, app_comm);
 	assert(grid != NULL);
   vInfo = grid->getBlocksInfo();
 
@@ -319,6 +319,115 @@ void Simulation::init()
     MPI_Barrier(grid->getCartComm());
 }
 
+int Simulation::_3Fish_RLstep(const int nO)
+{
+  #ifndef __2Leads_
+  MPI_Abort(grid->getCartComm(), 0);
+  #endif
+
+  const auto _D = obstacle_vector->_getData();
+  assert(_D.size() == nO && nO==3);
+  bool bDoOver = false;
+
+  bDoOver = _D[2]->checkFail(0.5*(_D[0]->Xrel +_D[1]->Xrel),
+                             0.5*(_D[0]->Yrel +_D[1]->Yrel),
+                             0.5*(_D[0]->thExp+_D[1]->thExp),
+                             length);
+  if (bDoOver) {
+    _D[2]->finalizePos( 0.5*(_D[0]->Xrel +_D[1]->Xrel),
+                        0.5*(_D[0]->Yrel +_D[1]->Yrel),
+                        0.5*(_D[0]->thExp+_D[1]->thExp),
+                        0.5*(_D[0]->vxExp+_D[1]->vxExp),
+                        0.5*(_D[0]->vyExp+_D[1]->vyExp),
+                        0.5*(_D[0]->avExp+_D[1]->avExp),
+                        length, 1.);
+    _D[2]->info = 2;
+    obstacle_vector->execute(communicator, 2, time, 0);
+    printf("Sim terminated\n");
+    return 1;
+  }
+
+  if(time >= _D[2]->t_next_comm) {
+    _D[2]->finalize(0.5*(_D[0]->Xrel +_D[1]->Xrel),
+                    0.5*(_D[0]->Yrel +_D[1]->Yrel),
+                    0.5*(_D[0]->thExp+_D[1]->thExp),
+                    0.5*(_D[0]->vxExp+_D[1]->vxExp),
+                    0.5*(_D[0]->vyExp+_D[1]->vyExp),
+                    0.5*(_D[0]->avExp+_D[1]->avExp),
+                    length, 1.0);
+    _D[2]->finalizePos(0.5*(_D[0]->Xrel +_D[1]->Xrel),
+                       0.5*(_D[0]->Yrel +_D[1]->Yrel),
+                       0.5*(_D[0]->thExp+_D[1]->thExp),
+                       0.5*(_D[0]->vxExp+_D[1]->vxExp),
+                       0.5*(_D[0]->vyExp+_D[1]->vyExp),
+                       0.5*(_D[0]->avExp+_D[1]->avExp),
+                       length, 1.0);
+    obstacle_vector->execute(communicator, 2, time, 0);
+   }
+   return 0;
+}
+/*
+int Simulation::_2Fish_RLstep(const int nO)
+{
+  const auto _D = obstacle_vector->_getData();
+  assert(_D.size() == nO && nO==2);
+  bool bDoOver = false;
+
+  for(int i=1; i<nO; i++) {
+    bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp, length);
+    if (bDoOver) {
+      _D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel,  _D[0]->thExp,
+                         _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
+      _D[i]->info = 2;
+      obstacle_vector->execute(communicator, i, time, i-1);
+      printf("Sim terminated\n");
+      return 1;
+    }
+  }
+
+  for(int i=0; i<nO; i++) if(time >= _D[i]->t_next_comm) {
+    if(i>0) {
+       _D[i]->finalize(   _D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
+                          _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
+       _D[i]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
+                          _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
+     }
+    obstacle_vector->execute(communicator, i, time, i-1);
+  }
+  return 0;
+}
+*/
+int Simulation::_2Fish_RLstep(const int nO)
+{
+  const auto _D = obstacle_vector->_getData();
+  assert(_D.size() == nO && nO<3);
+  bool bDoOver = false;
+
+  const Real theta_frame =  _D[0]->thExp + 0.15;
+  for(int i=1; i<nO; i++) {
+    bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel, theta_frame, length);
+    if (bDoOver) {
+      _D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel, theta_frame,
+                 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
+      _D[i]->info = 2;
+      obstacle_vector->execute(communicator, i, time, i-1);
+      printf("Sim terminated\n");
+      return 1;
+    }
+  }
+
+  for(int i=0; i<nO; i++) if(time >= _D[i]->t_next_comm) {
+    if(i>0) {
+        _D[i]->finalize(   _D[0]->Xrel, _D[0]->Yrel, theta_frame,
+                           _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
+        _D[i]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, theta_frame,
+                           _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
+    }
+    obstacle_vector->execute(communicator, i, time, i-1);
+  }
+  return 0;
+}
+
 void Simulation::simulate()
 {
 	using namespace std::chrono;
@@ -336,71 +445,9 @@ void Simulation::simulate()
 				{
 					profiler.push_start("RL");
 					bool bDoOver = false;
-					const int nO = obstacle_vector->nObstacles();
-					const auto _D = obstacle_vector->_getData();
-          assert(_D.size() == nO);
-
-          #ifdef __2Leads_
-            assert(nO==3);
-						bDoOver = _D[2]->checkFail(0.5*(_D[0]->Xrel +_D[1]->Xrel),
-                                       0.5*(_D[0]->Yrel +_D[1]->Yrel),
-																			 0.5*(_D[0]->thExp+_D[1]->thExp),
-                                       length);
-						if (bDoOver) {
-							_D[2]->finalizePos( 0.5*(_D[0]->Xrel +_D[1]->Xrel),
-                                  0.5*(_D[0]->Yrel +_D[1]->Yrel),
-                                  0.5*(_D[0]->thExp+_D[1]->thExp),
-                                  0.5*(_D[0]->vxExp+_D[1]->vxExp),
-                                  0.5*(_D[0]->vyExp+_D[1]->vyExp),
-                                  0.5*(_D[0]->avExp+_D[1]->avExp),
-                                  length, 1.);
-							_D[2]->info = 2;
-							obstacle_vector->execute(communicator, 2, time, 0);
-              printf("Sim terminated\n");
-							return;
-						}
-
-  					if(time >= _D[2]->t_next_comm) {
-  						_D[2]->finalize(0.5*(_D[0]->Xrel +_D[1]->Xrel),
-                              0.5*(_D[0]->Yrel +_D[1]->Yrel),
-                              0.5*(_D[0]->thExp+_D[1]->thExp),
-                              0.5*(_D[0]->vxExp+_D[1]->vxExp),
-                              0.5*(_D[0]->vyExp+_D[1]->vyExp),
-                              0.5*(_D[0]->avExp+_D[1]->avExp),
-                              length, 1.0);
-  						_D[2]->finalizePos(0.5*(_D[0]->Xrel +_D[1]->Xrel),
-                                 0.5*(_D[0]->Yrel +_D[1]->Yrel),
-                                 0.5*(_D[0]->thExp+_D[1]->thExp),
-                                 0.5*(_D[0]->vxExp+_D[1]->vxExp),
-                                 0.5*(_D[0]->vyExp+_D[1]->vyExp),
-                                 0.5*(_D[0]->avExp+_D[1]->avExp),
-                                 length, 1.0);
-  						obstacle_vector->execute(communicator, 2, time, 0);
-             }
-          #else
-            for(int i=1; i<nO; i++) {
-              bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel,
-                                         _D[0]->thExp, length);
-              if (bDoOver) {
-                _D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel,  _D[0]->thExp,
-                           _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
-                _D[i]->info = 2;
-                obstacle_vector->execute(communicator, i, time, i-1);
-                printf("Sim terminated\n");
-                return;
-              }
-            }
-
-            for(int i=0; i<nO; i++) if(time >= _D[i]->t_next_comm) {
-              if(i>0) {
-              _D[i]->finalize(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
-                     _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
-              _D[i]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
-                     _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.0);
-               }
-              obstacle_vector->execute(communicator, i, time, i-1);
-            }
-          #endif
+          const int nO = obstacle_vector->nObstacles();
+          if (nO == 3) bDoOver = _3Fish_RLstep(nO);
+          else         bDoOver = _2Fish_RLstep(nO);
 					if (bDoOver) exit(0);
 					profiler.pop_stop();
 				}

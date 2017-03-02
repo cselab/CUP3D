@@ -79,6 +79,9 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	}
 	// 1.
 	myFish->computeMidline(time);
+	#ifdef __useSkin_
+	myFish->computeSurface();
+	#endif
 	//MPI_Barrier(grid->getCartComm());
 	t1 = std::chrono::high_resolution_clock::now();
 
@@ -111,7 +114,11 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	}
 	#endif
 	//MPI_Barrier(grid->getCartComm());
+	#ifdef __useSkin_
+	myFish->surfaceToCOMFrame(theta_internal,CoM_internal);
+	#endif
 	t23 = std::chrono::high_resolution_clock::now();
+
 
 	// 4. & 5.
 	std::vector<VolumeSegment_OBB> vSegments(Nsegments);
@@ -171,7 +178,6 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	//MPI_Barrier(grid->getCartComm());
 	t67 = std::chrono::high_resolution_clock::now();
 
-	//assert(not segmentsPerBlock.empty()); //killed this assert: distributed fish
 	assert(segmentsPerBlock.size() == obstacleBlocks.size());
 
 	// 8.
@@ -188,12 +194,12 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 
 				//tmpU will contain SDF: neg outside positive inside
 				/*
-				if(pos == segmentsPerBlock.end()) {
-					for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-						for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-							for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-								b(ix,iy,iz).tmpU = -1.; //-1 here to avoid gremlins at blocks' boundaries
-				} else {
+					if(pos == segmentsPerBlock.end()) {
+						for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+							for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+								for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+									b(ix,iy,iz).tmpU = -1.; //-1 here to avoid gremlins at blocks' boundaries
+					} else {
 				*/
 				if(pos != segmentsPerBlock.end()) {
 					for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -268,6 +274,9 @@ void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real d
 	//MPI_Barrier(grid->getCartComm());
 	t910 = std::chrono::high_resolution_clock::now();
 
+	#ifdef __useSkin_
+	myFish->surfaceToComputationalFrame(_2Dangle,CoM_interpolated);
+	#endif
 	// 11.
 	_makeDefVelocitiesMomentumFree(CoM_interpolated);
 	//MPI_Barrier(grid->getCartComm());
@@ -471,6 +480,20 @@ void IF3D_FishOperator::getCenterOfMass(Real CM[3]) const
 	CM[0]=CoM_interpolated[0];
 	CM[1]=CoM_interpolated[1];
 	CM[2]=CoM_interpolated[2];
+}
+
+void IF3D_FishOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
+  Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
+{
+	assert(quaternion[1] == 0 && quaternion[2] == 0);
+	x  = position[0];
+	y  = position[1];
+	th  = _2Dangle;
+	pXL = myFish->lowerSkin->xSurf;
+	pYL = myFish->lowerSkin->ySurf;
+	pXU = myFish->upperSkin->xSurf;
+	pYU = myFish->upperSkin->ySurf;
+	Npts = myFish->lowerSkin->Npoints;
 }
 
 void IF3D_FishOperator::save(const int stepID, const Real t, string filename)

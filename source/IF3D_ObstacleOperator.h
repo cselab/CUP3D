@@ -118,12 +118,18 @@ public:
     {
         return obstacleBlocks;
     }
+    virtual std::map<int,ObstacleBlock*>* getObstacleBlocksPtr()
+    {
+        return &obstacleBlocks;
+    }
 
     virtual void getObstacleBlocks(std::map<int,ObstacleBlock*>*& obstblock_ptr)
     {
         obstblock_ptr = &obstacleBlocks;
     }
 
+    virtual void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL,
+                                Real*& pYL, Real*& pXU, Real*& pYU, int& Npts);
     virtual void characteristic_function();
 
     virtual std::vector<int> intersectingBlockIDs(const int buffer) const;
