@@ -1,5 +1,5 @@
 CFLAGS = -Wall -I../src -I. -DMASTER_ONLY_GENERATES=1 -fopenmp
-LDFLAGS = -L../src -lpthread -lm -lz -lhdf5 -lfftw3 -lfftw3_threads -lfftw3_mpi -lgsl -lgslcblas -fopenmp
+LDFLAGS = -L../makefiles -lpthread -lm -lz -lhdf5 -lfftw3 -lfftw3_threads -lfftw3_mpi -lgsl -lgslcblas -fopenmp
 
 ifneq "$(findstring daint,$(shell hostname))" ""
 	CC = CC
@@ -11,8 +11,11 @@ LDFLAGS += -L$(accfft-lib) -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_g
 
 all: ms 
 
-ms: ms.cpp main_util.cpp # ../src/libtorc.a
-	$(CC) $(CFLAGS) -o $@ $^ -L. -lsimulation $(LDFLAGS)
+ms: ms.cpp main_util.cpp cubism # ../src/libtorc.a
+	$(CC) $(CFLAGS) -o $@ ms.cpp main_util.cpp -L. -lsimulation $(LDFLAGS)
 
+cubism:
+	make -C ../makefiles config=prod lib -j
 clean:
 	rm -f ms
+	make -C ../makefiles clean
