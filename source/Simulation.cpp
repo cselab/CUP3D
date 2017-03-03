@@ -38,7 +38,7 @@ void Simulation::setupGrid()
 	bpdy /= nprocsy;
 	bpdz /= nprocsz;
 	grid = new FluidGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz, 1, app_comm);
-	//dump = new  DumpGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz, 1, app_comm);
+	dump = new  DumpGridMPI(nprocsx, nprocsy, nprocsz, bpdx, bpdy, bpdz, 1, app_comm);
 	assert(grid != NULL);
   vInfo = grid->getBlocksInfo();
 

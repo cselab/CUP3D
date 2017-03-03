@@ -22,6 +22,7 @@ int main(int argc, char **argv)
 	MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
 	if (provided < MPI_THREAD_FUNNELED) {
 		printf("ERROR: The MPI implementation does not have required thread support\n");
+		fflush(0);
 		MPI_Abort(MPI_COMM_WORLD, 1);
 	}
 	int rank;
@@ -35,8 +36,8 @@ int main(int argc, char **argv)
 		cout << "\t\tCubism UP 3D (velocity-pressure 3D incompressible Navier-Stokes solver)\n";
 		cout << "====================================================================================================================\n";
 	}
-	#ifdef __SMARTIES_
 	parser.unset_strict_mode();
+	#ifdef __SMARTIES_
 	const int _sockID = parser("-sock").asInt(-1);
 	const int nActions = parser("-nActions").asInt(0);
 	const int nStates = (nActions==1) ? 20+200 : 25+200;
@@ -55,7 +56,7 @@ int main(int argc, char **argv)
 		return 0;
 	}
 
-	Simulation * sim = new Simulation(argc, argv, MPI_COMM_WORLD, communicator);
+	Simulation * sim = new Simulation(MPI_COMM_WORLD, communicator, argc, argv);
 	sim->init();
 	sim->simulate();
 

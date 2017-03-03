@@ -24,7 +24,7 @@ protected:
     Real theta_internal, angvel_internal, angvel_internal_prev, CoM_interpolated[3];
     Real Tstartlearn, GoalDX, new_curv, old_curv, new_Tp, adjTh, angvel_integral[3];
     bool randomStart, bCorrectTrajectory, bInteractive;
-    int  nActions;
+    int  nActions, NpLatLine;
 
 public:
 

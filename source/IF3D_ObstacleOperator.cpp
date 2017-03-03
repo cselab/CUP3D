@@ -836,6 +836,7 @@ std::vector<int> IF3D_ObstacleOperator::intersectingBlockIDs(const int buffer) c
 void IF3D_ObstacleOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
   Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
 {
+  printf("Entered the wrong get skin operator\n");
   abort();
 }
 

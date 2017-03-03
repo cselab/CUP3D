@@ -3,8 +3,8 @@ LDFLAGS = -L../src -lpthread -lm -lz -lhdf5 -lfftw3 -lfftw3_threads -lfftw3_mpi 
 
 ifneq "$(findstring daint,$(shell hostname))" ""
 	CC = CC
-	accfft-inc = /users/novatig/accfft/build_again/include/
-	accfft-lib = /users/novatig/accfft/build_again/lib/ 	
+	accfft-inc = /users/novatig/accfft/build_dbg/include/
+	accfft-lib = /users/novatig/accfft/build_dbg/lib/ 	
 endif
 
 LDFLAGS += -L$(accfft-lib) -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu -lcufft

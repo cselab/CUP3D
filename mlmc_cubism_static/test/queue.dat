@@ -1,4 +1,4 @@
-0 2 24 2 1 12 ../../mpcf-cluster -bpdx 64 -bpdy 16 -bpdz 8  -nprocsx 2 -CFL 0.1            -length 0.2 -lambda 1e5 -nu 0.00001 -tdump 0.0 -tend 1 -dispatcher omp
-1 2 24 2 1 12 ../../mpcf-cluster -bpdx 32 -bpdy 16 -bpdz 16 -nprocsx 2 -CFL 0.1 -uinfx 0.1 -length 0.2 -lambda 1e4 -nu 0.0004  -tdump 0.0 -tend 1 -dispatcher omp
-2 2 24 2 1 12 ../../mpcf-cluster -bpdx 64 -bpdy 16 -bpdz 8  -nprocsx 2 -CFL 0.1            -length 0.2 -lambda 1e5 -nu 0.00001 -tdump 0.0 -tend 1 -dispatcher omp
-3 2 24 2 1 12 ../../mpcf-cluster -bpdx 32 -bpdy 16 -bpdz 16 -nprocsx 2 -CFL 0.1 -uinfx 0.1 -length 0.2 -lambda 1e4 -nu 0.0004  -tdump 0.0 -tend 1 -dispatcher omp
+0 2 24 2 1 12 ../../mpcf-cluster -bpdx 32 -bpdy 8 -bpdz 4 -nprocsx 2 -CFL 0.1            -length 0.2 -lambda 1e5 -nu 0.00001 -tdump 0.1 -tend 1 -dispatcher omp
+1 2 24 2 1 12 ../../mpcf-cluster -bpdx 16 -bpdy 8 -bpdz 8 -nprocsx 2 -CFL 0.1 -uinfx 0.1 -length 0.2 -lambda 1e4 -nu 0.0004  -tdump 0.1 -tend 1 -dispatcher omp
+2 2 24 2 1 12 ../../mpcf-cluster -bpdx 32 -bpdy 8 -bpdz 4 -nprocsx 2 -CFL 0.1            -length 0.2 -lambda 1e5 -nu 0.00001 -tdump 0.1 -tend 1 -dispatcher omp
+3 2 24 2 1 12 ../../mpcf-cluster -bpdx 16 -bpdy 8 -bpdz 8 -nprocsx 2 -CFL 0.1 -uinfx 0.1 -length 0.2 -lambda 1e4 -nu 0.0004  -tdump 0.1 -tend 1 -dispatcher omp

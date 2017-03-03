@@ -174,8 +174,9 @@ public:
 		assert(totbpd[0]%mybpd[0]==0 && totbpd[1]%mybpd[1]==0);
 		accfft_create_comm(grid.getCartComm(),c_dims,&c_comm);
 		{
-				int accfft_left, accfft_right, accfft_bottom, accfft_top, accfft_front, accfft_back, accfft_rank;
+				int accfft_left, accfft_right, accfft_bottom, accfft_top, accfft_front, accfft_back, accfft_rank, accfft_size;
 				MPI_Comm_rank( c_comm, &accfft_rank);
+				MPI_Comm_size( c_comm, &accfft_size);
 				MPI_Cart_shift(c_comm, 0, 1, &accfft_left,   &accfft_right);
 				MPI_Cart_shift(c_comm, 1, 1, &accfft_bottom, &accfft_top);
 				//MPI_Cart_shift(c_comm, 2, 1, &accfft_front,  &accfft_back);
@@ -188,7 +189,8 @@ public:
 				if( ( accfft_left  !=MPI_PROC_NULL && accfft_left  !=cubism_left   ) ||
 						( accfft_right !=MPI_PROC_NULL && accfft_right !=cubism_right  ) ||
 						( accfft_bottom!=MPI_PROC_NULL && accfft_bottom!=cubism_bottom ) ||
-						( accfft_top   !=MPI_PROC_NULL && accfft_top   !=cubism_top    )// ||
+						( accfft_top   !=MPI_PROC_NULL && accfft_top   !=cubism_top    ) ||
+						( accfft_rank  !=procid        || accfft_size  !=nprocs        )// ||
 					//	( accfft_front !=MPI_PROC_NULL && accfft_front !=cubism_front  ) ||
 					//	( accfft_back  !=MPI_PROC_NULL && accfft_back  !=cubism_back   )
 					 ) {

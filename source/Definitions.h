@@ -30,10 +30,8 @@ using namespace std;
 
 #ifndef _SP_COMP_
 typedef double Real;
-#define MPI_DOUBLE MPI_REAL
 #else // _SP_COMP_
 typedef float Real;
-#define MPI_FLOAT MPI_REAL
 #endif // _SP_COMP_
 
 //this is all cubism file we need
@@ -743,7 +741,11 @@ struct StateReward
 
       void synchronize(const MPI_Comm comm)
       {
-        MPI_Allreduce(MPI_IN_PLACE, data, 4*nDest, MPI_REAL, MPI_SUM, comm);
+        #ifndef _SP_COMP_
+        MPI_Allreduce(MPI_IN_PLACE, data, 4*nDest, MPI_DOUBLE, MPI_SUM, comm);
+        #else // _SP_COMP_
+        MPI_Allreduce(MPI_IN_PLACE, data, 4*nDest, MPI_FLOAT, MPI_SUM, comm);
+        #endif //
       }
 
      private:

@@ -1,0 +1,11 @@
+*~
+*/*~
+*.o
+*/*.o
+lib
+*.a
+*.h5
+*.xmf
+build
+.DS_Store
+._*
