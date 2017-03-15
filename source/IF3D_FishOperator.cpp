@@ -291,6 +291,22 @@ void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real d
 */
 }
 
+void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID)
+{
+	#ifdef __useSkin_
+  assert(quaternion[1] == 0 && quaternion[2] == 0);
+	sr.updateStepId(stepID+obstacleID);
+  sr.nearestGridPoints(&surfData, myFish->upperSkin->Npoints,
+                        myFish->upperSkin->xSurf, myFish->upperSkin->ySurf,
+                        myFish->lowerSkin->xSurf, myFish->lowerSkin->ySurf,
+                        position[2], vInfo[0].h_gridpoint, grid->getCartComm());
+
+	#ifndef __RL_TRAINING
+	if(rank==0) sr.print(obstacleID, stepID, time);
+  	#endif
+  #endif
+}
+
 void IF3D_FishOperator::update(const int stepID, const Real t, const Real dt, const Real *Uinf)
 {
 	// synchronize internal time
@@ -309,27 +325,32 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 {
 	IF3D_ObstacleOperator::_parseArguments(parser);
 	parser.set_strict_mode();
-	Tperiod = parser("-T").asDouble();
 	parser.unset_strict_mode();
+	Tperiod = parser("-T").asDouble(1.0);
 	nActions = parser("-nActions").asInt(0);
-	GoalDX = parser("-GoalDX").asDouble(0.0);
+	GoalDX = parser("-GoalDX").asDouble(2.0);
 	phaseShift = parser("-phi").asDouble(0.0);
 	Tstartlearn = parser("-Tstartlearn").asDouble(1e6);
 	bCorrectTrajectory = parser("-Correct").asBool(false);
 	bInteractive = parser("-Active").asBool(false);
-	NpLatLine = parser("-NpLatLine").asBool(false);
+	NpLatLine = parser("-NpLatLine").asInt(0);
+
 	sr.set_NpLatLine(NpLatLine);
+	sr.t_next_comm = Tstartlearn - Tperiod/2.; //i want to reset time-averaged quantities before first actual comm
+	sr.bForgiving = parser("-easyFailBox").asBool(false);
+	sr.GoalDX = GoalDX;
+  sr.thExp = _2Dangle;
 	/*
-    randomStart = parser("-randomStart").asBool(false);
-    if (randomStart) {
-    	printf("Random start\n");
-    	std::random_device rd;
-    	std::mt19937 gen(rd());
-    	std::uniform_real_distribution<Real> dis(-1.,1.);
-    	position[0] += .5*length*dis(gen);
-    	position[1] += .1*length*dis(gen);
-    }
-		*/
+		randomStart = parser("-randomStart").asBool(false);
+		if (randomStart) {
+			printf("Random start\n");
+			std::random_device rd;
+			std::mt19937 gen(rd());
+			std::uniform_real_distribution<Real> dis(-1.,1.);
+			position[0] += .5*length*dis(gen);
+			position[1] += .1*length*dis(gen);
+		}
+	 */
 }
 
 void IF3D_FishOperator::getCenterOfMass(Real CM[3]) const

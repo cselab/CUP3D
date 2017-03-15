@@ -113,11 +113,11 @@ struct ForcesOnSkin : public GenericLabOperator
           surfData->vxDef[i] = tempIt->second->udef[iz][iy][ix][0];
           surfData->vyDef[i] = tempIt->second->udef[iz][iy][ix][1];
           surfData->vzDef[i] = tempIt->second->udef[iz][iy][ix][2];
-          surfData->vx[i] = lab(ix,iy,iz).u + Uinf[0];
-          surfData->vy[i] = lab(ix,iy,iz).v + Uinf[1];
-          surfData->vz[i] = lab(ix,iy,iz).w + Uinf[2];
+          surfData->vx[i] = lab(ix,iy,iz).u ;
+          surfData->vy[i] = lab(ix,iy,iz).v ;
+          surfData->vz[i] = lab(ix,iy,iz).w ;
           //power output (and negative definite variant which ensures no elastic energy absorption)
-          const Real powOut = fXT*surfData->vx[i]    + fYT*surfData->vy[i]    + fZT*surfData->vz[i];
+          const Real powOut = fXT*(surfData->vx[i]+Uinf[0]) + fYT*(surfData->vy[i]+Uinf[1]) + fZT*(surfData->vz[i]+Uinf[2]);
           //deformation power output (and negative definite variant which ensures no elastic energy absorption)
           const Real powDef = fXT*surfData->vxDef[i] + fYT*surfData->vyDef[i] + fZT*surfData->vzDef[i];
           (*measures)[12] += powOut;
@@ -303,15 +303,20 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
 void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
 {
     parser.set_strict_mode();
-    position[0] = parser("-xpos").asDouble();
-    position[1] = parser("-ypos").asDouble();
-    position[2] = parser("-zpos").asDouble();
     length = parser("-L").asDouble();
+    position[0] = parser("-xpos").asDouble();
     parser.unset_strict_mode();
+    position[1] = parser("-ypos").asDouble(ext_Y/2);
+    const Real hh = 0.5*vInfo[0].h_gridpoint;
+    position[2] = parser("-zpos").asDouble(ext_Z/2 + hh);
     quaternion[0] = parser("-quat0").asDouble(1.0);
     quaternion[1] = parser("-quat1").asDouble(0.0);
     quaternion[2] = parser("-quat2").asDouble(0.0);
     quaternion[3] = parser("-quat3").asDouble(0.0);
+    if(!rank)
+    printf("Obstacle L=%g, pos=[%g %g %g], q=[%g %g %g %g]\n",
+      length,position[0],position[1],position[2],quaternion[0],quaternion[1],quaternion[2],quaternion[3]);
+
     const Real one = sqrt(quaternion[0]*quaternion[0]
 						   +quaternion[1]*quaternion[1]
 						   +quaternion[2]*quaternion[2]
@@ -439,8 +444,9 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const Real time
   torque[1] = globals[4]*dV*lambda;
   torque[2] = globals[5]*dV*lambda;
   mass      = globals[6]*dV;
-
+  #ifndef __RL_TRAINING
   _writeDiagForcesToFile(stepID, time);
+  #endif
 }
 
 void IF3D_ObstacleOperator::computeVelocities_kernel(const Real* Uinf,
@@ -697,17 +703,15 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
   //derived quantities:
   Pthrust    = thrust*vel_norm;
   Pdrag      =   drag*vel_norm;
-  EffPDef    = Pthrust/(Pthrust-min(defPower,(Real)0.));
-  EffPDefBnd = Pthrust/(Pthrust-    defPowerBnd);
-
-  if (bDump) {
-    if(rank==0)
-    sr.print(obstacleID, stepID, time);
-    surfData.print(obstacleID, stepID, rank);
-  }
+  EffPDef    = Pthrust/(Pthrust-min(defPower,(Real)0.)+1e-16);
+  EffPDefBnd = Pthrust/(Pthrust-    defPowerBnd+1e-16);
 
   sr.updateAverages(dt,_2Dangle, velx_tot, vely_tot, angVel[2], Pout, PoutBnd,
     defPower, defPowerBnd, EffPDef, EffPDefBnd, Pthrust, Pdrag, thrust, drag);
+
+  #ifndef __RL_TRAINING
+  if (bDump)
+    surfData.print(obstacleID, stepID, rank);
 
   if(rank==0) {
       ofstream fileForce;
@@ -731,6 +735,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
       		 <<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<endl;
       filePower.close();
   }
+  #endif
 }
 
 void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real dt, const Real* Uinf)
@@ -795,8 +800,9 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
 							   +  quaternion[3]*quaternion[3]);
     assert(std::abs(q_length-1.0) < 5*std::numeric_limits<Real>::epsilon());
     #endif
-
+    #ifndef __RL_TRAINING
     _writeComputedVelToFile(step_id, t, Uinf);
+    #endif
 }
 
 void IF3D_ObstacleOperator::characteristic_function()
@@ -837,6 +843,30 @@ void IF3D_ObstacleOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
   Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
 {
   printf("Entered the wrong get skin operator\n");
+  abort();
+}
+
+void IF3D_ObstacleOperator::interpolateOnSkin(const Real time, const int stepID)
+{
+  printf("Entered the wrong interpolate operator\n");
+  abort();
+}
+void IF3D_ObstacleOperator::execute(Communicator * comm, const int iAgent,
+                                              const Real time, const int iLabel)
+{
+  printf("Entered the wrong execute operator\n");
+  abort();
+}
+void IF3D_ObstacleOperator::create(const int step_id,const Real time,
+                                                const Real dt, const Real *Uinf)
+{
+  printf("Entered the wrong create operator\n");
+  abort();
+}
+void IF3D_ObstacleOperator::finalize(const int step_id,const Real time,
+                                                const Real dt, const Real *Uinf)
+{
+  printf("Entered the wrong finalize operator\n");
   abort();
 }
 

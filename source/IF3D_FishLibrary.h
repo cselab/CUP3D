@@ -312,13 +312,12 @@ class FishMidlineData
 	Real linMom[2], vol, J, angMom; // for diagnostics
 	// start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
 	const int iFishStart, iFishEnd;
-	const Real length;
-	const Real Tperiod;
-	const Real phaseShift;
+	const Real length, Tperiod, phaseShift;
+	Real l_Tp, time0, timeshift;
 	Schedulers::ParameterSchedulerVector<6> curvScheduler;
 	Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
 	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
-    FishSkin * upperSkin, * lowerSkin;
+  FishSkin * upperSkin, * lowerSkin;
 
  protected:
 	Real Rmatrix2D[2][2];
@@ -504,9 +503,11 @@ class FishMidlineData
 
  public:
 	FishMidlineData(const int Nm, const Real len, const Real Tp, const Real phase, const Real dx_ext):
-		Nm(Nm),length(len),Tperiod(Tp),phaseShift(phase),rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),
-		vX(_alloc(Nm)),vY(_alloc(Nm)),norX(_alloc(Nm)),norY(_alloc(Nm)),vNorX(_alloc(Nm)),vNorY(_alloc(Nm)),
-		width(_alloc(Nm)),height(_alloc(Nm)),iFishStart(NEXTDX*NPPEXT),iFishEnd(Nm-1-NEXTDX*NPPEXT)
+		Nm(Nm),length(len),Tperiod(Tp),phaseShift(phase),l_Tp(Tperiod),timeshift(0),
+		time0(0),rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),vX(_alloc(Nm)),
+		vY(_alloc(Nm)),norX(_alloc(Nm)),norY(_alloc(Nm)),vNorX(_alloc(Nm)),
+		vNorY(_alloc(Nm)),width(_alloc(Nm)),height(_alloc(Nm)),
+		iFishStart(NEXTDX*NPPEXT),iFishEnd(Nm-1-NEXTDX*NPPEXT)
 	{
 		// extension_info contains number of extension points and extension dx
 		const int Nextension = NEXTDX*NPPEXT; // up to 3dx on each side (to get proper interpolation up to 2dx)
@@ -525,8 +526,8 @@ class FishMidlineData
 			rS[i+Nint+Next] = length + (i + 1)*dx_ext;
 		_computeWidthsHeights();
 
-        upperSkin = new FishSkin(iFishEnd - iFishStart + 1);
-        lowerSkin = new FishSkin(iFishEnd - iFishStart + 1);
+    upperSkin = new FishSkin(Nint);
+    lowerSkin = new FishSkin(Nint);
 	}
 
 	~FishMidlineData()
@@ -706,7 +707,7 @@ class FishMidlineData
 	{
 	    _prepareRotation2D(theta_internal);
 	    // Surface points rotation and translation
-	    #pragma omp parallel for
+
 	    for(int i=0; i<upperSkin->Npoints; ++i)
 	    //for(int i=0; i<upperSkin->Npoints-1; ++i)
 	    {
@@ -744,7 +745,6 @@ class FishMidlineData
 	{
 	    _prepareRotation2D(theta_comp);
 
-	    #pragma omp parallel for
 	    for(int i=0; i<upperSkin->Npoints; ++i)
 	    //for(int i=0; i<upperSkin->Npoints-1; ++i)
 	    {
@@ -1105,12 +1105,11 @@ protected:
 	Real * const vB;
 	Real * const rA;
 	Real * const vA;
-	Real l_Tp, time0, timeshift;
 
 public:
 
 	CurvatureDefinedFishData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), l_Tp(Tperiod), timeshift(0), time0(0),
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext),
 	  rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
 		rA(_alloc(Nm)),vA(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm))
 	{    	}
@@ -1126,12 +1125,10 @@ public:
 	{
 		if (input.size()>1) {
 			baseScheduler.Turn(input[0], l_tnext);
-			printf("Multiple actions not yet supported!!\n");
 			//first, shift time to  previous turn node
-			abort();
-			//timeshift += (l_tnext-time0)/l_Tp;
-			//time0 = l_tnext;
-			//l_Tp = Tperiod*(1.+input[1]);
+			timeshift += (l_tnext-time0)/l_Tp;
+			time0 = l_tnext;
+			l_Tp = Tperiod*(1.+input[1]);
 		} else if (input.size()>0) {
 			printf("Turning by %g at time %g with period %g.\n", input[0], time, l_tnext);
 			baseScheduler.Turn(input[0], l_tnext);
@@ -1387,7 +1384,7 @@ struct PutFishOnBlocks
 			return s;
 
 		const Real newDistSq = (x[0]-cfish->rX[s+dir])*(x[0]-cfish->rX[s+dir])
-        		            																				   + (x[1]-cfish->rY[s+dir])*(x[1]-cfish->rY[s+dir])
+											   + (x[1]-cfish->rY[s+dir])*(x[1]-cfish->rY[s+dir])
 																											   + (x[2])*(x[2]);
 
 		if(oldDistSq<=newDistSq) {
@@ -1863,7 +1860,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 		for(int ix=0; ix<FluidBlock::sizeX; ix++) {
 			Real p[3];
 			info.pos(p, ix,iy,iz);
-			if (lab(ix,iy,iz).tmpU >= +2*h || lab(ix,iy,iz).tmpU <= -2*h) {
+			if (lab(ix,iy,iz).tmpU > +2*h || lab(ix,iy,iz).tmpU < -2*h) {
 				const Real H = lab(ix,iy,iz).tmpU > 0 ? 1.0 : 0.0;
 				b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
 				defblock->chi[iz][iy][ix] = H;

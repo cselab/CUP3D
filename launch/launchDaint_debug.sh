@@ -30,9 +30,9 @@ cat <<EOF >daint_sbatch
 #SBATCH --job-name="${BASENAME}"
 #SBATCH --output=${BASENAME}_out_%j.txt
 #SBATCH --error=${BASENAME}_err_%j.txt
-#SBATCH --time=24:00:00
+#SBATCH --time=00:30:00
 #SBATCH --nodes=${NNODE}
-# #SBATCH --partition=debug
+#SBATCH --partition=debug
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
 #SBATCH --threads-per-core=2

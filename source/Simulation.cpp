@@ -50,8 +50,8 @@ void Simulation::setupGrid()
   const int nthreads = omp_get_max_threads();
   printf("Rank %d (of %d) with %d threads on host Hostname: %s\n",
           rank, nprocs, nthreads, hostname);
-  if (communicator not_eq nullptr) //Yo dawg I heard you like communicators.
-    communicator->comm_MPI = grid->getCartComm();
+  //if (communicator not_eq nullptr) //Yo dawg I heard you like communicators.
+  //  communicator->comm_MPI = grid->getCartComm();
   fflush(0);
 	if(rank==0) {
 		printf("Blocks per dimension: [%d %d %d]\n",bpdx,bpdy,bpdz);
@@ -117,7 +117,7 @@ void Simulation::setupOperators()
     pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
     pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
     pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
-    pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
+    //pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
     //#ifndef _OPEN_BC_
     pipeline.push_back(new CoordinatorFadeOut(grid));
     //#endif
@@ -131,13 +131,6 @@ void Simulation::areWeDumping(Real & nextDumpTime)
 {
 	bDump = (dumpFreq>0 && step+1%dumpFreq==0) || (dumpTime>0 && time>=nextDumpTime);
 	if (bDump) nextDumpTime += dumpTime;
-
-  #ifdef __SMARTIES_
-  //const auto _D = obstacle_vector->_getData();
-	//for (int i=0; i<obstacle_vector->nObstacles(); i++)
-	//   if (time+dt>=_D[i]->t_next_comm) bDump=true;
-	//if (bDump) obstacle_vector->getFieldOfView();
-  #endif
 }
 
 void Simulation::_dump(const string append = string())
@@ -313,14 +306,16 @@ void Simulation::init()
     parseArguments();
     setupGrid();
     setupObstacles();
-    setupOperators();
 
     if(bRestart) _deserialize();
     else _ic();
 
+    setupOperators();
+    
     MPI_Barrier(grid->getCartComm());
 }
 
+#ifdef __RL_MPI_CLIENT
 int Simulation::_3Fish_RLstep(const int nO)
 {
   #ifndef __2Leads_
@@ -350,6 +345,10 @@ int Simulation::_3Fish_RLstep(const int nO)
   }
 
   if(time >= _D[2]->t_next_comm) {
+    //update field of view
+    obstacle_vector->getFieldOfView(length);
+    //update sensors
+    obstacle_vector->interpolateOnSkin(time,step,2);
     _D[2]->finalize(0.5*(_D[0]->Xrel +_D[1]->Xrel),
                     0.5*(_D[0]->Yrel +_D[1]->Yrel),
                     0.5*(_D[0]->thExp+_D[1]->thExp),
@@ -368,37 +367,7 @@ int Simulation::_3Fish_RLstep(const int nO)
    }
    return 0;
 }
-/*
-int Simulation::_2Fish_RLstep(const int nO)
-{
-  const auto _D = obstacle_vector->_getData();
-  assert(_D.size() == nO && nO==2);
-  bool bDoOver = false;
 
-  for(int i=1; i<nO; i++) {
-    bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp, length);
-    if (bDoOver) {
-      _D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel,  _D[0]->thExp,
-                         _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
-      _D[i]->info = 2;
-      obstacle_vector->execute(communicator, i, time, i-1);
-      printf("Sim terminated\n");
-      return 1;
-    }
-  }
-
-  for(int i=0; i<nO; i++) if(time >= _D[i]->t_next_comm) {
-    if(i>0) {
-       _D[i]->finalize(   _D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
-                          _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
-       _D[i]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, _D[0]->thExp,
-                          _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
-     }
-    obstacle_vector->execute(communicator, i, time, i-1);
-  }
-  return 0;
-}
-*/
 int Simulation::_2Fish_RLstep(const int nO)
 {
   const auto _D = obstacle_vector->_getData();
@@ -406,29 +375,39 @@ int Simulation::_2Fish_RLstep(const int nO)
   bool bDoOver = false;
 
   const Real theta_frame =  _D[0]->thExp + 0.15;
-  for(int i=1; i<nO; i++) {
-    bDoOver = _D[i]->checkFail(_D[0]->Xrel, _D[0]->Yrel, theta_frame, length);
-    if (bDoOver) {
-      _D[i]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel, theta_frame,
-                 _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
-      _D[i]->info = 2;
-      obstacle_vector->execute(communicator, i, time, i-1);
-      printf("Sim terminated\n");
-      return 1;
-    }
+
+  bDoOver = _D[1]->checkFail(_D[0]->Xrel, _D[0]->Yrel, theta_frame, length);
+  if (bDoOver) {
+    //update field of view
+    obstacle_vector->getFieldOfView(length);
+    //update sensors
+    obstacle_vector->interpolateOnSkin(time,step,1);
+
+    _D[1]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel, theta_frame,
+                       _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
+    _D[1]->info = 2;
+
+    obstacle_vector->execute(communicator, 1, time, 0);
+    printf("Sim terminated\n");
+    return 1;
   }
 
-  for(int i=0; i<nO; i++) if(time >= _D[i]->t_next_comm) {
-    if(i>0) {
-        _D[i]->finalize(   _D[0]->Xrel, _D[0]->Yrel, theta_frame,
-                           _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
-        _D[i]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, theta_frame,
-                           _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
-    }
-    obstacle_vector->execute(communicator, i, time, i-1);
+  if(time >= _D[1]->t_next_comm) {
+    //update field of view
+    obstacle_vector->getFieldOfView(length);
+    //update sensors
+    obstacle_vector->interpolateOnSkin(time,step,1);
+
+    _D[1]->finalize(   _D[0]->Xrel, _D[0]->Yrel, theta_frame,
+                       _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
+    _D[1]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, theta_frame,
+                       _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
+
+    obstacle_vector->execute(communicator, 1, time, 0);
   }
   return 0;
 }
+#endif
 
 void Simulation::simulate()
 {
@@ -442,7 +421,7 @@ void Simulation::simulate()
 
     while (true)
     {
-        #ifdef __SMARTIES_
+        #ifdef __RL_MPI_CLIENT
 				//if (communicator not_eq nullptr)
 				{
 					profiler.push_start("RL");
@@ -450,7 +429,7 @@ void Simulation::simulate()
           const int nO = obstacle_vector->nObstacles();
           if (nO == 3) bDoOver = _3Fish_RLstep(nO);
           else         bDoOver = _2Fish_RLstep(nO);
-					if (bDoOver) exit(0);
+					if (bDoOver) return;
 					profiler.pop_stop();
 				}
         #endif
@@ -479,7 +458,7 @@ void Simulation::simulate()
         if(bDump)
         {
             _dump();
-
+            obstacle_vector->interpolateOnSkin(time,step);
             #ifdef _USE_ZLIB_
               profiler.pop_stop();
               profiler.push_start("Zlib");

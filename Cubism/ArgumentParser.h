@@ -88,6 +88,7 @@ public:
 			if (it == mapArguments.end())
 			{
 				printf("Runtime option NOT SPECIFIED! ABORTING! name: %s\n",arg.data());
+				fflush(0);
 				abort();
 			}
 		}

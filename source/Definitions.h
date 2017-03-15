@@ -11,7 +11,7 @@
 
 //#include <cassert>
 //#define __2Leads_
-//#define __SMARTIES_
+#define __useSkin_
 #include <stdexcept>
 #include <sstream>
 #include <cmath>
@@ -50,7 +50,6 @@ typedef float Real;
 #include <StencilInfo.h>
 #include "Timer.h"
 #include "BoundaryConditions.h"
-
 #include "Communicator.h"
 /*
 #ifndef _BS_
@@ -405,7 +404,7 @@ struct surfacePoints
     		printf("Random assortment of numbers in the surface blocks stuff: %d == %d <= %d\n",checksum,Ndata, nAlloc);
         #endif
     }
-
+    /*
     void sort(const Real* const skinX, const Real* const skinY, const Real* const skinZ, const int skinN)
     { //this works if N > skinN
         nMapped = skinN;
@@ -423,7 +422,7 @@ struct surfacePoints
             }
         }
     }
-
+    */
     void print(const int ID, const int stepNumber, const int rank)
     {
         ofstream fileskin;
@@ -433,17 +432,20 @@ struct surfacePoints
         fileskin.open(filename, ios::trunc);
 
         for(int i=0; i<Ndata; ++i) {
-            fileskin<< pX[i]<<" "<< pY[i]<<" "<< pZ[i]<<" "<<P[i]<<" "
-                    <<fxP[i]<<" "<<fyP[i]<<" "<<fzP[i]<<" "
-                    <<fxV[i]<<" "<<fyV[i]<<" "<<fzV[i]<<" "
+            fileskin<< pX[i]<<" "<< pY[i]<<" "<< pZ[i]<<" "
+                    //<<P[i]<<" "
+                    //<<fxP[i]<<" "<<fyP[i]<<" "<<fzP[i]<<" "
+                    //<<fxV[i]<<" "<<fyV[i]<<" "<<fzV[i]<<" "
+                    << fX[i]<<" "<< fY[i]<<" "<< fZ[i]<<" "
                     << vx[i]<<" "<< vy[i]<<" "<< vz[i]<<" "
                     <<vxDef[i]<<" "<<vyDef[i]<<" "<<vzDef[i]<<endl;
         }
         fileskin.close();
     }
 
-    void printSorted(const int ID, const int stepNumber)
-    {
+    /*
+      void printSorted(const int ID, const int stepNumber)
+      {
         ofstream fileskin;
         char buf[500];
         sprintf(buf, "skinDistribSorted_%1d_%07d.txt", ID, stepNumber);
@@ -484,13 +486,14 @@ struct surfacePoints
                     <<Vx<<" "<<Vy<<" "<<Vz<<" "<<VxDef<<" "<<VyDef<<" "<<VzDef<<" "<<endl;
         }
         fileskin.close();
-    }
+      }
+    */
 };
 
 struct StateReward
 {
     bool bRestart, bForgiving;
-    int info, NpLatLine;
+    int info, NpLatLine, stepId;
     Real t_next_comm, avg_wght, GoalDX;
     Real Xrel, Xabs, Xpov, Yrel, Yabs, Ypov, Theta, VxAvg, VyAvg, AvAvg;
     Real thExp, vxExp, vyExp, avExp, VxInst, VyInst, AvInst;
@@ -505,7 +508,8 @@ struct StateReward
 
 
     StateReward(const int _NpLatLine = 0) :
-    bRestart(false), bForgiving(false), NpLatLine(_NpLatLine), info(1), t_next_comm(1e6), GoalDX(0), battery(1)
+    bRestart(false), bForgiving(true), NpLatLine(_NpLatLine), info(1),
+    t_next_comm(1e6), GoalDX(0), battery(1)
     {
         avg_wght = Xrel = Xabs = Yrel = Yabs = Theta = VxAvg = VyAvg = AvAvg = 0;
         thExp = vxExp = vyExp = avExp = VxInst = VyInst = AvInst = 0;
@@ -533,6 +537,8 @@ struct StateReward
       PXBelow.resize(_NpLatLine); PYBelow.resize(_NpLatLine);
       raySight.resize(2*_NpLatLine);
     }
+
+    void updateStepId(const int _stepId) {stepId=_stepId;}
 
     void updateAverages(const Real _dt, const Real _th, const Real _vx, const Real _vy,
                         const Real _av, const Real _pO1, const Real _pO2, const Real _pW1,
@@ -578,8 +584,8 @@ struct StateReward
         Xrel = _xR; Xabs = _xA; Yrel = _yR; Yabs = _yA; Theta= _th;
         VxInst=_vx; VyInst=_vy; AvInst=_av;
         if (Xrel<0.05 || Yrel<0.025)  bRestart = true;
-        if (ext_X && ext_X-Xrel<0.2)  bRestart = true;
-        if (ext_Y && ext_Y-Yrel<.025) bRestart = true;
+        if (ext_X>0 && ext_X-Xrel<0.2)  bRestart = true;
+        if (ext_Y>0 && ext_Y-Yrel<.025) bRestart = true;
     }
 
     void finalizePos(const Real  xFOR,   const Real yFOR, const Real thFOR,
@@ -626,7 +632,7 @@ struct StateReward
     }
 
     void finalize(const Real xFOR,   const Real yFOR,  const Real thFOR,
-                  const Real vxPov,  const Real vyPov, const Real avPov,
+                  const Real vxFOR,  const Real vyFOR, const Real avFOR,
                   const Real lscale, const Real tscale)
     {
         const double invlscale  = 1./lscale;
@@ -639,14 +645,10 @@ struct StateReward
 
         for (int k=0; k<NpLatLine; k++) {
             //subtract solid body velocity from velocity sensors & scale
-            const double Uxu = VxInst - (PYAbove[k]-Yrel)*AvInst;
-            const double Uxl = VxInst - (PYBelow[k]-Yrel)*AvInst;
-            const double Uyu = VyInst + (PXAbove[k]-Xrel)*AvInst;
-            const double Uyl = VyInst + (PXBelow[k]-Xrel)*AvInst;
-            const double tmpvxu = (VelNAbove[k]-Uxu)*velscale;
-            const double tmpvyu = (VelTAbove[k]-Uyu)*velscale;
-            const double tmpvxl = (VelNBelow[k]-Uxl)*velscale;
-            const double tmpvyl = (VelTBelow[k]-Uyl)*velscale;
+            const double tmpvxu = VelNAbove[k]*velscale;
+            const double tmpvyu = VelTAbove[k]*velscale;
+            const double tmpvxl = VelNBelow[k]*velscale;
+            const double tmpvyl = VelTBelow[k]*velscale;
             const double tmpfxu = FPAbove[k]*forcescale;
             const double tmpfyu = FVAbove[k]*forcescale;
             const double tmpfxl = FPBelow[k]*forcescale;
@@ -672,44 +674,44 @@ struct StateReward
         //EffPDefBnd, EffPDef, ToD are non dimensional already
     }
 
-    bool checkFail(const Real xPov, const Real yPov, const Real thPov, const Real lscale)
+    bool checkFail(const Real xFOR,const Real yFOR,const Real thFOR,const Real ls)
     {
         bRestart = false;
         if (Xrel<0.05 || Yrel<0.025)  bRestart = true;
-        if (ext_X && ext_X-Xrel<0.1)  bRestart = true;
-        if (ext_Y && ext_Y-Yrel<.025) bRestart = true;
+        if (ext_X>0 && ext_X-Xrel<0.2)  bRestart = true;
+        if (ext_Y>0 && ext_Y-Yrel<.025) bRestart = true;
         if (bRestart) { printf("Out of bounds\n"); return true; }
 
-        const Real tmpPx = (Xrel-xPov)/lscale;
-        const Real tmpPy = (Yrel-yPov)/lscale;
-        const Real _Xrel = (GoalDX>0)?tmpPx*cos(thPov)+tmpPy*sin(thPov):0.;
-        const Real _Yrel =            tmpPy*cos(thPov)-tmpPx*sin(thPov);
-        const Real _thRel= Theta - thPov;
+        const Real tmpPx = (Xrel-xFOR)/ls;
+        const Real tmpPy = (Yrel-yFOR)/ls;
+        const Real _Xrel = tmpPx*cos(thFOR)+tmpPy*sin(thFOR);
+        const Real _Yrel = tmpPy*cos(thFOR)-tmpPx*sin(thFOR);
+        const Real _thRel= Theta - thFOR;
         const Real _Dist = tmpPx*tmpPx + tmpPy*tmpPy;
 
         if(not bForgiving) {
+            bRestart = _Dist<0.25;
+            if(bRestart) {printf("Too close\n"); return bRestart;}
+            //at DX=1, allowed DY=.5, at DX=2.5 allowed DY=.75
+            bRestart = fabs(_Yrel) > _Xrel/6. + 2/6.;
+            if(bRestart) {printf("Too much vertical distance\n"); return bRestart;}
+
+            bRestart = fabs(_thRel)>1.5708;
+            if(bRestart) {printf("Too different inclination\n"); return bRestart;}
+
+            bRestart = _Xrel<1. || _Xrel >2.5;
+            if(bRestart) {printf("Too far from horizontal goal\n"); return bRestart;}
+        } else {
             bRestart = _Dist<0.25;
             if(bRestart) {printf("Too close\n"); return bRestart;}
 
             bRestart = fabs(_Yrel)>1.;
             if(bRestart) {printf("Too much vertical distance\n"); return bRestart;}
 
-            bRestart = fabs(_thRel)>1.5708;
-            if(bRestart) {printf("Too different inclination\n"); return bRestart;}
-
-            bRestart = fabs(_Xrel-GoalDX)>1.;
-            if(bRestart) {printf("Too far from horizontal goal\n"); return bRestart;}
-        } else {
-            bRestart = _Dist<0.1;
-            if(bRestart) {printf("Too close\n"); return bRestart;}
-
-            bRestart = fabs(_Yrel)>2.;
-            if(bRestart) {printf("Too much vertical distance\n"); return bRestart;}
-
             bRestart = fabs(_thRel)>M_PI;
             if(bRestart) {printf("Too different inclination\n"); return bRestart;}
 
-            bRestart = fabs(_Xrel-GoalDX)>2.;
+            bRestart = fabs(_Xrel-GoalDX)>1.;
             if(bRestart) {printf("Too far from horizontal goal\n"); return bRestart;}
         }
 
@@ -718,20 +720,20 @@ struct StateReward
 
     struct skinForcesVels
     {
-      skinForcesVels(const int _nDest) : nDest(_nDest), data(_alloc(4*_nDest))
+      skinForcesVels(const int _nDest) : nDest(_nDest), data(_alloc(5*_nDest))
       {
-        memset(data, 0, sizeof(Real)*4*nDest);
+        memset(data, 0, sizeof(Real)*5*nDest);
       }
 
       virtual ~skinForcesVels() { _dealloc(data); }
 
       inline void storeNearest(const Real fx, const Real fy, const Real vx, const Real vy, const int i)
       {
-          assert(data[i] == 0); //must not be assigned before
-          data[i+0*nDest] = fx;
-          data[i+1*nDest] = fy;
-          data[i+2*nDest] = vx;
-          data[i+3*nDest] = vy;
+        data[i+0*nDest] += fx;
+        data[i+1*nDest] += fy;
+        data[i+2*nDest] += vx;
+        data[i+3*nDest] += vy;
+        data[i+4*nDest] += 1.;
       }
 
       inline Real fx(const int i) { return data[i+0*nDest]; }
@@ -741,11 +743,39 @@ struct StateReward
 
       void synchronize(const MPI_Comm comm)
       {
+        int rank;
+        MPI_Comm_rank(comm, &rank);
         #ifndef _SP_COMP_
-        MPI_Allreduce(MPI_IN_PLACE, data, 4*nDest, MPI_DOUBLE, MPI_SUM, comm);
+        MPI_Allreduce(MPI_IN_PLACE, data, 5*nDest, MPI_DOUBLE, MPI_SUM, comm);
         #else // _SP_COMP_
-        MPI_Allreduce(MPI_IN_PLACE, data, 4*nDest, MPI_FLOAT, MPI_SUM, comm);
+        MPI_Allreduce(MPI_IN_PLACE, data, 5*nDest, MPI_FLOAT, MPI_SUM, comm);
         #endif //
+
+        for(int i=0; i<nDest; ++i)
+        if(data[i+4*nDest]) {
+          //data[i+0*nDest] /= data[i+4*nDest];
+          //data[i+1*nDest] /= data[i+4*nDest];
+          data[i+2*nDest] /= data[i+4*nDest];
+          data[i+3*nDest] /= data[i+4*nDest];
+        } else if (!rank){
+          printf("Worryingly, some of the entries in skinForcesVels probably got no data\n");
+          fflush(0);
+        }
+      }
+      void print(const MPI_Comm comm, const int stepNumber)
+      {
+          int rank;
+          MPI_Comm_rank(comm, &rank);
+          if(rank) return;
+          ofstream fileskin;
+          char buf[500];
+          sprintf(buf, "midplaneData_%07d.txt", stepNumber);
+          string filename(buf);
+          fileskin.open(filename, ios::trunc);
+          int k=0;
+          for(int i=0; i<nDest; ++i)
+              fileskin<<fx(i)<<"\t"<<fy(i)<<"\t"<<vx(i)<<"\t"<<vy(i)<<std::endl;
+          fileskin.close();
       }
 
      private:
@@ -777,29 +807,80 @@ struct StateReward
         const Real*const vxDef = surface->vxDef;
         const Real*const vyDef = surface->vyDef;
 
+
+        for (int j=0; j<Nsurf; j++) {
+          if(std::fabs(zS[j]-zObst)>h) continue;
+
+          for (int i=0; i<Nskin; i++) {
+            if(std::fabs(yS[j]-yU[i])<=h && std::fabs(xS[j]-xU[i])<=h)
+            {
+              const Real sensorVX = vx[j]-vxDef[j]-VxInst+(yS[j]-Yrel)*AvInst;
+              const Real sensorVY = vy[j]-vyDef[j]-VyInst-(xS[j]-Xrel)*AvInst;
+              data.storeNearest(fx[j], fy[j], sensorVX, sensorVY, i);
+              //data.storeNearest(xU[i], yU[i], xS[j], yS[j], i); //for debug
+            }
+
+            if(std::fabs(yS[j]-yL[i])<=h && std::fabs(xS[j]-xL[i])<=h)
+            {
+              const Real sensorVX = vx[j]-vxDef[j]-VxInst+(yS[j]-Yrel)*AvInst;
+              const Real sensorVY = vy[j]-vyDef[j]-VyInst-(xS[j]-Xrel)*AvInst;
+              data.storeNearest(fx[j], fy[j], sensorVX, sensorVY, i+Nskin);
+              //data.storeNearest(xL[i], yL[i], xS[j], yS[j], i+Nskin); //for debug
+            }
+          }
+        }
+
+        /*
         //we know the spacing between non zero grad chi points: exploit it
-        const Real nearZ = std::round(zObst/h - 0.5)*h; //cubiz be cell centered
+        const Real nearZ  = (std::round(zObst/h -.5) +.5)*h; //cubiz be cell centered
+        //for each skin point, compute what is the closest non zero gradchi point
+        #pragma omp parallel for
         for (int i=0; i<Nskin; i++) {
           const int k = i+Nskin; //index for lower skin
-          const Real nearXU = std::round(xU[i]/h - 0.5)*h;
-          const Real nearYU = std::round(yU[i]/h - 0.5)*h;
-          const Real nearXL = std::round(xL[i]/h - 0.5)*h;
-          const Real nearYL = std::round(yL[i]/h - 0.5)*h;
+          const Real nearXU = (std::round(xU[i]/h -.5) +.5)*h;
+          const Real nearYU = (std::round(yU[i]/h -.5) +.5)*h;
+          const Real nearXL = (std::round(xL[i]/h -.5) +.5)*h;
+          const Real nearYL = (std::round(yL[i]/h -.5) +.5)*h;
 
           for (int j=0; j<Nsurf; j++) {
             if(std::fabs(zS[j]-nearZ )>.5*h) continue;
 
-            if(std::fabs(yS[j]-nearYL)<.5*h &&
-               std::fabs(xS[j]-nearXL)<.5*h   )
-            data.storeNearest(fx[j], fy[j], vx[j]-vxDef[j], vy[j]-vyDef[j], k);
+            if(std::fabs(yS[j]-nearYL)<=.5*h && std::fabs(xS[j]-nearXL)<=.5*h){
+              const Real sensorVX = vx[j]-vxDef[j]-VxInst+(yS[j]-Yrel)*AvInst;
+              const Real sensorVY = vy[j]-vyDef[j]-VyInst-(xS[j]-Xrel)*AvInst;
+              //data.storeNearest(fx[j], fy[j], sensorVX, sensorVY, k);
+              data.storeNearest(xL[i], yL[i], xS[j], yS[j], k);
+            }
 
-            if(std::fabs(yS[j]-nearYU)<.5*h &&
-               std::fabs(xS[j]-nearXU)<.5*h   )
-            data.storeNearest(fx[j], fy[j], vx[j]-vxDef[j], vy[j]-vyDef[j], i);
+            if(std::fabs(yS[j]-nearYU)<=.5*h && std::fabs(xS[j]-nearXU)<=.5*h){
+              const Real sensorVX = vx[j]-vxDef[j]-VxInst+(yS[j]-Yrel)*AvInst;
+              const Real sensorVY = vy[j]-vyDef[j]-VyInst-(xS[j]-Xrel)*AvInst;
+              //data.storeNearest(fx[j], fy[j], sensorVX, sensorVY, i);
+              data.storeNearest(xU[i], yU[i], xS[j], yS[j], i);
+            }
           }
         }
+        */
 
         data.synchronize(comm);
+        //data.print(comm,stepId);
+
+        /*
+          int rank;
+          MPI_Comm_rank(comm, &rank);
+          if(!rank) {
+            ofstream fileskin;
+            char buf[500];
+            sprintf(buf, "skinPoints_%07d.txt", stepId);
+            string filename(buf);
+            fileskin.open(filename, ios::trunc);
+            for (int j=0;       j<Nskin; j++)
+                fileskin<<xU[j]<<"\t"<<yU[j]<<std::endl;
+            for (int j=Nskin-1; j>=0;    j--)
+                fileskin<<xL[j]<<"\t"<<yL[j]<<std::endl;
+            fileskin.close();
+          }
+        */
 
         //now, feed the sensors
         for (int k=0; k<NpLatLine; k++)

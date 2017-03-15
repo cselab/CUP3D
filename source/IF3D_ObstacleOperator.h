@@ -106,24 +106,24 @@ public:
     virtual void update(const int step_id, const Real t, const Real dt, const Real* Uinf);
     virtual void save(const int step_id, const Real t, std::string filename = std::string());
     virtual void restart(const Real t, std::string filename = std::string());
-
-    virtual void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) {};
+    virtual void interpolateOnSkin(const Real time, const int stepID);
+    virtual void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel);
     StateReward* _getData() { return &sr; }
     // some non-pure methods
-    virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf) { }
-    virtual void finalize(const int step_id,const Real time, const Real dt, const Real *Uinf) { }
+    virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf);
+    virtual void finalize(const int step_id,const Real time, const Real dt, const Real *Uinf);
 
     //methods that work for all obstacles
-    virtual std::map<int,ObstacleBlock*> getObstacleBlocks() const
+    std::map<int,ObstacleBlock*> getObstacleBlocks() const
     {
         return obstacleBlocks;
     }
-    virtual std::map<int,ObstacleBlock*>* getObstacleBlocksPtr()
+    std::map<int,ObstacleBlock*>* getObstacleBlocksPtr()
     {
         return &obstacleBlocks;
     }
 
-    virtual void getObstacleBlocks(std::map<int,ObstacleBlock*>*& obstblock_ptr)
+    void getObstacleBlocks(std::map<int,ObstacleBlock*>*& obstblock_ptr)
     {
         obstblock_ptr = &obstacleBlocks;
     }

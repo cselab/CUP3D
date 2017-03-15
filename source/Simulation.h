@@ -78,7 +78,11 @@ class Simulation
 	ArgumentParser parser;
 	Profiler profiler;
 	MPI_Comm app_comm;
+#ifdef __RL_MPI_CLIENT
 	Communicator * communicator;
+	int _2Fish_RLstep(const int nO);
+	int _3Fish_RLstep(const int nO);
+#endif
   #if _USE_ZLIB_
 	SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
   #endif
@@ -122,8 +126,7 @@ class Simulation
     void _selectDT();
     void setupGrid();
     void _ic();
-    int _2Fish_RLstep(const int nO);
-    int _3Fish_RLstep(const int nO);
+
 public:
   Simulation(MPI_Comm mpicomm, Communicator* rlcomm, int argc, char** argv):
   parser(argc,argv), app_comm(mpicomm), communicator(rlcomm), rank(0), nprocs(1),

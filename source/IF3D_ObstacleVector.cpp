@@ -134,19 +134,28 @@ void IF3D_ObstacleVector::getFieldOfView(const Real lengthscale)
 
     for(const auto & obst_ptr : obstacles) { //stand-in
     //if (obst_ptr->bCheckCollisions)
-        swimmerInFOV * F = new swimmerInFOV();
+      swimmerInFOV * F = new swimmerInFOV();
 
-        obst_ptr->getSkinsAndPOV(F->xPOV, F->yPOV, F->thetaPOV,
-          F->xSurfLower, F->ySurfLower, F->xSurfUpper, F->ySurfUpper, F->Npts);
-        StateReward* D = obst_ptr->_getData();
+      obst_ptr->getSkinsAndPOV(F->xPOV, F->yPOV, F->thetaPOV,
+        F->xSurfLower, F->ySurfLower, F->xSurfUpper, F->ySurfUpper, F->Npts);
+      StateReward* D = obst_ptr->_getData();
 
-        FOVobst.push_back(F);
-        FOVdata.push_back(D);
+      FOVobst.push_back(F);
+      FOVdata.push_back(D);
     }
 
     rayTracing tracing(FOVobst, FOVdata);
     tracing.execute(lengthscale);
   #endif
+}
+
+void IF3D_ObstacleVector::interpolateOnSkin(const Real time, const int step, const int i)
+{
+    if(i<0 || i>=obstacles.size()) {
+      for(const auto & obst_ptr : obstacles)
+          obst_ptr->interpolateOnSkin(time, step);
+    } else
+      obstacles[i]->interpolateOnSkin(time, step);
 }
 
 vector<std::array<int, 2>> IF3D_ObstacleVector::collidingObstacles()

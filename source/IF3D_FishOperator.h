@@ -34,6 +34,7 @@ public:
 	void restart(const Real t, std::string filename = std::string()) override;
     virtual void update(const int step_id, const Real t, const Real dt, const Real *Uinf) override;
     void getCenterOfMass(Real CM[3]) const override;
+		void interpolateOnSkin(const Real time, const int stepID) override;
     virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
     virtual void finalize(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
     void _parseArguments(ArgumentParser & parser);

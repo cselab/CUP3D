@@ -37,7 +37,7 @@ int main(int argc, char **argv)
 		cout << "====================================================================================================================\n";
 	}
 	parser.unset_strict_mode();
-	#ifdef __SMARTIES_
+	#ifdef __RL_MPI_CLIENT
 	const int _sockID = parser("-sock").asInt(-1);
 	const int nActions = parser("-nActions").asInt(0);
 	const int nStates = (nActions==1) ? 20+200 : 25+200;

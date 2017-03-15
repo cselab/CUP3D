@@ -68,7 +68,8 @@ endif
 CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
-CPPFLAGS += -I../source/ -I../Cubism/
+CPPFLAGS += -I../source/ -I../Cubism/ 
+CPPFLAGS += -D__RL_MPI_CLIENT -I${HOME}/smarties/source/
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
@@ -114,7 +115,7 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS = Communicator.o IF3D_NacaOperator.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o ProcessOperatorsOMP.o Save_splicer.o WaveletCompressor.o
+OBJECTS =  IF3D_NacaOperator.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o ProcessOperatorsOMP.o Save_splicer.o WaveletCompressor.o
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"
@@ -126,10 +127,11 @@ else
 	OBJECTS += PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o
 endif
 
-EXEOBJ = $(OBJECTS) main.o
+EXEOBJ = $(OBJECTS) Communicator.o main.o
 LIBOBJ = $(OBJECTS) cubism_main.o
+LIBRLOBJ = $(OBJECTS) ext_app_main.o
 
-VPATH := $(SRC_DIR):$(CUBISM_DIR)
+VPATH := $(SRC_DIR) $(CUBISM_DIR) ${HOME}/smarties/source/
 
 .DEFAULT_GOAL := simulation
 
@@ -139,6 +141,9 @@ simulation: $(EXEOBJ) $(NVOBJECTS)
 lib: $(LIBOBJ) $(NVOBJECTS)
 	ar rs libsimulation.a $(LIBOBJ) $(NVOBJECTS)
 
+librl: $(LIBRLOBJ) $(NVOBJECTS)
+	ar rs libsim_rl.a $(LIBRLOBJ) $(NVOBJECTS)
+
 %.o: %.cpp
 	$(CC) $(CPPFLAGS) $(LIBS) -c $< -o $@
 
@@ -147,4 +152,4 @@ PoissonSolverScalarFFTW_ACC.o: PoissonSolverScalarFFTW_ACC.cu
 
 clean:
 	rm -f $(OBJECTS)
-	rm -f simulation libsimulation.a main.o cubism_main.o PoissonSolverScalarFFTW*.o
+	rm -f simulation Communicator.o libsimulation.a main.o cubism_main.o PoissonSolverScalarFFTW*.o

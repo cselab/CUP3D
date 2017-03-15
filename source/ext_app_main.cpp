@@ -14,10 +14,12 @@
 using namespace std;
 #include "Simulation.h"
 
-int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
+int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv)
 {
+	Communicator*const communicator = rlcom;
+
 	int rank;
-	MPI_Comm_rank(app_comm, &rank);
+	MPI_Comm_rank(mpicom, &rank);
 
 	ArgumentParser parser(argc,argv);
 	parser.set_strict_mode();
@@ -40,10 +42,12 @@ int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
 		cout << "====================================================================================================================\n";
 	}
 
-	Simulation * sim = new Simulation(app_comm, nullptr, argc, argv);
-	sim->init();
-	sim->simulate();
-	delete sim;
+	while(true){
+		Simulation * sim = new Simulation(mpicom, communicator, argc, argv);
+		sim->init();
+		sim->simulate();
+		delete sim;
+	}
 
 	return 0;
 }
