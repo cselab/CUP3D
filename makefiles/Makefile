@@ -4,10 +4,11 @@ NVCC?=nvcc
 NVFLAGS?=-O3 -code=sm_60 -arch=compute_60
 LD=$(CC)
 
-nthreads ?= 48
+nthreads ?= 24
 config ?= debug
 precision ?= double
 bs ?= 16
+#bs ?= 32
 bsx ?= $(bs)
 bsy ?= $(bs)
 bsz ?= $(bs)
@@ -15,14 +16,23 @@ hdf ?= true
 vtk ?= false
 rk2 ?= false
 accfft ?= true
+train ?= false
+#accfft ?= false
 zlib ?= 0
+
+#TODO!!!
+#-add two modes: training or "showing"
+#-if not def __RL_MPI_CLIENT, remove smarties linking
+ifeq "$(train)" "true"
+	CPPFLAGS += -D__RL_TRAINING
+endif
 
 ifeq "$(zlib)" "1"
 	CPPFLAGS += -D_USE_ZLIB_ -D_USE_WAVZ_
 	LIBS +=  -lz -lrt -lstdc++
 endif
 
-CPPFLAGS+= -w -D_ALIGNBYTES_=16 -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align
+CPPFLAGS+= -w -D_ALIGNBYTES_=32 -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero -pedantic
 
@@ -38,7 +48,7 @@ CPPFLAGS += -D_BSY_=$(bsy)
 CPPFLAGS += -D_BSZ_=$(bsz)
 CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
-CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=16
+CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=32
 ifeq "$(config)" "prod"
 	CPPFLAGS += -DNDEBUG
 else
@@ -68,8 +78,8 @@ endif
 CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
-CPPFLAGS += -I../source/ -I../Cubism/ 
-CPPFLAGS += -D__RL_MPI_CLIENT -I${HOME}/smarties/source/
+CPPFLAGS += -I../source/ -I../Cubism/
+CPPFLAGS += -I${HOME}/smarties/source/ -D__RL_MPI_CLIENT
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
