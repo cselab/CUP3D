@@ -210,43 +210,43 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 		const Real factor = 0.5/h;
 
 		#ifdef _bSmartTrick_
-		if (_is_touching(info, h)) {
-		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-		for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-			Real p[3];
-			info.pos(p, ix, iy, iz);
-			// Poisson solver reads field p for the rhs
-			const Real uW    = lab(ix-1,iy  ,iz  ).u;
-			const Real uE    = lab(ix+1,iy  ,iz  ).u;
-			const Real vS    = lab(ix  ,iy-1,iz  ).v;
-			const Real vN    = lab(ix  ,iy+1,iz  ).v;
-			const Real wF    = lab(ix  ,iy  ,iz-1).w;
-			const Real wB    = lab(ix  ,iy  ,iz+1).w;
-			const Real uWdef = lab(ix-1,iy  ,iz  ).tmpU;
-			const Real uEdef = lab(ix+1,iy  ,iz  ).tmpU;
-			const Real vSdef = lab(ix  ,iy-1,iz  ).tmpV;
-			const Real vNdef = lab(ix  ,iy+1,iz  ).tmpV;
-			const Real wFdef = lab(ix  ,iy  ,iz-1).tmpW;
-			const Real wBdef = lab(ix  ,iy  ,iz+1).tmpW;
-			// >0 iff p+(1+buffer)*h > extent
-			const Real argx1= max(0., (p[0]-extent[0]+(7+buffer)*h));
-			const Real argy1= max(0., (p[1]-extent[1]+(7+buffer)*h));
-			const Real argz1= max(0., (p[2]-extent[2]+(7+buffer)*h));
-			// >0 iff (1+buffer)*h > p
-			const Real argx2= max(0., (0.0 -p[0]     +(7+buffer)*h));
-			const Real argy2= max(0., (0.0 -p[1]     +(7+buffer)*h));
-			const Real argz2= max(0., (0.0 -p[2]     +(7+buffer)*h));
-			// max distance in killing zone 0 <= out <= (2+buffer)*h
-			const Real out = max(max(max(argx1,argx2),
-															 max(argy1,argy2) ),
-															 max(argz1,argz2)  );
-			// 1 at buffer start, 0 at border
-			const Real fade = max(Real(0.0), cos(0.5*M_PI* out/(buffer*h)));
-			o(ix,iy,iz).p = fade * factor * (uE - uW + vN - vS + wB - wF
-					-o(ix,iy,iz).chi*(uEdef-uWdef+vNdef-vSdef+wBdef-wFdef));
-		}
-		} else {
+				if (_is_touching(info, h)) {
+				for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+				for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+					Real p[3];
+					info.pos(p, ix, iy, iz);
+					// Poisson solver reads field p for the rhs
+					const Real uW    = lab(ix-1,iy  ,iz  ).u;
+					const Real uE    = lab(ix+1,iy  ,iz  ).u;
+					const Real vS    = lab(ix  ,iy-1,iz  ).v;
+					const Real vN    = lab(ix  ,iy+1,iz  ).v;
+					const Real wF    = lab(ix  ,iy  ,iz-1).w;
+					const Real wB    = lab(ix  ,iy  ,iz+1).w;
+					const Real uWdef = lab(ix-1,iy  ,iz  ).tmpU;
+					const Real uEdef = lab(ix+1,iy  ,iz  ).tmpU;
+					const Real vSdef = lab(ix  ,iy-1,iz  ).tmpV;
+					const Real vNdef = lab(ix  ,iy+1,iz  ).tmpV;
+					const Real wFdef = lab(ix  ,iy  ,iz-1).tmpW;
+					const Real wBdef = lab(ix  ,iy  ,iz+1).tmpW;
+					// >0 iff p+(1+buffer)*h > extent
+					const Real argx1= max(0., (p[0]-extent[0]+(7+buffer)*h));
+					const Real argy1= max(0., (p[1]-extent[1]+(7+buffer)*h));
+					const Real argz1= max(0., (p[2]-extent[2]+(7+buffer)*h));
+					// >0 iff (1+buffer)*h > p
+					const Real argx2= max(0., (0.0 -p[0]     +(7+buffer)*h));
+					const Real argy2= max(0., (0.0 -p[1]     +(7+buffer)*h));
+					const Real argz2= max(0., (0.0 -p[2]     +(7+buffer)*h));
+					// max distance in killing zone 0 <= out <= (2+buffer)*h
+					const Real out = max(max(max(argx1,argx2),
+																	 max(argy1,argy2) ),
+																	 max(argz1,argz2)  );
+					// 1 at buffer start, 0 at border
+					const Real fade = max(Real(0.0), cos(0.5*M_PI* out/(buffer*h)));
+					o(ix,iy,iz).p = fade * factor * (uE - uW + vN - vS + wB - wF
+							-o(ix,iy,iz).chi*(uEdef-uWdef+vNdef-vSdef+wBdef-wFdef));
+				}
+				} else {
 		#endif
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
 		for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -375,42 +375,42 @@ class OperatorGradP : public GenericLabOperator
 		const Real prefactor = - 0.5 * dt / h;
 
 		#ifdef _bSmartTrick_
-		if (_is_touching(info, h)) {
-			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-			for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-				// p contains the pressure correction after the Poisson solver
-				const Real divUW = lab(ix-1,iy  ,iz  ).p;
-				const Real divUE = lab(ix+1,iy  ,iz  ).p;
-				const Real divUS = lab(ix  ,iy-1,iz  ).p;
-				const Real divUN = lab(ix  ,iy+1,iz  ).p;
-				const Real divUF = lab(ix  ,iy  ,iz-1).p;
-				const Real divUB = lab(ix  ,iy  ,iz+1).p;
+				if (_is_touching(info, h)) {
+					for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+					for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+					for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+						// p contains the pressure correction after the Poisson solver
+						const Real divUW = lab(ix-1,iy  ,iz  ).p;
+						const Real divUE = lab(ix+1,iy  ,iz  ).p;
+						const Real divUS = lab(ix  ,iy-1,iz  ).p;
+						const Real divUN = lab(ix  ,iy+1,iz  ).p;
+						const Real divUF = lab(ix  ,iy  ,iz-1).p;
+						const Real divUB = lab(ix  ,iy  ,iz+1).p;
 
-				Real p[3];
-				info.pos(p, ix, iy, iz);
-				// >0 iff p+(1+buffer)*h > extent
-				const Real argx1= max(0., (p[0]-extent[0]+(7+buffer)*h));
-				const Real argy1= max(0., (p[1]-extent[1]+(7+buffer)*h));
-				const Real argz1= max(0., (p[2]-extent[2]+(7+buffer)*h));
-				// >0 iff (1+buffer)*h > p
-				const Real argx2= max(0., (0.0 -p[0]     +(7+buffer)*h));
-				const Real argy2= max(0., (0.0 -p[1]     +(7+buffer)*h));
-				const Real argz2= max(0., (0.0 -p[2]     +(7+buffer)*h));
-				// max distance in killing zone 0 <= out <= (2+buffer)*h
-				const Real out = max(max(max(argx1,argx2),
-																 max(argy1,argy2) ),
-																 max(argz1,argz2)  );
-				//const Real out = argx2;
-				// 1 at buffer start, 0 at border
-				const Real fade = max(Real(0.0), cos(0.5*M_PI* out/(buffer*h)));
-				// smooth within killing zone (factor <= 1) and kill at very boundaries (factor < 0)
+						Real p[3];
+						info.pos(p, ix, iy, iz);
+						// >0 iff p+(1+buffer)*h > extent
+						const Real argx1= max(0., (p[0]-extent[0]+(7+buffer)*h));
+						const Real argy1= max(0., (p[1]-extent[1]+(7+buffer)*h));
+						const Real argz1= max(0., (p[2]-extent[2]+(7+buffer)*h));
+						// >0 iff (1+buffer)*h > p
+						const Real argx2= max(0., (0.0 -p[0]     +(7+buffer)*h));
+						const Real argy2= max(0., (0.0 -p[1]     +(7+buffer)*h));
+						const Real argz2= max(0., (0.0 -p[2]     +(7+buffer)*h));
+						// max distance in killing zone 0 <= out <= (2+buffer)*h
+						const Real out = max(max(max(argx1,argx2),
+																		 max(argy1,argy2) ),
+																		 max(argz1,argz2)  );
+						//const Real out = argx2;
+						// 1 at buffer start, 0 at border
+						const Real fade = max(Real(0.0), cos(0.5*M_PI* out/(buffer*h)));
+						// smooth within killing zone (factor <= 1) and kill at very boundaries (factor < 0)
 
-				o(ix,iy,iz).u += fade*prefactor * (divUE - divUW);
-				o(ix,iy,iz).v += fade*prefactor * (divUN - divUS);
-				o(ix,iy,iz).w += fade*prefactor * (divUB - divUF);
-			}
-		} else {
+						o(ix,iy,iz).u += fade*prefactor * (divUE - divUW);
+						o(ix,iy,iz).v += fade*prefactor * (divUN - divUS);
+						o(ix,iy,iz).w += fade*prefactor * (divUB - divUF);
+					}
+				} else {
 		#endif
 
 		for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
