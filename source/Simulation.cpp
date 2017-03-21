@@ -28,10 +28,13 @@ void Simulation::setupGrid()
 	bpdx = parser("-bpdx").asInt();
 	bpdy = parser("-bpdy").asInt();
 	bpdz = parser("-bpdz").asInt();
-	nprocsx = parser("-nprocsx").asInt();
 	parser.unset_strict_mode();
 	nprocsy = parser("-nprocsy").asInt(1);
-	nprocsz = parser("-nprocsz").asInt(1);
+	parser.set_strict_mode();
+  if(nprocsy==1) MPI_Comm_size(app_comm,&nprocsx);
+  else           nprocsx = parser("-nprocsx").asInt();
+	parser.unset_strict_mode();
+	nprocsz = 1;
 	assert(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0);
 
 	bpdx /= nprocsx;
@@ -64,10 +67,11 @@ void Simulation::setupGrid()
 void Simulation::parseArguments()
 {
     nu = parser("-nu").asDouble();
+    length = parser("-length").asDouble();
     assert(nu>=0);
     parser.unset_strict_mode();
     bRestart = parser("-restart").asBool(false);
-    b2Ddump = parser("-2Ddump").asDouble(true);
+    b2Ddump = parser("-2Ddump").asDouble(false);
     bDLM = parser("-use-dlm").asBool(false);
     dumpFreq = parser("-fdump").asDouble(0);	// dumpFreq==0 means dump freq (in #steps) is not active
     dumpTime = parser("-tdump").asDouble(0.05);	// dumpTime==0 means dump freq (in time)   is not active
@@ -84,7 +88,6 @@ void Simulation::parseArguments()
     uinf[0] = parser("-uinfx").asDouble(0.0);
     uinf[1] = parser("-uinfy").asDouble(0.0);
     uinf[2] = parser("-uinfz").asDouble(0.0);
-    length = parser("-length").asDouble();
     verbose = parser("-verbose").asBool(false);
 }
 
@@ -311,7 +314,7 @@ void Simulation::init()
     else _ic();
 
     setupOperators();
-    
+
     MPI_Barrier(grid->getCartComm());
 }
 
@@ -374,9 +377,14 @@ int Simulation::_2Fish_RLstep(const int nO)
   assert(_D.size() == nO && nO<3);
   bool bDoOver = false;
 
-  const Real theta_frame =  _D[0]->thExp + 0.15;
+  //const Real theta_frame =  _D[0]->thExp + 0.15;
+  const Real theta_frame =  _D[0]->Theta;
+  const Real vel_x_frame =  _D[0]->VxInst;
+  const Real vel_y_frame =  _D[0]->VyInst;
+  const Real anvel_frame =  _D[0]->AvInst;
 
-  bDoOver = _D[1]->checkFail(_D[0]->Xrel, _D[0]->Yrel, theta_frame, length);
+  bDoOver = _D[1]->checkFail(_D[0]->Xrel, _D[0]->Yrel, 0, length);
+  //bDoOver = _D[1]->checkFail(_D[0]->Xrel, _D[0]->Yrel, theta_frame, length);
   if (bDoOver) {
     //update field of view
     obstacle_vector->getFieldOfView(length);
@@ -384,7 +392,7 @@ int Simulation::_2Fish_RLstep(const int nO)
     obstacle_vector->interpolateOnSkin(time,step,1);
 
     _D[1]->finalizePos(_D[0]->Xrel,  _D[0]->Yrel, theta_frame,
-                       _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1.);
+                       vel_x_frame, vel_y_frame, anvel_frame, length, 1.);
     _D[1]->info = 2;
 
     obstacle_vector->execute(communicator, 1, time, 0);
@@ -399,9 +407,9 @@ int Simulation::_2Fish_RLstep(const int nO)
     obstacle_vector->interpolateOnSkin(time,step,1);
 
     _D[1]->finalize(   _D[0]->Xrel, _D[0]->Yrel, theta_frame,
-                       _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
+                       vel_x_frame, vel_y_frame, anvel_frame, length, 1);
     _D[1]->finalizePos(_D[0]->Xrel, _D[0]->Yrel, theta_frame,
-                       _D[0]->vxExp, _D[0]->vyExp, _D[0]->avExp, length, 1);
+                       vel_x_frame, vel_y_frame, anvel_frame, length, 1);
 
     obstacle_vector->execute(communicator, 1, time, 0);
   }
@@ -455,10 +463,10 @@ void Simulation::simulate()
         printf("Step %d time %f\n",step,time);
 
         profiler.push_start("Dump");
-        if(bDump)
-        {
+        if(bDump) {
+        obstacle_vector->interpolateOnSkin(time,step);
+          #ifndef __RL_TRAINING
             _dump();
-            obstacle_vector->interpolateOnSkin(time,step);
             #ifdef _USE_ZLIB_
               profiler.pop_stop();
               profiler.push_start("Zlib");
@@ -497,6 +505,7 @@ void Simulation::simulate()
             	exit(0);
             }
             last_save = high_resolution_clock::now();
+          #endif
         }
         profiler.pop_stop();
 
