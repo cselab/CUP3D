@@ -258,12 +258,12 @@ struct FishSkin
 {
     public:
     const int Npoints;
-    double * const xSurf;
-    double * const ySurf;
-    double * const normXSurf;
-    double * const normYSurf;
-    double * const midX;
-    double * const midY;
+    Real * const xSurf;
+    Real * const ySurf;
+    Real * const normXSurf;
+    Real * const normYSurf;
+    Real * const midX;
+    Real * const midY;
 
     FishSkin(const int N): Npoints(N), xSurf(_alloc(N)), ySurf(_alloc(N)),
     normXSurf(_alloc(N-1)), normYSurf(_alloc(N-1)), midX(_alloc(N-1)), midY(_alloc(N-1))
@@ -280,12 +280,12 @@ struct FishSkin
     }
 
     protected:
-    double * _alloc(const int N)
+    Real * _alloc(const int N)
     {
-        return new double[N];
+        return new Real[N];
     }
 
-    void _dealloc(double * ptr)
+    void _dealloc(Real * ptr)
     {
         if(ptr not_eq nullptr) {
             delete [] ptr;
@@ -648,59 +648,72 @@ class FishMidlineData
 	{
 	    const int Nskin = lowerSkin->Npoints;
 	    // Compute surface points by adding width to the midline points
+			#pragma omp parallel for
 	    for(int i=0; i<Nskin; ++i)
 	    {
 	        Real normal[2] = {norX[iFishStart + i], norY[iFishStart + i]};
 	        Real const norm_mod1 = std::sqrt(normal[0]*normal[0] + normal[1]*normal[1]);
 	        normal[0] /= norm_mod1;
 	        normal[1] /= norm_mod1;
+					assert(width[iFishStart + i] >= 0);
 	        lowerSkin->xSurf[i] = rX[iFishStart + i] - width[iFishStart + i]*normal[0];
 	        lowerSkin->ySurf[i] = rY[iFishStart + i] - width[iFishStart + i]*normal[1];
 	        upperSkin->xSurf[i] = rX[iFishStart + i] + width[iFishStart + i]*normal[0];
 	        upperSkin->ySurf[i] = rY[iFishStart + i] + width[iFishStart + i]*normal[1];
 	    }
-	    #if 0
+	}
+
+	void computeSkinNormals(const Real theta_comp, const Real CoM_comp[3])
+	{
+			_prepareRotation2D(theta_comp);
+			for(int i=0; i<Nm; ++i) {
+				_rotate2D(rX[i], rY[i]);
+				rX[i] += CoM_comp[0];
+				rY[i] += CoM_comp[1];
+			}
+
+			const int Nskin = lowerSkin->Npoints;
 	    // Compute midpoints as they will be pressure targets
 	    #pragma omp parallel for
 	    for(int i=0; i<Nskin-1; ++i)
 	    {
-	        lowerSkin->midX[i] = (lowerSkin->xSurf[i] + lowerSkin->xSurf[i+1])/2.0;
-	        lowerSkin->midY[i] = (lowerSkin->ySurf[i] + lowerSkin->ySurf[i+1])/2.0;
+	        lowerSkin->midX[i] = (lowerSkin->xSurf[i] + lowerSkin->xSurf[i+1])/2.;
+	        upperSkin->midX[i] = (upperSkin->xSurf[i] + upperSkin->xSurf[i+1])/2.;
+	        lowerSkin->midY[i] = (lowerSkin->ySurf[i] + lowerSkin->ySurf[i+1])/2.;
+	        upperSkin->midY[i] = (upperSkin->ySurf[i] + upperSkin->ySurf[i+1])/2.;
 
-	        lowerSkin->normXSurf[i] =   (lowerSkin->ySurf[i+1] - lowerSkin->ySurf[i]);
-	        lowerSkin->normYSurf[i] = - (lowerSkin->xSurf[i+1] - lowerSkin->xSurf[i]);
-	        const Real normL = std::sqrt(lowerSkin->normXSurf[i]*lowerSkin->normXSurf[i] +
-	                                     lowerSkin->normYSurf[i]*lowerSkin->normYSurf[i]);
+	        lowerSkin->normXSurf[i]=  (lowerSkin->ySurf[i+1]-lowerSkin->ySurf[i]);
+	        upperSkin->normXSurf[i]=  (upperSkin->ySurf[i+1]-upperSkin->ySurf[i]);
+	        lowerSkin->normYSurf[i]= -(lowerSkin->xSurf[i+1]-lowerSkin->xSurf[i]);
+	        upperSkin->normYSurf[i]= -(upperSkin->xSurf[i+1]-upperSkin->xSurf[i]);
+
+	        const Real normL = std::sqrt( std::pow(lowerSkin->normXSurf[i],2) +
+																				std::pow(lowerSkin->normYSurf[i],2) );
+					const Real normU = std::sqrt( std::pow(upperSkin->normXSurf[i],2) +
+																				std::pow(upperSkin->normYSurf[i],2) );
+
 	        lowerSkin->normXSurf[i] /= normL;
+	        upperSkin->normXSurf[i] /= normU;
 	        lowerSkin->normYSurf[i] /= normL;
+	        upperSkin->normYSurf[i] /= normU;
 
 	        //if too close to the head or tail, consider a point further in, so that we are pointing out for sure
-	        const int ii = (i<4) ? 4 : ((i > Nskin-5) ? Nskin-5 : i);
+	        const int ii = (i<8) ? 8 : ((i > Nskin-9) ? Nskin-9 : i);
 
 	        const Real dirL = lowerSkin->normXSurf[i]*(lowerSkin->midX[i]-rX[iFishStart+ii])
-	        + lowerSkin->normYSurf[i]*(lowerSkin->midY[i]-rY[iFishStart+ii]);
+	        								+ lowerSkin->normYSurf[i]*(lowerSkin->midY[i]-rY[iFishStart+ii]);
+		      const Real dirU = upperSkin->normXSurf[i]*(upperSkin->midX[i]-rX[iFishStart+ii])
+		      								+ upperSkin->normYSurf[i]*(upperSkin->midY[i]-rY[iFishStart+ii]);
+
 	        if(dirL < 0) {
 	            lowerSkin->normXSurf[i] *= -1.0;
 	            lowerSkin->normYSurf[i] *= -1.0;
 	        }
-	        upperSkin->midX[i] = (upperSkin->xSurf[i] + upperSkin->xSurf[i+1])/2.0;
-	        upperSkin->midY[i] = (upperSkin->ySurf[i] + upperSkin->ySurf[i+1])/2.0;
-
-	        upperSkin->normXSurf[i] =   (upperSkin->ySurf[i+1] - upperSkin->ySurf[i]);
-	        upperSkin->normYSurf[i] = - (upperSkin->xSurf[i+1] - upperSkin->xSurf[i]);
-	        const Real normU = std::sqrt(upperSkin->normXSurf[i]*upperSkin->normXSurf[i] +
-	                                     upperSkin->normYSurf[i]*upperSkin->normYSurf[i]);
-	        upperSkin->normXSurf[i] /= normU;
-	        upperSkin->normYSurf[i] /= normU;
-
-	        const Real dirU = upperSkin->normXSurf[i]*(upperSkin->midX[i]-rX[iFishStart+ii])
-	        + upperSkin->normYSurf[i]*(upperSkin->midY[i]-rY[iFishStart+ii]);
 	        if(dirU < 0) {
 	            upperSkin->normXSurf[i] *= -1.0;
 	            upperSkin->normYSurf[i] *= -1.0;
 	        }
 	    }
-			#endif
 	}
 
 	void surfaceToCOMFrame(const double theta_internal, const double CoM_internal[2])
@@ -1747,7 +1760,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			array<Real,4>* const momenta)     			//compute CM
 	: t(0), momenta(momenta),surface(surface), obstacleBlocks(obstacleBlocks)
 	{
-		stencil = StencilInfo(-1,-1,-1, 2,2,2, true, 1, 5);
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 5);
 		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
 		stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
 	}
