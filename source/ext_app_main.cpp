@@ -42,12 +42,10 @@ int app_main(Communicator*const rlcom, MPI_Comm mpicom, int argc, char**argv)
 		cout << "====================================================================================================================\n";
 	}
 
-	while(true){
 		Simulation * sim = new Simulation(mpicom, communicator, argc, argv);
 		sim->init();
 		sim->simulate();
 		delete sim;
-	}
 
 	return 0;
 }
