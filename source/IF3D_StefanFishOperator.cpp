@@ -100,6 +100,41 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
     randomActions = parser("-randomActions").asBool(false);
     if (randomActions) printf("Fish doing random turns\n");
   */
+	const bool randomStart = parser("-randomStart").asBool(false);
+	if (randomStart) {
+			double random_starts[4];
+			if (!rank) {
+				std::random_device rd;
+	      std::mt19937 gen(rd());
+	      std::uniform_real_distribution<Real> dis(-1.,1.);
+				random_starts[0]=dis(gen);
+				random_starts[1]=dis(gen);
+				random_starts[2]=dis(gen);
+				random_starts[3]=dis(gen);
+	      for (int i = 1; i < size; i++)
+          MPI_Send(random_starts, 4, MPI_DOUBLE, i, 0, grid->getCartComm());
+
+	    } else
+          MPI_Recv(random_starts, 4, MPI_DOUBLE, 0, 0, grid->getCartComm(), MPI_STATUS_IGNORE);
+			printf("Rank %d using seeds %g %g %g %g\n",
+					random_starts[0],random_starts[1],random_starts[2],random_starts[3]);
+
+      position[0] += .5*length*random_starts[0];
+			if (!rank) printf("Assuming leader is in x=0.15\n");
+			const Real dX = position[0]-0.15;
+			//now adding a shift so that i do not over explore dy = 0;
+			const Real shiftDy = random_starts[1]>0 ? (0.25*dX/2.5) : -(0.25*dX/2.5);
+      position[1] += .25*length*random_starts[1] + shiftDy;
+      absPos[0] = position[0];
+      absPos[1] = position[1];
+      const double angle = .1* M_PI *random_starts[2];
+			quaternion[0] = std::cos(0.5*angle);
+			quaternion[1] = 0;
+			quaternion[2] = 0;
+			quaternion[3] = std::sin(0.5*angle);
+      if(nActions==2) phaseShift = random_starts[3];
+    }
+
 	useLoadedActions = parser("-useLoadedActions").asBool(false);
 	if (useLoadedActions) {
 		printf("Trying to load actionsi %d.\n",nActions);
@@ -129,6 +164,17 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
 void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
 																			const Real time, const int iLabel)
 {
+		const double invlscale  = 1./length;
+		const double velscale   = Tperiod*invlscale; //all these are inverse
+		const double forcescale = velscale*velscale*invlscale*invlscale; //rho*l^3*l/t^2
+		const double powerscale = forcescale*velscale; //rho*l^2*l^2/t^3
+
+		const Real eps = std::numeric_limits<Real>::epsilon();
+		assert(std::fabs(std::cos(0.5*_2Dangle)-quaternion[0]) < 1e-6);
+		assert(std::fabs(quaternion[1]) < eps);
+		assert(std::fabs(quaternion[2]) < eps);
+		assert(std::fabs(std::sin(0.5*_2Dangle)-quaternion[3]) < 1e-6);
+
     if (time < Tstartlearn) {
         sr.resetAverage();
         sr.t_next_comm = Tstartlearn;
@@ -160,59 +206,54 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
       return;
     } else if (comm not_eq nullptr) {
       const Real relT= fmod(time,1.); //1 is Tperiod
-      #ifdef _NOVISION_
-        const int nStates = (nActions==1) ? 20+ 8*20 : 25+  8*20;
-      #else
-        const int nStates = (nActions==1) ? 20+10*20 : 25+ 10*20;
-      #endif
+      const int nStates = (nActions==1) ? 20+10*20 : 25+ 10*20;
       vector<Real> state(nStates), actions(nActions);
 
       int k = 0;
-      state[k++] = sr.Xpov - GoalDX;
-      state[k++] = sr.Ypov;
+      //state[k++] = sr.Xpov - GoalDX;
+			state[k++] = sr.Xpov*invlscale;
+      state[k++] = sr.Ypov*invlscale;
       state[k++] = sr.RelAng;
       state[k++] = relT;
       state[k++] = new_curv;
       state[k++] = old_curv;
-      
+
       if(nActions==2) { //this is for backwards compatibility
           state[k++] = new_Tp;
                       //2.*M_PI*((time-time0)/l_Tp +timeshift -rS[i]/length) + M_PI*phaseShift
           Real Fshift = 2.*((-myFish->time0)/myFish->l_Tp +myFish->timeshift)+myFish->phaseShift;
           Fshift = fmod(Fshift,2.0);
           state[k++] = (Fshift<0) ? 2.+Fshift : Fshift;
-          state[k++] = sr.VX;
-          state[k++] = sr.VY;
-          state[k++] = sr.AV;
+          state[k++] = sr.VX*velscale;
+          state[k++] = sr.VY*velscale;
+          state[k++] = sr.AV*velscale;
       }
-      
-      state[k++] = sr.Dist;
+
+      state[k++] = sr.Dist*invlscale;
       state[k++] = sr.Quad;
-      state[k++] = sr.VxAvg;
-      state[k++] = sr.VyAvg;
-      state[k++] = sr.AvAvg;
-      state[k++] = sr.Pout;
-      state[k++] = sr.defPower;
+      state[k++] = sr.VxAvg*velscale;
+      state[k++] = sr.VyAvg*velscale;
+      state[k++] = sr.AvAvg*velscale;
+      state[k++] = sr.Pout*powerscale;
+      state[k++] = sr.defPower*powerscale;
       state[k++] = sr.EffPDef;
-      state[k++] = sr.PoutBnd;
-      state[k++] = sr.defPowerBnd;
+      state[k++] = sr.PoutBnd*powerscale;
+      state[k++] = sr.defPowerBnd*powerscale;
       state[k++] = sr.EffPDefBnd;
-      state[k++] = sr.Pthrust;
-      state[k++] = sr.Pdrag;
+      state[k++] = sr.Pthrust*powerscale;
+      state[k++] = sr.Pdrag*powerscale;
       state[k++] = sr.ToD;
-      
-      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelNAbove[j];
-      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelTAbove[j];
-      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelNBelow[j];
-      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelTBelow[j];
-      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FPAbove[j];
-      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FVAbove[j];
-      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FPBelow[j];
-      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FVBelow[j];
-      #ifndef _NOVISION_
-      for (int j=0; j<2*NpLatLine; j++) state[k++] = sr.raySight[j];
-      #endif
-      
+
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelNAbove[j]*velscale;
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelTAbove[j]*velscale;
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelNBelow[j]*velscale;
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.VelTBelow[j]*velscale;
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FPAbove[j]*forcescale;
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FVAbove[j]*forcescale;
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FPBelow[j]*forcescale;
+      for (int j=0; j<NpLatLine; j++) state[k++] = sr.FVBelow[j]*forcescale;
+      for (int j=0;j<2*NpLatLine;j++) state[k++] = sr.raySight[j]*invlscale;
+
       //fflush(0);
       const Real reward = (sr.info==2) ? -10 : sr.EffPDefBnd;
       comm->sendState(iLabel, sr.info, state, reward); //TODO
