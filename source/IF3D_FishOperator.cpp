@@ -296,13 +296,16 @@ void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID)
 	#ifdef __useSkin_
   assert(quaternion[1] == 0 && quaternion[2] == 0);
 	sr.updateStepId(stepID+obstacleID);
+	myFish->computeSkinNormals(_2Dangle, CoM_interpolated);
   sr.nearestGridPoints(&surfData, myFish->upperSkin->Npoints,
                         myFish->upperSkin->xSurf, myFish->upperSkin->ySurf,
                         myFish->lowerSkin->xSurf, myFish->lowerSkin->ySurf,
+                        myFish->upperSkin->normXSurf, myFish->upperSkin->normYSurf,
+                        myFish->lowerSkin->normXSurf, myFish->lowerSkin->normYSurf,
                         position[2], vInfo[0].h_gridpoint, grid->getCartComm());
 
-	#ifndef __RL_TRAINING
-	if(rank==0) sr.print(obstacleID, stepID, time);
+		#ifndef __RL_TRAINING
+			if(rank==0) sr.print(obstacleID, stepID, time);
   	#endif
   #endif
 }
