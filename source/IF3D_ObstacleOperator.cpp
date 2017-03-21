@@ -630,7 +630,19 @@ void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real _J[6], const 
 void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
   const Real dt, const Real* Uinf, const Real NU, const bool bDump)
 { //TODO: improve dumping: gather arrays before writing to file
-  //TODO: this kernel does an illegal read on the grid. Guack-a-bug!
+  Real CM[3];
+  this->getCenterOfMass(CM);
+  const Real velx_tot = transVel[0]-Uinf[0];
+  const Real vely_tot = transVel[1]-Uinf[1];
+  const Real velz_tot = transVel[2]-Uinf[2];
+
+  #ifdef __RL_TRAINING
+    if(!bInteractive) {
+      sr.updateAverages(dt,_2Dangle,velx_tot,vely_tot,angVel[2],0,0,0,0,0,0,0,0,0,0);
+      return;
+    }
+  #endif
+
   //ugly piece of code that creates a map that allows us to skip the non-surface blocks
   map<int, pair<int, int>> surfaceBlocksFilter;
   {
@@ -654,15 +666,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
 	  }
   }
 
-  Real CM[3];
-  this->getCenterOfMass(CM);
+
   const int nthreads = omp_get_max_threads();
   vector<array<Real,19>> partialSums(nthreads);
 	for(int i=0; i<nthreads; i++) for(int j=0; j<19; j++) partialSums[i][j]=0;
   Real vel_unit[3] = {0., 0., 0.};
-  const Real velx_tot = transVel[0]-Uinf[0];
-  const Real vely_tot = transVel[1]-Uinf[1];
-  const Real velz_tot = transVel[2]-Uinf[2];
   const Real vel_norm = std::sqrt(velx_tot*velx_tot
                                 + vely_tot*vely_tot
                                 + velz_tot*velz_tot);

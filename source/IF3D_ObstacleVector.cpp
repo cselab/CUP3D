@@ -220,8 +220,10 @@ std::vector<int> IF3D_ObstacleVector::intersectingBlockIDs(const int buffer) con
 
 void IF3D_ObstacleVector::computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda)
 {
+  #ifndef __RL_TRAINING
 	for(const auto & obstacle_ptr : obstacles)
 		obstacle_ptr->computeDiagnostics(stepID,time,Uinf,lambda);
+  #endif
 }
 
 void IF3D_ObstacleVector::computeVelocities(const Real* Uinf)

@@ -53,13 +53,15 @@ protected:
                                                     Real* const angvel_target);
 
 public:
-    int obstacleID, rank;
-    bool bFixFrameOfRef, bFixToPlanar;
+    int obstacleID, rank, size;
+    bool bFixFrameOfRef, bFixToPlanar, bInteractive;
     IF3D_ObstacleOperator(FluidGridMPI * grid, ArgumentParser& parser) :
     	grid(grid),obstacleID(0),quaternion{1,0,0,0},_2Dangle(0),position{0,0,0},
-      absPos{0,0,0},transVel{0,0,0},angVel{0,0,0},volume(0),J{0,0,0,0,0,0}
+      absPos{0,0,0},transVel{0,0,0},angVel{0,0,0},volume(0),J{0,0,0,0,0,0},
+      bInteractive(false)
     {
 		    MPI_Comm_rank(grid->getCartComm(),&rank);
+		    MPI_Comm_size(grid->getCartComm(),&size);
         vInfo = grid->getBlocksInfo();
         const Real extent = 1;//grid->maxextent;
         const Real NFE[3] ={ grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
