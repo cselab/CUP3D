@@ -436,7 +436,7 @@ void Simulation::simulate()
 					bool bDoOver = false;
           const int nO = obstacle_vector->nObstacles();
           if (nO == 3) bDoOver = _3Fish_RLstep(nO);
-          else         bDoOver = _2Fish_RLstep(nO);
+          else if (nO > 1) bDoOver = _2Fish_RLstep(nO);
 					if (bDoOver) return;
 					profiler.pop_stop();
 				}

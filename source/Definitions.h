@@ -732,8 +732,9 @@ struct StateReward
       const Real*const nxU,const Real*const nyU,const Real*const nxL,const Real*const nyL,
       const Real zObst, const Real h, const MPI_Comm comm)
     {
+        const int Nsurf = surface->Ndata;
+	if(Nskin == 0 || Nsurf == 0) return;
         skinForcesVels data(Nskin*2);
-        const int Nsurf        = surface->Ndata;
         const Real*const xS    = surface->pX;
         const Real*const yS    = surface->pY;
         const Real*const zS    = surface->pZ;
