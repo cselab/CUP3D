@@ -19,7 +19,6 @@
 
 const int NPPEXT = 3; //was 3
 const int TGTPPB = 2; //was 2 i think
-const Real TSTART = 2.;
 const int NEXTDX = 2;
 #define __BSPLINE
 
@@ -893,11 +892,13 @@ class NacaMidlineData : public FishMidlineData
 	}
 };
 
+
 class CarlingFishMidlineData : public FishMidlineData
 {
  protected:
 	//burst-coast:
-	Real t0, t1, t2, t3;
+	const Real tStart;
+	Real t0, t1, t2, t3, lowestAmp=1e12;
 	const Real fac, inv;
 	const bool bBurst;
 
@@ -939,56 +940,95 @@ class CarlingFishMidlineData : public FishMidlineData
 		return fac*(s + inv*L)*(df*std::sin(arg) - f*(2.0*M_PI/T)*std::cos(arg));
 	}
 
+        std::pair<double, double> cubicHermite(const double f1, const double f2, const double x){
+                const double a = 2*(f1-f2);
+                const double b = -3*(f1-f2);
+                const double retVal = a*x*x*x + b*x*x + f1;
+                const double deriv = 3*a*x*x + 2*b*x;
+                return std::make_pair(retVal, deriv);
+        }
+
+	void _computeMidlineCoordinatesBeC(const Real time)
+	{
+		const Real rampFac = rampFactorSine(time, Tperiod);
+		const Real rampFacVel = rampFactorVelSine(time, Tperiod);
+
+		Real f, df;
+		const Real bct     = t0 + t1 + t2 + t3;
+		assert(bct>0);
+		const Real shift   = std::floor((time-tStart)/bct);
+		const Real tcoast  = tStart  + shift*bct;
+		const Real tfreeze = tcoast  + t0;
+		const Real tburst  = tfreeze + t1;
+		const Real tswim   = tburst  + t2;
+		//const Real phase   = (time<tfreeze) ?  shift   *0.5 + phaseShift
+		//		 		  : (shift+1)*0.5 + phaseShift;
+		const Real phase = 0.0;
+
+		if (time<tcoast) {
+			printf("NCCUCDC.\n");
+			abort();
+		} else if (time<tfreeze) {
+			const Real d = (time-tcoast)/(tfreeze-tcoast);
+			const std::pair<double, double> retVal = cubicHermite(1.0, lowestAmp, d);
+			f = retVal.first;
+			df = retVal.second;
+			//f = 1 - 3*d*d + 2*d*d*d;
+		} else if (time<tburst) {
+			//f = 0.0;
+			f = lowestAmp;
+			df = 0.0;
+		} else if (time<tswim) {
+			const Real d = (time-tburst)/(tswim-tburst);
+			const std::pair<double, double> retVal = cubicHermite(lowestAmp, 1.0, d);
+			f = retVal.first;
+			df = retVal.second;
+			//f = 3*d*d - 2*d*d*d;
+			//df = 6*(d - d*d)/(tswim-tburst);
+		} else {
+			f = 1.0;
+			df = 0.0;
+		}
+
+		rX[0] = 0.0;
+		rY[0] = rampFac*midlineBeC(rS[0], time, length, Tperiod, phase, f);
+		for(int i=1;i<Nm;++i) {
+			rY[i]=rampFac*midlineBeC(rS[i], time, length, Tperiod, phase, f);
+			const Real dy = rY[i]-rY[i-1];
+			const Real ds = rS[i] - rS[i-1];
+			const Real dx = std::sqrt(ds*ds-dy*dy);
+			rX[i] = rX[i-1] + dx;
+		}
+
+
+		vX[0] = 0.0; //rX[0] is constant
+		vY[0] = rampFac*midlineVelBeC(rS[0],time,length,Tperiod, phase, f, df) +
+			rampFacVel*midlineBeC(rS[0],time,length,Tperiod, phase, f);
+
+		for(int i=1;i<Nm;++i) {
+			vY[i]=rampFac*midlineVelBeC(rS[i],time,length,Tperiod, phase, f, df) +
+				rampFacVel*midlineBeC(rS[i],time,length,Tperiod, phase, f);
+			const Real dy  = rY[i]-rY[i-1];
+			const Real dx  = rX[i]-rX[i-1];
+			const Real dVy = vY[i]-vY[i-1];
+			assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
+			vX[i] = vX[i-1] - dy/dx * dVy; // use ds^2 = dx^2 + dy^2 --> ddx = -dy/dx*ddy
+		}
+
+	}
+
 	void _computeMidlineCoordinates(const Real time)
 	{
 		const Real rampFac = rampFactorSine(time, Tperiod);
-		if (bBurst && time>=TSTART) {
-			Real f;
-			const Real bct     = t0 + t1 + t2 + t3;
-			assert(bct>0);
-			const Real shift   = std::floor((time-TSTART)/bct);
-			const Real tcoast  = TSTART  + shift*bct;
-			const Real tfreeze = tcoast  + t0;
-			const Real tburst  = tfreeze + t1;
-			const Real tswim   = tburst  + t2;
-			const Real phase   = (time<tfreeze) ?  shift   *0.5 + phaseShift
-																		 		  : (shift+1)*0.5 + phaseShift;
-			if (time<tcoast) {
-				printf("NCCUCDC.\n");
-				abort();
-				f = 1.0;
-			} else if (time<tfreeze) {
-				const Real d = (time-tcoast)/(tfreeze-tcoast);
-				f = 1 - 3*d*d + 2*d*d*d;
-			} else if (time<tburst) {
-				f = 0.0;
-			} else if (time<tswim) {
-				const Real d = (time-tburst)/(tswim-tburst);
-				f = 3*d*d - 2*d*d*d;
-			} else {
-				f = 1.0;
-			}
+		rX[0] = 0.0;
+		rY[0] = rampFac*midline(rS[0], time, length, Tperiod, phaseShift);
 
-			rX[0] = 0.0;
-			rY[0] = rampFac*midlineBeC(rS[0], time, length, Tperiod, phase, f);
-			for(int i=1;i<Nm;++i) {
-				rY[i]=rampFac*midlineBeC(rS[i], time, length, Tperiod, phase, f);
-				const Real dy = rY[i]-rY[i-1];
-				const Real ds = rS[i] - rS[i-1];
-				const Real dx = std::sqrt(ds*ds-dy*dy);
-				rX[i] = rX[i-1] + dx;
-			}
-		} else {
-			rX[0] = 0.0;
-			rY[0] = rampFac*midline(rS[0], time, length, Tperiod, phaseShift);
-
-			for(int i=1;i<Nm;++i) {
-				rY[i]=rampFac*midline(rS[i], time, length, Tperiod, phaseShift);
-				const Real dy = rY[i]-rY[i-1];
-				const Real ds = rS[i] - rS[i-1];
-				const Real dx = std::sqrt(ds*ds-dy*dy);
-				rX[i] = rX[i-1] + dx;
-			}
+		for(int i=1;i<Nm;++i) {
+			rY[i]=rampFac*midline(rS[i], time, length, Tperiod, phaseShift);
+			const Real dy = rY[i]-rY[i-1];
+			const Real ds = rS[i] - rS[i-1];
+			const Real dx = std::sqrt(ds*ds-dy*dy);
+			rX[i] = rX[i-1] + dx;
 		}
 	}
 
@@ -996,80 +1036,32 @@ class CarlingFishMidlineData : public FishMidlineData
 	{
 		const Real rampFac =    rampFactorSine(time, Tperiod);
 		const Real rampFacVel = rampFactorVelSine(time, Tperiod);
-		if (bBurst && time>=TSTART) {
-			Real f, df;
-			const Real bct     = t0 + t1 + t2 + t3;
-			assert(bct>0);
-			const Real shift   = std::floor((time-TSTART)/bct);
-			const Real tcoast  = TSTART  + shift*bct;
-			const Real tfreeze = tcoast  + t0;
-			const Real tburst  = tfreeze + t1;
-			const Real tswim   = tburst  + t2;
-			const Real phase   = (time<tfreeze) ?  shift   *0.5 + phaseShift
-																		 		  : (shift+1)*0.5 + phaseShift;
-			if (time<tcoast) {
-				printf("NCCUCDC.\n");
-				abort();
-				f = 1.0;
-				df = 0.0;
-			} else if (time<tfreeze) {
-				const Real d = (time-tcoast)/(tfreeze-tcoast);
-				f = 1 - 3*d*d + 2*d*d*d;
-				df = 6*(d*d - d)/(tfreeze-tcoast);
-			} else if (time<tburst) {
-				f = 0.0;
-				df = 0.0;
-			} else if (time<tswim) {
-				const Real d = (time-tburst)/(tswim-tburst);
-				f = 3*d*d - 2*d*d*d;
-				df = 6*(d - d*d)/(tswim-tburst);
-			} else {
-				f = 1.0;
-				df = 0.0;
-			}
 
-			vX[0] = 0.0; //rX[0] is constant
-			vY[0] = rampFac*midlineVelBeC(rS[0],time,length,Tperiod, phase, f, df) +
-					rampFacVel*midlineBeC(rS[0],time,length,Tperiod, phase, f);
+		vX[0] = 0.0; //rX[0] is constant
+		vY[0] = rampFac*midlineVel(rS[0],time,length,Tperiod, phaseShift) +
+				rampFacVel*midline(rS[0],time,length,Tperiod, phaseShift);
 
-			for(int i=1;i<Nm;++i) {
-				vY[i]=rampFac*midlineVelBeC(rS[i],time,length,Tperiod, phase, f, df) +
-						rampFacVel*midlineBeC(rS[i],time,length,Tperiod, phase, f);
-				const Real dy  = rY[i]-rY[i-1];
-				const Real dx  = rX[i]-rX[i-1];
-				const Real dVy = vY[i]-vY[i-1];
-				assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
-				vX[i] = vX[i-1] - dy/dx * dVy; // use ds^2 = dx^2 + dy^2 --> ddx = -dy/dx*ddy
-			}
-		}
-		else
-		{
-			vX[0] = 0.0; //rX[0] is constant
-			vY[0] = rampFac*midlineVel(rS[0],time,length,Tperiod, phaseShift) +
-					rampFacVel*midline(rS[0],time,length,Tperiod, phaseShift);
-
-			for(int i=1;i<Nm;++i) {
-				vY[i]=rampFac*midlineVel(rS[i],time,length,Tperiod, phaseShift) +
-						rampFacVel*midline(rS[i],time,length,Tperiod, phaseShift);
-				const Real dy  = rY[i]-rY[i-1];
-				const Real dx  = rX[i]-rX[i-1];
-				const Real dVy = vY[i]-vY[i-1];
-				assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
-				vX[i] = vX[i-1] - dy/dx * dVy; // use ds^2 = dx^2 + dy^2 --> ddx = -dy/dx*ddy
-			}
+		for(int i=1;i<Nm;++i) {
+			vY[i]=rampFac*midlineVel(rS[i],time,length,Tperiod, phaseShift) +
+					rampFacVel*midline(rS[i],time,length,Tperiod, phaseShift);
+			const Real dy  = rY[i]-rY[i-1];
+			const Real dx  = rX[i]-rX[i-1];
+			const Real dVy = vY[i]-vY[i-1];
+			assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
+			vX[i] = vX[i-1] - dy/dx * dVy; // use ds^2 = dx^2 + dy^2 --> ddx = -dy/dx*ddy
 		}
 	}
 
  public:
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 		const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false), tStart(1.0e12)
 	{
 	}
 
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
-		const Real phaseShift, const Real dx_ext, const string fburstpar, const Real _fac = 0.1212121212121212)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(true)
+		const Real phaseShift, const Real dx_ext, const string fburstpar, const Real _tStart, const Real _fac = 0.1212121212121212)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(true), tStart(_tStart)
 	{
 		//ifstream reader("burst_coast_carling_params.txt");
 		ifstream reader(fburstpar.c_str());
@@ -1078,32 +1070,38 @@ class CarlingFishMidlineData : public FishMidlineData
 			reader >> t1;
 			reader >> t2;
 			reader >> t3;
+			reader >> lowestAmp;
 			reader.close();
 		} else {
-			cout << "Could not open params.txt" << endl;
+			cout << "Could not open the correct 'params'.txt file" << endl;
 			abort();
 		}
 	}
 
 	void computeMidline(const Real time) override
 	{
-		_computeMidlineCoordinates(time);
-		_computeMidlineVelocities(time);
+
+		if (bBurst && time>=tStart) {
+			_computeMidlineCoordinatesBeC(time);
+		} else {
+			_computeMidlineCoordinates(time);
+			_computeMidlineVelocities(time);
+		}
 		_computeMidlineNormals();
-		#if 0
-			#warning USED MPI COMM WORLD
-			// we dump the profile
-			int rank;
-			MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-			if (rank!=0) return;
-			FILE * f = fopen("fish_profile","w");
-			for(int i=0;i<Nm;++i)
-				fprintf(f,"%d %g %g %g %g %g %g %g %g %g %g %g\n",
-						i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i],
-						vNorX[i],vNorY[i],width[i],height[i]);
-			fclose(f);
-			printf("Dumped midline\n");
-		#endif
+#if 0
+#warning USED MPI COMM WORLD
+		// we dump the profile
+		int rank;
+		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+		if (rank!=0) return;
+		FILE * f = fopen("fish_profile","w");
+		for(int i=0;i<Nm;++i)
+			fprintf(f,"%d %g %g %g %g %g %g %g %g %g %g %g\n",
+					i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i],
+					vNorX[i],vNorY[i],width[i],height[i]);
+		fclose(f);
+		printf("Dumped midline\n");
+#endif
 	}
 };
 

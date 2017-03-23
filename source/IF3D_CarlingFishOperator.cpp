@@ -19,13 +19,16 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 	const Real dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
 	const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1)) + 1;
 
-	bool bInteractive = parser("-BurstCoast").asBool(false);
+	const bool _bBurst = parser("-BurstCoast").asBool(false);
 	printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
 	fflush(0);
 
-	if (bInteractive) {
+	if (_bBurst) {
+		parser.set_strict_mode();
+		const Real _tStart = parser("-tStartBC").asDouble();
+		parser.unset_strict_mode();
 		const string fburstpar = "burst_coast_carling_params.txt";
-		myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, fburstpar);
+		myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, fburstpar, _tStart);
 	}
 	else
 	myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension);
