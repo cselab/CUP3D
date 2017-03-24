@@ -1071,6 +1071,10 @@ class CarlingFishMidlineData : public FishMidlineData
 			reader >> t2;
 			reader >> t3;
 			reader >> lowestAmp;
+			if(reader.eof()){
+				cout << "Insufficient number of parameters provided for burstCoast" << endl;
+				abort();
+			}
 			reader.close();
 		} else {
 			cout << "Could not open the correct 'params'.txt file" << endl;
