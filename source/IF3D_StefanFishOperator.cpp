@@ -106,17 +106,17 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
 			if (!rank) {
 				std::random_device rd;
 	      std::mt19937 gen(rd());
-	      std::uniform_real_distribution<Real> dis(-1.,1.);
+	      std::uniform_real_distribution<double> dis(-1.,1.);
 				random_starts[0]=dis(gen);
 				random_starts[1]=dis(gen);
 				random_starts[2]=dis(gen);
 				random_starts[3]=dis(gen);
 	      for (int i = 1; i < size; i++)
-          MPI_Send(random_starts, 4, MPI_DOUBLE, i, 0, grid->getCartComm());
+          MPI_Send(random_starts, 4, MPI_DOUBLE, i, 35, grid->getCartComm());
 
 	    } else
-          MPI_Recv(random_starts, 4, MPI_DOUBLE, 0, 0, grid->getCartComm(), MPI_STATUS_IGNORE);
-			printf("Rank %d using seeds %g %g %g %g\n",
+          MPI_Recv(random_starts, 4, MPI_DOUBLE, 0, 35, grid->getCartComm(), MPI_STATUS_IGNORE);
+			printf("Rank %d (out of %d) using seeds %g %g %g %g\n", rank, size,
 					random_starts[0],random_starts[1],random_starts[2],random_starts[3]);
 
       position[0] += .5*length*random_starts[0];
@@ -127,11 +127,12 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
       position[1] += .25*length*random_starts[1] + shiftDy;
       absPos[0] = position[0];
       absPos[1] = position[1];
-      const double angle = .1* M_PI *random_starts[2];
-			quaternion[0] = std::cos(0.5*angle);
+      _2Dangle = .1* M_PI *random_starts[2];
+      
+			quaternion[0] = std::cos(0.5*_2Dangle);
 			quaternion[1] = 0;
 			quaternion[2] = 0;
-			quaternion[3] = std::sin(0.5*angle);
+			quaternion[3] = std::sin(0.5*_2Dangle);
       if(nActions==2) phaseShift = random_starts[3];
     }
 
@@ -205,12 +206,12 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
       sr.t_next_comm=1e6;
       return;
     } else if (comm not_eq nullptr) {
-      const Real relT= fmod(time,1.); //1 is Tperiod
+      const Real relT= std::fmod(time,1.); //1 is Tperiod of leader
       const int nStates = (nActions==1) ? 20+10*20 : 25+ 10*20;
       vector<Real> state(nStates), actions(nActions);
 
       int k = 0;
-      //state[k++] = sr.Xpov - GoalDX;
+      //state[k++] = sr.Xpov*invlscale - GoalDX;
 			state[k++] = sr.Xpov*invlscale;
       state[k++] = sr.Ypov*invlscale;
       state[k++] = sr.RelAng;
@@ -218,7 +219,8 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
       state[k++] = new_curv;
       state[k++] = old_curv;
 
-      if(nActions==2) { //this is for backwards compatibility
+      if(nActions==2)
+      {
           state[k++] = new_Tp;
                       //2.*M_PI*((time-time0)/l_Tp +timeshift -rS[i]/length) + M_PI*phaseShift
           Real Fshift = 2.*((-myFish->time0)/myFish->l_Tp +myFish->timeshift)+myFish->phaseShift;
