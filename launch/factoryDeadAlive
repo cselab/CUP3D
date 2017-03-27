@@ -1,0 +1,2 @@
+IF3D_StefanFish L=0.2 T=1 xpos=0.8 bFixToPlanar=1 bFixFrameOfRef=0 Correct=1
+IF3D_CarlingFish L=0.2 T=1 xpos=0.4 ypos=0.24 bFixToPlanar=1 bFixFrameOfRef=0 amplitude=0

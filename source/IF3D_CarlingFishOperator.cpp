@@ -18,7 +18,7 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 	const Real target_Nm = TGTPPB*length/vInfo[0].h_gridpoint;
 	const Real dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
 	const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1)) + 1;
-
+	const Real amplitude = parser("-amplitude").asDouble(0.1212121212121212);
 	const bool _bBurst = parser("-BurstCoast").asBool(false);
 	printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
 	fflush(0);
@@ -28,10 +28,10 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 		const Real _tStart = parser("-tStartBC").asDouble();
 		parser.unset_strict_mode();
 		const string fburstpar = "burst_coast_carling_params.txt";
-		myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, fburstpar, _tStart);
+		myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, fburstpar, _tStart, amplitude);
 	}
 	else
-	myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension);
+	myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, amplitude);
 }
 
 void IF3D_CarlingFishOperator::_parseArguments(ArgumentParser & parser)
