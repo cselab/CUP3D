@@ -1,3 +1,4 @@
+
 //
 //  Simulation_Fluid.h
 //  CubismUP_2D
@@ -430,7 +431,7 @@ void Simulation::simulate()
     while (true)
     {
         #ifdef __RL_MPI_CLIENT
-				//if (communicator not_eq nullptr)
+				if (communicator not_eq nullptr)
 				{
 					profiler.push_start("RL");
 					bool bDoOver = false;
