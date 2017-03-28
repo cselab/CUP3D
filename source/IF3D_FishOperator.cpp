@@ -11,8 +11,8 @@
 #include <chrono>
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser)
 : IF3D_ObstacleOperator(grid, parser), theta_internal(0.), angvel_internal(0.),
-sim_time(0.), sim_dt(0.), adjTh(0.), myFish(nullptr), angvel_integral{0.,0.,0.}
-, new_curv(0), old_curv(0), new_Tp(0)
+sim_time(0.), sim_dt(0.), adjTh(0.), myFish(nullptr), angvel_integral{0.,0.,0.},
+new_curv(0), old_curv(0), new_Tp(0)
 {
 	volume=0;
 	for(int i=0;i<3;i++) transVel[i]=0;

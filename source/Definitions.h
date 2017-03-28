@@ -383,8 +383,7 @@ struct surfacePoints
         #ifndef NDEBUG
     		int checksum = 0;
     		for(int i=0; i<blocksPerThread.size(); i++) checksum += blocksPerThread[i].Ndata;
-    		assert(checksum==Ndata);
-    		printf("Random assortment of numbers in the surface blocks stuff: %d == %d <= %d\n",checksum,Ndata, nAlloc);
+    		assert(checksum==Ndata && Ndata <= nAlloc);
         #endif
     }
     /*
@@ -683,18 +682,18 @@ struct StateReward
         #endif //
 
         for(int i=0; i<nDest; ++i)
-        if(data[i+6*nDest]) {
-          //data[i+0*nDest] /= data[i+6*nDest];
-          //data[i+1*nDest] /= data[i+6*nDest];
-          //data[i+2*nDest] /= data[i+6*nDest];
-          //data[i+3*nDest] /= data[i+6*nDest];
-            data[i+4*nDest] /= data[i+6*nDest];
-            data[i+5*nDest] /= data[i+6*nDest];
-        } else if (0)//(!rank)
-        {
-          printf("Worryingly, some of the entries in skinForcesVels probably got no data\n");
-          fflush(0);
-        }
+          if(data[i+6*nDest]) {
+            //data[i+0*nDest] /= data[i+6*nDest];
+            //data[i+1*nDest] /= data[i+6*nDest];
+            //data[i+2*nDest] /= data[i+6*nDest];
+            //data[i+3*nDest] /= data[i+6*nDest];
+              data[i+4*nDest] /= data[i+6*nDest];
+              data[i+5*nDest] /= data[i+6*nDest];
+          } else if (0)//(!rank)
+          {
+            printf("Worryingly, some of the entries in skinForcesVels probably got no data\n");
+            fflush(0);
+          }
       }
       void print(const MPI_Comm comm, const int stepNumber)
       {
@@ -733,7 +732,6 @@ struct StateReward
       const Real zObst, const Real h, const MPI_Comm comm)
     {
         const int Nsurf = surface->Ndata;
-	if(Nskin == 0 || Nsurf == 0) return;
         skinForcesVels data(Nskin*2);
         const Real*const xS    = surface->pX;
         const Real*const yS    = surface->pY;

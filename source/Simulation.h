@@ -77,7 +77,7 @@ class Simulation
  protected:
 	ArgumentParser parser;
 	Profiler profiler;
-	MPI_Comm app_comm;
+	const MPI_Comm app_comm;
 #ifdef __RL_MPI_CLIENT
 	Communicator * communicator;
 	int _2Fish_RLstep(const int nO);
