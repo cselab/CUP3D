@@ -1276,9 +1276,9 @@ struct VolumeSegment_OBB
 
 		for(int i=0;i<3;++i) {
 			// also take absolute value since thats what we need when doing intersection checks later
-			normalI[i]=std::abs(normalI[i])*invMagI;
-			normalJ[i]=std::abs(normalJ[i])*invMagJ;
-			normalK[i]=std::abs(normalK[i])*invMagK;
+			normalI[i]=std::fabs(normalI[i])*invMagI;
+			normalJ[i]=std::fabs(normalJ[i])*invMagJ;
+			normalK[i]=std::fabs(normalK[i])*invMagK;
 		}
 	}
 
