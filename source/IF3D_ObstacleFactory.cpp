@@ -18,6 +18,7 @@
 #include "IF3D_DeadFishOperator.h"
 #include "IF3D_CarlingFishOperator.h"
 #include "IF3D_NacaOperator.h"
+#include "IF3D_VortexOperator.h"
 
 /*
 #include "IF3D_EllipseObstacleOperator.h"
@@ -79,6 +80,10 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
         else if( objectName == "IF3D_NacaOperator" )
         {
             retval.push_back(new IF3D_NacaOperator(grid,object.second));
+        }
+        else if( objectName == "IF3D_VortexOperator" )
+        {
+            retval.push_back(new IF3D_VortexOperator(grid,object.second));
         }
         /*
         else if( objectName == "IF3D_Ellipse" )
