@@ -1,1 +1,2 @@
-IF3D_NacaOperator L=0.2 T=1 xpos=0.3 ypos=0.25 zpos=0.25 bFixToPlanar=1 bFixFrameOfRef=1
+IF3D_NacaOperator L=0.2 T=1 xpos=0.5 bFixToPlanar=1 bFixFrameOfRef=1
+IF3D_VortexOperator L=0.01 T=1 xpos=0.25 vmax=0.1 

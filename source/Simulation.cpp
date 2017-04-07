@@ -421,7 +421,8 @@ int Simulation::_2Fish_RLstep(const int nO)
 void Simulation::simulate()
 {
 	using namespace std::chrono;
-    Real nextDumpTime = dumpTime>0 ? std::ceil(time/dumpTime)*dumpTime : 1e3; //next = if time=0 then 0, if restart time+dumpTime
+	if (time<1e-10) _dump(); 
+    Real nextDumpTime = dumpTime>0 ? std::ceil((time+1e-10)/dumpTime)*dumpTime : 1e3; //next = if time=0 then 0, if restart time+dumpTime
     if(!rank) printf("First dump at %g (freq %g)\n",nextDumpTime,dumpTime);
     Real nextSaveTime = time + saveTime;
     time_point<high_resolution_clock> last_save, this_save, start_sim;
@@ -451,13 +452,10 @@ void Simulation::simulate()
 
         for (int c=0; c<pipeline.size(); c++)
         {
-        	//cout<<pipeline[c]->getName()<<" start"<<endl;
             profiler.push_start(pipeline[c]->getName());
             (*pipeline[c])(dt);
             profiler.pop_stop();
-            //if(time>=0)  _dump(pipeline[c]->getName());
         }
-        //if(step>10) abort();
         step++;
         time+=dt;
         if(rank==0)

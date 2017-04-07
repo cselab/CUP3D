@@ -7,7 +7,6 @@
 //
 
 #include "IF3D_VortexOperator.h"
-#include "IF3D_VortexLibrary.h"
 #include <chrono>
 IF3D_VortexOperator::IF3D_VortexOperator(FluidGridMPI * grid, ArgumentParser & parser)
 : IF3D_ObstacleOperator(grid, parser), created(false)
@@ -20,8 +19,8 @@ IF3D_VortexOperator::IF3D_VortexOperator(FluidGridMPI * grid, ArgumentParser & p
 
 void IF3D_VortexOperator::create(const int step_id,const Real time, const Real dt, const Real *Uinf)
 {
-	if(step_id || created) return;
-
+	if(time<8. || created) return;
+	printf("Crating a vortex in %f %f %f core size %f max vel %f\n", position[0],position[1],position[2],length,v_max);
 	#pragma omp parallel
 	{
 		const int N = vInfo.size();
@@ -39,11 +38,14 @@ void IF3D_VortexOperator::create(const int step_id,const Real time, const Real d
 				p[1]-=position[1];
 				p[2]-=position[2];
 				const Real theta = std::atan2(p[1], p[0]);
-				const Real r = (p[0]*p[0] + p[1]*p[1])/length;
-				const Real vTheta = v_max*fac/r*(1-std::exp(-alpha*std::pow(r,2)))
-				b(ix,iy,iz).U += - vTheta*std::sin(theta);
-				b(ix,iy,iz).V +=   vTheta*std::cos(theta);
-				b(ix,iy,iz).W = 0;
+				const Real r = std::sqrt(p[0]*p[0] + p[1]*p[1])/length;
+				//if(r>3) continue;
+				const Real z = std::fabs(p[2])/0.05;
+				//if(z>3) continue;
+				const Real arg = std::max(-20., -alpha*r*r -z*z);
+				const Real vTheta = 0.1*fac/(r+2.2e-16)*(1-std::exp(arg));
+				b(ix,iy,iz).u -= vTheta*std::sin(theta);
+				b(ix,iy,iz).v += vTheta*std::cos(theta);
 			}
 		}
 	}
@@ -63,4 +65,15 @@ void IF3D_VortexOperator::_parseArguments(ArgumentParser & parser)
 
 void IF3D_VortexOperator::computeVelocities(const Real* Uinf) {}
 void IF3D_VortexOperator::computeForces(const int stepID, const Real time, const Real dt,
-													const Real* Uinf, const Real NU, const bool bDump) {}
+					const Real* Uinf, const Real NU, const bool bDump) {}
+void IF3D_VortexOperator::Accept(ObstacleVisitor * visitor) {}
+void IF3D_VortexOperator::finalize(const int step_id,const Real time,
+                                                const Real dt, const Real *Uinf) {}
+void IF3D_VortexOperator::execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) {}
+void IF3D_VortexOperator::interpolateOnSkin(const Real time, const int stepID) {}
+void IF3D_VortexOperator::getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
+{
+	pXL = pYL = pXU = pYU = nullptr;
+	Npts = 0;
+}
+void IF3D_VortexOperator::computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda) {}

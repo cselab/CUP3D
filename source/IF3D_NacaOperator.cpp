@@ -34,11 +34,11 @@ void IF3D_NacaOperator::_parseArguments(ArgumentParser & parser)
 	absPos[0] = 0;
 	#if 1
 	    Apitch = parser("-Apitch").asDouble(0.0); //aplitude of sinusoidal pitch angle
-	    Fpitch = parser("-Fpitch").asDouble(0.5); //frequency
+	    Fpitch = parser("-Fpitch").asDouble(0.0); //frequency
 	    Ppitch = parser("-Ppitch").asDouble(0.0); //phase wrt to rowing motion
 	    Mpitch = parser("-Mpitch").asDouble(0.0); //mean angle
-	    Fheave = parser("-Fheave").asDouble(0.5);     //frequency of rowing motion
-	    Aheave = parser("-Aheave").asDouble(0.12); //amplitude
+	    Fheave = parser("-Fheave").asDouble(0.0);     //frequency of rowing motion
+	    Aheave = parser("-Aheave").asDouble(0.0); //amplitude
 	#else
 	    ifstream reader("params.txt");
 			if (reader.is_open()) {
@@ -56,6 +56,7 @@ void IF3D_NacaOperator::_parseArguments(ArgumentParser & parser)
 			}
 	#endif
     Aheave *= length;
+	if(!rank)
 		printf("Naca: pos=%3.3f,Apitch=%3.3f,Fpitch=%3.3f,Ppitch=%3.3f,Mpitch=%3.3f,Frow=%3.3f,Arow=%3.3f\n",
     position[0],Apitch,Fpitch,Ppitch,Mpitch,Fheave,Aheave);
 }
@@ -63,7 +64,8 @@ void IF3D_NacaOperator::_parseArguments(ArgumentParser & parser)
 void IF3D_NacaOperator::computeVelocities(const Real Uinf[3])
 {
   computeVelocities_kernel(Uinf, transVel_computed, angVel_computed);
-  transVel[0] = transVel_computed[0];
+  transVel[0] = -0.1;//transVel_computed[0];
+  transVel[1] = transVel[2] = 0;
 }
 
 void IF3D_NacaOperator::update(const int stepID, const Real t, const Real dt, const Real* Uinf)

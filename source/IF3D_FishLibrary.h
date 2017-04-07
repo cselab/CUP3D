@@ -850,9 +850,15 @@ class NacaMidlineData : public FishMidlineData
 
 	void _naca_computeWidthsHeights()
 	{
+/*
 		const int nw = 7;
 	  const Real xw[nw] = {0., 0., length*.25, length*.5, length*.75, length, length};
 	  const Real yw[nw] = {0, .5*length, .5*length, .5*length, .5*length, .5*length, 0};
+*/
+		const int nw = 5;
+	  	const Real xw[nw] = {0., 0., length*.5, length, length};
+	  	const Real yw[nw] = {0, .5*length, .5*length, .5*length, 0};
+	
 		_naca_integrateBSpline(width, xw, yw, nw);
 		for(int i=0;i<Nm;++i)
 			height[i]  = _naca_width(rS[i],length);
