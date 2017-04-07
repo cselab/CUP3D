@@ -32,7 +32,8 @@ struct ForcesOnSkin : public GenericLabOperator
     		stencil_end[0]   = stencil_end[1]   = stencil_end[2]   = +2;
 	}
 
-  ForcesOnSkin(const ForcesOnSkin& c):
+  // SV: Why need this copy constructor?? Aborting anyhoo. Remove.
+  /*ForcesOnSkin(const ForcesOnSkin& c):
   	t(0), NU(c.NU), vel_unit(c.vel_unit), Uinf(c.Uinf), CM(c.CM), measures(c.measures),
 	surfData(c.surfData), surfaceBlocksFilter(c.surfaceBlocksFilter), obstacleBlocks(c.obstacleBlocks)
   {
@@ -40,7 +41,7 @@ struct ForcesOnSkin : public GenericLabOperator
   	stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
   	stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
   	stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
-  }
+  }*/
 
   template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
@@ -77,9 +78,11 @@ struct ForcesOnSkin : public GenericLabOperator
           				                 +lab(ix,iy,iz+1).v - lab(ix,iy,iz-1).v);
 
           //normals computed with Towers 2009
+	  // Actually using the volume integral, since (\iint -P \hat{n} dS) = (\iiint -\nabla P dV). Also, P*\nabla\Chi = \nabla P
+ 	  // penalty-accel and surf-force match up if resolution is high enough (200 points per fish)
           const Real normX = surfData->Set[i]->dchidx;
           const Real normY = surfData->Set[i]->dchidy;
-          const Real normZ = surfData->Set[i]->dchidz; // * _h3
+          const Real normZ = surfData->Set[i]->dchidz; // * _h3 (premultiplied into nablaChi)
           const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
           const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
           const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
@@ -117,6 +120,7 @@ struct ForcesOnSkin : public GenericLabOperator
           surfData->vy[i] = lab(ix,iy,iz).v ;
           surfData->vz[i] = lab(ix,iy,iz).w ;
           //power output (and negative definite variant which ensures no elastic energy absorption)
+	  // This is total power, for overcoming not only deformation, but also the oncoming velocity. Work done by fluid, not by the object (for that, just take -ve)
           const Real powOut = fXT*(surfData->vx[i]+Uinf[0]) + fYT*(surfData->vy[i]+Uinf[1]) + fZT*(surfData->vz[i]+Uinf[2]);
           //deformation power output (and negative definite variant which ensures no elastic energy absorption)
           const Real powDef = fXT*surfData->vxDef[i] + fYT*surfData->vyDef[i] + fZT*surfData->vzDef[i];
@@ -730,7 +734,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
 
       fileForce.open(ssF.str().c_str(), ios::app);
       if(stepID==0)
-	      fileForce<<"Fx Fy Fz FxPres FyPres FzPres FxVisc FyVisc FzVisc TorqX TorqY TorqZ drag thrust surface\n"<<std::endl;
+	      fileForce<<"Fx Fy Fz FxPres FyPres FzPres FxVisc FyVisc FzVisc TorqX TorqY TorqZ drag thrust surface"<<std::endl;
 
       fileForce<<time<<" "<<surfForce[0]<<" "<<surfForce[1]<<" "<<surfForce[2]
                <<" "<<globalSum[4] <<" "<<globalSum[5] <<" "<<globalSum[6]
@@ -739,6 +743,8 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
                <<" " << drag <<" "<< thrust <<" "<< totChi <<endl;
       fileForce.close();
       filePower.open(ssP.str().c_str(), ios::app);
+      if(stepID==0)
+	      filePower<<"time Pthrust Pdrag PoutBnd Pout defPowerBnd defPower EffPDefBnd EffPDef"<<std::endl;
       filePower<<time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
       		 <<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<endl;
       filePower.close();

@@ -68,16 +68,17 @@ void Simulation::setupGrid()
 void Simulation::parseArguments()
 {
     nu = parser("-nu").asDouble();
-    length = parser("-length").asDouble();
+    //length = parser("-length").asDouble();
     assert(nu>=0);
     parser.unset_strict_mode();
     bRestart = parser("-restart").asBool(false);
     b2Ddump = parser("-2Ddump").asDouble(false);
-    bDLM = parser("-use-dlm").asBool(false);
+    //bDLM = parser("-use-dlm").asBool(false);  // Conti was testing this shit. Sid no like...
+    bDLM = false;
     dumpFreq = parser("-fdump").asDouble(0);	// dumpFreq==0 means dump freq (in #steps) is not active
-    dumpTime = parser("-tdump").asDouble(0.05);	// dumpTime==0 means dump freq (in time)   is not active
+    dumpTime = parser("-tdump").asDouble(0.0);	// dumpTime==0 means dump freq (in time)   is not active
     saveFreq = parser("-fsave").asDouble(0);	// dumpFreq==0 means dump freq (in #steps) is not active
-    saveTime = parser("-tsave").asDouble(10.0);	// dumpTime==0 means dump freq (in time)   is not active
+    saveTime = parser("-tsave").asDouble(0.0);	// dumpTime==0 means dump freq (in time)   is not active
     nsteps = parser("-nsteps").asInt(0);		// nsteps==0   means stopping criteria is not active
     endTime = parser("-tend").asDouble(0);		// endTime==0  means stopping criteria is not active
 
@@ -421,7 +422,7 @@ int Simulation::_2Fish_RLstep(const int nO)
 void Simulation::simulate()
 {
 	using namespace std::chrono;
-	if (time<1e-10) _dump(); 
+	//if (time<1e-10) _dump(); 
     Real nextDumpTime = dumpTime>0 ? std::ceil((time+1e-10)/dumpTime)*dumpTime : 1e3; //next = if time=0 then 0, if restart time+dumpTime
     if(!rank) printf("First dump at %g (freq %g)\n",nextDumpTime,dumpTime);
     Real nextSaveTime = time + saveTime;
@@ -432,16 +433,16 @@ void Simulation::simulate()
     while (true)
     {
         #ifdef __RL_MPI_CLIENT
-				if (communicator not_eq nullptr)
-				{
-					profiler.push_start("RL");
-					bool bDoOver = false;
-          const int nO = obstacle_vector->nObstacles();
-          if (nO == 3) bDoOver = _3Fish_RLstep(nO);
-          else if (nO > 1) bDoOver = _2Fish_RLstep(nO);
-					if (bDoOver) return;
-					profiler.pop_stop();
-				}
+	    if (communicator not_eq nullptr)
+	    {
+		    profiler.push_start("RL");
+		    bool bDoOver = false;
+		    const int nO = obstacle_vector->nObstacles();
+		    if (nO == 3) bDoOver = _3Fish_RLstep(nO);
+		    else if (nO > 1) bDoOver = _2Fish_RLstep(nO);
+		    if (bDoOver) return;
+		    profiler.pop_stop();
+	    }
         #endif
 
         profiler.push_start("DT");
