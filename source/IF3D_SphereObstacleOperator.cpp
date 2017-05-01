@@ -29,8 +29,12 @@ void IF3D_SphereObstacleOperator::create(const int step_id,const Real time, cons
   			obstacleBlocks[info.blockID]->clear(); //memset 0
   		}
     }
+}
 
-	const int nthreads = omp_get_max_threads();
+void IF3D_SphereObstacleOperator::finalize(const int step_id,const Real time, const Real dt, const Real *Uinf)
+{
+  //this writes the chi field, therefore moved to finalize
+  const int nthreads = omp_get_max_threads();
 	vector<surfaceBlocks> dataPerThread(nthreads);
 
   #pragma omp parallel

@@ -344,6 +344,9 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 	sr.bForgiving = parser("-easyFailBox").asBool(false);
 	sr.GoalDX = GoalDX;
   sr.thExp = _2Dangle;
+	#ifdef __useSkin_
+	bHasSkin = true;
+	#endif
 	/*
 		randomStart = parser("-randomStart").asBool(false);
 		if (randomStart) {

@@ -9,7 +9,7 @@
  *	store it into tmp. Tested!
  *
  *	characteristic_function():
- *	IN: 
+ *	IN:
  *	OUT: tmp
  *
  */
@@ -22,9 +22,9 @@
 class IF3D_SphereObstacleOperator: public IF3D_ObstacleOperator
 {
 	Real radius;
-	
+
 public:
-	
+
  IF3D_SphereObstacleOperator(FluidGridMPI * grid, ArgumentParser & parser) //const Real radius, const double position[3], const Real smoothing_length=-1):
 	: IF3D_ObstacleOperator(grid, parser)//, radius(radius), smoothing_length(smoothing_length)
 	{
@@ -32,5 +32,7 @@ public:
 	}
 
  	void create(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
+	void finalize(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
+
     void _parseArguments(ArgumentParser & parser) override;
 };

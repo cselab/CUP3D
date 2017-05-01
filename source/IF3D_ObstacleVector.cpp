@@ -134,6 +134,7 @@ void IF3D_ObstacleVector::getFieldOfView(const Real lengthscale)
 	int cnt = 0;
     for(const auto & obst_ptr : obstacles) { //stand-in
     //if (obst_ptr->bCheckCollisions)
+      if(not obst_ptr->bHasSkin) return;
       swimmerInFOV * F = new swimmerInFOV();
 
       obst_ptr->getSkinsAndPOV(F->xPOV, F->yPOV, F->thetaPOV,

@@ -54,7 +54,7 @@ protected:
 
 public:
     int obstacleID, rank, size;
-    bool bFixFrameOfRef, bFixToPlanar, bInteractive;
+    bool bFixFrameOfRef, bFixToPlanar, bInteractive, bHasSkin = false;
     IF3D_ObstacleOperator(FluidGridMPI * grid, ArgumentParser& parser) :
     	grid(grid),obstacleID(0),quaternion{1,0,0,0},_2Dangle(0),position{0,0,0},
       absPos{0,0,0},transVel{0,0,0},angVel{0,0,0},volume(0),J{0,0,0,0,0,0},
