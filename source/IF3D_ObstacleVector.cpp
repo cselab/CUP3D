@@ -131,7 +131,7 @@ void IF3D_ObstacleVector::getFieldOfView(const Real lengthscale)
     //two ingredients: all skins and containers for perceptions
     vector<swimmerInFOV*> FOVobst;
     vector<StateReward*>  FOVdata;
-
+	int cnt = 0;
     for(const auto & obst_ptr : obstacles) { //stand-in
     //if (obst_ptr->bCheckCollisions)
       swimmerInFOV * F = new swimmerInFOV();
@@ -142,8 +142,9 @@ void IF3D_ObstacleVector::getFieldOfView(const Real lengthscale)
 
       FOVobst.push_back(F);
       FOVdata.push_back(D);
+	cnt++;
     }
-
+	if(!cnt) return;
     rayTracing tracing(FOVobst, FOVdata);
     tracing.execute(lengthscale);
   #endif

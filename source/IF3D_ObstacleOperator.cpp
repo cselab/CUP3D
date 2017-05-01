@@ -328,10 +328,12 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
 
     if(fabs(one-1.0) > 5*numeric_limits<Real>::epsilon()) {
     	printf("Parsed quaternion length is not equal to one. It really ought to be.\n");
+	fflush(0);
     	abort();
     }
     if(length < 5*numeric_limits<Real>::epsilon()) {
     	printf("Parsed length is equal to zero. It really ought not to be.\n");
+	fflush(0);
     	abort();
     }
 
@@ -857,30 +859,35 @@ void IF3D_ObstacleOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
   Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
 {
   printf("Entered the wrong get skin operator\n");
+	fflush(0);
   abort();
 }
 
 void IF3D_ObstacleOperator::interpolateOnSkin(const Real time, const int stepID)
 {
   printf("Entered the wrong interpolate operator\n");
+	fflush(0);
   abort();
 }
 void IF3D_ObstacleOperator::execute(Communicator * comm, const int iAgent,
                                               const Real time, const int iLabel)
 {
   printf("Entered the wrong execute operator\n");
+	fflush(0);
   abort();
 }
 void IF3D_ObstacleOperator::create(const int step_id,const Real time,
                                                 const Real dt, const Real *Uinf)
 {
   printf("Entered the wrong create operator\n");
+	fflush(0);
   abort();
 }
 void IF3D_ObstacleOperator::finalize(const int step_id,const Real time,
                                                 const Real dt, const Real *Uinf)
 {
   printf("Entered the wrong finalize operator\n");
+	fflush(0);
   abort();
 }
 
