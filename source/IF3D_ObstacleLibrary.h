@@ -224,7 +224,7 @@ struct FillBlocks
 					surf->add(info.blockID,ix,iy,iz,dchidx,dchidy,dchidz,_Delta);
 				}
 				#ifndef NDEBUG
-				if(H<0 || H>1)
+				if(H<0 || H>1+eps)
 					printf("invalid H?: %10.10e %10.10e %10.10e: %10.10e\n",x,y,z,H);
 				#endif
 				defblock->chi[iz][iy][ix] = H;
