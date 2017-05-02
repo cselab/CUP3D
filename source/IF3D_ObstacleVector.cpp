@@ -155,8 +155,10 @@ void IF3D_ObstacleVector::interpolateOnSkin(const Real time, const int step, con
 {
     if(i<0 || i>=obstacles.size()) {
       for(const auto & obst_ptr : obstacles)
+        if(obst_ptr->bHasSkin) 
           obst_ptr->interpolateOnSkin(time, step);
     } else
+      if(obstacles[i]->bHasSkin) 
       obstacles[i]->interpolateOnSkin(time, step);
 }
 
