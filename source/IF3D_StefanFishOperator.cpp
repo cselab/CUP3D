@@ -207,7 +207,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
       return;
     } else if (comm not_eq nullptr) {
       const Real relT= std::fmod(time,1.); //1 is Tperiod of leader
-      const int nStates = (nActions==1) ? 20+10*20 : 25+ 10*20;
+      const int nStates = (nActions==1) ? 20+10*10 : 25+ 10*10;
       vector<Real> state(nStates), actions(nActions);
 
       int k = 0;
