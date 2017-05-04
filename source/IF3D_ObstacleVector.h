@@ -40,7 +40,7 @@ public:
     vector<std::array<int, 2>> collidingObstacles();
     std::vector<StateReward*> _getData();
     void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) override;
-    void interpolateOnSkin(const Real time, const int step, const int iobst = -1);
+    void interpolateOnSkin(const Real time, const int step, const int iobst = -1, bool dumpWake=false);
     void addObstacle(IF3D_ObstacleOperator * obstacle)
     {
         obstacles.push_back(obstacle);

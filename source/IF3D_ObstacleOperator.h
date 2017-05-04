@@ -97,7 +97,7 @@ public:
   	}
 
     virtual void Accept(ObstacleVisitor * visitor);
-
+    virtual void dumpWake(const int stepID, const Real t, const Real* Uinf);
     virtual Real getD() const {return length;}
 
     virtual void computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda) ;
@@ -108,7 +108,7 @@ public:
     virtual void update(const int step_id, const Real t, const Real dt, const Real* Uinf);
     virtual void save(const int step_id, const Real t, std::string filename = std::string());
     virtual void restart(const Real t, std::string filename = std::string());
-    virtual void interpolateOnSkin(const Real time, const int stepID);
+    virtual void interpolateOnSkin(const Real time, const int stepID, bool dumpWake=false);
     virtual void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel);
     StateReward* _getData() { return &sr; }
     // some non-pure methods

@@ -760,16 +760,25 @@ struct StateReward
             {
               const Real sensorVX = vx[j]-vxDef[j]-VxInst+(yS[j]-Yrel)*AvInst;
               const Real sensorVY = vy[j]-vyDef[j]-VyInst-(xS[j]-Xrel)*AvInst;
+              #ifdef __DumpWakeStefan
+              #warning "RL velocity sensor states are hijacked"
+              data.storeNearest(fxP[j], fyP[j], fxV[j], fyV[j], vxDef[j], vyDef[j], i);
+              #else
               data.storeNearest(fxP[j], fyP[j], fxV[j], fyV[j], sensorVX, sensorVY, i);
               //data.storeNearest(xU[i], yU[i], xS[j], yS[j], i); //for debug
+              #endif
             }
 
             if(std::fabs(yS[j]-yL[i])<=h+eps && std::fabs(xS[j]-xL[i])<=h+eps)
             {
               const Real sensorVX = vx[j]-vxDef[j]-VxInst+(yS[j]-Yrel)*AvInst;
               const Real sensorVY = vy[j]-vyDef[j]-VyInst-(xS[j]-Xrel)*AvInst;
+              #ifdef __DumpWakeStefan
+              data.storeNearest(fxP[j], fyP[j], fxV[j], fyV[j], vxDef[j], vyDef[j], i+Nskin);
+              #else
               data.storeNearest(fxP[j], fyP[j], fxV[j], fyV[j], sensorVX, sensorVY, i+Nskin);
               //data.storeNearest(xL[i], yL[i], xS[j], yS[j], i+Nskin); //for debug
+              #endif
             }
           }
         }
@@ -867,11 +876,19 @@ struct StateReward
             NxBelow[k] = nxBelow;
             NyBelow[k] = nyBelow;
 
+            #ifdef __DumpWakeStefan //i want to keep x and y
+            VelNAbove[k] = VelXAbove;
+            VelTAbove[k] = VelYAbove;
+
+            VelNBelow[k] = VelXBelow;
+            VelTBelow[k] = VelYBelow;
+            #else
             VelNAbove[k] = VelXAbove*nxAbove + VelYAbove*nyAbove;
             VelTAbove[k] = VelXAbove*txAbove + VelYAbove*tyAbove;
 
             VelNBelow[k] = VelXBelow*nxBelow + VelYBelow*nyBelow;
             VelTBelow[k] = VelXBelow*txBelow + VelYBelow*tyBelow;
+            #endif
 
             FPAbove[k] = FPxAbove*nxAbove + FPyAbove*nyAbove;
             FVAbove[k] = FVxAbove*txAbove + FVyAbove*tyAbove;
@@ -880,7 +897,7 @@ struct StateReward
             FVBelow[k] = FVxBelow*txBelow + FVyBelow*tyBelow;
         }
 
-        if(0){
+        if(1){
             ofstream fileskin;
             char buf[500];
             sprintf(buf, "sensorDistrib_%07d.txt", stepId);

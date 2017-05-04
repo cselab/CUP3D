@@ -578,6 +578,56 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
   computeVelocities_kernel(Uinf, transVel, angVel);
 }
 
+void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real* Uinf)
+{
+  {
+    stringstream ssR;
+  	ssR<<"wakeValues_rank"<<rank<<"ID"<<obstacleID<<"_"<<t<<".dat";
+    FILE * pFile = fopen (ssR.str().c_str(), "ab");
+    const Real h  = vInfo[0].h_gridpoint, theta = 0.15;
+
+    const int N = vInfo.size();
+    for(int i=0; i<vInfo.size(); i++) {
+      BlockInfo info = vInfo[i];
+      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+        Real p[3];
+        info.pos(p, ix, iy, iz);
+        p[0] -= position[0];
+        p[1] -= position[1];
+        p[2] -= position[2];
+        if (std::fabs(p[2]) > 0.5*h) continue;
+
+        const Real x = p[0]*std::cos(theta) + p[1]*std::sin(theta);
+        const Real y = p[1]*std::cos(theta) - p[0]*std::sin(theta);
+
+        if (x<0.5*length || x>2.5*length) continue; //behind swimmer
+        if (y<-.2*length || x>0.2*length) continue;
+
+        const double[] d = {p[0], p[1], b(ix,iy,iz).u+Uinf[0], b(ix,iy,iz).v+Uinf[1]};
+        fwrite(d,sizeof(double),4,pFile);
+      }
+    }
+    fclose (pFile);
+  }
+  {
+    stringstream ssR;
+  	ssR<<"headValues_ID"<<obstacleID<<"_"<<t<<".dat";
+    FILE * pFile = fopen (ssR.str().c_str(), "ab");
+    const double[] d = {
+      sr.VelNAbove[1], sr.VelNAbove[2], sr.VelNAbove[3],
+      sr.VelTAbove[1], sr.VelTAbove[2], sr.VelTAbove[3],
+      sr.VelNBelow[1], sr.VelNBelow[2], sr.VelNBelow[3],
+      sr.VelTBelow[1], sr.VelTBelow[2], sr.VelTBelow[3],
+      sr.PXAbove[2], sr.PYAbove[2], sr.PXBelow[2], sr.PYBelow[2]
+    };
+    fwrite(d,sizeof(double),16,pFile);
+  }
+  fclose (pFile);
+}
+
 /*
 void IF3D_ObstacleOperator::_finalizeAngVel(Real AV[3], const Real _J[6], const Real& gam0, const Real& gam1, const Real& gam2)
 {
@@ -866,11 +916,11 @@ void IF3D_ObstacleOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
   abort();
 }
 
-void IF3D_ObstacleOperator::interpolateOnSkin(const Real time, const int stepID)
+void IF3D_ObstacleOperator::interpolateOnSkin(const Real time, const int stepID, bool dumpWake)
 {
-  printf("Entered the wrong interpolate operator\n");
-	fflush(0);
-  abort();
+  //printf("Entered the wrong interpolate operator\n");
+	//fflush(0);
+  //abort();
 }
 void IF3D_ObstacleOperator::execute(Communicator * comm, const int iAgent,
                                               const Real time, const int iLabel)

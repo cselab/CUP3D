@@ -12,7 +12,7 @@
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser)
 : IF3D_ObstacleOperator(grid, parser), theta_internal(0.), angvel_internal(0.),
 sim_time(0.), sim_dt(0.), adjTh(0.), myFish(nullptr), angvel_integral{0.,0.,0.},
-new_curv(0), old_curv(0), new_Tp(0)
+new_curv(0), old_curv(0), new_Tp(0), ptrUinf_copy(nullptr)
 {
 	volume=0;
 	for(int i=0;i<3;i++) transVel[i]=0;
@@ -228,6 +228,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		fflush(0);
 	}
 */
+	ptrUinf_copy = Uinf;
 }
 
 void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real dt, const Real *Uinf)
@@ -292,7 +293,7 @@ void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real d
 */
 }
 
-void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID)
+void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID, bool dumpWake)
 {
 	#ifdef __useSkin_
   assert(quaternion[1] == 0 && quaternion[2] == 0);
@@ -308,6 +309,10 @@ void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID)
 		#ifndef __RL_TRAINING
 			if(rank==0) sr.print(obstacleID, stepID, time);
   	#endif
+		
+	if(dumpWake && ptrUinf_copy not_eq nullptr)
+			dumpWake(stepID, time, ptrUinf_copy);
+	if(ptrUinf_copy == nullptr && !rank) printf("(null backup of uinf)\n");
   #endif
 }
 
@@ -343,7 +348,8 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 		fflush(0); abort(0);
 	}
 	sr.set_NpLatLine(NpLatLine);
-	sr.t_next_comm = Tstartlearn - Tperiod/2.; //i want to reset time-averaged quantities before first actual comm
+	//i want to reset time-averaged quantities before first actual comm
+	sr.t_next_comm = Tstartlearn - Tperiod/2.;
 	sr.bForgiving = parser("-easyFailBox").asBool(false);
 	sr.GoalDX = GoalDX;
   sr.thExp = _2Dangle;

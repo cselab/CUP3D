@@ -151,15 +151,15 @@ void IF3D_ObstacleVector::getFieldOfView(const Real lengthscale)
   #endif
 }
 
-void IF3D_ObstacleVector::interpolateOnSkin(const Real time, const int step, const int i)
+void IF3D_ObstacleVector::interpolateOnSkin(const Real time, const int step, const int i, bool dumpWake)
 {
     if(i<0 || i>=obstacles.size()) {
       for(const auto & obst_ptr : obstacles)
-        if(obst_ptr->bHasSkin) 
-          obst_ptr->interpolateOnSkin(time, step);
+        if(obst_ptr->bHasSkin)
+          obst_ptr->interpolateOnSkin(time, step, dumpWake);
     } else
-      if(obstacles[i]->bHasSkin) 
-      obstacles[i]->interpolateOnSkin(time, step);
+      if(obstacles[i]->bHasSkin)
+      obstacles[i]->interpolateOnSkin(time, step, dumpWake);
 }
 
 vector<std::array<int, 2>> IF3D_ObstacleVector::collidingObstacles()

@@ -220,6 +220,32 @@ void Simulation::_dump(const string append = string())
 
     //CoordinatorDiagnostics coordDiags(grid,time,step);
     //coordDiags(dt);
+
+    #ifdef _USE_ZLIB_
+      profiler.pop_stop();
+      profiler.push_start("Zlib");
+      MPI_Barrier(grid->getCartComm());
+      const int wtype_write = parser("-wtype_write").asInt(1);
+      double threshold = parser("-wthreshold").asDouble(1e-4);
+
+      std::stringstream streamer;
+      streamer<<path4serialization;
+      streamer<<"/";
+      streamer<<"chi_channel_";
+      streamer<<std::setfill('0')<<std::setw(9)<<step;
+      if(!rank)
+        printf("Saving chi to %s, threshold %g\n",
+                streamer.str().c_str(),threshold);
+
+      waveletdumper_grid.verbose();
+      waveletdumper_grid.set_threshold(threshold);
+      waveletdumper_grid.set_wtype_write(wtype_write);
+      waveletdumper_grid.Write<3>(*grid, streamer.str());
+    #else
+      stringstream ssR;
+      ssR<<"restart_"<< std::setfill('0')<<std::setw(9)<<step;
+      DumpHDF5_MPI_Channel<FluidGridMPI,StreamerHDF5,3>(*grid, time, ssR.str(), path4serialization);
+    #endif
 }
 
 void Simulation::_selectDT()
@@ -422,8 +448,12 @@ int Simulation::_2Fish_RLstep(const int nO)
 void Simulation::simulate()
 {
 	using namespace std::chrono;
-	//if (time<1e-10) _dump(); 
-    Real nextDumpTime = dumpTime>0 ? std::ceil((time+1e-10)/dumpTime)*dumpTime : 1e3; //next = if time=0 then 0, if restart time+dumpTime
+	//if (time<1e-10) _dump();
+    //next = if time=0 then 0, if restart time+dumpTime
+    Real nextDumpTime = dumpTime>0 ? std::ceil((time+1e-10)/dumpTime)*dumpTime : 1e3;
+    #ifdef __DumpWakeStefan
+    Real wakeDumpTime = __DumpWakeStefan;
+    #endif
     if(!rank) printf("First dump at %g (freq %g)\n",nextDumpTime,dumpTime);
     Real nextSaveTime = time + saveTime;
     time_point<high_resolution_clock> last_save, this_save, start_sim;
@@ -433,22 +463,24 @@ void Simulation::simulate()
     while (true)
     {
         #ifdef __RL_MPI_CLIENT
-	    if (communicator not_eq nullptr)
-	    {
-		    profiler.push_start("RL");
-		    bool bDoOver = false;
-		    const int nO = obstacle_vector->nObstacles();
-		    if (nO == 3) bDoOver = _3Fish_RLstep(nO);
-		    else if (nO > 1) bDoOver = _2Fish_RLstep(nO);
-		    if (bDoOver) return;
-		    profiler.pop_stop();
-	    }
+  	    if (communicator not_eq nullptr)
+  	    {
+  		    profiler.push_start("RL");
+  		    bool bDoOver = false;
+  		    const int nO = obstacle_vector->nObstacles();
+  		    if (nO == 3) bDoOver = _3Fish_RLstep(nO);
+  		    else if (nO > 1) bDoOver = _2Fish_RLstep(nO);
+  		    if (bDoOver) return;
+  		    profiler.pop_stop();
+  	    }
         #endif
 
         profiler.push_start("DT");
         _selectDT();
         if(bDLM) lambda = 1.0/dt;
-        areWeDumping(nextDumpTime);
+        //check if dumping:
+        bDump = (dumpFreq>0 && step+1%dumpFreq==0) || (dumpTime>0 && time>=nextDumpTime);
+      	if (bDump) nextDumpTime += dumpTime;
         profiler.pop_stop();
 
         for (int c=0; c<pipeline.size(); c++)
@@ -463,65 +495,50 @@ void Simulation::simulate()
         printf("Step %d time %f\n",step,time);
 
         profiler.push_start("Dump");
-        if(bDump) {
-        obstacle_vector->interpolateOnSkin(time,step);
+        if(bDump)
+        {
+          obstacle_vector->interpolateOnSkin(time,step);
           #ifndef __RL_TRAINING
             _dump();
-            #ifdef _USE_ZLIB_
-              profiler.pop_stop();
-              profiler.push_start("Zlib");
-              MPI_Barrier(grid->getCartComm());
-              const int wtype_write = parser("-wtype_write").asInt(1);
-              double threshold = parser("-wthreshold").asDouble(1e-4);
-
-              std::stringstream streamer;
-              streamer<<path4serialization;
-              streamer<<"/";
-              streamer<<"chi_channel_";
-              streamer<<std::setfill('0')<<std::setw(9)<<step;
-              if(!rank)
-                printf("Saving chi to %s, threshold %g\n",
-                        streamer.str().c_str(),threshold);
-
-              waveletdumper_grid.verbose();
-              waveletdumper_grid.set_threshold(threshold);
-              waveletdumper_grid.set_wtype_write(wtype_write);
-              waveletdumper_grid.Write<3>(*grid, streamer.str());
-            #else
-              stringstream ssR;
-              ssR<<"restart_"<< std::setfill('0')<<std::setw(9)<<step;
-              DumpHDF5_MPI_Channel<FluidGridMPI,StreamerHDF5,3>(*grid, time, ssR.str(), path4serialization);
-            #endif
-
-            this_save = high_resolution_clock::now();
-            const Real dClock = duration<Real>(this_save-last_save).count();
-            const Real totClock = duration<Real>(this_save-start_sim).count();
-            if(maxClockDuration < totClock + dClock*1.1) {
-            	if(rank==0) {
-            	cout<<"Save and exit at time "<<time<<" in "<<step<<" step of "<<nsteps<<endl;
-            	cout<<"Not enough allocated clock time ("<<maxClockDuration<<") to reach next dump point"<<endl;
-               cout<<"(time since last dump = "<<dClock<<" total duration of the sim = "<<totClock<<")\n"<<endl;
-            	}
-            	exit(0);
-            }
-            last_save = high_resolution_clock::now();
+            /*
+              this_save = high_resolution_clock::now();
+              const Real dClock = duration<Real>(this_save-last_save).count();
+              const Real totClock = duration<Real>(this_save-start_sim).count();
+              if(maxClockDuration < totClock + dClock*1.1) {
+              	if(rank==0) {
+              	cout<<"Save and exit at time "<<time<<" in "<<step<<" step of "<<nsteps<<endl;
+              	cout<<"Not enough allocated clock time ("<<maxClockDuration<<") to reach next dump point"<<endl;
+                 cout<<"(time since last dump = "<<dClock<<" total duration of the sim = "<<totClock<<")\n"<<endl;
+              	}
+              	exit(0);
+              }
+              last_save = high_resolution_clock::now();
+            */
           #endif
         }
         profiler.pop_stop();
-
+        
         profiler.push_start("Save");
         {
         	_serialize(nextSaveTime);
         }
         profiler.pop_stop();
 
+        #ifdef __DumpWakeStefan
+        if(time >= wakeDumpTime && time-dt <= __DumpWakeStefan+1.)
+        {
+          wakeDumpTime += 0.01;
+          obstacle_vector->interpolateOnSkin(time, step, 0, true);
+        }
+        #endif
+
         if (step % 50 == 0 && !rank) profiler.printSummary();
         if ((endTime>0 && time>endTime) || (nsteps!=0 && step>=nsteps))
         {
         	if(rank==0)
         	cout<<"Finished at time "<<time<<" in "<<step<<" step of "<<nsteps<<endl;
-			//exit(0);
-		return;
+			       //exit(0);
+		      return;
         }
     }
 }
