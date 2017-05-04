@@ -606,7 +606,7 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real*
         if (x<0.5*length || x>2.5*length) continue; //behind swimmer
         if (y<-.2*length || x>0.2*length) continue;
 
-        const double[] d = {p[0], p[1], b(ix,iy,iz).u+Uinf[0], b(ix,iy,iz).v+Uinf[1]};
+        const double d[] = {p[0], p[1], b(ix,iy,iz).u+Uinf[0], b(ix,iy,iz).v+Uinf[1]};
         fwrite(d,sizeof(double),4,pFile);
       }
     }
@@ -616,7 +616,9 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real*
     stringstream ssR;
   	ssR<<"headValues_ID"<<obstacleID<<"_"<<t<<".dat";
     FILE * pFile = fopen (ssR.str().c_str(), "ab");
-    const double[] d = {
+    assert(sr.VelNAbove.size()>=4);
+
+    const double d[] = {
       sr.VelNAbove[1], sr.VelNAbove[2], sr.VelNAbove[3],
       sr.VelTAbove[1], sr.VelTAbove[2], sr.VelTAbove[3],
       sr.VelNBelow[1], sr.VelNBelow[2], sr.VelNBelow[3],
@@ -624,8 +626,8 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real*
       sr.PXAbove[2], sr.PYAbove[2], sr.PXBelow[2], sr.PYBelow[2]
     };
     fwrite(d,sizeof(double),16,pFile);
+    fclose (pFile);
   }
-  fclose (pFile);
 }
 
 /*

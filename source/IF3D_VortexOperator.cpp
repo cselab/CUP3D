@@ -70,7 +70,7 @@ void IF3D_VortexOperator::Accept(ObstacleVisitor * visitor) {}
 void IF3D_VortexOperator::finalize(const int step_id,const Real time,
                                                 const Real dt, const Real *Uinf) {}
 void IF3D_VortexOperator::execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) {}
-void IF3D_VortexOperator::interpolateOnSkin(const Real time, const int stepID) {}
+void IF3D_VortexOperator::interpolateOnSkin(const Real time, const int stepID, bool dumpWake) {}
 void IF3D_VortexOperator::getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
 {
 	pXL = pYL = pXU = pYU = nullptr;

@@ -309,7 +309,7 @@ void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID, boo
 		#ifndef __RL_TRAINING
 			if(rank==0) sr.print(obstacleID, stepID, time);
   	#endif
-		
+
 	if(dumpWake && ptrUinf_copy not_eq nullptr)
 			dumpWake(stepID, time, ptrUinf_copy);
 	if(ptrUinf_copy == nullptr && !rank) printf("(null backup of uinf)\n");
@@ -345,7 +345,7 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 	NpLatLine = parser("-NpLatLine").asInt(0);
 	if(NpLatLine != __NpLatLine) {
 		printf("Mismatch in __NpLatLine, check settings\n");
-		fflush(0); abort(0);
+		fflush(0); abort();
 	}
 	sr.set_NpLatLine(NpLatLine);
 	//i want to reset time-averaged quantities before first actual comm

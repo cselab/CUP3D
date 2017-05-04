@@ -242,9 +242,12 @@ void Simulation::_dump(const string append = string())
       waveletdumper_grid.set_wtype_write(wtype_write);
       waveletdumper_grid.Write<3>(*grid, streamer.str());
     #else
+    {
       stringstream ssR;
       ssR<<"restart_"<< std::setfill('0')<<std::setw(9)<<step;
-      DumpHDF5_MPI_Channel<FluidGridMPI,StreamerHDF5,3>(*grid, time, ssR.str(), path4serialization);
+      DumpHDF5_MPI_Channel<FluidGridMPI,StreamerHDF5,3>(
+        *grid, time, ssR.str(), path4serialization);
+    }
     #endif
 }
 
@@ -517,7 +520,7 @@ void Simulation::simulate()
           #endif
         }
         profiler.pop_stop();
-        
+
         profiler.push_start("Save");
         {
         	_serialize(nextSaveTime);

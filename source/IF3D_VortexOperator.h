@@ -30,7 +30,7 @@ public:
 	void Accept(ObstacleVisitor * visitor) override;
 	void finalize(const int step_id,const Real time, const Real dt, const Real *Uinf) override;
 	void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) override;
-	void interpolateOnSkin(const Real time, const int stepID) override;
+	void interpolateOnSkin(const Real time, const int stepID, bool dumpWake=false) override;
 	void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts) override;
 	void computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda) override;
 };
