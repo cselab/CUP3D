@@ -759,7 +759,7 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
     position[0] += dt*transVel[0];
     position[1] += dt*transVel[1];
     position[2] += dt*transVel[2];
-    _2Dangle += dt*angVel[2];
+
     const Real dqdt[4] = {
         0.5*(-angVel[0]*quaternion[1]-angVel[1]*quaternion[2]-angVel[2]*quaternion[3]),
         0.5*( angVel[0]*quaternion[0]+angVel[1]*quaternion[3]-angVel[2]*quaternion[2]),
@@ -793,6 +793,9 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
         quaternion[3] = num[3]*invDenum;
     }
 
+    //_2Dangle += dt*angVel[2];
+    //keep consistency: get 2d angle from quaternions:
+    _2Dangle = 2*std::atan2(quaternion[3], quaternion[0]);
     Real velx_tot = transVel[0]-Uinf[0];
     Real vely_tot = transVel[1]-Uinf[1];
     Real velz_tot = transVel[2]-Uinf[2];

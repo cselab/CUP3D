@@ -111,6 +111,12 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
 				random_starts[1]=dis(gen);
 				random_starts[2]=dis(gen);
 				random_starts[3]=dis(gen);
+
+				#ifdef __ExploreHalfWake
+				//now, let's explore only one half of the domain:
+					random_starts[1] = std::fabs(random_starts[1]);
+				#endif
+
 	      for (int i = 1; i < size; i++)
           MPI_Send(random_starts, 4, MPI_DOUBLE, i, 35, grid->getCartComm());
 
@@ -128,7 +134,7 @@ void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
       absPos[0] = position[0];
       absPos[1] = position[1];
       _2Dangle = .1* M_PI *random_starts[2];
-      
+
 			quaternion[0] = std::cos(0.5*_2Dangle);
 			quaternion[1] = 0;
 			quaternion[2] = 0;
@@ -207,7 +213,7 @@ void IF3D_StefanFishOperator::execute(Communicator * comm, const int iAgent,
       return;
     } else if (comm not_eq nullptr) {
       const Real relT= std::fmod(time,1.); //1 is Tperiod of leader
-      const int nStates = (nActions==1) ? 20+10*10 : 25+ 10*10;
+      const int nStates = (nActions==1) ? 20+10*__NpLatLine : 25+10*__NpLatLine;
       vector<Real> state(nStates), actions(nActions);
 
       int k = 0;

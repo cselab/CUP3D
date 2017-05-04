@@ -24,7 +24,8 @@ using namespace std;
 //#include <assert.h>
 
 // utmost import to be defined before including cubism
-
+#define __NpLatLine 10
+#define __ExploreHalfWake
 #include <mpi.h>
 #include <omp.h>
 
@@ -580,20 +581,20 @@ struct StateReward
                      const Real lscale, const Real tscale)
     {
       //velocity of reference from fish pov
-      VX = (VxInst-vxFOR)*cos(Theta) + (VyInst-vyFOR)*sin(Theta);
-      VY = (VyInst-vyFOR)*cos(Theta) - (VxInst-vxFOR)*sin(Theta);
+      VX = (VxInst-vxFOR)*std::cos(Theta) + (VyInst-vyFOR)*std::sin(Theta);
+      VY = (VyInst-vyFOR)*std::cos(Theta) - (VxInst-vxFOR)*std::sin(Theta);
       AV = (AvInst-avFOR);
       //velocity of fish in reference pov
-      VxAvg = VxAvg*cos(thFOR) + VyAvg*sin(thFOR);
-      VyAvg = VyAvg*cos(thFOR) - VxAvg*sin(thFOR);
+      VxAvg = VxAvg*std::cos(thFOR) + VyAvg*std::sin(thFOR);
+      VyAvg = VyAvg*std::cos(thFOR) - VxAvg*std::sin(thFOR);
       AvAvg = AvAvg;
       //position in reference frame
-      Xpov = (Xrel-xFOR)*cos(thFOR) + (Yrel-yFOR)*sin(thFOR);
-      Ypov = (Yrel-yFOR)*cos(thFOR) - (Xrel-xFOR)*sin(thFOR);
+      Xpov = (Xrel-xFOR)*std::cos(thFOR) + (Yrel-yFOR)*std::sin(thFOR);
+      Ypov = (Yrel-yFOR)*std::cos(thFOR) - (Xrel-xFOR)*std::sin(thFOR);
       RelAng = Theta - thFOR;
 
-      Dist = sqrt(pow(Xrel-xFOR,2) + pow(Yrel-yFOR,2));
-      Quad = atan2(Ypov,Xpov) - (Theta-thFOR);
+      Dist = std::sqrt(std::pow(Xrel-xFOR,2) + std::pow(Yrel-yFOR,2));
+      Quad = std::atan2(Ypov,Xpov) - (Theta-thFOR);
     }
 
     void finalize(const Real xFOR,   const Real yFOR,  const Real thFOR,
@@ -612,19 +613,24 @@ struct StateReward
         if (ext_Y>0 && ext_Y-Yrel<.025) bRestart = true;
         if (bRestart) { printf("Out of bounds\n"); return true; }
 
-        const Real _Xrel = (Xrel-xFOR)*cos(thFOR) + (Yrel-yFOR)*sin(thFOR);
-        const Real _Yrel = (Yrel-yFOR)*cos(thFOR) - (Xrel-xFOR)*sin(thFOR);
+        const Real _Xrel = (Xrel-xFOR)*std::cos(thFOR) + (Yrel-yFOR)*std::sin(thFOR);
+        const Real _Yrel = (Yrel-yFOR)*std::cos(thFOR) - (Xrel-xFOR)*std::sin(thFOR);
         const Real _thRel= Theta - thFOR;
-        const Real _Dist = sqrt(pow(Xrel-xFOR,2) + pow(Yrel-yFOR,2));
+        const Real _Dist = std::sqrt(std::pow(Xrel-xFOR,2) + std::pow(Yrel-yFOR,2));
 
         if(not bForgiving) {
             bRestart = _Dist<0.25*ls;
             if(bRestart) {printf("Too close\n"); return bRestart;}
             //at DX=1, allowed DY=.5, at DX=2.5 allowed DY=.75
-            bRestart = fabs(_Yrel) > _Xrel/6. + 7*ls/12.;
+            bRestart = std::fabs(_Yrel) > _Xrel/6. + 7*ls/12.;
             if(bRestart) {printf("Too much vertical distance\n"); return bRestart;}
 
-            bRestart = fabs(_thRel)>1.5708;
+            #ifdef __ExploreHalfWake
+              bRestart = _Yrel < -.1*ls;
+              if(bRestart) {printf("Wrong half of the wake\n"); return bRestart;}
+            #endif
+
+            bRestart = std::fabs(_thRel)>1.5708;
             if(bRestart) {printf("Too different inclination\n"); return bRestart;}
 
             bRestart = _Xrel<ls || _Xrel >2.5*ls;
@@ -633,13 +639,13 @@ struct StateReward
             bRestart = _Dist<0.25*ls;
             if(bRestart) {printf("Too close\n"); return bRestart;}
 
-            bRestart = fabs(_Yrel)>ls;
+            bRestart = std::fabs(_Yrel)>ls;
             if(bRestart) {printf("Too much vertical distance\n"); return bRestart;}
 
-            bRestart = fabs(_thRel)>M_PI;
+            bRestart = std::fabs(_thRel)>M_PI;
             if(bRestart) {printf("Too different inclination\n"); return bRestart;}
 
-            bRestart = fabs(_Xrel-GoalDX*ls)>ls;
+            bRestart = std::fabs(_Xrel-GoalDX*ls)>ls;
             if(bRestart) {printf("Too far from horizontal goal\n"); return bRestart;}
         }
 

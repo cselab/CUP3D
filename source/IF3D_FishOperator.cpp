@@ -338,7 +338,10 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 	bCorrectTrajectory = parser("-Correct").asBool(false);
 	bInteractive = parser("-Active").asBool(false);
 	NpLatLine = parser("-NpLatLine").asInt(0);
-
+	if(NpLatLine != __NpLatLine) {
+		printf("Mismatch in __NpLatLine, check settings\n");
+		fflush(0); abort(0);
+	}
 	sr.set_NpLatLine(NpLatLine);
 	sr.t_next_comm = Tstartlearn - Tperiod/2.; //i want to reset time-averaged quantities before first actual comm
 	sr.bForgiving = parser("-easyFailBox").asBool(false);

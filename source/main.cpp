@@ -41,7 +41,7 @@ int main(int argc, char **argv)
 	const int _sockID = parser("-sock").asInt(-1);
 	const int nActions = parser("-nActions").asInt(0);
 	//const int nStates = (nActions==1) ? 20+200 : 25+200;
-	const int nStates = (nActions==1) ? 20+100 : 25+100;
+	const int nStates = (nActions==1) ? 20+10*__NpLatLine : 25+10*__NpLatLine;
 	if (_sockID>=0 && nActions>0) {
 		if(!rank)
 			printf("Communicating over sock %d\n", _sockID);
