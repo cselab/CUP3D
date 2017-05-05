@@ -603,8 +603,8 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real*
         const Real x = p[0]*std::cos(theta) + p[1]*std::sin(theta);
         const Real y = p[1]*std::cos(theta) - p[0]*std::sin(theta);
 
-        if (x<0.5*length || x>2.5*length) continue; //behind swimmer
-        if (y<-.2*length || x>0.2*length) continue;
+        if (x<0.50*length || x>2.50*length) continue; //behind swimmer
+        if (y<-.25*length || y>0.25*length) continue;
 
         const double d[] = {p[0], p[1], b(ix,iy,iz).u+Uinf[0], b(ix,iy,iz).v+Uinf[1]};
         fwrite(d,sizeof(double),4,pFile);
@@ -612,6 +612,7 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real*
     }
     fclose (pFile);
   }
+  if(!rank)
   {
     stringstream ssR;
   	ssR<<"headValues_ID"<<obstacleID<<"_"<<t<<".dat";
@@ -623,7 +624,8 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real*
       sr.VelTAbove[1], sr.VelTAbove[2], sr.VelTAbove[3],
       sr.VelNBelow[1], sr.VelNBelow[2], sr.VelNBelow[3],
       sr.VelTBelow[1], sr.VelTBelow[2], sr.VelTBelow[3],
-      sr.PXAbove[2], sr.PYAbove[2], sr.PXBelow[2], sr.PYBelow[2]
+      sr.PXAbove[2]-position[0], sr.PYAbove[2]-position[1],
+      sr.PXBelow[2]-position[0], sr.PYBelow[2]-position[1]
     };
     fwrite(d,sizeof(double),16,pFile);
     fclose (pFile);
