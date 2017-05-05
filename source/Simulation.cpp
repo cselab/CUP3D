@@ -532,7 +532,9 @@ void Simulation::simulate()
         {
           wakeDumpTime += 0.01;
           obstacle_vector->interpolateOnSkin(time, step, 0, true);
-        }
+        } else if (time-dt > __DumpWakeStefan+1.) {
+		printf("Done dumping wake\n"); fflush(0); abort();
+	}
         #endif
 
         if (step % 50 == 0 && !rank) profiler.printSummary();

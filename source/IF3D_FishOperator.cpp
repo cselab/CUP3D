@@ -293,7 +293,7 @@ void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real d
 */
 }
 
-void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID, bool dumpWake)
+void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID, bool _dumpWake)
 {
 	#ifdef __useSkin_
   assert(quaternion[1] == 0 && quaternion[2] == 0);
@@ -310,7 +310,7 @@ void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID, boo
 			if(rank==0) sr.print(obstacleID, stepID, time);
   	#endif
 
-	if(dumpWake && ptrUinf_copy not_eq nullptr)
+	if(_dumpWake && ptrUinf_copy not_eq nullptr)
 			dumpWake(stepID, time, ptrUinf_copy);
 	if(ptrUinf_copy == nullptr && !rank) printf("(null backup of uinf)\n");
   #endif
@@ -342,7 +342,7 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 	Tstartlearn = parser("-Tstartlearn").asDouble(1e6);
 	bCorrectTrajectory = parser("-Correct").asBool(false);
 	bInteractive = parser("-Active").asBool(false);
-	NpLatLine = parser("-NpLatLine").asInt(0);
+	NpLatLine = parser("-NpLatLine").asInt(__NpLatLine);
 	if(NpLatLine != __NpLatLine) {
 		printf("Mismatch in __NpLatLine, check settings\n");
 		fflush(0); abort();

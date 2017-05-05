@@ -11,6 +11,7 @@
 
 //#include <cassert>
 //#define __2Leads_
+#define __DumpWakeStefan 8
 #define __useSkin_
 #include <stdexcept>
 #include <sstream>
