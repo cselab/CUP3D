@@ -74,8 +74,8 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		Real vely_tot = Uinf[1] - transVel[1];
 		Real AngDiff  = std::atan2(vely_tot,velx_tot);
 		adjTh = (1.-dt) * adjTh + dt * AngDiff;
-		const Real B = (AngDiff*angVel[2]>0) ? 0.25/M_PI : 0;
-		const Real PID = .5*adjTh +B*AngDiff*fabs(angVel[2]);
+		const Real B = (AngDiff*angVel[2]>0) ? 0.01 : 0;
+		const Real PID = .1* adjTh + B*AngDiff*fabs(angVel[2]);
 		myFish->_correctTrajectory(PID, time, dt);
 	}
 	// 1.

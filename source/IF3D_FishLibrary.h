@@ -1138,7 +1138,7 @@ public:
 	void _correctTrajectory(const Real dtheta, const Real time, const Real dt) override
 	{
 		std::array<Real,6> tmp_curv = std::array<Real,6>();
-		for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta/M_PI;}
+		for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta;}
 		adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
 	}
 
