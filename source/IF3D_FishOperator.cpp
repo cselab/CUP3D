@@ -10,8 +10,8 @@
 #include "IF3D_FishLibrary.h"
 #include <chrono>
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser)
-: IF3D_ObstacleOperator(grid, parser), theta_internal(0.), angvel_internal(0.),
-sim_time(0.), sim_dt(0.), adjTh(0.), myFish(nullptr), angvel_integral{0.,0.,0.},
+: IF3D_ObstacleOperator(grid, parser), theta_internal(0), angvel_internal(0),
+sim_time(0), sim_dt(0), adjTh(0), adjDy(0), myFish(nullptr), angvel_integral{0,0,0},
 new_curv(0), old_curv(0), new_Tp(0), ptrUinf_copy(nullptr)
 {
 	volume=0;
@@ -69,15 +69,46 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	const int Nsegments = std::ceil(target_Nm/(Nextension+1));
 	const int Nm = (Nextension+1)*Nsegments + 1;
 	assert((Nm-1)%Nsegments==0);
-	if (bCorrectTrajectory && time>0.312) {
-		Real velx_tot = Uinf[0] - transVel[0];
-		Real vely_tot = Uinf[1] - transVel[1];
-		Real AngDiff  = std::atan2(vely_tot,velx_tot);
+
+	if (bCorrectTrajectory && time>0.312)
+	{
+		assert(followX < 0 && followY < 0);
+		const Real velx_tot = Uinf[0] - transVel[0];
+		const Real vely_tot = Uinf[1] - transVel[1];
+		const Real AngDiff  = std::atan2(vely_tot,velx_tot);
 		adjTh = (1.-dt) * adjTh + dt * AngDiff;
-		const Real B = (AngDiff*angVel[2]>0) ? 0.01 : 0;
-		const Real PID = .1* adjTh + B*AngDiff*fabs(angVel[2]);
+		const Real INST = (AngDiff*angVel[2]>0) ? .1*AngDiff*std::fabs(angVel[2]) : 0;
+		const Real PID = adjTh + INST;
 		myFish->_correctTrajectory(PID, time, dt);
 	}
+
+	if (followX > 0 && followY > 0) //then i control the position
+	{
+		assert(not bCorrectTrajectory);
+		const Real velx_tot = Uinf[0] - transVel[0];
+		const Real vely_tot = Uinf[1] - transVel[1];
+		const Real AngDiff  = std::atan2(vely_tot,velx_tot);
+
+		// Control posDiffs
+		const Real xDiff = (position[0] - followX)/length;
+		const Real yDiff = (position[1] - followY)/length;
+
+		adjTh = (1.-dt) * adjTh + dt * AngDiff;
+		adjDy = (1.-dt) * adjDy + dt * yDiff;
+
+		//If angle is positive: positive curvature only if Dy<0 (must go up)
+		//If angle is negative: negative curvature only if Dy>0 (must go down)
+		const Real INST = (AngDiff*yDiff<0) ? .1*AngDiff*std::fabs(yDiff) : 0;
+		const Real PID = (adjTh-adjDy) + INST;
+		myFish->_correctTrajectory(PID, time, dt);
+
+		// Linearly increase (or decrease) amplitude to 1.2X (decrease to 0.8X)
+		//(experiments observed 1.2X increase in amplitude when swimming faster)
+		//if fish falls back 1 body length. Beyond that, will still increase but dunno if will work
+		const Real amplitudeFactor = 0.2*xDiff + 1.0;
+		myFish->_correctAmplitude(amplitudeFactor, time, dt);
+	}
+
 	// 1.
 	myFish->computeMidline(time);
 	#ifdef __useSkin_
@@ -343,6 +374,8 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 	bCorrectTrajectory = parser("-Correct").asBool(false);
 	bInteractive = parser("-Active").asBool(false);
 	NpLatLine = parser("-NpLatLine").asInt(__NpLatLine);
+	followX = parser("-followX").asDouble(-1);
+	followY = parser("-followY").asDouble(-1);
 	if(NpLatLine != __NpLatLine) {
 		printf("Mismatch in __NpLatLine, check settings\n");
 		fflush(0); abort();

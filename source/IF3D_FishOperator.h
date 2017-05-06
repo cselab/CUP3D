@@ -22,7 +22,8 @@ protected:
     Real Tperiod, phaseShift, phase, sim_time, sim_dt;
     Real volume_internal, J_internal, CoM_internal[2], vCoM_internal[2];
     Real theta_internal, angvel_internal, angvel_internal_prev, CoM_interpolated[3];
-    Real Tstartlearn, GoalDX, new_curv, old_curv, new_Tp, adjTh, angvel_integral[3];
+    Real Tstartlearn, GoalDX, new_curv, old_curv, new_Tp, angvel_integral[3];
+		Real adjTh, adjDy, followX, followY;
     bool randomStart, bCorrectTrajectory;
     int  nActions, NpLatLine;
 		const Real* ptrUinf_copy;

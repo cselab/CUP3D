@@ -850,15 +850,15 @@ class NacaMidlineData : public FishMidlineData
 
 	void _naca_computeWidthsHeights()
 	{
-/*
-		const int nw = 7;
-	  const Real xw[nw] = {0., 0., length*.25, length*.5, length*.75, length, length};
-	  const Real yw[nw] = {0, .5*length, .5*length, .5*length, .5*length, .5*length, 0};
-*/
+		/*
+				const int nw = 7;
+			  const Real xw[nw] = {0., 0., length*.25, length*.5, length*.75, length, length};
+			  const Real yw[nw] = {0, .5*length, .5*length, .5*length, .5*length, .5*length, 0};
+		*/
 		const int nw = 5;
 	  	const Real xw[nw] = {0., 0., length*.5, length, length};
 	  	const Real yw[nw] = {0, .5*length, .5*length, .5*length, 0};
-	
+
 		_naca_integrateBSpline(width, xw, yw, nw);
 		for(int i=0;i<Nm;++i)
 			height[i]  = _naca_width(rS[i],length);
@@ -1098,20 +1098,20 @@ class CarlingFishMidlineData : public FishMidlineData
 			_computeMidlineVelocities(time);
 		}
 		_computeMidlineNormals();
-#if 0
-#warning USED MPI COMM WORLD
-		// we dump the profile
-		int rank;
-		MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-		if (rank!=0) return;
-		FILE * f = fopen("fish_profile","w");
-		for(int i=0;i<Nm;++i)
-			fprintf(f,"%d %g %g %g %g %g %g %g %g %g %g %g\n",
-					i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i],
-					vNorX[i],vNorY[i],width[i],height[i]);
-		fclose(f);
-		printf("Dumped midline\n");
-#endif
+		#if 0
+		#warning USED MPI COMM WORLD
+				// we dump the profile
+				int rank;
+				MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+				if (rank!=0) return;
+				FILE * f = fopen("fish_profile","w");
+				for(int i=0;i<Nm;++i)
+					fprintf(f,"%d %g %g %g %g %g %g %g %g %g %g %g\n",
+							i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i],
+							vNorX[i],vNorY[i],width[i],height[i]);
+				fclose(f);
+				printf("Dumped midline\n");
+		#endif
 	}
 };
 
@@ -1133,13 +1133,32 @@ public:
 	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext),
 	  rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
 		rA(_alloc(Nm)),vA(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm))
-	{    	}
+	{
+			const Real _1oL = 1./length;
+			const std::array<Real ,6> curvature_values = {
+					0.82014*_1oL, 1.46515*_1oL, 2.57136*_1oL,
+					3.75425*_1oL, 5.09147*_1oL, 5.70449*_1oL
+			};
+			const std::array<Real,6> curvature_zeros = std::array<Real, 6>();
+			curvScheduler.transition(time,0.0,Tperiod,curvature_zeros,curvature_values);
+	}
 
 	void _correctTrajectory(const Real dtheta, const Real time, const Real dt) override
 	{
 		std::array<Real,6> tmp_curv = std::array<Real,6>();
 		for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta;}
 		adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
+	}
+
+	void _correctAmplitude(const Real dAmp, const Real time, const Real dt) override
+	{
+		assert(dAmp>0 && dAmp<2); //buhu
+		const Real rampUp = time<Tperiod ? time/Tperiod : 1; //TODO actually should be cubic spline!
+		const Real fac = dAmp*rampUp/length; //curvature is 1/length
+		const std::array<Real ,6> curvature_values = {
+			fac*0.82014, fac*1.46515, fac*2.57136, fac*3.75425, fac*5.09147, fac*5.70449
+		};
+		curvScheduler.transition(time,time,time+2*dt, curvature_values, true);
 	}
 
 	void execute(const Real time, const Real l_tnext, const vector<Real>& input) override
@@ -1172,16 +1191,10 @@ public:
 	{
 		const Real _1oL = 1./length;
 		const Real _1oT = 1./l_Tp;
-		const std::array<Real ,6> curvature_values = {
-				0.82014*_1oL, 1.46515*_1oL, 2.57136*_1oL,
-				3.75425*_1oL, 5.09147*_1oL, 5.70449*_1oL
-		};
 		const std::array<Real ,6> curvature_points = {
 				0, .15*length, .4*length, .65*length, .9*length, length
 		};
 		const std::array<Real,7> baseline_points = {-.5,-.25,0,.25,.5,.75,1.};
-		const std::array<Real,6> curvature_zeros = std::array<Real, 6>();
-		curvScheduler.transition(time,0.0,Tperiod,curvature_zeros,curvature_values);
 
 		// query the schedulers for current values
 		curvScheduler.gimmeValues(  time, 							curvature_points, Nm, rS, rC, vC);
