@@ -92,10 +92,10 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		// Control posDiffs
 		const Real xDiff = (position[0] - followX)/length;
 		const Real yDiff = (position[1] - followY)/length;
-		
+
 		adjTh = (1.-dt) * adjTh + dt * AngDiff;
 		adjDy = (1.-dt) * adjDy + dt * yDiff;
-		
+
 		//If angle is positive: positive curvature only if Dy<0 (must go up)
 		//If angle is negative: negative curvature only if Dy>0 (must go down)
 		const Real INST = (AngDiff*yDiff<0) ? AngDiff*std::fabs(yDiff) : 0;
@@ -105,8 +105,9 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		// Linearly increase (or decrease) amplitude to 1.2X (decrease to 0.8X)
 		//(experiments observed 1.2X increase in amplitude when swimming faster)
 		//if fish falls back 1 body length. Beyond that, will still increase but dunno if will work
-		const Real amplitudeFactor = 1.*xDiff + 1.0;
-		myFish->_correctAmplitude(amplitudeFactor, time, dt);
+		const Real fac = 1.0;
+		const Real amplitudeFactor = fac*xDiff + 1.0;
+		myFish->_correctAmplitude(amplitudeFactor, fac*transVel[0], time, dt);
 	}
 
 	// 1.

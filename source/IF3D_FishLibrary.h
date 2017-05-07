@@ -1128,12 +1128,13 @@ protected:
 	Real * const rA;
 	Real * const vA;
 	Real controlFac;
+	Real controlVel;
 public:
 
 	CurvatureDefinedFishData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
 	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext),
 	  rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
-		rA(_alloc(Nm)),vA(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm)), controlFac(-1)
+		rA(_alloc(Nm)),vA(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm)), controlFac(-1), controlVel(0)
 	{
 	}
 
@@ -1143,13 +1144,14 @@ public:
 		std::array<Real,6> tmp_curv = std::array<Real,6>();
 		for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta;}
 		//adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
-		adjustScheduler.transition(time, time-dt, time+dt, tmp_curv);
+		adjustScheduler.transition(time, adjustScheduler.t0, time+dt, tmp_curv);
 	}
 
-	void _correctAmplitude(const Real dAmp, const Real time, const Real dt) override
+	void _correctAmplitude(const Real dAmp, const Real vAmp, const Real time, const Real dt) override
 	{
 		assert(dAmp>0 && dAmp<2); //buhu
 		controlFac = dAmp;
+		controlVel = vAmp;
 		//const Real rampUp = time<Tperiod ? time/Tperiod : 1; //TODO actually should be cubic spline!
 		//const Real fac = dAmp*rampUp/length; //curvature is 1/length
 		//const std::array<Real ,6> curvature_values = {
@@ -1204,20 +1206,31 @@ public:
 		curvScheduler.gimmeValues(  time, 							curvature_points, Nm, rS, rC, vC);
 		baseScheduler.gimmeValues(  time, l_Tp, length, baseline_points, 	Nm, rS, rB, vB);
 		adjustScheduler.gimmeValues(time, 							curvature_points, Nm, rS, rA, vA);
-		if(controlFac>0)  
-			for(unsigned int i=0; i<Nm; i++)
-			{	rC[i] *= controlFac; vK[i] *= controlFac; }
+		if(controlFac>0) {
+			// construct the curvature
+			for(unsigned int i=0; i<Nm; i++) {
+				const Real darg = 2.*M_PI* _1oT;
+				const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
+				rK[i] = rC[i]*(std::sin(arg)     +rB[i]+rA[i])*controlFac;
+				vK[i] = vC[i]*(std::sin(arg)     +rB[i]+rA[i])*controlFac
+							+ rC[i]*(std::cos(arg)*darg+vB[i]+vA[i])*controlFac
+							+ rC[i]*(std::sin(arg)     +rB[i]+rA[i])*controlVel;
+			}
+		} else {
+			// construct the curvature
+			for(unsigned int i=0; i<Nm; i++) {
+				const Real darg = 2.*M_PI* _1oT;
+				const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
+				rK[i] = rC[i]*(std::sin(arg)      + rB[i] + rA[i]);
+				vK[i] = vC[i]*(std::sin(arg)      + rB[i] + rA[i])
+							+ rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]);
+			}
+		}
+
 
 		//printf("%g %g %g %g\n", rB[12], rB[425], rB[838], rB[1238]);
 
-		// construct the curvature
-		for(unsigned int i=0; i<Nm; i++) {
-			const Real darg = 2.*M_PI* _1oT;
-			const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
-			rK[i] = rC[i]*(std::sin(arg)      + rB[i] + rA[i]);
-			vK[i] = vC[i]*(std::sin(arg)      + rB[i] + rA[i])
-						+ rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]);
-		}
+
 
 		#if 0
 			{ // we dump the profile points
