@@ -791,6 +791,7 @@ class FishMidlineData
 	}
 
 	virtual void computeMidline(const Real time) = 0;
+	virtual void _correctAmplitude(const Real dAmp, const Real time, const Real dt) {}
 	virtual void _correctTrajectory(const Real dtheta, const Real time, const Real dt) {}
 	virtual void execute(const Real time, const Real l_tnext, const vector<Real>& input) {}
 };
@@ -1126,39 +1127,36 @@ protected:
 	Real * const vB;
 	Real * const rA;
 	Real * const vA;
-
+	Real controlFac;
 public:
 
 	CurvatureDefinedFishData(const int Nm, const Real length, const Real Tperiod, const Real phaseShift, const Real dx_ext)
 	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext),
 	  rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
-		rA(_alloc(Nm)),vA(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm))
+		rA(_alloc(Nm)),vA(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm)), controlFac(-1)
 	{
-			const Real _1oL = 1./length;
-			const std::array<Real ,6> curvature_values = {
-					0.82014*_1oL, 1.46515*_1oL, 2.57136*_1oL,
-					3.75425*_1oL, 5.09147*_1oL, 5.70449*_1oL
-			};
-			const std::array<Real,6> curvature_zeros = std::array<Real, 6>();
-			curvScheduler.transition(time,0.0,Tperiod,curvature_zeros,curvature_values);
 	}
 
-	void _correctTrajectory(const Real dtheta, const Real time, const Real dt) override
+	void _correctTrajectory(const Real dtheta, const Real time, Real dt) override
 	{
+		dt += 2.2e-16;
 		std::array<Real,6> tmp_curv = std::array<Real,6>();
 		for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta;}
 		adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
+		//adjustScheduler.transition(time, time-dt, time+dt, tmp_curv);
 	}
 
 	void _correctAmplitude(const Real dAmp, const Real time, const Real dt) override
 	{
 		assert(dAmp>0 && dAmp<2); //buhu
-		const Real rampUp = time<Tperiod ? time/Tperiod : 1; //TODO actually should be cubic spline!
-		const Real fac = dAmp*rampUp/length; //curvature is 1/length
-		const std::array<Real ,6> curvature_values = {
-			fac*0.82014, fac*1.46515, fac*2.57136, fac*3.75425, fac*5.09147, fac*5.70449
-		};
-		curvScheduler.transition(time,time,time+2*dt, curvature_values, true);
+		controlFac = dAmp;
+		//const Real rampUp = time<Tperiod ? time/Tperiod : 1; //TODO actually should be cubic spline!
+		//const Real fac = dAmp*rampUp/length; //curvature is 1/length
+		//const std::array<Real ,6> curvature_values = {
+		//	fac*0.82014, fac*1.46515, fac*2.57136, fac*3.75425, fac*5.09147, fac*5.70449
+		//};
+		//curvScheduler.transition(time,time,time+2*dt, curvature_values, true);
+		//curvScheduler.transition(time, time-dt, time+dt, curvature_values);
 	}
 
 	void execute(const Real time, const Real l_tnext, const vector<Real>& input) override
@@ -1195,12 +1193,20 @@ public:
 				0, .15*length, .4*length, .65*length, .9*length, length
 		};
 		const std::array<Real,7> baseline_points = {-.5,-.25,0,.25,.5,.75,1.};
+		const std::array<Real ,6> curvature_values = {
+				0.82014*_1oL, 1.46515*_1oL, 2.57136*_1oL,
+				3.75425*_1oL, 5.09147*_1oL, 5.70449*_1oL
+		};
+		const std::array<Real,6> curvature_zeros = std::array<Real, 6>();
+		curvScheduler.transition(time,0,Tperiod,curvature_zeros,curvature_values);
 
 		// query the schedulers for current values
 		curvScheduler.gimmeValues(  time, 							curvature_points, Nm, rS, rC, vC);
 		baseScheduler.gimmeValues(  time, l_Tp, length, baseline_points, 	Nm, rS, rB, vB);
 		adjustScheduler.gimmeValues(time, 							curvature_points, Nm, rS, rA, vA);
-
+		//if(controlFac>0)  
+		//	for(unsigned int i=0; i<Nm; i++)
+		//	{	rC[i] *= controlFac; vK[i] *= controlFac; }
 		//printf("%g %g %g %g\n", rB[12], rB[425], rB[838], rB[1238]);
 		// construct the curvature
 		for(unsigned int i=0; i<Nm; i++) {

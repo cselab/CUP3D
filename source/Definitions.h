@@ -11,7 +11,7 @@
 
 //#include <cassert>
 //#define __2Leads_
-#define __DumpWakeStefan 8
+//#define __DumpWakeStefan 8
 #define __useSkin_
 #include <stdexcept>
 #include <sstream>
@@ -898,7 +898,7 @@ struct StateReward
             FVBelow[k] = FVxBelow*txBelow + FVyBelow*tyBelow;
         }
 
-        if(1){
+        if(0){
             ofstream fileskin;
             char buf[500];
             sprintf(buf, "sensorDistrib_%07d.txt", stepId);

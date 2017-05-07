@@ -317,6 +317,7 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
     quaternion[1] = parser("-quat1").asDouble(0.0);
     quaternion[2] = parser("-quat2").asDouble(0.0);
     quaternion[3] = parser("-quat3").asDouble(0.0);
+    _2Dangle = 2*std::atan2(quaternion[3], quaternion[0]);
     if(!rank)
     printf("Obstacle L=%g, pos=[%g %g %g], q=[%g %g %g %g]\n",
       length,position[0],position[1],position[2],quaternion[0],quaternion[1],quaternion[2],quaternion[3]);
