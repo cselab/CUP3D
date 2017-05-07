@@ -1142,8 +1142,8 @@ public:
 		dt += 2.2e-16;
 		std::array<Real,6> tmp_curv = std::array<Real,6>();
 		for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta;}
-		adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
-		//adjustScheduler.transition(time, time-dt, time+dt, tmp_curv);
+		//adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
+		adjustScheduler.transition(time, time-dt, time+dt, tmp_curv);
 	}
 
 	void _correctAmplitude(const Real dAmp, const Real time, const Real dt) override
@@ -1204,10 +1204,12 @@ public:
 		curvScheduler.gimmeValues(  time, 							curvature_points, Nm, rS, rC, vC);
 		baseScheduler.gimmeValues(  time, l_Tp, length, baseline_points, 	Nm, rS, rB, vB);
 		adjustScheduler.gimmeValues(time, 							curvature_points, Nm, rS, rA, vA);
-		//if(controlFac>0)  
-		//	for(unsigned int i=0; i<Nm; i++)
-		//	{	rC[i] *= controlFac; vK[i] *= controlFac; }
+		if(controlFac>0)  
+			for(unsigned int i=0; i<Nm; i++)
+			{	rC[i] *= controlFac; vK[i] *= controlFac; }
+
 		//printf("%g %g %g %g\n", rB[12], rB[425], rB[838], rB[1238]);
+
 		// construct the curvature
 		for(unsigned int i=0; i<Nm; i++) {
 			const Real darg = 2.*M_PI* _1oT;

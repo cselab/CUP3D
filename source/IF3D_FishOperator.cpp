@@ -78,7 +78,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		const Real AngDiff  = std::atan2(vely_tot,velx_tot);
 		adjTh = (1.-dt) * adjTh + dt * AngDiff;
 		const Real INST = (AngDiff*angVel[2]>0) ? AngDiff*std::fabs(angVel[2]) : 0;
-		const Real PID = 0.0*adjTh + 0.00*INST;
+		const Real PID = 0.1*adjTh + 0.01*INST;
 		myFish->_correctTrajectory(PID, time, dt);
 	}
 
@@ -99,13 +99,13 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		//If angle is positive: positive curvature only if Dy<0 (must go up)
 		//If angle is negative: negative curvature only if Dy>0 (must go down)
 		const Real INST = (AngDiff*yDiff<0) ? AngDiff*std::fabs(yDiff) : 0;
-		const Real PID = 0.00*(adjTh-adjDy) + 0.000*INST;
+		const Real PID = 1*(adjTh-adjDy) + 1.*INST;
 		myFish->_correctTrajectory(PID, time, dt);
 
 		// Linearly increase (or decrease) amplitude to 1.2X (decrease to 0.8X)
 		//(experiments observed 1.2X increase in amplitude when swimming faster)
 		//if fish falls back 1 body length. Beyond that, will still increase but dunno if will work
-		const Real amplitudeFactor = 0.000*xDiff + 1.0;
+		const Real amplitudeFactor = 1.*xDiff + 1.0;
 		myFish->_correctAmplitude(amplitudeFactor, time, dt);
 	}
 
