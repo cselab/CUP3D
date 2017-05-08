@@ -791,7 +791,7 @@ class FishMidlineData
 	}
 
 	virtual void computeMidline(const Real time) = 0;
-	virtual void _correctAmplitude(const Real dAmp, const Real time, const Real dt) {}
+	virtual void _correctAmplitude(const Real dAmp, const Real vAmp, const Real time, const Real dt) {}
 	virtual void _correctTrajectory(const Real dtheta, const Real time, const Real dt) {}
 	virtual void execute(const Real time, const Real l_tnext, const vector<Real>& input) {}
 };
@@ -1144,7 +1144,7 @@ public:
 		std::array<Real,6> tmp_curv = std::array<Real,6>();
 		for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta;}
 		//adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
-		adjustScheduler.transition(time, adjustScheduler.t0, time+dt, tmp_curv);
+		adjustScheduler.transition(time, adjustScheduler.t0, time+dt, tmp_curv, true);
 	}
 
 	void _correctAmplitude(const Real dAmp, const Real vAmp, const Real time, const Real dt) override
