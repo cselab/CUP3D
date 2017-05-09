@@ -79,7 +79,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		adjTh = (1.-dt) * adjTh + dt * AngDiff;
 		const Real INST = (AngDiff*angVel[2]>0) ? AngDiff*std::fabs(angVel[2]) : 0;
 		const Real PID = 0.1*adjTh + 0.01*INST;
-		myFish->_correctTrajectory(PID, time, dt);
+		myFish->_correctTrajectory(PID, 0,time, dt);
 	}
 
 	if (followX > 0 && followY > 0) //then i control the position
@@ -87,11 +87,14 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		assert(not bCorrectTrajectory);
 		const Real velx_tot = Uinf[0] - transVel[0];
 		const Real vely_tot = Uinf[1] - transVel[1];
-		const Real AngDiff  = std::atan2(vely_tot,velx_tot);
+		const Real AngDiff  = _2Dangle;//std::atan2(vely_tot,velx_tot);
 
 		// Control posDiffs
 		const Real xDiff = (position[0] - followX)/length;
 		const Real yDiff = (position[1] - followY)/length;
+		const Real absDY = std::fabs(yDiff);
+		const Real velAbsDY = yDiff>0 ? transVel[1]/length : -transVel[1]/length;
+		const Real velDAvg = AngDiff-adjTh + dt*angVel[2];
 
 		adjTh = (1.-dt) * adjTh + dt * AngDiff;
 		adjDy = (1.-dt) * adjDy + dt * yDiff;
@@ -99,18 +102,25 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		//If angle is positive: positive curvature only if Dy<0 (must go up)
 		//If angle is negative: negative curvature only if Dy>0 (must go down)
 		//const Real INST = (AngDiff*angVel[2]>0 && yDiff*AngDiff<0) ? AngDiff*std::fabs(yDiff*angVel[2]) : 0;
-		const Real INST = (yDiff*AngDiff<0) ? AngDiff*std::fabs(yDiff) : 0;
-		const Real PROP = (adjTh*  yDiff<0) ?   adjTh*std::fabs(yDiff) : 0;
-		if(!rank) printf("%f\t f1: %f\t f2: %f\n",time,INST, PROP);
-                const Real PID = 20*PROP + 10*INST;
-		myFish->_correctTrajectory(PID, time, dt);
+		const Real PROP = (adjTh  *yDiff<0) ?   adjTh*absDY : 0;
+		const Real INST = (AngDiff*yDiff<0) ? AngDiff*absDY : 0;
+
+		//zero also the derivatives when appropriate
+		const Real f1=(PROP ? 50   : 0), f2=(INST ? 200  : 0), f3=20;
+		//const Real f1=(PROP ? 1000 : 0), f2=(INST ? 2000 : 0), f3=100; 
 
 		// Linearly increase (or decrease) amplitude to 1.2X (decrease to 0.8X)
 		//(experiments observed 1.2X increase in amplitude when swimming faster)
 		//if fish falls back 1 body length. Beyond that, will still increase but dunno if will work
-		const Real fac = 10;
-		const Real amplitudeFactor = fac*xDiff + 1.0;
-		myFish->_correctAmplitude(amplitudeFactor, fac*transVel[0], time, dt);
+		const Real ampFac = f3*xDiff + 1.0;
+		const Real ampVel = f3*transVel[0]/length;
+
+		if(!rank) printf("%f\t f1: %f\t f2: %f\t f3: %f\n",time, PROP, INST, ampFac);
+
+                const Real vPID = velAbsDY*(f1*adjTh + f2*AngDiff) + absDY*(f1*velDAvg+f2*angVel[2]);
+                const Real PID = f1*PROP + f2*INST;
+		myFish->_correctTrajectory(PID, vPID, time, dt);
+		myFish->_correctAmplitude(ampFac, ampVel, time, dt);
 	}
 
 	// 1.
