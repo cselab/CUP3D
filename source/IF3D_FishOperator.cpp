@@ -106,7 +106,9 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		const Real INST = (AngDiff*yDiff<0) ? AngDiff*absDY : 0;
 
 		//zero also the derivatives when appropriate
-		const Real f1=(PROP ? 50   : 0), f2=(INST ? 200  : 0), f3=20;
+		//const Real f1=(PROP ? 50 : 0), f2=(INST ? 200 : 0), f3=20;
+		//const Real f1=(PROP ? 100 : 0), f2=(INST ? 200 : 0), f3=1;
+		const Real f1=(PROP ? 20 : 0), f2=(INST ? 50 : 0), f3=1;
 		//const Real f1=(PROP ? 1000 : 0), f2=(INST ? 2000 : 0), f3=100; 
 
 		// Linearly increase (or decrease) amplitude to 1.2X (decrease to 0.8X)
@@ -115,11 +117,15 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		const Real ampFac = f3*xDiff + 1.0;
 		const Real ampVel = f3*transVel[0]/length;
 
-		if(!rank) printf("%f\t f1: %f\t f2: %f\t f3: %f\n",time, PROP, INST, ampFac);
-
-                const Real vPID = velAbsDY*(f1*adjTh + f2*AngDiff) + absDY*(f1*velDAvg+f2*angVel[2]);
-                const Real PID = f1*PROP + f2*INST;
-		myFish->_correctTrajectory(PID, vPID, time, dt);
+		const Real curv1fac = f1*PROP;
+		const Real curv1vel = f1*(velAbsDY*adjTh   + absDY*velDAvg);
+		const Real curv2fac = f2*INST;
+		const Real curv2vel = f2*(velAbsDY*AngDiff + absDY*angVel[2]);
+                //const Real vPID = velAbsDY*(f1*adjTh + f2*AngDiff) + absDY*(f1*velDAvg+f2*angVel[2]);
+                //const Real PID = f1*PROP + f2*INST;
+		if(!rank) printf("%f\t f1: %f %f\t f2: %f %f\t f3: %f %f\n", time, 
+			curv1fac, curv1vel, curv2fac, curv2vel, ampFac, ampVel);
+		myFish->_correctTrajectory(curv1fac+curv2fac, curv1vel+curv2vel, time, dt);
 		myFish->_correctAmplitude(ampFac, ampVel, time, dt);
 	}
 

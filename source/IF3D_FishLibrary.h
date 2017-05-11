@@ -1152,9 +1152,13 @@ public:
 		
 	}
 
-	void _correctAmplitude(const Real dAmp, const Real vAmp, const Real time, const Real dt) override
+	void _correctAmplitude(Real dAmp, Real vAmp, const Real time, const Real dt) override
 	{
 		assert(dAmp>0 && dAmp<2); //buhu
+		if(dAmp<=0) {
+			dAmp=0; 
+			vAmp=0;
+		}
 		controlFac = dAmp;
 		controlVel = vAmp;
 		//const Real rampUp = time<Tperiod ? time/Tperiod : 1; //TODO actually should be cubic spline!
@@ -1217,19 +1221,19 @@ public:
 			for(unsigned int i=0; i<Nm; i++) {
 				const Real darg = 2.*M_PI* _1oT;
 				const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
-				rK[i] = rC[i]*(std::sin(arg)     +rB[i]+_rA)*controlFac;
-				vK[i] = vC[i]*(std::sin(arg)     +rB[i]+_rA)*controlFac
-							+ rC[i]*(std::cos(arg)*darg+vB[i]+_vA)*controlFac
-							+ rC[i]*(std::sin(arg)     +rB[i]+_rA)*controlVel;
+				rK[i] =   rC[i]*(std::sin(arg)     +rB[i]+_rA)*controlFac;
+				vK[i] =   vC[i]*(std::sin(arg)     +rB[i]+_rA)*controlFac
+					+ rC[i]*(std::cos(arg)*darg+vB[i]+_vA)*controlFac
+					+ rC[i]*(std::sin(arg)     +rB[i]+_rA)*controlVel;
 			}
 		} else {
 			// construct the curvature
 			for(unsigned int i=0; i<Nm; i++) {
 				const Real darg = 2.*M_PI* _1oT;
 				const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
-				rK[i] = rC[i]*(std::sin(arg)      + rB[i] + rA[i]);
-				vK[i] = vC[i]*(std::sin(arg)      + rB[i] + rA[i])
-							+ rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]);
+				rK[i] =   rC[i]*(std::sin(arg)      + rB[i] + rA[i]);
+				vK[i] =   vC[i]*(std::sin(arg)      + rB[i] + rA[i])
+					+ rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]);
 			}
 		}
 

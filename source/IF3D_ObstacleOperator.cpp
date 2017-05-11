@@ -849,8 +849,14 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
     }
 
     //_2Dangle += dt*angVel[2];
+    const Real old2DA = _2Dangle;
     //keep consistency: get 2d angle from quaternions:
     _2Dangle = 2*std::atan2(quaternion[3], quaternion[0]);
+    const Real err = std::fabs(_2Dangle-old2DA-dt*angVel[2]);
+    if(err>2.2e-16) 
+	printf("Discrepancy in angvel from quaternions: %f (%f %f)\n", 
+		err, (_2Dangle-old2DA)/dt, angVel[2]);
+
     Real velx_tot = transVel[0]-Uinf[0];
     Real vely_tot = transVel[1]-Uinf[1];
     Real velz_tot = transVel[2]-Uinf[2];
