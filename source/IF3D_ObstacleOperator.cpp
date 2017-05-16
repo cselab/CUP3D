@@ -136,7 +136,7 @@ struct DumpWake : public GenericLabOperator
 {
     Real t;
     const Real *Uinf, *CM, length, theta = 0.15;
-    FILE* const pFile
+    FILE* const pFile;
   	int stencil_start[3], stencil_end[3];
 
     DumpWake(const Real*Uinf, const Real*CM, FILE*pFile, const Real length):
@@ -150,7 +150,8 @@ struct DumpWake : public GenericLabOperator
   template <typename Lab, typename BlockType>
 	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
 	{
-      const Real _1oH = .5 / info.h_gridpoint; // 2 nu / 2 h
+      const Real _1oH = .5 / info.h_gridpoint;
+	const Real h = info.h_gridpoint;
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -630,26 +631,20 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real*
   { //horrible, dont look at it!!!
     stringstream ssR;
   	ssR<<"wakeValues_rank"<<rank<<"ID"<<obstacleID<<"_"<<t<<".dat";
-    FILE * pFile = fopen (ssR.str().c_str(), "ab");
-    DumpWake kernel(Uinf, position, pFile, length);
-    SynchronizerMPI& Synch = grid->sync(kernel);
-		LabMPI labs;
-		labs.prepare(*grid, Synch);
-    MPI_Barrier(grid->getCartComm());
-		vector<BlockInfo> avail0 = Synch.avail_inner();
-    vector<BlockInfo> avail1 = Synch.avail_halo();
-    const int N = vInfo.size();
-    for(int i=0; i<vInfo.size(); i++) { //i care more about ease of postprocess here
-			FluidBlock& b = *(FluidBlock*)avail0[i].ptrBlock;
-			labs.load(avail0[i], 0);
-			kernel(labs, avail0[i], b); // why is this using the local blockInfo? or is it global? is dh correct?
-		}
-
-		for(int i=0; i<avail1.size(); i++) {
-				FluidBlock& b = *(FluidBlock*)avail1[i].ptrBlock;
-				labs.load(avail1[i], 0);
-				kernel(labs, avail1[i], b);
-		}
+	FILE * pFile = fopen (ssR.str().c_str(), "ab");
+	DumpWake kernel(Uinf, position, pFile, length);
+	SynchronizerMPI& Synch = grid->sync(kernel);
+	LabMPI labs;
+	labs.prepare(*grid, Synch);
+	MPI_Barrier(grid->getCartComm());
+	vector<BlockInfo> avail0 = Synch.avail_inner();
+	vector<BlockInfo> avail1 = Synch.avail_halo();
+	for(int i=0; i<vInfo.size(); i++) 
+	{ //i care more about ease of postprocess here than scaling
+		FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+		labs.load(vInfo[i], 0);
+		kernel(labs, vInfo[i], b); 
+	}
     MPI_Barrier(grid->getCartComm());
     fclose (pFile);
   }
