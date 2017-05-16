@@ -132,6 +132,52 @@ struct ForcesOnSkin : public GenericLabOperator
 	}
 };
 
+struct DumpWake : public GenericLabOperator
+{
+    Real t;
+    const Real *Uinf, *CM, length, theta = 0.15;
+    FILE* const pFile
+  	int stencil_start[3], stencil_end[3];
+
+    DumpWake(const Real*Uinf, const Real*CM, FILE*pFile, const Real length):
+    t(0), Uinf(Uinf), CM(CM), length(length), pFile(pFile)
+	{
+    		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+    		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
+    		stencil_end[0]   = stencil_end[1]   = stencil_end[2]   = +2;
+	}
+
+  template <typename Lab, typename BlockType>
+	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
+	{
+      const Real _1oH = .5 / info.h_gridpoint; // 2 nu / 2 h
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+         Real p[3];
+         info.pos(p, ix, iy, iz);
+         p[0] -= CM[0];
+         p[1] -= CM[1];
+         p[2] -= CM[2];
+         if (std::fabs(p[2]) > 0.5*h) continue;
+
+         const Real x = p[0]*std::cos(theta) + p[1]*std::sin(theta);
+         const Real y = p[1]*std::cos(theta) - p[0]*std::sin(theta);
+         if (x<0.50*length || x>2.50*length) continue; //behind swimmer
+         if (y<-.25*length || y>0.25*length) continue;
+
+         const Real gradPx = _1oH*(b(ix+1,iy,iz).p-b(ix-1,iy,iz).p);
+         const Real gradPy = _1oH*(b(ix,iy+1,iz).p-b(ix,iy-1,iz).p);
+         const double d[6] = {
+           p[0], p[1],
+           b(ix,iy,iz).u+Uinf[0], b(ix,iy,iz).v+Uinf[1],
+           gradPx, gradPy
+         };
+         fwrite(d,sizeof(double),6,pFile);
+		}
+	}
+};
+
 void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
                                         Real ang_momenta[3], const Real CoM[3])
 {
@@ -581,36 +627,30 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 
 void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real* Uinf)
 {
-  {
+  { //horrible, dont look at it!!!
     stringstream ssR;
   	ssR<<"wakeValues_rank"<<rank<<"ID"<<obstacleID<<"_"<<t<<".dat";
     FILE * pFile = fopen (ssR.str().c_str(), "ab");
-    const Real h  = vInfo[0].h_gridpoint, theta = 0.15;
-
+    DumpWake kernel(Uinf, position, pFile, length);
+    SynchronizerMPI& Synch = grid->sync(kernel);
+		LabMPI labs;
+		labs.prepare(*grid, Synch);
+    MPI_Barrier(grid->getCartComm());
+		vector<BlockInfo> avail0 = Synch.avail_inner();
+    vector<BlockInfo> avail1 = Synch.avail_halo();
     const int N = vInfo.size();
-    for(int i=0; i<vInfo.size(); i++) {
-      BlockInfo info = vInfo[i];
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        Real p[3];
-        info.pos(p, ix, iy, iz);
-        p[0] -= position[0];
-        p[1] -= position[1];
-        p[2] -= position[2];
-        if (std::fabs(p[2]) > 0.5*h) continue;
+    for(int i=0; i<vInfo.size(); i++) { //i care more about ease of postprocess here
+			FluidBlock& b = *(FluidBlock*)avail0[i].ptrBlock;
+			labs.load(avail0[i], 0);
+			kernel(labs, avail0[i], b); // why is this using the local blockInfo? or is it global? is dh correct?
+		}
 
-        const Real x = p[0]*std::cos(theta) + p[1]*std::sin(theta);
-        const Real y = p[1]*std::cos(theta) - p[0]*std::sin(theta);
-
-        if (x<0.50*length || x>2.50*length) continue; //behind swimmer
-        if (y<-.25*length || y>0.25*length) continue;
-
-        const double d[] = {p[0], p[1], b(ix,iy,iz).u+Uinf[0], b(ix,iy,iz).v+Uinf[1]};
-        fwrite(d,sizeof(double),4,pFile);
-      }
-    }
+		for(int i=0; i<avail1.size(); i++) {
+				FluidBlock& b = *(FluidBlock*)avail1[i].ptrBlock;
+				labs.load(avail1[i], 0);
+				kernel(labs, avail1[i], b);
+		}
+    MPI_Barrier(grid->getCartComm());
     fclose (pFile);
   }
   if(!rank)
@@ -618,17 +658,21 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real*
     stringstream ssR;
   	ssR<<"headValues_ID"<<obstacleID<<"_"<<t<<".dat";
     FILE * pFile = fopen (ssR.str().c_str(), "ab");
-    assert(sr.VelNAbove.size()>=4);
-
-    const double d[] = {
-      sr.VelNAbove[1], sr.VelNAbove[2], sr.VelNAbove[3],
-      sr.VelTAbove[1], sr.VelTAbove[2], sr.VelTAbove[3],
-      sr.VelNBelow[1], sr.VelNBelow[2], sr.VelNBelow[3],
-      sr.VelTBelow[1], sr.VelTBelow[2], sr.VelTBelow[3],
-      sr.PXAbove[2]-position[0], sr.PYAbove[2]-position[1],
-      sr.PXBelow[2]-position[0], sr.PYBelow[2]-position[1]
-    };
-    fwrite(d,sizeof(double),16,pFile);
+    assert(sr.VelNAbove.size()==sr.NpLatLine);
+    for(int i=sr.NpLatLine-1; i>=0; --i) {
+      const double d[] = {
+        sr.PXAbove[i]-position[0],  sr.PYAbove[i]-position[1],
+        sr.VelNAbove[i],            sr.VelTAbove[i]
+      };
+      fwrite(d,sizeof(double),4,pFile);
+    }
+    for(int i=0; i<sr.NpLatLine; ++i){
+      const double d[] = {
+        sr.PXBelow[i]-position[0],  sr.PYBelow[i]-position[1],
+        sr.VelNBelow[i],            sr.VelTBelow[i]
+      };
+      fwrite(d,sizeof(double),4,pFile);
+    }
     fclose (pFile);
   }
 }
