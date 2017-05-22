@@ -51,10 +51,16 @@ struct ParameterScheduler
 	{
 		std::ifstream restartstream;
 		restartstream.open(filename+".txt");
-
+		int rank;
+                MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+		if(!rank) std::cout << filename << " ";
 		restartstream >> t0 >> t1;
-		for(int i=0;i<Npoints;++i)
+		for(int i=0;i<Npoints;++i) {
 			restartstream >> parameters_t0[i] >> parameters_t1[i] >> dparameters_t0[i];
+			if(!rank) 
+			std::cout<<parameters_t0[i]<<" "<<parameters_t1[i]<<" "<<dparameters_t0[i];
+		}
+		if(!rank) std::cout << std::endl;
 		restartstream.close();
 	}
 

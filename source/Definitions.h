@@ -11,7 +11,7 @@
 
 //#include <cassert>
 //#define __2Leads_
-//#define __DumpWakeStefan 8
+//#define __DumpWakeStefan 9
 #define __useSkin_
 #include <stdexcept>
 #include <sstream>
@@ -25,7 +25,7 @@ using namespace std;
 //#include <assert.h>
 
 // utmost import to be defined before including cubism
-#define __NpLatLine 10
+#define __NpLatLine 20
 #define __ExploreHalfWake
 #include <mpi.h>
 #include <omp.h>
@@ -983,6 +983,9 @@ struct StateReward
 
         restartstream.close();
 
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+	if (rank==0)
         {
             cout << bRestart << "\t" << info << "\t" << avg_wght << "\t" << t_next_comm << "\t"
             << Xrel << "\t" << Xabs << "\t" << Yrel << "\t" << Yabs << "\t"
@@ -1008,6 +1011,9 @@ struct StateReward
 
     void print(const int ID, const int stepNumber, const Real time)
     {
+	//int rank;
+        //MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+        //if (rank) return;
         {
             ofstream fileskin;
             char buf[500];

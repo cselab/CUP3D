@@ -85,7 +85,7 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI * grid, ArgumentPa
 	const Real dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
 	const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1)) + 1;
 
-	printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
+	if(!rank) printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
 	fflush(0);
 	myFish = new CurvatureDefinedFishData(Nm, length, Tperiod, phaseShift, dx_extension);
 

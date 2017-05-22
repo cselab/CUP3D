@@ -24,7 +24,7 @@ public:
     CoordinatorComputeShape(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles, const int* const stepID, const Real * const time, const Real * const Uinf)
     : GenericCoordinator(grid), obstacleVector(myobstacles), time(time), Uinf(Uinf), stepID(stepID)
 	{
-    	(*obstacleVector)->create(*stepID,*time, 0, Uinf);
+//    	(*obstacleVector)->create(*stepID,*time, 0, Uinf);
 	}
 
 	void operator()(const Real dt)

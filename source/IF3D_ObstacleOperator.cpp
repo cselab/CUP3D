@@ -164,11 +164,11 @@ struct DumpWake : public GenericLabOperator
 
          const Real x = p[0]*std::cos(theta) + p[1]*std::sin(theta);
          const Real y = p[1]*std::cos(theta) - p[0]*std::sin(theta);
-         if (x<0.50*length || x>2.50*length) continue; //behind swimmer
-         if (y<-.25*length || y>0.25*length) continue;
-
-         const Real gradPx = _1oH*(b(ix+1,iy,iz).p-b(ix-1,iy,iz).p);
-         const Real gradPy = _1oH*(b(ix,iy+1,iz).p-b(ix,iy-1,iz).p);
+         //if (x<0.50*length || x>3.00*length) continue; //behind swimmer
+         //if (y<-.35*length || y>0.35*length) continue;
+	 if (p[1]<.0 || p[1]>.2 || p[0]<0 || p[0]>.6) continue;
+         const Real gradPx = _1oH*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p);
+         const Real gradPy = _1oH*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p);
          const double d[6] = {
            p[0], p[1],
            b(ix,iy,iz).u+Uinf[0], b(ix,iy,iz).v+Uinf[1],
@@ -639,11 +639,35 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const Real t, const Real*
 	MPI_Barrier(grid->getCartComm());
 	vector<BlockInfo> avail0 = Synch.avail_inner();
 	vector<BlockInfo> avail1 = Synch.avail_halo();
+	std::map<int, BlockInfo*> tmp;
+	for(int i=0; i<vInfo.size(); i++)
+	{
+		const int look4 = vInfo[i].blockID;
+		bool found = false;
+		for (int j=0; j<avail0.size(); j++) {
+			if(avail0[j].blockID == look4) {
+				if(found) printf("Two blocks with the same ID!!??!\n");
+				else tmp[look4] = &avail0[j];
+				found = true;
+			}
+		}
+		for (int j=0; j<avail1.size(); j++) {
+			if(avail1[j].blockID == look4) {
+				if(found) printf("Two blocks with the same ID!!??!\n");
+				else tmp[look4] = &avail1[j];
+				found = true;
+			}
+		}
+		if(!found) printf("Wtf missing blocks?? Brace for segfault!\n");
+	}
+	//now in tmp i have addresses to all info, and i can dump with same sorting as vInfo
 	for(int i=0; i<vInfo.size(); i++) 
 	{ //i care more about ease of postprocess here than scaling
-		FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-		labs.load(vInfo[i], 0);
-		kernel(labs, vInfo[i], b); 
+		const int blockID = vInfo[i].blockID;
+		BlockInfo info = *tmp[blockID];
+		FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+		labs.load(info, 0);
+		kernel(labs, info, b); 
 	}
     MPI_Barrier(grid->getCartComm());
     fclose (pFile);
