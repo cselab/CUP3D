@@ -1,0 +1,1 @@
+IF3D_CarlingFish L=0.1 T=1 xpos=0.15 ypos=0.25 zpos=0.0625 bFixToPlanar=0 bFixFrameOfRef=1 HingedFin=1 sHinge=0.7 AhingeDeg=30.0 phiHingeDeg=90
