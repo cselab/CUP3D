@@ -409,22 +409,30 @@ struct surfacePoints
     */
     void print(const int ID, const int stepNumber, const int rank)
     {
-        ofstream fileskin;
-        char buf[500];
-        sprintf(buf, "skinDistrib_%1d_%07d_rank%02d.txt", ID, stepNumber, rank);
-        string filename(buf);
-        fileskin.open(filename, ios::trunc);
-
-        for(int i=0; i<Ndata; ++i) {
-            fileskin<< pX[i]<<" "<< pY[i]<<" "<< pZ[i]<<" "
-                    //<<P[i]<<" "
-                    //<<fxP[i]<<" "<<fyP[i]<<" "<<fzP[i]<<" "
-                    //<<fxV[i]<<" "<<fyV[i]<<" "<<fzV[i]<<" "
-                    << fX[i]<<" "<< fY[i]<<" "<< fZ[i]<<" "
-                    << vx[i]<<" "<< vy[i]<<" "<< vz[i]<<" "
-                    <<vxDef[i]<<" "<<vyDef[i]<<" "<<vzDef[i]<<endl;
-        }
-        fileskin.close();
+      ofstream fileskin;
+      char buf[500];
+      sprintf(buf, "skinDistrib_%1d_%07d_rank%02d.txt", ID, stepNumber, rank);
+      FILE * pFile = fopen (buf, "wb");
+      for(size_t i=0; i<Ndata; i++) {
+        float buf[] = { pX[i], pY[i], pZ[i], P[i], fX[i], fY[i], fZ[i], vx[i], vy[i], vz[i], vxDef[i], vyDef[i], vzDef[i] };
+        fwrite (buf, sizeof(float), 13, pFile);
+      }
+      //string filename(buf);
+      //fileskin.open(filename, ios::trunc);
+      /*
+      for(int i=0; i<Ndata; ++i) {
+          fileskin<< pX[i]<<" "<< pY[i]<<" "<< pZ[i]<<" "
+                  //<<P[i]<<" "
+                  //<<fxP[i]<<" "<<fyP[i]<<" "<<fzP[i]<<" "
+                  //<<fxV[i]<<" "<<fyV[i]<<" "<<fzV[i]<<" "
+                  << fX[i]<<" "<< fY[i]<<" "<< fZ[i]<<" "
+                  << vx[i]<<" "<< vy[i]<<" "<< vz[i]<<" "
+                  <<vxDef[i]<<" "<<vyDef[i]<<" "<<vzDef[i]<<endl;
+      }
+      */
+      fileskin.close();
+      fflush(pFile);
+      fclose(pFile);
     }
 
     /*
