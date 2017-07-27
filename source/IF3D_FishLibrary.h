@@ -914,7 +914,8 @@ class CarlingFishMidlineData : public FishMidlineData
 	const Real tStart;
 	Real t0, t1, t2, t3, lowestAmp=1e12;
 	const Real fac, inv;
-	const bool bBurst;
+	const Real sHinge, AhingeTheta, ThingeTheta, hingePhi;
+	const bool bBurst, bHinge;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
 	{
@@ -930,14 +931,36 @@ class CarlingFishMidlineData : public FishMidlineData
 		const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-		return fac * (s + inv*L)*std::sin(arg);
+		double yCurrent = fac * (s + inv*L)*std::sin(arg);
+
+                if(bHinge){
+                        if(s>sHinge){
+                                const double yNot =  fac *  (sHinge + inv*L)*std::sin(2.0*M_PI*(sHinge/L - t/T + phaseShift));
+                                const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
+                                const double dydsNot = std::sin(currentTheta);
+                                yCurrent = yNot + dydsNot*(s-sHinge);
+                        }
+                }
+                return yCurrent;
 	}
 
 	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T,
 		const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
-		return - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
+		double velCurrent = - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
+
+		if(bHinge){
+			if(s>sHinge){
+				//const double yNot =  4./33 *  (sHinge + 0.03125*L)*std::sin(2.0*M_PI*(sHinge/L - t/T + phaseShift));
+				const double velNot =  -2.0*M_PI/T * fac *  (sHinge + inv*L)*std::cos(2.0*M_PI*(sHinge/L - t/T + phaseShift));
+				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
+				const double currentThetaDot = AhingeTheta * 2.0*M_PI/ThingeTheta * std::cos(2.0*M_PI*(t/ThingeTheta + hingePhi));
+				const double dydsNotDT = std::cos(currentTheta)*currentThetaDot;
+				velCurrent = velNot + dydsNotDT*(s-sHinge);
+			}
+		}
+		return velCurrent;
 	}
 
 	inline Real midlineBeC(const Real s, const Real t, const Real L, const Real T,
@@ -1069,13 +1092,13 @@ class CarlingFishMidlineData : public FishMidlineData
  public:
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 		const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false), tStart(1.0e12)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false), tStart(1.0e12), bHinge(false), sHinge(0.0), AhingeTheta(0.0), ThingeTheta(0.0), hingePhi(0.0)
 	{
 	}
 
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 		const Real phaseShift, const Real dx_ext, const string fburstpar, const Real _tStart, const Real _fac = 0.1212121212121212)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(true), tStart(_tStart)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(true), tStart(_tStart), bHinge(false), sHinge(0.0), AhingeTheta(0.0), ThingeTheta(0.0), hingePhi(0.0)
 	{
 		//ifstream reader("burst_coast_carling_params.txt");
 		ifstream reader(fburstpar.c_str());
@@ -1095,6 +1118,14 @@ class CarlingFishMidlineData : public FishMidlineData
 			abort();
 		}
 	}
+
+
+	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
+			const Real phaseShift, const Real dx_ext, const double _sHinge,
+			const double _Ahinge, const double _phiHinge, const Real _fac = 0.1212121212121212):
+		FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false),tStart(1e12), bHinge(true), sHinge(_sHinge), AhingeTheta(M_PI*_Ahinge/180.0), ThingeTheta(Tperiod), hingePhi(_phiHinge/360.0)
+    {
+    }
 
 	void computeMidline(const Real time) override
 	{
@@ -1530,7 +1561,20 @@ struct PutFishOnBlocks
 			return distSq;
 		}
 
-		assert(sRight==start_s or sLeft==start_s);
+		/*if (not (sRight==start_s or sLeft==start_s)){
+			FILE * pFile;
+			pFile = fopen("problematique.txt","w");
+			fprintf(pFile, "curDistSq = %18.16f, distSq = %18.16f\n", curDistSq, distSq);
+			fprintf(pFile, "targetX= %18.16f, targetY= %18.16f\n", relX[0], relX[1]);
+			fprintf(pFile, "sLeft=%d, start_s=%d, sRight=%d\n", sLeft, start_s, sRight);
+			for (int i=0; i<cfish.Nm; i++){
+				fprintf(pFile, "%18.16f \t %18.16f\n", cfish.rX[i], cfish.rY[i]);
+			}
+			fclose(pFile);
+		}*/
+
+		// With a hinged tail, the following overzealous assert will catch, outputted problematique and confirmed in Matlab
+		//assert(sRight==start_s or sLeft==start_s);
 
 		int curr_s = start_s;
 		int new_s = sRight == start_s ? sLeft : sRight;

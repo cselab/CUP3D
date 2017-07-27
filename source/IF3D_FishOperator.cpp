@@ -347,6 +347,10 @@ void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real d
 void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID, bool _dumpWake)
 {
 	#ifdef __useSkin_
+	if(not(quaternion[1] == 0 && quaternion[2] == 0)){
+		printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
+		abort();
+	}
   assert(quaternion[1] == 0 && quaternion[2] == 0);
 	sr.updateStepId(stepID+obstacleID);
 	myFish->computeSkinNormals(_2Dangle, CoM_interpolated);

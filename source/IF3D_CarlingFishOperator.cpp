@@ -20,6 +20,7 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 	const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1)) + 1;
 	const Real amplitude = parser("-amplitude").asDouble(0.1212121212121212);
 	const bool _bBurst = parser("-BurstCoast").asBool(false);
+	const bool bHinge = parser("-HingedFin").asBool(false);
 	printf("CarlingFish: N:%d, L:%f, T:%f, phi:%f, dx_ext:%f, amplitude:%f\n",
 					Nm,length,Tperiod,phaseShift,dx_extension,amplitude);
 	fflush(0);
@@ -30,6 +31,14 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 		parser.unset_strict_mode();
 		const string fburstpar = "burst_coast_carling_params.txt";
 		myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, fburstpar, _tStart, amplitude);
+
+	}else if (bHinge){
+		parser.set_strict_mode();
+		double sHinge = length*parser("-sHinge").asDouble();
+		double aHinge = parser("-AhingeDeg").asDouble();
+		double phiHinge = parser("-phiHingeDeg").asDouble();
+		parser.unset_strict_mode();
+		myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge,aHinge,phiHinge, amplitude);
 	}
 	else
 	myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, amplitude);

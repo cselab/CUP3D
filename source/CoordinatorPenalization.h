@@ -34,7 +34,8 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
 	 const bool bFixFrameOfRef = obstacle->bFixFrameOfRef;
 	 if (bFixFrameOfRef) {
 		 if (obstacle->obstacleID!=0) {
-			 printf("Can only fix first obstacle.\n"); abort();
+			 printf("Can only fix first obstacle.\n"); std::fflush(NULL);
+			 abort();
 		 }
 		 // compute velocities with zero uinf
      Real leadU[3], dummy[3] = {0.0, 0.0, 0.0};

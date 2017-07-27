@@ -45,7 +45,7 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
         std::istringstream is_line(line);
         std::string ID;
         is_line >> ID;
-        if(ID.empty()) continue;
+        if(ID.empty() or ID[0]=='#') continue; // Comments and empty lines ignored
         IF2D_FactoryFileLineParser ffparser(is_line);
         factoryLines.push_back(make_pair(ID,ffparser));
     }

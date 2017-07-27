@@ -48,11 +48,10 @@ CPPFLAGS += -D_BSY_=$(bsy)
 CPPFLAGS += -D_BSZ_=$(bsz)
 CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
-CPPFLAGS += -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=32
 ifeq "$(config)" "prod"
-	CPPFLAGS += -DNDEBUG
+	CPPFLAGS += -DNDEBUG -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=32
 else
-	CPPFLAGS += -g #-fsanitize=address,leak,undefined -fPIE -pie -fno-omit-frame-pointer
+	CPPFLAGS += -g -O0 
 endif
 
 ifeq "$(rk2)" "true"
