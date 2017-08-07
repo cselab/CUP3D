@@ -323,7 +323,8 @@ class FishMidlineData
 	Schedulers::ParameterSchedulerVector<6> curvScheduler;
 	Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
 	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
-  FishSkin * upperSkin, * lowerSkin;
+	FishSkin * upperSkin, * lowerSkin;
+	Real finSize = 1.1e-1;
 
  protected:
 	Real Rmatrix2D[2][2];
@@ -467,16 +468,27 @@ class FishMidlineData
 
 	void _computeWidthsHeights()
 	{
-      #ifdef __BSPLINE
+#ifdef __BSPLINE
 		const int nh = 8;
-        const Real xh[8] = {0, 0, .2*length, .4*length, .6*length,
-																			.8*length, length, length};
-        const Real yh[8] = {0, 5.5e-2*length, 6.8e-2*length, 7.6e-2*length,
-												6.4e-2*length, 7.2e-3*length, 1.1e-1*length, 0};
+		const Real xh[8] = {0, 0, .2*length, .4*length,
+			.6*length, .8*length, length, length};
+		// Slim Zebrafish
+		//const Real yh[8] = {0, 5.5e-2*length, 6.8e-2*length, 7.6e-2*length,
+		//	6.4e-2*length, 7.2e-3*length, 1.1e-1*length, 0};
+
+		// Large fin
+		//const Real yh[8] = {0, 5.5e-2*length, 1.8e-1*length, 2e-1*length,
+		//	6.4e-2*length, 2e-3*length, 3.25e-1*length, 0};
+
+		printf("TailFinSize = %f\n", finSize);
+		fflush(NULL);
+		const Real yh[8] = {0, 5.5e-2*length, 1.8e-1*length, 2e-1*length,
+			6.4e-2*length, 2e-3*length, finSize*length, 0};
+
         const int nw = 6;
         const Real xw[6] = {0, 0, length/3., 2*length/3., length, length};
         const Real yw[6] = {0, 8.9e-2*length, 1.7e-2*length,
-												1.6e-2*length, 1.3e-2*length, 0};
+		1.6e-2*length, 1.3e-2*length, 0};
 		integrateBSpline(width,  xw, yw, nw);
 		integrateBSpline(height, xh, yh, nh);
 	  #else
@@ -531,6 +543,7 @@ class FishMidlineData
 		for(int i=0;i<Next;++i)
 			rS[i+Nint+Next] = length + (i + 1)*dx_ext;
 		_computeWidthsHeights();
+		// FinSize will not be read in from text file by Carling constructor. Call this again when need to over-write with updated values
 
     upperSkin = new FishSkin(Nint);
     lowerSkin = new FishSkin(Nint);
@@ -914,7 +927,9 @@ class CarlingFishMidlineData : public FishMidlineData
 	const Real tStart;
 	Real t0, t1, t2, t3, lowestAmp=1e12;
 	const Real fac, inv;
-	const Real sHinge, AhingeTheta, ThingeTheta, hingePhi;
+	//const Real sHinge, AhingeTheta, ThingeTheta, hingePhi;
+	const Real sHinge, ThingeTheta;
+	Real AhingeTheta, hingePhi;
 	const bool bBurst, bHinge;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
@@ -1119,13 +1134,45 @@ class CarlingFishMidlineData : public FishMidlineData
 		}
 	}
 
-
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
-			const Real phaseShift, const Real dx_ext, const double _sHinge,
+			const Real phaseShift, const Real dx_ext, const Real _sHinge,
 			const double _Ahinge, const double _phiHinge, const Real _fac = 0.1212121212121212):
 		FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false),tStart(1e12), bHinge(true), sHinge(_sHinge), AhingeTheta(M_PI*_Ahinge/180.0), ThingeTheta(Tperiod), hingePhi(_phiHinge/360.0)
     {
     }
+
+	// Had to get rid of default value of _fac=0.1212121212121212. Was creating confusion for compiler with plain fish constructor 
+	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
+			const Real phaseShift, const Real dx_ext, const Real _sHinge,
+			const Real _fac):
+		FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false),tStart(1e12), bHinge(true), sHinge(_sHinge), ThingeTheta(Tperiod)
+	{
+		// Now, read the optimization params (Ahinge, _phiHinge, tail size) from the params file
+		{
+			Real _Ahinge, _phiHinge;
+			//ifstream reader("burst_coast_carling_params.txt");
+			ifstream reader("hingedParams.txt");
+			if (reader.is_open()) {
+				reader >> _Ahinge;
+				reader >> _phiHinge;
+				reader >> finSize;
+				if(reader.eof()){
+					cout << "Insufficient number of parameters provided for hingedFin" << endl; fflush(NULL); abort();
+				}
+				reader.close();
+			} else {
+				cout << "Could not open the correct 'params'.txt file" << endl; fflush(NULL);
+				abort();
+			}
+
+			AhingeTheta = M_PI*_Ahinge/180.0;
+			hingePhi = _phiHinge/360.0;
+		}
+
+		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
+		_computeWidthsHeights();
+
+	}
 
 	void computeMidline(const Real time) override
 	{

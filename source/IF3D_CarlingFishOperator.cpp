@@ -21,6 +21,7 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 	const Real amplitude = parser("-amplitude").asDouble(0.1212121212121212);
 	const bool _bBurst = parser("-BurstCoast").asBool(false);
 	const bool bHinge = parser("-HingedFin").asBool(false);
+	const bool bOptimizeHinge = parser("-OptimizeHingedFin").asBool(false);
 	printf("CarlingFish: N:%d, L:%f, T:%f, phi:%f, dx_ext:%f, amplitude:%f\n",
 					Nm,length,Tperiod,phaseShift,dx_extension,amplitude);
 	fflush(0);
@@ -35,13 +36,17 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 	}else if (bHinge){
 		parser.set_strict_mode();
 		double sHinge = length*parser("-sHinge").asDouble();
-		double aHinge = parser("-AhingeDeg").asDouble();
-		double phiHinge = parser("-phiHingeDeg").asDouble();
+		if(not bOptimizeHinge){
+			double aHinge = parser("-AhingeDeg").asDouble();
+			double phiHinge = parser("-phiHingeDeg").asDouble();
+			myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge,aHinge,phiHinge, amplitude);
+		}else{
+			myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge, amplitude);
+		}
 		parser.unset_strict_mode();
-		myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge,aHinge,phiHinge, amplitude);
+	} else {
+		myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, amplitude);
 	}
-	else
-	myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension, amplitude);
 
 	sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
                     _2Dangle, transVel[0], transVel[1], angVel[2]);
