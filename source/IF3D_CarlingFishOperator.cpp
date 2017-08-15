@@ -41,7 +41,7 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 			double phiHinge = parser("-phiHingeDeg").asDouble();
 			myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge,aHinge,phiHinge, amplitude);
 		}else{
-			myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge, amplitude);
+			myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge, amplitude*0.625); // 0.625 necessary to have dx>0 when lambda>=0.5
 		}
 		parser.unset_strict_mode();
 	} else {

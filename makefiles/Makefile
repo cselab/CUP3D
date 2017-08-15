@@ -19,6 +19,11 @@ accfft ?= true
 train ?= false
 #accfft ?= false
 zlib ?= 0
+verbose ?= false
+
+ifeq "$(verbose)" "true"
+	CPPFLAGS += -D_VERBOSE_
+endif
 
 #TODO!!!
 #-add two modes: training or "showing"

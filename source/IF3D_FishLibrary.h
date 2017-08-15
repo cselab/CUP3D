@@ -324,7 +324,7 @@ class FishMidlineData
 	Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
 	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
 	FishSkin * upperSkin, * lowerSkin;
-	Real finSize = 1.1e-1;
+	Real finSize = 1.1e-1, waveLength = 1.0;
 
  protected:
 	Real Rmatrix2D[2][2];
@@ -480,15 +480,17 @@ class FishMidlineData
 		//const Real yh[8] = {0, 5.5e-2*length, 1.8e-1*length, 2e-1*length,
 		//	6.4e-2*length, 2e-3*length, 3.25e-1*length, 0};
 
-		printf("TailFinSize = %f\n", finSize);
+		printf("TailFinSize = %f, Wavelength = %f\n", finSize, waveLength);
 		fflush(NULL);
 		const Real yh[8] = {0, 5.5e-2*length, 1.8e-1*length, 2e-1*length,
 			6.4e-2*length, 2e-3*length, finSize*length, 0};
 
         const int nw = 6;
         const Real xw[6] = {0, 0, length/3., 2*length/3., length, length};
-        const Real yw[6] = {0, 8.9e-2*length, 1.7e-2*length,
-		1.6e-2*length, 1.3e-2*length, 0};
+        const Real yw[6] = {0, 8.9e-2*length, 7.0e-2*length,
+		3.0e-2*length, 2.0e-2*length, 0};
+        //const Real yw[6] = {0, 8.9e-2*length, 1.7e-2*length,
+	//	1.6e-2*length, 1.3e-2*length, 0};
 		integrateBSpline(width,  xw, yw, nw);
 		integrateBSpline(height, xh, yh, nh);
 	  #else
@@ -945,12 +947,12 @@ class CarlingFishMidlineData : public FishMidlineData
 	inline Real midline(const Real s, const Real t, const Real L, const Real T,
 		const Real phaseShift) const
 	{
-		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
+		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
 		double yCurrent = fac * (s + inv*L)*std::sin(arg);
 
                 if(bHinge){
                         if(s>sHinge){
-                                const double yNot =  fac *  (sHinge + inv*L)*std::sin(2.0*M_PI*(sHinge/L - t/T + phaseShift));
+                                const double yNot =  fac *  (sHinge + inv*L)*std::sin(2.0*M_PI*(sHinge/(waveLength*L) - t/T + phaseShift));
                                 const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
                                 const double dydsNot = std::sin(currentTheta);
                                 yCurrent = yNot + dydsNot*(s-sHinge);
@@ -962,13 +964,13 @@ class CarlingFishMidlineData : public FishMidlineData
 	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T,
 		const Real phaseShift) const
 	{
-		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
+		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
 		double velCurrent = - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
 
 		if(bHinge){
 			if(s>sHinge){
 				//const double yNot =  4./33 *  (sHinge + 0.03125*L)*std::sin(2.0*M_PI*(sHinge/L - t/T + phaseShift));
-				const double velNot =  -2.0*M_PI/T * fac *  (sHinge + inv*L)*std::cos(2.0*M_PI*(sHinge/L - t/T + phaseShift));
+				const double velNot =  -2.0*M_PI/T * fac *  (sHinge + inv*L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
 				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
 				const double currentThetaDot = AhingeTheta * 2.0*M_PI/ThingeTheta * std::cos(2.0*M_PI*(t/ThingeTheta + hingePhi));
 				const double dydsNotDT = std::cos(currentTheta)*currentThetaDot;
@@ -981,14 +983,14 @@ class CarlingFishMidlineData : public FishMidlineData
 	inline Real midlineBeC(const Real s, const Real t, const Real L, const Real T,
 		const Real phaseShift, const Real f) const
 	{
-		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
+		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
 		return f * fac * (s + inv*L)*std::sin(arg);
 	}
 
 	inline Real midlineVelBeC(const Real s, const Real t, const Real L, const Real T,
 		const Real phaseShift, const Real f, const Real df) const
 	{
-		const Real arg = 2.0*M_PI*(s/L - t/T + phaseShift);
+		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
 		return fac*(s + inv*L)*(df*std::sin(arg) - f*(2.0*M_PI/T)*std::cos(arg));
 	}
 
@@ -1079,7 +1081,13 @@ class CarlingFishMidlineData : public FishMidlineData
 			rY[i]=rampFac*midline(rS[i], time, length, Tperiod, phaseShift);
 			const Real dy = rY[i]-rY[i-1];
 			const Real ds = rS[i] - rS[i-1];
-			const Real dx = std::sqrt(ds*ds-dy*dy);
+			Real dx = std::sqrt(ds*ds-dy*dy);
+
+			// dx can be undef for s<0 and s>L points when wavelength>1. I dunno why we have these goddamn s<0 and s>L points
+			if(not(dx>0) and not(waveLength==1.0)){
+				dx = 0.001*length;
+			}
+
 			rX[i] = rX[i-1] + dx;
 		}
 	}
@@ -1099,8 +1107,13 @@ class CarlingFishMidlineData : public FishMidlineData
 			const Real dy  = rY[i]-rY[i-1];
 			const Real dx  = rX[i]-rX[i-1];
 			const Real dVy = vY[i]-vY[i-1];
-			assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
+
 			vX[i] = vX[i-1] - dy/dx * dVy; // use ds^2 = dx^2 + dy^2 --> ddx = -dy/dx*ddy
+			if(waveLength==1.0){
+				assert(dx>0); // has to be, otherwise y(s) is multiple valued for a given s
+			}else{ // dx can be undef for s<0 and s>L points when wavelength>1. I dunno why we have these goddamn s<0 and s>L points
+				if(not(dx>0))	vX[i] = 0.0;
+			}
 		}
 	}
 
@@ -1156,6 +1169,7 @@ class CarlingFishMidlineData : public FishMidlineData
 				reader >> _Ahinge;
 				reader >> _phiHinge;
 				reader >> finSize;
+				reader >> waveLength;
 				if(reader.eof()){
 					cout << "Insufficient number of parameters provided for hingedFin" << endl; fflush(NULL); abort();
 				}
@@ -1304,7 +1318,7 @@ public:
 			// construct the curvature
 			for(unsigned int i=0; i<Nm; i++) {
 				const Real darg = 2.*M_PI* _1oT;
-				const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
+				const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL/waveLength) + M_PI*phaseShift;
 				rK[i] =   rC[i]*(std::sin(arg)     +rB[i]+_rA)*controlFac;
 				vK[i] =   vC[i]*(std::sin(arg)     +rB[i]+_rA)*controlFac
 					+ rC[i]*(std::cos(arg)*darg+vB[i]+_vA)*controlFac
@@ -1314,7 +1328,7 @@ public:
 			// construct the curvature
 			for(unsigned int i=0; i<Nm; i++) {
 				const Real darg = 2.*M_PI* _1oT;
-				const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL) + M_PI*phaseShift;
+				const Real arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL/waveLength) + M_PI*phaseShift;
 				rK[i] =   rC[i]*(std::sin(arg)      + rB[i] + rA[i]);
 				vK[i] =   vC[i]*(std::sin(arg)      + rB[i] + rA[i])
 					+ rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]);

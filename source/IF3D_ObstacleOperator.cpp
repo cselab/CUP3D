@@ -212,9 +212,11 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
     assert(globals[3] > std::numeric_limits<double>::epsilon());
     const Real computed_vol = globals[3] * dv;
     //assert(std::fabs(computed_vol -volume) < 10*eps);
+#ifdef _VERBOSE_
     if (!rank)
       printf("Discrepancy in computed volume during correction = %g.\n",
             std::fabs(computed_vol-volume));
+#endif
     lin_momenta[0] = globals[0]/globals[3];
     lin_momenta[1] = globals[1]/globals[3];
     lin_momenta[2] = globals[2]/globals[3];
@@ -304,18 +306,22 @@ void IF3D_ObstacleOperator::_computeUdefMoments(Real lin_momenta[3],
     J[4] = globals[7] * dv;
     J[5] = globals[8] * dv;
     //assert(!errors);
+#ifdef _VERBOSE_
     if (!rank)
-    printf("Max error in computed momenta during correction = %g.\n", errors);
+    	printf("Max error in computed momenta during correction = %g.\n", errors);
+#endif
   }
 }
 
 void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
 {
 	_computeUdefMoments(transVel_correction, angVel_correction, CoM);
+#ifdef _VERBOSE_
 	if(rank==0)
     printf("Correction of: lin mom [%f %f %f] ang mom [%f %f %f]\n",
     		transVel_correction[0], transVel_correction[1], transVel_correction[2],
 			angVel_correction[0], angVel_correction[1], angVel_correction[2]);
+#endif
 
     #pragma omp parallel for schedule(dynamic)
     for(int i=0; i<vInfo.size(); i++) {
