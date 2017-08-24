@@ -933,6 +933,7 @@ class CarlingFishMidlineData : public FishMidlineData
 	const Real sHinge, ThingeTheta;
 	Real AhingeTheta, hingePhi;
 	const bool bBurst, bHinge;
+	const bool quadraticAmplitude;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
 	{
@@ -948,15 +949,26 @@ class CarlingFishMidlineData : public FishMidlineData
 		const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
-		double yCurrent = fac * (s + inv*L)*std::sin(arg);
+		
+		double yCurrent;
+		if(quadraticAmplitude){
+			yCurrent = (s*s*0.15/L) *std::sin(arg);
+		} else {
+			yCurrent = fac * (s + inv*L)*std::sin(arg);
+		}
 
-                if(bHinge){
-                        if(s>sHinge){
-                                const double yNot =  fac *  (sHinge + inv*L)*std::sin(2.0*M_PI*(sHinge/(waveLength*L) - t/T + phaseShift));
-                                const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
-                                const double dydsNot = std::sin(currentTheta);
-                                yCurrent = yNot + dydsNot*(s-sHinge);
-                        }
+		if(bHinge){
+			if(s>sHinge){
+				double yNot;
+				if(quadraticAmplitude){
+					yNot =  (sHinge*sHinge*0.15/L)*std::sin(2.0*M_PI*(sHinge/(waveLength*L) - t/T + phaseShift));
+				}else{
+					yNot =  fac *  (sHinge + inv*L)*std::sin(2.0*M_PI*(sHinge/(waveLength*L) - t/T + phaseShift));
+				}
+				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
+				const double dydsNot = std::sin(currentTheta);
+				yCurrent = yNot + dydsNot*(s-sHinge);
+			}
                 }
                 return yCurrent;
 	}
@@ -965,12 +977,22 @@ class CarlingFishMidlineData : public FishMidlineData
 		const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
-		double velCurrent = - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
+		double velCurrent;
+		if(quadraticAmplitude){
+			velCurrent = - (s*s*0.15/L)*(2.0*M_PI/T)*std::cos(arg);
+		}else{
+			velCurrent = - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
+		}
 
 		if(bHinge){
 			if(s>sHinge){
 				//const double yNot =  4./33 *  (sHinge + 0.03125*L)*std::sin(2.0*M_PI*(sHinge/L - t/T + phaseShift));
-				const double velNot =  -2.0*M_PI/T * fac *  (sHinge + inv*L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
+				double velNot;
+				if(quadraticAmplitude){
+					velNot =  -2.0*M_PI/T * (sHinge*sHinge*0.15/L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
+				}else{
+					velNot =  -2.0*M_PI/T * fac *  (sHinge + inv*L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
+				}
 				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
 				const double currentThetaDot = AhingeTheta * 2.0*M_PI/ThingeTheta * std::cos(2.0*M_PI*(t/ThingeTheta + hingePhi));
 				const double dydsNotDT = std::cos(currentTheta)*currentThetaDot;
@@ -1120,13 +1142,13 @@ class CarlingFishMidlineData : public FishMidlineData
  public:
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 		const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false), tStart(1.0e12), bHinge(false), sHinge(0.0), AhingeTheta(0.0), ThingeTheta(0.0), hingePhi(0.0)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false), tStart(1.0e12), bHinge(false), sHinge(0.0), AhingeTheta(0.0), ThingeTheta(0.0), hingePhi(0.0), quadraticAmplitude(false)
 	{
 	}
 
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 		const Real phaseShift, const Real dx_ext, const string fburstpar, const Real _tStart, const Real _fac = 0.1212121212121212)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(true), tStart(_tStart), bHinge(false), sHinge(0.0), AhingeTheta(0.0), ThingeTheta(0.0), hingePhi(0.0)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(true), tStart(_tStart), bHinge(false), sHinge(0.0), AhingeTheta(0.0), ThingeTheta(0.0), hingePhi(0.0), quadraticAmplitude(false)
 	{
 		//ifstream reader("burst_coast_carling_params.txt");
 		ifstream reader(fburstpar.c_str());
@@ -1150,7 +1172,7 @@ class CarlingFishMidlineData : public FishMidlineData
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 			const Real phaseShift, const Real dx_ext, const Real _sHinge,
 			const double _Ahinge, const double _phiHinge, const Real _fac = 0.1212121212121212):
-		FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false),tStart(1e12), bHinge(true), sHinge(_sHinge), AhingeTheta(M_PI*_Ahinge/180.0), ThingeTheta(Tperiod), hingePhi(_phiHinge/360.0)
+		FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false),tStart(1e12), bHinge(true), sHinge(_sHinge), AhingeTheta(M_PI*_Ahinge/180.0), ThingeTheta(Tperiod), hingePhi(_phiHinge/360.0), quadraticAmplitude(true)
     {
     }
 
@@ -1158,7 +1180,7 @@ class CarlingFishMidlineData : public FishMidlineData
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 			const Real phaseShift, const Real dx_ext, const Real _sHinge,
 			const Real _fac):
-		FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false),tStart(1e12), bHinge(true), sHinge(_sHinge), ThingeTheta(Tperiod)
+		FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false),tStart(1e12), bHinge(true), sHinge(_sHinge), ThingeTheta(Tperiod), quadraticAmplitude(true)
 	{
 		// Now, read the optimization params (Ahinge, _phiHinge, tail size) from the params file
 		{

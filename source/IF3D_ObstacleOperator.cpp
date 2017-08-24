@@ -351,9 +351,11 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const Real CoM[3])
     #ifndef NDEBUG
     Real dummy_ang[3], dummy_lin[3];
     _computeUdefMoments(dummy_lin, dummy_ang, CoM);
+#ifdef _VERBOSE_
     if(rank==0)
     printf("Momenta post correction: lin [%f %f %f], ang [%f %f %f]\n",
     		dummy_lin[0], dummy_lin[1], dummy_lin[2], dummy_ang[0], dummy_ang[1], dummy_ang[2]);
+#endif
     #endif
 }
 
@@ -937,11 +939,15 @@ void IF3D_ObstacleOperator::update(const int step_id, const Real t, const Real d
 
     #ifndef NDEBUG
     if(rank==0) {
+#ifdef _VERBOSE_
     	std::cout<<"POSITION INFO AFTER UPDATE T, DT: "<<t<<" "<<dt<<std::endl;
     	std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
     	std::cout<<"TVL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
     	std::cout<<"QUT: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
     	std::cout<<"AVL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
+#else
+    	printf("t = %f, dt = %lf\n", t, dt);
+#endif
     }
     const Real q_length=std::sqrt(quaternion[0]*quaternion[0]
 							   +  quaternion[1]*quaternion[1]
