@@ -315,6 +315,10 @@ class FishMidlineData
 	Real * const vNorY;
 	Real * const width;
 	Real * const height;
+	Real * const rXold;
+	Real * const rYold;
+	Real oldTime = 0.0;
+	bool firstStep = true;
 	Real linMom[2], vol, J, angMom; // for diagnostics
 	// start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
 	const int iFishStart, iFishEnd;
@@ -527,8 +531,13 @@ class FishMidlineData
 		time0(0),rS(_alloc(Nm)),rX(_alloc(Nm)),rY(_alloc(Nm)),vX(_alloc(Nm)),
 		vY(_alloc(Nm)),norX(_alloc(Nm)),norY(_alloc(Nm)),vNorX(_alloc(Nm)),
 		vNorY(_alloc(Nm)),width(_alloc(Nm)),height(_alloc(Nm)),
-		iFishStart(NEXTDX*NPPEXT),iFishEnd(Nm-1-NEXTDX*NPPEXT)
+		iFishStart(NEXTDX*NPPEXT),iFishEnd(Nm-1-NEXTDX*NPPEXT),
+		rXold(_alloc(Nm)), rYold(_alloc(Nm))
 	{
+
+		std::fill(rXold, rXold+Nm, 0.0);
+		std::fill(rYold, rYold+Nm, 0.0);
+
 		// extension_info contains number of extension points and extension dx
 		const int Nextension = NEXTDX*NPPEXT; // up to 3dx on each side (to get proper interpolation up to 2dx)
 		const int Next = Nextension; // number of points per extension
@@ -564,6 +573,8 @@ class FishMidlineData
 		_dealloc(vNorY);
 		_dealloc(height);
 		_dealloc(width);
+		_dealloc(rXold);
+		_dealloc(rYold);
 		if(upperSkin not_eq nullptr) {
 			delete upperSkin;
 			upperSkin=nullptr;
@@ -933,6 +944,8 @@ class CarlingFishMidlineData : public FishMidlineData
 	const Real sHinge, ThingeTheta;
 	Real AhingeTheta, hingePhi;
 	const bool bBurst, bHinge;
+	const bool bDoubleHinge=true;
+	Real sHinge2=0.0, kSpring=0.0;
 	const bool quadraticAmplitude;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
@@ -1099,6 +1112,8 @@ class CarlingFishMidlineData : public FishMidlineData
 		rX[0] = 0.0;
 		rY[0] = rampFac*midline(rS[0], time, length, Tperiod, phaseShift);
 
+		int hinge1Index = -1, hinge2Index = -1;
+
 		for(int i=1;i<Nm;++i) {
 			rY[i]=rampFac*midline(rS[i], time, length, Tperiod, phaseShift);
 			const Real dy = rY[i]-rY[i-1];
@@ -1111,7 +1126,60 @@ class CarlingFishMidlineData : public FishMidlineData
 			}
 
 			rX[i] = rX[i-1] + dx;
+
+			if(rS[i]>=sHinge and hinge1Index<0) hinge1Index = i;
+			if(rS[i]>=sHinge2 and hinge2Index<0) hinge2Index = i;
 		}
+
+		// Now do the second hinge section
+		if(bDoubleHinge){
+
+			const double storedTorque = 1.0e-3*std::sin(2*M_PI*time/Tperiod);
+			const double kSpring = 1.0e-3;
+			const double dTheta2 = storedTorque/kSpring;
+
+			const double hinge1Loc[2] = {rX[hinge1Index], rY[hinge1Index]};
+			const double hinge2Loc[2] = {rX[hinge2Index], rY[hinge2Index]};
+
+			// angle of arm1 wrt main fish - imposed
+			// Don't use analytical thetaExpression, since rampFactor not accounted-for in there
+			const double currentTheta = std::atan( (hinge2Loc[1] - hinge1Loc[1]) / (hinge2Loc[0] - hinge1Loc[0]));
+			printf("currentTheta = %f\n", currentTheta);
+			fflush(0);
+
+			for(int i=hinge2Index; i<Nm; ++i){
+				const double dx = rX[i] - hinge2Loc[0];
+				const double dy = rY[i] - hinge2Loc[1];
+				const double localLength = std::sqrt(dx*dx + dy*dy);
+
+				// angle of arm2 wrt main fish - from spring
+				const double thetaHinge2 = currentTheta + dTheta2;
+
+				rX[i] = hinge2Loc[0] + localLength*std::cos(thetaHinge2);
+				rY[i] = hinge2Loc[1] + localLength*std::sin(thetaHinge2);
+
+			}
+
+			/*FILE *temp;
+			  temp = fopen("midlines.txt","a");
+			//fprintf(temp,"%f\t", time);
+			for (int i=0; i<Nm; ++i){
+			fprintf(temp,"%f\t", rS[i]);
+			}
+			fprintf(temp,"\n");
+			for (int i=0; i<Nm; ++i){
+			fprintf(temp,"%f\t", rX[i]);
+			}
+			fprintf(temp,"\n");
+			//fprintf(temp,"%f\t", time);
+			for (int i=0; i<Nm; ++i){
+			fprintf(temp,"%f\t", rY[i]);
+			}
+			fprintf(temp,"\n");
+			fclose(temp);*/
+		}
+
+
 	}
 
 	void _computeMidlineVelocities(const Real time)
@@ -1123,6 +1191,7 @@ class CarlingFishMidlineData : public FishMidlineData
 		vY[0] = rampFac*midlineVel(rS[0],time,length,Tperiod, phaseShift) +
 				rampFacVel*midline(rS[0],time,length,Tperiod, phaseShift);
 
+		int indHinge2 = -1;
 		for(int i=1;i<Nm;++i) {
 			vY[i]=rampFac*midlineVel(rS[i],time,length,Tperiod, phaseShift) +
 					rampFacVel*midline(rS[i],time,length,Tperiod, phaseShift);
@@ -1136,7 +1205,62 @@ class CarlingFishMidlineData : public FishMidlineData
 			}else{ // dx can be undef for s<0 and s>L points when wavelength>1. I dunno why we have these goddamn s<0 and s>L points
 				if(not(dx>0))	vX[i] = 0.0;
 			}
+
+			if(indHinge2<0 and rS[i]>=sHinge2) indHinge2 = i;
 		}
+
+		if(bDoubleHinge){
+
+			double dtHinge = time-oldTime;
+
+			if(firstStep){
+				for(int i=indHinge2; i<Nm; ++i){
+					rXold[i] = rX[i];
+					rYold[i] = rY[i];
+				}
+				firstStep = false;
+				dtHinge = 1.0; // To avoid divide by zero at first step
+			}
+
+			for(int i=indHinge2; i<Nm; ++i){
+				vX[i] = (rX[i] - rXold[i]) / dtHinge;
+				vY[i] = (rY[i] - rYold[i]) / dtHinge;
+
+				rXold[i] = rX[i];
+				rYold[i] = rY[i];
+			}
+		}
+		oldTime = time;
+
+		/*FILE *temp;
+		temp = fopen("vels.txt","a");
+		for (int i=0; i<Nm; ++i){
+			fprintf(temp,"%f\t", rS[i]);
+		}
+
+		fprintf(temp,"\n");
+		for (int i=0; i<Nm; ++i){
+			fprintf(temp,"%f\t", rX[i]);
+		}
+
+		fprintf(temp,"\n");
+		for (int i=0; i<Nm; ++i){
+			fprintf(temp,"%f\t", rY[i]);
+		}
+
+		fprintf(temp,"\n");
+		for (int i=0; i<Nm; ++i){
+			fprintf(temp,"%f\t", vX[i]);
+		}
+
+		fprintf(temp,"\n");
+		for (int i=0; i<Nm; ++i){
+			fprintf(temp,"%f\t", vY[i]);
+		}
+
+		fprintf(temp,"\n");
+		fclose(temp);*/
+
 	}
 
  public:
@@ -1192,6 +1316,7 @@ class CarlingFishMidlineData : public FishMidlineData
 				reader >> _phiHinge;
 				reader >> finSize;
 				reader >> waveLength;
+				reader >> sHinge2;
 				if(reader.eof()){
 					cout << "Insufficient number of parameters provided for hingedFin" << endl; fflush(NULL); abort();
 				}
@@ -1203,6 +1328,7 @@ class CarlingFishMidlineData : public FishMidlineData
 
 			AhingeTheta = M_PI*_Ahinge/180.0;
 			hingePhi = _phiHinge/360.0;
+			sHinge2 *= length;
 		}
 
 		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values

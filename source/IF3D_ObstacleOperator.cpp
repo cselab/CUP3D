@@ -13,39 +13,28 @@ struct ForcesOnSkin : public GenericLabOperator
 {
     Real t;
     const Real NU, *vel_unit, *Uinf, *CM;
-  	int stencil_start[3], stencil_end[3];
-  	array<Real,19>* const measures;
-  	surfacePoints* const surfData;
-  	const map<int, pair<int, int>>* const surfaceBlocksFilter;
+    int stencil_start[3], stencil_end[3];
+    array<Real,19>* const measures;
+    surfacePoints* const surfData;
+    const map<int, pair<int, int>>* const surfaceBlocksFilter;
     std::map<int,ObstacleBlock*>* const obstacleBlocks;
 
     ForcesOnSkin(const Real NU, const Real* vel_unit, const Real* Uinf, const Real* CM,
-    			map<int,ObstacleBlock*>* const obstblocks,    	  //to read udef
-					surfacePoints* const surface, 						        //most info I/O
-					const map<int,pair<int,int>>*const surfBFilter,   //skip useless blocks
-					array<Real,19>* const measures)     	            //additive quantities
-	: t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures),
-  surfData(surface),surfaceBlocksFilter(surfBFilter), obstacleBlocks(obstblocks)
+		    map<int,ObstacleBlock*>* const obstblocks,    	  //to read udef
+		    surfacePoints* const surface,		        //most info I/O
+		    const map<int,pair<int,int>>*const surfBFilter,   //skip useless blocks
+		    array<Real,19>* const measures)     	            //additive quantities
+	    : t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures),
+	    surfData(surface),surfaceBlocksFilter(surfBFilter), obstacleBlocks(obstblocks)
 	{
-    		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
-    		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
-    		stencil_end[0]   = stencil_end[1]   = stencil_end[2]   = +2;
+		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
+		stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
+		stencil_end[0]   = stencil_end[1]   = stencil_end[2]   = +2;
 	}
 
-  // SV: Why need this copy constructor?? Aborting anyhoo. Remove.
-  /*ForcesOnSkin(const ForcesOnSkin& c):
-  	t(0), NU(c.NU), vel_unit(c.vel_unit), Uinf(c.Uinf), CM(c.CM), measures(c.measures),
-	surfData(c.surfData), surfaceBlocksFilter(c.surfaceBlocksFilter), obstacleBlocks(c.obstacleBlocks)
-  {
-  	abort();
-  	stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0, 1, 2);
-  	stencil_start[0] = stencil_start[1] = stencil_start[2] = -1;
-  	stencil_end[0] = stencil_end[1] = stencil_end[2] = +2;
-  }*/
-
-  template <typename Lab, typename BlockType>
-	void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
-	{
+    template <typename Lab, typename BlockType>
+    void operator()(Lab& lab, const BlockInfo& info, BlockType& b)
+    {
       const auto pos = surfaceBlocksFilter->find(info.blockID);
       if(pos == surfaceBlocksFilter->end()) return;
       //get also corresponding def-vel block
