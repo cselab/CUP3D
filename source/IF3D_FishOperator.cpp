@@ -171,6 +171,15 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	#endif
 	t23 = std::chrono::high_resolution_clock::now();
 
+	int hinge2Index=-1;
+	do{
+		hinge2Index++;
+	} while (myFish->rS[hinge2Index] < myFish->sHinge2);
+
+	// First, get this location in FishFrame, then convert to labFrame
+	double hinge2Loc[3] = {myFish->rX[hinge2Index], myFish->rY[hinge2Index], 0.0};
+	PutFishOnBlocks dummy(myFish, position, quaternion);
+	dummy.changeToComputationalFrame(hinge2Loc);
 
 	// 4. & 5.
 	std::vector<VolumeSegment_OBB> vSegments(Nsegments);
@@ -224,6 +233,8 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 				assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
 				obstacleBlocks[info.blockID] = new ObstacleBlock;
 				obstacleBlocks[info.blockID]->clear();
+				obstacleBlocks[info.blockID]->hinge2Index = hinge2Index;
+				obstacleBlocks[info.blockID]->saveHinge2Loc(hinge2Loc);
 			}
 		}
 	}
@@ -300,8 +311,7 @@ void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real d
 
 		vector<PutFishOnBlocks_Finalize*> finalize;
 		for(int i=0; i<nthreads; i++) {
-			PutFishOnBlocks_Finalize* tmp = new
-        PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]);
+			PutFishOnBlocks_Finalize* tmp = new PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]);
 			finalize.push_back(tmp);
 		}
 		compute(finalize);

@@ -157,12 +157,25 @@ struct ObstacleBlock
     static const int sizeZ = _BSZ_;
     Real chi[sizeX][sizeY][sizeZ];
     Real udef[sizeX][sizeY][sizeZ][3];
+    int sectionMarker[sizeX][sizeY][sizeZ];
+    int hinge2Index;
+    double hinge2LabFrame[3] = {0.0};
 
     void clear()
     {
         memset(chi, 0, sizeof(Real)*sizeX*sizeY*sizeZ);
         memset(udef, 0, sizeof(Real)*sizeX*sizeY*sizeZ*3);
+	memset(sectionMarker, 0, sizeof(int)*sizeX*sizeY*sizeZ);
+	hinge2Index = -100;
     }
+
+    void saveHinge2Loc(double hinge2Location[3])
+    {
+	    hinge2LabFrame[0] = hinge2Location[0];
+	    hinge2LabFrame[1] = hinge2Location[1];
+	    hinge2LabFrame[2] = hinge2Location[2];
+    }
+
 };
 
 struct FluidBlock
@@ -301,13 +314,14 @@ struct surfacePoints
     Real *pX, *pY, *pZ, *P, *fX, *fY, *fZ;
     Real *fxP, *fyP, *fzP, *fxV, *fyV, *fzV;
     Real *vx, *vy, *vz, *vxDef, *vyDef, *vzDef;
+    Real *chi, *thrust, *pThrust, *pDef;
     int Ndata, nAlloc, nMapped, *gridMap;
     vector<surfData*> Set;
 
     surfacePoints() :
     	Ndata(0), nAlloc(0), nMapped(0), pX(nullptr), pY(nullptr), pZ(nullptr), P(nullptr),
     fX(nullptr), fY(nullptr), fZ(nullptr), fxP(nullptr), fyP(nullptr), fzP(nullptr), fxV(nullptr), fyV(nullptr), fzV(nullptr),
-    vx(nullptr), vy(nullptr), vz(nullptr), vxDef(nullptr), vyDef(nullptr), vzDef(nullptr), gridMap(nullptr)
+    vx(nullptr), vy(nullptr), vz(nullptr), vxDef(nullptr), vyDef(nullptr), vzDef(nullptr), gridMap(nullptr), chi(nullptr), thrust(nullptr), pThrust(nullptr), pDef(nullptr)
     { }
 
     ~surfacePoints()
@@ -315,7 +329,7 @@ struct surfacePoints
         if(pX      not_eq nullptr){delete[] pX;      pX=nullptr;     }
         if(pY      not_eq nullptr){delete[] pY;      pY=nullptr;     }
         if(pZ      not_eq nullptr){delete[] pZ;      pZ=nullptr;     }
-        if(P       not_eq nullptr){delete[] P;       P=nullptr;  	   }
+        if(P       not_eq nullptr){delete[] P;       P=nullptr;	     }
         if(fX      not_eq nullptr){delete[] fX;      fX=nullptr;     }
         if(fY      not_eq nullptr){delete[] fY;      fY=nullptr;     }
         if(fZ      not_eq nullptr){delete[] fZ;      fZ=nullptr;     }
@@ -332,6 +346,10 @@ struct surfacePoints
         if(vyDef   not_eq nullptr){delete[] vyDef;   vyDef=nullptr;  }
         if(vzDef   not_eq nullptr){delete[] vzDef;   vzDef=nullptr;  }
         if(gridMap not_eq nullptr){delete[] gridMap; gridMap=nullptr;}
+        if(chi	   not_eq nullptr){delete[] chi;     chi=nullptr;    }
+        if(thrust  not_eq nullptr){delete[] thrust;  thrust=nullptr; }
+        if(pThrust not_eq nullptr){delete[] pThrust; pThrust=nullptr;}
+        if(pDef    not_eq nullptr){delete[] pDef;    pDef=nullptr;   }
     }
 
     void _add(const surfData* c)
@@ -372,6 +390,10 @@ struct surfacePoints
             if(vzDef   not_eq nullptr){delete[] vzDef;   vzDef=nullptr;  }
             if(P       not_eq nullptr){delete[] P;   	P =nullptr;  	}
             if(gridMap not_eq nullptr){delete[] gridMap; gridMap=nullptr;}
+            if(chi     not_eq nullptr){delete[] chi;     chi=nullptr;    }
+            if(thrust  not_eq nullptr){delete[] thrust;  thrust=nullptr; }
+            if(pThrust not_eq nullptr){delete[] pThrust; pThrust=nullptr;}
+            if(pDef    not_eq nullptr){delete[] pDef;    pDef=nullptr;   }
 
             pX      = new Real[nAlloc]; pY      = new Real[nAlloc]; pZ      = new Real[nAlloc];
             fX      = new Real[nAlloc]; fY      = new Real[nAlloc]; fZ      = new Real[nAlloc];
@@ -379,7 +401,8 @@ struct surfacePoints
             fxV     = new Real[nAlloc]; fyV     = new Real[nAlloc]; fzV     = new Real[nAlloc];
             vx      = new Real[nAlloc]; vy      = new Real[nAlloc]; vz      = new Real[nAlloc];
             vxDef   = new Real[nAlloc]; vyDef   = new Real[nAlloc]; vzDef   = new Real[nAlloc];
-            P       = new Real[nAlloc]; gridMap = new  int[nAlloc];
+            P       = new Real[nAlloc]; gridMap = new  int[nAlloc]; chi     = new Real[nAlloc];
+	    thrust  = new Real[nAlloc]; pThrust = new Real[nAlloc]; pDef    = new Real[nAlloc];
         }
 
         #ifndef NDEBUG
@@ -409,30 +432,24 @@ struct surfacePoints
     */
     void print(const int ID, const int stepNumber, const int rank)
     {
-      ofstream fileskin;
-      char buf[500];
-      sprintf(buf, "skinDistrib_%1d_%07d_rank%02d.txt", ID, stepNumber, rank);
-      FILE * pFile = fopen (buf, "wb");
-      for(size_t i=0; i<Ndata; i++) {
-        float buf[] = { pX[i], pY[i], pZ[i], P[i], fX[i], fY[i], fZ[i], vx[i], vy[i], vz[i], vxDef[i], vyDef[i], vzDef[i] };
-        fwrite (buf, sizeof(float), 13, pFile);
-      }
-      //string filename(buf);
-      //fileskin.open(filename, ios::trunc);
-      /*
-      for(int i=0; i<Ndata; ++i) {
-          fileskin<< pX[i]<<" "<< pY[i]<<" "<< pZ[i]<<" "
-                  //<<P[i]<<" "
-                  //<<fxP[i]<<" "<<fyP[i]<<" "<<fzP[i]<<" "
-                  //<<fxV[i]<<" "<<fyV[i]<<" "<<fzV[i]<<" "
-                  << fX[i]<<" "<< fY[i]<<" "<< fZ[i]<<" "
-                  << vx[i]<<" "<< vy[i]<<" "<< vz[i]<<" "
-                  <<vxDef[i]<<" "<<vyDef[i]<<" "<<vzDef[i]<<endl;
-      }
-      */
-      fileskin.close();
-      fflush(pFile);
-      fclose(pFile);
+        ofstream fileskin;
+        char buf[500];
+        sprintf(buf, "skinDistrib_%1d_%07d_rank%03d.txt", ID, stepNumber+1, rank);
+        string filename(buf);
+        fileskin.open(filename, ios::trunc);
+
+            fileskin<< "x,y,z,chi,thrust,pDef,pThrust,press,fxP,fyP,fzP,fxV,fyV,fzV,vx,vy,vz,vxDef,vyDef,vzDef"<<endl;
+
+        for(int i=0; i<Ndata; ++i) {
+            fileskin<< pX[i]<<","<< pY[i]<<","<< pZ[i]<<","
+                    <<chi[i]<<","<< thrust[i]<<","<< pDef[i]<<","<< pThrust[i]<< ","
+                    <<P[i]<<","
+                    <<fxP[i]<<","<<fyP[i]<<","<<fzP[i]<<","
+                    <<fxV[i]<<","<<fyV[i]<<","<<fzV[i]<<","
+                    << vx[i]<<","<< vy[i]<<","<< vz[i]<<","
+                    <<vxDef[i]<<","<<vyDef[i]<<","<<vzDef[i]<<endl;
+        }
+        fileskin.close();
     }
 
     /*

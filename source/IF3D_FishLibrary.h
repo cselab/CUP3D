@@ -319,6 +319,8 @@ class FishMidlineData
 	Real * const rYold;
 	Real oldTime = 0.0;
 	bool firstStep = true;
+	const bool bDoubleHinge=true;
+	Real sHinge2=0.0;
 	Real linMom[2], vol, J, angMom; // for diagnostics
 	// start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
 	const int iFishStart, iFishEnd;
@@ -944,8 +946,7 @@ class CarlingFishMidlineData : public FishMidlineData
 	const Real sHinge, ThingeTheta;
 	Real AhingeTheta, hingePhi;
 	const bool bBurst, bHinge;
-	const bool bDoubleHinge=true;
-	Real sHinge2=0.0, kSpring=0.0;
+	Real kSpring=0.0;
 	const bool quadraticAmplitude;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
@@ -1899,6 +1900,10 @@ struct PutFishOnBlocks
 							defblock->chi[idx[2]][idx[1]][idx[0]] =
 									(std::abs(defblock->chi[idx[2]][idx[1]][idx[0]]) > distSq) ? sign*distSq
 											: defblock->chi[idx[2]][idx[1]][idx[0]];
+							//Prep section, finalize later towards end (all ellipse encompassing points grabbed if beyond hinge2)
+							if(ss>=defblock->hinge2Index){
+								defblock->sectionMarker[idx[2]][idx[1]][idx[0]] = 1;
+							}
 						}
 					} else {
 						for(int sz=start[2]; sz<end[2];++sz)
@@ -1923,6 +1928,11 @@ struct PutFishOnBlocks
 							defblock->chi[idx[2]][idx[1]][idx[0]] =
 									(std::abs(defblock->chi[idx[2]][idx[1]][idx[0]]) > distSq) ? sign*distSq
 											: defblock->chi[idx[2]][idx[1]][idx[0]];
+
+							//Prep section, finalize later towards end (all ellipse encompassing points grabbed if beyond hinge2)
+							if(ss>=defblock->hinge2Index){
+								defblock->sectionMarker[idx[2]][idx[1]][idx[0]] = 1;
+							}
 						}
 					}
 				}
@@ -2052,6 +2062,9 @@ struct PutFishOnBlocks
 						-sqrt(-defblock->chi[iz][iy][ix]);
 				b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0];
 				b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1];
+
+				// All points that are not chi=0 in the targeted section, are captured here. When we loop through SurfaceBlocks for computing torque, the extraneous points captured here will be left out, so hakunamatata.
+				defblock->sectionMarker[iz][iy][ix] *= std::abs(defblock->chi[iz][iy][ix]) > 0 ? 1 : 0;
 			}
 		}
 	}
