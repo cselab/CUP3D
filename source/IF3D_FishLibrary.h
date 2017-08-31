@@ -1607,19 +1607,30 @@ struct VolumeSegment_OBB
 		normalizeNormals();
 	}
 
-	bool isIntersectingWithAABB(const Real start[3],const Real end[3], const Real safe_distance = 0.0) const
+	bool isIntersectingWithAABB(const Real start[3],const Real end[3], const Real h_gridpt) const
 	{
 		//start and end are two diagonally opposed corners of grid block
-		const Real AABB_w[3] = { //half block width + safe distance
-				0.5*(end[0] - start[0]) + 2.0*safe_distance,
-				0.5*(end[1] - start[1]) + 2.0*safe_distance,
-				0.5*(end[2] - start[2]) + 2.0*safe_distance
+		/*const Real AABB_w[3] = { //half block width + safe distance
+		  0.5*(end[0] - start[0]) + 2.0*safe_distance,
+		  0.5*(end[1] - start[1]) + 2.0*safe_distance,
+		  0.5*(end[2] - start[2]) + 2.0*safe_distance
+		  };*/
+		const Real AABB_w[3] = { //half block width + 1 point on either side (Keep extra point, since cell is empty between center and face)
+			0.5*(end[0] - start[0] + h_gridpt) + h_gridpt, // Need (end-start+h) since 'start' and 'end' correspond to cell centers, not the faces
+			0.5*(end[1] - start[1] + h_gridpt) + h_gridpt,
+			0.5*(end[2] - start[2] + h_gridpt) + h_gridpt
 		};
+		/*const Real AABB_c[3] = { //block center
+		  start[0] + AABB_w[0] - safe_distance,
+		  start[1] + AABB_w[1] - safe_distance,
+		  start[2] + AABB_w[2] - safe_distance
+		  };*/
 		const Real AABB_c[3] = { //block center
-				start[0] + AABB_w[0] - safe_distance,
-				start[1] + AABB_w[1] - safe_distance,
-				start[2] + AABB_w[2] - safe_distance
+			0.5*(start[0] + end[0]),
+			0.5*(start[1] + end[1]),
+			0.5*(start[2] + end[2])
 		};
+
 		assert(AABB_w[0]>0);
 		assert(AABB_w[1]>0);
 		assert(AABB_w[2]>0);
@@ -1855,6 +1866,33 @@ struct PutFishOnBlocks
 							(int)std::floor((myP[1]-org[1])*invh),
 							(int)std::floor((myP[2]-org[2])*invh)
 					};
+
+
+					// Don't try to populate outside bounds
+                                        const int startMarker[3] = {
+                                                        std::max(0,iap[0]),
+                                                        std::max(0,iap[1]),
+                                                        std::max(0,iap[2])
+                                        };
+                                        const int endMarker[3] = {
+                                                        std::min(iap[0]+2, FluidBlock::sizeX - 0), //+2 instead of +1, since will do (< than)
+                                                        std::min(iap[1]+2, FluidBlock::sizeY - 0), //weird: if I don't put -0, FluidBlock not recognized
+                                                        std::min(iap[2]+2, FluidBlock::sizeZ - 0)
+                                        };
+
+					//Prep section, finalize later towards end (all ellipse encompassing points grabbed if beyond hinge2)
+					if(ss>=defblock->hinge2Index){
+						// Populate in the 'box' containing the current point. Low corners are iap, high corners are iap+1
+						for(int sz=startMarker[2]; sz<endMarker[2]; ++sz){
+							for(int sy=startMarker[1]; sy<endMarker[1]; ++sy){
+								for(int sx=startMarker[0]; sx<endMarker[0]; ++sx){
+									defblock->sectionMarker[sz][sy][sx] = 1;
+								}
+							}
+						}
+					}
+
+
 					// support is two points left, two points right --> Towers Chi will be one point left, one point right, but needs SDF wider
 					const int start[3] = {
 							std::max(-1, 0 - iap[0] ),
@@ -1900,10 +1938,6 @@ struct PutFishOnBlocks
 							defblock->chi[idx[2]][idx[1]][idx[0]] =
 									(std::abs(defblock->chi[idx[2]][idx[1]][idx[0]]) > distSq) ? sign*distSq
 											: defblock->chi[idx[2]][idx[1]][idx[0]];
-							//Prep section, finalize later towards end (all ellipse encompassing points grabbed if beyond hinge2)
-							if(ss>=defblock->hinge2Index){
-								defblock->sectionMarker[idx[2]][idx[1]][idx[0]] = 1;
-							}
 						}
 					} else {
 						for(int sz=start[2]; sz<end[2];++sz)
@@ -1928,11 +1962,6 @@ struct PutFishOnBlocks
 							defblock->chi[idx[2]][idx[1]][idx[0]] =
 									(std::abs(defblock->chi[idx[2]][idx[1]][idx[0]]) > distSq) ? sign*distSq
 											: defblock->chi[idx[2]][idx[1]][idx[0]];
-
-							//Prep section, finalize later towards end (all ellipse encompassing points grabbed if beyond hinge2)
-							if(ss>=defblock->hinge2Index){
-								defblock->sectionMarker[idx[2]][idx[1]][idx[0]] = 1;
-							}
 						}
 					}
 				}

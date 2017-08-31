@@ -14,7 +14,8 @@ struct ForcesOnSkin : public GenericLabOperator
     Real t;
     const Real NU, *vel_unit, *Uinf, *CM;
     int stencil_start[3], stencil_end[3];
-    array<Real,19>* const measures;
+    static const int nQoI = 22;
+    array<Real,nQoI>* const measures;
     surfacePoints* const surfData;
     const map<int, pair<int, int>>* const surfaceBlocksFilter;
     std::map<int,ObstacleBlock*>* const obstacleBlocks;
@@ -23,7 +24,7 @@ struct ForcesOnSkin : public GenericLabOperator
 		    map<int,ObstacleBlock*>* const obstblocks,    	  //to read udef
 		    surfacePoints* const surface,		        //most info I/O
 		    const map<int,pair<int,int>>*const surfBFilter,   //skip useless blocks
-		    array<Real,19>* const measures)     	            //additive quantities
+		    array<Real,nQoI>* const measures)     	            //additive quantities
 	    : t(0), NU(NU), vel_unit(vel_unit), Uinf(Uinf), CM(CM), measures(measures),
 	    surfData(surface),surfaceBlocksFilter(surfBFilter), obstacleBlocks(obstblocks)
 	{
@@ -46,6 +47,11 @@ struct ForcesOnSkin : public GenericLabOperator
       const Real _h3 = std::pow(info.h_gridpoint,3);
       const Real _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
 
+
+FILE *tempHandle;
+tempHandle = fopen("section.txt", "w");
+FILE *allHandle;
+allHandle = fopen("body.txt", "w");
       //loop over elements of block info that have nonzero gradChi
       for(int i=first; i<second; i++) { //i now is a fluid element
           assert(first<second && surfData->Set.size()>=second);
@@ -97,6 +103,24 @@ struct ForcesOnSkin : public GenericLabOperator
           (*measures)[16] += (p[1]-CM[1])*fZT - (p[2]-CM[2])*fYT;
           (*measures)[17] += (p[2]-CM[2])*fXT - (p[0]-CM[0])*fZT;
           (*measures)[18] += (p[0]-CM[0])*fYT - (p[1]-CM[1])*fXT;
+
+          fprintf(allHandle, "%f \t %f \t %f \t %f \t %f \t %f\n", p[0], p[1], p[2], fXT, fYT, fZT);
+          printf("CoM = %f \t %f \t %f\n", CM[0], CM[1], CM[2]);
+	
+	  if(tempIt->second->sectionMarker[iz][iy][ix] > 0){
+		  const double * const pHinge2 = tempIt->second->hinge2LabFrame;
+		  (*measures)[19] += (p[1]-pHinge2[1])*fZT - (p[2]-pHinge2[2])*fYT;
+		  (*measures)[20] += (p[2]-pHinge2[2])*fXT - (p[0]-pHinge2[0])*fZT;
+		  (*measures)[21] += (p[0]-pHinge2[0])*fYT - (p[1]-pHinge2[1])*fXT;
+
+		  const double temp1 = (p[1]-pHinge2[1])*fZT - (p[2]-pHinge2[2])*fYT;
+		  const double temp2 = (p[2]-pHinge2[2])*fXT - (p[0]-pHinge2[0])*fZT;
+		  const double temp3 = (p[0]-pHinge2[0])*fYT - (p[1]-pHinge2[1])*fXT;
+
+		  printf("posHinge2 = %.16f, %.16f, %.16f\n", pHinge2[0], pHinge2[1], pHinge2[2]);
+		  fprintf(tempHandle, "%.16f \t %.16f \t %.16f \t %.16f \t %.16f \t %.16f \t %.16f \t %.16f \t %.16f\n", p[0], p[1], p[2], fXT, fYT, fZT, temp1, temp2, temp3);
+	  }
+
           //thrust, drag:
           const Real forcePar = fXT*vel_unit[0] + fYT*vel_unit[1] + fZT*vel_unit[2];
           (*measures)[10] += .5*(forcePar + std::abs(forcePar));
@@ -117,7 +141,9 @@ struct ForcesOnSkin : public GenericLabOperator
           (*measures)[13] += min((Real)0., powOut);
           (*measures)[14] += powDef;
           (*measures)[15] += min((Real)0., powDef);
-		}
+	  }
+fclose(tempHandle);
+fclose(allHandle);
 	}
 };
 
@@ -789,8 +815,9 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
 
 
   const int nthreads = omp_get_max_threads();
-  vector<array<Real,19>> partialSums(nthreads);
-	for(int i=0; i<nthreads; i++) for(int j=0; j<19; j++) partialSums[i][j]=0;
+static const int nQoI = 22;
+  vector<array<Real,nQoI>> partialSums(nthreads);
+	for(int i=0; i<nthreads; i++) for(int j=0; j<nQoI; j++) partialSums[i][j]=0;
   Real vel_unit[3] = {0., 0., 0.};
   const Real vel_norm = std::sqrt(velx_tot*velx_tot
                                 + vely_tot*vely_tot
@@ -811,12 +838,17 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const Real time,
   compute(finalize);
 	for(int i=0; i<nthreads; i++) delete finalize[i];
 
-  double localSum[19]  = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
-  double globalSum[19] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+
+  double localSum[nQoI]  = {0};
+  double globalSum[nQoI] = {0};
   for(int i=0; i<nthreads; i++)
-  	for(int j=0; j<19; j++)
+  	for(int j=0; j<nQoI; j++)
   		localSum[j] += (double)partialSums[i][j];
-	MPI_Allreduce(localSum, globalSum, 19, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+	MPI_Allreduce(localSum, globalSum, nQoI, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+
+printf("tX = %.16f, tY = %.16f, tZ = %.16f\n", globalSum[19], globalSum[20], globalSum[21]);
+fflush(0);
+//abort();
 
   //additive quantities:
   totChi      = globalSum[0];

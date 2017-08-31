@@ -222,7 +222,8 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 			Real pStart[3], pEnd[3];
 			info.pos(pStart, 0, 0, 0);
 			info.pos(pEnd, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-			const Real safe_distance = 2.0*info.h_gridpoint; // two points on each side
+			//const Real safe_distance = 2.0*info.h_gridpoint; // two points on each side			
+			const Real safe_distance = info.h_gridpoint; // one point on each side for Towers
 
 			for(int s=0;s<Nsegments;++s)
 				if(vSegments[s].isIntersectingWithAABB(pStart,pEnd,safe_distance))
