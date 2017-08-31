@@ -42,6 +42,7 @@ protected:
     Real transVel_correction[3], angVel_correction[3], length;
     Real transVel_computed[3], angVel_computed[3];
     Real ext_X, ext_Y, ext_Z;
+    Real torqueZsection=0.0;
 
     virtual void _parseArguments(ArgumentParser & parser);
     virtual void _writeComputedVelToFile(const int step_id, const Real t, const Real * uInf);

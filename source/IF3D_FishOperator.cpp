@@ -129,6 +129,9 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		myFish->_correctAmplitude(ampFac, ampVel, time, dt);
 	}
 
+	//Store torque on hingedSection from previous step
+	myFish->torqueZsecMarkers = this->torqueZsection;
+
 	// 1.
 	myFish->computeMidline(time);
 	#ifdef __useSkin_

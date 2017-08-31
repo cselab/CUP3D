@@ -320,7 +320,7 @@ class FishMidlineData
 	Real oldTime = 0.0;
 	bool firstStep = true;
 	const bool bDoubleHinge=true;
-	Real sHinge2=0.0;
+	Real sHinge2=0.0, torqueZsecMarkers=0.0;
 	Real linMom[2], vol, J, angMom; // for diagnostics
 	// start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
 	const int iFishStart, iFishEnd;
@@ -947,6 +947,7 @@ class CarlingFishMidlineData : public FishMidlineData
 	Real AhingeTheta, hingePhi;
 	const bool bBurst, bHinge;
 	Real kSpring=0.0;
+	const Real kMaxSpring=1.0; // Expect torque values on the order of 1e-5
 	const bool quadraticAmplitude;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
@@ -1135,9 +1136,12 @@ class CarlingFishMidlineData : public FishMidlineData
 		// Now do the second hinge section
 		if(bDoubleHinge){
 
-			const double storedTorque = 1.0e-3*std::sin(2*M_PI*time/Tperiod);
-			const double kSpring = 1.0e-3;
-			const double dTheta2 = storedTorque/kSpring;
+			//linearly decrease spring stiffness over 1 Tperiod, otherwise might get discontinuous theta2 at startup
+			const bool kSpringTransition = std::floor(time-Tperiod) < 0;
+			const double kCurrent = not(kSpringTransition) ? kSpring : (kMaxSpring + time*(kSpring-kMaxSpring)/Tperiod);
+			const double dTheta2 = this->torqueZsecMarkers/kCurrent;
+printf("time = %f, kCurrent = %f, dTheta2 = %f, kSpring=%f, torque=%f\n", time, kCurrent, dTheta2, kSpring, this->torqueZsecMarkers);
+fflush(0);
 
 			const double hinge1Loc[2] = {rX[hinge1Index], rY[hinge1Index]};
 			const double hinge2Loc[2] = {rX[hinge2Index], rY[hinge2Index]};
@@ -1145,8 +1149,6 @@ class CarlingFishMidlineData : public FishMidlineData
 			// angle of arm1 wrt main fish - imposed
 			// Don't use analytical thetaExpression, since rampFactor not accounted-for in there
 			const double currentTheta = std::atan( (hinge2Loc[1] - hinge1Loc[1]) / (hinge2Loc[0] - hinge1Loc[0]));
-			printf("currentTheta = %f\n", currentTheta);
-			fflush(0);
 
 			for(int i=hinge2Index; i<Nm; ++i){
 				const double dx = rX[i] - hinge2Loc[0];
@@ -1158,26 +1160,7 @@ class CarlingFishMidlineData : public FishMidlineData
 
 				rX[i] = hinge2Loc[0] + localLength*std::cos(thetaHinge2);
 				rY[i] = hinge2Loc[1] + localLength*std::sin(thetaHinge2);
-
 			}
-
-			/*FILE *temp;
-			  temp = fopen("midlines.txt","a");
-			//fprintf(temp,"%f\t", time);
-			for (int i=0; i<Nm; ++i){
-			fprintf(temp,"%f\t", rS[i]);
-			}
-			fprintf(temp,"\n");
-			for (int i=0; i<Nm; ++i){
-			fprintf(temp,"%f\t", rX[i]);
-			}
-			fprintf(temp,"\n");
-			//fprintf(temp,"%f\t", time);
-			for (int i=0; i<Nm; ++i){
-			fprintf(temp,"%f\t", rY[i]);
-			}
-			fprintf(temp,"\n");
-			fclose(temp);*/
 		}
 
 
@@ -1318,6 +1301,7 @@ class CarlingFishMidlineData : public FishMidlineData
 				reader >> finSize;
 				reader >> waveLength;
 				reader >> sHinge2;
+				reader >> kSpring;
 				if(reader.eof()){
 					cout << "Insufficient number of parameters provided for hingedFin" << endl; fflush(NULL); abort();
 				}

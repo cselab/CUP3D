@@ -48,10 +48,6 @@ struct ForcesOnSkin : public GenericLabOperator
       const Real _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
 
 
-FILE *tempHandle;
-tempHandle = fopen("section.txt", "w");
-FILE *allHandle;
-allHandle = fopen("body.txt", "w");
       //loop over elements of block info that have nonzero gradChi
       for(int i=first; i<second; i++) { //i now is a fluid element
           assert(first<second && surfData->Set.size()>=second);
@@ -104,21 +100,11 @@ allHandle = fopen("body.txt", "w");
           (*measures)[17] += (p[2]-CM[2])*fXT - (p[0]-CM[0])*fZT;
           (*measures)[18] += (p[0]-CM[0])*fYT - (p[1]-CM[1])*fXT;
 
-          fprintf(allHandle, "%f \t %f \t %f \t %f \t %f \t %f\n", p[0], p[1], p[2], fXT, fYT, fZT);
-          printf("CoM = %f \t %f \t %f\n", CM[0], CM[1], CM[2]);
-	
 	  if(tempIt->second->sectionMarker[iz][iy][ix] > 0){
 		  const double * const pHinge2 = tempIt->second->hinge2LabFrame;
 		  (*measures)[19] += (p[1]-pHinge2[1])*fZT - (p[2]-pHinge2[2])*fYT;
 		  (*measures)[20] += (p[2]-pHinge2[2])*fXT - (p[0]-pHinge2[0])*fZT;
 		  (*measures)[21] += (p[0]-pHinge2[0])*fYT - (p[1]-pHinge2[1])*fXT;
-
-		  const double temp1 = (p[1]-pHinge2[1])*fZT - (p[2]-pHinge2[2])*fYT;
-		  const double temp2 = (p[2]-pHinge2[2])*fXT - (p[0]-pHinge2[0])*fZT;
-		  const double temp3 = (p[0]-pHinge2[0])*fYT - (p[1]-pHinge2[1])*fXT;
-
-		  printf("posHinge2 = %.16f, %.16f, %.16f\n", pHinge2[0], pHinge2[1], pHinge2[2]);
-		  fprintf(tempHandle, "%.16f \t %.16f \t %.16f \t %.16f \t %.16f \t %.16f \t %.16f \t %.16f \t %.16f\n", p[0], p[1], p[2], fXT, fYT, fZT, temp1, temp2, temp3);
 	  }
 
           //thrust, drag:
@@ -142,8 +128,6 @@ allHandle = fopen("body.txt", "w");
           (*measures)[14] += powDef;
           (*measures)[15] += min((Real)0., powDef);
 	  }
-fclose(tempHandle);
-fclose(allHandle);
 	}
 };
 
@@ -846,9 +830,8 @@ static const int nQoI = 22;
   		localSum[j] += (double)partialSums[i][j];
 	MPI_Allreduce(localSum, globalSum, nQoI, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
 
-printf("tX = %.16f, tY = %.16f, tZ = %.16f\n", globalSum[19], globalSum[20], globalSum[21]);
-fflush(0);
-//abort();
+  // The torque at hinge2
+  this->torqueZsection = globalSum[21];
 
   //additive quantities:
   totChi      = globalSum[0];
