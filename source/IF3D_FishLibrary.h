@@ -319,8 +319,9 @@ class FishMidlineData
 	Real * const rYold;
 	Real oldTime = 0.0;
 	bool firstStep = true;
-	const bool bDoubleHinge=true;
-	Real sHinge2=0.0, torqueZsecMarkers=0.0;
+	const bool bDoubleHinge=false;
+	Real sHinge2=0.0, torqueZsecMarkers=0.0, tOld=0.0, dTheta2=0.0;
+
 	Real linMom[2], vol, J, angMom; // for diagnostics
 	// start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
 	const int iFishStart, iFishEnd;
@@ -947,7 +948,9 @@ class CarlingFishMidlineData : public FishMidlineData
 	Real AhingeTheta, hingePhi;
 	const bool bBurst, bHinge;
 	Real kSpring=0.0;
-	const Real kMaxSpring=1.0; // Expect torque values on the order of 1e-5
+	const Real kMaxSpring=100.0; // Expect torque values on the order of 1e-5 at steady, and 1e-3 at startup
+Real thetaOld = 0.0, avgTorque = 0.0, runningTorque = 0.0, timeNminus = 0.0;
+int prevTransition = 0;
 	const bool quadraticAmplitude;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
@@ -1137,11 +1140,37 @@ class CarlingFishMidlineData : public FishMidlineData
 		if(bDoubleHinge){
 
 			//linearly decrease spring stiffness over 1 Tperiod, otherwise might get discontinuous theta2 at startup
-			const bool kSpringTransition = std::floor(time-Tperiod) < 0;
-			const double kCurrent = not(kSpringTransition) ? kSpring : (kMaxSpring + time*(kSpring-kMaxSpring)/Tperiod);
-			const double dTheta2 = this->torqueZsecMarkers/kCurrent;
-printf("time = %f, kCurrent = %f, dTheta2 = %f, kSpring=%f, torque=%f\n", time, kCurrent, dTheta2, kSpring, this->torqueZsecMarkers);
-fflush(0);
+			/*const bool kSpringTransition = std::floor(time-Tperiod) < 0;
+			  const double kCurrent = not(kSpringTransition) ? kSpring : (kMaxSpring + time*(kSpring-kMaxSpring)/Tperiod);*/
+
+			const double dt = time - this->timeNminus;
+			this->timeNminus = time;
+			this->runningTorque += this->torqueZsecMarkers * dt;
+
+			if(time> (prevTransition+1)*0.01*Tperiod ){
+				this->tOld = time;
+				this->thetaOld = this->dTheta2;
+				this->avgTorque = this->runningTorque/(0.01*Tperiod);
+				this->runningTorque = 0.0;
+				prevTransition++;
+			}
+
+			//Rigid until time period
+			//if(time<Tperiod)
+			if(1){
+				this->dTheta2 = 0.0;
+			}else{
+				const double kCurrent = kSpring;
+				const double cSpring = kCurrent;
+				//const double thetaOld = this->dTheta2;
+				const double thetaOld = this->thetaOld;
+				const double tOld = this->tOld;
+				const double torque = this->avgTorque;
+				const double a1 = (thetaOld - torque/kCurrent)*exp(tOld*kCurrent/cSpring);
+				//this->tOld = time;
+				this->dTheta2 = torque/kCurrent + a1*exp(-time*kCurrent/cSpring);
+				printf("time = %f, dTheta2 = %f, kSpring=%f, torque=%f\n", time, this->dTheta2, kCurrent, torque);
+			}
 
 			const double hinge1Loc[2] = {rX[hinge1Index], rY[hinge1Index]};
 			const double hinge2Loc[2] = {rX[hinge2Index], rY[hinge2Index]};
@@ -1162,8 +1191,6 @@ fflush(0);
 				rY[i] = hinge2Loc[1] + localLength*std::sin(thetaHinge2);
 			}
 		}
-
-
 	}
 
 	void _computeMidlineVelocities(const Real time)
@@ -1314,6 +1341,8 @@ fflush(0);
 			AhingeTheta = M_PI*_Ahinge/180.0;
 			hingePhi = _phiHinge/360.0;
 			sHinge2 *= length;
+			// UnRescaling: to avoid CMA trouble
+			kSpring *= 1.0e-4;
 		}
 
 		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
