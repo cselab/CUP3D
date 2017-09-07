@@ -23,19 +23,19 @@ mkdir -p ${FOLDER}
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 cp ${FFACTORY} ${FOLDER}/factory
 cp ../makefiles/simulation ${FOLDER}
-cp launchBrutus.sh ${FOLDER}
-cp runBrutus.sh ${FOLDER}/run.sh
+#cp launchBrutus.sh ${FOLDER}
+cp runEuler.sh ${FOLDER}/run.sh
 
 #CURRDIR=`pwd`
 cd $FOLDER
 
 if [ $INTERACTIVE -eq 1 ] ; then 
-   export OMP_NUM_THREADS=24
+   export OMP_NUM_THREADS=48
    export MV2_ENABLE_AFFINITY=0 
    echo $OPTIONS > settings.txt
    mpirun -np ${NNODE} -ppn 1 ./simulation ${OPTIONS}
 else
-    bsub -n ${NPROCESSORS} -W ${WCLOCK} -J ${BASENAME} < run.sh 
+    bsub -n ${NPROCESSORS} -W 24:00 -J ${BASENAME} < run.sh 
 fi
 
 #cd $CURRDIR

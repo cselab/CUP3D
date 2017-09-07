@@ -1,3 +1,4 @@
 CC=mpic++
 LD=mpic++
+accfft=false
 LIBS += -lmpi -lmpicxx -lmpich -lsz

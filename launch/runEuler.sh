@@ -1,5 +1,5 @@
 #!/bin/bash
-export OMP_NUM_THREADS=24
+export OMP_NUM_THREADS=48
 #export OMP_SCHEDULE=dynamic
 #export MPICH_NEMESIS_ASYNC_PROGRESS=1
 #export MPICH_MAX_THREAD_SAFETY=multiple
@@ -14,7 +14,7 @@ if [ ! -f $SETTINGSNAME ];then
     exit -1
 fi
 source $SETTINGSNAME
-
+echo ${NNODE}
 echo $OPTIONS > settings.txt
 
 mpirun -np ${NNODE} -ppn 1 ./simulation ${OPTIONS}

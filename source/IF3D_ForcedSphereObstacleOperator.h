@@ -28,6 +28,7 @@ public:
 		computeVelocities_forced(Uinf);
 	}
   void _parseArguments(ArgumentParser & parser) override;
+  void update(const int stepID, const Real t, const Real dt, const Real *Uinf) override;
 };
 
 #endif /* defined(__IncompressibleFluids3D__IF3D_ForcedSphereObstacleOperator__) */

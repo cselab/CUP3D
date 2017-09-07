@@ -1,6 +1,6 @@
 #!/bin/bash
 
-BASENAME=ForcedSphereStartup_00
+BASENAME=ForcedSphereStartup_02
 NNODE=2
 FFACTORY=factoryForcedSphereStartup
 
@@ -9,7 +9,7 @@ OPTIONS+=" -bpdx 64 -bpdy 32 -bpdz 32"
 OPTIONS+=" -2Ddump 0"
 OPTIONS+=" -tdump 0.025"
 OPTIONS+=" -nprocsx ${NNODE}"
-OPTIONS+=" -CFL 0.1"
+OPTIONS+=" -CFL 0.2"
 OPTIONS+=" -uinfx 0.0"
 OPTIONS+=" -length 0.1"
 OPTIONS+=" -lambda 1e5"
