@@ -438,14 +438,16 @@ struct surfacePoints
         string filename(buf);
         fileskin.open(filename, ios::trunc);
 
-            fileskin<< "x,y,z,chi,thrust,pDef,pThrust,press,fxP,fyP,fzP,fxV,fyV,fzV,vx,vy,vz,vxDef,vyDef,vzDef"<<endl;
+        //fileskin<< "x,y,z,chi,thrust,pDef,pThrust,press,fxP,fyP,fzP,fxV,fyV,fzV,vx,vy,vz,vxDef,vyDef,vzDef"<<endl;
+        fileskin<< "x,y,z,normX,normY,normZ,chi,thrust,pDef,pThrust,press,vx,vy,vz,vxDef,vyDef,vzDef"<<endl;
 
         for(int i=0; i<Ndata; ++i) {
             fileskin<< pX[i]<<","<< pY[i]<<","<< pZ[i]<<","
+                    <<Set[i]->dchidx<<","<<Set[i]->dchidy<<","<<Set[i]->dchidz<<","
                     <<chi[i]<<","<< thrust[i]<<","<< pDef[i]<<","<< pThrust[i]<< ","
                     <<P[i]<<","
-                    <<fxP[i]<<","<<fyP[i]<<","<<fzP[i]<<","
-                    <<fxV[i]<<","<<fyV[i]<<","<<fzV[i]<<","
+                    //<<fxP[i]<<","<<fyP[i]<<","<<fzP[i]<<","
+                    //<<fxV[i]<<","<<fyV[i]<<","<<fzV[i]<<","
                     << vx[i]<<","<< vy[i]<<","<< vz[i]<<","
                     <<vxDef[i]<<","<<vyDef[i]<<","<<vzDef[i]<<endl;
         }
