@@ -1,25 +1,27 @@
 #!/bin/bash
 
-BASENAME=FlowPastCarlingFishRe0400_CFL01_lambda1e5
+BASENAME=carling_parahinge_00
 NNODE=8
-NNODEX=8
-NNODEY=1
+NNODEX=4
+NNODEY=2
 #WCLOCK=48:00
 #WSECS=172000
-WCLOCK=24:00
+WCLOCK=24:00:00
 WSECS=43000
 FFACTORY=factoryCarling
+#FFACTORY=factoryStefan
 
 OPTIONS=
-OPTIONS+=" -bpdx 64 -bpdy 32 -bpdz 32"
+OPTIONS+=" -bpdx 32 -bpdy 32 -bpdz 8"
 OPTIONS+=" -2Ddump 0 -restart 0"
 OPTIONS+=" -nprocsx ${NNODEX}"
 OPTIONS+=" -nprocsy ${NNODEY}"
 OPTIONS+=" -nprocsz 1"
-OPTIONS+=" -CFL 0.1 -tdump 0.0"
+OPTIONS+=" -CFL 0.1" # -tdump 0.0"
 #OPTIONS+=" -Wtime ${WSECS}"
-OPTIONS+=" -length 0.25"
-OPTIONS+=" -lambda 1e5"
+OPTIONS+=" -length 0.2"
+OPTIONS+=" -lambda 1e6"
+OPTIONS+=" -nu 0.00008"
 #OPTIONS+=" -nu 0.000015625"
-OPTIONS+=" -nu 0.00015625"
-OPTIONS+=" -tend 8 -tdump 0"
+#OPTIONS+=" -nu 0.00015625"
+OPTIONS+=" -tend 1 -tdump 0.01"

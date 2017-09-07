@@ -2,7 +2,7 @@
 SETTINGSNAME=$1
 
 MYNAME=`whoami`
-BASEPATH="/scratch/snx3000/${MYNAME}/CubismUP3D/"
+BASEPATH="/scratch/snx1600/${MYNAME}/CubismUP3D/"
 #lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
 
 if [ ! -f $SETTINGSNAME ];then
@@ -30,7 +30,9 @@ cat <<EOF >daint_sbatch
 #SBATCH --job-name="${BASENAME}"
 #SBATCH --output=${BASENAME}_out_%j.txt
 #SBATCH --error=${BASENAME}_err_%j.txt
+# #SBATCH --time=01:00:00
 #SBATCH --time=24:00:00
+# #SBATCH --time=00:30:00
 #SBATCH --nodes=${NNODE}
 # #SBATCH --partition=debug
 #SBATCH --ntasks-per-node=1
