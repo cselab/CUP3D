@@ -331,7 +331,8 @@ class FishMidlineData
 	Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
 	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
 	FishSkin * upperSkin, * lowerSkin;
-	Real finSize = 1.1e-1, waveLength = 1.0;
+	//Real finSize = 1.1e-1, waveLength = 1.0;
+	Real finSize = 3.6e-1, waveLength = 1.0;
 
  protected:
 	Real Rmatrix2D[2][2];
