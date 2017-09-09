@@ -1325,10 +1325,11 @@ int prevTransition = 0;
 			if (reader.is_open()) {
 				reader >> _Ahinge;
 				reader >> _phiHinge;
-				reader >> finSize;
 				reader >> waveLength;
-				reader >> sHinge2;
-				reader >> kSpring;
+				reader >> finSize;
+printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				/*reader >> sHinge2;
+				reader >> kSpring;*/
 				if(reader.eof()){
 					cout << "Insufficient number of parameters provided for hingedFin" << endl; fflush(NULL); abort();
 				}
@@ -1340,9 +1341,10 @@ int prevTransition = 0;
 
 			AhingeTheta = M_PI*_Ahinge/180.0;
 			hingePhi = _phiHinge/360.0;
-			sHinge2 *= length;
+			/*sHinge2 *= length;
 			// UnRescaling: to avoid CMA trouble
-			kSpring *= 1.0e-4;
+			kSpring *= 1.0e-4;*/
+//finSize = 0.30;
 		}
 
 		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
