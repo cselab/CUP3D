@@ -952,6 +952,7 @@ class CarlingFishMidlineData : public FishMidlineData
 Real thetaOld = 0.0, avgTorque = 0.0, runningTorque = 0.0, timeNminus = 0.0;
 int prevTransition = 0;
 	const bool quadraticAmplitude;
+	const Real quadraticFactor = 0.12;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
 	{
@@ -970,7 +971,7 @@ int prevTransition = 0;
 		
 		double yCurrent;
 		if(quadraticAmplitude){
-			yCurrent = (s*s*0.15/L) *std::sin(arg);
+			yCurrent = (s*s*quadraticFactor/L) *std::sin(arg);
 		} else {
 			yCurrent = fac * (s + inv*L)*std::sin(arg);
 		}
@@ -979,7 +980,7 @@ int prevTransition = 0;
 			if(s>sHinge){
 				double yNot;
 				if(quadraticAmplitude){
-					yNot =  (sHinge*sHinge*0.15/L)*std::sin(2.0*M_PI*(sHinge/(waveLength*L) - t/T + phaseShift));
+					yNot =  (sHinge*sHinge*quadraticFactor/L)*std::sin(2.0*M_PI*(sHinge/(waveLength*L) - t/T + phaseShift));
 				}else{
 					yNot =  fac *  (sHinge + inv*L)*std::sin(2.0*M_PI*(sHinge/(waveLength*L) - t/T + phaseShift));
 				}
@@ -997,7 +998,7 @@ int prevTransition = 0;
 		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
 		double velCurrent;
 		if(quadraticAmplitude){
-			velCurrent = - (s*s*0.15/L)*(2.0*M_PI/T)*std::cos(arg);
+			velCurrent = - (s*s*quadraticFactor/L)*(2.0*M_PI/T)*std::cos(arg);
 		}else{
 			velCurrent = - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
 		}
@@ -1007,7 +1008,7 @@ int prevTransition = 0;
 				//const double yNot =  4./33 *  (sHinge + 0.03125*L)*std::sin(2.0*M_PI*(sHinge/L - t/T + phaseShift));
 				double velNot;
 				if(quadraticAmplitude){
-					velNot =  -2.0*M_PI/T * (sHinge*sHinge*0.15/L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
+					velNot =  -2.0*M_PI/T * (sHinge*sHinge*quadraticFactor/L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
 				}else{
 					velNot =  -2.0*M_PI/T * fac *  (sHinge + inv*L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
 				}
@@ -1277,8 +1278,35 @@ int prevTransition = 0;
  public:
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 		const Real phaseShift, const Real dx_ext, const Real _fac = 0.1212121212121212)
-	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false), tStart(1.0e12), bHinge(false), sHinge(0.0), AhingeTheta(0.0), ThingeTheta(0.0), hingePhi(0.0), quadraticAmplitude(false)
+	: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false), tStart(1.0e12), bHinge(false), sHinge(0.0), AhingeTheta(0.0), ThingeTheta(0.0), hingePhi(0.0), quadraticAmplitude(true)
+	/*: FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false), tStart(1.0e12), bHinge(false), sHinge(0.0), AhingeTheta(0.0), ThingeTheta(0.0), hingePhi(0.0), quadraticAmplitude(false)
 	{
+	}*/
+	{
+		// Now, read the optimization params (Ahinge, _phiHinge, tail size) from the params file
+		{
+			Real _Ahinge, _phiHinge;
+			ifstream reader("hingedParams.txt");
+			if (reader.is_open()) {
+				reader >> _Ahinge;
+				reader >> _phiHinge;
+				reader >> waveLength;
+				reader >> finSize;
+				printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				if(reader.eof()){
+					cout << "Insufficient number of parameters provided for hingedFin" << endl; fflush(NULL); abort();
+				}
+				reader.close();
+			} else {
+				cout << "Could not open the correct 'params'.txt file" << endl; fflush(NULL);
+				abort();
+			}
+		}
+
+		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
+		printf("Overwriting default tail-fin size:\n");
+		_computeWidthsHeights();
+
 	}
 
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
@@ -1348,6 +1376,7 @@ printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSiz
 		}
 
 		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
+		printf("Overwriting default tail-fin size:\n");
 		_computeWidthsHeights();
 
 	}
