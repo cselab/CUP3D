@@ -952,7 +952,7 @@ class CarlingFishMidlineData : public FishMidlineData
 Real thetaOld = 0.0, avgTorque = 0.0, runningTorque = 0.0, timeNminus = 0.0;
 int prevTransition = 0;
 	const bool quadraticAmplitude;
-	const Real quadraticFactor = 0.12;
+	const Real quadraticFactor = 0.1;
 
 	inline Real rampFactorSine(const Real t, const Real T) const
 	{
@@ -1304,7 +1304,7 @@ int prevTransition = 0;
 		}
 
 		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
-		printf("Overwriting default tail-fin size:\n");
+		printf("Overwriting default tail-fin size for Plain Carling:\n");
 		_computeWidthsHeights();
 
 	}
@@ -1355,7 +1355,7 @@ int prevTransition = 0;
 				reader >> _phiHinge;
 				reader >> waveLength;
 				reader >> finSize;
-printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
 				/*reader >> sHinge2;
 				reader >> kSpring;*/
 				if(reader.eof()){
@@ -1376,7 +1376,7 @@ printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSiz
 		}
 
 		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
-		printf("Overwriting default tail-fin size:\n");
+		printf("Overwriting default tail-fin size for Hinged Carling:\n");
 		_computeWidthsHeights();
 
 	}
