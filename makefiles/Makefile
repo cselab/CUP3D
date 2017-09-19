@@ -54,7 +54,9 @@ CPPFLAGS += -D_BSZ_=$(bsz)
 CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
 ifeq "$(config)" "prod"
+	#CPPFLAGS += -DNDEBUG -O2 -fstrict-aliasing -march=core-avx2 -mtune=core-avx2 -ffast-math -falign-functions=32
 	CPPFLAGS += -DNDEBUG -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=32
+	#CPPFLAGS += -DNDEBUG -O2 -fstrict-aliasing -ffast-math #-falign-functions=32
 else
 	CPPFLAGS += -g -O0 
 endif
@@ -76,7 +78,7 @@ ifneq "$(findstring brutus,$(shell hostname))" ""
 endif
 
 ifneq "$(findstring euler,$(shell hostname))" ""
-	include make.euler
+include make.euler
 endif
 
 CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
@@ -111,9 +113,10 @@ LIBS +=	-L$(vtk-lib) \
 	-lvtksys
 endif
 
+ifeq "$(hdf)" "true"
 CPPFLAGS += -D_USE_HDF_ #-I$(hdf-inc)
 LIBS += -lhdf5 #-L$(hdf-lib) -lhdf5
-
+endif
 ifeq "$(precision)" "single"
 	LIBS += -lfftw3f -lfftw3f_threads -lfftw3f_mpi
 endif

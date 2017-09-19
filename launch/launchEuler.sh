@@ -16,7 +16,7 @@ if [ ! -f $SETTINGSNAME ];then
 fi
 source $SETTINGSNAME
 
-NPROCESSORS=$((${NNODE}*24))
+NPROCESSORS=$((${NNODE}*12))
 FOLDER=${BASEPATH}${BASENAME}
 mkdir -p ${FOLDER}
 
@@ -30,12 +30,12 @@ cp runEuler.sh ${FOLDER}/run.sh
 cd $FOLDER
 
 if [ $INTERACTIVE -eq 1 ] ; then 
-   export OMP_NUM_THREADS=48
+   export OMP_NUM_THREADS=12
    export MV2_ENABLE_AFFINITY=0 
    echo $OPTIONS > settings.txt
    mpirun -np ${NNODE} -ppn 1 ./simulation ${OPTIONS}
 else
-    bsub -n ${NPROCESSORS} -W 24:00 -J ${BASENAME} < run.sh 
+    bsub  -R "rusage[mem=320] select[model==XeonE5_2680v3]" -n ${NPROCESSORS} -W 24:00 -J ${BASENAME} < run.sh 
 fi
 
 #cd $CURRDIR

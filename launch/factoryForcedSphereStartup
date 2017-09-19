@@ -1,1 +1,1 @@
-IF3D_ForcedSphere L=0.1 xpos=0.25 ypos=0.25 zpos=0.25 xvel=0.2 accel=1 T=2.5
+IF3D_ForcedSphere L=0.1 xpos=0.25 ypos=0.25 zpos=0.125 xvel=0.2 accel=1 T=2.5
