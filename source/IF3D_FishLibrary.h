@@ -1068,7 +1068,7 @@ int prevTransition = 0;
 			const Real d = (time-tcoast)/(tfreeze-tcoast);
 			const std::pair<double, double> retVal = cubicHermite(1.0, lowestAmp, d);
 			f = retVal.first;
-			df = retVal.second;
+			df = retVal.second/(tfreeze-tcoast);
 			//f = 1 - 3*d*d + 2*d*d*d;
 		} else if (time<tburst) {
 			//f = 0.0;
@@ -1078,7 +1078,7 @@ int prevTransition = 0;
 			const Real d = (time-tburst)/(tswim-tburst);
 			const std::pair<double, double> retVal = cubicHermite(lowestAmp, 1.0, d);
 			f = retVal.first;
-			df = retVal.second;
+			df = retVal.second/(tswim-tburst);
 			//f = 3*d*d - 2*d*d*d;
 			//df = 6*(d - d*d)/(tswim-tburst);
 		} else {
