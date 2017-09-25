@@ -507,6 +507,17 @@ class FishMidlineData
 			height[i] = _height(rS[i],length);
 		}
 	  #endif
+
+	// output these suckers
+	FILE * heightWidth;
+	heightWidth = fopen("widthHeight.txt","w");
+	{
+		for(int i=0;i<Nm;++i) {
+			fprintf(heightWidth, "%f \t %f \t %f \n", rS[i], width[i], height[i]);
+		}
+	}
+	fclose(heightWidth);
+
 	}
 
 	void _computeMidlineNormals()
