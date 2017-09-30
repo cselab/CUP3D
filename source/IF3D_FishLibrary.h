@@ -1354,7 +1354,7 @@ int prevTransition = 0;
 	// Had to get rid of default value of _fac=0.1212121212121212. Was creating confusion for compiler with plain fish constructor 
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 			const Real phaseShift, const Real dx_ext, const Real _sHinge,
-			const Real _fac):
+			const Real _fac, const bool _equalHeight):
 		FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false),tStart(1e12), bHinge(true), sHinge(_sHinge), ThingeTheta(Tperiod), quadraticAmplitude(true)
 	{
 		// Now, read the optimization params (Ahinge, _phiHinge, tail size) from the params file
@@ -1366,7 +1366,11 @@ int prevTransition = 0;
 				reader >> _Ahinge;
 				reader >> _phiHinge;
 				reader >> waveLength;
-				reader >> finSize;
+				if(_equalHeight){
+					finSize = 0.3;
+				}else{
+					reader >> finSize;
+				}
 				printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
 				/*reader >> sHinge2;
 				reader >> kSpring;*/
@@ -1384,7 +1388,6 @@ int prevTransition = 0;
 			/*sHinge2 *= length;
 			// UnRescaling: to avoid CMA trouble
 			kSpring *= 1.0e-4;*/
-//finSize = 0.30;
 		}
 
 		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values

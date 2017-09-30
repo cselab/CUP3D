@@ -39,9 +39,11 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI * grid, Argument
 		if(not bOptimizeHinge){
 			double aHinge = parser("-AhingeDeg").asDouble();
 			double phiHinge = parser("-phiHingeDeg").asDouble();
-			myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge,aHinge,phiHinge, amplitude);
+			myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge,aHinge,phiHinge, 0.0);
 		}else{
-			myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge, amplitude*0.625); // 0.625 necessary to have dx>0 when lambda>=0.5
+			const bool equalHeight = length*parser("-equalHeight").asBool();
+			//myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge, amplitude*0.625); // 0.625 necessary to have dx>0 when lambda>=0.5
+			myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge, 0.0, equalHeight); 
 		}
 		parser.unset_strict_mode();
 	} else {
