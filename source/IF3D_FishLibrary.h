@@ -1666,28 +1666,18 @@ struct VolumeSegment_OBB
 		normalizeNormals();
 	}
 
-	bool isIntersectingWithAABB(const Real start[3],const Real end[3], const Real h_gridpt) const
+	bool isIntersectingWithAABB(const Real start[3],const Real end[3], const Real safe_distance = 0.0) const
 	{
 		//start and end are two diagonally opposed corners of grid block
-		/*const Real AABB_w[3] = { //half block width + safe distance
-		  0.5*(end[0] - start[0]) + 2.0*safe_distance,
-		  0.5*(end[1] - start[1]) + 2.0*safe_distance,
-		  0.5*(end[2] - start[2]) + 2.0*safe_distance
-		  };*/
-		const Real AABB_w[3] = { //half block width + 1 point on either side (Keep extra point, since cell is empty between center and face)
-			0.5*(end[0] - start[0] + h_gridpt) + h_gridpt, // Need (end-start+h) since 'start' and 'end' correspond to cell centers, not the faces
-			0.5*(end[1] - start[1] + h_gridpt) + h_gridpt,
-			0.5*(end[2] - start[2] + h_gridpt) + h_gridpt
+		const Real AABB_w[3] = { //half block width + safe distance
+				0.5*(end[0] - start[0]) + 2.0*safe_distance,
+				0.5*(end[1] - start[1]) + 2.0*safe_distance,
+				0.5*(end[2] - start[2]) + 2.0*safe_distance
 		};
-		/*const Real AABB_c[3] = { //block center
-		  start[0] + AABB_w[0] - safe_distance,
-		  start[1] + AABB_w[1] - safe_distance,
-		  start[2] + AABB_w[2] - safe_distance
-		  };*/
 		const Real AABB_c[3] = { //block center
-			0.5*(start[0] + end[0]),
-			0.5*(start[1] + end[1]),
-			0.5*(start[2] + end[2])
+				start[0] + AABB_w[0] - safe_distance,
+				start[1] + AABB_w[1] - safe_distance,
+				start[2] + AABB_w[2] - safe_distance
 		};
 
 		assert(AABB_w[0]>0);
