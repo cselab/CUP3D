@@ -1919,27 +1919,29 @@ struct PutFishOnBlocks
 
 					// Don't try to populate outside bounds
                                         const int startMarker[3] = {
-                                                        std::max(0,iap[0]),
-                                                        std::max(0,iap[1]),
-                                                        std::max(0,iap[2])
+                                                        std::max(0,iap[0]-1),
+                                                        std::max(0,iap[1]-1),
+                                                        std::max(0,iap[2]-1)
                                         };
                                         const int endMarker[3] = {
-                                                        std::min(iap[0]+2, FluidBlock::sizeX - 0), //+2 instead of +1, since will do (< than)
-                                                        std::min(iap[1]+2, FluidBlock::sizeY - 0), //weird: if I don't put -0, FluidBlock not recognized
-                                                        std::min(iap[2]+2, FluidBlock::sizeZ - 0)
+                                                        std::min(iap[0]+3, FluidBlock::sizeX - 0), //+3 instead of +2, since will do (< than)
+                                                        std::min(iap[1]+3, FluidBlock::sizeY - 0), //weird: if I don't put -0, FluidBlock not recognized
+                                                        std::min(iap[2]+3, FluidBlock::sizeZ - 0)
                                         };
 
 					//Prep section, finalize later towards end (all ellipse encompassing points grabbed if beyond hinge2)
-					if(ss>=defblock->hinge2Index){
-						// Populate in the 'box' containing the current point. Low corners are iap, high corners are iap+1
-						for(int sz=startMarker[2]; sz<endMarker[2]; ++sz){
-							for(int sy=startMarker[1]; sy<endMarker[1]; ++sy){
-								for(int sx=startMarker[0]; sx<endMarker[0]; ++sx){
-									defblock->sectionMarker[sz][sy][sx] = 1;
-								}
+					//if(ss>=defblock->hinge2Index){
+					// Populate in the 'box' containing the current point. Low corners are iap, high corners are iap+1
+					for(int sz=startMarker[2]; sz<endMarker[2]; ++sz){
+						for(int sy=startMarker[1]; sy<endMarker[1]; ++sy){
+							for(int sx=startMarker[0]; sx<endMarker[0]; ++sx){
+								const double temp = defblock->sectionMarker[sz][sy][sx];
+								// Replace only with higher values of s
+								defblock->sectionMarker[sz][sy][sx] = (cfish->rS[ss] >temp) ? cfish->rS[ss] : temp;
 							}
 						}
 					}
+					//}
 
 
 					// support is two points left, two points right --> Towers Chi will be one point left, one point right, but needs SDF wider
@@ -2142,7 +2144,7 @@ struct PutFishOnBlocks
 				b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1];
 
 				// All points that are not chi=0 in the targeted section, are captured here. When we loop through SurfaceBlocks for computing torque, the extraneous points captured here will be left out, so hakunamatata.
-				defblock->sectionMarker[iz][iy][ix] *= std::abs(defblock->chi[iz][iy][ix]) > 0 ? 1 : 0;
+				defblock->sectionMarker[iz][iy][ix] *= ( (std::abs(defblock->chi[iz][iy][ix]) > 0) ? 1 : 0);
 			}
 		}
 	}
