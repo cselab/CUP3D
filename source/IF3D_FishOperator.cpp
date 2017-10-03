@@ -404,6 +404,41 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 	parser.set_strict_mode();
 	parser.unset_strict_mode();
 	Tperiod = parser("-T").asDouble(1.0);
+
+	const bool optimizeT = parser("-optimizeT").asBool(false);
+	if(optimizeT){
+
+		char line[256];
+		FILE *f = fopen("hingedParams.txt", "r");
+		if(f==NULL){
+			printf("hingedParams not found!\n"); abort();
+		}
+
+		double tvalue=0.0;
+		int line_no = 0;
+
+		while (fgets(line, 256, f)!= NULL) {
+			if ((line[0] == '#')||(strlen(line)==0)) {
+				printf("ignoring line %d\n", line_no);
+				continue;
+			}
+
+			if (strstr(line, "T=")) {
+				sscanf(line, "T=%lf", &tvalue);
+			}
+			line_no++;
+		}
+		if(tvalue==0.0){
+			printf("Correct T=?? not found in hingedParams.txt\n");
+			fflush(0);
+			abort();
+		}
+		Tperiod = tvalue;
+		printf("Tperiod overwritten: %f\n", Tperiod);
+		assert(Tperiod >0.0);
+		fclose(f);
+	}
+
 	nActions = parser("-nActions").asInt(0);
 	GoalDX = parser("-GoalDX").asDouble(2.0);
 	phaseShift = parser("-phi").asDouble(0.0);

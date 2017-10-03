@@ -477,9 +477,9 @@ class FishMidlineData
 	void _computeWidthsHeights()
 	{
 #ifdef __BSPLINE
-		const int nh = 8;
+		/*const int nh = 8;
 		const Real xh[8] = {0, 0, .2*length, .4*length,
-			.6*length, .8*length, length, length};
+			.6*length, .8*length, length, length};*/
 		// Slim Zebrafish
 		//const Real yh[8] = {0, 5.5e-2*length, 6.8e-2*length, 7.6e-2*length,
 		//	6.4e-2*length, 7.2e-3*length, 1.1e-1*length, 0};
@@ -488,10 +488,18 @@ class FishMidlineData
 		//const Real yh[8] = {0, 5.5e-2*length, 1.8e-1*length, 2e-1*length,
 		//	6.4e-2*length, 2e-3*length, 3.25e-1*length, 0};
 
-		printf("TailFinSize = %f, Wavelength = %f\n", finSize, waveLength);
+		/*printf("TailFinSize = %f, Wavelength = %f\n", finSize, waveLength);
 		fflush(NULL);
 		const Real yh[8] = {0, 5.5e-2*length, 1.8e-1*length, 2e-1*length,
-			6.4e-2*length, 2e-3*length, finSize*length, 0};
+			6.4e-2*length, 2e-3*length, finSize*length, 0};*/
+
+		// Tuna clone
+		const int nh = 9;
+		const Real xh[9] = {0, 0, 0.2*length, .4*length, .6*length,
+			.9*length, .96*length, length, length};
+		finSize = 0.2;
+		const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length, 1.1e-1*length,
+			.0*length, 0.1*length, finSize*length, 0};
 
         const int nw = 6;
         const Real xw[6] = {0, 0, length/3., 2*length/3., length, length};
