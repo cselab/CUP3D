@@ -495,18 +495,22 @@ class FishMidlineData
 
 		// Tuna clone
 		const int nh = 9;
-		const Real xh[9] = {0, 0, 0.2*length, .4*length, .6*length,
-			.9*length, .96*length, length, length};
-		finSize = 0.2;
-		const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length, 1.1e-1*length,
-			.0*length, 0.1*length, finSize*length, 0};
+		const Real xh[9] = {0, 0, 0.2*length, .4*length,
+			.6*length, .9*length, .96*length, length, length};
+		finSize = 0.23;
+		const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length,
+			1.1e-1*length, .0*length, 0.14*length, finSize*length, 0};
 
-        const int nw = 6;
-        const Real xw[6] = {0, 0, length/3., 2*length/3., length, length};
-        const Real yw[6] = {0, 8.9e-2*length, 7.0e-2*length,
-		3.0e-2*length, 2.0e-2*length, 0};
-        //const Real yw[6] = {0, 8.9e-2*length, 1.7e-2*length,
-	//	1.6e-2*length, 1.3e-2*length, 0};
+		const int nw = 6;
+		const Real xw[6] = {0, 0, length/3., 2*length/3., length, length};
+		const Real yw[6] = {0, 8.9e-2*length, 7.0e-2*length,
+			3.0e-2*length, 2.0e-2*length, 0};
+		//const Real yw[6] = {0, 8.9e-2*length, 1.7e-2*length,
+		//	1.6e-2*length, 1.3e-2*length, 0};
+
+		printf("TailFinSize = %f, Wavelength = %f\n", finSize, waveLength);
+		fflush(NULL);
+
 		integrateBSpline(width,  xw, yw, nw);
 		integrateBSpline(height, xh, yh, nh);
 	  #else
