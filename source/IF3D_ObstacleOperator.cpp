@@ -90,6 +90,7 @@ struct ForcesOnSkin : public GenericLabOperator
           surfData->fxV[i] = fXV; surfData->fyV[i] = fYV; surfData->fzV[i] = fZV;
           surfData->pX[i] = p[0]; surfData->pY[i] = p[1]; surfData->pZ[i] = p[2];
           surfData->ss[i] = tempIt->second->sectionMarker[iz][iy][ix]; 
+          surfData->chi[i] = tempIt->second->chi[iz][iy][ix]; 
           //perimeter:
           (*measures)[0] += surfData->Set[i]->delta;
           //forces (total, visc, pressure):
@@ -101,15 +102,18 @@ struct ForcesOnSkin : public GenericLabOperator
           (*measures)[17] += (p[2]-CM[2])*fXT - (p[0]-CM[0])*fZT;
           (*measures)[18] += (p[0]-CM[0])*fYT - (p[1]-CM[1])*fXT;
 
+	  /*// Compute torque for passive hinge
 	  if(tempIt->second->sectionMarker[iz][iy][ix] > 0.0){
 		  const double * const pHinge2 = tempIt->second->hinge2LabFrame;
 		  (*measures)[19] += (p[1]-pHinge2[1])*fZT - (p[2]-pHinge2[2])*fYT;
 		  (*measures)[20] += (p[2]-pHinge2[2])*fXT - (p[0]-pHinge2[0])*fZT;
 		  (*measures)[21] += (p[0]-pHinge2[0])*fYT - (p[1]-pHinge2[1])*fXT;
-	  }
+	  }*/
 
           //thrust, drag:
           const Real forcePar = fXT*vel_unit[0] + fYT*vel_unit[1] + fZT*vel_unit[2];
+	  surfData->thrust[i] = forcePar;
+	  // Now break it up into forward and rear-facing components
           (*measures)[10] += .5*(forcePar + std::abs(forcePar));
           (*measures)[11] -= .5*(forcePar - std::abs(forcePar));
           //save velocities in case of dump:
@@ -124,6 +128,7 @@ struct ForcesOnSkin : public GenericLabOperator
           const Real powOut = fXT*(surfData->vx[i]+Uinf[0]) + fYT*(surfData->vy[i]+Uinf[1]) + fZT*(surfData->vz[i]+Uinf[2]);
           //deformation power output (and negative definite variant which ensures no elastic energy absorption)
           const Real powDef = fXT*surfData->vxDef[i] + fYT*surfData->vyDef[i] + fZT*surfData->vzDef[i];
+	  surfData->pDef[i] = powDef;
           (*measures)[12] += powOut;
           (*measures)[13] += min((Real)0., powOut);
           (*measures)[14] += powDef;

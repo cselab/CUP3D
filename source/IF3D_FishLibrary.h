@@ -332,11 +332,25 @@ class FishMidlineData
 	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
 	FishSkin * upperSkin, * lowerSkin;
 	//Real finSize = 1.1e-1, waveLength = 1.0;
-	Real finSize = 3.0e-1, waveLength = 1.0; // For curvalicious fin
+	Real finSize = 0.0e-1, waveLength = 1.0; // For curvalicious fin
 
  protected:
 	Real Rmatrix2D[2][2];
 	Real Rmatrix3D[3][3];
+
+	inline Real _naca_width(const double s, const Real L, const double t_ratio=0.12)
+	{
+		if(s<0 or s>L) return 0;
+		const Real a = 0.2969;
+		const Real b =-0.1260;
+		const Real c =-0.3516;
+		const Real d = 0.2843;
+		const Real e =-0.1015;
+		//const Real t = 0.12*L;
+		const Real t = t_ratio*L;
+		const Real p = s/L;
+		return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+	}
 
 	#ifndef __BSPLINE
 	inline Real _width(const Real s, const Real L)
@@ -495,24 +509,43 @@ class FishMidlineData
 
 		// Tuna clone
 		const int nh = 9;
-		const Real xh[9] = {0, 0, 0.2*length, .4*length,
+		/*const Real xh[9] = {0, 0, 0.2*length, .4*length,
 			.6*length, .9*length, .96*length, length, length};
 		finSize = 0.23;
 		const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length,
-			1.1e-1*length, .0*length, 0.14*length, finSize*length, 0};
+			1.1e-1*length, .0*length, 0.2*length, finSize*length, 0};
+printf("WARNING, CHANGED TAIL SHAPE TO INCREASE SURF AREA BY 10%\n");*/
+                /*const Real xh[9] = {0, 0, 0.2*length, .4*length,
+                        .6*length, .9*length, .96*length, length, length};
+                finSize = 0.23;
+                const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length,
+                        1.1e-1*length, .0*length, 0.14*length, finSize*length, 0};
+printf("WARNING, CHANGED TAIL FIN HEIGHT 10PERC LARGER\n");*/
+                const Real xh[9] = {0, 0, 0.2*length, .4*length, .6*length,
+                        .9*length, .96*length, length, length};
+                finSize = 0.2;
+                const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length, 1.1e-1*length,
+                        .0*length, 0.1*length, finSize*length, 0};
+printf("WARNING, CHANGED TAIL FIN HEIGHT EQUAL\n");
 
-		const int nw = 6;
+		integrateBSpline(height, xh, yh, nh);
+
+		/*const int nw = 6;
 		const Real xw[6] = {0, 0, length/3., 2*length/3., length, length};
 		const Real yw[6] = {0, 8.9e-2*length, 7.0e-2*length,
 			3.0e-2*length, 2.0e-2*length, 0};
 		//const Real yw[6] = {0, 8.9e-2*length, 1.7e-2*length,
 		//	1.6e-2*length, 1.3e-2*length, 0};
+		integrateBSpline(width,  xw, yw, nw);*/
 
 		printf("TailFinSize = %f, Wavelength = %f\n", finSize, waveLength);
 		fflush(NULL);
 
-		integrateBSpline(width,  xw, yw, nw);
-		integrateBSpline(height, xh, yh, nh);
+                const double tNACA = 0.15;
+		printf("NACA profile thickness = %f\n", tNACA);
+                for(int i=0;i<Nm;++i)
+                        width[i]  = _naca_width(rS[i],length,tNACA);
+
 	  #else
 		for(int i=0;i<Nm;++i) {
 			width[i]  = _width(rS[i],length);
@@ -859,7 +892,7 @@ class FishMidlineData
 class NacaMidlineData : public FishMidlineData
 {
  protected:
-	inline Real _naca_width(const double s, const Real L)
+	/*inline Real _naca_width(const double s, const Real L)
 	{
 			if(s<0 or s>L) return 0;
 			const Real a = 0.2969;
@@ -870,7 +903,7 @@ class NacaMidlineData : public FishMidlineData
 			const Real t = 0.12*L;
 			const Real p = s/L;
 			return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
-	}
+	}*/
 
 	void _naca_integrateBSpline(Real* const res, const Real* const xc,
 													 const Real* const yc, const int n)
@@ -1315,8 +1348,9 @@ int prevTransition = 0;
 				reader >> _Ahinge;
 				reader >> _phiHinge;
 				reader >> waveLength;
-				reader >> finSize;
-				printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				//reader >> finSize;
+				//printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				printf("Read numbers = %f, %f, %f\n", _Ahinge, _phiHinge, waveLength);
 				if(reader.eof()){
 					cout << "Insufficient number of parameters provided for hingedFin" << endl; fflush(NULL); abort();
 				}
@@ -1378,12 +1412,13 @@ int prevTransition = 0;
 				reader >> _Ahinge;
 				reader >> _phiHinge;
 				reader >> waveLength;
-				if(_equalHeight){
+				/*if(_equalHeight){
 					finSize = 0.3;
 				}else{
 					reader >> finSize;
-				}
-				printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				}*/
+				//printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				printf("Read numbers = %f, %f, %f\n", _Ahinge, _phiHinge, waveLength);
 				/*reader >> sHinge2;
 				reader >> kSpring;*/
 				if(reader.eof()){
