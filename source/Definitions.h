@@ -444,13 +444,15 @@ struct surfacePoints
         fileskin<<"ss,x,y,z,normX,normY,normZ,chi,thrust,pDef,press,fxP,fyP,fzP,fxV,fyV,fzV,vx,vy,vz,vxDef,vyDef,vzDef"<<endl;
 
         for(int i=0; i<Ndata; ++i) {
-            fileskin<< ss[i] << "," << pX[i]<<","<< pY[i]<<","<< pZ[i]<<","
-                    <<Set[i]->dchidx<<","<<Set[i]->dchidy<<","<<Set[i]->dchidz<<","
-                    <<chi[i]<<","<< thrust[i]<<","<< pDef[i]<<","
-                    <<P[i]<<","<<fxP[i]<<","<<fyP[i]<<","<<fzP[i]<<","
-                    <<fxV[i]<<","<<fyV[i]<<","<<fzV[i]<<","
-                    << vx[i]<<","<< vy[i]<<","<< vz[i]<<","
-                    <<vxDef[i]<<","<<vyDef[i]<<","<<vzDef[i]<<endl;
+		if(chi[i] != 0.0){
+			fileskin<< ss[i] << "," << pX[i]<<","<< pY[i]<<","<< pZ[i]<<","
+				<<Set[i]->dchidx<<","<<Set[i]->dchidy<<","<<Set[i]->dchidz<<","
+				<<chi[i]<<","<< thrust[i]<<","<< pDef[i]<<","
+				<<P[i]<<","<<fxP[i]<<","<<fyP[i]<<","<<fzP[i]<<","
+				<<fxV[i]<<","<<fyV[i]<<","<<fzV[i]<<","
+				<< vx[i]<<","<< vy[i]<<","<< vz[i]<<","
+				<<vxDef[i]<<","<<vyDef[i]<<","<<vzDef[i]<<endl;
+		}
         }
         fileskin.close();
     }

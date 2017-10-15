@@ -349,7 +349,15 @@ class FishMidlineData
 		//const Real t = 0.12*L;
 		const Real t = t_ratio*L;
 		const Real p = s/L;
-		return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+
+		if(s>0.99*L){ // Go linear, otherwise trailing edge is not closed - NACA analytical's fault
+			const Real temp = 0.99;
+			const Real y1 = 5*t* (a*sqrt(temp) +b*temp +c*temp*temp +d*temp*temp*temp + e*temp*temp*temp*temp);
+			const Real dydx = (0-y1)/(L-0.99*L);
+			return y1 + dydx * (s - 0.99*L);
+		}else{ // NACA analytical
+			return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+		}
 	}
 
 	#ifndef __BSPLINE
@@ -892,18 +900,6 @@ printf("WARNING, CHANGED TAIL FIN HEIGHT EQUAL\n");
 class NacaMidlineData : public FishMidlineData
 {
  protected:
-	/*inline Real _naca_width(const double s, const Real L)
-	{
-			if(s<0 or s>L) return 0;
-			const Real a = 0.2969;
-			const Real b =-0.1260;
-			const Real c =-0.3516;
-			const Real d = 0.2843;
-			const Real e =-0.1015;
-			const Real t = 0.12*L;
-			const Real p = s/L;
-			return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
-	}*/
 
 	void _naca_integrateBSpline(Real* const res, const Real* const xc,
 													 const Real* const yc, const int n)
@@ -2379,7 +2375,8 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			const Real Delta = numD/gradUSq; //h^3 * Delta
 			const Real H     = numH/gradUSq;
 
-			if (Delta>1e-6) {
+			// what is this conditional? SV thinks this is the source of spurious points, which will now be filtered out by checking for non-zero chi
+			if (Delta>1e-6) { 
 				const Real _Delta =  Delta*fac1;
 				const Real dchidx = -Delta*gradUX*fac1;
 				const Real dchidy = -Delta*gradUY*fac1;
