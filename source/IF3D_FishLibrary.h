@@ -350,14 +350,16 @@ class FishMidlineData
 		const Real t = t_ratio*L;
 		const Real p = s/L;
 
-		if(s>0.99*L){ // Go linear, otherwise trailing edge is not closed - NACA analytical's fault
+		/*if(s>0.99*L){ // Go linear, otherwise trailing edge is not closed - NACA analytical's fault
 			const Real temp = 0.99;
 			const Real y1 = 5*t* (a*sqrt(temp) +b*temp +c*temp*temp +d*temp*temp*temp + e*temp*temp*temp*temp);
 			const Real dydx = (0-y1)/(L-0.99*L);
 			return y1 + dydx * (s - 0.99*L);
 		}else{ // NACA analytical
 			return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
-		}
+		}*/
+
+		return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
 	}
 
 	#ifndef __BSPLINE
@@ -998,12 +1000,15 @@ class CarlingFishMidlineData : public FishMidlineData
 	const Real fac, inv;
 	//const Real sHinge, AhingeTheta, ThingeTheta, hingePhi;
 	const Real sHinge, ThingeTheta;
+	Real sLeft, sRight;
 	Real AhingeTheta, hingePhi;
 	const bool bBurst, bHinge;
 	Real kSpring=0.0;
 	const Real kMaxSpring=100.0; // Expect torque values on the order of 1e-5 at steady, and 1e-3 at startup
 Real thetaOld = 0.0, avgTorque = 0.0, runningTorque = 0.0, timeNminus = 0.0;
 int prevTransition = 0;
+
+	Real aParabola, bParabola, cParabola;
 	const bool quadraticAmplitude;
 	const Real quadraticFactor = 0.1;
 
@@ -1017,20 +1022,64 @@ int prevTransition = 0;
 		return (t<T ? 0.5*M_PI/T * std::cos(0.5*M_PI*t/T) : 0.0);
 	}
 
-	inline Real midline(const Real s, const Real t, const Real L, const Real T,
-		const Real phaseShift) const
+	inline Real getQuadAmp(const Real s, const Real L)
 	{
-		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
-		
+		return s*s*quadraticFactor/L;
+	}
+
+	inline Real getArg(const Real s, const Real L, const Real t, const Real T, const Real phaseShift)
+	{
+		return 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
+	}
+
+	inline void computeParabolaParams(const Real yLeft, const Real yPrimeLeft, const Real yPrimeRight)
+	{
+		aParabola = (yPrimeLeft-yPrimeRight)/(2*(sLeft-sRight));
+		bParabola = yPrimeRight - 2*aParabola*sRight;
+		cParabola = yLeft - aParabola*sLeft*sLeft - bParabola*sLeft;
+	}
+
+	Real getJointParabola(const Real s, const Real L)
+	{
+		return aParabola*s*s + bParabola*s + cParabola;
+	}
+
+	Real midline(const Real s, const Real t, const Real L, const Real T,
+		const Real phaseShift)// const
+		//const Real phaseShift) const
+	{
+		//const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
+		const Real arg = getArg(s, L, t, T, phaseShift);
+	
 		double yCurrent;
 		if(quadraticAmplitude){
-			yCurrent = (s*s*quadraticFactor/L) *std::sin(arg);
+			//yCurrent = (s*s*quadraticFactor/L) *std::sin(arg);
+			yCurrent = getQuadAmp(s,L) *std::sin(arg);
 		} else {
 			yCurrent = fac * (s + inv*L)*std::sin(arg);
 		}
 
+		// Just made the joint a whole lot more complicated. Now a smooth parabolic joint instead of a prick
 		if(bHinge){
-			if(s>sHinge){
+			if(not quadraticAmplitude) abort();
+			if(s>=sLeft){
+				const double yLeft = getQuadAmp(sLeft,L) * std::sin(getArg(sLeft,L,t,T,phaseShift));
+				const double yPrimeLeft = (2*quadraticFactor*sLeft/L) * sin(getArg(sLeft,L,t,T,phaseShift)) 
+					+ getQuadAmp(sLeft,L)*cos(getArg(sLeft,L,t,T,phaseShift))*2.0*M_PI/(L*waveLength);
+
+				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
+				const double yPrimeRight = std::sin(currentTheta);
+
+				computeParabolaParams(yLeft,yPrimeLeft, yPrimeRight);
+
+				yCurrent = getJointParabola(s,L);
+
+				if(s>=sRight){
+					const Real yRight = getJointParabola(sRight,L);
+					yCurrent = yRight + yPrimeRight*(s-sRight);
+				}
+			}
+			/*if(s>sHinge){
 				double yNot;
 				if(quadraticAmplitude){
 					yNot =  (sHinge*sHinge*quadraticFactor/L)*std::sin(2.0*M_PI*(sHinge/(waveLength*L) - t/T + phaseShift));
@@ -1040,36 +1089,67 @@ int prevTransition = 0;
 				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
 				const double dydsNot = std::sin(currentTheta);
 				yCurrent = yNot + dydsNot*(s-sHinge);
-			}
+			}*/
                 }
                 return yCurrent;
 	}
 
 	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T,
-		const Real phaseShift) const
+		const Real phaseShift)
+		//const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
 		double velCurrent;
 		if(quadraticAmplitude){
-			velCurrent = - (s*s*quadraticFactor/L)*(2.0*M_PI/T)*std::cos(arg);
+			//velCurrent = - (s*s*quadraticFactor/L)*(2.0*M_PI/T)*std::cos(arg);
+			velCurrent = (-2.0*M_PI/T)*getQuadAmp(s,L)*std::cos(getArg(s, L, t, T, phaseShift));
 		}else{
 			velCurrent = - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
 		}
 
 		if(bHinge){
-			if(s>sHinge){
+			if(not quadraticAmplitude) abort();
+			if(s>=sLeft){
+				//const double yLeft = getQuadAmp(sLeft,L) * std::sin(getArg(sLeft,L,t,T,phaseShift));
+				const double yLeftDot  = (-2.0*M_PI/T) * getQuadAmp(sLeft,L)*std::cos(getArg(sLeft,L,t,T,phaseShift));
+				//const double yPrimeLeft = (2*quadraticFactor*sLeft/L) * sin(getArg(sLeft,L,t,T,phaseShift)) 
+				//	+ getQuadAmp(sLeft,L)*cos(getArg(sLeft,L,t,T,phaseShift))*2.0*M_PI/(L*waveLength);
+				const double yPrimeLeftDot = (2*quadraticFactor*sLeft/L) * (-2*M_PI/T) * std::cos(getArg(sLeft,L,t,T,phaseShift)) 
+					+ getQuadAmp(sLeft,L)*(2*M_PI/T)*sin(getArg(sLeft,L,t,T,phaseShift))*2.0*M_PI/(L*waveLength);
+
+				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
+				const double currentThetaDot = AhingeTheta * (2*M_PI/ThingeTheta)*std::cos(2.0*M_PI*(t/ThingeTheta + hingePhi));
+				//const double yPrimeRight = std::sin(currentTheta);
+        			const double yPrimeRightDot = std::cos(currentTheta)*currentThetaDot;
+
+				const double aDot = (yPrimeLeftDot - yPrimeRightDot)/(2*(sLeft-sRight));
+				const double bDot = yPrimeRightDot - 2*sRight*aDot;
+				const double cDot = yLeftDot - sLeft*sLeft*aDot - sLeft*bDot;
+				velCurrent = aDot*s*s + bDot*s + cDot;
+
+				if(s>=sRight){
+					//const Real yRight = getJointParabola(sRight,L);
+					//yCurrent = yRight + yPrimeRight*(s-sRight);
+					const Real yRightDot = aDot*sRight*sRight + bDot*sRight + cDot;
+					velCurrent = yRightDot + yPrimeRightDot*(s-sRight);
+				}
+			}
+			/*if(s>sHinge){
 				//const double yNot =  4./33 *  (sHinge + 0.03125*L)*std::sin(2.0*M_PI*(sHinge/L - t/T + phaseShift));
 				double velNot;
-				if(quadraticAmplitude){
-					velNot =  -2.0*M_PI/T * (sHinge*sHinge*quadraticFactor/L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
-				}else{
-					velNot =  -2.0*M_PI/T * fac *  (sHinge + inv*L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
-				}
+double velNot;
+-                               if(quadraticAmplitude){
+-                                       velNot =  -2.0*M_PI/T * (sHinge*sHinge*quadratic
+Factor/L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
+-                               }else{
+-                                       velNot =  -2.0*M_PI/T * fac *  (sHinge + inv*L)*
+std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
+-                               }
 				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
 				const double currentThetaDot = AhingeTheta * 2.0*M_PI/ThingeTheta * std::cos(2.0*M_PI*(t/ThingeTheta + hingePhi));
 				const double dydsNotDT = std::cos(currentTheta)*currentThetaDot;
 				velCurrent = velNot + dydsNotDT*(s-sHinge);
-			}
+			}*/
 		}
 		return velCurrent;
 	}
@@ -1249,6 +1329,7 @@ int prevTransition = 0;
 
 	void _computeMidlineVelocities(const Real time)
 	{
+
 		const Real rampFac =    rampFactorSine(time, Tperiod);
 		const Real rampFacVel = rampFactorVelSine(time, Tperiod);
 
@@ -1431,6 +1512,10 @@ int prevTransition = 0;
 			/*sHinge2 *= length;
 			// UnRescaling: to avoid CMA trouble
 			kSpring *= 1.0e-4;*/
+
+			sLeft  = sHinge - 0.02*length;
+			sRight = sHinge + 0.02*length;
+
 		}
 
 		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
