@@ -183,6 +183,33 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	double hinge2Loc[3] = {myFish->rX[hinge2Index], myFish->rY[hinge2Index], 0.0};
 	PutFishOnBlocks dummy(myFish, position, quaternion);
 	dummy.changeToComputationalFrame(hinge2Loc);
+	//CAREFUL: this func assumes everything is already centered around CM to start with, which is true (see steps 2. & 3. ...) for rX, rY: they are zero at CM, negative before and + after
+
+	// To output the raw midlines
+	#if 0
+	// Check if we must take a dump
+        double currentDumpFactor = time/0.001;
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+        if((std::floor(currentDumpFactor) > previousDumpFactor) & rank==0 ){
+		//dumpNow = true;
+		char buf[500];
+		sprintf(buf, "midline_%07d.txt", step_id);
+		FILE * f = fopen(buf,"w");
+		fprintf(f, "s x y xGlob yGlob\n");
+		for (int i=0; i<myFish->Nm; i++){
+			double temp[3] = {myFish->rX[i], myFish->rY[i], 0.0};
+			dummy.changeToComputationalFrame(temp);
+			fprintf(f, "%g %g %g %g %g\n",
+                        myFish->rS[i],myFish->rX[i],myFish->rY[i],
+			temp[0], temp[1]);
+		}
+		printf("Dumped midline\n");
+		fclose(f);
+        }
+        previousDumpFactor = floor(currentDumpFactor);
+	#endif
 
 	// 4. & 5.
 	std::vector<VolumeSegment_OBB> vSegments(Nsegments);

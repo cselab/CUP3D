@@ -1972,7 +1972,8 @@ struct PutFishOnBlocks
 		}*/
 
 		// With a hinged tail, the following overzealous assert will catch, outputted problematique and confirmed in Matlab
-		//assert(sRight==start_s or sLeft==start_s);
+		// RESTORED: with smooth hinge transition, this is not a problem anymore
+		assert(sRight==start_s or sLeft==start_s);
 
 		int curr_s = start_s;
 		int new_s = sRight == start_s ? sLeft : sRight;

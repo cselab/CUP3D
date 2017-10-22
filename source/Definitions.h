@@ -315,7 +315,7 @@ struct surfacePoints
     Real *fxP, *fyP, *fzP, *fxV, *fyV, *fzV;
     Real *vx, *vy, *vz, *vxDef, *vyDef, *vzDef;
     Real *chi, *thrust, *pThrust, *pDef;
-    float *ss;
+    Real *ss;
     int Ndata, nAlloc, nMapped, *gridMap;
     vector<surfData*> Set;
 
@@ -397,15 +397,17 @@ struct surfacePoints
             if(pThrust not_eq nullptr){delete[] pThrust; pThrust=nullptr;}
             if(pDef    not_eq nullptr){delete[] pDef;    pDef=nullptr;   }
 
-            pX      = new Real[nAlloc]; pY      = new Real[nAlloc]; pZ      = new Real[nAlloc];
-            fX      = new Real[nAlloc]; fY      = new Real[nAlloc]; fZ      = new Real[nAlloc];
-            fxP     = new Real[nAlloc]; fyP     = new Real[nAlloc]; fzP     = new Real[nAlloc];
-            fxV     = new Real[nAlloc]; fyV     = new Real[nAlloc]; fzV     = new Real[nAlloc];
-            vx      = new Real[nAlloc]; vy      = new Real[nAlloc]; vz      = new Real[nAlloc];
-            vxDef   = new Real[nAlloc]; vyDef   = new Real[nAlloc]; vzDef   = new Real[nAlloc];
-            P       = new Real[nAlloc]; gridMap = new  int[nAlloc]; chi     = new Real[nAlloc];
-	    thrust  = new Real[nAlloc]; pThrust = new Real[nAlloc]; pDef    = new Real[nAlloc];
-	    ss	    = new float[nAlloc];
+	    // Initialize all to zero. Otherwise will get infs when more points allocated than needed.
+	    pX      = new Real[nAlloc](); pY      = new Real[nAlloc](); pZ      = new Real[nAlloc]();
+	    fX      = new Real[nAlloc](); fY      = new Real[nAlloc](); fZ      = new Real[nAlloc]();
+	    fxP     = new Real[nAlloc](); fyP     = new Real[nAlloc](); fzP     = new Real[nAlloc]();
+	    fxV     = new Real[nAlloc](); fyV     = new Real[nAlloc](); fzV     = new Real[nAlloc]();
+	    vx      = new Real[nAlloc](); vy      = new Real[nAlloc](); vz      = new Real[nAlloc]();
+	    vxDef   = new Real[nAlloc](); vyDef   = new Real[nAlloc](); vzDef   = new Real[nAlloc]();
+	    P       = new Real[nAlloc](); gridMap = new  int[nAlloc](); chi     = new Real[nAlloc]();
+	    thrust  = new Real[nAlloc](); pThrust = new Real[nAlloc](); pDef    = new Real[nAlloc]();
+	    ss	    = new Real[nAlloc]();
+
         }
 
         #ifndef NDEBUG

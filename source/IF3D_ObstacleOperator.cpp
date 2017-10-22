@@ -59,8 +59,8 @@ struct ForcesOnSkin : public GenericLabOperator
 	      const int iz = surfData->Set[i]->iz;
 	      info.pos(p, ix, iy, iz);
 
-	      if(tempIt->second->chi[iz][iy][ix] != 0.0){
-
+	      if(tempIt->second->chi[iz][iy][ix] != 0.0){ // WAS A SOURCE OF HUGE BUG - due to unzeroed values in surfData arrays. The kid had forgotten to initialize allocated arrays in surfData to zero!!
+//{
 		      //shear stresses
 		      const Real D11 =    _1oH*(lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u);
 		      const Real D22 =    _1oH*(lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v);
