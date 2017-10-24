@@ -188,7 +188,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	// To output the raw midlines
 	#if 0
 	// Check if we must take a dump
-        double currentDumpFactor = time/0.001;
+        double currentDumpFactor = time/0.00001;
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
@@ -201,9 +201,13 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		for (int i=0; i<myFish->Nm; i++){
 			double temp[3] = {myFish->rX[i], myFish->rY[i], 0.0};
 			dummy.changeToComputationalFrame(temp);
-			fprintf(f, "%g %g %g %g %g\n",
+			Real udef[3] = {myFish->vX[i], myFish->vY[i], 0.0};
+			dummy.changeVelocityToComputationalFrame(udef);
+
+			fprintf(f, "%g %g %g %g %g %g %g\n",
                         myFish->rS[i],myFish->rX[i],myFish->rY[i],
-			temp[0], temp[1]);
+			temp[0], temp[1],
+			udef[0], udef[1]);
 		}
 		printf("Dumped midline\n");
 		fclose(f);

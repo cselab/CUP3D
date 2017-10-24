@@ -1796,24 +1796,101 @@ struct VolumeSegment_OBB
 
 	bool isIntersectingWithAABB(const Real start[3],const Real end[3], const Real safe_distance = 0.0) const
 	{
+		// Remember: Incoming coordinates are cell centers, not cell faces
+
 		//start and end are two diagonally opposed corners of grid block
 		const Real AABB_w[3] = { //half block width + safe distance
 				0.5*(end[0] - start[0]) + 2.0*safe_distance,
 				0.5*(end[1] - start[1]) + 2.0*safe_distance,
 				0.5*(end[2] - start[2]) + 2.0*safe_distance
 		};
-		const Real AABB_c[3] = { //block center
-				start[0] + AABB_w[0] - safe_distance,
-				start[1] + AABB_w[1] - safe_distance,
-				start[2] + AABB_w[2] - safe_distance
-		};
 
 		assert(AABB_w[0]>0);
 		assert(AABB_w[1]>0);
 		assert(AABB_w[2]>0);
-		bool intersects = true;
 
-		const Real r1 = w[0]*normalI[0] + w[1]*normalJ[0] + w[2]*normalK[0];
+		const Real AABB_c[3] = { //block center
+			0.5*(end[0] + start[0]),
+			0.5*(end[1] + start[1]),
+			0.5*(end[2] + start[2])
+		};
+
+		const Real AABB_box[3][2] = {
+			{AABB_c[0] - AABB_w[0],  AABB_c[0] + AABB_w[0]},
+			{AABB_c[1] - AABB_w[1],  AABB_c[1] + AABB_w[1]},
+			{AABB_c[2] - AABB_w[2],  AABB_c[2] + AABB_w[2]}
+		};
+
+		// Try the following stoopid (but correct) implementation
+
+		// First, the 8 coordinate points. Find the vectors that lead from center to most extreme corner
+		// Basically: vecCorner = vecCenter + vec_rX. Here, vec_rX is just wx*iPrime + wy*jPrime + wz*kPrime
+		// Then take the x,y,z components in lab frame individually
+		const Real widthXvec[3] = {w[0]*normalI[0], w[0]*normalI[1], w[0]*normalI[2]}; // This is x-width of fish, expressed in lab frame
+		const Real widthYvec[3] = {w[1]*normalJ[0], w[1]*normalJ[1], w[1]*normalJ[2]}; // This is y-width of fish, expressed in lab frame
+		const Real widthZvec[3] = {w[2]*normalK[0], w[2]*normalK[1], w[2]*normalK[2]}; // This is z-height of fish, expressed in lab frame
+
+		// TODO: Replace with nice beautiful loop and function call later
+		// Find the enlarged box engulfing the smaller rotated box
+		int coordIndex = 0;
+		const Real cornerXcoords[8] = {
+			c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex]
+		};
+
+		coordIndex = 1;
+		const Real cornerYcoords[8] = {
+			c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex]
+		};
+
+                coordIndex = 2;
+                const Real cornerZcoords[8] = {
+                        c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+                        c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+                        c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+                        c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex],
+                        c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+                        c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+                        c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+                        c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex]
+                };
+
+		// Store fishBox[minCoord][maxCoord] in all 3 directions
+		const Real fishBox[3][2] = {
+			{*std::min_element(cornerXcoords,cornerXcoords+8), *std::max_element(cornerXcoords,cornerXcoords+8)},
+			{*std::min_element(cornerYcoords,cornerYcoords+8), *std::max_element(cornerYcoords,cornerYcoords+8)},
+			{*std::min_element(cornerZcoords,cornerZcoords+8), *std::max_element(cornerZcoords,cornerZcoords+8)}
+		};
+
+		// Now Identify the ones that do not intersect
+		Real intersection[3][2] = {
+			{ max(fishBox[0][0], AABB_box[0][0]), min(fishBox[0][1], AABB_box[0][1]) },
+			{ max(fishBox[1][0], AABB_box[1][0]), min(fishBox[1][1], AABB_box[1][1]) },
+			{ max(fishBox[2][0], AABB_box[2][0]), min(fishBox[2][1], AABB_box[2][1]) }
+		};
+
+		return
+			intersection[0][1]-intersection[0][0]>0 &&
+			intersection[1][1]-intersection[1][0]>0 &&
+			intersection[2][1]-intersection[2][0]>0;
+
+
+	    // These criteria are not general enough. If blocks rotate too much, they will fail detection
+	    // Must loop through all the box coordinates
+		/*const Real r1 = w[0]*normalI[0] + w[1]*normalJ[0] + w[2]*normalK[0];
 		if (not ((c[0]-r1 <= AABB_c[0] + AABB_w[0]) && (c[0]+r1 >= AABB_c[0] - AABB_w[0])))
 			return false;
 
@@ -1840,7 +1917,7 @@ struct VolumeSegment_OBB
 		if (not ((AABB_c[2]-r6 <= c[2] + w[2]) && (AABB_c[2]+r6 >= c[2] - w[2])))
 			return false;
 
-		return true;
+		return true;*/
 	}
 };
 
@@ -2115,6 +2192,8 @@ struct PutFishOnBlocks
 							const Real distHeight = std::abs(p[2]);
 							const Real sign = (distPlanar > cfish->width[closest_s] or distHeight > cfish->height[closest_s]) ? -1.0 : 1.0;
 
+							// Not chi yet, first store the squared distance from the analytical boundary
+							// Update the distSquared value only if the computed value is smaller than the old one
 							defblock->chi[idx[2]][idx[1]][idx[0]] =
 									(std::abs(defblock->chi[idx[2]][idx[1]][idx[0]]) > distSq) ? sign*distSq
 											: defblock->chi[idx[2]][idx[1]][idx[0]];
@@ -2152,14 +2231,15 @@ struct PutFishOnBlocks
 
 		for(int i=0;i<vSegments.size();++i) {
 			for(int ss=vSegments[i].s_range.first;ss<=vSegments[i].s_range.second;++ss) {
+
 				assert(ss>=0 && ss<=cfish->Nm-1);
+
 				// P2M udef of a slice at this s
 				const Real myWidth =  (ss < cfish->iFishStart ? cfish->width[ cfish->iFishStart]
-												  	: (ss > cfish->iFishEnd   ? cfish->width[ cfish->iFishEnd]
-																											: cfish->width[ss]));
+						: (ss > cfish->iFishEnd   ? cfish->width[ cfish->iFishEnd] : cfish->width[ss]));
 				const Real myHeight = (ss < cfish->iFishStart ? cfish->height[cfish->iFishStart]
-													  : (ss > cfish->iFishEnd   ? cfish->height[cfish->iFishEnd]
-																											: cfish->height[ss]));
+						: (ss > cfish->iFishEnd   ? cfish->height[cfish->iFishEnd] : cfish->height[ss]));
+
 				const Real ds_defGrid = info.h_gridpoint;
 				// towers needs 1dx on each side, smooth needs 2dx --> make it 3 to be nice (and so we can floor!)
 				const Real extension = NPPEXT*info.h_gridpoint; //G tmp changed back to 2
@@ -2224,31 +2304,38 @@ struct PutFishOnBlocks
 						}
 
 						const bool isInside =  (std::fabs(offsetW) < actualWidth)
-																&& (std::fabs(offsetH) < cfish->height[ss]);
+							&& (std::fabs(offsetH) < cfish->height[ss]);
+
 						for(int sz=start[2]; sz<end[2];++sz) {
-						const Real wz = wghts[2][sz];
-						for(int sy=start[1];sy<end[1];++sy) {
-						const Real wywz = wz*wghts[1][sy];
-						for(int sx=start[0];sx<end[0];++sx) {
-							const Real wxwywz = wywz*wghts[0][sx];
-							assert(wxwywz>=0 && wxwywz<=1);
-							const int idx[3] = {
-									iap[0] + sx,
-									iap[1] + sy,
-									iap[2] + sz,
-							};
-							assert(idx[0]>=0 && idx[0]<FluidBlock::sizeX);
-							assert(idx[1]>=0 && idx[1]<FluidBlock::sizeY);
-							assert(idx[2]>=0 && idx[2]<FluidBlock::sizeZ);
-							defblock->udef[idx[2]][idx[1]][idx[0]][0] += wxwywz*udef[0];
-							defblock->udef[idx[2]][idx[1]][idx[0]][1] += wxwywz*udef[1];
-							defblock->udef[idx[2]][idx[1]][idx[0]][2] += wxwywz*udef[2];
-							b(idx[0],idx[1],idx[2]).tmpU += wxwywz;
-							// set sign for all interior points
-							if( (std::fabs(defblock->chi[idx[2]][idx[1]][idx[0]] + 1) <
-											5*std::numeric_limits<Real>::epsilon()) && isInside)
-								defblock->chi[idx[2]][idx[1]][idx[0]] = 1.0;
-						}
+							const Real wz = wghts[2][sz];
+							for(int sy=start[1];sy<end[1];++sy) {
+								const Real wywz = wz*wghts[1][sy];
+								for(int sx=start[0];sx<end[0];++sx) {
+									const Real wxwywz = wywz*wghts[0][sx];
+
+									assert(wxwywz>=0 && wxwywz<=1);
+									const int idx[3] = {
+										iap[0] + sx,
+										iap[1] + sy,
+										iap[2] + sz,
+									};
+
+									assert(idx[0]>=0 && idx[0]<FluidBlock::sizeX);
+									assert(idx[1]>=0 && idx[1]<FluidBlock::sizeY);
+									assert(idx[2]>=0 && idx[2]<FluidBlock::sizeZ);
+
+									defblock->udef[idx[2]][idx[1]][idx[0]][0] += wxwywz*udef[0];
+									defblock->udef[idx[2]][idx[1]][idx[0]][1] += wxwywz*udef[1];
+									defblock->udef[idx[2]][idx[1]][idx[0]][2] += wxwywz*udef[2];
+
+									b(idx[0],idx[1],idx[2]).tmpU += wxwywz;
+
+									// set sign for all interior points
+									if( (std::fabs(defblock->chi[idx[2]][idx[1]][idx[0]] + 1) 
+												< 5*std::numeric_limits<Real>::epsilon()) && isInside){
+										defblock->chi[idx[2]][idx[1]][idx[0]] = 1.0;
+									}
+								}
 							}
 						}
 					}
@@ -2406,6 +2493,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 		for(int ix=0; ix<FluidBlock::sizeX; ix++) {
 			Real p[3];
 			info.pos(p, ix,iy,iz);
+
 			if (lab(ix,iy,iz).tmpU > +2*h || lab(ix,iy,iz).tmpU < -2*h) {
 				const Real H = lab(ix,iy,iz).tmpU > 0 ? 1.0 : 0.0;
 				b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
