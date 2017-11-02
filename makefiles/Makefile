@@ -78,6 +78,9 @@ endif
 ifneq "$(findstring euler,$(shell hostname))" ""
 	include make.euler
 endif
+ifneq "$(findstring eu-,$(shell hostname))" ""
+	include make.euler
+endif
 
 CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
 #NVFLAGS += -std=c++11
