@@ -45,7 +45,8 @@ int main(int argc, char **argv)
 	if (_sockID>=0 && nActions>0) {
 		if(!rank)
 			printf("Communicating over sock %d\n", _sockID);
-		communicator = new Communicator(_sockID,nStates,nActions,MPI_COMM_WORLD);
+		//communicator = new Communicator(_sockID,nStates,nActions,MPI_COMM_WORLD);
+		communicator = NULL; 
 	}
 	#endif
 
