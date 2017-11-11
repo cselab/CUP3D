@@ -188,7 +188,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	// To output the raw midlines
 	#if 0
 	// Check if we must take a dump
-        double currentDumpFactor = time/0.00001;
+        double currentDumpFactor = time/0.0001;
 	int rank;
 	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
@@ -197,7 +197,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 		char buf[500];
 		sprintf(buf, "midline_%07d.txt", step_id);
 		FILE * f = fopen(buf,"w");
-		fprintf(f, "s x y xGlob yGlob\n");
+		fprintf(f, "s x y xGlob yGlob uBody vBody\n");
 		for (int i=0; i<myFish->Nm; i++){
 			double temp[3] = {myFish->rX[i], myFish->rY[i], 0.0};
 			dummy.changeToComputationalFrame(temp);

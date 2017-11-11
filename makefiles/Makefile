@@ -5,6 +5,7 @@ NVFLAGS?=-O3 -code=sm_60 -arch=compute_60
 LD=$(CC)
 
 nthreads ?= 24
+#config ?= prod
 config ?= debug
 precision ?= double
 bs ?= 16
@@ -15,9 +16,9 @@ bsz ?= $(bs)
 hdf ?= true
 vtk ?= false
 rk2 ?= false
-accfft ?= true
+accfft ?= false
+#accfft ?= true
 train ?= false
-#accfft ?= false
 zlib ?= 0
 verbose ?= false
 
@@ -57,6 +58,9 @@ ifeq "$(config)" "prod"
 	CPPFLAGS += -DNDEBUG -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=32
 else
 	CPPFLAGS += -g -O0 
+	#RED='\033[0;31m'
+	#NC='\033[0m' # No Color
+$(info *** WARNING! Compiling with debug flags. Use config=prod for optimized code ***)
 endif
 
 ifeq "$(rk2)" "true"
@@ -167,3 +171,10 @@ PoissonSolverScalarFFTW_ACC.o: PoissonSolverScalarFFTW_ACC.cu
 clean:
 	rm -f $(OBJECTS)
 	rm -f simulation Communicator.o libsimulation.a main.o cubism_main.o PoissonSolverScalarFFTW*.o
+
+ifeq "$(config)" "prod"
+else
+        #RED='\033[0;31m'
+        #NC='\033[0m' # No Color
+$(info *** WARNING! Compiling with debug flags. Use config=prod for optimized code ***)
+endif

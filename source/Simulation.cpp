@@ -116,13 +116,13 @@ void Simulation::setupOperators()
 {
     pipeline.clear();
     pipeline.push_back(new CoordinatorComputeShape(grid, &obstacle_vector, &step, &time, uinf));
+    pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
+    pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
     pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
     if(nu>0)
     	pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
-    pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
     pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
     pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
-    //pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
     //#ifndef _OPEN_BC_
     pipeline.push_back(new CoordinatorFadeOut(grid));
     //#endif
