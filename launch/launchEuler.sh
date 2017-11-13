@@ -35,6 +35,8 @@ export OMP_NUM_THREADS=24
 export MV2_ENABLE_AFFINITY=0
 echo $OPTIONS > settings.txt
 
+export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH
+
 if [ $INTERACTIVE -eq 1 ] ; then 
    #mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0 valgrind --tool=memcheck --leak-check=yes --track-origins=yes --show-reachable=yes ./simulation ${OPTIONS}
    #mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0 valgrind --tool=memcheck --undef-value-errors=no --num-callers=500  ./simulation ${OPTIONS}
