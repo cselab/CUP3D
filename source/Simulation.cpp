@@ -36,7 +36,12 @@ void Simulation::setupGrid()
   else           nprocsx = parser("-nprocsx").asInt();
 	parser.unset_strict_mode();
 	nprocsz = 1;
-	assert(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0);
+	//assert(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0);
+        if( not(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0) ){
+                printf("Domain decomposition nicht gut! bpd*/nproc* should be an integer");
+                abort();
+        }
+
 
 	bpdx /= nprocsx;
 	bpdy /= nprocsy;
