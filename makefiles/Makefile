@@ -58,6 +58,7 @@ ifeq "$(config)" "prod"
 	CPPFLAGS += -DNDEBUG -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=32
 else
 	CPPFLAGS += -g -O0 
+	CPPFLAGS += -Wl,-u,PMI_Init
 	#RED='\033[0;31m'
 	#NC='\033[0m' # No Color
 $(info *** WARNING! Compiling with debug flags. Use config=prod for optimized code ***)
