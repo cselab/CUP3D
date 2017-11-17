@@ -57,8 +57,8 @@ CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 ifeq "$(config)" "prod"
 	CPPFLAGS += -DNDEBUG -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=32
 else
-	CPPFLAGS += -g -O0 
-	CPPFLAGS += -Wl,-u,PMI_Init
+	CPPFLAGS += -g -O0
+	#CPPFLAGS += -Wl,-u,PMI_Init
 	#RED='\033[0;31m'
 	#NC='\033[0m' # No Color
 $(info *** WARNING! Compiling with debug flags. Use config=prod for optimized code ***)
@@ -70,6 +70,11 @@ endif
 
 # needed in order to compile on nodes
 # include make.daint
+ifeq ($(shell uname -s), Darwin)
+CC=mpic++
+LD=mpic++
+accfft=false
+endif
 
 ifneq "$(findstring daint,$(shell hostname))" ""
 	#include make.daint_mpich
@@ -91,7 +96,7 @@ CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/
-CPPFLAGS += -I${HOME}/smarties/source/ -D__RL_MPI_CLIENT
+CPPFLAGS += -I../../smarties/source/ -D__RL_MPI_CLIENT
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
@@ -137,7 +142,7 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS =  IF3D_VortexOperator.o IF3D_NacaOperator.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o ProcessOperatorsOMP.o Save_splicer.o WaveletCompressor.o
+OBJECTS =  IF3D_VortexOperator.o IF3D_NacaOperator.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o ProcessOperatorsOMP.o Save_splicer.o WaveletCompressor.o IF3D_DCylinderObstacleOperator.o
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"
@@ -153,7 +158,7 @@ EXEOBJ = $(OBJECTS) Communicator.o main.o
 LIBOBJ = $(OBJECTS) cubism_main.o
 LIBRLOBJ = $(OBJECTS) ext_app_main.o
 
-VPATH := $(SRC_DIR) $(CUBISM_DIR) ${HOME}/smarties/source/
+VPATH := $(SRC_DIR) $(CUBISM_DIR) ../../smarties/source/
 
 .DEFAULT_GOAL := simulation
 

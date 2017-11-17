@@ -1,9 +1,9 @@
 //
-//  IF3D_ObstacleFactory.h
-//  IF3D_ROCKS
+//  CubismUP_3D
 //
-//  Created by Wim van Rees on 06/10/14.
-//
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  This file started as an extension of code written by Wim van Rees
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #ifndef __IF3D_ROCKS__IF3D_ObstacleFactory__
@@ -13,22 +13,21 @@
 
 class IF3D_ObstacleFactory
 {
-    const Real Uinf[3];
-    int rank;
-    FluidGridMPI * grid;
-    int _getlines(std::string filename);
+  const Real* const Uinf;
+  int rank;
+  FluidGridMPI * grid;
+  int _getlines(std::string filename);
 
 public:
-    IF3D_ObstacleFactory(FluidGridMPI * grid, const Real* Uinf)
-	: grid(grid), Uinf{Uinf[0],Uinf[1],Uinf[2]}
-    {
-    	MPI_Comm_rank(grid->getCartComm(),&rank);
-    }
+  IF3D_ObstacleFactory(FluidGridMPI*g, const Real*const u) : grid(g), Uinf(u)
+  {
+    MPI_Comm_rank(grid->getCartComm(),&rank);
+  }
 
-    ~IF3D_ObstacleFactory()
-    {}
+  ~IF3D_ObstacleFactory()
+  {}
 
-    std::vector<IF3D_ObstacleOperator * > create(ArgumentParser & parser);
+  std::vector<IF3D_ObstacleOperator * > create(ArgumentParser & parser);
 };
 
 

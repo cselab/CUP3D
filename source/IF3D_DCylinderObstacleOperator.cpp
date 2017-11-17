@@ -9,16 +9,15 @@
 #include <limits>
 #include <cstring>
 
-#include "IF3D_SphereObstacleOperator.h"
+#include "IF3D_DCylinderObstacleOperator.h"
 #include "IF3D_ObstacleLibrary.h"
 
-void IF3D_SphereObstacleOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
+void IF3D_DCylinderObstacleOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
 {
-  for(auto & entry : obstacleBlocks)
-      delete entry.second;
+  for(auto & entry : obstacleBlocks) delete entry.second;
   obstacleBlocks.clear();
 
-  SphereObstacle::FillBlocks kernel(radius,vInfo[0].h_gridpoint,position);
+  DCylinderObstacle::FillBlocks kernel(radius, halflength, vInfo[0].h_gridpoint, position);
   for(int i=0; i<vInfo.size(); i++) {
     BlockInfo info = vInfo[i];
     //const auto pos = obstacleBlocks.find(info.blockID);
@@ -28,17 +27,14 @@ void IF3D_SphereObstacleOperator::create(const int step_id,const double time, co
       obstacleBlocks[info.blockID]->clear(); //memset 0
     }
   }
-}
 
-void IF3D_SphereObstacleOperator::finalize(const int step_id,const double time, const double dt, const Real *Uinf)
-{
   //this writes the chi field, therefore moved to finalize
   #pragma omp parallel
   {
-    SphereObstacle::FillBlocks fill(radius, vInfo[0].h_gridpoint, position);
+    DCylinderObstacle::FillBlocks fill(radius, halflength, vInfo[0].h_gridpoint, position);
     const int tid = omp_get_thread_num();
 
-    #pragma omp for schedule(static)
+    #pragma omp for schedule(dynamic)
     for(int i=0; i<vInfo.size(); i++) {
       BlockInfo info = vInfo[i];
       auto pos = obstacleBlocks.find(info.blockID);
@@ -50,9 +46,23 @@ void IF3D_SphereObstacleOperator::finalize(const int step_id,const double time, 
   for(auto & o : obstacleBlocks) o.second->allocate_surface();
 }
 
-void IF3D_SphereObstacleOperator::_parseArguments(ArgumentParser & parser)
+void IF3D_DCylinderObstacleOperator::setTranslationVelocity(double UT[3])
+{}
+
+void IF3D_DCylinderObstacleOperator::_parseArguments(ArgumentParser & parser)
 {
   //obstacleop parses x,y,z,quats and length!
   IF3D_ObstacleOperator::_parseArguments(parser);
+  parser.set_strict_mode();
+  parser.unset_strict_mode();
+  const double xvel = parser("-xvel").asDouble(0.);
+  const double yvel = parser("-yvel").asDouble(0.);
+  const double zvel = parser("-zvel").asDouble(0.);
+
+  this->transVel[0] = xvel;
+  this->transVel[1] = yvel;
+  this->transVel[2] = zvel;
+  halflength = ext_Z/2;
   radius = .5*length;
+  printf("Created IF3D_DCylinderObstacleOperator with radius %f\n", radius);
 }

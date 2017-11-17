@@ -12,20 +12,25 @@
 
 #include <cmath>
 
-class IF3D_SphereObstacleOperator: public IF3D_ObstacleOperator
+class IF3D_DCylinderObstacleOperator: public IF3D_ObstacleOperator
 {
-  double radius;
+  double radius, halflength;
 
 public:
 
- IF3D_SphereObstacleOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) //const Real radius, const double position[3], const Real smoothing_length=-1):
+ IF3D_DCylinderObstacleOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) //const Real radius, const double position[3], const Real smoothing_length=-1):
   : IF3D_ObstacleOperator(g, p, u)//, radius(radius), smoothing_length(smoothing_length)
   {
       _parseArguments(p);
   }
 
-   void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
-  void finalize(const int step_id,const double time, const double dt, const Real *Uinf) override;
+  void computeVelocities(const Real Uinf[3]) override
+  {
+    computeVelocities_forced(Uinf);
+  }
+  void setTranslationVelocity(double UT[3]) override;
 
-    void _parseArguments(ArgumentParser & parser) override;
+   void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
+
+  void _parseArguments(ArgumentParser & parser) override;
 };

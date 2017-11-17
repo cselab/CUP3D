@@ -1,9 +1,9 @@
 //
-//  IF3D_CarlingFishOperator.h
-//  IncompressibleFluids3D
+//  CubismUP_3D
 //
-//  Created by Wim van Rees on 4/15/13.
-//
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  This file started as an extension of code written by Wim van Rees
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #ifndef __IncompressibleFluids3D__IF3D_DeadFishOperator__
@@ -22,12 +22,12 @@ protected:
     int ID;
 
 public:
-    IF3D_DeadFishOperator(FluidGridMPI * grid, ArgumentParser & parser);
-    void update(const int step_id, const Real t, const Real dt, const Real *Uinf) override;
+    IF3D_DeadFishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u);
+    void update(const int step_id, const double t, const double dt, const Real *Uinf) override;
     void computeVelocities(const Real* Uinf) override;
     void _parseArguments(ArgumentParser & parser);
-	void save(const int step_id, const Real t, std::string filename = std::string()) override;
-	void restart(const Real t, std::string filename = std::string()) override;
+  void save(const int step_id, const double t, std::string filename = std::string()) override;
+  void restart(const double t, std::string filename = std::string()) override;
 };
 
 

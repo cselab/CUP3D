@@ -1,12 +1,8 @@
 //
-//  Save_splicer_Fluid.h
-//  CubismUP_2D
+//  CubismUP_3D
 //
-//	Base class for fluid Save_splicers from which any fluid Save_splicer case should inherit
-//	Contains the base structure and interface that any fluid Save_splicer class should have
-//
-//  Created by Christian Conti on 3/25/15.
-//  Copyright (c) 2015 ETHZ. All rights reserved.
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #include "Save_splicer.h"

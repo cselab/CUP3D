@@ -1,11 +1,9 @@
 //
-//  IF3D_ObstacleOperator.h
-//  IF3D_ROCKS
+//  CubismUP_3D
 //
-//  Created by Wim van Rees on 04/10/14.
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
-//
-
 
 #ifndef IF3D_ROCKS_IF3D_ObstacleOperator_h
 #define IF3D_ROCKS_IF3D_ObstacleOperator_h
@@ -13,6 +11,7 @@
 #include "Definitions.h"
 //#include "IF3D_ObstacleLibrary.h"
 #include "IF2D_FactoryFileLineParser.h"
+#include "OperatorComputeForces.h"
 #include <fstream>
 
 // forward declaration of derived class for visitor
@@ -23,270 +22,207 @@ class IF3D_ObstacleVector;
 struct ObstacleVisitor
 {
     virtual void visit(IF3D_ObstacleOperator* const obstacle) = 0;
-    //virtual void visit(IF3D_ObstacleVector * obstacle) {}
+  //virtual void visit(IF3D_ObstacleVector  * const obstacle) {}
 };
 
 class IF3D_ObstacleOperator
 {
 protected:
-    StateReward sr;
-    FluidGridMPI * grid;
-    surfacePoints surfData;
-    vector<BlockInfo> vInfo;
-    std::map<int,ObstacleBlock*> obstacleBlocks;
-
-    Real quaternion[4], _2Dangle; //representing orientation
-    Real position[3], absPos[3], transVel[3], angVel[3], volume, J[6]; // moment of inertia
-    Real mass, force[3], torque[3]; //from diagnostics
-    Real totChi, surfForce[3], drag, thrust, Pout, PoutBnd, defPower, defPowerBnd, Pthrust, Pdrag, EffPDef, EffPDefBnd; //from compute forces
-    Real transVel_correction[3], angVel_correction[3], length;
-    Real transVel_computed[3], angVel_computed[3];
-    Real ext_X, ext_Y, ext_Z;
-    Real torqueZsection=0.0;
-
-    virtual void _parseArguments(ArgumentParser & parser);
-    virtual void _writeComputedVelToFile(const int step_id, const Real t, const Real * uInf);
-    virtual void _writeDiagForcesToFile(const int step_id, const Real t);
-    void _makeDefVelocitiesMomentumFree(const Real CoM[3]);
-    void _computeUdefMoments(Real lin_momenta[3], Real ang_momenta[3], const Real CoM[3]);
-    //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
-    void computeVelocities_kernel(const Real* Uinf, Real* const linvel_target,
-                                                    Real* const angvel_target);
+  StateReward sr;
+  FluidGridMPI * grid;
+  const Real*const _uInf;
+  vector<BlockInfo> vInfo;
+  std::map<int,ObstacleBlock*> obstacleBlocks;
+  vector<double> sum;
 
 public:
-    int obstacleID, rank, size;
-    bool bFixFrameOfRef, bFixToPlanar, bInteractive, bHasSkin = false;
-    IF3D_ObstacleOperator(FluidGridMPI * grid, ArgumentParser& parser) :
-    	grid(grid),obstacleID(0),quaternion{1,0,0,0},_2Dangle(0),position{0,0,0},
-      absPos{0,0,0},transVel{0,0,0},angVel{0,0,0},volume(0),J{0,0,0,0,0,0},
-      bInteractive(false)
-    {
-		    MPI_Comm_rank(grid->getCartComm(),&rank);
-		    MPI_Comm_size(grid->getCartComm(),&size);
-        vInfo = grid->getBlocksInfo();
-        const Real extent = 1;//grid->maxextent;
-        const Real NFE[3] ={ grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
-    						             grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
-  			                     grid->getBlocksPerDimension(2)*FluidBlock::sizeZ };
-        const Real maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
-        const Real scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
-        sr.ext_X = ext_X = scale[0]*extent;
-        sr.ext_Y = ext_Y = scale[1]*extent;
-        sr.ext_Z = ext_Z = scale[2]*extent;
-        if(!rank)
-        printf("Got sim extents %g %g %g\n", sr.ext_X, sr.ext_Y, sr.ext_Z);
-        _parseArguments(parser);
+  int obstacleID=0, rank, size;
+  bool bFixFrameOfRef=0, bFixToPlanar=1, bInteractive=0, bHasSkin=0, bForces=0;
+  bool bFixFrameOfRef_x=false, bFixFrameOfRef_y=false, bFixFrameOfRef_z=false;
+  double quaternion[4] = {1,0,0,0}, _2Dangle = 0, phaseShift=0; //orientation
+  double position[3] = {0,0,0}, absPos[3] = {0,0,0}, transVel[3] = {0,0,0};
+  double angVel[3] = {0,0,0}, volume = 0, J[6] = {0,0,0,0,0,0}; //mom of inertia
+  //from diagnostics:
+  double mass=0, force[3] = {0,0,0}, torque[3] = {0,0,0};
+  //from compute forces:
+  double totChi=0, surfForce[3]={0,0,0}, drag=0, thrust=0, Pout=0, PoutBnd=0;
+  double defPower=0, defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
+  double transVel_correction[3]={0,0,0}, angVel_correction[3]={0,0,0}, length;
+  //forced obstacles:
+  double transVel_computed[3]= {0,0,0}, angVel_computed[3]= {0,0,0};
+  double ext_X, ext_Y, ext_Z;
+  double torqueZsection=0.0;
+
+protected:
+  virtual void _parseArguments(ArgumentParser & parser);
+  virtual void _writeComputedVelToFile(const int step_id, const double t, const Real * uInf);
+  virtual void _writeDiagForcesToFile(const int step_id, const double t);
+  void _makeDefVelocitiesMomentumFree(const double CoM[3]);
+  void _computeUdefMoments(double lin_momenta[3], double ang_momenta[3], const double CoM[3]);
+  //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
+  void computeVelocities_kernel(const Real* Uinf, double* const linvel_target,
+                                                  double* const angvel_target);
+
+public:
+  IF3D_ObstacleOperator(FluidGridMPI*g, ArgumentParser&parser, const Real*const uInf) : grid(g), _uInf(uInf)
+  {
+    MPI_Comm_rank(grid->getCartComm(),&rank);
+    MPI_Comm_size(grid->getCartComm(),&size);
+    vInfo = grid->getBlocksInfo();
+    const double extent = 1;//grid->maxextent;
+    const double NFE[3] ={  grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
+                          grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
+                          grid->getBlocksPerDimension(2)*FluidBlock::sizeZ };
+    const double maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
+    const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
+    sr.ext_X = ext_X = scale[0]*extent;
+    sr.ext_Y = ext_Y = scale[1]*extent;
+    sr.ext_Z = ext_Z = scale[2]*extent;
+    if(!rank)
+    printf("Got sim extents %g %g %g\n", sr.ext_X, sr.ext_Y, sr.ext_Z);
+    _parseArguments(parser);
+  }
+
+  IF3D_ObstacleOperator(FluidGridMPI * g) : grid(g), _uInf(nullptr)
+  {
+    MPI_Comm_rank(grid->getCartComm(),&rank);
+    MPI_Comm_size(grid->getCartComm(),&size);
+    vInfo = grid->getBlocksInfo();
+    const double extent = 1;//grid->maxextent;
+    const double NFE[3] ={  grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
+                          grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
+                          grid->getBlocksPerDimension(2)*FluidBlock::sizeZ };
+    const double maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
+    const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
+    sr.ext_X = ext_X = scale[0]*extent;
+    sr.ext_Y = ext_Y = scale[1]*extent;
+    sr.ext_Z = ext_Z = scale[2]*extent;
+    if(!rank)
+    printf("Got sim extents %g %g %g\n", sr.ext_X, sr.ext_Y, sr.ext_Z);
+  }
+
+  virtual void Accept(ObstacleVisitor * visitor);
+  virtual void dumpWake(const int stepID, const double t, const Real* Uinf);
+  virtual Real getD() const {return length;}
+
+  virtual void computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda) ;
+  virtual void computeVelocities(const Real* Uinf);
+  virtual void computeVelocities_forced(const Real* Uinf);
+  virtual void computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump);
+  virtual void update(const int step_id, const double t, const double dt, const Real* Uinf);
+  virtual void save(const int step_id, const double t, std::string filename = std::string());
+  virtual void restart(const double t, std::string filename = std::string());
+  virtual void interpolateOnSkin(const double time, const int stepID, bool dumpWake=false);
+  virtual void execute(const int iAgent, const double time, const vector<double> action);
+  StateReward* _getData() { return &sr; }
+  // some non-pure methods
+  virtual void create(const int step_id,const double time, const double dt, const Real *Uinf);
+  virtual void computeChi(const int step_id, const double time, const double dt, const Real *Uinf, int& mpi_status);
+  virtual void finalize(const int step_id,const double time, const double dt, const Real *Uinf);
+
+  //methods that work for all obstacles
+  std::map<int,ObstacleBlock*> getObstacleBlocks() const
+  {
+      return obstacleBlocks;
+  }
+  std::map<int,ObstacleBlock*>* getObstacleBlocksPtr()
+  {
+      return &obstacleBlocks;
+  }
+
+  void getObstacleBlocks(std::map<int,ObstacleBlock*>*& obstblock_ptr)
+  {
+      obstblock_ptr = &obstacleBlocks;
+  }
+
+  virtual void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL,
+                              Real*& pYL, Real*& pXU, Real*& pYU, int& Npts);
+  virtual void characteristic_function();
+
+  virtual std::vector<int> intersectingBlockIDs(const int buffer) const;
+
+  virtual ~IF3D_ObstacleOperator()
+  {
+    for(auto & entry : obstacleBlocks) {
+      if(entry.second != nullptr) {
+          delete entry.second;
+          entry.second = nullptr;
+      }
     }
+    obstacleBlocks.clear();
+  }
 
-    IF3D_ObstacleOperator(FluidGridMPI * grid):
-    grid(grid), obstacleID(0), quaternion{1,0,0,0}, _2Dangle(0), position{0,0,0},
-    absPos{0,0,0}, transVel{0,0,0}, angVel{0,0,0}, volume(0), J{0,0,0,0,0,0}
-  	{
-  		MPI_Comm_rank(grid->getCartComm(),&rank);
-    	vInfo = grid->getBlocksInfo();
-      const Real extent = 1;//grid->maxextent;
-      const Real NFE[3] ={ grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
-  						             grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
-			                     grid->getBlocksPerDimension(2)*FluidBlock::sizeZ };
-      const Real maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
-      const Real scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
-      sr.ext_X = ext_X = scale[0]*extent;
-      sr.ext_Y = ext_Y = scale[1]*extent;
-      sr.ext_Z = ext_Z = scale[2]*extent;
-      if(!rank)
-      printf("Got sim extents %g %g %g\n", sr.ext_X, sr.ext_Y, sr.ext_Z);
-  	}
+  virtual void getTranslationVelocity(double UT[3]) const;
+  virtual void getAngularVelocity(double W[3]) const;
+  virtual void getCenterOfMass(double CM[3]) const;
+  virtual void setTranslationVelocity(double UT[3]);
+  virtual void setAngularVelocity(const double W[3]);
 
-    virtual void Accept(ObstacleVisitor * visitor);
-    virtual void dumpWake(const int stepID, const Real t, const Real* Uinf);
-    virtual Real getD() const {return length;}
+  enum INTEGRAL { VOLUME, SURFACE };
+  template <typename Kernel, INTEGRAL integral>
+  void compute(const vector<Kernel*>& kernels)
+  {
+    SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
 
-    virtual void computeDiagnostics(const int stepID, const Real time, const Real* Uinf, const Real lambda) ;
-    virtual void computeVelocities(const Real* Uinf);
-    virtual void computeVelocities_forced(const Real* Uinf);
-    virtual void computeForces(const int stepID, const Real time, const Real dt,
-                              const Real* Uinf, const Real NU, const bool bDump);
-    virtual void update(const int step_id, const Real t, const Real dt, const Real* Uinf);
-    virtual void save(const int step_id, const Real t, std::string filename = std::string());
-    virtual void restart(const Real t, std::string filename = std::string());
-    virtual void interpolateOnSkin(const Real time, const int stepID, bool dumpWake=false);
-    virtual void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel);
-    StateReward* _getData() { return &sr; }
-    // some non-pure methods
-    virtual void create(const int step_id,const Real time, const Real dt, const Real *Uinf);
-    virtual void finalize(const int step_id,const Real time, const Real dt, const Real *Uinf);
-
-    //methods that work for all obstacles
-    std::map<int,ObstacleBlock*> getObstacleBlocks() const
-    {
-        return obstacleBlocks;
-    }
-    std::map<int,ObstacleBlock*>* getObstacleBlocksPtr()
-    {
-        return &obstacleBlocks;
-    }
-
-    void getObstacleBlocks(std::map<int,ObstacleBlock*>*& obstblock_ptr)
-    {
-        obstblock_ptr = &obstacleBlocks;
-    }
-
-    virtual void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL,
-                                Real*& pYL, Real*& pXU, Real*& pYU, int& Npts);
-    virtual void characteristic_function();
-
-    virtual std::vector<int> intersectingBlockIDs(const int buffer) const;
-
-    virtual ~IF3D_ObstacleOperator()
-    {
-        for(auto & entry : obstacleBlocks) {
-            if(entry.second != nullptr) {
-                delete entry.second;
-                entry.second = nullptr;
-            }
-        }
-        obstacleBlocks.clear();
-    }
-
-    virtual void getTranslationVelocity(Real UT[3]) const;
-    virtual void getAngularVelocity(Real W[3]) const;
-    virtual void getCenterOfMass(Real CM[3]) const;
-    virtual void setTranslationVelocity(Real UT[3]);
-    virtual void setAngularVelocity(const Real W[3]);
-
-    //THIS IS WHY I CAN NEVER HAVE NICE THINGS!!
-	template <typename Kernel>
-	void compute(vector<Kernel*> kernels)
-	{
-#if 0
-		SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
-		const int nthreads = omp_get_max_threads();
-		LabMPI * labs = new LabMPI[nthreads];
-		vector<BlockInfo> avail0, avail1;
-		for(int i=0; i<nthreads; ++i)
-			labs[i].prepare(*grid, Synch);
-
-		static int rounds = -1;
-		static int one_less = 1;
-		if (rounds == -1) {
-			char *s = getenv("MYROUNDS");
-			if (s != NULL) rounds = atoi(s);
-			else 		   rounds = 0;
-
-			char *s2 = getenv("USEMAXTHREADS");
-			if (s2 != NULL) one_less = !atoi(s2);
-		}
+    const int nthreads = omp_get_max_threads();
+    LabMPI * labs = new LabMPI[nthreads];
+    for(int i = 0; i < nthreads; ++i)
+      labs[i].prepare(*grid, Synch);
 
     MPI_Barrier(grid->getCartComm());
+    vector<BlockInfo> avail0 = Synch.avail_inner();
+    const int Ninner = avail0.size();
 
-		avail0 = Synch.avail_inner();
-		const int Ninner = avail0.size();
-		BlockInfo * ary0 = &avail0.front();
+    #pragma omp parallel num_threads(nthreads)
+    {
+      const int tid = omp_get_thread_num();
+      Kernel& kernel=*(kernels[tid]);
+      LabMPI& lab = labs[tid];
 
-		int nthreads_first;
-		if (one_less) nthreads_first = nthreads-1;
-		else 		  nthreads_first = nthreads;
+      #pragma omp for schedule(dynamic,1)
+      for(int i=0; i<Ninner; i++)
+      {
+        BlockInfo info = avail0[i];
+        const auto pos = obstacleBlocks.find(info.blockID);
+        if(pos == obstacleBlocks.end()) continue;
+        if(integral==SURFACE && pos->second->nPoints == 0) continue;
 
-		if (nthreads_first == 0) nthreads_first = 1;
-		int Ninner_first = (nthreads_first)*rounds;
-		if (Ninner_first > Ninner) Ninner_first = Ninner;
-		int Ninner_rest = Ninner - Ninner_first;
+        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+        lab.load(info, 0);
+        kernel(lab, info, b, pos->second);
+      }
+    }
 
-#pragma omp parallel num_threads(nthreads_first)
-		{
-			const int tid = omp_get_thread_num();
-			Kernel& kernel=*(kernels[tid]);
-			LabMPI& lab = labs[tid];
+    vector<BlockInfo> avail1 = Synch.avail_halo();
+    const int Nhalo = avail1.size();
 
-#pragma omp for schedule(dynamic,1)
-			for(int i=0; i<Ninner_first; i++) {
-				lab.load(ary0[i], 0);
-				kernel(lab, ary0[i], *(FluidBlock*)ary0[i].ptrBlock);
-			}
-		}
+    #pragma omp parallel num_threads(nthreads)
+    {
+      const int tid = omp_get_thread_num();
+      Kernel& kernel=*(kernels[tid]);
+      LabMPI& lab = labs[tid];
 
-		avail1 = Synch.avail_halo();
-		const int Nhalo = avail1.size();
-		BlockInfo * ary1 = &avail1.front();
+      #pragma omp for schedule(dynamic,1)
+      for(int i=0; i<Nhalo; i++)
+      {
+        BlockInfo info = avail1[i];
+        const auto pos = obstacleBlocks.find(info.blockID);
+        if(pos == obstacleBlocks.end()) continue;
+        if(integral==SURFACE && pos->second->nPoints == 0) continue;
 
-#pragma omp parallel num_threads(nthreads)
-		{
-			const int tid = omp_get_thread_num();
-			Kernel& kernel=*(kernels[tid]);
-			LabMPI& lab = labs[tid];
+        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+        lab.load(info, 0);
+        kernel(lab, info, b, pos->second);
+      }
+    }
 
-#pragma omp for schedule(dynamic,1)
-			for(int i=-Ninner_rest; i<Nhalo; i++) {
-				if (i < 0) {
-					int ii = i + Ninner;
-					lab.load(ary0[ii], 0);
-					kernel(lab, ary0[ii], *(FluidBlock*)ary0[ii].ptrBlock);
-				} else {
-					lab.load(ary1[i], 0);
-					kernel(lab, ary1[i], *(FluidBlock*)ary1[i].ptrBlock);
-				}
-			}
-		}
-
-		if(labs!=NULL) {
-			delete[] labs;
-			labs=NULL;
-		}
+    if(labs!=NULL) {
+      delete [] labs;
+      labs=NULL;
+    }
 
     MPI_Barrier(grid->getCartComm());
-#else
-		SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
-
-		const int nthreads = omp_get_max_threads();
-		LabMPI * labs = new LabMPI[nthreads];
-		for(int i = 0; i < nthreads; ++i)
-			labs[i].prepare(*grid, Synch);
-
-    MPI_Barrier(grid->getCartComm());
-		vector<BlockInfo> avail0 = Synch.avail_inner();
-		const int Ninner = avail0.size();
-
-#pragma omp parallel
-		{
-			int tid = omp_get_thread_num();
-			Kernel& kernel=*(kernels[tid]);
-			LabMPI& lab = labs[tid];
-
-#pragma omp for schedule(dynamic,1)
-			for(int i=0; i<Ninner; i++) {
-				BlockInfo info = avail0[i];
-				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-				lab.load(info, 0);
-				kernel(lab, info, b); // why is this using the local blockInfo? or is it global? is dh correct?
-			}
-		}
-
-		vector<BlockInfo> avail1 = Synch.avail_halo();
-		const int Nhalo = avail1.size();
-
-#pragma omp parallel
-		{
-			int tid = omp_get_thread_num();
-			Kernel& kernel=*(kernels[tid]);
-			LabMPI& lab = labs[tid];
-
-#pragma omp for schedule(dynamic,1)
-			for(int i=0; i<Nhalo; i++) {
-					BlockInfo info = avail1[i];
-					FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-					lab.load(info, 0);
-					kernel(lab, info, b);
-			}
-		}
-
-		if(labs!=NULL) {
-			delete [] labs;
-			labs=NULL;
-		}
-
-    MPI_Barrier(grid->getCartComm());
-#endif
-	}
+  }
 };
 
 #endif

@@ -1,9 +1,9 @@
 //
-//  CoordinatorAdvection.h
 //  CubismUP_3D
 //
-//  Created by Christian Conti on 3/27/15.
-//  Copyright (c) 2015 ETHZ. All rights reserved.
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  This file started as an extension of code written by Christian Conti
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #ifndef CubismUP_3D_CoordinatorAdvection_h
@@ -16,317 +16,222 @@
 
 class OperatorAdvection : public GenericLabOperator
 {
-	private:
-	const Real dt;
-	const Real* const uInf;
+  private:
+  const double dt;
+  const Real* const uInf;
 
-	public:
-	OperatorAdvection(const Real dt, const Real* const uInf)
-	: dt(dt), uInf(uInf)
-	{
-		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
-		stencil_start[0] = -1;
-		stencil_start[1] = -1;
-		stencil_start[2] = -1;
-		stencil_end[0] = 2;
-		stencil_end[1] = 2;
-		stencil_end[2] = 2;
-	}
+  public:
+   OperatorAdvection(const double _dt, const Real* const u) : dt(_dt), uInf(u)
+  {
+    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+    stencil_start[0] = -1; stencil_start[1] = -1; stencil_start[2] = -1;
+    stencil_end[0] = 2; stencil_end[1] = 2;  stencil_end[2] = 2;
+  }
 
-	~OperatorAdvection() {}
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const BlockInfo& info, BlockType& o)
+  {
+    #ifndef _RK2_
+    const Real fac = -dt/(2.*info.h_gridpoint);
+    #else //perform half step
+    const Real fac = -dt/(4.*info.h_gridpoint);
+    #endif
 
-	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-	{
-		#ifndef _RK2_
-		const Real factor = -dt/(2.*info.h_gridpoint);
-		#else //perform half step
-		const Real factor = -dt/(4.*info.h_gridpoint);
-		#endif
+    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      const FluidElement &L =lab(ix,iy,iz);
+      const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+      const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+      const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
 
-		for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-		for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
-			const FluidElement& phi   = lab(ix  ,iy  ,iz  );
-			const FluidElement& phiW  = lab(ix-1,iy  ,iz  );
-			const FluidElement& phiE  = lab(ix+1,iy  ,iz  );
-			const FluidElement& phiS  = lab(ix  ,iy-1,iz  );
-			const FluidElement& phiN  = lab(ix  ,iy+1,iz  );
-			const FluidElement& phiF  = lab(ix  ,iy  ,iz-1);
-			const FluidElement& phiB  = lab(ix  ,iy  ,iz+1);
-
-			const Real dudx = phiE.u - phiW.u;
-			const Real dvdx = phiE.v - phiW.v;
-			const Real dwdx = phiE.w - phiW.w;
-			const Real dudy = phiN.u - phiS.u;
-			const Real dvdy = phiN.v - phiS.v;
-			const Real dwdy = phiN.w - phiS.w;
-			const Real dudz = phiB.u - phiF.u;
-			const Real dvdz = phiB.v - phiF.v;
-			const Real dwdz = phiB.w - phiF.w;
-			const Real u = phi.u + uInf[0];
-			const Real v = phi.v + uInf[1];
-			const Real w = phi.w + uInf[2];
-
-			o(ix,iy,iz).tmpU = phi.u + factor*(u * dudx + v * dudy + w * dudz);
-			o(ix,iy,iz).tmpV = phi.v + factor*(u * dvdx + v * dvdy + w * dvdz);
-			o(ix,iy,iz).tmpW = phi.w + factor*(u * dwdx + v * dwdy + w * dwdz);
-		}
-	}
+      const Real dudx= LE.u-LW.u, dvdx= LE.v-LW.v, dwdx= LE.w-LW.w;
+      const Real dudy= LN.u-LS.u, dvdy= LN.v-LS.v, dwdy= LN.w-LS.w;
+      const Real dudz= LB.u-LF.u, dvdz= LB.v-LF.v, dwdz= LB.w-LF.w;
+      const Real u = L.u+uInf[0], v = L.v+uInf[1], w = L.w+uInf[2];
+      o(ix,iy,iz).tmpU = L.u +fac*(u * dudx + v * dudy + w * dudz);
+      o(ix,iy,iz).tmpV = L.v +fac*(u * dvdx + v * dvdy + w * dvdz);
+      o(ix,iy,iz).tmpW = L.w +fac*(u * dwdx + v * dwdy + w * dwdz);
+    }
+  }
 };
 
 #ifdef _RK2_
 class OperatorAdvectionStage2 : public GenericLabOperator
 {
-	private:
-	const Real dt;
-	const Real* const uInf;
+  private:
+  const double dt;
+  const Real* const uInf;
 
-	public:
-	OperatorAdvectionStage2(const Real dt, const Real* const uInf)
-	: dt(dt), uInf(uInf)
-	{
-		stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2);
-		stencil_start[0] = -1;
-		stencil_start[1] = -1;
-		stencil_start[2] = -1;
-		stencil_end[0] = 2;
-		stencil_end[1] = 2;
-		stencil_end[2] = 2;
-	}
+  public:
+  OperatorAdvectionStage2(const double _dt, const Real* const _uInf)
+  : dt(_dt), uInf(_uInf)
+  {
+    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 5,6,7);
+    stencil_start[0] = -1; stencil_start[1] = -1; stencil_start[2] = -1;
+    stencil_end[0] = 2;  stencil_end[1] = 2;  stencil_end[2] = 2;
+  }
 
-	~OperatorAdvectionStage2() {}
+  ~OperatorAdvectionStage2() {}
 
-	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-	{
-		const Real factor = -dt/(2.*info.h_gridpoint);
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  {
+    const Real fac = -dt/(2.*info.h_gridpoint);
 
-		for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-		for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
-			const FluidElement& phi   = lab(ix  ,iy  ,iz  );
-			const FluidElement& phiW  = lab(ix-1,iy  ,iz  );
-			const FluidElement& phiE  = lab(ix+1,iy  ,iz  );
-			const FluidElement& phiS  = lab(ix  ,iy-1,iz  );
-			const FluidElement& phiN  = lab(ix  ,iy+1,iz  );
-			const FluidElement& phiF  = lab(ix  ,iy  ,iz-1);
-			const FluidElement& phiB  = lab(ix  ,iy  ,iz+1);
+    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      const FluidElement &L =lab(ix,iy,iz);
+      const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+      const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+      const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
 
-			const Real dudx = phiE.tmpU - phiW.tmpU;
-			const Real dvdx = phiE.tmpV - phiW.tmpV;
-			const Real dwdx = phiE.tmpW - phiW.tmpW;
-			const Real dudy = phiN.tmpU - phiS.tmpU;
-			const Real dvdy = phiN.tmpV - phiS.tmpV;
-			const Real dwdy = phiN.tmpW - phiS.tmpW;
-			const Real dudz = phiB.tmpU - phiF.tmpU;
-			const Real dvdz = phiB.tmpV - phiF.tmpV;
-			const Real dwdz = phiB.tmpW - phiF.tmpW;
-			const Real u = phi.tmpU + uInf[0];
-			const Real v = phi.tmpV + uInf[1];
-			const Real w = phi.tmpW + uInf[2];
+      const Real dudx=LE.tmpU-LW.tmpU, dvdx=LE.tmpV-LW.tmpV, dwdx=LE.tmpW-LW.tmpW;
+      const Real dudy=LN.tmpU-LS.tmpU, dvdy=LN.tmpV-LS.tmpV, dwdy=LN.tmpW-LS.tmpW;
+      const Real dudz=LB.tmpU-LF.tmpU, dvdz=LB.tmpV-LF.tmpV, dwdz=LB.tmpW-LF.tmpW;
+      const Real u = L.u+uInf[0], v = L.v+uInf[1], w = L.w+uInf[2];
 
-			o(ix,iy,iz).u += factor*(u * dudx + v * dudy + w * dudz);
-			o(ix,iy,iz).v += factor*(u * dvdx + v * dvdy + w * dvdz);
-			o(ix,iy,iz).w += factor*(u * dwdx + v * dwdy + w * dwdz);
-		}
-	}
+      o(ix,iy,iz).u = L.u +fac*(u * dudx + v * dudy + w * dudz);
+      o(ix,iy,iz).v = L.v +fac*(u * dvdx + v * dvdy + w * dvdz);
+      o(ix,iy,iz).w = L.w +fac*(u * dwdx + v * dwdy + w * dwdz);
+    }
+  }
 };
 #endif // _RK2_
 
 class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
 {
-	private:
-	const Real dt;
-	const Real* const uInf;
+  private:
+  const double dt;
+  const Real* const uInf;
 
-	public:
-	OperatorAdvectionUpwind3rdOrder(const Real dt, const Real* const uInf)
-	: dt(dt), uInf(uInf)
-	{
-		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 0,1,2);
+  public:
+  OperatorAdvectionUpwind3rdOrder(const double dt, const Real* const uInf)
+  : dt(dt), uInf(uInf)
+  {
+    stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 1,2,3);
+    stencil_start[0] = -2; stencil_start[1] = -2; stencil_start[2] = -2;
+    stencil_end[0] = 3;  stencil_end[1] = 3;  stencil_end[2] = 3;
+  }
 
-		stencil_start[0] = -2;
-		stencil_start[1] = -2;
-		stencil_start[2] = -2;
-		stencil_end[0] = 3;
-		stencil_end[1] = 3;
-		stencil_end[2] = 3;
-	}
+  ~OperatorAdvectionUpwind3rdOrder() {}
 
-	~OperatorAdvectionUpwind3rdOrder() {}
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  {
+    #ifndef _RK2_
+    const Real factor = -dt/(6.*info.h_gridpoint);
+    #else //perform half step
+    const Real factor = -dt/(12.*info.h_gridpoint);
+    #endif
 
-	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-	{
-		#ifndef _RK2_
-		const Real factor = -dt/(6.*info.h_gridpoint);
-		#else //perform half step
-		const Real factor = -dt/(12.*info.h_gridpoint);
-		#endif
+    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
+      const FluidElement& L   = lab(ix  ,iy  ,iz  );
+      const FluidElement &LW =lab(ix-1,iy,iz), &LE =lab(ix+1,iy,iz);
+      const FluidElement &LS =lab(ix,iy-1,iz), &LN =lab(ix,iy+1,iz);
+      const FluidElement &LF =lab(ix,iy,iz-1), &LB =lab(ix,iy,iz+1);
+      const FluidElement &LW2=lab(ix-2,iy,iz), &LE2=lab(ix+2,iy,iz);
+      const FluidElement &LS2=lab(ix,iy-2,iz), &LN2=lab(ix,iy+2,iz);
+      const FluidElement &LF2=lab(ix,iy,iz-2), &LB2=lab(ix,iy,iz+2);
 
-		for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-				{
-					const FluidElement& phi   = lab(ix  ,iy  ,iz  );
-					const FluidElement& phiW  = lab(ix-1,iy  ,iz  );
-					const FluidElement& phiE  = lab(ix+1,iy  ,iz  );
-					const FluidElement& phiS  = lab(ix  ,iy-1,iz  );
-					const FluidElement& phiN  = lab(ix  ,iy+1,iz  );
-					const FluidElement& phiF  = lab(ix  ,iy  ,iz-1);
-					const FluidElement& phiB  = lab(ix  ,iy  ,iz+1);
-					const FluidElement& phiW2 = lab(ix-2,iy  ,iz  );
-					const FluidElement& phiE2 = lab(ix+2,iy  ,iz  );
-					const FluidElement& phiS2 = lab(ix  ,iy-2,iz  );
-					const FluidElement& phiN2 = lab(ix  ,iy+2,iz  );
-					const FluidElement& phiF2 = lab(ix  ,iy  ,iz-2);
-					const FluidElement& phiB2 = lab(ix  ,iy  ,iz+2);
+      const Real u3 = 3*L.u, v3 = 3*L.v, w3 = 3*L.w;
+      const Real u = L.u+uInf[0], v = L.v+uInf[1], w = L.w+uInf[2];
 
-					const Real u3 = 3*phi.u;
-					const Real v3 = 3*phi.v;
-					const Real w3 = 3*phi.w;
-					const Real u = phi.u + uInf[0];
-					const Real v = phi.v + uInf[1];
-					const Real w = phi.w + uInf[2];
+      const Real dudx = u>0 ?         2*LE.u +u3 -6*LW.u +LW2.u
+                            : -LE2.u +6*LE.u -u3 -2*LW.u;
+      const Real dvdx = v>0 ?         2*LE.v +v3 -6*LW.v +LW2.v
+                            : -LE2.v +6*LE.v -v3 -2*LW.v;
+      const Real dwdx = w>0 ?         2*LE.w +w3 -6*LW.w +LW2.w
+                            : -LE2.w +6*LE.w -w3 -2*LW.w;
 
-					const Real dudx[2] = {  2*phiE.u + u3 - 6*phiW.u +   phiW2.u,
-										   -  phiE2.u + 6*phiE.u - u3 - 2*phiW.u};
-					const Real dvdx[2] = {  2*phiE.v + v3 - 6*phiW.v +   phiW2.v,
-										   -  phiE2.v + 6*phiE.v - v3 - 2*phiW.v};
-					const Real dwdx[2] = {  2*phiE.w + w3 - 6*phiW.w +   phiW2.w,
-										   -  phiE2.w + 6*phiE.w - w3 - 2*phiW.w};
+      const Real dudy = u>0 ?         2*LN.u +u3 -6*LS.u +LS2.u
+                            : -LN2.u +6*LN.u -u3 -2*LS.u;
+      const Real dvdy = v>0 ?         2*LN.v +v3 -6*LS.v +LS2.v
+                            : -LN2.v +6*LN.v -v3 -2*LS.v;
+      const Real dwdy = w>0 ?         2*LN.w +w3 -6*LS.w +LS2.w
+                            : -LN2.w +6*LN.w -w3 -2*LS.w;
 
-					const Real dudy[2] = {  2*phiN.u + u3 - 6*phiS.u +   phiS2.u,
-										   -  phiN2.u + 6*phiN.u - u3 - 2*phiS.u};
-					const Real dvdy[2] = {  2*phiN.v + v3 - 6*phiS.v +   phiS2.v,
-										   -  phiN2.v + 6*phiN.v - v3 - 2*phiS.v};
-					const Real dwdy[2] = {  2*phiN.w + w3 - 6*phiS.w +   phiS2.w,
-										   -  phiN2.w + 6*phiN.w - w3 - 2*phiS.w};
+      const Real dudz = u>0 ?         2*LB.u +u3 -6*LF.u +LF2.u
+                            : -LB2.u +6*LB.u -u3 -2*LF.u;
+      const Real dvdz = v>0 ?         2*LB.v +v3 -6*LF.v +LF2.v
+                            : -LB2.v +6*LB.v -v3 -2*LF.v;
+      const Real dwdz = w>0 ?         2*LB.w +w3 -6*LF.w +LF2.w
+                            : -LB2.w +6*LB.w -w3 -2*LF.w;
 
-					const Real dudz[2] = {  2*phiB.u + u3 - 6*phiF.u +   phiF2.u,
-										   -  phiB2.u + 6*phiB.u - u3 - 2*phiF.u};
-					const Real dvdz[2] = {  2*phiB.v + v3 - 6*phiF.v +   phiF2.v,
-										   -  phiB2.v + 6*phiB.v - v3 - 2*phiF.v};
-					const Real dwdz[2] = {  2*phiB.w + w3 - 6*phiF.w +   phiF2.w,
-										   -  phiB2.w + 6*phiB.w - w3 - 2*phiF.w};
-
-					const Real maxu = max(u,(Real)0);
-					const Real maxv = max(v,(Real)0);
-					const Real maxw = max(w,(Real)0);
-					const Real minu = min(u,(Real)0);
-					const Real minv = min(v,(Real)0);
-					const Real minw = min(w,(Real)0);
-
-					o(ix,iy,iz).tmpU = phi.u + factor*(maxu * dudx[0] + minu * dudx[1] +
-																					   maxv * dudy[0] + minv * dudy[1] +
-																					   maxw * dudz[0] + minw * dudz[1]);
-					o(ix,iy,iz).tmpV = phi.v + factor*(maxu * dvdx[0] + minu * dvdx[1] +
-																					   maxv * dvdy[0] + minv * dvdy[1] +
-																					   maxw * dvdz[0] + minw * dvdz[1]);
-					o(ix,iy,iz).tmpW = phi.w + factor*(maxu * dwdx[0] + minu * dwdx[1] +
-																					   maxv * dwdy[0] + minv * dwdy[1] +
-																					   maxw * dwdz[0] + minw * dwdz[1]);
-				}
-	}
+      o(ix,iy,iz).tmpU = L.u + factor*(u * dudx + v * dudy + w * dudz);
+      o(ix,iy,iz).tmpV = L.v + factor*(u * dvdx + v * dvdy + w * dvdz);
+      o(ix,iy,iz).tmpW = L.w + factor*(u * dwdx + v * dwdy + w * dwdz);
+    }
+  }
 };
 
 #ifdef _RK2_
 class OperatorAdvectionUpwind3rdOrderStage2 : public GenericLabOperator
 {
-	private:
-	const Real dt;
-	const Real* const uInf;
+  private:
+  const double dt;
+  const Real* const uInf;
 
-	public:
-	OperatorAdvectionUpwind3rdOrderStage2(const Real dt, const Real* const uInf)
-	: dt(dt), uInf(uInf)
-	{
-		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 5,6,7);
-		stencil_start[0] = -2;
-		stencil_start[1] = -2;
-		stencil_start[2] = -2;
-		stencil_end[0] = 3;
-		stencil_end[1] = 3;
-		stencil_end[2] = 3;
-	}
+  public:
+  OperatorAdvectionUpwind3rdOrderStage2(const double dt, const Real* const uInf)
+  : dt(dt), uInf(uInf)
+  {
+    stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 5,6,7);
+    stencil_start[0] = -2; stencil_start[1] = -2; stencil_start[2] = -2;
+    stencil_end[0] = 3; stencil_end[1] = 3; stencil_end[2] = 3;
+  }
 
-	~OperatorAdvectionUpwind3rdOrderStage2() {}
+  ~OperatorAdvectionUpwind3rdOrderStage2() {}
 
-	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-	{
-		const Real factor = -dt/(6.*info.h_gridpoint);
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  {
+    const Real factor = -dt/(6.*info.h_gridpoint);
 
-		for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-			for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-				for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-				{
-					const FluidElement& phi  = lab(ix,iy,iz);
-					const FluidElement& phiW = lab(ix-1,iy  ,iz  );
-					const FluidElement& phiE = lab(ix+1,iy  ,iz  );
-					const FluidElement& phiS = lab(ix  ,iy-1,iz  );
-					const FluidElement& phiN = lab(ix  ,iy+1,iz  );
-					const FluidElement& phiF = lab(ix  ,iy  ,iz-1);
-					const FluidElement& phiB = lab(ix  ,iy  ,iz+1);
-					const FluidElement& phiW2 = lab(ix-2,iy  ,iz  );
-					const FluidElement& phiE2 = lab(ix+2,iy  ,iz  );
-					const FluidElement& phiS2 = lab(ix  ,iy-2,iz  );
-					const FluidElement& phiN2 = lab(ix  ,iy+2,iz  );
-					const FluidElement& phiF2 = lab(ix  ,iy  ,iz-2);
-					const FluidElement& phiB2 = lab(ix  ,iy  ,iz+2);
-					const Real u3 = 3*phi.tmpU;
-					const Real v3 = 3*phi.tmpV;
-					const Real w3 = 3*phi.tmpW;
+    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
+      const FluidElement& L  = lab(ix,iy,iz);
+      const FluidElement &LW =lab(ix-1,iy,iz), &LE =lab(ix+1,iy,iz);
+      const FluidElement &LS =lab(ix,iy-1,iz), &LN =lab(ix,iy+1,iz);
+      const FluidElement &LF =lab(ix,iy,iz-1), &LB =lab(ix,iy,iz+1);
+      const FluidElement &LW2=lab(ix-2,iy,iz), &LE2=lab(ix+2,iy,iz);
+      const FluidElement &LS2=lab(ix,iy-2,iz), &LN2=lab(ix,iy+2,iz);
+      const FluidElement &LF2=lab(ix,iy,iz-2), &LB2=lab(ix,iy,iz+2);
+      const Real u3 = 3*L.tmpU, v3 = 3*L.tmpV, w3 = 3*L.tmpW;
+      const Real u = L.u+uInf[0], v = L.v+uInf[1], w = L.w+uInf[2];
 
-					const Real dudx[2] = {  2*phiE.tmpU + u3 - 6*phiW.tmpU +   phiW2.tmpU,
-										   -phiE2.tmpU + 6*phiE.tmpU - u3 - 2*phiW.tmpU};
+      const Real dudx = u>0 ?            2*LE.tmpU +u3 -6*LW.tmpU +LW2.tmpU
+                            : -LE2.tmpU +6*LE.tmpU -u3 -2*LW.tmpU;
+      const Real dvdx = v>0 ?            2*LE.tmpV +v3 -6*LW.tmpV +LW2.tmpV
+                            : -LE2.tmpV +6*LE.tmpV -v3 -2*LW.tmpV;
+      const Real dwdx = w>0 ?            2*LE.tmpW +w3 -6*LW.tmpW +LW2.tmpW
+                            : -LE2.tmpW +6*LE.tmpW -w3 -2*LW.tmpW;
 
-					const Real dudy[2] = {  2*phiS.tmpU + u3 - 6*phiS.tmpU +   phiS2.tmpU,
-										   -  phiN2.tmpU + 6*phiS.tmpU - u3 - 2*phiS.tmpU};
+      const Real dudy = u>0 ?            2*LN.tmpU +u3 -6*LS.tmpU +LS2.tmpU
+                            : -LN2.tmpU +6*LN.tmpU -u3 -2*LS.tmpU;
+      const Real dvdy = v>0 ?            2*LN.tmpV +v3 -6*LS.tmpV +LS2.tmpV
+                            : -LN2.tmpV +6*LN.tmpV -v3 -2*LS.tmpV;
+      const Real dwdy = w>0 ?            2*LN.tmpW +w3 -6*LS.tmpW +LS2.tmpW
+                            : -LN2.tmpW +6*LN.tmpW -w3 -2*LS.tmpW;
 
-					const Real dudz[2] = {  2*phiB.tmpU + u3 - 6*phiF.tmpU +   phiF2.tmpU,
-										   -  phiB2.tmpU + 6*phiB.tmpU - u3 - 2*phiF.tmpU};
+      const Real dudz = u>0 ?            2*LB.tmpU +u3 -6*LF.tmpU +LF2.tmpU
+                            : -LB2.tmpU +6*LB.tmpU -u3 -2*LF.tmpU;
+      const Real dvdz = v>0 ?            2*LB.tmpV +v3 -6*LF.tmpV +LF2.tmpV
+                            : -LB2.tmpV +6*LB.tmpV -v3 -2*LF.tmpV;
+      const Real dwdz = w>0 ?            2*LB.tmpW +w3 -6*LF.tmpW +LF2.tmpW
+                            : -LB2.tmpW +6*LB.tmpW -w3 -2*LF.tmpW;
 
-					const Real dvdx[2] = {  2*phiE.tmpV + v3 - 6*phiW.tmpV +   phiW2.tmpV,
-										   -  phiE2.tmpV + 6*phiE.tmpV - v3 - 2*phiW.tmpV};
-
-					const Real dvdy[2] = {  2*phiS.tmpV + v3 - 6*phiS.tmpV +   phiS2.tmpV,
-										   -  phiN2.tmpV + 6*phiS.tmpV - v3 - 2*phiS.tmpV};
-
-					const Real dvdz[2] = {  2*phiB.tmpV + v3 - 6*phiF.tmpV +   phiF2.tmpV,
-										   -  phiB2.tmpV + 6*phiB.tmpV - v3 - 2*phiF.tmpV};
-
-					const Real dwdx[2] = {  2*phiE.tmpW + w3 - 6*phiW.tmpW +   phiW2.tmpW,
-										   -  phiE2.tmpW + 6*phiE.tmpW - w3 - 2*phiW.tmpW};
-
-					const Real dwdy[2] = {  2*phiS.tmpW + w3 - 6*phiS.tmpW +   phiS2.tmpW,
-										   -  phiN2.tmpW + 6*phiS.tmpW - w3 - 2*phiS.tmpW};
-
-					const Real dwdz[2] = {  2*phiB.tmpW + w3 - 6*phiF.tmpW +   phiF2.tmpW,
-										   -  phiB2.tmpW + 6*phiB.tmpW - w3 - 2*phiF.tmpW};
-
-					const Real u = phi.tmpU + uInf[0];
-					const Real v = phi.tmpV + uInf[1];
-					const Real w = phi.tmpW + uInf[2];
-					const Real maxu = max(u,(Real)0);
-					const Real maxv = max(v,(Real)0);
-					const Real maxw = max(w,(Real)0);
-					const Real minu = min(u,(Real)0);
-					const Real minv = min(v,(Real)0);
-					const Real minw = min(w,(Real)0);
-
-					o(ix,iy,iz).u += factor*(maxu * dudx[0] + minu * dudx[1] +
-											 maxv * dudy[0] + minv * dudy[1] +
-											 maxw * dudz[0] + minw * dudz[1]);
-					o(ix,iy,iz).v += factor*(maxu * dvdx[0] + minu * dvdx[1] +
-										     maxv * dvdy[0] + minv * dvdy[1] +
-										     maxw * dvdz[0] + minw * dvdz[1]);
-					o(ix,iy,iz).w += factor*(maxu * dwdx[0] + minu * dwdx[1] +
-											 maxv * dwdy[0] + minv * dwdy[1] +
-											 maxw * dwdz[0] + minw * dwdz[1]);
-				}
-	}
+      o(ix,iy,iz).u = L.u + factor*(u * dudx + v * dudy + w * dudz);
+      o(ix,iy,iz).v = L.v + factor*(u * dvdx + v * dvdy + w * dvdz);
+      o(ix,iy,iz).w = L.w + factor*(u * dwdx + v * dwdy + w * dwdz);
+    }
+  }
 };
 #endif // _RK2_
 
@@ -334,197 +239,48 @@ template <typename Lab>
 class CoordinatorAdvection : public GenericCoordinator
 {
 protected:
-	const Real* const uInf;
-
-	inline void update()
-	{
-		const int N = vInfo.size();
-
-#pragma omp parallel for schedule(static)
-		for(int i=0; i<N; i++) {
-			BlockInfo info = vInfo[i];
-			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-
-			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-					{
-						b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
-						b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
-						b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
-					}
-		}
-	}
+  const Real* const uInf;
 
 public:
-	CoordinatorAdvection(const Real* const uInf, FluidGridMPI * grid)
-	: GenericCoordinator(grid), uInf(uInf)
-	{ }
+  CoordinatorAdvection(const Real* const uInf, FluidGridMPI * grid)
+  : GenericCoordinator(grid), uInf(uInf)
+  { }
 
-	~CoordinatorAdvection()
-	{ }
+  ~CoordinatorAdvection()
+  { }
 
-	void operator()(const Real dt)
-	{
-		check("advection - start");
+  void operator()(const Real dt)
+  {
+    check("advection - start");
+    const int nthreads = omp_get_max_threads();
 
-		{
-			OperatorAdvectionUpwind3rdOrder kernel(dt,uInf);
-			compute(kernel);
-		}
+    {
+      vector<OperatorAdvectionUpwind3rdOrder*> adv1(nthreads, nullptr);
+      for(int i=0;i<nthreads;++i)
+        adv1[i] = new OperatorAdvectionUpwind3rdOrder(dt, uInf);
+
+      compute(adv1);
+
+      for(int i=0; i<nthreads; i++) delete adv1[i];
+    }
 #ifdef _RK2_
-		{
-			OperatorAdvectionUpwind3rdOrderStage2 kernel(dt,uInf);
-			compute(kernel);
-		}
-#else
-		update();
+    {
+      vector<OperatorAdvectionUpwind3rdOrderStage2*> adv2(nthreads, nullptr);
+      for(int i=0;i<nthreads;++i)
+        adv2[i] = new OperatorAdvectionUpwind3rdOrderStage2(dt, uInf);
+
+      compute(adv2);
+
+      for(int i=0; i<nthreads; i++) delete adv2[i];
+    }
 #endif
 
-		check("advection - end");
-	}
+    check("advection - end");
+  }
 
-	string getName()
-	{
-		return "Advection";
-	}
+  string getName()
+  {
+    return "Advection";
+  }
 };
 #endif
-
-
-/*
-class OperatorTransportUpwind3rdOrder : public GenericLabOperator
-{
-private:
-	double dt;
-public:
-	OperatorTransportUpwind3rdOrder(double dt) : dt(dt)
-	{
-		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 0,1,2);
-		stencil_start[0] = -2;
-		stencil_start[1] = -2;
-		stencil_start[2] = -2;
-		stencil_end[0] = 3;
-		stencil_end[1] = 3;
-		stencil_end[2] = 3;
-	}
-	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-	{
-#ifndef _RK2_
-		const Real factor = -dt/(6.*info.h_gridpoint);
-#else
-		const Real factor = -dt/(12.*info.h_gridpoint);
-#endif
-
-		if (stage==0)
-			for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-					for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
-						const FluidElement& phi   = lab(ix  ,iy  ,iz  );
-						const FluidElement& phiW  = lab(ix-1,iy  ,iz  );
-						const FluidElement& phiE  = lab(ix+1,iy  ,iz  );
-						const FluidElement& phiS  = lab(ix  ,iy-1,iz  );
-						const FluidElement& phiN  = lab(ix  ,iy+1,iz  );
-						const FluidElement& phiF  = lab(ix  ,iy  ,iz-1);
-						const FluidElement& phiB  = lab(ix  ,iy  ,iz+1);
-						const FluidElement& phiW2 = lab(ix-2,iy  ,iz  );
-						const FluidElement& phiE2 = lab(ix+2,iy  ,iz  );
-						const FluidElement& phiS2 = lab(ix  ,iy-2,iz  );
-						const FluidElement& phiN2 = lab(ix  ,iy+2,iz  );
-						const FluidElement& phiF2 = lab(ix  ,iy  ,iz-2);
-						const FluidElement& phiB2 = lab(ix  ,iy  ,iz+2);
-						const Real u = phi.u + uInf[0];
-						const Real v = phi.v + uInf[1];
-						const Real w = phi.w + uInf[2];
-#ifndef _RK2_
-						const Real r = phi.chi;
-						const Real drdx[2] = {2*phiE.chi + 3*phi.chi - 6*phiW.chi + phiW2.chi,
-							- phiE2.chi + 6*phiE.chi - 3*phi.chi - 2*phiW.chi};
-						const Real drdy[2] = {2*phiN.chi + 3*phi.chi - 6*phiS.chi + phiS2.chi,
-							- phiN2.chi + 6*phiN.chi - 3*phi.chi - 2*phiS.chi};
-						const Real drdz[2] = {2*phiB.chi + 3*phi.chi - 6*phiF.chi + phiF2.chi,
-							- phiB2.chi + 6*phiB.chi - 3*phi.chi - 2*phiF.chi};
-
-						o(ix,iy,iz).p  = r + factor*(max(u,(Real)0) * drdx[0] + min(u,(Real)0) * drdx[1] +
-													 max(v,(Real)0) * drdy[0] + min(v,(Real)0) * drdy[1] +
-													 max(w,(Real)0) * drdz[0] + min(w,(Real)0) * drdz[1]);
-#else
-
-						const Real dudx[2] = {  2*phiE.u + 3*phi.u - 6*phiW.u +   phiW2.u,
-								-  phiE2.u + 6*phiE.u - 3*phi.u - 2*phiW.u};
-						const Real dvdx[2] = {  2*phiE.v + 3*phi.v - 6*phiW.v +   phiW2.v,
-								-  phiE2.v + 6*phiE.v - 3*phi.v - 2*phiW.v};
-						const Real dwdx[2] = {  2*phiE.w + 3*phi.w - 6*phiW.w +   phiW2.w,
-								-  phiE2.w + 6*phiE.w - 3*phi.w - 2*phiW.w};
-						const Real dudy[2] = {  2*phiN.u + 3*phi.u - 6*phiS.u +   phiS2.u,
-								-  phiN2.u + 6*phiN.u - 3*phi.u - 2*phiS.u};
-						const Real dvdy[2] = {  2*phiN.v + 3*phi.v - 6*phiS.v +   phiS2.v,
-								-  phiN2.v + 6*phiN.v - 3*phi.v - 2*phiS.v};
-						const Real dwdy[2] = {  2*phiN.w + 3*phi.w - 6*phiS.w +   phiS2.w,
-								-  phiN2.w + 6*phiN.w - 3*phi.w - 2*phiS.w};
-						const Real dudz[2] = {  2*phiB.u + 3*phi.u - 6*phiF.u +   phiF2.u,
-								-  phiB2.u + 6*phiB.u - 3*phi.u - 2*phiF.u};
-						const Real dvdz[2] = {  2*phiB.v + 3*phi.v - 6*phiF.v +   phiF2.v,
-								-  phiB2.v + 6*phiB.v - 3*phi.v - 2*phiF.v};
-						const Real dwdz[2] = {  2*phiB.w + 3*phi.w - 6*phiF.w +   phiF2.w,
-								-  phiB2.w + 6*phiB.w - 3*phi.w - 2*phiF.w};
-
-						o(ix,iy,iz).tmpU = phi.u + factor*(max(u,(Real)0) * dudx[0] + min(u,(Real)0) * dudx[1] +
-													   max(v,(Real)0) * dudy[0] + min(v,(Real)0) * dudy[1] +
-													   max(w,(Real)0) * dudz[0] + min(w,(Real)0) * dudz[1]);
-						o(ix,iy,iz).tmpV = phi.v + factor*(max(u,(Real)0) * dvdx[0] + min(u,(Real)0) * dvdx[1] +
-													   max(v,(Real)0) * dvdy[0] + min(v,(Real)0) * dvdy[1] +
-													   max(w,(Real)0) * dvdz[0] + min(w,(Real)0) * dvdz[1]);
-						o(ix,iy,iz).tmpW = phi.w + factor*(max(u,(Real)0) * dwdx[0] + min(u,(Real)0) * dwdx[1] +
-													   max(v,(Real)0) * dwdy[0] + min(v,(Real)0) * dwdy[1] +
-													   max(w,(Real)0) * dwdz[0] + min(w,(Real)0) * dwdz[1]);
-#endif
-					}
-	}
-};
-
-#ifdef _RK2_
-class OperatorTransportUpwind3rdOrderStage2 : public GenericLabOperator
-{
-private:
-	double dt;
-public:
-	OperatorTransportUpwind3rdOrderStage2(double dt) : dt(dt)
-	{
-		stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 5,6,7);
-		stencil_start[0] = -2;
-		stencil_start[1] = -2;
-		stencil_start[2] = -2;
-		stencil_end[0] = 3;
-		stencil_end[1] = 3;
-		stencil_end[2] = 3;
-	}
-
-	template <typename Lab, typename BlockType>
-	void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-	{
-		const Real factor = -dt/(6.*info.h_gridpoint);
-		for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-		for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-		for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
-			const Real drdx[2] = {2*phiE.chi + 3*phi.chi - 6*phiW.chi + phiW2.chi,
-					- phiE2.chi + 6*phiE.chi - 3*phi.chi - 2*phiW.chi};
-			const Real drdy[2] = {2*phiN.chi + 3*phi.chi - 6*phiS.chi + phiS2.chi,
-					- phiN2.chi + 6*phiN.chi - 3*phi.chi - 2*phiS.chi};
-			const Real drdz[2] = {2*phiB.chi + 3*phi.chi - 6*phiF.chi + phiF2.chi,
-					- phiB2.chi + 6*phiB.chi - 3*phi.chi - 2*phiF.chi};
-
-			const Real u = lab(ix,iy).tmpU;
-			const Real v = lab(ix,iy).tmpV;
-			const Real w = lab(ix,iy).tmpW;
-			const Real r = lab(ix,iy).rho;
-
-			o(ix,iy,iz).tmp = r + factor*(max(u,(Real)0) * drdx[0] + min(u,(Real)0) * drdx[1] +
-										  max(v,(Real)0) * drdy[0] + min(v,(Real)0) * drdy[1] +
-										  max(w,(Real)0) * drdz[0] + min(w,(Real)0) * drdz[1]);
-		}
-	}
-};
-#endif
-*/
