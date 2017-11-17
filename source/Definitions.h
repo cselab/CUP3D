@@ -475,7 +475,7 @@ typedef GridMPI<DumpGrid> DumpGridMPI;
   typedef  BlockLabOpen<FluidBlock, std::allocator> Lab;
 #endif
 
-//typedef BlockLabMPI<Lab> LabMPI;
+typedef BlockLabMPI<Lab> LabMPI;
 
 //#ifdef _VORTEX_
 //typedef BlockLabVortex<FluidBlock, std::allocator> Lab;
@@ -484,7 +484,5 @@ typedef GridMPI<DumpGrid> DumpGridMPI;
 //#ifdef _PIPE_
 //typedef BlockLabPipe<FluidBlock, std::allocator> Lab;
 //#endif // _PIPE_
-
-typedef BlockLabMPI<BlockLabOpen<FluidBlock, std::allocator>> LabMPI;
 
 #endif

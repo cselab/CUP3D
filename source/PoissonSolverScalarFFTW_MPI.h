@@ -142,24 +142,6 @@ protected:
     }
   }
 
-  void _cub2fftw(Real * const out) const
-  {
-    #pragma omp parallel for
-    for(int i=0; i<N; ++i) {
-      const BlockInfo info = local_infos[i];
-      BlockType& b = *(BlockType*)info.ptrBlock;
-      const size_t offset = _offset(info);
-
-      for(int ix=0; ix<BlockType::sizeX; ix++)
-      for(int iy=0; iy<BlockType::sizeY; iy++)
-      for(int iz=0; iz<BlockType::sizeZ; iz++) {
-        const size_t dest_index = _dest(offset, iz, iy, ix);
-        assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*nz_hat*2);
-        TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
-      }
-    }
-  }
-
   void _fftw2cub(const Real * const out) const
   {
     #pragma omp parallel for
@@ -314,5 +296,23 @@ public:
     const size_t dest_index = _dest(offset, z, y, x);
     assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*nz_hat*2);
     data[dest_index] = rhs;
+  }
+
+  void _cub2fftw(Real * const out) const
+  {
+    #pragma omp parallel for
+    for(int i=0; i<N; ++i) {
+      const BlockInfo info = local_infos[i];
+      BlockType& b = *(BlockType*)info.ptrBlock;
+      const size_t offset = _offset(info);
+
+      for(int ix=0; ix<BlockType::sizeX; ix++)
+      for(int iy=0; iy<BlockType::sizeY; iy++)
+      for(int iz=0; iz<BlockType::sizeZ; iz++) {
+        const size_t dest_index = _dest(offset, iz, iy, ix);
+        assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*nz_hat*2);
+        TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
+      }
+    }
   }
 };

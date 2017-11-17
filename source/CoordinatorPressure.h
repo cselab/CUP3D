@@ -60,12 +60,12 @@ struct PressureObstacleVisitor : public ObstacleVisitor
 
 class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 {
-private:
+ private:
   const double dt;
   const Real extent[3];
   PressureSolver*const solver;
 
-public:
+ public:
   OperatorDivergenceMinusDivTmpU(double _dt, const Real ext[3], PressureSolver*const s)
   : dt(_dt), extent{ext[0],ext[1],ext[2]}, solver(s)
   {
@@ -99,10 +99,10 @@ public:
 
 class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
 {
-  private:
+ private:
   Real dt;
 
-  public:
+ public:
   OperatorDivergenceMinusDivTmpU2ndOrder(Real dt) : dt(dt)
   {
     stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 6, 1,2,3,5,6,7);
@@ -143,10 +143,10 @@ class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
 
 class OperatorGradP : public GenericLabOperator
 {
-  private:
+ private:
   Real dt, extent[3];
 
-  public:
+ public:
   OperatorGradP(Real _dt,const Real ext[3]):dt(_dt),extent{ext[0],ext[1],ext[2]}
   {
     stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
@@ -173,10 +173,10 @@ class OperatorGradP : public GenericLabOperator
 
 class OperatorGradP2ndOrder : public GenericLabOperator
 {
-  private:
+ private:
   Real dt, extent[3];
 
-  public:
+ public:
   OperatorGradP2ndOrder(Real _dt,const Real ext[3]) :
   dt(_dt),extent{ext[0],ext[1],ext[2]}
   {
@@ -211,7 +211,7 @@ class OperatorGradP2ndOrder : public GenericLabOperator
 template <typename Lab>
 class CoordinatorPressure : public GenericCoordinator
 {
-protected:
+ protected:
     IF3D_ObstacleVector** const obstacleVector;
     #ifdef _ACCFFT_
     PoissonSolverScalarFFTW_ACC<FluidGridMPI, StreamerDiv> pressureSolver;
@@ -219,7 +219,7 @@ protected:
     PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> pressureSolver;
     #endif
 
-public:
+ public:
   CoordinatorPressure(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles) :
     GenericCoordinator(grid), pressureSolver(NTHREADS,*grid), obstacleVector(myobstacles)
   { }
@@ -296,7 +296,7 @@ class PressRHSOperator : public GenericLabOperator
   public:
     PressRHSOperator(double dt) : dt(dt)
     {
-      stencil = StencilInfo(-1,-1,-1, 2,2,2,false,6,0,1,2,5,6,7);
+      stencil = StencilInfo(-1,-1,-1, 2,2,2,false,6,1,2,3,5,6,7);
         stencil_start[0] = -1;
         stencil_start[1] = -1;
         stencil_start[2] = -1;

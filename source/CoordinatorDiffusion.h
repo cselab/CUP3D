@@ -31,11 +31,8 @@ public:
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-#ifdef _RK2_
-    const Real fac = 0.5 * (mu/info.h_gridpoint) * (dt/info.h_gridpoint);
-#else
     const Real fac = (mu/info.h_gridpoint) * (dt/info.h_gridpoint);
-#endif
+
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {

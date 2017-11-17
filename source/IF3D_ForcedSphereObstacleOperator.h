@@ -25,10 +25,7 @@ public:
   }
 
   // no need to compute velocities, are fixed
-  void computeVelocities(const Real Uinf[3]) override
-  {
-    computeVelocities_forced(Uinf);
-  }
+  void computeVelocities(const Real Uinf[3]) override;
   void setTranslationVelocity(double UT[3]) override;
 
   void _parseArguments(ArgumentParser & parser) override;

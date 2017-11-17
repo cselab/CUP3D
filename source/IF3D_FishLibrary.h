@@ -2299,8 +2299,8 @@ struct PutFishOnBlocks
       // change from signed squared distance function to normal sdf
       b(ix,iy,iz).tmpU = defblock->chi[iz][iy][ix] > (Real)0 ?
         sqrt( defblock->chi[iz][iy][ix]) : -sqrt(-defblock->chi[iz][iy][ix]);
-      //b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0];
-      //b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1];
+      //b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0]; //for debug
+      //b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1]; //for debug
 
       // All points that are not chi=0 in the targeted section, are captured here. When we loop through SurfaceBlocks for computing torque, the extraneous points captured here will be left out, so hakunamatata.
       defblock->sectionMarker[iz][iy][ix] *= std::fabs(defblock->chi[iz][iy][ix]) > 0 ? 1 : 0;

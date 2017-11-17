@@ -29,7 +29,12 @@ void IF3D_ForcedSphereObstacleOperator::_parseArguments(ArgumentParser & parser)
   this->transVel[2] = zvel;
 }
 
-void  IF3D_ForcedSphereObstacleOperator::setTranslationVelocity(double UT[3]) {}
+void IF3D_ForcedSphereObstacleOperator::computeVelocities(const Real Uinf[3])
+{
+  computeVelocities_forced(Uinf);
+}
+
+void IF3D_ForcedSphereObstacleOperator::setTranslationVelocity(double UT[3]) {}
 
 void IF3D_ForcedSphereObstacleOperator::update(const int stepID, const double t, const double dt, const Real *Uinf)
 {
