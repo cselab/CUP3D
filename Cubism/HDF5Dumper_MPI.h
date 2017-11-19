@@ -80,9 +80,9 @@ class OperatorLoad : public GenericLabOperator
 			const Real vorticX = inv2h * ((phiN.w-phiS.w) - (phiB.v-phiF.v));
 			const Real vorticY = inv2h * ((phiB.u-phiF.u) - (phiE.w-phiW.w));
 			const Real vorticZ = inv2h * ((phiE.v-phiW.v) - (phiN.u-phiS.u));
-			b(ix,iy,iz).tmpU = vorticX;
-			b(ix,iy,iz).tmpV = vorticY;
-			b(ix,iy,iz).tmpW = vorticZ;
+			//b(ix,iy,iz).tmpU = vorticX;
+			//b(ix,iy,iz).tmpV = vorticY;
+			//b(ix,iy,iz).tmpW = vorticZ;
 
 			Real output[NCHANNELS];
 			for(int i=0; i<NCHANNELS; ++i) output[i] = 0;
@@ -159,9 +159,9 @@ class OperatorLoadFlat : public GenericLabOperator
 				const Real vorticX = inv2h * ((phiN.w-phiS.w) - (phiB.v-phiF.v));
 				const Real vorticY = inv2h * ((phiB.u-phiF.u) - (phiE.w-phiW.w));
 				const Real vorticZ = inv2h * ((phiE.v-phiW.v) - (phiN.u-phiS.u));
-				b(ix,iy,iz).tmpU = vorticX;
-				b(ix,iy,iz).tmpV = vorticY;
-				b(ix,iy,iz).tmpW = vorticZ;
+				//b(ix,iy,iz).tmpU = vorticX;
+				//b(ix,iy,iz).tmpV = vorticY;
+				//b(ix,iy,iz).tmpW = vorticZ;
 
 				Real output[NCHANNELS];
 				for(int i=0; i<NCHANNELS; ++i) output[i] = 0;

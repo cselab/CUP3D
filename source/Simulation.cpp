@@ -263,10 +263,11 @@ void Simulation::_selectDT()
   //if (saveTime>0) dt = min(dt,nextSaveTime-time);
   //if (endTime>0)  dt = min(dt,endTime-time);
 
-  if ( step<100 ) {
-    const double dt_max = 100*CFL*h;
-    const double dt_min = .01*CFL*h;
-    const double dt_ramp = dt_min + (dt_max-dt_min)*std::pow(step/100.0, 2);
+  if ( step<1000 ) {
+    const double dt_max =  1e2*CFL*h;
+    const double dt_min = 1e-2*CFL*h;
+    //const double dt_ramp = dt_min + (dt_max-dt_min)*std::pow(step/1000.0, 2);
+    const double dt_ramp = dt_min + (dt_max-dt_min)*(step/1000.0);
     if (dt_ramp<dt) {
       dt = dt_ramp;
       if(rank==0) printf("Dt bounded by ramp-up: dt_ramp=%f\n",dt_ramp);
@@ -382,6 +383,7 @@ void Simulation::simulate()
       profiler.push_start(pipeline[c]->getName());
       (*pipeline[c])(dt);
       profiler.pop_stop();
+      //_dump(pipeline[c]->getName());
     }
     step++;
     time+=dt;

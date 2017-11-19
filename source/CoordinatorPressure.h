@@ -62,12 +62,11 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 {
  private:
   const double dt;
-  const Real extent[3];
   PressureSolver*const solver;
 
  public:
-  OperatorDivergenceMinusDivTmpU(double _dt, const Real ext[3], PressureSolver*const s)
-  : dt(_dt), extent{ext[0],ext[1],ext[2]}, solver(s)
+  OperatorDivergenceMinusDivTmpU(double _dt, PressureSolver*const s)
+  : dt(_dt), solver(s)
   {
     stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 6, 1,2,3,5,6,7);
     stencil_start[0] = -1; stencil_start[1] = -1;  stencil_start[2] = -1;
@@ -92,6 +91,7 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
       const Real dVdef = lab(ix  ,iy+1,iz  ).tmpV - lab(ix  ,iy-1,iz  ).tmpV;
       const Real dWdef = lab(ix  ,iy  ,iz+1).tmpW - lab(ix  ,iy  ,iz-1).tmpW;
       const Real ret = fac*(dU+dV+dW -lab(ix,iy,iz).chi*(dUdef+dVdef+dWdef));
+      //o(ix,iy,iz).p = ret; 
       solver->_cub2fftw(offset, iz, iy, ix, ret);
     }
   }
@@ -101,9 +101,10 @@ class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
 {
  private:
   Real dt;
+  PressureSolver*const solver;
 
  public:
-  OperatorDivergenceMinusDivTmpU2ndOrder(Real dt) : dt(dt)
+  OperatorDivergenceMinusDivTmpU2ndOrder(Real dt, PressureSolver*const s) : dt(dt), solver(s)
   {
     stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 6, 1,2,3,5,6,7);
     stencil_start[0] = -2; stencil_start[1] = -2;  stencil_start[2] = -2;
@@ -114,6 +115,7 @@ class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
+    const size_t offset = solver->_offset_ext(info);
     const Real factor = 1./(12.*info.h_gridpoint);
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -135,8 +137,9 @@ class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
 
       const Real tmp1 = 8*(dU + dV + dW) - (dU2 + dV2 + dW2);
       const Real tmp2 = 8*(dUdef + dVdef + dWdef) - (dUdef2 + dVdef2 + dWdef2);
-      o(ix,iy,iz).p = factor*(tmp1 -o(ix,iy,iz).chi*tmp2);
-      //o(ix,iy,iz).chi = o(ix,iy,iz).p;
+      const Real ret  = factor*(tmp1 -o(ix,iy,iz).chi*tmp2);
+      solver->_cub2fftw(offset, iz, iy, ix, ret);
+      //o(ix,iy,iz).p = ret;
     }
   }
 };
@@ -233,7 +236,7 @@ class CoordinatorPressure : public GenericCoordinator
     {
       const int N = vInfo.size();
       #pragma omp for schedule(static)
-      for(int i=0; i<vInfo.size(); i++) {
+      for(int i=0; i<N; i++) {
         BlockInfo info = vInfo[i];
         FluidBlock& b = *(FluidBlock*)info.ptrBlock;
         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -261,7 +264,7 @@ class CoordinatorPressure : public GenericCoordinator
       //where i want div u^(t+1) to be equal to div udef
       vector<OperatorDivergenceMinusDivTmpU*> diff(nthreads, nullptr);
       for(int i=0;i<nthreads;++i)
-        diff[i] = new OperatorDivergenceMinusDivTmpU(dt, ext, &pressureSolver);
+        diff[i] = new OperatorDivergenceMinusDivTmpU(dt, &pressureSolver);
 
       compute<OperatorDivergenceMinusDivTmpU>(diff);
       for(int i=0; i<nthreads; i++) delete diff[i];

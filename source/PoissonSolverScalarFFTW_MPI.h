@@ -196,10 +196,11 @@ protected:
       const int linidx = (j*nx+i)*nz_hat + k;
       //assert(linidx >=0 && linidx<nx*ny*nz_hat); // linking error with openmp
       const int kx=(i <= nx/2) ? i : -(nx-i);
-      const int ky=(local_1_start+j<=ny/2)?local_1_start+j : local_1_start+j-ny;
+      const int ky=(local_1_start+j<=ny/2)?local_1_start+j : -(ny-(local_1_start+j));
+      //const int ky=(local_1_start+j<=ny/2)?local_1_start+j : local_1_start+j-ny;
       const int kz=(k <= nz/2) ? k : -(nz-k);
       const Real rkx = kx*waveFactX, rky = ky*waveFactY, rkz = kz*waveFactZ;
-      const Real kinv = kx || ky || kz ? -1/Real(rkx*rkx+rky*rky+rkz*rkz) : 0;
+      const Real kinv = (kx==0 && ky==0 && kz==0) ? 0 : -1/(rkx*rkx+rky*rky+rkz*rkz);
       in_out[linidx][0] *= kinv*norm_factor;
       in_out[linidx][1] *= kinv*norm_factor;
     }
@@ -222,10 +223,16 @@ public:
     }
     MPI_Comm comm = grid.getCartComm();
     _setup(data, gsize[0], gsize[1], gsize[2],comm);
+    std::cout <<    bs[0] << " " <<    bs[1] << " " <<    bs[2] << " ";
+    std::cout <<   myN[0] << " " <<   myN[1] << " " <<   myN[2] << " ";
+    std::cout << gsize[0] << " " << gsize[1] << " " << gsize[2] << " ";
+    std::cout << mybpd[0] << " " << mybpd[1] << " " << mybpd[2] << std::endl;
   }
 
   void solve()
   {
+    //_cub2fftw(data);
+
     #ifndef _SP_COMP_
     fftw_execute(fwd);
     #else
@@ -311,7 +318,8 @@ public:
       for(int iz=0; iz<BlockType::sizeZ; iz++) {
         const size_t dest_index = _dest(offset, iz, iy, ix);
         assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*nz_hat*2);
-        TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
+        out[dest_index] = b(ix,iy,iz).p;
+        //TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
       }
     }
   }
