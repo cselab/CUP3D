@@ -183,6 +183,37 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 	double hinge2Loc[3] = {myFish->rX[hinge2Index], myFish->rY[hinge2Index], 0.0};
 	PutFishOnBlocks dummy(myFish, position, quaternion);
 	dummy.changeToComputationalFrame(hinge2Loc);
+	//CAREFUL: this func assumes everything is already centered around CM to start with, which is true (see steps 2. & 3. ...) for rX, rY: they are zero at CM, negative before and + after
+
+	// To output the raw midlines
+	#if 0
+	// Check if we must take a dump
+        double currentDumpFactor = time/0.0001;
+	int rank;
+	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+        if((std::floor(currentDumpFactor) > previousDumpFactor) & rank==0 ){
+		//dumpNow = true;
+		char buf[500];
+		sprintf(buf, "midline_%07d.txt", step_id);
+		FILE * f = fopen(buf,"w");
+		fprintf(f, "s x y xGlob yGlob uBody vBody\n");
+		for (int i=0; i<myFish->Nm; i++){
+			double temp[3] = {myFish->rX[i], myFish->rY[i], 0.0};
+			dummy.changeToComputationalFrame(temp);
+			Real udef[3] = {myFish->vX[i], myFish->vY[i], 0.0};
+			dummy.changeVelocityToComputationalFrame(udef);
+
+			fprintf(f, "%g %g %g %g %g %g %g\n",
+                        myFish->rS[i],myFish->rX[i],myFish->rY[i],
+			temp[0], temp[1],
+			udef[0], udef[1]);
+		}
+		printf("Dumped midline\n");
+		fclose(f);
+        }
+        previousDumpFactor = floor(currentDumpFactor);
+	#endif
 
 	// 4. & 5.
 	std::vector<VolumeSegment_OBB> vSegments(Nsegments);
@@ -225,8 +256,7 @@ void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt,
 			Real pStart[3], pEnd[3];
 			info.pos(pStart, 0, 0, 0);
 			info.pos(pEnd, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-			//const Real safe_distance = 2.0*info.h_gridpoint; // two points on each side			
-			const Real safe_distance = info.h_gridpoint; // one point on each side for Towers
+			const Real safe_distance = 2.0*info.h_gridpoint; // two points on each side
 
 			for(int s=0;s<Nsegments;++s)
 				if(vSegments[s].isIntersectingWithAABB(pStart,pEnd,safe_distance))
@@ -405,6 +435,41 @@ void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 	parser.set_strict_mode();
 	parser.unset_strict_mode();
 	Tperiod = parser("-T").asDouble(1.0);
+
+	const bool optimizeT = parser("-optimizeT").asBool(false);
+	if(optimizeT){
+
+		char line[256];
+		FILE *f = fopen("hingedParams.txt", "r");
+		if(f==NULL){
+			printf("hingedParams not found!\n"); abort();
+		}
+
+		double tvalue=0.0;
+		int line_no = 0;
+
+		while (fgets(line, 256, f)!= NULL) {
+			if ((line[0] == '#')||(strlen(line)==0)) {
+				printf("ignoring line %d\n", line_no);
+				continue;
+			}
+
+			if (strstr(line, "T=")) {
+				sscanf(line, "T=%lf", &tvalue);
+			}
+			line_no++;
+		}
+		if(tvalue==0.0){
+			printf("Correct T=?? not found in hingedParams.txt\n");
+			fflush(0);
+			abort();
+		}
+		Tperiod = tvalue;
+		printf("Tperiod overwritten: %f\n", Tperiod);
+		assert(Tperiod >0.0);
+		fclose(f);
+	}
+
 	nActions = parser("-nActions").asInt(0);
 	GoalDX = parser("-GoalDX").asDouble(2.0);
 	phaseShift = parser("-phi").asDouble(0.0);

@@ -27,6 +27,7 @@ protected:
     bool randomStart, bCorrectTrajectory;
     int  nActions, NpLatLine;
 		const Real* ptrUinf_copy;
+		int previousDumpFactor= -1;
 public:
 
     IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser);

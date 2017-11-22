@@ -1,9 +1,7 @@
 CC=CC
 LD=CC
-#accfft-inc = /users/novatig/accfft/build_again/include/
-#accfft-lib = /users/novatig/accfft/build_again/lib/ 
-accfft-inc = /users/novatig/accfft/build_dbg/include/
-accfft-lib = /users/novatig/accfft/build_dbg/lib/ 
+accfft-inc = /users/sverma/novatig_accfft/build_dbg/include/
+accfft-lib = /users/sverma/novatig_accfft/build_dbg/lib/
 #fftw-inc = /opt/fftw/3.3.4.0/sandybridge/include/
 #fftw-lib = /opt/fftw/3.3.4.0/sandybridge/lib/
 #hdf-inc = ${HDF5_DIR}/include

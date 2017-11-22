@@ -1,5 +1,9 @@
 CC=mpic++
 LD=mpic++
 accfft=false
-hdf=false
-#LIBS += -lmpi -lmpicxx -lmpich -lsz
+#hdf=false
+
+hdf-inc = /cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/include
+hdf-lib = /cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib
+CPPFLAGS += -I$(hdf-inc)
+LIBS +=  -L$(hdf-lib)

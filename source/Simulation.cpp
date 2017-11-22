@@ -36,7 +36,12 @@ void Simulation::setupGrid()
   else           nprocsx = parser("-nprocsx").asInt();
 	parser.unset_strict_mode();
 	nprocsz = 1;
-	assert(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0);
+	//assert(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0);
+        if( not(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0) ){
+                printf("Domain decomposition nicht gut! bpd*/nproc* should be an integer");
+                abort();
+        }
+
 
 	bpdx /= nprocsx;
 	bpdy /= nprocsy;
@@ -116,13 +121,13 @@ void Simulation::setupOperators()
 {
     pipeline.clear();
     pipeline.push_back(new CoordinatorComputeShape(grid, &obstacle_vector, &step, &time, uinf));
+    pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
+    pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
     pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
     if(nu>0)
     	pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
-    pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
     pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
     pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
-    //pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
     //#ifndef _OPEN_BC_
     pipeline.push_back(new CoordinatorFadeOut(grid));
     //#endif
@@ -297,8 +302,9 @@ void Simulation::_deserialize()
   }
 	assert(f != NULL);
 
-	float val = -1;
-	fscanf(f, "time: %e\n", &val);
+	double val = -1;
+
+	fscanf(f, "time: %lg\n", &val);
 	assert(val>=0);
 	time=val;
 
@@ -306,12 +312,18 @@ void Simulation::_deserialize()
 	fscanf(f, "stepid: %d\n", &step_id_fake);
 	assert(step_id_fake >= 0);
 	step = step_id_fake;
+printf("stepId = %d\n", step);
+
+  val = -1e12;
   int ret = 0;
-	ret = fscanf(f, "uinfx: %e\n", &val);
+	ret = fscanf(f, "uinfx: %lg\n", &val);
+	printf("uinfx = %lg\n", val);
   if (ret) uinf[0] = val;
-	ret = fscanf(f, "uinfy: %e\n", &val);
+	ret = fscanf(f, "uinfy: %lg\n", &val);
+	printf("uinfy = %lg\n", val);
   if (ret) uinf[1] = val;
-	ret = fscanf(f, "uinfz: %e\n", &val);
+	ret = fscanf(f, "uinfz: %lg\n", &val);
+	printf("uinfz = %lg\n", val);
   if (ret) uinf[2] = val;
 	fclose(f);
 

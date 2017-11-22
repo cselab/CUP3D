@@ -155,9 +155,9 @@ struct ObstacleBlock
     static const int sizeX = _BSX_;
     static const int sizeY = _BSY_;
     static const int sizeZ = _BSZ_;
-    Real chi[sizeX][sizeY][sizeZ];
-    Real udef[sizeX][sizeY][sizeZ][3];
-    int sectionMarker[sizeX][sizeY][sizeZ];
+    Real chi[sizeZ][sizeY][sizeX];
+    Real udef[sizeZ][sizeY][sizeX][3];
+    float sectionMarker[sizeZ][sizeY][sizeX];
     int hinge2Index;
     double hinge2LabFrame[3] = {0.0};
 
@@ -165,7 +165,7 @@ struct ObstacleBlock
     {
         memset(chi, 0, sizeof(Real)*sizeX*sizeY*sizeZ);
         memset(udef, 0, sizeof(Real)*sizeX*sizeY*sizeZ*3);
-	memset(sectionMarker, 0, sizeof(int)*sizeX*sizeY*sizeZ);
+	memset(sectionMarker, 0, sizeof(sectionMarker[0][0][0])*sizeX*sizeY*sizeZ);
 	hinge2Index = -100;
     }
 
@@ -315,13 +315,14 @@ struct surfacePoints
     Real *fxP, *fyP, *fzP, *fxV, *fyV, *fzV;
     Real *vx, *vy, *vz, *vxDef, *vyDef, *vzDef;
     Real *chi, *thrust, *pThrust, *pDef;
+    Real *ss;
     int Ndata, nAlloc, nMapped, *gridMap;
     vector<surfData*> Set;
 
     surfacePoints() :
     	Ndata(0), nAlloc(0), nMapped(0), pX(nullptr), pY(nullptr), pZ(nullptr), P(nullptr),
     fX(nullptr), fY(nullptr), fZ(nullptr), fxP(nullptr), fyP(nullptr), fzP(nullptr), fxV(nullptr), fyV(nullptr), fzV(nullptr),
-    vx(nullptr), vy(nullptr), vz(nullptr), vxDef(nullptr), vyDef(nullptr), vzDef(nullptr), gridMap(nullptr), chi(nullptr), thrust(nullptr), pThrust(nullptr), pDef(nullptr)
+    vx(nullptr), vy(nullptr), vz(nullptr), vxDef(nullptr), vyDef(nullptr), vzDef(nullptr), gridMap(nullptr), chi(nullptr), thrust(nullptr), pThrust(nullptr), pDef(nullptr), ss(nullptr)
     { }
 
     ~surfacePoints()
@@ -350,6 +351,7 @@ struct surfacePoints
         if(thrust  not_eq nullptr){delete[] thrust;  thrust=nullptr; }
         if(pThrust not_eq nullptr){delete[] pThrust; pThrust=nullptr;}
         if(pDef    not_eq nullptr){delete[] pDef;    pDef=nullptr;   }
+        if(ss	   not_eq nullptr){delete[] ss;      ss=nullptr;     }
     }
 
     void _add(const surfData* c)
@@ -395,14 +397,17 @@ struct surfacePoints
             if(pThrust not_eq nullptr){delete[] pThrust; pThrust=nullptr;}
             if(pDef    not_eq nullptr){delete[] pDef;    pDef=nullptr;   }
 
-            pX      = new Real[nAlloc]; pY      = new Real[nAlloc]; pZ      = new Real[nAlloc];
-            fX      = new Real[nAlloc]; fY      = new Real[nAlloc]; fZ      = new Real[nAlloc];
-            fxP     = new Real[nAlloc]; fyP     = new Real[nAlloc]; fzP     = new Real[nAlloc];
-            fxV     = new Real[nAlloc]; fyV     = new Real[nAlloc]; fzV     = new Real[nAlloc];
-            vx      = new Real[nAlloc]; vy      = new Real[nAlloc]; vz      = new Real[nAlloc];
-            vxDef   = new Real[nAlloc]; vyDef   = new Real[nAlloc]; vzDef   = new Real[nAlloc];
-            P       = new Real[nAlloc]; gridMap = new  int[nAlloc]; chi     = new Real[nAlloc];
-	    thrust  = new Real[nAlloc]; pThrust = new Real[nAlloc]; pDef    = new Real[nAlloc];
+	    // Initialize all to zero. Otherwise will get infs when more points allocated than needed.
+	    pX      = new Real[nAlloc](); pY      = new Real[nAlloc](); pZ      = new Real[nAlloc]();
+	    fX      = new Real[nAlloc](); fY      = new Real[nAlloc](); fZ      = new Real[nAlloc]();
+	    fxP     = new Real[nAlloc](); fyP     = new Real[nAlloc](); fzP     = new Real[nAlloc]();
+	    fxV     = new Real[nAlloc](); fyV     = new Real[nAlloc](); fzV     = new Real[nAlloc]();
+	    vx      = new Real[nAlloc](); vy      = new Real[nAlloc](); vz      = new Real[nAlloc]();
+	    vxDef   = new Real[nAlloc](); vyDef   = new Real[nAlloc](); vzDef   = new Real[nAlloc]();
+	    P       = new Real[nAlloc](); gridMap = new  int[nAlloc](); chi     = new Real[nAlloc]();
+	    thrust  = new Real[nAlloc](); pThrust = new Real[nAlloc](); pDef    = new Real[nAlloc]();
+	    ss	    = new Real[nAlloc]();
+
         }
 
         #ifndef NDEBUG
@@ -438,18 +443,18 @@ struct surfacePoints
         string filename(buf);
         fileskin.open(filename, ios::trunc);
 
-        //fileskin<< "x,y,z,chi,thrust,pDef,pThrust,press,fxP,fyP,fzP,fxV,fyV,fzV,vx,vy,vz,vxDef,vyDef,vzDef"<<endl;
-        fileskin<< "x,y,z,normX,normY,normZ,chi,thrust,pDef,pThrust,press,vx,vy,vz,vxDef,vyDef,vzDef"<<endl;
+        fileskin<<"ss,x,y,z,normX,normY,normZ,chi,thrust,pDef,press,fxP,fyP,fzP,fxV,fyV,fzV,vx,vy,vz,vxDef,vyDef,vzDef"<<endl;
 
         for(int i=0; i<Ndata; ++i) {
-            fileskin<< pX[i]<<","<< pY[i]<<","<< pZ[i]<<","
-                    <<Set[i]->dchidx<<","<<Set[i]->dchidy<<","<<Set[i]->dchidz<<","
-                    <<chi[i]<<","<< thrust[i]<<","<< pDef[i]<<","<< pThrust[i]<< ","
-                    <<P[i]<<","
-                    //<<fxP[i]<<","<<fyP[i]<<","<<fzP[i]<<","
-                    //<<fxV[i]<<","<<fyV[i]<<","<<fzV[i]<<","
-                    << vx[i]<<","<< vy[i]<<","<< vz[i]<<","
-                    <<vxDef[i]<<","<<vyDef[i]<<","<<vzDef[i]<<endl;
+		if(chi[i] != 0.0){
+			fileskin<< ss[i] << "," << pX[i]<<","<< pY[i]<<","<< pZ[i]<<","
+				<<Set[i]->dchidx<<","<<Set[i]->dchidy<<","<<Set[i]->dchidz<<","
+				<<chi[i]<<","<< thrust[i]<<","<< pDef[i]<<","
+				<<P[i]<<","<<fxP[i]<<","<<fyP[i]<<","<<fzP[i]<<","
+				<<fxV[i]<<","<<fyV[i]<<","<<fzV[i]<<","
+				<< vx[i]<<","<< vy[i]<<","<< vz[i]<<","
+				<<vxDef[i]<<","<<vyDef[i]<<","<<vzDef[i]<<endl;
+		}
         }
         fileskin.close();
     }

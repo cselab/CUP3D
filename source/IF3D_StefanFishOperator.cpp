@@ -8,6 +8,7 @@
 
 #include "IF3D_StefanFishOperator.h"
 #include "IF3D_FishLibrary.h"
+#include <random>
 
 void IF3D_StefanFishOperator::save(const int step_id, const Real t, std::string filename)
 {

@@ -48,85 +48,96 @@ struct ForcesOnSkin : public GenericLabOperator
       const Real _1oH = NU / info.h_gridpoint; // 2 nu / 2 h
 
 
-      //loop over elements of block info that have nonzero gradChi
+      //loop over elements of block info that have nonzero gradChi && Non zero chi
       for(int i=first; i<second; i++) { //i now is a fluid element
-          assert(first<second && surfData->Set.size()>=second);
-          Real p[3];
-          const int ix = surfData->Set[i]->ix;
-          const int iy = surfData->Set[i]->iy;
-          const int iz = surfData->Set[i]->iz;
-          info.pos(p, ix, iy, iz);
 
-          //shear stresses
-          const Real D11 =    _1oH*(lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u);
-          const Real D22 =    _1oH*(lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v);
-          const Real D33 =    _1oH*(lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w);
-          const Real D12 = .5*_1oH*(lab(ix,iy+1,iz).u - lab(ix,iy-1,iz).u
-          				                 +lab(ix+1,iy,iz).v - lab(ix-1,iy,iz).v);
-          const Real D13 = .5*_1oH*(lab(ix,iy,iz+1).u - lab(ix,iy,iz-1).u
-        				                   +lab(ix+1,iy,iz).w - lab(ix-1,iy,iz).w);
-          const Real D23 = .5*_1oH*(lab(ix,iy+1,iz).w - lab(ix,iy-1,iz).w
-          				                 +lab(ix,iy,iz+1).v - lab(ix,iy,iz-1).v);
 
-          //normals computed with Towers 2009
-	  // Actually using the volume integral, since (\iint -P \hat{n} dS) = (\iiint -\nabla P dV). Also, P*\nabla\Chi = \nabla P
- 	  // penalty-accel and surf-force match up if resolution is high enough (200 points per fish)
-          const Real normX = surfData->Set[i]->dchidx;
-          const Real normY = surfData->Set[i]->dchidy;
-          const Real normZ = surfData->Set[i]->dchidz; // * _h3 (premultiplied into nablaChi)
-          const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
-          const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
-          const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
-          const Real fXP = -b(ix,iy,iz).p * normX;
-          const Real fYP = -b(ix,iy,iz).p * normY;
-          const Real fZP = -b(ix,iy,iz).p * normZ;
-          const Real fXT = fXV+fXP;
-          const Real fYT = fYV+fYP;
-          const Real fZT = fZV+fZP;
-          //store:
-          surfData->P[i]  = b(ix,iy,iz).p;
-          surfData->fX[i] = fXT;  surfData->fY[i] = fYT;  surfData->fZ[i] = fZT;
-          surfData->fxP[i] = fXP; surfData->fyP[i] = fYP; surfData->fzP[i] = fZP;
-          surfData->fxV[i] = fXV; surfData->fyV[i] = fYV; surfData->fzV[i] = fZV;
-          surfData->pX[i] = p[0]; surfData->pY[i] = p[1]; surfData->pZ[i] = p[2];
-          //perimeter:
-          (*measures)[0] += surfData->Set[i]->delta;
-          //forces (total, visc, pressure):
-          (*measures)[1] += fXT; (*measures)[2] += fYT; (*measures)[3] += fZT;
-          (*measures)[4] += fXP; (*measures)[5] += fYP; (*measures)[6] += fZP;
-          (*measures)[7] += fXV; (*measures)[8] += fYV; (*measures)[9] += fZV;
-          //torques:
-          (*measures)[16] += (p[1]-CM[1])*fZT - (p[2]-CM[2])*fYT;
-          (*measures)[17] += (p[2]-CM[2])*fXT - (p[0]-CM[0])*fZT;
-          (*measures)[18] += (p[0]-CM[0])*fYT - (p[1]-CM[1])*fXT;
+	      assert(first<second && surfData->Set.size()>=second);
+	      Real p[3];
+	      const int ix = surfData->Set[i]->ix;
+	      const int iy = surfData->Set[i]->iy;
+	      const int iz = surfData->Set[i]->iz;
+	      info.pos(p, ix, iy, iz);
 
-	  if(tempIt->second->sectionMarker[iz][iy][ix] > 0){
-		  const double * const pHinge2 = tempIt->second->hinge2LabFrame;
-		  (*measures)[19] += (p[1]-pHinge2[1])*fZT - (p[2]-pHinge2[2])*fYT;
-		  (*measures)[20] += (p[2]-pHinge2[2])*fXT - (p[0]-pHinge2[0])*fZT;
-		  (*measures)[21] += (p[0]-pHinge2[0])*fYT - (p[1]-pHinge2[1])*fXT;
-	  }
+	      if(tempIt->second->chi[iz][iy][ix] != 0.0){ // WAS A SOURCE OF HUGE BUG - due to unzeroed values in surfData arrays. The kid had forgotten to initialize allocated arrays in surfData to zero!!
+//{
+		      //shear stresses
+		      const Real D11 =    _1oH*(lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u);
+		      const Real D22 =    _1oH*(lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v);
+		      const Real D33 =    _1oH*(lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w);
+		      const Real D12 = .5*_1oH*(lab(ix,iy+1,iz).u - lab(ix,iy-1,iz).u
+				      +lab(ix+1,iy,iz).v - lab(ix-1,iy,iz).v);
+		      const Real D13 = .5*_1oH*(lab(ix,iy,iz+1).u - lab(ix,iy,iz-1).u
+				      +lab(ix+1,iy,iz).w - lab(ix-1,iy,iz).w);
+		      const Real D23 = .5*_1oH*(lab(ix,iy+1,iz).w - lab(ix,iy-1,iz).w
+				      +lab(ix,iy,iz+1).v - lab(ix,iy,iz-1).v);
 
-          //thrust, drag:
-          const Real forcePar = fXT*vel_unit[0] + fYT*vel_unit[1] + fZT*vel_unit[2];
-          (*measures)[10] += .5*(forcePar + std::abs(forcePar));
-          (*measures)[11] -= .5*(forcePar - std::abs(forcePar));
-          //save velocities in case of dump:
-          surfData->vxDef[i] = tempIt->second->udef[iz][iy][ix][0];
-          surfData->vyDef[i] = tempIt->second->udef[iz][iy][ix][1];
-          surfData->vzDef[i] = tempIt->second->udef[iz][iy][ix][2];
-          surfData->vx[i] = lab(ix,iy,iz).u ;
-          surfData->vy[i] = lab(ix,iy,iz).v ;
-          surfData->vz[i] = lab(ix,iy,iz).w ;
-          //power output (and negative definite variant which ensures no elastic energy absorption)
-	  // This is total power, for overcoming not only deformation, but also the oncoming velocity. Work done by fluid, not by the object (for that, just take -ve)
-          const Real powOut = fXT*(surfData->vx[i]+Uinf[0]) + fYT*(surfData->vy[i]+Uinf[1]) + fZT*(surfData->vz[i]+Uinf[2]);
-          //deformation power output (and negative definite variant which ensures no elastic energy absorption)
-          const Real powDef = fXT*surfData->vxDef[i] + fYT*surfData->vyDef[i] + fZT*surfData->vzDef[i];
-          (*measures)[12] += powOut;
-          (*measures)[13] += min((Real)0., powOut);
-          (*measures)[14] += powDef;
-          (*measures)[15] += min((Real)0., powDef);
+		      //normals computed with Towers 2009
+		      // Actually using the volume integral, since (\iint -P \hat{n} dS) = (\iiint -\nabla P dV). Also, P*\nabla\Chi = \nabla P
+		      // penalty-accel and surf-force match up if resolution is high enough (200 points per fish)
+		      const Real normX = surfData->Set[i]->dchidx;
+		      const Real normY = surfData->Set[i]->dchidy;
+		      const Real normZ = surfData->Set[i]->dchidz; // * _h3 (premultiplied into nablaChi)
+		      const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
+		      const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
+		      const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
+		      const Real fXP = -b(ix,iy,iz).p * normX;
+		      const Real fYP = -b(ix,iy,iz).p * normY;
+		      const Real fZP = -b(ix,iy,iz).p * normZ;
+		      const Real fXT = fXV+fXP;
+		      const Real fYT = fYV+fYP;
+		      const Real fZT = fZV+fZP;
+		      //store:
+		      surfData->P[i]  = b(ix,iy,iz).p;
+		      surfData->fX[i] = fXT;  surfData->fY[i] = fYT;  surfData->fZ[i] = fZT;
+		      surfData->fxP[i] = fXP; surfData->fyP[i] = fYP; surfData->fzP[i] = fZP;
+		      surfData->fxV[i] = fXV; surfData->fyV[i] = fYV; surfData->fzV[i] = fZV;
+		      surfData->pX[i] = p[0]; surfData->pY[i] = p[1]; surfData->pZ[i] = p[2];
+		      surfData->ss[i] = tempIt->second->sectionMarker[iz][iy][ix]; 
+		      surfData->chi[i] = tempIt->second->chi[iz][iy][ix]; 
+		      //perimeter:
+		      (*measures)[0] += surfData->Set[i]->delta;
+		      //forces (total, visc, pressure):
+		      (*measures)[1] += fXT; (*measures)[2] += fYT; (*measures)[3] += fZT;
+		      (*measures)[4] += fXP; (*measures)[5] += fYP; (*measures)[6] += fZP;
+		      (*measures)[7] += fXV; (*measures)[8] += fYV; (*measures)[9] += fZV;
+		      //torques:
+		      (*measures)[16] += (p[1]-CM[1])*fZT - (p[2]-CM[2])*fYT;
+		      (*measures)[17] += (p[2]-CM[2])*fXT - (p[0]-CM[0])*fZT;
+		      (*measures)[18] += (p[0]-CM[0])*fYT - (p[1]-CM[1])*fXT;
+
+		      /*// Compute torque for passive hinge
+			if(tempIt->second->sectionMarker[iz][iy][ix] > 0.0){
+			const double * const pHinge2 = tempIt->second->hinge2LabFrame;
+			(*measures)[19] += (p[1]-pHinge2[1])*fZT - (p[2]-pHinge2[2])*fYT;
+			(*measures)[20] += (p[2]-pHinge2[2])*fXT - (p[0]-pHinge2[0])*fZT;
+			(*measures)[21] += (p[0]-pHinge2[0])*fYT - (p[1]-pHinge2[1])*fXT;
+			}*/
+
+		      //thrust, drag:
+		      const Real forcePar = fXT*vel_unit[0] + fYT*vel_unit[1] + fZT*vel_unit[2];
+		      surfData->thrust[i] = forcePar;
+		      // Now break it up into forward and rear-facing components
+		      (*measures)[10] += .5*(forcePar + std::abs(forcePar));
+		      (*measures)[11] -= .5*(forcePar - std::abs(forcePar));
+		      //save velocities in case of dump:
+		      surfData->vxDef[i] = tempIt->second->udef[iz][iy][ix][0];
+		      surfData->vyDef[i] = tempIt->second->udef[iz][iy][ix][1];
+		      surfData->vzDef[i] = tempIt->second->udef[iz][iy][ix][2];
+		      surfData->vx[i] = lab(ix,iy,iz).u ;
+		      surfData->vy[i] = lab(ix,iy,iz).v ;
+		      surfData->vz[i] = lab(ix,iy,iz).w ;
+		      //power output (and negative definite variant which ensures no elastic energy absorption)
+		      // This is total power, for overcoming not only deformation, but also the oncoming velocity. Work done by fluid, not by the object (for that, just take -ve)
+		      const Real powOut = fXT*(surfData->vx[i]+Uinf[0]) + fYT*(surfData->vy[i]+Uinf[1]) + fZT*(surfData->vz[i]+Uinf[2]);
+		      //deformation power output (and negative definite variant which ensures no elastic energy absorption)
+		      const Real powDef = fXT*surfData->vxDef[i] + fYT*surfData->vyDef[i] + fZT*surfData->vzDef[i];
+		      surfData->pDef[i] = powDef;
+		      (*measures)[12] += powOut;
+		      (*measures)[13] += min((Real)0., powOut);
+		      (*measures)[14] += powDef;
+		      (*measures)[15] += min((Real)0., powDef);
+	      }
 	  }
 	}
 };
@@ -838,8 +849,8 @@ static const int nQoI = 22;
   surfForce[0]= globalSum[1];
   surfForce[1]= globalSum[2];
   surfForce[2]= globalSum[3];
-  drag	   	  = globalSum[10];
-  thrust		  = globalSum[11];
+  thrust   	  = globalSum[10];
+  drag		  = globalSum[11];
   Pout     	  = globalSum[12];
   PoutBnd     = globalSum[13];
   defPower 	  = globalSum[14];

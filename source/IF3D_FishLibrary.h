@@ -332,11 +332,35 @@ class FishMidlineData
 	Schedulers::ParameterSchedulerVector<6> adjustScheduler;
 	FishSkin * upperSkin, * lowerSkin;
 	//Real finSize = 1.1e-1, waveLength = 1.0;
-	Real finSize = 3.6e-1, waveLength = 1.0;
+	Real finSize = 0.0e-1, waveLength = 1.0; // For curvalicious fin
 
  protected:
 	Real Rmatrix2D[2][2];
 	Real Rmatrix3D[3][3];
+
+	inline Real _naca_width(const double s, const Real L, const double t_ratio=0.12)
+	{
+		if(s<0 or s>L) return 0;
+		const Real a = 0.2969;
+		const Real b =-0.1260;
+		const Real c =-0.3516;
+		const Real d = 0.2843;
+		const Real e =-0.1015;
+		//const Real t = 0.12*L;
+		const Real t = t_ratio*L;
+		const Real p = s/L;
+
+		/*if(s>0.99*L){ // Go linear, otherwise trailing edge is not closed - NACA analytical's fault
+			const Real temp = 0.99;
+			const Real y1 = 5*t* (a*sqrt(temp) +b*temp +c*temp*temp +d*temp*temp*temp + e*temp*temp*temp*temp);
+			const Real dydx = (0-y1)/(L-0.99*L);
+			return y1 + dydx * (s - 0.99*L);
+		}else{ // NACA analytical
+			return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+		}*/
+
+		return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+	}
 
 	#ifndef __BSPLINE
 	inline Real _width(const Real s, const Real L)
@@ -477,9 +501,9 @@ class FishMidlineData
 	void _computeWidthsHeights()
 	{
 #ifdef __BSPLINE
-		const int nh = 8;
+		/*const int nh = 8;
 		const Real xh[8] = {0, 0, .2*length, .4*length,
-			.6*length, .8*length, length, length};
+			.6*length, .8*length, length, length};*/
 		// Slim Zebrafish
 		//const Real yh[8] = {0, 5.5e-2*length, 6.8e-2*length, 7.6e-2*length,
 		//	6.4e-2*length, 7.2e-3*length, 1.1e-1*length, 0};
@@ -488,25 +512,67 @@ class FishMidlineData
 		//const Real yh[8] = {0, 5.5e-2*length, 1.8e-1*length, 2e-1*length,
 		//	6.4e-2*length, 2e-3*length, 3.25e-1*length, 0};
 
-		printf("TailFinSize = %f, Wavelength = %f\n", finSize, waveLength);
+		/*printf("TailFinSize = %f, Wavelength = %f\n", finSize, waveLength);
 		fflush(NULL);
 		const Real yh[8] = {0, 5.5e-2*length, 1.8e-1*length, 2e-1*length,
-			6.4e-2*length, 2e-3*length, finSize*length, 0};
+			6.4e-2*length, 2e-3*length, finSize*length, 0};*/
 
-        const int nw = 6;
-        const Real xw[6] = {0, 0, length/3., 2*length/3., length, length};
-        const Real yw[6] = {0, 8.9e-2*length, 7.0e-2*length,
-		3.0e-2*length, 2.0e-2*length, 0};
-        //const Real yw[6] = {0, 8.9e-2*length, 1.7e-2*length,
-	//	1.6e-2*length, 1.3e-2*length, 0};
-		integrateBSpline(width,  xw, yw, nw);
+		// Tuna clone
+		const int nh = 9;
+		/*const Real xh[9] = {0, 0, 0.2*length, .4*length,
+			.6*length, .9*length, .96*length, length, length};
+		finSize = 0.23;
+		const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length,
+			1.1e-1*length, .0*length, 0.2*length, finSize*length, 0};
+printf("WARNING, CHANGED TAIL SHAPE TO INCREASE SURF AREA BY 10%\n");*/
+                /*const Real xh[9] = {0, 0, 0.2*length, .4*length,
+                        .6*length, .9*length, .96*length, length, length};
+                finSize = 0.23;
+                const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length,
+                        1.1e-1*length, .0*length, 0.14*length, finSize*length, 0};
+printf("WARNING, CHANGED TAIL FIN HEIGHT 10PERC LARGER\n");*/
+                const Real xh[9] = {0, 0, 0.2*length, .4*length, .6*length,
+                        .9*length, .96*length, length, length};
+                finSize = 0.2;
+                const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length, 1.1e-1*length,
+                        .0*length, 0.1*length, finSize*length, 0};
+printf("WARNING, CHANGED TAIL FIN HEIGHT EQUAL\n");
+
 		integrateBSpline(height, xh, yh, nh);
+
+		/*const int nw = 6;
+		const Real xw[6] = {0, 0, length/3., 2*length/3., length, length};
+		const Real yw[6] = {0, 8.9e-2*length, 7.0e-2*length,
+			3.0e-2*length, 2.0e-2*length, 0};
+		//const Real yw[6] = {0, 8.9e-2*length, 1.7e-2*length,
+		//	1.6e-2*length, 1.3e-2*length, 0};
+		integrateBSpline(width,  xw, yw, nw);*/
+
+		printf("TailFinSize = %f, Wavelength = %f\n", finSize, waveLength);
+		fflush(NULL);
+
+                const double tNACA = 0.15;
+		printf("NACA profile thickness = %f\n", tNACA);
+                for(int i=0;i<Nm;++i)
+                        width[i]  = _naca_width(rS[i],length,tNACA);
+
 	  #else
 		for(int i=0;i<Nm;++i) {
 			width[i]  = _width(rS[i],length);
 			height[i] = _height(rS[i],length);
 		}
 	  #endif
+
+	// output these suckers
+	FILE * heightWidth;
+	heightWidth = fopen("widthHeight.txt","w");
+	{
+		for(int i=0;i<Nm;++i) {
+			fprintf(heightWidth, "%f \t %f \t %f \n", rS[i], width[i], height[i]);
+		}
+	}
+	fclose(heightWidth);
+
 	}
 
 	void _computeMidlineNormals()
@@ -836,18 +902,6 @@ class FishMidlineData
 class NacaMidlineData : public FishMidlineData
 {
  protected:
-	inline Real _naca_width(const double s, const Real L)
-	{
-			if(s<0 or s>L) return 0;
-			const Real a = 0.2969;
-			const Real b =-0.1260;
-			const Real c =-0.3516;
-			const Real d = 0.2843;
-			const Real e =-0.1015;
-			const Real t = 0.12*L;
-			const Real p = s/L;
-			return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
-	}
 
 	void _naca_integrateBSpline(Real* const res, const Real* const xc,
 													 const Real* const yc, const int n)
@@ -946,12 +1000,15 @@ class CarlingFishMidlineData : public FishMidlineData
 	const Real fac, inv;
 	//const Real sHinge, AhingeTheta, ThingeTheta, hingePhi;
 	const Real sHinge, ThingeTheta;
+	Real sLeft, sRight;
 	Real AhingeTheta, hingePhi;
 	const bool bBurst, bHinge;
 	Real kSpring=0.0;
 	const Real kMaxSpring=100.0; // Expect torque values on the order of 1e-5 at steady, and 1e-3 at startup
 Real thetaOld = 0.0, avgTorque = 0.0, runningTorque = 0.0, timeNminus = 0.0;
 int prevTransition = 0;
+
+	Real aParabola, bParabola, cParabola;
 	const bool quadraticAmplitude;
 	const Real quadraticFactor = 0.1;
 
@@ -965,20 +1022,64 @@ int prevTransition = 0;
 		return (t<T ? 0.5*M_PI/T * std::cos(0.5*M_PI*t/T) : 0.0);
 	}
 
-	inline Real midline(const Real s, const Real t, const Real L, const Real T,
-		const Real phaseShift) const
+	inline Real getQuadAmp(const Real s, const Real L)
 	{
-		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
-		
+		return s*s*quadraticFactor/L;
+	}
+
+	inline Real getArg(const Real s, const Real L, const Real t, const Real T, const Real phaseShift)
+	{
+		return 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
+	}
+
+	inline void computeParabolaParams(const Real yLeft, const Real yPrimeLeft, const Real yPrimeRight)
+	{
+		aParabola = (yPrimeLeft-yPrimeRight)/(2*(sLeft-sRight));
+		bParabola = yPrimeRight - 2*aParabola*sRight;
+		cParabola = yLeft - aParabola*sLeft*sLeft - bParabola*sLeft;
+	}
+
+	Real getJointParabola(const Real s, const Real L)
+	{
+		return aParabola*s*s + bParabola*s + cParabola;
+	}
+
+	Real midline(const Real s, const Real t, const Real L, const Real T,
+		const Real phaseShift)// const
+		//const Real phaseShift) const
+	{
+		//const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
+		const Real arg = getArg(s, L, t, T, phaseShift);
+	
 		double yCurrent;
 		if(quadraticAmplitude){
-			yCurrent = (s*s*quadraticFactor/L) *std::sin(arg);
+			//yCurrent = (s*s*quadraticFactor/L) *std::sin(arg);
+			yCurrent = getQuadAmp(s,L) *std::sin(arg);
 		} else {
 			yCurrent = fac * (s + inv*L)*std::sin(arg);
 		}
 
+		// Just made the joint a whole lot more complicated. Now a smooth parabolic joint instead of a prick
 		if(bHinge){
-			if(s>sHinge){
+			if(not quadraticAmplitude) abort();
+			if(s>=sLeft){
+				const double yLeft = getQuadAmp(sLeft,L) * std::sin(getArg(sLeft,L,t,T,phaseShift));
+				const double yPrimeLeft = (2*quadraticFactor*sLeft/L) * sin(getArg(sLeft,L,t,T,phaseShift)) 
+					+ getQuadAmp(sLeft,L)*cos(getArg(sLeft,L,t,T,phaseShift))*2.0*M_PI/(L*waveLength);
+
+				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
+				const double yPrimeRight = std::sin(currentTheta);
+
+				computeParabolaParams(yLeft,yPrimeLeft, yPrimeRight);
+
+				yCurrent = getJointParabola(s,L);
+
+				if(s>=sRight){
+					const Real yRight = getJointParabola(sRight,L);
+					yCurrent = yRight + yPrimeRight*(s-sRight);
+				}
+			}
+			/*if(s>sHinge){
 				double yNot;
 				if(quadraticAmplitude){
 					yNot =  (sHinge*sHinge*quadraticFactor/L)*std::sin(2.0*M_PI*(sHinge/(waveLength*L) - t/T + phaseShift));
@@ -988,36 +1089,67 @@ int prevTransition = 0;
 				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
 				const double dydsNot = std::sin(currentTheta);
 				yCurrent = yNot + dydsNot*(s-sHinge);
-			}
+			}*/
                 }
                 return yCurrent;
 	}
 
 	inline Real midlineVel(const Real s, const Real t, const Real L, const Real T,
-		const Real phaseShift) const
+		const Real phaseShift)
+		//const Real phaseShift) const
 	{
 		const Real arg = 2.0*M_PI*(s/(waveLength*L) - t/T + phaseShift);
 		double velCurrent;
 		if(quadraticAmplitude){
-			velCurrent = - (s*s*quadraticFactor/L)*(2.0*M_PI/T)*std::cos(arg);
+			//velCurrent = - (s*s*quadraticFactor/L)*(2.0*M_PI/T)*std::cos(arg);
+			velCurrent = (-2.0*M_PI/T)*getQuadAmp(s,L)*std::cos(getArg(s, L, t, T, phaseShift));
 		}else{
 			velCurrent = - fac*(s + inv*L)*(2.0*M_PI/T)*std::cos(arg);
 		}
 
 		if(bHinge){
-			if(s>sHinge){
+			if(not quadraticAmplitude) abort();
+			if(s>=sLeft){
+				//const double yLeft = getQuadAmp(sLeft,L) * std::sin(getArg(sLeft,L,t,T,phaseShift));
+				const double yLeftDot  = (-2.0*M_PI/T) * getQuadAmp(sLeft,L)*std::cos(getArg(sLeft,L,t,T,phaseShift));
+				//const double yPrimeLeft = (2*quadraticFactor*sLeft/L) * sin(getArg(sLeft,L,t,T,phaseShift)) 
+				//	+ getQuadAmp(sLeft,L)*cos(getArg(sLeft,L,t,T,phaseShift))*2.0*M_PI/(L*waveLength);
+				const double yPrimeLeftDot = (2*quadraticFactor*sLeft/L) * (-2*M_PI/T) * std::cos(getArg(sLeft,L,t,T,phaseShift)) 
+					+ getQuadAmp(sLeft,L)*(2*M_PI/T)*sin(getArg(sLeft,L,t,T,phaseShift))*2.0*M_PI/(L*waveLength);
+
+				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
+				const double currentThetaDot = AhingeTheta * (2*M_PI/ThingeTheta)*std::cos(2.0*M_PI*(t/ThingeTheta + hingePhi));
+				//const double yPrimeRight = std::sin(currentTheta);
+        			const double yPrimeRightDot = std::cos(currentTheta)*currentThetaDot;
+
+				const double aDot = (yPrimeLeftDot - yPrimeRightDot)/(2*(sLeft-sRight));
+				const double bDot = yPrimeRightDot - 2*sRight*aDot;
+				const double cDot = yLeftDot - sLeft*sLeft*aDot - sLeft*bDot;
+				velCurrent = aDot*s*s + bDot*s + cDot;
+
+				if(s>=sRight){
+					//const Real yRight = getJointParabola(sRight,L);
+					//yCurrent = yRight + yPrimeRight*(s-sRight);
+					const Real yRightDot = aDot*sRight*sRight + bDot*sRight + cDot;
+					velCurrent = yRightDot + yPrimeRightDot*(s-sRight);
+				}
+			}
+			/*if(s>sHinge){
 				//const double yNot =  4./33 *  (sHinge + 0.03125*L)*std::sin(2.0*M_PI*(sHinge/L - t/T + phaseShift));
 				double velNot;
-				if(quadraticAmplitude){
-					velNot =  -2.0*M_PI/T * (sHinge*sHinge*quadraticFactor/L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
-				}else{
-					velNot =  -2.0*M_PI/T * fac *  (sHinge + inv*L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
-				}
+double velNot;
+-                               if(quadraticAmplitude){
+-                                       velNot =  -2.0*M_PI/T * (sHinge*sHinge*quadratic
+Factor/L)*std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
+-                               }else{
+-                                       velNot =  -2.0*M_PI/T * fac *  (sHinge + inv*L)*
+std::cos(2.0*M_PI*(sHinge/(L*waveLength) - t/T + phaseShift));
+-                               }
 				const double currentTheta = AhingeTheta * std::sin(2.0*M_PI*(t/ThingeTheta + hingePhi));
 				const double currentThetaDot = AhingeTheta * 2.0*M_PI/ThingeTheta * std::cos(2.0*M_PI*(t/ThingeTheta + hingePhi));
 				const double dydsNotDT = std::cos(currentTheta)*currentThetaDot;
 				velCurrent = velNot + dydsNotDT*(s-sHinge);
-			}
+			}*/
 		}
 		return velCurrent;
 	}
@@ -1068,7 +1200,7 @@ int prevTransition = 0;
 			const Real d = (time-tcoast)/(tfreeze-tcoast);
 			const std::pair<double, double> retVal = cubicHermite(1.0, lowestAmp, d);
 			f = retVal.first;
-			df = retVal.second;
+			df = retVal.second/(tfreeze-tcoast);
 			//f = 1 - 3*d*d + 2*d*d*d;
 		} else if (time<tburst) {
 			//f = 0.0;
@@ -1078,7 +1210,7 @@ int prevTransition = 0;
 			const Real d = (time-tburst)/(tswim-tburst);
 			const std::pair<double, double> retVal = cubicHermite(lowestAmp, 1.0, d);
 			f = retVal.first;
-			df = retVal.second;
+			df = retVal.second/(tswim-tburst);
 			//f = 3*d*d - 2*d*d*d;
 			//df = 6*(d - d*d)/(tswim-tburst);
 		} else {
@@ -1197,6 +1329,7 @@ int prevTransition = 0;
 
 	void _computeMidlineVelocities(const Real time)
 	{
+
 		const Real rampFac =    rampFactorSine(time, Tperiod);
 		const Real rampFacVel = rampFactorVelSine(time, Tperiod);
 
@@ -1292,8 +1425,9 @@ int prevTransition = 0;
 				reader >> _Ahinge;
 				reader >> _phiHinge;
 				reader >> waveLength;
-				reader >> finSize;
-				printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				//reader >> finSize;
+				//printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				printf("Read numbers = %f, %f, %f\n", _Ahinge, _phiHinge, waveLength);
 				if(reader.eof()){
 					cout << "Insufficient number of parameters provided for hingedFin" << endl; fflush(NULL); abort();
 				}
@@ -1343,7 +1477,7 @@ int prevTransition = 0;
 	// Had to get rid of default value of _fac=0.1212121212121212. Was creating confusion for compiler with plain fish constructor 
 	CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
 			const Real phaseShift, const Real dx_ext, const Real _sHinge,
-			const Real _fac):
+			const Real _fac, const bool _equalHeight):
 		FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false),tStart(1e12), bHinge(true), sHinge(_sHinge), ThingeTheta(Tperiod), quadraticAmplitude(true)
 	{
 		// Now, read the optimization params (Ahinge, _phiHinge, tail size) from the params file
@@ -1355,8 +1489,13 @@ int prevTransition = 0;
 				reader >> _Ahinge;
 				reader >> _phiHinge;
 				reader >> waveLength;
-				reader >> finSize;
-				printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				/*if(_equalHeight){
+					finSize = 0.3;
+				}else{
+					reader >> finSize;
+				}*/
+				//printf("Read numbers = %f, %f, %f, %f\n", _Ahinge, _phiHinge, waveLength, finSize);
+				printf("Read numbers = %f, %f, %f\n", _Ahinge, _phiHinge, waveLength);
 				/*reader >> sHinge2;
 				reader >> kSpring;*/
 				if(reader.eof()){
@@ -1373,7 +1512,10 @@ int prevTransition = 0;
 			/*sHinge2 *= length;
 			// UnRescaling: to avoid CMA trouble
 			kSpring *= 1.0e-4;*/
-//finSize = 0.30;
+
+			sLeft  = sHinge - 0.02*length;
+			sRight = sHinge + 0.02*length;
+
 		}
 
 		// FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
@@ -1652,36 +1794,103 @@ struct VolumeSegment_OBB
 		normalizeNormals();
 	}
 
-	bool isIntersectingWithAABB(const Real start[3],const Real end[3], const Real h_gridpt) const
+	bool isIntersectingWithAABB(const Real start[3],const Real end[3], const Real safe_distance = 0.0) const
 	{
+		// Remember: Incoming coordinates are cell centers, not cell faces
+
 		//start and end are two diagonally opposed corners of grid block
-		/*const Real AABB_w[3] = { //half block width + safe distance
-		  0.5*(end[0] - start[0]) + 2.0*safe_distance,
-		  0.5*(end[1] - start[1]) + 2.0*safe_distance,
-		  0.5*(end[2] - start[2]) + 2.0*safe_distance
-		  };*/
-		const Real AABB_w[3] = { //half block width + 1 point on either side (Keep extra point, since cell is empty between center and face)
-			0.5*(end[0] - start[0] + h_gridpt) + h_gridpt, // Need (end-start+h) since 'start' and 'end' correspond to cell centers, not the faces
-			0.5*(end[1] - start[1] + h_gridpt) + h_gridpt,
-			0.5*(end[2] - start[2] + h_gridpt) + h_gridpt
-		};
-		/*const Real AABB_c[3] = { //block center
-		  start[0] + AABB_w[0] - safe_distance,
-		  start[1] + AABB_w[1] - safe_distance,
-		  start[2] + AABB_w[2] - safe_distance
-		  };*/
-		const Real AABB_c[3] = { //block center
-			0.5*(start[0] + end[0]),
-			0.5*(start[1] + end[1]),
-			0.5*(start[2] + end[2])
+		const Real AABB_w[3] = { //half block width + safe distance
+				0.5*(end[0] - start[0]) + 2.0*safe_distance,
+				0.5*(end[1] - start[1]) + 2.0*safe_distance,
+				0.5*(end[2] - start[2]) + 2.0*safe_distance
 		};
 
 		assert(AABB_w[0]>0);
 		assert(AABB_w[1]>0);
 		assert(AABB_w[2]>0);
-		bool intersects = true;
 
-		const Real r1 = w[0]*normalI[0] + w[1]*normalJ[0] + w[2]*normalK[0];
+		const Real AABB_c[3] = { //block center
+			0.5*(end[0] + start[0]),
+			0.5*(end[1] + start[1]),
+			0.5*(end[2] + start[2])
+		};
+
+		const Real AABB_box[3][2] = {
+			{AABB_c[0] - AABB_w[0],  AABB_c[0] + AABB_w[0]},
+			{AABB_c[1] - AABB_w[1],  AABB_c[1] + AABB_w[1]},
+			{AABB_c[2] - AABB_w[2],  AABB_c[2] + AABB_w[2]}
+		};
+
+		// Try the following stoopid (but correct) implementation
+
+		// First, the 8 coordinate points. Find the vectors that lead from center to most extreme corner
+		// Basically: vecCorner = vecCenter + vec_rX. Here, vec_rX is just wx*iPrime + wy*jPrime + wz*kPrime
+		// Then take the x,y,z components in lab frame individually
+		const Real widthXvec[3] = {w[0]*normalI[0], w[0]*normalI[1], w[0]*normalI[2]}; // This is x-width of fish, expressed in lab frame
+		const Real widthYvec[3] = {w[1]*normalJ[0], w[1]*normalJ[1], w[1]*normalJ[2]}; // This is y-width of fish, expressed in lab frame
+		const Real widthZvec[3] = {w[2]*normalK[0], w[2]*normalK[1], w[2]*normalK[2]}; // This is z-height of fish, expressed in lab frame
+
+		// TODO: Replace with nice beautiful loop and function call later
+		// Find the enlarged box engulfing the smaller rotated box
+		int coordIndex = 0;
+		const Real cornerXcoords[8] = {
+			c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex]
+		};
+
+		coordIndex = 1;
+		const Real cornerYcoords[8] = {
+			c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+			c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex]
+		};
+
+                coordIndex = 2;
+                const Real cornerZcoords[8] = {
+                        c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+                        c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+                        c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+                        c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex],
+                        c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
+                        c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
+                        c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
+                        c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex]
+                };
+
+		// Store fishBox[minCoord][maxCoord] in all 3 directions
+		const Real fishBox[3][2] = {
+			{*std::min_element(cornerXcoords,cornerXcoords+8), *std::max_element(cornerXcoords,cornerXcoords+8)},
+			{*std::min_element(cornerYcoords,cornerYcoords+8), *std::max_element(cornerYcoords,cornerYcoords+8)},
+			{*std::min_element(cornerZcoords,cornerZcoords+8), *std::max_element(cornerZcoords,cornerZcoords+8)}
+		};
+
+		// Now Identify the ones that do not intersect
+		Real intersection[3][2] = {
+			{ max(fishBox[0][0], AABB_box[0][0]), min(fishBox[0][1], AABB_box[0][1]) },
+			{ max(fishBox[1][0], AABB_box[1][0]), min(fishBox[1][1], AABB_box[1][1]) },
+			{ max(fishBox[2][0], AABB_box[2][0]), min(fishBox[2][1], AABB_box[2][1]) }
+		};
+
+		return
+			intersection[0][1]-intersection[0][0]>0 &&
+			intersection[1][1]-intersection[1][0]>0 &&
+			intersection[2][1]-intersection[2][0]>0;
+
+
+	    // These criteria are not general enough. If blocks rotate too much, they will fail detection
+	    // Must loop through all the box coordinates
+		/*const Real r1 = w[0]*normalI[0] + w[1]*normalJ[0] + w[2]*normalK[0];
 		if (not ((c[0]-r1 <= AABB_c[0] + AABB_w[0]) && (c[0]+r1 >= AABB_c[0] - AABB_w[0])))
 			return false;
 
@@ -1708,7 +1917,7 @@ struct VolumeSegment_OBB
 		if (not ((AABB_c[2]-r6 <= c[2] + w[2]) && (AABB_c[2]+r6 >= c[2] - w[2])))
 			return false;
 
-		return true;
+		return true;*/
 	}
 };
 
@@ -1840,7 +2049,8 @@ struct PutFishOnBlocks
 		}*/
 
 		// With a hinged tail, the following overzealous assert will catch, outputted problematique and confirmed in Matlab
-		//assert(sRight==start_s or sLeft==start_s);
+		// RESTORED: with smooth hinge transition, this is not a problem anymore
+		assert(sRight==start_s or sLeft==start_s);
 
 		int curr_s = start_s;
 		int new_s = sRight == start_s ? sLeft : sRight;
@@ -1915,27 +2125,29 @@ struct PutFishOnBlocks
 
 					// Don't try to populate outside bounds
                                         const int startMarker[3] = {
-                                                        std::max(0,iap[0]),
-                                                        std::max(0,iap[1]),
-                                                        std::max(0,iap[2])
+                                                        std::max(0,iap[0]-1),
+                                                        std::max(0,iap[1]-1),
+                                                        std::max(0,iap[2]-1)
                                         };
                                         const int endMarker[3] = {
-                                                        std::min(iap[0]+2, FluidBlock::sizeX - 0), //+2 instead of +1, since will do (< than)
-                                                        std::min(iap[1]+2, FluidBlock::sizeY - 0), //weird: if I don't put -0, FluidBlock not recognized
-                                                        std::min(iap[2]+2, FluidBlock::sizeZ - 0)
+                                                        std::min(iap[0]+3, FluidBlock::sizeX - 0), //+3 instead of +2, since will do (< than)
+                                                        std::min(iap[1]+3, FluidBlock::sizeY - 0), //weird: if I don't put -0, FluidBlock not recognized
+                                                        std::min(iap[2]+3, FluidBlock::sizeZ - 0)
                                         };
 
 					//Prep section, finalize later towards end (all ellipse encompassing points grabbed if beyond hinge2)
-					if(ss>=defblock->hinge2Index){
-						// Populate in the 'box' containing the current point. Low corners are iap, high corners are iap+1
-						for(int sz=startMarker[2]; sz<endMarker[2]; ++sz){
-							for(int sy=startMarker[1]; sy<endMarker[1]; ++sy){
-								for(int sx=startMarker[0]; sx<endMarker[0]; ++sx){
-									defblock->sectionMarker[sz][sy][sx] = 1;
-								}
+					//if(ss>=defblock->hinge2Index){
+					// Populate in the 'box' containing the current point. Low corners are iap, high corners are iap+1
+					for(int sz=startMarker[2]; sz<endMarker[2]; ++sz){
+						for(int sy=startMarker[1]; sy<endMarker[1]; ++sy){
+							for(int sx=startMarker[0]; sx<endMarker[0]; ++sx){
+								const double temp = defblock->sectionMarker[sz][sy][sx];
+								// Replace only with higher values of s
+								defblock->sectionMarker[sz][sy][sx] = (cfish->rS[ss] >temp) ? cfish->rS[ss] : temp;
 							}
 						}
 					}
+					//}
 
 
 					// support is two points left, two points right --> Towers Chi will be one point left, one point right, but needs SDF wider
@@ -1980,6 +2192,8 @@ struct PutFishOnBlocks
 							const Real distHeight = std::abs(p[2]);
 							const Real sign = (distPlanar > cfish->width[closest_s] or distHeight > cfish->height[closest_s]) ? -1.0 : 1.0;
 
+							// Not chi yet, first store the squared distance from the analytical boundary
+							// Update the distSquared value only if the computed value is smaller than the old one
 							defblock->chi[idx[2]][idx[1]][idx[0]] =
 									(std::abs(defblock->chi[idx[2]][idx[1]][idx[0]]) > distSq) ? sign*distSq
 											: defblock->chi[idx[2]][idx[1]][idx[0]];
@@ -2017,14 +2231,15 @@ struct PutFishOnBlocks
 
 		for(int i=0;i<vSegments.size();++i) {
 			for(int ss=vSegments[i].s_range.first;ss<=vSegments[i].s_range.second;++ss) {
+
 				assert(ss>=0 && ss<=cfish->Nm-1);
+
 				// P2M udef of a slice at this s
 				const Real myWidth =  (ss < cfish->iFishStart ? cfish->width[ cfish->iFishStart]
-												  	: (ss > cfish->iFishEnd   ? cfish->width[ cfish->iFishEnd]
-																											: cfish->width[ss]));
+						: (ss > cfish->iFishEnd   ? cfish->width[ cfish->iFishEnd] : cfish->width[ss]));
 				const Real myHeight = (ss < cfish->iFishStart ? cfish->height[cfish->iFishStart]
-													  : (ss > cfish->iFishEnd   ? cfish->height[cfish->iFishEnd]
-																											: cfish->height[ss]));
+						: (ss > cfish->iFishEnd   ? cfish->height[cfish->iFishEnd] : cfish->height[ss]));
+
 				const Real ds_defGrid = info.h_gridpoint;
 				// towers needs 1dx on each side, smooth needs 2dx --> make it 3 to be nice (and so we can floor!)
 				const Real extension = NPPEXT*info.h_gridpoint; //G tmp changed back to 2
@@ -2089,31 +2304,38 @@ struct PutFishOnBlocks
 						}
 
 						const bool isInside =  (std::fabs(offsetW) < actualWidth)
-																&& (std::fabs(offsetH) < cfish->height[ss]);
+							&& (std::fabs(offsetH) < cfish->height[ss]);
+
 						for(int sz=start[2]; sz<end[2];++sz) {
-						const Real wz = wghts[2][sz];
-						for(int sy=start[1];sy<end[1];++sy) {
-						const Real wywz = wz*wghts[1][sy];
-						for(int sx=start[0];sx<end[0];++sx) {
-							const Real wxwywz = wywz*wghts[0][sx];
-							assert(wxwywz>=0 && wxwywz<=1);
-							const int idx[3] = {
-									iap[0] + sx,
-									iap[1] + sy,
-									iap[2] + sz,
-							};
-							assert(idx[0]>=0 && idx[0]<FluidBlock::sizeX);
-							assert(idx[1]>=0 && idx[1]<FluidBlock::sizeY);
-							assert(idx[2]>=0 && idx[2]<FluidBlock::sizeZ);
-							defblock->udef[idx[2]][idx[1]][idx[0]][0] += wxwywz*udef[0];
-							defblock->udef[idx[2]][idx[1]][idx[0]][1] += wxwywz*udef[1];
-							defblock->udef[idx[2]][idx[1]][idx[0]][2] += wxwywz*udef[2];
-							b(idx[0],idx[1],idx[2]).tmpU += wxwywz;
-							// set sign for all interior points
-							if( (std::fabs(defblock->chi[idx[2]][idx[1]][idx[0]] + 1) <
-											5*std::numeric_limits<Real>::epsilon()) && isInside)
-								defblock->chi[idx[2]][idx[1]][idx[0]] = 1.0;
-						}
+							const Real wz = wghts[2][sz];
+							for(int sy=start[1];sy<end[1];++sy) {
+								const Real wywz = wz*wghts[1][sy];
+								for(int sx=start[0];sx<end[0];++sx) {
+									const Real wxwywz = wywz*wghts[0][sx];
+
+									assert(wxwywz>=0 && wxwywz<=1);
+									const int idx[3] = {
+										iap[0] + sx,
+										iap[1] + sy,
+										iap[2] + sz,
+									};
+
+									assert(idx[0]>=0 && idx[0]<FluidBlock::sizeX);
+									assert(idx[1]>=0 && idx[1]<FluidBlock::sizeY);
+									assert(idx[2]>=0 && idx[2]<FluidBlock::sizeZ);
+
+									defblock->udef[idx[2]][idx[1]][idx[0]][0] += wxwywz*udef[0];
+									defblock->udef[idx[2]][idx[1]][idx[0]][1] += wxwywz*udef[1];
+									defblock->udef[idx[2]][idx[1]][idx[0]][2] += wxwywz*udef[2];
+
+									b(idx[0],idx[1],idx[2]).tmpU += wxwywz;
+
+									// set sign for all interior points
+									if( (std::fabs(defblock->chi[idx[2]][idx[1]][idx[0]] + 1) 
+												< 5*std::numeric_limits<Real>::epsilon()) && isInside){
+										defblock->chi[idx[2]][idx[1]][idx[0]] = 1.0;
+									}
+								}
 							}
 						}
 					}
@@ -2138,7 +2360,7 @@ struct PutFishOnBlocks
 				b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1];
 
 				// All points that are not chi=0 in the targeted section, are captured here. When we loop through SurfaceBlocks for computing torque, the extraneous points captured here will be left out, so hakunamatata.
-				defblock->sectionMarker[iz][iy][ix] *= std::abs(defblock->chi[iz][iy][ix]) > 0 ? 1 : 0;
+				defblock->sectionMarker[iz][iy][ix] *= ( (std::abs(defblock->chi[iz][iy][ix]) > 0) ? 1 : 0);
 			}
 		}
 	}
@@ -2271,6 +2493,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 		for(int ix=0; ix<FluidBlock::sizeX; ix++) {
 			Real p[3];
 			info.pos(p, ix,iy,iz);
+
 			if (lab(ix,iy,iz).tmpU > +2*h || lab(ix,iy,iz).tmpU < -2*h) {
 				const Real H = lab(ix,iy,iz).tmpU > 0 ? 1.0 : 0.0;
 				b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
@@ -2326,7 +2549,8 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
 			const Real Delta = numD/gradUSq; //h^3 * Delta
 			const Real H     = numH/gradUSq;
 
-			if (Delta>1e-6) {
+			// what is this conditional? SV thinks this is the source of spurious points, which will now be filtered out by checking for non-zero chi
+			if (Delta>1e-6) { 
 				const Real _Delta =  Delta*fac1;
 				const Real dchidx = -Delta*gradUX*fac1;
 				const Real dchidy = -Delta*gradUY*fac1;
