@@ -17,11 +17,11 @@ mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 cp ${FFACTORY} ${FOLDER}/factory
-cp ../makefiles/simulation ${FOLDER}
-cp launchDaint.sh ${FOLDER}
-cp runDaint.sh ${FOLDER}/run.sh
-#cp hingedParams.txt ${FOLDER}
-cp -r ../source ${FOLDER}
+cp ${HOME}/CubismUP_3D/makefiles/simulation ${FOLDER}
+cp $0 ${FOLDER}
+
+git diff > ${FOLDER}/gitdiff.log
+#cp -r ../source ${FOLDER}
 
 cd ${FOLDER}
 
@@ -32,11 +32,12 @@ cat <<EOF >daint_sbatch
 #SBATCH --job-name="${BASENAME}"
 #SBATCH --output=${BASENAME}_out_%j.txt
 #SBATCH --error=${BASENAME}_err_%j.txt
+# #SBATCH --time=24:00:00
 #SBATCH --time=${WCLOCK}
 #SBATCH --nodes=${NNODE}
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
-#SBATCH --threads-per-core=2
+#SBATCH --threads-per-core=1
 #SBATCH --constraint=gpu
 #SBATCH --mail-user=${MYNAME}@ethz.ch
 #SBATCH --mail-type=ALL
@@ -46,10 +47,8 @@ export LD_LIBRARY_PATH=/users/novatig/accfft/build_dbg/:$LD_LIBRARY_PATH
 module load daint-gpu GSL cray-hdf5-parallel
 module load cudatoolkit fftw
 
-export OMP_NUM_THREADS=24
-export MYROUNDS=10000
-export USEMAXTHREADS=1
-srun --ntasks ${NNODE} --threads-per-core=2 --ntasks-per-node=1 --cpus-per-task=12 time ./simulation ${OPTIONS}
+export OMP_NUM_THREADS=12
+srun --ntasks ${NNODE} --threads-per-core=1 --ntasks-per-node=1 --cpus-per-task=12 time ./simulation ${OPTIONS}
 EOF
 
 chmod 755 daint_sbatch

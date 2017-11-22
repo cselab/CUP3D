@@ -1,9 +1,9 @@
 //
-//  IF3D_CarlingFishOperator.h
-//  IncompressibleFluids3D
+//  CubismUP_3D
 //
-//  Created by Wim van Rees on 4/15/13.
-//
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  This file started as an extension of code written by Wim van Rees
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #ifndef __IncompressibleFluids3D__IF3D_CarlingFishOperator__
@@ -16,10 +16,12 @@
 class IF3D_CarlingFishOperator: public IF3D_FishOperator
 {
 public:
-	
-    IF3D_CarlingFishOperator(FluidGridMPI * grid, ArgumentParser & parser);
-    void _parseArguments(ArgumentParser & parser);
-    void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) override;
+
+  IF3D_CarlingFishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u);
+  void _parseArguments(ArgumentParser & parser);
+  void execute(const int i,const double t,const vector<double>a) override;
+  void computeForces(const int stepID, const double time, const double dt,
+    const Real* Uinf, const double NU, const bool bDump) override;
 };
 
 

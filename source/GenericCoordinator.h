@@ -1,12 +1,9 @@
 //
-//  GenericCoordinator.h
 //  CubismUP_3D
 //
-//	This class serves as the interface for a coordinator object
-//	A coordinator object schedules the processing of blocks with its operator
-//
-//  Created by Christian Conti on 3/27/15.
-//  Copyright (c) 2015 ETHZ. All rights reserved.
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  This file started as an extension of code written by Christian Conti
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #ifndef CubismUP_3D_GenericCoordinator_h
@@ -17,200 +14,179 @@
 class GenericCoordinator
 {
 protected:
-	FluidGridMPI * grid;
-	vector<BlockInfo> vInfo;
+  FluidGridMPI * grid;
+  vector<BlockInfo> vInfo;
 
-	inline void check(string infoText)
-	{
-		/*
-		#ifndef NDEBUG
-		int rank;
-		MPI_Comm comm = grid->getCartComm();
-		MPI_Comm_rank(comm,&rank);
-		MPI_Barrier(comm);
+  inline void check(string infoText)
+  {
+    #ifndef NDEBUG
+    int rank;
+    MPI_Comm comm = grid->getCartComm();
+    MPI_Comm_rank(comm,&rank);
+    MPI_Barrier(comm);
 
-		const int N = vInfo.size();
+    #pragma omp parallel for schedule(static)
+    for(int i=0; i<vInfo.size(); i++)
+    {
+      BlockInfo info = vInfo[i];
+      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
-		#pragma omp parallel for schedule(static)
-		for(int i=0; i<N; i++)
-		{
-			BlockInfo info = vInfo[i];
-			FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        if (std::isnan(b(ix,iy,iz).u) || std::isnan(b(ix,iy,iz).v) ||
+            std::isnan(b(ix,iy,iz).w) || std::isnan(b(ix,iy,iz).p) )
+          cout << infoText.c_str() << endl;
+    }
+    MPI_Barrier(comm);
+    #endif
+  }
 
-			for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-				for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-					for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-					{
-						if (std::isnan(b(ix,iy,iz).u) ||
-							std::isnan(b(ix,iy,iz).v) ||
-							std::isnan(b(ix,iy,iz).w) ||
-							std::isnan(b(ix,iy,iz).chi) ||
-							std::isnan(b(ix,iy,iz).p) )
-							cout << infoText.c_str() << endl;
+  template <typename Kernel, bool skipBorder = false>
+  void compute(const vector<Kernel*>& kernels)
+  {
+    SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
+    const int NX = grid->getBlocksPerDimension(0);
+    const int NY = grid->getBlocksPerDimension(1);
+    const int NZ = grid->getBlocksPerDimension(2);
+    const int nthreads = omp_get_max_threads();
+    LabMPI * labs = new LabMPI[nthreads];
+    for(int i = 0; i < nthreads; ++i)
+      labs[i].prepare(*grid, Synch);
 
-						assert(!std::isnan(b(ix,iy,iz).u));
-						assert(!std::isnan(b(ix,iy,iz).v));
-						assert(!std::isnan(b(ix,iy,iz).w));
-						assert(!std::isnan(b(ix,iy,iz).chi));
-						assert(!std::isnan(b(ix,iy,iz).p));
-						assert(!std::isnan(b(ix,iy,iz).tmpU));
-						assert(!std::isnan(b(ix,iy,iz).tmpV));
-						assert(!std::isnan(b(ix,iy,iz).tmpW));
-						assert(b(ix,iy,iz).u < 1e10);
-						assert(b(ix,iy,iz).v < 1e10);
-						assert(b(ix,iy,iz).w < 1e10);
-						assert(b(ix,iy,iz).p < 1e10);
-					}
-		}
-		MPI_Barrier(comm);
-#endif
-*/
-	}
+    int rank;
+    MPI_Comm_rank(grid->getCartComm(), &rank);
+    MPI_Barrier(grid->getCartComm());
+    vector<BlockInfo> avail0 = Synch.avail_inner();
+    const int Ninner = avail0.size();
 
-	template <typename Kernel>
-	void compute(const Kernel kernel)
-	{
-#if 0
-		SynchronizerMPI& Synch = grid->sync(kernel);
-		vector<BlockInfo> avail0, avail1;
+    #pragma omp parallel
+    {
+      int tid = omp_get_thread_num();
+      Kernel& kernel=*(kernels[tid]);
+      LabMPI& lab = labs[tid];
 
-		const int nthreads = omp_get_max_threads();
-		LabMPI * labs = new LabMPI[nthreads];
-		for(int i = 0; i < nthreads; ++i)
-			labs[i].prepare(*grid, Synch);
+      #pragma omp for schedule(dynamic,1)
+      for(int i=0; i<Ninner; i++) {
+        BlockInfo I = avail0[i];
+        if(skipBorder&& bSkip(NX, NY, NZ, I.index[0], I.index[1], I.index[2])){
+          //printf("rank %d skipping inner %d %d %d %d %d %d\n", rank, I.index[0], I.index[1], I.index[2], NX, NY, NZ);
+          continue;
+        }
 
-		static int rounds = -1;
-		static int one_less = 1;
-		if (rounds == -1) {
-			char *s = getenv("MYROUNDS");
-			if (s != NULL)  rounds = atoi(s);
-			else 		    rounds = 0;
+        FluidBlock& b = *(FluidBlock*)I.ptrBlock;
+        lab.load(I, 0);
+        kernel(lab, I, b);
+      }
+    }
 
-			char *s2 = getenv("USEMAXTHREADS");
-			if (s2 != NULL) one_less = !atoi(s2);
-		}
+    vector<BlockInfo> avail1 = Synch.avail_halo();
+    const int Nhalo = avail1.size();
 
-		MPI_Barrier(grid->getCartComm());
-		avail0 = Synch.avail_inner();
-		const int Ninner = avail0.size();
-		//BlockInfo * ary0 = &avail0.front();
+    #pragma omp parallel
+    {
+      int tid = omp_get_thread_num();
+      Kernel& kernel=*(kernels[tid]);
+      LabMPI& lab = labs[tid];
 
-		int nthreads_first;
-		if (one_less) nthreads_first = nthreads-1;
-		else          nthreads_first = nthreads;
+      #pragma omp for schedule(dynamic,1)
+      for(int i=0; i<Nhalo; i++) {
+        BlockInfo I = avail1[i];
+        if(skipBorder&& bSkip(NX, NY, NZ, I.index[0], I.index[1], I.index[2])){
+          //printf("rank %d skipping inner %d %d %d %d %d %d\n", rank, I.index[0], I.index[1], I.index[2], NX, NY, NZ);
+          continue;
+        }
 
-		if (nthreads_first == 0) nthreads_first = 1;
-		int Ninner_first = (nthreads_first)*rounds;
-		if (Ninner_first > Ninner) Ninner_first = Ninner;
-		int Ninner_rest = Ninner - Ninner_first;
+        FluidBlock& b = *(FluidBlock*)I.ptrBlock;
+        lab.load(I, 0);
+        kernel(lab, I, b);
+      }
+    }
 
-#pragma omp parallel num_threads(nthreads_first)
-		{
-			int tid = omp_get_thread_num();
-			LabMPI& lab = labs[tid];
+    if(labs!=NULL) {
+      delete [] labs;
+      labs=NULL;
+    }
 
-#pragma omp for schedule(dynamic,1)
-			for(int i=0; i<Ninner_first; i++) {
-				BlockInfo info = avail0[i];
-				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-				lab.load(info, 0);
-				kernel(lab, info, b); // why is this using the local blockInfo? or is it global? is dh correct?
-			}
-		}
+    MPI_Barrier(grid->getCartComm());
+  }
 
-		avail1 = Synch.avail_halo();
-		const int Nhalo = avail1.size();
-		//BlockInfo * ary1 = &avail1.front();
+  template <typename Kernel>
+  void compute(const Kernel& kernel)
+  {
+    SynchronizerMPI& Synch = grid->sync(kernel);
+    const int NX = grid->getBlocksPerDimension(0);
+    const int NY = grid->getBlocksPerDimension(1);
+    const int NZ = grid->getBlocksPerDimension(2);
+    const int nthreads = omp_get_max_threads();
+    LabMPI * labs = new LabMPI[nthreads];
+    for(int i = 0; i < nthreads; ++i)
+      labs[i].prepare(*grid, Synch);
 
-#pragma omp parallel num_threads(nthreads)
-		{
-			int tid = omp_get_thread_num();
-			LabMPI& lab = labs[tid];
+    int rank;
+    MPI_Comm_rank(grid->getCartComm(), &rank);
+    MPI_Barrier(grid->getCartComm());
+    vector<BlockInfo> avail0 = Synch.avail_inner();
+    const int Ninner = avail0.size();
 
-#pragma omp for schedule(dynamic,1)
-			for(int i=-Ninner_rest; i<Nhalo; i++) {
-				if (i < 0) {
-					int ii = i + Ninner;
-					BlockInfo info = avail0[ii];
-					FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-					lab.load(info, 0);
-					kernel(lab, info, b);
-				} else {
-					BlockInfo info = avail1[i];
-					FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-					lab.load(info, 0);
-					kernel(lab, info, b);
-				}
-			}
-		}
+    #pragma omp parallel
+    {
+      int tid = omp_get_thread_num();
+      LabMPI& lab = labs[tid];
 
-		if(labs!=NULL) {
-			delete [] labs;
-			labs=NULL;
-		}
+      #pragma omp for schedule(dynamic,1)
+      for(int i=0; i<Ninner; i++) {
+        BlockInfo I = avail0[i];
+        FluidBlock& b = *(FluidBlock*)I.ptrBlock;
+        lab.load(I, 0);
+        kernel(lab, I, b);
+      }
+    }
 
-		MPI_Barrier(grid->getCartComm());
-#else
-		SynchronizerMPI& Synch = grid->sync(kernel);
+    vector<BlockInfo> avail1 = Synch.avail_halo();
+    const int Nhalo = avail1.size();
 
-		const int nthreads = omp_get_max_threads();
-		LabMPI * labs = new LabMPI[nthreads];
-		for(int i = 0; i < nthreads; ++i)
-			labs[i].prepare(*grid, Synch);
+    #pragma omp parallel
+    {
+      int tid = omp_get_thread_num();
+      LabMPI& lab = labs[tid];
 
-		MPI_Barrier(grid->getCartComm());
-		vector<BlockInfo> avail0 = Synch.avail_inner();
-		const int Ninner = avail0.size();
+      #pragma omp for schedule(dynamic,1)
+      for(int i=0; i<Nhalo; i++) {
+        BlockInfo I = avail1[i];
+        FluidBlock& b = *(FluidBlock*)I.ptrBlock;
+        lab.load(I, 0);
+        kernel(lab, I, b);
+      }
+    }
 
-#pragma omp parallel
-		{
-			int tid = omp_get_thread_num();
-			LabMPI& lab = labs[tid];
+    if(labs!=NULL) {
+      delete [] labs;
+      labs=NULL;
+    }
 
-#pragma omp for schedule(dynamic,1)
-			for(int i=0; i<Ninner; i++) {
-				BlockInfo info = avail0[i];
-				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-				lab.load(info, 0);
-				kernel(lab, info, b); // why is this using the local blockInfo? or is it global? is dh correct?
-			}
-		}
+    MPI_Barrier(grid->getCartComm());
+  }
 
-		vector<BlockInfo> avail1 = Synch.avail_halo();
-		const int Nhalo = avail1.size();
-
-#pragma omp parallel
-		{
-			int tid = omp_get_thread_num();
-			LabMPI& lab = labs[tid];
-
-#pragma omp for schedule(dynamic,1)
-			for(int i=0; i<Nhalo; i++) {
-					BlockInfo info = avail1[i];
-					FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-					lab.load(info, 0);
-					kernel(lab, info, b);
-			}
-		}
-
-		if(labs!=NULL) {
-			delete [] labs;
-			labs=NULL;
-		}
-
-		MPI_Barrier(grid->getCartComm());
-#endif
-	}
+  static inline bool bSkip(const int nx, const int ny, const int nz, const int ix, const int iy, const int iz)
+  {
+    if(nx-1 == ix || 0 == ix) return true;
+    if(ny-1 == iy || 0 == iy) return true;
+    #ifndef BC_PERIODICZ
+    if(nz-1 == iz || 0 == iz) return true;
+    #endif
+    return false;
+  }
 
 public:
-	GenericCoordinator(FluidGridMPI * grid) : grid(grid)
-	{
-		vInfo = grid->getBlocksInfo();
-	}
+  GenericCoordinator(FluidGridMPI * g) : grid(g)
+  {
+    vInfo = grid->getBlocksInfo();
+  }
+  virtual ~GenericCoordinator() {}
+  virtual void operator()(const double dt) = 0;
 
-	virtual void operator()(const Real dt) = 0;
-
-	virtual string getName() = 0;
+  virtual string getName() = 0;
 };
 
 #endif

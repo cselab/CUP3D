@@ -1,9 +1,9 @@
 //
-//  IF3D_ForcedSphereObstacleOperator.h
-//  IncompressibleFluids3D
+//  CubismUP_3D
 //
-//  Created by Wim van Rees on 8/20/13.
-//
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  This file started as an extension of code written by Wim van Rees
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #ifndef __IncompressibleFluids3D__IF3D_ForcedSphereObstacleOperator__
@@ -16,21 +16,20 @@
 class IF3D_ForcedSphereObstacleOperator: public IF3D_SphereObstacleOperator
 {
   bool accel_decel = false;
-  Real umax = 0, tmax = 1;
+  double umax = 0, tmax = 1;
 public:
 
-	IF3D_ForcedSphereObstacleOperator(FluidGridMPI*grid, ArgumentParser&parser):
-	IF3D_SphereObstacleOperator(grid,parser) {
-	_parseArguments(parser);
-	}
+  IF3D_ForcedSphereObstacleOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_SphereObstacleOperator(g,p,u)
+  {
+    _parseArguments(p);
+  }
 
   // no need to compute velocities, are fixed
-  void computeVelocities(const Real Uinf[3]) override
-	{
-		computeVelocities_forced(Uinf);
-	}
+  void computeVelocities(const Real Uinf[3]) override;
+  void setTranslationVelocity(double UT[3]) override;
+
   void _parseArguments(ArgumentParser & parser) override;
-  void update(const int stepID, const Real t, const Real dt, const Real *Uinf) override;
+  void update(const int stepID, const double t, const double dt, const Real *Uinf) override;
 };
 
 #endif /* defined(__IncompressibleFluids3D__IF3D_ForcedSphereObstacleOperator__) */

@@ -1,9 +1,9 @@
 //
-//  IF3D_CarlingFishOperator.h
-//  IncompressibleFluids3D
+//  CubismUP_3D
 //
-//  Created by Wim van Rees on 4/15/13.
-//
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  This file started as an extension of code written by Wim van Rees
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #ifndef __IncompressibleFluids3D__IF3D_StefanFishOperator__
@@ -17,16 +17,12 @@
 class IF3D_StefanFishOperator: public IF3D_FishOperator
 {
 protected:
-  bool useLoadedActions;
-	//bool randomActions, bSpiral;
-  vector<vector<Real>> loadedActions;
 public:
-    IF3D_StefanFishOperator(FluidGridMPI * grid, ArgumentParser & parser);
-    void _parseArguments(ArgumentParser & parser);
-    void execute(Communicator * comm, const int iAgent, const Real time, const int iLabel) override;
-  	void save(const int step_id, const Real t, std::string filename = std::string()) override;
-    void restart(const Real t, string filename) override;
+  IF3D_StefanFishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u);
+  void _parseArguments(ArgumentParser & parser);
+  void execute(const int iAgent, const double time, const vector<double>a) override;
+  void save(const int step_id, const double t, std::string filename = std::string()) override;
+  void restart(const double t, string filename) override;
 };
-
 
 #endif /* defined(__IncompressibleFluids3D__IF3D_CarlingFish__) */

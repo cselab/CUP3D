@@ -1,9 +1,9 @@
 //
-//  IF3D_ObstacleLibrary.h
-//  IncompressibleFluids3D
+//  CubismUP_3D
 //
-//  Created by Wim van Rees on 8/6/13.
-//
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  This file started as an extension of code written by Wim van Rees
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #ifndef IncompressibleFluids3D_IF3D_ObstacleLibrary_h
@@ -12,227 +12,387 @@
 #include "IF2D_Interpolation1D.h"
 #include "GenericOperator.h"
 
+#if 0
+namespace PlateObstacle
+{
+struct FillBlocks
+{
+  const Real halfL_x, halfL_y, halfL_z;
+  const double position[3];
+  Real box[3][2];
+
+  void _find_sphere_box()
+  {
+    sphere_box[0][0] = sphere_position[0] - safe_radius;
+    sphere_box[0][1] = sphere_position[0] + safe_radius;
+    sphere_box[1][0] = sphere_position[1] - safe_radius;
+    sphere_box[1][1] = sphere_position[1] + safe_radius;
+    sphere_box[2][0] = sphere_position[2] - safe_radius;
+    sphere_box[2][1] = sphere_position[2] + safe_radius;
+  }
+
+  FillBlocks(const Real radius, const Real max_dx, const double pos[3]):
+    radius(radius),safe_radius(radius+4*max_dx), sphere_position{pos[0],pos[1],pos[2]}
+  {
+    _find_sphere_box();
+  }
+
+  bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
+  {
+    Real intersection[3][2] = {
+        max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
+        max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
+        max(min_pos[2], sphere_box[2][0]), min(max_pos[2], sphere_box[2][1])
+    };
+
+    return
+        intersection[0][1]-intersection[0][0]>0 &&
+        intersection[1][1]-intersection[1][0]>0 &&
+        intersection[2][1]-intersection[2][0]>0;
+  }
+
+  bool _is_touching(const BlockInfo& info, const int buffer_dx = 0) const
+  {
+    Real min_pos[3], max_pos[3];
+
+    info.pos(min_pos, 0,0,0);
+    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    for(int i=0;i<3;++i) {
+      min_pos[i]-=buffer_dx*info.h_gridpoint;
+      max_pos[i]+=buffer_dx*info.h_gridpoint;
+    }
+    return _is_touching(min_pos,max_pos);
+  }
+
+  inline Real distanceToPlate(const Real x, const Real y, const Real z) const
+  {
+    const Real dist_X = halfL_x - std::fabs(x);
+    const Real dist_Y = halfL_y - std::fabs(y);
+    const Real dist_Z = halfL_z - std::fabs(z);
+    return std::min(std::min(dist_X, dist_Y), dist_Z);
+  }
+
+  inline Real sign(const Real& val) const {
+    return (0. < val) - (val < 0.);
+  }
+
+  void operator()(const BlockInfo&info, FluidBlock&b, ObstacleBlock*const o) const
+  {
+    if(_is_touching(info)) {
+      const Real h = info.h_gridpoint;
+      const Real inv2h = 0.5/h;
+      const Real fac1 = 0.5*h*h;
+      const Real eps = std::numeric_limits<Real>::epsilon();
+
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+      for(int iy=0; iy<FluidBlock::sizeY; iy++)
+      for(int ix=0; ix<FluidBlock::sizeX; ix++) {
+        Real p[3];
+        info.pos(p, ix, iy, iz);
+        const Real x = p[0]-position[0];
+        const Real y = p[1]-position[1];
+        const Real z = p[2]-position[2];
+        const Real dist = distanceToSphere(x,y,z);
+
+        if(dist > 2*h || dist < -2*h) { //2 should be safe
+          const Real H = dist > 0 ? 1.0 : 0.0;
+          b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+          o->write(ix,iy,iz,H,0,0,0,0,0);
+          continue;
+        }
+
+        const Real distPx = distanceToSphere(x+h,y,z);
+        const Real distMx = distanceToSphere(x-h,y,z);
+        const Real distPy = distanceToSphere(x,y+h,z);
+        const Real distMy = distanceToSphere(x,y-h,z);
+        const Real distPz = distanceToSphere(x,y,z+h);
+        const Real distMz = distanceToSphere(x,y,z-h);
+        const Real IplusX = distPx < 0 ? 0 : distPx;
+        const Real IminuX = distMx < 0 ? 0 : distMx;
+        const Real IplusY = distPy < 0 ? 0 : distPy;
+        const Real IminuY = distMy < 0 ? 0 : distMy;
+        const Real IplusZ = distPz < 0 ? 0 : distPz;
+        const Real IminuZ = distMz < 0 ? 0 : distMz;
+        const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
+        const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
+        const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
+        const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
+        const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
+        const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
+        // all would be multiplied by 0.5/h, simplifies out later
+        const Real gradUX = inv2h*(distPx - distMx);
+        const Real gradUY = inv2h*(distPy - distMy);
+        const Real gradUZ = inv2h*(distPz - distMz);
+        const Real gradIX = inv2h*(IplusX - IminuX);
+        const Real gradIY = inv2h*(IplusY - IminuY);
+        const Real gradIZ = inv2h*(IplusZ - IminuZ);
+        const Real gradHX = (HplusX - HminuX);
+        const Real gradHY = (HplusY - HminuY);
+        const Real gradHZ = (HplusZ - HminuZ);
+
+        const Real gradUSq = gradUX*gradUX +gradUY*gradUY +gradUZ*gradUZ +eps;
+        const Real numH    = gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ;
+        const Real numD    = gradHX*gradUX +gradHY*gradUY +gradHZ*gradUZ;
+        const Real Delta   = numD / gradUSq;
+        const Real H       = numH / gradUSq;
+
+        o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
+        b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+        #ifndef NDEBUG
+        if(H<0||H>1+eps) printf("invalid H?: %f %f %f: %10.10e\n",x,y,z,H);
+        #endif
+      }
+    }
+  }
+};
+}
+#endif
+
 namespace SphereObstacle
 {
 struct FillBlocks
 {
-	const Real radius,safe_radius;
-	const Real sphere_position[3];
-	Real sphere_box[3][2];
+  const Real radius,safe_radius;
+  const double sphere_position[3];
+  Real sphere_box[3][2];
 
-	void _find_sphere_box()
-	{
-		sphere_box[0][0] = sphere_position[0] - safe_radius;
-		sphere_box[0][1] = sphere_position[0] + safe_radius;
-		sphere_box[1][0] = sphere_position[1] - safe_radius;
-		sphere_box[1][1] = sphere_position[1] + safe_radius;
-		sphere_box[2][0] = sphere_position[2] - safe_radius;
-		sphere_box[2][1] = sphere_position[2] + safe_radius;
-	}
+  void _find_sphere_box()
+  {
+    sphere_box[0][0] = sphere_position[0] - safe_radius;
+    sphere_box[0][1] = sphere_position[0] + safe_radius;
+    sphere_box[1][0] = sphere_position[1] - safe_radius;
+    sphere_box[1][1] = sphere_position[1] + safe_radius;
+    sphere_box[2][0] = sphere_position[2] - safe_radius;
+    sphere_box[2][1] = sphere_position[2] + safe_radius;
+  }
 
-	FillBlocks(const Real radius, const Real max_dx, const Real pos[3]):
-		radius(radius),safe_radius(radius+4*max_dx), sphere_position{pos[0],pos[1],pos[2]}
-	{
-		_find_sphere_box();
-	}
+  FillBlocks(const Real radius, const Real max_dx, const double pos[3]):
+    radius(radius),safe_radius(radius+4*max_dx), sphere_position{pos[0],pos[1],pos[2]}
+  {
+    _find_sphere_box();
+  }
 
-	bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
-	{
-		Real intersection[3][2] = {
-				max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
-				max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
-				max(min_pos[2], sphere_box[2][0]), min(max_pos[2], sphere_box[2][1])
-		};
+  bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
+  {
+    Real intersection[3][2] = {
+        max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
+        max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
+        max(min_pos[2], sphere_box[2][0]), min(max_pos[2], sphere_box[2][1])
+    };
 
-		return
-				intersection[0][1]-intersection[0][0]>0 &&
-				intersection[1][1]-intersection[1][0]>0 &&
-				intersection[2][1]-intersection[2][0]>0;
-	}
+    return
+        intersection[0][1]-intersection[0][0]>0 &&
+        intersection[1][1]-intersection[1][0]>0 &&
+        intersection[2][1]-intersection[2][0]>0;
+  }
 
-	bool _is_touching(const BlockInfo& info, const int buffer_dx = 0) const
-	{
-		Real min_pos[3], max_pos[3];
+  bool _is_touching(const BlockInfo& info, const int buffer_dx = 0) const
+  {
+    Real min_pos[3], max_pos[3];
 
-		info.pos(min_pos, 0,0,0);
-		info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-		for(int i=0;i<3;++i) {
-			min_pos[i]-=buffer_dx*info.h_gridpoint;
-			max_pos[i]+=buffer_dx*info.h_gridpoint;
-		}
-		return _is_touching(min_pos,max_pos);
-	}
+    info.pos(min_pos, 0,0,0);
+    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    for(int i=0;i<3;++i) {
+      min_pos[i]-=buffer_dx*info.h_gridpoint;
+      max_pos[i]+=buffer_dx*info.h_gridpoint;
+    }
+    return _is_touching(min_pos,max_pos);
+  }
 
-	inline Real distanceToSphere(const Real x, const Real y, const Real z) const
-	{
-		return radius - std::sqrt(x*x+y*y+z*z); // pos inside, neg outside
-	}
+  inline Real distanceToSphere(const Real x, const Real y, const Real z) const
+  {
+    return radius - std::sqrt(x*x+y*y+z*z); // pos inside, neg outside
+  }
 
-	inline Real sign(const Real& val) const {
-		return (0. < val) - (val < 0.);
-	}
-#if 0
-	inline void operator()(const BlockInfo& info,FluidBlock& b,ObstacleBlock* const defblock,surfaceBlocks* const surf) const
-	{
-		if(_is_touching(info)) {
-			const Real eps = std::numeric_limits<Real>::epsilon();
-			const Real h = info.h_gridpoint;
-			const Real invh = 1./h;
-			const Real fac1 = .5/h;
-			const Real fac2 = .5/(std::sqrt(2.)*h);
-			const Real fac[9] = {fac1,fac1,fac1,fac2,fac2,fac2,fac2,fac2,fac2};
+  inline Real sign(const Real& val) const {
+    return (0. < val) - (val < 0.);
+  }
 
-			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-				for(int iy=0; iy<FluidBlock::sizeY; iy++)
-					for(int ix=0; ix<FluidBlock::sizeX; ix++) {
-						Real p[3];
-						info.pos(p, ix, iy, iz);
-						const Real x = p[0]-sphere_position[0];
-						const Real y = p[1]-sphere_position[1];
-						const Real z = p[2]-sphere_position[2];
-						const Real U = distanceToSphere(x,y,z);
-						if(U > 2*h || U < -2*h) { //2 should be safe
-							const Real H = U > 0 ? 1.0 : 0.0;
-							defblock->chi[iz][iy][ix] = H;
-							b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-							continue;
-						}
-						const Real Up[9] = {
-								distanceToSphere(x+h,y,z),   distanceToSphere(x,y+h,z),   distanceToSphere(x,y,z+h),
-								distanceToSphere(x,y+h,z+h), distanceToSphere(x+h,y,z+h), distanceToSphere(x+h,y+h,z),
-								distanceToSphere(x,y+h,z-h), distanceToSphere(x+h,y,z-h), distanceToSphere(x+h,y-h,z)
-						};
-						const Real Um[9] = {
-								distanceToSphere(x-h,y,z),   distanceToSphere(x,y-h,z),   distanceToSphere(x,y,z-h),
-								distanceToSphere(x,y-h,z-h), distanceToSphere(x-h,y,z-h), distanceToSphere(x-h,y-h,z),
-								distanceToSphere(x,y-h,z+h), distanceToSphere(x-h,y,z+h), distanceToSphere(x-h,y+h,z)
-						};
-						Real Ip[9],Im[9];
-						for (int i=0; i<9; i++) {
-							Ip[i] = std::max(Up[i],(Real)0.);
-							Im[i] = std::max(Um[i],(Real)0.);
-						}
-						Real gradU[9], gradI[9];
-						for (int i=0; i<9; i++) {
-							gradU[i] = fac[i]*(Up[i]-Um[i]);
-							gradI[i] = fac[i]*(Ip[i]-Im[i]);
-						}
-						Real Hp[3], Hm[3];
-						for(int i=0; i<3; i++) {
-							Hp[i] = (Up[i]> h) ? h : (
-									(Up[i]<-h) ? 0 :
-											.5*h+(Up[i]-fac1*sign(Up[i])*Up[i]*Up[i]));
-							Hm[i] = (Um[i]> h) ? h : (
-									(Um[i]<-h) ? 0 :
-											.5*h+(Um[i]-fac1*sign(Um[i])*Um[i]*Um[i]));
-						}
-						const Real gradH[3] = {.5*(Hp[0]-Hm[0]), .5*(Hp[1]-Hm[1]), .5*(Hp[2]-Hm[2])};
-						Real gradUU[3], gradUI[3], gradUH[3];
-						for (int i=0; i<3; i++) {
-							gradUU[i] = gradU[i]*gradU[i] + gradU[i+3]*gradU[i+3] + gradU[i+6]*gradU[i+6];
-							gradUI[i] = gradU[i]*gradI[i] + gradU[i+3]*gradI[i+3] + gradU[i+6]*gradI[i+6];
-							gradUH[i] = gradU[i]*gradH[i];
-						}
-						for (int i=0; i<3; i++)  gradUU[i] = max(gradUU[i], eps);
-						const Real FDD = h*(gradUH[0] + gradUH[1] + gradUH[2])/gradUU[0];
-						const Real FDH = 1/3. * (gradUI[0]/gradUU[0]+gradUI[1]/gradUU[1]+gradUI[2]/gradUU[2]);
+  void operator()(const BlockInfo&info, FluidBlock&b, ObstacleBlock*const o) const
+  {
+    if(_is_touching(info)) {
+      const Real h = info.h_gridpoint;
+      const Real inv2h = 0.5/h;
+      const Real fac1 = 0.5*h*h;
+      const Real eps = std::numeric_limits<Real>::epsilon();
 
-						if (FDD>1e-6) {
-							const Real dchidx = -FDD*gradU[0];
-							const Real dchidy = -FDD*gradU[1];
-							const Real dchidz = -FDD*gradU[2];
-							surf->add(info.blockID,ix,iy,iz,dchidx,dchidy,dchidz,FDD);
-						}
-						#ifndef NDEBUG
-						if(FDH<0 || FDH>1) printf("invalid H?: %9.9e %9.9e %9.9e: %9.9e\n",x,y,z,FDH);
-						#endif
-						defblock->chi[iz][iy][ix] = FDH;
-						b(ix,iy,iz).chi = std::max(FDH, b(ix,iy,iz).chi);
-						//b(ix,iy,iz).tmpU = dist;
-						//b(ix,iy,iz).tmpV = Delta;
-					}
-		}
-	}
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+      for(int iy=0; iy<FluidBlock::sizeY; iy++)
+      for(int ix=0; ix<FluidBlock::sizeX; ix++) {
+        Real p[3];
+        info.pos(p, ix, iy, iz);
+        const Real x = p[0]-sphere_position[0];
+        const Real y = p[1]-sphere_position[1];
+        const Real z = p[2]-sphere_position[2];
+        const Real dist = distanceToSphere(x,y,z);
 
-#else
-	inline void operator()(const BlockInfo& info,FluidBlock& b,ObstacleBlock* const defblock,surfaceBlocks* const surf) const
-	{
-		if(_is_touching(info)) {
-			const Real h = info.h_gridpoint;
-			const Real inv2h = 0.5/h;
-			const Real fac1 = 0.5*h*h;
-			const Real fac2 = h*h*h;
-			const Real eps = std::numeric_limits<Real>::epsilon();
+        if(dist > 2*h || dist < -2*h) { //2 should be safe
+          const Real H = dist > 0 ? 1.0 : 0.0;
+          b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+          o->write(ix,iy,iz,H,0,0,0,0,0);
+          continue;
+        }
 
-			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-			for(int iy=0; iy<FluidBlock::sizeY; iy++)
-			for(int ix=0; ix<FluidBlock::sizeX; ix++) {
-				Real p[3];
-				info.pos(p, ix, iy, iz);
-				const Real x = p[0]-sphere_position[0];
-				const Real y = p[1]-sphere_position[1];
-				const Real z = p[2]-sphere_position[2];
-				const Real dist = distanceToSphere(x,y,z);
+        const Real distPx = distanceToSphere(x+h,y,z);
+        const Real distMx = distanceToSphere(x-h,y,z);
+        const Real distPy = distanceToSphere(x,y+h,z);
+        const Real distMy = distanceToSphere(x,y-h,z);
+        const Real distPz = distanceToSphere(x,y,z+h);
+        const Real distMz = distanceToSphere(x,y,z-h);
+        const Real IplusX = distPx < 0 ? 0 : distPx;
+        const Real IminuX = distMx < 0 ? 0 : distMx;
+        const Real IplusY = distPy < 0 ? 0 : distPy;
+        const Real IminuY = distMy < 0 ? 0 : distMy;
+        const Real IplusZ = distPz < 0 ? 0 : distPz;
+        const Real IminuZ = distMz < 0 ? 0 : distMz;
+        const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
+        const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
+        const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
+        const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
+        const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
+        const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
+        // all would be multiplied by 0.5/h, simplifies out later
+        const Real gradUX = inv2h*(distPx - distMx);
+        const Real gradUY = inv2h*(distPy - distMy);
+        const Real gradUZ = inv2h*(distPz - distMz);
+        const Real gradIX = inv2h*(IplusX - IminuX);
+        const Real gradIY = inv2h*(IplusY - IminuY);
+        const Real gradIZ = inv2h*(IplusZ - IminuZ);
+        const Real gradHX = (HplusX - HminuX);
+        const Real gradHY = (HplusY - HminuY);
+        const Real gradHZ = (HplusZ - HminuZ);
 
-				if(dist > 2*h || dist < -2*h) { //2 should be safe
-					const Real H = dist > 0 ? 1.0 : 0.0;
-					defblock->chi[iz][iy][ix] = H;
-					b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-					continue;
-				}
+        const Real gradUSq = gradUX*gradUX +gradUY*gradUY +gradUZ*gradUZ +eps;
+        const Real numH    = gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ;
+        const Real numD    = gradHX*gradUX +gradHY*gradUY +gradHZ*gradUZ;
+        const Real Delta   = numD / gradUSq;
+        const Real H       = numH / gradUSq;
 
-				const Real distPx = distanceToSphere(x+h,y,z);
-				const Real distMx = distanceToSphere(x-h,y,z);
-				const Real distPy = distanceToSphere(x,y+h,z);
-				const Real distMy = distanceToSphere(x,y-h,z);
-				const Real distPz = distanceToSphere(x,y,z+h);
-				const Real distMz = distanceToSphere(x,y,z-h);
-				const Real IplusX = distPx < 0 ? 0 : distPx;
-				const Real IminuX = distMx < 0 ? 0 : distMx;
-				const Real IplusY = distPy < 0 ? 0 : distPy;
-				const Real IminuY = distMy < 0 ? 0 : distMy;
-				const Real IplusZ = distPz < 0 ? 0 : distPz;
-				const Real IminuZ = distMz < 0 ? 0 : distMz;
-				const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
-				const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
-				const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
-				const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
-				const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
-				const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
-				// all would be multiplied by 0.5/h, simplifies out later
-				const Real gradUX = (distPx - distMx);
-				const Real gradUY = (distPy - distMy);
-				const Real gradUZ = (distPz - distMz);
-				const Real gradIX = (IplusX - IminuX);
-				const Real gradIY = (IplusY - IminuY);
-				const Real gradIZ = (IplusZ - IminuZ);
-				const Real gradHX = (HplusX - HminuX);
-				const Real gradHY = (HplusY - HminuY);
-				const Real gradHZ = (HplusZ - HminuZ);
+        o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
+        b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+        #ifndef NDEBUG
+        if(H<0||H>1+eps) printf("invalid H?: %f %f %f: %10.10e\n",x,y,z,H);
+        #endif
+      }
+    }
+  }
+};
+}
 
-				const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
-				const Real numH    = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
-				const Real numD    = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
-				const Real Delta   = gradUSq < eps ? 0 : numD / gradUSq;
-				const Real H       = gradUSq < eps ? 0 : numH / gradUSq;
+namespace DCylinderObstacle
+{
+struct FillBlocks
+{
+  const Real radius, halflength, safety;
+  const double position[3];
+  Real box[3][2];
 
-				if (Delta>1e-6) { //will always be multiplied by h^3
-					const Real dchidx = -Delta*gradUX * fac1;
-					const Real dchidy = -Delta*gradUY * fac1;
-					const Real dchidz = -Delta*gradUZ * fac1;
-					const Real _Delta = Delta * fac2;
-					surf->add(info.blockID,ix,iy,iz,dchidx,dchidy,dchidz,_Delta);
-				}
-				#ifndef NDEBUG
-				if(H<0 || H>1+eps)
-					printf("invalid H?: %10.10e %10.10e %10.10e: %10.10e\n",x,y,z,H);
-				#endif
-				defblock->chi[iz][iy][ix] = H;
-				b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-			}
-		}
-	}
-#endif
+  FillBlocks(const Real r, const Real halfl, const Real h, const double p[3]):
+  radius(r), halflength(halfl), safety(2*h), position{p[0],p[1],p[2]}
+  {
+    box[0][0] = position[0] - radius     - safety;
+    box[0][1] = position[0]              + safety;
+    box[1][0] = position[1] - radius     - safety;
+    box[1][1] = position[1] + radius     + safety;
+    box[2][0] = position[2] - halflength - safety;
+    box[2][1] = position[2] + halflength + safety;
+  }
+
+  bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
+  {
+    Real intersection[3][2] = {
+        max(min_pos[0], box[0][0]), min(max_pos[0], box[0][1]),
+        max(min_pos[1], box[1][0]), min(max_pos[1], box[1][1]),
+        max(min_pos[2], box[2][0]), min(max_pos[2], box[2][1])
+    };
+
+    return
+        intersection[0][1]-intersection[0][0]>0 &&
+        intersection[1][1]-intersection[1][0]>0 &&
+        intersection[2][1]-intersection[2][0]>0;
+  }
+
+  bool _is_touching(const BlockInfo& info, const int buffer_dx = 0) const
+  {
+    Real min_pos[3], max_pos[3];
+    info.pos(min_pos, 0,0,0);
+    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    for(int i=0;i<3;++i) {
+      min_pos[i]-=buffer_dx*info.h_gridpoint;
+      max_pos[i]+=buffer_dx*info.h_gridpoint;
+    }
+    return _is_touching(min_pos,max_pos);
+  }
+
+  inline Real distance(const Real x, const Real y, const Real z) const
+  {
+    const Real planeDist = std::min( -x, radius-std::sqrt(x*x+y*y) );
+    const Real vertiDist = halflength - std::fabs(z);
+    return std::min(planeDist, vertiDist);
+  }
+
+  void operator()(const BlockInfo&info, FluidBlock&b, ObstacleBlock*const o) const
+  {
+    if(_is_touching(info)) {
+      const double h=info.h_gridpoint;
+      const Real eps = std::numeric_limits<Real>::epsilon();
+      const Real inv2h = 0.5/h, fac1 = 0.5*h*h;
+
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+      for(int iy=0; iy<FluidBlock::sizeY; iy++)
+      for(int ix=0; ix<FluidBlock::sizeX; ix++) {
+        Real p[3];
+        info.pos(p, ix, iy, iz);
+        const Real x=p[0]-position[0], y=p[1]-position[1], z=p[2]-position[2];
+        const Real dist = distance(x,y,z);
+        if(dist > 2*h || dist < -2*h) { //2 should be safe
+          const Real H = dist > 0 ? 1.0 : 0.0;
+          b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+          o->write(ix,iy,iz,H,0,0,0,0,0);
+          continue;
+        }
+
+        const Real distPx = distance(x+h,y,z);
+        const Real distMx = distance(x-h,y,z);
+        const Real distPy = distance(x,y+h,z);
+        const Real distMy = distance(x,y-h,z);
+        const Real distPz = distance(x,y,z+h);
+        const Real distMz = distance(x,y,z-h);
+        const Real IplusX = distPx < 0 ? 0 : distPx;
+        const Real IminuX = distMx < 0 ? 0 : distMx;
+        const Real IplusY = distPy < 0 ? 0 : distPy;
+        const Real IminuY = distMy < 0 ? 0 : distMy;
+        const Real IplusZ = distPz < 0 ? 0 : distPz;
+        const Real IminuZ = distMz < 0 ? 0 : distMz;
+        const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
+        const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
+        const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
+        const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
+        const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
+        const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
+        const Real gradUX = inv2h*(distPx - distMx);
+        const Real gradUY = inv2h*(distPy - distMy);
+        const Real gradUZ = inv2h*(distPz - distMz);
+        const Real gradIX = inv2h*(IplusX - IminuX);
+        const Real gradIY = inv2h*(IplusY - IminuY);
+        const Real gradIZ = inv2h*(IplusZ - IminuZ);
+        const Real gradHX = (HplusX - HminuX);
+        const Real gradHY = (HplusY - HminuY);
+        const Real gradHZ = (HplusZ - HminuZ);
+        const Real gradUSq = gradUX*gradUX +gradUY*gradUY +gradUZ*gradUZ +eps;
+        const Real numH    = gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ;
+        const Real numD    = gradHX*gradUX +gradHY*gradUY +gradHZ*gradUZ;
+        const Real Delta   = numD / gradUSq;
+        const Real H       = numH / gradUSq;
+
+        o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
+        b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+        #ifndef NDEBUG
+        if(H<0||H>1+eps) printf("invalid H?: %f %f %f: %10.10e\n",x,y,z,H);
+        #endif
+      }
+    }
+  }
 };
 }
 
@@ -240,112 +400,112 @@ namespace TorusObstacle
 {
 struct FillBlocks
 {
-	const Real big_r, small_r, smoothing_length;
-	Real position[3];
-	Real sphere_box[3][2];
+  const Real big_r, small_r, smoothing_length;
+  Real position[3];
+  Real sphere_box[3][2];
 
-	void _find_sphere_box()
-	{
-		sphere_box[0][0] = position[0] - 2*(small_r + smoothing_length);
-		sphere_box[0][1] = position[0] + 2*(small_r + smoothing_length);
-		sphere_box[1][0] = position[1] - 2*(big_r + small_r + smoothing_length);
-		sphere_box[1][1] = position[1] + 2*(big_r + small_r + smoothing_length);
-		sphere_box[2][0] = position[2] - 2*(big_r + small_r + smoothing_length);
-		sphere_box[2][1] = position[2] + 2*(big_r + small_r + smoothing_length);
-	}
+  void _find_sphere_box()
+  {
+    sphere_box[0][0] = position[0] - 2*(small_r + smoothing_length);
+    sphere_box[0][1] = position[0] + 2*(small_r + smoothing_length);
+    sphere_box[1][0] = position[1] - 2*(big_r + small_r + smoothing_length);
+    sphere_box[1][1] = position[1] + 2*(big_r + small_r + smoothing_length);
+    sphere_box[2][0] = position[2] - 2*(big_r + small_r + smoothing_length);
+    sphere_box[2][1] = position[2] + 2*(big_r + small_r + smoothing_length);
+  }
 
-	FillBlocks(Real big_r, Real small_r, Real smoothing_length,  Real position[3]):
-		big_r(big_r), small_r(small_r), smoothing_length(smoothing_length)
-	{
-		this->position[0] = position[0];
-		this->position[1] = position[1];
-		this->position[2] = position[2];
+  FillBlocks(Real big_r, Real small_r, Real smoothing_length,  Real position[3]):
+    big_r(big_r), small_r(small_r), smoothing_length(smoothing_length)
+  {
+    this->position[0] = position[0];
+    this->position[1] = position[1];
+    this->position[2] = position[2];
 
-		_find_sphere_box();
-	}
+    _find_sphere_box();
+  }
 
-	FillBlocks(const FillBlocks& c):
-		small_r(c.small_r), big_r(c.big_r), smoothing_length(c.smoothing_length)
-	{
-		position[0] = c.position[0];
-		position[1] = c.position[1];
-		position[2] = c.position[2];
+  FillBlocks(const FillBlocks& c):
+    small_r(c.small_r), big_r(c.big_r), smoothing_length(c.smoothing_length)
+  {
+    position[0] = c.position[0];
+    position[1] = c.position[1];
+    position[2] = c.position[2];
 
-		_find_sphere_box();
-	}
+    _find_sphere_box();
+  }
 
-	bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
-	{
-		Real intersection[3][2] = {
-				max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
-				max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
-				max(min_pos[2], sphere_box[2][0]), min(max_pos[2], sphere_box[2][1])
-		};
+  bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
+  {
+    Real intersection[3][2] = {
+        max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
+        max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
+        max(min_pos[2], sphere_box[2][0]), min(max_pos[2], sphere_box[2][1])
+    };
 
-		return
-				intersection[0][1]-intersection[0][0]>0 &&
-				intersection[1][1]-intersection[1][0]>0 &&
-				intersection[2][1]-intersection[2][0]>0;
-	}
+    return
+        intersection[0][1]-intersection[0][0]>0 &&
+        intersection[1][1]-intersection[1][0]>0 &&
+        intersection[2][1]-intersection[2][0]>0;
+  }
 
-	bool _is_touching(const BlockInfo& info, const int buffer_dx=0) const
-	{
-		Real min_pos[3], max_pos[3];
+  bool _is_touching(const BlockInfo& info, const int buffer_dx=0) const
+  {
+    Real min_pos[3], max_pos[3];
 
-		info.pos(min_pos, 0,0,0);
-		info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-		for(int i=0;i<3;++i)
-		{
-			min_pos[i]-=buffer_dx*info.h_gridpoint;
-			max_pos[i]+=buffer_dx*info.h_gridpoint;
-		}
-		return _is_touching(min_pos,max_pos);
-	}
+    info.pos(min_pos, 0,0,0);
+    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    for(int i=0;i<3;++i)
+    {
+      min_pos[i]-=buffer_dx*info.h_gridpoint;
+      max_pos[i]+=buffer_dx*info.h_gridpoint;
+    }
+    return _is_touching(min_pos,max_pos);
+  }
 
-	Real mollified_heaviside(const Real x, const Real eps) const
-	{
-		const Real alpha = M_PI*min(1., max(0., (x+0.5*eps)/eps));
+  Real mollified_heaviside(const Real x, const Real eps) const
+  {
+    const Real alpha = M_PI*min(1., max(0., (x+0.5*eps)/eps));
 
-		return 0.5+0.5*cos(alpha);
-	}
+    return 0.5+0.5*cos(alpha);
+  }
 
 
-	inline void operator()(const BlockInfo& info, FluidBlock& b) const
-	{
-		if(_is_touching(info))
-			//	if(true)
-		{
-			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-				for(int iy=0; iy<FluidBlock::sizeY; iy++)
-					for(int ix=0; ix<FluidBlock::sizeX; ix++)
-					{
-						Real p[3];
-						info.pos(p, ix, iy, iz);
+  inline void operator()(const BlockInfo& info, FluidBlock& b) const
+  {
+    if(_is_touching(info))
+      //  if(true)
+    {
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+        for(int iy=0; iy<FluidBlock::sizeY; iy++)
+          for(int ix=0; ix<FluidBlock::sizeX; ix++)
+          {
+            Real p[3];
+            info.pos(p, ix, iy, iz);
 
-						const Real t[3] = {
-								(Real)(p[0] - position[0]),
-								(Real)(p[1] - position[1]),
-								(Real)(p[2] - position[2])
-						};
+            const Real t[3] = {
+                (Real)(p[0] - position[0]),
+                (Real)(p[1] - position[1]),
+                (Real)(p[2] - position[2])
+            };
 
-						//mappele //sqrt(t[1] * t[1] + t[2] * t[2]);//
-						const Real r = sqrt(t[1]*t[1] + t[2]*t[2]);
+            //mappele //sqrt(t[1] * t[1] + t[2] * t[2]);//
+            const Real r = sqrt(t[1]*t[1] + t[2]*t[2]);
 
-						if (r > 0)
-						{
-							const Real c[3] = {
-									0,
-									big_r*t[1]/r,
-									big_r*t[2]/r
-							};
+            if (r > 0)
+            {
+              const Real c[3] = {
+                  0,
+                  big_r*t[1]/r,
+                  big_r*t[2]/r
+              };
 
-							const Real d = sqrt(pow(t[0]-c[0], 2) +  pow(t[1]-c[1], 2) + pow(t[2]-c[2], 2));
-							const Real chi = mollified_heaviside(d-small_r, smoothing_length);
-							b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
-						}
-					}
-		}
-	}
+              const Real d = sqrt(pow(t[0]-c[0], 2) +  pow(t[1]-c[1], 2) + pow(t[2]-c[2], 2));
+              const Real chi = mollified_heaviside(d-small_r, smoothing_length);
+              b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
+            }
+          }
+    }
+  }
 };
 }
 
@@ -355,78 +515,78 @@ namespace EllipsoidObstacle
 
 static Real DistancePointEllipseSpecial (const Real e[2], const Real y[2], Real x[2])
 {
-	Real distance = (Real)0;
-	if (y[1] > (Real)0)
-	{
-		if (y[0] > (Real)0)
-		{
-			// Bisect to compute the root of F(t) for t >= -e1*e1.
-			Real esqr[2] = { e[0]*e[0], e[1]*e[1] };
-			Real ey[2] = { e[0]*y[0], e[1]*y[1] };
-			Real t0 = -esqr[1] + ey[1];
-			Real t1 = -esqr[1] + sqrt(ey[0]*ey[0] + ey[1]*ey[1]);
-			Real t = t0;
-			const int imax = 2*std::numeric_limits<Real>::max_exponent;
-			for (int i = 0; i < imax; ++i)
-			{
-				t = ((Real)0.5)*(t0 + t1);
-				if (t == t0 || t == t1)
-				{
-					break;
-				}
+  Real distance = (Real)0;
+  if (y[1] > (Real)0)
+  {
+    if (y[0] > (Real)0)
+    {
+      // Bisect to compute the root of F(t) for t >= -e1*e1.
+      Real esqr[2] = { e[0]*e[0], e[1]*e[1] };
+      Real ey[2] = { e[0]*y[0], e[1]*y[1] };
+      Real t0 = -esqr[1] + ey[1];
+      Real t1 = -esqr[1] + sqrt(ey[0]*ey[0] + ey[1]*ey[1]);
+      Real t = t0;
+      const int imax = 2*std::numeric_limits<Real>::max_exponent;
+      for (int i = 0; i < imax; ++i)
+      {
+        t = ((Real)0.5)*(t0 + t1);
+        if (t == t0 || t == t1)
+        {
+          break;
+        }
 
-				Real r[2] = { ey[0]/(t + esqr[0]), ey[1]/(t + esqr[1]) };
-				Real f = r[0]*r[0] + r[1]*r[1] - (Real)1;
-				if (f > (Real)0)
-				{
-					t0 = t;
-				}
-				else if (f < (Real)0)
-				{
-					t1 = t;
-				}
-				else
-				{
-					break;
-				}
-			}
+        Real r[2] = { ey[0]/(t + esqr[0]), ey[1]/(t + esqr[1]) };
+        Real f = r[0]*r[0] + r[1]*r[1] - (Real)1;
+        if (f > (Real)0)
+        {
+          t0 = t;
+        }
+        else if (f < (Real)0)
+        {
+          t1 = t;
+        }
+        else
+        {
+          break;
+        }
+      }
 
-			x[0] = esqr[0]*y[0]/(t + esqr[0]);
-			x[1] = esqr[1]*y[1]/(t + esqr[1]);
-			Real d[2] = { x[0] - y[0], x[1] - y[1] };
-			distance = sqrt(d[0]*d[0] + d[1]*d[1]);
-		}
-		else  // y0 == 0
-		{
-			x[0] = (Real)0;
-			x[1] = e[1];
-			distance = fabs(y[1] - e[1]);
-		}
-	}
-	else  // y1 == 0
-	{
-		Real denom0 = e[0]*e[0] - e[1]*e[1];
-		Real e0y0 = e[0]*y[0];
-		if (e0y0 < denom0)
-		{
-			// y0 is inside the subinterval.
-			Real x0de0 = e0y0/denom0;
-			Real x0de0sqr = x0de0*x0de0;
-			x[0] = e[0]*x0de0;
-			x[1] = e[1]*sqrt(fabs((Real)1 - x0de0sqr));
-			Real d0 = x[0] - y[0];
-			distance = sqrt(d0*d0 + x[1]*x[1]);
-		}
-		else
-		{
-			// y0 is outside the subinterval.  The closest ellipse point has
-			// x1 == 0 and is on the domain-boundary interval (x0/e0)^2 = 1.
-			x[0] = e[0];
-			x[1] = (Real)0;
-			distance = fabs(y[0] - e[0]);
-		}
-	}
-	return distance;
+      x[0] = esqr[0]*y[0]/(t + esqr[0]);
+      x[1] = esqr[1]*y[1]/(t + esqr[1]);
+      Real d[2] = { x[0] - y[0], x[1] - y[1] };
+      distance = sqrt(d[0]*d[0] + d[1]*d[1]);
+    }
+    else  // y0 == 0
+    {
+      x[0] = (Real)0;
+      x[1] = e[1];
+      distance = fabs(y[1] - e[1]);
+    }
+  }
+  else  // y1 == 0
+  {
+    Real denom0 = e[0]*e[0] - e[1]*e[1];
+    Real e0y0 = e[0]*y[0];
+    if (e0y0 < denom0)
+    {
+      // y0 is inside the subinterval.
+      Real x0de0 = e0y0/denom0;
+      Real x0de0sqr = x0de0*x0de0;
+      x[0] = e[0]*x0de0;
+      x[1] = e[1]*sqrt(fabs((Real)1 - x0de0sqr));
+      Real d0 = x[0] - y[0];
+      distance = sqrt(d0*d0 + x[1]*x[1]);
+    }
+    else
+    {
+      // y0 is outside the subinterval.  The closest ellipse point has
+      // x1 == 0 and is on the domain-boundary interval (x0/e0)^2 = 1.
+      x[0] = e[0];
+      x[1] = (Real)0;
+      distance = fabs(y[0] - e[0]);
+    }
+  }
+  return distance;
 }
 //----------------------------------------------------------------------------
 // The ellipse is (x0/e0)^2 + (x1/e1)^2 = 1.  The query point is (y0,y1).
@@ -436,58 +596,58 @@ static Real DistancePointEllipseSpecial (const Real e[2], const Real y[2], Real 
 
 static Real DistancePointEllipse (const Real e[2], const Real y[2], Real x[2])
 {
-	// Determine reflections for y to the first quadrant.
-	bool reflect[2];
-	int i, j;
-	for (i = 0; i < 2; ++i)
-	{
-		reflect[i] = (y[i] < (Real)0);
-	}
+  // Determine reflections for y to the first quadrant.
+  bool reflect[2];
+  int i, j;
+  for (i = 0; i < 2; ++i)
+  {
+    reflect[i] = (y[i] < (Real)0);
+  }
 
-	// Determine the axis order for decreasing extents.
-	int permute[2];
-	if (e[0] < e[1])
-	{
-		permute[0] = 1;  permute[1] = 0;
-	}
-	else
-	{
-		permute[0] = 0;  permute[1] = 1;
-	}
+  // Determine the axis order for decreasing extents.
+  int permute[2];
+  if (e[0] < e[1])
+  {
+    permute[0] = 1;  permute[1] = 0;
+  }
+  else
+  {
+    permute[0] = 0;  permute[1] = 1;
+  }
 
-	int invpermute[2];
-	for (i = 0; i < 2; ++i)
-	{
-		invpermute[permute[i]] = i;
-	}
+  int invpermute[2];
+  for (i = 0; i < 2; ++i)
+  {
+    invpermute[permute[i]] = i;
+  }
 
-	Real locE[2], locY[2];
-	for (i = 0; i < 2; ++i)
-	{
-		j = permute[i];
-		locE[i] = e[j];
-		locY[i] = y[j];
-		if (reflect[j])
-		{
-			locY[i] = -locY[i];
-		}
-	}
+  Real locE[2], locY[2];
+  for (i = 0; i < 2; ++i)
+  {
+    j = permute[i];
+    locE[i] = e[j];
+    locY[i] = y[j];
+    if (reflect[j])
+    {
+      locY[i] = -locY[i];
+    }
+  }
 
-	Real locX[2];
-	Real distance = DistancePointEllipseSpecial(locE, locY, locX);
+  Real locX[2];
+  Real distance = DistancePointEllipseSpecial(locE, locY, locX);
 
-	// Restore the axis order and reflections.
-	for (i = 0; i < 2; ++i)
-	{
-		j = invpermute[i];
-		if (reflect[j])
-		{
-			locX[j] = -locX[j];
-		}
-		x[i] = locX[j];
-	}
+  // Restore the axis order and reflections.
+  for (i = 0; i < 2; ++i)
+  {
+    j = invpermute[i];
+    if (reflect[j])
+    {
+      locX[j] = -locX[j];
+    }
+    x[i] = locX[j];
+  }
 
-	return distance;
+  return distance;
 }
 //----------------------------------------------------------------------------
 // The ellipsoid is (x0/e0)^2 + (x1/e1)^2 + (x2/e2)^2 = 1 with e0 >= e1 >= e2.
@@ -498,126 +658,126 @@ static Real DistancePointEllipse (const Real e[2], const Real y[2], Real x[2])
 //----------------------------------------------------------------------------
 
 static Real DistancePointEllipsoidSpecial (const Real e[3], const Real y[3],
-		Real x[3])
+    Real x[3])
 {
-	Real distance;
-	if (y[2] > (Real)0)
-	{
-		if (y[1] > (Real)0)
-		{
-			if (y[0] > (Real)0)
-			{
-				// Bisect to compute the root of F(t) for t >= -e2*e2.
-				Real esqr[3] = { e[0]*e[0], e[1]*e[1], e[2]*e[2] };
-				Real ey[3] = { e[0]*y[0], e[1]*y[1], e[2]*y[2] };
-				Real t0 = -esqr[2] + ey[2];
-				Real t1 = -esqr[2] + sqrt(ey[0]*ey[0] + ey[1]*ey[1] +
-						ey[2]*ey[2]);
-				Real t = t0;
-				const int imax = 2*std::numeric_limits<Real>::max_exponent;
-				for (int i = 0; i < imax; ++i)
-				{
-					t = ((Real)0.5)*(t0 + t1);
-					if (t == t0 || t == t1)
-					{
-						break;
-					}
+  Real distance;
+  if (y[2] > (Real)0)
+  {
+    if (y[1] > (Real)0)
+    {
+      if (y[0] > (Real)0)
+      {
+        // Bisect to compute the root of F(t) for t >= -e2*e2.
+        Real esqr[3] = { e[0]*e[0], e[1]*e[1], e[2]*e[2] };
+        Real ey[3] = { e[0]*y[0], e[1]*y[1], e[2]*y[2] };
+        Real t0 = -esqr[2] + ey[2];
+        Real t1 = -esqr[2] + sqrt(ey[0]*ey[0] + ey[1]*ey[1] +
+            ey[2]*ey[2]);
+        Real t = t0;
+        const int imax = 2*std::numeric_limits<Real>::max_exponent;
+        for (int i = 0; i < imax; ++i)
+        {
+          t = ((Real)0.5)*(t0 + t1);
+          if (t == t0 || t == t1)
+          {
+            break;
+          }
 
-					Real r[3] = { ey[0]/(t + esqr[0]), ey[1]/(t + esqr[1]),
-							ey[2]/(t + esqr[2]) };
-					Real f = r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - (Real)1;
-					if (f > (Real)0)
-					{
-						t0 = t;
-					}
-					else if (f < (Real)0)
-					{
-						t1 = t;
-					}
-					else
-					{
-						break;
-					}
-				}
+          Real r[3] = { ey[0]/(t + esqr[0]), ey[1]/(t + esqr[1]),
+              ey[2]/(t + esqr[2]) };
+          Real f = r[0]*r[0] + r[1]*r[1] + r[2]*r[2] - (Real)1;
+          if (f > (Real)0)
+          {
+            t0 = t;
+          }
+          else if (f < (Real)0)
+          {
+            t1 = t;
+          }
+          else
+          {
+            break;
+          }
+        }
 
-				x[0] = esqr[0]*y[0]/(t + esqr[0]);
-				x[1] = esqr[1]*y[1]/(t + esqr[1]);
-				x[2] = esqr[2]*y[2]/(t + esqr[2]);
-				Real d[3] = { x[0] - y[0], x[1] - y[1], x[2] - y[2] };
-				distance = sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
-			}
-			else  // y0 == 0
-			{
-				x[0] = (Real)0;
-				Real etmp[2] = { e[1], e[2] };
-				Real ytmp[2] = { y[1], y[2] };
-				Real xtmp[2];
-				distance = DistancePointEllipseSpecial(etmp, ytmp, xtmp);
-				x[1] = xtmp[0];
-				x[2] = xtmp[1];
-			}
-		}
-		else  // y1 == 0
-		{
-			x[1] = (Real)0;
-			if (y[0] > (Real)0)
-			{
-				Real etmp[2] = { e[0], e[2] };
-				Real ytmp[2] = { y[0], y[2] };
-				Real xtmp[2];
-				distance = DistancePointEllipseSpecial(etmp, ytmp, xtmp);
-				x[0] = xtmp[0];
-				x[2] = xtmp[1];
-			}
-			else  // y0 == 0
-			{
-				x[0] = (Real)0;
-				x[2] = e[2];
-				distance = fabs(y[2] - e[2]);
-			}
-		}
-	}
-	else  // y2 == 0
-	{
-		Real denom[2] = { e[0]*e[0] - e[2]*e[2], e[1]*e[1] - e[2]*e[2] };
-		Real ey[2] = { e[0]*y[0], e[1]*y[1] };
-		if (ey[0] < denom[0] && ey[1] < denom[1])
-		{
-			// (y0,y1) is inside the axis-aligned bounding rectangle of the
-			// subellipse.  This intermediate test is designed to guard
-			// against the division by zero when e0 == e2 or e1 == e2.
-			Real xde[2] = { ey[0]/denom[0], ey[1]/denom[1] };
-			Real xdesqr[2] = { xde[0]*xde[0], xde[1]*xde[1] };
-			Real discr = (Real)1 - xdesqr[0] - xdesqr[1];
-			if (discr > (Real)0)
-			{
-				// (y0,y1) is inside the subellipse.  The closest ellipsoid
-				// point has x2 > 0.
-				x[0] = e[0]*xde[0];
-				x[1] = e[1]*xde[1];
-				x[2] = e[2]*sqrt(discr);
-				Real d[2] = { x[0] - y[0], x[1] - y[1] };
-				distance = sqrt(d[0]*d[0] + d[1]*d[1] + x[2]*x[2]);
-			}
-			else
-			{
-				// (y0,y1) is outside the subellipse.  The closest ellipsoid
-				// point has x2 == 0 and is on the domain-boundary ellipse
-				// (x0/e0)^2 + (x1/e1)^2 = 1.
-				x[2] = (Real)0;
-				distance = DistancePointEllipseSpecial(e, y, x);
-			}
-		}
-		else
-		{
-			// (y0,y1) is outside the subellipse.  The closest ellipsoid
-			// point has x2 == 0 and is on the domain-boundary ellipse
-			// (x0/e0)^2 + (x1/e1)^2 = 1.
-			x[2] = (Real)0;
-			distance = DistancePointEllipseSpecial(e, y, x);
-		}
-	}
-	return distance;
+        x[0] = esqr[0]*y[0]/(t + esqr[0]);
+        x[1] = esqr[1]*y[1]/(t + esqr[1]);
+        x[2] = esqr[2]*y[2]/(t + esqr[2]);
+        Real d[3] = { x[0] - y[0], x[1] - y[1], x[2] - y[2] };
+        distance = sqrt(d[0]*d[0] + d[1]*d[1] + d[2]*d[2]);
+      }
+      else  // y0 == 0
+      {
+        x[0] = (Real)0;
+        Real etmp[2] = { e[1], e[2] };
+        Real ytmp[2] = { y[1], y[2] };
+        Real xtmp[2];
+        distance = DistancePointEllipseSpecial(etmp, ytmp, xtmp);
+        x[1] = xtmp[0];
+        x[2] = xtmp[1];
+      }
+    }
+    else  // y1 == 0
+    {
+      x[1] = (Real)0;
+      if (y[0] > (Real)0)
+      {
+        Real etmp[2] = { e[0], e[2] };
+        Real ytmp[2] = { y[0], y[2] };
+        Real xtmp[2];
+        distance = DistancePointEllipseSpecial(etmp, ytmp, xtmp);
+        x[0] = xtmp[0];
+        x[2] = xtmp[1];
+      }
+      else  // y0 == 0
+      {
+        x[0] = (Real)0;
+        x[2] = e[2];
+        distance = fabs(y[2] - e[2]);
+      }
+    }
+  }
+  else  // y2 == 0
+  {
+    Real denom[2] = { e[0]*e[0] - e[2]*e[2], e[1]*e[1] - e[2]*e[2] };
+    Real ey[2] = { e[0]*y[0], e[1]*y[1] };
+    if (ey[0] < denom[0] && ey[1] < denom[1])
+    {
+      // (y0,y1) is inside the axis-aligned bounding rectangle of the
+      // subellipse.  This intermediate test is designed to guard
+      // against the division by zero when e0 == e2 or e1 == e2.
+      Real xde[2] = { ey[0]/denom[0], ey[1]/denom[1] };
+      Real xdesqr[2] = { xde[0]*xde[0], xde[1]*xde[1] };
+      Real discr = (Real)1 - xdesqr[0] - xdesqr[1];
+      if (discr > (Real)0)
+      {
+        // (y0,y1) is inside the subellipse.  The closest ellipsoid
+        // point has x2 > 0.
+        x[0] = e[0]*xde[0];
+        x[1] = e[1]*xde[1];
+        x[2] = e[2]*sqrt(discr);
+        Real d[2] = { x[0] - y[0], x[1] - y[1] };
+        distance = sqrt(d[0]*d[0] + d[1]*d[1] + x[2]*x[2]);
+      }
+      else
+      {
+        // (y0,y1) is outside the subellipse.  The closest ellipsoid
+        // point has x2 == 0 and is on the domain-boundary ellipse
+        // (x0/e0)^2 + (x1/e1)^2 = 1.
+        x[2] = (Real)0;
+        distance = DistancePointEllipseSpecial(e, y, x);
+      }
+    }
+    else
+    {
+      // (y0,y1) is outside the subellipse.  The closest ellipsoid
+      // point has x2 == 0 and is on the domain-boundary ellipse
+      // (x0/e0)^2 + (x1/e1)^2 = 1.
+      x[2] = (Real)0;
+      distance = DistancePointEllipseSpecial(e, y, x);
+    }
+  }
+  return distance;
 }
 //----------------------------------------------------------------------------
 // The ellipsoid is (x0/e0)^2 + (x1/e1)^2 + (x2/e2)^2 = 1.  The query point is
@@ -628,463 +788,463 @@ static Real DistancePointEllipsoidSpecial (const Real e[3], const Real y[3],
 template <typename Real>
 static Real DistancePointEllipsoid (const Real e[3], const Real y[3], Real x[3])
 {
-	// Determine reflections for y to the first octant.
-	bool reflect[3];
-	int i, j;
-	for (i = 0; i < 3; ++i)
-	{
-		reflect[i] = (y[i] < (Real)0);
-	}
+  // Determine reflections for y to the first octant.
+  bool reflect[3];
+  int i, j;
+  for (i = 0; i < 3; ++i)
+  {
+    reflect[i] = (y[i] < (Real)0);
+  }
 
-	// Determine the axis order for decreasing extents.
-	int permute[3];
-	if (e[0] < e[1])
-	{
-		if (e[2] < e[0])
-		{
-			permute[0] = 1;  permute[1] = 0;  permute[2] = 2;
-		}
-		else if (e[2] < e[1])
-		{
-			permute[0] = 1;  permute[1] = 2;  permute[2] = 0;
-		}
-		else
-		{
-			permute[0] = 2;  permute[1] = 1;  permute[2] = 0;
-		}
-	}
-	else
-	{
-		if (e[2] < e[1])
-		{
-			permute[0] = 0;  permute[1] = 1;  permute[2] = 2;
-		}
-		else if (e[2] < e[0])
-		{
-			permute[0] = 0;  permute[1] = 2;  permute[2] = 1;
-		}
-		else
-		{
-			permute[0] = 2;  permute[1] = 0;  permute[2] = 1;
-		}
-	}
+  // Determine the axis order for decreasing extents.
+  int permute[3];
+  if (e[0] < e[1])
+  {
+    if (e[2] < e[0])
+    {
+      permute[0] = 1;  permute[1] = 0;  permute[2] = 2;
+    }
+    else if (e[2] < e[1])
+    {
+      permute[0] = 1;  permute[1] = 2;  permute[2] = 0;
+    }
+    else
+    {
+      permute[0] = 2;  permute[1] = 1;  permute[2] = 0;
+    }
+  }
+  else
+  {
+    if (e[2] < e[1])
+    {
+      permute[0] = 0;  permute[1] = 1;  permute[2] = 2;
+    }
+    else if (e[2] < e[0])
+    {
+      permute[0] = 0;  permute[1] = 2;  permute[2] = 1;
+    }
+    else
+    {
+      permute[0] = 2;  permute[1] = 0;  permute[2] = 1;
+    }
+  }
 
-	int invpermute[3];
-	for (i = 0; i < 3; ++i)
-	{
-		invpermute[permute[i]] = i;
-	}
+  int invpermute[3];
+  for (i = 0; i < 3; ++i)
+  {
+    invpermute[permute[i]] = i;
+  }
 
-	Real locE[3], locY[3];
-	for (i = 0; i < 3; ++i)
-	{
-		j = permute[i];
-		locE[i] = e[j];
-		locY[i] = y[j];
-		if (reflect[j])
-		{
-			locY[i] = -locY[i];
-		}
-	}
+  Real locE[3], locY[3];
+  for (i = 0; i < 3; ++i)
+  {
+    j = permute[i];
+    locE[i] = e[j];
+    locY[i] = y[j];
+    if (reflect[j])
+    {
+      locY[i] = -locY[i];
+    }
+  }
 
-	Real locX[3];
-	Real distance = DistancePointEllipsoidSpecial(locE, locY, locX);
+  Real locX[3];
+  Real distance = DistancePointEllipsoidSpecial(locE, locY, locX);
 
-	// Restore the axis order and reflections.
-	for (i = 0; i < 3; ++i)
-	{
-		j = invpermute[i];
-		if (reflect[j])
-		{
-			locX[j] = -locX[j];
-		}
-		x[i] = locX[j];
-	}
+  // Restore the axis order and reflections.
+  for (i = 0; i < 3; ++i)
+  {
+    j = invpermute[i];
+    if (reflect[j])
+    {
+      locX[j] = -locX[j];
+    }
+    x[i] = locX[j];
+  }
 
-	return distance;
+  return distance;
 }
 
 struct FillBlocksEllipsoid
 {
-	const Real e0,e1,e2,smoothing_length;
-	Real position[3];
-	Real quaternion[4];
-	Real sphere_box[3][2];
+  const Real e0,e1,e2,smoothing_length;
+  Real position[3];
+  Real quaternion[4];
+  Real sphere_box[3][2];
 
-	void _find_sphere_box()
-	{
-		const Real maxAxis = std::max(std::max(e0,e1),e2);
-		sphere_box[0][0] = position[0] - 2*(maxAxis + smoothing_length);
-		sphere_box[0][1] = position[0] + 2*(maxAxis + smoothing_length);
-		sphere_box[1][0] = position[1] - 2*(maxAxis + smoothing_length);
-		sphere_box[1][1] = position[1] + 2*(maxAxis + smoothing_length);
-		sphere_box[2][0] = position[2] - 2*(maxAxis + smoothing_length);
-		sphere_box[2][1] = position[2] + 2*(maxAxis + smoothing_length);
-	}
+  void _find_sphere_box()
+  {
+    const Real maxAxis = std::max(std::max(e0,e1),e2);
+    sphere_box[0][0] = position[0] - 2*(maxAxis + smoothing_length);
+    sphere_box[0][1] = position[0] + 2*(maxAxis + smoothing_length);
+    sphere_box[1][0] = position[1] - 2*(maxAxis + smoothing_length);
+    sphere_box[1][1] = position[1] + 2*(maxAxis + smoothing_length);
+    sphere_box[2][0] = position[2] - 2*(maxAxis + smoothing_length);
+    sphere_box[2][1] = position[2] + 2*(maxAxis + smoothing_length);
+  }
 
-	FillBlocksEllipsoid(const Real e0, const Real e1, const Real e2, const Real smoothing_length, const Real position[3], const Real quaternion[4]):
-		e0(e0),e1(e1),e2(e2), smoothing_length(smoothing_length)
-	{
-		this->position[0] = position[0];
-		this->position[1] = position[1];
-		this->position[2] = position[2];
+  FillBlocksEllipsoid(const Real e0, const Real e1, const Real e2, const Real smoothing_length, const Real position[3], const Real quaternion[4]):
+    e0(e0),e1(e1),e2(e2), smoothing_length(smoothing_length)
+  {
+    this->position[0] = position[0];
+    this->position[1] = position[1];
+    this->position[2] = position[2];
 
-		this->quaternion[0] = quaternion[0];
-		this->quaternion[1] = quaternion[1];
-		this->quaternion[2] = quaternion[2];
-		this->quaternion[3] = quaternion[3];
+    this->quaternion[0] = quaternion[0];
+    this->quaternion[1] = quaternion[1];
+    this->quaternion[2] = quaternion[2];
+    this->quaternion[3] = quaternion[3];
 
-		_find_sphere_box();
-	}
+    _find_sphere_box();
+  }
 
-	FillBlocksEllipsoid(const FillBlocksEllipsoid& c):
-		e0(c.e0),e1(c.e1),e2(c.e2), smoothing_length(c.smoothing_length)
-	{
-		position[0] = c.position[0];
-		position[1] = c.position[1];
-		position[2] = c.position[2];
+  FillBlocksEllipsoid(const FillBlocksEllipsoid& c):
+    e0(c.e0),e1(c.e1),e2(c.e2), smoothing_length(c.smoothing_length)
+  {
+    position[0] = c.position[0];
+    position[1] = c.position[1];
+    position[2] = c.position[2];
 
-		quaternion[0] = c.quaternion[0];
-		quaternion[1] = c.quaternion[1];
-		quaternion[2] = c.quaternion[2];
-		quaternion[3] = c.quaternion[3];
+    quaternion[0] = c.quaternion[0];
+    quaternion[1] = c.quaternion[1];
+    quaternion[2] = c.quaternion[2];
+    quaternion[3] = c.quaternion[3];
 
-		_find_sphere_box();
-	}
+    _find_sphere_box();
+  }
 
-	Real mollified_heaviside(const Real x, const Real eps) const
-	{
-		const Real alpha = M_PI*min(1., max(0., (x+0.5*eps)/eps));
+  Real mollified_heaviside(const Real x, const Real eps) const
+  {
+    const Real alpha = M_PI*min(1., max(0., (x+0.5*eps)/eps));
 
-		return 0.5+0.5*cos(alpha);
-	}
+    return 0.5+0.5*cos(alpha);
+  }
 
-	bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
-	{
-		Real intersection[3][2] = {
-				max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
-				max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
-				max(min_pos[2], sphere_box[2][0]), min(max_pos[2], sphere_box[2][1])
-		};
+  bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
+  {
+    Real intersection[3][2] = {
+        max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
+        max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
+        max(min_pos[2], sphere_box[2][0]), min(max_pos[2], sphere_box[2][1])
+    };
 
-		return
-				intersection[0][1]-intersection[0][0]>0 &&
-				intersection[1][1]-intersection[1][0]>0 &&
-				intersection[2][1]-intersection[2][0]>0;
+    return
+        intersection[0][1]-intersection[0][0]>0 &&
+        intersection[1][1]-intersection[1][0]>0 &&
+        intersection[2][1]-intersection[2][0]>0;
 
-	}
+  }
 
-	bool _is_touching(const BlockInfo& info, const int buffer_dx=0) const
-	{
-		Real min_pos[3], max_pos[3];
+  bool _is_touching(const BlockInfo& info, const int buffer_dx=0) const
+  {
+    Real min_pos[3], max_pos[3];
 
-		info.pos(min_pos, 0,0,0);
-		info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-		for(int i=0;i<3;++i)
-		{
-			min_pos[i]-=buffer_dx*info.h_gridpoint;
-			max_pos[i]+=buffer_dx*info.h_gridpoint;
-		}
-		return _is_touching(min_pos,max_pos);
-	}
+    info.pos(min_pos, 0,0,0);
+    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    for(int i=0;i<3;++i)
+    {
+      min_pos[i]-=buffer_dx*info.h_gridpoint;
+      max_pos[i]+=buffer_dx*info.h_gridpoint;
+    }
+    return _is_touching(min_pos,max_pos);
+  }
 
-	inline void operator()(const BlockInfo& info, FluidBlock& b) const
-	{
+  inline void operator()(const BlockInfo& info, FluidBlock& b) const
+  {
 
-		const Real w = quaternion[0];
-		const Real x = quaternion[1];
-		const Real y = quaternion[2];
-		const Real z = quaternion[3];
+    const Real w = quaternion[0];
+    const Real x = quaternion[1];
+    const Real y = quaternion[2];
+    const Real z = quaternion[3];
 
-		const Real Rmatrix[3][3] = {
-				{1-2*(y*y+z*z),  2*(x*y+z*w),    2*(x*z-y*w)},
-				{2*(x*y-z*w),    1-2*(x*x+z*z),  2*(y*z+x*w)},
-				{2*(x*z+y*w),    2*(y*z-x*w),    1-2*(x*x+y*y)}
-		};
+    const Real Rmatrix[3][3] = {
+        {1-2*(y*y+z*z),  2*(x*y+z*w),    2*(x*z-y*w)},
+        {2*(x*y-z*w),    1-2*(x*x+z*z),  2*(y*z+x*w)},
+        {2*(x*z+y*w),    2*(y*z-x*w),    1-2*(x*x+y*y)}
+    };
 
-		if(_is_touching(info))
-		{
-			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-				for(int iy=0; iy<FluidBlock::sizeY; iy++)
-					for(int ix=0; ix<FluidBlock::sizeX; ix++)
-					{
-						Real p[3];
-						info.pos(p, ix, iy, iz);
+    if(_is_touching(info))
+    {
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+        for(int iy=0; iy<FluidBlock::sizeY; iy++)
+          for(int ix=0; ix<FluidBlock::sizeX; ix++)
+          {
+            Real p[3];
+            info.pos(p, ix, iy, iz);
 
-						// translate
-						p[0] -= position[0];
-						p[1] -= position[1];
-						p[2] -= position[2];
+            // translate
+            p[0] -= position[0];
+            p[1] -= position[1];
+            p[2] -= position[2];
 
-						// rotate
-						const Real t[3] = {
-								Rmatrix[0][0]*p[0] + Rmatrix[0][1]*p[1] + Rmatrix[0][2]*p[2],
-								Rmatrix[1][0]*p[0] + Rmatrix[1][1]*p[1] + Rmatrix[1][2]*p[2],
-								Rmatrix[2][0]*p[0] + Rmatrix[2][1]*p[1] + Rmatrix[2][2]*p[2]
-						};
+            // rotate
+            const Real t[3] = {
+                Rmatrix[0][0]*p[0] + Rmatrix[0][1]*p[1] + Rmatrix[0][2]*p[2],
+                Rmatrix[1][0]*p[0] + Rmatrix[1][1]*p[1] + Rmatrix[1][2]*p[2],
+                Rmatrix[2][0]*p[0] + Rmatrix[2][1]*p[1] + Rmatrix[2][2]*p[2]
+            };
 
-						// find distance
-						const Real e[3] = {e0,e1,e2};
-						Real xs[3];
-						const Real dist=DistancePointEllipsoid (e, t, xs);
-						const int sign = ( (t[0]*t[0]+t[1]*t[1]+t[2]*t[2]) > (xs[0]*xs[0]+xs[1]*xs[1]+xs[2]*xs[2]) ) ? 1 : -1;
-						const Real chi =  mollified_heaviside(sign*dist, smoothing_length);
-						b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
-					}
-		}
-	}
+            // find distance
+            const Real e[3] = {e0,e1,e2};
+            Real xs[3];
+            const Real dist=DistancePointEllipsoid (e, t, xs);
+            const int sign = ( (t[0]*t[0]+t[1]*t[1]+t[2]*t[2]) > (xs[0]*xs[0]+xs[1]*xs[1]+xs[2]*xs[2]) ) ? 1 : -1;
+            const Real chi =  mollified_heaviside(sign*dist, smoothing_length);
+            b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
+          }
+    }
+  }
 };
 
 
 
 struct FillBlocks_Towers
 {
-	const Real e0,e1,e2,safe_distance;
-	Real position[3];
-	Real quaternion[4];
-	Real normalI[3], normalJ[3], normalK[3];
-	Real rotationMatrix[3][3];
+  const Real e0,e1,e2,safe_distance;
+  Real position[3];
+  Real quaternion[4];
+  Real normalI[3], normalJ[3], normalK[3];
+  Real rotationMatrix[3][3];
 
-	void normalizeNormals()
-	{
-		const Real magI = std::sqrt(normalI[0]*normalI[0]+normalI[1]*normalI[1]+normalI[2]*normalI[2]);
-		const Real magJ = std::sqrt(normalJ[0]*normalJ[0]+normalJ[1]*normalJ[1]+normalJ[2]*normalJ[2]);
-		const Real magK = std::sqrt(normalK[0]*normalK[0]+normalK[1]*normalK[1]+normalK[2]*normalK[2]);
-		assert(magI > std::numeric_limits<Real>::epsilon());
-		assert(magJ > std::numeric_limits<Real>::epsilon());
-		assert(magK > std::numeric_limits<Real>::epsilon());
-		const Real invMagI = 1.0/magI;
-		const Real invMagJ = 1.0/magJ;
-		const Real invMagK = 1.0/magK;
+  void normalizeNormals()
+  {
+    const Real magI = std::sqrt(normalI[0]*normalI[0]+normalI[1]*normalI[1]+normalI[2]*normalI[2]);
+    const Real magJ = std::sqrt(normalJ[0]*normalJ[0]+normalJ[1]*normalJ[1]+normalJ[2]*normalJ[2]);
+    const Real magK = std::sqrt(normalK[0]*normalK[0]+normalK[1]*normalK[1]+normalK[2]*normalK[2]);
+    assert(magI > std::numeric_limits<Real>::epsilon());
+    assert(magJ > std::numeric_limits<Real>::epsilon());
+    assert(magK > std::numeric_limits<Real>::epsilon());
+    const Real invMagI = 1.0/magI;
+    const Real invMagJ = 1.0/magJ;
+    const Real invMagK = 1.0/magK;
 
-		for(int i=0;i<3;++i)
-		{
-			normalI[i]=std::abs(normalI[i])*invMagI;
-			normalJ[i]=std::abs(normalJ[i])*invMagJ;
-			normalK[i]=std::abs(normalK[i])*invMagK;
-		}
-	}
+    for(int i=0;i<3;++i)
+    {
+      normalI[i]=std::abs(normalI[i])*invMagI;
+      normalJ[i]=std::abs(normalJ[i])*invMagJ;
+      normalK[i]=std::abs(normalK[i])*invMagK;
+    }
+  }
 
-	void _computeRotationMatrix()
-	{
-		const Real w = quaternion[0];
-		const Real x = quaternion[1];
-		const Real y = quaternion[2];
-		const Real z = quaternion[3];
+  void _computeRotationMatrix()
+  {
+    const Real w = quaternion[0];
+    const Real x = quaternion[1];
+    const Real y = quaternion[2];
+    const Real z = quaternion[3];
 
-		const Real Rmatrix[3][3] = {
-				{1-2*(y*y+z*z),  2*(x*y+z*w),    2*(x*z-y*w)},
-				{2*(x*y-z*w),    1-2*(x*x+z*z),  2*(y*z+x*w)},
-				{2*(x*z+y*w),    2*(y*z-x*w),    1-2*(x*x+y*y)}
-		};
-		memcpy(rotationMatrix, Rmatrix, sizeof(Rmatrix));
+    const Real Rmatrix[3][3] = {
+        {1-2*(y*y+z*z),  2*(x*y+z*w),    2*(x*z-y*w)},
+        {2*(x*y-z*w),    1-2*(x*x+z*z),  2*(y*z+x*w)},
+        {2*(x*z+y*w),    2*(y*z-x*w),    1-2*(x*x+y*y)}
+    };
+    memcpy(rotationMatrix, Rmatrix, sizeof(Rmatrix));
 
-		// initial axes are grid-aligned: e0 along x, e1 along y, e2 along z
-		const Real nx[3] = {1.0,0.0,0.0};
-		const Real ny[3] = {0.0,1.0,0.0};
-		const Real nz[3] = {0.0,0.0,1.0};
+    // initial axes are grid-aligned: e0 along x, e1 along y, e2 along z
+    const Real nx[3] = {1.0,0.0,0.0};
+    const Real ny[3] = {0.0,1.0,0.0};
+    const Real nz[3] = {0.0,0.0,1.0};
 
-		// now we rotate to computational frame
-		for(int i=0;i<3;++i)
-		{
-			normalI[i] = Rmatrix[i][0]*nx[0] + Rmatrix[i][1]*nx[1] + Rmatrix[i][2]*nx[2];
-			normalJ[i] = Rmatrix[i][0]*ny[0] + Rmatrix[i][1]*ny[1] + Rmatrix[i][2]*ny[2];
-			normalK[i] = Rmatrix[i][0]*nz[0] + Rmatrix[i][1]*nz[1] + Rmatrix[i][2]*nz[2];
-		}
+    // now we rotate to computational frame
+    for(int i=0;i<3;++i)
+    {
+      normalI[i] = Rmatrix[i][0]*nx[0] + Rmatrix[i][1]*nx[1] + Rmatrix[i][2]*nx[2];
+      normalJ[i] = Rmatrix[i][0]*ny[0] + Rmatrix[i][1]*ny[1] + Rmatrix[i][2]*ny[2];
+      normalK[i] = Rmatrix[i][0]*nz[0] + Rmatrix[i][1]*nz[1] + Rmatrix[i][2]*nz[2];
+    }
 
-		normalizeNormals();
-	}
+    normalizeNormals();
+  }
 
-	FillBlocks_Towers(const Real e0, const Real e1, const Real e2, const Real max_dx, const Real position[3], const Real quaternion[4]):
-		e0(e0),e1(e1),e2(e2), safe_distance(max_dx)
-	{
-		this->position[0] = position[0];
-		this->position[1] = position[1];
-		this->position[2] = position[2];
+  FillBlocks_Towers(const Real e0, const Real e1, const Real e2, const Real max_dx, const Real position[3], const Real quaternion[4]):
+    e0(e0),e1(e1),e2(e2), safe_distance(max_dx)
+  {
+    this->position[0] = position[0];
+    this->position[1] = position[1];
+    this->position[2] = position[2];
 
-		this->quaternion[0] = quaternion[0];
-		this->quaternion[1] = quaternion[1];
-		this->quaternion[2] = quaternion[2];
-		this->quaternion[3] = quaternion[3];
+    this->quaternion[0] = quaternion[0];
+    this->quaternion[1] = quaternion[1];
+    this->quaternion[2] = quaternion[2];
+    this->quaternion[3] = quaternion[3];
 
-		_computeRotationMatrix();
-	}
+    _computeRotationMatrix();
+  }
 
-	FillBlocks_Towers(const FillBlocks_Towers& c):
-		e0(c.e0),e1(c.e1),e2(c.e2), safe_distance(c.safe_distance)
-	{
-		position[0] = c.position[0];
-		position[1] = c.position[1];
-		position[2] = c.position[2];
+  FillBlocks_Towers(const FillBlocks_Towers& c):
+    e0(c.e0),e1(c.e1),e2(c.e2), safe_distance(c.safe_distance)
+  {
+    position[0] = c.position[0];
+    position[1] = c.position[1];
+    position[2] = c.position[2];
 
-		quaternion[0] = c.quaternion[0];
-		quaternion[1] = c.quaternion[1];
-		quaternion[2] = c.quaternion[2];
-		quaternion[3] = c.quaternion[3];
+    quaternion[0] = c.quaternion[0];
+    quaternion[1] = c.quaternion[1];
+    quaternion[2] = c.quaternion[2];
+    quaternion[3] = c.quaternion[3];
 
-		_computeRotationMatrix();
-	}
+    _computeRotationMatrix();
+  }
 
-	bool _is_touching(const Real start[3], const Real end[3]) const
-	{
-		const Real AABB_w[3] = {
-				(Real)0.5*(end[0] - start[0]),
-				(Real)0.5*(end[1] - start[1]),
-				(Real)0.5*(end[2] - start[2])
-		}; // halfwidth
+  bool _is_touching(const Real start[3], const Real end[3]) const
+  {
+    const Real AABB_w[3] = {
+        (Real)0.5*(end[0] - start[0]),
+        (Real)0.5*(end[1] - start[1]),
+        (Real)0.5*(end[2] - start[2])
+    }; // halfwidth
 
-		const Real AABB_c[3] = {
-				start[0] + AABB_w[0],
-				start[1] + AABB_w[1],
-				start[2] + AABB_w[2]
-		}; // center
+    const Real AABB_c[3] = {
+        start[0] + AABB_w[0],
+        start[1] + AABB_w[1],
+        start[2] + AABB_w[2]
+    }; // center
 
-		assert(AABB_w[0]>0);
-		assert(AABB_w[1]>0);
-		assert(AABB_w[2]>0);
+    assert(AABB_w[0]>0);
+    assert(AABB_w[1]>0);
+    assert(AABB_w[2]>0);
 
-		const Real w[3] = {e0,e1,e2};
-		assert(w[0]>0);
-		assert(w[1]>0);
-		assert(w[2]>0);
+    const Real w[3] = {e0,e1,e2};
+    assert(w[0]>0);
+    assert(w[1]>0);
+    assert(w[2]>0);
 
-		bool intersects = true;
-		Real r;
-		{
-			r = w[0]*normalI[0] + w[1]*normalJ[0] + w[2]*normalK[0];
-			intersects &= ((position[0]-r <= AABB_c[0] + AABB_w[0]) && (position[0]+r >= AABB_c[0] - AABB_w[0]));
+    bool intersects = true;
+    Real r;
+    {
+      r = w[0]*normalI[0] + w[1]*normalJ[0] + w[2]*normalK[0];
+      intersects &= ((position[0]-r <= AABB_c[0] + AABB_w[0]) && (position[0]+r >= AABB_c[0] - AABB_w[0]));
 
-			r = w[0]*normalI[1] + w[1]*normalJ[1] + w[2]*normalK[1];
-			intersects &= ((position[1]-r <= AABB_c[1] + AABB_w[1]) && (position[1]+r >= AABB_c[1] - AABB_w[1]));
+      r = w[0]*normalI[1] + w[1]*normalJ[1] + w[2]*normalK[1];
+      intersects &= ((position[1]-r <= AABB_c[1] + AABB_w[1]) && (position[1]+r >= AABB_c[1] - AABB_w[1]));
 
-			r = w[0]*normalI[2] + w[1]*normalJ[2] + w[2]*normalK[2];
-			intersects &= ((position[2]-r <= AABB_c[2] + AABB_w[2]) && (position[2]+r >= AABB_c[2] - AABB_w[2]));
-		}
-		{
-			r = AABB_w[0]*normalI[0] + AABB_w[1]*normalJ[0] + AABB_w[2]*normalK[0];
-			intersects &= ((AABB_c[0]-r <= position[0] + w[0]) && (AABB_c[0]+r >= position[0] - w[0]));
+      r = w[0]*normalI[2] + w[1]*normalJ[2] + w[2]*normalK[2];
+      intersects &= ((position[2]-r <= AABB_c[2] + AABB_w[2]) && (position[2]+r >= AABB_c[2] - AABB_w[2]));
+    }
+    {
+      r = AABB_w[0]*normalI[0] + AABB_w[1]*normalJ[0] + AABB_w[2]*normalK[0];
+      intersects &= ((AABB_c[0]-r <= position[0] + w[0]) && (AABB_c[0]+r >= position[0] - w[0]));
 
-			r = AABB_w[0]*normalI[1] + AABB_w[1]*normalJ[1] + AABB_w[2]*normalK[1];
-			intersects &= ((AABB_c[1]-r <= position[1] + w[1]) && (AABB_c[1]+r >= position[1] - w[1]));
+      r = AABB_w[0]*normalI[1] + AABB_w[1]*normalJ[1] + AABB_w[2]*normalK[1];
+      intersects &= ((AABB_c[1]-r <= position[1] + w[1]) && (AABB_c[1]+r >= position[1] - w[1]));
 
-			r = AABB_w[0]*normalI[2] + AABB_w[1]*normalJ[2] + AABB_w[2]*normalK[2];
-			intersects &= ((AABB_c[2]-r <= position[2] + w[2]) && (AABB_c[2]+r >= position[2] - w[2]));
-		}
-		return intersects;
-	}
+      r = AABB_w[0]*normalI[2] + AABB_w[1]*normalJ[2] + AABB_w[2]*normalK[2];
+      intersects &= ((AABB_c[2]-r <= position[2] + w[2]) && (AABB_c[2]+r >= position[2] - w[2]));
+    }
+    return intersects;
+  }
 
-	bool _is_touching(const BlockInfo& info, const int buffer_dx=0) const
-	{
+  bool _is_touching(const BlockInfo& info, const int buffer_dx=0) const
+  {
 
-		const Real safe_distance_info = 2.0*info.h_gridpoint; // two points on each side needed for towers
+    const Real safe_distance_info = 2.0*info.h_gridpoint; // two points on each side needed for towers
 
-		// AABB - OBB intersection.
-		// ellipsoid is inside OBB with normals normalI,normalJ,normalK and widths e0,e1,e2
-		// grid block is AABB
+    // AABB - OBB intersection.
+    // ellipsoid is inside OBB with normals normalI,normalJ,normalK and widths e0,e1,e2
+    // grid block is AABB
 
-		Real start[3], end[3];
+    Real start[3], end[3];
 
-		info.pos(start, 0,0,0);
-		info.pos(end, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    info.pos(start, 0,0,0);
+    info.pos(end, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
 
-		for(int i=0;i<3;++i)
-		{
-			start[i]-=(safe_distance_info + buffer_dx*info.h_gridpoint);
-			end[i] += (safe_distance_info + buffer_dx*info.h_gridpoint);
-		}
+    for(int i=0;i<3;++i)
+    {
+      start[i]-=(safe_distance_info + buffer_dx*info.h_gridpoint);
+      end[i] += (safe_distance_info + buffer_dx*info.h_gridpoint);
+    }
 
-		return _is_touching(start,end);
-	}
-
-
-	inline Real distanceToEllipsoid(const Real x, const Real y, const Real z) const
-	{
-		const Real e[3] = {e0,e1,e2};
-		const Real t[3] = {x,y,z};
-		Real xs[3];
-		const Real dist=DistancePointEllipsoid (e, t, xs);
-		const int invSign = ( (t[0]*t[0]+t[1]*t[1]+t[2]*t[2]) > (xs[0]*xs[0]+xs[1]*xs[1]+xs[2]*xs[2]) ) ? -1 : 1;
-		return dist*invSign;// pos inside, neg outside
-	}
-
-	Real getHeavisideFDMH1(const Real x, const Real y, const Real z, const Real h) const
-	{
-		const Real dist = distanceToEllipsoid(x,y,z);
-		if(dist >= +h) return 1;
-		if(dist <= -h) return 0;
-		assert(std::abs(dist)<=h);
-
-		const Real distPx = distanceToEllipsoid(x+h,y,z);
-		const Real distMx = distanceToEllipsoid(x-h,y,z);
-		const Real distPy = distanceToEllipsoid(x,y+h,z);
-		const Real distMy = distanceToEllipsoid(x,y-h,z);
-		const Real distPz = distanceToEllipsoid(x,y,z+h);
-		const Real distMz = distanceToEllipsoid(x,y,z-h);
-
-		// compute first primitive of H(x): I(x) = int_0^x H(y) dy and set it to zero outside the cylinder
-		const Real IplusX = distPx < 0 ? 0 : distPx;
-		const Real IminuX = distMx < 0 ? 0 : distMx;
-		const Real IplusY = distPy < 0 ? 0 : distPy;
-		const Real IminuY = distMy < 0 ? 0 : distMy;
-		const Real IplusZ = distPz < 0 ? 0 : distPz;
-		const Real IminuZ = distMz < 0 ? 0 : distMz;
-
-		assert(IplusX>=0);
-		assert(IminuX>=0);
-		assert(IplusY>=0);
-		assert(IminuY>=0);
-		assert(IplusZ>=0);
-		assert(IminuZ>=0);
+    return _is_touching(start,end);
+  }
 
 
-		// gradI
-		const Real gradIX = 0.5/h * (IplusX - IminuX);
-		const Real gradIY = 0.5/h * (IplusY - IminuY);
-		const Real gradIZ = 0.5/h * (IplusZ - IminuZ);
+  inline Real distanceToEllipsoid(const Real x, const Real y, const Real z) const
+  {
+    const Real e[3] = {e0,e1,e2};
+    const Real t[3] = {x,y,z};
+    Real xs[3];
+    const Real dist=DistancePointEllipsoid (e, t, xs);
+    const int invSign = ( (t[0]*t[0]+t[1]*t[1]+t[2]*t[2]) > (xs[0]*xs[0]+xs[1]*xs[1]+xs[2]*xs[2]) ) ? -1 : 1;
+    return dist*invSign;// pos inside, neg outside
+  }
 
-		// gradU
-		const Real gradUX = 0.5/h * (distPx - distMx);
-		const Real gradUY = 0.5/h * (distPy - distMy);
-		const Real gradUZ = 0.5/h * (distPz - distMz);
+  Real getHeavisideFDMH1(const Real x, const Real y, const Real z, const Real h) const
+  {
+    const Real dist = distanceToEllipsoid(x,y,z);
+    if(dist >= +h) return 1;
+    if(dist <= -h) return 0;
+    assert(std::abs(dist)<=h);
 
-		const Real H = (gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ)/(gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ);
+    const Real distPx = distanceToEllipsoid(x+h,y,z);
+    const Real distMx = distanceToEllipsoid(x-h,y,z);
+    const Real distPy = distanceToEllipsoid(x,y+h,z);
+    const Real distMy = distanceToEllipsoid(x,y-h,z);
+    const Real distPz = distanceToEllipsoid(x,y,z+h);
+    const Real distMz = distanceToEllipsoid(x,y,z-h);
 
-		//        assert(H>=0 && H<=1);
-		if(H<0.0 || H>1.0)
-			printf("invalid H?: %10.10e %10.10e %10.10e: %10.10e\n",x,y,z,H);
+    // compute first primitive of H(x): I(x) = int_0^x H(y) dy and set it to zero outside the cylinder
+    const Real IplusX = distPx < 0 ? 0 : distPx;
+    const Real IminuX = distMx < 0 ? 0 : distMx;
+    const Real IplusY = distPy < 0 ? 0 : distPy;
+    const Real IminuY = distMy < 0 ? 0 : distMy;
+    const Real IplusZ = distPz < 0 ? 0 : distPz;
+    const Real IminuZ = distMz < 0 ? 0 : distMz;
 
-		return H;
-	}
+    assert(IplusX>=0);
+    assert(IminuX>=0);
+    assert(IplusY>=0);
+    assert(IminuY>=0);
+    assert(IplusZ>=0);
+    assert(IminuZ>=0);
 
 
-	inline void operator()(const BlockInfo& info, FluidBlock& b) const
-	{
-		if(_is_touching(info))
-		{
-			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-				for(int iy=0; iy<FluidBlock::sizeY; iy++)
-					for(int ix=0; ix<FluidBlock::sizeX; ix++)
-					{
-						Real p[3];
-						info.pos(p, ix, iy, iz);
+    // gradI
+    const Real gradIX = 0.5/h * (IplusX - IminuX);
+    const Real gradIY = 0.5/h * (IplusY - IminuY);
+    const Real gradIZ = 0.5/h * (IplusZ - IminuZ);
 
-						// translate
-						p[0] -= position[0];
-						p[1] -= position[1];
-						p[2] -= position[2];
+    // gradU
+    const Real gradUX = 0.5/h * (distPx - distMx);
+    const Real gradUY = 0.5/h * (distPy - distMy);
+    const Real gradUZ = 0.5/h * (distPz - distMz);
 
-						// rotate
-						const Real t[3] = {
-								rotationMatrix[0][0]*p[0] + rotationMatrix[0][1]*p[1] + rotationMatrix[0][2]*p[2],
-								rotationMatrix[1][0]*p[0] + rotationMatrix[1][1]*p[1] + rotationMatrix[1][2]*p[2],
-								rotationMatrix[2][0]*p[0] + rotationMatrix[2][1]*p[1] + rotationMatrix[2][2]*p[2]
-						};
+    const Real H = (gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ)/(gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ);
 
-						const Real chi = getHeavisideFDMH1(t[0],t[1],t[2],info.h_gridpoint);
-						b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
-					}
-		}
-	}
+    //        assert(H>=0 && H<=1);
+    if(H<0.0 || H>1.0)
+      printf("invalid H?: %10.10e %10.10e %10.10e: %10.10e\n",x,y,z,H);
+
+    return H;
+  }
+
+
+  inline void operator()(const BlockInfo& info, FluidBlock& b) const
+  {
+    if(_is_touching(info))
+    {
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+        for(int iy=0; iy<FluidBlock::sizeY; iy++)
+          for(int ix=0; ix<FluidBlock::sizeX; ix++)
+          {
+            Real p[3];
+            info.pos(p, ix, iy, iz);
+
+            // translate
+            p[0] -= position[0];
+            p[1] -= position[1];
+            p[2] -= position[2];
+
+            // rotate
+            const Real t[3] = {
+                rotationMatrix[0][0]*p[0] + rotationMatrix[0][1]*p[1] + rotationMatrix[0][2]*p[2],
+                rotationMatrix[1][0]*p[0] + rotationMatrix[1][1]*p[1] + rotationMatrix[1][2]*p[2],
+                rotationMatrix[2][0]*p[0] + rotationMatrix[2][1]*p[1] + rotationMatrix[2][2]*p[2]
+            };
+
+            const Real chi = getHeavisideFDMH1(t[0],t[1],t[2],info.h_gridpoint);
+            b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
+          }
+    }
+  }
 };
 
 }
@@ -1093,196 +1253,196 @@ namespace VAWTObstacle
 {
 struct FillBlocks_Towers
 {
-	const Real radius,height,chord,thickness; // chord and thickness are actually haflchord and halfthickness
-	const Real safe_distance;
-	const int nBlades=3;
-	Real position[3];
-	Real rotationAngle;
-	Real bounding_box[3][2];
-	const Real pitchAngle = 45.0*M_PI/180;
+  const Real radius,height,chord,thickness; // chord and thickness are actually haflchord and halfthickness
+  const Real safe_distance;
+  const int nBlades=3;
+  Real position[3];
+  Real rotationAngle;
+  Real bounding_box[3][2];
+  const Real pitchAngle = 45.0*M_PI/180;
 
-	void _find_bounding_box()
-	{
-		const Real width = thickness + chord*std::sin(pitchAngle);
-		for(int i=0;i<2;++i)
-		{
-			bounding_box[i][0] = position[i] - radius - width - safe_distance;
-			bounding_box[i][1] = position[i] + radius + width + safe_distance;
-		}
-		bounding_box[2][0] = position[2] - 0.5*height - safe_distance;
-		bounding_box[2][1] = position[2] + 0.5*height + safe_distance;
-	}
+  void _find_bounding_box()
+  {
+    const Real width = thickness + chord*std::sin(pitchAngle);
+    for(int i=0;i<2;++i)
+    {
+      bounding_box[i][0] = position[i] - radius - width - safe_distance;
+      bounding_box[i][1] = position[i] + radius + width + safe_distance;
+    }
+    bounding_box[2][0] = position[2] - 0.5*height - safe_distance;
+    bounding_box[2][1] = position[2] + 0.5*height + safe_distance;
+  }
 
-	FillBlocks_Towers(const Real radius, const Real height, const Real chord, const Real thickness, const Real max_dx, const Real position[3], const Real rotationAngle):
-		radius(radius),height(height),chord(chord),thickness(thickness), safe_distance(max_dx),rotationAngle(rotationAngle)
-	{
-		this->position[0] = position[0];
-		this->position[1] = position[1];
-		this->position[2] = position[2];
+  FillBlocks_Towers(const Real radius, const Real height, const Real chord, const Real thickness, const Real max_dx, const Real position[3], const Real rotationAngle):
+    radius(radius),height(height),chord(chord),thickness(thickness), safe_distance(max_dx),rotationAngle(rotationAngle)
+  {
+    this->position[0] = position[0];
+    this->position[1] = position[1];
+    this->position[2] = position[2];
 
-		_find_bounding_box();
-	}
+    _find_bounding_box();
+  }
 
-	FillBlocks_Towers(const FillBlocks_Towers& c):
-		radius(c.radius),height(c.height),chord(c.chord),thickness(c.thickness), safe_distance(c.safe_distance),rotationAngle(c.rotationAngle),nBlades(c.nBlades),pitchAngle(c.pitchAngle)
-	{
-		position[0] = c.position[0];
-		position[1] = c.position[1];
-		position[2] = c.position[2];
+  FillBlocks_Towers(const FillBlocks_Towers& c):
+    radius(c.radius),height(c.height),chord(c.chord),thickness(c.thickness), safe_distance(c.safe_distance),rotationAngle(c.rotationAngle),nBlades(c.nBlades),pitchAngle(c.pitchAngle)
+  {
+    position[0] = c.position[0];
+    position[1] = c.position[1];
+    position[2] = c.position[2];
 
-		_find_bounding_box();
-	}
+    _find_bounding_box();
+  }
 
-	bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
-	{
-		Real intersection[3][2] = {
-				max(min_pos[0], bounding_box[0][0]), min(max_pos[0], bounding_box[0][1]),
-				max(min_pos[1], bounding_box[1][0]), min(max_pos[1], bounding_box[1][1]),
-				max(min_pos[2], bounding_box[2][0]), min(max_pos[2], bounding_box[2][1])
-		};
+  bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
+  {
+    Real intersection[3][2] = {
+        max(min_pos[0], bounding_box[0][0]), min(max_pos[0], bounding_box[0][1]),
+        max(min_pos[1], bounding_box[1][0]), min(max_pos[1], bounding_box[1][1]),
+        max(min_pos[2], bounding_box[2][0]), min(max_pos[2], bounding_box[2][1])
+    };
 
-		return
-				intersection[0][1]-intersection[0][0]>0 &&
-				intersection[1][1]-intersection[1][0]>0 &&
-				intersection[2][1]-intersection[2][0]>0;
-	}
+    return
+        intersection[0][1]-intersection[0][0]>0 &&
+        intersection[1][1]-intersection[1][0]>0 &&
+        intersection[2][1]-intersection[2][0]>0;
+  }
 
-	bool _is_touching(const BlockInfo& info, const int buffer_dx=0) const
-	{
-		Real min_pos[3], max_pos[3];
+  bool _is_touching(const BlockInfo& info, const int buffer_dx=0) const
+  {
+    Real min_pos[3], max_pos[3];
 
-		info.pos(min_pos, 0,0,0);
-		info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-		for(int i=0;i<3;++i)
-		{
-			min_pos[i]-=buffer_dx*info.h_gridpoint;
-			max_pos[i]+=buffer_dx*info.h_gridpoint;
-		}
-		return _is_touching(min_pos,max_pos);
-	}
+    info.pos(min_pos, 0,0,0);
+    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    for(int i=0;i<3;++i)
+    {
+      min_pos[i]-=buffer_dx*info.h_gridpoint;
+      max_pos[i]+=buffer_dx*info.h_gridpoint;
+    }
+    return _is_touching(min_pos,max_pos);
+  }
 
-	inline Real distanceToEllipse(const Real x, const Real y, const Real z, const int bladeIdx) const
-	{
-		assert(nBlades==3);
-		const Real deltaBladeAngle = 2.0*M_PI/((Real)nBlades);
-		const Real angle = rotationAngle + bladeIdx*deltaBladeAngle + pitchAngle;
+  inline Real distanceToEllipse(const Real x, const Real y, const Real z, const int bladeIdx) const
+  {
+    assert(nBlades==3);
+    const Real deltaBladeAngle = 2.0*M_PI/((Real)nBlades);
+    const Real angle = rotationAngle + bladeIdx*deltaBladeAngle + pitchAngle;
 
-		Real t[2] = {  x*std::cos(angle) + y*std::sin(angle),
-				-x*std::sin(angle) + y*std::cos(angle)};
-		// wtf
-		if(std::abs(t[0])<std::numeric_limits<Real>::epsilon()) t[0]=0;
-		if(std::abs(t[1])<std::numeric_limits<Real>::epsilon()) t[1]=0;
+    Real t[2] = {  x*std::cos(angle) + y*std::sin(angle),
+        -x*std::sin(angle) + y*std::cos(angle)};
+    // wtf
+    if(std::abs(t[0])<std::numeric_limits<Real>::epsilon()) t[0]=0;
+    if(std::abs(t[1])<std::numeric_limits<Real>::epsilon()) t[1]=0;
 
-		const Real e[2] = {thickness,chord};
+    const Real e[2] = {thickness,chord};
 
-		Real xs[2];
-		const Real dist=EllipsoidObstacle::DistancePointEllipse (e, t, xs);
-		const int invSign = ( (t[0]*t[0]+t[1]*t[1]) > (xs[0]*xs[0]+xs[1]*xs[1]) ) ? -1 : 1;
+    Real xs[2];
+    const Real dist=EllipsoidObstacle::DistancePointEllipse (e, t, xs);
+    const int invSign = ( (t[0]*t[0]+t[1]*t[1]) > (xs[0]*xs[0]+xs[1]*xs[1]) ) ? -1 : 1;
 
-		if(std::abs(z)<=0.5*height)
-		{
-			return dist*invSign;// pos inside, neg outside
-		}
-		else
-		{
-			return -std::min<Real>(std::sqrt(dist*dist + z*z), std::abs(z)-0.5*height); // always negative
-		}
-	}
+    if(std::abs(z)<=0.5*height)
+    {
+      return dist*invSign;// pos inside, neg outside
+    }
+    else
+    {
+      return -std::min<Real>(std::sqrt(dist*dist + z*z), std::abs(z)-0.5*height); // always negative
+    }
+  }
 
-	Real getHeavisideFDMH1(const Real x, const Real y, const Real z, const Real h, const int bladeIdx) const
-	{
-		const Real dist = distanceToEllipse(x,y,z,bladeIdx);
-		if(dist >= +h) return 1;
-		if(dist <= -h) return 0;
-		assert(std::abs(dist)<=h);
+  Real getHeavisideFDMH1(const Real x, const Real y, const Real z, const Real h, const int bladeIdx) const
+  {
+    const Real dist = distanceToEllipse(x,y,z,bladeIdx);
+    if(dist >= +h) return 1;
+    if(dist <= -h) return 0;
+    assert(std::abs(dist)<=h);
 
-		const Real distPx = distanceToEllipse(x+h,y,z,bladeIdx);
-		const Real distMx = distanceToEllipse(x-h,y,z,bladeIdx);
-		const Real distPy = distanceToEllipse(x,y+h,z,bladeIdx);
-		const Real distMy = distanceToEllipse(x,y-h,z,bladeIdx);
-		const Real distPz = distanceToEllipse(x,y,z+h,bladeIdx);
-		const Real distMz = distanceToEllipse(x,y,z-h,bladeIdx);
+    const Real distPx = distanceToEllipse(x+h,y,z,bladeIdx);
+    const Real distMx = distanceToEllipse(x-h,y,z,bladeIdx);
+    const Real distPy = distanceToEllipse(x,y+h,z,bladeIdx);
+    const Real distMy = distanceToEllipse(x,y-h,z,bladeIdx);
+    const Real distPz = distanceToEllipse(x,y,z+h,bladeIdx);
+    const Real distMz = distanceToEllipse(x,y,z-h,bladeIdx);
 
-		// compute first primitive of H(x): I(x) = int_0^x H(y) dy and set it to zero outside the cylinder
-		const Real IplusX = distPx < 0 ? 0 : distPx;
-		const Real IminuX = distMx < 0 ? 0 : distMx;
-		const Real IplusY = distPy < 0 ? 0 : distPy;
-		const Real IminuY = distMy < 0 ? 0 : distMy;
-		const Real IplusZ = distPz < 0 ? 0 : distPz;
-		const Real IminuZ = distMz < 0 ? 0 : distMz;
+    // compute first primitive of H(x): I(x) = int_0^x H(y) dy and set it to zero outside the cylinder
+    const Real IplusX = distPx < 0 ? 0 : distPx;
+    const Real IminuX = distMx < 0 ? 0 : distMx;
+    const Real IplusY = distPy < 0 ? 0 : distPy;
+    const Real IminuY = distMy < 0 ? 0 : distMy;
+    const Real IplusZ = distPz < 0 ? 0 : distPz;
+    const Real IminuZ = distMz < 0 ? 0 : distMz;
 
-		assert(IplusX>=0);
-		assert(IminuX>=0);
-		assert(IplusY>=0);
-		assert(IminuY>=0);
-		assert(IplusZ>=0);
-		assert(IminuZ>=0);
+    assert(IplusX>=0);
+    assert(IminuX>=0);
+    assert(IplusY>=0);
+    assert(IminuY>=0);
+    assert(IplusZ>=0);
+    assert(IminuZ>=0);
 
 
-		// gradI
-		const Real gradIX = 0.5/h * (IplusX - IminuX);
-		const Real gradIY = 0.5/h * (IplusY - IminuY);
-		const Real gradIZ = 0.5/h * (IplusZ - IminuZ);
+    // gradI
+    const Real gradIX = 0.5/h * (IplusX - IminuX);
+    const Real gradIY = 0.5/h * (IplusY - IminuY);
+    const Real gradIZ = 0.5/h * (IplusZ - IminuZ);
 
-		// gradU
-		const Real gradUX = 0.5/h * (distPx - distMx);
-		const Real gradUY = 0.5/h * (distPy - distMy);
-		const Real gradUZ = 0.5/h * (distPz - distMz);
+    // gradU
+    const Real gradUX = 0.5/h * (distPx - distMx);
+    const Real gradUY = 0.5/h * (distPy - distMy);
+    const Real gradUZ = 0.5/h * (distPz - distMz);
 
-		const Real H = (gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ)/(gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ);
+    const Real H = (gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ)/(gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ);
 
-		//        assert(H>=0 && H<=1);
-		if(H<0.0 || H>1.0)
-			printf("invalid H?: %10.10e %10.10e %10.10e: %10.10e\n",x,y,z,H);
+    //        assert(H>=0 && H<=1);
+    if(H<0.0 || H>1.0)
+      printf("invalid H?: %10.10e %10.10e %10.10e: %10.10e\n",x,y,z,H);
 
-		return H;
-	}
+    return H;
+  }
 
-	inline void operator()(const BlockInfo& info, FluidBlock& b) const
-	{
-		if(_is_touching(info))
-		{
-			std::vector<Real> bladePosX(nBlades),bladePosY(nBlades);
-			const Real deltaBladeAngle = 2.0*M_PI/((Real)nBlades);
+  inline void operator()(const BlockInfo& info, FluidBlock& b) const
+  {
+    if(_is_touching(info))
+    {
+      std::vector<Real> bladePosX(nBlades),bladePosY(nBlades);
+      const Real deltaBladeAngle = 2.0*M_PI/((Real)nBlades);
 
-			for(int i=0;i<nBlades;++i)
-			{
-				const Real bladeAngle = rotationAngle + i*deltaBladeAngle;
-				bladePosX[i] = radius * std::cos(bladeAngle);
-				bladePosY[i] = radius * std::sin(bladeAngle);
-			}
+      for(int i=0;i<nBlades;++i)
+      {
+        const Real bladeAngle = rotationAngle + i*deltaBladeAngle;
+        bladePosX[i] = radius * std::cos(bladeAngle);
+        bladePosY[i] = radius * std::sin(bladeAngle);
+      }
 
-			for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-				for(int iy=0; iy<FluidBlock::sizeY; iy++)
-					for(int ix=0; ix<FluidBlock::sizeX; ix++)
-					{
-						Real p[3];
-						info.pos(p, ix, iy, iz);
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+        for(int iy=0; iy<FluidBlock::sizeY; iy++)
+          for(int ix=0; ix<FluidBlock::sizeX; ix++)
+          {
+            Real p[3];
+            info.pos(p, ix, iy, iz);
 
-						// translate
-						p[0] -= position[0];
-						p[1] -= position[1];
-						p[2] -= position[2];
+            // translate
+            p[0] -= position[0];
+            p[1] -= position[1];
+            p[2] -= position[2];
 
-						// find blade Idx
-						Real minDistSq=2.0;
-						int minIdx=-1;
-						for(int i=0;i<nBlades;++i)
-						{
-							const Real distSq = (p[0]-bladePosX[i])*(p[0]-bladePosX[i]) + (p[1]-bladePosY[i])*(p[1]-bladePosY[i]);
-							minIdx = (distSq<minDistSq) ? i : minIdx;
-							minDistSq = (distSq<minDistSq) ? distSq : minDistSq;
-						}
-						assert(minIdx>=0 && minIdx < nBlades);
+            // find blade Idx
+            Real minDistSq=2.0;
+            int minIdx=-1;
+            for(int i=0;i<nBlades;++i)
+            {
+              const Real distSq = (p[0]-bladePosX[i])*(p[0]-bladePosX[i]) + (p[1]-bladePosY[i])*(p[1]-bladePosY[i]);
+              minIdx = (distSq<minDistSq) ? i : minIdx;
+              minDistSq = (distSq<minDistSq) ? distSq : minDistSq;
+            }
+            assert(minIdx>=0 && minIdx < nBlades);
 
-						p[0]-=bladePosX[minIdx];
-						p[1]-=bladePosY[minIdx];
+            p[0]-=bladePosX[minIdx];
+            p[1]-=bladePosY[minIdx];
 
-						const Real chi = getHeavisideFDMH1(p[0],p[1],p[2],info.h_gridpoint,minIdx);
-						b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
-					}
-		}
-	}
+            const Real chi = getHeavisideFDMH1(p[0],p[1],p[2],info.h_gridpoint,minIdx);
+            b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
+          }
+    }
+  }
 };
 }
 #endif

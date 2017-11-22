@@ -1,533 +1,477 @@
 //
-//  IF3D_CarlingFishOperator.cpp
-//  IncompressibleFluids3D
+//  CubismUP_3D
 //
-//  Created by Wim van Rees on 4/15/13.
-//
+//  Written by Guido Novati ( novatig@ethz.ch ).
+//  This file started as an extension of code written by Wim van Rees
+//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #include "IF3D_FishOperator.h"
 #include "IF3D_FishLibrary.h"
 #include <chrono>
-IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI * grid, ArgumentParser & parser)
-: IF3D_ObstacleOperator(grid, parser), theta_internal(0), angvel_internal(0),
-sim_time(0), sim_dt(0), adjTh(0), adjDy(0), myFish(nullptr), angvel_integral{0,0,0},
-new_curv(0), old_curv(0), new_Tp(0), ptrUinf_copy(nullptr)
+IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_ObstacleOperator(g, p, u)
 {
-	volume=0;
-	for(int i=0;i<3;i++) transVel[i]=0;
-	for(int i=0;i<3;i++) angVel[i]=0;
-	for(int i=0;i<6;i++) J[i]=0;
+  volume=0;
+  for(int i=0;i<3;i++) transVel[i]=0;
+  for(int i=0;i<3;i++) angVel[i]=0;
+  for(int i=0;i<6;i++) J[i]=0;
 }
 
 IF3D_FishOperator::~IF3D_FishOperator()
 {
-	if(myFish not_eq nullptr) delete myFish;
+  if(myFish not_eq nullptr) delete myFish;
 }
 
-void IF3D_FishOperator::create(const int step_id,const Real time, const Real dt, const Real *Uinf)
+aryVolSeg IF3D_FishOperator::prepare_vSegments(const int Nsegments, const int Nm)
 {
-	// STRATEGY
-	// we need some things already
-	// - the internal angle at the previous timestep, obtained from integrating the actual def velocities
-	// 						 (not the imposed deformation velocies, because they dont have zero ang mom)
-	// - the internal angular velocity at previous timestep
+  aryVolSeg vSegments(Nsegments);
+  #pragma omp parallel for
+  for(int i=0;i<Nsegments;++i) {
+    const int next_idx = (i+1)*(Nm-1)/Nsegments;
+    const int idx = i * (Nm-1)/Nsegments;
+    // find bounding box based on this
+    Real bbox[3][2] = {{1e9, -1e9}, {1e9, -1e9}, {1e9, -1e9}};
+    for(int ss=idx; ss<=next_idx; ++ss) {
+      const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
+          myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
+      const Real yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
+          myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss]};
+      const Real zBnd[2] = {-myFish->height[ss], +myFish->height[ss]};
+      bbox[0][0] = std::min({bbox[0][0],xBnd[0],xBnd[1]});
+      bbox[0][1] = std::max({bbox[0][1],xBnd[0],xBnd[1]});
+      bbox[1][0] = std::min({bbox[1][0],yBnd[0],yBnd[1]});
+      bbox[1][1] = std::max({bbox[1][1],yBnd[0],yBnd[1]});
+      bbox[2][0] = std::min({bbox[2][0],zBnd[0],zBnd[1]});
+      bbox[2][1] = std::max({bbox[2][1],zBnd[0],zBnd[1]});
+    }
+    vSegments[i].prepare(std::make_pair(idx, next_idx), bbox); //create a new segment
+    vSegments[i].changeToComputationalFrame(position,quaternion);
+  }
+  return vSegments;
+}
 
-	// 1. create midline
-	// 2. integrate to find CoM, angular velocity, etc
-	// 3. shift midline to CoM frame: zero internal linear momentum and angular momentum
+mapBlock2Segs IF3D_FishOperator::prepare_segPerBlock(const aryVolSeg&vSegments)
+{
+  mapBlock2Segs segmentsPerBlock;
+  for(int i=0; i<vInfo.size(); ++i) {
+    const BlockInfo & info = vInfo[i];
+    Real pStart[3], pEnd[3];
+    info.pos(pStart, 0, 0, 0);
+    info.pos(pEnd, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    const Real safe_distance = 2.0*info.h_gridpoint; // two points on each side
+    //const Real safe_distance = info.h_gridpoint; // one point on each side for Towers
 
-	// 4. split the fish into segments (according to s)
-	// 5. rotate the segments to computational frame (comp CoM and angle)
-	// 6. for each Block in the domain, find those segments that intersect it
-	// 7. for each of those blocks, allocate an ObstacleBlock
+    for(int s=0; s<vSegments.size(); ++s)
+      if(vSegments[s].isIntersectingWithAABB(pStart,pEnd,safe_distance))
+        segmentsPerBlock[info.blockID].push_back(vSegments[s]);
 
-	// 8. put the 3D shape on the grid: SDF-P2M for sdf, normal P2M for udef
-	// 9. create the Chi out of the SDF. In same sweep, compute the actual CoM
-	// 10. compute all shit: linear momentum, angular momentum etc.
-	// 11. correct deformation velocity to nullify momenta for the final discrete representation
-	std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t23, t45, t67, t8, t910, t11;
+    // allocate new blocks if necessary
+    if(segmentsPerBlock.find(info.blockID) != segmentsPerBlock.end()) {
+      assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
+      obstacleBlocks[info.blockID] = new ObstacleBlock;
+      obstacleBlocks[info.blockID]->clear();
+      //obstacleBlocks[info.blockID]->hinge2Index = hinge2Index;
+      //obstacleBlocks[info.blockID]->saveHinge2Loc(hinge2Loc);
+    }
+  }
+  return segmentsPerBlock;
+}
 
-	//MPI_Barrier(grid->getCartComm());
-	t0 = std::chrono::high_resolution_clock::now();
-	//const int Nsegments = NPPSEG;
-	const int Nextension = NEXTDX*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
-	const Real dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
-	const Real target_ds = vInfo[0].h_gridpoint/TGTPPB;
-	const Real target_Nm = length/target_ds;
-	////const int Nm = NPPSEG*(int)std::ceil(target_Nm/NPPSEG) + 1;
-	//const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1)) + 1;
-	//const int Nsegments = (Nm-1)/(Nextension+1);
-	/*
-		- VolumeSegment_OBB's volume cannot be zero
-		- therefore no VolumeSegment_OBB can be only occupied by extension midline
-			points (which have width and height = 0)
-		- performance of create seems to decrease if VolumeSegment_OBB are bigger
-		- this is the smallest number of VolumeSegment_OBB (Nsegments) and points in
-			the midline (Nm) to ensure at least one non ext. point inside all segments
-	 */
-	const int Nsegments = std::ceil(target_Nm/(Nextension+1));
-	const int Nm = (Nextension+1)*Nsegments + 1;
-	assert((Nm-1)%Nsegments==0);
+void IF3D_FishOperator::apply_pid_corrections(const double time, const double dt, const Real *Uinf)
+{
+  if (bCorrectTrajectory && time>0.312)
+  {
+    assert(followX < 0 && followY < 0);
+    const double velx_tot = Uinf[0] - transVel[0];
+    const double vely_tot = Uinf[1] - transVel[1];
+    const double AngDiff  = std::atan2(vely_tot,velx_tot);
+    adjTh = (1.-dt) * adjTh + dt * AngDiff;
+    const double INST = (AngDiff*angVel[2]>0) ? AngDiff*std::fabs(angVel[2]) : 0;
+    const double PID = 0.1*adjTh + 0.01*INST;
+    myFish->_correctTrajectory(PID, 0,time, dt);
+  }
 
-	if (bCorrectTrajectory && time>0.312)
-	{
-		assert(followX < 0 && followY < 0);
-		const Real velx_tot = Uinf[0] - transVel[0];
-		const Real vely_tot = Uinf[1] - transVel[1];
-		const Real AngDiff  = std::atan2(vely_tot,velx_tot);
-		adjTh = (1.-dt) * adjTh + dt * AngDiff;
-		const Real INST = (AngDiff*angVel[2]>0) ? AngDiff*std::fabs(angVel[2]) : 0;
-		const Real PID = 0.1*adjTh + 0.01*INST;
-		myFish->_correctTrajectory(PID, 0,time, dt);
-	}
+  if (followX > 0 && followY > 0) //then i control the position
+  {
+    assert(not bCorrectTrajectory);
+    const double velx_tot = Uinf[0] - transVel[0];
+    const double vely_tot = Uinf[1] - transVel[1];
+    const double AngDiff  = _2Dangle;//std::atan2(vely_tot,velx_tot);
 
-	if (followX > 0 && followY > 0) //then i control the position
-	{
-		assert(not bCorrectTrajectory);
-		const Real velx_tot = Uinf[0] - transVel[0];
-		const Real vely_tot = Uinf[1] - transVel[1];
-		const Real AngDiff  = _2Dangle;//std::atan2(vely_tot,velx_tot);
+    // Control posDiffs
+    const double xDiff = (position[0] - followX)/length;
+    const double yDiff = (position[1] - followY)/length;
+    const double absDY = std::fabs(yDiff);
+    const double velAbsDY = yDiff>0 ? transVel[1]/length : -transVel[1]/length;
+    const double velDAvg = AngDiff-adjTh + dt*angVel[2];
 
-		// Control posDiffs
-		const Real xDiff = (position[0] - followX)/length;
-		const Real yDiff = (position[1] - followY)/length;
-		const Real absDY = std::fabs(yDiff);
-		const Real velAbsDY = yDiff>0 ? transVel[1]/length : -transVel[1]/length;
-		const Real velDAvg = AngDiff-adjTh + dt*angVel[2];
+    adjTh = (1.-dt) * adjTh + dt * AngDiff;
+    adjDy = (1.-dt) * adjDy + dt * yDiff;
 
-		adjTh = (1.-dt) * adjTh + dt * AngDiff;
-		adjDy = (1.-dt) * adjDy + dt * yDiff;
+    //If angle is positive: positive curvature only if Dy<0 (must go up)
+    //If angle is negative: negative curvature only if Dy>0 (must go down)
+    //const Real INST = (AngDiff*angVel[2]>0 && yDiff*AngDiff<0) ? AngDiff*std::fabs(yDiff*angVel[2]) : 0;
+    const double PROP = (adjTh  *yDiff<0) ?   adjTh*absDY : 0;
+    const double INST = (AngDiff*yDiff<0) ? AngDiff*absDY : 0;
 
-		//If angle is positive: positive curvature only if Dy<0 (must go up)
-		//If angle is negative: negative curvature only if Dy>0 (must go down)
-		//const Real INST = (AngDiff*angVel[2]>0 && yDiff*AngDiff<0) ? AngDiff*std::fabs(yDiff*angVel[2]) : 0;
-		const Real PROP = (adjTh  *yDiff<0) ?   adjTh*absDY : 0;
-		const Real INST = (AngDiff*yDiff<0) ? AngDiff*absDY : 0;
+    //zero also the derivatives when appropriate
+    const double f1=(PROP ? 20 : 0), f2=(INST ? 50 : 0), f3=1;
 
-		//zero also the derivatives when appropriate
-		//const Real f1=(PROP ? 50 : 0), f2=(INST ? 200 : 0), f3=20;
-		//const Real f1=(PROP ? 100 : 0), f2=(INST ? 200 : 0), f3=1;
-		const Real f1=(PROP ? 20 : 0), f2=(INST ? 50 : 0), f3=1;
-		//const Real f1=(PROP ? 1000 : 0), f2=(INST ? 2000 : 0), f3=100; 
+    // Linearly increase (or decrease) amplitude to 1.2X (decrease to 0.8X)
+    //(experiments observed 1.2X increase in amplitude when swimming faster)
+    //if fish falls back 1 body length. Beyond that, will still increase but dunno if will work
+    const double ampFac = f3*xDiff + 1.0;
+    const double ampVel = f3*transVel[0]/length;
 
-		// Linearly increase (or decrease) amplitude to 1.2X (decrease to 0.8X)
-		//(experiments observed 1.2X increase in amplitude when swimming faster)
-		//if fish falls back 1 body length. Beyond that, will still increase but dunno if will work
-		const Real ampFac = f3*xDiff + 1.0;
-		const Real ampVel = f3*transVel[0]/length;
-
-		const Real curv1fac = f1*PROP;
-		const Real curv1vel = f1*(velAbsDY*adjTh   + absDY*velDAvg);
-		const Real curv2fac = f2*INST;
-		const Real curv2vel = f2*(velAbsDY*AngDiff + absDY*angVel[2]);
+    const double curv1fac = f1*PROP;
+    const double curv1vel = f1*(velAbsDY*adjTh   + absDY*velDAvg);
+    const double curv2fac = f2*INST;
+    const double curv2vel = f2*(velAbsDY*AngDiff + absDY*angVel[2]);
                 //const Real vPID = velAbsDY*(f1*adjTh + f2*AngDiff) + absDY*(f1*velDAvg+f2*angVel[2]);
                 //const Real PID = f1*PROP + f2*INST;
-		if(!rank) printf("%f\t f1: %f %f\t f2: %f %f\t f3: %f %f\n", time, 
-			curv1fac, curv1vel, curv2fac, curv2vel, ampFac, ampVel);
-		myFish->_correctTrajectory(curv1fac+curv2fac, curv1vel+curv2vel, time, dt);
-		myFish->_correctAmplitude(ampFac, ampVel, time, dt);
-	}
-
-	//Store torque on hingedSection from previous step
-	myFish->torqueZsecMarkers = this->torqueZsection;
-
-	// 1.
-	myFish->computeMidline(time);
-	#ifdef __useSkin_
-	myFish->computeSurface();
-	#endif
-	//MPI_Barrier(grid->getCartComm());
-	t1 = std::chrono::high_resolution_clock::now();
-
-	// 2. & 3.
-	{
-		volume_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
-		assert(volume_internal > std::numeric_limits<Real>::epsilon());
-		myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
-
-		angvel_internal_prev = angvel_internal;
-		myFish->integrateAngularMomentum(angvel_internal);
-		J_internal = myFish->J;
-		// update theta now with new angvel info
-		//theta_internal -= 0.5*sim_dt*(angvel_internal+angvel_internal_prev);//negative: we subtracted this angvel
-		myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
-	}
-	#ifndef NDEBUG
-	{
-		Real dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
-		// check that things are zero
-		const Real volume_internal_check = myFish->integrateLinearMomentum(dummy_CoM_internal,dummy_vCoM_internal);
-		myFish->integrateAngularMomentum(dummy_angvel_internal);
-
-		assert(std::abs(dummy_CoM_internal[0])<10*std::numeric_limits<Real>::epsilon());
-		assert(std::abs(dummy_CoM_internal[1])<10*std::numeric_limits<Real>::epsilon());
-		assert(std::abs(myFish->linMom[0])<10*std::numeric_limits<Real>::epsilon());
-		assert(std::abs(myFish->linMom[1])<10*std::numeric_limits<Real>::epsilon());
-		assert(std::abs(myFish->angMom)<10*std::numeric_limits<Real>::epsilon());
-		assert(std::abs(volume_internal - volume_internal_check) < 10*std::numeric_limits<Real>::epsilon());
-	}
-	#endif
-	//MPI_Barrier(grid->getCartComm());
-	#ifdef __useSkin_
-	myFish->surfaceToCOMFrame(theta_internal,CoM_internal);
-	#endif
-	t23 = std::chrono::high_resolution_clock::now();
-
-	int hinge2Index=-1;
-	do{
-		hinge2Index++;
-	} while (myFish->rS[hinge2Index] < myFish->sHinge2);
-
-	// First, get this location in FishFrame, then convert to labFrame
-	double hinge2Loc[3] = {myFish->rX[hinge2Index], myFish->rY[hinge2Index], 0.0};
-	PutFishOnBlocks dummy(myFish, position, quaternion);
-	dummy.changeToComputationalFrame(hinge2Loc);
-	//CAREFUL: this func assumes everything is already centered around CM to start with, which is true (see steps 2. & 3. ...) for rX, rY: they are zero at CM, negative before and + after
-
-	// To output the raw midlines
-	#if 0
-	// Check if we must take a dump
-        double currentDumpFactor = time/0.0001;
-	int rank;
-	MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-        if((std::floor(currentDumpFactor) > previousDumpFactor) & rank==0 ){
-		//dumpNow = true;
-		char buf[500];
-		sprintf(buf, "midline_%07d.txt", step_id);
-		FILE * f = fopen(buf,"w");
-		fprintf(f, "s x y xGlob yGlob uBody vBody\n");
-		for (int i=0; i<myFish->Nm; i++){
-			double temp[3] = {myFish->rX[i], myFish->rY[i], 0.0};
-			dummy.changeToComputationalFrame(temp);
-			Real udef[3] = {myFish->vX[i], myFish->vY[i], 0.0};
-			dummy.changeVelocityToComputationalFrame(udef);
-
-			fprintf(f, "%g %g %g %g %g %g %g\n",
-                        myFish->rS[i],myFish->rX[i],myFish->rY[i],
-			temp[0], temp[1],
-			udef[0], udef[1]);
-		}
-		printf("Dumped midline\n");
-		fclose(f);
-        }
-        previousDumpFactor = floor(currentDumpFactor);
-	#endif
-
-	// 4. & 5.
-	std::vector<VolumeSegment_OBB> vSegments(Nsegments);
-	#pragma omp parallel for
-	for(int i=0;i<Nsegments;++i) {
-		const int next_idx = (i+1)*(Nm-1)/Nsegments;
-		const int idx = i * (Nm-1)/Nsegments;
-		// find bounding box based on this
-		Real bbox[3][2] = {{1e9, -1e9}, {1e9, -1e9}, {1e9, -1e9}};
-		for(int ss=idx; ss<=next_idx; ++ss) {
-			const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
-					myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
-			const Real yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
-					myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss]};
-			const Real zBnd[2] = {-myFish->height[ss], +myFish->height[ss]};
-			bbox[0][0] = std::min({bbox[0][0],xBnd[0],xBnd[1]});
-			bbox[0][1] = std::max({bbox[0][1],xBnd[0],xBnd[1]});
-			bbox[1][0] = std::min({bbox[1][0],yBnd[0],yBnd[1]});
-			bbox[1][1] = std::max({bbox[1][1],yBnd[0],yBnd[1]});
-			bbox[2][0] = std::min({bbox[2][0],zBnd[0],zBnd[1]});
-			bbox[2][1] = std::max({bbox[2][1],zBnd[0],zBnd[1]});
-		}
-		vSegments[i].prepare(std::make_pair(idx, next_idx), bbox); //create a new segment
-		vSegments[i].changeToComputationalFrame(position,quaternion);
-	}
-
-	// clear deformation velocities
-	for(auto & entry : obstacleBlocks)
-		delete entry.second;
-	obstacleBlocks.clear();
-
-	//MPI_Barrier(grid->getCartComm());
-	t45 = std::chrono::high_resolution_clock::now();
-
-	// 6. & 7.
-	std::map<int, std::vector<VolumeSegment_OBB>> segmentsPerBlock;
-	{
-		for(int i=0;i<vInfo.size();++i) {
-			const BlockInfo & info = vInfo[i];
-			Real pStart[3], pEnd[3];
-			info.pos(pStart, 0, 0, 0);
-			info.pos(pEnd, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-			const Real safe_distance = 2.0*info.h_gridpoint; // two points on each side
-
-			for(int s=0;s<Nsegments;++s)
-				if(vSegments[s].isIntersectingWithAABB(pStart,pEnd,safe_distance))
-					segmentsPerBlock[info.blockID].push_back(vSegments[s]);
-
-			// allocate new blocks if necessary
-			if(segmentsPerBlock.find(info.blockID) != segmentsPerBlock.end()) {
-				assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
-				obstacleBlocks[info.blockID] = new ObstacleBlock;
-				obstacleBlocks[info.blockID]->clear();
-				obstacleBlocks[info.blockID]->hinge2Index = hinge2Index;
-				obstacleBlocks[info.blockID]->saveHinge2Loc(hinge2Loc);
-			}
-		}
-	}
-	//MPI_Barrier(grid->getCartComm());
-	t67 = std::chrono::high_resolution_clock::now();
-
-	assert(segmentsPerBlock.size() == obstacleBlocks.size());
-
-	// 8.
-	{
-		#pragma omp parallel
-		{
-			PutFishOnBlocks putfish(myFish, position, quaternion);
-
-			#pragma omp for schedule(dynamic)
-			for(int i=0; i<vInfo.size(); i++) {
-				BlockInfo info = vInfo[i];
-				auto pos = segmentsPerBlock.find(info.blockID);
-				FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-
-				//tmpU will contain SDF: neg outside positive inside
-				/*
-					if(pos == segmentsPerBlock.end()) {
-						for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-							for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-								for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-									b(ix,iy,iz).tmpU = -1.; //-1 here to avoid gremlins at blocks' boundaries
-					} else {
-				*/
-				if(pos != segmentsPerBlock.end()) {
-					for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-						for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-							for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-								b(ix,iy,iz).tmpU = 0.; //this will be accessed with plus equal
-
-					assert(obstacleBlocks.find(info.blockID) != obstacleBlocks.end());
-					ObstacleBlock* const defblock = obstacleBlocks.find(info.blockID)->second;
-					putfish(info, b, defblock, pos->second);
-				}
-			}
-		}
-	}
-	//MPI_Barrier(grid->getCartComm());
-	t8 = std::chrono::high_resolution_clock::now();
-/*
-	{
-		const auto len1   = std::chrono::duration<Real>(t1-t0).count();
-		const auto len23  = std::chrono::duration<Real>(t23-t1).count();
-		const auto len45  = std::chrono::duration<Real>(t45-t23).count();
-		const auto len67  = std::chrono::duration<Real>(t67-t45).count();
-		const auto len8   = std::chrono::duration<Real>(t8-t67).count();
-		printf("Creation times %d %d: %g %g %g %g %g \n",rank, obstacleID, len1, len23, len45, len67, len8);
-		fflush(0);
-	}
-*/
-	ptrUinf_copy = Uinf;
+    if(!rank) printf("%f\t f1: %f %f\t f2: %f %f\t f3: %f %f\n", time,
+      curv1fac, curv1vel, curv2fac, curv2vel, ampFac, ampVel);
+    myFish->_correctTrajectory(curv1fac+curv2fac, curv1vel+curv2vel, time, dt);
+    myFish->_correctAmplitude(ampFac, ampVel, time, dt);
+  }
 }
 
-void IF3D_FishOperator::finalize(const int step_id,const Real time, const Real dt, const Real *Uinf)
+void IF3D_FishOperator::integrateMidline()
 {
-	// STRATEGY
-	// 9. create the Chi out of the SDF. In same sweep, compute the actual CoM
-	// 10. compute all shit: linear momentum, angular momentum etc.
-	// 11. correct deformation velocity to nullify momenta for the final discrete representation
-	std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t23, t45, t67, t8, t910, t11;
+  volume_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
+  assert(volume_internal > std::numeric_limits<Real>::epsilon());
+  myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
 
-	t8 = std::chrono::high_resolution_clock::now();
-	// 9. & 10.
-	{
-		const int nthreads = omp_get_max_threads();
-		vector<surfaceBlocks> dataPerThread(nthreads);
-		vector<array<Real,4>> momenta(nthreads);
-		for(int i=0; i<nthreads; i++) for(int j=0; j<4; j++) momenta[i][j]=0;
+  angvel_internal_prev = angvel_internal;
+  myFish->integrateAngularMomentum(angvel_internal);
+  J_internal = myFish->J;
+  // update theta now with new angvel info
+  //theta_internal -= 0.5*sim_dt*(angvel_internal+angvel_internal_prev);//negative: we subtracted this angvel
+  myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
 
-		vector<PutFishOnBlocks_Finalize*> finalize;
-		for(int i=0; i<nthreads; i++) {
-			PutFishOnBlocks_Finalize* tmp = new PutFishOnBlocks_Finalize(&obstacleBlocks,&dataPerThread[i],&momenta[i]);
-			finalize.push_back(tmp);
-		}
-		compute(finalize);
-		for(int i=0; i<nthreads; i++) delete finalize[i];
+  #ifndef NDEBUG
+  {
+    double dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
+    // check that things are zero
+    const double volume_internal_check = myFish->integrateLinearMomentum(dummy_CoM_internal,dummy_vCoM_internal);
+    myFish->integrateAngularMomentum(dummy_angvel_internal);
 
-		double sumX[4] = {0,0,0,0};
-		double totX[4] = {0,0,0,0};
-		for(int i=0; i<nthreads; i++) {
-			sumX[0] += momenta[i][0];
-			sumX[1] += momenta[i][1];
-			sumX[2] += momenta[i][2];
-			sumX[3] += momenta[i][3];
-		}
-
-		MPI_Allreduce(sumX, totX, 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
-		surfData.finalizeOnGrid(dataPerThread);
-
-		assert(totX[0]>std::numeric_limits<double>::epsilon());
-		CoM_interpolated[0]=totX[1]/totX[0];
-		CoM_interpolated[1]=totX[2]/totX[0];
-		CoM_interpolated[2]=totX[3]/totX[0];
-	}
-	//MPI_Barrier(grid->getCartComm());
-	t910 = std::chrono::high_resolution_clock::now();
-
-	#ifdef __useSkin_
-	myFish->surfaceToComputationalFrame(_2Dangle,CoM_interpolated);
-	#endif
-	// 11.
-	_makeDefVelocitiesMomentumFree(CoM_interpolated);
-	//MPI_Barrier(grid->getCartComm());
-	t11 = std::chrono::high_resolution_clock::now();
-/*
-	{
-		const auto len910 = std::chrono::duration<Real>(t910-t8).count();
-		const auto len11  = std::chrono::duration<Real>(t11-t910).count();
-		printf("Finalization times %d %d: %g %g\n",rank, obstacleID, len910, len11);
-		fflush(0);
-	}
-*/
-}
-
-void IF3D_FishOperator::interpolateOnSkin(const Real time, const int stepID, bool _dumpWake)
-{
-	#ifdef __useSkin_
-	if(not(quaternion[1] == 0 && quaternion[2] == 0)){
-		printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
-		abort();
-	}
-  assert(quaternion[1] == 0 && quaternion[2] == 0);
-	sr.updateStepId(stepID+obstacleID);
-	myFish->computeSkinNormals(_2Dangle, CoM_interpolated);
-  sr.nearestGridPoints(&surfData, myFish->upperSkin->Npoints,
-                        myFish->upperSkin->xSurf, myFish->upperSkin->ySurf,
-                        myFish->lowerSkin->xSurf, myFish->lowerSkin->ySurf,
-                        myFish->upperSkin->normXSurf, myFish->upperSkin->normYSurf,
-                        myFish->lowerSkin->normXSurf, myFish->lowerSkin->normYSurf,
-                        position[2], vInfo[0].h_gridpoint, grid->getCartComm());
-
-		#ifndef __RL_TRAINING
-			if(rank==0) sr.print(obstacleID, stepID, time);
-  	#endif
-
-	if(_dumpWake && ptrUinf_copy not_eq nullptr)
-			dumpWake(stepID, time, ptrUinf_copy);
-	if(ptrUinf_copy == nullptr && !rank) printf("(null backup of uinf)\n");
+    assert(std::abs(dummy_CoM_internal[0])<10*std::numeric_limits<Real>::epsilon());
+    assert(std::abs(dummy_CoM_internal[1])<10*std::numeric_limits<Real>::epsilon());
+    assert(std::abs(myFish->linMom[0])<10*std::numeric_limits<Real>::epsilon());
+    assert(std::abs(myFish->linMom[1])<10*std::numeric_limits<Real>::epsilon());
+    assert(std::abs(myFish->angMom)<10*std::numeric_limits<Real>::epsilon());
+    assert(std::abs(volume_internal - volume_internal_check) < 10*std::numeric_limits<Real>::epsilon());
+  }
+  #endif
+  //MPI_Barrier(grid->getCartComm());
+  #ifdef __useSkin_
+  myFish->surfaceToCOMFrame(theta_internal,CoM_internal);
   #endif
 }
 
-void IF3D_FishOperator::update(const int stepID, const Real t, const Real dt, const Real *Uinf)
+void IF3D_FishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
 {
-	// synchronize internal time
-	sim_time = t + dt;
-	sim_dt = dt;
-	// update position and angles
-	IF3D_ObstacleOperator::update(stepID,t, dt, Uinf);
-	// negative: we subtracted this angvel
-	theta_internal -= sim_dt*angvel_internal;
-	angvel_integral[0] += dt*angVel[0];
-	angvel_integral[1] += dt*angVel[1];
-	angvel_integral[2] += dt*angVel[2];
+  #pragma omp parallel
+  {
+    PutFishOnBlocks putfish(myFish, position, quaternion);
+
+    #pragma omp for schedule(dynamic)
+    for(int i=0; i<vInfo.size(); i++) {
+      BlockInfo info = vInfo[i];
+      auto pos = segmentsPerBlock.find(info.blockID);
+      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+
+      if(pos != segmentsPerBlock.end()) {
+        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+          b(ix,iy,iz).tmpU = 0.; //this will be accessed with plus equal
+
+        assert(obstacleBlocks.find(info.blockID) != obstacleBlocks.end());
+        ObstacleBlock*const block = obstacleBlocks.find(info.blockID)->second;
+        putfish(info, b, block, pos->second);
+      }
+    }
+  }
+}
+
+void IF3D_FishOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
+{
+  // STRATEGY
+  // we need some things already
+  // - the internal angle at the previous timestep, obtained from integrating the actual def velocities
+  // (not the imposed deformation velocies, because they dont have zero ang mom)
+  // - the internal angular velocity at previous timestep
+
+  // 1. create midline
+  // 2. integrate to find CoM, angular velocity, etc
+  // 3. shift midline to CoM frame: zero internal linear momentum and angular momentum
+
+  // 4. split the fish into segments (according to s)
+  // 5. rotate the segments to computational frame (comp CoM and angle)
+  // 6. for each Block in the domain, find those segments that intersect it
+  // 7. for each of those blocks, allocate an ObstacleBlock
+
+  // 8. put the 3D shape on the grid: SDF-P2M for sdf, normal P2M for udef
+
+  const int Nextension = NEXTDX*NPPEXT; // up to 3dx on each side (to get proper interpolation up to 2dx)
+  const double dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
+  const double target_ds = vInfo[0].h_gridpoint/TGTPPB;
+  const double target_Nm = length/target_ds;
+  /*
+    - VolumeSegment_OBB's volume cannot be zero
+    - therefore no VolumeSegment_OBB can be only occupied by extension midline
+      points (which have width and height = 0)
+    - performance of create seems to decrease if VolumeSegment_OBB are bigger
+    - this is the smallest number of VolumeSegment_OBB (Nsegments) and points in
+      the midline (Nm) to ensure at least one non ext. point inside all segments
+   */
+  const int Nsegments = std::ceil(target_Nm/(Nextension+1));
+  const int Nm = (Nextension+1)*Nsegments + 1;
+  assert((Nm-1)%Nsegments==0);
+
+  apply_pid_corrections(time, dt, Uinf);
+
+  //Store torque on hingedSection from previous step
+  myFish->torqueZsecMarkers = this->torqueZsection;
+
+  // 1.
+  myFish->computeMidline(time);
+  #ifdef __useSkin_
+  myFish->computeSurface();
+  #endif
+
+  // 2. & 3.
+  integrateMidline();
+
+  int hinge2Index=-1;
+  do{
+    hinge2Index++;
+  } while (myFish->rS[hinge2Index] < myFish->sHinge2);
+
+  // First, get this location in FishFrame, then convert to labFrame
+  double hinge2Loc[3] = {myFish->rX[hinge2Index], myFish->rY[hinge2Index], 0.0};
+  PutFishOnBlocks dummy(myFish, position, quaternion);
+  dummy.changeToComputationalFrame(hinge2Loc);
+
+  //CAREFUL: this func assumes everything is already centered around CM to start with, which is true (see steps 2. & 3. ...) for rX, rY: they are zero at CM, negative before and + after
+
+  // To output the raw midlines
+  #if 0
+  // Check if we must take a dump
+  double currentDumpFactor = time/0.0001;
+  int rank;
+  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+
+  if((std::floor(currentDumpFactor) > previousDumpFactor) & rank==0 )
+  {
+    //dumpNow = true;
+    char buf[500];
+    sprintf(buf, "midline_%07d.txt", step_id);
+    FILE * f = fopen(buf,"w");
+    fprintf(f, "s x y xGlob yGlob uBody vBody\n");
+    for (int i=0; i<myFish->Nm; i++){
+     double temp[3] = {myFish->rX[i], myFish->rY[i], 0.0};
+     dummy.changeToComputationalFrame(temp);
+     Real udef[3] = {myFish->vX[i], myFish->vY[i], 0.0};
+     dummy.changeVelocityToComputationalFrame(udef);
+     fprintf(f, "%g %g %g %g %g %g %g\n",
+     myFish->rS[i],myFish->rX[i],myFish->rY[i],temp[0],temp[1],udef[0],udef[1]);
+    }
+    printf("Dumped midline\n");
+    fclose(f);
+  }
+  previousDumpFactor = floor(currentDumpFactor);
+  #endif
+
+  // 4. & 5.
+  const auto vSegments = prepare_vSegments(Nsegments, Nm);
+
+  // clear deformation velocities
+  for(auto & entry : obstacleBlocks) delete entry.second;
+  obstacleBlocks.clear();
+
+  // 6. & 7.
+  const auto segmentsPerBlock = prepare_segPerBlock(vSegments);
+  assert(segmentsPerBlock.size() == obstacleBlocks.size());
+
+  // 8.
+  writeSDFOnBlocks(segmentsPerBlock);
+}
+
+void IF3D_FishOperator::computeChi(const int step_id, const double time, const double dt, const Real*Uinf, int& mpi_status)
+{
+  // 9. create the Chi out of the SDF. In same sweep, compute the actual CoM
+  if(obstacleBlocks.size() || mpi_status==2)
+  {
+    if (mpi_status==1)
+    {
+      printf("Each rank can call computeChi only once. Fish got too close\n");
+      fflush(0);
+      MPI_Abort(grid->getCartComm(), 0);
+    }
+
+    const int nthreads = omp_get_max_threads();
+
+    vector<PutFishOnBlocks_Finalize*> finalize(nthreads, nullptr);
+    for(int i=0; i<nthreads; i++) finalize[i] = new PutFishOnBlocks_Finalize();
+
+    compute<PutFishOnBlocks_Finalize, VOLUME>(finalize);
+
+    for(int i=0; i<nthreads; i++) delete finalize[i];
+    mpi_status = 1;
+  }
+}
+
+void IF3D_FishOperator::finalize(const int step_id,const double time, const double dt, const Real *Uinf)
+{
+  // 10. compute all shit: linear momentum, angular momentum etc.
+  // 11. correct deformation velocity to nullify momenta for the final discrete representation
+
+  // 10.
+  vector<double> com(4, 0);
+  for (auto & block : obstacleBlocks) {
+    com[0] += block.second->mass;
+    com[1] += block.second->CoM_x;
+    com[2] += block.second->CoM_y;
+    com[3] += block.second->CoM_z;
+  }
+
+  MPI_Allreduce(MPI_IN_PLACE, com.data(), 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+
+  assert(com[0]>std::numeric_limits<Real>::epsilon());
+  CoM_interpolated[0]=com[1]/com[0];
+  CoM_interpolated[1]=com[2]/com[0];
+  CoM_interpolated[2]=com[3]/com[0];
+
+  #ifdef __useSkin_
+  myFish->surfaceToComputationalFrame(_2Dangle,CoM_interpolated);
+  #endif
+
+  // 11.
+  _makeDefVelocitiesMomentumFree(CoM_interpolated);
+  for(auto & o : obstacleBlocks) o.second->allocate_surface();
+}
+
+void IF3D_FishOperator::interpolateOnSkin(const double time, const int stepID, bool _dumpWake)
+{
+  #ifdef __useSkin_
+  if(not(quaternion[1] == 0 && quaternion[2] == 0)){
+    printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
+    abort();
+  }
+  assert(quaternion[1] == 0 && quaternion[2] == 0);
+  sr.updateStepId(stepID+obstacleID);
+  myFish->computeSkinNormals(_2Dangle, CoM_interpolated);
+
+  sr.nearestGridPoints(obstacleBlocks, vInfo, myFish->upperSkin->Npoints-1,
+                myFish->upperSkin->midX,      myFish->upperSkin->midY,
+                myFish->lowerSkin->midX,      myFish->lowerSkin->midY,
+                myFish->upperSkin->normXSurf, myFish->upperSkin->normYSurf,
+                myFish->lowerSkin->normXSurf, myFish->lowerSkin->normYSurf,
+                position[2], vInfo[0].h_gridpoint, grid->getCartComm());
+
+  #ifndef __RL_TRAINING
+  //  if(rank==0) sr.print(obstacleID, stepID, time);
+  #endif
+
+  //if(_dumpWake && _uInf not_eq nullptr) dumpWake(stepID, time, _uInf);
+  #endif
+}
+
+void IF3D_FishOperator::update(const int stepID, const double t, const double dt, const Real *Uinf)
+{
+  // synchronize internal time
+  sim_time = t + dt;
+  sim_dt = dt;
+  // update position and angles
+  IF3D_ObstacleOperator::update(stepID,t, dt, Uinf);
+  // negative: we subtracted this angvel
+  theta_internal -= sim_dt*angvel_internal;
+  angvel_integral[0] += dt*angVel[0];
+  angvel_integral[1] += dt*angVel[1];
+  angvel_integral[2] += dt*angVel[2];
+  double P=2*(myFish->timeshift-myFish->time0/myFish->l_Tp)+myFish->phaseShift;
+  sr.phaseShift = fmod(P,2)<0 ? 2+fmod(P,2) : fmod(P,2);
 }
 
 void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
 {
-	IF3D_ObstacleOperator::_parseArguments(parser);
-	parser.set_strict_mode();
-	parser.unset_strict_mode();
-	Tperiod = parser("-T").asDouble(1.0);
+  IF3D_ObstacleOperator::_parseArguments(parser);
+  parser.set_strict_mode();
+  parser.unset_strict_mode();
+  Tperiod = parser("-T").asDouble(1.0);
 
-	const bool optimizeT = parser("-optimizeT").asBool(false);
-	if(optimizeT){
+  const bool optimizeT = parser("-optimizeT").asBool(false);
+  if(optimizeT){
 
-		char line[256];
-		FILE *f = fopen("hingedParams.txt", "r");
-		if(f==NULL){
-			printf("hingedParams not found!\n"); abort();
-		}
+    char line[256];
+    FILE *f = fopen("hingedParams.txt", "r");
+    if(f==NULL){
+      printf("hingedParams not found!\n"); abort();
+    }
 
-		double tvalue=0.0;
-		int line_no = 0;
+    double tvalue=0.0;
+    int line_no = 0;
 
-		while (fgets(line, 256, f)!= NULL) {
-			if ((line[0] == '#')||(strlen(line)==0)) {
-				printf("ignoring line %d\n", line_no);
-				continue;
-			}
+    while (fgets(line, 256, f)!= NULL) {
+      if ((line[0] == '#')||(strlen(line)==0)) {
+        printf("ignoring line %d\n", line_no);
+        continue;
+      }
 
-			if (strstr(line, "T=")) {
-				sscanf(line, "T=%lf", &tvalue);
-			}
-			line_no++;
-		}
-		if(tvalue==0.0){
-			printf("Correct T=?? not found in hingedParams.txt\n");
-			fflush(0);
-			abort();
-		}
-		Tperiod = tvalue;
-		printf("Tperiod overwritten: %f\n", Tperiod);
-		assert(Tperiod >0.0);
-		fclose(f);
-	}
+      if (strstr(line, "T=")) {
+        sscanf(line, "T=%lf", &tvalue);
+      }
+      line_no++;
+    }
+    if(tvalue==0.0){
+      printf("Correct T=?? not found in hingedParams.txt\n");
+      fflush(0);
+      abort();
+    }
+    Tperiod = tvalue;
+    printf("Tperiod overwritten: %f\n", Tperiod);
+    assert(Tperiod >0.0);
+    fclose(f);
+  }
 
-	nActions = parser("-nActions").asInt(0);
-	GoalDX = parser("-GoalDX").asDouble(2.0);
-	phaseShift = parser("-phi").asDouble(0.0);
-	Tstartlearn = parser("-Tstartlearn").asDouble(1e6);
-	bCorrectTrajectory = parser("-Correct").asBool(false);
-	bInteractive = parser("-Active").asBool(false);
-	NpLatLine = parser("-NpLatLine").asInt(__NpLatLine);
-	followX = parser("-followX").asDouble(-1);
-	followY = parser("-followY").asDouble(-1);
-	if(NpLatLine != __NpLatLine) {
-		printf("Mismatch in __NpLatLine, check settings\n");
-		fflush(0); abort();
-	}
-	sr.set_NpLatLine(NpLatLine);
-	//i want to reset time-averaged quantities before first actual comm
-	sr.t_next_comm = Tstartlearn - Tperiod/2.;
-	sr.bForgiving = parser("-easyFailBox").asBool(false);
-	sr.GoalDX = GoalDX;
-  sr.thExp = _2Dangle;
-	#ifdef __useSkin_
-	bHasSkin = true;
-	#endif
-	/*
-		randomStart = parser("-randomStart").asBool(false);
-		if (randomStart) {
-			printf("Random start\n");
-			std::random_device rd;
-			std::mt19937 gen(rd());
-			std::uniform_real_distribution<Real> dis(-1.,1.);
-			position[0] += .5*length*dis(gen);
-			position[1] += .1*length*dis(gen);
-		}
-	 */
+  phaseShift = parser("-phi").asDouble(0.0);
+
+  //PID knobs
+  bCorrectTrajectory = parser("-Correct").asBool(false);
+  followX = parser("-followX").asDouble(-1);
+  followY = parser("-followY").asDouble(-1);
+
+  #ifdef __useSkin_
+   bHasSkin = true;
+  #endif
 }
 
-void IF3D_FishOperator::getCenterOfMass(Real CM[3]) const
+void IF3D_FishOperator::getCenterOfMass(double CM[3]) const
 {
-	// return computation CoM, not the one were advecting
-	CM[0]=CoM_interpolated[0];
-	CM[1]=CoM_interpolated[1];
-	CM[2]=CoM_interpolated[2];
+  // return computation CoM, not the one were advecting
+  CM[0]=CoM_interpolated[0];
+  CM[1]=CoM_interpolated[1];
+  CM[2]=CoM_interpolated[2];
 }
 
 void IF3D_FishOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
   Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
 {
-	assert(quaternion[1] == 0 && quaternion[2] == 0);
-	x  = position[0];
-	y  = position[1];
-	th  = _2Dangle;
-	pXL = myFish->lowerSkin->xSurf;
-	pYL = myFish->lowerSkin->ySurf;
-	pXU = myFish->upperSkin->xSurf;
-	pYU = myFish->upperSkin->ySurf;
-	Npts = myFish->lowerSkin->Npoints;
+  assert(quaternion[1] == 0 && quaternion[2] == 0);
+  x  = position[0];
+  y  = position[1];
+  th  = _2Dangle;
+  pXL = myFish->lowerSkin->xSurf;
+  pYL = myFish->lowerSkin->ySurf;
+  pXU = myFish->upperSkin->xSurf;
+  pYU = myFish->upperSkin->ySurf;
+  Npts = myFish->lowerSkin->Npoints;
 }
 
-void IF3D_FishOperator::save(const int stepID, const Real t, string filename)
+void IF3D_FishOperator::save(const int stepID, const double t, string filename)
 {
     //assert(std::abs(t-sim_time)<std::numeric_limits<Real>::epsilon());
     std::ofstream savestream;
@@ -546,10 +490,14 @@ void IF3D_FishOperator::save(const int stepID, const Real t, string filename)
 
 }
 
-void IF3D_FishOperator::restart(const Real t, string filename)
+void IF3D_FishOperator::restart(const double t, string filename)
 {
     std::ifstream restartstream;
     restartstream.open(filename+".txt");
+    if(!restartstream.good()){
+      printf("Could not restart from file\n");
+      return;
+    }
     restartstream >> sim_time >> sim_dt;
     assert(std::abs(sim_time-t) < std::numeric_limits<Real>::epsilon());
     restartstream >> position[0] >> position[1] >> position[2];
@@ -560,14 +508,14 @@ void IF3D_FishOperator::restart(const Real t, string filename)
     restartstream >> _2Dangle;
     restartstream.close();
 
-	std::cout<<"RESTARTED FISH: "<<std::endl;
-	std::cout<<"TIME, DT: "<<sim_time<<" "<<sim_dt<<std::endl;
-	std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
-	std::cout<<"ANGLE: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
-	std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
-	std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
-	std::cout<<"INTERN: "<<theta_internal<<" "<<angvel_internal<<std::endl;
-	std::cout<<"2D angle: \t"<<_2Dangle<<std::endl;
+  std::cout<<"RESTARTED FISH: "<<std::endl;
+  std::cout<<"TIME, DT: "<<sim_time<<" "<<sim_dt<<std::endl;
+  std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
+  std::cout<<"ANGLE: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
+  std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
+  std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
+  std::cout<<"INTERN: "<<theta_internal<<" "<<angvel_internal<<std::endl;
+  std::cout<<"2D angle: \t"<<_2Dangle<<std::endl;
 }
 
 /*
