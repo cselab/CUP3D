@@ -98,7 +98,7 @@ CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/
-CPPFLAGS += -I../../smarties/source/ -D__RL_MPI_CLIENT
+CPPFLAGS += -I${HOME}/smarties/source/ -D__RL_MPI_CLIENT
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
@@ -161,7 +161,7 @@ EXEOBJ = $(OBJECTS) Communicator.o main.o
 LIBOBJ = $(OBJECTS) cubism_main.o
 LIBRLOBJ = $(OBJECTS) ext_app_main.o
 
-VPATH := $(SRC_DIR) $(CUBISM_DIR) ../../smarties/source/
+VPATH := $(SRC_DIR) $(CUBISM_DIR) ${HOME}/smarties/source/
 
 .DEFAULT_GOAL := simulation
 
