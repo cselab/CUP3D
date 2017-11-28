@@ -182,14 +182,23 @@ Real FillBlocks::signedDistance(const Real x,
     const Real dotb = px * bx + py * by + pz * bz;
 
     // Distance to the rectangle edges in the plane coordinate system.
-    const Real a = std::max((Real)0, std::fabs(dota) - half_a);
-    const Real b = std::max((Real)0, std::fabs(dotb) - half_b);
+    const Real a = std::fabs(dota) - half_a;
+    const Real b = std::fabs(dotb) - half_b;
+    const Real n = std::fabs(dotn) - half_thickness;
 
-    // Total distance.
-    const Real dist = std::sqrt(dotn * dotn + a * a + b * b);
+    if (a <= 0 && b <= 0 && n <= 0) {
+        // Inside, return a positive number.
+        return -std::min(n, std::min(a, b));
+    } else {
+        // Outside, return a negative number.
+        const Real a0 = std::max((Real)0, a);
+        const Real b0 = std::max((Real)0, b);
+        const Real n0 = std::max((Real)0, n);
+        return -std::sqrt(a0 * a0 + b0 * b0 + n0 * n0);
+    }
 
-    // Subtract `half_thickness` to get a thick plane with rounded edges.
-    return half_thickness - dist;
+    // ROUNDED EDGES.
+    // return half_thickness - std::sqrt(dotn * dotn + a0 * a0 + b0 * b0);
 }
 }  // Namespace PlateObstacle.
 
@@ -207,21 +216,35 @@ IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
 }
 
 
-void IF3D_PlateObstacleOperator::_parseArguments(ArgumentParser & parser)
+void IF3D_PlateObstacleOperator::_parseArguments(ArgumentParser &parser)
 {
     IF3D_ObstacleOperator::_parseArguments(parser);
 
     parser.set_strict_mode();
-    nx = parser("-nx").asDouble();
-    ny = parser("-ny").asDouble();
-    nz = parser("-nz").asDouble();
-    ax = parser("-ax").asDouble();
-    ay = parser("-ay").asDouble();
-    az = parser("-az").asDouble();
-    half_a = parser("-half-a").asDouble();
-    half_b = parser("-half-b").asDouble();
-    half_thickness = parser("-half-thickness").asDouble();
+    half_a = (Real)0.5 * parser("-a").asDouble();
+    half_b = (Real)0.5 * parser("-b").asDouble();
+    half_thickness = (Real)0.5 * parser("-thickness").asDouble();
     parser.unset_strict_mode();
+
+    bool has_alpha = parser.check("-alpha");
+    if (has_alpha) {
+        const double alpha = M_PI / 180. * parser("-alpha").asDouble();
+        nx = std::cos(alpha);
+        ny = std::sin(alpha);
+        nz = 0;
+        ax = -std::sin(alpha);
+        ay = std::cos(alpha);
+        az = 0;
+    } else {
+        parser.set_strict_mode();
+        nx = parser("-nx").asDouble();
+        ny = parser("-ny").asDouble();
+        nz = parser("-nz").asDouble();
+        ax = parser("-ax").asDouble();
+        ay = parser("-ay").asDouble();
+        az = parser("-az").asDouble();
+        parser.unset_strict_mode();
+    }
 
     _normalize(&nx, &ny, &nz);
     _normalized_cross(nx, ny, nz, ax, ay, az, &bx, &by, &bz);
