@@ -12,141 +12,104 @@
 #include "IF2D_Interpolation1D.h"
 #include "GenericOperator.h"
 
-#if 0
-namespace PlateObstacle
-{
-struct FillBlocks
-{
-  const Real halfL_x, halfL_y, halfL_z;
-  const double position[3];
-  Real box[3][2];
+/*
+ * A base class for FillBlocks classes.
+ *
+ * Derived classes should be implemented as (*):
+ *      class FillBlocksFOO : FillBlocksBase<FillBlocksFOO> {
+ *          (...)
+ *      };
+ *
+ * and are required to implement following member functions:
+ *
+ * bool isTouching(const BlockInfo &info, int buffer_dx = 0) const;
+ *      Returns if the given blocks intersects or touches the object.
+ *      False positives are acceptable.
+ *
+ * Real signedDistance(Real x, Real y, Real z) const;
+ *      Returns the signed distance of the given point from the surface of the
+ *      object. Positive number stands for inside, negative for outside.
+ *
+ *
+ * (*) That way the base class is able to access functions of the derived class
+ *     in compile-time (without using virtual functions). For more info, see:
+ *     https://en.wikipedia.org/wiki/Curiously_recurring_template_pattern
+ */
+template <typename Derived>
+struct FillBlocksBase {
+#define DERIVED (static_cast<const Derived *>(this))
+    void operator()(const BlockInfo &info, ObstacleBlock * const o) const
+    {
+        if (!DERIVED->isTouching(info))
+            return;
+        FluidBlock &b = *(FluidBlock *)info.ptrBlock;
+        const Real h = info.h_gridpoint;
+        const Real inv2h = (Real)0.5 / h;
+        const Real fac1 = (Real)0.5 * h * h;
+        const Real eps = std::numeric_limits<Real>::epsilon();
 
-  void _find_sphere_box()
-  {
-    sphere_box[0][0] = sphere_position[0] - safe_radius;
-    sphere_box[0][1] = sphere_position[0] + safe_radius;
-    sphere_box[1][0] = sphere_position[1] - safe_radius;
-    sphere_box[1][1] = sphere_position[1] + safe_radius;
-    sphere_box[2][0] = sphere_position[2] - safe_radius;
-    sphere_box[2][1] = sphere_position[2] + safe_radius;
-  }
+        for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
+        for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
+        for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
+            Real p[3];
+            info.pos(p, ix, iy, iz);
+            const Real dist = DERIVED->signedDistance(p[0], p[1], p[2]);
 
-  FillBlocks(const Real radius, const Real max_dx, const double pos[3]):
-    radius(radius),safe_radius(radius+4*max_dx), sphere_position{pos[0],pos[1],pos[2]}
-  {
-    _find_sphere_box();
-  }
+            if (dist > 2 * h || dist < -2 * h) { //2 should be safe
+                const Real H = dist > 0 ? 1 : 0;
+                b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+                o->write(ix, iy, iz, H, 0, 0, 0, 0, 0);
+                continue;
+            }
 
-  bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
-  {
-    Real intersection[3][2] = {
-        max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
-        max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
-        max(min_pos[2], sphere_box[2][0]), min(max_pos[2], sphere_box[2][1])
-    };
+            const Real distPx = DERIVED->signedDistance(p[0] + h, p[1], p[2]);
+            const Real distMx = DERIVED->signedDistance(p[0] - h, p[1], p[2]);
+            const Real distPy = DERIVED->signedDistance(p[0], p[1] + h, p[2]);
+            const Real distMy = DERIVED->signedDistance(p[0], p[1] - h, p[2]);
+            const Real distPz = DERIVED->signedDistance(p[0], p[1], p[2] + h);
+            const Real distMz = DERIVED->signedDistance(p[0], p[1], p[2] - h);
 
-    return
-        intersection[0][1]-intersection[0][0]>0 &&
-        intersection[1][1]-intersection[1][0]>0 &&
-        intersection[2][1]-intersection[2][0]>0;
-  }
+            const Real IplusX = distPx < 0 ? 0 : distPx;
+            const Real IminuX = distMx < 0 ? 0 : distMx;
+            const Real IplusY = distPy < 0 ? 0 : distPy;
+            const Real IminuY = distMy < 0 ? 0 : distMy;
+            const Real IplusZ = distPz < 0 ? 0 : distPz;
+            const Real IminuZ = distMz < 0 ? 0 : distMz;
 
-  bool _is_touching(const BlockInfo& info, const int buffer_dx = 0) const
-  {
-    Real min_pos[3], max_pos[3];
+            const Real HplusX = distPx == 0 ? (Real)0.5 : (distPx < 0 ? 0 : 1);
+            const Real HminuX = distMx == 0 ? (Real)0.5 : (distMx < 0 ? 0 : 1);
+            const Real HplusY = distPy == 0 ? (Real)0.5 : (distPy < 0 ? 0 : 1);
+            const Real HminuY = distMy == 0 ? (Real)0.5 : (distMy < 0 ? 0 : 1);
+            const Real HplusZ = distPz == 0 ? (Real)0.5 : (distPz < 0 ? 0 : 1);
+            const Real HminuZ = distMz == 0 ? (Real)0.5 : (distMz < 0 ? 0 : 1);
 
-    info.pos(min_pos, 0,0,0);
-    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-    for(int i=0;i<3;++i) {
-      min_pos[i]-=buffer_dx*info.h_gridpoint;
-      max_pos[i]+=buffer_dx*info.h_gridpoint;
-    }
-    return _is_touching(min_pos,max_pos);
-  }
+            // all would be multiplied by 0.5/h, simplifies out later
+            const Real gradUX = inv2h * (distPx - distMx);
+            const Real gradUY = inv2h * (distPy - distMy);
+            const Real gradUZ = inv2h * (distPz - distMz);
+            const Real gradIX = inv2h * (IplusX - IminuX);
+            const Real gradIY = inv2h * (IplusY - IminuY);
+            const Real gradIZ = inv2h * (IplusZ - IminuZ);
+            const Real gradHX = HplusX - HminuX;
+            const Real gradHY = HplusY - HminuY;
+            const Real gradHZ = HplusZ - HminuZ;
 
-  inline Real distanceToPlate(const Real x, const Real y, const Real z) const
-  {
-    const Real dist_X = halfL_x - std::fabs(x);
-    const Real dist_Y = halfL_y - std::fabs(y);
-    const Real dist_Z = halfL_z - std::fabs(z);
-    return std::min(std::min(dist_X, dist_Y), dist_Z);
-  }
+            const Real gradUSq = gradUX * gradUX + gradUY * gradUY + gradUZ * gradUZ + eps;
+            const Real numH    = gradIX * gradUX + gradIY * gradUY + gradIZ * gradUZ;
+            const Real numD    = gradHX * gradUX + gradHY * gradUY + gradHZ * gradUZ;
+            const Real Delta   = numD / gradUSq;
+            const Real H       = numH / gradUSq;
 
-  inline Real sign(const Real& val) const {
-    return (0. < val) - (val < 0.);
-  }
-
-  void operator()(const BlockInfo&info, FluidBlock&b, ObstacleBlock*const o) const
-  {
-    if(_is_touching(info)) {
-      const Real h = info.h_gridpoint;
-      const Real inv2h = 0.5/h;
-      const Real fac1 = 0.5*h*h;
-      const Real eps = std::numeric_limits<Real>::epsilon();
-
-      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-      for(int iy=0; iy<FluidBlock::sizeY; iy++)
-      for(int ix=0; ix<FluidBlock::sizeX; ix++) {
-        Real p[3];
-        info.pos(p, ix, iy, iz);
-        const Real x = p[0]-position[0];
-        const Real y = p[1]-position[1];
-        const Real z = p[2]-position[2];
-        const Real dist = distanceToSphere(x,y,z);
-
-        if(dist > 2*h || dist < -2*h) { //2 should be safe
-          const Real H = dist > 0 ? 1.0 : 0.0;
-          b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-          o->write(ix,iy,iz,H,0,0,0,0,0);
-          continue;
-        }
-
-        const Real distPx = distanceToSphere(x+h,y,z);
-        const Real distMx = distanceToSphere(x-h,y,z);
-        const Real distPy = distanceToSphere(x,y+h,z);
-        const Real distMy = distanceToSphere(x,y-h,z);
-        const Real distPz = distanceToSphere(x,y,z+h);
-        const Real distMz = distanceToSphere(x,y,z-h);
-        const Real IplusX = distPx < 0 ? 0 : distPx;
-        const Real IminuX = distMx < 0 ? 0 : distMx;
-        const Real IplusY = distPy < 0 ? 0 : distPy;
-        const Real IminuY = distMy < 0 ? 0 : distMy;
-        const Real IplusZ = distPz < 0 ? 0 : distPz;
-        const Real IminuZ = distMz < 0 ? 0 : distMz;
-        const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
-        const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
-        const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
-        const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
-        const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
-        const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
-        // all would be multiplied by 0.5/h, simplifies out later
-        const Real gradUX = inv2h*(distPx - distMx);
-        const Real gradUY = inv2h*(distPy - distMy);
-        const Real gradUZ = inv2h*(distPz - distMz);
-        const Real gradIX = inv2h*(IplusX - IminuX);
-        const Real gradIY = inv2h*(IplusY - IminuY);
-        const Real gradIZ = inv2h*(IplusZ - IminuZ);
-        const Real gradHX = (HplusX - HminuX);
-        const Real gradHY = (HplusY - HminuY);
-        const Real gradHZ = (HplusZ - HminuZ);
-
-        const Real gradUSq = gradUX*gradUX +gradUY*gradUY +gradUZ*gradUZ +eps;
-        const Real numH    = gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ;
-        const Real numD    = gradHX*gradUX +gradHY*gradUY +gradHZ*gradUZ;
-        const Real Delta   = numD / gradUSq;
-        const Real H       = numH / gradUSq;
-
-        o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
-        b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-        #ifndef NDEBUG
-        if(H<0||H>1+eps) printf("invalid H?: %f %f %f: %10.10e\n",x,y,z,H);
-        #endif
-      }
-    }
-  }
-};
-}
+            o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
+            b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+#ifndef NDEBUG
+            if (H < 0 || H > 1 + eps)
+                printf("invalid H?: %f %f %f: %10.10e\n", p[0], p[1], p[2], H);
 #endif
+        }
+    }
+#undef DERIVED
+};
 
 namespace SphereObstacle
 {

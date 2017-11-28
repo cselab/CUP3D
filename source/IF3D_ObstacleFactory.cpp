@@ -11,14 +11,15 @@
 #include "IF3D_ObstacleFactory.h"
 #include "IF2D_FactoryFileLineParser.h"
 
-//#include "IF3D_CylinderObstacleOperator.h"
-#include "IF3D_SphereObstacleOperator.h"
-#include "IF3D_ForcedSphereObstacleOperator.h"
-#include "IF3D_DCylinderObstacleOperator.h"
-#include "IF3D_StefanFishOperator.h"
-#include "IF3D_DeadFishOperator.h"
 #include "IF3D_CarlingFishOperator.h"
+//#include "IF3D_CylinderObstacleOperator.h"
+#include "IF3D_DCylinderObstacleOperator.h"
+#include "IF3D_DeadFishOperator.h"
+#include "IF3D_ForcedSphereObstacleOperator.h"
 #include "IF3D_NacaOperator.h"
+#include "IF3D_PlateObstacleOperator.h"
+#include "IF3D_SphereObstacleOperator.h"
+#include "IF3D_StefanFishOperator.h"
 #include "IF3D_VortexOperator.h"
 
 /*
@@ -90,7 +91,10 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     {
       retval.push_back(new IF3D_DCylinderObstacleOperator(grid,object.second,Uinf));
     }
-
+    else if( objectName == "IF3D_PlateObstacle" )
+    {
+      retval.push_back(new IF3D_PlateObstacleOperator(grid,object.second,Uinf));
+    }
     /*
     else if( objectName == "IF3D_Ellipse" )
     {

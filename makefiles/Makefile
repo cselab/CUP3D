@@ -145,7 +145,25 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS =  IF3D_VortexOperator.o IF3D_NacaOperator.o IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o IF3D_StefanFishOperator.o IF3D_DeadFishOperator.o IF3D_CarlingFishOperator.o IF3D_FishOperator.o IF3D_ForcedSphereObstacleOperator.o IF3D_SphereObstacleOperator.o Profiler.o Simulation.o ProcessOperatorsOMP.o Save_splicer.o WaveletCompressor.o IF3D_DCylinderObstacleOperator.o
+OBJECTS =  IF3D_VortexOperator.o \
+           IF3D_NacaOperator.o \
+           IF3D_ObstacleFactory.o \
+           IF3D_ObstacleOperator.o \
+           IF3D_ObstacleVector.o \
+           IF3D_StefanFishOperator.o \
+           IF3D_DeadFishOperator.o \
+           IF3D_CarlingFishOperator.o \
+           IF3D_FishOperator.o \
+           IF3D_ForcedSphereObstacleOperator.o \
+           IF3D_SphereObstacleOperator.o \
+           IF3D_PlateObstacleOperator.o \
+           Profiler.o \
+           Simulation.o \
+           ProcessOperatorsOMP.o \
+           Save_splicer.o \
+           WaveletCompressor.o \
+           IF3D_DCylinderObstacleOperator.o
+
 #GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"

@@ -9,3 +9,6 @@ lib
 build
 .DS_Store
 ._*
+*.swp
+
+makefiles/simulation
