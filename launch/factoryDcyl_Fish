@@ -1,0 +1,2 @@
+IF3D_DCylinder L=0.1 xpos=0.2 ypos=0.25 zpos=0.25 xvel=0.3 bFixFrameOfRef=1 computeForces=0 bForcedInSimFrame=1
+IF3D_StefanFish L=0.3 T=1 xpos=0.45 bFixToPlanar=1 bForcedInSimFrame=1 

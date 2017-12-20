@@ -14,27 +14,14 @@
 void IF3D_ForcedSphereObstacleOperator::_parseArguments(ArgumentParser & parser)
 {
   IF3D_SphereObstacleOperator::_parseArguments(parser);
-
+  bForcedInSimFrame[0] = true;
+  bForcedInSimFrame[1] = true;
+  bForcedInSimFrame[2] = true;
   parser.set_strict_mode();
-  const double xvel = parser("-xvel").asDouble();
-  parser.unset_strict_mode();
-  const Real yvel = parser("-yvel").asDouble(0.);
-  const Real zvel = parser("-zvel").asDouble(0.);
   accel_decel = parser("-accel").asBool(false);
-  umax = xvel;
+  umax = parser("-xvel").asDouble();
   tmax = parser("-T").asDouble(1.);
-
-  this->transVel[0] = xvel;
-  this->transVel[1] = yvel;
-  this->transVel[2] = zvel;
 }
-
-void IF3D_ForcedSphereObstacleOperator::computeVelocities(const Real Uinf[3])
-{
-  computeVelocities_forced(Uinf);
-}
-
-void IF3D_ForcedSphereObstacleOperator::setTranslationVelocity(double UT[3]) {}
 
 void IF3D_ForcedSphereObstacleOperator::update(const int stepID, const double t, const double dt, const Real *Uinf)
 {

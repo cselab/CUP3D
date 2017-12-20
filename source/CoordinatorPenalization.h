@@ -115,18 +115,15 @@ struct VelocityObstacleVisitor : public ObstacleVisitor
 
   void visit(IF3D_ObstacleOperator* const obstacle)
   {
-    const bool bFixFrameOfRef   = obstacle->bFixFrameOfRef;
-    const bool bFixFrameOfRef_x = obstacle->bFixFrameOfRef_x;
-    const bool bFixFrameOfRef_y = obstacle->bFixFrameOfRef_y;
-    const bool bFixFrameOfRef_z = obstacle->bFixFrameOfRef_z;
+    const bool* const bFixFrameOfRef   = obstacle->bFixFrameOfRef;
     const Real dummy[3] = { 0.0, 0.0, 0.0 };
     obstacle->computeVelocities(dummy); // compute velocities with zero uinf
     double povU[3];
     obstacle->getTranslationVelocity(povU);
 
-    if (bFixFrameOfRef || bFixFrameOfRef_x) { (nSum[0])++; uSum[0] -= povU[0]; }
-    if (bFixFrameOfRef || bFixFrameOfRef_y) { (nSum[1])++; uSum[1] -= povU[1]; }
-    if (bFixFrameOfRef || bFixFrameOfRef_z) { (nSum[2])++; uSum[2] -= povU[2]; }
+    if (bFixFrameOfRef[0]) { (nSum[0])++; uSum[0] -= povU[0]; }
+    if (bFixFrameOfRef[1]) { (nSum[1])++; uSum[1] -= povU[1]; }
+    if (bFixFrameOfRef[2]) { (nSum[2])++; uSum[2] -= povU[2]; }
   }
 };
 

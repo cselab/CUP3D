@@ -37,8 +37,7 @@ protected:
 
 public:
   int obstacleID=0, rank, size;
-  bool bFixFrameOfRef=0, bFixToPlanar=1, bInteractive=0, bHasSkin=0, bForces=0;
-  bool bFixFrameOfRef_x=false, bFixFrameOfRef_y=false, bFixFrameOfRef_z=false;
+  bool bFixToPlanar=1, bInteractive=0, bHasSkin=0, bForces=0;
   double quaternion[4] = {1,0,0,0}, _2Dangle = 0, phaseShift=0; //orientation
   double position[3] = {0,0,0}, absPos[3] = {0,0,0}, transVel[3] = {0,0,0};
   double angVel[3] = {0,0,0}, volume = 0, J[6] = {0,0,0,0,0,0}; //mom of inertia
@@ -51,7 +50,11 @@ public:
   //forced obstacles:
   double transVel_computed[3]= {0,0,0}, angVel_computed[3]= {0,0,0};
   double ext_X, ext_Y, ext_Z;
-  double torqueZsection=0.0;
+  double torqueZsection=0.0; 
+ 
+  // stuff dealing with frame of reference:
+  bool bFixFrameOfRef[3] = {false, false, false};
+  bool bForcedInSimFrame[3] = {false, false, false};
 
 protected:
   virtual void _parseArguments(ArgumentParser & parser);
@@ -60,8 +63,6 @@ protected:
   void _makeDefVelocitiesMomentumFree(const double CoM[3]);
   void _computeUdefMoments(double lin_momenta[3], double ang_momenta[3], const double CoM[3]);
   //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
-  void computeVelocities_kernel(const Real* Uinf, double* const linvel_target,
-                                                  double* const angvel_target);
 
 public:
   IF3D_ObstacleOperator(FluidGridMPI*g, ArgumentParser&parser, const Real*const uInf) : grid(g), _uInf(uInf)
@@ -107,7 +108,6 @@ public:
 
   virtual void computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda) ;
   virtual void computeVelocities(const Real* Uinf);
-  virtual void computeVelocities_forced(const Real* Uinf);
   virtual void computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump);
   virtual void update(const int step_id, const double t, const double dt, const Real* Uinf);
   virtual void save(const int step_id, const double t, std::string filename = std::string());

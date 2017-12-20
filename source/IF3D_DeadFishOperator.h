@@ -24,7 +24,6 @@ protected:
 public:
     IF3D_DeadFishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u);
     void update(const int step_id, const double t, const double dt, const Real *Uinf) override;
-    void computeVelocities(const Real* Uinf) override;
     void _parseArguments(ArgumentParser & parser);
   void save(const int step_id, const double t, std::string filename = std::string()) override;
   void restart(const double t, std::string filename = std::string()) override;

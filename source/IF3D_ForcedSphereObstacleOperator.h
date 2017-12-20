@@ -24,10 +24,6 @@ public:
     _parseArguments(p);
   }
 
-  // no need to compute velocities, are fixed
-  void computeVelocities(const Real Uinf[3]) override;
-  void setTranslationVelocity(double UT[3]) override;
-
   void _parseArguments(ArgumentParser & parser) override;
   void update(const int stepID, const double t, const double dt, const Real *Uinf) override;
 };

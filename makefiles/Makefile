@@ -21,6 +21,11 @@ accfft ?= false
 train ?= false
 zlib ?= 0
 verbose ?= false
+bc ?= open
+
+ifeq "$(bc)" "periodicz"
+	CPPFLAGS += -DBC_PERIODICZ
+endif
 
 ifeq "$(verbose)" "true"
 	CPPFLAGS += -D_VERBOSE_
@@ -94,7 +99,7 @@ ifneq "$(findstring eu-,$(shell hostname))" ""
 	include make.euler
 endif
 
-CPPFLAGS += -std=c++11 -fopenmp #-fpermissive
+CPPFLAGS += -std=c++11 -fopenmp -dynamic
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/

@@ -18,8 +18,8 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p, const Rea
   const double target_Nm = TGTPPB*length/vInfo[0].h_gridpoint;
   const double dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
   const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1.)) + 1;
-  if (!bFixFrameOfRef or obstacleID) {
-    printf("THIS OBSTACLE WORKS ONLY FOR FIXED FRAME AND SINGLE OBSTACLE!\n BLAME HIGH PUBLIC DEFICIT\n");
+  if (obstacleID) {
+    printf("THIS OBSTACLE WORKS ONLY FOR SINGLE OBSTACLE!\n BLAME HIGH PUBLIC DEFICIT\n");
     MPI_Abort(grid->getCartComm(),0);
   }
   printf("%d %f %f\n",Nm,length,dx_extension);
@@ -32,6 +32,12 @@ void IF3D_NacaOperator::_parseArguments(ArgumentParser & parser)
 {
   IF3D_FishOperator::_parseArguments(parser);
   absPos[0] = 0;
+  bFixFrameOfRef[0] = true;
+  bFixFrameOfRef[1] = false;
+  bFixFrameOfRef[2] = false;
+  bForcedInSimFrame[0] = false; 
+  bForcedInSimFrame[1] = true; 
+  bForcedInSimFrame[2] = true;// meaning that velocity cannot be changed by penalization
   #if 1
       Apitch = parser("-Apitch").asDouble(0.0); //aplitude of sinusoidal pitch angle
       Fpitch = parser("-Fpitch").asDouble(0.0); //frequency
@@ -61,18 +67,10 @@ void IF3D_NacaOperator::_parseArguments(ArgumentParser & parser)
     position[0],Apitch,Fpitch,Ppitch,Mpitch,Fheave,Aheave);
 }
 
-void IF3D_NacaOperator::computeVelocities(const Real Uinf[3])
-{
-  computeVelocities_kernel(Uinf, transVel_computed, angVel_computed);
-  transVel[0] = -0.1;//transVel_computed[0];
-  transVel[1] = transVel[2] = 0;
-}
-
 void IF3D_NacaOperator::update(const int stepID, const double t, const double dt, const Real* Uinf)
 {
     //position[0]+= dt*transVel[0];
     //position[1]=    0.25 +          Aheave * std::cos(2*M_PI*Fheave*t);
-  //THIS VEL IS WRITTEN HERE JUST FOR THE PENAL OP, MUST BE SET TO ZERO BY IT
     transVel[1]=-2*M_PI * Fheave * Aheave * std::sin(2*M_PI*Fheave*t);
     transVel[2] = 0;
     //position[2]+= dt*transVel[2];

@@ -46,22 +46,12 @@ void IF3D_DCylinderObstacleOperator::create(const int step_id,const double time,
   for(auto & o : obstacleBlocks) o.second->allocate_surface();
 }
 
-void IF3D_DCylinderObstacleOperator::setTranslationVelocity(double UT[3])
-{}
-
 void IF3D_DCylinderObstacleOperator::_parseArguments(ArgumentParser & parser)
 {
   //obstacleop parses x,y,z,quats and length!
   IF3D_ObstacleOperator::_parseArguments(parser);
   parser.set_strict_mode();
   parser.unset_strict_mode();
-  const double xvel = parser("-xvel").asDouble(0.);
-  const double yvel = parser("-yvel").asDouble(0.);
-  const double zvel = parser("-zvel").asDouble(0.);
-
-  this->transVel[0] = xvel;
-  this->transVel[1] = yvel;
-  this->transVel[2] = zvel;
   halflength = ext_Z/2;
   radius = .5*length;
   printf("Created IF3D_DCylinderObstacleOperator with radius %f\n", radius);

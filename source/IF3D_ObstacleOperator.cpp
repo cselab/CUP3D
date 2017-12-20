@@ -214,11 +214,37 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
       abort();
     }
 
+    // if true, obstacle will never change its velocity:
+    // bForcedInLabFrame = parser("-bForcedInLabFrame").asBool(false);
+    bool bFSM_alldir = parser("-bForcedInSimFrame").asBool(false);
+    bForcedInSimFrame[0] = bFSM_alldir || parser("-bForcedInSimFrame_x").asBool(false);
+    bForcedInSimFrame[1] = bFSM_alldir || parser("-bForcedInSimFrame_y").asBool(false);
+    bForcedInSimFrame[2] = bFSM_alldir || parser("-bForcedInSimFrame_z").asBool(false);
+    
+    parser.set_strict_mode();
+    if(bForcedInSimFrame[0]) {
+      const double xvel = parser("-xvel").asDouble();
+      this->transVel[0] = xvel;
+      printf("Obstacle forced to move relative to sim domain with constant x-vel:%f\n", xvel);
+    }
+    if(bForcedInSimFrame[1]) {
+      const double yvel = parser("-yvel").asDouble();
+      this->transVel[1] = yvel;
+      printf("Obstacle forced to move relative to sim domain with constant y-vel:%f\n", yvel);
+    }
+    if(bForcedInSimFrame[2]) {
+      const double zvel = parser("-zvel").asDouble();
+      this->transVel[2] = zvel;
+      printf("Obstacle forced to move relative to sim domain with constant z-vel:%f\n", zvel);
+    }
+    parser.unset_strict_mode();
     bFixToPlanar = parser("-bFixToPlanar").asBool(false);
-    bFixFrameOfRef = parser("-bFixFrameOfRef").asBool(false);
-    bFixFrameOfRef_x = parser("-bFixFrameOfRef_x").asBool(false);
-    bFixFrameOfRef_y = parser("-bFixFrameOfRef_y").asBool(false);
-    bFixFrameOfRef_z = parser("-bFixFrameOfRef_z").asBool(false);
+
+    // this is different, obstacle can change the velocity, but sim frame will follow:
+    bool bFOR_alldir = parser("-bFixFrameOfRef").asBool(false);
+    bFixFrameOfRef[0] = bFOR_alldir || parser("-bFixFrameOfRef_x").asBool(false);
+    bFixFrameOfRef[1] = bFOR_alldir || parser("-bFixFrameOfRef_y").asBool(false);
+    bFixFrameOfRef[2] = bFOR_alldir || parser("-bFixFrameOfRef_z").asBool(false);
     bForces = parser("-computeForces").asBool(true);
 }
 
@@ -336,9 +362,9 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
   #endif
 }
 
-void IF3D_ObstacleOperator::computeVelocities_kernel(const Real* Uinf,
-    double* const linvel_dest, double* const angvel_dest)
+void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 {
+  const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2]; 
   double CM[3];
   this->getCenterOfMass(CM);
   const double h  = vInfo[0].h_gridpoint;
@@ -368,11 +394,15 @@ void IF3D_ObstacleOperator::computeVelocities_kernel(const Real* Uinf,
     double locals[4] = {lm0,lm1,lm2,V};
     MPI_Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
     assert(globals[3] > std::numeric_limits<double>::epsilon());
-    linvel_dest[0] = globals[0]/globals[3] + Uinf[0];
-    linvel_dest[1] = globals[1]/globals[3] + Uinf[1];
-    linvel_dest[2] = globals[2]/globals[3] + Uinf[2];
+
+    if(bForcedInSimFrame[0]) transVel_computed[0] = globals[0]/globals[3] + Uinf[0];
+    else                     transVel[0]          = globals[0]/globals[3] + Uinf[0];
+    if(bForcedInSimFrame[1]) transVel_computed[1] = globals[1]/globals[3] + Uinf[1];
+    else                     transVel[1]          = globals[1]/globals[3] + Uinf[1];
+    if(bForcedInSimFrame[2]) transVel_computed[2] = globals[2]/globals[3] + Uinf[2];
+    else                     transVel[2]          = globals[2]/globals[3] + Uinf[2];
     volume      = globals[3] * dv;
-    if(bFixToPlanar) linvel_dest[2] = 0.0;
+    if(bFixToPlanar && not bForcedInSimFrame[2]) transVel[2] = 0.0;
   }
   {
     double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0, am0=0, am1=0, am2=0;
@@ -395,9 +425,9 @@ void IF3D_ObstacleOperator::computeVelocities_kernel(const Real* Uinf,
         p[2]-=CM[2];
         const double u_= b(ix,iy,iz).u, v_= b(ix,iy,iz).v, w_= b(ix,iy,iz).w;
 
-        am0 += Xs * (p[1]*(w_-linvel_dest[2]) - p[2]*(v_-linvel_dest[1]));
-        am1 += Xs * (p[2]*(u_-linvel_dest[0]) - p[0]*(w_-linvel_dest[2]));
-        am2 += Xs * (p[0]*(v_-linvel_dest[1]) - p[1]*(u_-linvel_dest[0]));
+        am0 += Xs * (p[1]*(w_-transVel[2]) - p[2]*(v_-transVel[1]));
+        am1 += Xs * (p[2]*(u_-transVel[0]) - p[0]*(w_-transVel[2]));
+        am2 += Xs * (p[0]*(v_-transVel[1]) - p[1]*(u_-transVel[0]));
         J0  += Xs * (p[1]*p[1]+p[2]*p[2]);
         J1  += Xs * (p[0]*p[0]+p[2]*p[2]);
         J2  += Xs * (p[0]*p[0]+p[1]*p[1]);
@@ -431,6 +461,7 @@ void IF3D_ObstacleOperator::computeVelocities_kernel(const Real* Uinf,
         invDetJ * (J_[3]*J_[5] - J_[1]*J_[4]),
         invDetJ * (J_[3]*J_[4] - J_[0]*J_[5])
       };
+      double* const angvel_dest = anyVelForced? angVel_computed : angVel;
       angvel_dest[0] = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
       angvel_dest[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
       angvel_dest[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
@@ -442,16 +473,6 @@ void IF3D_ObstacleOperator::computeVelocities_kernel(const Real* Uinf,
     J[4] = globals[7] * dv;
     J[5] = globals[8] * dv;
   }
-}
-
-void IF3D_ObstacleOperator::computeVelocities_forced(const Real* Uinf)
-{
-  computeVelocities_kernel(Uinf, transVel_computed, angVel_computed);
-}
-
-void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
-{
-  computeVelocities_kernel(Uinf, transVel, angVel);
 }
 
 void IF3D_ObstacleOperator::dumpWake(const int stepID, const double t, const Real* Uinf)
@@ -787,9 +808,9 @@ void IF3D_ObstacleOperator::getTranslationVelocity(double UT[3]) const
 
 void IF3D_ObstacleOperator::setTranslationVelocity(double UT[3])
 {
-    transVel[0]=UT[0];
-    transVel[1]=UT[1];
-    transVel[2]=UT[2];
+    if(not bForcedInSimFrame[0]) transVel[0] = UT[0];
+    if(not bForcedInSimFrame[1]) transVel[1] = UT[1];
+    if(not bForcedInSimFrame[2]) transVel[2] = UT[2];
 }
 
 void IF3D_ObstacleOperator::getAngularVelocity(double W[3]) const

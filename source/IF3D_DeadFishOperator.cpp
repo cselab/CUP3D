@@ -26,11 +26,14 @@ void IF3D_DeadFishOperator::_parseArguments(ArgumentParser & parser)
   IF3D_FishOperator::_parseArguments(parser);
   parser.set_strict_mode();
   ID = parser("-DID").asInt();
+  
+  bForcedInSimFrame[0] = true;
+  bForcedInSimFrame[1] = true;
+  bForcedInSimFrame[2] = true;
 
   parser.unset_strict_mode();
   P0 = parser("-xpos").asDouble(0.0);
   Y0 = parser("-ypos").asDouble(0.0);
-  VelX = parser("-VelX").asDouble(0.0);
   Ltow = parser("-Ltow").asDouble(2.5);
   Ttow = parser("-Ttow").asDouble(1.0);
   Atow = parser("-Atow").asDouble(-1.);
@@ -47,8 +50,8 @@ void IF3D_DeadFishOperator::_parseArguments(ArgumentParser & parser)
   ext_pos[2] = position[2];
   printf("created IF2D_DeadFish: xpos=%f ypos=%f L=%f T=%f\n",
       position[0],position[1],length,Tperiod);
-  printf("P0=%3.3f VelX=%3.3f Ltow=%3.3f Ttow=%3.3f Atow=%3.3f ID=%d \n",
-      P0,VelX,Ltow,Ttow,Atow,ID);
+  printf("P0=%3.3f Ltow=%3.3f Ttow=%3.3f Atow=%3.3f ID=%d \n",
+      P0,Ltow,Ttow,Atow,ID);
 }
 
 void IF3D_DeadFishOperator::update(const int step_id, const double t, const double dt, const Real *Uinf)
@@ -112,120 +115,6 @@ void IF3D_DeadFishOperator::update(const int step_id, const double t, const doub
     _writeComputedVelToFile(step_id, t, Uinf);
     if (position[0]<0.1) abort();
   }
-}
-
-void IF3D_DeadFishOperator::computeVelocities(const Real* Uinf)
-{
-    double CM[3];
-    this->getCenterOfMass(CM);
-
-    {
-      double V(0.0), lm0(0.0), lm1(0.0), lm2(0.0); //linear momenta
-      #pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2)
-      for(int i=0; i<vInfo.size(); i++) {
-          BlockInfo info = vInfo[i];
-          FluidBlock & b = *(FluidBlock*)info.ptrBlock;
-          const auto pos = obstacleBlocks.find(info.blockID);
-          if(pos == obstacleBlocks.end()) continue;
-
-          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-          for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-              const double Xs = pos->second->chi[iz][iy][ix];
-              if (Xs == 0) continue;
-              Real p[3];
-              info.pos(p, ix, iy, iz);
-              p[0]-=CM[0];
-              p[1]-=CM[1];
-              p[2]-=CM[2];
-              V     += Xs;
-              lm0   += Xs * b(ix,iy,iz).u;
-              lm1   += Xs * b(ix,iy,iz).v;
-              lm2   += Xs * b(ix,iy,iz).w;
-          }
-      }
-
-      double globals[4];
-      double locals[4] = {lm0,lm1,lm2,V};
-      MPI_Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
-      assert(globals[3] > std::numeric_limits<double>::epsilon());
-
-      const double dv = std::pow(vInfo[0].h_gridpoint,3);
-      transVel_comp[0] = globals[0]/globals[3] + Uinf[0];
-      transVel_comp[1] = globals[1]/globals[3] + Uinf[1];
-      transVel_comp[2] = globals[2]/globals[3] + Uinf[2];
-      volume      = globals[3] * dv;
-    }
-    {
-      double J0(0.0), J1(0.0), J2(0.0), J3(0.0), J4(0.0), J5(0.0);
-      double am0(0.0), am1(0.0), am2(0.0); //angular momenta
-
-      #pragma omp parallel for schedule(dynamic) reduction(+:J0,J1,J2,J3,J4,J5,am0,am1,am2)
-      for(int i=0; i<vInfo.size(); i++) {
-          BlockInfo info = vInfo[i];
-          FluidBlock & b = *(FluidBlock*)info.ptrBlock;
-          const auto pos = obstacleBlocks.find(info.blockID);
-          if(pos == obstacleBlocks.end()) continue;
-
-          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-          for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-              const double Xs = pos->second->chi[iz][iy][ix];
-              if (Xs == 0) continue;
-              Real p[3];
-              info.pos(p, ix, iy, iz);
-              p[0]-=CM[0];
-              p[1]-=CM[1];
-              p[2]-=CM[2];
-              const Real u_ = b(ix,iy,iz).u;
-              const Real v_ = b(ix,iy,iz).v;
-              const Real w_ = b(ix,iy,iz).w;
-
-              am0 += Xs * (p[1]*(w_-transVel_comp[2]) - p[2]*(v_-transVel_comp[1]));
-              am1 += Xs * (p[2]*(u_-transVel_comp[0]) - p[0]*(w_-transVel_comp[2]));
-              am1 += Xs * (p[0]*(v_-transVel_comp[1]) - p[1]*(u_-transVel_comp[0]));
-
-              J0  += Xs * (p[1]*p[1]+p[2]*p[2]);
-              J1  += Xs * (p[0]*p[0]+p[2]*p[2]);
-              J2  += Xs * (p[0]*p[0]+p[1]*p[1]);
-              J3  -= Xs *  p[0]*p[1];
-              J4  -= Xs *  p[0]*p[2];
-              J5  -= Xs *  p[1]*p[2];
-          }
-      }
-
-      double globals[9];
-      double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
-      MPI_Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
-
-      //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
-      const double AM[6] = {globals[0], globals[1], globals[2]};
-      const double J_[6] = {globals[3], globals[4], globals[5],
-                          globals[6], globals[7], globals[8]};
-      const double detJ = J_[0]*(J_[1]*J_[2] - J_[5]*J_[5])+
-                        J_[3]*(J_[4]*J_[5] - J_[2]*J_[3])+
-                        J_[4]*(J_[3]*J_[5] - J_[1]*J_[4]);
-      const double invDetJ = 1./detJ;
-      const double invJ[6] = {
-        invDetJ * (J_[1]*J_[2] - J_[5]*J_[5]),
-        invDetJ * (J_[0]*J_[2] - J_[4]*J_[4]),
-        invDetJ * (J_[0]*J_[1] - J_[3]*J_[3]),
-        invDetJ * (J_[4]*J_[5] - J_[2]*J_[3]),
-        invDetJ * (J_[3]*J_[5] - J_[1]*J_[4]),
-        invDetJ * (J_[3]*J_[4] - J_[0]*J_[5])
-      };
-
-      const double dv = std::pow(vInfo[0].h_gridpoint,3);
-      angVel_comp[0] = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
-      angVel_comp[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
-      angVel_comp[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
-      J[0] = globals[3] * dv;
-      J[1] = globals[4] * dv;
-      J[2] = globals[5] * dv;
-      J[3] = globals[6] * dv;
-      J[4] = globals[7]* dv;
-      J[5] = globals[8]* dv;
-    }
 }
 
 void IF3D_DeadFishOperator::save(const int stepID, const double t, string filename)

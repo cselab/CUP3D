@@ -24,13 +24,7 @@ public:
       _parseArguments(p);
   }
 
-  void computeVelocities(const Real Uinf[3]) override
-  {
-    computeVelocities_forced(Uinf);
-  }
-  void setTranslationVelocity(double UT[3]) override;
-
-   void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
+  void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
 
   void _parseArguments(ArgumentParser & parser) override;
 };
