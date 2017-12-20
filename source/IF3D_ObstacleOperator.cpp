@@ -221,23 +221,21 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
     bForcedInSimFrame[1] = bFSM_alldir || parser("-bForcedInSimFrame_y").asBool(false);
     bForcedInSimFrame[2] = bFSM_alldir || parser("-bForcedInSimFrame_z").asBool(false);
     
-    parser.set_strict_mode();
     if(bForcedInSimFrame[0]) {
-      const double xvel = parser("-xvel").asDouble();
+      const double xvel = parser("-xvel").asDouble(0);
       this->transVel[0] = xvel;
       printf("Obstacle forced to move relative to sim domain with constant x-vel:%f\n", xvel);
     }
     if(bForcedInSimFrame[1]) {
-      const double yvel = parser("-yvel").asDouble();
+      const double yvel = parser("-yvel").asDouble(0);
       this->transVel[1] = yvel;
       printf("Obstacle forced to move relative to sim domain with constant y-vel:%f\n", yvel);
     }
     if(bForcedInSimFrame[2]) {
-      const double zvel = parser("-zvel").asDouble();
+      const double zvel = parser("-zvel").asDouble(0);
       this->transVel[2] = zvel;
       printf("Obstacle forced to move relative to sim domain with constant z-vel:%f\n", zvel);
     }
-    parser.unset_strict_mode();
     bFixToPlanar = parser("-bFixToPlanar").asBool(false);
 
     // this is different, obstacle can change the velocity, but sim frame will follow:
