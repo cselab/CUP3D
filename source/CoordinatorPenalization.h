@@ -133,10 +133,14 @@ protected:
     IF3D_ObstacleVector** const obstacleVector;
     double* const lambda;
     Real* const uInf;
+    int rank = 0;
 public:
   CoordinatorPenalization(FluidGridMPI * g, IF3D_ObstacleVector** const myobst, double* const l, Real* const u)
   : GenericCoordinator(g), obstacleVector(myobst), lambda(l), uInf(u)
-  { }
+  {
+    MPI_Comm comm = g->getCartComm();
+    MPI_Comm_rank(comm, &rank); 
+  }
 
   void operator()(const double dt)
   {
@@ -152,8 +156,9 @@ public:
     if(nSum[2]) uInf[2] = uSum[2]/nSum[2];
       //printf("Old Uinf %g %g %g\n",uInf[0],uInf[1],uInf[2]);
 
-    if(nSum[0] || nSum[1] || nSum[2])
-      printf("New Uinf %g %g %g (from %d)\n",uInf[0],uInf[1],uInf[2],nSum);
+    //if(rank == 0) if(nSum[0] || nSum[1] || nSum[2])
+    //  printf("New Uinf %g %g %g (from %d %d %d)\n",
+    //  uInf[0],uInf[1],uInf[2],nSum[0],nSum[1],nSum[2]);
 
     delete velocityVisitor;
 

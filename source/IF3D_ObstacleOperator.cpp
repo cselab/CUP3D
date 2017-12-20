@@ -222,17 +222,17 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
     bForcedInSimFrame[2] = bFSM_alldir || parser("-bForcedInSimFrame_z").asBool(false);
     
     if(bForcedInSimFrame[0]) {
-      const double xvel = parser("-xvel").asDouble(0);
+      const double xvel = -parser("-xvel").asDouble(0);
       this->transVel[0] = xvel;
       printf("Obstacle forced to move relative to sim domain with constant x-vel:%f\n", xvel);
     }
     if(bForcedInSimFrame[1]) {
-      const double yvel = parser("-yvel").asDouble(0);
+      const double yvel = -parser("-yvel").asDouble(0);
       this->transVel[1] = yvel;
       printf("Obstacle forced to move relative to sim domain with constant y-vel:%f\n", yvel);
     }
     if(bForcedInSimFrame[2]) {
-      const double zvel = parser("-zvel").asDouble(0);
+      const double zvel = -parser("-zvel").asDouble(0);
       this->transVel[2] = zvel;
       printf("Obstacle forced to move relative to sim domain with constant z-vel:%f\n", zvel);
     }
