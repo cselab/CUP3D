@@ -1,11 +1,14 @@
 #!/bin/bash
 SETTINGSNAME=$1
 
+WCLOCK=${WCLOCK:-24:00:00}
+PARTITION=${PARTITION:-normal}
+
 MYNAME=`whoami`
 BASEPATH="${SCRATCH}/CubismUP3D/"
 #lfs setstripe -c 1 ${BASEPATH}${RUNFOLDER}
 
-if [ ! -f $SETTINGSNAME ];then
+if [ ! -f $SETTINGSNAME ]; then
     echo ${SETTINGSNAME}" not found! - exiting"
     exit -1
 fi
@@ -17,10 +20,10 @@ mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 cp ${FFACTORY} ${FOLDER}/factory
-cp ${HOME}/CubismUP_3D/makefiles/simulation ${FOLDER}
+cp ../makefiles/simulation ${FOLDER}
 cp $0 ${FOLDER}
 
-git diff > ${FOLDER}/gitdiff.log
+git diff > ${FOLDER}/gitdiff.diff
 #cp -r ../source ${FOLDER}
 
 cd ${FOLDER}
@@ -32,8 +35,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --job-name="${BASENAME}"
 #SBATCH --output=${BASENAME}_out_%j.txt
 #SBATCH --error=${BASENAME}_err_%j.txt
-# #SBATCH --time=24:00:00
 #SBATCH --time=${WCLOCK}
+#SBATCH --partition=${PARTITION}
 #SBATCH --nodes=${NNODE}
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
