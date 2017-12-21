@@ -1,2 +1,2 @@
-IF3D_StefanFish L=0.2 T=1 xpos=0.15 ypos=0.250 bFixToPlanar=1 bFixFrameOfRef=1 Correct=0
+IF3D_StefanFish L=0.2 T=1 xpos=0.15 ypos=0.250 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1
 IF3D_StefanFish L=0.2 T=1 xpos=0.440 ypos=0.295 bFixToPlanar=1 bFixFrameOfRef=0 followX=0.440 followY=0.295

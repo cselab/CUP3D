@@ -32,8 +32,12 @@ cat <<EOF >daint_sbatch
 #SBATCH --job-name="${BASENAME}"
 #SBATCH --output=${BASENAME}_out_%j.txt
 #SBATCH --error=${BASENAME}_err_%j.txt
+
 # #SBATCH --time=24:00:00
-#SBATCH --time=${WCLOCK}
+# #SBATCH --time=${WCLOCK}
+#SBATCH --partition=low
+#SBATCH --time=06:00:00
+
 #SBATCH --nodes=${NNODE}
 #SBATCH --ntasks-per-node=1
 #SBATCH --cpus-per-task=12
@@ -42,8 +46,6 @@ cat <<EOF >daint_sbatch
 #SBATCH --mail-user=${MYNAME}@ethz.ch
 #SBATCH --mail-type=ALL
 
-
-export LD_LIBRARY_PATH=/users/novatig/accfft/build_dbg/:$LD_LIBRARY_PATH
 module load daint-gpu GSL cray-hdf5-parallel
 module load cudatoolkit fftw
 
