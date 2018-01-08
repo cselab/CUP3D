@@ -143,21 +143,21 @@ class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
 
       const Real dudx = u>0 ?         2*LE.u +u3 -6*LW.u +LW2.u
                             : -LE2.u +6*LE.u -u3 -2*LW.u;
-      const Real dvdx = v>0 ?         2*LE.v +v3 -6*LW.v +LW2.v
+      const Real dvdx = u>0 ?         2*LE.v +v3 -6*LW.v +LW2.v
                             : -LE2.v +6*LE.v -v3 -2*LW.v;
-      const Real dwdx = w>0 ?         2*LE.w +w3 -6*LW.w +LW2.w
+      const Real dwdx = u>0 ?         2*LE.w +w3 -6*LW.w +LW2.w
                             : -LE2.w +6*LE.w -w3 -2*LW.w;
 
-      const Real dudy = u>0 ?         2*LN.u +u3 -6*LS.u +LS2.u
+      const Real dudy = v>0 ?         2*LN.u +u3 -6*LS.u +LS2.u
                             : -LN2.u +6*LN.u -u3 -2*LS.u;
       const Real dvdy = v>0 ?         2*LN.v +v3 -6*LS.v +LS2.v
                             : -LN2.v +6*LN.v -v3 -2*LS.v;
-      const Real dwdy = w>0 ?         2*LN.w +w3 -6*LS.w +LS2.w
+      const Real dwdy = v>0 ?         2*LN.w +w3 -6*LS.w +LS2.w
                             : -LN2.w +6*LN.w -w3 -2*LS.w;
 
-      const Real dudz = u>0 ?         2*LB.u +u3 -6*LF.u +LF2.u
+      const Real dudz = w>0 ?         2*LB.u +u3 -6*LF.u +LF2.u
                             : -LB2.u +6*LB.u -u3 -2*LF.u;
-      const Real dvdz = v>0 ?         2*LB.v +v3 -6*LF.v +LF2.v
+      const Real dvdz = w>0 ?         2*LB.v +v3 -6*LF.v +LF2.v
                             : -LB2.v +6*LB.v -v3 -2*LF.v;
       const Real dwdz = w>0 ?         2*LB.w +w3 -6*LF.w +LF2.w
                             : -LB2.w +6*LB.w -w3 -2*LF.w;

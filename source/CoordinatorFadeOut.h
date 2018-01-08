@@ -78,7 +78,7 @@ class CoordinatorFadeOut : public GenericCoordinator
 protected:
   const int buffer;
 public:
-    CoordinatorFadeOut(FluidGridMPI * g, const int _buffer=1)
+    CoordinatorFadeOut(FluidGridMPI * g, const int _buffer=3)
   : GenericCoordinator(g), buffer(_buffer)
   { }
 
