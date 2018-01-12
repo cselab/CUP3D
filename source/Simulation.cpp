@@ -114,8 +114,7 @@ void Simulation::setupOperators()
     pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
     pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
     pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
-    if(nu>0)
-      pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
+    pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
     pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
     pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
     //#ifndef _OPEN_BC_
