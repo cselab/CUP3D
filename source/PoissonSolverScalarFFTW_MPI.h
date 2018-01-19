@@ -445,7 +445,7 @@ public:
 
     const double norm_factor = 1./(gsize[0]*gsize[1]*gsize[2]);
     const double h = grid.getBlocksInfo().front().h_gridpoint;
-    _solve((mycomplex *)data, gsize[0], gsize[1], gsize[2], norm_factor, h);
+    _solve(data, gsize[0], gsize[1], gsize[2], norm_factor, h);
 
     #ifndef _SP_COMP_
     fftw_execute(bwd);

@@ -220,11 +220,7 @@ class CoordinatorPressure : public GenericCoordinator
 {
  protected:
     IF3D_ObstacleVector** const obstacleVector;
-    #ifdef _ACCFFT_
-    PoissonSolverScalarFFTW_ACC<FluidGridMPI, StreamerDiv> pressureSolver;
-    #else
-    PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> pressureSolver;
-    #endif
+    PressureSolver pressureSolver;
 
  public:
   CoordinatorPressure(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles) :
