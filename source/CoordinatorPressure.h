@@ -17,7 +17,11 @@
 typedef PoissonSolverScalarFFTW_ACC<FluidGridMPI, StreamerDiv> PressureSolver;
 #else
 #include "PoissonSolverScalarFFTW_MPI.h"
+#ifdef FFTW_FFT
 typedef PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> PressureSolver;
+#else
+typedef PoissonSolverScalarFFTW_DCT_MPI<FluidGridMPI,StreamerDiv>PressureSolver;
+#endif
 #endif
 
 
@@ -91,7 +95,7 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
       const Real dVdef = lab(ix  ,iy+1,iz  ).tmpV - lab(ix  ,iy-1,iz  ).tmpV;
       const Real dWdef = lab(ix  ,iy  ,iz+1).tmpW - lab(ix  ,iy  ,iz-1).tmpW;
       const Real ret = fac*(dU+dV+dW -lab(ix,iy,iz).chi*(dUdef+dVdef+dWdef));
-      //o(ix,iy,iz).p = ret; 
+      //o(ix,iy,iz).p = ret;
       solver->_cub2fftw(offset, iz, iy, ix, ret);
     }
   }

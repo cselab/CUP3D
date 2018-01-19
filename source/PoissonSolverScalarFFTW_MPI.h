@@ -324,3 +324,207 @@ public:
     }
   }
 };
+
+template<typename TGrid, typename TStreamer>
+class PoissonSolverScalarFFTW_DCT_MPI : FFTWBase_MPI
+{
+  typedef typename TGrid::BlockType BlockType;
+  TGrid& grid;
+
+  bool initialized;
+  //mycomplex local_rhs, local_work;
+  myplan fwd, bwd;
+
+  const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
+  const vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
+  const size_t N = local_infos.size();
+  const size_t mybpd[3] = {
+      static_cast<size_t>(grid.getResidentBlocksPerDimension(0)),
+      static_cast<size_t>(grid.getResidentBlocksPerDimension(1)),
+      static_cast<size_t>(grid.getResidentBlocksPerDimension(2))
+  };
+  const size_t gsize[3] = {
+      grid.getBlocksPerDimension(0)*bs[0],
+      grid.getBlocksPerDimension(1)*bs[1],
+      grid.getBlocksPerDimension(2)*bs[2]
+  };
+  const size_t myN[3]={ mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
+  ptrdiff_t alloc_local=0, local_n0=0, local_0_start=0, local_n1=0, local_1_start=0;
+
+protected:
+
+  void _setup(Real*& rhs,const size_t nx,const size_t ny,const size_t nz,MPI_Comm comm)
+  {
+    if (!initialized) {
+      initialized = true;
+      #ifndef _SP_COMP_
+      rhs = fftw_alloc_real(nx*ny*nz);
+      fwd = fftw_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_R2HC, FFTW_REDFT10, FFTW_R2HC, FFTW_MEASURE);
+      bwd = fftw_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_HC2R, FFTW_REDFT01, FFTW_HC2R, FFTW_MEASURE);
+      #else // _SP_COMP_
+      rhs = fftwf_alloc_real(nx*ny*nz);
+      fwd = fftwf_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_R2HC, FFTW_REDFT10, FFTW_R2HC, FFTW_MEASURE);
+      bwd = fftwf_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_HC2R, FFTW_REDFT01, FFTW_HC2R, FFTW_MEASURE);
+      #endif
+    }
+  }
+
+  void _fftw2cub(const Real * const out) const
+  {
+    #pragma omp parallel for
+    for(int i=0; i<N; ++i) {
+      const BlockInfo info = local_infos[i];
+      BlockType& b = *(BlockType*)info.ptrBlock;
+      const size_t offset = _offset(info);
+
+      for(int ix=0; ix<BlockType::sizeX; ix++)
+      for(int iy=0; iy<BlockType::sizeY; iy++)
+      for(int iz=0; iz<BlockType::sizeZ; iz++) {
+        const size_t src_index = _dest(offset, iz, iy, ix);
+        assert(src_index>=0 && src_index<gsize[0]*gsize[1]*gsize[2]);
+        b(ix,iy,iz).p = out[src_index];
+      }
+    }
+  }
+
+  void _solve(Real* in_out,const size_t nx,const size_t ny, const size_t
+    nz, const double norm_factor, const double h)
+  {
+    const Real waveFactX = 2.0*M_PI/(nx*h);
+    const Real waveFactY = 2.0*M_PI/(ny*h);
+    const Real waveFactZ = 2.0*M_PI/(nz*h);
+
+    #pragma omp parallel for
+    for(int i=0; i<nx; ++i)
+    for(int j=0; j<ny; ++j)
+    for(int k=0; k<nz; ++k) {
+      const size_t linidx = i*nz*ny +j*nz +k;
+      // wave number
+      const int kx = (i <= nx/2) ? i : -(nx-i);
+      const int ky = (j <= ny/2) ? j : -(ny-j);
+      const int kz = (k <= nz/2) ? k : -(nz-k);
+
+      const Real rkx = kx*waveFactX;
+      const Real rky = ky*waveFactY;
+      const Real rkz = kz*waveFactZ;
+      in_out[linidx] *= -norm_factor/(rkx*rkx+rky*rky+rkz*rkz);
+    }
+
+    //this is sparta!
+    in_out[0] = 0;
+  }
+
+public:
+  Real * data = nullptr;
+
+  PoissonSolverScalarFFTW_DCT_MPI(const int desired_threads, TGrid& g):
+  FFTWBase_MPI(desired_threads), grid(g), initialized(false)
+  {
+    if (TStreamer::channels != 1) {
+      cout << "PoissonSolverScalar_MPI(): Error: TStreamer::channels is "
+           << TStreamer::channels << " (should be 1).\n";
+      abort();
+    }
+    MPI_Comm comm = grid.getCartComm();
+    _setup(data, gsize[0], gsize[1], gsize[2],comm);
+    std::cout <<    bs[0] << " " <<    bs[1] << " " <<    bs[2] << " ";
+    std::cout <<   myN[0] << " " <<   myN[1] << " " <<   myN[2] << " ";
+    std::cout << gsize[0] << " " << gsize[1] << " " << gsize[2] << " ";
+    std::cout << mybpd[0] << " " << mybpd[1] << " " << mybpd[2] << std::endl;
+  }
+
+  void solve()
+  {
+    //_cub2fftw(data);
+
+    #ifndef _SP_COMP_
+    fftw_execute(fwd);
+    #else
+    fftwf_execute(fwd);
+    #endif
+
+    const double norm_factor = 1./(gsize[0]*gsize[1]*gsize[2]);
+    const double h = grid.getBlocksInfo().front().h_gridpoint;
+    _solve((mycomplex *)data, gsize[0], gsize[1], gsize[2], norm_factor, h);
+
+    #ifndef _SP_COMP_
+    fftw_execute(bwd);
+    #else
+    fftwf_execute(bwd);
+    #endif
+
+    _fftw2cub(data);
+  }
+
+  void dispose()
+  {
+    if (initialized) {
+      initialized = false;
+
+      #ifndef _SP_COMP_
+      fftw_destroy_plan(fwd);
+      fftw_destroy_plan(bwd);
+      fftw_free(data);
+      #else
+      fftwf_destroy_plan(fwd);
+      fftwf_destroy_plan(bwd);
+      fftwf_free(data);
+      #endif
+      FFTWBase_MPI::dispose();
+    }
+  }
+
+  inline size_t _offset(const int blockID) const
+  {
+    const BlockInfo &info = local_infos[blockID];
+    return _offset(info);
+  }
+  inline size_t _offset_ext(const BlockInfo &info) const
+  {
+    assert(local_infos[info.blockID].blockID == info.blockID);
+    return _offset(local_infos[info.blockID]);
+    //for(const auto & local_info : local_infos)
+    //  if(local_info.blockID == info.blockID)
+    //    return _offset(local_info);
+    //printf("PSolver cannot find obstacle block\n");
+    //abort();
+  }
+  inline size_t _offset(const BlockInfo &info) const
+  {
+    const int myIstart[3] = {
+      info.index[0]*bs[0],
+      info.index[1]*bs[1],
+      info.index[2]*bs[2]
+    };
+    return myIstart[2] +myN[2]*(myIstart[1]+ myN[1]*myIstart[0]);
+  }
+  inline size_t _dest(const size_t offset,const int z,const int y,const int x) const
+  {
+    return offset + z + myN[2]*(y + myN[1] * x);
+  }
+  inline void _cub2fftw(const size_t offset, const int z, const int y, const int x, const Real rhs) const
+  {
+    const size_t dest_index = _dest(offset, z, y, x);
+    assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*gsize[2]);
+    data[dest_index] = rhs;
+  }
+
+  void _cub2fftw(Real * const out) const
+  {
+    #pragma omp parallel for
+    for(int i=0; i<N; ++i) {
+      const BlockInfo info = local_infos[i];
+      BlockType& b = *(BlockType*)info.ptrBlock;
+      const size_t offset = _offset(info);
+
+      for(int ix=0; ix<BlockType::sizeX; ix++)
+      for(int iy=0; iy<BlockType::sizeY; iy++)
+      for(int iz=0; iz<BlockType::sizeZ; iz++) {
+        const size_t dest_index = _dest(offset, iz, iy, ix);
+        assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*gsize[2]);
+        out[dest_index] = b(ix,iy,iz).p;
+        //TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
+      }
+    }
+  }
+};
