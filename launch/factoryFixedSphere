@@ -1,1 +1,1 @@
-IF3D_Sphere L=0.05 xpos=0.25 ypos=0.250244140625 zpos=0.1250244140625 xvel=0 computeForces=0 bForcedInSimFrame=1
+IF3D_Sphere L=0.075 xpos=0.25 ypos=0.250244140625 zpos=0.250244140625 xvel=0 computeForces=0 bForcedInSimFrame=1

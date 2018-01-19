@@ -386,7 +386,8 @@ void Simulation::simulate()
     }
     step++;
     time+=dt;
-
+    //stringstream ssF; ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
+    //DumpHDF5flat_MPI(*grid, time, ssF.str(),path4serialization);
     #ifndef __RL_TRAINING
     if(rank==0)
       printf("%d : %f uInf {%f %f %f}\n",step,time,uinf[0],uinf[1],uinf[2]);
