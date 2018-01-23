@@ -332,7 +332,6 @@ class PoissonSolverScalarFFTW_DCT_MPI : FFTWBase_MPI
   TGrid& grid;
 
   bool initialized;
-  //mycomplex local_rhs, local_work;
   myplan fwd, bwd;
 
   const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
@@ -358,13 +357,31 @@ protected:
     if (!initialized) {
       initialized = true;
       #ifndef _SP_COMP_
-      rhs = fftw_alloc_real(nx*ny*nz);
-      fwd = fftw_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_R2HC, FFTW_REDFT10, FFTW_R2HC, FFTW_MEASURE);
-      bwd = fftw_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_HC2R, FFTW_REDFT01, FFTW_HC2R, FFTW_MEASURE);
+      alloc_local = fftw_mpi_local_size_3d_transposed(nx, ny, nz, 
+        comm, &local_n0, &local_0_start, &local_n1, &local_1_start);
+      rhs = fftw_alloc_real(alloc_local);
+      fwd = fftw_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm, 
+      //  FFTW_REDFT10, FFTW_REDFT10, FFTW_REDFT10, 
+        FFTW_REDFT11, FFTW_RODFT10, FFTW_RODFT10, 
+      //  FFTW_RODFT10, FFTW_REDFT10, FFTW_REDFT10, 
+      //  FFTW_RODFT11, FFTW_RODFT10, FFTW_RODFT10, 
+        FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
+      bwd = fftw_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm, 
+      //  FFTW_RODFT01, FFTW_REDFT01, FFTW_REDFT01, 
+        FFTW_REDFT11, FFTW_RODFT01, FFTW_RODFT01, 
+      //  FFTW_REDFT10, FFTW_REDFT10, FFTW_REDFT10, 
+      //  FFTW_RODFT01, FFTW_RODFT01, FFTW_RODFT01, 
+      //  FFTW_RODFT11, FFTW_RODFT01, FFTW_RODFT01, 
+      //  FFTW_REDFT11, FFTW_RODFT01, FFTW_RODFT01, 
+        FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
       #else // _SP_COMP_
-      rhs = fftwf_alloc_real(nx*ny*nz);
-      fwd = fftwf_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_R2HC, FFTW_REDFT10, FFTW_R2HC, FFTW_MEASURE);
-      bwd = fftwf_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_HC2R, FFTW_REDFT01, FFTW_HC2R, FFTW_MEASURE);
+      alloc_local = fftwf_mpi_local_size_3d(nx, ny, nz, comm, 
+        &local_n0, &local_0_start, &local_n1, &local_1_start);
+      rhs = fftwf_alloc_real(alloc_local);
+      fwd = fftwf_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm, 
+        FFTW_REDFT10, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
+      bwd = fftwf_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm, 
+        FFTW_REDFT01, FFTW_REDFT01, FFTW_REDFT01, FFTW_MEASURE);
       #endif
     }
   }
@@ -381,37 +398,39 @@ protected:
       for(int iy=0; iy<BlockType::sizeY; iy++)
       for(int iz=0; iz<BlockType::sizeZ; iz++) {
         const size_t src_index = _dest(offset, iz, iy, ix);
-        assert(src_index>=0 && src_index<gsize[0]*gsize[1]*gsize[2]);
+        assert(src_index>=0 && src_index<myN[0]*myN[1]*myN[2]);
         b(ix,iy,iz).p = out[src_index];
       }
     }
   }
 
   void _solve(Real* in_out,const size_t nx,const size_t ny, const size_t
-    nz, const double norm_factor, const double h)
+    nz, const Real norm_factor, const double h)
   {
-    const Real waveFactX = 2.0*M_PI/(nx*h);
-    const Real waveFactY = 2.0*M_PI/(ny*h);
-    const Real waveFactZ = 2.0*M_PI/(nz*h);
+    const Real waveFactX = M_PI/(nx*h);
+    const Real waveFactY = M_PI/(ny*h);
+    const Real waveFactZ = M_PI/(nz*h);
 
     #pragma omp parallel for
+    for(int j=0; j<local_n1; ++j)
     for(int i=0; i<nx; ++i)
-    for(int j=0; j<ny; ++j)
     for(int k=0; k<nz; ++k) {
-      const size_t linidx = i*nz*ny +j*nz +k;
-      // wave number
-      const int kx = (i <= nx/2) ? i : -(nx-i);
-      const int ky = (j <= ny/2) ? j : -(ny-j);
-      const int kz = (k <= nz/2) ? k : -(nz-k);
-
-      const Real rkx = kx*waveFactX;
-      const Real rky = ky*waveFactY;
-      const Real rkz = kz*waveFactZ;
+      const int y = local_1_start+j;
+      const size_t linidx = (j*nx+i)*nz + k;
+      const Real rkx =  i*waveFactX;
+      const Real rky =  y*waveFactY;
+      const Real rkz =  k*waveFactZ;
       in_out[linidx] *= -norm_factor/(rkx*rkx+rky*rky+rkz*rkz);
+      //in_out[linidx] *= norm_factor*(rkx+rky+rkz);
+      //in_out[linidx] *= norm_factor;
     }
 
     //this is sparta!
-    in_out[0] = 0;
+    if (local_1_start == 0) in_out[0] = 0;
+    //if (local_1_start + local_n1 == gsize[1]) 
+    //  in_out[alloc_local-1] = 0;
+    //for(int i=0;  i<alloc_local;   ++i) in_out[i] = .5*(in_out[i]+in_out[i+1]);
+    //for(int i=alloc_local-1; i>=0; --i) in_out[i] = .5*(in_out[i]+in_out[i-1]);
   }
 
 public:
@@ -431,19 +450,21 @@ public:
     std::cout <<   myN[0] << " " <<   myN[1] << " " <<   myN[2] << " ";
     std::cout << gsize[0] << " " << gsize[1] << " " << gsize[2] << " ";
     std::cout << mybpd[0] << " " << mybpd[1] << " " << mybpd[2] << std::endl;
+    std::cout << alloc_local<<" "<<local_n0<<" "<<local_0_start << " "
+                                 <<local_n1<<" "<<local_1_start << std::endl;
   }
 
   void solve()
   {
     //_cub2fftw(data);
-
+    //if (local_1_start + local_n1 == ny) data[alloc_local-1] = 0;
     #ifndef _SP_COMP_
     fftw_execute(fwd);
     #else
     fftwf_execute(fwd);
     #endif
-
-    const double norm_factor = 1./(gsize[0]*gsize[1]*gsize[2]);
+    // normalization along each direction is 2/Ni
+    const double norm_factor = .125/(gsize[0]*gsize[1]*gsize[2]);
     const double h = grid.getBlocksInfo().front().h_gridpoint;
     _solve(data, gsize[0], gsize[1], gsize[2], norm_factor, h);
 
@@ -505,10 +526,47 @@ public:
   inline void _cub2fftw(const size_t offset, const int z, const int y, const int x, const Real rhs) const
   {
     const size_t dest_index = _dest(offset, z, y, x);
-    assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*gsize[2]);
+    assert(dest_index>=0 && dest_index<myN[0]*myN[1]*myN[2]);
     data[dest_index] = rhs;
   }
-
+  #if 1
+  void _cub2fftw(Real * const out) const
+  {
+    vector<BlockInfo> vInfo = grid.getBlocksInfo();
+    const Real h = grid.getBlocksInfo().front().h_gridpoint;
+    const Real corrx = 1;//gsize[0]/(gsize[0]-1.); 
+    const Real corry = 1;//gsize[1]/(gsize[1]-1.); 
+    const Real corrz = 1;//gsize[2]/(gsize[2]-1.); 
+    //ofstream fout("src.log", ios::app);
+    //cout<<gsize[0]*h<<" "<<gsize[1]*h<<" "<<gsize[2]*h<<endl;
+    #pragma omp parallel for
+    for(int i=0; i<N; ++i) {
+      const BlockInfo ginfo = vInfo[i], info = local_infos[i];
+      BlockType& b = *(BlockType*)info.ptrBlock;
+      const size_t offset = _offset(info);
+      Real p[3];
+      for(int ix=0; ix<BlockType::sizeX; ix++)
+      for(int iy=0; iy<BlockType::sizeY; iy++)
+      for(int iz=0; iz<BlockType::sizeZ; iz++) {
+        const size_t dest_index = _dest(offset, iz, iy, ix);
+	ginfo.pos(p, ix, iy, iz);
+        //p[0]= (p[0]-.5*h)*corrx;
+        //p[1]= (p[1]-.5*h)*corry;
+        //p[2]= (p[2]-.5*h)*corrz;
+        //fout<<p[0]<<" "<<p[1]<<" "<<p[2]<<" "<<out[dest_index]<<endl;
+        assert(dest_index>=0 && dest_index<myN[0]*myN[1]*myN[2]);
+        //const Real fx = std::exp( -100*std::pow(p[0]-1.0, 2) );
+        const Real fx = p[0]*std::exp( -100*std::pow(p[0], 2) );
+        //const Real fx = std::cos(10*M_PI*p[0]/(gsize[0]*h));
+        const Real fy = 1;//std::cos(10*M_PI*p[1]/(gsize[1]*h));
+        const Real fz = 1; //std::cos(10*M_PI*p[2]/(gsize[2]*h));
+        out[dest_index] = fx*fy*fz;
+        //TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
+      }
+    }
+    //fout.flush(); fout.close();
+  }
+  #else
   void _cub2fftw(Real * const out) const
   {
     #pragma omp parallel for
@@ -521,10 +579,11 @@ public:
       for(int iy=0; iy<BlockType::sizeY; iy++)
       for(int iz=0; iz<BlockType::sizeZ; iz++) {
         const size_t dest_index = _dest(offset, iz, iy, ix);
-        assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*gsize[2]);
+        assert(dest_index>=0 && dest_index<myN[0]*myN[1]*myN[2]);
         out[dest_index] = b(ix,iy,iz).p;
         //TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
       }
     }
   }
+  #endif
 };
