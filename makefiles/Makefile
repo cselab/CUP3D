@@ -183,6 +183,8 @@ endif
 EXEOBJ = $(OBJECTS) Communicator.o main.o
 LIBOBJ = $(OBJECTS) cubism_main.o
 LIBRLOBJ = $(OBJECTS) ext_app_main.o
+ALLOBJ := $(sort $(EXEOBJ) $(LIBOBJ) $(LIBRLOBJ) $(NVOBJECTS))  # `sort` removes duplicates.
+DEPS := $(ALLOBJ:%.o=%.d)
 
 VPATH := $(SRC_DIR) $(CUBISM_DIR) ${HOME}/smarties/source/
 
@@ -197,14 +199,17 @@ lib: $(LIBOBJ) $(NVOBJECTS)
 librl: $(LIBRLOBJ) $(NVOBJECTS)
 	ar rs libsim_rl.a $(LIBRLOBJ) $(NVOBJECTS)
 
+-include $(DEPS)
+
 %.o: %.cpp
-	$(CC) $(CPPFLAGS) $(LIBS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(LIBS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 
 PoissonSolverScalarFFTW_ACC.o: PoissonSolverScalarFFTW_ACC.cu
 	nvcc $(NVFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJECTS)
+	rm -f $(DEPS)
 	rm -f simulation Communicator.o libsimulation.a main.o cubism_main.o PoissonSolverScalarFFTW*.o
 
 ifeq "$(config)" "prod"
