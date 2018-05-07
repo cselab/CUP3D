@@ -78,6 +78,7 @@ endif
 # needed in order to compile on nodes
 # include make.daint
 ifeq ($(shell uname -s), Darwin)
+CPPFLAGS += -dynamic  # Something specific to Darwin linker(?)
 CC=mpic++
 LD=mpic++
 accfft=false
@@ -99,7 +100,7 @@ ifneq "$(findstring eu-,$(shell hostname))" ""
 	include make.euler
 endif
 
-CPPFLAGS += -std=c++11 -fopenmp -dynamic
+CPPFLAGS += -std=c++11 -fopenmp
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/
