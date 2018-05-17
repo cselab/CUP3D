@@ -33,22 +33,33 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
 
   // Read parser information
   parser.unset_strict_mode();
-  const std::string factoryFileName = parser("-factory").asString("factory");
-  assert(factoryFileName != "");
+  const std::string factory_filename = parser("-factory").asString("factory");
+  const std::string factory_content = parser("-factory-content").asString("");
 
-  // open the file
-  std::ifstream is_file(factoryFileName.c_str());
+  assert(factory_filename != "" || factory_content != "");
 
+  std::stringstream stream(factory_content);
+  if (!factory_filename.empty()) {
+      // https://stackoverflow.com/questions/132358/how-to-read-file-content-into-istringstream
+      // Good enough solution.
+      std::ifstream file(factory_filename);
+      if (file.is_open()) {
+          stream << '\n';
+          stream << file.rdbuf();
+      }
+  }
+  if (rank == 0)
+      printf("Factory (file) + factory (cmdline argument):\n%s\n\n", stream.str().c_str());
   // here we store the data per object
-  std::vector<std::pair<std::string,IF2D_FactoryFileLineParser>> factoryLines;
+  std::vector<std::pair<std::string, IF2D_FactoryFileLineParser>> factoryLines;
   std::string line;
 
-  while( std::getline(is_file, line) ) {
-      std::istringstream is_line(line);
+  while (std::getline(stream, line)) {
+      std::istringstream line_stream(line);
       std::string ID;
-      is_line >> ID;
+      line_stream >> ID;
       if(ID.empty() or ID[0]=='#') continue; // Comments and empty lines ignored
-      IF2D_FactoryFileLineParser ffparser(is_line);
+      IF2D_FactoryFileLineParser ffparser(line_stream);
       factoryLines.push_back(make_pair(ID,ffparser));
   }
   if(rank==0)
@@ -127,8 +138,10 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
      */
     else
     {
-        if(rank==0)
-        std::cout << "Case " << objectName << " is not defined : skipping" << std::endl;
+        if (rank == 0) {
+            std::cout << "Case " << objectName << " is not defined: aborting" << std::endl;
+            abort();
+        }
     }
 
     retval.back()->obstacleID = k++;
