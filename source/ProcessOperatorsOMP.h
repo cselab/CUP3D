@@ -87,7 +87,7 @@ void processOMPold(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
   }
 }
 
-static Real findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI& grid, const Real*const uInf)
+static Real findMaxUOMP(const vector<BlockInfo>& myInfo, FluidGridMPI& grid, const Real*const uInf)
 {
   Real maxU = 0;
   const int N = myInfo.size();
@@ -95,8 +95,8 @@ static Real findMaxUOMP(vector<BlockInfo>& myInfo, FluidGridMPI& grid, const Rea
   #pragma omp parallel for schedule(static) reduction(max:maxU)
   for(int i=0; i<N; i++)
   {
-    BlockInfo info = myInfo[i];
-    FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+    const BlockInfo& info = myInfo[i];
+    const FluidBlock& b = *(const FluidBlock *)info.ptrBlock;
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)

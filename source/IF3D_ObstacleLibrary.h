@@ -40,6 +40,8 @@ struct FillBlocksBase {
 #define DERIVED (static_cast<const Derived *>(this))
     void operator()(const BlockInfo &info, ObstacleBlock * const o) const
     {
+        // TODO: Remove `isTouching` check and verify that all dependencies are
+        //       using this function properly.
         if (!DERIVED->isTouching(info))
             return;
         FluidBlock &b = *(FluidBlock *)info.ptrBlock;
@@ -62,6 +64,7 @@ struct FillBlocksBase {
                 continue;
             }
 
+            // This should be cached in a matrix, recalc might be expensive.
             const Real distPx = DERIVED->signedDistance(p[0] + h, p[1], p[2]);
             const Real distMx = DERIVED->signedDistance(p[0] - h, p[1], p[2]);
             const Real distPy = DERIVED->signedDistance(p[0], p[1] + h, p[2]);

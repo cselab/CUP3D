@@ -166,9 +166,10 @@ struct StreamerDiv
 struct FluidBlock
 {
   //these identifiers are required by cubism!
-  static const int sizeX = _BSX_;
-  static const int sizeY = _BSY_;
-  static const int sizeZ = _BSZ_;
+  static constexpr int sizeX = _BSX_;
+  static constexpr int sizeY = _BSY_;
+  static constexpr int sizeZ = _BSZ_;
+  static constexpr int sizeArray[3] = {_BSX_, _BSY_, _BSZ_};
   typedef FluidElement ElementType;
   typedef FluidElement element_type;
   __attribute__((aligned(32))) FluidElement data[sizeZ][sizeY][sizeX];
@@ -184,6 +185,14 @@ struct FluidBlock
   }
 
   FluidElement& operator()(int ix, int iy=0, int iz=0)
+  {
+    assert(ix>=0); assert(ix<sizeX);
+    assert(iy>=0); assert(iy<sizeY);
+    assert(iz>=0); assert(iz<sizeZ);
+    return data[iz][iy][ix];
+  }
+
+  const FluidElement& operator()(int ix, int iy = 0, int iz = 0) const
   {
     assert(ix>=0); assert(ix<sizeX);
     assert(iy>=0); assert(iy<sizeY);
