@@ -1,0 +1,322 @@
+<!doctype html>
+
+<!-- TODO: Add a note that internet connection is required (for CSS/JS files). -->
+<!-- TODO: Add tend and how many GB that accounts to. -->
+<!-- TODO: Add option to store and load JSON. -->
+<html>
+<head>
+  <title>CubismUP_3D config file generator</title>
+  <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
+  <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.5/handlebars.min.js"></script>
+  <link type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet"/>
+  <script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+  <link type="text/css" href="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.css" rel="stylesheet"/>
+  <script type="text/javascript" src="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.js"></script>
+</head>
+<body>
+
+<div id="form"></div>
+<br>
+<button type="button" id="download-config">Save</button>
+<br>
+<pre id="config-file"></pre>
+
+
+<script type="text/x-handlebars-template" id="two-column-layout-template">
+  <div class="row">
+    <div class="col-md-12">
+      {{#if options.label}}<h3>{{options.label}}</h3>{{/if}}
+      {{#if options.helper}}<h4>{{options.helper}}</h4>{{/if}}
+    </div>
+    <div class="col-md-6" id="leftcolumn"></div>
+    <div class="col-md-6" id="rightcolumn"></div>
+  </div>
+</script>
+
+<script type="text/javascript">
+(function(){
+    var SPHERE = "Sphere";
+    var BLOCK_SIZE = 16;
+
+    var CELL_INFO = " (power of two, &ge; 16)";
+
+    var current_config = '';
+
+    var update_config = function(value) {
+        var technical = value["technical"];
+        var grid = value["grid"];
+        var flow = value["flow"];
+        var obstacles = value["obstacles"];
+
+        var out = "";
+        // https://stackoverflow.com/a/20053121/2203044
+        out += "NUM_NODES=" + technical["num_nodes"] + "\n";
+
+        var bpdx = grid["num_cells_x"] / BLOCK_SIZE;
+        var bpdy = grid["num_cells_y"] / BLOCK_SIZE;
+        var bpdz = grid["num_cells_z"] / BLOCK_SIZE;
+        out += "\n";
+        out += "OPTIONS=\n";
+        out += "OPTIONS+=\" -nprocsx ${NUM_NODES}\"\n";
+        out += "OPTIONS+=' -bpdx " + bpdx + "'\n";
+        out += "OPTIONS+=' -bpdy " + bpdy + "'\n";
+        out += "OPTIONS+=' -bpdz " + bpdz + "'\n";
+        out += "OPTIONS+=' -nu " + flow["nu"] + "'\n";
+        out += "OPTIONS+=' -uinfx " + flow["uinfx"] + "'\n";
+
+        var factory = "FACTORY=\n";
+        for (var i = 0, len = obstacles.length; i < len; ++i) {
+            var o = obstacles[i];
+            var ok = false;
+            var name = "";
+            var params = {};
+            switch(o["obstacle_type"]) {
+                case SPHERE:
+                    name = "IF3D_Sphere";
+                    ok = o["sphere_radius"]
+                        && o["sphere_center_x"]
+                        && o["sphere_center_y"]
+                        && o["sphere_center_z"];
+                    params = {
+                        "L": 2 * parseFloat(o["sphere_radius"]),
+                        "xpos": o["sphere_center_x"],
+                        "ypos": o["sphere_center_y"],
+                        "zpos": o["sphere_center_z"],
+                    };
+                    break;
+            };
+            if (ok) {
+                // Concatenate to "-key1=value1 -key2=value2 ...".
+                var line = name;
+                for (var key in params)
+                    if (params.hasOwnProperty(key))
+                        line += " -" + key + "=" + $.trim(params[key]);
+                factory += "FACTORY+='" + line + "'$'\\n'\n";
+            }
+        }
+        out += "\n";
+        out += factory;
+        out += "OPTIONS+=$(printf ' -factory-content %q' \"$(FACTORY)\")\n";
+        out += "\n\n";
+        out += "mpirun -np ${NUM_NODES} -ppn 1 ./cubismup_3d ${OPTIONS}\n";
+        var json = JSON.stringify(value);
+
+        out += "\n\n\n# DEBUG:\n# " + json;
+        $("#config-file").html(out);
+
+        current_config = out;
+    };
+
+    // https://stackoverflow.com/a/18197341/2203044
+    var download = function(filename, text) {
+        var element = document.createElement('a');
+        element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+        element.setAttribute('download', filename);
+
+        element.style.display = 'none';
+        document.body.appendChild(element);
+
+        element.click();
+
+        document.body.removeChild(element);
+    }
+
+    $("#download-config").click(function() {
+        download('cubism_config.sh', current_config);
+    });
+
+    var gen_coord_field = function(title) {
+        return {
+            "type": "number",
+            "title": title,
+            "default": "0.5",
+            "minimum": 0.0,
+            "maximum": 1.0,
+        };
+    };
+    var SCHEMA = {
+        "title": "CubismUP_3D setup",
+        "type": "object",
+        "properties": {
+            "technical": {
+                "type": "object",
+                "title": "Technical",
+                "properties": {
+                    "num_nodes": {
+                        "type": "integer",
+                        "title": "Number of nodes",
+                        "default": 1,
+                    },
+                },
+            },
+            "grid": {
+                "type": "object",
+                "title": "Grid settings",
+                "properties": {
+                    "num_cells_x": {
+                        "type": "integer",
+                        "title": "Cells in X direction" + CELL_INFO,
+                        "default": 128,
+                        "minimum": BLOCK_SIZE,
+                        "multipleOf": BLOCK_SIZE,
+                    },
+                    "num_cells_y": {
+                        "type": "integer",
+                        "title": "Cells in Y direction" + CELL_INFO,
+                        "default": 128,
+                        "minimum": BLOCK_SIZE,
+                        "multipleOf": BLOCK_SIZE,
+                    },
+                    "num_cells_z": {
+                        "type": "integer",
+                        "title": "Cells in Z direction" + CELL_INFO,
+                        "default": 128,
+                        "minimum": BLOCK_SIZE,
+                        "multipleOf": BLOCK_SIZE,
+                    },
+                },
+            },
+            "flow": {
+                "type": "object",
+                "title": "Flow properties",
+                "properties": {
+                    "nu": {
+                        "type": "number",
+                        "title": "Viscosity",
+                        "default": "0.003",
+                    },
+                    "uinfx": {
+                        "type": "number",
+                        "title": "Inflow velocity",
+                        "default": "0.1",
+                    },
+                },
+            },
+            "obstacles": {
+                "type": "array",
+                "title": "Obstacles",
+                "default": '[{"obstacle_type": "' + SPHERE + '", "sphere_center_x": 0.5, "sphere_center_y": 0.5, "sphere_center_z": 0.5, "sphere_radius": 0.1}]',
+                "items": {
+                    "type": "object",
+                    "properties": {
+                        "obstacle_type": {
+                            "enum": [SPHERE],
+                        },
+                        "sphere_center_x": gen_coord_field("Center X"),
+                        "sphere_center_y": gen_coord_field("Center Y"),
+                        "sphere_center_z": gen_coord_field("Center Z"),
+                        "sphere_radius": {
+                            "type": "number",
+                            "title": "Radius",
+                            "default": 0.1,
+                            "minimum": 0.0,
+                        },
+                    },
+                    "dependencies": {
+                        "sphere_center_x": ["obstacle_type"],
+                        "sphere_center_y": ["obstacle_type"],
+                        "sphere_center_z": ["obstacle_type"],
+                        "sphere_radius": ["obstacle_type"],
+                    }
+                }
+            }
+        }
+    };
+
+    var validate_num_cells = function(callback) {
+        /* Validate if num_cells_x/y/z is a power of two. */
+        var v = this.getValue();
+        if (v !== 0 && (v & (v - 1)) === 0) {
+            callback({"status": true});
+        } else {
+            callback({
+                "status": false,
+                "message": "Number of cells must be a power of two.",
+            });
+        }
+    };
+    var OPTIONS = {
+        "fields": {
+            "grid": {
+                "fields": {
+                    "num_cells_x": {
+                        "validator": validate_num_cells,
+                    },
+                    "num_cells_y": {
+                        "validator": validate_num_cells,
+                    },
+                    "num_cells_z": {
+                        "validator": validate_num_cells,
+                    },
+                },
+            },
+            "obstacles": {
+                "toolbarSticky": true,
+                "fields": {
+                    "item": {
+                        "fields": {
+                            "obstacle_type": {
+                                "default": SPHERE,
+                                "emptySelectFirst": false,
+                                "hideNone": true,
+                                "required": true,
+                                "sort": false,
+                            },
+                            "sphere_center_x": {
+                                "required": true,
+                                "dependencies": {
+                                    "obstacle_type": SPHERE,
+                                }
+                            },
+                            "sphere_center_y": {
+                                "required": true,
+                                "dependencies": {
+                                    "obstacle_type": SPHERE,
+                                }
+                            },
+                            "sphere_center_z": {
+                                "required": true,
+                                "dependencies": {
+                                    "obstacle_type": SPHERE,
+                                }
+                            },
+                            "sphere_radius": {
+                                "required": true,
+                                "dependencies": {
+                                    "obstacle_type": SPHERE,
+                                }
+                            },
+                        }
+                    }
+                }
+            }
+        },
+    };
+    var VIEW = {
+        "horizontal": true,
+        "layout": {
+            "template": "#two-column-layout-template",
+            "bindings": {
+                "technical": "leftcolumn",
+                "grid": "leftcolumn",
+                "flow": "rightcolumn",
+                "obstacles": "rightcolumn",
+            }
+        },
+    };
+    $("#form").alpaca({
+        "schema": SCHEMA,
+        "options": OPTIONS,
+        "view": VIEW,
+        "postRender": function(control) {
+            control.on("change", function() {
+                update_config(this.getValue());
+            });
+            update_config(control.getValue());
+        },
+    });
+})();
+</script>
+
+</body>
+</html>
