@@ -64,6 +64,8 @@ add_definitions("-DNTHREADS=${NUM_THREADS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-vla -Wno-reorder -Wno-maybe-uninitialized")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -DNDEBUG -fstrict-aliasing -ffast-math -falign-functions=32")
 
+set(CMAKE_CXX_STANDARD 11)
+
 # OpenMP support
 find_package(OpenMP)
 if (OPENMP_FOUND)
