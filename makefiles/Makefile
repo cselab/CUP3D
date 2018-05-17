@@ -167,10 +167,7 @@ OBJECTS =  IF3D_VortexOperator.o \
            Simulation.o \
            ProcessOperatorsOMP.o \
            Save_splicer.o \
-           WaveletCompressor.o \
            IF3D_DCylinderObstacleOperator.o
-
-#GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"
 	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -D_CUDA_COMP_

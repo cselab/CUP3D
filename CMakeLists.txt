@@ -33,11 +33,10 @@ set(COMMON_SOURCES           # Common for app and lib.
     source/ProcessOperatorsOMP.cpp
     source/Save_splicer.cpp
     source/Simulation.cpp
-    source/WaveletCompressor.cpp
     Cubism/Profiler.cpp
 
     # Only if not ACCFFT.
-	source/PoissonSolverScalarFFTW.cpp
+    source/PoissonSolverScalarFFTW.cpp
     source/PoissonSolverScalarFFTW_MPI.cpp
 )
 add_executable(${EXE}
