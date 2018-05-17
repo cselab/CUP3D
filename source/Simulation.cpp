@@ -82,7 +82,8 @@ void Simulation::parseArguments()
   path2file = parser("-file").asString("./paternoster");
   path4serialization = parser("-serialization").asString("./");
   maxClockDuration = parser("-Wtime").asDouble(1e30);
-  lambda = parser("-lambda").asDouble(1e4);
+  //lambda = parser("-lambda").asDouble(1e6);
+  lambda=1e6;
   CFL = parser("-CFL").asDouble(.1);
   uinf[0] = parser("-uinfx").asDouble(0.0);
   uinf[1] = parser("-uinfy").asDouble(0.0);
