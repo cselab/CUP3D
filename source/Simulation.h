@@ -17,7 +17,7 @@
 #include "GenericCoordinator.h"
 
 #include "CoordinatorIC.h"
-#include "CoordinatorVorticity.h"
+//#include "CoordinatorVorticity.h"
 #include "CoordinatorAdvection.h"
 #include "CoordinatorDiffusion.h"
 #include "CoordinatorPenalization.h"
