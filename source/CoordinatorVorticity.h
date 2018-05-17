@@ -79,7 +79,7 @@ class OperatorDiagnostics : public GenericOperator
           b(ix,iy,iz).w
       };
       const Real omegasq = w[0]*w[0] + w[1]*w[1] + w[2]*w[2];
-      const Real velsq   = u[0]*u[0] + u[1]*u[1] + u[2]*u[2];
+      // const Real velsq   = u[0]*u[0] + u[1]*u[1] + u[2]*u[2];
       //circulation :
       circ[0] += w[0];
       circ[1] += w[1];
@@ -178,9 +178,8 @@ class CoordinatorDiagnostics : public GenericCoordinator
 
     if(rank==0) {
       FILE * f = fopen("diagnostics.dat", "a");
-      if(step == 0)
-      fprintf(f,"%s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s  %s\n",
-          "step_id","time","dt","circX","circY","circZ","linImpX","linImpY","linImpZ","angImpX","angImpY","angImpZ","Ens","Hel","Maxvor");
+      if (step == 0)
+          fprintf(f, "step_id  time  dt  circX  circY  circZ  linImpX  linImpY  linImpZ  angImpX  angImpY  angImpZ  Ens  Hel  Maxvor\n");
 
       fprintf(f, "%d  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e  %9.9e\n",
           step, t, dt,globalSum[0],globalSum[1],globalSum[2],globalSum[3],globalSum[4],globalSum[5],

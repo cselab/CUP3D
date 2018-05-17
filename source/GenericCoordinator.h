@@ -26,7 +26,7 @@ protected:
     MPI_Barrier(comm);
 
     #pragma omp parallel for schedule(static)
-    for(int i=0; i<vInfo.size(); i++)
+    for (int i = 0; i < (int)vInfo.size(); ++i)
     {
       BlockInfo info = vInfo[i];
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;

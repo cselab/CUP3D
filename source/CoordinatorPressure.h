@@ -41,7 +41,7 @@ struct PressureObstacleVisitor : public ObstacleVisitor
      {
        const std::map<int,ObstacleBlock*> obstblocks = obstacle->getObstacleBlocks();
        #pragma omp for schedule(dynamic)
-       for(int i=0; i<vInfo.size(); i++) {
+       for (int i = 0; i < (int)vInfo.size(); ++i) {
          BlockInfo info = vInfo[i];
          const auto pos = obstblocks.find(info.blockID);
          if(pos == obstblocks.end()) continue;

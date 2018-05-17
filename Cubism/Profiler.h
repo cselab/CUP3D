@@ -95,7 +95,7 @@ struct ProfileSummaryItem
 	int nSamples;
 
 	ProfileSummaryItem(string sName_, double dTime_, int nMoney_, int nSamples_):
-		sName(sName_), dTime(dTime_), nMoney(nMoney_),nSamples(nSamples_), dAverageTime(dTime_/nSamples_){}
+		sName(sName_), dTime(dTime_), dAverageTime(dTime_ / nSamples_), nMoney(nMoney_), nSamples(nSamples_) { }
 };
 
 

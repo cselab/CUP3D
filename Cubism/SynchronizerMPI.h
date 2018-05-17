@@ -31,7 +31,7 @@ class SynchronizerMPI
 
 		bool operator<(const I3& a) const
 		{
-			return ix<a.ix || ix==a.ix && iy<a.iy || ix==a.ix && iy==a.iy && iz<a.iz;
+			return ix<a.ix || (ix==a.ix && iy<a.iy) || (ix==a.ix && iy==a.iy && iz<a.iz);
 		}
 	};
 
@@ -69,7 +69,7 @@ class SynchronizerMPI
 
 	bool _face_needed(const int d) const
 	{
-		return periodic[d] || mypeindex[d] > 0 && mypeindex[d] < pesize[d]-1;
+		return periodic[d] || (mypeindex[d] > 0 && mypeindex[d] < pesize[d] - 1);
 	}
 
 	bool _myself(const int indx[3])
@@ -638,14 +638,13 @@ class SynchronizerMPI
 	void _myfree(Real *& ptr) {if (ptr!=NULL) { free(ptr); ptr=NULL;} }
 
 	//forbidden methods
-	SynchronizerMPI(const SynchronizerMPI& c):cube(-1,-1,-1), synchID(-1), isroot(true){ abort(); }
-
-	void operator=(const SynchronizerMPI& c){ abort(); }
+	SynchronizerMPI(const SynchronizerMPI& c) = delete;
+	void operator=(const SynchronizerMPI& c) = delete;
 
 public:
 
 	SynchronizerMPI(const int synchID, StencilInfo stencil, vector<BlockInfo> globalinfos, MPI_Comm cartcomm, const int mybpd[3], const int blocksize[3]):
-	synchID(synchID), stencil(stencil), globalinfos(globalinfos), cube(mybpd[0], mybpd[1], mybpd[2]), cartcomm(cartcomm)
+	cube(mybpd[0], mybpd[1], mybpd[2]), synchID(synchID), stencil(stencil), globalinfos(globalinfos), cartcomm(cartcomm)
 	{
 		int myrank;
         MPI_Comm_rank(cartcomm, &myrank);
@@ -667,7 +666,7 @@ public:
 		for(int i=0; i<3; ++i) this->mybpd[i]=mybpd[i];
 		for(int i=0; i<3; ++i) this->blocksize[i]=blocksize[i];
 
-		for(int i=0; i< globalinfos.size(); ++i)
+		for(int i=0; i < (int)globalinfos.size(); ++i)
 		{
 			I3 coord(globalinfos[i].index[0], globalinfos[i].index[1], globalinfos[i].index[2]);
 			c2i[coord] = i;
@@ -717,9 +716,9 @@ public:
 		assert(send.pending.size() == 0);
 	}
 
-	~SynchronizerMPI()
+	virtual ~SynchronizerMPI()
 	{
-		for(int i=0;i<all_mallocs.size();++i)
+		for(int i = 0; i < (int)all_mallocs.size(); ++i)
 			_myfree(all_mallocs[i]);
 	}
 
@@ -919,8 +918,6 @@ public:
     //peh
 	virtual void sync0(unsigned int gptfloats, MPI_Datatype MPIREAL, const int timestamp)
 	{
-		double t0, t1;
-
 		//0. wait for pending sends, couple of checks
 		//1. pack all stuff
 		//2. perform send/receive requests
@@ -959,9 +956,6 @@ public:
 
 		//1. pack
 		{
-			double t0, t1;
-
-
 			const int N = send_packinfos.size();
 
 			vector<int> selcomponents = stencil.selcomponents;
@@ -1308,7 +1302,7 @@ public:
 			{
 				vector<int> indices(NPENDING);
 				int NSOLVED = 0;
-				if (blockinfo_counter == globalinfos.size())
+				if (blockinfo_counter == (int)globalinfos.size())
                     MPI_Testsome(NPENDING, &pending.front(), &NSOLVED, &indices.front(), MPI_STATUSES_IGNORE);
 				else
 				{
@@ -1375,7 +1369,7 @@ public:
 	{
 		vector<BlockInfo> accumulator;
 
-		while(accumulator.size()<smallest && !done())
+		while((int)accumulator.size() < smallest && !done())
 		{
 			const vector<BlockInfo> r = avail();
 

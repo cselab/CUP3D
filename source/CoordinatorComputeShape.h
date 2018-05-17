@@ -36,7 +36,7 @@ class CoordinatorComputeShape : public GenericCoordinator
     #pragma omp parallel
     {
       #pragma omp for schedule(static)
-      for(int i=0; i<vInfo.size(); i++) {
+      for (int i = 0; i < (int)vInfo.size(); ++i) {
         BlockInfo info = vInfo[i];
         FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
@@ -62,11 +62,11 @@ class CoordinatorComputeForces : public GenericCoordinator
 {
 protected:
   IF3D_ObstacleVector** obstacleVector;
+  const int* const stepID;
   const double* const time;
-  const Real* const Uinf;
   const double* const NU;
   const bool * const bDump;
-  const int* const stepID;
+  const Real* const Uinf;
 public:
   CoordinatorComputeForces(FluidGridMPI*g, IF3D_ObstacleVector** myobst,
    const int* const s, const double* const _t, const double*const nu,
@@ -92,10 +92,10 @@ class CoordinatorComputeDiagnostics : public GenericCoordinator
 {
 protected:
   IF3D_ObstacleVector** const obstacleVector;
+  const int* const stepID;
   const double* const time;
   const double* const lambda;
   const Real* const Uinf;
-  const int* const stepID;
 public:
   CoordinatorComputeDiagnostics(FluidGridMPI*g, IF3D_ObstacleVector** myobst,
    const int* const s, const double* const _t, const double*const l,

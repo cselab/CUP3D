@@ -62,7 +62,7 @@ add_definitions("-D_BSZ_=${BLOCK_SIZE}")
 add_definitions("-DNTHREADS=${NUM_THREADS}")
 
 # GCC flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-vla -Wno-reorder")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-vla -Wno-reorder -Wno-maybe-uninitialized")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -DNDEBUG -fstrict-aliasing -ffast-math -falign-functions=32")
 
 # OpenMP support

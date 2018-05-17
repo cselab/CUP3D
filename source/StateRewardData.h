@@ -248,7 +248,9 @@ struct StateReward
     const double _Xrel = (Xrel-xFOR)*cos(thFOR) + (Yrel-yFOR)*sin(thFOR);
     const double _Yrel = (Yrel-yFOR)*cos(thFOR) - (Xrel-xFOR)*sin(thFOR);
     const double _Dist = sqrt(pow(Xrel-xFOR,2) + pow(Yrel-yFOR,2));
-
+    (void)_Xrel;  // To stop complaining about unused variables.
+    (void)_Yrel;
+    (void)_Dist;
     bRestart = std::fabs(_Yrel) > 2*lengthscale;
     if(bRestart) {printf("Too much vertical distance\n"); return bRestart;}
     bRestart = std::fabs(Theta)>M_PI;
@@ -305,7 +307,6 @@ struct StateReward
       sprintf(buf, "midplaneData_%07d.txt", stepNumber);
       string filename(buf);
       fout.open(filename, ios::trunc);
-      int k=0;
       for(int i=0; i<nDest; ++i)
       fout<<fxP(i)<<"\t"<<fyP(i)<<"\t"<<fxV(i)<<"\t"<<fyV(i)<<"\t"<<std::endl;
       fout.close();
@@ -430,7 +431,7 @@ struct StateReward
         sprintf(buf, "sensorDistrib_%07d.txt", stepId);
         string filename(buf);
         fileskin.open(filename, ios::trunc);
-        int k=0;
+        // int k=0;
         for(int i=0; i<NpLatLine; ++i)
             fileskin<<PXAbove[i]<<"\t"<<PYAbove[i]<<"\t"<<NxAbove[i]
               <<"\t"<<NyAbove[i]<<"\t"<<FPAbove[i]<<"\t"<<FVAbove[i]

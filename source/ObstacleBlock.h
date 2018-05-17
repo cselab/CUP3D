@@ -36,7 +36,7 @@ struct ObstacleBlock
   __attribute__((aligned(32))) float sectionMarker[sizeZ][sizeY][sizeX];
 
   //surface quantities:
-  size_t nPoints = 0;
+  int nPoints = 0;
   bool filled = false;
   vector<surface_data*> surface;
   double *ss  = nullptr;
@@ -155,7 +155,7 @@ struct ObstacleBlock
   void allocate_surface()
   {
     filled = true;
-    assert(surface.size() == nPoints);
+    assert((int)surface.size() == nPoints);
     pX   = init(nPoints); pY   = init(nPoints); pZ   = init(nPoints);
     vX   = init(nPoints); vY   = init(nPoints); vZ   = init(nPoints);
     fX   = init(nPoints); fY   = init(nPoints); fZ   = init(nPoints);
@@ -176,10 +176,14 @@ struct ObstacleBlock
   void print(FILE* pFile)
   {
     assert(filled);
-    for(size_t i=0; i<nPoints; i++) {
-      float buf[]={ss[i],pX[i],pY[i],pZ[i], P[i], fX[i],fY[i],fZ[i],
-        vY[i],vY[i],vZ[i], vxDef[i],vyDef[i],vzDef[i]};
-      //, surface[i]->dchidx, surface[i]->dchidy};
+    for (int i = 0; i < nPoints; ++i) {
+      float buf[] = {
+          (float)ss[i], (float)pX[i], (float)pY[i], (float)pZ[i],
+          (float)P[i], (float)fX[i], (float)fY[i], (float)fZ[i],
+          (float)vY[i], (float)vY[i], (float)vZ[i],
+          (float)vxDef[i], (float)vyDef[i], (float)vzDef[i],
+          // (float)surface[i]->dchidx, (float)surface[i]->dchidy,
+      };
       fwrite (buf, sizeof(float), 14, pFile);
       fflush(pFile);
     }

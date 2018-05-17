@@ -71,9 +71,11 @@ public:
     MPI_Comm_size(grid->getCartComm(),&size);
     vInfo = grid->getBlocksInfo();
     const double extent = 1;//grid->maxextent;
-    const double NFE[3] ={  grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
-                          grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
-                          grid->getBlocksPerDimension(2)*FluidBlock::sizeZ };
+    const double NFE[3] = {
+        (double)grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
+        (double)grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
+        (double)grid->getBlocksPerDimension(2)*FluidBlock::sizeZ,
+    };
     const double maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
     const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
     sr.ext_X = ext_X = scale[0]*extent;
@@ -90,9 +92,11 @@ public:
     MPI_Comm_size(grid->getCartComm(),&size);
     vInfo = grid->getBlocksInfo();
     const double extent = 1;//grid->maxextent;
-    const double NFE[3] ={  grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
-                          grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
-                          grid->getBlocksPerDimension(2)*FluidBlock::sizeZ };
+    const double NFE[3] = {
+        (double)grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
+        (double)grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
+        (double)grid->getBlocksPerDimension(2)*FluidBlock::sizeZ,
+    };
     const double maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
     const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
     sr.ext_X = ext_X = scale[0]*extent;

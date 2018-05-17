@@ -64,7 +64,6 @@ struct Ms6
 		Real absx2 = absx*absx;
 		Real absx3 = absx2*absx;
 		Real absx4 = absx2*absx2;
-		Real absx5 = absx3*absx2;
 		
 		if (absx<3 && absx>=2)
 			return -1./24.*(absx-2.)*(absx-3.)*(absx-3.)*(absx-3.)*(5*absx-8);

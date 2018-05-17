@@ -58,7 +58,7 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
       obstacle->getAngularVelocity(omegaBody);
       const Real lamdt = double(dt) * double(lambda);
       #pragma omp for schedule(dynamic)
-      for(int i=0; i<vInfo.size(); i++) {
+      for (int i = 0; i < (int)vInfo.size(); ++i) {
         BlockInfo info = vInfo[i];
         const auto pos = obstblocks.find(info.blockID);
         if(pos == obstblocks.end()) continue;
@@ -102,9 +102,9 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
 struct VelocityObstacleVisitor : public ObstacleVisitor
 {
   FluidGridMPI * grid;
-  double*const uSum;
-  int*const nSum;
   const Real * const uInf;
+  int * const nSum;
+  double * const uSum;
   vector<BlockInfo> vInfo;
 
   VelocityObstacleVisitor(FluidGridMPI* _grid, const Real*const _uInf,
