@@ -13,3 +13,10 @@ build
 *.swp
 
 makefiles/simulation
+makefiles/cubismup_3d
+
+# CMake stuff
+CMakeCache.txt
+CMakeFiles
+Makefile
+cmake_install.cmake
