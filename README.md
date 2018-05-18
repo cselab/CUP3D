@@ -28,4 +28,7 @@ The default number of jobs is equal to the number of physical cores.
 
 Script works so far only on Linux.
 
-Also, note that Cubism requires C++11-compatible compiler.
+Requirements:
+
+- Cubism requires C++11-compatible compiler,
+- Make sure `mpicc` points to a MPI-compatible `C` compiler, and that `mpic++` points to a MPI-compatible `C++` compiler.
