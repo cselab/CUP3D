@@ -33,12 +33,15 @@
 #if _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
 #endif
-#include "TaskLayer.h"
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
 #include <vector>
 #include <thread>
+
+#ifdef RL_LAYER
+ #include "TaskLayer.h"
+#endif
 
 class Simulation
 {
@@ -46,10 +49,11 @@ class Simulation
   ArgumentParser parser;
   Profiler profiler;
   const MPI_Comm app_comm;
-  TaskLayer * const task;
-
+  #ifdef RL_LAYER
+    TaskLayer * task;
+  #endif
   #if _USE_ZLIB_
-  SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
+    SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
   #endif
 
   // grid
@@ -63,13 +67,13 @@ class Simulation
 
   // simulation settings
   Real uinf[3]={0,0,0};
-  double re=0, nu=0, length=0, CFL=0, lambda=0;
-  bool bDLM=false, bRestart=false, verbose=false;
+  double re=0, nu=0, length=0, CFL=0, lambda=0, DLM=0;
+  bool bRestart=false, verbose=false;
   bool b3Ddump=true, b2Ddump=false, bDump=false;
 
   // output
-  int dumpFreq=0, saveFreq=0;
-  double dumpTime=0, saveTime=0, saveClockPeriod=0, maxClockDuration=1e9;
+  int saveFreq=0;
+  double saveTime=0, nextSaveTime=0, saveClockPeriod=0, maxClockDuration=1e9;
   string path2file, path4serialization = "./";
 
   FluidGridMPI * grid = nullptr;
@@ -82,9 +86,7 @@ class Simulation
   //The antagonist
   vector<GenericCoordinator*> pipeline;
 
-  void areWeDumping(double & nextDumpTime);
-  void _serialize(double & nextSaveTime);
-  void _dump(const string append);
+  void _serialize(const string append = string());
   void _deserialize();
 
   void parseArguments();
@@ -95,8 +97,8 @@ class Simulation
   void _ic();
 
  public:
-  Simulation(MPI_Comm mpicomm, TaskLayer*const tsk, int argc, char** argv):
-  parser(argc,argv), app_comm(mpicomm), task(tsk)  {   }
+  Simulation(MPI_Comm mpicomm, int argc, char** argv):
+  parser(argc,argv), app_comm(mpicomm) {   }
 
   virtual ~Simulation()
   {

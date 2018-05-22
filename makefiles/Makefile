@@ -17,8 +17,6 @@ hdf ?= true
 vtk ?= false
 rk2 ?= false
 accfft ?= false
-#accfft ?= true
-train ?= false
 zlib ?= 0
 verbose ?= false
 bc ?= open
@@ -31,11 +29,10 @@ ifeq "$(verbose)" "true"
 	CPPFLAGS += -D_VERBOSE_
 endif
 
-#TODO!!!
-#-add two modes: training or "showing"
-#-if not def __RL_MPI_CLIENT, remove smarties linking
-ifeq "$(train)" "true"
-	CPPFLAGS += -D__RL_TRAINING
+rltrain ?= false
+ifeq "$(rltrain)" "true"
+	CPPFLAGS += -DRL_LAYER
+	CPPFLAGS += -I${HOME}/smarties/source/ -D__RL_MPI_CLIENT
 endif
 
 ifeq "$(zlib)" "1"
@@ -103,7 +100,6 @@ CPPFLAGS += -std=c++11 -fopenmp -dynamic
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/
-CPPFLAGS += -I${HOME}/smarties/source/ -D__RL_MPI_CLIENT
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
@@ -132,9 +128,10 @@ LIBS +=	-L$(vtk-lib) \
 endif
 
 ifeq "$(hdf)" "true"
-CPPFLAGS += -D_USE_HDF_ #-I$(hdf-inc)
-LIBS += -lhdf5 #-L$(hdf-lib) -lhdf5
+CPPFLAGS+= -D_USE_HDF_ #-I$(hdf-inc)
+LIBS+= -lhdf5 #-L$(hdf-lib) -lhdf5
 endif
+
 ifeq "$(precision)" "single"
 	LIBS += -lfftw3f -lfftw3f_threads -lfftw3f_mpi
 endif
@@ -165,7 +162,6 @@ OBJECTS =  IF3D_VortexOperator.o \
            Profiler.o \
            Simulation.o \
            ProcessOperatorsOMP.o \
-           Save_splicer.o \
            WaveletCompressor.o \
            IF3D_DCylinderObstacleOperator.o
 
@@ -180,11 +176,15 @@ else
 	OBJECTS += PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o
 endif
 
-EXEOBJ = $(OBJECTS) Communicator.o main.o
+EXEOBJ = $(OBJECTS)  main.o
 LIBOBJ = $(OBJECTS) cubism_main.o
 LIBRLOBJ = $(OBJECTS) ext_app_main.o
+VPATH := $(SRC_DIR):$(CUBISM_DIR)
 
-VPATH := $(SRC_DIR) $(CUBISM_DIR) ${HOME}/smarties/source/
+ifeq "$(rltrain)" "true"
+EXEOBJ += Communicator.o
+VPATH = $(VPATH):${HOME}/smarties/source/
+endif
 
 .DEFAULT_GOAL := simulation
 

@@ -28,14 +28,14 @@ void Simulation::setupGrid()
   parser.unset_strict_mode();
   nprocsy = parser("-nprocsy").asInt(1);
   parser.set_strict_mode();
-  if(nprocsy==1) MPI_Comm_size(app_comm,&nprocsx);
+  if(nprocsy==1) MPI_Comm_size(app_comm, &nprocsx);
   else           nprocsx = parser("-nprocsx").asInt();
   parser.unset_strict_mode();
   nprocsz = 1;
-  //assert(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0);
+
   if( not(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0) ){
-    printf("Domain decomposition nicht gut! bpd*/nproc* should be an integer");
-    abort();
+  printf("Incompatible domain decomposition: bpd*/nproc* should be an integer");
+  MPI_Abort(grid->getCartComm(), 1);
   }
 
   bpdx /= nprocsx; bpdy /= nprocsy; bpdz /= nprocsz;
@@ -70,24 +70,28 @@ void Simulation::parseArguments()
   bRestart = parser("-restart").asBool(false);
   b2Ddump = parser("-2Ddump").asBool(false);
   b3Ddump = parser("-3Ddump").asBool(true);
-  //bDLM = parser("-use-dlm").asBool(false);  // Conti was testing this shit. Sid no like...
-  bDLM = false;
-  dumpFreq = parser("-fdump").asDouble(0);  // dumpFreq==0 means dump freq (in #steps) is not active
-  dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
+  DLM = parser("-use-dlm").asDouble(0);
+  int dumpFreq = parser("-fdump").asDouble(0);  // dumpFreq==0 means dump freq (in #steps) is not active
+  double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
   saveFreq = parser("-fsave").asDouble(0);  // dumpFreq==0 means dump freq (in #steps) is not active
   saveTime = parser("-tsave").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
+
+  // TEMP: Removed distinction saving-dumping. Backward compatibility:
+  if(saveFreq<=0 && dumpFreq>0) saveFreq = dumpFreq;
+  if(saveTime<=0 && dumpTime>0) saveTime = dumpTime;
+
   nsteps = parser("-nsteps").asInt(0);    // nsteps==0   means stopping criteria is not active
   endTime = parser("-tend").asDouble(0);    // endTime==0  means stopping criteria is not active
 
   path2file = parser("-file").asString("./paternoster");
   path4serialization = parser("-serialization").asString("./");
-  maxClockDuration = parser("-Wtime").asDouble(1e30);
+
   lambda = parser("-lambda").asDouble(1e4);
   CFL = parser("-CFL").asDouble(.1);
   uinf[0] = parser("-uinfx").asDouble(0.0);
   uinf[1] = parser("-uinfy").asDouble(0.0);
   uinf[2] = parser("-uinfz").asDouble(0.0);
-  verbose = parser("-verbose").asBool(false);
+  verbose = parser("-verbose").asBool(true);
 }
 
 void Simulation::setupObstacles()
@@ -96,7 +100,9 @@ void Simulation::setupObstacles()
   obstacle_vector = new IF3D_ObstacleVector(grid, obstacleFactory.create(parser));
   parser.unset_strict_mode();
 
-  if(task not_eq nullptr) task->initializeObstacles(obstacle_vector);
+  #ifdef RL_LAYER
+    if(task not_eq nullptr) task->initializeObstacles(obstacle_vector);
+  #endif
 
   double maxU = max(uinf[0],max(uinf[1],uinf[2]));
   length = obstacle_vector->getD();
@@ -113,6 +119,7 @@ void Simulation::setupOperators()
     pipeline.push_back(new CoordinatorComputeShape(grid, &obstacle_vector, &step, &time, uinf));
     pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
     pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
+    // For correct behavior Advection must always be followed Diffusion!
     pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
     pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
     pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
@@ -128,22 +135,54 @@ void Simulation::setupOperators()
     (*pipeline[0])(0);
 }
 
-void Simulation::areWeDumping(double & nextDumpTime)
+void Simulation::_selectDT()
 {
-  bDump = (dumpFreq>0 && step+1%dumpFreq==0) || (dumpTime>0 && time>=nextDumpTime);
-  if (bDump) nextDumpTime += dumpTime;
+  double local_maxU = (double)findMaxUOMP(vInfo,*grid,uinf);
+  double global_maxU;
+  const double h = vInfo[0].h_gridpoint;
+
+  MPI_Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX, grid->getCartComm());
+  dtFourier = CFL*h*h/nu;
+  dtCFL     = CFL*h/(std::fabs(global_maxU)+numeric_limits<double>::epsilon());
+  dt = std::min(dtCFL, dtFourier);
+
+  if(!rank && verbose)
+    printf("maxU %f dtF %f dtC %f dt %f\n", global_maxU,dtFourier,dtCFL,dt);
+
+  // if DLM>=1, adapt lambda such that penal term is independent of time step
+  // Probably best not used unless DLM>=10-100. Avoided during ramp-up (which
+  // is the point of ramp-up: gradual insertion of obstacle)
+  if(DLM>=1) lambda = DLM/dt;
+
+  if ( step<1000 ) {
+    const double dt_max =  1e2*CFL*h;
+    const double dt_min = 1e-2*CFL*h;
+    //const double dt_ramp = dt_min + (dt_max-dt_min)*std::pow(step/1000.0, 2);
+    const double dt_ramp = dt_min + (dt_max-dt_min)*(step/1000.0);
+    if (dt_ramp<dt) {
+      dt = dt_ramp;
+      if(!rank && verbose)
+        printf("Dt bounded by ramp-up: dt_ramp=%f\n",dt_ramp);
+    }
+  }
+
+  bDump = (saveFreq>0 && (step+ 1)%saveFreq==0) ||
+          (saveTime>0 && (time+dt)>nextSaveTime);
+  if (bDump) nextSaveTime += saveTime;
 }
 
-void Simulation::_dump(const string append = string())
+void Simulation::_serialize(const string append)
 {
+  if(!bDump) return;
+
   stringstream ssR;
   if (append == string()) ssR<<"restart_";
   else ssR<<append;
   ssR<<std::setfill('0')<<std::setw(9)<<step;
-  if (rank==0) cout << ssR.str() << endl;
-  /*
+  if (rank==0) cout<<"Saving to "<<path4serialization<<"/"<<ssR.str()<<endl;
+
   if (rank==0) { //rank 0 saves step id and obstacles
-    obstacle_vector->save(step,time,path4serialization+"/"+ssR.str());
+    obstacle_vector->save(step, time, path4serialization+"/"+ssR.str());
     //safety status in case of crash/timeout during grid save:
     string statusname = path4serialization+"/"+ssR.str()+".status";
     FILE * f = fopen(statusname.c_str(), "w");
@@ -155,7 +194,7 @@ void Simulation::_dump(const string append = string())
     fprintf(f, "uinfz: %20.20e\n", uinf[2]);
     fclose(f);
   }
-  */
+
   #if defined(_USE_HDF_)
     if(b2Ddump) {
       stringstream ssF;
@@ -165,33 +204,12 @@ void Simulation::_dump(const string append = string())
        ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
       DumpHDF5flat_MPI(*grid, time, ssF.str(),path4serialization);
     }
-    /*
-    copyDumpGrid(*grid, *dump);
-    if(dumper not_eq nullptr){
-      bool warned = false;
-      while(not dumper->joinable()) {
-        MPI_Barrier(grid->getCartComm());
-        if (!warned && rank==0) {
-          printf("Waiting for previous dump.\n");
-          fflush(0);
-          warned = true;
-        }
-      }
-      dumper->join();
-      if(dumper not_eq nullptr) delete dumper;
-    }
-    //why do they even let me code?
-    string string_path = path4serialization;
-    string string_file = ssR.str();
-    DumpGridMPI* ptr_dump = dump;
-    double dumptime = time;
-    dumper = new std::thread( [ptr_dump, dumptime, string_file, string_path] () {
-      DumpHDF5_MPI_Vector<DumpGridMPI, StreamerHDF5Dump>(*ptr_dump, dumptime, string_file, string_path);
-      DumpHDF5_MPI_Channel<DumpGridMPI,StreamerHDF5Dump,3>(*ptr_dump, dumptime, string_file, string_path);
-    });
-    */
-    if(b3Ddump)
+
+    if(b3Ddump) {
       DumpHDF5_MPI_Vector<FluidGridMPI,StreamerHDF5>(*grid, time, ssR.str(), path4serialization);
+      DumpHDF5_MPI_Channel<FluidGridMPI,StreamerHDF5,3>(
+      *grid, time, ssR.str(), path4serialization);
+    }
   #endif
 
   if (rank==0)
@@ -215,120 +233,48 @@ void Simulation::_dump(const string append = string())
   //CoordinatorDiagnostics coordDiags(grid,time,step);
   //coordDiags(dt);
 
-  #ifdef _USE_ZLIB_
-  {
-    profiler.pop_stop();
-    profiler.push_start("Zlib");
-    MPI_Barrier(grid->getCartComm());
-    const int wtype_write = parser("-wtype_write").asInt(1);
-    double threshold = parser("-wthreshold").asDouble(1e-4);
-    std::stringstream ssC;
-    ssC<<path4serialization<<"/chi_channel_";
-    ssC<<std::setfill('0')<<std::setw(9)<<step;
-    if(!rank)
-      printf("Saving chi to %s, threshold %g\n",ssC.str().c_str(),threshold);
-    waveletdumper_grid.verbose();
-    waveletdumper_grid.set_threshold(threshold);
-    waveletdumper_grid.set_wtype_write(wtype_write);
-    waveletdumper_grid.Write<3>(*grid, ssC.str());
-  }
-  #else
-  {
-    stringstream ssR;
-    ssR<<"restart_"<< std::setfill('0')<<std::setw(9)<<step;
-    if(b3Ddump)
-      DumpHDF5_MPI_Channel<FluidGridMPI,StreamerHDF5,3>(
-      *grid, time, ssR.str(), path4serialization);
-  }
-  #endif
-}
-
-void Simulation::_selectDT()
-{
-  double local_maxU = (double)findMaxUOMP(vInfo,*grid,uinf);
-  double global_maxU;
-  const double h = vInfo[0].h_gridpoint;
-
-  MPI_Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX, grid->getCartComm());
-  const double  _CFL = ( step<100 ) ? (step/100.+0.001) * CFL : CFL;
-  dtFourier = _CFL*h*h/nu;
-  dtCFL     = _CFL*h/(std::fabs(global_maxU)+numeric_limits<double>::epsilon());
-  dt = std::min(dtCFL,dtFourier);
-
-    #ifndef __RL_TRAINING
-  if(rank==0) printf("maxU %f dtF %f dtC %f dt %f\n",global_maxU,dtFourier,dtCFL,dt);
-  #endif
-  //if (dumpTime>0) dt = min(dt,nextDumpTime-time);
-  //if (saveTime>0) dt = min(dt,nextSaveTime-time);
-  //if (endTime>0)  dt = min(dt,endTime-time);
-
-  if ( step<1000 ) {
-    const double dt_max =  1e2*CFL*h;
-    const double dt_min = 1e-2*CFL*h;
-    //const double dt_ramp = dt_min + (dt_max-dt_min)*std::pow(step/1000.0, 2);
-    const double dt_ramp = dt_min + (dt_max-dt_min)*(step/1000.0);
-    if (dt_ramp<dt) {
-      dt = dt_ramp;
-      if(rank==0) printf("Dt bounded by ramp-up: dt_ramp=%f\n",dt_ramp);
-    }
-  }
-}
-
-void Simulation::_serialize(double & nextSaveTime)
-{
-  // FAKE LOL kept it here if I ever decide to implement compressed dumps
-  bool bSaving = (saveFreq>0 && step%saveFreq==0)||(saveTime>0 && time>nextSaveTime);
-  if(!bSaving) return;
-  nextSaveTime += saveTime;
-  //DumpZBin_MPI<FluidGridMPI,StreamerSerialization>(*grid,pingname.c_str(),path4serialization);
+  obstacle_vector->interpolateOnSkin(time, step);
 }
 
 void Simulation::_deserialize()
 {
-  string restartfile = path4serialization+"/restart.status";
-  FILE * f = fopen(restartfile.c_str(), "r");
-  if (f == NULL) {
-    printf("Could not restart... starting a new sim.\n");
-    return;
+  {
+    string restartfile = path4serialization+"/restart.status";
+    FILE * f = fopen(restartfile.c_str(), "r");
+    if (f == NULL) {
+      printf("Could not restart... starting a new sim.\n");
+      return;
+    }
+    assert(f != NULL);
+    bool ret = true;
+    ret = ret && 1==fscanf(f, "time: %e\n",   &time);
+    ret = ret && 1==fscanf(f, "stepid: %d\n", &step);
+    ret = ret && 1==fscanf(f, "uinfx: %e\n", &uinf[0]);
+    ret = ret && 1==fscanf(f, "uinfy: %e\n", &uinf[1]);
+    ret = ret && 1==fscanf(f, "uinfz: %e\n", &uinf[2]);
+    fclose(f);
+    if( (not ret) || step<0 || time<0) {
+      printf("Error reading restart file. Aborting...\n");
+      MPI_Abort(grid->getCartComm(), 1);
+    }
   }
-  assert(f != NULL);
-
-  float val = -1;
-  fscanf(f, "time: %e\n", &val);
-  assert(val>=0);
-  time=val;
-
-  int step_id_fake = -1;
-  fscanf(f, "stepid: %d\n", &step_id_fake);
-  assert(step_id_fake >= 0);
-  step = step_id_fake;
-  int ret = 0;
-  ret = fscanf(f, "uinfx: %e\n", &val);
-  if (ret) uinf[0] = val;
-  ret = fscanf(f, "uinfy: %e\n", &val);
-  if (ret) uinf[1] = val;
-  ret = fscanf(f, "uinfz: %e\n", &val);
-  if (ret) uinf[2] = val;
-  fclose(f);
 
   stringstream ssR;
-  ssR<<"restart_";
-  ssR<<std::setfill('0')<<std::setw(9)<<step;
+  ssR<<"restart_"<<std::setfill('0')<<std::setw(9)<<step;
   if (rank==0) cout << "Restarting from " << ssR.str() << endl;
-  MPI_Barrier(grid->getCartComm());
-  #if 1
-  ReadHDF5_MPI_Vector<FluidGridMPI, StreamerHDF5>(*grid, ssR.str(),path4serialization);
+
+  #if defined(_USE_HDF_)
+    ReadHDF5_MPI_Vector<FluidGridMPI, StreamerHDF5>(*grid, ssR.str(),path4serialization);
   #else
-  ReadHDF5_MPI_Channel<FluidGridMPI, StreamerHDF5, 0>(*grid, ssR.str(),path4serialization);
-  ReadHDF5_MPI_Channel<FluidGridMPI, StreamerHDF5, 1>(*grid, ssR.str(),path4serialization);
-  ReadHDF5_MPI_Channel<FluidGridMPI, StreamerHDF5, 2>(*grid, ssR.str(),path4serialization);
+    printf("Unable to restart without  HDF5 library. Aborting...\n");
+    MPI_Abort(grid->getCartComm(), 1);
   #endif
+
   obstacle_vector->restart(time,path4serialization+"/"+ssR.str());
 
   printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
-  //bDump=true;
-  //_dump("restarted");
-  //if (time>0.01) MPI_Abort(grid->getCartComm(), 0);
+  // prepare time for next save
+  nextSaveTime = time + saveTime;
 }
 
 void Simulation::init()
@@ -348,80 +294,42 @@ void Simulation::init()
 void Simulation::simulate()
 {
   using namespace std::chrono;
-  //if (time<1e-10) _dump();
-  //next = if time=0 then 0, if restart time+dumpTime
-  //double nextDumpTime = dumpTime>0? ceil((time+1e-9)/dumpTime)*dumpTime : 1e3;
-  double nextDumpTime = dumpTime>0 ? ceil(time/dumpTime)*dumpTime : 1e3;
-  #ifdef __DumpWakeStefan
-  double wakeDumpTime = __DumpWakeStefan;
-  #endif
-  if(!rank) printf("First dump at %g (freq %g)\n", nextDumpTime, dumpTime);
-  double nextSaveTime = time + saveTime;
-  time_point<high_resolution_clock> last_save, this_save, start_sim;
-  start_sim = high_resolution_clock::now();
-  last_save = high_resolution_clock::now();
 
   while (true)
   {
-    profiler.push_start("RL");
-    if(task not_eq nullptr) if((*task)(step, time)) return;
-    profiler.pop_stop();
-
     profiler.push_start("DT");
     _selectDT();
-    if(bDLM) lambda = std::max(1e4, 10.0/dt);
-      //check if dumping:
-      bDump = (dumpFreq>0 && step+1%dumpFreq==0) ||
-              (dumpTime>0 && time>=nextDumpTime);
-      if (bDump) nextDumpTime += dumpTime;
     profiler.pop_stop();
 
-    for (int c=0; c<pipeline.size(); c++)
-    {
-      //std::cout<<pipeline[c]->getName()<<std::endl; fflush(0);
+    #ifdef RL_LAYER
+      if(task not_eq nullptr)
+        if((*task)(step, time)) {
+          if(rank==0)
+          cout<<"Finished RL task at time "<<time<<endl;
+          return;
+        }
+    #endif
+
+    for (int c=0; c<pipeline.size(); c++) {
       profiler.push_start(pipeline[c]->getName());
       (*pipeline[c])(dt);
       profiler.pop_stop();
-      //_dump(pipeline[c]->getName());
     }
     step++;
     time+=dt;
-    //stringstream ssF; ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
-    //DumpHDF5flat_MPI(*grid, time, ssF.str(),path4serialization);
-    #ifndef __RL_TRAINING
-    if(rank==0)
+
+    if(!rank && verbose)
       printf("%d : %f uInf {%f %f %f}\n",step,time,uinf[0],uinf[1],uinf[2]);
 
-    profiler.push_start("Dump");
-    if(bDump) {
-        obstacle_vector->interpolateOnSkin(time,step);
-        _dump();
-    }
-    profiler.pop_stop();
-    #endif
-
     profiler.push_start("Save");
-    {
-      _serialize(nextSaveTime);
-    }
+      _serialize();
     profiler.pop_stop();
 
-    #ifdef __DumpWakeStefan
-      if(time >= wakeDumpTime && time-dt <= __DumpWakeStefan+1.)
-      {
-        wakeDumpTime += 0.01;
-        obstacle_vector->interpolateOnSkin(time, step, 0, true);
-      } else if (time-dt > __DumpWakeStefan+1.) {
-        printf("Done dumping wake\n"); fflush(0); abort();
-      }
-    #endif
-
-    if (step % 50 == 0 && !rank) profiler.printSummary();
+    if (step % 50 == 0 && !rank && verbose) profiler.printSummary();
     if ((endTime>0 && time>endTime) || (nsteps!=0 && step>=nsteps))
     {
       if(rank==0)
       cout<<"Finished at time "<<time<<" in "<<step<<" step of "<<nsteps<<endl;
-      //exit(0);
       return;
     }
   }
