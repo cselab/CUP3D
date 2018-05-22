@@ -75,6 +75,7 @@ endif
 # needed in order to compile on nodes
 # include make.daint
 ifeq ($(shell uname -s), Darwin)
+CPPFLAGS += -dynamic  # Something specific to Darwin linker(?)
 CC=mpic++
 LD=mpic++
 accfft=false
@@ -96,7 +97,7 @@ ifneq "$(findstring eu-,$(shell hostname))" ""
 	include make.euler
 endif
 
-CPPFLAGS += -std=c++11 -fopenmp -dynamic
+CPPFLAGS += -std=c++11 -fopenmp
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/
@@ -162,10 +163,7 @@ OBJECTS =  IF3D_VortexOperator.o \
            Profiler.o \
            Simulation.o \
            ProcessOperatorsOMP.o \
-           WaveletCompressor.o \
            IF3D_DCylinderObstacleOperator.o
-
-#GeometryReader.o WavefrontReader.o CTReader.o WaveletCompressor.o
 
 ifeq "$(accfft)" "true"
 	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -D_CUDA_COMP_
@@ -179,12 +177,13 @@ endif
 EXEOBJ = $(OBJECTS)  main.o
 LIBOBJ = $(OBJECTS) cubism_main.o
 LIBRLOBJ = $(OBJECTS) ext_app_main.o
-VPATH := $(SRC_DIR):$(CUBISM_DIR)
+ALLOBJ := $(sort $(EXEOBJ) $(LIBOBJ) $(LIBRLOBJ) $(NVOBJECTS))  # `sort` removes duplicates.
+DEPS := $(ALLOBJ:%.o=%.d)
 
-ifeq "$(rltrain)" "true"
-EXEOBJ += Communicator.o
-VPATH = $(VPATH):${HOME}/smarties/source/
-endif
+#ifeq "$(rltrain)" "true"
+#EXEOBJ += Communicator.o
+#VPATH = $(VPATH):${HOME}/smarties/source/
+#endif
 
 .DEFAULT_GOAL := simulation
 
@@ -197,14 +196,17 @@ lib: $(LIBOBJ) $(NVOBJECTS)
 librl: $(LIBRLOBJ) $(NVOBJECTS)
 	ar rs libsim_rl.a $(LIBRLOBJ) $(NVOBJECTS)
 
+-include $(DEPS)
+
 %.o: %.cpp
-	$(CC) $(CPPFLAGS) $(LIBS) -c $< -o $@
+	$(CC) $(CPPFLAGS) $(LIBS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 
 PoissonSolverScalarFFTW_ACC.o: PoissonSolverScalarFFTW_ACC.cu
 	nvcc $(NVFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJECTS)
+	rm -f $(DEPS)
 	rm -f simulation Communicator.o libsimulation.a main.o cubism_main.o PoissonSolverScalarFFTW*.o
 
 ifeq "$(config)" "prod"

@@ -443,8 +443,8 @@ class FishMidlineData
 
   inline double _integrationFac3(const int idx) const
   {
-    const double drXi = _d_ds(idx, rX, Nm);
-    const double drYi = _d_ds(idx, rY, Nm);
+    // const double drXi = _d_ds(idx, rX, Nm);
+    // const double drYi = _d_ds(idx, rY, Nm);
     // return 0.25*std::pow(width[idx],3)*height[idx]*(drXi*norY[idx] - drYi*norX[idx]);
     return 0.25*std::pow((double)width[idx],3)*height[idx];
   }
@@ -1477,7 +1477,7 @@ int prevTransition = 0;
   CarlingFishMidlineData(const int Nm, const Real length, const Real Tperiod,
       const Real phaseShift, const Real dx_ext, const Real _sHinge,
       const double _Ahinge, const double _phiHinge, const Real _fac = 0.1212121212121212):
-    FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), fac(_fac), inv(0.03125), bBurst(false),tStart(1e12), bHinge(true), sHinge(_sHinge), AhingeTheta(M_PI*_Ahinge/180.0), ThingeTheta(Tperiod), hingePhi(_phiHinge/360.0), quadraticAmplitude(true)
+    FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext), tStart(1e12), fac(_fac), inv(0.03125), sHinge(_sHinge), ThingeTheta(Tperiod), AhingeTheta(M_PI*_Ahinge/180.0), hingePhi(_phiHinge/360.0), bBurst(false), bHinge(true), quadraticAmplitude(true)
     {
     }
 
@@ -1577,7 +1577,8 @@ class CurvatureDefinedFishData : public FishMidlineData
   CurvatureDefinedFishData(const int Nm, const double length, const double Tperiod, const double phaseShift, const double dx_ext)
   : FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext),
     rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
-    rA(_alloc(Nm)),vA(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm)), controlFac(-1), controlVel(0), velPID(0),valPID(0)
+    rB(_alloc(Nm)),vB(_alloc(Nm)), rA(_alloc(Nm)),vA(_alloc(Nm)),
+    controlFac(-1), valPID(0), controlVel(0), velPID(0)
   {
   }
 
@@ -1587,8 +1588,8 @@ class CurvatureDefinedFishData : public FishMidlineData
     valPID = dtheta;
 
     dt = std::max(std::numeric_limits<double>::epsilon(),dt);
-    std::array<double,6> tmp_curv = std::array<double,6>();
-    for (int i=0; i<tmp_curv.size(); ++i) {tmp_curv[i] = dtheta;}
+    std::array<double, 6> tmp_curv;
+    tmp_curv.fill(dtheta);
     //adjustScheduler.transition(time,time,time+2*dt,tmp_curv, true);
     adjustScheduler.transition(time, time-2*dt, time+2*dt, tmp_curv, true);
 
@@ -1660,7 +1661,7 @@ class CurvatureDefinedFishData : public FishMidlineData
     if(controlFac>0) {
       const double _vA = velPID, _rA = valPID;
       // construct the curvature
-      for(unsigned int i=0; i<Nm; i++) {
+      for(int i=0; i<Nm; i++) {
         const double darg = 2.*M_PI* _1oT;
         const double arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL/waveLength) + M_PI*phaseShift;
         rK[i] =   rC[i]*(std::sin(arg)     +rB[i]+_rA)*controlFac;
@@ -1670,7 +1671,7 @@ class CurvatureDefinedFishData : public FishMidlineData
       }
     } else {
       // construct the curvature
-      for(unsigned int i=0; i<Nm; i++) {
+      for(int i=0; i<Nm; i++) {
         const double darg = 2.*M_PI* _1oT;
         const double arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL/waveLength) + M_PI*phaseShift;
         rK[i] =   rC[i]*(std::sin(arg)      + rB[i] + rA[i]);
@@ -2030,7 +2031,7 @@ struct PutFishOnBlocks
 
     {
       Real * const chi = &(defblock->chi[0][0][0]);
-      Real * const udef = &(defblock->udef[0][0][0][0]);
+      // Real * const udef = &(defblock->udef[0][0][0][0]);
 
       static const int n = FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX;
       for(int i=0; i<n; i++) {
@@ -2042,7 +2043,7 @@ struct PutFishOnBlocks
     }
 
     // construct the shape (P2M with min(distance) as kernel) onto defblocks
-    for(int i=0;i<vSegments.size();++i) {
+    for(int i=0;i<(int)vSegments.size();++i) {
       //iterate over segments contained in the vSegm intersecting this block:
       const int firstSegm =max(vSegments[i].s_range.first,cfish->iFishStart);
       const int lastSegm = min(vSegments[i].s_range.second, cfish->iFishEnd);
@@ -2134,7 +2135,7 @@ struct PutFishOnBlocks
               const Real diff[3] = {p[0]-myP[0], p[1]-myP[1], p[2]-myP[2]};
               const Real distSq = pow(diff[0],2)+pow(diff[1],2)+pow(diff[2],2);
               int close;
-              const Real distToMidlineSq=getSmallerDistToMidline(ss,p,close);
+              // const Real distToMidlineSq=getSmallerDistToMidline(ss,p,close);
 
               changeFromComputationalFrame(p);
               const Real distH = std::sqrt(
@@ -2179,7 +2180,7 @@ struct PutFishOnBlocks
 
     // construct the deformation velocities (P2M with hat function as kernel)
 
-    for(int i=0;i<vSegments.size();++i)
+    for(int i=0;i<(int)vSegments.size();++i)
     {
     for(int ss=vSegments[i].s_range.first;ss<=vSegments[i].s_range.second;++ss)
     {

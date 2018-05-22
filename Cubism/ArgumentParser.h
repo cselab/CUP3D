@@ -72,10 +72,10 @@ public:
 class ArgumentParser
 {
 protected:
+	map<string,Value> mapArguments;
 	int iArgC;
 	char** vArgV;
 	bool bStrictMode, bVerbose;
-	map<string,Value> mapArguments;
 
 public:
 

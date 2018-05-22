@@ -17,9 +17,8 @@ void IF3D_ForcedSphereObstacleOperator::_parseArguments(ArgumentParser & parser)
   bForcedInSimFrame[0] = true;
   bForcedInSimFrame[1] = true;
   bForcedInSimFrame[2] = true;
-  parser.set_strict_mode();
   accel_decel = parser("-accel").asBool(false);
-  umax = parser("-xvel").asDouble();
+  umax = parser("-xvel").asDouble(0.0);
   tmax = parser("-T").asDouble(1.);
 }
 

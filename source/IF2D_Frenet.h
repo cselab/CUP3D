@@ -33,7 +33,7 @@ struct IF2D_Frenet2D
         Real vKsiX = 0.0;
         Real vKsiY = 0.0;
 
-        for(unsigned int i=1; i<Nm; i++)
+        for(int i=1; i<Nm; i++)
         {
             // compute derivatives positions
             const Real dksiX = curv[i-1]*norX[i-1];

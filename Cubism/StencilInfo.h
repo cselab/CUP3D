@@ -20,12 +20,10 @@ typedef float Real;
 typedef double Real;
 #endif
 
-using namespace std;
-
 struct StencilInfo
 {
 	int sx, sy, sz, ex, ey, ez;
-	vector<int> selcomponents;
+    std::vector<int> selcomponents;
 	
 	bool tensorial;
 	
@@ -50,6 +48,25 @@ struct StencilInfo
 		}
 	}
 
+	StencilInfo(int sx, int sy, int sz,
+                int ex, int ey, int ez,
+                bool tensorial,
+                const std::vector<int> &components)
+            : sx(sx), sy(sy), sz(sz),
+              ex(ex), ey(ey), ez(ez),
+              selcomponents(components),
+              tensorial(tensorial)
+	{
+		assert(selcomponents.size() > 0);
+
+		if (!isvalid())
+		{
+			std::cout << "Stencilinfo instance not valid. Aborting\n";
+			abort();
+		}
+	}
+
+
 	StencilInfo(const StencilInfo& c): 
 		sx(c.sx), sy(c.sy), sz(c.sz), 
 		ex(c.ex), ey(c.ey), ez(c.ez),
@@ -57,10 +74,10 @@ struct StencilInfo
 	{
 	}	
 	
-	vector<int> _all() const 
+    std::vector<int> _all() const
 	{
 		int extra[] = {sx, sy, sz, ex, ey, ez, (int)tensorial};
-		vector<int> all(selcomponents);
+        std::vector<int> all(selcomponents);
 		all.insert(all.end(), extra, extra + sizeof(extra)/sizeof(int));
 		
 		return all;
@@ -68,7 +85,7 @@ struct StencilInfo
 	
 	bool operator<(StencilInfo s) const
 	{
-		vector<int> me = _all(), you = s._all();
+        std::vector<int> me = _all(), you = s._all();
 		
 		const int N = min(me.size(), you.size());
 		

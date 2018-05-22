@@ -13,9 +13,9 @@
 
 class IF3D_ObstacleFactory
 {
-  const Real* const Uinf;
   int rank;
   FluidGridMPI * grid;
+  const Real * const Uinf;
   int _getlines(std::string filename);
 
 public:

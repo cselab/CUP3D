@@ -422,6 +422,29 @@ public:
 		}
 	}
 
+#ifndef NDEBUG
+    void _assert_valid_read(int ix, int iy, int iz) const
+    {
+		assert(m_state == eMRAGBlockLab_Loaded);
+
+		const int nX = m_cacheBlock->getSize()[0];
+		const int nY = m_cacheBlock->getSize()[1];
+		const int nZ = m_cacheBlock->getSize()[2];
+
+		assert(ix-m_stencilStart[0]>=0 && ix-m_stencilStart[0]<nX);
+		assert(iy-m_stencilStart[1]>=0 && iy-m_stencilStart[1]<nY);
+		assert(iz-m_stencilStart[2]>=0 && iz-m_stencilStart[2]<nZ);
+
+        if (!istensorial) {
+            const int is_ghostx = ix < 0 || ix >= TBlock::sizeX;
+            const int is_ghosty = iy < 0 || iy >= TBlock::sizeY;
+            const int is_ghostz = iz < 0 || iz >= TBlock::sizeZ;
+            assert(is_ghostx + is_ghosty + is_ghostz <= 1
+                   && "You forgot tensorial!");
+        }
+    }
+#endif
+
 	/**
 	 * Get a single element from the block.
 	 * stencil_start and stencil_end refer to the values passed in BlockLab::prepare().
@@ -433,15 +456,7 @@ public:
 	ElementType& operator()(int ix, int iy=0, int iz=0)
 	{
 #ifndef NDEBUG
-		assert(m_state == eMRAGBlockLab_Loaded);
-
-		const int nX = m_cacheBlock->getSize()[0];
-		const int nY = m_cacheBlock->getSize()[1];
-		const int nZ = m_cacheBlock->getSize()[2];
-
-		assert(ix-m_stencilStart[0]>=0 && ix-m_stencilStart[0]<nX);
-		assert(iy-m_stencilStart[1]>=0 && iy-m_stencilStart[1]<nY);
-		assert(iz-m_stencilStart[2]>=0 && iz-m_stencilStart[2]<nZ);
+        _assert_valid_read(ix, iy, iz);
 #endif
 		return m_cacheBlock->Access(ix-m_stencilStart[0], iy-m_stencilStart[1], iz-m_stencilStart[2]);
 	}
@@ -450,17 +465,8 @@ public:
 	const ElementType& read(int ix, int iy=0, int iz=0) const
 	{
 #ifndef NDEBUG
-		assert(m_state == eMRAGBlockLab_Loaded);
-
-		const int nX = m_cacheBlock->getSize()[0];
-		const int nY = m_cacheBlock->getSize()[1];
-		const int nZ = m_cacheBlock->getSize()[2];
-
-		assert(ix-m_stencilStart[0]>=0 && ix-m_stencilStart[0]<nX);
-		assert(iy-m_stencilStart[1]>=0 && iy-m_stencilStart[1]<nY);
-		assert(iz-m_stencilStart[2]>=0 && iz-m_stencilStart[2]<nZ);
+        _assert_valid_read(ix, iy, iz);
 #endif
-
 		return m_cacheBlock->Access(ix-m_stencilStart[0], iy-m_stencilStart[1], iz-m_stencilStart[2]);
 	}
 

@@ -50,7 +50,7 @@ void IF3D_CarlingFishOperator::_parseArguments(ArgumentParser & parser)
       double phiHinge = parser("-phiHingeDeg").asDouble();
       myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge,aHinge,phiHinge, 0.0);
     }else{
-      const bool equalHeight = length*parser("-equalHeight").asBool();
+      const bool equalHeight = length && parser("-equalHeight").asBool();
       //myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge, amplitude*0.625); // 0.625 necessary to have dx>0 when lambda>=0.5
       myFish = new CarlingFishMidlineData(Nm, length, Tperiod, phaseShift, dx_extension,sHinge, 0.0, equalHeight);
     }
