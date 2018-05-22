@@ -70,8 +70,6 @@ mapBlock2Segs IF3D_FishOperator::prepare_segPerBlock(const aryVolSeg&vSegments)
       assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
       obstacleBlocks[info.blockID] = new ObstacleBlock;
       obstacleBlocks[info.blockID]->clear();
-      //obstacleBlocks[info.blockID]->hinge2Index = hinge2Index;
-      //obstacleBlocks[info.blockID]->saveHinge2Loc(hinge2Loc);
     }
   }
   return segmentsPerBlock;
@@ -233,9 +231,6 @@ void IF3D_FishOperator::create(const int step_id,const double time, const double
 
   apply_pid_corrections(time, dt, Uinf);
 
-  //Store torque on hingedSection from previous step
-  myFish->torqueZsecMarkers = this->torqueZsection;
-
   // 1.
   myFish->computeMidline(time);
   #ifdef __useSkin_
@@ -244,16 +239,6 @@ void IF3D_FishOperator::create(const int step_id,const double time, const double
 
   // 2. & 3.
   integrateMidline();
-
-  int hinge2Index=-1;
-  do{
-    hinge2Index++;
-  } while (myFish->rS[hinge2Index] < myFish->sHinge2);
-
-  // First, get this location in FishFrame, then convert to labFrame
-  double hinge2Loc[3] = {myFish->rX[hinge2Index], myFish->rY[hinge2Index], 0.0};
-  PutFishOnBlocks dummy(myFish, position, quaternion);
-  dummy.changeToComputationalFrame(hinge2Loc);
 
   //CAREFUL: this func assumes everything is already centered around CM to start with, which is true (see steps 2. & 3. ...) for rX, rY: they are zero at CM, negative before and + after
 

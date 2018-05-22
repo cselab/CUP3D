@@ -325,9 +325,6 @@ class FishMidlineData
   Real oldTime = 0.0;
   bool firstStep = true;
 
-  const bool bDoubleHinge=false;
-  double sHinge2=0.0, torqueZsecMarkers=0.0, tOld=0.0, dTheta2=0.0;
-
   double linMom[2], vol, J, angMom; // for diagnostics
   // start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
   Schedulers::ParameterSchedulerVector<6> curvScheduler;
