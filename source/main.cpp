@@ -39,15 +39,7 @@ int main(int argc, char **argv)
   }
   parser.unset_strict_mode();
 
-  const bool io_job = parser("-saveSplicer").asBool(false);
-  if (io_job) {
-    Save_splicer * sim = new Save_splicer(argc, argv);
-    sim->run();
-    MPI_Finalize();
-    return 0;
-  }
-
-  Simulation * sim = new Simulation(MPI_COMM_WORLD, nullptr, argc, argv);
+  Simulation * sim = new Simulation(MPI_COMM_WORLD, argc, argv);
   sim->init();
   sim->simulate();
 
