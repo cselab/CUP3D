@@ -23,7 +23,7 @@ class CurvatureDefinedFishData : public FishMidlineData
   Real * const vA;
   double controlFac = -1, valPID = 0;
   double controlVel = 0, velPID = 0;
-  void computeWidthsHeights() override;
+  void computeWidthsHeights();
  public:
 
   CurvatureDefinedFishData(const int Nm, const double length, const double Tperiod, const double phaseShift, const double dx_ext)

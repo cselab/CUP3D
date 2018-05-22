@@ -50,8 +50,7 @@ public:
   //forced obstacles:
   double transVel_computed[3]= {0,0,0}, angVel_computed[3]= {0,0,0};
   double ext_X, ext_Y, ext_Z;
-  double torqueZsection=0.0; 
- 
+
   // stuff dealing with frame of reference:
   bool bFixFrameOfRef[3] = {false, false, false};
   bool bForcedInSimFrame[3] = {false, false, false};
@@ -78,9 +77,9 @@ public:
     };
     const double maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
     const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
-    sr.ext_X = ext_X = scale[0]*extent;
-    sr.ext_Y = ext_Y = scale[1]*extent;
-    sr.ext_Z = ext_Z = scale[2]*extent;
+    sr.ext_X = scale[0]*extent; ext_X = scale[0]*extent;
+    sr.ext_Y = scale[1]*extent; ext_Y = scale[1]*extent;
+    sr.ext_Z = scale[2]*extent; ext_Z = scale[2]*extent;
     if(!rank)
     printf("Got sim extents %g %g %g\n", sr.ext_X, sr.ext_Y, sr.ext_Z);
     _parseArguments(parser);

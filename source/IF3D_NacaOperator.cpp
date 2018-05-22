@@ -10,8 +10,85 @@
 #include "IF3D_FishLibrary.h"
 #include "GenericOperator.h"
 
-IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u)
-: IF3D_FishOperator(g, p, u), bCreated(false)
+class NacaMidlineData : public FishMidlineData
+{
+ protected:
+
+  inline Real _naca_width(const double s, const Real L, const double t_ratio=0.12)
+  {
+    if(s<0 or s>L) return 0;
+    const Real a = 0.2969;
+    const Real b =-0.1260;
+    const Real c =-0.3516;
+    const Real d = 0.2843;
+    const Real e =-0.1015;
+    //const Real t = 0.12*L;
+    const Real t = t_ratio*L;
+    const Real p = s/L;
+
+    /*
+    if(s>0.99*L){ // Go linear, otherwise trailing edge is not closed - NACA analytical's fault
+      const Real temp = 0.99;
+      const Real y1 = 5*t* (a*sqrt(temp) +b*temp +c*temp*temp +d*temp*temp*temp + e*temp*temp*temp*temp);
+      const Real dydx = (0-y1)/(L-0.99*L);
+      return y1 + dydx * (s - 0.99*L);
+    }else{ // NACA analytical
+      return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+    }
+    */
+
+    return 5*t* (a*std::sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+  }
+
+ public:
+  NacaMidlineData(const int Nm, const double length, const double dx_ext,
+    double zExtent, double HoverL=1) : FishMidlineData(Nm,length,1,0,dx_ext)
+  {
+    /*
+        const int nw = 7;
+        const Real xw[nw] = {0., 0., length*.25, length*.5, length*.75, length, length};
+        const Real yw[nw] = {0, .5*length, .5*length, .5*length, .5*length, .5*length, 0};
+    */
+    //just overwrite default width and height
+    const int nh = 5;
+    double xh[] = {0., 0., length*.5, length, length};
+
+    #if defined(BC_PERIODICZ)
+      // large enough in z-dir such that we for sure fill entire domain
+      double yh[] = {0, zExtent, zExtent, zExtent, 0};
+    #else
+      double yh[] = {0, length*HoverL/2, length*HoverL/2, length*HoverL/2, 0};
+    #endif
+
+    integrateBSpline(height, xh, yh, nh);
+    for(int i=0;i<Nm;++i) width[i]  = _naca_width(rS[i], length);
+
+    computeMidline(0);
+
+    #if 0
+      int rank;
+      MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+      if (rank!=0) return;
+      FILE * f = fopen("fish_profile","w");
+      for (int i=0; i<Nm; ++i) printf("%g %g %g %g %g\n",
+      rX[i],rY[i],rS[i],width[i],height[i]);
+      fclose(f);
+      printf("Dumped midline\n");
+    #endif
+  }
+  void computeMidline(const double time) override
+  {
+    rX[0] = rY[0] = vX[0] = vY[0] = 0;
+    for(int i=1; i<Nm; ++i) {
+      rY[i] = vX[i] = vY[i] = 0;
+      rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
+    }
+    _computeMidlineNormals();
+  }
+};
+
+IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
+  const Real*const u) : IF3D_FishOperator(g, p, u), bCreated(false)
 {
   _parseArguments(p);
   const int Nextension = NEXTDX*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
@@ -19,13 +96,11 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p, const Rea
   const double dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
   const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1.)) + 1;
   if (obstacleID) {
-    printf("THIS OBSTACLE WORKS ONLY FOR SINGLE OBSTACLE!\n BLAME HIGH PUBLIC DEFICIT\n");
+    printf("IF3D_NacaOperator WORKS ONLY FOR SINGLE OBSTACLE!\n");
     MPI_Abort(grid->getCartComm(),0);
   }
-  printf("%d %f %f\n",Nm,length,dx_extension);
-  fflush(0);
 
-  myFish = new NacaMidlineData(Nm, length,dx_extension);
+  myFish = new NacaMidlineData(Nm, length, dx_extension, ext_Z);
 }
 
 void IF3D_NacaOperator::_parseArguments(ArgumentParser & parser)
@@ -35,16 +110,16 @@ void IF3D_NacaOperator::_parseArguments(ArgumentParser & parser)
   bFixFrameOfRef[0] = true;
   bFixFrameOfRef[1] = false;
   bFixFrameOfRef[2] = false;
-  bForcedInSimFrame[0] = false; 
-  bForcedInSimFrame[1] = true; 
+  bForcedInSimFrame[0] = false;
+  bForcedInSimFrame[1] = true;
   bForcedInSimFrame[2] = true;// meaning that velocity cannot be changed by penalization
   #if 1
       Apitch = parser("-Apitch").asDouble(0.0); //aplitude of sinusoidal pitch angle
       Fpitch = parser("-Fpitch").asDouble(0.0); //frequency
       Ppitch = parser("-Ppitch").asDouble(0.0); //phase wrt to rowing motion
       Mpitch = parser("-Mpitch").asDouble(0.0); //mean angle
-      Fheave = parser("-Fheave").asDouble(0.0);     //frequency of rowing motion
-      Aheave = parser("-Aheave").asDouble(0.0); //amplitude
+      Fheave = parser("-Fheave").asDouble(0.0); //frequency of rowing motion
+      Aheave = parser("-Aheave").asDouble(0.0); //amplitude (NON DIMENSIONAL)
   #else
       ifstream reader("params.txt");
       if (reader.is_open()) {
@@ -71,7 +146,7 @@ void IF3D_NacaOperator::update(const int stepID, const double t, const double dt
 {
     //position[0]+= dt*transVel[0];
     //position[1]=    0.25 +          Aheave * std::cos(2*M_PI*Fheave*t);
-    transVel[1]=-2*M_PI * Fheave * Aheave * std::sin(2*M_PI*Fheave*t);
+    transVel[1] = -2*M_PI * Fheave * Aheave * std::sin(2*M_PI*Fheave*t);
     transVel[2] = 0;
     //position[2]+= dt*transVel[2];
 
@@ -99,14 +174,13 @@ void IF3D_NacaOperator::update(const int stepID, const double t, const double dt
 
 void IF3D_NacaOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
 {
-  if (!bCreated)
-  IF3D_FishOperator::create(step_id,time, dt, Uinf);
+  if (!bCreated) IF3D_FishOperator::create(step_id, time, dt, Uinf);
 }
 
 void IF3D_NacaOperator::finalize(const int step_id,const double time, const double dt, const Real *Uinf)
 {
   if (!bCreated) {
-  bCreated = true;
-  IF3D_FishOperator::finalize(step_id,time, dt, Uinf);
+    bCreated = true;
+    IF3D_FishOperator::finalize(step_id,time, dt, Uinf);
   } else characteristic_function();
 }

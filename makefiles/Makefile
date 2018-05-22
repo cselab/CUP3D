@@ -161,9 +161,9 @@ OBJECTS =  IF3D_VortexOperator.o \
            Profiler.o \
            Simulation.o \
            ProcessOperatorsOMP.o \
+           IF3D_NacaOperator.o \
            IF3D_DCylinderObstacleOperator.o
            #IF3D_DeadFishOperator.o \
-           #IF3D_NacaOperator.o \
            #IF3D_CarlingFishOperator.o \
 
 ifeq "$(accfft)" "true"

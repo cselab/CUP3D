@@ -160,9 +160,9 @@ protected:
       }
     }
 
-    if(labs!=NULL) {
+    if(labs != nullptr) {
       delete [] labs;
-      labs=NULL;
+      labs = nullptr;
     }
 
     MPI_Barrier(grid->getCartComm());

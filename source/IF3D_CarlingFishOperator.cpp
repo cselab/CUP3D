@@ -69,7 +69,4 @@ void IF3D_CarlingFishOperator::execute(const int i, const double t, const vector
 void IF3D_CarlingFishOperator::computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump)
 {
   IF3D_ObstacleOperator::computeForces(stepID, time, dt, Uinf, NU, bDump);
-
-  // The torque at hinge2
-  this->torqueZsection = sum[23];
 }

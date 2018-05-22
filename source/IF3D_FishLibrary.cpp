@@ -824,32 +824,6 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
 }
 
 #if 0
-inline Real _naca_width(const double s, const Real L, const double t_ratio=0.12)
-{
-  if(s<0 or s>L) return 0;
-  const Real a = 0.2969;
-  const Real b =-0.1260;
-  const Real c =-0.3516;
-  const Real d = 0.2843;
-  const Real e =-0.1015;
-  //const Real t = 0.12*L;
-  const Real t = t_ratio*L;
-  const Real p = s/L;
-
-  /*
-  if(s>0.99*L){ // Go linear, otherwise trailing edge is not closed - NACA analytical's fault
-    const Real temp = 0.99;
-    const Real y1 = 5*t* (a*sqrt(temp) +b*temp +c*temp*temp +d*temp*temp*temp + e*temp*temp*temp*temp);
-    const Real dydx = (0-y1)/(L-0.99*L);
-    return y1 + dydx * (s - 0.99*L);
-  }else{ // NACA analytical
-    return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
-  }
-  */
-
-  return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
-}
-
 inline Real _width(const Real s, const Real L)
 {
   if(s<0 or s>L) return 0;
@@ -870,98 +844,6 @@ inline Real _height(const Real s, const Real L)
   const double b=0.08*L;
   return b*std::sqrt(1 - std::pow((s-a)/a,2));
 }
-
-class NacaMidlineData : public FishMidlineData
-{
- protected:
-
-  void _naca_integrateBSpline(Real* const res, const double* const xc,
-                           const double* const yc, const int n)
-  {
-    double len = 0;
-    for (int i=0; i<n-1; i++)
-      len += std::sqrt(std::pow(xc[i]-xc[i+1],2) +
-                       std::pow(yc[i]-yc[i+1],2));
-
-    gsl_bspline_workspace *bw;
-    gsl_vector *B;
-    // allocate a cubic bspline workspace (k = 4)
-    bw = gsl_bspline_alloc(4, n-2);
-    B = gsl_vector_alloc(n);
-    gsl_bspline_knots_uniform(0.0, len, bw);
-
-    double ti = 0;
-    for(int i=0;i<Nm;++i) {
-      res[i] = 0;
-      if (rS[i]>0 and rS[i]<length) {
-        const double dtt = 0.1*(rS[i]-rS[i-1]);
-        while (true) {
-          double xi = 0;
-          gsl_bspline_eval(ti, B, bw);
-          for (int j=0; j<n; j++)
-            xi += xc[j]*gsl_vector_get(B, j);
-          if (xi >= rS[i]) break;
-          ti += dtt;
-        }
-
-        for (int j=0; j<n; j++)
-          res[i] += yc[j]*gsl_vector_get(B, j);
-      }
-    }
-    gsl_bspline_free(bw);
-    gsl_vector_free(B);
-  }
-
-  void _naca_computeWidthsHeights()
-  {
-    /*
-        const int nw = 7;
-        const Real xw[nw] = {0., 0., length*.25, length*.5, length*.75, length, length};
-        const Real yw[nw] = {0, .5*length, .5*length, .5*length, .5*length, .5*length, 0};
-    */
-    const int nw = 5;
-    const double xw[nw] = {0., 0., length*.5, length, length};
-    const double yw[nw] = {0, .5*length, .5*length, .5*length, 0};
-
-    _naca_integrateBSpline(width, xw, yw, nw);
-    for(int i=0;i<Nm;++i)
-      height[i]  = _naca_width(rS[i],length);
-  }
-
- public:
-  NacaMidlineData(const int Nm, const double length, const double dx_ext) :
-  FishMidlineData(Nm,length,1,0,dx_ext)
-  {
-    //just overwrite default width and height
-    _naca_computeWidthsHeights();
-    rX[0] = rY[0] = vX[0] = vY[0] = 0;
-    for(int i=1; i<Nm; ++i) {
-      rY[i] = vX[i] = vY[i] = 0;
-      rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
-    }
-    _computeMidlineNormals();
-    #if 0
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-      if (rank!=0) return;
-      FILE * f = fopen("fish_profile","w");
-      for (int i=0; i<Nm; ++i) printf("%g %g %g %g %g\n",
-      rX[i],rY[i],rS[i],width[i],height[i]);
-      fclose(f);
-      printf("Dumped midline\n");
-    #endif
-  }
-  void computeMidline(const double time) override
-  {
-    rX[0] = rY[0] = vX[0] = vY[0] = 0;
-    for(int i=1; i<Nm; ++i) {
-      rY[i] = vX[i] = vY[i] = 0;
-      rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
-    }
-    _computeMidlineNormals();
-  }
-};
-
 
 class CarlingFishMidlineData : public FishMidlineData
 {

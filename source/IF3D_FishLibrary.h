@@ -415,7 +415,6 @@ class FishMidlineData
                                          const double* const yc, const int n);
 
   void _computeMidlineNormals();
-  virtual void computeWidthsHeights() = 0;
 
  public:
   FishMidlineData(const int _Nm, const double len, const double Tp, const double phase, const double dx_ext):
