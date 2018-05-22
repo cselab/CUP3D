@@ -149,13 +149,11 @@ SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
 OBJECTS =  IF3D_VortexOperator.o \
-           IF3D_NacaOperator.o \
            IF3D_ObstacleFactory.o \
            IF3D_ObstacleOperator.o \
+           IF3D_FishLibrary.o \
            IF3D_ObstacleVector.o \
            IF3D_StefanFishOperator.o \
-           IF3D_DeadFishOperator.o \
-           IF3D_CarlingFishOperator.o \
            IF3D_FishOperator.o \
            IF3D_ForcedSphereObstacleOperator.o \
            IF3D_SphereObstacleOperator.o \
@@ -164,6 +162,9 @@ OBJECTS =  IF3D_VortexOperator.o \
            Simulation.o \
            ProcessOperatorsOMP.o \
            IF3D_DCylinderObstacleOperator.o
+           #IF3D_DeadFishOperator.o \
+           #IF3D_NacaOperator.o \
+           #IF3D_CarlingFishOperator.o \
 
 ifeq "$(accfft)" "true"
 	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -D_CUDA_COMP_
