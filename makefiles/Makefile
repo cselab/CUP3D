@@ -177,6 +177,7 @@ endif
 EXEOBJ = $(OBJECTS)  main.o
 LIBOBJ = $(OBJECTS) cubism_main.o
 LIBRLOBJ = $(OBJECTS) ext_app_main.o
+VPATH := $(VPATH):$(SRC_DIR):$(CUBISM_DIR)
 ALLOBJ := $(sort $(EXEOBJ) $(LIBOBJ) $(LIBRLOBJ) $(NVOBJECTS))  # `sort` removes duplicates.
 DEPS := $(ALLOBJ:%.o=%.d)
 
