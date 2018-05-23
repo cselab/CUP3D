@@ -133,12 +133,30 @@ CPPFLAGS+= -D_USE_HDF_ #-I$(hdf-inc)
 LIBS+= -lhdf5 #-L$(hdf-lib) -lhdf5
 endif
 
+#################################################
+# FFTW
+#################################################
+
+# `FFTW_INC` and `FFTW_DIR` are for custom installation. Names are in fact
+# compatible with `module load`, so the `else` statement should work for daint
+# too.
+ifneq ($(FFTW_INC),)
+	CPPFLAGS += -I$(FFTW_INC)
+endif
+ifeq ($(FFTW_DIR),)
 ifeq "$(precision)" "single"
-	LIBS += -lfftw3f -lfftw3f_threads -lfftw3f_mpi
+	FFTW_LIBS = -lfftw3f_threads -lfftw3f_mpi -lfftw3f
+else
+	FFTW_LIBS = -lfftw3_omp -lfftw3_mpi -lfftw3
 endif
-ifeq "$(precision)" "double"
-	LIBS += -lfftw3 -lfftw3_threads -lfftw3_mpi
+else
+ifeq "$(precision)" "single"
+	FFTW_LIBS = $(FFTW_DIR)/libfftw3f_threads.a $(FFTW_DIR)/libfftw3f_mpi.a $(FFTW_DIR)/libfftw3f.a
+else
+	FFTW_LIBS = $(FFTW_DIR)/libfftw3_threads.a $(FFTW_DIR)/libfftw3_mpi.a $(FFTW_DIR)/libfftw3.a
 endif
+endif
+
 
 #LIBS += -L../tools/fpzip/lib -lfpzip
 
@@ -172,6 +190,7 @@ ifeq "$(accfft)" "true"
 	NVOBJECTS = PoissonSolverScalarFFTW_ACC.o
 else
 	NVOBJECTS =
+	LIBS += $(FFTW_LIBS)
 	OBJECTS += PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o
 endif
 
@@ -193,7 +212,7 @@ simulation: $(EXEOBJ) $(NVOBJECTS)
 	$(LD) $(EXEOBJ) $(NVOBJECTS) $(LIBS) $(LDFLAGS) -o $@
 
 lib: $(LIBOBJ) $(NVOBJECTS)
-	ar rs libsimulation.a $(LIBOBJ) $(NVOBJECTS)
+	ar rs libsimulation.a $(FFTW_LIBS) $(LIBOBJ) $(NVOBJECTS)
 
 librl: $(LIBRLOBJ) $(NVOBJECTS)
 	ar rs libsim_rl.a $(LIBRLOBJ) $(NVOBJECTS)
@@ -201,15 +220,15 @@ librl: $(LIBRLOBJ) $(NVOBJECTS)
 -include $(DEPS)
 
 %.o: %.cpp
-	$(CC) $(CPPFLAGS) $(LIBS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
+	$(CC) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 
 PoissonSolverScalarFFTW_ACC.o: PoissonSolverScalarFFTW_ACC.cu
 	nvcc $(NVFLAGS) -c $< -o $@
 
 clean:
-	rm -f $(OBJECTS)
+	rm -f $(EXEOBJ) $(LIBOBJ)
 	rm -f $(DEPS)
-	rm -f simulation Communicator.o libsimulation.a main.o cubism_main.o PoissonSolverScalarFFTW*.o
+	rm -f simulation Communicator.o libsimulation.a PoissonSolverScalarFFTW*.o
 
 ifeq "$(config)" "prod"
 else

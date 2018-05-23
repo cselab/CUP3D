@@ -39,7 +39,7 @@ int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
     cout << "====================================================================================================================\n";
   }
 
-  Simulation * sim = new Simulation(app_comm, nullptr, argc, argv);
+  Simulation * sim = new Simulation(app_comm, argc, argv);
   sim->init();
   sim->simulate();
   delete sim;

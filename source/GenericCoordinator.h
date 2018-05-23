@@ -35,8 +35,11 @@ protected:
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         if (std::isnan(b(ix,iy,iz).u) || std::isnan(b(ix,iy,iz).v) ||
-            std::isnan(b(ix,iy,iz).w) || std::isnan(b(ix,iy,iz).p) )
-          cout << infoText.c_str() << endl;
+            std::isnan(b(ix,iy,iz).w) || std::isnan(b(ix,iy,iz).p) ) {
+          fflush(stderr);
+          std::cout << "GenericCoordinator::check isnan " << infoText.c_str() << std::endl;
+          MPI_Abort(comm, 1);
+        }
     }
     MPI_Barrier(comm);
     #endif

@@ -10,6 +10,8 @@
 #define CubismUP_3D_Operator_h
 #include "Definitions.h"
 
+#include <array>
+
 class GenericOperator
 {
 public:
@@ -19,8 +21,8 @@ public:
 class GenericLabOperator
 {
 public:
-  int stencil_start[3];
-  int stencil_end[3];
+  std::array<int, 3> stencil_start;
+  std::array<int, 3> stencil_end;
   StencilInfo stencil;
   // cannot put the templated operator here!
 };
