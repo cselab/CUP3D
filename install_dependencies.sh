@@ -82,7 +82,7 @@ Arguments:
   -a,  --all    - Install all available libraries and tools
   -e,  --export - Print export commands for all libraries and tools
                   (assuming they are installed)
-  --camke       - Install CMake ${CMAKE_VERSION} (required at least 3.2)
+  --cmake       - Install CMake ${CMAKE_VERSION} (required at least 3.2)
   --fftw        - Install FFTW ${FFTW_VERSION}
   --hdf5        - Install HDF5 ${HDF5_VERSION}
   --gsl         - Install GSL ${GSL_VERSION}
