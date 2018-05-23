@@ -44,23 +44,12 @@ class NacaMidlineData : public FishMidlineData
   NacaMidlineData(const int Nm, const double length, const double dx_ext,
     double zExtent, double HoverL=1) : FishMidlineData(Nm,length,1,0,dx_ext)
   {
-    /*
-        const int nw = 7;
-        const Real xw[nw] = {0., 0., length*.25, length*.5, length*.75, length, length};
-        const Real yw[nw] = {0, .5*length, .5*length, .5*length, .5*length, .5*length, 0};
-    */
-    //just overwrite default width and height
-    const int nh = 5;
-    double xh[] = {0., 0., length*.5, length, length};
-
     #if defined(BC_PERIODICZ)
       // large enough in z-dir such that we for sure fill entire domain
-      double yh[] = {0, zExtent, zExtent, zExtent, 0};
+      for(int i=0;i<Nm;++i) height[i] = zExtent;
     #else
-      double yh[] = {0, length*HoverL/2, length*HoverL/2, length*HoverL/2, 0};
+      for(int i=0;i<Nm;++i) height[i] = length*HoverL/2;
     #endif
-
-    integrateBSpline(height, xh, yh, nh);
     for(int i=0;i<Nm;++i) width[i]  = _naca_width(rS[i], length);
 
     computeMidline(0);
@@ -90,36 +79,21 @@ class NacaMidlineData : public FishMidlineData
 IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
   const Real*const u) : IF3D_FishOperator(g, p, u), bCreated(false)
 {
-  _parseArguments(p);
-  const int Nextension = NEXTDX*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
-  const double target_Nm = TGTPPB*length/vInfo[0].h_gridpoint;
-  const double dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
-  const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1.)) + 1;
-  if (obstacleID) {
-    printf("IF3D_NacaOperator WORKS ONLY FOR SINGLE OBSTACLE!\n");
-    MPI_Abort(grid->getCartComm(),0);
-  }
-
-  myFish = new NacaMidlineData(Nm, length, dx_extension, ext_Z);
-}
-
-void IF3D_NacaOperator::_parseArguments(ArgumentParser & parser)
-{
-  IF3D_FishOperator::_parseArguments(parser);
   absPos[0] = 0;
-  bFixFrameOfRef[0] = true;
-  bFixFrameOfRef[1] = false;
-  bFixFrameOfRef[2] = false;
-  bForcedInSimFrame[0] = false;
-  bForcedInSimFrame[1] = true;
-  bForcedInSimFrame[2] = true;// meaning that velocity cannot be changed by penalization
+  //bFixFrameOfRef[0] = true;
+  //bFixFrameOfRef[1] = false;
+  //bFixFrameOfRef[2] = false;
+  //bForcedInSimFrame[0] = false;
+  //bForcedInSimFrame[1] = true;
+  //bForcedInSimFrame[2] = true;// meaning that velocity cannot be changed by penalization
+
   #if 1
-      Apitch = parser("-Apitch").asDouble(0.0); //aplitude of sinusoidal pitch angle
-      Fpitch = parser("-Fpitch").asDouble(0.0); //frequency
-      Ppitch = parser("-Ppitch").asDouble(0.0); //phase wrt to rowing motion
-      Mpitch = parser("-Mpitch").asDouble(0.0); //mean angle
-      Fheave = parser("-Fheave").asDouble(0.0); //frequency of rowing motion
-      Aheave = parser("-Aheave").asDouble(0.0); //amplitude (NON DIMENSIONAL)
+      Apitch = p("-Apitch").asDouble(0.0); //aplitude of sinusoidal pitch angle
+      Fpitch = p("-Fpitch").asDouble(0.0); //frequency
+      Ppitch = p("-Ppitch").asDouble(0.0); //phase wrt to rowing motion
+      Mpitch = p("-Mpitch").asDouble(0.0); //mean angle
+      Fheave = p("-Fheave").asDouble(0.0); //frequency of rowing motion
+      Aheave = p("-Aheave").asDouble(0.0); //amplitude (NON DIMENSIONAL)
   #else
       ifstream reader("params.txt");
       if (reader.is_open()) {
@@ -136,10 +110,23 @@ void IF3D_NacaOperator::_parseArguments(ArgumentParser & parser)
         abort();
       }
   #endif
-    Aheave *= length;
+  Aheave *= length;
+
   if(!rank)
-    printf("Naca: pos=%3.3f,Apitch=%3.3f,Fpitch=%3.3f,Ppitch=%3.3f,Mpitch=%3.3f,Frow=%3.3f,Arow=%3.3f\n",
-    position[0],Apitch,Fpitch,Ppitch,Mpitch,Fheave,Aheave);
+    printf("Naca: pos=%3.3f, Apitch=%3.3f, Fpitch=%3.3f,Ppitch=%3.3f, "
+    "Mpitch=%3.3f, Frow=%3.3f, Arow=%3.3f\n", position[0], Apitch, Fpitch,
+    Ppitch, Mpitch, Fheave, Aheave);
+
+  const int Nextension = NEXTDX*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
+  const double target_Nm = TGTPPB*length/vInfo[0].h_gridpoint;
+  const double dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
+  const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1.)) + 1;
+  if (obstacleID) {
+    printf("IF3D_NacaOperator WORKS ONLY FOR SINGLE OBSTACLE!\n");
+    MPI_Abort(grid->getCartComm(),0);
+  }
+
+  myFish = new NacaMidlineData(Nm, length, dx_extension, ext_Z);
 }
 
 void IF3D_NacaOperator::update(const int stepID, const double t, const double dt, const Real* Uinf)
@@ -174,13 +161,14 @@ void IF3D_NacaOperator::update(const int stepID, const double t, const double dt
 
 void IF3D_NacaOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
 {
-  if (!bCreated) IF3D_FishOperator::create(step_id, time, dt, Uinf);
+  //if (!bCreated)
+  IF3D_FishOperator::create(step_id, time, dt, Uinf);
 }
 
 void IF3D_NacaOperator::finalize(const int step_id,const double time, const double dt, const Real *Uinf)
 {
-  if (!bCreated) {
-    bCreated = true;
+  //if (!bCreated) {
+  //  bCreated = true;
     IF3D_FishOperator::finalize(step_id,time, dt, Uinf);
-  } else characteristic_function();
+  //} else characteristic_function();
 }

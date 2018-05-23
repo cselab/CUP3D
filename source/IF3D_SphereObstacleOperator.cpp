@@ -14,8 +14,7 @@
 
 void IF3D_SphereObstacleOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
 {
-  for(auto & entry : obstacleBlocks)
-      delete entry.second;
+  for(auto & entry : obstacleBlocks) delete entry.second;
   obstacleBlocks.clear();
 
   SphereObstacle::FillBlocks kernel(radius,vInfo[0].h_gridpoint,position);
@@ -24,7 +23,7 @@ void IF3D_SphereObstacleOperator::create(const int step_id,const double time, co
     //const auto pos = obstacleBlocks.find(info.blockID);
     if(kernel._is_touching(info)) { //position of sphere + radius + 2*h safety
       assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
-      obstacleBlocks[info.blockID] = new ObstacleBlock;
+      obstacleBlocks[info.blockID] = new ObstacleBlock();
       obstacleBlocks[info.blockID]->clear(); //memset 0
     }
   }

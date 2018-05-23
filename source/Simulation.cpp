@@ -322,7 +322,7 @@ void Simulation::simulate()
       printf("%d : %f uInf {%f %f %f}\n",step,time,uinf[0],uinf[1],uinf[2]);
 
     profiler.push_start("Save");
-      _serialize();
+    _serialize();
     profiler.pop_stop();
 
     if (step % 50 == 0 && !rank && verbose) profiler.printSummary();

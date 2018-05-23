@@ -257,8 +257,7 @@ void IF3D_PlateObstacleOperator::create(const int step_id,
                                         const double dt,
                                         const Real * const Uinf)
 {
-    for(auto &entry : obstacleBlocks)
-        delete entry.second;
+    for(auto & entry : obstacleBlocks) delete entry.second;
     obstacleBlocks.clear();
 
     PlateObstacle::FillBlocks kernel(position[0], position[1], position[2],
@@ -270,7 +269,7 @@ void IF3D_PlateObstacleOperator::create(const int step_id,
     for (const BlockInfo &info : vInfo) {
         if (kernel.isTouching(info)) {
             assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
-            ObstacleBlock * const block = new ObstacleBlock;
+            ObstacleBlock * const block = new ObstacleBlock();
             block->clear();
             obstacleBlocks[info.blockID] = block;
         }

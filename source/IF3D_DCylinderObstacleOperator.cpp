@@ -23,7 +23,7 @@ void IF3D_DCylinderObstacleOperator::create(const int step_id,const double time,
     //const auto pos = obstacleBlocks.find(info.blockID);
     if(kernel._is_touching(info)) { //position of sphere + radius + 2*h safety
       assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
-      obstacleBlocks[info.blockID] = new ObstacleBlock;
+      obstacleBlocks[info.blockID] = new ObstacleBlock();
       obstacleBlocks[info.blockID]->clear(); //memset 0
     }
   }

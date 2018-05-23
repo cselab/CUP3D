@@ -37,12 +37,15 @@ aryVolSeg IF3D_FishOperator::prepare_vSegments(const int Nsegments, const int Nm
       const Real yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
           myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss]};
       const Real zBnd[2] = {-myFish->height[ss], +myFish->height[ss]};
-      bbox[0][0] = std::min({bbox[0][0],xBnd[0],xBnd[1]});
-      bbox[0][1] = std::max({bbox[0][1],xBnd[0],xBnd[1]});
-      bbox[1][0] = std::min({bbox[1][0],yBnd[0],yBnd[1]});
-      bbox[1][1] = std::max({bbox[1][1],yBnd[0],yBnd[1]});
-      bbox[2][0] = std::min({bbox[2][0],zBnd[0],zBnd[1]});
-      bbox[2][1] = std::max({bbox[2][1],zBnd[0],zBnd[1]});
+      const Real maxX=std::max(xBnd[0],xBnd[1]), minX=std::min(xBnd[0],xBnd[1]);
+      const Real maxY=std::max(yBnd[0],yBnd[1]), minY=std::min(yBnd[0],yBnd[1]);
+      const Real maxZ=std::max(zBnd[0],zBnd[1]), minZ=std::min(zBnd[0],zBnd[1]);
+      bbox[0][0] = std::min(bbox[0][0], minX);
+      bbox[0][1] = std::max(bbox[0][1], maxX);
+      bbox[1][0] = std::min(bbox[1][0], minY);
+      bbox[1][1] = std::max(bbox[1][1], maxY);
+      bbox[2][0] = std::min(bbox[2][0], minZ);
+      bbox[2][1] = std::max(bbox[2][1], maxZ);
     }
     vSegments[i].prepare(std::make_pair(idx, next_idx), bbox); //create a new segment
     vSegments[i].changeToComputationalFrame(position,quaternion);
@@ -53,6 +56,11 @@ aryVolSeg IF3D_FishOperator::prepare_vSegments(const int Nsegments, const int Nm
 mapBlock2Segs IF3D_FishOperator::prepare_segPerBlock(const aryVolSeg&vSegments)
 {
   mapBlock2Segs segmentsPerBlock;
+
+  // clear deformation velocities
+  for(auto & entry : obstacleBlocks) delete entry.second;
+  obstacleBlocks.clear();
+
   for(int i=0; i<vInfo.size(); ++i) {
     const BlockInfo & info = vInfo[i];
     Real pStart[3], pEnd[3];
@@ -68,8 +76,10 @@ mapBlock2Segs IF3D_FishOperator::prepare_segPerBlock(const aryVolSeg&vSegments)
     // allocate new blocks if necessary
     if(segmentsPerBlock.find(info.blockID) != segmentsPerBlock.end()) {
       assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
-      obstacleBlocks[info.blockID] = new ObstacleBlock;
-      obstacleBlocks[info.blockID]->clear();
+      ObstacleBlock * const block = new ObstacleBlock();
+      assert(block not_eq nullptr);
+      obstacleBlocks[info.blockID] = block;
+      block->clear();
     }
   }
   return segmentsPerBlock;
@@ -177,7 +187,7 @@ void IF3D_FishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
     #pragma omp for schedule(dynamic)
     for(int i=0; i<vInfo.size(); i++) {
       BlockInfo info = vInfo[i];
-      auto pos = segmentsPerBlock.find(info.blockID);
+      const auto pos = segmentsPerBlock.find(info.blockID);
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
       if(pos != segmentsPerBlock.end()) {
@@ -272,10 +282,6 @@ void IF3D_FishOperator::create(const int step_id,const double time, const double
 
   // 4. & 5.
   const auto vSegments = prepare_vSegments(Nsegments, Nm);
-
-  // clear deformation velocities
-  for(auto & entry : obstacleBlocks) delete entry.second;
-  obstacleBlocks.clear();
 
   // 6. & 7.
   const auto segmentsPerBlock = prepare_segPerBlock(vSegments);

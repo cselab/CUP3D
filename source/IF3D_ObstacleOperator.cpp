@@ -220,18 +220,18 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
     bForcedInSimFrame[0] = bFSM_alldir || parser("-bForcedInSimFrame_x").asBool(false);
     bForcedInSimFrame[1] = bFSM_alldir || parser("-bForcedInSimFrame_y").asBool(false);
     bForcedInSimFrame[2] = bFSM_alldir || parser("-bForcedInSimFrame_z").asBool(false);
-    
-    if(bForcedInSimFrame[0]) {
+
+    if(bForcedInSimFrame[0] && !rank) {
       const double xvel = -parser("-xvel").asDouble(0);
       this->transVel[0] = xvel;
       printf("Obstacle forced to move relative to sim domain with constant x-vel:%f\n", xvel);
     }
-    if(bForcedInSimFrame[1]) {
+    if(bForcedInSimFrame[1] && !rank) {
       const double yvel = -parser("-yvel").asDouble(0);
       this->transVel[1] = yvel;
       printf("Obstacle forced to move relative to sim domain with constant y-vel:%f\n", yvel);
     }
-    if(bForcedInSimFrame[2]) {
+    if(bForcedInSimFrame[2] && !rank) {
       const double zvel = -parser("-zvel").asDouble(0);
       this->transVel[2] = zvel;
       printf("Obstacle forced to move relative to sim domain with constant z-vel:%f\n", zvel);
@@ -254,12 +254,14 @@ void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const dou
     std::ofstream savestream(ssR.str(), ios::out | ios::app);
     const std::string tab("\t");
 
-    if(step_id==0)
-        savestream<<"step"<<tab<<"time"<<tab<<"CMx"<<tab<<"CMy"<<tab<<"CMz"<<tab
+    if(step_id==0 && not printedHeaderVels) {
+      printedHeaderVels = true;
+      savestream<<"step"<<tab<<"time"<<tab<<"CMx"<<tab<<"CMy"<<tab<<"CMz"<<tab
       <<"quat_0"<<tab<<"quat_1"<<tab<<"quat_2"<<tab<<"quat_3"<<tab
       <<"vel_x"<<tab<<"vel_y"<<tab<<"vel_z"<<tab
       <<"angvel_x"<<tab<<"angvel_y"<<tab<<"angvel_z"<<tab<<"volume"<<tab
       <<"J0"<<tab<<"J1"<<tab<<"J2"<<tab<<"J3"<<tab<<"J4"<<tab<<"J5"<<std::endl;
+    }
 
     savestream<<step_id<<tab;
     savestream.setf(std::ios::scientific);
@@ -274,23 +276,23 @@ void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const dou
 
 void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const double t)
 {
- if(rank!=0) return;
- stringstream ssR;
- ssR<<"diagnosticsForces_"<<obstacleID<<".dat";
-    std::ofstream savestream(ssR.str(), ios::out | ios::app);
-    const std::string tab("\t");
+  if(rank!=0) return;
+  stringstream ssR;
+  ssR<<"diagnosticsForces_"<<obstacleID<<".dat";
+  std::ofstream savestream(ssR.str(), ios::out | ios::app);
+  const std::string tab("\t");
 
-    if(step_id==0)
-        savestream << "step" << tab << "time" << tab << "mass" << tab
-       << "force_x" << tab << "force_y" << tab << "force_z" << tab
-       << "torque_x" << tab << "torque_y" << tab << "torque_z" << std::endl;
+  if(step_id==0)
+    savestream << "step" << tab << "time" << tab << "mass" << tab
+     << "force_x" << tab << "force_y" << tab << "force_z" << tab
+     << "torque_x" << tab << "torque_y" << tab << "torque_z" << std::endl;
 
-    savestream << step_id << tab;
-    savestream.setf(std::ios::scientific);
-    savestream.precision(std::numeric_limits<float>::digits10 + 1);
-    savestream<<t<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
-        <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
-    savestream.close();
+  savestream << step_id << tab;
+  savestream.setf(std::ios::scientific);
+  savestream.precision(std::numeric_limits<float>::digits10 + 1);
+  savestream<<t<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
+      <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
+  savestream.close();
 }
 
 void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda)
@@ -362,7 +364,7 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
 
 void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 {
-  const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2]; 
+  const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2];
   double CM[3];
   this->getCenterOfMass(CM);
   const double h  = vInfo[0].h_gridpoint;

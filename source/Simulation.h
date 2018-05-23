@@ -77,8 +77,8 @@ class Simulation
   string path2file, path4serialization = "./";
 
   FluidGridMPI * grid = nullptr;
-  DumpGridMPI * dump = nullptr;
-  std::thread * dumper = nullptr;
+  //DumpGridMPI * dump = nullptr;
+  //std::thread * dumper = nullptr;
 
   vector<BlockInfo> vInfo;
   //The protagonist
@@ -103,7 +103,7 @@ class Simulation
   virtual ~Simulation()
   {
     delete grid;
-    delete dump;
+    //delete dump;
     while(!pipeline.empty()) {
       GenericCoordinator * g = pipeline.back();
       pipeline.pop_back();

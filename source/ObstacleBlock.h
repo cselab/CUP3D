@@ -24,16 +24,16 @@ struct surface_data
     dchidx(_dchidx), dchidy(_dchidy), dchidz(_dchidz), delta(_delta) {}
 };
 
-struct ObstacleBlock
+struct alignas(32) ObstacleBlock
 {
+  // bulk quantities:
+  __attribute__((aligned(32))) Real            chi[_BS_][_BS_][_BS_];
+  __attribute__((aligned(32))) Real           udef[_BS_][_BS_][_BS_][3];
+  __attribute__((aligned(32))) float sectionMarker[_BS_][_BS_][_BS_];
+
   static const int sizeX = _BS_;
   static const int sizeY = _BS_;
   static const int sizeZ = _BS_;
-
-  // bulk quantities:
-  __attribute__((aligned(32))) Real            chi[sizeZ][sizeY][sizeX];
-  __attribute__((aligned(32))) Real           udef[sizeZ][sizeY][sizeX][3];
-  __attribute__((aligned(32))) float sectionMarker[sizeZ][sizeY][sizeX];
 
   //surface quantities:
   int nPoints = 0;

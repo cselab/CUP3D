@@ -223,10 +223,10 @@ public:
     }
     MPI_Comm comm = grid.getCartComm();
     _setup(data, gsize[0], gsize[1], gsize[2],comm);
-    std::cout <<    bs[0] << " " <<    bs[1] << " " <<    bs[2] << " ";
-    std::cout <<   myN[0] << " " <<   myN[1] << " " <<   myN[2] << " ";
-    std::cout << gsize[0] << " " << gsize[1] << " " << gsize[2] << " ";
-    std::cout << mybpd[0] << " " << mybpd[1] << " " << mybpd[2] << std::endl;
+    //std::cout <<    bs[0] << " " <<    bs[1] << " " <<    bs[2] << " ";
+    //std::cout <<   myN[0] << " " <<   myN[1] << " " <<   myN[2] << " ";
+    //std::cout << gsize[0] << " " << gsize[1] << " " << gsize[2] << " ";
+    //std::cout << mybpd[0] << " " << mybpd[1] << " " << mybpd[2] << std::endl;
   }
 
   void solve()
@@ -357,30 +357,30 @@ protected:
     if (!initialized) {
       initialized = true;
       #ifndef _SP_COMP_
-      alloc_local = fftw_mpi_local_size_3d_transposed(nx, ny, nz, 
+      alloc_local = fftw_mpi_local_size_3d_transposed(nx, ny, nz,
         comm, &local_n0, &local_0_start, &local_n1, &local_1_start);
       rhs = fftw_alloc_real(alloc_local);
-      fwd = fftw_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm, 
-      //  FFTW_REDFT10, FFTW_REDFT10, FFTW_REDFT10, 
-        FFTW_REDFT11, FFTW_RODFT10, FFTW_RODFT10, 
-      //  FFTW_RODFT10, FFTW_REDFT10, FFTW_REDFT10, 
-      //  FFTW_RODFT11, FFTW_RODFT10, FFTW_RODFT10, 
+      fwd = fftw_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm,
+      //  FFTW_REDFT10, FFTW_REDFT10, FFTW_REDFT10,
+        FFTW_REDFT11, FFTW_RODFT10, FFTW_RODFT10,
+      //  FFTW_RODFT10, FFTW_REDFT10, FFTW_REDFT10,
+      //  FFTW_RODFT11, FFTW_RODFT10, FFTW_RODFT10,
         FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
-      bwd = fftw_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm, 
-      //  FFTW_RODFT01, FFTW_REDFT01, FFTW_REDFT01, 
-        FFTW_REDFT11, FFTW_RODFT01, FFTW_RODFT01, 
-      //  FFTW_REDFT10, FFTW_REDFT10, FFTW_REDFT10, 
-      //  FFTW_RODFT01, FFTW_RODFT01, FFTW_RODFT01, 
-      //  FFTW_RODFT11, FFTW_RODFT01, FFTW_RODFT01, 
-      //  FFTW_REDFT11, FFTW_RODFT01, FFTW_RODFT01, 
+      bwd = fftw_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm,
+      //  FFTW_RODFT01, FFTW_REDFT01, FFTW_REDFT01,
+        FFTW_REDFT11, FFTW_RODFT01, FFTW_RODFT01,
+      //  FFTW_REDFT10, FFTW_REDFT10, FFTW_REDFT10,
+      //  FFTW_RODFT01, FFTW_RODFT01, FFTW_RODFT01,
+      //  FFTW_RODFT11, FFTW_RODFT01, FFTW_RODFT01,
+      //  FFTW_REDFT11, FFTW_RODFT01, FFTW_RODFT01,
         FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
       #else // _SP_COMP_
-      alloc_local = fftwf_mpi_local_size_3d(nx, ny, nz, comm, 
+      alloc_local = fftwf_mpi_local_size_3d(nx, ny, nz, comm,
         &local_n0, &local_0_start, &local_n1, &local_1_start);
       rhs = fftwf_alloc_real(alloc_local);
-      fwd = fftwf_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm, 
+      fwd = fftwf_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm,
         FFTW_REDFT10, FFTW_REDFT10, FFTW_REDFT10, FFTW_MEASURE);
-      bwd = fftwf_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm, 
+      bwd = fftwf_mpi_plan_r2r_3d(nx, ny, nz, rhs, rhs, comm,
         FFTW_REDFT01, FFTW_REDFT01, FFTW_REDFT01, FFTW_MEASURE);
       #endif
     }
@@ -427,7 +427,7 @@ protected:
 
     //this is sparta!
     if (local_1_start == 0) in_out[0] = 0;
-    //if (local_1_start + local_n1 == gsize[1]) 
+    //if (local_1_start + local_n1 == gsize[1])
     //  in_out[alloc_local-1] = 0;
     //for(int i=0;  i<alloc_local;   ++i) in_out[i] = .5*(in_out[i]+in_out[i+1]);
     //for(int i=alloc_local-1; i>=0; --i) in_out[i] = .5*(in_out[i]+in_out[i-1]);
@@ -534,9 +534,9 @@ public:
   {
     vector<BlockInfo> vInfo = grid.getBlocksInfo();
     const Real h = grid.getBlocksInfo().front().h_gridpoint;
-    const Real corrx = 1;//gsize[0]/(gsize[0]-1.); 
-    const Real corry = 1;//gsize[1]/(gsize[1]-1.); 
-    const Real corrz = 1;//gsize[2]/(gsize[2]-1.); 
+    const Real corrx = 1;//gsize[0]/(gsize[0]-1.);
+    const Real corry = 1;//gsize[1]/(gsize[1]-1.);
+    const Real corrz = 1;//gsize[2]/(gsize[2]-1.);
     //ofstream fout("src.log", ios::app);
     //cout<<gsize[0]*h<<" "<<gsize[1]*h<<" "<<gsize[2]*h<<endl;
     #pragma omp parallel for

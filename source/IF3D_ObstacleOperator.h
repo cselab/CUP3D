@@ -34,9 +34,10 @@ protected:
   vector<BlockInfo> vInfo;
   std::map<int,ObstacleBlock*> obstacleBlocks;
   vector<double> sum;
-
+  bool printedHeaderVels = false;
+  
 public:
-  int obstacleID=0, rank, size;
+  int obstacleID=0, rank=0, size=0;
   bool bFixToPlanar=1, bInteractive=0, bHasSkin=0, bForces=0;
   double quaternion[4] = {1,0,0,0}, _2Dangle = 0, phaseShift=0; //orientation
   double position[3] = {0,0,0}, absPos[3] = {0,0,0}, transVel[3] = {0,0,0};
