@@ -27,12 +27,12 @@ CubismUP depends on the following 3rd party tools and libraries:
   - HDF5 (1.10.1) (**)
   - GSL (2.1) (**)
 
-(*) If manually installing dependencies (see below), make sure `mpicc` points to a MPI-compatible `C` compiler, and that `mpic++` point to a MPI-compatible `C++` compiler.
-(**) Possibly higher versions work too.
+(\*) If manually installing dependencies (see below), make sure `mpicc` points to a MPI-compatible `C` compiler, and that `mpic++` point to a MPI-compatible `C++` compiler.<br>
+(\*\*) Possibly higher versions work too.
 
 We suggest first trying to compile the code with the libraries already installed on the target machine or cluster
 (if available, dependencies may be loaded with `module load ...` or `module load new ...`).
-Otherwise, an installation script is provided for all dependencies except MPI and C++ compiler, for which we assume are already available.
+Otherwise, an installation script is provided for all dependencies (except MPI and C++ compiler, for which we assume are already available).
 
 To compile, run:
 ```bash
@@ -66,7 +66,7 @@ The `--all` flag installs all available dependencies. To install only some of th
 
 All dependencies are installed in the folder `./dependencies/`.
 Full installation takes 5-15 minutes, depending on the machine.
-To specify number of parallel jobs in internal `make`, write
+To specify number of parallel jobs in the internal `make`, write
 ```
 JOBS=10 ./install_dependencies.sh [flags]
 ```
