@@ -17,9 +17,10 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "makefiles/")
 
 include_directories(Cubism/)
 set(COMMON_SOURCES           # Common for app and lib.
-    source/IF3D_CarlingFishOperator.cpp
+    # source/IF3D_CarlingFishOperator.cpp
     source/IF3D_DCylinderObstacleOperator.cpp
-    source/IF3D_DeadFishOperator.cpp
+    # source/IF3D_DeadFishOperator.cpp
+    source/IF3D_FishLibrary.cpp
     source/IF3D_FishOperator.cpp
     source/IF3D_ForcedSphereObstacleOperator.cpp
     source/IF3D_NacaOperator.cpp
@@ -67,7 +68,7 @@ set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -DNDEB
 set(CMAKE_CXX_STANDARD 11)
 
 # OpenMP support
-find_package(OpenMP)
+find_package(OpenMP REQUIRED)
 if (OPENMP_FOUND)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
@@ -97,5 +98,5 @@ target_link_libraries(${EXE} ${FFTW_LIBRARIES})
 
 # GSL
 find_package(GSL REQUIRED)
-include_directories(${GSL_INCLUDES})
+include_directories(${GSL_INCLUDE_DIRS})
 target_link_libraries(${EXE} ${GSL_LIBRARIES})

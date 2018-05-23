@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# TODO: sha256 and md5 check for Mac.
+
 set -e
 
 # https://stackoverflow.com/a/23378780/2203044
@@ -10,7 +12,6 @@ _PHYSICAL_CPU_COUNT=$([[ $(uname) = 'Darwin' ]] && sysctl -n hw.physicalcpu_max 
 JOBS=${JOBS:-$_PHYSICAL_CPU_COUNT}
 SOURCES=${SOURCES:-$PWD/dependencies}
 INSTALL_PATH=${INSTALL_PATH:-$PWD/dependencies/build}
-
 
 # Shorthands for version. Note that changing this number may not be enough for the script to work properly!
 CMAKE_VERSION=3.11.1
@@ -26,8 +27,10 @@ HDF5_URL='https://www.hdfgroup.org/package/source-gzip/?wpdmdl=4301&refresh=5afe
 
 GSL_VERSION=2.1
 
+# Other shorthands.
+TAR="tar --keep-newer-files"
 
-# By default all is disabled.
+# Flags. By default all are disabled.
 INSTALL_CMAKE=
 INSTALL_FFTW=
 INSTALL_HDF5=
@@ -39,37 +42,13 @@ PRINT_EXPORT=
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-        -a|--all)
-        INSTALL_CMAKE=1
-        INSTALL_FFTW=1
-        INSTALL_HDF5=1
-        INSTALL_GSL=1
-        shift
-        ;;
-        -e|--export)
-        PRINT_EXPORT=1
-        shift
-        ;;
-        --cmake)
-        INSTALL_CMAKE=1
-        shift
-        ;;
-        --fftw)
-        INSTALL_FFTW=1
-        shift
-        ;;
-        --hdf5)
-        INSTALL_HDF5=1
-        shift
-        ;;
-        --gsl)
-        INSTALL_GSL=1
-        shift
-        ;;
-        *)
-        UNKNOWN_ARGUMENT=1
-        shift
-        ;;
+        -a|--all) INSTALL_CMAKE=1; INSTALL_FFTW=1; INSTALL_HDF5=1; INSTALL_GSL=1; shift ;;
+        -e|--export) PRINT_EXPORT=1; shift ;;
+        --cmake) INSTALL_CMAKE=1; shift ;;
+        --fftw) INSTALL_FFTW=1; shift ;;
+        --hdf5) INSTALL_HDF5=1; shift ;;
+        --gsl) INSTALL_GSL=1; shift ;;
+        *) UNKNOWN_ARGUMENT=1; shift ;;
     esac
 done
 
@@ -82,7 +61,7 @@ Arguments:
   -a,  --all    - Install all available libraries and tools
   -e,  --export - Print export commands for all libraries and tools
                   (assuming they are installed)
-  --camke       - Install CMake ${CMAKE_VERSION} (required at least 3.2)
+  --cmake       - Install CMake ${CMAKE_VERSION} (required at least 3.2)
   --fftw        - Install FFTW ${FFTW_VERSION}
   --hdf5        - Install HDF5 ${HDF5_VERSION}
   --gsl         - Install GSL ${GSL_VERSION}
@@ -100,8 +79,8 @@ if [ -n "$INSTALL_CMAKE" ]; then
     echo "Installing CMake ${CMAKE_VERSION}..."
     wget -nc https://cmake.org/files/v${CMAKE_VERSION_SHORT}/cmake-${CMAKE_VERSION}.tar.gz -P $SOURCES
     cd $SOURCES
-    sha256sum --quiet -c - <<< $CMAKE_SHA_256
-    tar --skip-old-files -xzvf cmake-${CMAKE_VERSION}.tar.gz
+    sha256sum --quiet -c - <<< $CMAKE_SHA_256 || true
+    $TAR -xzvf cmake-${CMAKE_VERSION}.tar.gz
     cd cmake-${CMAKE_VERSION}
     ./bootstrap --parallel=${JOBS} --prefix=$INSTALL_PATH/cmake-${CMAKE_VERSION}/
     make -j${JOBS}
@@ -114,8 +93,8 @@ if [ -n "$INSTALL_FFTW" ]; then
     echo "Installing FFTW ${FFTW_VERSION}..."
     wget -nc http://www.fftw.org/fftw-${FFTW_VERSION}.tar.gz -P $SOURCES
     cd $SOURCES
-    md5sum --quiet -c - <<< $FFTW_MD5
-    tar --skip-old-files -xzvf fftw-${FFTW_VERSION}.tar.gz
+    md5sum --quiet -c - <<< $FFTW_MD5 || true
+    $TAR -xzvf fftw-${FFTW_VERSION}.tar.gz
     cd fftw-${FFTW_VERSION}
     ./configure --prefix=$INSTALL_PATH/fftw-${FFTW_VERSION}/ --enable-mpi --enable-threads --enable-shared
     make -j${JOBS}
@@ -126,10 +105,11 @@ fi
 
 if [ -n "$INSTALL_HDF5" ]; then
     echo "Installing HDF5 ${HDF5_VERSION}..."
+    mkdir -p $SOURCES
     wget ${HDF5_URL} -O $SOURCES/hdf5-${HDF5_VERSION}.tar.gz
     cd $SOURCES
-    md5sum --quiet -c <<< $HDF5_MD5
-    tar --skip-old-files -xzvf hdf5-${HDF5_VERSION}.tar.gz
+    md5sum --quiet -c <<< $HDF5_MD5 || true
+    $TAR -xzvf hdf5-${HDF5_VERSION}.tar.gz
     cd hdf5-${HDF5_VERSION}
     CC=mpicc ./configure --prefix=$INSTALL_PATH/hdf5-${HDF5_VERSION}-parallel/ --enable-parallel
     make -j $JOBS
@@ -142,7 +122,7 @@ if [ -n "$INSTALL_GSL" ]; then
     echo "Installing GSL ${GSL_VERSION}..."
     wget -nc http://mirror.switch.ch/ftp/mirror/gnu/gsl/gsl-${GSL_VERSION}.tar.gz -P $SOURCES
     cd $SOURCES
-    tar --skip-old-files -xzvf gsl-${GSL_VERSION}.tar.gz
+    $TAR -xzvf gsl-${GSL_VERSION}.tar.gz
     cd gsl-${GSL_VERSION}
     ./configure --prefix=$INSTALL_PATH/gsl-${GSL_VERSION} --enable-parallel
     make -j $JOBS
@@ -151,9 +131,9 @@ if [ -n "$INSTALL_GSL" ]; then
 fi
 
 
-echo "======================================================================"
-echo "Done! Run or add to ~/.bashrc the following commands"
-echo "to capture CMake, FFTW and HDF5 in your environment:"
+[[ -z "$PRINT_EXPORT" ]] && echo "======================================================================"
+[[ -z "$PRINT_EXPORT" ]] && echo "Done! Run or add to ~/.bashrc the following commands"
+[[ -z "$PRINT_EXPORT" ]] && echo "to capture CMake, FFTW and HDF5 in your environment:"
 echo
 [ -n "$PRINT_EXPORT" -o -n "$INSTALL_CMAKE" ] && echo "export PATH=$INSTALL_PATH/cmake-${CMAKE_VERSION}/bin:\$PATH"
 [ -n "$PRINT_EXPORT" -o -n "$INSTALL_FFTW" ] && echo "export FFTWDIR=$INSTALL_PATH/fftw-${FFTW_VERSION}/"
