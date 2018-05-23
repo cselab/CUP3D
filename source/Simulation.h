@@ -43,8 +43,11 @@
  #include "TaskLayer.h"
 #endif
 
+namespace cubismup3d { class SimulationWrapper; }
+
 class Simulation
 {
+  friend class cubismup3d::SimulationWrapper;
  protected:
   ArgumentParser parser;
   Profiler profiler;
@@ -114,6 +117,12 @@ class Simulation
   virtual void init();
   virtual void simulate();
 
+
+  /* Get reference to the obstacle container. */
+  const std::vector<IF3D_ObstacleOperator *> &getObstacleVector() const
+  {
+      return obstacle_vector->getObstacleVector();
+  }
 
   /* Calculate maximum allowed time step, including CFL and ramp-up. */
   double calcMaxTimestep() const;

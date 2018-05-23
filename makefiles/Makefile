@@ -176,6 +176,7 @@ OBJECTS =  IF3D_VortexOperator.o \
            IF3D_ForcedSphereObstacleOperator.o \
            IF3D_SphereObstacleOperator.o \
            IF3D_PlateObstacleOperator.o \
+           IF3D_ExternalObstacleOperator.o \
            Profiler.o \
            Simulation.o \
            ProcessOperatorsOMP.o \
@@ -195,7 +196,7 @@ else
 endif
 
 EXEOBJ = $(OBJECTS)  main.o
-LIBOBJ = $(OBJECTS) cubism_main.o
+LIBOBJ = $(OBJECTS) cubism_main.o CubismUP_3D.o
 LIBRLOBJ = $(OBJECTS) ext_app_main.o
 VPATH := $(VPATH):$(SRC_DIR):$(CUBISM_DIR)
 ALLOBJ := $(sort $(EXEOBJ) $(LIBOBJ) $(LIBRLOBJ) $(NVOBJECTS))  # `sort` removes duplicates.
@@ -212,7 +213,7 @@ simulation: $(EXEOBJ) $(NVOBJECTS)
 	$(LD) $(EXEOBJ) $(NVOBJECTS) $(LIBS) $(LDFLAGS) -o $@
 
 lib: $(LIBOBJ) $(NVOBJECTS)
-	ar rs libsimulation.a $(FFTW_LIBS) $(LIBOBJ) $(NVOBJECTS)
+	ar rs libcubismup3d.a $(FFTW_LIBS) $(LIBOBJ) $(NVOBJECTS)
 
 librl: $(LIBRLOBJ) $(NVOBJECTS)
 	ar rs libsim_rl.a $(LIBRLOBJ) $(NVOBJECTS)
@@ -228,7 +229,7 @@ PoissonSolverScalarFFTW_ACC.o: PoissonSolverScalarFFTW_ACC.cu
 clean:
 	rm -f $(EXEOBJ) $(LIBOBJ)
 	rm -f $(DEPS)
-	rm -f simulation Communicator.o libsimulation.a PoissonSolverScalarFFTW*.o
+	rm -f simulation Communicator.o libcubismup3d.a PoissonSolverScalarFFTW*.o
 
 ifeq "$(config)" "prod"
 else
