@@ -650,7 +650,7 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
             const Real diff[3] = {p[0]-myP[0], p[1]-myP[1], p[2]-myP[2]};
             const Real distSq = pow(diff[0],2)+pow(diff[1],2)+pow(diff[2],2);
             int close;
-            // const Real distToMidlineSq=getSmallerDistToMidline(ss,p,close);
+            const Real distToMidlineSq=getSmallerDistToMidline(ss,p,close);
 
             changeFromComputationalFrame(p);
             const Real distH = std::sqrt(

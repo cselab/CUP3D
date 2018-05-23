@@ -223,17 +223,17 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
 
     if(bForcedInSimFrame[0] && !rank) {
       const double xvel = -parser("-xvel").asDouble(0);
-      this->transVel[0] = xvel;
+      transVel_imposed[0] = xvel; transVel[0] = xvel;
       printf("Obstacle forced to move relative to sim domain with constant x-vel:%f\n", xvel);
     }
     if(bForcedInSimFrame[1] && !rank) {
       const double yvel = -parser("-yvel").asDouble(0);
-      this->transVel[1] = yvel;
+      transVel_imposed[1] = yvel; transVel[1] = yvel;
       printf("Obstacle forced to move relative to sim domain with constant y-vel:%f\n", yvel);
     }
     if(bForcedInSimFrame[2] && !rank) {
       const double zvel = -parser("-zvel").asDouble(0);
-      this->transVel[2] = zvel;
+      transVel_imposed[2] = zvel; transVel[2] = zvel;
       printf("Obstacle forced to move relative to sim domain with constant z-vel:%f\n", zvel);
     }
     bFixToPlanar = parser("-bFixToPlanar").asBool(false);
@@ -395,12 +395,21 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
     MPI_Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
     assert(globals[3] > std::numeric_limits<double>::epsilon());
 
-    if(bForcedInSimFrame[0]) transVel_computed[0] = globals[0]/globals[3] + Uinf[0];
-    else                     transVel[0]          = globals[0]/globals[3] + Uinf[0];
-    if(bForcedInSimFrame[1]) transVel_computed[1] = globals[1]/globals[3] + Uinf[1];
-    else                     transVel[1]          = globals[1]/globals[3] + Uinf[1];
-    if(bForcedInSimFrame[2]) transVel_computed[2] = globals[2]/globals[3] + Uinf[2];
-    else                     transVel[2]          = globals[2]/globals[3] + Uinf[2];
+    if(bForcedInSimFrame[0]) {
+      transVel[0] = transVel_imposed[0];
+      transVel_computed[0] = globals[0]/globals[3] + Uinf[0];
+    } else
+      transVel[0]          = globals[0]/globals[3] + Uinf[0];
+    if(bForcedInSimFrame[1]) {
+      transVel[1] = transVel_imposed[1];
+      transVel_computed[1] = globals[1]/globals[3] + Uinf[1];
+    } else
+      transVel[1]          = globals[1]/globals[3] + Uinf[1];
+    if(bForcedInSimFrame[2]) {
+      transVel[2] = transVel_imposed[2];
+      transVel_computed[2] = globals[2]/globals[3] + Uinf[2];
+    } else
+      transVel[2]          = globals[2]/globals[3] + Uinf[2];
     volume      = globals[3] * dv;
     if(bFixToPlanar && not bForcedInSimFrame[2]) transVel[2] = 0.0;
   }
@@ -808,9 +817,12 @@ void IF3D_ObstacleOperator::getTranslationVelocity(double UT[3]) const
 
 void IF3D_ObstacleOperator::setTranslationVelocity(double UT[3])
 {
-    if(not bForcedInSimFrame[0]) transVel[0] = UT[0];
-    if(not bForcedInSimFrame[1]) transVel[1] = UT[1];
-    if(not bForcedInSimFrame[2]) transVel[2] = UT[2];
+    //if(not bForcedInSimFrame[0]) 
+    transVel[0] = UT[0];
+    //if(not bForcedInSimFrame[1]) 
+    transVel[1] = UT[1];
+    //if(not bForcedInSimFrame[2]) 
+    transVel[2] = UT[2];
 }
 
 void IF3D_ObstacleOperator::getAngularVelocity(double W[3]) const

@@ -80,12 +80,6 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
   const Real*const u) : IF3D_FishOperator(g, p, u), bCreated(false)
 {
   absPos[0] = 0;
-  //bFixFrameOfRef[0] = true;
-  //bFixFrameOfRef[1] = false;
-  //bFixFrameOfRef[2] = false;
-  //bForcedInSimFrame[0] = false;
-  //bForcedInSimFrame[1] = true;
-  //bForcedInSimFrame[2] = true;// meaning that velocity cannot be changed by penalization
 
   #if 1
       Apitch = p("-Apitch").asDouble(0.0); //aplitude of sinusoidal pitch angle

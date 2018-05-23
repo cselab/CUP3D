@@ -1,0 +1,1 @@
+IF3D_NacaOperator L=0.2 T=1 xpos=0.25 Fheave=1 Aheave=0.05 bForcedInSimFrame_y=1 bForcedInSimFrame_z=1 bFixFrameOfRef_x=1 

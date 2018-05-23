@@ -35,7 +35,7 @@ protected:
   std::map<int,ObstacleBlock*> obstacleBlocks;
   vector<double> sum;
   bool printedHeaderVels = false;
-  
+
 public:
   int obstacleID=0, rank=0, size=0;
   bool bFixToPlanar=1, bInteractive=0, bHasSkin=0, bForces=0;
@@ -50,6 +50,7 @@ public:
   double transVel_correction[3]={0,0,0}, angVel_correction[3]={0,0,0}, length;
   //forced obstacles:
   double transVel_computed[3]= {0,0,0}, angVel_computed[3]= {0,0,0};
+  double transVel_imposed[3]= {0,0,0};
   double ext_X, ext_Y, ext_Z;
 
   // stuff dealing with frame of reference:
