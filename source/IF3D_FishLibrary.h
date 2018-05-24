@@ -584,6 +584,30 @@ struct PutFishOnBlocks
   Real getSmallerDistToMidline(const int start_s, const Real x[3], int & final_s) const;
 
   void operator()(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const;
+  virtual void constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const;
+  virtual void constructDefVel(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const;
+  void signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const;
+};
+
+struct PutNacaOnBlocks: public PutFishOnBlocks
+{
+  PutNacaOnBlocks(const FishMidlineData* const cfish, const double p[3], const double q[4]): PutFishOnBlocks(cfish, p, q) { }
+
+  inline int find_closest_dist_planar(const int s, const int dir, const Real x[3], Real & oldDistSq) const
+  {
+    if((s+dir)<cfish->iFishStart or (s+dir)>cfish->iFishEnd) return s;
+
+    const Real newD = pow(x[0]-cfish->rX[s+dir],2)+pow(x[1]-cfish->rY[s+dir],2);
+    if(oldDistSq <= newD) return s;
+    else {
+      oldDistSq   = newD;
+      return s+dir;
+    }
+  }
+  Real getSmallerDistToMidLPlanar(const int start_s, const Real x[3], int & final_s) const;
+
+  void constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const override;
+  void constructDefVel(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const override;
 };
 
 struct PutFishOnBlocks_Finalize : public GenericLabOperator

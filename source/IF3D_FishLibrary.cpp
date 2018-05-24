@@ -368,9 +368,9 @@ bool VolumeSegment_OBB::isIntersectingWithAABB(const Real start[3],const Real en
   // Remember: Incoming coordinates are cell centers, not cell faces
   //start and end are two diagonally opposed corners of grid block
   const Real AABB_w[3] = { //half block width + safe distance
-      0.5*(end[0] - start[0]) + 2.0*safe_distance,
-      0.5*(end[1] - start[1]) + 2.0*safe_distance,
-      0.5*(end[2] - start[2]) + 2.0*safe_distance
+      0.5*(end[0] - start[0]) + 2*safe_distance,
+      0.5*(end[1] - start[1]) + 2*safe_distance,
+      0.5*(end[2] - start[2]) + 2*safe_distance
   };
 
   assert(AABB_w[0]>0);
@@ -388,6 +388,16 @@ bool VolumeSegment_OBB::isIntersectingWithAABB(const Real start[3],const Real en
     {AABB_c[1] - AABB_w[1],  AABB_c[1] + AABB_w[1]},
     {AABB_c[2] - AABB_w[2],  AABB_c[2] + AABB_w[2]}
   };
+  const Real Fish_box[3][2] = {
+    {c[0] -w[0] -2*safe_distance,  c[0] +w[0] +2*safe_distance},
+    {c[1] -w[1] -2*safe_distance,  c[1] +w[1] +2*safe_distance},
+    {c[2] -w[2] -2*safe_distance,  c[2] +w[2] +2*safe_distance}
+  };
+
+  assert(w[0]>=0 && w[1]>=0 && w[2]>=0);
+  assert(normalI[0]>=0 && normalI[1]>=0 && normalI[2]>=0);
+  assert(normalJ[0]>=0 && normalJ[1]>=0 && normalJ[2]>=0);
+  assert(normalK[0]>=0 && normalK[1]>=0 && normalK[2]>=0);
 
   // Try the following stoopid (but correct) implementation
 
@@ -398,63 +408,47 @@ bool VolumeSegment_OBB::isIntersectingWithAABB(const Real start[3],const Real en
   const Real widthYvec[3] = {w[1]*normalJ[0], w[1]*normalJ[1], w[1]*normalJ[2]}; // This is y-width of fish, expressed in lab frame
   const Real widthZvec[3] = {w[2]*normalK[0], w[2]*normalK[1], w[2]*normalK[2]}; // This is z-height of fish, expressed in lab frame
 
-  // TODO: Replace with nice beautiful loop and function call later
-  // Find the enlarged box engulfing the smaller rotated box
-  int coordIndex = 0;
-  const Real cornerXcoords[8] = {
-    c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
-    c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex]
-  };
+  const Real widthXbox[3] = {AABB_w[0]*normalI[0], AABB_w[0]*normalJ[0], AABB_w[0]*normalK[0]}; // This is x-width of box, expressed in fish frame
+  const Real widthYbox[3] = {AABB_w[1]*normalI[1], AABB_w[1]*normalJ[1], AABB_w[1]*normalK[1]}; // This is y-width of box, expressed in fish frame
+  const Real widthZbox[3] = {AABB_w[2]*normalI[2], AABB_w[2]*normalJ[2], AABB_w[2]*normalK[2]}; // This is z-height of box, expressed in fish frame
 
-  coordIndex = 1;
-  const Real cornerYcoords[8] = {
-    c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
-    c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex]
-  };
-
-  coordIndex = 2;
-  const Real cornerZcoords[8] = {
-    c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] + widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
-    c[coordIndex] + widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] + widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] + widthYvec[coordIndex] - widthZvec[coordIndex],
-    c[coordIndex] - widthXvec[coordIndex] - widthYvec[coordIndex] - widthZvec[coordIndex]
-  };
-
-  // Store fishBox[minCoord][maxCoord] in all 3 directions
   const Real fishBox[3][2] = {
-    {*std::min_element(cornerXcoords,cornerXcoords+8), *std::max_element(cornerXcoords,cornerXcoords+8)},
-    {*std::min_element(cornerYcoords,cornerYcoords+8), *std::max_element(cornerYcoords,cornerYcoords+8)},
-    {*std::min_element(cornerZcoords,cornerZcoords+8), *std::max_element(cornerZcoords,cornerZcoords+8)}
+    { c[0] -widthXvec[0] -widthYvec[0] -widthZvec[0],
+      c[0] +widthXvec[0] +widthYvec[0] +widthZvec[0]},
+    { c[1] -widthXvec[1] -widthYvec[1] -widthZvec[1],
+      c[1] +widthXvec[1] +widthYvec[1] +widthZvec[1]},
+    { c[2] -widthXvec[2] -widthYvec[2] -widthZvec[2],
+      c[2] +widthXvec[2] +widthYvec[2] +widthZvec[2]}
+  };
+
+  const Real boxBox[3][2] = {
+    { AABB_c[0] -widthXbox[0] -widthYbox[0] -widthZbox[0],
+      AABB_c[0] +widthXbox[0] +widthYbox[0] +widthZbox[0]},
+    { AABB_c[1] -widthXbox[1] -widthYbox[1] -widthZbox[1],
+      AABB_c[1] +widthXbox[1] +widthYbox[1] +widthZbox[1]},
+    { AABB_c[2] -widthXbox[2] -widthYbox[2] -widthZbox[2],
+      AABB_c[2] +widthXbox[2] +widthYbox[2] +widthZbox[2]}
   };
 
   // Now Identify the ones that do not intersect
-  Real intersection[3][2] = {
+  Real intersectionLabFrame[3][2] = {
     { max(fishBox[0][0], AABB_box[0][0]), min(fishBox[0][1], AABB_box[0][1]) },
     { max(fishBox[1][0], AABB_box[1][0]), min(fishBox[1][1], AABB_box[1][1]) },
     { max(fishBox[2][0], AABB_box[2][0]), min(fishBox[2][1], AABB_box[2][1]) }
   };
 
-  return
-    intersection[0][1]-intersection[0][0]>0 &&
-    intersection[1][1]-intersection[1][0]>0 &&
-    intersection[2][1]-intersection[2][0]>0;
+  Real intersectionFishFrame[3][2] = {
+    { max(boxBox[0][0], Fish_box[0][0]), min(boxBox[0][1], Fish_box[0][1]) },
+    { max(boxBox[1][0], Fish_box[1][0]), min(boxBox[1][1], Fish_box[1][1]) },
+    { max(boxBox[2][0], Fish_box[2][0]), min(boxBox[2][1], Fish_box[2][1]) }
+  };
 
+  return intersectionLabFrame[0][1] -  intersectionLabFrame[0][0]>0 &&
+         intersectionLabFrame[1][1] -  intersectionLabFrame[1][0]>0 &&
+         intersectionLabFrame[2][1] -  intersectionLabFrame[2][0]>0 &&
+        intersectionFishFrame[0][1] - intersectionFishFrame[0][0]>0 &&
+        intersectionFishFrame[1][1] - intersectionFishFrame[1][0]>0 &&
+        intersectionFishFrame[2][1] - intersectionFishFrame[2][0]>0 ;
 
   // These criteria are not general enough. If blocks rotate too much, they will fail detection
   // Must loop through all the box coordinates
@@ -538,43 +532,43 @@ Real PutFishOnBlocks::getSmallerDistToMidline(const int start_s, const Real x[3]
 }
 
 //inline void operator()(const BlockInfo& info, FluidBlock3D& b) const
-void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+{
+  {
+    const int N = FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX;
+    for(int i=0; i<N; ++i) *(&(oblock->chi[0][0][0])+i) = -1;
+  }
+
+  constructShape(info, b, oblock, vSegments);
+  constructDefVel(info, b, oblock, vSegments);
+  signedDistanceSqrt(info, b, oblock, vSegments);
+}
+
+void PutFishOnBlocks::constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
 {
   Real org[3];
   info.pos(org, 0, 0, 0);
   const Real invh = 1.0/info.h_gridpoint;
-
-  {
-    Real * const chi = &(defblock->chi[0][0][0]);
-    // Real * const udef = &(defblock->udef[0][0][0][0]);
-
-    static const int n = FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX;
-    for(int i=0; i<n; i++) {
-      chi[i]=-1;
-      //udef[3*i+0]=0;
-      //udef[3*i+1]=0;
-      //udef[3*i+2]=0;
-    }
-  }
-
   // construct the shape (P2M with min(distance) as kernel) onto defblocks
   for(int i=0;i<(int)vSegments.size();++i) {
     //iterate over segments contained in the vSegm intersecting this block:
-    const int firstSegm =max(vSegments[i].s_range.first,cfish->iFishStart);
-    const int lastSegm = min(vSegments[i].s_range.second, cfish->iFishEnd);
+    const int firstSegm = max(vSegments[i].s_range.first,  cfish->iFishStart);
+    const int lastSegm =  min(vSegments[i].s_range.second, cfish->iFishEnd);
     for(int ss=firstSegm; ss<=lastSegm; ++ss) {
       assert(ss>=cfish->iFishStart && ss<=cfish->iFishEnd);
-
       // fill chi
       // assume width is major axis, else correction:
-      const Real offset = cfish->height[ss] > cfish->width[ss] ? .5*M_PI : 0;
-      const Real ell_a = (Real)std::max(cfish->height[ss],cfish->width[ss]);
+      const Real offset = cfish->height[ss] > cfish->width[ss] ? M_PI/2 : 0;
+      const Real ell_a = (Real)std::max(cfish->height[ss], cfish->width[ss]);
       // const Real dtheta_tgt = ell_a == 0 ? 2.0*M_PI : 0.25*info.h[0]/ell_a;
       // maximum distance between two points is 2*ell_a * sin(theta).
       // set this distance to dx/2 -->
-      const Real dtheta_tgt=ell_a?fabs(asin(info.h_gridpoint/ell_a/8)):2*M_PI;
-
-      const int Ntheta = (int)std::ceil(2.0*M_PI/dtheta_tgt) + 1;
+      //const Real dtheta_tgt=ell_a?fabs(asin(info.h_gridpoint/ell_a/8)):2*M_PI;
+      //G>never understood this. We want to go around ellipse and interpolate //G>on the nearest grid points with a hat function. Assuming h is small
+      //G>enough, we are safer and cheaper by computing the dTheta with
+      //G>`dx/2 = 2*ell_a * dtheta_tgt' and not `2*ell_a*sin(dtheta_tgt)'
+      const Real dtheta_tgt = ell_a ? info.h_gridpoint/ell_a/4 : 2*M_PI;
+      const int Ntheta = (int)std::ceil(2*M_PI/dtheta_tgt) + 1;
       const Real dtheta = 2.0*M_PI/((Real)Ntheta);
 
       for(int tt=0;tt<Ntheta;++tt) {
@@ -626,7 +620,7 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
             std::min(+3, FluidBlock::sizeY - iap[1]),
             std::min(+3, FluidBlock::sizeZ - iap[2])
         };
-        const Real myP_distToMidlineSq= !cfish->width[ss] ? std::pow(hght,2) :
+        const Real myP_distToMidlineSq= cfish->width[ss]==0 ? std::pow(hght,2) :
           pow(cfish->width[ss]*costh,2) +pow(cfish->height[ss]*sinth,2);
 
         if(myP_distToMidlineSq<std::numeric_limits<Real>::epsilon())
@@ -692,9 +686,14 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
       }
     }
   }
+}
 
+void PutFishOnBlocks::constructDefVel(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+{
+  Real org[3];
+  info.pos(org, 0, 0, 0);
+  const Real invh = 1.0/info.h_gridpoint;
   // construct the deformation velocities (P2M with hat function as kernel)
-
   for(int i=0;i<(int)vSegments.size();++i)
   {
   for(int ss=vSegments[i].s_range.first;ss<=vSegments[i].s_range.second;++ss)
@@ -715,13 +714,16 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
 
     for(int ih=-Nh;ih<=Nh; ++ih) {
       const Real offsetH = ih*ds_defGrid;
-      // add an extra extension when width == 0 (to deal with large curvatures near head and/or tail):
-      const Real currentWidth = myWidth== 0 ? extension : myWidth * std::sqrt(1 - std::pow(offsetH/(myHeight+extension),2));
-      const Real actualWidth = (cfish->height[ss] == 0 or std::abs(offsetH)>=cfish->height[ss]) ? 0.0
-          : cfish->width[ss] * std::sqrt(1 - std::pow(offsetH/cfish->height[ss],2));
-      const int Nw = std::floor( (currentWidth+extension)/ds_defGrid); // add extension here to make sure we have it in each direction
-
-      for(int iw=-Nw;iw<=Nw; ++iw) {
+      // add an extra extension when width == 0
+      // (to deal with large curvatures near head and/or tail):
+      const Real currentWidth = myWidth==0 ? extension
+           : myWidth * std::sqrt(1 - std::pow(offsetH/(myHeight+extension),2));
+      const Real actualWidth =
+         (cfish->height[ss] == 0 or std::abs(offsetH)>=cfish->height[ss]) ? 0.0
+         : cfish->width[ss]* std::sqrt(1-std::pow(offsetH/cfish->height[ss],2));
+      // add xtension here to make sure we have it in each direction:
+      const int Nw = std::floor( (currentWidth+extension)/ds_defGrid);
+      for(int iw=-Nw; iw<=Nw; ++iw) {
         const Real offsetW = iw*ds_defGrid;
         Real xp[3] = {
             (cfish->rX[ss] + offsetW*cfish->norX[ss]),
@@ -759,7 +761,6 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
             std::min(+2, FluidBlock::sizeY - iap[1]),
             std::min(+2, FluidBlock::sizeZ - iap[2])
         };
-
         Real wghts[3][2];
         for(int c=0;c<3;++c) {
           const Real t[2] = {
@@ -769,7 +770,6 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
           wghts[c][0] = 1.0 - t[0];
           wghts[c][1] = 1.0 - t[1];
         }
-
         const bool isInside =  (std::fabs(offsetW) < actualWidth)
                             && (std::fabs(offsetH) < cfish->height[ss]);
         for(int sz=start[2]; sz<end[2];++sz) {
@@ -802,7 +802,10 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
     }
     }
   }
+}
 
+void PutFishOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+{
   // finalize signed distance function in tmpU
   const Real eps = std::numeric_limits<Real>::epsilon();
   for(int iz=0; iz<FluidBlock::sizeZ; iz++)
@@ -821,6 +824,197 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
     // All points that are not chi=0 in the targeted section, are captured here. When we loop through SurfaceBlocks for computing torque, the extraneous points captured here will be left out, so hakunamatata.
     defblock->sectionMarker[iz][iy][ix] *= std::fabs(defblock->chi[iz][iy][ix]) > 0 ? 1 : 0;
   }
+}
+
+void PutNacaOnBlocks::constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+{
+  Real org[3];
+  info.pos(org, 0, 0, 0);
+  const Real invh = 1.0/info.h_gridpoint;
+  // construct the shape (P2M with min(distance) as kernel) onto defblocks
+  for(int i=0;i<(int)vSegments.size();++i) {
+    //iterate over segments contained in the vSegm intersecting this block:
+    const int firstSegm = max(vSegments[i].s_range.first,  cfish->iFishStart);
+    const int lastSegm  = min(vSegments[i].s_range.second, cfish->iFishEnd);
+    for(int ss=firstSegm; ss<=lastSegm; ++ss) {
+      assert(ss>=cfish->iFishStart && ss<=cfish->iFishEnd);
+      const Real myP_distSqPlane = std::pow(cfish->width[ss], 2);
+      //for each segment, we have one point to left and right of midl
+      for(int signp = -1; signp <= 1; signp+=2) {
+        // create a surface point
+        // special treatment of tail (width = 0 --> no ellipse, just line)
+        Real myP[3] = { cfish->rX[ss] +cfish->width[ss]*signp*cfish->norX[ss],
+          cfish->rY[ss] +cfish->width[ss]*signp*cfish->norY[ss], 0
+        };
+        changeToComputationalFrame(myP);
+        const int iap[2] = {
+            (int)std::floor((myP[0]-org[0])*invh),
+            (int)std::floor((myP[1]-org[1])*invh)
+        };
+        // support is two points left, two points right --> Towers Chi will be one point left, one point right, but needs SDF wider
+        const int start[2] = { std::max(-1, 0-iap[0]), std::max(-1, 0-iap[1]) };
+        const int end[3] = {
+            std::min(+3, FluidBlock::sizeX - iap[0]),
+            std::min(+3, FluidBlock::sizeY - iap[1])
+        };
+
+        for(int sy=start[1]; sy<end[1];++sy)
+        for(int sx=start[0]; sx<end[0];++sx) {
+          const int idx = iap[0] + sx, idy = iap[1] + sy;
+          assert(idx>=0&&idx<FluidBlock::sizeX&&idy>=0&&idy<FluidBlock::sizeY);
+          //since naca extends over z axis, loop over all block
+          for(int idz = 0; idz < FluidBlock::sizeZ; ++idz)
+          {
+            Real p[3];
+            info.pos(p, idx, idy, idz);
+            //if(std::fabs(p[2]-position[2])>cfish->height[ss]) continue;
+
+            const Real diff[2] = {p[0]-myP[0], p[1]-myP[1]};
+            const Real distSq  = std::pow(diff[0],2)+std::pow(diff[1],2);
+            int closest;
+            const Real distToMidlineSq=getSmallerDistToMidLPlanar(ss,p,closest);
+
+            //if(myP_distSqPlane < std::numeric_limits<Real>::epsilon()) {
+            //  const Real distH = std::sqrt(std::pow(p[0]-cfish->rX[closest],2)
+            //                              +std::pow(p[1]-cfish->rY[closest],2));
+            //  const Real sign = distH>cfish->width[closest] ? -1 : 1;
+              // Not chi yet, here stored squared distance from analytical boundary
+              // Update the distSquared value only if the computed value is smaller than the old one
+            //  defblock->chi[idz][idy][idx] =
+            //      (std::abs(defblock->chi[idz][idy][idx]) > distSq) ?
+            //      sign*distSq : defblock->chi[idz][idy][idx];
+            //} else {
+              const Real sign = distToMidlineSq >= myP_distSqPlane ? -1 : 1;
+              defblock->chi[idz][idy][idx] =
+                  (std::abs(defblock->chi[idz][idy][idx]) > distSq) ?
+                  sign*distSq : defblock->chi[idz][idy][idx];
+            //}
+          }
+        }
+      }
+    }
+  }
+}
+
+void PutNacaOnBlocks::constructDefVel(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+{
+  {
+    const size_t N = FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX*3;
+    memset(&(defblock->udef[0][0][0]), 0, N*sizeof(Real));
+  }
+
+  Real org[3];
+  info.pos(org, 0, 0, 0);
+  const Real invh = 1.0/info.h_gridpoint;
+  // construct the deformation velocities (P2M with hat function as kernel)
+  for(int i=0; i<(int)vSegments.size(); ++i)
+  {
+  for(int ss=vSegments[i].s_range.first; ss<=vSegments[i].s_range.second; ++ss)
+  {
+    assert(ss>=0 && ss<=cfish->Nm-1);
+    // P2M udef of a slice at this s
+    const Real myWidth =(ss<cfish->iFishStart? cfish->width[cfish->iFishStart]
+                       :(ss>cfish->iFishEnd  ? cfish->width[cfish->iFishEnd]
+                       : cfish->width[ss]));
+    //const Real myHeight=(ss<cfish->iFishStart?cfish->height[cfish->iFishStart]
+    //                   :(ss>cfish->iFishEnd  ?cfish->height[cfish->iFishEnd]
+    //                   : cfish->height[ss]));
+    // towers needs 1dx on each side, smooth needs 2dx --> make it 3 to be nice (and so we can floor!)
+    const Real extension = NPPEXT*info.h_gridpoint; //G tmp changed back to 2
+    // add an extra extension when width == 0
+    // (to deal with large curvatures near head and/or tail):
+    const Real currentWidth = myWidth<=0 ? extension : myWidth;
+    //here we process also all inner points. Nw to the left and right of midl
+    // add xtension here to make sure we have it in each direction:
+    const int Nw = std::floor( (currentWidth+extension)/info.h_gridpoint);
+    for(int iw = -Nw; iw <= Nw; ++iw)
+    {
+      const Real offsetW = iw*info.h_gridpoint;
+      Real xp[3] = { cfish->rX[ss] + offsetW*cfish->norX[ss],
+          cfish->rY[ss] + offsetW*cfish->norY[ss], 0
+      };
+      changeToComputationalFrame(xp);
+      xp[0] = (xp[0]-org[0])*invh;
+      xp[1] = (xp[1]-org[1])*invh;
+      const Real ap[2] = { std::floor((Real)xp[0]), std::floor((Real)xp[1]) };
+      const int iap[2] = { (int)ap[0], (int)ap[1] };
+      // now we P2M
+      const int start[2] = { std::max(0,0-iap[0]), std::max(0,0-iap[1]) };
+      const int end[2] = {
+          std::min(+2, FluidBlock::sizeX - iap[0]),
+          std::min(+2, FluidBlock::sizeY - iap[1])
+      };
+      Real wghts[2][2];
+      for(int c=0; c<2; ++c) {
+        const Real t[2] = {
+            std::fabs((Real)xp[c] - (ap[c]+0)),
+            std::fabs((Real)xp[c] - (ap[c]+1))
+        };
+        // hat kernel
+        wghts[c][0] = 1.0 - t[0]; wghts[c][1] = 1.0 - t[1];
+      }
+
+      for(int sy=start[1]; sy<end[1];++sy) {
+      for(int sx=start[0]; sx<end[0];++sx) {
+        const Real wxwywz = wghts[1][sy]*wghts[0][sx];
+        const int idx[3] = {
+            iap[0] + sx,
+            iap[1] + sy
+        };
+        assert(wxwywz>=0 && wxwywz<=1);
+        assert(idx[0]>=0 && idx[0]<FluidBlock::sizeX);
+        assert(idx[1]>=0 && idx[1]<FluidBlock::sizeY);
+
+        for(int sz = 0; sz < FluidBlock::sizeZ; ++sz) {
+
+          const bool isInside = std::fabs(offsetW)+info.h_gridpoint/2 < myWidth;
+          b(idx[0],idx[1],sz).tmpU += wxwywz;
+          // set sign for all interior points
+          if( std::fabs(defblock->chi[sz][idx[1]][idx[0]] + 1) <
+                std::numeric_limits<Real>::epsilon() && isInside )
+          defblock->chi[sz][idx[1]][idx[0]] = 1.0;
+        }
+      }
+      }
+    }
+  }
+  }
+}
+
+Real PutNacaOnBlocks::getSmallerDistToMidLPlanar(const int start_s, const Real x[3], int & final_s) const
+{
+  Real relX[3] = {x[0],x[1],x[2]};
+  changeFromComputationalFrame(relX);
+
+  const Real curDistSq =  std::pow(relX[0]-cfish->rX[start_s],2)
+  + std::pow(relX[1]-cfish->rY[start_s],2);
+
+  Real distSq;
+
+  distSq = curDistSq; // check right
+  const int sRight = find_closest_dist_planar(start_s, +1, relX, distSq);
+
+  distSq = curDistSq; // check left
+  const int sLeft = find_closest_dist_planar(start_s, -1, relX, distSq);
+
+  if(sRight==start_s and sLeft==start_s) {
+    final_s = start_s;
+    return distSq;
+  }
+
+  // With a hinged tail, the following overzealous assert will catch, outputted problematique and confirmed in Matlab
+  //assert(sRight==start_s or sLeft==start_s);
+
+  int curr_s = start_s;
+  int new_s = sRight == start_s ? sLeft : sRight;
+  const int dir = new_s-curr_s;
+  while(curr_s not_eq new_s) {
+    curr_s = new_s;
+    new_s = find_closest_dist_planar(curr_s, dir, relX, distSq);
+  }
+
+  final_s = new_s;
+  return distSq;
 }
 
 #if 0

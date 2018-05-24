@@ -32,7 +32,7 @@ protected:
   //const Real* ptrUinf_copy = nullptr;
 
   void integrateMidline();
-  void writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock);
+  virtual void writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock);
   void apply_pid_corrections(const double time, const double dt, const Real *Uinf);
   aryVolSeg prepare_vSegments(const int Nsegments, const int Nm);
   //override to create special obstacle blocks for local force balances:

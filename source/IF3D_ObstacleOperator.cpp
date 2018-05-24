@@ -817,11 +817,8 @@ void IF3D_ObstacleOperator::getTranslationVelocity(double UT[3]) const
 
 void IF3D_ObstacleOperator::setTranslationVelocity(double UT[3])
 {
-    //if(not bForcedInSimFrame[0]) 
     transVel[0] = UT[0];
-    //if(not bForcedInSimFrame[1]) 
     transVel[1] = UT[1];
-    //if(not bForcedInSimFrame[2]) 
     transVel[2] = UT[2];
 }
 
