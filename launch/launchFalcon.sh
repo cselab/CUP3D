@@ -20,4 +20,4 @@ cd $FOLDER
 
 export OMP_NUM_THREADS=12
 echo $OPTIONS > settings.txt
-mpirun -np ${NNODE} -ppn 1 ./simulation ${OPTIONS}
+mpirun -np ${NNODE} ./simulation ${OPTIONS}

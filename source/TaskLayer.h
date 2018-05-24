@@ -23,6 +23,7 @@
 using namespace std;
 //#include <assert.h>
 #ifdef __RL_MPI_CLIENT
+#include <random>
 #include "Communicator.h"
 #endif
 

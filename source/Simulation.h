@@ -43,8 +43,11 @@
  #include "TaskLayer.h"
 #endif
 
+namespace cubismup3d { class SimulationWrapper; }
+
 class Simulation
 {
+  friend class cubismup3d::SimulationWrapper;
  protected:
   ArgumentParser parser;
   Profiler profiler;
@@ -63,13 +66,14 @@ class Simulation
 
   // simulation status
   int step=0, nsteps=0;
-  double dt=0, time=0, endTime=0, dtCFL=0, dtFourier=0;
+  double time=0, endTime=0;
 
   // simulation settings
   Real uinf[3]={0,0,0};
-  double re=0, nu=0, length=0, CFL=0, lambda=0, DLM=0;
+  double nu=0, CFL=0, lambda=0, DLM=0;
   bool bRestart=false, verbose=false;
   bool b3Ddump=true, b2Ddump=false, bDump=false;
+  bool rampup=true;
 
   // output
   int saveFreq=0;
@@ -80,11 +84,11 @@ class Simulation
   //DumpGridMPI * dump = nullptr;
   //std::thread * dumper = nullptr;
 
-  vector<BlockInfo> vInfo;
+  std::vector<BlockInfo> vInfo;
   //The protagonist
   IF3D_ObstacleVector* obstacle_vector;
   //The antagonist
-  vector<GenericCoordinator*> pipeline;
+  std::vector<GenericCoordinator*> pipeline;
 
   void _serialize(const string append = string());
   void _deserialize();
@@ -92,7 +96,6 @@ class Simulation
   void parseArguments();
   void setupObstacles();
   void setupOperators();
-  void _selectDT();
   void setupGrid();
   void _ic();
 
@@ -113,6 +116,23 @@ class Simulation
 
   virtual void init();
   virtual void simulate();
+
+
+  /* Get reference to the obstacle container. */
+  const std::vector<IF3D_ObstacleOperator *> &getObstacleVector() const
+  {
+      return obstacle_vector->getObstacleVector();
+  }
+
+  /* Calculate maximum allowed time step, including CFL and ramp-up. */
+  double calcMaxTimestep() const;
+
+  /*
+   * Perform one timestep of the simulation.
+   *
+   * Returns true if the simulation is finished.
+   */
+  bool timestep(double dt);
 };
 
 #endif

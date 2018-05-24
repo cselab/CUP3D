@@ -73,7 +73,7 @@ void Simulation::parseArguments()
   DLM = parser("-use-dlm").asDouble(0);
   int dumpFreq = parser("-fdump").asDouble(0);  // dumpFreq==0 means dump freq (in #steps) is not active
   double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
-  saveFreq = parser("-fsave").asDouble(0);  // dumpFreq==0 means dump freq (in #steps) is not active
+  saveFreq = parser("-fsave").asInt(0);       // dumpFreq==0 means dump freq (in #steps) is not active
   saveTime = parser("-tsave").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
 
   // TEMP: Removed distinction saving-dumping. Backward compatibility:
@@ -104,13 +104,13 @@ void Simulation::setupObstacles()
     if(task not_eq nullptr) task->initializeObstacles(obstacle_vector);
   #endif
 
-  double maxU = max(uinf[0],max(uinf[1],uinf[2]));
-  length = obstacle_vector->getD();
-  re = length*max(maxU,length)/nu;
-  assert(length>0);
-
-  if(rank==0)
-   printf("Kinematic viscosity: %f, Re: %f, length scale: %f\n",nu,re,length);
+  if (rank == 0) {
+    const double maxU = std::max({uinf[0], uinf[1], uinf[2]});
+    const double length = obstacle_vector->getD();
+    const double re = length * std::max(maxU, length) / nu;
+    assert(length>0);
+    printf("Kinematic viscosity: %f, Re: %f, length scale: %f\n",nu,re,length);
+  }
 }
 
 void Simulation::setupOperators()
@@ -135,26 +135,21 @@ void Simulation::setupOperators()
     (*pipeline[0])(0);
 }
 
-void Simulation::_selectDT()
+double Simulation::calcMaxTimestep() const
 {
   double local_maxU = (double)findMaxUOMP(vInfo,*grid,uinf);
   double global_maxU;
   const double h = vInfo[0].h_gridpoint;
 
   MPI_Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX, grid->getCartComm());
-  dtFourier = CFL*h*h/nu;
-  dtCFL     = CFL*h/(std::fabs(global_maxU)+numeric_limits<double>::epsilon());
-  dt = std::min(dtCFL, dtFourier);
+  const double dtFourier = CFL*h*h/nu;
+  const double dtCFL     = CFL*h/(std::fabs(global_maxU)+numeric_limits<double>::epsilon());
+  double dt = std::min(dtCFL, dtFourier);
 
   if(!rank && verbose)
     printf("maxU %f dtF %f dtC %f dt %f\n", global_maxU,dtFourier,dtCFL,dt);
 
-  // if DLM>=1, adapt lambda such that penal term is independent of time step
-  // Probably best not used unless DLM>=10-100. Avoided during ramp-up (which
-  // is the point of ramp-up: gradual insertion of obstacle)
-  if(DLM>=1) lambda = DLM/dt;
-
-  if ( step<1000 ) {
+  if ( rampup && step<1000 ) {
     const double dt_max =  1e2*CFL*h;
     const double dt_min = 1e-2*CFL*h;
     //const double dt_ramp = dt_min + (dt_max-dt_min)*std::pow(step/1000.0, 2);
@@ -165,10 +160,7 @@ void Simulation::_selectDT()
         printf("Dt bounded by ramp-up: dt_ramp=%f\n",dt_ramp);
     }
   }
-
-  bDump = (saveFreq>0 && (step+ 1)%saveFreq==0) ||
-          (saveTime>0 && (time+dt)>nextSaveTime);
-  if (bDump) nextSaveTime += saveTime;
+  return dt;
 }
 
 void Simulation::_serialize(const string append)
@@ -293,13 +285,25 @@ void Simulation::init()
 
 void Simulation::simulate()
 {
-  using namespace std::chrono;
+    for (;;) {
+        profiler.push_start("DT");
+        const double dt = calcMaxTimestep();
+        profiler.pop_stop();
 
-  while (true)
-  {
-    profiler.push_start("DT");
-    _selectDT();
-    profiler.pop_stop();
+        if (timestep(dt))
+            break;
+    }
+}
+
+bool Simulation::timestep(const double dt) {
+    // if DLM>=1, adapt lambda such that penal term is independent of time step
+    // Probably best not used unless DLM>=10-100. Avoided during ramp-up (which
+    // is the point of ramp-up: gradual insertion of obstacle)
+    if (DLM >= 1) lambda = DLM / dt;
+
+    bDump = (saveFreq>0 && (step+ 1)%saveFreq==0) ||
+            (saveTime>0 && (time+dt)>nextSaveTime);
+    if (bDump) nextSaveTime += saveTime;
 
     #ifdef RL_LAYER
       if(task not_eq nullptr)
@@ -330,7 +334,8 @@ void Simulation::simulate()
     {
       if(rank==0)
       cout<<"Finished at time "<<time<<" in "<<step<<" step of "<<nsteps<<endl;
-      return;
+      return true;  // Finished.
     }
-  }
+
+    return false;  // Not yet finished.
 }
