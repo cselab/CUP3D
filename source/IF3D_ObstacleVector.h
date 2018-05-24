@@ -17,10 +17,20 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
     std::vector<IF3D_ObstacleOperator*> obstacles;
 
  public:
-    IF3D_ObstacleVector(FluidGridMPI* g) : IF3D_ObstacleOperator(g) {}
+    //IF3D_ObstacleVector(FluidGridMPI* g) : IF3D_ObstacleOperator(g) {}
     IF3D_ObstacleVector(FluidGridMPI* g, std::vector<IF3D_ObstacleOperator*> obstacles_in)
     : IF3D_ObstacleOperator(g), obstacles(obstacles_in)
-    {}
+    {
+      // sort obstacles to make sure that all those that are blocking
+      // when chi is compute (ie they do towers from a sdf on the grid
+      // rather than computing the sdf on the fly) are last
+      // a is put before b if b is blocking and a is not
+      const auto isAbeforeB = [&] (
+        const IF3D_ObstacleOperator* a, const IF3D_ObstacleOperator* b)
+        { return b->isMPIBarrierOnChiCompute and not
+                 a->isMPIBarrierOnChiCompute; };
+      std::stable_sort(obstacles.begin(), obstacles.end(), isAbeforeB);
+    }
     ~IF3D_ObstacleVector();
 
     void characteristic_function() override;

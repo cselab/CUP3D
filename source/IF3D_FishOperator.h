@@ -53,7 +53,6 @@ public:
   virtual void computeChi(const int step_id, const double time, const double dt, const Real *Uinf, int& mpi_status) override;
   virtual void finalize(const int step_id,const double time, const double dt, const Real *Uinf) override;
 
-  void _parseArguments(ArgumentParser & parser);
   void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL,
     Real*& pXU, Real*& pYU, int& Npts) override;
 

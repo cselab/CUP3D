@@ -494,6 +494,7 @@ class FishMidlineData
   virtual void _correctAmplitude(const double dAmp, const double vAmp, const double time, const double dt) {}
   virtual void _correctTrajectory(const double dtheta, const double vtheta, const double time, const double dt) {}
   virtual void execute(const double time, const double l_tnext, const vector<double>& input) {}
+  void writeMidline2File(const int step_id, std::string filename);
 };
 
 struct VolumeSegment_OBB

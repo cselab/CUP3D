@@ -17,22 +17,4 @@ void IF3D_ForcedSphereObstacleOperator::_parseArguments(ArgumentParser & parser)
   bForcedInSimFrame[0] = true;
   bForcedInSimFrame[1] = true;
   bForcedInSimFrame[2] = true;
-  accel_decel = parser("-accel").asBool(false);
-  umax = parser("-xvel").asDouble(0.0);
-  tmax = parser("-T").asDouble(1.);
-}
-
-void IF3D_ForcedSphereObstacleOperator::update(const int stepID, const double t, const double dt, const Real *Uinf)
-{
-  if(accel_decel)
-  {
-    if(t<tmax)
-      this->transVel[0] = umax*t/tmax;
-    else if (t<2*tmax)
-      this->transVel[0] = umax*(2*tmax-t)/tmax;
-    else
-      this->transVel[0] = 0;
-  }
-  // update position and angles
-  IF3D_ObstacleOperator::update(stepID,t, dt, Uinf);
 }

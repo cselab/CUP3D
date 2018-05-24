@@ -15,8 +15,6 @@
 
 class IF3D_ForcedSphereObstacleOperator: public IF3D_SphereObstacleOperator
 {
-  bool accel_decel = false;
-  double umax = 0, tmax = 1;
 public:
 
   IF3D_ForcedSphereObstacleOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_SphereObstacleOperator(g,p,u)

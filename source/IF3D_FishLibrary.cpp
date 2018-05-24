@@ -9,6 +9,19 @@
 
 #include "IF3D_FishLibrary.h"
 
+void FishMidlineData::writeMidline2File(const int step_id, std::string filename)
+{
+  char buf[500];
+  sprintf(buf, "%s_midline_%07d.txt", filename, step_id);
+  FILE * f = fopen(buf, "w");
+  fprintf(f, "s x y vX vY\n");
+  for (int i=0; i<Nm; i++) {
+    //dummy.changeToComputationalFrame(temp);
+    //dummy.changeVelocityToComputationalFrame(udef);
+    fprintf(f, "%g %g %g %g %g\n", rS[i],rX[i],rY[i],vX[i],vY[i]);
+  }
+}
+
 void FishMidlineData::integrateBSpline(Real* const res, const double* const xc,
                                       const double* const yc, const int n)
 {

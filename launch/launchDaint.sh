@@ -3,6 +3,7 @@ SETTINGSNAME=$1
 
 WCLOCK=${WCLOCK:-24:00:00}
 PARTITION=${PARTITION:-normal}
+EXEC=${EXEC:-simulation}
 
 MYNAME=`whoami`
 BASEPATH="${SCRATCH}/CubismUP3D/"
@@ -19,12 +20,13 @@ FOLDER=${BASEPATH}${BASENAME}
 mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
-cp ${FFACTORY} ${FOLDER}/factory
-cp ../makefiles/simulation ${FOLDER}
+if [[ -v FFACTORY ]]; then
+	cp ${FFACTORY} ${FOLDER}/factory
+fi
+cp ../makefiles/${EXEC} ${FOLDER}/simulation
 cp $0 ${FOLDER}
 
-git diff > ${FOLDER}/gitdiff.diff
-#cp -r ../source ${FOLDER}
+git diff HEAD > ${FOLDER}/gitdiff.diff
 
 cd ${FOLDER}
 

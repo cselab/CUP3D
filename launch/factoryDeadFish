@@ -1,2 +1,0 @@
-IF3D_DeadFish L=0.2 T=1 xpos=0.4 ypos=0.25 zpos=0.25 Ltow=1.5 Ttow=1 Atow=0.2 DID=0 bFixToPlanar=1
-IF3D_DeadFish L=0.2 T=1 xpos=0.4 ypos=0.25 zpos=0.25 Ltow=1.5 Ttow=1 Atow=0.2 DID=1 bFixToPlanar=1

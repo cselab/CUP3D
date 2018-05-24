@@ -187,8 +187,7 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
     position[0] = parser("-xpos").asDouble();
     parser.unset_strict_mode();
     position[1] = parser("-ypos").asDouble(ext_Y/2);
-    const double hh = 0.5*vInfo[0].h_gridpoint;
-    position[2] = parser("-zpos").asDouble(ext_Z/2 + hh);
+    position[2] = parser("-zpos").asDouble(ext_Z/2);
     quaternion[0] = parser("-quat0").asDouble(1.0);
     quaternion[1] = parser("-quat1").asDouble(0.0);
     quaternion[2] = parser("-quat2").asDouble(0.0);

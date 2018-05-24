@@ -54,9 +54,6 @@ public:
                                ArgumentParser &p,
                                const Real * const u);
 
-    void _parseArguments(ArgumentParser &parser) override;
-
     void create(int step_id, double time, double dt, const Real *Uinf) override;
     void finalize(int step_id, double time, double dt, const Real *Uinf) override;
 };
-

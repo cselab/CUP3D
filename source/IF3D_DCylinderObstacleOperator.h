@@ -14,17 +14,15 @@
 
 class IF3D_DCylinderObstacleOperator: public IF3D_ObstacleOperator
 {
-  double radius, halflength;
+  const double radius, halflength;
 
 public:
 
  IF3D_DCylinderObstacleOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) //const Real radius, const double position[3], const Real smoothing_length=-1):
-  : IF3D_ObstacleOperator(g, p, u)//, radius(radius), smoothing_length(smoothing_length)
+  : IF3D_ObstacleOperator(g, p, u), radius(.5*length), halflength(ext_Z/2)
   {
-      _parseArguments(p);
+    printf("Created IF3D_DCylinderObstacleOperator with radius %f\n", radius);
   }
 
   void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
-
-  void _parseArguments(ArgumentParser & parser) override;
 };

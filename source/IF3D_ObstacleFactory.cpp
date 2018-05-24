@@ -15,7 +15,6 @@
 //#include "IF3D_CylinderObstacleOperator.h"
 #include "IF3D_DCylinderObstacleOperator.h"
 //#include "IF3D_DeadFishOperator.h"
-#include "IF3D_ForcedSphereObstacleOperator.h"
 #include "IF3D_NacaOperator.h"
 #include "IF3D_PlateObstacleOperator.h"
 #include "IF3D_SphereObstacleOperator.h"
@@ -73,10 +72,6 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
       if( objectName == "IF3D_Sphere" )
     {
       retval.push_back(new IF3D_SphereObstacleOperator(grid,object.second,Uinf));
-    }
-    else if( objectName == "IF3D_ForcedSphere" )
-    {
-      retval.push_back(new IF3D_ForcedSphereObstacleOperator(grid,object.second,Uinf));
     }
     //else if( objectName == "IF3D_DeadFish" )
     //{

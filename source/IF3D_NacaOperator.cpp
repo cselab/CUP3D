@@ -14,7 +14,7 @@ class NacaMidlineData : public FishMidlineData
 {
  protected:
 
-  inline Real _naca_width(const double s, const Real L, const double t_ratio=0.12)
+  inline Real _naca_width(const double s, const Real L, const double t_ratio)
   {
     if(s<0 or s>L) return 0;
     const Real a = 0.2969;
@@ -42,7 +42,8 @@ class NacaMidlineData : public FishMidlineData
 
  public:
   NacaMidlineData(const int Nm, const double length, const double dx_ext,
-    double zExtent, double HoverL=1) : FishMidlineData(Nm,length,1,0,dx_ext)
+    double zExtent, double t_ratio, double HoverL=1) :
+    FishMidlineData(Nm,length,1,0,dx_ext)
   {
     #if defined(BC_PERIODICZ)
       // large enough in z-dir such that we for sure fill entire domain
@@ -50,7 +51,7 @@ class NacaMidlineData : public FishMidlineData
     #else
       for(int i=0;i<Nm;++i) height[i] = length*HoverL/2;
     #endif
-    for(int i=0;i<Nm;++i) width[i]  = _naca_width(rS[i], length);
+    for(int i=0;i<Nm;++i) width[i]  = _naca_width(rS[i], length, t_ratio);
 
     computeMidline(0);
 
@@ -107,6 +108,9 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
   #endif
   Aheave *= length;
 
+
+  const double thickness = p("-thickness").asDouble(0.12); // (NON DIMENSIONAL)
+
   if(!rank)
     printf("Naca: pos=%3.3f, Apitch=%3.3f, Fpitch=%3.3f,Ppitch=%3.3f, "
     "Mpitch=%3.3f, Frow=%3.3f, Arow=%3.3f\n", position[0], Apitch, Fpitch,
@@ -121,7 +125,7 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
     MPI_Abort(grid->getCartComm(),0);
   }
 
-  myFish = new NacaMidlineData(Nm, length, dx_extension, ext_Z);
+  myFish = new NacaMidlineData(Nm, length, dx_extension, ext_Z, thickness);
 }
 
 void IF3D_NacaOperator::update(const int stepID, const double t, const double dt, const Real* Uinf)

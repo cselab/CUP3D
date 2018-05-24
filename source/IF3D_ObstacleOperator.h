@@ -56,7 +56,7 @@ public:
   // stuff dealing with frame of reference:
   bool bFixFrameOfRef[3] = {false, false, false};
   bool bForcedInSimFrame[3] = {false, false, false};
-
+  bool isMPIBarrierOnChiCompute = false;
 protected:
   virtual void _parseArguments(ArgumentParser & parser);
   virtual void _writeComputedVelToFile(const int step_id, const double t, const Real * uInf);
@@ -120,6 +120,7 @@ public:
   virtual void interpolateOnSkin(const double time, const int stepID, bool dumpWake=false);
   virtual void execute(const int iAgent, const double time, const vector<double> action);
   StateReward* _getData() { return &sr; }
+
   // some non-pure methods
   virtual void create(const int step_id,const double time, const double dt, const Real *Uinf);
   virtual void computeChi(const int step_id, const double time, const double dt, const Real *Uinf, int& mpi_status);
@@ -163,6 +164,8 @@ public:
   virtual void setTranslationVelocity(double UT[3]);
   virtual void setAngularVelocity(const double W[3]);
 
+  // driver to execute finite difference kernels either on all points relevant
+  // to the mass of the obstacle (where we have char func) or only on surface
   enum INTEGRAL { VOLUME, SURFACE };
   template <typename Kernel, INTEGRAL integral>
   void compute(const vector<Kernel*>& kernels)

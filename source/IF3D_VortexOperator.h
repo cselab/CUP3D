@@ -23,7 +23,6 @@ public:
     IF3D_VortexOperator(FluidGridMPI* g, ArgumentParser& p, const Real*const u);
     virtual void update(const int step_id, const double t, const double dt, const Real *Uinf) override;
     virtual void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
-    void _parseArguments(ArgumentParser & parser);
     void computeVelocities(const Real* Uinf) override;
     void computeForces(const int stepID, const double time, const double dt,
                        const Real* Uinf, const double NU, const bool bDump) override;

@@ -155,7 +155,6 @@ OBJECTS =  IF3D_VortexOperator.o \
            IF3D_ObstacleVector.o \
            IF3D_StefanFishOperator.o \
            IF3D_FishOperator.o \
-           IF3D_ForcedSphereObstacleOperator.o \
            IF3D_SphereObstacleOperator.o \
            IF3D_PlateObstacleOperator.o \
            Profiler.o \

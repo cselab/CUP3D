@@ -14,6 +14,8 @@ IF3D_VortexOperator::IF3D_VortexOperator(FluidGridMPI * g, ArgumentParser & p, c
   for(int i=0;i<3;i++) transVel[i]=0;
   for(int i=0;i<3;i++) angVel[i]=0;
   for(int i=0;i<6;i++) J[i]=0;
+
+  v_max = p("-vmax").asDouble();
 }
 
 void IF3D_VortexOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
@@ -53,14 +55,6 @@ void IF3D_VortexOperator::create(const int step_id,const double time, const doub
 
 void IF3D_VortexOperator::update(const int stepID, const double t, const double dt, const Real *Uinf)
 {}
-
-void IF3D_VortexOperator::_parseArguments(ArgumentParser & parser)
-{
-  IF3D_ObstacleOperator::_parseArguments(parser);
-  parser.set_strict_mode();
-  v_max = parser("-vmax").asDouble();
-  parser.unset_strict_mode();
-}
 
 void IF3D_VortexOperator::computeVelocities(const Real* Uinf) {}
 void IF3D_VortexOperator::computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump) {}

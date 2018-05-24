@@ -12,7 +12,7 @@
 #include "IF3D_SphereObstacleOperator.h"
 #include "IF3D_ObstacleLibrary.h"
 
-void IF3D_SphereObstacleOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
+void IF3D_SphereObstacleOperator::create(const int step_id, const double time, const double dt, const Real *Uinf)
 {
   for(auto & entry : obstacleBlocks) delete entry.second;
   obstacleBlocks.clear();
@@ -27,6 +27,7 @@ void IF3D_SphereObstacleOperator::create(const int step_id,const double time, co
       obstacleBlocks[info.blockID]->clear(); //memset 0
     }
   }
+  tOld = time;
 }
 
 void IF3D_SphereObstacleOperator::finalize(const int step_id,const double time, const double dt, const Real *Uinf)
@@ -49,9 +50,14 @@ void IF3D_SphereObstacleOperator::finalize(const int step_id,const double time, 
   for(auto & o : obstacleBlocks) o.second->allocate_surface();
 }
 
-void IF3D_SphereObstacleOperator::_parseArguments(ArgumentParser & parser)
+
+void IF3D_SphereObstacleOperator::computeVelocities(const Real* Uinf)
 {
-  //obstacleop parses x,y,z,quats and length!
-  IF3D_ObstacleOperator::_parseArguments(parser);
-  radius = .5*length;
+  IF3D_ObstacleOperator::computeVelocities(Uinf);
+
+  if(accel_decel) {
+    if(tOld<tmax) transVel[0] = umax*tOld/tmax;
+    else if (tOld<2*tmax) transVel[0] = umax*(2*tmax-tOld)/tmax;
+    else transVel[0] = 0;
+  }
 }

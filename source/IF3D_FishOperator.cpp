@@ -15,6 +15,20 @@ IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Rea
   for(int i=0;i<3;i++) transVel[i]=0;
   for(int i=0;i<3;i++) angVel[i]=0;
   for(int i=0;i<6;i++) J[i]=0;
+  isMPIBarrierOnChiCompute = true; // func computeChi() calls a lab kernel
+
+  p.unset_strict_mode();
+  Tperiod = p("-T").asDouble(1.0);
+  phaseShift = p("-phi").asDouble(0.0);
+
+  //PID knobs
+  bCorrectTrajectory = p("-Correct").asBool(false);
+  followX = p("-followX").asDouble(-1);
+  followY = p("-followY").asDouble(-1);
+
+  #ifdef __useSkin_
+   bHasSkin = true;
+  #endif
 }
 
 IF3D_FishOperator::~IF3D_FishOperator()
@@ -252,34 +266,6 @@ void IF3D_FishOperator::create(const int step_id,const double time, const double
 
   //CAREFUL: this func assumes everything is already centered around CM to start with, which is true (see steps 2. & 3. ...) for rX, rY: they are zero at CM, negative before and + after
 
-  // To output the raw midlines
-  #if 0
-  // Check if we must take a dump
-  double currentDumpFactor = time/0.0001;
-  int rank;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-
-  if((std::floor(currentDumpFactor) > previousDumpFactor) & rank==0 )
-  {
-    //dumpNow = true;
-    char buf[500];
-    sprintf(buf, "midline_%07d.txt", step_id);
-    FILE * f = fopen(buf,"w");
-    fprintf(f, "s x y xGlob yGlob uBody vBody\n");
-    for (int i=0; i<myFish->Nm; i++){
-     double temp[3] = {myFish->rX[i], myFish->rY[i], 0.0};
-     dummy.changeToComputationalFrame(temp);
-     Real udef[3] = {myFish->vX[i], myFish->vY[i], 0.0};
-     dummy.changeVelocityToComputationalFrame(udef);
-     fprintf(f, "%g %g %g %g %g %g %g\n",
-     myFish->rS[i],myFish->rX[i],myFish->rY[i],temp[0],temp[1],udef[0],udef[1]);
-    }
-    printf("Dumped midline\n");
-    fclose(f);
-  }
-  previousDumpFactor = floor(currentDumpFactor);
-  #endif
-
   // 4. & 5.
   const auto vSegments = prepare_vSegments(Nsegments, Nm);
 
@@ -387,59 +373,6 @@ void IF3D_FishOperator::update(const int stepID, const double t, const double dt
   sr.phaseShift = fmod(P,2)<0 ? 2+fmod(P,2) : fmod(P,2);
 }
 
-void IF3D_FishOperator::_parseArguments(ArgumentParser & parser)
-{
-  IF3D_ObstacleOperator::_parseArguments(parser);
-  parser.set_strict_mode();
-  parser.unset_strict_mode();
-  Tperiod = parser("-T").asDouble(1.0);
-
-  const bool optimizeT = parser("-optimizeT").asBool(false);
-  if(optimizeT){
-
-    char line[256];
-    FILE *f = fopen("hingedParams.txt", "r");
-    if(f==NULL){
-      printf("hingedParams not found!\n"); abort();
-    }
-
-    double tvalue=0.0;
-    int line_no = 0;
-
-    while (fgets(line, 256, f)!= NULL) {
-      if ((line[0] == '#')||(strlen(line)==0)) {
-        printf("ignoring line %d\n", line_no);
-        continue;
-      }
-
-      if (strstr(line, "T=")) {
-        sscanf(line, "T=%lf", &tvalue);
-      }
-      line_no++;
-    }
-    if(tvalue==0.0){
-      printf("Correct T=?? not found in hingedParams.txt\n");
-      fflush(0);
-      abort();
-    }
-    Tperiod = tvalue;
-    printf("Tperiod overwritten: %f\n", Tperiod);
-    assert(Tperiod >0.0);
-    fclose(f);
-  }
-
-  phaseShift = parser("-phi").asDouble(0.0);
-
-  //PID knobs
-  bCorrectTrajectory = parser("-Correct").asBool(false);
-  followX = parser("-followX").asDouble(-1);
-  followY = parser("-followY").asDouble(-1);
-
-  #ifdef __useSkin_
-   bHasSkin = true;
-  #endif
-}
-
 void IF3D_FishOperator::getCenterOfMass(double CM[3]) const
 {
   // return computation CoM, not the one were advecting
@@ -478,7 +411,6 @@ void IF3D_FishOperator::save(const int stepID, const double t, string filename)
     savestream<<theta_internal<<"\t"<<angvel_internal<<"\t"<<adjTh<<std::endl;
     savestream<<_2Dangle;
     savestream.close();
-
 }
 
 void IF3D_FishOperator::restart(const double t, string filename)
@@ -613,4 +545,39 @@ void IF3D_CarlingFishOperator::writeToFile(const int step_id, const Real t, std:
     savestream << angVel[1] << "\t";
     savestream << angVel[2] << std:: endl;
     savestream.close();
+
+
+    const bool optimizeT = parser("-optimizeT").asBool(false);
+    if(optimizeT){
+
+      char line[256];
+      FILE *f = fopen("hingedParams.txt", "r");
+      if(f==NULL){
+        printf("hingedParams not found!\n"); abort();
+      }
+
+      double tvalue=0.0;
+      int line_no = 0;
+
+      while (fgets(line, 256, f)!= NULL) {
+        if ((line[0] == '#')||(strlen(line)==0)) {
+          printf("ignoring line %d\n", line_no);
+          continue;
+        }
+
+        if (strstr(line, "T=")) {
+          sscanf(line, "T=%lf", &tvalue);
+        }
+        line_no++;
+      }
+      if(tvalue==0.0){
+        printf("Correct T=?? not found in hingedParams.txt\n");
+        fflush(0);
+        abort();
+      }
+      Tperiod = tvalue;
+      printf("Tperiod overwritten: %f\n", Tperiod);
+      assert(Tperiod >0.0);
+      fclose(f);
+    }
 }*/

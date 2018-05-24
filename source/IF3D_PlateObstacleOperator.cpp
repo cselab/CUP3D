@@ -212,23 +212,15 @@ IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
         const Real * const u)
     : IF3D_ObstacleOperator(g, p, u)
 {
-    _parseArguments(p);
-}
+    p.set_strict_mode();
+    half_a = (Real)0.5 * p("-a").asDouble();
+    half_b = (Real)0.5 * p("-b").asDouble();
+    half_thickness = (Real)0.5 * p("-thickness").asDouble();
+    p.unset_strict_mode();
 
-
-void IF3D_PlateObstacleOperator::_parseArguments(ArgumentParser &parser)
-{
-    IF3D_ObstacleOperator::_parseArguments(parser);
-
-    parser.set_strict_mode();
-    half_a = (Real)0.5 * parser("-a").asDouble();
-    half_b = (Real)0.5 * parser("-b").asDouble();
-    half_thickness = (Real)0.5 * parser("-thickness").asDouble();
-    parser.unset_strict_mode();
-
-    bool has_alpha = parser.check("-alpha");
+    bool has_alpha = p.check("-alpha");
     if (has_alpha) {
-        const double alpha = M_PI / 180. * parser("-alpha").asDouble();
+        const double alpha = M_PI / 180. * p("-alpha").asDouble();
         nx = std::cos(alpha);
         ny = std::sin(alpha);
         nz = 0;
@@ -236,21 +228,20 @@ void IF3D_PlateObstacleOperator::_parseArguments(ArgumentParser &parser)
         ay = std::cos(alpha);
         az = 0;
     } else {
-        parser.set_strict_mode();
-        nx = parser("-nx").asDouble();
-        ny = parser("-ny").asDouble();
-        nz = parser("-nz").asDouble();
-        ax = parser("-ax").asDouble();
-        ay = parser("-ay").asDouble();
-        az = parser("-az").asDouble();
-        parser.unset_strict_mode();
+        p.set_strict_mode();
+        nx = p("-nx").asDouble();
+        ny = p("-ny").asDouble();
+        nz = p("-nz").asDouble();
+        ax = p("-ax").asDouble();
+        ay = p("-ay").asDouble();
+        az = p("-az").asDouble();
+        p.unset_strict_mode();
     }
 
     _normalize(&nx, &ny, &nz);
     _normalized_cross(nx, ny, nz, ax, ay, az, &bx, &by, &bz);
     _normalized_cross(bx, by, bz, nx, ny, nz, &ax, &ay, &az);
 }
-
 
 void IF3D_PlateObstacleOperator::create(const int step_id,
                                         const double time,

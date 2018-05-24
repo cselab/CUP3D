@@ -321,7 +321,8 @@ void IF3D_StefanFishOperator::restart(const double t, string filename)
 
 IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_FishOperator(g, p, u)
 {
-  _parseArguments(p);
+  sr = StateReward(length, Tperiod);
+  sr.parseArguments(p);
   const int Nextension = NEXTDX*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
   const double h = vInfo[0].h_gridpoint;
   const double target_Nm = TGTPPB*length/h;
@@ -334,13 +335,6 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g, ArgumentParser&
 
   sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
                     _2Dangle, transVel[0], transVel[1], angVel[2]);
-}
-
-void IF3D_StefanFishOperator::_parseArguments(ArgumentParser & parser)
-{
-  IF3D_FishOperator::_parseArguments(parser);
-  sr = StateReward(length, Tperiod);
-  sr.parseArguments(parser);
 }
 
 void IF3D_StefanFishOperator::execute(const int iAgent, const double time, const vector<double> act)
