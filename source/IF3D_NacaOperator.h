@@ -20,8 +20,6 @@ class IF3D_NacaOperator: public IF3D_FishOperator
  public:
   IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u);
   void update(const int stepID, const double t, const double dt, const Real* Uinf) override;
-  void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
-  void finalize(const int step_id,const double time, const double dt, const Real *Uinf) override;
   void computeVelocities(const Real* Uinf) override;
   void writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock) override;
 };

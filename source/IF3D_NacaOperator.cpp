@@ -166,20 +166,6 @@ void IF3D_NacaOperator::computeVelocities(const Real* Uinf)
   angVel[2] = -2*M_PI*Fpitch*Apitch *std::sin(2*M_PI*(Fpitch*tOld+Ppitch));
 }
 
-void IF3D_NacaOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
-{
-  //if (!bCreated)
-  IF3D_FishOperator::create(step_id, time, dt, Uinf);
-}
-
-void IF3D_NacaOperator::finalize(const int step_id,const double time, const double dt, const Real *Uinf)
-{
-  //if (!bCreated) {
-  //  bCreated = true;
-    IF3D_FishOperator::finalize(step_id,time, dt, Uinf);
-  //} else characteristic_function();
-}
-
 void IF3D_NacaOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
 {
   #pragma omp parallel
