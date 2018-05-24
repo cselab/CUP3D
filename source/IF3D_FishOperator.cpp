@@ -25,6 +25,8 @@ IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Rea
   bCorrectTrajectory = p("-Correct").asBool(false);
   followX = p("-followX").asDouble(-1);
   followY = p("-followY").asDouble(-1);
+  const double hh = 0.5*vInfo[0].h_gridpoint;
+  position[2] = p("-zpos").asDouble(ext_Z/2 + hh);
 
   #ifdef __useSkin_
    bHasSkin = true;

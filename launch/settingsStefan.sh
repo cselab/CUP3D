@@ -4,12 +4,11 @@ NNODE=4
 NNODEX=4
 NNODEY=1
 
-FACTORY='
-IF3D_StefanFish L=0.3 T=1 xpos=0.25 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1
+FACTORY='IF3D_StefanFish L=0.3 T=1 xpos=0.25 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1
 '
 
 OPTIONS=
-OPTIONS+=$(printf " -factory-content %s" "$FACTORY")
+OPTIONS+=$(printf ' -factory-content %q' "$FACTORY")
 OPTIONS+=" -nActions 0"
 OPTIONS+=" -bpdx 64 -bpdy 16 -bpdz 16"
 OPTIONS+=" -2Ddump 0 -restart 0"

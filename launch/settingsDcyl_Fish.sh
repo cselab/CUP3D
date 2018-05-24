@@ -5,13 +5,12 @@ NNODEX=32
 NNODEY=1
 WCLOCK=12:00
 
-FACTORY='
-IF3D_DCylinder L=0.1 xpos=0.2 ypos=0.25 zpos=0.0625 xvel=0.3 bFixFrameOfRef=1 computeForces=0 bForcedInSimFrame=1
+FACTORY='IF3D_DCylinder L=0.1 xpos=0.2 ypos=0.25 zpos=0.0625 xvel=0.3 bFixFrameOfRef=1 computeForces=0 bForcedInSimFrame=1
 IF3D_StefanFish L=0.3 T=1 xpos=0.45 bFixToPlanar=1 bForcedInSimFrame=1
 '
 
 OPTIONS=
-OPTIONS+=$(printf " -factory-content %s" "$FACTORY")
+OPTIONS+=$(printf ' -factory-content %q' "$FACTORY")
 OPTIONS+=" -bpdx 64 -bpdy 32 -bpdz 16"
 OPTIONS+=" -2Ddump 0 -restart 0"
 OPTIONS+=" -nprocsx ${NNODEX}"
