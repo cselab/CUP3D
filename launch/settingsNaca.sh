@@ -1,17 +1,17 @@
 #!/bin/bash
 
-#PARTITION=debug
-#WCLOCK=00:30:00
-BASENAME=Naca_Forced_06
-NNODE=8
-NNODEX=8
+PARTITION=debug
+WCLOCK=00:30:00
+BASENAME=Naca_Forced_17
+NNODE=4
+NNODEX=4
 NNODEY=1
 FFACTORY=factoryNaca
 #FFACTORY=factoryCarling
 
 OPTIONS=
-OPTIONS+=" -bpdx 32 -bpdy 16 -bpdz 16"
-OPTIONS+=" -2Ddump 0 -restart 0"
+OPTIONS+=" -bpdx 32 -bpdy 8 -bpdz 8"
+OPTIONS+=" -2Ddump 1 -restart 0"
 OPTIONS+=" -3Ddump 1"
 OPTIONS+=" -nprocsx ${NNODEX}"
 OPTIONS+=" -nprocsy ${NNODEY}"
