@@ -125,7 +125,7 @@ class Simulation
   }
 
   /* Calculate maximum allowed time step, including CFL and ramp-up. */
-  double calcMaxTimestep() const;
+  double calcMaxTimestep();
 
   /*
    * Perform one timestep of the simulation.

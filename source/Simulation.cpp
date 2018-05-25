@@ -135,7 +135,7 @@ void Simulation::setupOperators()
     (*pipeline[0])(0);
 }
 
-double Simulation::calcMaxTimestep() const
+double Simulation::calcMaxTimestep()
 {
   double local_maxU = (double)findMaxUOMP(vInfo,*grid,uinf);
   double global_maxU;
@@ -143,8 +143,13 @@ double Simulation::calcMaxTimestep() const
 
   MPI_Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX, grid->getCartComm());
   const double dtFourier = CFL*h*h/nu;
-  const double dtCFL     = CFL*h/(std::fabs(global_maxU)+numeric_limits<double>::epsilon());
+  const double dtCFL     = CFL*h/(std::fabs(global_maxU)+1e-8);
   double dt = std::min(dtCFL, dtFourier);
+
+  // if DLM>=1, adapt lambda such that penal term is independent of time step
+  // Probably best not used unless DLM>=10-100. Avoided during ramp-up (which
+  // is the point of ramp-up: gradual insertion of obstacle)
+  if (DLM >= 1) lambda = DLM / dt;
 
   if(!rank && verbose)
     printf("maxU %f dtF %f dtC %f dt %f\n", global_maxU,dtFourier,dtCFL,dt);
@@ -295,12 +300,8 @@ void Simulation::simulate()
     }
 }
 
-bool Simulation::timestep(const double dt) {
-    // if DLM>=1, adapt lambda such that penal term is independent of time step
-    // Probably best not used unless DLM>=10-100. Avoided during ramp-up (which
-    // is the point of ramp-up: gradual insertion of obstacle)
-    if (DLM >= 1) lambda = DLM / dt;
-
+bool Simulation::timestep(const double dt)
+{
     bDump = (saveFreq>0 && (step+ 1)%saveFreq==0) ||
             (saveTime>0 && (time+dt)>nextSaveTime);
     if (bDump) nextSaveTime += saveTime;

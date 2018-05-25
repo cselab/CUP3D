@@ -839,6 +839,21 @@ void PutFishOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, O
   }
 }
 
+void PutNacaOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+{
+  // finalize signed distance function in tmpU
+  const Real eps = std::numeric_limits<Real>::epsilon();
+  for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+  for(int iy=0; iy<FluidBlock::sizeY; iy++)
+  for(int ix=0; ix<FluidBlock::sizeX; ix++) {
+    // change from signed squared distance function to normal sdf
+    b(ix,iy,iz).tmpU = defblock->chi[iz][iy][ix] > (Real)0 ?
+      sqrt( defblock->chi[iz][iy][ix]) : -sqrt(-defblock->chi[iz][iy][ix]);
+    //b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0]; //for debug
+    //b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1]; //for debug
+  }
+}
+
 void PutNacaOnBlocks::constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
 {
   Real org[3];
@@ -957,31 +972,19 @@ void PutNacaOnBlocks::constructDefVel(const BlockInfo& info, FluidBlock& b, Obst
           std::min(+2, FluidBlock::sizeX - iap[0]),
           std::min(+2, FluidBlock::sizeY - iap[1])
       };
-      Real wghts[2][2];
-      for(int c=0; c<2; ++c) {
-        const Real t[2] = {
-            std::fabs((Real)xp[c] - (ap[c]+0)),
-            std::fabs((Real)xp[c] - (ap[c]+1))
-        };
-        // hat kernel
-        wghts[c][0] = 1.0 - t[0]; wghts[c][1] = 1.0 - t[1];
-      }
 
       for(int sy=start[1]; sy<end[1];++sy) {
       for(int sx=start[0]; sx<end[0];++sx) {
-        const Real wxwywz = wghts[1][sy]*wghts[0][sx];
         const int idx[3] = {
             iap[0] + sx,
             iap[1] + sy
         };
-        assert(wxwywz>=0 && wxwywz<=1);
         assert(idx[0]>=0 && idx[0]<FluidBlock::sizeX);
         assert(idx[1]>=0 && idx[1]<FluidBlock::sizeY);
 
-        for(int sz = 0; sz < FluidBlock::sizeZ; ++sz) {
-
+        for(int sz = 0; sz < FluidBlock::sizeZ; ++sz)
+        {
           const bool isInside = std::fabs(offsetW)+info.h_gridpoint/2 < myWidth;
-          b(idx[0],idx[1],sz).tmpU += wxwywz;
           // set sign for all interior points
           if( std::fabs(defblock->chi[sz][idx[1]][idx[0]] + 1) <
                 std::numeric_limits<Real>::epsilon() && isInside )

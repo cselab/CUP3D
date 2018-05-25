@@ -8,7 +8,7 @@ NNODE=2
 
 # removed ypos and zpos. cose should put object in the middle of the domain
 # removed uinf from options, moved to factory and forced/fixed obstacle
-FACTORY='IF3D_PlateObstacle L=0.2 xpos=0.25 xvel=0.1 a=0.2 b=0.4 thickness=0.05 alpha=30 bFixFrameOfRef_x=1 bFixFrameOfRef=1
+FACTORY='IF3D_PlateObstacle L=0.2 xpos=0.25 xvel=0.1 a=0.2 b=0.4 thickness=0.05 alpha=30 bForcedInSimFrame=1 bFixFrameOfRef=1
 '
 
 OPTIONS=
