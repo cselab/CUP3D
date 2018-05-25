@@ -147,7 +147,7 @@ void IF3D_NacaOperator::update(const int stepID, const double t, const double dt
     // if user wants to keep airfoil in the mid plane then we just integrate
     // relative velocity (should be 0), otherwise we know that y velocity
     // is sinusoidal, therefore we can just use analytical form
-    if(bFixFrameOfRef[2]) position[1] += dt*transVel[1];
+    if(bFixFrameOfRef[1]) position[1] += dt*transVel[1];
     else position[1] = ext_Y/2 + Aheave * std::cos(2*M_PI*Fheave*t);
     position[2] += dt*transVel[2];
 
