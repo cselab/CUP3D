@@ -13,7 +13,6 @@
 #include <sstream>
 using namespace std;
 #include "Simulation.h"
-#include "Save_splicer.h"
 
 int main(int argc, char **argv)
 {

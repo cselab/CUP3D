@@ -23,15 +23,12 @@ class CurvatureDefinedFishData : public FishMidlineData
   Real * const vA;
   double controlFac = -1, valPID = 0;
   double controlVel = 0, velPID = 0;
-  void computeWidthsHeights();
  public:
 
   CurvatureDefinedFishData(const int Nm, const double length, const double Tperiod, const double phaseShift, const double dx_ext)
   : FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext),
     rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
-    rB(_alloc(Nm)),vB(_alloc(Nm)), rA(_alloc(Nm)),vA(_alloc(Nm)) {
-      computeWidthsHeights();
-    }
+    rB(_alloc(Nm)),vB(_alloc(Nm)), rA(_alloc(Nm)),vA(_alloc(Nm)) { }
 
   void _correctTrajectory(const double dtheta, const double vtheta, const double time, double dt) override;
 
@@ -70,16 +67,15 @@ void CurvatureDefinedFishData::_correctTrajectory(const double dtheta, const dou
 void CurvatureDefinedFishData::_correctAmplitude(double dAmp, double vAmp, const double time, const double dt)
 {
   assert(dAmp>0 && dAmp<2); //buhu
-  if(dAmp<=0) {
-    dAmp=0;
-    vAmp=0;
-  }
+  if(dAmp<=0) { dAmp=0; vAmp=0; }
   controlFac = dAmp;
   controlVel = vAmp;
-  //const Real rampUp = time<Tperiod ? time/Tperiod : 1; //TODO actually should be cubic spline!
+
+  //TODO actually should be cubic spline!
+  //const Real rampUp = time<Tperiod ? time/Tperiod : 1;
   //const Real fac = dAmp*rampUp/length; //curvature is 1/length
   //const std::array<Real ,6> curvature_values = {
-  //  fac*0.82014, fac*1.46515, fac*2.57136, fac*3.75425, fac*5.09147, fac*5.70449
+  // fac*.82014, fac*1.46515, fac*2.57136, fac*3.75425, fac*5.09147, fac*5.70449
   //};
   //curvScheduler.transition(time,time,time+2*dt, curvature_values, true);
   //curvScheduler.transition(time, time-dt, time+dt, curvature_values);
@@ -170,83 +166,6 @@ void CurvatureDefinedFishData::computeMidline(const double time)
   #endif
 }
 
-void CurvatureDefinedFishData::computeWidthsHeights()
-{
-  //Master default is good old Wimmattia shape:
-  const int nh = 8;
-  const double xh[8] = {0, 0, .2*length, .4*length,
-    .6*length, .8*length, length, length};
-  // Slim Zebrafish
-  const double yh[8] = {0, 5.5e-2*length, 6.8e-2*length, 7.6e-2*length,
-    6.4e-2*length, 7.2e-3*length, 1.1e-1*length, 0};
-
-  // Large fin
-  //const Real yh[8] = {0, 5.5e-2*length, 1.8e-1*length, 2e-1*length,
-  //  6.4e-2*length, 2e-3*length, 3.25e-1*length, 0};
-
-  /*printf("TailFinSize = %f, Wavelength = %f\n", finSize, waveLength);
-  fflush(NULL);
-  const Real yh[8] = {0, 5.5e-2*length, 1.8e-1*length, 2e-1*length,
-    6.4e-2*length, 2e-3*length, finSize*length, 0};*/
-
-
-  /* // Tuna clone
-  const int nh = 9;
-  /*const Real xh[9] = {0, 0, 0.2*length, .4*length,
-    .6*length, .9*length, .96*length, length, length};
-  finSize = 0.23;
-  const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length,
-    1.1e-1*length, .0*length, 0.2*length, finSize*length, 0};
-  printf("WARNING, CHANGED TAIL SHAPE TO INCREASE SURF AREA BY 10%\n");*/
-  /*const Real xh[9] = {0, 0, 0.2*length, .4*length,
-          .6*length, .9*length, .96*length, length, length};
-  finSize = 0.23;
-  const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length,
-          1.1e-1*length, .0*length, 0.14*length, finSize*length, 0};
-  printf("WARNING, CHANGED TAIL FIN HEIGHT 10PERC LARGER\n");
-  */
-
-  //What is this?
-  //const Real xh[9] = {0, 0, 0.2*length, .4*length, .6*length,
-  //        .9*length, .96*length, length, length};
-  //finSize = 0.2;
-  //const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length, //1.1e-1*length, .0*length, 0.1*length, finSize*length, 0};
-  //printf("WARNING, CHANGED TAIL FIN HEIGHT EQUAL\n");
-  //printf("TailFinSize = %f, Wavelength = %f\n", finSize, waveLength);
-  //fflush(NULL);
-
-  //Master default is good old Wimmattia shape:
-  const int nw = 6;
-  const Real xw[6] = {0, 0, length/3., 2*length/3., length, length};
-  //const Real yw[6] = {0, 8.9e-2*length, 7.0e-2*length,
-  //  3.0e-2*length, 2.0e-2*length, 0};
-  const Real yw[6] = {0, 8.9e-2*length, 1.7e-2*length,
-    1.6e-2*length, 1.3e-2*length, 0};
-
-  //const double tNACA = 0.15;
-  //printf("NACA profile thickness = %f\n", tNACA);
-  //for(int i=0;i<Nm;++i) width[i]  = _naca_width(rS[i],length,tNACA);
-
-  //Actually do the b spline integration:
-  integrateBSpline(height, xh, yh, nh);
-  integrateBSpline(width,  xw, yw, nw);
-
-  //for(int i=0;i<Nm;++i) {
-  //  width[i]  = _width(rS[i],length);
-  //  height[i] = _height(rS[i],length);
-  //}
-
-  // output these suckers
-  FILE * heightWidth;
-  heightWidth = fopen("widthHeight.txt","w");
-  {
-    for(int i=0;i<Nm;++i) {
-      fprintf(heightWidth, "%f \t %f \t %f \n", rS[i], width[i], height[i]);
-    }
-  }
-  fclose(heightWidth);
-}
-
 void IF3D_StefanFishOperator::save(const int step_id, const double t, std::string filename)
 {
   //assert(std::abs(t-sim_time)<std::numeric_limits<Real>::epsilon());
@@ -329,9 +248,16 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g, ArgumentParser&
   const double dx_extension = (1./NEXTDX)*h;
   const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1)) + 1;
 
-  if(!rank) printf("%d %f %f %f %f\n", Nm, length, Tperiod, phaseShift, dx_extension);
-
   myFish = new CurvatureDefinedFishData(Nm, length, Tperiod, phaseShift, dx_extension);
+  string heightName = p("-heightProfile").asString("baseline");
+  string  widthName = p( "-widthProfile").asString("baseline");
+  MidlineShapes::computeWidthsHeights(heightName, widthName, length,
+    myFish->rS, myFish->height, myFish->width, Nm, rank);
+
+  //bool bKillAmplitude = parser("-zeroAmplitude").asInt(0);
+  //if(bKillAmplitude) myFish->killAmplitude();
+
+  if(!rank)printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
 
   sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
                     _2Dangle, transVel[0], transVel[1], angVel[2]);

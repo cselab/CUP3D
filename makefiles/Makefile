@@ -178,7 +178,6 @@ OBJECTS =  IF3D_VortexOperator.o \
            IF3D_ExternalObstacleOperator.o \
            Profiler.o \
            Simulation.o \
-           ProcessOperatorsOMP.o \
            IF3D_NacaOperator.o \
            IF3D_DCylinderObstacleOperator.o
            #IF3D_DeadFishOperator.o \
@@ -191,7 +190,6 @@ ifeq "$(accfft)" "true"
 else
 	NVOBJECTS =
 	LIBS += $(FFTW_LIBS)
-	OBJECTS += PoissonSolverScalarFFTW.o PoissonSolverScalarFFTW_MPI.o
 endif
 
 EXEOBJ = $(OBJECTS)  main.o

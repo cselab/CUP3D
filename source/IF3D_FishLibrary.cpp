@@ -22,42 +22,6 @@ void FishMidlineData::writeMidline2File(const int step_id, std::string filename)
   }
 }
 
-void FishMidlineData::integrateBSpline(Real* const res, const double* const xc,
-                                      const double* const yc, const int n)
-{
-  double len = 0;
-  for (int i=0; i<n-1; i++) {
-    len += std::sqrt(std::pow(xc[i]-xc[i+1],2) +
-                     std::pow(yc[i]-yc[i+1],2));
-  }
-
-  gsl_bspline_workspace *bw;
-  gsl_vector *B;
-  // allocate a cubic bspline workspace (k = 4)
-  bw = gsl_bspline_alloc(4, n-2);
-  B = gsl_vector_alloc(n);
-  gsl_bspline_knots_uniform(0.0, len, bw);
-
-  double ti = 0;
-  for(int i=0;i<Nm;++i) {
-    res[i] = 0;
-    if (rS[i]>0 and rS[i]<length) {
-      const double dtt = 0.1*(rS[i]-rS[i-1]);
-      while (true) {
-        double xi = 0;
-        gsl_bspline_eval(ti, B, bw);
-        for (int j=0; j<n; j++) xi += xc[j]*gsl_vector_get(B, j);
-        if (xi >= rS[i]) break;
-        ti += dtt;
-      }
-
-      for (int j=0; j<n; j++) res[i] += yc[j]*gsl_vector_get(B, j);
-    }
-  }
-  gsl_bspline_free(bw);
-  gsl_vector_free(B);
-}
-
 void FishMidlineData::_computeMidlineNormals()
 {
   #pragma omp parallel for
@@ -1031,6 +995,136 @@ Real PutNacaOnBlocks::getSmallerDistToMidLPlanar(const int start_s, const Real x
 
   final_s = new_s;
   return distSq;
+}
+
+void MidlineShapes::integrateBSpline(const double*const xc,
+  const double*const yc, const int n, const double length,
+  Real*const rS, Real*const res, const int Nm)
+{
+  double len = 0;
+  for (int i=0; i<n-1; i++) {
+    len += std::sqrt(std::pow(xc[i]-xc[i+1],2) +
+                     std::pow(yc[i]-yc[i+1],2));
+  }
+
+  gsl_bspline_workspace *bw;
+  gsl_vector *B;
+  // allocate a cubic bspline workspace (k = 4)
+  bw = gsl_bspline_alloc(4, n-2);
+  B = gsl_vector_alloc(n);
+  gsl_bspline_knots_uniform(0.0, len, bw);
+
+  double ti = 0;
+  for(int i=0; i<Nm; ++i) {
+    res[i] = 0;
+    if (rS[i]>0 and rS[i]<length) {
+      const double dtt = 0.1*(rS[i]-rS[i-1]);
+      while (true) {
+        double xi = 0;
+        gsl_bspline_eval(ti, B, bw);
+        for (int j=0; j<n; j++) xi += xc[j]*gsl_vector_get(B, j);
+        if (xi >= rS[i]) break;
+        ti += dtt;
+      }
+
+      for (int j=0; j<n; j++) res[i] += yc[j]*gsl_vector_get(B, j);
+    }
+  }
+  gsl_bspline_free(bw);
+  gsl_vector_free(B);
+}
+
+void MidlineShapes::naca_width(const double t_ratio, const double L,
+  Real*const rS, Real*const res, const int Nm)
+{
+  const Real a =  0.2969;
+  const Real b = -0.1260;
+  const Real c = -0.3516;
+  const Real d =  0.2843;
+  const Real e = -0.1015;
+  const Real t = t_ratio*L;
+
+  for(int i=0; i<Nm; ++i)
+  {
+    if ( rS[i]<=0 or rS[i]>=L ) res[i] = 0;
+    else {
+      const Real p = rS[i]/L;
+      res[i] = 5*t* (a*std::sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+      /*
+      if(s>0.99*L){ // Go linear, otherwise trailing edge is not closed - NACA analytical's fault
+        const Real temp = 0.99;
+        const Real y1 = 5*t* (a*sqrt(temp) +b*temp +c*temp*temp +d*temp*temp*temp + e*temp*temp*temp*temp);
+        const Real dydx = (0-y1)/(L-0.99*L);
+        return y1 + dydx * (s - 0.99*L);
+      }else{ // NACA analytical
+        return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+      }
+      */
+    }
+  }
+}
+
+void MidlineShapes::computeWidthsHeights(const string heightName,
+  const string widthName, const double L, Real* const rS,
+  Real* const height, Real* const width, const int nM, const int mpirank)
+{
+  if ( heightName.compare("largefin") == 0 ) {
+    if(!mpirank)
+      cout<<"Building object's height according to 'largefin' profile."<<endl;
+    double xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
+    double yh[8] = {0, .055*L, .18*L, .2*L, .064*L, .002*L, .325*L, 0};
+    // TODO read second to last number from factory
+    integrateBSpline(xh, yh, 8, L, rS, height, nM);
+  } else
+  if ( heightName.compare("tunaclone") == 0 ) {
+    if(!mpirank)
+      cout<<"Building object's height according to 'tunaclone' profile."<<endl;
+    double xh[9] = {0, 0, 0.2*L, .4*L, .6*L, .9*L, .96*L, L, L};
+    double yh[9] = {0, .05*L, .14*L, .15*L, .11*L, 0, .2*L, .23*L, 0};
+    // i also found 0.14 instead of 0.2 for yh[6]. Or ... :
+    //const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length, //1.1e-1*length, .0*length, 0.1*length, 0.2*length, 0};
+    integrateBSpline(xh, yh, 9, L, rS, height, nM);
+  } else
+  if ( heightName.compare(0, 4, "naca") == 0 ) {
+    double t_naca = std::stoi( string(heightName, 5), nullptr, 10 ) * 0.01;
+    if(!mpirank)
+      cout<<"Building object's height according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
+    naca_width(t_naca, L, rS, height, nM);
+  } else {
+    if(!mpirank)
+      cout<<"Building object's height according to baseline profile."<<endl;
+    double xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
+    double yh[8] = {0, .055*L, .068*L, .076*L, .064*L, .0072*L, .11*L, 0};
+    integrateBSpline(xh, yh, 8, L, rS, height, nM);
+  }
+
+  if ( widthName.compare("fatter") == 0 ) {
+    if(!mpirank)
+      cout<<"Building object's width according to 'fatter' profile."<<endl;
+    double xw[6] = {0, 0, L/3., 2*L/3., L, L};
+    double yw[6] = {0, 8.9e-2*L, 7.0e-2*L, 3.0e-2*L, 2.0e-2*L, 0};
+    integrateBSpline(xw, yw, 6, L, rS, width, nM);
+  } else
+  if ( widthName.compare(0, 4, "naca") == 0 ) {
+    double t_naca = std::stoi( string(widthName, 5), nullptr, 10 ) * 0.01;
+    if(!mpirank)
+      cout<<"Building object's width according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
+    naca_width(t_naca, L, rS, width, nM);
+  } else {
+    if(!mpirank)
+      cout<<"Building object's width according to baseline profile."<<endl;
+    double xw[6] = {0, 0, L/3., 2*L/3., L, L};
+    double yw[6] = {0, 8.9e-2*L, 1.7e-2*L, 1.6e-2*L, 1.3e-2*L, 0};
+    integrateBSpline(xw, yw, 6, L, rS, width, nM);
+  }
+
+  if(!mpirank) {
+    FILE * heightWidth;
+    heightWidth = fopen("widthHeight.txt","w");
+    for(int i=0; i<nM; ++i)
+      fprintf(heightWidth,"%f \t %f \t %f \n", rS[i], width[i], height[i]);
+    fclose(heightWidth);
+  }
 }
 
 #if 0

@@ -407,13 +407,6 @@ class FishMidlineData
     Rmatrix2D[1][0] = -Rmatrix2D[0][1];
   }
 
-  /*
-  function inputs: xc, yc are n sized arrays which contain the control points of the cubic b spline
-  function outputs onto res: assumed to be either the width or the height
-  */
-  void integrateBSpline(Real* const res, const double* const xc,
-                                         const double* const yc, const int n);
-
   void _computeMidlineNormals();
 
  public:
@@ -692,4 +685,20 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
   }
 };
 
+namespace MidlineShapes
+{
+  /*
+  function inputs: xc, yc are n sized arrays which contain the control points of the cubic b spline
+  function outputs onto res: assumed to be either the width or the height
+  */
+  void integrateBSpline(const double*const xc, const double*const yc,
+  const int n, const double length, Real*const rS,Real*const res,const int Nm);
+
+  void naca_width(const double t_ratio, const double L, Real*const rS,
+    Real*const res, const int Nm);
+
+  void computeWidthsHeights(const string heightName, const string widthName,
+  const double L, Real*const rS, Real*const height, Real*const width,
+  const int nM, const int mpirank);
+}
 #endif /* defined(__IncompressibleFluids3D__IF3D_CarlingFish__) */

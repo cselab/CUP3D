@@ -16,7 +16,7 @@
 #include "PoissonSolverScalarFFTW_ACC.h"
 typedef PoissonSolverScalarFFTW_ACC<FluidGridMPI, StreamerDiv> PressureSolver;
 #else
-#include "PoissonSolverScalarFFTW_MPI.h"
+#include "PoissonSolverScalarFFTW.h"
 //#ifdef FFTW_FFT
 typedef PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> PressureSolver;
 //#else

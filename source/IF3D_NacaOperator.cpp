@@ -12,34 +12,6 @@
 
 class NacaMidlineData : public FishMidlineData
 {
- protected:
-
-  inline Real _naca_width(const double s, const Real L, const double t_ratio)
-  {
-    if(s<0 or s>L) return 0;
-    const Real a = 0.2969;
-    const Real b =-0.1260;
-    const Real c =-0.3516;
-    const Real d = 0.2843;
-    const Real e =-0.1015;
-    //const Real t = 0.12*L;
-    const Real t = t_ratio*L;
-    const Real p = s/L;
-
-    /*
-    if(s>0.99*L){ // Go linear, otherwise trailing edge is not closed - NACA analytical's fault
-      const Real temp = 0.99;
-      const Real y1 = 5*t* (a*sqrt(temp) +b*temp +c*temp*temp +d*temp*temp*temp + e*temp*temp*temp*temp);
-      const Real dydx = (0-y1)/(L-0.99*L);
-      return y1 + dydx * (s - 0.99*L);
-    }else{ // NACA analytical
-      return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
-    }
-    */
-
-    return 5*t* (a*std::sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
-  }
-
  public:
   NacaMidlineData(const int Nm, const double length, const double dx_ext,
     double zExtent, double t_ratio, double HoverL=1) :
@@ -51,7 +23,7 @@ class NacaMidlineData : public FishMidlineData
     #else
       for(int i=0;i<Nm;++i) height[i] = length*HoverL/2;
     #endif
-    for(int i=0;i<Nm;++i) width[i]  = _naca_width(rS[i], length, t_ratio);
+    MidlineShapes::naca_width(t_ratio, length, rS, width, Nm);
 
     computeMidline(0);
 
@@ -107,7 +79,6 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
       }
   #endif
   Aheave *= length;
-
 
   const double thickness = p("-thickness").asDouble(0.12); // (NON DIMENSIONAL)
 
