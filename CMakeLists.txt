@@ -48,7 +48,7 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Project-specific flags
 if (SINGLE_PRECISION)
-    add_definitions("-D_SP_COMP_")
+    add_definitions("-D_FLOAT_PRECISION_")
 endif()
 if (VERBOSE)
     add_definitions("-D_VERBOSE_")

@@ -41,11 +41,11 @@ using namespace std;
 #include <mpi.h>
 #include <omp.h>
 
-#ifndef _SP_COMP_
+#ifndef _FLOAT_PRECISION_
 typedef double Real;
-#else // _SP_COMP_
+#else // _FLOAT_PRECISION_
 typedef float Real;
-#endif // _SP_COMP_
+#endif // _FLOAT_PRECISION_
 
 //this is all cubism file we need
 #include <ArgumentParser.h>
@@ -66,6 +66,8 @@ typedef float Real;
 #include "BoundaryConditions.h"
 #include "ObstacleBlock.h"
 #include "StateRewardData.h"
+#include "Slice.h"
+
 
 struct FluidElement
 {
@@ -82,78 +84,6 @@ struct DumpElement
     void clear() { u = v = w = chi = 0; }
 };
 
-struct FluidVTKStreamer
-{
-  static const int channels = 8;
-
-  void operate(FluidElement input, Real output[channels])
-  {
-    output[0] = input.u;
-    output[1] = input.v;
-    output[2] = input.w;
-    output[3] = input.chi;
-    output[4] = input.p;
-    output[5] = input.tmpU;
-    output[6] = input.tmpV;
-    output[7] = input.tmpW;
-  }
-};
-
-// this is used for serialization - important that ALL the quantities are streamed
-struct StreamerGridPoint
-{
-  static const int channels = 8;
-
-  void operate(const FluidElement& input, Real output[channels]) const
-  {
-    printf("Abort in StreamerGridPoint in!\n");
-    abort();
-    output[0] = input.u;
-    output[1] = input.v;
-    output[2] = input.w;
-    output[3] = input.chi;
-    output[4] = input.p;
-    output[5] = input.tmpU;
-    output[6] = input.tmpV;
-    output[7] = input.tmpW;
-  }
-
-  void operate(const Real input[channels], FluidElement& output) const
-  {
-    printf("Abort in StreamerGridPoint out!\n");
-    abort();
-    output.u    = input[0];
-    output.v    = input[1];
-    output.w    = input[2];
-    output.chi  = input[3];
-    output.p    = input[4];
-    output.tmpU = input[5];
-    output.tmpV = input[6];
-    output.tmpW = input[7];
-  }
-};
-
-struct StreamerGridPointASCII
-{ //TODO: how to terminate operate output?? endl? " "?
-  void operate(const FluidElement& input, ofstream& output) const
-  {
-    output << input.u << " " << input.v << " " << input.w << " " << input.chi << " "
-         << input.p << " " << input.tmpU << " " << input.tmpV << " " << input.tmpW;
-  }
-
-  void operate(ifstream& input, FluidElement& output) const
-  {
-    input >> output.u;
-    input >> output.v;
-    input >> output.w;
-    input >> output.chi;
-    input >> output.p;
-    input >> output.tmpU;
-    input >> output.tmpV;
-    input >> output.tmpW;
-  }
-};
-
 struct StreamerDiv
 {
   static const int channels = 1;
@@ -167,10 +97,10 @@ struct StreamerDiv
 struct FluidBlock
 {
   //these identifiers are required by cubism!
-  static constexpr int sizeX = _BSX_;
-  static constexpr int sizeY = _BSY_;
-  static constexpr int sizeZ = _BSZ_;
-  static constexpr int sizeArray[3] = {_BSX_, _BSY_, _BSZ_};
+  static constexpr int sizeX = _BLOCKSIZEX_;
+  static constexpr int sizeY = _BLOCKSIZEY_;
+  static constexpr int sizeZ = _BLOCKSIZEZ_;
+  static constexpr int sizeArray[3] = {_BLOCKSIZEX_, _BLOCKSIZEY_, _BLOCKSIZEZ_};
   typedef FluidElement ElementType;
   typedef FluidElement element_type;
   __attribute__((aligned(32))) FluidElement data[sizeZ][sizeY][sizeX];
@@ -220,115 +150,72 @@ struct FluidBlock
   }
 };
 
-template <> inline void FluidBlock::Write<StreamerGridPoint>(ofstream& output, StreamerGridPoint streamer) const
+struct StreamerChi
 {
-  output.write((const char *)&data[0][0][0], sizeof(FluidElement)*sizeX*sizeY*sizeZ);
-}
+    static const int NCHANNELS = 1;
+    static const int CLASS = 0;
 
-template <> inline void FluidBlock::Read<StreamerGridPoint>(ifstream& input, StreamerGridPoint streamer)
-{
-  input.read((char *)&data[0][0][0], sizeof(FluidElement)*sizeX*sizeY*sizeZ);
-}
+    const FluidBlock& ref;
 
-// VP Streamers
-struct ChiStreamer
-{
-  static const int channels = 1;
+    StreamerChi(const FluidBlock& b): ref(b) {}
 
-  FluidBlock* ref;
-  ChiStreamer(FluidBlock& b): ref(&b) {}
-  ChiStreamer(): ref(NULL) {}
-  inline Real operate(const int ix, const int iy, const int iz) const
-  {
-    const FluidElement& input = ref->data[iz][iy][ix];
-    return input.chi;
-  }
-  template<int channel>
-  static inline Real operate(const FluidElement& input)
-  {
-    printf("Abort in ChiStreamer\n");
-    abort(); return 0;
-  }
+    template <typename T>
+    inline void operate(const int ix, const int iy, const int iz, T output[NCHANNELS]) const
+    {
+      const FluidElement& el = ref(ix,iy,iz);
+      output[0] = el.chi;
+    }
+    static std::string postfix()
+    {
+      return std::string("-chi");
+    }
+    static std::string descriptor()
+    {
+      return std::string("Chi field");
+    }
 
-  const char * name() { return "ChiStreamer"; }
+    static const char * getAttributeName() { return "Scalar"; }
 };
 
-
-struct StreamerHDF5
+struct StreamerVelocityVector
 {
-  static const int NCHANNELS = 9;
+    static const int NCHANNELS = 3;
+    static const int CLASS = 0;
 
-  FluidBlock& ref;
+    FluidBlock& ref;
 
-  StreamerHDF5(FluidBlock& b): ref(b) {}
+    StreamerVelocityVector(FluidBlock& b): ref(b) {}
 
-  void operate(const int ix, const int iy, const int iz, Real output[NCHANNELS]) const
-  {
-    const FluidElement& input = ref.data[iz][iy][ix];
-
-    output[0] = input.u;
-    output[1] = input.v;
-    output[2] = input.w;
-    output[3] = input.chi;
-    output[4] = input.p;
-    output[5] = input.tmpU;
-    output[6] = input.tmpV;
-    output[7] = input.tmpW;
-    output[8] = 0;
-  }
-
-  void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
-  {
-    FluidElement& output = ref.data[iz][iy][ix];
-
-    output.u    = input[0];
-    output.v    = input[1];
-    output.w    = input[2];
-    output.chi  = input[3];
-    output.p    = input[4];
-    output.tmpU = input[5];
-    output.tmpV = input[6];
-    output.tmpW = input[7];
-  }
-
-  inline void dump(const int ix, const int iy, const int iz, float* const ovalue, const int field) const
-  {
-    const FluidElement& input = ref.data[iz][iy][ix];
-
-    switch(field) {
-      case 0: *ovalue  = input.u; break;
-      case 1: *ovalue  = input.v; break;
-      case 2: *ovalue  = input.w; break;
-      case 3: *ovalue  = input.chi; break;
-      case 4: *ovalue  = input.p; break;
-      case 5: *ovalue  = input.tmpU; break;
-      case 6: *ovalue  = input.tmpV; break;
-      case 7: *ovalue  = input.tmpW; break;
-      case 8: *ovalue  = 0;        break;
-      default: throw std::invalid_argument("unknown field!"); break;
+    // Write
+    template <typename T>
+    inline void operate(const int ix, const int iy, const int iz, T output[NCHANNELS]) const
+    {
+        const FluidElement& el = ref(ix,iy,iz);
+        output[0] = el.u;
+        output[1] = el.v;
+        output[2] = el.w;
     }
-  }
 
-  template<int field>
-  inline void load(const Real ivalue, const int ix, const int iy, const int iz) const
-  {
-    FluidElement& output = ref.data[iz][iy][ix];
-
-    switch(field) {
-      case 0:  output.u    = ivalue; break;
-      case 1:  output.v    = ivalue; break;
-      case 2:  output.w    = ivalue; break;
-      case 3:  output.chi  = ivalue; break;
-      case 4:  output.p    = ivalue; break;
-      case 5:  output.tmpU = ivalue; break;
-      case 6:  output.tmpV = ivalue; break;
-      case 7:  output.tmpW = ivalue; break;
-      case 8:              ; break;
-      default: throw std::invalid_argument("unknown field!"); break;
+    // Read
+    template <typename T>
+    inline void operate(const T input[NCHANNELS], const int ix, const int iy, const int iz)
+    {
+        FluidElement& el = ref(ix,iy,iz);
+        el.u = input[0];
+        el.v = input[1];
+        el.w = input[2];
     }
-  }
 
-  static const char * getAttributeName() { return "Tensor"; }
+    static std::string postfix()
+    {
+      return std::string("-vel");
+    }
+    static std::string descriptor()
+    {
+      return std::string("Velocity vector");
+    }
+
+    static const char * getAttributeName() { return "Vector"; }
 };
 
 template<typename BlockType, template<typename X> class allocator=std::allocator>
@@ -381,6 +268,7 @@ class BlockLabPeriodicZ : public BlockLab<BlockType,allocator>
 
 typedef Grid<FluidBlock, aligned_allocator> FluidGrid;
 typedef GridMPI<FluidGrid> FluidGridMPI;
+typedef SliceMPI<FluidGridMPI> SliceType;
 
 //typedef Grid<DumpBlock, std::allocator> DumpGrid;
 //typedef GridMPI<DumpGrid> DumpGridMPI;

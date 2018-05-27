@@ -45,7 +45,7 @@ CPPFLAGS += $(OPTFLAGS)
 #endif
 
 
-#MYFLAGS =-D_USE_ZLIB_ -D_ALIGNBYTES_=16 -I../lz4 -mtune=native -march=native -ftree-vectorize -fstrict-aliasing  -D_BLOCKSIZE_=$(bs) -D_VOXELS_=$(vs) -D_FLOAT_PRECISION_ -D_SP_COMP_ -g -fopenmp -I../reader/ -I../../../Cubism/source/ -Ofast -D_QPXEMU_ 
+#MYFLAGS =-D_USE_ZLIB_ -D_ALIGNBYTES_=16 -I../lz4 -mtune=native -march=native -ftree-vectorize -fstrict-aliasing  -D_BLOCKSIZE_=$(bs) -D_VOXELS_=$(vs) -D_FLOAT_PRECISION_ -D_FLOAT_PRECISION_ -g -fopenmp -I../reader/ -I../../../Cubism/source/ -Ofast -D_QPXEMU_ 
 CPPFLAGS += -D_VOXELS_=$(vs) -I../reader/ -I../../Cubism/
 
 

@@ -68,8 +68,8 @@ void Simulation::parseArguments()
   assert(nu>=0);
   parser.unset_strict_mode();
   bRestart = parser("-restart").asBool(false);
-  b2Ddump = parser("-2Ddump").asBool(false);
-  b3Ddump = parser("-3Ddump").asBool(true);
+  b2Ddump = parser("-dump2D").asBool(false);
+  b3Ddump = parser("-dump3D").asBool(true);
   DLM = parser("-use-dlm").asDouble(0);
   int dumpFreq = parser("-fdump").asDouble(0);  // dumpFreq==0 means dump freq (in #steps) is not active
   double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
@@ -92,6 +92,9 @@ void Simulation::parseArguments()
   uinf[1] = parser("-uinfy").asDouble(0.0);
   uinf[2] = parser("-uinfz").asDouble(0.0);
   verbose = parser("-verbose").asBool(true);
+
+  // setup 2D slices
+  m_slices = SliceType::getSlices<SliceType>(parser, *grid);
 }
 
 void Simulation::setupObstacles()
@@ -173,7 +176,7 @@ void Simulation::_serialize(const string append)
   if(!bDump) return;
 
   stringstream ssR;
-  if (append == string()) ssR<<"restart_";
+  if (append == "") ssR<<"restart_";
   else ssR<<append;
   ssR<<std::setfill('0')<<std::setw(9)<<step;
   if (rank==0) cout<<"Saving to "<<path4serialization<<"/"<<ssR.str()<<endl;
@@ -195,17 +198,18 @@ void Simulation::_serialize(const string append)
   #if defined(_USE_HDF_)
     if(b2Ddump) {
       stringstream ssF;
-      if (append == string())
+      if (append == "")
        ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
       else
        ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
-      DumpHDF5flat_MPI(*grid, time, ssF.str(),path4serialization);
+
+      for (const auto& slice : m_slices)
+        DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time, ssF.str(), path4serialization);
     }
 
     if(b3Ddump) {
-      DumpHDF5_MPI_Vector<FluidGridMPI,StreamerHDF5>(*grid, time, ssR.str(), path4serialization);
-      DumpHDF5_MPI_Channel<FluidGridMPI,StreamerHDF5,3>(
-      *grid, time, ssR.str(), path4serialization);
+      DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time, ssR.str(), path4serialization);
+      DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, step, time, ssR.str(), path4serialization);
     }
   #endif
 
@@ -261,7 +265,7 @@ void Simulation::_deserialize()
   if (rank==0) cout << "Restarting from " << ssR.str() << endl;
 
   #if defined(_USE_HDF_)
-    ReadHDF5_MPI_Vector<FluidGridMPI, StreamerHDF5>(*grid, ssR.str(),path4serialization);
+    ReadHDF5_MPI<FluidGridMPI, StreamerVelocityVector>(*grid, ssR.str(),path4serialization);
   #else
     printf("Unable to restart without  HDF5 library. Aborting...\n");
     MPI_Abort(grid->getCartComm(), 1);

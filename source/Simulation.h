@@ -89,6 +89,8 @@ class Simulation
   IF3D_ObstacleVector* obstacle_vector;
   //The antagonist
   std::vector<GenericCoordinator*> pipeline;
+  // vector of 2D slices (for dumping)
+  std::vector<SliceType> m_slices;
 
   void _serialize(const string append = string());
   void _deserialize();

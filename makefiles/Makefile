@@ -45,15 +45,15 @@ CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero -pedantic
 
 ifeq "$(precision)" "single"
-	CPPFLAGS += -D_SP_COMP_
-	NVCCFLAGS += -D_SP_COMP_
+	CPPFLAGS += -D_FLOAT_PRECISION_
+	NVCCFLAGS += -D_FLOAT_PRECISION_
 endif
 
 CPPFLAGS += -D_BLOCKSIZE_=$(bs)
 CPPFLAGS += -D_BS_=$(bs)
-CPPFLAGS += -D_BSX_=$(bsx)
-CPPFLAGS += -D_BSY_=$(bsy)
-CPPFLAGS += -D_BSZ_=$(bsz)
+CPPFLAGS += -D_BLOCKSIZEX_=$(bsx)
+CPPFLAGS += -D_BLOCKSIZEY_=$(bsy)
+CPPFLAGS += -D_BLOCKSIZEZ_=$(bsz)
 CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
 ifeq "$(config)" "prod"
@@ -100,7 +100,7 @@ endif
 CPPFLAGS += -std=c++11 -fopenmp
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
-CPPFLAGS += -I../source/ -I../Cubism/
+CPPFLAGS += -I../source/ -I../Cubism/source
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
@@ -176,11 +176,9 @@ OBJECTS =  IF3D_VortexOperator.o \
            IF3D_SphereObstacleOperator.o \
            IF3D_PlateObstacleOperator.o \
            IF3D_ExternalObstacleOperator.o \
-           Profiler.o \
            Simulation.o \
            IF3D_NacaOperator.o \
            IF3D_DCylinderObstacleOperator.o
-           #IF3D_DeadFishOperator.o \
            #IF3D_CarlingFishOperator.o \
 
 ifeq "$(accfft)" "true"

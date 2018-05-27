@@ -18,7 +18,7 @@
 
 #ifdef _CUDA_COMP_
 #include <cuda_runtime_api.h>
-  #ifndef _SP_COMP_
+  #ifndef _FLOAT_PRECISION_
     #include "accfft_gpu.h"
     typedef accfft_plan_gpu myplan;
     typedef Complex myComplex;
@@ -28,7 +28,7 @@
     typedef Complexf myComplex;
   #endif
 #else
-  #ifndef _SP_COMP_
+  #ifndef _FLOAT_PRECISION_
     #include "accfft.h"
     typedef accfft_plan myplan;
     typedef Complex myComplex;
@@ -186,13 +186,13 @@ public:
 
     // Get the local pencil size and the allocation size
     #ifdef _CUDA_COMP_
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       alloc_max = accfft_local_size_dft_r2c_gpu(n,isize,istart,osize,ostart,c_comm);
       #else
       alloc_max = accfft_local_size_dft_r2c_gpuf(n,isize,istart, osize, ostart,c_comm);
       #endif
     #else
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       alloc_max = accfft_local_size_dft_r2c(n,isize,istart,osize,ostart,c_comm);
       #else
       alloc_max = accfft_local_size_dft_r2cf(n,isize,istart,osize,ostart,c_comm);
@@ -221,14 +221,14 @@ public:
     #endif
 
     #ifdef _CUDA_COMP_
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
         plan = accfft_plan_dft_3d_r2c_gpu(n, rho_gpu, (Real*)phi_hat, c_comm, ACCFFT_MEASURE);
       #else
         plan = accfft_plan_dft_3d_r2c_gpuf(n, rho_gpu, (Real*)phi_hat, c_comm, ACCFFT_MEASURE);
       #endif
     #else
     accfft_init(desired_threads);
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       plan = accfft_plan_dft_3d_r2c(n, rho, (Real*)phi_hat, c_comm, ACCFFT_MEASURE);
       #else
       plan = accfft_plan_dft_3d_r2cf(n, rho, (Real*)phi_hat, c_comm, ACCFFT_MEASURE);
@@ -252,13 +252,13 @@ public:
     MPI_Barrier(c_comm);
 
     #ifdef _CUDA_COMP_
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       accfft_execute_r2c_gpu(plan,rho_gpu,phi_hat);
       #else
       accfft_execute_r2c_gpuf(plan,rho_gpu,phi_hat);
       #endif
     #else
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       accfft_execute_r2c(plan,rho,phi_hat);
       #else
       accfft_execute_r2cf(plan,rho,phi_hat);
@@ -279,7 +279,7 @@ public:
     MPI_Barrier(c_comm);
     // Perform backward FFT
     #ifdef _CUDA_COMP_
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       accfft_execute_c2r_gpu(plan,phi_hat,rho_gpu);
       //accfft_execute_c2r_gpu(plan,phi_hat,phi_gpu);
       #else
@@ -287,7 +287,7 @@ public:
       //accfft_execute_c2r_gpuf(plan,phi_hat,phi_gpu);
       #endif
     #else
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       accfft_execute_c2r(plan,phi_hat,rho);
       #else
       accfft_execute_c2rf(plan,phi_hat,rho);
@@ -313,7 +313,7 @@ public:
     cudaFree(rho_gpu);
     cudaFree(phi_hat);
     accfft_destroy_plan_gpu(plan);
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
     accfft_cleanup_gpu();
     #else
     accfft_cleanup_gpuf();

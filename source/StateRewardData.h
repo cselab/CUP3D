@@ -291,9 +291,9 @@ struct StateReward
     {
       //int rank;
       //MPI_Comm_rank(comm, &rank);
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       MPI_Allreduce(MPI_IN_PLACE, data, 5*nDest, MPI_DOUBLE, MPI_SUM, comm);
-      #else //_SP_COMP_
+      #else //_FLOAT_PRECISION_
       MPI_Allreduce(MPI_IN_PLACE, data, 5*nDest, MPI_FLOAT,  MPI_SUM, comm);
       #endif//
     }
@@ -351,7 +351,7 @@ struct StateReward
           assert(o->filled);
           double max_pos[3], min_pos[3];
           I.pos(min_pos, 0, 0, 0);
-          I.pos(max_pos, _BSX_-1, _BSY_-1, _BSZ_-1);
+          I.pos(max_pos, _BLOCKSIZE_-1, _BLOCKSIZE_-1, _BLOCKSIZE_-1);
           if(zObst-max_pos[2]>h+eps || min_pos[2]-zObst>h+eps) continue;
           if(Y    -max_pos[1]>h+eps || min_pos[1]-Y    >h+eps) continue;
           if(X    -max_pos[0]>h+eps || min_pos[0]-X    >h+eps) continue;

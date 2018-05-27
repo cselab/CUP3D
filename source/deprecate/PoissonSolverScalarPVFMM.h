@@ -39,11 +39,11 @@ class PoissonSolverScalarPVFMM
   const size_t n_local = myN[0]*myN[1]*myN[2], max_pts=300;
   const int mult_order = 8;
 
-  #ifndef _SP_COMP_
+  #ifndef _FLOAT_PRECISION_
   const pvfmm::Kernel<double>& kernel_fn = pvfmm::laplace_potn_d;
-  #else // _SP_COMP_
+  #else // _FLOAT_PRECISION_
   const pvfmm::Kernel<float>&  kernel_fn = pvfmm::laplace_potn_f;
-  #endif // _SP_COMP_
+  #endif // _FLOAT_PRECISION_
 
   std::vector<Real>  pts_coord;
   std::vector<Real>  src_value;

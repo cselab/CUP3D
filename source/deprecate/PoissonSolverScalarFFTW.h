@@ -16,15 +16,15 @@
 
 #include "Definitions.h"
 
-#ifndef _SP_COMP_
+#ifndef _FLOAT_PRECISION_
 // double
 typedef fftw_complex mycomplex;
 typedef fftw_plan myplan;
-#else // _SP_COMP_
+#else // _FLOAT_PRECISION_
 // float
 typedef fftwf_complex mycomplex;
 typedef fftwf_plan myplan;
-#endif // _SP_COMP_
+#endif // _FLOAT_PRECISION_
 
 using namespace std;
 
@@ -41,21 +41,21 @@ class FFTWBase
     if (!initialized) {
       initialized = true;
 
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       const int retval = fftw_init_threads();
-      #else // _SP_COMP_
+      #else // _FLOAT_PRECISION_
       const int retval = fftwf_init_threads();
-      #endif // _SP_COMP_
+      #endif // _FLOAT_PRECISION_
       if(retval==0) {
         cout << "FFTWBase::setup(): Oops the call to fftw_init_threads() returned zero. Aborting\n";
         abort();
       }
       else
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
         fftw_plan_with_nthreads(desired_threads);
-      #else // _SP_COMP_
+      #else // _FLOAT_PRECISION_
         fftwf_plan_with_nthreads(desired_threads);
-      #endif // _SP_COMP_
+      #endif // _FLOAT_PRECISION_
     }
 
     registered_objects++;
@@ -70,11 +70,11 @@ public:
     registered_objects--;
 
     if (registered_objects == 0) {
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       fftw_cleanup_threads();
-      #else // _SP_COMP_
+      #else // _FLOAT_PRECISION_
       fftwf_cleanup_threads();
-      #endif // _SP_COMP_
+      #endif // _FLOAT_PRECISION_
     }
   }
 };
@@ -98,7 +98,7 @@ protected:
     if (!initialized)
     {
       initialized = true;
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       rhs = fftw_alloc_real(2*nx*ny*(nz/2+1));
 
       fwd = fftw_plan_dft_r2c_3d(nx, ny, nz, rhs, (mycomplex *)rhs, FFTW_MEASURE);
@@ -259,7 +259,7 @@ public:
     profiler.pop_stop();
 
     profiler.push_start("FFTW FORWARD");
-    #ifndef _SP_COMP_
+    #ifndef _FLOAT_PRECISION_
     fftw_execute(fwd);
     #else
     fftwf_execute(fwd);
@@ -278,7 +278,7 @@ public:
     profiler.pop_stop();
 
     profiler.push_start("FFTW INVERSE");
-    #ifndef _SP_COMP_
+    #ifndef _FLOAT_PRECISION_
     fftw_execute(bwd);
     #else
     fftwf_execute(bwd);
@@ -298,7 +298,7 @@ public:
     {
       initialized = false;
 
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       fftw_destroy_plan(fwd);
       fftw_destroy_plan(bwd);
 
@@ -339,17 +339,17 @@ protected:
       //  Backward X: FFT
       //  Forward Y:  DST-III
       //  Backward Y: DST-II
-#ifndef _SP_COMP_
+#ifndef _FLOAT_PRECISION_
       rhs = fftw_alloc_real(nx*ny*nz);
 
       fwd = fftw_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_R2HC, FFTW_REDFT11, FFTW_R2HC, FFTW_MEASURE);
       bwd = fftw_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_HC2R, FFTW_REDFT11, FFTW_HC2R, FFTW_MEASURE);
-#else // _SP_COMP_
+#else // _FLOAT_PRECISION_
       rhs = fftwf_alloc_real(nx*ny*nz);
 
       fwd = fftwf_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_R2HC, FFTW_REDFT11, FFTW_R2HC, FFTW_MEASURE);
       bwd = fftwf_plan_r2r_3d(nx, ny, nz, rhs, rhs, FFTW_HC2R, FFTW_REDFT11, FFTW_HC2R, FFTW_MEASURE);
-#endif // _SP_COMP_
+#endif // _FLOAT_PRECISION_
     }
   }
 
@@ -530,11 +530,11 @@ public:
 #endif
 
     profiler.push_start("FFTW FORWARD");
-#ifndef _SP_COMP_
+#ifndef _FLOAT_PRECISION_
     fftw_execute(fwd);
-#else // _SP_COMP_
+#else // _FLOAT_PRECISION_
     fftwf_execute(fwd);
-#endif // _SP_COMP_
+#endif // _FLOAT_PRECISION_
     profiler.pop_stop();
 
     const Real norm_factor = .5/(gsize[0]*gsize[1]*gsize[2]); // needs to be checked!
@@ -550,11 +550,11 @@ public:
     profiler.pop_stop();
 
     profiler.push_start("FFTW INVERSE");
-#ifndef _SP_COMP_
+#ifndef _FLOAT_PRECISION_
     fftw_execute(bwd);
-#else // _SP_COMP_
+#else // _FLOAT_PRECISION_
     fftwf_execute(bwd);
-#endif // _SP_COMP_
+#endif // _FLOAT_PRECISION_
     profiler.pop_stop();
 
     profiler.push_start("FFTW2CUB");
@@ -570,17 +570,17 @@ public:
     {
       initialized = false;
 
-#ifndef _SP_COMP_
+#ifndef _FLOAT_PRECISION_
       fftw_destroy_plan(fwd);
       fftw_destroy_plan(bwd);
 
       fftw_free(data);
-#else // _SP_COMP_
+#else // _FLOAT_PRECISION_
       fftwf_destroy_plan(fwd);
       fftwf_destroy_plan(bwd);
 
       fftwf_free(data);
-#endif // _SP_COMP_
+#endif // _FLOAT_PRECISION_
       FFTWBase::dispose();
     }
   }

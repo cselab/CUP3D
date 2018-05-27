@@ -12,7 +12,7 @@
 #include <fftw3.h>
 #include <fftw3-mpi.h>
 
-#ifndef _SP_COMP_
+#ifndef _FLOAT_PRECISION_
 typedef fftw_complex mycomplex;
 typedef fftw_plan myplan;
 #else
@@ -55,7 +55,7 @@ protected:
   {
     if (!initialized) {
       initialized = true;
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       alloc_local = fftw_mpi_local_size_3d_transposed(nx, ny, nz,
         comm, &local_n0, &local_0_start, &local_n1, &local_1_start);
       rhs = fftw_alloc_real(alloc_local);
@@ -73,7 +73,7 @@ protected:
       //  FFTW_RODFT11, FFTW_RODFT01, FFTW_RODFT01,
       //  FFTW_REDFT11, FFTW_RODFT01, FFTW_RODFT01,
         FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
-      #else // _SP_COMP_
+      #else // _FLOAT_PRECISION_
       alloc_local = fftwf_mpi_local_size_3d(nx, ny, nz, comm,
         &local_n0, &local_0_start, &local_n1, &local_1_start);
       rhs = fftwf_alloc_real(alloc_local);
@@ -157,7 +157,7 @@ public:
   {
     //_cub2fftw(data);
     //if (local_1_start + local_n1 == ny) data[alloc_local-1] = 0;
-    #ifndef _SP_COMP_
+    #ifndef _FLOAT_PRECISION_
     fftw_execute(fwd);
     #else
     fftwf_execute(fwd);
@@ -167,7 +167,7 @@ public:
     const double h = grid.getBlocksInfo().front().h_gridpoint;
     _solve(data, gsize[0], gsize[1], gsize[2], norm_factor, h);
 
-    #ifndef _SP_COMP_
+    #ifndef _FLOAT_PRECISION_
     fftw_execute(bwd);
     #else
     fftwf_execute(bwd);
@@ -181,7 +181,7 @@ public:
     if (initialized) {
       initialized = false;
 
-      #ifndef _SP_COMP_
+      #ifndef _FLOAT_PRECISION_
       fftw_destroy_plan(fwd);
       fftw_destroy_plan(bwd);
       fftw_free(data);

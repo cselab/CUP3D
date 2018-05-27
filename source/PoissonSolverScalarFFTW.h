@@ -12,7 +12,7 @@
 #include <fftw3.h>
 #include <fftw3-mpi.h>
 
-#ifndef _SP_COMP_
+#ifndef _FLOAT_PRECISION_
 typedef fftw_complex mycomplex;
 typedef fftw_plan myplan;
 #else
@@ -142,7 +142,7 @@ class PoissonSolverScalarFFTW_MPI
         abort();
       }
     }
-    #ifndef _SP_COMP_
+    #ifndef _FLOAT_PRECISION_
       const int retval = fftw_init_threads();
     #else
       const int retval = fftwf_init_threads();
@@ -152,7 +152,7 @@ class PoissonSolverScalarFFTW_MPI
       abort();
     }
 
-    #ifndef _SP_COMP_
+    #ifndef _FLOAT_PRECISION_
       fftw_plan_with_nthreads(desired_threads);
       fftw_mpi_init();
       alloc_local = fftw_mpi_local_size_3d_transposed(
@@ -187,7 +187,7 @@ class PoissonSolverScalarFFTW_MPI
   {
     //_cub2fftw(data);
 
-    #ifndef _SP_COMP_
+    #ifndef _FLOAT_PRECISION_
     fftw_execute(fwd);
     #else
     fftwf_execute(fwd);
@@ -195,7 +195,7 @@ class PoissonSolverScalarFFTW_MPI
 
     _solve();
 
-    #ifndef _SP_COMP_
+    #ifndef _FLOAT_PRECISION_
     fftw_execute(bwd);
     #else
     fftwf_execute(bwd);
@@ -206,7 +206,7 @@ class PoissonSolverScalarFFTW_MPI
 
   void dispose()
   {
-    #ifndef _SP_COMP_
+    #ifndef _FLOAT_PRECISION_
       fftw_destroy_plan(fwd);
       fftw_destroy_plan(bwd);
       fftw_free(data);

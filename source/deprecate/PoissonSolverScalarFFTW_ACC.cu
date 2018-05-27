@@ -7,7 +7,7 @@
 
 //#include "PoissonSolverScalarFFTW_ACC.h"
 //#include <cuda_runtime_api.h>
-#ifndef _SP_COMP_
+#ifndef _FLOAT_PRECISION_
         typedef double Real;
 typedef double Complex[2];
 #else
