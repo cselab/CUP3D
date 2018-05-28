@@ -109,12 +109,20 @@ class Simulation
   virtual ~Simulation()
   {
     delete grid;
-    //delete dump;
+    delete obstacle_vector;
     while(!pipeline.empty()) {
       GenericCoordinator * g = pipeline.back();
       pipeline.pop_back();
       delete g;
     }
+    #ifdef DUMPGRID
+      if(dumper not_eq nullptr) {
+        dumper.join();
+        delete dumper;
+      }
+      delete dump;
+      MPI_Comm_free(&dump_comm);
+    #endif
   }
 
   virtual void init();
