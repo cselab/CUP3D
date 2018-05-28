@@ -77,11 +77,10 @@ struct FluidElement
   void clear() { chi =0; u =0; v =0; w =0; p =0; tmpU =0; tmpV =0; tmpW =0; }
 };
 
-struct DumpElement
-{
-    Real u, v, w, chi;
-    DumpElement() : u(0), v(0), w(0), chi(0) {}
-    void clear() { u = v = w = chi = 0; }
+struct DumpElement {
+    float u, v, w, chi, p;
+    DumpElement() : u(0), v(0), w(0), chi(0), p(0) {}
+    void clear() { u = v = w = chi = p = 0; }
 };
 
 struct StreamerDiv
@@ -94,28 +93,27 @@ struct StreamerDiv
   { output.p = input[0]; }
 };
 
-struct FluidBlock
+template <typename TElement>
+struct BaseBlock
 {
   //these identifiers are required by cubism!
   static constexpr int sizeX = _BLOCKSIZEX_;
   static constexpr int sizeY = _BLOCKSIZEY_;
   static constexpr int sizeZ = _BLOCKSIZEZ_;
   static constexpr int sizeArray[3] = {_BLOCKSIZEX_, _BLOCKSIZEY_, _BLOCKSIZEZ_};
-  typedef FluidElement ElementType;
-  typedef FluidElement element_type;
-  __attribute__((aligned(32))) FluidElement data[sizeZ][sizeY][sizeX];
+  typedef TElement ElementType;
+  typedef TElement element_type;
+  __attribute__((aligned(32))) TElement data[sizeZ][sizeY][sizeX];
 
   //required from Grid.h
   void clear()
   {
-      FluidElement * entry = &data[0][0][0];
+      TElement * entry = &data[0][0][0];
       const int N = sizeX*sizeY*sizeZ;
-
-      for(int i=0; i<N; ++i)
-          entry[i].clear();
+      for(int i=0; i<N; ++i) entry[i].clear();
   }
 
-  FluidElement& operator()(int ix, int iy=0, int iz=0)
+  TElement& operator()(int ix, int iy=0, int iz=0)
   {
     assert(ix>=0); assert(ix<sizeX);
     assert(iy>=0); assert(iy<sizeY);
@@ -123,7 +121,7 @@ struct FluidBlock
     return data[iz][iy][ix];
   }
 
-  const FluidElement& operator()(int ix, int iy = 0, int iz = 0) const
+  const TElement& operator()(int ix, int iy = 0, int iz = 0) const
   {
     assert(ix>=0); assert(ix<sizeX);
     assert(iy>=0); assert(iy<sizeY);
@@ -155,15 +153,10 @@ struct StreamerChi
     static const int NCHANNELS = 1;
     static const int CLASS = 0;
 
-    const FluidBlock& ref;
-
-    StreamerChi(const FluidBlock& b): ref(b) {}
-
-    template <typename T>
-    inline void operate(const int ix, const int iy, const int iz, T output[NCHANNELS]) const
+    template <typename TBlock, typename T>
+    static inline void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
-      const FluidElement& el = ref(ix,iy,iz);
-      output[0] = el.chi;
+      output[0] = b(ix,iy,iz).chi;
     }
     static std::string postfix()
     {
@@ -182,41 +175,54 @@ struct StreamerVelocityVector
     static const int NCHANNELS = 3;
     static const int CLASS = 0;
 
-    FluidBlock& ref;
-
-    StreamerVelocityVector(FluidBlock& b): ref(b) {}
-
     // Write
-    template <typename T>
-    inline void operate(const int ix, const int iy, const int iz, T output[NCHANNELS]) const
+    template <typename TBlock, typename T>
+    static inline void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
-        const FluidElement& el = ref(ix,iy,iz);
-        output[0] = el.u;
-        output[1] = el.v;
-        output[2] = el.w;
+        output[0] = b(ix,iy,iz).u;
+        output[1] = b(ix,iy,iz).v;
+        output[2] = b(ix,iy,iz).w;
     }
 
     // Read
-    template <typename T>
-    inline void operate(const T input[NCHANNELS], const int ix, const int iy, const int iz)
+    template <typename TBlock, typename T>
+    static inline void operate(TBlock& b, const T input[NCHANNELS], const int ix, const int iy, const int iz)
     {
-        FluidElement& el = ref(ix,iy,iz);
-        el.u = input[0];
-        el.v = input[1];
-        el.w = input[2];
+        b(ix,iy,iz).u = input[0];
+        b(ix,iy,iz).v = input[1];
+        b(ix,iy,iz).w = input[2];
     }
 
-    static std::string postfix()
-    {
+    static std::string postfix() {
       return std::string("-vel");
     }
-    static std::string descriptor()
-    {
+    static std::string descriptor() {
       return std::string("Velocity vector");
     }
 
     static const char * getAttributeName() { return "Vector"; }
 };
+
+struct StreamerPressure
+{
+    static const int NCHANNELS = 1;
+    static const int CLASS = 0;
+
+    template <typename TBlock, typename T>
+    inline void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS]) const
+    {
+      output[0] = b(ix,iy,iz).p;
+    }
+    static std::string postfix() {
+      return std::string("-pre");
+    }
+    static std::string descriptor() {
+      return std::string("Pressure field");
+    }
+
+    static const char * getAttributeName() { return "Scalar"; }
+};
+
 
 template<typename BlockType, template<typename X> class allocator=std::allocator>
 class BlockLabOpen: public BlockLab<BlockType,allocator>
@@ -266,12 +272,12 @@ class BlockLabPeriodicZ : public BlockLab<BlockType,allocator>
   }
 };
 
+using FluidBlock = BaseBlock<FluidElement>;
 typedef Grid<FluidBlock, aligned_allocator> FluidGrid;
 typedef GridMPI<FluidGrid> FluidGridMPI;
 typedef SliceMPI<FluidGridMPI> SliceType;
 
-//typedef Grid<DumpBlock, std::allocator> DumpGrid;
-//typedef GridMPI<DumpGrid> DumpGridMPI;
+//typedef GridMPI<Grid<DumpBlock, aligned_allocator>> DumpGridMPI;
 
 #if defined(BC_PERIODICZ)
   typedef  BlockLabPeriodicZ<FluidBlock, aligned_allocator> Lab;

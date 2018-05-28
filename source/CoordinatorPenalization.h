@@ -139,7 +139,7 @@ public:
   : GenericCoordinator(g), obstacleVector(myobst), lambda(l), uInf(u)
   {
     MPI_Comm comm = g->getCartComm();
-    MPI_Comm_rank(comm, &rank); 
+    MPI_Comm_rank(comm, &rank);
   }
 
   void operator()(const double dt)

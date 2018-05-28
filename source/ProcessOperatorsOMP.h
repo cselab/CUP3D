@@ -123,19 +123,23 @@ static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
    }
   #pragma omp parallel for schedule(static)
   for(int i=0; i<N; i++) {
-    BlockInfo info1 = vInfo1[i];
-    BlockInfo info2 = vInfo2[i];
-    Real p1[3], p2[3];
-    info1.pos(p1, 0,0,0);
-    info2.pos(p2, 0,0,0);
-    if (fabs(p1[0]-p2[0])>info1.h_gridpoint ||
-        fabs(p1[1]-p2[1])>info1.h_gridpoint ||
-        fabs(p1[2]-p2[2])>info1.h_gridpoint) {
-           printf("Async dump fail 2.\n");
-           fflush(0);
-           MPI_Abort(grid.getCartComm(), MPI_ERR_OTHER);
-        }
-    FluidBlock& b = *(FluidBlock*)info1.ptrBlock;
+    const BlockInfo& info1 = vInfo1[i];
+    const BlockInfo& info2 = vInfo2[i];
+
+    #ifndef NDEBUG
+      Real p1[3], p2[3];
+      info1.pos(p1, 0,0,0);
+      info2.pos(p2, 0,0,0);
+      if (fabs(p1[0]-p2[0])>info1.h_gridpoint/2 ||
+          fabs(p1[1]-p2[1])>info1.h_gridpoint/2 ||
+          fabs(p1[2]-p2[2])>info1.h_gridpoint/2) {
+             printf("Async dump fail 2.\n");
+             fflush(0);
+             MPI_Abort(grid.getCartComm(), MPI_ERR_OTHER);
+          }
+    #endif
+
+    const FluidBlock& b = *(FluidBlock*)info1.ptrBlock;
      DumpBlock& d = *( DumpBlock*)info2.ptrBlock;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -144,6 +148,7 @@ static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
       d(ix,iy,iz).v = b(ix,iy,iz).v;
       d(ix,iy,iz).w = b(ix,iy,iz).w;
       d(ix,iy,iz).chi = b(ix,iy,iz).chi;
+      d(ix,iy,iz).p = b(ix,iy,iz).p;
     }
   }
 }

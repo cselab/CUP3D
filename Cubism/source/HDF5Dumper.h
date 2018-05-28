@@ -79,7 +79,6 @@ void DumpHDF5(const TGrid &grid, const int iCounter, const Real absTime, const s
         BlockInfo& info = vInfo_local[i];
         const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
         B & b = *(B*)info.ptrBlock;
-        Streamer streamer(b);
 
         for(unsigned int iz=sZ; iz<eZ; iz++)
             for(unsigned int iy=sY; iy<eY; iy++)
@@ -89,7 +88,7 @@ void DumpHDF5(const TGrid &grid, const int iCounter, const Real absTime, const s
                     for(unsigned int i=0; i<NCHANNELS; ++i)
                         output[i] = 0;
 
-                    streamer.operate(ix, iy, iz, (hdf5Real*)output);
+                    Streamer::operate(b, ix, iy, iz, (hdf5Real*)output);
 
                     const unsigned int gx = idx[0]*B::sizeX + ix;
                     const unsigned int gy = idx[1]*B::sizeY + iy;
@@ -229,7 +228,6 @@ void ReadHDF5(TGrid &grid, const std::string f_name, const std::string read_path
         BlockInfo& info = vInfo_local[i];
         const int idx[3] = {info.index[0], info.index[1], info.index[2]};
         B & b = *(B*)info.ptrBlock;
-        Streamer streamer(b);
 
         for(int iz=sZ; iz<eZ; iz++)
             for(int iy=sY; iy<eY; iy++)
@@ -241,7 +239,7 @@ void ReadHDF5(TGrid &grid, const std::string f_name, const std::string read_path
 
                     hdf5Real * const ptr_input = array_all + NCHANNELS*(gx + NX * (gy + NY * gz));
 
-                    streamer.operate(ptr_input, ix, iy, iz);
+                    Streamer::operate(b, ptr_input, ix, iy, iz);
                 }
     }
 

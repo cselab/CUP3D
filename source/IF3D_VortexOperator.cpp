@@ -10,11 +10,6 @@
 #include <chrono>
 IF3D_VortexOperator::IF3D_VortexOperator(FluidGridMPI * g, ArgumentParser & p, const Real*const u) : IF3D_ObstacleOperator(g, p, u), created(false)
 {
-  volume=0;
-  for(int i=0;i<3;i++) transVel[i]=0;
-  for(int i=0;i<3;i++) angVel[i]=0;
-  for(int i=0;i<6;i++) J[i]=0;
-
   v_max = p("-vmax").asDouble();
 }
 

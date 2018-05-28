@@ -40,7 +40,6 @@ namespace SliceExtractor
             BlockInfo& info = bInfo[i];
             const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
             TBlock& b = *(TBlock*)info.ptrBlock;
-            TStreamer streamer(b);
 
             for(unsigned int iz=0; iz<TBlock::sizeZ; ++iz)
                 for(unsigned int iy=0; iy<TBlock::sizeY; ++iy)
@@ -49,7 +48,7 @@ namespace SliceExtractor
                     for(unsigned int k=0; k<NCHANNELS; ++k)
                         output[k] = 0;
 
-                    streamer.operate(ix, iy, iz, (hdf5Real*)output);
+                    TStreamer::operate(b, ix, iy, iz, (hdf5Real*)output);
 
                     const unsigned int gy = idx[1]*TBlock::sizeY + iy;
                     const unsigned int gz = idx[2]*TBlock::sizeZ + iz;
@@ -73,7 +72,6 @@ namespace SliceExtractor
             BlockInfo& info = bInfo[i];
             const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
             TBlock& b = *(TBlock*)info.ptrBlock;
-            TStreamer streamer(b);
 
             for(unsigned int iz=0; iz<TBlock::sizeZ; ++iz)
                 for(unsigned int ix=0; ix<TBlock::sizeX; ++ix)
@@ -82,7 +80,7 @@ namespace SliceExtractor
                     for(unsigned int k=0; k<NCHANNELS; ++k)
                         output[k] = 0;
 
-                    streamer.operate(ix, iy, iz, (hdf5Real*)output);
+                    TStreamer::operate(b, ix, iy, iz, (hdf5Real*)output);
 
                     const unsigned int gx = idx[0]*TBlock::sizeX + ix;
                     const unsigned int gz = idx[2]*TBlock::sizeZ + iz;
@@ -106,7 +104,6 @@ namespace SliceExtractor
             BlockInfo& info = bInfo[i];
             const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
             TBlock& b = *(TBlock*)info.ptrBlock;
-            TStreamer streamer(b);
 
             for(unsigned int iy=0; iy<TBlock::sizeY; ++iy)
                 for(unsigned int ix=0; ix<TBlock::sizeX; ++ix)
@@ -115,7 +112,7 @@ namespace SliceExtractor
                     for(unsigned int k=0; k<NCHANNELS; ++k)
                         output[k] = 0;
 
-                    streamer.operate(ix, iy, iz, (hdf5Real*)output);
+                    TStreamer::operate(b, ix, iy, iz, (hdf5Real*)output);
 
                     const unsigned int gx = idx[0]*TBlock::sizeX + ix;
                     const unsigned int gy = idx[1]*TBlock::sizeY + iy;
