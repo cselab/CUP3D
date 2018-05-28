@@ -206,42 +206,44 @@ void Simulation::_serialize(const string append)
 
   #if defined(_USE_HDF_)
 
-    #ifdef DUMPGRID
-      // if a thread was already created, make sure it has finished
-      if(dumper not_eq nullptr) {
-        dumper->join();
-        delete dumper;
-        dumper = nullptr;
+  stringstream ssF;
+  if (append == "")
+   ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
+  else
+   ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
+
+  #ifdef DUMPGRID
+    // if a thread was already created, make sure it has finished
+    if(dumper not_eq nullptr) {
+      dumper->join();
+      delete dumper;
+      dumper = nullptr;
+    }
+    // copy qois from grid to dump
+    copyDumpGrid(*grid, *dump);
+
+    const auto name3d = ssR.str(), name2d = ssF.str(); // sstreams are weird
+    dumper = new std::thread( [=] () {
+      if(b2Ddump) {
+        for (const auto& slice : m_slices)
+          DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time, name2d, path4serialization);
       }
-      // copy qois from grid to dump
-      copyDumpGrid(*grid, *dump);
-    #endif
-
+      if(b3Ddump) {
+        DumpHDF5_MPI<DumpGridMPI,StreamerVelocityVector>(*dump, step, time, name3d, path4serialization);
+        DumpHDF5_MPI<DumpGridMPI,StreamerChi>(*dump, step, time, name3d, path4serialization);
+      }
+    } );
+  #else //DUMPGRID
     if(b2Ddump) {
-      stringstream ssF;
-      if (append == "")
-       ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
-      else
-       ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
-
       for (const auto& slice : m_slices)
         DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time, ssF.str(), path4serialization);
     }
-
     if(b3Ddump) {
-      #ifdef DUMPGRID
-        const auto fname = ssR.str(); // stringstreams are weird
-        dumper = new std::thread( [=] () {
-          cout << "Thread created" << endl; fflush(0);
-          DumpHDF5_MPI<DumpGridMPI,StreamerVelocityVector>(*dump, step, time, fname, path4serialization);
-          DumpHDF5_MPI<DumpGridMPI,StreamerChi>(*dump, step, time, fname, path4serialization);
-        } );
-      #else
-        DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time, ssR.str(), path4serialization);
-        DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, step, time, ssR.str(), path4serialization);
-      #endif
+      DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time, ssR.str(), path4serialization);
+      DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, step, time, ssR.str(), path4serialization);
     }
-  #endif
+  #endif //DUMPGRID
+  #endif //_USE_HDF_
 
   if (rank==0)
   { //saved the grid! Write status to remember most recent ping

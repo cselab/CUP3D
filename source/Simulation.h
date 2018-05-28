@@ -26,10 +26,7 @@
 #include "CoordinatorFadeOut.h"
 #include "IF3D_ObstacleVector.h"
 #include "IF3D_ObstacleFactory.h"
-//#include "IF3D_StefanFishOperator.h"
-//#include "IF3D_CarlingFishOperator.h"
-//#include "IF3D_SphereObstacleOperator.h"
-//#include "IF3D_ForcedSphereObstacleOperator.h"
+
 #if _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
 #endif

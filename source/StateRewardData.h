@@ -27,6 +27,15 @@ using namespace std;
 static const int NpLatLine = 10;
 //#define __ExploreHalfWake
 
+#ifdef __RL_MPI_CLIENT //hardcoded BC for DCyl
+#define checkTerm(...) checkTerm_DcylFollower(__VA_ARGS__)
+#define sendInitC(...) sendInitC_DcylFollower(__VA_ARGS__)
+#define setRefFrm()    setRefFrm_DCylFollower()
+//TODO:
+// - 2/N fish want open bc in z
+// - cleaning: maybe compile cubism and set flags based on user's app choice
+#endif
+
 #include "Definitions.h"
 #include "ObstacleBlock.h"
 
