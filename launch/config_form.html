@@ -1,8 +1,8 @@
 <!doctype html>
 
 <!-- TODO: Add a note that internet connection is required (for CSS/JS files). -->
-<!-- TODO: Add tend and how many GB that accounts to. -->
 <!-- TODO: Add option to store and load JSON. -->
+<!-- TODO: xyz bForcedInSimFrame and bFixFrameOfRef -->
 <html>
 <head>
   <title>CubismUP_3D config file generator</title>
@@ -11,7 +11,7 @@
   <link type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet"/>
   <script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
   <link type="text/css" href="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.css" rel="stylesheet"/>
-  <script type="text/javascript" src="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.js"></script>
+  <script type="text/javascript" src="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.js"></script>
 </head>
 <body>
 
@@ -19,6 +19,7 @@
 <br>
 <button type="button" id="download-config">Save</button>
 <br>
+<div id="config-info"></div>
 <pre id="config-file"></pre>
 
 
@@ -33,28 +34,53 @@
   </div>
 </script>
 
+<script type="text/x-handlebars-template" id="config-info-template">
+  {{#if dump_info}}
+    Approx. snapshot size: {{dump_info.snapshot_size}}<br>
+    Approx. number of snapshot: {{dump_info.snapshot_count}}<br>
+    Approx. total snapshot size: <b>{{dump_info.snapshot_total_size}}</b><br>
+    <br>
+  {{/if}}
+  Approx. Reynolds number: <b>{{Re}}</b> {{Re_desc}}<br>
+</script>
+
 <script type="text/javascript">
 (function(){
+    var CUBISM_NAME = "CubismUP_3D";
     var SPHERE = "Sphere";
     var BLOCK_SIZE = 16;
+    var BYTES_PER_CELL = 4 * 8;
 
     var CELL_INFO = " (power of two, &ge; 16)";
+    var CONFIG_INFO_TEMPLATE = Handlebars.compile(
+            $("#config-info-template").html());
 
     var current_config = '';
 
+    // https://stackoverflow.com/a/22827128/2203044
+    var escape_shell = function(str) {
+        return "'" + str.replace(/'/g, "'\\''") + "'";
+    };
+
+    /* Generate config file from form values. */
     var update_config = function(value) {
         var technical = value["technical"];
-        var grid = value["grid"];
+        var simulation = value["simulation"];
         var flow = value["flow"];
         var obstacles = value["obstacles"];
 
         var out = "";
-        // https://stackoverflow.com/a/20053121/2203044
+        out += "#!/bin/bash\n\n";
+        out += "set -e\n\n";
         out += "NUM_NODES=" + technical["num_nodes"] + "\n";
+        // https://stackoverflow.com/a/20053121/2203044
+        out += "TARGET_PATH=" + escape_shell(technical["target_path"]) + "\n";
+        out += "EXE=${PWD}/../makefiles/cubismup_3d\n";
 
-        var bpdx = grid["num_cells_x"] / BLOCK_SIZE;
-        var bpdy = grid["num_cells_y"] / BLOCK_SIZE;
-        var bpdz = grid["num_cells_z"] / BLOCK_SIZE;
+        /* Technical. */
+        var bpdx = technical["num_cells_x"] / BLOCK_SIZE;
+        var bpdy = technical["num_cells_y"] / BLOCK_SIZE;
+        var bpdz = technical["num_cells_z"] / BLOCK_SIZE;
         out += "\n";
         out += "OPTIONS=\n";
         out += "OPTIONS+=\" -nprocsx ${NUM_NODES}\"\n";
@@ -62,9 +88,17 @@
         out += "OPTIONS+=' -bpdy " + bpdy + "'\n";
         out += "OPTIONS+=' -bpdz " + bpdz + "'\n";
         out += "OPTIONS+=' -nu " + flow["nu"] + "'\n";
-        out += "OPTIONS+=' -uinfx " + flow["uinfx"] + "'\n";
 
-        var factory = "FACTORY=\n";
+        /* Simulation setup */
+        var tend = simulation["tend"];
+        var tdump = simulation["tdump"];
+        out += "OPTIONS+=' -tend " + tend + "'\n";
+        if (tdump > 0)
+            out += "OPTIONS+=' -tdump " + tdump + "'\n";
+
+        var Re = 0;
+        var Re_desc = "";  // Wrt what object is this?
+        var factory = "";
         for (var i = 0, len = obstacles.length; i < len; ++i) {
             var o = obstacles[i];
             var ok = false;
@@ -85,28 +119,66 @@
                     };
                     break;
             };
+
+            var forced = o["obstacle_forced"] ? 1 : 0;
+            params["bForcedInSimFrame"] = forced;
+            if (forced) {
+                var vx = o["obstacle_vel_x"];
+                var vy = o["obstacle_vel_y"];
+                var vz = o["obstacle_vel_z"];
+                params["xvel"] = vx;
+                params["yvel"] = vy;
+                params["zvel"] = vz;
+                var v = Math.sqrt(vx * vx + vy * vy + vz * vz);
+                var Re_curr = v * params["L"] / flow["nu"];
+                if (Re_curr > Re) {
+                    Re = Re_curr;
+                    Re_desc = "-- with respect to the object #" + i
+                            + " at (" + params["xpos"] + ", " + params["ypos"] + ", " + params["zpos"] + ")";
+                }
+            }
+            params["bFixFrameOfRef"] = o["obstacle_frame_fixed"] ? 1 : 0;
+
             if (ok) {
                 // Concatenate to "-key1=value1 -key2=value2 ...".
                 var line = name;
                 for (var key in params)
                     if (params.hasOwnProperty(key))
-                        line += " -" + key + "=" + $.trim(params[key]);
-                factory += "FACTORY+='" + line + "'$'\\n'\n";
+                        line += " " + key + "=" + $.trim(params[key]);
+                factory += line + "\n";
             }
         }
         out += "\n";
-        out += factory;
-        out += "OPTIONS+=$(printf ' -factory-content %q' \"$(FACTORY)\")\n";
+        out += "FACTORY='\n" + factory + "'\n";
         out += "\n\n";
-        out += "mpirun -np ${NUM_NODES} -ppn 1 ./cubismup_3d ${OPTIONS}\n";
+        out += "cd ${TARGET_PATH}\n";
+        out += "mpirun -np ${NUM_NODES} -ppn 1 ${EXE} ${OPTIONS} -factory-content \"${FACTORY}\"\n";
         var json = JSON.stringify(value);
 
         out += "\n\n\n# DEBUG:\n# " + json;
         $("#config-file").html(out);
 
+        /* Config info. */
+        var config_info = {
+            "Re": Re,
+            "Re_desc": Re_desc,
+        };
+        if (tdump > 0) {
+            var num_cells = bpdx * bpdy * bpdz * BLOCK_SIZE * BLOCK_SIZE * BLOCK_SIZE;
+            var size = num_cells * BYTES_PER_CELL;
+            var count = 1 + Math.floor(tend / tdump);
+            config_info["dump_info"] = {
+                "snapshot_size": (size / 1048576) + "MB",
+                "snapshot_count": count,
+                "snapshot_total_size": (size * count / 1048576) + "MB",
+            };
+        }
+        $("#config-info").html(CONFIG_INFO_TEMPLATE(config_info));
+
         current_config = out;
     };
 
+    /* "Download" config file. */
     // https://stackoverflow.com/a/18197341/2203044
     var download = function(filename, text) {
         var element = document.createElement('a');
@@ -125,6 +197,7 @@
         download('cubism_config.sh', current_config);
     });
 
+    /* Shortcut functions for form schema. */
     var gen_coord_field = function(title) {
         return {
             "type": "number",
@@ -134,8 +207,17 @@
             "maximum": 1.0,
         };
     };
+    var gen_vel_field = function(title) {
+        return {
+            "type": "number",
+            "title": title,
+            "default": "0.0",
+        };
+    };
+
+    /* Form structure. */
     var SCHEMA = {
-        "title": "CubismUP_3D setup",
+        "title": CUBISM_NAME + " setup",
         "type": "object",
         "properties": {
             "technical": {
@@ -147,12 +229,11 @@
                         "title": "Number of nodes",
                         "default": 1,
                     },
-                },
-            },
-            "grid": {
-                "type": "object",
-                "title": "Grid settings",
-                "properties": {
+                    "target_path": {
+                        "type": "any",
+                        "title": "Target path",
+                        "default": "simulation-01",
+                    },
                     "num_cells_x": {
                         "type": "integer",
                         "title": "Cells in X direction" + CELL_INFO,
@@ -176,26 +257,39 @@
                     },
                 },
             },
+            "simulation": {
+                "type": "object",
+                "title": "Simulation setup",
+                "properties": {
+                    "tend": {
+                        "type": "number",
+                        "title": "Simulation time",
+                        "default": 1.0,
+                        "minimum": 0.0,
+                    },
+                    "tdump": {
+                        "type": "number",
+                        "title": "Snapshot time",
+                        "default": 0.1,
+                        "minimum": 0.0,
+                    },
+                },
+            },
             "flow": {
                 "type": "object",
                 "title": "Flow properties",
                 "properties": {
                     "nu": {
                         "type": "number",
-                        "title": "Viscosity",
-                        "default": "0.003",
-                    },
-                    "uinfx": {
-                        "type": "number",
-                        "title": "Inflow velocity",
-                        "default": "0.1",
+                        "title": "Kinematic viscosity",
+                        "default": "0.001",
                     },
                 },
             },
             "obstacles": {
                 "type": "array",
                 "title": "Obstacles",
-                "default": '[{"obstacle_type": "' + SPHERE + '", "sphere_center_x": 0.5, "sphere_center_y": 0.5, "sphere_center_z": 0.5, "sphere_radius": 0.1}]',
+                "default": '[{"obstacle_type": "' + SPHERE + '", "sphere_center_x": 0.5, "sphere_center_y": 0.5, "sphere_center_z": 0.5, "sphere_radius": 0.1, "obstacle_forced": true, "obstacle_vel_x": 10, "obstacle_vel_y": 0, "obstacle_vel_z": 0, "obstacle_frame_fixed": true}]',
                 "items": {
                     "type": "object",
                     "properties": {
@@ -211,12 +305,26 @@
                             "default": 0.1,
                             "minimum": 0.0,
                         },
+                        "obstacle_forced": {
+                            "default": true,
+                            "title": "Forced?",
+                        },
+                        "obstacle_vel_x": gen_vel_field("Velocity X"),
+                        "obstacle_vel_y": gen_vel_field("Velocity Y"),
+                        "obstacle_vel_z": gen_vel_field("Velocity Z"),
+                        "obstacle_frame_fixed": {
+                            "default": true,
+                            "title": "Frame fixed to object?",
+                        },
                     },
                     "dependencies": {
                         "sphere_center_x": ["obstacle_type"],
                         "sphere_center_y": ["obstacle_type"],
                         "sphere_center_z": ["obstacle_type"],
                         "sphere_radius": ["obstacle_type"],
+                        "obstacle_vel_x": ["obstacle_forced"],
+                        "obstacle_vel_y": ["obstacle_forced"],
+                        "obstacle_vel_z": ["obstacle_forced"],
                     }
                 }
             }
@@ -237,7 +345,7 @@
     };
     var OPTIONS = {
         "fields": {
-            "grid": {
+            "technical": {
                 "fields": {
                     "num_cells_x": {
                         "validator": validate_num_cells,
@@ -247,6 +355,14 @@
                     },
                     "num_cells_z": {
                         "validator": validate_num_cells,
+                        "helper": CUBISM_NAME + " always uses cubic cells. The axix/axes with maximum number of cells will have a logical length of 1. Others will scale accordingly.",
+                    },
+                },
+            },
+            "simulation": {
+                "fields": {
+                    "tdump": {
+                        "helper": "Every how much time units a visualization snapshot should be taken? 0 to disable.",
                     },
                 },
             },
@@ -286,6 +402,17 @@
                                     "obstacle_type": SPHERE,
                                 }
                             },
+                            "obstacle_forced": {
+                                "type": "checkbox",
+                                "helper": "Set <i>Forced</i> to fix the obstacle velocity. Otherwise, the velocity will be dynamic and calculated from the flow.",
+                            },
+                            "obstacle_vel_x": { "dependencies": {"obstacle_forced": true}, },
+                            "obstacle_vel_y": { "dependencies": {"obstacle_forced": true}, },
+                            "obstacle_vel_z": { "dependencies": {"obstacle_forced": true}, },
+                            "obstacle_frame_fixed": {
+                                "type": "checkbox",
+                                "helper": "In the case multiple objects are selected, the frame of reference follows their average position.",
+                            },
                         }
                     }
                 }
@@ -298,7 +425,7 @@
             "template": "#two-column-layout-template",
             "bindings": {
                 "technical": "leftcolumn",
-                "grid": "leftcolumn",
+                "simulation": "leftcolumn",
                 "flow": "rightcolumn",
                 "obstacles": "rightcolumn",
             }
