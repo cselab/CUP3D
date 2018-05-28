@@ -40,10 +40,21 @@ struct FillBlocksBase {
 #define DERIVED (static_cast<const Derived *>(this))
     void operator()(const BlockInfo &info, ObstacleBlock * const o) const
     {
+        /*
+         * Based on:
+         *
+         * Towers, John D.
+         * "Finite difference methods for approximating Heaviside functions."
+         * Journal of Computational Physics 228.9 (2009): 3478-3489.
+         *
+         * https://www.sciencedirect.com/science/article/pii/S0021999109000576
+         */
+
         // TODO: Remove `isTouching` check and verify that all dependencies are
         //       using this function properly.
         if (!DERIVED->isTouching(info))
             return;
+
         FluidBlock &b = *(FluidBlock *)info.ptrBlock;
         const Real h = info.h_gridpoint;
         const Real inv2h = (Real)0.5 / h;
