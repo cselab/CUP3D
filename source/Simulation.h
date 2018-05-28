@@ -117,7 +117,7 @@ class Simulation
     }
     #ifdef DUMPGRID
       if(dumper not_eq nullptr) {
-        dumper.join();
+        dumper->join();
         delete dumper;
       }
       delete dump;
