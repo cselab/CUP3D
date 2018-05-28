@@ -17,8 +17,13 @@ using namespace std;
 int main(int argc, char **argv)
 {
   int provided;
-  MPI_Init_thread(&argc, &argv, MPI_THREAD_FUNNELED, &provided);
-  if (provided < MPI_THREAD_FUNNELED) {
+  #ifdef DUMPGRID
+    const auto SECURITY = MPI_THREAD_MULTIPLE;
+  #else
+    const auto SECURITY = MPI_THREAD_FUNNELED;
+  #endif
+  MPI_Init_thread(&argc, &argv, SECURITY, &provided);
+  if (provided < SECURITY ) {
     printf("ERROR: MPI implementation does not have required thread support\n");
     fflush(0);
     MPI_Abort(MPI_COMM_WORLD, 1);

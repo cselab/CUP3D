@@ -40,12 +40,17 @@ void Simulation::setupGrid()
 
   bpdx /= nprocsx; bpdy /= nprocsy; bpdz /= nprocsz;
   grid = new FluidGridMPI(nprocsx,nprocsy,nprocsz, bpdx,bpdy,bpdz, 1,app_comm);
-  //dump = new  DumpGridMPI(nprocsx,nprocsy,nprocsz, bpdx,bpdy,bpdz, 1,app_comm);
   assert(grid != NULL);
   vInfo = grid->getBlocksInfo();
-
   MPI_Comm_rank(grid->getCartComm(),&rank);
   MPI_Comm_size(grid->getCartComm(),&nprocs);
+
+  #ifdef DUMPGRID
+    // create new comm so that if there is a barrier main work is not affected
+    MPI_Comm_split(app_comm, 0, rank, &dump_comm);
+    dump = new  DumpGridMPI(nprocsx,nprocsy,nprocsz, bpdx,bpdy,bpdz, 1, dump_comm);
+  #endif
+
   char hostname[1024];
   hostname[1023] = '\0';
   gethostname(hostname, 1023);
@@ -61,7 +66,11 @@ void Simulation::setupGrid()
   }
 
   // setup 2D slices
-  m_slices = SliceType::getSlices<SliceType>(parser, *grid);
+  #ifdef DUMPGRID
+    m_slices = SliceType::getSlices<SliceType>(parser, *dump);
+  #else
+    m_slices = SliceType::getSlices<SliceType>(parser, *grid);
+  #endif
 }
 
 void Simulation::parseArguments()
@@ -196,6 +205,18 @@ void Simulation::_serialize(const string append)
   }
 
   #if defined(_USE_HDF_)
+
+    #ifdef DUMPGRID
+      // if a thread was already created, make sure it has finished
+      if(dumper not_eq nullptr) {
+        dumper->join();
+        delete dumper;
+        dumper = nullptr;
+      }
+      // copy qois from grid to dump
+      copyDumpGrid(*grid, *dump);
+    #endif
+
     if(b2Ddump) {
       stringstream ssF;
       if (append == "")
@@ -208,8 +229,17 @@ void Simulation::_serialize(const string append)
     }
 
     if(b3Ddump) {
-      DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time, ssR.str(), path4serialization);
-      DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, step, time, ssR.str(), path4serialization);
+      #ifdef DUMPGRID
+        const auto fname = ssR.str(); // stringstreams are weird
+        dumper = new std::thread( [=] () {
+          cout << "Thread created" << endl; fflush(0);
+          DumpHDF5_MPI<DumpGridMPI,StreamerVelocityVector>(*dump, step, time, fname, path4serialization);
+          DumpHDF5_MPI<DumpGridMPI,StreamerChi>(*dump, step, time, fname, path4serialization);
+        } );
+      #else
+        DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time, ssR.str(), path4serialization);
+        DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, step, time, ssR.str(), path4serialization);
+      #endif
     }
   #endif
 

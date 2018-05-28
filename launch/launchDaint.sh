@@ -52,6 +52,7 @@ cat <<EOF >daint_sbatch
 module load daint-gpu GSL cray-hdf5-parallel
 module load cudatoolkit fftw
 
+export MPICH_MAX_THREAD_SAFETY=multiple
 export OMP_NUM_THREADS=12
 srun --ntasks ${NNODE} --threads-per-core=1 --ntasks-per-node=1 --cpus-per-task=12 time ./simulation ${OPTIONS}
 EOF

@@ -110,7 +110,7 @@ static Real findMaxUOMP(const vector<BlockInfo>& myInfo, FluidGridMPI& grid, con
   return maxU;
 }
 
-/*
+#ifdef DUMPGRID
 static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
 {
   vector<BlockInfo> vInfo1 = grid.getBlocksInfo();
@@ -152,5 +152,6 @@ static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
     }
   }
 }
-*/
+#endif
+
 #endif

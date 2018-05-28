@@ -28,6 +28,8 @@ using namespace std;
 #define __NpLatLine 20
 #define __ExploreHalfWake
 
+#define DUMPGRID
+
 #ifdef __RL_MPI_CLIENT //hardcoded BC for DCyl
 #define BC_PERIODICZ
 #define checkTerm(...) checkTerm_DcylFollower(__VA_ARGS__)
@@ -275,9 +277,14 @@ class BlockLabPeriodicZ : public BlockLab<BlockType,allocator>
 using FluidBlock = BaseBlock<FluidElement>;
 typedef Grid<FluidBlock, aligned_allocator> FluidGrid;
 typedef GridMPI<FluidGrid> FluidGridMPI;
-typedef SliceMPI<FluidGridMPI> SliceType;
 
-//typedef GridMPI<Grid<DumpBlock, aligned_allocator>> DumpGridMPI;
+#ifdef DUMPGRID
+  using DumpBlock = BaseBlock<DumpElement>;
+  typedef GridMPI<Grid<DumpBlock, aligned_allocator>> DumpGridMPI;
+  typedef SliceMPI<DumpGridMPI> SliceType;
+#else
+  typedef SliceMPI<FluidGridMPI> SliceType;
+#endif
 
 #if defined(BC_PERIODICZ)
   typedef  BlockLabPeriodicZ<FluidBlock, aligned_allocator> Lab;
@@ -295,101 +302,4 @@ typedef BlockLabMPI<Lab> LabMPI;
 //typedef BlockLabPipe<FluidBlock, std::allocator> Lab;
 //#endif // _PIPE_
 
-#if 0
-struct StreamerHDF5Dump
-{
-  static const int NCHANNELS = 4;
-
-  DumpBlock& ref;
-
-  StreamerHDF5Dump(DumpBlock& b): ref(b) {}
-
-  void operate(const int ix, const int iy, const int iz, Real output[NCHANNELS]) const
-  {
-    const DumpElement& input = ref.data[iz][iy][ix];
-    output[0] = input.u;
-    output[1] = input.v;
-    output[2] = input.w;
-    output[3] = input.chi;
-  }
-
-  void operate(const Real input[NCHANNELS], const int ix, const int iy, const int iz) const
-  {
-    DumpElement& output = ref.data[iz][iy][ix];
-    output.u    = input[0];
-    output.v    = input[1];
-    output.w    = input[2];
-    output.chi  = input[3];
-  }
-
-  inline void dump(const int ix, const int iy, const int iz, float* const ovalue, const int field) const
-  {
-    const DumpElement& input = ref.data[iz][iy][ix];
-    switch(field) {
-      case 0: *ovalue  = input.u; break;
-      case 1: *ovalue  = input.v; break;
-      case 2: *ovalue  = input.w; break;
-      case 3: *ovalue  = input.chi; break;
-      default: throw std::invalid_argument("unknown field!"); break;
-    }
-  }
-
-  template<int field>
-  inline void load(const Real ivalue, const int ix, const int iy, const int iz) const
-  {
-    DumpElement& output = ref.data[iz][iy][ix];
-    switch(field) {
-      case 0:  output.u    = ivalue; break;
-      case 1:  output.v    = ivalue; break;
-      case 2:  output.w    = ivalue; break;
-      case 3:  output.chi  = ivalue; break;
-      default: throw std::invalid_argument("unknown field!"); break;
-    }
-  }
-
-  static const char * getAttributeName() { return "Vector"; }
-};
-
-struct DumpBlock
-{
-  //these identifiers are required by cubism!
-  static const int sizeX = _BSX_;
-  static const int sizeY = _BSY_;
-  static const int sizeZ = _BSZ_;
-  typedef DumpElement ElementType;
-  typedef DumpElement element_type;
-  __attribute__((aligned(32))) DumpElement data[sizeZ][sizeY][sizeX];
-  //required from Grid.h
-  void clear()
-  {
-    DumpElement * entry = &data[0][0][0];
-    const int N = sizeX*sizeY*sizeZ;
-    for(int i=0; i<N; ++i) entry[i].clear();
-  }
-  DumpElement& operator()(int ix, int iy=0, int iz=0)
-  {
-    assert(ix>=0); assert(ix<sizeX);
-    assert(iy>=0); assert(iy<sizeY);
-    assert(iz>=0); assert(iz<sizeZ);
-    return data[iz][iy][ix];
-  }
-  template <typename Streamer>
-  inline void Write(ofstream& output, Streamer streamer) const
-  {
-    for(int iz=0; iz<sizeZ; iz++)
-      for(int iy=0; iy<sizeY; iy++)
-        for(int ix=0; ix<sizeX; ix++)
-          streamer.operate(data[iz][iy][ix], output);
-  }
-  template <typename Streamer>
-  inline void Read(ifstream& input, Streamer streamer)
-  {
-    for(int iz=0; iz<sizeZ; iz++)
-      for(int iy=0; iy<sizeY; iy++)
-        for(int ix=0; ix<sizeX; ix++)
-          streamer.operate(input, data[iz][iy][ix]);
-  }
-};
-
-#endif
 #endif

@@ -81,8 +81,12 @@ class Simulation
   string path2file, path4serialization = "./";
 
   FluidGridMPI * grid = nullptr;
-  //DumpGridMPI * dump = nullptr;
-  //std::thread * dumper = nullptr;
+
+  #ifdef DUMPGRID
+    MPI_Comm dump_comm;
+    DumpGridMPI * dump = nullptr;
+    std::thread * dumper = nullptr;
+  #endif
 
   std::vector<BlockInfo> vInfo;
   //The protagonist
