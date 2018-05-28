@@ -178,14 +178,13 @@ struct alignas(32) ObstacleBlock
     assert(filled);
     for (int i = 0; i < nPoints; ++i) {
       float buf[] = {
-          (float)ss[i], (float)pX[i], (float)pY[i], (float)pZ[i],
-          (float)P[i], (float)fX[i], (float)fY[i], (float)fZ[i],
-          (float)vY[i], (float)vY[i], (float)vZ[i],
-          (float)vxDef[i], (float)vyDef[i], (float)vzDef[i],
-          // (float)surface[i]->dchidx, (float)surface[i]->dchidy,
+        (float)ss[i], (float)pX[i], (float)pY[i], (float)pZ[i], (float)fX[i],
+        (float)fY[i], (float)fZ[i], (float)vY[i], (float)vY[i], (float)vZ[i],
+        (float)vxDef[i], (float)vyDef[i], (float)vzDef[i],
+        (float)surface[i]->dchidx, (float)surface[i]->dchidy,
+        (float)surface[i]->dchidz
       };
-      fwrite (buf, sizeof(float), 14, pFile);
-      fflush(pFile);
+      fwrite (buf, sizeof(float), 16, pFile);
     }
   }
 };
