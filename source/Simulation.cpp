@@ -59,6 +59,9 @@ void Simulation::setupGrid()
     printf("Blocks per dimension: [%d %d %d]\n",bpdx,bpdy,bpdz);
     printf("Nranks per dimension: [%d %d %d]\n",nprocsx,nprocsy,nprocsz);
   }
+
+  // setup 2D slices
+  m_slices = SliceType::getSlices<SliceType>(parser, *grid);
 }
 
 void Simulation::parseArguments()
@@ -92,9 +95,6 @@ void Simulation::parseArguments()
   uinf[1] = parser("-uinfy").asDouble(0.0);
   uinf[2] = parser("-uinfz").asDouble(0.0);
   verbose = parser("-verbose").asBool(true);
-
-  // setup 2D slices
-  m_slices = SliceType::getSlices<SliceType>(parser, *grid);
 }
 
 void Simulation::setupObstacles()

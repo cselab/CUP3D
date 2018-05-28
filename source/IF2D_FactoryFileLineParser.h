@@ -56,8 +56,8 @@ public:
             if( std::getline(is_line, value, ' ') )
             {
                 // add "-" because then we can use the same code for parsing factory as command lines
-                mapArguments["-"+trim(key)] = Value(trim(value));
-                //mapArguments[trim(key)] = Value(trim(value));
+                //mapArguments["-"+trim(key)] = Value(trim(value));
+                mapArguments[trim(key)] = Value(trim(value));
             }
         }
 

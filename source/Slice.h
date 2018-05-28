@@ -53,22 +53,15 @@ struct Slice
             identifier << "slice" << i+1;
             // fetch direction
             const std::string sDir = identifier.str() + "_direction";
-            if (parser.check(sDir)) thisOne.dir = parser(sDir).asInt(0);
+            thisOne.dir = parser(sDir).asInt(2);
             const bool bDirOK = (thisOne.dir >= 0 && thisOne.dir < 3);
-            assert(bDirOK);
 
             // compute index
-            const std::string sIndex = identifier.str() + "_index";
             const std::string sFrac  = identifier.str() + "_fraction";
-            if (parser.check(sIndex)) thisOne.idx = parser(sIndex).asInt(0);
-            else if (parser.check(sFrac))
-            {
-                const double fraction = parser(sFrac).asDouble(0.5);
-                const int idx = static_cast<int>(Dim[thisOne.dir] * fraction);
-                thisOne.idx = min(Dim[thisOne.dir]-1, idx);
-            }
+            const double fraction = parser(sFrac).asDouble(0.5);
+            const int idx = static_cast<int>(Dim[thisOne.dir] * fraction);
+            thisOne.idx = min(Dim[thisOne.dir]-1, idx);
             const bool bIdxOK = (thisOne.idx >= 0 && thisOne.idx < Dim[thisOne.dir]);
-            assert(bIdxOK);
 
             if (bDirOK && bIdxOK) thisOne.valid = true;
             else
