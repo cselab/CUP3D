@@ -15,14 +15,15 @@ set(NUM_THREADS "24" CACHE String "Number of threads per node")
 set(EXE "cubismup_3d")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "makefiles/")
 
-include_directories(Cubism/)
+include_directories(Cubism/source/)
+include_directories(source/)
 set(COMMON_SOURCES           # Common for app and lib.
     # source/IF3D_CarlingFishOperator.cpp
     source/IF3D_DCylinderObstacleOperator.cpp
     # source/IF3D_DeadFishOperator.cpp
+    source/IF3D_ExternalObstacleOperator.cpp
     source/IF3D_FishLibrary.cpp
     source/IF3D_FishOperator.cpp
-    source/IF3D_ForcedSphereObstacleOperator.cpp
     source/IF3D_NacaOperator.cpp
     source/IF3D_ObstacleFactory.cpp
     source/IF3D_ObstacleOperator.cpp
@@ -31,14 +32,7 @@ set(COMMON_SOURCES           # Common for app and lib.
     source/IF3D_SphereObstacleOperator.cpp
     source/IF3D_StefanFishOperator.cpp
     source/IF3D_VortexOperator.cpp
-    source/ProcessOperatorsOMP.cpp
-    source/Save_splicer.cpp
     source/Simulation.cpp
-    Cubism/Profiler.cpp
-
-    # Only if not ACCFFT.
-    source/PoissonSolverScalarFFTW.cpp
-    source/PoissonSolverScalarFFTW_MPI.cpp
 )
 add_executable(${EXE}
                ${COMMON_SOURCES}
@@ -56,9 +50,9 @@ endif()
 add_definitions("-D_ALIGNBYTES_=32")
 add_definitions("-D_BLOCKSIZE_=${BLOCK_SIZE}")
 add_definitions("-D_BS_=${BLOCK_SIZE}")
-add_definitions("-D_BSX_=${BLOCK_SIZE}")
-add_definitions("-D_BSY_=${BLOCK_SIZE}")
-add_definitions("-D_BSZ_=${BLOCK_SIZE}")
+add_definitions("-D_BLOCKSIZEX_=${BLOCK_SIZE}")
+add_definitions("-D_BLOCKSIZEY_=${BLOCK_SIZE}")
+add_definitions("-D_BLOCKSIZEZ_=${BLOCK_SIZE}")
 add_definitions("-DNTHREADS=${NUM_THREADS}")
 
 # GCC flags

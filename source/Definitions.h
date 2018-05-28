@@ -347,9 +347,9 @@ struct StreamerHDF5Dump
 struct DumpBlock
 {
   //these identifiers are required by cubism!
-  static const int sizeX = _BSX_;
-  static const int sizeY = _BSY_;
-  static const int sizeZ = _BSZ_;
+  static const int sizeX = _BLOCKSIZEX_;
+  static const int sizeY = _BLOCKSIZEY_;
+  static const int sizeZ = _BLOCKSIZEZ_;
   typedef DumpElement ElementType;
   typedef DumpElement element_type;
   __attribute__((aligned(32))) DumpElement data[sizeZ][sizeY][sizeX];
