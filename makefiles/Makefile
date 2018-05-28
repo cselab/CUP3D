@@ -178,6 +178,7 @@ OBJECTS =  IF3D_VortexOperator.o \
            IF3D_ExternalObstacleOperator.o \
            Simulation.o \
            IF3D_NacaOperator.o \
+           BufferedLogger.o \
            IF3D_DCylinderObstacleOperator.o
            #IF3D_CarlingFishOperator.o \
 

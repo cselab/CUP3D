@@ -7,6 +7,7 @@
 
 #include "IF3D_ObstacleOperator.h"
 #include "GenericOperator.h"
+#include "BufferedLogger.h"
 
 void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
                                         double ang_momenta[3], const double CoM[3])
@@ -253,7 +254,7 @@ void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const dou
  if(rank!=0) return;
  stringstream ssR;
  ssR<<"computedVelocity_"<<obstacleID<<".dat";
-    std::ofstream savestream(ssR.str(), ios::out | ios::app);
+    std::stringstream &savestream = logger.get_stream(ssR.str());
     const std::string tab("\t");
 
     if(step_id==0 && not printedHeaderVels) {
@@ -273,7 +274,6 @@ void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const dou
      <<transVel[0]-Uinf[0]<<tab<<transVel[1]-Uinf[1]<<tab<<transVel[2]-Uinf[2]<<tab
      <<angVel[0]<<tab<<angVel[1]<<tab<<angVel[2]<<tab<<volume<<tab
      <<J[0]<<tab<<J[1]<<tab<<J[2]<<tab<<J[3]<<tab<<J[4]<<tab<<J[5]<<std::endl;
-    savestream.close();
 }
 
 void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const double t)
@@ -281,7 +281,7 @@ void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const doub
   if(rank!=0) return;
   stringstream ssR;
   ssR<<"diagnosticsForces_"<<obstacleID<<".dat";
-  std::ofstream savestream(ssR.str(), ios::out | ios::app);
+  std::stringstream &savestream = logger.get_stream(ssR.str());
   const std::string tab("\t");
 
   if(step_id==0)
@@ -294,7 +294,6 @@ void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const doub
   savestream.precision(std::numeric_limits<float>::digits10 + 1);
   savestream<<t<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
       <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
-  savestream.close();
 }
 
 void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda)
@@ -632,12 +631,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   }
 
   if(rank==0) {
-    ofstream fileForce, filePower;
     stringstream ssF, ssP;
     ssF<<"forceValues_"<<obstacleID<<".dat";
     ssP<<"powerValues_"<<obstacleID<<".dat";
 
-    fileForce.open(ssF.str().c_str(), ios::app);
+    std::stringstream &fileForce = logger.get_stream(ssF.str());
     if(stepID==0)
       fileForce<<"time Fx Fy Fz FxPres FyPres FzPres FxVisc FyVisc FzVisc TorqX TorqY TorqZ Gx Gy Gz drag thrust"<<std::endl;
 
@@ -645,15 +643,13 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
       <<" "<<forcex_P<<" "<<forcey_P<<" "<<forcez_P<<" "<<forcex_V<<" "
       <<forcey_V<<" "<<forcez_V<<" "<<torquex<<" "<<torquey<<" "<<torquez
       <<" "<<gammax<<" "<< gammay<<" "<<gammaz<<" "<<drag<<" "<<thrust<<endl;
-      fileForce.close();
 
-    filePower.open(ssP.str().c_str(), ios::app);
+    std::stringstream &filePower = logger.get_stream(ssP.str());
     if(stepID==0)
       filePower<<"time Pthrust Pdrag PoutBnd Pout defPowerBnd defPower EffPDefBnd EffPDef"<<std::endl;
 
     filePower<<time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
       <<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<endl;
-      filePower.close();
   }
   #endif
 }

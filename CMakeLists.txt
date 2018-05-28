@@ -18,6 +18,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "makefiles/")
 include_directories(Cubism/source/)
 include_directories(source/)
 set(COMMON_SOURCES           # Common for app and lib.
+    source/BufferedLogger.cpp
     # source/IF3D_CarlingFishOperator.cpp
     source/IF3D_DCylinderObstacleOperator.cpp
     # source/IF3D_DeadFishOperator.cpp
