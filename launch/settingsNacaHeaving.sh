@@ -2,7 +2,7 @@
 
 #PARTITION=debug
 #WCLOCK=00:30:00
-BASENAME=Naca_Heaving_highres_00
+BASENAME=Naca_Heaving_highres_02
 NNODE=32
 NNODEX=32
 NNODEY=1
@@ -19,8 +19,8 @@ FACTORY='IF3D_NacaOperator L=0.2 thickness=0.12 xpos=0.25 xvel=0.15155 Fheave=0.
 OPTIONS=
 OPTIONS+=$(printf ' -factory-content %q' "$FACTORY")
 OPTIONS+=" -bpdx 128 -bpdy 64 -bpdz 16"
-OPTIONS+=" -2Ddump 1 -restart 0"
-OPTIONS+=" -3Ddump 1"
+OPTIONS+=" -dump2D 1 -restart 0"
+OPTIONS+=" -dump3D 1"
 OPTIONS+=" -nprocsx ${NNODEX}"
 OPTIONS+=" -nprocsy ${NNODEY}"
 OPTIONS+=" -CFL 0.1"
