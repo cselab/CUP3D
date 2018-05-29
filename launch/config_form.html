@@ -11,7 +11,7 @@
   <link type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet"/>
   <script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
   <link type="text/css" href="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.css" rel="stylesheet"/>
-  <script type="text/javascript" src="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.js"></script>
+  <script type="text/javascript" src="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.js"></script>
 </head>
 <body>
 
@@ -51,7 +51,6 @@
     var BLOCK_SIZE = 16;
     var BYTES_PER_CELL = 4 * 8;
 
-    var CELL_INFO = " (power of two, &ge; 16)";
     var CONFIG_INFO_TEMPLATE = Handlebars.compile(
             $("#config-info-template").html());
 
@@ -67,6 +66,8 @@
         var technical = value["technical"];
         var simulation = value["simulation"];
         var flow = value["flow"];
+        // We use "obstacle" instead of "object" keyword to differentiate
+        // between our objects and built-in objects.
         var obstacles = value["obstacles"];
 
         var out = "";
@@ -96,7 +97,7 @@
         if (tdump > 0)
             out += "OPTIONS+=' -tdump " + tdump + "'\n";
 
-        var Re = 0;
+        var Re = -1;
         var Re_desc = "";  // Wrt what object is this?
         var factory = "";
         for (var i = 0, len = obstacles.length; i < len; ++i) {
@@ -133,7 +134,7 @@
                 var Re_curr = v * params["L"] / flow["nu"];
                 if (Re_curr > Re) {
                     Re = Re_curr;
-                    Re_desc = "-- with respect to the object #" + i
+                    Re_desc = "-- with respect to the object #" + (i + 1)
                             + " at (" + params["xpos"] + ", " + params["ypos"] + ", " + params["zpos"] + ")";
                 }
             }
@@ -160,7 +161,7 @@
 
         /* Config info. */
         var config_info = {
-            "Re": Re,
+            "Re": Re >= 0 ? Re : "Unknown",
             "Re_desc": Re_desc,
         };
         if (tdump > 0) {
@@ -236,24 +237,21 @@
                     },
                     "num_cells_x": {
                         "type": "integer",
-                        "title": "Cells in X direction" + CELL_INFO,
+                        "title": "Grid cells in X direction",
                         "default": 128,
                         "minimum": BLOCK_SIZE,
-                        "multipleOf": BLOCK_SIZE,
                     },
                     "num_cells_y": {
                         "type": "integer",
-                        "title": "Cells in Y direction" + CELL_INFO,
+                        "title": "Grid cells in Y direction",
                         "default": 128,
                         "minimum": BLOCK_SIZE,
-                        "multipleOf": BLOCK_SIZE,
                     },
                     "num_cells_z": {
                         "type": "integer",
-                        "title": "Cells in Z direction" + CELL_INFO,
+                        "title": "Grid cells in Z direction",
                         "default": 128,
                         "minimum": BLOCK_SIZE,
-                        "multipleOf": BLOCK_SIZE,
                     },
                 },
             },
@@ -269,7 +267,7 @@
                     },
                     "tdump": {
                         "type": "number",
-                        "title": "Snapshot time",
+                        "title": "Snapshot interval",
                         "default": 0.1,
                         "minimum": 0.0,
                     },
@@ -288,7 +286,7 @@
             },
             "obstacles": {
                 "type": "array",
-                "title": "Obstacles",
+                "title": "Objects",
                 "default": '[{"obstacle_type": "' + SPHERE + '", "sphere_center_x": 0.5, "sphere_center_y": 0.5, "sphere_center_z": 0.5, "sphere_radius": 0.1, "obstacle_forced": true, "obstacle_vel_x": 10, "obstacle_vel_y": 0, "obstacle_vel_z": 0, "obstacle_frame_fixed": true}]',
                 "items": {
                     "type": "object",
@@ -355,14 +353,17 @@
                     },
                     "num_cells_z": {
                         "validator": validate_num_cells,
-                        "helper": CUBISM_NAME + " always uses cubic cells. The axix/axes with maximum number of cells will have a logical length of 1. Others will scale accordingly.",
+                        "helpers": [
+                            "Must be a power of 2 and at least " + BLOCK_SIZE + ".",
+                            "The axis with the largest number of cells will have a physical length of 1 unit. The other axes will scale accordingly.",
+                        ],
                     },
                 },
             },
             "simulation": {
                 "fields": {
                     "tdump": {
-                        "helper": "Every how much time units a visualization snapshot should be taken? 0 to disable.",
+                        "helper": "Time interval for saving visualization snapshots. Set to 0 to disable.",
                     },
                 },
             },
@@ -404,14 +405,14 @@
                             },
                             "obstacle_forced": {
                                 "type": "checkbox",
-                                "helper": "Set <i>Forced</i> to fix the obstacle velocity. Otherwise, the velocity will be dynamic and calculated from the flow.",
+                                "helper": "Enable to fix the obstacle velocity. Otherwise, the velocity will be calculated dynamically from the flow-induced forces.",
                             },
                             "obstacle_vel_x": { "dependencies": {"obstacle_forced": true}, },
                             "obstacle_vel_y": { "dependencies": {"obstacle_forced": true}, },
                             "obstacle_vel_z": { "dependencies": {"obstacle_forced": true}, },
                             "obstacle_frame_fixed": {
                                 "type": "checkbox",
-                                "helper": "In the case multiple objects are selected, the frame of reference follows their average position.",
+                                "helper": "In the case multiple objects are selected, the frame of reference follows their average velocity.",
                             },
                         }
                     }
@@ -437,7 +438,8 @@
         "view": VIEW,
         "postRender": function(control) {
             control.on("change", function() {
-                update_config(this.getValue());
+                if (this.isValid(true))
+                    update_config(this.getValue());
             });
             update_config(control.getValue());
         },
