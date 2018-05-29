@@ -9,7 +9,6 @@ FACTORY='IF3D_Sphere L=0.075 xpos=0.25 xvel=0.2 computeForces=0 bForcedInSimFram
 # shift center to shed vortices immediately by ypos=0.250244140625 zpos=0.250244140625
 
 OPTIONS=
-OPTIONS+=$(printf ' -factory-content %q' "$FACTORY")
 #OPTIONS+=" -bpdx 64 -bpdy 32 -bpdz 32"
 OPTIONS+=" -bpdx 32 -bpdy 16 -bpdz 16"
 OPTIONS+=" -dump2D 1 -dump3D 0"

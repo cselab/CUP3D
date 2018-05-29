@@ -12,7 +12,6 @@ FACTORY='IF3D_PlateObstacle L=0.2 xpos=0.25 xvel=0.1 a=0.2 b=0.4 thickness=0.05 
 '
 
 OPTIONS=
-OPTIONS+=$(printf ' -factory-content %q' "$FACTORY")
 OPTIONS+=" -bpdx 32 -bpdy 16 -bpdz 16"
 OPTIONS+=" -dump2D 1"
 #OPTIONS+=" -Wtime ${WSECS}"

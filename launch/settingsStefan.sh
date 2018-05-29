@@ -8,7 +8,6 @@ FACTORY='IF3D_StefanFish L=0.3 T=1 xpos=0.3 bFixToPlanar=1 bFixFrameOfRef=1 Corr
 '
 
 OPTIONS=
-OPTIONS+=$(printf ' -factory-content %q' "$FACTORY")
 OPTIONS+=" -nActions 0"
 OPTIONS+=" -bpdx 64 -bpdy 32 -bpdz 16"
 OPTIONS+=" -dump2D 1 -restart 0"

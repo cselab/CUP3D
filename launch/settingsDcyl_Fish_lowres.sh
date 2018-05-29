@@ -10,7 +10,6 @@ IF3D_StefanFish L=0.3 T=1 xpos=0.45 bFixToPlanar=1 xvel=0.3 bForcedInSimFrame=1
 '
 
 OPTIONS=
-OPTIONS+=$(printf ' -factory-content %q' "$FACTORY")
 OPTIONS+=" -bpdx 32 -bpdy 16 -bpdz 8"
 OPTIONS+=" -dump2D 1 -restart 0"
 OPTIONS+=" -nprocsx ${NNODEX}"
