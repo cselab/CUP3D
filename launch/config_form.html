@@ -18,6 +18,9 @@
         width: 1400px;
       }
     }
+    .inline-help-block {
+        margin: 0px;
+    }
   </style>
 </head>
 <body>
@@ -83,6 +86,30 @@
     <br>
   {{/if}}
   Approx. Reynolds number: <b>{{Re}}</b> {{Re_desc}}<br>
+</script>
+
+
+<!-- Modified version of alpaca/src/templates/bootstrap-edit/control.html -->
+<!-- Used for CUSTOM_INLINE option (for inlining helper with checkboxes). -->
+<script type="text/x-handlebars-template" id="control-inline-helper-template">
+  <div class="form-group">
+    {{#if options.label}}
+      <label class="{{#if options.labelClass}}{{options.labelClass}}{{/if}} col-sm-3 control-label alpaca-control-label" for="{{id}}">{{{options.label}}}</label>
+    {{/if}}
+    <div class="col-sm-1">
+      {{#control}}{{/control}}
+    </div>
+    <div class="col-sm-8">
+      {{#if options.helpers}}
+        {{#each options.helpers}}
+            <p class="help-block inline-help-block {{#if options.helperClass}}{{options.helperClass}}{{/if}}">
+                <i class="glyphicon glyphicon-info-sign"></i>
+                {{#showMessage .}}{{/showMessage}}
+            </p>
+        {{/each}}
+      {{/if}}
+    </div>
+  </div>
 </script>
 
 <script type="text/javascript">
@@ -464,6 +491,7 @@
                             "obstacle_forced": {
                                 "type": "checkbox",
                                 "helper": "Enable to fix the obstacle velocity. Otherwise, the velocity will be calculated dynamically from the flow-induced forces.",
+                                "CUSTOM_INLINE": true,
                             },
                             "obstacle_vel_x": { "dependencies": {"obstacle_forced": true}, },
                             "obstacle_vel_y": { "dependencies": {"obstacle_forced": true}, },
@@ -471,6 +499,7 @@
                             "obstacle_frame_fixed": {
                                 "type": "checkbox",
                                 "helper": "In the case multiple objects are selected, the frame of reference follows their average velocity.",
+                                "CUSTOM_INLINE": true,
                             },
                         }
                     }
@@ -478,7 +507,13 @@
             }
         },
     };
+
     var VIEW = {
+        "parent": "bootstrap-edit-horizontal",
+        "fields": {
+            "/obstacles/obstacle_forced": { "templates": { "control": "#control-inline-helper-template" }, },
+            "/obstacles/obstacle_frame_fixed": { "templates": { "control": "#control-inline-helper-template" }, },
+        },
         "horizontal": true,
         "layout": {
             "template": "#two-column-layout-template",
@@ -488,6 +523,26 @@
                 "flow": "rightcolumn",
                 "obstacles": "rightcolumn",
             }
+        },
+        // This part was super annoying. Couldn't figure out how to select a
+        // custom view (created with registerView) for a specific field.
+        // So, to customize "bootstrap-edit-horizontal" for some fields,
+        // we have a custom view for everything and then redirect to the
+        // built-in one whenever there's nothing to update. (kicici)
+        "callbacks": {
+            "control": function() {
+                // Our customization?
+                if (this.options["CUSTOM_INLINE"]) {
+                    // Don't forget to set up the template in VIEW["fields"]!
+                    var fieldEl = $(this.getFieldEl());
+                    fieldEl.find("input[type=checkbox]").parent().parent().addClass("checkbox");
+                } else {
+                    // https://github.com/gitana/alpaca/issues/255
+                    // Using directly "bootstrap-edit-horizontal" doesn't work,
+                    // use its parent view.
+                    Alpaca.views["bootstrap-edit"].callbacks.control.call(this);
+                }
+            },
         },
     };
 
