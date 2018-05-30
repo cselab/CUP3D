@@ -84,8 +84,11 @@ custom fields. Anything else is forwarded to the parent view.
 <div class="container">
   <div id="form"></div>
   <br>
-  <button type="button" class="btn btn-primary" id="download-config">Save as file</button>
-  <button type="button" class="btn btn-default" data-toggle="modal" data-target="#load-config-modal">Load config</button>
+  <div>
+    <div id="preset-container" style="float: right;"></div>
+    <button type="button" class="btn btn-primary" id="download-config">Save as file</button>
+    <button type="button" class="btn btn-default" data-toggle="modal" data-target="#load-config-modal">Load config</button>
+  </div>
   <br><br>
   <div>
     <h3>Information</h3>
@@ -122,6 +125,15 @@ custom fields. Anything else is forwarded to the parent view.
   </div>
 </div>
 
+
+<!-- Preset buttons. -->
+<script type="text/x-handlebars-template" id="preset-template">
+  {{#each presets}}
+    <button type="button" class="preset btn btn-default" data-index="{{@index}}" title="{{description}}">
+      Preset #{{index1}}
+    </button>
+  {{/each}}
+</script>
 
 <script type="text/x-handlebars-template" id="two-column-layout-template">
   <div class="row">
@@ -201,6 +213,14 @@ custom fields. Anything else is forwarded to the parent view.
 
 <script type="text/javascript">
 (function(){
+    var PRESETS = [{
+        "description": "Flow around a sphere at Re=2000.",
+        "data": '{"technical":{"num_nodes":1,"target_path":"sphere-01","num_cells":[256,128,128]},"simulation":{"tend":10,"tdump":0.1},"flow":{"nu":0.001},"obstacles":[{"obstacle_type":"Sphere","center":[0.5,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
+    }, {
+        "description": "Flow around a half-cylinder at Re=2000.",
+        "data": '{"technical":{"num_nodes":1,"target_path":"sphere-01","num_cells":[256,128,128]},"simulation":{"tend":10,"tdump":0.1},"flow":{"nu":0.001},"obstacles":[{"obstacle_type":"Half-cylinder","center":[0.5,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
+    }];
+
     var CUBISM_NAME = "CubismUP_3D";
     var SPHERE = "Sphere";
     var DCYLINDER = "Half-cylinder";
@@ -209,10 +229,20 @@ custom fields. Anything else is forwarded to the parent view.
     var BYTES_PER_CELL = 4 * 8;
     var form_control = null;
 
-    var CONFIG_INFO_TEMPLATE = Handlebars.compile(
-            $("#config-info-template").html());
+    var CONFIG_INFO_TEMPLATE = Handlebars.compile($("#config-info-template").html());
 
-    var current_config = '';
+    // Generate presets.
+    var PRESET_TEMPLATE = Handlebars.compile($("#preset-template").html());
+    for (var i = 0; i < PRESETS.length; ++i)
+        PRESETS[i]["index1"] = i + 1;
+    $("#preset-container").html(PRESET_TEMPLATE({"presets": PRESETS}));
+    $('.preset').click(function() {
+        var index = parseInt($(this).attr('data-index'));
+        var json = JSON.parse(PRESETS[index]["data"]);
+        form_control.setValue(json);
+        update_config(json);
+    });
+    $('.preset').tooltip()
 
     // https://stackoverflow.com/a/22827128/2203044
     var escape_shell = function(str) {
@@ -220,6 +250,7 @@ custom fields. Anything else is forwarded to the parent view.
     };
 
     /* Generate config file from form values. */
+    var current_config = '';
     var update_config = function(value) {
         var technical = value["technical"];
         var simulation = value["simulation"];
