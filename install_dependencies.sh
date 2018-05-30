@@ -79,7 +79,7 @@ if [ -n "$INSTALL_CMAKE" ]; then
     echo "Installing CMake ${CMAKE_VERSION}..."
     wget -nc https://cmake.org/files/v${CMAKE_VERSION_SHORT}/cmake-${CMAKE_VERSION}.tar.gz -P $SOURCES
     cd $SOURCES
-    sha256sum --quiet -c - <<< $CMAKE_SHA_256 || true
+    [ -x "$(command -v sha256sum)" ] && sha256sum --quiet -c - <<< $CMAKE_SHA_256
     $TAR -xzvf cmake-${CMAKE_VERSION}.tar.gz
     cd cmake-${CMAKE_VERSION}
     ./bootstrap --parallel=${JOBS} --prefix=$INSTALL_PATH/cmake-${CMAKE_VERSION}/
@@ -93,7 +93,7 @@ if [ -n "$INSTALL_FFTW" ]; then
     echo "Installing FFTW ${FFTW_VERSION}..."
     wget -nc http://www.fftw.org/fftw-${FFTW_VERSION}.tar.gz -P $SOURCES
     cd $SOURCES
-    md5sum --quiet -c - <<< $FFTW_MD5 || true
+    [ -x "$(command -v md5sum)" ] && md5sum --quiet -c - <<< $FFTW_MD5
     $TAR -xzvf fftw-${FFTW_VERSION}.tar.gz
     cd fftw-${FFTW_VERSION}
     ./configure --prefix=$INSTALL_PATH/fftw-${FFTW_VERSION}/ --enable-mpi --enable-threads --enable-shared
@@ -108,7 +108,7 @@ if [ -n "$INSTALL_HDF5" ]; then
     mkdir -p $SOURCES
     wget ${HDF5_URL} -O $SOURCES/hdf5-${HDF5_VERSION}.tar.gz
     cd $SOURCES
-    md5sum --quiet -c <<< $HDF5_MD5 || true
+    [ -x "$(command -v md5sum)" ] && md5sum --quiet -c <<< $HDF5_MD5
     $TAR -xzvf hdf5-${HDF5_VERSION}.tar.gz
     cd hdf5-${HDF5_VERSION}
     CC=mpicc ./configure --prefix=$INSTALL_PATH/hdf5-${HDF5_VERSION}-parallel/ --enable-parallel
