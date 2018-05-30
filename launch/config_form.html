@@ -1,5 +1,40 @@
 <!doctype html>
 
+<!--
+
+This page uses alpacajs as a main library, which enables us to generate the
+form using a simple JSON description.
+
+However, any customization is tricky. Here are listed some library behavior
+and our implementation details:
+
+1) Working with custom templates.
+There must be a single HTML tag encapsulating everything inside a template.
+Whatever is outside it, e.g. some text, will be ignored.
+
+2) Containers vs controls.
+Each field is either a ContrainerField or a ControlField. Examples of
+ContainerFields are "object" and "array", and they contain other fields. A
+ControlField is simply a "text", "number" etc. There is a difference in
+visualization of these two, they use different sets of templates.
+
+3) Our MultiValueField custom field type is derived from "array", which makes
+it a container, not a control that we want visually. Therefore, we have a bunch
+of hacks to display it as if it were a control (in particular, custom
+templates). The reason we use array is to have automatic support for multiple
+inner fields. It was not clear to me how to create multiple input (textboxes)
+inside a single ControlField, together with listeners attached and retrieving
+the values. Reading the source code, it looks like one should use nested forms
+(i.e. $().alpaca(...)). Feel free to refactor it. (kicici)
+
+4) Custom views.
+A view defines how to render the fields. It is not clear if field-specific
+views are possible. As few different attempts failed, we use now a global
+custom view (which derives from "bootstrap-edit-horizontal"). The view
+overrides some callbacks ("control" and "container"), and acts only on our
+custom fields. Anything else is forwarded to the parent view.
+-->
+
 <!-- TODO: Add a note that internet connection is required (for CSS/JS files). -->
 <!-- TODO: Add option to store and load JSON. -->
 <!-- TODO: xyz bForcedInSimFrame and bFixFrameOfRef -->
@@ -133,14 +168,17 @@
   </div>
 </script>
 
-<!-- Template for MultiValueField item (simplified container-array-item). -->
+<!-- Template for MultiValueField item (simplified container-array-item).
+     This template displays the container item as a small "control item".
+     Note that the actionbars were removed. -->
 <script type="text/x-handlebars-template" id="container-multivalue-item-template">
   <div>
     {{#itemField}}{{/itemField}}
   </div>
 </script>
 
-<!-- Template for MultiValueField (simplified container.html). -->
+<!-- Template for MultiValueField (simplified container.html).
+     This template displays the MultiValueField container as a control. -->
 <script type="text/x-handlebars-template" id="container-multivalue-template">
   <div class="multivalue">
     {{#if options.label}}
@@ -348,9 +386,8 @@
 
     /* Custom multi-value field. */
     var MultiValueField = Alpaca.Fields.ArrayField.extend({
-        getTemplateDescriptorId : function ()
-        {
-            return "multivalue-control";
+        getTemplateDescriptorId : function () {
+            return "multivalue";
         },
 
         getFieldType: function() {
@@ -364,12 +401,6 @@
             if (!this.schema.maxItems)
                 this.schema.maxItems = this.data.length;
             this.options.toolbarSticky = true;
-            this.options.actionbar = {};
-            this.options.actionbar.actions = [
-                {"action": "add", "enabled": false},
-                {"action": "remove", "enabled": false},
-                {"action": "up", "enabled": false},
-            ];
 
             this.base();
 
@@ -644,8 +675,8 @@
             },
         },
         "templates": {
-            "container-array-item": "#container-multivalue-item-template",
-            "multivalue-control": "#container-multivalue-template",
+            "container-multivalue-item": "#container-multivalue-item-template",
+            "multivalue": "#container-multivalue-template",
         },
     };
 
