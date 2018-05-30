@@ -8,6 +8,8 @@
 
 #include "IF3D_FishOperator.h"
 #include "IF3D_FishLibrary.h"
+
+#include <HDF5Dumper_MPI.h>
 #include <chrono>
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_ObstacleOperator(g, p, u)
 {
@@ -59,7 +61,10 @@ aryVolSeg IF3D_FishOperator::prepare_vSegments(const int Nsegments, const int Nm
       bbox[2][0] = std::min(bbox[2][0], minZ);
       bbox[2][1] = std::max(bbox[2][1], maxZ);
     }
-    vSegments[i].prepare(std::make_pair(idx, next_idx), bbox); //create a new segment
+
+    const Real safe_distance = 2*vInfo[0].h_gridpoint; //two points on each side
+    //const Real safe_distance = info.h_gridpoint; // one point on each side for Towers
+    vSegments[i].prepare(std::make_pair(idx, next_idx), bbox, safe_distance);
     vSegments[i].changeToComputationalFrame(position,quaternion);
   }
   return vSegments;
@@ -78,11 +83,9 @@ mapBlock2Segs IF3D_FishOperator::prepare_segPerBlock(const aryVolSeg&vSegments)
     Real pStart[3], pEnd[3];
     info.pos(pStart, 0, 0, 0);
     info.pos(pEnd, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-    const Real safe_distance = 2.0*info.h_gridpoint; // two points on each side
-    //const Real safe_distance = info.h_gridpoint; // one point on each side for Towers
 
     for(int s=0; s<vSegments.size(); ++s)
-      if(vSegments[s].isIntersectingWithAABB(pStart,pEnd,safe_distance))
+      if(vSegments[s].isIntersectingWithAABB(pStart,pEnd))
         segmentsPerBlock[info.blockID].push_back(vSegments[s]);
 
     // allocate new blocks if necessary
@@ -214,6 +217,25 @@ void IF3D_FishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
       }
     }
   }
+
+  #if 1
+  #pragma omp parallel
+  {
+    #pragma omp for schedule(dynamic)
+    for (int i = 0; i < (int)vInfo.size(); ++i) {
+      BlockInfo info = vInfo[i];
+      const auto pos = obstacleBlocks.find(info.blockID);
+      if(pos == obstacleBlocks.end()) continue;
+      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
+    }
+  }
+  DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, 0, 0, "SFD", "./");
+  abort();
+  #endif
 }
 
 void IF3D_FishOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
@@ -297,6 +319,11 @@ void IF3D_FishOperator::computeChi(const int step_id, const double time, const d
     for(int i=0; i<nthreads; i++) delete finalize[i];
     mpi_status = 1;
   }
+
+  #if 0
+  DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, 0, 0, "CHI", "./");
+  abort();
+  #endif
 }
 
 void IF3D_FishOperator::finalize(const int step_id,const double time, const double dt, const Real *Uinf)

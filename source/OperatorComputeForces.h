@@ -42,7 +42,7 @@ struct OperatorComputeForces
       const int iz = o->surface[i]->iz;
 
       // WAS A SOURCE OF HUGE BUG - due to unzeroed values in surfData arrays. The kid had forgotten to initialize allocated arrays in surfData to zero!!
-      if(o->chi[iz][iy][ix] < 1e-16) continue;
+      //if(o->chi[iz][iy][ix] < 1e-16) continue;
 
       info.pos(p, ix, iy, iz);
 

@@ -22,6 +22,7 @@ struct surface_data
   surface_data(int _ix, int _iy, int _iz, double _dchidx, double _dchidy,
     double _dchidz, double _delta) : ix(_ix), iy(_iy), iz(_iz),
     dchidx(_dchidx), dchidy(_dchidy), dchidz(_dchidz), delta(_delta) {}
+  surface_data():ix(0), iy(0), iz(0),  dchidx(0), dchidy(0), dchidz(0), delta(0) {printf("AAAA\n"); fflush(0); abort();}
 };
 
 struct alignas(32) ObstacleBlock
@@ -156,6 +157,9 @@ struct alignas(32) ObstacleBlock
   {
     filled = true;
     assert((int)surface.size() == nPoints);
+    assert(pX==nullptr && pY==nullptr && pZ==nullptr);
+    assert(vX==nullptr && vY==nullptr && vZ==nullptr);
+    assert(fX==nullptr && fY==nullptr && fZ==nullptr);
     pX   = init(nPoints); pY   = init(nPoints); pZ   = init(nPoints);
     vX   = init(nPoints); vY   = init(nPoints); vZ   = init(nPoints);
     fX   = init(nPoints); fY   = init(nPoints); fZ   = init(nPoints);

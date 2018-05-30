@@ -427,14 +427,15 @@ class FishMidlineData
     const int Nint = Nm -2*Next; // number of interior points
 
     // extension head
-    for(int i=0;i<Next;++i) rS[i] = 0 - (Next-i)*dx_ext;
+    for(int i=0; i<Next; ++i) rS[i] = 0 - (Next-i)*dx_ext;
     // interior points
-    for(int i=0;i<Nint;++i)
-      rS[i+Next] = length * 0.5 * (1.0 - std::cos(i * M_PI/((Real)Nint-1)));
-      // cosine: more points near head and tail
-    // rS[i] = i*length/((Real)Nint-1); // linear: equally distributed points
+    for(int i=0; i<Nint; ++i) {
+      const Real x = i/((Real) Nint-1);
+      rS[i+Next] = length* (1-std::cos(M_PI*x))/2;
+      //rS[i+Next] = length*((1-std::cos(M_PI*x))/2 + x)/2;
+    }
     // extension tail
-    for(int i=0;i<Next;++i) rS[i+Nint+Next] = length +(i+1)*dx_ext;
+    for(int i=0; i<Next; ++i) rS[i+Nint+Next] = length +(i+1)*dx_ext;
     // FinSize will not be read in from text file by Carling constructor. Call this again when need to over-write with updated values
 
     upperSkin = new FishSkin(Nint);
@@ -492,22 +493,24 @@ class FishMidlineData
 
 struct VolumeSegment_OBB
 {
+  Real safe_distance = 0;
   std::pair<int, int> s_range;
   Real normalI[3] = {1,0,0}; // should be normalized and >=0
   Real normalJ[3] = {0,1,0};
   Real normalK[3] = {0,0,1};
-  Real w[3]; // halfwidth
-  Real c[3]; // center
+  Real w[3]={0,0,0}, c[3]={0,0,0}; // halfwidth & center
+  Real objBoxLabFr[3][2] = {{0,0}, {0,0}, {0,0}};
+  Real objBoxObjFr[3][2] = {{0,0}, {0,0}, {0,0}};
 
   VolumeSegment_OBB() { }
 
-  void prepare(std::pair<int, int> _s_range, const Real bbox[3][2]);
+  void prepare(std::pair<int, int> _s_range, const Real bbox[3][2], const Real safe_dist);
 
   void normalizeNormals();
 
   void changeToComputationalFrame(const double position[3], const double quaternion[4]);
 
-  bool isIntersectingWithAABB(const Real start[3],const Real end[3], const Real safe_distance = 0.0) const;
+  bool isIntersectingWithAABB(const Real start[3],const Real end[3]) const;
 };
 
 struct PutFishOnBlocks
@@ -525,17 +528,8 @@ struct PutFishOnBlocks
   {2*(q[1]*q[3]-q[2]*q[0]), 2*(q[2]*q[3]+q[1]*q[0]), 1-2*(q[1]*q[1]+q[2]*q[2])}
   } { }
 
-  inline int find_closest_dist(const int s, const int dir, const Real x[3], Real & oldDistSq) const
-  {
-    if((s+dir)<cfish->iFishStart or (s+dir)>cfish->iFishEnd) return s;
-
-    const Real newDistSq = (x[0]-cfish->rX[s+dir])*(x[0]-cfish->rX[s+dir])
-      + (x[1]-cfish->rY[s+dir])*(x[1]-cfish->rY[s+dir]) + (x[2])*(x[2]);
-    if(oldDistSq<=newDistSq) return s;
-    else {
-      oldDistSq = newDistSq;
-      return s+dir;
-    }
+  static inline Real eulerDistSq3D(const Real a[3], const Real b[3]) {
+    return std::pow(a[0]-b[0],2) +std::pow(a[1]-b[1],2) +std::pow(a[2]-b[2],2);
   }
 
   void changeVelocityToComputationalFrame(Real x[3]) const
@@ -574,8 +568,6 @@ struct PutFishOnBlocks
     x[1]=Rmatrix3D[0][1]*p[0] + Rmatrix3D[1][1]*p[1] + Rmatrix3D[2][1]*p[2];
     x[2]=Rmatrix3D[0][2]*p[0] + Rmatrix3D[1][2]*p[1] + Rmatrix3D[2][2]*p[2];
   }
-
-  Real getSmallerDistToMidline(const int start_s, const Real x[3], int & final_s) const;
 
   void operator()(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const;
   virtual void constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblck, const std::vector<VolumeSegment_OBB>& vSeg) const;

@@ -468,44 +468,78 @@ void PutFishOnBlocks::constructShape(const BlockInfo& info, FluidBlock& b, Obsta
           #endif
           const Real distP = eulerDistSq3D(p,pP), distM = eulerDistSq3D(p,pM);
 
-          int close_s = ss, secnd_s = ss + (distP<distM? 1 : -1);
-          Real dist1 = dist0, dist2 = distP<distM? distP : distM;
-          if(distP < dist0 || distM < dist0) { // switch nearest surf point
-            dist1 = dist2; dist2 = dist0;
-            close_s = secnd_s; secnd_s = ss;
+          int close_s = ss;
+          const int dir = distP<distM? 1 : -1;
+          Real distSq = dist0;
+          if(distP < distSq || distM < distSq) { // find nearest surf point
+            distSq = distP<distM? distP : distM;
+            close_s = ss + dir;
+            /*
+            while (0) {
+              const int test_s = close_s + dir;
+              if(test_s>iFishEnd || test_s<iFishStart) break;
+              const Real s[3] = { rX[test_s]+width[test_s]*costh*norX[test_s],
+               rY[test_s]+width[test_s]*costh*norY[test_s], height[test_s]*sinth
+              };
+              const Real distN = eulerDistSq3D(p, s);
+              if(distN < distSq) {
+                close_s = test_s;
+                distSq = distN;
+              } else break;
+            }
+            */
           }
+          assert(distSq <= dist0);
           assert(close_s <= iFishEnd && close_s >= iFishStart);
 
-          const Real dSsq = std::pow(rX[close_s]-rX[secnd_s], 2)
-                           +std::pow(rY[close_s]-rY[secnd_s], 2);
-          assert(dSsq > 2.2e-16);
-          const Real cnt2ML = std::pow( width[close_s]*costh,2)
-                             +std::pow(height[close_s]*sinth,2);
-          const Real nxt2ML = std::pow( width[secnd_s]*costh,2)
-                             +std::pow(height[secnd_s]*sinth,2);
           defblock->sectionMarker[sz][sy][sx] = cfish->rS[close_s];
-
-          if(dSsq>=std::fabs(cnt2ML-nxt2ML)) {
-            const Real xMidl[3] = {rX[close_s], rY[close_s], 0};
-            const Real grd2ML = eulerDistSq3D(p, xMidl);
-            const Real sign = grd2ML > cnt2ML ? -1 : 1;
-            defblock->chi[sz][sy][sx] = sign*dist1;
+          if (close_s < iFishEnd && close_s > iFishStart) // normal execution
+          { // perform spherical integration between two nearest surf points
+            // compute the two distances for the 2 near neighs
+            const Real cnt2ML = std::pow( width[ss]*costh,2)
+                               +std::pow(height[ss]*sinth,2);
+            const Real nxt2ML = std::pow( width[ss+dir]*costh,2)
+                               +std::pow(height[ss+dir]*sinth,2);
+            const Real distN = distP<distM? distP:distM, W = 1/(distN+dist0);
+            // spherical interp: surf to midline and closest midline point
+            const Real surf2ML = (cnt2ML*distN +nxt2ML*dist0)*W;
+            const Real xMidl[3] ={ (rX[ss]*distN + rX[ss+dir]*dist0)*W,
+                                   (rY[ss]*distN + rY[ss+dir]*dist0)*W, 0};
+            const Real grid2ML = eulerDistSq3D(p, xMidl);
+            const Real sign = grid2ML > surf2ML ? -1 : 1;
+            defblock->chi[sz][sy][sx] = sign*distSq;
             continue;
           }
 
-          const Real corr = 2*std::sqrt(cnt2ML*nxt2ML);
-          const Real Rsq = (cnt2ML +nxt2ML -corr +dSsq)
-                          *(cnt2ML +nxt2ML +corr +dSsq)/4/dSsq;
-          const Real maxAx = std::max(cnt2ML, nxt2ML);
-          const int idAx1 = cnt2ML> nxt2ML? close_s : secnd_s;
-          const int idAx2 = idAx1==close_s? secnd_s : close_s;
-          // 'submerged' fraction of radius:
-          const Real d = std::sqrt((Rsq - maxAx)/dSsq);
-          const Real xMidl[3] = {rX[idAx1] +(rX[idAx1]-rX[idAx2])*d,
-                                 rY[idAx1] +(rY[idAx1]-rY[idAx2])*d, 0};
-          const Real grd2Core = eulerDistSq3D(p, xMidl);
-          const Real sign = grd2Core > Rsq ? -1 : 1;
-          defblock->chi[sz][sy][sx] = sign*dist1;
+          //we treat tips as spherical caps (wikipedia to find sphere centre)
+          assert(close_s == iFishEnd || close_s == iFishStart);
+          // index of nearest inner point:
+          const int ints = std::max(iFishStart+1, std::min(iFishEnd-1,close_s));
+          const Real dSsq = std::pow(rX[ints]-rX[close_s], 2)
+                           +std::pow(rY[ints]-rY[close_s], 2);
+          assert(dSsq > 2.2e-16);
+          const Real dWsq = std::pow( width[ints]*costh,2)
+                           +std::pow(height[ints]*sinth,2);
+          // formula of radius given edge (width/height) and height (ds) of cap
+          const Real srf2Core = (dWsq + dSsq)/dSsq/2; // here divided by dS
+          const Real dist2int = srf2Core - 1; // 'submerged' fraction of radius
+          if(dist2int > 0) {
+            const Real xMidl[3] = {rX[ints] +(rX[ints]-rX[close_s])*dist2int,
+                                rY[ints] +(rY[ints]-rY[close_s])*dist2int, 0};
+            const Real grd2Core = eulerDistSq3D(p, xMidl);
+            cout<<dist2int<<" "<<xMidl[0]<<" "<<xMidl[1]<<" "<<dSsq<<" "<<grd2Core<<endl; fflush(0);
+            const Real sign = grd2Core > srf2Core*srf2Core*dSsq ? -1 : 1;
+            defblock->chi[sz][sy][sx] = sign*distSq;
+          }
+          else // else the tip is sharp (tail) rather than blunt (head)
+          {    // spherical approx is wrong and we just use closest ellipse
+            const Real xMidl[3] = {rX[ints], rY[ints], 0};
+            const Real srf2ML = std::pow( width[ints]*costh,2)
+                               +std::pow(height[ints]*sinth,2);
+            const Real grd2ML = eulerDistSq3D(p, xMidl);
+            const Real sign = grd2ML > srf2ML ? -1 : 1;
+            defblock->chi[sz][sy][sx] = sign*distSq;
+          }
           // Not chi yet, I stored squared distance from analytical boundary
           // distSq is updated only if curr value is smaller than the old one
         }
