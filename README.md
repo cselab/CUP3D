@@ -63,7 +63,9 @@ source ~/.bashrc
 source ~/.bash_profile  # (Mac)
 
 # Step 4: Try again
+cd makefiles/
 cmake .
+make
 ```
 
 ## Other options and further info
