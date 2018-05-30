@@ -218,7 +218,7 @@ void IF3D_FishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
     }
   }
 
-  #if 1
+  #if 0
   #pragma omp parallel
   {
     #pragma omp for schedule(dynamic)

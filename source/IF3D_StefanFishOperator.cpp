@@ -108,8 +108,8 @@ void CurvatureDefinedFishData::computeMidline(const double time)
       3.75425*_1oL, 5.09147*_1oL, 5.70449*_1oL
   };
   const std::array<double,6> curvature_zeros = std::array<double, 6>();
-  //curvScheduler.transition(time,0,Tperiod,curvature_zeros,curvature_values);
-  curvScheduler.transition(time,0,Tperiod,curvature_values,curvature_values);
+  curvScheduler.transition(time,0,Tperiod,curvature_zeros,curvature_values);
+  //curvScheduler.transition(time,0,Tperiod,curvature_values,curvature_values);
 
   // query the schedulers for current values
   curvScheduler.gimmeValues(  time,               curvature_points, Nm, rS, rC, vC);
