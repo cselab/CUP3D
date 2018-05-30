@@ -55,6 +55,9 @@ custom fields. Anything else is forwarded to the parent view.
         width: 1200px;
       }
     }
+    .alpaca-layout-binding-holder {
+        margin-bottom: 1em;  /* Put form sections apart. */
+    }
     .inline-help-block {
         margin: 0px;
     }
@@ -83,10 +86,13 @@ custom fields. Anything else is forwarded to the parent view.
 </head>
 <body>
 
+
+<!-- Basic structure of the website. -->
 <div class="container">
   <div id="form"></div>
   <br>
   <div>
+    <!-- Buttons "Save", "Load config" and presets. -->
     <div id="preset-container" style="float: right;"></div>
     <button type="button" class="btn btn-primary" id="download-config">Save as file</button>
     <button type="button" class="btn btn-default" data-toggle="modal" data-target="#load-config-modal">Load config</button>
@@ -103,6 +109,8 @@ custom fields. Anything else is forwarded to the parent view.
   </div>
 </div>
 
+
+<!-- "Load config" modal. -->
 <div class="modal fade" id="load-config-modal" tabindex="-1" role="dialog" aria-labelledby="load-config-modal-label">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
@@ -137,6 +145,8 @@ custom fields. Anything else is forwarded to the parent view.
   {{/each}}
 </script>
 
+
+<!-- Two column layout. -->
 <script type="text/x-handlebars-template" id="two-column-layout-template">
   <div class="row">
     <div class="col-md-12">
@@ -148,6 +158,8 @@ custom fields. Anything else is forwarded to the parent view.
   </div>
 </script>
 
+
+<!-- "Information" section template. -->
 <script type="text/x-handlebars-template" id="config-info-template">
   {{#if dump_info}}
     Approx. snapshot size: {{dump_info.snapshot_size}}<br>
@@ -182,6 +194,7 @@ custom fields. Anything else is forwarded to the parent view.
   </div>
 </script>
 
+
 <!-- Template for MultiValueField item (simplified container-array-item).
      This template displays the container item as a small "control item".
      Note that the actionbars were removed. -->
@@ -213,6 +226,7 @@ custom fields. Anything else is forwarded to the parent view.
 </script>
 
 
+<!-- JavaScript code: the logic of the website. -->
 <script type="text/javascript">
 (function(){
     var PRESETS = [{
@@ -223,15 +237,20 @@ custom fields. Anything else is forwarded to the parent view.
         "data": '{"technical":{"num_nodes":1,"target_path":"sphere-01","num_cells":[256,128,128]},"simulation":{"tend":10,"tdump":0.1},"flow":{"nu":0.001},"obstacles":[{"obstacle_type":"Half-cylinder","center":[0.5,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
     }];
 
+    // Compile-time settings and other parameters.
+    var BLOCK_SIZE = 16;
+    var BYTES_PER_CELL = 4 * 8;
+    var EXECUTABLE_PATH_DEFAULT = "${PWD}/../makefiles";
+
+    // Internal variables and enums.
     var CUBISM_NAME = "CubismUP_3D";
     var SPHERE = "Sphere";
     var DCYLINDER = "Half-cylinder";
     var NACA = "NACA";
-    var BLOCK_SIZE = 16;
-    var BYTES_PER_CELL = 4 * 8;
-    var form_control = null;
-
     var CONFIG_INFO_TEMPLATE = Handlebars.compile($("#config-info-template").html());
+
+    // Internal state variables.
+    var form_control = null;
 
     // Generate presets.
     var PRESET_TEMPLATE = Handlebars.compile($("#preset-template").html());
@@ -254,20 +273,25 @@ custom fields. Anything else is forwarded to the parent view.
     /* Generate config file from form values. */
     var current_config = '';
     var update_config = function(value) {
-        var technical = value["technical"];
-        var simulation = value["simulation"];
-        var flow = value["flow"];
         // We use "obstacle" instead of "object" keyword to differentiate
         // between our objects and built-in objects.
         var obstacles = value["obstacles"];
+        var technical = value["technical"];
+        var simulation = value["simulation"];
+        var flow = value["flow"];
 
         var out = "";
         out += "#!/bin/bash\n\n";
         out += "set -e\n\n";
         out += "NUM_NODES=" + technical["num_nodes"] + "\n";
         // https://stackoverflow.com/a/20053121/2203044
-        out += "TARGET_PATH=" + escape_shell(technical["target_path"]) + "\n";
-        out += "EXE=${PWD}/../makefiles/cubismup_3d\n";
+        out += "TARGET_PATH=" + technical["target_path"] + "\n";
+
+        if (technical["executable_path"]) {
+            out += "EXE_PATH=" + technical["executable_path"] + "\n";
+        } else {
+            out += "EXE_PATH=" + EXECUTABLE_PATH_DEFAULT + "\n";
+        }
 
         /* Technical. */
         var bpdx = technical["num_cells"][0] / BLOCK_SIZE;
@@ -288,14 +312,17 @@ custom fields. Anything else is forwarded to the parent view.
         if (tdump > 0)
             out += "OPTIONS+=' -tdump " + tdump + "'\n";
 
+        /* Obstacles (FACTORY) */
         var Re = -1;
-        var Re_desc = "";  // Wrt what object is this?
+        var Re_desc = "";  // Wrt what object is this Reynold number?
         var factory = "";
         for (var i = 0, len = obstacles.length; i < len; ++i) {
             var o = obstacles[i];
             var name = "";
             var error = null;
             var params = {};
+
+            /* Position */
             if (o["center"]) {
                 params["xpos"] = o["center"][0];
                 params["ypos"] = o["center"][1];
@@ -303,6 +330,8 @@ custom fields. Anything else is forwarded to the parent view.
             } else {
                 error = "Center not specified!";
             }
+
+            /* Obstacle-specific parameters */
             var type = o["obstacle_type"];
             switch(type) {
                 case SPHERE:
@@ -333,6 +362,7 @@ custom fields. Anything else is forwarded to the parent view.
                     break;
             };
 
+            /* Velocity */
             var forced = o["obstacle_forced"] ? 1 : 0;
             params["bForcedInSimFrame"] = forced;
             if (forced) {
@@ -348,6 +378,8 @@ custom fields. Anything else is forwarded to the parent view.
                             + " at (" + params["xpos"] + ", " + params["ypos"] + ", " + params["zpos"] + ")";
                 }
             }
+
+            /* Frame of reference? */
             params["bFixFrameOfRef"] = o["obstacle_frame_fixed"] ? 1 : 0;
 
             if (!error) {
@@ -364,11 +396,25 @@ custom fields. Anything else is forwarded to the parent view.
         out += "\n";
         out += "FACTORY='\n" + factory + "'\n";
         out += "\n\n";
+
+        /* Running the executable */
+        var exe_name = params["periodic_z"] ? "cubismup3d_periodicz" : "cubismup3d_open";
+
+        // https://stackoverflow.com/questions/1587846/how-do-i-show-the-changes-which-have-been-staged/1587952#1587952
+        out += "# Backup the source code next to the results.\n";
+        out += "mkdir -p ${TARGET_PATH}/source\n";
+        out += "cp -r ../source ../Cubism > ${TARGET_PATH}\n";
+        out += "\n";
+        out += "# Copy executable if TARGET_PATH and EXE_PATH not the same (usually they are not).\n";
+        out += "[[ ! \"${EXE_PATH}\" -ef \"${TARGET_PATH}\" ]] && cp ${EXE_PATH}/" + exe_name + " ${TARGET_PATH}\n";
+        out += "\n";
+        out += "# Run the simulation.\n";
         out += "cd ${TARGET_PATH}\n";
-        out += "mpirun -np ${NUM_NODES} -ppn 1 ${EXE} ${OPTIONS} -factory-content \"${FACTORY}\"\n";
+        out += "mpirun -np ${NUM_NODES} -ppn 1 " + exe_name + " ${OPTIONS} -factory-content \"${FACTORY}\"\n";
         var json = JSON.stringify(value);
 
-        out += "\n\n\n# To edit this settings, press \"Load Config\" in the form and copy-paste the following line:\n# " + json;
+        out += "\n\n# To edit this settings, press \"Load Config\" in the form and copy-paste the following line:\n# " + json;
+
         $("#config-file").html(out);
         hljs.highlightBlock($("#config-file")[0]);
 
@@ -501,7 +547,7 @@ custom fields. Anything else is forwarded to the parent view.
                     },
                     "target_path": {
                         "type": "any",
-                        "title": "Target path",
+                        "title": "Results path",
                         "default": "simulation-01",
                     },
                     "num_cells": {
@@ -540,6 +586,21 @@ custom fields. Anything else is forwarded to the parent view.
                         "type": "number",
                         "title": "Kinematic viscosity",
                         "default": "0.001",
+                    },
+                    "periodic_z": {
+                        "title": "Periodic in Z",
+                        "default": false,
+                    },
+                },
+            },
+            "advanced": {
+                "type": "object",
+                "title": "Advanced",
+                "properties": {
+                    "executable_path": {
+                        "type": "any",
+                        "title": "Executable path",
+                        "default": "${PWD}/../makefiles/",
                     },
                 },
             },
@@ -607,7 +668,7 @@ custom fields. Anything else is forwarded to the parent view.
                         },
                         "obstacle_frame_fixed": {
                             "default": true,
-                            "title": "Frame fixed to object?",
+                            "title": "Frame follows the object?",
                         },
                     },
                     "dependencies": {
@@ -658,12 +719,29 @@ custom fields. Anything else is forwarded to the parent view.
                         ],
                         "validator": validate_num_cells,
                     },
+                    "target_path": {
+                        "TOOLTIP": "Where to store the simulation results.",
+                    },
                 },
             },
             "simulation": {
                 "fields": {
                     "tdump": {
-                        "helper": "Time interval for saving visualization snapshots. Set to 0 to disable.",
+                        "TOOLTIP": "Time interval for saving visualization snapshots. Set to 0 to disable.",
+                    },
+                },
+            },
+            "flow": {
+                "fields": {
+                    "periodic_z": {
+                        "type": "checkbox",
+                    },
+                },
+            },
+            "advanced": {
+                "fields": {
+                    "executable_path": {
+                        "helper": "Folder containing the executables.",
                     },
                 },
             },
@@ -713,7 +791,7 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "NACA_Fpitch": {
                                 "dependencies": { "NACA_advanced": true },
-                                "helper": "Does not have to be equal to <i>Heaving frequency</i>.",
+                                "TOOLTIP": "Does not have to be equal to <i>Heaving frequency</i>.",
                                 "placeholder": "Pitching frequency",
                             },
                             "NACA_Mpitch": {
@@ -730,7 +808,7 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "obstacle_forced": {
                                 "type": "checkbox",
-                                "helper": "Enable to fix the obstacle velocity. Otherwise, the velocity will be calculated dynamically from the flow-induced forces.",
+                                "TOOLTIP": "Enable to fix the obstacle velocity. Otherwise, the velocity will be calculated dynamically from the flow-induced forces.",
                                 "INLINE_CHECKBOX": true,
                             },
                             "obstacle_vel": {
@@ -739,7 +817,7 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "obstacle_frame_fixed": {
                                 "type": "checkbox",
-                                "helper": "In case multiple objects are selected, the frame of reference follows their average velocity.",
+                                "TOOLTIP": "In case multiple objects are selected, the frame of reference follows their average velocity.",
                                 "INLINE_CHECKBOX": true,
                             },
                         }
@@ -749,6 +827,11 @@ custom fields. Anything else is forwarded to the parent view.
         },
     };
 
+    /* Add a Bootstrap tooltip to the control or multivalue label. */
+    var __add_tooltip = function(label, _this) {
+        label.tooltip({"html": true, "title": _this.options["TOOLTIP"]});
+        label.append(' <i class="glyphicon glyphicon-info-sign"></i>');
+    };
     var VIEW = {
         "parent": "bootstrap-edit-horizontal",
         "fields": {
@@ -761,6 +844,7 @@ custom fields. Anything else is forwarded to the parent view.
             "bindings": {
                 "technical": "leftcolumn",
                 "simulation": "leftcolumn",
+                "advanced": "leftcolumn",
                 "flow": "rightcolumn",
                 "obstacles": "rightcolumn",
             }
@@ -772,14 +856,14 @@ custom fields. Anything else is forwarded to the parent view.
         // built-in one whenever there's nothing to update. (kicici)
         "callbacks": {
             "control": function() {
+                var fieldEl = $(this.getFieldEl());
+
                 // Our customization?
                 if (this.options["INLINE_CHECKBOX"]) {
                     // Don't forget to set up the template in VIEW["fields"]!
-                    var fieldEl = $(this.getFieldEl());
                     fieldEl.find("input[type=checkbox]").parent().parent().addClass("checkbox");
                 } else if (this.parent.getFieldType() == "multivalue") {
                     // Don't forget to set up the template in VIEW["fields"]!
-                    var fieldEl = $(this.getFieldEl());
                     fieldEl.find("input").addClass('form-control');
                     if (this.view.horizontal)
                         fieldEl.find(".help-block").addClass("col-sm-offset-3 col-sm-9");
@@ -789,6 +873,10 @@ custom fields. Anything else is forwarded to the parent view.
                     // use its parent view.
                     Alpaca.views["bootstrap-edit"].callbacks.control.call(this);
                 }
+
+                // Add tooltip.
+                if (this.options["TOOLTIP"])
+                    __add_tooltip(fieldEl.children(".control-label"), this);
             },
             "container": function() {
                 var containerEl = $(this.getContainerEl());
@@ -803,6 +891,10 @@ custom fields. Anything else is forwarded to the parent view.
                 } else {
                     Alpaca.views["bootstrap-edit"].callbacks.container.call(this);
                 }
+
+                // Add tooltip.
+                if (this.options["TOOLTIP"])
+                    __add_tooltip(containerEl.parent().children("label"), this);
             },
         },
         "templates": {
