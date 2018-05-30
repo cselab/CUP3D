@@ -485,22 +485,25 @@ void PutFishOnBlocks::constructShape(const BlockInfo& info, FluidBlock& b, Obsta
                              +std::pow(height[secnd_s]*sinth,2);
           defblock->sectionMarker[sz][sy][sx] = cfish->rS[close_s];
 
-          if(dSsq>=std::fabs(cnt2ML-nxt2ML)) {
+          if(dSsq>=std::fabs(cnt2ML-nxt2ML))
+          { // if no abrupt changes in width we use nearest neighbour
             const Real xMidl[3] = {rX[close_s], rY[close_s], 0};
             const Real grd2ML = eulerDistSq3D(p, xMidl);
             const Real sign = grd2ML > cnt2ML ? -1 : 1;
             defblock->chi[sz][sy][sx] = sign*dist1;
             continue;
           }
-
+          // else we model the span between ellipses as a spherical segment
+          // http://mathworld.wolfram.com/SphericalSegment.html
           const Real corr = 2*std::sqrt(cnt2ML*nxt2ML);
-          const Real Rsq = (cnt2ML +nxt2ML -corr +dSsq)
+          const Real Rsq = (cnt2ML +nxt2ML -corr +dSsq) // radius of the spere
                           *(cnt2ML +nxt2ML +corr +dSsq)/4/dSsq;
           const Real maxAx = std::max(cnt2ML, nxt2ML);
           const int idAx1 = cnt2ML> nxt2ML? close_s : secnd_s;
           const int idAx2 = idAx1==close_s? secnd_s : close_s;
           // 'submerged' fraction of radius:
-          const Real d = std::sqrt((Rsq - maxAx)/dSsq);
+          const Real d = std::sqrt((Rsq - maxAx)/dSsq); // (divided by ds)
+          // position of the centre of the sphere:
           const Real xMidl[3] = {rX[idAx1] +(rX[idAx1]-rX[idAx2])*d,
                                  rY[idAx1] +(rY[idAx1]-rY[idAx2])*d, 0};
           const Real grd2Core = eulerDistSq3D(p, xMidl);
