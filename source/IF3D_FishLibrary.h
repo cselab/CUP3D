@@ -19,9 +19,6 @@
 #include <gsl/gsl_bspline.h>
 #include <gsl/gsl_statistics.h>
 
-const int NPPEXT = 2; //was 3, BUT now i do towers only?
-const int TGTPPB = 2; //was 2 i think
-const int NEXTDX = 2; //was 4
 #define __BSPLINE
 
 namespace Schedulers
@@ -302,12 +299,26 @@ struct FishSkin
     }
 };
 
+//approximate number of midlinep per grid point:
+const int TGTPPB = 2;
+// number of gridp added around the surface over wich defvel field is extended:
+const int NPPEXT = 2; //was 3, with Towers we need 2 (chi!=0 only 1 pnt outside)
+// number of extension points per grid point:
+const int NEXTDX = 2;
+
 class FishMidlineData
 {
  public:
-  const int Nm;
-  const double length, Tperiod, phaseShift;
-  double l_Tp, timeshift, time0;
+  const double length, Tperiod, phaseShift, h;
+
+  // Extend interpolation to 2dx on each side (to get proper grads up to 1dx)
+  static constexpr int Nextension = NEXTDX * NPPEXT;
+  const double dx_extension = h / NEXTDX;
+  const double target_Nm = TGTPPB * length / h;
+  const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1.)) + 1;
+  const int Ninterior = Nm -2*Nextension; // number of interior points
+  const int iFishStart = NEXTDX*NPPEXT, iFishEnd = Nm-1 -NEXTDX*NPPEXT;
+
   Real * const rS; // arclength discretization points
   Real * const rX; // coordinates of midline discretization points
   Real * const rY;
@@ -319,10 +330,11 @@ class FishMidlineData
   Real * const vNorY;
   Real * const width;
   Real * const height;
-  const int iFishStart, iFishEnd;
   Real * const rXold;
   Real * const rYold;
   Real oldTime = 0.0;
+  // quantities needed to correctly control the speed of the midline maneuvers
+  double l_Tp = Tperiod, timeshift = 0, time0 = 0;
   bool firstStep = true;
 
   double linMom[2], vol, J, angMom; // for diagnostics
@@ -331,8 +343,6 @@ class FishMidlineData
   Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
   Schedulers::ParameterSchedulerVector<6> adjustScheduler;
   FishSkin * upperSkin, * lowerSkin;
-  //Real finSize = 1.1e-1, waveLength = 1.0;
-  Real finSize = 0.0e-1, waveLength = 1.0; // For curvalicious fin
 
  protected:
   double Rmatrix2D[2][2];
@@ -410,36 +420,28 @@ class FishMidlineData
   void _computeMidlineNormals();
 
  public:
-  FishMidlineData(const int _Nm, const double len, const double Tp, const double phase, const double dx_ext):
-   Nm(_Nm),length(len),Tperiod(Tp),phaseShift(phase),l_Tp(Tperiod),timeshift(0),
-   time0(0), rS(_alloc(_Nm)), rX(_alloc(_Nm)), rY(_alloc(_Nm)), vX(_alloc(_Nm)),
-   vY(_alloc(_Nm)), norX(_alloc(_Nm)), norY(_alloc(_Nm)), vNorX(_alloc(_Nm)),
-   vNorY(_alloc(_Nm)), width(_alloc(_Nm)), height(_alloc(_Nm)),
-   iFishStart(NEXTDX*NPPEXT), iFishEnd(_Nm-1-NEXTDX*NPPEXT),
-   rXold(_alloc(_Nm)), rYold(_alloc(_Nm))
+  FishMidlineData(double L, double Tp, double phi, double _h):
+   length(L), Tperiod(Tp), phaseShift(phi), h(_h), rS(_alloc(Nm)),
+   rX(_alloc(Nm)), rY(_alloc(Nm)), vX(_alloc(Nm)), vY(_alloc(Nm)),
+   norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)),
+   width(_alloc(Nm)), height(_alloc(Nm)), rXold(_alloc(Nm)), rYold(_alloc(Nm)),
+   upperSkin(new FishSkin(Ninterior)), lowerSkin(new FishSkin(Ninterior))
   {
     std::fill(rXold, rXold+Nm, 0.0);
     std::fill(rYold, rYold+Nm, 0.0);
 
-    // extension_info contains number of extension points and extension dx
-    const int Nextension = NEXTDX*NPPEXT; // up to 3dx on each side (to get proper interpolation up to 2dx)
-    const int Next = Nextension; // number of points per extension
-    const int Nint = Nm -2*Next; // number of interior points
-
     // extension head
-    for(int i=0; i<Next; ++i) rS[i] = 0 - (Next-i)*dx_ext;
+    for(int i=0; i<Nextension; ++i)
+      rS[i] = 0 - (Nextension-i)*dx_extension;
     // interior points
-    for(int i=0; i<Nint; ++i) {
-      const Real x = i/((Real) Nint-1);
-      rS[i+Next] = length* (1-std::cos(M_PI*x))/2;
+    for(int i=0; i<Ninterior; ++i) {
+      const Real x = i/((Real) Ninterior-1);
+      rS[i+Nextension] = length* (1-std::cos(M_PI*x))/2;
       //rS[i+Next] = length*((1-std::cos(M_PI*x))/2 + x)/2;
     }
     // extension tail
-    for(int i=0; i<Next; ++i) rS[i+Nint+Next] = length +(i+1)*dx_ext;
-    // FinSize will not be read in from text file by Carling constructor. Call this again when need to over-write with updated values
-
-    upperSkin = new FishSkin(Nint);
-    lowerSkin = new FishSkin(Nint);
+    for(int i=0; i<Nextension; ++i)
+      rS[i+Ninterior+Nextension] = length +(i+1)*dx_extension;
   }
 
   ~FishMidlineData()

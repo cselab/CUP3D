@@ -23,10 +23,11 @@ class CurvatureDefinedFishData : public FishMidlineData
   Real * const vA;
   double controlFac = -1, valPID = 0;
   double controlVel = 0, velPID = 0;
+  const Real waveLength = 1;
  public:
 
-  CurvatureDefinedFishData(const int Nm, const double length, const double Tperiod, const double phaseShift, const double dx_ext)
-  : FishMidlineData(Nm,length,Tperiod,phaseShift,dx_ext),
+  CurvatureDefinedFishData(double L, double T, double phi, double h)
+  : FishMidlineData(L, T, phi, h),
     rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
     rB(_alloc(Nm)),vB(_alloc(Nm)), rA(_alloc(Nm)),vA(_alloc(Nm)) { }
 
@@ -243,22 +244,17 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g, ArgumentParser&
 {
   sr = StateReward(length, Tperiod);
   sr.parseArguments(p);
-  const int Nextension = NEXTDX*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
-  const double h = vInfo[0].h_gridpoint;
-  const double target_Nm = TGTPPB*length/h;
-  const double dx_extension = (1./NEXTDX)*h;
-  const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1)) + 1;
 
-  myFish = new CurvatureDefinedFishData(Nm, length, Tperiod, phaseShift, dx_extension);
+  myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift, vInfo[0].h_gridpoint);
   string heightName = p("-heightProfile").asString("baseline");
   string  widthName = p( "-widthProfile").asString("baseline");
   MidlineShapes::computeWidthsHeights(heightName, widthName, length,
-    myFish->rS, myFish->height, myFish->width, Nm, rank);
+    myFish->rS, myFish->height, myFish->width, myFish->Nm, rank);
 
   //bool bKillAmplitude = parser("-zeroAmplitude").asInt(0);
   //if(bKillAmplitude) myFish->killAmplitude();
 
-  if(!rank)printf("%d %f %f %f %f\n",Nm,length,Tperiod,phaseShift,dx_extension);
+  if(!rank)printf("%d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
 
   sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
                     _2Dangle, transVel[0], transVel[1], angVel[2]);

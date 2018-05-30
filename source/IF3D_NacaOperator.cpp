@@ -14,9 +14,7 @@
 class NacaMidlineData : public FishMidlineData
 {
  public:
-  NacaMidlineData(const int Nm, const double length, const double dx_ext,
-    double zExtent, double t_ratio, double HoverL=1) :
-    FishMidlineData(Nm,length,1,0,dx_ext)
+  NacaMidlineData(const double L, const double _h, double zExtent, double t_ratio, double HoverL=1) : FishMidlineData(L, 1, 0, _h)
   {
     #if defined(BC_PERIODICZ)
       // large enough in z-dir such that we for sure fill entire domain
@@ -87,16 +85,12 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
     "Mpitch=%3.3f, Frow=%3.3f, Arow=%3.3f\n", position[0], Apitch, Fpitch,
     Ppitch, Mpitch, Fheave, Aheave);
 
-  const int Nextension = NEXTDX*NPPEXT;// up to 3dx on each side (to get proper interpolation up to 2dx)
-  const double target_Nm = TGTPPB*length/vInfo[0].h_gridpoint;
-  const double dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
-  const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1.)) + 1;
   if (obstacleID) {
     printf("IF3D_NacaOperator WORKS ONLY FOR SINGLE OBSTACLE!\n");
     MPI_Abort(grid->getCartComm(),0);
   }
 
-  myFish = new NacaMidlineData(Nm, length, dx_extension, ext_Z, thickness);
+  myFish = new NacaMidlineData(length, vInfo[0].h_gridpoint, ext_Z, thickness);
 }
 
 void IF3D_NacaOperator::update(const int stepID, const double t, const double dt, const Real* Uinf)

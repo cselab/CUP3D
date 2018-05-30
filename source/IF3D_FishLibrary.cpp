@@ -211,6 +211,7 @@ void FishMidlineData::surfaceToCOMFrame(const double theta_internal, const doubl
   _prepareRotation2D(theta_internal);
   // Surface points rotation and translation
 
+  #pragma omp parallel for
   for(int i=0; i<upperSkin->Npoints; ++i)
   //for(int i=0; i<upperSkin->Npoints-1; ++i)
   {
@@ -227,6 +228,7 @@ void FishMidlineData::surfaceToComputationalFrame(const double theta_comp, const
 {
   _prepareRotation2D(theta_comp);
 
+  #pragma omp parallel for
   for(int i=0; i<upperSkin->Npoints; ++i)
   {
     _rotate2D(upperSkin->xSurf[i], upperSkin->ySurf[i]);

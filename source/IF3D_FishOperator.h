@@ -34,7 +34,7 @@ protected:
   void integrateMidline();
   virtual void writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock);
   void apply_pid_corrections(const double time, const double dt, const Real *Uinf);
-  aryVolSeg prepare_vSegments(const int Nsegments, const int Nm);
+  aryVolSeg prepare_vSegments();
   //override to create special obstacle blocks for local force balances:
   virtual mapBlock2Segs prepare_segPerBlock(const aryVolSeg&vSegments);
 

@@ -9,6 +9,7 @@
 #include "IF3D_FishOperator.h"
 #include "IF3D_FishLibrary.h"
 
+#include <HDF5Dumper_MPI.h>
 #include <chrono>
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_ObstacleOperator(g, p, u)
 {
@@ -35,8 +36,21 @@ IF3D_FishOperator::~IF3D_FishOperator()
   if(myFish not_eq nullptr) delete myFish;
 }
 
-aryVolSeg IF3D_FishOperator::prepare_vSegments(const int Nsegments, const int Nm)
+aryVolSeg IF3D_FishOperator::prepare_vSegments()
 {
+  /*
+    - VolumeSegment_OBB's volume cannot be zero
+    - therefore no VolumeSegment_OBB can be only occupied by extension midline
+      points (which have width and height = 0)
+    - performance of create seems to decrease if VolumeSegment_OBB are bigger
+    - this is the smallest number of VolumeSegment_OBB (Nsegments) and points in
+      the midline (Nm) to ensure at least one non ext. point inside all segments
+   */
+  const int Nsegments = std::ceil(myFish->target_Nm/(myFish->Nextension+1.));
+  assert((myFish->Nextension+1)*Nsegments + 1 == myFish->Nm);
+  const int Nm = myFish->Nm;
+  assert((Nm-1)%Nsegments==0);
+
   aryVolSeg vSegments(Nsegments);
   #pragma omp parallel for
   for(int i=0;i<Nsegments;++i) {
@@ -216,6 +230,25 @@ void IF3D_FishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
       }
     }
   }
+
+  #if 0
+  #pragma omp parallel
+  {
+    #pragma omp for schedule(dynamic)
+    for (int i = 0; i < (int)vInfo.size(); ++i) {
+      BlockInfo info = vInfo[i];
+      const auto pos = obstacleBlocks.find(info.blockID);
+      if(pos == obstacleBlocks.end()) continue;
+      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
+    }
+  }
+  DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, 0, 0, "SFD", "./");
+  abort();
+  #endif
 }
 
 void IF3D_FishOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)
@@ -236,23 +269,6 @@ void IF3D_FishOperator::create(const int step_id,const double time, const double
   // 7. for each of those blocks, allocate an ObstacleBlock
 
   // 8. put the 3D shape on the grid: SDF-P2M for sdf, normal P2M for udef
-
-  const int Nextension = NEXTDX*NPPEXT; // up to 3dx on each side (to get proper interpolation up to 2dx)
-  const double dx_extension = (1./NEXTDX)*vInfo[0].h_gridpoint;
-  const double target_ds = vInfo[0].h_gridpoint/TGTPPB;
-  const double target_Nm = length/target_ds;
-  /*
-    - VolumeSegment_OBB's volume cannot be zero
-    - therefore no VolumeSegment_OBB can be only occupied by extension midline
-      points (which have width and height = 0)
-    - performance of create seems to decrease if VolumeSegment_OBB are bigger
-    - this is the smallest number of VolumeSegment_OBB (Nsegments) and points in
-      the midline (Nm) to ensure at least one non ext. point inside all segments
-   */
-  const int Nsegments = std::ceil(target_Nm/(Nextension+1));
-  const int Nm = (Nextension+1)*Nsegments + 1;
-  assert((Nm-1)%Nsegments==0);
-
   apply_pid_corrections(time, dt, Uinf);
 
   // 1.
@@ -267,7 +283,7 @@ void IF3D_FishOperator::create(const int step_id,const double time, const double
   //CAREFUL: this func assumes everything is already centered around CM to start with, which is true (see steps 2. & 3. ...) for rX, rY: they are zero at CM, negative before and + after
 
   // 4. & 5.
-  const auto vSegments = prepare_vSegments(Nsegments, Nm);
+  const auto vSegments = prepare_vSegments();
 
   // 6. & 7.
   const auto segmentsPerBlock = prepare_segPerBlock(vSegments);
@@ -299,11 +315,6 @@ void IF3D_FishOperator::computeChi(const int step_id, const double time, const d
     for(int i=0; i<nthreads; i++) delete finalize[i];
     mpi_status = 1;
   }
-
-  #if 0
-  DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, 0, 0, "CHI", "./");
-  abort();
-  #endif
 }
 
 void IF3D_FishOperator::finalize(const int step_id,const double time, const double dt, const Real *Uinf)
