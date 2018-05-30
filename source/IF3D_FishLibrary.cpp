@@ -388,10 +388,17 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
     const int N = FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX;
     for(int i=0; i<N; ++i) *(&(oblock->chi[0][0][0])+i) = -1;
   }
-
+  //std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t2, t3;
+  //t0 = std::chrono::high_resolution_clock::now();
   constructSurface(info, b, oblock, vSegments);
+  //t1 = std::chrono::high_resolution_clock::now();
   constructInternl(info, b, oblock, vSegments);
+  //t2 = std::chrono::high_resolution_clock::now();
   signedDistanceSqrt(info, b, oblock, vSegments);
+  //t3 = std::chrono::high_resolution_clock::now();
+  //printf("%g %g %g\n",std::chrono::duration<double>(t1-t0).count(),
+  //                    std::chrono::duration<double>(t2-t1).count(),
+  //                    std::chrono::duration<double>(t3-t2).count());
 }
 
 void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
@@ -781,31 +788,32 @@ void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
         wghts[c][1] = 1.0 - t[1];
       }
       const bool isInside2d = std::fabs(offsetW)+h/2 < myWidth;
-      for(int sy=max(0,0-iap[1]); sy<min(2,FluidBlock::sizeY-iap[1]); ++sy)
-      for(int sx=max(0,0-iap[0]); sx<min(2,FluidBlock::sizeX-iap[0]); ++sx) {
-        const Real wxwy = wghts[1][sy] * wghts[0][sx];
-        const int idx = iap[0]+sx, idy = iap[1]+sy;
-        assert(idx>=0 && idx<FluidBlock::sizeX);
-        assert(idy>=0 && idy<FluidBlock::sizeY);
-        assert(wxwy>=0 && wxwy<=1);
+      for(int idz=0; idz<FluidBlock::sizeZ; ++idz)
+      {
+        const Real pZ = org[2] + h*idz;
+        // positive inside negative outside ... as usual
+        const Real distZ = myHeight - std::fabs(position[2] - pZ);
+        const Real wz = 0.5 + std::min(1., std::max(distZ*invh, -1.))/2;
+        const Real signZ = (0 < distZ) - (distZ < 0);
+        const Real distZsq = signZ*distZ*distZ;
 
-        for(int idz=0; idz<FluidBlock::sizeZ; ++idz)
-        {
-          const Real pZ = org[2] + h*idz;
-          // positive inside negative outside ... as usual
-          const Real distZ = myHeight - std::fabs(position[2] - pZ);
-          const Real wz = 0.5 + std::min(1., std::max(distZ*invh, -1.))/2;
-          defblock->udef[idz][idy][idx][0] += wz*wxwy*udef[0];
-          defblock->udef[idz][idy][idx][1] += wz*wxwy*udef[1];
-          defblock->udef[idz][idy][idx][2] += wz*wxwy*udef[2];
-          b(idx,idy,idz).tmpU += wz*wxwy;
+        for(int sy=max(0,0-iap[1]); sy<min(2,FluidBlock::sizeY-iap[1]); ++sy)
+        for(int sx=max(0,0-iap[0]); sx<min(2,FluidBlock::sizeX-iap[0]); ++sx) {
+          const Real wxwywz = wz * wghts[1][sy] * wghts[0][sx];
+          const int idx = iap[0]+sx, idy = iap[1]+sy;
+          assert(idx>=0 && idx<FluidBlock::sizeX);
+          assert(idy>=0 && idy<FluidBlock::sizeY);
+          assert(wxwywz>=0 && wxwywz<=1);
+
+          defblock->udef[idz][idy][idx][0] += wxwywz*udef[0];
+          defblock->udef[idz][idy][idx][1] += wxwywz*udef[1];
+          defblock->udef[idz][idy][idx][2] += wxwywz*udef[2];
+          b(idx,idy,idz).tmpU += wxwywz;
 
           // set sign for all interior points
           if( std::fabs(defblock->chi[idz][idy][idx]+1)<EPS && isInside2d )
             defblock->chi[idz][idy][idx] = 1.0;
 
-          const Real signZ = (0 < distZ) - (distZ < 0);
-          const Real distZsq = signZ*distZ*distZ;
           if(distZsq<defblock->chi[idz][idy][idx])
             defblock->chi[idz][idy][idx] = distZsq;
         }
