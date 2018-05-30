@@ -100,7 +100,7 @@ endif
 CPPFLAGS += -std=c++11 -fopenmp
 #NVFLAGS += -std=c++11
 CPPFLAGS += -DNTHREADS=$(nthreads)
-CPPFLAGS += -I../source/ -I../Cubism/source
+CPPFLAGS += -I../../source/ -I../../Cubism/source
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
@@ -163,8 +163,8 @@ endif
 LIBS += -lstdc++ -lgsl -lgslcblas -lm -ldl -lz -lpthread
 
 BUILDDIR = .
-SRC_DIR = $(BUILDDIR)/../source/
-CUBISM_DIR = $(BUILDDIR)/../Cubism/
+SRC_DIR = $(BUILDDIR)/../../source/
+CUBISM_DIR = $(BUILDDIR)/../../Cubism/
 
 OBJECTS =  IF3D_VortexOperator.o \
            IF3D_ObstacleFactory.o \
@@ -203,13 +203,13 @@ DEPS := $(ALLOBJ:%.o=%.d)
 #VPATH = $(VPATH):${HOME}/smarties/source/
 #endif
 
-.DEFAULT_GOAL := simulation
+.DEFAULT_GOAL := ../simulation
 
-simulation: $(EXEOBJ) $(NVOBJECTS)
+../simulation: $(EXEOBJ) $(NVOBJECTS)
 	$(LD) $(EXEOBJ) $(NVOBJECTS) $(LIBS) $(LDFLAGS) -o $@
 
 lib: $(LIBOBJ) $(NVOBJECTS)
-	ar rs libcubismup3d.a $(FFTW_LIBS) $(LIBOBJ) $(NVOBJECTS)
+	ar rs ../libcubismup3d.a $(FFTW_LIBS) $(LIBOBJ) $(NVOBJECTS)
 
 librl: $(LIBRLOBJ) $(NVOBJECTS)
 	ar rs libsim_rl.a $(LIBRLOBJ) $(NVOBJECTS)
@@ -225,7 +225,7 @@ PoissonSolverScalarFFTW_ACC.o: PoissonSolverScalarFFTW_ACC.cu
 clean:
 	rm -f $(EXEOBJ) $(LIBOBJ)
 	rm -f $(DEPS)
-	rm -f simulation Communicator.o libcubismup3d.a PoissonSolverScalarFFTW*.o
+	rm -f ../simulation Communicator.o ../libcubismup3d.a PoissonSolverScalarFFTW*.o
 
 ifeq "$(config)" "prod"
 else

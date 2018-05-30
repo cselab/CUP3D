@@ -15,11 +15,13 @@ build
 /README.html
 
 dependencies/
-makefiles/simulation
-makefiles/cubismup_3d
+/makefiles/simulation
+/makefiles/cubismup3d_open
+/makefiles/cubismup3d_periodicz
 
 # CMake stuff
 CMakeCache.txt
 CMakeFiles
-Makefile
 cmake_install.cmake
+/Makefile
+/makefiles/Makefile
