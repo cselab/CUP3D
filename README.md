@@ -5,75 +5,74 @@ TO VIEW THIS FILE, RUN THE FOLLOWING:
 
 AND OPEN
     README.html
+
+OR USE WEB SERVER VARIANT (NOTE: 60 UPDATES/HOUR LIMIT!!)
+    python3 -m grip README.md
 -->
-
-# Cluster-specific modules
-
-Daint:
-```shell
-module load gcc
-module swap PrgEnv-cray PrgEnv-gnu
-module load cray-hdf5-parallel
-module load fftw
-module load daint-gpu
-module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1
-module load GSL/2.1-CrayGNU-2016.11
-```
-
-Euler:
-```shell
-module load new modules gcc/6.3.0 open_mpi/2.1.1 fftw/3.3.4 binutils/2.25 gsl/1.16 hwloc/1.11.0 fftw_sp/3.3.4
-```
 
 # Compilation
 
-CubismUP depends on the following 3rd party tools and libraries:
-
-  - C++11 compiler supporting OpenMP
-  - MPI (*)
-  - CMake (3.2 or higher)
-  - FFTW (3.3.7) (**)
-  - HDF5 (1.10.1) (**)
-  - GSL (2.1) (**)
-
-(\*) If manually installing dependencies (see below), make sure `mpicc` points to a MPI-compatible `C` compiler, and that `mpic++` point to a MPI-compatible `C++` compiler.<br>
-(\*\*) Possibly higher versions work too.
-
-We suggest first trying to compile the code with the libraries already installed on the target machine or cluster
-(if available, dependencies may be loaded with `module load ...` or `module load new ...`).
-Otherwise, an installation script is provided for all dependencies (except MPI and C++ compiler, for which we assume are already available).
+## Quick compilation
 
 To compile, run:
 ```bash
+cd makefiles/
 cmake .
 make
 ```
 
-If `cmake .` fails, use the provided script for installing the missing dependencies:
+If that doesn't work, read the following section.
+
+## Detailed instructions
+
+CubismUP uses CMake to automatically detect required dependencies and to compile the code.
+If the dependencies are missing, they can be easily downloaded, compiled and locally installed using the provided script `install_dependencies.sh` (details below).
+If the dependencies are already available, but CMake does not detect them, appropriate environment variables specifying their path have to be defined.
+
+CubismUP requries the following 3rd party libraries:
+
+| Dependency            | Environment variable pointing to the existing installation |
+|-----------------------|----------------------------------|
+| FFTW (3.3.7) (\*)     | $FFTWDIR                         |
+| HDF5 (1.10.1) (\*)    | $HDF5_ROOT                       |
+| GSL (2.1) (\*)        | $GSL_ROOT_DIR                    |
+| MPI (\*\*)            | [See instruction][mpi-path]      |
+
+(\*) Possibly higher versions work too.<br>
+(\*\*) Especially if installing the dependencies, make sure that `mpicc` points to a MPI-compatible `C` compiler, and `mpic++` to a MPI-compatible `C++` compiler.
+
+We suggest first trying to compile the code with the libraries already installed on the target machine or cluster.
+If available, dependencies may be loaded with `module load ...` or `module load new ...`.
+If `module load` is not available, but libraries are installed, set the above mentioned environment variables.
+
+## Manually installing dependencies
+
+To install the missing dependencies, run the following code (from the repository root folder):
 ```bash
 # Step 1: Install dependencies
 ./install_dependencies.sh --all
 
-# Step 2: Append the export commands to ~/.bashrc or ~/.bash_profile (Mac):
+# Step 2: Append the export commands to ~/.bashrc or ~/.bash_profile
 ./install_dependencies.sh --export >> ~/.bashrc
 # or
-./install_dependencies.sh --export >> ~/.bash_profile
+./install_dependencies.sh --export >> ~/.bash_profile  # (Mac)
 
 # Step 3:
 source ~/.bashrc
 # or
-source ~/.bash_profile
+source ~/.bash_profile  # (Mac)
 
 # Step 4: Try again
 cmake .
 ```
 
-
 ## Other options and further info
 
-The `--all` flag installs all available dependencies. To install only some of them, run `./install_dependencies.sh` to see the full list of flags.
+The `--all` flag installs all dependencies known to the script (FFTW, HDF5, GSL, as well as CMake itself).
+If only some dependencies are missing, pass instead flags like `--cmake`, `--fftw` and othes.
+Run `./install_dependencies.sh` to get the full list of available flags.
 
-All dependencies are installed in the folder `./dependencies/`.
+All dependencies are installed in the folder `dependencies/`.
 Full installation takes 5-15 minutes, depending on the machine.
 To specify number of parallel jobs in the internal `make`, write
 ```
@@ -92,7 +91,29 @@ MPICH_CXX=g++-7 make
 OMPI_CXX=g++-7 make
 ```
 
-
 ## Troubleshooting
 
 If `cmake .` keeps failing, delete the file `CMakeCache.txt` and try again.
+
+
+
+# Cluster-specific modules
+
+Piz Daint:
+```shell
+module load gcc
+module swap PrgEnv-cray PrgEnv-gnu
+module load cray-hdf5-parallel
+module load fftw
+module load daint-gpu
+module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1
+module load GSL/2.1-CrayGNU-2016.11
+```
+
+Euler:
+```shell
+module load new modules gcc/6.3.0 open_mpi/2.1.1 fftw/3.3.4 binutils/2.25 gsl/1.16 hwloc/1.11.0 fftw_sp/3.3.4
+```
+
+
+[mpi-path]: https://stackoverflow.com/questions/43054602/custom-mpi-path-in-cmake-project
