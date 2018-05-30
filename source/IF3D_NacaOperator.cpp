@@ -11,6 +11,9 @@
 #include "GenericOperator.h"
 
 #include <HDF5Dumper_MPI.h>
+
+#include <cmath>
+
 class NacaMidlineData : public FishMidlineData
 {
  public:

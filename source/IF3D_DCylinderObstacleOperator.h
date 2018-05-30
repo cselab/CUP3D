@@ -10,19 +10,22 @@
 
 #include "IF3D_ObstacleOperator.h"
 
-#include <cmath>
-
-class IF3D_DCylinderObstacleOperator: public IF3D_ObstacleOperator
+class IF3D_DCylinderObstacleOperator : public IF3D_ObstacleOperator
 {
-  const double radius, halflength;
+    const double radius;
+    const double halflength;
 
 public:
+    IF3D_DCylinderObstacleOperator(
+            FluidGridMPI * const g,
+            ArgumentParser &p,
+            const Real * const u) //const Real radius, const double position[3], const Real smoothing_length=-1):
+        : IF3D_ObstacleOperator(g, p, u),
+          radius(.5 * length),
+          halflength(p("-halflength").asDouble(.5 * ext_Z))
+    {
+        printf("Created IF3D_DCylinderObstacleOperator with radius %f and halflength %f\n", radius, halflength);
+    }
 
- IF3D_DCylinderObstacleOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) //const Real radius, const double position[3], const Real smoothing_length=-1):
-  : IF3D_ObstacleOperator(g, p, u), radius(.5*length), halflength(ext_Z/2)
-  {
-    printf("Created IF3D_DCylinderObstacleOperator with radius %f\n", radius);
-  }
-
-  void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
+    void create(int step_id, double time, double dt, const Real *Uinf) override;
 };
