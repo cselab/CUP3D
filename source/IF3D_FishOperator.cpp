@@ -9,7 +9,6 @@
 #include "IF3D_FishOperator.h"
 #include "IF3D_FishLibrary.h"
 
-#include <HDF5Dumper_MPI.h>
 #include <chrono>
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_ObstacleOperator(g, p, u)
 {
@@ -217,25 +216,6 @@ void IF3D_FishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
       }
     }
   }
-
-  #if 0
-  #pragma omp parallel
-  {
-    #pragma omp for schedule(dynamic)
-    for (int i = 0; i < (int)vInfo.size(); ++i) {
-      BlockInfo info = vInfo[i];
-      const auto pos = obstacleBlocks.find(info.blockID);
-      if(pos == obstacleBlocks.end()) continue;
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
-    }
-  }
-  DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, 0, 0, "SFD", "./");
-  abort();
-  #endif
 }
 
 void IF3D_FishOperator::create(const int step_id,const double time, const double dt, const Real *Uinf)

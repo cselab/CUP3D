@@ -10,6 +10,7 @@
 #include "IF3D_FishLibrary.h"
 #include "GenericOperator.h"
 
+#include <HDF5Dumper_MPI.h>
 class NacaMidlineData : public FishMidlineData
 {
  public:
@@ -32,10 +33,9 @@ class NacaMidlineData : public FishMidlineData
       MPI_Comm_rank(MPI_COMM_WORLD,&rank);
       if (rank!=0) return;
       FILE * f = fopen("fish_profile","w");
-      for (int i=0; i<Nm; ++i) printf("%g %g %g %g %g\n",
+      for (int i=0; i<Nm; ++i) fprintf(f, "%g %g %g %g %g\n",
       rX[i],rY[i],rS[i],width[i],height[i]);
       fflush(f); fclose(f);
-      printf("Dumped midline\n");
     #endif
   }
 
@@ -165,4 +165,23 @@ void IF3D_NacaOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
       }
     }
   }
+
+  #if 0
+  #pragma omp parallel
+  {
+    #pragma omp for schedule(dynamic)
+    for (int i = 0; i < (int)vInfo.size(); ++i) {
+      BlockInfo info = vInfo[i];
+      const auto pos = obstacleBlocks.find(info.blockID);
+      if(pos == obstacleBlocks.end()) continue;
+      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
+    }
+  }
+  DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, 0, 0, "SFD", "./");
+  abort();
+  #endif
 }

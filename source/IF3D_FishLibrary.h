@@ -531,6 +531,10 @@ struct PutFishOnBlocks
   static inline Real eulerDistSq3D(const Real a[3], const Real b[3]) {
     return std::pow(a[0]-b[0],2) +std::pow(a[1]-b[1],2) +std::pow(a[2]-b[2],2);
   }
+  static inline Real eulerDistSq2D(const Real a[3], const Real b[3]) {
+    return std::pow(a[0]-b[0],2) +std::pow(a[1]-b[1],2);
+  }
+
 
   void changeVelocityToComputationalFrame(Real x[3]) const
   {
