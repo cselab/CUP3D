@@ -1,7 +1,14 @@
 <!doctype html>
 
 <!--
+If you don't know what to do:
+TODO: Add a note that internet connection is required (for CSS/JS files).
+TODO: xyz bForcedInSimFrame and bFixFrameOfRef.
+TODO: Fix loading presets (and probably copy-pasting). The form dependencies are not verified.
+TODO: Write the size of the domain in "Information".
+-->
 
+<!--
 This page uses alpacajs as a main library, which enables us to generate the
 form using a simple JSON description.
 
@@ -398,7 +405,7 @@ custom fields. Anything else is forwarded to the parent view.
         out += "\n\n";
 
         /* Running the executable */
-        var exe_name = params["periodic_z"] ? "cubismup3d_periodicz" : "cubismup3d_open";
+        var exe_name = flow["periodic_z"] ? "cubismup3d_periodicz" : "cubismup3d_open";
 
         // https://stackoverflow.com/questions/1587846/how-do-i-show-the-changes-which-have-been-staged/1587952#1587952
         out += "# Backup the source code next to the results.\n";
