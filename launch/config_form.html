@@ -50,7 +50,7 @@ custom fields. Anything else is forwarded to the parent view.
   <style>
     @media (min-width: 1440px) {
       .container {
-        width: 1400px;
+        width: 1200px;
       }
     }
     .inline-help-block {
@@ -651,9 +651,7 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "radius": {
                                 "required": true,
-                                "dependencies": {
-                                    "obstacle_type": [SPHERE, DCYLINDER],
-                                }
+                                "dependencies": { "obstacle_type": [SPHERE, DCYLINDER], }
                             },
                             "NACA_length": {
                                 "required": true,
@@ -692,8 +690,8 @@ custom fields. Anything else is forwarded to the parent view.
                                 "dependencies": { "NACA_advanced": true },
                                 "placeholder": "Heaving-pitching phase",
                                 "helpers": [
-                                  "Vertical position is determined as y(t) = y<sub>center</sub> + A<sub>H</sub> L cos(2 &pi; f<sub>H</sub> t)",
-                                    "Angle of attack is determined as &alpha;(t) = &alpha;<sub>0</sub> + &alpha;<sub>1</sub> cos(2 &pi; (f<sub>F</sub> t + &phi;))",
+                                    "Vertical position: y(t) = y<sub>center</sub> + A<sub>H</sub> L cos(2 &pi; f<sub>H</sub> t)<br>",
+                                    "Angle of attack: &alpha;(t) = &alpha;<sub>0</sub> + &alpha;<sub>1</sub> cos(2 &pi; (f<sub>F</sub> t + &phi;))",
                                 ],
                             },
                             "obstacle_forced": {
