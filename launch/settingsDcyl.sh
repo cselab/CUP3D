@@ -10,7 +10,6 @@ FACTORY='IF3D_DCylinder L=0.1 xpos=0.2 xvel=0.1 bFixFrameOfRef=1 bForcedInSimFra
 '
 
 OPTIONS=
-OPTIONS+=$(printf ' -factory-content %q' "$FACTORY")
 OPTIONS+=" -bpdx 32 -bpdy 8 -bpdz 8"
 OPTIONS+=" -dump2D 1 -restart 0"
 OPTIONS+=" -nprocsx ${NNODEX}"

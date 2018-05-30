@@ -1,5 +1,40 @@
 <!doctype html>
 
+<!--
+
+This page uses alpacajs as a main library, which enables us to generate the
+form using a simple JSON description.
+
+However, any customization is tricky. Here are listed some library behavior
+and our implementation details:
+
+1) Working with custom templates.
+There must be a single HTML tag encapsulating everything inside a template.
+Whatever is outside it, e.g. some text, will be ignored.
+
+2) Containers vs controls.
+Each field is either a ContrainerField or a ControlField. Examples of
+ContainerFields are "object" and "array", and they contain other fields. A
+ControlField is simply a "text", "number" etc. There is a difference in
+visualization of these two, they use different sets of templates.
+
+3) Our MultiValueField custom field type is derived from "array", which makes
+it a container, not a control that we want visually. Therefore, we have a bunch
+of hacks to display it as if it were a control (in particular, custom
+templates). The reason we use array is to have automatic support for multiple
+inner fields. It was not clear to me how to create multiple input (textboxes)
+inside a single ControlField, together with listeners attached and retrieving
+the values. Reading the source code, it looks like one should use nested forms
+(i.e. $().alpaca(...)). Feel free to refactor it. (kicici)
+
+4) Custom views.
+A view defines how to render the fields. It is not clear if field-specific
+views are possible. As few different attempts failed, we use now a global
+custom view (which derives from "bootstrap-edit-horizontal"). The view
+overrides some callbacks ("control" and "container"), and acts only on our
+custom fields. Anything else is forwarded to the parent view.
+-->
+
 <!-- TODO: Add a note that internet connection is required (for CSS/JS files). -->
 <!-- TODO: Add option to store and load JSON. -->
 <!-- TODO: xyz bForcedInSimFrame and bFixFrameOfRef -->
@@ -11,16 +46,81 @@
   <link type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet"/>
   <script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
   <link type="text/css" href="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.css" rel="stylesheet"/>
-  <script type="text/javascript" src="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.js"></script>
+  <script type="text/javascript" src="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.js"></script>
+  <style>
+    @media (min-width: 1440px) {
+      .container {
+        width: 1400px;
+      }
+    }
+    .inline-help-block {
+        margin: 0px;
+    }
+    .alpaca-message-custom {
+        /* This appears for multivalue errors.
+         * No idea if appears also in other cases. */
+        color: #a94442;
+    }
+    .multivalue .alpaca-container {
+        display: table-row;
+    }
+    .multivalue .alpaca-container-item {
+        display: table-cell;
+    }
+    .multivalue .alpaca-container-item > div {
+        display: inline-block;
+    }
+    .form-horizontal .multivalue .form-group {
+        margin-bottom: 5px;
+        margin-left: 3px;
+        margin-right: 3px;
+    }
+    .form-horizontal .multivalue .alpaca-container-item:nth-child(2) .form-group { margin-left: 0px; }
+    .form-horizontal .multivalue .alpaca-container-item:last-child .form-group { margin-right: 0px; }
+  </style>
 </head>
 <body>
 
-<div id="form"></div>
-<br>
-<button type="button" id="download-config">Save</button>
-<br>
-<div id="config-info"></div>
-<pre id="config-file"></pre>
+<div class="container">
+  <div id="form"></div>
+  <br>
+  <button type="button" class="btn btn-primary" id="download-config">Save as file</button>
+  <button type="button" class="btn btn-default" data-toggle="modal" data-target="#load-config-modal">Load config</button>
+  <br><br>
+  <div>
+    <h3>Information</h3>
+    <div id="config-info"></div>
+  </div>
+  <br>
+  <div>
+    <h3>Run script</h3>
+    <pre id="config-file"></pre>
+  </div>
+</div>
+
+<div class="modal fade" id="load-config-modal" tabindex="-1" role="dialog" aria-labelledby="load-config-modal-label">
+  <div class="modal-dialog" role="document">
+    <div class="modal-content">
+      <div class="modal-header">
+        <button type="button" class="close" data-dismiss="modal" aria-label="Close"><span aria-hidden="true">&times;</span></button>
+        <h4 class="modal-title" id="load-config-modal-label">Load existing config</h4>
+      </div>
+      <div class="modal-body">
+        <p>To load previously created settings file, copy-paste its last line, containing the JSON representation of all settings.</p>
+        <form>
+          <div class="form-group">
+            <label for="load-config-json" class="control-label">JSON:</label>
+            <textarea class="form-control" id="load-config-json" rows="8"></textarea>
+          </div>
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-default" data-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-primary" id="load-config-update">Update form</button>
+      </div>
+    </div>
+  </div>
+</div>
 
 
 <script type="text/x-handlebars-template" id="two-column-layout-template">
@@ -44,14 +144,69 @@
   Approx. Reynolds number: <b>{{Re}}</b> {{Re_desc}}<br>
 </script>
 
+
+<!-- Modified version of alpaca/src/templates/bootstrap-edit/control.html -->
+<!-- Used for INLINE_CHECKBOX option (for inlining helper with checkboxes). -->
+<script type="text/x-handlebars-template" id="control-inline-helper-template">
+  <div class="form-group">
+    {{#if options.label}}
+      <label class="{{#if options.labelClass}}{{options.labelClass}}{{/if}} col-sm-3 control-label alpaca-control-label" for="{{id}}">{{{options.label}}}</label>
+    {{/if}}
+    <div class="col-sm-1">
+      {{#control}}{{/control}}
+    </div>
+    <div class="col-sm-8">
+      {{#if options.helpers}}
+        {{#each options.helpers}}
+          <p class="help-block inline-help-block {{#if options.helperClass}}{{options.helperClass}}{{/if}}">
+            <i class="glyphicon glyphicon-info-sign"></i>
+            {{#showMessage .}}{{/showMessage}}
+          </p>
+        {{/each}}
+      {{/if}}
+    </div>
+  </div>
+</script>
+
+<!-- Template for MultiValueField item (simplified container-array-item).
+     This template displays the container item as a small "control item".
+     Note that the actionbars were removed. -->
+<script type="text/x-handlebars-template" id="container-multivalue-item-template">
+  <div>
+    {{#itemField}}{{/itemField}}
+  </div>
+</script>
+
+<!-- Template for MultiValueField (simplified container.html).
+     This template displays the MultiValueField container as a control. -->
+<script type="text/x-handlebars-template" id="container-multivalue-template">
+  <div class="multivalue">
+    {{#if options.label}}
+      <label class="{{#if options.labelClass}}{{options.labelClass}}{{/if}} control-label alpaca-control-label">{{{options.label}}}</label>
+    {{/if}}
+
+    {{#container}}{{/container}}
+
+    {{#if options.helpers}}
+      {{#each options.helpers}}
+        <p class="help-block {{#if options.helperClass}}{{options.helperClass}}{{/if}}">
+          <i class="glyphicon glyphicon-info-sign"></i>
+          {{#showMessage .}}{{/showMessage}}
+        </p>
+      {{/each}}
+    {{/if}}
+  </div>
+</script>
+
+
 <script type="text/javascript">
 (function(){
     var CUBISM_NAME = "CubismUP_3D";
     var SPHERE = "Sphere";
     var BLOCK_SIZE = 16;
     var BYTES_PER_CELL = 4 * 8;
+    var form_control = null;
 
-    var CELL_INFO = " (power of two, &ge; 16)";
     var CONFIG_INFO_TEMPLATE = Handlebars.compile(
             $("#config-info-template").html());
 
@@ -67,6 +222,8 @@
         var technical = value["technical"];
         var simulation = value["simulation"];
         var flow = value["flow"];
+        // We use "obstacle" instead of "object" keyword to differentiate
+        // between our objects and built-in objects.
         var obstacles = value["obstacles"];
 
         var out = "";
@@ -78,9 +235,9 @@
         out += "EXE=${PWD}/../makefiles/cubismup_3d\n";
 
         /* Technical. */
-        var bpdx = technical["num_cells_x"] / BLOCK_SIZE;
-        var bpdy = technical["num_cells_y"] / BLOCK_SIZE;
-        var bpdz = technical["num_cells_z"] / BLOCK_SIZE;
+        var bpdx = technical["num_cells"][0] / BLOCK_SIZE;
+        var bpdy = technical["num_cells"][1] / BLOCK_SIZE;
+        var bpdz = technical["num_cells"][2] / BLOCK_SIZE;
         out += "\n";
         out += "OPTIONS=\n";
         out += "OPTIONS+=\" -nprocsx ${NUM_NODES}\"\n";
@@ -96,7 +253,7 @@
         if (tdump > 0)
             out += "OPTIONS+=' -tdump " + tdump + "'\n";
 
-        var Re = 0;
+        var Re = -1;
         var Re_desc = "";  // Wrt what object is this?
         var factory = "";
         for (var i = 0, len = obstacles.length; i < len; ++i) {
@@ -108,14 +265,12 @@
                 case SPHERE:
                     name = "IF3D_Sphere";
                     ok = o["sphere_radius"]
-                        && o["sphere_center_x"]
-                        && o["sphere_center_y"]
-                        && o["sphere_center_z"];
+                        && o["sphere_center"]
                     params = {
                         "L": 2 * parseFloat(o["sphere_radius"]),
-                        "xpos": o["sphere_center_x"],
-                        "ypos": o["sphere_center_y"],
-                        "zpos": o["sphere_center_z"],
+                        "xpos": o["sphere_center"][0],
+                        "ypos": o["sphere_center"][1],
+                        "zpos": o["sphere_center"][2],
                     };
                     break;
             };
@@ -123,17 +278,15 @@
             var forced = o["obstacle_forced"] ? 1 : 0;
             params["bForcedInSimFrame"] = forced;
             if (forced) {
-                var vx = o["obstacle_vel_x"];
-                var vy = o["obstacle_vel_y"];
-                var vz = o["obstacle_vel_z"];
-                params["xvel"] = vx;
-                params["yvel"] = vy;
-                params["zvel"] = vz;
-                var v = Math.sqrt(vx * vx + vy * vy + vz * vz);
+                var v = o["obstacle_vel"];
+                params["xvel"] = v[0];
+                params["yvel"] = v[1];
+                params["zvel"] = v[2];
+                var v = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
                 var Re_curr = v * params["L"] / flow["nu"];
                 if (Re_curr > Re) {
                     Re = Re_curr;
-                    Re_desc = "-- with respect to the object #" + i
+                    Re_desc = "-- with respect to the object #" + (i + 1)
                             + " at (" + params["xpos"] + ", " + params["ypos"] + ", " + params["zpos"] + ")";
                 }
             }
@@ -155,12 +308,12 @@
         out += "mpirun -np ${NUM_NODES} -ppn 1 ${EXE} ${OPTIONS} -factory-content \"${FACTORY}\"\n";
         var json = JSON.stringify(value);
 
-        out += "\n\n\n# DEBUG:\n# " + json;
+        out += "\n\n\n# To edit this settings, press \"Load Config\" in the form and copy-paste the following line:\n# " + json;
         $("#config-file").html(out);
 
         /* Config info. */
         var config_info = {
-            "Re": Re,
+            "Re": Re >= 0 ? Re : "Unknown",
             "Re_desc": Re_desc,
         };
         if (tdump > 0) {
@@ -197,6 +350,22 @@
         download('cubism_config.sh', current_config);
     });
 
+
+    /* Load config click event. */
+    $('#load-config-update').click(function() {
+        var json = $('#load-config-json').val().trim();
+        if (json && json[0] == '#')
+            json = json.substring(1);
+        try {
+            json = JSON.parse(json);
+        } catch (SyntaxError) {
+            alert("Invalid JSON.");
+        }
+        form_control.setValue(json);
+        $('#load-config-modal').modal('hide');
+        update_config(json);
+    });
+
     /* Shortcut functions for form schema. */
     var gen_coord_field = function(title) {
         return {
@@ -214,6 +383,46 @@
             "default": "0.0",
         };
     };
+
+    /* Custom multi-value field. */
+    var MultiValueField = Alpaca.Fields.ArrayField.extend({
+        getTemplateDescriptorId : function () {
+            return "multivalue";
+        },
+
+        getFieldType: function() {
+            return "multivalue";
+        },
+
+        setup: function()
+        {
+            if (!this.schema.minItems)
+                this.schema.minItems = this.data.length;
+            if (!this.schema.maxItems)
+                this.schema.maxItems = this.data.length;
+            this.options.toolbarSticky = true;
+
+            this.base();
+
+            if (!this.options.length)
+                this.options.length = 3;
+
+            if (!this.options.data || Object.keys(this.options.data).length === 0) {
+                this.options.data = [];
+                for (var i = 0; i < this.options.length; ++i)
+                    this.options.data.push(0);
+            }
+        },
+
+        postRender: function(callback) {
+            var self = this;
+            this.base(function() {
+                // $(self.field).find('.alpaca-array-actionbar').hide();
+                callback();
+            });
+        },
+    });
+    Alpaca.registerFieldClass("multivalue", MultiValueField);
 
     /* Form structure. */
     var SCHEMA = {
@@ -234,26 +443,13 @@
                         "title": "Target path",
                         "default": "simulation-01",
                     },
-                    "num_cells_x": {
-                        "type": "integer",
-                        "title": "Cells in X direction" + CELL_INFO,
-                        "default": 128,
-                        "minimum": BLOCK_SIZE,
-                        "multipleOf": BLOCK_SIZE,
-                    },
-                    "num_cells_y": {
-                        "type": "integer",
-                        "title": "Cells in Y direction" + CELL_INFO,
-                        "default": 128,
-                        "minimum": BLOCK_SIZE,
-                        "multipleOf": BLOCK_SIZE,
-                    },
-                    "num_cells_z": {
-                        "type": "integer",
-                        "title": "Cells in Z direction" + CELL_INFO,
-                        "default": 128,
-                        "minimum": BLOCK_SIZE,
-                        "multipleOf": BLOCK_SIZE,
+                    "num_cells": {
+                        "title": "Grid cells per dimension",
+                        "default": [128, 128, 128],
+                        "items": {
+                            "type": "integer",
+                            "minimum": BLOCK_SIZE,
+                        }
                     },
                 },
             },
@@ -269,7 +465,7 @@
                     },
                     "tdump": {
                         "type": "number",
-                        "title": "Snapshot time",
+                        "title": "Snapshot interval",
                         "default": 0.1,
                         "minimum": 0.0,
                     },
@@ -288,17 +484,23 @@
             },
             "obstacles": {
                 "type": "array",
-                "title": "Obstacles",
-                "default": '[{"obstacle_type": "' + SPHERE + '", "sphere_center_x": 0.5, "sphere_center_y": 0.5, "sphere_center_z": 0.5, "sphere_radius": 0.1, "obstacle_forced": true, "obstacle_vel_x": 10, "obstacle_vel_y": 0, "obstacle_vel_z": 0, "obstacle_frame_fixed": true}]',
+                "title": "Objects",
+                "default": '[{"obstacle_type": "' + SPHERE + '", "sphere_center": [0.5, 0.5, 0.5], "sphere_radius": 0.1, "obstacle_forced": true, "obstacle_vel": [10, 0, 0], "obstacle_frame_fixed": true}]',
                 "items": {
                     "type": "object",
                     "properties": {
                         "obstacle_type": {
                             "enum": [SPHERE],
                         },
-                        "sphere_center_x": gen_coord_field("Center X"),
-                        "sphere_center_y": gen_coord_field("Center Y"),
-                        "sphere_center_z": gen_coord_field("Center Z"),
+                        "sphere_center": {
+                            "title": "Center",
+                            "default": [0.0, 0.0, 0.0],
+                            "items": {
+                                "type": "number",
+                                "minimum": 0.0,
+                                "maximum": 1.0,
+                            },
+                        },
                         "sphere_radius": {
                             "type": "number",
                             "title": "Radius",
@@ -309,22 +511,22 @@
                             "default": true,
                             "title": "Forced?",
                         },
-                        "obstacle_vel_x": gen_vel_field("Velocity X"),
-                        "obstacle_vel_y": gen_vel_field("Velocity Y"),
-                        "obstacle_vel_z": gen_vel_field("Velocity Z"),
+                        "obstacle_vel": {
+                            "title": "Velocity",
+                            "default": [0.0, 0.0, 0.0],
+                            "items": {
+                                "type": "number",
+                            },
+                        },
                         "obstacle_frame_fixed": {
                             "default": true,
                             "title": "Frame fixed to object?",
                         },
                     },
                     "dependencies": {
-                        "sphere_center_x": ["obstacle_type"],
-                        "sphere_center_y": ["obstacle_type"],
-                        "sphere_center_z": ["obstacle_type"],
+                        "sphere_center": ["obstacle_type"],
                         "sphere_radius": ["obstacle_type"],
-                        "obstacle_vel_x": ["obstacle_forced"],
-                        "obstacle_vel_y": ["obstacle_forced"],
-                        "obstacle_vel_z": ["obstacle_forced"],
+                        "obstacle_vel": ["obstacle_forced"],
                     }
                 }
             }
@@ -333,36 +535,40 @@
 
     var validate_num_cells = function(callback) {
         /* Validate if num_cells_x/y/z is a power of two. */
-        var v = this.getValue();
-        if (v !== 0 && (v & (v - 1)) === 0) {
-            callback({"status": true});
+        var message = null;
+        var values = this.getValue();
+        for (var i = 0; i < values.length; ++i) {
+            var v = values[i];
+            if (v === 0 || (v & (v - 1)) !== 0) {
+                message = "Number of cells must be a power of two for each dimension.";
+            } else if (v % BLOCK_SIZE !== 0) {
+                message = "Number of cells must be divisible by " + BLOCK_SIZE + " for each dimension.";
+            }
+        }
+        if (message) {
+            callback({"status": false, "message": message});
         } else {
-            callback({
-                "status": false,
-                "message": "Number of cells must be a power of two.",
-            });
+            callback({"status": true});
         }
     };
     var OPTIONS = {
         "fields": {
             "technical": {
                 "fields": {
-                    "num_cells_x": {
+                    "num_cells": {
+                        "type": "multivalue",
+                        "helpers": [
+                            "Must be a power of 2 and at least " + BLOCK_SIZE + ".",
+                            "The axis with the largest number of cells will have a physical length of 1 unit. The other axes will scale accordingly.",
+                        ],
                         "validator": validate_num_cells,
-                    },
-                    "num_cells_y": {
-                        "validator": validate_num_cells,
-                    },
-                    "num_cells_z": {
-                        "validator": validate_num_cells,
-                        "helper": CUBISM_NAME + " always uses cubic cells. The axix/axes with maximum number of cells will have a logical length of 1. Others will scale accordingly.",
                     },
                 },
             },
             "simulation": {
                 "fields": {
                     "tdump": {
-                        "helper": "Every how much time units a visualization snapshot should be taken? 0 to disable.",
+                        "helper": "Time interval for saving visualization snapshots. Set to 0 to disable.",
                     },
                 },
             },
@@ -378,19 +584,8 @@
                                 "required": true,
                                 "sort": false,
                             },
-                            "sphere_center_x": {
-                                "required": true,
-                                "dependencies": {
-                                    "obstacle_type": SPHERE,
-                                }
-                            },
-                            "sphere_center_y": {
-                                "required": true,
-                                "dependencies": {
-                                    "obstacle_type": SPHERE,
-                                }
-                            },
-                            "sphere_center_z": {
+                            "sphere_center": {
+                                "type": "multivalue",
                                 "required": true,
                                 "dependencies": {
                                     "obstacle_type": SPHERE,
@@ -404,14 +599,17 @@
                             },
                             "obstacle_forced": {
                                 "type": "checkbox",
-                                "helper": "Set <i>Forced</i> to fix the obstacle velocity. Otherwise, the velocity will be dynamic and calculated from the flow.",
+                                "helper": "Enable to fix the obstacle velocity. Otherwise, the velocity will be calculated dynamically from the flow-induced forces.",
+                                "INLINE_CHECKBOX": true,
                             },
-                            "obstacle_vel_x": { "dependencies": {"obstacle_forced": true}, },
-                            "obstacle_vel_y": { "dependencies": {"obstacle_forced": true}, },
-                            "obstacle_vel_z": { "dependencies": {"obstacle_forced": true}, },
+                            "obstacle_vel": {
+                                "type": "multivalue",
+                                "dependencies": { "obstacle_forced": true },
+                            },
                             "obstacle_frame_fixed": {
                                 "type": "checkbox",
-                                "helper": "In the case multiple objects are selected, the frame of reference follows their average position.",
+                                "helper": "In the case multiple objects are selected, the frame of reference follows their average velocity.",
+                                "INLINE_CHECKBOX": true,
                             },
                         }
                     }
@@ -419,7 +617,13 @@
             }
         },
     };
+
     var VIEW = {
+        "parent": "bootstrap-edit-horizontal",
+        "fields": {
+            "/obstacles/obstacle_forced": { "templates": { "control": "#control-inline-helper-template" }, },
+            "/obstacles/obstacle_frame_fixed": { "templates": { "control": "#control-inline-helper-template" }, },
+        },
         "horizontal": true,
         "layout": {
             "template": "#two-column-layout-template",
@@ -430,14 +634,74 @@
                 "obstacles": "rightcolumn",
             }
         },
+        // This part was super annoying. Couldn't figure out how to select a
+        // custom view (created with registerView) for a specific field.
+        // So, to customize "bootstrap-edit-horizontal" for some fields,
+        // we have a custom view for everything and then redirect to the
+        // built-in one whenever there's nothing to update. (kicici)
+        "callbacks": {
+            "control": function() {
+                // Our customization?
+                if (this.options["INLINE_CHECKBOX"]) {
+                    // Don't forget to set up the template in VIEW["fields"]!
+                    var fieldEl = $(this.getFieldEl());
+                    fieldEl.find("input[type=checkbox]").parent().parent().addClass("checkbox");
+                } else if (this.parent.getFieldType() == "multivalue") {
+                    // Don't forget to set up the template in VIEW["fields"]!
+                    var fieldEl = $(this.getFieldEl());
+                    fieldEl.find("input").addClass('form-control');
+                    if (this.view.horizontal)
+                        fieldEl.find(".help-block").addClass("col-sm-offset-3 col-sm-9");
+                } else {
+                    // https://github.com/gitana/alpaca/issues/255
+                    // Using directly "bootstrap-edit-horizontal" doesn't work,
+                    // use its parent view.
+                    Alpaca.views["bootstrap-edit"].callbacks.control.call(this);
+                }
+            },
+            "container": function() {
+                var containerEl = $(this.getContainerEl());
+
+                if (this.getFieldType() === "multivalue") {
+                    containerEl.parent().addClass("row");
+                    containerEl.parent().find(".alpaca-control-label").addClass("col-sm-3");
+                    containerEl.parent().find(".help-block").addClass("col-sm-offset-3 col-sm-9");
+                    containerEl.parent().append("<div style='clear:both;'></div>");
+                    containerEl.removeClass("form-horizontal");
+                    containerEl.addClass("col-sm-9");
+                } else {
+                    Alpaca.views["bootstrap-edit"].callbacks.container.call(this);
+                }
+            },
+        },
+        "templates": {
+            "container-multivalue-item": "#container-multivalue-item-template",
+            "multivalue": "#container-multivalue-template",
+        },
     };
+
     $("#form").alpaca({
         "schema": SCHEMA,
         "options": OPTIONS,
         "view": VIEW,
         "postRender": function(control) {
-            control.on("change", function() {
-                update_config(this.getValue());
+            window.form_control = form_control = control;
+            var maybe_refresh = function() {
+                if (form_control.isValid(true))
+                    update_config(form_control.getValue());
+            };
+            control.on("change", maybe_refresh);
+            $("#form").on("click", ".alpaca-array-actionbar-action", function() {
+                // https://github.com/gitana/alpaca/issues/583
+                // Form doesn't update when array items are added or removed.
+                // Therefore, we listen to all clicks to array actionbar.
+
+                // However, remove and move events are not at all triggered. :(
+
+                // ...and the form update is not instantaneous.
+                setTimeout(maybe_refresh, 500);
+                setTimeout(maybe_refresh, 1500);
+                setTimeout(maybe_refresh, 2500);
             });
             update_config(control.getValue());
         },

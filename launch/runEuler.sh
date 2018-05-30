@@ -16,7 +16,8 @@ if [ ! -f $SETTINGSNAME ];then
 fi
 source $SETTINGSNAME
 echo ${NNODE}
-echo $OPTIONS > settings.txt
+echo "${OPTIONS}" > settings.txt
+echo "${FACTORY}" > factory.txt
 
 #mpirun -np ${NNODE} -ppn 2 -bind-to numa -map-by numa ./simulation ${OPTIONS}
-mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0 ./simulation ${OPTIONS}
+mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0 ./simulation ${OPTIONS} -factory-content "${FACTORY}"

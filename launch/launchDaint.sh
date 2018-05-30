@@ -20,9 +20,7 @@ FOLDER=${BASEPATH}${BASENAME}
 mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
-if [[ -v FFACTORY ]]; then
-	cp ${FFACTORY} ${FOLDER}/factory
-fi
+[[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
 cp ../makefiles/${EXEC} ${FOLDER}/simulation
 cp $0 ${FOLDER}
 
@@ -54,7 +52,7 @@ module load cudatoolkit fftw
 
 export MPICH_MAX_THREAD_SAFETY=multiple
 export OMP_NUM_THREADS=12
-srun --ntasks ${NNODE} --threads-per-core=1 --ntasks-per-node=1 --cpus-per-task=12 time ./simulation ${OPTIONS}
+srun --ntasks ${NNODE} --threads-per-core=1 --ntasks-per-node=1 --cpus-per-task=12 time ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
 EOF
 
 chmod 755 daint_sbatch
