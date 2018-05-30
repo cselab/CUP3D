@@ -389,12 +389,12 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
     for(int i=0; i<N; ++i) *(&(oblock->chi[0][0][0])+i) = -1;
   }
 
-  constructShape(info, b, oblock, vSegments);
-  constructDefVel(info, b, oblock, vSegments);
+  constructSurface(info, b, oblock, vSegments);
+  constructInternl(info, b, oblock, vSegments);
   signedDistanceSqrt(info, b, oblock, vSegments);
 }
 
-void PutFishOnBlocks::constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
 {
   Real org[3];
   info.pos(org, 0, 0, 0);
@@ -517,7 +517,7 @@ void PutFishOnBlocks::constructShape(const BlockInfo& info, FluidBlock& b, Obsta
   }
 }
 
-void PutFishOnBlocks::constructDefVel(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
 {
   Real org[3];
   info.pos(org, 0, 0, 0);
@@ -619,28 +619,10 @@ void PutFishOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, O
       sqrt( defblock->chi[iz][iy][ix]) : -sqrt(-defblock->chi[iz][iy][ix]);
     //b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0]; //for debug
     //b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1]; //for debug
-
-    // All points that are not chi=0 in the targeted section, are captured here. When we loop through SurfaceBlocks for computing torque, the extraneous points captured here will be left out, so hakunamatata.
-    defblock->sectionMarker[iz][iy][ix] *= std::fabs(defblock->chi[iz][iy][ix]) > 0 ? 1 : 0;
   }
 }
 
-void PutNacaOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
-{
-  // finalize signed distance function in tmpU
-  const Real eps = std::numeric_limits<Real>::epsilon();
-  for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-  for(int iy=0; iy<FluidBlock::sizeY; iy++)
-  for(int ix=0; ix<FluidBlock::sizeX; ix++) {
-    // change from signed squared distance function to normal sdf
-    b(ix,iy,iz).tmpU = defblock->chi[iz][iy][ix] > (Real)0 ?
-      sqrt( defblock->chi[iz][iy][ix]) : -sqrt(-defblock->chi[iz][iy][ix]);
-    //b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0]; //for debug
-    //b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1]; //for debug
-  }
-}
-
-void PutNacaOnBlocks::constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
 {
   Real org[3];
   info.pos(org, 0, 0, 0);
@@ -749,7 +731,7 @@ void PutNacaOnBlocks::constructShape(const BlockInfo& info, FluidBlock& b, Obsta
   }
 }
 
-void PutNacaOnBlocks::constructDefVel(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
 {
   Real org[3];
   info.pos(org, 0, 0, 0);

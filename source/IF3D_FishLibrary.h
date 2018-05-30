@@ -574,8 +574,8 @@ struct PutFishOnBlocks
   }
 
   void operator()(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const;
-  virtual void constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblck, const std::vector<VolumeSegment_OBB>& vSeg) const;
-  virtual void constructDefVel(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblck, const std::vector<VolumeSegment_OBB>& vSeg) const;
+  virtual void constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblck, const std::vector<VolumeSegment_OBB>& vSeg) const;
+  virtual void constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblck, const std::vector<VolumeSegment_OBB>& vSeg) const;
   virtual void signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblck, const std::vector<VolumeSegment_OBB>& vSeg) const;
 };
 
@@ -596,9 +596,8 @@ struct PutNacaOnBlocks: public PutFishOnBlocks
   }
   Real getSmallerDistToMidLPlanar(const int start_s, const Real x[3], int & final_s) const;
 
-  void constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegm) const override;
-  void constructDefVel(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegm) const override;
-  void signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegm) const override;
+  void constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegm) const override;
+  void constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegm) const override;
 };
 
 struct PutFishOnBlocks_Finalize : public GenericLabOperator
