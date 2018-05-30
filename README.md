@@ -1,3 +1,12 @@
+<!--
+TO VIEW THIS FILE, RUN THE FOLLOWING:
+    python3 -m pip install --user grip
+    python3 -m grip README.md --export README.html
+
+AND OPEN
+    README.html
+-->
+
 # Cluster-specific modules
 
 Daint:

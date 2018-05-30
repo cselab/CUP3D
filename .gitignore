@@ -12,6 +12,8 @@ build
 ._*
 *.swp
 
+/README.html
+
 dependencies/
 makefiles/simulation
 makefiles/cubismup_3d
