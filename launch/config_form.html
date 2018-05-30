@@ -203,6 +203,8 @@ custom fields. Anything else is forwarded to the parent view.
 (function(){
     var CUBISM_NAME = "CubismUP_3D";
     var SPHERE = "Sphere";
+    var DCYLINDER = "Half-cylinder";
+    var NACA = "NACA";
     var BLOCK_SIZE = 16;
     var BYTES_PER_CELL = 4 * 8;
     var form_control = null;
@@ -258,20 +260,43 @@ custom fields. Anything else is forwarded to the parent view.
         var factory = "";
         for (var i = 0, len = obstacles.length; i < len; ++i) {
             var o = obstacles[i];
-            var ok = false;
             var name = "";
+            var error = null;
             var params = {};
-            switch(o["obstacle_type"]) {
+            if (o["center"]) {
+                params["xpos"] = o["center"][0];
+                params["ypos"] = o["center"][1];
+                params["zpos"] = o["center"][2];
+            } else {
+                error = "Center not specified!";
+            }
+            var type = o["obstacle_type"];
+            switch(type) {
                 case SPHERE:
-                    name = "IF3D_Sphere";
-                    ok = o["sphere_radius"]
-                        && o["sphere_center"]
-                    params = {
-                        "L": 2 * parseFloat(o["sphere_radius"]),
-                        "xpos": o["sphere_center"][0],
-                        "ypos": o["sphere_center"][1],
-                        "zpos": o["sphere_center"][2],
-                    };
+                case DCYLINDER:
+                    name = type == SPHERE ? "IF3D_Sphere" : "IF3D_DCylinder";
+                    if (o["radius"])
+                        params["L"] = 2 * o["radius"];
+                    else
+                        error = "Radius not specified or zero!";
+                    break;
+                case NACA:
+                    name = "NACA Airfoil";
+                    if (o["NACA_length"])
+                        params["L"] = o["NACA_length"];
+                    else
+                        error = "NACA length not specified or zero!";
+                    if (o["NACA_thickness"])
+                        params["thickness"] = o["NACA_thickness"];
+                    else
+                        error = "NACA thickness not specified or zero!";
+
+                    if (typeof(o["NACA_Apitch"]) !== "undefined") params["Apitch"] = o["NACA_Apitch"];
+                    if (typeof(o["NACA_Fpitch"]) !== "undefined") params["Fpitch"] = o["NACA_Fpitch"];
+                    if (typeof(o["NACA_Ppitch"]) !== "undefined") params["Ppitch"] = o["NACA_Ppitch"];
+                    if (typeof(o["NACA_Mpitch"]) !== "undefined") params["Mpitch"] = o["NACA_Mpitch"];
+                    if (typeof(o["NACA_Fheave"]) !== "undefined") params["Fheave"] = o["NACA_Fheave"];
+                    if (typeof(o["NACA_Aheave"]) !== "undefined") params["Aheave"] = o["NACA_Aheave"];
                     break;
             };
 
@@ -292,13 +317,15 @@ custom fields. Anything else is forwarded to the parent view.
             }
             params["bFixFrameOfRef"] = o["obstacle_frame_fixed"] ? 1 : 0;
 
-            if (ok) {
+            if (!error) {
                 // Concatenate to "-key1=value1 -key2=value2 ...".
                 var line = name;
                 for (var key in params)
                     if (params.hasOwnProperty(key))
                         line += " " + key + "=" + $.trim(params[key]);
                 factory += line + "\n";
+            } else {
+                factory += "# " + error + "\n";
             }
         }
         out += "\n";
@@ -485,14 +512,14 @@ custom fields. Anything else is forwarded to the parent view.
             "obstacles": {
                 "type": "array",
                 "title": "Objects",
-                "default": '[{"obstacle_type": "' + SPHERE + '", "sphere_center": [0.5, 0.5, 0.5], "sphere_radius": 0.1, "obstacle_forced": true, "obstacle_vel": [10, 0, 0], "obstacle_frame_fixed": true}]',
+                "default": '[{"obstacle_type": "' + SPHERE + '", "center": [0.5, 0.5, 0.5], "radius": 0.1, "obstacle_forced": true, "obstacle_vel": [10, 0, 0], "obstacle_frame_fixed": true}]',
                 "items": {
                     "type": "object",
                     "properties": {
                         "obstacle_type": {
-                            "enum": [SPHERE],
+                            "enum": [SPHERE, DCYLINDER, NACA],
                         },
-                        "sphere_center": {
+                        "center": {
                             "title": "Center",
                             "default": [0.0, 0.0, 0.0],
                             "items": {
@@ -501,12 +528,38 @@ custom fields. Anything else is forwarded to the parent view.
                                 "maximum": 1.0,
                             },
                         },
-                        "sphere_radius": {
+                        "radius": {
                             "type": "number",
                             "title": "Radius",
                             "default": 0.1,
                             "minimum": 0.0,
                         },
+                        "NACA_length": {
+                            "type": "number",
+                            "title": "Length L",
+                            "default": 0.1,
+                            "minimum": 0.0,
+                        },
+                        "NACA_thickness": {
+                            "type": "number",
+                            "title": "Thickness (relative to length)",
+                            "default": 0.12,
+                            "minimum": 0.0,
+                            "maxmimum": 1.0,
+                        },
+                        "NACA_advanced": {
+                            "title": "Dynamics options?",
+                            "default": false,
+                        },
+                        // Do not put default values for the following NACA
+                        // parameters, because they would hide placeholders
+                        // (defined in OPTIONS).
+                        "NACA_Aheave": { "type": "number", "title": "A<sub>H</sub>", },
+                        "NACA_Fheave": { "type": "number", "title": "f<sub>H</sub>", },
+                        "NACA_Mpitch": { "type": "number", "title": "&alpha;<sub>0</sub>", },
+                        "NACA_Apitch": { "type": "number", "title": "&alpha;<sub>1</sub>", },
+                        "NACA_Fpitch": { "type": "number", "title": "f<sub>F</sub>", },
+                        "NACA_Ppitch": { "type": "number", "title": "&phi;", },
                         "obstacle_forced": {
                             "default": true,
                             "title": "Forced?",
@@ -524,8 +577,16 @@ custom fields. Anything else is forwarded to the parent view.
                         },
                     },
                     "dependencies": {
-                        "sphere_center": ["obstacle_type"],
-                        "sphere_radius": ["obstacle_type"],
+                        "radius": ["obstacle_type"],
+                        "NACA_length": ["obstacle_type"],
+                        "NACA_thickness": ["obstacle_type"],
+                        "NACA_advanced": ["obstacle_type"],
+                        "NACA_Aheave": ["NACA_advanced"],
+                        "NACA_Fheave": ["NACA_advanced"],
+                        "NACA_Apitch": ["NACA_advanced"],
+                        "NACA_Fpitch": ["NACA_advanced"],
+                        "NACA_Mpitch": ["NACA_advanced"],
+                        "NACA_Ppitch": ["NACA_advanced"],
                         "obstacle_vel": ["obstacle_forced"],
                     }
                 }
@@ -584,18 +645,56 @@ custom fields. Anything else is forwarded to the parent view.
                                 "required": true,
                                 "sort": false,
                             },
-                            "sphere_center": {
+                            "center": {
                                 "type": "multivalue",
                                 "required": true,
-                                "dependencies": {
-                                    "obstacle_type": SPHERE,
-                                }
                             },
-                            "sphere_radius": {
+                            "radius": {
                                 "required": true,
                                 "dependencies": {
-                                    "obstacle_type": SPHERE,
+                                    "obstacle_type": [SPHERE, DCYLINDER],
                                 }
+                            },
+                            "NACA_length": {
+                                "required": true,
+                                "dependencies": { "obstacle_type": [NACA], }
+                            },
+                            "NACA_thickness": {
+                                "required": true,
+                                "dependencies": { "obstacle_type": [NACA], }
+                            },
+                            "NACA_advanced": {
+                                "type": "checkbox",
+                                "dependencies": { "obstacle_type": [NACA], }
+                            },
+                            "NACA_Aheave": {
+                                "dependencies": { "NACA_advanced": true },
+                                "placeholder": "Heaving amplitude (in airfoil length units)",
+                            },
+                            "NACA_Fheave": {
+                                "dependencies": { "NACA_advanced": true },
+                                "placeholder": "Heaving frequency",
+                            },
+                            "NACA_Apitch": {
+                                "dependencies": { "NACA_advanced": true },
+                                "placeholder": "Pitching amplitude",
+                            },
+                            "NACA_Fpitch": {
+                                "dependencies": { "NACA_advanced": true },
+                                "helper": "Does not have to be equal to <i>Heaving frequency</i>.",
+                                "placeholder": "Pitching frequency",
+                            },
+                            "NACA_Mpitch": {
+                                "dependencies": { "NACA_advanced": true },
+                                "placeholder": "Mean angle of attack / mean pitch angle",
+                            },
+                            "NACA_Ppitch": {
+                                "dependencies": { "NACA_advanced": true },
+                                "placeholder": "Heaving-pitching phase",
+                                "helpers": [
+                                  "Vertical position is determined as y(t) = y<sub>center</sub> + A<sub>H</sub> L cos(2 &pi; f<sub>H</sub> t)",
+                                    "Angle of attack is determined as &alpha;(t) = &alpha;<sub>0</sub> + &alpha;<sub>1</sub> cos(2 &pi; (f<sub>F</sub> t + &phi;))",
+                                ],
                             },
                             "obstacle_forced": {
                                 "type": "checkbox",
@@ -608,7 +707,7 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "obstacle_frame_fixed": {
                                 "type": "checkbox",
-                                "helper": "In the case multiple objects are selected, the frame of reference follows their average velocity.",
+                                "helper": "In case multiple objects are selected, the frame of reference follows their average velocity.",
                                 "INLINE_CHECKBOX": true,
                             },
                         }
