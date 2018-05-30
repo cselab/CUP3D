@@ -390,8 +390,8 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
   }
 
   constructShape(info, b, oblock, vSegments);
-  //constructDefVel(info, b, oblock, vSegments);
-  //signedDistanceSqrt(info, b, oblock, vSegments);
+  constructDefVel(info, b, oblock, vSegments);
+  signedDistanceSqrt(info, b, oblock, vSegments);
 }
 
 void PutFishOnBlocks::constructShape(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
