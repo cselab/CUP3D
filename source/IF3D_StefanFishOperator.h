@@ -9,10 +9,7 @@
 #ifndef __IncompressibleFluids3D__IF3D_StefanFishOperator__
 #define __IncompressibleFluids3D__IF3D_StefanFishOperator__
 
-#include <cmath>
-#include <array>
 #include "IF3D_FishOperator.h"
-
 
 class IF3D_StefanFishOperator: public IF3D_FishOperator
 {

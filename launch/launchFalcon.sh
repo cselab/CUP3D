@@ -14,7 +14,7 @@ mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 cp ${FFACTORY} ${FOLDER}/factory
-cp ../makefiles/simulation ${FOLDER}
+cp ../bin/simulation ${FOLDER}
 
 cd $FOLDER
 

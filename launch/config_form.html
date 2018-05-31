@@ -1,7 +1,13 @@
 <!doctype html>
 
 <!--
+If you don't know what to do:
+TODO: Add a note that internet connection is required (for CSS/JS files).
+TODO: xyz bForcedInSimFrame and bFixFrameOfRef.
+TODO: Write the size of the domain in "Information".
+-->
 
+<!--
 This page uses alpacajs as a main library, which enables us to generate the
 form using a simple JSON description.
 
@@ -35,14 +41,13 @@ overrides some callbacks ("control" and "container"), and acts only on our
 custom fields. Anything else is forwarded to the parent view.
 -->
 
-<!-- TODO: Add a note that internet connection is required (for CSS/JS files). -->
-<!-- TODO: Add option to store and load JSON. -->
-<!-- TODO: xyz bForcedInSimFrame and bFixFrameOfRef -->
 <html>
 <head>
   <title>CubismUP_3D config file generator</title>
   <script type="text/javascript" src="https://code.jquery.com/jquery-1.11.1.min.js"></script>
   <script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/handlebars.js/4.0.5/handlebars.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/styles/default.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/9.12.0/highlight.min.js"></script>
   <link type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet"/>
   <script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
   <link type="text/css" href="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.css" rel="stylesheet"/>
@@ -52,6 +57,9 @@ custom fields. Anything else is forwarded to the parent view.
       .container {
         width: 1200px;
       }
+    }
+    .alpaca-layout-binding-holder {
+        margin-bottom: 1em;  /* Put form sections apart. */
     }
     .inline-help-block {
         margin: 0px;
@@ -81,10 +89,13 @@ custom fields. Anything else is forwarded to the parent view.
 </head>
 <body>
 
+
+<!-- Basic structure of the website. -->
 <div class="container">
   <div id="form"></div>
   <br>
   <div>
+    <!-- Buttons "Save", "Load config" and presets. -->
     <div id="preset-container" style="float: right;"></div>
     <button type="button" class="btn btn-primary" id="download-config">Save as file</button>
     <button type="button" class="btn btn-default" data-toggle="modal" data-target="#load-config-modal">Load config</button>
@@ -97,10 +108,12 @@ custom fields. Anything else is forwarded to the parent view.
   <br>
   <div>
     <h3>Run script</h3>
-    <pre id="config-file"></pre>
+    <pre class="bash" id="config-file"></pre>
   </div>
 </div>
 
+
+<!-- "Load config" modal. -->
 <div class="modal fade" id="load-config-modal" tabindex="-1" role="dialog" aria-labelledby="load-config-modal-label">
   <div class="modal-dialog" role="document">
     <div class="modal-content">
@@ -135,6 +148,8 @@ custom fields. Anything else is forwarded to the parent view.
   {{/each}}
 </script>
 
+
+<!-- Two column layout. -->
 <script type="text/x-handlebars-template" id="two-column-layout-template">
   <div class="row">
     <div class="col-md-12">
@@ -146,6 +161,8 @@ custom fields. Anything else is forwarded to the parent view.
   </div>
 </script>
 
+
+<!-- "Information" section template. -->
 <script type="text/x-handlebars-template" id="config-info-template">
   {{#if dump_info}}
     Approx. snapshot size: {{dump_info.snapshot_size}}<br>
@@ -153,7 +170,7 @@ custom fields. Anything else is forwarded to the parent view.
     Approx. total snapshot size: <b>{{dump_info.snapshot_total_size}}</b><br>
     <br>
   {{/if}}
-  Approx. Reynolds number: <b>{{Re}}</b> {{Re_desc}}<br>
+  Estimated Reynolds number: <b>{{Re}}</b> {{{Re_desc}}}<br>
 </script>
 
 
@@ -179,6 +196,7 @@ custom fields. Anything else is forwarded to the parent view.
     </div>
   </div>
 </script>
+
 
 <!-- Template for MultiValueField item (simplified container-array-item).
      This template displays the container item as a small "control item".
@@ -211,25 +229,43 @@ custom fields. Anything else is forwarded to the parent view.
 </script>
 
 
+<!-- JavaScript code: the logic of the website. -->
 <script type="text/javascript">
 (function(){
     var PRESETS = [{
         "description": "Flow around a sphere at Re=2000.",
-        "data": '{"technical":{"num_nodes":1,"target_path":"sphere-01","num_cells":[256,128,128]},"simulation":{"tend":10,"tdump":0.1},"flow":{"nu":0.001},"obstacles":[{"obstacle_type":"Sphere","center":[0.5,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
+        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.3,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
     }, {
         "description": "Flow around a half-cylinder at Re=2000.",
-        "data": '{"technical":{"num_nodes":1,"target_path":"sphere-01","num_cells":[256,128,128]},"simulation":{"tend":10,"tdump":0.1},"flow":{"nu":0.001},"obstacles":[{"obstacle_type":"Half-cylinder","center":[0.5,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
+        "data": '{"simulation":{"num_nodes":1,"result_path":"results/half-cylinder-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Half-cylinder","dcylinder_center":[0.3,0.25],"dcylinder_z_range":[0,1],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
     }];
 
+    // Compile-time settings and other parameters.
+    var BLOCK_SIZE = 16;
+    var BYTES_PER_CELL = 4 * 8;
+    var ROOT_PATH_DEFAULT = "..";
+
+    // Internal variables and enums.
     var CUBISM_NAME = "CubismUP_3D";
     var SPHERE = "Sphere";
     var DCYLINDER = "Half-cylinder";
     var NACA = "NACA";
-    var BLOCK_SIZE = 16;
-    var BYTES_PER_CELL = 4 * 8;
-    var form_control = null;
-
+    var FISH = "Fish";
+    var FISH_WIDTH_PROFILES = {
+        "baseline": "baseline",
+        "fatter": "fatter",
+        "naca0012": "NACA 0012",
+    };
+    var FISH_HEIGHT_PROFILES = {
+        "baseline": "baseline",
+        "largefin": "largefin",
+        "tunaclone": "tuna",
+        "naca0012": "NACA 0012",
+    };
     var CONFIG_INFO_TEMPLATE = Handlebars.compile($("#config-info-template").html());
+
+    // Internal state variables.
+    var form_control = null;
 
     // Generate presets.
     var PRESET_TEMPLATE = Handlebars.compile($("#preset-template").html());
@@ -239,8 +275,7 @@ custom fields. Anything else is forwarded to the parent view.
     $('.preset').click(function() {
         var index = parseInt($(this).attr('data-index'));
         var json = JSON.parse(PRESETS[index]["data"]);
-        form_control.setValue(json);
-        update_config(json);
+        reset_form(json);
     });
     $('.preset').tooltip()
 
@@ -249,28 +284,64 @@ custom fields. Anything else is forwarded to the parent view.
         return "'" + str.replace(/'/g, "'\\''") + "'";
     };
 
+    /*
+     * Get values of an object, in the same order as Object.keys().
+     *
+     * (Replacement for Object.entries, which is not yet widely supported.)
+     */
+    var get_values = function(x) {
+        var keys = Object.keys(x);
+        var values = [];
+        for (var i = 0; i < keys.length; ++i)
+            values.push(x[keys[i]]);
+        return values;
+    }
+
+    /*
+     * Returns if the value is well defined.
+     *
+     * Check if a value is either a not-NaN number, or a recursive array
+     * of well defined values.
+     */
+    var is_ok = function(x) {
+        if (Array.isArray(x)) {
+            for (var i = 0; i < x.length; ++i)
+                if (!is_ok(x[i]))
+                    return false;
+            return true;
+        } else {
+            return typeof(x) === "number" && !(x !== x);
+        }
+    };
+
     /* Generate config file from form values. */
     var current_config = '';
     var update_config = function(value) {
-        var technical = value["technical"];
-        var simulation = value["simulation"];
-        var flow = value["flow"];
         // We use "obstacle" instead of "object" keyword to differentiate
         // between our objects and built-in objects.
         var obstacles = value["obstacles"];
+        var simulation = value["simulation"];
+        var flow = value["flow"];
 
         var out = "";
         out += "#!/bin/bash\n\n";
         out += "set -e\n\n";
-        out += "NUM_NODES=" + technical["num_nodes"] + "\n";
+        out += "NUM_NODES=" + simulation["num_nodes"] + "\n";
         // https://stackoverflow.com/a/20053121/2203044
-        out += "TARGET_PATH=" + escape_shell(technical["target_path"]) + "\n";
-        out += "EXE=${PWD}/../makefiles/cubismup_3d\n";
+        out += "RESULT_PATH=" + simulation["result_path"] + "\n";
 
-        /* Technical. */
-        var bpdx = technical["num_cells"][0] / BLOCK_SIZE;
-        var bpdy = technical["num_cells"][1] / BLOCK_SIZE;
-        var bpdz = technical["num_cells"][2] / BLOCK_SIZE;
+        if (simulation["root_path"]) {
+            out += "ROOT_PATH=" + simulation["root_path"] + "\n";
+        } else {
+            out += "ROOT_PATH=" + ROOT_PATH_DEFAULT + "\n";
+        }
+
+        /* Simulation setup */
+        var bpdx = simulation["num_cells"][0] / BLOCK_SIZE;
+        var bpdy = simulation["num_cells"][1] / BLOCK_SIZE;
+        var bpdz = simulation["num_cells"][2] / BLOCK_SIZE;
+        var tend = simulation["tend"];
+        var tdump = simulation["tdump"];
         out += "\n";
         out += "OPTIONS=\n";
         out += "OPTIONS+=\" -nprocsx ${NUM_NODES}\"\n";
@@ -278,75 +349,104 @@ custom fields. Anything else is forwarded to the parent view.
         out += "OPTIONS+=' -bpdy " + bpdy + "'\n";
         out += "OPTIONS+=' -bpdz " + bpdz + "'\n";
         out += "OPTIONS+=' -nu " + flow["nu"] + "'\n";
-
-        /* Simulation setup */
-        var tend = simulation["tend"];
-        var tdump = simulation["tdump"];
         out += "OPTIONS+=' -tend " + tend + "'\n";
         if (tdump > 0)
             out += "OPTIONS+=' -tdump " + tdump + "'\n";
 
+
+        /* Obstacles (FACTORY) */
         var Re = -1;
-        var Re_desc = "";  // Wrt what object is this?
+        var Re_desc = "";  // Wrt what object is this Reynold number?
+        var check_Re = function(curr, formula, params) {
+            if (curr > Re) {
+                Re = curr;
+                Re_desc = " <span style=\"color:gray\">(With respect to the object #" + (i + 1)
+                        + " at (" + params["xpos"] + ", " + params["ypos"] + ", " + params["zpos"] + "), calculated using " + formula + ")</span>";
+            }
+        };
+
         var factory = "";
         for (var i = 0, len = obstacles.length; i < len; ++i) {
             var o = obstacles[i];
             var name = "";
             var error = null;
             var params = {};
-            if (o["center"]) {
-                params["xpos"] = o["center"][0];
-                params["ypos"] = o["center"][1];
-                params["zpos"] = o["center"][2];
-            } else {
-                error = "Center not specified!";
-            }
+
+            /* Obstacle-specific parameters */
             var type = o["obstacle_type"];
-            switch(type) {
-                case SPHERE:
-                case DCYLINDER:
-                    name = type == SPHERE ? "IF3D_Sphere" : "IF3D_DCylinder";
-                    if (o["radius"])
-                        params["L"] = 2 * o["radius"];
-                    else
-                        error = "Radius not specified or zero!";
-                    break;
-                case NACA:
-                    name = "NACA Airfoil";
-                    if (o["NACA_length"])
-                        params["L"] = o["NACA_length"];
-                    else
-                        error = "NACA length not specified or zero!";
-                    if (o["NACA_thickness"])
-                        params["thickness"] = o["NACA_thickness"];
-                    else
-                        error = "NACA thickness not specified or zero!";
 
-                    if (typeof(o["NACA_Apitch"]) !== "undefined") params["Apitch"] = o["NACA_Apitch"];
-                    if (typeof(o["NACA_Fpitch"]) !== "undefined") params["Fpitch"] = o["NACA_Fpitch"];
-                    if (typeof(o["NACA_Ppitch"]) !== "undefined") params["Ppitch"] = o["NACA_Ppitch"];
-                    if (typeof(o["NACA_Mpitch"]) !== "undefined") params["Mpitch"] = o["NACA_Mpitch"];
-                    if (typeof(o["NACA_Fheave"]) !== "undefined") params["Fheave"] = o["NACA_Fheave"];
-                    if (typeof(o["NACA_Aheave"]) !== "undefined") params["Aheave"] = o["NACA_Aheave"];
-                    break;
-            };
-
-            var forced = o["obstacle_forced"] ? 1 : 0;
-            params["bForcedInSimFrame"] = forced;
-            if (forced) {
-                var v = o["obstacle_vel"];
-                params["xvel"] = v[0];
-                params["yvel"] = v[1];
-                params["zvel"] = v[2];
-                var v = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-                var Re_curr = v * params["L"] / flow["nu"];
-                if (Re_curr > Re) {
-                    Re = Re_curr;
-                    Re_desc = "-- with respect to the object #" + (i + 1)
-                            + " at (" + params["xpos"] + ", " + params["ypos"] + ", " + params["zpos"] + ")";
+            /* Position */
+            if (type == SPHERE || type == NACA || type == FISH) {
+                var c = o["center"];
+                if (is_ok(c)) {
+                    params["xpos"] = c[0];
+                    params["ypos"] = c[1];
+                    params["zpos"] = c[2];
+                } else {
+                    error = "Center position not specified.";
                 }
             }
-            params["bFixFrameOfRef"] = o["obstacle_frame_fixed"] ? 1 : 0;
+            if (type == DCYLINDER) {
+                var c = o["dcylinder_center"];
+                if (is_ok(c)) {
+                    params["xpos"] = c[0];
+                    params["ypos"] = c[1];
+                } else {
+                    error = "Center position not specified.";
+                }
+                var zz = o["dcylinder_z_range"];
+                if (is_ok(zz)) {
+                    params["zpos"] = .5 * (zz[0] + zz[1]);
+                    params["halflength"] = .5 * Math.abs(zz[1] - zz[0]);
+                } else {
+                    error = "Cylinder Z range not specified."
+                }
+            }
+
+            /* Length and radius */
+            if (type == SPHERE || type == DCYLINDER) {
+                if (o["radius"])
+                    params["L"] = 2 * o["radius"];
+                else
+                    error = "Radius not specified or zero!";
+            }
+            if (type == NACA || type == FISH) {
+                if (o["length"])
+                    params["L"] = o["length"];
+                else
+                    error = "Length not specified or zero!";
+            }
+
+            /* Name */
+            switch(type) {
+                case SPHERE: name = "IF3D_Sphere"; break;
+                case DCYLINDER: name = "IF3D_DCylinder"; break;
+                case NACA: name = "IF3D_NacaOperator"; break;
+                case FISH: name = "IF3D_StefanFish"; break;
+                default: error = "Unknown type??"; break;
+            };
+
+            /* NACA */
+            if (type == NACA) {
+                if (o["NACA_thickness"])
+                    params["thickness"] = o["NACA_thickness"];
+                else
+                    error = "NACA thickness not specified or zero!";
+
+                if (is_ok(o["NACA_Apitch"])) params["Apitch"] = o["NACA_Apitch"];
+                if (is_ok(o["NACA_Fpitch"])) params["Fpitch"] = o["NACA_Fpitch"];
+                if (is_ok(o["NACA_Ppitch"])) params["Ppitch"] = o["NACA_Ppitch"];
+                if (is_ok(o["NACA_Mpitch"])) params["Mpitch"] = o["NACA_Mpitch"];
+                if (is_ok(o["NACA_Fheave"])) params["Fheave"] = o["NACA_Fheave"];
+                if (is_ok(o["NACA_Aheave"])) params["Aheave"] = o["NACA_Aheave"];
+            }
+
+            /* Fish */
+            if (type == FISH) {
+                params["widthProfile"] = o["fish_width_profile"];
+                params["heightProfile"] = o["fish_height_profile"];
+                params["T"] = is_ok(o["fish_T"]) ? o["fish_T"] : 1.0;
+            }
 
             if (!error) {
                 // Concatenate to "-key1=value1 -key2=value2 ...".
@@ -358,20 +458,59 @@ custom fields. Anything else is forwarded to the parent view.
             } else {
                 factory += "# " + error + "\n";
             }
+
+            /* Velocity */
+            var forced = o["obstacle_forced"] ? 1 : 0;
+            params["bForcedInSimFrame"] = forced;
+            if (forced) {
+                var v = o["obstacle_vel"];
+                if (is_ok(v[0])) params["xvel"] = v[0];
+                if (is_ok(v[1])) params["yvel"] = v[1];
+                if (is_ok(v[2])) params["zvel"] = v[2];
+                if (is_ok(v) && (type == SPHERE || type == DCYLINDER)) {
+                    var v = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+                    var Re_curr = v * params["L"] / flow["nu"];
+                    var formula = "<b>Re = u L / &nu;</b>";
+                    check_Re(Re_curr, formula, params)
+                }
+            }
+            if (!forced && type == FISH) {
+                var formula = "empirical formula <b>Re = 1.5 L<sup>2</sup> / &nu; T</b>";
+                var Re_curr = 1.5 * params["L"] * params["L"] / flow["nu"] / params["T"];
+                check_Re(Re_curr, formula, params);
+            }
+
+            /* Frame of reference? */
+            params["bFixFrameOfRef"] = o["obstacle_frame_fixed"] ? 1 : 0;
         }
         out += "\n";
         out += "FACTORY='\n" + factory + "'\n";
         out += "\n\n";
-        out += "cd ${TARGET_PATH}\n";
-        out += "mpirun -np ${NUM_NODES} -ppn 1 ${EXE} ${OPTIONS} -factory-content \"${FACTORY}\"\n";
+
+        /* Running the executable */
+        var exe_name = flow["periodic_z"] ? "cubismup3d_periodicz" : "cubismup3d_open";
+
+        // https://stackoverflow.com/questions/1587846/how-do-i-show-the-changes-which-have-been-staged/1587952#1587952
+        out += "# Backup the source code next to the results.\n";
+        out += "mkdir -p ${RESULT_PATH}/backup\n";
+        out += "cp -r ${ROOT_PATH}/source ${ROOT_PATH}/Cubism ${RESULT_PATH}/backup\n";
+        out += "\n";
+        out += "cp ${ROOT_PATH}/bin/" + exe_name + " ${RESULT_PATH}       # Copy executable.\n";
+        out += "cp ${BASH_SOURCE} ${RESULT_PATH}/backup || true          # Copy itself. Ignore if it fails.\n";
+        out += "\n";
+        out += "# Run the simulation.\n";
+        out += "cd ${RESULT_PATH}\n";
+        out += "mpirun -np ${NUM_NODES} -ppn 1 ./" + exe_name + " ${OPTIONS} -factory-content \"${FACTORY}\"\n";
         var json = JSON.stringify(value);
 
-        out += "\n\n\n# To edit this settings, press \"Load Config\" in the form and copy-paste the following line:\n# " + json;
+        out += "\n\n# To edit this settings, press \"Load Config\" in the form and copy-paste the following line:\n# " + json;
+
         $("#config-file").html(out);
+        hljs.highlightBlock($("#config-file")[0]);
 
         /* Config info. */
         var config_info = {
-            "Re": Re >= 0 ? Re : "Unknown",
+            "Re": Re >= 0 ? parseInt(Re * 1000 + .5) / 1000 : "Unknown",
             "Re_desc": Re_desc,
         };
         if (tdump > 0) {
@@ -389,18 +528,24 @@ custom fields. Anything else is forwarded to the parent view.
         current_config = out;
     };
 
+    /* Refresh form function. */
+    var maybe_refresh = function() {
+        if (form_control.isValid(true))
+            update_config(form_control.getValue());
+    };
+
     /* "Download" config file. */
-    // https://stackoverflow.com/a/18197341/2203044
     var download = function(filename, text) {
+        // First refresh just in case. This is probably a bit controversial...
+        maybe_refresh();
+
+        // https://stackoverflow.com/questions/3665115/create-a-file-in-memory-for-user-to-download-not-through-server/18197341#18197341
         var element = document.createElement('a');
         element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
         element.setAttribute('download', filename);
-
         element.style.display = 'none';
         document.body.appendChild(element);
-
         element.click();
-
         document.body.removeChild(element);
     }
 
@@ -419,9 +564,8 @@ custom fields. Anything else is forwarded to the parent view.
         } catch (SyntaxError) {
             alert("Invalid JSON.");
         }
-        form_control.setValue(json);
+        reset_form(json);
         $('#load-config-modal').modal('hide');
-        update_config(json);
     });
 
     /* Shortcut functions for form schema. */
@@ -452,8 +596,7 @@ custom fields. Anything else is forwarded to the parent view.
             return "multivalue";
         },
 
-        setup: function()
-        {
+        setup: function() {
             if (!this.schema.minItems)
                 this.schema.minItems = this.data.length;
             if (!this.schema.maxItems)
@@ -461,23 +604,20 @@ custom fields. Anything else is forwarded to the parent view.
             this.options.toolbarSticky = true;
 
             this.base();
-
-            if (!this.options.length)
-                this.options.length = 3;
-
-            if (!this.options.data || Object.keys(this.options.data).length === 0) {
-                this.options.data = [];
-                for (var i = 0; i < this.options.length; ++i)
-                    this.options.data.push(0);
-            }
         },
 
-        postRender: function(callback) {
-            var self = this;
-            this.base(function() {
-                // $(self.field).find('.alpaca-array-actionbar').hide();
-                callback();
-            });
+        /* Override default behavior which ignored `undefined` items.
+         * We want to keep them, to keep the order. */
+        getContainerValue: function() {
+            // If we're empty and we're also not required, then we hand back empty set.
+            if (this.children.length === 0 && !this.isRequired())
+                return [];
+
+            // Otherwise, construct an array and hand it back.
+            var o = [];
+            for (var i = 0; i < this.children.length; ++i)
+                o.push(this.children[i].getValue())
+            return o;
         },
     });
     Alpaca.registerFieldClass("multivalue", MultiValueField);
@@ -487,19 +627,19 @@ custom fields. Anything else is forwarded to the parent view.
         "title": CUBISM_NAME + " setup",
         "type": "object",
         "properties": {
-            "technical": {
+            "simulation": {
                 "type": "object",
-                "title": "Technical",
+                "title": "Simulation setup",
                 "properties": {
                     "num_nodes": {
                         "type": "integer",
                         "title": "Number of nodes",
                         "default": 1,
                     },
-                    "target_path": {
+                    "result_path": {
                         "type": "any",
-                        "title": "Target path",
-                        "default": "simulation-01",
+                        "title": "Results path",
+                        "default": "results/simulation-01",
                     },
                     "num_cells": {
                         "title": "Grid cells per dimension",
@@ -509,12 +649,6 @@ custom fields. Anything else is forwarded to the parent view.
                             "minimum": BLOCK_SIZE,
                         }
                     },
-                },
-            },
-            "simulation": {
-                "type": "object",
-                "title": "Simulation setup",
-                "properties": {
                     "tend": {
                         "type": "number",
                         "title": "Simulation time",
@@ -538,21 +672,53 @@ custom fields. Anything else is forwarded to the parent view.
                         "title": "Kinematic viscosity",
                         "default": "0.001",
                     },
+                    "periodic_z": {
+                        "title": "Periodic in Z",
+                        "default": false,
+                    },
+                },
+            },
+            "advanced": {
+                "type": "object",
+                "title": "Advanced",
+                "properties": {
+                    "root_path": {
+                        "type": "any",
+                        "title": "Repository root path",
+                        "default": ROOT_PATH_DEFAULT,
+                    },
                 },
             },
             "obstacles": {
                 "type": "array",
                 "title": "Objects",
-                "default": '[{"obstacle_type": "' + SPHERE + '", "center": [0.5, 0.5, 0.5], "radius": 0.1, "obstacle_forced": true, "obstacle_vel": [10, 0, 0], "obstacle_frame_fixed": true}]',
                 "items": {
                     "type": "object",
                     "properties": {
                         "obstacle_type": {
-                            "enum": [SPHERE, DCYLINDER, NACA],
+                            "enum": [SPHERE, DCYLINDER, NACA, FISH],
                         },
                         "center": {
                             "title": "Center",
-                            "default": [0.0, 0.0, 0.0],
+                            "default": [0.5, 0.5, 0.5],
+                            "items": {
+                                "type": "number",
+                                "minimum": 0.0,
+                                "maximum": 1.0,
+                            },
+                        },
+                        "dcylinder_center": {
+                            "title": "Center (XY)",
+                            "default": [0.5, 0.5],
+                            "items": {
+                                "type": "number",
+                                "minimum": 0.0,
+                                "maximum": 1.0,
+                            },
+                        },
+                        "dcylinder_z_range": {
+                            "title": "Z<sub>low</sub> and Z<sub>high</sub>",
+                            "default": [0.0, 1.0],
                             "items": {
                                 "type": "number",
                                 "minimum": 0.0,
@@ -564,8 +730,9 @@ custom fields. Anything else is forwarded to the parent view.
                             "title": "Radius",
                             "default": 0.1,
                             "minimum": 0.0,
+                            "maximum": 1.0,
                         },
-                        "NACA_length": {
+                        "length": {
                             "type": "number",
                             "title": "Length L",
                             "default": 0.1,
@@ -579,7 +746,7 @@ custom fields. Anything else is forwarded to the parent view.
                             "maxmimum": 1.0,
                         },
                         "NACA_advanced": {
-                            "title": "Dynamics options?",
+                            "title": "Heaving/pitching options?",
                             "default": false,
                         },
                         // Do not put default values for the following NACA
@@ -591,6 +758,22 @@ custom fields. Anything else is forwarded to the parent view.
                         "NACA_Apitch": { "type": "number", "title": "&alpha;<sub>1</sub>", },
                         "NACA_Fpitch": { "type": "number", "title": "f<sub>F</sub>", },
                         "NACA_Ppitch": { "type": "number", "title": "&phi;", },
+                        "fish_T": {
+                            "type": "number",
+                            "title": "Undulation period T",
+                            "minimum": 0.0,
+                            "default": 1.0,
+                        },
+                        "fish_width_profile": {
+                            "title": "Width profile",
+                            "enum": Object.keys(FISH_WIDTH_PROFILES),
+                            "default": Object.keys(FISH_WIDTH_PROFILES)[0],
+                        },
+                        "fish_height_profile": {
+                            "title": "Height profile",
+                            "enum": Object.keys(FISH_HEIGHT_PROFILES),
+                            "default": Object.keys(FISH_HEIGHT_PROFILES)[0],
+                        },
                         "obstacle_forced": {
                             "default": true,
                             "title": "Forced?",
@@ -604,12 +787,15 @@ custom fields. Anything else is forwarded to the parent view.
                         },
                         "obstacle_frame_fixed": {
                             "default": true,
-                            "title": "Frame fixed to object?",
+                            "title": "Frame follows the object?",
                         },
                     },
                     "dependencies": {
+                        "center": ["obstacle_type"],
+                        "dcylinder_center": ["obstacle_type"],
+                        "dcylinder_z_range": ["obstacle_type"],
                         "radius": ["obstacle_type"],
-                        "NACA_length": ["obstacle_type"],
+                        "length": ["obstacle_type"],
                         "NACA_thickness": ["obstacle_type"],
                         "NACA_advanced": ["obstacle_type"],
                         "NACA_Aheave": ["NACA_advanced"],
@@ -618,6 +804,9 @@ custom fields. Anything else is forwarded to the parent view.
                         "NACA_Fpitch": ["NACA_advanced"],
                         "NACA_Mpitch": ["NACA_advanced"],
                         "NACA_Ppitch": ["NACA_advanced"],
+                        "fish_period": ["obstacle_type"],
+                        "fish_width_profile": ["obstacle_type"],
+                        "fish_height_profile": ["obstacle_type"],
                         "obstacle_vel": ["obstacle_forced"],
                     }
                 }
@@ -645,7 +834,7 @@ custom fields. Anything else is forwarded to the parent view.
     };
     var OPTIONS = {
         "fields": {
-            "technical": {
+            "simulation": {
                 "fields": {
                     "num_cells": {
                         "type": "multivalue",
@@ -655,17 +844,34 @@ custom fields. Anything else is forwarded to the parent view.
                         ],
                         "validator": validate_num_cells,
                     },
+                    "result_path": {
+                        "TOOLTIP": "Path for storing the simulation results.",
+                    },
+                    "tdump": {
+                        "TOOLTIP": "Time interval for saving visualization snapshots. Set to 0 to disable.",
+                    },
                 },
             },
-            "simulation": {
+            "flow": {
                 "fields": {
-                    "tdump": {
-                        "helper": "Time interval for saving visualization snapshots. Set to 0 to disable.",
+                    "periodic_z": {
+                        "type": "checkbox",
+                    },
+                },
+            },
+            "advanced": {
+                "fields": {
+                    "root_path": {
+                        "helper": CUBISM_NAME + " repository root folder.",
                     },
                 },
             },
             "obstacles": {
                 "toolbarSticky": true,
+                "toolbar": {
+                    "showLabels": true,
+                    "actions": [{"label": "Add New Object", "action": "add"}],
+                },
                 "fields": {
                     "item": {
                         "fields": {
@@ -679,22 +885,37 @@ custom fields. Anything else is forwarded to the parent view.
                             "center": {
                                 "type": "multivalue",
                                 "required": true,
+                                "dependencies": { "obstacle_type": [SPHERE, NACA, FISH], },
+                            },
+                            "dcylinder_center": {
+                                "type": "multivalue",
+                                "required": true,
+                                "dependencies": { "obstacle_type": [DCYLINDER], },
+                            },
+                            "dcylinder_z_range": {
+                                "type": "multivalue",
+                                "required": true,
+                                "dependencies": { "obstacle_type": [DCYLINDER], },
+                                "helpers": [
+                                    "For cylinders extending the whole Z range, consider using <i>Periodic in Z</i> option.",
+                                    "The flat part of the half-cylinder is oriented in +X direction.",
+                                ],
                             },
                             "radius": {
                                 "required": true,
-                                "dependencies": { "obstacle_type": [SPHERE, DCYLINDER], }
+                                "dependencies": { "obstacle_type": [SPHERE, DCYLINDER], },
                             },
-                            "NACA_length": {
+                            "length": {
                                 "required": true,
-                                "dependencies": { "obstacle_type": [NACA], }
+                                "dependencies": { "obstacle_type": [NACA, FISH], },
                             },
                             "NACA_thickness": {
                                 "required": true,
-                                "dependencies": { "obstacle_type": [NACA], }
+                                "dependencies": { "obstacle_type": [NACA], },
                             },
                             "NACA_advanced": {
                                 "type": "checkbox",
-                                "dependencies": { "obstacle_type": [NACA], }
+                                "dependencies": { "obstacle_type": [NACA], },
                             },
                             "NACA_Aheave": {
                                 "dependencies": { "NACA_advanced": true },
@@ -710,12 +931,12 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "NACA_Fpitch": {
                                 "dependencies": { "NACA_advanced": true },
-                                "helper": "Does not have to be equal to <i>Heaving frequency</i>.",
+                                "TOOLTIP": "Does not have to be equal to <i>Heaving frequency</i>.",
                                 "placeholder": "Pitching frequency",
                             },
                             "NACA_Mpitch": {
                                 "dependencies": { "NACA_advanced": true },
-                                "placeholder": "Mean angle of attack / mean pitch angle",
+                                "placeholder": "Mean angle of attack (mean pitch angle)",
                             },
                             "NACA_Ppitch": {
                                 "dependencies": { "NACA_advanced": true },
@@ -725,9 +946,28 @@ custom fields. Anything else is forwarded to the parent view.
                                     "Angle of attack: &alpha;(t) = &alpha;<sub>0</sub> + &alpha;<sub>1</sub> cos(2 &pi; (f<sub>F</sub> t + &phi;))",
                                 ],
                             },
+                            "fish_period": {
+                                "dependencies": { "obstacle_type": [FISH], },
+                            },
+                            "fish_width_profile": {
+                                "type": "radio",
+                                "dependencies": { "obstacle_type": [FISH], },
+                                "optionLabels": get_values(FISH_WIDTH_PROFILES),
+                                "removeDefaultNone": true,
+                                "sort": false,
+                                "vertical": false,
+                            },
+                            "fish_height_profile": {
+                                "type": "radio",
+                                "dependencies": { "obstacle_type": [FISH], },
+                                "optionLabels": get_values(FISH_HEIGHT_PROFILES),
+                                "removeDefaultNone": true,
+                                "sort": false,
+                                "vertical": false,
+                            },
                             "obstacle_forced": {
                                 "type": "checkbox",
-                                "helper": "Enable to fix the obstacle velocity. Otherwise, the velocity will be calculated dynamically from the flow-induced forces.",
+                                "TOOLTIP": "Enable to specify the obstacle velocity. Otherwise, the velocity will be calculated dynamically from the flow-induced forces.",
                                 "INLINE_CHECKBOX": true,
                             },
                             "obstacle_vel": {
@@ -736,7 +976,7 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "obstacle_frame_fixed": {
                                 "type": "checkbox",
-                                "helper": "In case multiple objects are selected, the frame of reference follows their average velocity.",
+                                "TOOLTIP": "In case multiple objects are selected, the frame of reference follows their average velocity.",
                                 "INLINE_CHECKBOX": true,
                             },
                         }
@@ -746,6 +986,11 @@ custom fields. Anything else is forwarded to the parent view.
         },
     };
 
+    /* Add a Bootstrap tooltip to the control or multivalue label. */
+    var __add_tooltip = function(label, _this) {
+        label.tooltip({"html": true, "title": _this.options["TOOLTIP"]});
+        label.append(' <i class="glyphicon glyphicon-info-sign"></i>');
+    };
     var VIEW = {
         "parent": "bootstrap-edit-horizontal",
         "fields": {
@@ -756,8 +1001,8 @@ custom fields. Anything else is forwarded to the parent view.
         "layout": {
             "template": "#two-column-layout-template",
             "bindings": {
-                "technical": "leftcolumn",
                 "simulation": "leftcolumn",
+                "advanced": "leftcolumn",
                 "flow": "rightcolumn",
                 "obstacles": "rightcolumn",
             }
@@ -769,14 +1014,14 @@ custom fields. Anything else is forwarded to the parent view.
         // built-in one whenever there's nothing to update. (kicici)
         "callbacks": {
             "control": function() {
+                var fieldEl = $(this.getFieldEl());
+
                 // Our customization?
                 if (this.options["INLINE_CHECKBOX"]) {
                     // Don't forget to set up the template in VIEW["fields"]!
-                    var fieldEl = $(this.getFieldEl());
                     fieldEl.find("input[type=checkbox]").parent().parent().addClass("checkbox");
                 } else if (this.parent.getFieldType() == "multivalue") {
                     // Don't forget to set up the template in VIEW["fields"]!
-                    var fieldEl = $(this.getFieldEl());
                     fieldEl.find("input").addClass('form-control');
                     if (this.view.horizontal)
                         fieldEl.find(".help-block").addClass("col-sm-offset-3 col-sm-9");
@@ -786,6 +1031,10 @@ custom fields. Anything else is forwarded to the parent view.
                     // use its parent view.
                     Alpaca.views["bootstrap-edit"].callbacks.control.call(this);
                 }
+
+                // Add tooltip.
+                if (this.options["TOOLTIP"])
+                    __add_tooltip(fieldEl.children(".control-label"), this);
             },
             "container": function() {
                 var containerEl = $(this.getContainerEl());
@@ -800,6 +1049,10 @@ custom fields. Anything else is forwarded to the parent view.
                 } else {
                     Alpaca.views["bootstrap-edit"].callbacks.container.call(this);
                 }
+
+                // Add tooltip.
+                if (this.options["TOOLTIP"])
+                    __add_tooltip(containerEl.parent().children("label"), this);
             },
         },
         "templates": {
@@ -808,32 +1061,35 @@ custom fields. Anything else is forwarded to the parent view.
         },
     };
 
-    $("#form").alpaca({
-        "schema": SCHEMA,
-        "options": OPTIONS,
-        "view": VIEW,
-        "postRender": function(control) {
-            window.form_control = form_control = control;
-            var maybe_refresh = function() {
-                if (form_control.isValid(true))
-                    update_config(form_control.getValue());
-            };
-            control.on("change", maybe_refresh);
-            $("#form").on("click", ".alpaca-array-actionbar-action", function() {
-                // https://github.com/gitana/alpaca/issues/583
-                // Form doesn't update when array items are added or removed.
-                // Therefore, we listen to all clicks to array actionbar.
+    var reset_form = function(data) {
+        $("#form").alpaca("destroy");
+        $("#form").alpaca({
+            "data": data,
+            "schema": SCHEMA,
+            "options": OPTIONS,
+            "view": VIEW,
+            "postRender": function(control) {
+                window.form_control = form_control = control;
+                control.on("change", maybe_refresh);
+                var delayed_refresh = function() {
+                    // https://github.com/gitana/alpaca/issues/583
+                    // Form doesn't update when array items are added or removed.
+                    // Therefore, we listen to all clicks to array actionbar.
 
-                // However, remove and move events are not at all triggered. :(
+                    // However, remove and move events are not at all triggered. :(
 
-                // ...and the form update is not instantaneous.
-                setTimeout(maybe_refresh, 500);
-                setTimeout(maybe_refresh, 1500);
-                setTimeout(maybe_refresh, 2500);
-            });
-            update_config(control.getValue());
-        },
-    });
+                    // ...and the form update is not instantaneous.
+                    setTimeout(maybe_refresh, 500);
+                    setTimeout(maybe_refresh, 1500);
+                    setTimeout(maybe_refresh, 2500);
+                }
+                $("#form").on("click", ".alpaca-array-toolbar-action", delayed_refresh);
+                $("#form").on("click", ".alpaca-array-actionbar-action", delayed_refresh);
+                update_config(control.getValue());
+            },
+        });
+    };
+    reset_form({});
 })();
 </script>
 

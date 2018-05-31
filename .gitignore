@@ -3,25 +3,17 @@
 *.d
 *.o
 */*.o
-lib
 *.a
 *.h5
 *.xmf
-build
 .DS_Store
 ._*
 *.swp
 
+/build
+/bin
+/dependencies
+/lib
+/launch/results
+
 /README.html
-
-dependencies/
-/makefiles/simulation
-/makefiles/cubismup3d_open
-/makefiles/cubismup3d_periodicz
-
-# CMake stuff
-CMakeCache.txt
-CMakeFiles
-cmake_install.cmake
-/Makefile
-/makefiles/Makefile

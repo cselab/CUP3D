@@ -23,7 +23,7 @@ mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
-cp ../makefiles/simulation ${FOLDER}
+cp ../bin/simulation ${FOLDER}
 #cp launchBrutus.sh ${FOLDER}
 cp runEuler.sh ${FOLDER}/run.sh
 

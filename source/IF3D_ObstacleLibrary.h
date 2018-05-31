@@ -12,6 +12,12 @@
 #include "IF2D_Interpolation1D.h"
 #include "GenericOperator.h"
 
+
+/*
+ * TODO: Refactor `SphereObstacle` and `DCylinderObstacle` to derive from
+ *       `FillBlocksBase`. Also, move them to corresponding obstacle .cpp files.
+ */
+
 /*
  * A base class for FillBlocks classes.
  *

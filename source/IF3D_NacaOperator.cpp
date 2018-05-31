@@ -11,7 +11,9 @@
 #include "GenericOperator.h"
 
 #include <HDF5Dumper_MPI.h>
-#include <random>
+
+#include <cmath>
+
 class NacaMidlineData : public FishMidlineData
 {
  Real * const rK;
@@ -19,8 +21,8 @@ class NacaMidlineData : public FishMidlineData
  Real * const rC;
  Real * const vC;
  public:
-  NacaMidlineData(const double L, const double _h, double zExtent, double t_ratio, double HoverL=1) : FishMidlineData(L, 1, 0, _h),
-   rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm))
+  NacaMidlineData(const double L, const double _h, double zExtent, double t_ratio, double HoverL=1) :
+  FishMidlineData(L, 1, 0, _h),rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm))
   {
     #if defined(BC_PERIODICZ)
       // large enough in z-dir such that we for sure fill entire domain

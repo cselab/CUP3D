@@ -11,6 +11,7 @@
 
 #include <HDF5Dumper_MPI.h>
 #include <chrono>
+
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_ObstacleOperator(g, p, u)
 {
   isMPIBarrierOnChiCompute = true; // func computeChi() calls a lab kernel

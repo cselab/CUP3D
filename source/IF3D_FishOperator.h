@@ -9,8 +9,6 @@
 #ifndef __IncompressibleFluids3D__IF3D_FishOperator__
 #define __IncompressibleFluids3D__IF3D_FishOperator__
 
-#include <cmath>
-#include <array>
 #include "IF3D_ObstacleOperator.h"
 
 class FishMidlineData;
