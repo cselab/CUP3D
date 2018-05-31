@@ -141,7 +141,7 @@ void Simulation::setupOperators()
     //#endif
     if(rank==0) {
       cout << "Coordinator/Operator ordering:\n";
-      for (int c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;
+      for (size_t c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;
     }
     //immediately call create!
     (*pipeline[0])(0);
@@ -280,11 +280,17 @@ void Simulation::_deserialize()
     }
     assert(f != NULL);
     bool ret = true;
-    ret = ret && 1==fscanf(f, "time: %e\n",   &time);
+    ret = ret && 1==fscanf(f, "time: %le\n",   &time);
     ret = ret && 1==fscanf(f, "stepid: %d\n", &step);
+    #ifndef _FLOAT_PRECISION_
+    ret = ret && 1==fscanf(f, "uinfx: %le\n", &uinf[0]);
+    ret = ret && 1==fscanf(f, "uinfy: %le\n", &uinf[1]);
+    ret = ret && 1==fscanf(f, "uinfz: %le\n", &uinf[2]);
+    #else // _FLOAT_PRECISION_
     ret = ret && 1==fscanf(f, "uinfx: %e\n", &uinf[0]);
     ret = ret && 1==fscanf(f, "uinfy: %e\n", &uinf[1]);
     ret = ret && 1==fscanf(f, "uinfz: %e\n", &uinf[2]);
+    #endif // _FLOAT_PRECISION_
     fclose(f);
     if( (not ret) || step<0 || time<0) {
       printf("Error reading restart file. Aborting...\n");
@@ -351,7 +357,7 @@ bool Simulation::timestep(const double dt)
         }
     #endif
 
-    for (int c=0; c<pipeline.size(); c++) {
+    for (size_t c=0; c<pipeline.size(); c++) {
       profiler.push_start(pipeline[c]->getName());
       (*pipeline[c])(dt);
       profiler.pop_stop();

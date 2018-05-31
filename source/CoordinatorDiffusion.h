@@ -99,7 +99,7 @@ protected:
   const Real coeff;
 
 public:
-  CoordinatorDiffusion(const Real coeff, FluidGridMPI * grid) : GenericCoordinator(grid), coeff(coeff)
+  CoordinatorDiffusion(const Real _coeff, FluidGridMPI * _grid) : GenericCoordinator(_grid), coeff(_coeff)
   {
   }
 

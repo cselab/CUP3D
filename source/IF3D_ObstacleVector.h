@@ -53,7 +53,7 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
 
     void execute(const int iAgent, const double time, const vector<double> action) override;
 
-    void interpolateOnSkin(const double time, const int step, const int iobst = -1, bool dumpWake=false);
+    void interpolateOnSkin(const double time, const int step, bool dumpWake=false) override;
 
     void addObstacle(IF3D_ObstacleOperator * obstacle)
     {

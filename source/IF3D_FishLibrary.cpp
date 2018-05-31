@@ -12,7 +12,7 @@
 void FishMidlineData::writeMidline2File(const int step_id, std::string filename)
 {
   char buf[500];
-  sprintf(buf, "%s_midline_%07d.txt", filename, step_id);
+  sprintf(buf, "%s_midline_%07d.txt", filename.c_str(), step_id);
   FILE * f = fopen(buf, "w");
   fprintf(f, "s x y vX vY\n");
   for (int i=0; i<Nm; i++) {
@@ -411,7 +411,6 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
   const int iFishEnd = cfish->iFishEnd, iFishStart = cfish->iFishStart;
   const Real* const rX = cfish->rX;
   const Real* const rY = cfish->rY;
-  const Real* const rS = cfish->rS;
   const Real* const norX = cfish->norX;
   const Real* const norY = cfish->norY;
   const Real* const width = cfish->width;
@@ -450,9 +449,9 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
         };
         // myP is now lab frame, find index of the fluid elem near it
         const int iap[3] = {
-            std::floor((myP[0]-org[0])*invh),
-            std::floor((myP[1]-org[1])*invh),
-            std::floor((myP[2]-org[2])*invh)
+            (int)std::floor((myP[0]-org[0])*invh),
+            (int)std::floor((myP[1]-org[1])*invh),
+            (int)std::floor((myP[2]-org[2])*invh)
         };
 
         // support is two points left, two points right --> Towers Chi
@@ -635,11 +634,10 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
 {
   Real org[3];
   info.pos(org, 0, 0, 0);
-  const Real h = info.h_gridpoint, invh = 1.0/info.h_gridpoint;
+  const Real invh = 1.0/info.h_gridpoint;
   const int iFishEnd = cfish->iFishEnd, iFishStart = cfish->iFishStart;
   const Real* const rX = cfish->rX;
   const Real* const rY = cfish->rY;
-  const Real* const rS = cfish->rS;
   const Real* const norX = cfish->norX;
   const Real* const norY = cfish->norY;
   const Real* const width = cfish->width;
@@ -667,8 +665,8 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
                             rY[ss-1] +width[ss-1]*signp*norY[ss-1], 0
         };
         changeToComputationalFrame(myP);
-        const int iap[2] = {
-            std::floor((myP[0]-org[0])*invh), std::floor((myP[1]-org[1])*invh)
+        const int iap[2] = {  (int)std::floor((myP[0]-org[0])*invh),
+                              (int)std::floor((myP[1]-org[1])*invh)
         };
         // support is two points left, two points right --> Towers Chi will be one point left, one point right, but needs SDF wider
         for(int sy =std::max(0, iap[1]-1); sy <std::min(iap[1]+3, BS[1]); ++sy)

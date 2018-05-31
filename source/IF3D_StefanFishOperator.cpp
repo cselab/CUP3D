@@ -26,8 +26,8 @@ class CurvatureDefinedFishData : public FishMidlineData
   const Real waveLength = 1;
  public:
 
-  CurvatureDefinedFishData(double L, double T, double phi, double h)
-  : FishMidlineData(L, T, phi, h),
+  CurvatureDefinedFishData(double L, double T, double phi, double _h)
+  : FishMidlineData(L, T, phi, _h),
     rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
     rB(_alloc(Nm)),vB(_alloc(Nm)), rA(_alloc(Nm)),vA(_alloc(Nm)) { }
 

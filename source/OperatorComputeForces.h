@@ -34,7 +34,7 @@ struct OperatorComputeForces
     //const Real _h3 = std::pow(info.h_gridpoint,3);
     assert(o->filled);
     //loop over elements of block info that have nonzero gradChi
-    for(size_t i=0; i<o->nPoints; i++)
+    for(int i=0; i<o->nPoints; i++)
     {
       Real p[3];
       const int ix = o->surface[i]->ix;
@@ -145,8 +145,8 @@ struct DumpWake : public GenericLabOperator
       p[2] -= CM[2];
       if (std::fabs(p[2]) > 0.5*h) continue;
 
-      const double x = p[0]*std::cos(theta) + p[1]*std::sin(theta);
-      const double y = p[1]*std::cos(theta) - p[0]*std::sin(theta);
+      //const double x = p[0]*std::cos(theta) + p[1]*std::sin(theta);
+      //const double y = p[1]*std::cos(theta) - p[0]*std::sin(theta);
       //if (x<0.50*length || x>3.00*length) continue; //behind swimmer
       //if (y<-.35*length || y>0.35*length) continue;
       if (p[1]<.0 || p[1]>.2 || p[0]<0 || p[0]>.6) continue;

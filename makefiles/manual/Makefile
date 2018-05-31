@@ -40,9 +40,11 @@ ifeq "$(zlib)" "1"
 	LIBS +=  -lz -lrt -lstdc++
 endif
 
-CPPFLAGS+= -w -D_ALIGNBYTES_=32 -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align
+CPPFLAGS+= -D_ALIGNBYTES_=32 -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -Wno-div-by-zero -pedantic
+CPPFLAGS+= -Wno-unused-parameter -Wno-unknown-pragmas -Wno-unused-but-set-variable
+CPPFLAGS+= -Wno-unused-variable
 
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_FLOAT_PRECISION_

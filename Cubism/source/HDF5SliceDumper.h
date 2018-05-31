@@ -38,7 +38,7 @@ namespace SliceExtractor
         for(int i = 0; i < (int)bInfo.size(); ++i)
         {
             BlockInfo& info = bInfo[i];
-            const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
+            const int idx[3] = {info.index[0], info.index[1], info.index[2]};
             TBlock& b = *(TBlock*)info.ptrBlock;
 
             for(unsigned int iz=0; iz<TBlock::sizeZ; ++iz)
@@ -70,7 +70,7 @@ namespace SliceExtractor
         for(int i = 0; i < (int)bInfo.size(); ++i)
         {
             BlockInfo& info = bInfo[i];
-            const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
+            const int idx[3] = {info.index[0], info.index[1], info.index[2]};
             TBlock& b = *(TBlock*)info.ptrBlock;
 
             for(unsigned int iz=0; iz<TBlock::sizeZ; ++iz)
@@ -102,7 +102,7 @@ namespace SliceExtractor
         for(int i = 0; i < (int)bInfo.size(); ++i)
         {
             BlockInfo& info = bInfo[i];
-            const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
+            const int idx[3] = {info.index[0], info.index[1], info.index[2]};
             TBlock& b = *(TBlock*)info.ptrBlock;
 
             for(unsigned int iy=0; iy<TBlock::sizeY; ++iy)

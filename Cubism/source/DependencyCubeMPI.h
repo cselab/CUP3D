@@ -54,7 +54,7 @@ public:
 
 	struct Object
 	{
-		virtual Region getRegion() { return Region(); }
+		virtual Region getRegion(const int n[3]) { return Region(); }
 	};
 
 	struct Face : Object
@@ -63,7 +63,7 @@ public:
 
 		Face(): d(X), s(MINUS) {}
 
-		Face(Direction d, Side s): d(d), s(s) {}
+		Face(Direction _d, Side _s): d(_d), s(_s) {}
 
 		Face& operator=(const Face& f)
 		{
@@ -71,7 +71,7 @@ public:
 			return *this;
 		}
 
-		Region getRegion(const int n[3])
+		Region getRegion(const int n[3]) override
 		{
 			Region r;
 
@@ -96,7 +96,7 @@ public:
 
 		Edge(): d(X), a(MINUS), b(MINUS) {}
 
-		Edge(Direction d, Side a, Side b): d(d), a(a), b(b) { }
+		Edge(Direction _d, Side _a, Side _b): d(_d), a(_a), b(_b) { }
 
 		Edge& operator=(const Edge& f)
 		{
@@ -104,7 +104,7 @@ public:
 			return *this;
 		}
 
-		Region getRegion(const int n[3])
+		Region getRegion(const int n[3]) override
 		{
 			Region r;
 
@@ -128,7 +128,7 @@ public:
 		Side x, y, z;
 
 		Corner(): x(MINUS), y(MINUS), z(MINUS) {}
-		Corner(Side x, Side y, Side z): x(x), y(y), z(z) { }
+		Corner(Side _x, Side _y, Side _z): x(_x), y(_y), z(_z) { }
 
 		Corner& operator=(const Corner& f)
 		{

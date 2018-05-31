@@ -107,8 +107,8 @@ class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
   const Real* const uInf;
 
   public:
-  OperatorAdvectionUpwind3rdOrder(const double dt, const Real* const uInf)
-  : dt(dt), uInf(uInf)
+  OperatorAdvectionUpwind3rdOrder(const double _dt, const Real* const _uInf)
+  : dt(_dt), uInf(_uInf)
   {
     stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 1,2,3);
     stencil_start[0] = -2; stencil_start[1] = -2; stencil_start[2] = -2;
@@ -178,7 +178,7 @@ class OperatorAdvectionUpwind3rdOrderStage2 : public GenericLabOperator
 
   public:
   OperatorAdvectionUpwind3rdOrderStage2(const double dt, const Real* const uInf)
-  : dt(dt), uInf(uInf)
+  : dt(_dt), uInf(_uInf)
   {
     stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 3, 5,6,7);
     stencil_start[0] = -2; stencil_start[1] = -2; stencil_start[2] = -2;
@@ -242,8 +242,8 @@ protected:
   const Real* const uInf;
 
 public:
-  CoordinatorAdvection(const Real* const uInf, FluidGridMPI * grid)
-  : GenericCoordinator(grid), uInf(uInf)
+  CoordinatorAdvection(const Real* const _uInf, FluidGridMPI * _grid)
+  : GenericCoordinator(_grid), uInf(_uInf)
   { }
 
   ~CoordinatorAdvection()

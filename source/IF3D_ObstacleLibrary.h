@@ -59,7 +59,7 @@ struct FillBlocksBase {
         const Real h = info.h_gridpoint;
         const Real inv2h = (Real)0.5 / h;
         const Real fac1 = (Real)0.5 * h * h;
-        const Real eps = std::numeric_limits<Real>::epsilon();
+        static constexpr Real eps = std::numeric_limits<Real>::epsilon();
 
         for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
         for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
@@ -90,12 +90,18 @@ struct FillBlocksBase {
             const Real IplusZ = distPz < 0 ? 0 : distPz;
             const Real IminuZ = distMz < 0 ? 0 : distMz;
 
-            const Real HplusX = distPx == 0 ? (Real)0.5 : (distPx < 0 ? 0 : 1);
-            const Real HminuX = distMx == 0 ? (Real)0.5 : (distMx < 0 ? 0 : 1);
-            const Real HplusY = distPy == 0 ? (Real)0.5 : (distPy < 0 ? 0 : 1);
-            const Real HminuY = distMy == 0 ? (Real)0.5 : (distMy < 0 ? 0 : 1);
-            const Real HplusZ = distPz == 0 ? (Real)0.5 : (distPz < 0 ? 0 : 1);
-            const Real HminuZ = distMz == 0 ? (Real)0.5 : (distMz < 0 ? 0 : 1);
+            const Real HplusX = std::fabs(distPx)<eps ? (Real)0.5 :
+                                                        (distPx < 0 ? 0 : 1);
+            const Real HminuX = std::fabs(distMx)<eps ? (Real)0.5 :
+                                                        (distMx < 0 ? 0 : 1);
+            const Real HplusY = std::fabs(distPy)<eps ? (Real)0.5 :
+                                                        (distPy < 0 ? 0 : 1);
+            const Real HminuY = std::fabs(distMy)<eps ? (Real)0.5 :
+                                                        (distMy < 0 ? 0 : 1);
+            const Real HplusZ = std::fabs(distPz)<eps ? (Real)0.5 :
+                                                        (distPz < 0 ? 0 : 1);
+            const Real HminuZ = std::fabs(distMz)<eps ? (Real)0.5 :
+                                                        (distMz < 0 ? 0 : 1);
 
             // all would be multiplied by 0.5/h, simplifies out later
             const Real gradUX = inv2h * (distPx - distMx);
@@ -143,8 +149,8 @@ struct FillBlocks
     sphere_box[2][1] = sphere_position[2] + safe_radius;
   }
 
-  FillBlocks(const Real radius, const Real max_dx, const double pos[3]):
-    radius(radius),safe_radius(radius+4*max_dx), sphere_position{pos[0],pos[1],pos[2]}
+  FillBlocks(const Real _radius, const Real max_dx, const double pos[3]):
+    radius(_radius), safe_radius(radius+4*max_dx), sphere_position{pos[0],pos[1],pos[2]}
   {
     _find_sphere_box();
   }
@@ -191,7 +197,7 @@ struct FillBlocks
       const Real h = info.h_gridpoint;
       const Real inv2h = 0.5/h;
       const Real fac1 = 0.5*h*h;
-      const Real eps = std::numeric_limits<Real>::epsilon();
+      static constexpr Real eps = std::numeric_limits<Real>::epsilon();
 
       for(int iz=0; iz<FluidBlock::sizeZ; iz++)
       for(int iy=0; iy<FluidBlock::sizeY; iy++)
@@ -222,12 +228,20 @@ struct FillBlocks
         const Real IminuY = distMy < 0 ? 0 : distMy;
         const Real IplusZ = distPz < 0 ? 0 : distPz;
         const Real IminuZ = distMz < 0 ? 0 : distMz;
-        const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
-        const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
-        const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
-        const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
-        const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
-        const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
+
+        const Real HplusX = std::fabs(distPx)<eps ? (Real)0.5 :
+                                                    (distPx < 0 ? 0 : 1);
+        const Real HminuX = std::fabs(distMx)<eps ? (Real)0.5 :
+                                                    (distMx < 0 ? 0 : 1);
+        const Real HplusY = std::fabs(distPy)<eps ? (Real)0.5 :
+                                                    (distPy < 0 ? 0 : 1);
+        const Real HminuY = std::fabs(distMy)<eps ? (Real)0.5 :
+                                                    (distMy < 0 ? 0 : 1);
+        const Real HplusZ = std::fabs(distPz)<eps ? (Real)0.5 :
+                                                    (distPz < 0 ? 0 : 1);
+        const Real HminuZ = std::fabs(distMz)<eps ? (Real)0.5 :
+                                                    (distMz < 0 ? 0 : 1);
+
         // all would be multiplied by 0.5/h, simplifies out later
         const Real gradUX = inv2h*(distPx - distMx);
         const Real gradUY = inv2h*(distPy - distMy);
@@ -341,12 +355,19 @@ struct FillBlocks
         const Real IminuY = distMy < 0 ? 0 : distMy;
         const Real IplusZ = distPz < 0 ? 0 : distPz;
         const Real IminuZ = distMz < 0 ? 0 : distMz;
-        const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
-        const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
-        const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
-        const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
-        const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
-        const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
+
+        const Real HplusX = std::fabs(distPx)<eps ? (Real)0.5 :
+                                                    (distPx < 0 ? 0 : 1);
+        const Real HminuX = std::fabs(distMx)<eps ? (Real)0.5 :
+                                                    (distMx < 0 ? 0 : 1);
+        const Real HplusY = std::fabs(distPy)<eps ? (Real)0.5 :
+                                                    (distPy < 0 ? 0 : 1);
+        const Real HminuY = std::fabs(distMy)<eps ? (Real)0.5 :
+                                                    (distMy < 0 ? 0 : 1);
+        const Real HplusZ = std::fabs(distPz)<eps ? (Real)0.5 :
+                                                    (distPz < 0 ? 0 : 1);
+        const Real HminuZ = std::fabs(distMz)<eps ? (Real)0.5 :
+                                                    (distMz < 0 ? 0 : 1);
         const Real gradUX = inv2h*(distPx - distMx);
         const Real gradUY = inv2h*(distPy - distMy);
         const Real gradUZ = inv2h*(distPz - distMz);
@@ -378,7 +399,7 @@ namespace TorusObstacle
 struct FillBlocks
 {
   const Real big_r, small_r, smoothing_length;
-  Real position[3];
+  const Real position[3];
   Real sphere_box[3][2];
 
   void _find_sphere_box()
@@ -391,23 +412,18 @@ struct FillBlocks
     sphere_box[2][1] = position[2] + 2*(big_r + small_r + smoothing_length);
   }
 
-  FillBlocks(Real big_r, Real small_r, Real smoothing_length,  Real position[3]):
-    big_r(big_r), small_r(small_r), smoothing_length(smoothing_length)
+  FillBlocks(Real _big_r, Real _small_r, Real _smoothing_length,  Real p[3]):
+    big_r(_big_r), small_r(_small_r), smoothing_length(_smoothing_length),
+    position{p[0],p[1],p[2]}
   {
-    this->position[0] = position[0];
-    this->position[1] = position[1];
-    this->position[2] = position[2];
 
     _find_sphere_box();
   }
 
   FillBlocks(const FillBlocks& c):
-    small_r(c.small_r), big_r(c.big_r), smoothing_length(c.smoothing_length)
+    big_r(c.big_r), small_r(c.small_r), smoothing_length(c.smoothing_length),
+    position{c.position[0],c.position[1],c.position[2]}
   {
-    position[0] = c.position[0];
-    position[1] = c.position[1];
-    position[2] = c.position[2];
-
     _find_sphere_box();
   }
 
@@ -504,10 +520,11 @@ static Real DistancePointEllipseSpecial (const Real e[2], const Real y[2], Real 
       Real t1 = -esqr[1] + sqrt(ey[0]*ey[0] + ey[1]*ey[1]);
       Real t = t0;
       const int imax = 2*std::numeric_limits<Real>::max_exponent;
+      static constexpr Real eps = std::numeric_limits<Real>::epsilon();
       for (int i = 0; i < imax; ++i)
       {
         t = ((Real)0.5)*(t0 + t1);
-        if (t == t0 || t == t1)
+        if (std::fabs(t-t0)<eps || std::fabs(t-t1)<eps)
         {
           break;
         }
@@ -655,7 +672,8 @@ static Real DistancePointEllipsoidSpecial (const Real e[3], const Real y[3],
         for (int i = 0; i < imax; ++i)
         {
           t = ((Real)0.5)*(t0 + t1);
-          if (t == t0 || t == t1)
+          static constexpr Real eps = std::numeric_limits<Real>::epsilon();
+          if (std::fabs(t-t0)<eps || std::fabs(t-t1)<eps)
           {
             break;
           }
@@ -844,8 +862,8 @@ static Real DistancePointEllipsoid (const Real e[3], const Real y[3], Real x[3])
 struct FillBlocksEllipsoid
 {
   const Real e0,e1,e2,smoothing_length;
-  Real position[3];
-  Real quaternion[4];
+  const Real position[3];
+  const Real quaternion[4];
   Real sphere_box[3][2];
 
   void _find_sphere_box()
@@ -859,33 +877,18 @@ struct FillBlocksEllipsoid
     sphere_box[2][1] = position[2] + 2*(maxAxis + smoothing_length);
   }
 
-  FillBlocksEllipsoid(const Real e0, const Real e1, const Real e2, const Real smoothing_length, const Real position[3], const Real quaternion[4]):
-    e0(e0),e1(e1),e2(e2), smoothing_length(smoothing_length)
+  FillBlocksEllipsoid(const Real _e0, const Real _e1, const Real _e2, const Real sl, const Real p[3], const Real q[4]):
+    e0(_e0),e1(_e1),e2(_e2), smoothing_length(sl), position{p[0],p[1],p[2]},
+    quaternion{q[0],q[1],q[2],q[3]}
   {
-    this->position[0] = position[0];
-    this->position[1] = position[1];
-    this->position[2] = position[2];
-
-    this->quaternion[0] = quaternion[0];
-    this->quaternion[1] = quaternion[1];
-    this->quaternion[2] = quaternion[2];
-    this->quaternion[3] = quaternion[3];
-
     _find_sphere_box();
   }
 
   FillBlocksEllipsoid(const FillBlocksEllipsoid& c):
-    e0(c.e0),e1(c.e1),e2(c.e2), smoothing_length(c.smoothing_length)
+    e0(c.e0),e1(c.e1),e2(c.e2), smoothing_length(c.smoothing_length),
+    position{c.position[0],c.position[1],c.position[2]},
+    quaternion{c.quaternion[0],c.quaternion[1],c.quaternion[2],c.quaternion[3]}
   {
-    position[0] = c.position[0];
-    position[1] = c.position[1];
-    position[2] = c.position[2];
-
-    quaternion[0] = c.quaternion[0];
-    quaternion[1] = c.quaternion[1];
-    quaternion[2] = c.quaternion[2];
-    quaternion[3] = c.quaternion[3];
-
     _find_sphere_box();
   }
 
@@ -973,7 +976,6 @@ struct FillBlocksEllipsoid
 };
 
 
-
 struct FillBlocks_Towers
 {
   const Real e0,e1,e2,safe_distance;
@@ -1032,33 +1034,19 @@ struct FillBlocks_Towers
     normalizeNormals();
   }
 
-  FillBlocks_Towers(const Real e0, const Real e1, const Real e2, const Real max_dx, const Real position[3], const Real quaternion[4]):
-    e0(e0),e1(e1),e2(e2), safe_distance(max_dx)
+
+
+  FillBlocks_Towers(const Real _e0, const Real _e1, const Real _e2, const Real max_dx, const Real p[3], const Real q[4]):
+    e0(_e0),e1(_e1),e2(_e2), safe_distance(max_dx), position{p[0],p[1],p[2]},
+    quaternion{q[0],q[1],q[2],q[3]}
   {
-    this->position[0] = position[0];
-    this->position[1] = position[1];
-    this->position[2] = position[2];
-
-    this->quaternion[0] = quaternion[0];
-    this->quaternion[1] = quaternion[1];
-    this->quaternion[2] = quaternion[2];
-    this->quaternion[3] = quaternion[3];
-
     _computeRotationMatrix();
   }
-
   FillBlocks_Towers(const FillBlocks_Towers& c):
-    e0(c.e0),e1(c.e1),e2(c.e2), safe_distance(c.safe_distance)
+    e0(c.e0),e1(c.e1),e2(c.e2), safe_distance(c.safe_distance),
+    position{c.position[0],c.position[1],c.position[2]},
+    quaternion{c.quaternion[0],c.quaternion[1],c.quaternion[2],c.quaternion[3]}
   {
-    position[0] = c.position[0];
-    position[1] = c.position[1];
-    position[2] = c.position[2];
-
-    quaternion[0] = c.quaternion[0];
-    quaternion[1] = c.quaternion[1];
-    quaternion[2] = c.quaternion[2];
-    quaternion[3] = c.quaternion[3];
-
     _computeRotationMatrix();
   }
 
@@ -1231,10 +1219,9 @@ namespace VAWTObstacle
 struct FillBlocks_Towers
 {
   const Real radius,height,chord,thickness; // chord and thickness are actually haflchord and halfthickness
-  const Real safe_distance;
+  const Real safe_distance, rotationAngle;
   const int nBlades=3;
-  Real position[3];
-  Real rotationAngle;
+  const Real position[3];
   Real bounding_box[3][2];
   const Real pitchAngle = 45.0*M_PI/180;
 
@@ -1250,23 +1237,17 @@ struct FillBlocks_Towers
     bounding_box[2][1] = position[2] + 0.5*height + safe_distance;
   }
 
-  FillBlocks_Towers(const Real radius, const Real height, const Real chord, const Real thickness, const Real max_dx, const Real position[3], const Real rotationAngle):
-    radius(radius),height(height),chord(chord),thickness(thickness), safe_distance(max_dx),rotationAngle(rotationAngle)
+  FillBlocks_Towers(const Real _radius, const Real _height, const Real _chord, const Real _thick, const Real _max_dx, const Real p[3], const Real _rotAngle):
+    radius(_radius), height(_height), chord(_chord), thickness(_thick), safe_distance(_max_dx), rotationAngle(_rotAngle), position{p[0],p[1],p[2]}
   {
-    this->position[0] = position[0];
-    this->position[1] = position[1];
-    this->position[2] = position[2];
-
     _find_bounding_box();
   }
 
-  FillBlocks_Towers(const FillBlocks_Towers& c):
-    radius(c.radius),height(c.height),chord(c.chord),thickness(c.thickness), safe_distance(c.safe_distance),rotationAngle(c.rotationAngle),nBlades(c.nBlades),pitchAngle(c.pitchAngle)
+  FillBlocks_Towers(const FillBlocks_Towers& c): radius(c.radius),
+    height(c.height), chord(c.chord), thickness(c.thickness),
+    safe_distance(c.safe_distance), rotationAngle(c.rotationAngle),
+    position{c.position[0],c.position[1],c.position[2]}
   {
-    position[0] = c.position[0];
-    position[1] = c.position[1];
-    position[2] = c.position[2];
-
     _find_bounding_box();
   }
 

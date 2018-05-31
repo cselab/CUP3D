@@ -19,10 +19,9 @@ void IF3D_VortexOperator::create(const int step_id,const double time, const doub
   printf("Crating a vortex in %f %f %f core size %f max vel %f\n", position[0],position[1],position[2],length,v_max);
   #pragma omp parallel
   {
-    const int N = vInfo.size();
     const Real alpha=1.25643, fac=1.39795, eps=numeric_limits<Real>::epsilon();
     #pragma omp for schedule(static)
-    for(int i=0; i<vInfo.size(); i++) {
+    for(size_t i=0; i<vInfo.size(); i++) {
       BlockInfo info = vInfo[i];
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)

@@ -35,16 +35,16 @@ struct BlockInfo
 		p[2] = origin[2] + h_gridpoint*(iz+0.5);
 	}
 
-	BlockInfo(long long ID, const int idx[3], const double pos[3], const double spacing, double h_gridpoint_, void * ptr=NULL, const bool _special=false):
+	BlockInfo(long long ID, const int idx[3], const double _pos[3], const double spacing, double h_gridpoint_, void * ptr=NULL, const bool _special=false):
 	blockID(ID), ptrBlock(ptr), special(_special)
 	{
 		index[0] = idx[0];
 		index[1] = idx[1];
 		index[2] = idx[2];
 
-		origin[0] = pos[0];
-		origin[1] = pos[1];
-		origin[2] = pos[2];
+		origin[0] = _pos[0];
+		origin[1] = _pos[1];
+		origin[2] = _pos[2];
 
 		h = spacing;
 		h_gridpoint = h_gridpoint_;

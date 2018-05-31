@@ -165,9 +165,9 @@ struct ParameterSchedulerVector : ParameterScheduler<Npoints>
       const Real * const positions_fine, Real * const parameters_fine, Real * const dparameters_fine)
   {
     // we interpolate in space the start and end point
-    Real parameters_t0_fine[Nfine];
-    Real parameters_t1_fine[Nfine];
-    Real dparameters_t0_fine[Nfine];
+    Real* parameters_t0_fine  = new Real[Nfine];
+    Real* parameters_t1_fine  = new Real[Nfine];
+    Real* dparameters_t0_fine = new Real[Nfine];
 
     IF2D_Interpolation1D::naturalCubicSpline(positions.data(), this->parameters_t0.data(), Npoints, positions_fine, parameters_t0_fine,  Nfine);
     IF2D_Interpolation1D::naturalCubicSpline(positions.data(), this->parameters_t1.data(), Npoints, positions_fine, parameters_t1_fine,  Nfine);
@@ -192,6 +192,9 @@ struct ParameterSchedulerVector : ParameterScheduler<Npoints>
         IF2D_Interpolation1D::cubicInterpolation(this->t0,this->t1,t,parameters_t0_fine[i],parameters_t1_fine[i],dparameters_t0_fine[i],
             0.0,           parameters_fine[i],   dparameters_fine[i]);
     }
+    delete [] parameters_t0_fine;
+    delete [] parameters_t1_fine;
+    delete [] dparameters_t0_fine;
   }
 
   void gimmeValues(const double t, std::array<double, Npoints>& parameters)
@@ -444,7 +447,7 @@ class FishMidlineData
       rS[i+Ninterior+Nextension] = length +(i+1)*dx_extension;
   }
 
-  ~FishMidlineData()
+  virtual ~FishMidlineData()
   {
     _dealloc(rS);
     _dealloc(rX);
@@ -522,7 +525,7 @@ struct PutFishOnBlocks
   const double quaternion[4];
   const double Rmatrix3D[3][3];
 
-  PutFishOnBlocks(const FishMidlineData* const cfish, const double p[3], const double q[4]): cfish(cfish), position{p[0],p[1],p[2]},
+  PutFishOnBlocks(const FishMidlineData* const _cfish, const double p[3], const double q[4]): cfish(_cfish), position{p[0],p[1],p[2]},
   quaternion{q[0],q[1],q[2],q[3]},
   Rmatrix3D{
   {1-2*(q[2]*q[2]+q[3]*q[3]), 2*(q[1]*q[2]-q[3]*q[0]), 2*(q[1]*q[3]+q[2]*q[0])},
@@ -583,7 +586,7 @@ struct PutFishOnBlocks
 
 struct PutNacaOnBlocks: public PutFishOnBlocks
 {
-  PutNacaOnBlocks(const FishMidlineData* const cfish, const double p[3], const double q[4]): PutFishOnBlocks(cfish, p, q) { }
+  PutNacaOnBlocks(const FishMidlineData* const _cfish, const double p[3], const double q[4]): PutFishOnBlocks(_cfish, p, q) { }
 
   inline int find_closest_dist_planar(const int s, const int dir, const Real x[3], Real & oldDistSq) const
   {
@@ -619,8 +622,7 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
     const Real h = info.h_gridpoint;
     const Real inv2h = .5/h;
     const Real fac1 = 0.5*h*h;
-    const Real fac2 = h*h*h;
-
+    static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
     for(int iz=0; iz<FluidBlock::sizeZ; iz++)
     for(int iy=0; iy<FluidBlock::sizeY; iy++)
     for(int ix=0; ix<FluidBlock::sizeX; ix++) {
@@ -653,12 +655,12 @@ struct PutFishOnBlocks_Finalize : public GenericLabOperator
       const Real IminuY = distMy < 0 ? 0 : distMy;
       const Real IplusZ = distPz < 0 ? 0 : distPz;
       const Real IminuZ = distMz < 0 ? 0 : distMz;
-      const Real HplusX = distPx == 0 ? 0.5 : (distPx < 0 ? 0 : 1);
-      const Real HminuX = distMx == 0 ? 0.5 : (distMx < 0 ? 0 : 1);
-      const Real HplusY = distPy == 0 ? 0.5 : (distPy < 0 ? 0 : 1);
-      const Real HminuY = distMy == 0 ? 0.5 : (distMy < 0 ? 0 : 1);
-      const Real HplusZ = distPz == 0 ? 0.5 : (distPz < 0 ? 0 : 1);
-      const Real HminuZ = distMz == 0 ? 0.5 : (distMz < 0 ? 0 : 1);
+      const Real HplusX = std::fabs(distPx)<EPS ? 0.5 : (distPx < 0 ? 0 : 1);
+      const Real HminuX = std::fabs(distMx)<EPS ? 0.5 : (distMx < 0 ? 0 : 1);
+      const Real HplusY = std::fabs(distPy)<EPS ? 0.5 : (distPy < 0 ? 0 : 1);
+      const Real HminuY = std::fabs(distMy)<EPS ? 0.5 : (distMy < 0 ? 0 : 1);
+      const Real HplusZ = std::fabs(distPz)<EPS ? 0.5 : (distPz < 0 ? 0 : 1);
+      const Real HminuZ = std::fabs(distMz)<EPS ? 0.5 : (distMz < 0 ? 0 : 1);
 
       // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
       const Real gradIX = inv2h*(IplusX - IminuX);

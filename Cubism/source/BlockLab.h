@@ -108,11 +108,11 @@ public:
         // rasthofer May 2016: required for non-relecting time-dependent boundary conditions
         virtual void apply_bc_update(const BlockInfo& info, const Real dt=0, const Real h=0, const Real a=0, const Real b=0) { }
 
-	void prepare(Grid<BlockType,allocator>& grid, int startX, int endX, int startY, int endY, int startZ, int endZ, const bool istensorial)
+	void prepare(Grid<BlockType,allocator>& grid, int startX, int endX, int startY, int endY, int startZ, int endZ, const bool _istensorial)
 	{
 		const int ss[3] = {startX, startY, startZ};
 		const int se[3] = {endX, endY, endZ};
-		prepare(grid, ss, se, istensorial);
+		prepare(grid, ss, se, _istensorial);
 	}
 
 	/**
@@ -125,13 +125,13 @@ public:
 	 *                      Defines how many ghosts we will get in extended block.
 	 */
 
-	void prepare(Grid<BlockType,allocator>& grid, const int stencil_start[3], const int stencil_end[3], const bool istensorial)
+	void prepare(Grid<BlockType,allocator>& grid, const int stencil_start[3], const int stencil_end[3], const bool _istensorial)
 	{
 		NX = grid.getBlocksPerDimension(0);
 		NY = grid.getBlocksPerDimension(1);
 		NZ = grid.getBlocksPerDimension(2);
 
-		this->istensorial = istensorial;
+		istensorial = _istensorial;
 
 		m_refGrid = &grid;
 
@@ -155,9 +155,9 @@ public:
 		assert(m_stencilStart[2]<=m_stencilEnd[2]);
 
 		if (m_cacheBlock == NULL ||
-			m_cacheBlock->getSize()[0]!= BlockType::sizeX + m_stencilEnd[0] - m_stencilStart[0] -1 ||
-			m_cacheBlock->getSize()[1]!= BlockType::sizeY + m_stencilEnd[1] - m_stencilStart[1] -1 ||
-			m_cacheBlock->getSize()[2]!= BlockType::sizeZ + m_stencilEnd[2] - m_stencilStart[2] -1 )
+			(int) m_cacheBlock->getSize()[0] != (int)BlockType::sizeX + m_stencilEnd[0] - m_stencilStart[0] -1 ||
+			(int) m_cacheBlock->getSize()[1] != (int)BlockType::sizeY + m_stencilEnd[1] - m_stencilStart[1] -1 ||
+			(int) m_cacheBlock->getSize()[2] != (int)BlockType::sizeZ + m_stencilEnd[2] - m_stencilStart[2] -1 )
 		{
 			if (m_cacheBlock != NULL)
 				_release(m_cacheBlock);
@@ -356,8 +356,8 @@ public:
 							char * ptrDest = (char*)&m_cacheBlock->LinAccess(my_izx + (iy-m_stencilStart[1])*m_vSize0);
 
 							const char * ptrSrc = (const char*)&b(s[0] - code[0]*BlockType::sizeX, iy - code[1]*BlockType::sizeY, iz - code[2]*BlockType::sizeZ);
-							const int bytes = (e[0]-s[0])*sizeof(ElementType);
-							memcpy2((char *)ptrDest, (char *)ptrSrc, bytes);
+							const int cpybytes = (e[0]-s[0])*sizeof(ElementType);
+							memcpy2((char *)ptrDest, (char *)ptrSrc, cpybytes);
 						}
 					}
 					else
@@ -532,4 +532,3 @@ public:
 		this->m_state = BlockLab<BlockType, allocator, ElementTypeT>::eMRAGBlockLab_Prepared;
 	}
 };
-

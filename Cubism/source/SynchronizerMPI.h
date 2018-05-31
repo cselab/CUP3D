@@ -28,7 +28,7 @@ class SynchronizerMPI
 	{
 		int ix, iy, iz;
 
-		I3(int ix, int iy, int iz):ix(ix), iy(iy), iz(iz){}
+		I3(int _ix, int _iy, int _iz):ix(_ix), iy(_iy), iz(_iz){}
 		I3(const I3& c): ix(c.ix), iy(c.iy), iz(c.iz){}
 
 		bool operator<(const I3& a) const
@@ -41,8 +41,8 @@ class SynchronizerMPI
 	struct SubpackInfo { Real * block, * pack; int sx, sy, sz, ex, ey, ez; int x0, y0, z0, xpacklenght, ypacklenght; };
 
 	DependencyCubeMPI<MPI_Request> cube;
-	bool isroot;
 	const int synchID;
+	bool isroot;
 	int send_thickness[3][2], recv_thickness[3][2];
 	int blockinfo_counter;
 	StencilInfo stencil;
@@ -52,8 +52,7 @@ class SynchronizerMPI
 	std::vector<Real *> all_mallocs;
 
 	std::vector<BlockInfo> globalinfos;
-
-    std::map<Region, std::vector<BlockInfo> > region2infos;
+  std::map<Region, std::vector<BlockInfo> > region2infos;
 
 	//?static?
 	MPI_Comm cartcomm;
@@ -646,8 +645,8 @@ class SynchronizerMPI
 
 public:
 
-	SynchronizerMPI(const int synchID, StencilInfo stencil, std::vector<BlockInfo> globalinfos, MPI_Comm cartcomm, const int mybpd[3], const int blocksize[3]):
-	synchID(synchID), stencil(stencil), globalinfos(globalinfos), cube(mybpd[0], mybpd[1], mybpd[2]), cartcomm(cartcomm)
+	SynchronizerMPI(const int _synchID, StencilInfo _stencil, std::vector<BlockInfo> _globalinfos, MPI_Comm _cartcomm, const int _mybpd[3], const int _blocksize[3]):
+	cube(_mybpd[0], _mybpd[1], _mybpd[2]), synchID(_synchID), stencil(_stencil), globalinfos(_globalinfos), cartcomm(_cartcomm)
 	{
 		int myrank;
         MPI_Comm_rank(cartcomm, &myrank);
@@ -666,10 +665,10 @@ public:
 					neighborsrank[iz][iy][ix] = nbrRank;
 				}
 
-		for(int i=0; i<3; ++i) this->mybpd[i]=mybpd[i];
-		for(int i=0; i<3; ++i) this->blocksize[i]=blocksize[i];
+		for(int i=0; i<3; ++i) mybpd[i] = _mybpd[i];
+		for(int i=0; i<3; ++i) blocksize[i] = _blocksize[i];
 
-		for(int i=0; i< globalinfos.size(); ++i)
+		for(size_t i=0; i< globalinfos.size(); ++i)
 		{
 			I3 coord(globalinfos[i].index[0], globalinfos[i].index[1], globalinfos[i].index[2]);
 			c2i[coord] = i;
@@ -721,7 +720,7 @@ public:
 
 	virtual ~SynchronizerMPI()
 	{
-		for(int i=0;i<all_mallocs.size();++i)
+		for(size_t i=0;i<all_mallocs.size();++i)
 			_myfree(all_mallocs[i]);
 	}
 
@@ -921,7 +920,7 @@ public:
     //peh
 	virtual void sync0(unsigned int gptfloats, MPI_Datatype MPIREAL, const int timestamp)
 	{
-		double t0, t1;
+		//double t0, t1;
 
 		//0. wait for pending sends, couple of checks
 		//1. pack all stuff
@@ -961,9 +960,6 @@ public:
 
 		//1. pack
 		{
-			double t0, t1;
-
-
 			const int N = send_packinfos.size();
 
 			std::vector<int> selcomponents = stencil.selcomponents;
@@ -1310,7 +1306,7 @@ public:
 			{
 				std::vector<int> indices(NPENDING);
 				int NSOLVED = 0;
-				if (blockinfo_counter == globalinfos.size())
+				if (blockinfo_counter == (int)globalinfos.size())
                     MPI_Testsome(NPENDING, &pending.front(), &NSOLVED, &indices.front(), MPI_STATUSES_IGNORE);
 				else
 				{
@@ -1377,7 +1373,7 @@ public:
 	{
 		std::vector<BlockInfo> accumulator;
 
-		while(accumulator.size()<smallest && !done())
+		while((int)accumulator.size()<smallest && !done())
 		{
 			const std::vector<BlockInfo> r = avail();
 
@@ -1399,11 +1395,11 @@ public:
 		return stencil;
 	}
 
-	void getpedata(int mypeindex[3], int pesize[3], int mybpd[3]) const
+	void getpedata(int _mypeindex[3], int _pesize[3], int _mybpd[3]) const
 	{
-		for(int i=0; i<3; ++i) mypeindex[i] = this->mypeindex[i];
-		for(int i=0; i<3; ++i) pesize[i] = this->pesize[i];
-		for(int i=0; i<3; ++i) mybpd[i] = this->mybpd[i];
+		for(int i=0; i<3; ++i) _mypeindex[i] = mypeindex[i];
+		for(int i=0; i<3; ++i) _pesize[i] = pesize[i];
+		for(int i=0; i<3; ++i) _mybpd[i] = mybpd[i];
 	}
 
 class MyRange
@@ -1412,8 +1408,8 @@ class MyRange
 
  public:
 
- MyRange(const int sx, const int ex, const int sy, const int ey, const int sz, const int ez):
-  sx(sx), sy(sy), sz(sz), ex(ex), ey(ey), ez(ez) { }
+ MyRange(const int _sx, const int _ex, const int _sy, const int _ey, const int _sz, const int _ez):
+  sx(_sx), sy(_sy), sz(_sz), ex(_ex), ey(_ey), ez(_ez) { }
 
 
   bool outside(MyRange range) const

@@ -21,9 +21,9 @@ public:
   template <typename T>
   static void naturalCubicSpline(const double * x, const double * y, const unsigned int n, const T * xx, T * yy, const unsigned int nn, const Real offset)
   {
-  {
-    double y2[n];
-    double u[n-1];
+    double* y2  = new double[n];
+    double* u  = new double[n-1];
+
     y2[0] = u[0] = 0.0;
     for(unsigned int i=1; i<n-1; i++)
     {
@@ -49,13 +49,15 @@ public:
       }
 
       const double h = x[khi]-x[klo];
-      if(h==0)
+      if(abs(h)<2.2e-16)
       {std::cout<<"Interpolation points must be distinct!"<<std::endl;abort();}
       const double a = (x[khi]-(xx[j]+offset))/h;
       const double b = ((xx[j]+offset)-x[klo])/h;
       yy[j] = a*y[klo]+b*y[khi]+((a*a*a-a)*y2[klo]+(b*b*b-b)*y2[khi])*(h*h)/6;
     }
-  }
+
+    delete [] y2;
+    delete [] u;
   }
 
   template <typename T>

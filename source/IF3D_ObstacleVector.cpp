@@ -94,15 +94,15 @@ struct rayTracing
   void execute(const Real lengthscale)
   {
     int Nrays(0);
-    for (int j=0; j<FOVobst.size(); j++) Nrays = max(Nrays, NpLatLine);
+    for (size_t j=0; j<FOVobst.size(); j++) Nrays = max(Nrays, NpLatLine);
       //Nrays = max(Nrays,FOVdata[j]->NpLatLine);
 
     #pragma omp parallel for collapse(2)
-    for (int j=0; j<FOVobst.size(); j++)  //loop over obstacles
+    for (size_t j=0; j<FOVobst.size(); j++)  //loop over obstacles
     for (int p=0; p<2*Nrays; p++)   { //loop over sight rays of obstacle
       if(p > 2*NpLatLine - 1) continue;
       Real dist = 5*lengthscale;
-      for (int i=0; i<FOVobst.size(); i++) {
+      for (size_t i=0; i<FOVobst.size(); i++) {
         if (i==j) continue;
         const int N = FOVobst[i]->Npts-1;
 
@@ -151,15 +151,11 @@ void IF3D_ObstacleVector::getFieldOfView(const double lengthscale)
   #endif
 }
 
-void IF3D_ObstacleVector::interpolateOnSkin(const double time, const int step, const int i, bool dumpWake)
+void IF3D_ObstacleVector::interpolateOnSkin(const double time, const int step, bool dumpWake)
 {
-  if(i<0 || i>=obstacles.size()) {
     for(const auto & obst_ptr : obstacles)
       if(obst_ptr->bHasSkin)
         obst_ptr->interpolateOnSkin(time, step, dumpWake);
-  } else
-    if(obstacles[i]->bHasSkin)
-    obstacles[i]->interpolateOnSkin(time, step, dumpWake);
 }
 
 vector<std::array<int, 2>> IF3D_ObstacleVector::collidingObstacles()
@@ -278,7 +274,7 @@ void IF3D_ObstacleVector::restart(const double t, std::string filename)
 
 void IF3D_ObstacleVector::Accept(ObstacleVisitor * visitor)
 {
-  for(int i=0;i<obstacles.size();++i)
+  for(size_t i=0;i<obstacles.size();++i)
     obstacles[i]->Accept(visitor);
 }
 
@@ -299,7 +295,7 @@ void IF3D_ObstacleVector::execute(const int iAgent, const double time, const vec
 Real IF3D_ObstacleVector::getD() const
 {
   Real maxL(0);
-  for(int i=0; i<obstacles.size(); ++i) {
+  for(size_t i=0; i<obstacles.size(); ++i) {
       const Real Li = obstacles[i]->getD();
       maxL = std::max(maxL,Li);
       assert(Li>0.);

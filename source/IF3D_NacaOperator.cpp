@@ -142,7 +142,7 @@ void IF3D_NacaOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
     PutNacaOnBlocks putfish(myFish, position, quaternion);
 
     #pragma omp for schedule(dynamic)
-    for(int i=0; i<vInfo.size(); i++) {
+    for(size_t i=0; i<vInfo.size(); i++) {
       BlockInfo info = vInfo[i];
       const auto pos = segmentsPerBlock.find(info.blockID);
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;

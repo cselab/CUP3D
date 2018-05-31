@@ -91,13 +91,13 @@ mapBlock2Segs IF3D_FishOperator::prepare_segPerBlock(const aryVolSeg&vSegments)
   for(auto & entry : obstacleBlocks) delete entry.second;
   obstacleBlocks.clear();
 
-  for(int i=0; i<vInfo.size(); ++i) {
+  for(size_t i=0; i<vInfo.size(); ++i) {
     const BlockInfo & info = vInfo[i];
     Real pStart[3], pEnd[3];
     info.pos(pStart, 0, 0, 0);
     info.pos(pEnd, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
 
-    for(int s=0; s<vSegments.size(); ++s)
+    for(size_t s=0; s<vSegments.size(); ++s)
       if(vSegments[s].isIntersectingWithAABB(pStart,pEnd))
         segmentsPerBlock[info.blockID].push_back(vSegments[s]);
 
@@ -130,8 +130,8 @@ void IF3D_FishOperator::apply_pid_corrections(const double time, const double dt
   if (followX > 0 && followY > 0) //then i control the position
   {
     assert(not bCorrectTrajectory);
-    const double velx_tot = Uinf[0] - transVel[0];
-    const double vely_tot = Uinf[1] - transVel[1];
+    //const double velx_tot = Uinf[0] - transVel[0];
+    //const double vely_tot = Uinf[1] - transVel[1];
     const double AngDiff  = _2Dangle;//std::atan2(vely_tot,velx_tot);
 
     // Control posDiffs
@@ -151,7 +151,8 @@ void IF3D_FishOperator::apply_pid_corrections(const double time, const double dt
     const double INST = (AngDiff*yDiff<0) ? AngDiff*absDY : 0;
 
     //zero also the derivatives when appropriate
-    const double f1=(PROP ? 20 : 0), f2=(INST ? 50 : 0), f3=1;
+    const double f1 = std::fabs(PROP)>2e-16 ? 20 : 0;
+    const double f2 = std::fabs(INST)>2e-16 ? 50 : 0, f3=1;
 
     // Linearly increase (or decrease) amplitude to 1.2X (decrease to 0.8X)
     //(experiments observed 1.2X increase in amplitude when swimming faster)
@@ -213,7 +214,7 @@ void IF3D_FishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
     PutFishOnBlocks putfish(myFish, position, quaternion);
 
     #pragma omp for schedule(dynamic)
-    for(int i=0; i<vInfo.size(); i++) {
+    for(size_t i=0; i<vInfo.size(); i++) {
       BlockInfo info = vInfo[i];
       const auto pos = segmentsPerBlock.find(info.blockID);
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;
@@ -350,11 +351,10 @@ void IF3D_FishOperator::finalize(const int step_id,const double time, const doub
 void IF3D_FishOperator::interpolateOnSkin(const double time, const int stepID, bool _dumpWake)
 {
   #ifdef __useSkin_
-  if(not(quaternion[1] == 0 && quaternion[2] == 0)){
+  if( std::fabs(quaternion[1])>2e-16 || std::fabs(quaternion[2])>2e-16 ) {
     printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
     abort();
   }
-  assert(quaternion[1] == 0 && quaternion[2] == 0);
   sr.updateStepId(stepID+obstacleID);
   myFish->computeSkinNormals(_2Dangle, CoM_interpolated);
 
@@ -400,7 +400,10 @@ void IF3D_FishOperator::getCenterOfMass(double CM[3]) const
 void IF3D_FishOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
   Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
 {
-  assert(quaternion[1] == 0 && quaternion[2] == 0);
+  if( std::fabs(quaternion[1])>2e-16 || std::fabs(quaternion[2])>2e-16 ) {
+    printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
+    abort();
+  }
   x  = position[0];
   y  = position[1];
   th  = _2Dangle;

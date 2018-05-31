@@ -69,14 +69,16 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
     static const unsigned int eZ = B::sizeZ;
 
     hsize_t count[4] = {
-        grid.getResidentBlocksPerDimension(2)*B::sizeZ,
-        grid.getResidentBlocksPerDimension(1)*B::sizeY,
-        grid.getResidentBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+        (hsize_t) grid.getResidentBlocksPerDimension(2)*B::sizeZ,
+        (hsize_t) grid.getResidentBlocksPerDimension(1)*B::sizeY,
+        (hsize_t) grid.getResidentBlocksPerDimension(0)*B::sizeX,
+        (hsize_t) NCHANNELS};
 
     hsize_t dims[4] = {
-        grid.getBlocksPerDimension(2)*B::sizeZ,
-        grid.getBlocksPerDimension(1)*B::sizeY,
-        grid.getBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+        (hsize_t) grid.getBlocksPerDimension(2)*B::sizeZ,
+        (hsize_t) grid.getBlocksPerDimension(1)*B::sizeY,
+        (hsize_t) grid.getBlocksPerDimension(0)*B::sizeX,
+        (hsize_t) NCHANNELS};
 
     if (rank==0)
     {
@@ -84,9 +86,9 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
     }
 
     hsize_t offset[4] = {
-        coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ,
-        coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
-        coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
+        (hsize_t) coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ,
+        (hsize_t) coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
+        (hsize_t) coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
 
     sprintf(filename, "%s/%s.h5", dump_path.c_str(), fullname.c_str());
 
@@ -97,10 +99,10 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
     status = H5Pclose(fapl_id);
 
 #pragma omp parallel for
-    for(unsigned int i=0; i<vInfo_local.size(); i++)
+    for(size_t i=0; i<vInfo_local.size(); i++)
     {
         BlockInfo& info = vInfo_local[i];
-        const unsigned int idx[3] = {info.index[0], info.index[1], info.index[2]};
+        const int idx[3] = {info.index[0], info.index[1], info.index[2]};
         B & b = *(B*)info.ptrBlock;
 
         for(unsigned int iz=sZ; iz<eZ; iz++)
@@ -113,20 +115,20 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
                 {
                     const unsigned int gx = idx[0]*B::sizeX + ix;
 
-                    const unsigned int idx = NCHANNELS * (gx + NX * (gy + NY * gz));
+                    const unsigned int idl = NCHANNELS * (gx + NX * (gy + NY * gz));
 
-                    assert(idx < NX * NY * NZ * NCHANNELS);
+                    assert(idl < NX * NY * NZ * NCHANNELS);
 
-                    hdf5Real * const ptr = array_all + idx;
+                    hdf5Real * const ptr = array_all + idl;
 
                     hdf5Real output[NCHANNELS];
-                    for(int i=0; i<NCHANNELS; ++i)
-                        output[i] = 0;
+                    for(unsigned k=0; k<NCHANNELS; ++k)
+                        output[k] = 0;
 
                     Streamer::operate(b, ix, iy, iz, (hdf5Real*)output);
 
-                    for(int i=0; i<NCHANNELS; ++i)
-                        ptr[i] = output[i];
+                    for(unsigned k=0; k<NCHANNELS; ++k)
+                        ptr[k] = output[k];
                 }
             }
         }
@@ -230,19 +232,15 @@ void ReadHDF5_MPI(TGrid &grid, const std::string f_name, const std::string dump_
     const int eZ = B::sizeZ;
 
     hsize_t count[4] = {
-        grid.getResidentBlocksPerDimension(2)*B::sizeZ,
-        grid.getResidentBlocksPerDimension(1)*B::sizeY,
-        grid.getResidentBlocksPerDimension(0)*B::sizeX, NCHANNELS};
-
-    hsize_t dims[4] = {
-        grid.getBlocksPerDimension(2)*B::sizeZ,
-        grid.getBlocksPerDimension(1)*B::sizeY,
-        grid.getBlocksPerDimension(0)*B::sizeX, NCHANNELS};
+        (hsize_t) grid.getResidentBlocksPerDimension(2)*B::sizeZ,
+        (hsize_t) grid.getResidentBlocksPerDimension(1)*B::sizeY,
+        (hsize_t) grid.getResidentBlocksPerDimension(0)*B::sizeX,
+        (hsize_t) NCHANNELS};
 
     hsize_t offset[4] = {
-        coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ,
-        coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
-        coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
+        (hsize_t) coords[2]*grid.getResidentBlocksPerDimension(2)*B::sizeZ,
+        (hsize_t) coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
+        (hsize_t) coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
 
     sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
 
@@ -263,7 +261,7 @@ void ReadHDF5_MPI(TGrid &grid, const std::string f_name, const std::string dump_
     status = H5Dread(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
 
 #pragma omp parallel for
-    for(int i=0; i<vInfo_local.size(); i++)
+    for(size_t i=0; i<vInfo_local.size(); i++)
     {
         BlockInfo& info = vInfo_local[i];
         const int idx[3] = {info.index[0], info.index[1], info.index[2]};

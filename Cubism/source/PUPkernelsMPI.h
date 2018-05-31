@@ -115,7 +115,6 @@ inline void pack_stripes_unroll0(const Real * const srcbase, Real * const dst,
 		for(int iy=ystart; iy<yend; ++iy)
 		{
 			int xentries = xend - xstart;
-			int unroll = 4;
 
 			int repeat = (xentries / 4);
 			int left = (xentries % 4);

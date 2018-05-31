@@ -27,7 +27,7 @@
 #include "IF3D_ObstacleVector.h"
 #include "IF3D_ObstacleFactory.h"
 
-#if _USE_ZLIB_
+#ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
 #endif
 #include <sys/types.h>
@@ -52,7 +52,7 @@ class Simulation
   #ifdef RL_LAYER
     TaskLayer * task;
   #endif
-  #if _USE_ZLIB_
+  #ifdef _USE_ZLIB_
     SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
   #endif
 

@@ -18,7 +18,7 @@ void IF3D_DCylinderObstacleOperator::create(const int step_id,const double time,
   obstacleBlocks.clear();
 
   DCylinderObstacle::FillBlocks kernel(radius, halflength, vInfo[0].h_gridpoint, position);
-  for(int i=0; i<vInfo.size(); i++) {
+  for(size_t i=0; i<vInfo.size(); i++) {
     BlockInfo info = vInfo[i];
     //const auto pos = obstacleBlocks.find(info.blockID);
     if(kernel._is_touching(info)) { //position of sphere + radius + 2*h safety
@@ -32,10 +32,9 @@ void IF3D_DCylinderObstacleOperator::create(const int step_id,const double time,
   #pragma omp parallel
   {
     DCylinderObstacle::FillBlocks fill(radius, halflength, vInfo[0].h_gridpoint, position);
-    const int tid = omp_get_thread_num();
 
     #pragma omp for schedule(dynamic)
-    for(int i=0; i<vInfo.size(); i++) {
+    for(size_t i=0; i<vInfo.size(); i++) {
       BlockInfo info = vInfo[i];
       auto pos = obstacleBlocks.find(info.blockID);
       if(pos == obstacleBlocks.end()) continue;

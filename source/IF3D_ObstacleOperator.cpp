@@ -18,7 +18,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
   { //sum linear momenta to figure out velocity and mass
     double V=0, lm0=0, lm1=0, lm2=0; //linear momenta
     #pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2)
-    for(int i=0; i<vInfo.size(); i++) {
+    for(size_t i=0; i<vInfo.size(); i++) {
       BlockInfo info = vInfo[i];
       const auto pos = obstacleBlocks.find(info.blockID);
       if(pos == obstacleBlocks.end()) continue;
@@ -27,7 +27,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         const double Xs = pos->second->chi[iz][iy][ix];
-        if (Xs == 0) continue;
+        if (Xs <= 0) continue;
         V   += Xs;
         lm0 += Xs * pos->second->udef[iz][iy][ix][0];
         lm1 += Xs * pos->second->udef[iz][iy][ix][1];
@@ -54,7 +54,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
   //sum angular momenta to figure out ang velocity and moments
   double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0, am0=0, am1=0, am2=0;
   #pragma omp parallel for schedule(dynamic) reduction(+:J0,J1,J2,J3,J4,J5,am0,am1,am2)
-  for(int i=0; i<vInfo.size(); i++) {
+  for(size_t i=0; i<vInfo.size(); i++) {
     BlockInfo info = vInfo[i];
     const auto pos = obstacleBlocks.find(info.blockID);
     if(pos == obstacleBlocks.end()) continue;
@@ -63,7 +63,8 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
       const double Xs = pos->second->chi[iz][iy][ix];
-      if (Xs == 0) continue;
+      if (Xs <= 0) continue;
+      assert(Xs>0);
       double p[3];
       info.pos(p, ix, iy, iz);
       p[0]-=CoM[0]; p[1]-=CoM[1]; p[2]-=CoM[2];
@@ -116,12 +117,6 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
     ang_momenta[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
     ang_momenta[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
   }
-  const Real errors = std::max(std::fabs(globals[3]*dv-J[0]),
-                        std::max(std::fabs(globals[4]*dv-J[1]),
-                          std::max(std::fabs(globals[5]*dv-J[2]),
-                            std::max(std::fabs(globals[6]*dv-J[3]),
-                              std::max(std::fabs(globals[7]*dv-J[4]),
-                                       std::fabs(globals[8]*dv-J[5]))))));
   J[0] = globals[3] * dv;
   J[1] = globals[4] * dv;
   J[2] = globals[5] * dv;
@@ -130,6 +125,12 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
   J[5] = globals[8] * dv;
   //assert(!errors);
   #ifdef _VERBOSE_
+    const Real errors = std::max(std::fabs(globals[3]*dv-J[0]),
+                          std::max(std::fabs(globals[4]*dv-J[1]),
+                            std::max(std::fabs(globals[5]*dv-J[2]),
+                              std::max(std::fabs(globals[6]*dv-J[3]),
+                                std::max(std::fabs(globals[7]*dv-J[4]),
+                                         std::fabs(globals[8]*dv-J[5]))))));
     if (!rank)
     printf("Max error in computed momenta during correction = %g.\n", errors);
   #endif
@@ -146,7 +147,7 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
   #endif
 
   #pragma omp parallel for schedule(dynamic)
-  for(int i=0; i<vInfo.size(); i++) {
+  for(size_t i=0; i<vInfo.size(); i++) {
     BlockInfo info = vInfo[i];
     const auto pos = obstacleBlocks.find(info.blockID);
     if(pos == obstacleBlocks.end()) continue;
@@ -300,12 +301,10 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
 {
   double CM[3];
   this->getCenterOfMass(CM);
-  const int N = vInfo.size();
   double _area=0,_forcex=0,_forcey=0,_forcez=0,_torquex=0,_torquey=0,_torquez=0;
-  double garea=0,gforcex=0,gforcey=0,gforcez=0,gtorquex=0,gtorquey=0,gtorquez=0;
 
   #pragma omp parallel for schedule(dynamic) reduction(+:_area,_forcex,_forcey,_forcez,_torquex,_torquey,_torquez)
-  for(int i=0; i<vInfo.size(); i++) {
+  for(size_t i=0; i<vInfo.size(); i++) {
       BlockInfo info = vInfo[i];
       const auto pos = obstacleBlocks.find(info.blockID);
       if(pos == obstacleBlocks.end()) continue;
@@ -315,7 +314,7 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
           const double Xs = pos->second->chi[iz][iy][ix];
-          if (Xs == 0) continue;
+          if (Xs <= 0) continue;
           double p[3];
           info.pos(p, ix, iy, iz);
           p[0]-=CM[0];
@@ -373,7 +372,7 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
   {
     double V = 0, lm0 = 0, lm1 = 0, lm2 = 0; //linear momenta
     #pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2)
-    for(int i=0; i<vInfo.size(); i++) {
+    for(size_t i=0; i<vInfo.size(); i++) {
       BlockInfo info = vInfo[i];
       FluidBlock & b = *(FluidBlock*)info.ptrBlock;
       const auto pos = obstacleBlocks.find(info.blockID);
@@ -383,7 +382,7 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         const double Xs = pos->second->chi[iz][iy][ix];
-        if (Xs == 0) continue;
+        if (Xs <= 0) continue;
         V     += Xs;
         lm0   += Xs * b(ix,iy,iz).u;
         lm1   += Xs * b(ix,iy,iz).v;
@@ -417,7 +416,7 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
   {
     double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0, am0=0, am1=0, am2=0;
     #pragma omp parallel for schedule(dynamic) reduction(+:J0,J1,J2,J3,J4,J5,am0,am1,am2)
-    for(int i=0; i<vInfo.size(); i++) {
+    for(size_t i=0; i<vInfo.size(); i++) {
       BlockInfo info = vInfo[i];
       FluidBlock & b = *(FluidBlock*)info.ptrBlock;
       const auto pos = obstacleBlocks.find(info.blockID);
@@ -427,7 +426,7 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         const double Xs = pos->second->chi[iz][iy][ix];
-        if (Xs == 0) continue;
+        if (Xs <= 0) continue;
         double p[3];
         info.pos(p, ix, iy, iz);
         p[0]-=CM[0];
@@ -499,18 +498,18 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const double t, const Rea
   vector<BlockInfo> avail0 = Synch.avail_inner();
   vector<BlockInfo> avail1 = Synch.avail_halo();
   std::map<int, BlockInfo*> tmp;
-  for(int i=0; i<vInfo.size(); i++)
+  for(size_t i=0; i<vInfo.size(); i++)
   {
     const int look4 = vInfo[i].blockID;
     bool found = false;
-    for (int j=0; j<avail0.size(); j++) {
+    for (size_t j=0; j<avail0.size(); j++) {
     if(avail0[j].blockID == look4) {
         if(found) printf("Two blocks with the same ID?!\n");
         else tmp[look4] = &avail0[j];
         found = true;
       }
     }
-    for (int j=0; j<avail1.size(); j++) {
+    for (size_t j=0; j<avail1.size(); j++) {
       if(avail1[j].blockID == look4) {
         if(found) printf("Two blocks with the same ID?!\n");
         else tmp[look4] = &avail1[j];
@@ -520,7 +519,7 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const double t, const Rea
     if(!found) printf("Wtf missing blocks?? Brace for segfault!\n");
   }
   //now in tmp i have addresses to all info, and i can dump with same sorting as vInfo
-  for(int i=0; i<vInfo.size(); i++)
+  for(size_t i=0; i<vInfo.size(); i++)
   { //i care more about ease of postprocess here than scaling
     const int blockID = vInfo[i].blockID;
     BlockInfo info = *tmp[blockID];
@@ -740,7 +739,7 @@ void IF3D_ObstacleOperator::characteristic_function()
   #pragma omp parallel
  {
   #pragma omp for schedule(dynamic)
-  for(int i=0; i<vInfo.size(); i++) {
+  for(size_t i=0; i<vInfo.size(); i++) {
    BlockInfo info = vInfo[i];
    std::map<int,ObstacleBlock* >::const_iterator pos = obstacleBlocks.find(info.blockID);
 

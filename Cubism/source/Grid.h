@@ -80,8 +80,8 @@ public:
 
 	typedef Block BlockType;
 
-	Grid(const unsigned int NX, const unsigned int NY = 1, const unsigned int NZ = 1, const double maxextent = 1) :
-	m_blocks(NULL), NX(NX), NY(NY), NZ(NZ), N(NX*NY*NZ), maxextent(maxextent)
+	Grid(const unsigned int _NX, const unsigned int _NY = 1, const unsigned int _NZ = 1, const double _maxextent = 1) :
+	m_blocks(NULL), maxextent(_maxextent), N(_NX*_NY*_NZ), NX(_NX), NY(_NY), NZ(_NZ)
     {
         _alloc();
         const double h = (maxextent / std::max(NX, std::max(NY, NZ)));
@@ -91,7 +91,7 @@ public:
                 for(unsigned int ix=0; ix<NX; ix++)
                 {
                     const long long blockID = _encode(ix, iy, iz);
-                    const int idx[3] = {ix, iy, iz};
+                    const int idx[3] = {(int)ix, (int)iy, (int)iz};
                     const double origin[3] = {ix*h, iy*h, iz*h};
 
                     m_vInfo.push_back(BlockInfo(blockID, idx, origin, h, h/Block::sizeX, _linaccess(blockID)));
@@ -125,9 +125,9 @@ public:
 		}
 	}
 
-	virtual bool avail(unsigned int ix, unsigned int iy=0, unsigned int iz=0) const { return true; }
+	virtual bool avail(int ix, int iy=0, int iz=0) const { return true; }
 
-	virtual Block& operator()(unsigned int ix, unsigned int iy=0, unsigned int iz=0) const
+	virtual Block& operator()(int ix, int iy=0, int iz=0) const
 	{
 		return *_linaccess( _encode((ix+NX) % NX, (iy+NY) % NY, (iz+NZ) % NZ) );
 	}

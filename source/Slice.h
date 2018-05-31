@@ -26,7 +26,7 @@ struct Slice
     int id;
     int dir;
     int idx;
-    int width, height;
+    unsigned int width, height;
     bool valid;
     Slice() : grid(NULL), id(-1), dir(-1), idx(-1), width(0), height(0), valid(false) {}
 
@@ -100,8 +100,8 @@ struct SliceMPI : public Slice<TGrid>
 {
     typedef TGrid GridType;
 
-    int localWidth, localHeight;
-    int offsetWidth, offsetHeight;
+    unsigned int localWidth, localHeight;
+    unsigned int offsetWidth, offsetHeight;
     SliceMPI() : localWidth(-1), localHeight(-1), offsetWidth(-1), offsetHeight(-1) {}
 
     template <typename TSlice>

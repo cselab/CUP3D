@@ -97,9 +97,9 @@ struct ProfileSummaryItem
 {
 	std::string sName;
 	double dTime;
-	double dAverageTime;
 	int nMoney;
 	int nSamples;
+	double dAverageTime;
 
 	ProfileSummaryItem(std::string sName_, double dTime_, int nMoney_, int nSamples_):
 		sName(sName_), dTime(dTime_), nMoney(nMoney_),nSamples(nSamples_), dAverageTime(dTime_/nSamples_){}

@@ -80,20 +80,20 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 };
 
 FillBlocks::FillBlocks(
-        const Real cx, const Real cy, const Real cz,
-        const Real nx, const Real ny, const Real nz,
-        const Real ax, const Real ay, const Real az,
-        const Real bx, const Real by, const Real bz,
-        const Real half_a,
-        const Real half_b,
-        const Real half_thickness)
-    : cx(cx), cy(cy), cz(cz),
-      nx(nx), ny(ny), nz(nz),
-      ax(ax), ay(ay), az(az),
-      bx(bx), by(by), bz(bz),
-      half_a(half_a),
-      half_b(half_b),
-      half_thickness(half_thickness)
+        const Real _cx, const Real _cy, const Real _cz,
+        const Real _nx, const Real _ny, const Real _nz,
+        const Real _ax, const Real _ay, const Real _az,
+        const Real _bx, const Real _by, const Real _bz,
+        const Real _half_a,
+        const Real _half_b,
+        const Real _half_thickness)
+    : cx(_cx), cy(_cy), cz(_cz),
+      nx(_nx), ny(_ny), nz(_nz),
+      ax(_ax), ay(_ay), az(_az),
+      bx(_bx), by(_by), bz(_bz),
+      half_a(_half_a),
+      half_b(_half_b),
+      half_thickness(_half_thickness)
 {
     // Assert normalized.
     assert(std::fabs(nx * nx + ny * ny + nz * nz - 1) < (Real)1e-9);
@@ -280,10 +280,9 @@ void IF3D_PlateObstacleOperator::finalize(const int step_id,
                                          bx, by, bz,
                                          half_a, half_b, half_thickness);
 
-        const int tid = omp_get_thread_num();
 
 #pragma omp for schedule(static)
-        for (int i = 0; i < vInfo.size(); ++i) {
+        for (size_t i = 0; i < vInfo.size(); ++i) {
             BlockInfo info = vInfo[i];
             auto pos = obstacleBlocks.find(info.blockID);
             if (pos == obstacleBlocks.end()) continue;

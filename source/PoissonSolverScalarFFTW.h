@@ -34,16 +34,15 @@ class PoissonSolverScalarFFTW_MPI
 
   const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
   const vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
-  const size_t N = local_infos.size();
   const size_t mybpd[3] = {
       static_cast<size_t>(grid.getResidentBlocksPerDimension(0)),
       static_cast<size_t>(grid.getResidentBlocksPerDimension(1)),
       static_cast<size_t>(grid.getResidentBlocksPerDimension(2))
   };
   const size_t gsize[3] = {
-      grid.getBlocksPerDimension(0)*bs[0],
-      grid.getBlocksPerDimension(1)*bs[1],
-      grid.getBlocksPerDimension(2)*bs[2]
+      static_cast<size_t>(grid.getBlocksPerDimension(0)*bs[0]),
+      static_cast<size_t>(grid.getBlocksPerDimension(1)*bs[1]),
+      static_cast<size_t>(grid.getBlocksPerDimension(2)*bs[2])
   };
   const size_t myN[3]={ mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
   const size_t nz_hat = gsize[2]/2+1;
@@ -56,7 +55,7 @@ class PoissonSolverScalarFFTW_MPI
   void _fftw2cub(const Real * const out) const
   {
     #pragma omp parallel for
-    for(int i=0; i<N; ++i) {
+    for(size_t i=0; i<local_infos.size(); ++i) {
       const BlockInfo info = local_infos[i];
       BlockType& b = *(BlockType*)info.ptrBlock;
       const size_t offset = _offset(info);
@@ -74,7 +73,6 @@ class PoissonSolverScalarFFTW_MPI
   void _solve()
   {
     mycomplex *const in_out = (mycomplex *) data;
-    const size_t nz_hat = gsize[2]/2+1;
     #if 0
       const Real h2 = h*h;
       const Real factor = h2*norm_factor;
@@ -100,16 +98,19 @@ class PoissonSolverScalarFFTW_MPI
       const Real waveFactX = 2.0*M_PI/(gsize[0]*h);
       const Real waveFactY = 2.0*M_PI/(gsize[1]*h);
       const Real waveFactZ = 2.0*M_PI/(gsize[2]*h);
-
+      const long nKx = static_cast<long>(gsize[0]);
+      const long nKy = static_cast<long>(gsize[1]);
+      const long nKz = static_cast<long>(gsize[2]);
+      const long shifty = static_cast<long>(local_1_start);
       #pragma omp parallel for
-      for(int j = 0; j<local_n1; ++j)
-      for(int i = 0; i<gsize[0]; ++i)
-      for(int k = 0; k<nz_hat; ++k) {
-        const int linidx = (j*gsize[0] +i)*nz_hat + k;
-        const int kx = (i <= gsize[0]/2) ? i : -(gsize[0]-i);
-        const int ky = (local_1_start+j <= gsize[1]/2) ? local_1_start+j :
-                                             -(gsize[1]-(local_1_start+j));
-        const int kz = (k <= gsize[2]/2) ? k : -(gsize[2]-k);
+      for(long j = 0; j<static_cast<long>(local_n1); ++j)
+      for(long i = 0; i<static_cast<long>(gsize[0]); ++i)
+      for(long k = 0; k<static_cast<long>(nz_hat);   ++k) {
+        const size_t linidx = (j*gsize[0] +i)*nz_hat + k;
+        const long kx = (i <= nKx/2) ? i : -(nKx-i);
+        const long l = shifty + j; //memory index plus shift due to decomp
+        const long ky = (l <= nKy/2) ? l : -(nKy-l);
+        const long kz = (k <= nKz/2) ? k : -(nKz-k);
 
         const Real rkx = kx*waveFactX, rky = ky*waveFactY, rkz = kz*waveFactZ;
         const Real kinv = kx || ky || kz ? -1/(rkx*rkx+rky*rky+rkz*rkz) : 0;
@@ -257,7 +258,7 @@ class PoissonSolverScalarFFTW_MPI
   void _cub2fftw(Real * const out) const
   {
     #pragma omp parallel for
-    for(int i=0; i<N; ++i) {
+    for(size_t i=0; i<local_infos.size(); ++i) {
       const BlockInfo info = local_infos[i];
       BlockType& b = *(BlockType*)info.ptrBlock;
       const size_t offset = _offset(info);

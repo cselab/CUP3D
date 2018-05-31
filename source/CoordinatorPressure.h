@@ -30,7 +30,7 @@ struct PressureObstacleVisitor : public ObstacleVisitor
   FluidGridMPI * grid;
   vector<BlockInfo> vInfo;
 
-  PressureObstacleVisitor(FluidGridMPI * grid) : grid(grid)
+  PressureObstacleVisitor(FluidGridMPI * _grid) : grid(_grid)
   {
     vInfo = grid->getBlocksInfo();
   }
@@ -108,7 +108,7 @@ class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
   PressureSolver*const solver;
 
  public:
-  OperatorDivergenceMinusDivTmpU2ndOrder(Real dt, PressureSolver*const s) : dt(dt), solver(s)
+  OperatorDivergenceMinusDivTmpU2ndOrder(Real _dt, PressureSolver*const s) : dt(_dt), solver(s)
   {
     stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 6, 1,2,3,5,6,7);
     stencil_start[0] = -2; stencil_start[1] = -2;  stencil_start[2] = -2;
@@ -219,12 +219,12 @@ template <typename Lab>
 class CoordinatorPressure : public GenericCoordinator
 {
  protected:
-    IF3D_ObstacleVector** const obstacleVector;
-    PressureSolver pressureSolver;
+  PressureSolver pressureSolver;
+  IF3D_ObstacleVector** const obstacleVector;
 
  public:
-  CoordinatorPressure(FluidGridMPI * grid, IF3D_ObstacleVector** const myobstacles) :
-    GenericCoordinator(grid), pressureSolver(NTHREADS,*grid), obstacleVector(myobstacles)
+  CoordinatorPressure(FluidGridMPI * _grid, IF3D_ObstacleVector** const myobstacles) :
+    GenericCoordinator(_grid), pressureSolver(NTHREADS,*_grid), obstacleVector(myobstacles)
   { }
 
   void operator()(const Real dt)

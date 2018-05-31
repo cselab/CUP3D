@@ -25,12 +25,12 @@ struct surface_data
   surface_data():ix(0), iy(0), iz(0),  dchidx(0), dchidy(0), dchidz(0), delta(0) {printf("AAAA\n"); fflush(0); abort();}
 };
 
-struct alignas(32) ObstacleBlock
+struct ObstacleBlock
 {
   // bulk quantities:
-  __attribute__((aligned(32))) Real            chi[_BS_][_BS_][_BS_];
-  __attribute__((aligned(32))) Real           udef[_BS_][_BS_][_BS_][3];
-  __attribute__((aligned(32))) float sectionMarker[_BS_][_BS_][_BS_];
+  Real            chi[_BS_][_BS_][_BS_];
+  Real           udef[_BS_][_BS_][_BS_][3];
+  float sectionMarker[_BS_][_BS_][_BS_];
 
   static const int sizeX = _BS_;
   static const int sizeY = _BS_;
@@ -125,8 +125,6 @@ struct alignas(32) ObstacleBlock
     if(vzDef   not_eq nullptr){free(vzDef);   vzDef=nullptr;  }
     if(ss      not_eq nullptr){free(ss);      ss=nullptr;     }
   }
-
-  virtual void mark(const int ss,const int indx,const int indy,const int indz){}
 
   virtual void clear()
   {

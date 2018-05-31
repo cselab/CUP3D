@@ -151,7 +151,7 @@ public:
 		return _existKey(key,mapArguments);
 	}
 
-	CommandlineParser(const int argc, char ** argv) : mapArguments(), iArgC(argc), vArgV(argv), bStrictMode(false), bVerbose(true)
+	CommandlineParser(const int argc, char ** argv) : iArgC(argc), vArgV(argv), bStrictMode(false), bVerbose(true),  mapArguments()
 	{
 		for (int i=1; i<argc; i++)
 			if (argv[i][0] == '-')

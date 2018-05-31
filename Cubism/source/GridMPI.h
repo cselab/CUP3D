@@ -46,7 +46,8 @@ public:
 
 	GridMPI(const int npeX, const int npeY, const int npeZ,
 			const int nX, const int nY=1, const int nZ=1,
-			const double maxextent = 1, const MPI_Comm comm = MPI_COMM_WORLD): TGrid(nX, nY, nZ, maxextent), timestamp(0), worldcomm(comm)
+			const double _maxextent = 1, const MPI_Comm comm = MPI_COMM_WORLD):
+      TGrid(nX, nY, nZ, _maxextent), timestamp(0), worldcomm(comm)
 	{
 		blocksize[0] = Block::sizeX;
 		blocksize[1] = Block::sizeY;
@@ -78,7 +79,7 @@ public:
         // Doesn't make sense to export `h_gridpoint` and `h_block` as a member
         // variable + getter, as they are not fixed values in case of
         // non-uniform grids.
-		const double h_gridpoint = maxextent / (double)std::max(
+		const double h_gridpoint = _maxextent / (double)std::max(
 				getBlocksPerDimension(0) * blocksize[0],
 				std::max(getBlocksPerDimension(1) * blocksize[1],
 						 getBlocksPerDimension(2) * blocksize[2]));
@@ -100,7 +101,7 @@ public:
         subdomain_high[1] = (mypeindex[1] + 1) * mybpd[1] * h_block[1];
         subdomain_high[2] = (mypeindex[2] + 1) * mybpd[2] * h_block[2];
 
-		for(int i=0; i<vInfo.size(); ++i)
+		for(size_t i=0; i<vInfo.size(); ++i)
 		{
 			BlockInfo info = vInfo[i];
 
@@ -146,7 +147,7 @@ public:
 		return TGrid::getBlocksInfo();
 	}
 
-	virtual bool avail(int ix, int iy=0, int iz=0) const
+	virtual bool avail(int ix, int iy=0, int iz=0) const override
 	{
 		//return true;
 		const int originX = mypeindex[0]*mybpd[0];
@@ -169,7 +170,7 @@ public:
 		return xinside && yinside && zinside;
 	}
 
-	inline Block& operator()(int ix, int iy=0, int iz=0) const
+	Block& operator()(int ix, int iy=0, int iz=0) const override
 	{
 		//assuming ix,iy,iz to be global
 		const int originX = mypeindex[0]*mybpd[0];
@@ -236,10 +237,10 @@ public:
 		return mybpd[idim]*pesize[idim];
 	}
 
-	void peindex(int mypeindex[3]) const
+	void peindex(int _mypeindex[3]) const
 	{
 		for(int i=0; i<3; ++i)
-			mypeindex[i] = this->mypeindex[i];
+			_mypeindex[i] = mypeindex[i];
 	}
 
     size_t getTimeStamp() const
