@@ -234,10 +234,10 @@ custom fields. Anything else is forwarded to the parent view.
 (function(){
     var PRESETS = [{
         "description": "Flow around a sphere at Re=2000.",
-        "data": '{"technical":{"num_nodes":1,"target_path":"sphere-01","num_cells":[256,128,128]},"simulation":{"tend":10,"tdump":0.1},"flow":{"nu":0.001},"obstacles":[{"obstacle_type":"Sphere","center":[0.5,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
+        "data": '{"simulation":{"num_nodes":1,"target_path":"sphere-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"executable_path":"${PWD}/../makefiles/"},"obstacles":[{"obstacle_type":"Sphere","center":[0.3,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
     }, {
         "description": "Flow around a half-cylinder at Re=2000.",
-        "data": '{"technical":{"num_nodes":1,"target_path":"sphere-01","num_cells":[256,128,128]},"simulation":{"tend":10,"tdump":0.1},"flow":{"nu":0.001},"obstacles":[{"obstacle_type":"Half-cylinder","center":[0.5,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
+        "data": '{"simulation":{"num_nodes":1,"target_path":"half-cylinder-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"executable_path":"${PWD}/../makefiles/"},"obstacles":[{"obstacle_type":"Half-cylinder","dcylinder_center":[0.3,0.25],"dcylinder_z_range":[0,1],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
     }];
 
     // Compile-time settings and other parameters.
@@ -295,27 +295,28 @@ custom fields. Anything else is forwarded to the parent view.
         // We use "obstacle" instead of "object" keyword to differentiate
         // between our objects and built-in objects.
         var obstacles = value["obstacles"];
-        var technical = value["technical"];
         var simulation = value["simulation"];
         var flow = value["flow"];
 
         var out = "";
         out += "#!/bin/bash\n\n";
         out += "set -e\n\n";
-        out += "NUM_NODES=" + technical["num_nodes"] + "\n";
+        out += "NUM_NODES=" + simulation["num_nodes"] + "\n";
         // https://stackoverflow.com/a/20053121/2203044
-        out += "TARGET_PATH=" + technical["target_path"] + "\n";
+        out += "TARGET_PATH=" + simulation["target_path"] + "\n";
 
-        if (technical["executable_path"]) {
-            out += "EXE_PATH=" + technical["executable_path"] + "\n";
+        if (simulation["executable_path"]) {
+            out += "EXE_PATH=" + simulation["executable_path"] + "\n";
         } else {
             out += "EXE_PATH=" + EXECUTABLE_PATH_DEFAULT + "\n";
         }
 
-        /* Technical. */
-        var bpdx = technical["num_cells"][0] / BLOCK_SIZE;
-        var bpdy = technical["num_cells"][1] / BLOCK_SIZE;
-        var bpdz = technical["num_cells"][2] / BLOCK_SIZE;
+        /* Simulation setup */
+        var bpdx = simulation["num_cells"][0] / BLOCK_SIZE;
+        var bpdy = simulation["num_cells"][1] / BLOCK_SIZE;
+        var bpdz = simulation["num_cells"][2] / BLOCK_SIZE;
+        var tend = simulation["tend"];
+        var tdump = simulation["tdump"];
         out += "\n";
         out += "OPTIONS=\n";
         out += "OPTIONS+=\" -nprocsx ${NUM_NODES}\"\n";
@@ -323,10 +324,6 @@ custom fields. Anything else is forwarded to the parent view.
         out += "OPTIONS+=' -bpdy " + bpdy + "'\n";
         out += "OPTIONS+=' -bpdz " + bpdz + "'\n";
         out += "OPTIONS+=' -nu " + flow["nu"] + "'\n";
-
-        /* Simulation setup */
-        var tend = simulation["tend"];
-        var tdump = simulation["tdump"];
         out += "OPTIONS+=' -tend " + tend + "'\n";
         if (tdump > 0)
             out += "OPTIONS+=' -tdump " + tdump + "'\n";
@@ -585,9 +582,9 @@ custom fields. Anything else is forwarded to the parent view.
         "title": CUBISM_NAME + " setup",
         "type": "object",
         "properties": {
-            "technical": {
+            "simulation": {
                 "type": "object",
-                "title": "Technical",
+                "title": "Simulation setup",
                 "properties": {
                     "num_nodes": {
                         "type": "integer",
@@ -607,12 +604,6 @@ custom fields. Anything else is forwarded to the parent view.
                             "minimum": BLOCK_SIZE,
                         }
                     },
-                },
-            },
-            "simulation": {
-                "type": "object",
-                "title": "Simulation setup",
-                "properties": {
                     "tend": {
                         "type": "number",
                         "title": "Simulation time",
@@ -694,6 +685,7 @@ custom fields. Anything else is forwarded to the parent view.
                             "title": "Radius",
                             "default": 0.1,
                             "minimum": 0.0,
+                            "maximum": 1.0,
                         },
                         "NACA_length": {
                             "type": "number",
@@ -778,7 +770,7 @@ custom fields. Anything else is forwarded to the parent view.
     };
     var OPTIONS = {
         "fields": {
-            "technical": {
+            "simulation": {
                 "fields": {
                     "num_cells": {
                         "type": "multivalue",
@@ -789,12 +781,8 @@ custom fields. Anything else is forwarded to the parent view.
                         "validator": validate_num_cells,
                     },
                     "target_path": {
-                        "TOOLTIP": "Where to store the simulation results.",
+                        "TOOLTIP": "Path for storing the simulation results.",
                     },
-                },
-            },
-            "simulation": {
-                "fields": {
                     "tdump": {
                         "TOOLTIP": "Time interval for saving visualization snapshots. Set to 0 to disable.",
                     },
@@ -810,7 +798,7 @@ custom fields. Anything else is forwarded to the parent view.
             "advanced": {
                 "fields": {
                     "executable_path": {
-                        "helper": "Folder containing the executables.",
+                        "helper": "Folder containing the executable.",
                     },
                 },
             },
@@ -892,7 +880,7 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "obstacle_forced": {
                                 "type": "checkbox",
-                                "TOOLTIP": "Enable to fix the obstacle velocity. Otherwise, the velocity will be calculated dynamically from the flow-induced forces.",
+                                "TOOLTIP": "Enable to specify the obstacle velocity. Otherwise, the velocity will be calculated dynamically from the flow-induced forces.",
                                 "INLINE_CHECKBOX": true,
                             },
                             "obstacle_vel": {
@@ -926,7 +914,6 @@ custom fields. Anything else is forwarded to the parent view.
         "layout": {
             "template": "#two-column-layout-template",
             "bindings": {
-                "technical": "leftcolumn",
                 "simulation": "leftcolumn",
                 "advanced": "leftcolumn",
                 "flow": "rightcolumn",
