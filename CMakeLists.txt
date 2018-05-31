@@ -16,7 +16,7 @@ option(VERBOSE OFF)
 set(EXE1 "cubismup3d_open")
 set(EXE2 "cubismup3d_periodicz")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
-set(ROOT_FOLDER "..")
+set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
 
 include_directories(${ROOT_FOLDER}/Cubism/source/)
 include_directories(${ROOT_FOLDER}/source/)
@@ -39,6 +39,7 @@ set(COMMON_SOURCES           # Common for app and lib.
 
 # Define targets (executables). We have two: one for open, one for periodic
 # boundary conditions (periodic in Z).
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ROOT_FOLDER}/bin)
 add_executable(${EXE1} ${COMMON_SOURCES} ${ROOT_FOLDER}/source/main.cpp)
 add_executable(${EXE2} ${COMMON_SOURCES} ${ROOT_FOLDER}/source/main.cpp)
 

@@ -21,7 +21,7 @@ mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
-cp ../makefiles/${EXEC} ${FOLDER}/simulation
+cp ../bin/${EXEC} ${FOLDER}/simulation
 cp $0 ${FOLDER}
 
 git diff HEAD > ${FOLDER}/gitdiff.diff

@@ -16,8 +16,9 @@ OR USE WEB SERVER VARIANT (NOTE: 60 UPDATES/HOUR LIMIT!!)
 
 To compile, run:
 ```bash
-cd makefiles/
-cmake .
+mkdir -p build
+cd build
+cmake ..
 make
 ```
 
@@ -63,8 +64,8 @@ source ~/.bashrc
 source ~/.bash_profile  # (Mac)
 
 # Step 4: Try again
-cd makefiles/
-cmake .
+cd build
+cmake ..
 make
 ```
 
@@ -87,7 +88,9 @@ The default number of jobs is equal to the number of physical cores.
 
 The default compiler `clang` on Mac does not support OpenMP. It is therefore necessary either to install `clang` OpenMP extension or to install e.g. `g++` compiler. The following snippet shows how to compile with `g++-7`:
 ```bash
-CXX=g++-7 cmake .
+mkdir -p build
+cd build
+CXX=g++-7 cmake ..
 MPICH_CXX=g++-7 make
 # or
 OMPI_CXX=g++-7 make
@@ -95,7 +98,7 @@ OMPI_CXX=g++-7 make
 
 ## Troubleshooting
 
-If `cmake .` keeps failing, delete the file `CMakeCache.txt` and try again.
+If `cmake ..` keeps failing, delete the file `CMakeCache.txt` and try again.
 
 
 
