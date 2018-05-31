@@ -163,7 +163,7 @@ void DumpSliceHDF5(const TSlice& slice, const int stepID, const Real t, const st
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
     file_id = H5Fcreate((filename.str()+".h5").c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
-    status = H5Pclose(fapl_id);
+    status = H5Pclose(fapl_id); if(status<0) H5Eprint1(stdout);
 
     if (0 == slice.dir)
         SliceExtractor::YZ<B,TStreamer>(slice.idx%_BLOCKSIZE_, width, bInfo_slice, array_all);
@@ -183,13 +183,13 @@ void DumpSliceHDF5(const TSlice& slice, const int stepID, const Real t, const st
     fspace_id = H5Dget_space(dataset_id);
     H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
     mspace_id = H5Screate_simple(3, count, NULL);
-    status = H5Dwrite(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
+    status = H5Dwrite(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all); if(status<0) H5Eprint1(stdout);
 
-    status = H5Sclose(mspace_id);
-    status = H5Sclose(fspace_id);
-    status = H5Dclose(dataset_id);
-    status = H5Pclose(fapl_id);
-    status = H5Fclose(file_id);
+    status = H5Sclose(mspace_id); if(status<0) H5Eprint1(stdout);
+    status = H5Sclose(fspace_id); if(status<0) H5Eprint1(stdout);
+    status = H5Dclose(dataset_id); if(status<0) H5Eprint1(stdout);
+    status = H5Pclose(fapl_id); if(status<0) H5Eprint1(stdout);
+    status = H5Fclose(file_id); if(status<0) H5Eprint1(stdout);
     H5close();
 
     delete [] array_all;

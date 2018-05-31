@@ -94,9 +94,9 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
 
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-    status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
+    status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL); if(status<0) H5Eprint1(stdout);
     file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
-    status = H5Pclose(fapl_id);
+    status = H5Pclose(fapl_id); if(status<0) H5Eprint1(stdout);
 
 #pragma omp parallel for
     for(size_t i=0; i<vInfo_local.size(); i++)
@@ -147,13 +147,13 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
     fspace_id = H5Dget_space(dataset_id);
     H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
     mspace_id = H5Screate_simple(4, count, NULL);
-    status = H5Dwrite(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
+    status = H5Dwrite(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all); if(status<0) H5Eprint1(stdout);
 
-    status = H5Sclose(mspace_id);
-    status = H5Sclose(fspace_id);
-    status = H5Dclose(dataset_id);
-    status = H5Pclose(fapl_id);
-    status = H5Fclose(file_id);
+    status = H5Sclose(mspace_id); if(status<0) H5Eprint1(stdout);
+    status = H5Sclose(fspace_id); if(status<0) H5Eprint1(stdout);
+    status = H5Dclose(dataset_id); if(status<0) H5Eprint1(stdout);
+    status = H5Pclose(fapl_id); if(status<0) H5Eprint1(stdout);
+    status = H5Fclose(file_id); if(status<0) H5Eprint1(stdout);
     H5close();
 
     delete [] array_all;
@@ -246,9 +246,9 @@ void ReadHDF5_MPI(TGrid &grid, const std::string f_name, const std::string dump_
 
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-    status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
+    status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL); if(status<0) H5Eprint1(stdout);
     file_id = H5Fopen(filename, H5F_ACC_RDONLY, fapl_id);
-    status = H5Pclose(fapl_id);
+    status = H5Pclose(fapl_id); if(status<0) H5Eprint1(stdout);
 
     dataset_id = H5Dopen2(file_id, "data", H5P_DEFAULT);
     fapl_id = H5Pcreate(H5P_DATASET_XFER);
@@ -258,7 +258,7 @@ void ReadHDF5_MPI(TGrid &grid, const std::string f_name, const std::string dump_
     H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
 
     mspace_id = H5Screate_simple(4, count, NULL);
-    status = H5Dread(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all);
+    status = H5Dread(dataset_id, HDF_REAL, mspace_id, fspace_id, fapl_id, array_all); if(status<0) H5Eprint1(stdout);
 
 #pragma omp parallel for
     for(size_t i=0; i<vInfo_local.size(); i++)
@@ -280,11 +280,11 @@ void ReadHDF5_MPI(TGrid &grid, const std::string f_name, const std::string dump_
                 }
     }
 
-    status = H5Pclose(fapl_id);
-    status = H5Dclose(dataset_id);
-    status = H5Sclose(fspace_id);
-    status = H5Sclose(mspace_id);
-    status = H5Fclose(file_id);
+    status = H5Pclose(fapl_id); if(status<0) H5Eprint1(stdout);
+    status = H5Dclose(dataset_id); if(status<0) H5Eprint1(stdout);
+    status = H5Sclose(fspace_id); if(status<0) H5Eprint1(stdout);
+    status = H5Sclose(mspace_id); if(status<0) H5Eprint1(stdout);
+    status = H5Fclose(file_id); if(status<0) H5Eprint1(stdout);
 
     H5close();
 
