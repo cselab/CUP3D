@@ -46,8 +46,7 @@ aryVolSeg IF3D_FishOperator::prepare_vSegments()
     - this is the smallest number of VolumeSegment_OBB (Nsegments) and points in
       the midline (Nm) to ensure at least one non ext. point inside all segments
    */
-  const int Nsegments = std::ceil(myFish->target_Nm/(myFish->Nextension+1.));
-  assert((myFish->Nextension+1)*Nsegments + 1 == myFish->Nm);
+  const int Nsegments = std::ceil((myFish->Nm-1.)/8);
   const int Nm = myFish->Nm;
   assert((Nm-1)%Nsegments==0);
 
@@ -192,13 +191,13 @@ void IF3D_FishOperator::integrateMidline()
     // check that things are zero
     const double volume_internal_check = myFish->integrateLinearMomentum(dummy_CoM_internal,dummy_vCoM_internal);
     myFish->integrateAngularMomentum(dummy_angvel_internal);
-
-    assert(std::abs(dummy_CoM_internal[0])<10*std::numeric_limits<Real>::epsilon());
-    assert(std::abs(dummy_CoM_internal[1])<10*std::numeric_limits<Real>::epsilon());
-    assert(std::abs(myFish->linMom[0])<10*std::numeric_limits<Real>::epsilon());
-    assert(std::abs(myFish->linMom[1])<10*std::numeric_limits<Real>::epsilon());
-    assert(std::abs(myFish->angMom)<10*std::numeric_limits<Real>::epsilon());
-    assert(std::abs(volume_internal - volume_internal_check) < 10*std::numeric_limits<Real>::epsilon());
+    const double EPS = 10*std::numeric_limits<Real>::epsilon();
+    assert(std::fabs(dummy_CoM_internal[0])<EPS);
+    assert(std::fabs(dummy_CoM_internal[1])<EPS);
+    assert(std::fabs(myFish->linMom[0])<EPS);
+    assert(std::fabs(myFish->linMom[1])<EPS);
+    assert(std::fabs(myFish->angMom)<EPS);
+    assert(std::fabs(volume_internal - volume_internal_check) < EPS);
   }
   #endif
   //MPI_Barrier(grid->getCartComm());
@@ -243,11 +242,15 @@ void IF3D_FishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+        //b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
+        b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
+        b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
+        b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
+      }
     }
   }
-  DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, 0, 0, "SFD", "./");
+  DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, 0, 0, "SFD", "./");
   abort();
   #endif
 }

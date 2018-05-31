@@ -313,27 +313,20 @@ class FishMidlineData
 {
  public:
   const double length, Tperiod, phaseShift, h;
-  #if 0
+
   // Midline is discretized by more points in first fraction and last fraction:
   const double fracRefined = 0.1, fracMid = 1 - 2*fracRefined;
-  const double dSmid_tgt = h / std::sqrt(3);
+  const double dSmid_tgt = h; // / std::sqrt(3)
   const double dSrefine_tgt = 0.125 * h;
 
-  const unsigned Nmid = (unsigned)std::floor(length * fracMid / dSmid_tgt);
+  const int Nmid = (int)std::floor(length * fracMid / dSmid_tgt / 8) * 8;
   const double dSmid = length * fracMid / Nmid;
 
-  const double Nend = (unsigned)std::ceil(
-    fracRefined * length * 2 / (dSmid + dSrefine_tgt) );
-  const double dSrefine_tgt = 0.125 * h;
+  const int Nend = (int)std::ceil( // here we ceil to be safer
+    fracRefined * length * 2 / (dSmid + dSrefine_tgt)  / 8) * 8;
+  const double dSref = fracRefined * length * 2 / Nend - dSmid;
 
-  #endif
-  // Extend interpolation to 2dx on each side (to get proper grads up to 1dx)
-  static constexpr int Nextension = NEXTDX * NPPEXT;
-  const double dx_extension = h / NEXTDX;
-  const double target_Nm = TGTPPB * length / h;
-  const int Nm = (Nextension+1)*(int)std::ceil(target_Nm/(Nextension+1.)) + 1;
-  const int Ninterior = Nm -2*Nextension; // number of interior points
-  const int iFishStart = NEXTDX*NPPEXT, iFishEnd = Nm-1 -NEXTDX*NPPEXT;
+  const int Nm = Nmid + 2 * Nend + 1; // plus 1 because we contain 0 and L
 
   Real * const rS; // arclength discretization points
   Real * const rX; // coordinates of midline discretization points
@@ -441,23 +434,27 @@ class FishMidlineData
    rX(_alloc(Nm)), rY(_alloc(Nm)), vX(_alloc(Nm)), vY(_alloc(Nm)),
    norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)),
    width(_alloc(Nm)), height(_alloc(Nm)), rXold(_alloc(Nm)), rYold(_alloc(Nm)),
-   upperSkin(new FishSkin(Ninterior)), lowerSkin(new FishSkin(Ninterior))
+   upperSkin(new FishSkin(Nm)), lowerSkin(new FishSkin(Nm))
   {
     std::fill(rXold, rXold+Nm, 0.0);
     std::fill(rYold, rYold+Nm, 0.0);
 
     // extension head
-    for(int i=0; i<Nextension; ++i)
-      rS[i] = 0 - (Nextension-i)*dx_extension;
+    rS[0] = 0;
+    int k = 0;
+    for(int i=0; i<Nend; ++i, k++)
+      rS[k+1] = rS[k] + dSref +(dSmid-dSref) *         i /((Real)Nend-1.);
+
     // interior points
-    for(int i=0; i<Ninterior; ++i) {
-      const Real x = i/((Real) Ninterior-1);
-      rS[i+Nextension] = length* (1-std::cos(M_PI*x))/2;
-      //rS[i+Next] = length*((1-std::cos(M_PI*x))/2 + x)/2;
-    }
+    for(int i=0; i<Nmid; ++i, k++)
+      rS[k+1] = rS[k] + dSmid;
+
     // extension tail
-    for(int i=0; i<Nextension; ++i)
-      rS[i+Ninterior+Nextension] = length +(i+1)*dx_extension;
+    for(int i=0; i<Nend; ++i, k++)
+      rS[k+1] = rS[k] + dSref +(dSmid-dSref) * (Nend-i-1)/((Real)Nend-1.);
+
+    assert(k+1==Nm);
+    cout << rS[k] << endl;
   }
 
   virtual ~FishMidlineData()
@@ -601,17 +598,6 @@ struct PutNacaOnBlocks: public PutFishOnBlocks
 {
   PutNacaOnBlocks(const FishMidlineData* const _cfish, const double p[3], const double q[4]): PutFishOnBlocks(_cfish, p, q) { }
 
-  inline int find_closest_dist_planar(const int s, const int dir, const Real x[3], Real & oldDistSq) const
-  {
-    if((s+dir)<cfish->iFishStart or (s+dir)>cfish->iFishEnd) return s;
-
-    const Real newD = pow(x[0]-cfish->rX[s+dir],2)+pow(x[1]-cfish->rY[s+dir],2);
-    if(oldDistSq <= newD) return s;
-    else {
-      oldDistSq   = newD;
-      return s+dir;
-    }
-  }
   Real getSmallerDistToMidLPlanar(const int start_s, const Real x[3], int & final_s) const;
 
   void constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegm) const override;

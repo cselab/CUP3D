@@ -139,15 +139,15 @@ void FishMidlineData::computeSurface()
   #pragma omp parallel for
   for(int i=0; i<Nskin; ++i)
   {
-    double norm[2] = {norX[iFishStart + i], norY[iFishStart + i]};
+    double norm[2] = {norX[i], norY[i]};
     double const norm_mod1 = std::sqrt(norm[0]*norm[0] + norm[1]*norm[1]);
     norm[0] /= norm_mod1;
     norm[1] /= norm_mod1;
-    assert(width[iFishStart + i] >= 0);
-    lowerSkin->xSurf[i] = rX[iFishStart+i] - width[iFishStart+i]*norm[0];
-    lowerSkin->ySurf[i] = rY[iFishStart+i] - width[iFishStart+i]*norm[1];
-    upperSkin->xSurf[i] = rX[iFishStart+i] + width[iFishStart+i]*norm[0];
-    upperSkin->ySurf[i] = rY[iFishStart+i] + width[iFishStart+i]*norm[1];
+    assert(width[i] >= 0);
+    lowerSkin->xSurf[i] = rX[i] - width[i]*norm[0];
+    lowerSkin->ySurf[i] = rY[i] - width[i]*norm[1];
+    upperSkin->xSurf[i] = rX[i] + width[i]*norm[0];
+    upperSkin->ySurf[i] = rY[i] + width[i]*norm[1];
   }
 }
 
@@ -189,11 +189,11 @@ void FishMidlineData::computeSkinNormals(const double theta_comp, const double C
     const int ii = (i<8) ? 8 : ((i > Nskin-9) ? Nskin-9 : i);
 
     const Real dirL =
-      lowerSkin->normXSurf[i] * (lowerSkin->midX[i]-rX[iFishStart+ii]) +
-      lowerSkin->normYSurf[i] * (lowerSkin->midY[i]-rY[iFishStart+ii]);
+      lowerSkin->normXSurf[i] * (lowerSkin->midX[i]-rX[ii]) +
+      lowerSkin->normYSurf[i] * (lowerSkin->midY[i]-rY[ii]);
     const Real dirU =
-      upperSkin->normXSurf[i] * (upperSkin->midX[i]-rX[iFishStart+ii]) +
-      upperSkin->normYSurf[i] * (upperSkin->midY[i]-rY[iFishStart+ii]);
+      upperSkin->normXSurf[i] * (upperSkin->midX[i]-rX[ii]) +
+      upperSkin->normYSurf[i] * (upperSkin->midY[i]-rY[ii]);
 
     if(dirL < 0) {
         lowerSkin->normXSurf[i] *= -1.0;
@@ -408,11 +408,14 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
   Real org[3];
   info.pos(org, 0, 0, 0);
   const Real h = info.h_gridpoint, invh = 1.0/info.h_gridpoint;
-  const int iFishEnd = cfish->iFishEnd, iFishStart = cfish->iFishStart;
   const Real* const rX = cfish->rX;
   const Real* const rY = cfish->rY;
   const Real* const norX = cfish->norX;
   const Real* const norY = cfish->norY;
+  const Real* const vX = cfish->vX;
+  const Real* const vY = cfish->vY;
+  const Real* const vNorX = cfish->vNorX;
+  const Real* const vNorY = cfish->vNorY;
   const Real* const width = cfish->width;
   const Real* const height = cfish->height;
   static constexpr int BS[3] = {FluidBlock::sizeX, FluidBlock::sizeY, FluidBlock::sizeZ};
@@ -420,8 +423,8 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
   for(int i=0; i<(int)vSegments.size(); ++i)
   {
     //iterate over segments contained in the vSegm intersecting this block:
-    const int firstSegm = max(vSegments[i].s_range.first,  iFishStart+1);
-    const int lastSegm =  min(vSegments[i].s_range.second,   iFishEnd-1);
+    const int firstSegm = max(vSegments[i].s_range.first,            1);
+    const int lastSegm =  min(vSegments[i].s_range.second, cfish->Nm-2);
     for(int ss=firstSegm; ss<=lastSegm; ++ss) {
       assert(height[ss]>0 && width[ss]>0);
       // fill chi by crating an ellipse around ss and finding all near neighs
@@ -453,6 +456,10 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
             (int)std::floor((myP[1]-org[1])*invh),
             (int)std::floor((myP[2]-org[2])*invh)
         };
+        Real udef[3] = { vX[ss+0] +width[ss+0]*costh*vNorX[ss+0],
+                         vY[ss+0] +width[ss+0]*costh*vNorY[ss+0], 0
+        };
+        changeVelocityToComputationalFrame(udef);
 
         // support is two points left, two points right --> Towers Chi
         // will be one point left, one point right, but needs SDF wider
@@ -482,7 +489,6 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
             dist1 = dist2; dist2 = dist0;
             close_s = secnd_s; secnd_s = ss;
           }
-          assert(close_s <= iFishEnd && close_s >= iFishStart);
 
           const Real dSsq = std::pow(rX[close_s]-rX[secnd_s], 2)
                            +std::pow(rY[close_s]-rY[secnd_s], 2);
@@ -491,7 +497,11 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
                              +std::pow(height[close_s]*sinth,2);
           const Real nxt2ML = std::pow( width[secnd_s]*costh,2)
                              +std::pow(height[secnd_s]*sinth,2);
-          defblock->sectionMarker[sz][sy][sx] = cfish->rS[close_s];
+          defblock->sectionMarker[sz][sy][sx] = cfish->rS[ss];
+          defblock->udef[sz][sy][sx][0] = udef[0];
+          defblock->udef[sz][sy][sx][1] = udef[1];
+          defblock->udef[sz][sy][sx][2] = udef[2];
+          b(sz,sy,sx).tmpU = 1;
 
           if(dSsq>=std::fabs(cnt2ML-nxt2ML))
           { // if no abrupt changes in width we use nearest neighbour
@@ -499,24 +509,24 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
             const Real grd2ML = eulerDistSq3D(p, xMidl);
             const Real sign = grd2ML > cnt2ML ? -1 : 1;
             defblock->chi[sz][sy][sx] = sign*dist1;
-            continue;
+          } else {
+            // else we model the span between ellipses as a spherical segment
+            // http://mathworld.wolfram.com/SphericalSegment.html
+            const Real corr = 2*std::sqrt(cnt2ML*nxt2ML);
+            const Real Rsq = (cnt2ML +nxt2ML -corr +dSsq) //radius of the spere
+                            *(cnt2ML +nxt2ML +corr +dSsq)/4/dSsq;
+            const Real maxAx = std::max(cnt2ML, nxt2ML);
+            const int idAx1 = cnt2ML> nxt2ML? close_s : secnd_s;
+            const int idAx2 = idAx1==close_s? secnd_s : close_s;
+            // 'submerged' fraction of radius:
+            const Real d = std::sqrt((Rsq - maxAx)/dSsq); // (divided by ds)
+            // position of the centre of the sphere:
+            const Real xMidl[3] = {rX[idAx1] +(rX[idAx1]-rX[idAx2])*d,
+                                   rY[idAx1] +(rY[idAx1]-rY[idAx2])*d, 0};
+            const Real grd2Core = eulerDistSq3D(p, xMidl);
+            const Real sign = grd2Core > Rsq ? -1 : 1;
+            defblock->chi[sz][sy][sx] = sign*dist1;
           }
-          // else we model the span between ellipses as a spherical segment
-          // http://mathworld.wolfram.com/SphericalSegment.html
-          const Real corr = 2*std::sqrt(cnt2ML*nxt2ML);
-          const Real Rsq = (cnt2ML +nxt2ML -corr +dSsq) // radius of the spere
-                          *(cnt2ML +nxt2ML +corr +dSsq)/4/dSsq;
-          const Real maxAx = std::max(cnt2ML, nxt2ML);
-          const int idAx1 = cnt2ML> nxt2ML? close_s : secnd_s;
-          const int idAx2 = idAx1==close_s? secnd_s : close_s;
-          // 'submerged' fraction of radius:
-          const Real d = std::sqrt((Rsq - maxAx)/dSsq); // (divided by ds)
-          // position of the centre of the sphere:
-          const Real xMidl[3] = {rX[idAx1] +(rX[idAx1]-rX[idAx2])*d,
-                                 rY[idAx1] +(rY[idAx1]-rY[idAx2])*d, 0};
-          const Real grd2Core = eulerDistSq3D(p, xMidl);
-          const Real sign = grd2Core > Rsq ? -1 : 1;
-          defblock->chi[sz][sy][sx] = sign*dist1;
           // Not chi yet, I stored squared distance from analytical boundary
           // distSq is updated only if curr value is smaller than the old one
         }
@@ -533,32 +543,20 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
   // construct the deformation velocities (P2M with hat function as kernel)
   for(int i=0; i<(int)vSegments.size(); ++i)
   {
-  for(int ss=vSegments[i].s_range.first; ss<=vSegments[i].s_range.second; ++ss)
+  const int firstSegm = max(vSegments[i].s_range.first,            1);
+  const int lastSegm =  min(vSegments[i].s_range.second, cfish->Nm-2);
+  for(int ss=firstSegm; ss<=lastSegm; ++ss)
   {
-    assert(ss>=0 && ss<=cfish->Nm-1);
     // P2M udef of a slice at this s
-    const Real myWidth =(ss<cfish->iFishStart? cfish->width[cfish->iFishStart]
-                       :(ss>cfish->iFishEnd  ? cfish->width[cfish->iFishEnd]
-                       : cfish->width[ss]));
-    const Real myHeight=(ss<cfish->iFishStart?cfish->height[cfish->iFishStart]
-                       :(ss>cfish->iFishEnd  ?cfish->height[cfish->iFishEnd]
-                       : cfish->height[ss]));
-    // towers needs 1dx on each side, smooth needs 2dx --> make it 3 to be nice
-    const Real extension = NPPEXT*h; // (and so we can floor!) G changed to 2
-    const int Nh = std::floor( (myHeight+extension)/h );
-    for(int ih=-Nh; ih<=Nh; ++ih)
+    const Real myWidth = cfish->width[ss], myHeight = cfish->height[ss];
+    assert(myWidth > 0 && myHeight > 0);
+    const int Nh = std::floor(myHeight/h); //floor bcz we already did interior
+    for(int ih=-Nh+1; ih<Nh; ++ih)
     {
       const Real offsetH = ih * h;
-      // add an extra extension when width == 0
-      // (to deal with large curvatures near head and/or tail):
-      const Real currentWidth = myWidth<=0 ? extension
-           : myWidth * std::sqrt(1 -std::pow(offsetH/(myHeight+extension), 2));
-      const Real actualWidth =
-          cfish->height[ss]<=0 || std::fabs(offsetH)>=cfish->height[ss] ? 0
-        : cfish->width[ss]* std::sqrt(1-std::pow(offsetH/cfish->height[ss], 2));
-      // add xtension here to make sure we have it in each direction:
-      const int Nw = std::floor( (currentWidth+extension)/h );
-      for(int iw = -Nw; iw <= Nw; ++iw)
+      const Real currWidth = myWidth*std::sqrt(1-std::pow(offsetH/myHeight, 2));
+      const int Nw = std::floor(currWidth/h);//floor bcz we already did interior
+      for(int iw = -Nw+1; iw < Nw; ++iw)
       {
         const Real offsetW = iw * h;
         Real xp[3] = { cfish->rX[ss] + offsetW*cfish->norX[ss],
@@ -584,8 +582,7 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
           wghts[c][0] = 1.0 - t[0];
           wghts[c][1] = 1.0 - t[1];
         }
-        const bool isInside =  (std::fabs(offsetW)+h/2 < actualWidth)
-                            && (std::fabs(offsetH)+h/2 < cfish->height[ss]);
+
         for(int sz=max(0,0-iap[2]); sz<min(2,FluidBlock::sizeZ-iap[2]); ++sz)
         for(int sy=max(0,0-iap[1]); sy<min(2,FluidBlock::sizeY-iap[1]); ++sy)
         for(int sx=max(0,0-iap[0]); sx<min(2,FluidBlock::sizeX-iap[0]); ++sx) {
@@ -602,7 +599,7 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
           b(idx,idy,idz).tmpU += wxwywz;
 
           // set sign for all interior points
-          if( std::fabs(defblock->chi[idz][idy][idx]+1)<EPS && isInside )
+          if( std::fabs(defblock->chi[idz][idy][idx]+1)<EPS )
             defblock->chi[idz][idy][idx] = 1.0;
         }
       }
@@ -625,8 +622,8 @@ void PutFishOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, O
     // change from signed squared distance function to normal sdf
     b(ix,iy,iz).tmpU = defblock->chi[iz][iy][ix] > (Real)0 ?
       sqrt( defblock->chi[iz][iy][ix]) : -sqrt(-defblock->chi[iz][iy][ix]);
-    //b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0]; //for debug
-    //b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1]; //for debug
+    b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0]; //for debug
+    b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1]; //for debug
   }
 }
 
@@ -634,12 +631,15 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
 {
   Real org[3];
   info.pos(org, 0, 0, 0);
-  const Real invh = 1.0/info.h_gridpoint;
-  const int iFishEnd = cfish->iFishEnd, iFishStart = cfish->iFishStart;
+  const Real h = info.h_gridpoint, invh = 1.0/info.h_gridpoint;
   const Real* const rX = cfish->rX;
   const Real* const rY = cfish->rY;
   const Real* const norX = cfish->norX;
   const Real* const norY = cfish->norY;
+  const Real* const vX = cfish->vX;
+  const Real* const vY = cfish->vY;
+  const Real* const vNorX = cfish->vNorX;
+  const Real* const vNorY = cfish->vNorY;
   const Real* const width = cfish->width;
   const Real* const height = cfish->height;
   static constexpr int BS[3] = {FluidBlock::sizeX, FluidBlock::sizeY, FluidBlock::sizeZ};
@@ -647,8 +647,8 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
   // construct the shape (P2M with min(distance) as kernel) onto defblocks
   for(int i=0; i<(int)vSegments.size(); ++i) {
     //iterate over segments contained in the vSegm intersecting this block:
-    const int firstSegm = max(vSegments[i].s_range.first,  iFishStart+1);
-    const int lastSegm =  min(vSegments[i].s_range.second,   iFishEnd-1);
+    const int firstSegm = max(vSegments[i].s_range.first,            1);
+    const int lastSegm =  min(vSegments[i].s_range.second, cfish->Nm-2);
     for(int ss=firstSegm; ss<=lastSegm; ++ss) {
       assert(height[ss]>0 && width[ss]>0);
       //for each segment, we have one point to left and right of midl
@@ -668,6 +668,10 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
         const int iap[2] = {  (int)std::floor((myP[0]-org[0])*invh),
                               (int)std::floor((myP[1]-org[1])*invh)
         };
+        Real udef[3] = { vX[ss+0] +width[ss+0]*signp*vNorX[ss+0],
+                         vY[ss+0] +width[ss+0]*signp*vNorY[ss+0], 0
+        };
+        changeVelocityToComputationalFrame(udef);
         // support is two points left, two points right --> Towers Chi will be one point left, one point right, but needs SDF wider
         for(int sy =std::max(0, iap[1]-1); sy <std::min(iap[1]+3, BS[1]); ++sy)
         for(int sx =std::max(0, iap[0]-1); sx <std::min(iap[0]+3, BS[0]); ++sx)
@@ -692,7 +696,6 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
             dist1 = dist2; dist2 = dist0;
             close_s = secnd_s; secnd_s = ss;
           }
-          assert(close_s <= iFishEnd && close_s >= iFishStart);
 
           const Real dSsq = std::pow(rX[close_s]-rX[secnd_s], 2)
                            +std::pow(rY[close_s]-rY[secnd_s], 2);
@@ -725,11 +728,24 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
           }
 
           //since naca extends over z axis, loop over all block
-          for(int sz = 0; sz < FluidBlock::sizeZ; ++sz)
-            if(std::fabs(defblock->chi[sz][sy][sx]) > dist1) {
-              defblock->sectionMarker[sz][sy][sx] = cfish->rS[close_s];
-              defblock->chi[sz][sy][sx] = sign2d*dist1;
+          for(int sz = 0; sz < FluidBlock::sizeZ; ++sz) {
+            const Real pZ = org[2] + h*sz;
+            // positive inside negative outside ... as usual
+            const Real distZ = height[ss] - std::fabs(position[2] - pZ);
+            const Real wz = 0.5 + std::min(1., std::max(distZ*invh, -1.))/2;
+            const Real signZ = (0 < distZ) - (distZ < 0);
+            const Real distZsq = signZ*distZ*distZ;
+            const Real dist3D = std::min(signZ*distZ*distZ, sign2d*dist1);
+
+            if(std::fabs(defblock->chi[sz][sy][sx]) > dist3D) {
+              defblock->sectionMarker[sz][sy][sx] = cfish->rS[ss];
+              defblock->chi [sz][sy][sx] = dist3D;
+              defblock->udef[sz][sy][sx][0] = udef[0];
+              defblock->udef[sz][sy][sx][1] = udef[1];
+              defblock->udef[sz][sy][sx][2] = udef[2];
+              b(sz,sy,sx).tmpU = 1;
             }
+          }
           // Not chi yet, I stored squared distance from analytical boundary
           // distSq is updated only if curr value is smaller than the old one
         }
@@ -746,25 +762,17 @@ void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
   // construct the deformation velocities (P2M with hat function as kernel)
   for(int i=0; i<(int)vSegments.size(); ++i)
   {
-  for(int ss=vSegments[i].s_range.first; ss<=vSegments[i].s_range.second; ++ss)
+  const int firstSegm = max(vSegments[i].s_range.first,            1);
+  const int lastSegm =  min(vSegments[i].s_range.second, cfish->Nm-2);
+  for(int ss=firstSegm; ss<=lastSegm; ++ss)
   {
-    assert(ss>=0 && ss<=cfish->Nm-1);
     // P2M udef of a slice at this s
-    const Real myWidth =(ss<cfish->iFishStart? cfish->width[cfish->iFishStart]
-                       :(ss>cfish->iFishEnd  ? cfish->width[cfish->iFishEnd]
-                       : cfish->width[ss]));
-    const Real myHeight=(ss<cfish->iFishStart?cfish->height[cfish->iFishStart]
-                       :(ss>cfish->iFishEnd  ?cfish->height[cfish->iFishEnd]
-                       : cfish->height[ss]));
-    // towers needs 1dx on each side, smooth needs 2dx --> make it 3 to be nice
-    const Real extension = NPPEXT*h; // (and so we can floor!) G changed to 2
-    // add an extra extension when width == 0
-    // (to deal with large curvatures near head and/or tail):
-    const Real currentWidth = myWidth<=0 ? extension : myWidth;
+    const Real myWidth = cfish->width[ss], myHeight = cfish->height[ss];
+    assert(myWidth > 0 && myHeight > 0);
     //here we process also all inner points. Nw to the left and right of midl
     // add xtension here to make sure we have it in each direction:
-    const int Nw = std::floor( (currentWidth+extension)/h);
-    for(int iw = -Nw; iw <= Nw; ++iw)
+    const int Nw = std::floor(myWidth/h); //floor bcz we already did interior
+    for(int iw = -Nw+1; iw < Nw; ++iw)
     {
       const Real offsetW = iw * h;
       Real xp[3] = { cfish->rX[ss] + offsetW*cfish->norX[ss],
@@ -787,7 +795,7 @@ void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
         wghts[c][0] = 1.0 - t[0];
         wghts[c][1] = 1.0 - t[1];
       }
-      const bool isInside2d = std::fabs(offsetW)+h/2 < myWidth;
+
       for(int idz=0; idz<FluidBlock::sizeZ; ++idz)
       {
         const Real pZ = org[2] + h*idz;
@@ -811,10 +819,7 @@ void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
           b(idx,idy,idz).tmpU += wxwywz;
 
           // set sign for all interior points
-          if( std::fabs(defblock->chi[idz][idy][idx]+1)<EPS && isInside2d )
-            defblock->chi[idz][idy][idx] = 1.0;
-
-          if(distZsq<defblock->chi[idz][idy][idx])
+          if( std::fabs(defblock->chi[idz][idy][idx]+1)<EPS )
             defblock->chi[idz][idy][idx] = distZsq;
         }
       }

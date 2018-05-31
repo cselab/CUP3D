@@ -14,8 +14,13 @@
 #include <random>
 class NacaMidlineData : public FishMidlineData
 {
+ Real * const rK;
+ Real * const vK;
+ Real * const rC;
+ Real * const vC;
  public:
-  NacaMidlineData(const double L, const double _h, double zExtent, double t_ratio, double HoverL=1) : FishMidlineData(L, 1, 0, _h)
+  NacaMidlineData(const double L, const double _h, double zExtent, double t_ratio, double HoverL=1) : FishMidlineData(L, 1, 0, _h),
+   rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm))
   {
     #if defined(BC_PERIODICZ)
       // large enough in z-dir such that we for sure fill entire domain
@@ -40,12 +45,35 @@ class NacaMidlineData : public FishMidlineData
 
   void computeMidline(const double time) override
   {
-    rX[0] = rY[0] = vX[0] = vY[0] = 0;
-    for(int i=1; i<Nm; ++i) {
-      rY[i] = vX[i] = vY[i] = 0;
-      rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
-    }
-    _computeMidlineNormals();
+    #if 1
+      rX[0] = rY[0] = vX[0] = vY[0] = 0;
+      for(int i=1; i<Nm; ++i) {
+        rY[i] = vX[i] = vY[i] = 0;
+        rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
+      }
+      _computeMidlineNormals();
+    #else // 2d stefan swimmer
+      const std::array<double ,6> curvature_points = {
+          0, .15*length, .4*length, .65*length, .9*length, length
+      };
+      const std::array<double ,6> curvature_values = {
+          0.82014/length, 1.46515/length, 2.57136/length,
+          3.75425/length, 5.09147/length, 5.70449/length
+      };
+      curvScheduler.transition(time,0,1,curvature_values,curvature_values);
+      // query the schedulers for current values
+      curvScheduler.gimmeValues(time, curvature_points, Nm, rS, rC, vC);
+      // construct the curvature
+      for(int i=0; i<Nm; i++) {
+        const double darg = 2.*M_PI;
+        const double arg  = 2.*M_PI*(time -rS[i]/length) + M_PI*phaseShift;
+        rK[i] =   rC[i]*std::sin(arg);
+        vK[i] =   vC[i]*std::sin(arg) + rC[i]*std::cos(arg)*darg;
+      }
+
+      // solve frenet to compute midline parameters
+      IF2D_Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
+    #endif
   }
 };
 
@@ -183,12 +211,15 @@ void IF3D_NacaOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         //b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
-        b(ix,iy,iz).chi = b(ix,iy,iz).tmpU;
+        b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
+        b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
+        b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
+      }
     }
   }
-  DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, 0, 0, "SFD", "./");
+  DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, 0, 0, "SFD", "./");
   abort();
   #endif
 }
