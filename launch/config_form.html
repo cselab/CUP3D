@@ -4,7 +4,6 @@
 If you don't know what to do:
 TODO: Add a note that internet connection is required (for CSS/JS files).
 TODO: xyz bForcedInSimFrame and bFixFrameOfRef.
-TODO: Fix loading presets (and probably copy-pasting). The form dependencies are not verified.
 TODO: Write the size of the domain in "Information".
 -->
 
@@ -42,9 +41,6 @@ overrides some callbacks ("control" and "container"), and acts only on our
 custom fields. Anything else is forwarded to the parent view.
 -->
 
-<!-- TODO: Add a note that internet connection is required (for CSS/JS files). -->
-<!-- TODO: Add option to store and load JSON. -->
-<!-- TODO: xyz bForcedInSimFrame and bFixFrameOfRef -->
 <html>
 <head>
   <title>CubismUP_3D config file generator</title>
@@ -267,14 +263,30 @@ custom fields. Anything else is forwarded to the parent view.
     $('.preset').click(function() {
         var index = parseInt($(this).attr('data-index'));
         var json = JSON.parse(PRESETS[index]["data"]);
-        form_control.setValue(json);
-        update_config(json);
+        reset_form(json);
     });
     $('.preset').tooltip()
 
     // https://stackoverflow.com/a/22827128/2203044
     var escape_shell = function(str) {
         return "'" + str.replace(/'/g, "'\\''") + "'";
+    };
+
+    /*
+     * Returns if the value is well defined.
+     *
+     * Check if a value is either a not-NaN number, or a recursive array
+     * of well defined values.
+     */
+    var is_ok = function(x) {
+        if (Array.isArray(x)) {
+            for (var i = 0; i < x.length; ++i)
+                if (!is_ok(x[i]))
+                    return false;
+            return true;
+        } else {
+            return typeof(x) === "number" && !(x !== x);
+        }
     };
 
     /* Generate config file from form values. */
@@ -319,6 +331,7 @@ custom fields. Anything else is forwarded to the parent view.
         if (tdump > 0)
             out += "OPTIONS+=' -tdump " + tdump + "'\n";
 
+
         /* Obstacles (FACTORY) */
         var Re = -1;
         var Re_desc = "";  // Wrt what object is this Reynold number?
@@ -329,44 +342,70 @@ custom fields. Anything else is forwarded to the parent view.
             var error = null;
             var params = {};
 
-            /* Position */
-            if (o["center"]) {
-                params["xpos"] = o["center"][0];
-                params["ypos"] = o["center"][1];
-                params["zpos"] = o["center"][2];
-            } else {
-                error = "Center not specified!";
-            }
-
             /* Obstacle-specific parameters */
             var type = o["obstacle_type"];
-            switch(type) {
-                case SPHERE:
-                case DCYLINDER:
-                    name = type == SPHERE ? "IF3D_Sphere" : "IF3D_DCylinder";
-                    if (o["radius"])
-                        params["L"] = 2 * o["radius"];
-                    else
-                        error = "Radius not specified or zero!";
-                    break;
-                case NACA:
-                    name = "NACA Airfoil";
-                    if (o["NACA_length"])
-                        params["L"] = o["NACA_length"];
-                    else
-                        error = "NACA length not specified or zero!";
-                    if (o["NACA_thickness"])
-                        params["thickness"] = o["NACA_thickness"];
-                    else
-                        error = "NACA thickness not specified or zero!";
 
-                    if (typeof(o["NACA_Apitch"]) !== "undefined") params["Apitch"] = o["NACA_Apitch"];
-                    if (typeof(o["NACA_Fpitch"]) !== "undefined") params["Fpitch"] = o["NACA_Fpitch"];
-                    if (typeof(o["NACA_Ppitch"]) !== "undefined") params["Ppitch"] = o["NACA_Ppitch"];
-                    if (typeof(o["NACA_Mpitch"]) !== "undefined") params["Mpitch"] = o["NACA_Mpitch"];
-                    if (typeof(o["NACA_Fheave"]) !== "undefined") params["Fheave"] = o["NACA_Fheave"];
-                    if (typeof(o["NACA_Aheave"]) !== "undefined") params["Aheave"] = o["NACA_Aheave"];
-                    break;
+            /* Position */
+            if (type == SPHERE || type == NACA) {
+                var c = o["center"];
+                if (is_ok(c)) {
+                    params["xpos"] = c[0];
+                    params["ypos"] = c[1];
+                    params["zpos"] = c[2];
+                } else {
+                    error = "Center position not specified.";
+                }
+            }
+            if (type == DCYLINDER) {
+                var c = o["dcylinder_center"];
+                if (is_ok(c)) {
+                    params["xpos"] = c[0];
+                    params["ypos"] = c[1];
+                } else {
+                    error = "Center position not specified.";
+                }
+                var zz = o["dcylinder_z_range"];
+                if (is_ok(zz)) {
+                    params["zpos"] = .5 * (zz[0] + zz[1]);
+                    params["halflength"] = .5 * Math.abs(zz[1] - zz[0]);
+                } else {
+                    error = "Cylinder Z range not specified."
+                }
+            }
+
+            /* Radius */
+            if (type == SPHERE || type == DCYLINDER) {
+                if (o["radius"])
+                    params["L"] = 2 * o["radius"];
+                else
+                    error = "Radius not specified or zero!";
+            }
+
+            /* NACA */
+            if (type == NACA) {
+                if (o["NACA_length"])
+                    params["L"] = o["NACA_length"];
+                else
+                    error = "NACA length not specified or zero!";
+                if (o["NACA_thickness"])
+                    params["thickness"] = o["NACA_thickness"];
+                else
+                    error = "NACA thickness not specified or zero!";
+
+                if (is_ok(o["NACA_Apitch"])) params["Apitch"] = o["NACA_Apitch"];
+                if (is_ok(o["NACA_Fpitch"])) params["Fpitch"] = o["NACA_Fpitch"];
+                if (is_ok(o["NACA_Ppitch"])) params["Ppitch"] = o["NACA_Ppitch"];
+                if (is_ok(o["NACA_Mpitch"])) params["Mpitch"] = o["NACA_Mpitch"];
+                if (is_ok(o["NACA_Fheave"])) params["Fheave"] = o["NACA_Fheave"];
+                if (is_ok(o["NACA_Aheave"])) params["Aheave"] = o["NACA_Aheave"];
+            }
+
+            /* Name */
+            switch(type) {
+                case SPHERE: name = "IF3D_Sphere"; break;
+                case DCYLINDER: name = "IF3D_DCylinder"; break;
+                case NACA: name = "IF3D_NacaOperator"; break;
+                default: error = "Unknown type??"; break;
             };
 
             /* Velocity */
@@ -374,15 +413,17 @@ custom fields. Anything else is forwarded to the parent view.
             params["bForcedInSimFrame"] = forced;
             if (forced) {
                 var v = o["obstacle_vel"];
-                params["xvel"] = v[0];
-                params["yvel"] = v[1];
-                params["zvel"] = v[2];
-                var v = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-                var Re_curr = v * params["L"] / flow["nu"];
-                if (Re_curr > Re) {
-                    Re = Re_curr;
-                    Re_desc = "-- with respect to the object #" + (i + 1)
-                            + " at (" + params["xpos"] + ", " + params["ypos"] + ", " + params["zpos"] + ")";
+                if (is_ok(v[0])) params["xvel"] = v[0];
+                if (is_ok(v[1])) params["yvel"] = v[1];
+                if (is_ok(v[2])) params["zvel"] = v[2];
+                if (is_ok(v) && type != NACA) {
+                    var v = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+                    var Re_curr = v * params["L"] / flow["nu"];
+                    if (Re_curr > Re) {
+                        Re = Re_curr;
+                        Re_desc = "-- with respect to the object #" + (i + 1)
+                                + " at (" + params["xpos"] + ", " + params["ypos"] + ", " + params["zpos"] + ")";
+                    }
                 }
             }
 
@@ -445,18 +486,24 @@ custom fields. Anything else is forwarded to the parent view.
         current_config = out;
     };
 
+    /* Refresh form function. */
+    var maybe_refresh = function() {
+        if (form_control.isValid(true))
+            update_config(form_control.getValue());
+    };
+
     /* "Download" config file. */
-    // https://stackoverflow.com/a/18197341/2203044
     var download = function(filename, text) {
+        // First refresh just in case. This is probably a bit controversial...
+        maybe_refresh();
+
+        // https://stackoverflow.com/questions/3665115/create-a-file-in-memory-for-user-to-download-not-through-server/18197341#18197341
         var element = document.createElement('a');
         element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
         element.setAttribute('download', filename);
-
         element.style.display = 'none';
         document.body.appendChild(element);
-
         element.click();
-
         document.body.removeChild(element);
     }
 
@@ -475,9 +522,8 @@ custom fields. Anything else is forwarded to the parent view.
         } catch (SyntaxError) {
             alert("Invalid JSON.");
         }
-        form_control.setValue(json);
+        reset_form(json);
         $('#load-config-modal').modal('hide');
-        update_config(json);
     });
 
     /* Shortcut functions for form schema. */
@@ -508,8 +554,7 @@ custom fields. Anything else is forwarded to the parent view.
             return "multivalue";
         },
 
-        setup: function()
-        {
+        setup: function() {
             if (!this.schema.minItems)
                 this.schema.minItems = this.data.length;
             if (!this.schema.maxItems)
@@ -517,23 +562,20 @@ custom fields. Anything else is forwarded to the parent view.
             this.options.toolbarSticky = true;
 
             this.base();
-
-            if (!this.options.length)
-                this.options.length = 3;
-
-            if (!this.options.data || Object.keys(this.options.data).length === 0) {
-                this.options.data = [];
-                for (var i = 0; i < this.options.length; ++i)
-                    this.options.data.push(0);
-            }
         },
 
-        postRender: function(callback) {
-            var self = this;
-            this.base(function() {
-                // $(self.field).find('.alpaca-array-actionbar').hide();
-                callback();
-            });
+        /* Override default behavior which ignored `undefined` items.
+         * We want to keep them, to keep the order. */
+        getContainerValue: function() {
+            // If we're empty and we're also not required, then we hand back empty set.
+            if (this.children.length === 0 && !this.isRequired())
+                return [];
+
+            // Otherwise, construct an array and hand it back.
+            var o = [];
+            for (var i = 0; i < this.children.length; ++i)
+                o.push(this.children[i].getValue())
+            return o;
         },
     });
     Alpaca.registerFieldClass("multivalue", MultiValueField);
@@ -614,7 +656,6 @@ custom fields. Anything else is forwarded to the parent view.
             "obstacles": {
                 "type": "array",
                 "title": "Objects",
-                "default": '[{"obstacle_type": "' + SPHERE + '", "center": [0.5, 0.5, 0.5], "radius": 0.1, "obstacle_forced": true, "obstacle_vel": [10, 0, 0], "obstacle_frame_fixed": true}]',
                 "items": {
                     "type": "object",
                     "properties": {
@@ -623,7 +664,25 @@ custom fields. Anything else is forwarded to the parent view.
                         },
                         "center": {
                             "title": "Center",
-                            "default": [0.0, 0.0, 0.0],
+                            "default": [0.5, 0.5, 0.5],
+                            "items": {
+                                "type": "number",
+                                "minimum": 0.0,
+                                "maximum": 1.0,
+                            },
+                        },
+                        "dcylinder_center": {
+                            "title": "Center (XY)",
+                            "default": [0.5, 0.5],
+                            "items": {
+                                "type": "number",
+                                "minimum": 0.0,
+                                "maximum": 1.0,
+                            },
+                        },
+                        "dcylinder_z_range": {
+                            "title": "Z<sub>low</sub> and Z<sub>high</sub>",
+                            "default": [0.0, 1.0],
                             "items": {
                                 "type": "number",
                                 "minimum": 0.0,
@@ -650,7 +709,7 @@ custom fields. Anything else is forwarded to the parent view.
                             "maxmimum": 1.0,
                         },
                         "NACA_advanced": {
-                            "title": "Dynamics options?",
+                            "title": "Heaving/pitching options?",
                             "default": false,
                         },
                         // Do not put default values for the following NACA
@@ -679,6 +738,9 @@ custom fields. Anything else is forwarded to the parent view.
                         },
                     },
                     "dependencies": {
+                        "center": ["obstacle_type"],
+                        "dcylinder_center": ["obstacle_type"],
+                        "dcylinder_z_range": ["obstacle_type"],
                         "radius": ["obstacle_type"],
                         "NACA_length": ["obstacle_type"],
                         "NACA_thickness": ["obstacle_type"],
@@ -767,6 +829,21 @@ custom fields. Anything else is forwarded to the parent view.
                             "center": {
                                 "type": "multivalue",
                                 "required": true,
+                                "dependencies": { "obstacle_type": [SPHERE, NACA], },
+                            },
+                            "dcylinder_center": {
+                                "type": "multivalue",
+                                "required": true,
+                                "dependencies": { "obstacle_type": [DCYLINDER], },
+                            },
+                            "dcylinder_z_range": {
+                                "type": "multivalue",
+                                "required": true,
+                                "dependencies": { "obstacle_type": [DCYLINDER], },
+                                "helpers": [
+                                    "For cylinders extending the whole Z range, consider using <i>Periodic in Z</i> option.",
+                                    "The flat part of the half-cylinder is oriented in +X direction.",
+                                ],
                             },
                             "radius": {
                                 "required": true,
@@ -803,7 +880,7 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "NACA_Mpitch": {
                                 "dependencies": { "NACA_advanced": true },
-                                "placeholder": "Mean angle of attack / mean pitch angle",
+                                "placeholder": "Mean angle of attack (mean pitch angle)",
                             },
                             "NACA_Ppitch": {
                                 "dependencies": { "NACA_advanced": true },
@@ -910,32 +987,35 @@ custom fields. Anything else is forwarded to the parent view.
         },
     };
 
-    $("#form").alpaca({
-        "schema": SCHEMA,
-        "options": OPTIONS,
-        "view": VIEW,
-        "postRender": function(control) {
-            window.form_control = form_control = control;
-            var maybe_refresh = function() {
-                if (form_control.isValid(true))
-                    update_config(form_control.getValue());
-            };
-            control.on("change", maybe_refresh);
-            $("#form").on("click", ".alpaca-array-actionbar-action", function() {
-                // https://github.com/gitana/alpaca/issues/583
-                // Form doesn't update when array items are added or removed.
-                // Therefore, we listen to all clicks to array actionbar.
+    var reset_form = function(data) {
+        $("#form").alpaca("destroy");
+        $("#form").alpaca({
+            "data": data,
+            "schema": SCHEMA,
+            "options": OPTIONS,
+            "view": VIEW,
+            "postRender": function(control) {
+                window.form_control = form_control = control;
+                control.on("change", maybe_refresh);
+                var delayed_refresh = function() {
+                    // https://github.com/gitana/alpaca/issues/583
+                    // Form doesn't update when array items are added or removed.
+                    // Therefore, we listen to all clicks to array actionbar.
 
-                // However, remove and move events are not at all triggered. :(
+                    // However, remove and move events are not at all triggered. :(
 
-                // ...and the form update is not instantaneous.
-                setTimeout(maybe_refresh, 500);
-                setTimeout(maybe_refresh, 1500);
-                setTimeout(maybe_refresh, 2500);
-            });
-            update_config(control.getValue());
-        },
-    });
+                    // ...and the form update is not instantaneous.
+                    setTimeout(maybe_refresh, 500);
+                    setTimeout(maybe_refresh, 1500);
+                    setTimeout(maybe_refresh, 2500);
+                }
+                $("#form").on("click", ".alpaca-array-toolbar-action", delayed_refresh);
+                $("#form").on("click", ".alpaca-array-actionbar-action", delayed_refresh);
+                update_config(control.getValue());
+            },
+        });
+    };
+    reset_form({});
 })();
 </script>
 
