@@ -837,7 +837,6 @@ void MidlineShapes::integrateBSpline(const double*const xc,
     len += std::sqrt(std::pow(xc[i]-xc[i+1],2) +
                      std::pow(yc[i]-yc[i+1],2));
   }
-
   gsl_bspline_workspace *bw;
   gsl_vector *B;
   // allocate a cubic bspline workspace (k = 4)
@@ -849,13 +848,14 @@ void MidlineShapes::integrateBSpline(const double*const xc,
   for(int i=0; i<Nm; ++i) {
     res[i] = 0;
     if (rS[i]>0 and rS[i]<length) {
-      const double dtt = 0.1*(rS[i]-rS[i-1]);
+      const double dtt = (rS[i]-rS[i-1])/1e3;
       while (true) {
         double xi = 0;
         gsl_bspline_eval(ti, B, bw);
         for (int j=0; j<n; j++) xi += xc[j]*gsl_vector_get(B, j);
         if (xi >= rS[i]) break;
-        ti += dtt;
+        if(ti + dtt > len)  break;
+        else ti += dtt;
       }
 
       for (int j=0; j<n; j++) res[i] += yc[j]*gsl_vector_get(B, j);

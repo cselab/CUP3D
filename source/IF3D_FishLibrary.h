@@ -302,13 +302,6 @@ struct FishSkin
     }
 };
 
-//approximate number of midlinep per grid point:
-const int TGTPPB = 2;
-// number of gridp added around the surface over wich defvel field is extended:
-const int NPPEXT = 2; //was 3, with Towers we need 2 (chi!=0 only 1 pnt outside)
-// number of extension points per grid point:
-const int NEXTDX = 2;
-
 class FishMidlineData
 {
  public:
@@ -454,7 +447,8 @@ class FishMidlineData
       rS[k+1] = rS[k] + dSref +(dSmid-dSref) * (Nend-i-1)/((Real)Nend-1.);
 
     assert(k+1==Nm);
-    cout << rS[k] << endl;
+    //cout << "Discrepancy of midline length: " << std::fabs(rS[k]-L) << endl;
+    rS[k] = std::min(rS[k], L);
   }
 
   virtual ~FishMidlineData()
