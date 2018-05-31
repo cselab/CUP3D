@@ -170,7 +170,7 @@ custom fields. Anything else is forwarded to the parent view.
     Approx. total snapshot size: <b>{{dump_info.snapshot_total_size}}</b><br>
     <br>
   {{/if}}
-  Approx. Reynolds number: <b>{{Re}}</b> {{Re_desc}}<br>
+  Estimated Reynolds number: <b>{{Re}}</b> {{{Re_desc}}}<br>
 </script>
 
 
@@ -250,6 +250,18 @@ custom fields. Anything else is forwarded to the parent view.
     var SPHERE = "Sphere";
     var DCYLINDER = "Half-cylinder";
     var NACA = "NACA";
+    var FISH = "Fish";
+    var FISH_WIDTH_PROFILES = {
+        "baseline": "baseline",
+        "fatter": "fatter",
+        "naca0012": "NACA 0012",
+    };
+    var FISH_HEIGHT_PROFILES = {
+        "baseline": "baseline",
+        "largefin": "largefin",
+        "tunaclone": "tuna",
+        "naca0012": "NACA 0012",
+    };
     var CONFIG_INFO_TEMPLATE = Handlebars.compile($("#config-info-template").html());
 
     // Internal state variables.
@@ -271,6 +283,19 @@ custom fields. Anything else is forwarded to the parent view.
     var escape_shell = function(str) {
         return "'" + str.replace(/'/g, "'\\''") + "'";
     };
+
+    /*
+     * Get values of an object, in the same order as Object.keys().
+     *
+     * (Replacement for Object.entries, which is not yet widely supported.)
+     */
+    var get_values = function(x) {
+        var keys = Object.keys(x);
+        var values = [];
+        for (var i = 0; i < keys.length; ++i)
+            values.push(x[keys[i]]);
+        return values;
+    }
 
     /*
      * Returns if the value is well defined.
@@ -332,6 +357,14 @@ custom fields. Anything else is forwarded to the parent view.
         /* Obstacles (FACTORY) */
         var Re = -1;
         var Re_desc = "";  // Wrt what object is this Reynold number?
+        var check_Re = function(curr, formula, params) {
+            if (curr > Re) {
+                Re = curr;
+                Re_desc = " <span style=\"color:gray\">(With respect to the object #" + (i + 1)
+                        + " at (" + params["xpos"] + ", " + params["ypos"] + ", " + params["zpos"] + "), calculated using " + formula + ")</span>";
+            }
+        };
+
         var factory = "";
         for (var i = 0, len = obstacles.length; i < len; ++i) {
             var o = obstacles[i];
@@ -343,7 +376,7 @@ custom fields. Anything else is forwarded to the parent view.
             var type = o["obstacle_type"];
 
             /* Position */
-            if (type == SPHERE || type == NACA) {
+            if (type == SPHERE || type == NACA || type == FISH) {
                 var c = o["center"];
                 if (is_ok(c)) {
                     params["xpos"] = c[0];
@@ -370,20 +403,31 @@ custom fields. Anything else is forwarded to the parent view.
                 }
             }
 
-            /* Radius */
+            /* Length and radius */
             if (type == SPHERE || type == DCYLINDER) {
                 if (o["radius"])
                     params["L"] = 2 * o["radius"];
                 else
                     error = "Radius not specified or zero!";
             }
+            if (type == NACA || type == FISH) {
+                if (o["length"])
+                    params["L"] = o["length"];
+                else
+                    error = "Length not specified or zero!";
+            }
+
+            /* Name */
+            switch(type) {
+                case SPHERE: name = "IF3D_Sphere"; break;
+                case DCYLINDER: name = "IF3D_DCylinder"; break;
+                case NACA: name = "IF3D_NacaOperator"; break;
+                case FISH: name = "IF3D_StefanFish"; break;
+                default: error = "Unknown type??"; break;
+            };
 
             /* NACA */
             if (type == NACA) {
-                if (o["NACA_length"])
-                    params["L"] = o["NACA_length"];
-                else
-                    error = "NACA length not specified or zero!";
                 if (o["NACA_thickness"])
                     params["thickness"] = o["NACA_thickness"];
                 else
@@ -397,35 +441,12 @@ custom fields. Anything else is forwarded to the parent view.
                 if (is_ok(o["NACA_Aheave"])) params["Aheave"] = o["NACA_Aheave"];
             }
 
-            /* Name */
-            switch(type) {
-                case SPHERE: name = "IF3D_Sphere"; break;
-                case DCYLINDER: name = "IF3D_DCylinder"; break;
-                case NACA: name = "IF3D_NacaOperator"; break;
-                default: error = "Unknown type??"; break;
-            };
-
-            /* Velocity */
-            var forced = o["obstacle_forced"] ? 1 : 0;
-            params["bForcedInSimFrame"] = forced;
-            if (forced) {
-                var v = o["obstacle_vel"];
-                if (is_ok(v[0])) params["xvel"] = v[0];
-                if (is_ok(v[1])) params["yvel"] = v[1];
-                if (is_ok(v[2])) params["zvel"] = v[2];
-                if (is_ok(v) && type != NACA) {
-                    var v = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-                    var Re_curr = v * params["L"] / flow["nu"];
-                    if (Re_curr > Re) {
-                        Re = Re_curr;
-                        Re_desc = "-- with respect to the object #" + (i + 1)
-                                + " at (" + params["xpos"] + ", " + params["ypos"] + ", " + params["zpos"] + ")";
-                    }
-                }
+            /* Fish */
+            if (type == FISH) {
+                params["widthProfile"] = o["fish_width_profile"];
+                params["heightProfile"] = o["fish_height_profile"];
+                params["T"] = is_ok(o["fish_T"]) ? o["fish_T"] : 1.0;
             }
-
-            /* Frame of reference? */
-            params["bFixFrameOfRef"] = o["obstacle_frame_fixed"] ? 1 : 0;
 
             if (!error) {
                 // Concatenate to "-key1=value1 -key2=value2 ...".
@@ -437,6 +458,30 @@ custom fields. Anything else is forwarded to the parent view.
             } else {
                 factory += "# " + error + "\n";
             }
+
+            /* Velocity */
+            var forced = o["obstacle_forced"] ? 1 : 0;
+            params["bForcedInSimFrame"] = forced;
+            if (forced) {
+                var v = o["obstacle_vel"];
+                if (is_ok(v[0])) params["xvel"] = v[0];
+                if (is_ok(v[1])) params["yvel"] = v[1];
+                if (is_ok(v[2])) params["zvel"] = v[2];
+                if (is_ok(v) && (type == SPHERE || type == DCYLINDER)) {
+                    var v = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+                    var Re_curr = v * params["L"] / flow["nu"];
+                    var formula = "<b>Re = v L / nu</b>";
+                    check_Re(Re_curr, formula, params)
+                }
+            }
+            if (!forced && type == FISH) {
+                var formula = "empirical formula <b>Re = 1.5 L<sup>2</sup> / nu T</b>";
+                var Re_curr = 1.5 * params["L"] * params["L"] / flow["nu"] / params["T"];
+                check_Re(Re_curr, formula, params);
+            }
+
+            /* Frame of reference? */
+            params["bFixFrameOfRef"] = o["obstacle_frame_fixed"] ? 1 : 0;
         }
         out += "\n";
         out += "FACTORY='\n" + factory + "'\n";
@@ -465,7 +510,7 @@ custom fields. Anything else is forwarded to the parent view.
 
         /* Config info. */
         var config_info = {
-            "Re": Re >= 0 ? Re : "Unknown",
+            "Re": Re >= 0 ? parseInt(Re * 1000 + .5) / 1000 : "Unknown",
             "Re_desc": Re_desc,
         };
         if (tdump > 0) {
@@ -651,7 +696,7 @@ custom fields. Anything else is forwarded to the parent view.
                     "type": "object",
                     "properties": {
                         "obstacle_type": {
-                            "enum": [SPHERE, DCYLINDER, NACA],
+                            "enum": [SPHERE, DCYLINDER, NACA, FISH],
                         },
                         "center": {
                             "title": "Center",
@@ -687,7 +732,7 @@ custom fields. Anything else is forwarded to the parent view.
                             "minimum": 0.0,
                             "maximum": 1.0,
                         },
-                        "NACA_length": {
+                        "length": {
                             "type": "number",
                             "title": "Length L",
                             "default": 0.1,
@@ -713,6 +758,22 @@ custom fields. Anything else is forwarded to the parent view.
                         "NACA_Apitch": { "type": "number", "title": "&alpha;<sub>1</sub>", },
                         "NACA_Fpitch": { "type": "number", "title": "f<sub>F</sub>", },
                         "NACA_Ppitch": { "type": "number", "title": "&phi;", },
+                        "fish_T": {
+                            "type": "number",
+                            "title": "Undulation period",
+                            "minimum": 0.0,
+                            "default": 1.0,
+                        },
+                        "fish_width_profile": {
+                            "title": "Width profile",
+                            "enum": Object.keys(FISH_WIDTH_PROFILES),
+                            "default": Object.keys(FISH_WIDTH_PROFILES)[0],
+                        },
+                        "fish_height_profile": {
+                            "title": "Height profile",
+                            "enum": Object.keys(FISH_HEIGHT_PROFILES),
+                            "default": Object.keys(FISH_HEIGHT_PROFILES)[0],
+                        },
                         "obstacle_forced": {
                             "default": true,
                             "title": "Forced?",
@@ -734,7 +795,7 @@ custom fields. Anything else is forwarded to the parent view.
                         "dcylinder_center": ["obstacle_type"],
                         "dcylinder_z_range": ["obstacle_type"],
                         "radius": ["obstacle_type"],
-                        "NACA_length": ["obstacle_type"],
+                        "length": ["obstacle_type"],
                         "NACA_thickness": ["obstacle_type"],
                         "NACA_advanced": ["obstacle_type"],
                         "NACA_Aheave": ["NACA_advanced"],
@@ -743,6 +804,9 @@ custom fields. Anything else is forwarded to the parent view.
                         "NACA_Fpitch": ["NACA_advanced"],
                         "NACA_Mpitch": ["NACA_advanced"],
                         "NACA_Ppitch": ["NACA_advanced"],
+                        "fish_period": ["obstacle_type"],
+                        "fish_width_profile": ["obstacle_type"],
+                        "fish_height_profile": ["obstacle_type"],
                         "obstacle_vel": ["obstacle_forced"],
                     }
                 }
@@ -817,7 +881,7 @@ custom fields. Anything else is forwarded to the parent view.
                             "center": {
                                 "type": "multivalue",
                                 "required": true,
-                                "dependencies": { "obstacle_type": [SPHERE, NACA], },
+                                "dependencies": { "obstacle_type": [SPHERE, NACA, FISH], },
                             },
                             "dcylinder_center": {
                                 "type": "multivalue",
@@ -835,19 +899,19 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "radius": {
                                 "required": true,
-                                "dependencies": { "obstacle_type": [SPHERE, DCYLINDER], }
+                                "dependencies": { "obstacle_type": [SPHERE, DCYLINDER], },
                             },
-                            "NACA_length": {
+                            "length": {
                                 "required": true,
-                                "dependencies": { "obstacle_type": [NACA], }
+                                "dependencies": { "obstacle_type": [NACA, FISH], },
                             },
                             "NACA_thickness": {
                                 "required": true,
-                                "dependencies": { "obstacle_type": [NACA], }
+                                "dependencies": { "obstacle_type": [NACA], },
                             },
                             "NACA_advanced": {
                                 "type": "checkbox",
-                                "dependencies": { "obstacle_type": [NACA], }
+                                "dependencies": { "obstacle_type": [NACA], },
                             },
                             "NACA_Aheave": {
                                 "dependencies": { "NACA_advanced": true },
@@ -877,6 +941,25 @@ custom fields. Anything else is forwarded to the parent view.
                                     "Vertical position: y(t) = y<sub>center</sub> + A<sub>H</sub> L cos(2 &pi; f<sub>H</sub> t)<br>",
                                     "Angle of attack: &alpha;(t) = &alpha;<sub>0</sub> + &alpha;<sub>1</sub> cos(2 &pi; (f<sub>F</sub> t + &phi;))",
                                 ],
+                            },
+                            "fish_period": {
+                                "dependencies": { "obstacle_type": [FISH], },
+                            },
+                            "fish_width_profile": {
+                                "type": "radio",
+                                "dependencies": { "obstacle_type": [FISH], },
+                                "optionLabels": get_values(FISH_WIDTH_PROFILES),
+                                "removeDefaultNone": true,
+                                "sort": false,
+                                "vertical": false,
+                            },
+                            "fish_height_profile": {
+                                "type": "radio",
+                                "dependencies": { "obstacle_type": [FISH], },
+                                "optionLabels": get_values(FISH_HEIGHT_PROFILES),
+                                "removeDefaultNone": true,
+                                "sort": false,
+                                "vertical": false,
                             },
                             "obstacle_forced": {
                                 "type": "checkbox",

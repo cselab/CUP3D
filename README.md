@@ -30,7 +30,7 @@ CubismUP uses CMake to automatically detect required dependencies and to compile
 If the dependencies are missing, they can be easily downloaded, compiled and locally installed using the provided script `install_dependencies.sh` (details below).
 If the dependencies are already available, but CMake does not detect them, appropriate environment variables specifying their path have to be defined.
 
-CubismUP requries the following 3rd party libraries:
+CubismUP requires the following 3rd party libraries:
 
 | Dependency            | Environment variable pointing to the existing installation |
 |-----------------------|----------------------------------|
@@ -90,10 +90,10 @@ The default compiler `clang` on Mac does not support OpenMP. It is therefore nec
 ```bash
 mkdir -p build
 cd build
-CXX=g++-7 cmake ..
-MPICH_CXX=g++-7 make
+CC=gcc-7 CXX=g++-7 cmake ..
+MPICH_CC=gcc-7 MPICH_CXX=g++-7 make
 # or
-OMPI_CXX=g++-7 make
+OMPI_CC=gcc-7 OMPI_CXX=g++-7 make
 ```
 
 ## Troubleshooting
