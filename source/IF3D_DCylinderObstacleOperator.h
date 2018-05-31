@@ -22,6 +22,10 @@ public:
   : IF3D_ObstacleOperator(g, p, u), radius(.5*length), halflength(ext_Z/2)
   {
     printf("Created IF3D_DCylinderObstacleOperator with radius %f\n", radius);
+    // D-cyl can float around the domain, but does not support rotation. TODO
+    bBlockRotation[0] = true;
+    bBlockRotation[1] = true;
+    bBlockRotation[2] = true;
   }
 
   void create(const int step_id,const double time, const double dt, const Real *Uinf) override;

@@ -226,22 +226,30 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
       const double xvel = -parser("-xvel").asDouble(0);
       transVel_imposed[0] = xvel; transVel[0] = xvel;
       if(!rank)
-      printf("Obstacle forced to move relative to sim domain with constant x-vel:%f\n", xvel);
+      printf("Obstacle forced to move relative to sim domain with constant x-vel:%f ", xvel);
     }
     if(bForcedInSimFrame[1]) {
       const double yvel = -parser("-yvel").asDouble(0);
       transVel_imposed[1] = yvel; transVel[1] = yvel;
       if(!rank)
-      printf("Obstacle forced to move relative to sim domain with constant y-vel:%f\n", yvel);
+      printf("Obstacle forced to move relative to sim domain with constant y-vel:%f ", yvel);
     }
     if(bForcedInSimFrame[2]) {
       const double zvel = -parser("-zvel").asDouble(0);
       transVel_imposed[2] = zvel; transVel[2] = zvel;
       if(!rank)
-      printf("Obstacle forced to move relative to sim domain with constant z-vel:%f\n", zvel);
+      printf("Obstacle forced to move relative to sim domain with constant z-vel:%f ", zvel);
     }
     bFixToPlanar = parser("-bFixToPlanar").asBool(false);
 
+
+    const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2];
+    if(anyVelForced) {
+      if(!rank) printf("and no angular velocity.\n");
+      bBlockRotation[0] = true;
+      bBlockRotation[1] = true;
+      bBlockRotation[2] = true;
+    }
     // this is different, obstacle can change the velocity, but sim frame will follow:
     bool bFOR_alldir = parser("-bFixFrameOfRef").asBool(false);
     bFixFrameOfRef[0] = bFOR_alldir || parser("-bFixFrameOfRef_x").asBool(false);
@@ -364,7 +372,6 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
 
 void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 {
-  const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2];
   double CM[3];
   this->getCenterOfMass(CM);
   const double h  = vInfo[0].h_gridpoint;
@@ -470,10 +477,9 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
         invDetJ * (J_[3]*J_[5] - J_[1]*J_[4]),
         invDetJ * (J_[3]*J_[4] - J_[0]*J_[5])
       };
-      double* const angvel_dest = anyVelForced? angVel_computed : angVel;
-      angvel_dest[0] = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
-      angvel_dest[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
-      angvel_dest[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
+      (bBlockRotation[0]? angVel_computed[0] : angVel[0]) = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
+      (bBlockRotation[1]? angVel_computed[1] : angVel[1]) = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
+      (bBlockRotation[2]? angVel_computed[2] : angVel[2]) = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
     }
     J[0] = globals[3] * dv;
     J[1] = globals[4] * dv;

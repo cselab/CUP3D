@@ -241,6 +241,11 @@ IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
     _normalize(&nx, &ny, &nz);
     _normalized_cross(nx, ny, nz, ax, ay, az, &bx, &by, &bz);
     _normalized_cross(bx, by, bz, nx, ny, nz, &ax, &ay, &az);
+
+    // Plateq can float around the domain, but does not support rotation. TODO
+    bBlockRotation[0] = true;
+    bBlockRotation[1] = true;
+    bBlockRotation[2] = true;
 }
 
 void IF3D_PlateObstacleOperator::create(const int step_id,

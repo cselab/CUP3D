@@ -11,6 +11,7 @@
 #include "GenericOperator.h"
 
 #include <HDF5Dumper_MPI.h>
+#include <random>
 class NacaMidlineData : public FishMidlineData
 {
  public:
@@ -52,7 +53,6 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
   const Real*const u) : IF3D_FishOperator(g, p, u), bCreated(false)
 {
   absPos[0] = 0;
-
   #if 1
       Apitch = p("-Apitch").asDouble(0.0); //aplitude of sinusoidal pitch angle
       Fpitch = p("-Fpitch").asDouble(0.0); //frequency
@@ -84,12 +84,8 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
     printf("Naca: pos=%3.3f, Apitch=%3.3f, Fpitch=%3.3f,Ppitch=%3.3f, "
     "Mpitch=%3.3f, Frow=%3.3f, Arow=%3.3f\n", position[0], Apitch, Fpitch,
     Ppitch, Mpitch, Fheave, Aheave);
-
-  if (obstacleID) {
-    printf("IF3D_NacaOperator WORKS ONLY FOR SINGLE OBSTACLE!\n");
-    MPI_Abort(grid->getCartComm(),0);
-  }
-
+  bBlockRotation[0] = true;
+  bBlockRotation[1] = true;
   myFish = new NacaMidlineData(length, vInfo[0].h_gridpoint, ext_Z, thickness);
 }
 
@@ -100,6 +96,22 @@ void IF3D_NacaOperator::update(const int stepID, const double t, const double dt
     quaternion[1] = 0;
     quaternion[2] = 0;
     quaternion[3] = std::sin(0.5*_2Dangle);
+
+    #if 0
+      _2Dangle = 0.6;
+      quaternion[0] = std::cos(0.5*_2Dangle);
+      quaternion[1] = 0;
+      quaternion[2] = 0;
+      quaternion[3] = std::sin(0.5*_2Dangle);
+      const double one = std::sqrt( quaternion[0]*quaternion[0]
+                                   +quaternion[1]*quaternion[1]
+                                   +quaternion[2]*quaternion[2]
+                                   +quaternion[3]*quaternion[3]);
+      quaternion[0] /= one+2e-16;
+      quaternion[1] /= one+2e-16;
+      quaternion[2] /= one+2e-16;
+      quaternion[3] /= one+2e-16;
+    #endif
 
     Real velx_tot = transVel[0]-Uinf[0];
     Real vely_tot = transVel[1]-Uinf[1];
@@ -172,7 +184,8 @@ void IF3D_NacaOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
+        //b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
+        b(ix,iy,iz).chi = b(ix,iy,iz).tmpU;
     }
   }
   DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, 0, 0, "SFD", "./");

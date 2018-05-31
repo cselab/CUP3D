@@ -313,7 +313,20 @@ class FishMidlineData
 {
  public:
   const double length, Tperiod, phaseShift, h;
+  #if 0
+  // Midline is discretized by more points in first fraction and last fraction:
+  const double fracRefined = 0.1, fracMid = 1 - 2*fracRefined;
+  const double dSmid_tgt = h / std::sqrt(3);
+  const double dSrefine_tgt = 0.125 * h;
 
+  const unsigned Nmid = (unsigned)std::floor(length * fracMid / dSmid_tgt);
+  const double dSmid = length * fracMid / Nmid;
+
+  const double Nend = (unsigned)std::ceil(
+    fracRefined * length * 2 / (dSmid + dSrefine_tgt) );
+  const double dSrefine_tgt = 0.125 * h;
+
+  #endif
   // Extend interpolation to 2dx on each side (to get proper grads up to 1dx)
   static constexpr int Nextension = NEXTDX * NPPEXT;
   const double dx_extension = h / NEXTDX;

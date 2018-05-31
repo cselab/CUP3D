@@ -37,7 +37,6 @@ protected:
   std::map<int,ObstacleBlock*> obstacleBlocks;
   vector<double> sum;
   bool printedHeaderVels = false;
-
 public:
   int obstacleID=0, rank=0, size=0;
   bool bFixToPlanar=1, bInteractive=0, bHasSkin=0, bForces=0;
@@ -58,6 +57,7 @@ public:
   // stuff dealing with frame of reference:
   bool bFixFrameOfRef[3] = {false, false, false};
   bool bForcedInSimFrame[3] = {false, false, false};
+  bool bBlockRotation[3] = {false, false, false};
   bool isMPIBarrierOnChiCompute = false;
 protected:
   virtual void _parseArguments(ArgumentParser & parser);
