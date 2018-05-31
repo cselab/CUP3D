@@ -234,16 +234,16 @@ custom fields. Anything else is forwarded to the parent view.
 (function(){
     var PRESETS = [{
         "description": "Flow around a sphere at Re=2000.",
-        "data": '{"simulation":{"num_nodes":1,"target_path":"sphere-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"executable_path":"${PWD}/../makefiles/"},"obstacles":[{"obstacle_type":"Sphere","center":[0.3,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
+        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.3,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
     }, {
         "description": "Flow around a half-cylinder at Re=2000.",
-        "data": '{"simulation":{"num_nodes":1,"target_path":"half-cylinder-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"executable_path":"${PWD}/../makefiles/"},"obstacles":[{"obstacle_type":"Half-cylinder","dcylinder_center":[0.3,0.25],"dcylinder_z_range":[0,1],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
+        "data": '{"simulation":{"num_nodes":1,"result_path":"results/half-cylinder-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Half-cylinder","dcylinder_center":[0.3,0.25],"dcylinder_z_range":[0,1],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
     }];
 
     // Compile-time settings and other parameters.
     var BLOCK_SIZE = 16;
     var BYTES_PER_CELL = 4 * 8;
-    var EXECUTABLE_PATH_DEFAULT = "${PWD}/../makefiles";
+    var ROOT_PATH_DEFAULT = "..";
 
     // Internal variables and enums.
     var CUBISM_NAME = "CubismUP_3D";
@@ -328,12 +328,12 @@ custom fields. Anything else is forwarded to the parent view.
         out += "set -e\n\n";
         out += "NUM_NODES=" + simulation["num_nodes"] + "\n";
         // https://stackoverflow.com/a/20053121/2203044
-        out += "TARGET_PATH=" + simulation["target_path"] + "\n";
+        out += "RESULT_PATH=" + simulation["result_path"] + "\n";
 
-        if (simulation["executable_path"]) {
-            out += "EXE_PATH=" + simulation["executable_path"] + "\n";
+        if (simulation["root_path"]) {
+            out += "ROOT_PATH=" + simulation["root_path"] + "\n";
         } else {
-            out += "EXE_PATH=" + EXECUTABLE_PATH_DEFAULT + "\n";
+            out += "ROOT_PATH=" + ROOT_PATH_DEFAULT + "\n";
         }
 
         /* Simulation setup */
@@ -470,12 +470,12 @@ custom fields. Anything else is forwarded to the parent view.
                 if (is_ok(v) && (type == SPHERE || type == DCYLINDER)) {
                     var v = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
                     var Re_curr = v * params["L"] / flow["nu"];
-                    var formula = "<b>Re = v L / nu</b>";
+                    var formula = "<b>Re = u L / &nu;</b>";
                     check_Re(Re_curr, formula, params)
                 }
             }
             if (!forced && type == FISH) {
-                var formula = "empirical formula <b>Re = 1.5 L<sup>2</sup> / nu T</b>";
+                var formula = "empirical formula <b>Re = 1.5 L<sup>2</sup> / &nu; T</b>";
                 var Re_curr = 1.5 * params["L"] * params["L"] / flow["nu"] / params["T"];
                 check_Re(Re_curr, formula, params);
             }
@@ -492,15 +492,15 @@ custom fields. Anything else is forwarded to the parent view.
 
         // https://stackoverflow.com/questions/1587846/how-do-i-show-the-changes-which-have-been-staged/1587952#1587952
         out += "# Backup the source code next to the results.\n";
-        out += "mkdir -p ${TARGET_PATH}/source\n";
-        out += "cp -r ../source ../Cubism > ${TARGET_PATH}\n";
+        out += "mkdir -p ${RESULT_PATH}/backup\n";
+        out += "cp -r ${ROOT_PATH}/source ${ROOT_PATH}/Cubism ${RESULT_PATH}/backup\n";
         out += "\n";
-        out += "# Copy executable if TARGET_PATH and EXE_PATH not the same (usually they are not).\n";
-        out += "[[ ! \"${EXE_PATH}\" -ef \"${TARGET_PATH}\" ]] && cp ${EXE_PATH}/" + exe_name + " ${TARGET_PATH}\n";
+        out += "cp ${ROOT_PATH}/bin/" + exe_name + " ${RESULT_PATH}       # Copy executable.\n";
+        out += "cp ${BASH_SOURCE} ${RESULT_PATH}/backup || true          # Copy itself. Ignore if it fails.\n";
         out += "\n";
         out += "# Run the simulation.\n";
-        out += "cd ${TARGET_PATH}\n";
-        out += "mpirun -np ${NUM_NODES} -ppn 1 " + exe_name + " ${OPTIONS} -factory-content \"${FACTORY}\"\n";
+        out += "cd ${RESULT_PATH}\n";
+        out += "mpirun -np ${NUM_NODES} -ppn 1 ./" + exe_name + " ${OPTIONS} -factory-content \"${FACTORY}\"\n";
         var json = JSON.stringify(value);
 
         out += "\n\n# To edit this settings, press \"Load Config\" in the form and copy-paste the following line:\n# " + json;
@@ -636,10 +636,10 @@ custom fields. Anything else is forwarded to the parent view.
                         "title": "Number of nodes",
                         "default": 1,
                     },
-                    "target_path": {
+                    "result_path": {
                         "type": "any",
                         "title": "Results path",
-                        "default": "simulation-01",
+                        "default": "results/simulation-01",
                     },
                     "num_cells": {
                         "title": "Grid cells per dimension",
@@ -682,10 +682,10 @@ custom fields. Anything else is forwarded to the parent view.
                 "type": "object",
                 "title": "Advanced",
                 "properties": {
-                    "executable_path": {
+                    "root_path": {
                         "type": "any",
-                        "title": "Executable path",
-                        "default": "${PWD}/../makefiles/",
+                        "title": "Repository root path",
+                        "default": ROOT_PATH_DEFAULT,
                     },
                 },
             },
@@ -760,7 +760,7 @@ custom fields. Anything else is forwarded to the parent view.
                         "NACA_Ppitch": { "type": "number", "title": "&phi;", },
                         "fish_T": {
                             "type": "number",
-                            "title": "Undulation period",
+                            "title": "Undulation period T",
                             "minimum": 0.0,
                             "default": 1.0,
                         },
@@ -844,7 +844,7 @@ custom fields. Anything else is forwarded to the parent view.
                         ],
                         "validator": validate_num_cells,
                     },
-                    "target_path": {
+                    "result_path": {
                         "TOOLTIP": "Path for storing the simulation results.",
                     },
                     "tdump": {
@@ -861,13 +861,17 @@ custom fields. Anything else is forwarded to the parent view.
             },
             "advanced": {
                 "fields": {
-                    "executable_path": {
-                        "helper": "Folder containing the executable.",
+                    "root_path": {
+                        "helper": CUBISM_NAME + " repository root folder.",
                     },
                 },
             },
             "obstacles": {
                 "toolbarSticky": true,
+                "toolbar": {
+                    "showLabels": true,
+                    "actions": [{"label": "Add New Object", "action": "add"}],
+                },
                 "fields": {
                     "item": {
                         "fields": {

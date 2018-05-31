@@ -12,11 +12,8 @@
 
 /build
 /bin
+/dependencies
 /lib
+/launch/results
 
 /README.html
-
-/dependencies
-/makefiles/simulation
-/makefiles/cubismup3d_open
-/makefiles/cubismup3d_periodicz
