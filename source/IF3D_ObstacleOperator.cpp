@@ -170,15 +170,16 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
       pos->second->udef[iz][iy][ix][2] -= correctVel[2];
     }
   }
-
   #ifndef NDEBUG
-  double dummy_ang[3], dummy_lin[3];
-  _computeUdefMoments(dummy_lin, dummy_ang, CoM);
-    #ifdef _VERBOSE_
-      if(rank==0)
-      printf("Momenta post correction: lin [%f %f %f], ang [%f %f %f]\n",
-      dummy_lin[0], dummy_lin[1], dummy_lin[2], dummy_ang[0], dummy_ang[1], dummy_ang[2]);
-    #endif
+    double dummy_ang[3], dummy_lin[3];
+    _computeUdefMoments(dummy_lin, dummy_ang, CoM);
+    const double EPS = 10*std::numeric_limits<Real>::epsilon();
+    assert(std::fabs(dummy_lin[0])<EPS);
+    assert(std::fabs(dummy_lin[1])<EPS);
+    assert(std::fabs(dummy_lin[1])<EPS);
+    assert(std::fabs(dummy_ang[0])<EPS);
+    assert(std::fabs(dummy_ang[1])<EPS);
+    assert(std::fabs(dummy_ang[2])<EPS);
   #endif
 }
 
@@ -459,7 +460,7 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 
     if(bFixToPlanar) {
       angVel[0] = angVel[1] = 0.0;
-      angVel[2] = globals[2]/globals[5]; // av2/j2
+      (bBlockRotation[2]? angVel_computed[2] : angVel[2]) = globals[2]/globals[5]; // av2/j2
     } else {
       //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
       const double AM[3] = {globals[0]*h, globals[1]*h, globals[2]*h};
@@ -725,8 +726,6 @@ void IF3D_ObstacleOperator::update(const int step_id, const double t, const doub
      std::cout<<"TVL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
      std::cout<<"QUT: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
      std::cout<<"AVL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
-    #else
-     //printf("t = %f, dt = %lf\n", t, dt);
     #endif
   }
   const double q_length=std::sqrt(quaternion[0]*quaternion[0]

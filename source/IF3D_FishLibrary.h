@@ -309,7 +309,7 @@ class FishMidlineData
 
   // Midline is discretized by more points in first fraction and last fraction:
   const double fracRefined = 0.1, fracMid = 1 - 2*fracRefined;
-  const double dSmid_tgt = h; // / std::sqrt(3)
+  const double dSmid_tgt = h / std::sqrt(3);
   const double dSrefine_tgt = 0.125 * h;
 
   const int Nmid = (int)std::floor(length * fracMid / dSmid_tgt / 8) * 8;
