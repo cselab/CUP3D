@@ -62,10 +62,14 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
       IF2D_FactoryFileLineParser ffparser(line_stream);
       factoryLines.push_back(make_pair(ID,ffparser));
   }
+  if(factoryLines.size() == 0) {
+    std::cout << "OBSTACLE FACTORY did not create any obstacles. Not supported. Aborting..." << std::endl;
+    MPI_Abort(grid->getCartComm(), 1);
+  }
   if(rank==0)
   std::cout << "-------------   OBSTACLE FACTORY : START (" << factoryLines.size() <<" objects)   ------------" << std::endl;
 
-  int k(0);
+  int k = 0;
   for(auto & object : factoryLines)
   {
     std::string objectName = object.first;
