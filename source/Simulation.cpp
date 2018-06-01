@@ -207,12 +207,11 @@ void Simulation::_serialize(const string append)
   }
 
   #if defined(_USE_HDF_)
-
   stringstream ssF;
   if (append == "")
    ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
   else
-   ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
+  ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
 
   #ifdef DUMPGRID
     // if a thread was already created, make sure it has finished
@@ -227,8 +226,10 @@ void Simulation::_serialize(const string append)
     const auto name3d = ssR.str(), name2d = ssF.str(); // sstreams are weird
     dumper = new std::thread( [=] () {
       if(b2Ddump) {
-        for (const auto& slice : m_slices)
+        for (const auto& slice : m_slices) {
           DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time, name2d, path4serialization);
+          DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time, name2d, path4serialization);
+        }
       }
       if(b3Ddump) {
         DumpHDF5_MPI<DumpGridMPI,StreamerVelocityVector>(*dump, step, time, name3d, path4serialization);
@@ -237,8 +238,11 @@ void Simulation::_serialize(const string append)
     } );
   #else //DUMPGRID
     if(b2Ddump) {
-      for (const auto& slice : m_slices)
+      for (const auto& slice : m_slices) {
         DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time, ssF.str(), path4serialization);
+        DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time, ssF.str(), path4serialization);
+        DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time, ssF.str(), path4serialization);
+      }
     }
     if(b3Ddump) {
       DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time, ssR.str(), path4serialization);
@@ -246,6 +250,7 @@ void Simulation::_serialize(const string append)
     }
   #endif //DUMPGRID
   #endif //_USE_HDF_
+
 
   if (rank==0)
   { //saved the grid! Write status to remember most recent ping

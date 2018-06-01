@@ -145,13 +145,9 @@ struct StreamerChi
     {
       output[0] = b(ix,iy,iz).chi;
     }
-    static std::string postfix()
+    static std::string prefix()
     {
-      return std::string("-chi");
-    }
-    static std::string descriptor()
-    {
-      return std::string("Chi field");
+      return std::string("chi_");
     }
 
     static const char * getAttributeName() { return "Scalar"; }
@@ -180,11 +176,9 @@ struct StreamerVelocityVector
         b(ix,iy,iz).w = input[2];
     }
 
-    static std::string postfix() {
-      return std::string("-vel");
-    }
-    static std::string descriptor() {
-      return std::string("Velocity vector");
+    static std::string prefix()
+    {
+      return std::string("vel_");
     }
 
     static const char * getAttributeName() { return "Vector"; }
@@ -204,20 +198,9 @@ struct StreamerTmpVector
         output[2] = b(ix,iy,iz).tmpW;
     }
 
-    // Read
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const T input[NCHANNELS], const int ix, const int iy, const int iz)
+    static std::string prefix()
     {
-        b(ix,iy,iz).tmpU = input[0];
-        b(ix,iy,iz).tmpV = input[1];
-        b(ix,iy,iz).tmpW = input[2];
-    }
-
-    static std::string postfix() {
-      return std::string("-tmp");
-    }
-    static std::string descriptor() {
-      return std::string("Temporary fields");
+      return std::string("tmp_");
     }
 
     static const char * getAttributeName() { return "Vector"; }
@@ -229,15 +212,14 @@ struct StreamerPressure
     static const int CLASS = 0;
 
     template <typename TBlock, typename T>
-    inline void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS]) const
+    static inline void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).p;
     }
-    static std::string postfix() {
-      return std::string("-pre");
-    }
-    static std::string descriptor() {
-      return std::string("Pressure field");
+
+    static std::string prefix()
+    {
+      return std::string("pres_");
     }
 
     static const char * getAttributeName() { return "Scalar"; }

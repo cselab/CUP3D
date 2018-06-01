@@ -332,8 +332,8 @@ class FishMidlineData
   Real * const vNorY;
   Real * const width;
   Real * const height;
-  Real * const rXold;
-  Real * const rYold;
+  Real * const forceX;
+  Real * const forceY;
   Real oldTime = 0.0;
   // quantities needed to correctly control the speed of the midline maneuvers
   double l_Tp = Tperiod, timeshift = 0, time0 = 0;
@@ -426,12 +426,9 @@ class FishMidlineData
    length(L), Tperiod(Tp), phaseShift(phi), h(_h), rS(_alloc(Nm)),
    rX(_alloc(Nm)), rY(_alloc(Nm)), vX(_alloc(Nm)), vY(_alloc(Nm)),
    norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)),
-   width(_alloc(Nm)), height(_alloc(Nm)), rXold(_alloc(Nm)), rYold(_alloc(Nm)),
+   width(_alloc(Nm)), height(_alloc(Nm)), forceX(_alloc(Nm)), forceY(_alloc(Nm)),
    upperSkin(new FishSkin(Nm)), lowerSkin(new FishSkin(Nm))
   {
-    std::fill(rXold, rXold+Nm, 0.0);
-    std::fill(rYold, rYold+Nm, 0.0);
-
     // extension head
     rS[0] = 0;
     int k = 0;
@@ -464,8 +461,8 @@ class FishMidlineData
     _dealloc(vNorY);
     _dealloc(height);
     _dealloc(width);
-    _dealloc(rXold);
-    _dealloc(rYold);
+    _dealloc(forceX);
+    _dealloc(forceY);
     if(upperSkin not_eq nullptr) {
       delete upperSkin;
       upperSkin=nullptr;

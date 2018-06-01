@@ -21,7 +21,7 @@
 #include "IF3D_SphereObstacleOperator.h"
 #include "IF3D_StefanFishOperator.h"
 #include "IF3D_VortexOperator.h"
-
+#include "IF3D_ElasticFishOperator.h"
 /*
 #include "IF3D_EllipseObstacleOperator.h"
 #include "IF3D_CylinderPairOperator.h"
@@ -86,6 +86,11 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     //{
     //  retval.push_back(new IF3D_CarlingFishOperator(grid,object.second,Uinf));
     //}
+
+    else if( objectName == "IF3D_ElasticFishOperator" )
+    {
+      retval.push_back(new IF3D_ElasticFishOperator(grid,object.second,Uinf));
+    }
     else if( objectName == "IF3D_NacaOperator" )
     {
       retval.push_back(new IF3D_NacaOperator(grid,object.second,Uinf));
