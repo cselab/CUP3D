@@ -500,7 +500,7 @@ custom fields. Anything else is forwarded to the parent view.
         out += "\n";
         out += "# Run the simulation.\n";
         out += "cd ${RESULT_PATH}\n";
-        out += "mpirun -np ${NUM_NODES} -ppn 1 ./" + exe_name + " ${OPTIONS} -factory-content \"${FACTORY}\"\n";
+        out += "mpiexec -n ${NUM_NODES} ./" + exe_name + " ${OPTIONS} -factory-content \"${FACTORY}\"\n";
         var json = JSON.stringify(value);
 
         out += "\n\n# To edit this settings, press \"Load Config\" in the form and copy-paste the following line:\n# " + json;
@@ -804,7 +804,7 @@ custom fields. Anything else is forwarded to the parent view.
                         "NACA_Fpitch": ["NACA_advanced"],
                         "NACA_Mpitch": ["NACA_advanced"],
                         "NACA_Ppitch": ["NACA_advanced"],
-                        "fish_period": ["obstacle_type"],
+                        "fish_T": ["obstacle_type"],
                         "fish_width_profile": ["obstacle_type"],
                         "fish_height_profile": ["obstacle_type"],
                         "obstacle_vel": ["obstacle_forced"],
@@ -946,7 +946,7 @@ custom fields. Anything else is forwarded to the parent view.
                                     "Angle of attack: &alpha;(t) = &alpha;<sub>0</sub> + &alpha;<sub>1</sub> cos(2 &pi; (f<sub>F</sub> t + &phi;))",
                                 ],
                             },
-                            "fish_period": {
+                            "fish_T": {
                                 "dependencies": { "obstacle_type": [FISH], },
                             },
                             "fish_width_profile": {
