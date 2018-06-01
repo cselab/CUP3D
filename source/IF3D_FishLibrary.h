@@ -91,8 +91,9 @@ class FishMidlineData
   Real * const vNorY;
   Real * const width;
   Real * const height;
-  Real * const forceX;
-  Real * const forceY;
+  double * const forceX;
+  double * const forceY;
+  double * const torque;
   Real oldTime = 0.0;
   // quantities needed to correctly control the speed of the midline maneuvers
   double l_Tp = Tperiod, timeshift = 0, time0 = 0;
@@ -143,7 +144,8 @@ class FishMidlineData
     return new Real[N];
   }
 
-  void _dealloc(Real * ptr)
+  template<typename T>
+  void _dealloc(T * ptr)
   {
     if(ptr not_eq nullptr) {
       delete [] ptr;
@@ -185,9 +187,13 @@ class FishMidlineData
    length(L), Tperiod(Tp), phaseShift(phi), h(_h), rS(_alloc(Nm)),
    rX(_alloc(Nm)), rY(_alloc(Nm)), vX(_alloc(Nm)), vY(_alloc(Nm)),
    norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)),
-   width(_alloc(Nm)), height(_alloc(Nm)), forceX(_alloc(Nm)), forceY(_alloc(Nm)),
+   width(_alloc(Nm)), height(_alloc(Nm)), forceX(_alloc(Nm)),
+   forceY(new double[Nm]), torque(new double[Nm]),
    upperSkin(new FishSkin(Nm)), lowerSkin(new FishSkin(Nm))
   {
+    std::fill(forceX, forceX+Nm, 0.0); // these are initialized to 0 because
+    std::fill(forceY, forceY+Nm, 0.0); // force compute is at end of time step
+    std::fill(torque, torque+Nm, 0.0);
     // extension head
     rS[0] = 0;
     int k = 0;
@@ -444,6 +450,8 @@ namespace MidlineShapes
 
   void naca_width(const double t_ratio, const double L, Real*const rS,
     Real*const res, const int Nm);
+  void stefan_width(const double L, Real*const rS, Real*const res, const int Nm);
+  void stefan_height(const double L, Real*const rS, Real*const res, const int Nm);
 
   void computeWidthsHeights(const string heightName, const string widthName,
   const double L, Real*const rS, Real*const height, Real*const width,

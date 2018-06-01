@@ -28,9 +28,9 @@ struct surface_data
 struct ObstacleBlock
 {
   // bulk quantities:
-  Real            chi[_BS_][_BS_][_BS_];
-  Real           udef[_BS_][_BS_][_BS_][3];
-  float sectionMarker[_BS_][_BS_][_BS_];
+  Real          chi[_BS_][_BS_][_BS_];
+  Real         udef[_BS_][_BS_][_BS_][3];
+  int sectionMarker[_BS_][_BS_][_BS_];
 
   static const int sizeX = _BS_;
   static const int sizeY = _BS_;
@@ -40,7 +40,7 @@ struct ObstacleBlock
   int nPoints = 0;
   bool filled = false;
   vector<surface_data*> surface;
-  double *ss  = nullptr;
+  int *ss  = nullptr;
   double *pX  = nullptr, *pY  = nullptr, *pZ  = nullptr, *P = nullptr;
   double *fX  = nullptr, *fY  = nullptr, *fZ  = nullptr;
   double *fxP = nullptr, *fyP = nullptr, *fzP = nullptr;
@@ -131,7 +131,7 @@ struct ObstacleBlock
     clear_surface();
     memset(chi,  0, sizeof(Real)*sizeX*sizeY*sizeZ);
     memset(udef, 0, sizeof(Real)*sizeX*sizeY*sizeZ*3);
-    memset(sectionMarker, 0, sizeof(float)*sizeX*sizeY*sizeZ);
+    memset(sectionMarker, 0, sizeof(int)*sizeX*sizeY*sizeZ);
   }
 
   inline void write(const int ix, const int iy, const int iz, const Real _chi, const Real delta, const Real gradUX, const Real gradUY, const Real gradUZ, const Real fac)
@@ -158,20 +158,24 @@ struct ObstacleBlock
     assert(pX==nullptr && pY==nullptr && pZ==nullptr);
     assert(vX==nullptr && vY==nullptr && vZ==nullptr);
     assert(fX==nullptr && fY==nullptr && fZ==nullptr);
-    pX   = init(nPoints); pY   = init(nPoints); pZ   = init(nPoints);
-    vX   = init(nPoints); vY   = init(nPoints); vZ   = init(nPoints);
-    fX   = init(nPoints); fY   = init(nPoints); fZ   = init(nPoints);
-    fxP  = init(nPoints); fyP  = init(nPoints); fzP  = init(nPoints);
-    fxV  = init(nPoints); fyV  = init(nPoints); fzV  = init(nPoints);
-    vxDef= init(nPoints); vyDef= init(nPoints); vzDef= init(nPoints);
-    ss   = init(nPoints); P    = init(nPoints);
+    pX   =init<double>(nPoints); pY   =init<double>(nPoints);
+    pZ   =init<double>(nPoints); vX   =init<double>(nPoints);
+    vY   =init<double>(nPoints); vZ   =init<double>(nPoints);
+    fX   =init<double>(nPoints); fY   =init<double>(nPoints);
+    fZ   =init<double>(nPoints); fxP  =init<double>(nPoints);
+    fyP  =init<double>(nPoints); fzP  =init<double>(nPoints);
+    fxV  =init<double>(nPoints); fyV  =init<double>(nPoints);
+    fzV  =init<double>(nPoints); vxDef=init<double>(nPoints);
+    vyDef=init<double>(nPoints); vzDef=init<double>(nPoints);
+    P    =init<double>(nPoints); ss   =init<int>(nPoints);
   }
 
-  static inline double* init(const int N)
+  template <typename T>
+  static inline T* init(const int N)
   {
-    double* ret;
-    posix_memalign((void **) &ret, 32, N*sizeof(double));
-    memset(ret, 0, N*sizeof(double));
+    T* ret;
+    posix_memalign((void **) &ret, 32, N*sizeof(T));
+    memset(ret, 0, N*sizeof(T));
     return ret;
   }
 

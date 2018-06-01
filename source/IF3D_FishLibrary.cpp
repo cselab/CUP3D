@@ -497,7 +497,7 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
                              +std::pow(height[close_s]*sinth,2);
           const Real nxt2ML = std::pow( width[secnd_s]*costh,2)
                              +std::pow(height[secnd_s]*sinth,2);
-          defblock->sectionMarker[sz][sy][sx] = cfish->rS[ss];
+          defblock->sectionMarker[sz][sy][sx] = close_s;
           defblock->udef[sz][sy][sx][0] = udef[0];
           defblock->udef[sz][sy][sx][1] = udef[1];
           defblock->udef[sz][sy][sx][2] = udef[2];
@@ -739,11 +739,11 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
             const Real dist3D = std::min(signZ*distZ*distZ, sign2d*dist1);
 
             if(std::fabs(defblock->chi[sz][sy][sx]) > dist3D) {
-              defblock->sectionMarker[sz][sy][sx] = cfish->rS[ss];
-              defblock->chi [sz][sy][sx] = dist3D;
+              defblock->sectionMarker[sz][sy][sx] = close_s;
               defblock->udef[sz][sy][sx][0] = udef[0];
               defblock->udef[sz][sy][sx][1] = udef[1];
               defblock->udef[sz][sy][sx][2] = udef[2];
+              defblock->chi [sz][sy][sx] = dist3D;
               b(sx,sy,sz).tmpU = 1;
             }
           }
@@ -896,6 +896,40 @@ void MidlineShapes::naca_width(const double t_ratio, const double L,
   }
 }
 
+void MidlineShapes::stefan_width(const double L, Real*const rS, Real*const res, const int Nm)
+{
+  const double sb = .04*L;
+  const double st = .95*L;
+  const double wt = .01*L;
+  const double wh = .04*L;
+
+  for(int i=0; i<Nm; ++i)
+  {
+    if(rS[i]<=0 or rS[i]>=L) res[i] = 0;
+    else {
+      const Real s = rS[i];
+      res[i] = (s<sb ? std::sqrt(2.0*wh*s-s*s) :
+               (s<st ? wh-(wh-wt)*std::pow((s-sb)/(st-sb),2) :
+               (wt * (L-s)/(L-st))));
+    }
+  }
+}
+
+void MidlineShapes::stefan_height(const double L, Real*const rS, Real*const res, const int Nm)
+{
+  const double a=0.51*L;
+  const double b=0.08*L;
+
+  for(int i=0; i<Nm; ++i)
+  {
+    if(rS[i]<=0 or rS[i]>=L) res[i] = 0;
+    else {
+      const Real s = rS[i];
+      res[i] = b*std::sqrt(1 - std::pow((s-a)/a,2));
+    }
+  }
+}
+
 void MidlineShapes::computeWidthsHeights(const string heightName,
   const string widthName, const double L, Real* const rS,
   Real* const height, Real* const width, const int nM, const int mpirank)
@@ -960,27 +994,6 @@ void MidlineShapes::computeWidthsHeights(const string heightName,
 }
 
 #if 0
-inline Real _width(const Real s, const Real L)
-{
-  if(s<0 or s>L) return 0;
-  const double sb = .04*L;
-  const double st = .95*L;
-  const double wt = .01*L;
-  const double wh = .04*L;
-
-  return (s<sb ? std::sqrt(2.0*wh*s-s*s) :
-      (s<st ? wh-(wh-wt)*std::pow((s-sb)/(st-sb),2) :
-          (wt * (L-s)/(L-st))));
-}
-
-inline Real _height(const Real s, const Real L)
-{
-  if(s<0 or s>L) return 0;
-  const double a=0.51*L;
-  const double b=0.08*L;
-  return b*std::sqrt(1 - std::pow((s-a)/a,2));
-}
-
 class CarlingFishMidlineData : public FishMidlineData
 {
  protected:

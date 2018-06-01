@@ -139,3 +139,35 @@ void IF3D_ElasticFishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPer
   abort();
   #endif
 }
+
+void IF3D_ElasticFishOperator::computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump)
+{
+  IF3D_ObstacleOperator::computeForces(stepID, time, dt, Uinf, NU, bDump);
+  // This obstacle requires forces and torques on the midline. War plan:
+  // 0) Fetch
+  const int Nm = myFish->Nm;
+  Real * const fX = myFish->forceX;
+  Real * const fY = myFish->forceY;
+  Real * const tZ = myFish->torque;
+  const Real*const pX = myFish->rX;
+  const Real*const pY = myFish->rY;
+  // 1) Reset
+  std::fill(fX, fX+Nm, 0.0);
+  std::fill(fY, fY+Nm, 0.0);
+  std::fill(tZ, tZ+Nm, 0.0);
+  // 2) Sum surface forces to the closest midline point using section marker
+  for (const auto& pos : obstacleBlocks) {
+    const ObstacleBlock* const o = pos.second;
+    for(int i=0; i<o->nPoints; i++) {
+      const int ss = o->ss[i];
+      assert(ss>=0 && ss<Nm);
+      fX[ss] += o->fX[i];
+      fY[ss] += o->fY[i];
+      tZ[ss] += (pX[ss]-o->pX[i])*o->fY[i] + (pY[ss]-o->pY[i])*o->fX[i];
+    }
+  }
+  // 3) all reduce across ranks
+  MPI_Allreduce(MPI_IN_PLACE, fX, Nm, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, fY, Nm, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, tZ, Nm, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
+}
