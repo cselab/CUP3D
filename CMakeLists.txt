@@ -81,6 +81,23 @@ add_definitions("-DMPI_ENABLE")
 set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
 set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 
+# Check if MPI thread safe
+execute_process(COMMAND ${CMAKE_CXX_COMPILER} ${ROOT_FOLDER}/cmake/check_mpi_thread_safety.cpp -o check_mpi_thread_safety
+                RESULT_VARIABLE _IS_COMPILED)
+if (NOT _IS_COMPILED STREQUAL "0")
+    message(FATAL_ERROR "Cannot compile a simple MPI program to determine whether MPI is thread safe.")
+endif()
+execute_process(COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ./check_mpi_thread_safety
+                ERROR_QUIET
+                OUTPUT_QUIET
+                RESULT_VARIABLE CHECK_MPI_THREAD_SAFETY)
+if (${CHECK_MPI_THREAD_SAFETY} EQUAL 0)
+    add_definitions("-DDUMPGRID")
+else()
+    message("Note: MPI not thread safe, fallback to synchronous HDF5 dumping!")
+endif()
+
+
 # HDF5
 set(HDF5_PREFER_PARALLEL ON)
 find_package(HDF5 REQUIRED)
