@@ -145,9 +145,9 @@ void TestDiffusion::check()
 				}
 	}
 	
-	MPI::COMM_WORLD.Allreduce(&localLinf, &Linf, 1, MPI::DOUBLE, MPI::MAX);
-	MPI::COMM_WORLD.Allreduce(&localL1, &L1, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&localL2, &L2, 1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&localLinf, &Linf, 1, MPI_DOUBLE, MPI_MAX);
+	MPI::COMM_WORLD.Allreduce(&localL1, &L1, 1, MPI_DOUBLE, MPI_SUM);
+	MPI::COMM_WORLD.Allreduce(&localL2, &L2, 1, MPI_DOUBLE, MPI_SUM);
 	
 	if (rank==0)
 	{

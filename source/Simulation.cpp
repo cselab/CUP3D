@@ -153,7 +153,7 @@ double Simulation::calcMaxTimestep()
   double global_maxU;
   const double h = vInfo[0].h_gridpoint;
 
-  MPI_Allreduce(&local_maxU, &global_maxU, 1, MPI::DOUBLE, MPI::MAX, grid->getCartComm());
+  MPI_Allreduce(&local_maxU, &global_maxU, 1, MPI_DOUBLE, MPI_MAX, grid->getCartComm());
   const double dtFourier = CFL*h*h/nu;
   const double dtCFL     = CFL*h/(std::fabs(global_maxU)+1e-8);
   double dt = std::min(dtCFL, dtFourier);
