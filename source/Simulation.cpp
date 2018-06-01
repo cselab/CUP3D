@@ -136,6 +136,8 @@ void Simulation::setupOperators()
     pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
     pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
     pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
+    pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
+
     //#ifndef _OPEN_BC_
     pipeline.push_back(new CoordinatorFadeOut(grid));
     //#endif

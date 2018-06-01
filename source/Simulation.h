@@ -24,6 +24,7 @@
 #include "CoordinatorComputeShape.h"
 #include "CoordinatorPressure.h"
 #include "CoordinatorFadeOut.h"
+#include "CoordinatorComputeDissipation.h"
 #include "IF3D_ObstacleVector.h"
 #include "IF3D_ObstacleFactory.h"
 
