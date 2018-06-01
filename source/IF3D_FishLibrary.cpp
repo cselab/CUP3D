@@ -623,8 +623,8 @@ void PutFishOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, O
     // change from signed squared distance function to normal sdf
     b(ix,iy,iz).tmpU = defblock->chi[iz][iy][ix] > (Real)0 ?
       sqrt( defblock->chi[iz][iy][ix]) : -sqrt(-defblock->chi[iz][iy][ix]);
-    b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0]; //for debug
-    b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1]; //for debug
+    //b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0]; //for debug
+    //b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1]; //for debug
   }
 }
 
@@ -744,7 +744,7 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
               defblock->udef[sz][sy][sx][0] = udef[0];
               defblock->udef[sz][sy][sx][1] = udef[1];
               defblock->udef[sz][sy][sx][2] = udef[2];
-              b(sz,sy,sx).tmpU = 1;
+              b(sx,sy,sz).tmpU = 1;
             }
           }
           // Not chi yet, I stored squared distance from analytical boundary
