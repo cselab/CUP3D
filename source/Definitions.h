@@ -23,8 +23,6 @@
 #include <array>
 using namespace std;
 
-#define DUMPGRID
-
 #include <mpi.h>
 #include <omp.h>
 

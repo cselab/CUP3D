@@ -8,7 +8,7 @@ accfft-lib = /users/novatig/accfft/build/lib/
 #hdf-lib = ${HDF5_DIR}/lib
 NVFLAGS += -I/opt/cray/pe/fftw/3.3.4.10/haswell/include
 LIBS += -L/opt/cray/pe/hdf5-parallel/1.10.0.3/GNU/5.1/lib/
-CPPFLAGS += -dynamic
+CPPFLAGS += -dynamic -DDUMPGRID
 #CPPFLAGS += -I$(CRAY_MPICH2_DIR)/include/
 #ISPCFLAGS += --arch=x86-64
 #LIBS += -L$(CRAY_MPICH2_DIR)/lib/ -lmpich -lmpichcxx
