@@ -22,7 +22,7 @@ class OperatorDissipation : public GenericLabOperator
   OperatorDissipation(double _dt, const Real ext[3], Real _nu)
   : dt(_dt), nu(_nu), extent{ext[0],ext[1],ext[2]}
   {
-    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, 0,1,2,4);
+    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, 1,2,3,4);
     stencil_start[0] = -1;
     stencil_start[1] = -1;
     stencil_start[2] = -1;
