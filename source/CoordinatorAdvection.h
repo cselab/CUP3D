@@ -249,7 +249,7 @@ public:
   ~CoordinatorAdvection()
   { }
 
-  void operator()(const Real dt)
+  void operator()(const double dt)
   {
     check("advection - start");
     const int nthreads = omp_get_max_threads();

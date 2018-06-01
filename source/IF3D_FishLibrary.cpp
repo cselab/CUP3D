@@ -246,8 +246,8 @@ void VolumeSegment_OBB::prepare(std::pair<int, int> _s_range, const Real bbox[3]
   s_range.first = _s_range.first;
   s_range.second = _s_range.second;
   for(int i=0; i<3; ++i) {
-    w[i] = 0.5*(bbox[i][1]-bbox[i][0]) + safe_distance;
-    c[i] = 0.5*(bbox[i][1]+bbox[i][0]);
+    w[i] = (bbox[i][1]-bbox[i][0])/2 + safe_distance;
+    c[i] = (bbox[i][1]+bbox[i][0])/2;
     assert(w[i]>0);
   }
 }
@@ -279,7 +279,7 @@ void VolumeSegment_OBB::changeToComputationalFrame(const double position[3], con
   const Real x = quaternion[1];
   const Real y = quaternion[2];
   const Real z = quaternion[3];
-  const Real Rmatrix[3][3] = {
+  const double Rmatrix[3][3] = {
       {1.-2*(y*y+z*z),    2*(x*y-z*a),    2*(x*z+y*a)},
       {   2*(x*y+z*a), 1.-2*(x*x+z*z),    2*(y*z-x*a)},
       {   2*(x*z-y*a),    2*(y*z+x*a), 1.-2*(x*x+y*y)}
@@ -323,15 +323,15 @@ bool VolumeSegment_OBB::isIntersectingWithAABB(const Real start[3],const Real en
   //start and end are two diagonally opposed corners of grid block
   // GN halved the safety here but added it back to w[] in prepare
   const Real AABB_w[3] = { //half block width + safe distance
-      0.5*(end[0] - start[0]) + safe_distance,
-      0.5*(end[1] - start[1]) + safe_distance,
-      0.5*(end[2] - start[2]) + safe_distance
+      (end[0] - start[0])/2 + safe_distance,
+      (end[1] - start[1])/2 + safe_distance,
+      (end[2] - start[2])/2 + safe_distance
   };
 
   const Real AABB_c[3] = { //block center
-    0.5*(end[0] + start[0]),
-    0.5*(end[1] + start[1]),
-    0.5*(end[2] + start[2])
+    (end[0] + start[0])/2,
+    (end[1] + start[1])/2,
+    (end[2] + start[2])/2
   };
 
   const Real AABB_box[3][2] = {
@@ -733,7 +733,8 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
             const Real pZ = org[2] + h*sz;
             // positive inside negative outside ... as usual
             const Real distZ = height[ss] - std::fabs(position[2] - pZ);
-            const Real wz = 0.5 + std::min(1., std::max(distZ*invh, -1.))/2;
+            static constexpr Real one = 1;
+            const Real wz = .5 + std::min(one, std::max(distZ*invh, -one))/2;
             const Real signZ = (0 < distZ) - (distZ < 0);
             const Real distZsq = signZ*distZ*distZ;
             const Real dist3D = std::min(signZ*distZ*distZ, sign2d*dist1);
@@ -802,7 +803,8 @@ void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
         const Real pZ = org[2] + h*idz;
         // positive inside negative outside ... as usual
         const Real distZ = myHeight - std::fabs(position[2] - pZ);
-        const Real wz = 0.5 + std::min(1., std::max(distZ*invh, -1.))/2;
+        static constexpr Real one = 1;
+        const Real wz = .5 + std::min(one, std::max(distZ*invh, -one))/2;
         const Real signZ = (0 < distZ) - (distZ < 0);
         const Real distZsq = signZ*distZ*distZ;
 

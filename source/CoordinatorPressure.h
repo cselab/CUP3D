@@ -104,11 +104,11 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
 class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
 {
  private:
-  Real dt;
+  double dt;
   PressureSolver*const solver;
 
  public:
-  OperatorDivergenceMinusDivTmpU2ndOrder(Real _dt, PressureSolver*const s) : dt(_dt), solver(s)
+  OperatorDivergenceMinusDivTmpU2ndOrder(double _dt, PressureSolver*const s) : dt(_dt), solver(s)
   {
     stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 6, 1,2,3,5,6,7);
     stencil_start[0] = -2; stencil_start[1] = -2;  stencil_start[2] = -2;
@@ -151,10 +151,11 @@ class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
 class OperatorGradP : public GenericLabOperator
 {
  private:
-  Real dt, extent[3];
+  const double dt;
+  const Real extent[3];
 
  public:
-  OperatorGradP(Real _dt,const Real ext[3]):dt(_dt),extent{ext[0],ext[1],ext[2]}
+  OperatorGradP(double _dt,const Real ext[3]):dt(_dt),extent{ext[0],ext[1],ext[2]}
   {
     stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
     stencil_start[0] = -1; stencil_start[1] = -1; stencil_start[2] = -1;
@@ -181,10 +182,11 @@ class OperatorGradP : public GenericLabOperator
 class OperatorGradP2ndOrder : public GenericLabOperator
 {
  private:
-  Real dt, extent[3];
+  const double dt;
+  const Real extent[3];
 
  public:
-  OperatorGradP2ndOrder(Real _dt,const Real ext[3]) :
+  OperatorGradP2ndOrder(double _dt,const Real ext[3]) :
   dt(_dt),extent{ext[0],ext[1],ext[2]}
   {
     stencil = StencilInfo(-2,-2,-2, 3,3,3, false, 1, 4);
@@ -227,7 +229,7 @@ class CoordinatorPressure : public GenericCoordinator
     GenericCoordinator(_grid), pressureSolver(NTHREADS,*_grid), obstacleVector(myobstacles)
   { }
 
-  void operator()(const Real dt)
+  void operator()(const double dt)
   {
     check("pressure - start");
     const int nthreads = omp_get_max_threads();
@@ -249,7 +251,7 @@ class CoordinatorPressure : public GenericCoordinator
       }
     }
 
-    const double h = grid->getH();
+    const Real h = grid->getH();
     const Real ext[3] = {
         h*grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
         h*grid->getBlocksPerDimension(1)*FluidBlock::sizeY,

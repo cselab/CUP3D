@@ -146,9 +146,9 @@ void IF3D_ElasticFishOperator::computeForces(const int stepID, const double time
   // This obstacle requires forces and torques on the midline. War plan:
   // 0) Fetch
   const int Nm = myFish->Nm;
-  Real * const fX = myFish->forceX;
-  Real * const fY = myFish->forceY;
-  Real * const tZ = myFish->torque;
+  double * const fX = myFish->forceX;
+  double * const fY = myFish->forceY;
+  double * const tZ = myFish->torque;
   const Real*const pX = myFish->rX;
   const Real*const pY = myFish->rY;
   // 1) Reset

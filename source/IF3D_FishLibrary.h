@@ -187,7 +187,7 @@ class FishMidlineData
    length(L), Tperiod(Tp), phaseShift(phi), h(_h), rS(_alloc(Nm)),
    rX(_alloc(Nm)), rY(_alloc(Nm)), vX(_alloc(Nm)), vY(_alloc(Nm)),
    norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)),
-   width(_alloc(Nm)), height(_alloc(Nm)), forceX(_alloc(Nm)),
+   width(_alloc(Nm)), height(_alloc(Nm)), forceX(new double[Nm]),
    forceY(new double[Nm]), torque(new double[Nm]),
    upperSkin(new FishSkin(Nm)), lowerSkin(new FishSkin(Nm))
   {
@@ -210,7 +210,7 @@ class FishMidlineData
 
     assert(k+1==Nm);
     //cout << "Discrepancy of midline length: " << std::fabs(rS[k]-L) << endl;
-    rS[k] = std::min(rS[k], L);
+    rS[k] = std::min(rS[k], (Real)L);
   }
 
   virtual ~FishMidlineData()
@@ -334,9 +334,9 @@ struct PutFishOnBlocks
   void changeFromComputationalFrame(T x[3]) const
   {
     const T p[3] = { // translate back to CoM
-        x[0]-position[0],
-        x[1]-position[1],
-        x[2]-position[2]
+        x[0]-(T)position[0],
+        x[1]-(T)position[1],
+        x[2]-(T)position[2]
     };
     // rotate back around CoM
     x[0]=Rmatrix3D[0][0]*p[0] + Rmatrix3D[1][0]*p[1] + Rmatrix3D[2][0]*p[2];

@@ -75,9 +75,9 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
           p[2]-=centerOfMass[2];
           const Real lamdtX = lamdt * pos->second->chi[iz][iy][ix];
           const Real object_UR[3] = {
-              omegaBody[1]*p[2]-omegaBody[2]*p[1],
-              omegaBody[2]*p[0]-omegaBody[0]*p[2],
-              omegaBody[0]*p[1]-omegaBody[1]*p[0]
+              (Real)omegaBody[1]*p[2] -(Real)omegaBody[2]*p[1],
+              (Real)omegaBody[2]*p[0] -(Real)omegaBody[0]*p[2],
+              (Real)omegaBody[0]*p[1] -(Real)omegaBody[1]*p[0]
           };
           const Real object_UDEF[3] = {
               pos->second->udef[iz][iy][ix][0],
@@ -85,9 +85,9 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
               pos->second->udef[iz][iy][ix][2]
           };
           const Real U_TOT[3] = {
-              uBody[0]+object_UR[0]+object_UDEF[0]-uInf[0],
-              uBody[1]+object_UR[1]+object_UDEF[1]-uInf[1],
-              uBody[2]+object_UR[2]+object_UDEF[2]-uInf[2]
+              (Real)uBody[0] +object_UR[0] +object_UDEF[0] -uInf[0],
+              (Real)uBody[1] +object_UR[1] +object_UDEF[1] -uInf[1],
+              (Real)uBody[2] +object_UR[2] +object_UDEF[2] -uInf[2]
           };
           const Real alpha = 1./(1.+lamdtX);
           b(ix,iy,iz).u = alpha*b(ix,iy,iz).u + (1.-alpha)*(U_TOT[0]);

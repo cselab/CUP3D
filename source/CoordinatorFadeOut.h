@@ -87,7 +87,7 @@ public:
     check((string)"FadeOut - start");
 
     const int N = vInfo.size();
-    const double h = grid->getH();
+    const Real h = grid->getH();
     const Real ext[3] = {
         h*grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
         h*grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
