@@ -211,7 +211,7 @@ void DumpSliceHDF5(const TSlice& slice, const int stepID, const Real t, const st
         fprintf(xmf, "        %e %e %e\n", 0., 0., 0.);
         fprintf(xmf, "       </DataItem>\n");
         fprintf(xmf, "       <DataItem Name=\"Spacing\" Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
-        fprintf(xmf, "        %e %e %e\n", 1.,1.,1.);
+        fprintf(xmf, "        %e %e %e\n", grid.getH(),grid.getH(),grid.getH());
         fprintf(xmf, "       </DataItem>\n");
         fprintf(xmf, "     </Geometry>\n");
         fprintf(xmf, "     <Attribute Name=\"data\" AttributeType=\"%s\" Center=\"Node\">\n", TStreamer::getAttributeName());
