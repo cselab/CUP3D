@@ -46,8 +46,8 @@ int main(int argc, char **argv)
   Simulation * sim = new Simulation(MPI_COMM_WORLD, argc, argv);
   sim->init();
   sim->simulate();
+  delete sim;
 
   MPI_Finalize();
-  delete sim;
   return 0;
 }
