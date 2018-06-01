@@ -166,7 +166,7 @@ public:
 
 		double localSum[2] = {viscous, press};
 		double globalSum[2] = {0.0, 0.0};
-		MPI_Allreduce(localSum, globalSum, 2, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+		MPI_Allreduce(localSum, globalSum, 2, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
 		globalSum[0] *= dissipFactor;
 		globalSum[1] *= hCube;
