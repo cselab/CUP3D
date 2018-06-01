@@ -117,9 +117,9 @@ void TestMPI::check()
 				}
 	}
 	
-	MPI::COMM_WORLD.Allreduce(&localLinfU, &LinfU, 1, MPI::DOUBLE, MPI::MAX);
-	MPI::COMM_WORLD.Allreduce(&localLinfV, &LinfV, 1, MPI::DOUBLE, MPI::MAX);
-	MPI::COMM_WORLD.Allreduce(&localLinfW, &LinfW, 1, MPI::DOUBLE, MPI::MAX);
+	MPI::COMM_WORLD.Allreduce(&localLinfU, &LinfU, 1, MPI_DOUBLE, MPI_MAX);
+	MPI::COMM_WORLD.Allreduce(&localLinfV, &LinfV, 1, MPI_DOUBLE, MPI_MAX);
+	MPI::COMM_WORLD.Allreduce(&localLinfW, &LinfW, 1, MPI_DOUBLE, MPI_MAX);
 	
 	if (rank==0)
 		cout << LinfU << "\t" << LinfV << "\t" << LinfW << endl;

@@ -37,7 +37,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
 
     double globals[4] = {0,0,0,0};
     double locals[4] = {lm0,lm1,lm2,V};
-    MPI_Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+    MPI_Allreduce(locals, globals, 4, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
     assert(globals[3] > std::numeric_limits<Real>::epsilon());
     #ifdef _VERBOSE_
@@ -85,7 +85,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
 
   double globals[9] = {0,0,0,0,0,0,0,0,0};
   double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
-  MPI_Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+  MPI_Allreduce(locals, globals, 9, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
   //if(bFixToPlanar)
   //{
@@ -356,7 +356,7 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
 
   double globals[7] = {0,0,0,0,0,0,0};
   double locals[7] = {_forcex,_forcey,_forcez,_torquex,_torquey,_torquez,_area};
-  MPI_Allreduce(locals, globals, 7, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+  MPI_Allreduce(locals, globals, 7, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
   const double dV = std::pow(vInfo[0].h_gridpoint, 3);
   force[0]  = globals[0]*dV*lambda;
@@ -400,7 +400,7 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 
     double globals[4] = {0,0,0,0};
     double locals[4] = {lm0,lm1,lm2,V};
-    MPI_Allreduce(locals, globals, 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+    MPI_Allreduce(locals, globals, 4, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
     assert(globals[3] > std::numeric_limits<double>::epsilon());
 
     if(bForcedInSimFrame[0]) {
@@ -456,7 +456,7 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
 
     double globals[9] = {0,0,0,0,0,0,0,0,0};
     double locals[9] = {am0,am1,am2,J0,J1,J2,J3,J4,J5};
-    MPI_Allreduce(locals, globals, 9, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+    MPI_Allreduce(locals, globals, 9, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
     if(bFixToPlanar) {
       angVel[0] = angVel[1] = 0.0;
@@ -603,7 +603,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   sum = vector<double>(nQoI, 0);
   for (auto & block : obstacleBlocks) block.second->sumQoI(sum);
 
-  MPI_Allreduce(MPI_IN_PLACE, sum.data(), nQoI, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, sum.data(), nQoI, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
   //additive quantities: (check against order in sumQoI of ObstacleBlocks.h )
   unsigned k = 0;

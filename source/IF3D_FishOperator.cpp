@@ -336,7 +336,7 @@ void IF3D_FishOperator::finalize(const int step_id,const double time, const doub
     com[3] += block.second->CoM_z;
   }
 
-  MPI_Allreduce(MPI_IN_PLACE, com.data(), 4, MPI::DOUBLE, MPI::SUM, grid->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, com.data(), 4, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
   assert(com[0]>std::numeric_limits<Real>::epsilon());
   CoM_interpolated[0]=com[1]/com[0];

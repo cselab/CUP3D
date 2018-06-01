@@ -113,10 +113,10 @@ void TestRotation::_ic()
 				}
 	}
 	
-	MPI::COMM_WORLD.Allreduce(&cx, &gcx, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&cy, &gcy, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&cz, &gcz, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&vol, &gvol, 1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&cx, &gcx, 1, MPI_DOUBLE, MPI_SUM);
+	MPI::COMM_WORLD.Allreduce(&cy, &gcy, 1, MPI_DOUBLE, MPI_SUM);
+	MPI::COMM_WORLD.Allreduce(&cz, &gcz, 1, MPI_DOUBLE, MPI_SUM);
+	MPI::COMM_WORLD.Allreduce(&vol, &gvol, 1, MPI_DOUBLE, MPI_SUM);
 	
 	gcx /= gvol;
 	gcy /= gvol;
@@ -124,12 +124,12 @@ void TestRotation::_ic()
 	
 	cout << "Center of mass (after IC) set to " << gcx << " " << gcy << " " << gcz << endl;
 	
-	MPI::COMM_WORLD.Allreduce(&J0, &J0G, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J1, &J1G, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J2, &J2G, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J3, &J3G, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J4, &J4G, 1, MPI::DOUBLE, MPI::SUM);
-	MPI::COMM_WORLD.Allreduce(&J5, &J5G, 1, MPI::DOUBLE, MPI::SUM);
+	MPI::COMM_WORLD.Allreduce(&J0, &J0G, 1, MPI_DOUBLE, MPI_SUM);
+	MPI::COMM_WORLD.Allreduce(&J1, &J1G, 1, MPI_DOUBLE, MPI_SUM);
+	MPI::COMM_WORLD.Allreduce(&J2, &J2G, 1, MPI_DOUBLE, MPI_SUM);
+	MPI::COMM_WORLD.Allreduce(&J3, &J3G, 1, MPI_DOUBLE, MPI_SUM);
+	MPI::COMM_WORLD.Allreduce(&J4, &J4G, 1, MPI_DOUBLE, MPI_SUM);
+	MPI::COMM_WORLD.Allreduce(&J5, &J5G, 1, MPI_DOUBLE, MPI_SUM);
 	
 	const double h3 = dh*dh*dh;
 	const double J[6] = { J0G*h3, J1G*h3, J2G*h3, J3G*h3, J4G*h3, J5G*h3 };
