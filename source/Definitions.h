@@ -190,6 +190,39 @@ struct StreamerVelocityVector
     static const char * getAttributeName() { return "Vector"; }
 };
 
+struct StreamerTmpVector
+{
+    static const int NCHANNELS = 3;
+    static const int CLASS = 0;
+
+    // Write
+    template <typename TBlock, typename T>
+    static inline void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+    {
+        output[0] = b(ix,iy,iz).tmpU;
+        output[1] = b(ix,iy,iz).tmpV;
+        output[2] = b(ix,iy,iz).tmpW;
+    }
+
+    // Read
+    template <typename TBlock, typename T>
+    static inline void operate(TBlock& b, const T input[NCHANNELS], const int ix, const int iy, const int iz)
+    {
+        b(ix,iy,iz).tmpU = input[0];
+        b(ix,iy,iz).tmpV = input[1];
+        b(ix,iy,iz).tmpW = input[2];
+    }
+
+    static std::string postfix() {
+      return std::string("-tmp");
+    }
+    static std::string descriptor() {
+      return std::string("Temporary fields");
+    }
+
+    static const char * getAttributeName() { return "Vector"; }
+};
+
 struct StreamerPressure
 {
     static const int NCHANNELS = 1;

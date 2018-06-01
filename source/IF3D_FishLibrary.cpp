@@ -501,7 +501,7 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
           defblock->udef[sz][sy][sx][0] = udef[0];
           defblock->udef[sz][sy][sx][1] = udef[1];
           defblock->udef[sz][sy][sx][2] = udef[2];
-          b(sz,sy,sx).tmpU = 1;
+          b(sx,sy,sz).tmpU = 1;
 
           if(dSsq>=std::fabs(cnt2ML-nxt2ML))
           { // if no abrupt changes in width we use nearest neighbour
@@ -581,6 +581,7 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
           };
           wghts[c][0] = 1.0 - t[0];
           wghts[c][1] = 1.0 - t[1];
+          assert(wghts[c][0]>=0 && wghts[c][1]>=0);
         }
 
         for(int sz=max(0,0-iap[2]); sz<min(2,FluidBlock::sizeZ-iap[2]); ++sz)
