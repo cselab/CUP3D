@@ -27,6 +27,7 @@ set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/IF3D_FishLibrary.cpp
     ${ROOT_FOLDER}/source/IF3D_FishOperator.cpp
     ${ROOT_FOLDER}/source/IF3D_NacaOperator.cpp
+    ${ROOT_FOLDER}/source/IF3D_ElasticFishOperator.cpp
     ${ROOT_FOLDER}/source/IF3D_ObstacleFactory.cpp
     ${ROOT_FOLDER}/source/IF3D_ObstacleOperator.cpp
     ${ROOT_FOLDER}/source/IF3D_ObstacleVector.cpp
