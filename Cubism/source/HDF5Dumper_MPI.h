@@ -36,7 +36,6 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
     typedef typename TGrid::BlockType B;
 
     int rank;
-    const std::string fullname = f_name + Streamer::postfix();
     char filename[256];
     herr_t status;
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
@@ -90,6 +89,7 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
         (hsize_t) coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
         (hsize_t) coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
 
+    const std::string fullname = Streamer::prefix() + f_name;
     sprintf(filename, "%s/%s.h5", dump_path.c_str(), fullname.c_str());
 
     H5open();
@@ -242,7 +242,8 @@ void ReadHDF5_MPI(TGrid &grid, const std::string f_name, const std::string dump_
         (hsize_t) coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
         (hsize_t) coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
 
-    sprintf(filename, "%s/%s.h5", dump_path.c_str(), f_name.c_str());
+    const std::string fullname = Streamer::prefix() + f_name;
+    sprintf(filename, "%s/%s.h5", dump_path.c_str(), fullname.c_str());
 
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);

@@ -151,7 +151,7 @@ void DumpSliceHDF5(const TSlice& slice, const int stepID, const Real t, const st
     }
 
     ostringstream filename;
-    filename << dpath << "/" << fname<< TStreamer::postfix() << "_slice" << slice.id;
+    filename<<dpath<<"/"<<TStreamer::prefix()<<"slice_"<<slice.id<<fname;
 
     herr_t status;
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;

@@ -31,7 +31,6 @@ void DumpHDF5(const TGrid &grid, const int iCounter, const Real absTime, const s
 #ifdef _USE_HDF_
     typedef typename TGrid::BlockType B;
 
-    const std::string fullname = f_name + Streamer::postfix();
     char filename[256];
     herr_t status;
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
@@ -66,6 +65,7 @@ void DumpHDF5(const TGrid &grid, const int iCounter, const Real absTime, const s
 
     hsize_t offset[4] = {0, 0, 0, 0};
 
+    const std::string fullname = Streamer::prefix()+f_name;
     sprintf(filename, "%s/%s.h5", dump_path.c_str(), fullname.c_str());
 
     H5open();
@@ -206,7 +206,8 @@ void ReadHDF5(TGrid &grid, const std::string f_name, const std::string read_path
 
     hsize_t offset[4] = {0, 0, 0, 0};
 
-    sprintf(filename, "%s/%s.h5", read_path.c_str(), f_name.c_str());
+    const std::string fullname = Streamer::prefix()+f_name;
+    sprintf(filename, "%s/%s.h5", read_path.c_str(), fullname.c_str());
 
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
