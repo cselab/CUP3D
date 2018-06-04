@@ -164,7 +164,9 @@ custom fields. Anything else is forwarded to the parent view.
 
 <!-- "Information" section template. -->
 <script type="text/x-handlebars-template" id="config-info-template">
+  Domain extent: {{{domain}}}<br>
   {{#if dump_info}}
+    <br>
     Approx. snapshot size: {{dump_info.snapshot_size}}<br>
     Approx. number of snapshot: {{dump_info.snapshot_count}}<br>
     Approx. total snapshot size: <b>{{dump_info.snapshot_total_size}}</b><br>
@@ -508,8 +510,12 @@ custom fields. Anything else is forwarded to the parent view.
         $("#config-file").html(out);
         hljs.highlightBlock($("#config-file")[0]);
 
-        /* Config info. */
+        /* Config info */
+        var max_blocks = Math.max(bpdx, bpdy, bpdz);
         var config_info = {
+            "domain": "(0, " + (bpdx / max_blocks) + ") &#10005; "
+                    + "(0, " + (bpdy / max_blocks) + ") &#10005; "
+                    + "(0, " + (bpdz / max_blocks) + ")",
             "Re": Re >= 0 ? parseInt(Re * 1000 + .5) / 1000 : "Unknown",
             "Re_desc": Re_desc,
         };
