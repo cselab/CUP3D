@@ -163,7 +163,7 @@ void IF3D_ElasticFishOperator::computeForces(const int stepID, const double time
       assert(ss>=0 && ss<Nm);
       fX[ss] += o->fX[i];
       fY[ss] += o->fY[i];
-      tZ[ss] += (pX[ss]-o->pX[i])*o->fY[i] + (pY[ss]-o->pY[i])*o->fX[i];
+      tZ[ss] += (pX[ss]-o->pX[i])*o->fY[i] - (pY[ss]-o->pY[i])*o->fX[i];
     }
   }
   // 3) all reduce across ranks
