@@ -629,7 +629,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   #ifndef __RL_TRAINING
   if (bDump) {
     char buf[500];
-    sprintf(buf, "surface_%02d_%07d_rank%03d.raw", obstacleID, stepID, rank);
+    sprintf(buf, "surface_obst%02d_rank%03d_%07d.raw", obstacleID, rank, stepID);
     FILE * pFile = fopen (buf, "wb");
     for(auto & block : obstacleBlocks) block.second->print(pFile);
     fflush(pFile);
