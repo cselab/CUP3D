@@ -51,7 +51,7 @@ custom fields. Anything else is forwarded to the parent view.
   <link type="text/css" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css" rel="stylesheet"/>
   <script type="text/javascript" src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
   <link type="text/css" href="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.css" rel="stylesheet"/>
-  <script type="text/javascript" src="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.min.js"></script>
+  <script type="text/javascript" src="https://code.cloudcms.com/alpaca/1.5.24/bootstrap/alpaca.js"></script>
   <style>
     @media (min-width: 1440px) {
       .container {
@@ -328,9 +328,13 @@ custom fields. Anything else is forwarded to the parent view.
         var out = "";
         out += "#!/bin/bash\n\n";
         out += "set -e\n\n";
-        out += "NUM_NODES=" + simulation["num_nodes"] + "\n";
-        // https://stackoverflow.com/a/20053121/2203044
         out += "RESULT_PATH=" + simulation["result_path"] + "\n";
+        out += "\n";
+
+        out += "############################################################\n";
+        out += "# PREPARATION PHASE\n";
+        out += "############################################################\n";
+        // https://stackoverflow.com/questions/15783701/which-characters-need-to-be-escaped-in-bash-how-do-we-know-it/20053121#20053121
 
         if (simulation["root_path"]) {
             out += "ROOT_PATH=" + simulation["root_path"] + "\n";
@@ -338,15 +342,29 @@ custom fields. Anything else is forwarded to the parent view.
             out += "ROOT_PATH=" + ROOT_PATH_DEFAULT + "\n";
         }
 
+        var exe_name = flow["periodic_z"] ? "cubismup3d_periodicz" : "cubismup3d_open";
+        out += "\n";
+        out += "# Prepare target folder. Copy executable and backup the source code.\n";
+        out += "mkdir -p ${RESULT_PATH}/backup\n";
+        out += "cp -r ${ROOT_PATH}/source ${ROOT_PATH}/Cubism ${RESULT_PATH}/backup\n";
+        out += "\n";
+        out += "cp ${ROOT_PATH}/bin/" + exe_name + " ${RESULT_PATH}       # Copy executable.\n";
+        out += "cp ${BASH_SOURCE} ${RESULT_PATH}/backup || true          # Copy the script itself.\n";
+        out += "\n";
+        out += "\n";
+
+
+        out += "############################################################\n";
+        out += "# JOB PHASE\n";
+        out += "############################################################\n";
+
         /* Simulation setup */
         var bpdx = simulation["num_cells"][0] / BLOCK_SIZE;
         var bpdy = simulation["num_cells"][1] / BLOCK_SIZE;
         var bpdz = simulation["num_cells"][2] / BLOCK_SIZE;
         var tend = simulation["tend"];
         var tdump = simulation["tdump"];
-        out += "\n";
         out += "OPTIONS=\n";
-        out += "OPTIONS+=\" -nprocsx ${NUM_NODES}\"\n";
         out += "OPTIONS+=' -bpdx " + bpdx + "'\n";
         out += "OPTIONS+=' -bpdy " + bpdy + "'\n";
         out += "OPTIONS+=' -bpdz " + bpdz + "'\n";
@@ -354,7 +372,6 @@ custom fields. Anything else is forwarded to the parent view.
         out += "OPTIONS+=' -tend " + tend + "'\n";
         if (tdump > 0)
             out += "OPTIONS+=' -tdump " + tdump + "'\n";
-
 
         /* Obstacles (FACTORY) */
         var Re = -1;
@@ -487,22 +504,11 @@ custom fields. Anything else is forwarded to the parent view.
         }
         out += "\n";
         out += "FACTORY='\n" + factory + "'\n";
-        out += "\n\n";
+        out += "\n";
 
         /* Running the executable */
-        var exe_name = flow["periodic_z"] ? "cubismup3d_periodicz" : "cubismup3d_open";
-
-        // https://stackoverflow.com/questions/1587846/how-do-i-show-the-changes-which-have-been-staged/1587952#1587952
-        out += "# Backup the source code next to the results.\n";
-        out += "mkdir -p ${RESULT_PATH}/backup\n";
-        out += "cp -r ${ROOT_PATH}/source ${ROOT_PATH}/Cubism ${RESULT_PATH}/backup\n";
-        out += "\n";
-        out += "cp ${ROOT_PATH}/bin/" + exe_name + " ${RESULT_PATH}       # Copy executable.\n";
-        out += "cp ${BASH_SOURCE} ${RESULT_PATH}/backup || true          # Copy itself. Ignore if it fails.\n";
-        out += "\n";
-        out += "# Run the simulation.\n";
         out += "cd ${RESULT_PATH}\n";
-        out += "mpiexec -n ${NUM_NODES} ./" + exe_name + " ${OPTIONS} -factory-content \"${FACTORY}\"\n";
+        out += "mpiexec -n " + simulation["num_nodes"] + " ./" + exe_name + " ${OPTIONS} -factory-content \"${FACTORY}\"\n";
         var json = JSON.stringify(value);
 
         out += "\n\n# To edit this settings, press \"Load Config\" in the form and copy-paste the following line:\n# " + json;
