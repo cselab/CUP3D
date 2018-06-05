@@ -31,6 +31,7 @@ public:
         _parseArguments(p);
     }
 
+    void computeVelocities(const Real *Uinf) override;
     void create(int step_id, double time, double dt, const Real *Uinf) override;
 
     void _parseArguments(ArgumentParser &parser) override;

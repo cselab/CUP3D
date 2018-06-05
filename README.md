@@ -149,7 +149,7 @@ Perform the following steps:
 
 For convenience, we have prepared a web form for customizing simulation settings, such as grid resolution, list of objects with their properties et cetera.
 The form can be found in `launch/config_form.html` and can be opened with any modern browser.
-Note that internet connection is required, as the web page uses external libraries for showing and handling the form.
+Note that internet connection is required, as the web page uses external libraries for rendering and handling the form.
 
 After setting up the system, or loading one of the presets, the generated runscript has to be run.
 
@@ -160,7 +160,7 @@ Additionally, the script copies itself, together with a compact representation o
 
 # Visualization using Paraview
 
-This is a very quick overview on how to visualize results using [ParaView][https://www.paraview.org/] (5.5.0).
+This is a very quick overview on how to visualize results using [ParaView][paraview] (5.5.0).
 For more complex visualization, please refer to the ParaView documentation.
 
 ### Visualizing shapes
@@ -194,3 +194,4 @@ For more complex visualization, please refer to the ParaView documentation.
 
 
 [mpi-path]: https://stackoverflow.com/questions/43054602/custom-mpi-path-in-cmake-project
+[paraview]: https://www.paraview.org/

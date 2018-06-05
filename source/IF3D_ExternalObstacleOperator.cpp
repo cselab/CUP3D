@@ -72,6 +72,18 @@ struct FillBlocksExternal : FillBlocksBase<FillBlocksExternal>
 }  // namespace
 
 
+void IF3D_ExternalObstacleOperator::computeVelocities(
+        const Real * const Uinf) {
+    IF3D_ObstacleOperator::computeVelocities(Uinf);
+
+    if (settings.com_velocity_fn != nullptr) {
+        settings.com_velocity_fn(settings.obj, transVel_imposed);
+        transVel[0] = transVel_imposed[0];
+        transVel[1] = transVel_imposed[1];
+        transVel[2] = transVel_imposed[2];
+    }
+}
+
 /*
  * Finds out which blocks are affected (overlap with the object).
  */
@@ -125,7 +137,7 @@ void IF3D_ExternalObstacleOperator::create(
 void IF3D_ExternalObstacleOperator::_parseArguments(ArgumentParser &parser)
 {
     IF3D_ObstacleOperator::_parseArguments(parser);
-    bForcedInSimFrame[0] = true;
-    bForcedInSimFrame[1] = true;
-    bForcedInSimFrame[2] = true;
+    bForcedInSimFrame = {true, true, true};
+    bFixFrameOfRef = {true, true, true};
+    bBlockRotation = {true, true, true};
 }

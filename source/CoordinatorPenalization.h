@@ -115,7 +115,7 @@ struct VelocityObstacleVisitor : public ObstacleVisitor
 
   void visit(IF3D_ObstacleOperator* const obstacle)
   {
-    const bool* const bFixFrameOfRef   = obstacle->bFixFrameOfRef;
+    const auto &bFixFrameOfRef = obstacle->bFixFrameOfRef;
     const Real dummy[3] = { 0.0, 0.0, 0.0 };
     obstacle->computeVelocities(dummy); // compute velocities with zero uinf
     double povU[3];
