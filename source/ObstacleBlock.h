@@ -173,10 +173,19 @@ struct ObstacleBlock
   template <typename T>
   static inline T* init(const int N)
   {
-    T* ret;
-    posix_memalign((void **) &ret, 32, N*sizeof(T));
-    memset(ret, 0, N*sizeof(T));
-    return ret;
+    T* ptr;
+    const int ret = posix_memalign((void **)&ptr, 32, N * sizeof(T));
+    if (ret == EINVAL) {
+        fprintf(stderr, "posix_memalign somehow returned EINVAL...\n");
+        abort();
+    } else if (ret == ENOMEM) {
+        fprintf(stderr, "Cannot allocate %dx%d bytes with align 32!\n",
+                N, (int)sizeof(T));
+        abort();
+    }
+    assert(ptr != nullptr);
+    memset(ptr, 0, N * sizeof(T));
+    return ptr;
   }
 
   void print(FILE* pFile)
