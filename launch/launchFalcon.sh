@@ -13,7 +13,7 @@ FOLDER=${BASEPATH}${BASENAME}
 mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
-cp ${FFACTORY} ${FOLDER}/factory
+[[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
 cp ../bin/simulation ${FOLDER}
 
 cd $FOLDER
