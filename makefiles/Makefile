@@ -20,9 +20,14 @@ accfft ?= false
 zlib ?= 0
 verbose ?= false
 bc ?= open
+unboundedfft ?= false
 
 ifeq "$(bc)" "periodicz"
 	CPPFLAGS += -DBC_PERIODICZ
+endif
+
+ifeq "$(unboundedfft)" "true"
+	CPPFLAGS += -D_UNBOUNDED_FFT_
 endif
 
 ifeq "$(verbose)" "true"
@@ -45,7 +50,7 @@ CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -pedantic
 CPPFLAGS+= -Wno-unused-variable  # complains for a bunch of variables used when debugging
 CPPFLAGS+= -Wno-unused-parameter # does not make much sense with function overloading
- 
+
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_FLOAT_PRECISION_
 	NVCCFLAGS += -D_FLOAT_PRECISION_
