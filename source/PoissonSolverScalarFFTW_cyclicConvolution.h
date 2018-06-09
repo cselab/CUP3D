@@ -14,6 +14,7 @@
 
 #include <fstream>
 #include <sstream>
+#include <iomanip>
 
 #include <cassert>
 #include <cstring>
@@ -43,7 +44,6 @@ class PoissonSolverScalarFFTW_MPI
     TGrid& grid;
 
     // FFTW
-    //mycomplex local_rhs, local_work;
     myplan fwd, bwd;
 
     // MPI
@@ -103,36 +103,104 @@ class PoissonSolverScalarFFTW_MPI
         fout.close();
     }
 
+    void _show_some_OG(const Real* const p, const std::string hint="") // testing some
+    {
+        ostringstream fname;
+        fname << "rank" << m_rank << "_" << hint << ".dat";
+        ofstream fout(fname.str());
+        for (size_t i = 0; i < (size_t)myN[0]; ++i)
+        {
+            for (size_t j = 0; j < (size_t)myN[1]; ++j)
+            {
+                for (size_t k = 0; k < (size_t)myN[2]; ++k)
+                {
+                    const size_t idx = (i*myN[1] + j)* myN[2] + k;
+                    fout << p[idx] << '\t';
+                }
+                fout << endl;
+            }
+            fout << endl;
+            fout << endl;
+        }
+        fout.close();
+    }
+
+    void _dump_linear(const Real* const p, const std::string hint="") // testing some
+    {
+        ostringstream fname;
+        fname << "rank" << m_rank << "_linear_" << hint << ".dat";
+        ofstream fout(fname.str());
+        for (size_t i = 0; i < (size_t)myN[0]; ++i)
+            for (size_t j = 0; j < (size_t)myN[1]; ++j)
+                for (size_t k = 0; k < (size_t)myN[2]; ++k)
+                {
+                    const size_t idx = (i*myN[1] + j)* myN[2] + k;
+                    fout << std::scientific << p[idx] << endl;
+                }
+        fout.close();
+    }
+
+    void _show_transform(const Real* const p, const std::string hint="") // testing some
+    {
+        ostringstream fname;
+        fname << "rank" << m_rank << "_tr_" << hint << ".dat";
+        ofstream fout(fname.str());
+
+        const mycomplex *const rho_hat = (mycomplex *) p;
+
+        for(long j = 0; j<static_cast<long>(src_local_n1); ++j)
+        {
+            for(long i = 0; i<static_cast<long>(gsize_0[0]); ++i)
+            {
+                for(long k = 0; k<static_cast<long>(nz_hat); ++k)
+                {
+                    const size_t linidx = (j*gsize_0[0] +i)*nz_hat + k;
+                    const double a1 = rho_hat[linidx][0];
+                    const double b1 = rho_hat[linidx][1];
+                    // fout << a1 << ":" << b1 << "j" << '\t';
+                    fout << std::scientific << a1 << ":" << std::scientific << b1 << "j" << endl;
+                }
+                // fout << endl;
+            }
+            // fout << endl;
+            // fout << endl;
+        }
+        fout.close();
+    }
+
     // setup Green's function and compute transform, done once
     void _initialize_green()
     {
         myplan greenPlan;
         ptrdiff_t alloc;
         ptrdiff_t local_n0=0, local_0_start=0, local_n1=0, local_1_start=0;
+        Real* tf_buf;
 
 #ifndef _FLOAT_PRECISION_
         alloc = fftw_mpi_local_size_3d_transposed(
                 gsize_0[0], gsize_0[1], nz_hat, m_comm,
                 &local_n0, &local_0_start, &local_n1, &local_1_start);
 
-        m_kernel  = fftw_alloc_real(2*alloc);
+        tf_buf    = fftw_alloc_real(2*alloc);
         greenPlan = fftw_mpi_plan_dft_r2c_3d(gsize_0[0], gsize_0[1], gsize_0[2],
-                m_kernel, (mycomplex *)m_kernel, m_comm, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
+                tf_buf, (mycomplex *)tf_buf, m_comm, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
 #else
         alloc = fftwf_mpi_local_size_3d_transposed(
                 gsize_0[0], gsize_0[1], nz_hat, m_comm,
                 &local_n0, &local_0_start, &local_n1, &local_1_start);
 
-        m_kernel  = fftwf_alloc_real(2*alloc);
+        tf_buf    = fftwf_alloc_real(2*alloc);
         greenPlan = fftwf_mpi_plan_dft_r2c_3d(gsize_0[0], gsize_0[1], gsize_0[2],
-                m_kernel, (mycomplex *)m_kernel, m_comm, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
+                tf_buf, (mycomplex *)tf_buf, m_comm, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
 #endif
         assert(local_n0 == src_local_n0);
         assert(local_n1 == src_local_n1);
         assert(local_0_start == src_local_0_start);
         assert(local_1_start == src_local_1_start);
 
-        _set_kernel();
+        _set_kernel(tf_buf);
+
+        _show_some(m_kernel, "green");
 
 #ifndef _FLOAT_PRECISION_
         fftw_execute(greenPlan);
@@ -140,15 +208,32 @@ class PoissonSolverScalarFFTW_MPI
         fftwf_execute(greenPlan);
 #endif
 
+        m_kernel = new Real[alloc]; // FFT for this kernel is real
+
+        const mycomplex *const G_hat = (mycomplex *) tf_buf;
+#pragma omp parallel for
+        for(long j = 0; j<static_cast<long>(src_local_n1); ++j)
+            for(long i = 0; i<static_cast<long>(gsize_0[0]); ++i)
+                for(long k = 0; k<static_cast<long>(nz_hat); ++k)
+                {
+                    const size_t linidx = (j*gsize_0[0] +i)*nz_hat + k;
+                    m_kernel[linidx]  = G_hat[linidx][0]; // need real part only
+                }
+
+        _show_transform(m_kernel, "green");
+
 #ifndef _FLOAT_PRECISION_
+        fftw_free(tf_buf);
         fftw_destroy_plan(greenPlan);
 #else
+        fftwf_free(tf_buf);
         fftwf_destroy_plan(greenPlan);
 #endif
     }
 
-    void _set_kernel()
+    void _set_kernel(Real* const kern)
     {
+        // This algorithm requires m_size >= 2.
         const double fac = 1.0/(4.0*M_PI*h);
 
         // octant 000
@@ -166,7 +251,7 @@ class PoissonSolverScalarFFTW_MPI
                         const double zi = k + 0.5;
                         const double r = std::sqrt(xi*xi + yi*yi + zi*zi);
                         assert(r > 0.0);
-                        m_kernel[idx] = fac/r;
+                        kern[idx] = fac/r;
                     }
                 }
             }
@@ -184,7 +269,7 @@ class PoissonSolverScalarFFTW_MPI
                     {
                         const size_t src_idx = k + 2*nz_hat*(j + gsize_0[1]*i);
                         const size_t dst_idx = k + myN[2]*(j + myN[1]*(src_local_n0-i-1));
-                        buf[dst_idx] = m_kernel[src_idx]; // flip along x-dimension
+                        buf[dst_idx] = kern[src_idx]; // flip along x-dimension
                     }
             int dst_rank = m_size - m_rank - 1;
             int volume = (src_local_n0-off)*myN[1]*myN[2];
@@ -202,7 +287,7 @@ class PoissonSolverScalarFFTW_MPI
                     {
                         const size_t dst_idx = k + 2*nz_hat*(j + gsize_0[1]*i);
                         const size_t src_idx = k + myN[2]*(j + myN[1]*i);
-                        m_kernel[dst_idx] = buf[src_idx];
+                        kern[dst_idx] = buf[src_idx];
                     }
         }
         delete[] buf;
@@ -215,7 +300,7 @@ class PoissonSolverScalarFFTW_MPI
                 {
                     const size_t src_idx = k + 2*nz_hat*((myN[1]-j) + gsize_0[1]*i);
                     const size_t dst_idx = k + 2*nz_hat*((myN[1]+j-1) + gsize_0[1]*i);
-                    m_kernel[dst_idx] = m_kernel[src_idx];
+                    kern[dst_idx] = kern[src_idx];
                 }
 
         // octant 011/111
@@ -225,7 +310,7 @@ class PoissonSolverScalarFFTW_MPI
                 {
                     const size_t src_idx = myN[2]-k + 2*nz_hat*((myN[1]-j) + gsize_0[1]*i);
                     const size_t dst_idx = myN[2]+k-1 + 2*nz_hat*((myN[1]+j-1) + gsize_0[1]*i);
-                    m_kernel[dst_idx] = m_kernel[src_idx];
+                    kern[dst_idx] = kern[src_idx];
                 }
 
         // octant 001/101
@@ -235,7 +320,7 @@ class PoissonSolverScalarFFTW_MPI
                 {
                     const size_t src_idx = myN[2]-k + 2*nz_hat*(j + gsize_0[1]*i);
                     const size_t dst_idx = myN[2]+k-1 + 2*nz_hat*(j + gsize_0[1]*i);
-                    m_kernel[dst_idx] = m_kernel[src_idx];
+                    kern[dst_idx] = kern[src_idx];
                 }
     }
 
@@ -261,7 +346,8 @@ protected:
 
     void _mpi_send_src()
     {
-        // distribute the source data to the zero-padded arrays.
+        // distribute the source data to the zero-padded arrays.  This
+        // algorithm requires m_size >= 2.
         vector<MPI_Request> recvreq(m_size);
         if (m_rank < m_size/2)
         {
@@ -279,7 +365,7 @@ protected:
 
     void _mpi_recv_sol()
     {
-        // receive back solution
+        // receive back solution.  This algorithm requires m_size >= 2.
         vector<MPI_Request> sendreq(m_size);
         if (m_rank < m_size/2)
         {
@@ -295,56 +381,21 @@ protected:
 
     void _solve()
     {
-        mycomplex *const in_out = (mycomplex *) data;
-#if 0
-        const Real h2 = h*h;
-        const Real factor = h2*norm_factor;
+        mycomplex* const rho_hat = (mycomplex *) data;
+        const Real* const G_hat  = m_kernel;
 
-#pragma omp parallel for
-        for(int j = 0; j<local_n1; ++j)
-            for(int i = 0; i<gsize[0]; ++i)
-                for(int k = 0; k<nz_hat; ++k) {
-                    const int linidx = (j*gsize[0] +i)*nz_hat + k;
-                    assert(linidx >=0 && linidx<nx*local_n1*nz_hat);
-                    assert(linidx < alloc_local);
-
-                    const Real denom = 32.*(cos(2.*M_PI*i/nx) + cos(2.*M_PI*(local_1_start+j)/ny) + cos(2.*M_PI*k/nz)) -
-                    2.*(cos(4.*M_PI*i/nx) + cos(4.*M_PI*(local_1_start+j)/ny) + cos(4.*M_PI*k/nz)) - 90.;
-
-                    const Real inv_denom = (denom==0)? 0.:1./denom;
-                    const Real fatfactor = 12. * inv_denom * factor;
-
-                    in_out[linidx][0] *= fatfactor;
-                    in_out[linidx][1] *= fatfactor;
-                }
-#else
-        const Real waveFactX = 2.0*M_PI/(gsize[0]*h);
-        const Real waveFactY = 2.0*M_PI/(gsize[1]*h);
-        const Real waveFactZ = 2.0*M_PI/(gsize[2]*h);
-        const long nKx = static_cast<long>(gsize[0]);
-        const long nKy = static_cast<long>(gsize[1]);
-        const long nKz = static_cast<long>(gsize[2]);
-        const long shifty = static_cast<long>(src_local_1_start);
+        // perform convolution in frequency domain and normalize
 #pragma omp parallel for
         for(long j = 0; j<static_cast<long>(src_local_n1); ++j)
-            for(long i = 0; i<static_cast<long>(gsize[0]); ++i)
-                for(long k = 0; k<static_cast<long>(nz_hat);   ++k) {
-                    const size_t linidx = (j*gsize[0] +i)*nz_hat + k;
-                    const long kx = (i <= nKx/2) ? i : -(nKx-i);
-                    const long l = shifty + j; //memory index plus shift due to decomp
-                    const long ky = (l <= nKy/2) ? l : -(nKy-l);
-                    const long kz = (k <= nKz/2) ? k : -(nKz-k);
-
-                    const Real rkx = kx*waveFactX, rky = ky*waveFactY, rkz = kz*waveFactZ;
-                    const Real kinv = kx || ky || kz ? -1/(rkx*rkx+rky*rky+rkz*rkz) : 0;
-                    in_out[linidx][0] *= kinv*norm_factor;
-                    in_out[linidx][1] *= kinv*norm_factor;
+            for(long i = 0; i<static_cast<long>(gsize_0[0]); ++i)
+                for(long k = 0; k<static_cast<long>(nz_hat); ++k)
+                {
+                    const size_t linidx = (j*gsize_0[0] +i)*nz_hat + k;
+                    rho_hat[linidx][0] *= G_hat[linidx] * norm_factor;
+                    rho_hat[linidx][1] *= G_hat[linidx] * norm_factor;
                 }
-#endif
-
-        //this is sparta!
-        if (src_local_1_start == 0) in_out[0][0] = in_out[0][1] = 0;
     }
+
 
 public:
     Real * data = nullptr;
@@ -403,20 +454,11 @@ public:
         bwd = fftwf_mpi_plan_dft_c2r_3d(gsize_0[0], gsize_0[1], gsize_0[2],
                 (mycomplex *)data, data, m_comm, FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
 #endif
-        cout << "myN: " << myN[0] * myN[1] * myN[2] << endl;
-        cout << "alloc_local: " << alloc_local << endl;
-        cout << "2*alloc_local: " << 2*alloc_local << endl;
-        cout << "local_n0: " << "rank " << m_rank << " " << src_local_n0 << endl;
-        cout << "start_local_n0: " << src_local_0_start << endl;
-
-        std::memset(data, 0, 2*alloc_local);   // ensure zeros
-
-        m_buffer = new Real[myN[0] * myN[1] * myN[2]];
 
         // initialize MPI helper types (order iz,iy,ix, where z is the fastest
         // index).  These types will only be used by ranks < m_size/2
-        if (m_size%2 != 0) { // this makes live easier
-            cout << "PoissonSolverScalarFFTW_cyclicConvolution.h: ERROR: Require 1D domain decomposition and even number of processes.";
+        if (m_size%2 != 0 && m_size > 1) { // this makes live easier
+            cout << "PoissonSolverScalarFFTW_cyclicConvolution.h: ERROR: Require 1D domain decomposition and even number of processes with at least 2 processes.";
             abort();
         }
         int supersize[3] = { (int)src_local_n0, (int)gsize_0[1], 2*((int)nz_hat) };
@@ -429,17 +471,13 @@ public:
         MPI_Type_commit(&m_arylo_t);
         MPI_Type_commit(&m_aryhi_t);
 
-        _initialize_green(); // setup fft of Green's function
-        // _show_some(m_kernel, "green");
-
-        //std::cout <<    bs[0] << " " <<    bs[1] << " " <<    bs[2] << " ";
-        //std::cout <<   myN[0] << " " <<   myN[1] << " " <<   myN[2] << " ";
-        //std::cout << gsize[0] << " " << gsize[1] << " " << gsize[2] << " ";
-        //std::cout << mybpd[0] << " " << mybpd[1] << " " << mybpd[2] << std::endl;
+        _initialize_green(); // setup fft of Green's function (constant)
+        m_buffer = new Real[myN[0] * myN[1] * myN[2]];
     }
 
     ~PoissonSolverScalarFFTW_MPI()
     {
+        delete m_kernel;
         delete m_buffer;
         MPI_Type_free(&m_arylo_t);
         MPI_Type_free(&m_aryhi_t);
@@ -451,26 +489,31 @@ public:
         // Note: _cub2fftw() is called from outside via public member call (for
         // efficiency)
 
+        _show_some_OG(m_buffer, "input");
+        std::memset(data, 0, sizeof(Real)*2*alloc_local); // ensure zero's for multiple invocations of solve()
         _mpi_send_src();
-
-// #ifndef _FLOAT_PRECISION_
-//         fftw_execute(fwd);
-// #else
-//         fftwf_execute(fwd);
-// #endif
-
         // _show_some(data);
 
-//         _solve();
+#ifndef _FLOAT_PRECISION_
+        fftw_execute(fwd);
+#else
+        fftwf_execute(fwd);
+#endif
 
-// #ifndef _FLOAT_PRECISION_
-//         fftw_execute(bwd);
-// #else
-//         fftwf_execute(bwd);
-// #endif
+        _show_transform(data, "src");
+
+        _solve();
+
+#ifndef _FLOAT_PRECISION_
+        fftw_execute(bwd);
+#else
+        fftwf_execute(bwd);
+#endif
 
         _mpi_recv_sol();
 
+        _show_some_OG(m_buffer, "output");
+        _dump_linear(m_buffer, "output");
         _fftw2cub(m_buffer);
     }
 
@@ -480,13 +523,11 @@ public:
         fftw_destroy_plan(fwd);
         fftw_destroy_plan(bwd);
         fftw_free(data);
-        fftw_free(m_kernel);
         fftw_mpi_cleanup();
 #else
         fftwf_destroy_plan(fwd);
         fftwf_destroy_plan(bwd);
         fftwf_free(data);
-        fftwf_free(m_kernel);
         fftwf_mpi_cleanup();
 #endif
     }
