@@ -12,10 +12,6 @@
 #ifndef POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 #define POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 
-#include <fstream>
-#include <sstream>
-#include <iomanip>
-
 #include <cassert>
 #include <cstring>
 #include <fftw3-mpi.h>
@@ -81,93 +77,6 @@ class PoissonSolverScalarFFTW_MPI
     ptrdiff_t alloc_local=0;
     ptrdiff_t src_local_n0=0, src_local_0_start=0, src_local_n1=0, src_local_1_start=0;
 
-    void _show_some(const Real* const p, const std::string hint="") // testing some
-    {
-        ostringstream fname;
-        fname << "rank" << m_rank << "_" << hint << ".dat";
-        ofstream fout(fname.str());
-        for (size_t i = 0; i < (size_t)src_local_n0; ++i)
-        {
-            for (size_t j = 0; j < gsize_0[1]; ++j)
-            {
-                for (size_t k = 0; k < 2*nz_hat; ++k)
-                {
-                    const size_t idx = (i*gsize_0[1] + j)* 2*nz_hat + k;
-                    fout << p[idx] << '\t';
-                }
-                fout << endl;
-            }
-            fout << endl;
-            fout << endl;
-        }
-        fout.close();
-    }
-
-    void _show_some_OG(const Real* const p, const std::string hint="") // testing some
-    {
-        ostringstream fname;
-        fname << "rank" << m_rank << "_" << hint << ".dat";
-        ofstream fout(fname.str());
-        for (size_t i = 0; i < (size_t)myN[0]; ++i)
-        {
-            for (size_t j = 0; j < (size_t)myN[1]; ++j)
-            {
-                for (size_t k = 0; k < (size_t)myN[2]; ++k)
-                {
-                    const size_t idx = (i*myN[1] + j)* myN[2] + k;
-                    fout << p[idx] << '\t';
-                }
-                fout << endl;
-            }
-            fout << endl;
-            fout << endl;
-        }
-        fout.close();
-    }
-
-    void _dump_linear(const Real* const p, const std::string hint="") // testing some
-    {
-        ostringstream fname;
-        fname << "rank" << m_rank << "_linear_" << hint << ".dat";
-        ofstream fout(fname.str());
-        for (size_t i = 0; i < (size_t)myN[0]; ++i)
-            for (size_t j = 0; j < (size_t)myN[1]; ++j)
-                for (size_t k = 0; k < (size_t)myN[2]; ++k)
-                {
-                    const size_t idx = (i*myN[1] + j)* myN[2] + k;
-                    fout << std::scientific << p[idx] << endl;
-                }
-        fout.close();
-    }
-
-    void _show_transform(const Real* const p, const std::string hint="") // testing some
-    {
-        ostringstream fname;
-        fname << "rank" << m_rank << "_tr_" << hint << ".dat";
-        ofstream fout(fname.str());
-
-        const mycomplex *const rho_hat = (mycomplex *) p;
-
-        for(long j = 0; j<static_cast<long>(src_local_n1); ++j)
-        {
-            for(long i = 0; i<static_cast<long>(gsize_0[0]); ++i)
-            {
-                for(long k = 0; k<static_cast<long>(nz_hat); ++k)
-                {
-                    const size_t linidx = (j*gsize_0[0] +i)*nz_hat + k;
-                    const double a1 = rho_hat[linidx][0];
-                    const double b1 = rho_hat[linidx][1];
-                    // fout << a1 << ":" << b1 << "j" << '\t';
-                    fout << std::scientific << a1 << ":" << std::scientific << b1 << "j" << endl;
-                }
-                // fout << endl;
-            }
-            // fout << endl;
-            // fout << endl;
-        }
-        fout.close();
-    }
-
     // setup Green's function and compute transform, done once
     void _initialize_green()
     {
@@ -200,8 +109,6 @@ class PoissonSolverScalarFFTW_MPI
 
         _set_kernel(tf_buf);
 
-        _show_some(m_kernel, "green");
-
 #ifndef _FLOAT_PRECISION_
         fftw_execute(greenPlan);
 #else
@@ -219,8 +126,6 @@ class PoissonSolverScalarFFTW_MPI
                     const size_t linidx = (j*gsize_0[0] +i)*nz_hat + k;
                     m_kernel[linidx]  = G_hat[linidx][0]; // need real part only
                 }
-
-        _show_transform(m_kernel, "green");
 
 #ifndef _FLOAT_PRECISION_
         fftw_free(tf_buf);
@@ -488,19 +393,14 @@ public:
     {
         // Note: _cub2fftw() is called from outside via public member call (for
         // efficiency)
-
-        _show_some_OG(m_buffer, "input");
         std::memset(data, 0, sizeof(Real)*2*alloc_local); // ensure zero's for multiple invocations of solve()
         _mpi_send_src();
-        // _show_some(data);
 
 #ifndef _FLOAT_PRECISION_
         fftw_execute(fwd);
 #else
         fftwf_execute(fwd);
 #endif
-
-        _show_transform(data, "src");
 
         _solve();
 
@@ -512,8 +412,6 @@ public:
 
         _mpi_recv_sol();
 
-        _show_some_OG(m_buffer, "output");
-        _dump_linear(m_buffer, "output");
         _fftw2cub(m_buffer);
     }
 
