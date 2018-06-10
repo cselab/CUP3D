@@ -139,7 +139,11 @@ class PoissonSolverScalarFFTW_MPI
     void _set_kernel(Real* const kern)
     {
         // This algorithm requires m_size >= 2.
-        const double fac = 1.0/(4.0*M_PI*h);
+
+        // the forward transform is scaled by N, where N is the total number of
+        // global grid points.  The sign and denominator belongs to Green's
+        // function.
+        const double fac = -norm_factor / (4.0*M_PI*h);
 
         // octant 000
         if (m_rank < m_size/2)
@@ -316,6 +320,11 @@ public:
         MPI_Comm_rank(m_comm, &m_rank);
         MPI_Comm_size(m_comm, &m_size);
 
+        if (m_size%2 != 0 || m_size < 2) { // this makes live easier
+            cout << "PoissonSolverScalarFFTW_cyclicConvolution.h: ERROR: Require 1D domain decomposition and even number of processes with at least 2 processes." << endl;
+            abort();
+        }
+
         {
             int supported_threads;
             MPI_Query_thread(&supported_threads);
@@ -362,10 +371,6 @@ public:
 
         // initialize MPI helper types (order iz,iy,ix, where z is the fastest
         // index).  These types will only be used by ranks < m_size/2
-        if (m_size%2 != 0 && m_size > 1) { // this makes live easier
-            cout << "PoissonSolverScalarFFTW_cyclicConvolution.h: ERROR: Require 1D domain decomposition and even number of processes with at least 2 processes.";
-            abort();
-        }
         int supersize[3] = { (int)src_local_n0, (int)gsize_0[1], 2*((int)nz_hat) };
         int subsize[3] = { (int)myN[0], (int)myN[1], (int)myN[2] };
         int start_lo[3] = { 0, 0, 0 };
