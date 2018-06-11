@@ -75,6 +75,7 @@ void Simulation::setupGrid()
 
 void Simulation::parseArguments()
 {
+  parser.print_args();
   nu = parser("-nu").asDouble();
   //length = parser("-length").asDouble();
   assert(nu>=0);
