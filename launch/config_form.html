@@ -472,17 +472,6 @@ custom fields. Anything else is forwarded to the parent view.
                 params["T"] = is_ok(o["fish_T"]) ? o["fish_T"] : 1.0;
             }
 
-            if (!error) {
-                // Concatenate to "-key1=value1 -key2=value2 ...".
-                var line = name;
-                for (var key in params)
-                    if (params.hasOwnProperty(key))
-                        line += " " + key + "=" + $.trim(params[key]);
-                factory += line + "\n";
-            } else {
-                factory += "# " + error + "\n";
-            }
-
             /* Velocity */
             var forced = o["obstacle_forced"] ? 1 : 0;
             params["bForcedInSimFrame"] = forced;
@@ -506,6 +495,21 @@ custom fields. Anything else is forwarded to the parent view.
 
             /* Frame of reference? */
             params["bFixFrameOfRef"] = o["obstacle_frame_fixed"] ? 1 : 0;
+
+            /* Compute forces always by default */
+            params["computeForces"] = 1;
+
+            if (!error) {
+                // Concatenate to "-key1=value1 -key2=value2 ...".
+                var line = name;
+                for (var key in params)
+                    if (params.hasOwnProperty(key))
+                        line += " " + key + "=" + $.trim(params[key]);
+                factory += line + "\n";
+            } else {
+                factory += "# " + error + "\n";
+            }
+
         }
         job += "\n";
         job += "FACTORY='\n" + factory + "'\n";
