@@ -108,6 +108,10 @@ custom fields. Anything else is forwarded to the parent view.
   <br>
   <div>
     <h3>Run script</h3>
+    <p>
+      If running on a single node (e.g. a laptop), simply copy-paste and run the script below.<br>
+      To run on supercomputing clusters, modify the <code>JOB PHASE</code> section to submit the job that runs the automatically generated <code>./job.sh</code> with <code>${RESULT_PATH}</code> as the execution folder.
+    </p>
     <pre class="bash" id="config-file"></pre>
   </div>
 </div>
@@ -167,9 +171,9 @@ custom fields. Anything else is forwarded to the parent view.
   Domain extent: {{{domain}}}<br>
   {{#if dump_info}}
     <br>
-    Approx. snapshot size: {{dump_info.snapshot_size}}<br>
-    Approx. number of snapshot: {{dump_info.snapshot_count}}<br>
-    Approx. total snapshot size: <b>{{dump_info.snapshot_total_size}}</b><br>
+    Snapshot size: {{dump_info.snapshot_size}}<br>
+    Number of snapshot: {{dump_info.snapshot_count}}<br>
+    Total snapshot size: <b>{{dump_info.snapshot_total_size}}</b><br>
     <br>
   {{/if}}
   Estimated Reynolds number: <b>{{Re}}</b> {{{Re_desc}}}<br>
@@ -235,8 +239,11 @@ custom fields. Anything else is forwarded to the parent view.
 <script type="text/javascript">
 (function(){
     var PRESETS = [{
-        "description": "Flow around a sphere at Re=2000.",
-        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.3,0.25,0.25],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
+        "description": "Flow around a sphere at Re=100.",
+        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-Re-1000","num_cells":[512,256,256],"tend":1000,"tdump":10},"flow":{"nu":0.000001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.3,0.25,0.25],"radius":0.05,"obstacle_forced":"true","obstacle_vel":[0.001,0,0],"obstacle_frame_fixed":"true"}]}',
+    }, {
+        "description": "Flow around a sphere at Re=1000.",
+        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-Re-1000","num_cells":[512,256,256],"tend":100,"tdump":1},"flow":{"nu":0.000001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.3,0.25,0.25],"radius":0.05,"obstacle_forced":"true","obstacle_vel":[0.01,0,0],"obstacle_frame_fixed":"true"}]}',
     }, {
         "description": "Flow around a half-cylinder at Re=2000.",
         "data": '{"simulation":{"num_nodes":1,"result_path":"results/half-cylinder-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Half-cylinder","dcylinder_center":[0.3,0.25],"dcylinder_z_range":[0,1],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
@@ -244,7 +251,7 @@ custom fields. Anything else is forwarded to the parent view.
 
     // Compile-time settings and other parameters.
     var BLOCK_SIZE = 16;
-    var BYTES_PER_CELL = 4 * 8;
+    var BYTES_PER_CELL = 4 * 4;
     var ROOT_PATH_DEFAULT = "..";
 
     // Internal variables and enums.
@@ -281,7 +288,7 @@ custom fields. Anything else is forwarded to the parent view.
     });
     $('.preset').tooltip()
 
-    // https://stackoverflow.com/a/22827128/2203044
+    // https://stackoverflow.com/questions/1779858/how-do-i-escape-a-string-for-a-shell-command-in-node/22827128#22827128
     var escape_shell = function(str) {
         return "'" + str.replace(/'/g, "'\\''") + "'";
     };
@@ -325,53 +332,51 @@ custom fields. Anything else is forwarded to the parent view.
         var simulation = value["simulation"];
         var flow = value["flow"];
 
-        var out = "";
-        out += "#!/bin/bash\n\n";
-        out += "set -e\n\n";
-        out += "RESULT_PATH=" + simulation["result_path"] + "\n";
-        out += "\n";
+        var pre = "";
+        pre += "#!/bin/bash\n\n";
+        pre += "set -e\n\n";
+        pre += "RESULT_PATH=" + simulation["result_path"] + "\n";
+        pre += "\n";
 
-        out += "############################################################\n";
-        out += "# PREPARATION PHASE\n";
-        out += "############################################################\n";
+        pre += "############################################################\n";
+        pre += "# PREPARATION PHASE\n";
+        pre += "############################################################\n";
         // https://stackoverflow.com/questions/15783701/which-characters-need-to-be-escaped-in-bash-how-do-we-know-it/20053121#20053121
 
         if (simulation["root_path"]) {
-            out += "ROOT_PATH=" + simulation["root_path"] + "\n";
+            pre += "ROOT_PATH=" + simulation["root_path"] + "\n";
         } else {
-            out += "ROOT_PATH=" + ROOT_PATH_DEFAULT + "\n";
+            pre += "ROOT_PATH=" + ROOT_PATH_DEFAULT + "\n";
         }
 
-        var exe_name = flow["periodic_z"] ? "cubismup3d_periodicz" : "cubismup3d_open";
-        out += "\n";
-        out += "# Prepare target folder. Copy executable and backup the source code.\n";
-        out += "mkdir -p ${RESULT_PATH}/backup\n";
-        out += "cp -r ${ROOT_PATH}/source ${ROOT_PATH}/Cubism ${RESULT_PATH}/backup\n";
-        out += "\n";
-        out += "cp ${ROOT_PATH}/bin/" + exe_name + " ${RESULT_PATH}       # Copy executable.\n";
-        out += "cp ${BASH_SOURCE} ${RESULT_PATH}/backup || true          # Copy the script itself.\n";
-        out += "\n";
-        out += "\n";
+        pre += "\n";
+        pre += "# Prepare target folder. Copy executable and backup the source code.\n";
+        pre += "mkdir -p ${RESULT_PATH}/backup\n";
+        pre += "cp -r ${ROOT_PATH}/source ${ROOT_PATH}/Cubism ${RESULT_PATH}/backup\n";
+        pre += "cp ${ROOT_PATH}/bin/cubismup3d ${RESULT_PATH}    # Copy executable.\n";
+        pre += "cp ${BASH_SOURCE} ${RESULT_PATH}/backup || true  # Copy the script itself.\n";
+        pre += "\n";
 
-
-        out += "############################################################\n";
-        out += "# JOB PHASE\n";
-        out += "############################################################\n";
 
         /* Simulation setup */
+        var job = "";
+        job += "#!/bin/bash\n\n";
+        job += "set -e\n\n";
         var bpdx = simulation["num_cells"][0] / BLOCK_SIZE;
         var bpdy = simulation["num_cells"][1] / BLOCK_SIZE;
         var bpdz = simulation["num_cells"][2] / BLOCK_SIZE;
         var tend = simulation["tend"];
         var tdump = simulation["tdump"];
-        out += "OPTIONS=\n";
-        out += "OPTIONS+=' -bpdx " + bpdx + "'\n";
-        out += "OPTIONS+=' -bpdy " + bpdy + "'\n";
-        out += "OPTIONS+=' -bpdz " + bpdz + "'\n";
-        out += "OPTIONS+=' -nu " + flow["nu"] + "'\n";
-        out += "OPTIONS+=' -tend " + tend + "'\n";
+        job += "OPTIONS=\n";
+        job += "OPTIONS+=\" -bpdx " + bpdx + "\"\n";
+        job += "OPTIONS+=\" -bpdy " + bpdy + "\"\n";
+        job += "OPTIONS+=\" -bpdz " + bpdz + "\"\n";
+        job += "OPTIONS+=\" -nu " + flow["nu"] + "\"\n";
+        job += "OPTIONS+=\" -tend " + tend + "\"\n";
         if (tdump > 0)
-            out += "OPTIONS+=' -tdump " + tdump + "'\n";
+            job += "OPTIONS+=\" -tdump " + tdump + "\"\n";
+        if (flow["periodic_z"])
+            job += "OPTIONS+=\" -periodicz 1\"";
 
         /* Obstacles (FACTORY) */
         var Re = -1;
@@ -502,18 +507,30 @@ custom fields. Anything else is forwarded to the parent view.
             /* Frame of reference? */
             params["bFixFrameOfRef"] = o["obstacle_frame_fixed"] ? 1 : 0;
         }
-        out += "\n";
-        out += "FACTORY='\n" + factory + "'\n";
-        out += "\n";
+        job += "\n";
+        job += "FACTORY='\n" + factory + "'\n";
+        job += "\n";
 
         /* Running the executable */
-        out += "cd ${RESULT_PATH}\n";
-        out += "mpiexec -n " + simulation["num_nodes"] + " ./" + exe_name + " ${OPTIONS} -factory-content \"${FACTORY}\"\n";
-        var json = JSON.stringify(value);
+        job += "mpiexec -n " + simulation["num_nodes"] + " ./cubismup3d ${OPTIONS} -factory-content \"${FACTORY}\"\n";
 
+        /* Merging into a single script */
+        var out = "";
+        out += pre;
+        out += "# Generate job script.\n";
+        out += "JOBSCRIPT=" + escape_shell(job) + "\n\n";
+        out += "echo \"${JOBSCRIPT}\" > ${RESULT_PATH}/job.sh\n";
+        out += "chmod +x ${RESULT_PATH}/job.sh\n\n";
+        out += "############################################################\n";
+        out += "# JOB PHASE\n";
+        out += "############################################################\n";
+        out += "cd ${RESULT_PATH}\n";
+        out += "./job.sh\n";
+
+        var json = JSON.stringify(value);
         out += "\n\n# To edit this settings, press \"Load Config\" in the form and copy-paste the following line:\n# " + json;
 
-        $("#config-file").html(out);
+        $("#config-file").text(out);
         hljs.highlightBlock($("#config-file")[0]);
 
         /* Config info */
