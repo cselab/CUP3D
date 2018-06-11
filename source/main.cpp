@@ -34,12 +34,14 @@ int main(int argc, char **argv)
   ArgumentParser parser(argc,argv);
   parser.set_strict_mode();
   if (rank==0) {
-   cout <<
-    "=======================================================================\n";
-   cout <<
-    "Cubism UP 3D (velocity-pressure 3D incompressible Navier-Stokes solver)\n";
-   cout <<
-    "=======================================================================\n";
+    std::cout << "=======================================================================\n";
+    std::cout << "Cubism UP 3D (velocity-pressure 3D incompressible Navier-Stokes solver)\n";
+    std::cout << "=======================================================================\n";
+#ifdef NDEBUG
+    std::cout << "Running in RELEASE mode!\n";
+#else
+    std::cout << "Running in DEBUG mode!\n";
+#endif
   }
   parser.unset_strict_mode();
 

@@ -5,6 +5,13 @@ project(CubismUP_3D)
 include(ProcessorCount)
 ProcessorCount(NUM_CORES)
 
+# Choose Release mode as default.
+if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
+  if (NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
+  endif()
+endif()
+
 # Options
 set(BLOCK_SIZE "16" CACHE String "Number of grid points in a block, per dimension")
 set(NUM_THREADS ${NUM_CORES} CACHE String "Number of threads per node")
