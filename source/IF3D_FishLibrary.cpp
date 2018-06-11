@@ -932,10 +932,95 @@ void MidlineShapes::stefan_height(const double L, Real*const rS, Real*const res,
   }
 }
 
+void MidlineShapes::danio_width(const double L, Real*const rS, Real*const res, const int Nm)
+{
+	const int nBreaksW = 11;
+	const double breaksW[nBreaksW] = {0, 0.005, 0.01, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95, 1.0};
+	const double coeffsW[nBreaksW-1][4] = {
+		{0.0015713,       2.6439,            0,       -15410},
+		{ 0.012865,       1.4882,      -231.15,        15598},
+		{0.016476,      0.34647,       2.8156,      -39.328},
+		{0.032323,      0.38294,      -1.9038,       0.7411},
+		{0.046803,      0.19812,      -1.7926,       5.4876},
+		{0.054176,    0.0042136,     -0.14638,     0.077447},
+		{0.049783,    -0.045043,    -0.099907,     -0.12599},
+		{ 0.03577,     -0.10012,      -0.1755,      0.62019},
+		{0.013687,      -0.0959,      0.19662,      0.82341},
+		{0.0065049,     0.018665,      0.56715,       -3.781}
+	};
+
+	for(int i=0; i<Nm; ++i)
+	{
+		if ( rS[i]<=0 or rS[i]>=L ) res[i] = 0;
+		else {
+
+			const double sNormalized = rS[i]/L;
+
+			// Find current segment
+			int currentSegW = 1;
+			while(sNormalized>=breaksW[currentSegW]) currentSegW++;
+			currentSegW--; // Shift back to the correct segment
+			//if(rS[i]==L) currentSegW = nBreaksW-2; Not necessary - excluded by the if conditional
+
+
+			// Declare pointer for easy access
+			const double *paramsW = coeffsW[currentSegW];
+			// Reconstruct cubic
+			const double xxW = sNormalized - breaksW[currentSegW];
+			res[i] = L*(paramsW[0] + paramsW[1]*xxW + paramsW[2]*pow(xxW,2) + paramsW[3]*pow(xxW,3));
+		}
+	}
+}
+
+void MidlineShapes::danio_height(const double L, Real*const rS, Real*const res, const int Nm)
+{
+	const int nBreaksH = 15;
+	const double breaksH[nBreaksH] = {0, 0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.8, 0.85, 0.87, 0.9, 0.993, 0.996, 0.998, 1};
+	const double coeffsH[nBreaksH-1][4] = {
+		{0.0011746,        1.345,   2.2204e-14,      -578.62},
+		{0.014046,       1.1715,      -17.359,        128.6},
+		{0.041361,     0.40004,      -1.9268 ,      9.7029},
+		{0.057759,      0.28013,     -0.47141,     -0.08102},
+		{0.094281,     0.081843,     -0.52002,     -0.76511},
+		{0.083728,     -0.21798,     -0.97909,       3.9699},
+		{0.032727,     -0.13323,       1.4028,       2.5693},
+		{0.036002,      0.22441,       2.1736,      -13.194},
+		{0.051007,      0.34282,      0.19446,       16.642},
+		{0.058075,      0.37057,        1.193,      -17.944},
+		{0.069781,       0.3937,     -0.42196,      -29.388},
+		{0.079107,     -0.44731,      -8.6211,  -1.8283e+05},
+		{0.072751,      -5.4355,      -1654.1,  -2.9121e+05},
+		{0.052934,      -15.546,      -3401.4,   5.6689e+05}
+	};
+
+	for(int i=0; i<Nm; ++i)
+	{
+		if ( rS[i]<=0 or rS[i]>=L ) res[i] = 0;
+		else {
+
+			const double sNormalized = rS[i]/L;
+
+			// Find current segment
+			int currentSegH = 1;
+			while(sNormalized>=breaksH[currentSegH]) currentSegH++;
+			currentSegH--; // Shift back to the correct segment
+			//if(rS[i]==L) currentSegH = nBreaksH-2; Not necessary - excluded by the if conditional
+
+			// Declare pointer for easy access
+			const double *paramsH = coeffsH[currentSegH];
+			// Reconstruct cubic
+			const double xxH = sNormalized - breaksH[currentSegH];
+			res[i] = L*(paramsH[0] + paramsH[1]*xxH + paramsH[2]*pow(xxH,2) + paramsH[3]*pow(xxH,3));
+		}
+	}
+}
+
 void MidlineShapes::computeWidthsHeights(const string heightName,
   const string widthName, const double L, Real* const rS,
   Real* const height, Real* const width, const int nM, const int mpirank)
 {
+
+printf("height = %s, width=%s\n", heightName, widthName); fflush(NULL);
   if ( heightName.compare("largefin") == 0 ) {
     if(!mpirank)
       cout<<"Building object's height according to 'largefin' profile."<<endl;
@@ -958,6 +1043,11 @@ void MidlineShapes::computeWidthsHeights(const string heightName,
     if(!mpirank)
       cout<<"Building object's height according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
     naca_width(t_naca, L, rS, height, nM);
+  } else
+  if ( heightName.compare("danio") == 0 ) {
+    if(!mpirank)
+      cout<<"Building object's height according to Danio (zebrafish) profile from Maertens2017 (JFM)"<<endl;
+    danio_height(L, rS, height, nM);
   } else {
     if(!mpirank)
       cout<<"Building object's height according to baseline profile."<<endl;
@@ -978,6 +1068,11 @@ void MidlineShapes::computeWidthsHeights(const string heightName,
     if(!mpirank)
       cout<<"Building object's width according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
     naca_width(t_naca, L, rS, width, nM);
+  } else
+  if ( widthName.compare("danio") == 0 ) {
+    if(!mpirank)
+      cout<<"Building object's width according to Danio (zebrafish) profile from Maertens2017 (JFM)"<<endl;
+    danio_width(L, rS, width, nM);
   } else {
     if(!mpirank)
       cout<<"Building object's width according to baseline profile."<<endl;
@@ -994,6 +1089,7 @@ void MidlineShapes::computeWidthsHeights(const string heightName,
     fclose(heightWidth);
   }
 }
+
 
 #if 0
 class CarlingFishMidlineData : public FishMidlineData

@@ -452,6 +452,8 @@ namespace MidlineShapes
     Real*const res, const int Nm);
   void stefan_width(const double L, Real*const rS, Real*const res, const int Nm);
   void stefan_height(const double L, Real*const rS, Real*const res, const int Nm);
+  void danio_width(const double L, Real*const rS, Real*const res, const int Nm);
+  void danio_height(const double L, Real*const rS, Real*const res, const int Nm);
 
   void computeWidthsHeights(const string heightName, const string widthName,
   const double L, Real*const rS, Real*const height, Real*const width,
