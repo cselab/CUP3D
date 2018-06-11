@@ -118,9 +118,6 @@ protected:
   void compute(const Kernel& kernel)
   {
     SynchronizerMPI& Synch = grid->sync(kernel);
-    const int NX = grid->getBlocksPerDimension(0);
-    const int NY = grid->getBlocksPerDimension(1);
-    const int NZ = grid->getBlocksPerDimension(2);
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
     for(int i = 0; i < nthreads; ++i)

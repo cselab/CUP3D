@@ -15,6 +15,7 @@ option(VERBOSE OFF)
 # Source files and target
 set(EXE1 "cubismup3d_open")
 set(EXE2 "cubismup3d_periodicz")
+set(LIB "cubismup3d")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
 set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
 
@@ -43,6 +44,11 @@ set(COMMON_SOURCES           # Common for app and lib.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ROOT_FOLDER}/bin)
 add_executable(${EXE1} ${COMMON_SOURCES} ${ROOT_FOLDER}/source/main.cpp)
 add_executable(${EXE2} ${COMMON_SOURCES} ${ROOT_FOLDER}/source/main.cpp)
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${ROOT_FOLDER}/lib)
+add_library(${LIB}
+            ${COMMON_SOURCES}
+            ${ROOT_FOLDER}/source/cubism_main.cpp
+            ${ROOT_FOLDER}/source/CubismUP_3D.cpp)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 

@@ -95,6 +95,7 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
       const Real dVdef = lab(ix  ,iy+1,iz  ).tmpV - lab(ix  ,iy-1,iz  ).tmpV;
       const Real dWdef = lab(ix  ,iy  ,iz+1).tmpW - lab(ix  ,iy  ,iz-1).tmpW;
       const Real ret = fac*(dU+dV+dW -lab(ix,iy,iz).chi*(dUdef+dVdef+dWdef));
+      // const Real ret = fac*(dU+dV+dW);  // Use this to kill internal divergence.
       //o(ix,iy,iz).p = ret;
       solver->_cub2fftw(offset, iz, iy, ix, ret);
     }

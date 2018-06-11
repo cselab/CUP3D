@@ -62,6 +62,11 @@ struct ExternalObstacleSettings
                         double z,
                         double out[3]) = nullptr;
 
+    /*
+     * Returns the center-of-mass velocity of the object.
+     */
+    void (*com_velocity_fn)(void *obj, double out[3]) = nullptr;
+
     /* Arbitrary pointer to be sent to the callbacks above. */
     void *obj = nullptr;
 

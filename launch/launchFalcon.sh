@@ -13,11 +13,11 @@ FOLDER=${BASEPATH}${BASENAME}
 mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
-cp ${FFACTORY} ${FOLDER}/factory
-cp ../bin/simulation ${FOLDER}
+[[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
+cp ../bin/cubismup3d_open ${FOLDER}
 
 cd $FOLDER
 
 export OMP_NUM_THREADS=12
-echo $OPTIONS > settings.txt
-mpirun -np ${NNODE} ./simulation ${OPTIONS} -factory-content "${FACTORY}"
+echo "$OPTIONS" > settings.txt
+mpirun -np 1 ./cubismup3d_open ${OPTIONS} -factory-content "${FACTORY}"
