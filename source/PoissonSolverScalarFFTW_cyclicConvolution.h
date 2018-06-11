@@ -46,7 +46,8 @@ class PoissonSolverScalarFFTW_MPI
     MPI_Comm m_comm;
     int m_rank, m_size;
     Real* m_buffer; // MPI send/recv buffer
-    Real* m_kernel; // Green's function
+    // Real* m_kernel; // Green's function
+    mycomplex* m_kernel; // Green's function
 
     // helper types
     MPI_Datatype m_arylo_t;
@@ -115,23 +116,24 @@ class PoissonSolverScalarFFTW_MPI
         fftwf_execute(greenPlan);
 #endif
 
-        m_kernel = new Real[alloc]; // FFT for this kernel is real
+        m_kernel = (mycomplex*) tf_buf;
+        // m_kernel = new Real[alloc]; // FFT for this kernel is real
 
-        const mycomplex *const G_hat = (mycomplex *) tf_buf;
-#pragma omp parallel for
-        for(long j = 0; j<static_cast<long>(src_local_n1); ++j)
-            for(long i = 0; i<static_cast<long>(gsize_0[0]); ++i)
-                for(long k = 0; k<static_cast<long>(nz_hat); ++k)
-                {
-                    const size_t linidx = (j*gsize_0[0] +i)*nz_hat + k;
-                    m_kernel[linidx]  = G_hat[linidx][0]; // need real part only
-                }
+        // const mycomplex *const G_hat = (mycomplex *) tf_buf;
+// #pragma omp parallel for
+        // for(long j = 0; j<static_cast<long>(src_local_n1); ++j)
+        //     for(long i = 0; i<static_cast<long>(gsize_0[0]); ++i)
+        //         for(long k = 0; k<static_cast<long>(nz_hat); ++k)
+        //         {
+        //             const size_t linidx = (j*gsize_0[0] +i)*nz_hat + k;
+        //             m_kernel[linidx]  = G_hat[linidx][0]; // need real part only
+        //         }
 
 #ifndef _FLOAT_PRECISION_
-        fftw_free(tf_buf);
+        // fftw_free(tf_buf);
         fftw_destroy_plan(greenPlan);
 #else
-        fftwf_free(tf_buf);
+        // fftwf_free(tf_buf);
         fftwf_destroy_plan(greenPlan);
 #endif
     }
@@ -291,7 +293,8 @@ protected:
     void _solve()
     {
         mycomplex* const rho_hat = (mycomplex *) data;
-        const Real* const G_hat  = m_kernel;
+        // const Real* const G_hat  = m_kernel;
+        const mycomplex* const G_hat  = m_kernel;
 
         // perform convolution in frequency domain and normalize
 #pragma omp parallel for
@@ -300,8 +303,14 @@ protected:
                 for(long k = 0; k<static_cast<long>(nz_hat); ++k)
                 {
                     const size_t linidx = (j*gsize_0[0] +i)*nz_hat + k;
-                    rho_hat[linidx][0] *= G_hat[linidx] * norm_factor;
-                    rho_hat[linidx][1] *= G_hat[linidx] * norm_factor;
+                    const double a1 = G_hat[linidx][0];
+                    const double b1 = G_hat[linidx][1];
+                    const double a2 = rho_hat[linidx][0];
+                    const double b2 = rho_hat[linidx][1];
+                    rho_hat[linidx][0] = (a1*a2 - b1*b2) * norm_factor;
+                    rho_hat[linidx][1] = (a1*b2 + a2*b1) * norm_factor;
+                    // rho_hat[linidx][0] *= G_hat[linidx] * norm_factor;
+                    // rho_hat[linidx][1] *= G_hat[linidx] * norm_factor;
                 }
     }
 
@@ -426,11 +435,13 @@ public:
         fftw_destroy_plan(fwd);
         fftw_destroy_plan(bwd);
         fftw_free(data);
+        fftw_free(m_kernel);
         fftw_mpi_cleanup();
 #else
         fftwf_destroy_plan(fwd);
         fftwf_destroy_plan(bwd);
         fftwf_free(data);
+        fftwf_free(m_kernel);
         fftwf_mpi_cleanup();
 #endif
     }
