@@ -5,8 +5,7 @@
 //  Copyright (c) 2018 ETHZ. All rights reserved.
 //
 //  This algorithm uses the cyclic convolution method described in Eastwood and
-//  Brownrigg (1979) for unbounded domains.  (In a cell-centered data
-//  formulation).
+//  Brownrigg (1979) for unbounded domains.
 //  WARNING: This implementation only works with a 1D domain decomposition
 //  along the x-coordinate.
 #ifndef POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
@@ -145,10 +144,12 @@ class PoissonSolverScalarFFTW_MPI
     {
         // This algorithm requires m_size >= 2.
 
-        // the forward transform is scaled by N, where N is the total number of
-        // global grid points.  The sign and denominator belongs to Green's
-        // function.
-        const double fac = -norm_factor / (4.0*M_PI*h);
+        // This factor is due to the discretization of the convolution
+        // integtal.  It is composed of (h*h*h) * (-1/[4*pi*h]), where h is the
+        // uniform grid spacing.  The first factor is the discrete volume
+        // element of the convolution integral; the second factor belongs to
+        // Green's function on a uniform mesh.
+        const double fac = -h*h / (4.0*M_PI);
 
         // octant 000
         if (m_rank < m_size/2)
@@ -171,22 +172,6 @@ class PoissonSolverScalarFFTW_MPI
                     }
                 }
             }
-            // for (size_t i = 0; i < (size_t)src_local_n0; ++i)
-            // {
-            //     const double xi = src_local_0_start + i + 0.5;
-            //     for (size_t j = 0; j < myN[1]; ++j)
-            //     {
-            //         const double yi = j + 0.5;
-            //         for (size_t k = 0; k < myN[2]; ++k)
-            //         {
-            //             const size_t idx = k + 2*nz_hat*(j + gsize_0[1]*i);
-            //             const double zi = k + 0.5;
-            //             const double r = std::sqrt(xi*xi + yi*yi + zi*zi);
-            //             assert(r > 0.0);
-            //             kern[idx] = fac/r;
-            //         }
-            //     }
-            // }
         }
 
         // mirror
@@ -456,13 +441,13 @@ public:
         fftw_destroy_plan(fwd);
         fftw_destroy_plan(bwd);
         fftw_free(data);
-        fftw_free(m_kernel);
+        // fftw_free(m_kernel);
         fftw_mpi_cleanup();
 #else
         fftwf_destroy_plan(fwd);
         fftwf_destroy_plan(bwd);
         fftwf_free(data);
-        fftwf_free(m_kernel);
+        // fftwf_free(m_kernel);
         fftwf_mpi_cleanup();
 #endif
     }
