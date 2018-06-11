@@ -120,14 +120,17 @@ class PoissonSolverScalarFFTW_MPI
         // m_kernel = new Real[alloc]; // FFT for this kernel is real
 
         // const mycomplex *const G_hat = (mycomplex *) tf_buf;
-// #pragma omp parallel for
+        // double sum = 0.0;
+// // #pragma omp parallel for
         // for(long j = 0; j<static_cast<long>(src_local_n1); ++j)
         //     for(long i = 0; i<static_cast<long>(gsize_0[0]); ++i)
         //         for(long k = 0; k<static_cast<long>(nz_hat); ++k)
         //         {
         //             const size_t linidx = (j*gsize_0[0] +i)*nz_hat + k;
-        //             m_kernel[linidx]  = G_hat[linidx][0]; // need real part only
+        //             // m_kernel[linidx]  = G_hat[linidx][0]; // need real part only
+        //             sum  += std::fabs(G_hat[linidx][1]); // need real part only
         //         }
+        // cout << sum << endl;
 
 #ifndef _FLOAT_PRECISION_
         // fftw_free(tf_buf);
@@ -152,20 +155,38 @@ class PoissonSolverScalarFFTW_MPI
         {
             for (size_t i = 0; i < (size_t)src_local_n0; ++i)
             {
-                const double xi = src_local_0_start + i + 0.5;
+                const double xi = src_local_0_start + i;
                 for (size_t j = 0; j < myN[1]; ++j)
                 {
-                    const double yi = j + 0.5;
+                    const double yi = j;
                     for (size_t k = 0; k < myN[2]; ++k)
                     {
                         const size_t idx = k + 2*nz_hat*(j + gsize_0[1]*i);
-                        const double zi = k + 0.5;
+                        const double zi = k;
                         const double r = std::sqrt(xi*xi + yi*yi + zi*zi);
-                        assert(r > 0.0);
-                        kern[idx] = fac/r;
+                        if (r > 0.0)
+                            kern[idx] = fac/r;
+                        else
+                            kern[idx] = 0.0;
                     }
                 }
             }
+            // for (size_t i = 0; i < (size_t)src_local_n0; ++i)
+            // {
+            //     const double xi = src_local_0_start + i + 0.5;
+            //     for (size_t j = 0; j < myN[1]; ++j)
+            //     {
+            //         const double yi = j + 0.5;
+            //         for (size_t k = 0; k < myN[2]; ++k)
+            //         {
+            //             const size_t idx = k + 2*nz_hat*(j + gsize_0[1]*i);
+            //             const double zi = k + 0.5;
+            //             const double r = std::sqrt(xi*xi + yi*yi + zi*zi);
+            //             assert(r > 0.0);
+            //             kern[idx] = fac/r;
+            //         }
+            //     }
+            // }
         }
 
         // mirror
