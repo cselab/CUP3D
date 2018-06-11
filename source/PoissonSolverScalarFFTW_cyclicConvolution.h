@@ -167,7 +167,7 @@ class PoissonSolverScalarFFTW_MPI
                         if (r > 0.0)
                             kern[idx] = fac/r;
                         else
-                            kern[idx] = 0.0;
+                            kern[idx] = 1.0;
                     }
                 }
             }
