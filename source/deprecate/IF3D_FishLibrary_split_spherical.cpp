@@ -1542,7 +1542,7 @@ class CarlingFishMidlineData : public FishMidlineData
 
   }
 
-  void computeMidline(const Real time) override
+  void computeMidline(const Real time, const Real dt) override
   {
     if (bBurst && time>=tStart) {
       _computeMidlineCoordinatesBeC(time);

@@ -51,7 +51,7 @@ class CurvatureDefinedFishData : public FishMidlineData
     _dealloc(vA);
   }
 
-  void computeMidline(const double time) override;
+  void computeMidline(const double time, const double dt) override;
 };
 
 void CurvatureDefinedFishData::_correctTrajectory(const double dtheta, const double vtheta, const double time, double dt)
@@ -98,7 +98,7 @@ void CurvatureDefinedFishData::execute(const double time, const double l_tnext, 
   }
 }
 
-void CurvatureDefinedFishData::computeMidline(const double time)
+void CurvatureDefinedFishData::computeMidline(const double time, const double dt)
 {
   const double _1oL = 1./length;
   const double _1oT = 1./l_Tp;

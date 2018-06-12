@@ -277,7 +277,7 @@ void IF3D_FishOperator::create(const int step_id,const double time, const double
   apply_pid_corrections(time, dt, Uinf);
 
   // 1.
-  myFish->computeMidline(time);
+  myFish->computeMidline(time, dt);
   #ifdef __useSkin_
   myFish->computeSurface();
   #endif

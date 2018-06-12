@@ -32,7 +32,7 @@ class NacaMidlineData : public FishMidlineData
     #endif
     MidlineShapes::naca_width(t_ratio, length, rS, width, Nm);
 
-    computeMidline(0);
+    computeMidline(0.0, 0.0);
 
     #if 1
       int rank;
@@ -45,7 +45,7 @@ class NacaMidlineData : public FishMidlineData
     #endif
   }
 
-  void computeMidline(const double time) override
+  void computeMidline(const double time, const double dt) override
   {
     #if 1
       rX[0] = rY[0] = vX[0] = vY[0] = 0;
