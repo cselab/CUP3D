@@ -10,7 +10,6 @@
 #include "IF3D_FishLibrary.h"
 #include "GenericOperator.h"
 
-
 class CarlingFishMidlineData : public FishMidlineData
 {
  public:
@@ -20,10 +19,6 @@ class CarlingFishMidlineData : public FishMidlineData
   static constexpr double carlingInv = 0.03125;
 
   static constexpr double quadraticFactor = 0.1;
-
-  Real aParabola = 0;
-  Real bParabola = 0;
-  Real cParabola = 0;
 
   inline Real rampFactorSine(const Real t, const Real T) const
   {
@@ -49,46 +44,9 @@ class CarlingFishMidlineData : public FishMidlineData
     return 2.0*M_PI*(s/(waveLength*length) - t/Tperiod + phaseShift);
   }
 
-  //inline void computeParabolaParams(const Real yLeft, const Real yPrimeLeft, const Real yPrimeRight) const
-  //{
-  //  aParabola = (yPrimeLeft-yPrimeRight)/(2*(sLeft-sRight));
-  //  bParabola = yPrimeRight - 2*aParabola*sRight;
-  //  cParabola = yLeft - aParabola*sLeft*sLeft - bParabola*sLeft;
-  //}
+  virtual Real midline(const Real s, const Real t) const;
 
-  Real getJointParabola(const Real s, const Real L) const
-  {
-    return aParabola*s*s + bParabola*s + cParabola;
-  }
-
-  Real midline(const Real s, const Real t) const
-  {
-    const Real arg = getArg(s, t);
-
-    double yCurrent;
-    if(quadraticAmplitude){
-      yCurrent = getQuadAmp(s) * std::sin(arg);
-    } else {
-      yCurrent =  getLinAmp(s) * std::sin(arg);
-    }
-
-    return yCurrent;
-  }
-
-  inline Real midlineVel(const Real s, const Real t) const
-  {
-    const Real arg = getArg(s, t);
-    const Real dArg = -2*M_PI/Tperiod;
-
-    double velCurrent;
-    if(quadraticAmplitude) {
-      velCurrent = getQuadAmp(s) * dArg * std::cos(arg);
-    }else{
-      velCurrent = -getLinAmp(s) * dArg * std::cos(arg);
-    }
-
-    return velCurrent;
-  }
+  virtual Real midlineVel(const Real s, const Real t) const;
 
   std::pair<double, double> cubicHermite(const double f1, const double f2, const double x){
     const double a =  2*(f1-f2);
@@ -98,41 +56,9 @@ class CarlingFishMidlineData : public FishMidlineData
     return std::make_pair(retVal, deriv);
   }
 
-  void _computeMidlineCoordinates(const Real time)
-  {
-    const Real rampFac = rampFactorSine(time, Tperiod);
-    rX[0] = 0.0;
-    rY[0] = rampFac*midline(rS[0], time);
+  virtual void _computeMidlineCoordinates(const Real time);
 
-    for(int i=1;i<Nm;++i)
-    {
-      rY[i]=rampFac*midline(rS[i], time);
-      const Real dy = rY[i]-rY[i-1];
-      const Real ds = rS[i]-rS[i-1];
-      Real dx = std::sqrt(ds*ds-dy*dy);
-      assert(dx>0);
-      rX[i] = rX[i-1] + dx;
-    }
-  }
-
-  void _computeMidlineVelocities(const Real time)
-  {
-    const Real rampFac =    rampFactorSine(time, Tperiod);
-    const Real rampFacVel = rampFactorVelSine(time, Tperiod);
-
-    vX[0] = 0.0; //rX[0] is constant
-    vY[0] = rampFac*midlineVel(rS[0],time) + rampFacVel*midline(rS[0],time);
-
-    for(int i=1;i<Nm;++i)
-    {
-      vY[i]=rampFac*midlineVel(rS[i],time) + rampFacVel*midline(rS[i],time);
-      const Real dy  = rY[i]-rY[i-1];
-      const Real dx  = rX[i]-rX[i-1];
-      const Real dVy = vY[i]-vY[i-1];
-      assert(dx>0);
-      vX[i] = vX[i-1] - dy/dx *dVy; // use ds^2 = dx^2+dy^2 -> ddx = -dy/dx*ddy
-    }
-  }
+  virtual void _computeMidlineVelocities(const Real time);
 
  public:
   CarlingFishMidlineData(double L, double T, double phi, double _h, double A)
@@ -143,24 +69,90 @@ class CarlingFishMidlineData : public FishMidlineData
     //_computeWidthsHeights();
   }
 
-  void computeMidline(const Real time, const Real dt) override
-  {
-    _computeMidlineCoordinates(time);
-    _computeMidlineVelocities(time);
-    _computeMidlineNormals();
-    #if 0
-      #warning USED MPI COMM WORLD
-      // we dump the profile
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-      if (rank!=0) return;
-      FILE * f = fopen("fish_profile","w");
-      for(int i=0;i<Nm;++i) fprintf(f,"%d %g %g %g %g %g %g %g %g %g\n",
-       i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i], vNorX[i],vNorY[i]);
-      fclose(f); printf("Dumped midline\n");
-    #endif
-  }
+  virtual void computeMidline(const Real t, const Real dt) override;
 };
+
+#include "IF3D_CarlingFishOperator_extra.h"
+
+void CarlingFishMidlineData::computeMidline(const Real t,const Real dt)
+{
+  _computeMidlineCoordinates(t);
+  _computeMidlineVelocities(t);
+  _computeMidlineNormals();
+  #if 0
+    #warning USED MPI COMM WORLD
+    // we dump the profile
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+    if (rank!=0) return;
+    FILE * f = fopen("fish_profile","w");
+    for(int i=0;i<Nm;++i) fprintf(f,"%d %g %g %g %g %g %g %g %g %g\n",
+     i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i], vNorX[i],vNorY[i]);
+    fclose(f); printf("Dumped midline\n");
+  #endif
+}
+
+Real CarlingFishMidlineData::midline(const Real s, const Real t) const
+{
+  const Real arg = getArg(s, t);
+
+  double yCurrent;
+  if(quadraticAmplitude){
+    yCurrent = getQuadAmp(s) * std::sin(arg);
+  } else {
+    yCurrent =  getLinAmp(s) * std::sin(arg);
+  }
+
+  return yCurrent;
+}
+
+Real CarlingFishMidlineData::midlineVel(const Real s, const Real t) const
+{
+  const Real arg = getArg(s, t);
+  const Real dArg = -2*M_PI/Tperiod;
+
+  double velCurrent;
+  if(quadraticAmplitude) {
+    velCurrent = getQuadAmp(s) * dArg * std::cos(arg);
+  }else{
+    velCurrent =  getLinAmp(s) * dArg * std::cos(arg);
+  }
+
+  return velCurrent;
+}
+
+void CarlingFishMidlineData::_computeMidlineCoordinates(const Real t)
+{
+  const Real rampFac = rampFactorSine(t, Tperiod);
+  rX[0] = 0.0;
+  rY[0] = rampFac*midline(rS[0], t);
+
+  for(int i=1;i<Nm;++i)
+  {
+    rY[i] = rampFac*midline(rS[i], t);
+    const Real dy = rY[i]-rY[i-1], ds = rS[i]-rS[i-1];
+    Real dx = std::sqrt(ds*ds-dy*dy);
+    assert(dx>0);
+    rX[i] = rX[i-1] + dx;
+  }
+}
+
+void CarlingFishMidlineData::_computeMidlineVelocities(const Real t)
+{
+  const Real rampFac =    rampFactorSine(t, Tperiod);
+  const Real rampFacVel = rampFactorVelSine(t, Tperiod);
+
+  vX[0] = 0.0; //rX[0] is constant
+  vY[0] = rampFac*midlineVel(rS[0],t) + rampFacVel*midline(rS[0],t);
+
+  for(int i=1; i<Nm; ++i)
+  {
+    vY[i]=rampFac*midlineVel(rS[i],t) + rampFacVel*midline(rS[i],t);
+    const Real dy = rY[i]-rY[i-1], dx = rX[i]-rX[i-1], dVy = vY[i]-vY[i-1];
+    assert(dx>0);
+    vX[i] = vX[i-1] - dy/dx *dVy; // use ds^2 = dx^2+dy^2 -> ddx = -dy/dx*ddy
+  }
+}
 
 IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   ArgumentParser&p, const Real*const u) : IF3D_FishOperator(g, p, u)
@@ -169,8 +161,15 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   sr.parseArguments(p);
 
   const double amplitude = p("-amplitude").asDouble(0.1212121212121212);
+  //const bool bBurst = parser("-BurstCoast").asBool(false);
+  //const bool bHinge = parser("-HingedFin").asBool(false);
+  //if(bBurst) myFish = readBurstCoastParams()
+  //else
+  //if (bHinge) myFish = readHingeParams()
+  //else
   myFish = new CarlingFishMidlineData(length, Tperiod, phaseShift,
     vInfo[0].h_gridpoint, amplitude);
+
   string heightName = p("-heightProfile").asString("baseline");
   string  widthName = p( "-widthProfile").asString("baseline");
   MidlineShapes::computeWidthsHeights(heightName, widthName, length,
