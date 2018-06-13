@@ -1019,8 +1019,7 @@ void MidlineShapes::computeWidthsHeights(const string heightName,
   const string widthName, const double L, Real* const rS,
   Real* const height, Real* const width, const int nM, const int mpirank)
 {
-
-printf("height = %s, width=%s\n", heightName, widthName); fflush(NULL);
+  printf("height = %s, width=%s\n", heightName.c_str(), widthName.c_str()); fflush(NULL);
   if ( heightName.compare("largefin") == 0 ) {
     if(!mpirank)
       cout<<"Building object's height according to 'largefin' profile."<<endl;

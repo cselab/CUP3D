@@ -25,7 +25,6 @@ class CurvatureDefinedFishData : public FishMidlineData
   Real * const vA;
   double controlFac = -1, valPID = 0;
   double controlVel = 0, velPID = 0;
-  const Real waveLength = 1;
  public:
 
   CurvatureDefinedFishData(double L, double T, double phi, double _h)
@@ -243,7 +242,8 @@ void IF3D_StefanFishOperator::restart(const double t, string filename)
     }
 }
 
-IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_FishOperator(g, p, u)
+IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
+  ArgumentParser&p, const Real*const u) : IF3D_FishOperator(g, p, u)
 {
   sr = StateReward(length, Tperiod);
   sr.parseArguments(p);
@@ -257,7 +257,7 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g, ArgumentParser&
   //bool bKillAmplitude = parser("-zeroAmplitude").asInt(0);
   //if(bKillAmplitude) myFish->killAmplitude();
 
-  if(!rank)printf("%d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
+  if(!rank) printf("%d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
 
   sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
                     _2Dangle, transVel[0], transVel[1], angVel[2]);

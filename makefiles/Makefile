@@ -45,7 +45,7 @@ CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -pedantic
 CPPFLAGS+= -Wno-unused-variable  # complains for a bunch of variables used when debugging
 CPPFLAGS+= -Wno-unused-parameter # does not make much sense with function overloading
- 
+
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_FLOAT_PRECISION_
 	NVCCFLAGS += -D_FLOAT_PRECISION_
@@ -182,8 +182,8 @@ OBJECTS =  IF3D_VortexOperator.o \
            Simulation.o \
            IF3D_NacaOperator.o \
            BufferedLogger.o \
+					 IF3D_CarlingFishOperator.o \
            IF3D_DCylinderObstacleOperator.o
-           #IF3D_CarlingFishOperator.o \
 
 ifeq "$(accfft)" "true"
 	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -D_CUDA_COMP_

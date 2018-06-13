@@ -65,6 +65,7 @@ class FishMidlineData
 {
  public:
   const double length, Tperiod, phaseShift, h;
+  const Real waveLength = 1;
 
   // Midline is discretized by more points in first fraction and last fraction:
   const double fracRefined = 0.1, fracMid = 1 - 2*fracRefined;

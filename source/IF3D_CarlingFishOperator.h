@@ -16,9 +16,7 @@
 class IF3D_CarlingFishOperator: public IF3D_FishOperator
 {
 public:
-
   IF3D_CarlingFishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u);
-  void _parseArguments(ArgumentParser & parser);
   void execute(const int i,const double t,const vector<double>a) override;
   void computeForces(const int stepID, const double time, const double dt,
     const Real* Uinf, const double NU, const bool bDump) override;

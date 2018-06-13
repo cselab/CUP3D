@@ -11,7 +11,7 @@
 #include "IF3D_ObstacleFactory.h"
 #include "IF2D_FactoryFileLineParser.h"
 
-//#include "IF3D_CarlingFishOperator.h"
+#include "IF3D_CarlingFishOperator.h"
 //#include "IF3D_CylinderObstacleOperator.h"
 #include "IF3D_DCylinderObstacleOperator.h"
 //#include "IF3D_DeadFishOperator.h"
@@ -86,10 +86,10 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     {
       retval.push_back(new IF3D_StefanFishOperator(grid,object.second,Uinf));
     }
-    //else if( objectName == "IF3D_CarlingFish" )
-    //{
-    //  retval.push_back(new IF3D_CarlingFishOperator(grid,object.second,Uinf));
-    //}
+    else if( objectName == "IF3D_CarlingFish" )
+    {
+      retval.push_back(new IF3D_CarlingFishOperator(grid,object.second,Uinf));
+    }
 
     else if( objectName == "IF3D_ElasticFishOperator" )
     {

@@ -265,7 +265,7 @@ class ElasticMidlineData : public FishMidlineData
       assert(totalForceX[i] >= 0.0);
       assert(totalForceX[i] <= 1e2);
       assert(totalForceY[i] >= 0.0);
-      assert(totalForceY[i] <= 1e2);    
+      assert(totalForceY[i] <= 1e2);
     }
 
     printf("MIDLINE: Total forces computed!\n");
@@ -462,7 +462,7 @@ class ElasticMidlineData : public FishMidlineData
     printf("#####################################################################\n");
   }
 
-  void rattleVelocityUpdate(const Real * const rX_n, const Real * const rY_n,const Real * const vX_n_minus_half, const Real * const vY_n_minus_half, const Real * const vX_n_plus_half, const Real * const vY_n_plus_half, const Real * const mass, const Real * const linkLength, Real * vX_n, Real * vY_n) 
+  void rattleVelocityUpdate(const Real * const rX_n, const Real * const rY_n,const Real * const vX_n_minus_half, const Real * const vY_n_minus_half, const Real * const vX_n_plus_half, const Real * const vY_n_plus_half, const Real * const mass, const Real * const linkLength, Real * vX_n, Real * vY_n)
   {
     for(int i=0; i<Nm; ++i){
       vX_n[i] = (vX_n_minus_half[i] + vX_n_plus_half[i])/2.0;
@@ -503,7 +503,7 @@ class ElasticMidlineData : public FishMidlineData
     }
     printf("#################### RATTLE VEL UPDATE  ####################\n");
     printf("# TIME = %le, dt= %le, Method ended with error = %le after = %d iterations #\n", sim_time, sim_dt, max_residual, iter);
-    printf("#####################################################################\n");  
+    printf("#####################################################################\n");
   }
 
 
@@ -513,11 +513,11 @@ class ElasticMidlineData : public FishMidlineData
     {
       rX[i] = rX[i] + sim_dt*vX[i];
       rY[i] = rY[i] + sim_dt*vY[i];
+      assert(rX[i]>=0.0);
+      assert(rX[i]<=1.0);
+      assert(rY[i]>=0.0);
+      assert(rY[i]<=1.0);
     }
-    assert(rX[i]>=0.0);
-    assert(rX[i]<=1.0);
-    assert(rY[i]>=0.0);
-    assert(rY[i]<=1.0);
   }
 
   void computeLinkMass(Real * mass)
@@ -576,7 +576,7 @@ class ElasticMidlineData : public FishMidlineData
   void computeMidline(const double time, const double dt) override
   {
     sim_time = time;
-    
+
 
     if (timeIsZero(sim_time)) {
       rX[0] = rY[0] = vX[0] = vY[0] = 0;
