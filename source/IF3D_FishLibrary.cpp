@@ -497,22 +497,24 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
                              +std::pow(height[close_s]*sinth,2);
           const Real nxt2ML = std::pow( width[secnd_s]*costh,2)
                              +std::pow(height[secnd_s]*sinth,2);
+
+          const Real corr = 2*std::sqrt(cnt2ML*nxt2ML);
           defblock->sectionMarker[sz][sy][sx] = close_s;
           defblock->udef[sz][sy][sx][0] = udef[0];
           defblock->udef[sz][sy][sx][1] = udef[1];
           defblock->udef[sz][sy][sx][2] = udef[2];
           b(sx,sy,sz).tmpU = 1;
-
-          if(dSsq>=std::fabs(cnt2ML-nxt2ML))
+          if(dSsq >= cnt2ML+nxt2ML -corr) // if ds > delta radius
           { // if no abrupt changes in width we use nearest neighbour
             const Real xMidl[3] = {rX[close_s], rY[close_s], 0};
             const Real grd2ML = eulerDistSq3D(p, xMidl);
             const Real sign = grd2ML > cnt2ML ? -1 : 1;
             defblock->chi[sz][sy][sx] = sign*dist1;
-          } else {
+          }
+          else
+          {
             // else we model the span between ellipses as a spherical segment
             // http://mathworld.wolfram.com/SphericalSegment.html
-            const Real corr = 2*std::sqrt(cnt2ML*nxt2ML);
             const Real Rsq = (cnt2ML +nxt2ML -corr +dSsq) //radius of the spere
                             *(cnt2ML +nxt2ML +corr +dSsq)/4/dSsq;
             const Real maxAx = std::max(cnt2ML, nxt2ML);
