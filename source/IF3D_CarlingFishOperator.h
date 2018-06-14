@@ -13,10 +13,12 @@
 #include <array>
 #include "IF3D_FishOperator.h"
 
+class CarlingFishMidlineData;
+
 class IF3D_CarlingFishOperator: public IF3D_FishOperator
 {
-  FishMidlineData* readHingeParams(ArgumentParser&p);
-  FishMidlineData* readBurstCoastParams(ArgumentParser&p);
+  CarlingFishMidlineData* readHingeParams(ArgumentParser&p);
+  CarlingFishMidlineData* readBurstCoastParams(ArgumentParser&p);
 public:
   IF3D_CarlingFishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u);
   void execute(const int i,const double t,const vector<double>a) override;

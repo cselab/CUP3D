@@ -1,8 +1,7 @@
 //
 //  CubismUP_3D
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  This file started as an extension of code written by Wim van Rees
+//  Written by Guido Novati (novatig@ethz.ch) and Sid Verma (sverma@ethz.ch).
 //  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
@@ -220,7 +219,7 @@ Real CarlingFishMidlineData_Hinged::midlineVel(const Real s, const Real t) const
   */
 }
 
-FishMidlineData* IF3D_CarlingFishOperator::readHingeParams(ArgumentParser&p)
+CarlingFishMidlineData* IF3D_CarlingFishOperator::readHingeParams(ArgumentParser&p)
 {
   Real sHinge, aHinge, phiHinge, waveLength = 1, tHinge = Tperiod;
   sHinge = length*p("-sHinge").asDouble();
@@ -256,7 +255,7 @@ FishMidlineData* IF3D_CarlingFishOperator::readHingeParams(ArgumentParser&p)
     length, Tperiod, phaseShift, vInfo[0].h_gridpoint, amplitude);
 }
 
-FishMidlineData* IF3D_CarlingFishOperator::readBurstCoastParams(ArgumentParser&p)
+CarlingFishMidlineData* IF3D_CarlingFishOperator::readBurstCoastParams(ArgumentParser&p)
 {
   const Real tStart = p("-tStartBC").asDouble();
   const double amplitude = p("-amplitude").asDouble(0.1212121212121212);

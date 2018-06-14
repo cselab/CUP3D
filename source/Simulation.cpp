@@ -231,10 +231,12 @@ void Simulation::_serialize(const string append)
         for (const auto& slice : m_slices) {
           DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time, name2d, path4serialization);
           DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time, name2d, path4serialization);
+          DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time, name2d, path4serialization);
         }
       }
       if(b3Ddump) {
         DumpHDF5_MPI<DumpGridMPI,StreamerVelocityVector>(*dump, step, time, name3d, path4serialization);
+        DumpHDF5_MPI<DumpGridMPI,StreamerPressure>(*dump, step, time, name3d, path4serialization);
         DumpHDF5_MPI<DumpGridMPI,StreamerChi>(*dump, step, time, name3d, path4serialization);
       }
     } );
@@ -242,12 +244,13 @@ void Simulation::_serialize(const string append)
     if(b2Ddump) {
       for (const auto& slice : m_slices) {
         DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time, ssF.str(), path4serialization);
-        DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time, ssF.str(), path4serialization);
         DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time, ssF.str(), path4serialization);
+        DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time, ssF.str(), path4serialization);
       }
     }
     if(b3Ddump) {
       DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time, ssR.str(), path4serialization);
+      DumpHDF5_MPI<FluidGridMPI,StreamerPressure>(*grid, step, time, ssR.str(), path4serialization);
       DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, step, time, ssR.str(), path4serialization);
     }
   #endif //DUMPGRID

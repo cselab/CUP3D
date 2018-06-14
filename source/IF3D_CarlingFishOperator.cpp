@@ -161,15 +161,28 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   sr.parseArguments(p);
 
   const double amplitude = p("-amplitude").asDouble(0.1212121212121212);
-  //const bool bBurst = parser("-BurstCoast").asBool(false);
-  //const bool bHinge = parser("-HingedFin").asBool(false);
-  //if(bBurst) myFish = readBurstCoastParams()
-  //else
-  //if (bHinge) myFish = readHingeParams()
-  //else
-  myFish = new CarlingFishMidlineData(length, Tperiod, phaseShift,
+  const bool bQuadratic = p("-bQuadratic").asBool(true);
+  const bool bBurst = p("-BurstCoast").asBool(false);
+  const bool bHinge = p("-HingedFin").asBool(false);
+  if(bBurst && bHinge) {
+    printf("Pick either hinge or burst and coast!\n"); fflush(0);
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+  if(bBurst || bHinge) printf("WARNING: UNTESTED!!!\n");
+
+  CarlingFishMidlineData* localFish = nullptr; //could be class var if needed
+  if(bBurst) localFish = readBurstCoastParams(p);
+  else
+  if(bHinge) localFish = readHingeParams(p);
+  else
+  localFish = new CarlingFishMidlineData(length, Tperiod, phaseShift,
     vInfo[0].h_gridpoint, amplitude);
 
+  // generic copy for base class:
+  assert( myFish == nullptr );
+  myFish = (FishMidlineData*) localFish;
+
+  localFish->quadraticAmplitude = bQuadratic;
   string heightName = p("-heightProfile").asString("baseline");
   string  widthName = p( "-widthProfile").asString("baseline");
   MidlineShapes::computeWidthsHeights(heightName, widthName, length,
