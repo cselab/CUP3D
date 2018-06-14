@@ -43,7 +43,6 @@ endif
 CPPFLAGS+= -D_ALIGNBYTES_=32 -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align
 CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
 CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -pedantic
-CPPFLAGS+= -Wno-unused-variable  # complains for a bunch of variables used when debugging
 CPPFLAGS+= -Wno-unused-parameter # does not make much sense with function overloading
 
 ifeq "$(precision)" "single"

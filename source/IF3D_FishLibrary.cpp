@@ -733,10 +733,7 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
             const Real pZ = org[2] + h*sz;
             // positive inside negative outside ... as usual
             const Real distZ = height[ss] - std::fabs(position[2] - pZ);
-            static constexpr Real one = 1;
-            const Real wz = .5 + std::min(one, std::max(distZ*invh, -one))/2;
             const Real signZ = (0 < distZ) - (distZ < 0);
-            const Real distZsq = signZ*distZ*distZ;
             const Real dist3D = std::min(signZ*distZ*distZ, sign2d*dist1);
 
             if(std::fabs(defblock->chi[sz][sy][sx]) > dist3D) {
