@@ -31,6 +31,54 @@ using namespace std;
 
 #include <BlockInfo.h>
 
+class My3DFFT_Infinite_MPI
+{
+public:
+    My3DFFT_Infinite_MPI(const size_t N0, const size_t N1, const size_t N2, const MPI_Comm comm) :
+        m_N0(N0), m_N1(N1), m_N2(N2),
+        m_NN0(2*N0-1), m_NN1(2*N1-1), m_NN2(2*N2-1),
+        m_comm(comm)
+    {
+    }
+
+    ~My3DFFT_Infinite_MPI() {}
+
+    void put_data();
+    void get_data();
+
+    void transform_fwd();
+    void transform_bwd();
+
+private:
+    // domain dimensions
+    const size_t m_N0;  // Nx-points of original domain
+    const size_t m_N1;  // Ny-points of original domain
+    const size_t m_N2;  // Nz-points of original domain
+    const size_t m_NN0; // Nx-points of padded domain (w/o periodic copies)
+    const size_t m_NN1; // Ny-points of padded domain (w/o periodic copies)
+    const size_t m_NN2; // Nz-points of padded domain (w/o periodic copies)
+
+    // MPI related
+    MPI_Comm m_comm;
+    int m_rank, m_size;
+    size_t m_local_N0, m_start_N0, m_local_N1, m_start_N1;
+    size_t m_local_NN0, m_start_NN0;
+
+    // FFTW plans
+    myplan m_fwd_1D;
+    myplan m_bwd_1D;
+    myplan m_fwd_2D;
+    myplan m_bwd_2D;
+    myplan m_fwd_tp; // use FFTW's transpose facility
+    myplan m_bwd_tp; // use FFTW's transpose facility
+
+    // data buffers for input and transform.  Split into 2 buffers to exploit
+    // smaller transpose matrix and fewer FFT's due to zero-padded domain.
+    // This is at the cost of higher memory requirements.
+    Real* m_buf_tp;   // input, output, transpose and 2D FFTs (m_local_N0 x m_NN1 x m_NN2)
+    Real* m_buf_full; // full block of m_local_NN0 x m_NN1 x m_NN2 for 1D FFTs
+};
+
 
 template<typename TGrid, typename TStreamer>
 class PoissonSolverScalarFFTW_MPI
