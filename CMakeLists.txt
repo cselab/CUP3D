@@ -30,6 +30,7 @@ include_directories(${ROOT_FOLDER}/Cubism/source/)
 include_directories(${ROOT_FOLDER}/source/)
 set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/BufferedLogger.cpp
+    ${ROOT_FOLDER}/source/IF3D_CarlingFishOperator.cpp
     ${ROOT_FOLDER}/source/IF3D_DCylinderObstacleOperator.cpp
     ${ROOT_FOLDER}/source/IF3D_ExternalObstacleOperator.cpp
     ${ROOT_FOLDER}/source/IF3D_FishLibrary.cpp
