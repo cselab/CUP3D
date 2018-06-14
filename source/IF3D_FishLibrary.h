@@ -72,7 +72,7 @@ class FishMidlineData
   const double dSmid_tgt = h / std::sqrt(3);
   const double dSrefine_tgt = 0.125 * h;
 
-  const int Nmid = (int)std::floor(length * fracMid / dSmid_tgt / 8) * 8;
+  const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
   const double dSmid = length * fracMid / Nmid;
 
   const int Nend = (int)std::ceil( // here we ceil to be safer
