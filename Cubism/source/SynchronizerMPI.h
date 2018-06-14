@@ -625,7 +625,7 @@ class SynchronizerMPI
 			Real * ret_val = NULL;
 
 			int error = posix_memalign((void**)&ret_val, std::max(8, ALIGN), NBYTES);
-
+            (void)error;  // Silent -Wunused-variable.
 			assert(error == 0);
 
 			all_mallocs.push_back(ret_val);

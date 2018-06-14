@@ -266,7 +266,9 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
 void IF3D_StefanFishOperator::execute(const int iAgent, const double time, const vector<double> act)
 {
   const int nActions = act.size();
-  const double eps = std::numeric_limits<Real>::epsilon();
+  constexpr double eps = std::numeric_limits<Real>::epsilon();
+  (void)eps;
+
   assert(std::fabs(std::cos(0.5*_2Dangle)-quaternion[0]) < 1e-6);
   assert(std::fabs(quaternion[1]) < eps);
   assert(std::fabs(quaternion[2]) < eps);

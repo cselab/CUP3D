@@ -14,7 +14,9 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
 {
   const double h   = vInfo[0].h_gridpoint;
   const double dv  = std::pow(vInfo[0].h_gridpoint, 3);
-  const double eps = std::numeric_limits<Real>::epsilon();
+  constexpr double eps = std::numeric_limits<Real>::epsilon();
+  (void)eps;
+
   { //sum linear momenta to figure out velocity and mass
     double V=0, lm0=0, lm1=0, lm2=0; //linear momenta
     #pragma omp parallel for schedule(dynamic) reduction(+:V,lm0,lm1,lm2)
