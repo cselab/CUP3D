@@ -139,12 +139,30 @@ public:
 
     void transform_bwd()
     {
+        assert(m_initialized);
         _FFTW_(execute)(m_bwd_1D);
         _copy_bwd_local();
         _FFTW_(execute)(m_bwd_tp);
         _FFTW_(execute)(m_bwd_2D);
-        print_tp("final", 1.0/(m_NN0t*m_NN1t*m_NN2t));
+        // print_tp("final", 1.0/(m_NN0t*m_NN1t*m_NN2t));
         // print_tp("final");
+    }
+
+    void convolve()
+    {
+        assert(m_initialized);
+
+        mycomplex* const rho_hat = (mycomplex*)m_buf_full;
+        const Real* const G_hat = m_kernel;
+#pragma omp parallel for
+        for (ptrdiff_t i = 0; i < m_NN0t; ++i)
+            for (ptrdiff_t j = 0; j < m_local_NN1; ++j)
+                for (ptrdiff_t k = 0; k < m_Nzhat; ++k)
+                {
+                    const size_t linidx = k + m_Nzhat*(j + m_local_NN1*i);
+                    rho_hat[linidx][0] *= G_hat[linidx] * m_norm_factor;
+                    rho_hat[linidx][1] *= G_hat[linidx] * m_norm_factor;
+                }
     }
 
 private:
@@ -174,9 +192,10 @@ private:
     ptrdiff_t m_Nzhat; // for r2c transform
     ptrdiff_t m_tp_size;
     ptrdiff_t m_full_size;
-    Real* m_buf_tp;   // input, output, transpose and 2D FFTs (m_local_N0 x m_NN1 x 2m_Nzhat)
-    Real* m_buf_full; // full block of m_NN0t x m_local_NN1 x 2m_Nzhat for 1D FFTs
-    Real* m_kernel;   // FFT of Green's function (real part, m_NN0t x m_local_NN1 x m_Nzhat)
+    Real m_norm_factor; // FFT normalization factor
+    Real* m_buf_tp;     // input, output, transpose and 2D FFTs (m_local_N0 x m_NN1 x 2m_Nzhat)
+    Real* m_buf_full;   // full block of m_NN0t x m_local_NN1 x 2m_Nzhat for 1D FFTs
+    Real* m_kernel;     // FFT of Green's function (real part, m_NN0t x m_local_NN1 x m_Nzhat)
 
     // FFTW plans
     myplan m_fwd_1D;
@@ -224,6 +243,9 @@ private:
         m_Nzhat     = m_NN2t/2 + 1; // for symmetry in r2c transform
         m_tp_size   = m_local_N0  * m_NN1  * m_Nzhat;
         m_full_size = m_NN0t * m_local_NN1 * m_Nzhat;
+
+        // FFT normalization factor
+        m_norm_factor = 1.0 / (m_NN0t * m_NN1t * m_NN2t);
 
         // FFTW plans
         m_buf_tp   = _FFTW_(alloc_real)( 2*m_tp_size );
