@@ -39,15 +39,16 @@ public:
     My3DFFT_Infinite_MPI() : m_initialized(false) {}
     My3DFFT_Infinite_MPI(const My3DFFT_Infinite_MPI& c) = delete;
 
-    My3DFFT_Infinite_MPI(const size_t N0, const size_t N1, const size_t N2, const int desired_threads, const MPI_Comm comm)
+    My3DFFT_Infinite_MPI(const size_t N0, const size_t N1, const size_t N2, const Real h, const int desired_threads, const MPI_Comm comm)
     {
-        _initialize(N0, N1, N2, desired_threads, comm);
+        _initialize(N0, N1, N2, h, desired_threads, comm);
     }
 
     ~My3DFFT_Infinite_MPI()
     {
         _FFTW_(free)(m_buf_tp);
         _FFTW_(free)(m_buf_full);
+        _FFTW_(free)(m_kernel);
         _FFTW_(destroy_plan)(m_fwd_1D);
         _FFTW_(destroy_plan)(m_bwd_1D);
         _FFTW_(destroy_plan)(m_fwd_2D);
@@ -58,9 +59,9 @@ public:
     }
 
     // interface
-    inline void setup(const size_t N0, const size_t N1, const size_t N2, const int desired_threads, const MPI_Comm comm)
+    inline void setup(const size_t N0, const size_t N1, const size_t N2, const Real h, const int desired_threads, const MPI_Comm comm)
     {
-        _initialize(N0, N1, N2, desired_threads, comm);
+        _initialize(N0, N1, N2, h, desired_threads, comm);
     }
 
     void put_data();
@@ -159,6 +160,7 @@ private:
     ptrdiff_t m_NN0t; // Nx-points of padded domain (w/o periodic copies, actual transform size)
     ptrdiff_t m_NN1t; // Ny-points of padded domain (w/o periodic copies, actual transform size)
     ptrdiff_t m_NN2t; // Nz-points of padded domain (w/o periodic copies, actual transform size)
+    Real m_h; // uniform grid spacing
 
     // MPI related
     MPI_Comm m_comm;
@@ -174,6 +176,7 @@ private:
     ptrdiff_t m_full_size;
     Real* m_buf_tp;   // input, output, transpose and 2D FFTs (m_local_N0 x m_NN1 x 2m_Nzhat)
     Real* m_buf_full; // full block of m_NN0t x m_local_NN1 x 2m_Nzhat for 1D FFTs
+    Real* m_kernel;   // FFT of Green's function (real part, m_NN0t x m_local_NN1 x m_Nzhat)
 
     // FFTW plans
     myplan m_fwd_1D;
@@ -184,7 +187,7 @@ private:
     myplan m_bwd_tp; // use FFTW's transpose facility
 
     // helpers
-    void _initialize(const size_t N0, const size_t N1, const size_t N2, const int desired_threads, const MPI_Comm comm)
+    void _initialize(const size_t N0, const size_t N1, const size_t N2, const Real h, const int desired_threads, const MPI_Comm comm)
     {
         // Setup MPI
         m_comm = comm;
@@ -195,12 +198,13 @@ private:
         m_N0   = N0;       // Number of cells in simulation domain
         m_N1   = N1;
         m_N2   = N2;
-        m_NN0  = 2*N0;     // Zero-padded domain for isolated domain
+        m_NN0  = 2*N0;     // Zero-padded domain for infinite domain
         m_NN1  = 2*N1;
         m_NN2  = 2*N2;
         m_NN0t = 2*N0 - 1; // Size of FFT (removing periodic copies)
         m_NN1t = 2*N1 - 1;
         m_NN2t = 2*N2 - 1;
+        m_h    = h;        // uniform grid spacing
 
         // some checks
         _check_init(desired_threads);
@@ -272,6 +276,10 @@ private:
                 m_buf_tp, m_buf_tp,
                 m_comm, FFTW_MEASURE|FFTW_MPI_TRANSPOSED_IN);
 
+        // compute Green's function
+        _initialize_green();
+
+        // cool
         m_initialized = true;
     }
 
@@ -325,6 +333,186 @@ private:
                 Real* const dst = m_buf_tp + 2*m_Nzhat*(j + m_local_NN1*i);
                 std::memcpy(dst, src, 2*m_Nzhat*sizeof(Real));
             }
+    }
+
+    void _initialize_green()
+    {
+        myplan green1D;
+        myplan green2D;
+        myplan greenTP;
+
+        const ptrdiff_t tf_size = m_local_NN0 * m_NN1 * m_Nzhat;
+        Real* tf_buf = _FFTW_(alloc_real)( 2*tf_size );
+
+        // 1D plan
+        {
+            const int n[1] = {m_NN0t};
+            const int howmany = m_local_NN1 * m_Nzhat;
+            const int stride = m_local_NN1 * m_Nzhat;
+            const int* embed = n;
+            const int dist = 1;
+            green1D = _FFTW_(plan_many_dft)(1, n, howmany,
+                    (mycomplex*)tf_buf, embed, stride, dist,
+                    (mycomplex*)tf_buf, embed, stride, dist,
+                    FFTW_FORWARD, FFTW_MEASURE);
+        }
+
+        // 2D plan
+        {
+            const int n[2] = {m_NN1t, m_NN2t};
+            const int howmany = m_local_NN0;
+            const int stride = 1;
+            const int rembed[2] = {m_NN1, 2*m_Nzhat}; // unit: sizeof(Real)
+            const int cembed[2] = {m_NN1, m_Nzhat};   // unit: sizeof(mycomplex)
+            const int rdist = m_NN1 * 2*m_Nzhat;      // unit: sizeof(Real)
+            const int cdist = m_NN1 * m_Nzhat;        // unit: sizeof(mycomplex)
+            green2D = _FFTW_(plan_many_dft_r2c)(2, n, howmany,
+                    tf_buf, rembed, stride, rdist,
+                    (mycomplex*)tf_buf, cembed, stride, cdist,
+                    FFTW_MEASURE);
+        }
+
+        greenTP = _FFTW_(mpi_plan_many_transpose)(m_NN0, m_NN1, 2*m_Nzhat,
+                m_local_NN0, m_local_NN1,
+                tf_buf, tf_buf,
+                m_comm, FFTW_MEASURE|FFTW_MPI_TRANSPOSED_OUT);
+
+
+        _set_kernel(tf_buf);
+
+        _FFTW_(execute)(green2D);
+        _FFTW_(execute)(greenTP);
+        _FFTW_(execute)(green1D);
+
+        const ptrdiff_t kern_size = m_NN0t * m_local_NN1 * m_Nzhat;
+        m_kernel = _FFTW_(alloc_real)(kern_size); // FFT for this kernel is real
+        std::memset(m_kernel, 0, kern_size*sizeof(Real));
+
+        const mycomplex *const G_hat = (mycomplex *) tf_buf;
+#pragma omp parallel for
+        for (ptrdiff_t i = 0; i < m_NN0t; ++i)
+            for (ptrdiff_t j = 0; j < m_local_NN1; ++j)
+                for (ptrdiff_t k = 0; k < m_Nzhat; ++k)
+                {
+                    const size_t linidx = k + m_Nzhat*(j + m_local_NN1*i);
+                    m_kernel[linidx]  = G_hat[linidx][0]; // need real part only
+                }
+
+        // // tmp
+        // ostringstream fname;
+        // fname << "rank_" << m_rank << "_Ghat.dat";
+        // ofstream out(fname.str());
+        // for (ptrdiff_t i = 0; i < m_NN0t; ++i)
+        //     for (ptrdiff_t j = 0; j < m_local_NN1; ++j)
+        //         for (ptrdiff_t k = 0; k < m_Nzhat; ++k)
+        //         {
+        //             const size_t linidx = k + m_Nzhat*(j + m_local_NN1*i);
+        //             out << "(" << i << ", " << j+m_start_NN1 << ", " << k << "): " << std::scientific << G_hat[linidx][0] << '\t' << std::scientific << G_hat[linidx][1] << std::endl;
+        //         }
+        // out.close();
+
+        _FFTW_(free)(tf_buf);
+        _FFTW_(destroy_plan)(green1D);
+        _FFTW_(destroy_plan)(green2D);
+        _FFTW_(destroy_plan)(greenTP);
+    }
+
+    void _set_kernel(Real* const kern)
+    {
+        // This algorithm requires m_size >= 2 and m_N0 % m_size == 0
+
+        // This factor is due to the discretization of the convolution
+        // integtal.  It is composed of (h*h*h) * (-1/[4*pi*h]), where h is the
+        // uniform grid spacing.  The first factor is the discrete volume
+        // element of the convolution integral; the second factor belongs to
+        // Green's function on a uniform mesh.
+        const double fac = -m_h*m_h / (4.0*M_PI);
+
+        // octant 000
+        if (m_rank < m_size/2)
+        {
+            for (ptrdiff_t i = 0; i < m_local_NN0; ++i)
+            {
+                const double xi = m_start_NN0 + i;
+                for (ptrdiff_t j = 0; j < m_N1; ++j)
+                {
+                    const double yi = j;
+                    for (ptrdiff_t k = 0; k < m_N2; ++k)
+                    {
+                        const double zi = k;
+                        const double r = std::sqrt(xi*xi + yi*yi + zi*zi);
+                        const ptrdiff_t idx = k + 2*m_Nzhat*(j + m_NN1*i);
+                        if (r > 0.0)
+                            kern[idx] = fac/r;
+                        else
+                            kern[idx] = fac;
+                    }
+                }
+            }
+        }
+
+        // mirror
+        // octant 100
+        const int vol = m_local_NN0 * m_N1 * m_N2;
+        Real* const buf = new Real[vol];
+        if (m_rank < m_size/2)
+        {
+            for (ptrdiff_t i = 0; i < m_local_NN0; ++i)
+                for (ptrdiff_t j = 0; j < m_N1; ++j)
+                    for (ptrdiff_t k = 0; k < m_N2; ++k)
+                    {
+                        const ptrdiff_t src = k + 2*m_Nzhat*(j + m_NN1*i);
+                        const ptrdiff_t dst = k + m_N2*(j + m_N1*(m_local_NN0-1-i));
+                        buf[dst] = kern[src]; // flip along x-dimension
+                    }
+            int dst_rank = m_size - m_rank - 1;
+            MPI_Send(buf, vol, MPIREAL, dst_rank, m_rank, m_comm);
+        }
+        else
+        {
+            int src_rank = m_size - m_rank - 1;
+            MPI_Recv(buf, vol, MPIREAL, src_rank, src_rank, m_comm, MPI_STATUSES_IGNORE);
+            for (ptrdiff_t i = 0; i < m_local_NN0; ++i)
+                for (ptrdiff_t j = 0; j < m_N1; ++j)
+                    for (ptrdiff_t k = 0; k < m_N2; ++k)
+                    {
+                        const ptrdiff_t dst = k + 2*m_Nzhat*(j + m_NN1*i);
+                        const ptrdiff_t src = k + m_N2*(j + m_N1*i);
+                        kern[dst] = buf[src];
+                    }
+        }
+        delete[] buf;
+
+        // rotations
+        // octant 010/110
+        for (ptrdiff_t i = 0; i < m_local_NN0; ++i)
+            for (ptrdiff_t j = 0; j < m_N1; ++j)
+                for (ptrdiff_t k = 0; k < m_N2; ++k)
+                {
+                    const ptrdiff_t src = k + 2*m_Nzhat*((m_N1-1-j) + m_NN1*i);
+                    const ptrdiff_t dst = k + 2*m_Nzhat*((m_N1+j) + m_NN1*i);
+                    kern[dst] = kern[src];
+                }
+
+        // octant 011/111
+        for (ptrdiff_t i = 0; i < m_local_NN0; ++i)
+            for (ptrdiff_t j = 0; j < m_N1; ++j)
+                for (ptrdiff_t k = 0; k < m_N2; ++k)
+                {
+                    const ptrdiff_t src = m_N2-1-k + 2*m_Nzhat*((m_N1-1-j) + m_NN1*i);
+                    const ptrdiff_t dst = m_N2+k + 2*m_Nzhat*((m_N1+j) + m_NN1*i);
+                    kern[dst] = kern[src];
+                }
+
+        // octant 001/101
+        for (ptrdiff_t i = 0; i < m_local_NN0; ++i)
+            for (ptrdiff_t j = 0; j < m_N1; ++j)
+                for (ptrdiff_t k = 0; k < m_N2; ++k)
+                {
+                    const ptrdiff_t src = m_N2-1-k + 2*m_Nzhat*(j + m_NN1*i);
+                    const ptrdiff_t dst = m_N2+k + 2*m_Nzhat*(j + m_NN1*i);
+                    kern[dst] = kern[src];
+                }
     }
 };
 
