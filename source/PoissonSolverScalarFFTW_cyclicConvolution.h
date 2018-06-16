@@ -247,11 +247,58 @@ private:
     myplan m_fwd_tp; // use FFTW's transpose facility
     myplan m_bwd_tp; // use FFTW's transpose facility
 
-    // data buffers for input and transform.  Split into 2 buffers to exploit
-    // smaller transpose matrix and fewer FFT's due to zero-padded domain.
-    // This is at the cost of higher memory requirements.
-    Real* m_buf_tp;   // input, output, transpose and 2D FFTs (m_local_N0 x m_NN1 x m_NN2)
-    Real* m_buf_full; // full block of m_local_NN0 x m_NN1 x m_NN2 for 1D FFTs
+    // helpers
+    void _check_init(const int desired_threads)
+    {
+        if (m_N0 % m_size != 0 || m_NN1 % m_size != 0)
+        {
+            std::cout << "PoissonSolverScalarFFTW_cyclicConvolution.h: ERROR: Number of cells N0 and 2*N1 must be evenly divisible by the number of processes." << std::endl;
+            abort();
+        }
+
+        int supported_threads;
+        MPI_Query_thread(&supported_threads);
+        if (supported_threads < MPI_THREAD_FUNNELED)
+        {
+            std::cout << "PoissonSolverScalarFFTW_cyclicConvolution.h: ERROR: MPI implementation does not support threads." << std::endl;
+            abort();
+        }
+
+        const int retval = _FFTW_(init_threads)();
+        if (retval == 0)
+        {
+            std::cout << "PoissonSolverScalarFFTW_cyclicConvolution.h: ERROR: Call to fftw_init_threads() returned zero." << std::endl;
+            abort();
+        }
+
+        _FFTW_(plan_with_nthreads)(desired_threads);
+        _FFTW_(mpi_init)();
+    }
+
+    void _copy_fwd_local()
+    {
+        std::memset(m_buf_full, 0, 2*m_full_size*sizeof(Real));
+#pragma omp parallel for
+        for (int i = 0; i < m_N0; ++i)
+            for (int j = 0; j < m_local_NN1; ++j)
+            {
+                const Real* const src = m_buf_tp + 2*m_Nzhat*(j + m_local_NN1*i);
+                Real* const dst = m_buf_full + 2*m_Nzhat*(j + m_local_NN1*i);
+                std::memcpy(dst, src, 2*m_Nzhat*sizeof(Real));
+            }
+    }
+
+    void _copy_bwd_local()
+    {
+#pragma omp parallel for
+        for (int i = 0; i < m_N0; ++i)
+            for (int j = 0; j < m_local_NN1; ++j)
+            {
+                const Real* const src = m_buf_full + 2*m_Nzhat*(j + m_local_NN1*i);
+                Real* const dst = m_buf_tp + 2*m_Nzhat*(j + m_local_NN1*i);
+                std::memcpy(dst, src, 2*m_Nzhat*sizeof(Real));
+            }
+    }
 };
 
 
