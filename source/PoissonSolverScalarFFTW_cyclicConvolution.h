@@ -18,14 +18,16 @@
 #include "Definitions.h"
 
 #ifndef _FLOAT_PRECISION_
+#define _FFTW_(s) fftw_##s
 typedef fftw_complex mycomplex;
 typedef fftw_plan myplan;
 #define MPIREAL MPI_DOUBLE
 #else
+#define _FFTW_(s) fftwf_##s
 typedef fftwf_complex mycomplex;
 typedef fftwf_plan myplan;
 #define MPIREAL MPI_FLOAT
-#endif
+#endif /* _FLOAT_PRECISION_ */
 
 using namespace std;
 
@@ -34,35 +36,208 @@ using namespace std;
 class My3DFFT_Infinite_MPI
 {
 public:
-    My3DFFT_Infinite_MPI(const size_t N0, const size_t N1, const size_t N2, const MPI_Comm comm) :
+    My3DFFT_Infinite_MPI(const size_t N0, const size_t N1, const size_t N2, const int desired_threads, const MPI_Comm comm) :
         m_N0(N0), m_N1(N1), m_N2(N2),
-        m_NN0(2*N0-1), m_NN1(2*N1-1), m_NN2(2*N2-1),
+        m_NN0(2*N0), m_NN1(2*N1), m_NN2(2*N2),
+        m_NN0t(2*N0-1), m_NN1t(2*N1-1), m_NN2t(2*N2-1),
         m_comm(comm)
     {
+        MPI_Comm_rank(m_comm, &m_rank);
+        MPI_Comm_size(m_comm, &m_size);
+
+        // some checks
+        _check_init(desired_threads);
+
+        // x-decomposition of input data (number of 2D slices)
+        m_local_N0 = m_N0 / m_size;
+        m_start_N0 = m_local_N0 * m_rank;
+
+        // x- and y-decompostion of extended domain (zero-padded) required for
+        // transpose
+        m_local_NN0 = m_NN0 / m_size;
+        m_local_NN1 = m_NN1 / m_size;
+        m_start_NN0 = m_local_NN0 * m_rank;
+        m_start_NN1 = m_local_NN1 * m_rank;
+
+        // buffer sizes
+        m_Nzhat     = m_NN2t/2 + 1; // for symmetry in r2c transform
+        m_tp_size   = m_local_N0  * m_NN1  * m_Nzhat;
+        m_full_size = m_NN0t * m_local_NN1 * m_Nzhat;
+
+        // FFTW plans
+        m_buf_tp   = _FFTW_(alloc_real)( 2*m_tp_size );
+        m_buf_full = _FFTW_(alloc_real)( 2*m_full_size );
+
+        // 1D plan
+        {
+            const int n[1] = {m_NN0t};
+            const int howmany = m_local_NN1 * m_Nzhat;
+            const int stride = m_local_NN1 * m_Nzhat;
+            const int* embed = n;
+            const int dist = 1;
+            m_fwd_1D = _FFTW_(plan_many_dft)(1, n, howmany,
+                    (mycomplex*)m_buf_full, embed, stride, dist,
+                    (mycomplex*)m_buf_full, embed, stride, dist,
+                    FFTW_FORWARD, FFTW_MEASURE);
+            m_bwd_1D = _FFTW_(plan_many_dft)(1, n, howmany,
+                    (mycomplex*)m_buf_full, embed, stride, dist,
+                    (mycomplex*)m_buf_full, embed, stride, dist,
+                    FFTW_BACKWARD, FFTW_MEASURE);
+        }
+
+        // 2D plan
+        {
+            const int n[2] = {m_NN1t, m_NN2t};
+            const int howmany = m_local_N0;
+            const int stride = 1;
+            const int rembed[2] = {m_NN1, 2*m_Nzhat}; // unit: sizeof(Real)
+            const int cembed[2] = {m_NN1, m_Nzhat};   // unit: sizeof(mycomplex)
+            const int rdist = m_NN1 * 2*m_Nzhat;      // unit: sizeof(Real)
+            const int cdist = m_NN1 * m_Nzhat;        // unit: sizeof(mycomplex)
+            m_fwd_2D = _FFTW_(plan_many_dft_r2c)(2, n, howmany,
+                    m_buf_tp, rembed, stride, rdist,
+                    (mycomplex*)m_buf_tp, cembed, stride, cdist,
+                    FFTW_MEASURE);
+            m_bwd_2D = _FFTW_(plan_many_dft_c2r)(2, n, howmany,
+                    (mycomplex*)m_buf_tp, cembed, stride, cdist,
+                    m_buf_tp, rembed, stride, rdist,
+                    FFTW_MEASURE);
+        }
+
+        // transpose plan
+        m_fwd_tp = _FFTW_(mpi_plan_many_transpose)(m_N0, m_NN1, 2*m_Nzhat,
+                m_local_N0, m_local_NN1,
+                m_buf_tp, m_buf_tp,
+                m_comm, FFTW_MEASURE|FFTW_MPI_TRANSPOSED_OUT);
+
+        m_bwd_tp = _FFTW_(mpi_plan_many_transpose)(m_NN1, m_N0, 2*m_Nzhat,
+                m_local_NN1, m_local_N0,
+                m_buf_tp, m_buf_tp,
+                m_comm, FFTW_MEASURE|FFTW_MPI_TRANSPOSED_IN);
     }
 
-    ~My3DFFT_Infinite_MPI() {}
+    ~My3DFFT_Infinite_MPI()
+    {
+        _FFTW_(free)(m_buf_tp);
+        _FFTW_(free)(m_buf_full);
+        _FFTW_(destroy_plan)(m_fwd_1D);
+        _FFTW_(destroy_plan)(m_bwd_1D);
+        _FFTW_(destroy_plan)(m_fwd_2D);
+        _FFTW_(destroy_plan)(m_bwd_2D);
+        _FFTW_(destroy_plan)(m_fwd_tp);
+        _FFTW_(destroy_plan)(m_bwd_tp);
+        _FFTW_(mpi_cleanup)();
+    }
 
     void put_data();
     void get_data();
 
-    void transform_fwd();
-    void transform_bwd();
+    void print_full(const std::string hint = "")
+    {
+        ostringstream fname;
+        fname << "rank_" << m_rank << hint << ".dat";
+        ofstream out(fname.str());
+        for (int i = 0; i < m_NN0t; ++i)
+        {
+            for (int j = 0; j < m_local_NN1; ++j)
+            {
+                for (int k = 0; k < m_Nzhat; ++k)
+                {
+                    const int idx = k + 2*m_Nzhat*(j + m_local_NN1*i);
+                    out << std::scientific << *(m_buf_full+idx) << ":" << std::scientific << *(m_buf_full+idx+1) << '\t';
+                }
+                out << std::endl;
+            }
+            out << std::endl;
+            out << std::endl;
+        }
+    }
+
+    void print_tp(const std::string hint = "", const double scale = 1.0)
+    {
+        ostringstream fname;
+        fname << "rank_" << m_rank << hint << ".dat";
+        ofstream out(fname.str());
+        for (int i = 0; i < m_local_N0; ++i)
+        {
+            for (int j = 0; j < m_NN1; ++j)
+            {
+                for (int k = 0; k < 2*m_Nzhat; k+=2)
+                {
+                    const int idx = k + 2*m_Nzhat*(j + m_NN1*i);
+                    out << std::scientific << *(m_buf_tp+idx) * scale << ":" << std::scientific << *(m_buf_tp+idx+1) * scale << '\t';
+                }
+                out << std::endl;
+            }
+            out << std::endl;
+            out << std::endl;
+        }
+    }
+
+    void initialize()
+    {
+        std::memset(m_buf_tp, 0, 2*m_tp_size*sizeof(Real));
+        int d = m_local_N0*m_N1*m_N2*m_rank;
+        for (int i = 0; i < m_local_N0; ++i)
+        {
+            for (int j = 0; j < m_N1; ++j)
+            {
+                for (int k = 0; k < m_N2; ++k)
+                {
+                    const int idx = k + 2*m_Nzhat*(j + m_NN1*i);
+                    m_buf_tp[idx] = d++;
+                }
+            }
+        }
+    }
+
+    void transform_fwd()
+    {
+        initialize();
+        print_tp("initial");
+        _FFTW_(execute)(m_fwd_2D);
+        _FFTW_(execute)(m_fwd_tp);
+        _copy_fwd_local();
+        _FFTW_(execute)(m_fwd_1D);
+        print_full("transformed");
+    }
+
+    void transform_bwd()
+    {
+        _FFTW_(execute)(m_bwd_1D);
+        _copy_bwd_local();
+        _FFTW_(execute)(m_bwd_tp);
+        _FFTW_(execute)(m_bwd_2D);
+        print_tp("final", 1.0/(m_NN0t*m_NN1t*m_NN2t));
+        // print_tp("final");
+    }
 
 private:
     // domain dimensions
-    const size_t m_N0;  // Nx-points of original domain
-    const size_t m_N1;  // Ny-points of original domain
-    const size_t m_N2;  // Nz-points of original domain
-    const size_t m_NN0; // Nx-points of padded domain (w/o periodic copies)
-    const size_t m_NN1; // Ny-points of padded domain (w/o periodic copies)
-    const size_t m_NN2; // Nz-points of padded domain (w/o periodic copies)
+    const ptrdiff_t m_N0;  // Nx-points of original domain
+    const ptrdiff_t m_N1;  // Ny-points of original domain
+    const ptrdiff_t m_N2;  // Nz-points of original domain
+    const ptrdiff_t m_NN0; // Nx-points of padded domain
+    const ptrdiff_t m_NN1; // Ny-points of padded domain
+    const ptrdiff_t m_NN2; // Nz-points of padded domain
+    const ptrdiff_t m_NN0t; // Nx-points of padded domain (w/o periodic copies, actual transform size)
+    const ptrdiff_t m_NN1t; // Ny-points of padded domain (w/o periodic copies, actual transform size)
+    const ptrdiff_t m_NN2t; // Nz-points of padded domain (w/o periodic copies, actual transform size)
 
     // MPI related
     MPI_Comm m_comm;
     int m_rank, m_size;
-    size_t m_local_N0, m_start_N0, m_local_N1, m_start_N1;
-    size_t m_local_NN0, m_start_NN0;
+    ptrdiff_t m_local_N0, m_start_N0;
+    ptrdiff_t m_local_NN0, m_start_NN0, m_local_NN1, m_start_NN1;
+
+    // data buffers for input and transform.  Split into 2 buffers to exploit
+    // smaller transpose matrix and fewer FFT's due to zero-padded domain.
+    // This is at the cost of higher memory requirements.
+    ptrdiff_t m_Nzhat; // for r2c transform
+    ptrdiff_t m_tp_size;
+    ptrdiff_t m_full_size;
+    Real* m_buf_tp;   // input, output, transpose and 2D FFTs (m_local_N0 x m_NN1 x 2m_Nzhat)
+    Real* m_buf_full; // full block of m_NN0t x m_local_NN1 x 2m_Nzhat for 1D FFTs
 
     // FFTW plans
     myplan m_fwd_1D;
