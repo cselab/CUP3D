@@ -36,84 +36,12 @@ using namespace std;
 class My3DFFT_Infinite_MPI
 {
 public:
-    My3DFFT_Infinite_MPI(const size_t N0, const size_t N1, const size_t N2, const int desired_threads, const MPI_Comm comm) :
-        m_N0(N0), m_N1(N1), m_N2(N2),
-        m_NN0(2*N0), m_NN1(2*N1), m_NN2(2*N2),
-        m_NN0t(2*N0-1), m_NN1t(2*N1-1), m_NN2t(2*N2-1),
-        m_comm(comm)
+    My3DFFT_Infinite_MPI() : m_initialized(false) {}
+    My3DFFT_Infinite_MPI(const My3DFFT_Infinite_MPI& c) = delete;
+
+    My3DFFT_Infinite_MPI(const size_t N0, const size_t N1, const size_t N2, const int desired_threads, const MPI_Comm comm)
     {
-        MPI_Comm_rank(m_comm, &m_rank);
-        MPI_Comm_size(m_comm, &m_size);
-
-        // some checks
-        _check_init(desired_threads);
-
-        // x-decomposition of input data (number of 2D slices)
-        m_local_N0 = m_N0 / m_size;
-        m_start_N0 = m_local_N0 * m_rank;
-
-        // x- and y-decompostion of extended domain (zero-padded) required for
-        // transpose
-        m_local_NN0 = m_NN0 / m_size;
-        m_local_NN1 = m_NN1 / m_size;
-        m_start_NN0 = m_local_NN0 * m_rank;
-        m_start_NN1 = m_local_NN1 * m_rank;
-
-        // buffer sizes
-        m_Nzhat     = m_NN2t/2 + 1; // for symmetry in r2c transform
-        m_tp_size   = m_local_N0  * m_NN1  * m_Nzhat;
-        m_full_size = m_NN0t * m_local_NN1 * m_Nzhat;
-
-        // FFTW plans
-        m_buf_tp   = _FFTW_(alloc_real)( 2*m_tp_size );
-        m_buf_full = _FFTW_(alloc_real)( 2*m_full_size );
-
-        // 1D plan
-        {
-            const int n[1] = {m_NN0t};
-            const int howmany = m_local_NN1 * m_Nzhat;
-            const int stride = m_local_NN1 * m_Nzhat;
-            const int* embed = n;
-            const int dist = 1;
-            m_fwd_1D = _FFTW_(plan_many_dft)(1, n, howmany,
-                    (mycomplex*)m_buf_full, embed, stride, dist,
-                    (mycomplex*)m_buf_full, embed, stride, dist,
-                    FFTW_FORWARD, FFTW_MEASURE);
-            m_bwd_1D = _FFTW_(plan_many_dft)(1, n, howmany,
-                    (mycomplex*)m_buf_full, embed, stride, dist,
-                    (mycomplex*)m_buf_full, embed, stride, dist,
-                    FFTW_BACKWARD, FFTW_MEASURE);
-        }
-
-        // 2D plan
-        {
-            const int n[2] = {m_NN1t, m_NN2t};
-            const int howmany = m_local_N0;
-            const int stride = 1;
-            const int rembed[2] = {m_NN1, 2*m_Nzhat}; // unit: sizeof(Real)
-            const int cembed[2] = {m_NN1, m_Nzhat};   // unit: sizeof(mycomplex)
-            const int rdist = m_NN1 * 2*m_Nzhat;      // unit: sizeof(Real)
-            const int cdist = m_NN1 * m_Nzhat;        // unit: sizeof(mycomplex)
-            m_fwd_2D = _FFTW_(plan_many_dft_r2c)(2, n, howmany,
-                    m_buf_tp, rembed, stride, rdist,
-                    (mycomplex*)m_buf_tp, cembed, stride, cdist,
-                    FFTW_MEASURE);
-            m_bwd_2D = _FFTW_(plan_many_dft_c2r)(2, n, howmany,
-                    (mycomplex*)m_buf_tp, cembed, stride, cdist,
-                    m_buf_tp, rembed, stride, rdist,
-                    FFTW_MEASURE);
-        }
-
-        // transpose plan
-        m_fwd_tp = _FFTW_(mpi_plan_many_transpose)(m_N0, m_NN1, 2*m_Nzhat,
-                m_local_N0, m_local_NN1,
-                m_buf_tp, m_buf_tp,
-                m_comm, FFTW_MEASURE|FFTW_MPI_TRANSPOSED_OUT);
-
-        m_bwd_tp = _FFTW_(mpi_plan_many_transpose)(m_NN1, m_N0, 2*m_Nzhat,
-                m_local_NN1, m_local_N0,
-                m_buf_tp, m_buf_tp,
-                m_comm, FFTW_MEASURE|FFTW_MPI_TRANSPOSED_IN);
+        _initialize(N0, N1, N2, desired_threads, comm);
     }
 
     ~My3DFFT_Infinite_MPI()
@@ -127,6 +55,12 @@ public:
         _FFTW_(destroy_plan)(m_fwd_tp);
         _FFTW_(destroy_plan)(m_bwd_tp);
         _FFTW_(mpi_cleanup)();
+    }
+
+    // interface
+    inline void setup(const size_t N0, const size_t N1, const size_t N2, const int desired_threads, const MPI_Comm comm)
+    {
+        _initialize(N0, N1, N2, desired_threads, comm);
     }
 
     void put_data();
@@ -213,16 +147,18 @@ public:
     }
 
 private:
+    bool m_initialized;
+
     // domain dimensions
-    const ptrdiff_t m_N0;  // Nx-points of original domain
-    const ptrdiff_t m_N1;  // Ny-points of original domain
-    const ptrdiff_t m_N2;  // Nz-points of original domain
-    const ptrdiff_t m_NN0; // Nx-points of padded domain
-    const ptrdiff_t m_NN1; // Ny-points of padded domain
-    const ptrdiff_t m_NN2; // Nz-points of padded domain
-    const ptrdiff_t m_NN0t; // Nx-points of padded domain (w/o periodic copies, actual transform size)
-    const ptrdiff_t m_NN1t; // Ny-points of padded domain (w/o periodic copies, actual transform size)
-    const ptrdiff_t m_NN2t; // Nz-points of padded domain (w/o periodic copies, actual transform size)
+    ptrdiff_t m_N0;  // Nx-points of original domain
+    ptrdiff_t m_N1;  // Ny-points of original domain
+    ptrdiff_t m_N2;  // Nz-points of original domain
+    ptrdiff_t m_NN0; // Nx-points of padded domain
+    ptrdiff_t m_NN1; // Ny-points of padded domain
+    ptrdiff_t m_NN2; // Nz-points of padded domain
+    ptrdiff_t m_NN0t; // Nx-points of padded domain (w/o periodic copies, actual transform size)
+    ptrdiff_t m_NN1t; // Ny-points of padded domain (w/o periodic copies, actual transform size)
+    ptrdiff_t m_NN2t; // Nz-points of padded domain (w/o periodic copies, actual transform size)
 
     // MPI related
     MPI_Comm m_comm;
@@ -248,6 +184,97 @@ private:
     myplan m_bwd_tp; // use FFTW's transpose facility
 
     // helpers
+    void _initialize(const size_t N0, const size_t N1, const size_t N2, const int desired_threads, const MPI_Comm comm)
+    {
+        // Setup MPI
+        m_comm = comm;
+        MPI_Comm_rank(m_comm, &m_rank);
+        MPI_Comm_size(m_comm, &m_size);
+
+        // initialize domain dimensions
+        m_N0   = N0;       // Number of cells in simulation domain
+        m_N1   = N1;
+        m_N2   = N2;
+        m_NN0  = 2*N0;     // Zero-padded domain for isolated domain
+        m_NN1  = 2*N1;
+        m_NN2  = 2*N2;
+        m_NN0t = 2*N0 - 1; // Size of FFT (removing periodic copies)
+        m_NN1t = 2*N1 - 1;
+        m_NN2t = 2*N2 - 1;
+
+        // some checks
+        _check_init(desired_threads);
+
+        // x-decomposition of input data (number of 2D slices)
+        m_local_N0 = m_N0 / m_size;
+        m_start_N0 = m_local_N0 * m_rank;
+
+        // x- and y-decompostion of extended domain (zero-padded) required for
+        // transpose
+        m_local_NN0 = m_NN0 / m_size;
+        m_local_NN1 = m_NN1 / m_size;
+        m_start_NN0 = m_local_NN0 * m_rank;
+        m_start_NN1 = m_local_NN1 * m_rank;
+
+        // buffer sizes
+        m_Nzhat     = m_NN2t/2 + 1; // for symmetry in r2c transform
+        m_tp_size   = m_local_N0  * m_NN1  * m_Nzhat;
+        m_full_size = m_NN0t * m_local_NN1 * m_Nzhat;
+
+        // FFTW plans
+        m_buf_tp   = _FFTW_(alloc_real)( 2*m_tp_size );
+        m_buf_full = _FFTW_(alloc_real)( 2*m_full_size );
+
+        // 1D plan
+        {
+            const int n[1] = {m_NN0t};
+            const int howmany = m_local_NN1 * m_Nzhat;
+            const int stride = m_local_NN1 * m_Nzhat;
+            const int* embed = n;
+            const int dist = 1;
+            m_fwd_1D = _FFTW_(plan_many_dft)(1, n, howmany,
+                    (mycomplex*)m_buf_full, embed, stride, dist,
+                    (mycomplex*)m_buf_full, embed, stride, dist,
+                    FFTW_FORWARD, FFTW_MEASURE);
+            m_bwd_1D = _FFTW_(plan_many_dft)(1, n, howmany,
+                    (mycomplex*)m_buf_full, embed, stride, dist,
+                    (mycomplex*)m_buf_full, embed, stride, dist,
+                    FFTW_BACKWARD, FFTW_MEASURE);
+        }
+
+        // 2D plan
+        {
+            const int n[2] = {m_NN1t, m_NN2t};
+            const int howmany = m_local_N0;
+            const int stride = 1;
+            const int rembed[2] = {m_NN1, 2*m_Nzhat}; // unit: sizeof(Real)
+            const int cembed[2] = {m_NN1, m_Nzhat};   // unit: sizeof(mycomplex)
+            const int rdist = m_NN1 * 2*m_Nzhat;      // unit: sizeof(Real)
+            const int cdist = m_NN1 * m_Nzhat;        // unit: sizeof(mycomplex)
+            m_fwd_2D = _FFTW_(plan_many_dft_r2c)(2, n, howmany,
+                    m_buf_tp, rembed, stride, rdist,
+                    (mycomplex*)m_buf_tp, cembed, stride, cdist,
+                    FFTW_MEASURE);
+            m_bwd_2D = _FFTW_(plan_many_dft_c2r)(2, n, howmany,
+                    (mycomplex*)m_buf_tp, cembed, stride, cdist,
+                    m_buf_tp, rembed, stride, rdist,
+                    FFTW_MEASURE);
+        }
+
+        // transpose plan
+        m_fwd_tp = _FFTW_(mpi_plan_many_transpose)(m_N0, m_NN1, 2*m_Nzhat,
+                m_local_N0, m_local_NN1,
+                m_buf_tp, m_buf_tp,
+                m_comm, FFTW_MEASURE|FFTW_MPI_TRANSPOSED_OUT);
+
+        m_bwd_tp = _FFTW_(mpi_plan_many_transpose)(m_NN1, m_N0, 2*m_Nzhat,
+                m_local_NN1, m_local_N0,
+                m_buf_tp, m_buf_tp,
+                m_comm, FFTW_MEASURE|FFTW_MPI_TRANSPOSED_IN);
+
+        m_initialized = true;
+    }
+
     void _check_init(const int desired_threads)
     {
         if (m_N0 % m_size != 0 || m_NN1 % m_size != 0)
