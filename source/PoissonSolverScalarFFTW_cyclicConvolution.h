@@ -11,6 +11,7 @@
 #ifndef POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 #define POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 
+#include <vector>
 #include <cassert>
 #include <cstring>
 #include <fftw3-mpi.h>
@@ -93,65 +94,6 @@ public:
         return iz + 2*static_cast<size_t>(m_Nzhat)*(iy + static_cast<size_t>(m_NN1)*ix);
     }
 
-    void print_full(const std::string hint = "")
-    {
-        ostringstream fname;
-        fname << "rank_" << m_rank << hint << ".dat";
-        ofstream out(fname.str());
-        for (int i = 0; i < m_NN0t; ++i)
-        {
-            for (int j = 0; j < m_local_NN1; ++j)
-            {
-                for (int k = 0; k < m_Nzhat; ++k)
-                {
-                    const int idx = k + 2*m_Nzhat*(j + m_local_NN1*i);
-                    out << std::scientific << *(m_buf_full+idx) << ":" << std::scientific << *(m_buf_full+idx+1) << '\t';
-                }
-                out << std::endl;
-            }
-            out << std::endl;
-            out << std::endl;
-        }
-    }
-
-    void print_tp(const std::string hint = "", const double scale = 1.0)
-    {
-        ostringstream fname;
-        fname << "rank_" << m_rank << hint << ".dat";
-        ofstream out(fname.str());
-        for (int i = 0; i < m_local_N0; ++i)
-        {
-            for (int j = 0; j < m_NN1; ++j)
-            {
-                for (int k = 0; k < 2*m_Nzhat; k+=2)
-                {
-                    const int idx = k + 2*m_Nzhat*(j + m_NN1*i);
-                    out << std::scientific << *(m_buf_tp+idx) * scale << ":" << std::scientific << *(m_buf_tp+idx+1) * scale << '\t';
-                }
-                out << std::endl;
-            }
-            out << std::endl;
-            out << std::endl;
-        }
-    }
-
-    void initialize()
-    {
-        std::memset(m_buf_tp, 0, 2*m_tp_size*sizeof(Real));
-        int d = m_local_N0*m_N1*m_N2*m_rank;
-        for (int i = 0; i < m_local_N0; ++i)
-        {
-            for (int j = 0; j < m_N1; ++j)
-            {
-                for (int k = 0; k < m_N2; ++k)
-                {
-                    const int idx = k + 2*m_Nzhat*(j + m_NN1*i);
-                    m_buf_tp[idx] = d++;
-                }
-            }
-        }
-    }
-
     inline void clear()
     {
         std::memset(m_buf_tp, 0, 2*m_tp_size*sizeof(Real));
@@ -161,13 +103,10 @@ public:
     void transform_fwd()
     {
         assert(m_initialized);
-        // initialize();
-        // print_tp("initial");
         _FFTW_(execute)(m_fwd_2D);
         _FFTW_(execute)(m_fwd_tp);
         _copy_fwd_local();
         _FFTW_(execute)(m_fwd_1D);
-        // print_full("transformed");
     }
 
     void transform_bwd()
@@ -177,8 +116,6 @@ public:
         _copy_bwd_local();
         _FFTW_(execute)(m_bwd_tp);
         _FFTW_(execute)(m_bwd_2D);
-        // print_tp("final", 1.0/(m_NN0t*m_NN1t*m_NN2t));
-        // print_tp("final");
     }
 
     void convolve()
@@ -459,19 +396,6 @@ private:
                     const size_t linidx = k + m_Nzhat*(j + m_local_NN1*i);
                     m_kernel[linidx]  = G_hat[linidx][0]; // need real part only
                 }
-
-        // // tmp
-        // ostringstream fname;
-        // fname << "rank_" << m_rank << "_Ghat.dat";
-        // ofstream out(fname.str());
-        // for (ptrdiff_t i = 0; i < m_NN0t; ++i)
-        //     for (ptrdiff_t j = 0; j < m_local_NN1; ++j)
-        //         for (ptrdiff_t k = 0; k < m_Nzhat; ++k)
-        //         {
-        //             const size_t linidx = k + m_Nzhat*(j + m_local_NN1*i);
-        //             out << "(" << i << ", " << j+m_start_NN1 << ", " << k << "): " << std::scientific << G_hat[linidx][0] << '\t' << std::scientific << G_hat[linidx][1] << std::endl;
-        //         }
-        // out.close();
 
         _FFTW_(free)(tf_buf);
         _FFTW_(destroy_plan)(green1D);
