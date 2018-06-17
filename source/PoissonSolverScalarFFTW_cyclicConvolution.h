@@ -279,6 +279,9 @@ private:
         // compute Green's function
         _initialize_green();
 
+        // to be sure
+        this->clear();
+
         // cool
         m_initialized = true;
     }
