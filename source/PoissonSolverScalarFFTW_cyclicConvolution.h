@@ -231,9 +231,9 @@ private:
 
         // 1D plan
         {
-            const int n[1] = {m_NN0t};
-            const int howmany = m_local_NN1 * m_Nzhat;
-            const int stride = m_local_NN1 * m_Nzhat;
+            const int n[1] = {static_cast<int>(m_NN0t)};
+            const int howmany = static_cast<int>( m_local_NN1 * m_Nzhat );
+            const int stride  = static_cast<int>( m_local_NN1 * m_Nzhat );
             const int* embed = n;
             const int dist = 1;
             m_fwd_1D = _FFTW_(plan_many_dft)(1, n, howmany,
@@ -248,13 +248,13 @@ private:
 
         // 2D plan
         {
-            const int n[2] = {m_NN1t, m_NN2t};
-            const int howmany = m_local_N0;
+            const int n[2] = {static_cast<int>(m_NN1t), static_cast<int>(m_NN2t)};
+            const int howmany = static_cast<int>(m_local_N0);
             const int stride = 1;
-            const int rembed[2] = {m_NN1, 2*m_Nzhat}; // unit: sizeof(Real)
-            const int cembed[2] = {m_NN1, m_Nzhat};   // unit: sizeof(mycomplex)
-            const int rdist = m_NN1 * 2*m_Nzhat;      // unit: sizeof(Real)
-            const int cdist = m_NN1 * m_Nzhat;        // unit: sizeof(mycomplex)
+            const int rembed[2] = {static_cast<int>(m_NN1), static_cast<int>(2*m_Nzhat)}; // unit: sizeof(Real)
+            const int cembed[2] = {static_cast<int>(m_NN1), static_cast<int>(m_Nzhat)};   // unit: sizeof(mycomplex)
+            const int rdist = static_cast<int>( m_NN1 * 2*m_Nzhat );                      // unit: sizeof(Real)
+            const int cdist = static_cast<int>( m_NN1 * m_Nzhat );                        // unit: sizeof(mycomplex)
             m_fwd_2D = _FFTW_(plan_many_dft_r2c)(2, n, howmany,
                     m_buf_tp, rembed, stride, rdist,
                     (mycomplex*)m_buf_tp, cembed, stride, cdist,
@@ -348,9 +348,9 @@ private:
 
         // 1D plan
         {
-            const int n[1] = {m_NN0t};
-            const int howmany = m_local_NN1 * m_Nzhat;
-            const int stride = m_local_NN1 * m_Nzhat;
+            const int n[1] = {static_cast<int>(m_NN0t)};
+            const int howmany = static_cast<int>( m_local_NN1 * m_Nzhat );
+            const int stride  = static_cast<int>( m_local_NN1 * m_Nzhat );
             const int* embed = n;
             const int dist = 1;
             green1D = _FFTW_(plan_many_dft)(1, n, howmany,
@@ -361,13 +361,13 @@ private:
 
         // 2D plan
         {
-            const int n[2] = {m_NN1t, m_NN2t};
-            const int howmany = m_local_NN0;
+            const int n[2] = {static_cast<int>(m_NN1t), static_cast<int>(m_NN2t)};
+            const int howmany = static_cast<int>(m_local_NN0);
             const int stride = 1;
-            const int rembed[2] = {m_NN1, 2*m_Nzhat}; // unit: sizeof(Real)
-            const int cembed[2] = {m_NN1, m_Nzhat};   // unit: sizeof(mycomplex)
-            const int rdist = m_NN1 * 2*m_Nzhat;      // unit: sizeof(Real)
-            const int cdist = m_NN1 * m_Nzhat;        // unit: sizeof(mycomplex)
+            const int rembed[2] = {static_cast<int>(m_NN1), static_cast<int>(2*m_Nzhat)}; // unit: sizeof(Real)
+            const int cembed[2] = {static_cast<int>(m_NN1), static_cast<int>(m_Nzhat)};   // unit: sizeof(mycomplex)
+            const int rdist = static_cast<int>( m_NN1 * 2*m_Nzhat );                      // unit: sizeof(Real)
+            const int cdist = static_cast<int>( m_NN1 * m_Nzhat );                        // unit: sizeof(mycomplex)
             green2D = _FFTW_(plan_many_dft_r2c)(2, n, howmany,
                     tf_buf, rembed, stride, rdist,
                     (mycomplex*)tf_buf, cembed, stride, cdist,
