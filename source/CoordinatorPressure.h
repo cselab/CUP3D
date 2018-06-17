@@ -16,7 +16,11 @@
 #include "PoissonSolverScalarFFTW_ACC.h"
 typedef PoissonSolverScalarFFTW_ACC<FluidGridMPI, StreamerDiv> PressureSolver;
 #else
+#ifdef _UNBOUNDED_FFT_
+#include "PoissonSolverScalarFFTW_cyclicConvolution.h"
+#else
 #include "PoissonSolverScalarFFTW.h"
+#endif /* _UNBOUNDED_FFT_ */
 //#ifdef FFTW_FFT
 typedef PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> PressureSolver;
 //#else

@@ -132,7 +132,7 @@ void Simulation::setupOperators()
     pipeline.push_back(new CoordinatorComputeShape(grid, &obstacle_vector, &step, &time, uinf));
     pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
     pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
-    // For correct behavior Advection must always be followed Diffusion!
+    // For correct behavior Advection must always precede Diffusion!
     pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
     pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
     pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
@@ -140,9 +140,10 @@ void Simulation::setupOperators()
     if(parser("-compute-dissipation").asInt(0))
       pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
 
-    //#ifndef _OPEN_BC_
+#ifndef _UNBOUNDED_FFT_
     pipeline.push_back(new CoordinatorFadeOut(grid));
-    //#endif
+#endif /* _UNBOUNDED_FFT_ */
+
     if(rank==0) {
       cout << "Coordinator/Operator ordering:\n";
       for (size_t c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;

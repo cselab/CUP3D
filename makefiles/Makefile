@@ -20,9 +20,14 @@ accfft ?= false
 zlib ?= 0
 verbose ?= false
 bc ?= open
+unboundedfft ?= false
 
 ifeq "$(bc)" "periodicz"
 	CPPFLAGS += -DBC_PERIODICZ
+endif
+
+ifeq "$(unboundedfft)" "true"
+	CPPFLAGS += -D_UNBOUNDED_FFT_
 endif
 
 ifeq "$(verbose)" "true"
