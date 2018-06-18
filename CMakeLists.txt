@@ -6,23 +6,28 @@ include(ProcessorCount)
 ProcessorCount(NUM_CORES)
 
 # Choose Release mode as default.
-if (NOT EXISTS ${CMAKE_BINARY_DIR}/CMakeCache.txt)
-  if (NOT CMAKE_BUILD_TYPE)
-    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "" FORCE)
-  endif()
-endif()
+if(NOT CMAKE_BUILD_TYPE)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING
+        "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
+        FORCE)
+endif(NOT CMAKE_BUILD_TYPE)
 
 # Options
+set(EXENAME "Swim3D")
 set(BLOCK_SIZE "16" CACHE String "Number of grid points in a block, per dimension")
 set(NUM_THREADS ${NUM_CORES} CACHE String "Number of threads per node")
-# option(SINGLE_PRECISION OFF)
-set(SINGLE_PRECISION OFF)  # Because cmake/FindFFTW.cmake handles now only double precision.
-option(VERBOSE OFF)
+
+option(_UNBOUNDED_FFT_ "Use FFT solver for unbounded domain" OFF)
+option(_DUMP_RAW_ "Dump binary surface data for each obstacle" OFF)
+option(_FLOAT_PRECISION_ "Compute in single precision" OFF)  # Because cmake/FindFFTW.cmake handles now only double precision.
+option(_HDF5_DOUBLE_PRECISION_ "Dump HDF5 data in double precision" OFF)
+option(_RK2_ "Use second order Runge-Kutta integrator" OFF)
+option(_VERBOSE_ "Be verbose" OFF)
 
 # Source files and target
-set(EXE1 "cubismup3d_open")
-set(EXE2 "cubismup3d_periodicz")
-set(LIB "cubismup3d")
+set(EXE1 "${EXENAME}_open")
+set(EXE2 "${EXENAME}_periodicz")
+set(LIB "${EXENAME}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
 set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
 
@@ -64,10 +69,22 @@ set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 target_compile_definitions(${EXE2} PRIVATE "-DBC_PERIODICZ")
 
 # Global flags
-if (SINGLE_PRECISION)
+if (_UNBOUNDED_FFT_)
+    add_definitions("-D_UNBOUNDED_FFT_")
+endif()
+if (_DUMP_RAW_)
+    add_definitions("-D_DUMP_RAW_")
+endif()
+if (_FLOAT_PRECISION_)
     add_definitions("-D_FLOAT_PRECISION_")
 endif()
-if (VERBOSE)
+if (_HDF5_DOUBLE_PRECISION_)
+    add_definitions("-D_HDF5_DOUBLE_PRECISION_")
+endif()
+if (_RK2_)
+    add_definitions("-D_RK2_")
+endif()
+if (_VERBOSE_)
     add_definitions("-D_VERBOSE_")
 endif()
 add_definitions("-D_ALIGNBYTES_=32")
@@ -81,7 +98,7 @@ add_definitions("-DNTHREADS=${NUM_THREADS}")
 # GCC flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-vla -Wno-reorder -Wno-maybe-uninitialized")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -DNDEBUG -fstrict-aliasing -ffast-math -falign-functions=32")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O3 -march=native -fstrict-aliasing -ffast-math -falign-functions=32")
 set(CMAKE_CXX_STANDARD 11)
 
 # OpenMP support
