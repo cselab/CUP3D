@@ -21,6 +21,11 @@ zlib ?= 0
 verbose ?= false
 bc ?= open
 unboundedfft ?= false
+dumpraw ?= false
+
+ifeq "$(dumpraw)" "true"
+        CPPFLAGS += -D_DUMP_RAW_
+endif
 
 ifeq "$(bc)" "periodicz"
 	CPPFLAGS += -DBC_PERIODICZ

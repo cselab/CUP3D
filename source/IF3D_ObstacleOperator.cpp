@@ -629,6 +629,8 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
     defPower, defPowerBnd, EffPDef, EffPDefBnd, Pthrust, Pdrag, thrust, drag);
 
   #ifndef __RL_TRAINING
+
+  #ifdef _DUMP_RAW_
   if (bDump) {
     char buf[500];
     sprintf(buf, "surface_%02d_%07d_rank%03d.raw", obstacleID, stepID, rank);
@@ -637,6 +639,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
     fflush(pFile);
     fclose(pFile);
   }
+  #endif
 
   if(rank==0) {
     stringstream ssF, ssP;
