@@ -42,6 +42,9 @@ int main(int argc, char **argv)
 #else
     std::cout << "Running in DEBUG mode!\n";
 #endif
+#ifdef _UNBOUNDED_FFT_
+    std::cout << "Using freespace unbounded FFT...\n";
+#endif
   }
   parser.unset_strict_mode();
 
