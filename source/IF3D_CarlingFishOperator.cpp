@@ -32,7 +32,8 @@ class CarlingFishMidlineData : public FishMidlineData
 
   inline Real getQuadAmp(const Real s) const
   {
-    return s*s*quadraticFactor/length;
+    return quadraticFactor*(length - 0.825*(s - length) + 1.625*(s*s/length - length)); // Maertens et al. JFM 2017
+    //return s*s*quadraticFactor/length;
   }
   inline Real getLinAmp(const Real s) const
   {
@@ -48,6 +49,7 @@ class CarlingFishMidlineData : public FishMidlineData
 
   virtual Real midlineVel(const Real s, const Real t) const;
 
+  // This needed only during burstCoast
   std::pair<double, double> cubicHermite(const double f1, const double f2, const double x){
     const double a =  2*(f1-f2);
     const double b = -3*(f1-f2);

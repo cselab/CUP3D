@@ -75,7 +75,10 @@ void Simulation::setupGrid()
 
 void Simulation::parseArguments()
 {
-  parser.print_args();
+  int dummyRank=-1;
+  MPI_Comm_rank(MPI_COMM_WORLD,&dummyRank);
+  if(dummyRank==0) parser.print_args();
+
   nu = parser("-nu").asDouble();
   //length = parser("-length").asDouble();
   assert(nu>=0);
