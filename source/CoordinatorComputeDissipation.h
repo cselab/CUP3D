@@ -175,10 +175,10 @@ public:
     int rank;
     MPI_Comm_rank(grid->getCartComm(),&rank);
     if(rank==0) {
-      FILE * f = fopen("dissipation.dat", "a");
-      if(step == 0)
+      FILE * f = fopen("wakeDissipation.dat", "a");
+      if(*step == 0)
         fprintf(f,"%s  %s  %s  %s  %s\n",
-        "step_id", "time", "viscous", "press", "total");
+        "step_id", "time", "viscousTerm", "pressureTerm", "total");
 
       fprintf(f, "%d  %9.9e  %9.9e  %9.9e  %9.9e\n", *step, *time, globalSum[0], globalSum[1], globalSum[0]+globalSum[1]);
       fclose(f);
