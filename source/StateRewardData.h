@@ -138,8 +138,10 @@ struct StateReward
     forcescale  = velscale*velscale*lengthscale*lengthscale; //l^4/t^2
     powerscale  = forcescale*velscale; //rho*l^3 * l/t^2 * l/t
 
+    #ifdef __RL_TRAINING
     printf("scales: %f %f %f %f %f",
       lengthscale,timescale,velscale,forcescale,powerscale);
+    #endif
     FPAbove.resize(NpLatLine,0); FVAbove.resize(NpLatLine,0);
     FPBelow.resize(NpLatLine,0); FVBelow.resize(NpLatLine,0);
     PXAbove.resize(NpLatLine,0); PYAbove.resize(NpLatLine,0);

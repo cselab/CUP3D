@@ -44,6 +44,8 @@ int main(int argc, char **argv)
 #endif
 #ifdef _UNBOUNDED_FFT_
     std::cout << "Using freespace unbounded FFT...\n";
+#else
+    std::cout << "Using smooth truncation at domain boundaries...\n";
 #endif
   }
   parser.unset_strict_mode();

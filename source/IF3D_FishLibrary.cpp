@@ -1083,7 +1083,7 @@ void MidlineShapes::computeWidthsHeights(const string heightName,
     FILE * heightWidth;
     heightWidth = fopen("widthHeight.txt","w");
     for(int i=0; i<nM; ++i)
-      fprintf(heightWidth,"%f \t %f \t %f \n", rS[i], width[i], height[i]);
+      fprintf(heightWidth,"%.8e \t %.8e \t %.8e \n", rS[i], width[i], height[i]);
     fclose(heightWidth);
   }
 }
