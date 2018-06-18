@@ -8,6 +8,7 @@ nthreads ?= 24
 #config ?= prod
 config ?= debug
 precision ?= double
+precision_dump ?= single
 bs ?= 16
 #bs ?= 32
 bsx ?= $(bs)
@@ -58,6 +59,10 @@ CPPFLAGS+= -Wno-unused-parameter # does not make much sense with function overlo
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_FLOAT_PRECISION_
 	NVCCFLAGS += -D_FLOAT_PRECISION_
+endif
+
+ifeq "$(precision_dump)" "double"
+	CPPFLAGS += -D_HDF5_DOUBLE_PRECISION_
 endif
 
 CPPFLAGS += -D_BLOCKSIZE_=$(bs)
@@ -191,7 +196,7 @@ OBJECTS =  IF3D_VortexOperator.o \
            Simulation.o \
            IF3D_NacaOperator.o \
            BufferedLogger.o \
-					 IF3D_CarlingFishOperator.o \
+		   IF3D_CarlingFishOperator.o \
            IF3D_DCylinderObstacleOperator.o
 
 ifeq "$(accfft)" "true"
