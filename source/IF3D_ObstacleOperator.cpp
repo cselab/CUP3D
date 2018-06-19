@@ -648,18 +648,18 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
 
     std::stringstream &fileForce = logger.get_stream(ssF.str());
     if(stepID==0)
-      fileForce<<"time Fx Fy Fz FxPres FyPres FzPres FxVisc FyVisc FzVisc TorqX TorqY TorqZ Gx Gy Gz drag thrust"<<std::endl;
+      fileForce<<"step time Fx Fy Fz FxPres FyPres FzPres FxVisc FyVisc FzVisc TorqX TorqY TorqZ Gx Gy Gz drag thrust"<<std::endl;
 
-    fileForce<<time<<" "<<surfForce[0]<<" "<<surfForce[1]<<" "<<surfForce[2]
+    fileForce<<stepID<<" "<<time<<" "<<surfForce[0]<<" "<<surfForce[1]<<" "<<surfForce[2]
       <<" "<<forcex_P<<" "<<forcey_P<<" "<<forcez_P<<" "<<forcex_V<<" "
       <<forcey_V<<" "<<forcez_V<<" "<<torquex<<" "<<torquey<<" "<<torquez
       <<" "<<gammax<<" "<< gammay<<" "<<gammaz<<" "<<drag<<" "<<thrust<<endl;
 
     std::stringstream &filePower = logger.get_stream(ssP.str());
     if(stepID==0)
-      filePower<<"time Pthrust Pdrag PoutBnd Pout defPowerBnd defPower EffPDefBnd EffPDef"<<std::endl;
+      filePower<<"step time Pthrust Pdrag PoutBnd Pout defPowerBnd pDef etaPDefBnd etaPDef "<<std::endl;
 
-    filePower<<time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
+    filePower<<stepID<<" "<<time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
       <<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<endl;
   }
   #endif
