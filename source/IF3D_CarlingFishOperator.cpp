@@ -18,7 +18,7 @@ class CarlingFishMidlineData : public FishMidlineData
   const double carlingAmp;
   static constexpr double carlingInv = 0.03125;
 
-  const double quadraticFactor; // Should be set to 0.1, which gives peak-to-peak amp of 0.2L
+  const double quadraticFactor; // Should be set to 0.1, which gives peak-to-peak amp of 0.2L (this is physically observed in most fish species)
 
   inline Real rampFactorSine(const Real t, const Real T) const
   {
