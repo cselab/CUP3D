@@ -18,6 +18,7 @@ set(BLOCK_SIZE "16" CACHE String "Number of grid points in a block, per dimensio
 set(NUM_THREADS ${NUM_CORES} CACHE String "Number of threads per node")
 
 option(_UNBOUNDED_FFT_ "Use FFT solver for unbounded domain" OFF)
+option(_DUMPGRID_ "Use asynchronous data dumps (requires additional memory)" ON)
 option(_DUMP_RAW_ "Dump binary surface data for each obstacle" OFF)
 option(_FLOAT_PRECISION_ "Compute in single precision" OFF)  # Because cmake/FindFFTW.cmake handles now only double precision.
 option(_HDF5_DOUBLE_PRECISION_ "Dump HDF5 data in double precision" OFF)
@@ -124,7 +125,9 @@ execute_process(COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ./check_
                 OUTPUT_QUIET
                 RESULT_VARIABLE CHECK_MPI_THREAD_SAFETY)
 if (${CHECK_MPI_THREAD_SAFETY} EQUAL 0)
-    add_definitions("-DDUMPGRID")
+    if (_DUMPGRID_)
+        add_definitions("-DDUMPGRID")
+    endif()
 else()
     message("Note: MPI not thread safe, fallback to synchronous HDF5 dumping!")
 endif()
