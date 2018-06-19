@@ -91,6 +91,23 @@ JOBS=10 ./install_dependencies.sh [flags]
 The default number of jobs is equal to the number of physical cores.
 
 
+### Advanced solver options (compile time)
+
+The default options are sufficient for the average user.  However, advanced
+users can customize the generated executable with the following options:
+
+| Option                  | Default | Description                                                                                                                                                                                         |
+|-------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `_UNBOUNDED_FFT_`       | OFF     | This option enables an FFT based Poisson solver for isolated systems (see Hockney 1970).  Enabling this option will result in an improvement of accuracy at the cost of larger memory requirements. |
+| `_DUMPGRID_`              | ON      | This option enables asynchronous data dumps. If you run on a system with limited memory, this option can be disabled to reduce the memory footprint.                                                |
+| `_DUMP_RAW_`              | OFF     | Enabling this option dumps additional surface data for each obstacle in binary format.                                                                                                              |
+| `_FLOAT_PRECISION_`       | OFF     | Run simulation in single precison.                                                                                                                                                                  |
+| `_HDF5_DOUBLE_PRECISION_` | OFF     | Dump simulation snapshots in double precision.                                                                                                                                                      |
+| `_RK2_`                   | OFF     | Enables a second order Runge-Kutta time integrator.                                                                                                                                                 |
+
+These options can be enabled either on the command line with, e.g., `cmake
+-D_UNBOUNDED_FFT_=ON` or with graphical tools such as `ccmake`.
+
 ### Compiling on Mac
 
 The default compiler `clang` on Mac does not support OpenMP. It is therefore necessary either to install `clang` OpenMP extension or to install e.g. `g++` compiler. The following snippet shows how to compile with `g++-7`:
