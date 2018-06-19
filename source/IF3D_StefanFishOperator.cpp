@@ -27,8 +27,8 @@ class CurvatureDefinedFishData : public FishMidlineData
   double controlVel = 0, velPID = 0;
  public:
 
-  CurvatureDefinedFishData(double L, double T, double phi, double _h)
-  : FishMidlineData(L, T, phi, _h),
+  CurvatureDefinedFishData(double L, double T, double phi, double _h, const double _ampFac)
+  : FishMidlineData(L, T, phi, _h, _ampFac),
     rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
     rB(_alloc(Nm)),vB(_alloc(Nm)), rA(_alloc(Nm)),vA(_alloc(Nm)) { }
 
@@ -124,19 +124,21 @@ void CurvatureDefinedFishData::computeMidline(const double time, const double dt
     for(int i=0; i<Nm; i++) {
       const double darg = 2.*M_PI* _1oT;
       const double arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL/waveLength) + M_PI*phaseShift;
-      rK[i] =   rC[i]*(std::sin(arg)     +rB[i]+_rA)*controlFac;
-      vK[i] =   vC[i]*(std::sin(arg)     +rB[i]+_rA)*controlFac
+      //amplitudeFactor=0.0 implies towed. A bit scared to directly multiply vK with ampFactor, but ok as long as either 0 or 1
+      rK[i] =   amplitudeFactor* rC[i]*(std::sin(arg)     +rB[i]+_rA)*controlFac;
+      vK[i] =   amplitudeFactor* (vC[i]*(std::sin(arg)    +rB[i]+_rA)*controlFac
         + rC[i]*(std::cos(arg)*darg+vB[i]+_vA)*controlFac
-        + rC[i]*(std::sin(arg)     +rB[i]+_rA)*controlVel;
+        + rC[i]*(std::sin(arg)     +rB[i]+_rA)*controlVel);
     }
   } else {
     // construct the curvature
     for(int i=0; i<Nm; i++) {
       const double darg = 2.*M_PI* _1oT;
       const double arg  = 2.*M_PI*(_1oT*(time-time0) +timeshift -rS[i]*_1oL/waveLength) + M_PI*phaseShift;
-      rK[i] =   rC[i]*(std::sin(arg)      + rB[i] + rA[i]);
-      vK[i] =   vC[i]*(std::sin(arg)      + rB[i] + rA[i])
-        + rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]);
+      //amplitudeFactor=0.0 implies towed. A bit scared to directly multiply vK with ampFactor, but ok as long as either 0 or 1
+      rK[i] =   amplitudeFactor* rC[i]*(std::sin(arg)      + rB[i] + rA[i]);
+      vK[i] =   amplitudeFactor* (vC[i]*(std::sin(arg)     + rB[i] + rA[i])
+        + rC[i]*(std::cos(arg)*darg + vB[i] + vA[i]));
     }
   }
 
@@ -248,7 +250,9 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
   sr = StateReward(length, Tperiod);
   sr.parseArguments(p);
 
-  myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift, vInfo[0].h_gridpoint);
+  const double ampFac = p("-amplitudeFactor").asDouble(1.0);
+  myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift, vInfo[0].h_gridpoint,ampFac);
+
   string heightName = p("-heightProfile").asString("baseline");
   string  widthName = p( "-widthProfile").asString("baseline");
   MidlineShapes::computeWidthsHeights(heightName, widthName, length,

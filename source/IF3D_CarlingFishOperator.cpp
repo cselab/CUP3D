@@ -18,7 +18,7 @@ class CarlingFishMidlineData : public FishMidlineData
   const double carlingAmp;
   static constexpr double carlingInv = 0.03125;
 
-  static constexpr double quadraticFactor = 0.1;
+  const double quadraticFactor; // Should be set to 0.1, which gives peak-to-peak amp of 0.2L
 
   inline Real rampFactorSine(const Real t, const Real T) const
   {
@@ -63,8 +63,9 @@ class CarlingFishMidlineData : public FishMidlineData
   virtual void _computeMidlineVelocities(const Real time);
 
  public:
-  CarlingFishMidlineData(double L, double T, double phi, double _h, double A)
-    : FishMidlineData(L, T, phi, _h), carlingAmp(A)
+  CarlingFishMidlineData(double L, double T, double phi, double _h, double A, const double _ampFac=1.0)
+    : FishMidlineData(L, T, phi, _h, _ampFac), carlingAmp(A*_ampFac), quadraticFactor(0.1*_ampFac)
+    // _ampFac=0.0 for towed fish
   {
     // FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
     //printf("Overwriting default tail-fin size for Plain Carling:\n");
@@ -163,6 +164,7 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   sr.parseArguments(p);
 
   const double amplitude = p("-amplitude").asDouble(0.1212121212121212);
+  const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   const bool bQuadratic = p("-bQuadratic").asBool(true);
   const bool bBurst = p("-BurstCoast").asBool(false);
   const bool bHinge = p("-HingedFin").asBool(false);
@@ -178,7 +180,7 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   if(bHinge) localFish = readHingeParams(p);
   else
   localFish = new CarlingFishMidlineData(length, Tperiod, phaseShift,
-    vInfo[0].h_gridpoint, amplitude);
+    vInfo[0].h_gridpoint, amplitude, ampFac);
 
   // generic copy for base class:
   assert( myFish == nullptr );

@@ -66,6 +66,7 @@ class FishMidlineData
  public:
   const double length, Tperiod, phaseShift, h;
   const Real waveLength = 1;
+  const double amplitudeFactor;
 
   // Midline is discretized by more points in first fraction and last fraction:
   const double fracRefined = 0.1, fracMid = 1 - 2*fracRefined;
@@ -184,9 +185,9 @@ class FishMidlineData
   void _computeMidlineNormals();
 
  public:
-  FishMidlineData(double L, double Tp, double phi, double _h):
-   length(L), Tperiod(Tp), phaseShift(phi), h(_h), rS(_alloc(Nm)),
-   rX(_alloc(Nm)), rY(_alloc(Nm)), vX(_alloc(Nm)), vY(_alloc(Nm)),
+  FishMidlineData(double L, double Tp, double phi, double _h, const double _ampFac=1.0):
+   length(L), Tperiod(Tp), phaseShift(phi), h(_h), amplitudeFactor(_ampFac),
+   rS(_alloc(Nm)), rX(_alloc(Nm)), rY(_alloc(Nm)), vX(_alloc(Nm)), vY(_alloc(Nm)),
    norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)),
    width(_alloc(Nm)), height(_alloc(Nm)), forceX(new double[Nm]),
    forceY(new double[Nm]), torque(new double[Nm]),
