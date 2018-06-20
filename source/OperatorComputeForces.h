@@ -20,9 +20,12 @@ struct OperatorComputeForces
   const double* const vel_unit;
   const Real* const Uinf;
   const double* const CM;
+  const double* const omega;
+  const double* const uTrans;
 
   OperatorComputeForces(const double nu, const double DT, const double*vunit,
-  const Real*u,const double*cm):NU(nu),dt(DT),vel_unit(vunit),Uinf(u),CM(cm)
+  const Real*u,const double*cm, const double*_omega, const double*_uTrans)
+  :NU(nu),dt(DT),vel_unit(vunit),Uinf(u),CM(cm),omega(_omega),uTrans(_uTrans)
   {
     stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3 );
   }
@@ -33,6 +36,8 @@ struct OperatorComputeForces
     const double _1oH = NU / double(info.h_gridpoint);
     //const Real _h3 = std::pow(info.h_gridpoint,3);
     assert(o->filled);
+
+
     //loop over elements of block info that have nonzero gradChi
     for(int i=0; i<o->nPoints; i++)
     {
@@ -111,6 +116,27 @@ struct OperatorComputeForces
       const double powDef = fXT*o->vxDef[i] + fYT*o->vyDef[i] + fZT*o->vzDef[i];
       o->Pout        += powOut; o->PoutBnd     += std::min((double)0, powOut);
       o->defPower    += powDef; o->defPowerBnd += std::min((double)0, powDef);
+
+      // Compute P_locomotion = Force*(uTrans + uRot)
+      const double rVec[3] = {p[0]-CM[0], p[1]-CM[1], p[2]-CM[2]};
+//printf("omega = %e, %e, %e\n", omega[0], omega[1], omega[2]) ;
+      const double uRot[3] = {
+	      omega[1]*rVec[2] - rVec[1]*omega[2],
+	      -(omega[0]*rVec[2] - rVec[0]*omega[2]),
+	      omega[0]*rVec[1] - rVec[0]*omega[1]
+      };
+
+
+/*(*measures)[19] += fXT*(surfData->vx[i] - velCM[0] - uRot[0]) + fYT*(surfData->vy[i] - velCM[1] - uRot[1])  + fZT*(surfData->vz[i] - velCM[2] - uRot[2]);
+(*measures)[20] += fXT*(surfData->vx[i] - velCM[0])           + fYT*(surfData->vy[i] - velCM[1])            + fZT*(surfData->vz[i] - velCM[2]);
+(*measures)[21] += fXT*(surfData->vx[i] - uRot[0])            + fYT*(surfData->vy[i] - uRot[1])             + fZT*(surfData->vz[i] - uRot[2]);
+(*measures)[22] += fXT*(uRot[0]+velCM[0])            + fYT*(uRot[1]+velCM[1])            + fZT*(uRot[2]+velCM[2]);*/
+
+o->try1 += fXT*(o->vX[i] - uTrans[0] - uRot[0]) + fYT*(o->vY[i] - uTrans[1] - uRot[1])  + fZT*(o->vZ[i] - uTrans[2] - uRot[2]);
+o->try2 += fXT*(o->vX[i] - uTrans[0])           + fYT*(o->vY[i] - uTrans[1])            + fZT*(o->vZ[i] - uTrans[2]);
+o->try3 += fXT*(o->vX[i] - uRot[0])            + fYT*(o->vY[i] - uRot[1])             + fZT*(o->vZ[i] - uRot[2]);
+o->pLocom += fXT*(uRot[0]+uTrans[0])            + fYT*(uRot[1]+uTrans[1])             + fZT*(uRot[2]+uTrans[2]);
+
     }
   }
 };

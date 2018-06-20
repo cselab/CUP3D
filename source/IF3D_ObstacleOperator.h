@@ -46,7 +46,7 @@ public:
   //from diagnostics:
   double mass=0, force[3] = {0,0,0}, torque[3] = {0,0,0};
   //from compute forces:
-  double totChi=0, surfForce[3]={0,0,0}, drag=0, thrust=0, Pout=0, PoutBnd=0;
+  double totChi=0, surfForce[3]={0,0,0}, drag=0, thrust=0, Pout=0, PoutBnd=0, pLocom=0;
   double defPower=0, defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
   double transVel_correction[3]={0,0,0}, angVel_correction[3]={0,0,0}, length;
   //forced obstacles:

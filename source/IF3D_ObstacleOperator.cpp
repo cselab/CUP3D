@@ -572,9 +572,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
 
   double CM[3];
   this->getCenterOfMass(CM);
+
   const double velx_tot = transVel[0]-Uinf[0];
   const double vely_tot = transVel[1]-Uinf[1];
   const double velz_tot = transVel[2]-Uinf[2];
+  const double totVel[3] = {velx_tot, vely_tot, velz_tot};
 
   #ifdef __RL_TRAINING
     if(!bInteractive) {
@@ -592,10 +594,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
       vel_unit[1] = vely_tot/vel_norm;
       vel_unit[2] = velz_tot/vel_norm;
   }
+
   const int nthreads = omp_get_max_threads();
   vector<OperatorComputeForces*> forces(nthreads, nullptr);
   for(int i=0;i<nthreads;++i)
-    forces[i] = new OperatorComputeForces(NU,dt,vel_unit,Uinf,CM);
+    forces[i] = new OperatorComputeForces(NU,dt,vel_unit,Uinf,CM,angVel,totVel);
 
   compute<OperatorComputeForces, SURFACE>(forces);
 
@@ -617,6 +620,10 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
 
   drag = sum[k++]; thrust = sum[k++]; Pout = sum[k++];
   PoutBnd = sum[k++]; defPower = sum[k++]; defPowerBnd = sum[k++];
+  pLocom = sum[k++];
+  const double try1 = sum[k++]; 
+  const double try2 = sum[k++];
+  const double try3 = sum[k++];
 
   //derived quantities:
   Pthrust    = thrust*vel_norm;
@@ -657,10 +664,23 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
 
     std::stringstream &filePower = logger.get_stream(ssP.str());
     if(stepID==0)
-      filePower<<"step time Pthrust Pdrag PoutBnd Pout defPowerBnd pDef etaPDefBnd etaPDef "<<std::endl;
+      filePower<<"step time Pthrust Pdrag PoutBnd Pout defPowerBnd pDef etaPDefBnd etaPDef pLocomotion try1 try2 try3"<<std::endl;
+      //filePower<<"step time Pthrust Pdrag PoutBnd Pout defPowerBnd pDef etaPDefBnd etaPDef pLocomotion"<<std::endl;
 
+    // Output defpowers to text file with the correct sign
     filePower<<stepID<<" "<<time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
-      <<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<endl;
+      << -defPowerBnd <<" "<< -defPower <<" "<<EffPDefBnd<<" "<<EffPDef<<" "<<pLocom
+      <<" "<< try1 <<" "<<try2<<" "<<try3
+<<endl;
+
+    std::stringstream &testTry = logger.get_stream("testTry.dat");
+    if(stepID==0)
+      testTry<<"time powUmUrotmUcm powUmuCM powUmuRot powUcmPlusUrot"<<std::endl;
+
+    testTry<<time<<" "<< try1 <<" "<<try2<<" "<<try3<<" "<<pLocom<<endl;
+
+
+
   }
   #endif
 }
