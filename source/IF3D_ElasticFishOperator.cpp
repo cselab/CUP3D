@@ -577,87 +577,11 @@ class ElasticMidlineData : public FishMidlineData
   {
     sim_time = time;
 
-
-    if (timeIsZero(sim_time)) {
-      rX[0] = rY[0] = vX[0] = vY[0] = 0;
-      for(int i=1; i<Nm; ++i) {
-        rY[i] = vX[i] = vY[i] = 0;
-        rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
-      }
-      _computeMidlineNormals();
-
-      printf("ZERO Time inside midline calculation T = %le \n", sim_time);
-      initializeThetaOld();
-      computeLinkLength(rS, linkLength);
-      computeLinkWidth(width, linkWidth);
-      computeLinkMass(linkMass);
-      computeLinkInertia(linkInertia);
-      computeElasticityCoefficients(elasticityCoefficients);
-      computeDampingCoefficients(dampingCoefficients);
+    rX[0] = rY[0] = vX[0] = vY[0] = 0;
+    for(int i=1; i<Nm; ++i) {
+      rY[i] = vX[i] = vY[i] = 0;
+      rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
     }
-
-
-
-    if(started_deforming == true){
-      sim_dt = dt;
-
-      printf("MIDLINE COMPUTATION: Time inside midline calculation T = %le, time step dt = %le \n", sim_time, sim_dt);
-      printf("MIDLINE COMPUTATION: Time-step dt = %le \n", sim_dt);
-
-      // Integration step
-      rattleIntegrationStep(vX_minus_half,vY_minus_half,rX,rY);
-
-      // Updating the angles
-      computeAngles(rX,rY,cosTheta,theta);
-      computeAngleDerivatives(theta, thetaOld, dTheta);
-
-      // Computing the link forces
-      computeElasticLinkForces(rX,rY,elasticityCoefficients,dampingCoefficients,theta,dTheta,cosTheta,forcesElasticPlusDampingX,forcesElasticPlusDampingY);
-
-      // Computing the total forces
-      computeTotalForces(forceX, forceY, forcesElasticPlusDampingX, forcesElasticPlusDampingY, forcesTotalX, forcesTotalY);
-
-      rattleVelocityUpdateHalf(rX,rY,vX_minus_half,vY_minus_half,forcesTotalX, forcesTotalY, linkMass, linkLength, vX_plus_half, vY_plus_half);
-
-      rattleVelocityUpdate(rX,rY,vX_minus_half,vY_minus_half,vX_plus_half, vY_plus_half,linkMass,linkLength,vX,vY);
-
-      setEqualVectors(Nm-2, theta, thetaOld);
-      setEqualVectors(Nm, vX_plus_half, vX_minus_half);
-      setEqualVectors(Nm, vY_plus_half, vY_minus_half);
-
-    } else {
-      sim_dt = dt;
-      printf("MIDLINE DOING NOTHING. Time T = %le \n", sim_time);
-      printf("MIDLINE DOING NOTHING: Time-step dt = %le \n", sim_dt);
-    }
-
-
-
-    if (sim_time > time_start_deforming and started_deforming == false){
-      started_deforming = true;
-
-      // Updating the old values
-      computeAngles(rX,rY,cosTheta,theta);
-      initializeThetaOld();
-
-      // Computing the link forces
-      computeElasticLinkForces(rX,rY,elasticityCoefficients,dampingCoefficients,theta,dTheta,cosTheta,forcesElasticPlusDampingX,forcesElasticPlusDampingY);
-
-      // Computing the total forces
-      computeTotalForces(forceX, forceY, forcesElasticPlusDampingX, forcesElasticPlusDampingY, forcesTotalX, forcesTotalY);
-
-      // RATTLE - Updating the velocity at zero step
-      rattleVelocityUpdateZero(rX,rY,vX,vY,forcesTotalX,forcesTotalY,linkMass,linkLength,vX_minus_half,vY_minus_half);
-
-      setEqualVectors(Nm-2, theta, thetaOld);
-
-    }
-
-    // rX[0] = rY[0] = vX[0] = vY[0] = 0;
-    // for(int i=1; i<Nm; ++i) {
-    //   rY[i] = vX[i] = vY[i] = 0;
-    //   rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
-    // }
     _computeMidlineNormals();
 
 

@@ -14,10 +14,10 @@ mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
-cp ../bin/cubismup3d_open ${FOLDER}
+cp ../bin/Swim3D_open ${FOLDER}
 
 cd $FOLDER
 
 export OMP_NUM_THREADS=12
 echo "$OPTIONS" > settings.txt
-mpirun -np 1 ./cubismup3d_open ${OPTIONS} -factory-content "${FACTORY}"
+mpirun -np 1 ./Swim3D_open ${OPTIONS} -factory-content "${FACTORY}"

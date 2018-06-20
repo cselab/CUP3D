@@ -5,7 +5,6 @@ If you don't know what to do:
 TODO: Add a note that internet connection is required (for CSS/JS files).
 TODO: xyz bForcedInSimFrame and bFixFrameOfRef.
 TODO: Write the size of the domain in "Information".
-TODO: (hard) Refactor MultiValueField to be ControlField, not a ContainerField.
 -->
 
 <!--
@@ -20,7 +19,7 @@ There must be a single HTML tag encapsulating everything inside a template.
 Whatever is outside it, e.g. some text, will be ignored.
 
 2) Containers vs controls.
-Each field is either a ContainerField or a ControlField. Examples of
+Each field is either a ContrainerField or a ControlField. Examples of
 ContainerFields are "object" and "array", and they contain other fields. A
 ControlField is simply a "text", "number" etc. There is a difference in
 visualization of these two, they use different sets of templates.
@@ -86,9 +85,6 @@ custom fields. Anything else is forwarded to the parent view.
     }
     .form-horizontal .multivalue .alpaca-container-item:nth-child(2) .form-group { margin-left: 0px; }
     .form-horizontal .multivalue .alpaca-container-item:last-child .form-group { margin-right: 0px; }
-    .formula {
-        font-family: serif;
-    }
   </style>
 </head>
 <body>
@@ -244,13 +240,13 @@ custom fields. Anything else is forwarded to the parent view.
 (function(){
     var PRESETS = [{
         "description": "Flow around a sphere at Re=100.",
-        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-Re-100","num_cells":[512,256,256],"tend":10,"tdump":1},"flow":{"nu":0.001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.5,0.25,0.25],"radius":0.05,"obstacle_forced":"true","obstacle_vel":[1,0,0],"obstacle_frame_fixed":"true"}]}',
+        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-Re-1000","num_cells":[512,256,256],"tend":1000,"tdump":10},"flow":{"nu":0.000001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.3,0.25,0.25],"radius":0.05,"obstacle_forced":"true","obstacle_vel":[0.001,0,0],"obstacle_frame_fixed":"true"}]}',
     }, {
         "description": "Flow around a sphere at Re=1000.",
-        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-Re-1000","num_cells":[512,256,256],"tend":10,"tdump":1},"flow":{"nu":0.0001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.5,0.25,0.25],"radius":0.05,"obstacle_forced":"true","obstacle_vel":[1,0,0],"obstacle_frame_fixed":"true"}]}',
+        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-Re-1000","num_cells":[512,256,256],"tend":100,"tdump":1},"flow":{"nu":0.000001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.3,0.25,0.25],"radius":0.05,"obstacle_forced":"true","obstacle_vel":[0.01,0,0],"obstacle_frame_fixed":"true"}]}',
     }, {
         "description": "Flow around a half-cylinder at Re=2000.",
-        "data": '{"simulation":{"num_nodes":1,"result_path":"results/half-cylinder-Re-2000","num_cells":[512,256,256],"tend":10,"tdump":1},"flow":{"nu":0.00005,"periodic_z":"true"},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Half-cylinder","dcylinder_center":[0.3,0.25],"dcylinder_z_range":[0,1],"radius":0.05,"obstacle_forced":"true","obstacle_vel":[1,0,0],"obstacle_frame_fixed":"true"}]}',
+        "data": '{"simulation":{"num_nodes":1,"result_path":"results/half-cylinder-01","num_cells":[256,128,128],"tend":10,"tdump":0.1},"flow":{"nu":0.001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Half-cylinder","dcylinder_center":[0.3,0.25],"dcylinder_z_range":[0,1],"radius":0.1,"obstacle_forced":"true","obstacle_vel":[10,0,0],"obstacle_frame_fixed":"true"}]}',
     }];
 
     // Compile-time settings and other parameters.
@@ -357,7 +353,7 @@ custom fields. Anything else is forwarded to the parent view.
         pre += "# Prepare target folder. Copy executable and backup the source code.\n";
         pre += "mkdir -p ${RESULT_PATH}/backup\n";
         pre += "cp -r ${ROOT_PATH}/source ${ROOT_PATH}/Cubism ${RESULT_PATH}/backup\n";
-        pre += "cp ${ROOT_PATH}/bin/Swim3D ${RESULT_PATH}    # Copy executable.\n";
+        pre += "cp ${ROOT_PATH}/bin/cubismup3d ${RESULT_PATH}    # Copy executable.\n";
         pre += "cp ${BASH_SOURCE} ${RESULT_PATH}/backup || true  # Copy the script itself.\n";
         pre += "\n";
 
@@ -487,12 +483,12 @@ custom fields. Anything else is forwarded to the parent view.
                 if (is_ok(v) && (type == SPHERE || type == DCYLINDER)) {
                     var v = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
                     var Re_curr = v * params["L"] / flow["nu"];
-                    var formula = "<span class=\"formula\">Re = u L / &nu;</span>";
+                    var formula = "<b>Re = u L / &nu;</b>";
                     check_Re(Re_curr, formula, params)
                 }
             }
             if (!forced && type == FISH) {
-                var formula = "empirical formula <span class=\"formula\">Re = 1.5 L<sup>2</sup> / &nu; T</span>";
+                var formula = "empirical formula <b>Re = 1.5 L<sup>2</sup> / &nu; T</b>";
                 var Re_curr = 1.5 * params["L"] * params["L"] / flow["nu"] / params["T"];
                 check_Re(Re_curr, formula, params);
             }
@@ -520,7 +516,7 @@ custom fields. Anything else is forwarded to the parent view.
         job += "\n";
 
         /* Running the executable */
-        job += "mpiexec -n " + simulation["num_nodes"] + " ./Swim3D ${OPTIONS} -factory-content \"${FACTORY}\"\n";
+        job += "mpiexec -n " + simulation["num_nodes"] + " ./cubismup3d ${OPTIONS} -factory-content \"${FACTORY}\"\n";
 
         /* Merging into a single script */
         var out = "";
