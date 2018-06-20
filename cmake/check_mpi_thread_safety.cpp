@@ -1,3 +1,8 @@
+/*
+ * Used by CMakeLists.txt to check whether MPI_THREAD_MULTIPLE is supported.
+ *
+ * If not, asynchronous dumping is disabled and synchronous is used instead.
+ */
 #include <mpi.h>
 
 int main(int argc, char **argv) {
@@ -12,4 +17,3 @@ int main(int argc, char **argv) {
 
     return 0;  // :)
 }
-
