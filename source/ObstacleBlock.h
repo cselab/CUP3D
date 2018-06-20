@@ -58,10 +58,7 @@ struct ObstacleBlock
   //Real torquex_P = 0, torquey_P = 0, torquez_P = 0;
   //Real torquex_V = 0, torquey_V = 0, torquez_V = 0;
   double drag = 0, thrust = 0, Pout=0, PoutBnd=0, defPower=0, defPowerBnd = 0, pLocom = 0;
-double try1=0, try2=0, try3=0;
-  static const int nQoI = 30;
-  //static const int nQoI = 24;
-  //static const int nQoI = 22;
+  static const int nQoI = 22;
 
   virtual void sumQoI(vector<double>& sum)
   {
@@ -75,7 +72,6 @@ double try1=0, try2=0, try3=0;
     sum[k++] += drag;     sum[k++] += thrust;   sum[k++] += Pout;
     sum[k++] += PoutBnd;  sum[k++] += defPower; sum[k++] += defPowerBnd;
     sum[k++] += pLocom;
-    sum[k++] += try1;   sum[k++] += try2;   sum[k++] += try3;
   }
 
   ObstacleBlock()

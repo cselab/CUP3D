@@ -2,7 +2,6 @@
 //  CoordinatorDissipation.h
 //  CubismUP_3D
 //
-//  Created by Christian Conti on 3/30/15.
 //  Copyright (c) 2015 ETHZ. All rights reserved.
 //
 
@@ -11,6 +10,7 @@
 
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
+#include "BufferedLogger.h"
 
 class OperatorDissipation : public GenericLabOperator
 {
@@ -79,22 +79,6 @@ class OperatorDissipation : public GenericLabOperator
 
       o(ix,iy,iz).tmpU = (1.0-chi)*(laplacianTerm + SijTerm); // wake
       o(ix,iy,iz).tmpV = (1.0-chi)*(pressTerm); // wake
-
-      //const Real uDef[3] = { chi*o(ix,iy,iz).u, chi*o(ix,iy,iz).v, chi*o(ix,iy,iz).w};
-      //const Real pressPdef = -1.0*(dPdx*uDef[0] + dPdy*uDef[1] + dPdz*uDef[2]);
-      //o(ix,iy,iz).extra = -1.0*(dPdx*uDef[0] + dPdy*uDef[1] + dPdz*uDef[2]); // Still need to multiply by h^3
-
-      // Leave out mult by h^3 until after mpi sum, since number too small
-      //o(ix,iy,iz).tmpU = 0.5*(1-chi) * ( o(ix,iy,iz).u*o(ix,iy,iz).u + o(ix,iy,iz).v*o(ix,iy,iz).v + o(ix,iy,iz).w*o(ix,iy,iz).w );
-      //o(ix,iy,iz).tmpU = 0.5*hCube*(1-chi) * ( o(ix,iy,iz).u*o(ix,iy,iz).u + o(ix,iy,iz).v*o(ix,iy,iz).v + o(ix,iy,iz).w*o(ix,iy,iz).w );
-
-      // Store 2*nu*Sij*Sij
-      // Leave out mult by h^3 until after mpi sum, since number too small
-      //o(ix,iy,iz).tmpV = dissipFactor * (1-chi) * ( D11*D11 + D22*D22 + D33*D33 + 2*(D12*D12 + D13*D13 + D23*D23) );
-      //o(ix,iy,iz).tmpV = (1-chi) * ( D11*D11 + D22*D22 + D33*D33 + 2*(D12*D12 + D13*D13 + D23*D23) );
-
-      //o(ix,iy,iz).tmpW = laplacianPdef + chi * ( D11*D11 + D22*D22 + D33*D33 + 2*(D12*D12 + D13*D13 + D23*D23) );
-
     }
   }
 };
@@ -175,16 +159,14 @@ public:
     int rank;
     MPI_Comm_rank(grid->getCartComm(),&rank);
     if(rank==0) {
-      FILE * f = fopen("wakeDissipation.dat", "a");
-      if(*step == 0)
-        fprintf(f,"%s  %s  %s  %s  %s\n",
-        "step_id", "time", "viscousTerm", "pressureTerm", "total");
 
-      fprintf(f, "%d  %9.9e  %9.9e  %9.9e  %9.9e\n", *step, *time, globalSum[0], globalSum[1], globalSum[0]+globalSum[1]);
-      fclose(f);
+    std::stringstream &fileDissip = logger.get_stream("wakeDissipation.dat");
+    if(*step==0)
+      fileDissip<<"step_id time viscousTerm pressureTerm total"<<std::endl;
+
+    fileDissip<< *step <<" "<< *time <<" "<< globalSum[0] <<" "<<
+	    globalSum[1] <<" "<< globalSum[0]+globalSum[1] <<endl;
     }
-
-    //oldKE = globalSum[0];
 
     check("dissipation - end");
   }

@@ -621,9 +621,6 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   drag = sum[k++]; thrust = sum[k++]; Pout = sum[k++];
   PoutBnd = sum[k++]; defPower = sum[k++]; defPowerBnd = sum[k++];
   pLocom = sum[k++];
-  const double try1 = sum[k++]; 
-  const double try2 = sum[k++];
-  const double try3 = sum[k++];
 
   //derived quantities:
   Pthrust    = thrust*vel_norm;
@@ -664,23 +661,11 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
 
     std::stringstream &filePower = logger.get_stream(ssP.str());
     if(stepID==0)
-      filePower<<"step time Pthrust Pdrag PoutBnd Pout defPowerBnd pDef etaPDefBnd etaPDef pLocomotion try1 try2 try3"<<std::endl;
-      //filePower<<"step time Pthrust Pdrag PoutBnd Pout defPowerBnd pDef etaPDefBnd etaPDef pLocomotion"<<std::endl;
+      filePower<<"step time Pthrust Pdrag PoutBnd Pout defPowerBnd pDef etaPDefBnd etaPDef pLocom"<<std::endl;
 
     // Output defpowers to text file with the correct sign
     filePower<<stepID<<" "<<time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
-      << -defPowerBnd <<" "<< -defPower <<" "<<EffPDefBnd<<" "<<EffPDef<<" "<<pLocom
-      <<" "<< try1 <<" "<<try2<<" "<<try3
-<<endl;
-
-    std::stringstream &testTry = logger.get_stream("testTry.dat");
-    if(stepID==0)
-      testTry<<"time powUmUrotmUcm powUmuCM powUmuRot powUcmPlusUrot"<<std::endl;
-
-    testTry<<time<<" "<< try1 <<" "<<try2<<" "<<try3<<" "<<pLocom<<endl;
-
-
-
+      << -defPowerBnd <<" "<< -defPower <<" "<<EffPDefBnd<<" "<<EffPDef<<" "<<pLocom<<endl;
   }
   #endif
 }
