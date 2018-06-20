@@ -32,6 +32,12 @@ typedef double Real;
 typedef float Real;
 #endif // _FLOAT_PRECISION_
 
+#ifndef _HDF5_DOUBLE_PRECISION_
+typedef float DumpReal;
+#else
+typedef double DumpReal;
+#endif
+
 //this is all cubism file we need
 #include <ArgumentParser.h>
 #include <AlignedAllocator.h>
@@ -63,7 +69,7 @@ struct FluidElement
 };
 
 struct DumpElement {
-    float u, v, w, chi, p;
+    DumpReal u, v, w, chi, p;
     DumpElement() : u(0), v(0), w(0), chi(0), p(0) {}
     void clear() { u = v = w = chi = p = 0; }
 };
