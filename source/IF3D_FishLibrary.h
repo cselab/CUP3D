@@ -256,7 +256,7 @@ class FishMidlineData
 
   void surfaceToComputationalFrame(const double theta_comp, const double CoM_interpolated[3]);
 
-  virtual void computeMidline(const Real time, const Real dt) = 0;
+  virtual void computeMidline(const double time, const double dt) = 0;
 
   virtual void _correctAmplitude(const double dAmp, const double vAmp, const double time, const double dt) {}
   virtual void _correctTrajectory(const double dtheta, const double vtheta, const double time, const double dt) {}

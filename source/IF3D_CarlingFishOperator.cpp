@@ -72,12 +72,12 @@ class CarlingFishMidlineData : public FishMidlineData
     //_computeWidthsHeights();
   }
 
-  virtual void computeMidline(const Real t, const Real dt) override;
+  virtual void computeMidline(const double t, const double dt) override;
 };
 
 #include "IF3D_CarlingFishOperator_extra.h"
 
-void CarlingFishMidlineData::computeMidline(const Real t,const Real dt)
+void CarlingFishMidlineData::computeMidline(const double t,const double dt)
 {
   _computeMidlineCoordinates(t);
   _computeMidlineVelocities(t);

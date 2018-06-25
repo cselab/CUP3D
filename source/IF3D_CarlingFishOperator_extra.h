@@ -24,7 +24,7 @@ class CarlingFishMidlineData_BurstCoast : public CarlingFishMidlineData
   }
 
  public:
-  void computeMidline(const Real t, const Real dt) override;
+  void computeMidline(const double t, const double dt) override;
 
   CarlingFishMidlineData_BurstCoast(double _tStart, double T0, double T1,
     double T2, double T3, double lowAmp, double L, double T, double phi,
@@ -64,7 +64,7 @@ class CarlingFishMidlineData_Hinged : public CarlingFishMidlineData
   { }
 };
 
-void CarlingFishMidlineData_BurstCoast::computeMidline(const Real t, const Real dt)
+void CarlingFishMidlineData_BurstCoast::computeMidline(const double t, const double dt)
 {
   const Real rampFac = rampFactorSine(t, Tperiod);
   const Real rampFacVel = rampFactorVelSine(t, Tperiod);
