@@ -360,9 +360,10 @@ void Simulation::simulate()
 
 bool Simulation::timestep(const double dt)
 {
-    bDump = (saveFreq>0 && (step+ 1)%saveFreq==0) ||
-            (saveTime>0 && (time+dt)>nextSaveTime);
-    if (bDump) nextSaveTime += saveTime;
+    const bool bDumpFreq = (saveFreq>0 && (step+ 1)%saveFreq==0);
+    const bool bDumpTime = (saveTime>0 && (time+dt)>nextSaveTime);
+    if (bDumpTime) nextSaveTime += saveTime;
+    bDump = (bDumpFreq || bDumpTime);
 
     #ifdef RL_LAYER
       if(task not_eq nullptr)
