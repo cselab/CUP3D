@@ -444,12 +444,15 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
                       rY[ss+0] +width[ss+0]*costh*norY[ss+0], height[ss+0]*sinth
         };
         changeToComputationalFrame(myP);
-        const Real pP[3] = {rX[ss+1] +width[ss+1]*costh*norX[ss+1],
+        Real pP[3] = {rX[ss+1] +width[ss+1]*costh*norX[ss+1],
                       rY[ss+1] +width[ss+1]*costh*norY[ss+1], height[ss+1]*sinth
         };
-        const Real pM[3] = {rX[ss-1] +width[ss-1]*costh*norX[ss-1],
+        Real pM[3] = {rX[ss-1] +width[ss-1]*costh*norX[ss-1],
                       rY[ss-1] +width[ss-1]*costh*norY[ss-1], height[ss-1]*sinth
         };
+        changeToComputationalFrame(pM);
+        changeToComputationalFrame(pP);
+
         // myP is now lab frame, find index of the fluid elem near it
         const int iap[3] = {
             (int)std::floor((myP[0]-org[0])*invh),
@@ -470,8 +473,11 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
           Real p[3];
           info.pos(p, sx, sy, sz);
           const Real dist0 = eulerDistSq3D(p, myP);
+          const Real distP = eulerDistSq3D(p, pP);
+          const Real distM = eulerDistSq3D(p, pM);
           assert(dist0 <= 12*h*h);
-          if(std::fabs(defblock->chi[sz][sy][sx]) < dist0) continue;
+          if(std::fabs(defblock->chi[sz][sy][sx])<std::min({dist0,distP,distM}))
+            continue;
 
           changeFromComputationalFrame(p);
           #ifndef NDEBUG // check that change of ref frame does not affect dist
@@ -481,7 +487,6 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
             const Real distC = eulerDistSq3D(p, p0);
             assert(std::fabs(distC-dist0)<2.2e-16);
           #endif
-          const Real distP = eulerDistSq3D(p,pP), distM = eulerDistSq3D(p,pM);
 
           int close_s = ss, secnd_s = ss + (distP<distM? 1 : -1);
           Real dist1 = dist0, dist2 = distP<distM? distP : distM;
