@@ -31,7 +31,6 @@ cp runEuler.sh ${FOLDER}/run.sh
 cd $FOLDER
 
 unset LSB_AFFINITY_HOSTFILE
-export OMP_NUM_THREADS=24
 export MV2_ENABLE_AFFINITY=0
 echo $OPTIONS > settings.txt
 

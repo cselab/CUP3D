@@ -1,6 +1,4 @@
-#!/bin/bash
-
-BASENAME=FlowPastFixedCyl_01
+BASENAME=FlowPastSphere
 NNODE=4
 
 FACTORY='IF3D_Sphere L=0.075 xpos=0.25 xvel=0.2 computeForces=0 bForcedInSimFrame=1 bFixFrameOfRef=1
@@ -15,7 +13,6 @@ OPTIONS+=" -dump2D 1 -dump3D 0"
 #OPTIONS+=" -Wtime ${WSECS}"
 OPTIONS+=" -nprocsx ${NNODE}"
 OPTIONS+=" -CFL 0.1"
-OPTIONS+=" -length 0.075"
 OPTIONS+=" -lambda 1e5"
 OPTIONS+=" -nu 0.00001"
 OPTIONS+=" -tend 10"

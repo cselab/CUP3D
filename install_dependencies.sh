@@ -5,11 +5,11 @@
 set -e
 
 # https://stackoverflow.com/a/23378780/2203044
-# _LOGICAL_CPU_COUNT=$([[ $(uname) = 'Darwin' ]] && sysctl -n hw.logicalcpu_max || lscpu -p | egrep -v '^#' | wc -l)
-_PHYSICAL_CPU_COUNT=$([[ $(uname) = 'Darwin' ]] && sysctl -n hw.physicalcpu_max || lscpu -p | egrep -v '^#' | sort -u -t, -k 2,4 | wc -l)
+# LOGICAL_CORE_COUNT=$([[ $(uname) = 'Darwin' ]] && sysctl -n hw.logicalcpu_max || lscpu -p | egrep -v '^#' | wc -l)
+PHYSICAL_CORE_COUNT=$([[ $(uname) = 'Darwin' ]] && sysctl -n hw.physicalcpu_max || lscpu -p | egrep -v '^#' | sort -u -t, -k 2,4 | wc -l)
 
 # Parameters modifiable from environment.
-JOBS=${JOBS:-$_PHYSICAL_CPU_COUNT}
+JOBS=${JOBS:-$PHYSICAL_CORE_COUNT}
 SOURCES=${SOURCES:-$PWD/dependencies}
 INSTALL_PATH=${INSTALL_PATH:-$PWD/dependencies/build}
 
@@ -132,8 +132,8 @@ fi
 
 
 [[ -z "$PRINT_EXPORT" ]] && echo "======================================================================"
-[[ -z "$PRINT_EXPORT" ]] && echo "Done! Run or add to ~/.bashrc the following commands"
-[[ -z "$PRINT_EXPORT" ]] && echo "to capture CMake, FFTW and HDF5 in your environment:"
+[[ -z "$PRINT_EXPORT" ]] && echo "Done! Run or add to ~/.bashrc the following command(s)"
+[[ -z "$PRINT_EXPORT" ]] && echo "to capture installed dependencies in your environment:"
 echo
 [ -n "$PRINT_EXPORT" -o -n "$INSTALL_CMAKE" ] && echo "export PATH=$INSTALL_PATH/cmake-${CMAKE_VERSION}/bin:\$PATH"
 [ -n "$PRINT_EXPORT" -o -n "$INSTALL_FFTW" ] && echo "export FFTWDIR=$INSTALL_PATH/fftw-${FFTW_VERSION}/"

@@ -31,11 +31,13 @@
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
 #endif
+
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-#include <vector>
+
 #include <thread>
+#include <vector>
 
 #ifdef RL_LAYER
  #include "TaskLayer.h"
