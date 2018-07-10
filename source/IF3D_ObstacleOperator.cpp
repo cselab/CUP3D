@@ -288,7 +288,7 @@ void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const doub
      << "force_x" << tab << "force_y" << tab << "force_z" << tab
      << "torque_x" << tab << "torque_y" << tab << "torque_z";
     if(isSelfPropelled) {
-      ssF<<"presF_x"<<tab<<"presF_y"<<tab<<"presF_z"<<tab<<"viscF_x"
+      ssF<<tab<<"presF_x"<<tab<<"presF_y"<<tab<<"presF_z"<<tab<<"viscF_x"
         <<tab<<"viscF_y"<<tab<<"viscF_z"<<tab<<"gamma_x"<<tab<<"gamma_y"
         <<tab<<"gamma_z"<<tab<<"drag"<<tab<<"thrust";
     }
