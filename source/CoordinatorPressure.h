@@ -232,7 +232,7 @@ class CoordinatorPressure : public GenericCoordinator
  public:
   CoordinatorPressure(FluidGridMPI * _grid, IF3D_ObstacleVector** const myobstacles) :
     GenericCoordinator(_grid),
-    pressureSolver(omp_get_max_threads(), *_grid),
+    pressureSolver(*_grid),
     obstacleVector(myobstacles)
   { }
 

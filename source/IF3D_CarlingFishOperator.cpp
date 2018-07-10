@@ -32,7 +32,8 @@ class CarlingFishMidlineData : public FishMidlineData
 
   inline Real getQuadAmp(const Real s) const
   {
-    return quadraticFactor*(length - 0.825*(s - length) + 1.625*(s*s/length - length)); // Maertens et al. JFM 2017
+    // Maertens et al. JFM 2017:
+    return quadraticFactor*(length -.825*(s-length) +1.625*(s*s/length-length));
     //return s*s*quadraticFactor/length;
   }
   inline Real getLinAmp(const Real s) const
@@ -63,8 +64,10 @@ class CarlingFishMidlineData : public FishMidlineData
   virtual void _computeMidlineVelocities(const Real time);
 
  public:
-  CarlingFishMidlineData(double L, double T, double phi, double _h, double A, const double _ampFac=1.0)
-    : FishMidlineData(L, T, phi, _h, _ampFac), carlingAmp(A*_ampFac), quadraticFactor(0.1*_ampFac)
+  // L=length, T=period, phi=phase shift, _h=grid size, A=amplitude modulation
+  CarlingFishMidlineData(double L, double T, double phi, double _h, double A)
+   : FishMidlineData(L, T, phi, _h, A),
+    carlingAmp(0.1212121212121212*A), quadraticFactor(0.1*A)
     // _ampFac=0.0 for towed fish
   {
     // FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
@@ -163,7 +166,6 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   sr = StateReward(length, Tperiod);
   sr.parseArguments(p);
 
-  const double amplitude = p("-amplitude").asDouble(0.1212121212121212);
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   const bool bQuadratic = p("-bQuadratic").asBool(true);
   const bool bBurst = p("-BurstCoast").asBool(false);
@@ -180,7 +182,7 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   if(bHinge) localFish = readHingeParams(p);
   else
   localFish = new CarlingFishMidlineData(length, Tperiod, phaseShift,
-    vInfo[0].h_gridpoint, amplitude, ampFac);
+    vInfo[0].h_gridpoint, ampFac);
 
   // generic copy for base class:
   assert( myFish == nullptr );
@@ -194,8 +196,7 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
 
   if(!rank)
     printf("CarlingFish: N:%d, L:%f, T:%f, phi:%f, amplitude:%f\n",
-        myFish->Nm,length,Tperiod,phaseShift,amplitude);
-            printf("%d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
+        myFish->Nm, length, Tperiod, phaseShift, ampFac);
 
   sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
                     _2Dangle, transVel[0], transVel[1], angVel[2]);

@@ -22,6 +22,14 @@ IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Rea
 
   //PID knobs
   bCorrectTrajectory = p("-Correct").asBool(false);
+
+  // Main amplitude modulation for all fish should be amplitudeFactor, otherwise
+  // new fish classes should take care to handle isSelfPropelled correctly.
+  // Additional shaping of the gait (eg curvatures, carling/quadratic factor)
+  // is then multiplied by this arg. If amplitudeFactor=0 fish is assumed towed.
+  if(p("-amplitudeFactor").asDouble(1.0)>0)
+    isSelfPropelled = true;
+
   followX = p("-followX").asDouble(-1);
   followY = p("-followY").asDouble(-1);
   const double hh = 0.5*vInfo[0].h_gridpoint;

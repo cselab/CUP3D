@@ -4,7 +4,8 @@ NVCC?=nvcc
 NVFLAGS?=-O3 -code=sm_60 -arch=compute_60
 LD=$(CC)
 
-nthreads ?= 24
+# this only affects amount of memory allocated by block processing:
+nthreads ?= 24 # needs to be modified if user wants to use more threads per rank
 #config ?= prod
 config ?= debug
 precision ?= double

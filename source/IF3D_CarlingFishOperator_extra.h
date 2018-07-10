@@ -223,7 +223,7 @@ CarlingFishMidlineData* IF3D_CarlingFishOperator::readHingeParams(ArgumentParser
 {
   Real sHinge, aHinge, phiHinge, waveLength = 1, tHinge = Tperiod;
   sHinge = length*p("-sHinge").asDouble();
-  const double amplitude = p("-amplitude").asDouble(0.1212121212121212);
+  const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   //const bool equalHeight = length && parser("-equalHeight").asBool();
 
   const bool bOptimizeHinge = p("-OptimizeHingedFin").asBool(false);
@@ -252,13 +252,13 @@ CarlingFishMidlineData* IF3D_CarlingFishOperator::readHingeParams(ArgumentParser
   }
 
   return new CarlingFishMidlineData_Hinged(sHinge, aHinge, phiHinge, tHinge,
-    length, Tperiod, phaseShift, vInfo[0].h_gridpoint, amplitude);
+    length, Tperiod, phaseShift, vInfo[0].h_gridpoint, ampFac);
 }
 
 CarlingFishMidlineData* IF3D_CarlingFishOperator::readBurstCoastParams(ArgumentParser&p)
 {
   const Real tStart = p("-tStartBC").asDouble();
-  const double amplitude = p("-amplitude").asDouble(0.1212121212121212);
+  const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   Real t0, t1, t2, t3, lowestAmp;
   ifstream reader("burst_coast_carling_params.txt");
   if (reader.is_open()) {
@@ -278,7 +278,7 @@ CarlingFishMidlineData* IF3D_CarlingFishOperator::readBurstCoastParams(ArgumentP
     abort();
   }
   return new CarlingFishMidlineData_BurstCoast(tStart, t0, t1, t2, t3,
-    lowestAmp, length, Tperiod, phaseShift, vInfo[0].h_gridpoint, amplitude);
+    lowestAmp, length, Tperiod, phaseShift, vInfo[0].h_gridpoint, ampFac);
 }
 
 #if 0 // COMPUTE MIDLINES AND VELS WITH DOUBLE HINGE

@@ -126,7 +126,7 @@ class PoissonSolverScalarFFTW_MPI
  public:
   Real * data = nullptr;
 
-  PoissonSolverScalarFFTW_MPI(const int desired_threads, TGrid& g): grid(g)
+  PoissonSolverScalarFFTW_MPI(TGrid& g): grid(g)
   {
     if (TStreamer::channels != 1) {
       cout << "PoissonSolverScalar_MPI(): Error: TStreamer::channels is "
@@ -153,6 +153,7 @@ class PoissonSolverScalarFFTW_MPI
       abort();
     }
 
+    const int desired_threads = omp_get_max_threads();
     #ifndef _FLOAT_PRECISION_
       fftw_plan_with_nthreads(desired_threads);
       fftw_mpi_init();

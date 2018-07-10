@@ -37,6 +37,7 @@ protected:
   std::map<int,ObstacleBlock*> obstacleBlocks;
   vector<double> sum;
   bool printedHeaderVels = false;
+  bool isSelfPropelled = false;
 public:
   int obstacleID=0, rank=0, size=0;
   bool bFixToPlanar=1, bInteractive=0, bHasSkin=0, bForces=0;
@@ -45,8 +46,11 @@ public:
   double angVel[3] = {0,0,0}, volume = 0, J[6] = {0,0,0,0,0,0}; //mom of inertia
   //from diagnostics:
   double mass=0, force[3] = {0,0,0}, torque[3] = {0,0,0};
-  //from compute forces:
-  double totChi=0, surfForce[3]={0,0,0}, drag=0, thrust=0, Pout=0, PoutBnd=0, pLocom=0;
+  //from compute forces: perimeter, circulation and forces
+  double totChi=0, gamma[3]={0,0,0}, surfForce[3]={0,0,0};
+  //pressure and viscous contribution from compute forces:
+  double presForce[3]={0,0,0}, viscForce[3]={0,0,0}, surfTorque[3]={0,0,0};
+  double drag=0, thrust=0, Pout=0, PoutBnd=0, pLocom=0;
   double defPower=0, defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
   double transVel_correction[3]={0,0,0}, angVel_correction[3]={0,0,0}, length;
   //forced obstacles:

@@ -107,6 +107,7 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
       }
   #endif
   Aheave *= length;
+  isSelfPropelled = Aheave > 0;
 
   const double thickness = p("-thickness").asDouble(0.12); // (NON DIMENSIONAL)
 

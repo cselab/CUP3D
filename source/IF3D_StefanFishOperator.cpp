@@ -251,7 +251,8 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
   sr.parseArguments(p);
 
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
-  myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift, vInfo[0].h_gridpoint,ampFac);
+  myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift,
+    vInfo[0].h_gridpoint, ampFac);
 
   string heightName = p("-heightProfile").asString("baseline");
   string  widthName = p( "-widthProfile").asString("baseline");

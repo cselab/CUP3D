@@ -102,8 +102,8 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
                         globals[6]*h, globals[7]*h, globals[8]*h};
 
     const double detJ = J_[0]*(J_[1]*J_[2] - J_[5]*J_[5])+
-                      J_[3]*(J_[4]*J_[5] - J_[2]*J_[3])+
-                      J_[4]*(J_[3]*J_[5] - J_[1]*J_[4]);
+                        J_[3]*(J_[4]*J_[5] - J_[2]*J_[3])+
+                        J_[4]*(J_[3]*J_[5] - J_[1]*J_[4]);
     const double invDetJ = 1./detJ;
     assert(std::fabs(detJ)>eps);
     const double invJ[6] = {
@@ -119,23 +119,8 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
     ang_momenta[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
     ang_momenta[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
   }
-  J[0] = globals[3] * dv;
-  J[1] = globals[4] * dv;
-  J[2] = globals[5] * dv;
-  J[3] = globals[6] * dv;
-  J[4] = globals[7] * dv;
-  J[5] = globals[8] * dv;
-  //assert(!errors);
-  #ifdef _VERBOSE_
-    const Real errors = std::max(std::fabs(globals[3]*dv-J[0]),
-                          std::max(std::fabs(globals[4]*dv-J[1]),
-                            std::max(std::fabs(globals[5]*dv-J[2]),
-                              std::max(std::fabs(globals[6]*dv-J[3]),
-                                std::max(std::fabs(globals[7]*dv-J[4]),
-                                         std::fabs(globals[8]*dv-J[5]))))));
-    if (!rank)
-    printf("Max error in computed momenta during correction = %g.\n", errors);
-  #endif
+  J[0] = globals[3] * dv; J[1] = globals[4] * dv; J[2] = globals[5] * dv;
+  J[3] = globals[6] * dv; J[4] = globals[7] * dv; J[5] = globals[8] * dv;
 }
 
 void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
@@ -258,7 +243,10 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
     bFixFrameOfRef[0] = bFOR_alldir || parser("-bFixFrameOfRef_x").asBool(false);
     bFixFrameOfRef[1] = bFOR_alldir || parser("-bFixFrameOfRef_y").asBool(false);
     bFixFrameOfRef[2] = bFOR_alldir || parser("-bFixFrameOfRef_z").asBool(false);
-    bForces = parser("-computeForces").asBool(true);
+    // To force forced obst. into computeForces or to force self-propelled
+    // into diagnostics forces (tasso del tasso del tasso):
+    // If untouched forced only do diagnostics and selfprop only do surface.
+    bForces = parser("-computeForces").asBool(false);
 }
 
 void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const double t, const Real* Uinf)
@@ -291,25 +279,59 @@ void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const dou
 void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const double t)
 {
   if(rank!=0) return;
-  stringstream ssR;
-  ssR<<"diagnosticsForces_"<<obstacleID<<".dat";
-  std::stringstream &savestream = logger.get_stream(ssR.str());
+  std::stringstream fnameF, fnameP;
+  fnameF<<"forceValues_"<<obstacleID<<".dat";
+  std::stringstream &ssF = logger.get_stream(fnameF.str());
   const std::string tab("\t");
-
-  if(step_id==0)
-    savestream << "step" << tab << "time" << tab << "mass" << tab
+  if(step_id==0) {
+    ssF << "step" << tab << "time" << tab << "mass" << tab
      << "force_x" << tab << "force_y" << tab << "force_z" << tab
-     << "torque_x" << tab << "torque_y" << tab << "torque_z" << std::endl;
+     << "torque_x" << tab << "torque_y" << tab << "torque_z";
+    if(isSelfPropelled) {
+      ssF<<"presF_x"<<tab<<"presF_y"<<tab<<"presF_z"<<tab<<"viscF_x"
+        <<tab<<"viscF_y"<<tab<<"viscF_z"<<tab<<"gamma_x"<<tab<<"gamma_y"
+        <<tab<<"gamma_z"<<tab<<"drag"<<tab<<"thrust";
+    }
+    ssF << std::endl;
+  }
 
-  savestream << step_id << tab;
-  savestream.setf(std::ios::scientific);
-  savestream.precision(std::numeric_limits<float>::digits10 + 1);
-  savestream<<t<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
-      <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
+  ssF << step_id << tab;
+  ssF.setf(std::ios::scientific);
+  ssF.precision(std::numeric_limits<float>::digits10 + 1);
+  if(isSelfPropelled) {
+    ssF<<t<<tab<<volume<<tab<<surfForce[0]<<tab<<surfForce[1]<<tab<<surfForce[2]
+       <<tab<<surfTorque[0]<<tab<<surfTorque[1]<<tab<<surfTorque[2]<<tab
+       <<presForce[0]<<tab<<presForce[1]<<tab<<presForce[2]<<tab<<viscForce[0]
+       <<tab<<viscForce[1]<<tab<<viscForce[2]<<tab<<gamma[0]<<tab<<gamma[1]
+       <<tab<<gamma[2]<<tab<<drag<<tab<<thrust<<std::endl;
+  } else {
+    ssF<<t<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
+       <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
+  }
+
+  //////////////////////////////////////////////////////////////////////////////
+  if(not isSelfPropelled) return;
+
+  fnameP<<"powerValues_"<<obstacleID<<".dat";
+  std::stringstream &ssP = logger.get_stream(fnameP.str());
+  if(step_id==0) {
+    ssP<<"step"<<tab<<"time"<<tab<<"Pthrust"<<tab<<"Pdrag"<<tab
+       <<"Pout"<<tab<<"pDef"<<tab<<"etaPDef"<<tab<<"pLocom"<<tab
+       <<"PoutBnd"<<tab<<"defPowerBnd"<<tab<<"etaPDefBnd"<<std::endl;
+  }
+  ssP << step_id << tab;
+  ssP.setf(std::ios::scientific);
+  ssP.precision(std::numeric_limits<float>::digits10 + 1);
+  // Output defpowers to text file with the correct sign
+  ssP<<t<<tab<<Pthrust<<tab<<Pdrag<<tab<<Pout<<tab<<-defPower<<tab<<EffPDef
+     <<tab<<pLocom<<tab<<PoutBnd<<tab<<-defPowerBnd<<tab<<EffPDefBnd<<endl;
 }
 
 void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda)
 {
+  // Diagnostics forces are wrong for self propelled obstacles
+  if(not bForces && isSelfPropelled) return;
+
   double CM[3];
   this->getCenterOfMass(CM);
   double _area=0,_forcex=0,_forcey=0,_forcez=0,_torquex=0,_torquey=0,_torquez=0;
@@ -368,6 +390,7 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
   torque[1] = globals[4]*dV*lambda;
   torque[2] = globals[5]*dV*lambda;
   mass      = globals[6]*dV;
+  assert(std::fabs(mass-volume) < std::numeric_limits<Real>::epsilon());
   #ifndef __RL_TRAINING
   _writeDiagForcesToFile(stepID, time);
   #endif
@@ -484,12 +507,8 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
       (bBlockRotation[1]? angVel_computed[1] : angVel[1]) = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
       (bBlockRotation[2]? angVel_computed[2] : angVel[2]) = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
     }
-    J[0] = globals[3] * dv;
-    J[1] = globals[4] * dv;
-    J[2] = globals[5] * dv;
-    J[3] = globals[6] * dv;
-    J[4] = globals[7] * dv;
-    J[5] = globals[8] * dv;
+    J[0] = globals[3] * dv; J[1] = globals[4] * dv; J[2] = globals[5] * dv;
+    J[3] = globals[6] * dv; J[4] = globals[7] * dv; J[5] = globals[8] * dv;
   }
 }
 
@@ -567,8 +586,9 @@ void IF3D_ObstacleOperator::dumpWake(const int stepID, const double t, const Rea
 void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   const double dt, const Real* Uinf, const double NU, const bool bDump)
 {
-  //TODO: improve dumping: gather arrays before writing to file
-  if(not bForces) return;
+  // Surface forces are very imprecise for non-self propelled obstacles
+  // bForces forces computeForces. Makes sense, right?
+  if(not bForces && not isSelfPropelled) return;
 
   double CM[3];
   this->getCenterOfMass(CM);
@@ -613,14 +633,13 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   //additive quantities: (check against order in sumQoI of ObstacleBlocks.h )
   unsigned k = 0;
   surfForce[0]= sum[k++]; surfForce[1]= sum[k++]; surfForce[2]= sum[k++];
-  double forcex_P= sum[k++], forcey_P= sum[k++], forcez_P= sum[k++];
-  double forcex_V= sum[k++], forcey_V= sum[k++], forcez_V= sum[k++];
-  double torquex= sum[k++], torquey= sum[k++], torquez= sum[k++];
-  double gammax= sum[k++], gammay= sum[k++], gammaz= sum[k++];
-
-  drag = sum[k++]; thrust = sum[k++]; Pout = sum[k++];
-  PoutBnd = sum[k++]; defPower = sum[k++]; defPowerBnd = sum[k++];
-  pLocom = sum[k++];
+  presForce[0]= sum[k++]; presForce[1]= sum[k++]; presForce[2]= sum[k++];
+  viscForce[0]= sum[k++]; viscForce[1]= sum[k++]; viscForce[2]= sum[k++];
+  surfTorque[0]=sum[k++]; surfTorque[1]=sum[k++]; surfTorque[2]=sum[k++];
+  gamma[0]    = sum[k++]; gamma[1]    = sum[k++]; gamma[2]    = sum[k++];
+  drag        = sum[k++]; thrust      = sum[k++]; Pout        = sum[k++];
+  PoutBnd     = sum[k++]; defPower    = sum[k++]; defPowerBnd = sum[k++];
+  pLocom      = sum[k++];
 
   //derived quantities:
   Pthrust    = thrust*vel_norm;
@@ -632,9 +651,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   sr.updateAverages(dt,_2Dangle, velx_tot, vely_tot, angVel[2], Pout, PoutBnd,
     defPower, defPowerBnd, EffPDef, EffPDefBnd, Pthrust, Pdrag, thrust, drag);
 
-  #ifndef __RL_TRAINING
-
-  #ifdef _DUMP_RAW_
+  #if defined(_DUMP_RAW_) && !defined(__RL_TRAINING)
   if (bDump) {
     char buf[500];
     sprintf(buf, "surface_%02d_%07d_rank%03d.raw", obstacleID, stepID, rank);
@@ -644,29 +661,8 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
     fclose(pFile);
   }
   #endif
-
-  if(rank==0) {
-    stringstream ssF, ssP;
-    ssF<<"forceValues_"<<obstacleID<<".dat";
-    ssP<<"powerValues_"<<obstacleID<<".dat";
-
-    std::stringstream &fileForce = logger.get_stream(ssF.str());
-    if(stepID==0)
-      fileForce<<"step time Fx Fy Fz FxPres FyPres FzPres FxVisc FyVisc FzVisc TorqX TorqY TorqZ Gx Gy Gz drag thrust"<<std::endl;
-
-    fileForce<<stepID<<" "<<time<<" "<<surfForce[0]<<" "<<surfForce[1]<<" "<<surfForce[2]
-      <<" "<<forcex_P<<" "<<forcey_P<<" "<<forcez_P<<" "<<forcex_V<<" "
-      <<forcey_V<<" "<<forcez_V<<" "<<torquex<<" "<<torquey<<" "<<torquez
-      <<" "<<gammax<<" "<< gammay<<" "<<gammaz<<" "<<drag<<" "<<thrust<<endl;
-
-    std::stringstream &filePower = logger.get_stream(ssP.str());
-    if(stepID==0)
-      filePower<<"step time Pthrust Pdrag PoutBnd Pout defPowerBnd pDef etaPDefBnd etaPDef pLocom"<<std::endl;
-
-    // Output defpowers to text file with the correct sign
-    filePower<<stepID<<" "<<time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "
-      << -defPowerBnd <<" "<< -defPower <<" "<<EffPDefBnd<<" "<<EffPDef<<" "<<pLocom<<endl;
-  }
+  #ifndef __RL_TRAINING
+  _writeDiagForcesToFile(stepID, time);
   #endif
 }
 

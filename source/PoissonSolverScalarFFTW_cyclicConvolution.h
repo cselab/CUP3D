@@ -40,9 +40,9 @@ public:
     My3DFFT_Infinite_MPI() : m_initialized(false) {}
     My3DFFT_Infinite_MPI(const My3DFFT_Infinite_MPI& c) = delete;
 
-    My3DFFT_Infinite_MPI(const size_t N0, const size_t N1, const size_t N2, const Real h, const int desired_threads, const MPI_Comm comm)
+    My3DFFT_Infinite_MPI(const size_t N0, const size_t N1, const size_t N2, const Real h, const MPI_Comm comm)
     {
-        _initialize(N0, N1, N2, h, desired_threads, comm);
+        _initialize(N0, N1, N2, h, comm);
     }
 
     ~My3DFFT_Infinite_MPI()
@@ -60,9 +60,9 @@ public:
     }
 
     // interface
-    inline void setup(const size_t N0, const size_t N1, const size_t N2, const Real h, const int desired_threads, const MPI_Comm comm)
+    inline void setup(const size_t N0, const size_t N1, const size_t N2, const Real h, const MPI_Comm comm)
     {
-        _initialize(N0, N1, N2, h, desired_threads, comm);
+        _initialize(N0, N1, N2, h, comm);
     }
 
     inline void put_data(const size_t ix, const size_t iy, const size_t iz, const Real v)
@@ -184,7 +184,7 @@ private:
     myplan m_bwd_tp; // use FFTW's transpose facility
 
     // helpers
-    void _initialize(const size_t N0, const size_t N1, const size_t N2, const Real h, const int desired_threads, const MPI_Comm comm)
+    void _initialize(const size_t N0, const size_t N1, const size_t N2, const Real h, const MPI_Comm comm)
     {
         // Setup MPI
         m_comm = comm;
@@ -204,7 +204,7 @@ private:
         m_h    = h;        // uniform grid spacing
 
         // some checks
-        _check_init(desired_threads);
+        _check_init();
 
         // x-decomposition of input data (number of 2D slices)
         m_local_N0 = m_N0 / m_size;
@@ -286,7 +286,7 @@ private:
         m_initialized = true;
     }
 
-    void _check_init(const int desired_threads)
+    void _check_init()
     {
         if (m_N0 % m_size != 0 || m_NN1 % m_size != 0)
         {
@@ -309,6 +309,7 @@ private:
             abort();
         }
 
+        const int desired_threads = omp_get_max_threads();
         _FFTW_(plan_with_nthreads)(desired_threads);
         _FFTW_(mpi_init)();
     }
@@ -510,7 +511,7 @@ template<typename TGrid, typename TStreamer>
 class PoissonSolverScalarFFTW_MPI
 {
 public:
-    PoissonSolverScalarFFTW_MPI(const int desired_threads, TGrid& g) :
+    PoissonSolverScalarFFTW_MPI(TGrid& g) :
         m_grid(g),
         m_local_infos(g.getResidentBlocksInfo())
     {
@@ -519,7 +520,7 @@ public:
         const ptrdiff_t N2  = m_grid.getBlocksPerDimension(2) * BlockType::sizeZ;
         const Real h        = m_grid.getBlocksInfo().front().h_gridpoint;
         const MPI_Comm comm = m_grid.getCartComm();
-        m_fft.setup(N0, N1, N2, h, desired_threads, comm);
+        m_fft.setup(N0, N1, N2, h, comm);
     }
 
     PoissonSolverScalarFFTW_MPI(const PoissonSolverScalarFFTW_MPI& c) = delete;
