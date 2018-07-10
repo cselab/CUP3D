@@ -49,7 +49,7 @@ else()
 
     find_library(FFTW_LIB1 NAMES "fftw3" PATHS ${PKG_FFTW_LIBRARY_DIRS} ${LIB_INSTALL_DIR})
     find_library(FFTW_LIB2 NAMES "fftw3_threads" PATHS ${PKG_FFTW_LIBRARY_DIRS} ${LIB_INSTALL_DIR})
-    find_library(FFTW_LIBr3 NAMES "fftw3_mpi" PATHS ${PKG_FFTW_LIBRARY_DIRS} ${LIB_INSTALL_DIR})
+    find_library(FFTW_LIB3 NAMES "fftw3_mpi" PATHS ${PKG_FFTW_LIBRARY_DIRS} ${LIB_INSTALL_DIR})
     find_path(
         FFTW_INCLUDES
         NAMES "fftw3-mpi.h"

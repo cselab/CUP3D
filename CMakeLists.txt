@@ -53,6 +53,12 @@ set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/Simulation.cpp
 )
 
+# GCC flags
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-vla -Wno-reorder -Wno-maybe-uninitialized")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O3 -march=native -fstrict-aliasing -ffast-math -falign-functions=32")
+set(CMAKE_CXX_STANDARD 11)
+
 # Define targets (executables). We have two: one for open, one for periodic
 # boundary conditions (periodic in Z).
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ROOT_FOLDER}/bin)
@@ -95,12 +101,6 @@ add_definitions("-D_BLOCKSIZEX_=${BLOCK_SIZE}")
 add_definitions("-D_BLOCKSIZEY_=${BLOCK_SIZE}")
 add_definitions("-D_BLOCKSIZEZ_=${BLOCK_SIZE}")
 add_definitions("-DNTHREADS=${NUM_THREADS}")
-
-# GCC flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-unused-parameter -Wno-vla -Wno-reorder -Wno-maybe-uninitialized")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O3 -march=native -fstrict-aliasing -ffast-math -falign-functions=32")
-set(CMAKE_CXX_STANDARD 11)
 
 # OpenMP support
 find_package(OpenMP REQUIRED)
