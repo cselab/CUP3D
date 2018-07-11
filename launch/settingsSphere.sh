@@ -1,7 +1,7 @@
 BASENAME=FlowPastSphere
 NNODE=4
 
-FACTORY='IF3D_Sphere L=0.075 xpos=0.25 xvel=0.2 computeForces=0 bForcedInSimFrame=1 bFixFrameOfRef=1
+FACTORY='IF3D_Sphere L=0.075 xpos=0.25 xvel=0.2 bForcedInSimFrame=1 bFixFrameOfRef=1
 '
 # for accel and decel start and stop add accel=1 T=time_for_accel
 # shift center to shed vortices immediately by ypos=0.250244140625 zpos=0.250244140625

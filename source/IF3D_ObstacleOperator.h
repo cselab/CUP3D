@@ -67,6 +67,7 @@ protected:
   virtual void _parseArguments(ArgumentParser & parser);
   virtual void _writeComputedVelToFile(const int step_id, const double t, const Real * uInf);
   virtual void _writeDiagForcesToFile(const int step_id, const double t);
+  virtual void _writeSurfForcesToFile(const int step_id, const double t);
   void _makeDefVelocitiesMomentumFree(const double CoM[3]);
   void _computeUdefMoments(double lin_momenta[3], double ang_momenta[3], const double CoM[3]);
   //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);

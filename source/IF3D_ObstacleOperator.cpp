@@ -276,43 +276,31 @@ void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const dou
      <<J[0]<<tab<<J[1]<<tab<<J[2]<<tab<<J[3]<<tab<<J[4]<<tab<<J[5]<<std::endl;
 }
 
-void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const double t)
+void IF3D_ObstacleOperator::_writeSurfForcesToFile(const int step_id, const double t)
 {
   if(rank!=0) return;
   std::stringstream fnameF, fnameP;
-  fnameF<<"forceValues_"<<obstacleID<<".dat";
+  fnameF<<"forceValues_"<<(!isSelfPropelled?"surface_":"")<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());
   const std::string tab("\t");
   if(step_id==0) {
-    ssF << "step" << tab << "time" << tab << "mass" << tab
-     << "force_x" << tab << "force_y" << tab << "force_z" << tab
-     << "torque_x" << tab << "torque_y" << tab << "torque_z";
-    if(isSelfPropelled) {
-      ssF<<tab<<"presF_x"<<tab<<"presF_y"<<tab<<"presF_z"<<tab<<"viscF_x"
-        <<tab<<"viscF_y"<<tab<<"viscF_z"<<tab<<"gamma_x"<<tab<<"gamma_y"
-        <<tab<<"gamma_z"<<tab<<"drag"<<tab<<"thrust";
-    }
-    ssF << std::endl;
+    ssF<<"step"<<tab<<"time"<<tab<<"mass"<<tab<<"force_x"<<tab<<"force_y"
+    <<tab<<"force_z"<<tab<<"torque_x"<<tab<<"torque_y"<<tab<<"torque_z"
+    <<tab<<"presF_x"<<tab<<"presF_y"<<tab<<"presF_z"<<tab<<"viscF_x"
+    <<tab<<"viscF_y"<<tab<<"viscF_z"<<tab<<"gamma_x"<<tab<<"gamma_y"
+    <<tab<<"gamma_z"<<tab<<"drag"<<tab<<"thrust"<<std::endl;
   }
 
   ssF << step_id << tab;
   ssF.setf(std::ios::scientific);
   ssF.precision(std::numeric_limits<float>::digits10 + 1);
-  if(isSelfPropelled) {
-    ssF<<t<<tab<<volume<<tab<<surfForce[0]<<tab<<surfForce[1]<<tab<<surfForce[2]
-       <<tab<<surfTorque[0]<<tab<<surfTorque[1]<<tab<<surfTorque[2]<<tab
-       <<presForce[0]<<tab<<presForce[1]<<tab<<presForce[2]<<tab<<viscForce[0]
-       <<tab<<viscForce[1]<<tab<<viscForce[2]<<tab<<gamma[0]<<tab<<gamma[1]
-       <<tab<<gamma[2]<<tab<<drag<<tab<<thrust<<std::endl;
-  } else {
-    ssF<<t<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
-       <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
-  }
+  ssF<<t<<tab<<volume<<tab<<surfForce[0]<<tab<<surfForce[1]<<tab<<surfForce[2]
+     <<tab<<surfTorque[0]<<tab<<surfTorque[1]<<tab<<surfTorque[2]<<tab
+     <<presForce[0]<<tab<<presForce[1]<<tab<<presForce[2]<<tab<<viscForce[0]
+     <<tab<<viscForce[1]<<tab<<viscForce[2]<<tab<<gamma[0]<<tab<<gamma[1]
+     <<tab<<gamma[2]<<tab<<drag<<tab<<thrust<<std::endl;
 
-  //////////////////////////////////////////////////////////////////////////////
-  if(not isSelfPropelled) return;
-
-  fnameP<<"powerValues_"<<obstacleID<<".dat";
+  fnameP<<"powerValues_"<<(!isSelfPropelled?"surface_":"")<<obstacleID<<".dat";
   std::stringstream &ssP = logger.get_stream(fnameP.str());
   if(step_id==0) {
     ssP<<"step"<<tab<<"time"<<tab<<"Pthrust"<<tab<<"Pdrag"<<tab
@@ -325,6 +313,26 @@ void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const doub
   // Output defpowers to text file with the correct sign
   ssP<<t<<tab<<Pthrust<<tab<<Pdrag<<tab<<Pout<<tab<<-defPower<<tab<<EffPDef
      <<tab<<pLocom<<tab<<PoutBnd<<tab<<-defPowerBnd<<tab<<EffPDefBnd<<endl;
+}
+
+void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const double t)
+{
+  if(rank!=0) return;
+  std::stringstream fnameF;
+  fnameF<<"forceValues_"<<(isSelfPropelled?"penalization_":"")<<obstacleID<<".dat";
+  std::stringstream &ssF = logger.get_stream(fnameF.str());
+  const std::string tab("\t");
+  if(step_id==0) {
+    ssF << "step" << tab << "time" << tab << "mass" << tab
+     << "force_x" << tab << "force_y" << tab << "force_z" << tab
+     << "torque_x" << tab << "torque_y" << tab << "torque_z" << std::endl;
+  }
+
+  ssF << step_id << tab;
+  ssF.setf(std::ios::scientific);
+  ssF.precision(std::numeric_limits<float>::digits10 + 1);
+  ssF<<t<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
+     <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
 }
 
 void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda)
@@ -662,7 +670,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   }
   #endif
   #ifndef __RL_TRAINING
-  _writeDiagForcesToFile(stepID, time);
+  _writeSurfForcesToFile(stepID, time);
   #endif
 }
 
