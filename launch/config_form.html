@@ -244,13 +244,13 @@ custom fields. Anything else is forwarded to the parent view.
 (function(){
     var PRESETS = [{
         "description": "Flow around a sphere at Re=100.",
-        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-Re-100","num_cells":[512,256,256],"tend":10,"tdump":1},"flow":{"nu":0.001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.5,0.25,0.25],"radius":0.05,"obstacle_forced":"true","obstacle_vel":[1,0,0],"obstacle_frame_fixed":"true"}]}',
+        "data": '{"simulation":{"num_nodes":64,"result_path":"results/sphere-100","num_cells":[2048,1536,1536],"tend":20,"tdump":1.0},"flow":{"nu":0.00005},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.25,0.375,0.375],"radius":0.025,"obstacle_forced":"true","obstacle_vel":[0.1,0,0],"obstacle_frame_fixed":"true"}]}',
     }, {
-        "description": "Flow around a sphere at Re=1000.",
-        "data": '{"simulation":{"num_nodes":1,"result_path":"results/sphere-Re-1000","num_cells":[512,256,256],"tend":10,"tdump":1},"flow":{"nu":0.0001},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Sphere","center":[0.5,0.25,0.25],"radius":0.05,"obstacle_forced":"true","obstacle_vel":[1,0,0],"obstacle_frame_fixed":"true"}]}',
+        "description": "Swimmer at Re=560.",
+        "data": '{"simulation":{"num_nodes":16,"result_path":"results/swimmer","num_cells":[2048,512,512],"tend":30,"tdump":0.2},"flow":{"nu":0.00002666666667},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Fish","center":[0.35,0.125,0.125],"length":0.2,"fish_motion_type":"carling","fish_T":1,"fish_width_profile":"danio","fish_height_profile":"danio","fish_fix_xy_plane":"true","obstacle_frame_fixed":"true"}]}',
     }, {
-        "description": "Flow around a half-cylinder at Re=2000.",
-        "data": '{"simulation":{"num_nodes":1,"result_path":"results/half-cylinder-Re-2000","num_cells":[512,256,256],"tend":10,"tdump":1},"flow":{"nu":0.00005,"periodic_z":"true"},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Half-cylinder","dcylinder_center":[0.3,0.25],"dcylinder_z_range":[0,1],"radius":0.05,"obstacle_forced":"true","obstacle_vel":[1,0,0],"obstacle_frame_fixed":"true"}]}',
+        "description": "Towed fish at Re=5000.",
+        "data": '{"simulation":{"num_nodes":80,"result_path":"results/towedFish","num_cells":[2560,1280,1280],"tend":10,"tdump":0.5},"flow":{"nu":0.00002},"advanced":{"root_path":".."},"obstacles":[{"obstacle_type":"Fish","center":[0.35,0.25,0.25],"length":0.2,"fish_motion_type":"towed","fish_width_profile":"danio","fish_height_profile":"danio","obstacle_forced":"true","obstacle_vel":[0.5,0,0],"obstacle_frame_fixed":"true"}]}',
     }];
 
     // Compile-time settings and other parameters.
@@ -264,12 +264,19 @@ custom fields. Anything else is forwarded to the parent view.
     var DCYLINDER = "Half-cylinder";
     var NACA = "NACA";
     var FISH = "Fish";
+    var FISH_MOTION_TYPES = {
+        "carling": "Displacement-based",
+        "stefan": "Curvature-based",
+        "towed": "Towed",
+    };
     var FISH_WIDTH_PROFILES = {
+        "danio": "Danio",
         "baseline": "baseline",
         "fatter": "fatter",
         "naca0012": "NACA 0012",
     };
     var FISH_HEIGHT_PROFILES = {
+        "danio": "Danio",
         "baseline": "baseline",
         "largefin": "largefin",
         "tunaclone": "tuna",
@@ -450,7 +457,7 @@ custom fields. Anything else is forwarded to the parent view.
                 case SPHERE: name = "IF3D_Sphere"; break;
                 case DCYLINDER: name = "IF3D_DCylinder"; break;
                 case NACA: name = "IF3D_NacaOperator"; break;
-                case FISH: name = "IF3D_StefanFish"; break;
+                case FISH: /* see below */ break;
                 default: error = "Unknown type??"; break;
             };
 
@@ -474,6 +481,16 @@ custom fields. Anything else is forwarded to the parent view.
                 params["widthProfile"] = o["fish_width_profile"];
                 params["heightProfile"] = o["fish_height_profile"];
                 params["T"] = is_ok(o["fish_T"]) ? o["fish_T"] : 1.0;
+                if (o["fish_motion_type"] == "carling") {
+                    name = "IF3D_CarlingFish";
+                } else if (o["fish_motion_type"] == "stefan") {
+                    name = "IF3D_StefanFish";
+                } else if (o["fish_motion_type"] == "towed") {
+                    params["amplitudeFactor"] = 0.0;
+                    name = "IF3D_CarlingFish";
+                }
+                if (o["fish_fix_xy_plane"])
+                    params["bFixToPlanar"] = 1;
             }
 
             /* Velocity */
@@ -555,9 +572,9 @@ custom fields. Anything else is forwarded to the parent view.
             var size = num_cells * BYTES_PER_CELL;
             var count = 1 + Math.floor(tend / tdump);
             config_info["dump_info"] = {
-                "snapshot_size": (size / 1048576) + "MB",
+                "snapshot_size": (size / 1048576 / 1024) + "GB",
                 "snapshot_count": count,
-                "snapshot_total_size": (size * count / 1048576) + "MB",
+                "snapshot_total_size": (size * count / 1048576 / 1024) + "GB",
             };
         }
         $("#config-info").html(CONFIG_INFO_TEMPLATE(config_info));
@@ -795,6 +812,11 @@ custom fields. Anything else is forwarded to the parent view.
                         "NACA_Apitch": { "type": "number", "title": "&alpha;<sub>1</sub>", },
                         "NACA_Fpitch": { "type": "number", "title": "f<sub>F</sub>", },
                         "NACA_Ppitch": { "type": "number", "title": "&phi;", },
+                        "fish_motion_type": {
+                            "title": "Motion",
+                            "enum": Object.keys(FISH_MOTION_TYPES),
+                            "default": Object.keys(FISH_MOTION_TYPES)[0],
+                        },
                         "fish_T": {
                             "type": "number",
                             "title": "Undulation period T",
@@ -822,6 +844,10 @@ custom fields. Anything else is forwarded to the parent view.
                                 "type": "number",
                             },
                         },
+                        "fish_fix_xy_plane": {
+                            "default": false,
+                            "title": "Fix Z?",
+                        },
                         "obstacle_frame_fixed": {
                             "default": true,
                             "title": "Frame follows the object?",
@@ -841,10 +867,12 @@ custom fields. Anything else is forwarded to the parent view.
                         "NACA_Fpitch": ["NACA_advanced"],
                         "NACA_Mpitch": ["NACA_advanced"],
                         "NACA_Ppitch": ["NACA_advanced"],
-                        "fish_T": ["obstacle_type"],
+                        "fish_motion_type": ["obstacle_type"],
+                        "fish_T": ["fish_motion_type"],
                         "fish_width_profile": ["obstacle_type"],
                         "fish_height_profile": ["obstacle_type"],
                         "obstacle_vel": ["obstacle_forced"],
+                        "fish_fix_xy_plane": ["obstacle_type"],
                     }
                 }
             }
@@ -852,16 +880,12 @@ custom fields. Anything else is forwarded to the parent view.
     };
 
     var validate_num_cells = function(callback) {
-        /* Validate if num_cells_x/y/z is a power of two. */
         var message = null;
         var values = this.getValue();
         for (var i = 0; i < values.length; ++i) {
             var v = values[i];
-            if (v === 0 || (v & (v - 1)) !== 0) {
-                message = "Number of cells must be a power of two for each dimension.";
-            } else if (v % BLOCK_SIZE !== 0) {
+            if (v % BLOCK_SIZE !== 0)
                 message = "Number of cells must be divisible by " + BLOCK_SIZE + " for each dimension.";
-            }
         }
         if (message) {
             callback({"status": false, "message": message});
@@ -876,7 +900,6 @@ custom fields. Anything else is forwarded to the parent view.
                     "num_cells": {
                         "type": "multivalue",
                         "helpers": [
-                            "Must be a power of 2 and at least " + BLOCK_SIZE + ".",
                             "The axis with the largest number of cells will have a physical length of 1 unit. The other axes will scale accordingly.",
                         ],
                         "validator": validate_num_cells,
@@ -983,8 +1006,15 @@ custom fields. Anything else is forwarded to the parent view.
                                     "Angle of attack: &alpha;(t) = &alpha;<sub>0</sub> + &alpha;<sub>1</sub> cos(2 &pi; (f<sub>F</sub> t + &phi;))",
                                 ],
                             },
-                            "fish_T": {
+                            "fish_motion_type": {
                                 "dependencies": { "obstacle_type": [FISH], },
+                                "optionLabels": get_values(FISH_MOTION_TYPES),
+                                "removeDefaultNone": true,
+                                "sort": false,
+                                "vertical": false,
+                            },
+                            "fish_T": {
+                                "dependencies": { "fish_motion_type": ["carling", "stefan"], },
                             },
                             "fish_width_profile": {
                                 "type": "radio",
@@ -1011,6 +1041,12 @@ custom fields. Anything else is forwarded to the parent view.
                                 "type": "multivalue",
                                 "dependencies": { "obstacle_forced": true },
                             },
+                            "fish_fix_xy_plane": {
+                                "type": "checkbox",
+                                "dependencies": { "obstacle_type": [FISH], },
+                                "TOOLTIP": "Disable movement in Z direction. Allow rotation only in XY plane.",
+                                "INLINE_CHECKBOX": true,
+                            },
                             "obstacle_frame_fixed": {
                                 "type": "checkbox",
                                 "TOOLTIP": "In case multiple objects are selected, the frame of reference follows their average velocity.",
@@ -1032,6 +1068,7 @@ custom fields. Anything else is forwarded to the parent view.
         "parent": "bootstrap-edit-horizontal",
         "fields": {
             "/obstacles/obstacle_forced": { "templates": { "control": "#control-inline-helper-template" }, },
+            "/obstacles/fish_fix_xy_plane": { "templates": { "control": "#control-inline-helper-template" }, },
             "/obstacles/obstacle_frame_fixed": { "templates": { "control": "#control-inline-helper-template" }, },
         },
         "horizontal": true,
