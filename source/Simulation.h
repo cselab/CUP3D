@@ -1,12 +1,9 @@
 //
-//  Simulation_Fluid.h
-//  CubismUP_2D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Base class for fluid simulations from which any fluid simulation case should inherit
-//  Contains the base structure and interface that any fluid simulation class should have
-//
-//  Created by Christian Conti on 3/25/15.
-//  Copyright (c) 2015 ETHZ. All rights reserved.
+//  Written by Guido Novati (novatig@ethz.ch).
 //
 
 #ifndef CubismUP_2D_Simulation_Fluid_h

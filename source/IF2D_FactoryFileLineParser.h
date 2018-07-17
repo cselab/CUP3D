@@ -1,9 +1,9 @@
 //
-//  IF2D_FactoryFileLineParser.h
-//  IF2D_ROCKS
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
 //  Created by Wim van Rees on 04/10/14.
-//
 //
 
 #ifndef __IF2D_ROCKS__IF2D_FactoryFileLineParser__

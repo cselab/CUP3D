@@ -1,11 +1,11 @@
-/*
- *  untitled.h
- *  IF2D_ROCKS
- *
- *  Created by Mattia Gazzola on 4/1/11.
- *  Copyright 2011 ETHZ. All rights reserved.
- *
- */
+//
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
+//
+//  Created by Mattia Gazzola on 4/1/11.
+//
+
 #pragma once
 
 #include <iostream>

@@ -1,11 +1,11 @@
-/*
- *  Slice.h
- *  CubismUP_3D
- *
- *  Created by Fabian Wermelinger 12/11/2017
- *  Copyright 2017 ETH Zurich. All rights reserved.
- *
- */
+//
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
+//
+//  Written by Fabian Wermelinger.
+//
+
 #ifndef SLICE_H_SJXK5CW4
 #define SLICE_H_SJXK5CW4
 

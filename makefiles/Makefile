@@ -183,8 +183,7 @@ BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
-OBJECTS =  IF3D_VortexOperator.o \
-           IF3D_ObstacleFactory.o \
+OBJECTS =  IF3D_ObstacleFactory.o \
            IF3D_ObstacleOperator.o \
            IF3D_FishLibrary.o \
            IF3D_ObstacleVector.o \

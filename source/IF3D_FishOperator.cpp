@@ -1,9 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  This file started as an extension of code written by Wim van Rees
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
 #include "IF3D_FishOperator.h"
@@ -360,31 +360,6 @@ void IF3D_FishOperator::finalize(const int step_id,const double time, const doub
   for(auto & o : obstacleBlocks) o.second->allocate_surface();
 }
 
-void IF3D_FishOperator::interpolateOnSkin(const double time, const int stepID, bool _dumpWake)
-{
-  #ifdef __useSkin_
-  if( std::fabs(quaternion[1])>2e-16 || std::fabs(quaternion[2])>2e-16 ) {
-    printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
-    abort();
-  }
-  sr.updateStepId(stepID+obstacleID);
-  myFish->computeSkinNormals(_2Dangle, CoM_interpolated);
-
-  sr.nearestGridPoints(obstacleBlocks, vInfo, myFish->upperSkin->Npoints-1,
-                myFish->upperSkin->midX,      myFish->upperSkin->midY,
-                myFish->lowerSkin->midX,      myFish->lowerSkin->midY,
-                myFish->upperSkin->normXSurf, myFish->upperSkin->normYSurf,
-                myFish->lowerSkin->normXSurf, myFish->lowerSkin->normYSurf,
-                position[2], vInfo[0].h_gridpoint, grid->getCartComm());
-
-  #ifndef __RL_TRAINING
-  //  if(rank==0) sr.print(obstacleID, stepID, time);
-  #endif
-
-  //if(_dumpWake && _uInf not_eq nullptr) dumpWake(stepID, time, _uInf);
-  #endif
-}
-
 void IF3D_FishOperator::update(const int stepID, const double t, const double dt, const Real *Uinf)
 {
   // synchronize internal time
@@ -397,8 +372,10 @@ void IF3D_FishOperator::update(const int stepID, const double t, const double dt
   angvel_integral[0] += dt*angVel[0];
   angvel_integral[1] += dt*angVel[1];
   angvel_integral[2] += dt*angVel[2];
-  double P=2*(myFish->timeshift-myFish->time0/myFish->l_Tp)+myFish->phaseShift;
+  #ifdef RL_LAYER
+  auto P = 2*(myFish->timeshift-myFish->time0/myFish->l_Tp) +myFish->phaseShift;
   sr.phaseShift = fmod(P,2)<0 ? 2+fmod(P,2) : fmod(P,2);
+  #endif
 }
 
 void IF3D_FishOperator::getCenterOfMass(double CM[3]) const
@@ -407,23 +384,6 @@ void IF3D_FishOperator::getCenterOfMass(double CM[3]) const
   CM[0]=CoM_interpolated[0];
   CM[1]=CoM_interpolated[1];
   CM[2]=CoM_interpolated[2];
-}
-
-void IF3D_FishOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
-  Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
-{
-  if( std::fabs(quaternion[1])>2e-16 || std::fabs(quaternion[2])>2e-16 ) {
-    printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
-    abort();
-  }
-  x  = position[0];
-  y  = position[1];
-  th  = _2Dangle;
-  pXL = myFish->lowerSkin->xSurf;
-  pYL = myFish->lowerSkin->ySurf;
-  pXU = myFish->upperSkin->xSurf;
-  pYU = myFish->upperSkin->ySurf;
-  Npts = myFish->lowerSkin->Npoints;
 }
 
 void IF3D_FishOperator::save(const int stepID, const double t, string filename)
@@ -446,21 +406,21 @@ void IF3D_FishOperator::save(const int stepID, const double t, string filename)
 
 void IF3D_FishOperator::restart(const double t, string filename)
 {
-    std::ifstream restartstream;
-    restartstream.open(filename+".txt");
-    if(!restartstream.good()){
-      printf("Could not restart from file\n");
-      return;
-    }
-    restartstream >> sim_time >> sim_dt;
-    assert(std::abs(sim_time-t) < std::numeric_limits<Real>::epsilon());
-    restartstream >> position[0] >> position[1] >> position[2];
-    restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
-    restartstream >> transVel[0] >> transVel[1] >> transVel[2];
-    restartstream >> angVel[0] >> angVel[1] >> angVel[2];
-    restartstream >> theta_internal >> angvel_internal >> adjTh;
-    restartstream >> _2Dangle;
-    restartstream.close();
+  std::ifstream restartstream;
+  restartstream.open(filename+".txt");
+  if(!restartstream.good()){
+    printf("Could not restart from file\n");
+    return;
+  }
+  restartstream >> sim_time >> sim_dt;
+  assert(std::abs(sim_time-t) < std::numeric_limits<Real>::epsilon());
+  restartstream >> position[0] >> position[1] >> position[2];
+  restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
+  restartstream >> transVel[0] >> transVel[1] >> transVel[2];
+  restartstream >> angVel[0] >> angVel[1] >> angVel[2];
+  restartstream >> theta_internal >> angvel_internal >> adjTh;
+  restartstream >> _2Dangle;
+  restartstream.close();
 
   std::cout<<"RESTARTED FISH: "<<std::endl;
   std::cout<<"TIME, DT: "<<sim_time<<" "<<sim_dt<<std::endl;
@@ -472,143 +432,46 @@ void IF3D_FishOperator::restart(const double t, string filename)
   std::cout<<"2D angle: \t"<<_2Dangle<<std::endl;
 }
 
-/*
-void IF3D_CarlingFishOperator::writeToFile(const int step_id, const Real t, std::string filename)
+#ifdef RL_LAYER
+
+void IF3D_FishOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
+  Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
 {
-    std::string fname = (filename==std::string()) ? "fish" : filename;
+  if( std::fabs(quaternion[1])>2e-16 || std::fabs(quaternion[2])>2e-16 ) {
+    printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
+    abort();
+  }
+  x  = position[0];
+  y  = position[1];
+  th  = _2Dangle;
+  pXL = myFish->lowerSkin->xSurf;
+  pYL = myFish->lowerSkin->ySurf;
+  pXU = myFish->upperSkin->xSurf;
+  pYU = myFish->upperSkin->ySurf;
+  Npts = myFish->lowerSkin->Npoints;
+}
 
-    std::ofstream savestream;
-    savestream.setf(std::ios::scientific);
-    savestream.precision(std::numeric_limits<Real>::digits10 + 1);
+void IF3D_FishOperator::interpolateOnSkin(const double time, const int stepID, bool _dumpWake)
+{
+  #ifdef __useSkin_
+  if( std::fabs(quaternion[1])>2e-16 || std::fabs(quaternion[2])>2e-16 ) {
+    printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
+    abort();
+  }
+  sr.updateStepId(stepID+obstacleID);
+  myFish->computeSkinNormals(_2Dangle, CoM_interpolated);
 
-    savestream.open(fname+"_interpolated.dat", ios::app | ios::out);
-    if(step_id==0)
-    {
-        savestream << "step\t";
-        savestream << "time\t";
-        savestream << "volume\t";
-        savestream << "CoM[0]\t";
-        savestream << "CoM[1]\t";
-        savestream << "CoM[2]\t";
-        savestream << "linMom[0]\t";
-        savestream << "linMom[1]\t";
-        savestream << "linMom[2]\t";
-        savestream << "angMom[0]\t";
-        savestream << "angMom[1]\t";
-        savestream << "angMom[2]" << std::endl;
-    }
+  sr.nearestGridPoints(obstacleBlocks, vInfo, myFish->upperSkin->Npoints-1,
+                myFish->upperSkin->midX,      myFish->upperSkin->midY,
+                myFish->lowerSkin->midX,      myFish->lowerSkin->midY,
+                myFish->upperSkin->normXSurf, myFish->upperSkin->normYSurf,
+                myFish->lowerSkin->normXSurf, myFish->lowerSkin->normYSurf,
+                position[2], vInfo[0].h_gridpoint, grid->getCartComm());
 
-    savestream << step_id << "\t";
-    savestream << sim_time << "\t";
-    savestream << object_ongrid.volume << "\t";
-    savestream << CoM_interpolated[0] << "\t";
-    savestream << CoM_interpolated[1] << "\t";
-    savestream << CoM_interpolated[2] << "\t";
-    savestream << object_ongrid.linearMomentum[0] << "\t";
-    savestream << object_ongrid.linearMomentum[1] << "\t";
-    savestream << object_ongrid.linearMomentum[2] << "\t";
-    savestream << object_ongrid.angularMomentum[0] << "\t";
-    savestream << object_ongrid.angularMomentum[1] << "\t";
-    savestream << object_ongrid.angularMomentum[2] << "\t";
-    savestream << object_ongrid.J[2] << std::endl;
-    savestream.close();
+  //  if(rank==0) sr.print(obstacleID, stepID, time);
 
-    savestream.open(fname+"_internal.dat", ios::app | ios::out);
-    if(step_id==0)
-    {
-        savestream << "step\t";
-        savestream << "time\t";
-        savestream << "volume\t";
-        savestream << "CoM[0]\t";
-        savestream << "CoM[1]\t";
-        savestream << "linMom[0]\t";
-        savestream << "linMom[1]\t";
-        savestream << "angMom\t";
-        savestream << "theta\t";
-        savestream << "angvel" << std::endl;
-    }
+  //if(_dumpWake && _uInf not_eq nullptr) dumpWake(stepID, time, _uInf);
+  #endif
+}
 
-    savestream << step_id << "\t";
-    savestream << sim_time << "\t";
-    savestream << volume_internal << "\t";
-    savestream << CoM_internal[0] << "\t";
-    savestream << CoM_internal[1] << "\t";
-    savestream << vCoM_internal[0]*volume_internal << "\t";
-    savestream << vCoM_internal[1]*volume_internal << "\t";
-    savestream << angvel_internal*J_internal << "\t";
-    savestream << theta_internal << "\t";
-    savestream << angvel_internal << std::endl;
-    savestream.close();
-
-    savestream.open(fname+"_computation.dat", ios::app | ios::out);
-    if(step_id==0)
-    {
-        savestream << "step\t";
-        savestream << "time\t";
-        savestream << "pos[0]\t";
-        savestream << "pos[1]\t";
-        savestream << "pos[2]\t";
-        savestream << "quat[0]\t";
-        savestream << "quat[1]\t";
-        savestream << "quat[2]\t";
-        savestream << "quat[3]\t";
-        savestream << "transVel[0]\t";
-        savestream << "transVel[1]\t";
-        savestream << "transVel[2]\t";
-        savestream << "angVel[0]\t";
-        savestream << "angVel[1]\t";
-        savestream << "angVel[2]" << std::endl;
-    }
-
-    savestream << step_id << "\t";
-    savestream << sim_time << "\t";
-    savestream << position[0] << "\t";
-    savestream << position[1] << "\t";
-    savestream << position[2] << "\t";
-    savestream << quaternion[0] << "\t";
-    savestream << quaternion[1] << "\t";
-    savestream << quaternion[2] << "\t";
-    savestream << quaternion[3] << "\t";
-    savestream << transVel[0] << "\t";
-    savestream << transVel[1] << "\t";
-    savestream << transVel[2] << "\t";
-    savestream << angVel[0] << "\t";
-    savestream << angVel[1] << "\t";
-    savestream << angVel[2] << std:: endl;
-    savestream.close();
-
-
-    const bool optimizeT = parser("-optimizeT").asBool(false);
-    if(optimizeT){
-
-      char line[256];
-      FILE *f = fopen("hingedParams.txt", "r");
-      if(f==NULL){
-        printf("hingedParams not found!\n"); abort();
-      }
-
-      double tvalue=0.0;
-      int line_no = 0;
-
-      while (fgets(line, 256, f)!= NULL) {
-        if ((line[0] == '#')||(strlen(line)==0)) {
-          printf("ignoring line %d\n", line_no);
-          continue;
-        }
-
-        if (strstr(line, "T=")) {
-          sscanf(line, "T=%lf", &tvalue);
-        }
-        line_no++;
-      }
-      if(tvalue==0.0){
-        printf("Correct T=?? not found in hingedParams.txt\n");
-        fflush(0);
-        abort();
-      }
-      Tperiod = tvalue;
-      printf("Tperiod overwritten: %f\n", Tperiod);
-      assert(Tperiod >0.0);
-      fclose(f);
-    }
-}*/
+#endif

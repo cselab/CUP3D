@@ -1,9 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  This file started as an extension of code written by Wim van Rees
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
 #include <iostream>
@@ -20,7 +20,6 @@
 #include "IF3D_PlateObstacleOperator.h"
 #include "IF3D_SphereObstacleOperator.h"
 #include "IF3D_StefanFishOperator.h"
-#include "IF3D_VortexOperator.h"
 #include "IF3D_ElasticFishOperator.h"
 /*
 #include "IF3D_EllipseObstacleOperator.h"
@@ -98,10 +97,6 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     else if( objectName == "IF3D_NacaOperator" )
     {
       retval.push_back(new IF3D_NacaOperator(grid,object.second,Uinf));
-    }
-    else if( objectName == "IF3D_VortexOperator" )
-    {
-      retval.push_back(new IF3D_VortexOperator(grid,object.second,Uinf));
     }
     else if( objectName == "IF3D_DCylinder" )
     {

@@ -1,9 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  This file started as an extension of code written by Wim van Rees
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch).
 //
 
 #include "IF3D_NacaOperator.h"
@@ -159,8 +159,10 @@ void IF3D_NacaOperator::update(const int stepID, const double t, const double dt
     else position[1] = ext_Y/2 + Aheave * std::cos(2*M_PI*Fheave*t);
     position[2] += dt*transVel[2];
 
+    #ifdef RL_LAYER
     sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
                       _2Dangle, velx_tot, vely_tot, angVel[2]);
+    #endif
     tOld = t;
     _writeComputedVelToFile(stepID, t, Uinf);
 }

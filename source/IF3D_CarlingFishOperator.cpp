@@ -1,9 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  This file started as an extension of code written by Wim van Rees
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch).
 //
 
 #include "IF3D_CarlingFishOperator.h"
@@ -163,9 +163,6 @@ void CarlingFishMidlineData::_computeMidlineVelocities(const Real t)
 IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   ArgumentParser&p, const Real*const u) : IF3D_FishOperator(g, p, u)
 {
-  sr = StateReward(length, Tperiod);
-  sr.parseArguments(p);
-
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   const bool bQuadratic = p("-bQuadratic").asBool(true);
   const bool bBurst = p("-BurstCoast").asBool(false);
@@ -198,9 +195,20 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
     printf("CarlingFish: N:%d, L:%f, T:%f, phi:%f, amplitude:%f\n",
         myFish->Nm, length, Tperiod, phaseShift, ampFac);
 
-  sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
-                    _2Dangle, transVel[0], transVel[1], angVel[2]);
+  #ifdef RL_LAYER
+    sr = StateReward(length, Tperiod);
+    sr.parseArguments(p);
+    sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
+                      _2Dangle, transVel[0], transVel[1], angVel[2]);
+  #endif
 }
+
+void IF3D_CarlingFishOperator::computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump)
+{
+  IF3D_ObstacleOperator::computeForces(stepID, time, dt, Uinf, NU, bDump);
+}
+
+#ifdef RL_LAYER
 
 void IF3D_CarlingFishOperator::execute(const int i, const double t, const vector<double>a)
 {
@@ -208,7 +216,4 @@ void IF3D_CarlingFishOperator::execute(const int i, const double t, const vector
   sr.t_next_comm=1e6;
 }
 
-void IF3D_CarlingFishOperator::computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump)
-{
-  IF3D_ObstacleOperator::computeForces(stepID, time, dt, Uinf, NU, bDump);
-}
+#endif

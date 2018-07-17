@@ -1,9 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  This file started as an extension of code written by Wim van Rees
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
 #ifndef IncompressibleFluids3D_IF3D_ObstacleLibrary_h
@@ -400,6 +400,7 @@ struct FillBlocks
 };
 }
 
+#if 0
 namespace TorusObstacle
 {
 struct FillBlocks
@@ -1219,194 +1220,6 @@ struct FillBlocks_Towers
 };
 
 }
+#endif
 
-namespace VAWTObstacle
-{
-struct FillBlocks_Towers
-{
-  const Real radius,height,chord,thickness; // chord and thickness are actually haflchord and halfthickness
-  const Real safe_distance, rotationAngle;
-  const int nBlades=3;
-  const Real position[3];
-  Real bounding_box[3][2];
-  const Real pitchAngle = 45.0*M_PI/180;
-
-  void _find_bounding_box()
-  {
-    const Real width = thickness + chord*std::sin(pitchAngle);
-    for(int i=0;i<2;++i)
-    {
-      bounding_box[i][0] = position[i] - radius - width - safe_distance;
-      bounding_box[i][1] = position[i] + radius + width + safe_distance;
-    }
-    bounding_box[2][0] = position[2] - 0.5*height - safe_distance;
-    bounding_box[2][1] = position[2] + 0.5*height + safe_distance;
-  }
-
-  FillBlocks_Towers(const Real _radius, const Real _height, const Real _chord, const Real _thick, const Real _max_dx, const Real p[3], const Real _rotAngle):
-    radius(_radius), height(_height), chord(_chord), thickness(_thick), safe_distance(_max_dx), rotationAngle(_rotAngle), position{p[0],p[1],p[2]}
-  {
-    _find_bounding_box();
-  }
-
-  FillBlocks_Towers(const FillBlocks_Towers& c): radius(c.radius),
-    height(c.height), chord(c.chord), thickness(c.thickness),
-    safe_distance(c.safe_distance), rotationAngle(c.rotationAngle),
-    position{c.position[0],c.position[1],c.position[2]}
-  {
-    _find_bounding_box();
-  }
-
-  bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
-  {
-    Real intersection[3][2] = {
-        max(min_pos[0], bounding_box[0][0]), min(max_pos[0], bounding_box[0][1]),
-        max(min_pos[1], bounding_box[1][0]), min(max_pos[1], bounding_box[1][1]),
-        max(min_pos[2], bounding_box[2][0]), min(max_pos[2], bounding_box[2][1])
-    };
-
-    return
-        intersection[0][1]-intersection[0][0]>0 &&
-        intersection[1][1]-intersection[1][0]>0 &&
-        intersection[2][1]-intersection[2][0]>0;
-  }
-
-  bool _is_touching(const BlockInfo& info, const int buffer_dx=0) const
-  {
-    Real min_pos[3], max_pos[3];
-
-    info.pos(min_pos, 0,0,0);
-    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-    for(int i=0;i<3;++i)
-    {
-      min_pos[i]-=buffer_dx*info.h_gridpoint;
-      max_pos[i]+=buffer_dx*info.h_gridpoint;
-    }
-    return _is_touching(min_pos,max_pos);
-  }
-
-  inline Real distanceToEllipse(const Real x, const Real y, const Real z, const int bladeIdx) const
-  {
-    assert(nBlades==3);
-    const Real deltaBladeAngle = 2.0*M_PI/((Real)nBlades);
-    const Real angle = rotationAngle + bladeIdx*deltaBladeAngle + pitchAngle;
-
-    Real t[2] = {  x*std::cos(angle) + y*std::sin(angle),
-        -x*std::sin(angle) + y*std::cos(angle)};
-    // wtf
-    if(std::abs(t[0])<std::numeric_limits<Real>::epsilon()) t[0]=0;
-    if(std::abs(t[1])<std::numeric_limits<Real>::epsilon()) t[1]=0;
-
-    const Real e[2] = {thickness,chord};
-
-    Real xs[2];
-    const Real dist=EllipsoidObstacle::DistancePointEllipse (e, t, xs);
-    const int invSign = ( (t[0]*t[0]+t[1]*t[1]) > (xs[0]*xs[0]+xs[1]*xs[1]) ) ? -1 : 1;
-
-    if(std::abs(z)<=0.5*height)
-    {
-      return dist*invSign;// pos inside, neg outside
-    }
-    else
-    {
-      return -std::min<Real>(std::sqrt(dist*dist + z*z), std::abs(z)-0.5*height); // always negative
-    }
-  }
-
-  Real getHeavisideFDMH1(const Real x, const Real y, const Real z, const Real h, const int bladeIdx) const
-  {
-    const Real dist = distanceToEllipse(x,y,z,bladeIdx);
-    if(dist >= +h) return 1;
-    if(dist <= -h) return 0;
-    assert(std::abs(dist)<=h);
-
-    const Real distPx = distanceToEllipse(x+h,y,z,bladeIdx);
-    const Real distMx = distanceToEllipse(x-h,y,z,bladeIdx);
-    const Real distPy = distanceToEllipse(x,y+h,z,bladeIdx);
-    const Real distMy = distanceToEllipse(x,y-h,z,bladeIdx);
-    const Real distPz = distanceToEllipse(x,y,z+h,bladeIdx);
-    const Real distMz = distanceToEllipse(x,y,z-h,bladeIdx);
-
-    // compute first primitive of H(x): I(x) = int_0^x H(y) dy and set it to zero outside the cylinder
-    const Real IplusX = distPx < 0 ? 0 : distPx;
-    const Real IminuX = distMx < 0 ? 0 : distMx;
-    const Real IplusY = distPy < 0 ? 0 : distPy;
-    const Real IminuY = distMy < 0 ? 0 : distMy;
-    const Real IplusZ = distPz < 0 ? 0 : distPz;
-    const Real IminuZ = distMz < 0 ? 0 : distMz;
-
-    assert(IplusX>=0);
-    assert(IminuX>=0);
-    assert(IplusY>=0);
-    assert(IminuY>=0);
-    assert(IplusZ>=0);
-    assert(IminuZ>=0);
-
-
-    // gradI
-    const Real gradIX = 0.5/h * (IplusX - IminuX);
-    const Real gradIY = 0.5/h * (IplusY - IminuY);
-    const Real gradIZ = 0.5/h * (IplusZ - IminuZ);
-
-    // gradU
-    const Real gradUX = 0.5/h * (distPx - distMx);
-    const Real gradUY = 0.5/h * (distPy - distMy);
-    const Real gradUZ = 0.5/h * (distPz - distMz);
-
-    const Real H = (gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ)/(gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ);
-
-    //        assert(H>=0 && H<=1);
-    if(H<0.0 || H>1.0)
-      printf("invalid H?: %10.10e %10.10e %10.10e: %10.10e\n",x,y,z,H);
-
-    return H;
-  }
-
-  inline void operator()(const BlockInfo& info, FluidBlock& b) const
-  {
-    if(_is_touching(info))
-    {
-      std::vector<Real> bladePosX(nBlades),bladePosY(nBlades);
-      const Real deltaBladeAngle = 2.0*M_PI/((Real)nBlades);
-
-      for(int i=0;i<nBlades;++i)
-      {
-        const Real bladeAngle = rotationAngle + i*deltaBladeAngle;
-        bladePosX[i] = radius * std::cos(bladeAngle);
-        bladePosY[i] = radius * std::sin(bladeAngle);
-      }
-
-      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-        for(int iy=0; iy<FluidBlock::sizeY; iy++)
-          for(int ix=0; ix<FluidBlock::sizeX; ix++)
-          {
-            Real p[3];
-            info.pos(p, ix, iy, iz);
-
-            // translate
-            p[0] -= position[0];
-            p[1] -= position[1];
-            p[2] -= position[2];
-
-            // find blade Idx
-            Real minDistSq=2.0;
-            int minIdx=-1;
-            for(int i=0;i<nBlades;++i)
-            {
-              const Real distSq = (p[0]-bladePosX[i])*(p[0]-bladePosX[i]) + (p[1]-bladePosY[i])*(p[1]-bladePosY[i]);
-              minIdx = (distSq<minDistSq) ? i : minIdx;
-              minDistSq = (distSq<minDistSq) ? distSq : minDistSq;
-            }
-            assert(minIdx>=0 && minIdx < nBlades);
-
-            p[0]-=bladePosX[minIdx];
-            p[1]-=bladePosY[minIdx];
-
-            const Real chi = getHeavisideFDMH1(p[0],p[1],p[2],info.h_gridpoint,minIdx);
-            b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
-          }
-    }
-  }
-};
-}
 #endif

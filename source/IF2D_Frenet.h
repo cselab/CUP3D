@@ -1,9 +1,9 @@
 //
-//  IF2D_Frenet.h
-//  IF2D_ROCKS
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
 //  Created by Wim van Rees on 17/10/14.
-//
 //
 
 #ifndef IF2D_ROCKS_IF2D_Frenet_h

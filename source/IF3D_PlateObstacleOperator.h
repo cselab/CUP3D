@@ -1,8 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
 //  Written by Ivica Kicic (ikicic@ethz.ch).
-//  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
 #pragma once

@@ -1,8 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch).
 //
 
 #ifndef IF3D_ROCKS_IF3D_ObstacleOperator_h
@@ -30,7 +31,9 @@ struct ObstacleVisitor
 class IF3D_ObstacleOperator
 {
 protected:
-  StateReward sr;
+  #ifdef RL_LAYER
+    StateReward sr;
+  #endif
   FluidGridMPI * grid;
   const Real*const _uInf;
   vector<BlockInfo> vInfo;
@@ -78,19 +81,7 @@ public:
     MPI_Comm_rank(grid->getCartComm(),&rank);
     MPI_Comm_size(grid->getCartComm(),&size);
     vInfo = grid->getBlocksInfo();
-    const double extent = 1;//grid->maxextent;
-    const double NFE[3] = {
-        (double)grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
-        (double)grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
-        (double)grid->getBlocksPerDimension(2)*FluidBlock::sizeZ,
-    };
-    const double maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
-    const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
-    sr.ext_X = scale[0]*extent; ext_X = scale[0]*extent;
-    sr.ext_Y = scale[1]*extent; ext_Y = scale[1]*extent;
-    sr.ext_Z = scale[2]*extent; ext_Z = scale[2]*extent;
-    if(!rank)
-    printf("Got sim extents %g %g %g\n", sr.ext_X, sr.ext_Y, sr.ext_Z);
+    updateSRextents();
     _parseArguments(parser);
   }
 
@@ -99,6 +90,12 @@ public:
     MPI_Comm_rank(grid->getCartComm(),&rank);
     MPI_Comm_size(grid->getCartComm(),&size);
     vInfo = grid->getBlocksInfo();
+    updateSRextents();
+  }
+
+  void updateSRextents()
+  {
+    #ifdef RL_LAYER
     const double extent = 1;//grid->maxextent;
     const double NFE[3] = {
         (double)grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
@@ -112,10 +109,10 @@ public:
     sr.ext_Z = ext_Z = scale[2]*extent;
     if(!rank)
     printf("Got sim extents %g %g %g\n", sr.ext_X, sr.ext_Y, sr.ext_Z);
+    #endif
   }
 
   virtual void Accept(ObstacleVisitor * visitor);
-  virtual void dumpWake(const int stepID, const double t, const Real* Uinf);
   virtual Real getD() const {return length;}
 
   virtual void computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda) ;
@@ -124,9 +121,6 @@ public:
   virtual void update(const int step_id, const double t, const double dt, const Real* Uinf);
   virtual void save(const int step_id, const double t, std::string filename = std::string());
   virtual void restart(const double t, std::string filename = std::string());
-  virtual void interpolateOnSkin(const double time, const int stepID, bool dumpWake=false);
-  virtual void execute(const int iAgent, const double time, const vector<double> action);
-  StateReward* _getData() { return &sr; }
 
   // some non-pure methods
   virtual void create(const int step_id,const double time, const double dt, const Real *Uinf);
@@ -147,9 +141,6 @@ public:
   {
       obstblock_ptr = &obstacleBlocks;
   }
-
-  virtual void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL,
-                              Real*& pYL, Real*& pXU, Real*& pYU, int& Npts);
   virtual void characteristic_function();
 
   virtual std::vector<int> intersectingBlockIDs(const int buffer) const;
@@ -238,6 +229,17 @@ public:
 
     MPI_Barrier(grid->getCartComm());
   }
+
+
+  #ifdef RL_LAYER
+    StateReward* _getData() { return &sr; }
+    virtual void execute(const int iAgent, const double time, const vector<double> action);
+
+    virtual void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL,
+                                Real*& pYL, Real*& pXU, Real*& pYU, int& Npts);
+
+    virtual void interpolateOnSkin(const double time, const int stepID, bool dumpWake=false);
+  #endif
 };
 
 #endif

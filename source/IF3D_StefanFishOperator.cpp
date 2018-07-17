@@ -1,9 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  This file started as an extension of code written by Wim van Rees
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
 #include "IF3D_StefanFishOperator.h"
@@ -198,7 +198,9 @@ void IF3D_StefanFishOperator::save(const int step_id, const double t, std::strin
   myFish->curvScheduler.save(filename+"_curv");
   myFish->baseScheduler.save(filename+"_base");
   myFish->adjustScheduler.save(filename+"_adj");
-  sr.save(step_id, filename);
+  #ifdef RL_LAYER
+    sr.save(step_id, filename);
+  #endif
 }
 
 void IF3D_StefanFishOperator::restart(const double t, string filename)
@@ -221,7 +223,9 @@ void IF3D_StefanFishOperator::restart(const double t, string filename)
     //restartstream >> _2Dangle >> old_curv >> new_curv;
     restartstream.close();
 
-    sr.restart(filename);
+    #ifdef RL_LAYER
+      sr.restart(filename);
+    #endif
     myFish->curvScheduler.restart(filename+"_curv");
     myFish->baseScheduler.restart(filename+"_base");
     myFish->adjustScheduler.restart(filename+"_adj");
@@ -247,9 +251,6 @@ void IF3D_StefanFishOperator::restart(const double t, string filename)
 IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
   ArgumentParser&p, const Real*const u) : IF3D_FishOperator(g, p, u)
 {
-  sr = StateReward(length, Tperiod);
-  sr.parseArguments(p);
-
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift,
     vInfo[0].h_gridpoint, ampFac);
@@ -264,10 +265,16 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
 
   if(!rank) printf("%d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
 
+  #ifdef RL_LAYER
+  sr = StateReward(length, Tperiod);
+  sr.parseArguments(p);
   sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
                     _2Dangle, transVel[0], transVel[1], angVel[2]);
+  #endif
 }
 
+
+#ifdef RL_LAYER
 void IF3D_StefanFishOperator::execute(const int iAgent, const double time, const vector<double> act)
 {
   const int nActions = act.size();
@@ -290,7 +297,7 @@ void IF3D_StefanFishOperator::execute(const int iAgent, const double time, const
   }
   sr.resetAverage();
 
-  #ifndef __RL_TRAINING
+  /*
   if(!rank) {
     printf("Next action of agent %d at time %g\n", obstacleID, sr.t_next_comm);
     ofstream filedrag;
@@ -300,5 +307,6 @@ void IF3D_StefanFishOperator::execute(const int iAgent, const double time, const
     filedrag<<endl;
     filedrag.close();
   }
-  #endif
+  */
 }
+#endif

@@ -1,8 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
 //  Written by Fabian Wermelinger.
-//  Copyright (c) 2018 ETHZ. All rights reserved.
 //
 //  This algorithm uses the cyclic convolution method described in Eastwood and
 //  Brownrigg (1979) for unbounded domains.

@@ -1,9 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  This file started as an extension of code written by Christian Conti
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Written by Guido Novati (novatig@ethz.ch).
 //
 
 #include "Simulation.h"
@@ -281,8 +281,9 @@ void Simulation::_serialize(const string append)
 
   //CoordinatorDiagnostics coordDiags(grid,time,step);
   //coordDiags(dt);
-
+  #ifdef RL_LAYER
   obstacle_vector->interpolateOnSkin(time, step);
+  #endif
 }
 
 void Simulation::_deserialize()

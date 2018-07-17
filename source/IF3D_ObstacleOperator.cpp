@@ -1,8 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch).
 //
 
 #include "IF3D_ObstacleOperator.h"
@@ -399,7 +400,7 @@ void IF3D_ObstacleOperator::computeDiagnostics(const int stepID, const double ti
   torque[2] = globals[5]*dV*lambda;
   mass      = globals[6]*dV;
   assert(std::fabs(mass-volume) < std::numeric_limits<Real>::epsilon());
-  #ifndef __RL_TRAINING
+  #ifndef RL_LAYER
   _writeDiagForcesToFile(stepID, time);
   #endif
 }
@@ -520,77 +521,6 @@ void IF3D_ObstacleOperator::computeVelocities(const Real* Uinf)
   }
 }
 
-void IF3D_ObstacleOperator::dumpWake(const int stepID, const double t, const Real* Uinf)
-{
-  //horrible, dont look at it!!!
-  stringstream ssR;
-  ssR<<"wakeValues_rank"<<rank<<"ID"<<obstacleID<<"_"<<t<<".dat";
-  FILE * pFile = fopen (ssR.str().c_str(), "ab");
-  DumpWake kernel(Uinf, position, pFile, length);
-  SynchronizerMPI& Synch = grid->sync(kernel);
-  LabMPI labs;
-  labs.prepare(*grid, Synch);
-  MPI_Barrier(grid->getCartComm());
-  vector<BlockInfo> avail0 = Synch.avail_inner();
-  vector<BlockInfo> avail1 = Synch.avail_halo();
-  std::map<int, BlockInfo*> tmp;
-  for(size_t i=0; i<vInfo.size(); i++)
-  {
-    const int look4 = vInfo[i].blockID;
-    bool found = false;
-    for (size_t j=0; j<avail0.size(); j++) {
-    if(avail0[j].blockID == look4) {
-        if(found) printf("Two blocks with the same ID?!\n");
-        else tmp[look4] = &avail0[j];
-        found = true;
-      }
-    }
-    for (size_t j=0; j<avail1.size(); j++) {
-      if(avail1[j].blockID == look4) {
-        if(found) printf("Two blocks with the same ID?!\n");
-        else tmp[look4] = &avail1[j];
-        found = true;
-      }
-    }
-    if(!found) printf("Wtf missing blocks?? Brace for segfault!\n");
-  }
-  //now in tmp i have addresses to all info, and i can dump with same sorting as vInfo
-  for(size_t i=0; i<vInfo.size(); i++)
-  { //i care more about ease of postprocess here than scaling
-    const int blockID = vInfo[i].blockID;
-    BlockInfo info = *tmp[blockID];
-    FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-    labs.load(info, 0);
-    kernel(labs, info, b);
-  }
-  MPI_Barrier(grid->getCartComm());
-  fclose (pFile);
-  /*
-  if(!rank)
-  {
-    stringstream ssR;
-    ssR<<"headValues_ID"<<obstacleID<<"_"<<t<<".dat";
-    FILE * pFile = fopen (ssR.str().c_str(), "ab");
-    assert(sr.VelNAbove.size()==sr.NpLatLine);
-    for(int i=sr.NpLatLine-1; i>=0; --i) {
-      const double d[] = {
-        sr.PXAbove[i]-position[0],  sr.PYAbove[i]-position[1],
-        sr.VelNAbove[i],            sr.VelTAbove[i]
-      };
-      fwrite(d,sizeof(double),4,pFile);
-    }
-    for(int i=0; i<sr.NpLatLine; ++i){
-      const double d[] = {
-        sr.PXBelow[i]-position[0],  sr.PYBelow[i]-position[1],
-        sr.VelNBelow[i],            sr.VelTBelow[i]
-      };
-      fwrite(d,sizeof(double),4,pFile);
-    }
-    fclose (pFile);
-  }
-  */
-}
-
 void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   const double dt, const Real* Uinf, const double NU, const bool bDump)
 {
@@ -606,7 +536,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   const double velz_tot = transVel[2]-Uinf[2];
   const double totVel[3] = {velx_tot, vely_tot, velz_tot};
 
-  #ifdef __RL_TRAINING
+  #ifdef RL_LAYER
     if(!bInteractive) {
       sr.updateAverages(dt,_2Dangle,velx_tot,vely_tot,angVel[2],0,0,0,0,0,0,0,0,0,0);
       return;
@@ -656,10 +586,12 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   EffPDef    = Pthrust/(Pthrust-min(defPower,(double)0.)+eps);
   EffPDefBnd = Pthrust/(Pthrust-    defPowerBnd         +eps);
 
+  #ifdef RL_LAYER
   sr.updateAverages(dt,_2Dangle, velx_tot, vely_tot, angVel[2], Pout, PoutBnd,
     defPower, defPowerBnd, EffPDef, EffPDefBnd, Pthrust, Pdrag, thrust, drag);
+  #endif
 
-  #if defined(_DUMP_RAW_) && !defined(__RL_TRAINING)
+  #if defined(_DUMP_RAW_) && !defined(RL_LAYER)
   if (bDump) {
     char buf[500];
     sprintf(buf, "surface_%02d_%07d_rank%03d.raw", obstacleID, stepID, rank);
@@ -669,7 +601,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
     fclose(pFile);
   }
   #endif
-  #ifndef __RL_TRAINING
+  #ifndef RL_LAYER
   _writeSurfForcesToFile(stepID, time);
   #endif
 }
@@ -729,8 +661,10 @@ void IF3D_ObstacleOperator::update(const int step_id, const double t, const doub
   absPos[0] += dt*velx_tot;
   absPos[1] += dt*vely_tot;
   absPos[2] += dt*velz_tot;
+  #ifdef RL_LAYER
   sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
                     _2Dangle, velx_tot, vely_tot, angVel[2]);
+  #endif
 
   #ifndef NDEBUG
   if(rank==0) {
@@ -748,7 +682,7 @@ void IF3D_ObstacleOperator::update(const int step_id, const double t, const doub
         +  quaternion[3]*quaternion[3]);
   assert(std::abs(q_length-1.0) < 5*std::numeric_limits<Real>::epsilon());
   #endif
-  #ifndef __RL_TRAINING
+  #ifndef RL_LAYER
   _writeComputedVelToFile(step_id, t, Uinf);
   #endif
 }
@@ -785,28 +719,6 @@ std::vector<int> IF3D_ObstacleOperator::intersectingBlockIDs(const int buffer) c
   if(pos != obstacleBlocks.end()) retval.push_back(info.blockID);
  }
  return retval;
-}
-
-void IF3D_ObstacleOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
-  Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
-{
-  printf("Entered the wrong get skin operator\n");
- fflush(0);
-  abort();
-}
-
-void IF3D_ObstacleOperator::interpolateOnSkin(const double time, const int stepID, bool dumpWake)
-{
-  //printf("Entered the wrong interpolate operator\n");
- //fflush(0);
-  //abort();
-}
-
-void IF3D_ObstacleOperator::execute(const int iAgent, const double time, const vector<double> action)
-{
-  printf("Entered the wrong execute operator\n");
- fflush(0);
-  abort();
 }
 
 void IF3D_ObstacleOperator::create(const int step_id,const double time,
@@ -862,7 +774,9 @@ void IF3D_ObstacleOperator::getCenterOfMass(double CM[3]) const
 void IF3D_ObstacleOperator::save(const int step_id, const double t, std::string filename)
 {
     if(rank!=0) return;
+  #ifdef RL_LAYER
     sr.save(step_id,filename);
+  #endif
     std::ofstream savestream;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<Real>::digits10 + 1);
@@ -878,7 +792,9 @@ void IF3D_ObstacleOperator::save(const int step_id, const double t, std::string 
 
 void IF3D_ObstacleOperator::restart(const double t, std::string filename)
 {
+  #ifdef RL_LAYER
     sr.restart(filename);
+  #endif
     std::ifstream restartstream;
     restartstream.open(filename+".txt");
     if(!restartstream.good()){
@@ -918,3 +834,29 @@ void IF3D_ObstacleOperator::Accept(ObstacleVisitor * visitor)
 {
  visitor->visit(this);
 }
+
+
+#ifdef RL_LAYER
+void IF3D_ObstacleOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
+  Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
+{
+  printf("Entered the wrong get skin operator\n");
+ fflush(0);
+  abort();
+}
+
+void IF3D_ObstacleOperator::execute(const int iAgent, const double time, const vector<double> action)
+{
+  printf("Entered the wrong execute operator\n");
+ fflush(0);
+  abort();
+}
+
+void IF3D_ObstacleOperator::interpolateOnSkin(const double time, const int stepID, bool dumpWake)
+{
+  //printf("Entered the wrong interpolate operator\n");
+ //fflush(0);
+  //abort();
+}
+
+#endif

@@ -1,9 +1,9 @@
 //
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  CubismUP_3D
-//
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch) and Christian Conti.
 //
 
 #ifndef CubismUP_3D_CoordinatorPressure_h

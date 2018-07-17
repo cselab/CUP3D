@@ -1,9 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  This file started as an extension of code written by Wim van Rees
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
 #ifndef __IncompressibleFluids3D__IF3D_FishOperator__
@@ -45,15 +45,17 @@ public:
   virtual void update(const int step_id, const double t, const double dt, const Real *Uinf) override;
 
   void getCenterOfMass(double CM[3]) const override;
-  void interpolateOnSkin(const double time, const int stepID, bool dumpWake=false) override;
 
   virtual void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
   virtual void computeChi(const int step_id, const double time, const double dt, const Real *Uinf, int& mpi_status) override;
   virtual void finalize(const int step_id,const double time, const double dt, const Real *Uinf) override;
 
-  void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL,
-    Real*& pXU, Real*& pYU, int& Npts) override;
+  #ifdef RL_LAYER
+    void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL,
+      Real*& pXU, Real*& pYU, int& Npts) override;
 
+    void interpolateOnSkin(const double time, const int stepID, bool dumpWake=false) override;
+  #endif
   //  void computeVelocities(const Real Uinf[3]) override
   //  {
   //    computeVelocities_forced(Uinf);

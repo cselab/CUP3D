@@ -1,8 +1,7 @@
 //
 //  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland. All rights reserved.
-//  Distributed under the terms of the “CC BY-NC 3.0” license.
-//  No commercial use allowed without permission.
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
 //  Created by Ivica Kicic (kicici@ethz.ch) in May 2018.
 //
@@ -182,5 +181,3 @@ void LinearInterpolation::interpolate(
 }  // cubismup3d
 
 #endif
-
-

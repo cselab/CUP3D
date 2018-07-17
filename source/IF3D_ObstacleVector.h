@@ -1,9 +1,9 @@
 //
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati ( novatig@ethz.ch ).
-//  This file started as an extension of code written by Wim van Rees
-//  Copyright (c) 2017 ETHZ. All rights reserved.
+//  Created by Guido Novati (novatig@ethz.ch).
 //
 
 #ifndef IncompressibleFluids3D_IF3D_ObstacleVector_h
@@ -47,13 +47,7 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
     void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
     void Accept(ObstacleVisitor * visitor) override;
 
-    void getFieldOfView(const double lengthscale);
     vector<std::array<int, 2>> collidingObstacles();
-    std::vector<StateReward*> _getData();
-
-    void execute(const int iAgent, const double time, const vector<double> action) override;
-
-    void interpolateOnSkin(const double time, const int step, bool dumpWake=false) override;
 
     void addObstacle(IF3D_ObstacleOperator * obstacle)
     {
@@ -66,6 +60,17 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
     }
 
     Real getD() const override;
+
+
+    #ifdef RL_LAYER
+      std::vector<StateReward*> _getData();
+
+      void getFieldOfView(const double lengthscale);
+
+      void execute(const int iAgent, const double time, const vector<double> action) override;
+
+      void interpolateOnSkin(const double time, const int step, bool dumpWake=false) override;
+    #endif
 };
 
 #endif

@@ -1,8 +1,9 @@
 //
-//  CoordinatorDissipation.h
-//  CubismUP_3D
+//  Cubism3D
+//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Distributed under the terms of the MIT license.
 //
-//  Copyright (c) 2015 ETHZ. All rights reserved.
+//  Created by Sid Verma in May 2018.
 //
 
 #ifndef CubismUP_3D_CoordinatorDissipation_h
