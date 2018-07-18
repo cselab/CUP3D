@@ -73,7 +73,7 @@ struct ExternalObstacleSettings
     double length = 0.0;
 
     /* Object center location. (center of mass? probably not so important) */
-    std::array<double, 3> position{0.5, 0.5, 0.5};
+    std::array<double, 3> position{{0.5, 0.5, 0.5}};
 };
 
 
@@ -82,13 +82,13 @@ struct ExternalObstacleSettings
  */
 struct SimulationConfig
 {
-    std::array<int, 3> nprocs{1, 1, 1};
-    std::array<int, 3> bpd{1, 1, 1};
+    std::array<int, 3> nprocs{{1, 1, 1}};
+    std::array<int, 3> bpd{{1, 1, 1}};
     bool dump2d = false;
     bool dump3d = false;
     double cfl = 0.1;
     double lambda = 1e5;
-    std::array<double, 3> uinf{0.0, 0.0, 0.0};
+    std::array<double, 3> uinf{{0.0, 0.0, 0.0}};
     double nu;
     double tend;
     int visualization_freq = 0;       // After how many time steps to save?

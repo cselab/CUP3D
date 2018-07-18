@@ -62,9 +62,9 @@ public:
   double ext_X, ext_Y, ext_Z;
 
   // stuff dealing with frame of reference:
-  std::array<bool, 3> bFixFrameOfRef = {false, false, false};
-  std::array<bool, 3> bForcedInSimFrame = {false, false, false};
-  std::array<bool, 3> bBlockRotation = {false, false, false};
+  std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
+  std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
+  std::array<bool, 3> bBlockRotation = {{false, false, false}};
   bool isMPIBarrierOnChiCompute = false;
 protected:
   virtual void _parseArguments(ArgumentParser & parser);
