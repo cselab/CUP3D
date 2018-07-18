@@ -48,8 +48,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --mail-user=${MYNAME}@ethz.ch
 #SBATCH --mail-type=ALL
 
-module load daint-gpu GSL cray-hdf5-parallel
-module load cudatoolkit fftw
+module load daint-gpu GSL cray-hdf5-parallel cray-fftw
+module load cudatoolkit/9.0.103_3.7-6.0.4.1_2.1__g72b395b
 
 export MPICH_MAX_THREAD_SAFETY=multiple
 export OMP_NUM_THREADS=12
