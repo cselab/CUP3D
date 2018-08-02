@@ -1036,9 +1036,7 @@ void MidlineShapes::computeWidthsHeights(const string heightName,
     if(!mpirank)
       cout<<"Building object's height according to 'tunaclone' profile."<<endl;
     double xh[9] = {0, 0, 0.2*L, .4*L, .6*L, .9*L, .96*L, L, L};
-    double yh[9] = {0, .05*L, .14*L, .15*L, .11*L, 0, .2*L, .23*L, 0};
-    // i also found 0.14 instead of 0.2 for yh[6]. Or ... :
-    //const Real yh[9] = {0, 5e-2*length, 1.4e-1*length, 1.5e-1*length, //1.1e-1*length, .0*length, 0.1*length, 0.2*length, 0};
+    double yh[9] = {0, .05*L, .14*L, .15*L, .11*L, 0, .1*L, .2*L, 0};
     integrateBSpline(xh, yh, 9, L, rS, height, nM);
   } else
   if ( heightName.compare(0, 4, "naca") == 0 ) {
