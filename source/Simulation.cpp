@@ -332,13 +332,14 @@ void Simulation::_deserialize()
   if (rank==0) cout << "Restarting from " << ssR.str() << endl;
 
   #if defined(_USE_HDF_)
-    ReadHDF5_MPI<FluidGridMPI, StreamerVelocityVector>(*grid, ssR.str(),path4serialization);
+    ReadHDF5_MPI<FluidGridMPI, StreamerVelocityVector>(*grid,
+      StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
   #else
     printf("Unable to restart without  HDF5 library. Aborting...\n");
     MPI_Abort(grid->getCartComm(), 1);
   #endif
 
-  obstacle_vector->restart(time,path4serialization+"/"+ssR.str());
+  obstacle_vector->restart(time, path4serialization+"/"+ssR.str());
 
   printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
   // prepare time for next save
