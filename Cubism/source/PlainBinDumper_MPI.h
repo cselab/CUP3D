@@ -12,6 +12,7 @@
 
 #include <iostream>
 #include <string>
+#include <sstream>
 
 typedef struct _header
 {
@@ -29,7 +30,6 @@ typedef double Real;
 void PlainDumpBin_MPI(MPI_Comm comm, Real *buffer, long bytes, const std::string f_name, const std::string dump_path=".")
 {
 	int rank, nranks;
-	char filename[256];
 	MPI_Status status;
 	MPI_File file_id;
 
@@ -41,9 +41,10 @@ void PlainDumpBin_MPI(MPI_Comm comm, Real *buffer, long bytes, const std::string
 		std::cout << "Writing BIN file for ICs\n";
 	}
 
-	sprintf(filename, "%s/%s.bin", dump_path.c_str(), f_name.c_str());
+    std::ostringstream filename;
+    filename << dump_path << "/" << f_name;
 
-	int rc = MPI_File_open( MPI_COMM_SELF, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file_id );
+	int rc = MPI_File_open( MPI_COMM_SELF, (filename.str()+".bin").c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file_id );
 	if (rc) {
 		printf("Unable to create BIN file\n");
 		exit(1);
@@ -74,19 +75,19 @@ void PlainDumpBin_MPI(MPI_Comm comm, Real *buffer, long bytes, const std::string
 }
 
 
-void PlainReadBin_MPI(MPI_Comm comm, Real **buffer, long *bytes, const std::string f_name, const std::string dump_path=".")
+void PlainReadBin_MPI(MPI_Comm comm, Real **buffer, long *bytes, const std::string f_name, const std::string read_path=".")
 {
 	int rank, nranks;
-	char filename[256];
 	MPI_Status status;
 	MPI_File file_id;
 
 	MPI_Comm_rank(comm, &rank);
 	MPI_Comm_size(comm, &nranks);
 
-	sprintf(filename, "%s/%s.bin", dump_path.c_str(), f_name.c_str());
+    std::ostringstream filename;
+    filename << read_path << "/" << f_name;
 
-	int rc = MPI_File_open( MPI_COMM_SELF, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &file_id );
+	int rc = MPI_File_open( MPI_COMM_SELF, (filename.str()+".bin").c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &file_id );
 	if (rc) {
 		printf("Unable to read ZBIN file\n");
 		exit(1);

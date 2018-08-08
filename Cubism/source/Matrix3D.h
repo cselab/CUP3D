@@ -56,8 +56,8 @@ public:
 		//allocator<DataType> alloc;
 		//m_pData = alloc.allocate(m_nElements);
 		const int retval = posix_memalign((void **)&m_pData, std::max(8, _ALIGNBYTES_), sizeof(DataType)*m_nElements);
+		(void)retval;  // Silent -Wunused-variable.
 //		printf("Allocated %d bytes at 0x%lx\n", sizeof(DataType)*m_nElements, m_pData);	// peh
-        (void)retval;  // Silent -Wunused-variable.
 		assert(retval == 0);
 		assert(m_pData != NULL);
 		/*
@@ -244,7 +244,3 @@ template <class DataType> inline void SwapBytes(unsigned char * pBuffer, int nBu
 
 	assert(i == nBufferSize); // se no son cazzi acidi
 }
-
-
-
-

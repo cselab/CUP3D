@@ -26,6 +26,10 @@ typedef double hdf5Real;
 
 #include "BlockInfo.h"
 
+// The following requirements for the data Streamer are required:
+// Streamer::NCHANNELS        : Number of data elements (1=Scalar, 3=Vector, 9=Tensor)
+// Streamer::operate          : Data access methods for read and write
+// Streamer::getAttributeName : Attribute name of the date ("Scalar", "Vector", "Tensor")
 
 namespace SliceExtractor
 {
@@ -150,8 +154,9 @@ void DumpSliceHDF5(const TSlice& slice, const int stepID, const Real t, const st
             bInfo_slice.push_back(bInfo_local[i]);
     }
 
-    ostringstream filename;
-    filename<<dpath<<"/"<<TStreamer::prefix()<<"slice_"<<slice.id<<fname;
+    // fname is the base filename without file type extension
+    std::ostringstream filename;
+    filename << dpath << "/" << fname << "_slice" << slice.id;
 
     herr_t status;
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
@@ -211,7 +216,7 @@ void DumpSliceHDF5(const TSlice& slice, const int stepID, const Real t, const st
         fprintf(xmf, "        %e %e %e\n", 0., 0., 0.);
         fprintf(xmf, "       </DataItem>\n");
         fprintf(xmf, "       <DataItem Name=\"Spacing\" Dimensions=\"3\" NumberType=\"Float\" Precision=\"4\" Format=\"XML\">\n");
-        fprintf(xmf, "        %e %e %e\n", grid.getH(),grid.getH(),grid.getH());
+        fprintf(xmf, "        %e %e %e\n", 1.,1.,1.);
         fprintf(xmf, "       </DataItem>\n");
         fprintf(xmf, "     </Geometry>\n");
         fprintf(xmf, "     <Attribute Name=\"data\" AttributeType=\"%s\" Center=\"Node\">\n", TStreamer::getAttributeName());

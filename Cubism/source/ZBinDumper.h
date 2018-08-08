@@ -12,6 +12,7 @@
 #include <vector>
 #include <string>
 #include <stdio.h>
+#include <sstream>
 #ifdef _FLOAT_PRECISION_
 typedef float Real;
 #else
@@ -31,14 +32,20 @@ inline size_t ZZcompress(unsigned char *buf, unsigned len, int layout[4], unsign
 inline size_t ZZdecompress(unsigned char * inputbuf, size_t ninputbytes, int layout[4], unsigned char * outputbuf, const size_t maxsize);
 */
 
+// The following requirements for the data Streamer are required:
+// Streamer::NCHANNELS        : Number of data elements (1=Scalar, 3=Vector, 9=Tensor)
+// Streamer::operate          : Data access methods for read and write
+// Streamer::getAttributeName : Attribute name of the date ("Scalar", "Vector", "Tensor")
 
 template<typename TGrid, typename Streamer>
 void DumpZBin(const TGrid &grid, const int iCounter, const Real t, const std::string f_name, const std::string dump_path=".", const bool bDummy=false)
 {
 	typedef typename TGrid::BlockType B;
 
-    const std::string fullname = f_name + Streamer::EXT;
-	char filename[256];
+    // f_name is the base filename without file type extension
+    std::ostringstream filename;
+    filename << dump_path << "/" << f_name;
+
 	FILE *file_id;
 	int status;
 
@@ -61,9 +68,7 @@ void DumpZBin(const TGrid &grid, const int iCounter, const Real t, const std::st
 	static const unsigned int eY = B::sizeY;
 	static const unsigned int eZ = B::sizeZ;
 
-	sprintf(filename, "%s/%s.zbin", dump_path.c_str(), fullname.c_str());
-
-	file_id = fopen(filename, "w");
+	file_id = fopen((filename.str()+".zbin").c_str(), "w");
 
 	header_serial tag;
     fseek(file_id, sizeof(tag), SEEK_SET);
@@ -131,7 +136,10 @@ void ReadZBin(TGrid &grid, const std::string f_name, const std::string read_path
 {
     typedef typename TGrid::BlockType B;
 
-    char filename[256];
+    // f_name is the base filename without file type extension
+    std::ostringstream filename;
+    filename << read_path << "/" << f_name;
+
     int status;
     FILE *file_id;
 
@@ -152,9 +160,7 @@ void ReadZBin(TGrid &grid, const std::string f_name, const std::string read_path
 	const int eY = B::sizeY;
 	const int eZ = B::sizeZ;
 
-    sprintf(filename, "%s/%s.zbin", read_path.c_str(), f_name.c_str());
-
-    file_id = fopen(filename, "rb");
+    file_id = fopen((filename.str()+".zbin").c_str(), "rb");
 
     long local_count = NX * NY * NZ * 1;
     long local_bytes = local_count * sizeof(Real);

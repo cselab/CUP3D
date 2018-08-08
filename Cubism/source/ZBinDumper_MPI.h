@@ -38,14 +38,22 @@ inline size_t ZZcompress(unsigned char *buf, unsigned len, int layout[4], unsign
 inline size_t ZZdecompress(unsigned char * inputbuf, size_t ninputbytes, int layout[4], unsigned char * outputbuf, const size_t maxsize);
 */
 
+// The following requirements for the data Streamer are required:
+// Streamer::NCHANNELS        : Number of data elements (1=Scalar, 3=Vector, 9=Tensor)
+// Streamer::operate          : Data access methods for read and write
+// Streamer::getAttributeName : Attribute name of the date ("Scalar", "Vector", "Tensor")
+
 template<typename TGrid, typename Streamer>
 void DumpZBin_MPI(const TGrid &grid, const int iCounter, const Real t, const std::string f_name, const std::string dump_path=".", const bool bDummy=false)
 {
 	typedef typename TGrid::BlockType B;
 
 	int rank, nranks;
-    const std::string fullname = f_name + Streamer::EXT;
-	char filename[256];
+
+    // f_name is the base filename without file type extension
+    std::ostringstream filename;
+    filename << dump_path << "/" << f_name;
+
 	MPI_Status status;
 	MPI_File file_id;
 
@@ -80,9 +88,7 @@ void DumpZBin_MPI(const TGrid &grid, const int iCounter, const Real t, const std
 	static const unsigned int eY = B::sizeY;
 	static const unsigned int eZ = B::sizeZ;
 
-	sprintf(filename, "%s/%s.zbin", dump_path.c_str(), fullname.c_str());
-
-	int rc = MPI_File_open( MPI_COMM_SELF, filename, MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file_id );
+	int rc = MPI_File_open( MPI_COMM_SELF, (filename.str()+".zbin").c_str(), MPI_MODE_CREATE | MPI_MODE_WRONLY, MPI_INFO_NULL, &file_id );
 	if (rc) {
 		printf("Unable to create ZBIN file\n");
 		exit(1);
@@ -178,12 +184,16 @@ void DumpZBin_MPI(const TGrid &grid, const int iCounter, const Real t, const std
 }
 
 template<typename TGrid, typename Streamer>
-void ReadZBin_MPI(TGrid &grid, const std::string f_name, const std::string dump_path=".")
+void ReadZBin_MPI(TGrid &grid, const std::string f_name, const std::string read_path=".")
 {
 	typedef typename TGrid::BlockType B;
 
 	int rank, nranks;
-	char filename[256];
+
+    // f_name is the base filename without file type extension
+    std::ostringstream filename;
+    filename << read_path << "/" << f_name;
+
 	MPI_Status status;
 	MPI_File file_id;
 
@@ -211,9 +221,7 @@ void ReadZBin_MPI(TGrid &grid, const std::string f_name, const std::string dump_
 	const int eY = B::sizeY;
 	const int eZ = B::sizeZ;
 
-	sprintf(filename, "%s/%s.zbin", dump_path.c_str(), f_name.c_str());
-
-	int rc = MPI_File_open( MPI_COMM_SELF, filename, MPI_MODE_RDONLY, MPI_INFO_NULL, &file_id );
+	int rc = MPI_File_open( MPI_COMM_SELF, (filename.str()+".zbin").c_str(), MPI_MODE_RDONLY, MPI_INFO_NULL, &file_id );
 	if (rc) {
 		printf("Unable to read ZBIN file\n");
 		exit(1);
