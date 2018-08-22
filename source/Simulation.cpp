@@ -131,28 +131,28 @@ void Simulation::setupObstacles()
 
 void Simulation::setupOperators()
 {
-    pipeline.clear();
-    pipeline.push_back(new CoordinatorComputeShape(grid, &obstacle_vector, &step, &time, uinf));
-    pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
-    pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
-    // For correct behavior Advection must always precede Diffusion!
-    pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
-    pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
-    pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
-    pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
-    if(parser("-compute-dissipation").asInt(0))
-      pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
+  pipeline.clear();
+  pipeline.push_back(new CoordinatorComputeShape(grid, &obstacle_vector, &step, &time, uinf));
+  pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
+  pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
+  // For correct behavior Advection must always precede Diffusion!
+  pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
+  pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
+  pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
+  pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
+  if(parser("-compute-dissipation").asInt(0))
+    pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
 
-#ifndef _UNBOUNDED_FFT_
+  #ifndef _UNBOUNDED_FFT_
     pipeline.push_back(new CoordinatorFadeOut(grid));
-#endif /* _UNBOUNDED_FFT_ */
+  #endif /* _UNBOUNDED_FFT_ */
 
-    if(rank==0) {
-      cout << "Coordinator/Operator ordering:\n";
-      for (size_t c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;
-    }
-    //immediately call create!
-    (*pipeline[0])(0);
+  if(rank==0) {
+    cout << "Coordinator/Operator ordering:\n";
+    for (size_t c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;
+  }
+  //immediately call create!
+  (*pipeline[0])(0);
 }
 
 double Simulation::calcMaxTimestep()
@@ -233,29 +233,41 @@ void Simulation::_serialize(const string append)
     dumper = new std::thread( [=] () {
       if(b2Ddump) {
         for (const auto& slice : m_slices) {
-          DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time, name2d, path4serialization);
-          DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time, name2d, path4serialization);
-          DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time, name2d, path4serialization);
+          DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time,
+            StreamerVelocityVector::prefix()+name2d, path4serialization);
+          DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time,
+            StreamerPressure::prefix()+name2d, path4serialization);
+          DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time,
+            StreamerChi::prefix()+name2d, path4serialization);
         }
       }
       if(b3Ddump) {
-        DumpHDF5_MPI<DumpGridMPI,StreamerVelocityVector>(*dump, step, time, name3d, path4serialization);
-        DumpHDF5_MPI<DumpGridMPI,StreamerPressure>(*dump, step, time, name3d, path4serialization);
-        DumpHDF5_MPI<DumpGridMPI,StreamerChi>(*dump, step, time, name3d, path4serialization);
+        DumpHDF5_MPI<DumpGridMPI,StreamerVelocityVector>(*dump, step, time,
+          StreamerVelocityVector::prefix()+name3d, path4serialization);
+        DumpHDF5_MPI<DumpGridMPI,StreamerPressure>(*dump, step, time,
+          StreamerPressure::prefix()+name3d, path4serialization);
+        DumpHDF5_MPI<DumpGridMPI,StreamerChi>(*dump, step, time,
+          StreamerChi::prefix()+name3d, path4serialization);
       }
     } );
   #else //DUMPGRID
     if(b2Ddump) {
       for (const auto& slice : m_slices) {
-        DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time, ssF.str(), path4serialization);
-        DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time, ssF.str(), path4serialization);
-        DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time, ssF.str(), path4serialization);
+        DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time,
+          StreamerVelocityVector::prefix()+ssF.str(), path4serialization);
+        DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time,
+          StreamerPressure::prefix()+ssF.str(), path4serialization);
+        DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time,
+          StreamerChi::prefix()+ssF.str(), path4serialization);
       }
     }
     if(b3Ddump) {
-      DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time, ssR.str(), path4serialization);
-      DumpHDF5_MPI<FluidGridMPI,StreamerPressure>(*grid, step, time, ssR.str(), path4serialization);
-      DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, step, time, ssR.str(), path4serialization);
+      DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time,
+        StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
+      DumpHDF5_MPI<FluidGridMPI,StreamerPressure>(*grid, step, time,
+        StreamerPressure::prefix()+ssR.str(), path4serialization);
+      DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, step, time,
+        StreamerChi::prefix()+ssR.str(), path4serialization);
     }
   #endif //DUMPGRID
   #endif //_USE_HDF_
@@ -320,13 +332,14 @@ void Simulation::_deserialize()
   if (rank==0) cout << "Restarting from " << ssR.str() << endl;
 
   #if defined(_USE_HDF_)
-    ReadHDF5_MPI<FluidGridMPI, StreamerVelocityVector>(*grid, ssR.str(),path4serialization);
+    ReadHDF5_MPI<FluidGridMPI, StreamerVelocityVector>(*grid,
+      StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
   #else
     printf("Unable to restart without  HDF5 library. Aborting...\n");
     MPI_Abort(grid->getCartComm(), 1);
   #endif
 
-  obstacle_vector->restart(time,path4serialization+"/"+ssR.str());
+  obstacle_vector->restart(time, path4serialization+"/"+ssR.str());
 
   printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
   // prepare time for next save

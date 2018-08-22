@@ -14,6 +14,7 @@
 #include <iostream>
 #include <vector>
 #include <string>
+#include <sstream>
 
 #ifdef _USE_HDF_
 #include <hdf5.h>
@@ -29,6 +30,11 @@ typedef double hdf5Real;
 
 #include "BlockInfo.h"
 
+// The following requirements for the data Streamer are required:
+// Streamer::NCHANNELS        : Number of data elements (1=Scalar, 3=Vector, 9=Tensor)
+// Streamer::operate          : Data access methods for read and write
+// Streamer::getAttributeName : Attribute name of the date ("Scalar", "Vector", "Tensor")
+
 template<typename TGrid, typename Streamer>
 void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, const std::string f_name, const std::string dump_path=".", const bool bXMF=true)
 {
@@ -36,7 +42,11 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
     typedef typename TGrid::BlockType B;
 
     int rank;
-    char filename[256];
+
+    // f_name is the base filename without file type extension
+    std::ostringstream filename;
+    filename << dump_path << "/" << f_name;
+
     herr_t status;
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
 
@@ -89,13 +99,10 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
         (hsize_t) coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
         (hsize_t) coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
 
-    const std::string fullname = Streamer::prefix() + f_name;
-    sprintf(filename, "%s/%s.h5", dump_path.c_str(), fullname.c_str());
-
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
     status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL); if(status<0) H5Eprint1(stdout);
-    file_id = H5Fcreate(filename, H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
+    file_id = H5Fcreate((filename.str()+".h5").c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
     status = H5Pclose(fapl_id); if(status<0) H5Eprint1(stdout);
 
 #pragma omp parallel for
@@ -160,10 +167,8 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
 
     if (bXMF && rank==0)
     {
-        char wrapper[256];
-        sprintf(wrapper, "%s/%s.xmf", dump_path.c_str(), fullname.c_str());
         FILE *xmf = 0;
-        xmf = fopen(wrapper, "w");
+        xmf = fopen((filename.str()+".xmf").c_str(), "w");
         fprintf(xmf, "<?xml version=\"1.0\" ?>\n");
         fprintf(xmf, "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n");
         fprintf(xmf, "<Xdmf Version=\"2.0\">\n");
@@ -183,7 +188,7 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
 
         fprintf(xmf, "     <Attribute Name=\"data\" AttributeType=\"%s\" Center=\"Node\">\n", Streamer::getAttributeName());
         fprintf(xmf, "       <DataItem Dimensions=\"%d %d %d %d\" NumberType=\"Float\" Precision=\"4\" Format=\"HDF\">\n", (int)dims[0], (int)dims[1], (int)dims[2], (int)dims[3]);
-        fprintf(xmf, "        %s:/data\n",(fullname+".h5").c_str());
+        fprintf(xmf, "        %s:/data\n",(filename.str()+".h5").c_str());
         fprintf(xmf, "       </DataItem>\n");
         fprintf(xmf, "     </Attribute>\n");
 
@@ -198,13 +203,17 @@ void DumpHDF5_MPI(const TGrid &grid, const int iCounter, const Real absTime, con
 }
 
 template<typename TGrid, typename Streamer>
-void ReadHDF5_MPI(TGrid &grid, const std::string f_name, const std::string dump_path=".")
+void ReadHDF5_MPI(TGrid &grid, const std::string f_name, const std::string read_path=".")
 {
 #ifdef _USE_HDF_
     typedef typename TGrid::BlockType B;
 
     int rank;
-    char filename[256];
+
+    // f_name is the base filename without file type extension
+    std::ostringstream filename;
+    filename << read_path << "/" << f_name;
+
     herr_t status;
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
 
@@ -242,13 +251,10 @@ void ReadHDF5_MPI(TGrid &grid, const std::string f_name, const std::string dump_
         (hsize_t) coords[1]*grid.getResidentBlocksPerDimension(1)*B::sizeY,
         (hsize_t) coords[0]*grid.getResidentBlocksPerDimension(0)*B::sizeX, 0};
 
-    const std::string fullname = Streamer::prefix() + f_name;
-    sprintf(filename, "%s/%s.h5", dump_path.c_str(), fullname.c_str());
-
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
     status = H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL); if(status<0) H5Eprint1(stdout);
-    file_id = H5Fopen(filename, H5F_ACC_RDONLY, fapl_id);
+    file_id = H5Fopen((filename.str()+".h5").c_str(), H5F_ACC_RDONLY, fapl_id);
     status = H5Pclose(fapl_id); if(status<0) H5Eprint1(stdout);
 
     dataset_id = H5Dopen2(file_id, "data", H5P_DEFAULT);

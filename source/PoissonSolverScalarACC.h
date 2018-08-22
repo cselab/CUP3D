@@ -84,25 +84,6 @@ class PoissonSolverScalarFFTW_ACC
   myComplex * phi_hat;
   myplan * plan;
 
-  void _cub2fft(Real * out) const
-  {
-    #pragma omp parallel for
-    for(int i=0; i<N; ++i) {
-      const BlockInfo info = local_infos[i];
-      BlockType& b = *(BlockType*)info.ptrBlock;
-      const size_t offset = _offset(info);
-
-      for(int ix=0; ix<bs[0]; ix++)
-      for(int iy=0; iy<bs[1]; iy++)
-      for(int iz=0; iz<bs[2]; iz++) {
-        const size_t dest_index = _dest(offset, iz, iy, ix);
-        assert(dest_index >= 0 && dest_index < myN[0] * myN[1] * myN[2]);
-        out[dest_index] = b(ix,iy,iz).p;
-        //TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
-      }
-    }
-  }
-
   void _fft2cub(Real * out) const
   {
     #pragma omp parallel for
