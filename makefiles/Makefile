@@ -1,7 +1,7 @@
 #CC ?= g++
 CC ?= mpic++
 NVCC?=nvcc
-NVFLAGS?=-O3 -code=sm_60 -arch=compute_60
+NVFLAGS?=-O3 -std=c++11 -code=sm_60 -arch=compute_60
 LD=$(CC)
 
 # this only affects amount of memory allocated by block processing:
@@ -59,7 +59,7 @@ CPPFLAGS+= -Wno-unused-parameter # does not make much sense with function overlo
 
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_FLOAT_PRECISION_
-	NVCCFLAGS += -D_FLOAT_PRECISION_
+	NVFLAGS += -D_FLOAT_PRECISION_
 endif
 
 ifeq "$(precision_dump)" "double"
@@ -200,9 +200,9 @@ OBJECTS =  IF3D_ObstacleFactory.o \
            IF3D_DCylinderObstacleOperator.o
 
 ifeq "$(accfft)" "true"
-	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -D_CUDA_COMP_
+	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -D_CUDA_COMP_ -Wno-float-equal
 	LIBS += -L$(accfft-lib) -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu -lcufft
-	NVOBJECTS = PoissonSolverScalarFFTW_ACC.o
+	NVOBJECTS = PoissonSolverScalarACC.o
 else
 	NVOBJECTS =
 	LIBS += $(FFTW_LIBS)
@@ -238,13 +238,13 @@ librl: $(LIBRLOBJ) $(NVOBJECTS)
 %.o: %.cpp
 	$(CC) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 
-PoissonSolverScalarFFTW_ACC.o: PoissonSolverScalarFFTW_ACC.cu
+PoissonSolverScalarACC.o: PoissonSolverScalarACC.cu
 	nvcc $(NVFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(EXEOBJ) $(LIBOBJ)
 	rm -f $(DEPS)
-	rm -f ../bin/simulation Communicator.o ../lib/libcubismup3d.a PoissonSolverScalarFFTW*.o
+	rm -f ../bin/simulation Communicator.o ../lib/libcubismup3d.a PoissonSolverScalar*.o
 	rmdir ../bin 2> /dev/null || true
 	rmdir ../lib 2> /dev/null || true
 
