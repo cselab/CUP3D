@@ -115,7 +115,7 @@ The default compiler `clang` on Mac does not support OpenMP. It is therefore nec
 mkdir -p build
 cd build
 CC=gcc-7 CXX=g++-7 cmake ..
-OMPI_CC=gcc-7 MPICH_CC=gcc-7 OMPI_CX=g++-7 MPICH_CXX=g++-7 make
+OMPI_CC=gcc-7 MPICH_CC=gcc-7 OMPI_CXX=g++-7 MPICH_CXX=g++-7 make
 ```
 
 ### Troubleshooting

@@ -49,7 +49,6 @@ set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/IF3D_PlateObstacleOperator.cpp
     ${ROOT_FOLDER}/source/IF3D_SphereObstacleOperator.cpp
     ${ROOT_FOLDER}/source/IF3D_StefanFishOperator.cpp
-    ${ROOT_FOLDER}/source/IF3D_VortexOperator.cpp
     ${ROOT_FOLDER}/source/Simulation.cpp
 )
 
