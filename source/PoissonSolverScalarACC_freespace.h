@@ -9,33 +9,22 @@
 #pragma once
 
 #include "Definitions.h"
-#include "accfft_utils.h"
-#include "accfft_common.h"
+typedef Real myCmpl[2];
 
-#include <cuda_runtime_api.h>
-#ifndef _FLOAT_PRECISION_
-  #include "accfft_gpu.h"
-  typedef accfft_plan_gpu myplan;
-  typedef Complex myComplex;
-  #define accfft_local_size accfft_local_size_dft_r2c_gpu
-  #define accfft_plan_dft accfft_plan_dft_3d_r2c_gpu
-  #define accfft_clean accfft_cleanup_gpu
-
-#else
-  #include "accfft_gpuf.h"
-  typedef accfft_plan_gpuf myplan;
-  typedef Complexf myComplex;
-  #define accfft_local_size accfft_local_size_dft_r2c_gpuf
-  #define accfft_plan_dft accfft_plan_dft_3d_r2c_gpuf
-  #define accfft_clean accfft_cleanup_gpuf
-#endif
-
-using namespace std;
-
-#ifdef _CUDA_COMP_
-void _fourier_filter_gpu(myComplex*const __restrict__ data_hat, const int N[3],
-  const int isize[3], const int istart[3], const double h);
-#endif
+/******************************************************************************/
+void initGreen(const int nx, const int ny, const int nz, const Real h, Real*const m_kernel, const MPI_Comm comm);
+void dSolveFreespace(void*const P, const int nx,const int ny,const int nz,
+  const int locx,const int locy,const int locz, const MPI_Comm comm,
+  const int ox,const int oy,const int oz, const Real*const G_hat,
+  Real*const cub_rhs, Real*const fft_rhs, Real*const gpu_rhs, myCmpl*const phi);
+MPI_Comm my_accfft_create_comm(MPI_Comm C, int c_dims[2]);
+Real* my_cudaMalloc(const size_t size);
+void my_cudaFree(Real* const ptr);
+void my_accfft_cleanup(void* const plan);
+size_t my_accfft_local_size(int M[3], int isz[3], int ist[3], int osz[3],
+  int ost[3], MPI_Comm c_comm);
+void* my_accfft_plan_dft(int M[3], Real* gpurhs, MPI_Comm c_comm);
+void my_cudaMemset_zero(Real* const ptr, const size_t size);
 
 template<typename TGrid, typename TStreamer>
 class PoissonSolverScalarFFTW_ACC
@@ -50,58 +39,72 @@ class PoissonSolverScalarFFTW_ACC
   const int totbpd[3] = { grid.getBlocksPerDimension(0),
                           grid.getBlocksPerDimension(1),
                           grid.getBlocksPerDimension(2) };
-  const size_t myN[3] = { mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
+
+  const size_t myN[3] = {
+    static_cast<size_t>(mybpd[0]*bs[0]),
+    static_cast<size_t>(mybpd[1]*bs[1]),
+    static_cast<size_t>(mybpd[2]*bs[2])
+  };
   const int totN[3] = { totbpd[0]*bs[0], totbpd[1]*bs[1], totbpd[2]*bs[2] };
-  int nprocs, procid, isz[3], osz[3], ist[3], ost[3], alloc_max;
+  const int nprocs = getSize( grid.getCartComm() );
+  const int procid = getRank( grid.getCartComm() );
+
+  int isz[3]={0,0,0}, osz[3]={0,0,0}, ist[3]={0,0,0}, ost[3]={0,0,0};
+
   const vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
   const size_t N = local_infos.size();
+
   const int mx = 2 * totN[0] - 1, my = 2 * totN[1] - 1, mz = 2 * totN[2] - 1;
-  const int myftNx = (mx+1)/mpisize, mz_pad = (mz/2 +1)*2;
-  MPI_Comm c_comm;
-  Real * gpuGhat = nullptr;
-  Real * cub_rhs = nullptr;
-  Real * fft_rhs = nullptr;
-  Real * gpu_rhs = nullptr;
-  myplan * plan;
+  const int mz_pad = (mz/2 +1)*2, myftNx = (mx+1)/nprocs;
 
+  int c_dims[2] = { nprocs, 1 };
+  MPI_Comm c_comm = my_accfft_create_comm( grid.getCartComm(), c_dims);
 
+  int M[3] = {mx, my, mz};
+  const size_t alloc_max = my_accfft_local_size(M, isz,ist,osz,ost, c_comm);
+  Real * const cub_rhs = (Real*) malloc(myN[0]* myN[1]* myN[2] * sizeof(Real) );
+  Real * const fft_rhs = (Real*) malloc(myftNx*totN[1]*totN[2] * sizeof(Real) );
+  Real * const gpuGhat = my_cudaMalloc(alloc_max / 2);
+  Real * const gpu_rhs = my_cudaMalloc( isz[0]*isz[1]*isz[2]*sizeof(Real) );
+  myCmpl * const gpu_phi = my_cudaMalloc(alloc_max);
+  void * const plan = my_accfft_plan_dft(M, gpu_rhs, c_comm);
+
+  static int getSize(MPI_Comm comm) {
+    int ret; MPI_Comm_size(comm, &ret); return ret;
+  }
+  static int getRank(MPI_Comm comm) {
+    int ret; MPI_Comm_rank(comm, &ret); return ret;
+  }
 public:
-  PoissonSolverScalarFFTW_ACC(TGrid& g) : grid(g)
-  {
-    MPI_Comm_rank(grid.getCartComm(), &procid);
-    MPI_Comm_size(grid.getCartComm(), &nprocs);
-    int c_dims[2] = { nprocs, 1 };
-    accfft_create_comm( grid.getCartComm(), c_dims, &c_comm);
-    int M[3] = {mx, my, mz};
-    alloc_max = accfft_local_size(M, isz,ist,osz,ost, c_comm);
-
-    printf("[mpi rank %d] isize  %3d %3d %3d osize  %3d %3d %3d\n", procid,
+  PoissonSolverScalarFFTW_ACC(TGrid& g) : grid(g) {
+   printf("[mpi rank %d] isize  %3d %3d %3d osize  %3d %3d %3d\n", procid,
         isz[0],isz[1],isz[2], osz[0],osz[1],osz[2] );
-    printf("[mpi rank %d] istart %3d %3d %3d ostart %3d %3d %3d\n", procid,
+   printf("[mpi rank %d] istart %3d %3d %3d ostart %3d %3d %3d\n", procid,
         ist[0],ist[1],ist[2], ost[0],ost[1],ost[2] );
-    assert(isize[0]==(int)myN[0]&&isize[1]==(int)myN[1]&&isize[2]==(int)myN[2]);
-    cub_rhs = (Real*)malloc(myN[0] *  myN[1] *  myN[2] * sizeof(Real) );
-    fft_rhs = (Real*)malloc(myftNx * totN[1] * totN[2] * sizeof(Real) );
-    cudaMalloc((void**) &gpu_rhs, alloc_max);
-    cudaMalloc((void**) &gpuGhat, alloc_max / 2);
-
-    plan = accfft_plan_dft(M, gpu_rhs, gpu_rhs, c_comm, ACCFFT_MEASURE);
-    initGreen(totN[0],totN[1],totN[2], local_infos[0].h_gridpoint, gpuGhat);
+   initGreen(totN[0],totN[1],totN[2],local_infos[0].h_gridpoint,gpuGhat,c_comm);
+   if(procid<nprocs/2) {
+     assert(isz[0]==myftNx);
+     assert(isz[1]==totN[1]);
+     assert(isz[2]==totN[2]);
+   }
   }
 
   void solve() {
-    _fft2cub(rho);
-    dSolveFreespace(*plan, totN[0],totN[1],totN[2], osz[0],osz[1],osz[2],
-      gpuGhat, cub_rhs, fft_rhs, gpu_rhs);
+    const MPI_Comm cart_comm = grid.getCartComm();
+    memset(fft_rhs, 0, myftNx*totN[1]*totN[2] * sizeof(Real) );
+    my_cudaMemset_zero(gpu_rhs, alloc_max);
+    dSolveFreespace(plan, totN[0],totN[1],totN[2], myN[0],myN[1],myN[2],
+     cart_comm, osz[0],osz[1],osz[2], gpuGhat,cub_rhs,fft_rhs, gpu_rhs,gpu_phi);
+
+    _fft2cub();
   }
 
   ~PoissonSolverScalarFFTW_ACC() {
     free(cub_rhs);
     free(fft_rhs);
-    cudaFree(gpu_rhs);
-    cudaFree(gpuGhat);
-    accfft_destroy_plan_gpu(plan);
-    accfft_clean();
+    my_cudaFree(gpu_rhs);
+    my_cudaFree(gpuGhat);
+    my_accfft_cleanup(plan);
     MPI_Comm_free(&c_comm);
   }
 
@@ -132,11 +135,11 @@ public:
   inline void _cub2fftw(const size_t offset, const int z, const int y, const int x, const Real rhs) const {
     const size_t dest_index = _dest(offset, z, y, x);
     assert(dest_index >= 0 && dest_index < myN[0] * myN[1] * myN[2]);
-    rho[dest_index] = rhs;
+    cub_rhs[dest_index] = rhs;
   }
-  void _fft2cub(Real * out) const {
+  void _fft2cub() const {
     #pragma omp parallel for schedule(static)
-    for(int i=0; i<N; ++i) {
+    for(size_t i=0; i<N; ++i) {
       const BlockInfo info = local_infos[i];
       BlockType& b = *(BlockType*)info.ptrBlock;
       const size_t offset = _offset(info);
@@ -145,7 +148,7 @@ public:
       for(int iz=0; iz<bs[2]; iz++) {
         const size_t src_index = _dest(offset, iz, iy, ix);
         assert(src_index >= 0 && src_index < myN[0] * myN[1] * myN[2]);
-        b(ix,iy,iz).p = out[src_index];
+        b(ix,iy,iz).p = cub_rhs[src_index];
       }
     }
   }

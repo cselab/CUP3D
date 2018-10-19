@@ -623,9 +623,10 @@ class SynchronizerMPI
 		{
 			//Real * ret_val = (Real *)_mm_malloc(NBYTES, ALIGN);
 			Real * ret_val = NULL;
-
-			int error = posix_memalign((void**)&ret_val, std::max(8, ALIGN), NBYTES);
-			(void)error;  // Silent -Wunused-variable.
+                        #ifndef NDEBUG // Silent -Wunused-variable.
+			int error = 
+                        #endif
+                        posix_memalign((void**)&ret_val, std::max(8, ALIGN), NBYTES);
 			assert(error == 0);
 
 			all_mallocs.push_back(ret_val);

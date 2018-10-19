@@ -24,6 +24,9 @@ class BufferedLogger {
     struct Stream {
         std::stringstream stream;
         int requests_since_last_flush = 0;
+        // GN: otherwise icpc complains
+        Stream(const Stream& c) {}
+        Stream() {}
     };
     typedef std::unordered_map<std::string, Stream> container_type;
     container_type files;

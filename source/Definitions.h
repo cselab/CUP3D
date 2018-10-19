@@ -40,7 +40,7 @@ typedef double DumpReal;
 
 //this is all cubism file we need
 #include <ArgumentParser.h>
-#include <AlignedAllocator.h>
+#include "AlignedAllocator.h"
 #include <Grid.h>
 #include <GridMPI.h>
 #include <BlockInfo.h>
@@ -90,10 +90,10 @@ template <typename TElement>
 struct BaseBlock
 {
   //these identifiers are required by cubism!
-  static constexpr int sizeX = _BLOCKSIZEX_;
-  static constexpr int sizeY = _BLOCKSIZEY_;
-  static constexpr int sizeZ = _BLOCKSIZEZ_;
-  static constexpr int sizeArray[3] = {_BLOCKSIZEX_, _BLOCKSIZEY_, _BLOCKSIZEZ_};
+  static constexpr int sizeX = _BS_;
+  static constexpr int sizeY = _BS_;
+  static constexpr int sizeZ = _BS_;
+  static constexpr int sizeArray[3] = {_BS_, _BS_, _BS_};
   typedef TElement ElementType;
   typedef TElement element_type;
   __attribute__((aligned(32))) TElement data[sizeZ][sizeY][sizeX];

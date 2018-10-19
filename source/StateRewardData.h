@@ -362,7 +362,7 @@ struct StateReward
           assert(o->filled);
           double max_pos[3], min_pos[3];
           I.pos(min_pos, 0, 0, 0);
-          I.pos(max_pos, _BLOCKSIZE_-1, _BLOCKSIZE_-1, _BLOCKSIZE_-1);
+          I.pos(max_pos, _BS_-1, _BS_-1, _BS_-1);
           if(zObst-max_pos[2]>h+eps || min_pos[2]-zObst>h+eps) continue;
           if(Y    -max_pos[1]>h+eps || min_pos[1]-Y    >h+eps) continue;
           if(X    -max_pos[0]>h+eps || min_pos[0]-X    >h+eps) continue;

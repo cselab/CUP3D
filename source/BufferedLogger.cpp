@@ -11,7 +11,7 @@
 
 BufferedLogger logger;
 
-static constexpr int AUTO_FLUSH_COUNT = 20;
+static constexpr int AUTO_FLUSH_COUNT = 1000;
 
 void BufferedLogger::flush(BufferedLogger::container_type::iterator it) {
     std::ofstream savestream;

@@ -39,22 +39,25 @@ cat <<EOF >daint_sbatch
 
 #SBATCH --time=${WCLOCK}
 #SBATCH --partition=${PARTITION}
+#SBATCH --constraint=gpu
 
 #SBATCH --nodes=${NNODE}
 #SBATCH --ntasks-per-node=1
-#SBATCH --cpus-per-task=12
-#SBATCH --threads-per-core=1
-#SBATCH --constraint=gpu
-#SBATCH --mail-user=${MYNAME}@ethz.ch
-#SBATCH --mail-type=ALL
-
-module load daint-gpu GSL cray-hdf5-parallel cray-fftw
-module load cudatoolkit/9.0.103_3.7-6.0.4.1_2.1__g72b395b
+# #SBATCH --cpus-per-task=12
+# #SBATCH --threads-per-core=1
+# #SBATCH --mail-user=${MYNAME}@ethz.ch
+# #SBATCH --mail-type=ALL
 
 export MPICH_MAX_THREAD_SAFETY=multiple
+export OMP_PLACES=cores
+export OMP_PROC_BIND=close
 export OMP_NUM_THREADS=12
-srun --ntasks ${NNODE} --threads-per-core=1 --ntasks-per-node=1 --cpus-per-task=12 time ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
+
+srun --ntasks ${NNODE} --ntasks-per-node=1 ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
+
 EOF
 
 chmod 755 daint_sbatch
 sbatch daint_sbatch
+
+#srun --ntasks ${NNODE} --threads-per-core=1 --ntasks-per-node=1 --cpus-per-task=12 time ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")

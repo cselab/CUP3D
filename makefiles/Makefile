@@ -1,5 +1,19 @@
-#CC ?= g++
-CC ?= mpic++
+ifeq ($(INTEL_LICENSE_FILE),)
+compiler ?= gnu
+else
+compiler ?= intel
+endif
+
+ifeq "$(compiler)" "intel"
+CXX ?= icpc
+LD = $(CXX)
+include make.icc.flags
+else
+CXX ?= g++
+LD = $(CXX)
+include make.gcc.flags
+endif
+
 NVCC?=nvcc
 NVFLAGS?=-O3 -std=c++11 -code=sm_60 -arch=compute_60
 LD=$(CC)
@@ -11,12 +25,7 @@ config ?= debug
 precision ?= double
 precision_dump ?= single
 bs ?= 16
-#bs ?= 32
-bsx ?= $(bs)
-bsy ?= $(bs)
-bsz ?= $(bs)
 hdf ?= true
-vtk ?= false
 rk2 ?= false
 accfft ?= false
 zlib ?= 0
@@ -52,10 +61,9 @@ ifeq "$(zlib)" "1"
 	LIBS +=  -lz -lrt -lstdc++
 endif
 
-CPPFLAGS+= -D_ALIGNBYTES_=32 -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align
-CPPFLAGS+= -Wwrite-strings -Wlogical-op -Wmissing-declarations -Wredundant-decls
-CPPFLAGS+= -Wshadow -Woverloaded-virtual -Wuninitialized -pedantic
-CPPFLAGS+= -Wno-unused-parameter # does not make much sense with function overloading
+ifeq "$(rk2)" "true"
+	CPPFLAGS += -D_RK2_
+endif
 
 ifeq "$(precision)" "single"
 	CPPFLAGS += -D_FLOAT_PRECISION_
@@ -66,28 +74,11 @@ ifeq "$(precision_dump)" "double"
 	CPPFLAGS += -D_HDF5_DOUBLE_PRECISION_
 endif
 
-CPPFLAGS += -D_BLOCKSIZE_=$(bs)
-CPPFLAGS += -D_BS_=$(bs)
-CPPFLAGS += -D_BLOCKSIZEX_=$(bsx)
-CPPFLAGS += -D_BLOCKSIZEY_=$(bsy)
-CPPFLAGS += -D_BLOCKSIZEZ_=$(bsz)
+CPPFLAGS += -D_ALIGNBYTES_=32
+CPPFLAGS += -DNTHREADS=$(nthreads)
+CPPFLAGS += -D_BS_=$(bs) -D_BLOCKSIZE_=$(bs) -D_BLOCKSIZEX_=$(bs) -D_BLOCKSIZEY_=$(bs) -D_BLOCKSIZEZ_=$(bs)
+
 CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
-
-ifeq "$(config)" "prod"
-	#CPPFLAGS += -DNDEBUG -O2 -fstrict-aliasing -march=core-avx2 -mtune=core-avx2 -ffast-math -falign-functions=32
-	CPPFLAGS += -DNDEBUG -O2 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions=32
-	#CPPFLAGS += -DNDEBUG -O2 -fstrict-aliasing -ffast-math #-falign-functions=32
-else
-	CPPFLAGS += -g -O0
-	#CPPFLAGS += -Wl,-u,PMI_Init
-	#RED='\033[0;31m'
-	#NC='\033[0m' # No Color
-$(info *** WARNING! Compiling with debug flags. Use config=prod for optimized code ***)
-endif
-
-ifeq "$(rk2)" "true"
-	CPPFLAGS += -D_RK2_
-endif
 
 # needed in order to compile on nodes
 # include make.daint
@@ -98,8 +89,10 @@ LD=mpic++
 accfft=false
 endif
 
+ifneq "$(findstring nid,$(shell hostname))" ""
+	include make.daint
+endif
 ifneq "$(findstring daint,$(shell hostname))" ""
-	#include make.daint_mpich
 	include make.daint
 endif
 
@@ -114,36 +107,10 @@ ifneq "$(findstring eu-,$(shell hostname))" ""
 	include make.euler
 endif
 
-CPPFLAGS += -std=c++11 -fopenmp
-#NVFLAGS += -std=c++11
-CPPFLAGS += -DNTHREADS=$(nthreads)
 CPPFLAGS += -I../source/ -I../Cubism/source
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
-
-ifeq "$(vtk)" "true"
-CPPFLAGS += -D_VTK_ -I$(vtk-inc)
-LIBS +=	-L$(vtk-lib) \
-	-lvtkHybrid \
-	-lvtkVolumeRendering \
-	-lvtkRendering \
-	-lvtkIO \
-	-lvtkGenericFiltering \
-	-lvtkGraphics \
-	-lvtkImaging \
-	-lvtkFiltering \
-	-lvtkCommon \
-	-lvtkftgl \
-	-lvtkfreetype \
-	-lvtkDICOMParser \
-	-lvtkexpat \
-	-lvtktiff \
-	-lvtkpng \
-	-lvtkjpeg \
-	-lvtkzlib \
-	-lvtksys
-endif
 
 ifeq "$(hdf)" "true"
 CPPFLAGS+= -D_USE_HDF_ #-I$(hdf-inc)
@@ -177,30 +144,31 @@ endif
 
 #LIBS += -L../tools/fpzip/lib -lfpzip
 
-LIBS += -lstdc++ -lgsl -lgslcblas -lm -ldl -lz -lpthread
+LIBS += -lstdc++ -lgsl -lgslcblas
 
 BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
 CUBISM_DIR = $(BUILDDIR)/../Cubism/
 
 OBJECTS =  IF3D_ObstacleFactory.o \
-           IF3D_ObstacleOperator.o \
-           IF3D_FishLibrary.o \
-           IF3D_ObstacleVector.o \
-           IF3D_StefanFishOperator.o \
-           IF3D_FishOperator.o \
-           IF3D_SphereObstacleOperator.o \
-           IF3D_PlateObstacleOperator.o \
-           IF3D_ExternalObstacleOperator.o \
-           IF3D_ElasticFishOperator.o \
-           Simulation.o \
-           IF3D_NacaOperator.o \
-           BufferedLogger.o \
-		   IF3D_CarlingFishOperator.o \
-           IF3D_DCylinderObstacleOperator.o
+	IF3D_ObstacleOperator.o \
+	IF3D_FishLibrary.o \
+	IF3D_ObstacleVector.o \
+	IF3D_StefanFishOperator.o \
+	IF3D_FishOperator.o \
+	IF3D_SphereObstacleOperator.o \
+	IF3D_PlateObstacleOperator.o \
+	IF3D_ExternalObstacleOperator.o \
+	Simulation.o \
+	IF3D_NacaOperator.o \
+	BufferedLogger.o \
+	IF3D_CarlingFishOperator.o \
+	IF3D_DCylinderObstacleOperator.o
+	#IF3D_ElasticFishOperator.o \
 
 ifeq "$(accfft)" "true"
 	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -D_CUDA_COMP_ -Wno-float-equal
+	NVFLAGS += -I$(accfft-inc) -I$(MPICH_DIR)/include/
 	LIBS += -L$(accfft-lib) -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu -lcufft
 	NVOBJECTS = PoissonSolverScalarACC.o
 else
