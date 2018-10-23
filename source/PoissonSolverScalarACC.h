@@ -151,11 +151,11 @@ public:
       static_cast<int>(totbpd[1]*bs[1]),
       static_cast<int>(totbpd[2]*bs[2])
     };
-    int loc[3] = {
-      static_cast<int>(mybpd[0]*bs[0]),
-      static_cast<int>(mybpd[1]*bs[1]),
-      static_cast<int>(mybpd[2]*bs[2])
-    };
+    //int loc[3] = {
+    //  static_cast<int>(mybpd[0]*bs[0]),
+    //  static_cast<int>(mybpd[1]*bs[1]),
+    //  static_cast<int>(mybpd[2]*bs[2])
+    //};
     int c_dims[2] = {
       static_cast<int>(totbpd[0]/mybpd[0]), static_cast<int>(totbpd[1]/mybpd[1])
     };

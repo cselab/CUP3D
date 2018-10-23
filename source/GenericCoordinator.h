@@ -45,17 +45,14 @@ protected:
     #endif
   }
 
-  template <typename Kernel, bool skipBorder = false>
+  template <typename Kernel>
   void compute(const vector<Kernel*>& kernels)
   {
     SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
-    const int NX = grid->getBlocksPerDimension(0);
-    const int NY = grid->getBlocksPerDimension(1);
-    const int NZ = grid->getBlocksPerDimension(2);
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
-    for(int i = 0; i < nthreads; ++i)
-      labs[i].prepare(*grid, Synch);
+    #pragma omp parallel for schedule(static, 1)
+    for(int i = 0; i < nthreads; ++i)  labs[i].prepare(*grid, Synch);
 
     int rank;
     MPI_Comm_rank(grid->getCartComm(), &rank);
@@ -69,14 +66,9 @@ protected:
       Kernel& kernel=*(kernels[tid]);
       LabMPI& lab = labs[tid];
 
-      #pragma omp for schedule(dynamic,1)
+      #pragma omp for schedule(static)
       for(int i=0; i<Ninner; i++) {
-        BlockInfo I = avail0[i];
-        if(skipBorder&& bSkip(NX, NY, NZ, I.index[0], I.index[1], I.index[2])){
-          //printf("rank %d skipping inner %d %d %d %d %d %d\n", rank, I.index[0], I.index[1], I.index[2], NX, NY, NZ);
-          continue;
-        }
-
+        const BlockInfo& I = avail0[i];
         FluidBlock& b = *(FluidBlock*)I.ptrBlock;
         lab.load(I, 0);
         kernel(lab, I, b);
@@ -92,14 +84,9 @@ protected:
       Kernel& kernel=*(kernels[tid]);
       LabMPI& lab = labs[tid];
 
-      #pragma omp for schedule(dynamic,1)
+      #pragma omp for schedule(static)
       for(int i=0; i<Nhalo; i++) {
-        BlockInfo I = avail1[i];
-        if(skipBorder&& bSkip(NX, NY, NZ, I.index[0], I.index[1], I.index[2])){
-          //printf("rank %d skipping inner %d %d %d %d %d %d\n", rank, I.index[0], I.index[1], I.index[2], NX, NY, NZ);
-          continue;
-        }
-
+        const BlockInfo& I = avail1[i];
         FluidBlock& b = *(FluidBlock*)I.ptrBlock;
         lab.load(I, 0);
         kernel(lab, I, b);
@@ -120,8 +107,8 @@ protected:
     SynchronizerMPI& Synch = grid->sync(kernel);
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
-    for(int i = 0; i < nthreads; ++i)
-      labs[i].prepare(*grid, Synch);
+    #pragma omp parallel for schedule(static, 1)
+    for(int i = 0; i < nthreads; ++i)  labs[i].prepare(*grid, Synch);
 
     int rank;
     MPI_Comm_rank(grid->getCartComm(), &rank);
@@ -134,7 +121,7 @@ protected:
       int tid = omp_get_thread_num();
       LabMPI& lab = labs[tid];
 
-      #pragma omp for schedule(dynamic,1)
+      #pragma omp for schedule(static)
       for(int i=0; i<Ninner; i++) {
         BlockInfo I = avail0[i];
         FluidBlock& b = *(FluidBlock*)I.ptrBlock;
@@ -151,7 +138,7 @@ protected:
       int tid = omp_get_thread_num();
       LabMPI& lab = labs[tid];
 
-      #pragma omp for schedule(dynamic,1)
+      #pragma omp for schedule(static)
       for(int i=0; i<Nhalo; i++) {
         BlockInfo I = avail1[i];
         FluidBlock& b = *(FluidBlock*)I.ptrBlock;
@@ -166,16 +153,6 @@ protected:
     }
 
     MPI_Barrier(grid->getCartComm());
-  }
-
-  static inline bool bSkip(const int nx, const int ny, const int nz, const int ix, const int iy, const int iz)
-  {
-    if(nx-1 == ix || 0 == ix) return true;
-    if(ny-1 == iy || 0 == iy) return true;
-    #ifndef BC_PERIODICZ
-    if(nz-1 == iz || 0 == iz) return true;
-    #endif
-    return false;
   }
 
 public:

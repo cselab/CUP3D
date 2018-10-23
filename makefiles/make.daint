@@ -1,9 +1,18 @@
 CC=CC
 LD=CC
-accfft-inc = /users/novatig/accfft/build/include/
-accfft-lib = /users/novatig/accfft/build/lib/
+
+#ACCFFTDIR=/users/novatig/accfft/build_gnu
+ACCFFTDIR=/users/novatig/accfft/build_gnu_perf
+accfft-inc = $(ACCFFTDIR)/include/
+accfft-lib = $(ACCFFTDIR)/lib/
 accfft?=true
+
+ifeq ($(INTEL_LICENSE_FILE),)
+CPPFLAGS += -dynamic
+else
+CPPFLAGS += -static
+endif
 
 LIBS += $(CRAY_CUDATOOLKIT_POST_LINK_OPTS) 
 
-CPPFLAGS += -dynamic -DDUMPGRID
+CPPFLAGS += -DDUMPGRID

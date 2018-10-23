@@ -241,20 +241,16 @@ class CoordinatorPressure : public GenericCoordinator
     check("pressure - start");
     const int nthreads = omp_get_max_threads();
 
-    #pragma omp parallel
-    {
-      const int N = vInfo.size();
-      #pragma omp for schedule(static)
-      for(int i=0; i<N; i++) {
-        BlockInfo info = vInfo[i];
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-          b(ix,iy,iz).tmpU = 0;
-          b(ix,iy,iz).tmpV = 0;
-          b(ix,iy,iz).tmpW = 0; //zero fields, going to contain Udef
-        }
+    #pragma omp parallel for schedule(static)
+    for(unsigned i=0; i<vInfo.size(); i++) {
+      const BlockInfo& info = vInfo[i];
+      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+        b(ix,iy,iz).tmpU = 0;
+        b(ix,iy,iz).tmpV = 0;
+        b(ix,iy,iz).tmpW = 0; //zero fields, going to contain Udef
       }
     }
 
@@ -272,6 +268,7 @@ class CoordinatorPressure : public GenericCoordinator
     {   //place onto p: ( div u^(t+1) - div u^* ) / dt
       //where i want div u^(t+1) to be equal to div udef
       vector<OperatorDivergenceMinusDivTmpU*> diff(nthreads, nullptr);
+      #pragma omp parallel for schedule(static, 1)
       for(int i=0;i<nthreads;++i)
         diff[i] = new OperatorDivergenceMinusDivTmpU(dt, &pressureSolver);
 
@@ -283,6 +280,7 @@ class CoordinatorPressure : public GenericCoordinator
 
     { //pressure correction dudt* = - grad P / rho
       vector<OperatorGradP*> diff(nthreads, nullptr);
+      #pragma omp parallel for schedule(static, 1)
       for(int i=0;i<nthreads;++i) diff[i] = new OperatorGradP(dt, ext);
 
       compute<OperatorGradP>(diff);

@@ -13,17 +13,7 @@
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
 
-#include "CoordinatorIC.h"
-//#include "CoordinatorVorticity.h"
-#include "CoordinatorAdvection.h"
-#include "CoordinatorDiffusion.h"
-#include "CoordinatorPenalization.h"
-#include "CoordinatorComputeShape.h"
-#include "CoordinatorPressure.h"
-#include "CoordinatorFadeOut.h"
-#include "CoordinatorComputeDissipation.h"
 #include "IF3D_ObstacleVector.h"
-#include "IF3D_ObstacleFactory.h"
 
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"

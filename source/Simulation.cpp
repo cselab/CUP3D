@@ -9,6 +9,19 @@
 #include "Simulation.h"
 #include <HDF5Dumper_MPI.h>
 #include "ProcessOperatorsOMP.h"
+
+#include "CoordinatorIC.h"
+//#include "CoordinatorVorticity.h"
+#include "CoordinatorAdvection.h"
+#include "CoordinatorDiffusion.h"
+#include "CoordinatorAdvectDiffuse.h"
+#include "CoordinatorPenalization.h"
+#include "CoordinatorComputeShape.h"
+#include "CoordinatorPressure.h"
+#include "CoordinatorFadeOut.h"
+#include "CoordinatorComputeDissipation.h"
+#include "IF3D_ObstacleFactory.h"
+
 #include <chrono>
 
 void Simulation::_ic()
@@ -135,16 +148,20 @@ void Simulation::setupOperators()
   pipeline.push_back(new CoordinatorComputeShape(grid, &obstacle_vector, &step, &time, uinf));
   pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
   pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
+
   // For correct behavior Advection must always precede Diffusion!
-  pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
-  pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
+  // pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
+  // pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
+  pipeline.push_back(new CoordinatorAdvectDiffuse<LabMPI>(nu, uinf, grid));
+
   pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
   pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
   if(parser("-compute-dissipation").asInt(0))
     pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
 
   #ifndef _UNBOUNDED_FFT_
-    pipeline.push_back(new CoordinatorFadeOut(grid));
+    const Real fade_len = parser("-fade_len").asDouble(.005);
+    pipeline.push_back(new CoordinatorFadeOut(grid, fade_len));
   #endif /* _UNBOUNDED_FFT_ */
 
   if(rank==0) {
@@ -403,7 +420,10 @@ bool Simulation::timestep(const double dt)
     _serialize();
     profiler.pop_stop();
 
-    if (step % 50 == 0 && !rank && verbose) profiler.printSummary();
+    if (step % 10 == 0 && !rank && verbose) {
+      profiler.printSummary();
+      profiler.reset();
+    }
     if ((endTime>0 && time>endTime) || (nsteps!=0 && step>=nsteps))
     {
       if(rank==0)

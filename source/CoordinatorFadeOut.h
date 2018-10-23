@@ -16,7 +16,7 @@ class OperatorFadeOut : public GenericOperator
 {
 private:
   const Real extent[3];
-  const int buffer;
+  const Real buffer;
 
   inline bool _is_touching(const BlockInfo& info, const Real h) const
   {
@@ -27,23 +27,23 @@ private:
       const bool touchF = false;
       const bool touchB = false;
     #else
-      const bool touchF = (1+buffer)*h >= extent[2] - max_pos[2];
-      const bool touchB = (1+buffer)*h >= min_pos[2];
+      const bool touchF = h + buffer >= extent[2] - max_pos[2];
+      const bool touchB = h + buffer >= min_pos[2];
     #endif
-    const bool touchE = (1+buffer)*h >= extent[0] - max_pos[0];
-    const bool touchW = (1+buffer)*h >= min_pos[0];
+    const bool touchE = h + buffer >= extent[0] - max_pos[0];
+    const bool touchW = h + buffer >= min_pos[0];
 
-    const bool touchS = (1+buffer)*h >= min_pos[1];
-    const bool touchN = (1+buffer)*h >= extent[1] - max_pos[1];
+    const bool touchS = h + buffer >= min_pos[1];
+    const bool touchN = h + buffer >= extent[1] - max_pos[1];
     return touchN || touchE || touchS || touchW || touchF || touchB;
   }
 
 public:
-  OperatorFadeOut(const int buf, const Real ext[3]): extent{ext[0],ext[1],ext[2]},buffer(buf){}
+  OperatorFadeOut(const Real buf, const Real ext[3]): extent{ext[0],ext[1],ext[2]},buffer(buf){}
 
   void operator()(const BlockInfo& info, FluidBlock& b) const
   {
-    const Real h = info.h_gridpoint, iWidth = 1/(buffer*h);
+    const Real h = info.h_gridpoint, iWidth = 1/buffer;
     if(_is_touching(info,h))
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -53,14 +53,14 @@ public:
       #ifdef BC_PERIODICZ
         const Real dzt = 0, dzb = 0;
       #else
-        const Real dzt = std::max(Real(0), (1+buffer)*h -(extent[2]-p[2]) );
-        const Real dzb = std::max(Real(0), (1+buffer)*h -p[2] );
+        const Real dzt = std::max(Real(0), h+buffer -(extent[2]-p[2]) );
+        const Real dzb = std::max(Real(0), h+buffer -p[2] );
       #endif
-      const Real dxt = std::max(Real(0), (1+buffer)*h -(extent[0]-p[0]) );
-      const Real dyt = std::max(Real(0), (1+buffer)*h -(extent[1]-p[1]) );
-      const Real dxb = std::max(Real(0), (1+buffer)*h -p[0] );
-      const Real dyb = std::max(Real(0), (1+buffer)*h -p[1] );
-      // max distance in killing zone 0 <= out <= (1+buffer)*h
+      const Real dxt = std::max(Real(0), h+buffer -(extent[0]-p[0]) );
+      const Real dyt = std::max(Real(0), h+buffer -(extent[1]-p[1]) );
+      const Real dxb = std::max(Real(0), h+buffer -p[0] );
+      const Real dyb = std::max(Real(0), h+buffer -p[1] );
+      // max distance in killing zone 0 <= out <= h+buffer
       const Real out = max(max(max(dxt,dxb), max(dyt,dyb)), max(dzt,dzb));
       // 1 at buffer start, 0 at buffer end (2 grid points before border)
       const Real fade = std::max(Real(0), std::cos(Real(.5*M_PI*out*iWidth)));
@@ -76,9 +76,9 @@ public:
 class CoordinatorFadeOut : public GenericCoordinator
 {
 protected:
-  const int buffer;
+  const Real buffer;
 public:
-    CoordinatorFadeOut(FluidGridMPI * g, const int _buffer=3)
+    CoordinatorFadeOut(FluidGridMPI * g, const Real _buffer = 0)
   : GenericCoordinator(g), buffer(_buffer)
   { }
 
@@ -93,9 +93,10 @@ public:
         h*grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
         h*grid->getBlocksPerDimension(2)*FluidBlock::sizeZ
     };
+    const Real B = std::max(3 * h, buffer);
     #pragma omp parallel
     {
-      OperatorFadeOut kernel(buffer,ext);
+      OperatorFadeOut kernel(B, ext);
       #pragma omp for schedule(static)
       for (int i=0; i<N; i++) {
         BlockInfo info = vInfo[i];

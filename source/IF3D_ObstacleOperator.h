@@ -95,7 +95,6 @@ public:
 
   void updateSRextents()
   {
-    #ifdef RL_LAYER
     const double extent = 1;//grid->maxextent;
     const double NFE[3] = {
         (double)grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
@@ -104,11 +103,14 @@ public:
     };
     const double maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
     const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
-    sr.ext_X = ext_X = scale[0]*extent;
-    sr.ext_Y = ext_Y = scale[1]*extent;
-    sr.ext_Z = ext_Z = scale[2]*extent;
-    if(!rank)
-    printf("Got sim extents %g %g %g\n", sr.ext_X, sr.ext_Y, sr.ext_Z);
+    ext_X = scale[0]*extent;
+    ext_Y = scale[1]*extent;
+    ext_Z = scale[2]*extent;
+    if(!rank) printf("Got sim extents %g %g %g\n", ext_X, ext_Y, ext_Z);
+    #ifdef RL_LAYER
+      sr.ext_X = ext_X;
+      sr.ext_Y = ext_Y;
+      sr.ext_Z = ext_Z;
     #endif
   }
 
@@ -172,8 +174,8 @@ public:
 
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
-    for(int i = 0; i < nthreads; ++i)
-      labs[i].prepare(*grid, Synch);
+    #pragma omp parallel for schedule(static, 1)
+    for(int i = 0; i < nthreads; ++i)  labs[i].prepare(*grid, Synch);
 
     MPI_Barrier(grid->getCartComm());
     vector<BlockInfo> avail0 = Synch.avail_inner();
@@ -185,7 +187,7 @@ public:
       Kernel& kernel=*(kernels[tid]);
       LabMPI& lab = labs[tid];
 
-      #pragma omp for schedule(dynamic,1)
+      #pragma omp for schedule(dynamic, 1)
       for(int i=0; i<Ninner; i++)
       {
         BlockInfo info = avail0[i];
@@ -208,7 +210,7 @@ public:
       Kernel& kernel=*(kernels[tid]);
       LabMPI& lab = labs[tid];
 
-      #pragma omp for schedule(dynamic,1)
+      #pragma omp for schedule(dynamic, 1)
       for(int i=0; i<Nhalo; i++)
       {
         BlockInfo info = avail1[i];

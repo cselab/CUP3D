@@ -20,8 +20,8 @@ void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 
   const int nthreads = omp_get_max_threads();
   LabMPI * labs = new LabMPI[nthreads];
-  for(int i = 0; i < nthreads; ++i)
-    labs[i].prepare(grid, Synch);
+  #pragma omp parallel for schedule(static, 1)
+  for(int i = 0; i < nthreads; ++i)  labs[i].prepare(grid, Synch);
 
   MPI_Barrier(grid.getCartComm());
   vector<BlockInfo> avail0 = Synch.avail_inner();
@@ -32,7 +32,7 @@ void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
     int tid = omp_get_thread_num();
     LabMPI& lab = labs[tid];
 
-    #pragma omp for schedule(dynamic,1)
+    #pragma omp for schedule(static)
     for(int i=0; i<Ninner; i++) {
       BlockInfo info = avail0[i];
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;
@@ -49,7 +49,7 @@ void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
     int tid = omp_get_thread_num();
     LabMPI& lab = labs[tid];
 
-    #pragma omp for schedule(dynamic,1)
+    #pragma omp for schedule(static)
     for(int i=0; i<Nhalo; i++) {
         BlockInfo info = avail1[i];
         FluidBlock& b = *(FluidBlock*)info.ptrBlock;
