@@ -26,6 +26,10 @@ using namespace std;
 #include <mpi.h>
 #include <omp.h>
 
+#ifdef _ACCFFT_
+#undef _UNBOUNDED_FFT_
+#endif
+
 #ifndef _FLOAT_PRECISION_
 typedef double Real;
 #else // _FLOAT_PRECISION_
@@ -37,6 +41,11 @@ typedef float DumpReal;
 #else
 typedef double DumpReal;
 #endif
+
+#define _BLOCKSIZEX_ _BS_
+#define _BLOCKSIZEY_ _BS_
+#define _BLOCKSIZEZ_ _BS_
+#define _BLOCKSIZE_ _BS_
 
 //this is all cubism file we need
 #include <ArgumentParser.h>
@@ -248,7 +257,6 @@ class BlockLabOpen: public BlockLab<BlockType,allocator>
       bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
 
     if (info.index[0]==0)           bc.template applyBC_absorbing<0,0>();
-    //if (info.index[0]==0)           bc.template applyBC_dirichlet_inflow<0,0>();
     if (info.index[0]==this->NX-1)  bc.template applyBC_absorbing<0,1>();
     if (info.index[1]==0)           bc.template applyBC_absorbing<1,0>();
     if (info.index[1]==this->NY-1)  bc.template applyBC_absorbing<1,1>();
@@ -273,7 +281,6 @@ class BlockLabPeriodicZ : public BlockLab<BlockType,allocator>
       bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
 
     if (info.index[0]==0)           bc.template applyBC_absorbing<0,0>();
-    //if (info.index[0]==0)           bc.template applyBC_dirichlet_inflow<0,0>();
     if (info.index[0]==this->NX-1)  bc.template applyBC_absorbing<0,1>();
     if (info.index[1]==0)           bc.template applyBC_absorbing<1,0>();
     if (info.index[1]==this->NY-1)  bc.template applyBC_absorbing<1,1>();
@@ -300,12 +307,5 @@ typedef GridMPI<FluidGrid> FluidGridMPI;
 
 typedef BlockLabMPI<Lab> LabMPI;
 
-//#ifdef _VORTEX_
-//typedef BlockLabVortex<FluidBlock, std::allocator> Lab;
-//#endif // _VORTEX_
-
-//#ifdef _PIPE_
-//typedef BlockLabPipe<FluidBlock, std::allocator> Lab;
-//#endif // _PIPE_
 
 #endif

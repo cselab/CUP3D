@@ -65,10 +65,8 @@ class CarlingFishMidlineData : public FishMidlineData
 
  public:
   // L=length, T=period, phi=phase shift, _h=grid size, A=amplitude modulation
-  CarlingFishMidlineData(double L, double T, double phi, double _h, double A)
-   : FishMidlineData(L, T, phi, _h, A),
-    carlingAmp(0.1212121212121212*A), quadraticFactor(0.1*A)
-    // _ampFac=0.0 for towed fish
+  CarlingFishMidlineData(double L, double T, double phi, double _h, double A) :
+  FishMidlineData(L,T,phi,_h,A),carlingAmp(.1212121212*A),quadraticFactor(.1*A)
   {
     // FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
     //printf("Overwriting default tail-fin size for Plain Carling:\n");
@@ -163,6 +161,7 @@ void CarlingFishMidlineData::_computeMidlineVelocities(const Real t)
 IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   ArgumentParser&p, const Real*const u) : IF3D_FishOperator(g, p, u)
 {
+  // _ampFac=0.0 for towed fish :
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   const bool bQuadratic = p("-bQuadratic").asBool(true);
   const bool bBurst = p("-BurstCoast").asBool(false);

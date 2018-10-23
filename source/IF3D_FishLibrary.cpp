@@ -1023,64 +1023,86 @@ void MidlineShapes::computeWidthsHeights(const string heightName,
   const string widthName, const double L, Real* const rS,
   Real* const height, Real* const width, const int nM, const int mpirank)
 {
-  printf("height = %s, width=%s\n", heightName.c_str(), widthName.c_str()); fflush(NULL);
-  if ( heightName.compare("largefin") == 0 ) {
-    if(!mpirank)
-      cout<<"Building object's height according to 'largefin' profile."<<endl;
-    double xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
-    double yh[8] = {0, .055*L, .18*L, .2*L, .064*L, .002*L, .325*L, 0};
-    // TODO read second to last number from factory
-    integrateBSpline(xh, yh, 8, L, rS, height, nM);
-  } else
-  if ( heightName.compare("tunaclone") == 0 ) {
-    if(!mpirank)
-      cout<<"Building object's height according to 'tunaclone' profile."<<endl;
-    double xh[9] = {0, 0, 0.2*L, .4*L, .6*L, .9*L, .96*L, L, L};
-    double yh[9] = {0, .05*L, .14*L, .15*L, .11*L, 0, .1*L, .2*L, 0};
-    integrateBSpline(xh, yh, 9, L, rS, height, nM);
-  } else
-  if ( heightName.compare(0, 4, "naca") == 0 ) {
-    double t_naca = std::stoi( string(heightName, 5), nullptr, 10 ) * 0.01;
-    if(!mpirank)
-      cout<<"Building object's height according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
-    naca_width(t_naca, L, rS, height, nM);
-  } else
-  if ( heightName.compare("danio") == 0 ) {
-    if(!mpirank)
-      cout<<"Building object's height according to Danio (zebrafish) profile from Maertens2017 (JFM)"<<endl;
-    danio_height(L, rS, height, nM);
-  } else {
-    if(!mpirank)
-      cout<<"Building object's height according to baseline profile."<<endl;
-    double xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
-    double yh[8] = {0, .055*L, .068*L, .076*L, .064*L, .0072*L, .11*L, 0};
-    integrateBSpline(xh, yh, 8, L, rS, height, nM);
+  if(!mpirank) {
+    printf("height = %s, width=%s\n", heightName.c_str(), widthName.c_str());
+    fflush(NULL);
   }
 
-  if ( widthName.compare("fatter") == 0 ) {
-    if(!mpirank)
-      cout<<"Building object's width according to 'fatter' profile."<<endl;
-    double xw[6] = {0, 0, L/3., 2*L/3., L, L};
-    double yw[6] = {0, 8.9e-2*L, 7.0e-2*L, 3.0e-2*L, 2.0e-2*L, 0};
-    integrateBSpline(xw, yw, 6, L, rS, width, nM);
-  } else
-  if ( widthName.compare(0, 4, "naca") == 0 ) {
-    double t_naca = std::stoi( string(widthName, 5), nullptr, 10 ) * 0.01;
-    if(!mpirank)
-      cout<<"Building object's width according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
-    naca_width(t_naca, L, rS, width, nM);
-  } else
-  if ( widthName.compare("danio") == 0 ) {
-    if(!mpirank)
-      cout<<"Building object's width according to Danio (zebrafish) profile from Maertens2017 (JFM)"<<endl;
-    danio_width(L, rS, width, nM);
-  } else {
-    if(!mpirank)
-      cout<<"Building object's width according to baseline profile."<<endl;
-    double xw[6] = {0, 0, L/3., 2*L/3., L, L};
-    double yw[6] = {0, 8.9e-2*L, 1.7e-2*L, 1.6e-2*L, 1.3e-2*L, 0};
-    integrateBSpline(xw, yw, 6, L, rS, width, nM);
+  {
+    if ( heightName.compare("largefin") == 0 ) {
+      if(!mpirank)
+        cout<<"Building object's height according to 'largefin' profile."<<endl;
+      double xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
+      double yh[8] = {0, .055*L, .18*L, .2*L, .064*L, .002*L, .325*L, 0};
+      // TODO read second to last number from factory
+      integrateBSpline(xh, yh, 8, L, rS, height, nM);
+    } else
+    if ( heightName.compare("tunaclone") == 0 ) {
+      if(!mpirank)
+        cout<<"Building object's height according to 'tunaclone' profile."<<endl;
+      double xh[9] = {0, 0, 0.2*L, .4*L, .6*L, .9*L, .96*L, L, L};
+      double yh[9] = {0, .05*L, .14*L, .15*L, .11*L, 0, .1*L, .2*L, 0};
+      integrateBSpline(xh, yh, 9, L, rS, height, nM);
+    } else
+    if ( heightName.compare(0, 4, "naca") == 0 ) {
+      double t_naca = std::stoi( string(heightName, 5), nullptr, 10 ) * 0.01;
+      if(!mpirank)
+        cout<<"Building object's height according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
+      naca_width(t_naca, L, rS, height, nM);
+    } else
+    if ( heightName.compare("danio") == 0 ) {
+      if(!mpirank)
+        cout<<"Building object's height according to Danio (zebrafish) profile from Maertens2017 (JFM)"<<endl;
+      danio_height(L, rS, height, nM);
+    } else
+    if ( heightName.compare("stefan") == 0 ) {
+      if(!mpirank)
+        cout<<"Building object's height according to Stefan profile"<<endl;
+      stefan_height(L, rS, height, nM);
+    } else {
+      if(!mpirank)
+        cout<<"Building object's height according to baseline profile."<<endl;
+      double xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
+      double yh[8] = {0, .055*L, .068*L, .076*L, .064*L, .0072*L, .11*L, 0};
+      integrateBSpline(xh, yh, 8, L, rS, height, nM);
+    }
   }
+
+
+
+  {
+    if ( widthName.compare("fatter") == 0 ) {
+      if(!mpirank)
+        cout<<"Building object's width according to 'fatter' profile."<<endl;
+      double xw[6] = {0, 0, L/3., 2*L/3., L, L};
+      double yw[6] = {0, 8.9e-2*L, 7.0e-2*L, 3.0e-2*L, 2.0e-2*L, 0};
+      integrateBSpline(xw, yw, 6, L, rS, width, nM);
+    } else
+    if ( widthName.compare(0, 4, "naca") == 0 ) {
+      double t_naca = std::stoi( string(widthName, 5), nullptr, 10 ) * 0.01;
+      if(!mpirank)
+        cout<<"Building object's width according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
+      naca_width(t_naca, L, rS, width, nM);
+    } else
+    if ( widthName.compare("danio") == 0 ) {
+      if(!mpirank)
+        cout<<"Building object's width according to Danio (zebrafish) profile from Maertens2017 (JFM)"<<endl;
+      danio_width(L, rS, width, nM);
+    } else
+    if ( widthName.compare("stefan") == 0 ) {
+      if(!mpirank)
+        cout<<"Building object's width according to Stefan profile"<<endl;
+      stefan_width(L, rS, width, nM);
+    } else {
+      if(!mpirank)
+        cout<<"Building object's width according to baseline profile."<<endl;
+      double xw[6] = {0, 0, L/3., 2*L/3., L, L};
+      double yw[6] = {0, 8.9e-2*L, 1.7e-2*L, 1.6e-2*L, 1.3e-2*L, 0};
+      integrateBSpline(xw, yw, 6, L, rS, width, nM);
+    }
+  }
+
+
 
   if(!mpirank) {
     FILE * heightWidth;

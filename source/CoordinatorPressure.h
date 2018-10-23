@@ -13,11 +13,11 @@
 #include "GenericCoordinator.h"
 #include "IF3D_ObstacleVector.h"
 #ifdef _ACCFFT_
-#ifdef _UNBOUNDED_FFT_
-#include "PoissonSolverScalarACC_freespace.h"
-#else
+//#ifdef _UNBOUNDED_FFT_
+//#include "PoissonSolverScalarACC_freespace.h"
+//#else
 #include "PoissonSolverScalarACC.h"
-#endif
+//#endif
 typedef PoissonSolverScalarFFTW_ACC<FluidGridMPI, StreamerDiv> PressureSolver;
 #else
 #ifdef _UNBOUNDED_FFT_
@@ -86,7 +86,7 @@ class OperatorDivergenceMinusDivTmpU : public GenericLabOperator
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
     const size_t offset = solver->_offset_ext(info);
-    const Real fac = 0.5/info.h_gridpoint/dt;
+    const Real fac = 0.5/info.h_gridpoint;
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -125,7 +125,7 @@ class OperatorDivergenceMinusDivTmpU2ndOrder : public GenericLabOperator
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
     const size_t offset = solver->_offset_ext(info);
-    const Real factor = 1./(12*info.h_gridpoint*dt);
+    const Real factor = 1./(12*info.h_gridpoint);
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -172,7 +172,7 @@ class OperatorGradP : public GenericLabOperator
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-    const Real fac = - 0.5 * dt/ info.h_gridpoint;
+    const Real fac = - 0.5/ info.h_gridpoint;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -204,7 +204,7 @@ class OperatorGradP2ndOrder : public GenericLabOperator
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-    const Real fac = -dt / info.h_gridpoint / 12;
+    const Real fac = -1 / info.h_gridpoint / 12;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {

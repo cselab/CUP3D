@@ -38,7 +38,7 @@ class OperatorDissipation : public GenericLabOperator
   {
     const Real h = info.h_gridpoint;
     //const Real hCube = pow(h,3);
-    const Real factor = 0.5/h;
+    const Real factor = 0.5/h/dt;
     const Real invHsqr = 1.0/(h*h);
     //const Real dissipFactor = 2.0*hCube*nu;
 

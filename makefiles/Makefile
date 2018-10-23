@@ -75,8 +75,7 @@ ifeq "$(precision_dump)" "double"
 endif
 
 CPPFLAGS += -D_ALIGNBYTES_=32
-CPPFLAGS += -DNTHREADS=$(nthreads)
-CPPFLAGS += -D_BS_=$(bs) -D_BLOCKSIZE_=$(bs) -D_BLOCKSIZEX_=$(bs) -D_BLOCKSIZEY_=$(bs) -D_BLOCKSIZEZ_=$(bs)
+CPPFLAGS += -D_BS_=$(bs)
 
 CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 

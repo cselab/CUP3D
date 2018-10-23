@@ -47,7 +47,7 @@ class OperatorAdvectDiffuse : public GenericLabOperator
       const Real dudz= LB.u-LF.u, dvdz= LB.v-LF.v, dwdz= LB.w-LF.w;
       const Real u = L.u+uInf[0], v = L.v+uInf[1], w = L.w+uInf[2];
 
-      const Real duD = LN.u+LS.v + LE.u+LW.u + LF.u+LB.u - L.u*6;
+      const Real duD = LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6;
       const Real dvD = LN.v+LS.v + LE.v+LW.v + LF.v+LB.v - L.v*6;
       const Real dwD = LN.w+LS.w + LE.w+LW.w + LF.w+LB.w - L.w*6;
 
