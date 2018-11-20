@@ -12,6 +12,7 @@
 *.xcodeproj
 /build
 /bin
+/cmake/check_mpi_thread_safety
 /dependencies
 /lib
 /launch/results

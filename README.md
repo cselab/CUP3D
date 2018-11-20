@@ -12,10 +12,29 @@ OR USE WEB SERVER VARIANT (NOTE: 60 UPDATES/HOUR LIMIT!!)
 
 # Table of contents
 
-1. [Compilation](#compilation)
-2. [Configuring and running simulations](#configuring-and-running-simulations)
-3. [Visualization using Paraview](#visualization-using-paraview)
+* [Python dependencies](#python-dependencies)
+* [Compilation](#compilation)
+  * [Quick compilation](#quick-compilation)
+  * [Detailed instructions](#detailed-instructions)
+    * [Installing dependencies](#installing-dependencies)
+    * [Other options and further information](#other-options-and-further-information)
+    * [Advanced solver options (compile time)](#advanced-solver-options-compile-time)
+    * [Compiling on Mac](#compiling-on-mac)
+    * [Troubleshooting](#troubleshooting)
+  * [Cluster specific modules](#cluster-specific-modules)
+* [Configuring and running simulations](#configuring-and-running-simulations)
+  * [Quick introduction](#quick-introduction)
+  * [Detailed description](#detailed-description)
+* [Visualization using Paraview](#visualization-using-paraview)
+  * [Visualizing shapes](#visualizing-shapes)
+  * [Visualizing flow](#visualizing-flow)
 
+# Python dependencies
+
+Run the following command to install Python dependencies:
+```bash
+python3 -m pip install --user -r requirements.txt
+```
 
 # Compilation
 
@@ -44,7 +63,7 @@ CubismUP requires the following 3rd party libraries:
 | FFTW (3.3.7) (\*)     | $FFTWDIR                         |
 | HDF5 (1.10.1) (\*)    | $HDF5_ROOT                       |
 | GSL (2.1) (\*)        | $GSL_ROOT_DIR                    |
-| MPI                   | [See instruction][mpi-path] (\*\*) |
+| MPI                   | [See instructions][mpi-path] (\*\*) |
 
 (\*) Tested with the listed versions, higher versions probably work too.<br>
 (\*\*) Especially if installing the dependencies, make sure that `mpicc` points to a MPI-compatible `C` compiler, and `mpic++` to a MPI-compatible `C++` compiler.
@@ -60,7 +79,7 @@ To install the missing dependencies, run the following code (from the repository
 # Step 1: Install dependencies
 ./install_dependencies.sh --all
 
-# Step 2: Append the export commands to ~/.bashrc or ~/.bash_profile
+# Step 2: Append the export commands to ~/.bashrc or ~/.bash_profile (only for CMake)
 ./install_dependencies.sh --export >> ~/.bashrc
 # or
 ./install_dependencies.sh --export >> ~/.bash_profile  # (Mac)
