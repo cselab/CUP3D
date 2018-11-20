@@ -68,7 +68,7 @@ typedef double DumpReal;
 #ifdef RL_LAYER
 #include "StateRewardData.h"
 #endif
-#include "Slice.h"
+#include <HDF5SliceDumperMPI.h>
 
 
 struct FluidElement
@@ -294,9 +294,9 @@ typedef GridMPI<FluidGrid> FluidGridMPI;
 #ifdef DUMPGRID
   using DumpBlock = BaseBlock<DumpElement>;
   typedef GridMPI<Grid<DumpBlock, aligned_allocator>> DumpGridMPI;
-  typedef SliceMPI<DumpGridMPI> SliceType;
+  typedef SliceTypesMPI::Slice<DumpGridMPI> SliceType;
 #else
-  typedef SliceMPI<FluidGridMPI> SliceType;
+  typedef SliceTypesMPI::Slice<FluidGridMPI> SliceType;
 #endif
 
 #if defined(BC_PERIODICZ)

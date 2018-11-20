@@ -80,9 +80,9 @@ void Simulation::setupGrid()
 
   // setup 2D slices
   #ifdef DUMPGRID
-    m_slices = SliceType::getSlices<SliceType>(parser, *dump);
+    m_slices = SliceType::getEntities<SliceType>(parser, *dump);
   #else
-    m_slices = SliceType::getSlices<SliceType>(parser, *grid);
+    m_slices = SliceType::getEntities<SliceType>(parser, *grid);
   #endif
 }
 
@@ -250,40 +250,40 @@ void Simulation::_serialize(const string append)
     dumper = new std::thread( [=] () {
       if(b2Ddump) {
         for (const auto& slice : m_slices) {
-          DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time,
+          DumpSliceHDF5MPI<StreamerVelocityVector>(slice, step, time,
             StreamerVelocityVector::prefix()+name2d, path4serialization);
-          DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time,
+          DumpSliceHDF5MPI<StreamerPressure>(slice, step, time,
             StreamerPressure::prefix()+name2d, path4serialization);
-          DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time,
+          DumpSliceHDF5MPI<StreamerChi>(slice, step, time,
             StreamerChi::prefix()+name2d, path4serialization);
         }
       }
       if(b3Ddump) {
-        DumpHDF5_MPI<DumpGridMPI,StreamerVelocityVector>(*dump, step, time,
+        DumpHDF5_MPI<StreamerVelocityVector>(*dump, step, time,
           StreamerVelocityVector::prefix()+name3d, path4serialization);
-        DumpHDF5_MPI<DumpGridMPI,StreamerPressure>(*dump, step, time,
+        DumpHDF5_MPI<StreamerPressure>(*dump, step, time,
           StreamerPressure::prefix()+name3d, path4serialization);
-        DumpHDF5_MPI<DumpGridMPI,StreamerChi>(*dump, step, time,
+        DumpHDF5_MPI<StreamerChi>(*dump, step, time,
           StreamerChi::prefix()+name3d, path4serialization);
       }
     } );
   #else //DUMPGRID
     if(b2Ddump) {
       for (const auto& slice : m_slices) {
-        DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time,
+        DumpSliceHDF5MPI<StreamerVelocityVector>(slice, step, time,
           StreamerVelocityVector::prefix()+ssF.str(), path4serialization);
-        DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time,
+        DumpSliceHDF5MPI<StreamerPressure>(slice, step, time,
           StreamerPressure::prefix()+ssF.str(), path4serialization);
-        DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time,
+        DumpSliceHDF5MPI<StreamerChi>(slice, step, time,
           StreamerChi::prefix()+ssF.str(), path4serialization);
       }
     }
     if(b3Ddump) {
-      DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time,
+      DumpHDF5_MPI<StreamerVelocityVector>(*grid, step, time,
         StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
-      DumpHDF5_MPI<FluidGridMPI,StreamerPressure>(*grid, step, time,
+      DumpHDF5_MPI<StreamerPressure>(*grid, step, time,
         StreamerPressure::prefix()+ssR.str(), path4serialization);
-      DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, step, time,
+      DumpHDF5_MPI<StreamerChi>(*grid, step, time,
         StreamerChi::prefix()+ssR.str(), path4serialization);
     }
   #endif //DUMPGRID
@@ -349,7 +349,7 @@ void Simulation::_deserialize()
   if (rank==0) cout << "Restarting from " << ssR.str() << endl;
 
   #if defined(_USE_HDF_)
-    ReadHDF5_MPI<FluidGridMPI, StreamerVelocityVector>(*grid,
+    ReadHDF5_MPI<StreamerVelocityVector>(*grid,
       StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
   #else
     printf("Unable to restart without  HDF5 library. Aborting...\n");
