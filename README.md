@@ -12,16 +12,14 @@ OR USE WEB SERVER VARIANT (NOTE: 60 UPDATES/HOUR LIMIT!!)
 
 # Table of contents
 
-* [Python dependencies](#python-dependencies)
-* [Compilation](#compilation)
-  * [Quick compilation](#quick-compilation)
-  * [Detailed instructions](#detailed-instructions)
-    * [Installing dependencies](#installing-dependencies)
+* [Installation](#installation)
+* [Detailed installation instructions](#detailed-installation-instructions)
+  * [Cluster-specific modules](#cluster-specific-modules)
+  * [Installing dependencies manually](#installing-dependencies-manually)
     * [Other options and further information](#other-options-and-further-information)
-    * [Advanced solver options (compile time)](#advanced-solver-options-compile-time)
-    * [Compiling on Mac](#compiling-on-mac)
-    * [Troubleshooting](#troubleshooting)
-  * [Cluster specific modules](#cluster-specific-modules)
+  * [Advanced solver options (compile time)](#advanced-solver-options-compile-time)
+  * [Compiling on Mac](#compiling-on-mac)
+  * [Troubleshooting](#troubleshooting)
 * [Configuring and running simulations](#configuring-and-running-simulations)
   * [Quick introduction](#quick-introduction)
   * [Detailed description](#detailed-description)
@@ -29,16 +27,17 @@ OR USE WEB SERVER VARIANT (NOTE: 60 UPDATES/HOUR LIMIT!!)
   * [Visualizing shapes](#visualizing-shapes)
   * [Visualizing flow](#visualizing-flow)
 
-# Python dependencies
+# Installation
 
-Run the following command to install Python dependencies:
+This repository contains submodules, clone with:
+```bash
+git clone --recursive git@gitlab.ethz.ch:mavt-cse/CubismUP_3D.git
+```
+
+To install Python dependencies, run:
 ```bash
 python3 -m pip install --user -r requirements.txt
 ```
-
-# Compilation
-
-## Quick compilation
 
 To compile, run:
 ```bash
@@ -50,7 +49,7 @@ make
 
 If that doesn't work, read the following section.
 
-## Detailed instructions
+# Detailed installation instructions
 
 CubismUP uses CMake to automatically detect required dependencies and to compile the code.
 If the dependencies are missing, they can be easily downloaded, compiled and locally installed using the provided script `install_dependencies.sh` (details below).
@@ -72,7 +71,26 @@ We suggest first trying to compile the code with the libraries already installed
 If available, dependencies may be loaded with `module load ...` or `module load new ...`.
 If `module load` is not available, but libraries are installed, set the above mentioned environment variables.
 
-### Installing dependencies
+## Cluster-specific modules
+
+Piz Daint:
+```shell
+module load gcc
+module swap PrgEnv-cray PrgEnv-gnu
+module load cray-hdf5-parallel
+module load fftw
+module load daint-gpu
+module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1
+module load GSL/2.1-CrayGNU-2016.11
+```
+
+Euler:
+```shell
+module load new modules gcc/6.3.0 open_mpi/2.1.1 fftw/3.3.4 binutils/2.25 gsl/1.16 hwloc/1.11.0 fftw_sp/3.3.4
+```
+
+
+## Installing dependencies manually
 
 To install the missing dependencies, run the following code (from the repository root folder):
 ```bash
@@ -110,7 +128,7 @@ JOBS=10 ./install_dependencies.sh [flags]
 The default number of jobs is equal to the number of physical cores.
 
 
-### Advanced solver options (compile time)
+## Advanced solver options (compile time)
 
 The default options are sufficient for the average user.  However, advanced
 users can customize the generated executable with the following options:
@@ -127,7 +145,7 @@ users can customize the generated executable with the following options:
 These options can be enabled either on the command line with, e.g., `cmake
 -D_UNBOUNDED_FFT_=ON` or with graphical tools such as `ccmake`.
 
-### Compiling on Mac
+## Compiling on Mac
 
 The default compiler `clang` on Mac does not support OpenMP. It is therefore necessary either to install `clang` OpenMP extension or to install e.g. `g++` compiler. The following snippet shows how to compile with `g++-7`:
 ```bash
@@ -137,28 +155,10 @@ CC=gcc-7 CXX=g++-7 cmake ..
 OMPI_CC=gcc-7 MPICH_CC=gcc-7 OMPI_CXX=g++-7 MPICH_CXX=g++-7 make
 ```
 
-### Troubleshooting
+## Troubleshooting
 
 If `cmake ..` keeps failing, delete the file `CMakeCache.txt` and try again.
 
-
-## Cluster-specific modules
-
-Piz Daint:
-```shell
-module load gcc
-module swap PrgEnv-cray PrgEnv-gnu
-module load cray-hdf5-parallel
-module load fftw
-module load daint-gpu
-module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1
-module load GSL/2.1-CrayGNU-2016.11
-```
-
-Euler:
-```shell
-module load new modules gcc/6.3.0 open_mpi/2.1.1 fftw/3.3.4 binutils/2.25 gsl/1.16 hwloc/1.11.0 fftw_sp/3.3.4
-```
 
 
 # Configuring and running simulations
