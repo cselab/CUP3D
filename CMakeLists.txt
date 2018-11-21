@@ -32,7 +32,7 @@ set(LIB "${EXENAME}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
 set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
 
-include_directories(${ROOT_FOLDER}/Cubism/source/)
+include_directories(${ROOT_FOLDER}/Cubism/include/)
 include_directories(${ROOT_FOLDER}/source/)
 set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/BufferedLogger.cpp

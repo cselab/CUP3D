@@ -7,7 +7,7 @@
 //
 
 #include "Simulation.h"
-#include <HDF5Dumper_MPI.h>
+#include "Cubism/HDF5Dumper_MPI.h"
 #include "ProcessOperatorsOMP.h"
 
 #include "CoordinatorIC.h"

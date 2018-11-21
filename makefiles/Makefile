@@ -106,7 +106,7 @@ ifneq "$(findstring eu-,$(shell hostname))" ""
 	include make.euler
 endif
 
-CPPFLAGS += -I../source/ -I../Cubism/source
+CPPFLAGS += -I../source/ -I../Cubism/include/
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)

@@ -8,8 +8,8 @@
 
 #pragma once
 
-#include "BlockLab.h"
-#include <Matrix3D.h>
+#include "Cubism/BlockLab.h"
+#include "Cubism/Matrix3D.h"
 
 template<typename TBlock, typename TElement, template<typename X> class allocator=std::allocator>
 class BoundaryCondition
