@@ -63,6 +63,8 @@ typedef double DumpReal;
 #include "Cubism/StencilInfo.h"
 #include "Cubism/Timer.h"
 
+using namespace cubism;
+
 #include "AlignedAllocator.h"
 #include "BoundaryConditions.h"
 #include "ObstacleBlock.h"
