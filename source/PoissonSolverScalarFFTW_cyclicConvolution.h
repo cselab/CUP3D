@@ -131,8 +131,8 @@ public:
                 for (ptrdiff_t k = 0; k < m_Nzhat; ++k)
                 {
                     const size_t linidx = k + m_Nzhat*(j + m_local_NN1*i);
-                    rho_hat[linidx][0] *= G_hat[linidx] * m_norm_factor;
-                    rho_hat[linidx][1] *= G_hat[linidx] * m_norm_factor;
+                    rho_hat[linidx][0] *= G_hat[linidx]; // normalization is carried on in G_hat
+                    rho_hat[linidx][1] *= G_hat[linidx]; // normalization is carried on in G_hat
                 }
     }
 
@@ -222,9 +222,6 @@ private:
         m_Nzhat     = m_NN2t/2 + 1; // for symmetry in r2c transform
         m_tp_size   = m_local_N0  * m_NN1  * m_Nzhat;
         m_full_size = m_NN0t * m_local_NN1 * m_Nzhat;
-
-        // FFT normalization factor
-        m_norm_factor = 1.0 / (m_NN0t * m_NN1t * m_NN2t);
 
         // FFTW plans
         m_buf_tp   = _FFTW_(alloc_real)( 2*m_tp_size );
@@ -392,6 +389,9 @@ private:
         m_kernel = _FFTW_(alloc_real)(kern_size); // FFT for this kernel is real
         std::memset(m_kernel, 0, kern_size*sizeof(Real));
 
+        // FFT normalization factor
+        m_norm_factor = 1.0 / (m_NN0t * m_NN1t * m_NN2t);
+
         const mycomplex *const G_hat = (mycomplex *) tf_buf;
 #pragma omp parallel for
         for (ptrdiff_t i = 0; i < m_NN0t; ++i)
@@ -399,7 +399,7 @@ private:
                 for (ptrdiff_t k = 0; k < m_Nzhat; ++k)
                 {
                     const size_t linidx = k + m_Nzhat*(j + m_local_NN1*i);
-                    m_kernel[linidx]  = G_hat[linidx][0]; // need real part only
+                    m_kernel[linidx] = G_hat[linidx][0] * m_norm_factor; // need real part only
                 }
 
         _FFTW_(free)(tf_buf);
