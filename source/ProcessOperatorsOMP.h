@@ -10,6 +10,7 @@
 #define CubismUP_3D_ProcessOperators_h
 
 #include "Definitions.h"
+#include "Simulation.h"
 
 // -gradp, divergence, advection
 template<typename Lab, typename Kernel>

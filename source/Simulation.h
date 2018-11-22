@@ -10,12 +10,13 @@
 #define CubismUP_2D_Simulation_Fluid_h
 
 #include "Cubism/ArgumentParser.h"
+#include "Cubism/HDF5SliceDumperMPI.h"
 #include "Cubism/Profiler.h"
+//#include "Cubism/ZBinDumper_MPI.h"
 
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
 #include "IF3D_ObstacleVector.h"
-#include "Simulation.h"
 
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
@@ -30,6 +31,14 @@
 
 #ifdef RL_LAYER
  #include "TaskLayer.h"
+#endif
+
+#ifdef DUMPGRID
+  using DumpBlock = BaseBlock<DumpElement>;
+  typedef GridMPI<Grid<DumpBlock, aligned_allocator>> DumpGridMPI;
+  typedef SliceTypesMPI::Slice<DumpGridMPI> SliceType;
+#else
+  typedef SliceTypesMPI::Slice<FluidGridMPI> SliceType;
 #endif
 
 namespace cubismup3d { class SimulationWrapper; }

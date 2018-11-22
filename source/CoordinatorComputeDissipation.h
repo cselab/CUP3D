@@ -166,7 +166,7 @@ public:
       fileDissip<<"step_id time viscousTerm pressureTerm total"<<std::endl;
 
     fileDissip<< *step <<" "<< *time <<" "<< globalSum[0] <<" "<<
-	    globalSum[1] <<" "<< globalSum[0]+globalSum[1] <<endl;
+	    globalSum[1] <<" "<< globalSum[0]+globalSum[1] <<std::endl;
     }
 
     check("dissipation - end");

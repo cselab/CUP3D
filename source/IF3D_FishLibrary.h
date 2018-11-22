@@ -16,8 +16,6 @@
 #include "IF2D_Frenet.h"
 #include "IF3D_Schedulers.h"
 #include "ObstacleBlock.h"
-#include <gsl/gsl_bspline.h>
-#include <gsl/gsl_statistics.h>
 
 #define __BSPLINE
 

@@ -37,8 +37,6 @@ typedef double DumpReal;
 #ifdef _VTK_
 #include "Cubism/SerializerIO_ImageVTK.h"
 #endif
-#include "Cubism/HDF5SliceDumperMPI.h"
-//#include "Cubism/ZBinDumper_MPI.h"
 #include "Cubism/BlockLab.h"
 #include "Cubism/BlockLabMPI.h"
 
@@ -275,14 +273,6 @@ class BlockLabPeriodicZ : public BlockLab<BlockType,allocator>
 using FluidBlock = BaseBlock<FluidElement>;
 typedef Grid<FluidBlock, aligned_allocator> FluidGrid;
 typedef GridMPI<FluidGrid> FluidGridMPI;
-
-#ifdef DUMPGRID
-  using DumpBlock = BaseBlock<DumpElement>;
-  typedef GridMPI<Grid<DumpBlock, aligned_allocator>> DumpGridMPI;
-  typedef SliceTypesMPI::Slice<DumpGridMPI> SliceType;
-#else
-  typedef SliceTypesMPI::Slice<FluidGridMPI> SliceType;
-#endif
 
 #if defined(BC_PERIODICZ)
   typedef  BlockLabPeriodicZ<FluidBlock, aligned_allocator> Lab;

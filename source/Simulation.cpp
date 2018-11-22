@@ -6,21 +6,22 @@
 //  Written by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Simulation.h"
-#include "Cubism/HDF5Dumper_MPI.h"
-#include "ProcessOperatorsOMP.h"
-
-#include "CoordinatorIC.h"
-//#include "CoordinatorVorticity.h"
-#include "CoordinatorAdvection.h"
-#include "CoordinatorDiffusion.h"
 #include "CoordinatorAdvectDiffuse.h"
-#include "CoordinatorPenalization.h"
-#include "CoordinatorComputeShape.h"
-#include "CoordinatorPressure.h"
-#include "CoordinatorFadeOut.h"
+#include "CoordinatorAdvection.h"
 #include "CoordinatorComputeDissipation.h"
+#include "CoordinatorComputeShape.h"
+#include "CoordinatorDiffusion.h"
+#include "CoordinatorFadeOut.h"
+#include "CoordinatorIC.h"
+#include "CoordinatorPenalization.h"
+#include "CoordinatorPressure.h"
 #include "IF3D_ObstacleFactory.h"
+//#include "CoordinatorVorticity.h"
+
+#include "Cubism/HDF5Dumper_MPI.h"
+
+#include "ProcessOperatorsOMP.h"
+#include "Simulation.h"
 
 void Simulation::_ic()
 {

@@ -43,6 +43,7 @@ public:
 
   void operator()(const BlockInfo& info, FluidBlock& b) const
   {
+    using std::max;
     const Real h = info.h_gridpoint, iWidth = 1/buffer;
     if(_is_touching(info,h))
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
