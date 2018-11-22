@@ -19,6 +19,22 @@ IF3D_DCylinderObstacleOperator::IF3D_DCylinderObstacleOperator(
       radius(.5 * length),
       halflength(p("-halflength").asDouble(.5 * ext_Z))
 {
+  _init();
+}
+
+
+IF3D_DCylinderObstacleOperator::IF3D_DCylinderObstacleOperator(
+    FluidGridMPI * const g,
+    ObstacleArguments &args,
+    const Real * const u,
+    const double radius_,
+    const double halflength_)
+    : IF3D_ObstacleOperator(g, args, u), radius(radius_), halflength(halflength_)
+{
+  _init();
+}
+
+void IF3D_DCylinderObstacleOperator::_init(void) {
   printf("Created IF3D_DCylinderObstacleOperator with radius %f and halflength %f\n", radius, halflength);
 
   // D-cyl can float around the domain, but does not support rotation. TODO

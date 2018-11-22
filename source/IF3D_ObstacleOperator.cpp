@@ -28,7 +28,7 @@ std::array<double, 3> getGridExtent(const FluidGridMPI &grid)
   return {{scale[0] * extent, scale[1] * extent, scale[2] * extent}};
 }
 
-ObstacleParameters::ObstacleParameters(
+ObstacleArguments::ObstacleArguments(
         const FluidGridMPI &grid,
         ArgumentParser &parser)
 {
@@ -70,18 +70,18 @@ ObstacleParameters::ObstacleParameters(
 
 IF3D_ObstacleOperator::IF3D_ObstacleOperator(
     FluidGridMPI * const grid,
-    const ObstacleParameters &params,
+    const ObstacleArguments &args,
     const Real * const uInf)
     : IF3D_ObstacleOperator(grid, uInf)
 {
-  length = params.length;
-  position[0] = params.position[0];
-  position[1] = params.position[1];
-  position[2] = params.position[2];
-  quaternion[0] = params.quaternion[0];
-  quaternion[1] = params.quaternion[1];
-  quaternion[2] = params.quaternion[2];
-  quaternion[3] = params.quaternion[3];
+  length = args.length;
+  position[0] = args.position[0];
+  position[1] = args.position[1];
+  position[2] = args.position[2];
+  quaternion[0] = args.quaternion[0];
+  quaternion[1] = args.quaternion[1];
+  quaternion[2] = args.quaternion[2];
+  quaternion[3] = args.quaternion[3];
   _2Dangle = 2 * std::atan2(quaternion[3], quaternion[0]);
 
   if (!rank) {
@@ -108,16 +108,16 @@ IF3D_ObstacleOperator::IF3D_ObstacleOperator(
   }
 
   for (int d = 0; d < 3; ++d) {
-    bForcedInSimFrame[d] = params.bForcedInSimFrame[d];
+    bForcedInSimFrame[d] = args.bForcedInSimFrame[d];
     if (bForcedInSimFrame[d]) {
-      transVel_imposed[d] = transVel[d] = params.enforcedVelocity[d];
+      transVel_imposed[d] = transVel[d] = args.enforcedVelocity[d];
       if (!rank) {
          printf("Obstacle forced to move relative to sim domain with constant %c-vel: %f\n",
                 "xyz"[d], transVel[d]);
       }
     }
   }
-  bFixToPlanar = params.bFixToPlanar;
+  bFixToPlanar = args.bFixToPlanar;
 
   const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2];
   if(anyVelForced) {
@@ -127,10 +127,10 @@ IF3D_ObstacleOperator::IF3D_ObstacleOperator(
     bBlockRotation[2] = true;
   }
 
-  bFixFrameOfRef[0] = params.bFixFrameOfRef[0];
-  bFixFrameOfRef[1] = params.bFixFrameOfRef[1];
-  bFixFrameOfRef[2] = params.bFixFrameOfRef[2];
-  bForces = params.bComputeForces;
+  bFixFrameOfRef[0] = args.bFixFrameOfRef[0];
+  bFixFrameOfRef[1] = args.bFixFrameOfRef[1];
+  bFixFrameOfRef[2] = args.bFixFrameOfRef[2];
+  bForces = args.bComputeForces;
 }
 
 

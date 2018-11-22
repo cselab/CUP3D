@@ -24,13 +24,13 @@ public:
 
     IF3D_ExternalObstacleOperator(
             FluidGridMPI *g,
-            const ObstacleParameters &params,
+            const ObstacleArguments &args,
             const Real *u);
     IF3D_ExternalObstacleOperator(
             FluidGridMPI * const g,
             ArgumentParser &p,
             const Real * const u)
-        : IF3D_ExternalObstacleOperator(g, ObstacleParameters(*g, p), u) {}
+        : IF3D_ExternalObstacleOperator(g, ObstacleArguments(*g, p), u) {}
 
     void computeVelocities(const Real *Uinf) override;
     void create(int step_id, double time, double dt, const Real *Uinf) override;

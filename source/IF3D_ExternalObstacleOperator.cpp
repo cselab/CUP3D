@@ -73,15 +73,14 @@ struct FillBlocksExternal : FillBlocksBase<FillBlocksExternal>
 
 IF3D_ExternalObstacleOperator::IF3D_ExternalObstacleOperator(
         FluidGridMPI * const g,
-        const ObstacleParameters &params,
+        const ObstacleArguments &args,
         const Real * const u)
-        : IF3D_ObstacleOperator(g, params, u)
+        : IF3D_ObstacleOperator(g, args, u)
 {
     bForcedInSimFrame = {true, true, true};
     bFixFrameOfRef = {true, true, true};
     bBlockRotation = {true, true, true};
 }
-
 
 void IF3D_ExternalObstacleOperator::computeVelocities(
         const Real * const Uinf) {

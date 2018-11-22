@@ -26,7 +26,7 @@ class IF3D_ObstacleVector;
 
 /*
  * Return the size of the domain in the physical space.
- * All returned values are in the range (0, 1], and at least one of them is equal to 1.
+ * All returned values are in the range (0, 1], and at least one is equal to 1.
  */
 std::array<double, 3> getGridExtent(const FluidGridMPI &grid);
 
@@ -34,7 +34,7 @@ std::array<double, 3> getGridExtent(const FluidGridMPI &grid);
 /*
  * Structure containing all externally configurable parameters of a base obstacle.
  */
-struct ObstacleParameters {
+struct ObstacleArguments {
   double length = 0.0;
   std::array<double, 3> position = {{0.0, 0.0, 0.0}};
   std::array<double, 4> quaternion = {{0.0, 0.0, 0.0, 0.0}};
@@ -44,10 +44,10 @@ struct ObstacleParameters {
   bool bFixToPlanar = false;
   bool bComputeForces = true;
 
-  ObstacleParameters() = default;
+  ObstacleArguments() = default;
 
   /* Convert human-readable format into internal representation of parameters. */
-  ObstacleParameters(const FluidGridMPI &grid, ArgumentParser &parser);
+  ObstacleArguments(const FluidGridMPI &grid, ArgumentParser &parser);
 };
 
 
@@ -106,9 +106,9 @@ protected:
   //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
 
 public:
-  IF3D_ObstacleOperator(FluidGridMPI *g, const ObstacleParameters &params, const Real *uInf);
+  IF3D_ObstacleOperator(FluidGridMPI *g, const ObstacleArguments &args, const Real *uInf);
   IF3D_ObstacleOperator(FluidGridMPI *g, ArgumentParser &parser, const Real *uInf)
-      : IF3D_ObstacleOperator(g, ObstacleParameters(*g, parser), uInf) { }
+      : IF3D_ObstacleOperator(g, ObstacleArguments(*g, parser), uInf) { }
 
   IF3D_ObstacleOperator(FluidGridMPI * g, const Real *uInf = nullptr) : grid(g), _uInf(uInf)
   {

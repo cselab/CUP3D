@@ -15,11 +15,16 @@ class IF3D_SphereObstacleOperator: public IF3D_ObstacleOperator
   const double radius;
   //special case: startup with unif accel to umax in tmax, and then decel to 0
   bool accel_decel = false;
-  double umax = 0, tmax = 1, tOld = 0;
+  double umax = 0, tmax = 1;
+  double _tOld = 0;
 
 public:
 
   IF3D_SphereObstacleOperator(FluidGridMPI *g, ArgumentParser &p, const Real *u);
+  IF3D_SphereObstacleOperator(FluidGridMPI *g, ObstacleArguments &args, const Real *u, double radius);
+  IF3D_SphereObstacleOperator(FluidGridMPI *g, ObstacleArguments &args, const Real *u,
+                              double radius, double umax, double tmax);
+
   void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
   void finalize(const int step_id,const double time, const double dt, const Real *Uinf) override;
   void computeVelocities(const Real* Uinf) override;

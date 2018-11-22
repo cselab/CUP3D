@@ -223,13 +223,7 @@ IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
 
     bool has_alpha = p.check("-alpha");
     if (has_alpha) {
-        const double alpha = M_PI / 180. * p("-alpha").asDouble();
-        nx = std::cos(alpha);
-        ny = std::sin(alpha);
-        nz = 0;
-        ax = -std::sin(alpha);
-        ay = std::cos(alpha);
-        az = 0;
+        _from_alpha(p("-alpha").asDouble());
     } else {
         p.set_strict_mode();
         nx = p("-nx").asDouble();
@@ -241,6 +235,56 @@ IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
         p.unset_strict_mode();
     }
 
+    _init();
+}
+
+IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
+        FluidGridMPI * const g,
+        ObstacleArguments &args,
+        const Real * const u,
+        const double a,
+        const double b,
+        const double thickness,
+        const double alpha)
+    : IF3D_ObstacleOperator(g, args, u),
+      half_a(.5 * a),
+      half_b(.5 * b),
+      half_thickness(.5 * thickness)
+{
+    _from_alpha(alpha);
+    _init();
+}
+
+IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
+        FluidGridMPI * const g,
+        ObstacleArguments &args,
+        const Real * const u,
+        const double a,
+        const double b,
+        const double thickness,
+        const double nx, const double ny, const double nz,
+        const double ax, const double ay, const double az)
+    : IF3D_ObstacleOperator(g, args, u),
+      half_a(.5 * a),
+      half_b(.5 * b),
+      half_thickness(.5 * thickness),
+      nx(nx), ny(ny), nz(nz),
+      ax(ax), ay(ay), az(az)
+{
+    _init();
+}
+
+void IF3D_PlateObstacleOperator::_from_alpha(const double alpha) {
+    nx = std::cos(alpha);
+    ny = std::sin(alpha);
+    nz = 0;
+    ax = -std::sin(alpha);
+    ay = std::cos(alpha);
+    az = 0;
+}
+
+void IF3D_PlateObstacleOperator::_init(void)
+{
     _normalize(&nx, &ny, &nz);
     _normalized_cross(nx, ny, nz, ax, ay, az, &bx, &by, &bz);
     _normalized_cross(bx, by, bz, nx, ny, nz, &ax, &ay, &az);
@@ -250,6 +294,7 @@ IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
     bBlockRotation[1] = true;
     bBlockRotation[2] = true;
 }
+
 
 void IF3D_PlateObstacleOperator::create(const int step_id,
                                         const double time,
