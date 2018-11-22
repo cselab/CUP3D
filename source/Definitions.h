@@ -26,9 +26,6 @@ using namespace std;
 #include <mpi.h>
 #include <omp.h>
 
-#ifdef _ACCFFT_
-#undef _UNBOUNDED_FFT_
-#endif
 
 #ifndef _FLOAT_PRECISION_
 typedef double Real;

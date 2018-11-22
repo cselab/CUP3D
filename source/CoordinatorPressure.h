@@ -13,11 +13,11 @@
 #include "GenericCoordinator.h"
 #include "IF3D_ObstacleVector.h"
 #ifdef _ACCFFT_
-//#ifdef _UNBOUNDED_FFT_
-//#include "PoissonSolverScalarACC_freespace.h"
-//#else
+#ifdef _UNBOUNDED_FFT_
+#include "PoissonSolverScalarACC_freespace.h"
+#else
 #include "PoissonSolverScalarACC.h"
-//#endif
+#endif
 typedef PoissonSolverScalarFFTW_ACC<FluidGridMPI, StreamerDiv> PressureSolver;
 #else
 #ifdef _UNBOUNDED_FFT_

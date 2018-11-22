@@ -485,7 +485,7 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
                           rY[ss] +width[ss]*costh*norY[ss], height[ss]*sinth
             };
             const Real distC = eulerDistSq3D(p, p0);
-            assert(std::fabs(distC-dist0)<2.2e-16);
+            assert(std::fabs(distC-dist0)<std::numeric_limits<Real>::epsilon());
           #endif
 
           int close_s = ss, secnd_s = ss + (distP<distM? 1 : -1);

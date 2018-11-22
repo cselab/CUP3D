@@ -2,7 +2,9 @@ CC=CC
 LD=CC
 
 #ACCFFTDIR=/users/novatig/accfft/build_gnu
-ACCFFTDIR=/users/novatig/accfft/build_gnu_perf
+#ACCFFTDIR=/users/novatig/accfft/build_gnu_perf
+#ACCFFTDIR=/users/novatig/accfft_ptrdiff/build
+ACCFFTDIR=/users/novatig/accfft_ptrdiff/builtest
 accfft-inc = $(ACCFFTDIR)/include/
 accfft-lib = $(ACCFFTDIR)/lib/
 accfft?=true

@@ -151,11 +151,7 @@ public:
       static_cast<int>(totbpd[1]*bs[1]),
       static_cast<int>(totbpd[2]*bs[2])
     };
-    //int loc[3] = {
-    //  static_cast<int>(mybpd[0]*bs[0]),
-    //  static_cast<int>(mybpd[1]*bs[1]),
-    //  static_cast<int>(mybpd[2]*bs[2])
-    //};
+
     int c_dims[2] = {
       static_cast<int>(totbpd[0]/mybpd[0]), static_cast<int>(totbpd[1]/mybpd[1])
     };
@@ -218,7 +214,14 @@ public:
     printf("[mpi rank %d] istart %3lu %3lu %3lu ostart %3lu %3lu %3lu\n",
       procid, istart[0],istart[1],istart[2], ostart[0],ostart[1],ostart[2]
     );
-    assert(isize[0]==loc[0] && isize[1]==loc[1] && isize[2]==loc[2]);
+    //int loc[3] = {
+    //  static_cast<int>(),
+    //  static_cast<int>(),
+    //  static_cast<int>()
+    //};
+    assert(isize[0]==mybpd[0]*bs[0]);
+    assert(isize[1]==mybpd[1]*bs[1]);
+    assert(isize[2]==mybpd[2]*bs[2]);
 
     #ifdef _CUDA_COMP_
       rho = (Real*) malloc(isize[0]*isize[1]*isize[2]*sizeof(Real));

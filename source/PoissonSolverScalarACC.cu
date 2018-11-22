@@ -10,6 +10,7 @@
 //#include <cuda_runtime_api.h>
 #include <array>
 #include <vector>
+#include <cassert>
 using namespace std;
 
 #ifndef _FLOAT_PRECISION_
@@ -40,6 +41,13 @@ using namespace std;
   typedef float Real;
   typedef float myComplex[2];
 #endif
+
+#define CUDA_Check(code) do {  \
+    if (code != cudaSuccess) { \
+      printf("DONE DEAD func:%s file:%s:%d %s\n", __func__, \
+      __FILE__,__LINE__, cudaGetErrorString(code)); \
+    } \
+} while(0)
 
 __global__
 void _fourier_filter_kernel(myComplex*const __restrict__ out,
@@ -96,75 +104,63 @@ void _fourier_filter_gpu(myComplex*const __restrict__ out,
 }
 
 
+__global__ void kPos(const int iSzX, const int iSzY, const int iSzZ,
+  const int iStX, const int iStY, const int iStZ, const int nGlobX,
+  const int nGlobY, const int nGlobZ, const size_t nZpad, Real*const in_out)
+{
+  const int i = blockDim.x * blockIdx.x + threadIdx.x;
+  const int j = blockDim.y * blockIdx.y + threadIdx.y;
+  const int k = blockDim.z * blockIdx.z + threadIdx.z;
+  if ( (i >= iSzX) || (j >= iSzY) || (k >= iSzZ) ) return;
+  const size_t linidx = k + 2*nZpad*(j + iSzY*i);
+  const Real I = i + iStX, J = j + iStY, K = k + iStZ;
+  in_out[linidx] = K + nGlobZ * (J + nGlobY * I);
+}
+
 __global__ void kGreen(const int iSzX, const int iSzY, const int iSzZ,
   const int iStX, const int iStY, const int iStZ,
-  const int nGlobX, const int nGlobY, const int nGlobZ, const int nZpad,
-  const Real fac, const Real h, Real*const in_out) {
-  unsigned int i = blockDim.x * blockIdx.x + threadIdx.x;
-  unsigned int j = blockDim.y * blockIdx.y + threadIdx.y;
-  unsigned int k = blockDim.z * blockIdx.z + threadIdx.z;
+  const int nGlobX, const int nGlobY, const int nGlobZ, const size_t nZpad,
+  const Real fac, const Real h, Real*const in_out)
+{
+  const int i = blockDim.x * blockIdx.x + threadIdx.x;
+  const int j = blockDim.y * blockIdx.y + threadIdx.y;
+  const int k = blockDim.z * blockIdx.z + threadIdx.z;
   if ( (i >= iSzX) || (j >= iSzY) || (k >= iSzZ) ) return;
-  const size_t linidx = k + nZpad*(j + iSzY*i);
+  const size_t linidx = k + 2*nZpad*(j + iSzY*i);
   const int I = i + iStX, J = j + iStY, K = k + iStZ;
   const Real xi = I>=nGlobX? 2*nGlobX-1 - I : I;
   const Real yi = J>=nGlobY? 2*nGlobY-1 - J : J;
-  const Real zi = K>=nGlobZ? 2*nGlobZ-1 - k : k;
+  const Real zi = K>=nGlobZ? 2*nGlobZ-1 - K : K;
   const Real r = std::sqrt(xi*xi + yi*yi + zi*zi);
   if(r > 0) in_out[linidx] = fac / r;
   // G = r_eq^2 / 2 = std::pow(3/8/pi/sqrt(2))^(2/3) * h^2
-  else      in_out[linidx] = 0.1924173658 * h * h;
+  else      in_out[linidx] = Real(0.1924173658) * h * h;
+  //else      in_out[linidx] = fac;
 }
 
-__global__ void kCopyC2R(const int oSzX, const int oSzY, const int oSzZ,
-  const Real norm, const myComplex*const G_hat, Real*const m_kernel) {
+__global__ void kCopyC2R(const int oSzX,const int oSzY,const int oSzZ,
+  const Real norm, const size_t nZpad, const myComplex*const G_hat, Real*const m_kernel)
+{
   const int i = threadIdx.x + blockIdx.x * blockDim.x;
   const int j = threadIdx.y + blockIdx.y * blockDim.y;
   const int k = threadIdx.z + blockIdx.z * blockDim.z;
   if ( (i >= oSzX) || (j >= oSzY) || (k >= oSzZ) ) return;
-  const int linidx = (i*oSzY + j)*oSzZ + k;
+  const size_t linidx = (i*oSzY + j)*nZpad + k;
   m_kernel[linidx] = G_hat[linidx][0] * norm;
 }
 
 __global__ void kFreespace(const int oSzX, const int oSzY, const int oSzZ,
-  const Real*const G_hat, myComplex*const in_out) {
+  const size_t nZpad, const Real*const G_hat, myComplex*const in_out)
+{
   const int i = threadIdx.x + blockIdx.x * blockDim.x;
   const int j = threadIdx.y + blockIdx.y * blockDim.y;
   const int k = threadIdx.z + blockIdx.z * blockDim.z;
   if ( (i >= oSzX) || (j >= oSzY) || (k >= oSzZ) ) return;
-  const int linidx = (i*oSzY + j)*oSzZ + k;
-  in_out[linidx][0] *= G_hat[linidx]; in_out[linidx][1] *= G_hat[linidx];
-}
-
-void initGreen(const int nx, const int ny, const int nz,
-  const Real h, Real*const m_kernel, const MPI_Comm comm)
-{
-  const int mx = 2*nx -1, my = 2*ny -1, mz = 2*nz -1, mz_pad = (mz/2 +1)*2;
-  int M[3] = {mx, my, mz};
-
-  int iSz[3], oSz[3], iSt[3], oSt[3];
-  const size_t allocM = accfft_locsize_dft_r2c(M, iSz,iSt,oSz,oSt, comm);
-  Real* tmp = nullptr;
-  cudaMalloc((void**) &tmp, allocM);
-
-  {
-    const Real fac = - h * h / ( 4*M_PI );
-    dim3 dB(4, 4, 4);
-    dim3 dG(std::ceil(iSz[0]/4.), std::ceil(iSz[1]/4.), std::ceil(iSz[2]/4.));
-    kGreen<<<dG, dB>>> (iSz[0],iSz[1],iSz[2], iSt[0],iSt[1],iSt[2],
-      nx, ny, nz, mz_pad, fac, h, tmp);
-  }
-  {
-    myplan* fwd = accfft_plan_dft(M, tmp, tmp, comm, ACCFFT_MEASURE);
-    accfft_exec_r2c(fwd, tmp, (myComplex*) tmp);
-    accfft_delplan(fwd);
-  }
-  {
-    const Real norm = 1.0 / (mx * my * mz);
-    dim3 dB(4, 4, 4);
-    dim3 dG(std::ceil(oSz[0]/4.), std::ceil(oSz[1]/4.), std::ceil(oSz[2]/4.));
-    kCopyC2R<<<dG, dB>>> (iSz[0],iSz[1],iSz[2], norm, (myComplex*)tmp, m_kernel);
-  }
-  cudaFree(tmp);
+  const size_t linidx = (i*oSzY + j)*nZpad + k;
+  in_out[linidx][0] *= G_hat[linidx];
+  in_out[linidx][1] *= G_hat[linidx];
+  //in_out[linidx][0] *= 1./(2047 * 511 * 255);
+  //in_out[linidx][1] *= 1./(2047 * 511 * 255);
 }
 
 static inline int getSize(MPI_Comm comm) {
@@ -177,9 +173,9 @@ static inline int getRank(MPI_Comm comm) {
 void dSolveFreespace(void*const P, const int nx,const int ny,const int nz,
   const int locx,const int locy,const int locz, const MPI_Comm comm,
   const int ox,const int oy,const int oz, const Real*const G_hat,
-  Real*const cub_rhs, Real*const fft_rhs, Real*const gpu_rhs, myComplex*const phi)
+  Real*const cub_rhs, Real*const fft_rhs, Real*const gpu_rhs)
 {
-  const int mx = 2*nx -1, my = 2*ny -1, mz = 2*nz -1, mz_pad = (mz/2 +1)*2;
+  const int mx = 2*nx -1, my = 2*ny -1, mz = 2*nz -1, mz_pad = mz/2 +1;
   const int mpisize = getSize(comm), mpirank = getRank(comm);
 
   int pos[3], dst[3];
@@ -190,64 +186,101 @@ void dSolveFreespace(void*const P, const int nx,const int ny,const int nz,
   MPI_Datatype submat;
   MPI_Type_create_subarray(3, szFft, szCup, start, MPI_ORDER_C,MPIREAL,&submat);
   MPI_Type_commit(&submat);
-
+  // MPI transfer of data from CUP distribution to 1D-padded FFT distribution
   {
+    memset(fft_rhs, 0, szFft[0]*szFft[1]*szFft[2] * sizeof(Real) );
     vector<MPI_Request> reqs = vector<MPI_Request>(mpisize*2, MPI_REQUEST_NULL);
     const int m_ind =  pos[0]   * locx, m_pos =  mpirank   * szFft[0];
     const int m_nxt = (pos[0]+1)* locx, m_end = (mpirank+1)* szFft[0];
     for(int i=0; i<mpisize; i++)
     {
-      MPI_Cart_coords(comm, i, 3, dst);
+      MPI_Cart_coords(comm, i, 3, dst); // assert(dst[1]==0 && dst[2]==0);
       const int i_ind =  dst[0]   * locx, i_pos =  i   * szFft[0];
       const int i_nxt = (dst[0]+1)* locx, i_end = (i+1)* szFft[0];
       // test if rank needs to send to i its rhs:
-      if( i_pos < m_nxt && m_ind < i_end ) {
+      if( i_pos < m_nxt && m_ind < i_end )
+      {
         const int tag = i + mpirank * mpisize;
-        const int shiftx = std::max(i_pos - m_ind, 0);
-        const int ptr = szCup[2] * szCup[1] * shiftx;
+        const size_t shiftx = std::max(i_pos - m_ind, 0);
+        const size_t ptr = szCup[2] * szCup[1] * shiftx;
         MPI_Isend(cub_rhs + ptr, 1, submat, i, tag, comm, &reqs[2*i]);
       }
       // test if rank needs to recv to i's rhs:
-      if( m_pos < i_nxt && i_ind < m_end ) {
+      if( m_pos < i_nxt && i_ind < m_end )
+      {
         const int tag = mpirank + i * mpisize;
-        const int shiftx = std::max(i_ind - m_pos, 0);
-        const int ptr = dst[2]*szCup[2] +nz*(dst[1]*szCup[1] +ny*shiftx);
+        const size_t shiftx = std::max(i_ind - m_pos, 0);
+        const size_t ptr = dst[2]*szCup[2] +nz*(dst[1]*szCup[1] +ny*shiftx);
         MPI_Irecv(fft_rhs + ptr, 1, submat, i, tag, comm, &reqs[2*i + 1]);
       }
     }
     MPI_Waitall(mpisize*2, reqs.data(), MPI_STATUSES_IGNORE);
   }
-  if(mpirank < mpisize/2) {
-    cudaMemcpy3DParms p = { 0 };
-    p.srcPos.x=0; p.srcPos.y=0; p.srcPos.z=0;
-    p.dstPos.x=0; p.dstPos.y=0; p.dstPos.z=0;
-    p.srcPtr.ptr   = fft_rhs;  p.srcPtr.pitch = szFft[2] * sizeof(Real);
-    p.srcPtr.xsize = szFft[2]; p.srcPtr.ysize = szFft[1];
-    p.dstPtr.ptr  = gpu_rhs; p.dstPtr.pitch = oz * sizeof(Real);
-    p.dstPtr.xsize = oz; p.dstPtr.ysize = oy;
-    p.kind = cudaMemcpyHostToDevice; p.extent.width = szFft[2] * sizeof(Real);
-    p.extent.height = szFft[1]; p.extent.depth = szFft[0];
-    cudaMemcpy3D(&p);
-  }
+
+  // ranks that do not contain only zero-padding, transfer RHS to GPU
+  if(mpirank < mpisize/2)
   {
-    accfft_exec_r2c(static_cast<myplan*>(P), gpu_rhs, phi);
+    #if 1
+      cudaMemcpy3DParms p = {};
+      p.srcPos.x=0; p.srcPos.y=0; p.srcPos.z=0; p.dstPos.x=0; p.dstPos.y=0; p.dstPos.z=0;
+      p.dstPtr = make_cudaPitchedPtr(gpu_rhs, 2*mz_pad*sizeof(Real), 2*mz_pad, my);
+      p.srcPtr = make_cudaPitchedPtr(fft_rhs, szFft[2]*sizeof(Real), szFft[2], szFft[1]);
+      p.extent = make_cudaExtent(szFft[2]*sizeof(Real), szFft[1], szFft[0]);
+      p.kind = cudaMemcpyHostToDevice;
+      CUDA_Check(cudaMemcpy3D(&p));
+    #else
+      for(int i=0; i<szFft[0]; i++) {
+        CUDA_Check(cudaMemcpy2D(
+          gpu_rhs + 2*mz_pad*my*i, 2*mz_pad*sizeof(Real),
+          fft_rhs + szFft[2]*szFft[1]*i, szFft[2]*sizeof(Real),
+          szFft[2]*sizeof(Real), szFft[1], // sizes
+          cudaMemcpyHostToDevice) );
+      }
+    #endif
+    //CUDA_Check(cudaDeviceSynchronize());
+  }
+
+  // solve Poisson in padded space
+  {
+    accfft_exec_r2c(static_cast<myplan*>(P), gpu_rhs, (myComplex*) gpu_rhs);
+    //CUDA_Check(cudaDeviceSynchronize());
     dim3 dB(4, 4, 4);
     dim3 dG(std::ceil(ox/4.), std::ceil(oy/4.), std::ceil(oz/4.));
-    kFreespace <<<dG, dB>>> (ox,oy,oz, G_hat, phi);
-    accfft_exec_c2r(static_cast<myplan*>(P), phi, gpu_rhs);
+    kFreespace <<<dG, dB>>> (ox,oy,oz, mz_pad, G_hat, (myComplex*) gpu_rhs);
+    //CUDA_Check(cudaDeviceSynchronize());
+    accfft_exec_c2r(static_cast<myplan*>(P), (myComplex*) gpu_rhs, gpu_rhs);
+    //CUDA_Check(cudaDeviceSynchronize());
   }
-  if(mpirank < mpisize/2) {
-    cudaMemcpy3DParms p = { 0 };
-    p.srcPos.x=0; p.srcPos.y=0; p.srcPos.z=0;
-    p.dstPos.x=0; p.dstPos.y=0; p.dstPos.z=0;
-    p.dstPtr.ptr   = fft_rhs;  p.dstPtr.pitch = szFft[2] * sizeof(Real);
-    p.dstPtr.xsize = szFft[2]; p.dstPtr.ysize = szFft[1];
-    p.srcPtr.ptr  = gpu_rhs; p.srcPtr.pitch = oz * sizeof(Real);
-    p.srcPtr.xsize = oz; p.srcPtr.ysize = oy;
-    p.kind = cudaMemcpyDeviceToHost; p.extent.width = szFft[2] * sizeof(Real);
-    p.extent.height = szFft[1]; p.extent.depth = szFft[0];
-    cudaMemcpy3D(&p);
+
+  // ranks that do not contain extended solution, transfer SOL to CPU
+  if(mpirank < mpisize/2)
+  {
+    #if 1
+      cudaMemcpy3DParms p = {};
+      p.srcPos.x=0; p.srcPos.y=0; p.srcPos.z=0; p.dstPos.x=0; p.dstPos.y=0; p.dstPos.z=0;
+      p.srcPtr = make_cudaPitchedPtr(gpu_rhs, 2*mz_pad*sizeof(Real), 2*mz_pad, my);
+      p.dstPtr = make_cudaPitchedPtr(fft_rhs, szFft[2]*sizeof(Real), szFft[2], szFft[1]);
+      p.extent = make_cudaExtent(szFft[2]*sizeof(Real), szFft[1], szFft[0]);
+      p.kind = cudaMemcpyDeviceToHost;
+      CUDA_Check(cudaMemcpy3D(&p));
+    #else
+      for(int i=0; i<szFft[0]; i++) {
+        CUDA_Check(cudaMemcpy2D(
+          fft_rhs + szFft[2]*szFft[1]*i, szFft[2]*sizeof(Real),
+          gpu_rhs + 2*mz_pad*my*i, 2*mz_pad*sizeof(Real),
+          szFft[2]*sizeof(Real), szFft[1], // sizes
+          cudaMemcpyDeviceToHost) );
+      }
+    #endif
+    //CUDA_Check(cudaDeviceSynchronize());
   }
+  {
+    //for(size_t i=0; i<szFft[0]; i++)
+    //for(size_t j=0; j<szFft[1]; j++)
+    //for(size_t k=0; k<szFft[2]; k++)
+    //  fft_rhs[k+szFft[2]*(j+szFft[1]*i)] = k+mz*(j+my*(i+mpirank*szFft[0]));
+  }
+  // MPI transfer of data from CUP distribution to 1D-padded FFT distribution
   {
     vector<MPI_Request> reqs = vector<MPI_Request>(mpisize*2, MPI_REQUEST_NULL);
     const int m_ind =  pos[0]   * locx, m_pos =  mpirank   * szFft[0];
@@ -258,17 +291,19 @@ void dSolveFreespace(void*const P, const int nx,const int ny,const int nz,
       const int i_ind =  dst[0]   * locx, i_pos =  i   * szFft[0];
       const int i_nxt = (dst[0]+1)* locx, i_end = (i+1)* szFft[0];
       // test if rank needs to send to i its rhs:
-      if( i_pos < m_nxt && m_ind < i_end ) {
+      if( i_pos < m_nxt && m_ind < i_end )
+      {
         const int tag = i + mpirank * mpisize;
-        const int shiftx = std::max(i_pos - m_ind, 0);
-        const int ptr = szCup[2] * szCup[1] * shiftx;
+        const size_t shiftx = std::max(i_pos - m_ind, 0);
+        const size_t ptr = szCup[2] * szCup[1] * shiftx;
         MPI_Irecv(cub_rhs + ptr, 1, submat, i, tag, comm, &reqs[2*i]);
       }
       // test if rank needs to recv to i's rhs:
-      if( m_pos < i_nxt && i_ind < m_end ) {
+      if( m_pos < i_nxt && i_ind < m_end )
+      {
         const int tag = mpirank + i * mpisize;
-        const int shiftx = std::max(i_ind - m_pos, 0);
-        const int ptr = dst[2]*szCup[2] +nz*(dst[1]*szCup[1] +ny*shiftx);
+        const size_t shiftx = std::max(i_ind - m_pos, 0);
+        const size_t ptr = dst[2]*szCup[2] +nz*(dst[1]*szCup[1] +ny*shiftx);
         MPI_Isend(fft_rhs + ptr, 1, submat, i, tag, comm, &reqs[2*i + 1]);
       }
     }
@@ -277,34 +312,48 @@ void dSolveFreespace(void*const P, const int nx,const int ny,const int nz,
   MPI_Type_free(&submat);
 }
 
+void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
+  const int nx,const int ny,const int nz, const Real h, myplan* const fwd,
+  Real*const m_kernel, Real*const gpu_rhs)
+{
+  const int mx = 2*nx -1, my = 2*ny -1, mz = 2*nz -1, mz_pad = mz/2 +1;
+  {
+    const Real fac = - h * h / ( 4.0 * M_PI );
+    dim3 dB(4, 4, 4);
+    dim3 dG(std::ceil(isz[0]/4.), std::ceil(isz[1]/4.), std::ceil(isz[2]/4.));
+    //cout<<isz[0]<<" "<<isz[1]<<" "<<isz[2]<<" "<< ist[0]<<" "<<ist[1]<<" "<<ist[2]<<" "<<nx<<" "<<ny<<" "<<nz<<" "<<mz_pad<<endl;
+    kGreen<<<dG, dB>>> (isz[0],isz[1],isz[2], ist[0],ist[1],ist[2],
+      nx, ny, nz, mz_pad, fac, h, gpu_rhs);
+    CUDA_Check(cudaDeviceSynchronize());
+  }
+
+  accfft_exec_r2c(fwd, gpu_rhs, (myComplex*) gpu_rhs);
+  CUDA_Check(cudaDeviceSynchronize());
+
+  {
+    const Real norm = 1.0 / ((Real) mx * (Real) my * (Real) mz);
+    dim3 dB(4, 4, 4);
+    dim3 dG(std::ceil(osz[0]/4.), std::ceil(osz[1]/4.), std::ceil(osz[2]/4.));
+    kCopyC2R<<<dG, dB>>> (osz[0],osz[1],osz[2], norm, mz_pad,
+      (myComplex*)gpu_rhs, m_kernel);
+    CUDA_Check(cudaDeviceSynchronize());
+  }
+  //{
+  //  dim3 dB(4, 4, 4);
+  //  dim3 dG(std::ceil(isz[0]/4.), std::ceil(isz[1]/4.), std::ceil(isz[2]/4.));
+  //  kPos<<<dG, dB>>> (isz[0],isz[1],isz[2], ist[0],ist[1],ist[2], mx,my,mz, mz_pad, gpu_rhs);
+  //}
+}
+
 MPI_Comm my_accfft_create_comm(MPI_Comm C, int c_dims[2]) {
   MPI_Comm ret;
   accfft_create_comm( C, c_dims, &ret);
   return ret;
 }
 
-Real* my_cudaMalloc(const size_t size) {
-  Real* ret;
-  cudaMalloc((void**) &ret, size);
-  return ret;
-}
 void my_cudaFree(Real* const ptr) {  cudaFree(ptr); }
 void my_accfft_cleanup(void* const plan) {
   myplan * inp = static_cast<myplan*>(plan);
   accfft_destroy_plan_gpu(inp);
   accfft_clean();
-}
-
-size_t my_accfft_local_size(int M[3], int isz[3], int ist[3], int osz[3],
-  int ost[3], MPI_Comm c_comm) {
-    return accfft_local_size(M, isz, ist, osz, ost, c_comm);
-}
-
-void* my_accfft_plan_dft(int M[3], Real* gpurhs, MPI_Comm c_comm) {
-  myplan * ret = accfft_plan_dft(M, gpurhs, gpurhs, c_comm, ACCFFT_MEASURE);
-  return static_cast<void*>(ret);
-}
-
-void my_cudaMemset_zero(Real* const ptr, const size_t size) {
-  cudaMemset(ptr, 0, size );
 }

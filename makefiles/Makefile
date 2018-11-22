@@ -15,7 +15,7 @@ include make.gcc.flags
 endif
 
 NVCC?=nvcc
-NVFLAGS?=-O3 -std=c++11 -code=sm_60 -arch=compute_60
+NVFLAGS?=-std=c++11 -code=sm_60 -arch=compute_60
 LD=$(CC)
 
 # this only affects amount of memory allocated by block processing:
@@ -77,7 +77,7 @@ endif
 CPPFLAGS += -D_ALIGNBYTES_=32
 CPPFLAGS += -D_BS_=$(bs)
 
-CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
+#CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
 # needed in order to compile on nodes
 # include make.daint
