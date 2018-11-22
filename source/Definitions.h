@@ -14,13 +14,8 @@
 //#define __DumpWakeStefan 9
 #define __useSkin_
 #include <cassert>
-#include <cmath>
-#include <cstdio>
 #include <fstream>
 #include <string>
-
-#include <mpi.h>
-#include <omp.h>
 
 #ifdef _ACCFFT_
 #undef _UNBOUNDED_FFT_
@@ -39,7 +34,6 @@ typedef double DumpReal;
 #endif
 
 // Cubism dependencies.
-#include "Cubism/ArgumentParser.h"
 #include "Cubism/Grid.h"
 #include "Cubism/GridMPI.h"
 #include "Cubism/BlockInfo.h"
@@ -50,15 +44,11 @@ typedef double DumpReal;
 //#include "Cubism/ZBinDumper_MPI.h"
 #include "Cubism/BlockLab.h"
 #include "Cubism/BlockLabMPI.h"
-#include "Cubism/Profiler.h"
-#include "Cubism/StencilInfo.h"
-#include "Cubism/Timer.h"
 
 using namespace cubism;
 
 #include "AlignedAllocator.h"
 #include "BoundaryConditions.h"
-#include "ObstacleBlock.h"
 #ifdef RL_LAYER
 #include "StateRewardData.h"
 #endif

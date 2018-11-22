@@ -19,7 +19,6 @@
 #include <math.h>
 #include <string>
 #include <vector>
-#include <array>
 using namespace std;
 //#include <assert.h>
 #ifdef __RL_MPI_CLIENT

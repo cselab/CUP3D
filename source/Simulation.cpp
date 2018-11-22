@@ -22,8 +22,6 @@
 #include "CoordinatorComputeDissipation.h"
 #include "IF3D_ObstacleFactory.h"
 
-#include <chrono>
-
 void Simulation::_ic()
 {
   CoordinatorIC coordIC(grid);

@@ -10,8 +10,6 @@
 
 #include "IF3D_ObstacleOperator.h"
 
-#include <cmath>
-
 class IF3D_SphereObstacleOperator: public IF3D_ObstacleOperator
 {
   const double radius;

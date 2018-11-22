@@ -9,10 +9,11 @@
 #ifndef CubismUP_3D_ObstacleBlock_h
 #define CubismUP_3D_ObstacleBlock_h
 
+#include "Definitions.h"
+
 #include <vector> //surface vector
 #include <cstring> //memset
-#include <stdio.h> //print
-
+#include <cstdio> //print
 
 struct surface_data
 {
@@ -27,7 +28,7 @@ struct surface_data
 
 struct ObstacleBlock
 {
-  static constexpr int BS = CUBISMUP3D_BLOCK_SIZE;
+  static constexpr int BS = FluidBlock::BS;
   static constexpr int sizeX = BS;
   static constexpr int sizeY = BS;
   static constexpr int sizeZ = BS;

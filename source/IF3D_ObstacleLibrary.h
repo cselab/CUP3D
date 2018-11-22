@@ -8,7 +8,6 @@
 
 #ifndef IncompressibleFluids3D_IF3D_ObstacleLibrary_h
 #define IncompressibleFluids3D_IF3D_ObstacleLibrary_h
-#include <array>
 #include "IF2D_Interpolation1D.h"
 #include "GenericOperator.h"
 

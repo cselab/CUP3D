@@ -6,9 +6,6 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include <limits>
-#include <cstring>
-
 #include "IF3D_DCylinderObstacleOperator.h"
 #include "IF3D_ObstacleLibrary.h"
 

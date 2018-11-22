@@ -7,7 +7,6 @@
 //
 
 #include "IF3D_ObstacleVector.h"
-#include <string>
 
 using std::vector;
 

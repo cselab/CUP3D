@@ -19,7 +19,6 @@
 #include <math.h>
 #include <string>
 #include <vector>
-#include <array>
 using namespace std;
 //#include <assert.h>
 
@@ -184,7 +183,7 @@ struct StateReward
     std::string line;
     if(in.good()) {
       while (getline(in, line)) {
-        istringstream line_in(line);
+        std::istringstream line_in(line);
         if(nActions==2) line_in >> dummy_time >> action[0] >> action[1];
         else line_in >> dummy_time >> action[0];
         //i want to do pop back later:

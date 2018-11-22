@@ -9,11 +9,13 @@
 #ifndef CubismUP_2D_Simulation_Fluid_h
 #define CubismUP_2D_Simulation_Fluid_h
 
-//#include "Definitions.h"
+#include "Cubism/ArgumentParser.h"
+#include "Cubism/Profiler.h"
+
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
-
 #include "IF3D_ObstacleVector.h"
+#include "Simulation.h"
 
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"

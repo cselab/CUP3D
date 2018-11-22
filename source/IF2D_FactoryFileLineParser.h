@@ -9,19 +9,12 @@
 #ifndef __IF2D_ROCKS__IF2D_FactoryFileLineParser__
 #define __IF2D_ROCKS__IF2D_FactoryFileLineParser__
 
-#include <iostream>
-#include <fstream>
-#include <cstring>
-#include <sstream>
-#include <utility>
-#include <map>
-#include <cstdlib>
-#include <vector>
+#include "Cubism/ArgumentParser.h"
 
 #include <algorithm>
-#include <functional>
-#include <cctype>
 #include <locale>
+#include <sstream>
+#include <utility>
 
 class IF2D_FactoryFileLineParser: public ArgumentParser
 {

@@ -8,7 +8,6 @@
 
 #pragma once
 
-#include "Cubism/BlockLab.h"
 #include "Cubism/Matrix3D.h"
 
 template<typename TBlock, typename TElement, template<typename X> class allocator=std::allocator>
