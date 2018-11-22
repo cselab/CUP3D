@@ -40,7 +40,7 @@ struct ObstacleBlock
   //surface quantities:
   int nPoints = 0;
   bool filled = false;
-  vector<surface_data*> surface;
+  std::vector<surface_data*> surface;
   int *ss  = nullptr;
   double *pX  = nullptr, *pY  = nullptr, *pZ  = nullptr, *P = nullptr;
   double *fX  = nullptr, *fY  = nullptr, *fZ  = nullptr;
@@ -61,7 +61,7 @@ struct ObstacleBlock
   double drag = 0, thrust = 0, Pout=0, PoutBnd=0, defPower=0, defPowerBnd = 0, pLocom = 0;
   static const int nQoI = 22;
 
-  virtual void sumQoI(vector<double>& sum)
+  virtual void sumQoI(std::vector<double>& sum)
   {
     assert(sum.size() == nQoI);
     unsigned k = 0;

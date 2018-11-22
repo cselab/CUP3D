@@ -163,6 +163,8 @@ struct FillBlocks
 
   bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
   {
+    using std::min;
+    using std::max;
     Real intersection[3][2] = {
         max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
         max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
@@ -297,6 +299,8 @@ struct FillBlocks
 
   bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
   {
+    using std::min;
+    using std::max;
     Real intersection[3][2] = {
         max(min_pos[0], box[0][0]), min(max_pos[0], box[0][1]),
         max(min_pos[1], box[1][0]), min(max_pos[1], box[1][1]),
@@ -901,13 +905,15 @@ struct FillBlocksEllipsoid
 
   Real mollified_heaviside(const Real x, const Real eps) const
   {
-    const Real alpha = M_PI*min(1., max(0., (x+0.5*eps)/eps));
+    const Real alpha = M_PI*std::min(1., std::max(0., (x+0.5*eps)/eps));
 
     return 0.5+0.5*cos(alpha);
   }
 
   bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
   {
+    using std::min;
+    using std::max;
     Real intersection[3][2] = {
         max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
         max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),

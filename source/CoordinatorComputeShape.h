@@ -52,7 +52,7 @@ class CoordinatorComputeShape : public GenericCoordinator
     check("shape - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "ComputeShape";
   }
@@ -77,12 +77,12 @@ public:
 
   void operator()(const double dt)
   {
-    check((string)"obst. forces - start");
+    check((std::string)"obst. forces - start");
     (*obstacleVector)->computeForces(*stepID, *time, dt, Uinf, *NU, *bDump);
-    check((string)"obst. forces - end");
+    check((std::string)"obst. forces - end");
   }
 
-  string getName()
+  std::string getName()
   {
       return "ComputeForces";
   }
@@ -104,12 +104,12 @@ public:
 
   void operator()(const double dt)
   {
-    check((string)"obst. diagnostics - start");
+    check((std::string)"obst. diagnostics - start");
     (*obstacleVector)->computeDiagnostics(*stepID, *time, Uinf, *lambda);
-    check((string)"obst. diagnostics - end");
+    check((std::string)"obst. diagnostics - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "ComputeObstDiag";
   }

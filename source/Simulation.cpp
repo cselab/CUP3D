@@ -205,7 +205,7 @@ double Simulation::calcMaxTimestep()
   return dt;
 }
 
-void Simulation::_serialize(const string append)
+void Simulation::_serialize(const std::string append)
 {
   if(!bDump) return;
 
@@ -218,7 +218,7 @@ void Simulation::_serialize(const string append)
   if (rank==0) { //rank 0 saves step id and obstacles
     obstacle_vector->save(step, time, path4serialization+"/"+ssR.str());
     //safety status in case of crash/timeout during grid save:
-    string statusname = path4serialization+"/"+ssR.str()+".status";
+    std::string statusname = path4serialization+"/"+ssR.str()+".status";
     FILE * f = fopen(statusname.c_str(), "w");
     assert(f != NULL);
     fprintf(f, "time: %20.20e\n", time);
@@ -292,7 +292,7 @@ void Simulation::_serialize(const string append)
 
   if (rank==0)
   { //saved the grid! Write status to remember most recent ping
-    string restart_status = path4serialization+"/restart.status";
+    std::string restart_status = path4serialization+"/restart.status";
     FILE * f = fopen(restart_status.c_str(), "w");
     assert(f != NULL);
     fprintf(f, "time: %20.20e\n", time);
@@ -318,7 +318,7 @@ void Simulation::_serialize(const string append)
 void Simulation::_deserialize()
 {
   {
-    string restartfile = path4serialization+"/restart.status";
+    std::string restartfile = path4serialization+"/restart.status";
     FILE * f = fopen(restartfile.c_str(), "r");
     if (f == NULL) {
       printf("Could not restart... starting a new sim.\n");

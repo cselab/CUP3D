@@ -172,7 +172,7 @@ public:
     check("dissipation - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "Dissipation";
   }

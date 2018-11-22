@@ -9,6 +9,8 @@
 #include "IF3D_ObstacleVector.h"
 #include <string>
 
+using std::vector;
+
 vector<std::array<int, 2>> IF3D_ObstacleVector::collidingObstacles()
 {
   vector<std::array<int, 2>> colliding; //IDs of colliding obstacles
@@ -105,7 +107,7 @@ void IF3D_ObstacleVector::save(const int step_id, const double t, std::string fi
 {
   int cntr = 0;
   for(const auto & obstacle_ptr : obstacles) {
-    stringstream ssR;
+    std::stringstream ssR;
     ssR<<filename<<"_"<<cntr;
       obstacle_ptr->save(step_id, t, ssR.str());
       cntr++;
@@ -116,7 +118,7 @@ void IF3D_ObstacleVector::restart(const double t, std::string filename)
 {
     int cntr = 0;
     for(const auto & obstacle_ptr : obstacles) {
-      stringstream ssR;
+      std::stringstream ssR;
       ssR<<filename<<"_"<<cntr;
         obstacle_ptr->restart(t, ssR.str());
         cntr++;

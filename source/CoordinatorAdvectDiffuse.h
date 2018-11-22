@@ -83,7 +83,7 @@ public:
 
     {
       using advection = OperatorAdvectDiffuse;
-      vector<advection*> adv1(nthreads, nullptr);
+      std::vector<advection*> adv1(nthreads, nullptr);
       #pragma omp parallel for schedule(static, 1)
       for(int i=0;i<nthreads;++i) adv1[i] = new advection(dt, MU, uInf);
 
@@ -108,7 +108,7 @@ public:
     check("AdvectDiffuse - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "AdvectDiffuse";
   }

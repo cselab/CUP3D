@@ -256,7 +256,7 @@ public:
     {
       //using advection = OperatorAdvectionUpwind3rdOrder;
       using advection = OperatorAdvection;
-      vector<advection*> adv1(nthreads, nullptr);
+      std::vector<advection*> adv1(nthreads, nullptr);
       for(int i=0;i<nthreads;++i) adv1[i] = new advection(dt, uInf);
 
       compute(adv1);
@@ -267,7 +267,7 @@ public:
     {
       //using advection = OperatorAdvectionUpwind3rdOrderStage2;
       using advection = OperatorAdvectionStage2;
-      vector<advection*> adv2(nthreads, nullptr);
+      std::vector<advection*> adv2(nthreads, nullptr);
       for(int i=0;i<nthreads;++i) adv2[i] = new advection(dt, uInf);
 
       compute(adv2);
@@ -279,7 +279,7 @@ public:
     check("advection - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "Advection";
   }

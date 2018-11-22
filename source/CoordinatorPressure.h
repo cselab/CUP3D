@@ -32,7 +32,7 @@ typedef PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> PressureSolver;
 struct PressureObstacleVisitor : public ObstacleVisitor
 {
   FluidGridMPI * grid;
-  vector<BlockInfo> vInfo;
+  std::vector<BlockInfo> vInfo;
 
   PressureObstacleVisitor(FluidGridMPI * _grid) : grid(_grid)
   {
@@ -267,7 +267,7 @@ class CoordinatorPressure : public GenericCoordinator
 
     {   //place onto p: ( div u^(t+1) - div u^* ) / dt
       //where i want div u^(t+1) to be equal to div udef
-      vector<OperatorDivergenceMinusDivTmpU*> diff(nthreads, nullptr);
+      std::vector<OperatorDivergenceMinusDivTmpU*> diff(nthreads, nullptr);
       #pragma omp parallel for schedule(static, 1)
       for(int i=0;i<nthreads;++i)
         diff[i] = new OperatorDivergenceMinusDivTmpU(dt, &pressureSolver);
@@ -279,7 +279,7 @@ class CoordinatorPressure : public GenericCoordinator
     pressureSolver.solve();
 
     { //pressure correction dudt* = - grad P / rho
-      vector<OperatorGradP*> diff(nthreads, nullptr);
+      std::vector<OperatorGradP*> diff(nthreads, nullptr);
       #pragma omp parallel for schedule(static, 1)
       for(int i=0;i<nthreads;++i) diff[i] = new OperatorGradP(dt, ext);
 
@@ -290,7 +290,7 @@ class CoordinatorPressure : public GenericCoordinator
     check("pressure - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "Pressure";
   }

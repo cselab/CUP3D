@@ -13,15 +13,11 @@
 //#define __2Leads_
 //#define __DumpWakeStefan 9
 #define __useSkin_
-#include <stdexcept>
-#include <sstream>
+#include <cassert>
 #include <cmath>
 #include <cstdio>
-#include <math.h>
+#include <fstream>
 #include <string>
-#include <vector>
-#include <array>
-using namespace std;
 
 #include <mpi.h>
 #include <omp.h>
@@ -134,7 +130,7 @@ struct BaseBlock
   }
 
   template <typename Streamer>
-  inline void Write(ofstream& output, Streamer streamer) const
+  inline void Write(std::ofstream& output, Streamer streamer) const
   {
     for(int iz=0; iz<sizeZ; iz++)
       for(int iy=0; iy<sizeY; iy++)
@@ -143,7 +139,7 @@ struct BaseBlock
   }
 
   template <typename Streamer>
-  inline void Read(ifstream& input, Streamer streamer)
+  inline void Read(std::ifstream& input, Streamer streamer)
   {
     for(int iz=0; iz<sizeZ; iz++)
       for(int iy=0; iy<sizeY; iy++)

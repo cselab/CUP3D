@@ -185,8 +185,8 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   myFish = (FishMidlineData*) localFish;
 
   localFish->quadraticAmplitude = bQuadratic;
-  string heightName = p("-heightProfile").asString("baseline");
-  string  widthName = p( "-widthProfile").asString("baseline");
+  std::string heightName = p("-heightProfile").asString("baseline");
+  std::string  widthName = p( "-widthProfile").asString("baseline");
   MidlineShapes::computeWidthsHeights(heightName, widthName, length,
     myFish->rS, myFish->height, myFish->width, myFish->Nm, rank);
 
@@ -209,7 +209,7 @@ void IF3D_CarlingFishOperator::computeForces(const int stepID, const double time
 
 #ifdef RL_LAYER
 
-void IF3D_CarlingFishOperator::execute(const int i, const double t, const vector<double>a)
+void IF3D_CarlingFishOperator::execute(const int i, const double t, const std::vector<double>a)
 {
   sr.resetAverage();
   sr.t_next_comm=1e6;

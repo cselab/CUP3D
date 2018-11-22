@@ -320,7 +320,7 @@ void IF3D_FishOperator::computeChi(const int step_id, const double time, const d
 
     const int nthreads = omp_get_max_threads();
 
-    vector<PutFishOnBlocks_Finalize*> finalize(nthreads, nullptr);
+    std::vector<PutFishOnBlocks_Finalize*> finalize(nthreads, nullptr);
     for(int i=0; i<nthreads; i++) finalize[i] = new PutFishOnBlocks_Finalize();
 
     compute<PutFishOnBlocks_Finalize, VOLUME>(finalize);
@@ -336,7 +336,7 @@ void IF3D_FishOperator::finalize(const int step_id,const double time, const doub
   // 11. correct deformation velocity to nullify momenta for the final discrete representation
 
   // 10.
-  vector<double> com(4, 0);
+  std::vector<double> com(4, 0);
   for (auto & block : obstacleBlocks) {
     com[0] += block.second->mass;
     com[1] += block.second->CoM_x;
@@ -386,7 +386,7 @@ void IF3D_FishOperator::getCenterOfMass(double CM[3]) const
   CM[2]=CoM_interpolated[2];
 }
 
-void IF3D_FishOperator::save(const int stepID, const double t, string filename)
+void IF3D_FishOperator::save(const int stepID, const double t, std::string filename)
 {
     //assert(std::abs(t-sim_time)<std::numeric_limits<Real>::epsilon());
     std::ofstream savestream;
@@ -404,7 +404,7 @@ void IF3D_FishOperator::save(const int stepID, const double t, string filename)
     savestream.close();
 }
 
-void IF3D_FishOperator::restart(const double t, string filename)
+void IF3D_FishOperator::restart(const double t, std::string filename)
 {
   std::ifstream restartstream;
   restartstream.open(filename+".txt");

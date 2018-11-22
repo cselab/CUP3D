@@ -36,9 +36,9 @@ protected:
   #endif
   FluidGridMPI * grid;
   const Real*const _uInf;
-  vector<BlockInfo> vInfo;
+  std::vector<BlockInfo> vInfo;
   std::map<int,ObstacleBlock*> obstacleBlocks;
-  vector<double> sum;
+  std::vector<double> sum;
   bool printedHeaderVels = false;
   bool isSelfPropelled = false;
 public:
@@ -101,7 +101,7 @@ public:
         (double)grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
         (double)grid->getBlocksPerDimension(2)*FluidBlock::sizeZ,
     };
-    const double maxbpd = max(NFE[0], max(NFE[1], NFE[2]));
+    const double maxbpd = std::max(NFE[0], std::max(NFE[1], NFE[2]));
     const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
     ext_X = scale[0]*extent;
     ext_Y = scale[1]*extent;
@@ -168,7 +168,7 @@ public:
   // to the mass of the obstacle (where we have char func) or only on surface
   enum INTEGRAL { VOLUME, SURFACE };
   template <typename Kernel, INTEGRAL integral>
-  void compute(const vector<Kernel*>& kernels)
+  void compute(const std::vector<Kernel*>& kernels)
   {
     SynchronizerMPI<Real>& Synch = grid->sync(*(kernels[0]));
 
@@ -178,7 +178,7 @@ public:
     for(int i = 0; i < nthreads; ++i)  labs[i].prepare(*grid, Synch);
 
     MPI_Barrier(grid->getCartComm());
-    vector<BlockInfo> avail0 = Synch.avail_inner();
+    std::vector<BlockInfo> avail0 = Synch.avail_inner();
     const int Ninner = avail0.size();
 
     #pragma omp parallel num_threads(nthreads)
@@ -201,7 +201,7 @@ public:
       }
     }
 
-    vector<BlockInfo> avail1 = Synch.avail_halo();
+    std::vector<BlockInfo> avail1 = Synch.avail_halo();
     const int Nhalo = avail1.size();
 
     #pragma omp parallel num_threads(nthreads)
@@ -235,7 +235,7 @@ public:
 
   #ifdef RL_LAYER
     StateReward* _getData() { return &sr; }
-    virtual void execute(const int iAgent, const double time, const vector<double> action);
+    virtual void execute(const int iAgent, const double time, const std::vector<double> action);
 
     virtual void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL,
                                 Real*& pYL, Real*& pXU, Real*& pYU, int& Npts);

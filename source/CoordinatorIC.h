@@ -108,7 +108,7 @@ public:
     check("IC - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "IC";
   }
@@ -139,7 +139,7 @@ public:
     check("IC - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "IC_RT";
   }

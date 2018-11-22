@@ -15,9 +15,9 @@ class GenericCoordinator
 {
 protected:
   FluidGridMPI * grid;
-  vector<BlockInfo> vInfo;
+  std::vector<BlockInfo> vInfo;
 
-  inline void check(string infoText)
+  inline void check(std::string infoText)
   {
     #ifndef NDEBUG
     int rank;
@@ -46,7 +46,7 @@ protected:
   }
 
   template <typename Kernel>
-  void compute(const vector<Kernel*>& kernels)
+  void compute(const std::vector<Kernel*>& kernels)
   {
     SynchronizerMPI<Real>& Synch = grid->sync(*(kernels[0]));
     const int nthreads = omp_get_max_threads();
@@ -57,7 +57,7 @@ protected:
     int rank;
     MPI_Comm_rank(grid->getCartComm(), &rank);
     MPI_Barrier(grid->getCartComm());
-    vector<BlockInfo> avail0 = Synch.avail_inner();
+    std::vector<BlockInfo> avail0 = Synch.avail_inner();
     const int Ninner = avail0.size();
 
     #pragma omp parallel
@@ -75,7 +75,7 @@ protected:
       }
     }
 
-    vector<BlockInfo> avail1 = Synch.avail_halo();
+    std::vector<BlockInfo> avail1 = Synch.avail_halo();
     const int Nhalo = avail1.size();
 
     #pragma omp parallel
@@ -113,7 +113,7 @@ protected:
     int rank;
     MPI_Comm_rank(grid->getCartComm(), &rank);
     MPI_Barrier(grid->getCartComm());
-    vector<BlockInfo> avail0 = Synch.avail_inner();
+    std::vector<BlockInfo> avail0 = Synch.avail_inner();
     const int Ninner = avail0.size();
 
     #pragma omp parallel
@@ -130,7 +130,7 @@ protected:
       }
     }
 
-    vector<BlockInfo> avail1 = Synch.avail_halo();
+    std::vector<BlockInfo> avail1 = Synch.avail_halo();
     const int Nhalo = avail1.size();
 
     #pragma omp parallel
@@ -163,7 +163,7 @@ public:
   virtual ~GenericCoordinator() {}
   virtual void operator()(const double dt) = 0;
 
-  virtual string getName() = 0;
+  virtual std::string getName() = 0;
 };
 
 #endif

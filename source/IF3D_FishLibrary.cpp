@@ -9,6 +9,9 @@
 
 #include "IF3D_FishLibrary.h"
 
+using std::min;
+using std::max;
+
 void FishMidlineData::writeMidline2File(const int step_id, std::string filename)
 {
   char buf[500];
@@ -1019,10 +1022,18 @@ void MidlineShapes::danio_height(const double L, Real*const rS, Real*const res, 
 	}
 }
 
-void MidlineShapes::computeWidthsHeights(const string heightName,
-  const string widthName, const double L, Real* const rS,
-  Real* const height, Real* const width, const int nM, const int mpirank)
+void MidlineShapes::computeWidthsHeights(
+    const std::string &heightName,
+    const std::string &widthName,
+    const double L,
+    Real* const rS,
+    Real* const height,
+    Real* const width,
+    const int nM,
+    const int mpirank)
 {
+  using std::cout;
+  using std::endl;
   if(!mpirank) {
     printf("height = %s, width=%s\n", heightName.c_str(), widthName.c_str());
     fflush(NULL);
@@ -1045,7 +1056,7 @@ void MidlineShapes::computeWidthsHeights(const string heightName,
       integrateBSpline(xh, yh, 9, L, rS, height, nM);
     } else
     if ( heightName.compare(0, 4, "naca") == 0 ) {
-      double t_naca = std::stoi( string(heightName, 5), nullptr, 10 ) * 0.01;
+      double t_naca = std::stoi( heightName.substr(5), nullptr, 10 ) * 0.01;
       if(!mpirank)
         cout<<"Building object's height according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
       naca_width(t_naca, L, rS, height, nM);
@@ -1079,7 +1090,7 @@ void MidlineShapes::computeWidthsHeights(const string heightName,
       integrateBSpline(xw, yw, 6, L, rS, width, nM);
     } else
     if ( widthName.compare(0, 4, "naca") == 0 ) {
-      double t_naca = std::stoi( string(widthName, 5), nullptr, 10 ) * 0.01;
+      double t_naca = std::stoi( widthName.substr(5), nullptr, 10 ) * 0.01;
       if(!mpirank)
         cout<<"Building object's width according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
       naca_width(t_naca, L, rS, width, nM);

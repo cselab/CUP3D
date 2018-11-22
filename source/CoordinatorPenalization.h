@@ -22,7 +22,7 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
   const double dt, lambda;
   const Real * const uInf;
   //Real ext_X, ext_Y, ext_Z;
-  vector<BlockInfo> vInfo;
+  std::vector<BlockInfo> vInfo;
 
   PenalizationObstacleVisitor(FluidGridMPI* g, const double _dt,
       const double l, const Real*const u) : grid(g), dt(_dt),
@@ -106,7 +106,7 @@ struct VelocityObstacleVisitor : public ObstacleVisitor
   const Real * const uInf;
   int * const nSum;
   double * const uSum;
-  vector<BlockInfo> vInfo;
+  std::vector<BlockInfo> vInfo;
 
   VelocityObstacleVisitor(FluidGridMPI* _grid, const Real*const _uInf,
     int*const _nSum, double*const _uSum) : grid(_grid), uInf(_uInf), nSum(_nSum), uSum(_uSum)
@@ -145,7 +145,7 @@ public:
 
   void operator()(const double dt)
   {
-    check((string)"penalization - start");
+    check((std::string)"penalization - start");
 
     int nSum[3] = {0,0,0};
     double uSum[3] = {0,0,0};
@@ -168,10 +168,10 @@ public:
     (*obstacleVector)->Accept(penalizationVisitor); // accept you son of a french cow
     delete penalizationVisitor;
 
-    check((string)"penalization - end");
+    check((std::string)"penalization - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "Penalization";
   }

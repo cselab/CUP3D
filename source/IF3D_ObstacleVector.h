@@ -47,7 +47,7 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
     void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
     void Accept(ObstacleVisitor * visitor) override;
 
-    vector<std::array<int, 2>> collidingObstacles();
+    std::vector<std::array<int, 2>> collidingObstacles();
 
     void addObstacle(IF3D_ObstacleOperator * obstacle)
     {
@@ -67,7 +67,7 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
 
       void getFieldOfView(const double lengthscale);
 
-      void execute(const int iAgent, const double time, const vector<double> action) override;
+      void execute(const int iAgent, const double time, const std::vector<double> action) override;
 
       void interpolateOnSkin(const double time, const int step, bool dumpWake=false) override;
     #endif

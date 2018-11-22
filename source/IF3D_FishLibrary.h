@@ -260,7 +260,7 @@ class FishMidlineData
 
   virtual void _correctAmplitude(const double dAmp, const double vAmp, const double time, const double dt) {}
   virtual void _correctTrajectory(const double dtheta, const double vtheta, const double time, const double dt) {}
-  virtual void execute(const double time, const double l_tnext, const vector<double>& input) {}
+  virtual void execute(const double time, const double l_tnext, const std::vector<double>& input) {}
   void writeMidline2File(const int step_id, std::string filename);
 };
 
@@ -457,8 +457,7 @@ namespace MidlineShapes
   void danio_width(const double L, Real*const rS, Real*const res, const int Nm);
   void danio_height(const double L, Real*const rS, Real*const res, const int Nm);
 
-  void computeWidthsHeights(const string heightName, const string widthName,
-  const double L, Real*const rS, Real*const height, Real*const width,
-  const int nM, const int mpirank);
+  void computeWidthsHeights(const std::string &heightName, const std::string &widthName,
+                            double L, Real *rS, Real *height, Real *width, int nM, int mpirank);
 }
 #endif /* defined(__IncompressibleFluids3D__IF3D_CarlingFish__) */
