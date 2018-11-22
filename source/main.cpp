@@ -7,11 +7,7 @@
 //
 
 #include <iostream>
-#include <string>
-#include <vector>
-#include <cmath>
-#include <sstream>
-using namespace std;
+
 #include "Simulation.h"
 
 int main(int argc, char **argv)

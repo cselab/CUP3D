@@ -13,18 +13,9 @@
 //#define __2Leads_
 //#define __DumpWakeStefan 9
 #define __useSkin_
-#include <stdexcept>
-#include <sstream>
-#include <cmath>
-#include <cstdio>
-#include <math.h>
+#include <cassert>
+#include <fstream>
 #include <string>
-#include <vector>
-#include <array>
-using namespace std;
-
-#include <mpi.h>
-#include <omp.h>
 
 
 #ifndef _FLOAT_PRECISION_
@@ -39,37 +30,30 @@ typedef float DumpReal;
 typedef double DumpReal;
 #endif
 
-#define _BLOCKSIZEX_ _BS_
-#define _BLOCKSIZEY_ _BS_
-#define _BLOCKSIZEZ_ _BS_
-#define _BLOCKSIZE_ _BS_
-
-//this is all cubism file we need
-#include <ArgumentParser.h>
-#include "AlignedAllocator.h"
-#include <Grid.h>
-#include <GridMPI.h>
-#include <BlockInfo.h>
+// Cubism dependencies.
+#include "Cubism/Grid.h"
+#include "Cubism/GridMPI.h"
+#include "Cubism/BlockInfo.h"
 #ifdef _VTK_
-#include <SerializerIO_ImageVTK.h>
+#include "Cubism/SerializerIO_ImageVTK.h"
 #endif
-//#include <HDF5Dumper_MPI.h>
-//#include <ZBinDumper_MPI.h>
-#include <BlockLab.h>
-#include <BlockLabMPI.h>
-#include <Profiler.h>
-#include <StencilInfo.h>
-#include "Timer.h"
+#include "Cubism/HDF5SliceDumperMPI.h"
+//#include "Cubism/ZBinDumper_MPI.h"
+#include "Cubism/BlockLab.h"
+#include "Cubism/BlockLabMPI.h"
+
+using namespace cubism;
+
+#include "AlignedAllocator.h"
 #include "BoundaryConditions.h"
-#include "ObstacleBlock.h"
 #ifdef RL_LAYER
 #include "StateRewardData.h"
 #endif
-#include "Slice.h"
 
 
 struct FluidElement
 {
+  typedef ::Real Real;
   //If you modify these (adding, moving, shuffling, whatever) you kill the code
   Real chi, u, v, w, p, tmpU, tmpV, tmpW;
   FluidElement(): chi(0),u(0),v(0),w(0),p(0),tmpU(0),tmpV(0),tmpW(0) {}
@@ -85,10 +69,12 @@ struct DumpElement {
 struct StreamerDiv
 {
   static const int channels = 1;
-  static void operate(const FluidElement& input, Real output[1])
+  template <typename T>
+  static void operate(const FluidElement& input, T output[1])
   { output[0] = input.p; }
 
-  static void operate(const Real input[1], FluidElement& output)
+  template <typename T>
+  static void operate(const T input[1], FluidElement& output)
   { output.p = input[0]; }
 };
 
@@ -96,12 +82,14 @@ template <typename TElement>
 struct BaseBlock
 {
   //these identifiers are required by cubism!
-  static constexpr int sizeX = _BS_;
-  static constexpr int sizeY = _BS_;
-  static constexpr int sizeZ = _BS_;
-  static constexpr int sizeArray[3] = {_BS_, _BS_, _BS_};
+  static constexpr int BS = CUBISMUP3D_BLOCK_SIZE;
+  static constexpr int sizeX = BS;
+  static constexpr int sizeY = BS;
+  static constexpr int sizeZ = BS;
+  static constexpr int sizeArray[3] = {BS, BS, BS};
   typedef TElement ElementType;
   typedef TElement element_type;
+  typedef ::Real   Real;
   __attribute__((aligned(32))) TElement data[sizeZ][sizeY][sizeX];
 
   //required from Grid.h
@@ -129,7 +117,7 @@ struct BaseBlock
   }
 
   template <typename Streamer>
-  inline void Write(ofstream& output, Streamer streamer) const
+  inline void Write(std::ofstream& output, Streamer streamer) const
   {
     for(int iz=0; iz<sizeZ; iz++)
       for(int iy=0; iy<sizeY; iy++)
@@ -138,7 +126,7 @@ struct BaseBlock
   }
 
   template <typename Streamer>
-  inline void Read(ifstream& input, Streamer streamer)
+  inline void Read(std::ifstream& input, Streamer streamer)
   {
     for(int iz=0; iz<sizeZ; iz++)
       for(int iy=0; iy<sizeY; iy++)
@@ -291,9 +279,9 @@ typedef GridMPI<FluidGrid> FluidGridMPI;
 #ifdef DUMPGRID
   using DumpBlock = BaseBlock<DumpElement>;
   typedef GridMPI<Grid<DumpBlock, aligned_allocator>> DumpGridMPI;
-  typedef SliceMPI<DumpGridMPI> SliceType;
+  typedef SliceTypesMPI::Slice<DumpGridMPI> SliceType;
 #else
-  typedef SliceMPI<FluidGridMPI> SliceType;
+  typedef SliceTypesMPI::Slice<FluidGridMPI> SliceType;
 #endif
 
 #if defined(BC_PERIODICZ)

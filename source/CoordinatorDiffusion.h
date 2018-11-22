@@ -110,7 +110,7 @@ public:
 
 #ifdef _RK2_
     {
-      vector<OperatorDiffusion_toTemp*> diff1(nthreads, nullptr);
+      std::vector<OperatorDiffusion_toTemp*> diff1(nthreads, nullptr);
       for(int i=0;i<nthreads;++i)
         diff1[i] = new OperatorDiffusion_toTemp(dt, coeff);
 
@@ -120,7 +120,7 @@ public:
     }
 #endif
     {
-      vector<OperatorDiffusion_toField*> diff2(nthreads, nullptr);
+      std::vector<OperatorDiffusion_toField*> diff2(nthreads, nullptr);
       for(int i=0;i<nthreads;++i)
         diff2[i] = new OperatorDiffusion_toField(dt, coeff);
 
@@ -132,7 +132,7 @@ public:
     check("diffusion - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "Diffusion";
   }

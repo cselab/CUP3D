@@ -10,6 +10,9 @@
 #include "GenericOperator.h"
 #include "BufferedLogger.h"
 
+using std::min;
+using std::max;
+
 void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
                                         double ang_momenta[3], const double CoM[3])
 {
@@ -193,12 +196,12 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
          +quaternion[2]*quaternion[2]
          +quaternion[3]*quaternion[3]);
 
-    if(fabs(one-1.0) > 5*numeric_limits<Real>::epsilon()) {
+    if(fabs(one-1.0) > 5*std::numeric_limits<Real>::epsilon()) {
       printf("Parsed quaternion length is not equal to one. It really ought to be.\n");
       fflush(0);
       abort();
     }
-    if(length < 5*numeric_limits<Real>::epsilon()) {
+    if(length < 5*std::numeric_limits<Real>::epsilon()) {
       printf("Parsed length is equal to zero. It really ought not to be.\n");
       fflush(0);
       abort();
@@ -253,7 +256,7 @@ void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
 void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const double t, const Real* Uinf)
 {
  if(rank!=0) return;
- stringstream ssR;
+ std::stringstream ssR;
  ssR<<"computedVelocity_"<<obstacleID<<".dat";
     std::stringstream &savestream = logger.get_stream(ssR.str());
     const std::string tab("\t");
@@ -313,7 +316,7 @@ void IF3D_ObstacleOperator::_writeSurfForcesToFile(const int step_id, const doub
   ssP.precision(std::numeric_limits<float>::digits10 + 1);
   // Output defpowers to text file with the correct sign
   ssP<<t<<tab<<Pthrust<<tab<<Pdrag<<tab<<Pout<<tab<<-defPower<<tab<<EffPDef
-     <<tab<<pLocom<<tab<<PoutBnd<<tab<<-defPowerBnd<<tab<<EffPDefBnd<<endl;
+     <<tab<<pLocom<<tab<<PoutBnd<<tab<<-defPowerBnd<<tab<<EffPDefBnd<<std::endl;
 }
 
 void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const double t)
@@ -554,7 +557,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   }
 
   const int nthreads = omp_get_max_threads();
-  vector<OperatorComputeForces*> forces(nthreads, nullptr);
+  std::vector<OperatorComputeForces*> forces(nthreads, nullptr);
   for(int i=0;i<nthreads;++i)
     forces[i] = new OperatorComputeForces(NU,dt,vel_unit,Uinf,CM,angVel,totVel);
 
@@ -563,7 +566,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   for(int i=0; i<nthreads; i++) delete forces[i];
 
   static const int nQoI = ObstacleBlock::nQoI;
-  sum = vector<double>(nQoI, 0);
+  sum = std::vector<double>(nQoI, 0);
   for (auto & block : obstacleBlocks) block.second->sumQoI(sum);
 
   MPI_Allreduce(MPI_IN_PLACE, sum.data(), nQoI, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
@@ -845,7 +848,7 @@ void IF3D_ObstacleOperator::getSkinsAndPOV(Real& x, Real& y, Real& th,
   abort();
 }
 
-void IF3D_ObstacleOperator::execute(const int iAgent, const double time, const vector<double> action)
+void IF3D_ObstacleOperator::execute(const int iAgent, const double time, const std::vector<double> action)
 {
   printf("Entered the wrong execute operator\n");
  fflush(0);

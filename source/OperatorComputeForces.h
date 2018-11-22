@@ -10,8 +10,8 @@
 #define CubismUP_2D_OperatorComputeForces_h
 #include "Definitions.h"
 
-#include "GenericCoordinator.h"
 #include "GenericOperator.h"
+#include "ObstacleBlock.h"
 
 struct OperatorComputeForces
 {

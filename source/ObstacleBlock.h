@@ -9,11 +9,11 @@
 #ifndef CubismUP_3D_ObstacleBlock_h
 #define CubismUP_3D_ObstacleBlock_h
 
-#include <vector> //surface vector
-#include <cstring> //memset
-#include <stdio.h> //print
 #include "Definitions.h"
 
+#include <vector> //surface vector
+#include <cstring> //memset
+#include <cstdio> //print
 
 struct surface_data
 {
@@ -28,19 +28,20 @@ struct surface_data
 
 struct ObstacleBlock
 {
-  // bulk quantities:
-  Real          chi[_BS_][_BS_][_BS_];
-  Real         udef[_BS_][_BS_][_BS_][3];
-  int sectionMarker[_BS_][_BS_][_BS_];
+  static constexpr int BS = FluidBlock::BS;
+  static constexpr int sizeX = BS;
+  static constexpr int sizeY = BS;
+  static constexpr int sizeZ = BS;
 
-  static const int sizeX = _BS_;
-  static const int sizeY = _BS_;
-  static const int sizeZ = _BS_;
+  // bulk quantities:
+  Real          chi[BS][BS][BS];
+  Real         udef[BS][BS][BS][3];
+  int sectionMarker[BS][BS][BS];
 
   //surface quantities:
   int nPoints = 0;
   bool filled = false;
-  vector<surface_data*> surface;
+  std::vector<surface_data*> surface;
   int *ss  = nullptr;
   double *pX  = nullptr, *pY  = nullptr, *pZ  = nullptr, *P = nullptr;
   double *fX  = nullptr, *fY  = nullptr, *fZ  = nullptr;
@@ -61,7 +62,7 @@ struct ObstacleBlock
   double drag = 0, thrust = 0, Pout=0, PoutBnd=0, defPower=0, defPowerBnd = 0, pLocom = 0;
   static const int nQoI = 22;
 
-  virtual void sumQoI(vector<double>& sum)
+  virtual void sumQoI(std::vector<double>& sum)
   {
     assert(sum.size() == nQoI);
     unsigned k = 0;
@@ -79,7 +80,7 @@ struct ObstacleBlock
   {
     //rough estimate of surface cutting the block diagonally
     //with 2 points needed on each side of surface
-    surface.reserve(4*_BS_);
+    surface.reserve(4*BS);
   }
   virtual ~ObstacleBlock()
   {

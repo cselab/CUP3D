@@ -84,7 +84,7 @@ public:
 
   void operator()(const double dt)
   {
-    check((string)"FadeOut - start");
+    check((std::string)"FadeOut - start");
 
     const int N = vInfo.size();
     const Real h = grid->getH();
@@ -105,10 +105,10 @@ public:
       }
     }
 
-    check((string)"FadeOut - end");
+    check((std::string)"FadeOut - end");
   }
 
-  string getName()
+  std::string getName()
   {
     return "FadeOut";
   }

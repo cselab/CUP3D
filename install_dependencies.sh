@@ -13,7 +13,9 @@ JOBS=${JOBS:-$PHYSICAL_CORE_COUNT}
 SOURCES=${SOURCES:-$PWD/dependencies}
 INSTALL_PATH=${INSTALL_PATH:-$PWD/dependencies/build}
 
-# Shorthands for version. Note that changing this number may not be enough for the script to work properly!
+# Shorthands for versions.
+# NOTE: Changing these numbers may not be enough for the script to work properly!
+# NOTE: Update CMakeLists.txt if updating versions!
 CMAKE_VERSION=3.11.1
 CMAKE_VERSION_SHORT=3.11
 CMAKE_SHA_256='57bebc6ca4d1d42c6385249d148d9216087e0fda57a47dc5c858790a70217d0c  cmake-3.11.1.tar.gz'
@@ -120,7 +122,7 @@ fi
 
 if [ -n "$INSTALL_GSL" ]; then
     echo "Installing GSL ${GSL_VERSION}..."
-    wget -nc http://mirror.switch.ch/ftp/mirror/gnu/gsl/gsl-${GSL_VERSION}.tar.gz -P $SOURCES
+    wget -nc ftp://ftp.gnu.org/gnu/gsl/gsl-${GSL_VERSION}.tar.gz -P $SOURCES
     cd $SOURCES
     $TAR -xzvf gsl-${GSL_VERSION}.tar.gz
     cd gsl-${GSL_VERSION}
@@ -130,12 +132,12 @@ if [ -n "$INSTALL_GSL" ]; then
     cd $BASEPWD
 fi
 
-
-[[ -z "$PRINT_EXPORT" ]] && echo "======================================================================"
-[[ -z "$PRINT_EXPORT" ]] && echo "Done! Run or add to ~/.bashrc the following command(s)"
-[[ -z "$PRINT_EXPORT" ]] && echo "to capture installed dependencies in your environment:"
-echo
-[ -n "$PRINT_EXPORT" -o -n "$INSTALL_CMAKE" ] && echo "export PATH=$INSTALL_PATH/cmake-${CMAKE_VERSION}/bin:\$PATH"
-[ -n "$PRINT_EXPORT" -o -n "$INSTALL_FFTW" ] && echo "export FFTWDIR=$INSTALL_PATH/fftw-${FFTW_VERSION}/"
-[ -n "$PRINT_EXPORT" -o -n "$INSTALL_HDF5" ] && echo "export HDF5_ROOT=$INSTALL_PATH/hdf5-${HDF5_VERSION}-parallel/"
-[ -n "$PRINT_EXPORT" -o -n "$INSTALL_GSL" ] && echo "export GSL_ROOT_DIR=$INSTALL_PATH/gsl-${GSL_VERSION}/"
+if [ -n "$INSTALL_CMAKE" ]; then
+    echo
+    echo "======================================================================"
+    echo "Done! Run or add to ~/.bashrc the following command:"
+    echo
+fi
+if [ -n "$INSTALL_CMAKE" -o -n "$PRINT_EXPORT" ]; then
+    echo "export PATH=$INSTALL_PATH/cmake-${CMAKE_VERSION}/bin:\$PATH"
+fi

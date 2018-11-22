@@ -9,11 +9,13 @@
 #ifndef CubismUP_2D_Simulation_Fluid_h
 #define CubismUP_2D_Simulation_Fluid_h
 
-//#include "Definitions.h"
+#include "Cubism/ArgumentParser.h"
+#include "Cubism/Profiler.h"
+
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
-
 #include "IF3D_ObstacleVector.h"
+#include "Simulation.h"
 
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
@@ -65,7 +67,7 @@ class Simulation
   // output
   int saveFreq=0;
   double saveTime=0, nextSaveTime=0, saveClockPeriod=0, maxClockDuration=1e9;
-  string path2file, path4serialization = "./";
+  std::string path2file, path4serialization = "./";
 
   FluidGridMPI * grid = nullptr;
 
@@ -83,7 +85,7 @@ class Simulation
   // vector of 2D slices (for dumping)
   std::vector<SliceType> m_slices;
 
-  void _serialize(const string append = string());
+  void _serialize(const std::string append = std::string());
   void _deserialize();
 
   void parseArguments();

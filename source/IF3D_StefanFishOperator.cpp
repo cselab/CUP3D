@@ -36,7 +36,7 @@ class CurvatureDefinedFishData : public FishMidlineData
 
   void _correctAmplitude(double dAmp, double vAmp, const double time, const double dt) override;
 
-  void execute(const double time, const double l_tnext, const vector<double>& input) override;
+  void execute(const double time, const double l_tnext, const std::vector<double>& input) override;
 
   ~CurvatureDefinedFishData()
   {
@@ -83,7 +83,7 @@ void CurvatureDefinedFishData::_correctAmplitude(double dAmp, double vAmp, const
   //curvScheduler.transition(time, time-dt, time+dt, curvature_values);
 }
 
-void CurvatureDefinedFishData::execute(const double time, const double l_tnext, const vector<double>& input)
+void CurvatureDefinedFishData::execute(const double time, const double l_tnext, const std::vector<double>& input)
 {
   if (input.size()>1) {
     baseScheduler.Turn(input[0], l_tnext);
@@ -203,7 +203,7 @@ void IF3D_StefanFishOperator::save(const int step_id, const double t, std::strin
   #endif
 }
 
-void IF3D_StefanFishOperator::restart(const double t, string filename)
+void IF3D_StefanFishOperator::restart(const double t, std::string filename)
 {
     double timeshift, time0, l_Tp;
     std::ifstream restartstream;
@@ -255,8 +255,8 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
   myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift,
     vInfo[0].h_gridpoint, ampFac);
 
-  string heightName = p("-heightProfile").asString("baseline");
-  string  widthName = p( "-widthProfile").asString("baseline");
+  std::string heightName = p("-heightProfile").asString("baseline");
+  std::string  widthName = p( "-widthProfile").asString("baseline");
   MidlineShapes::computeWidthsHeights(heightName, widthName, length,
     myFish->rS, myFish->height, myFish->width, myFish->Nm, rank);
 
@@ -275,7 +275,7 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
 
 
 #ifdef RL_LAYER
-void IF3D_StefanFishOperator::execute(const int iAgent, const double time, const vector<double> act)
+void IF3D_StefanFishOperator::execute(const int iAgent, const double time, const std::vector<double> act)
 {
   const int nActions = act.size();
   constexpr double eps = std::numeric_limits<Real>::epsilon();

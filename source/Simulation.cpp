@@ -7,7 +7,7 @@
 //
 
 #include "Simulation.h"
-#include <HDF5Dumper_MPI.h>
+#include "Cubism/HDF5Dumper_MPI.h"
 #include "ProcessOperatorsOMP.h"
 
 #include "CoordinatorIC.h"
@@ -21,8 +21,6 @@
 #include "CoordinatorFadeOut.h"
 #include "CoordinatorComputeDissipation.h"
 #include "IF3D_ObstacleFactory.h"
-
-#include <chrono>
 
 void Simulation::_ic()
 {
@@ -80,9 +78,9 @@ void Simulation::setupGrid()
 
   // setup 2D slices
   #ifdef DUMPGRID
-    m_slices = SliceType::getSlices<SliceType>(parser, *dump);
+    m_slices = SliceType::getEntities<SliceType>(parser, *dump);
   #else
-    m_slices = SliceType::getSlices<SliceType>(parser, *grid);
+    m_slices = SliceType::getEntities<SliceType>(parser, *grid);
   #endif
 }
 
@@ -205,7 +203,7 @@ double Simulation::calcMaxTimestep()
   return dt;
 }
 
-void Simulation::_serialize(const string append)
+void Simulation::_serialize(const std::string append)
 {
   if(!bDump) return;
 
@@ -218,7 +216,7 @@ void Simulation::_serialize(const string append)
   if (rank==0) { //rank 0 saves step id and obstacles
     obstacle_vector->save(step, time, path4serialization+"/"+ssR.str());
     //safety status in case of crash/timeout during grid save:
-    string statusname = path4serialization+"/"+ssR.str()+".status";
+    std::string statusname = path4serialization+"/"+ssR.str()+".status";
     FILE * f = fopen(statusname.c_str(), "w");
     assert(f != NULL);
     fprintf(f, "time: %20.20e\n", time);
@@ -229,7 +227,7 @@ void Simulation::_serialize(const string append)
     fclose(f);
   }
 
-  #if defined(_USE_HDF_)
+  #ifdef CUBISM_USE_HDF
   stringstream ssF;
   if (append == "")
    ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
@@ -250,49 +248,49 @@ void Simulation::_serialize(const string append)
     dumper = new std::thread( [=] () {
       if(b2Ddump) {
         for (const auto& slice : m_slices) {
-          DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time,
-            StreamerVelocityVector::prefix()+name2d, path4serialization);
-          DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time,
-            StreamerPressure::prefix()+name2d, path4serialization);
-          DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time,
-            StreamerChi::prefix()+name2d, path4serialization);
+          DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
+              slice, step, time, StreamerVelocityVector::prefix()+name2d, path4serialization);
+          DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
+              slice, step, time, StreamerPressure::prefix()+name2d, path4serialization);
+          DumpSliceHDF5MPI<StreamerChi, DumpReal>(
+              slice, step, time, StreamerChi::prefix()+name2d, path4serialization);
         }
       }
       if(b3Ddump) {
-        DumpHDF5_MPI<DumpGridMPI,StreamerVelocityVector>(*dump, step, time,
-          StreamerVelocityVector::prefix()+name3d, path4serialization);
-        DumpHDF5_MPI<DumpGridMPI,StreamerPressure>(*dump, step, time,
-          StreamerPressure::prefix()+name3d, path4serialization);
-        DumpHDF5_MPI<DumpGridMPI,StreamerChi>(*dump, step, time,
-          StreamerChi::prefix()+name3d, path4serialization);
+        DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
+            *dump, step, time, StreamerVelocityVector::prefix()+name3d, path4serialization);
+        DumpHDF5_MPI<StreamerPressure, DumpReal>(
+            *dump, step, time, StreamerPressure::prefix()+name3d, path4serialization);
+        DumpHDF5_MPI<StreamerChi, DumpReal>(
+            *dump, step, time, StreamerChi::prefix()+name3d, path4serialization);
       }
     } );
   #else //DUMPGRID
     if(b2Ddump) {
       for (const auto& slice : m_slices) {
-        DumpSliceHDF5MPI<SliceType,StreamerVelocityVector>(slice, step, time,
-          StreamerVelocityVector::prefix()+ssF.str(), path4serialization);
-        DumpSliceHDF5MPI<SliceType,StreamerPressure>(slice, step, time,
-          StreamerPressure::prefix()+ssF.str(), path4serialization);
-        DumpSliceHDF5MPI<SliceType,StreamerChi>(slice, step, time,
-          StreamerChi::prefix()+ssF.str(), path4serialization);
+        DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
+            slice, step, time, StreamerVelocityVector::prefix()+ssF.str(), path4serialization);
+        DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
+            slice, step, time, StreamerPressure::prefix()+ssF.str(), path4serialization);
+        DumpSliceHDF5MPI<StreamerChi, DumpReal>(
+            slice, step, time, StreamerChi::prefix()+ssF.str(), path4serialization);
       }
     }
     if(b3Ddump) {
-      DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, step, time,
-        StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
-      DumpHDF5_MPI<FluidGridMPI,StreamerPressure>(*grid, step, time,
-        StreamerPressure::prefix()+ssR.str(), path4serialization);
-      DumpHDF5_MPI<FluidGridMPI,StreamerChi>(*grid, step, time,
-        StreamerChi::prefix()+ssR.str(), path4serialization);
+      DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
+          *grid, step, time, StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
+      DumpHDF5_MPI<StreamerPressure, DumpReal>(
+          *grid, step, time, StreamerPressure::prefix()+ssR.str(), path4serialization);
+      DumpHDF5_MPI<StreamerChi, DumpReal>(
+          *grid, step, time, StreamerChi::prefix()+ssR.str(), path4serialization);
     }
   #endif //DUMPGRID
-  #endif //_USE_HDF_
+  #endif //CUBISM_USE_HDF
 
 
   if (rank==0)
   { //saved the grid! Write status to remember most recent ping
-    string restart_status = path4serialization+"/restart.status";
+    std::string restart_status = path4serialization+"/restart.status";
     FILE * f = fopen(restart_status.c_str(), "w");
     assert(f != NULL);
     fprintf(f, "time: %20.20e\n", time);
@@ -318,7 +316,7 @@ void Simulation::_serialize(const string append)
 void Simulation::_deserialize()
 {
   {
-    string restartfile = path4serialization+"/restart.status";
+    std::string restartfile = path4serialization+"/restart.status";
     FILE * f = fopen(restartfile.c_str(), "r");
     if (f == NULL) {
       printf("Could not restart... starting a new sim.\n");
@@ -348,8 +346,8 @@ void Simulation::_deserialize()
   ssR<<"restart_"<<std::setfill('0')<<std::setw(9)<<step;
   if (rank==0) cout << "Restarting from " << ssR.str() << endl;
 
-  #if defined(_USE_HDF_)
-    ReadHDF5_MPI<FluidGridMPI, StreamerVelocityVector>(*grid,
+  #ifdef CUBISM_USE_HDF
+    ReadHDF5_MPI<StreamerVelocityVector, DumpReal>(*grid,
       StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
   #else
     printf("Unable to restart without  HDF5 library. Aborting...\n");

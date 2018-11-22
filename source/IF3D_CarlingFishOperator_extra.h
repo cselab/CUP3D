@@ -230,7 +230,7 @@ CarlingFishMidlineData* IF3D_CarlingFishOperator::readHingeParams(ArgumentParser
   const bool bOptimizeHinge = p("-OptimizeHingedFin").asBool(false);
   if(bOptimizeHinge)
   {
-    ifstream reader("hingedParams.txt");
+    std::ifstream reader("hingedParams.txt");
     if (reader.is_open()) {
       reader >> aHinge;
       reader >> phiHinge;
@@ -238,11 +238,11 @@ CarlingFishMidlineData* IF3D_CarlingFishOperator::readHingeParams(ArgumentParser
       //reader >> finSize;
       printf("Read numbers = %f, %f, %f\n", aHinge, phiHinge, waveLength);
       if(reader.eof()){
-        cout << "Insufficient number of parameters provided for hingedFin" << endl; fflush(NULL); abort();
+        std::cout << "Insufficient number of parameters provided for hingedFin" << std::endl; fflush(NULL); abort();
       }
       reader.close();
     } else {
-      cout << "Could not open the correct 'params'.txt file" << endl; fflush(NULL);
+      std::cout << "Could not open the correct 'params'.txt file" << std::endl; fflush(NULL);
       abort();
     }
   }
@@ -261,7 +261,7 @@ CarlingFishMidlineData* IF3D_CarlingFishOperator::readBurstCoastParams(ArgumentP
   const Real tStart = p("-tStartBC").asDouble();
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   Real t0, t1, t2, t3, lowestAmp;
-  ifstream reader("burst_coast_carling_params.txt");
+  std::ifstream reader("burst_coast_carling_params.txt");
   if (reader.is_open()) {
     reader >> t0;
     reader >> t1;
@@ -269,12 +269,12 @@ CarlingFishMidlineData* IF3D_CarlingFishOperator::readBurstCoastParams(ArgumentP
     reader >> t3;
     reader >> lowestAmp;
     if(reader.eof()){
-      cout<<"Insufficient number of parameters provided for burstCoast"<<endl;
+      std::cout<<"Insufficient number of parameters provided for burstCoast"<<std::endl;
       abort();
     }
     reader.close();
   } else {
-    cout << "Could not open the correct 'params'.txt file" << endl;
+    std::cout << "Could not open the correct 'params'.txt file" << std::endl;
     fflush(NULL);
     abort();
   }

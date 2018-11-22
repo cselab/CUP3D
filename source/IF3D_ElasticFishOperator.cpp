@@ -10,7 +10,7 @@
 #include "IF3D_FishLibrary.h"
 #include "GenericOperator.h"
 
-#include <HDF5Dumper_MPI.h>
+#include "Cubism/HDF5Dumper_MPI.h"
 
 #include <cmath>
 
@@ -663,7 +663,7 @@ void IF3D_ElasticFishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPer
       }
     }
   }
-  DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, 0, 0, "SFD", "./");
+  DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(*grid, 0, 0, "SFD", "./");
   abort();
   #endif
 }

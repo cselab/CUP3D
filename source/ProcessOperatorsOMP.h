@@ -13,10 +13,10 @@
 
 // -gradp, divergence, advection
 template<typename Lab, typename Kernel>
-void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
+void processOMP(double dt, std::vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 {
   const Kernel kernel(dt);
-  SynchronizerMPI& Synch = grid.sync(kernel);
+  SynchronizerMPI<Real>& Synch = grid.sync(kernel);
 
   const int nthreads = omp_get_max_threads();
   LabMPI * labs = new LabMPI[nthreads];
@@ -24,7 +24,7 @@ void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
   for(int i = 0; i < nthreads; ++i)  labs[i].prepare(grid, Synch);
 
   MPI_Barrier(grid.getCartComm());
-  vector<BlockInfo> avail0 = Synch.avail_inner();
+  std::vector<BlockInfo> avail0 = Synch.avail_inner();
   const int Ninner = avail0.size();
 
   #pragma omp parallel
@@ -41,7 +41,7 @@ void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
     }
   }
 
-  vector<BlockInfo> avail1 = Synch.avail_halo();
+  std::vector<BlockInfo> avail1 = Synch.avail_halo();
   const int Nhalo = avail1.size();
 
   #pragma omp parallel
@@ -67,7 +67,7 @@ void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 }
 
 template<typename Lab, typename Kernel>
-void processOMPold(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
+void processOMPold(double dt, std::vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 {
   const int N = vInfo.size();
 
@@ -87,8 +87,10 @@ void processOMPold(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
   }
 }
 
-static Real findMaxUOMP(const vector<BlockInfo>& myInfo, FluidGridMPI& grid, const Real*const uInf)
+static Real findMaxUOMP(const std::vector<BlockInfo>& myInfo, FluidGridMPI& grid, const Real*const uInf)
 {
+  using std::max;
+  using std::abs;
   Real maxU = 0;
   const int N = myInfo.size();
 
@@ -113,8 +115,8 @@ static Real findMaxUOMP(const vector<BlockInfo>& myInfo, FluidGridMPI& grid, con
 #ifdef DUMPGRID
 static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
 {
-  vector<BlockInfo> vInfo1 = grid.getBlocksInfo();
-  vector<BlockInfo> vInfo2 = dump.getBlocksInfo();
+  std::vector<BlockInfo> vInfo1 = grid.getBlocksInfo();
+  std::vector<BlockInfo> vInfo2 = dump.getBlocksInfo();
   const int N = vInfo1.size();
   if(vInfo1.size() != vInfo2.size()) {
      printf("Async dump fail 1.\n");

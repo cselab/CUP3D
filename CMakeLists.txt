@@ -32,7 +32,7 @@ set(LIB "${EXENAME}")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
 set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
 
-include_directories(${ROOT_FOLDER}/Cubism/source/)
+include_directories(${ROOT_FOLDER}/Cubism/include/)
 include_directories(${ROOT_FOLDER}/source/)
 set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/BufferedLogger.cpp
@@ -94,11 +94,7 @@ if (_VERBOSE_)
     add_definitions("-D_VERBOSE_")
 endif()
 add_definitions("-D_ALIGNBYTES_=32")
-add_definitions("-D_BLOCKSIZE_=${BLOCK_SIZE}")
-add_definitions("-D_BS_=${BLOCK_SIZE}")
-add_definitions("-D_BLOCKSIZEX_=${BLOCK_SIZE}")
-add_definitions("-D_BLOCKSIZEY_=${BLOCK_SIZE}")
-add_definitions("-D_BLOCKSIZEZ_=${BLOCK_SIZE}")
+add_definitions("-DCUBISMUP3D_BLOCK_SIZE=${BLOCK_SIZE}")
 add_definitions("-DNTHREADS=${NUM_THREADS}")
 
 # OpenMP support
@@ -133,21 +129,30 @@ endif()
 
 
 # HDF5
+if (NOT HDF5_ROOT AND EXISTS ${ROOT_FOLDER}/dependencies/build/hdf5-1.10.1)
+    set(HDF5_ROOT ${ROOT_FOLDER}/dependencies/build/hdf5-1.10.1)
+endif()
 set(HDF5_PREFER_PARALLEL ON)
 find_package(HDF5 REQUIRED)
-add_definitions("-D_USE_HDF_")
+add_definitions("-DCUBISM_USE_HDF")
 include_directories(${HDF5_INCLUDE_DIRS})
 target_link_libraries(${EXE1} ${HDF5_LIBRARIES})
 target_link_libraries(${EXE2} ${HDF5_LIBRARIES})
 
 # FFTW
 # TODO: Single precision
+if (NOT FTTW_ROOT AND NOT DEFINED ENV{FFTWDIR} AND EXISTS ${ROOT_FOLDER}/dependencies/build/fftw-3.3.7)
+    set(FFTW_ROOT ${ROOT_FOLDER}/dependencies/build/fftw-3.3.7)
+endif()
 find_package(FFTW REQUIRED)
 include_directories(${FFTW_INCLUDES})
 target_link_libraries(${EXE1} ${FFTW_LIBRARIES})
 target_link_libraries(${EXE2} ${FFTW_LIBRARIES})
 
 # GSL
+if (NOT GSL_ROOT_DIR AND NOT DEFINED ENV{GSL_ROOT_DIR} AND EXISTS ${ROOT_FOLDER}/dependencies/build/gsl-2.1)
+    set(GSL_ROOT_DIR ${ROOT_FOLDER}/dependencies/build/gsl-2.1)
+endif()
 find_package(GSL REQUIRED)
 include_directories(${GSL_INCLUDE_DIRS})
 target_link_libraries(${EXE1} ${GSL_LIBRARIES})

@@ -33,7 +33,7 @@ typedef fftwf_plan myplan;
 
 using namespace std;
 
-#include <BlockInfo.h>
+#include "Cubism/BlockInfo.h"
 
 class My3DFFT_Infinite_MPI
 {

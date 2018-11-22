@@ -9,8 +9,6 @@
 #ifndef __IncompressibleFluids3D__IF3D_NacaOperator__
 #define __IncompressibleFluids3D__IF3D_NacaOperator__
 
-#include <cmath>
-#include <array>
 #include "IF3D_FishOperator.h"
 
 class IF3D_NacaOperator: public IF3D_FishOperator

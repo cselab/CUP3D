@@ -23,7 +23,7 @@ typedef fftwf_plan myplan;
 
 using namespace std;
 
-#include <BlockInfo.h>
+#include "Cubism/BlockInfo.h"
 
 template<typename TGrid, typename TStreamer>
 class PoissonSolverScalarFFTW_MPI

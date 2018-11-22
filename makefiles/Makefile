@@ -75,7 +75,7 @@ ifeq "$(precision_dump)" "double"
 endif
 
 CPPFLAGS += -D_ALIGNBYTES_=32
-CPPFLAGS += -D_BS_=$(bs)
+CPPFLAGS += -DCUBISMUP3D_BLOCK_SIZE=$(bs)
 
 #CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
@@ -106,13 +106,13 @@ ifneq "$(findstring eu-,$(shell hostname))" ""
 	include make.euler
 endif
 
-CPPFLAGS += -I../source/ -I../Cubism/source
+CPPFLAGS += -I../source/ -I../Cubism/include/
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
 
 ifeq "$(hdf)" "true"
-CPPFLAGS+= -D_USE_HDF_ #-I$(hdf-inc)
+CPPFLAGS+= -DCUBISM_USE_HDF #-I$(hdf-inc)
 LIBS+= -lhdf5 #-L$(hdf-lib) -lhdf5
 endif
 

@@ -8,8 +8,6 @@
 
 #pragma once
 
-#include <cmath>
-#include <array>
 #include "IF3D_FishOperator.h"
 
 class IF3D_ElasticFishOperator: public IF3D_FishOperator
