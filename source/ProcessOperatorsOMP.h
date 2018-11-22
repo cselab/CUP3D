@@ -16,7 +16,7 @@ template<typename Lab, typename Kernel>
 void processOMP(double dt, vector<BlockInfo>& vInfo, FluidGridMPI & grid)
 {
   const Kernel kernel(dt);
-  SynchronizerMPI& Synch = grid.sync(kernel);
+  SynchronizerMPI<Real>& Synch = grid.sync(kernel);
 
   const int nthreads = omp_get_max_threads();
   LabMPI * labs = new LabMPI[nthreads];

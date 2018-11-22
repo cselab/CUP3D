@@ -48,7 +48,7 @@ protected:
   template <typename Kernel>
   void compute(const vector<Kernel*>& kernels)
   {
-    SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
+    SynchronizerMPI<Real>& Synch = grid->sync(*(kernels[0]));
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
     #pragma omp parallel for schedule(static, 1)
@@ -104,7 +104,7 @@ protected:
   template <typename Kernel>
   void compute(const Kernel& kernel)
   {
-    SynchronizerMPI& Synch = grid->sync(kernel);
+    SynchronizerMPI<Real>& Synch = grid->sync(kernel);
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
     #pragma omp parallel for schedule(static, 1)

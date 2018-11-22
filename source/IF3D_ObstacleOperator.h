@@ -170,7 +170,7 @@ public:
   template <typename Kernel, INTEGRAL integral>
   void compute(const vector<Kernel*>& kernels)
   {
-    SynchronizerMPI& Synch = grid->sync(*(kernels[0]));
+    SynchronizerMPI<Real>& Synch = grid->sync(*(kernels[0]));
 
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];

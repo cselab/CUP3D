@@ -75,6 +75,7 @@ using namespace cubism;
 
 struct FluidElement
 {
+  typedef ::Real Real;
   //If you modify these (adding, moving, shuffling, whatever) you kill the code
   Real chi, u, v, w, p, tmpU, tmpV, tmpW;
   FluidElement(): chi(0),u(0),v(0),w(0),p(0),tmpU(0),tmpV(0),tmpW(0) {}
@@ -107,6 +108,7 @@ struct BaseBlock
   static constexpr int sizeArray[3] = {_BS_, _BS_, _BS_};
   typedef TElement ElementType;
   typedef TElement element_type;
+  typedef ::Real   Real;
   __attribute__((aligned(32))) TElement data[sizeZ][sizeY][sizeX];
 
   //required from Grid.h
