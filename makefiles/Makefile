@@ -112,7 +112,7 @@ CPPFLAGS += -I../source/ -I../Cubism/include/
 LDFLAGS = $(CPPFLAGS)
 
 ifeq "$(hdf)" "true"
-CPPFLAGS+= -D_USE_HDF_ #-I$(hdf-inc)
+CPPFLAGS+= -DCUBISM_USE_HDF #-I$(hdf-inc)
 LIBS+= -lhdf5 #-L$(hdf-lib) -lhdf5
 endif
 

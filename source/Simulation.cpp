@@ -229,7 +229,7 @@ void Simulation::_serialize(const string append)
     fclose(f);
   }
 
-  #if defined(_USE_HDF_)
+  #ifdef CUBISM_USE_HDF
   stringstream ssF;
   if (append == "")
    ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
@@ -287,7 +287,7 @@ void Simulation::_serialize(const string append)
           *grid, step, time, StreamerChi::prefix()+ssR.str(), path4serialization);
     }
   #endif //DUMPGRID
-  #endif //_USE_HDF_
+  #endif //CUBISM_USE_HDF
 
 
   if (rank==0)
@@ -348,7 +348,7 @@ void Simulation::_deserialize()
   ssR<<"restart_"<<std::setfill('0')<<std::setw(9)<<step;
   if (rank==0) cout << "Restarting from " << ssR.str() << endl;
 
-  #if defined(_USE_HDF_)
+  #ifdef CUBISM_USE_HDF
     ReadHDF5_MPI<StreamerVelocityVector, DumpReal>(*grid,
       StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
   #else
