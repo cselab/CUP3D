@@ -15,6 +15,125 @@
 using std::min;
 using std::max;
 
+std::array<double, 3> getGridExtent(const FluidGridMPI &grid)
+{
+  const double extent = 1;//grid->maxextent;
+  const double NFE[3] = {
+      (double)grid.getBlocksPerDimension(0)*FluidBlock::sizeX,
+      (double)grid.getBlocksPerDimension(1)*FluidBlock::sizeY,
+      (double)grid.getBlocksPerDimension(2)*FluidBlock::sizeZ,
+  };
+  const double maxbpd = std::max(NFE[0], std::max(NFE[1], NFE[2]));
+  const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
+  return {{scale[0] * extent, scale[1] * extent, scale[2] * extent}};
+}
+
+ObstacleParameters::ObstacleParameters(
+        const FluidGridMPI &grid,
+        ArgumentParser &parser)
+{
+  std::array<double, 3> extent = getGridExtent(grid);
+  length = parser("-L").asDouble();          // Mandatory.
+  position[0] = parser("-xpos").asDouble();  // Mandatory.
+  position[1] = parser("-ypos").asDouble(extent[1] / 2);
+  position[2] = parser("-zpos").asDouble(extent[2] / 2);
+  quaternion[0] = parser("-quat0").asDouble(1.0);
+  quaternion[1] = parser("-quat1").asDouble(0.0);
+  quaternion[2] = parser("-quat2").asDouble(0.0);
+  quaternion[3] = parser("-quat3").asDouble(0.0);
+
+  // if true, obstacle will never change its velocity:
+  // bForcedInLabFrame = parser("-bForcedInLabFrame").asBool(false);
+  bool bFSM_alldir = parser("-bForcedInSimFrame").asBool(false);
+  bForcedInSimFrame[0] = bFSM_alldir || parser("-bForcedInSimFrame_x").asBool(false);
+  bForcedInSimFrame[1] = bFSM_alldir || parser("-bForcedInSimFrame_y").asBool(false);
+  bForcedInSimFrame[2] = bFSM_alldir || parser("-bForcedInSimFrame_z").asBool(false);
+
+  // only active if corresponding bForcedInLabFrame is true:
+  enforcedVelocity[0] = -parser("-xvel").asDouble(0.0);
+  enforcedVelocity[1] = -parser("-yvel").asDouble(0.0);
+  enforcedVelocity[2] = -parser("-zvel").asDouble(0.0);
+
+  bFixToPlanar = parser("-bFixToPlanar").asBool(false);
+
+  // this is different, obstacle can change the velocity, but sim frame will follow:
+  bool bFOR_alldir = parser("-bFixFrameOfRef").asBool(false);
+  bFixFrameOfRef[0] = bFOR_alldir || parser("-bFixFrameOfRef_x").asBool(false);
+  bFixFrameOfRef[1] = bFOR_alldir || parser("-bFixFrameOfRef_y").asBool(false);
+  bFixFrameOfRef[2] = bFOR_alldir || parser("-bFixFrameOfRef_z").asBool(false);
+
+  // To force forced obst. into computeForces or to force self-propelled
+  // into diagnostics forces (tasso del tasso del tasso):
+  // If untouched forced only do diagnostics and selfprop only do surface.
+  bComputeForces = parser("-computeForces").asBool(false);
+}
+
+IF3D_ObstacleOperator::IF3D_ObstacleOperator(
+    FluidGridMPI * const grid,
+    const ObstacleParameters &params,
+    const Real * const uInf)
+    : IF3D_ObstacleOperator(grid, uInf)
+{
+  length = params.length;
+  position[0] = params.position[0];
+  position[1] = params.position[1];
+  position[2] = params.position[2];
+  quaternion[0] = params.quaternion[0];
+  quaternion[1] = params.quaternion[1];
+  quaternion[2] = params.quaternion[2];
+  quaternion[3] = params.quaternion[3];
+  _2Dangle = 2 * std::atan2(quaternion[3], quaternion[0]);
+
+  if (!rank) {
+    printf("Obstacle L=%g, pos=[%g %g %g], q=[%g %g %g %g]\n",
+           length, position[0], position[1], position[2],
+           quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
+  }
+
+  const double one = std::sqrt(
+          quaternion[0] * quaternion[0]
+        + quaternion[1] * quaternion[1]
+        + quaternion[2] * quaternion[2]
+        + quaternion[3] * quaternion[3]);
+
+  if (std::fabs(one - 1.0) > 5 * std::numeric_limits<double>::epsilon()) {
+    printf("Parsed quaternion length is not equal to one. It really ought to be.\n");
+    fflush(0);
+    abort();
+  }
+  if (length < 5 * std::numeric_limits<double>::epsilon()) {
+    printf("Parsed length is equal to zero. It really ought not to be.\n");
+    fflush(0);
+    abort();
+  }
+
+  for (int d = 0; d < 3; ++d) {
+    bForcedInSimFrame[d] = params.bForcedInSimFrame[d];
+    if (bForcedInSimFrame[d]) {
+      transVel_imposed[d] = transVel[d] = params.enforcedVelocity[d];
+      if (!rank) {
+         printf("Obstacle forced to move relative to sim domain with constant %c-vel: %f\n",
+                "xyz"[d], transVel[d]);
+      }
+    }
+  }
+  bFixToPlanar = params.bFixToPlanar;
+
+  const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2];
+  if(anyVelForced) {
+    if (!rank) printf("Obstacle has no angular velocity.\n");
+    bBlockRotation[0] = true;
+    bBlockRotation[1] = true;
+    bBlockRotation[2] = true;
+  }
+
+  bFixFrameOfRef[0] = params.bFixFrameOfRef[0];
+  bFixFrameOfRef[1] = params.bFixFrameOfRef[1];
+  bFixFrameOfRef[2] = params.bFixFrameOfRef[2];
+  bForces = params.bComputeForces;
+}
+
+
 void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
                                         double ang_momenta[3], const double CoM[3])
 {
@@ -174,85 +293,6 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
     assert(std::fabs(dummy_ang[1])<EPS);
     assert(std::fabs(dummy_ang[2])<EPS);
   #endif
-}
-
-void IF3D_ObstacleOperator::_parseArguments(ArgumentParser & parser)
-{
-    parser.set_strict_mode();
-    length = parser("-L").asDouble();
-    position[0] = parser("-xpos").asDouble();
-    parser.unset_strict_mode();
-    position[1] = parser("-ypos").asDouble(ext_Y/2);
-    position[2] = parser("-zpos").asDouble(ext_Z/2);
-    quaternion[0] = parser("-quat0").asDouble(1.0);
-    quaternion[1] = parser("-quat1").asDouble(0.0);
-    quaternion[2] = parser("-quat2").asDouble(0.0);
-    quaternion[3] = parser("-quat3").asDouble(0.0);
-    _2Dangle = 2*std::atan2(quaternion[3], quaternion[0]);
-    if(!rank)
-    printf("Obstacle L=%g, pos=[%g %g %g], q=[%g %g %g %g]\n",
-      length,position[0],position[1],position[2],quaternion[0],quaternion[1],quaternion[2],quaternion[3]);
-
-    const double one = sqrt(quaternion[0]*quaternion[0]
-         +quaternion[1]*quaternion[1]
-         +quaternion[2]*quaternion[2]
-         +quaternion[3]*quaternion[3]);
-
-    if(fabs(one-1.0) > 5*std::numeric_limits<Real>::epsilon()) {
-      printf("Parsed quaternion length is not equal to one. It really ought to be.\n");
-      fflush(0);
-      abort();
-    }
-    if(length < 5*std::numeric_limits<Real>::epsilon()) {
-      printf("Parsed length is equal to zero. It really ought not to be.\n");
-      fflush(0);
-      abort();
-    }
-
-    // if true, obstacle will never change its velocity:
-    // bForcedInLabFrame = parser("-bForcedInLabFrame").asBool(false);
-    bool bFSM_alldir = parser("-bForcedInSimFrame").asBool(false);
-    bForcedInSimFrame[0] = bFSM_alldir || parser("-bForcedInSimFrame_x").asBool(false);
-    bForcedInSimFrame[1] = bFSM_alldir || parser("-bForcedInSimFrame_y").asBool(false);
-    bForcedInSimFrame[2] = bFSM_alldir || parser("-bForcedInSimFrame_z").asBool(false);
-
-    if(bForcedInSimFrame[0]) {
-      const double xvel = -parser("-xvel").asDouble(0);
-      transVel_imposed[0] = xvel; transVel[0] = xvel;
-      if(!rank)
-      printf("Obstacle forced to move relative to sim domain with constant x-vel:%f ", xvel);
-    }
-    if(bForcedInSimFrame[1]) {
-      const double yvel = -parser("-yvel").asDouble(0);
-      transVel_imposed[1] = yvel; transVel[1] = yvel;
-      if(!rank)
-      printf("Obstacle forced to move relative to sim domain with constant y-vel:%f ", yvel);
-    }
-    if(bForcedInSimFrame[2]) {
-      const double zvel = -parser("-zvel").asDouble(0);
-      transVel_imposed[2] = zvel; transVel[2] = zvel;
-      if(!rank)
-      printf("Obstacle forced to move relative to sim domain with constant z-vel:%f ", zvel);
-    }
-    bFixToPlanar = parser("-bFixToPlanar").asBool(false);
-
-
-    const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2];
-    if(anyVelForced) {
-      if(!rank) printf("and no angular velocity.\n");
-      bBlockRotation[0] = true;
-      bBlockRotation[1] = true;
-      bBlockRotation[2] = true;
-    }
-    // this is different, obstacle can change the velocity, but sim frame will follow:
-    bool bFOR_alldir = parser("-bFixFrameOfRef").asBool(false);
-    bFixFrameOfRef[0] = bFOR_alldir || parser("-bFixFrameOfRef_x").asBool(false);
-    bFixFrameOfRef[1] = bFOR_alldir || parser("-bFixFrameOfRef_y").asBool(false);
-    bFixFrameOfRef[2] = bFOR_alldir || parser("-bFixFrameOfRef_z").asBool(false);
-    // To force forced obst. into computeForces or to force self-propelled
-    // into diagnostics forces (tasso del tasso del tasso):
-    // If untouched forced only do diagnostics and selfprop only do surface.
-    bForces = parser("-computeForces").asBool(false);
 }
 
 void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const double t, const Real* Uinf)
