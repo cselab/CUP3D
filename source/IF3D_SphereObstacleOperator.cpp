@@ -7,7 +7,25 @@
 //
 
 #include "IF3D_SphereObstacleOperator.h"
+
+#include "Cubism/ArgumentParser.h"
 #include "IF3D_ObstacleLibrary.h"
+
+IF3D_SphereObstacleOperator::IF3D_SphereObstacleOperator(
+    FluidGridMPI * const g,
+    ArgumentParser& p,
+    const Real * const u)
+    : IF3D_ObstacleOperator(g, p, u), radius(0.5*length)
+{
+  accel_decel = p("-accel").asBool(false);
+  if(accel_decel) {
+    if(not bForcedInSimFrame[0]) {
+      printf("Warning: sphere was not set to be forced in x-dir, yet the accel_decel pattern is active.\n");
+    }
+    umax = p("-xvel").asDouble(0.0);
+    tmax = p("-T").asDouble(1.);
+  }
+}
 
 void IF3D_SphereObstacleOperator::create(const int step_id, const double time, const double dt, const Real *Uinf)
 {

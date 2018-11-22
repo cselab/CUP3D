@@ -7,6 +7,8 @@
 //
 
 #include "IF3D_PlateObstacleOperator.h"
+
+#include "Cubism/ArgumentParser.h"
 #include "IF3D_ObstacleLibrary.h"
 
 

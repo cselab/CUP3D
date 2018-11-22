@@ -10,6 +10,7 @@
 #include "IF3D_FishLibrary.h"
 #include "GenericOperator.h"
 
+#include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"
 
 #include <cmath>

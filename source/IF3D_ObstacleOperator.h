@@ -11,11 +11,12 @@
 
 #include "Definitions.h"
 //#include "IF3D_ObstacleLibrary.h"
-#include "IF2D_FactoryFileLineParser.h"
 #include "OperatorComputeForces.h"
 #include <fstream>
 
 // forward declaration of derived class for visitor
+
+namespace cubism { class ArgumentParser; }
 
 class IF3D_ObstacleOperator;
 class IF3D_ObstacleVector;
@@ -67,7 +68,7 @@ public:
   std::array<bool, 3> bBlockRotation = {{false, false, false}};
   bool isMPIBarrierOnChiCompute = false;
 protected:
-  virtual void _parseArguments(ArgumentParser & parser);
+  virtual void _parseArguments(ArgumentParser &parser);
   virtual void _writeComputedVelToFile(const int step_id, const double t, const Real * uInf);
   virtual void _writeDiagForcesToFile(const int step_id, const double t);
   virtual void _writeSurfForcesToFile(const int step_id, const double t);
