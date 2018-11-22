@@ -663,7 +663,7 @@ void IF3D_ElasticFishOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPer
       }
     }
   }
-  DumpHDF5_MPI<FluidGridMPI,StreamerVelocityVector>(*grid, 0, 0, "SFD", "./");
+  DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(*grid, 0, 0, "SFD", "./");
   abort();
   #endif
 }

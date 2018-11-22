@@ -91,10 +91,12 @@ struct DumpElement {
 struct StreamerDiv
 {
   static const int channels = 1;
-  static void operate(const FluidElement& input, Real output[1])
+  template <typename T>
+  static void operate(const FluidElement& input, T output[1])
   { output[0] = input.p; }
 
-  static void operate(const Real input[1], FluidElement& output)
+  template <typename T>
+  static void operate(const T input[1], FluidElement& output)
   { output.p = input[0]; }
 };
 
