@@ -94,7 +94,7 @@ if (_VERBOSE_)
     add_definitions("-D_VERBOSE_")
 endif()
 add_definitions("-D_ALIGNBYTES_=32")
-add_definitions("-D_BS_=${BLOCK_SIZE}")
+add_definitions("-DCUBISMUP3D_BLOCK_SIZE=${BLOCK_SIZE}")
 add_definitions("-DNTHREADS=${NUM_THREADS}")
 
 # OpenMP support

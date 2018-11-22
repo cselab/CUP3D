@@ -343,6 +343,7 @@ struct StateReward
     constAry nxU, constAry nyU, constAry nxL, constAry nyL,
     const double zObst, const double h, const MPI_Comm comm)
   {
+    constexpr int BS = FluidBlock::BS;
     skinForcesVels data(Nskin*2);
     const double eps = 10*std::numeric_limits<double>::epsilon();
     const unsigned NB = vInfo.size();
@@ -362,7 +363,7 @@ struct StateReward
           assert(o->filled);
           double max_pos[3], min_pos[3];
           I.pos(min_pos, 0, 0, 0);
-          I.pos(max_pos, _BS_-1, _BS_-1, _BS_-1);
+          I.pos(max_pos, BS-1, BS-1, BS-1);
           if(zObst-max_pos[2]>h+eps || min_pos[2]-zObst>h+eps) continue;
           if(Y    -max_pos[1]>h+eps || min_pos[1]-Y    >h+eps) continue;
           if(X    -max_pos[0]>h+eps || min_pos[0]-X    >h+eps) continue;

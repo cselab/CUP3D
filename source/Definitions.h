@@ -42,11 +42,6 @@ typedef float DumpReal;
 typedef double DumpReal;
 #endif
 
-#define _BLOCKSIZEX_ _BS_
-#define _BLOCKSIZEY_ _BS_
-#define _BLOCKSIZEZ_ _BS_
-#define _BLOCKSIZE_ _BS_
-
 // Cubism dependencies.
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/Grid.h"
@@ -104,10 +99,11 @@ template <typename TElement>
 struct BaseBlock
 {
   //these identifiers are required by cubism!
-  static constexpr int sizeX = _BS_;
-  static constexpr int sizeY = _BS_;
-  static constexpr int sizeZ = _BS_;
-  static constexpr int sizeArray[3] = {_BS_, _BS_, _BS_};
+  static constexpr int BS = CUBISMUP3D_BLOCK_SIZE;
+  static constexpr int sizeX = BS;
+  static constexpr int sizeY = BS;
+  static constexpr int sizeZ = BS;
+  static constexpr int sizeArray[3] = {BS, BS, BS};
   typedef TElement ElementType;
   typedef TElement element_type;
   typedef ::Real   Real;

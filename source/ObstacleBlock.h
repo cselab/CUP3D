@@ -12,7 +12,6 @@
 #include <vector> //surface vector
 #include <cstring> //memset
 #include <stdio.h> //print
-#include "Definitions.h"
 
 
 struct surface_data
@@ -28,14 +27,15 @@ struct surface_data
 
 struct ObstacleBlock
 {
-  // bulk quantities:
-  Real          chi[_BS_][_BS_][_BS_];
-  Real         udef[_BS_][_BS_][_BS_][3];
-  int sectionMarker[_BS_][_BS_][_BS_];
+  static constexpr int BS = CUBISMUP3D_BLOCK_SIZE;
+  static constexpr int sizeX = BS;
+  static constexpr int sizeY = BS;
+  static constexpr int sizeZ = BS;
 
-  static const int sizeX = _BS_;
-  static const int sizeY = _BS_;
-  static const int sizeZ = _BS_;
+  // bulk quantities:
+  Real          chi[BS][BS][BS];
+  Real         udef[BS][BS][BS][3];
+  int sectionMarker[BS][BS][BS];
 
   //surface quantities:
   int nPoints = 0;
@@ -79,7 +79,7 @@ struct ObstacleBlock
   {
     //rough estimate of surface cutting the block diagonally
     //with 2 points needed on each side of surface
-    surface.reserve(4*_BS_);
+    surface.reserve(4*BS);
   }
   virtual ~ObstacleBlock()
   {
