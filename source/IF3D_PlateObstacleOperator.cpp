@@ -266,11 +266,11 @@ IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
         const double nx, const double ny, const double nz,
         const double ax, const double ay, const double az)
     : IF3D_ObstacleOperator(g, args, u),
+      nx(nx), ny(ny), nz(nz),
+      ax(ax), ay(ay), az(az),
       half_a(.5 * a),
       half_b(.5 * b),
-      half_thickness(.5 * thickness),
-      nx(nx), ny(ny), nz(nz),
-      ax(ax), ay(ay), az(az)
+      half_thickness(.5 * thickness)
 {
     _init();
 }

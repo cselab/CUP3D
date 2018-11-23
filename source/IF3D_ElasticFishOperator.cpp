@@ -50,7 +50,25 @@ class ElasticMidlineData : public FishMidlineData
 
  public:
   ElasticMidlineData(const double L, const double _h, double zExtent, double t_ratio, double HoverL=1) :
-    FishMidlineData(L, 1, 0, _h), theta(_alloc(Nm-2)), thetaOld(_alloc(Nm-2)), cosTheta(_alloc(Nm-2)), dTheta(_alloc(Nm-2)), elasticityCoefficients(_alloc(Nm-2)), dampingCoefficients(_alloc(Nm-2)), linkLength(_alloc(Nm-1)), linkWidth(_alloc(Nm-1)), linkMass(_alloc(Nm-1)), linkInertia(_alloc(Nm-1)),forcesElasticPlusDampingX(_alloc(Nm)), forcesElasticPlusDampingY(_alloc(Nm)), forcesTotalX(_alloc(Nm)), forcesTotalY(_alloc(Nm)), vX_plus_half(_alloc(Nm)), vY_plus_half(_alloc(Nm)), vX_minus_half(_alloc(Nm)), vY_minus_half(_alloc(Nm))
+    FishMidlineData(L, 1, 0, _h),
+    theta(_alloc(Nm-2)),
+    thetaOld(_alloc(Nm-2)),
+    cosTheta(_alloc(Nm-2)),
+    dTheta(_alloc(Nm-2)),
+    linkLength(_alloc(Nm-1)),
+    linkWidth(_alloc(Nm-1)),
+    linkMass(_alloc(Nm-1)),
+    linkInertia(_alloc(Nm-1)),
+    elasticityCoefficients(_alloc(Nm-2)),
+    dampingCoefficients(_alloc(Nm-2)),
+    forcesElasticPlusDampingX(_alloc(Nm)),
+    forcesElasticPlusDampingY(_alloc(Nm)),
+    forcesTotalX(_alloc(Nm)),
+    forcesTotalY(_alloc(Nm)),
+    vX_plus_half(_alloc(Nm)),
+    vY_plus_half(_alloc(Nm)),
+    vX_minus_half(_alloc(Nm)),
+    vY_minus_half(_alloc(Nm))
   {
     #if defined(BC_PERIODICZ)
       // large enough in z-dir such that we for sure fill entire domain
