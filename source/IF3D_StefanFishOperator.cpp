@@ -7,10 +7,13 @@
 //
 
 #include "IF3D_StefanFishOperator.h"
-#include "IF3D_FishLibrary.h"
 
 #include <cmath>
 #include <array>
+
+#include "Cubism/ArgumentParser.h"
+#include "IF3D_FishLibrary.h"
+
 
 class CurvatureDefinedFishData : public FishMidlineData
 {

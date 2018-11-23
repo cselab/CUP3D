@@ -11,14 +11,45 @@
 
 #include "Definitions.h"
 //#include "IF3D_ObstacleLibrary.h"
-#include "IF2D_FactoryFileLineParser.h"
 #include "OperatorComputeForces.h"
+
+#include <array>
 #include <fstream>
 
 // forward declaration of derived class for visitor
 
+namespace cubism { class ArgumentParser; }
+
 class IF3D_ObstacleOperator;
 class IF3D_ObstacleVector;
+
+
+/*
+ * Return the size of the domain in the physical space.
+ * All returned values are in the range (0, 1], and at least one is equal to 1.
+ */
+std::array<double, 3> getGridExtent(const FluidGridMPI &grid);
+
+
+/*
+ * Structure containing all externally configurable parameters of a base obstacle.
+ */
+struct ObstacleArguments {
+  double length = 0.0;
+  std::array<double, 3> position = {{0.0, 0.0, 0.0}};
+  std::array<double, 4> quaternion = {{0.0, 0.0, 0.0, 0.0}};
+  std::array<double, 3> enforcedVelocity = {{0.0, 0.0, 0.0}};  // Only if bForcedInSimFrame.
+  std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
+  std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
+  bool bFixToPlanar = false;
+  bool bComputeForces = true;
+
+  ObstacleArguments() = default;
+
+  /* Convert human-readable format into internal representation of parameters. */
+  ObstacleArguments(const FluidGridMPI &grid, ArgumentParser &parser);
+};
+
 
 struct ObstacleVisitor
 {
@@ -67,7 +98,6 @@ public:
   std::array<bool, 3> bBlockRotation = {{false, false, false}};
   bool isMPIBarrierOnChiCompute = false;
 protected:
-  virtual void _parseArguments(ArgumentParser & parser);
   virtual void _writeComputedVelToFile(const int step_id, const double t, const Real * uInf);
   virtual void _writeDiagForcesToFile(const int step_id, const double t);
   virtual void _writeSurfForcesToFile(const int step_id, const double t);
@@ -76,16 +106,11 @@ protected:
   //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
 
 public:
-  IF3D_ObstacleOperator(FluidGridMPI*g, ArgumentParser&parser, const Real*const uInf) : grid(g), _uInf(uInf)
-  {
-    MPI_Comm_rank(grid->getCartComm(),&rank);
-    MPI_Comm_size(grid->getCartComm(),&size);
-    vInfo = grid->getBlocksInfo();
-    updateSRextents();
-    _parseArguments(parser);
-  }
+  IF3D_ObstacleOperator(FluidGridMPI *g, const ObstacleArguments &args, const Real *uInf);
+  IF3D_ObstacleOperator(FluidGridMPI *g, ArgumentParser &parser, const Real *uInf)
+      : IF3D_ObstacleOperator(g, ObstacleArguments(*g, parser), uInf) { }
 
-  IF3D_ObstacleOperator(FluidGridMPI * g) : grid(g), _uInf(nullptr)
+  IF3D_ObstacleOperator(FluidGridMPI * g, const Real *uInf = nullptr) : grid(g), _uInf(uInf)
   {
     MPI_Comm_rank(grid->getCartComm(),&rank);
     MPI_Comm_size(grid->getCartComm(),&size);
@@ -95,17 +120,10 @@ public:
 
   void updateSRextents()
   {
-    const double extent = 1;//grid->maxextent;
-    const double NFE[3] = {
-        (double)grid->getBlocksPerDimension(0)*FluidBlock::sizeX,
-        (double)grid->getBlocksPerDimension(1)*FluidBlock::sizeY,
-        (double)grid->getBlocksPerDimension(2)*FluidBlock::sizeZ,
-    };
-    const double maxbpd = std::max(NFE[0], std::max(NFE[1], NFE[2]));
-    const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
-    ext_X = scale[0]*extent;
-    ext_Y = scale[1]*extent;
-    ext_Z = scale[2]*extent;
+    std::array<double, 3> extent = getGridExtent(*grid);
+    ext_X = extent[0];
+    ext_Y = extent[1];
+    ext_Z = extent[2];
     if(!rank) printf("Got sim extents %g %g %g\n", ext_X, ext_Y, ext_Z);
     #ifdef RL_LAYER
       sr.ext_X = ext_X;

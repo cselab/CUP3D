@@ -11,6 +11,8 @@
 
 #include "IF3D_ObstacleOperator.h"
 
+namespace cubism { struct ArgumentParser; }
+
 class IF3D_ObstacleFactory
 {
   int rank;
@@ -27,7 +29,7 @@ public:
   ~IF3D_ObstacleFactory()
   {}
 
-  std::vector<IF3D_ObstacleOperator * > create(ArgumentParser & parser);
+  std::vector<IF3D_ObstacleOperator *> create(ArgumentParser &parser);
 };
 
 

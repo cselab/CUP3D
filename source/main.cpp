@@ -8,6 +8,8 @@
 
 #include <iostream>
 
+#include "Cubism/ArgumentParser.h"
+#include "IF3D_ObstacleFactory.h"
 #include "Simulation.h"
 
 int main(int argc, char **argv)
@@ -27,8 +29,6 @@ int main(int argc, char **argv)
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
-  ArgumentParser parser(argc,argv);
-  parser.set_strict_mode();
   if (rank==0) {
     std::cout << "=======================================================================\n";
     std::cout << "Cubism UP 3D (velocity-pressure 3D incompressible Navier-Stokes solver)\n";
@@ -44,10 +44,9 @@ int main(int argc, char **argv)
     std::cout << "Using smooth truncation at domain boundaries...\n";
 #endif
   }
-  parser.unset_strict_mode();
 
-  Simulation * sim = new Simulation(MPI_COMM_WORLD, argc, argv);
-  sim->init();
+  ArgumentParser parser(argc, argv);
+  Simulation *sim = new Simulation(MPI_COMM_WORLD, parser);
   sim->simulate();
   delete sim;
 

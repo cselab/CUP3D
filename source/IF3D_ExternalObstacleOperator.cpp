@@ -71,6 +71,17 @@ struct FillBlocksExternal : FillBlocksBase<FillBlocksExternal>
 }  // namespace
 
 
+IF3D_ExternalObstacleOperator::IF3D_ExternalObstacleOperator(
+        FluidGridMPI * const g,
+        const ObstacleArguments &args,
+        const Real * const u)
+        : IF3D_ObstacleOperator(g, args, u)
+{
+    bForcedInSimFrame = {true, true, true};
+    bFixFrameOfRef = {true, true, true};
+    bBlockRotation = {true, true, true};
+}
+
 void IF3D_ExternalObstacleOperator::computeVelocities(
         const Real * const Uinf) {
     IF3D_ObstacleOperator::computeVelocities(Uinf);
@@ -131,12 +142,4 @@ void IF3D_ExternalObstacleOperator::create(
     }
     for (auto &o : obstacleBlocks)
         o.second->allocate_surface();
-}
-
-void IF3D_ExternalObstacleOperator::_parseArguments(ArgumentParser &parser)
-{
-    IF3D_ObstacleOperator::_parseArguments(parser);
-    bForcedInSimFrame = {true, true, true};
-    bFixFrameOfRef = {true, true, true};
-    bBlockRotation = {true, true, true};
 }

@@ -9,7 +9,6 @@
 #ifndef CubismUP_2D_Simulation_Fluid_h
 #define CubismUP_2D_Simulation_Fluid_h
 
-#include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5SliceDumperMPI.h"
 #include "Cubism/Profiler.h"
 //#include "Cubism/ZBinDumper_MPI.h"
@@ -41,13 +40,13 @@
   typedef SliceTypesMPI::Slice<FluidGridMPI> SliceType;
 #endif
 
+namespace cubism { class ArgumentParser; }
 namespace cubismup3d { class SimulationWrapper; }
 
 class Simulation
 {
   friend class cubismup3d::SimulationWrapper;
  protected:
-  ArgumentParser parser;
   Profiler profiler;
   const MPI_Comm app_comm;
   #ifdef RL_LAYER
@@ -57,8 +56,9 @@ class Simulation
     SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
   #endif
 
+  int rank=-1, nprocs=-1;
+public:
   // grid
-  int rank=-1, nprocs=1;
   int nprocsx=-1, nprocsy=-1, nprocsz=-1;
   int bpdx=-1, bpdy=-1, bpdz=-1;
 
@@ -68,15 +68,19 @@ class Simulation
 
   // simulation settings
   Real uinf[3]={0,0,0};
-  double nu=0, CFL=0, lambda=0, DLM=0;
-  bool bRestart=false, verbose=false;
+  double nu=0, CFL=0, lambda=-1, DLM=0;
+  bool verbose=false;
+  bool computeDissipation=false;
   bool b3Ddump=true, b2Ddump=false, bDump=false;
   bool rampup=true;
+#ifndef _UNBOUNDED_FFT_
+  Real fadeOutLength = .005;
+#endif
 
   // output
   int saveFreq=0;
   double saveTime=0, nextSaveTime=0, saveClockPeriod=0, maxClockDuration=1e9;
-  std::string path2file, path4serialization = "./";
+  std::string path4serialization = "./";
 
   FluidGridMPI * grid = nullptr;
 
@@ -97,15 +101,15 @@ class Simulation
   void _serialize(const std::string append = std::string());
   void _deserialize();
 
-  void parseArguments();
-  void setupObstacles();
+  void _argumentsSanityCheck();
+  void setObstacleVector(IF3D_ObstacleVector *obstacle_vector_);
   void setupOperators();
   void setupGrid();
   void _ic();
 
  public:
-  Simulation(MPI_Comm mpicomm, int argc, char** argv):
-  parser(argc,argv), app_comm(mpicomm) {   }
+  Simulation(MPI_Comm mpicomm) : app_comm(mpicomm) {}
+  Simulation(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
 
   virtual ~Simulation()
   {
@@ -126,7 +130,6 @@ class Simulation
     #endif
   }
 
-  virtual void init();
   virtual void simulate();
 
 

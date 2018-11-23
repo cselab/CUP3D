@@ -7,12 +7,12 @@
 //
 
 #include <iostream>
-#include <string>
-#include <vector>
 #include <cmath>
-#include <sstream>
-using namespace std;
+
+#include "Cubism/ArgumentParser.h"
 #include "Simulation.h"
+
+using std::cout;
 
 int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
 {
@@ -40,8 +40,7 @@ int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
     cout << "====================================================================================================================\n";
   }
 
-  Simulation * sim = new Simulation(app_comm, argc, argv);
-  sim->init();
+  Simulation * sim = new Simulation(app_comm, parser);
   sim->simulate();
   delete sim;
 

@@ -73,12 +73,9 @@ SimulationWrapper::SimulationWrapper(MPI_Comm comm, const SimulationConfig &C)
     for (int i = 0; i < argc; i += 2)
         printf("==> %s = %s\n", _argv[i].c_str(), _argv[i + 1].c_str());
 
-    int rank = 0;
-    MPI_Comm_rank(comm, &rank);
-    MPI_Barrier(comm);
-    S = new Simulation(comm, argc, argv);
+    ArgumentParser parser(argc, argv);
+    S = new Simulation(comm, parser);
     S->rampup = false;
-    S->init();
 
     const auto &obstacles = S->getObstacleVector();
     for (int i = 0; i < (int)C.eos.size(); ++i) {

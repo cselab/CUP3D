@@ -8,6 +8,8 @@
 
 #include "IF3D_ObstacleVector.h"
 
+#include <sstream>
+
 using std::vector;
 
 vector<std::array<int, 2>> IF3D_ObstacleVector::collidingObstacles()

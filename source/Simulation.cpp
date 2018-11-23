@@ -5,7 +5,10 @@
 //
 //  Written by Guido Novati (novatig@ethz.ch).
 //
+#include "Simulation.h"
 
+#include "Cubism/ArgumentParser.h"
+#include "Cubism/HDF5Dumper_MPI.h"
 #include "CoordinatorAdvectDiffuse.h"
 #include "CoordinatorAdvection.h"
 #include "CoordinatorComputeDissipation.h"
@@ -15,14 +18,91 @@
 #include "CoordinatorIC.h"
 #include "CoordinatorPenalization.h"
 #include "CoordinatorPressure.h"
-#include "IF3D_ObstacleFactory.h"
 //#include "CoordinatorVorticity.h"
-
-#include "Cubism/HDF5Dumper_MPI.h"
-
+#include "IF3D_ObstacleFactory.h"
 #include "ProcessOperatorsOMP.h"
-#include "Simulation.h"
-#include <sstream>
+
+/*
+ * Initialization from cmdline arguments is done in few steps, because grid has
+ * to be created before the obstacles and slices are created.
+ */
+Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
+    : app_comm(mpicomm)
+{
+  MPI_Comm_rank(app_comm, &rank);
+  if (rank == 0)
+    parser.print_args();
+
+  // ========== SIMULATION ==========
+  // GRID
+  bpdx = parser("-bpdx").asInt();
+  bpdy = parser("-bpdy").asInt();
+  bpdz = parser("-bpdz").asInt();
+  nprocsx = parser("-nprocsx").asInt(-1);
+  nprocsy = parser("-nprocsy").asInt(-1);
+
+  // FLOW
+  nu = parser("-nu").asDouble();
+  lambda = parser("-lambda").asDouble(1e6);
+  CFL = parser("-CFL").asDouble(.1);
+  uinf[0] = parser("-uinfx").asDouble(0.0);
+  uinf[1] = parser("-uinfy").asDouble(0.0);
+  uinf[2] = parser("-uinfz").asDouble(0.0);
+
+  // PIPELINE
+  computeDissipation = (bool)parser("-compute-dissipation").asInt(0);
+#ifndef _UNBOUNDED_FFT_
+  fadeOutLength = parser("-fade_len").asDouble(.005);
+#endif
+
+  // OUTPUT
+  verbose = parser("-verbose").asBool(true);
+  b2Ddump = parser("-dump2D").asBool(false);
+  b3Ddump = parser("-dump3D").asBool(true);
+  DLM = parser("-use-dlm").asDouble(0);
+
+  int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
+  double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
+  saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
+  saveTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
+
+  nsteps = parser("-nsteps").asInt(0);    // 0 to disable this stopping critera.
+  endTime = parser("-tend").asDouble(0);  // 0 to disable this stopping critera.
+
+  // TEMP: Removed distinction saving-dumping. Backward compatibility:
+  if (saveFreq <= 0 && dumpFreq > 0) saveFreq = dumpFreq;
+  if (saveTime <= 0 && dumpTime > 0) saveTime = dumpTime;
+
+  path4serialization = parser("-serialization").asString("./");
+
+
+  // ========= SETUP GRID ==========
+  // Grid has to be initialized before slices and obstacles.
+  _argumentsSanityCheck();
+  setupGrid();
+
+  // =========== SLICES ============
+  #ifdef DUMPGRID
+    m_slices = SliceType::getEntities<SliceType>(parser, *dump);
+  #else
+    m_slices = SliceType::getEntities<SliceType>(parser, *grid);
+  #endif
+
+  // ========== OBSTACLES ==========
+  IF3D_ObstacleFactory factory(grid, uinf);
+  setObstacleVector(new IF3D_ObstacleVector(grid, factory.create(parser)));
+
+  // ====== SETUP OPERATORS ========
+  setupOperators();
+
+  bool restart = parser("-restart").asBool(false);
+  if (restart)
+    _deserialize();
+  else
+    _ic();
+
+  MPI_Barrier(app_comm);
+}
 
 void Simulation::_ic()
 {
@@ -34,29 +114,39 @@ void Simulation::_ic()
 
 void Simulation::setupGrid()
 {
-  parser.set_strict_mode();
-  bpdx = parser("-bpdx").asInt();
-  bpdy = parser("-bpdy").asInt();
-  bpdz = parser("-bpdz").asInt();
-  parser.unset_strict_mode();
-  nprocsy = parser("-nprocsy").asInt(1);
-  parser.set_strict_mode();
-  if(nprocsy==1) MPI_Comm_size(app_comm, &nprocsx);
-  else           nprocsx = parser("-nprocsx").asInt();
-  parser.unset_strict_mode();
+  assert(bpdx > 0);
+  assert(bpdy > 0);
+  assert(bpdz > 0);
+  int nprocs;
+  MPI_Comm_rank(app_comm, &rank);
+  MPI_Comm_size(app_comm, &nprocs);
+
+  if (nprocsy < 0)
+    nprocsy = 1;
+  if (nprocsy == 1) {
+    nprocsx = nprocs;  // Override existing value!
+  } else if (nprocsx < 0) {
+    nprocsx = nprocs / nprocsy;
+  }
   nprocsz = 1;
 
-  if( not(bpdx%nprocsx==0 && bpdy%nprocsy==0 && bpdz%nprocsz==0) ){
-  printf("Incompatible domain decomposition: bpd*/nproc* should be an integer");
-  MPI_Abort(grid->getCartComm(), 1);
+  if (nprocsx * nprocsy * nprocsz != nprocs) {
+    fprintf(stderr, "Invalid domain decomposition. %d x %d x %d != %d!\n",
+            nprocsx, nprocsy, nprocsz, nprocs);
+    MPI_Abort(app_comm, 1);
   }
 
-  bpdx /= nprocsx; bpdy /= nprocsy; bpdz /= nprocsz;
+  if (bpdx % nprocsx != 0 || bpdy % nprocsy != 0 || bpdz % nprocsz !=0) {
+    printf("Incompatible domain decomposition: bpd*/nproc* should be an integer");
+    MPI_Abort(app_comm, 1);
+  }
+
+  bpdx /= nprocsx;
+  bpdy /= nprocsy;
+  bpdz /= nprocsz;
   grid = new FluidGridMPI(nprocsx,nprocsy,nprocsz, bpdx,bpdy,bpdz, 1,app_comm);
   assert(grid != NULL);
   vInfo = grid->getBlocksInfo();
-  MPI_Comm_rank(grid->getCartComm(),&rank);
-  MPI_Comm_size(grid->getCartComm(),&nprocs);
 
   #ifdef DUMPGRID
     // create new comm so that if there is a barrier main work is not affected
@@ -78,57 +168,23 @@ void Simulation::setupGrid()
     printf("Nranks per dimension: [%d %d %d]\n",nprocsx,nprocsy,nprocsz);
   }
 
-  // setup 2D slices
-  #ifdef DUMPGRID
-    m_slices = SliceType::getEntities<SliceType>(parser, *dump);
-  #else
-    m_slices = SliceType::getEntities<SliceType>(parser, *grid);
-  #endif
 }
 
-void Simulation::parseArguments()
+void Simulation::_argumentsSanityCheck()
 {
-  int dummyRank=-1;
-  MPI_Comm_rank(MPI_COMM_WORLD,&dummyRank);
-  if(dummyRank==0) parser.print_args();
+  // Flow.
+  assert(nu >= 0);
+  assert(lambda > 0.0);
+  assert(CFL > 0.0);
 
-  nu = parser("-nu").asDouble();
-  //length = parser("-length").asDouble();
-  assert(nu>=0);
-  parser.unset_strict_mode();
-  bRestart = parser("-restart").asBool(false);
-  b2Ddump = parser("-dump2D").asBool(false);
-  b3Ddump = parser("-dump3D").asBool(true);
-  DLM = parser("-use-dlm").asDouble(0);
-  int dumpFreq = parser("-fdump").asDouble(0);  // dumpFreq==0 means dump freq (in #steps) is not active
-  double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
-  saveFreq = parser("-fsave").asInt(0);       // dumpFreq==0 means dump freq (in #steps) is not active
-  saveTime = parser("-tsave").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
-
-  // TEMP: Removed distinction saving-dumping. Backward compatibility:
-  if(saveFreq<=0 && dumpFreq>0) saveFreq = dumpFreq;
-  if(saveTime<=0 && dumpTime>0) saveTime = dumpTime;
-
-  nsteps = parser("-nsteps").asInt(0);    // nsteps==0   means stopping criteria is not active
-  endTime = parser("-tend").asDouble(0);    // endTime==0  means stopping criteria is not active
-
-  path2file = parser("-file").asString("./paternoster");
-  path4serialization = parser("-serialization").asString("./");
-  lambda = parser("-lambda").asDouble(1e6);
-
-  CFL = parser("-CFL").asDouble(.1);
-  uinf[0] = parser("-uinfx").asDouble(0.0);
-  uinf[1] = parser("-uinfy").asDouble(0.0);
-  uinf[2] = parser("-uinfz").asDouble(0.0);
-  verbose = parser("-verbose").asBool(true);
+  // Output.
+  assert(saveFreq >= 0.0);
+  assert(saveTime >= 0.0);
 }
 
-void Simulation::setupObstacles()
+void Simulation::setObstacleVector(IF3D_ObstacleVector * const obstacle_vector_)
 {
-  IF3D_ObstacleFactory obstacleFactory(grid, uinf);
-  obstacle_vector = new IF3D_ObstacleVector(grid, obstacleFactory.create(parser));
-  parser.unset_strict_mode();
-
+  obstacle_vector = obstacle_vector_;
   #ifdef RL_LAYER
     if(task not_eq nullptr) task->initializeObstacles(obstacle_vector);
   #endif
@@ -156,12 +212,11 @@ void Simulation::setupOperators()
 
   pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
   pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
-  if(parser("-compute-dissipation").asInt(0))
+  if(computeDissipation)
     pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
 
   #ifndef _UNBOUNDED_FFT_
-    const Real fade_len = parser("-fade_len").asDouble(.005);
-    pipeline.push_back(new CoordinatorFadeOut(grid, fade_len));
+    pipeline.push_back(new CoordinatorFadeOut(grid, fadeOutLength));
   #endif /* _UNBOUNDED_FFT_ */
 
   if(rank==0) {
@@ -362,20 +417,6 @@ void Simulation::_deserialize()
   printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
   // prepare time for next save
   nextSaveTime = time + saveTime;
-}
-
-void Simulation::init()
-{
-  parseArguments();
-  setupGrid();
-  setupObstacles();
-
-  if(bRestart) _deserialize();
-  else _ic();
-
-  setupOperators();
-
-  MPI_Barrier(grid->getCartComm());
 }
 
 void Simulation::simulate()

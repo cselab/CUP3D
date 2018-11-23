@@ -9,6 +9,7 @@
 #include "IF3D_FishOperator.h"
 #include "IF3D_FishLibrary.h"
 
+#include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"
 
 IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_ObstacleOperator(g, p, u)

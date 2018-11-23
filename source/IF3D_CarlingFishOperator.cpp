@@ -6,6 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
+#include "Cubism/ArgumentParser.h"
 #include "IF3D_CarlingFishOperator.h"
 #include "IF3D_FishLibrary.h"
 #include "GenericOperator.h"
