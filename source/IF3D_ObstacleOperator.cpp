@@ -69,10 +69,10 @@ ObstacleArguments::ObstacleArguments(
 }
 
 IF3D_ObstacleOperator::IF3D_ObstacleOperator(
-    FluidGridMPI * const grid,
+    FluidGridMPI * const g,
     const ObstacleArguments &args,
     const Real * const uInf)
-    : IF3D_ObstacleOperator(grid, uInf)
+    : IF3D_ObstacleOperator(g, uInf)
 {
   length = args.length;
   position[0] = args.position[0];

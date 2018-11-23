@@ -117,7 +117,6 @@ void Simulation::setupGrid()
   assert(bpdx > 0);
   assert(bpdy > 0);
   assert(bpdz > 0);
-  int nprocs;
   MPI_Comm_rank(app_comm, &rank);
   MPI_Comm_size(app_comm, &nprocs);
 
