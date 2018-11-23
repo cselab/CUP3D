@@ -172,6 +172,10 @@ else()
 endif()
 
 
+# CMake for some reason decides to replace `/full/path/libasdf.so` with
+# `-lasdf` sometimes, and then messes up everything. This hack prevents that.
+set(LIBPREFIX "///")
+
 # HDF5
 if (NOT HDF5_ROOT AND EXISTS ${ROOT_FOLDER}/dependencies/build/hdf5-1.10.1)
     set(HDF5_ROOT ${ROOT_FOLDER}/dependencies/build/hdf5-1.10.1)
@@ -180,9 +184,9 @@ set(HDF5_PREFER_PARALLEL ON)
 find_package(HDF5 REQUIRED)
 add_definitions("-DCUBISM_USE_HDF")
 include_directories(${HDF5_INCLUDE_DIRS})
-target_link_libraries(${EXE1} ${HDF5_LIBRARIES})
-target_link_libraries(${EXE2} ${HDF5_LIBRARIES})
-target_link_libraries(${PY_SO} ${HDF5_LIBRARIES})
+target_link_libraries(${EXE1} ${LIBPREFIX}${HDF5_LIBRARIES})
+target_link_libraries(${EXE2} ${LIBPREFIX}${HDF5_LIBRARIES})
+target_link_libraries(${PY_SO} ${LIBPREFIX}${HDF5_LIBRARIES})
 
 # FFTW
 # TODO: Single precision
@@ -191,9 +195,9 @@ if (NOT FTTW_ROOT AND NOT DEFINED ENV{FFTWDIR} AND EXISTS ${ROOT_FOLDER}/depende
 endif()
 find_package(FFTW REQUIRED)
 include_directories(${FFTW_INCLUDES})
-target_link_libraries(${EXE1} ${FFTW_LIBRARIES})
-target_link_libraries(${EXE2} ${FFTW_LIBRARIES})
-target_link_libraries(${PY_SO} ${FFTW_LIBRARIES})
+target_link_libraries(${EXE1} ${LIBPREFIX}${FFTW_LIBRARIES})
+target_link_libraries(${EXE2} ${LIBPREFIX}${FFTW_LIBRARIES})
+target_link_libraries(${PY_SO} ${LIBPREFIX}${FFTW_LIBRARIES})
 
 # GSL
 if (NOT GSL_ROOT_DIR AND NOT DEFINED ENV{GSL_ROOT_DIR} AND EXISTS ${ROOT_FOLDER}/dependencies/build/gsl-2.1)
@@ -201,6 +205,6 @@ if (NOT GSL_ROOT_DIR AND NOT DEFINED ENV{GSL_ROOT_DIR} AND EXISTS ${ROOT_FOLDER}
 endif()
 find_package(GSL REQUIRED)
 include_directories(${GSL_INCLUDE_DIRS})
-target_link_libraries(${EXE1} ${GSL_LIBRARIES})
-target_link_libraries(${EXE2} ${GSL_LIBRARIES})
-target_link_libraries(${PY_SO} ${GSL_LIBRARIES})
+target_link_libraries(${EXE1} ${LIBPREFIX}${GSL_LIBRARIES})
+target_link_libraries(${EXE2} ${LIBPREFIX}${GSL_LIBRARIES})
+target_link_libraries(${PY_SO} ${LIBPREFIX}${GSL_LIBRARIES})
