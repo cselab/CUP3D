@@ -8,9 +8,10 @@
 
 #include "IF3D_ObstacleOperator.h"
 
-#include "Cubism/ArgumentParser.h"
 #include "GenericOperator.h"
 #include "BufferedLogger.h"
+
+#include "Cubism/ArgumentParser.h"
 
 using std::min;
 using std::max;
@@ -167,7 +168,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
     MPI_Allreduce(locals, globals, 4, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
     assert(globals[3] > std::numeric_limits<Real>::epsilon());
-    #ifdef _VERBOSE_
+    #ifdef CUP_VERBOSE
       if (!rank)
       printf("Discrepancy in computed volume during correction = %g.\n",
         std::fabs(computed_vol- globals[3]*dv));
@@ -251,7 +252,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
 void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
 {
   _computeUdefMoments(transVel_correction, angVel_correction, CoM);
-  #ifdef _VERBOSE_
+  #ifdef CUP_VERBOSE
    if(rank==0)
       printf("Correction of: lin mom [%f %f %f] ang mom [%f %f %f]\n",
         transVel_correction[0], transVel_correction[1], transVel_correction[2],
@@ -636,7 +637,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
     defPower, defPowerBnd, EffPDef, EffPDefBnd, Pthrust, Pdrag, thrust, drag);
   #endif
 
-  #if defined(_DUMP_RAW_) && !defined(RL_LAYER)
+  #if defined(CUP_DUMP_SURFACE_BINARY) && !defined(RL_LAYER)
   if (bDump) {
     char buf[500];
     sprintf(buf, "surface_%02d_%07d_rank%03d.raw", obstacleID, stepID, rank);
@@ -713,7 +714,7 @@ void IF3D_ObstacleOperator::update(const int step_id, const double t, const doub
 
   #ifndef NDEBUG
   if(rank==0) {
-    #ifdef _VERBOSE_
+    #ifdef CUP_VERBOSE
      std::cout<<"POSITION INFO AFTER UPDATE T, DT: "<<t<<" "<<dt<<std::endl;
      std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
      std::cout<<"TVL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;

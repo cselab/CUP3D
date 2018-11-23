@@ -9,10 +9,6 @@
 #ifndef CubismUP_2D_Simulation_Fluid_h
 #define CubismUP_2D_Simulation_Fluid_h
 
-#include "Cubism/HDF5SliceDumperMPI.h"
-#include "Cubism/Profiler.h"
-//#include "Cubism/ZBinDumper_MPI.h"
-
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
 #include "IF3D_ObstacleVector.h"
@@ -20,6 +16,10 @@
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
 #endif
+
+#include "Cubism/HDF5SliceDumperMPI.h"
+#include "Cubism/Profiler.h"
+//#include "Cubism/ZBinDumper_MPI.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -33,7 +33,7 @@
  #include "TaskLayer.h"
 #endif
 
-#ifdef DUMPGRID
+#ifdef CUP_ASYNC_DUMP
   using DumpBlock = BaseBlock<DumpElement>;
   typedef GridMPI<Grid<DumpBlock, aligned_allocator>> DumpGridMPI;
   typedef SliceTypesMPI::Slice<DumpGridMPI> SliceType;
@@ -75,7 +75,7 @@ public:
   bool computeDissipation=false;
   bool b3Ddump=true, b2Ddump=false, bDump=false;
   bool rampup=true;
-#ifndef _UNBOUNDED_FFT_
+#ifndef CUP_UNBOUNDED_FFT
   Real fadeOutLength = .005;
 #endif
 
@@ -86,7 +86,7 @@ public:
 
   FluidGridMPI * grid = nullptr;
 
-  #ifdef DUMPGRID
+  #ifdef CUP_ASYNC_DUMP
     MPI_Comm dump_comm;
     DumpGridMPI * dump = nullptr;
     std::thread * dumper = nullptr;
@@ -126,7 +126,7 @@ public:
              bool verbose,
              bool computeDissipation,
              bool b3Ddump, bool b2Ddump,
-#ifndef _UNBOUNDED_FFT_
+#ifndef CUP_UNBOUNDED_FFT
              double fadeOutLength,
 #endif
              int saveFreq, double saveTime,
@@ -137,6 +137,8 @@ public:
 
   virtual void run();
 
+  // void addObstacle(IF3D_ObstacleOperator *obstacle);
+  // void removeObstacle(IF3D_ObstacleOperator *obstacle);
 
   /* Get reference to the obstacle container. */
   const std::vector<IF3D_ObstacleOperator *> &getObstacleVector() const

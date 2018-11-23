@@ -2,9 +2,6 @@ cmake_minimum_required(VERSION 3.2)
 
 project(CubismUP_3D)
 
-include(ProcessorCount)
-ProcessorCount(NUM_CORES)
-
 # Choose Release mode as default.
 if(NOT CMAKE_BUILD_TYPE)
     set(CMAKE_BUILD_TYPE "Release" CACHE STRING
@@ -15,16 +12,15 @@ endif(NOT CMAKE_BUILD_TYPE)
 # Options
 set(EXENAME "Swim3D")
 set(BLOCK_SIZE "16" CACHE String "Number of grid points in a block, per dimension")
-set(NUM_THREADS ${NUM_CORES} CACHE String "Number of threads per node")
 
 option(COMPILE_STATIC_LIB "Compile static library" OFF)
-option(_UNBOUNDED_FFT_ "Use FFT solver for unbounded domain" OFF)
-option(_DUMPGRID_ "Use asynchronous data dumps (requires additional memory)" ON)
-option(_DUMP_RAW_ "Dump binary surface data for each obstacle" OFF)
-option(_FLOAT_PRECISION_ "Compute in single precision" OFF)  # Because cmake/FindFFTW.cmake handles now only double precision.
-option(_HDF5_DOUBLE_PRECISION_ "Dump HDF5 data in double precision" OFF)
-option(_RK2_ "Use second order Runge-Kutta integrator" OFF)
-option(_VERBOSE_ "Be verbose" OFF)
+option(CUP_UNBOUNDED_FFT "Use FFT solver for unbounded domain" OFF)
+option(CUP_ASYNC_DUMP "Use asynchronous data dumps (requires additional memory)" ON)
+option(CUP_DUMP_SURFACE_BINARY "Dump binary surface data for each obstacle" OFF)
+option(CUP_SINGLE_PRECISION "Compute in single precision" OFF)  # Because cmake/FindFFTW.cmake handles now only double precision.
+option(CUP_HDF5_DOUBLE_PRECISION "Dump HDF5 data in double precision" OFF)
+option(CUP_RK2 "Use second order Runge-Kutta integrator" OFF)
+option(CUP_VERBOSE "Be verbose" OFF)
 
 # Pybind11.
 # Not using `python3-config` because it doesn't seem to work with `pip install --user`.
@@ -119,27 +115,26 @@ target_compile_options(${PY_SO} PRIVATE ${PYBIND11_FLAGS})
 target_compile_definitions(${PY_SO} PRIVATE "-DH5_BUILT_AS_DYNAMIC_LIB")
 
 # Global flags
-if (_UNBOUNDED_FFT_)
-    add_definitions("-D_UNBOUNDED_FFT_")
+if (CUP_UNBOUNDED_FFT)
+    add_definitions("-DCUP_UNBOUNDED_FFT")
 endif()
-if (_DUMP_RAW_)
-    add_definitions("-D_DUMP_RAW_")
+if (CUP_DUMP_SURFACE_BINARY)
+    add_definitions("-DCUP_DUMP_SURFACE_BINARY")
 endif()
-if (_FLOAT_PRECISION_)
-    add_definitions("-D_FLOAT_PRECISION_")
+if (CUP_SINGLE_PRECISION)
+    add_definitions("-DCUP_SINGLE_PRECISION")
 endif()
-if (_HDF5_DOUBLE_PRECISION_)
-    add_definitions("-D_HDF5_DOUBLE_PRECISION_")
+if (CUP_HDF5_DOUBLE_PRECISION)
+    add_definitions("-DCUP_HDF5_DOUBLE_PRECISION")
 endif()
-if (_RK2_)
-    add_definitions("-D_RK2_")
+if (CUP_RK2)
+    add_definitions("-DCUP_RK2")
 endif()
-if (_VERBOSE_)
-    add_definitions("-D_VERBOSE_")
+if (CUP_VERBOSE)
+    add_definitions("-DCUP_VERBOSE")
 endif()
-add_definitions("-D_ALIGNBYTES_=32")
-add_definitions("-DCUBISMUP3D_BLOCK_SIZE=${BLOCK_SIZE}")
-add_definitions("-DNTHREADS=${NUM_THREADS}")
+add_definitions("-DCUP_ALIGNMENT=64")
+add_definitions("-DCUP_BLOCK_SIZE=${BLOCK_SIZE}")
 
 # OpenMP support
 find_package(OpenMP REQUIRED)
@@ -164,8 +159,8 @@ execute_process(COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ./check_
                 OUTPUT_QUIET
                 RESULT_VARIABLE CHECK_MPI_THREAD_SAFETY)
 if (${CHECK_MPI_THREAD_SAFETY} EQUAL 0)
-    if (_DUMPGRID_)
-        add_definitions("-DDUMPGRID")
+    if (CUP_ASYNC_DUMP)
+        add_definitions("-DCUP_ASYNC_DUMP")
     endif()
 else()
     message("Note: MPI not thread safe, fallback to synchronous HDF5 dumping!")

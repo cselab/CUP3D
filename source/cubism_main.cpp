@@ -6,11 +6,11 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
+#include "Simulation.h"
+#include "Cubism/ArgumentParser.h"
+
 #include <iostream>
 #include <cmath>
-
-#include "Cubism/ArgumentParser.h"
-#include "Simulation.h"
 
 using std::cout;
 

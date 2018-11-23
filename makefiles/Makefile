@@ -32,10 +32,10 @@ zlib ?= 0
 verbose ?= false
 bc ?= open
 unboundedfft ?= false
-dumpraw ?= false
+dump_surface_binary ?= false
 
-ifeq "$(dumpraw)" "true"
-        CPPFLAGS += -D_DUMP_RAW_
+ifeq "$(dump_surface_binary)" "true"
+        CPPFLAGS += -DCUP_DUMP_SURFACE_BINARY
 endif
 
 ifeq "$(bc)" "periodicz"
@@ -43,11 +43,11 @@ ifeq "$(bc)" "periodicz"
 endif
 
 ifeq "$(unboundedfft)" "true"
-	CPPFLAGS += -D_UNBOUNDED_FFT_
+	CPPFLAGS += -DCUP_UNBOUNDED_FFT
 endif
 
 ifeq "$(verbose)" "true"
-	CPPFLAGS += -D_VERBOSE_
+	CPPFLAGS += -DCUP_VERBOSE
 endif
 
 rltrain ?= false
@@ -62,20 +62,20 @@ ifeq "$(zlib)" "1"
 endif
 
 ifeq "$(rk2)" "true"
-	CPPFLAGS += -D_RK2_
+	CPPFLAGS += -DCUP_RK2
 endif
 
 ifeq "$(precision)" "single"
-	CPPFLAGS += -D_FLOAT_PRECISION_
-	NVFLAGS += -D_FLOAT_PRECISION_
+	CPPFLAGS += -DCUP_SINGLE_PRECISION
+	NVFLAGS += -DCUP_SINGLE_PRECISION
 endif
 
 ifeq "$(precision_dump)" "double"
-	CPPFLAGS += -D_HDF5_DOUBLE_PRECISION_
+	CPPFLAGS += -DCUP_HDF5_DOUBLE_PRECISION
 endif
 
-CPPFLAGS += -D_ALIGNBYTES_=32
-CPPFLAGS += -DCUBISMUP3D_BLOCK_SIZE=$(bs)
+CPPFLAGS += -DCUP_ALIGNMENT=64
+CPPFLAGS += -DCUP_BLOCK_SIZE=$(bs)
 
 #CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 

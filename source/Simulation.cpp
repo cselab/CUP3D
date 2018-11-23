@@ -7,8 +7,6 @@
 //
 #include "Simulation.h"
 
-#include "Cubism/ArgumentParser.h"
-#include "Cubism/HDF5Dumper_MPI.h"
 #include "CoordinatorAdvectDiffuse.h"
 #include "CoordinatorAdvection.h"
 #include "CoordinatorComputeDissipation.h"
@@ -21,6 +19,9 @@
 //#include "CoordinatorVorticity.h"
 #include "IF3D_ObstacleFactory.h"
 #include "ProcessOperatorsOMP.h"
+
+#include "Cubism/ArgumentParser.h"
+#include "Cubism/HDF5Dumper_MPI.h"
 
 /*
  * Initialization from cmdline arguments is done in few steps, because grid has
@@ -52,7 +53,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
 
   // PIPELINE
   computeDissipation = (bool)parser("-compute-dissipation").asInt(0);
-#ifndef _UNBOUNDED_FFT_
+#ifndef CUP_UNBOUNDED_FFT
   fadeOutLength = parser("-fade_len").asDouble(.005);
 #endif
 
@@ -81,7 +82,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
   setupGrid();
 
   // =========== SLICES ============
-  #ifdef DUMPGRID
+  #ifdef CUP_ASYNC_DUMP
     m_slices = SliceType::getEntities<SliceType>(parser, *dump);
   #else
     m_slices = SliceType::getEntities<SliceType>(parser, *grid);
@@ -108,7 +109,7 @@ Simulation::Simulation(
         bool verbose,
         bool computeDissipation,
         bool b3Ddump, bool b2Ddump,
-#ifndef _UNBOUNDED_FFT_
+#ifndef CUP_UNBOUNDED_FFT
         double fadeOutLength,
 #endif
         int saveFreq, double saveTime,
@@ -122,7 +123,7 @@ Simulation::Simulation(
       verbose(verbose),
       computeDissipation(computeDissipation),
       b3Ddump(b3Ddump), b2Ddump(b2Ddump),
-#ifndef _UNBOUNDED_FFT_
+#ifndef CUP_UNBOUNDED_FFT
       fadeOutLength(fadeOutLength),
 #endif
       saveFreq(saveFreq), saveTime(saveTime),
@@ -154,7 +155,7 @@ Simulation::~Simulation()
     pipeline.pop_back();
     delete g;
   }
-  #ifdef DUMPGRID
+  #ifdef CUP_ASYNC_DUMP
     if(dumper not_eq nullptr) {
       dumper->join();
       delete dumper;
@@ -219,7 +220,7 @@ void Simulation::setupGrid()
   assert(grid != NULL);
   vInfo = grid->getBlocksInfo();
 
-  #ifdef DUMPGRID
+  #ifdef CUP_ASYNC_DUMP
     // create new comm so that if there is a barrier main work is not affected
     MPI_Comm_split(app_comm, 0, rank, &dump_comm);
     dump = new  DumpGridMPI(nprocsx,nprocsy,nprocsz, bpdx,bpdy,bpdz, 1, dump_comm);
@@ -292,9 +293,9 @@ void Simulation::setupOperators()
   if(computeDissipation)
     pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
 
-  #ifndef _UNBOUNDED_FFT_
+  #ifndef CUP_UNBOUNDED_FFT
     pipeline.push_back(new CoordinatorFadeOut(grid, fadeOutLength));
-  #endif /* _UNBOUNDED_FFT_ */
+  #endif /* CUP_UNBOUNDED_FFT */
 
   if(rank==0) {
     printf("Coordinator/Operator ordering:\n");
@@ -369,7 +370,7 @@ void Simulation::_serialize(const std::string append)
   else
   ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
 
-  #ifdef DUMPGRID
+  #ifdef CUP_ASYNC_DUMP
     // if a thread was already created, make sure it has finished
     if(dumper not_eq nullptr) {
       dumper->join();
@@ -400,7 +401,7 @@ void Simulation::_serialize(const std::string append)
             *dump, step, time, StreamerChi::prefix()+name3d, path4serialization);
       }
     } );
-  #else //DUMPGRID
+  #else //CUP_ASYNC_DUMP
     if(b2Ddump) {
       for (const auto& slice : m_slices) {
         DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
@@ -419,7 +420,7 @@ void Simulation::_serialize(const std::string append)
       DumpHDF5_MPI<StreamerChi, DumpReal>(
           *grid, step, time, StreamerChi::prefix()+ssR.str(), path4serialization);
     }
-  #endif //DUMPGRID
+  #endif //CUP_ASYNC_DUMP
   #endif //CUBISM_USE_HDF
 
 
@@ -461,15 +462,15 @@ void Simulation::_deserialize()
     bool ret = true;
     ret = ret && 1==fscanf(f, "time: %le\n",   &time);
     ret = ret && 1==fscanf(f, "stepid: %d\n", &step);
-    #ifndef _FLOAT_PRECISION_
+    #ifndef CUP_SINGLE_PRECISION
     ret = ret && 1==fscanf(f, "uinfx: %le\n", &uinf[0]);
     ret = ret && 1==fscanf(f, "uinfy: %le\n", &uinf[1]);
     ret = ret && 1==fscanf(f, "uinfz: %le\n", &uinf[2]);
-    #else // _FLOAT_PRECISION_
+    #else // CUP_SINGLE_PRECISION
     ret = ret && 1==fscanf(f, "uinfx: %e\n", &uinf[0]);
     ret = ret && 1==fscanf(f, "uinfy: %e\n", &uinf[1]);
     ret = ret && 1==fscanf(f, "uinfz: %e\n", &uinf[2]);
-    #endif // _FLOAT_PRECISION_
+    #endif // CUP_SINGLE_PRECISION
     fclose(f);
     if( (not ret) || step<0 || time<0) {
       printf("Error reading restart file. Aborting...\n");

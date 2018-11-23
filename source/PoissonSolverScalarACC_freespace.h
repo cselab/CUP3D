@@ -14,7 +14,7 @@
 #include <array>
 
 #include <cuda_runtime_api.h>
-#ifndef _FLOAT_PRECISION_
+#ifndef CUP_SINGLE_PRECISION
   #include "accfft_gpu.h"
   typedef accfft_plan_gpu myplan;
   #define accfft_local_size accfft_local_size_dft_r2c_gpu

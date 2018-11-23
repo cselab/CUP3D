@@ -8,8 +8,9 @@
 
 #include "IF3D_SphereObstacleOperator.h"
 
-#include "Cubism/ArgumentParser.h"
 #include "IF3D_ObstacleLibrary.h"
+
+#include "Cubism/ArgumentParser.h"
 
 IF3D_SphereObstacleOperator::IF3D_SphereObstacleOperator(
     FluidGridMPI * const g,

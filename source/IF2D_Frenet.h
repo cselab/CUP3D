@@ -9,8 +9,9 @@
 #ifndef IF2D_ROCKS_IF2D_Frenet_h
 #define IF2D_ROCKS_IF2D_Frenet_h
 
-#include <limits>
 #include "Definitions.h"
+
+#include <limits>
 
 struct IF2D_Frenet2D
 {

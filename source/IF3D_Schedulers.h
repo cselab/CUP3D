@@ -7,10 +7,11 @@
 //
 
 #pragma once
-#include <cmath>
-#include <array>
 
 #include "IF2D_Interpolation1D.h"
+
+#include <cmath>
+#include <array>
 
 #define __BSPLINE
 

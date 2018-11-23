@@ -16,7 +16,7 @@ struct CUP_MPI_Loader {
     } else {
       MPI_Query_thread(&provided);
     }
-#ifdef DUMPGRID
+#ifdef CUP_ASYNC_DUMP
     const auto SECURITY = MPI_THREAD_MULTIPLE;
 #else
     const auto SECURITY = MPI_THREAD_FUNNELED;
@@ -49,7 +49,7 @@ PYBIND11_MODULE(_cubismup3d, m) {
                       double3,
                       bool, bool,
                       bool, bool,
-#ifndef _UNBOUNDED_FFT_
+#ifndef CUP_UNBOUNDED_FFT
                       double /* fadeOutLength */,
 #endif
                       int, double,
@@ -63,7 +63,7 @@ PYBIND11_MODULE(_cubismup3d, m) {
              "uinf"_a = double3{0.0, 0.0, 0.0},
              "verbose"_a = true, "computeDissipation"_a = false,
              "dump3D"_a = true, "dump2D"_a = false,
-#ifndef _UNBOUNDED_FFT_
+#ifndef CUP_UNBOUNDED_FFT
              "fadeOutLength"_a = 0.005,
 #endif
              "saveFreq"_a = 0, "saveTime"_a = 0.0,

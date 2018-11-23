@@ -6,16 +6,17 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include <iostream>
-
-#include "Cubism/ArgumentParser.h"
 #include "IF3D_ObstacleFactory.h"
 #include "Simulation.h"
+
+#include "Cubism/ArgumentParser.h"
+
+#include <iostream>
 
 int main(int argc, char **argv)
 {
   int provided;
-  #ifdef DUMPGRID
+  #ifdef CUP_ASYNC_DUMP
     const auto SECURITY = MPI_THREAD_MULTIPLE;
   #else
     const auto SECURITY = MPI_THREAD_FUNNELED;
@@ -38,7 +39,7 @@ int main(int argc, char **argv)
 #else
     std::cout << "Running in DEBUG mode!\n";
 #endif
-#ifdef _UNBOUNDED_FFT_
+#ifdef CUP_UNBOUNDED_FFT
     std::cout << "Using freespace unbounded FFT...\n";
 #else
     std::cout << "Using smooth truncation at domain boundaries...\n";

@@ -7,9 +7,9 @@
 //
 
 #include "IF3D_DCylinderObstacleOperator.h"
+#include "IF3D_ObstacleLibrary.h"
 
 #include "Cubism/ArgumentParser.h"
-#include "IF3D_ObstacleLibrary.h"
 
 IF3D_DCylinderObstacleOperator::IF3D_DCylinderObstacleOperator(
     FluidGridMPI * const g,

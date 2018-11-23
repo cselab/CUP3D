@@ -8,8 +8,9 @@
 
 #include "IF3D_PlateObstacleOperator.h"
 
-#include "Cubism/ArgumentParser.h"
 #include "IF3D_ObstacleLibrary.h"
+
+#include "Cubism/ArgumentParser.h"
 
 
 static constexpr Real EPSILON = std::numeric_limits<Real>::epsilon();

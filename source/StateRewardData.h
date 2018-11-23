@@ -294,9 +294,9 @@ struct StateReward
     {
       //int rank;
       //MPI_Comm_rank(comm, &rank);
-      #ifndef _FLOAT_PRECISION_
+      #ifndef CUP_SINGLE_PRECISION
       MPI_Allreduce(MPI_IN_PLACE, data, 5*nDest, MPI_DOUBLE, MPI_SUM, comm);
-      #else //_FLOAT_PRECISION_
+      #else //CUP_SINGLE_PRECISION
       MPI_Allreduce(MPI_IN_PLACE, data, 5*nDest, MPI_FLOAT,  MPI_SUM, comm);
       #endif//
     }

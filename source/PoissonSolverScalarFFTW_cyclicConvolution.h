@@ -12,14 +12,9 @@
 #ifndef POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 #define POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 
-#include <vector>
-#include <cassert>
-#include <cstring>
-#include <fftw3-mpi.h>
-
 #include "Definitions.h"
 
-#ifndef _FLOAT_PRECISION_
+#ifndef CUP_SINGLE_PRECISION
 #define _FFTW_(s) fftw_##s
 typedef fftw_complex mycomplex;
 typedef fftw_plan myplan;
@@ -29,9 +24,14 @@ typedef fftw_plan myplan;
 typedef fftwf_complex mycomplex;
 typedef fftwf_plan myplan;
 #define MPIREAL MPI_FLOAT
-#endif /* _FLOAT_PRECISION_ */
+#endif /* CUP_SINGLE_PRECISION */
 
 #include "Cubism/BlockInfo.h"
+
+#include <vector>
+#include <cassert>
+#include <cstring>
+#include <fftw3-mpi.h>
 
 class My3DFFT_Infinite_MPI
 {
