@@ -31,8 +31,6 @@ typedef fftwf_plan myplan;
 #define MPIREAL MPI_FLOAT
 #endif /* _FLOAT_PRECISION_ */
 
-using namespace std;
-
 #include "Cubism/BlockInfo.h"
 
 class My3DFFT_Infinite_MPI

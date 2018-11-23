@@ -21,8 +21,6 @@ typedef fftwf_complex mycomplex;
 typedef fftwf_plan myplan;
 #endif
 
-using namespace std;
-
 #include "Cubism/BlockInfo.h"
 
 template<typename TGrid, typename TStreamer>
@@ -33,8 +31,8 @@ class PoissonSolverScalarFFTW_MPI
   //mycomplex local_rhs, local_work;
   myplan fwd, bwd;
 
-  const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
-  const vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
+  static constexpr int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
+  const std::vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
   const size_t mybpd[3] = {
       static_cast<size_t>(grid.getResidentBlocksPerDimension(0)),
       static_cast<size_t>(grid.getResidentBlocksPerDimension(1)),
@@ -130,8 +128,8 @@ class PoissonSolverScalarFFTW_MPI
   PoissonSolverScalarFFTW_MPI(TGrid& g): grid(g)
   {
     if (TStreamer::channels != 1) {
-      cout << "PoissonSolverScalar_MPI(): Error: TStreamer::channels is "
-           << TStreamer::channels << " (should be 1).\n";
+      std::cout << "PoissonSolverScalar_MPI(): Error: TStreamer::channels is "
+                << TStreamer::channels << " (should be 1)." << std::endl;
       abort();
     }
     MPI_Comm comm = grid.getCartComm();
@@ -140,7 +138,7 @@ class PoissonSolverScalarFFTW_MPI
       int supported_threads;
       MPI_Query_thread(&supported_threads);
       if (supported_threads<MPI_THREAD_FUNNELED) {
-        cout << "MPI implementation does not support threads.\n";
+        std::cout << "MPI implementation does not support threads." << std::endl;
         abort();
       }
     }
@@ -150,7 +148,7 @@ class PoissonSolverScalarFFTW_MPI
       const int retval = fftwf_init_threads();
     #endif
     if(retval==0) {
-      cout << "FFTWBase::setup(): Call to fftw_init_threads() returned zero.\n";
+      std::cout << "FFTWBase::setup(): Call to fftw_init_threads() returned zero." << std::endl;
       abort();
     }
 
