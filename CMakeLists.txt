@@ -17,6 +17,7 @@ set(EXENAME "Swim3D")
 set(BLOCK_SIZE "16" CACHE String "Number of grid points in a block, per dimension")
 set(NUM_THREADS ${NUM_CORES} CACHE String "Number of threads per node")
 
+option(COMPILE_STATIC_LIB "Compile static library" OFF)
 option(_UNBOUNDED_FFT_ "Use FFT solver for unbounded domain" OFF)
 option(_DUMPGRID_ "Use asynchronous data dumps (requires additional memory)" ON)
 option(_DUMP_RAW_ "Dump binary surface data for each obstacle" OFF)
@@ -25,10 +26,42 @@ option(_HDF5_DOUBLE_PRECISION_ "Dump HDF5 data in double precision" OFF)
 option(_RK2_ "Use second order Runge-Kutta integrator" OFF)
 option(_VERBOSE_ "Be verbose" OFF)
 
+# Pybind11.
+# Not using `python3-config` because it doesn't seem to work with `pip install --user`.
+execute_process(
+    COMMAND python3 -m pybind11 --includes
+    OUTPUT_VARIABLE PYBIND11_INCLUDES
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE retcode1)
+execute_process(
+    COMMAND python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX')[:-3])"
+    OUTPUT_VARIABLE PY_SO_SUFFIX
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE retcode2)
+separate_arguments(PYBIND11_INCLUDES)
+set(PYBIND11_FLAGS -shared -fPIC ${PYBIND11_INCLUDES})
+if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
+    set(PYBIND11_FLAGS ${PYBIND11_FLAGS} -undefined dynamic_lookup)
+endif()
+
+set(COMPILE_PY_SO "1")
+if (NOT "${retcode1}" STREQUAL "0")
+    message(WARNING "pybind11 not installed, not compiling .so!")
+    set(COMPILE_PY_SO "0")
+endif()
+if (NOT "${retcode2}" STREQUAL "0")
+    message(WARNING "Cannot get Python .so suffix, not compiling it!")
+    set(COMPILE_PY_SO "0")
+endif()
+
+
 # Source files and target
 set(EXE1 "${EXENAME}_open")
 set(EXE2 "${EXENAME}_periodicz")
-set(LIB "${EXENAME}")
+set(STATIC_LIB "${EXENAME}")
+set(PY_SO "_cubismup3d${PY_SO_SUFFIX}")  # Has to match the name in `PYBIND11_MODULE`.
+                                         # Wrapped by `python/cubismup3d/__init__.py`.
+set(CMAKE_SHARED_LIBRARY_PREFIX "")      # No "lib" prefix for shared.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
 set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
 
@@ -64,15 +97,26 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ROOT_FOLDER}/bin)
 add_executable(${EXE1} ${COMMON_SOURCES} ${ROOT_FOLDER}/source/main.cpp)
 add_executable(${EXE2} ${COMMON_SOURCES} ${ROOT_FOLDER}/source/main.cpp)
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${ROOT_FOLDER}/lib)
-add_library(${LIB}
-            ${COMMON_SOURCES}
-            ${ROOT_FOLDER}/source/cubism_main.cpp
-            ${ROOT_FOLDER}/source/CubismUP_3D.cpp)
+if (COMPILE_STATIC_LIB)
+    add_library(${STATIC_LIB}
+                ${COMMON_SOURCES}
+                ${ROOT_FOLDER}/source/cubism_main.cpp
+                ${ROOT_FOLDER}/source/CubismUP_3D.cpp)
+endif()
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ROOT_FOLDER}/python/cubismup3d)
+if ("${COMPILE_PY_SO}" STREQUAL "1")
+    add_library(${PY_SO} SHARED
+                ${COMMON_SOURCES}
+                ${ROOT_FOLDER}/source/bindings/Simulation.cpp)
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-# Executable-specific flags
+# Target-specific flags
 target_compile_definitions(${EXE2} PRIVATE "-DBC_PERIODICZ")
+target_compile_options(${PY_SO} PRIVATE ${PYBIND11_FLAGS})
+# https://github.com/conda-forge/hdf5-feedstock/issues/58#issuecomment-310865909
+target_compile_definitions(${PY_SO} PRIVATE "-DH5_BUILT_AS_DYNAMIC_LIB")
 
 # Global flags
 if (_UNBOUNDED_FFT_)
@@ -138,6 +182,7 @@ add_definitions("-DCUBISM_USE_HDF")
 include_directories(${HDF5_INCLUDE_DIRS})
 target_link_libraries(${EXE1} ${HDF5_LIBRARIES})
 target_link_libraries(${EXE2} ${HDF5_LIBRARIES})
+target_link_libraries(${PY_SO} ${HDF5_LIBRARIES})
 
 # FFTW
 # TODO: Single precision
@@ -148,6 +193,7 @@ find_package(FFTW REQUIRED)
 include_directories(${FFTW_INCLUDES})
 target_link_libraries(${EXE1} ${FFTW_LIBRARIES})
 target_link_libraries(${EXE2} ${FFTW_LIBRARIES})
+target_link_libraries(${PY_SO} ${FFTW_LIBRARIES})
 
 # GSL
 if (NOT GSL_ROOT_DIR AND NOT DEFINED ENV{GSL_ROOT_DIR} AND EXISTS ${ROOT_FOLDER}/dependencies/build/gsl-2.1)
@@ -157,3 +203,4 @@ find_package(GSL REQUIRED)
 include_directories(${GSL_INCLUDE_DIRS})
 target_link_libraries(${EXE1} ${GSL_LIBRARIES})
 target_link_libraries(${EXE2} ${GSL_LIBRARIES})
+target_link_libraries(${PY_SO} ${GSL_LIBRARIES})

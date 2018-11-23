@@ -47,7 +47,7 @@ int main(int argc, char **argv)
 
   ArgumentParser parser(argc, argv);
   Simulation *sim = new Simulation(MPI_COMM_WORLD, parser);
-  sim->simulate();
+  sim->run();
   delete sim;
 
   MPI_Finalize();

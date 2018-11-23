@@ -17,7 +17,7 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
     std::vector<IF3D_ObstacleOperator*> obstacles;
 
  public:
-    //IF3D_ObstacleVector(FluidGridMPI* g) : IF3D_ObstacleOperator(g) {}
+    IF3D_ObstacleVector(FluidGridMPI* g) : IF3D_ObstacleOperator(g) {}
     IF3D_ObstacleVector(FluidGridMPI* g, std::vector<IF3D_ObstacleOperator*> obstacles_in)
     : IF3D_ObstacleOperator(g), obstacles(obstacles_in)
     {

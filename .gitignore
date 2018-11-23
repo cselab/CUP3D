@@ -4,8 +4,13 @@
 *.o
 */*.o
 *.a
+*.so
 *.h5
 *.xmf
+
+*.pyc
+__pycache__
+
 .DS_Store
 ._*
 *.swp

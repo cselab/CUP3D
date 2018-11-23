@@ -44,6 +44,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
   // FLOW
   nu = parser("-nu").asDouble();
   lambda = parser("-lambda").asDouble(1e6);
+  DLM = parser("-use-dlm").asDouble(0.0);
   CFL = parser("-CFL").asDouble(.1);
   uinf[0] = parser("-uinfx").asDouble(0.0);
   uinf[1] = parser("-uinfy").asDouble(0.0);
@@ -59,7 +60,6 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
   verbose = parser("-verbose").asBool(true);
   b2Ddump = parser("-dump2D").asBool(false);
   b3Ddump = parser("-dump3D").asBool(true);
-  DLM = parser("-use-dlm").asDouble(0);
 
   int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
   double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
@@ -74,7 +74,6 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
   if (saveTime <= 0 && dumpTime > 0) saveTime = dumpTime;
 
   path4serialization = parser("-serialization").asString("./");
-
 
   // ========= SETUP GRID ==========
   // Grid has to be initialized before slices and obstacles.
@@ -92,10 +91,83 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
   IF3D_ObstacleFactory factory(grid, uinf);
   setObstacleVector(new IF3D_ObstacleVector(grid, factory.create(parser)));
 
-  // ====== SETUP OPERATORS ========
+  // ============ REST =============
+  const bool restart = parser("-restart").asBool(false);
+  _init(restart);
+}
+
+
+// For Python bindings. Really no need for `const` here...
+Simulation::Simulation(
+        std::array<int, 3> cells,
+        std::array<int, 3> nproc,
+        MPI_Comm comm,
+        int nsteps, double endTime,
+        double nu, double CFL, double lambda, double DLM,
+        std::array<double, 3> uinf,
+        bool verbose,
+        bool computeDissipation,
+        bool b3Ddump, bool b2Ddump,
+#ifndef _UNBOUNDED_FFT_
+        double fadeOutLength,
+#endif
+        int saveFreq, double saveTime,
+        const std::string &path4serialization,
+        bool restart)
+    : app_comm(comm),
+      nprocsx(nproc[0]), nprocsy(nproc[1]), nprocsz(nproc[2]),
+      nsteps(nsteps), endTime(endTime),
+      nu(nu), CFL(CFL), lambda(lambda), DLM(DLM),
+      uinf{uinf[0], uinf[1], uinf[2]},
+      verbose(verbose),
+      computeDissipation(computeDissipation),
+      b3Ddump(b3Ddump), b2Ddump(b2Ddump),
+#ifndef _UNBOUNDED_FFT_
+      fadeOutLength(fadeOutLength),
+#endif
+      saveFreq(saveFreq), saveTime(saveTime),
+      path4serialization(path4serialization)
+{
+  if (cells[0] < 0 || cells[1] < 0 || cells[2] < 0)
+    throw std::invalid_argument("Number of cells not provided.");
+  if (cells[0] % FluidBlock::sizeX != 0
+        || cells[1] % FluidBlock::sizeY != 0
+        || cells[2] % FluidBlock::sizeZ != 0) {
+    throw std::invalid_argument("Number of cells should be a multiple of block size.");
+  }
+  bpdx = cells[0] / FluidBlock::sizeX;
+  bpdy = cells[1] / FluidBlock::sizeY;
+  bpdz = cells[2] / FluidBlock::sizeZ;
+
+  _argumentsSanityCheck();
+  setupGrid();  // Grid has to be initialized before slices and obstacles.
+  setObstacleVector(new IF3D_ObstacleVector(grid));
+  _init(restart);
+}
+
+Simulation::~Simulation()
+{
+  delete grid;
+  delete obstacle_vector;
+  while(!pipeline.empty()) {
+    GenericCoordinator * g = pipeline.back();
+    pipeline.pop_back();
+    delete g;
+  }
+  #ifdef DUMPGRID
+    if(dumper not_eq nullptr) {
+      dumper->join();
+      delete dumper;
+    }
+    delete dump;
+    MPI_Comm_free(&dump_comm);
+  #endif
+}
+
+void Simulation::_init(const bool restart)
+{
   setupOperators();
 
-  bool restart = parser("-restart").asBool(false);
   if (restart)
     _deserialize();
   else
@@ -171,6 +243,12 @@ void Simulation::setupGrid()
 
 void Simulation::_argumentsSanityCheck()
 {
+  // Grid.
+  if (bpdx < 1 || bpdy < 1 || bpdz < 1) {
+      fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);
+      abort();
+  }
+
   // Flow.
   assert(nu >= 0);
   assert(lambda > 0.0);
@@ -192,7 +270,7 @@ void Simulation::setObstacleVector(IF3D_ObstacleVector * const obstacle_vector_)
     const double maxU = std::max({uinf[0], uinf[1], uinf[2]});
     const double length = obstacle_vector->getD();
     const double re = length * std::max(maxU, length) / nu;
-    assert(length>0);
+    assert(length > 0 || obstacle_vector->getObstacleVector().empty());
     printf("Kinematic viscosity: %f, Re: %f, length scale: %f\n",nu,re,length);
   }
 }
@@ -418,7 +496,7 @@ void Simulation::_deserialize()
   nextSaveTime = time + saveTime;
 }
 
-void Simulation::simulate()
+void Simulation::run()
 {
     for (;;) {
         profiler.push_start("DT");

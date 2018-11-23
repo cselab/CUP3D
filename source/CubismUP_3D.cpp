@@ -6,6 +6,8 @@
 //  Created by Ivica Kicic (kicici@ethz.ch) in May 2018.
 //
 
+// DEPRECATED?
+
 /*
  * Please check CubismUP_3D.h for information about the functions below.
  */

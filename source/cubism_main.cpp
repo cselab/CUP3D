@@ -41,7 +41,7 @@ int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
   }
 
   Simulation * sim = new Simulation(app_comm, parser);
-  sim->simulate();
+  sim->run();
   delete sim;
 
   return 0;
