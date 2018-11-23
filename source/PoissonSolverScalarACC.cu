@@ -86,7 +86,7 @@ void _fourier_filter_gpu(myComplex*const __restrict__ out,
     Real(2*M_PI/(h*N[1])),
     Real(2*M_PI/(h*N[2]))
   };
-  const Real scale = 1./Real(N[0]*N[1]*N[2]);
+  const Real scale = 1./( Real(N[0]) * Real(N[1]) * Real(N[2]) );
 
   int blocksInX = std::ceil(osize[0] / 4.);
   int blocksInY = std::ceil(osize[1] / 4.);

@@ -11,14 +11,6 @@
 //#include <cassert>
 //#define __2Leads_
 //#define __DumpWakeStefan 9
-#define __useSkin_
-#include <stdexcept>
-#include <sstream>
-#include <cmath>
-#include <cstdio>
-#include <math.h>
-#include <string>
-#include <vector>
 using namespace std;
 //#include <assert.h>
 #ifdef __RL_MPI_CLIENT

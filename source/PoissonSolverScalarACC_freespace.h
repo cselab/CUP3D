@@ -116,8 +116,7 @@ public:
     plan = static_cast<void*>(fwd);
 
     {
-      const Real h = local_infos[0].h_gridpoint;
-      cout << h << endl;
+      const Real h = grid.getBlocksInfo().front().h_gridpoint;
       initGreen(isz,osz,ist,ost, totN[0],totN[1],totN[2], h, fwd, gpuGhat,gpu_rhs);
     }
 

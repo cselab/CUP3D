@@ -22,6 +22,7 @@
 
 #include "ProcessOperatorsOMP.h"
 #include "Simulation.h"
+#include <sstream>
 
 void Simulation::_ic()
 {
@@ -164,8 +165,9 @@ void Simulation::setupOperators()
   #endif /* _UNBOUNDED_FFT_ */
 
   if(rank==0) {
-    cout << "Coordinator/Operator ordering:\n";
-    for (size_t c=0; c<pipeline.size(); c++) cout << "\t" << pipeline[c]->getName() << endl;
+    printf("Coordinator/Operator ordering:\n");
+    for (size_t c=0; c<pipeline.size(); c++)
+      printf("\t%s\n", pipeline[c]->getName().c_str());
   }
   //immediately call create!
   (*pipeline[0])(0);
@@ -208,11 +210,11 @@ void Simulation::_serialize(const std::string append)
 {
   if(!bDump) return;
 
-  stringstream ssR;
+  std::stringstream ssR;
   if (append == "") ssR<<"restart_";
   else ssR<<append;
   ssR<<std::setfill('0')<<std::setw(9)<<step;
-  if (rank==0) cout<<"Saving to "<<path4serialization<<"/"<<ssR.str()<<endl;
+  if(rank==0) std::cout<<"Saving to "<<path4serialization<<"/"<<ssR.str()<<"\n";
 
   if (rank==0) { //rank 0 saves step id and obstacles
     obstacle_vector->save(step, time, path4serialization+"/"+ssR.str());
@@ -229,7 +231,7 @@ void Simulation::_serialize(const std::string append)
   }
 
   #ifdef CUBISM_USE_HDF
-  stringstream ssF;
+  std::stringstream ssF;
   if (append == "")
    ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
   else
@@ -343,9 +345,9 @@ void Simulation::_deserialize()
     }
   }
 
-  stringstream ssR;
+  std::stringstream ssR;
   ssR<<"restart_"<<std::setfill('0')<<std::setw(9)<<step;
-  if (rank==0) cout << "Restarting from " << ssR.str() << endl;
+  if (rank==0) std::cout << "Restarting from " << ssR.str() << "\n";
 
   #ifdef CUBISM_USE_HDF
     ReadHDF5_MPI<StreamerVelocityVector, DumpReal>(*grid,
@@ -426,7 +428,7 @@ bool Simulation::timestep(const double dt)
     if ((endTime>0 && time>endTime) || (nsteps!=0 && step>=nsteps))
     {
       if(rank==0)
-      cout<<"Finished at time "<<time<<" in "<<step<<" step of "<<nsteps<<endl;
+      std::cout<<"Finished at time "<<time<<" in "<<step<<" steps.\n";
       return true;  // Finished.
     }
 
