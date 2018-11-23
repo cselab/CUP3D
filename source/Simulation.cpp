@@ -23,6 +23,8 @@
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"
 
+#include <iomanip>
+
 /*
  * Initialization from cmdline arguments is done in few steps, because grid has
  * to be created before the obstacles and slices are created.

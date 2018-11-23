@@ -64,6 +64,7 @@ set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
 include_directories(${ROOT_FOLDER}/Cubism/include/)
 include_directories(${ROOT_FOLDER}/source/)
 set(COMMON_SOURCES           # Common for app and lib.
+    ${ROOT_FOLDER}/Cubism/src/ArgumentParser.cpp  # Temporary solution for Cubism .cpp files.
     ${ROOT_FOLDER}/source/BufferedLogger.cpp
     ${ROOT_FOLDER}/source/IF3D_CarlingFishOperator.cpp
     ${ROOT_FOLDER}/source/IF3D_DCylinderObstacleOperator.cpp

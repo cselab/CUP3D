@@ -21,5 +21,6 @@ __pycache__
 /dependencies
 /lib
 /launch/results
+/tests/.cache
 
 /README.html

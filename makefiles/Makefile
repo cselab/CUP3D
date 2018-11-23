@@ -76,6 +76,7 @@ endif
 
 CPPFLAGS += -DCUP_ALIGNMENT=64
 CPPFLAGS += -DCUP_BLOCK_SIZE=$(bs)
+CPPFLAGS += -lm
 
 #CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
@@ -113,7 +114,11 @@ LDFLAGS = $(CPPFLAGS)
 
 ifeq "$(hdf)" "true"
 CPPFLAGS+= -DCUBISM_USE_HDF #-I$(hdf-inc)
-LIBS+= -lhdf5 #-L$(hdf-lib) -lhdf5
+ifneq ($(HDF5_LIB),)
+	LIBS+= -L$(HDF5_LIB) -lhdf5 #-L$(hdf-lib) -lhdf5
+else
+	LIBS+= -lhdf5 #-L$(hdf-lib) -lhdf5
+endif
 endif
 
 #################################################
@@ -147,7 +152,7 @@ LIBS += -lstdc++ -lgsl -lgslcblas
 
 BUILDDIR = .
 SRC_DIR = $(BUILDDIR)/../source/
-CUBISM_DIR = $(BUILDDIR)/../Cubism/
+CUBISM_DIR = $(BUILDDIR)/../Cubism/src/
 
 OBJECTS =  IF3D_ObstacleFactory.o \
 	IF3D_ObstacleOperator.o \
@@ -162,7 +167,8 @@ OBJECTS =  IF3D_ObstacleFactory.o \
 	IF3D_NacaOperator.o \
 	BufferedLogger.o \
 	IF3D_CarlingFishOperator.o \
-	IF3D_DCylinderObstacleOperator.o
+	IF3D_DCylinderObstacleOperator.o \
+	ArgumentParser.o  # Temporary solution for Cubism .cpp files.
 	#IF3D_ElasticFishOperator.o \
 
 ifeq "$(accfft)" "true"
