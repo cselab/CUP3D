@@ -8,8 +8,9 @@
 
 #include "IF3D_SphereObstacleOperator.h"
 
-#include "Cubism/ArgumentParser.h"
 #include "IF3D_ObstacleLibrary.h"
+
+#include "Cubism/ArgumentParser.h"
 
 IF3D_SphereObstacleOperator::IF3D_SphereObstacleOperator(
     FluidGridMPI * const g,
@@ -32,18 +33,18 @@ IF3D_SphereObstacleOperator::IF3D_SphereObstacleOperator(
     FluidGridMPI * const g,
     ObstacleArguments &args,
     const Real * const u,
-    const double radius)
-    : IF3D_ObstacleOperator(g, args, u), radius(radius) { }
+    const double R)
+    : IF3D_ObstacleOperator(g, args, u), radius(R) { }
 
 
 IF3D_SphereObstacleOperator::IF3D_SphereObstacleOperator(
     FluidGridMPI * const g,
     ObstacleArguments &args,
     const Real * const u,
-    const double radius,
-    const double umax,
-    const double tmax)
-    : IF3D_ObstacleOperator(g, args, u), radius(radius), umax(umax), tmax(tmax) { }
+    const double R,
+    const double _umax,
+    const double _tmax)
+    : IF3D_ObstacleOperator(g, args, u), radius(R), umax(_umax), tmax(_tmax) { }
 
 
 void IF3D_SphereObstacleOperator::create(const int step_id, const double time, const double dt, const Real *Uinf)

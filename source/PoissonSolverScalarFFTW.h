@@ -13,15 +13,13 @@
 #include <fftw3.h>
 #include <fftw3-mpi.h>
 
-#ifndef _FLOAT_PRECISION_
+#ifndef CUP_SINGLE_PRECISION
 typedef fftw_complex mycomplex;
 typedef fftw_plan myplan;
 #else
 typedef fftwf_complex mycomplex;
 typedef fftwf_plan myplan;
 #endif
-
-using namespace std;
 
 #include "Cubism/BlockInfo.h"
 
@@ -33,8 +31,8 @@ class PoissonSolverScalarFFTW_MPI
   //mycomplex local_rhs, local_work;
   myplan fwd, bwd;
 
-  const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
-  const vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
+  static constexpr int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
+  const std::vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
   const size_t mybpd[3] = {
       static_cast<size_t>(grid.getResidentBlocksPerDimension(0)),
       static_cast<size_t>(grid.getResidentBlocksPerDimension(1)),
@@ -130,8 +128,8 @@ class PoissonSolverScalarFFTW_MPI
   PoissonSolverScalarFFTW_MPI(TGrid& g): grid(g)
   {
     if (TStreamer::channels != 1) {
-      cout << "PoissonSolverScalar_MPI(): Error: TStreamer::channels is "
-           << TStreamer::channels << " (should be 1).\n";
+      std::cout << "PoissonSolverScalar_MPI(): Error: TStreamer::channels is "
+                << TStreamer::channels << " (should be 1)." << std::endl;
       abort();
     }
     MPI_Comm comm = grid.getCartComm();
@@ -140,22 +138,22 @@ class PoissonSolverScalarFFTW_MPI
       int supported_threads;
       MPI_Query_thread(&supported_threads);
       if (supported_threads<MPI_THREAD_FUNNELED) {
-        cout << "MPI implementation does not support threads.\n";
+        std::cout << "MPI implementation does not support threads." << std::endl;
         abort();
       }
     }
-    #ifndef _FLOAT_PRECISION_
+    #ifndef CUP_SINGLE_PRECISION
       const int retval = fftw_init_threads();
     #else
       const int retval = fftwf_init_threads();
     #endif
     if(retval==0) {
-      cout << "FFTWBase::setup(): Call to fftw_init_threads() returned zero.\n";
+      std::cout << "FFTWBase::setup(): Call to fftw_init_threads() returned zero." << std::endl;
       abort();
     }
 
     const int desired_threads = omp_get_max_threads();
-    #ifndef _FLOAT_PRECISION_
+    #ifndef CUP_SINGLE_PRECISION
       fftw_plan_with_nthreads(desired_threads);
       fftw_mpi_init();
       alloc_local = fftw_mpi_local_size_3d_transposed(
@@ -190,7 +188,7 @@ class PoissonSolverScalarFFTW_MPI
   {
     //_cub2fftw(data);
 
-    #ifndef _FLOAT_PRECISION_
+    #ifndef CUP_SINGLE_PRECISION
     fftw_execute(fwd);
     #else
     fftwf_execute(fwd);
@@ -198,7 +196,7 @@ class PoissonSolverScalarFFTW_MPI
 
     _solve();
 
-    #ifndef _FLOAT_PRECISION_
+    #ifndef CUP_SINGLE_PRECISION
     fftw_execute(bwd);
     #else
     fftwf_execute(bwd);
@@ -209,7 +207,7 @@ class PoissonSolverScalarFFTW_MPI
 
   void dispose()
   {
-    #ifndef _FLOAT_PRECISION_
+    #ifndef CUP_SINGLE_PRECISION
       fftw_destroy_plan(fwd);
       fftw_destroy_plan(bwd);
       fftw_free(data);

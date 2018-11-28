@@ -30,7 +30,7 @@ class OperatorAdvection : public GenericLabOperator
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o)
   {
-    #ifndef _RK2_
+    #ifndef CUP_RK2
     const Real fac = -dt/(2.*info.h_gridpoint);
     #else //perform half step
     const Real fac = -dt/(4.*info.h_gridpoint);
@@ -55,7 +55,7 @@ class OperatorAdvection : public GenericLabOperator
   }
 };
 
-#ifdef _RK2_
+#ifdef CUP_RK2
 class OperatorAdvectionStage2 : public GenericLabOperator
 {
   private:
@@ -97,7 +97,7 @@ class OperatorAdvectionStage2 : public GenericLabOperator
     }
   }
 };
-#endif // _RK2_
+#endif // CUP_RK2
 
 class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
 {
@@ -119,7 +119,7 @@ class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-    #ifndef _RK2_
+    #ifndef CUP_RK2
     const Real factor = -dt/(6.*info.h_gridpoint);
     #else //perform half step
     const Real factor = -dt/(12.*info.h_gridpoint);
@@ -168,7 +168,7 @@ class OperatorAdvectionUpwind3rdOrder : public GenericLabOperator
   }
 };
 
-#ifdef _RK2_
+#ifdef CUP_RK2
 class OperatorAdvectionUpwind3rdOrderStage2 : public GenericLabOperator
 {
   private:
@@ -232,7 +232,7 @@ class OperatorAdvectionUpwind3rdOrderStage2 : public GenericLabOperator
     }
   }
 };
-#endif // _RK2_
+#endif // CUP_RK2
 
 template <typename Lab>
 class CoordinatorAdvection : public GenericCoordinator
@@ -263,7 +263,7 @@ public:
 
       for(int i=0; i<nthreads; i++) delete adv1[i];
     }
-#ifdef _RK2_
+#ifdef CUP_RK2
     {
       //using advection = OperatorAdvectionUpwind3rdOrderStage2;
       using advection = OperatorAdvectionStage2;

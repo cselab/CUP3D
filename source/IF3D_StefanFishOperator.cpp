@@ -8,12 +8,12 @@
 
 #include "IF3D_StefanFishOperator.h"
 
-#include <cmath>
-#include <array>
-
-#include "Cubism/ArgumentParser.h"
 #include "IF3D_FishLibrary.h"
 
+#include "Cubism/ArgumentParser.h"
+
+#include <cmath>
+#include <array>
 
 class CurvatureDefinedFishData : public FishMidlineData
 {

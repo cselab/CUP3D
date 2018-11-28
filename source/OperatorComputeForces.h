@@ -8,8 +8,8 @@
 
 #ifndef CubismUP_2D_OperatorComputeForces_h
 #define CubismUP_2D_OperatorComputeForces_h
-#include "Definitions.h"
 
+#include "Definitions.h"
 #include "GenericOperator.h"
 #include "ObstacleBlock.h"
 

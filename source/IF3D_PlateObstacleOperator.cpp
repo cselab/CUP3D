@@ -8,8 +8,9 @@
 
 #include "IF3D_PlateObstacleOperator.h"
 
-#include "Cubism/ArgumentParser.h"
 #include "IF3D_ObstacleLibrary.h"
+
+#include "Cubism/ArgumentParser.h"
 
 
 static constexpr Real EPSILON = std::numeric_limits<Real>::epsilon();
@@ -262,14 +263,14 @@ IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
         const double a,
         const double b,
         const double thickness,
-        const double nx, const double ny, const double nz,
-        const double ax, const double ay, const double az)
+        const double _nx, const double _ny, const double _nz,
+        const double _ax, const double _ay, const double _az)
     : IF3D_ObstacleOperator(g, args, u),
+      nx(_nx), ny(_ny), nz(_nz),
+      ax(_ax), ay(_ay), az(_az),
       half_a(.5 * a),
       half_b(.5 * b),
-      half_thickness(.5 * thickness),
-      nx(nx), ny(ny), nz(nz),
-      ax(ax), ay(ay), az(az)
+      half_thickness(.5 * thickness)
 {
     _init();
 }

@@ -6,6 +6,8 @@
 //  Created by Ivica Kicic (kicici@ethz.ch) in May 2018.
 //
 
+// DEPRECATED?
+
 /*
  * Interface for using CubismUP_3D as a library.
  *

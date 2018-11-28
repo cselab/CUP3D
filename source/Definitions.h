@@ -17,18 +17,22 @@
 #include <fstream>
 #include <string>
 
-
-#ifndef _FLOAT_PRECISION_
+#ifndef CUP_SINGLE_PRECISION
 typedef double Real;
-#else // _FLOAT_PRECISION_
+#else // CUP_SINGLE_PRECISION
 typedef float Real;
-#endif // _FLOAT_PRECISION_
+#endif // CUP_SINGLE_PRECISION
 
-#ifndef _HDF5_DOUBLE_PRECISION_
+#ifndef CUP_HDF5_DOUBLE_PRECISION
 typedef float DumpReal;
 #else
 typedef double DumpReal;
 #endif
+
+#ifndef CUP_ALIGNMENT
+#define CUP_ALIGNMENT 64
+#endif
+#define CUBISM_ALIGNMENT CUP_ALIGNMENT
 
 // Cubism dependencies.
 #include "Cubism/Grid.h"
@@ -51,7 +55,7 @@ using namespace cubism;
 
 struct FluidElement
 {
-  typedef ::Real Real;
+  typedef Real RealType;
   //If you modify these (adding, moving, shuffling, whatever) you kill the code
   Real chi, u, v, w, p, tmpU, tmpV, tmpW;
   FluidElement(): chi(0),u(0),v(0),w(0),p(0),tmpU(0),tmpV(0),tmpW(0) {}
@@ -80,14 +84,14 @@ template <typename TElement>
 struct BaseBlock
 {
   //these identifiers are required by cubism!
-  static constexpr int BS = CUBISMUP3D_BLOCK_SIZE;
+  static constexpr int BS = CUP_BLOCK_SIZE;
   static constexpr int sizeX = BS;
   static constexpr int sizeY = BS;
   static constexpr int sizeZ = BS;
   static constexpr int sizeArray[3] = {BS, BS, BS};
   typedef TElement ElementType;
   typedef TElement element_type;
-  typedef ::Real   Real;
+  typedef Real   RealType;
   __attribute__((aligned(32))) TElement data[sizeZ][sizeY][sizeX];
 
   //required from Grid.h

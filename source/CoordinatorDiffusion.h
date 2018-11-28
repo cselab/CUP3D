@@ -40,7 +40,7 @@ public:
       const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
       const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
       const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
-      #ifdef _RK2_
+      #ifdef CUP_RK2
       const Real u = L.u, v = L.v, w = L.w;
       #else
       const Real u = L.tmpU, v = L.tmpV, w = L.tmpW;
@@ -55,7 +55,7 @@ public:
   }
 };
 
-#ifdef _RK2_
+#ifdef CUP_RK2
 class OperatorDiffusion_toTemp : public GenericLabOperator
 {
 private:
@@ -90,7 +90,7 @@ public:
     }
   }
 };
-#endif // _RK2_
+#endif // CUP_RK2
 
 template <typename Lab>
 class CoordinatorDiffusion : public GenericCoordinator
@@ -108,7 +108,7 @@ public:
     check("diffusion - start");
     const int nthreads = omp_get_max_threads();
 
-#ifdef _RK2_
+#ifdef CUP_RK2
     {
       std::vector<OperatorDiffusion_toTemp*> diff1(nthreads, nullptr);
       for(int i=0;i<nthreads;++i)

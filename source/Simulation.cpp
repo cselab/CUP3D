@@ -7,8 +7,6 @@
 //
 #include "Simulation.h"
 
-#include "Cubism/ArgumentParser.h"
-#include "Cubism/HDF5Dumper_MPI.h"
 #include "CoordinatorAdvectDiffuse.h"
 #include "CoordinatorAdvection.h"
 #include "CoordinatorComputeDissipation.h"
@@ -21,6 +19,11 @@
 //#include "CoordinatorVorticity.h"
 #include "IF3D_ObstacleFactory.h"
 #include "ProcessOperatorsOMP.h"
+
+#include "Cubism/ArgumentParser.h"
+#include "Cubism/HDF5Dumper_MPI.h"
+
+#include <iomanip>
 
 /*
  * Initialization from cmdline arguments is done in few steps, because grid has
@@ -44,6 +47,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
   // FLOW
   nu = parser("-nu").asDouble();
   lambda = parser("-lambda").asDouble(1e6);
+  DLM = parser("-use-dlm").asDouble(0.0);
   CFL = parser("-CFL").asDouble(.1);
   uinf[0] = parser("-uinfx").asDouble(0.0);
   uinf[1] = parser("-uinfy").asDouble(0.0);
@@ -51,7 +55,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
 
   // PIPELINE
   computeDissipation = (bool)parser("-compute-dissipation").asInt(0);
-#ifndef _UNBOUNDED_FFT_
+#ifndef CUP_UNBOUNDED_FFT
   fadeOutLength = parser("-fade_len").asDouble(.005);
 #endif
 
@@ -59,7 +63,6 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
   verbose = parser("-verbose").asBool(true);
   b2Ddump = parser("-dump2D").asBool(false);
   b3Ddump = parser("-dump3D").asBool(true);
-  DLM = parser("-use-dlm").asDouble(0);
 
   int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
   double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
@@ -75,14 +78,13 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
 
   path4serialization = parser("-serialization").asString("./");
 
-
   // ========= SETUP GRID ==========
   // Grid has to be initialized before slices and obstacles.
   _argumentsSanityCheck();
   setupGrid();
 
   // =========== SLICES ============
-  #ifdef DUMPGRID
+  #ifdef CUP_ASYNC_DUMP
     m_slices = SliceType::getEntities<SliceType>(parser, *dump);
   #else
     m_slices = SliceType::getEntities<SliceType>(parser, *grid);
@@ -92,10 +94,83 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
   IF3D_ObstacleFactory factory(grid, uinf);
   setObstacleVector(new IF3D_ObstacleVector(grid, factory.create(parser)));
 
-  // ====== SETUP OPERATORS ========
+  // ============ REST =============
+  const bool restart = parser("-restart").asBool(false);
+  _init(restart);
+}
+
+
+// For Python bindings. Really no need for `const` here...
+Simulation::Simulation(
+        std::array<int, 3> cells,
+        std::array<int, 3> nproc,
+        MPI_Comm comm,
+        int nsteps, double endTime,
+        double nu, double CFL, double lambda, double DLM,
+        std::array<double, 3> uinf,
+        bool verbose,
+        bool computeDissipation,
+        bool b3Ddump, bool b2Ddump,
+#ifndef CUP_UNBOUNDED_FFT
+        double fadeOutLength,
+#endif
+        int saveFreq, double saveTime,
+        const std::string &path4serialization,
+        bool restart)
+    : app_comm(comm),
+      nprocsx(nproc[0]), nprocsy(nproc[1]), nprocsz(nproc[2]),
+      nsteps(nsteps), endTime(endTime),
+      uinf{uinf[0], uinf[1], uinf[2]},
+      nu(nu), CFL(CFL), lambda(lambda), DLM(DLM),
+      verbose(verbose),
+      computeDissipation(computeDissipation),
+      b3Ddump(b3Ddump), b2Ddump(b2Ddump),
+#ifndef CUP_UNBOUNDED_FFT
+      fadeOutLength(fadeOutLength),
+#endif
+      saveFreq(saveFreq), saveTime(saveTime),
+      path4serialization(path4serialization)
+{
+  if (cells[0] < 0 || cells[1] < 0 || cells[2] < 0)
+    throw std::invalid_argument("Number of cells not provided.");
+  if (cells[0] % FluidBlock::sizeX != 0
+        || cells[1] % FluidBlock::sizeY != 0
+        || cells[2] % FluidBlock::sizeZ != 0) {
+    throw std::invalid_argument("Number of cells should be a multiple of block size.");
+  }
+  bpdx = cells[0] / FluidBlock::sizeX;
+  bpdy = cells[1] / FluidBlock::sizeY;
+  bpdz = cells[2] / FluidBlock::sizeZ;
+
+  _argumentsSanityCheck();
+  setupGrid();  // Grid has to be initialized before slices and obstacles.
+  setObstacleVector(new IF3D_ObstacleVector(grid));
+  _init(restart);
+}
+
+Simulation::~Simulation()
+{
+  delete grid;
+  delete obstacle_vector;
+  while(!pipeline.empty()) {
+    GenericCoordinator * g = pipeline.back();
+    pipeline.pop_back();
+    delete g;
+  }
+  #ifdef CUP_ASYNC_DUMP
+    if(dumper not_eq nullptr) {
+      dumper->join();
+      delete dumper;
+    }
+    delete dump;
+    MPI_Comm_free(&dump_comm);
+  #endif
+}
+
+void Simulation::_init(const bool restart)
+{
   setupOperators();
 
-  bool restart = parser("-restart").asBool(false);
   if (restart)
     _deserialize();
   else
@@ -147,7 +222,7 @@ void Simulation::setupGrid()
   assert(grid != NULL);
   vInfo = grid->getBlocksInfo();
 
-  #ifdef DUMPGRID
+  #ifdef CUP_ASYNC_DUMP
     // create new comm so that if there is a barrier main work is not affected
     MPI_Comm_split(app_comm, 0, rank, &dump_comm);
     dump = new  DumpGridMPI(nprocsx,nprocsy,nprocsz, bpdx,bpdy,bpdz, 1, dump_comm);
@@ -171,6 +246,12 @@ void Simulation::setupGrid()
 
 void Simulation::_argumentsSanityCheck()
 {
+  // Grid.
+  if (bpdx < 1 || bpdy < 1 || bpdz < 1) {
+      fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);
+      abort();
+  }
+
   // Flow.
   assert(nu >= 0);
   assert(lambda > 0.0);
@@ -192,7 +273,7 @@ void Simulation::setObstacleVector(IF3D_ObstacleVector * const obstacle_vector_)
     const double maxU = std::max({uinf[0], uinf[1], uinf[2]});
     const double length = obstacle_vector->getD();
     const double re = length * std::max(maxU, length) / nu;
-    assert(length>0);
+    assert(length > 0 || obstacle_vector->getObstacleVector().empty());
     printf("Kinematic viscosity: %f, Re: %f, length scale: %f\n",nu,re,length);
   }
 }
@@ -214,9 +295,9 @@ void Simulation::setupOperators()
   if(computeDissipation)
     pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
 
-  #ifndef _UNBOUNDED_FFT_
+  #ifndef CUP_UNBOUNDED_FFT
     pipeline.push_back(new CoordinatorFadeOut(grid, fadeOutLength));
-  #endif /* _UNBOUNDED_FFT_ */
+  #endif /* CUP_UNBOUNDED_FFT */
 
   if(rank==0) {
     printf("Coordinator/Operator ordering:\n");
@@ -291,7 +372,7 @@ void Simulation::_serialize(const std::string append)
   else
   ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
 
-  #ifdef DUMPGRID
+  #ifdef CUP_ASYNC_DUMP
     // if a thread was already created, make sure it has finished
     if(dumper not_eq nullptr) {
       dumper->join();
@@ -301,9 +382,9 @@ void Simulation::_serialize(const std::string append)
     // copy qois from grid to dump
     copyDumpGrid(*grid, *dump);
     const auto & grid2Dump = * dump;
-  #else //DUMPGRID
+  #else //CUP_ASYNC_DUMP
     const auto & grid2Dump = * grid;
-  #endif //DUMPGRID
+  #endif //CUP_ASYNC_DUMP
 
   const auto name3d = ssR.str(), name2d = ssF.str(); // sstreams are weird
 
@@ -328,11 +409,11 @@ void Simulation::_serialize(const std::string append)
     }
   };
 
-  #ifdef DUMPGRID
+  #ifdef CUP_ASYNC_DUMP
     dumper = new std::thread( dumpFunction );
-  #else //DUMPGRID
+  #else //CUP_ASYNC_DUMP
     dumpFunction();
-  #endif //DUMPGRID
+  #endif //CUP_ASYNC_DUMP
   #endif //CUBISM_USE_HDF
 
 
@@ -374,15 +455,15 @@ void Simulation::_deserialize()
     bool ret = true;
     ret = ret && 1==fscanf(f, "time: %le\n",   &time);
     ret = ret && 1==fscanf(f, "stepid: %d\n", &step);
-    #ifndef _FLOAT_PRECISION_
+    #ifndef CUP_SINGLE_PRECISION
     ret = ret && 1==fscanf(f, "uinfx: %le\n", &uinf[0]);
     ret = ret && 1==fscanf(f, "uinfy: %le\n", &uinf[1]);
     ret = ret && 1==fscanf(f, "uinfz: %le\n", &uinf[2]);
-    #else // _FLOAT_PRECISION_
+    #else // CUP_SINGLE_PRECISION
     ret = ret && 1==fscanf(f, "uinfx: %e\n", &uinf[0]);
     ret = ret && 1==fscanf(f, "uinfy: %e\n", &uinf[1]);
     ret = ret && 1==fscanf(f, "uinfz: %e\n", &uinf[2]);
-    #endif // _FLOAT_PRECISION_
+    #endif // CUP_SINGLE_PRECISION
     fclose(f);
     if( (not ret) || step<0 || time<0) {
       printf("Error reading restart file. Aborting...\n");
@@ -409,7 +490,7 @@ void Simulation::_deserialize()
   nextSaveTime = time + saveTime;
 }
 
-void Simulation::simulate()
+void Simulation::run()
 {
     for (;;) {
         profiler.push_start("DT");
