@@ -159,8 +159,6 @@ __global__ void kFreespace(const int oSzX, const int oSzY, const int oSzZ,
   const size_t linidx = (i*oSzY + j)*nZpad + k;
   in_out[linidx][0] *= G_hat[linidx];
   in_out[linidx][1] *= G_hat[linidx];
-  //in_out[linidx][0] *= 1./(2047 * 511 * 255);
-  //in_out[linidx][1] *= 1./(2047 * 511 * 255);
 }
 
 static inline int getSize(MPI_Comm comm) {

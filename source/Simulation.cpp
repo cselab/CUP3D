@@ -300,47 +300,38 @@ void Simulation::_serialize(const std::string append)
     }
     // copy qois from grid to dump
     copyDumpGrid(*grid, *dump);
-
-    const auto name3d = ssR.str(), name2d = ssF.str(); // sstreams are weird
-    dumper = new std::thread( [=] () {
-      if(b2Ddump) {
-        for (const auto& slice : m_slices) {
-          DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
-              slice, step, time, StreamerVelocityVector::prefix()+name2d, path4serialization);
-          DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
-              slice, step, time, StreamerPressure::prefix()+name2d, path4serialization);
-          DumpSliceHDF5MPI<StreamerChi, DumpReal>(
-              slice, step, time, StreamerChi::prefix()+name2d, path4serialization);
-        }
-      }
-      if(b3Ddump) {
-        DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
-            *dump, step, time, StreamerVelocityVector::prefix()+name3d, path4serialization);
-        DumpHDF5_MPI<StreamerPressure, DumpReal>(
-            *dump, step, time, StreamerPressure::prefix()+name3d, path4serialization);
-        DumpHDF5_MPI<StreamerChi, DumpReal>(
-            *dump, step, time, StreamerChi::prefix()+name3d, path4serialization);
-      }
-    } );
+    const auto & grid2Dump = * dump;
   #else //DUMPGRID
+    const auto & grid2Dump = * grid;
+  #endif //DUMPGRID
+
+  const auto name3d = ssR.str(), name2d = ssF.str(); // sstreams are weird
+
+  const auto dumpFunction = [=] () {
     if(b2Ddump) {
       for (const auto& slice : m_slices) {
         DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
-            slice, step, time, StreamerVelocityVector::prefix()+ssF.str(), path4serialization);
+            slice, step, time, StreamerVelocityVector::prefix()+name2d, path4serialization);
         DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
-            slice, step, time, StreamerPressure::prefix()+ssF.str(), path4serialization);
+            slice, step, time, StreamerPressure::prefix()+name2d, path4serialization);
         DumpSliceHDF5MPI<StreamerChi, DumpReal>(
-            slice, step, time, StreamerChi::prefix()+ssF.str(), path4serialization);
+            slice, step, time, StreamerChi::prefix()+name2d, path4serialization);
       }
     }
     if(b3Ddump) {
       DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
-          *grid, step, time, StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
+          grid2Dump, step, time, StreamerVelocityVector::prefix()+name3d, path4serialization);
       DumpHDF5_MPI<StreamerPressure, DumpReal>(
-          *grid, step, time, StreamerPressure::prefix()+ssR.str(), path4serialization);
+          grid2Dump, step, time, StreamerPressure::prefix()+name3d, path4serialization);
       DumpHDF5_MPI<StreamerChi, DumpReal>(
-          *grid, step, time, StreamerChi::prefix()+ssR.str(), path4serialization);
+          grid2Dump, step, time, StreamerChi::prefix()+name3d, path4serialization);
     }
+  };
+
+  #ifdef DUMPGRID
+    dumper = new std::thread( dumpFunction );
+  #else //DUMPGRID
+    dumpFunction();
   #endif //DUMPGRID
   #endif //CUBISM_USE_HDF
 
