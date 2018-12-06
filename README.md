@@ -147,12 +147,12 @@ These options can be enabled either on the command line with, e.g., `cmake
 
 ## Compiling on Mac
 
-The default compiler `clang` on Mac does not support OpenMP. It is therefore necessary either to install `clang` OpenMP extension or to install e.g. `g++` compiler. The following snippet shows how to compile with `g++-7`:
+The default compiler `clang` on Mac does not support OpenMP. It is therefore necessary either to install `clang` OpenMP extension or to install e.g. `g++` compiler. The following snippet shows how to compile with `g++-8`:
 ```bash
 mkdir -p build
 cd build
-CC=gcc-7 CXX=g++-7 cmake ..
-OMPI_CC=gcc-7 MPICH_CC=gcc-7 OMPI_CXX=g++-7 MPICH_CXX=g++-7 make
+CC=gcc-8 CXX=g++-8 cmake ..
+OMPI_CC=gcc-8 MPICH_CC=gcc-8 OMPI_CXX=g++-8 MPICH_CXX=g++-8 make
 ```
 
 ## Troubleshooting
