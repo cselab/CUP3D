@@ -168,6 +168,7 @@ OBJECTS =  IF3D_ObstacleFactory.o \
 	BufferedLogger.o \
 	IF3D_CarlingFishOperator.o \
 	IF3D_DCylinderObstacleOperator.o \
+	IF3D_TestDiffusionObstacleOperator.o \
 	ArgumentParser.o  # Temporary solution for Cubism .cpp files.
 	#IF3D_ElasticFishOperator.o \
 

@@ -20,8 +20,9 @@
 #include "IF3D_PlateObstacleOperator.h"
 #include "IF3D_SphereObstacleOperator.h"
 #include "IF3D_StefanFishOperator.h"
-//#include "IF3D_ElasticFishOperator.h"
+#include "IF3D_TestDiffusionObstacleOperator.h"
 
+//#include "IF3D_ElasticFishOperator.h"
 //#include "IF3D_EllipseObstacleOperator.h"
 //#include "IF3D_CylinderPairOperator.h"
 
@@ -101,6 +102,10 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     else if( objectName == "IF3D_PlateObstacle" )
     {
       retval.push_back(new IF3D_PlateObstacleOperator(grid,object.second,Uinf));
+    }
+    else if( objectName == "IF3D_TestDiffusionObstacle" )
+    {
+      retval.push_back(new IF3D_TestDiffusionObstacleOperator(grid,object.second,Uinf));
     }
     else if( objectName == "IF3D_ExternalObstacleOperator" )
     {

@@ -70,7 +70,7 @@ public:
 
   // simulation settings
   Real uinf[3]={0,0,0};
-  double nu=0, CFL=0, lambda=-1, DLM=0;
+  double nu=0, CFL=0, lambda=-1, DLM=1;
   bool verbose=false;
   bool computeDissipation=false;
   bool b3Ddump=true, b2Ddump=false, bDump=false;
