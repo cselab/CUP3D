@@ -13,6 +13,7 @@
 #define POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 
 #include "Definitions.h"
+#include <fftw3-mpi.h>
 
 #ifndef CUP_SINGLE_PRECISION
 #define _FFTW_(s) fftw_##s
@@ -31,7 +32,6 @@ typedef fftwf_plan myplan;
 #include <vector>
 #include <cassert>
 #include <cstring>
-#include <fftw3-mpi.h>
 
 class My3DFFT_Infinite_MPI
 {
