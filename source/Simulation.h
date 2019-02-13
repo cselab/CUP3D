@@ -9,9 +9,9 @@
 #ifndef CubismUP_2D_Simulation_Fluid_h
 #define CubismUP_2D_Simulation_Fluid_h
 
-#include "GenericOperator.h"
-#include "GenericCoordinator.h"
-#include "IF3D_ObstacleVector.h"
+#include "operators/GenericOperator.h"
+#include "operators/GenericCoordinator.h"
+#include "obstacles/IF3D_ObstacleVector.h"
 
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
@@ -30,7 +30,7 @@
 #include <vector>
 
 #ifdef RL_LAYER
- #include "TaskLayer.h"
+ #include "utils/TaskLayer.h"
 #endif
 
 #ifdef CUP_ASYNC_DUMP

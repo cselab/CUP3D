@@ -9,9 +9,9 @@
 #ifndef CubismUP_2D_OperatorComputeForces_h
 #define CubismUP_2D_OperatorComputeForces_h
 
-#include "Definitions.h"
+#include "../Definitions.h"
 #include "GenericOperator.h"
-#include "ObstacleBlock.h"
+#include "../ObstacleBlock.h"
 
 struct OperatorComputeForces
 {
@@ -64,7 +64,7 @@ struct OperatorComputeForces
       //normals computed with Towers 2009
       // Actually using the volume integral, since (\iint -P \hat{n} dS) = (\iiint -\nabla P dV). Also, P*\nabla\Chi = \nabla P
       // penalty-accel and surf-force match up if resolution is high enough (200 points per fish)
-      const double P = b(ix,iy,iz).p / dt;
+      const double P = b(ix,iy,iz).p;
       const double normX = o->surface[i]->dchidx; //*h^3 (multiplied in dchidx)
       const double normY = o->surface[i]->dchidy; //*h^3 (multiplied in dchidy)
       const double normZ = o->surface[i]->dchidz; //*h^3 (multiplied in dchidz)

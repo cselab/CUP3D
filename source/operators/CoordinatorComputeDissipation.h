@@ -11,7 +11,7 @@
 
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
-#include "BufferedLogger.h"
+#include "../utils/BufferedLogger.h"
 
 class OperatorDissipation : public GenericLabOperator
 {

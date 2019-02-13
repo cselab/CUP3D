@@ -11,7 +11,7 @@
  * defined by an external code. Intended to be used when CubismUP_3D used as a
  * library.
  */
-#include "CubismUP_3D.h"
+#include "../operators/CubismUP_3D.h"
 #include "IF3D_ObstacleOperator.h"
 
 #ifndef CUBISMUP3D_EXTERNAL_OBSTACLE_OPERATOR_H

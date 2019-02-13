@@ -46,10 +46,10 @@ typedef double DumpReal;
 
 using namespace cubism;
 
-#include "AlignedAllocator.h"
-#include "BoundaryConditions.h"
+#include "utils/AlignedAllocator.h"
+#include "utils/BoundaryConditions.h"
 #ifdef RL_LAYER
-#include "StateRewardData.h"
+#include "utils/StateRewardData.h"
 #endif
 
 

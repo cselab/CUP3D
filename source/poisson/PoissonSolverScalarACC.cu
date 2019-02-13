@@ -86,7 +86,7 @@ void _fourier_filter_gpu(myComplex*const __restrict__ out,
     Real(2*M_PI/(h*N[1])),
     Real(2*M_PI/(h*N[2]))
   };
-  const Real scale = 1./( Real(N[0]) * Real(N[1]) * Real(N[2]) );
+  const Real scale = 1./( N[0]*h * N[1]*h * N[2]*h );
 
   int blocksInX = std::ceil(osize[0] / 4.);
   int blocksInY = std::ceil(osize[1] / 4.);
@@ -329,7 +329,7 @@ void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
   CUDA_Check(cudaDeviceSynchronize());
 
   {
-    const Real norm = 1.0 / ((Real) mx * (Real) my * (Real) mz);
+    const Real norm = 1.0 / (mx*h * my*h * mz*h);
     dim3 dB(4, 4, 4);
     dim3 dG(std::ceil(osz[0]/4.), std::ceil(osz[1]/4.), std::ceil(osz[2]/4.));
     kCopyC2R<<<dG, dB>>> (osz[0],osz[1],osz[2], norm, mz_pad,

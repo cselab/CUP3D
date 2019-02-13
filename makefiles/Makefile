@@ -151,8 +151,10 @@ endif
 LIBS += -lstdc++ -lgsl -lgslcblas
 
 BUILDDIR = .
-SRC_DIR = $(BUILDDIR)/../source/
+#SRC_DIR = $(BUILDDIR)/../source/
+SRC_DIR = $(sort $(dir $(wildcard $(BUILDDIR)/../source/*/)))
 CUBISM_DIR = $(BUILDDIR)/../Cubism/src/
+
 
 OBJECTS =  IF3D_ObstacleFactory.o \
 	IF3D_ObstacleOperator.o \

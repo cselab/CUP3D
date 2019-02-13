@@ -10,7 +10,48 @@
 #define CubismUP_3D_CoordinatorComputeShape_h
 
 #include "GenericCoordinator.h"
-#include "IF3D_ObstacleVector.h"
+#include "../obstacles/IF3D_ObstacleVector.h"
+
+struct VelocityObstacleVisitor : public ObstacleVisitor
+{
+  FluidGridMPI * grid;
+  const Real * const uInf;
+  int * const nSum;
+  double * const uSum;
+  std::vector<BlockInfo> vInfo;
+  bool finalize = false;
+
+  VelocityObstacleVisitor(FluidGridMPI* _grid, const Real*const _uInf,
+    int*const _nSum, double*const _uSum) : grid(_grid), uInf(_uInf), nSum(_nSum), uSum(_uSum)
+  {
+    vInfo = grid->getBlocksInfo();
+  }
+
+  void visit(IF3D_ObstacleOperator* const obstacle)
+  {
+    if (not finalize)
+    {
+      const auto &bFixFrameOfRef = obstacle->bFixFrameOfRef;
+      const Real dummy[3] = { 0.0, 0.0, 0.0 };
+      obstacle->computeVelocities(dummy); // compute velocities with zero uinf
+      double povU[3];
+      obstacle->getTranslationVelocity(povU);
+
+      if (bFixFrameOfRef[0]) { (nSum[0])++; uSum[0] -= povU[0]; }
+      if (bFixFrameOfRef[1]) { (nSum[1])++; uSum[1] -= povU[1]; }
+      if (bFixFrameOfRef[2]) { (nSum[2])++; uSum[2] -= povU[2]; }
+    }
+    else
+    {
+      double obstU[3];
+      obstacle->getTranslationVelocity(obstU);
+        obstU[0] += uInf[0]; //set obstacle speed to zero
+        obstU[1] += uInf[1];
+        obstU[2] += uInf[2];
+      obstacle->setTranslationVelocity(obstU);
+    }
+  }
+};
 
 class CoordinatorComputeShape : public GenericCoordinator
 {
@@ -43,12 +84,30 @@ class CoordinatorComputeShape : public GenericCoordinator
 
         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        b(ix,iy,iz).chi = 0;
+        for(int ix=0; ix<FluidBlock::sizeX; ++ix) b(ix,iy,iz).chi = 0;
       }
     }
 
     (*obstacleVector)->create(*stepID,*time, dt, Uinf);
+
+    {
+     int nSum[3] = {0,0,0};
+     double uSum[3] = {0,0,0};
+     ObstacleVisitor* velocityVisitor =
+                     new VelocityObstacleVisitor(grid, uInf, nSum, uSum);
+     (*obstacleVector)->Accept(velocityVisitor);//accept you son of a french cow
+     if(nSum[0]) uInf[0] = uSum[0]/nSum[0];
+     if(nSum[1]) uInf[1] = uSum[1]/nSum[1];
+     if(nSum[2]) uInf[2] = uSum[2]/nSum[2];
+     //printf("Old Uinf %g %g %g\n",uInf[0],uInf[1],uInf[2]);
+     velocityVisitor->finalize = true;
+     (*obstacleVector)->Accept(velocityVisitor);//accept you son of a french cow
+     //if(rank == 0) if(nSum[0] || nSum[1] || nSum[2])
+     //  printf("New Uinf %g %g %g (from %d %d %d)\n",
+     //  uInf[0],uInf[1],uInf[2],nSum[0],nSum[1],nSum[2]);
+
+     delete velocityVisitor;
+    }
     check("shape - end");
   }
 
@@ -61,7 +120,7 @@ class CoordinatorComputeShape : public GenericCoordinator
 
 class CoordinatorComputeForces : public GenericCoordinator
 {
-protected:
+ protected:
   IF3D_ObstacleVector** obstacleVector;
   const int* const stepID;
   const double* const time;
@@ -91,7 +150,7 @@ public:
 
 class CoordinatorComputeDiagnostics : public GenericCoordinator
 {
-protected:
+ protected:
   IF3D_ObstacleVector** const obstacleVector;
   const int* const stepID;
   const double* const time;

@@ -12,7 +12,7 @@
 #ifndef POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 #define POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 
-#include "Definitions.h"
+#include "../Definitions.h"
 #include <fftw3-mpi.h>
 
 #ifndef CUP_SINGLE_PRECISION
@@ -123,7 +123,7 @@ public:
 
         mycomplex* const rho_hat = (mycomplex*)m_buf_full;
         const Real* const G_hat = m_kernel;
-#pragma omp parallel for
+        #pragma omp parallel for
         for (ptrdiff_t i = 0; i < m_NN0t; ++i)
             for (ptrdiff_t j = 0; j < m_local_NN1; ++j)
                 for (ptrdiff_t k = 0; k < m_Nzhat; ++k)
@@ -312,7 +312,7 @@ private:
 
     void _copy_fwd_local()
     {
-#pragma omp parallel for
+      #pragma omp parallel for
         for (int i = 0; i < m_N0; ++i)
             for (int j = 0; j < m_local_NN1; ++j)
             {
@@ -324,7 +324,7 @@ private:
 
     void _copy_bwd_local()
     {
-#pragma omp parallel for
+      #pragma omp parallel for
         for (int i = 0; i < m_N0; ++i)
             for (int j = 0; j < m_local_NN1; ++j)
             {
@@ -388,10 +388,10 @@ private:
         std::memset(m_kernel, 0, kern_size*sizeof(Real));
 
         // FFT normalization factor
-        m_norm_factor = 1.0 / (m_NN0t * m_NN1t * m_NN2t);
+        m_norm_factor = 1.0 / (m_NN0t*m_h * m_NN1t*m_h * m_NN2t*m_h);
 
         const mycomplex *const G_hat = (mycomplex *) tf_buf;
-#pragma omp parallel for
+        #pragma omp parallel for
         for (ptrdiff_t i = 0; i < m_NN0t; ++i)
             for (ptrdiff_t j = 0; j < m_local_NN1; ++j)
                 for (ptrdiff_t k = 0; k < m_Nzhat; ++k)

@@ -7,18 +7,18 @@
 //
 #include "Simulation.h"
 
-#include "CoordinatorAdvectDiffuse.h"
-#include "CoordinatorAdvection.h"
-#include "CoordinatorComputeDissipation.h"
-#include "CoordinatorComputeShape.h"
-#include "CoordinatorDiffusion.h"
-#include "CoordinatorFadeOut.h"
-#include "CoordinatorIC.h"
-#include "CoordinatorPenalization.h"
-#include "CoordinatorPressure.h"
+#include "operators/CoordinatorAdvectDiffuse.h"
+//#include "operators/CoordinatorAdvection.h"
+#include "operators/CoordinatorComputeDissipation.h"
+#include "operators/CoordinatorComputeShape.h"
+//#include "operators/CoordinatorDiffusion.h"
+#include "operators/CoordinatorFadeOut.h"
+#include "operators/CoordinatorIC.h"
+//#include "operators/CoordinatorPenalization.h"
+#include "operators/CoordinatorPressure.h"
 //#include "CoordinatorVorticity.h"
-#include "IF3D_ObstacleFactory.h"
-#include "ProcessOperatorsOMP.h"
+#include "obstacles/IF3D_ObstacleFactory.h"
+#include "utils/ProcessOperatorsOMP.h"
 
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"
@@ -282,7 +282,7 @@ void Simulation::setupOperators()
 {
   pipeline.clear();
   pipeline.push_back(new CoordinatorComputeShape(grid, &obstacle_vector, &step, &time, uinf));
-  pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
+  //pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
   pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
 
   // For correct behavior Advection must always precede Diffusion!

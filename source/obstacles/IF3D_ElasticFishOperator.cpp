@@ -8,7 +8,7 @@
 
 #include "IF3D_ElasticFishOperator.h"
 #include "IF3D_FishLibrary.h"
-#include "GenericOperator.h"
+#include "../operators/GenericOperator.h"
 
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"

@@ -112,7 +112,7 @@ class PoissonSolverScalarFFTW_ACC
     const Real waveFactX = 2.0*M_PI/(h*NX);
     const Real waveFactY = 2.0*M_PI/(h*NY);
     const Real waveFactZ = 2.0*M_PI/(h*NZ);
-    const Real norm_factor = 1./Real(NX*NY*NZ);
+    const Real norm_factor = 1./Real(NX*h*NY*h*NZ*h);
 
     #pragma omp parallel for collapse(3)
     for (int i=0; i < osize[0]; i++)

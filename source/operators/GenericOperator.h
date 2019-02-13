@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_Operator_h
 #define CubismUP_3D_Operator_h
 
-#include "Definitions.h"
+#include "../Definitions.h"
 
 #include <array>
 

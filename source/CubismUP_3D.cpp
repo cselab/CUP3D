@@ -14,8 +14,8 @@
 
 #include "CubismUP_3D.h"
 #include "Simulation.h"
-#include "IF3D_ExternalObstacleOperator.h"
-#include "IF3D_LinearInterpolation.h"
+#include "obstacles/IF3D_ExternalObstacleOperator.h"
+#include "obstacles/IF3D_LinearInterpolation.h"
 #include "utils/ScalarArray.h"
 
 

@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_GenericCoordinator_h
 #define CubismUP_3D_GenericCoordinator_h
 
-#include "Definitions.h"
+#include "../Definitions.h"
 
 class GenericCoordinator
 {

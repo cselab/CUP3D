@@ -11,11 +11,11 @@
 //#define BBURST
 #include <cmath>
 
-#include "Definitions.h"
-#include "GenericOperator.h"
+#include "../Definitions.h"
+#include "../operators/GenericOperator.h"
 #include "IF2D_Frenet.h"
 #include "IF3D_Schedulers.h"
-#include "ObstacleBlock.h"
+#include "../ObstacleBlock.h"
 
 #define __BSPLINE
 
