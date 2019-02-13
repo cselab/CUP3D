@@ -288,9 +288,9 @@ void Simulation::setupOperators()
   // For correct behavior Advection must always precede Diffusion!
   // pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
   // pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
-  pipeline.push_back(new CoordinatorAdvectDiffuse<LabMPI>(nu, uinf, grid));
+  pipeline.push_back(new CoordinatorAdvectDiffuse<LabMPI>(nu, &lambda, uinf, &obstacle_vector, grid));
 
-  pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector));
+  pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector, &fadeOutLength));
   pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
   if(computeDissipation)
     pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));

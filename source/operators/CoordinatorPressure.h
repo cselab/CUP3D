@@ -11,19 +11,19 @@
 
 #include "GenericOperator.h"
 #include "GenericCoordinator.h"
-#include "IF3D_ObstacleVector.h"
+#include "../obstacles/IF3D_ObstacleVector.h"
 #ifdef _ACCFFT_
 #ifdef CUP_UNBOUNDED_FFT
-#include "PoissonSolverScalarACC_freespace.h"
+#include "../poisson/PoissonSolverScalarACC_freespace.h"
 #else
-#include "PoissonSolverScalarACC.h"
+#include "../poisson/PoissonSolverScalarACC.h"
 #endif
 typedef PoissonSolverScalarFFTW_ACC<FluidGridMPI, StreamerDiv> PressureSolver;
 #else
 #ifdef CUP_UNBOUNDED_FFT
-#include "PoissonSolverScalarFFTW_cyclicConvolution.h"
+#include "../poisson/PoissonSolverScalarFFTW_cyclicConvolution.h"
 #else
-#include "PoissonSolverScalarFFTW.h"
+#include "../poisson/PoissonSolverScalarFFTW.h"
 #endif /* CUP_UNBOUNDED_FFT */
 typedef PoissonSolverScalarFFTW_MPI<FluidGridMPI, StreamerDiv> PressureSolver;
 #endif
@@ -36,7 +36,7 @@ class OperatorDivergence : public GenericLabOperator
   const Real* const ext;
   PressureSolver*const solver;
 
-  bool _is_touching(const BlockInfo& i)
+  inline bool _is_touching(const BlockInfo& i) const
   {
     Real minP[2], maxP[2]; i.pos(minP, 0, 0, 0);
     i.pos(maxP, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1);
@@ -48,7 +48,7 @@ class OperatorDivergence : public GenericLabOperator
     const bool touchF = BUF>=ext[2]-maxP[2], touchB = BUF>=minP[2];
     #endif
     return touchN || touchE || touchS || touchW || touchF || touchB;
-  };
+  }
 
  public:
   OperatorDivergence(double _dt, Real b, const Real* e, PressureSolver*const s)
@@ -178,12 +178,12 @@ class CoordinatorPressure : public GenericCoordinator
 
     {   //place onto p: ( div u^(t+1) - div u^* ) / dt
       //where i want div u^(t+1) to be equal to div udef
-      std::vector<OperatorDivergenceMinusDivTmpU*> diff(nthreads, nullptr);
+      std::vector<OperatorDivergence*> diff(nthreads, nullptr);
       #pragma omp parallel for schedule(static, 1)
       for(int i=0;i<nthreads;++i)
         diff[i] = new OperatorDivergence(dt, *buffer, ext, &pressureSolver);
 
-      compute<OperatorDivergenceMinusDivTmpU>(diff);
+      compute<OperatorDivergence>(diff);
       for(int i=0; i<nthreads; i++) delete diff[i];
     }
 

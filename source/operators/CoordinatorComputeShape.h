@@ -58,12 +58,12 @@ class CoordinatorComputeShape : public GenericCoordinator
  protected:
   IF3D_ObstacleVector** const obstacleVector;
   const double* const time;
-  const Real* const Uinf;
+  Real* const Uinf;
   const int* const stepID;
 
  public:
   CoordinatorComputeShape(FluidGridMPI*g, IF3D_ObstacleVector**const myobst,
-    const int*const s, const double*const _t, const Real*const uInf)
+    const int*const s, const double*const _t, Real*const uInf)
   : GenericCoordinator(g),obstacleVector(myobst),time(_t),Uinf(uInf),stepID(s)
   {
     //      (*obstacleVector)->create(*stepID,*time, 0, Uinf);
@@ -93,13 +93,14 @@ class CoordinatorComputeShape : public GenericCoordinator
     {
      int nSum[3] = {0,0,0};
      double uSum[3] = {0,0,0};
-     ObstacleVisitor* velocityVisitor =
-                     new VelocityObstacleVisitor(grid, uInf, nSum, uSum);
-     (*obstacleVector)->Accept(velocityVisitor);//accept you son of a french cow
-     if(nSum[0]) uInf[0] = uSum[0]/nSum[0];
-     if(nSum[1]) uInf[1] = uSum[1]/nSum[1];
-     if(nSum[2]) uInf[2] = uSum[2]/nSum[2];
+     ObstacleVisitor* visitor =
+                     new VelocityObstacleVisitor(grid, Uinf, nSum, uSum);
+     (*obstacleVector)->Accept(visitor);//accept you son of a french cow
+     if(nSum[0]) Uinf[0] = uSum[0]/nSum[0];
+     if(nSum[1]) Uinf[1] = uSum[1]/nSum[1];
+     if(nSum[2]) Uinf[2] = uSum[2]/nSum[2];
      //printf("Old Uinf %g %g %g\n",uInf[0],uInf[1],uInf[2]);
+     auto* velocityVisitor = static_cast<VelocityObstacleVisitor*>(visitor);
      velocityVisitor->finalize = true;
      (*obstacleVector)->Accept(velocityVisitor);//accept you son of a french cow
      //if(rank == 0) if(nSum[0] || nSum[1] || nSum[2])

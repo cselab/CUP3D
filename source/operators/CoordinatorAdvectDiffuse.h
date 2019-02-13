@@ -25,7 +25,7 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
 
   void visit(IF3D_ObstacleOperator* const obstacle)
   {
-    using CHI_MAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
+    //using CHI_MAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
     using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
     #pragma omp parallel
     {
@@ -39,12 +39,11 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
       #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < Nblocks; ++i)
       {
+        const BlockInfo& info = vInfo[i];
         const auto pos = obstblocks.find(info.blockID);
         if(pos == obstblocks.end()) continue;
 
-        const BlockInfo& info = vInfo[i];
         FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        CHI_MAT & __restrict__ CHI  = pos->second->chi;
         UDEFMAT & __restrict__ UDEF = pos->second->udef;
 
         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -79,13 +78,13 @@ class OperatorMinusDivTmpU : public GenericLabOperator
  private:
   const double dt;
  public:
-  OperatorDivergenceMinusDivTmpU(double _dt) : dt(_dt)
+  OperatorMinusDivTmpU(double _dt) : dt(_dt)
   {
     stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 5,6,7);
     stencil_start[0] = -1; stencil_start[1] = -1;  stencil_start[2] = -1;
     stencil_end[0] = 2;  stencil_end[1] = 2;  stencil_end[2] = 2;
   }
-  ~OperatorDivergenceMinusDivTmpU() {}
+  ~OperatorMinusDivTmpU() {}
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
@@ -163,10 +162,12 @@ protected:
   const Real MU;
   double* const lambda;
   const Real* const uInf;
+  IF3D_ObstacleVector** const obstacleVector;
 
 public:
   CoordinatorAdvectDiffuse(const Real m, double*const l, const Real*const u,
-    FluidGridMPI * g) : GenericCoordinator(g), MU(m), lambda(l), uInf(u) { }
+    IF3D_ObstacleVector** const ov, FluidGridMPI * g) : GenericCoordinator(g),
+    MU(m), lambda(l), uInf(u), obstacleVector(ov) { }
 
   ~CoordinatorAdvectDiffuse() { }
 
@@ -187,18 +188,17 @@ public:
         }
       }
       //store deformation velocities onto tmp fields:
-      ObstacleVisitor * pressureVisitor = new PressureObstacleVisitor(grid);
-      (*obstacleVector)->Accept(pressureVisitor);
-      delete pressureVisitor;
+      ObstacleVisitor*visitor = new PenalizationObstacleVisitor(grid,dt,uInf);
+      (*obstacleVector)->Accept(visitor);
+      delete visitor;
     }
     {   //place onto p: ( div u^(t+1) - div u^* ) / dt
       //where i want div u^(t+1) to be equal to div udef
-      std::vector<OperatorDivergenceMinusDivTmpU*> diff(nthreads, nullptr);
+      std::vector<OperatorMinusDivTmpU*> diff(nthreads, nullptr);
       #pragma omp parallel for schedule(static, 1)
-      for(int i=0;i<nthreads;++i)
-        diff[i] = new OperatorDivergenceMinusDivTmpU(dt, &pressureSolver);
+      for(int i=0;i<nthreads;++i) diff[i] = new OperatorMinusDivTmpU(dt);
 
-      compute<OperatorDivergenceMinusDivTmpU>(diff);
+      compute<OperatorMinusDivTmpU>(diff);
       for(int i=0; i<nthreads; i++) delete diff[i];
     }
     {
