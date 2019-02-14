@@ -48,7 +48,7 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
           stream << file.rdbuf();
       }
   }
-  if (rank == 0)
+  if (sim.rank == 0)
       printf("Factory (file) + factory (cmdline argument):\n%s\n\n", stream.str().c_str());
   // here we store the data per object
   std::vector<std::pair<std::string, IF2D_FactoryFileLineParser>> factoryLines;
@@ -63,10 +63,10 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
       factoryLines.push_back(make_pair(ID,ffparser));
   }
   if(factoryLines.size() == 0) {
-    std::cout << "OBSTACLE FACTORY did not create any obstacles. Not supported. Aborting..." << std::endl;
-    MPI_Abort(grid->getCartComm(), 1);
+    std::cout << "OBSTACLE FACTORY did not create any obstacles." << std::endl;
+    return retval;
   }
-  if(rank==0)
+  if(sim.rank==0)
   std::cout << "-------------   OBSTACLE FACTORY : START (" << factoryLines.size() <<" objects)   ------------" << std::endl;
 
   int k = 0;
@@ -76,7 +76,7 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
 
       if( objectName == "IF3D_Sphere" )
     {
-      retval.push_back(new IF3D_SphereObstacleOperator(grid,object.second,Uinf));
+      retval.push_back(new IF3D_SphereObstacleOperator(sim,object.second));
     }
     //else if( objectName == "IF3D_DeadFish" )
     //{
@@ -84,32 +84,32 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     //}
     else if( objectName == "IF3D_StefanFish" )
     {
-      retval.push_back(new IF3D_StefanFishOperator(grid,object.second,Uinf));
+      retval.push_back(new IF3D_StefanFishOperator(sim,object.second));
     }
     else if( objectName == "IF3D_CarlingFish" )
     {
-      retval.push_back(new IF3D_CarlingFishOperator(grid,object.second,Uinf));
+      retval.push_back(new IF3D_CarlingFishOperator(sim,object.second));
     }
 
     else if( objectName == "IF3D_NacaOperator" )
     {
-      retval.push_back(new IF3D_NacaOperator(grid,object.second,Uinf));
+      retval.push_back(new IF3D_NacaOperator(sim,object.second));
     }
     else if( objectName == "IF3D_DCylinder" )
     {
-      retval.push_back(new IF3D_DCylinderObstacleOperator(grid,object.second,Uinf));
+      retval.push_back(new IF3D_DCylinderObstacleOperator(sim,object.second));
     }
     else if( objectName == "IF3D_PlateObstacle" )
     {
-      retval.push_back(new IF3D_PlateObstacleOperator(grid,object.second,Uinf));
+      retval.push_back(new IF3D_PlateObstacleOperator(sim,object.second));
     }
     else if( objectName == "IF3D_TestDiffusionObstacle" )
     {
-      retval.push_back(new IF3D_TestDiffusionObstacleOperator(grid,object.second,Uinf));
+      retval.push_back(new IF3D_TestDiffusionObstacleOperator(sim,object.second));
     }
     else if( objectName == "IF3D_ExternalObstacleOperator" )
     {
-      retval.push_back(new IF3D_ExternalObstacleOperator(grid,object.second,Uinf));
+      retval.push_back(new IF3D_ExternalObstacleOperator(sim,object.second));
     }
     /*
     else if( objectName == "IF3D_ElasticFishOperator" )
@@ -147,17 +147,17 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
      */
     else
     {
-        if (rank == 0) {
-            std::cout << "Case " << objectName << " is not defined: aborting" << std::endl;
-            abort();
-        }
+      if (sim.rank == 0) {
+        std::cout<<"Case "<<objectName<<" is not defined: aborting"<<std::endl;
+        abort();
+      }
     }
 
     retval.back()->obstacleID = k++;
   }
 
-  if(rank==0)
-  std::cout << "-------------   OBSTACLE FACTORY : END   ------------" << std::endl;
+  if(sim.rank==0)
+  std::cout<<"-------------   OBSTACLE FACTORY : END   ------------"<<std::endl;
 
   return retval;
 }

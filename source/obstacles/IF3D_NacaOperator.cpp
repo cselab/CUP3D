@@ -25,12 +25,7 @@ class NacaMidlineData : public FishMidlineData
   NacaMidlineData(const double L, const double _h, double zExtent, double t_ratio, double HoverL=1) :
   FishMidlineData(L, 1, 0, _h),rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm))
   {
-    #if defined(BC_PERIODICZ)
-      // large enough in z-dir such that we for sure fill entire domain
-      for(int i=0;i<Nm;++i) height[i] = zExtent;
-    #else
-      for(int i=0;i<Nm;++i) height[i] = length*HoverL/2;
-    #endif
+    for(int i=0;i<Nm;++i) height[i] = length*HoverL/2;
     MidlineShapes::naca_width(t_ratio, length, rS, width, Nm);
 
     computeMidline(0.0, 0.0);
@@ -80,8 +75,7 @@ class NacaMidlineData : public FishMidlineData
   }
 };
 
-IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
-  const Real*const u) : IF3D_FishOperator(g, p, u), bCreated(false)
+IF3D_NacaOperator::IF3D_NacaOperator(SimulationData&s, ArgumentParser&p) : IF3D_FishOperator(s, p), bCreated(false)
 {
   absPos[0] = 0;
   #if 1
@@ -112,13 +106,13 @@ IF3D_NacaOperator::IF3D_NacaOperator(FluidGridMPI*g, ArgumentParser&p,
 
   const double thickness = p("-thickness").asDouble(0.12); // (NON DIMENSIONAL)
 
-  if(!rank)
+  if(!sim.rank)
     printf("Naca: pos=%3.3f, Apitch=%3.3f, Fpitch=%3.3f,Ppitch=%3.3f, "
     "Mpitch=%3.3f, Frow=%3.3f, Arow=%3.3f\n", position[0], Apitch, Fpitch,
     Ppitch, Mpitch, Fheave, Aheave);
   bBlockRotation[0] = true;
   bBlockRotation[1] = true;
-  myFish = new NacaMidlineData(length, vInfo[0].h_gridpoint, ext_Z, thickness);
+  myFish = new NacaMidlineData(length, vInfo[0].h_gridpoint, sim.extent[2], thickness);
 }
 
 void IF3D_NacaOperator::update(const int stepID, const double t, const double dt, const Real* Uinf)
@@ -157,7 +151,7 @@ void IF3D_NacaOperator::update(const int stepID, const double t, const double dt
     // relative velocity (should be 0), otherwise we know that y velocity
     // is sinusoidal, therefore we can just use analytical form
     if(bFixFrameOfRef[1]) position[1] += dt*transVel[1];
-    else position[1] = ext_Y/2 + Aheave * std::cos(2*M_PI*Fheave*t);
+    else position[1] = sim.extent[1]/2 + Aheave * std::cos(2*M_PI*Fheave*t);
     position[2] += dt*transVel[2];
 
     #ifdef RL_LAYER

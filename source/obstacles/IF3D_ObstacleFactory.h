@@ -15,20 +15,12 @@ namespace cubism { struct ArgumentParser; }
 
 class IF3D_ObstacleFactory
 {
-  int rank;
-  FluidGridMPI * grid;
-  const Real * const Uinf;
+  SimulationData & sim;
   int _getlines(std::string filename);
 
 public:
-  IF3D_ObstacleFactory(FluidGridMPI*g, const Real*const u) : grid(g), Uinf(u)
-  {
-    MPI_Comm_rank(grid->getCartComm(),&rank);
-  }
-
-  ~IF3D_ObstacleFactory()
-  {}
-
+  IF3D_ObstacleFactory(SimulationData & s) : sim(s) { }
+  ~IF3D_ObstacleFactory() {}
   std::vector<IF3D_ObstacleOperator *> create(ArgumentParser &parser);
 };
 

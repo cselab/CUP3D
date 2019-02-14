@@ -55,24 +55,14 @@ struct VelocityObstacleVisitor : public ObstacleVisitor
 
 class CoordinatorComputeShape : public GenericCoordinator
 {
- protected:
-  IF3D_ObstacleVector** const obstacleVector;
-  const double* const time;
-  Real* const Uinf;
-  const int* const stepID;
 
  public:
-  CoordinatorComputeShape(FluidGridMPI*g, IF3D_ObstacleVector**const myobst,
-    const int*const s, const double*const _t, Real*const uInf)
-  : GenericCoordinator(g),obstacleVector(myobst),time(_t),Uinf(uInf),stepID(s)
-  {
-    //      (*obstacleVector)->create(*stepID,*time, 0, Uinf);
-  }
+  CoordinatorComputeShape(SimulationData & s) : GenericCoordinator(s) {}
 
   void operator()(const double dt)
   {
     check("shape - start");
-    (*obstacleVector)->update(*stepID,*time, dt, Uinf);
+    sim.obstacle_vector->update(sim.step, sim.time, dt, sim.uinf);
 
     //each obstacle does chi = max(chi,obstacleblock->chi)
     #pragma omp parallel
@@ -88,32 +78,29 @@ class CoordinatorComputeShape : public GenericCoordinator
       }
     }
 
-    (*obstacleVector)->create(*stepID,*time, dt, Uinf);
+    sim.obstacle_vector->create(sim.step, sim.time, dt, sim.uinf);
 
     {
      int nSum[3] = {0,0,0};
      double uSum[3] = {0,0,0};
-     ObstacleVisitor* visitor =
-                     new VelocityObstacleVisitor(grid, Uinf, nSum, uSum);
-     (*obstacleVector)->Accept(visitor);//accept you son of a french cow
-     if(nSum[0]) Uinf[0] = uSum[0]/nSum[0];
-     if(nSum[1]) Uinf[1] = uSum[1]/nSum[1];
-     if(nSum[2]) Uinf[2] = uSum[2]/nSum[2];
+     ObstacleVisitor*VIS = new VelocityObstacleVisitor(grid,sim.uinf,nSum,uSum);
+     sim.obstacle_vector->Accept(VIS);//accept you son of a french cow
+     if(nSum[0]) sim.uinf[0] = uSum[0]/nSum[0];
+     if(nSum[1]) sim.uinf[1] = uSum[1]/nSum[1];
+     if(nSum[2]) sim.uinf[2] = uSum[2]/nSum[2];
      //printf("Old Uinf %g %g %g\n",uInf[0],uInf[1],uInf[2]);
-     auto* velocityVisitor = static_cast<VelocityObstacleVisitor*>(visitor);
-     velocityVisitor->finalize = true;
-     (*obstacleVector)->Accept(velocityVisitor);//accept you son of a french cow
+     VelocityObstacleVisitor*VVIS = static_cast<VelocityObstacleVisitor*>(VIS);
+     VVIS->finalize = true;
+     sim.obstacle_vector->Accept(VIS);//accept you son of a french cow
      //if(rank == 0) if(nSum[0] || nSum[1] || nSum[2])
      //  printf("New Uinf %g %g %g (from %d %d %d)\n",
      //  uInf[0],uInf[1],uInf[2],nSum[0],nSum[1],nSum[2]);
-
-     delete velocityVisitor;
+     delete VIS;
     }
     check("shape - end");
   }
 
-  std::string getName()
-  {
+  std::string getName() {
     return "ComputeShape";
   }
 };
@@ -121,58 +108,35 @@ class CoordinatorComputeShape : public GenericCoordinator
 
 class CoordinatorComputeForces : public GenericCoordinator
 {
- protected:
-  IF3D_ObstacleVector** obstacleVector;
-  const int* const stepID;
-  const double* const time;
-  const double* const NU;
-  const bool * const bDump;
-  const Real* const Uinf;
-public:
-  CoordinatorComputeForces(FluidGridMPI*g, IF3D_ObstacleVector** myobst,
-   const int* const s, const double* const _t, const double*const nu,
-   const bool*const bdump, const Real*const uInf) : GenericCoordinator(g),
-   obstacleVector(myobst), stepID(s), time(_t), NU(nu), bDump(bdump), Uinf(uInf)
-    {    }
+ public:
+  CoordinatorComputeForces(SimulationData & s) : GenericCoordinator(s) {}
 
   void operator()(const double dt)
   {
     check((std::string)"obst. forces - start");
-    (*obstacleVector)->computeForces(*stepID, *time, dt, Uinf, *NU, *bDump);
+    const Real time = sim.time, nu = sim.nu; const auto step = sim.step;
+    sim.obstacle_vector->computeForces(step, time, dt, sim.uinf, nu, sim.bDump);
     check((std::string)"obst. forces - end");
   }
 
-  std::string getName()
-  {
-      return "ComputeForces";
-  }
+  std::string getName() { return "ComputeForces"; }
 };
 
 
 class CoordinatorComputeDiagnostics : public GenericCoordinator
 {
- protected:
-  IF3D_ObstacleVector** const obstacleVector;
-  const int* const stepID;
-  const double* const time;
-  const double* const lambda;
-  const Real* const Uinf;
-public:
-  CoordinatorComputeDiagnostics(FluidGridMPI*g, IF3D_ObstacleVector** myobst,
-   const int* const s, const double* const _t, const double*const l,
-   const Real*const u) : GenericCoordinator(g), obstacleVector(myobst), stepID(s), time(_t), lambda(l), Uinf(u) { }
+ public:
+  CoordinatorComputeDiagnostics(SimulationData & s) : GenericCoordinator(s) {}
 
   void operator()(const double dt)
   {
     check((std::string)"obst. diagnostics - start");
-    (*obstacleVector)->computeDiagnostics(*stepID, *time, Uinf, *lambda);
+    const Real time = sim.time, lambda = sim.lambda;
+    sim.obstacle_vector->computeDiagnostics(sim.step, time, sim.uinf, lambda);
     check((std::string)"obst. diagnostics - end");
   }
 
-  std::string getName()
-  {
-    return "ComputeObstDiag";
-  }
+  std::string getName() { return "ComputeObstDiag"; }
 };
 
 #endif

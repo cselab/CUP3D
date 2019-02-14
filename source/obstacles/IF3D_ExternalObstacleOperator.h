@@ -23,14 +23,11 @@ public:
     cubismup3d::ExternalObstacleSettings settings;
 
     IF3D_ExternalObstacleOperator(
-            FluidGridMPI *g,
-            const ObstacleArguments &args,
-            const Real *u);
+            SimulationData&s,
+            const ObstacleArguments &args);
     IF3D_ExternalObstacleOperator(
-            FluidGridMPI * const g,
-            ArgumentParser &p,
-            const Real * const u)
-        : IF3D_ExternalObstacleOperator(g, ObstacleArguments(*g, p), u) {}
+            SimulationData&s, ArgumentParser &p)
+        : IF3D_ExternalObstacleOperator(s, ObstacleArguments(s, p)) {}
 
     void computeVelocities(const Real *Uinf) override;
     void create(int step_id, double time, double dt, const Real *Uinf) override;

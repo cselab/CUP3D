@@ -20,10 +20,9 @@ class IF3D_SphereObstacleOperator: public IF3D_ObstacleOperator
 
 public:
 
-  IF3D_SphereObstacleOperator(FluidGridMPI *g, ArgumentParser &p, const Real *u);
-  IF3D_SphereObstacleOperator(FluidGridMPI *g, ObstacleArguments &args, const Real *u, double radius);
-  IF3D_SphereObstacleOperator(FluidGridMPI *g, ObstacleArguments &args, const Real *u,
-                              double radius, double umax, double tmax);
+  IF3D_SphereObstacleOperator(SimulationData&s,ArgumentParser&p);
+  IF3D_SphereObstacleOperator(SimulationData&s,ObstacleArguments&args,double R);
+  IF3D_SphereObstacleOperator(SimulationData&s,ObstacleArguments&args,double R, double umax, double tmax);
 
   void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
   void finalize(const int step_id,const double time, const double dt, const Real *Uinf) override;

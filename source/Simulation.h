@@ -9,96 +9,24 @@
 #ifndef CubismUP_2D_Simulation_Fluid_h
 #define CubismUP_2D_Simulation_Fluid_h
 
-#include "operators/GenericOperator.h"
-#include "operators/GenericCoordinator.h"
-#include "obstacles/IF3D_ObstacleVector.h"
-
-#ifdef _USE_ZLIB_
-#include "SerializerIO_WaveletCompression_MPI_Simple.h"
-#endif
-
-#include "Cubism/HDF5SliceDumperMPI.h"
-#include "Cubism/Profiler.h"
-//#include "Cubism/ZBinDumper_MPI.h"
-
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
-
-#include <array>
-#include <thread>
-#include <vector>
-
-#ifdef RL_LAYER
- #include "utils/TaskLayer.h"
-#endif
-
-#ifdef CUP_ASYNC_DUMP
-  using DumpBlock = BaseBlock<DumpElement>;
-  typedef GridMPI<Grid<DumpBlock, aligned_allocator>> DumpGridMPI;
-  typedef SliceTypesMPI::Slice<DumpGridMPI> SliceType;
-#else
-  typedef SliceTypesMPI::Slice<FluidGridMPI> SliceType;
-#endif
-
+#include "SimulationData.h"
 // Forward declarations.
 namespace cubism { class ArgumentParser; }
 namespace cubismup3d { class SimulationWrapper; }
 
+class IF3D_ObstacleOperator;
+
 class Simulation
 {
   friend class cubismup3d::SimulationWrapper;
- protected:
-  Profiler profiler;
-  const MPI_Comm app_comm;
-  #ifdef RL_LAYER
-    TaskLayer * task;
-  #endif
-  #ifdef _USE_ZLIB_
-    SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
-  #endif
 
-  int rank=-1, nprocs=-1;
+  //#ifdef _USE_ZLIB_
+  //  SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
+  //#endif
+
 public:
-  // grid
-  int nprocsx=-1, nprocsy=-1, nprocsz=-1;
-  int bpdx=-1, bpdy=-1, bpdz=-1;
 
-  // simulation status
-  int step=0, nsteps=0;
-  double time=0, endTime=0;
-
-  // simulation settings
-  Real uinf[3]={0,0,0};
-  double nu=0, CFL=0, lambda=-1, DLM=1;
-  bool verbose=false;
-  bool computeDissipation=false;
-  bool b3Ddump=true, b2Ddump=false, bDump=false;
-  bool rampup=true;
-#ifndef CUP_UNBOUNDED_FFT
-  Real fadeOutLength = .005;
-#endif
-
-  // output
-  int saveFreq=0;
-  double saveTime=0, nextSaveTime=0, saveClockPeriod=0, maxClockDuration=1e9;
-  std::string path4serialization = "./";
-
-  FluidGridMPI * grid = nullptr;
-
-  #ifdef CUP_ASYNC_DUMP
-    MPI_Comm dump_comm;
-    DumpGridMPI * dump = nullptr;
-    std::thread * dumper = nullptr;
-  #endif
-
-  std::vector<BlockInfo> vInfo;
-  //The protagonist
-  IF3D_ObstacleVector* obstacle_vector = nullptr;
-  //The antagonist
-  std::vector<GenericCoordinator*> pipeline;
-  // vector of 2D slices (for dumping)
-  std::vector<SliceType> m_slices;
+  SimulationData sim;
 
   void _init(bool restart = false);
 
@@ -112,7 +40,7 @@ public:
   void _ic();
 
  public:
-  Simulation(MPI_Comm mpicomm) : app_comm(mpicomm) {}
+  Simulation(MPI_Comm mpicomm);
   Simulation(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
 
   // For Python bindings. Order should be the same as defined in the class. The
@@ -126,14 +54,12 @@ public:
              bool verbose,
              bool computeDissipation,
              bool b3Ddump, bool b2Ddump,
-#ifndef CUP_UNBOUNDED_FFT
              double fadeOutLength,
-#endif
              int saveFreq, double saveTime,
              const std::string &path4serialization,
              bool restart);
 
-  virtual ~Simulation();
+  virtual ~Simulation() {}
 
   virtual void run();
 
@@ -141,10 +67,7 @@ public:
   // void removeObstacle(IF3D_ObstacleOperator *obstacle);
 
   /* Get reference to the obstacle container. */
-  const std::vector<IF3D_ObstacleOperator *> &getObstacleVector() const
-  {
-      return obstacle_vector->getObstacleVector();
-  }
+  const std::vector<IF3D_ObstacleOperator *> &getObstacleVector() const;
 
   /* Calculate maximum allowed time step, including CFL and ramp-up. */
   double calcMaxTimestep();

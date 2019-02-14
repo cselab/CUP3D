@@ -226,9 +226,6 @@ void IF3D_StefanFishOperator::restart(const double t, std::string filename)
     //restartstream >> _2Dangle >> old_curv >> new_curv;
     restartstream.close();
 
-    #ifdef RL_LAYER
-      sr.restart(filename);
-    #endif
     myFish->curvScheduler.restart(filename+"_curv");
     myFish->baseScheduler.restart(filename+"_base");
     myFish->adjustScheduler.restart(filename+"_adj");
@@ -236,7 +233,7 @@ void IF3D_StefanFishOperator::restart(const double t, std::string filename)
     myFish->time0 = time0;
     myFish->l_Tp = l_Tp;
 
-    if(!rank)
+    if(!sim.rank)
     {
     std::cout<<"RESTARTED FISH: "<<std::endl;
     std::cout<<"TIME, DT: "<<sim_time<<" "<<sim_dt<<std::endl;
@@ -251,8 +248,8 @@ void IF3D_StefanFishOperator::restart(const double t, std::string filename)
     }
 }
 
-IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
-  ArgumentParser&p, const Real*const u) : IF3D_FishOperator(g, p, u)
+IF3D_StefanFishOperator::IF3D_StefanFishOperator(SimulationData & s,
+  ArgumentParser&p) : IF3D_FishOperator(s, p)
 {
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift,
@@ -261,12 +258,12 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
   std::string heightName = p("-heightProfile").asString("baseline");
   std::string  widthName = p( "-widthProfile").asString("baseline");
   MidlineShapes::computeWidthsHeights(heightName, widthName, length,
-    myFish->rS, myFish->height, myFish->width, myFish->Nm, rank);
+    myFish->rS, myFish->height, myFish->width, myFish->Nm, sim.rank);
 
   //bool bKillAmplitude = parser("-zeroAmplitude").asInt(0);
   //if(bKillAmplitude) myFish->killAmplitude();
 
-  if(!rank) printf("%d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
+  if(!sim.rank) printf("%d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
 
   #ifdef RL_LAYER
   sr = StateReward(length, Tperiod);
@@ -277,7 +274,7 @@ IF3D_StefanFishOperator::IF3D_StefanFishOperator(FluidGridMPI*g,
 }
 
 
-#ifdef RL_LAYER
+#if 0
 void IF3D_StefanFishOperator::execute(const int iAgent, const double time, const std::vector<double> act)
 {
   const int nActions = act.size();
@@ -301,7 +298,7 @@ void IF3D_StefanFishOperator::execute(const int iAgent, const double time, const
   sr.resetAverage();
 
   /*
-  if(!rank) {
+  if(!sim.rank) {
     printf("Next action of agent %d at time %g\n", obstacleID, sr.t_next_comm);
     ofstream filedrag;
     filedrag.open(("orders_"+to_string(obstacleID)+".txt").c_str(), ios::app);

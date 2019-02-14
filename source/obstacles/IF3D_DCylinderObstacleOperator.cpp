@@ -12,24 +12,22 @@
 #include "Cubism/ArgumentParser.h"
 
 IF3D_DCylinderObstacleOperator::IF3D_DCylinderObstacleOperator(
-    FluidGridMPI * const g,
-    ArgumentParser &p,
-    const Real * const u)
-    : IF3D_ObstacleOperator(g, p, u),
+    SimulationData&s,
+    ArgumentParser &p)
+    : IF3D_ObstacleOperator(s, p),
       radius(.5 * length),
-      halflength(p("-halflength").asDouble(.5 * ext_Z))
+      halflength(p("-halflength").asDouble(.5 * sim.extent[2]))
 {
   _init();
 }
 
 
 IF3D_DCylinderObstacleOperator::IF3D_DCylinderObstacleOperator(
-    FluidGridMPI * const g,
+    SimulationData& s,
     ObstacleArguments &args,
-    const Real * const u,
     const double radius_,
     const double halflength_)
-    : IF3D_ObstacleOperator(g, args, u), radius(radius_), halflength(halflength_)
+    : IF3D_ObstacleOperator(s, args), radius(radius_), halflength(halflength_)
 {
   _init();
 }

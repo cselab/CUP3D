@@ -37,7 +37,7 @@ protected:
   virtual mapBlock2Segs prepare_segPerBlock(const aryVolSeg&vSegments);
 
 public:
-  IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u);
+  IF3D_FishOperator(SimulationData&s, ArgumentParser&p);
   ~IF3D_FishOperator();
   void save(const int step_id, const double t, std::string filename = std::string()) override;
   void restart(const double t, std::string filename = std::string()) override;

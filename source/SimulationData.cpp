@@ -6,169 +6,148 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "Definitions.h"
-#include "Shape.h"
-#include "Operators/Helpers.h"
+#include "SimulationData.h"
+#include "operators/GenericCoordinator.h"
+#include "obstacles/IF3D_ObstacleVector.h"
+#include "Cubism/ArgumentParser.h"
 
-#include <HDF5Dumper.h>
-void SimulationData::allocateGrid()
+SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
+  app_comm(mpicomm)
 {
-  chi   = new ScalarGrid(bpdx, bpdy, 1);
-  vel   = new VectorGrid(bpdx, bpdy, 1);
-  uDef  = new VectorGrid(bpdx, bpdy, 1);
-  pres  = new ScalarGrid(bpdx, bpdy, 1);
-  force = new VectorGrid(bpdx, bpdy, 1);
+  MPI_Comm_rank(app_comm, &rank);
+  MPI_Comm_size(app_comm, &nprocs);
+  if (rank == 0) parser.print_args();
 
-  pRHS  = new ScalarGrid(bpdx, bpdy, 1);
-  tmpV  = new VectorGrid(bpdx, bpdy, 1);
-  tmp   = new ScalarGrid(bpdx, bpdy, 1);
-}
+  // ========== SIMULATION ==========
+  // GRID
+  bpdx = parser("-bpdx").asInt();
+  bpdy = parser("-bpdy").asInt();
+  bpdz = parser("-bpdz").asInt();
+  nprocsx = parser("-nprocsx").asInt(-1);
+  nprocsy = parser("-nprocsy").asInt(-1);
+  nprocsz = 1;
+  // FLOW
+  nu = parser("-nu").asDouble();
+  uMax_forced = parser("-uMax_forced").asDouble(0.0);
+  lambda = 0.0; //parser("-lambda").asDouble(1e6);
+  DLM = 1.0;//parser("-use-dlm").asDouble(0.0);
+  CFL = parser("-CFL").asDouble(.1);
+  uinf[0] = parser("-uinfx").asDouble(0.0);
+  uinf[1] = parser("-uinfy").asDouble(0.0);
+  uinf[2] = parser("-uinfz").asDouble(0.0);
 
-void SimulationData::dumpChi(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<ScalarGrid,StreamerScalar>(*(chi), step, time,
-    "chi_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpPres(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<ScalarGrid,StreamerScalar>(*(pres), step, time,
-    "pres_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpPrhs(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<ScalarGrid,StreamerScalar>(*(pRHS), step, time,
-    "pRHS_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpTmp(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<ScalarGrid,StreamerScalar>(*(tmp), step, time,
-    "tmp_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpVel(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<VectorGrid,StreamerVector>(*(vel), step, time,
-    "vel_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpUobj(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<VectorGrid,StreamerVector>(*(uDef), step, time,
-    "uobj_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpForce(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<VectorGrid,StreamerVector>(*(force), step, time,
-    "force_" + ss.str(), path4serialization);
-}
-void SimulationData::dumpTmpV(std::string name) {
-  std::stringstream ss; ss<<name<<std::setfill('0')<<std::setw(7)<<step;
-  DumpHDF5<VectorGrid,StreamerVector>(*(tmpV), step, time,
-    "tmpV_" + ss.str(), path4serialization);
-}
+  // PIPELINE
+  computeDissipation = (bool)parser("-compute-dissipation").asInt(0);
 
-void SimulationData::resetAll()
-{
-  for(const auto& shape : shapes) shape->resetAll();
-  time = 0;
-  step = 0;
-  uinfx = 0;
-  uinfy = 0;
-  nextDumpTime = 0;
-  _bDump = false;
-  bPing = false;
-}
+  // OUTPUT
+  verbose = parser("-verbose").asBool(true) && rank == 0;
+  b2Ddump = parser("-dump2D").asBool(false);
+  b3Ddump = parser("-dump3D").asBool(true);
 
-void SimulationData::registerDump()
-{
-  nextDumpTime += dumpTime;
-}
+  int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
+  double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
+  saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
+  saveTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
+  rampup = parser("-rampup").asInt(100); // number of dt ramp-up steps
 
-double SimulationData::minRho() const
-{
-  double minR = 1; // fluid is 1
-  for(const auto& shape : shapes)
-    minR = std::min( (double) shape->getMinRhoS(), minR );
-  return minR;
-}
+  nsteps = parser("-nsteps").asInt(0);    // 0 to disable this stopping critera.
+  endTime = parser("-tend").asDouble(0);  // 0 to disable this stopping critera.
 
-void SimulationData::checkVariableDensity()
-{
-  bVariableDensity = false;
-  for(const auto& shape : shapes)
-    bVariableDensity = bVariableDensity || shape->bVariableDensity();
-  if( bVariableDensity) std::cout << "Using variable density solver\n";
-  if(!bVariableDensity) std::cout << "Using constant density solver\n";
-}
+  // TEMP: Removed distinction saving-dumping. Backward compatibility:
+  if (saveFreq <= 0 && dumpFreq > 0) saveFreq = dumpFreq;
+  if (saveTime <= 0 && dumpTime > 0) saveTime = dumpTime;
 
-double SimulationData::maxSpeed() const
-{
-  double maxS = 0;
-  for(const auto& shape : shapes) {
-    maxS = std::max(maxS, (double) std::fabs( shape->getU() ) );
-    maxS = std::max(maxS, (double) std::fabs( shape->getV() ) );
+  path4serialization = parser("-serialization").asString("./");
+
+  // INITIALIZATION: Mostly unused
+  initCond = parser("-initCond").asString("zero");
+
+  // BOUNDARY CONDITIONS
+  // accepted dirichlet, periodic, freespace/unbounded, fakeOpen
+  std::string BC_x = parser("-BC_x").asString("dirichlet");
+  std::string BC_y = parser("-BC_y").asString("dirichlet");
+  std::string BC_z = parser("-BC_z").asString("dirichlet");
+  const Real fadeLen = parser("-fade_len").asDouble(.005);
+  // BC
+  if(BC_x=="unbounded") BC_x = "freespace"; // tomato tomato
+  if(BC_y=="unbounded") BC_y = "freespace"; // tomato tomato
+  if(BC_z=="unbounded") BC_z = "freespace"; // tomato tomato
+  // boundary killing useless for unbounded or periodic
+  fadeOutLength[0] = BC_x=="dirichlet"? fadeLen : 0;
+  fadeOutLength[1] = BC_y=="dirichlet"? fadeLen : 0;
+  fadeOutLength[2] = BC_z=="dirichlet"? fadeLen : 0;
+  if(BC_x=="fakeopen") { BC_x = "periodic"; fadeOutLength[0] = fadeLen; }
+  if(BC_y=="fakeopen") { BC_y = "periodic"; fadeOutLength[1] = fadeLen; }
+  if(BC_z=="fakeopen") { BC_z = "periodic"; fadeOutLength[2] = fadeLen; }
+  BCx_flag = BC_x=="periodic"? 1 : ( BC_x=="wall"? 2 : 0 );
+  BCy_flag = BC_y=="periodic"? 1 : ( BC_y=="wall"? 2 : 0 );
+  BCz_flag = BC_z=="periodic"? 1 : ( BC_z=="wall"? 2 : 0 );
+  // Poisson Solver
+  if(BC_x=="periodic" && BC_y=="periodic" && BC_z=="periodic") {
+    bUseFourierBC = true; BCx_flag = 1; BCy_flag = 1; BCz_flag = 1;
   }
-  return maxS;
+  if(BC_x=="freespace" || BC_y=="freespace" || BC_z=="freespace")
+  {
+    if(BC_x=="freespace" && BC_y=="freespace" && BC_z=="freespace") {
+      bUseUnboundedBC = true; BCx_flag = 0; BCy_flag = 0; BCz_flag = 0;
+    } else {
+     fprintf(stderr,"ERROR: either all or no BC can be freespace/unbounded!\n");
+     abort();
+    }
+  }
+
+  _argumentsSanityCheck();
+
+  // ============ REST =============
 }
 
-double SimulationData::maxRelSpeed() const
+SimulationData::SimulationData(MPI_Comm mpicomm) : app_comm(mpicomm) {}
+
+void SimulationData::_argumentsSanityCheck()
 {
-  double maxS = 0;
-  for(const auto& shape : shapes) {
-    maxS = std::max(maxS, (double) std::fabs(shape->getU() + uinfx ));
-    maxS = std::max(maxS, (double) std::fabs(shape->getV() + uinfy ));
+  // Grid.
+  if (bpdx < 1 || bpdy < 1 || bpdz < 1) {
+      fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);
+      abort();
   }
-  return maxS;
+
+  // Flow.
+  assert(nu >= 0);
+  assert(lambda > 0.0);
+  assert(CFL > 0.0);
+
+  // Output.
+  assert(saveFreq >= 0.0);
+  assert(saveTime >= 0.0);
 }
 
 SimulationData::~SimulationData()
 {
-  #ifndef SMARTIES_APP
-    delete profiler;
-  #endif
-  if(vel not_eq nullptr) delete vel;
-  if(chi not_eq nullptr) delete chi;
-  if(uDef not_eq nullptr) delete uDef;
-  if(pres not_eq nullptr) delete pres;
-  if(force not_eq nullptr) delete force;
-  if(pRHS not_eq nullptr) delete pRHS;
-  if(tmpV not_eq nullptr) delete tmpV;
-  if(tmp not_eq nullptr) delete tmp;
-  while( not shapes.empty() ) {
-    Shape * s = shapes.back();
-    if(s not_eq nullptr) delete s;
-    shapes.pop_back();
+  delete grid;
+  delete obstacle_vector;
+  while(!pipeline.empty()) {
+    GenericCoordinator * g = pipeline.back();
+    pipeline.pop_back();
+    delete g;
   }
-}
-
-bool SimulationData::bOver() const
-{
-  const bool timeEnd = endTime>0 && time >= endTime;
-  const bool stepEnd =  nsteps>0 && step > nsteps;
-  return timeEnd || stepEnd;
-}
-
-bool SimulationData::bDump()
-{
-  const bool timeDump = dumpTime>0 && time >= nextDumpTime;
-  const bool stepDump = dumpFreq>0 && (step % dumpFreq) == 0;
-  _bDump = stepDump || timeDump;
-  return _bDump;
+  #ifdef CUP_ASYNC_DUMP
+    if(dumper not_eq nullptr) {
+      dumper->join();
+      delete dumper;
+    }
+    delete dump;
+    MPI_Comm_free(&dump_comm);
+  #endif
 }
 
 void SimulationData::startProfiler(std::string name)
 {
-  //std::cout << name << std::endl;
-  Checker check (*this);
-  check.run("before" + name);
-
   #ifndef SMARTIES_APP
     profiler->push_start(name);
   #endif
 }
 void SimulationData::stopProfiler()
 {
-  Checker check (*this);
-  check.run("after" + profiler->currentAgentName());
-
   #ifndef SMARTIES_APP
     profiler->pop_stop();
   #endif
@@ -179,15 +158,4 @@ void SimulationData::printResetProfiler()
     profiler->printSummary();
     profiler->reset();
   #endif
-}
-void SimulationData::dumpAll(std::string name)
-{
-  dumpChi  (name);
-  dumpPres (name);
-  //dumpPrhs (name);
-  dumpTmp  (name);
-  dumpVel  (name);
-  //dumpUobj (name);
-  //dumpForce(name);
-  //dumpTmpV (name);
 }

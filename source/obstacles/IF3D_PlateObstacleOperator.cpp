@@ -211,10 +211,9 @@ Real FillBlocks::signedDistance(const Real x,
 ////////////////////////////////////////////////////////////
 
 IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
-        FluidGridMPI *g,
-        ArgumentParser &p,
-        const Real * const u)
-    : IF3D_ObstacleOperator(g, p, u)
+        SimulationData & s,
+        ArgumentParser &p)
+    : IF3D_ObstacleOperator(s, p)
 {
     p.set_strict_mode();
     half_a = (Real)0.5 * p("-a").asDouble();
@@ -240,14 +239,13 @@ IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
 }
 
 IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
-        FluidGridMPI * const g,
+        SimulationData & s,
         ObstacleArguments &args,
-        const Real * const u,
         const double a,
         const double b,
         const double thickness,
         const double alpha)
-    : IF3D_ObstacleOperator(g, args, u),
+    : IF3D_ObstacleOperator(s, args),
       half_a(.5 * a),
       half_b(.5 * b),
       half_thickness(.5 * thickness)
@@ -257,15 +255,14 @@ IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
 }
 
 IF3D_PlateObstacleOperator::IF3D_PlateObstacleOperator(
-        FluidGridMPI * const g,
+        SimulationData & s,
         ObstacleArguments &args,
-        const Real * const u,
         const double a,
         const double b,
         const double thickness,
         const double _nx, const double _ny, const double _nz,
         const double _ax, const double _ay, const double _az)
-    : IF3D_ObstacleOperator(g, args, u),
+    : IF3D_ObstacleOperator(s, args),
       nx(_nx), ny(_ny), nz(_nz),
       ax(_ax), ay(_ay), az(_az),
       half_a(.5 * a),

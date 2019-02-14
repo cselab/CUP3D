@@ -15,13 +15,9 @@ class IF3D_StefanFishOperator: public IF3D_FishOperator
 {
 protected:
 public:
-  IF3D_StefanFishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u);
+  IF3D_StefanFishOperator(SimulationData&s, ArgumentParser&p);
   void save(const int step_id, const double t, std::string filename = std::string()) override;
   void restart(const double t, std::string filename) override;
-
-  #ifdef RL_LAYER
-    void execute(const int iAgent, const double time, const vector<double>a) override;
-  #endif
 };
 
 #endif /* defined(__IncompressibleFluids3D__IF3D_CarlingFish__) */

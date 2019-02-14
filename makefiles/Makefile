@@ -165,6 +165,7 @@ OBJECTS =  IF3D_ObstacleFactory.o \
 	IF3D_SphereObstacleOperator.o \
 	IF3D_PlateObstacleOperator.o \
 	IF3D_ExternalObstacleOperator.o \
+	SimulationData.o \
 	Simulation.o \
 	IF3D_NacaOperator.o \
 	BufferedLogger.o \

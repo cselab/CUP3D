@@ -51,13 +51,13 @@ class IF3D_PlateObstacleOperator : public IF3D_ObstacleOperator
     double half_thickness;
 
 public:
-    IF3D_PlateObstacleOperator(FluidGridMPI *g, ArgumentParser &p, const Real *u);
+    IF3D_PlateObstacleOperator(SimulationData & s, ArgumentParser &p);
     IF3D_PlateObstacleOperator(
-            FluidGridMPI *g, ObstacleArguments &args, const Real *u,
+            SimulationData & s, ObstacleArguments &args,
             double a, double b, double thickness,
             double alpha);
     IF3D_PlateObstacleOperator(
-            FluidGridMPI *g, ObstacleArguments &args, const Real *u,
+            SimulationData & s, ObstacleArguments &args,
             double a, double b, double thickness,
             double nx, double ny, double nz, double ax, double ay, double az);
 

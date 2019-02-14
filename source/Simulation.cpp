@@ -6,6 +6,7 @@
 //  Written by Guido Novati (novatig@ethz.ch).
 //
 #include "Simulation.h"
+#include "obstacles/IF3D_ObstacleVector.h"
 
 #include "operators/CoordinatorAdvectDiffuse.h"
 //#include "operators/CoordinatorAdvection.h"
@@ -16,11 +17,11 @@
 #include "operators/CoordinatorIC.h"
 //#include "operators/CoordinatorPenalization.h"
 #include "operators/CoordinatorPressure.h"
+#include "operators/CoordinatorPressureGrad.h"
+
 //#include "CoordinatorVorticity.h"
 #include "obstacles/IF3D_ObstacleFactory.h"
 #include "utils/ProcessOperatorsOMP.h"
-
-#include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"
 
 #include <iomanip>
@@ -29,203 +30,138 @@
  * Initialization from cmdline arguments is done in few steps, because grid has
  * to be created before the obstacles and slices are created.
  */
+Simulation::Simulation(MPI_Comm mpicomm) : sim(mpicomm) {}
 Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
-    : app_comm(mpicomm)
+    : sim(mpicomm, parser)
 {
-  MPI_Comm_rank(app_comm, &rank);
-  if (rank == 0)
-    parser.print_args();
-
-  // ========== SIMULATION ==========
-  // GRID
-  bpdx = parser("-bpdx").asInt();
-  bpdy = parser("-bpdy").asInt();
-  bpdz = parser("-bpdz").asInt();
-  nprocsx = parser("-nprocsx").asInt(-1);
-  nprocsy = parser("-nprocsy").asInt(-1);
-
-  // FLOW
-  nu = parser("-nu").asDouble();
-  lambda = 0.0; //parser("-lambda").asDouble(1e6);
-  DLM = 1.0;//parser("-use-dlm").asDouble(0.0);
-  CFL = parser("-CFL").asDouble(.1);
-  uinf[0] = parser("-uinfx").asDouble(0.0);
-  uinf[1] = parser("-uinfy").asDouble(0.0);
-  uinf[2] = parser("-uinfz").asDouble(0.0);
-
-  // PIPELINE
-  computeDissipation = (bool)parser("-compute-dissipation").asInt(0);
-#ifndef CUP_UNBOUNDED_FFT
-  fadeOutLength = parser("-fade_len").asDouble(.005);
-#endif
-
-  // OUTPUT
-  verbose = parser("-verbose").asBool(true);
-  b2Ddump = parser("-dump2D").asBool(false);
-  b3Ddump = parser("-dump3D").asBool(true);
-
-  int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
-  double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
-  saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
-  saveTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
-
-  nsteps = parser("-nsteps").asInt(0);    // 0 to disable this stopping critera.
-  endTime = parser("-tend").asDouble(0);  // 0 to disable this stopping critera.
-
-  // TEMP: Removed distinction saving-dumping. Backward compatibility:
-  if (saveFreq <= 0 && dumpFreq > 0) saveFreq = dumpFreq;
-  if (saveTime <= 0 && dumpTime > 0) saveTime = dumpTime;
-
-  path4serialization = parser("-serialization").asString("./");
-
   // ========= SETUP GRID ==========
   // Grid has to be initialized before slices and obstacles.
-  _argumentsSanityCheck();
   setupGrid();
 
   // =========== SLICES ============
   #ifdef CUP_ASYNC_DUMP
-    m_slices = SliceType::getEntities<SliceType>(parser, *dump);
+    sim.m_slices = SliceType::getEntities<SliceType>(parser, * sim.dump);
   #else
-    m_slices = SliceType::getEntities<SliceType>(parser, *grid);
+    sim.m_slices = SliceType::getEntities<SliceType>(parser, * sim.grid);
   #endif
 
   // ========== OBSTACLES ==========
-  IF3D_ObstacleFactory factory(grid, uinf);
-  setObstacleVector(new IF3D_ObstacleVector(grid, factory.create(parser)));
+  IF3D_ObstacleFactory factory(sim);
+  setObstacleVector(new IF3D_ObstacleVector(sim, factory.create(parser)));
 
-  // ============ REST =============
-  const bool restart = parser("-restart").asBool(false);
-  _init(restart);
+  // ============ INIT =============
+  const bool bRestart = parser("-restart").asBool(false);
+  _init(bRestart);
 }
 
+const std::vector<IF3D_ObstacleOperator*>& Simulation::getObstacleVector() const
+{
+    return sim.obstacle_vector->getObstacleVector();
+}
 
 // For Python bindings. Really no need for `const` here...
 Simulation::Simulation(
-        std::array<int, 3> cells,
-        std::array<int, 3> nproc,
-        MPI_Comm comm,
-        int nsteps, double endTime,
-        double nu, double CFL, double lambda, double DLM,
-        std::array<double, 3> uinf,
-        bool verbose,
-        bool computeDissipation,
-        bool b3Ddump, bool b2Ddump,
-#ifndef CUP_UNBOUNDED_FFT
-        double fadeOutLength,
-#endif
-        int saveFreq, double saveTime,
-        const std::string &path4serialization,
-        bool restart)
-    : app_comm(comm),
-      nprocsx(nproc[0]), nprocsy(nproc[1]), nprocsz(nproc[2]),
-      nsteps(nsteps), endTime(endTime),
-      uinf{uinf[0], uinf[1], uinf[2]},
-      nu(nu), CFL(CFL), lambda(lambda), DLM(DLM),
-      verbose(verbose),
-      computeDissipation(computeDissipation),
-      b3Ddump(b3Ddump), b2Ddump(b2Ddump),
-#ifndef CUP_UNBOUNDED_FFT
-      fadeOutLength(fadeOutLength),
-#endif
-      saveFreq(saveFreq), saveTime(saveTime),
-      path4serialization(path4serialization)
+  std::array<int, 3> cells, std::array<int, 3> nproc,
+  MPI_Comm comm, int nsteps, double endTime,
+  double nu, double CFL, double lambda, double DLM,
+  std::array<double, 3> uinf,
+  bool verbose, bool computeDissipation, bool b3Ddump, bool b2Ddump,
+  double fadeOutLength, int saveFreq, double saveTime,
+  const std::string &path4serialization, bool restart) : sim(comm)
 {
+  sim.nprocsx = nproc[0];
+  sim.nprocsy = nproc[1];
+  sim.nprocsz = nproc[2];
+  sim.nsteps = nsteps;
+  sim.endTime = endTime;
+  sim.uinf[0] = uinf[0];
+  sim.uinf[1] = uinf[1];
+  sim.uinf[2] = uinf[2];
+  sim.nu = nu;
+  sim.CFL = CFL;
+  sim.lambda = lambda;
+  sim.DLM = DLM;
+  sim.verbose = verbose;
+  sim.computeDissipation = computeDissipation;
+  sim.b3Ddump = b3Ddump;
+  sim.b2Ddump = b2Ddump;
+  sim.fadeOutLength[0] = fadeOutLength;
+  sim.fadeOutLength[1] = fadeOutLength;
+  sim.fadeOutLength[2] = fadeOutLength;
+  sim.saveFreq = saveFreq;
+  sim.saveTime = saveTime;
+  sim.path4serialization = path4serialization;
+
   if (cells[0] < 0 || cells[1] < 0 || cells[2] < 0)
-    throw std::invalid_argument("Number of cells not provided.");
-  if (cells[0] % FluidBlock::sizeX != 0
-        || cells[1] % FluidBlock::sizeY != 0
-        || cells[2] % FluidBlock::sizeZ != 0) {
-    throw std::invalid_argument("Number of cells should be a multiple of block size.");
-  }
-  bpdx = cells[0] / FluidBlock::sizeX;
-  bpdy = cells[1] / FluidBlock::sizeY;
-  bpdz = cells[2] / FluidBlock::sizeZ;
+    throw std::invalid_argument("N. of cells not provided.");
+  if (   cells[0] % FluidBlock::sizeX != 0
+      || cells[1] % FluidBlock::sizeY != 0
+      || cells[2] % FluidBlock::sizeZ != 0 )
+    throw std::invalid_argument("N. of cells must be multiple of block size.");
 
-  _argumentsSanityCheck();
+  sim.bpdx = cells[0] / FluidBlock::sizeX;
+  sim.bpdy = cells[1] / FluidBlock::sizeY;
+  sim.bpdz = cells[2] / FluidBlock::sizeZ;
+  sim._argumentsSanityCheck();
   setupGrid();  // Grid has to be initialized before slices and obstacles.
-  setObstacleVector(new IF3D_ObstacleVector(grid));
+  setObstacleVector(new IF3D_ObstacleVector(sim));
   _init(restart);
-}
-
-Simulation::~Simulation()
-{
-  delete grid;
-  delete obstacle_vector;
-  while(!pipeline.empty()) {
-    GenericCoordinator * g = pipeline.back();
-    pipeline.pop_back();
-    delete g;
-  }
-  #ifdef CUP_ASYNC_DUMP
-    if(dumper not_eq nullptr) {
-      dumper->join();
-      delete dumper;
-    }
-    delete dump;
-    MPI_Comm_free(&dump_comm);
-  #endif
 }
 
 void Simulation::_init(const bool restart)
 {
   setupOperators();
-
-  if (restart)
-    _deserialize();
-  else
-    _ic();
-
-  MPI_Barrier(app_comm);
+  if (restart) _deserialize();
+  else _ic();
+  MPI_Barrier(sim.app_comm);
 }
 
 void Simulation::_ic()
 {
-  CoordinatorIC coordIC(grid);
-  profiler.push_start(coordIC.getName());
+  CoordinatorIC coordIC(sim);
+  sim.startProfiler(coordIC.getName());
   coordIC(0);
-  profiler.pop_stop();
+  sim.stopProfiler();
 }
 
 void Simulation::setupGrid()
 {
-  assert(bpdx > 0);
-  assert(bpdy > 0);
-  assert(bpdz > 0);
-  MPI_Comm_rank(app_comm, &rank);
-  MPI_Comm_size(app_comm, &nprocs);
+  assert(sim.bpdx > 0);
+  assert(sim.bpdy > 0);
+  assert(sim.bpdz > 0);
 
-  if (nprocsy < 0)
-    nprocsy = 1;
-  if (nprocsy == 1) {
-    nprocsx = nprocs;  // Override existing value!
-  } else if (nprocsx < 0) {
-    nprocsx = nprocs / nprocsy;
-  }
-  nprocsz = 1;
+  if (sim.nprocsy < 0)  sim.nprocsy = 1;
+  if (sim.nprocsy == 1) sim.nprocsx = sim.nprocs;  // Override existing value!
+  else if (sim.nprocsx < 0) sim.nprocsx = sim.nprocs / sim.nprocsy;
+  sim.nprocsz = 1;
 
-  if (nprocsx * nprocsy * nprocsz != nprocs) {
+  if (sim.nprocsx * sim.nprocsy * sim.nprocsz != sim.nprocs) {
     fprintf(stderr, "Invalid domain decomposition. %d x %d x %d != %d!\n",
-            nprocsx, nprocsy, nprocsz, nprocs);
-    MPI_Abort(app_comm, 1);
+            sim.nprocsx, sim.nprocsy, sim.nprocsz, sim.nprocs);
+    MPI_Abort(sim.app_comm, 1);
   }
 
-  if (bpdx % nprocsx != 0 || bpdy % nprocsy != 0 || bpdz % nprocsz !=0) {
+  if ( sim.bpdx%sim.nprocsx != 0 ||
+       sim.bpdy%sim.nprocsy != 0 ||
+       sim.bpdz%sim.nprocsz != 0   ) {
     printf("Incompatible domain decomposition: bpd*/nproc* should be an integer");
-    MPI_Abort(app_comm, 1);
+    MPI_Abort(sim.app_comm, 1);
   }
 
-  bpdx /= nprocsx;
-  bpdy /= nprocsy;
-  bpdz /= nprocsz;
-  grid = new FluidGridMPI(nprocsx,nprocsy,nprocsz, bpdx,bpdy,bpdz, 1,app_comm);
-  assert(grid != NULL);
-  vInfo = grid->getBlocksInfo();
+  sim.bpdx /= sim.nprocsx;
+  sim.bpdy /= sim.nprocsy;
+  sim.bpdz /= sim.nprocsz;
+  sim.grid = new FluidGridMPI(sim.nprocsx,sim.nprocsy,sim.nprocsz,
+                              sim.bpdx,sim.bpdy,sim.bpdz,
+                              sim.maxextent, sim.app_comm);
+  assert(sim.grid != NULL);
 
   #ifdef CUP_ASYNC_DUMP
     // create new comm so that if there is a barrier main work is not affected
-    MPI_Comm_split(app_comm, 0, rank, &dump_comm);
-    dump = new  DumpGridMPI(nprocsx,nprocsy,nprocsz, bpdx,bpdy,bpdz, 1, dump_comm);
+    MPI_Comm_split(sim.app_comm, 0, sim.rank, &sim.dump_comm);
+    sim.dump = new  DumpGridMPI(sim.nprocsx,sim.nprocsy,sim.nprocsz,
+                                sim.bpdx,sim.bpdy,sim.bpdz,
+                                sim.maxextent, sim.dump_comm);
   #endif
 
   char hostname[1024];
@@ -233,219 +169,206 @@ void Simulation::setupGrid()
   gethostname(hostname, 1023);
   const int nthreads = omp_get_max_threads();
   printf("Rank %d (of %d) with %d threads on host Hostname: %s\n",
-          rank, nprocs, nthreads, hostname);
+          sim.rank, sim.nprocs, nthreads, hostname);
   //if (communicator not_eq nullptr) //Yo dawg I heard you like communicators.
   //  communicator->comm_MPI = grid->getCartComm();
   fflush(0);
-  if(rank==0) {
-    printf("Blocks per dimension: [%d %d %d]\n",bpdx,bpdy,bpdz);
-    printf("Nranks per dimension: [%d %d %d]\n",nprocsx,nprocsy,nprocsz);
+  if(sim.rank==0)
+  {
+    printf("Blocks per dimension: [%d %d %d]\n",sim.bpdx,sim.bpdy,sim.bpdz);
+    printf("Nranks per dimension: [%d %d %d]\n",sim.nprocsx,sim.nprocsy,sim.nprocsz);
   }
 
-}
-
-void Simulation::_argumentsSanityCheck()
-{
-  // Grid.
-  if (bpdx < 1 || bpdy < 1 || bpdz < 1) {
-      fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);
-      abort();
-  }
-
-  // Flow.
-  assert(nu >= 0);
-  assert(lambda > 0.0);
-  assert(CFL > 0.0);
-
-  // Output.
-  assert(saveFreq >= 0.0);
-  assert(saveTime >= 0.0);
+  const double NFE[3] = {
+      (double) sim.grid->getBlocksPerDimension(0) * FluidBlock::sizeX,
+      (double) sim.grid->getBlocksPerDimension(1) * FluidBlock::sizeY,
+      (double) sim.grid->getBlocksPerDimension(2) * FluidBlock::sizeZ,
+  };
+  const double maxbpd = std::max({NFE[0], NFE[1], NFE[2]});
+  sim.extent[0] = (NFE[0]/maxbpd) * sim.maxextent;
+  sim.extent[1] = (NFE[1]/maxbpd) * sim.maxextent;
+  sim.extent[2] = (NFE[2]/maxbpd) * sim.maxextent;
 }
 
 void Simulation::setObstacleVector(IF3D_ObstacleVector * const obstacle_vector_)
 {
-  obstacle_vector = obstacle_vector_;
-  #ifdef RL_LAYER
-    if(task not_eq nullptr) task->initializeObstacles(obstacle_vector);
-  #endif
+  sim.obstacle_vector = obstacle_vector_;
 
-  if (rank == 0) {
-    const double maxU = std::max({uinf[0], uinf[1], uinf[2]});
-    const double length = obstacle_vector->getD();
-    const double re = length * std::max(maxU, length) / nu;
-    assert(length > 0 || obstacle_vector->getObstacleVector().empty());
-    printf("Kinematic viscosity: %f, Re: %f, length scale: %f\n",nu,re,length);
+  if (sim.rank == 0)
+  {
+    const double maxU = std::max({sim.uinf[0], sim.uinf[1], sim.uinf[2]});
+    const double length = sim.obstacle_vector->getD();
+    const double re = length * std::max(maxU, length) / sim.nu;
+    assert(length > 0 || sim.obstacle_vector->getObstacleVector().empty());
+    printf("Kinematic viscosity:%f, Re:%f, length scale:%f\n",sim.nu,re,length);
   }
 }
 
 void Simulation::setupOperators()
 {
-  pipeline.clear();
-  pipeline.push_back(new CoordinatorComputeShape(grid, &obstacle_vector, &step, &time, uinf));
-  //pipeline.push_back(new CoordinatorPenalization(grid, &obstacle_vector, &lambda, uinf));
-  pipeline.push_back(new CoordinatorComputeDiagnostics(grid, &obstacle_vector, &step, &time, &lambda, uinf));
+  sim.pipeline.clear();
+  sim.pipeline.push_back(new CoordinatorComputeShape(sim));
 
-  // For correct behavior Advection must always precede Diffusion!
-  // pipeline.push_back(new CoordinatorAdvection<LabMPI>(uinf, grid));
-  // pipeline.push_back(new CoordinatorDiffusion<LabMPI>(nu, grid));
-  pipeline.push_back(new CoordinatorAdvectDiffuse<LabMPI>(nu, &lambda, uinf, &obstacle_vector, grid));
+  sim.pipeline.push_back(new CoordinatorComputeDiagnostics(sim));
 
-  pipeline.push_back(new CoordinatorPressure<LabMPI>(grid, &obstacle_vector, &fadeOutLength));
-  pipeline.push_back(new CoordinatorComputeForces(grid, &obstacle_vector, &step, &time, &nu, &bDump, uinf));
-  if(computeDissipation)
-    pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
+  sim.pipeline.push_back(new CoordinatorAdvectDiffuse<LabMPI>(sim));
+  if(sim.uMax_forced > 0 && sim.initCond not_eq "taylorGreen")
+    sim.pipeline.push_back(new CoordinatorPressureGradient(sim));
+
+  sim.pipeline.push_back(new CoordinatorPressure<LabMPI>(sim));
+  sim.pipeline.push_back(new CoordinatorComputeForces(sim));
+  //if(sim.computeDissipation)
+  //  sim.pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
 
   #ifndef CUP_UNBOUNDED_FFT
-    pipeline.push_back(new CoordinatorFadeOut(grid, fadeOutLength));
+    sim.pipeline.push_back(new CoordinatorFadeOut(sim));
   #endif /* CUP_UNBOUNDED_FFT */
 
-  if(rank==0) {
+  if(sim.rank==0) {
     printf("Coordinator/Operator ordering:\n");
-    for (size_t c=0; c<pipeline.size(); c++)
-      printf("\t%s\n", pipeline[c]->getName().c_str());
+    for (size_t c=0; c<sim.pipeline.size(); c++)
+      printf("\t%s\n", sim.pipeline[c]->getName().c_str());
   }
   //immediately call create!
-  (*pipeline[0])(0);
+  (*sim.pipeline[0])(0);
 }
 
 double Simulation::calcMaxTimestep()
 {
-  double local_maxU = (double)findMaxUOMP(vInfo,*grid,uinf);
-  double global_maxU;
-  const double h = vInfo[0].h_gridpoint;
+  double locMaxU = (double)findMaxUOMP(sim.vInfo(), * sim.grid, sim.uinf);
+  double globMaxU;
+  const double h = sim.vInfo()[0].h_gridpoint;
 
-  MPI_Allreduce(&local_maxU, &global_maxU, 1, MPI_DOUBLE, MPI_MAX, grid->getCartComm());
-  const double dtFourier = CFL*h*h/nu;
-  const double dtCFL     = CFL*h/(std::fabs(global_maxU)+1e-8);
-  double dt = std::min(dtCFL, dtFourier);
-
-  // if DLM>=1, adapt lambda such that penal term is independent of time step
-  // Probably best not used unless DLM>=10-100. Avoided during ramp-up (which
-  // is the point of ramp-up: gradual insertion of obstacle)
-  if (DLM >= 1) lambda = DLM / dt;
-
-  if(!rank && verbose)
-    printf("maxU %f dtF %f dtC %f dt %f\n", global_maxU,dtFourier,dtCFL,dt);
-
-  if ( rampup && step<1000 ) {
-    const double dt_max =  1e2*CFL*h;
-    const double dt_min = 1e-2*CFL*h;
-    //const double dt_ramp = dt_min + (dt_max-dt_min)*std::pow(step/1000.0, 2);
-    const double dt_ramp = dt_min + (dt_max-dt_min)*(step/1000.0);
-    if (dt_ramp<dt) {
-      dt = dt_ramp;
-      if(!rank && verbose)
-        printf("Dt bounded by ramp-up: dt_ramp=%f\n",dt_ramp);
-    }
+  MPI_Allreduce(&locMaxU, &globMaxU, 1, MPI_DOUBLE,MPI_MAX, sim.app_comm);
+  const double dtDif = sim.CFL*h*h/sim.nu;
+  const double dtAdv = sim.CFL*h/(std::fabs(globMaxU)+1e-8);
+  sim.dt = std::min(dtDif, dtAdv);
+  if ( sim.step < sim.rampup )
+  {
+    const double x = (sim.step+1.0)/sim.rampup;
+    const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(sim.CFL)*x);
+    sim.dt = rampCFL * std::min(dtDif, dtAdv);
   }
-  return dt;
+  // if DLM>=1, adapt lambda such that penal term is independent of time step
+  if (sim.DLM >= 1) sim.lambda = sim.DLM / sim.dt;
+  if (sim.verbose)
+    printf("maxU %f dtF %f dtC %f dt %f\n", globMaxU, dtDif, dtAdv, sim.dt);
+  return sim.dt;
 }
 
 void Simulation::_serialize(const std::string append)
 {
-  if(!bDump) return;
+  if( ! sim.bDump ) return;
 
   std::stringstream ssR;
   if (append == "") ssR<<"restart_";
   else ssR<<append;
-  ssR<<std::setfill('0')<<std::setw(9)<<step;
-  if(rank==0) std::cout<<"Saving to "<<path4serialization<<"/"<<ssR.str()<<"\n";
+  ssR<<std::setfill('0')<<std::setw(9)<<sim.step;
+  const std::string fpath = sim.path4serialization + "/" + ssR.str();
+  if(sim.rank==0) std::cout<<"Saving to "<<fpath<<"\n";
 
-  if (rank==0) { //rank 0 saves step id and obstacles
-    obstacle_vector->save(step, time, path4serialization+"/"+ssR.str());
+  if (sim.rank==0) { //rank 0 saves step id and obstacles
+    sim.obstacle_vector->save(sim.step,sim.time,fpath);
     //safety status in case of crash/timeout during grid save:
-    std::string statusname = path4serialization+"/"+ssR.str()+".status";
-    FILE * f = fopen(statusname.c_str(), "w");
+    FILE * f = fopen((fpath+".status").c_str(), "w");
     assert(f != NULL);
-    fprintf(f, "time: %20.20e\n", time);
-    fprintf(f, "stepid: %d\n", (int)step);
-    fprintf(f, "uinfx: %20.20e\n", uinf[0]);
-    fprintf(f, "uinfy: %20.20e\n", uinf[1]);
-    fprintf(f, "uinfz: %20.20e\n", uinf[2]);
+    fprintf(f, "time: %20.20e\n", sim.time);
+    fprintf(f, "stepid: %d\n", (int)sim.step);
+    fprintf(f, "uinfx: %20.20e\n", sim.uinf[0]);
+    fprintf(f, "uinfy: %20.20e\n", sim.uinf[1]);
+    fprintf(f, "uinfz: %20.20e\n", sim.uinf[2]);
     fclose(f);
   }
 
   #ifdef CUBISM_USE_HDF
   std::stringstream ssF;
   if (append == "")
-   ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<step;
+   ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<sim.step;
   else
-  ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<step;
+   ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<sim.step;
 
   #ifdef CUP_ASYNC_DUMP
     // if a thread was already created, make sure it has finished
-    if(dumper not_eq nullptr) {
-      dumper->join();
+    if(sim.dumper not_eq nullptr) {
+      sim.dumper->join();
       delete dumper;
-      dumper = nullptr;
+      sim.dumper = nullptr;
     }
     // copy qois from grid to dump
-    copyDumpGrid(*grid, *dump);
-    const auto & grid2Dump = * dump;
+    copyDumpGrid(* sim.grid, * sim.dump);
+    const auto & grid2Dump = * sim.dump;
   #else //CUP_ASYNC_DUMP
-    const auto & grid2Dump = * grid;
+    const auto & grid2Dump = * sim.grid;
   #endif //CUP_ASYNC_DUMP
 
   const auto name3d = ssR.str(), name2d = ssF.str(); // sstreams are weird
 
-  const auto dumpFunction = [=] () {
-    if(b2Ddump) {
-      for (const auto& slice : m_slices) {
+  const auto dumpFunction = [=] ()
+  {
+    if(sim.b2Ddump)
+    {
+      for (const auto& slice : sim.m_slices)
+      {
         DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
-            slice, step, time, StreamerVelocityVector::prefix()+name2d, path4serialization);
+          slice, sim.step, sim.time, StreamerVelocityVector::prefix()+name2d,
+          sim.path4serialization);
         DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
-            slice, step, time, StreamerPressure::prefix()+name2d, path4serialization);
+          slice, sim.step, sim.time, StreamerPressure::prefix()+name2d,
+          sim.path4serialization);
         DumpSliceHDF5MPI<StreamerChi, DumpReal>(
-            slice, step, time, StreamerChi::prefix()+name2d, path4serialization);
+          slice, sim.step, sim.time, StreamerChi::prefix()+name2d,
+          sim.path4serialization);
       }
     }
-    if(b3Ddump) {
+    if(sim.b3Ddump)
+    {
       DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
-          grid2Dump, step, time, StreamerVelocityVector::prefix()+name3d, path4serialization);
+        grid2Dump, sim.step, sim.time, StreamerVelocityVector::prefix()+name3d,
+        sim.path4serialization);
       DumpHDF5_MPI<StreamerPressure, DumpReal>(
-          grid2Dump, step, time, StreamerPressure::prefix()+name3d, path4serialization);
+        grid2Dump, sim.step, sim.time, StreamerPressure::prefix()+name3d,
+        sim.path4serialization);
       DumpHDF5_MPI<StreamerChi, DumpReal>(
-          grid2Dump, step, time, StreamerChi::prefix()+name3d, path4serialization);
+        grid2Dump, sim.step, sim.time, StreamerChi::prefix()+name3d,
+        sim.path4serialization);
     }
   };
 
   #ifdef CUP_ASYNC_DUMP
-    dumper = new std::thread( dumpFunction );
+    sim.dumper = new std::thread( dumpFunction );
   #else //CUP_ASYNC_DUMP
     dumpFunction();
   #endif //CUP_ASYNC_DUMP
   #endif //CUBISM_USE_HDF
 
 
-  if (rank==0)
+  if (sim.rank==0)
   { //saved the grid! Write status to remember most recent ping
-    std::string restart_status = path4serialization+"/restart.status";
+    std::string restart_status = sim.path4serialization+"/restart.status";
     FILE * f = fopen(restart_status.c_str(), "w");
     assert(f != NULL);
-    fprintf(f, "time: %20.20e\n", time);
-    fprintf(f, "stepid: %d\n", (int)step);
-    fprintf(f, "uinfx: %20.20e\n", uinf[0]);
-    fprintf(f, "uinfy: %20.20e\n", uinf[1]);
-    fprintf(f, "uinfz: %20.20e\n", uinf[2]);
+    fprintf(f, "time: %20.20e\n", sim.time);
+    fprintf(f, "stepid: %d\n", (int)sim.step);
+    fprintf(f, "uinfx: %20.20e\n", sim.uinf[0]);
+    fprintf(f, "uinfy: %20.20e\n", sim.uinf[1]);
+    fprintf(f, "uinfz: %20.20e\n", sim.uinf[2]);
     fclose(f);
-    printf("time:  %20.20e\n", time);
-    printf("stepid: %d\n", (int)step);
-    printf("uinfx: %20.20e\n", uinf[0]);
-    printf("uinfy: %20.20e\n", uinf[1]);
-    printf("uinfz: %20.20e\n", uinf[2]);
+    printf("time:  %20.20e\n", sim.time);
+    printf("stepid: %d\n", (int)sim.step);
+    printf("uinfx: %20.20e\n", sim.uinf[0]);
+    printf("uinfy: %20.20e\n", sim.uinf[1]);
+    printf("uinfz: %20.20e\n", sim.uinf[2]);
   }
 
   //CoordinatorDiagnostics coordDiags(grid,time,step);
   //coordDiags(dt);
-  #ifdef RL_LAYER
-  obstacle_vector->interpolateOnSkin(time, step);
-  #endif
+  //obstacle_vector->interpolateOnSkin(time, step);
 }
 
 void Simulation::_deserialize()
 {
   {
-    std::string restartfile = path4serialization+"/restart.status";
+    std::string restartfile = sim.path4serialization+"/restart.status";
     FILE * f = fopen(restartfile.c_str(), "r");
     if (f == NULL) {
       printf("Could not restart... starting a new sim.\n");
@@ -453,94 +376,81 @@ void Simulation::_deserialize()
     }
     assert(f != NULL);
     bool ret = true;
-    ret = ret && 1==fscanf(f, "time: %le\n",   &time);
-    ret = ret && 1==fscanf(f, "stepid: %d\n", &step);
+    ret = ret && 1==fscanf(f, "time: %le\n",   &sim.time);
+    ret = ret && 1==fscanf(f, "stepid: %d\n", &sim.step);
     #ifndef CUP_SINGLE_PRECISION
-    ret = ret && 1==fscanf(f, "uinfx: %le\n", &uinf[0]);
-    ret = ret && 1==fscanf(f, "uinfy: %le\n", &uinf[1]);
-    ret = ret && 1==fscanf(f, "uinfz: %le\n", &uinf[2]);
+    ret = ret && 1==fscanf(f, "uinfx: %le\n", &sim.uinf[0]);
+    ret = ret && 1==fscanf(f, "uinfy: %le\n", &sim.uinf[1]);
+    ret = ret && 1==fscanf(f, "uinfz: %le\n", &sim.uinf[2]);
     #else // CUP_SINGLE_PRECISION
-    ret = ret && 1==fscanf(f, "uinfx: %e\n", &uinf[0]);
-    ret = ret && 1==fscanf(f, "uinfy: %e\n", &uinf[1]);
-    ret = ret && 1==fscanf(f, "uinfz: %e\n", &uinf[2]);
+    ret = ret && 1==fscanf(f, "uinfx: %e\n", &sim.uinf[0]);
+    ret = ret && 1==fscanf(f, "uinfy: %e\n", &sim.uinf[1]);
+    ret = ret && 1==fscanf(f, "uinfz: %e\n", &sim.uinf[2]);
     #endif // CUP_SINGLE_PRECISION
     fclose(f);
-    if( (not ret) || step<0 || time<0) {
+    if( (not ret) || sim.step<0 || sim.time<0) {
       printf("Error reading restart file. Aborting...\n");
-      MPI_Abort(grid->getCartComm(), 1);
+      MPI_Abort(sim.grid->getCartComm(), 1);
     }
   }
 
   std::stringstream ssR;
-  ssR<<"restart_"<<std::setfill('0')<<std::setw(9)<<step;
-  if (rank==0) std::cout << "Restarting from " << ssR.str() << "\n";
+  ssR<<"restart_"<<std::setfill('0')<<std::setw(9)<<sim.step;
+  if (sim.rank==0) std::cout << "Restarting from " << ssR.str() << "\n";
 
   #ifdef CUBISM_USE_HDF
-    ReadHDF5_MPI<StreamerVelocityVector, DumpReal>(*grid,
-      StreamerVelocityVector::prefix()+ssR.str(), path4serialization);
+    ReadHDF5_MPI<StreamerVelocityVector, DumpReal>(* sim.grid,
+      StreamerVelocityVector::prefix()+ssR.str(), sim.path4serialization);
   #else
     printf("Unable to restart without  HDF5 library. Aborting...\n");
-    MPI_Abort(grid->getCartComm(), 1);
+    MPI_Abort(sim.grid->getCartComm(), 1);
   #endif
 
-  obstacle_vector->restart(time, path4serialization+"/"+ssR.str());
+  sim.obstacle_vector->restart(sim.time, sim.path4serialization+"/"+ssR.str());
 
-  printf("DESERIALIZATION: time is %f and step id is %d\n", time, (int)step);
+  printf("DESERIALIZATION: time is %f and step id is %d\n", sim.time, sim.step);
   // prepare time for next save
-  nextSaveTime = time + saveTime;
+  sim.nextSaveTime = sim.time + sim.saveTime;
 }
 
 void Simulation::run()
 {
     for (;;) {
-        profiler.push_start("DT");
+        sim.startProfiler("DT");
         const double dt = calcMaxTimestep();
-        profiler.pop_stop();
+        sim.stopProfiler();
 
-        if (timestep(dt))
-            break;
+        if (timestep(dt)) break;
     }
 }
 
 bool Simulation::timestep(const double dt)
 {
-    const bool bDumpFreq = (saveFreq>0 && (step+ 1)%saveFreq==0);
-    const bool bDumpTime = (saveTime>0 && (time+dt)>nextSaveTime);
-    if (bDumpTime) nextSaveTime += saveTime;
-    bDump = (bDumpFreq || bDumpTime);
+    const bool bDumpFreq = (sim.saveFreq>0 && (sim.step+ 1)%sim.saveFreq==0);
+    const bool bDumpTime = (sim.saveTime>0 && (sim.time+dt)>sim.nextSaveTime);
+    if (bDumpTime) sim.nextSaveTime += sim.saveTime;
+    sim.bDump = (bDumpFreq || bDumpTime);
 
-    #ifdef RL_LAYER
-      if(task not_eq nullptr)
-        if((*task)(step, time)) {
-          if(rank==0)
-          cout<<"Finished RL task at time "<<time<<endl;
-          return;
-        }
-    #endif
-
-    for (size_t c=0; c<pipeline.size(); c++) {
-      profiler.push_start(pipeline[c]->getName());
-      (*pipeline[c])(dt);
-      profiler.pop_stop();
+    for (size_t c=0; c<sim.pipeline.size(); c++) {
+      sim.startProfiler(sim.pipeline[c]->getName());
+      (*sim.pipeline[c])(dt);
+      sim.stopProfiler();
     }
-    step++;
-    time+=dt;
+    sim.step++;
+    sim.time+=dt;
 
-    if(!rank && verbose)
-      printf("%d : %f uInf {%f %f %f}\n",step,time,uinf[0],uinf[1],uinf[2]);
+    if(sim.verbose) printf("%d : %f uInf {%f %f %f}\n",
+      sim.step,sim.time,sim.uinf[0],sim.uinf[1],sim.uinf[2]);
 
-    profiler.push_start("Save");
+    sim.startProfiler("Save");
     _serialize();
-    profiler.pop_stop();
+    sim.stopProfiler();
 
-    if (step % 10 == 0 && !rank && verbose) {
-      profiler.printSummary();
-      profiler.reset();
-    }
-    if ((endTime>0 && time>endTime) || (nsteps!=0 && step>=nsteps))
-    {
-      if(rank==0)
-      std::cout<<"Finished at time "<<time<<" in "<<step<<" steps.\n";
+    if (sim.step % 10 == 0 && sim.verbose) sim.printResetProfiler();
+    if ((sim.endTime>0 && sim.time>sim.endTime) ||
+        (sim.nsteps!=0 && sim.step>=sim.nsteps) ) {
+      if(sim.verbose)
+        std::cout<<"Finished at time "<<sim.time<<" in "<<sim.step<<" steps.\n";
       return true;  // Finished.
     }
 

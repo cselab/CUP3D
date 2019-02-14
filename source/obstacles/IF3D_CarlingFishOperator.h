@@ -18,7 +18,7 @@ class IF3D_CarlingFishOperator: public IF3D_FishOperator
   CarlingFishMidlineData* readHingeParams(ArgumentParser&p);
   CarlingFishMidlineData* readBurstCoastParams(ArgumentParser&p);
 public:
-  IF3D_CarlingFishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u);
+  IF3D_CarlingFishOperator(SimulationData&s, ArgumentParser&p);
   void computeForces(const int stepID, const double time, const double dt,
     const Real* Uinf, const double NU, const bool bDump) override;
 

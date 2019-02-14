@@ -9,13 +9,14 @@
 #ifndef CubismUP_3D_GenericCoordinator_h
 #define CubismUP_3D_GenericCoordinator_h
 
-#include "../Definitions.h"
+#include "../SimulationData.h"
 
 class GenericCoordinator
 {
-protected:
-  FluidGridMPI * grid;
-  std::vector<BlockInfo> vInfo;
+ protected:
+  SimulationData & sim;
+  FluidGridMPI * const grid = sim.grid;
+  const std::vector<BlockInfo>& vInfo = sim.vInfo();
 
   inline void check(std::string infoText)
   {
@@ -52,7 +53,10 @@ protected:
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
     #pragma omp parallel for schedule(static, 1)
-    for(int i = 0; i < nthreads; ++i)  labs[i].prepare(*grid, Synch);
+    for(int i = 0; i < nthreads; ++i) {
+      labs[i].setBC(sim.BCx_flag, sim.BCy_flag, sim.BCz_flag);
+      labs[i].prepare(* sim.grid, Synch);
+    }
 
     int rank;
     MPI_Comm_rank(grid->getCartComm(), &rank);
@@ -63,8 +67,7 @@ protected:
     #pragma omp parallel
     {
       int tid = omp_get_thread_num();
-      Kernel& kernel=*(kernels[tid]);
-      LabMPI& lab = labs[tid];
+      Kernel& kernel = * (kernels[tid]); LabMPI& lab = labs[tid];
 
       #pragma omp for schedule(static)
       for(int i=0; i<Ninner; i++) {
@@ -81,8 +84,7 @@ protected:
     #pragma omp parallel
     {
       int tid = omp_get_thread_num();
-      Kernel& kernel=*(kernels[tid]);
-      LabMPI& lab = labs[tid];
+      Kernel& kernel = * (kernels[tid]); LabMPI& lab = labs[tid];
 
       #pragma omp for schedule(static)
       for(int i=0; i<Nhalo; i++) {
@@ -108,7 +110,10 @@ protected:
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
     #pragma omp parallel for schedule(static, 1)
-    for(int i = 0; i < nthreads; ++i)  labs[i].prepare(*grid, Synch);
+    for(int i = 0; i < nthreads; ++i) {
+      labs[i].setBC(sim.BCx_flag, sim.BCy_flag, sim.BCz_flag);
+      labs[i].prepare(* sim.grid, Synch);
+    }
 
     int rank;
     MPI_Comm_rank(grid->getCartComm(), &rank);
@@ -156,10 +161,7 @@ protected:
   }
 
 public:
-  GenericCoordinator(FluidGridMPI * g) : grid(g)
-  {
-    vInfo = grid->getBlocksInfo();
-  }
+  GenericCoordinator(SimulationData & s) : sim(s) {  }
   virtual ~GenericCoordinator() {}
   virtual void operator()(const double dt) = 0;
 

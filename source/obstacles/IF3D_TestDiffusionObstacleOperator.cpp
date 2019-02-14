@@ -12,11 +12,8 @@
 #include "Cubism/ArgumentParser.h"
 
 IF3D_TestDiffusionObstacleOperator::IF3D_TestDiffusionObstacleOperator(
-    FluidGridMPI * const g,
-    ArgumentParser &p,
-    const Real * const u)
-    : IF3D_ObstacleOperator(g, p, u),
-      sigma(p("-sigma").asDouble(0.0))
+    SimulationData& s, ArgumentParser &p )
+    : IF3D_ObstacleOperator(s, p), sigma(p("-sigma").asDouble(0.0))
 {
 	printf("Created IF3D_TestDiffusionObstacleOperator with sigma %f\n", sigma);
 }
@@ -28,9 +25,9 @@ void IF3D_TestDiffusionObstacleOperator::create(const int step_id,const double t
 	if(step_id>0 || time>0.0) return;
 
 	//this writes the initial u field
-#pragma omp parallel
+  #pragma omp parallel
 	{
-#pragma omp for schedule(dynamic)
+    #pragma omp for schedule(dynamic)
 		for(size_t i=0; i<vInfo.size(); i++) {
 
 			BlockInfo info = vInfo[i];

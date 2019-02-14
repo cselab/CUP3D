@@ -14,17 +14,19 @@
 
 // -gradp, divergence, advection
 template<typename Lab, typename Kernel>
-void processOMP(double dt, std::vector<BlockInfo>& vInfo, FluidGridMPI & grid)
+void processOMP(double dt, const SimulationData & sim)
 {
   const Kernel kernel(dt);
-  SynchronizerMPI<Real>& Synch = grid.sync(kernel);
-
+  SynchronizerMPI<Real>& Synch = sim.grid->sync(kernel);
   const int nthreads = omp_get_max_threads();
   LabMPI * labs = new LabMPI[nthreads];
   #pragma omp parallel for schedule(static, 1)
-  for(int i = 0; i < nthreads; ++i)  labs[i].prepare(grid, Synch);
+  for(int i = 0; i < nthreads; ++i) {
+    labs[i].setBC(sim.BCx_flag, sim.BCy_flag, sim.BCz_flag);
+    labs[i].prepare(* sim.grid, Synch);
+  }
 
-  MPI_Barrier(grid.getCartComm());
+  MPI_Barrier(sim.grid->getCartComm());
   std::vector<BlockInfo> avail0 = Synch.avail_inner();
   const int Ninner = avail0.size();
 
@@ -64,7 +66,7 @@ void processOMP(double dt, std::vector<BlockInfo>& vInfo, FluidGridMPI & grid)
     labs=NULL;
   }
 
-  MPI_Barrier(grid.getCartComm());
+  MPI_Barrier(sim.grid->getCartComm());
 }
 
 template<typename Lab, typename Kernel>

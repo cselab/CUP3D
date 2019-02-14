@@ -12,7 +12,7 @@
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"
 
-IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Real*const u) : IF3D_ObstacleOperator(g, p, u)
+IF3D_FishOperator::IF3D_FishOperator(SimulationData&s, ArgumentParser&p) : IF3D_ObstacleOperator(s, p)
 {
   isMPIBarrierOnChiCompute = true; // func computeChi() calls a lab kernel
 
@@ -33,7 +33,7 @@ IF3D_FishOperator::IF3D_FishOperator(FluidGridMPI*g, ArgumentParser&p, const Rea
   followX = p("-followX").asDouble(-1);
   followY = p("-followY").asDouble(-1);
   const double hh = 0.5*vInfo[0].h_gridpoint;
-  position[2] = p("-zpos").asDouble(ext_Z/2 + hh);
+  position[2] = p("-zpos").asDouble(sim.extent[2]/2 + hh);
 
   #ifdef __useSkin_
    bHasSkin = true;
@@ -174,7 +174,7 @@ void IF3D_FishOperator::apply_pid_corrections(const double time, const double dt
     const double curv2vel = f2*(velAbsDY*AngDiff + absDY*angVel[2]);
                 //const Real vPID = velAbsDY*(f1*adjTh + f2*AngDiff) + absDY*(f1*velDAvg+f2*angVel[2]);
                 //const Real PID = f1*PROP + f2*INST;
-    if(!rank) printf("%f\t f1: %f %f\t f2: %f %f\t f3: %f %f\n", time,
+    if(!sim.rank) printf("%f\t f1: %f %f\t f2: %f %f\t f3: %f %f\n", time,
       curv1fac, curv1vel, curv2fac, curv2vel, ampFac, ampVel);
     myFish->_correctTrajectory(curv1fac+curv2fac, curv1vel+curv2vel, time, dt);
     myFish->_correctAmplitude(ampFac, ampVel, time, dt);
@@ -468,7 +468,7 @@ void IF3D_FishOperator::interpolateOnSkin(const double time, const int stepID, b
                 myFish->lowerSkin->normXSurf, myFish->lowerSkin->normYSurf,
                 position[2], vInfo[0].h_gridpoint, grid->getCartComm());
 
-  //  if(rank==0) sr.print(obstacleID, stepID, time);
+  //  if(sim.rank==0) sr.print(obstacleID, stepID, time);
 
   //if(_dumpWake && _uInf not_eq nullptr) dumpWake(stepID, time, _uInf);
   #endif

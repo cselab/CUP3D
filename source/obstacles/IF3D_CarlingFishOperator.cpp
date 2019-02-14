@@ -160,8 +160,8 @@ void CarlingFishMidlineData::_computeMidlineVelocities(const Real t)
   }
 }
 
-IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
-  ArgumentParser&p, const Real*const u) : IF3D_FishOperator(g, p, u)
+IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(SimulationData&s,
+  ArgumentParser&p) : IF3D_FishOperator(s, p)
 {
   // _ampFac=0.0 for towed fish :
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
@@ -190,9 +190,9 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(FluidGridMPI*g,
   std::string heightName = p("-heightProfile").asString("baseline");
   std::string  widthName = p( "-widthProfile").asString("baseline");
   MidlineShapes::computeWidthsHeights(heightName, widthName, length,
-    myFish->rS, myFish->height, myFish->width, myFish->Nm, rank);
+    myFish->rS, myFish->height, myFish->width, myFish->Nm, sim.rank);
 
-  if(!rank)
+  if(!sim.rank)
     printf("CarlingFish: N:%d, L:%f, T:%f, phi:%f, amplitude:%f\n",
         myFish->Nm, length, Tperiod, phaseShift, ampFac);
 

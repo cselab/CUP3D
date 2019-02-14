@@ -70,12 +70,7 @@ class ElasticMidlineData : public FishMidlineData
     vX_minus_half(_alloc(Nm)),
     vY_minus_half(_alloc(Nm))
   {
-    #if defined(BC_PERIODICZ)
-      // large enough in z-dir such that we for sure fill entire domain
-      for(int i=0;i<Nm;++i) height[i] = zExtent;
-    #else
-      for(int i=0;i<Nm;++i) height[i] = length*HoverL/2;
-    #endif
+    for(int i=0;i<Nm;++i) height[i] = length*HoverL/2;
     MidlineShapes::naca_width(t_ratio, length, rS, width, Nm);
 
     computeMidline(0.0, 1.0);
@@ -629,8 +624,7 @@ class ElasticMidlineData : public FishMidlineData
   }
 };
 
-IF3D_ElasticFishOperator::IF3D_ElasticFishOperator(FluidGridMPI*g, ArgumentParser&p,
-  const Real*const u) : IF3D_FishOperator(g, p, u)
+IF3D_ElasticFishOperator::IF3D_ElasticFishOperator(SimulationData&s, ArgumentParser&p) : IF3D_FishOperator(s, p)
 {
   const double thickness = p("-thickness").asDouble(0.12); // (NON DIMENSIONAL)
   bBlockRotation[0] = true;

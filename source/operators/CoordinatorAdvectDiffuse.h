@@ -9,69 +9,7 @@
 #ifndef CubismUP_3D_CoordinatorAdvectDiffuse_h
 #define CubismUP_3D_CoordinatorAdvectDiffuse_h
 
-#include "GenericCoordinator.h"
-#include "GenericOperator.h"
-#include <cmath>
-
-struct PenalizationObstacleVisitor : public ObstacleVisitor
-{
-  FluidGridMPI * const grid;
-  const double dt;
-  const Real * const uInf;
-  const std::vector<BlockInfo>& vInfo = grid->getBlocksInfo();
-
-  PenalizationObstacleVisitor(FluidGridMPI*g, const double _dt,
-    const Real*const u) : grid(g), dt(_dt), uInf(u) { }
-
-  void visit(IF3D_ObstacleOperator* const obstacle)
-  {
-    //using CHI_MAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
-    using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
-    #pragma omp parallel
-    {
-      const std::map<int, ObstacleBlock*>& obstblocks =
-        obstacle->getObstacleBlocks();
-      double uBody[3], omegaBody[3], centerOfMass[3];
-      obstacle->getCenterOfMass(centerOfMass);
-      obstacle->getTranslationVelocity(uBody);
-      obstacle->getAngularVelocity(omegaBody);
-      const size_t Nblocks = vInfo.size();
-      #pragma omp for schedule(dynamic)
-      for (size_t i = 0; i < Nblocks; ++i)
-      {
-        const BlockInfo& info = vInfo[i];
-        const auto pos = obstblocks.find(info.blockID);
-        if(pos == obstblocks.end()) continue;
-
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        UDEFMAT & __restrict__ UDEF = pos->second->udef;
-
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        {
-          Real p[3]; info.pos(p, ix, iy, iz);
-          p[0]-=centerOfMass[0]; p[1]-=centerOfMass[1]; p[2]-=centerOfMass[2];
-          const Real object_UR[3] = {
-              (Real) omegaBody[1]*p[2] - (Real) omegaBody[2]*p[1],
-              (Real) omegaBody[2]*p[0] - (Real) omegaBody[0]*p[2],
-              (Real) omegaBody[0]*p[1] - (Real) omegaBody[1]*p[0]
-          };
-          const Real U_TOT[3] = {
-              (Real)uBody[0] +object_UR[0] +UDEF[iz][iy][ix][0] -uInf[0],
-              (Real)uBody[1] +object_UR[1] +UDEF[iz][iy][ix][1] -uInf[1],
-              (Real)uBody[2] +object_UR[2] +UDEF[iz][iy][ix][2] -uInf[2]
-          };
-          // what if multiple obstacles share a block??
-          // let's plus equal and wake up during the night to stress about it
-          b(ix,iy,iz).tmpU += U_TOT[0];
-          b(ix,iy,iz).tmpV += U_TOT[1];
-          b(ix,iy,iz).tmpW += U_TOT[2];
-        }
-      }
-    }
-  }
-};
+#include "PenalizationObstacleVisitor.h"
 
 class OperatorMinusDivTmpU : public GenericLabOperator
 {
@@ -80,7 +18,7 @@ class OperatorMinusDivTmpU : public GenericLabOperator
  public:
   OperatorMinusDivTmpU(double _dt) : dt(_dt)
   {
-    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 5,6,7);
+    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, 0,4,5,6,7);
     stencil_start[0] = -1; stencil_start[1] = -1;  stencil_start[2] = -1;
     stencil_end[0] = 2;  stencil_end[1] = 2;  stencil_end[2] = 2;
   }
@@ -88,15 +26,22 @@ class OperatorMinusDivTmpU : public GenericLabOperator
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-    const Real fac = 0.5 * info.h_gridpoint*info.h_gridpoint / dt;
+    const Real fac = 0.5 * info.h_gridpoint*info.h_gridpoint / dt, DT = dt;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
       // Poisson solver reads field p for the rhs
-      const Real dUdef = lab(ix+1,iy  ,iz  ).tmpU - lab(ix-1,iy  ,iz  ).tmpU;
-      const Real dVdef = lab(ix  ,iy+1,iz  ).tmpV - lab(ix  ,iy-1,iz  ).tmpV;
-      const Real dWdef = lab(ix  ,iy  ,iz+1).tmpW - lab(ix  ,iy  ,iz-1).tmpW;
-      o(ix,iy,iz).p = - fac * lab(ix,iy,iz).chi * (dUdef+dVdef+dWdef);
+      const FluidElement &L =lab(ix,iy,iz);
+      const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+      const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+      const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+      const Real dXx_dux = (LE.chi-LW.chi)*( L.tmpU + DT*(LE.p-LW.p) );
+      const Real dXy_duy = (LN.chi-LS.chi)*( L.tmpV + DT*(LN.p-LS.p) );
+      const Real dXz_duz = (LB.chi-LF.chi)*( L.tmpW + DT*(LB.p-LF.p) );
+      const Real divU = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
+      const Real dU_XX = L.chi * L.chi * divU, inv1pX = 1 / (1 + L.chi);
+      o(ix,iy,iz).p = - fac*dU_XX + fac*inv1pX*(dXx_dux+dXy_duy+dXz_duz);
     }
   }
 };
@@ -123,7 +68,6 @@ class OperatorAdvectDiffuse : public GenericLabOperator
   {
     const Real facA = -dt/(2*info.h_gridpoint);
     const Real facD = (mu/info.h_gridpoint) * (dt/info.h_gridpoint);
-    const Real facP = dt * lambda;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
     for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -131,9 +75,6 @@ class OperatorAdvectDiffuse : public GenericLabOperator
       const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
       const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
       const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
-
-      const Real US = lab(ix,iy,iz).tmpU, VS = lab(ix,iy,iz).tmpV;
-      const Real WS = lab(ix,iy,iz).tmpW, CHI = lab(ix,iy,iz).chi;
       const Real dudx= LE.u-LW.u, dvdx= LE.v-LW.v, dwdx= LE.w-LW.w;
       const Real dudy= LN.u-LS.u, dvdy= LN.v-LS.v, dwdy= LN.w-LS.w;
       const Real dudz= LB.u-LF.u, dvdz= LB.v-LF.v, dwdz= LB.w-LF.w;
@@ -144,30 +85,18 @@ class OperatorAdvectDiffuse : public GenericLabOperator
       const Real duA = u * dudx + v * dudy + w * dudz;
       const Real dvA = u * dvdx + v * dvdy + w * dvdz;
       const Real dwA = u * dwdx + v * dwdy + w * dwdz;
-      const Real duP = facP*CHI * (US - L.u) / (1 + CHI*facP);
-      const Real dvP = facP*CHI * (VS - L.v) / (1 + CHI*facP);
-      const Real dwP = facP*CHI * (WS - L.w) / (1 + CHI*facP);
-      o(ix,iy,iz).tmpU = L.u + facA*duA + facD*duD + duP;
-      o(ix,iy,iz).tmpV = L.v + facA*dvA + facD*dvD + dvP;
-      o(ix,iy,iz).tmpW = L.w + facA*dwA + facD*dwD + dwP;
+      o(ix,iy,iz).tmpU = L.u + facA*duA + facD*duD;
+      o(ix,iy,iz).tmpV = L.v + facA*dvA + facD*dvD;
+      o(ix,iy,iz).tmpW = L.w + facA*dwA + facD*dwD;
     }
   }
 };
 
-
 template <typename Lab>
 class CoordinatorAdvectDiffuse : public GenericCoordinator
 {
-protected:
-  const Real MU;
-  double* const lambda;
-  const Real* const uInf;
-  IF3D_ObstacleVector** const obstacleVector;
-
 public:
-  CoordinatorAdvectDiffuse(const Real m, double*const l, const Real*const u,
-    IF3D_ObstacleVector** const ov, FluidGridMPI * g) : GenericCoordinator(g),
-    MU(m), lambda(l), uInf(u), obstacleVector(ov) { }
+  CoordinatorAdvectDiffuse(SimulationData & s) : GenericCoordinator(s) { }
 
   ~CoordinatorAdvectDiffuse() { }
 
@@ -188,8 +117,8 @@ public:
         }
       }
       //store deformation velocities onto tmp fields:
-      ObstacleVisitor*visitor = new PenalizationObstacleVisitor(grid,dt,uInf);
-      (*obstacleVector)->Accept(visitor);
+      ObstacleVisitor*visitor=new PenalizationObstacleVisitor(grid,dt,sim.uinf);
+      sim.obstacle_vector->Accept(visitor);
       delete visitor;
     }
     {   //place onto p: ( div u^(t+1) - div u^* ) / dt
@@ -205,10 +134,9 @@ public:
       using advection = OperatorAdvectDiffuse;
       std::vector<advection*> adv1(nthreads, nullptr);
       #pragma omp parallel for schedule(static, 1)
-      for(int i=0;i<nthreads;++i) adv1[i] = new advection(dt,MU,*lambda,uInf);
-
+      for(int i=0; i<nthreads; ++i)
+        adv1[i] = new advection(dt, sim.nu, sim.lambda, sim.uinf);
       compute(adv1);
-
       for(int i=0; i<nthreads; i++) delete adv1[i];
     }
 

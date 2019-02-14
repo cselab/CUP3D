@@ -9,7 +9,7 @@
 #ifndef IF3D_ROCKS_IF3D_ObstacleOperator_h
 #define IF3D_ROCKS_IF3D_ObstacleOperator_h
 
-#include "../Definitions.h"
+#include "../SimulationData.h"
 //#include "IF3D_ObstacleLibrary.h"
 #include "../operators/OperatorComputeForces.h"
 
@@ -23,18 +23,11 @@ namespace cubism { class ArgumentParser; }
 class IF3D_ObstacleOperator;
 class IF3D_ObstacleVector;
 
-
-/*
- * Return the size of the domain in the physical space.
- * All returned values are in the range (0, 1], and at least one is equal to 1.
- */
-std::array<double, 3> getGridExtent(const FluidGridMPI &grid);
-
-
 /*
  * Structure containing all externally configurable parameters of a base obstacle.
  */
-struct ObstacleArguments {
+struct ObstacleArguments
+{
   double length = 0.0;
   std::array<double, 3> position = {{0.0, 0.0, 0.0}};
   std::array<double, 4> quaternion = {{0.0, 0.0, 0.0, 0.0}};
@@ -47,7 +40,7 @@ struct ObstacleArguments {
   ObstacleArguments() = default;
 
   /* Convert human-readable format into internal representation of parameters. */
-  ObstacleArguments(const FluidGridMPI &grid, ArgumentParser &parser);
+  ObstacleArguments(const SimulationData & sim, ArgumentParser &parser);
 };
 
 
@@ -62,18 +55,14 @@ struct ObstacleVisitor
 class IF3D_ObstacleOperator
 {
 protected:
-  #ifdef RL_LAYER
-    StateReward sr;
-  #endif
-  FluidGridMPI * grid;
-  const Real*const _uInf;
-  std::vector<BlockInfo> vInfo;
+  const SimulationData & sim;
+  FluidGridMPI * const grid = sim.grid;
+  const std::vector<BlockInfo>& vInfo = sim.vInfo();
   std::map<int,ObstacleBlock*> obstacleBlocks;
-  std::vector<double> sum;
   bool printedHeaderVels = false;
   bool isSelfPropelled = false;
 public:
-  int obstacleID=0, rank=0, size=0;
+  int obstacleID=0;
   bool bFixToPlanar=1, bInteractive=0, bHasSkin=0, bForces=0;
   double quaternion[4] = {1,0,0,0}, _2Dangle = 0, phaseShift=0; //orientation
   double position[3] = {0,0,0}, absPos[3] = {0,0,0}, transVel[3] = {0,0,0};
@@ -90,7 +79,6 @@ public:
   //forced obstacles:
   double transVel_computed[3]= {0,0,0}, angVel_computed[3]= {0,0,0};
   double transVel_imposed[3]= {0,0,0};
-  double ext_X, ext_Y, ext_Z;
 
   // stuff dealing with frame of reference:
   std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
@@ -106,31 +94,11 @@ protected:
   //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
 
 public:
-  IF3D_ObstacleOperator(FluidGridMPI *g, const ObstacleArguments &args, const Real *uInf);
-  IF3D_ObstacleOperator(FluidGridMPI *g, ArgumentParser &parser, const Real *uInf)
-      : IF3D_ObstacleOperator(g, ObstacleArguments(*g, parser), uInf) { }
+  IF3D_ObstacleOperator(SimulationData& s, const ObstacleArguments &args);
+  IF3D_ObstacleOperator(SimulationData& s, ArgumentParser &parser);
 
-  IF3D_ObstacleOperator(FluidGridMPI * g, const Real *uInf = nullptr) : grid(g), _uInf(uInf)
-  {
-    MPI_Comm_rank(grid->getCartComm(),&rank);
-    MPI_Comm_size(grid->getCartComm(),&size);
-    vInfo = grid->getBlocksInfo();
-    updateSRextents();
-  }
+  IF3D_ObstacleOperator(SimulationData& s) : sim(s) {  }
 
-  void updateSRextents()
-  {
-    std::array<double, 3> extent = getGridExtent(*grid);
-    ext_X = extent[0];
-    ext_Y = extent[1];
-    ext_Z = extent[2];
-    if(!rank) printf("Got sim extents %g %g %g\n", ext_X, ext_Y, ext_Z);
-    #ifdef RL_LAYER
-      sr.ext_X = ext_X;
-      sr.ext_Y = ext_Y;
-      sr.ext_Z = ext_Z;
-    #endif
-  }
 
   virtual void Accept(ObstacleVisitor * visitor);
   virtual Real getD() const {return length;}
@@ -188,22 +156,24 @@ public:
   template <typename Kernel, INTEGRAL integral>
   void compute(const std::vector<Kernel*>& kernels)
   {
-    SynchronizerMPI<Real>& Synch = grid->sync(*(kernels[0]));
+    SynchronizerMPI<Real>& Synch = sim.grid->sync(*(kernels[0]));
 
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
     #pragma omp parallel for schedule(static, 1)
-    for(int i = 0; i < nthreads; ++i)  labs[i].prepare(*grid, Synch);
+    for(int i = 0; i < nthreads; ++i) {
+      labs[i].setBC(sim.BCx_flag, sim.BCy_flag, sim.BCz_flag);
+      labs[i].prepare(* sim.grid, Synch);
+    }
 
-    MPI_Barrier(grid->getCartComm());
+    MPI_Barrier(sim.grid->getCartComm());
     std::vector<BlockInfo> avail0 = Synch.avail_inner();
     const int Ninner = avail0.size();
 
     #pragma omp parallel num_threads(nthreads)
     {
       const int tid = omp_get_thread_num();
-      Kernel& kernel=*(kernels[tid]);
-      LabMPI& lab = labs[tid];
+      Kernel& kernel = * (kernels[tid]); LabMPI& lab = labs[tid];
 
       #pragma omp for schedule(dynamic, 1)
       for(int i=0; i<Ninner; i++)
@@ -225,8 +195,7 @@ public:
     #pragma omp parallel num_threads(nthreads)
     {
       const int tid = omp_get_thread_num();
-      Kernel& kernel=*(kernels[tid]);
-      LabMPI& lab = labs[tid];
+      Kernel& kernel = * (kernels[tid]); LabMPI& lab = labs[tid];
 
       #pragma omp for schedule(dynamic, 1)
       for(int i=0; i<Nhalo; i++)
@@ -247,19 +216,8 @@ public:
       labs=NULL;
     }
 
-    MPI_Barrier(grid->getCartComm());
+    MPI_Barrier(sim.grid->getCartComm());
   }
-
-
-  #ifdef RL_LAYER
-    StateReward* _getData() { return &sr; }
-    virtual void execute(const int iAgent, const double time, const std::vector<double> action);
-
-    virtual void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL,
-                                Real*& pYL, Real*& pXU, Real*& pYU, int& Npts);
-
-    virtual void interpolateOnSkin(const double time, const int stepID, bool dumpWake=false);
-  #endif
 };
 
 #endif

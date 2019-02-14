@@ -47,11 +47,6 @@ typedef double DumpReal;
 using namespace cubism;
 
 #include "utils/AlignedAllocator.h"
-#include "utils/BoundaryConditions.h"
-#ifdef RL_LAYER
-#include "utils/StateRewardData.h"
-#endif
-
 
 struct FluidElement
 {
@@ -60,6 +55,13 @@ struct FluidElement
   Real chi, u, v, w, p, tmpU, tmpV, tmpW;
   FluidElement(): chi(0),u(0),v(0),w(0),p(0),tmpU(0),tmpV(0),tmpW(0) {}
   void clear() { chi =0; u =0; v =0; w =0; p =0; tmpU =0; tmpV =0; tmpW =0; }
+  void clearVel() { u=0; v=0; w=0; tmpU=0; tmpV=0; tmpW=0; }
+  FluidElement(const FluidElement& c) = delete;
+  FluidElement& operator=(const FluidElement& c) {
+    chi = c.chi; u = c.u; v = c.v; w = c.w; p = c.p;
+    tmpU = c.tmpU; tmpV = c.tmpV; tmpW = c.tmpW;
+    return *this;
+  }
 };
 
 struct DumpElement {
@@ -229,62 +231,138 @@ struct StreamerPressure
 
 
 template<typename BlockType, template<typename X> class allocator=std::allocator>
-class BlockLabOpen: public BlockLab<BlockType,allocator>
+class BlockLabBC: public BlockLab<BlockType,allocator>
 {
   typedef typename BlockType::ElementType ElementTypeBlock;
- public:
-  //virtual inline std::string name() const { return "BlockLabOpen"; }
-  bool is_xperiodic() {return false;}
-  bool is_yperiodic() {return false;}
-  bool is_zperiodic() {return false;}
-  BlockLabOpen(): BlockLab<BlockType,allocator>(){}
-  void _apply_bc(const BlockInfo& info, const Real t=0)
-  {
-    BoundaryCondition<BlockType,ElementTypeBlock,allocator>
-      bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
+  static constexpr int sizeX = BlockType::sizeX;
+  static constexpr int sizeY = BlockType::sizeY;
+  static constexpr int sizeZ = BlockType::sizeZ;
 
-    if (info.index[0]==0)           bc.template applyBC_absorbing<0,0>();
-    if (info.index[0]==this->NX-1)  bc.template applyBC_absorbing<0,1>();
-    if (info.index[1]==0)           bc.template applyBC_absorbing<1,0>();
-    if (info.index[1]==this->NY-1)  bc.template applyBC_absorbing<1,1>();
-    if (info.index[2]==0)           bc.template applyBC_absorbing<2,0>();
-    if (info.index[2]==this->NZ-1)  bc.template applyBC_absorbing<2,1>();
+  // Each of these flags for now supports either 1 or anything else
+  // If 1 then periodic, if 2 then else dirichlet==absorbing==freespace
+  // In reality these 3 BC should be different, but since we only use second ord
+  // finite differences on cell centers in practice they are the same.
+  // (this does not equally hold for the Poisson solver)
+  // In the future we might have to support more general ways to define BC
+  int BCX = 0, BCY = 0, BCZ = 0;
+
+  // Used for Boundary Conditions:
+  // Apply bc on face of direction dir and side side (0 or 1):
+  template<int dir, int side> void applyBCfaceOpen()
+  {
+    auto * const cb = this->m_cacheBlock;
+
+    int s[3] = {0,0,0}, e[3] = {0,0,0};
+    const int* const stenBeg = this->m_stencilStart;
+    const int* const stenEnd = this->m_stencilEnd;
+    // This code is needed if we ever need corners:
+    //s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : stenBeg[0];
+    //s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : stenBeg[1];
+    //s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : stenBeg[2];
+    //e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 )
+    //               : sizeX +  stenEnd[0]-1;
+    //e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 )
+    //               : sizeY +  stenEnd[1]-1;
+    //e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 )
+    //               : sizeZ +  stenEnd[2]-1;
+    s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : 0;
+    s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : 0;
+    s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : 0;
+    e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX;
+    e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY;
+    e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 ) : sizeZ;
+    //
+    for(int iz=s[2]; iz<e[2]; iz++)
+    for(int iy=s[1]; iy<e[1]; iy++)
+    for(int ix=s[0]; ix<e[0]; ix++)
+      cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = cb->Access
+        (
+          ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
+          ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
+          ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
+        );
   }
-};
+  template<int dir, int side> void applyBCfaceWall()
+  {
+    auto * const cb = this->m_cacheBlock;
 
-template<typename BlockType, template<typename X> class allocator=std::allocator>
-class BlockLabPeriodicZ : public BlockLab<BlockType,allocator>
-{
-  typedef typename BlockType::ElementType ElementTypeBlock;
+    int s[3] = {0,0,0}, e[3] = {0,0,0};
+    const int* const stenBeg = this->m_stencilStart;
+    const int* const stenEnd = this->m_stencilEnd;
+    s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : 0;
+    s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : 0;
+    s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : 0;
+    e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX;
+    e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY;
+    e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 ) : sizeZ;
+    for(int iz=s[2]; iz<e[2]; iz++)
+    for(int iy=s[1]; iy<e[1]; iy++)
+    for(int ix=s[0]; ix<e[0]; ix++)
+    {
+      auto& DST = cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]);
+      const auto& SRCV = cb->Access (
+          ( dir==0 ? (side==0 ? -1 -ix : 2*sizeX -1 -ix ) : ix ) - stenBeg[0],
+          ( dir==1 ? (side==0 ? -1 -iy : 2*sizeY -1 -iy ) : iy ) - stenBeg[1],
+          ( dir==2 ? (side==0 ? -1 -iz : 2*sizeZ -1 -iz ) : iz ) - stenBeg[2]
+        );
+      const auto& SRCP = cb->Access (
+          ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
+          ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
+          ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
+        );
+      DST.p = SRCP.p;    DST.chi = 0;
+      DST.u =  - SRCP.u; DST.tmpU =  - SRCP.tmpU;
+      DST.v =  - SRCP.v; DST.tmpV =  - SRCP.tmpV;
+      DST.w =  - SRCP.w; DST.tmpW =  - SRCP.tmpW;
+    }
+  }
+
  public:
-  bool is_xperiodic() {return false;}
-  bool is_yperiodic() {return false;}
-  bool is_zperiodic() {return true; }
-  BlockLabPeriodicZ(): BlockLab<BlockType,allocator>(){}
+  void setBC(int _BCX, int _BCY, int _BCZ) { BCX=_BCX; BCY=_BCY; BCZ=_BCZ; }
+  bool is_xperiodic() {return BCX==1;}
+  bool is_yperiodic() {return BCY==1;}
+  bool is_zperiodic() {return BCZ==1;}
 
+  BlockLabBC(const BlockLabBC&) = delete;
+  BlockLabBC& operator=(const BlockLabBC&) = delete;
+  BlockLabBC() : BlockLab<BlockType,allocator>() {}
+
+  // Called by Cubism:
   void _apply_bc(const BlockInfo& info, const Real t=0)
   {
-    BoundaryCondition<BlockType,ElementTypeBlock,allocator>
-      bc(this->m_stencilStart, this->m_stencilEnd, this->m_cacheBlock);
+    if(BCX == 1) {   /* PERIODIC */ }
+    else if (BCX == 2) { /* WALL */
+      if(info.index[0]==0 )          this->template applyBCfaceOpen<0,0>();
+      if(info.index[0]==this->NX-1 ) this->template applyBCfaceOpen<0,1>();
+    } else { /* dirichlet==absorbing==freespace */
+      if(info.index[0]==0 )          this->template applyBCfaceOpen<0,0>();
+      if(info.index[0]==this->NX-1 ) this->template applyBCfaceOpen<0,1>();
+    }
 
-    if (info.index[0]==0)           bc.template applyBC_absorbing<0,0>();
-    if (info.index[0]==this->NX-1)  bc.template applyBC_absorbing<0,1>();
-    if (info.index[1]==0)           bc.template applyBC_absorbing<1,0>();
-    if (info.index[1]==this->NY-1)  bc.template applyBC_absorbing<1,1>();
+    if(BCY == 1) {   /* PERIODIC */ }
+    else if (BCY == 2) { /* WALL */
+      if(info.index[1]==0 )          this->template applyBCfaceOpen<1,0>();
+      if(info.index[1]==this->NY-1 ) this->template applyBCfaceOpen<1,1>();
+    } else { /* dirichlet==absorbing==freespace */
+      if(info.index[1]==0 )          this->template applyBCfaceOpen<1,0>();
+      if(info.index[1]==this->NY-1 ) this->template applyBCfaceOpen<1,1>();
+    }
+
+    if(BCZ == 1) {   /* PERIODIC */ }
+    else if (BCZ == 2) { /* WALL */
+      if(info.index[2]==0 )          this->template applyBCfaceOpen<2,0>();
+      if(info.index[2]==this->NZ-1 ) this->template applyBCfaceOpen<2,1>();
+    } else { /* dirichlet==absorbing==freespace */
+      if(info.index[2]==0 )          this->template applyBCfaceOpen<2,0>();
+      if(info.index[2]==this->NZ-1 ) this->template applyBCfaceOpen<2,1>();
+    }
   }
 };
 
 using FluidBlock = BaseBlock<FluidElement>;
 typedef Grid<FluidBlock, aligned_allocator> FluidGrid;
 typedef GridMPI<FluidGrid> FluidGridMPI;
-
-#if defined(BC_PERIODICZ)
-  typedef  BlockLabPeriodicZ<FluidBlock, aligned_allocator> Lab;
-#else
-  typedef  BlockLabOpen<FluidBlock, aligned_allocator> Lab;
-#endif
-
+typedef BlockLabBC<FluidBlock, aligned_allocator> Lab;
 typedef BlockLabMPI<Lab> LabMPI;
-
 
 #endif

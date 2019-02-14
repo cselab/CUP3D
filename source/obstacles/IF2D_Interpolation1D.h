@@ -12,7 +12,7 @@
 
 class IF2D_Interpolation1D
 {
-public:
+ public:
   template <typename T>
   static void naturalCubicSpline(const double * x, const double * y, const unsigned int n, const T * xx, T * yy, const unsigned int nn)
   {

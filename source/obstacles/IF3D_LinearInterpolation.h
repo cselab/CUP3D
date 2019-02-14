@@ -43,8 +43,8 @@ public:
 class LinearInterpolation : public GenericCoordinator
 {
 public:
-    LinearInterpolation(FluidGridMPI * const grid)
-            : GenericCoordinator(grid) { }
+    LinearInterpolation(SimulationData&s)
+            : GenericCoordinator(s) { }
 
     /*
      * Mesh to particle linear interpolation algorithm.

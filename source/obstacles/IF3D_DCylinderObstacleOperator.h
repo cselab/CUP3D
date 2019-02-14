@@ -16,8 +16,8 @@ class IF3D_DCylinderObstacleOperator : public IF3D_ObstacleOperator
   const double halflength;
 
 public:
-  IF3D_DCylinderObstacleOperator(FluidGridMPI *g, ArgumentParser &p, const Real *u);
-  IF3D_DCylinderObstacleOperator(FluidGridMPI *g, ObstacleArguments &args, const Real *u,
+  IF3D_DCylinderObstacleOperator(SimulationData&s, ArgumentParser &p);
+  IF3D_DCylinderObstacleOperator(SimulationData&s, ObstacleArguments &args,
                                  double radius, double halflength);
 
   void _init(void);

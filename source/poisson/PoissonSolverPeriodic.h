@@ -8,26 +8,14 @@
 
 #pragma once
 
-#include "../Definitions.h"
-
-#include <fftw3.h>
-#include <fftw3-mpi.h>
-
-#ifndef CUP_SINGLE_PRECISION
-typedef fftw_complex mycomplex;
-typedef fftw_plan myplan;
-#else
-typedef fftwf_complex mycomplex;
-typedef fftwf_plan myplan;
-#endif
-
-#include "Cubism/BlockInfo.h"
+#include "PoissonSolver.h"
 
 template<typename TGrid, typename TStreamer>
-class PoissonSolverScalarFFTW_MPI
+class PoissonSolverPeriodic : public PoissonSolver
 {
   typedef typename TGrid::BlockType BlockType;
-  TGrid& grid;
+  const SimulationData & sim;
+  TGrid& grid = * sim.grid;
   //mycomplex local_rhs, local_work;
   myplan fwd, bwd;
 
@@ -50,24 +38,6 @@ class PoissonSolverScalarFFTW_MPI
   ptrdiff_t alloc_local=0, local_n0=0, local_0_start=0, local_n1=0, local_1_start=0;
 
  protected:
-
-  void _fftw2cub(const Real * const out) const
-  {
-    #pragma omp parallel for
-    for(size_t i=0; i<local_infos.size(); ++i) {
-      const BlockInfo info = local_infos[i];
-      BlockType& b = *(BlockType*)info.ptrBlock;
-      const size_t offset = _offset(info);
-
-      for(int ix=0; ix<BlockType::sizeX; ix++)
-      for(int iy=0; iy<BlockType::sizeY; iy++)
-      for(int iz=0; iz<BlockType::sizeZ; iz++) {
-        const size_t src_index = _dest(offset, iz, iy, ix);
-        assert(src_index>=0 && src_index<gsize[0]*gsize[1]*nz_hat*2);
-        b(ix,iy,iz).p = out[src_index];
-      }
-    }
-  }
 
   void _solve()
   {
@@ -125,7 +95,7 @@ class PoissonSolverScalarFFTW_MPI
  public:
   Real * data = nullptr;
 
-  PoissonSolverScalarFFTW_MPI(TGrid& g): grid(g)
+  PoissonSolverPeriodic(SimulationData & s): sim(s)
   {
     if (TStreamer::channels != 1) {
       std::cout << "PoissonSolverScalar_MPI(): Error: TStreamer::channels is "
@@ -138,46 +108,31 @@ class PoissonSolverScalarFFTW_MPI
       int supported_threads;
       MPI_Query_thread(&supported_threads);
       if (supported_threads<MPI_THREAD_FUNNELED) {
-        std::cout << "MPI implementation does not support threads." << std::endl;
+        std::cout << "MPI implementation does not support threads.\n";
         abort();
       }
     }
-    #ifndef CUP_SINGLE_PRECISION
-      const int retval = fftw_init_threads();
-    #else
-      const int retval = fftwf_init_threads();
-    #endif
+
+    const int retval = _FFTW_(init_threads)();
     if(retval==0) {
       std::cout << "FFTWBase::setup(): Call to fftw_init_threads() returned zero." << std::endl;
       abort();
     }
-
     const int desired_threads = omp_get_max_threads();
-    #ifndef CUP_SINGLE_PRECISION
-      fftw_plan_with_nthreads(desired_threads);
-      fftw_mpi_init();
-      alloc_local = fftw_mpi_local_size_3d_transposed(
-        gsize[0], gsize[1], gsize[2]/2+1, comm,
-        &local_n0, &local_0_start, &local_n1, &local_1_start);
 
-      data = fftw_alloc_real(2*alloc_local);
-      fwd = fftw_mpi_plan_dft_r2c_3d(gsize[0], gsize[1], gsize[2],
-        data, (mycomplex *)data, comm, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
-      bwd = fftw_mpi_plan_dft_c2r_3d(gsize[0], gsize[1], gsize[2],
-        (mycomplex *)data, data, comm, FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
-    #else
-      fftwf_plan_with_nthreads(desired_threads);
-      fftwf_mpi_init();
-      alloc_local = fftwf_mpi_local_size_3d_transposed(
-        gsize[0], gsize[1], gsize[2]/2+1, comm,
-        &local_n0, &local_0_start, &local_n1, &local_1_start);
+    _FFTW_(plan_with_nthreads)(desired_threads);
+    _FFTW_(mpi_init)();
 
-      data = fftwf_alloc_real(2*alloc_local);
-      fwd = fftwf_mpi_plan_dft_r2c_3d(gsize[0], gsize[1], gsize[2],
-        data, (mycomplex *)data, comm, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
-      bwd = fftwf_mpi_plan_dft_c2r_3d(gsize[0], gsize[1], gsize[2],
-        (mycomplex *)data, data, comm, FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
-    #endif
+    alloc_local = _FFTW_(mpi_local_size_3d_transposed) (
+      gsize[0], gsize[1], gsize[2]/2+1, comm,
+      &local_n0, &local_0_start, &local_n1, &local_1_start);
+
+    data = _FFTW_(alloc_real)(2*alloc_local);
+    fwd = _FFTW_(mpi_plan_dft_r2c_3d)(gsize[0], gsize[1], gsize[2],
+      data, (mycomplex *)data, comm, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
+    bwd = _FFTW_(mpi_plan_dft_c2r_3d)(gsize[0], gsize[1], gsize[2],
+      (mycomplex *)data, data, comm, FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
+
     //std::cout <<    bs[0] << " " <<    bs[1] << " " <<    bs[2] << " ";
     //std::cout <<   myN[0] << " " <<   myN[1] << " " <<   myN[2] << " ";
     //std::cout << gsize[0] << " " << gsize[1] << " " << gsize[2] << " ";
@@ -186,38 +141,23 @@ class PoissonSolverScalarFFTW_MPI
 
   void solve()
   {
-    //_cub2fftw(data);
+    _cub2fftw(data);
 
-    #ifndef CUP_SINGLE_PRECISION
-    fftw_execute(fwd);
-    #else
-    fftwf_execute(fwd);
-    #endif
+    _FFTW_(execute)(fwd);
 
     _solve();
 
-    #ifndef CUP_SINGLE_PRECISION
-    fftw_execute(bwd);
-    #else
-    fftwf_execute(bwd);
-    #endif
+    _FFTW_(execute)(bwd);
 
     _fftw2cub(data);
   }
 
-  void dispose()
+  ~PoissonSolverPeriodic()
   {
-    #ifndef CUP_SINGLE_PRECISION
-      fftw_destroy_plan(fwd);
-      fftw_destroy_plan(bwd);
-      fftw_free(data);
-      fftw_mpi_cleanup();
-    #else
-      fftwf_destroy_plan(fwd);
-      fftwf_destroy_plan(bwd);
-      fftwf_free(data);
-      fftwf_mpi_cleanup();
-    #endif
+    _FFTW_(destroy_plan)(fwd);
+    _FFTW_(destroy_plan)(bwd);
+    _FFTW_(free)(data);
+    _FFTW_(mpi_cleanup)();
   }
 
   inline size_t _offset(const int blockID) const
@@ -257,8 +197,9 @@ class PoissonSolverScalarFFTW_MPI
 
   void _cub2fftw(Real * const out) const
   {
+    const size_t NlocBlocks = local_infos.size();
     #pragma omp parallel for
-    for(size_t i=0; i<local_infos.size(); ++i) {
+    for(size_t i=0; i<NlocBlocks; ++i) {
       const BlockInfo info = local_infos[i];
       BlockType& b = *(BlockType*)info.ptrBlock;
       const size_t offset = _offset(info);
@@ -270,6 +211,24 @@ class PoissonSolverScalarFFTW_MPI
         assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*nz_hat*2);
         out[dest_index] = b(ix,iy,iz).p;
         //TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
+      }
+    }
+  }
+  void _fftw2cub(const Real * const out) const
+  {
+    const size_t NlocBlocks = local_infos.size();
+    #pragma omp parallel for
+    for(size_t i=0; i<NlocBlocks; ++i) {
+      const BlockInfo info = local_infos[i];
+      BlockType& b = *(BlockType*)info.ptrBlock;
+      const size_t offset = _offset(info);
+
+      for(int ix=0; ix<BlockType::sizeX; ix++)
+      for(int iy=0; iy<BlockType::sizeY; iy++)
+      for(int iz=0; iz<BlockType::sizeZ; iz++) {
+        const size_t src_index = _dest(offset, iz, iy, ix);
+        assert(src_index>=0 && src_index<gsize[0]*gsize[1]*nz_hat*2);
+        b(ix,iy,iz).p = out[src_index];
       }
     }
   }

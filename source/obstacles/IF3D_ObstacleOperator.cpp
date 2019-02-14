@@ -16,28 +16,14 @@
 using std::min;
 using std::max;
 
-std::array<double, 3> getGridExtent(const FluidGridMPI &grid)
-{
-  const double extent = 1;//grid->maxextent;
-  const double NFE[3] = {
-      (double)grid.getBlocksPerDimension(0)*FluidBlock::sizeX,
-      (double)grid.getBlocksPerDimension(1)*FluidBlock::sizeY,
-      (double)grid.getBlocksPerDimension(2)*FluidBlock::sizeZ,
-  };
-  const double maxbpd = std::max(NFE[0], std::max(NFE[1], NFE[2]));
-  const double scale[3] = { NFE[0]/maxbpd, NFE[1]/maxbpd, NFE[2]/maxbpd };
-  return {{scale[0] * extent, scale[1] * extent, scale[2] * extent}};
-}
-
 ObstacleArguments::ObstacleArguments(
-        const FluidGridMPI &grid,
+        const SimulationData & sim,
         ArgumentParser &parser)
 {
-  std::array<double, 3> extent = getGridExtent(grid);
   length = parser("-L").asDouble();          // Mandatory.
   position[0] = parser("-xpos").asDouble();  // Mandatory.
-  position[1] = parser("-ypos").asDouble(extent[1] / 2);
-  position[2] = parser("-zpos").asDouble(extent[2] / 2);
+  position[1] = parser("-ypos").asDouble(sim.extent[1] / 2);
+  position[2] = parser("-zpos").asDouble(sim.extent[2] / 2);
   quaternion[0] = parser("-quat0").asDouble(1.0);
   quaternion[1] = parser("-quat1").asDouble(0.0);
   quaternion[2] = parser("-quat2").asDouble(0.0);
@@ -69,11 +55,12 @@ ObstacleArguments::ObstacleArguments(
   bComputeForces = parser("-computeForces").asBool(false);
 }
 
+IF3D_ObstacleOperator::IF3D_ObstacleOperator(SimulationData&s, ArgumentParser&p)
+    : IF3D_ObstacleOperator( s, ObstacleArguments(s, p) ) { }
+
 IF3D_ObstacleOperator::IF3D_ObstacleOperator(
-    FluidGridMPI * const g,
-    const ObstacleArguments &args,
-    const Real * const uInf)
-    : IF3D_ObstacleOperator(g, uInf)
+    SimulationData& s, const ObstacleArguments &args)
+    : IF3D_ObstacleOperator(s)
 {
   length = args.length;
   position[0] = args.position[0];
@@ -85,7 +72,7 @@ IF3D_ObstacleOperator::IF3D_ObstacleOperator(
   quaternion[3] = args.quaternion[3];
   _2Dangle = 2 * std::atan2(quaternion[3], quaternion[0]);
 
-  if (!rank) {
+  if (!sim.rank) {
     printf("Obstacle L=%g, pos=[%g %g %g], q=[%g %g %g %g]\n",
            length, position[0], position[1], position[2],
            quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
@@ -112,7 +99,7 @@ IF3D_ObstacleOperator::IF3D_ObstacleOperator(
     bForcedInSimFrame[d] = args.bForcedInSimFrame[d];
     if (bForcedInSimFrame[d]) {
       transVel_imposed[d] = transVel[d] = args.enforcedVelocity[d];
-      if (!rank) {
+      if (!sim.rank) {
          printf("Obstacle forced to move relative to sim domain with constant %c-vel: %f\n",
                 "xyz"[d], transVel[d]);
       }
@@ -122,7 +109,7 @@ IF3D_ObstacleOperator::IF3D_ObstacleOperator(
 
   const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2];
   if(anyVelForced) {
-    if (!rank) printf("Obstacle has no angular velocity.\n");
+    if (!sim.rank) printf("Obstacle has no angular velocity.\n");
     bBlockRotation[0] = true;
     bBlockRotation[1] = true;
     bBlockRotation[2] = true;
@@ -169,7 +156,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
 
     assert(globals[3] > std::numeric_limits<Real>::epsilon());
     #ifdef CUP_VERBOSE
-      if (!rank)
+      if (!sim.rank)
       printf("Discrepancy in computed volume during correction = %g.\n",
         std::fabs(computed_vol- globals[3]*dv));
     #endif
@@ -253,7 +240,7 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
 {
   _computeUdefMoments(transVel_correction, angVel_correction, CoM);
   #ifdef CUP_VERBOSE
-   if(rank==0)
+   if(sim.rank==0)
       printf("Correction of: lin mom [%f %f %f] ang mom [%f %f %f]\n",
         transVel_correction[0], transVel_correction[1], transVel_correction[2],
      angVel_correction[0], angVel_correction[1], angVel_correction[2]);
@@ -298,7 +285,7 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
 
 void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const double t, const Real* Uinf)
 {
- if(rank!=0) return;
+ if(sim.rank!=0) return;
  std::stringstream ssR;
  ssR<<"computedVelocity_"<<obstacleID<<".dat";
     std::stringstream &savestream = logger.get_stream(ssR.str());
@@ -325,7 +312,7 @@ void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const dou
 
 void IF3D_ObstacleOperator::_writeSurfForcesToFile(const int step_id, const double t)
 {
-  if(rank!=0) return;
+  if(sim.rank!=0) return;
   std::stringstream fnameF, fnameP;
   fnameF<<"forceValues_"<<(!isSelfPropelled?"surface_":"")<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());
@@ -364,7 +351,7 @@ void IF3D_ObstacleOperator::_writeSurfForcesToFile(const int step_id, const doub
 
 void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const double t)
 {
-  if(rank!=0) return;
+  if(sim.rank!=0) return;
   std::stringstream fnameF;
   fnameF<<"forceValues_"<<(isSelfPropelled?"penalization_":"")<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());
@@ -609,7 +596,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   for(int i=0; i<nthreads; i++) delete forces[i];
 
   static const int nQoI = ObstacleBlock::nQoI;
-  sum = std::vector<double>(nQoI, 0);
+  std::vector<double> sum = std::vector<double>(nQoI, 0);
   for (auto & block : obstacleBlocks) block.second->sumQoI(sum);
 
   MPI_Allreduce(MPI_IN_PLACE, sum.data(), nQoI, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
@@ -640,7 +627,7 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   #if defined(CUP_DUMP_SURFACE_BINARY) && !defined(RL_LAYER)
   if (bDump) {
     char buf[500];
-    sprintf(buf, "surface_%02d_%07d_rank%03d.raw", obstacleID, stepID, rank);
+    sprintf(buf, "surface_%02d_%07d_rank%03d.raw", obstacleID, stepID, sim.rank);
     FILE * pFile = fopen (buf, "wb");
     for(auto & block : obstacleBlocks) block.second->print(pFile);
     fflush(pFile);
@@ -697,7 +684,7 @@ void IF3D_ObstacleOperator::update(const int step_id, const double t, const doub
   //keep consistency: get 2d angle from quaternions:
   _2Dangle = 2*std::atan2(quaternion[3], quaternion[0]);
   const double err = std::fabs(_2Dangle-old2DA-dt*angVel[2]);
-  if(err>std::numeric_limits<Real>::epsilon() && !rank)
+  if(err>std::numeric_limits<Real>::epsilon() && !sim.rank)
     printf("Discrepancy in angvel from quaternions: %f (%f %f)\n",
       err, (_2Dangle-old2DA)/dt, angVel[2]);
 
@@ -713,7 +700,7 @@ void IF3D_ObstacleOperator::update(const int step_id, const double t, const doub
   #endif
 
   #ifndef NDEBUG
-  if(rank==0) {
+  if(sim.rank==0) {
     #ifdef CUP_VERBOSE
      std::cout<<"POSITION INFO AFTER UPDATE T, DT: "<<t<<" "<<dt<<std::endl;
      std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
@@ -819,7 +806,7 @@ void IF3D_ObstacleOperator::getCenterOfMass(double CM[3]) const
 
 void IF3D_ObstacleOperator::save(const int step_id, const double t, std::string filename)
 {
-    if(rank!=0) return;
+    if(sim.rank!=0) return;
   #ifdef RL_LAYER
     sr.save(step_id,filename);
   #endif

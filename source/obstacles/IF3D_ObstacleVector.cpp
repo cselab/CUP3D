@@ -17,7 +17,7 @@ vector<std::array<int, 2>> IF3D_ObstacleVector::collidingObstacles()
   vector<std::array<int, 2>> colliding; //IDs of colliding obstacles
   //vector containing pointers to defBLock maps:
   vector<std::map<int,ObstacleBlock*>*> obstBlocks(obstacles.size());
-  int ID(0);
+  int ID = 0;
   vector<int> IDs;
   for(const auto & obstacle_ptr : obstacles) {
       IDs.push_back(ID);
@@ -80,10 +80,8 @@ std::vector<int> IF3D_ObstacleVector::intersectingBlockIDs(const int buffer) con
 
 void IF3D_ObstacleVector::computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda)
 {
-  #ifndef RL_LAYER
   for(const auto & obstacle_ptr : obstacles)
     obstacle_ptr->computeDiagnostics(stepID,time,Uinf,lambda);
-  #endif
 }
 
 void IF3D_ObstacleVector::computeVelocities(const Real* Uinf)
@@ -133,7 +131,7 @@ void IF3D_ObstacleVector::Accept(ObstacleVisitor * visitor)
 }
 Real IF3D_ObstacleVector::getD() const
 {
-  Real maxL(0);
+  Real maxL = 0;
   for(size_t i=0; i<obstacles.size(); ++i) {
       const Real Li = obstacles[i]->getD();
       maxL = std::max(maxL,Li);
