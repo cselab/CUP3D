@@ -107,12 +107,17 @@ class CoordinatorIC : public GenericCoordinator
   }
   void operator()(const double dt)
   {
-    if(sim.initCond == "zero")
+    if(sim.initCond == "zero") {
+      printf("Zero-values initial conditions.\n");
       run(OperatorIC(0));
-    if(sim.initCond == "taylorGreen")
+    }
+    if(sim.initCond == "taylorGreen") {
+      printf("Taylor Green vortex initial conditions.\n");
       run(OperatorIC_taylorGreen(sim.extent, sim.uMax_forced));
+    }
     if(sim.initCond == "channel")
     {
+      printf("Channel flow initial conditions.\n");
       if(sim.BCx_flag==2) {
         printf("ERROR: channel flow must be periodic or dirichlet in x.\n");
         abort();

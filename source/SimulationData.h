@@ -88,7 +88,7 @@ struct SimulationData
   std::string path4serialization = "./";
   std::string initCond = "zero";
   // flags assume value 0 for dirichlet/unbounded, 1 for periodic, 2 for wall
-  int BCx_flag = 0, BCy_flag = 0, BCz_flag = 0;
+  BCflag BCx_flag = dirichlet, BCy_flag = dirichlet, BCz_flag = dirichlet;
 
   bool bUseUnboundedBC = false;
   bool bUseFourierBC = false;

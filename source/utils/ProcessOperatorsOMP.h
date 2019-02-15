@@ -9,8 +9,7 @@
 #ifndef CubismUP_3D_ProcessOperators_h
 #define CubismUP_3D_ProcessOperators_h
 
-#include "Definitions.h"
-#include "Simulation.h"
+#include "SimulationData.h"
 
 // -gradp, divergence, advection
 template<typename Lab, typename Kernel>
@@ -69,35 +68,16 @@ void processOMP(double dt, const SimulationData & sim)
   MPI_Barrier(sim.grid->getCartComm());
 }
 
-template<typename Lab, typename Kernel>
-void processOMPold(double dt, std::vector<BlockInfo>& vInfo, FluidGridMPI & grid)
+inline Real findMaxUOMP(
+        const std::vector<BlockInfo> myInfo,
+        FluidGridMPI& grid,
+        const Real*const uinf
+      )
 {
-  const int N = vInfo.size();
-
-  #pragma omp parallel
-  {
-    Lab lab;
-    Kernel kernel(dt);
-    lab.prepare(grid, kernel.stencil_start, kernel.stencil_end, true);
-
-    #pragma omp for schedule(static)
-    for (int i=0; i<N; i++) {
-      BlockInfo info = vInfo[i];
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-      lab.load(info, 0);
-      kernel(lab, info, b);
-    }
-  }
-}
-
-static Real findMaxUOMP(const std::vector<BlockInfo>& myInfo, FluidGridMPI& grid, const Real*const uInf)
-{
-  using std::max;
-  using std::abs;
   Real maxU = 0;
   const int N = myInfo.size();
-
-  #pragma omp parallel for schedule(static) reduction(max:maxU)
+  const Real U[3] = {uinf[0], uinf[1], uinf[2]};
+  #pragma omp parallel for schedule(static) reduction(max : maxU)
   for(int i=0; i<N; i++)
   {
     const BlockInfo& info = myInfo[i];
@@ -106,12 +86,12 @@ static Real findMaxUOMP(const std::vector<BlockInfo>& myInfo, FluidGridMPI& grid
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      maxU = max(maxU,(Real)abs(b(ix,iy,iz).u +uInf[0]));
-      maxU = max(maxU,(Real)abs(b(ix,iy,iz).v +uInf[1]));
-      maxU = max(maxU,(Real)abs(b(ix,iy,iz).w +uInf[2]));
+      Real u=b(ix,iy,iz).u+U[0], v=b(ix,iy,iz).v+U[1], w=b(ix,iy,iz).w+U[2];
+      Real au = std::fabs(u), av = std::fabs(v), aw = std::fabs(w);
+      const Real maxUl = std::max({ au, av, aw});
+      maxU = std::max(maxU, maxUl);
     }
   }
-
   return maxU;
 }
 

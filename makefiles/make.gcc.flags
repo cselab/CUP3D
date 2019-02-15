@@ -7,12 +7,14 @@ CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
 CPPFLAGS+= -Wno-float-equal
 
 ifeq "$(findstring prod,$(config))" ""
- 
+
 CPPFLAGS+= -g -O0
 NVFLAGS+= -O0 -g
 
 #CPPFLAGS+= -fsanitize=address
 #LIBS+= -fsanitize=address
+#CPPFLAGS+= -fsanitize=undefined
+#LIBS+= -fsanitize=undefined
 $(info *** WARNING! Compiling with debug flags. Use config=prod for optimized code ***)
 
 else
@@ -21,4 +23,3 @@ NVFLAGS+= -DNDEBUG -O3 --use_fast_math
 CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions -ftree-vectorize -fmerge-all-constants
 
 endif
-

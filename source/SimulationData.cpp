@@ -76,26 +76,28 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   fadeOutLength[0] = BC_x=="dirichlet"? fadeLen : 0;
   fadeOutLength[1] = BC_y=="dirichlet"? fadeLen : 0;
   fadeOutLength[2] = BC_z=="dirichlet"? fadeLen : 0;
+
   if(BC_x=="fakeopen") { BC_x = "periodic"; fadeOutLength[0] = fadeLen; }
   if(BC_y=="fakeopen") { BC_y = "periodic"; fadeOutLength[1] = fadeLen; }
   if(BC_z=="fakeopen") { BC_z = "periodic"; fadeOutLength[2] = fadeLen; }
-  BCx_flag = BC_x=="periodic"? 1 : ( BC_x=="wall"? 2 : 0 );
-  BCy_flag = BC_y=="periodic"? 1 : ( BC_y=="wall"? 2 : 0 );
-  BCz_flag = BC_z=="periodic"? 1 : ( BC_z=="wall"? 2 : 0 );
-  // Poisson Solver
-  if(BC_x=="periodic" && BC_y=="periodic" && BC_z=="periodic") {
-    bUseFourierBC = true; BCx_flag = 1; BCy_flag = 1; BCz_flag = 1;
-  }
+
+  BCx_flag = string2BCflag(BC_x);
+  BCy_flag = string2BCflag(BC_y);
+  BCz_flag = string2BCflag(BC_z);
+
   if(BC_x=="freespace" || BC_y=="freespace" || BC_z=="freespace")
   {
     if(BC_x=="freespace" && BC_y=="freespace" && BC_z=="freespace") {
-      bUseUnboundedBC = true; BCx_flag = 0; BCy_flag = 0; BCz_flag = 0;
+      bUseUnboundedBC = true; // poisson solver
     } else {
      fprintf(stderr,"ERROR: either all or no BC can be freespace/unbounded!\n");
-     abort();
+     fflush(0); abort();
     }
   }
-
+  // DFT if we are periodic in all directions:
+  if(BC_x=="periodic"&&BC_y=="periodic"&&BC_z=="periodic") bUseFourierBC = true;
+  printf("Boundary pressure RHS / FD smoothing region sizes {%f,%f,%f}\n",
+    fadeOutLength[0], fadeOutLength[1], fadeOutLength[2]);
   _argumentsSanityCheck();
 
   // ============ REST =============
@@ -113,7 +115,7 @@ void SimulationData::_argumentsSanityCheck()
 
   // Flow.
   assert(nu >= 0);
-  assert(lambda > 0.0);
+  assert(lambda > 0 || DLM >= 1);
   assert(CFL > 0.0);
 
   // Output.

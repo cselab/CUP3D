@@ -1,4 +1,4 @@
-BASENAME=FlowPastSphere
+#!/bin/bash
 NNODE=4
 
 FACTORY='IF3D_Sphere L=0.075 xpos=0.25 xvel=0.2 bForcedInSimFrame=1 bFixFrameOfRef=1

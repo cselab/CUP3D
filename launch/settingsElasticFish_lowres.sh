@@ -1,5 +1,4 @@
 #!/bin/bash
-BASENAME=ElasticFish_01
 NNODE=4
 NNODEX=4
 NNODEY=1

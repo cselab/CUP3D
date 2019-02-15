@@ -55,7 +55,6 @@ struct FluidElement
   Real chi, u, v, w, p, tmpU, tmpV, tmpW;
   FluidElement(): chi(0),u(0),v(0),w(0),p(0),tmpU(0),tmpV(0),tmpW(0) {}
   void clear() { chi =0; u =0; v =0; w =0; p =0; tmpU =0; tmpV =0; tmpW =0; }
-  void clearVel() { u=0; v=0; w=0; tmpU=0; tmpV=0; tmpW=0; }
   FluidElement(const FluidElement& c) = delete;
   FluidElement& operator=(const FluidElement& c) {
     chi = c.chi; u = c.u; v = c.v; w = c.w; p = c.p;
@@ -64,6 +63,21 @@ struct FluidElement
   }
 };
 
+enum BCflag {dirichlet, periodic, wall, freespace};
+inline BCflag string2BCflag(const std::string strFlag)
+{
+  if (strFlag == "periodic") return periodic;
+  else
+  if (strFlag == "dirichlet") return dirichlet;
+  else
+  if (strFlag == "wall") return wall;
+  else
+  if (strFlag == "freespace") return freespace;
+  else {
+    fprintf(stderr,"BC not recognized %s\n",strFlag.c_str()); fflush(0);abort();
+    return periodic; // dummy
+  }
+}
 struct DumpElement {
     DumpReal u, v, w, chi, p;
     DumpElement() : u(0), v(0), w(0), chi(0), p(0) {}
@@ -94,7 +108,8 @@ struct BaseBlock
   typedef TElement ElementType;
   typedef TElement element_type;
   typedef Real   RealType;
-  __attribute__((aligned(32))) TElement data[sizeZ][sizeY][sizeX];
+  //__attribute__((aligned(32)))
+  TElement data[sizeZ][sizeY][sizeX];
 
   //required from Grid.h
   void clear()
@@ -244,7 +259,7 @@ class BlockLabBC: public BlockLab<BlockType,allocator>
   // finite differences on cell centers in practice they are the same.
   // (this does not equally hold for the Poisson solver)
   // In the future we might have to support more general ways to define BC
-  int BCX = 0, BCY = 0, BCZ = 0;
+  BCflag BCX = dirichlet, BCY = dirichlet, BCZ = dirichlet;
 
   // Used for Boundary Conditions:
   // Apply bc on face of direction dir and side side (0 or 1):
@@ -311,17 +326,19 @@ class BlockLabBC: public BlockLab<BlockType,allocator>
           ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
         );
       DST.p = SRCP.p;    DST.chi = 0;
-      DST.u =  - SRCP.u; DST.tmpU =  - SRCP.tmpU;
-      DST.v =  - SRCP.v; DST.tmpV =  - SRCP.tmpV;
-      DST.w =  - SRCP.w; DST.tmpW =  - SRCP.tmpW;
+      DST.u =  - SRCV.u; DST.tmpU =  - SRCV.tmpU;
+      DST.v =  - SRCV.v; DST.tmpV =  - SRCV.tmpV;
+      DST.w =  - SRCV.w; DST.tmpW =  - SRCV.tmpW;
     }
   }
 
  public:
-  void setBC(int _BCX, int _BCY, int _BCZ) { BCX=_BCX; BCY=_BCY; BCZ=_BCZ; }
-  bool is_xperiodic() {return BCX==1;}
-  bool is_yperiodic() {return BCY==1;}
-  bool is_zperiodic() {return BCZ==1;}
+  void setBC(BCflag _BCX, BCflag _BCY, BCflag _BCZ) {
+    BCX=_BCX; BCY=_BCY; BCZ=_BCZ;
+  }
+  bool is_xperiodic() { return BCX == periodic; }
+  bool is_yperiodic() { return BCY == periodic; }
+  bool is_zperiodic() { return BCZ == periodic; }
 
   BlockLabBC(const BlockLabBC&) = delete;
   BlockLabBC& operator=(const BlockLabBC&) = delete;
@@ -330,28 +347,28 @@ class BlockLabBC: public BlockLab<BlockType,allocator>
   // Called by Cubism:
   void _apply_bc(const BlockInfo& info, const Real t=0)
   {
-    if(BCX == 1) {   /* PERIODIC */ }
-    else if (BCX == 2) { /* WALL */
-      if(info.index[0]==0 )          this->template applyBCfaceOpen<0,0>();
-      if(info.index[0]==this->NX-1 ) this->template applyBCfaceOpen<0,1>();
+    if(BCX == periodic) {   /* PERIODIC */ }
+    else if (BCX == wall) { /* WALL */
+      if(info.index[0]==0 )          this->template applyBCfaceWall<0,0>();
+      if(info.index[0]==this->NX-1 ) this->template applyBCfaceWall<0,1>();
     } else { /* dirichlet==absorbing==freespace */
       if(info.index[0]==0 )          this->template applyBCfaceOpen<0,0>();
       if(info.index[0]==this->NX-1 ) this->template applyBCfaceOpen<0,1>();
     }
 
-    if(BCY == 1) {   /* PERIODIC */ }
-    else if (BCY == 2) { /* WALL */
-      if(info.index[1]==0 )          this->template applyBCfaceOpen<1,0>();
-      if(info.index[1]==this->NY-1 ) this->template applyBCfaceOpen<1,1>();
+    if(BCY == periodic) {   /* PERIODIC */ }
+    else if (BCY == wall) { /* WALL */
+      if(info.index[1]==0 )          this->template applyBCfaceWall<1,0>();
+      if(info.index[1]==this->NY-1 ) this->template applyBCfaceWall<1,1>();
     } else { /* dirichlet==absorbing==freespace */
       if(info.index[1]==0 )          this->template applyBCfaceOpen<1,0>();
       if(info.index[1]==this->NY-1 ) this->template applyBCfaceOpen<1,1>();
     }
 
-    if(BCZ == 1) {   /* PERIODIC */ }
-    else if (BCZ == 2) { /* WALL */
-      if(info.index[2]==0 )          this->template applyBCfaceOpen<2,0>();
-      if(info.index[2]==this->NZ-1 ) this->template applyBCfaceOpen<2,1>();
+    if(BCZ == periodic) {   /* PERIODIC */ }
+    else if (BCZ == wall) { /* WALL */
+      if(info.index[2]==0 )          this->template applyBCfaceWall<2,0>();
+      if(info.index[2]==this->NZ-1 ) this->template applyBCfaceWall<2,1>();
     } else { /* dirichlet==absorbing==freespace */
       if(info.index[2]==0 )          this->template applyBCfaceOpen<2,0>();
       if(info.index[2]==this->NZ-1 ) this->template applyBCfaceOpen<2,1>();

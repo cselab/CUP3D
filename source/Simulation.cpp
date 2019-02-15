@@ -114,6 +114,7 @@ void Simulation::_init(const bool restart)
   if (restart) _deserialize();
   else _ic();
   MPI_Barrier(sim.app_comm);
+  _serialize("init");
 }
 
 void Simulation::_ic()
@@ -154,7 +155,7 @@ void Simulation::setupGrid()
   sim.grid = new FluidGridMPI(sim.nprocsx,sim.nprocsy,sim.nprocsz,
                               sim.bpdx,sim.bpdy,sim.bpdz,
                               sim.maxextent, sim.app_comm);
-  assert(sim.grid != NULL);
+  assert(sim.grid != nullptr);
 
   #ifdef CUP_ASYNC_DUMP
     // create new comm so that if there is a barrier main work is not affected
@@ -235,6 +236,7 @@ void Simulation::setupOperators()
 
 double Simulation::calcMaxTimestep()
 {
+  assert(sim.grid not_eq nullptr);
   double locMaxU = (double)findMaxUOMP(sim.vInfo(), * sim.grid, sim.uinf);
   double globMaxU;
   const double h = sim.vInfo()[0].h_gridpoint;
@@ -252,14 +254,12 @@ double Simulation::calcMaxTimestep()
   // if DLM>=1, adapt lambda such that penal term is independent of time step
   if (sim.DLM >= 1) sim.lambda = sim.DLM / sim.dt;
   if (sim.verbose)
-    printf("maxU %f dtF %f dtC %f dt %f\n", globMaxU, dtDif, dtAdv, sim.dt);
+    printf("maxU %f dtF %e dtC %e dt %e\n", globMaxU, dtDif, dtAdv, sim.dt);
   return sim.dt;
 }
 
 void Simulation::_serialize(const std::string append)
 {
-  if( ! sim.bDump ) return;
-
   std::stringstream ssR;
   if (append == "") ssR<<"restart_";
   else ssR<<append;
@@ -296,19 +296,16 @@ void Simulation::_serialize(const std::string append)
     }
     // copy qois from grid to dump
     copyDumpGrid(* sim.grid, * sim.dump);
-    const auto & grid2Dump = * sim.dump;
+    const auto * const grid2Dump = sim.dump;
   #else //CUP_ASYNC_DUMP
-    const auto & grid2Dump = * sim.grid;
+    const auto * const grid2Dump = sim.grid;
   #endif //CUP_ASYNC_DUMP
 
   const auto name3d = ssR.str(), name2d = ssF.str(); // sstreams are weird
 
-  const auto dumpFunction = [=] ()
-  {
-    if(sim.b2Ddump)
-    {
-      for (const auto& slice : sim.m_slices)
-      {
+  const auto dumpFunction = [=] () {
+    if(sim.b2Ddump) {
+      for (const auto& slice : sim.m_slices) {
         DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
           slice, sim.step, sim.time, StreamerVelocityVector::prefix()+name2d,
           sim.path4serialization);
@@ -320,16 +317,15 @@ void Simulation::_serialize(const std::string append)
           sim.path4serialization);
       }
     }
-    if(sim.b3Ddump)
-    {
+    if(sim.b3Ddump) {
       DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
-        grid2Dump, sim.step, sim.time, StreamerVelocityVector::prefix()+name3d,
+        *grid2Dump, sim.step, sim.time, StreamerVelocityVector::prefix()+name3d,
         sim.path4serialization);
       DumpHDF5_MPI<StreamerPressure, DumpReal>(
-        grid2Dump, sim.step, sim.time, StreamerPressure::prefix()+name3d,
+        *grid2Dump, sim.step, sim.time, StreamerPressure::prefix()+name3d,
         sim.path4serialization);
       DumpHDF5_MPI<StreamerChi, DumpReal>(
-        grid2Dump, sim.step, sim.time, StreamerChi::prefix()+name3d,
+        *grid2Dump, sim.step, sim.time, StreamerChi::prefix()+name3d,
         sim.path4serialization);
     }
   };
@@ -342,8 +338,7 @@ void Simulation::_serialize(const std::string append)
   #endif //CUBISM_USE_HDF
 
 
-  if (sim.rank==0)
-  { //saved the grid! Write status to remember most recent ping
+  if(sim.rank==0) { //saved the grid! Write status to remember most recent save
     std::string restart_status = sim.path4serialization+"/restart.status";
     FILE * f = fopen(restart_status.c_str(), "w");
     assert(f != NULL);
@@ -434,6 +429,7 @@ bool Simulation::timestep(const double dt)
     for (size_t c=0; c<sim.pipeline.size(); c++) {
       sim.startProfiler(sim.pipeline[c]->getName());
       (*sim.pipeline[c])(dt);
+      //_serialize(sim.pipeline[c]->getName()+std::to_string(sim.step));
       sim.stopProfiler();
     }
     sim.step++;
@@ -443,7 +439,7 @@ bool Simulation::timestep(const double dt)
       sim.step,sim.time,sim.uinf[0],sim.uinf[1],sim.uinf[2]);
 
     sim.startProfiler("Save");
-    _serialize();
+    if( sim.bDump ) _serialize();
     sim.stopProfiler();
 
     if (sim.step % 10 == 0 && sim.verbose) sim.printResetProfiler();

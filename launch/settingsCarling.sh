@@ -1,5 +1,4 @@
 #!/bin/bash
-BASENAME=carling_Re750
 NNODEX=16
 NNODEY=1
 NNODE=$(($NNODEX * $NNODEY))

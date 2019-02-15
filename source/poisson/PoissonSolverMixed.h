@@ -35,17 +35,20 @@ class PoissonSolverMixed : public PoissonSolver
   const double h = grid.getBlocksInfo().front().h_gridpoint;
   ptrdiff_t alloc_local=0, local_n0=0, local_0_start=0, local_n1=0, local_1_start=0;
 
+  inline bool DFT_X() const { return sim.BCx_flag == periodic; }
+  inline bool DFT_Y() const { return sim.BCy_flag == periodic; }
+  inline bool DFT_Z() const { return sim.BCz_flag == periodic; }
  protected:
 
-  template<int BCX, int BCY, int BCZ> void _solve()
+  template<bool DFTX, bool DFTY, bool DFTZ> void _solve()
   {
     // if BC flag == 1 fourier, else cosine transform
-    const Real normX = (BCX==1 ? 1.0 : 0.5) / ( gsize[0]*h );
-    const Real normY = (BCY==1 ? 1.0 : 0.5) / ( gsize[1]*h );
-    const Real normZ = (BCZ==1 ? 1.0 : 0.5) / ( gsize[2]*h );
-    const Real waveFactX = (BCX==1 ? 2 : 1) * M_PI / ( gsize[0]*h );
-    const Real waveFactY = (BCY==1 ? 2 : 1) * M_PI / ( gsize[1]*h );
-    const Real waveFactZ = (BCZ==1 ? 2 : 1) * M_PI / ( gsize[2]*h );
+    const Real normX = (DFTX ? 1.0 : 0.5) / ( gsize[0]*h );
+    const Real normY = (DFTY ? 1.0 : 0.5) / ( gsize[1]*h );
+    const Real normZ = (DFTZ ? 1.0 : 0.5) / ( gsize[2]*h );
+    const Real waveFactX = (DFTX ? 2 : 1) * M_PI / ( gsize[0]*h );
+    const Real waveFactY = (DFTY ? 2 : 1) * M_PI / ( gsize[1]*h );
+    const Real waveFactZ = (DFTZ ? 2 : 1) * M_PI / ( gsize[2]*h );
     const Real norm_factor = normX * normY * normZ;
     Real *const in_out = data;
     const long nKx = static_cast<long>(gsize[0]);
@@ -59,12 +62,12 @@ class PoissonSolverMixed : public PoissonSolver
     {
       const size_t linidx = (j*gsize[0] +i)*gsize[2] + k;
       const long J = shifty + j; //memory index plus shift due to decomp
-      const long kx = BCX==1 ? ((i <= nKx/2) ? i : nKx-i) : i;
-      const long ky = BCY==1 ? ((J <= nKy/2) ? J : nKy-J) : J;
-      const long kz = BCZ==1 ? ((k <= nKz/2) ? k : nKz-k) : k;
-      const Real rkx = ( kx + (BCX==1 ? 1.0 : 0.5) ) * waveFactX;
-      const Real rky = ( ky + (BCY==1 ? 1.0 : 0.5) ) * waveFactY;
-      const Real rkz = ( kz + (BCZ==1 ? 1.0 : 0.5) ) * waveFactZ;
+      const long kx = DFTX ? ((i <= nKx/2) ? i : nKx-i) : i;
+      const long ky = DFTY ? ((J <= nKy/2) ? J : nKy-J) : J;
+      const long kz = DFTZ ? ((k <= nKz/2) ? k : nKz-k) : k;
+      const Real rkx = ( kx + (DFTX ? 0.0 : 0.5) ) * waveFactX;
+      const Real rky = ( ky + (DFTY ? 0.0 : 0.5) ) * waveFactY;
+      const Real rkz = ( kz + (DFTZ ? 0.0 : 0.5) ) * waveFactZ;
       const Real kinv = -1/(rkx*rkx + rky*rky + rkz*rkz);
       in_out[linidx] *= kinv*norm_factor;
     }
@@ -105,12 +108,12 @@ class PoissonSolverMixed : public PoissonSolver
       gsize[0], gsize[1], gsize[2], comm,
       &local_n0, &local_0_start, &local_n1, &local_1_start);
 
-    auto XplanF = sim.BCx_flag==1? FFTW_R2HC : FFTW_REDFT10;
-    auto XplanB = sim.BCx_flag==1? FFTW_HC2R : FFTW_REDFT01;
-    auto YplanF = sim.BCy_flag==1? FFTW_R2HC : FFTW_REDFT10;
-    auto YplanB = sim.BCy_flag==1? FFTW_HC2R : FFTW_REDFT01;
-    auto ZplanF = sim.BCz_flag==1? FFTW_R2HC : FFTW_REDFT10;
-    auto ZplanB = sim.BCz_flag==1? FFTW_HC2R : FFTW_REDFT01;
+    auto XplanF = DFT_X() ? FFTW_R2HC : FFTW_REDFT10;
+    auto XplanB = DFT_X() ? FFTW_HC2R : FFTW_REDFT01;
+    auto YplanF = DFT_Y() ? FFTW_R2HC : FFTW_REDFT10;
+    auto YplanB = DFT_Y() ? FFTW_HC2R : FFTW_REDFT01;
+    auto ZplanF = DFT_Z() ? FFTW_R2HC : FFTW_REDFT10;
+    auto ZplanB = DFT_Z() ? FFTW_HC2R : FFTW_REDFT01;
     data = _FFTW_(alloc_real)(alloc_local);
     fwd = _FFTW_(mpi_plan_r2r_3d)(gsize[0], gsize[1], gsize[2], data, data,
       comm, XplanF, YplanF, ZplanF, FFTW_MPI_TRANSPOSED_OUT  | FFTW_MEASURE);
@@ -129,21 +132,21 @@ class PoissonSolverMixed : public PoissonSolver
 
     _FFTW_(execute)(fwd);
 
-    if(sim.BCx_flag==1 && sim.BCy_flag==1 && sim.BCz_flag==1) _solve<1,1,1>();
+    if( DFT_X() &&  DFT_Y() &&  DFT_Z()) _solve<1,1,1>();
     else
-    if(sim.BCx_flag==1 && sim.BCy_flag==1 && sim.BCz_flag!=1) _solve<1,1,0>();
+    if( DFT_X() &&  DFT_Y() && !DFT_Z()) _solve<1,1,0>();
     else
-    if(sim.BCx_flag==1 && sim.BCy_flag!=1 && sim.BCz_flag==1) _solve<1,0,1>();
+    if( DFT_X() && !DFT_Y() &&  DFT_Z()) _solve<1,0,1>();
     else
-    if(sim.BCx_flag==1 && sim.BCy_flag!=1 && sim.BCz_flag!=1) _solve<1,0,0>();
+    if( DFT_X() && !DFT_Y() && !DFT_Z()) _solve<1,0,0>();
     else
-    if(sim.BCx_flag!=1 && sim.BCy_flag==1 && sim.BCz_flag==1) _solve<0,1,1>();
+    if(!DFT_X() &&  DFT_Y() &&  DFT_Z()) _solve<0,1,1>();
     else
-    if(sim.BCx_flag!=1 && sim.BCy_flag==1 && sim.BCz_flag!=1) _solve<0,1,0>();
+    if(!DFT_X() &&  DFT_Y() && !DFT_Z()) _solve<0,1,0>();
     else
-    if(sim.BCx_flag!=1 && sim.BCy_flag!=1 && sim.BCz_flag==1) _solve<0,0,1>();
+    if(!DFT_X() && !DFT_Y() &&  DFT_Z()) _solve<0,0,1>();
     else
-    if(sim.BCx_flag!=1 && sim.BCy_flag!=1 && sim.BCz_flag!=1) _solve<0,0,0>();
+    if(!DFT_X() && !DFT_Y() && !DFT_Z()) _solve<0,0,0>();
     else {
       printf("Boundary conditions not recognized\n");
       abort();

@@ -1,6 +1,5 @@
 #!/bin/bash
 
-BASENAME=Naca_Forced_highres_00
 NNODE=32
 NNODEX=32
 NNODEY=1

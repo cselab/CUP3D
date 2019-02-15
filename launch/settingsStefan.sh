@@ -1,5 +1,4 @@
 #!/bin/bash
-BASENAME=Stefan_CFL01_BPD64_02
 NNODE=4
 NNODEX=4
 NNODEY=1

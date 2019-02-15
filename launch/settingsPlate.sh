@@ -3,7 +3,6 @@
 CFL=0.1
 WCLOCK=00:30:00
 WSECS=43200
-BASENAME=plate_Re100
 NNODE=2
 
 # removed ypos and zpos. cose should put object in the middle of the domain

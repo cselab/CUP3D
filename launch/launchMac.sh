@@ -1,6 +1,11 @@
 #!/bin/bash
 
 SETTINGSNAME=$1
+BASENAME=$2
+if [ $# -lt 2 ] ; then
+  echo "Usage "$0" SETTINGSNAME BASENAME"
+  exit 1
+fi
 BASEPATH=../runs/
 
 if [ ! -f $SETTINGSNAME ]; then

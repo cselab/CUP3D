@@ -2,7 +2,6 @@
 
 #PARTITION=debug
 #WCLOCK=00:30:00
-BASENAME=Naca_Heaving_highres_02
 NNODE=32
 NNODEX=32
 NNODEY=1

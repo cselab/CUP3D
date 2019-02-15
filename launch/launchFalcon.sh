@@ -1,6 +1,11 @@
 #!/bin/bash
 
 SETTINGSNAME=$1
+BASENAME=$2
+if [ $# -lt 2 ] ; then
+  echo "Usage "$0" SETTINGSNAME BASENAME"
+  exit 1
+fi
 BASEPATH=${SCRATCH}/CubismUP3D/
 
 if [ ! -f $SETTINGSNAME ]; then
@@ -14,10 +19,10 @@ mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
-cp ../bin/Swim3D_open ${FOLDER}
+cp ../bin/simulation ${FOLDER}
 
 cd $FOLDER
 
 export OMP_NUM_THREADS=12
 echo "$OPTIONS" > settings.txt
-mpirun -np 1 ./Swim3D_open ${OPTIONS} -factory-content "${FACTORY}"
+mpirun -np 1 ./simulation ${OPTIONS} -factory-content "${FACTORY}"

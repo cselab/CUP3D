@@ -1,5 +1,4 @@
 #!/bin/bash
-BASENAME=Stefan_Dcyl_07
 NNODE=32
 NNODEX=32
 NNODEY=1

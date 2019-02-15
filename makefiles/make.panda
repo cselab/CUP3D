@@ -1,6 +1,7 @@
 CC=mpic++
 LD=mpic++
-#LIBS += -L/opt/cray/pe/hdf5-parallel/1.10.0.3/GNU/5.1/lib/
+LIBS += -L$(FFTW_ROOT)/lib/
+CPPFLAGS += -I$(FFTW_ROOT)/include/
 #CPPFLAGS += -dynamic -DDUMPGRID
 #CPPFLAGS += -I$(CRAY_MPICH2_DIR)/include/
 #ISPCFLAGS += --arch=x86-64

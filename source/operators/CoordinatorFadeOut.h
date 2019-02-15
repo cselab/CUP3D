@@ -15,31 +15,33 @@
 class OperatorFadeOut : public GenericOperator
 {
 private:
-  const Real ext[3], fadeLen[3];
-  const Real iFade[3] = {1/fadeLen[0], 1/fadeLen[1], 1/fadeLen[2]};
+  const Real ext[3], fadeLen[3], iFade[3];
+  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   inline bool _is_touching(const BlockInfo& i) const
   {
-    Real maxP[3], minP[3]; i.pos(minP, 0, 0, 0); const Real& h = i.h_gridpoint;
+    Real maxP[3], minP[3]; i.pos(minP, 0, 0, 0);
     i.pos(maxP, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1);
-    const bool touchW=h+fadeLen[0]>=minP[0],touchE=h+fadeLen[0]>=ext[0]-maxP[0];
-    const bool touchS=h+fadeLen[1]>=minP[1],touchN=h+fadeLen[1]>=ext[1]-maxP[1];
-    const bool touchB=h+fadeLen[2]>=minP[2],touchF=h+fadeLen[2]>=ext[2]-maxP[2];
+    const bool touchW= fadeLen[0]>=minP[0], touchE= fadeLen[0]>=ext[0]-maxP[0];
+    const bool touchS= fadeLen[1]>=minP[1], touchN= fadeLen[1]>=ext[1]-maxP[1];
+    const bool touchB= fadeLen[2]>=minP[2], touchF= fadeLen[2]>=ext[2]-maxP[2];
     return touchN || touchE || touchS || touchW || touchF || touchB;
   }
   inline Real fade(const BlockInfo&i, const int x,const int y,const int z) const
   {
-    Real p[3]; i.pos(p, x, y, z); const Real& h = i.h_gridpoint;
-    const Real zt = iFade[2] * std::max(Real(0), h+fadeLen[2] -(ext[2]-p[2]) );
-    const Real zb = iFade[2] * std::max(Real(0), h+fadeLen[2] - p[2] );
-    const Real yt = iFade[1] * std::max(Real(0), h+fadeLen[1] -(ext[1]-p[1]) );
-    const Real yb = iFade[1] * std::max(Real(0), h+fadeLen[1] - p[1] );
-    const Real xt = iFade[0] * std::max(Real(0), h+fadeLen[0] -(ext[0]-p[0]) );
-    const Real xb = iFade[0] * std::max(Real(0), h+fadeLen[0] - p[0] );
+    Real p[3]; i.pos(p, x, y, z);
+    const Real zt = iFade[2] * std::max(Real(0), fadeLen[2] -(ext[2]-p[2]) );
+    const Real zb = iFade[2] * std::max(Real(0), fadeLen[2] - p[2] );
+    const Real yt = iFade[1] * std::max(Real(0), fadeLen[1] -(ext[1]-p[1]) );
+    const Real yb = iFade[1] * std::max(Real(0), fadeLen[1] - p[1] );
+    const Real xt = iFade[0] * std::max(Real(0), fadeLen[0] -(ext[0]-p[0]) );
+    const Real xb = iFade[0] * std::max(Real(0), fadeLen[0] - p[0] );
     return 1-std::pow(std::min( std::max({zt,zb,yt,yb,xt,xb}), (Real)1), 2);
   }
 
 public:
-  OperatorFadeOut(const Real buf[3], const Real extent[3]): ext{extent[0],extent[1],extent[2]}, fadeLen{buf[0],buf[1],buf[2]} {}
+  OperatorFadeOut(const Real buf[3], const Real extent[3]) :
+  ext{extent[0],extent[1],extent[2]}, fadeLen{buf[0],buf[1],buf[2]},
+  iFade{1/(buf[0]+EPS), 1/(buf[1]+EPS), 1/(buf[2]+EPS)} {}
 
   void operator()(const BlockInfo& info, FluidBlock& b) const
   {
