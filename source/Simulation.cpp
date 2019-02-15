@@ -220,8 +220,9 @@ void Simulation::setupOperators()
 
   sim.pipeline.push_back(new CoordinatorPressure<LabMPI>(sim));
   sim.pipeline.push_back(new CoordinatorComputeForces(sim));
-  //if(sim.computeDissipation)
-  //  sim.pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(grid,nu,&step,&time));
+
+  if(sim.computeDissipation)
+    sim.pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(sim));
 
   #ifndef CUP_UNBOUNDED_FFT
     sim.pipeline.push_back(new CoordinatorFadeOut(sim));
