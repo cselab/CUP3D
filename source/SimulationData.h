@@ -9,9 +9,8 @@
 
 #pragma once
 
-#include "Cubism/Profiler.h"
 #include "operators/GenericOperator.h"
-
+#include "Cubism/Profiler.h"
 #include "Cubism/HDF5SliceDumperMPI.h"
 //#include "Cubism/ZBinDumper_MPI.h"
 

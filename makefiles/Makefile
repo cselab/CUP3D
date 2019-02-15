@@ -76,7 +76,7 @@ endif
 
 CPPFLAGS += -DCUP_ALIGNMENT=64
 CPPFLAGS += -DCUP_BLOCK_SIZE=$(bs)
-CPPFLAGS += -lm
+#CPPFLAGS += -lm
 
 #CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
@@ -95,11 +95,9 @@ endif
 ifneq "$(findstring daint,$(shell hostname))" ""
 	include make.daint
 endif
-
-ifneq "$(findstring brutus,$(shell hostname))" ""
-	include make.brutus
+ifneq "$(findstring panda,$(shell hostname))" ""
+       include make.panda
 endif
-
 ifneq "$(findstring euler,$(shell hostname))" ""
 include make.euler
 endif
@@ -133,9 +131,9 @@ ifneq ($(FFTW_INC),)
 endif
 ifeq ($(FFTW_DIR),)
 ifeq "$(precision)" "single"
-	FFTW_LIBS = -lfftw3f_threads -lfftw3f_mpi -lfftw3f
+	FFTW_LIBS = -lfftw3f_mpi -lfftw3f_omp -lfftw3f
 else
-	FFTW_LIBS = -lfftw3_omp -lfftw3_mpi -lfftw3
+	FFTW_LIBS = -lfftw3_mpi -lfftw3_omp -lfftw3
 endif
 else
 ifeq "$(precision)" "single"
@@ -144,11 +142,6 @@ else
 	FFTW_LIBS = $(FFTW_DIR)/libfftw3_threads.a $(FFTW_DIR)/libfftw3_mpi.a $(FFTW_DIR)/libfftw3.a
 endif
 endif
-
-
-#LIBS += -L../tools/fpzip/lib -lfpzip
-
-LIBS += -lstdc++ -lgsl -lgslcblas
 
 BUILDDIR = .
 #SRC_DIR = $(BUILDDIR)/../source/
@@ -185,6 +178,9 @@ else
 	LIBS += $(FFTW_LIBS)
 endif
 
+#LIBS += -L../tools/fpzip/lib -lfpzip
+LIBS += -lgsl -lgslcblas -lstdc++
+
 EXEOBJ = $(OBJECTS)  main.o
 LIBOBJ = $(OBJECTS) cubism_main.o CubismUP_3D.o
 LIBRLOBJ = $(OBJECTS) ext_app_main.o
@@ -201,7 +197,7 @@ DEPS := $(ALLOBJ:%.o=%.d)
 
 ../bin/simulation: $(EXEOBJ) $(NVOBJECTS)
 	mkdir -p ../bin
-	$(LD) $(EXEOBJ) $(NVOBJECTS) $(LIBS) $(LDFLAGS) -o $@
+	$(LD) $(EXEOBJ) $(NVOBJECTS) $(LDFLAGS) $(LIBS) -o $@
 
 lib: $(LIBOBJ) $(NVOBJECTS)
 	mkdir -p ../lib

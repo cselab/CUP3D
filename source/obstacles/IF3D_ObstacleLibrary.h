@@ -9,8 +9,8 @@
 #ifndef IncompressibleFluids3D_IF3D_ObstacleLibrary_h
 #define IncompressibleFluids3D_IF3D_ObstacleLibrary_h
 
-#include "IF2D_Interpolation1D.h"
 #include "../operators/GenericOperator.h"
+#include "IF2D_Interpolation1D.h"
 
 /*
  * TODO: Refactor `SphereObstacle` and `DCylinderObstacle` to derive from

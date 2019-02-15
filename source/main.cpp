@@ -6,9 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "obstacles/IF3D_ObstacleFactory.h"
 #include "Simulation.h"
-
+#include "obstacles/IF3D_ObstacleFactory.h"
 #include "Cubism/ArgumentParser.h"
 
 #include <iostream>
