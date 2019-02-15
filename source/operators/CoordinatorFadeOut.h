@@ -67,7 +67,7 @@ class CoordinatorFadeOut : public GenericCoordinator
     const int N = vInfo.size();
     #pragma omp parallel
     {
-      OperatorFadeOut kernel(sim.fadeOutLength, sim.extent);
+      OperatorFadeOut kernel(sim.fadeOutLengthU, sim.extent);
       #pragma omp for schedule(static)
       for (int i=0; i<N; i++) {
         BlockInfo info = vInfo[i];

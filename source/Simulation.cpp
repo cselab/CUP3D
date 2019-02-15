@@ -85,9 +85,12 @@ Simulation::Simulation(
   sim.computeDissipation = computeDissipation;
   sim.b3Ddump = b3Ddump;
   sim.b2Ddump = b2Ddump;
-  sim.fadeOutLength[0] = fadeOutLength;
-  sim.fadeOutLength[1] = fadeOutLength;
-  sim.fadeOutLength[2] = fadeOutLength;
+  sim.fadeOutLengthPRHS[0] = fadeOutLength;
+  sim.fadeOutLengthPRHS[1] = fadeOutLength;
+  sim.fadeOutLengthPRHS[2] = fadeOutLength;
+  sim.fadeOutLengthU[0] = fadeOutLength;
+  sim.fadeOutLengthU[1] = fadeOutLength;
+  sim.fadeOutLengthU[2] = fadeOutLength;
   sim.saveFreq = saveFreq;
   sim.saveTime = saveTime;
   sim.path4serialization = path4serialization;
@@ -114,7 +117,6 @@ void Simulation::_init(const bool restart)
   if (restart) _deserialize();
   else _ic();
   MPI_Barrier(sim.app_comm);
-  _serialize("init");
 }
 
 void Simulation::_ic()

@@ -73,13 +73,25 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   if(BC_y=="unbounded") BC_y = "freespace"; // tomato tomato
   if(BC_z=="unbounded") BC_z = "freespace"; // tomato tomato
   // boundary killing useless for unbounded or periodic
-  fadeOutLength[0] = BC_x=="dirichlet"? fadeLen : 0;
-  fadeOutLength[1] = BC_y=="dirichlet"? fadeLen : 0;
-  fadeOutLength[2] = BC_z=="dirichlet"? fadeLen : 0;
+  fadeOutLengthPRHS[0] = BC_x=="dirichlet"? fadeLen : 0;
+  fadeOutLengthPRHS[1] = BC_y=="dirichlet"? fadeLen : 0;
+  fadeOutLengthPRHS[2] = BC_z=="dirichlet"? fadeLen : 0;
 
-  if(BC_x=="fakeopen") { BC_x = "periodic"; fadeOutLength[0] = fadeLen; }
-  if(BC_y=="fakeopen") { BC_y = "periodic"; fadeOutLength[1] = fadeLen; }
-  if(BC_z=="fakeopen") { BC_z = "periodic"; fadeOutLength[2] = fadeLen; }
+  if(BC_x=="fakeopen") {
+    BC_x = "periodic";
+    fadeOutLengthU[0] = fadeLen;
+    fadeOutLengthPRHS[0] = fadeLen;
+  }
+  if(BC_y=="fakeopen") {
+    BC_y = "periodic";
+    fadeOutLengthU[1] = fadeLen;
+    fadeOutLengthPRHS[1] = fadeLen;
+  }
+  if(BC_z=="fakeopen") {
+    BC_z = "periodic";
+    fadeOutLengthU[2] = fadeLen;
+    fadeOutLengthPRHS[2] = fadeLen;
+  }
 
   BCx_flag = string2BCflag(BC_x);
   BCy_flag = string2BCflag(BC_y);
@@ -97,7 +109,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   // DFT if we are periodic in all directions:
   if(BC_x=="periodic"&&BC_y=="periodic"&&BC_z=="periodic") bUseFourierBC = true;
   printf("Boundary pressure RHS / FD smoothing region sizes {%f,%f,%f}\n",
-    fadeOutLength[0], fadeOutLength[1], fadeOutLength[2]);
+    fadeOutLengthPRHS[0], fadeOutLengthPRHS[1], fadeOutLengthPRHS[2]);
   _argumentsSanityCheck();
 
   // ============ REST =============

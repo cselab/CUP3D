@@ -79,7 +79,8 @@ struct SimulationData
   int rampup = 100;
   bool verbose=false;
   bool muteAll = false;
-  Real fadeOutLength[3] = {0, 0, 0};
+  Real fadeOutLengthU[3] = {0, 0, 0};
+  Real fadeOutLengthPRHS[3] = {0, 0, 0};
   Real uMax_forced = 0;
 
   // output

@@ -154,7 +154,7 @@ class CoordinatorPressure : public GenericCoordinator
       std::vector<OperatorDivergence*> diff(nthreads, nullptr);
       #pragma omp parallel for schedule(static, 1)
       for(int i=0;i<nthreads;++i)
-        diff[i] = new OperatorDivergence(dt, sim.fadeOutLength, sim.extent);
+        diff[i] = new OperatorDivergence(dt, sim.fadeOutLengthPRHS, sim.extent);
 
       compute<OperatorDivergence>(diff);
       for(int i=0; i<nthreads; i++) delete diff[i];
