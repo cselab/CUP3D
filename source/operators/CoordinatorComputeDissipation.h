@@ -46,20 +46,17 @@ class OperatorDissipation : public GenericLabOperator
       const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
       const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
       const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
-      const Real chi = L.chi, uGrid = L.u, vGrid = L.v, wGrid = L.w;
 
       //shear stresses
       const Real D11 = factor*(LE.u - LW.u);
       const Real D22 = factor*(LN.v - LS.v);
       const Real D33 = factor*(LB.w - LF.w);
-
       const Real D12 = .5*factor*(LN.u - LS.u + LE.v - LW.v);
       const Real D13 = .5*factor*(LB.u - LF.u + LE.w - LW.w);
       const Real D23 = .5*factor*(LN.w - LS.w + LB.v - LF.v);
 
       // need to multiply this by 2*nu*h^3:
       const Real Sij = (D11*D11+D22*D22+D33*D33 + 2*(D12*D12+D13*D13+D23*D23));
-
       const Real dPdx = factor*(LE.p - LW.p);
       const Real dPdy = factor*(LN.p - LS.p);
       const Real dPdz = factor*(LB.p - LF.p);
@@ -74,10 +71,10 @@ class OperatorDissipation : public GenericLabOperator
       // WARNING: multiply here by 0.5 coz later will multiply by dissipFactor=2*nu*hCube
 
       // need to multiply this by 2*nu*h^3:
-      const Real laplacianTerm= (uGrid*lapU_1 + vGrid*lapU_2 + wGrid*lapU_3)/2;
-      viscous += (1-chi) * dissipFactor * (laplacianTerm + Sij);
-      press += (1-chi) * hCube * pressTerm;
-      kinetic += (1-chi) * hCube * 0.5*(L.u*L.u + L.v*L.v + L.w*L.w);
+      const Real laplacianTerm= (L.u*lapU_1 + L.v*lapU_2 + L.w*lapU_3)/2;
+      viscous += (1-L.chi) * dissipFactor * (laplacianTerm + Sij);
+      press += (1-L.chi) * hCube * pressTerm;
+      kinetic += (1-L.chi) * hCube * 0.5*(L.u*L.u + L.v*L.v + L.w*L.w);
     }
   }
 };
@@ -108,17 +105,9 @@ public:
       delete diss[i];
     }
 
-    const Real gridH = vInfo[0].h_gridpoint;
-    const Real hCube = pow(gridH,3);
-    const Real dissipFactor = 2.0*hCube*sim.nu;
-
     double localSum[3] = {viscous, press, kinetic};
     double globalSum[3] = {0.0, 0.0, 0.0};
     MPI_Allreduce(localSum,globalSum,3, MPI_DOUBLE,MPI_SUM,grid->getCartComm());
-
-    globalSum[0] *= dissipFactor;
-    globalSum[1] *= hCube;
-    globalSum[2] *= hCube;
 
     if(sim.rank==0)
     {
@@ -133,9 +122,6 @@ public:
     check("dissipation - end");
   }
 
-  std::string getName()
-  {
-    return "Dissipation";
-  }
+  std::string getName() { return "Dissipation"; }
 };
 #endif
