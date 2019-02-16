@@ -65,9 +65,9 @@ class PoissonSolverMixed : public PoissonSolver
       const long kx = DFTX ? ((i <= nKx/2) ? i : nKx-i) : i;
       const long ky = DFTY ? ((J <= nKy/2) ? J : nKy-J) : J;
       const long kz = DFTZ ? ((k <= nKz/2) ? k : nKz-k) : k;
-      const Real rkx = ( kx + (DFTX ? 0.0 : 0.5) ) * waveFactX;
-      const Real rky = ( ky + (DFTY ? 0.0 : 0.5) ) * waveFactY;
-      const Real rkz = ( kz + (DFTZ ? 0.0 : 0.5) ) * waveFactZ;
+      const Real rkx = ( kx + (DFTX ? 0 : (Real)0.5 ) ) * waveFactX;
+      const Real rky = ( ky + (DFTY ? 0 : (Real)0.5 ) ) * waveFactY;
+      const Real rkz = ( kz + (DFTZ ? 0 : (Real)0.5 ) ) * waveFactZ;
       const Real kinv = -1/(rkx*rkx + rky*rky + rkz*rkz);
       in_out[linidx] *= kinv*norm_factor;
     }
@@ -116,7 +116,7 @@ class PoissonSolverMixed : public PoissonSolver
     auto ZplanB = DFT_Z() ? FFTW_HC2R : FFTW_REDFT01;
     data = _FFTW_(alloc_real)(alloc_local);
     fwd = _FFTW_(mpi_plan_r2r_3d)(gsize[0], gsize[1], gsize[2], data, data,
-      comm, XplanF, YplanF, ZplanF, FFTW_MPI_TRANSPOSED_OUT  | FFTW_MEASURE);
+      comm, XplanF, YplanF, ZplanF, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
     bwd = _FFTW_(mpi_plan_r2r_3d)(gsize[0], gsize[1], gsize[2], data, data,
       comm, XplanB, YplanB, ZplanB, FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
 
@@ -174,11 +174,6 @@ class PoissonSolverMixed : public PoissonSolver
   {
     assert(local_infos[info.blockID].blockID == info.blockID);
     return _offset(local_infos[info.blockID]);
-    //for(const auto & local_info : local_infos)
-    //  if(local_info.blockID == info.blockID)
-    //    return _offset(local_info);
-    //printf("PSolver cannot find obstacle block\n");
-    //abort();
   }
   inline size_t _offset(const BlockInfo &info) const
   {
