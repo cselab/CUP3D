@@ -51,9 +51,9 @@ class OperatorDissipation : public GenericLabOperator
       const Real D11 = factor*(LE.u - LW.u);
       const Real D22 = factor*(LN.v - LS.v);
       const Real D33 = factor*(LB.w - LF.w);
-      const Real D12 = .5*factor*(LN.u - LS.u + LE.v - LW.v);
-      const Real D13 = .5*factor*(LB.u - LF.u + LE.w - LW.w);
-      const Real D23 = .5*factor*(LN.w - LS.w + LB.v - LF.v);
+      const Real D12 = factor*(LN.u - LS.u + LE.v - LW.v)/2;
+      const Real D13 = factor*(LB.u - LF.u + LE.w - LW.w)/2;
+      const Real D23 = factor*(LN.w - LS.w + LB.v - LF.v)/2;
 
       // need to multiply this by 2*nu*h^3:
       const Real Sij = (D11*D11+D22*D22+D33*D33 + 2*(D12*D12+D13*D13+D23*D23));
@@ -62,7 +62,7 @@ class OperatorDissipation : public GenericLabOperator
       const Real dPdz = factor*(LB.p - LF.p);
 
       // Need to multiply this by h^3:
-      const Real pressTerm = -(dPdx*uGrid + dPdy*vGrid + dPdz*wGrid);
+      const Real pressTerm = -(dPdx*L.u + dPdy*L.v + dPdz*L.w);
 
       const Real lapU_1 = invHsqr*(LE.u +LW.u +LN.u +LS.u +LB.u +LF.u - 6*L.u);
       const Real lapU_2 = invHsqr*(LE.v +LW.v +LN.v +LS.v +LB.v +LF.v - 6*L.v);
@@ -74,7 +74,7 @@ class OperatorDissipation : public GenericLabOperator
       const Real laplacianTerm= (L.u*lapU_1 + L.v*lapU_2 + L.w*lapU_3)/2;
       viscous += (1-L.chi) * dissipFactor * (laplacianTerm + Sij);
       press += (1-L.chi) * hCube * pressTerm;
-      kinetic += (1-L.chi) * hCube * 0.5*(L.u*L.u + L.v*L.v + L.w*L.w);
+      kinetic += (1-L.chi) * hCube * (L.u*L.u + L.v*L.v + L.w*L.w)/2;
     }
   }
 };

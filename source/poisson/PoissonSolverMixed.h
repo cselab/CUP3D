@@ -71,7 +71,8 @@ class PoissonSolverMixed : public PoissonSolver
       const Real kinv = -1/(rkx*rkx + rky*rky + rkz*rkz);
       in_out[linidx] *= kinv*norm_factor;
     }
-    if (shifty == 0) in_out[0] = 0;
+    //if (shifty==0 && DFTX && DFTY && DFTZ) in_out[0] = 0;
+    if (shifty==0) in_out[0] = 0;
   }
 
  public:

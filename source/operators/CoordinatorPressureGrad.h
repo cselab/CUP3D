@@ -24,9 +24,9 @@ class OperatorPressureGradient : public GenericOperator
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        if (DIRECTION == 0) b(ix,iy,iz).u -= gradPdT;
-        if (DIRECTION == 1) b(ix,iy,iz).v -= gradPdT;
-        if (DIRECTION == 2) b(ix,iy,iz).w -= gradPdT;
+        if (DIRECTION == 0) b(ix,iy,iz).u += gradPdT;
+        if (DIRECTION == 1) b(ix,iy,iz).v += gradPdT;
+        if (DIRECTION == 2) b(ix,iy,iz).w += gradPdT;
     }
   }
 };
@@ -39,7 +39,7 @@ class CoordinatorPressureGradient : public GenericCoordinator
   void operator()(const double dt)
   {
     check("dp_dx - start");
-    const int dir = sim.BCy_flag==2 ? 1 : 2;
+    const int dir = sim.BCy_flag==wall ? 1 : 2;
     const Real H = sim.extent[dir];
     const Real gradPdt = 8*sim.uMax_forced*sim.nu/H/H * dt;
 

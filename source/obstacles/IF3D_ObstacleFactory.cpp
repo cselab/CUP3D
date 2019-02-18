@@ -63,7 +63,8 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
       factoryLines.push_back(make_pair(ID,ffparser));
   }
   if(factoryLines.size() == 0) {
-    std::cout << "OBSTACLE FACTORY did not create any obstacles." << std::endl;
+    if(sim.rank==0)
+      std::cout<<"OBSTACLE FACTORY did not create any obstacles."<<std::endl;
     return retval;
   }
   if(sim.rank==0)

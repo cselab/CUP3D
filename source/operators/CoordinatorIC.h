@@ -118,11 +118,11 @@ class CoordinatorIC : public GenericCoordinator
     if(sim.initCond == "channel")
     {
       printf("Channel flow initial conditions.\n");
-      if(sim.BCx_flag==2) {
+      if( sim.BCx_flag == wall ) {
         printf("ERROR: channel flow must be periodic or dirichlet in x.\n");
         abort();
       }
-      const bool channelY = sim.BCy_flag==2, channelZ = sim.BCz_flag==2;
+      const bool channelY = sim.BCy_flag==wall, channelZ = sim.BCz_flag==wall;
       if( (channelY && channelZ) or (!channelY && !channelZ) ) {
         printf("ERROR: wrong channel flow BC in y or z.\n");
         abort();

@@ -108,6 +108,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   }
   // DFT if we are periodic in all directions:
   if(BC_x=="periodic"&&BC_y=="periodic"&&BC_z=="periodic") bUseFourierBC = true;
+  if(rank==0)
   printf("Boundary pressure RHS / FD smoothing region sizes {%f,%f,%f}\n",
     fadeOutLengthPRHS[0], fadeOutLengthPRHS[1], fadeOutLengthPRHS[2]);
   _argumentsSanityCheck();
