@@ -33,6 +33,11 @@ int main(int argc, char **argv)
     std::cout << "=======================================================================\n";
     std::cout << "Cubism UP 3D (velocity-pressure 3D incompressible Navier-Stokes solver)\n";
     std::cout << "=======================================================================\n";
+#ifdef NDEBUG
+    std::cout << "Running in RELEASE mode!\n";
+#else
+    std::cout << "Running in DEBUG mode!\n";
+#endif
   }
 
   ArgumentParser parser(argc, argv);
