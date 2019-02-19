@@ -119,20 +119,19 @@ class PoissonSolver
   {
     const size_t NlocBlocks = local_infos.size();
     #if 0
-    const size_t NlocBlocks = local_infos.size();
-    #pragma omp parallel for
-    for(size_t i=0; i<NlocBlocks; ++i) {
-      const BlockInfo info = local_infos[i];
-      BlockType& b = *(BlockType*)info.ptrBlock;
-      const size_t offset = _offset(info);
+      #pragma omp parallel for
+      for(size_t i=0; i<NlocBlocks; ++i) {
+        const BlockInfo info = local_infos[i];
+        BlockType& b = *(BlockType*)info.ptrBlock;
+        const size_t offset = _offset(info);
 
-      for(int ix=0; ix<BlockType::sizeX; ix++)
-      for(int iy=0; iy<BlockType::sizeY; iy++)
-      for(int iz=0; iz<BlockType::sizeZ; iz++) {
-        const size_t dest_index = _dest(offset, iz, iy, ix);
-        data[dest_index] = b(ix,iy,iz).p;
+        for(int ix=0; ix<BlockType::sizeX; ix++)
+        for(int iy=0; iy<BlockType::sizeY; iy++)
+        for(int iz=0; iz<BlockType::sizeZ; iz++) {
+          const size_t dest_index = _dest(offset, iz, iy, ix);
+          data[dest_index] = b(ix,iy,iz).p;
+        }
       }
-    }
     #endif
 
     Real sumRHS = 0, sumABS = 0;
@@ -147,9 +146,11 @@ class PoissonSolver
         sumRHS +=           data[dest_index];
       }
     }
-    sumABS = std::max(std::numeric_limits<double>::epsilon(), (double) sumABS);
-    const Real correction = sumRHS / sumABS;
-    //printf("Relative RHS correction:%e\n", correction);
+    double sums[2] = {sumRHS, sumABS};
+    MPI_Allreduce(MPI_IN_PLACE, sums, 2, MPI_DOUBLE,MPI_SUM, m_comm);
+    sums[1] = std::max(std::numeric_limits<double>::epsilon(), sums[1]);
+    const Real correction = sums[0] / sums[1];
+    printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
     #if 1
       #pragma omp parallel for schedule(static)
       for(size_t i=0; i<NlocBlocks; ++i) {
@@ -163,7 +164,7 @@ class PoissonSolver
       }
 
       #ifndef NDEBUG
-        Real sumRHSpost = 0;
+        double sumRHSpost = 0;
         #pragma omp parallel for schedule(static) reduction(+ : sumRHSpost)
         for(size_t i=0; i<NlocBlocks; ++i) {
           const size_t offset = _offset(local_infos[i]);
@@ -172,6 +173,7 @@ class PoissonSolver
           for(int iz=0; iz<BlockType::sizeZ; iz++)
             sumRHSpost += data[_dest(offset, iz, iy, ix)];
         }
+        MPI_Allreduce(MPI_IN_PLACE, &sumRHSpost, 1, MPI_DOUBLE,MPI_SUM, m_comm);
         printf("Sum of RHS after correction:%e\n", sumRHSpost);
       #endif
     #endif
