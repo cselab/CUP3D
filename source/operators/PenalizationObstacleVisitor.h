@@ -57,9 +57,9 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
               (Real) omegaBody[0]*p[1] - (Real) omegaBody[1]*p[0]
           };
           const Real U_TOT[3] = {
-              (Real)uBody[0] +object_UR[0] +UDEF[iz][iy][ix][0] -uInf[0],
-              (Real)uBody[1] +object_UR[1] +UDEF[iz][iy][ix][1] -uInf[1],
-              (Real)uBody[2] +object_UR[2] +UDEF[iz][iy][ix][2] -uInf[2]
+              (Real)uBody[0] + object_UR[0] + UDEF[iz][iy][ix][0],
+              (Real)uBody[1] + object_UR[1] + UDEF[iz][iy][ix][1],
+              (Real)uBody[2] + object_UR[2] + UDEF[iz][iy][ix][2]
           };
           // what if multiple obstacles share a block??
           // let's plus equal and wake up during the night to stress about it

@@ -19,16 +19,15 @@ struct OperatorComputeForces
   StencilInfo stencil;
   const double NU, dt;
   const double* const vel_unit;
-  const Real* const Uinf;
   const double* const CM;
   const double* const omega;
   const double* const uTrans;
 
   OperatorComputeForces(const double nu, const double DT, const double*vunit,
-  const Real*u,const double*cm, const double*_omega, const double*_uTrans)
-  :NU(nu),dt(DT),vel_unit(vunit),Uinf(u),CM(cm),omega(_omega),uTrans(_uTrans)
+  const double*cm, const double*_omega, const double*_uTrans) :
+  NU(nu), dt(DT), vel_unit(vunit), CM(cm), omega(_omega), uTrans(_uTrans)
   {
-    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3 );
+    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
   }
 
   template <typename Lab, typename BlockType>
@@ -78,9 +77,9 @@ struct OperatorComputeForces
       o->ss[i] = o->sectionMarker[iz][iy][ix];
       o->pX[i] = p[0]; o->pY[i] = p[1]; o->pZ[i] = p[2];
       o->P[i] = P; o->fX[i] = fXT; o->fY[i] = fYT; o->fZ[i] = fZT;
-      o->vxDef[i]=o->udef[iz][iy][ix][0]; o->vX[i]=l(ix,iy,iz).u+Uinf[0];
-      o->vyDef[i]=o->udef[iz][iy][ix][1]; o->vY[i]=l(ix,iy,iz).v+Uinf[1];
-      o->vzDef[i]=o->udef[iz][iy][ix][2]; o->vZ[i]=l(ix,iy,iz).w+Uinf[2];
+      o->vxDef[i] = o->udef[iz][iy][ix][0]; o->vX[i] = l(ix,iy,iz).u;
+      o->vyDef[i] = o->udef[iz][iy][ix][1]; o->vY[i] = l(ix,iy,iz).v;
+      o->vzDef[i] = o->udef[iz][iy][ix][2]; o->vZ[i] = l(ix,iy,iz).w;
 
       //additive quantities:
       // o->surface += o->surface[i]->delta;
@@ -119,9 +118,9 @@ struct OperatorComputeForces
       // Compute P_locomotion = Force*(uTrans + uRot)
       const double rVec[3] = {p[0]-CM[0], p[1]-CM[1], p[2]-CM[2]};
       const double uRot[3] = {
-	      omega[1]*rVec[2] - rVec[1]*omega[2],
+	        omega[1]*rVec[2] - rVec[1]*omega[2],
 	      -(omega[0]*rVec[2] - rVec[0]*omega[2]),
-	      omega[0]*rVec[1] - rVec[0]*omega[1]
+	        omega[0]*rVec[1] - rVec[0]*omega[1]
       };
 
       o->pLocom += fXT*(uRot[0]+uTrans[0]) + fYT*(uRot[1]+uTrans[1]) + fZT*(uRot[2]+uTrans[2]);

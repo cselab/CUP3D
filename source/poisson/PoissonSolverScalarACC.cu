@@ -132,9 +132,9 @@ __global__ void kGreen(const int iSzX, const int iSzY, const int iSzZ,
   const Real yi = J>=nGlobY? 2*nGlobY-1 - J : J;
   const Real zi = K>=nGlobZ? 2*nGlobZ-1 - K : K;
   const Real r = std::sqrt(xi*xi + yi*yi + zi*zi);
-  if(r > 0) in_out[linidx] = fac / r;
+  if(r > 0) in_out[linidx] = - h * h / ( 4 * M_PI * r );
   // G = r_eq^2 / 2 = std::pow(3/8/pi/sqrt(2))^(2/3) * h^2
-  else      in_out[linidx] = Real(0.1924173658) * h * h;
+  else      in_out[linidx] = - Real(0.1924173658) * h * h;
   //else      in_out[linidx] = fac;
 }
 
@@ -316,12 +316,11 @@ void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
 {
   const int mx = 2*nx -1, my = 2*ny -1, mz = 2*nz -1, mz_pad = mz/2 +1;
   {
-    const Real fac = - h * h / ( 4.0 * M_PI );
     dim3 dB(4, 4, 4);
     dim3 dG(std::ceil(isz[0]/4.), std::ceil(isz[1]/4.), std::ceil(isz[2]/4.));
     //cout<<isz[0]<<" "<<isz[1]<<" "<<isz[2]<<" "<< ist[0]<<" "<<ist[1]<<" "<<ist[2]<<" "<<nx<<" "<<ny<<" "<<nz<<" "<<mz_pad<<endl;
     kGreen<<<dG, dB>>> (isz[0],isz[1],isz[2], ist[0],ist[1],ist[2],
-      nx, ny, nz, mz_pad, fac, h, gpu_rhs);
+      nx, ny, nz, mz_pad, h, gpu_rhs);
     CUDA_Check(cudaDeviceSynchronize());
   }
 

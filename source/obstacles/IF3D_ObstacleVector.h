@@ -35,14 +35,13 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
 
     void characteristic_function() override;
     int nObstacles() const {return obstacles.size();}
-    void computeVelocities(const Real* Uinf) override;
+    void computeVelocities(const double dt, const Real lambda) override;
     void update(const int step_id, const double t, const double dt, const Real* Uinf) override;
     void restart(const double t, std::string filename = std::string()) override;
     void save(const int step_id, const double t, std::string filename = std::string()) override;
     std::vector<int> intersectingBlockIDs(const int buffer) const override;
 
-    void computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda) override;
-    void computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump) override;
+    void computeForces(const int stepID, const double time, const double dt, const double NU, const bool bDump) override;
 
     void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
     void Accept(ObstacleVisitor * visitor) override;

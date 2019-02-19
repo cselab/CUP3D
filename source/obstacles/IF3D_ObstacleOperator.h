@@ -86,7 +86,7 @@ public:
   std::array<bool, 3> bBlockRotation = {{false, false, false}};
   bool isMPIBarrierOnChiCompute = false;
 protected:
-  virtual void _writeComputedVelToFile(const int step_id, const double t, const Real * uInf);
+  virtual void _writeComputedVelToFile(const int step_id, const double t);
   virtual void _writeDiagForcesToFile(const int step_id, const double t);
   virtual void _writeSurfForcesToFile(const int step_id, const double t);
   void _makeDefVelocitiesMomentumFree(const double CoM[3]);
@@ -103,9 +103,8 @@ public:
   virtual void Accept(ObstacleVisitor * visitor);
   virtual Real getD() const {return length;}
 
-  virtual void computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda) ;
-  virtual void computeVelocities(const Real* Uinf);
-  virtual void computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump);
+  virtual void computeVelocities(const double dt, const Real lambda);
+  virtual void computeForces(const int stepID, const double time, const double dt, const double NU, const bool bDump);
   virtual void update(const int step_id, const double t, const double dt, const Real* Uinf);
   virtual void save(const int step_id, const double t, std::string filename = std::string());
   virtual void restart(const double t, std::string filename = std::string());

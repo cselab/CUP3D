@@ -49,9 +49,7 @@ PYBIND11_MODULE(_cubismup3d, m) {
                       double3,
                       bool, bool,
                       bool, bool,
-#ifndef CUP_UNBOUNDED_FFT
                       double /* fadeOutLength */,
-#endif
                       int, double,
                       const std::string &,
                       bool>(),
@@ -63,9 +61,7 @@ PYBIND11_MODULE(_cubismup3d, m) {
              "uinf"_a = double3{0.0, 0.0, 0.0},
              "verbose"_a = true, "computeDissipation"_a = false,
              "dump3D"_a = true, "dump2D"_a = false,
-#ifndef CUP_UNBOUNDED_FFT
              "fadeOutLength"_a = 0.005,
-#endif
              "saveFreq"_a = 0, "saveTime"_a = 0.0,
              "path4serialization"_a = std::string("./"),
              "restart"_a = false, R"(

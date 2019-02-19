@@ -12,6 +12,8 @@
 //#include <cassert>
 //#define __2Leads_
 //#define __DumpWakeStefan 9
+//#define ZEROGRADCHI
+
 #define __useSkin_
 #include <cassert>
 #include <fstream>

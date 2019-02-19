@@ -78,22 +78,16 @@ std::vector<int> IF3D_ObstacleVector::intersectingBlockIDs(const int buffer) con
   return std::vector<int>(IDcollection.begin(), IDcollection.end());
 }
 
-void IF3D_ObstacleVector::computeDiagnostics(const int stepID, const double time, const Real* Uinf, const double lambda)
+void IF3D_ObstacleVector::computeVelocities(const double dt, const Real lambda)
 {
   for(const auto & obstacle_ptr : obstacles)
-    obstacle_ptr->computeDiagnostics(stepID,time,Uinf,lambda);
+    obstacle_ptr->computeVelocities(dt, lambda);
 }
 
-void IF3D_ObstacleVector::computeVelocities(const Real* Uinf)
+void IF3D_ObstacleVector::computeForces(const int stepID, const double time, const double dt, const double NU, const bool bDump)
 {
   for(const auto & obstacle_ptr : obstacles)
-    obstacle_ptr->computeVelocities(Uinf);
-}
-
-void IF3D_ObstacleVector::computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump)
-{
-  for(const auto & obstacle_ptr : obstacles)
-    obstacle_ptr->computeForces(stepID,time,dt,Uinf,NU,bDump);
+    obstacle_ptr->computeForces(stepID,time,dt,NU,bDump);
 }
 
 IF3D_ObstacleVector::~IF3D_ObstacleVector()

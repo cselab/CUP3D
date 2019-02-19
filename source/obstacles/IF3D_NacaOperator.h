@@ -18,7 +18,7 @@ class IF3D_NacaOperator: public IF3D_FishOperator
  public:
   IF3D_NacaOperator(SimulationData&s, ArgumentParser&p);
   void update(const int stepID, const double t, const double dt, const Real* Uinf) override;
-  void computeVelocities(const Real* Uinf) override;
+  void computeVelocities(const double dt, const Real lambda) override;
   void writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock) override;
 };
 

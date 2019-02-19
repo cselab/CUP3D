@@ -81,8 +81,8 @@ IF3D_ExternalObstacleOperator::IF3D_ExternalObstacleOperator(
 }
 
 void IF3D_ExternalObstacleOperator::computeVelocities(
-        const Real * const Uinf) {
-    IF3D_ObstacleOperator::computeVelocities(Uinf);
+        const double dt, const Real lambda) {
+    IF3D_ObstacleOperator::computeVelocities(dt, lambda);
 
     if (settings.com_velocity_fn != nullptr) {
         settings.com_velocity_fn(settings.obj, transVel_imposed);

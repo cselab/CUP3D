@@ -10,29 +10,10 @@
 
 #include "PoissonSolver.h"
 
-template<typename TGrid, typename TStreamer>
 class PoissonSolverMixed : public PoissonSolver
 {
-  typedef typename TGrid::BlockType BlockType;
-  const SimulationData & sim;
-  TGrid& grid = * sim.grid;
   //mycomplex local_rhs, local_work;
   myplan fwd, bwd;
-
-  const int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
-  const std::vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
-  const size_t mybpd[3] = {
-      static_cast<size_t>(grid.getResidentBlocksPerDimension(0)),
-      static_cast<size_t>(grid.getResidentBlocksPerDimension(1)),
-      static_cast<size_t>(grid.getResidentBlocksPerDimension(2))
-  };
-  const size_t gsize[3] = {
-      static_cast<size_t>(grid.getBlocksPerDimension(0)*bs[0]),
-      static_cast<size_t>(grid.getBlocksPerDimension(1)*bs[1]),
-      static_cast<size_t>(grid.getBlocksPerDimension(2)*bs[2])
-  };
-  const size_t myN[3]={ mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
-  const double h = grid.getBlocksInfo().front().h_gridpoint;
   ptrdiff_t alloc_local=0, local_n0=0, local_0_start=0, local_n1=0, local_1_start=0;
 
   inline bool DFT_X() const { return sim.BCx_flag == periodic; }
@@ -78,26 +59,21 @@ class PoissonSolverMixed : public PoissonSolver
  public:
   Real * data = nullptr;
 
-  PoissonSolverMixed(SimulationData & s): sim(s)
+  PoissonSolverMixed(SimulationData & s) : PoissonSolver(s)
   {
-    if (TStreamer::channels != 1) {
-      std::cout << "PoissonSolverScalar_MPI(): Error: TStreamer::channels is "
-           << TStreamer::channels << " (should be 1).\n";
-      abort();
-    }
-    MPI_Comm comm = grid.getCartComm();
+    stridez = myN[2];
+    stridey = myN[1];
 
-    {
-      int supported_threads;
-      MPI_Query_thread(&supported_threads);
-      if (supported_threads<MPI_THREAD_FUNNELED) {
-        std::cout << "MPI implementation does not support threads.\n";
-        abort();
-      }
+    int supported_threads;
+    MPI_Query_thread(&supported_threads);
+    if (supported_threads<MPI_THREAD_FUNNELED) {
+    std::cout<<"PoissonSolverMixed ERROR: MPI implementation does not support threads."<<std::endl;
+    abort();
     }
+
     const int retval = _FFTW_(init_threads)();
     if(retval==0) {
-      std::cout << "FFTWBase::setup(): Call to fftw_init_threads() returned zero." << std::endl;
+      std::cout << "PoissonSolverMixed ERROR: Call to fftw_init_threads() returned zero." << std::endl;
       abort();
     }
     const int desired_threads = omp_get_max_threads();
@@ -106,7 +82,7 @@ class PoissonSolverMixed : public PoissonSolver
     _FFTW_(mpi_init)();
 
     alloc_local = _FFTW_(mpi_local_size_3d_transposed) (
-      gsize[0], gsize[1], gsize[2], comm,
+      gsize[0], gsize[1], gsize[2], m_comm,
       &local_n0, &local_0_start, &local_n1, &local_1_start);
 
     auto XplanF = DFT_X() ? FFTW_R2HC : FFTW_REDFT10;
@@ -117,9 +93,9 @@ class PoissonSolverMixed : public PoissonSolver
     auto ZplanB = DFT_Z() ? FFTW_HC2R : FFTW_REDFT01;
     data = _FFTW_(alloc_real)(alloc_local);
     fwd = _FFTW_(mpi_plan_r2r_3d)(gsize[0], gsize[1], gsize[2], data, data,
-      comm, XplanF, YplanF, ZplanF, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
+      m_comm, XplanF, YplanF, ZplanF, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
     bwd = _FFTW_(mpi_plan_r2r_3d)(gsize[0], gsize[1], gsize[2], data, data,
-      comm, XplanB, YplanB, ZplanB, FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
+      m_comm, XplanB, YplanB, ZplanB, FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
 
     //std::cout <<    bs[0] << " " <<    bs[1] << " " <<    bs[2] << " ";
     //std::cout <<   myN[0] << " " <<   myN[1] << " " <<   myN[2] << " ";
@@ -129,7 +105,7 @@ class PoissonSolverMixed : public PoissonSolver
 
   void solve()
   {
-    _cub2fftw(data);
+    //_cub2fftw(data);
 
     _FFTW_(execute)(fwd);
 
@@ -155,7 +131,7 @@ class PoissonSolverMixed : public PoissonSolver
 
     _FFTW_(execute)(bwd);
 
-    _fftw2cub(data);
+    _fftw2cub();
   }
 
   ~PoissonSolverMixed()
@@ -164,71 +140,5 @@ class PoissonSolverMixed : public PoissonSolver
     _FFTW_(destroy_plan)(bwd);
     _FFTW_(free)(data);
     _FFTW_(mpi_cleanup)();
-  }
-
-  inline size_t _offset(const int blockID) const
-  {
-    const BlockInfo &info = local_infos[blockID];
-    return _offset(info);
-  }
-  inline size_t _offset_ext(const BlockInfo &info) const
-  {
-    assert(local_infos[info.blockID].blockID == info.blockID);
-    return _offset(local_infos[info.blockID]);
-  }
-  inline size_t _offset(const BlockInfo &info) const
-  {
-    const int myIstart[3] = {
-      info.index[0]*bs[0],
-      info.index[1]*bs[1],
-      info.index[2]*bs[2]
-    };
-    return myIstart[2] +myN[2]*(myIstart[1]+ myN[1]*myIstart[0]);
-  }
-  inline size_t _dest(const size_t offset,const int z,const int y,const int x) const
-  {
-    return offset + z + myN[2]*(y + myN[1] * x);
-  }
-  inline void _cub2fftw(const size_t offset, const int z, const int y, const int x, const Real rhs) const
-  {
-    const size_t dest_index = _dest(offset, z, y, x);
-    assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*myN[2]);
-    data[dest_index] = rhs;
-  }
-
-  void _cub2fftw(Real * const out) const
-  {
-    #pragma omp parallel for
-    for(size_t i=0; i<local_infos.size(); ++i) {
-      const BlockInfo info = local_infos[i];
-      BlockType& b = *(BlockType*)info.ptrBlock;
-      const size_t offset = _offset(info);
-
-      for(int ix=0; ix<BlockType::sizeX; ix++)
-      for(int iy=0; iy<BlockType::sizeY; iy++)
-      for(int iz=0; iz<BlockType::sizeZ; iz++) {
-        const size_t dest_index = _dest(offset, iz, iy, ix);
-        assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*myN[2]);
-        out[dest_index] = b(ix,iy,iz).p;
-        //TStreamer::operate(b.data[iz][iy][ix], &out[dest_index]);
-      }
-    }
-  }
-  void _fftw2cub(const Real * const out) const
-  {
-    #pragma omp parallel for
-    for(size_t i=0; i<local_infos.size(); ++i) {
-      const BlockInfo info = local_infos[i];
-      BlockType& b = *(BlockType*)info.ptrBlock;
-      const size_t offset = _offset(info);
-
-      for(int ix=0; ix<BlockType::sizeX; ix++)
-      for(int iy=0; iy<BlockType::sizeY; iy++)
-      for(int iz=0; iz<BlockType::sizeZ; iz++) {
-        const size_t src_index = _dest(offset, iz, iy, ix);
-        assert(src_index>=0 && src_index<gsize[0]*gsize[1]*gsize[2]);
-        b(ix,iy,iz).p = out[src_index];
-      }
-    }
   }
 };

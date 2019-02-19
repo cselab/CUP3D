@@ -9,8 +9,8 @@
 #ifndef CubismUP_3D_CoordinatorPressure_h
 #define CubismUP_3D_CoordinatorPressure_h
 
-#include "PenalizationObstacleVisitor.h"
-#include "../obstacles/IF3D_ObstacleVector.h"
+#include "GenericCoordinator.h"
+#include "GenericOperator.h"
 
 //#include "../poisson/PoissonSolverScalarACC_freespace.h"
 //#include "../poisson/PoissonSolverScalarACC.h"
@@ -18,80 +18,6 @@
 #include "../poisson/PoissonSolverUnbounded.h"
 #include "../poisson/PoissonSolverPeriodic.h"
 #include "../poisson/PoissonSolverMixed.h"
-
-class OperatorDivergence : public GenericLabOperator
-{
- private:
-  double dt;
-  const Real ext[3], fadeLen[3], iFade[3];
-  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-
-  inline bool _is_touching(const BlockInfo& i) const
-  {
-    Real maxP[3], minP[3]; i.pos(minP, 0, 0, 0);
-    i.pos(maxP, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1);
-    const bool touchW= fadeLen[0]>=minP[0], touchE= fadeLen[0]>=ext[0]-maxP[0];
-    const bool touchS= fadeLen[1]>=minP[1], touchN= fadeLen[1]>=ext[1]-maxP[1];
-    const bool touchB= fadeLen[2]>=minP[2], touchF= fadeLen[2]>=ext[2]-maxP[2];
-    return touchN || touchE || touchS || touchW || touchF || touchB;
-  }
-
-  inline Real fade(const BlockInfo&i, const int x,const int y,const int z) const
-  {
-    Real p[3]; i.pos(p, x, y, z);
-    const Real zt = iFade[2] * std::max(Real(0), fadeLen[2] -(ext[2]-p[2]) );
-    const Real zb = iFade[2] * std::max(Real(0), fadeLen[2] - p[2] );
-    const Real yt = iFade[1] * std::max(Real(0), fadeLen[1] -(ext[1]-p[1]) );
-    const Real yb = iFade[1] * std::max(Real(0), fadeLen[1] - p[1] );
-    const Real xt = iFade[0] * std::max(Real(0), fadeLen[0] -(ext[0]-p[0]) );
-    const Real xb = iFade[0] * std::max(Real(0), fadeLen[0] - p[0] );
-    return 1-std::pow(std::min( std::max({zt,zb,yt,yb,xt,xb}), (Real)1), 2);
-  }
-
-  inline Real RHS(Lab&l, const int x,const int y,const int z,const Real F) const
-  {
-    const FluidElement & L  = l(x,  y,  z);
-    const FluidElement & LW = l(x-1,y,  z  ), & LE = l(x+1,y,  z  );
-    const FluidElement & LS = l(x,  y-1,z  ), & LN = l(x,  y+1,z  );
-    const FluidElement & LF = l(x,  y,  z-1), & LB = l(x,  y,  z+1);
-    const Real dU = LE.u-LW.u, dV = LN.v-LS.v, dW = LB.w-LF.w;
-    const Real dXx_ux = (LE.chi-LW.chi) * L.u / (1 + L.chi);
-    const Real dXy_uy = (LN.chi-LS.chi) * L.v / (1 + L.chi);
-    const Real dXz_uz = (LB.chi-LF.chi) * L.w / (1 + L.chi);
-    return L.p + F*(dU+dV+dW - (dXx_ux+dXy_uy+dXz_uz));
-  }
-
- public:
-  OperatorDivergence(double _dt, const Real buf[3], const Real extent[3]) :
-   dt(_dt), ext{extent[0],extent[1],extent[2]}, fadeLen{buf[0],buf[1],buf[2]},
-   iFade{1/(buf[0]+EPS), 1/(buf[1]+EPS), 1/(buf[2]+EPS)}
-  {
-    stencil_start[0] = -1; stencil_start[1] = -1;  stencil_start[2] = -1;
-    stencil_end[0] = 2;  stencil_end[1] = 2;  stencil_end[2] = 2;
-    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 0,1,2,3);
-  }
-  ~OperatorDivergence() {}
-
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-  {
-    const Real h = info.h_gridpoint, fac = .5*h*h/dt;
-    if( not _is_touching(info) )
-    {
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        o(ix,iy,iz).p = RHS(lab, ix, iy, iz, fac);
-    }
-    else
-    {
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        o(ix,iy,iz).p = fade(info, ix, iy, iz) * RHS(lab, ix, iy, iz, fac);
-    }
-  }
-};
 
 class OperatorGradP : public GenericLabOperator
 {
@@ -121,9 +47,10 @@ class OperatorGradP : public GenericLabOperator
       const Real Uf = o(ix,iy,iz).u + fac*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p);
       const Real Vf = o(ix,iy,iz).v + fac*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p);
       const Real Wf = o(ix,iy,iz).w + fac*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p);
-      o(ix,iy,iz).u = (Uf+o(ix,iy,iz).chi*o(ix,iy,iz).tmpU)/(1+o(ix,iy,iz).chi);
-      o(ix,iy,iz).v = (Vf+o(ix,iy,iz).chi*o(ix,iy,iz).tmpV)/(1+o(ix,iy,iz).chi);
-      o(ix,iy,iz).w = (Wf+o(ix,iy,iz).chi*o(ix,iy,iz).tmpW)/(1+o(ix,iy,iz).chi);
+      const Real US=o(ix,iy,iz).tmpU, VS=o(ix,iy,iz).tmpV, WS=o(ix,iy,iz).tmpW;
+      o(ix,iy,iz).u = ( Uf + o(ix,iy,iz).chi * US) / (1+o(ix,iy,iz).chi);
+      o(ix,iy,iz).v = ( Vf + o(ix,iy,iz).chi * VS) / (1+o(ix,iy,iz).chi);
+      o(ix,iy,iz).w = ( Wf + o(ix,iy,iz).chi * WS) / (1+o(ix,iy,iz).chi);
     }
   }
 };
@@ -138,47 +65,20 @@ class CoordinatorPressure : public GenericCoordinator
   CoordinatorPressure(SimulationData & s) : GenericCoordinator(s)
   {
     if(sim.bUseFourierBC)
-    pressureSolver = new PoissonSolverPeriodic<FluidGridMPI,StreamerDiv>(sim);
+    pressureSolver = new PoissonSolverPeriodic(sim);
     else if (sim.bUseUnboundedBC)
-    pressureSolver = new PoissonSolverUnbounded<FluidGridMPI,StreamerDiv>(sim);
-    else
-    pressureSolver = new PoissonSolverMixed<FluidGridMPI,StreamerDiv>(sim);
+    pressureSolver = new PoissonSolverUnbounded(sim);
+    else pressureSolver = new PoissonSolverMixed(sim);
+    sim.pressureSolver = pressureSolver;
   }
 
   void operator()(const double dt)
   {
-    check("pressure - start");
-    const int nthreads = omp_get_max_threads();
-
-    {
-      std::vector<OperatorDivergence*> diff(nthreads, nullptr);
-      #pragma omp parallel for schedule(static, 1)
-      for(int i=0;i<nthreads;++i)
-        diff[i] = new OperatorDivergence(dt, sim.fadeOutLengthPRHS, sim.extent);
-
-      compute<OperatorDivergence>(diff);
-      for(int i=0; i<nthreads; i++) delete diff[i];
-    }
 
     pressureSolver->solve();
-    {
-      //zero fields, going to contain Udef:
-      #pragma omp parallel for schedule(static)
-      for(unsigned i=0; i<vInfo.size(); i++) {
-        const BlockInfo& info = vInfo[i];
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-          b(ix,iy,iz).tmpU = 0; b(ix,iy,iz).tmpV = 0; b(ix,iy,iz).tmpW = 0;
-        }
-      }
-      //store deformation velocities onto tmp fields:
-      ObstacleVisitor*visitor=new PenalizationObstacleVisitor(grid,dt,sim.uinf);
-      sim.obstacle_vector->Accept(visitor);
-      delete visitor;
-    }
+
     { //pressure correction dudt* = - grad P / rho
+      const int nthreads = omp_get_max_threads();
       std::vector<OperatorGradP*> diff(nthreads, nullptr);
       #pragma omp parallel for schedule(static, 1)
       for(int i=0;i<nthreads;++i) diff[i] = new OperatorGradP(dt, sim.extent);
@@ -187,7 +87,7 @@ class CoordinatorPressure : public GenericCoordinator
       for(int i=0; i<nthreads; i++) delete diff[i];
     }
 
-    //check("pressure - end");
+    check("pressure - end");
   }
 
   std::string getName()

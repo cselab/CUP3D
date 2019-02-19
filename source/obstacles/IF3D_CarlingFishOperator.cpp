@@ -204,9 +204,9 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(SimulationData&s,
   #endif
 }
 
-void IF3D_CarlingFishOperator::computeForces(const int stepID, const double time, const double dt, const Real* Uinf, const double NU, const bool bDump)
+void IF3D_CarlingFishOperator::computeForces(const int stepID, const double time, const double dt, const double NU, const bool bDump)
 {
-  IF3D_ObstacleOperator::computeForces(stepID, time, dt, Uinf, NU, bDump);
+  IF3D_ObstacleOperator::computeForces(stepID, time, dt, NU, bDump);
 }
 
 #ifdef RL_LAYER

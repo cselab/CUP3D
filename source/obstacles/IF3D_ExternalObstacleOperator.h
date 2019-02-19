@@ -29,7 +29,7 @@ public:
             SimulationData&s, ArgumentParser &p)
         : IF3D_ExternalObstacleOperator(s, ObstacleArguments(s, p)) {}
 
-    void computeVelocities(const Real *Uinf) override;
+    void computeVelocities(const double dt, const Real lambda) override;
     void create(int step_id, double time, double dt, const Real *Uinf) override;
 };
 

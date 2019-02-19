@@ -24,6 +24,7 @@
 
 class GenericCoordinator;
 class IF3D_ObstacleVector;
+class PoissonSolver;
 
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
@@ -55,7 +56,7 @@ struct SimulationData
   IF3D_ObstacleVector * obstacle_vector = nullptr;
   //The antagonist
   std::vector<GenericCoordinator*> pipeline;
-
+  PoissonSolver * pressureSolver = nullptr;
   // simulation status
   // nsteps==0 means that this stopping criteria is not active
   int step=0, nsteps=0;

@@ -26,5 +26,5 @@ public:
 
   void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
   void finalize(const int step_id,const double time, const double dt, const Real *Uinf) override;
-  void computeVelocities(const Real* Uinf) override;
+  void computeVelocities(const double dt, const Real lambda) override;
 };

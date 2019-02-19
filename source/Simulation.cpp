@@ -17,6 +17,7 @@
 #include "operators/CoordinatorIC.h"
 //#include "operators/CoordinatorPenalization.h"
 #include "operators/CoordinatorPressure.h"
+#include "operators/CoordinatorPressureRHS.h"
 #include "operators/CoordinatorPressureGrad.h"
 
 //#include "CoordinatorVorticity.h"
@@ -210,23 +211,40 @@ void Simulation::setObstacleVector(IF3D_ObstacleVector * const obstacle_vector_)
 void Simulation::setupOperators()
 {
   sim.pipeline.clear();
+
   sim.pipeline.push_back(new CoordinatorComputeShape(sim));
 
-  sim.pipeline.push_back(new CoordinatorComputeDiagnostics(sim));
-
+  // Performs:
+  // \tilde{u} = u_t + \delta t (\nu \nabla^2 u_t - (u_t \cdot \nabla) u_t )
   sim.pipeline.push_back(new CoordinatorAdvectDiffuse<LabMPI>(sim));
+
   if(sim.uMax_forced > 0 && sim.initCond not_eq "taylorGreen")
     sim.pipeline.push_back(new CoordinatorPressureGradient(sim));
 
+  // Places Udef on the grid and computes the RHS of the Poisson Eq
+  // overwrites tmpU, tmpV, tmpW and pressure solver's RHS
+  // places in press RHS = - X^2 \nabla \cdot u_s
+  // or - X^2 \nabla \cdot u_s
+  sim.pipeline.push_back(new CoordinatorPressureRHS<LabMPI>(sim));
+
+  // solves the Poisson Eq to get the pressure and finalizes the velocity
+  // !!! requires udef on the grid !!!
+  // u_{t+1} = \tilde{u} - \delta t \nabla P + \chi ( u_s - u_{t+1} )
   sim.pipeline.push_back(new CoordinatorPressure<LabMPI>(sim));
+
+  // Obstacles are updated now because we have on the grid u_{t+1}
+  // and therefore we can compute the penalization from above as
+  // F_penal = \chi / \delta t ( u_s - u_{t+1} )  // (this is solid onto fluid)
+  // this computes the penalization force, the obstacle's velocity, moves CM
+  sim.pipeline.push_back(new CoordinatorUpdateObstacles(sim));
+
+  // Same goes for compute forces, but viscous term could be computed pre-penal
   sim.pipeline.push_back(new CoordinatorComputeForces(sim));
 
   if(sim.computeDissipation)
     sim.pipeline.push_back(new CoordinatorComputeDissipation<LabMPI>(sim));
 
-  #ifndef CUP_UNBOUNDED_FFT
-    sim.pipeline.push_back(new CoordinatorFadeOut(sim));
-  #endif /* CUP_UNBOUNDED_FFT */
+  sim.pipeline.push_back(new CoordinatorFadeOut(sim));
 
   if(sim.rank==0) {
     printf("Coordinator/Operator ordering:\n");

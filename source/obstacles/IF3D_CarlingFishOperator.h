@@ -20,7 +20,7 @@ class IF3D_CarlingFishOperator: public IF3D_FishOperator
 public:
   IF3D_CarlingFishOperator(SimulationData&s, ArgumentParser&p);
   void computeForces(const int stepID, const double time, const double dt,
-    const Real* Uinf, const double NU, const bool bDump) override;
+    const double NU, const bool bDump) override;
 
   #ifdef RL_LAYER
     void execute(const int i,const double t,const vector<double>a) override;

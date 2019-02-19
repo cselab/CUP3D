@@ -126,9 +126,7 @@ void IF3D_FishOperator::apply_pid_corrections(const double time, const double dt
   if (bCorrectTrajectory && time>0.312)
   {
     assert(followX < 0 && followY < 0);
-    const double velx_tot = Uinf[0] - transVel[0];
-    const double vely_tot = Uinf[1] - transVel[1];
-    const double AngDiff  = std::atan2(vely_tot,velx_tot);
+    const double AngDiff  = std::atan2(-transVel[1], -transVel[0]);
     adjTh = (1.-dt) * adjTh + dt * AngDiff;
     const double INST = (AngDiff*angVel[2]>0) ? AngDiff*std::fabs(angVel[2]) : 0;
     const double PID = 0.1*adjTh + 0.01*INST;
@@ -138,19 +136,17 @@ void IF3D_FishOperator::apply_pid_corrections(const double time, const double dt
   if (followX > 0 && followY > 0) //then i control the position
   {
     assert(not bCorrectTrajectory);
-    //const double velx_tot = Uinf[0] - transVel[0];
-    //const double vely_tot = Uinf[1] - transVel[1];
-    const double AngDiff  = _2Dangle;//std::atan2(vely_tot,velx_tot);
+    const double AngDiff  = _2Dangle; // std::atan2(-transVel[1], -transVel[0]);
 
     // Control posDiffs
     const double xDiff = (position[0] - followX)/length;
     const double yDiff = (position[1] - followY)/length;
     const double absDY = std::fabs(yDiff);
-    const double velAbsDY = yDiff>0 ? transVel[1]/length : -transVel[1]/length;
+    const double velAbsDY = (yDiff>0? 1 : -1) * (transVel[1] + Uinf[1])/length;
     const double velDAvg = AngDiff-adjTh + dt*angVel[2];
 
-    adjTh = (1.-dt) * adjTh + dt * AngDiff;
-    adjDy = (1.-dt) * adjDy + dt * yDiff;
+    adjTh = (1-dt) * adjTh + dt * AngDiff;
+    adjDy = (1-dt) * adjDy + dt * yDiff;
 
     //If angle is positive: positive curvature only if Dy<0 (must go up)
     //If angle is negative: negative curvature only if Dy>0 (must go down)
@@ -166,7 +162,7 @@ void IF3D_FishOperator::apply_pid_corrections(const double time, const double dt
     //(experiments observed 1.2X increase in amplitude when swimming faster)
     //if fish falls back 1 body length. Beyond that, will still increase but dunno if will work
     const double ampFac = f3*xDiff + 1.0;
-    const double ampVel = f3*transVel[0]/length;
+    const double ampVel = f3*(transVel[0] + Uinf[0])/length;
 
     const double curv1fac = f1*PROP;
     const double curv1vel = f1*(velAbsDY*adjTh   + absDY*velDAvg);

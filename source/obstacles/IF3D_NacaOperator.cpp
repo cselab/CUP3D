@@ -117,54 +117,33 @@ IF3D_NacaOperator::IF3D_NacaOperator(SimulationData&s, ArgumentParser&p) : IF3D_
 
 void IF3D_NacaOperator::update(const int stepID, const double t, const double dt, const Real* Uinf)
 {
-    _2Dangle  =  Mpitch +          Apitch * std::cos(2*M_PI*(Fpitch*t+Ppitch));
+    _2Dangle  =  Mpitch + Apitch * std::cos(2*M_PI*(Fpitch*t+Ppitch));
     quaternion[0] = std::cos(0.5*_2Dangle);
     quaternion[1] = 0;
     quaternion[2] = 0;
     quaternion[3] = std::sin(0.5*_2Dangle);
 
-    #if 0
-      _2Dangle = 0.6;
-      quaternion[0] = std::cos(0.5*_2Dangle);
-      quaternion[1] = 0;
-      quaternion[2] = 0;
-      quaternion[3] = std::sin(0.5*_2Dangle);
-      const double one = std::sqrt( quaternion[0]*quaternion[0]
-                                   +quaternion[1]*quaternion[1]
-                                   +quaternion[2]*quaternion[2]
-                                   +quaternion[3]*quaternion[3]);
-      quaternion[0] /= one+2e-16;
-      quaternion[1] /= one+2e-16;
-      quaternion[2] /= one+2e-16;
-      quaternion[3] /= one+2e-16;
-    #endif
+    absPos[0] += dt*transVel[0];
+    absPos[1] += dt*transVel[1];
+    absPos[2] += dt*transVel[2];
 
-    Real velx_tot = transVel[0]-Uinf[0];
-    Real vely_tot = transVel[1]-Uinf[1];
-    Real velz_tot = transVel[2]-Uinf[2];
-    absPos[0] += dt*velx_tot;
-    absPos[1] += dt*vely_tot;
-    absPos[2] += dt*velz_tot;
-
-    position[0] += dt*transVel[0];
+    position[0] += dt * ( transVel[0] + Uinf[0] );
     // if user wants to keep airfoil in the mid plane then we just integrate
     // relative velocity (should be 0), otherwise we know that y velocity
     // is sinusoidal, therefore we can just use analytical form
-    if(bFixFrameOfRef[1]) position[1] += dt*transVel[1];
-    else position[1] = sim.extent[1]/2 + Aheave * std::cos(2*M_PI*Fheave*t);
-    position[2] += dt*transVel[2];
+    if(bFixFrameOfRef[1])
+    position[1] += dt * ( transVel[1] + Uinf[1] );
+    else
+    position[1] = sim.extent[1]/2 + Aheave * std::cos(2*M_PI*Fheave*t);
+    position[2] += dt * ( transVel[2] + Uinf[2] );
 
-    #ifdef RL_LAYER
-    sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
-                      _2Dangle, velx_tot, vely_tot, angVel[2]);
-    #endif
     tOld = t;
-    _writeComputedVelToFile(stepID, t, Uinf);
+    _writeComputedVelToFile(stepID, t);
 }
 
-void IF3D_NacaOperator::computeVelocities(const Real* Uinf)
+void IF3D_NacaOperator::computeVelocities(const double dt, const Real lambda)
 {
-  IF3D_ObstacleOperator::computeVelocities(Uinf);
+  IF3D_ObstacleOperator::computeVelocities(dt, lambda);
 
   // x velocity can be either fixed from the start (then we follow the obst op
   // pattern) or self propelled, here we do not touch it.

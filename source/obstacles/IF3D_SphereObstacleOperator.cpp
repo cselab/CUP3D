@@ -81,9 +81,9 @@ void IF3D_SphereObstacleOperator::finalize(const int step_id,const double time, 
 }
 
 
-void IF3D_SphereObstacleOperator::computeVelocities(const Real* Uinf)
+void IF3D_SphereObstacleOperator::computeVelocities(const double dt, const Real lambda)
 {
-  IF3D_ObstacleOperator::computeVelocities(Uinf);
+  IF3D_ObstacleOperator::computeVelocities(dt, lambda);
 
   if(accel_decel) {
     if(_tOld<tmax) transVel[0] = umax*_tOld/tmax;
