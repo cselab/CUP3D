@@ -57,7 +57,6 @@ class PoissonSolverMixed : public PoissonSolver
   }
 
  public:
-  Real * data = nullptr;
 
   PoissonSolverMixed(SimulationData & s) : PoissonSolver(s)
   {
@@ -105,7 +104,7 @@ class PoissonSolverMixed : public PoissonSolver
 
   void solve()
   {
-    //_cub2fftw(data);
+    _cub2fftw();
 
     _FFTW_(execute)(fwd);
 

@@ -74,7 +74,6 @@ class PoissonSolverPeriodic : public PoissonSolver
   }
 
  public:
-  Real * data = nullptr;
 
   PoissonSolverPeriodic(SimulationData & s) : PoissonSolver(s)
   {
@@ -115,7 +114,7 @@ class PoissonSolverPeriodic : public PoissonSolver
 
   void solve()
   {
-    //_cub2fftw(data);
+    _cub2fftw();
 
     _FFTW_(execute)(fwd);
 

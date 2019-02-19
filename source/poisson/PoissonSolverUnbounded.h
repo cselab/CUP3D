@@ -40,7 +40,6 @@ class PoissonSolverUnbounded : public PoissonSolver
   const size_t m_full_size = m_NN0t * m_local_NN1 * m_Nzhat;
   // FFT normalization factor
   const Real m_norm_factor = 1.0 / (m_NN0t*h * m_NN1t*h * m_NN2t*h);
-  Real* data;   // input, output, transpose and 2D FFTs (m_local_N0 x m_NN1 x 2m_Nzhat)
   Real* m_buf_full; // full block of m_NN0t x m_local_NN1 x 2m_Nzhat for 1D FFTs
   Real* m_kernel;   // FFT of Green's function (real part, m_NN0t x m_local_NN1 x m_Nzhat)
 
@@ -80,6 +79,7 @@ class PoissonSolverUnbounded : public PoissonSolver
     _FFTW_(mpi_init)();
 
     // FFTW plans
+    // input, output, transpose and 2D FFTs (m_local_N0 x m_NN1 x 2m_Nzhat):
     data   = _FFTW_(alloc_real)( 2*m_tp_size );
     m_buf_full = _FFTW_(alloc_real)( 2*m_full_size );
 
@@ -152,9 +152,7 @@ class PoissonSolverUnbounded : public PoissonSolver
 
   void solve() override
   {
-    // Note: _cub2fftw() is called from outside via public member call (for
-    // efficiency)
-    //_cub2fftw();
+    _cub2fftw();
 
     _FFTW_(execute)(m_fwd_2D);
     _FFTW_(execute)(m_fwd_tp);
