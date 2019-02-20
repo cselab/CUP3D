@@ -9,80 +9,84 @@
 
 #include "PoissonSolver.h"
 
-
-void PoissonSolver::cub2rhs()
+void PoissonSolver::_cub2fftw() const
 {
-  const std::vector<BlockInfo>& tmpInfo = sim.tmp->getBlocksInfo();
-  const size_t nBlocks = tmpInfo.size();
-  Real sumRHS = 0, sumABS = 0;
+  const size_t NlocBlocks = local_infos.size();
+  #if 0
+    #pragma omp parallel for
+    for(size_t i=0; i<NlocBlocks; ++i) {
+      const BlockInfo info = local_infos[i];
+      BlockType& b = *(BlockType*)info.ptrBlock;
+      const size_t offset = _offset(info);
 
-  Real * __restrict__ const dest = buffer;
+      for(int ix=0; ix<BlockType::sizeX; ix++)
+      for(int iy=0; iy<BlockType::sizeY; iy++)
+      for(int iz=0; iz<BlockType::sizeZ; iz++) {
+        const size_t dest_index = _dest(offset, iz, iy, ix);
+        data[dest_index] = b(ix,iy,iz).p;
+      }
+    }
+  #endif
 
+  double sumRHS = 0, sumABS = 0;
   #pragma omp parallel for schedule(static) reduction(+ : sumRHS, sumABS)
-  for(size_t i=0; i<nBlocks; ++i)
-  {
-    const BlockInfo& info = tmpInfo[i];
-    const size_t blocki = VectorBlock::sizeX * info.index[0];
-    const size_t blockj = VectorBlock::sizeY * info.index[1];
-    const ScalarBlock& b = *(ScalarBlock*)info.ptrBlock;
-    const size_t blockStart = blocki + stride * blockj;
-
-    for(int iy=0; iy<VectorBlock::sizeY; iy++)
-    for(int ix=0; ix<VectorBlock::sizeX; ix++) {
-      dest[blockStart + ix + stride*iy] = b(ix,iy).s;
-      sumABS += std::fabs(b(ix,iy).s);
-      sumRHS +=           b(ix,iy).s;
+  for(size_t i=0; i<NlocBlocks; ++i) {
+    const size_t offset = _offset(local_infos[i]);
+    for(int ix=0; ix<BlockType::sizeX; ix++)
+    for(int iy=0; iy<BlockType::sizeY; iy++)
+    for(int iz=0; iz<BlockType::sizeZ; iz++) {
+      const size_t dest_index = _dest(offset, iz, iy, ix);
+      sumABS += std::fabs(data[dest_index]);
+      sumRHS +=           data[dest_index];
     }
   }
-
-  sumABS = std::max(std::numeric_limits<Real>::epsilon(), sumABS);
-  const Real correction = sumRHS / sumABS;
-  //printf("Relative RHS correction:%e\n", correction);
+  double sums[2] = {sumRHS, sumABS};
+  MPI_Allreduce(MPI_IN_PLACE, sums, 2, MPI_DOUBLE,MPI_SUM, m_comm);
+  sums[1] = std::max(std::numeric_limits<double>::epsilon(), sums[1]);
+  const Real correction = sums[0] / sums[1];
+  printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
   #if 1
     #pragma omp parallel for schedule(static)
-    for (size_t iy = 0; iy < totNy; iy++)
-    for (size_t ix = 0; ix < totNx; ix++)
-      dest[ix + stride * iy] -=  std::fabs(dest[ix +stride * iy]) * correction;
+    for(size_t i=0; i<NlocBlocks; ++i) {
+      const size_t offset = _offset(local_infos[i]);
+      for(int ix=0; ix<BlockType::sizeX; ix++)
+      for(int iy=0; iy<BlockType::sizeY; iy++)
+      for(int iz=0; iz<BlockType::sizeZ; iz++) {
+        const size_t dest_index = _dest(offset, iz, iy, ix);
+        data[dest_index] -=  std::fabs(data[dest_index]) * correction;
+      }
+    }
 
     #ifndef NDEBUG
-      Real sumRHSpost = 0;
+      double sumRHSpost = 0;
       #pragma omp parallel for schedule(static) reduction(+ : sumRHSpost)
-      for(size_t iy = 0; iy < totNy; iy++)
-      for(size_t ix = 0; ix < totNx; ix++) sumRHSpost += dest[ix + stride * iy];
-      printf("Relative RHS correction:%e\n", sumRHSpost);
-      assert(sumRHSpost < std::sqrt(std::numeric_limits<Real>::epsilon()));
+      for(size_t i=0; i<NlocBlocks; ++i) {
+        const size_t offset = _offset(local_infos[i]);
+        for(int ix=0; ix<BlockType::sizeX; ix++)
+        for(int iy=0; iy<BlockType::sizeY; iy++)
+        for(int iz=0; iz<BlockType::sizeZ; iz++)
+          sumRHSpost += data[_dest(offset, iz, iy, ix)];
+      }
+      MPI_Allreduce(MPI_IN_PLACE, &sumRHSpost, 1, MPI_DOUBLE,MPI_SUM, m_comm);
+      printf("Sum of RHS after correction:%e\n", sumRHSpost);
     #endif
   #endif
 }
 
-void PoissonSolver::sol2cub()
+void PoissonSolver::_fftw2cub() const
 {
-  const std::vector<BlockInfo>& presInfo = sim.pres->getBlocksInfo();
-  const size_t nBlocks = presInfo.size();
-  //const Real F = 0.2, A = F * iter / (1 + F * iter);
-  const Real A = iter == 0 ? 0 : 0.5;
-  //if(iter == 0) std::fill(presMom, presMom + totNy * totNx, 0);
-  const Real * __restrict__ const sorc = buffer;
-  #pragma omp parallel for schedule(static)
-  for(size_t i=0; i<nBlocks; ++i)
-  {
-    const BlockInfo& info = presInfo[i];
-    const size_t blocki = VectorBlock::sizeX * info.index[0];
-    const size_t blockj = VectorBlock::sizeY * info.index[1];
-    ScalarBlock& b = *(ScalarBlock*)info.ptrBlock;
-    const size_t blockStart = blocki + stride*blockj;
-    const size_t momSt = blocki + totNx*blockj;
+  const size_t NlocBlocks = local_infos.size();
+  #pragma omp parallel for
+  for(size_t i=0; i<NlocBlocks; ++i) {
+    const BlockInfo info = local_infos[i];
+    BlockType& b = *(BlockType*)info.ptrBlock;
+    const size_t offset = _offset(info);
 
-    for(int iy=0; iy<VectorBlock::sizeY; iy++)
-    for(int ix=0; ix<VectorBlock::sizeX; ix++) {
-      //const Real DP = sorc[blockStart + ix + stride*iy] - b(ix,iy).s;
-      //presMom[momSt + ix + totNx*iy] = A*presMom[momSt + ix + totNx*iy] + DP;
-      //b(ix,iy).s = b(ix,iy).s + presMom[momSt + ix + totNx*iy];
-      b(ix,iy).s = sorc[blockStart + ix + stride*iy];
+    for(int ix=0; ix<BlockType::sizeX; ix++)
+    for(int iy=0; iy<BlockType::sizeY; iy++)
+    for(int iz=0; iz<BlockType::sizeZ; iz++) {
+      const size_t src_index = _dest(offset, iz, iy, ix);
+      b(ix,iy,iz).p = data[src_index];
     }
   }
-}
-
-PoissonSolver::PoissonSolver(SimulationData&s,long p): sim(s), stride(p) {
-  std::fill(presMom, presMom + totNy * totNx, 0);
 }

@@ -156,9 +156,9 @@ OBJECTS = IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o \
 	IF3D_DCylinderObstacleOperator.o IF3D_TestDiffusionObstacleOperator.o \
 	SimulationData.o Simulation.o AdvectionDiffusion.o ComputeDissipation.o \
 	ExternalForcing.o FadeOut.o InitialConditions.o ObstacleManagement.o \
-	PressurePenalization.o PressureRHS.o \
+	PressurePenalization.o PressureRHS.o PoissonSolver.o \
 	ArgumentParser.o  # Temporary solution for Cubism .cpp files.
-	#IF3D_ElasticFishOperator.o \
+	#IF3D_ElasticFishOperator.o
 
 ifeq "$(accfft)" "true"
 	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -D_CUDA_COMP_ -Wno-float-equal
