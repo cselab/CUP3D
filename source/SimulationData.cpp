@@ -77,26 +77,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   fadeOutLengthPRHS[1] = BC_y=="dirichlet"? fadeLen : 0;
   fadeOutLengthPRHS[2] = BC_z=="dirichlet"? fadeLen : 0;
 
-  if(BC_x=="fakeopen") {
-    BC_x = "periodic";
-    fadeOutLengthU[0] = fadeLen;
-    fadeOutLengthPRHS[0] = fadeLen;
-  }
-  if(BC_y=="fakeopen") {
-    BC_y = "periodic";
-    fadeOutLengthU[1] = fadeLen;
-    fadeOutLengthPRHS[1] = fadeLen;
-  }
-  if(BC_z=="fakeopen") {
-    BC_z = "periodic";
-    fadeOutLengthU[2] = fadeLen;
-    fadeOutLengthPRHS[2] = fadeLen;
-  }
-
-  BCx_flag = string2BCflag(BC_x);
-  BCy_flag = string2BCflag(BC_y);
-  BCz_flag = string2BCflag(BC_z);
-
   if(BC_x=="freespace" || BC_y=="freespace" || BC_z=="freespace")
   {
     if(BC_x=="freespace" && BC_y=="freespace" && BC_z=="freespace") {
@@ -106,6 +86,27 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
      fflush(0); abort();
     }
   }
+
+  if(BC_x=="fakeopen" || BC_y=="fakeopen" || BC_z=="fakeopen")
+  {
+    if(BC_x=="fakeopen" && BC_y=="fakeopen" && BC_z=="fakeopen")
+    {
+      fadeOutLengthU[0] = fadeLen; fadeOutLengthPRHS[0] = fadeLen;
+      fadeOutLengthU[1] = fadeLen; fadeOutLengthPRHS[1] = fadeLen;
+      fadeOutLengthU[2] = fadeLen; fadeOutLengthPRHS[2] = fadeLen;
+      BC_x = "freespace"; BC_y = "freespace"; BC_z = "freespace";
+      bUseFourierBC = true; // poisson solver
+    } else {
+     fprintf(stderr,"ERROR: either all or no BC can be fakeopen!\n");
+     fflush(0); abort();
+    }
+  }
+
+  BCx_flag = string2BCflag(BC_x);
+  BCy_flag = string2BCflag(BC_y);
+  BCz_flag = string2BCflag(BC_z);
+
+
   // DFT if we are periodic in all directions:
   if(BC_x=="periodic"&&BC_y=="periodic"&&BC_z=="periodic") bUseFourierBC = true;
   if(rank==0)
