@@ -11,36 +11,15 @@
 #include <array>
 #include <vector>
 #include <cassert>
-using namespace std;
-
 #ifndef CUP_SINGLE_PRECISION
-  #include "accfft_gpu.h"
-  typedef accfft_plan_gpu myplan;
-  #define accfft_local_size accfft_local_size_dft_r2c_gpu
-  #define accfft_plan_dft accfft_plan_dft_3d_r2c_gpu
-  #define accfft_delplan accfft_destroy_plan_gpu
-  #define accfft_clean accfft_cleanup_gpu
-  #define accfft_locsize_dft_r2c accfft_local_size_dft_r2c_gpu
-  #define accfft_exec_r2c accfft_execute_r2c_gpu
-  #define accfft_exec_c2r accfft_execute_c2r_gpu
   #define MPIREAL MPI_DOUBLE
   typedef double Real;
-  typedef double myComplex[2];
-
 #else
-  #include "accfft_gpuf.h"
-  typedef accfft_plan_gpuf myplan;
-  #define accfft_local_size accfft_local_size_dft_r2c_gpuf
-  #define accfft_plan_dft accfft_plan_dft_3d_r2c_gpuf
-  #define accfft_delplan accfft_destroy_plan_gpu
-  #define accfft_clean accfft_cleanup_gpuf
-  #define accfft_locsize_dft_r2c accfft_local_size_dft_r2c_gpuf
-  #define accfft_exec_r2c accfft_execute_r2c_gpuf
-  #define accfft_exec_c2r accfft_execute_c2r_gpuf
   #define MPIREAL MPI_FLOAT
   typedef float Real;
-  typedef float myComplex[2];
 #endif
+#include "PoissonSolverACC_common.h"
+
 
 #define CUDA_Check(code) do {  \
     if (code != cudaSuccess) { \
@@ -50,7 +29,7 @@ using namespace std;
 } while(0)
 
 __global__
-void _fourier_filter_kernel(myComplex*const __restrict__ out,
+void _fourier_filter_kernel(acc_c*const __restrict__ out,
   const size_t Nx, const size_t Ny, const size_t Nz,
   const size_t nx, const size_t ny, const size_t nz,
   const size_t sx, const size_t sy, const size_t sz,
@@ -68,8 +47,7 @@ void _fourier_filter_kernel(myComplex*const __restrict__ out,
   const size_t kky = ky > Ny/2 ? ky-Ny : ky;
   const size_t kkz = kz > Nz/2 ? kz-Nz : kz;
   const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
-
-  const Real kinv =(kkx==0&&kky==0&&kkz==0)? 0 : -fac/(rkx*rkx+rky*rky+rkz*rkz);
+  const Real kinv = -fac / (rkx*rkx + rky*rky + rkz*rkz);
   //const Real kinv = -scale*(rkx*rkx+rky*rky+rkz*rkz);
   const size_t index = (i*ny + j)*nz + k;
   out[index][0] *= kinv;
@@ -77,16 +55,15 @@ void _fourier_filter_kernel(myComplex*const __restrict__ out,
 }
 
 
-void _fourier_filter_gpu(myComplex*const __restrict__ out,
-  const std::array<size_t,3> N, const std::array<size_t,3> osize,
-  const std::array<size_t,3> ostart, const double h)
+void _fourier_filter_gpu(acc_c*const __restrict__ data_hat,
+ const size_t gsize[3],const int osize[3] , const int ostart[3], const double h)
 {
   const std::array<Real,3> wfac = {
-    Real(2*M_PI/(h*N[0])),
-    Real(2*M_PI/(h*N[1])),
-    Real(2*M_PI/(h*N[2]))
+    Real(2*M_PI/(h*gsize[0])),
+    Real(2*M_PI/(h*gsize[1])),
+    Real(2*M_PI/(h*gsize[2]))
   };
-  const Real scale = 1./( N[0]*h * N[1]*h * N[2]*h );
+  const Real scale = 1./( gsize[0]*h * gsize[1]*h * gsize[2]*h );
 
   int blocksInX = std::ceil(osize[0] / 4.);
   int blocksInY = std::ceil(osize[1] / 4.);
@@ -95,10 +72,13 @@ void _fourier_filter_gpu(myComplex*const __restrict__ out,
   dim3 Dg(blocksInX, blocksInY, blocksInZ);
   dim3 Db(4, 4, 4);
   _fourier_filter_kernel<<<Dg, Db>>>(
-    out, N[0], N[1], N[2],
+    data_hat, gsize[0], gsize[1], gsize[2],
     osize[0], osize[1], osize[2],
     ostart[0], ostart[1], ostart[2],
     wfac[0], wfac[1], wfac[2], scale);
+
+  if(ostart[0]==0 && ostart[1]==0 && ostart[2]==0)
+    cudaMemset(data_hat, 0, 2 * sizeof(Real));
 
   cudaDeviceSynchronize();
 }
@@ -120,7 +100,7 @@ __global__ void kPos(const int iSzX, const int iSzY, const int iSzZ,
 __global__ void kGreen(const int iSzX, const int iSzY, const int iSzZ,
   const int iStX, const int iStY, const int iStZ,
   const int nGlobX, const int nGlobY, const int nGlobZ, const size_t nZpad,
-  const Real fac, const Real h, Real*const in_out)
+  const Real h, Real*const in_out)
 {
   const int i = blockDim.x * blockIdx.x + threadIdx.x;
   const int j = blockDim.y * blockIdx.y + threadIdx.y;
@@ -139,7 +119,7 @@ __global__ void kGreen(const int iSzX, const int iSzY, const int iSzZ,
 }
 
 __global__ void kCopyC2R(const int oSzX,const int oSzY,const int oSzZ,
-  const Real norm, const size_t nZpad, const myComplex*const G_hat, Real*const m_kernel)
+  const Real norm, const size_t nZpad, const acc_c*const G_hat, Real*const m_kernel)
 {
   const int i = threadIdx.x + blockIdx.x * blockDim.x;
   const int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -150,7 +130,7 @@ __global__ void kCopyC2R(const int oSzX,const int oSzY,const int oSzZ,
 }
 
 __global__ void kFreespace(const int oSzX, const int oSzY, const int oSzZ,
-  const size_t nZpad, const Real*const G_hat, myComplex*const in_out)
+  const size_t nZpad, const Real*const G_hat, acc_c*const in_out)
 {
   const int i = threadIdx.x + blockIdx.x * blockDim.x;
   const int j = threadIdx.y + blockIdx.y * blockDim.y;
@@ -168,7 +148,7 @@ static inline int getRank(MPI_Comm comm) {
   int ret; MPI_Comm_rank(comm, &ret); return ret;
 }
 
-void dSolveFreespace(void*const P, const int nx,const int ny,const int nz,
+void dSolveFreespace(acc_plan*const P, const int nx,const int ny,const int nz,
   const int locx,const int locy,const int locz, const MPI_Comm comm,
   const int ox,const int oy,const int oz, const Real*const G_hat,
   Real*const cub_rhs, Real*const fft_rhs, Real*const gpu_rhs)
@@ -187,7 +167,7 @@ void dSolveFreespace(void*const P, const int nx,const int ny,const int nz,
   // MPI transfer of data from CUP distribution to 1D-padded FFT distribution
   {
     memset(fft_rhs, 0, szFft[0]*szFft[1]*szFft[2] * sizeof(Real) );
-    vector<MPI_Request> reqs = vector<MPI_Request>(mpisize*2, MPI_REQUEST_NULL);
+    std::vector<MPI_Request> reqs = std::vector<MPI_Request>(mpisize*2, MPI_REQUEST_NULL);
     const int m_ind =  pos[0]   * locx, m_pos =  mpirank   * szFft[0];
     const int m_nxt = (pos[0]+1)* locx, m_end = (mpirank+1)* szFft[0];
     for(int i=0; i<mpisize; i++)
@@ -240,13 +220,13 @@ void dSolveFreespace(void*const P, const int nx,const int ny,const int nz,
 
   // solve Poisson in padded space
   {
-    accfft_exec_r2c(static_cast<myplan*>(P), gpu_rhs, (myComplex*) gpu_rhs);
+    accfft_exec_r2c(P, gpu_rhs, (acc_c*) gpu_rhs);
     //CUDA_Check(cudaDeviceSynchronize());
     dim3 dB(4, 4, 4);
     dim3 dG(std::ceil(ox/4.), std::ceil(oy/4.), std::ceil(oz/4.));
-    kFreespace <<<dG, dB>>> (ox,oy,oz, mz_pad, G_hat, (myComplex*) gpu_rhs);
+    kFreespace <<<dG, dB>>> (ox,oy,oz, mz_pad, G_hat, (acc_c*) gpu_rhs);
     //CUDA_Check(cudaDeviceSynchronize());
-    accfft_exec_c2r(static_cast<myplan*>(P), (myComplex*) gpu_rhs, gpu_rhs);
+    accfft_exec_c2r(P, (acc_c*) gpu_rhs, gpu_rhs);
     //CUDA_Check(cudaDeviceSynchronize());
   }
 
@@ -280,7 +260,7 @@ void dSolveFreespace(void*const P, const int nx,const int ny,const int nz,
   }
   // MPI transfer of data from CUP distribution to 1D-padded FFT distribution
   {
-    vector<MPI_Request> reqs = vector<MPI_Request>(mpisize*2, MPI_REQUEST_NULL);
+    std::vector<MPI_Request> reqs = std::vector<MPI_Request>(mpisize*2, MPI_REQUEST_NULL);
     const int m_ind =  pos[0]   * locx, m_pos =  mpirank   * szFft[0];
     const int m_nxt = (pos[0]+1)* locx, m_end = (mpirank+1)* szFft[0];
     for(int i=0; i<mpisize; i++)
@@ -311,7 +291,7 @@ void dSolveFreespace(void*const P, const int nx,const int ny,const int nz,
 }
 
 void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
-  const int nx,const int ny,const int nz, const Real h, myplan* const fwd,
+  const int nx,const int ny,const int nz, const Real h, acc_plan* const fwd,
   Real*const m_kernel, Real*const gpu_rhs)
 {
   const int mx = 2*nx -1, my = 2*ny -1, mz = 2*nz -1, mz_pad = mz/2 +1;
@@ -324,7 +304,7 @@ void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
     CUDA_Check(cudaDeviceSynchronize());
   }
 
-  accfft_exec_r2c(fwd, gpu_rhs, (myComplex*) gpu_rhs);
+  accfft_exec_r2c(fwd, gpu_rhs, (acc_c*) gpu_rhs);
   CUDA_Check(cudaDeviceSynchronize());
 
   {
@@ -332,7 +312,7 @@ void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
     dim3 dB(4, 4, 4);
     dim3 dG(std::ceil(osz[0]/4.), std::ceil(osz[1]/4.), std::ceil(osz[2]/4.));
     kCopyC2R<<<dG, dB>>> (osz[0],osz[1],osz[2], norm, mz_pad,
-      (myComplex*)gpu_rhs, m_kernel);
+      (acc_c*)gpu_rhs, m_kernel);
     CUDA_Check(cudaDeviceSynchronize());
   }
   //{
@@ -340,17 +320,4 @@ void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
   //  dim3 dG(std::ceil(isz[0]/4.), std::ceil(isz[1]/4.), std::ceil(isz[2]/4.));
   //  kPos<<<dG, dB>>> (isz[0],isz[1],isz[2], ist[0],ist[1],ist[2], mx,my,mz, mz_pad, gpu_rhs);
   //}
-}
-
-MPI_Comm my_accfft_create_comm(MPI_Comm C, int c_dims[2]) {
-  MPI_Comm ret;
-  accfft_create_comm( C, c_dims, &ret);
-  return ret;
-}
-
-void my_cudaFree(Real* const ptr) {  cudaFree(ptr); }
-void my_accfft_cleanup(void* const plan) {
-  myplan * inp = static_cast<myplan*>(plan);
-  accfft_destroy_plan_gpu(inp);
-  accfft_clean();
 }

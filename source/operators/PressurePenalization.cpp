@@ -8,11 +8,21 @@
 
 #include "PressurePenalization.h"
 
-//#include "../poisson/PoissonSolverScalarACC_freespace.h"
-//#include "../poisson/PoissonSolverScalarACC.h"
-#include "../poisson/PoissonSolverUnbounded.h"
+#ifndef CUP_SINGLE_PRECISION
+#define MPIREAL MPI_DOUBLE
+#else
+#define MPIREAL MPI_FLOAT
+#endif /* CUP_SINGLE_PRECISION */
+#ifdef _ACCFFT_
+#include "../poisson/PoissonSolverACCPeriodic.h"
+#include "../poisson/PoissonSolverACCUnbounded.h"
+#else
 #include "../poisson/PoissonSolverPeriodic.h"
+#include "../poisson/PoissonSolverUnbounded.h"
+#endif
+// TODO : Cosine transform on GPU!?
 #include "../poisson/PoissonSolverMixed.h"
+#undef MPIREAL
 
 class KernelGradP
 {

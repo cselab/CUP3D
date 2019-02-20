@@ -38,31 +38,13 @@ ifeq "$(dump_surface_binary)" "true"
         CPPFLAGS += -DCUP_DUMP_SURFACE_BINARY
 endif
 
-ifeq "$(bc)" "periodicz"
-	CPPFLAGS += -DBC_PERIODICZ
-endif
-
-ifeq "$(unboundedfft)" "true"
-	CPPFLAGS += -DCUP_UNBOUNDED_FFT
-endif
-
 ifeq "$(verbose)" "true"
 	CPPFLAGS += -DCUP_VERBOSE
-endif
-
-rltrain ?= false
-ifeq "$(rltrain)" "true"
-	CPPFLAGS += -DRL_LAYER
-	CPPFLAGS += -I${HOME}/smarties/source/ -D__RL_MPI_CLIENT
 endif
 
 ifeq "$(zlib)" "1"
 	CPPFLAGS += -D_USE_ZLIB_ -D_USE_WAVZ_
 	LIBS +=  -lz -lrt -lstdc++
-endif
-
-ifeq "$(rk2)" "true"
-	CPPFLAGS += -DCUP_RK2
 endif
 
 ifeq "$(precision)" "single"
@@ -161,10 +143,10 @@ OBJECTS = IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o \
 	#IF3D_ElasticFishOperator.o
 
 ifeq "$(accfft)" "true"
-	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -D_CUDA_COMP_ -Wno-float-equal
+	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -Wno-float-equal
 	NVFLAGS += -I$(accfft-inc) -I$(MPICH_DIR)/include/
 	LIBS += -L$(accfft-lib) -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu -lcufft
-	NVOBJECTS = PoissonSolverScalarACC.o
+	NVOBJECTS = PoissonSolverACC.o
 else
 	NVOBJECTS =
 	LIBS += $(FFTW_LIBS)
@@ -203,7 +185,7 @@ librl: $(LIBRLOBJ) $(NVOBJECTS)
 %.o: %.cpp
 	$(CC) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 
-PoissonSolverScalarACC.o: PoissonSolverScalarACC.cu
+PoissonSolverACC.o: PoissonSolverACC.cu
 	nvcc $(NVFLAGS) -c $< -o $@
 
 clean:

@@ -12,23 +12,9 @@
 #include <cassert>
 #include <cstring>
 
-#include <fftw3-mpi.h>
-
 #include "../SimulationData.h"
 
 #include "Cubism/BlockInfo.h"
-
-#ifndef CUP_SINGLE_PRECISION
-#define _FFTW_(s) fftw_##s
-typedef fftw_complex mycomplex;
-typedef fftw_plan myplan;
-#define MPIREAL MPI_DOUBLE
-#else
-#define _FFTW_(s) fftwf_##s
-typedef fftwf_complex mycomplex;
-typedef fftwf_plan myplan;
-#define MPIREAL MPI_FLOAT
-#endif /* CUP_SINGLE_PRECISION */
 
 class PoissonSolver
 {

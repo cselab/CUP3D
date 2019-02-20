@@ -13,6 +13,7 @@
 #define POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 
 #include "PoissonSolver.h"
+#include "PoissonSolver_common.h"
 
 class PoissonSolverUnbounded : public PoissonSolver
 {
@@ -44,12 +45,12 @@ class PoissonSolverUnbounded : public PoissonSolver
   Real* m_kernel;   // FFT of Green's function (real part, m_NN0t x m_local_NN1 x m_Nzhat)
 
   // FFTW plans
-  myplan m_fwd_1D;
-  myplan m_bwd_1D;
-  myplan m_fwd_2D;
-  myplan m_bwd_2D;
-  myplan m_fwd_tp; // use FFTW's transpose facility
-  myplan m_bwd_tp; // use FFTW's transpose facility
+  fft_plan m_fwd_1D;
+  fft_plan m_bwd_1D;
+  fft_plan m_fwd_2D;
+  fft_plan m_bwd_2D;
+  fft_plan m_fwd_tp; // use FFTW's transpose facility
+  fft_plan m_bwd_tp; // use FFTW's transpose facility
 
  public:
   PoissonSolverUnbounded(SimulationData&s) : PoissonSolver(s)
@@ -91,12 +92,12 @@ class PoissonSolverUnbounded : public PoissonSolver
       const int* embed = n;
       const int dist = 1;
       m_fwd_1D = _FFTW_(plan_many_dft)(1, n, howmany,
-              (mycomplex*)m_buf_full, embed, stride, dist,
-              (mycomplex*)m_buf_full, embed, stride, dist,
+              (fft_c*)m_buf_full, embed, stride, dist,
+              (fft_c*)m_buf_full, embed, stride, dist,
               FFTW_FORWARD, FFTW_MEASURE);
       m_bwd_1D = _FFTW_(plan_many_dft)(1, n, howmany,
-              (mycomplex*)m_buf_full, embed, stride, dist,
-              (mycomplex*)m_buf_full, embed, stride, dist,
+              (fft_c*)m_buf_full, embed, stride, dist,
+              (fft_c*)m_buf_full, embed, stride, dist,
               FFTW_BACKWARD, FFTW_MEASURE);
     }
 
@@ -106,15 +107,15 @@ class PoissonSolverUnbounded : public PoissonSolver
       const int howmany = static_cast<int>(m_local_N0);
       const int stride = 1;
       const int rembed[2] = {static_cast<int>(m_NN1), static_cast<int>(2*m_Nzhat)}; // unit: sizeof(Real)
-      const int cembed[2] = {static_cast<int>(m_NN1), static_cast<int>(m_Nzhat)};   // unit: sizeof(mycomplex)
+      const int cembed[2] = {static_cast<int>(m_NN1), static_cast<int>(m_Nzhat)};   // unit: sizeof(fft_c)
       const int rdist = static_cast<int>( m_NN1 * 2*m_Nzhat ); // unit: sizeof(Real)
-      const int cdist = static_cast<int>( m_NN1 * m_Nzhat ); // unit: sizeof(mycomplex)
+      const int cdist = static_cast<int>( m_NN1 * m_Nzhat ); // unit: sizeof(fft_c)
       m_fwd_2D = _FFTW_(plan_many_dft_r2c)(2, n, howmany,
               data, rembed, stride, rdist,
-              (mycomplex*)data, cembed, stride, cdist,
+              (fft_c*)data, cembed, stride, cdist,
               FFTW_MEASURE);
       m_bwd_2D = _FFTW_(plan_many_dft_c2r)(2, n, howmany,
-              (mycomplex*)data, cembed, stride, cdist,
+              (fft_c*)data, cembed, stride, cdist,
               data, rembed, stride, rdist,
               FFTW_MEASURE);
     }
@@ -160,7 +161,7 @@ class PoissonSolverUnbounded : public PoissonSolver
     _FFTW_(execute)(m_fwd_1D);
 
     {
-      mycomplex* const rho_hat = (mycomplex*)m_buf_full;
+      fft_c* const rho_hat = (fft_c*)m_buf_full;
       const Real* const G_hat = m_kernel;
       #pragma omp parallel for
       for (size_t i = 0; i < m_NN0t; ++i)
@@ -187,9 +188,9 @@ class PoissonSolverUnbounded : public PoissonSolver
 
   void _initialize_green()
   {
-    myplan green1D;
-    myplan green2D;
-    myplan greenTP;
+    fft_plan green1D;
+    fft_plan green2D;
+    fft_plan greenTP;
 
     const size_t tf_size = m_local_NN0 * m_NN1 * m_Nzhat;
     Real* tf_buf = _FFTW_(alloc_real)( 2*tf_size );
@@ -202,8 +203,8 @@ class PoissonSolverUnbounded : public PoissonSolver
     const int* embed = n;
     const int dist = 1;
     green1D = _FFTW_(plan_many_dft)(1, n, howmany,
-            (mycomplex*)tf_buf, embed, stride, dist,
-            (mycomplex*)tf_buf, embed, stride, dist,
+            (fft_c*)tf_buf, embed, stride, dist,
+            (fft_c*)tf_buf, embed, stride, dist,
             FFTW_FORWARD, FFTW_MEASURE);
     }
 
@@ -213,12 +214,12 @@ class PoissonSolverUnbounded : public PoissonSolver
     const int howmany = static_cast<int>(m_local_NN0);
     const int stride = 1;
     const int rembed[2] = {static_cast<int>(m_NN1), static_cast<int>(2*m_Nzhat)}; // unit: sizeof(Real)
-    const int cembed[2] = {static_cast<int>(m_NN1), static_cast<int>(m_Nzhat)};   // unit: sizeof(mycomplex)
+    const int cembed[2] = {static_cast<int>(m_NN1), static_cast<int>(m_Nzhat)};   // unit: sizeof(fft_c)
     const int rdist = static_cast<int>( m_NN1 * 2*m_Nzhat );                      // unit: sizeof(Real)
-    const int cdist = static_cast<int>( m_NN1 * m_Nzhat );                        // unit: sizeof(mycomplex)
+    const int cdist = static_cast<int>( m_NN1 * m_Nzhat );                        // unit: sizeof(fft_c)
     green2D = _FFTW_(plan_many_dft_r2c)(2, n, howmany,
             tf_buf, rembed, stride, rdist,
-            (mycomplex*)tf_buf, cembed, stride, cdist,
+            (fft_c*)tf_buf, cembed, stride, cdist,
             FFTW_MEASURE);
     }
 
@@ -254,7 +255,7 @@ class PoissonSolverUnbounded : public PoissonSolver
     m_kernel = _FFTW_(alloc_real)(kern_size); // FFT for this kernel is real
     std::memset(m_kernel, 0, kern_size*sizeof(Real));
 
-    const mycomplex *const G_hat = (mycomplex *) tf_buf;
+    const fft_c *const G_hat = (fft_c *) tf_buf;
     #pragma omp parallel for
     for (size_t i = 0; i < m_NN0t; ++i)
     for (size_t j = 0; j < m_local_NN1; ++j)
@@ -298,7 +299,5 @@ class PoissonSolverUnbounded : public PoissonSolver
     }
   }
 };
-
-#undef MPIREAL
 
 #endif /* POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV */

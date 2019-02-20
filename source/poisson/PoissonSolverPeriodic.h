@@ -9,11 +9,11 @@
 #pragma once
 
 #include "PoissonSolver.h"
+#include "PoissonSolver_common.h"
 
 class PoissonSolverPeriodic : public PoissonSolver
 {
-  //mycomplex local_rhs, local_work;
-  myplan fwd, bwd;
+  fft_plan fwd, bwd;
   const size_t nz_hat = gsize[2]/2+1;
   const double norm_factor = 1./(gsize[0]*h*gsize[1]*h*gsize[2]*h);
   ptrdiff_t alloc_local=0, local_n0=0, local_0_start=0, local_n1=0, local_1_start=0;
@@ -22,7 +22,7 @@ class PoissonSolverPeriodic : public PoissonSolver
 
   void _solve()
   {
-    mycomplex *const in_out = (mycomplex *) data;
+    fft_c *const in_out = (fft_c *) data;
     #if 0
       const Real h2 = h*h;
       const Real factor = h2*norm_factor;
@@ -102,9 +102,9 @@ class PoissonSolverPeriodic : public PoissonSolver
 
     data = _FFTW_(alloc_real)(2*alloc_local);
     fwd = _FFTW_(mpi_plan_dft_r2c_3d)(gsize[0], gsize[1], gsize[2],
-      data, (mycomplex *)data, m_comm, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
+      data, (fft_c *)data, m_comm, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);
     bwd = _FFTW_(mpi_plan_dft_c2r_3d)(gsize[0], gsize[1], gsize[2],
-      (mycomplex *)data, data, m_comm, FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
+      (fft_c *)data, data, m_comm, FFTW_MPI_TRANSPOSED_IN  | FFTW_MEASURE);
 
     //std::cout <<    bs[0] << " " <<    bs[1] << " " <<    bs[2] << " ";
     //std::cout <<   myN[0] << " " <<   myN[1] << " " <<   myN[2] << " ";

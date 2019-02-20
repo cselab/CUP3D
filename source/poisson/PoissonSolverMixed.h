@@ -9,11 +9,11 @@
 #pragma once
 
 #include "PoissonSolver.h"
+#include "PoissonSolver_common.h"
 
 class PoissonSolverMixed : public PoissonSolver
 {
-  //mycomplex local_rhs, local_work;
-  myplan fwd, bwd;
+  fft_plan fwd, bwd;
   ptrdiff_t alloc_local=0, local_n0=0, local_0_start=0, local_n1=0, local_1_start=0;
 
   inline bool DFT_X() const { return sim.BCx_flag == periodic; }
