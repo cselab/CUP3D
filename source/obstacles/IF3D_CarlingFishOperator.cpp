@@ -8,7 +8,6 @@
 
 #include "IF3D_CarlingFishOperator.h"
 #include "IF3D_FishLibrary.h"
-#include "../operators/GenericOperator.h"
 
 #include "Cubism/ArgumentParser.h"
 

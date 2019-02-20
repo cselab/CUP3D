@@ -840,6 +840,72 @@ void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
   }
 }
 
+void PutFishOnBlocks_Finalize::operator()(LabMPI& lab, const BlockInfo& info, FluidBlock& b, ObstacleBlock*const o)
+{
+  const Real h = info.h_gridpoint;
+  const Real inv2h = .5/h;
+  const Real fac1 = 0.5*h*h;
+  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+  for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+  for(int iy=0; iy<FluidBlock::sizeY; iy++)
+  for(int ix=0; ix<FluidBlock::sizeX; ix++) {
+    Real p[3];
+    info.pos(p, ix,iy,iz);
+    if (lab(ix,iy,iz).tmpU > +2*h || lab(ix,iy,iz).tmpU < -2*h)
+    {
+      const Real H = lab(ix,iy,iz).tmpU > 0 ? 1.0 : 0.0;
+      b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+      o->write(ix,iy,iz,H,0,0,0,0,0);
+      o->CoM_x += p[0]*H;
+      o->CoM_y += p[1]*H;
+      o->CoM_z += p[2]*H;
+      o->mass += H;
+      continue;
+    }
+
+    const Real distPx = lab(ix+1,iy,iz).tmpU, distMx = lab(ix-1,iy,iz).tmpU;
+    const Real distPy = lab(ix,iy+1,iz).tmpU, distMy = lab(ix,iy-1,iz).tmpU;
+    const Real distPz = lab(ix,iy,iz+1).tmpU, distMz = lab(ix,iy,iz-1).tmpU;
+    // gradU
+    const Real gradUX = inv2h*(distPx - distMx);
+    const Real gradUY = inv2h*(distPy - distMy);
+    const Real gradUZ = inv2h*(distPz - distMz);
+    const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ + eps;
+
+    const Real IplusX = distPx < 0 ? 0 : distPx;
+    const Real IminuX = distMx < 0 ? 0 : distMx;
+    const Real IplusY = distPy < 0 ? 0 : distPy;
+    const Real IminuY = distMy < 0 ? 0 : distMy;
+    const Real IplusZ = distPz < 0 ? 0 : distPz;
+    const Real IminuZ = distMz < 0 ? 0 : distMz;
+    const Real HplusX = std::fabs(distPx)<EPS ? 0.5 : (distPx < 0 ? 0 : 1);
+    const Real HminuX = std::fabs(distMx)<EPS ? 0.5 : (distMx < 0 ? 0 : 1);
+    const Real HplusY = std::fabs(distPy)<EPS ? 0.5 : (distPy < 0 ? 0 : 1);
+    const Real HminuY = std::fabs(distMy)<EPS ? 0.5 : (distMy < 0 ? 0 : 1);
+    const Real HplusZ = std::fabs(distPz)<EPS ? 0.5 : (distPz < 0 ? 0 : 1);
+    const Real HminuZ = std::fabs(distMz)<EPS ? 0.5 : (distMz < 0 ? 0 : 1);
+
+    // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
+    const Real gradIX = inv2h*(IplusX - IminuX);
+    const Real gradIY = inv2h*(IplusY - IminuY);
+    const Real gradIZ = inv2h*(IplusZ - IminuZ);
+    const Real gradHX = (HplusX - HminuX);
+    const Real gradHY = (HplusY - HminuY);
+    const Real gradHZ = (HplusZ - HminuZ);
+    const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
+    const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
+    const Real Delta = numD/gradUSq; //h^3 * Delta
+    const Real H     = numH/gradUSq;
+
+    o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
+    b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+    o->CoM_x += p[0]*H;
+    o->CoM_y += p[1]*H;
+    o->CoM_z += p[2]*H;
+    o->mass += H;
+  }
+}
+
 void MidlineShapes::integrateBSpline(const double*const xc,
   const double*const yc, const int n, const double length,
   Real*const rS, Real*const res, const int Nm)

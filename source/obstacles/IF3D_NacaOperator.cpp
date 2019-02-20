@@ -8,7 +8,6 @@
 
 #include "IF3D_NacaOperator.h"
 #include "IF3D_FishLibrary.h"
-#include "../operators/GenericOperator.h"
 
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"

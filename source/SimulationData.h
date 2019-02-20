@@ -8,8 +8,7 @@
 
 
 #pragma once
-
-#include "operators/GenericOperator.h"
+#include "Definitions.h"
 #include "Cubism/Profiler.h"
 #include "Cubism/HDF5SliceDumperMPI.h"
 //#include "Cubism/ZBinDumper_MPI.h"
@@ -22,7 +21,7 @@
 #include <thread>
 #include <vector>
 
-class GenericCoordinator;
+class Operator;
 class IF3D_ObstacleVector;
 class PoissonSolver;
 
@@ -55,7 +54,7 @@ struct SimulationData
   //The protagonist
   IF3D_ObstacleVector * obstacle_vector = nullptr;
   //The antagonist
-  std::vector<GenericCoordinator*> pipeline;
+  std::vector<Operator*> pipeline;
   PoissonSolver * pressureSolver = nullptr;
   // simulation status
   // nsteps==0 means that this stopping criteria is not active

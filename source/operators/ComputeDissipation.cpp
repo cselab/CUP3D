@@ -6,30 +6,24 @@
 //  Created by Sid Verma in May 2018.
 //
 
-#ifndef CubismUP_3D_CoordinatorDissipation_h
-#define CubismUP_3D_CoordinatorDissipation_h
-
-#include "GenericOperator.h"
-#include "GenericCoordinator.h"
+#include "ComputeDissipation.h"
 #include "../utils/BufferedLogger.h"
 
-class OperatorDissipation : public GenericLabOperator
+class KernelDissipation
 {
- public:
+  public:
   Real viscous = 0, press = 0, kinetic = 0;
- private:
+  private:
   const double dt, nu;
   const Real extent[3];
-
   public:
-  OperatorDissipation(double _dt, const Real ext[3], Real _nu)
-  : dt(_dt), nu(_nu), extent{ext[0],ext[1],ext[2]}
-  {
-    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, 1,2,3,4);
-    stencil_start[0] = -1; stencil_start[1] = -1; stencil_start[2] = -1;
-    stencil_end[0] = 2; stencil_end[1] = 2; stencil_end[2] = 2;
-  }
-  ~OperatorDissipation() {}
+  const std::array<int, 3> stencil_start = {-1, -1, -1};
+  const std::array<int, 3> stencil_end = {2, 2, 2};
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, 1,2,3,4);
+
+  KernelDissipation(double _dt, const Real ext[3], Real _nu)
+  : dt(_dt), nu(_nu), extent{ext[0],ext[1],ext[2]} { }
+  ~KernelDissipation() {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o)
@@ -79,49 +73,38 @@ class OperatorDissipation : public GenericLabOperator
   }
 };
 
-template <typename Lab>
-class CoordinatorComputeDissipation : public GenericCoordinator
+void ComputeDissipation::operator()(const double dt)
 {
-  Real oldKE=0.0;
-public:
+  const int nthreads = omp_get_max_threads();
+  std::vector<KernelDissipation*> diss(nthreads, nullptr);
+  #pragma omp parallel for schedule(static, 1)
+  for(int i=0; i<nthreads; ++i)
+    diss[i] = new KernelDissipation(dt, sim.extent, sim.nu);
 
-  CoordinatorComputeDissipation(SimulationData & s) : GenericCoordinator(s) { }
+  compute<KernelDissipation>(diss);
 
-  void operator()(const double dt)
+  double viscous=0.0, press=0.0, kinetic=0.0;
+  for(int i=0; i<nthreads; i++)
   {
-    const int nthreads = omp_get_max_threads();
-    std::vector<OperatorDissipation*> diss(nthreads, nullptr);
-    #pragma omp parallel for schedule(static, 1)
-    for(int i=0; i<nthreads; ++i)
-      diss[i] = new OperatorDissipation(dt, sim.extent, sim.nu);
-
-    compute<OperatorDissipation>(diss);
-
-    double viscous=0.0, press=0.0, kinetic=0.0;
-    for(int i=0; i<nthreads; i++) {
-      kinetic += diss[i]->kinetic;
-      viscous += diss[i]->viscous;
-      press += diss[i]->press;
-      delete diss[i];
-    }
-
-    double localSum[3] = {viscous, press, kinetic};
-    double globalSum[3] = {0.0, 0.0, 0.0};
-    MPI_Allreduce(localSum,globalSum,3, MPI_DOUBLE,MPI_SUM,grid->getCartComm());
-
-    if(sim.rank==0)
-    {
-      std::stringstream &fileDissip = logger.get_stream("wakeDissipation.dat");
-      if(sim.step==0)
-      fileDissip<<"step_id time viscousTerm pressureTerm kineticEn"<<std::endl;
-
-      fileDissip<<sim.step<<" "<<sim.time<<" "<<globalSum[0]<<" "
-                <<globalSum[1] <<" "<<globalSum[2]<<std::endl;
-    }
-
-    check("dissipation - end");
+    kinetic += diss[i]->kinetic;
+    viscous += diss[i]->viscous;
+    press += diss[i]->press;
+    delete diss[i];
   }
 
-  std::string getName() { return "Dissipation"; }
-};
-#endif
+  double localSum[3] = {viscous, press, kinetic};
+  double globalSum[3] = {0.0, 0.0, 0.0};
+  MPI_Allreduce(localSum,globalSum,3, MPI_DOUBLE,MPI_SUM,grid->getCartComm());
+
+  if(sim.rank==0)
+  {
+    std::stringstream &fileDissip = logger.get_stream("wakeDissipation.dat");
+    if(sim.step==0)
+    fileDissip<<"step_id time viscousTerm pressureTerm kineticEn"<<std::endl;
+
+    fileDissip<<sim.step<<" "<<sim.time<<" "<<globalSum[0]<<" "
+              <<globalSum[1] <<" "<<globalSum[2]<<std::endl;
+  }
+
+  check("dissipation - end");
+}

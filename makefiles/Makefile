@@ -149,22 +149,14 @@ SRC_DIR = $(sort $(dir $(wildcard $(BUILDDIR)/../source/*/)))
 CUBISM_DIR = $(BUILDDIR)/../Cubism/src/
 
 
-OBJECTS =  IF3D_ObstacleFactory.o \
-	IF3D_ObstacleOperator.o \
-	IF3D_FishLibrary.o \
-	IF3D_ObstacleVector.o \
-	IF3D_StefanFishOperator.o \
-	IF3D_FishOperator.o \
-	IF3D_SphereObstacleOperator.o \
-	IF3D_PlateObstacleOperator.o \
-	IF3D_ExternalObstacleOperator.o \
-	SimulationData.o \
-	Simulation.o \
-	IF3D_NacaOperator.o \
-	BufferedLogger.o \
-	IF3D_CarlingFishOperator.o \
-	IF3D_DCylinderObstacleOperator.o \
-	IF3D_TestDiffusionObstacleOperator.o \
+OBJECTS = IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o \
+	IF3D_FishOperator.o IF3D_StefanFishOperator.o IF3D_CarlingFishOperator.o \
+	IF3D_SphereObstacleOperator.o IF3D_PlateObstacleOperator.o BufferedLogger.o \
+	IF3D_NacaOperator.o IF3D_FishLibrary.o IF3D_ExternalObstacleOperator.o \
+	IF3D_DCylinderObstacleOperator.o IF3D_TestDiffusionObstacleOperator.o \
+	SimulationData.o Simulation.o AdvectionDiffusion.o ComputeDissipation.o \
+	ExternalForcing.o FadeOut.o InitialConditions.o ObstacleManagement.o \
+	PressurePenalization.o PressureRHS.o \
 	ArgumentParser.o  # Temporary solution for Cubism .cpp files.
 	#IF3D_ElasticFishOperator.o \
 

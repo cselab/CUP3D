@@ -8,7 +8,6 @@
 
 #include "IF3D_ObstacleOperator.h"
 
-#include "../operators/GenericOperator.h"
 #include "../utils/BufferedLogger.h"
 
 #include "Cubism/ArgumentParser.h"

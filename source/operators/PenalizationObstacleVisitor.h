@@ -3,13 +3,13 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch) and Christian Conti.
+//  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef CubismUP_3D_PenalizationObstacleVisitor_h
+#define CubismUP_3D_PenalizationObstacleVisitor_h
 
-#include "GenericCoordinator.h"
-#include "GenericOperator.h"
+#include "../obstacles/IF3D_ObstacleVector.h"
 #include <cmath>
 
 struct PenalizationObstacleVisitor : public ObstacleVisitor
@@ -71,3 +71,5 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
     }
   }
 };
+
+#endif

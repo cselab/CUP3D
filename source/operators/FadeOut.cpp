@@ -6,15 +6,11 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_3D_CoordinatorFadeOut_h
-#define CubismUP_3D_CoordinatorFadeOut_h
+#include "FadeOut.h"
 
-#include "GenericOperator.h"
-#include "GenericCoordinator.h"
-
-class OperatorFadeOut : public GenericOperator
+class KernelFadeOut
 {
-private:
+ private:
   const Real ext[3], fadeLen[3], iFade[3];
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   inline bool _is_touching(const BlockInfo& i) const
@@ -38,8 +34,8 @@ private:
     return 1-std::pow(std::min( std::max({zt,zb,yt,yb,xt,xb}), (Real)1), 2);
   }
 
-public:
-  OperatorFadeOut(const Real buf[3], const Real extent[3]) :
+ public:
+  KernelFadeOut(const Real buf[3], const Real extent[3]) :
   ext{extent[0],extent[1],extent[2]}, fadeLen{buf[0],buf[1],buf[2]},
   iFade{1/(buf[0]+EPS), 1/(buf[1]+EPS), 1/(buf[2]+EPS)} {}
 
@@ -55,33 +51,15 @@ public:
   }
 };
 
-class CoordinatorFadeOut : public GenericCoordinator
+
+void FadeOut::operator()(const double dt)
 {
- public:
-    CoordinatorFadeOut(SimulationData & s) : GenericCoordinator(s) { }
-
-  void operator()(const double dt)
+  #pragma omp parallel
   {
-    check((std::string)"FadeOut - start");
-
-    const int N = vInfo.size();
-    #pragma omp parallel
-    {
-      OperatorFadeOut kernel(sim.fadeOutLengthU, sim.extent);
-      #pragma omp for schedule(static)
-      for (int i=0; i<N; i++) {
-        BlockInfo info = vInfo[i];
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        kernel(info, b);
-      }
-    }
-    check((std::string)"FadeOut - end");
+    KernelFadeOut kernel(sim.fadeOutLengthU, sim.extent);
+    #pragma omp for schedule(static)
+    for (size_t i=0; i<vInfo.size(); i++)
+      kernel(vInfo[i], *(FluidBlock*) vInfo[i].ptrBlock);
   }
-
-  std::string getName()
-  {
-    return "FadeOut";
-  }
-};
-
-#endif
+  check((std::string)"FadeOut - end");
+}

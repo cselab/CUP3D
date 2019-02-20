@@ -7,7 +7,7 @@
 //
 
 #include "SimulationData.h"
-#include "operators/GenericCoordinator.h"
+#include "operators/Operator.h"
 #include "obstacles/IF3D_ObstacleVector.h"
 #include "Cubism/ArgumentParser.h"
 
@@ -141,7 +141,7 @@ SimulationData::~SimulationData()
   delete grid;
   delete obstacle_vector;
   while(!pipeline.empty()) {
-    GenericCoordinator * g = pipeline.back();
+    auto * g = pipeline.back();
     pipeline.pop_back();
     delete g;
   }

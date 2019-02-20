@@ -9,7 +9,7 @@
 #ifndef IncompressibleFluids3D_IF3D_ObstacleLibrary_h
 #define IncompressibleFluids3D_IF3D_ObstacleLibrary_h
 
-#include "../operators/GenericOperator.h"
+#include "../Definitions.h"
 #include "IF2D_Interpolation1D.h"
 
 /*
@@ -201,77 +201,77 @@ struct FillBlocks
   void operator()(const BlockInfo&info, FluidBlock&b, ObstacleBlock*const o) const
   {
     if(_is_touching(info)) {
-      const Real h = info.h_gridpoint;
-      const Real inv2h = 0.5/h;
-      const Real fac1 = 0.5*h*h;
-      static constexpr Real eps = std::numeric_limits<Real>::epsilon();
+    const Real h = info.h_gridpoint;
+    const Real inv2h = 0.5/h;
+    const Real fac1 = 0.5*h*h;
+    static constexpr Real eps = std::numeric_limits<Real>::epsilon();
 
-      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-      for(int iy=0; iy<FluidBlock::sizeY; iy++)
-      for(int ix=0; ix<FluidBlock::sizeX; ix++) {
-        Real p[3];
-        info.pos(p, ix, iy, iz);
-        const Real x = p[0]-sphere_position[0];
-        const Real y = p[1]-sphere_position[1];
-        const Real z = p[2]-sphere_position[2];
-        const Real dist = distanceToSphere(x,y,z);
+    for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+    for(int iy=0; iy<FluidBlock::sizeY; iy++)
+    for(int ix=0; ix<FluidBlock::sizeX; ix++) {
+      Real p[3];
+      info.pos(p, ix, iy, iz);
+      const Real x = p[0]-sphere_position[0];
+      const Real y = p[1]-sphere_position[1];
+      const Real z = p[2]-sphere_position[2];
+      const Real dist = distanceToSphere(x,y,z);
 
-        if(dist > 2*h || dist < -2*h) { //2 should be safe
-          const Real H = dist > 0 ? 1.0 : 0.0;
-          b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-          o->write(ix,iy,iz,H,0,0,0,0,0);
-          continue;
-        }
-
-        const Real distPx = distanceToSphere(x+h,y,z);
-        const Real distMx = distanceToSphere(x-h,y,z);
-        const Real distPy = distanceToSphere(x,y+h,z);
-        const Real distMy = distanceToSphere(x,y-h,z);
-        const Real distPz = distanceToSphere(x,y,z+h);
-        const Real distMz = distanceToSphere(x,y,z-h);
-        const Real IplusX = distPx < 0 ? 0 : distPx;
-        const Real IminuX = distMx < 0 ? 0 : distMx;
-        const Real IplusY = distPy < 0 ? 0 : distPy;
-        const Real IminuY = distMy < 0 ? 0 : distMy;
-        const Real IplusZ = distPz < 0 ? 0 : distPz;
-        const Real IminuZ = distMz < 0 ? 0 : distMz;
-
-        const Real HplusX = std::fabs(distPx)<eps ? (Real)0.5 :
-                                                    (distPx < 0 ? 0 : 1);
-        const Real HminuX = std::fabs(distMx)<eps ? (Real)0.5 :
-                                                    (distMx < 0 ? 0 : 1);
-        const Real HplusY = std::fabs(distPy)<eps ? (Real)0.5 :
-                                                    (distPy < 0 ? 0 : 1);
-        const Real HminuY = std::fabs(distMy)<eps ? (Real)0.5 :
-                                                    (distMy < 0 ? 0 : 1);
-        const Real HplusZ = std::fabs(distPz)<eps ? (Real)0.5 :
-                                                    (distPz < 0 ? 0 : 1);
-        const Real HminuZ = std::fabs(distMz)<eps ? (Real)0.5 :
-                                                    (distMz < 0 ? 0 : 1);
-
-        // all would be multiplied by 0.5/h, simplifies out later
-        const Real gradUX = inv2h*(distPx - distMx);
-        const Real gradUY = inv2h*(distPy - distMy);
-        const Real gradUZ = inv2h*(distPz - distMz);
-        const Real gradIX = inv2h*(IplusX - IminuX);
-        const Real gradIY = inv2h*(IplusY - IminuY);
-        const Real gradIZ = inv2h*(IplusZ - IminuZ);
-        const Real gradHX = (HplusX - HminuX);
-        const Real gradHY = (HplusY - HminuY);
-        const Real gradHZ = (HplusZ - HminuZ);
-
-        const Real gradUSq = gradUX*gradUX +gradUY*gradUY +gradUZ*gradUZ +eps;
-        const Real numH    = gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ;
-        const Real numD    = gradHX*gradUX +gradHY*gradUY +gradHZ*gradUZ;
-        const Real Delta   = numD / gradUSq;
-        const Real H       = numH / gradUSq;
-
-        o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
+      if(dist > 2*h || dist < -2*h) { //2 should be safe
+        const Real H = dist > 0 ? 1.0 : 0.0;
         b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-        #ifndef NDEBUG
-        if(H<0||H>1+eps) printf("invalid H?: %f %f %f: %10.10e\n",x,y,z,H);
-        #endif
+        o->write(ix,iy,iz,H,0,0,0,0,0);
+        continue;
       }
+
+      const Real distPx = distanceToSphere(x+h,y,z);
+      const Real distMx = distanceToSphere(x-h,y,z);
+      const Real distPy = distanceToSphere(x,y+h,z);
+      const Real distMy = distanceToSphere(x,y-h,z);
+      const Real distPz = distanceToSphere(x,y,z+h);
+      const Real distMz = distanceToSphere(x,y,z-h);
+      const Real IplusX = distPx < 0 ? 0 : distPx;
+      const Real IminuX = distMx < 0 ? 0 : distMx;
+      const Real IplusY = distPy < 0 ? 0 : distPy;
+      const Real IminuY = distMy < 0 ? 0 : distMy;
+      const Real IplusZ = distPz < 0 ? 0 : distPz;
+      const Real IminuZ = distMz < 0 ? 0 : distMz;
+
+      const Real HplusX = std::fabs(distPx)<eps ? (Real)0.5 :
+                                                  (distPx < 0 ? 0 : 1);
+      const Real HminuX = std::fabs(distMx)<eps ? (Real)0.5 :
+                                                  (distMx < 0 ? 0 : 1);
+      const Real HplusY = std::fabs(distPy)<eps ? (Real)0.5 :
+                                                  (distPy < 0 ? 0 : 1);
+      const Real HminuY = std::fabs(distMy)<eps ? (Real)0.5 :
+                                                  (distMy < 0 ? 0 : 1);
+      const Real HplusZ = std::fabs(distPz)<eps ? (Real)0.5 :
+                                                  (distPz < 0 ? 0 : 1);
+      const Real HminuZ = std::fabs(distMz)<eps ? (Real)0.5 :
+                                                  (distMz < 0 ? 0 : 1);
+
+      // all would be multiplied by 0.5/h, simplifies out later
+      const Real gradUX = inv2h*(distPx - distMx);
+      const Real gradUY = inv2h*(distPy - distMy);
+      const Real gradUZ = inv2h*(distPz - distMz);
+      const Real gradIX = inv2h*(IplusX - IminuX);
+      const Real gradIY = inv2h*(IplusY - IminuY);
+      const Real gradIZ = inv2h*(IplusZ - IminuZ);
+      const Real gradHX = (HplusX - HminuX);
+      const Real gradHY = (HplusY - HminuY);
+      const Real gradHZ = (HplusZ - HminuZ);
+
+      const Real gradUSq = gradUX*gradUX +gradUY*gradUY +gradUZ*gradUZ +eps;
+      const Real numH    = gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ;
+      const Real numD    = gradHX*gradUX +gradHY*gradUY +gradHZ*gradUZ;
+      const Real Delta   = numD / gradUSq;
+      const Real H       = numH / gradUSq;
+
+      o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
+      b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+      #ifndef NDEBUG
+      if(H<0||H>1+eps) printf("invalid H?: %f %f %f: %10.10e\n",x,y,z,H);
+      #endif
+    }
     }
   }
 };
@@ -334,70 +334,70 @@ struct FillBlocks
   void operator()(const BlockInfo&info, FluidBlock&b, ObstacleBlock*const o) const
   {
     if(_is_touching(info)) {
-      const double h=info.h_gridpoint;
-      const Real eps = std::numeric_limits<Real>::epsilon();
-      const Real inv2h = 0.5/h, fac1 = 0.5*h*h;
+    const double h=info.h_gridpoint;
+    const Real eps = std::numeric_limits<Real>::epsilon();
+    const Real inv2h = 0.5/h, fac1 = 0.5*h*h;
 
-      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-      for(int iy=0; iy<FluidBlock::sizeY; iy++)
-      for(int ix=0; ix<FluidBlock::sizeX; ix++) {
-        Real p[3];
-        info.pos(p, ix, iy, iz);
-        const Real x=p[0]-position[0], y=p[1]-position[1], z=p[2]-position[2];
-        const Real dist = distance(x,y,z);
-        if(dist > 2*h || dist < -2*h) { //2 should be safe
-          const Real H = dist > 0 ? 1.0 : 0.0;
-          b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-          o->write(ix,iy,iz,H,0,0,0,0,0);
-          continue;
-        }
-
-        const Real distPx = distance(x+h,y,z);
-        const Real distMx = distance(x-h,y,z);
-        const Real distPy = distance(x,y+h,z);
-        const Real distMy = distance(x,y-h,z);
-        const Real distPz = distance(x,y,z+h);
-        const Real distMz = distance(x,y,z-h);
-        const Real IplusX = distPx < 0 ? 0 : distPx;
-        const Real IminuX = distMx < 0 ? 0 : distMx;
-        const Real IplusY = distPy < 0 ? 0 : distPy;
-        const Real IminuY = distMy < 0 ? 0 : distMy;
-        const Real IplusZ = distPz < 0 ? 0 : distPz;
-        const Real IminuZ = distMz < 0 ? 0 : distMz;
-
-        const Real HplusX = std::fabs(distPx)<eps ? (Real)0.5 :
-                                                    (distPx < 0 ? 0 : 1);
-        const Real HminuX = std::fabs(distMx)<eps ? (Real)0.5 :
-                                                    (distMx < 0 ? 0 : 1);
-        const Real HplusY = std::fabs(distPy)<eps ? (Real)0.5 :
-                                                    (distPy < 0 ? 0 : 1);
-        const Real HminuY = std::fabs(distMy)<eps ? (Real)0.5 :
-                                                    (distMy < 0 ? 0 : 1);
-        const Real HplusZ = std::fabs(distPz)<eps ? (Real)0.5 :
-                                                    (distPz < 0 ? 0 : 1);
-        const Real HminuZ = std::fabs(distMz)<eps ? (Real)0.5 :
-                                                    (distMz < 0 ? 0 : 1);
-        const Real gradUX = inv2h*(distPx - distMx);
-        const Real gradUY = inv2h*(distPy - distMy);
-        const Real gradUZ = inv2h*(distPz - distMz);
-        const Real gradIX = inv2h*(IplusX - IminuX);
-        const Real gradIY = inv2h*(IplusY - IminuY);
-        const Real gradIZ = inv2h*(IplusZ - IminuZ);
-        const Real gradHX = (HplusX - HminuX);
-        const Real gradHY = (HplusY - HminuY);
-        const Real gradHZ = (HplusZ - HminuZ);
-        const Real gradUSq = gradUX*gradUX +gradUY*gradUY +gradUZ*gradUZ +eps;
-        const Real numH    = gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ;
-        const Real numD    = gradHX*gradUX +gradHY*gradUY +gradHZ*gradUZ;
-        const Real Delta   = numD / gradUSq;
-        const Real H       = numH / gradUSq;
-
-        o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
+    for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+    for(int iy=0; iy<FluidBlock::sizeY; iy++)
+    for(int ix=0; ix<FluidBlock::sizeX; ix++) {
+      Real p[3];
+      info.pos(p, ix, iy, iz);
+      const Real x=p[0]-position[0], y=p[1]-position[1], z=p[2]-position[2];
+      const Real dist = distance(x,y,z);
+      if(dist > 2*h || dist < -2*h) { //2 should be safe
+        const Real H = dist > 0 ? 1.0 : 0.0;
         b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-        #ifndef NDEBUG
-        if(H<0||H>1+eps) printf("invalid H?: %f %f %f: %10.10e\n",x,y,z,H);
-        #endif
+        o->write(ix,iy,iz,H,0,0,0,0,0);
+        continue;
       }
+
+      const Real distPx = distance(x+h,y,z);
+      const Real distMx = distance(x-h,y,z);
+      const Real distPy = distance(x,y+h,z);
+      const Real distMy = distance(x,y-h,z);
+      const Real distPz = distance(x,y,z+h);
+      const Real distMz = distance(x,y,z-h);
+      const Real IplusX = distPx < 0 ? 0 : distPx;
+      const Real IminuX = distMx < 0 ? 0 : distMx;
+      const Real IplusY = distPy < 0 ? 0 : distPy;
+      const Real IminuY = distMy < 0 ? 0 : distMy;
+      const Real IplusZ = distPz < 0 ? 0 : distPz;
+      const Real IminuZ = distMz < 0 ? 0 : distMz;
+
+      const Real HplusX = std::fabs(distPx)<eps ? (Real)0.5 :
+                                                  (distPx < 0 ? 0 : 1);
+      const Real HminuX = std::fabs(distMx)<eps ? (Real)0.5 :
+                                                  (distMx < 0 ? 0 : 1);
+      const Real HplusY = std::fabs(distPy)<eps ? (Real)0.5 :
+                                                  (distPy < 0 ? 0 : 1);
+      const Real HminuY = std::fabs(distMy)<eps ? (Real)0.5 :
+                                                  (distMy < 0 ? 0 : 1);
+      const Real HplusZ = std::fabs(distPz)<eps ? (Real)0.5 :
+                                                  (distPz < 0 ? 0 : 1);
+      const Real HminuZ = std::fabs(distMz)<eps ? (Real)0.5 :
+                                                  (distMz < 0 ? 0 : 1);
+      const Real gradUX = inv2h*(distPx - distMx);
+      const Real gradUY = inv2h*(distPy - distMy);
+      const Real gradUZ = inv2h*(distPz - distMz);
+      const Real gradIX = inv2h*(IplusX - IminuX);
+      const Real gradIY = inv2h*(IplusY - IminuY);
+      const Real gradIZ = inv2h*(IplusZ - IminuZ);
+      const Real gradHX = (HplusX - HminuX);
+      const Real gradHY = (HplusY - HminuY);
+      const Real gradHZ = (HplusZ - HminuZ);
+      const Real gradUSq = gradUX*gradUX +gradUY*gradUY +gradUZ*gradUZ +eps;
+      const Real numH    = gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ;
+      const Real numD    = gradHX*gradUX +gradHY*gradUY +gradHZ*gradUZ;
+      const Real Delta   = numD / gradUSq;
+      const Real H       = numH / gradUSq;
+
+      o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
+      b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
+      #ifndef NDEBUG
+      if(H<0||H>1+eps) printf("invalid H?: %f %f %f: %10.10e\n",x,y,z,H);
+      #endif
+    }
     }
   }
 };
@@ -479,34 +479,34 @@ struct FillBlocks
       //  if(true)
     {
       for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-        for(int iy=0; iy<FluidBlock::sizeY; iy++)
-          for(int ix=0; ix<FluidBlock::sizeX; ix++)
-          {
-            Real p[3];
-            info.pos(p, ix, iy, iz);
+      for(int iy=0; iy<FluidBlock::sizeY; iy++)
+      for(int ix=0; ix<FluidBlock::sizeX; ix++)
+      {
+        Real p[3];
+        info.pos(p, ix, iy, iz);
 
-            const Real t[3] = {
-                (Real)(p[0] - position[0]),
-                (Real)(p[1] - position[1]),
-                (Real)(p[2] - position[2])
-            };
+        const Real t[3] = {
+            (Real)(p[0] - position[0]),
+            (Real)(p[1] - position[1]),
+            (Real)(p[2] - position[2])
+        };
 
-            //mappele //sqrt(t[1] * t[1] + t[2] * t[2]);//
-            const Real r = sqrt(t[1]*t[1] + t[2]*t[2]);
+        //mappele //sqrt(t[1] * t[1] + t[2] * t[2]);//
+        const Real r = sqrt(t[1]*t[1] + t[2]*t[2]);
 
-            if (r > 0)
-            {
-              const Real c[3] = {
-                  0,
-                  big_r*t[1]/r,
-                  big_r*t[2]/r
-              };
+        if (r > 0)
+        {
+          const Real c[3] = {
+              0,
+              big_r*t[1]/r,
+              big_r*t[2]/r
+          };
 
-              const Real d = sqrt(pow(t[0]-c[0], 2) +  pow(t[1]-c[1], 2) + pow(t[2]-c[2], 2));
-              const Real chi = mollified_heaviside(d-small_r, smoothing_length);
-              b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
-            }
-          }
+          const Real d = sqrt(pow(t[0]-c[0],2) + pow(t[1]-c[1],2) + pow(t[2]-c[2],2));
+          const Real chi = mollified_heaviside(d-small_r, smoothing_length);
+          b(ix, iy, iz).chi = std::max(chi, b(ix, iy, iz).chi);
+        }
+      }
     }
   }
 };

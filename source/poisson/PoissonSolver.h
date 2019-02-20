@@ -134,7 +134,7 @@ class PoissonSolver
       }
     #endif
 
-    Real sumRHS = 0, sumABS = 0;
+    double sumRHS = 0, sumABS = 0;
     #pragma omp parallel for schedule(static) reduction(+ : sumRHS, sumABS)
     for(size_t i=0; i<NlocBlocks; ++i) {
       const size_t offset = _offset(local_infos[i]);

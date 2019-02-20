@@ -3,23 +3,14 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch) and Christian Conti.
+//  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_3D_CoordinatorPressureRHS_h
-#define CubismUP_3D_CoordinatorPressureRHS_h
-
+#include "PressureRHS.h"
 #include "PenalizationObstacleVisitor.h"
-#include "../obstacles/IF3D_ObstacleVector.h"
+#include "../poisson/PoissonSolver.h"
 
-//#include "../poisson/PoissonSolverScalarACC_freespace.h"
-//#include "../poisson/PoissonSolverScalarACC.h"
-
-#include "../poisson/PoissonSolverUnbounded.h"
-#include "../poisson/PoissonSolverPeriodic.h"
-#include "../poisson/PoissonSolverMixed.h"
-
-class OperatorPressureRHS : public GenericLabOperator
+class KernelPressureRHS
 {
  private:
   double dt;
@@ -68,16 +59,15 @@ class OperatorPressureRHS : public GenericLabOperator
   }
 
  public:
-  OperatorPressureRHS(double _dt, const Real buf[3], const Real extent[3],
-   PoissonSolver * ps) : dt(_dt), ext{extent[0],extent[1],extent[2]},
+  const std::array<int, 3> stencil_start = {-1, -1, -1};
+  const std::array<int, 3> stencil_end = {2, 2, 2};
+  const StencilInfo stencil=StencilInfo(-1,-1,-1,2,2,2,false,8,0,1,2,3,4,5,6,7);
+
+  KernelPressureRHS(double _dt, const Real buf[3], const Real extent[3],
+   PoissonSolver* ps) : dt(_dt), ext{extent[0],extent[1],extent[2]},
    fadeLen{buf[0],buf[1],buf[2]}, iFade{1/(buf[0]+EPS), 1/(buf[1]+EPS),
-     1/(buf[2]+EPS)}, solver(ps)
-  {
-    stencil_start[0] = -1; stencil_start[1] = -1;  stencil_start[2] = -1;
-    stencil_end[0] = 2;  stencil_end[1] = 2;  stencil_end[2] = 2;
-    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 8, 0,1,2,3,4,5,6,7);
-  }
-  ~OperatorPressureRHS() {}
+     1/(buf[2]+EPS)}, solver(ps) {}
+  ~KernelPressureRHS() {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
@@ -103,47 +93,38 @@ class OperatorPressureRHS : public GenericLabOperator
   }
 };
 
-template <typename Lab>
-class CoordinatorPressureRHS : public GenericCoordinator
+
+void PressureRHS::operator()(const double dt)
 {
- public:
-  CoordinatorPressureRHS(SimulationData & s) : GenericCoordinator(s) {}
-
-  void operator()(const double dt)
+  const int nthreads = omp_get_max_threads();
   {
-    const int nthreads = omp_get_max_threads();
+    //zero fields, going to contain Udef:
+    #pragma omp parallel for schedule(static)
+    for(unsigned i=0; i<vInfo.size(); i++)
     {
-      //zero fields, going to contain Udef:
-      #pragma omp parallel for schedule(static)
-      for(unsigned i=0; i<vInfo.size(); i++)
-      {
-        const BlockInfo& info = vInfo[i];
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-          b(ix,iy,iz).tmpU = 0; b(ix,iy,iz).tmpV = 0; b(ix,iy,iz).tmpW = 0;
-        }
+      const BlockInfo& info = vInfo[i];
+      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+        b(ix,iy,iz).tmpU = 0; b(ix,iy,iz).tmpV = 0; b(ix,iy,iz).tmpW = 0;
       }
-      //store deformation velocities onto tmp fields:
-      ObstacleVisitor*visitor=new PenalizationObstacleVisitor(grid,dt,sim.uinf);
-      sim.obstacle_vector->Accept(visitor);
-      delete visitor;
     }
-
-    //place onto p: ( div u^(t+1) - div u^* ) / dt
-    //where i want div u^(t+1) to be equal to div udef
-    std::vector<OperatorPressureRHS*> diff(nthreads, nullptr);
-    #pragma omp parallel for schedule(static, 1)
-    for(int i=0; i<nthreads; ++i)
-      diff[i] = new OperatorPressureRHS(dt, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
-
-    compute<OperatorPressureRHS>(diff);
-    for(int i=0; i<nthreads; i++) delete diff[i];
-
-    check("pressure rhs - end");
+    //store deformation velocities onto tmp fields:
+    ObstacleVisitor*visitor=new PenalizationObstacleVisitor(grid,dt,sim.uinf);
+    sim.obstacle_vector->Accept(visitor);
+    delete visitor;
   }
 
-  std::string getName() { return "PressureRHS"; }
-};
-#endif
+  //place onto p: ( div u^(t+1) - div u^* ) / dt
+  //where i want div u^(t+1) to be equal to div udef
+  std::vector<KernelPressureRHS*> diff(nthreads, nullptr);
+  #pragma omp parallel for schedule(static, 1)
+  for(int i=0; i<nthreads; ++i)
+    diff[i] = new KernelPressureRHS(dt, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
+
+  compute<KernelPressureRHS>(diff);
+  for(int i=0; i<nthreads; i++) delete diff[i];
+
+  check("pressure rhs - end");
+}

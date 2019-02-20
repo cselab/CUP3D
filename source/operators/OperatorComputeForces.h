@@ -10,13 +10,12 @@
 #define CubismUP_2D_OperatorComputeForces_h
 
 #include "../Definitions.h"
-#include "GenericOperator.h"
 #include "../ObstacleBlock.h"
 
 struct OperatorComputeForces
 {
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  StencilInfo stencil;
+  StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
   const double NU, dt;
   const double* const vel_unit;
   const double* const CM;
@@ -25,10 +24,7 @@ struct OperatorComputeForces
 
   OperatorComputeForces(const double nu, const double DT, const double*vunit,
   const double*cm, const double*_omega, const double*_uTrans) :
-  NU(nu), dt(DT), vel_unit(vunit), CM(cm), omega(_omega), uTrans(_uTrans)
-  {
-    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
-  }
+  NU(nu), dt(DT), vel_unit(vunit), CM(cm), omega(_omega), uTrans(_uTrans) { }
 
   template <typename Lab, typename BlockType>
   inline void operator()(Lab& l, const BlockInfo&info, BlockType&b, ObstacleBlock*const o) const
@@ -129,20 +125,18 @@ struct OperatorComputeForces
   }
 };
 
-struct DumpWake : public GenericLabOperator
+struct DumpWake
 {
   double t;
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  StencilInfo stencil;
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
   const Real *Uinf;
   const double *CM, length, theta = 0.15;
   FILE* const pFile;
 
+
   DumpWake(const Real*u, const double*cm, FILE*pf, const double l):
-    t(0), Uinf(u), CM(cm), length(l), pFile(pf)
-  {
-    stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
-  }
+    t(0), Uinf(u), CM(cm), length(l), pFile(pf) { }
 
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& b)

@@ -3,20 +3,16 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch) and Christian Conti.
+//  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_3D_CoordinatorIC_h
-#define CubismUP_3D_CoordinatorIC_h
+#include "InitialConditions.h"
 
-#include "GenericCoordinator.h"
-#include "GenericOperator.h"
-
-class OperatorIC : public GenericOperator
+class KernelIC
 {
  public:
-  OperatorIC(const Real u) {}
-  ~OperatorIC() {}
+  KernelIC(const Real u) {}
+  ~KernelIC() {}
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -25,11 +21,11 @@ class OperatorIC : public GenericOperator
   }
 };
 
-class OperatorIC_RT : public GenericOperator
+class KernelIC_RT
 {
  public:
-  OperatorIC_RT(const Real rhoS) {}
-  ~OperatorIC_RT() {}
+  KernelIC_RT(const Real rhoS) {}
+  ~KernelIC_RT() {}
 
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
@@ -50,14 +46,14 @@ class OperatorIC_RT : public GenericOperator
   }
 };
 
-class OperatorIC_taylorGreen : public GenericOperator
+class KernelIC_taylorGreen
 {
   const Real ext[3], uMax;
   const Real a = 2*M_PI / ext[0], b = 2*M_PI / ext[1], c = 2*M_PI / ext[2];
   const Real A = uMax, B = - uMax * ext[1] / ext[0];
  public:
-  ~OperatorIC_taylorGreen() {}
-  OperatorIC_taylorGreen(const Real extent[3], const Real U): ext{extent[0],extent[1],extent[2]}, uMax(U) {}
+  ~KernelIC_taylorGreen() {}
+  KernelIC_taylorGreen(const Real extent[3], const Real U): ext{extent[0],extent[1],extent[2]}, uMax(U) {}
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -72,15 +68,15 @@ class OperatorIC_taylorGreen : public GenericOperator
   }
 };
 
-class OperatorIC_channel : public GenericOperator
+class KernelIC_channel
 {
   const int dir;
   const Real ext[3], uMax, H = ext[dir], FAC = 4*uMax/H/H; // FAC = 0.5*G/mu
   //umax =  0.5*G/mu * 0.25*H*H
  public:
-  OperatorIC_channel(const Real extent[3], const Real U, const int _dir):
+  KernelIC_channel(const Real extent[3], const Real U, const int _dir):
     dir(_dir), ext{extent[0],extent[1],extent[2]}, uMax(U) {}
-  ~OperatorIC_channel() {}
+  ~KernelIC_channel() {}
 
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
@@ -94,49 +90,30 @@ class OperatorIC_channel : public GenericOperator
   }
 };
 
-class CoordinatorIC : public GenericCoordinator
+void InitialConditions::operator()(const double dt)
 {
- public:
-  CoordinatorIC(SimulationData & s) : GenericCoordinator(s) { }
-
-  template<typename K>
-  inline void run(const K kernel) {
-    #pragma omp parallel for schedule(static)
-    for (size_t i=0; i<vInfo.size(); i++)
-      kernel(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
+  if(sim.initCond == "zero") {
+    printf("Zero-values initial conditions.\n");
+    run(KernelIC(0));
   }
-  void operator()(const double dt)
+  if(sim.initCond == "taylorGreen") {
+    printf("Taylor Green vortex initial conditions.\n");
+    run(KernelIC_taylorGreen(sim.extent, sim.uMax_forced));
+  }
+  if(sim.initCond == "channel")
   {
-    if(sim.initCond == "zero") {
-      printf("Zero-values initial conditions.\n");
-      run(OperatorIC(0));
+    printf("Channel flow initial conditions.\n");
+    if( sim.BCx_flag == wall ) {
+      printf("ERROR: channel flow must be periodic or dirichlet in x.\n");
+      abort();
     }
-    if(sim.initCond == "taylorGreen") {
-      printf("Taylor Green vortex initial conditions.\n");
-      run(OperatorIC_taylorGreen(sim.extent, sim.uMax_forced));
+    const bool channelY = sim.BCy_flag==wall, channelZ = sim.BCz_flag==wall;
+    if( (channelY && channelZ) or (!channelY && !channelZ) ) {
+      printf("ERROR: wrong channel flow BC in y or z.\n");
+      abort();
     }
-    if(sim.initCond == "channel")
-    {
-      printf("Channel flow initial conditions.\n");
-      if( sim.BCx_flag == wall ) {
-        printf("ERROR: channel flow must be periodic or dirichlet in x.\n");
-        abort();
-      }
-      const bool channelY = sim.BCy_flag==wall, channelZ = sim.BCz_flag==wall;
-      if( (channelY && channelZ) or (!channelY && !channelZ) ) {
-        printf("ERROR: wrong channel flow BC in y or z.\n");
-        abort();
-      }
-      const int dir = channelY? 1 : 2;
-      run(OperatorIC_channel(sim.extent, sim.uMax_forced, dir));
-    }
-    check("IC - end");
+    const int dir = channelY? 1 : 2;
+    run(KernelIC_channel(sim.extent, sim.uMax_forced, dir));
   }
-
-  std::string getName()
-  {
-    return "IC";
-  }
-};
-
-#endif
+  check("IC - end");
+}
