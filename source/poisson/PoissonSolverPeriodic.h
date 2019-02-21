@@ -83,8 +83,8 @@ class PoissonSolverPeriodic : public PoissonSolver
     int supported_threads;
     MPI_Query_thread(&supported_threads);
     if (supported_threads<MPI_THREAD_FUNNELED) {
-    std::cout<<"PoissonSolverPeriodic ERROR: MPI implementation does not support threads."<<std::endl;
-    abort();
+      std::cout<<"PoissonSolverPeriodic ERROR: MPI implementation does not support threads."<<std::endl;
+      abort();
     }
 
     const int retval = _FFTW_(init_threads)();

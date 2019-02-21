@@ -14,7 +14,7 @@
 
 void _fourier_filter_gpu(
   acc_c*const __restrict__ data_hat, const size_t gsize[3],
-  const int isize[3], const int istart[3], const double h);
+  const int osize[3], const int ostart[3], const double h);
 
 class PoissonSolverPeriodic : public PoissonSolver
 {
@@ -34,11 +34,11 @@ public:
     stridey = myN[1];
 
     if (gsize[2]!=myN[2]) {
-      printf("Poisson solver assumes grid is distrubuted in x and y directions.\n");
+      printf("PoissonSolverPeriodic assumes grid is distrubuted in x and y.\n");
       abort();
     }
     int c_dims[2] = {
-      static_cast<int>(gsize[0]/mybpd[0]), static_cast<int>(gsize[1]/mybpd[1])
+      static_cast<int>(gsize[0]/myN[0]), static_cast<int>(gsize[1]/myN[1])
     };
     assert(gsize[0]%myN[0]==0 && gsize[1]%myN[1]==0);
     accfft_create_comm(grid.getCartComm(), c_dims, &c_comm);
@@ -48,15 +48,17 @@ public:
 
     //printf("[mpi rank %d] isize  %3d %3d %3d    %3d %3d %3d\n",
     //      m_rank,mybpd[0],mybpd[1],mybpd[2], n[0],n[1],n[2]);
-    printf("[mpi rank %d] isize  %3d %3d %3d osize  %3d %3d %3d\n",
-      m_rank, isize[0],isize[1],isize[2], osize[0],osize[1],osize[2]
+    printf("[mpi rank %d] isize  %3d %3d %3d osize  %3d %3d %3d max:%lu\n",
+      m_rank, isize[0],isize[1],isize[2], osize[0],osize[1],osize[2], alloc_max
     );
     printf("[mpi rank %d] istart %3d %3d %3d ostart %3d %3d %3d\n",
       m_rank, istart[0],istart[1],istart[2], ostart[0],ostart[1],ostart[2]
     );
-    assert(isize[0] == (int) myN[0]);
-    assert(isize[1] == (int) myN[1]);
-    assert(isize[2] == (int) myN[2]);
+    fflush(0);
+    if(isize[0]!=(int)myN[0] || isize[1]!=(int)myN[1] || isize[2]!=(int)myN[2]){
+      printf("PoissonSolverPeriodic: something wrong in isize\n");
+      abort();
+    }
 
     data = (Real*) malloc(isize[0]*isize[1]*isize[2]*sizeof(Real));
     cudaMalloc((void**) &rho_gpu, isize[0]*isize[1]*isize[2]*sizeof(Real));
@@ -70,16 +72,17 @@ public:
   {
     _cub2fftw();
 
-    cudaMemcpy(rho_gpu, data, isize[0]*isize[1]*isize[2]*sizeof(Real),
-            cudaMemcpyHostToDevice);
-
+    cudaMemcpy(rho_gpu, data, isize[0]*isize[1]*isize[2]*sizeof(Real), cudaMemcpyHostToDevice);
+    MPI_Barrier(c_comm);
     // Perform forward FFT
     accfft_exec_r2c(plan, rho_gpu, phi_hat);
     // Spectral solve
+    MPI_Barrier(c_comm);
     _fourier_filter_gpu(phi_hat, gsize, osize, ostart, h);
     // Perform backward FFT
+    MPI_Barrier(c_comm);
     accfft_exec_c2r(plan, phi_hat, rho_gpu);
-
+    MPI_Barrier(c_comm);
     cudaMemcpy(data, rho_gpu, isize[0]*isize[1]*isize[2]*sizeof(Real),
             cudaMemcpyDeviceToHost);
 

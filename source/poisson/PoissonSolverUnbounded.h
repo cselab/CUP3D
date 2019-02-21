@@ -122,14 +122,12 @@ class PoissonSolverUnbounded : public PoissonSolver
 
     // transpose plan
     m_fwd_tp = _FFTW_(mpi_plan_many_transpose)(m_N0, m_NN1, 2*m_Nzhat,
-            m_local_N0, m_local_NN1,
-            data, data,
-            m_comm, FFTW_MEASURE|FFTW_MPI_TRANSPOSED_OUT);
+            m_local_N0, m_local_NN1, data, data, m_comm,
+            FFTW_MEASURE | FFTW_MPI_TRANSPOSED_OUT);
 
     m_bwd_tp = _FFTW_(mpi_plan_many_transpose)(m_NN1, m_N0, 2*m_Nzhat,
-            m_local_NN1, m_local_N0,
-            data, data,
-            m_comm, FFTW_MEASURE|FFTW_MPI_TRANSPOSED_IN);
+            m_local_NN1, m_local_N0, data, data, m_comm,
+            FFTW_MEASURE | FFTW_MPI_TRANSPOSED_IN);
 
     _initialize_green();
 

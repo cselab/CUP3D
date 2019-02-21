@@ -78,8 +78,10 @@ class KernelPressureRHS
     {
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         solver->_cub2fftw(offset, iz,iy,ix, fac * RHS(lab, ix,iy,iz, pFac) );
+        //o(ix,iy,iz).p = fac * RHS(lab, ix,iy,iz, pFac); //will break t>0
+      }
     }
     else
     {
@@ -88,6 +90,7 @@ class KernelPressureRHS
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         const Real RHS_ = fade(info, ix,iy,iz) * RHS(lab, ix,iy,iz, pFac);
         solver->_cub2fftw(offset, iz,iy,ix, fac * RHS_);
+        //o(ix,iy,iz).p = fac * RHS_; //will break t>0
       }
     }
   }

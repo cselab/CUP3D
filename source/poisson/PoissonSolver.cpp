@@ -44,7 +44,8 @@ void PoissonSolver::_cub2fftw() const
   MPI_Allreduce(MPI_IN_PLACE, sums, 2, MPI_DOUBLE,MPI_SUM, m_comm);
   sums[1] = std::max(std::numeric_limits<double>::epsilon(), sums[1]);
   const Real correction = sums[0] / sums[1];
-  printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
+  if(m_rank == 0)
+    printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
   #if 1
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<NlocBlocks; ++i) {
