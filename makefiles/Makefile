@@ -26,7 +26,7 @@ precision ?= double
 precision_dump ?= single
 bs ?= 16
 hdf ?= true
-hypre ?= true
+hypre ?= false
 rk2 ?= false
 accfft ?= false
 zlib ?= 0
@@ -54,8 +54,12 @@ ifeq "$(precision)" "single"
 endif
 
 ifeq "$(hypre)" "true"
+ifeq "$(compiler)" "gnu"
+# I don't want to see g++ complaining about hypre:
+CPPFLAGS+= -Wno-redundant-decls
+endif
 LIBS+= -lHYPRE
-CPPFLAGS += -DCUP_HYPRE
+CPPFLAGS+= -DCUP_HYPRE
 endif
 
 ifeq "$(precision_dump)" "double"
@@ -153,7 +157,7 @@ ifeq "$(accfft)" "true"
 	NVFLAGS += -I$(accfft-inc) -I$(MPICH_DIR)/include/
 	LIBS += -L$(accfft-lib) -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu -lcufft
 	NVOBJECTS = PoissonSolverACC_kernels.o
-	OBJECTS += PoissonSolverACC.o
+	OBJECTS += PoissonSolverACCUnbounded.o PoissonSolverACCPeriodic.o
 else
 	NVOBJECTS =
 	LIBS += $(FFTW_LIBS)

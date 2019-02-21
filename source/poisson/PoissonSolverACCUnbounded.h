@@ -8,8 +8,7 @@
 
 #pragma once
 
-#include "Definitions.h"
-#include <array>
+#include "PoissonSolver.h"
 
 class PoissonSolverUnbounded : public PoissonSolver
 {

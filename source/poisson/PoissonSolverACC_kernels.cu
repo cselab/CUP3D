@@ -19,14 +19,12 @@
   typedef float Real;
 #endif
 #include "PoissonSolverACC_common.h"
-
-
 #define CUDA_Check(code) do {  \
     if (code != cudaSuccess) { \
       printf("DONE DEAD func:%s file:%s:%d %s\n", __func__, \
       __FILE__,__LINE__, cudaGetErrorString(code)); \
     } \
-} while(0)
+  } while(0)
 
 __global__
 void _fourier_filter_kernel(acc_c*const __restrict__ out,
@@ -143,15 +141,8 @@ __global__ void kFreespace(const int oSzX, const int oSzY, const int oSzZ,
   in_out[linidx][1] *= G_hat[linidx];
 }
 
-static inline int getSize(MPI_Comm comm) {
-  int ret; MPI_Comm_size(comm, &ret); return ret;
-}
-static inline int getRank(MPI_Comm comm) {
-  int ret; MPI_Comm_rank(comm, &ret); return ret;
-}
-
 void dSolveFreespace(const int ox,const int oy,const int oz,const size_t mz_pad,
-  const Real*const G_hat, acc_c*const gpu_rhs)
+  const Real*const G_hat, Real*const gpu_rhs)
 {
   dim3 dB(4, 4, 4);
   dim3 dG(std::ceil(ox/4.), std::ceil(oy/4.), std::ceil(oz/4.));

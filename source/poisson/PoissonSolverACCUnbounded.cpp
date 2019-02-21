@@ -6,11 +6,15 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
-
 #include "PoissonSolverACCUnbounded.h"
 #include <cuda_runtime_api.h>
+#include <cuda_runtime.h>
 #include "PoissonSolverACC_common.h"
+#ifndef CUP_SINGLE_PRECISION
+#define MPIREAL MPI_DOUBLE
+#else
+#define MPIREAL MPI_FLOAT
+#endif /* CUP_SINGLE_PRECISION */
 
 inline void printMemUse(const std::string where)
 {
@@ -20,9 +24,15 @@ inline void printMemUse(const std::string where)
   printf("%s: used = %f, free = %f MB, total = %f MB\n", where.c_str(),
     used_db/1024/1024, free_db/1024/1024, total_db/1024/1024); fflush(0);
 }
+#define CUDA_Check(code) do {  \
+    if (code != cudaSuccess) { \
+      printf("DONE DEAD func:%s file:%s:%d %s\n", __func__, \
+      __FILE__,__LINE__, cudaGetErrorString(code)); \
+    } \
+  } while(0)
 
 void dSolveFreespace(const int ox,const int oy,const int oz,const size_t mz_pad,
-  const Real*const G_hat, acc_c*const gpu_rhs);
+  const Real*const G_hat, Real*const gpu_rhs);
 
 void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
     const int nx,const int ny,const int nz, const Real h, acc_plan* const fwd,
@@ -32,10 +42,15 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolv
 {
   stridez = myN[2];
   stridey = myN[1];
-  int c_dims[2] = { m_size, 1 };
-  accfft_create_comm(m_comm, c_dims, &c_comm);
-  MPI_Type_create_subarray(3, szFft, szCup, start, MPI_ORDER_C,MPIREAL,&submat);
-  MPI_Type_commit(&submat);
+  {
+    int c_dims[2] = { m_size, 1 };
+    accfft_create_comm(m_comm, c_dims, &c_comm);
+  }
+  {
+    int start[3] = {0,0,0};
+    MPI_Type_create_subarray(3, szFft,szCup, start,MPI_ORDER_C,MPIREAL,&submat);
+    MPI_Type_commit(&submat);
+  }
   int M[3] = {mx, my, mz};
   alloc_max = accfft_local_size(M, isize, istart, osize, ostart, c_comm);
 
@@ -49,7 +64,7 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolv
   cudaMalloc((void**) &gpuGhat, alloc_max/2);
   acc_plan* P = accfft_plan_dft(M, gpu_rhs, gpu_rhs, c_comm, ACCFFT_MEASURE);
   plan = (void*) P;
-  initGreen(isize,osize,istart,ostart, gsize[0],gsize[1],gsize[2], h, plan, gpuGhat, gpu_rhs);
+  initGreen(isize,osize,istart,ostart, gsize[0],gsize[1],gsize[2], h,P, gpuGhat,gpu_rhs);
 
   data = (Real*) malloc(myN[0]*  myN[1]*(  myN[2] * sizeof(Real)));
   fft_rhs = (Real*) malloc(myftNx*gsize[1]*(gsize[2] * sizeof(Real)) );
@@ -112,13 +127,13 @@ void PoissonSolverUnbounded::cub2padded() const
 
   memset(fft_rhs, 0, szFft[0]*szFft[1]*szFft[2] * sizeof(Real) );
   std::vector<MPI_Request> reqs = std::vector<MPI_Request>(m_size*2, MPI_REQUEST_NULL);
-  const int m_ind =  pos[0]   * locx, m_pos =  m_rank   * szFft[0];
-  const int m_nxt = (pos[0]+1)* locx, m_end = (m_rank+1)* szFft[0];
+  const int m_ind =  pos[0]   * myN[0], m_pos =  m_rank   * szFft[0];
+  const int m_nxt = (pos[0]+1)* myN[0], m_end = (m_rank+1)* szFft[0];
   for(int i=0; i<m_size; i++)
   {
     MPI_Cart_coords(m_comm, i, 3, dst); // assert(dst[1]==0 && dst[2]==0);
-    const int i_ind =  dst[0]   * locx, i_pos =  i   * szFft[0];
-    const int i_nxt = (dst[0]+1)* locx, i_end = (i+1)* szFft[0];
+    const int i_ind =  dst[0]   * myN[0], i_pos =  i   * szFft[0];
+    const int i_nxt = (dst[0]+1)* myN[0], i_end = (i+1)* szFft[0];
     // test if rank needs to send to i its rhs:
     if( i_pos < m_nxt && m_ind < i_end )
     {
@@ -132,7 +147,7 @@ void PoissonSolverUnbounded::cub2padded() const
     {
       const int tag = m_rank + i * m_size;
       const size_t shiftx = std::max(i_ind - m_pos, 0);
-      const size_t ptr = dst[2]*szCup[2] +nz*(dst[1]*szCup[1] +ny*shiftx);
+      const size_t ptr = dst[2]*szCup[2] +szFft[2]*(dst[1]*szCup[1] +szFft[1]*shiftx);
       MPI_Irecv(fft_rhs + ptr, 1, submat, i, tag, m_comm, &reqs[2*i + 1]);
     }
   }
@@ -145,28 +160,28 @@ void PoissonSolverUnbounded::padded2cub() const
   MPI_Cart_coords(m_comm, m_rank, 3, pos);
 
   std::vector<MPI_Request> reqs = std::vector<MPI_Request>(m_size*2, MPI_REQUEST_NULL);
-  const int m_ind =  pos[0]   * locx, m_pos =  m_rank   * szFft[0];
-  const int m_nxt = (pos[0]+1)* locx, m_end = (m_rank+1)* szFft[0];
+  const int m_ind =  pos[0]   * myN[0], m_pos =  m_rank   * szFft[0];
+  const int m_nxt = (pos[0]+1)* myN[0], m_end = (m_rank+1)* szFft[0];
   for(int i=0; i<m_size; i++)
   {
-    MPI_Cart_coords(comm, i, 3, dst);
-    const int i_ind =  dst[0]   * locx, i_pos =  i   * szFft[0];
-    const int i_nxt = (dst[0]+1)* locx, i_end = (i+1)* szFft[0];
+    MPI_Cart_coords(m_comm, i, 3, dst);
+    const int i_ind =  dst[0]   * myN[0], i_pos =  i   * szFft[0];
+    const int i_nxt = (dst[0]+1)* myN[0], i_end = (i+1)* szFft[0];
     // test if rank needs to send to i its rhs:
     if( i_pos < m_nxt && m_ind < i_end )
     {
       const int tag = i + m_rank * m_size;
       const size_t shiftx = std::max(i_pos - m_ind, 0);
       const size_t ptr = szCup[2] * szCup[1] * shiftx;
-      MPI_Irecv(data + ptr, 1, submat, i, tag, comm, &reqs[2*i]);
+      MPI_Irecv(data + ptr, 1, submat, i, tag, m_comm, &reqs[2*i]);
     }
     // test if rank needs to recv to i's rhs:
     if( m_pos < i_nxt && i_ind < m_end )
     {
       const int tag = m_rank + i * m_size;
       const size_t shiftx = std::max(i_ind - m_pos, 0);
-      const size_t ptr = dst[2]*szCup[2] +nz*(dst[1]*szCup[1] +ny*shiftx);
-      MPI_Isend(fft_rhs + ptr, 1, submat, i, tag, comm, &reqs[2*i + 1]);
+      const size_t ptr = dst[2]*szCup[2] +szFft[2]*(dst[1]*szCup[1] +szFft[1]*shiftx);
+      MPI_Isend(fft_rhs + ptr, 1, submat, i, tag, m_comm, &reqs[2*i + 1]);
     }
   }
   MPI_Waitall(m_size*2, reqs.data(), MPI_STATUSES_IGNORE);
@@ -227,7 +242,7 @@ PoissonSolverUnbounded::~PoissonSolverUnbounded()
   free(fft_rhs);
   cudaFree(gpu_rhs);
   cudaFree(gpuGhat);
-  accfft_destroy_plan_gpu(plan);
+  accfft_destroy_plan_gpu((acc_plan*)plan);
   accfft_clean();
   MPI_Comm_free(&c_comm);
   MPI_Type_free(&submat);

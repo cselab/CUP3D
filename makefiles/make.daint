@@ -15,6 +15,11 @@ else
 CPPFLAGS += -static
 endif
 
-LIBS += $(CRAY_CUDATOOLKIT_POST_LINK_OPTS) 
+ifeq "$(hypre)" "true"
+CPPFLAGS+= -I/users/novatig/hypre/build/include/
+LIBS+= -L/users/novatig/hypre/build/lib/
+endif
 
-CPPFLAGS += -DCUP_ASYNC_DUMP
+LIBS += $(CRAY_CUDATOOLKIT_POST_LINK_OPTS)
+
+#CPPFLAGS += -DCUP_ASYNC_DUMP
