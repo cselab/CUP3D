@@ -54,6 +54,7 @@ class KernelAdvectDiffuse
 
 void AdvectionDiffusion::operator()(const double dt)
 {
+  sim.startProfiler("AdvDiff Kernel");
   {
     const int nthreads = omp_get_max_threads();
     std::vector<KernelAdvectDiffuse*> adv1(nthreads, nullptr);
@@ -63,11 +64,12 @@ void AdvectionDiffusion::operator()(const double dt)
     compute(adv1);
     for(int i=0; i<nthreads; i++) delete adv1[i];
   }
+  sim.stopProfiler();
 
+  sim.startProfiler("AdvDiff copy");
   #pragma omp parallel for schedule(static)
   for(size_t i=0; i<vInfo.size(); i++) {
-    const BlockInfo& info = vInfo[i];
-    FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+    FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -76,5 +78,6 @@ void AdvectionDiffusion::operator()(const double dt)
       b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
     }
   }
+  sim.stopProfiler();
   check("AdvectionDiffusion - end");
 }

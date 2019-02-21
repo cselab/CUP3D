@@ -33,6 +33,7 @@ struct VelocityObstacleVisitor : public ObstacleVisitor
 
 void CreateObstacles::operator()(const double dt)
 {
+  sim.startProfiler("Obstacles Reset");
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i)
   {
@@ -41,18 +42,21 @@ void CreateObstacles::operator()(const double dt)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) b(ix,iy,iz).chi = 0;
   }
+  sim.stopProfiler();
 
+  sim.startProfiler("Obstacles Create");
   sim.obstacle_vector->create(sim.step, sim.time, dt, sim.uinf);
-
-  check("shape - end");
+  sim.stopProfiler();
+  check("obst. create");
 }
 
 void ComputeForces::operator()(const double dt)
 {
-  check((std::string)"obst. forces - start");
+  sim.startProfiler("Obstacles Forces");
   const Real time = sim.time, nu = sim.nu; const auto step = sim.step;
   sim.obstacle_vector->computeForces(step, time, dt, nu, sim.bDump);
-  check((std::string)"obst. forces - end");
+  sim.stopProfiler();
+  check("obst. forces");
 }
 
 void UpdateObstacles::operator()(const double dt)
@@ -60,6 +64,7 @@ void UpdateObstacles::operator()(const double dt)
   int nSum[3] = {0,0,0};
   double uSum[3] = {0,0,0};
 
+  sim.startProfiler("Obstacles Update");
   ObstacleVisitor* VIS = new VelocityObstacleVisitor(sim, nSum, uSum);
   sim.obstacle_vector->Accept(VIS); // accept you son of a french cow
   if( nSum[0] > 0 ) sim.uinf[0] = uSum[0] / nSum[0];
@@ -72,5 +77,6 @@ void UpdateObstacles::operator()(const double dt)
 
   sim.obstacle_vector->update(sim.step, sim.time, dt, sim.uinf);
 
-  check((std::string)"obst. update - end");
+  sim.stopProfiler();
+  check("obst. update");
 }

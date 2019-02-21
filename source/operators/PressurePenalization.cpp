@@ -22,6 +22,7 @@
 #endif
 // TODO : Cosine transform on GPU!?
 #include "../poisson/PoissonSolverMixed.h"
+#include "../poisson/PoissonSolverHYPREMixed.h"
 #undef MPIREAL
 
 class KernelGradP
@@ -71,9 +72,9 @@ PressurePenalization::PressurePenalization(SimulationData & s) : Operator(s)
 
 void PressurePenalization::operator()(const double dt)
 {
-
   pressureSolver->solve();
 
+  sim.startProfiler("GradP Penal");
   { //pressure correction dudt* = - grad P / rho
     const int nthreads = omp_get_max_threads();
     std::vector<KernelGradP*> diff(nthreads, nullptr);
@@ -83,6 +84,7 @@ void PressurePenalization::operator()(const double dt)
     compute<KernelGradP>(diff);
     for(int i=0; i<nthreads; i++) delete diff[i];
   }
+  sim.stopProfiler();
 
   check("pressure - end");
 }

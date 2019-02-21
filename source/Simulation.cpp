@@ -443,12 +443,9 @@ bool Simulation::timestep(const double dt)
     if (bDumpTime) sim.nextSaveTime += sim.saveTime;
     sim.bDump = (bDumpFreq || bDumpTime);
 
-    for (size_t c=0; c<sim.pipeline.size(); c++)
-    {
-      sim.startProfiler(sim.pipeline[c]->getName());
+    for (size_t c=0; c<sim.pipeline.size(); c++) {
       (*sim.pipeline[c])(dt);
       //_serialize(sim.pipeline[c]->getName()+std::to_string(sim.step));
-      sim.stopProfiler();
     }
     sim.step++;
     sim.time+=dt;

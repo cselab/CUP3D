@@ -26,6 +26,7 @@ precision ?= double
 precision_dump ?= single
 bs ?= 16
 hdf ?= true
+hypre ?= true
 rk2 ?= false
 accfft ?= false
 zlib ?= 0
@@ -50,6 +51,11 @@ endif
 ifeq "$(precision)" "single"
 	CPPFLAGS += -DCUP_SINGLE_PRECISION
 	NVFLAGS += -DCUP_SINGLE_PRECISION
+endif
+
+ifeq "$(hypre)" "true"
+LIBS+= -lHYPRE
+CPPFLAGS += -DCUP_HYPRE
 endif
 
 ifeq "$(precision_dump)" "double"
@@ -146,7 +152,8 @@ ifeq "$(accfft)" "true"
 	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -Wno-float-equal
 	NVFLAGS += -I$(accfft-inc) -I$(MPICH_DIR)/include/
 	LIBS += -L$(accfft-lib) -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu -lcufft
-	NVOBJECTS = PoissonSolverACC.o
+	NVOBJECTS = PoissonSolverACC_kernels.o
+	OBJECTS += PoissonSolverACC.o
 else
 	NVOBJECTS =
 	LIBS += $(FFTW_LIBS)
@@ -185,7 +192,7 @@ librl: $(LIBRLOBJ) $(NVOBJECTS)
 %.o: %.cpp
 	$(CC) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 
-PoissonSolverACC.o: PoissonSolverACC.cu
+PoissonSolverACC_kernels.o: PoissonSolverACC_kernels.cu
 	nvcc $(NVFLAGS) -c $< -o $@
 
 clean:

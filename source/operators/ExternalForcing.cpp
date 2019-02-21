@@ -28,7 +28,7 @@ class KernelExternalForcing
 
 void ExternalForcing::operator()(const double dt)
 {
-  check("dp_dx - start");
+  sim.startProfiler("Forcing Kernel");
   const int dir = sim.BCy_flag==wall ? 1 : 2;
   const Real H = sim.extent[dir];
   const Real gradPdt = 8*sim.uMax_forced*sim.nu/H/H * dt;
@@ -37,5 +37,6 @@ void ExternalForcing::operator()(const double dt)
   #pragma omp parallel for schedule(static)
   for(size_t i=0; i<vInfo.size(); i++)
       kernel(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
-  check("dp_dx - end");
+  sim.stopProfiler();
+  check("forcing - end");
 }

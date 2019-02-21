@@ -54,6 +54,7 @@ class KernelFadeOut
 
 void FadeOut::operator()(const double dt)
 {
+  sim.startProfiler("FadeOut Kernel");
   #pragma omp parallel
   {
     KernelFadeOut kernel(sim.fadeOutLengthU, sim.extent);
@@ -61,5 +62,6 @@ void FadeOut::operator()(const double dt)
     for (size_t i=0; i<vInfo.size(); i++)
       kernel(vInfo[i], *(FluidBlock*) vInfo[i].ptrBlock);
   }
-  check((std::string)"FadeOut - end");
+  sim.stopProfiler();
+  check("FadeOut - end");
 }

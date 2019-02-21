@@ -75,6 +75,7 @@ class KernelDissipation
 
 void ComputeDissipation::operator()(const double dt)
 {
+  sim.startProfiler("Dissip Kernel");
   const int nthreads = omp_get_max_threads();
   std::vector<KernelDissipation*> diss(nthreads, nullptr);
   #pragma omp parallel for schedule(static, 1)
@@ -82,7 +83,9 @@ void ComputeDissipation::operator()(const double dt)
     diss[i] = new KernelDissipation(dt, sim.extent, sim.nu);
 
   compute<KernelDissipation>(diss);
+  sim.stopProfiler();
 
+  sim.startProfiler("Dissip Reduce");
   double viscous=0.0, press=0.0, kinetic=0.0;
   for(int i=0; i<nthreads; i++)
   {
@@ -105,6 +108,7 @@ void ComputeDissipation::operator()(const double dt)
     fileDissip<<sim.step<<" "<<sim.time<<" "<<globalSum[0]<<" "
               <<globalSum[1] <<" "<<globalSum[2]<<std::endl;
   }
+  sim.stopProfiler();
 
   check("dissipation - end");
 }

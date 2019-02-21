@@ -99,6 +99,7 @@ class KernelPressureRHS
 
 void PressureRHS::operator()(const double dt)
 {
+  sim.startProfiler("PresRHS Uobstacle");
   const int nthreads = omp_get_max_threads();
   {
     //zero fields, going to contain Udef:
@@ -118,7 +119,9 @@ void PressureRHS::operator()(const double dt)
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
   }
+  sim.stopProfiler();
 
+  sim.startProfiler("PresRHS Kernel");
   //place onto p: ( div u^(t+1) - div u^* ) / dt
   //where i want div u^(t+1) to be equal to div udef
   std::vector<KernelPressureRHS*> diff(nthreads, nullptr);
@@ -128,6 +131,7 @@ void PressureRHS::operator()(const double dt)
 
   compute<KernelPressureRHS>(diff);
   for(int i=0; i<nthreads; i++) delete diff[i];
+  sim.stopProfiler();
 
   check("pressure rhs - end");
 }
