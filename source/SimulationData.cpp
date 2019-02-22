@@ -61,7 +61,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
 
   // INITIALIZATION: Mostly unused
   initCond = parser("-initCond").asString("zero");
-
+  useHYPREsolver = parser("-useHYPREsolver").asString("");
   // BOUNDARY CONDITIONS
   // accepted dirichlet, periodic, freespace/unbounded, fakeOpen
   std::string BC_x = parser("-BC_x").asString("dirichlet");

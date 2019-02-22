@@ -88,6 +88,7 @@ struct SimulationData
   double saveTime=0, nextSaveTime=0;
   std::string path4serialization = "./";
   std::string initCond = "zero";
+  std::string useHYPREsolver = "";
   // flags assume value 0 for dirichlet/unbounded, 1 for periodic, 2 for wall
   BCflag BCx_flag = dirichlet, BCy_flag = dirichlet, BCz_flag = dirichlet;
 

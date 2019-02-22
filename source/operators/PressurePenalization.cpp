@@ -60,7 +60,10 @@ PressurePenalization::PressurePenalization(SimulationData & s) : Operator(s)
   pressureSolver = new PoissonSolverPeriodic(sim);
   else if (sim.bUseUnboundedBC)
   pressureSolver = new PoissonSolverUnbounded(sim);
-  else pressureSolver = new PoissonSolverMixed(sim);
+  else if (sim.useHYPREsolver not_eq "")
+  pressureSolver = new PoissonSolverMixed_HYPRE(sim);
+  else
+  pressureSolver = new PoissonSolverMixed(sim);
   sim.pressureSolver = pressureSolver;
 }
 

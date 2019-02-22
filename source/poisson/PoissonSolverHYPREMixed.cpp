@@ -9,6 +9,11 @@
 
 #include "PoissonSolverHYPREMixed.h"
 #ifdef CUP_HYPRE
+#ifndef CUP_SINGLE_PRECISION
+#define MPIREAL MPI_DOUBLE
+#else
+#define MPIREAL MPI_FLOAT
+#endif /* CUP_SINGLE_PRECISION */
 
 void PoissonSolverMixed_HYPRE::solve()
 {
@@ -19,17 +24,17 @@ void PoissonSolverMixed_HYPRE::solve()
   if(not bPeriodic)
   {
     static constexpr int SHIFT = 1;
-    buffer[myN[0]*myN[1]*myN[2]-1] = pLast;
+    data[myN[0]*myN[1]*myN[2]-1] = pLast;
     const size_t corner_m1x = linaccess(myN[0]-1-SHIFT, myN[1]-1, myN[2]-1);
     const size_t corner_m1y = linaccess(myN[0]-1, myN[1]-1-SHIFT, myN[2]-1);
     const size_t corner_m1z = linaccess(myN[0]-1, myN[1]-1, myN[2]-1-SHIFT);
-    buffer[corner_m1x] -= pLast;
-    buffer[corner_m1y] -= pLast;
-    buffer[corner_m1z] -= pLast;
+    data[corner_m1x] -= pLast;
+    data[corner_m1y] -= pLast;
+    data[corner_m1z] -= pLast;
   }
 
   sim.startProfiler("HYPRE setBoxV");
-  HYPRE_StructVectorSetBoxValues(hypre_rhs, ilower, iupper, buffer);
+  HYPRE_StructVectorSetBoxValues(hypre_rhs, ilower, iupper, data);
   sim.stopProfiler();
 
   sim.startProfiler("HYPRE solve");
@@ -42,7 +47,7 @@ void PoissonSolverMixed_HYPRE::solve()
   sim.stopProfiler();
 
   sim.startProfiler("HYPRE getBoxV");
-  HYPRE_StructVectorGetBoxValues(hypre_sol, ilower, iupper, buffer);
+  HYPRE_StructVectorGetBoxValues(hypre_sol, ilower, iupper, data);
   sim.stopProfiler();
 
   sim.startProfiler("HYPRE mean0");
@@ -50,18 +55,17 @@ void PoissonSolverMixed_HYPRE::solve()
     Real avgP = 0;
     const size_t dofNum = gsize[0] * gsize[1] * gsize[2];
     const Real fac = 1.0 / dofNum;
-    Real * const nxtGuess = buffer;
     // Compute average pressure across all ranks:
     #pragma omp parallel for schedule(static) reduction(+ : avgP)
-    for (size_t i = 0; i < dofNum; i++) avgP += fac * nxtGuess[i];
-    MPI_Allreduce(MPI_IN_PLACE, avgP, 2, MPIREAL, MPI_SUM, m_comm);
+    for (size_t i = 0; i < dofNum; i++) avgP += fac * data[i];
+    MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, m_comm);
     // Subtract average pressure from all gridpoints
     #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < dofNum; i++) nxtGuess[i] -= avgP;
+    for (size_t i = 0; i < dofNum; i++) data[i] -= avgP;
     // Set this new mean-0 pressure as next guess
-    HYPRE_StructVectorSetBoxValues(hypre_sol, ilower, iupper, buffer);
+    HYPRE_StructVectorSetBoxValues(hypre_sol, ilower, iupper, data);
     // Save pressure of a corner of the grid so that it can be imposed next time
-    pLast = buffer[myN[0]*myN[1]*myN[2]-1];
+    pLast = data[myN[0]*myN[1]*myN[2]-1];
     printf("Avg Pressure:%f\n", avgP);
   }
   sim.stopProfiler();
@@ -77,7 +81,7 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
   stridez = myN[2];
   stridey = myN[1];
   printf("Employing HYPRE-based Poisson solver with Dirichlet BCs.\n");
-  buffer = new Real[myN[0] * myN[1] * myN[2]];
+  data = new Real[myN[0] * myN[1] * myN[2]];
 
   // Grid
   HYPRE_StructGridCreate(m_comm, 3, &hypre_grid);
@@ -112,7 +116,7 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
     HYPRE_StructMatrixInitialize(hypre_mat);
 
     // These indices must match to those in the offset array:
-    HYPRE_Int inds[7] = {0, 1, 2, 3, 4, 5, 6, 7};
+    HYPRE_Int inds[7] = {0, 1, 2, 3, 4, 5, 6};
     using RowType = Real[7];
     RowType * vals = new RowType[myN[0] * myN[1] * myN[2]];
     static constexpr Real COEF = 1;
@@ -170,16 +174,16 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
 
 
   // Rhs and initial guess
-  HYPRE_StructVectorCreate(COMM, hypre_grid, &hypre_rhs);
-  HYPRE_StructVectorCreate(COMM, hypre_grid, &hypre_sol);
+  HYPRE_StructVectorCreate(m_comm, hypre_grid, &hypre_rhs);
+  HYPRE_StructVectorCreate(m_comm, hypre_grid, &hypre_sol);
 
   HYPRE_StructVectorInitialize(hypre_rhs);
   HYPRE_StructVectorInitialize(hypre_sol);
 
   {
-    memset(buffer, 0, myN[0] * myN[1] * myN[2] * sizeof(Real));
-    HYPRE_StructVectorSetBoxValues(hypre_rhs, ilower, iupper, buffer);
-    HYPRE_StructVectorSetBoxValues(hypre_sol, ilower, iupper, buffer);
+    memset(data, 0, myN[0] * myN[1] * myN[2] * sizeof(Real));
+    HYPRE_StructVectorSetBoxValues(hypre_rhs, ilower, iupper, data);
+    HYPRE_StructVectorSetBoxValues(hypre_sol, ilower, iupper, data);
   }
 
   HYPRE_StructVectorAssemble(hypre_rhs);
@@ -187,7 +191,7 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
 
   if (solver == "gmres") {
     printf("Using GMRES solver\n");
-    HYPRE_StructGMRESCreate(COMM, &hypre_solver);
+    HYPRE_StructGMRESCreate(m_comm, &hypre_solver);
     HYPRE_StructGMRESSetTol(hypre_solver, 1e-2);
     HYPRE_StructGMRESSetPrintLevel(hypre_solver, 2);
     HYPRE_StructGMRESSetMaxIter(hypre_solver, 1000);
@@ -195,7 +199,7 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
   }
   else if (solver == "smg") {
     printf("Using SMG solver\n");
-    HYPRE_StructSMGCreate(COMM, &hypre_solver);
+    HYPRE_StructSMGCreate(m_comm, &hypre_solver);
     //HYPRE_StructSMGSetMemoryUse(hypre_solver, 0);
     HYPRE_StructSMGSetMaxIter(hypre_solver, 100);
     HYPRE_StructSMGSetTol(hypre_solver, 1e-3);
@@ -208,13 +212,13 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
   }
   else {
     printf("Using PCG solver\n");
-    HYPRE_StructPCGCreate(COMM, &hypre_solver);
+    HYPRE_StructPCGCreate(m_comm, &hypre_solver);
     HYPRE_StructPCGSetMaxIter(hypre_solver, 1000);
     HYPRE_StructPCGSetTol(hypre_solver, 1e-2);
     HYPRE_StructPCGSetPrintLevel(hypre_solver, 2);
     if(0)
     { // Use SMG preconditioner
-      HYPRE_StructSMGCreate(COMM, &hypre_precond);
+      HYPRE_StructSMGCreate(m_comm, &hypre_precond);
       HYPRE_StructSMGSetMaxIter(hypre_precond, 1000);
       HYPRE_StructSMGSetTol(hypre_precond, 0);
       HYPRE_StructSMGSetNumPreRelax(hypre_precond, 1);
@@ -239,7 +243,7 @@ PoissonSolverMixed_HYPRE::~PoissonSolverMixed_HYPRE()
   HYPRE_StructMatrixDestroy(hypre_mat);
   HYPRE_StructVectorDestroy(hypre_rhs);
   HYPRE_StructVectorDestroy(hypre_sol);
-  delete [] buffer;
+  delete [] data;
 }
 
 #endif

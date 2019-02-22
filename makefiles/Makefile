@@ -53,15 +53,6 @@ ifeq "$(precision)" "single"
 	NVFLAGS += -DCUP_SINGLE_PRECISION
 endif
 
-ifeq "$(hypre)" "true"
-ifeq "$(compiler)" "gnu"
-# I don't want to see g++ complaining about hypre:
-CPPFLAGS+= -Wno-redundant-decls
-endif
-LIBS+= -lHYPRE
-CPPFLAGS+= -DCUP_HYPRE
-endif
-
 ifeq "$(precision_dump)" "double"
 	CPPFLAGS += -DCUP_HDF5_DOUBLE_PRECISION
 endif
@@ -151,6 +142,16 @@ OBJECTS = IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o \
 	PressurePenalization.o PressureRHS.o PoissonSolver.o PoissonSolverMixed.o \
 	ArgumentParser.o  # Temporary solution for Cubism .cpp files.
 	#IF3D_ElasticFishOperator.o
+
+ifeq "$(hypre)" "true"
+ifeq "$(compiler)" "gnu"
+# I don't want to see g++ complaining about hypre:
+CPPFLAGS+= -Wno-redundant-decls
+endif
+LIBS+= -lHYPRE
+CPPFLAGS+= -DCUP_HYPRE
+OBJECTS+= PoissonSolverHYPREMixed.o
+endif
 
 ifeq "$(accfft)" "true"
 	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -Wno-float-equal

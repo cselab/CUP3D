@@ -24,17 +24,18 @@ class PoissonSolverMixed_HYPRE : public PoissonSolver
   HYPRE_StructSolver   hypre_solver;
   HYPRE_StructSolver   hypre_precond;
   Real pLast = 0;
+  const bool bPeriodic = false; // TODO BC
 
   int peidx_0() const {  int ret[3]; grid.peindex(ret); return ret[0]; }
   int peidx_1() const {  int ret[3]; grid.peindex(ret); return ret[1]; }
   int peidx_2() const {  int ret[3]; grid.peindex(ret); return ret[2]; }
   const int peidx[3] = {peidx_0(), peidx_1(), peidx_2()};
-  HYPRE_Int ilower[] = {
+  HYPRE_Int ilower[3] = {
     (int) myN[0] * peidx[0],
     (int) myN[1] * peidx[1],
     (int) myN[2] * peidx[2]
   };
-  HYPRE_Int iupper[] = {
+  HYPRE_Int iupper[3] = {
     (int) myN[0] * (peidx[0]+1) - 1,
     (int) myN[1] * (peidx[1]+1) - 1,
     (int) myN[2] * (peidx[2]+1) - 1
