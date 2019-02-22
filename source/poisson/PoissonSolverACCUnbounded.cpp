@@ -75,49 +75,47 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolv
 
 void PoissonSolverUnbounded::solve()
 {
+  sim.startProfiler("ACCUNB cub2rhs");
   _cub2fftw();
-
   cudaMemset(gpu_rhs, 0, alloc_max);
+  sim.stopProfiler();
 
-  #if 0
-    Real * cub_test = (Real*) malloc( myN[0]*myN[1]*myN[2] * sizeof(Real) );
-    for(size_t i=0;i<myN[0];i++)
-      for(size_t j=0;j<myN[1];j++)
-        for(size_t k=0;k<myN[2];k++) {
-          const auto I = i + procid * myN[0];
-          data[k+myN[2]*(j+myN[1]*i)]=k+mz*(j+my*I);
-        }
-    std::copy(data, data +myN[0]*myN[1]*myN[2], cub_test);
-  #endif
-  #if 0
-    Real * cub_test = (Real*) malloc(myN[0]* myN[1]*(myN[2] * sizeof(Real)));
-    std::copy(data, data +myN[0]*myN[1]*myN[2], cub_test);
-    //Real norm = 0;
-    //for(size_t i=0; i<myN[0]*myN[1]*myN[2]; i++)
-    //  norm+=std::pow(cub_test[i], 2);
-    //cout << "norm"<<norm << endl;
-  #endif
   // MPI transfer of data from CUP distribution to 1D-padded FFT distribution
+  sim.startProfiler("ACCUNB rhs2pad");
   cub2padded();
-  // ranks that do not contain only zero-padding, transfer RHS to GPU
-  padded2gpu();
-  accfft_exec_r2c((acc_plan*) plan, gpu_rhs, (acc_c*) gpu_rhs);
-  // solve Poisson in padded Fourier space
-  dSolveFreespace(osize[0],osize[1],osize[2], mz_pad, gpuGhat, gpu_rhs);
-  accfft_exec_c2r((acc_plan*) plan, (acc_c*) gpu_rhs, gpu_rhs);
-  // ranks that do not contain extended solution, transfer SOL to CPU
-  gpu2padded();
-  // MPI transfer of data from 1D-padded FFT distribution to CUP distribution
-  padded2cub();
-  #if 0
-    Real diff = 0;
-    for (size_t i=0; i<myN[0]*myN[1]*myN[2]; i++)
-      diff += std::pow(data[i]-cub_test[i], 2);
-    cout << "diff"<<diff << endl;
-    free(cub_test);
-  #endif
+  sim.stopProfiler();
 
+  // ranks that do not contain only zero-padding, transfer RHS to GPU
+  sim.startProfiler("ACCUNB cpu2gpu");
+  padded2gpu();
+  sim.stopProfiler();
+
+  sim.startProfiler("ACCUNB r2c");
+  accfft_exec_r2c((acc_plan*) plan, gpu_rhs, (acc_c*) gpu_rhs);
+  sim.stopProfiler();
+
+  // solve Poisson in padded Fourier space
+  sim.startProfiler("ACCUNB solve");
+  dSolveFreespace(osize[0],osize[1],osize[2], mz_pad, gpuGhat, gpu_rhs);
+  sim.stopProfiler();
+
+  sim.startProfiler("ACCUNB c2r");
+  accfft_exec_c2r((acc_plan*) plan, (acc_c*) gpu_rhs, gpu_rhs);
+  sim.stopProfiler();
+
+  // ranks that do not contain extended solution, transfer SOL to CPU
+  sim.startProfiler("ACCUNB gpu2cpu");
+  gpu2padded();
+  sim.stopProfiler();
+
+  sim.startProfiler("ACCUNB pad2rhs");
+  padded2cub();
+  sim.stopProfiler();
+
+  // MPI transfer of data from 1D-padded FFT distribution to CUP distribution
+  sim.startProfiler("ACCUNB rhs2cub");
   _fftw2cub();
+  sim.stopProfiler();
 }
 
 void PoissonSolverUnbounded::cub2padded() const

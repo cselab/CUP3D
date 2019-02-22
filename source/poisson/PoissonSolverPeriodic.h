@@ -133,3 +133,22 @@ class PoissonSolverPeriodic : public PoissonSolver
     _FFTW_(mpi_cleanup)();
   }
 };
+
+#if 0
+Real * dump = _FFTW_(alloc_real)(2*alloc_local);
+fft_c *const in_out = (fft_c *) data;
+fft_c *const out_in = (fft_c *) dump;
+#pragma omp parallel for
+for(long j = 0; j<static_cast<long>(local_n1); ++j)
+for(long i = 0; i<static_cast<long>(gsize[0]); ++i)
+for(long k = 0; k<static_cast<long>(nz_hat);   ++k) {
+  const size_t linidx = (i*local_n1 +j)*nz_hat + k;
+  const size_t linidy = (j*gsize[0] +i)*nz_hat + k;
+  out_in[linidx][0] = in_out[linidy][0];
+  out_in[linidx][1] = in_out[linidy][1];
+}
+std::swap(dump, data);
+_fftw2cub();
+std::swap(dump, data);
+_FFTW_(free)(dump);
+#endif

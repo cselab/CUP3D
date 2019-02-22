@@ -100,8 +100,8 @@ struct SimulationData
     std::thread * dumper = nullptr;
   #endif
 
-  void startProfiler(std::string name);
-  void stopProfiler();
+  void startProfiler(std::string name) const;
+  void stopProfiler() const;
   void printResetProfiler();
   void _argumentsSanityCheck();
   ~SimulationData();

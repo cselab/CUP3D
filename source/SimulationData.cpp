@@ -156,13 +156,13 @@ SimulationData::~SimulationData()
   #endif
 }
 
-void SimulationData::startProfiler(std::string name)
+void SimulationData::startProfiler(std::string name) const
 {
   #ifndef SMARTIES_APP
     profiler->push_start(name);
   #endif
 }
-void SimulationData::stopProfiler()
+void SimulationData::stopProfiler() const
 {
   #ifndef SMARTIES_APP
     profiler->pop_stop();

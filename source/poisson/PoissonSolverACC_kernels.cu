@@ -28,59 +28,54 @@
 
 __global__
 void _fourier_filter_kernel(acc_c*const __restrict__ out,
-  const size_t Nx, const size_t Ny, const size_t Nz,
-  const size_t nx, const size_t ny, const size_t nz,
-  const size_t sx, const size_t sy, const size_t sz,
+  const long Gx, const long Gy, const long Gz,
+  const long nx, const long ny, const long nz,
+  const long sx, const long sy, const long sz,
   const Real wx, const Real wy, const Real wz, const Real fac)
 {
-  const size_t i = blockDim.x * blockIdx.x + threadIdx.x;
-  const size_t j = blockDim.y * blockIdx.y + threadIdx.y;
-  const size_t k = blockDim.z * blockIdx.z + threadIdx.z;
+  const long i = blockDim.x * blockIdx.x + threadIdx.x;
+  const long j = blockDim.y * blockIdx.y + threadIdx.y;
+  const long k = blockDim.z * blockIdx.z + threadIdx.z;
   if( i >= nx || j >= ny || k >= nz ) return;
 
-  const size_t kx = sx + i, ky = sy + j, kz = sz + k;
-  //const size_t kkx = kx > Nx/2 ? kx-Nx : kx;
-  //const size_t kky = ky > Ny/2 ? ky-Ny : ky;
-  //const size_t kkz = kz > Nz/2 ? kz-Nz : kz;
+  const long kx = sx + i, ky = sy + j, kz = sz + k;
+  const long kkx = kx > Gx/2 ? kx-Gx : kx;
+  const long kky = ky > Gy/2 ? ky-Gy : ky;
+  const long kkz = kz > Gz/2 ? kz-Gz : kz;
   // For some reason accfft now does this for Laplace operator:
-  const size_t kkx = kx>Nx/2 ? kx-Nx : ( kx==Nx/2 ? 0 : kx );
-  const size_t kky = ky>Ny/2 ? ky-Ny : ( ky==Ny/2 ? 0 : ky );
-  const size_t kkz = kz>Nz/2 ? kz-Nz : ( kz==Nz/2 ? 0 : kz );
+  //const size_t kkx = kx>Gx/2 ? kx-Gx : ( kx==Gx/2 ? 0 : kx );
+  //const size_t kky = ky>Gy/2 ? ky-Gy : ( ky==Gy/2 ? 0 : ky );
+  //const size_t kkz = kz>Gz/2 ? kz-Gz : ( kz==Gz/2 ? 0 : kz );
   const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
-  const Real kinv =(kkx==0&&kky==0&&kkz==0)? 0 : -fac/(rkx*rkx+rky*rky+rkz*rkz);
-  //const Real kinv = -fac / (rkx*rkx + rky*rky + rkz*rkz);
-  const size_t index = (i*ny + j)*nz + k;
-  out[index][0] *= kinv;
-  out[index][1] *= kinv;
+  const Real kinv = kkx||kky||kkz? -fac/(rkx*rkx + rky*rky + rkz*rkz) : 0;
+  //const Real kinv = fac;
+  const long index = i*nz*ny + j*nz + k;
+  out[index][0] *= kinv; out[index][1] *= kinv;
 }
 
 
 void _fourier_filter_gpu(acc_c*const __restrict__ data_hat,
- const size_t gsize[3],const int osize[3] , const int ostart[3], const double h)
+ const size_t gsize[3],const int osize[3] , const int ostart[3], const Real h)
 {
   const Real wfac[3] = {
-    (Real) 2*M_PI/(h*gsize[0]),
-    (Real) 2*M_PI/(h*gsize[1]),
-    (Real) 2*M_PI/(h*gsize[2])
+    Real(2*M_PI)/(h*gsize[0]),
+    Real(2*M_PI)/(h*gsize[1]),
+    Real(2*M_PI)/(h*gsize[2])
   };
-  const Real scale = 1.0 / ( gsize[0]*h * gsize[1]*h * gsize[2]*h );
-
+  const Real norm = 1.0 / ( gsize[0]*h * gsize[1]*h * gsize[2]*h );
+  //const Real fac = 1.0 / ( gsize[0] * gsize[1] * gsize[2] );
   int blocksInX = std::ceil(osize[0] / 4.);
   int blocksInY = std::ceil(osize[1] / 4.);
   int blocksInZ = std::ceil(osize[2] / 4.);
-
-  dim3 Dg(blocksInX, blocksInY, blocksInZ);
-  dim3 Db(4, 4, 4);
+  dim3 Dg(blocksInX, blocksInY, blocksInZ), Db(4, 4, 4);
   _fourier_filter_kernel<<<Dg, Db>>>(
-    data_hat, gsize[0], gsize[1], gsize[2],
-    osize[0], osize[1], osize[2],
-    ostart[0], ostart[1], ostart[2],
-    wfac[0], wfac[1], wfac[2], scale);
+   data_hat, gsize[0], gsize[1], gsize[2],osize[0],osize[1],osize[2],
+            ostart[0],ostart[1],ostart[2], wfac[0], wfac[1], wfac[2], norm);
 
   //if(ostart[0]==0 && ostart[1]==0 && ostart[2]==0)
   //  cudaMemset(data_hat, 0, 2 * sizeof(Real));
 
-  cudaDeviceSynchronize();
+  CUDA_Check( cudaDeviceSynchronize() );
 }
 
 
