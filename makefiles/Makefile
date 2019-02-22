@@ -148,7 +148,7 @@ OBJECTS = IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o \
 	IF3D_DCylinderObstacleOperator.o IF3D_TestDiffusionObstacleOperator.o \
 	SimulationData.o Simulation.o AdvectionDiffusion.o ComputeDissipation.o \
 	ExternalForcing.o FadeOut.o InitialConditions.o ObstacleManagement.o \
-	PressurePenalization.o PressureRHS.o PoissonSolver.o \
+	PressurePenalization.o PressureRHS.o PoissonSolver.o PoissonSolverMixed.o \
 	ArgumentParser.o  # Temporary solution for Cubism .cpp files.
 	#IF3D_ElasticFishOperator.o
 
@@ -159,6 +159,7 @@ ifeq "$(accfft)" "true"
 	NVOBJECTS = PoissonSolverACC_kernels.o
 	OBJECTS += PoissonSolverACCUnbounded.o PoissonSolverACCPeriodic.o
 else
+	OBJECTS += PoissonSolverUnbounded.o PoissonSolverPeriodic.o
 	NVOBJECTS =
 	LIBS += $(FFTW_LIBS)
 endif

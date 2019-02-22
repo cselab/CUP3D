@@ -10,11 +10,6 @@
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h>
 #include "PoissonSolverACC_common.h"
-#ifndef CUP_SINGLE_PRECISION
-#define MPIREAL MPI_DOUBLE
-#else
-#define MPIREAL MPI_FLOAT
-#endif /* CUP_SINGLE_PRECISION */
 
 inline void printMemUse(const std::string where)
 {

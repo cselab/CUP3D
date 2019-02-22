@@ -10,10 +10,12 @@
 
 #include <fftw3-mpi.h>
 #ifndef CUP_SINGLE_PRECISION
+#define MPIREAL MPI_DOUBLE
 #define _FFTW_(s) fftw_##s
 typedef fftw_complex fft_c;
 typedef fftw_plan fft_plan;
 #else
+#define MPIREAL MPI_FLOAT
 #define _FFTW_(s) fftwf_##s
 typedef fftwf_complex fft_c;
 typedef fftwf_plan fft_plan;

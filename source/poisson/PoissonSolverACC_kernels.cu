@@ -8,14 +8,10 @@
 
 //#include "PoissonSolverScalarFFTW_ACC.h"
 //#include <cuda_runtime_api.h>
-#include <array>
-#include <vector>
 #include <cassert>
 #ifndef CUP_SINGLE_PRECISION
-  #define MPIREAL MPI_DOUBLE
   typedef double Real;
 #else
-  #define MPIREAL MPI_FLOAT
   typedef float Real;
 #endif
 #include "PoissonSolverACC_common.h"
