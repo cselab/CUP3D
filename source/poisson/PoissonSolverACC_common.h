@@ -34,3 +34,18 @@
   #define accfft_exec_r2c accfft_execute_r2c_gpuf
   #define accfft_exec_c2r accfft_execute_c2r_gpuf
 #endif
+
+inline void printMemUse(const std::string where)
+{
+  size_t free_byte, total_byte ;
+  cudaMemGetInfo( &free_byte, &total_byte ) ;
+  double free_db=free_byte, total_db=total_byte, used_db=total_db-free_db;
+  printf("%s: used = %f, free = %f MB, total = %f MB\n", where.c_str(),
+    used_db/1024/1024, free_db/1024/1024, total_db/1024/1024); fflush(0);
+}
+#define CUDA_Check(code) do {  \
+    if (code != cudaSuccess) { \
+      printf("DONE DEAD func:%s file:%s:%d %s\n", __func__, \
+      __FILE__,__LINE__, cudaGetErrorString(code)); \
+    } \
+  } while(0)

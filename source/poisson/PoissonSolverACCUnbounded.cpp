@@ -11,21 +11,6 @@
 #include <cuda_runtime.h>
 #include "PoissonSolverACC_common.h"
 
-inline void printMemUse(const std::string where)
-{
-  size_t free_byte, total_byte ;
-  cudaMemGetInfo( &free_byte, &total_byte ) ;
-  double free_db=free_byte, total_db=total_byte, used_db=total_db-free_db;
-  printf("%s: used = %f, free = %f MB, total = %f MB\n", where.c_str(),
-    used_db/1024/1024, free_db/1024/1024, total_db/1024/1024); fflush(0);
-}
-#define CUDA_Check(code) do {  \
-    if (code != cudaSuccess) { \
-      printf("DONE DEAD func:%s file:%s:%d %s\n", __func__, \
-      __FILE__,__LINE__, cudaGetErrorString(code)); \
-    } \
-  } while(0)
-
 void dSolveFreespace(const int ox,const int oy,const int oz,const size_t mz_pad,
   const Real*const G_hat, Real*const gpu_rhs);
 
@@ -35,8 +20,6 @@ void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
 
 PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolver(s)
 {
-  stridez = myN[2];
-  stridey = myN[1];
   {
     int c_dims[2] = { m_size, 1 };
     accfft_create_comm(m_comm, c_dims, &c_comm);
@@ -62,6 +45,11 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolv
   initGreen(isize,osize,istart,ostart, gsize[0],gsize[1],gsize[2], h,P, gpuGhat,gpu_rhs);
 
   data = (Real*) malloc(myN[0]*  myN[1]*(  myN[2] * sizeof(Real)));
+  data_size = (size_t) myN[0] * (size_t) myN[1] * (size_t) myN[2];
+  stridez = 1; // fast
+  stridey = myN[2];
+  stridex = myN[1] * myN[2]; // slow
+
   fft_rhs = (Real*) malloc(myftNx*gsize[1]*(gsize[2] * sizeof(Real)) );
 
   if(m_rank<m_size/2)

@@ -16,9 +16,6 @@ void _fourier_filter_gpu(
 
 PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver(s)
 {
-  stridez = 2*gz_hat;
-  stridey = myN[1];
-
   if (gsize[2]!=myN[2]) {
     printf("PoissonSolverPeriodic assumes grid is distrubuted in x and y.\n");
     abort();
@@ -46,8 +43,11 @@ PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver
   }
 
   data = (Real*) malloc(isize[0]*isize[1]*2*gz_hat*sizeof(Real));
-  //cudaMalloc((void**) &rho_gpu, isize[0]*isize[1]*isize[2]*sizeof(Real));
-  //cudaMalloc((void**) &phi_gpu, isize[0]*isize[1]*isize[2]*sizeof(Real));
+  data_size = (size_t) isize[0] * (size_t) isize[1] * (size_t) 2*gz_hat;
+  stridez = 1; // fast
+  stridey = 2*gz_hat;
+  stridex = myN[1] * 2*gz_hat; // slow
+
   cudaMalloc((void**) &phi_hat, alloc_max);
 
   acc_plan* P = accfft_plan_dft(totN, phi_hat,phi_hat, c_comm,ACCFFT_MEASURE);

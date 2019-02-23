@@ -15,9 +15,6 @@
 
 PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData&s) : PoissonSolver(s)
 {
-  stridez = 2*m_Nzhat;
-  stridey = m_NN1;
-
   if (m_N0 % m_size != 0 || m_NN1 % m_size != 0) {
     std::cout << "PoissonSolverUnbounded: ERROR: Number of cells N0 and 2*N1 must be evenly divisible by the number of processes." << std::endl;
     abort();
@@ -42,6 +39,11 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData&s) : PoissonSolver
   // FFTW plans
   // input, output, transpose and 2D FFTs (m_local_N0 x m_NN1 x 2m_Nzhat):
   data   = _FFTW_(alloc_real)( 2*m_tp_size );
+  data_size = (size_t) m_local_N0 * (size_t) m_NN1 * (size_t) 2*m_Nzhat;
+  stridez = 1; // fast
+  stridey = 2*m_Nzhat;
+  stridex = m_NN1 * 2*m_Nzhat; // slow
+
   m_buf_full = _FFTW_(alloc_real)( 2*m_full_size );
 
   // 1D plan

@@ -15,12 +15,6 @@
   typedef float Real;
 #endif
 #include "PoissonSolverACC_common.h"
-#define CUDA_Check(code) do {  \
-    if (code != cudaSuccess) { \
-      printf("DONE DEAD func:%s file:%s:%d %s\n", __func__, \
-      __FILE__,__LINE__, cudaGetErrorString(code)); \
-    } \
-  } while(0)
 
 __global__
 void _fourier_filter_kernel(acc_c*const __restrict__ out,

@@ -44,6 +44,8 @@ class PoissonSolver
 
   size_t stridez = 0;
   size_t stridey = 0;
+  size_t stridex = 0;
+  size_t data_size = 0;
   Real* data;
 
  public:
@@ -78,16 +80,18 @@ class PoissonSolver
   }
   inline size_t _offset(const BlockInfo &info) const
   {
+    assert(stridez>0 && stridey>0 && stridex>1 && data_size>0);
     const int myIstart[3] = {
       info.index[0]*bs[0],
       info.index[1]*bs[1],
       info.index[2]*bs[2]
     };
-    return myIstart[2] +stridez*(myIstart[1]+ stridey*myIstart[0]);
+    return stridez*myIstart[2] + stridey*myIstart[1] + stridex*myIstart[0];
   }
   inline size_t _dest(const size_t offset,const int z,const int y,const int x) const
   {
-    return offset + z + stridez *(y + stridey * x);
+    assert(stridez>0 && stridey>0 && stridex>1 && data_size>0);
+    return offset + stridez*z + stridey*y + stridex*x;
   }
 
   inline void _cub2fftw(const size_t offset, const int z, const int y, const int x, const Real rhs) const

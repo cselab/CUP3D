@@ -64,9 +64,6 @@ void PoissonSolverPeriodic::_solve()
 
 PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver(s)
 {
-  stridez = 2*nz_hat;
-  stridey = myN[1];
-
   int supported_threads;
   MPI_Query_thread(&supported_threads);
   if (supported_threads<MPI_THREAD_FUNNELED) {
@@ -88,6 +85,10 @@ PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver
     &local_n0, &local_0_start, &local_n1, &local_1_start);
 
   data = _FFTW_(alloc_real)(2*alloc_local);
+  data_size = (size_t) myN[0] * (size_t) myN[1] * (size_t) 2*nz_hat;
+  stridez = 1; // fast
+  stridey = 2*nz_hat;
+  stridex = myN[1] * 2*nz_hat; // slow
 
   fwd = (void*) _FFTW_(mpi_plan_dft_r2c_3d)(gsize[0], gsize[1], gsize[2],
     data, (fft_c *)data, m_comm, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);

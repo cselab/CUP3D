@@ -12,9 +12,6 @@
 
 PoissonSolverMixed::PoissonSolverMixed(SimulationData & s) : PoissonSolver(s)
 {
-  stridez = myN[2];
-  stridey = myN[1];
-
   int supported_threads;
   MPI_Query_thread(&supported_threads);
   if (supported_threads<MPI_THREAD_FUNNELED) {
@@ -43,6 +40,10 @@ PoissonSolverMixed::PoissonSolverMixed(SimulationData & s) : PoissonSolver(s)
   auto ZplanF = DFT_Z() ? FFTW_R2HC : FFTW_REDFT10;
   auto ZplanB = DFT_Z() ? FFTW_HC2R : FFTW_REDFT01;
   data = _FFTW_(alloc_real)(alloc_local);
+  data_size = (size_t) myN[0] * (size_t) myN[1] * (size_t) myN[2];
+  stridez = 1; // fast
+  stridey = myN[2];
+  stridex = myN[1] * myN[2]; // slow
 
   fwd = (void*)_FFTW_(mpi_plan_r2r_3d)(gsize[0], gsize[1], gsize[2], data, data,
     m_comm, XplanF, YplanF, ZplanF, FFTW_MPI_TRANSPOSED_OUT | FFTW_MEASURE);

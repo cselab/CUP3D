@@ -40,6 +40,19 @@ class PoissonSolverMixed_HYPRE : public PoissonSolver
     (int) myN[1] * (peidx[1]+1) - 1,
     (int) myN[2] * (peidx[2]+1) - 1
   };
+  HYPRE_Int iGridEnd[3] = {(int)gsize[0]-1, (int)gsize[1]-1, (int)gsize[2]-1};
+  const size_t fixed_idx  = linaccess(myN[0]-2, myN[1]-2, myN[2]-2);
+
+  const size_t fixed_m1x = linaccess(myN[0]-3, myN[1]-2, myN[2]-2);
+  const size_t fixed_m1y = linaccess(myN[0]-2, myN[1]-3, myN[2]-2);
+  const size_t fixed_m1z = linaccess(myN[0]-2, myN[1]-2, myN[2]-3);
+
+  const size_t fixed_p1x = linaccess(myN[0]-1, myN[1]-2, myN[2]-2);
+  const size_t fixed_p1y = linaccess(myN[0]-2, myN[1]-1, myN[2]-2);
+  const size_t fixed_p1z = linaccess(myN[0]-2, myN[1]-2, myN[2]-1);
+
+  const bool bRankHoldsFixedDOF =
+    iupper[0]==iGridEnd[0] && iupper[1]==iGridEnd[1] && iupper[2]==iGridEnd[2];
 
   inline size_t linaccess(const size_t ix,const size_t iy,const size_t iz) const
   {

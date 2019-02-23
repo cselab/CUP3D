@@ -15,22 +15,25 @@
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
 
+#define COEF  h
+
 void PoissonSolverMixed_HYPRE::solve()
 {
   sim.startProfiler("HYPRE cub2rhs");
   _cub2fftw();
   sim.stopProfiler();
 
-  if(not bPeriodic)
+  if(bRankHoldsFixedDOF)
   {
-    static constexpr int SHIFT = 1;
-    data[myN[0]*myN[1]*myN[2]-1] = pLast;
-    const size_t corner_m1x = linaccess(myN[0]-1-SHIFT, myN[1]-1, myN[2]-1);
-    const size_t corner_m1y = linaccess(myN[0]-1, myN[1]-1-SHIFT, myN[2]-1);
-    const size_t corner_m1z = linaccess(myN[0]-1, myN[1]-1, myN[2]-1-SHIFT);
-    data[corner_m1x] -= pLast;
-    data[corner_m1y] -= pLast;
-    data[corner_m1z] -= pLast;
+    // set last corner such that last point has pressure pLast
+    data[fixed_idx]  = 6*COEF*pLast; // for conditioning = 1
+    // neighbours read value of corner from the RHS:
+    data[fixed_m1z] -= COEF*pLast; //fixed -1dz reads fixed dof (+1dz) from RHS
+    data[fixed_p1z] -= COEF*pLast; //fixed +1dz reads fixed dof (-1dz) from RHS
+    data[fixed_m1y] -= COEF*pLast; //fixed -1dy reads fixed dof (+1dy) from RHS
+    data[fixed_p1y] -= COEF*pLast; //fixed +1dy reads fixed dof (-1dy) from RHS
+    data[fixed_m1x] -= COEF*pLast; //fixed -1dx reads fixed dof (+1dx) from RHS
+    data[fixed_p1x] -= COEF*pLast; //fixed +1dx reads fixed dof (-1dx) from RHS
   }
 
   sim.startProfiler("HYPRE setBoxV");
@@ -78,10 +81,15 @@ void PoissonSolverMixed_HYPRE::solve()
 PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
   PoissonSolver(s), solver("smg")
 {
-  stridez = myN[2];
-  stridey = myN[1];
-  printf("Employing HYPRE-based Poisson solver with Dirichlet BCs.\n");
+  printf("Employing HYPRE-based Poisson solver with Dirichlet BCs. Rank %d pos {%d %d %d}\n", m_rank, peidx[0], peidx[1], peidx[2]);
+  if(bRankHoldsFixedDOF)
+    printf("Rank %d holds the fixed DOF!\n", m_rank);
+
   data = new Real[myN[0] * myN[1] * myN[2]];
+  data_size = (size_t) myN[0] * (size_t) myN[1] * (size_t) myN[2];
+  stridez = myN[1] * myN[0]; // slow
+  stridey = myN[0];
+  stridex = 1; // fast
 
   // Grid
   HYPRE_StructGridCreate(m_comm, 3, &hypre_grid);
@@ -91,13 +99,14 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
   //HYPRE_Int ghosts[3] = {2, 2, 2};
   //HYPRE_StructGridSetNumGhost(hypre_grid, ghosts);
 
-  if(bPeriodic)
-  {
-    // if grid is periodic, this function takes the period
-    // length... ie. the grid size.
-    HYPRE_Int iend[] = {(int)gsize[0] -1, (int)gsize[1] -1, (int)gsize[2] -1};
-    HYPRE_StructGridSetPeriodic(hypre_grid, iend);
-  }
+  // if grid is periodic, this function takes the period
+  // length... ie. the grid size.
+  HYPRE_Int iPeriod[3] = {
+    sim.BCx_flag == periodic ? iGridEnd[0] : 0,
+    sim.BCy_flag == periodic ? iGridEnd[1] : 0,
+    sim.BCz_flag == periodic ? iGridEnd[2] : 0
+  };
+  HYPRE_StructGridSetPeriodic(hypre_grid, iPeriod);
 
   HYPRE_StructGridAssemble(hypre_grid);
 
@@ -112,64 +121,104 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
   }
 
   { // Matrix
-    HYPRE_StructMatrixCreate(m_comm, hypre_grid, hypre_stencil, &hypre_mat);
-    HYPRE_StructMatrixInitialize(hypre_mat);
+  HYPRE_StructMatrixCreate(m_comm, hypre_grid, hypre_stencil, &hypre_mat);
+  HYPRE_StructMatrixInitialize(hypre_mat);
 
-    // These indices must match to those in the offset array:
-    HYPRE_Int inds[7] = {0, 1, 2, 3, 4, 5, 6};
-    using RowType = Real[7];
-    RowType * vals = new RowType[myN[0] * myN[1] * myN[2]];
-    static constexpr Real COEF = 1;
+  // These indices must match to those in the offset array:
+  HYPRE_Int inds[7] = {0, 1, 2, 3, 4, 5, 6};
+  using RowType = Real[7];
+  RowType * vals = new RowType[myN[0] * myN[1] * myN[2]];
 
-    #pragma omp parallel for schedule(static)
-    for (size_t k = 0; k < myN[2]; k++)
-    for (size_t j = 0; j < myN[1]; j++)
-    for (size_t i = 0; i < myN[0]; i++) {
-      const auto idx = linaccess(i, j, k);
-      assert(idx < (size_t) myN[0] * myN[1] * myN[2]);
-      vals[idx][0] = -6*COEF; /* center */
-      vals[idx][1] =  1*COEF; /* west   */ vals[idx][2] =  1*COEF; /* east   */
-      vals[idx][3] =  1*COEF; /* south  */ vals[idx][4] =  1*COEF; /* north  */
-      vals[idx][5] =  1*COEF; /* front  */ vals[idx][6] =  1*COEF; /* back   */
-    }
+  #pragma omp parallel for schedule(static)
+  for (size_t k = 0; k < myN[2]; k++)
+  for (size_t j = 0; j < myN[1]; j++)
+  for (size_t i = 0; i < myN[0]; i++) {
+    const auto idx = linaccess(i, j, k);
+    assert(idx < (size_t) myN[0] * myN[1] * myN[2]);
+    vals[idx][0] = -6*COEF; /* center */
+    vals[idx][1] =  1*COEF; /* west   */ vals[idx][2] =  1*COEF; /* east   */
+    vals[idx][3] =  1*COEF; /* south  */ vals[idx][4] =  1*COEF; /* north  */
+    vals[idx][5] =  1*COEF; /* front  */ vals[idx][6] =  1*COEF; /* back   */
+  }
 
-    if(not bPeriodic) // 0 Neumann BC
-    {
-      #pragma omp parallel for collapse(3) schedule(dynamic, CUP_BLOCK_SIZE)
+  if( sim.BCx_flag != periodic )
+  {
+    // set 0 and iGridEnd[0] dof to dirichlet BC
+    if(ilower[0] == 0) {
+      #pragma omp parallel for
       for (size_t k = 0; k < myN[2]; k++)
-      for (size_t j = 0; j < myN[1]; j++)
-      for (size_t i = 0; i < myN[0]; i++)
-      {
-        const auto idx = linaccess(i, j, k);
-        if(i==       0) { vals[idx][0] += COEF; vals[idx][1] = 0;}
-        if(i==myN[0]-1) { vals[idx][0] += COEF; vals[idx][2] = 0;}
-        if(j==       0) { vals[idx][0] += COEF; vals[idx][3] = 0;}
-        if(j==myN[1]-1) { vals[idx][0] += COEF; vals[idx][4] = 0;}
-        if(k==       0) { vals[idx][0] += COEF; vals[idx][5] = 0;}
-        if(k==myN[2]-1) { vals[idx][0] += COEF; vals[idx][6] = 0;}
-      }
-
-      {
-        static constexpr size_t SHIFT = 1;
-        const size_t corner_idx = linaccess(myN[0]-1, myN[1]-1, myN[2]-1);
-        const size_t corner_m1x = linaccess(myN[0]-1-SHIFT, myN[1]-1, myN[2]-1);
-        const size_t corner_m1y = linaccess(myN[0]-1, myN[1]-1-SHIFT, myN[2]-1);
-        const size_t corner_m1z = linaccess(myN[0]-1, myN[1]-1, myN[2]-1-SHIFT);
-        // set last corner such that last point has pressure pLast
-        vals[corner_idx][0] = 1;
-        vals[corner_idx][1] = 0; vals[corner_idx][2] = 0;
-        vals[corner_idx][3] = 0; vals[corner_idx][4] = 0;
-        vals[corner_idx][5] = 0; vals[corner_idx][6] = 0;
-        // neighbours read value of corner from the RHS:
-        vals[corner_m1z][6]=0; vals[corner_m1y][4]=0; vals[corner_m1x][2]=0;
+      for (size_t j = 0; j < myN[1]; j++) {
+        const auto idx = linaccess(0, j, k);
+        vals[idx][0] += COEF; vals[idx][1] = 0;
       }
     }
-    // TODO fix last dof for periodic BC
+    if(iupper[0] == iGridEnd[0]) {
+      #pragma omp parallel for
+      for (size_t k = 0; k < myN[2]; k++)
+      for (size_t j = 0; j < myN[1]; j++) {
+        const auto idx = linaccess(myN[0]-1, j, k);
+        vals[idx][0] += COEF; vals[idx][2] = 0;
+      }
+    }
+  }
+  if( sim.BCy_flag != periodic )
+  {
+    if(ilower[1] == 0) {
+      #pragma omp parallel for
+      for (size_t k = 0; k < myN[2]; k++)
+      for (size_t i = 0; i < myN[0]; i++) {
+        const auto idx = linaccess(i, 0, k);
+        vals[idx][0] += COEF; vals[idx][3] = 0;
+      }
+    }
+    if(iupper[1] == iGridEnd[1]) {
+      #pragma omp parallel for
+      for (size_t k = 0; k < myN[2]; k++)
+      for (size_t i = 0; i < myN[0]; i++) {
+        const auto idx = linaccess(i, myN[1]-1, k);
+        vals[idx][0] += COEF; vals[idx][4] = 0;
+      }
+    }
+  }
+  if( sim.BCz_flag != periodic )
+  {
+    if(ilower[2] == 0) {
+      #pragma omp parallel for
+      for (size_t j = 0; j < myN[1]; j++)
+      for (size_t i = 0; i < myN[0]; i++) {
+        const auto idx = linaccess(i, j, 0);
+        vals[idx][0] += COEF; vals[idx][5] = 0;
+      }
+    }
+    if(iupper[2] == iGridEnd[2]) {
+      #pragma omp parallel for
+      for (size_t j = 0; j < myN[1]; j++)
+      for (size_t i = 0; i < myN[0]; i++) {
+        const auto idx = linaccess(i, j, myN[2]-1);
+        vals[idx][0] += COEF; vals[idx][6] = 0;
+      }
+    }
+  }
+  if(bRankHoldsFixedDOF)
+  {
+    // set last corner such that last point has pressure pLast
+    vals[fixed_idx][0] = 6*COEF; // for conditioning = 1
+    vals[fixed_idx][1] = 0; vals[fixed_idx][2] = 0;
+    vals[fixed_idx][3] = 0; vals[fixed_idx][4] = 0;
+    vals[fixed_idx][5] = 0; vals[fixed_idx][6] = 0;
+    // neighbours read value of corner from the RHS:
+    vals[fixed_m1z][6]=0; // fixed -1dz reads fixed dof (+1dz) from RHS
+    vals[fixed_p1z][5]=0; // fixed +1dz reads fixed dof (-1dz) from RHS
+    vals[fixed_m1y][4]=0; // fixed -1dy reads fixed dof (+1dy) from RHS
+    vals[fixed_p1y][3]=0; // fixed +1dy reads fixed dof (-1dy) from RHS
+    vals[fixed_m1x][2]=0; // fixed -1dx reads fixed dof (+1dx) from RHS
+    vals[fixed_p1x][1]=0; // fixed +1dx reads fixed dof (-1dx) from RHS
+  }
 
-    Real * const linV = (Real*) vals;
-    HYPRE_StructMatrixSetBoxValues(hypre_mat, ilower, iupper, 7, inds, linV);
-    delete [] vals;
-    HYPRE_StructMatrixAssemble(hypre_mat);
+  Real * const linV = (Real*) vals;
+  HYPRE_StructMatrixSetBoxValues(hypre_mat, ilower, iupper, 7, inds, linV);
+  delete [] vals;
+  HYPRE_StructMatrixAssemble(hypre_mat);
   }
 
 
