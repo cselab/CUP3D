@@ -7,316 +7,295 @@
 //
 
 
-#include "PoissonSolverHYPREMixed.h"
-#ifdef CUP_HYPRE
+#include "PoissonSolverPETSCMixed.h"
+#ifdef CUP_PETSC
+
+#include <petscdm.h>
+#include <petscdmda.h>
+#include <petscksp.h>
+/*
+#include <petscdm.h>
+#include <petscdmda.h>
+#include <petscksp.h>
+#include <petscsys.h>
+#include <petscvec.h>
+*/
 #ifndef CUP_SINGLE_PRECISION
 #define MPIREAL MPI_DOUBLE
 #else
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
 
-/*T
-   Concepts: KSP^solving a system of linear equations
-   Concepts: KSP^Laplacian, 3d
-   Processors: n
-T*/
+extern PetscErrorCode ComputeRHS(KSP solver, Vec RHS, void * Sptr);
+extern PetscErrorCode ComputeJacobian(KSP solver, Mat J, Mat JAC, void *Sptr);
+std::vector<char*> readRunArgLst();
 
-
-
-/*
-Laplacian in 3D. Modeled by the partial differential equation
-
-   div  grad u = f,  0 < x,y,z < 1,
-
-with pure Neumann boundary conditions
-
-   u = 0 for x = 0, x = 1, y = 0, y = 1, z = 0, z = 1.
-
-The functions are cell-centered
-
-This uses multigrid to solve the linear system
-
-       Contributed by Jianming Yang <jianming-yang@uiowa.edu>
-*/
-
-static char help[] = "Solves 3D Laplacian using multigrid.\n\n";
-
- #include <petscdm.h>
- #include <petscdmda.h>
- #include <petscksp.h>
-
-extern PetscErrorCode ComputeMatrix(KSP,Mat,Mat,void*);
-extern PetscErrorCode ComputeRHS(KSP,Vec,void*);
-
-int main(int argc,char **argv)
+struct PoissonSolverMixed_PETSC::PetscData
 {
-  KSP            ksp;
-  DM             da;
-  PetscReal      norm;
-  PetscInt       i,j,k,mx,my,mz,xm,ym,zm,xs,ys,zs,d,dof;
-  PetscScalar    Hx,Hy,Hz;
-  PetscScalar    ****array;
-  Vec            x,b,r;
-  Mat            J;
+  Real * const cupRHS;
+  const size_t cupRHS_size;
+  const int myNx, myNy, myNz;
+  const int gNx, gNy, gNz;
+  const Real h;
+  const MPI_Comm m_comm;
+  const BCflag BCx, BCy, BCz;
+  KSP solver;
+  DM grid;
+  Vec SOL;
 
-  PetscInitialize(&argc,&argv,(char*)0,help);if (ierr) return ierr;
-  dof  = 1;
-  PetscOptionsGetInt(NULL,NULL,"-da_dof",&dof,NULL);
-  KSPCreate(PETSC_COMM_WORLD,&ksp);
-  DMDACreate3d(PETSC_COMM_WORLD,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,DM_BOUNDARY_NONE,DMDA_STENCIL_STAR,12,12,12,PETSC_DECIDE,PETSC_DECIDE,PETSC_DECIDE,dof,1,0,0,0,&da);
-  DMSetFromOptions(da);
-  DMSetUp(da);
-  DMDASetInterpolationType(da, DMDA_Q0);
-
-  KSPSetDM(ksp,da);
-
-  KSPSetComputeRHS(ksp,ComputeRHS,NULL);
-  KSPSetComputeOperators(ksp,ComputeMatrix,NULL);
-  KSPSetFromOptions(ksp);
-  KSPSolve(ksp,NULL,NULL);
-  KSPGetSolution(ksp,&x);
-  KSPGetRhs(ksp,&b);
-  KSPGetOperators(ksp,NULL,&J);
-  VecDuplicate(b,&r);
-
-  MatMult(J,x,r);
-  VecAXPY(r,-1.0,b);
-  VecNorm(r,NORM_2,&norm);
-  PetscPrintf(PETSC_COMM_WORLD,"Residual norm %g\n",(double)norm);
-
-  DMDAGetInfo(da, 0, &mx, &my, &mz, 0,0,0,0,0,0,0,0,0);
-  Hx   = 1.0 / (PetscReal)(mx);
-  Hy   = 1.0 / (PetscReal)(my);
-  Hz   = 1.0 / (PetscReal)(mz);
-  DMDAGetCorners(da,&xs,&ys,&zs,&xm,&ym,&zm);
-  DMDAVecGetArrayDOF(da, x, &array);
-
-  for (k=zs; k<zs+zm; k++) {
-    for (j=ys; j<ys+ym; j++) {
-      for (i=xs; i<xs+xm; i++) {
-        for (d=0; d<dof; d++) {
-          array[k][j][i][d] -=
-            PetscCosScalar(2*PETSC_PI*(((PetscReal)i+0.5)*Hx))*
-            PetscCosScalar(2*PETSC_PI*(((PetscReal)j+0.5)*Hy))*
-            PetscCosScalar(2*PETSC_PI*(((PetscReal)k+0.5)*Hz));
-        }
-      }
-    }
+  PetscData(MPI_Comm c, size_t gx, size_t gy, size_t gz, size_t nx, size_t ny,
+  size_t nz, size_t nsize, BCflag BCX, BCflag BCY, BCflag BCZ, Real H, Real*ptr)
+  : cupRHS(ptr), cupRHS_size(nsize), myNx(nx), myNy(ny), myNz(nz), gNx(gx),
+  gNy(gy), gNz(gz), h(H), m_comm(c), BCx(BCX), BCy(BCY), BCz(BCZ) { }
+  ~PetscData() {
+    VecDestroy(& SOL);
+    DMDestroy(& grid);
+    KSPDestroy(& solver);
   }
-  DMDAVecRestoreArrayDOF(da, x, &array);
-  VecAssemblyBegin(x);
-  VecAssemblyEnd(x);
+};
 
-  VecNorm(x,NORM_INFINITY,&norm);
-  PetscPrintf(PETSC_COMM_WORLD,"Error norm %g\n",(double)norm);
-  VecNorm(x,NORM_1,&norm);
-  PetscPrintf(PETSC_COMM_WORLD,"Error norm %g\n",(double)(norm/((PetscReal)(mx)*(PetscReal)(my)*(PetscReal)(mz))));
-  VecNorm(x,NORM_2,&norm);
-  PetscPrintf(PETSC_COMM_WORLD,"Error norm %g\n",(double)(norm/((PetscReal)(mx)*(PetscReal)(my)*(PetscReal)(mz))));
+PoissonSolverMixed_PETSC::PoissonSolverMixed_PETSC(SimulationData&s) : PoissonSolver(s)
+{
+  PETSC_COMM_WORLD = m_comm;
+  data = new Real[myN[0] * myN[1] * myN[2]];
+  data_size = (size_t) myN[0] * (size_t) myN[1] * (size_t) myN[2];
+  stridez = myN[1] * myN[0]; // slow
+  stridey = myN[0];
+  stridex = 1; // fast
 
-  VecDestroy(&r);
-  KSPDestroy(&ksp);
-  DMDestroy(&da);
+  S= new PetscData(m_comm, gsize[0], gsize[1], gsize[2], myN[0], myN[1], myN[2],
+    data_size, sim.BCx_flag, sim.BCy_flag, sim.BCz_flag, h, data);
+
+  // (int argc,char **argv)
+  std::vector<char*> args = readRunArgLst();
+  int argc = args.size()-1; char ** argv = args.data();
+  //static char help[] = "Why on earth would it ask me for a string now?\n";
+  PetscInitialize(&argc, &argv, (char*)0, (char*)0);
+  PetscErrorCode ierr = DMDACreate3d(m_comm,
+    sim.BCx_flag == periodic ? DM_BOUNDARY_PERIODIC : DM_BOUNDARY_NONE,
+    sim.BCy_flag == periodic ? DM_BOUNDARY_PERIODIC : DM_BOUNDARY_NONE,
+    sim.BCz_flag == periodic ? DM_BOUNDARY_PERIODIC : DM_BOUNDARY_NONE, DMDA_STENCIL_STAR, gsize[0], gsize[1], gsize[2],
+    sim.nprocsx, sim.nprocsy, sim.nprocsz, 1, 1, NULL, NULL, NULL, & S->grid);
+  //* */ CHKERRQ(ierr);
+  // ierr = DMSetMatType(da_Stokes, MATAIJ); /* What is this for? */
+  //* */ CHKERRQ(ierr);
+  ierr = DMSetFromOptions(S->grid); /* I'm sure this is doing something.. */
+  //* */ CHKERRQ(ierr);
+  ierr = DMSetUp(S->grid); /* I just genuinely do not know what. */
+  //* */ CHKERRQ(ierr);
+  ierr = KSPSetType(S->solver, KSPCR);
+  //* */ CHKERRQ(ierr);
+  ierr = KSPCreate(m_comm, & S->solver);
+  //* */ CHKERRQ(ierr);
+  ierr = KSPSetFromOptions(S->solver);
+  //* */ CHKERRQ(ierr);
+  ierr = KSPSetDM(S->solver, S->grid);
+  //* */ CHKERRQ(ierr);
+  DMSetApplicationContext(S->grid, S); /* THIS IS GET! THIS I UNDESTAND! */
+
+  KSPSetComputeRHS(S->solver, ComputeRHS, S);
+  KSPSetComputeOperators(S->solver, ComputeJacobian, S);
+  KSPSetInitialGuessNonzero(S->solver, PETSC_TRUE );
+  KSPSetFromOptions(S->solver);
+}
+
+PoissonSolverMixed_PETSC::~PoissonSolverMixed_PETSC()
+{
+  delete S;
   PetscFinalize();
-  return ierr;
 }
 
-PetscErrorCode ComputeRHS(KSP ksp,Vec b,void *ctx)
+void PoissonSolverMixed_PETSC::solve()
 {
-  PetscInt       d,dof,i,j,k,mx,my,mz,xm,ym,zm,xs,ys,zs;
-  PetscScalar    Hx,Hy,Hz;
-  PetscScalar    ****array;
-  DM             da;
-  MatNullSpace   nullspace;
+  sim.startProfiler("PETSC cub2rhs");
+  _cub2fftw();
+  sim.stopProfiler();
 
-  KSPGetDM(ksp,&da);
-  DMDAGetInfo(da, 0, &mx, &my, &mz, 0,0,0,&dof,0,0,0,0,0);
-  Hx   = 1.0 / (PetscReal)(mx);
-  Hy   = 1.0 / (PetscReal)(my);
-  Hz   = 1.0 / (PetscReal)(mz);
-  DMDAGetCorners(da,&xs,&ys,&zs,&xm,&ym,&zm);
-  DMDAVecGetArrayDOF(da, b, &array);
-  for (k=zs; k<zs+zm; k++) {
-    for (j=ys; j<ys+ym; j++) {
-      for (i=xs; i<xs+xm; i++) {
-        for (d=0; d<dof; d++) {
-          array[k][j][i][d] = 12 * PETSC_PI * PETSC_PI
-                           * PetscCosScalar(2*PETSC_PI*(((PetscReal)i+0.5)*Hx))
-                           * PetscCosScalar(2*PETSC_PI*(((PetscReal)j+0.5)*Hy))
-                           * PetscCosScalar(2*PETSC_PI*(((PetscReal)k+0.5)*Hz))
-                           * Hx * Hy * Hz;
-        }
-      }
-    }
+  if(bRankHoldsFixedDOF)
+  {
+    // set last corner such that last point has pressure pLast
+    data[fixed_idx]  = 6*h*pLast; // for conditioning = 1
+    // neighbours read value of corner from the RHS:
+    data[fixed_m1z] -= h*pLast; //fixed -1dz reads fixed dof (+1dz) from RHS
+    data[fixed_p1z] -= h*pLast; //fixed +1dz reads fixed dof (-1dz) from RHS
+    data[fixed_m1y] -= h*pLast; //fixed -1dy reads fixed dof (+1dy) from RHS
+    data[fixed_p1y] -= h*pLast; //fixed +1dy reads fixed dof (-1dy) from RHS
+    data[fixed_m1x] -= h*pLast; //fixed -1dx reads fixed dof (+1dx) from RHS
+    data[fixed_p1x] -= h*pLast; //fixed +1dx reads fixed dof (-1dx) from RHS
   }
-  DMDAVecRestoreArrayDOF(da, b, &array);
-  VecAssemblyBegin(b);
-  VecAssemblyEnd(b);
 
-  /* force right hand side to be consistent for singular matrix */
-  /* note this is really a hack, normally the model would provide you with a consistent right handside */
+  KSPSolve(S->solver, NULL, NULL);
 
-  MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_TRUE,0,0,&nullspace);
-  MatNullSpaceRemove(nullspace,b);
-  MatNullSpaceDestroy(&nullspace);
-  return(0);
+  {
+    KSPGetSolution(S->solver, & S->SOL);
+    PetscScalar ***array;
+    DMDAVecGetArray(S->grid, S->SOL, & array);
+    PetscInt xStart, yStart, zStart, xSpan, ySpan, zSpan;
+    DMDAGetCorners(S->grid, &xStart,&yStart,&zStart, &xSpan,&ySpan,&zSpan);
+    assert(myN[0]==(size_t)xSpan&&myN[1]==(size_t)ySpan&&myN[2]==(size_t)zSpan);
+    sim.startProfiler("PETSC mean0");
+    {
+      Real avgP = 0; const Real fac = 1.0 / (gsize[0] * gsize[1] * gsize[2]);
+      // Compute average pressure across all ranks:
+      #pragma omp parallel for schedule(static) reduction(+ : avgP)
+      for(int k=0;k<zSpan;k++) for(int j=0;j<ySpan;j++) for(int i=0;i<xSpan;i++)
+        avgP += fac * array[k+zStart][j+yStart][i+xStart];
+      MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, m_comm);
+      // Subtract average pressure from all gridpoints
+      #pragma omp parallel for schedule(static) reduction(+ : avgP)
+      for(int k=0;k<zSpan;k++) for(int j=0;j<ySpan;j++) for(int i=0;i<xSpan;i++)
+      {
+        array[k+zStart][j+yStart][i+xStart] -= avgP;
+        data[i +myN[0]*j +myN[0]*myN[1]*k]= array[k+zStart][j+yStart][i+xStart];
+      }
+      // Save pressure of a corner of the grid so that it can be imposed next time
+      pLast = array[zSpan-1+zStart][ySpan-1+yStart][xSpan-1+xStart];
+      DMDAVecRestoreArray(S->grid, S->SOL, & array);
+      printf("Avg Pressure:%f\n", avgP);
+    }
+    sim.stopProfiler();
+  }
+
+  sim.startProfiler("PETSC rhs2cub");
+  _fftw2cub();
+  sim.stopProfiler();
 }
 
-
-PetscErrorCode ComputeMatrix(KSP ksp, Mat J,Mat jac, void *ctx)
+PetscErrorCode ComputeRHS(KSP solver, Vec RHS, void * Sptr)
 {
-  PetscInt       dof,i,j,k,d,mx,my,mz,xm,ym,zm,xs,ys,zs,num, numi, numj, numk;
-  PetscScalar    v[7],Hx,Hy,Hz,HyHzdHx,HxHzdHy,HxHydHz;
-  MatStencil     row, col[7];
-  DM             da;
-  MatNullSpace   nullspace;
-  PetscBool      dump_mat = PETSC_FALSE, check_matis = PETSC_FALSE;
+  const auto& S = *( PoissonSolverMixed_PETSC::PetscData *) Sptr;
+  const Real* const CubRHS = S.cupRHS;
+  const size_t cSx = S.myNx, cSy = S.myNy;
+  PetscScalar    ***array;
 
-  KSPGetDM(ksp,&da);
-  DMDAGetInfo(da,0,&mx,&my,&mz,0,0,0,&dof,0,0,0,0,0);
-  Hx      = 1.0 / (PetscReal)(mx);
-  Hy      = 1.0 / (PetscReal)(my);
-  Hz      = 1.0 / (PetscReal)(mz);
-  HyHzdHx = Hy*Hz/Hx;
-  HxHzdHy = Hx*Hz/Hy;
-  HxHydHz = Hx*Hy/Hz;
-  DMDAGetCorners(da,&xs,&ys,&zs,&xm,&ym,&zm);
-  for (k=zs; k<zs+zm; k++) {
-    for (j=ys; j<ys+ym; j++) {
-      for (i=xs; i<xs+xm; i++) {
-        for (d=0; d<dof; d++) {
-          row.i = i; row.j = j; row.k = k; row.c = d;
-          if (i==0 || j==0 || k==0 || i==mx-1 || j==my-1 || k==mz-1) {
-            num = 0; numi=0; numj=0; numk=0;
-            if (k!=0) {
-              v[num]     = -HxHydHz;
-              col[num].i = i;
-              col[num].j = j;
-              col[num].k = k-1;
-              col[num].c = d;
-              num++; numk++;
-            }
-            if (j!=0) {
-              v[num]     = -HxHzdHy;
-              col[num].i = i;
-              col[num].j = j-1;
-              col[num].k = k;
-              col[num].c = d;
-              num++; numj++;
-              }
-            if (i!=0) {
-              v[num]     = -HyHzdHx;
-              col[num].i = i-1;
-              col[num].j = j;
-              col[num].k = k;
-              col[num].c = d;
-              num++; numi++;
-            }
-            if (i!=mx-1) {
-              v[num]     = -HyHzdHx;
-              col[num].i = i+1;
-              col[num].j = j;
-              col[num].k = k;
-              col[num].c = d;
-              num++; numi++;
-            }
-            if (j!=my-1) {
-              v[num]     = -HxHzdHy;
-              col[num].i = i;
-              col[num].j = j+1;
-              col[num].k = k;
-              col[num].c = d;
-              num++; numj++;
-            }
-            if (k!=mz-1) {
-              v[num]     = -HxHydHz;
-              col[num].i = i;
-              col[num].j = j;
-              col[num].k = k+1;
-              col[num].c = d;
-              num++; numk++;
-            }
-            v[num]     = (PetscReal)(numk)*HxHydHz + (PetscReal)(numj)*HxHzdHy + (PetscReal)(numi)*HyHzdHx;
-            col[num].i = i;   col[num].j = j;   col[num].k = k; col[num].c = d;
-            num++;
-            MatSetValuesStencil(jac,1,&row,num,col,v,INSERT_VALUES);
-          } else {
-            v[0] = -HxHydHz;                          col[0].i = i;   col[0].j = j;   col[0].k = k-1; col[0].c = d;
-            v[1] = -HxHzdHy;                          col[1].i = i;   col[1].j = j-1; col[1].k = k;   col[1].c = d;
-            v[2] = -HyHzdHx;                          col[2].i = i-1; col[2].j = j;   col[2].k = k;   col[2].c = d;
-            v[3] = 2.0*(HyHzdHx + HxHzdHy + HxHydHz); col[3].i = i;   col[3].j = j;   col[3].k = k;   col[3].c = d;
-            v[4] = -HyHzdHx;                          col[4].i = i+1; col[4].j = j;   col[4].k = k;   col[4].c = d;
-            v[5] = -HxHzdHy;                          col[5].i = i;   col[5].j = j+1; col[5].k = k;   col[5].c = d;
-            v[6] = -HxHydHz;                          col[6].i = i;   col[6].j = j;   col[6].k = k+1; col[6].c = d;
-            MatSetValuesStencil(jac,1,&row,7,col,v,INSERT_VALUES);
-          }
-        }
-      }
-    }
-  }
-  MatAssemblyBegin(jac,MAT_FINAL_ASSEMBLY);
-  MatAssemblyEnd(jac,MAT_FINAL_ASSEMBLY);
-  PetscOptionsGetBool(NULL,NULL,"-dump_mat",&dump_mat,NULL);
-  if (dump_mat) {
-    Mat JJ,JJ2;
+  PetscInt xStart, yStart, zStart, xSpan, ySpan, zSpan;
+  DMDAGetCorners(S.grid, &xStart,&yStart,&zStart, &xSpan,&ySpan,&zSpan);
+  DMDAVecGetArray(S.grid, RHS, & array);
+  #pragma omp parallel for schedule(static)
+  for (PetscInt k=0; k<zSpan; k++)
+  for (PetscInt j=0; j<ySpan; j++)
+  for (PetscInt i=0; i<xSpan; i++)
+    array[k+zStart][j+yStart][i+xStart] = CubRHS[i + cSx*j + cSx*cSy*k];
 
-    MatComputeExplicitOperator(jac,&JJ);
-    MatConvert(JJ,MATAIJ,MAT_INITIAL_MATRIX,&JJ2);
-    MatChop(JJ2,1.e-8);
-    PetscViewerPushFormat(PETSC_VIEWER_STDOUT_WORLD,PETSC_VIEWER_ASCII_MATLAB);
-    MatView(JJ2,PETSC_VIEWER_STDOUT_WORLD);
-    MatDestroy(&JJ2);
-    MatDestroy(&JJ);
-  }
-  MatViewFromOptions(jac,NULL,"-view_mat");
-  PetscOptionsGetBool(NULL,NULL,"-check_matis",&check_matis,NULL);
-  if (check_matis) {
-    void      (*f)(void);
-    Mat       J2;
-    MatType   jtype;
-    PetscReal nrm;
-
-    MatGetType(jac,&jtype);
-    MatConvert(jac,MATIS,MAT_INITIAL_MATRIX,&J2);
-    MatViewFromOptions(J2,NULL,"-view_conv");
-    MatConvert(J2,jtype,MAT_INPLACE_MATRIX,&J2);
-    MatGetOperation(jac,MATOP_VIEW,&f);
-    MatSetOperation(J2,MATOP_VIEW,f);
-    MatSetDM(J2,da);
-    MatViewFromOptions(J2,NULL,"-view_conv_assembled");
-    MatAXPY(J2,-1.,jac,DIFFERENT_NONZERO_PATTERN);
-    MatNorm(J2,NORM_FROBENIUS,&nrm);
-    PetscPrintf(PETSC_COMM_WORLD,"Error MATIS %g\n",(double)nrm);
-    MatViewFromOptions(J2,NULL,"-view_conv_err");
-    MatDestroy(&J2);
-  }
-  MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_TRUE,0,0,&nullspace);
-  MatSetNullSpace(J,nullspace);
-  MatNullSpaceDestroy(&nullspace);
-  return(0);
+  DMDAVecRestoreArray(S.grid, RHS, & array);
+  VecAssemblyBegin(RHS);
+  VecAssemblyEnd(RHS);
+  // MatNullSpace   nullspace;
+  // force right hand side to be consistent for singular matrix
+  // it is just a hack that we avoid by fixing one DOF
+  // MatNullSpaceCreate(S.m_comm, PETSC_TRUE, 0, 0, &nullspace);
+  // MatNullSpaceRemove(nullspace,b);
+  // MatNullSpaceDestroy(&nullspace);
+  return 0;
 }
 
+PetscErrorCode ComputeJacobian(KSP solver, Mat J, Mat JAC, void *Sptr)
+{
+  const auto& S = *( PoissonSolverMixed_PETSC::PetscData *) Sptr;
+  PetscInt xSt, ySt, zSt, xSpan, ySpan, zSpan;
+  const Real h = S.h;
+  DMDAGetCorners(S.grid, &xSt,&ySt,&zSt, &xSpan,&ySpan,&zSpan);
+  #pragma omp parallel for schedule(static)
+  for (int k=0; k<zSpan; k++)
+  for (int j=0; j<ySpan; j++)
+  for (int i=0; i<xSpan; i++)
+  {
+    MatStencil R, C[7]; R.k = k+zSt; R.j = j+ySt; R.i = i+xSt;
+    PetscScalar V[7];
+    V[0] = 6*h; C[0].i = xSt+i;   C[0].j = ySt+j;   C[0].k = zSt+k;
+    V[1] = h;   C[1].i = xSt+i-1; C[1].j = ySt+j;   C[1].k = zSt+k;
+    V[2] = h;   C[2].i = xSt+i+1; C[2].j = ySt+j;   C[2].k = zSt+k;
+    V[3] = h;   C[3].i = xSt+i;   C[3].j = ySt+j-1; C[3].k = zSt+k;
+    V[4] = h;   C[4].i = xSt+i;   C[4].j = ySt+j+1; C[4].k = zSt+k;
+    V[5] = h;   C[5].i = xSt+i;   C[5].j = ySt+j;   C[5].k = zSt+k-1;
+    V[6] = h;   C[6].i = xSt+i;   C[6].j = ySt+j;   C[6].k = zSt+k+1;
 
+    if( S.BCz != periodic && zSt+k == S.gNz-1 ) { V[0] += h; V[6] = 0; }
+    if( S.BCz != periodic && zSt+k ==       0 ) { V[0] += h; V[5] = 0; }
+    if( S.BCy != periodic && ySt+j == S.gNy-1 ) { V[0] += h; V[4] = 0; }
+    if( S.BCy != periodic && ySt+j ==       0 ) { V[0] += h; V[3] = 0; }
+    if( S.BCx != periodic && xSt+i == S.gNx-1 ) { V[0] += h; V[2] = 0; }
+    if( S.BCx != periodic && xSt+i ==       0 ) { V[0] += h; V[1] = 0; }
 
-/*TEST
+    if( zSt+k == S.gNz-2 && ySt+j == S.gNy-2 && xSt+i == S.gNx-2 ) {
+      // set last corner such that last point has pressure pLast
+      V[1]=0; V[2]=0; V[3]=0; V[4]=0; V[5]=0; V[6]=0; V[0]=6*h; // condition = 1
+    } // neighbours read value of corner from the RHS:
+    if( zSt+k == S.gNz-2 && ySt+j == S.gNy-2 && xSt+i == S.gNx-1 ) V[1]=0;
+    if( zSt+k == S.gNz-2 && ySt+j == S.gNy-2 && xSt+i == S.gNx-3 ) V[2]=0;
+    if( zSt+k == S.gNz-2 && ySt+j == S.gNy-1 && xSt+i == S.gNx-2 ) V[3]=0;
+    if( zSt+k == S.gNz-2 && ySt+j == S.gNy-3 && xSt+i == S.gNx-2 ) V[4]=0;
+    if( zSt+k == S.gNz-1 && ySt+j == S.gNy-2 && xSt+i == S.gNx-2 ) V[5]=0;
+    if( zSt+k == S.gNz-3 && ySt+j == S.gNy-2 && xSt+i == S.gNx-2 ) V[6]=0;
 
-   build:
-      requires: !complex !single
+    int nFilled = 7;
+    if( std::fabs(V[6]) < 1e-16 ) { nFilled--;  // row 6 is unneeded
+    }
+    if( std::fabs(V[5]) < 1e-16 ) { nFilled--;  // row 5 is unneeded
+      V[5] = V[6]; C[5].i = C[6].i; C[5].j = C[6].j; C[5].k = C[6].k; // 6 to 5
+    }
+    if( std::fabs(V[4]) < 1e-16 ) { nFilled--;  // row 4 is unneeded
+      V[4] = V[5]; C[4].i = C[5].i; C[4].j = C[5].j; C[4].k = C[5].k; // 5 to 4
+      V[5] = V[6]; C[5].i = C[6].i; C[5].j = C[6].j; C[5].k = C[6].k; // 6 to 5
+    }
+    if( std::fabs(V[3]) < 1e-16 ) { nFilled--;  // row 3 is unneeded
+      V[3] = V[4]; C[3].i = C[4].i; C[3].j = C[4].j; C[3].k = C[4].k; // 4 to 3
+      V[4] = V[5]; C[4].i = C[5].i; C[4].j = C[5].j; C[4].k = C[5].k; // 5 to 4
+      V[5] = V[6]; C[5].i = C[6].i; C[5].j = C[6].j; C[5].k = C[6].k; // 6 to 5
+    }
+    if( std::fabs(V[2]) < 1e-16 ) { nFilled--;  // row 2 is unneeded
+      V[2] = V[3]; C[2].i = C[3].i; C[2].j = C[3].j; C[2].k = C[3].k; // 3 to 2
+      V[3] = V[4]; C[3].i = C[4].i; C[3].j = C[4].j; C[3].k = C[4].k; // 4 to 3
+      V[4] = V[5]; C[4].i = C[5].i; C[4].j = C[5].j; C[4].k = C[5].k; // 5 to 4
+      V[5] = V[6]; C[5].i = C[6].i; C[5].j = C[6].j; C[5].k = C[6].k; // 6 to 5
+    }
+    if( std::fabs(V[1]) < 1e-16 ) { nFilled--;  // row 1 is unneeded
+      V[1] = V[2]; C[1].i = C[2].i; C[1].j = C[2].j; C[1].k = C[2].k; // 2 to 1
+      V[2] = V[3]; C[2].i = C[3].i; C[2].j = C[3].j; C[2].k = C[3].k; // 3 to 2
+      V[3] = V[4]; C[3].i = C[4].i; C[3].j = C[4].j; C[3].k = C[4].k; // 4 to 3
+      V[4] = V[5]; C[4].i = C[5].i; C[4].j = C[5].j; C[4].k = C[5].k; // 5 to 4
+      V[5] = V[6]; C[5].i = C[6].i; C[5].j = C[6].j; C[5].k = C[6].k; // 6 to 5
+    }
+    MatSetValuesStencil(JAC, 1, &R, nFilled, C, V, INSERT_VALUES);
+  }
+  MatAssemblyBegin(JAC, MAT_FINAL_ASSEMBLY);
+  MatAssemblyEnd(JAC, MAT_FINAL_ASSEMBLY);
+  // MatNullSpace   nullspace;
+  // MatNullSpaceCreate(PETSC_COMM_WORLD,PETSC_TRUE,0,0,&nullspace);
+  // MatSetNullSpace(J,nullspace);
+  // MatNullSpaceDestroy(&nullspace);
+  return 0;
+}
 
-   test:
-      args: -pc_type mg -pc_mg_type full -ksp_type fgmres -ksp_monitor_short -pc_mg_levels 3 -mg_coarse_pc_factor_shift_type nonzero -ksp_view
-
-   test:
-      suffix: 2
-      nsize: 2
-      args: -ksp_monitor_short -da_grid_x 50 -da_grid_y 50 -pc_type ksp -ksp_ksp_type cg -ksp_pc_type bjacobi -ksp_ksp_rtol 1e-1 -ksp_ksp_monitor -ksp_type pipefgmres -ksp_gmres_restart 5
-
-   test:
-      suffix: hyprestruct
-      nsize: 3
-      requires: hypre
-      args: -ksp_type gmres -pc_type pfmg -dm_mat_type hyprestruct -ksp_monitor -da_refine 3
-
-TEST*/
+std::vector<char*> readRunArgLst()
+{
+  std::vector<char*> args;
+  std::vector<std::string> params;
+  params.push_back("-ksp_monitor_short");
+  #if 1
+    params.push_back("-pc_type"); params.push_back("mg");
+    params.push_back("-pc_mg_type"); params.push_back("full");
+    params.push_back("-ksp_type"); params.push_back("fgmres");
+    params.push_back("-pc_mg_levels"); params.push_back("3");
+    params.push_back("-mg_coarse_pc_factor_shift_type");
+    params.push_back("nonzero");
+  #else
+    params.push_back("-pc_type"); params.push_back("ksp");
+    // -da_grid_x 50 -da_grid_y 50 ???
+    params.push_back("-ksp_ksp_type"); params.push_back("cg");
+    params.push_back("-kspksp_pc_type_ksp_type"); params.push_back("bjacobi");
+    params.push_back("-ksp_ksp_rtol"); params.push_back("1e-1");
+    params.push_back("-ksp_ksp_monitor");
+    params.push_back("-ksp_type"); params.push_back("pipefgmres");
+  #endif
+  for(size_t i; i<params.size(); i++) {
+    char *arg = new char[params[i].size() + 1];
+    copy(params[i].begin(), params[i].end(), arg);  // write into char array
+    arg[params[i].size()] = '\0';
+    args.push_back(arg);
+  }
+  args.push_back(0); // push back nullptr as last entry
+  return args; // remember to deallocate it!
+}
 
 #endif

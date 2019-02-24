@@ -8,38 +8,30 @@
 
 
 #pragma once
-#ifdef CUP_HYPRE
+#ifdef CUP_PETSC
 
-#include "HYPRE_struct_ls.h"
 #include "PoissonSolver.h"
 
-class PoissonSolverMixed_HYPRE : public PoissonSolver
+class PoissonSolverMixed_PETSC : public PoissonSolver
 {
   const std::string solver;
-  HYPRE_StructGrid     hypre_grid;
-  HYPRE_StructStencil  hypre_stencil;
-  HYPRE_StructMatrix   hypre_mat;
-  HYPRE_StructVector   hypre_rhs;
-  HYPRE_StructVector   hypre_sol;
-  HYPRE_StructSolver   hypre_solver;
-  HYPRE_StructSolver   hypre_precond;
   Real pLast = 0;
 
   int peidx_0() const {  int ret[3]; grid.peindex(ret); return ret[0]; }
   int peidx_1() const {  int ret[3]; grid.peindex(ret); return ret[1]; }
   int peidx_2() const {  int ret[3]; grid.peindex(ret); return ret[2]; }
   const int peidx[3] = {peidx_0(), peidx_1(), peidx_2()};
-  HYPRE_Int ilower[3] = {
+  int ilower[3] = {
     (int) myN[0] * peidx[0],
     (int) myN[1] * peidx[1],
     (int) myN[2] * peidx[2]
   };
-  HYPRE_Int iupper[3] = {
+  int iupper[3] = {
     (int) myN[0] * (peidx[0]+1) - 1,
     (int) myN[1] * (peidx[1]+1) - 1,
     (int) myN[2] * (peidx[2]+1) - 1
   };
-  HYPRE_Int iGridEnd[3] = {(int)gsize[0]-1, (int)gsize[1]-1, (int)gsize[2]-1};
+  int iGridEnd[3] = {(int)gsize[0]-1, (int)gsize[1]-1, (int)gsize[2]-1};
   const size_t fixed_idx  = linaccess(myN[0]-2, myN[1]-2, myN[2]-2);
 
   const size_t fixed_m1x = linaccess(myN[0]-3, myN[1]-2, myN[2]-2);
@@ -59,15 +51,19 @@ class PoissonSolverMixed_HYPRE : public PoissonSolver
   }
 
  public:
+
+  struct PetscData;
+  PetscData * S;
+
   void solve() override;
 
-  PoissonSolverMixed_HYPRE(SimulationData& s);
+  PoissonSolverMixed_PETSC(SimulationData& s);
 
   std::string getName() {
-    return "hypre";
+    return "petsc";
   }
 
-  ~PoissonSolverMixed_HYPRE();
+  ~PoissonSolverMixed_PETSC();
 };
 
 #endif

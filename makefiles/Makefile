@@ -27,6 +27,7 @@ precision_dump ?= single
 bs ?= 16
 hdf ?= true
 hypre ?= false
+petsc ?= false
 rk2 ?= false
 accfft ?= false
 zlib ?= 0
@@ -151,6 +152,11 @@ endif
 LIBS+= -lHYPRE
 CPPFLAGS+= -DCUP_HYPRE
 OBJECTS+= PoissonSolverHYPREMixed.o
+endif
+
+ifeq "$(petsc)" "true"
+CPPFLAGS+= -DCUP_PETSC
+OBJECTS+= PoissonSolverPETSCMixed.o
 endif
 
 ifeq "$(accfft)" "true"

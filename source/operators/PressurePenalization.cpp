@@ -18,6 +18,7 @@
 // TODO : Cosine transform on GPU!?
 #include "../poisson/PoissonSolverMixed.h"
 #include "../poisson/PoissonSolverHYPREMixed.h"
+#include "../poisson/PoissonSolverPETSCMixed.h"
 
 class KernelGradP
 {
@@ -60,8 +61,14 @@ PressurePenalization::PressurePenalization(SimulationData & s) : Operator(s)
   pressureSolver = new PoissonSolverPeriodic(sim);
   else if (sim.bUseUnboundedBC)
   pressureSolver = new PoissonSolverUnbounded(sim);
-  else if (sim.useHYPREsolver not_eq "")
+  #ifdef CUP_HYPRE
+  else if (sim.useSolver == "hypre")
   pressureSolver = new PoissonSolverMixed_HYPRE(sim);
+  #endif
+  #ifdef CUP_PETSC
+  else if (sim.useSolver == "petsc")
+  pressureSolver = new PoissonSolverMixed_PETSC(sim);
+  #endif
   else
   pressureSolver = new PoissonSolverMixed(sim);
   sim.pressureSolver = pressureSolver;

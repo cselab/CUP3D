@@ -99,7 +99,7 @@ class KernelPressureRHS
 
 void PressureRHS::operator()(const double dt)
 {
-  sim.startProfiler("PresRHS Uobstacle");
+  sim.startProfiler("PresRHS Uobst.");
   const int nthreads = omp_get_max_threads();
   {
     //zero fields, going to contain Udef:
