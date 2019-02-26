@@ -284,7 +284,9 @@ std::vector<char*> readRunArgLst()
 
   // ksp seems to be the solver
   // Two optimized versions of conf gradient:
-  params.push_back("-ksp_type"); params.push_back("cgne"); // why not!
+  params.push_back("-ksp_type"); params.push_back("cg");
+  params.push_back("-ksp_cg_single_reduction"); // why not!
+  //params.push_back("-ksp_type"); params.push_back("cgne"); // why not!
   //params.push_back("-ksp_type"); params.push_back("pipecgrr"); // why not!
   params.push_back("-ksp_rtol"); params.push_back("1e-3");
   params.push_back("-ksp_atol"); params.push_back("1e-16");
@@ -294,8 +296,14 @@ std::vector<char*> readRunArgLst()
   //PETSc provides fully supported (smoothed) aggregation AMG:
   params.push_back("-pc_type"); params.push_back("gamg");
   params.push_back("-pc_gamg_type"); params.push_back("agg");
-  //Smoothed aggregation is recommended for symmetric positive defiite systems
   params.push_back("-pc_gamg_agg_nsmooths"); params.push_back("1");
+  params.push_back("-pc_gamg_reuse_interpolation"); params.push_back("true");
+  params.push_back("-mg_coarse_sub_pc_type"); params.push_back("svd");
+  //params.push_back("-mg_levels_ksp_type"); params.push_back("richardson");
+  params.push_back("-mg_levels_ksp_type"); params.push_back("chebyshev");
+  params.push_back("-mg_levels_pc_type"); params.push_back("sor");
+  params.push_back("-mg_levels_ksp_rtol"); params.push_back("1e-4");
+  //Smoothed aggregation is recommended for symmetric positive defiite systems
   //The parameters for the eigen estimator can be set with the prefix gamg_est.
   //For example CG is a much better KSP type than the default GMRES if your
   //problem is symmetric positive definite;
