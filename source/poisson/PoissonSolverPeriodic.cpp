@@ -103,15 +103,25 @@ PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver
 
 void PoissonSolverPeriodic::solve()
 {
+  sim.startProfiler("FFTW cub2rhs");
   _cub2fftw();
+  sim.stopProfiler();
 
+  sim.startProfiler("FFTW r2c");
   _FFTW_(execute)((fft_plan) fwd);
+  sim.stopProfiler();
 
+  sim.startProfiler("FFTW solve");
   _solve();
+  sim.stopProfiler();
 
+  sim.startProfiler("FFTW c2r");
   _FFTW_(execute)((fft_plan) bwd);
+  sim.stopProfiler();
 
+  sim.startProfiler("FFTW rhs2cub");
   _fftw2cub();
+  sim.stopProfiler();
 }
 
 PoissonSolverPeriodic::~PoissonSolverPeriodic()

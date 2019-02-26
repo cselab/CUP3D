@@ -7,6 +7,7 @@
 //
 
 #include "PressurePenalization.h"
+#include "PenalizationObstacleVisitor.h"
 
 #ifdef _ACCFFT_
 #include "../poisson/PoissonSolverACCPeriodic.h"
@@ -43,14 +44,20 @@ class KernelGradP
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
-      // p contains the pressure correction after the Poisson solver
       const Real Uf = o(ix,iy,iz).u + fac*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p);
       const Real Vf = o(ix,iy,iz).v + fac*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p);
       const Real Wf = o(ix,iy,iz).w + fac*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p);
       const Real US=o(ix,iy,iz).tmpU, VS=o(ix,iy,iz).tmpV, WS=o(ix,iy,iz).tmpW;
-      o(ix,iy,iz).u = ( Uf + o(ix,iy,iz).chi * US) / (1+o(ix,iy,iz).chi);
-      o(ix,iy,iz).v = ( Vf + o(ix,iy,iz).chi * VS) / (1+o(ix,iy,iz).chi);
-      o(ix,iy,iz).w = ( Wf + o(ix,iy,iz).chi * WS) / (1+o(ix,iy,iz).chi);
+      #if PENAL_TYPE==0
+       o(ix,iy,iz).u = Uf + o(ix,iy,iz).chi * US; // explicit penal part 2
+       o(ix,iy,iz).v = Vf + o(ix,iy,iz).chi * VS; // explicit penal part 2
+       o(ix,iy,iz).w = Wf + o(ix,iy,iz).chi * WS; // (part 1 in advectdiffuse)
+      #else // implicit
+       // p contains the pressure correction after the Poisson solver
+       o(ix,iy,iz).u = ( Uf + o(ix,iy,iz).chi * US) / (1+o(ix,iy,iz).chi);
+       o(ix,iy,iz).v = ( Vf + o(ix,iy,iz).chi * VS) / (1+o(ix,iy,iz).chi);
+       o(ix,iy,iz).w = ( Wf + o(ix,iy,iz).chi * WS) / (1+o(ix,iy,iz).chi);
+      #endif
     }
   }
 };
@@ -78,15 +85,31 @@ void PressurePenalization::operator()(const double dt)
 {
   pressureSolver->solve();
 
+  #if PENAL_TYPE==0
+  sim.startProfiler("PresRHS Uobst.");
+  {
+    //zero fields, going to contain Udef:
+    #pragma omp parallel for schedule(static)
+    for(unsigned i=0; i<vInfo.size(); i++) {
+      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+        b(ix,iy,iz).tmpU = 0; b(ix,iy,iz).tmpV = 0; b(ix,iy,iz).tmpW = 0;
+      }
+    }
+    //store deformation velocities onto tmp fields:
+    ObstacleVisitor*visitor=new PenalizationObstacleVisitor(grid,dt,sim.uinf);
+    sim.obstacle_vector->Accept(visitor);
+    delete visitor;
+  }
+  sim.stopProfiler();
+  #endif
+
   sim.startProfiler("GradP Penal");
   { //pressure correction dudt* = - grad P / rho
-    const int nthreads = omp_get_max_threads();
-    std::vector<KernelGradP*> diff(nthreads, nullptr);
-    #pragma omp parallel for schedule(static, 1)
-    for(int i=0;i<nthreads;++i) diff[i] = new KernelGradP(dt, sim.extent);
-
-    compute<KernelGradP>(diff);
-    for(int i=0; i<nthreads; i++) delete diff[i];
+    const KernelGradP K(dt, sim.extent);
+    compute<KernelGradP>(K);
   }
   sim.stopProfiler();
 

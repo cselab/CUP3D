@@ -36,6 +36,8 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData&s) : PoissonSolver
   _FFTW_(plan_with_nthreads)(desired_threads);
   _FFTW_(mpi_init)();
 
+  _initialize_green();
+
   // FFTW plans
   // input, output, transpose and 2D FFTs (m_local_N0 x m_NN1 x 2m_Nzhat):
   data   = _FFTW_(alloc_real)( 2*m_tp_size );
@@ -91,8 +93,6 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData&s) : PoissonSolver
           m_local_NN1, m_local_N0, data, data, m_comm,
           FFTW_MEASURE | FFTW_MPI_TRANSPOSED_IN);
 
-  _initialize_green();
-
   clear();
 }
 
@@ -112,17 +112,22 @@ PoissonSolverUnbounded::~PoissonSolverUnbounded()
 
 void PoissonSolverUnbounded::solve()
 {
+  sim.startProfiler("UFFTW cub2rhs");
   _cub2fftw();
+  sim.stopProfiler();
 
+  sim.startProfiler("UFFTW r2c");
   _FFTW_(execute)((fft_plan) m_fwd_2D);
+  sim.stopProfiler();
   _FFTW_(execute)((fft_plan) m_fwd_tp);
   _copy_fwd_local();
   _FFTW_(execute)((fft_plan) m_fwd_1D);
 
+  sim.startProfiler("UFFTW solve");
   {
     fft_c* const rho_hat = (fft_c*)m_buf_full;
     const Real* const G_hat = m_kernel;
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < m_NN0t; ++i)
     for (size_t j = 0; j < m_local_NN1; ++j)
     for (size_t k = 0; k < m_Nzhat; ++k)
@@ -132,14 +137,18 @@ void PoissonSolverUnbounded::solve()
       rho_hat[idx][1] *= G_hat[idx]; //normalization is carried on in G_hat
     }
   }
+  sim.stopProfiler();
 
+  sim.startProfiler("UFFTW c2r");
   _FFTW_(execute)((fft_plan) m_bwd_1D);
+  sim.stopProfiler();
   _copy_bwd_local();
   _FFTW_(execute)((fft_plan) m_bwd_tp);
   _FFTW_(execute)((fft_plan) m_bwd_2D);
 
+  sim.startProfiler("UFFTW rhs2cub");
   _fftw2cub();
-
+  sim.stopProfiler();
   clear(); // clear buffers for next invocation
 }
 
@@ -191,9 +200,10 @@ void PoissonSolverUnbounded::_initialize_green()
   // uniform grid spacing.  The first factor is the discrete volume
   // element of the convolution integral; the second factor belongs to
   // Green's function on a uniform mesh.
+  #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < m_local_NN0; ++i)
-  for (size_t j = 0; j < m_N1; ++j)
-  for (size_t k = 0; k < m_N2; ++k)
+  for (size_t j = 0; j < m_NN1; ++j)
+  for (size_t k = 0; k < m_NN2; ++k)
   {
       const size_t I = m_start_NN0 + i;
       const Real xi = I>=m_N0? 2*m_N0-1 - I : I;
@@ -214,7 +224,7 @@ void PoissonSolverUnbounded::_initialize_green()
   std::memset(m_kernel, 0, kern_size*sizeof(Real));
 
   const fft_c *const G_hat = (fft_c *) tf_buf;
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < m_NN0t; ++i)
   for (size_t j = 0; j < m_local_NN1; ++j)
   for (size_t k = 0; k < m_Nzhat; ++k)
@@ -237,7 +247,7 @@ void PoissonSolverUnbounded::clear()
 
 void PoissonSolverUnbounded::_copy_fwd_local()
 {
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < m_N0; ++i)
   for (size_t j = 0; j < m_local_NN1; ++j) {
     const Real* const src = data + 2*m_Nzhat*(j + m_local_NN1*i);
@@ -248,7 +258,7 @@ void PoissonSolverUnbounded::_copy_fwd_local()
 
 void PoissonSolverUnbounded::_copy_bwd_local()
 {
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < m_N0; ++i)
   for (size_t j = 0; j < m_local_NN1; ++j) {
     const Real* const src = m_buf_full + 2*m_Nzhat*(j + m_local_NN1*i);

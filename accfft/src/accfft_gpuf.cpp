@@ -49,7 +49,6 @@ inline void print_memUse(const std::string where) {
   #endif
 }
 
-
 /**
  * Cleanup all CPU resources
  */
@@ -400,7 +399,6 @@ accfft_plan_gpuf* accfft_plan_dft_3d_r2c_gpuf(int * n, float * data_d,
     plan->T_plan_yi = new T_Plan_gpu<float>(n[2], n[1], 1,
         plan->Mem_mgr, plan->row_comm, plan->isize[0]);
 
-
     plan->T_plan_1->alloc_local = plan->alloc_max;
     plan->T_plan_2->alloc_local = plan->alloc_max;
     plan->T_plan_2i->alloc_local = plan->alloc_max;
@@ -468,7 +466,6 @@ accfft_plan_gpuf* accfft_plan_dft_3d_r2c_gpuf(int * n, float * data_d,
   plan->T_plan_xi->kway_async = plan->T_plan_2->kway_async;
   plan->r2c_plan_baked = true;
   return plan;
-
 } //end accfft_plan_dft_3d_r2c_gpuf
 
 void accfft_execute_gpuf(accfft_plan_gpuf* plan, int direction, float * data_d,
@@ -532,7 +529,6 @@ void accfft_execute_gpuf(accfft_plan_gpuf* plan, int direction, float * data_d,
       data_out_d = data_d;
 
     // Perform N0/P0 transpose
-
     if (!plan->oneD) {
       plan->T_plan_1->execute_gpu(plan->T_plan_1, data_out_d, timings, 2,
           osize_0[0], coords[0]);
@@ -614,11 +610,9 @@ void accfft_execute_gpuf(accfft_plan_gpuf* plan, int direction, float * data_d,
     }
 
     if (plan->oneD) {
-      plan->T_plan_2i->execute_gpu(plan->T_plan_2i, (float*) data_d,
-          timings, 1);
+      plan->T_plan_2i->execute_gpu(plan->T_plan_2i, (float*) data_d, timings, 1);
     } else {
-      plan->T_plan_2i->execute_gpu(plan->T_plan_2i, (float*) data_d,
-          timings, 1, 1, coords[1]);
+      plan->T_plan_2i->execute_gpu(plan->T_plan_2i, (float*) data_d, timings, 1, 1, coords[1]);
     }
     /**************************************************************/
     /*******************  N0/P0 x N1 x N2/P1 **********************/
@@ -689,6 +683,7 @@ void accfft_execute_gpuf(accfft_plan_gpuf* plan, int direction, float * data_d,
     timer[3] += timings[3];
     timer[4] += timings[4];
   }
+  checkCuda_accfft (cudaDeviceSynchronize());
 
   return;
 }

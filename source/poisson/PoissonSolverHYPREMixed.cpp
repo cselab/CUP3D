@@ -68,7 +68,7 @@ void PoissonSolverMixed_HYPRE::solve()
     // Set this new mean-0 pressure as next guess
     HYPRE_StructVectorSetBoxValues(hypre_sol, ilower, iupper, data);
     // Save pressure of a corner of the grid so that it can be imposed next time
-    pLast = data[myN[0]*myN[1]*myN[2]-1];
+    pLast = data[fixed_idx];
     printf("Avg Pressure:%f\n", avgP);
   }
   sim.stopProfiler();

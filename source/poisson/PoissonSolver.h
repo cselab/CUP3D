@@ -23,8 +23,8 @@ class PoissonSolver
   const SimulationData & sim;
   FluidGridMPI& grid = * sim.grid;
   // MPI related
-  const MPI_Comm m_comm;
-  const int m_rank, m_size;
+  const MPI_Comm m_comm = grid.getCartComm();
+  const int m_rank = sim.rank, m_size = sim.nprocs;
 
   static constexpr int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
   const std::vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
@@ -49,8 +49,7 @@ class PoissonSolver
   Real* data;
 
  public:
-  PoissonSolver(SimulationData&s) : sim(s), m_comm(grid.getCartComm()),
-  m_rank(s.rank), m_size(s.nprocs)
+  PoissonSolver(SimulationData&s) : sim(s)
   {
     if (StreamerDiv::channels != 1) {
       std::cout << "PoissonSolverScalar_MPI(): Error: StreamerDiv::channels is "
@@ -80,7 +79,10 @@ class PoissonSolver
   }
   inline size_t _offset(const BlockInfo &info) const
   {
-    assert(stridez>0 && stridey>0 && stridex>1 && data_size>0);
+    assert(stridez>0);
+    assert(stridey>0);
+    assert(stridex>0);
+    assert(data_size>0);
     const int myIstart[3] = {
       info.index[0]*bs[0],
       info.index[1]*bs[1],
@@ -90,7 +92,10 @@ class PoissonSolver
   }
   inline size_t _dest(const size_t offset,const int z,const int y,const int x) const
   {
-    assert(stridez>0 && stridey>0 && stridex>1 && data_size>0);
+    assert(stridez>0);
+    assert(stridey>0);
+    assert(stridex>0);
+    assert(data_size>0);
     return offset + stridez*z + stridey*y + stridex*x;
   }
 

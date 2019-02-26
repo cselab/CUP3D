@@ -56,9 +56,9 @@ static int intpow(int a, int b) {
 }
 #ifdef ENABLE_GPU
 template <typename T>
-Mem_Mgr_gpu<T>::Mem_Mgr_gpu(int N0, int N1,int tuples, MPI_Comm Comm, int howmany,
-    ptrdiff_t specified_alloc_local) {
-
+Mem_Mgr_gpu<T>::Mem_Mgr_gpu(int N0,int N1,int tuples,MPI_Comm Comm, int howmany,
+    ptrdiff_t specified_alloc_local)
+{
   N[0]=N0;
   N[1]=N1;
   n_tuples=tuples;

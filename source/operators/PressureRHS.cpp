@@ -46,22 +46,35 @@ class KernelPressureRHS
     const FluidElement & LW = l(x-1,y,  z  ), & LE = l(x+1,y,  z  );
     const FluidElement & LS = l(x,  y-1,z  ), & LN = l(x,  y+1,z  );
     const FluidElement & LF = l(x,  y,  z-1), & LB = l(x,  y,  z+1);
-    const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
-    const Real divUt = LE.u-LW.u + LN.v-LS.v + LB.w-LF.w, X = L.chi;
-    #ifndef ZEROGRADCHI
+    const Real divUt = LE.u-LW.u + LN.v-LS.v + LB.w-LF.w;
+    #if PENAL_TYPE==2
+      const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
       const Real dXx_dux = (LE.chi-LW.chi)*( L.tmpU-L.u + F * (LE.p-LW.p) );
       const Real dXy_duy = (LN.chi-LS.chi)*( L.tmpV-L.v + F * (LN.p-LS.p) );
       const Real dXz_duz = (LB.chi-LF.chi)*( L.tmpW-L.w + F * (LB.p-LF.p) );
-      return divUt -X*X*divUs + (dXx_dux+dXy_duy+dXz_duz) / (1 + X);
+      return divUt -L.chi*L.chi*divUs + (dXx_dux+dXy_duy+dXz_duz) / (1+L.chi);
+    #elif PENAL_TYPE==1
+      const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
+      return divUt - L.chi*divUs;
     #else
-      return divUt -X*X*divUs;
+      const Real uFx_dXx = ( LE.chi - LW.chi ) * L.tmpU;
+      const Real uFy_dXy = ( LN.chi - LS.chi ) * L.tmpV;
+      const Real uFz_dXz = ( LB.chi - LF.chi ) * L.tmpW;
+      return divUt + uFx_dXx + uFy_dXy + uFz_dXz;
     #endif
   }
 
  public:
   const std::array<int, 3> stencil_start = {-1, -1, -1};
   const std::array<int, 3> stencil_end = {2, 2, 2};
+  #if PENAL_TYPE==2
   const StencilInfo stencil=StencilInfo(-1,-1,-1,2,2,2,false,8,0,1,2,3,4,5,6,7);
+  #elif PENAL_TYPE==1
+  const StencilInfo stencil=StencilInfo(-1,-1,-1,2,2,2,false,6,1,2,3,5,6,7);
+  #else
+  const StencilInfo stencil=StencilInfo(-1,-1,-1,2,2,2,false,4,0,1,2,3);
+  #endif
+
 
   KernelPressureRHS(double _dt, const Real buf[3], const Real extent[3],
    PoissonSolver* ps) : dt(_dt), ext{extent[0],extent[1],extent[2]},
@@ -96,18 +109,14 @@ class KernelPressureRHS
   }
 };
 
-
 void PressureRHS::operator()(const double dt)
 {
+  #if PENAL_TYPE!=0
   sim.startProfiler("PresRHS Uobst.");
-  const int nthreads = omp_get_max_threads();
-  {
-    //zero fields, going to contain Udef:
+  { //zero fields, going to contain Udef:
     #pragma omp parallel for schedule(static)
-    for(unsigned i=0; i<vInfo.size(); i++)
-    {
-      const BlockInfo& info = vInfo[i];
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+    for(unsigned i=0; i<vInfo.size(); i++) {
+      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -120,17 +129,13 @@ void PressureRHS::operator()(const double dt)
     delete visitor;
   }
   sim.stopProfiler();
+  #endif
 
   sim.startProfiler("PresRHS Kernel");
   //place onto p: ( div u^(t+1) - div u^* ) / dt
   //where i want div u^(t+1) to be equal to div udef
-  std::vector<KernelPressureRHS*> diff(nthreads, nullptr);
-  #pragma omp parallel for schedule(static, 1)
-  for(int i=0; i<nthreads; ++i)
-    diff[i] = new KernelPressureRHS(dt, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
-
-  compute<KernelPressureRHS>(diff);
-  for(int i=0; i<nthreads; i++) delete diff[i];
+  const KernelPressureRHS K(dt, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
+  compute<KernelPressureRHS>(K);
   sim.stopProfiler();
 
   check("pressure rhs - end");

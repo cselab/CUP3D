@@ -7,6 +7,7 @@
 //
 
 #include "InitialConditions.h"
+#include "PenalizationObstacleVisitor.h"
 
 class KernelIC
 {
@@ -115,5 +116,23 @@ void InitialConditions::operator()(const double dt)
     const int dir = channelY? 1 : 2;
     run(KernelIC_channel(sim.extent, sim.uMax_forced, dir));
   }
+  {
+    //zero fields, going to contain Udef:
+    #pragma omp parallel for schedule(static)
+    for(unsigned i=0; i<vInfo.size(); i++)
+    {
+      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+        b(ix,iy,iz).tmpU = 0; b(ix,iy,iz).tmpV = 0; b(ix,iy,iz).tmpW = 0;
+      }
+    }
+    //store deformation velocities onto tmp fields:
+    ObstacleVisitor* visitor = new InitialPenalization(grid, dt, sim.uinf);
+    sim.obstacle_vector->Accept(visitor);
+    delete visitor;
+  }
+
   check("IC - end");
 }

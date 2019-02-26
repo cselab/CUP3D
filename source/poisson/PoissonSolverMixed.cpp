@@ -58,10 +58,15 @@ PoissonSolverMixed::PoissonSolverMixed(SimulationData & s) : PoissonSolver(s)
 
 void PoissonSolverMixed::solve()
 {
+  sim.startProfiler("MFFTW cub2rhs");
   _cub2fftw();
+  sim.stopProfiler();
 
+  sim.startProfiler("MFFTW r2c");
   _FFTW_(execute)( (fft_plan) fwd);
+  sim.stopProfiler();
 
+  sim.startProfiler("MFFTW solve");
   if( DFT_X() &&  DFT_Y() &&  DFT_Z()) _solve<1,1,1>();
   else
   if( DFT_X() &&  DFT_Y() && !DFT_Z()) _solve<1,1,0>();
@@ -81,10 +86,15 @@ void PoissonSolverMixed::solve()
     printf("Boundary conditions not recognized\n");
     abort();
   }
+  sim.stopProfiler();
 
+  sim.startProfiler("MFFTW c2r");
   _FFTW_(execute)( (fft_plan) bwd);
+  sim.stopProfiler();
 
+  sim.startProfiler("MFFTW rhs2cub");
   _fftw2cub();
+  sim.stopProfiler();
 }
 
 PoissonSolverMixed::~PoissonSolverMixed()

@@ -11,11 +11,10 @@
 
 void PoissonSolver::_cub2fftw() const
 {
-  assert(stridez>0 && stridey>0 && stridex>1 && data_size>0);
-  const size_t NlocBlocks = local_infos.size();
+  assert(stridez>0 && stridey>0 && stridex>0 && data_size>0);
   #if 0
     #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<NlocBlocks; ++i) {
+    for(size_t i=0; i<local_infos.size(); ++i) {
       BlockType& b = *(BlockType*) local_infos[i].ptrBlock;
       const size_t offset = _offset(local_infos[i]);
       for(int iz=0; iz<BlockType::sizeZ; iz++)

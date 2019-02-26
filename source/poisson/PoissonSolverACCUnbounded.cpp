@@ -37,7 +37,7 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolv
   printf("[mpi rank %d] istart %3d %3d %3d ostart %3d %3d %3d\n", m_rank,
     istart[0],istart[1],istart[2], ostart[0],ostart[1],ostart[2] );
     fflush(0);
-
+  //printf("fft sizes %d %d %d cup box %d %d %d\n",szFft[0],szFft[1],szFft[2],szCup[0],szCup[1],szCup[2]);
   cudaMalloc((void**) &gpu_rhs, alloc_max);
   cudaMalloc((void**) &gpuGhat, alloc_max/2);
   acc_plan* P = accfft_plan_dft(M, gpu_rhs, gpu_rhs, c_comm, ACCFFT_MEASURE);
@@ -105,8 +105,7 @@ void PoissonSolverUnbounded::cub2padded() const
 {
   int pos[3], dst[3];
   MPI_Cart_coords(m_comm, m_rank, 3, pos);
-
-  memset(fft_rhs, 0, szFft[0]*szFft[1]*szFft[2] * sizeof(Real) );
+  memset(fft_rhs, 0, myftNx * gsize[1] * (gsize[2] * sizeof(Real)) );
   std::vector<MPI_Request> reqs = std::vector<MPI_Request>(m_size*2, MPI_REQUEST_NULL);
   const int m_ind =  pos[0]   * myN[0], m_pos =  m_rank   * szFft[0];
   const int m_nxt = (pos[0]+1)* myN[0], m_end = (m_rank+1)* szFft[0];
@@ -120,15 +119,20 @@ void PoissonSolverUnbounded::cub2padded() const
     {
       const int tag = i + m_rank * m_size;
       const size_t shiftx = std::max(i_pos - m_ind, 0);
+      //printf("rank %d pos %d %d %d to rank %d pos %d %d %d shift%lu\n", m_rank, pos[0],pos[1],pos[2], i, dst[0],dst[1],dst[2], shiftx); fflush(0);
       const size_t ptr = szCup[2] * szCup[1] * shiftx;
-      MPI_Isend(data + ptr, 1, submat, i, tag, m_comm, &reqs[2*i]);
+      const size_t num_send = szCup[0] * szCup[1] * szCup[2];
+      MPI_Isend(data + ptr, num_send, MPIREAL, i, tag, m_comm, &reqs[2*i]);
     }
     // test if rank needs to recv to i's rhs:
     if( m_pos < i_nxt && i_ind < m_end )
     {
       const int tag = m_rank + i * m_size;
       const size_t shiftx = std::max(i_ind - m_pos, 0);
-      const size_t ptr = dst[2]*szCup[2] +szFft[2]*(dst[1]*szCup[1] +szFft[1]*shiftx);
+      //printf("rank %d pos %d %d %d from rank %d pos %d %d %d shift%lu\n", m_rank, pos[0],pos[1],pos[2], i, dst[0],dst[1],dst[2], shiftx); fflush(0);
+      const size_t shifty = dst[1]*szCup[1];
+      const size_t shiftz = dst[2]*szCup[2];
+      const size_t ptr = shiftz + szFft[2]*shifty + szFft[2]*szFft[1]*shiftx;
       MPI_Irecv(fft_rhs + ptr, 1, submat, i, tag, m_comm, &reqs[2*i + 1]);
     }
   }
@@ -154,14 +158,17 @@ void PoissonSolverUnbounded::padded2cub() const
       const int tag = i + m_rank * m_size;
       const size_t shiftx = std::max(i_pos - m_ind, 0);
       const size_t ptr = szCup[2] * szCup[1] * shiftx;
-      MPI_Irecv(data + ptr, 1, submat, i, tag, m_comm, &reqs[2*i]);
+      const size_t num_send = szCup[0] * szCup[1] * szCup[2];
+      MPI_Irecv(data + ptr, num_send, MPIREAL, i, tag, m_comm, &reqs[2*i]);
     }
     // test if rank needs to recv to i's rhs:
     if( m_pos < i_nxt && i_ind < m_end )
     {
       const int tag = m_rank + i * m_size;
       const size_t shiftx = std::max(i_ind - m_pos, 0);
-      const size_t ptr = dst[2]*szCup[2] +szFft[2]*(dst[1]*szCup[1] +szFft[1]*shiftx);
+      const size_t shifty = dst[1]*szCup[1];
+      const size_t shiftz = dst[2]*szCup[2];
+      const size_t ptr = shiftz + szFft[2]*shifty + szFft[2]*szFft[1]*shiftx;
       MPI_Isend(fft_rhs + ptr, 1, submat, i, tag, m_comm, &reqs[2*i + 1]);
     }
   }

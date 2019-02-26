@@ -19,9 +19,12 @@ class KernelExternalForcing
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        if (DIRECTION == 0) b(ix,iy,iz).u += gradPdT;
-        if (DIRECTION == 1) b(ix,iy,iz).v += gradPdT;
-        if (DIRECTION == 2) b(ix,iy,iz).w += gradPdT;
+        if (DIRECTION == 0) b(ix,iy,iz).u    += gradPdT;
+        if (DIRECTION == 1) b(ix,iy,iz).v    += gradPdT;
+        if (DIRECTION == 2) b(ix,iy,iz).w    += gradPdT;
+        if (DIRECTION == 0) b(ix,iy,iz).tmpU += gradPdT;
+        if (DIRECTION == 1) b(ix,iy,iz).tmpV += gradPdT;
+        if (DIRECTION == 2) b(ix,iy,iz).tmpW += gradPdT;
     }
   }
 };
