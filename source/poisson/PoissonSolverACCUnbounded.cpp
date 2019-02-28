@@ -20,9 +20,29 @@ void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
 
 PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolver(s)
 {
+  if( myftNx < myN[0] ) {
+    printf("PoissonSolverUnb. myftNx < myN[0] Not supported. Aborting!\n");
+    fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
+  }
+  // if yftNx is greater than myN[0] then it must be double, right?
+  if( myftNx > myN[0] && myftNx != 2*myN[0] ) {
+    printf("PoissonSolverUnb. yftNx > myN[0] && myftNx != 2*myN[0] Impossible?. Aborting!\n");
+    fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
+  }
+
+  {
+    int peidx[3]; grid.peindex(peidx);
+    const int newRank = map2accfftRank(m_rank, peidx);
+    MPI_Comm_split(m_comm, 0, newRank, &sort_comm);
+    int s_size;
+    MPI_Comm_rank(sort_comm, &s_rank);
+    MPI_Comm_size(sort_comm, &s_size);
+    assert(s_size == m_size && newRank == s_rank);
+  }
+
   {
     int c_dims[2] = { m_size, 1 };
-    accfft_create_comm(m_comm, c_dims, &c_comm);
+    accfft_create_comm(sort_comm, c_dims, &c_comm);
   }
   {
     int start[3] = {0,0,0};
@@ -32,11 +52,10 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolv
   int M[3] = {mx, my, mz};
   alloc_max = accfft_local_size(M, isize, istart, osize, ostart, c_comm);
 
-  printf("[mpi rank %d] isize  %3d %3d %3d osize  %3d %3d %3d %lu\n", m_rank,
-    isize[0],isize[1],isize[2], osize[0],osize[1],osize[2], alloc_max);
-  printf("[mpi rank %d] istart %3d %3d %3d ostart %3d %3d %3d\n", m_rank,
-    istart[0],istart[1],istart[2], ostart[0],ostart[1],ostart[2] );
-    fflush(0);
+  printf("[mpi rank %d->%d] isize:{%3d %3d %3d} osize:{%3d %3d %3d} alloc:%lu "
+    "istart:{%3d %3d %3d} ostart:{%3d %3d %3d}\n",m_rank,s_rank,isize[0],
+    isize[1],isize[2],osize[0],osize[1],osize[2],alloc_max,istart[0],istart[1],
+    istart[2],ostart[0],ostart[1],ostart[2]); fflush(0);
   //printf("fft sizes %d %d %d cup box %d %d %d\n",szFft[0],szFft[1],szFft[2],szCup[0],szCup[1],szCup[2]);
   cudaMalloc((void**) &gpu_rhs, alloc_max);
   cudaMalloc((void**) &gpuGhat, alloc_max/2);
@@ -52,7 +71,7 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolv
 
   fft_rhs = (Real*) malloc(myftNx*gsize[1]*(gsize[2] * sizeof(Real)) );
 
-  if(m_rank<m_size/2)
+  if(s_rank<m_size/2)
     assert((size_t) isize[0]==myftNx && isize[1]==my && isize[2]==mz);
 }
 
@@ -107,13 +126,14 @@ void PoissonSolverUnbounded::cub2padded() const
   MPI_Cart_coords(m_comm, m_rank, 3, pos);
   memset(fft_rhs, 0, myftNx * gsize[1] * (gsize[2] * sizeof(Real)) );
   std::vector<MPI_Request> reqs = std::vector<MPI_Request>(m_size*2, MPI_REQUEST_NULL);
-  const int m_ind =  pos[0]   * myN[0], m_pos =  m_rank   * szFft[0];
-  const int m_nxt = (pos[0]+1)* myN[0], m_end = (m_rank+1)* szFft[0];
+  const int m_ind =  pos[0]   * myN[0], m_pos =  s_rank   * szFft[0];
+  const int m_nxt = (pos[0]+1)* myN[0], m_end = (s_rank+1)* szFft[0];
   for(int i=0; i<m_size; i++)
   {
     MPI_Cart_coords(m_comm, i, 3, dst); // assert(dst[1]==0 && dst[2]==0);
-    const int i_ind =  dst[0]   * myN[0], i_pos =  i   * szFft[0];
-    const int i_nxt = (dst[0]+1)* myN[0], i_end = (i+1)* szFft[0];
+    const int is_rank = map2accfftRank(i, dst);
+    const int i_ind =  dst[0]   * myN[0], i_pos =  is_rank   * szFft[0];
+    const int i_nxt = (dst[0]+1)* myN[0], i_end = (is_rank+1)* szFft[0];
     // test if rank needs to send to i its rhs:
     if( i_pos < m_nxt && m_ind < i_end )
     {
@@ -145,13 +165,14 @@ void PoissonSolverUnbounded::padded2cub() const
   MPI_Cart_coords(m_comm, m_rank, 3, pos);
 
   std::vector<MPI_Request> reqs = std::vector<MPI_Request>(m_size*2, MPI_REQUEST_NULL);
-  const int m_ind =  pos[0]   * myN[0], m_pos =  m_rank   * szFft[0];
-  const int m_nxt = (pos[0]+1)* myN[0], m_end = (m_rank+1)* szFft[0];
+  const int m_ind =  pos[0]   * myN[0], m_pos =  s_rank   * szFft[0];
+  const int m_nxt = (pos[0]+1)* myN[0], m_end = (s_rank+1)* szFft[0];
   for(int i=0; i<m_size; i++)
   {
     MPI_Cart_coords(m_comm, i, 3, dst);
-    const int i_ind =  dst[0]   * myN[0], i_pos =  i   * szFft[0];
-    const int i_nxt = (dst[0]+1)* myN[0], i_end = (i+1)* szFft[0];
+    const int is_rank = map2accfftRank(i, dst);
+    const int i_ind =  dst[0]   * myN[0], i_pos =  is_rank   * szFft[0];
+    const int i_nxt = (dst[0]+1)* myN[0], i_end = (is_rank+1)* szFft[0];
     // test if rank needs to send to i its rhs:
     if( i_pos < m_nxt && m_ind < i_end )
     {
@@ -177,7 +198,7 @@ void PoissonSolverUnbounded::padded2cub() const
 
 void PoissonSolverUnbounded::padded2gpu() const
 {
-  if(m_rank < m_size/2)
+  if(s_rank < m_size/2)
   {
   #if 1
     cudaMemcpy3DParms p = {};
@@ -202,7 +223,7 @@ void PoissonSolverUnbounded::padded2gpu() const
 
 void PoissonSolverUnbounded::gpu2padded() const
 {
-  if(m_rank < m_size/2)
+  if(s_rank < m_size/2)
   {
   #if 1
     cudaMemcpy3DParms p = {};

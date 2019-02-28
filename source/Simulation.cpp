@@ -130,10 +130,9 @@ void Simulation::setupGrid()
   assert(sim.bpdy > 0);
   assert(sim.bpdz > 0);
 
-  if (sim.nprocsy < 0)  sim.nprocsy = 1;
-  if (sim.nprocsy == 1) sim.nprocsx = sim.nprocs;  // Override existing value!
-  else if (sim.nprocsx < 0) sim.nprocsx = sim.nprocs / sim.nprocsy;
-  sim.nprocsz = 1;
+  if (sim.nprocsy < 0) sim.nprocsy = 1;
+  if (sim.nprocsz < 0) sim.nprocsz = 1;
+  if (sim.nprocsx < 0) sim.nprocsx = sim.nprocs / sim.nprocsy / sim.nprocsz;
 
   if (sim.nprocsx * sim.nprocsy * sim.nprocsz != sim.nprocs) {
     fprintf(stderr, "Invalid domain decomposition. %d x %d x %d != %d!\n",

@@ -19,7 +19,8 @@ class PoissonSolverUnbounded : public PoissonSolver
   const int szFft[3] = {(int) myftNx, (int) gsize[1], (int) gsize[2] };
   const int szCup[3] = {std::min(szFft[0],(int)myN[0]),(int)myN[1],(int)myN[2]};
 
-  MPI_Comm c_comm;
+  MPI_Comm sort_comm, c_comm;
+  int s_rank;
   size_t alloc_max;
   Real * fft_rhs;
   Real * gpuGhat;
@@ -27,6 +28,13 @@ class PoissonSolverUnbounded : public PoissonSolver
   void * plan;
   MPI_Datatype submat;
 
+  inline int map2accfftRank(const int _rank, const int peidx[3]) const {
+    if (myftNx == myN[0]) { // we want x to be the fast index
+      return peidx[0] +sim.nprocsx*(peidx[1] +sim.nprocsy*peidx[2]);
+    } else {
+      return _rank/2 + (m_size/2) * (_rank % 2);
+    }
+  }
 public:
   PoissonSolverUnbounded(SimulationData & s);
 

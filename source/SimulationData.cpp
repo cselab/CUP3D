@@ -25,7 +25,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   bpdz = parser("-bpdz").asInt();
   nprocsx = parser("-nprocsx").asInt(-1);
   nprocsy = parser("-nprocsy").asInt(-1);
-  nprocsz = 1;
+  nprocsz = parser("-nprocsz").asInt(-1);
   // FLOW
   nu = parser("-nu").asDouble();
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
