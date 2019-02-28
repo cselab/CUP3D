@@ -1,6 +1,6 @@
 #!/bin/bash
 NNODEX=${NNODEX:-8}
-NNODEY=1
+NNODEY=${NNODEY:-1}
 NNODE=$(($NNODEX * $NNODEY))
 
 BPDX=${BPDX:-64}
