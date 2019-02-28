@@ -56,6 +56,7 @@ struct SimulationData
   //The antagonist
   std::vector<Operator*> pipeline;
   PoissonSolver * pressureSolver = nullptr;
+  //NonUniformScheme<FluidBlock>* m_nonuniform = nullptr;
   // simulation status
   // nsteps==0 means that this stopping criteria is not active
   int step=0, nsteps=0;
@@ -73,6 +74,7 @@ struct SimulationData
   double nu=0, CFL=0, lambda=-1, DLM=1;
   const Real maxextent = 1;//grid->maxextent; TODO
   Real extent[3] = {1, 1, 1};
+  Real m_hmin=0;
   // simulation settings
   bool computeDissipation=false;
   bool b3Ddump=true, b2Ddump=false, bDump=false;

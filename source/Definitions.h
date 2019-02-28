@@ -17,7 +17,7 @@
 // 0 : explicit
 // 1 : implicit without taking into account divF in pressure eq
 // 2 : implicit by approximating penalization force into pressure eq
-#define PENAL_TYPE 0
+#define PENAL_TYPE 2
 
 
 #define __useSkin_
@@ -55,6 +55,7 @@ typedef double DumpReal;
 using namespace cubism;
 
 #include "utils/AlignedAllocator.h"
+#include "utils/FDcoeffs.h"
 
 struct FluidElement
 {
@@ -118,6 +119,15 @@ struct BaseBlock
   typedef Real   RealType;
   //__attribute__((aligned(32)))
   TElement data[sizeZ][sizeY][sizeX];
+
+  /*
+  FDBlockCoeffs_x __attribute__((__aligned__(32))) fd_cx; // finite-difference single coefficients
+  FDBlockCoeffs_y __attribute__((__aligned__(32))) fd_cy; // finite-difference single coefficients
+  FDBlockCoeffs_z __attribute__((__aligned__(32))) fd_cz; // finite-difference single coefficients
+  Real __attribute__((__aligned__(32))) invh_x[sizeX]; // pre-compute inverse mesh-spacings
+  Real __attribute__((__aligned__(32))) invh_y[sizeY]; // pre-compute inverse mesh-spacings
+  Real __attribute__((__aligned__(32))) invh_z[sizeZ]; // pre-compute inverse mesh-spacings
+  */
 
   //required from Grid.h
   void clear()

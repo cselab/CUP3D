@@ -62,6 +62,51 @@ class KernelGradP
   }
 };
 
+/*
+class KernelGradP_nonUniform
+{
+  const Real dt, extent[3];
+ public:
+  const std::array<int, 3> stencil_start = {-1, -1, -1};
+  const std::array<int, 3> stencil_end = {2, 2, 2};
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+
+  KernelGradP_nonUniform(double _dt,const Real ext[3]): dt(_dt), extent{ext[0],ext[1],ext[2]} {}
+
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  {
+    // FD coefficients for first derivative
+    const BlkCoeffX& cx = o.fd_cx.first;
+    const BlkCoeffY& cy = o.fd_cy.first;
+    const BlkCoeffZ& cz = o.fd_cz.first;
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
+      const FluidElement &L =lab(ix,iy,iz);
+      const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+      const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+      const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+      const Real Uf = o(ix,iy,iz).u - dt * __FD_2ND(ix, cx, LW.p, L.p, LE.p);
+      const Real Vf = o(ix,iy,iz).v - dt * __FD_2ND(iy, cy, LS.p, L.p, LN.p);
+      const Real Wf = o(ix,iy,iz).w - dt * __FD_2ND(iz, cz, LF.p, L.p, LB.p);
+      const Real US=o(ix,iy,iz).tmpU, VS=o(ix,iy,iz).tmpV, WS=o(ix,iy,iz).tmpW;
+      #if PENAL_TYPE==0
+       o(ix,iy,iz).u = Uf + o(ix,iy,iz).chi * US; // explicit penal part 2
+       o(ix,iy,iz).v = Vf + o(ix,iy,iz).chi * VS; // explicit penal part 2
+       o(ix,iy,iz).w = Wf + o(ix,iy,iz).chi * WS; // (part 1 in advectdiffuse)
+      #else // implicit
+       // p contains the pressure correction after the Poisson solver
+       o(ix,iy,iz).u = ( Uf + o(ix,iy,iz).chi * US) / (1+o(ix,iy,iz).chi);
+       o(ix,iy,iz).v = ( Vf + o(ix,iy,iz).chi * VS) / (1+o(ix,iy,iz).chi);
+       o(ix,iy,iz).w = ( Wf + o(ix,iy,iz).chi * WS) / (1+o(ix,iy,iz).chi);
+      #endif
+    }
+  }
+};
+*/
+
 PressurePenalization::PressurePenalization(SimulationData & s) : Operator(s)
 {
   if(sim.bUseFourierBC)

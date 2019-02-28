@@ -140,6 +140,7 @@ void SimulationData::_argumentsSanityCheck()
 SimulationData::~SimulationData()
 {
   delete grid;
+  //delete m_nonuniform;
   delete obstacle_vector;
   while(!pipeline.empty()) {
     auto * g = pipeline.back();
