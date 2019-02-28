@@ -308,7 +308,7 @@ void Simulation::_serialize(const std::string append)
     // if a thread was already created, make sure it has finished
     if(sim.dumper not_eq nullptr) {
       sim.dumper->join();
-      delete dumper;
+      delete sim.dumper;
       sim.dumper = nullptr;
     }
     // copy qois from grid to dump
