@@ -20,16 +20,16 @@
 #include "obstacles/IF3D_ObstacleFactory.h"
 #include "utils/ProcessOperatorsOMP.h"
 #include "Cubism/HDF5Dumper_MPI.h"
-
+#include "Cubism/MeshKernels.h"
 #include <iomanip>
 
 /*
  * Initialization from cmdline arguments is done in few steps, because grid has
  * to be created before the obstacles and slices are created.
  */
-Simulation::Simulation(MPI_Comm mpicomm) : sim(mpicomm) {}
-Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser &parser)
-    : sim(mpicomm, parser)
+Simulation::Simulation(MPI_Comm mpicomm) : sim(mpicomm), parser_ptr(nullptr) {}
+Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
+    : sim(mpicomm, parser), parser_ptr(& parser)
 {
   // ========= SETUP GRID ==========
   // Grid has to be initialized before slices and obstacles.
@@ -58,13 +58,12 @@ const std::vector<IF3D_ObstacleOperator*>& Simulation::getObstacleVector() const
 
 // For Python bindings. Really no need for `const` here...
 Simulation::Simulation(
-  std::array<int, 3> cells, std::array<int, 3> nproc,
-  MPI_Comm comm, int nsteps, double endTime,
-  double nu, double CFL, double lambda, double DLM,
-  std::array<double, 3> uinf,
-  bool verbose, bool computeDissipation, bool b3Ddump, bool b2Ddump,
-  double fadeOutLength, int saveFreq, double saveTime,
-  const std::string &path4serialization, bool restart) : sim(comm)
+  std::array<int,3> cells, std::array<int, 3> nproc, MPI_Comm comm, int nsteps,
+  double endTime, double nu, double CFL, double lambda, double DLM,
+  std::array<double,3> uinf, bool verbose, bool computeDissipation,
+  bool b3Ddump, bool b2Ddump, double fadeOutLength, int saveFreq,
+  double saveTime, const std::string &path4serialization, bool restart) :
+  sim(comm), parser_ptr(nullptr)
 {
   sim.nprocsx = nproc[0];
   sim.nprocsy = nproc[1];
@@ -126,67 +125,66 @@ void Simulation::_ic()
 
 void Simulation::setupGrid()
 {
-  assert(sim.bpdx > 0);
-  assert(sim.bpdy > 0);
-  assert(sim.bpdz > 0);
-
-  if (sim.nprocsy < 0) sim.nprocsy = 1;
-  if (sim.nprocsz < 0) sim.nprocsz = 1;
-  if (sim.nprocsx < 0) sim.nprocsx = sim.nprocs / sim.nprocsy / sim.nprocsz;
-
-  if (sim.nprocsx * sim.nprocsy * sim.nprocsz != sim.nprocs) {
-    fprintf(stderr, "Invalid domain decomposition. %d x %d x %d != %d!\n",
-            sim.nprocsx, sim.nprocsy, sim.nprocsz, sim.nprocs);
-    MPI_Abort(sim.app_comm, 1);
-  }
-
-  if ( sim.bpdx%sim.nprocsx != 0 ||
-       sim.bpdy%sim.nprocsy != 0 ||
-       sim.bpdz%sim.nprocsz != 0   ) {
-    printf("Incompatible domain decomposition: bpd*/nproc* should be an integer");
-    MPI_Abort(sim.app_comm, 1);
-  }
-
-  sim.bpdx /= sim.nprocsx;
-  sim.bpdy /= sim.nprocsy;
-  sim.bpdz /= sim.nprocsz;
-  sim.grid = new FluidGridMPI(sim.nprocsx,sim.nprocsy,sim.nprocsz,
-                              sim.bpdx,sim.bpdy,sim.bpdz,
-                              sim.maxextent, sim.app_comm);
-  assert(sim.grid != nullptr);
-
-  #ifdef CUP_ASYNC_DUMP
-    // create new comm so that if there is a barrier main work is not affected
-    MPI_Comm_split(sim.app_comm, 0, sim.rank, &sim.dump_comm);
-    sim.dump = new  DumpGridMPI(sim.nprocsx,sim.nprocsy,sim.nprocsz,
-                                sim.bpdx,sim.bpdy,sim.bpdz,
-                                sim.maxextent, sim.dump_comm);
-  #endif
-
-  char hostname[1024];
-  hostname[1023] = '\0';
-  gethostname(hostname, 1023);
-  const int nthreads = omp_get_max_threads();
-  printf("Rank %d (of %d) with %d threads on host Hostname: %s\n",
-          sim.rank, sim.nprocs, nthreads, hostname);
-  //if (communicator not_eq nullptr) //Yo dawg I heard you like communicators.
-  //  communicator->comm_MPI = grid->getCartComm();
-  fflush(0);
-  if(sim.rank==0)
+  if( not sim.bUseStretchedGrid )
   {
-    printf("Blocks per dimension: [%d %d %d]\n",sim.bpdx,sim.bpdy,sim.bpdz);
-    printf("Nranks per dimension: [%d %d %d]\n",sim.nprocsx,sim.nprocsy,sim.nprocsz);
-  }
+    if(sim.rank==0)
+      printf("Uniform-resolution grid of sizes: %f %f %f\n",
+      sim.extent[0],sim.extent[1],sim.extent[2]);
+    sim.grid = new FluidGridMPI(sim.nprocsx,sim.nprocsy,sim.nprocsz,
+                                sim.local_bpdx,sim.local_bpdy,sim.local_bpdz,
+                                sim.maxextent, sim.app_comm);
+    assert(sim.grid != nullptr);
 
-  const double NFE[3] = {
-      (double) sim.grid->getBlocksPerDimension(0) * FluidBlock::sizeX,
-      (double) sim.grid->getBlocksPerDimension(1) * FluidBlock::sizeY,
-      (double) sim.grid->getBlocksPerDimension(2) * FluidBlock::sizeZ,
-  };
-  const double maxbpd = std::max({NFE[0], NFE[1], NFE[2]});
-  sim.extent[0] = (NFE[0]/maxbpd) * sim.maxextent;
-  sim.extent[1] = (NFE[1]/maxbpd) * sim.maxextent;
-  sim.extent[2] = (NFE[2]/maxbpd) * sim.maxextent;
+    #ifdef CUP_ASYNC_DUMP
+      // create new comm so that if there is a barrier main work is not affected
+      MPI_Comm_split(sim.app_comm, 0, sim.rank, &sim.dump_comm);
+      sim.dump = new  DumpGridMPI(sim.nprocsx,sim.nprocsy,sim.nprocsz,
+                                  sim.local_bpdx,sim.local_bpdy,sim.local_bpdz,
+                                  sim.maxextent, sim.dump_comm);
+    #endif
+  }
+  else
+  {
+    if(sim.rank==0)
+      printf("Stretched grid of sizes: %f %f %f\n",
+      sim.extent[0],sim.extent[1],sim.extent[2]);
+    sim.nonuniform = new NonUniformScheme<FluidBlock>( 0, sim.extent[0],
+      0, sim.extent[1], 0, sim.extent[2], sim.bpdx, sim.bpdy, sim.bpdz);
+
+    // initialize scheme
+    MeshDensityFactory mk(* parser_ptr);
+    sim.nonuniform->init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
+
+    sim.grid = new FluidGridMPI(
+      & sim.nonuniform->get_map_x(), & sim.nonuniform->get_map_y(),
+      & sim.nonuniform->get_map_z(), sim.nprocsx, sim.nprocsy, sim.nprocsz,
+      sim.local_bpdx, sim.local_bpdy, sim.local_bpdz, sim.app_comm);
+    assert(sim.grid != nullptr);
+
+    #ifdef CUP_ASYNC_DUMP
+      // create new comm so that if there is a barrier main work is not affected
+      MPI_Comm_split(sim.app_comm, 0, sim.rank, & sim.dump_comm);
+      sim.nonuniform_dump = new NonUniformScheme<DumpBlock>( 0, sim.extent[0],
+        0, sim.extent[1], 0, sim.extent[2], sim.bpdx, sim.bpdy, sim.bpdz);
+      sim.nonuniform_dump->init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
+      sim.dump = new  DumpGridMPI(
+        & sim.nonuniform_dump->get_map_x(), & sim.nonuniform_dump->get_map_y(),
+        & sim.nonuniform_dump->get_map_z(), sim.nprocsx,sim.nprocsy,sim.nprocsz,
+        sim.local_bpdx, sim.local_bpdy, sim.local_bpdz, sim.dump_comm);
+    #endif
+
+    // setp block coefficients
+    sim.nonuniform->template setup_coefficients<FDcoeffs_2ndOrder>(
+      sim.grid->getBlocksInfo());
+    sim.nonuniform->template setup_coefficients<FDcoeffs_4thOrder>(
+      sim.grid->getBlocksInfo(), true);
+    sim.nonuniform->setup_inverse_spacing(
+      sim.grid->getBlocksInfo());
+
+    // some statistics
+    sim.nonuniform->print_mesh_statistics(sim.rank == 0);
+    sim.hmin = sim.nonuniform->minimum_cell_width();
+  }
 }
 
 void Simulation::setObstacleVector(IF3D_ObstacleVector * const obstacle_vector_)

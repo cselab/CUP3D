@@ -14,9 +14,9 @@
 #include <vector>
 #include <cstdlib>
 
-#include "Definitions.h"
-#include "BlockInfo.h"
-#include "MeshMap.h"
+#include "../Definitions.h"
+#include "Cubism/BlockInfo.h"
+#include "Cubism/MeshMap.h"
 
 
 template <typename TBlock>
@@ -78,15 +78,15 @@ public:
         m_map_z.init(kernel_z, StencilMax, StencilMax, &ghosts[0]);
         m_all_delta_z.fill(m_map_z, &ghosts[0]);
 
-        for (int i = 0; i < m_map_x.ncells(); ++i)
+        for (size_t i = 0; i < m_map_x.ncells(); ++i)
             if (m_map_x.cell_width(i) < m_h_min[0])
                 m_h_min[0] = m_map_x.cell_width(i);
 
-        for (int i = 0; i < m_map_y.ncells(); ++i)
+        for (size_t i = 0; i < m_map_y.ncells(); ++i)
             if (m_map_y.cell_width(i) < m_h_min[1])
                 m_h_min[1] = m_map_y.cell_width(i);
 
-        for (int i = 0; i < m_map_z.ncells(); ++i)
+        for (size_t i = 0; i < m_map_z.ncells(); ++i)
             if (m_map_z.cell_width(i) < m_h_min[2])
                 m_h_min[2] = m_map_z.cell_width(i);
 
@@ -121,13 +121,13 @@ public:
         fd_y.setup(&m_all_delta_y(0), m_map_y.ncells());
         fd_z.setup(&m_all_delta_z(0), m_map_z.ncells());
 
-        typename TFD::template BlockSetFunctor<_BSX_> set_x;
-        typename TFD::template BlockSetFunctor<_BSY_> set_y;
-        typename TFD::template BlockSetFunctor<_BSZ_> set_z;
+        typename TFD::template BlockSetFunctor<CUP_BLOCK_SIZE> set_x;
+        typename TFD::template BlockSetFunctor<CUP_BLOCK_SIZE> set_y;
+        typename TFD::template BlockSetFunctor<CUP_BLOCK_SIZE> set_z;
 
         // 2.
 #pragma omp parallel for
-        for(int i=0; i<(int)infos.size(); ++i)
+        for(size_t i=0; i<infos.size(); ++i)
         {
             BlockInfo info = infos[i];
             TBlock& b = *(TBlock*)info.ptrBlock;
@@ -176,15 +176,15 @@ public:
 
             {
                 const int index = info.index[0];
-                _set_block_invh<_BSX_>(m_map_x.get_grid_spacing(index), &b.invh_x[0]);
+                _set_block_invh<CUP_BLOCK_SIZE>(m_map_x.get_grid_spacing(index), &b.invh_x[0]);
             }
             {
                 const int index = info.index[1];
-                _set_block_invh<_BSY_>(m_map_y.get_grid_spacing(index), &b.invh_y[0]);
+                _set_block_invh<CUP_BLOCK_SIZE>(m_map_y.get_grid_spacing(index), &b.invh_y[0]);
             }
             {
                 const int index = info.index[2];
-                _set_block_invh<_BSZ_>(m_map_z.get_grid_spacing(index), &b.invh_z[0]);
+                _set_block_invh<CUP_BLOCK_SIZE>(m_map_z.get_grid_spacing(index), &b.invh_z[0]);
             }
         }
     }

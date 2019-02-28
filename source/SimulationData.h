@@ -10,6 +10,7 @@
 #pragma once
 #include "Definitions.h"
 #include "Cubism/Profiler.h"
+#include "utils/NonUniformScheme.h"
 #include "Cubism/HDF5SliceDumperMPI.h"
 //#include "Cubism/ZBinDumper_MPI.h"
 
@@ -44,6 +45,7 @@ struct SimulationData
   #endif
 
   FluidGridMPI * grid = nullptr;
+  NonUniformScheme<FluidBlock>* nonuniform = nullptr;
   const std::vector<BlockInfo>& vInfo() const {
     return grid->getBlocksInfo();
   }
@@ -56,25 +58,30 @@ struct SimulationData
   //The antagonist
   std::vector<Operator*> pipeline;
   PoissonSolver * pressureSolver = nullptr;
-  //NonUniformScheme<FluidBlock>* m_nonuniform = nullptr;
   // simulation status
   // nsteps==0 means that this stopping criteria is not active
   int step=0, nsteps=0;
   // endTime==0  means that this stopping criteria is not active
   double time=0, endTime=0;
   double dt = 0;
+
   // mpi
   const MPI_Comm app_comm;
   int rank=-1, nprocs=-1;
-  // grid
-  int bpdx=-1, bpdy=-1, bpdz=-1;
   int nprocsx=-1, nprocsy=-1, nprocsz=-1;
+
+  // grid
+  int local_bpdx=-1, local_bpdy=-1, local_bpdz=-1;
+  int bpdx=-1, bpdy=-1, bpdz=-1;
+  Real maxextent = 1;
+  Real extent[3] = {1, 1, 1};
+  bool bUseStretchedGrid = false;
+  Real hmin=0;
+
   // flow variables
   Real uinf[3] = {0, 0, 0};
   double nu=0, CFL=0, lambda=-1, DLM=1;
-  const Real maxextent = 1;//grid->maxextent; TODO
-  Real extent[3] = {1, 1, 1};
-  Real m_hmin=0;
+
   // simulation settings
   bool computeDissipation=false;
   bool b3Ddump=true, b2Ddump=false, bDump=false;
@@ -101,6 +108,7 @@ struct SimulationData
     MPI_Comm dump_comm;
     DumpGridMPI * dump = nullptr;
     std::thread * dumper = nullptr;
+    NonUniformScheme<DumpBlock>* nonuniform_dump = nullptr;
   #endif
 
   void startProfiler(std::string name) const;

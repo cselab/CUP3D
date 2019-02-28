@@ -337,7 +337,7 @@ void IF3D_ObstacleOperator::computeVelocities(const double dt,const Real lambda)
 {
   double CM[3];
   this->getCenterOfMass(CM);
-  const double h  = vInfo[0].h_gridpoint;
+  const double h  = vInfo[0].h_gridpoint; assert(h>DBLEPS);
   double globals[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
 
   {

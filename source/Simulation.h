@@ -19,7 +19,6 @@ class IF3D_ObstacleOperator;
 class Simulation
 {
   friend class cubismup3d::SimulationWrapper;
-
   //#ifdef _USE_ZLIB_
   //  SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
   //#endif
@@ -27,6 +26,7 @@ class Simulation
 public:
 
   SimulationData sim;
+  ArgumentParser * const parser_ptr;
 
   void _init(bool restart = false);
 

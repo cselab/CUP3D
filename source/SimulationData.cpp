@@ -26,6 +26,10 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   nprocsx = parser("-nprocsx").asInt(-1);
   nprocsy = parser("-nprocsy").asInt(-1);
   nprocsz = parser("-nprocsz").asInt(-1);
+  extent[0] = parser("extentx").asDouble(1);
+  extent[1] = parser("extenty").asDouble(0);
+  extent[2] = parser("extentz").asDouble(0);
+
   // FLOW
   nu = parser("-nu").asDouble();
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
@@ -106,7 +110,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   BCy_flag = string2BCflag(BC_y);
   BCz_flag = string2BCflag(BC_z);
 
-
   // DFT if we are periodic in all directions:
   if(BC_x=="periodic"&&BC_y=="periodic"&&BC_z=="periodic") bUseFourierBC = true;
   if(rank==0)
@@ -126,6 +129,19 @@ void SimulationData::_argumentsSanityCheck()
       fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);
       abort();
   }
+  const double NFE[3] = {
+      (double) bpdx * FluidBlock::sizeX,
+      (double) bpdy * FluidBlock::sizeY,
+      (double) bpdz * FluidBlock::sizeZ,
+  };
+  const double maxbpd = std::max({NFE[0], NFE[1], NFE[2]});
+  maxextent = std::max({extent[0], extent[1], extent[2]});
+  if( extent[0] <= 0 || extent[1] <= 0 || extent[2] <= 0 ) {
+    bUseStretchedGrid = false;
+    extent[0] = (NFE[0]/maxbpd) * maxextent;
+    extent[1] = (NFE[1]/maxbpd) * maxextent;
+    extent[2] = (NFE[2]/maxbpd) * maxextent;
+  } else bUseStretchedGrid = true;
 
   // Flow.
   assert(nu >= 0);
@@ -135,6 +151,45 @@ void SimulationData::_argumentsSanityCheck()
   // Output.
   assert(saveFreq >= 0.0);
   assert(saveTime >= 0.0);
+
+  // MPI.
+  if (nprocsy <= 0) nprocsy = 1;
+  if (nprocsz <= 0) nprocsz = 1;
+  if (nprocsx <= 0) nprocsx = nprocs / nprocsy / nprocsz;
+
+  if (nprocsx * nprocsy * nprocsz != nprocs) {
+    fprintf(stderr, "Invalid domain decomposition. %d x %d x %d != %d!\n",
+            nprocsx, nprocsy, nprocsz, nprocs);
+    MPI_Abort(app_comm, 1);
+  }
+
+  if ( bpdx % nprocsx != 0 ||
+       bpdy % nprocsy != 0 ||
+       bpdz % nprocsz != 0   ) {
+    printf("Incompatible domain decomposition: bpd*/nproc* should be an integer");
+    MPI_Abort(app_comm, 1);
+  }
+
+  local_bpdx = bpdx / nprocsx;
+  local_bpdy = bpdy / nprocsy;
+  local_bpdz = bpdz / nprocsz;
+
+  char hostname[1024];
+  hostname[1023] = '\0';
+  gethostname(hostname, 1023);
+  const int nthreads = omp_get_max_threads();
+  printf("Rank %d (of %d) with %d threads on host Hostname: %s\n",
+          rank, nprocs, nthreads, hostname);
+  //if (communicator not_eq nullptr) //Yo dawg I heard you like communicators.
+  //  communicator->comm_MPI = grid->getCartComm();
+  if(rank==0) {
+    printf("Blocks per dimension: [%d %d %d]\n",bpdx,bpdy,bpdz);
+    printf("Nranks per dimension: [%d %d %d]\n",nprocsx,nprocsy,nprocsz);
+    printf("Local blocks per dimension: [%d %d %d]\n",
+      local_bpdx,local_bpdy,local_bpdz);
+    fflush(0);
+  }
+  fflush(0);
 }
 
 SimulationData::~SimulationData()

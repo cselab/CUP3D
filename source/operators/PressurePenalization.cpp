@@ -62,7 +62,6 @@ class KernelGradP
   }
 };
 
-/*
 class KernelGradP_nonUniform
 {
   const Real dt, extent[3];
@@ -105,7 +104,6 @@ class KernelGradP_nonUniform
     }
   }
 };
-*/
 
 PressurePenalization::PressurePenalization(SimulationData & s) : Operator(s)
 {

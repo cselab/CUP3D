@@ -118,7 +118,6 @@ class KernelPressureRHS
   }
 };
 
-/*
 class KernelPressureRHS_nonUniform
 {
  private:
@@ -149,12 +148,13 @@ class KernelPressureRHS_nonUniform
     return 1-std::pow(std::min( std::max({zt,zb,yt,yb,xt,xb}), (Real)1), 2);
   }
 
-  inline Real RHS(Lab&l, const int x,const int y,const int z) const
+  inline Real RHS(Lab&l, const int ix, const int iy, const int iz,
+    const BlkCoeffX &cx, const BlkCoeffX &cy, const BlkCoeffX &cz) const
   {
-    const FluidElement& L  = l(x,  y,  z);
-    const FluidElement& LW = l(x-1,y,  z  ), & LE = l(x+1,y,  z  );
-    const FluidElement& LS = l(x,  y-1,z  ), & LN = l(x,  y+1,z  );
-    const FluidElement& LF = l(x,  y,  z-1), & LB = l(x,  y,  z+1);
+    const FluidElement& L  = l(ix,  iy,  iz);
+    const FluidElement& LW = l(ix-1,iy,  iz  ), & LE = l(ix+1,iy,  iz  );
+    const FluidElement& LS = l(ix,  iy-1,iz  ), & LN = l(ix,  iy+1,iz  );
+    const FluidElement& LF = l(ix,  iy,  iz-1), & LB = l(ix,  iy,  iz+1);
     const Real dudx = __FD_2ND(ix, cx, LW.u, L.u, LE.u);
     const Real dvdy = __FD_2ND(iy, cy, LS.v, L.v, LN.v);
     const Real dwdz = __FD_2ND(iz, cz, LF.w, L.w, LB.w);
@@ -225,7 +225,8 @@ class KernelPressureRHS_nonUniform
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         Real h[3]; info.spacing(h, ix, iy, iz);
         const Real fac = h[0]*h[1]*h[2]*invdt;
-        solver->_cub2fftw(offset, iz,iy,ix, fac * RHS(lab, ix,iy,iz) );
+        const Real RHS_ = RHS(lab, ix,iy,iz, cx,cy,cz);
+        solver->_cub2fftw(offset, iz,iy,ix, fac * fac );
         //o(ix,iy,iz).p = fac * RHS(lab, ix,iy,iz, pFac); //will break t>0
       }
     }
@@ -236,14 +237,13 @@ class KernelPressureRHS_nonUniform
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         Real h[3]; info.spacing(h, ix, iy, iz);
         const Real fac = h[0]*h[1]*h[2]*invdt;
-        const Real RHS_ = fade(info, ix,iy,iz) * RHS(lab, ix,iy,iz);
+        const Real RHS_ = fade(info, ix,iy,iz) * RHS(lab, ix,iy,iz, cx,cy,cz);
         solver->_cub2fftw(offset, iz,iy,ix, fac * RHS_);
         //o(ix,iy,iz).p = fac * RHS_; //will break t>0
       }
     }
   }
 };
-*/
 
 void PressureRHS::operator()(const double dt)
 {
