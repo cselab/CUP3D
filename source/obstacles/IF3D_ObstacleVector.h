@@ -9,7 +9,7 @@
 #ifndef IncompressibleFluids3D_IF3D_ObstacleVector_h
 #define IncompressibleFluids3D_IF3D_ObstacleVector_h
 
-#include "IF3D_ObstacleOperator.h"
+#include "obstacles/IF3D_ObstacleOperator.h"
 
 class IF3D_ObstacleVector : public IF3D_ObstacleOperator
 {

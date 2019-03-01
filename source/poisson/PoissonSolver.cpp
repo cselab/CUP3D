@@ -7,7 +7,7 @@
 //
 
 
-#include "PoissonSolver.h"
+#include "poisson/PoissonSolver.h"
 
 void PoissonSolver::_cub2fftw() const
 {

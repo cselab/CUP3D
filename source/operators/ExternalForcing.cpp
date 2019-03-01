@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch) and Christian Conti.
 //
 
-#include "ExternalForcing.h"
+#include "operators/ExternalForcing.h"
 
 template<int DIRECTION>
 class KernelExternalForcing

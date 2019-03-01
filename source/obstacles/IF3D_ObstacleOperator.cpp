@@ -6,9 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "IF3D_ObstacleOperator.h"
+#include "obstacles/IF3D_ObstacleOperator.h"
 
-#include "../utils/BufferedLogger.h"
+#include "utils/BufferedLogger.h"
 
 #include "Cubism/ArgumentParser.h"
 

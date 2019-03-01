@@ -6,8 +6,8 @@
 //  Created by SV (vermas@fau.edu).
 //
 
-#include "IF3D_TestDiffusionObstacleOperator.h"
-#include "IF3D_ObstacleLibrary.h"
+#include "obstacles/IF3D_TestDiffusionObstacleOperator.h"
+#include "obstacles/IF3D_ObstacleLibrary.h"
 
 #include "Cubism/ArgumentParser.h"
 

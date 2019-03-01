@@ -110,20 +110,21 @@ endif
 # `FFTW_INC` and `FFTW_DIR` are for custom installation. Names are in fact
 # compatible with `module load`, so the `else` statement should work for daint
 # too.
+ifeq ($(FFTW_DIR),)
 ifneq ($(FFTW_INC),)
 	CPPFLAGS += -I$(FFTW_INC)
 endif
-ifeq ($(FFTW_DIR),)
 ifeq "$(precision)" "single"
 	FFTW_LIBS = -lfftw3f_mpi -lfftw3f_omp -lfftw3f
 else
 	FFTW_LIBS = -lfftw3_mpi -lfftw3_omp -lfftw3
 endif
 else
+CPPFLAGS += -I$(FFTW_DIR)/include
 ifeq "$(precision)" "single"
-	FFTW_LIBS = $(FFTW_DIR)/libfftw3f_threads.a $(FFTW_DIR)/libfftw3f_mpi.a $(FFTW_DIR)/libfftw3f.a
+	FFTW_LIBS = $(FFTW_DIR)/lib/libfftw3f_threads.a $(FFTW_DIR)/lib/libfftw3f_mpi.a $(FFTW_DIR)/lib/libfftw3f.a
 else
-	FFTW_LIBS = $(FFTW_DIR)/libfftw3_threads.a $(FFTW_DIR)/libfftw3_mpi.a $(FFTW_DIR)/libfftw3.a
+	FFTW_LIBS = $(FFTW_DIR)/lib/libfftw3_threads.a $(FFTW_DIR)/lib/libfftw3_mpi.a $(FFTW_DIR)/lib/libfftw3.a
 endif
 endif
 
@@ -172,6 +173,10 @@ else
 endif
 
 #LIBS += -L../tools/fpzip/lib -lfpzip
+ifneq ("$(GSL_ROOT_DIR)",)
+	CPPFLAGS += -I$(GSL_ROOT_DIR)/include
+	LIBS += -L$(GSL_ROOT_DIR)/lib
+endif
 LIBS += -lgsl -lgslcblas -lstdc++
 
 EXEOBJ = $(OBJECTS)  main.o

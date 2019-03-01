@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "PoissonSolverPeriodic.h"
-#include "PoissonSolver_common.h"
+#include "poisson/PoissonSolverPeriodic.h"
+#include "poisson/PoissonSolver_common.h"
 
 void PoissonSolverPeriodic::_solve()
 {

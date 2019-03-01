@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "InitialConditions.h"
-#include "PenalizationObstacleVisitor.h"
+#include "operators/InitialConditions.h"
+#include "operators/PenalizationObstacleVisitor.h"
 
 class KernelIC
 {

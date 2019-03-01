@@ -6,9 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "PressureRHS.h"
-#include "PenalizationObstacleVisitor.h"
-#include "../poisson/PoissonSolver.h"
+#include "operators/PressureRHS.h"
+#include "operators/PenalizationObstacleVisitor.h"
+#include "poisson/PoissonSolver.h"
 
 class KernelPressureRHS
 {

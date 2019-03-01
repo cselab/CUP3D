@@ -9,7 +9,7 @@
 #ifndef __IncompressibleFluids3D__IF3D_CarlingFishOperator__
 #define __IncompressibleFluids3D__IF3D_CarlingFishOperator__
 
-#include "IF3D_FishOperator.h"
+#include "obstacles/IF3D_FishOperator.h"
 
 class CarlingFishMidlineData;
 

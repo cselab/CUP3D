@@ -6,8 +6,8 @@
 //  Created by Sid Verma in May 2018.
 //
 
-#include "ComputeDissipation.h"
-#include "../utils/BufferedLogger.h"
+#include "operators/ComputeDissipation.h"
+#include "utils/BufferedLogger.h"
 
 class KernelDissipation
 {

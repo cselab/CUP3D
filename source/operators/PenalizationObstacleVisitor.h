@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_PenalizationObstacleVisitor_h
 #define CubismUP_3D_PenalizationObstacleVisitor_h
 
-#include "../obstacles/IF3D_ObstacleVector.h"
+#include "obstacles/IF3D_ObstacleVector.h"
 #include <cmath>
 
 struct PenalizationObstacleVisitor : public ObstacleVisitor

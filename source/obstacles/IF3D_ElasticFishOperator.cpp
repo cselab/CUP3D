@@ -6,9 +6,9 @@
 //  Created by Pantelis Vlachas.
 //
 
-#include "IF3D_ElasticFishOperator.h"
-#include "IF3D_FishLibrary.h"
-#include "../operators/GenericOperator.h"
+#include "obstacles/IF3D_ElasticFishOperator.h"
+#include "obstacles/IF3D_FishLibrary.h"
+#include "operators/GenericOperator.h"
 
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"

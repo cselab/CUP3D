@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_InitialConditions_h
 #define CubismUP_3D_InitialConditions_h
 
-#include "Operator.h"
+#include "operators/Operator.h"
 
 class InitialConditions : public Operator
 {

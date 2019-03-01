@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "IF3D_ObstacleVector.h"
+#include "obstacles/IF3D_ObstacleVector.h"
 
 #include <sstream>
 

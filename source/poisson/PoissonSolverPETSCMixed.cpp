@@ -7,8 +7,8 @@
 //
 
 
-#include "PoissonSolverPETSCMixed.h"
 #ifdef CUP_PETSC
+#include "poisson/PoissonSolverPETSCMixed.h"
 
 //#define CORNERFIX
 // ^ this ^ fixes one DOF of the grid in order to have mean 0 pressure

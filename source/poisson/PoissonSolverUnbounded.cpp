@@ -10,8 +10,8 @@
 //  WARNING: This implementation only works with a 1D domain decomposition
 //  along the x-coordinate.
 
-#include "PoissonSolverUnbounded.h"
-#include "PoissonSolver_common.h"
+#include "poisson/PoissonSolverUnbounded.h"
+#include "poisson/PoissonSolver_common.h"
 
 PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData&s) : PoissonSolver(s)
 {

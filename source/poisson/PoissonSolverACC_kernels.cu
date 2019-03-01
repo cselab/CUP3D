@@ -14,7 +14,7 @@
 #else
   typedef float Real;
 #endif
-#include "PoissonSolverACC_common.h"
+#include "poisson/PoissonSolverACC_common.h"
 
 __global__
 void _fourier_filter_kernel(acc_c*const __restrict__ out,

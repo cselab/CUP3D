@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "IF3D_ObstacleOperator.h"
+#include "obstacles/IF3D_ObstacleOperator.h"
 
 class IF3D_TestDiffusionObstacleOperator : public IF3D_ObstacleOperator
 {

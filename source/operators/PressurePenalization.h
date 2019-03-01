@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_PressurePenalization_h
 #define CubismUP_3D_PressurePenalization_h
 
-#include "Operator.h"
+#include "operators/Operator.h"
 
 class PressurePenalization : public Operator
 {

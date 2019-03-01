@@ -6,8 +6,8 @@
 //  Created by Ivica Kicic (kicici@ethz.ch) in May 2018.
 //
 
-#include "IF3D_ExternalObstacleOperator.h"
-#include "IF3D_ObstacleLibrary.h"
+#include "obstacles/IF3D_ExternalObstacleOperator.h"
+#include "obstacles/IF3D_ObstacleLibrary.h"
 
 using namespace cubismup3d;
 

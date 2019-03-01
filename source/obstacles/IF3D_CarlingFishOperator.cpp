@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "IF3D_CarlingFishOperator.h"
-#include "IF3D_FishLibrary.h"
+#include "obstacles/IF3D_CarlingFishOperator.h"
+#include "obstacles/IF3D_FishLibrary.h"
 
 #include "Cubism/ArgumentParser.h"
 

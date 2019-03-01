@@ -6,9 +6,9 @@
 //  Written by Ivica Kicic (kicici@ethz.ch).
 //
 
-#include "IF3D_PlateObstacleOperator.h"
+#include "obstacles/IF3D_PlateObstacleOperator.h"
 
-#include "IF3D_ObstacleLibrary.h"
+#include "obstacles/IF3D_ObstacleLibrary.h"
 
 #include "Cubism/ArgumentParser.h"
 

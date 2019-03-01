@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "IF3D_FishOperator.h"
+#include "obstacles/IF3D_FishOperator.h"
 
 class IF3D_ElasticFishOperator: public IF3D_FishOperator
 {

@@ -12,7 +12,7 @@
 #ifndef POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 #define POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
 
-#include "PoissonSolver.h"
+#include "poisson/PoissonSolver.h"
 
 class PoissonSolverUnbounded : public PoissonSolver
 {
