@@ -12,9 +12,8 @@
 
 class KernelPressureRHS
 {
- private:
-  double dt;
-  const Real ext[3], fadeLen[3], iFade[3];
+  Real dt, lamdt;
+  const Real fadeLen[3], ext[3], iFade[3];
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   PoissonSolver * const solver;
 
@@ -52,16 +51,8 @@ class KernelPressureRHS
       const Real dXx_dux = (LE.chi-LW.chi)*( L.u - F * (LE.p-LW.p) - L.tmpU );
       const Real dXy_duy = (LN.chi-LS.chi)*( L.v - F * (LN.p-LS.p) - L.tmpV );
       const Real dXz_duz = (LB.chi-LF.chi)*( L.w - F * (LB.p-LF.p) - L.tmpW );
-      #if 0 // wrong, commented out version is correct but explodes
-        const Real X = L.chi, facX = 2 * L.chi;
-        //const Real X = L.chi, facX = 2 * L.chi/(1-L.chi*L.chi+std::sqrt(EPS));
-      #elif 0 //this assumes div(u^t+1)= chi div(u_s), underestimates sphere Cd
-        const Real X = L.chi, facX = - 1 / (1+L.chi);
-      #else // this is intermediate and performes slightly better:
-        //const Real X = L.chi, facX = L.chi / (1+L.chi);
-        const Real X = L.chi, facX = (2*L.chi + L.chi*L.chi) / (1+L.chi);
-      #endif
-      return divUt -X*X*divUs + facX*(dXx_dux + dXy_duy + dXz_duz);
+      const Real X = L.chi, fac1= lamdt*(X -X*X) -X, fac2= -lamdt/(1+lamdt*X);
+      return divUt + fac1*divUs + fac2*(dXx_dux + dXy_duy + dXz_duz);
     #elif PENAL_TYPE==1
       const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
       return divUt - L.chi*divUs;
@@ -85,10 +76,9 @@ class KernelPressureRHS
   #endif
 
 
-  KernelPressureRHS(double _dt, const Real buf[3], const Real extent[3],
-   PoissonSolver* ps) : dt(_dt), ext{extent[0],extent[1],extent[2]},
-   fadeLen{buf[0],buf[1],buf[2]}, iFade{1/(buf[0]+EPS), 1/(buf[1]+EPS),
-     1/(buf[2]+EPS)}, solver(ps) {}
+  KernelPressureRHS(double _dt, double lambda, const Real B[3], const Real E[3],
+    PoissonSolver* ps) : dt(_dt), lamdt(_dt*lambda), fadeLen{B[0],B[1],B[2]},
+    ext{E[0],E[1],E[2]}, iFade{1/(B[0]+EPS),1/(B[1]+EPS),1/(B[2]+EPS)}, solver(ps) {}
   ~KernelPressureRHS() {}
 
   template <typename Lab, typename BlockType>
@@ -121,7 +111,7 @@ class KernelPressureRHS
 class KernelPressureRHS_nonUniform
 {
  private:
-  Real dt, invdt;
+  Real dt, invdt, lamdt;
   const Real fadeLen[3], ext[3], iFade[3];
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   PoissonSolver * const solver;
@@ -178,16 +168,9 @@ class KernelPressureRHS_nonUniform
       const Real dXx_dux = dXdx * ( L.u - dt * dpdx - L.tmpU );
       const Real dXy_duy = dXdy * ( L.v - dt * dpdy - L.tmpV );
       const Real dXz_duz = dXdz * ( L.w - dt * dpdz - L.tmpW );
-      #if 0 // wrong, commented out version is correct but explodes
-        const Real X = L.chi, facX = 2 * L.chi;
-        //const Real X = L.chi, facX = 2 * L.chi/(1-L.chi*L.chi+std::sqrt(EPS));
-      #elif 0 //this assumes div(u^t+1)= chi div(u_s), underestimates sphere Cd
-        const Real X = L.chi, facX = - 1 / (1+L.chi);
-      #else // this is intermediate and performes slightly better:
-        //const Real X = L.chi, facX = L.chi / (1+L.chi);
-        const Real X = L.chi, facX = (2*L.chi + L.chi*L.chi) / (1+L.chi);
-      #endif
-      return divUt -X*X*divUs + facX*(dXx_dux + dXy_duy + dXz_duz);
+      //this assumes div(u^t+1)= chi div(u_s), underestimates sphere Cd:
+      const Real X = L.chi, fac1= lamdt*(X -X*X) -X, fac2= -lamdt/(1+lamdt*X);
+      return divUt + fac1*divUs + fac2*(dXx_dux + dXy_duy + dXz_duz);
     #elif PENAL_TYPE==1
       return divUt - L.chi*divUs;
     #else
@@ -208,9 +191,9 @@ class KernelPressureRHS_nonUniform
   #endif
 
 
-  KernelPressureRHS_nonUniform(double _dt, const Real buf[3], const Real E[3],
-    PoissonSolver* ps): dt(_dt), invdt(1/_dt), fadeLen{buf[0],buf[1],buf[2]},
-   ext{E[0],E[1],E[2]}, iFade{1/(buf[0]+EPS), 1/(buf[1]+EPS), 1/(buf[2]+EPS)}, solver(ps) {}
+  KernelPressureRHS_nonUniform(double _dt, double lambda, const Real buf[3],
+  const Real E[3], PoissonSolver* ps): dt(_dt), invdt(1/_dt), lamdt(_dt*lambda),
+  fadeLen{buf[0],buf[1],buf[2]}, ext{E[0],E[1],E[2]}, iFade{1/(buf[0]+EPS), 1/(buf[1]+EPS), 1/(buf[2]+EPS)}, solver(ps) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
@@ -270,7 +253,7 @@ void PressureRHS::operator()(const double dt)
   sim.startProfiler("PresRHS Kernel");
   //place onto p: ( div u^(t+1) - div u^* ) / dt
   //where i want div u^(t+1) to be equal to div udef
-  const KernelPressureRHS K(dt, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
+  const KernelPressureRHS K(dt, sim.lambda, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
   compute<KernelPressureRHS>(K);
   sim.stopProfiler();
 

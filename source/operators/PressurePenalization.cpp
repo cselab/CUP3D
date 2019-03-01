@@ -24,7 +24,7 @@
 class KernelGradP
 {
  private:
-  const double dt;
+  const Real dt, lamdt;
   const Real extent[3];
 
  public:
@@ -32,7 +32,8 @@ class KernelGradP
   const std::array<int, 3> stencil_end = {2, 2, 2};
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
 
-  KernelGradP(double _dt,const Real ext[3]): dt(_dt), extent{ext[0],ext[1],ext[2]} {}
+  KernelGradP(double _dt,double lambda,const Real ext[3]): dt(_dt),
+    lamdt(_dt*lambda), extent{ext[0],ext[1],ext[2]} {}
 
   ~KernelGradP() {}
 
@@ -44,19 +45,20 @@ class KernelGradP
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
-      const Real Uf = o(ix,iy,iz).u + fac*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p);
-      const Real Vf = o(ix,iy,iz).v + fac*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p);
-      const Real Wf = o(ix,iy,iz).w + fac*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p);
-      const Real US=o(ix,iy,iz).tmpU, VS=o(ix,iy,iz).tmpV, WS=o(ix,iy,iz).tmpW;
+      const FluidElement &L =lab(ix,iy,iz);
+      const Real Uf = L.u + fac*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p);
+      const Real Vf = L.v + fac*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p);
+      const Real Wf = L.w + fac*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p);
+      const Real US = L.tmpU, VS = L.tmpV, WS = L.tmpW, X = L.chi;
       #if PENAL_TYPE==0
-       o(ix,iy,iz).u = Uf + o(ix,iy,iz).chi * US; // explicit penal part 2
-       o(ix,iy,iz).v = Vf + o(ix,iy,iz).chi * VS; // explicit penal part 2
-       o(ix,iy,iz).w = Wf + o(ix,iy,iz).chi * WS; // (part 1 in advectdiffuse)
+       o(ix,iy,iz).u = Uf + X*lamdt * US; // explicit penal part 2
+       o(ix,iy,iz).v = Vf + X*lamdt * VS; // explicit penal part 2
+       o(ix,iy,iz).w = Wf + X*lamdt * WS; // (part 1 in advectdiffuse)
       #else // implicit
        // p contains the pressure correction after the Poisson solver
-       o(ix,iy,iz).u = ( Uf + o(ix,iy,iz).chi * US) / (1+o(ix,iy,iz).chi);
-       o(ix,iy,iz).v = ( Vf + o(ix,iy,iz).chi * VS) / (1+o(ix,iy,iz).chi);
-       o(ix,iy,iz).w = ( Wf + o(ix,iy,iz).chi * WS) / (1+o(ix,iy,iz).chi);
+       o(ix,iy,iz).u = ( Uf + X*lamdt * US) / (1 + X*lamdt);
+       o(ix,iy,iz).v = ( Vf + X*lamdt * VS) / (1 + X*lamdt);
+       o(ix,iy,iz).w = ( Wf + X*lamdt * WS) / (1 + X*lamdt);
       #endif
     }
   }
@@ -64,13 +66,14 @@ class KernelGradP
 
 class KernelGradP_nonUniform
 {
-  const Real dt, extent[3];
+  const Real dt, lamdt, extent[3];
  public:
   const std::array<int, 3> stencil_start = {-1, -1, -1};
   const std::array<int, 3> stencil_end = {2, 2, 2};
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
 
-  KernelGradP_nonUniform(double _dt,const Real ext[3]): dt(_dt), extent{ext[0],ext[1],ext[2]} {}
+  KernelGradP_nonUniform(double _dt,double lambda,const Real ext[3]): dt(_dt),
+    lamdt(_dt*lambda), extent{ext[0],ext[1],ext[2]} {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
@@ -87,10 +90,10 @@ class KernelGradP_nonUniform
       const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
       const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
       const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
-      const Real Uf = o(ix,iy,iz).u - dt * __FD_2ND(ix, cx, LW.p, L.p, LE.p);
-      const Real Vf = o(ix,iy,iz).v - dt * __FD_2ND(iy, cy, LS.p, L.p, LN.p);
-      const Real Wf = o(ix,iy,iz).w - dt * __FD_2ND(iz, cz, LF.p, L.p, LB.p);
-      const Real US=o(ix,iy,iz).tmpU, VS=o(ix,iy,iz).tmpV, WS=o(ix,iy,iz).tmpW;
+      const Real Uf = L.u - dt * __FD_2ND(ix, cx, LW.p, L.p, LE.p);
+      const Real Vf = L.v - dt * __FD_2ND(iy, cy, LS.p, L.p, LN.p);
+      const Real Wf = L.w - dt * __FD_2ND(iz, cz, LF.p, L.p, LB.p);
+      const Real US = L.tmpU, VS = L.tmpV, WS = L.tmpW, X = L.chi;
       #if PENAL_TYPE==0
        o(ix,iy,iz).u = Uf + o(ix,iy,iz).chi * US; // explicit penal part 2
        o(ix,iy,iz).v = Vf + o(ix,iy,iz).chi * VS; // explicit penal part 2
@@ -151,7 +154,7 @@ void PressurePenalization::operator()(const double dt)
 
   sim.startProfiler("GradP Penal");
   { //pressure correction dudt* = - grad P / rho
-    const KernelGradP K(dt, sim.extent);
+    const KernelGradP K(dt, sim.lambda, sim.extent);
     compute<KernelGradP>(K);
   }
   sim.stopProfiler();

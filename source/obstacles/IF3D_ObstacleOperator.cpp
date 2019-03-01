@@ -12,8 +12,6 @@
 
 #include "Cubism/ArgumentParser.h"
 
-using std::min;
-using std::max;
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
@@ -82,10 +80,8 @@ IF3D_ObstacleOperator::IF3D_ObstacleOperator(
   }
 
   const double one = std::sqrt(
-          quaternion[0] * quaternion[0]
-        + quaternion[1] * quaternion[1]
-        + quaternion[2] * quaternion[2]
-        + quaternion[3] * quaternion[3]);
+          quaternion[0] * quaternion[0] + quaternion[1] * quaternion[1]
+        + quaternion[2] * quaternion[2] + quaternion[3] * quaternion[3]);
 
   if (std::fabs(one - 1.0) > 5 * DBLEPS) {
     printf("Parsed quaternion length is not equal to one. It really ought to be.\n");
@@ -130,7 +126,6 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
   const double oldCorrVel[3] = {
     transVel_correction[0], transVel_correction[1], transVel_correction[2]
   };
-  const double h = vInfo[0].h_gridpoint;
 
   double V=0, FX=0, FY=0, FZ=0, TX=0, TY=0, TZ=0;
   double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0;
@@ -149,21 +144,22 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
     {
       if (CHI[iz][iy][ix] <= 0) continue;
       double p[3]; info.pos(p, ix, iy, iz);
+      const Real dv = dvol(info, ix, iy, iz);
       const double X = CHI[iz][iy][ix];
       const double dUs = UDEF[iz][iy][ix][0] - oldCorrVel[0];
       const double dVs = UDEF[iz][iy][ix][1] - oldCorrVel[1];
       const double dWs = UDEF[iz][iy][ix][2] - oldCorrVel[2];
       p[0] -= CoM[0]; p[1] -= CoM[1]; p[2] -= CoM[2];
-      V  += X * h*h;
-      FX += X * UDEF[iz][iy][ix][0] * h*h;
-      FY += X * UDEF[iz][iy][ix][1] * h*h;
-      FZ += X * UDEF[iz][iy][ix][2] * h*h;
-      TX += X * ( p[1]*dWs - p[2]*dVs ) * h;
-      TY += X * ( p[2]*dUs - p[0]*dWs ) * h;
-      TZ += X * ( p[0]*dVs - p[1]*dUs ) * h;
-      J0 += X * ( p[1]*p[1]+p[2]*p[2] ) * h; J3 -= X * p[0]*p[1] * h;
-      J1 += X * ( p[0]*p[0]+p[2]*p[2] ) * h; J4 -= X * p[0]*p[2] * h;
-      J2 += X * ( p[0]*p[0]+p[1]*p[1] ) * h; J5 -= X * p[1]*p[2] * h;
+      V  += X * dv;
+      FX += X * UDEF[iz][iy][ix][0] * dv;
+      FY += X * UDEF[iz][iy][ix][1] * dv;
+      FZ += X * UDEF[iz][iy][ix][2] * dv;
+      TX += X * ( p[1]*dWs - p[2]*dVs ) * dv;
+      TY += X * ( p[2]*dUs - p[0]*dWs ) * dv;
+      TZ += X * ( p[0]*dVs - p[1]*dUs ) * dv;
+      J0 += X * ( p[1]*p[1]+p[2]*p[2] ) * dv; J3 -= X * p[0]*p[1] * dv;
+      J1 += X * ( p[0]*p[0]+p[2]*p[2] ) * dv; J4 -= X * p[0]*p[2] * dv;
+      J2 += X * ( p[0]*p[0]+p[1]*p[1] ) * dv; J5 -= X * p[1]*p[2] * dv;
     }
   }
 
@@ -175,9 +171,9 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
   lin_momenta[0] = globals[0]/globals[3];
   lin_momenta[1] = globals[1]/globals[3];
   lin_momenta[2] = globals[2]/globals[3];
-  volume         = globals[3] * h;
-  J[0] = globals[ 7] *h*h; J[1] = globals[ 8] *h*h; J[2] = globals[ 9] *h*h;
-  J[3] = globals[10] *h*h; J[4] = globals[11] *h*h; J[5] = globals[12] *h*h;
+  volume         = globals[3];
+  J[0] = globals[ 7]; J[1] = globals[ 8]; J[2] = globals[ 9];
+  J[3] = globals[10]; J[4] = globals[11]; J[5] = globals[12];
   //if(bFixToPlanar) {
   //  ang_momenta[0] = ang_momenta[1] = 0.0;
   //  ang_momenta[2] = globals[2]/globals[5]; // av2/j2
@@ -185,19 +181,14 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
   {
     //solve avel = invJ \dot angMomentum, do not multiply by h^3, but by h for numerics
     const double AM[3] = {globals[ 4], globals[ 5], globals[ 6]};
-    const double J_[6] = {globals[ 7], globals[ 8], globals[ 9],
-                          globals[10], globals[11], globals[12]};
-    const double detJ = J_[0]*(J_[1]*J_[2] - J_[5]*J_[5])+
-                        J_[3]*(J_[4]*J_[5] - J_[2]*J_[3])+
-                        J_[4]*(J_[3]*J_[5] - J_[1]*J_[4]);
+    const double detJ = J[0] * (J[1] * J[2] - J[5] * J[5])+
+                        J[3] * (J[4] * J[5] - J[2] * J[3])+
+                        J[4] * (J[3] * J[5] - J[1] * J[4]);
     assert(std::fabs(detJ)>DBLEPS);
     const double invJ[6] = {
-      (J_[1]*J_[2] - J_[5]*J_[5]) / detJ,
-      (J_[0]*J_[2] - J_[4]*J_[4]) / detJ,
-      (J_[0]*J_[1] - J_[3]*J_[3]) / detJ,
-      (J_[4]*J_[5] - J_[2]*J_[3]) / detJ,
-      (J_[3]*J_[5] - J_[1]*J_[4]) / detJ,
-      (J_[3]*J_[4] - J_[0]*J_[5]) / detJ
+      (J[1] * J[2] - J[5] * J[5]) / detJ, (J[0] * J[2] - J[4] * J[4]) / detJ,
+      (J[0] * J[1] - J[3] * J[3]) / detJ, (J[4] * J[5] - J[2] * J[3]) / detJ,
+      (J[3] * J[5] - J[1] * J[4]) / detJ, (J[3] * J[4] - J[0] * J[5]) / detJ
     };
 
     ang_momenta[0] = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
@@ -337,9 +328,7 @@ void IF3D_ObstacleOperator::computeVelocities(const double dt,const Real lambda)
 {
   double CM[3];
   this->getCenterOfMass(CM);
-  const double h  = vInfo[0].h_gridpoint; assert(h>DBLEPS);
   double globals[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
-
   {
     double V=0, FX=0, FY=0, FZ=0, TX=0, TY=0, TZ=0;
     double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0;
@@ -360,6 +349,7 @@ void IF3D_ObstacleOperator::computeVelocities(const double dt,const Real lambda)
       {
         if (CHI[iz][iy][ix] <= 0) continue;
         double p[3]; info.pos(p, ix, iy, iz);
+        const Real dv = dvol(info, ix, iy, iz);
         const double X = CHI[iz][iy][ix];
         p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
         const double object_UR[3] = {
@@ -373,16 +363,16 @@ void IF3D_ObstacleOperator::computeVelocities(const double dt,const Real lambda)
             b(ix,iy,iz).w - transVel[2] - object_UR[2] - UDEF[iz][iy][ix][2]
         };
         // the gridsize h is included here for numeric safety
-        V  += X * h*h;
-        FX += X * UDIFF[0] * h*h;
-        FY += X * UDIFF[1] * h*h;
-        FZ += X * UDIFF[2] * h*h;
-        TX += X * ( p[1] * UDIFF[2] - p[2] * UDIFF[1] ) * h;
-        TY += X * ( p[2] * UDIFF[0] - p[0] * UDIFF[2] ) * h;
-        TZ += X * ( p[0] * UDIFF[1] - p[1] * UDIFF[0] ) * h;
-        J0 += X * ( p[1]*p[1] + p[2]*p[2] ) * h; J3 -= X * p[0]*p[1] * h;
-        J1 += X * ( p[0]*p[0] + p[2]*p[2] ) * h; J4 -= X * p[0]*p[2] * h;
-        J2 += X * ( p[0]*p[0] + p[1]*p[1] ) * h; J5 -= X * p[1]*p[2] * h;
+        V  += X * dv;
+        FX += X * UDIFF[0] * dv;
+        FY += X * UDIFF[1] * dv;
+        FZ += X * UDIFF[2] * dv;
+        TX += X * ( p[1] * UDIFF[2] - p[2] * UDIFF[1] ) * dv;
+        TY += X * ( p[2] * UDIFF[0] - p[0] * UDIFF[2] ) * dv;
+        TZ += X * ( p[0] * UDIFF[1] - p[1] * UDIFF[0] ) * dv;
+        J0 += X * ( p[1]*p[1] + p[2]*p[2] ) * dv; J3 -= X * p[0]*p[1] * dv;
+        J1 += X * ( p[0]*p[0] + p[2]*p[2] ) * dv; J4 -= X * p[0]*p[2] * dv;
+        J2 += X * ( p[0]*p[0] + p[1]*p[1] ) * dv; J5 -= X * p[1]*p[2] * dv;
       }
     }
 
@@ -391,23 +381,21 @@ void IF3D_ObstacleOperator::computeVelocities(const double dt,const Real lambda)
     assert(globals[3] > DBLEPS);
   }
 
-  const double V = globals[3], FX = globals[0]*lambda, FY = globals[1]*lambda;
-  const double FZ = globals[2]*lambda, TX = globals[4]*lambda;
-  const double TY = globals[5]*lambda, TZ = globals[6]*lambda;
-  const double J0 = globals[ 7], J1 = globals[ 8], J2 = globals[ 9];
-  const double J3 = globals[10], J4 = globals[11], J5 = globals[12];
-  force[0] = FX * h; force[1] = FY * h; force[2] = FZ * h;
-  mass = V * h; volume = V * h;
-  torque[0] = TX * std::pow(h,2);
-  torque[1] = TY * std::pow(h,2);
-  torque[2] = TZ * std::pow(h,2);
-  J[0] = J0 * std::pow(h,2); J[1] = J1 * std::pow(h,2);
-  J[2] = J2 * std::pow(h,2); J[3] = J3 * std::pow(h,2);
-  J[4] = J4 * std::pow(h,2); J[5] = J5 * std::pow(h,2);
+  mass = globals[3];
+  volume = globals[3];
+  force[0] = globals[0]*lambda;
+  force[1] = globals[1]*lambda;
+  force[2] = globals[2]*lambda;
+  torque[0] = globals[4]*lambda;
+  torque[1] = globals[5]*lambda;
+  torque[2] = globals[6]*lambda;
+  J[0] = globals[ 7]; J[1] = globals[ 8];
+  J[2] = globals[ 9]; J[3] = globals[10];
+  J[4] = globals[11]; J[5] = globals[12];
 
-  transVel_computed[0] = transVel[0] + dt*FX/V;
-  transVel_computed[1] = transVel[1] + dt*FY/V;
-  transVel_computed[2] = transVel[2] + dt*FZ/V;
+  transVel_computed[0] = transVel[0] + dt * force[0] / mass;
+  transVel_computed[1] = transVel[1] + dt * force[1] / mass;
+  transVel_computed[2] = transVel[2] + dt * force[2] / mass;
 
   if(bForcedInSimFrame[0]) transVel[0] = transVel_imposed[0];
   else transVel[0] = transVel_computed[0];
@@ -421,22 +409,28 @@ void IF3D_ObstacleOperator::computeVelocities(const double dt,const Real lambda)
   {
     angVel[0] = angVel[1] = 0.0;
     angVel_computed[0] = angVel_computed[1] = 0.0;
-    angVel_computed[2] = angVel[2] + dt * TZ / J2;
+    angVel_computed[2] = angVel[2] + dt * torque[2] / J[2];
     if( not bBlockRotation[2] ) angVel[2] = angVel_computed[2];
     else angVel[2] = 0.0;
   }
   else
   {
     //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
-    const double detJ = J0*(J1*J2-J5*J5) + J3*(J4*J5-J2*J3) + J4*(J3*J5-J1*J4);
+    const double detJ = J[0] * (J[1] * J[2] - J[5] * J[5])+
+                        J[3] * (J[4] * J[5] - J[2] * J[3])+
+                        J[4] * (J[3] * J[5] - J[1] * J[4]);
     assert(std::fabs(detJ)>DBLEPS);
     const double invJ[6] = {
-      (J1*J2-J5*J5)/detJ, (J0*J2-J4*J4)/detJ, (J0*J1-J3*J3)/detJ,
-      (J4*J5-J2*J3)/detJ, (J3*J5-J1*J4)/detJ, (J3*J4-J0*J5)/detJ
+      (J[1] * J[2] - J[5] * J[5]) / detJ, (J[0] * J[2] - J[4] * J[4]) / detJ,
+      (J[0] * J[1] - J[3] * J[3]) / detJ, (J[4] * J[5] - J[2] * J[3]) / detJ,
+      (J[3] * J[5] - J[1] * J[4]) / detJ, (J[3] * J[4] - J[0] * J[5]) / detJ
     };
-    angVel_computed[0] = angVel[0] + dt*(invJ[0]*TX + invJ[3]*TY + invJ[4]*TZ);
-    angVel_computed[1] = angVel[1] + dt*(invJ[3]*TX + invJ[1]*TY + invJ[5]*TZ);
-    angVel_computed[2] = angVel[2] + dt*(invJ[4]*TX + invJ[5]*TY + invJ[2]*TZ);
+    const Real AnA0 = invJ[0]*torque[0] + invJ[3]*torque[1] + invJ[4]*torque[2];
+    const Real AnA1 = invJ[3]*torque[0] + invJ[1]*torque[1] + invJ[5]*torque[2];
+    const Real AnA2 = invJ[4]*torque[0] + invJ[5]*torque[1] + invJ[2]*torque[2];
+    angVel_computed[0] = angVel[0] + dt * AnA0;
+    angVel_computed[1] = angVel[1] + dt * AnA1;
+    angVel_computed[2] = angVel[2] + dt * AnA2;
     if(not bBlockRotation[0]) angVel[0] = angVel_computed[0];
     if(not bBlockRotation[1]) angVel[1] = angVel_computed[1];
     if(not bBlockRotation[2]) angVel[2] = angVel_computed[2];
@@ -492,8 +486,8 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   //derived quantities:
   Pthrust    = thrust*vel_norm;
   Pdrag      =   drag*vel_norm;
-  EffPDef    = Pthrust/(Pthrust-min(defPower,(double)0)+EPS);
-  EffPDefBnd = Pthrust/(Pthrust-    defPowerBnd        +EPS);
+  EffPDef    = Pthrust/(Pthrust-std::min(defPower,(double)0)+EPS);
+  EffPDefBnd = Pthrust/(Pthrust-         defPowerBnd        +EPS);
 
   #if defined(CUP_DUMP_SURFACE_BINARY) && !defined(RL_LAYER)
   if (bDump) {

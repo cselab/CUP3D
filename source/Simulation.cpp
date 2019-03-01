@@ -207,6 +207,11 @@ void Simulation::setupOperators()
 
   sim.pipeline.push_back(new CreateObstacles(sim));
 
+  #if PENAL_TYPE==0 // if explicit penal then update vel with ut on the grid:
+  // WILL BREAK ANY NON-STATIONARY OBSTACLE BECAUSE NEXT OPS WILL READ WRONG VEL FOR PENAL
+  sim.pipeline.push_back(new UpdateObstacles(sim));
+  #endif
+
   // Performs:
   // \tilde{u} = u_t + \delta t (\nu \nabla^2 u_t - (u_t \cdot \nabla) u_t )
   sim.pipeline.push_back(new AdvectionDiffusion(sim));
@@ -235,7 +240,9 @@ void Simulation::setupOperators()
   // and therefore we can compute the penalization from above as
   // F_penal = \chi / \delta t ( u_s - u_{t+1} )  // (this is solid onto fluid)
   // this computes the penalization force, the obstacle's velocity, moves CM
+  #if PENAL_TYPE!=0 // if implicit penal then update vel with ut+1 on the grid:
   sim.pipeline.push_back(new UpdateObstacles(sim));
+  #endif
 
   sim.pipeline.push_back(new FadeOut(sim));
 

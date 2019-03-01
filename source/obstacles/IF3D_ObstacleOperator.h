@@ -149,6 +149,9 @@ public:
   virtual void setTranslationVelocity(double UT[3]);
   virtual void setAngularVelocity(const double W[3]);
 
+  Real dvol(const BlockInfo&info, const int x, const int y, const int z) const {
+    Real h[3]; info.spacing(h, x, y, z); return h[0] * h[1] * h[2];
+  }
   // driver to execute finite difference kernels either on all points relevant
   // to the mass of the obstacle (where we have char func) or only on surface
   enum INTEGRAL { VOLUME, SURFACE };
