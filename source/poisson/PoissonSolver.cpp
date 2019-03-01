@@ -15,7 +15,7 @@ void PoissonSolver::_cub2fftw() const
   #if 0
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<local_infos.size(); ++i) {
-      BlockType& b = *(BlockType*) local_infos[i].ptrBlock;
+      const BlockType& b = *(BlockType*) local_infos[i].ptrBlock;
       const size_t offset = _offset(local_infos[i]);
       for(int iz=0; iz<BlockType::sizeZ; iz++)
       for(int ix=0; ix<BlockType::sizeX; ix++)

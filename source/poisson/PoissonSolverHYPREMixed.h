@@ -41,14 +41,19 @@ class PoissonSolverMixed_HYPRE : public PoissonSolver
   };
   HYPRE_Int iGridEnd[3] = {(int)gsize[0]-1, (int)gsize[1]-1, (int)gsize[2]-1};
   const size_t fixed_idx  = linaccess(myN[0]-2, myN[1]-2, myN[2]-2);
-
+  Real coef_fixed_idx = 6 * h;
   const size_t fixed_m1x = linaccess(myN[0]-3, myN[1]-2, myN[2]-2);
+  Real coef_fixed_m1z = h;
   const size_t fixed_m1y = linaccess(myN[0]-2, myN[1]-3, myN[2]-2);
+  Real coef_fixed_p1z = h;
   const size_t fixed_m1z = linaccess(myN[0]-2, myN[1]-2, myN[2]-3);
-
+  Real coef_fixed_m1y = h;
   const size_t fixed_p1x = linaccess(myN[0]-1, myN[1]-2, myN[2]-2);
+  Real coef_fixed_p1y = h;
   const size_t fixed_p1y = linaccess(myN[0]-2, myN[1]-1, myN[2]-2);
+  Real coef_fixed_m1x = h;
   const size_t fixed_p1z = linaccess(myN[0]-2, myN[1]-2, myN[2]-1);
+  Real coef_fixed_p1x = h;
 
   const bool bRankHoldsFixedDOF =
     iupper[0]==iGridEnd[0] && iupper[1]==iGridEnd[1] && iupper[2]==iGridEnd[2];
@@ -57,6 +62,9 @@ class PoissonSolverMixed_HYPRE : public PoissonSolver
   {
     return ix + myN[0] * iy + myN[0]*myN[1] * iz;
   }
+
+  Real * prepareMat_nonUniform();
+  Real * prepareMat();
 
  public:
   void solve() override;

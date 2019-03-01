@@ -43,7 +43,7 @@ public:
     template <int _S, int _E>
     class HaloVector
     {
-    public:
+      public:
         static const int START = _S;
         static const int END   = _E;
 
