@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
-#include "IF3D_FishOperator.h"
-#include "IF3D_FishLibrary.h"
+#include "obstacles/IF3D_FishOperator.h"
+#include "obstacles/IF3D_FishLibrary.h"
 
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"

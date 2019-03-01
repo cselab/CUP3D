@@ -9,7 +9,7 @@
 #ifndef IF2D_ROCKS_IF2D_Frenet_h
 #define IF2D_ROCKS_IF2D_Frenet_h
 
-#include "../Definitions.h"
+#include "Definitions.h"
 
 #include <limits>
 

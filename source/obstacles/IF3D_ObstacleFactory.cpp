@@ -8,24 +8,25 @@
 
 #include <iostream>
 #include <fstream>
-#include "IF3D_ObstacleFactory.h"
-#include "IF2D_FactoryFileLineParser.h"
+#include "obstacles/IF3D_ObstacleFactory.h"
+#include "obstacles/IF2D_FactoryFileLineParser.h"
 
-#include "IF3D_CarlingFishOperator.h"
-//#include "IF3D_CylinderObstacleOperator.h"
-#include "IF3D_DCylinderObstacleOperator.h"
-//#include "IF3D_DeadFishOperator.h"
-#include "IF3D_ExternalObstacleOperator.h"
-#include "IF3D_NacaOperator.h"
-#include "IF3D_PlateObstacleOperator.h"
-#include "IF3D_SphereObstacleOperator.h"
-#include "IF3D_StefanFishOperator.h"
-#include "IF3D_TestDiffusionObstacleOperator.h"
+#include "obstacles/IF3D_CarlingFishOperator.h"
+//#include "obstacles/IF3D_CylinderObstacleOperator.h"
+#include "obstacles/IF3D_DCylinderObstacleOperator.h"
+//#include "obstacles/IF3D_DeadFishOperator.h"
+#include "obstacles/IF3D_ExternalObstacleOperator.h"
+#include "obstacles/IF3D_NacaOperator.h"
+#include "obstacles/IF3D_PlateObstacleOperator.h"
+#include "obstacles/IF3D_SphereObstacleOperator.h"
+#include "obstacles/IF3D_StefanFishOperator.h"
+#include "obstacles/IF3D_TestDiffusionObstacleOperator.h"
 
-//#include "IF3D_ElasticFishOperator.h"
-//#include "IF3D_EllipseObstacleOperator.h"
-//#include "IF3D_CylinderPairOperator.h"
+//#include "obstacles/IF3D_ElasticFishOperator.h"
+//#include "obstacles/IF3D_EllipseObstacleOperator.h"
+//#include "obstacles/IF3D_CylinderPairOperator.h"
 
+using namespace cubismup3d;
 
 std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser & parser)
 {

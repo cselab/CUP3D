@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "PoissonSolverMixed.h"
-#include "PoissonSolver_common.h"
+#include "poisson/PoissonSolverMixed.h"
+#include "poisson/PoissonSolver_common.h"
 
 
 PoissonSolverMixed::PoissonSolverMixed(SimulationData & s) : PoissonSolver(s)

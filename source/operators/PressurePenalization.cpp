@@ -6,20 +6,20 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "PressurePenalization.h"
-#include "PenalizationObstacleVisitor.h"
+#include "operators/PressurePenalization.h"
+#include "operators/PenalizationObstacleVisitor.h"
 
 #ifdef _ACCFFT_
-#include "../poisson/PoissonSolverACCPeriodic.h"
-#include "../poisson/PoissonSolverACCUnbounded.h"
+#include "poisson/PoissonSolverACCPeriodic.h"
+#include "poisson/PoissonSolverACCUnbounded.h"
 #else
-#include "../poisson/PoissonSolverPeriodic.h"
-#include "../poisson/PoissonSolverUnbounded.h"
+#include "poisson/PoissonSolverPeriodic.h"
+#include "poisson/PoissonSolverUnbounded.h"
 #endif
 // TODO : Cosine transform on GPU!?
-#include "../poisson/PoissonSolverMixed.h"
-#include "../poisson/PoissonSolverHYPREMixed.h"
-#include "../poisson/PoissonSolverPETSCMixed.h"
+#include "poisson/PoissonSolverMixed.h"
+#include "poisson/PoissonSolverHYPREMixed.h"
+#include "poisson/PoissonSolverPETSCMixed.h"
 
 class KernelGradP
 {

@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_AdvectionDiffusion_h
 #define CubismUP_3D_AdvectionDiffusion_h
 
-#include "Operator.h"
+#include "operators/Operator.h"
 
 class AdvectionDiffusion : public Operator
 {

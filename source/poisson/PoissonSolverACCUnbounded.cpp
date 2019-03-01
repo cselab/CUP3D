@@ -6,10 +6,10 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "PoissonSolverACCUnbounded.h"
+#include "poisson/PoissonSolverACCUnbounded.h"
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h>
-#include "PoissonSolverACC_common.h"
+#include "poisson/PoissonSolverACC_common.h"
 
 void dSolveFreespace(const int ox,const int oy,const int oz,const size_t mz_pad,
   const Real*const G_hat, Real*const gpu_rhs);

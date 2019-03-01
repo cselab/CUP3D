@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_ComputeDissipation_h
 #define CubismUP_3D_ComputeDissipation_h
 
-#include "Operator.h"
+#include "operators/Operator.h"
 
 class ComputeDissipation : public Operator
 {

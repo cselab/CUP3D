@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_Operator_h
 #define CubismUP_3D_Operator_h
 
-#include "../SimulationData.h"
+#include "SimulationData.h"
 
 class Operator
 {

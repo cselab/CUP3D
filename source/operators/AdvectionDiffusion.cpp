@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "AdvectionDiffusion.h"
+#include "operators/AdvectionDiffusion.h"
 
 class KernelAdvectDiffuse
 {

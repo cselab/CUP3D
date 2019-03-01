@@ -9,8 +9,8 @@
 #ifndef CubismUP_3D_ObstacleManagement_h
 #define CubismUP_3D_ObstacleManagement_h
 
-#include "Operator.h"
-#include "../obstacles/IF3D_ObstacleVector.h"
+#include "operators/Operator.h"
+#include "obstacles/IF3D_ObstacleVector.h"
 
 class CreateObstacles : public Operator
 {

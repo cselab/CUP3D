@@ -10,7 +10,7 @@
 #pragma once
 #ifdef CUP_PETSC
 
-#include "PoissonSolver.h"
+#include "poisson/PoissonSolver.h"
 
 class PoissonSolverMixed_PETSC : public PoissonSolver
 {

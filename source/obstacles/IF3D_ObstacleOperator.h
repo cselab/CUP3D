@@ -9,9 +9,9 @@
 #ifndef IF3D_ROCKS_IF3D_ObstacleOperator_h
 #define IF3D_ROCKS_IF3D_ObstacleOperator_h
 
-#include "../SimulationData.h"
-//#include "IF3D_ObstacleLibrary.h"
-#include "../operators/OperatorComputeForces.h"
+#include "SimulationData.h"
+//#include "obstacles/IF3D_ObstacleLibrary.h"
+#include "operators/OperatorComputeForces.h"
 
 #include <array>
 #include <fstream>

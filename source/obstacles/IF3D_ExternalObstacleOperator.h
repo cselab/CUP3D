@@ -6,16 +6,17 @@
 //  Created by Ivica Kicic (kicici@ethz.ch) in May 2018.
 //
 
+#ifndef CUBISMUP3D_EXTERNAL_OBSTACLE_OPERATOR_H
+#define CUBISMUP3D_EXTERNAL_OBSTACLE_OPERATOR_H
+
 /*
  * This obstacle can be used to insert obstacles whose shape and velocity is
  * defined by an external code. Intended to be used when CubismUP_3D used as a
  * library.
  */
-#include "../CubismUP_3D.h"
-#include "IF3D_ObstacleOperator.h"
+#include "CubismUP_3D.h"
+#include "obstacles/IF3D_ObstacleOperator.h"
 
-#ifndef CUBISMUP3D_EXTERNAL_OBSTACLE_OPERATOR_H
-#define CUBISMUP3D_EXTERNAL_OBSTACLE_OPERATOR_H
 
 class IF3D_ExternalObstacleOperator : public IF3D_ObstacleOperator
 {

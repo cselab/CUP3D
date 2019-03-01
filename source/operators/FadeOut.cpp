@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "FadeOut.h"
+#include "operators/FadeOut.h"
 
 class KernelFadeOut
 {

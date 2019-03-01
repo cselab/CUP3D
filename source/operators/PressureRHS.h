@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_PressureRHS_h
 #define CubismUP_3D_PressureRHS_h
 
-#include "Operator.h"
+#include "operators/Operator.h"
 
 class PressureRHS : public Operator
 {

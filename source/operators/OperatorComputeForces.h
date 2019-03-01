@@ -9,8 +9,8 @@
 #ifndef CubismUP_2D_OperatorComputeForces_h
 #define CubismUP_2D_OperatorComputeForces_h
 
-#include "../Definitions.h"
-#include "../ObstacleBlock.h"
+#include "Definitions.h"
+#include "ObstacleBlock.h"
 
 struct OperatorComputeForces
 {

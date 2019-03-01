@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "ObstacleManagement.h"
-#include "../obstacles/IF3D_ObstacleVector.h"
+#include "operators/ObstacleManagement.h"
+#include "obstacles/IF3D_ObstacleVector.h"
 
 struct VelocityObstacleVisitor : public ObstacleVisitor
 {

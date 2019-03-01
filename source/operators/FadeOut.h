@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_CoordinatorFadeOut_h
 #define CubismUP_3D_CoordinatorFadeOut_h
 
-#include "Operator.h"
+#include "operators/Operator.h"
 
 class FadeOut : public Operator
 {

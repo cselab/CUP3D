@@ -7,7 +7,7 @@
 //
 
 
-#include "PoissonSolverHYPREMixed.h"
+#include "poisson/PoissonSolverHYPREMixed.h"
 #ifdef CUP_HYPRE
 #ifndef CUP_SINGLE_PRECISION
 #define MPIREAL MPI_DOUBLE

@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "PoissonSolver.h"
+#include "poisson/PoissonSolver.h"
 
 class PoissonSolverMixed : public PoissonSolver
 {

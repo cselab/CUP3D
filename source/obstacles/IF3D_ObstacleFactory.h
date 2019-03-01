@@ -9,7 +9,7 @@
 #ifndef __IF3D_ROCKS__IF3D_ObstacleFactory__
 #define __IF3D_ROCKS__IF3D_ObstacleFactory__
 
-#include "IF3D_ObstacleOperator.h"
+#include "obstacles/IF3D_ObstacleOperator.h"
 
 namespace cubism { struct ArgumentParser; }
 

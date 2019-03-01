@@ -11,7 +11,7 @@
 #ifdef CUP_HYPRE
 
 #include "HYPRE_struct_ls.h"
-#include "PoissonSolver.h"
+#include "poisson/PoissonSolver.h"
 
 class PoissonSolverMixed_HYPRE : public PoissonSolver
 {

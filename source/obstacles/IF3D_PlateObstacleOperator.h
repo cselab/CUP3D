@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "IF3D_ObstacleOperator.h"
+#include "obstacles/IF3D_ObstacleOperator.h"
 
 /*
  * Plate operator.

@@ -9,8 +9,8 @@
 #ifndef CubismUP_3D_LinearInterpolation_h
 #define CubismUP_3D_LinearInterpolation_h
 
-#include "../operators/GenericOperator.h"
-#include "../operators/GenericCoordinator.h"
+#include "operators/GenericOperator.h"
+#include "operators/GenericCoordinator.h"
 #include <vector>
 
 namespace cubismup3d {

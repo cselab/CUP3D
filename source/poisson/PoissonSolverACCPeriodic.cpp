@@ -6,9 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "PoissonSolverACCPeriodic.h"
+#include "poisson/PoissonSolverACCPeriodic.h"
 #include <cuda_runtime_api.h>
-#include "PoissonSolverACC_common.h"
+#include "poisson/PoissonSolverACC_common.h"
 
 void _fourier_filter_gpu(
   acc_c*const __restrict__ data_hat, const size_t gsize[3],
