@@ -210,7 +210,7 @@ librl: $(LIBRLOBJ) $(NVOBJECTS)
 	$(CC) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 
 PoissonSolverACC_kernels.o: PoissonSolverACC_kernels.cu
-	nvcc $(NVFLAGS) -c $< -o $@
+	$(NVCC) $(NVFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(EXEOBJ) $(LIBOBJ)
