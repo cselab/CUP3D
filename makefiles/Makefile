@@ -90,6 +90,7 @@ ifneq "$(findstring eu-,$(shell hostname))" ""
 endif
 
 CPPFLAGS += -I../source/ -I../Cubism/include/
+NVFLAGS += -I../source/
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
