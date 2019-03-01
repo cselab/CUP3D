@@ -173,7 +173,7 @@ else
 endif
 
 #LIBS += -L../tools/fpzip/lib -lfpzip
-ifneq ("$(GSL_ROOT_DIR)",)
+ifneq "$(GSL_ROOT_DIR)" ""
 	CPPFLAGS += -I$(GSL_ROOT_DIR)/include
 	LIBS += -L$(GSL_ROOT_DIR)/lib
 endif
