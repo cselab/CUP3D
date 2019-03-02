@@ -21,7 +21,7 @@ struct VelocityObstacleVisitor : public ObstacleVisitor
   void visit(IF3D_ObstacleOperator* const obstacle)
   {
     const auto &bFixFrameOfRef = obstacle->bFixFrameOfRef;
-    obstacle->computeVelocities(dt, lambda);
+    obstacle->computeVelocities();
     double povU[3];
     obstacle->getTranslationVelocity(povU);
 
@@ -33,7 +33,7 @@ struct VelocityObstacleVisitor : public ObstacleVisitor
 
 class KernelCharacteristicFunction
 {
-  using v_v_ob = std::std::vector<std::vector<ObstacleBlock*>*>;
+  using v_v_ob = std::vector<std::vector<ObstacleBlock*>*>;
   const v_v_ob & vec_obstacleBlocks;
 
   public:
@@ -104,7 +104,7 @@ class KernelCharacteristicFunction
         const Real H     = numH/gradUSq;
 
         o->chi[iz][iy][ix] = H;
-        if (delta>1e-6)
+        if (Delta>1e-6)
           o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
         b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
         o->CoM_x += p[0]*H;
@@ -160,7 +160,7 @@ void UpdateObstacles::operator()(const double dt)
   //  uInf[0],uInf[1],uInf[2],nSum[0],nSum[1],nSum[2]);
   delete VIS;
 
-  sim.obstacle_vector->update(sim.step, sim.time, dt, sim.uinf);
+  sim.obstacle_vector->update();
 
   sim.stopProfiler();
   check("obst. update");

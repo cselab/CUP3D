@@ -13,7 +13,7 @@ struct KernelComputeForces : public ObstacleVisitor
 {
   IF3D_ObstacleVector * const obstacle_vector;
   const double nu, dt;
-  const LabMPI * lab_ptr;
+  LabMPI * lab_ptr;
   const BlockInfo * info_ptr;
 
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
@@ -22,7 +22,7 @@ struct KernelComputeForces : public ObstacleVisitor
   KernelComputeForces(double _nu, double _dt, IF3D_ObstacleVector* ov) :
     obstacle_vector(ov), nu(_nu), dt(_dt) { }
 
-  void operator()(const LabMPI&lab,const BlockInfo&info,const FluidBlock&block)
+  void operator()(LabMPI&lab,const BlockInfo&info,const FluidBlock&block)
   {
     // first store the lab and info, then do visitor
     lab_ptr = & lab;
@@ -30,20 +30,20 @@ struct KernelComputeForces : public ObstacleVisitor
     obstacle_vector->Accept( (ObstacleVisitor*) this);
   }
 
-  void visit(IF3D_ObstacleOperator* const p)
+  void visit(IF3D_ObstacleOperator* const op)
   {
-    const LabMPI& l = * lab_ptr;
+    LabMPI& l = * lab_ptr;
     const BlockInfo& info = * info_ptr;
-    const std::vector<ObstacleBlock*>& obstblocks = p->getObstacleBlocks();
+    const std::vector<ObstacleBlock*>& obstblocks = op->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;
     if (o->nPoints == 0) return;
     assert(o->filled);
 
     double uTrans[3], omega[3], CM[3];
-    obstacle->getCenterOfMass(CM);
-    obstacle->getTranslationVelocity(uTrans);
-    obstacle->getAngularVelocity(omega);
+    op->getCenterOfMass(CM);
+    op->getTranslationVelocity(uTrans);
+    op->getAngularVelocity(omega);
     double velUnit[3] = {0., 0., 0.};
     const double vel_norm = std::sqrt(uTrans[0]*uTrans[0]
                                     + uTrans[1]*uTrans[1]
@@ -54,7 +54,7 @@ struct KernelComputeForces : public ObstacleVisitor
         velUnit[2] = uTrans[2] / vel_norm;
     }
 
-    const double _1oH = NU / info.h_gridpoint;
+    const double _1oH = nu / info.h_gridpoint;
     //const Real _h3 = std::pow(info.h_gridpoint,3);
 
     //loop over elements of block info that have nonzero gradChi
@@ -124,7 +124,7 @@ struct KernelComputeForces : public ObstacleVisitor
       }
       */
       //thrust, drag:
-      const double forcePar= fXT*vel_unit[0] +fYT*vel_unit[1] +fZT*vel_unit[2];
+      const double forcePar= fXT*velUnit[0] +fYT*velUnit[1] +fZT*velUnit[2];
       o->thrust += .5*(forcePar + std::fabs(forcePar));
       o->drag   -= .5*(forcePar - std::fabs(forcePar));
 
@@ -159,7 +159,7 @@ void ComputeForces::operator()(const double dt)
 
   compute<KernelComputeForces>(K);
 
-  for(int i=0; i<nthreads; i++) delete forces[i];
+  for(int i=0; i<nthreads; i++) delete K[i];
   // do the final reductions and so on
   sim.obstacle_vector->computeForces();
   sim.stopProfiler();

@@ -349,6 +349,7 @@ bool VolumeSegment_OBB::isIntersectingWithAABB(const Real start[3],const Real en
   assert(AABB_w[0]>0 && AABB_w[1]>0 && AABB_w[2]>0);
 
   // Now Identify the ones that do not intersect
+  using std::max; using std::min;
   Real intersectionLabFrame[3][2] = {
   {max(objBoxLabFr[0][0],AABB_box[0][0]),min(objBoxLabFr[0][1],AABB_box[0][1])},
   {max(objBoxLabFr[1][0],AABB_box[1][0]),min(objBoxLabFr[1][1],AABB_box[1][1])},
@@ -603,6 +604,7 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
           assert(wghts[c][0]>=0 && wghts[c][1]>=0);
         }
 
+        using std::max; using std::min;
         for(int sz=max(0,0-iap[2]); sz<min(2,FluidBlock::sizeZ-iap[2]); ++sz)
         for(int sy=max(0,0-iap[1]); sy<min(2,FluidBlock::sizeY-iap[1]); ++sy)
         for(int sx=max(0,0-iap[0]); sx<min(2,FluidBlock::sizeX-iap[0]); ++sx) {
@@ -639,6 +641,7 @@ void PutFishOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, O
     UDEF[iz][iy][ix][0] /= normfac;
     UDEF[iz][iy][ix][1] /= normfac;
     UDEF[iz][iy][ix][2] /= normfac;
+    CHI[iz][iy][ix] = 0; // clear it up to then contain actual char function
     // change from signed squared distance function to normal sdf
     SDF[iz][iy][ix] = SDF[iz][iy][ix] >= 0 ? std::sqrt( SDF[iz][iy][ix]) :
                                             -std::sqrt(-SDF[iz][iy][ix]);
@@ -834,6 +837,7 @@ void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
         const Real signZ = (0 < distZ) - (distZ < 0);
         const Real distZsq = signZ*distZ*distZ;
 
+        using std::max; using std::min;
         for(int sy=max(0,0-iap[1]); sy<min(2,FluidBlock::sizeY-iap[1]); ++sy)
         for(int sx=max(0,0-iap[0]); sx<min(2,FluidBlock::sizeX-iap[0]); ++sx) {
           const Real wxwywz = wz * wghts[1][sy] * wghts[0][sx];

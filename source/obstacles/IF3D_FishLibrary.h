@@ -343,10 +343,10 @@ struct PutFishOnBlocks
     x[2]=Rmatrix3D[0][2]*p[0] + Rmatrix3D[1][2]*p[1] + Rmatrix3D[2][2]*p[2];
   }
 
-  void operator()(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const;
-  virtual void constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblck, const std::vector<VolumeSegment_OBB>& vSeg) const;
-  virtual void constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblck, const std::vector<VolumeSegment_OBB>& vSeg) const;
-  virtual void signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblck, const std::vector<VolumeSegment_OBB>& vSeg) const;
+  void operator()(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const;
+  virtual void constructSurface(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const;
+  virtual void constructInternl(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const;
+  virtual void signedDistanceSqrt(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const;
 };
 
 struct PutNacaOnBlocks: public PutFishOnBlocks
@@ -355,8 +355,8 @@ struct PutNacaOnBlocks: public PutFishOnBlocks
 
   Real getSmallerDistToMidLPlanar(const int start_s, const Real x[3], int & final_s) const;
 
-  void constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegm) const override;
-  void constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegm) const override;
+  void constructSurface(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const override;
+  void constructInternl(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const override;
 };
 
 namespace MidlineShapes

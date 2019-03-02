@@ -82,6 +82,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 
   bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
   {
+    using std::max; using std::min;
     const Real intersection[3][2] = {
         max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
         max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
@@ -119,6 +120,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 };
 }
 
+#if 0
 namespace EllipsoidObstacle
 {
 // code from http://www.geometrictools.com/
@@ -358,5 +360,4 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 };
 }
 #endif
-
 #endif

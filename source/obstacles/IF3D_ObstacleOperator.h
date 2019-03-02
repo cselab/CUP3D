@@ -9,6 +9,7 @@
 #ifndef IF3D_ROCKS_IF3D_ObstacleOperator_h
 #define IF3D_ROCKS_IF3D_ObstacleOperator_h
 
+#include "ObstacleBlock.h"
 #include "SimulationData.h"
 
 #include <array>
@@ -112,16 +113,16 @@ public:
   virtual void finalize();
 
   //methods that work for all obstacles
-  std::map<int,ObstacleBlock*> getObstacleBlocks() const
+  std::vector<ObstacleBlock*> getObstacleBlocks() const
   {
       return obstacleBlocks;
   }
-  std::map<int,ObstacleBlock*>* getObstacleBlocksPtr()
+  std::vector<ObstacleBlock*>* getObstacleBlocksPtr()
   {
       return &obstacleBlocks;
   }
 
-  void getObstacleBlocks(std::map<int,ObstacleBlock*>*& obstblock_ptr)
+  void getObstacleBlocks(std::vector<ObstacleBlock*>*& obstblock_ptr)
   {
       obstblock_ptr = &obstacleBlocks;
   }
@@ -132,9 +133,9 @@ public:
   virtual ~IF3D_ObstacleOperator()
   {
     for(auto & entry : obstacleBlocks) {
-      if(entry.second != nullptr) {
-          delete entry.second;
-          entry.second = nullptr;
+      if(entry != nullptr) {
+          delete entry;
+          entry = nullptr;
       }
     }
     obstacleBlocks.clear();
@@ -158,7 +159,7 @@ public:
   void create_base(const T& kernel)
   {
     for(auto & entry : obstacleBlocks) {
-      delete entry.second;
+      delete entry;
       entry = nullptr;
     }
     obstacleBlocks.resize(vInfo.size(), nullptr);

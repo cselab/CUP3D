@@ -7,7 +7,7 @@
 //
 
 #include "obstacles/IF3D_CarlingFishOperator.h"
-#include "obstacles/extra/IF3D_FishLibrary.h"
+#include "obstacles/IF3D_FishLibrary.h"
 
 #include "Cubism/ArgumentParser.h"
 

@@ -8,7 +8,7 @@
 
 #include "obstacles/IF3D_StefanFishOperator.h"
 
-#include "obstacles/extra/IF3D_FishLibrary.h"
+#include "obstacles/IF3D_FishLibrary.h"
 
 #include "Cubism/ArgumentParser.h"
 

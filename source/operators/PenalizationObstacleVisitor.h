@@ -28,7 +28,7 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
     using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
     #pragma omp parallel
     {
-      const std::map<int, ObstacleBlock*>& obstblocks =
+      const std::vector<ObstacleBlock*>& obstblocks =
         obstacle->getObstacleBlocks();
       double uBody[3], omegaBody[3], centerOfMass[3];
       obstacle->getCenterOfMass(centerOfMass);
@@ -39,11 +39,11 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
       for (size_t i = 0; i < Nblocks; ++i)
       {
         const BlockInfo& info = vInfo[i];
-        const auto pos = obstblocks.find(info.blockID);
-        if(pos == obstblocks.end()) continue;
+        const auto pos = obstblocks[info.blockID];
+        if(pos == nullptr) continue;
 
         FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        UDEFMAT & __restrict__ UDEF = pos->second->udef;
+        UDEFMAT & __restrict__ UDEF = pos->udef;
 
         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -88,7 +88,7 @@ struct InitialPenalization : public ObstacleVisitor
     using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
     #pragma omp parallel
     {
-      const std::map<int, ObstacleBlock*>& obstblocks =
+      const std::vector<ObstacleBlock*>& obstblocks =
         obstacle->getObstacleBlocks();
       double uBody[3], omegaBody[3], centerOfMass[3];
       obstacle->getCenterOfMass(centerOfMass);
@@ -99,12 +99,12 @@ struct InitialPenalization : public ObstacleVisitor
       for (size_t i = 0; i < Nblocks; ++i)
       {
         const BlockInfo& info = vInfo[i];
-        const auto pos = obstblocks.find(info.blockID);
-        if(pos == obstblocks.end()) continue;
+        const auto pos = obstblocks[info.blockID];
+        if(pos == nullptr) continue;
 
         FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        CHI_MAT & __restrict__ CHI = pos->second->chi;
-        UDEFMAT & __restrict__ UDEF = pos->second->udef;
+        CHI_MAT & __restrict__ CHI = pos->chi;
+        UDEFMAT & __restrict__ UDEF = pos->udef;
 
         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)

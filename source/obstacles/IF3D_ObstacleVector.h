@@ -48,12 +48,11 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
         return obstacles;
     }
 
-    std::std::vector<std::vector<ObstacleBlock*>*> getAllObstacleBlocks() const
+    std::vector<std::vector<ObstacleBlock*>*> getAllObstacleBlocks() const
     {
       const size_t Nobs = obstacles.size();
-      std::std::vector<std::vector<ObstacleBlock*>*> ret(Nobs, nullptr);
-      for(const auto & obstacle_ptr : obstacles)
-        ret[i] = obstacle_ptr->getObstacleBlocksPtr();
+      std::vector<std::vector<ObstacleBlock*>*> ret(Nobs, nullptr);
+      for(size_t i=0; i<Nobs; i++) ret[i]= obstacles[i]->getObstacleBlocksPtr();
       return ret;
     }
     Real getD() const override;

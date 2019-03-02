@@ -34,7 +34,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   nu = parser("-nu").asDouble();
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
   lambda = 0.0; //parser("-lambda").asDouble(1e6);
-  DLM = 1.0;//parser("-use-dlm").asDouble(0.0);
+  DLM = parser("-use-dlm").asDouble(1.0);
   CFL = parser("-CFL").asDouble(.1);
   uinf[0] = parser("-uinfx").asDouble(0.0);
   uinf[1] = parser("-uinfy").asDouble(0.0);

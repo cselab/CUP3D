@@ -238,7 +238,7 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
   #endif
 }
 
-void IF3D_ObstacleOperator::computeVelocities(const double dt,const Real lambda)
+void IF3D_ObstacleOperator::computeVelocities()
 {
   const Real dt = sim.dt, lambda = sim.lambda;
   double CM[3];
@@ -371,6 +371,9 @@ void IF3D_ObstacleOperator::computeForces()
   PoutBnd     = sum[k++]; defPower    = sum[k++]; defPowerBnd = sum[k++];
   pLocom      = sum[k++];
 
+  const double vel_norm = std::sqrt(transVel[0]*transVel[0]
+                                  + transVel[1]*transVel[1]
+                                  + transVel[2]*transVel[2]);
   //derived quantities:
   Pthrust    = thrust*vel_norm;
   Pdrag      =   drag*vel_norm;
@@ -393,9 +396,9 @@ void IF3D_ObstacleOperator::computeForces()
 void IF3D_ObstacleOperator::update()
 {
   const Real dt = sim.dt;
-  position[0] += dt * ( transVel[0] + Uinf[0] );
-  position[1] += dt * ( transVel[1] + Uinf[1] );
-  position[2] += dt * ( transVel[2] + Uinf[2] );
+  position[0] += dt * ( transVel[0] + sim.uinf[0] );
+  position[1] += dt * ( transVel[1] + sim.uinf[1] );
+  position[2] += dt * ( transVel[2] + sim.uinf[2] );
   absPos[0] += dt * transVel[0];
   absPos[1] += dt * transVel[1];
   absPos[2] += dt * transVel[2];
@@ -476,7 +479,7 @@ std::vector<int> IF3D_ObstacleOperator::intersectingBlockIDs(const int buffer) c
   assert(buffer <= 2); // only works for 2: if different definition of deformation blocks, implement your own
   std::vector<int> ret;
   for(size_t i=0; i<vInfo.size(); i++)
-    if(obstacleBlocks[info.blockID] != nullptr) ret.push_back(vInfo[i].blockID);
+  if(obstacleBlocks[vInfo[i].blockID]!=nullptr) ret.push_back(vInfo[i].blockID);
   return ret;
 }
 

@@ -94,7 +94,7 @@ void IF3D_SphereObstacleOperator::create()
 {
   const SphereObstacle::FillBlocks K(radius, vInfo[0].h_gridpoint, position);
 
-  create_base<PlateObstacle::FillBlocks>(K);
+  create_base<SphereObstacle::FillBlocks>(K);
 }
 
 void IF3D_SphereObstacleOperator::finalize()

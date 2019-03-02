@@ -64,7 +64,7 @@ void IF3D_FishOperator::apply_pid_corrections()
     const double xDiff = (position[0] - followX)/length;
     const double yDiff = (position[1] - followY)/length;
     const double absDY = std::fabs(yDiff);
-    const double velAbsDY = (yDiff>0? 1 : -1) * (transVel[1] + Uinf[1])/length;
+    const double velAbsDY = (yDiff>0? 1 : -1) * (transVel[1] + sim.uinf[1])/length;
     const double velDAvg = AngDiff-adjTh + sim.dt*angVel[2];
 
     adjTh = (1-sim.dt) * adjTh + sim.dt * AngDiff;
@@ -180,13 +180,14 @@ std::vector<VolumeSegment_OBB> IF3D_FishOperator::prepare_vSegments()
   return vSegments;
 }
 
-intersect_t IF3D_FishOperator::prepare_segPerBlock(const vecsegm_t& vSegments)
+using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;
+intersect_t IF3D_FishOperator::prepare_segPerBlock(vecsegm_t& vSegments)
 {
-  std::vector<std::vector<VolumeSegment_OBB*>> ret(vInfo.size(), nullptr);
+  std::vector<std::vector<VolumeSegment_OBB*>> ret(vInfo.size());
 
   // clear deformation velocities
   for(auto & entry : obstacleBlocks) {
-    delete entry.second;
+    delete entry;
     entry = nullptr;
   }
   obstacleBlocks.resize(vInfo.size(), nullptr);
@@ -200,8 +201,10 @@ intersect_t IF3D_FishOperator::prepare_segPerBlock(const vecsegm_t& vSegments)
     info.pos(pEnd, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
 
     for(size_t s=0; s<vSegments.size(); ++s)
-      if(vSegments[s].isIntersectingWithAABB(pStart,pEnd))
-        ret[info.blockID].push_back( & vSegments[s] );
+      if(vSegments[s].isIntersectingWithAABB(pStart,pEnd)) {
+        VolumeSegment_OBB*const ptr  = & vSegments[s];
+        ret[info.blockID].push_back( ptr );
+      }
 
     // allocate new blocks if necessary
     if( ret[info.blockID].size() > 0 ) {
@@ -294,10 +297,10 @@ void IF3D_FishOperator::create()
   //CAREFUL: this func assumes everything is already centered around CM to start with, which is true (see steps 2. & 3. ...) for rX, rY: they are zero at CM, negative before and + after
 
   // 4. & 5.
-  const std::vector<VolumeSegment_OBB> vSegments = prepare_vSegments();
+  std::vector<VolumeSegment_OBB> vSegments = prepare_vSegments();
 
   // 6. & 7.
-  const std::vector<vecVolSeg*> segmPerBlock = prepare_segPerBlock(vSegments);
+  const intersect_t segmPerBlock = prepare_segPerBlock(vSegments);
   assert(segmPerBlock.size() == obstacleBlocks.size());
 
   // 8.

@@ -290,7 +290,7 @@ void Simulation::_serialize(const std::string append)
   if(sim.rank==0) std::cout<<"Saving to "<<fpath<<"\n";
 
   if (sim.rank==0) { //rank 0 saves step id and obstacles
-    sim.obstacle_vector->save(sim.step,sim.time,fpath);
+    sim.obstacle_vector->save(fpath);
     //safety status in case of crash/timeout during grid save:
     FILE * f = fopen((fpath+".status").c_str(), "w");
     assert(f != NULL);
@@ -423,7 +423,7 @@ void Simulation::_deserialize()
     MPI_Abort(sim.grid->getCartComm(), 1);
   #endif
 
-  sim.obstacle_vector->restart(sim.time, sim.path4serialization+"/"+ssR.str());
+  sim.obstacle_vector->restart(sim.path4serialization+"/"+ssR.str());
 
   printf("DESERIALIZATION: time is %f and step id is %d\n", sim.time, sim.step);
   // prepare time for next save

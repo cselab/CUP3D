@@ -35,7 +35,7 @@ protected:
   // second how to intersect those blocks of segments with grid blocks:
   // (override to create special obstacle blocks for local force balances)
   typedef std::vector<std::vector<VolumeSegment_OBB*>> intersect_t;
-  virtual intersect_t prepare_segPerBlock(const vecsegm_t& vSeg);
+  virtual intersect_t prepare_segPerBlock(vecsegm_t& vSeg);
   // third how to interpolate on the grid given the intersections:
   virtual void writeSDFOnBlocks(const intersect_t& segPerBlock);
 
