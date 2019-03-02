@@ -8,7 +8,7 @@
 
 #include <iostream>
 #include <fstream>
-#include "obstacles/extra/IF3D_ObstacleFactory.h"
+#include "obstacles/IF3D_ObstacleFactory.h"
 #include "obstacles/extra/IF2D_FactoryFileLineParser.h"
 
 #include "obstacles/IF3D_CarlingFishOperator.h"

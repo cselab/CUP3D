@@ -7,7 +7,7 @@
 //
 
 
-#include "obstacles/extra/IF3D_FishLibrary.h"
+#include "obstacles/IF3D_FishLibrary.h"
 #include <gsl/gsl_bspline.h>
 #include <gsl/gsl_statistics.h>
 
