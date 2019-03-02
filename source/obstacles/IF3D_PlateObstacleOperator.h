@@ -63,6 +63,6 @@ public:
 
     void _from_alpha(double alpha);
     void _init(void);
-    void create(int step_id, double time, double dt, const Real *Uinf) override;
-    void finalize(int step_id, double time, double dt, const Real *Uinf) override;
+    void create() override;
+    void finalize() override;
 };

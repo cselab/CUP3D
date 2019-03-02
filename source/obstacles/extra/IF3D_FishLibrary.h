@@ -12,8 +12,8 @@
 #include <cmath>
 
 #include "Definitions.h"
-#include "obstacles/IF2D_Frenet.h"
-#include "obstacles/IF3D_Schedulers.h"
+#include "obstacles/extra/IF2D_Frenet.h"
+#include "obstacles/extra/IF3D_Schedulers.h"
 #include "ObstacleBlock.h"
 
 #define __BSPLINE
@@ -357,18 +357,6 @@ struct PutNacaOnBlocks: public PutFishOnBlocks
 
   void constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegm) const override;
   void constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegm) const override;
-};
-
-struct PutFishOnBlocks_Finalize
-{
-  Real t;
-  const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 5);
-  const Real eps = std::numeric_limits<Real>::epsilon();
-
-  PutFishOnBlocks_Finalize() : t(0) { }
-
-  void operator()(LabMPI& l, const BlockInfo& i, FluidBlock& b, ObstacleBlock*const o);
 };
 
 namespace MidlineShapes

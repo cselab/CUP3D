@@ -7,7 +7,7 @@
 //
 
 #include "obstacles/IF3D_ExternalObstacleOperator.h"
-#include "obstacles/IF3D_ObstacleLibrary.h"
+#include "obstacles/extra/IF3D_ObstacleLibrary.h"
 
 using namespace cubismup3d;
 
@@ -80,9 +80,8 @@ IF3D_ExternalObstacleOperator::IF3D_ExternalObstacleOperator(
     bBlockRotation = {true, true, true};
 }
 
-void IF3D_ExternalObstacleOperator::computeVelocities(
-        const double dt, const Real lambda) {
-    IF3D_ObstacleOperator::computeVelocities(dt, lambda);
+void IF3D_ExternalObstacleOperator::computeVelocities() {
+    IF3D_ObstacleOperator::computeVelocities();
 
     if (settings.com_velocity_fn != nullptr) {
         settings.com_velocity_fn(settings.obj, transVel_imposed);
@@ -95,11 +94,7 @@ void IF3D_ExternalObstacleOperator::computeVelocities(
 /*
  * Finds out which blocks are affected (overlap with the object).
  */
-void IF3D_ExternalObstacleOperator::create(
-        const int step_id,
-        const double time,
-        const double dt,
-        const Real * const Uinf)
+void IF3D_ExternalObstacleOperator::create()
 {
     if (!settings.is_touching_fn
             || !settings.signed_distance_fn
@@ -110,34 +105,20 @@ void IF3D_ExternalObstacleOperator::create(
     }
     assert(settings.obj != nullptr);
 
-    for (auto &entry : obstacleBlocks)
-        delete entry.second;
-    obstacleBlocks.clear();
+    const FillBlocksExternal kernel(settings);
+    create_base<FillBlocksExternal>(kernel);
 
-    {
-        FillBlocksExternal kernel(settings);
-
-        for (const BlockInfo &info : vInfo)
-            if (kernel.isTouching(info)) {
-                obstacleBlocks[info.blockID] = new ObstacleBlock;
-                obstacleBlocks[info.blockID]->clear();  // memset 0
-            }
+    #pragma omp parallel for schedule(dynamic, 1)
+    for (int i = 0; i < (int)vInfo.size(); ++i) {
+        const BlockInfo &info = vInfo[i];
+        if (obstacleBlocks[info.blockID] == nullptr) continue;
+        kernel.setVelocity(info, obstacleBlocks[info.blockID]);
     }
+}
 
-    #pragma omp parallel
-    {
-        FillBlocksExternal kernel(settings);
-
-        #pragma omp for
-        for (int i = 0; i < (int)vInfo.size(); ++i) {
-            const BlockInfo &info = vInfo[i];
-            const auto pos = obstacleBlocks.find(info.blockID);
-            if (pos != obstacleBlocks.end()) {
-                kernel(info, pos->second);
-                kernel.setVelocity(info, pos->second);
-            }
-        }
-    }
-    for (auto &o : obstacleBlocks)
-        o.second->allocate_surface();
+void IF3D_ExternalObstacleOperator::finalize()
+{
+  // this method allows any computation that requires the char function
+  // to be computed. E.g. compute the effective center of mass or removing
+  // momenta from udef
 }

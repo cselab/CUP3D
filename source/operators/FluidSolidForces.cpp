@@ -6,32 +6,57 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_2D_OperatorComputeForces_h
-#define CubismUP_2D_OperatorComputeForces_h
 
-#include "Definitions.h"
-#include "ObstacleBlock.h"
+#include "operators/FluidSolidForces.h"
 
-struct OperatorComputeForces
+struct KernelComputeForces : public ObstacleVisitor
 {
+  IF3D_ObstacleVector * const obstacle_vector;
+  const double nu, dt;
+  const LabMPI * lab_ptr;
+  const BlockInfo * info_ptr;
+
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
-  const double NU, dt;
-  const double* const vel_unit;
-  const double* const CM;
-  const double* const omega;
-  const double* const uTrans;
+  StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
 
-  OperatorComputeForces(const double nu, const double DT, const double*vunit,
-  const double*cm, const double*_omega, const double*_uTrans) :
-  NU(nu), dt(DT), vel_unit(vunit), CM(cm), omega(_omega), uTrans(_uTrans) { }
+  KernelComputeForces(double _nu, double _dt, IF3D_ObstacleVector* ov) :
+    obstacle_vector(ov), nu(_nu), dt(_dt) { }
 
-  template <typename Lab, typename BlockType>
-  inline void operator()(Lab& l, const BlockInfo&info, BlockType&b, ObstacleBlock*const o) const
+  void operator()(const LabMPI&lab,const BlockInfo&info,const FluidBlock&block)
   {
-    const double _1oH = NU / double(info.h_gridpoint);
-    //const Real _h3 = std::pow(info.h_gridpoint,3);
+    // first store the lab and info, then do visitor
+    lab_ptr = & lab;
+    info_ptr = & info;
+    obstacle_vector->Accept( (ObstacleVisitor*) this);
+  }
+
+  void visit(IF3D_ObstacleOperator* const p)
+  {
+    const LabMPI& l = * lab_ptr;
+    const BlockInfo& info = * info_ptr;
+    const std::vector<ObstacleBlock*>& obstblocks = p->getObstacleBlocks();
+    ObstacleBlock*const o = obstblocks[info.blockID];
+    if (o == nullptr) return;
+    if (o->nPoints == 0) return;
     assert(o->filled);
+
+    double uTrans[3], omega[3], CM[3];
+    obstacle->getCenterOfMass(CM);
+    obstacle->getTranslationVelocity(uTrans);
+    obstacle->getAngularVelocity(omega);
+    double velUnit[3] = {0., 0., 0.};
+    const double vel_norm = std::sqrt(uTrans[0]*uTrans[0]
+                                    + uTrans[1]*uTrans[1]
+                                    + uTrans[2]*uTrans[2]);
+    if (vel_norm>1e-9) {
+        velUnit[0] = uTrans[0] / vel_norm;
+        velUnit[1] = uTrans[1] / vel_norm;
+        velUnit[2] = uTrans[2] / vel_norm;
+    }
+
+    const double _1oH = NU / info.h_gridpoint;
+    //const Real _h3 = std::pow(info.h_gridpoint,3);
+
     //loop over elements of block info that have nonzero gradChi
     for(int i=0; i<o->nPoints; i++)
     {
@@ -59,7 +84,7 @@ struct OperatorComputeForces
       //normals computed with Towers 2009
       // Actually using the volume integral, since (\iint -P \hat{n} dS) = (\iiint -\nabla P dV). Also, P*\nabla\Chi = \nabla P
       // penalty-accel and surf-force match up if resolution is high enough (200 points per fish)
-      const double P = b(ix,iy,iz).p;
+      const double P = l(ix,iy,iz).p;
       const double normX = o->surface[i]->dchidx; //*h^3 (multiplied in dchidx)
       const double normY = o->surface[i]->dchidy; //*h^3 (multiplied in dchidy)
       const double normZ = o->surface[i]->dchidz; //*h^3 (multiplied in dchidz)
@@ -113,17 +138,33 @@ struct OperatorComputeForces
 
       // Compute P_locomotion = Force*(uTrans + uRot)
       const double rVec[3] = {p[0]-CM[0], p[1]-CM[1], p[2]-CM[2]};
-      const double uRot[3] = {
-	        omega[1]*rVec[2] - rVec[1]*omega[2],
-	      -(omega[0]*rVec[2] - rVec[0]*omega[2]),
-	        omega[0]*rVec[1] - rVec[0]*omega[1]
+      const double uSolid[3] = {
+	        uTrans[0] + omega[1]*rVec[2] - rVec[1]*omega[2],
+	        uTrans[1] + omega[2]*rVec[0] - rVec[2]*omega[0],
+	        uTrans[2] + omega[0]*rVec[1] - rVec[0]*omega[1]
       };
-
-      o->pLocom += fXT*(uRot[0]+uTrans[0]) + fYT*(uRot[1]+uTrans[1]) + fZT*(uRot[2]+uTrans[2]);
-
+      o->pLocom += fXT*uSolid[0] + fYT*uSolid[1] + fZT*uSolid[2];
     }
   }
 };
+
+void ComputeForces::operator()(const double dt)
+{
+  sim.startProfiler("Obst. Forces");
+  const int nthreads = omp_get_max_threads();
+  std::vector<KernelComputeForces*> K(nthreads, nullptr);
+  #pragma omp parallel for schedule(static,1)
+  for(int i=0; i<nthreads; ++i)
+    K[i] = new KernelComputeForces(sim.nu, sim.dt, sim.obstacle_vector);
+
+  compute<KernelComputeForces>(K);
+
+  for(int i=0; i<nthreads; i++) delete forces[i];
+  // do the final reductions and so on
+  sim.obstacle_vector->computeForces();
+  sim.stopProfiler();
+  check("obst. forces");
+}
 
 struct DumpWake
 {
@@ -167,5 +208,3 @@ struct DumpWake
     }
   }
 };
-
-#endif

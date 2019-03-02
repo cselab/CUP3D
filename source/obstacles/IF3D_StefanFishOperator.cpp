@@ -8,7 +8,7 @@
 
 #include "obstacles/IF3D_StefanFishOperator.h"
 
-#include "obstacles/IF3D_FishLibrary.h"
+#include "obstacles/extra/IF3D_FishLibrary.h"
 
 #include "Cubism/ArgumentParser.h"
 
@@ -175,7 +175,7 @@ void CurvatureDefinedFishData::computeMidline(const double time, const double dt
   #endif
 }
 
-void IF3D_StefanFishOperator::save(const int step_id, const double t, std::string filename)
+void IF3D_StefanFishOperator::save(std::string filename)
 {
   //assert(std::abs(t-sim_time)<std::numeric_limits<Real>::epsilon());
   std::ofstream savestream;
@@ -187,7 +187,7 @@ void IF3D_StefanFishOperator::save(const int step_id, const double t, std::strin
   const double time0 = myFish->time0;
   const double l_Tp = myFish->l_Tp;
 
-  savestream<<t<<"\t"<<sim_dt<<std::endl;
+  savestream<<sim.time<<"\t"<<sim.dt<<std::endl;
   savestream<<position[0]<<"\t"<<position[1]<<"\t"<<position[2]<<std::endl;
   savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
   savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
@@ -206,46 +206,45 @@ void IF3D_StefanFishOperator::save(const int step_id, const double t, std::strin
   #endif
 }
 
-void IF3D_StefanFishOperator::restart(const double t, std::string filename)
+void IF3D_StefanFishOperator::restart(std::string filename)
 {
-    double timeshift, time0, l_Tp;
-    std::ifstream restartstream;
-    restartstream.open(filename+".txt");
-    if(!restartstream.good()){
-      printf("Could not restart from file\n");
-      return;
-    }
-    restartstream >> sim_time >> sim_dt;
-    assert(std::abs(sim_time-t) < std::numeric_limits<Real>::epsilon());
-    restartstream >> position[0] >> position[1] >> position[2];
-    restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
-    restartstream >> transVel[0] >> transVel[1] >> transVel[2];
-    restartstream >> angVel[0] >> angVel[1] >> angVel[2];
-    restartstream >> theta_internal >> angvel_internal >> adjTh;
-    restartstream >> timeshift >> time0 >> l_Tp;// >> new_curv >> old_curv >> new_Tp;
-    //restartstream >> _2Dangle >> old_curv >> new_curv;
-    restartstream.close();
+  double timeshift, time0, l_Tp, restarted_time, restarted_dt;
+  std::ifstream restartstream;
+  restartstream.open(filename+".txt");
+  if(!restartstream.good()){
+    printf("Could not restart from file\n");
+    return;
+  }
+  restartstream >> restarted_time >> restarted_dt;
+  restartstream >> position[0] >> position[1] >> position[2];
+  restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
+  restartstream >> transVel[0] >> transVel[1] >> transVel[2];
+  restartstream >> angVel[0] >> angVel[1] >> angVel[2];
+  restartstream >> theta_internal >> angvel_internal >> adjTh;
+  restartstream >> timeshift >> time0 >> l_Tp;// >> new_curv >> old_curv >> new_Tp;
+  //restartstream >> _2Dangle >> old_curv >> new_curv;
+  restartstream.close();
 
-    myFish->curvScheduler.restart(filename+"_curv");
-    myFish->baseScheduler.restart(filename+"_base");
-    myFish->adjustScheduler.restart(filename+"_adj");
-    myFish->timeshift = timeshift;
-    myFish->time0 = time0;
-    myFish->l_Tp = l_Tp;
+  myFish->curvScheduler.restart(filename+"_curv");
+  myFish->baseScheduler.restart(filename+"_base");
+  myFish->adjustScheduler.restart(filename+"_adj");
+  myFish->timeshift = timeshift;
+  myFish->time0 = time0;
+  myFish->l_Tp = l_Tp;
 
-    if(!sim.rank)
-    {
-    std::cout<<"RESTARTED FISH: "<<std::endl;
-    std::cout<<"TIME, DT: "<<sim_time<<" "<<sim_dt<<std::endl;
-    std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
-    std::cout<<"ANGLE: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
-    std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
-    std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
-    std::cout<<"INTERN: "<<theta_internal<<" "<<angvel_internal<<std::endl;
-    std::cout<<"TIMESHIFT: "<<timeshift<<" "<<time0<<" "<<l_Tp<<std::endl;
-    //std::cout<<"ACTIONS: "<<new_curv<<" "<<old_curv<<" "<<new_Tp<<std::endl;
-    std::cout<<"2D angle: "<<_2Dangle<<std::endl;
-    }
+  if(!sim.rank)
+  {
+  std::cout<<"RESTARTED FISH: "<<std::endl;
+  std::cout<<"TIME, DT: "<<restarted_time<<" "<<restarted_dt<<std::endl;
+  std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
+  std::cout<<"ANGLE: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
+  std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
+  std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
+  std::cout<<"INTERN: "<<theta_internal<<" "<<angvel_internal<<std::endl;
+  std::cout<<"TIMESHIFT: "<<timeshift<<" "<<time0<<" "<<l_Tp<<std::endl;
+  //std::cout<<"ACTIONS: "<<new_curv<<" "<<old_curv<<" "<<new_Tp<<std::endl;
+  std::cout<<"2D angle: "<<_2Dangle<<std::endl;
+  }
 }
 
 IF3D_StefanFishOperator::IF3D_StefanFishOperator(SimulationData & s,

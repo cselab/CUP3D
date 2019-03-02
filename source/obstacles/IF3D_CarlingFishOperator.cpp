@@ -7,7 +7,7 @@
 //
 
 #include "obstacles/IF3D_CarlingFishOperator.h"
-#include "obstacles/IF3D_FishLibrary.h"
+#include "obstacles/extra/IF3D_FishLibrary.h"
 
 #include "Cubism/ArgumentParser.h"
 
@@ -77,7 +77,7 @@ class CarlingFishMidlineData : public FishMidlineData
   virtual void computeMidline(const double t, const double dt) override;
 };
 
-#include "IF3D_CarlingFishOperator_extra.h"
+#include "obstacles/extra/IF3D_CarlingFishOperator_extra.h"
 
 void CarlingFishMidlineData::computeMidline(const double t,const double dt)
 {
@@ -203,10 +203,6 @@ IF3D_CarlingFishOperator::IF3D_CarlingFishOperator(SimulationData&s,
   #endif
 }
 
-void IF3D_CarlingFishOperator::computeForces(const int stepID, const double time, const double dt, const double NU, const bool bDump)
-{
-  IF3D_ObstacleOperator::computeForces(stepID, time, dt, NU, bDump);
-}
 
 #ifdef RL_LAYER
 

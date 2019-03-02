@@ -19,8 +19,6 @@ class IF3D_CarlingFishOperator: public IF3D_FishOperator
   CarlingFishMidlineData* readBurstCoastParams(ArgumentParser&p);
 public:
   IF3D_CarlingFishOperator(SimulationData&s, ArgumentParser&p);
-  void computeForces(const int stepID, const double time, const double dt,
-    const double NU, const bool bDump) override;
 
   #ifdef RL_LAYER
     void execute(const int i,const double t,const vector<double>a) override;

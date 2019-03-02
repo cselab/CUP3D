@@ -8,19 +8,19 @@
 
 #include <iostream>
 #include <fstream>
-#include "obstacles/IF3D_ObstacleFactory.h"
-#include "obstacles/IF2D_FactoryFileLineParser.h"
+#include "obstacles/extra/IF3D_ObstacleFactory.h"
+#include "obstacles/extra/IF2D_FactoryFileLineParser.h"
 
 #include "obstacles/IF3D_CarlingFishOperator.h"
 //#include "obstacles/IF3D_CylinderObstacleOperator.h"
 #include "obstacles/IF3D_DCylinderObstacleOperator.h"
 //#include "obstacles/IF3D_DeadFishOperator.h"
 #include "obstacles/IF3D_ExternalObstacleOperator.h"
-#include "obstacles/IF3D_NacaOperator.h"
+// #include "obstacles/IF3D_NacaOperator.h"
 #include "obstacles/IF3D_PlateObstacleOperator.h"
 #include "obstacles/IF3D_SphereObstacleOperator.h"
 #include "obstacles/IF3D_StefanFishOperator.h"
-#include "obstacles/IF3D_TestDiffusionObstacleOperator.h"
+// #include "obstacles/IF3D_TestDiffusionObstacleOperator.h"
 
 //#include "obstacles/IF3D_ElasticFishOperator.h"
 //#include "obstacles/IF3D_EllipseObstacleOperator.h"
@@ -92,11 +92,10 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     {
       retval.push_back(new IF3D_CarlingFishOperator(sim,object.second));
     }
-
-    else if( objectName == "IF3D_NacaOperator" )
-    {
-      retval.push_back(new IF3D_NacaOperator(sim,object.second));
-    }
+    //else if( objectName == "IF3D_NacaOperator" )
+    //{
+    //  retval.push_back(new IF3D_NacaOperator(sim,object.second));
+    //}
     else if( objectName == "IF3D_DCylinder" )
     {
       retval.push_back(new IF3D_DCylinderObstacleOperator(sim,object.second));
@@ -105,10 +104,10 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     {
       retval.push_back(new IF3D_PlateObstacleOperator(sim,object.second));
     }
-    else if( objectName == "IF3D_TestDiffusionObstacle" )
-    {
-      retval.push_back(new IF3D_TestDiffusionObstacleOperator(sim,object.second));
-    }
+    //else if( objectName == "IF3D_TestDiffusionObstacle" )
+    //{
+    //  retval.push_back(new IF3D_TestDiffusionObstacleOperator(sim,object.second));
+    //}
     else if( objectName == "IF3D_ExternalObstacleOperator" )
     {
       retval.push_back(new IF3D_ExternalObstacleOperator(sim,object.second));

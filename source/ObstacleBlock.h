@@ -35,6 +35,7 @@ struct ObstacleBlock
 
   // bulk quantities:
   Real          chi[BS][BS][BS];
+  Real          sdf[BS][BS][BS];
   Real         udef[BS][BS][BS][3];
   int sectionMarker[BS][BS][BS];
 
@@ -91,12 +92,12 @@ struct ObstacleBlock
   {
     filled=false;
     nPoints=0;
-      CoM_x  =  CoM_y  =  CoM_z  =0;
-     forcex  = forcey  = forcez  =0;
-     forcex_P= forcey_P= forcez_P=0;
-     forcex_V= forcey_V= forcez_V=0;
-     gammax  = gammay  = gammaz  =0;
-    torquex  =torquey  =torquez  =0;
+    CoM_x    = CoM_y    = CoM_z    =0;
+    forcex   = forcey   = forcez   =0;
+    forcex_P = forcey_P = forcez_P =0;
+    forcex_V = forcey_V = forcez_V =0;
+    gammax   = gammay   = gammaz   =0;
+    torquex  = torquey  = torquez  =0;
     //torquex_P=torquey_P=torquez_P=0;
     //torquex_V=torquey_V=torquez_V=0;
     mass=drag=thrust=Pout=PoutBnd=defPower=defPowerBnd=0;
@@ -133,25 +134,20 @@ struct ObstacleBlock
   {
     clear_surface();
     memset(chi,  0, sizeof(Real)*sizeX*sizeY*sizeZ);
+    memset(sdf,  0, sizeof(Real)*sizeX*sizeY*sizeZ);
     memset(udef, 0, sizeof(Real)*sizeX*sizeY*sizeZ*3);
     memset(sectionMarker, 0, sizeof(int)*sizeX*sizeY*sizeZ);
   }
 
-  inline void write(const int ix, const int iy, const int iz, const Real _chi, const Real delta, const Real gradUX, const Real gradUY, const Real gradUZ, const Real fac)
+  inline void write(const int ix, const int iy, const int iz, const Real delta, const Real gradUX, const Real gradUY, const Real gradUZ)
   {
     //if(_chi<chi[iz][iy][ix]) return;
     assert(!filled);
-    chi[iz][iy][ix] = _chi;
-
-    if (delta>1e-6)
-    {
-      nPoints++;
-      const double dchidx = -delta*double(gradUX) * double(fac);
-      const double dchidy = -delta*double(gradUY) * double(fac);
-      const double dchidz = -delta*double(gradUZ) * double(fac);
-      const double _delta =  delta                * double(fac);
-      surface.push_back(new surface_data(ix,iy,iz,dchidx,dchidy,dchidz,_delta));
-    }
+    nPoints++;
+    const double dchidx = -delta*gradUX;
+    const double dchidy = -delta*gradUY;
+    const double dchidz = -delta*gradUZ;
+    surface.push_back(new surface_data(ix,iy,iz,dchidx,dchidy,dchidz,delta));
   }
 
   void allocate_surface()

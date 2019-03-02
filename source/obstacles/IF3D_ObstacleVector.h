@@ -19,31 +19,21 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
  public:
     IF3D_ObstacleVector(SimulationData&s) : IF3D_ObstacleOperator(s) {}
     IF3D_ObstacleVector(SimulationData&s, std::vector<IF3D_ObstacleOperator*> o)
-    : IF3D_ObstacleOperator(s), obstacles(o)
-    {
-      // sort obstacles to make sure that all those that are blocking
-      // when chi is compute (ie they do towers from a sdf on the grid
-      // rather than computing the sdf on the fly) are last
-      // a is put before b if b is blocking and a is not
-      const auto isAbeforeB = [&] (
-        const IF3D_ObstacleOperator* a, const IF3D_ObstacleOperator* b)
-        { return b->isMPIBarrierOnChiCompute and not
-                 a->isMPIBarrierOnChiCompute; };
-      std::stable_sort(obstacles.begin(), obstacles.end(), isAbeforeB);
-    }
+    : IF3D_ObstacleOperator(s), obstacles(o) {}
     ~IF3D_ObstacleVector();
 
     void characteristic_function() override;
     int nObstacles() const {return obstacles.size();}
-    void computeVelocities(const double dt, const Real lambda) override;
-    void update(const int step_id, const double t, const double dt, const Real* Uinf) override;
-    void restart(const double t, std::string filename = std::string()) override;
-    void save(const int step_id, const double t, std::string filename = std::string()) override;
+    void computeVelocities() override;
+    void update() override;
+    void restart(std::string filename = std::string()) override;
+    void save(std::string filename = std::string()) override;
     std::vector<int> intersectingBlockIDs(const int buffer) const override;
 
-    void computeForces(const int stepID, const double time, const double dt, const double NU, const bool bDump) override;
+    void computeForces() override;
 
-    void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
+    void create() override;
+    void finalize() override;
     void Accept(ObstacleVisitor * visitor) override;
 
     std::vector<std::array<int, 2>> collidingObstacles();
@@ -58,6 +48,14 @@ class IF3D_ObstacleVector : public IF3D_ObstacleOperator
         return obstacles;
     }
 
+    std::std::vector<std::vector<ObstacleBlock*>*> getAllObstacleBlocks() const
+    {
+      const size_t Nobs = obstacles.size();
+      std::std::vector<std::vector<ObstacleBlock*>*> ret(Nobs, nullptr);
+      for(const auto & obstacle_ptr : obstacles)
+        ret[i] = obstacle_ptr->getObstacleBlocksPtr();
+      return ret;
+    }
     Real getD() const override;
 
 

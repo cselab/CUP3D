@@ -134,10 +134,10 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
   for(size_t i=0; i<vInfo.size(); i++)
   {
     const BlockInfo info = vInfo[i];
-    const auto pos = obstacleBlocks.find(info.blockID);
-    if(pos == obstacleBlocks.end()) continue;
-    CHIMAT & __restrict__ CHI = pos->second->chi;
-    UDEFMAT & __restrict__ UDEF = pos->second->udef;
+    const auto pos = obstacleBlocks[info.blockID];
+    if(pos == nullptr) continue;
+    CHIMAT & __restrict__ CHI = pos->chi;
+    UDEFMAT & __restrict__ UDEF = pos->udef;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -211,9 +211,9 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
   for(size_t i=0; i<vInfo.size(); i++)
   {
     const BlockInfo info = vInfo[i];
-    const auto pos = obstacleBlocks.find(info.blockID);
-    if(pos == obstacleBlocks.end()) continue;
-    UDEFMAT & __restrict__ UDEF = pos->second->udef;
+    const auto pos = obstacleBlocks[info.blockID];
+    if(pos == nullptr) continue;
+    UDEFMAT & __restrict__ UDEF = pos->udef;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -238,94 +238,9 @@ void IF3D_ObstacleOperator::_makeDefVelocitiesMomentumFree(const double CoM[3])
   #endif
 }
 
-void IF3D_ObstacleOperator::_writeComputedVelToFile(const int step_id, const double t)
-{
-  if(sim.rank!=0) return;
-  std::stringstream ssR;
-  ssR<<"computedVelocity_"<<obstacleID<<".dat";
-  std::stringstream &savestream = logger.get_stream(ssR.str());
-  const std::string tab("\t");
-
-  if(step_id==0 && not printedHeaderVels) {
-    printedHeaderVels = true;
-    savestream<<"step"<<tab<<"time"<<tab<<"CMx"<<tab<<"CMy"<<tab<<"CMz"<<tab
-    <<"quat_0"<<tab<<"quat_1"<<tab<<"quat_2"<<tab<<"quat_3"<<tab
-    <<"vel_x"<<tab<<"vel_y"<<tab<<"vel_z"<<tab
-    <<"angvel_x"<<tab<<"angvel_y"<<tab<<"angvel_z"<<tab<<"volume"<<tab
-    <<"J0"<<tab<<"J1"<<tab<<"J2"<<tab<<"J3"<<tab<<"J4"<<tab<<"J5"<<std::endl;
-  }
-
-  savestream<<step_id<<tab;
-  savestream.setf(std::ios::scientific);
-  savestream.precision(std::numeric_limits<float>::digits10 + 1);
-  savestream <<t<<tab<<position[0]<<tab<<position[1]<<tab<<position[2]<<tab
-    <<quaternion[0]<<tab<<quaternion[1]<<tab<<quaternion[2]<<tab<<quaternion[3]
-    <<tab<<transVel[0]<<tab<<transVel[1]<<tab<<transVel[2]
-    <<tab<<angVel[0]<<tab<<angVel[1]<<tab<<angVel[2]<<tab<<volume<<tab
-    <<J[0]<<tab<<J[1]<<tab<<J[2]<<tab<<J[3]<<tab<<J[4]<<tab<<J[5]<<std::endl;
-}
-
-void IF3D_ObstacleOperator::_writeSurfForcesToFile(const int step_id, const double t)
-{
-  if(sim.rank!=0) return;
-  std::stringstream fnameF, fnameP;
-  fnameF<<"forceValues_"<<(!isSelfPropelled?"surface_":"")<<obstacleID<<".dat";
-  std::stringstream &ssF = logger.get_stream(fnameF.str());
-  const std::string tab("\t");
-  if(step_id==0) {
-    ssF<<"step"<<tab<<"time"<<tab<<"mass"<<tab<<"force_x"<<tab<<"force_y"
-    <<tab<<"force_z"<<tab<<"torque_x"<<tab<<"torque_y"<<tab<<"torque_z"
-    <<tab<<"presF_x"<<tab<<"presF_y"<<tab<<"presF_z"<<tab<<"viscF_x"
-    <<tab<<"viscF_y"<<tab<<"viscF_z"<<tab<<"gamma_x"<<tab<<"gamma_y"
-    <<tab<<"gamma_z"<<tab<<"drag"<<tab<<"thrust"<<std::endl;
-  }
-
-  ssF << step_id << tab;
-  ssF.setf(std::ios::scientific);
-  ssF.precision(std::numeric_limits<float>::digits10 + 1);
-  ssF<<t<<tab<<volume<<tab<<surfForce[0]<<tab<<surfForce[1]<<tab<<surfForce[2]
-     <<tab<<surfTorque[0]<<tab<<surfTorque[1]<<tab<<surfTorque[2]<<tab
-     <<presForce[0]<<tab<<presForce[1]<<tab<<presForce[2]<<tab<<viscForce[0]
-     <<tab<<viscForce[1]<<tab<<viscForce[2]<<tab<<gamma[0]<<tab<<gamma[1]
-     <<tab<<gamma[2]<<tab<<drag<<tab<<thrust<<std::endl;
-
-  fnameP<<"powerValues_"<<(!isSelfPropelled?"surface_":"")<<obstacleID<<".dat";
-  std::stringstream &ssP = logger.get_stream(fnameP.str());
-  if(step_id==0) {
-    ssP<<"step"<<tab<<"time"<<tab<<"Pthrust"<<tab<<"Pdrag"<<tab
-       <<"Pout"<<tab<<"pDef"<<tab<<"etaPDef"<<tab<<"pLocom"<<tab
-       <<"PoutBnd"<<tab<<"defPowerBnd"<<tab<<"etaPDefBnd"<<std::endl;
-  }
-  ssP << step_id << tab;
-  ssP.setf(std::ios::scientific);
-  ssP.precision(std::numeric_limits<float>::digits10 + 1);
-  // Output defpowers to text file with the correct sign
-  ssP<<t<<tab<<Pthrust<<tab<<Pdrag<<tab<<Pout<<tab<<-defPower<<tab<<EffPDef
-     <<tab<<pLocom<<tab<<PoutBnd<<tab<<-defPowerBnd<<tab<<EffPDefBnd<<std::endl;
-}
-
-void IF3D_ObstacleOperator::_writeDiagForcesToFile(const int step_id, const double t)
-{
-  if(sim.rank!=0) return;
-  std::stringstream fnameF;
-  fnameF<<"forceValues_"<<(isSelfPropelled?"penalization_":"")<<obstacleID<<".dat";
-  std::stringstream &ssF = logger.get_stream(fnameF.str());
-  const std::string tab("\t");
-  if(step_id==0) {
-    ssF << "step" << tab << "time" << tab << "mass" << tab
-     << "force_x" << tab << "force_y" << tab << "force_z" << tab
-     << "torque_x" << tab << "torque_y" << tab << "torque_z" << std::endl;
-  }
-
-  ssF << step_id << tab;
-  ssF.setf(std::ios::scientific);
-  ssF.precision(std::numeric_limits<float>::digits10 + 1);
-  ssF<<t<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
-     <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
-}
-
 void IF3D_ObstacleOperator::computeVelocities(const double dt,const Real lambda)
 {
+  const Real dt = sim.dt, lambda = sim.lambda;
   double CM[3];
   this->getCenterOfMass(CM);
   double globals[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
@@ -338,10 +253,10 @@ void IF3D_ObstacleOperator::computeVelocities(const double dt,const Real lambda)
     {
       const BlockInfo info = vInfo[i];
       const FluidBlock & b = *(FluidBlock*)info.ptrBlock;
-      const auto pos = obstacleBlocks.find(info.blockID);
-      if(pos == obstacleBlocks.end()) continue;
-      CHIMAT & __restrict__ CHI = pos->second->chi;
-      UDEFMAT & __restrict__ UDEF = pos->second->udef;
+      const auto pos = obstacleBlocks[info.blockID];
+      if(pos == nullptr) continue;
+      CHIMAT & __restrict__ CHI = pos->chi;
+      UDEFMAT & __restrict__ UDEF = pos->udef;
 
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -437,38 +352,11 @@ void IF3D_ObstacleOperator::computeVelocities(const double dt,const Real lambda)
   }
 }
 
-void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
-  const double dt, const double NU, const bool bDump)
+void IF3D_ObstacleOperator::computeForces()
 {
-  // Surface forces are very imprecise for non-self propelled obstacles
-  // bForces forces computeForces. Makes sense, right?
-  if(not bForces && not isSelfPropelled) return;
-
-  double CM[3];
-  this->getCenterOfMass(CM);
-
-  double vel_unit[3] = {0., 0., 0.};
-  const double vel_norm = std::sqrt(transVel[0]*transVel[0]
-                                  + transVel[1]*transVel[1]
-                                  + transVel[2]*transVel[2]);
-  if (vel_norm>1e-9) {
-      vel_unit[0] = transVel[0] / vel_norm;
-      vel_unit[1] = transVel[1] / vel_norm;
-      vel_unit[2] = transVel[2] / vel_norm;
-  }
-
-  const int nthreads = omp_get_max_threads();
-  std::vector<OperatorComputeForces*> forces(nthreads, nullptr);
-  for(int i=0; i<nthreads; ++i)
-    forces[i] = new OperatorComputeForces(NU,dt,vel_unit,CM,angVel,transVel);
-
-  compute<OperatorComputeForces, SURFACE>(forces);
-
-  for(int i=0; i<nthreads; i++) delete forces[i];
-
   static const int nQoI = ObstacleBlock::nQoI;
   std::vector<double> sum = std::vector<double>(nQoI, 0);
-  for (auto & block : obstacleBlocks) block.second->sumQoI(sum);
+  for (auto & block : obstacleBlocks) block->sumQoI(sum);
 
   MPI_Allreduce(MPI_IN_PLACE, sum.data(), nQoI, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
@@ -492,18 +380,19 @@ void IF3D_ObstacleOperator::computeForces(const int stepID, const double time,
   #if defined(CUP_DUMP_SURFACE_BINARY) && !defined(RL_LAYER)
   if (bDump) {
     char buf[500];
-    sprintf(buf, "surface_%02d_%07d_rank%03d.raw", obstacleID, stepID, sim.rank);
+    sprintf(buf, "surface_%02d_%07d_rank%03d.raw", obstacleID, sim.step, sim.rank);
     FILE * pFile = fopen (buf, "wb");
-    for(auto & block : obstacleBlocks) block.second->print(pFile);
+    for(auto & block : obstacleBlocks) block->print(pFile);
     fflush(pFile);
     fclose(pFile);
   }
   #endif
-  _writeSurfForcesToFile(stepID, time);
+  _writeSurfForcesToFile();
 }
 
-void IF3D_ObstacleOperator::update(const int step_id, const double t, const double dt, const Real* Uinf)
+void IF3D_ObstacleOperator::update()
 {
+  const Real dt = sim.dt;
   position[0] += dt * ( transVel[0] + Uinf[0] );
   position[1] += dt * ( transVel[1] + Uinf[1] );
   position[2] += dt * ( transVel[2] + Uinf[2] );
@@ -547,7 +436,7 @@ void IF3D_ObstacleOperator::update(const int step_id, const double t, const doub
   if(sim.rank==0)
   {
     #ifdef CUP_VERBOSE
-     std::cout<<"POSITION INFO AFTER UPDATE T, DT: "<<t<<" "<<dt<<std::endl;
+     std::cout<<"POSITION INFO AFTER UPDATE T, DT: "<<sim.time<<" "<<sim.dt<<std::endl;
      std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
      std::cout<<"TVL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
      std::cout<<"QUT: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
@@ -561,54 +450,44 @@ void IF3D_ObstacleOperator::update(const int step_id, const double t, const doub
   assert(std::abs(q_length-1.0) < 5*EPS);
   #endif
 
-  _writeComputedVelToFile(step_id, t);
-  _writeDiagForcesToFile(step_id, t);
+  _writeComputedVelToFile();
+  _writeDiagForcesToFile();
 }
 
 void IF3D_ObstacleOperator::characteristic_function()
 {
-  #pragma omp parallel
- {
-  #pragma omp for schedule(dynamic)
+  #pragma omp parallel for schedule(dynamic)
   for(size_t i=0; i<vInfo.size(); i++) {
-   BlockInfo info = vInfo[i];
-   std::map<int,ObstacleBlock* >::const_iterator pos = obstacleBlocks.find(info.blockID);
+    const BlockInfo info = vInfo[i];
+    const auto pos = obstacleBlocks[info.blockID];
 
-   if(pos != obstacleBlocks.end()) {
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+    if(pos != nullptr) {
+    FluidBlock& b = *(FluidBlock*)info.ptrBlock;
     for(int iz=0; iz<FluidBlock::sizeZ; iz++)
     for(int iy=0; iy<FluidBlock::sizeY; iy++)
     for(int ix=0; ix<FluidBlock::sizeX; ix++)
-     b(ix,iy,iz).chi = std::max(pos->second->chi[iz][iy][ix], b(ix,iy,iz).chi);
-   }
+      b(ix,iy,iz).chi = std::max(pos->chi[iz][iy][ix], b(ix,iy,iz).chi);
+    }
   }
- }
 }
 
 std::vector<int> IF3D_ObstacleOperator::intersectingBlockIDs(const int buffer) const
 {
   assert(buffer <= 2); // only works for 2: if different definition of deformation blocks, implement your own
-  std::vector<int> retval;
-  for(size_t i=0; i<vInfo.size(); i++) {
-    const auto pos = obstacleBlocks.find(vInfo[i].blockID);
-    if(pos != obstacleBlocks.end()) retval.push_back(vInfo[i].blockID);
-  }
-  return retval;
+  std::vector<int> ret;
+  for(size_t i=0; i<vInfo.size(); i++)
+    if(obstacleBlocks[info.blockID] != nullptr) ret.push_back(vInfo[i].blockID);
+  return ret;
 }
 
-void IF3D_ObstacleOperator::create(const int step_id,const double time,
-    const double dt, const Real *Uinf)
+void IF3D_ObstacleOperator::create()
 {
   printf("Entered the wrong create operator\n");
   fflush(0);
   abort();
 }
 
-void IF3D_ObstacleOperator::computeChi(const int step_id, const double time,
-  const double dt, const Real *Uinf, int& mpi_status) {}
-
-void IF3D_ObstacleOperator::finalize(const int step_id,const double time,
-  const double dt, const Real *Uinf)
+void IF3D_ObstacleOperator::finalize()
 { }
 
 void IF3D_ObstacleOperator::getTranslationVelocity(double UT[3]) const
@@ -646,17 +525,17 @@ void IF3D_ObstacleOperator::getCenterOfMass(double CM[3]) const
   CM[2]=position[2];
 }
 
-void IF3D_ObstacleOperator::save(const int step_id, const double t, std::string filename)
+void IF3D_ObstacleOperator::save(std::string filename)
 {
   if(sim.rank!=0) return;
   #ifdef RL_LAYER
-  sr.save(step_id,filename);
+  sr.save(sim.step,filename);
   #endif
   std::ofstream savestream;
   savestream.setf(std::ios::scientific);
   savestream.precision(std::numeric_limits<Real>::digits10 + 1);
   savestream.open(filename+".txt");
-  savestream<<t<<std::endl;
+  savestream<<sim.time<<std::endl;
   savestream<<position[0]<<"\t"<<position[1]<<"\t"<<position[2]<<std::endl;
   savestream<<absPos[0]<<"\t"<<absPos[1]<<"\t"<<absPos[2]<<std::endl;
   savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
@@ -665,7 +544,7 @@ void IF3D_ObstacleOperator::save(const int step_id, const double t, std::string 
   savestream<<_2Dangle<<std::endl;
 }
 
-void IF3D_ObstacleOperator::restart(const double t, std::string filename)
+void IF3D_ObstacleOperator::restart(std::string filename)
 {
   #ifdef RL_LAYER
     sr.restart(filename);
@@ -731,3 +610,89 @@ void IF3D_ObstacleOperator::interpolateOnSkin(const double time, const int stepI
 }
 
 #endif
+
+void IF3D_ObstacleOperator::_writeComputedVelToFile()
+{
+  if(sim.rank!=0) return;
+  std::stringstream ssR;
+  ssR<<"computedVelocity_"<<obstacleID<<".dat";
+  std::stringstream &savestream = logger.get_stream(ssR.str());
+  const std::string tab("\t");
+
+  if(sim.step==0 && not printedHeaderVels) {
+    printedHeaderVels = true;
+    savestream<<"step"<<tab<<"time"<<tab<<"CMx"<<tab<<"CMy"<<tab<<"CMz"<<tab
+    <<"quat_0"<<tab<<"quat_1"<<tab<<"quat_2"<<tab<<"quat_3"<<tab
+    <<"vel_x"<<tab<<"vel_y"<<tab<<"vel_z"<<tab
+    <<"angvel_x"<<tab<<"angvel_y"<<tab<<"angvel_z"<<tab<<"volume"<<tab
+    <<"J0"<<tab<<"J1"<<tab<<"J2"<<tab<<"J3"<<tab<<"J4"<<tab<<"J5"<<std::endl;
+  }
+
+  savestream<<sim.step<<tab;
+  savestream.setf(std::ios::scientific);
+  savestream.precision(std::numeric_limits<float>::digits10 + 1);
+  savestream <<sim.time<<tab<<position[0]<<tab<<position[1]<<tab<<position[2]<<tab
+    <<quaternion[0]<<tab<<quaternion[1]<<tab<<quaternion[2]<<tab<<quaternion[3]
+    <<tab<<transVel[0]<<tab<<transVel[1]<<tab<<transVel[2]
+    <<tab<<angVel[0]<<tab<<angVel[1]<<tab<<angVel[2]<<tab<<volume<<tab
+    <<J[0]<<tab<<J[1]<<tab<<J[2]<<tab<<J[3]<<tab<<J[4]<<tab<<J[5]<<std::endl;
+}
+
+void IF3D_ObstacleOperator::_writeSurfForcesToFile()
+{
+  if(sim.rank!=0) return;
+  std::stringstream fnameF, fnameP;
+  fnameF<<"forceValues_"<<(!isSelfPropelled?"surface_":"")<<obstacleID<<".dat";
+  std::stringstream &ssF = logger.get_stream(fnameF.str());
+  const std::string tab("\t");
+  if(sim.step==0) {
+    ssF<<"step"<<tab<<"time"<<tab<<"mass"<<tab<<"force_x"<<tab<<"force_y"
+    <<tab<<"force_z"<<tab<<"torque_x"<<tab<<"torque_y"<<tab<<"torque_z"
+    <<tab<<"presF_x"<<tab<<"presF_y"<<tab<<"presF_z"<<tab<<"viscF_x"
+    <<tab<<"viscF_y"<<tab<<"viscF_z"<<tab<<"gamma_x"<<tab<<"gamma_y"
+    <<tab<<"gamma_z"<<tab<<"drag"<<tab<<"thrust"<<std::endl;
+  }
+
+  ssF << sim.step << tab;
+  ssF.setf(std::ios::scientific);
+  ssF.precision(std::numeric_limits<float>::digits10 + 1);
+  ssF<<sim.time<<tab<<volume<<tab<<surfForce[0]<<tab<<surfForce[1]<<tab<<surfForce[2]
+     <<tab<<surfTorque[0]<<tab<<surfTorque[1]<<tab<<surfTorque[2]<<tab
+     <<presForce[0]<<tab<<presForce[1]<<tab<<presForce[2]<<tab<<viscForce[0]
+     <<tab<<viscForce[1]<<tab<<viscForce[2]<<tab<<gamma[0]<<tab<<gamma[1]
+     <<tab<<gamma[2]<<tab<<drag<<tab<<thrust<<std::endl;
+
+  fnameP<<"powerValues_"<<(!isSelfPropelled?"surface_":"")<<obstacleID<<".dat";
+  std::stringstream &ssP = logger.get_stream(fnameP.str());
+  if(sim.step==0) {
+    ssP<<"step"<<tab<<"time"<<tab<<"Pthrust"<<tab<<"Pdrag"<<tab
+       <<"Pout"<<tab<<"pDef"<<tab<<"etaPDef"<<tab<<"pLocom"<<tab
+       <<"PoutBnd"<<tab<<"defPowerBnd"<<tab<<"etaPDefBnd"<<std::endl;
+  }
+  ssP << sim.step << tab;
+  ssP.setf(std::ios::scientific);
+  ssP.precision(std::numeric_limits<float>::digits10 + 1);
+  // Output defpowers to text file with the correct sign
+  ssP<<sim.time<<tab<<Pthrust<<tab<<Pdrag<<tab<<Pout<<tab<<-defPower<<tab<<EffPDef
+     <<tab<<pLocom<<tab<<PoutBnd<<tab<<-defPowerBnd<<tab<<EffPDefBnd<<std::endl;
+}
+
+void IF3D_ObstacleOperator::_writeDiagForcesToFile()
+{
+  if(sim.rank!=0) return;
+  std::stringstream fnameF;
+  fnameF<<"forceValues_"<<(isSelfPropelled?"penalization_":"")<<obstacleID<<".dat";
+  std::stringstream &ssF = logger.get_stream(fnameF.str());
+  const std::string tab("\t");
+  if(sim.step==0) {
+    ssF << "step" << tab << "time" << tab << "mass" << tab
+     << "force_x" << tab << "force_y" << tab << "force_z" << tab
+     << "torque_x" << tab << "torque_y" << tab << "torque_z" << std::endl;
+  }
+
+  ssF << sim.step << tab;
+  ssF.setf(std::ios::scientific);
+  ssF.precision(std::numeric_limits<float>::digits10 + 1);
+  ssF<<sim.time<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
+     <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
+}

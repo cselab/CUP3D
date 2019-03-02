@@ -21,5 +21,6 @@ public:
                                  double radius, double halflength);
 
   void _init(void);
-  void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
+  void create() override;
+  void finalize() override;
 };

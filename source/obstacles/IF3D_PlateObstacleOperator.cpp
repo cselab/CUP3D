@@ -8,7 +8,7 @@
 
 #include "obstacles/IF3D_PlateObstacleOperator.h"
 
-#include "obstacles/IF3D_ObstacleLibrary.h"
+#include "obstacles/extra/IF3D_ObstacleLibrary.h"
 
 #include "Cubism/ArgumentParser.h"
 
@@ -294,51 +294,20 @@ void IF3D_PlateObstacleOperator::_init(void)
 }
 
 
-void IF3D_PlateObstacleOperator::create(const int step_id,
-                                        const double time,
-                                        const double dt,
-                                        const Real * const Uinf)
+void IF3D_PlateObstacleOperator::create()
 {
-    for(auto & entry : obstacleBlocks) delete entry.second;
-    obstacleBlocks.clear();
+  const PlateObstacle::FillBlocks K(position[0], position[1], position[2],
+                                   nx, ny, nz,
+                                   ax, ay, az,
+                                   bx, by, bz,
+                                   half_a, half_b, half_thickness);
 
-    PlateObstacle::FillBlocks kernel(position[0], position[1], position[2],
-                                     nx, ny, nz,
-                                     ax, ay, az,
-                                     bx, by, bz,
-                                     half_a, half_b, half_thickness);
-
-    for (const BlockInfo &info : vInfo) {
-        if (kernel.isTouching(info)) {
-            assert(obstacleBlocks.find(info.blockID) == obstacleBlocks.end());
-            ObstacleBlock * const block = new ObstacleBlock();
-            block->clear();
-            obstacleBlocks[info.blockID] = block;
-        }
-    }
+  create_base<PlateObstacle::FillBlocks>(K);
 }
 
-void IF3D_PlateObstacleOperator::finalize(const int step_id,
-                                          const double time,
-                                          const double dt,
-                                          const Real * const Uinf)
+void IF3D_PlateObstacleOperator::finalize()
 {
-#pragma omp parallel
-    {
-        PlateObstacle::FillBlocks kernel(position[0], position[1], position[2],
-                                         nx, ny, nz,
-                                         ax, ay, az,
-                                         bx, by, bz,
-                                         half_a, half_b, half_thickness);
-
-
-#pragma omp for schedule(static)
-        for (size_t i = 0; i < vInfo.size(); ++i) {
-            BlockInfo info = vInfo[i];
-            auto pos = obstacleBlocks.find(info.blockID);
-            if (pos == obstacleBlocks.end()) continue;
-            kernel(info, pos->second);
-        }
-    }
-    for (auto &o : obstacleBlocks) o.second->allocate_surface();
+  // this method allows any computation that requires the char function
+  // to be computed. E.g. compute the effective center of mass or removing
+  // momenta from udef 
 }

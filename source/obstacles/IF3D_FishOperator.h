@@ -13,42 +13,44 @@
 
 class FishMidlineData;
 struct VolumeSegment_OBB;
-typedef std::map<int, std::vector<VolumeSegment_OBB>> mapBlock2Segs;
-typedef std::vector<VolumeSegment_OBB> aryVolSeg;
 
 class IF3D_FishOperator: public IF3D_ObstacleOperator
 {
 protected:
   FishMidlineData * myFish = nullptr;
   //phaseShift=0, phase=0,
-  double Tperiod=0, sim_time=0, sim_dt=0;
+  double Tperiod=0;
   double volume_internal=0, J_internal=0, CoM_internal[2]={0,0}, vCoM_internal[2]={0,0};
   double theta_internal=0, angvel_internal=0, angvel_internal_prev=0;
   double CoM_interpolated[3] = {0,0,0}, angvel_integral[3] = {0,0,0};
   double adjTh=0, adjDy=0, followX=0, followY=0;
   bool bCorrectTrajectory=false;
-  //const Real* ptrUinf_copy = nullptr;
 
   void integrateMidline();
-  virtual void writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock);
-  void apply_pid_corrections(const double time, const double dt, const Real *Uinf);
-  aryVolSeg prepare_vSegments();
-  //override to create special obstacle blocks for local force balances:
-  virtual mapBlock2Segs prepare_segPerBlock(const aryVolSeg&vSegments);
+  void apply_pid_corrections();
+
+  // first how to create blocks of segments:
+  typedef std::vector<VolumeSegment_OBB> vecsegm_t;
+  vecsegm_t prepare_vSegments();
+  // second how to intersect those blocks of segments with grid blocks:
+  // (override to create special obstacle blocks for local force balances)
+  typedef std::vector<std::vector<VolumeSegment_OBB*>> intersect_t;
+  virtual intersect_t prepare_segPerBlock(const vecsegm_t& vSeg);
+  // third how to interpolate on the grid given the intersections:
+  virtual void writeSDFOnBlocks(const intersect_t& segPerBlock);
 
 public:
   IF3D_FishOperator(SimulationData&s, ArgumentParser&p);
   ~IF3D_FishOperator();
-  void save(const int step_id, const double t, std::string filename = std::string()) override;
-  void restart(const double t, std::string filename = std::string()) override;
+  void save(std::string filename = std::string()) override;
+  void restart(std::string filename = std::string()) override;
 
-  virtual void update(const int step_id, const double t, const double dt, const Real *Uinf) override;
+  virtual void update() override;
 
   void getCenterOfMass(double CM[3]) const override;
 
-  virtual void create(const int step_id,const double time, const double dt, const Real *Uinf) override;
-  virtual void computeChi(const int step_id, const double time, const double dt, const Real *Uinf, int& mpi_status) override;
-  virtual void finalize(const int step_id,const double time, const double dt, const Real *Uinf) override;
+  virtual void create() override;
+  virtual void finalize() override;
 
   #ifdef RL_LAYER
     void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL,

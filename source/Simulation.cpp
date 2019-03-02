@@ -16,6 +16,7 @@
 #include "operators/ObstacleManagement.h"
 #include "operators/PressurePenalization.h"
 #include "operators/PressureRHS.h"
+#include "operators/FluidSolidForces.h"
 
 #include "obstacles/IF3D_ObstacleFactory.h"
 #include "utils/ProcessOperatorsOMP.h"

@@ -7,12 +7,13 @@
 //
 
 
-#include "obstacles/IF3D_FishLibrary.h"
+#include "obstacles/extra/IF3D_FishLibrary.h"
 #include <gsl/gsl_bspline.h>
 #include <gsl/gsl_statistics.h>
 
-using std::min;
-using std::max;
+using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
+using MARKMAT = int[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
+using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 
 void FishMidlineData::writeMidline2File(const int step_id, std::string filename)
 {
@@ -389,11 +390,11 @@ bool VolumeSegment_OBB::isIntersectingWithAABB(const Real start[3],const Real en
 }
 
 //inline void operator()(const BlockInfo& info, FluidBlock3D& b) const
-void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const oblock, const std::vector<VolumeSegment_OBB*>& vSegments) const
 {
   {
     const int N = FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX;
-    for(int i=0; i<N; ++i) *(&(oblock->chi[0][0][0])+i) = -1;
+    for(int i=0; i<N; ++i) *(&(oblock->sdf[0][0][0])+i) = -1;
   }
   //std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t2, t3;
   //t0 = std::chrono::high_resolution_clock::now();
@@ -408,7 +409,7 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
   //                    std::chrono::duration<double>(t3-t2).count());
 }
 
-void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
   Real org[3];
   info.pos(org, 0, 0, 0);
@@ -424,12 +425,16 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
   const Real* const width = cfish->width;
   const Real* const height = cfish->height;
   static constexpr int BS[3] = {FluidBlock::sizeX, FluidBlock::sizeY, FluidBlock::sizeZ};
+  CHIMAT & __restrict__ CHI = defblock->chi;
+  CHIMAT & __restrict__ SDF = defblock->sdf;
+  UDEFMAT & __restrict__ UDEF = defblock->udef;
+  MARKMAT & __restrict__ MARK = defblock->sectionMarker;
   // construct the shape (P2M with min(distance) as kernel) onto defblocks
-  for(int i=0; i<(int)vSegments.size(); ++i)
+  for(size_t i=0; i<vSegments.size(); ++i)
   {
     //iterate over segments contained in the vSegm intersecting this block:
-    const int firstSegm = max(vSegments[i].s_range.first,            1);
-    const int lastSegm =  min(vSegments[i].s_range.second, cfish->Nm-2);
+    const int firstSegm = std::max(vSegments[i]->s_range.first,            1);
+    const int lastSegm =  std::min(vSegments[i]->s_range.second, cfish->Nm-2);
     for(int ss=firstSegm; ss<=lastSegm; ++ss) {
       assert(height[ss]>0 && width[ss]>0);
       // fill chi by crating an ellipse around ss and finding all near neighs
@@ -481,8 +486,8 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
           const Real distP = eulerDistSq3D(p, pP);
           const Real distM = eulerDistSq3D(p, pM);
           assert(dist0 <= 12*h*h);
-          if(std::fabs(defblock->chi[sz][sy][sx])<std::min({dist0,distP,distM}))
-            continue;
+          // check if this grid point has already found a closer surf-point:
+          if(std::fabs(SDF[sz][sy][sx])<std::min({dist0,distP,distM})) continue;
 
           changeFromComputationalFrame(p);
           #ifndef NDEBUG // check that change of ref frame does not affect dist
@@ -509,17 +514,17 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
                              +std::pow(height[secnd_s]*sinth,2);
 
           const Real corr = 2*std::sqrt(cnt2ML*nxt2ML);
-          defblock->sectionMarker[sz][sy][sx] = close_s;
-          defblock->udef[sz][sy][sx][0] = udef[0];
-          defblock->udef[sz][sy][sx][1] = udef[1];
-          defblock->udef[sz][sy][sx][2] = udef[2];
-          b(sx,sy,sz).tmpU = 1;
+          MARK[sz][sy][sx] = close_s;
+          UDEF[sz][sy][sx][0] = udef[0];
+          UDEF[sz][sy][sx][1] = udef[1];
+          UDEF[sz][sy][sx][2] = udef[2];
+          CHI[sz][sy][sx] = 1; // Not chi, just used to interpolate udef!
           if(dSsq >= cnt2ML+nxt2ML -corr) // if ds > delta radius
           { // if no abrupt changes in width we use nearest neighbour
             const Real xMidl[3] = {rX[close_s], rY[close_s], 0};
             const Real grd2ML = eulerDistSq3D(p, xMidl);
             const Real sign = grd2ML > cnt2ML ? -1 : 1;
-            defblock->chi[sz][sy][sx] = sign*dist1;
+            SDF[sz][sy][sx] = sign*dist1;
           }
           else
           {
@@ -537,7 +542,7 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
                                    rY[idAx1] +(rY[idAx1]-rY[idAx2])*d, 0};
             const Real grd2Core = eulerDistSq3D(p, xMidl);
             const Real sign = grd2Core > Rsq ? -1 : 1;
-            defblock->chi[sz][sy][sx] = sign*dist1;
+            SDF[sz][sy][sx] = sign*dist1;
           }
           // Not chi yet, I stored squared distance from analytical boundary
           // distSq is updated only if curr value is smaller than the old one
@@ -547,16 +552,18 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
   }
 }
 
-void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
-  Real org[3];
-  info.pos(org, 0, 0, 0);
+  Real org[3]; info.pos(org, 0, 0, 0);
+  CHIMAT & __restrict__ CHI = defblock->chi;
+  CHIMAT & __restrict__ SDF = defblock->sdf;
+  UDEFMAT & __restrict__ UDEF = defblock->udef;
   const Real h = info.h_gridpoint, invh = 1.0/info.h_gridpoint, EPS = 1e-15;
   // construct the deformation velocities (P2M with hat function as kernel)
-  for(int i=0; i<(int)vSegments.size(); ++i)
+  for(size_t i=0; i<vSegments.size(); ++i)
   {
-  const int firstSegm = max(vSegments[i].s_range.first,            1);
-  const int lastSegm =  min(vSegments[i].s_range.second, cfish->Nm-2);
+  const int firstSegm = std::max(vSegments[i]->s_range.first,            1);
+  const int lastSegm =  std::min(vSegments[i]->s_range.second, cfish->Nm-2);
   for(int ss=firstSegm; ss<=lastSegm; ++ss)
   {
     // P2M udef of a slice at this s
@@ -605,15 +612,12 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
           assert(idy>=0 && idy<FluidBlock::sizeY);
           assert(idz>=0 && idz<FluidBlock::sizeZ);
           assert(wxwywz>=0 && wxwywz<=1);
-
-          defblock->udef[idz][idy][idx][0] += wxwywz*udef[0];
-          defblock->udef[idz][idy][idx][1] += wxwywz*udef[1];
-          defblock->udef[idz][idy][idx][2] += wxwywz*udef[2];
-          b(idx,idy,idz).tmpU += wxwywz;
-
+          UDEF[idz][idy][idx][0] += wxwywz*udef[0];
+          UDEF[idz][idy][idx][1] += wxwywz*udef[1];
+          UDEF[idz][idy][idx][2] += wxwywz*udef[2];
+          CHI [idz][idy][idx]    += wxwywz;
           // set sign for all interior points
-          if( std::fabs(defblock->chi[idz][idy][idx]+1)<EPS )
-            defblock->chi[idz][idy][idx] = 1.0;
+          if( std::fabs(SDF[idz][idy][idx]+1)<EPS ) SDF[idz][idy][idx] = 1;
         }
       }
     }
@@ -621,26 +625,30 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
   }
 }
 
-void PutFishOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutFishOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
+  CHIMAT & __restrict__ CHI = defblock->chi;
+  CHIMAT & __restrict__ SDF = defblock->sdf;
+  UDEFMAT & __restrict__ UDEF = defblock->udef;
   // finalize signed distance function in tmpU
   const Real eps = std::numeric_limits<Real>::epsilon();
   for(int iz=0; iz<FluidBlock::sizeZ; iz++)
   for(int iy=0; iy<FluidBlock::sizeY; iy++)
   for(int ix=0; ix<FluidBlock::sizeX; ix++) {
-    const Real normfac = b(ix,iy,iz).tmpU > eps ? b(ix,iy,iz).tmpU : 1.;
-    defblock->udef[iz][iy][ix][0] /= normfac;
-    defblock->udef[iz][iy][ix][1] /= normfac;
-    defblock->udef[iz][iy][ix][2] /= normfac;
+    const Real normfac = CHI[iz][iy][ix] > eps ? CHI[iz][iy][ix] : 1;
+    UDEF[iz][iy][ix][0] /= normfac;
+    UDEF[iz][iy][ix][1] /= normfac;
+    UDEF[iz][iy][ix][2] /= normfac;
     // change from signed squared distance function to normal sdf
-    b(ix,iy,iz).tmpU = defblock->chi[iz][iy][ix] > (Real)0 ?
-      sqrt( defblock->chi[iz][iy][ix]) : -sqrt(-defblock->chi[iz][iy][ix]);
+    SDF[iz][iy][ix] = SDF[iz][iy][ix] >= 0 ? std::sqrt( SDF[iz][iy][ix]) :
+                                            -std::sqrt(-SDF[iz][iy][ix]);
+    b(ix,iy,iz).tmpU = std::max(SDF[iz][iy][ix], b(ix,iy,iz).tmpU);
     //b(ix,iy,iz).tmpV = defblock->udef[iz][iy][ix][0]; //for debug
     //b(ix,iy,iz).tmpW = defblock->udef[iz][iy][ix][1]; //for debug
   }
 }
 
-void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
   Real org[3];
   info.pos(org, 0, 0, 0);
@@ -656,12 +664,16 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
   const Real* const width = cfish->width;
   const Real* const height = cfish->height;
   static constexpr int BS[3] = {FluidBlock::sizeX, FluidBlock::sizeY, FluidBlock::sizeZ};
+  CHIMAT & __restrict__ CHI = defblock->chi;
+  CHIMAT & __restrict__ SDF = defblock->sdf;
+  UDEFMAT & __restrict__ UDEF = defblock->udef;
+  MARKMAT & __restrict__ MARK = defblock->sectionMarker;
 
   // construct the shape (P2M with min(distance) as kernel) onto defblocks
-  for(int i=0; i<(int)vSegments.size(); ++i) {
+  for(size_t i=0; i< vSegments.size(); ++i) {
     //iterate over segments contained in the vSegm intersecting this block:
-    const int firstSegm = max(vSegments[i].s_range.first,            1);
-    const int lastSegm =  min(vSegments[i].s_range.second, cfish->Nm-2);
+    const int firstSegm = std::max(vSegments[i]->s_range.first,            1);
+    const int lastSegm =  std::min(vSegments[i]->s_range.second, cfish->Nm-2);
     for(int ss=firstSegm; ss<=lastSegm; ++ss) {
       assert(height[ss]>0 && width[ss]>0);
       //for each segment, we have one point to left and right of midl
@@ -748,13 +760,14 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
             const Real signZ = (0 < distZ) - (distZ < 0);
             const Real dist3D = std::min(signZ*distZ*distZ, sign2d*dist1);
 
-            if(std::fabs(defblock->chi[sz][sy][sx]) > dist3D) {
-              defblock->sectionMarker[sz][sy][sx] = close_s;
-              defblock->udef[sz][sy][sx][0] = udef[0];
-              defblock->udef[sz][sy][sx][1] = udef[1];
-              defblock->udef[sz][sy][sx][2] = udef[2];
-              defblock->chi [sz][sy][sx] = dist3D;
-              b(sx,sy,sz).tmpU = 1;
+            if(std::fabs(SDF[sz][sy][sx]) > dist3D) {
+              MARK[sz][sy][sx] = close_s;
+              UDEF[sz][sy][sx][0] = udef[0];
+              UDEF[sz][sy][sx][1] = udef[1];
+              UDEF[sz][sy][sx][2] = udef[2];
+              SDF [sz][sy][sx] = dist3D;
+              // not chi yet, just used for interpolating udef:
+              CHI [sz][sy][sx] = 1;
             }
           }
           // Not chi yet, I stored squared distance from analytical boundary
@@ -765,16 +778,20 @@ void PutNacaOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
   }
 }
 
-void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB>& vSegments) const
+void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
   Real org[3];
   info.pos(org, 0, 0, 0);
   const Real h = info.h_gridpoint, invh = 1.0/info.h_gridpoint, EPS = 1e-15;
+  CHIMAT & __restrict__ CHI = defblock->chi;
+  CHIMAT & __restrict__ SDF = defblock->sdf;
+  UDEFMAT & __restrict__ UDEF = defblock->udef;
+
   // construct the deformation velocities (P2M with hat function as kernel)
-  for(int i=0; i<(int)vSegments.size(); ++i)
+  for(size_t i=0; i < vSegments.size(); ++i)
   {
-  const int firstSegm = max(vSegments[i].s_range.first,            1);
-  const int lastSegm =  min(vSegments[i].s_range.second, cfish->Nm-2);
+  const int firstSegm = std::max(vSegments[i]->s_range.first,            1);
+  const int lastSegm =  std::min(vSegments[i]->s_range.second, cfish->Nm-2);
   for(int ss=firstSegm; ss<=lastSegm; ++ss)
   {
     // P2M udef of a slice at this s
@@ -824,15 +841,12 @@ void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
           assert(idx>=0 && idx<FluidBlock::sizeX);
           assert(idy>=0 && idy<FluidBlock::sizeY);
           assert(wxwywz>=0 && wxwywz<=1);
-
-          defblock->udef[idz][idy][idx][0] += wxwywz*udef[0];
-          defblock->udef[idz][idy][idx][1] += wxwywz*udef[1];
-          defblock->udef[idz][idy][idx][2] += wxwywz*udef[2];
-          b(idx,idy,idz).tmpU += wxwywz;
-
-          // set sign for all interior points
-          if( std::fabs(defblock->chi[idz][idy][idx]+1)<EPS )
-            defblock->chi[idz][idy][idx] = distZsq;
+          UDEF[idz][idy][idx][0] += wxwywz*udef[0];
+          UDEF[idz][idy][idx][1] += wxwywz*udef[1];
+          UDEF[idz][idy][idx][2] += wxwywz*udef[2];
+          CHI [idz][idy][idx] += wxwywz;
+          // set sign for all interior points:
+          if(std::fabs(SDF[idz][idy][idx]+1)<EPS) SDF[idz][idy][idx] = distZsq;
         }
       }
     }
@@ -840,71 +854,6 @@ void PutNacaOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
   }
 }
 
-void PutFishOnBlocks_Finalize::operator()(LabMPI& lab, const BlockInfo& info, FluidBlock& b, ObstacleBlock*const o)
-{
-  const Real h = info.h_gridpoint;
-  const Real inv2h = .5/h;
-  const Real fac1 = 0.5*h*h;
-  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-  for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-  for(int iy=0; iy<FluidBlock::sizeY; iy++)
-  for(int ix=0; ix<FluidBlock::sizeX; ix++) {
-    Real p[3];
-    info.pos(p, ix,iy,iz);
-    if (lab(ix,iy,iz).tmpU > +2*h || lab(ix,iy,iz).tmpU < -2*h)
-    {
-      const Real H = lab(ix,iy,iz).tmpU > 0 ? 1.0 : 0.0;
-      b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-      o->write(ix,iy,iz,H,0,0,0,0,0);
-      o->CoM_x += p[0]*H;
-      o->CoM_y += p[1]*H;
-      o->CoM_z += p[2]*H;
-      o->mass += H;
-      continue;
-    }
-
-    const Real distPx = lab(ix+1,iy,iz).tmpU, distMx = lab(ix-1,iy,iz).tmpU;
-    const Real distPy = lab(ix,iy+1,iz).tmpU, distMy = lab(ix,iy-1,iz).tmpU;
-    const Real distPz = lab(ix,iy,iz+1).tmpU, distMz = lab(ix,iy,iz-1).tmpU;
-    // gradU
-    const Real gradUX = inv2h*(distPx - distMx);
-    const Real gradUY = inv2h*(distPy - distMy);
-    const Real gradUZ = inv2h*(distPz - distMz);
-    const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ + eps;
-
-    const Real IplusX = distPx < 0 ? 0 : distPx;
-    const Real IminuX = distMx < 0 ? 0 : distMx;
-    const Real IplusY = distPy < 0 ? 0 : distPy;
-    const Real IminuY = distMy < 0 ? 0 : distMy;
-    const Real IplusZ = distPz < 0 ? 0 : distPz;
-    const Real IminuZ = distMz < 0 ? 0 : distMz;
-    const Real HplusX = std::fabs(distPx)<EPS ? 0.5 : (distPx < 0 ? 0 : 1);
-    const Real HminuX = std::fabs(distMx)<EPS ? 0.5 : (distMx < 0 ? 0 : 1);
-    const Real HplusY = std::fabs(distPy)<EPS ? 0.5 : (distPy < 0 ? 0 : 1);
-    const Real HminuY = std::fabs(distMy)<EPS ? 0.5 : (distMy < 0 ? 0 : 1);
-    const Real HplusZ = std::fabs(distPz)<EPS ? 0.5 : (distPz < 0 ? 0 : 1);
-    const Real HminuZ = std::fabs(distMz)<EPS ? 0.5 : (distMz < 0 ? 0 : 1);
-
-    // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
-    const Real gradIX = inv2h*(IplusX - IminuX);
-    const Real gradIY = inv2h*(IplusY - IminuY);
-    const Real gradIZ = inv2h*(IplusZ - IminuZ);
-    const Real gradHX = (HplusX - HminuX);
-    const Real gradHY = (HplusY - HminuY);
-    const Real gradHZ = (HplusZ - HminuZ);
-    const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
-    const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
-    const Real Delta = numD/gradUSq; //h^3 * Delta
-    const Real H     = numH/gradUSq;
-
-    o->write(ix, iy, iz, H, Delta, gradUX, gradUY, gradUZ, fac1);
-    b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-    o->CoM_x += p[0]*H;
-    o->CoM_y += p[1]*H;
-    o->CoM_z += p[2]*H;
-    o->mass += H;
-  }
-}
 
 void MidlineShapes::integrateBSpline(const double*const xc,
   const double*const yc, const int n, const double length,

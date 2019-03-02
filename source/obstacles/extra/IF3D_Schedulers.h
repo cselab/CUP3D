@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include "obstacles/IF2D_Interpolation1D.h"
+#include "obstacles/extra/IF2D_Interpolation1D.h"
 
 #include <cmath>
 #include <array>

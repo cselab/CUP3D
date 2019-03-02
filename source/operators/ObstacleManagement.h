@@ -22,18 +22,6 @@ class CreateObstacles : public Operator
   std::string getName() { return "CreateObstacles"; }
 };
 
-
-class ComputeForces : public Operator
-{
- public:
-  ComputeForces(SimulationData & s) : Operator(s) {}
-
-  void operator()(const double dt);
-
-  std::string getName() { return "ComputeForces"; }
-};
-
-
 class UpdateObstacles : public Operator
 {
  public:

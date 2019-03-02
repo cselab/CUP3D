@@ -47,23 +47,21 @@ void IF3D_ObstacleVector::characteristic_function()
         obstacle_ptr->characteristic_function();
 }
 
-void IF3D_ObstacleVector::update(const int step_id, const double time, const double dt, const Real* Uinf)
+void IF3D_ObstacleVector::update()
 {
     for(const auto & obstacle_ptr : obstacles)
-        obstacle_ptr->update(step_id,time,dt,Uinf);
+        obstacle_ptr->update();
 }
 
-void IF3D_ObstacleVector::create(const int step_id,const double time, const double dt, const Real *Uinf)
+void IF3D_ObstacleVector::create()
 {
   for(const auto & obstacle_ptr : obstacles)
-    obstacle_ptr->create(step_id,time,dt,Uinf);
+    obstacle_ptr->create();
+}
 
-  int mpistatus = 0;
-  for (size_t i = 0; i < obstacles.size(); i++) {
-    if(i+1 == obstacles.size() && mpistatus==0 ) mpistatus = 2;
-    obstacles[i]->computeChi(step_id,time,dt,Uinf,mpistatus);
-  }
 
+void IF3D_ObstacleVector::finalize()
+{
   for(const auto & obstacle_ptr : obstacles)
     obstacle_ptr->finalize(step_id,time,dt,Uinf);
 }
@@ -78,16 +76,16 @@ std::vector<int> IF3D_ObstacleVector::intersectingBlockIDs(const int buffer) con
   return std::vector<int>(IDcollection.begin(), IDcollection.end());
 }
 
-void IF3D_ObstacleVector::computeVelocities(const double dt, const Real lambda)
+void IF3D_ObstacleVector::computeVelocities()
 {
   for(const auto & obstacle_ptr : obstacles)
-    obstacle_ptr->computeVelocities(dt, lambda);
+    obstacle_ptr->computeVelocities();
 }
 
-void IF3D_ObstacleVector::computeForces(const int stepID, const double time, const double dt, const double NU, const bool bDump)
+void IF3D_ObstacleVector::computeForces()
 {
   for(const auto & obstacle_ptr : obstacles)
-    obstacle_ptr->computeForces(stepID,time,dt,NU,bDump);
+    obstacle_ptr->computeForces();
 }
 
 IF3D_ObstacleVector::~IF3D_ObstacleVector()
@@ -96,24 +94,24 @@ IF3D_ObstacleVector::~IF3D_ObstacleVector()
   obstacles.clear();
 }
 
-void IF3D_ObstacleVector::save(const int step_id, const double t, std::string filename)
+void IF3D_ObstacleVector::save(std::string filename)
 {
   int cntr = 0;
   for(const auto & obstacle_ptr : obstacles) {
     std::stringstream ssR;
     ssR<<filename<<"_"<<cntr;
-      obstacle_ptr->save(step_id, t, ssR.str());
+      obstacle_ptr->save(ssR.str());
       cntr++;
   }
 }
 
-void IF3D_ObstacleVector::restart(const double t, std::string filename)
+void IF3D_ObstacleVector::restart(std::string filename)
 {
     int cntr = 0;
     for(const auto & obstacle_ptr : obstacles) {
       std::stringstream ssR;
       ssR<<filename<<"_"<<cntr;
-        obstacle_ptr->restart(t, ssR.str());
+        obstacle_ptr->restart(ssR.str());
         cntr++;
     }
 }
