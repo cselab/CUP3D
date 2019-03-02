@@ -69,6 +69,7 @@ static Real distPointEllipseSpecial(const Real e[2], const Real y[2], Real x[2])
 // The function returns the distance from the query point to the ellipse.
 // It also computes the ellipse point (x0,x1) that is closest to (y0,y1).
 //----------------------------------------------------------------------------
+/*
 static Real distancePointEllipse (const Real e[2], const Real y[2], Real x[2])
 {
   // Determine reflections for y to the first quadrant.
@@ -76,9 +77,9 @@ static Real distancePointEllipse (const Real e[2], const Real y[2], Real x[2])
   // Determine the axis order for decreasing extents.
   const int permute[2] = {e[0]<e[1] ? 1 : 0, e[0]<e[1] ? 0 : 1};
   int invpermute[2];
-  for (i = 0; i < 2; ++i) invpermute[permute[i]] = i;
+  for (int i = 0; i < 2; ++i) invpermute[permute[i]] = i;
   Real locE[2], locY[2];
-  for (i = 0; i < 2; ++i) {
+  for (int i = 0; i < 2; ++i) {
     j = permute[i];
     locE[i] = e[j];
     locY[i] = y[j];
@@ -89,14 +90,14 @@ static Real distancePointEllipse (const Real e[2], const Real y[2], Real x[2])
   const Real distance = distPointEllipseSpecial(locE, locY, locX);
 
   // Restore the axis order and reflections.
-  for (i = 0; i < 2; ++i) {
+  for (int i = 0; i < 2; ++i) {
     j = invpermute[i];
     if (reflect[j]) locX[j] = -locX[j];
     x[i] = locX[j];
   }
   return distance;
 }
-
+*/
 // code from http://www.geometrictools.com/
 //----------------------------------------------------------------------------
 // The ellipsoid is (x0/e0)^2 + (x1/e1)^2 + (x2/e2)^2 = 1 with e0 >= e1 >= e2.
@@ -231,7 +232,7 @@ static Real distancePointEllipsoid(const Real e[3], const Real y[3], Real x[3])
   for (int i = 0; i < 3; ++i) invpermute[permute[i]] = i;
 
   Real locE[3], locY[3];
-  for (i = 0; i < 3; ++i) {
+  for (int i = 0; i < 3; ++i) {
     j = permute[i];
     locE[i] = e[j];
     locY[i] = y[j];
@@ -239,10 +240,10 @@ static Real distancePointEllipsoid(const Real e[3], const Real y[3], Real x[3])
   }
 
   Real locX[3];
-  const Real distance = distancePointEllipsoid(locE, locY, locX);
+  const Real distance = distPointEllipsoidSpecial(locE, locY, locX);
 
   // Restore the axis order and reflections.
-  for (i = 0; i < 3; ++i) {
+  for (int i = 0; i < 3; ++i) {
     j = invpermute[i];
     if (reflect[j]) locX[j] = -locX[j];
     x[i] = locX[j];
@@ -313,6 +314,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
     const Real Dcentre = t[0]*t[0]+t[1]*t[1]+t[2]*t[2];
     const Real Dsurf = xs[0]*xs[0]+xs[1]*xs[1]+xs[2]*xs[2];
     const int sign = Dcentre > Dsurf ? 1 : -1;
+    return dist * sign;
   }
 };
 }
