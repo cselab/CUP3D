@@ -13,8 +13,8 @@ struct KernelComputeForces : public ObstacleVisitor
 {
   IF3D_ObstacleVector * const obstacle_vector;
   const double nu, dt;
-  LabMPI * lab_ptr;
-  const BlockInfo * info_ptr;
+  LabMPI * lab_ptr = nullptr;
+  const BlockInfo * info_ptr = nullptr;
 
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
   StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
@@ -28,12 +28,15 @@ struct KernelComputeForces : public ObstacleVisitor
     lab_ptr = & lab;
     info_ptr = & info;
     obstacle_vector->Accept( (ObstacleVisitor*) this);
+    lab_ptr = nullptr;
+    info_ptr = nullptr;
   }
 
   void visit(IF3D_ObstacleOperator* const op)
   {
     LabMPI& l = * lab_ptr;
     const BlockInfo& info = * info_ptr;
+    assert(lab_ptr not_eq nullptr && info_ptr not_eq nullptr);
     const std::vector<ObstacleBlock*>& obstblocks = op->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;
@@ -42,8 +45,8 @@ struct KernelComputeForces : public ObstacleVisitor
 
     double uTrans[3], omega[3], CM[3];
     op->getCenterOfMass(CM);
-    op->getTranslationVelocity(uTrans);
     op->getAngularVelocity(omega);
+    op->getTranslationVelocity(uTrans);
     double velUnit[3] = {0., 0., 0.};
     const double vel_norm = std::sqrt(uTrans[0]*uTrans[0]
                                     + uTrans[1]*uTrans[1]

@@ -362,14 +362,14 @@ void IF3D_ObstacleOperator::computeForces()
 
   //additive quantities: (check against order in sumQoI of ObstacleBlocks.h )
   unsigned k = 0;
-  surfForce[0]= sum[k++]; surfForce[1]= sum[k++]; surfForce[2]= sum[k++];
-  presForce[0]= sum[k++]; presForce[1]= sum[k++]; presForce[2]= sum[k++];
-  viscForce[0]= sum[k++]; viscForce[1]= sum[k++]; viscForce[2]= sum[k++];
-  surfTorque[0]=sum[k++]; surfTorque[1]=sum[k++]; surfTorque[2]=sum[k++];
-  gamma[0]    = sum[k++]; gamma[1]    = sum[k++]; gamma[2]    = sum[k++];
-  drag        = sum[k++]; thrust      = sum[k++]; Pout        = sum[k++];
-  PoutBnd     = sum[k++]; defPower    = sum[k++]; defPowerBnd = sum[k++];
-  pLocom      = sum[k++];
+  surfForce[0]  = sum[k++]; surfForce[1]  = sum[k++]; surfForce[2]  = sum[k++];
+  presForce[0]  = sum[k++]; presForce[1]  = sum[k++]; presForce[2]  = sum[k++];
+  viscForce[0]  = sum[k++]; viscForce[1]  = sum[k++]; viscForce[2]  = sum[k++];
+  surfTorque[0] = sum[k++]; surfTorque[1] = sum[k++]; surfTorque[2] = sum[k++];
+  gamma[0]      = sum[k++]; gamma[1]      = sum[k++]; gamma[2]      = sum[k++];
+  drag          = sum[k++]; thrust        = sum[k++]; Pout          = sum[k++];
+  PoutBnd       = sum[k++]; defPower      = sum[k++]; defPowerBnd   = sum[k++];
+  pLocom        = sum[k++];
 
   const double vel_norm = std::sqrt(transVel[0]*transVel[0]
                                   + transVel[1]*transVel[1]
@@ -383,7 +383,7 @@ void IF3D_ObstacleOperator::computeForces()
   #if defined(CUP_DUMP_SURFACE_BINARY) && !defined(RL_LAYER)
   if (bDump) {
     char buf[500];
-    sprintf(buf, "surface_%02d_%07d_rank%03d.raw", obstacleID, sim.step, sim.rank);
+    sprintf(buf,"surface_%02d_%07d_rank%03d.raw",obstacleID,sim.step,sim.rank);
     FILE * pFile = fopen (buf, "wb");
     for(auto & block : obstacleBlocks) block->print(pFile);
     fflush(pFile);
@@ -463,14 +463,12 @@ void IF3D_ObstacleOperator::characteristic_function()
   for(size_t i=0; i<vInfo.size(); i++) {
     const BlockInfo info = vInfo[i];
     const auto pos = obstacleBlocks[info.blockID];
-
-    if(pos != nullptr) {
+    if(pos == nullptr) continue;
     FluidBlock& b = *(FluidBlock*)info.ptrBlock;
     for(int iz=0; iz<FluidBlock::sizeZ; iz++)
     for(int iy=0; iy<FluidBlock::sizeY; iy++)
     for(int ix=0; ix<FluidBlock::sizeX; ix++)
       b(ix,iy,iz).chi = std::max(pos->chi[iz][iy][ix], b(ix,iy,iz).chi);
-    }
   }
 }
 

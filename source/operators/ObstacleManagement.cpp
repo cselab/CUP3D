@@ -38,36 +38,41 @@ class KernelCharacteristicFunction
 
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 0);
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 5);
 
   KernelCharacteristicFunction(const v_v_ob& v) : vec_obstacleBlocks(v) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
   {
+    using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
+    using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
+    static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
     const Real h = info.h_gridpoint, inv2h = .5/h, fac1 = .5*h*h;
+
     for (size_t obst_id = 0; obst_id<vec_obstacleBlocks.size(); obst_id++)
     {
       const auto& obstacleBlocks = * vec_obstacleBlocks[obst_id];
       ObstacleBlock*const o = obstacleBlocks[info.blockID];
       if(o == nullptr) return;
-      static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+      CHIMAT & __restrict__ CHI = defblock->chi;
+      CHIMAT & __restrict__ SDF = defblock->sdf;
       for(int iz=0; iz<FluidBlock::sizeZ; iz++)
       for(int iy=0; iy<FluidBlock::sizeY; iy++)
       for(int ix=0; ix<FluidBlock::sizeX; ix++)
       {
-        Real p[3]; info.pos(p, ix,iy,iz);
-        if (lab(ix,iy,iz).tmpU > +2*h || lab(ix,iy,iz).tmpU < -2*h)
+        if (SDF[iz][iy][ix] > +2*h || SDF[iz][iy][ix] < -2*h)
         {
-          const Real H = lab(ix,iy,iz).tmpU > 0 ? 1.0 : 0.0;
+          const Real H = SDF[iz][iy][ix] > 0 ? 1 : 0;
           b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-          o->chi[iz][iy][ix] = H;
+          CHI[iz][iy][ix] = H;
           o->CoM_x += p[0]*H;
           o->CoM_y += p[1]*H;
           o->CoM_z += p[2]*H;
-          o->mass += H;
+          o->mass  += H;
           continue;
         }
+        Real p[3]; info.pos(p, ix,iy,iz);
 
         const Real distPx = lab(ix+1,iy,iz).tmpU, distMx = lab(ix-1,iy,iz).tmpU;
         const Real distPy = lab(ix,iy+1,iz).tmpU, distMy = lab(ix,iy-1,iz).tmpU;
@@ -103,14 +108,13 @@ class KernelCharacteristicFunction
         const Real Delta = fac1 * numD/gradUSq; //h^3 * Delta
         const Real H     = numH/gradUSq;
 
-        o->chi[iz][iy][ix] = H;
-        if (Delta>1e-6)
-          o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
+        CHI[iz][iy][ix] = H;
+        if (Delta>1e-6) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
         b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
         o->CoM_x += p[0]*H;
         o->CoM_y += p[1]*H;
         o->CoM_z += p[2]*H;
-        o->mass += H;
+        o->mass  += H;
       }
       o->allocate_surface();
     }
