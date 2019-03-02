@@ -80,7 +80,7 @@ static Real distancePointEllipse (const Real e[2], const Real y[2], Real x[2])
   for (int i = 0; i < 2; ++i) invpermute[permute[i]] = i;
   Real locE[2], locY[2];
   for (int i = 0; i < 2; ++i) {
-    j = permute[i];
+    const int j = permute[i];
     locE[i] = e[j];
     locY[i] = y[j];
     if (reflect[j]) locY[i] = -locY[i];
@@ -91,7 +91,7 @@ static Real distancePointEllipse (const Real e[2], const Real y[2], Real x[2])
 
   // Restore the axis order and reflections.
   for (int i = 0; i < 2; ++i) {
-    j = invpermute[i];
+    const int j = invpermute[i];
     if (reflect[j]) locX[j] = -locX[j];
     x[i] = locX[j];
   }
@@ -233,7 +233,7 @@ static Real distancePointEllipsoid(const Real e[3], const Real y[3], Real x[3])
 
   Real locE[3], locY[3];
   for (int i = 0; i < 3; ++i) {
-    j = permute[i];
+    const int j = permute[i];
     locE[i] = e[j];
     locY[i] = y[j];
     if (reflect[j]) locY[i] = -locY[i];
@@ -244,7 +244,7 @@ static Real distancePointEllipsoid(const Real e[3], const Real y[3], Real x[3])
 
   // Restore the axis order and reflections.
   for (int i = 0; i < 3; ++i) {
-    j = invpermute[i];
+    const int j = invpermute[i];
     if (reflect[j]) locX[j] = -locX[j];
     x[i] = locX[j];
   }

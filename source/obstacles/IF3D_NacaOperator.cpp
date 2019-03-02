@@ -128,15 +128,15 @@ void IF3D_NacaOperator::update()
   absPos[1] += sim.dt * transVel[1];
   absPos[2] += sim.dt * transVel[2];
 
-  position[0] += sim.dt * ( transVel[0] + Uinf[0] );
+  position[0] += sim.dt * ( transVel[0] + sim.uinf[0] );
   // if user wants to keep airfoil in the mid plane then we just integrate
   // relative velocity (should be 0), otherwise we know that y velocity
   // is sinusoidal, therefore we can just use analytical form
   if(bFixFrameOfRef[1])
-    position[1] += sim.dt * ( transVel[1] + Uinf[1] );
+    position[1] += sim.dt * ( transVel[1] + sim.uinf[1] );
   else
     position[1] = sim.extent[1]/2 + Aheave * std::cos(2*M_PI*Fheave*sim.time);
-  position[2] += sim.dt * ( transVel[2] + Uinf[2] );
+  position[2] += sim.dt * ( transVel[2] + sim.uinf[2] );
 
   _writeComputedVelToFile();
 }
