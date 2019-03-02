@@ -246,7 +246,7 @@ void IF3D_FishOperator::writeSDFOnBlocks(const intersect_t& segmentsPerBlock)
   {
     #pragma omp for schedule(dynamic)
     for (int i = 0; i < (int)vInfo.size(); ++i) {
-      BlockInfo info = vInfo[i];
+      const BlockInfo info = vInfo[i];
       const auto pos = obstacleBlocks[info.blockID];
       if(pos == nullptr) continue;
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;

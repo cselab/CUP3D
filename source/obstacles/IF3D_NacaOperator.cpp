@@ -21,8 +21,9 @@ class NacaMidlineData : public FishMidlineData
  Real * const rC;
  Real * const vC;
  public:
-  NacaMidlineData(const double L, const double _h, double zExtent, double t_ratio, double HoverL=1) :
-  FishMidlineData(L, 1, 0, _h),rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm))
+  NacaMidlineData(const double L, const double _h, double zExtent,
+    double t_ratio, double HoverL=1) : FishMidlineData(L, 1, 0, _h),
+    rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm))
   {
     for(int i=0;i<Nm;++i) height[i] = length*HoverL/2;
     MidlineShapes::naca_width(t_ratio, length, rS, width, Nm);
@@ -74,7 +75,8 @@ class NacaMidlineData : public FishMidlineData
   }
 };
 
-IF3D_NacaOperator::IF3D_NacaOperator(SimulationData&s, ArgumentParser&p) : IF3D_FishOperator(s, p), bCreated(false)
+IF3D_NacaOperator::IF3D_NacaOperator(SimulationData&s, ArgumentParser&p) :
+  IF3D_FishOperator(s, p), bCreated(false)
 {
   absPos[0] = 0;
   #if 1
@@ -114,67 +116,66 @@ IF3D_NacaOperator::IF3D_NacaOperator(SimulationData&s, ArgumentParser&p) : IF3D_
   myFish = new NacaMidlineData(length, vInfo[0].h_gridpoint, sim.extent[2], thickness);
 }
 
-void IF3D_NacaOperator::update(const int stepID, const double t, const double dt, const Real* Uinf)
+void IF3D_NacaOperator::update()
 {
-    _2Dangle  =  Mpitch + Apitch * std::cos(2*M_PI*(Fpitch*t+Ppitch));
-    quaternion[0] = std::cos(0.5*_2Dangle);
-    quaternion[1] = 0;
-    quaternion[2] = 0;
-    quaternion[3] = std::sin(0.5*_2Dangle);
+  _2Dangle =  Mpitch + Apitch * std::cos( 2*M_PI * (Fpitch*sim.time + Ppitch) );
+  quaternion[0] = std::cos(0.5*_2Dangle);
+  quaternion[1] = 0;
+  quaternion[2] = 0;
+  quaternion[3] = std::sin(0.5*_2Dangle);
 
-    absPos[0] += dt*transVel[0];
-    absPos[1] += dt*transVel[1];
-    absPos[2] += dt*transVel[2];
+  absPos[0] += sim.dt * transVel[0];
+  absPos[1] += sim.dt * transVel[1];
+  absPos[2] += sim.dt * transVel[2];
 
-    position[0] += dt * ( transVel[0] + Uinf[0] );
-    // if user wants to keep airfoil in the mid plane then we just integrate
-    // relative velocity (should be 0), otherwise we know that y velocity
-    // is sinusoidal, therefore we can just use analytical form
-    if(bFixFrameOfRef[1])
-    position[1] += dt * ( transVel[1] + Uinf[1] );
-    else
-    position[1] = sim.extent[1]/2 + Aheave * std::cos(2*M_PI*Fheave*t);
-    position[2] += dt * ( transVel[2] + Uinf[2] );
+  position[0] += sim.dt * ( transVel[0] + Uinf[0] );
+  // if user wants to keep airfoil in the mid plane then we just integrate
+  // relative velocity (should be 0), otherwise we know that y velocity
+  // is sinusoidal, therefore we can just use analytical form
+  if(bFixFrameOfRef[1])
+    position[1] += sim.dt * ( transVel[1] + Uinf[1] );
+  else
+    position[1] = sim.extent[1]/2 + Aheave * std::cos(2*M_PI*Fheave*sim.time);
+  position[2] += sim.dt * ( transVel[2] + Uinf[2] );
 
-    tOld = t;
-    _writeComputedVelToFile(stepID, t);
+  _writeComputedVelToFile();
 }
 
-void IF3D_NacaOperator::computeVelocities(const double dt, const Real lambda)
+void IF3D_NacaOperator::computeVelocities()
 {
-  IF3D_ObstacleOperator::computeVelocities(dt, lambda);
+  IF3D_ObstacleOperator::computeVelocities();
 
   // x velocity can be either fixed from the start (then we follow the obst op
   // pattern) or self propelled, here we do not touch it.
-  transVel[1] = -2*M_PI*Fheave*Aheave *std::sin(2*M_PI*Fheave*tOld);
+  const Real argv = 2*M_PI * Fheave * sim.time;
+  transVel[1] = -2*M_PI * Fheave * Aheave * std::sin(argv);
   transVel[2] = 0;
   angVel[0] = 0;
   angVel[1] = 0;
-  angVel[2] = -2*M_PI*Fpitch*Apitch *std::sin(2*M_PI*(Fpitch*tOld+Ppitch));
+  const Real arga = 2*M_PI * ( Fpitch * sim.time + Ppitch );
+  angVel[2] = -2*M_PI * Fpitch * Apitch * std::sin(arga);
 }
 
-void IF3D_NacaOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
+using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;
+void IF3D_NacaOperator::writeSDFOnBlocks(const intersect_t& segmentsPerBlock)
 {
   #pragma omp parallel
   {
     PutNacaOnBlocks putfish(myFish, position, quaternion);
 
-    #pragma omp for schedule(dynamic)
-    for(size_t i=0; i<vInfo.size(); i++) {
-      BlockInfo info = vInfo[i];
-      const auto pos = segmentsPerBlock.find(info.blockID);
+    #pragma omp for schedule(dynamic, 1)
+    for(size_t i=0; i<vInfo.size(); i++)
+    {
+      const BlockInfo info = vInfo[i];
+      const std::vector<VolumeSegment_OBB*>& S = segmentsPerBlock[info.blockID];
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
-      if(pos != segmentsPerBlock.end()) {
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-          b(ix,iy,iz).tmpU = 0.; //this will be accessed with plus equal
-
-        assert(obstacleBlocks.find(info.blockID) != obstacleBlocks.end());
-        ObstacleBlock*const block = obstacleBlocks.find(info.blockID)->second;
-        putfish(info, b, block, pos->second);
+      if(S.size() > 0) {
+        assert(obstacleBlocks[info.blockID] not_eq nullptr);
+        ObstacleBlock* const block = obstacleBlocks[info.blockID];
+        putfish(info, b, block, S);
       }
+      else assert(obstacleBlocks[info.blockID] == nullptr);
     }
   }
 
@@ -183,9 +184,9 @@ void IF3D_NacaOperator::writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock)
   {
     #pragma omp for schedule(dynamic)
     for (int i = 0; i < (int)vInfo.size(); ++i) {
-      BlockInfo info = vInfo[i];
-      const auto pos = obstacleBlocks.find(info.blockID);
-      if(pos == obstacleBlocks.end()) continue;
+      const BlockInfo info = vInfo[i];
+      const auto pos = obstacleBlocks[info.blockID];
+      if(pos == nullptr) continue;
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)

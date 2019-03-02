@@ -13,13 +13,14 @@
 
 class IF3D_NacaOperator: public IF3D_FishOperator
 {
-  double Apitch, Fpitch, Ppitch, Mpitch, Fheave, Aheave, tOld = 0;
+  double Apitch, Fpitch, Ppitch, Mpitch, Fheave, Aheave;
   bool bCreated;
  public:
   IF3D_NacaOperator(SimulationData&s, ArgumentParser&p);
-  void update(const int stepID, const double t, const double dt, const Real* Uinf) override;
-  void computeVelocities(const double dt, const Real lambda) override;
-  void writeSDFOnBlocks(const mapBlock2Segs& segmentsPerBlock) override;
+  void update() override;
+  void computeVelocities() override;
+  using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;
+  void writeSDFOnBlocks(const intersect_t& segmentsPerBlock) override;
 };
 
 
