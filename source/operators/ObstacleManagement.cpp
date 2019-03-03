@@ -45,7 +45,6 @@ class KernelCharacteristicFunction
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
   {
-    using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
     using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
     static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
     const Real h = info.h_gridpoint, inv2h = .5/h, fac1 = .5*h*h;
@@ -55,12 +54,13 @@ class KernelCharacteristicFunction
       const auto& obstacleBlocks = * vec_obstacleBlocks[obst_id];
       ObstacleBlock*const o = obstacleBlocks[info.blockID];
       if(o == nullptr) return;
-      CHIMAT & __restrict__ CHI = defblock->chi;
-      CHIMAT & __restrict__ SDF = defblock->sdf;
+      CHIMAT & __restrict__ CHI = o->chi;
+      CHIMAT & __restrict__ SDF = o->sdf;
       for(int iz=0; iz<FluidBlock::sizeZ; iz++)
       for(int iy=0; iy<FluidBlock::sizeY; iy++)
       for(int ix=0; ix<FluidBlock::sizeX; ix++)
       {
+        Real p[3]; info.pos(p, ix,iy,iz);
         if (SDF[iz][iy][ix] > +2*h || SDF[iz][iy][ix] < -2*h)
         {
           const Real H = SDF[iz][iy][ix] > 0 ? 1 : 0;
@@ -72,7 +72,6 @@ class KernelCharacteristicFunction
           o->mass  += H;
           continue;
         }
-        Real p[3]; info.pos(p, ix,iy,iz);
 
         const Real distPx = lab(ix+1,iy,iz).tmpU, distMx = lab(ix-1,iy,iz).tmpU;
         const Real distPy = lab(ix,iy+1,iz).tmpU, distMy = lab(ix,iy-1,iz).tmpU;
