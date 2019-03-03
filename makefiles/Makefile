@@ -121,10 +121,11 @@ else
 	FFTW_LIBS = -lfftw3_mpi -lfftw3_omp -lfftw3
 endif
 else
+FFTW_LIBS = -L$(FFTW_DIR) -L$(FFTW_DIR)/lib
 ifeq "$(precision)" "single"
-	FFTW_LIBS = $(FFTW_DIR)/libfftw3f_threads.a $(FFTW_DIR)/libfftw3f_mpi.a $(FFTW_DIR)/libfftw3f.a
+	FFTW_LIBS += -fftw3f_threads -lfftw3f_mpi -lfftw3f
 else
-	FFTW_LIBS = $(FFTW_DIR)/libfftw3_threads.a $(FFTW_DIR)/libfftw3_mpi.a $(FFTW_DIR)/libfftw3.a
+	FFTW_LIBS += -lfftw3_threads -lfftw3_mpi -lfftw3
 endif
 endif
 

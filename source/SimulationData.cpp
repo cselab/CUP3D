@@ -11,11 +11,16 @@
 #include "obstacles/IF3D_ObstacleVector.h"
 #include "Cubism/ArgumentParser.h"
 
-SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
-  app_comm(mpicomm)
+
+SimulationData::SimulationData(MPI_Comm mpicomm) : app_comm(mpicomm)
 {
   MPI_Comm_rank(app_comm, &rank);
   MPI_Comm_size(app_comm, &nprocs);
+}
+
+SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
+    : SimulationData(mpicomm)
+{
   if (rank == 0) parser.print_args();
 
   // ========== SIMULATION ==========
@@ -115,14 +120,11 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   if(rank==0)
   printf("Boundary pressure RHS / FD smoothing region sizes {%f,%f,%f}\n",
     fadeOutLengthPRHS[0], fadeOutLengthPRHS[1], fadeOutLengthPRHS[2]);
-  _argumentsSanityCheck();
 
   // ============ REST =============
 }
 
-SimulationData::SimulationData(MPI_Comm mpicomm) : app_comm(mpicomm) {}
-
-void SimulationData::_argumentsSanityCheck()
+void SimulationData::_preprocessArguments()
 {
   // Grid.
   if (bpdx < 1 || bpdy < 1 || bpdz < 1) {
@@ -141,7 +143,9 @@ void SimulationData::_argumentsSanityCheck()
     extent[0] = (NFE[0]/maxbpd) * maxextent;
     extent[1] = (NFE[1]/maxbpd) * maxextent;
     extent[2] = (NFE[2]/maxbpd) * maxextent;
-  } else bUseStretchedGrid = true;
+  } else {
+    bUseStretchedGrid = true;
+  }
 
   // Flow.
   assert(nu >= 0);
@@ -187,7 +191,6 @@ void SimulationData::_argumentsSanityCheck()
     printf("Nranks per dimension: [%d %d %d]\n",nprocsx,nprocsy,nprocsz);
     printf("Local blocks per dimension: [%d %d %d]\n",
       local_bpdx,local_bpdy,local_bpdz);
-    fflush(0);
   }
   fflush(0);
 }
@@ -208,8 +211,21 @@ SimulationData::~SimulationData()
       delete dumper;
     }
     delete dump;
-    MPI_Comm_free(&dump_comm);
+    if (dump_comm != MPI_COMM_NULL)
+      MPI_Comm_free(&dump_comm);
   #endif
+}
+
+void SimulationData::setCells(const int nx, const int ny, const int nz) {
+  if (   nx % (nprocsx * FluidBlock::sizeX) != 0
+      || ny % (nprocsy * FluidBlock::sizeY) != 0
+      || nz % (nprocsz * FluidBlock::sizeZ) != 0) {
+    throw std::invalid_argument("Number of cells must be multiple of "
+                                "block size * number of processes.");
+  }
+  bpdx = nx / FluidBlock::sizeX;
+  bpdy = ny / FluidBlock::sizeY;
+  bpdz = nz / FluidBlock::sizeZ;
 }
 
 void SimulationData::startProfiler(std::string name) const

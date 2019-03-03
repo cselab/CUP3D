@@ -22,6 +22,8 @@
 
 #define __useSkin_
 #include <cassert>
+#include <cstddef>   // For `offsetof()`.
+#include <array>
 #include <fstream>
 #include <string>
 
@@ -54,6 +56,10 @@ typedef double DumpReal;
 
 using namespace cubism;
 
+#ifndef CUP_BLOCK_SIZE
+#define CUP_BLOCK_SIZE 16
+#endif
+
 #include "utils/AlignedAllocator.h"
 #include "utils/FDcoeffs.h"
 
@@ -72,6 +78,9 @@ struct FluidElement
   }
 };
 
+/* Returns the index of the item in the `FluidElement` struct. */
+#define CUP_ELEMENT_INDEX(x) (offsetof(FluidElement, x) / sizeof(FluidElement::RealType))
+
 enum BCflag {dirichlet, periodic, wall, freespace};
 inline BCflag string2BCflag(const std::string strFlag)
 {
@@ -87,6 +96,7 @@ inline BCflag string2BCflag(const std::string strFlag)
     return periodic; // dummy
   }
 }
+
 struct DumpElement {
     DumpReal u, v, w, chi, p;
     DumpElement() : u(0), v(0), w(0), chi(0), p(0) {}
@@ -113,7 +123,7 @@ struct BaseBlock
   static constexpr int sizeX = BS;
   static constexpr int sizeY = BS;
   static constexpr int sizeZ = BS;
-  static constexpr int sizeArray[3] = {BS, BS, BS};
+  static constexpr std::array<int, 3> sizeArray = {BS, BS, BS};
   typedef TElement ElementType;
   typedef TElement element_type;
   typedef Real   RealType;
@@ -356,9 +366,9 @@ class BlockLabBC: public BlockLab<BlockType,allocator>
   bool is_yperiodic() { return BCY == periodic; }
   bool is_zperiodic() { return BCZ == periodic; }
 
+  BlockLabBC() = default;
   BlockLabBC(const BlockLabBC&) = delete;
   BlockLabBC& operator=(const BlockLabBC&) = delete;
-  BlockLabBC() : BlockLab<BlockType,allocator>() {}
 
   // Called by Cubism:
   void _apply_bc(const BlockInfo& info, const Real t=0)

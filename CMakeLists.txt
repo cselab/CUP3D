@@ -10,11 +10,11 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 
 # Options
-set(EXENAME "Swim3D")
+set(EXE "cubismup3d_simulation")
 set(BLOCK_SIZE "16" CACHE String "Number of grid points in a block, per dimension")
 
-option(COMPILE_STATIC_LIB "Compile static library" OFF)
-option(CUP_UNBOUNDED_FFT "Use FFT solver for unbounded domain" OFF)
+option(COMPILE_EXE "Compile executable" OFF)
+option(COMPILE_STATIC_LIB "Compile static library" ON)
 option(CUP_ASYNC_DUMP "Use asynchronous data dumps (requires additional memory)" ON)
 option(CUP_DUMP_SURFACE_BINARY "Dump binary surface data for each obstacle" OFF)
 option(CUP_SINGLE_PRECISION "Compute in single precision" OFF)  # Because cmake/FindFFTW.cmake handles now only double precision.
@@ -40,7 +40,7 @@ if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(PYBIND11_FLAGS ${PYBIND11_FLAGS} -undefined dynamic_lookup)
 endif()
 
-set(COMPILE_PY_SO "1")
+set(COMPILE_PY_SO "0")
 if (NOT "${retcode1}" STREQUAL "0")
     message(WARNING "pybind11 not installed, not compiling .so!")
     set(COMPILE_PY_SO "0")
@@ -52,9 +52,7 @@ endif()
 
 
 # Source files and target
-set(EXE1 "${EXENAME}_open")
-set(EXE2 "${EXENAME}_periodicz")
-set(STATIC_LIB "${EXENAME}")
+set(STATIC_LIB "cubismup3d")
 set(PY_SO "_cubismup3d${PY_SO_SUFFIX}")  # Has to match the name in `PYBIND11_MODULE`.
                                          # Wrapped by `python/cubismup3d/__init__.py`.
 set(CMAKE_SHARED_LIBRARY_PREFIX "")      # No "lib" prefix for shared.
@@ -65,55 +63,71 @@ include_directories(${ROOT_FOLDER}/Cubism/include/)
 include_directories(${ROOT_FOLDER}/source/)
 set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/Cubism/src/ArgumentParser.cpp  # Temporary solution for Cubism .cpp files.
-    ${ROOT_FOLDER}/source/BufferedLogger.cpp
-    ${ROOT_FOLDER}/source/IF3D_CarlingFishOperator.cpp
-    ${ROOT_FOLDER}/source/IF3D_DCylinderObstacleOperator.cpp
-    ${ROOT_FOLDER}/source/IF3D_ExternalObstacleOperator.cpp
-    ${ROOT_FOLDER}/source/IF3D_FishLibrary.cpp
-    ${ROOT_FOLDER}/source/IF3D_FishOperator.cpp
-    ${ROOT_FOLDER}/source/IF3D_NacaOperator.cpp
-    ${ROOT_FOLDER}/source/IF3D_ElasticFishOperator.cpp
-    ${ROOT_FOLDER}/source/IF3D_ObstacleFactory.cpp
-    ${ROOT_FOLDER}/source/IF3D_ObstacleOperator.cpp
-    ${ROOT_FOLDER}/source/IF3D_ObstacleVector.cpp
-    ${ROOT_FOLDER}/source/IF3D_PlateObstacleOperator.cpp
-    ${ROOT_FOLDER}/source/IF3D_SphereObstacleOperator.cpp
-    ${ROOT_FOLDER}/source/IF3D_StefanFishOperator.cpp
+    ${ROOT_FOLDER}/source/utils/BufferedLogger.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_CarlingFishOperator.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_DCylinderObstacleOperator.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_ExternalObstacleOperator.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_FishLibrary.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_FishOperator.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_NacaOperator.cpp
+    # ${ROOT_FOLDER}/source/obstacles/IF3D_ElasticFishOperator.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_ObstacleFactory.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_ObstacleOperator.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_ObstacleVector.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_PlateObstacleOperator.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_SphereObstacleOperator.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_StefanFishOperator.cpp
+    ${ROOT_FOLDER}/source/obstacles/IF3D_TestDiffusionObstacleOperator.cpp
+    ${ROOT_FOLDER}/source/operators/AdvectionDiffusion.cpp
+    ${ROOT_FOLDER}/source/operators/ComputeDissipation.cpp
+    ${ROOT_FOLDER}/source/operators/ExternalForcing.cpp
+    ${ROOT_FOLDER}/source/operators/FadeOut.cpp
+    ${ROOT_FOLDER}/source/operators/InitialConditions.cpp
+    ${ROOT_FOLDER}/source/operators/ObstacleManagement.cpp
+    ${ROOT_FOLDER}/source/operators/PressurePenalization.cpp
+    ${ROOT_FOLDER}/source/operators/PressureRHS.cpp
+    ${ROOT_FOLDER}/source/poisson/PoissonSolver.cpp
+    ${ROOT_FOLDER}/source/poisson/PoissonSolverMixed.cpp
+    ${ROOT_FOLDER}/source/poisson/PoissonSolverUnbounded.cpp
+    ${ROOT_FOLDER}/source/poisson/PoissonSolverPeriodic.cpp
     ${ROOT_FOLDER}/source/Simulation.cpp
+    ${ROOT_FOLDER}/source/SimulationData.cpp
 )
 
 # GCC flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-maybe-uninitialized")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wshadow")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O3 -march=native -fstrict-aliasing -ffast-math -falign-functions=32")
-set(CMAKE_CXX_STANDARD 11)
+set(CMAKE_CXX_EXTENSIONS OFF)  # -std=c++11, not -std=gnu++11!
+if (NOT CMAKE_CXX_STANDARD)
+    set(CMAKE_CXX_STANDARD 11)
+endif()
 
 # Define targets (executables). We have two: one for open, one for periodic
 # boundary conditions (periodic in Z).
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ROOT_FOLDER}/bin)
-add_executable(${EXE1} ${COMMON_SOURCES} ${ROOT_FOLDER}/source/main.cpp)
-add_executable(${EXE2} ${COMMON_SOURCES} ${ROOT_FOLDER}/source/main.cpp)
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${ROOT_FOLDER}/lib)
+if (COMPILE_EXE)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ROOT_FOLDER}/bin)
+    add_executable(${EXE} ${COMMON_SOURCES} ${ROOT_FOLDER}/source/main.cpp)
+endif()
 if (COMPILE_STATIC_LIB)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${ROOT_FOLDER}/lib)
     add_library(${STATIC_LIB}
                 ${COMMON_SOURCES}
                 ${ROOT_FOLDER}/source/cubism_main.cpp
                 ${ROOT_FOLDER}/source/CubismUP_3D.cpp)
 endif()
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ROOT_FOLDER}/python/cubismup3d)
 if ("${COMPILE_PY_SO}" STREQUAL "1")
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ROOT_FOLDER}/python/cubismup3d)
     add_library(${PY_SO} SHARED
                 ${COMMON_SOURCES}
                 ${ROOT_FOLDER}/source/bindings/Simulation.cpp)
+    target_compile_options(${PY_SO} PRIVATE ${PYBIND11_FLAGS})
+    # https://github.com/conda-forge/hdf5-feedstock/issues/58#issuecomment-310865909
+    target_compile_definitions(${PY_SO} PRIVATE "-DH5_BUILT_AS_DYNAMIC_LIB")
 endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
-
-# Target-specific flags
-target_compile_definitions(${EXE2} PRIVATE "-DBC_PERIODICZ")
-target_compile_options(${PY_SO} PRIVATE ${PYBIND11_FLAGS})
-# https://github.com/conda-forge/hdf5-feedstock/issues/58#issuecomment-310865909
-target_compile_definitions(${PY_SO} PRIVATE "-DH5_BUILT_AS_DYNAMIC_LIB")
 
 # Global flags
 if (CUP_UNBOUNDED_FFT)
@@ -180,9 +194,6 @@ set(HDF5_PREFER_PARALLEL ON)
 find_package(HDF5 REQUIRED)
 add_definitions("-DCUBISM_USE_HDF")
 include_directories(${HDF5_INCLUDE_DIRS})
-target_link_libraries(${EXE1} ${LIBPREFIX}${HDF5_LIBRARIES})
-target_link_libraries(${EXE2} ${LIBPREFIX}${HDF5_LIBRARIES})
-target_link_libraries(${PY_SO} ${LIBPREFIX}${HDF5_LIBRARIES})
 
 # FFTW
 # TODO: Single precision
@@ -191,9 +202,6 @@ if (NOT FTTW_ROOT AND NOT DEFINED ENV{FFTWDIR} AND EXISTS ${ROOT_FOLDER}/depende
 endif()
 find_package(FFTW REQUIRED)
 include_directories(${FFTW_INCLUDES})
-target_link_libraries(${EXE1} ${LIBPREFIX}${FFTW_LIBRARIES})
-target_link_libraries(${EXE2} ${LIBPREFIX}${FFTW_LIBRARIES})
-target_link_libraries(${PY_SO} ${LIBPREFIX}${FFTW_LIBRARIES})
 
 # GSL
 if (NOT GSL_ROOT_DIR AND NOT DEFINED ENV{GSL_ROOT_DIR} AND EXISTS ${ROOT_FOLDER}/dependencies/build/gsl-2.1)
@@ -201,6 +209,22 @@ if (NOT GSL_ROOT_DIR AND NOT DEFINED ENV{GSL_ROOT_DIR} AND EXISTS ${ROOT_FOLDER}
 endif()
 find_package(GSL REQUIRED)
 include_directories(${GSL_INCLUDE_DIRS})
-target_link_libraries(${EXE1} ${LIBPREFIX}${GSL_LIBRARIES})
-target_link_libraries(${EXE2} ${LIBPREFIX}${GSL_LIBRARIES})
-target_link_libraries(${PY_SO} ${LIBPREFIX}${GSL_LIBRARIES})
+
+if (COMPILE_EXE)
+    target_link_libraries(${EXE} ${LIBPREFIX}${HDF5_LIBRARIES})
+    target_link_libraries(${EXE} ${LIBPREFIX}${FFTW_LIBRARIES})
+    target_link_libraries(${EXE} ${LIBPREFIX}${GSL_LIBRARIES})
+endif()
+if (COMPILE_STATIC_LIB)
+    target_link_libraries(${STATIC_LIB} ${LIBPREFIX}${HDF5_LIBRARIES})
+    target_link_libraries(${STATIC_LIB} ${LIBPREFIX}${FFTW_LIBRARIES})
+    target_link_libraries(${STATIC_LIB} ${LIBPREFIX}${GSL_LIBRARIES})
+endif()
+if ("${COMPILE_PY_SO}" STREQUAL "1")
+    target_link_libraries(${PY_SO} ${LIBPREFIX}${HDF5_LIBRARIES})
+    target_link_libraries(${PY_SO} ${LIBPREFIX}${FFTW_LIBRARIES})
+    target_link_libraries(${PY_SO} ${LIBPREFIX}${GSL_LIBRARIES})
+endif()
+
+enable_testing()
+add_subdirectory(tests)

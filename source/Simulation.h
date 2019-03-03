@@ -6,19 +6,17 @@
 //  Written by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_2D_Simulation_Fluid_h
-#define CubismUP_2D_Simulation_Fluid_h
+#ifndef CubismUP_3D_Simulation_Fluid_h
+#define CubismUP_3D_Simulation_Fluid_h
 
 #include "SimulationData.h"
 // Forward declarations.
 namespace cubism { class ArgumentParser; }
-namespace cubismup3d { class SimulationWrapper; }
 
 class IF3D_ObstacleOperator;
 
 class Simulation
 {
-  friend class cubismup3d::SimulationWrapper;
   //#ifdef _USE_ZLIB_
   //  SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
   //#endif
@@ -26,7 +24,7 @@ class Simulation
 public:
 
   SimulationData sim;
-  ArgumentParser * const parser_ptr;
+  ArgumentParser * const parser_ptr = nullptr;
 
   void _init(bool restart = false);
 
@@ -40,26 +38,11 @@ public:
   void _ic();
 
  public:
+  Simulation(const SimulationData &);
   Simulation(MPI_Comm mpicomm);
   Simulation(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
 
-  // For Python bindings. Order should be the same as defined in the class. The
-  // default values are set in Python bindings.
-  Simulation(std::array<int, 3> cells,
-             std::array<int, 3> nproc,
-             MPI_Comm mpicomm,
-             int nsteps, double endTime,
-             double nu, double CFL, double lambda, double DLM,
-             std::array<double, 3> uinf,
-             bool verbose,
-             bool computeDissipation,
-             bool b3Ddump, bool b2Ddump,
-             double fadeOutLength,
-             int saveFreq, double saveTime,
-             const std::string &path4serialization,
-             bool restart);
-
-  virtual ~Simulation() {}
+  virtual ~Simulation() = default;
 
   virtual void run();
 

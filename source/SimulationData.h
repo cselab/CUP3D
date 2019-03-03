@@ -105,7 +105,7 @@ struct SimulationData
   bool bUseFourierBC = false;
 
   #ifdef CUP_ASYNC_DUMP
-    MPI_Comm dump_comm;
+    MPI_Comm dump_comm = MPI_COMM_NULL;
     DumpGridMPI * dump = nullptr;
     std::thread * dumper = nullptr;
     NonUniformScheme<DumpBlock>* nonuniform_dump = nullptr;
@@ -114,8 +114,9 @@ struct SimulationData
   void startProfiler(std::string name) const;
   void stopProfiler() const;
   void printResetProfiler();
-  void _argumentsSanityCheck();
+  void _preprocessArguments();
   ~SimulationData();
   SimulationData(MPI_Comm mpicomm, ArgumentParser &parser);
   SimulationData(MPI_Comm mpicomm);
+  void setCells(int nx, int ny, int nz);
 };

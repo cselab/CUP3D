@@ -22,31 +22,46 @@
 #include "Cubism/HDF5Dumper_MPI.h"
 #include "Cubism/MeshKernels.h"
 #include <iomanip>
+#include <iostream>
 
-/*
- * Initialization from cmdline arguments is done in few steps, because grid has
- * to be created before the obstacles and slices are created.
- */
-Simulation::Simulation(MPI_Comm mpicomm) : sim(mpicomm), parser_ptr(nullptr) {}
-Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
-    : sim(mpicomm, parser), parser_ptr(& parser)
+// Initialization from cmdline arguments is done in few steps, because grid has
+// to be created before the obstacles and slices are created.
+Simulation::Simulation(const SimulationData &_sim) : sim(_sim)
 {
-  // ========= SETUP GRID ==========
+  sim._preprocessArguments();
+
   // Grid has to be initialized before slices and obstacles.
   setupGrid();
 
-  // =========== SLICES ============
+  // Define an empty obstacle vector, which can be later modified.
+  setObstacleVector(new IF3D_ObstacleVector(sim));
+
+  _init(false);
+}
+
+Simulation::Simulation(MPI_Comm mpicomm) : sim(mpicomm)
+{
+  // What about setupGrid, setObstacleVector and other stuff?
+  _init(false);
+}
+
+Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
+    : sim(mpicomm, parser), parser_ptr(& parser)
+{
+  sim._preprocessArguments();
+
+  // Grid has to be initialized before slices and obstacles.
+  setupGrid();
+
   #ifdef CUP_ASYNC_DUMP
     sim.m_slices = SliceType::getEntities<SliceType>(parser, * sim.dump);
   #else
     sim.m_slices = SliceType::getEntities<SliceType>(parser, * sim.grid);
   #endif
 
-  // ========== OBSTACLES ==========
   IF3D_ObstacleFactory factory(sim);
   setObstacleVector(new IF3D_ObstacleVector(sim, factory.create(parser)));
 
-  // ============ INIT =============
   const bool bRestart = parser("-restart").asBool(false);
   _init(bRestart);
 }
@@ -55,6 +70,8 @@ const std::vector<IF3D_ObstacleOperator*>& Simulation::getObstacleVector() const
 {
     return sim.obstacle_vector->getObstacleVector();
 }
+
+/* DEPRECATED. Keep until `source/bindings/Simulation.cpp` is fixed.
 
 // For Python bindings. Really no need for `const` here...
 Simulation::Simulation(
@@ -101,11 +118,12 @@ Simulation::Simulation(
   sim.bpdx = cells[0] / FluidBlock::sizeX;
   sim.bpdy = cells[1] / FluidBlock::sizeY;
   sim.bpdz = cells[2] / FluidBlock::sizeZ;
-  sim._argumentsSanityCheck();
+  sim._preprocessArguments();
   setupGrid();  // Grid has to be initialized before slices and obstacles.
   setObstacleVector(new IF3D_ObstacleVector(sim));
   _init(restart);
 }
+*/
 
 void Simulation::_init(const bool restart)
 {
@@ -152,6 +170,8 @@ void Simulation::setupGrid()
       0, sim.extent[1], 0, sim.extent[2], sim.bpdx, sim.bpdy, sim.bpdz);
 
     // initialize scheme
+    assert(parser_ptr != nullptr
+           && "Cannot use a stretched grid and initialize without an ArgumentParser.");
     MeshDensityFactory mk(* parser_ptr);
     sim.nonuniform->init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
 

@@ -162,7 +162,7 @@ class Operator
 
 public:
   Operator(SimulationData & s) : sim(s) {  }
-  virtual ~Operator() {}
+  virtual ~Operator() = default;
   virtual void operator()(const double dt) = 0;
   virtual std::string getName() = 0;
 };
