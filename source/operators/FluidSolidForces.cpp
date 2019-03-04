@@ -17,7 +17,7 @@ struct KernelComputeForces : public ObstacleVisitor
   const BlockInfo * info_ptr = nullptr;
 
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+  StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
 
   KernelComputeForces(double _nu, double _dt, IF3D_ObstacleVector* ov) :
     obstacle_vector(ov), nu(_nu), dt(_dt) { }
@@ -27,7 +27,9 @@ struct KernelComputeForces : public ObstacleVisitor
     // first store the lab and info, then do visitor
     lab_ptr = & lab;
     info_ptr = & info;
-    obstacle_vector->Accept( (ObstacleVisitor*) this);
+    ObstacleVisitor* const base = static_cast<ObstacleVisitor*> (this);
+    assert( base not_eq nullptr );
+    obstacle_vector->Accept( base );
     lab_ptr = nullptr;
     info_ptr = nullptr;
   }

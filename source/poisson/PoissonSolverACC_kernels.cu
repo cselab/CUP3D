@@ -132,7 +132,7 @@ void dSolveFreespace(const int ox,const int oy,const int oz,const size_t mz_pad,
   dim3 dB(4, 4, 4);
   dim3 dG(std::ceil(ox/4.), std::ceil(oy/4.), std::ceil(oz/4.));
   kFreespace <<<dG, dB>>> (ox,oy,oz, mz_pad, G_hat, (acc_c*) gpu_rhs);
-  //CUDA_Check(cudaDeviceSynchronize());
+  CUDA_Check(cudaDeviceSynchronize());
 }
 
 void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
