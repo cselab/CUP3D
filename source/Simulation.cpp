@@ -242,7 +242,7 @@ void Simulation::setupOperators()
   sim.pipeline.push_back(new PressurePenalization(sim));
 
   // With finalized velocity and pressure, compute forces and dissipation
-  sim.pipeline.push_back(new ComputeForces(sim));
+  //sim.pipeline.push_back(new ComputeForces(sim));
 
   if(sim.computeDissipation)
     sim.pipeline.push_back(new ComputeDissipation(sim));

@@ -45,7 +45,6 @@ class KernelCharacteristicFunction
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
   {
-    //using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
     using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
     static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
     const Real h = info.h_gridpoint, inv2h = .5/h, fac1 = .5*h*h;

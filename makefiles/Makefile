@@ -137,7 +137,7 @@ OBJECTS = IF3D_ObstacleFactory.o IF3D_ObstacleOperator.o IF3D_ObstacleVector.o \
 	IF3D_FishOperator.o IF3D_StefanFishOperator.o IF3D_CarlingFishOperator.o \
 	IF3D_SphereObstacleOperator.o IF3D_PlateObstacleOperator.o BufferedLogger.o \
 	IF3D_FishLibrary.o IF3D_ExternalObstacleOperator.o FluidSolidForces.o \
-	IF3D_DCylinderObstacleOperator.o IF3D_EllipsoidObstacleOperator.o \
+	IF3D_CylinderObstacleOperator.o IF3D_EllipsoidObstacleOperator.o \
 	SimulationData.o Simulation.o AdvectionDiffusion.o ComputeDissipation.o \
 	ExternalForcing.o FadeOut.o InitialConditions.o ObstacleManagement.o \
 	PressurePenalization.o PressureRHS.o PoissonSolver.o PoissonSolverMixed.o \

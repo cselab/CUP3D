@@ -264,7 +264,7 @@ void IF3D_ObstacleOperator::computeVelocities()
       {
         if (CHI[iz][iy][ix] <= 0) continue;
         double p[3]; info.pos(p, ix, iy, iz);
-        const Real dv = dvol(info, ix, iy, iz);
+        const double dv = dvol(info, ix, iy, iz);
         const double X = CHI[iz][iy][ix];
         p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
         const double object_UR[3] = {
@@ -334,7 +334,7 @@ void IF3D_ObstacleOperator::computeVelocities()
     const double detJ = J[0] * (J[1] * J[2] - J[5] * J[5])+
                         J[3] * (J[4] * J[5] - J[2] * J[3])+
                         J[4] * (J[3] * J[5] - J[1] * J[4]);
-    assert(std::fabs(detJ)>DBLEPS);
+    assert(std::fabs(detJ)>0);
     const double invJ[6] = {
       (J[1] * J[2] - J[5] * J[5]) / detJ, (J[0] * J[2] - J[4] * J[4]) / detJ,
       (J[0] * J[1] - J[3] * J[3]) / detJ, (J[4] * J[5] - J[2] * J[3]) / detJ,
