@@ -271,7 +271,7 @@ void Simulation::setupOperators()
 double Simulation::calcMaxTimestep()
 {
   assert(sim.grid not_eq nullptr);
-  double locMaxU = (double)findMaxUOMP(sim.vInfo(), * sim.grid, sim.uinf);
+  double locMaxU = (double)findMaxU(sim.vInfo(), * sim.grid, sim.uinf);
   double globMaxU;
   const double h = sim.vInfo()[0].h_gridpoint;
 

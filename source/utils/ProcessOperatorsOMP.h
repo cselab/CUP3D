@@ -13,64 +13,7 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-// -gradp, divergence, advection
-template<typename Lab, typename Kernel>
-void processOMP(double dt, const SimulationData & sim)
-{
-  const Kernel kernel(dt);
-  SynchronizerMPI<Real>& Synch = sim.grid->sync(kernel);
-  const int nthreads = omp_get_max_threads();
-  LabMPI * labs = new LabMPI[nthreads];
-  #pragma omp parallel for schedule(static, 1)
-  for(int i = 0; i < nthreads; ++i) {
-    labs[i].setBC(sim.BCx_flag, sim.BCy_flag, sim.BCz_flag);
-    labs[i].prepare(* sim.grid, Synch);
-  }
-
-  MPI_Barrier(sim.grid->getCartComm());
-  std::vector<BlockInfo> avail0 = Synch.avail_inner();
-  const int Ninner = avail0.size();
-
-  #pragma omp parallel
-  {
-    int tid = omp_get_thread_num();
-    LabMPI& lab = labs[tid];
-
-    #pragma omp for schedule(static)
-    for(int i=0; i<Ninner; i++) {
-      BlockInfo info = avail0[i];
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-      lab.load(info, 0);
-      kernel(lab, info, b); // why is this using the local blockInfo? or is it global? is dh correct?
-    }
-  }
-
-  std::vector<BlockInfo> avail1 = Synch.avail_halo();
-  const int Nhalo = avail1.size();
-
-  #pragma omp parallel
-  {
-    int tid = omp_get_thread_num();
-    LabMPI& lab = labs[tid];
-
-    #pragma omp for schedule(static)
-    for(int i=0; i<Nhalo; i++) {
-        BlockInfo info = avail1[i];
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        lab.load(info, 0);
-        kernel(lab, info, b);
-    }
-  }
-
-  if(labs!=NULL) {
-    delete [] labs;
-    labs=NULL;
-  }
-
-  MPI_Barrier(sim.grid->getCartComm());
-}
-
-inline Real findMaxUOMP(
+inline Real findMaxU(
         const std::vector<BlockInfo> myInfo,
         FluidGridMPI& grid,
         const Real*const uinf
