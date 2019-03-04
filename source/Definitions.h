@@ -9,6 +9,12 @@
 #ifndef CubismUP_3D_DataStructures_h
 #define CubismUP_3D_DataStructures_h
 
+// Are we compiling from CubismUP3D's makefiles or from external codes?
+#ifndef CUP_INTERNAL_COMPILATION
+// External. In that case, import a generated macro file.
+#include "../build/include/CubismUP3D_macros.h"
+#endif
+
 //#include <cassert>
 //#define __2Leads_
 //#define __DumpWakeStefan 9
@@ -24,7 +30,7 @@
 #include <cassert>
 #include <cstddef>   // For `offsetof()`.
 #include <array>
-#include <fstream>
+#include <iosfwd>
 #include <string>
 
 #ifndef CUP_SINGLE_PRECISION

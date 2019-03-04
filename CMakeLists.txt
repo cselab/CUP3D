@@ -17,9 +17,8 @@ option(COMPILE_EXE "Compile executable" OFF)
 option(COMPILE_STATIC_LIB "Compile static library" ON)
 option(CUP_ASYNC_DUMP "Use asynchronous data dumps (requires additional memory)" ON)
 option(CUP_DUMP_SURFACE_BINARY "Dump binary surface data for each obstacle" OFF)
-option(CUP_SINGLE_PRECISION "Compute in single precision" OFF)  # Because cmake/FindFFTW.cmake handles now only double precision.
 option(CUP_HDF5_DOUBLE_PRECISION "Dump HDF5 data in double precision" OFF)
-option(CUP_RK2 "Use second order Runge-Kutta integrator" OFF)
+option(CUP_SINGLE_PRECISION "Compute in single precision" OFF)  # Because cmake/FindFFTW.cmake handles now only double precision.
 option(CUP_VERBOSE "Be verbose" OFF)
 
 # Pybind11.
@@ -53,8 +52,11 @@ endif()
 
 # Source files and target
 set(STATIC_LIB "cubismup3d")
+set(STATIC_LIB_MERGED "cubismup3d_merged")  # Merged with 3rd party libraries.
 set(PY_SO "_cubismup3d${PY_SO_SUFFIX}")  # Has to match the name in `PYBIND11_MODULE`.
                                          # Wrapped by `python/cubismup3d/__init__.py`.
+
+set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})  # Prefer static over dynamic libraries.
 set(CMAKE_SHARED_LIBRARY_PREFIX "")      # No "lib" prefix for shared.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
 set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
@@ -130,26 +132,27 @@ endif()
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
 # Global flags
-if (CUP_UNBOUNDED_FFT)
-    add_definitions("-DCUP_UNBOUNDED_FFT")
-endif()
 if (CUP_DUMP_SURFACE_BINARY)
     add_definitions("-DCUP_DUMP_SURFACE_BINARY")
-endif()
-if (CUP_SINGLE_PRECISION)
-    add_definitions("-DCUP_SINGLE_PRECISION")
 endif()
 if (CUP_HDF5_DOUBLE_PRECISION)
     add_definitions("-DCUP_HDF5_DOUBLE_PRECISION")
 endif()
-if (CUP_RK2)
-    add_definitions("-DCUP_RK2")
+if (CUP_SINGLE_PRECISION)
+    add_definitions("-DCUP_SINGLE_PRECISION")
 endif()
 if (CUP_VERBOSE)
     add_definitions("-DCUP_VERBOSE")
 endif()
 add_definitions("-DCUP_ALIGNMENT=64")
 add_definitions("-DCUP_BLOCK_SIZE=${BLOCK_SIZE}")
+
+# Indicate that this is an internal compilation (all macros are defined from compile flags).
+add_definitions("-DCUP_INTERNAL_COMPILATION")
+
+# Generate macro file with current compilation settings.
+# https://cmake.org/cmake/help/latest/command/configure_file.html
+configure_file(${ROOT_FOLDER}/cmake/CubismUP3D_macros.template.h ${ROOT_FOLDER}/build/include/CubismUP3D_macros.h)
 
 # OpenMP support
 find_package(OpenMP REQUIRED)
@@ -200,6 +203,7 @@ include_directories(${HDF5_INCLUDE_DIRS})
 if (NOT FTTW_ROOT AND NOT DEFINED ENV{FFTWDIR} AND EXISTS ${ROOT_FOLDER}/dependencies/build/fftw-3.3.7)
     set(FFTW_ROOT ${ROOT_FOLDER}/dependencies/build/fftw-3.3.7)
 endif()
+set(FFTW_USE_STATIC_LIBS 1)
 find_package(FFTW REQUIRED)
 include_directories(${FFTW_INCLUDES})
 
@@ -219,6 +223,16 @@ if (COMPILE_STATIC_LIB)
     target_link_libraries(${STATIC_LIB} ${LIBPREFIX}${HDF5_LIBRARIES})
     target_link_libraries(${STATIC_LIB} ${LIBPREFIX}${FFTW_LIBRARIES})
     target_link_libraries(${STATIC_LIB} ${LIBPREFIX}${GSL_LIBRARIES})
+    # Merge cubismup3d library with its dependencies.
+    set(STATIC_LIB_MERGED_PATH ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/lib${STATIC_LIB_MERGED}.a)
+    add_custom_command(
+        OUTPUT ${STATIC_LIB_MERGED_PATH}
+        COMMAND libtool ARGS -static -o ${STATIC_LIB_MERGED_PATH} $<TARGET_FILE:${STATIC_LIB}>
+        ${LIBPREFIX}${HDF5_LIBRARIES}
+        ${LIBPREFIX}${FFTW_LIBRARIES}
+        ${LIBPREFIX}${GSL_LIBRARIES}
+        DEPENDS ${STATIC_LIB})
+    add_custom_target(${STATIC_LIB_MERGED} ALL DEPENDS ${STATIC_LIB_MERGED_PATH})
 endif()
 if ("${COMPILE_PY_SO}" STREQUAL "1")
     target_link_libraries(${PY_SO} ${LIBPREFIX}${HDF5_LIBRARIES})

@@ -15,6 +15,8 @@
 
 #include "operators/Operator.h"
 
+namespace cubismup3d {
+
 /*
  * Struct passed to kernels in `apply_kernel` and `apply_stencil_kernel` functions.
  *
@@ -74,7 +76,7 @@ struct StencilKernelLab {
   LabMPI &lab;
   int ix, iy, iz;
 
-  FluidElement &operator()(int dx, int dy = 0, int dz = 0) const {
+  FluidElement& operator()(int dx, int dy = 0, int dz = 0) const {
     return lab(ix + dx, iy + dy, iz + dz);
   }
 };
@@ -99,7 +101,7 @@ void applyStencilKernel(SimulationData &sim, StencilInfo stencil, Func func)
     const StencilInfo stencil;
     Func func;
 
-    void operator()(LabMPI &lab, const BlockInfo& block_info, FluidBlock &out) const
+    void operator()(LabMPI &lab, const BlockInfo &block_info, FluidBlock &out) const
     {
       for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
       for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
@@ -111,10 +113,10 @@ void applyStencilKernel(SimulationData &sim, StencilInfo stencil, Func func)
     }
   };
 
-  struct FunctorOperator : Operator {
+  struct CellwiseOperator : Operator {
     Kernel kernel;
 
-    FunctorOperator(SimulationData &s, const StencilInfo &stencil, Func func)
+    CellwiseOperator(SimulationData &s, const StencilInfo &stencil, Func func)
         : Operator(s), kernel{stencil, func} {}
 
     void operator()(const double /* dt */) {
@@ -124,11 +126,13 @@ void applyStencilKernel(SimulationData &sim, StencilInfo stencil, Func func)
       compute(kernel);
     }
 
-    std::string getName() { return "apply_stencil_kernel::FunctorOperator"; }
+    std::string getName() { return "apply_stencil_kernel::CellwiseOperator"; }
   };
 
-  FunctorOperator op{sim, stencil, func};
+  CellwiseOperator op{sim, stencil, func};
   op(0.0);  // dt is unused for now.
 }
+
+}  // namespace cubismup3d
 
 #endif
