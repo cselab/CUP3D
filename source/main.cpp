@@ -39,7 +39,7 @@ int main(int argc, char **argv)
 #endif
   }
 
-  ArgumentParser parser(argc, argv);
+  cubism::ArgumentParser parser(argc, argv);
   cubismup3d::Simulation *sim = new cubismup3d::Simulation(MPI_COMM_WORLD, parser);
   sim->run();
   delete sim;

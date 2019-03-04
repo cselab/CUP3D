@@ -55,7 +55,7 @@ class Plate : public Obstacle
     double half_thickness;
 
 public:
-    Plate(SimulationData & s, ArgumentParser &p);
+    Plate(SimulationData & s, cubism::ArgumentParser &p);
     Plate(
             SimulationData & s, ObstacleArguments &args,
             double a, double b, double thickness,

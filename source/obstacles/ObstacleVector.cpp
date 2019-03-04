@@ -11,6 +11,7 @@
 #include <sstream>
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 std::vector<std::array<int, 2>> ObstacleVector::collidingObstacles()
 {

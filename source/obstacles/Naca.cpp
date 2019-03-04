@@ -15,6 +15,7 @@
 #include <cmath>
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 class NacaMidlineData : public FishMidlineData
 {

@@ -42,7 +42,7 @@ class Fish: public Obstacle
   virtual void writeSDFOnBlocks(const intersect_t& segPerBlock);
 
  public:
-  Fish(SimulationData&s, ArgumentParser&p);
+  Fish(SimulationData&s, cubism::ArgumentParser&p);
   ~Fish();
   void save(std::string filename = std::string()) override;
   void restart(std::string filename = std::string()) override;

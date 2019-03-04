@@ -23,7 +23,7 @@ class ObstacleFactory
 public:
   ObstacleFactory(SimulationData & s) : sim(s) { }
   ~ObstacleFactory() {}
-  std::vector<Obstacle *> create(ArgumentParser &parser);
+  std::vector<Obstacle *> create(cubism::ArgumentParser &parser);
 };
 
 CubismUP_3D_NAMESPACE_END

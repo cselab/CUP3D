@@ -43,13 +43,13 @@ struct FillBlocksBase
 {
 using CHIMAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX];
 #define DERIVED (static_cast<const Derived *>(this))
-    void operator()(const BlockInfo &info, ObstacleBlock* const oBlock) const
+    void operator()(const cubism::BlockInfo &info, ObstacleBlock* const o) const
     {
       // TODO: Remove `isTouching` check and verify that all dependencies are
       //       using this function properly.
       FluidBlock &b = *(FluidBlock *)info.ptrBlock;
       if (!DERIVED->isTouching(b)) return;
-      CHIMAT & __restrict__ SDF = oBlock->sdf;
+      CHIMAT & __restrict__ SDF = o->sdf;
       for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
       for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
       for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {

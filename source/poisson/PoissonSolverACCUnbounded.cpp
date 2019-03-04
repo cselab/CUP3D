@@ -19,6 +19,7 @@ void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
     Real*const m_kernel, Real*const gpu_rhs);
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolver(s)
 {

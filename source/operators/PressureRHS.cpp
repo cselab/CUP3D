@@ -11,6 +11,7 @@
 #include "poisson/PoissonSolver.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 class KernelPressureRHS
 {

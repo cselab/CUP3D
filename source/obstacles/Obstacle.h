@@ -41,7 +41,7 @@ struct ObstacleArguments
   ObstacleArguments() = default;
 
   /* Convert human-readable format into internal representation of parameters. */
-  ObstacleArguments(const SimulationData & sim, ArgumentParser &parser);
+  ObstacleArguments(const SimulationData & sim, cubism::ArgumentParser &parser);
 };
 
 
@@ -58,7 +58,7 @@ class Obstacle
 protected:
   const SimulationData & sim;
   FluidGridMPI * const grid = sim.grid;
-  const std::vector<BlockInfo>& vInfo = sim.vInfo();
+  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   std::vector<ObstacleBlock*> obstacleBlocks;
   bool printedHeaderVels = false;
   bool isSelfPropelled = false;
@@ -85,7 +85,7 @@ public:
   std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
   std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
   std::array<bool, 3> bBlockRotation = {{false, false, false}};
-  bool isMPIBarrierOnChiCompute = false;
+
 protected:
   virtual void _writeComputedVelToFile();
   virtual void _writeDiagForcesToFile();
@@ -96,7 +96,7 @@ protected:
 
 public:
   Obstacle(SimulationData& s, const ObstacleArguments &args);
-  Obstacle(SimulationData& s, ArgumentParser &parser);
+  Obstacle(SimulationData& s, cubism::ArgumentParser &parser);
 
   Obstacle(SimulationData& s) : sim(s) {  }
 
@@ -149,7 +149,8 @@ public:
   virtual void setTranslationVelocity(double UT[3]);
   virtual void setAngularVelocity(const double W[3]);
 
-  inline double dvol(const BlockInfo&info, const int x, const int y, const int z)
+  inline double dvol(const cubism::BlockInfo&info,
+                     const int x, const int y, const int z)
   const {
     double h[3]; info.spacing(h, x, y, z);
     return h[0] * h[1] * h[2];
@@ -168,7 +169,7 @@ public:
 
     #pragma omp parallel for schedule(dynamic, 1)
     for(size_t i=0; i<vInfo.size(); i++) {
-      const BlockInfo& info = vInfo[i];
+      const cubism::BlockInfo& info = vInfo[i];
       const FluidBlock &b = *(FluidBlock *)info.ptrBlock;
       if(kernel.isTouching(b)) {
         assert(obstacleBlocks[info.blockID] == nullptr);

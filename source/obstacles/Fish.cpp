@@ -13,6 +13,7 @@
 #include "Cubism/HDF5Dumper_MPI.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
 {

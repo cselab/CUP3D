@@ -10,6 +10,7 @@
 #include "obstacles/ObstacleVector.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 struct VelocityObstacleVisitor : public ObstacleVisitor
 {

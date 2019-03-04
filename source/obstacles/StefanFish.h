@@ -17,7 +17,7 @@ class StefanFish: public Fish
 {
 protected:
 public:
-  StefanFish(SimulationData&s, ArgumentParser&p);
+  StefanFish(SimulationData&s, cubism::ArgumentParser&p);
   void save(std::string filename = std::string()) override;
   void restart(std::string filename) override;
 };

@@ -22,7 +22,7 @@ class Ellipsoid: public Obstacle
 
 public:
 
-  Ellipsoid(SimulationData&s,ArgumentParser&p);
+  Ellipsoid(SimulationData&s, cubism::ArgumentParser&p);
 
   void create() override;
   void finalize() override;

@@ -15,6 +15,7 @@
 #endif /* CUP_SINGLE_PRECISION */
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 void PoissonSolverMixed_HYPRE::solve()
 {

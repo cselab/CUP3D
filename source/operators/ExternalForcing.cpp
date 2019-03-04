@@ -9,6 +9,7 @@
 #include "operators/ExternalForcing.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 template<int DIRECTION>
 class KernelExternalForcing

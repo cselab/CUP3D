@@ -14,6 +14,7 @@
 #include "poisson/PoissonSolver_common.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData&s) : PoissonSolver(s)
 {

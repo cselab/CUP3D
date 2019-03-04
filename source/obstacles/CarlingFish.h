@@ -17,10 +17,10 @@ class CarlingFishMidlineData;
 
 class CarlingFish: public Fish
 {
-  CarlingFishMidlineData* readHingeParams(ArgumentParser&p);
-  CarlingFishMidlineData* readBurstCoastParams(ArgumentParser&p);
+  CarlingFishMidlineData* readHingeParams(cubism::ArgumentParser&p);
+  CarlingFishMidlineData* readBurstCoastParams(cubism::ArgumentParser&p);
  public:
-  CarlingFish(SimulationData&s, ArgumentParser&p);
+  CarlingFish(SimulationData&s, cubism::ArgumentParser&p);
 
   #ifdef RL_LAYER
     void execute(const int i,const double t,const vector<double>a) override;

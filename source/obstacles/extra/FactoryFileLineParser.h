@@ -18,7 +18,7 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-class FactoryFileLineParser: public ArgumentParser
+class FactoryFileLineParser: public cubism::ArgumentParser
 {
 protected:
     // from stackoverflow
@@ -43,7 +43,7 @@ protected:
 public:
 
     FactoryFileLineParser(std::istringstream & is_line)
-    : ArgumentParser(0, NULL, '#') // last char is comment leader
+    : cubism::ArgumentParser(0, NULL, '#') // last char is comment leader
     {
         std::string key,value;
         while( std::getline(is_line, key, '=') )
@@ -52,7 +52,7 @@ public:
             {
                 // add "-" because then we can use the same code for parsing factory as command lines
                 //mapArguments["-"+trim(key)] = Value(trim(value));
-                mapArguments[trim(key)] = Value(trim(value));
+                mapArguments[trim(key)] = cubism::Value(trim(value));
             }
         }
 

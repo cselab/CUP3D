@@ -345,10 +345,22 @@ struct PutFishOnBlocks
     x[2]=Rmatrix3D[0][2]*p[0] + Rmatrix3D[1][2]*p[1] + Rmatrix3D[2][2]*p[2];
   }
 
-  void operator()(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const;
-  virtual void constructSurface(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const;
-  virtual void constructInternl(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const;
-  virtual void signedDistanceSqrt(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const;
+  void operator()(const cubism::BlockInfo&,
+                  FluidBlock&,
+                  ObstacleBlock*const,
+                  const std::vector<VolumeSegment_OBB*>&) const;
+  virtual void constructSurface(const cubism::BlockInfo&,
+                  FluidBlock&,
+                  ObstacleBlock*const,
+                  const std::vector<VolumeSegment_OBB*>&) const;
+  virtual void constructInternl(const cubism::BlockInfo&,
+                  FluidBlock&,
+                  ObstacleBlock*const,
+                  const std::vector<VolumeSegment_OBB*>&) const;
+  virtual void signedDistanceSqrt(const cubism::BlockInfo&,
+                  FluidBlock&,
+                  ObstacleBlock*const,
+                  const std::vector<VolumeSegment_OBB*>&) const;
 };
 
 struct PutNacaOnBlocks: public PutFishOnBlocks
@@ -357,8 +369,14 @@ struct PutNacaOnBlocks: public PutFishOnBlocks
 
   Real getSmallerDistToMidLPlanar(const int start_s, const Real x[3], int & final_s) const;
 
-  void constructSurface(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const override;
-  void constructInternl(const BlockInfo&i, FluidBlock&b, ObstacleBlock*const o, const std::vector<VolumeSegment_OBB*>&v) const override;
+  void constructSurface(const cubism::BlockInfo&,
+                  FluidBlock&,
+                  ObstacleBlock*const,
+                  const std::vector<VolumeSegment_OBB*>&) const override;
+  void constructInternl(const cubism::BlockInfo&,
+                  FluidBlock&,
+                  ObstacleBlock*const,
+                  const std::vector<VolumeSegment_OBB*>&) const override;
 };
 
 namespace MidlineShapes

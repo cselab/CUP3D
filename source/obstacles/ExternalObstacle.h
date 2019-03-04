@@ -28,7 +28,7 @@ public:
             SimulationData&s,
             const ObstacleArguments &args);
     ExternalObstacle(
-            SimulationData&s, ArgumentParser &p)
+            SimulationData&s, cubism::ArgumentParser &p)
         : ExternalObstacle(s, ObstacleArguments(s, p)) {}
 
     void computeVelocities() override;

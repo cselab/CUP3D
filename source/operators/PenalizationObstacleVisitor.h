@@ -13,6 +13,7 @@
 #include <cmath>
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 struct PenalizationObstacleVisitor : public ObstacleVisitor
 {

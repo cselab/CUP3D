@@ -22,6 +22,7 @@
 #include "poisson/PoissonSolverPETSCMixed.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 class KernelGradP
 {

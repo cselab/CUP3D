@@ -29,7 +29,7 @@ class PoissonSolver
   const int m_rank = sim.rank, m_size = sim.nprocs;
 
   static constexpr int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
-  const std::vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
+  const std::vector<cubism::BlockInfo> local_infos = grid.getResidentBlocksInfo();
 
   const size_t mybpd[3] = {
       static_cast<size_t>(grid.getResidentBlocksPerDimension(0)),
@@ -66,20 +66,15 @@ class PoissonSolver
 
   inline size_t _offset(const int blockID) const
   {
-    const BlockInfo &info = local_infos[blockID];
+    const cubism::BlockInfo &info = local_infos[blockID];
     return _offset(info);
   }
-  inline size_t _offset_ext(const BlockInfo &info) const
+  inline size_t _offset_ext(const cubism::BlockInfo &info) const
   {
     assert(local_infos[info.blockID].blockID == info.blockID);
     return _offset(local_infos[info.blockID]);
-    //for(const auto & local_info : local_infos)
-    //  if(local_info.blockID == info.blockID)
-    //    return _offset(local_info);
-    //printf("PSolver cannot find obstacle block\n");
-    //abort();
   }
-  inline size_t _offset(const BlockInfo &info) const
+  inline size_t _offset(const cubism::BlockInfo &info) const
   {
     assert(stridez>0);
     assert(stridey>0);

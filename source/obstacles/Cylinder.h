@@ -19,7 +19,7 @@ class Cylinder : public Obstacle
   const double halflength;
   std::string section = "circular"; // or whatever
 public:
-  Cylinder(SimulationData&s, ArgumentParser &p);
+  Cylinder(SimulationData&s, cubism::ArgumentParser &p);
   Cylinder(SimulationData&s, ObstacleArguments &args,
                                  double radius, double halflength);
 

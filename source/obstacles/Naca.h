@@ -18,7 +18,7 @@ class Naca: public Fish
   double Apitch, Fpitch, Ppitch, Mpitch, Fheave, Aheave;
   bool bCreated;
  public:
-  Naca(SimulationData&s, ArgumentParser&p);
+  Naca(SimulationData&s, cubism::ArgumentParser&p);
   void update() override;
   void computeVelocities() override;
   using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;

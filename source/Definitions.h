@@ -60,8 +60,6 @@ typedef double DumpReal;
 #include "Cubism/BlockLab.h"
 #include "Cubism/BlockLabMPI.h"
 
-using namespace cubism;
-
 #include "utils/AlignedAllocator.h"
 #include "utils/FDcoeffs.h"
 
@@ -272,7 +270,7 @@ struct StreamerPressure
 
 
 template<typename BlockType, template<typename X> class allocator=std::allocator>
-class BlockLabBC: public BlockLab<BlockType,allocator>
+class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
 {
   typedef typename BlockType::ElementType ElementTypeBlock;
   static constexpr int sizeX = BlockType::sizeX;
@@ -368,10 +366,10 @@ class BlockLabBC: public BlockLab<BlockType,allocator>
 
   BlockLabBC(const BlockLabBC&) = delete;
   BlockLabBC& operator=(const BlockLabBC&) = delete;
-  BlockLabBC() : BlockLab<BlockType,allocator>() {}
+  BlockLabBC() : cubism::BlockLab<BlockType,allocator>() {}
 
   // Called by Cubism:
-  void _apply_bc(const BlockInfo& info, const Real t=0)
+  void _apply_bc(const cubism::BlockInfo& info, const Real t=0)
   {
     if(BCX == periodic) {   /* PERIODIC */ }
     else if (BCX == wall) { /* WALL */
@@ -403,10 +401,10 @@ class BlockLabBC: public BlockLab<BlockType,allocator>
 };
 
 using FluidBlock = BaseBlock<FluidElement>;
-typedef Grid<FluidBlock, aligned_allocator> FluidGrid;
-typedef GridMPI<FluidGrid> FluidGridMPI;
-typedef BlockLabBC<FluidBlock, aligned_allocator> Lab;
-typedef BlockLabMPI<Lab> LabMPI;
+using FluidGrid    = cubism::Grid<FluidBlock, aligned_allocator> ;
+using FluidGridMPI = cubism::GridMPI<FluidGrid> ;
+using Lab          = BlockLabBC<FluidBlock, aligned_allocator> ;
+using LabMPI       = cubism::BlockLabMPI<Lab> ;
 
 CubismUP_3D_NAMESPACE_END
 #endif // CubismUP_3D_DataStructures_h

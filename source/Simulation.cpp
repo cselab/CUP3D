@@ -19,12 +19,13 @@
 #include "operators/FluidSolidForces.h"
 
 #include "obstacles/ObstacleFactory.h"
-#include "utils/ProcessOperatorsOMP.h"
+#include "operators/ProcessHelpers.h"
 #include "Cubism/HDF5Dumper_MPI.h"
 #include "Cubism/MeshKernels.h"
 #include <iomanip>
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 /*
  * Initialization from cmdline arguments is done in few steps, because grid has

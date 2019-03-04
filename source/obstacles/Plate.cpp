@@ -11,6 +11,7 @@
 #include "Cubism/ArgumentParser.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 static constexpr Real EPSILON = std::numeric_limits<Real>::epsilon();
 static inline Real sqr(const Real x) { return x * x; }

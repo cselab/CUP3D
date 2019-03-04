@@ -10,6 +10,7 @@
 #include "utils/BufferedLogger.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 class KernelDissipation
 {

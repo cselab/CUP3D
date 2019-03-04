@@ -15,6 +15,7 @@ void _fourier_filter_gpu(
   const int osize[3], const int ostart[3], const Real h);
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver(s)
 {

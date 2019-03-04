@@ -24,8 +24,9 @@
 //#include "obstacles/IF3D_CylinderPairOperator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
-std::vector<Obstacle*> ObstacleFactory::create(ArgumentParser & parser)
+std::vector<Obstacle*> ObstacleFactory::create(cubism::ArgumentParser & parser)
 {
   std::vector<Obstacle*> retval;
 

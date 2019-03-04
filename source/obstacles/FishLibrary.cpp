@@ -12,6 +12,7 @@
 #include <gsl/gsl_statistics.h>
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 using MARKMAT = int[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];

@@ -11,6 +11,7 @@
 #include "Cubism/ArgumentParser.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 class CarlingFishMidlineData : public FishMidlineData
 {

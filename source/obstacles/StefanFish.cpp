@@ -14,6 +14,7 @@
 #include <array>
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 class CurvatureDefinedFishData : public FishMidlineData
 {

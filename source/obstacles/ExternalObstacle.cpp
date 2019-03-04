@@ -10,6 +10,7 @@
 #include "obstacles/extra/ObstacleLibrary.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 namespace {
 

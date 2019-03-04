@@ -40,7 +40,7 @@ public:
     {}
     ~NonUniformScheme() {}
 
-    typedef MeshMap<TBlock> TMeshMap;
+    typedef cubism::MeshMap<TBlock> TMeshMap;
 
     template <int _S, int _E>
     class HaloVector
@@ -67,7 +67,9 @@ public:
     typedef HaloVector<StencilMax,StencilMax> TVector;
 
 
-    void init(const MeshDensity* const kernel_x, const MeshDensity* const kernel_y, const MeshDensity* const kernel_z)
+    void init(const cubism::MeshDensity* const kernel_x,
+              const cubism::MeshDensity* const kernel_y,
+              const cubism::MeshDensity* const kernel_z)
     {
         double ghosts[2*StencilMax];
 
@@ -97,7 +99,8 @@ public:
 
 
     template <typename TFD>
-    void setup_coefficients(std::vector<BlockInfo>& infos, const bool cleanup=false)
+    void setup_coefficients(std::vector<cubism::BlockInfo>& infos,
+                            const bool cleanup = false)
     {
         if (!m_initialized)
         {
@@ -131,7 +134,7 @@ public:
 #pragma omp parallel for
         for(size_t i=0; i<infos.size(); ++i)
         {
-            BlockInfo info = infos[i];
+            cubism::BlockInfo info = infos[i];
             TBlock& b = *(TBlock*)info.ptrBlock;
 
             {
@@ -162,7 +165,7 @@ public:
 
 // TODO: [fabianw@mavt.ethz.ch; Mon Jan 22 2018 07:44:01 PM (+0100)] Is this
 // stuff really needed?
-    void setup_inverse_spacing(std::vector<BlockInfo>& infos)
+    void setup_inverse_spacing(std::vector<cubism::BlockInfo>& infos)
     {
         if (!m_initialized)
         {
@@ -173,7 +176,7 @@ public:
 #pragma omp parallel for
         for(int i=0; i<(int)infos.size(); ++i)
         {
-            BlockInfo info = infos[i];
+            cubism::BlockInfo info = infos[i];
             TBlock& b = *(TBlock*)info.ptrBlock;
 
             {

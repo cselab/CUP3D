@@ -12,6 +12,7 @@
 #include "Cubism/ArgumentParser.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   app_comm(mpicomm)
@@ -217,22 +218,16 @@ SimulationData::~SimulationData()
 
 void SimulationData::startProfiler(std::string name) const
 {
-  #ifndef SMARTIES_APP
-    profiler->push_start(name);
-  #endif
+  profiler->push_start(name);
 }
 void SimulationData::stopProfiler() const
 {
-  #ifndef SMARTIES_APP
-    profiler->pop_stop();
-  #endif
+  profiler->pop_stop();
 }
 void SimulationData::printResetProfiler()
 {
-  #ifndef SMARTIES_APP
-    profiler->printSummary();
-    profiler->reset();
-  #endif
+  profiler->printSummary();
+  profiler->reset();
 }
 
 CubismUP_3D_NAMESPACE_END

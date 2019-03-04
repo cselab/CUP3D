@@ -14,7 +14,7 @@
 CubismUP_3D_NAMESPACE_BEGIN
 
 inline Real findMaxU(
-        const std::vector<BlockInfo> myInfo,
+        const std::vector<cubism::BlockInfo> myInfo,
         FluidGridMPI& grid,
         const Real*const uinf
       )
@@ -25,7 +25,7 @@ inline Real findMaxU(
   #pragma omp parallel for schedule(static) reduction(max : maxU)
   for(int i=0; i<N; i++)
   {
-    const BlockInfo& info = myInfo[i];
+    const cubism::BlockInfo& info = myInfo[i];
     const FluidBlock& b = *(const FluidBlock *)info.ptrBlock;
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -43,8 +43,8 @@ inline Real findMaxU(
 #ifdef CUP_ASYNC_DUMP
 static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
 {
-  std::vector<BlockInfo> vInfo1 = grid.getBlocksInfo();
-  std::vector<BlockInfo> vInfo2 = dump.getBlocksInfo();
+  std::vector<cubism::BlockInfo> vInfo1 = grid.getBlocksInfo();
+  std::vector<cubism::BlockInfo> vInfo2 = dump.getBlocksInfo();
   const int N = vInfo1.size();
   if(vInfo1.size() != vInfo2.size()) {
      printf("Async dump fail 1.\n");
@@ -53,8 +53,8 @@ static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
    }
   #pragma omp parallel for schedule(static)
   for(int i=0; i<N; i++) {
-    const BlockInfo& info1 = vInfo1[i];
-    const BlockInfo& info2 = vInfo2[i];
+    const cubism::BlockInfo& info1 = vInfo1[i];
+    const cubism::BlockInfo& info2 = vInfo2[i];
 
     #ifndef NDEBUG
       Real p1[3], p2[3];
@@ -70,7 +70,7 @@ static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
     #endif
 
     const FluidBlock& b = *(FluidBlock*)info1.ptrBlock;
-     DumpBlock& d = *( DumpBlock*)info2.ptrBlock;
+           DumpBlock& d = *( DumpBlock*)info2.ptrBlock;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {

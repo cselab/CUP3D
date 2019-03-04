@@ -28,7 +28,7 @@ class Simulation
 public:
 
   SimulationData sim;
-  ArgumentParser * const parser_ptr;
+  cubism::ArgumentParser * const parser_ptr;
 
   void _init(bool restart = false);
 

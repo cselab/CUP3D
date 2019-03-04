@@ -25,6 +25,7 @@
 #endif /* CUP_SINGLE_PRECISION */
 
 CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 extern PetscErrorCode ComputeRHS(KSP solver, Vec RHS, void * Sptr);
 extern PetscErrorCode ComputeJacobian(KSP solver, Mat J, Mat JAC, void *Sptr);

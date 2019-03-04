@@ -22,7 +22,7 @@ class Sphere: public Obstacle
 
 public:
 
-  Sphere(SimulationData&s,ArgumentParser&p);
+  Sphere(SimulationData&s,cubism::ArgumentParser&p);
   Sphere(SimulationData&s,ObstacleArguments&args,double R);
   Sphere(SimulationData&s,ObstacleArguments&args,double R, double umax, double tmax);
 

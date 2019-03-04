@@ -32,22 +32,20 @@ class ObstacleVector;
 class PoissonSolver;
 
 #ifdef CUP_ASYNC_DUMP
-  using DumpBlock = BaseBlock<DumpElement>;
-  typedef GridMPI<Grid<DumpBlock, aligned_allocator>> DumpGridMPI;
-  typedef SliceTypesMPI::Slice<DumpGridMPI> SliceType;
+ using DumpBlock  = BaseBlock<DumpElement>;
+ using DumpGridMPI= cubism::GridMPI<cubism::Grid<DumpBlock, aligned_allocator>>;
+ using SliceType  = cubism::SliceTypesMPI::Slice<DumpGridMPI>;
 #else
-  typedef SliceTypesMPI::Slice<FluidGridMPI> SliceType;
+ using SliceType  = cubism::SliceTypesMPI::Slice<FluidGridMPI>;
 #endif
 
 struct SimulationData
 {
-  #ifndef SMARTIES_APP
-    Profiler * profiler = new Profiler();
-  #endif
+  cubism::Profiler * profiler = new cubism::Profiler();
 
   FluidGridMPI * grid = nullptr;
   NonUniformScheme<FluidBlock>* nonuniform = nullptr;
-  const std::vector<BlockInfo>& vInfo() const {
+  const std::vector<cubism::BlockInfo>& vInfo() const {
     return grid->getBlocksInfo();
   }
 
@@ -117,7 +115,7 @@ struct SimulationData
   void printResetProfiler();
   void _argumentsSanityCheck();
   ~SimulationData();
-  SimulationData(MPI_Comm mpicomm, ArgumentParser &parser);
+  SimulationData(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
   SimulationData(MPI_Comm mpicomm);
 };
 
