@@ -6,9 +6,12 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef CubismUP_3D_PoissonSolverPeriodic_h
+#define CubismUP_3D_PoissonSolverPeriodic_h
 
 #include "poisson/PoissonSolver.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class PoissonSolverPeriodic : public PoissonSolver
 {
@@ -29,3 +32,6 @@ class PoissonSolverPeriodic : public PoissonSolver
 
   ~PoissonSolverPeriodic();
 };
+
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_PoissonSolverPeriodic_h

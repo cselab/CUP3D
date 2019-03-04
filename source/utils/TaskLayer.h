@@ -8,20 +8,18 @@
 #ifndef CubismUP_3D_TaskLayer_h
 #define CubismUP_3D_TaskLayer_h
 
-//#include <cassert>
-//#define __2Leads_
 //#define __DumpWakeStefan 9
-using namespace std;
-//#include <assert.h>
+
 #ifdef __RL_MPI_CLIENT
 #include <random>
 #include "Communicator.h"
 #endif
 
 #include "StateRewardData.h"
-#include "IF3D_ObstacleVector.h"
-
+#include "ObstacleVector.h"
 #include "Cubism/ArgumentParser.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 struct TaskLayer
 {
@@ -208,4 +206,5 @@ struct TaskLayer
   }
 };
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_TaskLayer_h

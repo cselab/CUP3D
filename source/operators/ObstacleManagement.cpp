@@ -7,7 +7,9 @@
 //
 
 #include "operators/ObstacleManagement.h"
-#include "obstacles/IF3D_ObstacleVector.h"
+#include "obstacles/ObstacleVector.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 struct VelocityObstacleVisitor : public ObstacleVisitor
 {
@@ -18,7 +20,7 @@ struct VelocityObstacleVisitor : public ObstacleVisitor
   VelocityObstacleVisitor(SimulationData& s, int*const nS, double*const uS) :
    dt(s.dt), lambda(s.lambda), nSum(nS), uSum(uS) { }
 
-  void visit(IF3D_ObstacleOperator* const obstacle)
+  void visit(Obstacle* const obstacle)
   {
     const auto &bFixFrameOfRef = obstacle->bFixFrameOfRef;
     obstacle->computeVelocities();
@@ -168,3 +170,5 @@ void UpdateObstacles::operator()(const double dt)
   sim.stopProfiler();
   check("obst. update");
 }
+
+CubismUP_3D_NAMESPACE_END

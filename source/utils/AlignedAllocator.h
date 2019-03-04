@@ -4,11 +4,15 @@
 //  Distributed under the terms of the MIT license.
 //
 
-#pragma once
+#ifndef CubismUP_3D_aligned_allocator_h
+#define CubismUP_3D_aligned_allocator_h
+
 #include <stdlib.h>
 //#include <malloc.h>
 // ALIGNMENT must be a power of 2 !
 #define ALIGNMENT 32
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 template <typename T>
 class aligned_allocator {
@@ -66,3 +70,6 @@ class aligned_allocator {
     template <typename S>
     bool operator != (aligned_allocator<S> const&b) const noexcept { return 1; }
 };
+
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_aligned_allocator_h

@@ -9,6 +9,8 @@
 #include "BufferedLogger.h"
 #include <fstream>
 
+namespace cubismup3d {
+
 BufferedLogger logger;
 
 static constexpr int AUTO_FLUSH_COUNT = 100;
@@ -33,4 +35,6 @@ std::stringstream& BufferedLogger::get_stream(const std::string &filename) {
         auto new_it = files.emplace(filename, Stream()).first;
         return new_it->second.stream;
     }
+}
+
 }

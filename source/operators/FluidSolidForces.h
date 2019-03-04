@@ -6,11 +6,12 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_2D_OperatorComputeForces_h
-#define CubismUP_2D_OperatorComputeForces_h
+#ifndef CubismUP_3D_ComputeForces_h
+#define CubismUP_3D_ComputeForces_h
 
 #include "operators/Operator.h"
-#include "obstacles/IF3D_ObstacleVector.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class ComputeForces : public Operator
 {
@@ -22,4 +23,5 @@ class ComputeForces : public Operator
   std::string getName() { return "ComputeForces"; }
 };
 
+CubismUP_3D_NAMESPACE_END
 #endif

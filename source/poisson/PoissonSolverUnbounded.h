@@ -9,10 +9,12 @@
 //  Brownrigg (1979) for unbounded domains.
 //  WARNING: This implementation only works with a 1D domain decomposition
 //  along the x-coordinate.
-#ifndef POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
-#define POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV
+#ifndef CubismUP_3D_PoissonSolverUnbounded_h
+#define CubismUP_3D_PoissonSolverUnbounded_h
 
 #include "poisson/PoissonSolver.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class PoissonSolverUnbounded : public PoissonSolver
 {
@@ -70,4 +72,5 @@ class PoissonSolverUnbounded : public PoissonSolver
   void _copy_bwd_local();
 };
 
-#endif /* POISSONSOLVERSCALARFFTW_CYCLICCONVOLUTION_H_NUOUYWFV */
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_PoissonSolverUnbounded_h

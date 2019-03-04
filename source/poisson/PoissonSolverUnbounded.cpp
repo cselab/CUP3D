@@ -13,6 +13,8 @@
 #include "poisson/PoissonSolverUnbounded.h"
 #include "poisson/PoissonSolver_common.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData&s) : PoissonSolver(s)
 {
   if (m_N0 % m_size != 0 || m_NN1 % m_size != 0) {
@@ -267,4 +269,5 @@ void PoissonSolverUnbounded::_copy_bwd_local()
   }
 }
 
+CubismUP_3D_NAMESPACE_END
 #undef MPIREAL

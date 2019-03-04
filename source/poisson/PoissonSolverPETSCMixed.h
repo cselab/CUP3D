@@ -1,5 +1,5 @@
 //
-//  CubismUP_2D
+//  CubismUP_3D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
@@ -7,10 +7,13 @@
 //
 
 
-#pragma once
+#ifndef CubismUP_3D_PoissonSolverMixed_PETSC_h
+#define CubismUP_3D_PoissonSolverMixed_PETSC_h
 #ifdef CUP_PETSC
 
 #include "poisson/PoissonSolver.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class PoissonSolverMixed_PETSC : public PoissonSolver
 {
@@ -66,4 +69,6 @@ class PoissonSolverMixed_PETSC : public PoissonSolver
   ~PoissonSolverMixed_PETSC();
 };
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CUP_PETSC
+#endif // CubismUP_3D_PoissonSolverMixed_PETSC_h

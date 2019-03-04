@@ -6,12 +6,14 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-
 #include "operators/FluidSolidForces.h"
+#include "obstacles/ObstacleVector.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 struct KernelComputeForces : public ObstacleVisitor
 {
-  IF3D_ObstacleVector * const obstacle_vector;
+  ObstacleVector * const obstacle_vector;
   const double nu, dt;
   LabMPI * lab_ptr = nullptr;
   const BlockInfo * info_ptr = nullptr;
@@ -19,7 +21,7 @@ struct KernelComputeForces : public ObstacleVisitor
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
   StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
 
-  KernelComputeForces(double _nu, double _dt, IF3D_ObstacleVector* ov) :
+  KernelComputeForces(double _nu, double _dt, ObstacleVector* ov) :
     obstacle_vector(ov), nu(_nu), dt(_dt) { }
 
   void operator()(LabMPI&lab,const BlockInfo&info,const FluidBlock&block)
@@ -34,7 +36,7 @@ struct KernelComputeForces : public ObstacleVisitor
     info_ptr = nullptr;
   }
 
-  void visit(IF3D_ObstacleOperator* const op)
+  void visit(Obstacle* const op)
   {
     LabMPI& l = * lab_ptr;
     const BlockInfo& info = * info_ptr;
@@ -213,3 +215,5 @@ struct DumpWake
     }
   }
 };
+
+CubismUP_3D_NAMESPACE_END

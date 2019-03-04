@@ -42,6 +42,14 @@ typedef double DumpReal;
 #endif
 #define CUBISM_ALIGNMENT CUP_ALIGNMENT
 
+#ifndef CubismUP_3D_NAMESPACE_BEGIN
+#define CubismUP_3D_NAMESPACE_BEGIN namespace cubismup3d {
+#endif
+
+#ifndef CubismUP_3D_NAMESPACE_END
+#define CubismUP_3D_NAMESPACE_END   }  // namespace cubism
+#endif
+
 // Cubism dependencies.
 #include "Cubism/Grid.h"
 #include "Cubism/GridMPI.h"
@@ -56,6 +64,8 @@ using namespace cubism;
 
 #include "utils/AlignedAllocator.h"
 #include "utils/FDcoeffs.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 struct FluidElement
 {
@@ -398,4 +408,5 @@ typedef GridMPI<FluidGrid> FluidGridMPI;
 typedef BlockLabBC<FluidBlock, aligned_allocator> Lab;
 typedef BlockLabMPI<Lab> LabMPI;
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_DataStructures_h

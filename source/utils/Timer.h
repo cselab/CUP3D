@@ -6,8 +6,11 @@
 //  Created by Christian Conti.
 //
 
-#pragma once
+#ifndef CubismUP_3D_Timer_h
+#define CubismUP_3D_Timer_h
 #include <chrono>
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class Timer
 {
@@ -27,3 +30,6 @@ public:
 		return std::chrono::duration<double>(t_end-t_start).count();
 	}
 };
+
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_Timer_h

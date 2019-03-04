@@ -11,6 +11,8 @@
 
 #include "SimulationData.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class Operator
 {
  protected:
@@ -167,4 +169,5 @@ public:
   virtual std::string getName() = 0;
 };
 
+CubismUP_3D_NAMESPACE_END
 #endif

@@ -12,6 +12,7 @@
 #include <unordered_map>
 #include <sstream>
 
+namespace cubismup3d {
 /*
  * Buffered file logging with automatic flush.
  *
@@ -60,4 +61,5 @@ public:
 
 extern BufferedLogger logger;  // Declared in BufferedLogger.cpp.
 
-#endif
+}
+#endif // CubismUP_3D_utils_BufferedLogger_h

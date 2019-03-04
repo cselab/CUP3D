@@ -6,9 +6,12 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef CubismUP_3D_PoissonSolverMixed_h
+#define CubismUP_3D_PoissonSolverMixed_h
 
 #include "poisson/PoissonSolver.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class PoissonSolverMixed : public PoissonSolver
 {
@@ -63,3 +66,6 @@ class PoissonSolverMixed : public PoissonSolver
 
   ~PoissonSolverMixed();
 };
+
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_PoissonSolverMixed_h

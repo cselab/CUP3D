@@ -6,7 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef CubismUP_3D_PoissonSolverACC_common_h
+#define CubismUP_3D_PoissonSolverACC_common_h
 
 #include "accfft_utils.h"
 #include "accfft_common.h"
@@ -49,3 +50,5 @@ inline void printMemUse(const std::string where)
       __FILE__,__LINE__, cudaGetErrorString(code)); \
     } \
   } while(0)
+
+#endif // CubismUP_3D_PoissonSolverACC_common_h

@@ -15,6 +15,8 @@
 #include <cstring> //memset
 #include <cstdio> //print
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 struct surface_data
 {
   const int ix, iy, iz;
@@ -203,4 +205,5 @@ struct ObstacleBlock
   }
 };
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_ObstacleBlock_h

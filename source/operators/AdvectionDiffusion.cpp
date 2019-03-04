@@ -8,6 +8,8 @@
 
 #include "operators/AdvectionDiffusion.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class KernelAdvectDiffuse
 {
   private:
@@ -271,3 +273,5 @@ void AdvectionDiffusion::operator()(const double dt)
   sim.stopProfiler();
   check("AdvectionDiffusion - end");
 }
+
+CubismUP_3D_NAMESPACE_END

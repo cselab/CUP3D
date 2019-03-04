@@ -1,34 +1,35 @@
 //
-//  CubismUP_2D
+//  CubismUP_3D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
+#ifndef CubismUP_3D_SimulationData_h
+#define CubismUP_3D_SimulationData_h
 
-#pragma once
 #include "Definitions.h"
 #include "Cubism/Profiler.h"
 #include "utils/NonUniformScheme.h"
 #include "Cubism/HDF5SliceDumperMPI.h"
+#ifdef _USE_ZLIB_
+#include "SerializerIO_WaveletCompression_MPI_Simple.h"
+#endif
 //#include "Cubism/ZBinDumper_MPI.h"
 
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
-
 #include <array>
 #include <thread>
 #include <vector>
 
-class Operator;
-class IF3D_ObstacleVector;
-class PoissonSolver;
+CubismUP_3D_NAMESPACE_BEGIN
 
-#ifdef _USE_ZLIB_
-#include "SerializerIO_WaveletCompression_MPI_Simple.h"
-#endif
+class Operator;
+class ObstacleVector;
+class PoissonSolver;
 
 #ifdef CUP_ASYNC_DUMP
   using DumpBlock = BaseBlock<DumpElement>;
@@ -54,7 +55,7 @@ struct SimulationData
   std::vector<SliceType> m_slices;
 
   //The protagonist
-  IF3D_ObstacleVector * obstacle_vector = nullptr;
+  ObstacleVector * obstacle_vector = nullptr;
   //The antagonist
   std::vector<Operator*> pipeline;
   PoissonSolver * pressureSolver = nullptr;
@@ -119,3 +120,6 @@ struct SimulationData
   SimulationData(MPI_Comm mpicomm, ArgumentParser &parser);
   SimulationData(MPI_Comm mpicomm);
 };
+
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_SimulationData_h

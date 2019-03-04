@@ -18,6 +18,8 @@ void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
     const int nx,const int ny,const int nz, const Real h, acc_plan* const fwd,
     Real*const m_kernel, Real*const gpu_rhs);
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolver(s)
 {
   if( myftNx < myN[0] ) {
@@ -256,3 +258,5 @@ PoissonSolverUnbounded::~PoissonSolverUnbounded()
   MPI_Comm_free(&c_comm);
   MPI_Type_free(&submat);
 }
+
+CubismUP_3D_NAMESPACE_END

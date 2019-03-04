@@ -1,11 +1,10 @@
 //
-//  CubismUP_2D
+//  CubismUP_3D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
-
 
 #include "poisson/PoissonSolverHYPREMixed.h"
 #ifdef CUP_HYPRE
@@ -14,6 +13,8 @@
 #else
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 void PoissonSolverMixed_HYPRE::solve()
 {
@@ -375,4 +376,5 @@ Real * PoissonSolverMixed_HYPRE::prepareMat()
   return (Real*) vals;
 }
 
+CubismUP_3D_NAMESPACE_END
 #endif

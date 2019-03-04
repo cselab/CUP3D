@@ -11,6 +11,8 @@
 
 #include "SimulationData.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 // -gradp, divergence, advection
 template<typename Lab, typename Kernel>
 void processOMP(double dt, const SimulationData & sim)
@@ -139,4 +141,5 @@ static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
 }
 #endif
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_ProcessOperators_h

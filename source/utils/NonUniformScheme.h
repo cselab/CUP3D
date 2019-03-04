@@ -6,8 +6,9 @@
  *  Copyright 2017 ETH Zurich. All rights reserved.
  *
  */
-#ifndef NONUNIFORMSCHEME_H_SPZ9KYU5
-#define NONUNIFORMSCHEME_H_SPZ9KYU5
+
+#ifndef CubismUP_3D_NonUniformScheme_h
+#define CubismUP_3D_NonUniformScheme_h
 
 #include <cassert>
 #include <iostream>
@@ -18,6 +19,7 @@
 #include "Cubism/BlockInfo.h"
 #include "Cubism/MeshMap.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
 
 template <typename TBlock>
 class NonUniformScheme
@@ -327,4 +329,5 @@ private:
     }
 };
 
-#endif /* NONUNIFORMSCHEME_H_SPZ9KYU5 */
+CubismUP_3D_NAMESPACE_END
+#endif // NonUniformScheme

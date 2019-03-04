@@ -1,20 +1,22 @@
 //
-//  CubismUP_2D
+//  CubismUP_3D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef CubismUP_3D_PoissonSolver_h
+#define CubismUP_3D_PoissonSolver_h
 
 #include <vector>
 #include <cassert>
 #include <cstring>
 
 #include "SimulationData.h"
-
 #include "Cubism/BlockInfo.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class PoissonSolver
 {
@@ -117,3 +119,6 @@ class PoissonSolver
   //  assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*nz_hat*2);
   // assert(dest_index < m_local_N0*m_NN1*2*m_Nzhat);
 };
+
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_PoissonSolver_h

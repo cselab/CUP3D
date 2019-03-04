@@ -11,6 +11,8 @@
 
 #include "operators/Operator.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class PressurePenalization : public Operator
 {
  protected:
@@ -23,4 +25,6 @@ class PressurePenalization : public Operator
 
   std::string getName() { return "PressurePenalization"; }
 };
+
+CubismUP_3D_NAMESPACE_END
 #endif

@@ -10,7 +10,8 @@
 #define CubismUP_3D_ObstacleManagement_h
 
 #include "operators/Operator.h"
-#include "obstacles/IF3D_ObstacleVector.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class CreateObstacles : public Operator
 {
@@ -32,4 +33,5 @@ class UpdateObstacles : public Operator
   std::string getName() { return "UpdateObstacles"; }
 };
 
+CubismUP_3D_NAMESPACE_END
 #endif

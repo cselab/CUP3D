@@ -12,7 +12,7 @@
 
 #include <array>
 
-namespace cubismup3d {
+CubismUP_3D_NAMESPACE_BEGIN
 
 /*
  * Extension of std::array that implements operators +, - between themselves
@@ -64,4 +64,5 @@ struct ScalarArray {
 
 }  // cubismup3d
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_utils_ScalarArray_h

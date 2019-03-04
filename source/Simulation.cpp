@@ -6,7 +6,7 @@
 //  Written by Guido Novati (novatig@ethz.ch).
 //
 #include "Simulation.h"
-#include "obstacles/IF3D_ObstacleVector.h"
+#include "obstacles/ObstacleVector.h"
 
 #include "operators/AdvectionDiffusion.h"
 #include "operators/ComputeDissipation.h"
@@ -18,11 +18,13 @@
 #include "operators/PressureRHS.h"
 #include "operators/FluidSolidForces.h"
 
-#include "obstacles/IF3D_ObstacleFactory.h"
+#include "obstacles/ObstacleFactory.h"
 #include "utils/ProcessOperatorsOMP.h"
 #include "Cubism/HDF5Dumper_MPI.h"
 #include "Cubism/MeshKernels.h"
 #include <iomanip>
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 /*
  * Initialization from cmdline arguments is done in few steps, because grid has
@@ -44,15 +46,15 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
   #endif
 
   // ========== OBSTACLES ==========
-  IF3D_ObstacleFactory factory(sim);
-  setObstacleVector(new IF3D_ObstacleVector(sim, factory.create(parser)));
+  ObstacleFactory factory(sim);
+  setObstacleVector(new ObstacleVector(sim, factory.create(parser)));
 
   // ============ INIT =============
   const bool bRestart = parser("-restart").asBool(false);
   _init(bRestart);
 }
 
-const std::vector<IF3D_ObstacleOperator*>& Simulation::getObstacleVector() const
+const std::vector<Obstacle*>& Simulation::getObstacleVector() const
 {
     return sim.obstacle_vector->getObstacleVector();
 }
@@ -104,7 +106,7 @@ Simulation::Simulation(
   sim.bpdz = cells[2] / FluidBlock::sizeZ;
   sim._argumentsSanityCheck();
   setupGrid();  // Grid has to be initialized before slices and obstacles.
-  setObstacleVector(new IF3D_ObstacleVector(sim));
+  setObstacleVector(new ObstacleVector(sim));
   _init(restart);
 }
 
@@ -198,7 +200,7 @@ void Simulation::setupGrid()
   }
 }
 
-void Simulation::setObstacleVector(IF3D_ObstacleVector * const obstacle_vector_)
+void Simulation::setObstacleVector(ObstacleVector * const obstacle_vector_)
 {
   sim.obstacle_vector = obstacle_vector_;
 
@@ -482,3 +484,5 @@ bool Simulation::timestep(const double dt)
 
     return false;  // Not yet finished.
 }
+
+CubismUP_3D_NAMESPACE_END

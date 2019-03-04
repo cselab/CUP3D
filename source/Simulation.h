@@ -6,15 +6,17 @@
 //  Written by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_2D_Simulation_Fluid_h
-#define CubismUP_2D_Simulation_Fluid_h
+#ifndef CubismUP_3D_Simulation_h
+#define CubismUP_3D_Simulation_h
 
 #include "SimulationData.h"
 // Forward declarations.
 namespace cubism { class ArgumentParser; }
 namespace cubismup3d { class SimulationWrapper; }
 
-class IF3D_ObstacleOperator;
+CubismUP_3D_NAMESPACE_BEGIN
+
+class Obstacle;
 
 class Simulation
 {
@@ -34,7 +36,7 @@ public:
   void _deserialize();
 
   void _argumentsSanityCheck();
-  void setObstacleVector(IF3D_ObstacleVector *obstacle_vector_);
+  void setObstacleVector(ObstacleVector *obstacle_vector_);
   void setupOperators();
   void setupGrid();
   void _ic();
@@ -67,7 +69,7 @@ public:
   // void removeObstacle(IF3D_ObstacleOperator *obstacle);
 
   /* Get reference to the obstacle container. */
-  const std::vector<IF3D_ObstacleOperator *> &getObstacleVector() const;
+  const std::vector<Obstacle *> &getObstacleVector() const;
 
   /* Calculate maximum allowed time step, including CFL and ramp-up. */
   double calcMaxTimestep();
@@ -80,4 +82,5 @@ public:
   bool timestep(double dt);
 };
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_Simulation_h

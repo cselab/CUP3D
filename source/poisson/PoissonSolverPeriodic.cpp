@@ -9,6 +9,8 @@
 #include "poisson/PoissonSolverPeriodic.h"
 #include "poisson/PoissonSolver_common.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 void PoissonSolverPeriodic::_solve()
 {
   fft_c *const in_out = (fft_c *) data;
@@ -132,6 +134,7 @@ PoissonSolverPeriodic::~PoissonSolverPeriodic()
   _FFTW_(mpi_cleanup)();
 }
 
+CubismUP_3D_NAMESPACE_END
 #undef MPIREAL
 
 #if 0

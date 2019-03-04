@@ -1,5 +1,5 @@
 //
-//  CubismUP_2D
+//  CubismUP_3D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
@@ -8,8 +8,10 @@
 
 #include "SimulationData.h"
 #include "operators/Operator.h"
-#include "obstacles/IF3D_ObstacleVector.h"
+#include "obstacles/ObstacleVector.h"
 #include "Cubism/ArgumentParser.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser) :
   app_comm(mpicomm)
@@ -232,3 +234,5 @@ void SimulationData::printResetProfiler()
     profiler->reset();
   #endif
 }
+
+CubismUP_3D_NAMESPACE_END

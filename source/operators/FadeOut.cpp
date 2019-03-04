@@ -8,6 +8,8 @@
 
 #include "operators/FadeOut.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class KernelFadeOut
 {
  private:
@@ -66,3 +68,5 @@ void FadeOut::operator()(const double dt)
   sim.stopProfiler();
   check("FadeOut - end");
 }
+
+CubismUP_3D_NAMESPACE_END

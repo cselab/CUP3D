@@ -9,8 +9,10 @@
 #ifndef CubismUP_3D_PenalizationObstacleVisitor_h
 #define CubismUP_3D_PenalizationObstacleVisitor_h
 
-#include "obstacles/IF3D_ObstacleVector.h"
+#include "obstacles/ObstacleVector.h"
 #include <cmath>
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 struct PenalizationObstacleVisitor : public ObstacleVisitor
 {
@@ -22,7 +24,7 @@ struct PenalizationObstacleVisitor : public ObstacleVisitor
   PenalizationObstacleVisitor(FluidGridMPI*g, const double _dt,
     const Real*const u) : grid(g), dt(_dt), uInf(u) { }
 
-  void visit(IF3D_ObstacleOperator* const obstacle)
+  void visit(Obstacle* const obstacle)
   {
     //using CHI_MAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
     using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
@@ -82,7 +84,7 @@ struct InitialPenalization : public ObstacleVisitor
   InitialPenalization(FluidGridMPI*g, const double _dt,
     const Real*const u) : grid(g), dt(_dt), uInf(u) { }
 
-  void visit(IF3D_ObstacleOperator* const obstacle)
+  void visit(Obstacle* const obstacle)
   {
     using CHI_MAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
     using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
@@ -133,4 +135,5 @@ struct InitialPenalization : public ObstacleVisitor
   }
 };
 
+CubismUP_3D_NAMESPACE_END
 #endif

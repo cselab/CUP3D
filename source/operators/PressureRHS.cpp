@@ -10,6 +10,8 @@
 #include "operators/PenalizationObstacleVisitor.h"
 #include "poisson/PoissonSolver.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class KernelPressureRHS
 {
   Real dt, lamdt;
@@ -259,3 +261,5 @@ void PressureRHS::operator()(const double dt)
 
   check("pressure rhs - end");
 }
+
+CubismUP_3D_NAMESPACE_END

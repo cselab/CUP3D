@@ -14,6 +14,8 @@ void _fourier_filter_gpu(
   acc_c*const __restrict__ data_hat, const size_t gsize[3],
   const int osize[3], const int ostart[3], const Real h);
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver(s)
 {
   if (gsize[2]!=myN[2]) {
@@ -131,3 +133,5 @@ void PoissonSolverPeriodic::testComm()
     MPI_Abort(grid.getCartComm(), MPI_ERR_OTHER);
   }
 }
+
+CubismUP_3D_NAMESPACE_END

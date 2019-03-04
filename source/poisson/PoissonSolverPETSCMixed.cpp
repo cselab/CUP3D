@@ -1,5 +1,5 @@
 //
-//  CubismUP_2D
+//  CubismUP_3D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
@@ -23,6 +23,8 @@
 #else
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 extern PetscErrorCode ComputeRHS(KSP solver, Vec RHS, void * Sptr);
 extern PetscErrorCode ComputeJacobian(KSP solver, Mat J, Mat JAC, void *Sptr);
@@ -320,4 +322,5 @@ std::vector<char*> readRunArgLst()
   return args; // remember to deallocate it!
 }
 
+CubismUP_3D_NAMESPACE_END
 #endif

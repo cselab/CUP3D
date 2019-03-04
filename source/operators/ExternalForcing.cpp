@@ -8,6 +8,8 @@
 
 #include "operators/ExternalForcing.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 template<int DIRECTION>
 class KernelExternalForcing
 {
@@ -43,3 +45,5 @@ void ExternalForcing::operator()(const double dt)
   sim.stopProfiler();
   check("forcing - end");
 }
+
+CubismUP_3D_NAMESPACE_END

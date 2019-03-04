@@ -11,6 +11,8 @@
 
 #include "operators/Operator.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class PressureRHS : public Operator
 {
  public:
@@ -20,4 +22,6 @@ class PressureRHS : public Operator
 
   std::string getName() { return "PressureRHS"; }
 };
+
+CubismUP_3D_NAMESPACE_END
 #endif

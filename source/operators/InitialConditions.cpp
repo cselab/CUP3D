@@ -9,6 +9,8 @@
 #include "operators/InitialConditions.h"
 #include "operators/PenalizationObstacleVisitor.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class KernelIC
 {
  public:
@@ -94,16 +96,16 @@ class KernelIC_channel
 void InitialConditions::operator()(const double dt)
 {
   if(sim.initCond == "zero") {
-    printf("Zero-values initial conditions.\n");
+    if(sim.verbose) printf("Zero-values initial conditions.\n");
     run(KernelIC(0));
   }
   if(sim.initCond == "taylorGreen") {
-    printf("Taylor Green vortex initial conditions.\n");
+    if(sim.verbose) printf("Taylor Green vortex initial conditions.\n");
     run(KernelIC_taylorGreen(sim.extent, sim.uMax_forced));
   }
   if(sim.initCond == "channel")
   {
-    printf("Channel flow initial conditions.\n");
+    if(sim.verbose) printf("Channel flow initial conditions.\n");
     if( sim.BCx_flag == wall ) {
       printf("ERROR: channel flow must be periodic or dirichlet in x.\n");
       abort();
@@ -136,3 +138,5 @@ void InitialConditions::operator()(const double dt)
 
   check("IC - end");
 }
+
+CubismUP_3D_NAMESPACE_END

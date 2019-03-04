@@ -21,6 +21,8 @@
 #include "poisson/PoissonSolverHYPREMixed.h"
 #include "poisson/PoissonSolverPETSCMixed.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class KernelGradP
 {
  private:
@@ -161,3 +163,5 @@ void PressurePenalization::operator()(const double dt)
 
   check("pressure - end");
 }
+
+CubismUP_3D_NAMESPACE_END
