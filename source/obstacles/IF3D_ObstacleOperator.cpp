@@ -184,7 +184,7 @@ void IF3D_ObstacleOperator::_computeUdefMoments(double lin_momenta[3],
     const double detJ = J[0] * (J[1] * J[2] - J[5] * J[5])+
                         J[3] * (J[4] * J[5] - J[2] * J[3])+
                         J[4] * (J[3] * J[5] - J[1] * J[4]);
-    assert(std::fabs(detJ)>DBLEPS);
+    assert(std::fabs(detJ)>0);
     const double invJ[6] = {
       (J[1] * J[2] - J[5] * J[5]) / detJ, (J[0] * J[2] - J[4] * J[4]) / detJ,
       (J[0] * J[1] - J[3] * J[3]) / detJ, (J[4] * J[5] - J[2] * J[3]) / detJ,

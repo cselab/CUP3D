@@ -395,7 +395,8 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
 {
   {
     const int N = FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX;
-    for(int i=0; i<N; ++i) *(&(oblock->sdf[0][0][0])+i) = -1;
+    Real * const sdf_array = &oblock->sdf[0][0][0];
+    for(int i=0; i<N; ++i) sdf_array[i] = -1;
   }
   //std::chrono::time_point<std::chrono::high_resolution_clock> t0, t1, t2, t3;
   //t0 = std::chrono::high_resolution_clock::now();
@@ -415,16 +416,11 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
   Real org[3];
   info.pos(org, 0, 0, 0);
   const Real h = info.h_gridpoint, invh = 1.0/info.h_gridpoint;
-  const Real* const rX = cfish->rX;
-  const Real* const rY = cfish->rY;
-  const Real* const norX = cfish->norX;
-  const Real* const norY = cfish->norY;
-  const Real* const vX = cfish->vX;
-  const Real* const vY = cfish->vY;
-  const Real* const vNorX = cfish->vNorX;
-  const Real* const vNorY = cfish->vNorY;
-  const Real* const width = cfish->width;
-  const Real* const height = cfish->height;
+  const Real *const rX = cfish->rX, *const norX = cfish->norX;
+  const Real *const rY = cfish->rY, *const norY = cfish->norY;
+  const Real *const vX = cfish->vX, *const vNorX = cfish->vNorX;
+  const Real *const vY = cfish->vY, *const vNorY = cfish->vNorY;
+  const Real *const width = cfish->width, *const height = cfish->height;
   static constexpr int BS[3] = {FluidBlock::sizeX, FluidBlock::sizeY, FluidBlock::sizeZ};
   CHIMAT & __restrict__ CHI = defblock->chi;
   CHIMAT & __restrict__ SDF = defblock->sdf;
@@ -436,7 +432,8 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
     //iterate over segments contained in the vSegm intersecting this block:
     const int firstSegm = std::max(vSegments[i]->s_range.first,            1);
     const int lastSegm =  std::min(vSegments[i]->s_range.second, cfish->Nm-2);
-    for(int ss=firstSegm; ss<=lastSegm; ++ss) {
+    for(int ss=firstSegm; ss<=lastSegm; ++ss)
+    {
       assert(height[ss]>0 && width[ss]>0);
       // fill chi by crating an ellipse around ss and finding all near neighs
       // assume width is major axis, else correction:
@@ -559,7 +556,12 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
   CHIMAT & __restrict__ CHI = defblock->chi;
   CHIMAT & __restrict__ SDF = defblock->sdf;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
-  const Real h = info.h_gridpoint, invh = 1.0/info.h_gridpoint, EPS = 1e-15;
+  const Real *const rX = cfish->rX, *const norX = cfish->norX;
+  const Real *const rY = cfish->rY, *const norY = cfish->norY;
+  const Real *const vX = cfish->vX, *const vNorX = cfish->vNorX;
+  const Real *const vY = cfish->vY, *const vNorY = cfish->vNorY;
+  const Real *const width = cfish->width, *const height = cfish->height;
+  const Real h = info.h_gridpoint, invh = 1.0/info.h_gridpoint;
   // construct the deformation velocities (P2M with hat function as kernel)
   for(size_t i=0; i<vSegments.size(); ++i)
   {
@@ -568,7 +570,7 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
   for(int ss=firstSegm; ss<=lastSegm; ++ss)
   {
     // P2M udef of a slice at this s
-    const Real myWidth = cfish->width[ss], myHeight = cfish->height[ss];
+    const Real myWidth = width[ss], myHeight = height[ss];
     assert(myWidth > 0 && myHeight > 0);
     const int Nh = std::floor(myHeight/h); //floor bcz we already did interior
     for(int ih=-Nh+1; ih<Nh; ++ih)
@@ -579,16 +581,12 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
       for(int iw = -Nw+1; iw < Nw; ++iw)
       {
         const Real offsetW = iw * h;
-        Real xp[3] = { cfish->rX[ss] + offsetW*cfish->norX[ss],
-                       cfish->rY[ss] + offsetW*cfish->norY[ss], offsetH
-        };
+        Real xp[3]= {rX[ss]+offsetW*norX[ss], rY[ss]+offsetW*norY[ss], offsetH};
         changeToComputationalFrame(xp);
         xp[0] = (xp[0]-org[0])*invh; // how many grid points
         xp[1] = (xp[1]-org[1])*invh; // from this block origin
         xp[2] = (xp[2]-org[2])*invh; // is this fishpoint located at?
-        Real udef[3] = { cfish->vX[ss] + offsetW*cfish->vNorX[ss],
-                         cfish->vY[ss] + offsetW*cfish->vNorY[ss], 0
-        };
+        Real udef[3] = {vX[ss]+offsetW*vNorX[ss], vY[ss]+offsetW*vNorY[ss], 0};
         changeVelocityToComputationalFrame(udef);
         const Real ap[3] = {
             std::floor(xp[0]), std::floor(xp[1]), std::floor(xp[2])
@@ -619,7 +617,8 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
           UDEF[idz][idy][idx][2] += wxwywz*udef[2];
           CHI [idz][idy][idx]    += wxwywz;
           // set sign for all interior points
-          if( std::fabs(SDF[idz][idy][idx]+1)<EPS ) SDF[idz][idy][idx] = 1;
+          static constexpr Real eps = std::numeric_limits<Real>::epsilon();
+          if( std::fabs(SDF[idz][idy][idx]+1)<eps ) SDF[idz][idy][idx] = 1;
         }
       }
     }
@@ -633,7 +632,7 @@ void PutFishOnBlocks::signedDistanceSqrt(const BlockInfo& info, FluidBlock& b, O
   CHIMAT & __restrict__ SDF = defblock->sdf;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
   // finalize signed distance function in tmpU
-  const Real eps = std::numeric_limits<Real>::epsilon();
+  static constexpr Real eps = std::numeric_limits<Real>::epsilon();
   for(int iz=0; iz<FluidBlock::sizeZ; iz++)
   for(int iy=0; iy<FluidBlock::sizeY; iy++)
   for(int ix=0; ix<FluidBlock::sizeX; ix++) {

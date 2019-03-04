@@ -66,7 +66,7 @@ struct SimulationData
   double dt = 0;
 
   // mpi
-  const MPI_Comm app_comm;
+  MPI_Comm app_comm;
   int rank=-1, nprocs=-1;
   int nprocsx=-1, nprocsy=-1, nprocsz=-1;
 

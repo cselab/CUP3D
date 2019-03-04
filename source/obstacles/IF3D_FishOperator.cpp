@@ -148,8 +148,8 @@ std::vector<VolumeSegment_OBB> IF3D_FishOperator::prepare_vSegments()
   assert((Nm-1)%Nsegments==0);
 
   std::vector<VolumeSegment_OBB> vSegments(Nsegments);
-  #pragma omp parallel for
-  for(int i=0;i<Nsegments;++i)
+  #pragma omp parallel for schedule(static)
+  for(int i=0; i<Nsegments; ++i)
   {
     const int next_idx = (i+1)*(Nm-1)/Nsegments;
     const int idx = i * (Nm-1)/Nsegments;

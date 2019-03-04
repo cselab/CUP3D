@@ -195,6 +195,7 @@ void SimulationData::_argumentsSanityCheck()
 SimulationData::~SimulationData()
 {
   delete grid;
+  delete profiler;
   //delete m_nonuniform;
   delete obstacle_vector;
   while(!pipeline.empty()) {
