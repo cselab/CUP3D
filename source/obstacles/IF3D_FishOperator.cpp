@@ -155,7 +155,8 @@ std::vector<VolumeSegment_OBB> IF3D_FishOperator::prepare_vSegments()
     const int idx = i * (Nm-1)/Nsegments;
     // find bounding box based on this
     Real bbox[3][2] = {{1e9, -1e9}, {1e9, -1e9}, {1e9, -1e9}};
-    for(int ss=idx; ss<=next_idx; ++ss) {
+    for(int ss=idx; ss<=next_idx; ++ss)
+    {
       const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
           myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
       const Real yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
@@ -196,12 +197,10 @@ intersect_t IF3D_FishOperator::prepare_segPerBlock(vecsegm_t& vSegments)
   for(size_t i=0; i<vInfo.size(); ++i)
   {
     const BlockInfo & info = vInfo[i];
-    Real pStart[3], pEnd[3];
-    info.pos(pStart, 0, 0, 0);
-    info.pos(pEnd, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    const FluidBlock & b = *(FluidBlock*)info.ptrBlock;
 
     for(size_t s=0; s<vSegments.size(); ++s)
-      if(vSegments[s].isIntersectingWithAABB(pStart,pEnd)) {
+      if(vSegments[s].isIntersectingWithAABB(b.min_pos, b.max_pos)) {
         VolumeSegment_OBB*const ptr  = & vSegments[s];
         ret[info.blockID].push_back( ptr );
       }

@@ -76,11 +76,8 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
                const Real half_thickness);
 
     // Required by FillBlocksBase.
-    bool isTouching(const BlockInfo& info, const int buffer_dx = 0) const;
+    bool isTouching(const FluidBlock&b) const;
     Real signedDistance(const Real x, const Real y, const Real z) const;
-
-    // Private.
-    bool _isTouching(const Real min_pos[3], const Real max_pos[3]) const;
 };
 
 FillBlocks::FillBlocks(
@@ -141,30 +138,11 @@ FillBlocks::FillBlocks(
     box[2][1] = max(corners[2]) + half_thickness;
 }
 
-bool FillBlocks::_isTouching(const Real min_pos[3],
-                             const Real max_pos[3]) const
+bool FillBlocks::isTouching(const FluidBlock&b) const
 {
-    return box[0][0] <= max_pos[0] && box[0][1] >= min_pos[0]
-        && box[1][0] <= max_pos[1] && box[1][1] >= min_pos[1]
-        && box[2][0] <= max_pos[2] && box[2][1] >= min_pos[2];
-}
-
-bool FillBlocks::isTouching(const BlockInfo& info,
-                            const int buffer_dx) const
-{
-    Real min_pos[3];
-    Real max_pos[3];
-
-    info.pos(min_pos, 0, 0, 0);
-    info.pos(max_pos,
-             FluidBlock::sizeX,
-             FluidBlock::sizeY,
-             FluidBlock::sizeZ);
-    for (int i = 0; i < 3; ++i) {
-      min_pos[i] -= buffer_dx * info.h_gridpoint;
-      max_pos[i] += buffer_dx * info.h_gridpoint;
-    }
-    return _isTouching(min_pos, max_pos);
+  return box[0][0] <= b.max_pos[0] && box[0][1] >= b.min_pos[0]
+      && box[1][0] <= b.max_pos[1] && box[1][1] >= b.min_pos[1]
+      && box[2][0] <= b.max_pos[2] && box[2][1] >= b.min_pos[2];
 }
 
 Real FillBlocks::signedDistance(const Real x,
@@ -309,5 +287,5 @@ void IF3D_PlateObstacleOperator::finalize()
 {
   // this method allows any computation that requires the char function
   // to be computed. E.g. compute the effective center of mass or removing
-  // momenta from udef 
+  // momenta from udef
 }

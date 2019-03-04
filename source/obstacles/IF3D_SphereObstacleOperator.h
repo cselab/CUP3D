@@ -14,7 +14,7 @@ class IF3D_SphereObstacleOperator: public IF3D_ObstacleOperator
 {
   const double radius;
   //special case: startup with unif accel to umax in tmax, and then decel to 0
-  bool accel_decel = false;
+  bool accel_decel = false, bHemi = false;
   double umax = 0, tmax = 1;
 
 public:

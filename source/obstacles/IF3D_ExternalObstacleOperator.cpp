@@ -20,22 +20,18 @@ struct FillBlocksExternal : FillBlocksBase<FillBlocksExternal>
 
     FillBlocksExternal(const ExternalObstacleSettings &_S) : S(_S) { }
 
-    bool isTouching(const BlockInfo &info, const int buffer_dx = 0) const
+    inline bool isTouching(const FluidBlock&b) const
     {
-        // Get block bounding box.
-        Real min[3], max[3];
-        info.pos(min, -buffer_dx, -buffer_dx, -buffer_dx);
-        info.pos(max,
-                 FluidBlock::sizeX - 1 + buffer_dx,
-                 FluidBlock::sizeY - 1 + buffer_dx,
-                 FluidBlock::sizeZ - 1 + buffer_dx);
+      // Convert to double.
+      const double lo[3] = {
+        (double)b.min_pos[0], (double)b.min_pos[1], (double)b.min_pos[2]
+      };
+      const double hi[3] = {
+        (double)b.max_pos[0], (double)b.max_pos[1], (double)b.max_pos[2]
+      };
 
-        // Convert to double.
-        const double lo[3] = {(double)min[0], (double)min[1], (double)min[2] };
-        const double hi[3] = {(double)max[0], (double)max[1], (double)max[2] };
-
-        // Ask the external code if it the block is overlapping the box.
-        return S.is_touching_fn(S.obj, lo, hi);
+      // Ask the external code if it the block is overlapping the box.
+      return S.is_touching_fn(S.obj, lo, hi);
     }
 
     Real signedDistance(const Real x, const Real y, const Real z) const

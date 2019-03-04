@@ -49,9 +49,9 @@ using CHIMAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX];
     {
       // TODO: Remove `isTouching` check and verify that all dependencies are
       //       using this function properly.
-      if (!DERIVED->isTouching(info)) return;
-      CHIMAT & __restrict__ SDF = oBlock->sdf;
       FluidBlock &b = *(FluidBlock *)info.ptrBlock;
+      if (!DERIVED->isTouching(b)) return;
+      CHIMAT & __restrict__ SDF = oBlock->sdf;
       for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
       for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
       for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
@@ -71,7 +71,7 @@ namespace TorusObstacle
 struct FillBlocks : FillBlocksBase<FillBlocks>
 {
   const Real big_r, small_r, h, position[3];
-  Real sphere_box[3][2] = {
+  const Real box[3][2] = {
     {position[0] - 2*(small_r + 2*h),    position[0] + 2*(small_r + 2*h)},
     {position[1] -2*(big_r+small_r+2*h), position[1] +2*(big_r+small_r+2*h)},
     {position[2] -2*(big_r+small_r+2*h), position[2] +2*(big_r+small_r+2*h)}
@@ -80,30 +80,16 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   FillBlocks(Real _big_r, Real _small_r, Real _h,  Real p[3]) :
     big_r(_big_r), small_r(_small_r), h(_h), position{p[0],p[1],p[2]} { }
 
-  bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
+  inline bool isTouching(const FluidBlock&b) const
   {
-    using std::max; using std::min;
-    const Real intersection[3][2] = {
-        max(min_pos[0], sphere_box[0][0]), min(max_pos[0], sphere_box[0][1]),
-        max(min_pos[1], sphere_box[1][0]), min(max_pos[1], sphere_box[1][1]),
-        max(min_pos[2], sphere_box[2][0]), min(max_pos[2], sphere_box[2][1])
+    const Real intersect[3][2] = {
+        std::max(b.min_pos[0], box[0][0]), std::min(b.max_pos[0], box[0][1]),
+        std::max(b.min_pos[1], box[1][0]), std::min(b.max_pos[1], box[1][1]),
+        std::max(b.min_pos[2], box[2][0]), std::min(b.max_pos[2], box[2][1])
     };
-
-    return
-        intersection[0][1]-intersection[0][0]>0 &&
-        intersection[1][1]-intersection[1][0]>0 &&
-        intersection[2][1]-intersection[2][0]>0;
-  }
-
-  bool isTouching(const BlockInfo& info, const int buffer_dx=0) const
-  {
-    Real min_pos[3], max_pos[3]; info.pos(min_pos, 0,0,0);
-    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-    for(int i=0;i<3;++i) {
-      min_pos[i]-=buffer_dx*info.h_gridpoint;
-      max_pos[i]+=buffer_dx*info.h_gridpoint;
-    }
-    return _is_touching(min_pos,max_pos);
+    return intersect[0][1]-intersect[0][0]>0 &&
+           intersect[1][1]-intersect[1][0]>0 &&
+           intersect[2][1]-intersect[2][0]>0;
   }
 
   inline Real signedDistance(const Real xo, const Real yo, const Real zo) const

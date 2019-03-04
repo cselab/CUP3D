@@ -10,14 +10,14 @@
 
 #include "obstacles/IF3D_ObstacleOperator.h"
 
-class IF3D_DCylinderObstacleOperator : public IF3D_ObstacleOperator
+class IF3D_CylinderObstacleOperator : public IF3D_ObstacleOperator
 {
   const double radius;
   const double halflength;
-
+  std::string section = "circular"; // or whatever
 public:
-  IF3D_DCylinderObstacleOperator(SimulationData&s, ArgumentParser &p);
-  IF3D_DCylinderObstacleOperator(SimulationData&s, ObstacleArguments &args,
+  IF3D_CylinderObstacleOperator(SimulationData&s, ArgumentParser &p);
+  IF3D_CylinderObstacleOperator(SimulationData&s, ObstacleArguments &args,
                                  double radius, double halflength);
 
   void _init(void);

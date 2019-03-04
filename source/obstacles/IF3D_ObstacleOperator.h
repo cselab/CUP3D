@@ -167,7 +167,8 @@ public:
     #pragma omp parallel for schedule(dynamic, 1)
     for(size_t i=0; i<vInfo.size(); i++) {
       const BlockInfo& info = vInfo[i];
-      if(kernel.isTouching(info)) {
+      const FluidBlock &b = *(FluidBlock *)info.ptrBlock;
+      if(kernel.isTouching(b)) {
         assert(obstacleBlocks[info.blockID] == nullptr);
         obstacleBlocks[info.blockID] = new ObstacleBlock();
         obstacleBlocks[info.blockID]->clear(); //memset 0

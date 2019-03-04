@@ -186,6 +186,16 @@ void Simulation::setupGrid()
     sim.nonuniform->print_mesh_statistics(sim.rank == 0);
     sim.hmin = sim.nonuniform->minimum_cell_width();
   }
+
+  const std::vector<BlockInfo>& vInfo = sim.vInfo();
+  #pragma omp parallel for schedule(static)
+  for(size_t i=0; i<vInfo.size(); i++) {
+    FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+    vInfo[i].pos(b.min_pos, 0, 0, 0);
+    vInfo[i].pos(b.max_pos, FluidBlock::sizeX-1,
+                            FluidBlock::sizeY-1,
+                            FluidBlock::sizeZ-1);
+  }
 }
 
 void Simulation::setObstacleVector(IF3D_ObstacleVector * const obstacle_vector_)

@@ -14,47 +14,68 @@ namespace SphereObstacle
 {
 struct FillBlocks : FillBlocksBase<FillBlocks>
 {
-  const Real radius,safe_radius;
-  const double sphere_position[3];
-  const Real sphere_box[3][2] = {
-    {sphere_position[0] - safe_radius, sphere_position[0] + safe_radius},
-    {sphere_position[1] - safe_radius, sphere_position[1] + safe_radius},
-    {sphere_position[2] - safe_radius, sphere_position[2] + safe_radius}
+  const Real radius, safe_radius;
+  const double position[3];
+  const Real box[3][2] = {
+    {(Real)position[0] - safe_radius, (Real)position[0] + safe_radius},
+    {(Real)position[1] - safe_radius, (Real)position[1] + safe_radius},
+    {(Real)position[2] - safe_radius, (Real)position[2] + safe_radius}
   };
 
   FillBlocks(const Real _radius, const Real max_dx, const double pos[3]):
-    radius(_radius), safe_radius(radius+4*max_dx),
-    sphere_position{pos[0],pos[1],pos[2]} { }
+  radius(_radius),safe_radius(radius+2*max_dx),position{pos[0],pos[1],pos[2]} {}
 
-  inline bool is_touching(const Real min_pos[3], const Real max_pos[3]) const
+  inline bool isTouching(const FluidBlock&b) const
   {
-    Real intersection[3][2] = {
-    std::max(min_pos[0],sphere_box[0][0]),std::min(max_pos[0],sphere_box[0][1]),
-    std::max(min_pos[1],sphere_box[1][0]),std::min(max_pos[1],sphere_box[1][1]),
-    std::max(min_pos[2],sphere_box[2][0]),std::min(max_pos[2],sphere_box[2][1])
+    const Real intersect[3][2] = {
+        std::max(b.min_pos[0], box[0][0]), std::min(b.max_pos[0], box[0][1]),
+        std::max(b.min_pos[1], box[1][0]), std::min(b.max_pos[1], box[1][1]),
+        std::max(b.min_pos[2], box[2][0]), std::min(b.max_pos[2], box[2][1])
     };
-    return intersection[0][1]-intersection[0][0]>0 && intersection[1][1]-intersection[1][0]>0 && intersection[2][1]-intersection[2][0]>0;
-  }
-
-  inline bool isTouching(const BlockInfo& info, const int buffer_dx = 0) const
-  {
-    Real min_pos[3], max_pos[3];
-
-    info.pos(min_pos, 0,0,0);
-    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-    for(int i=0;i<3;++i) {
-      min_pos[i]-=buffer_dx*info.h_gridpoint;
-      max_pos[i]+=buffer_dx*info.h_gridpoint;
-    }
-    return is_touching(min_pos,max_pos);
+    return intersect[0][1]-intersect[0][0]>0 &&
+           intersect[1][1]-intersect[1][0]>0 &&
+           intersect[2][1]-intersect[2][0]>0;
   }
 
   inline Real signedDistance(const Real x, const Real y, const Real z) const
   {
-    const Real dx = x-sphere_position[0];
-    const Real dy = y-sphere_position[1];
-    const Real dz = z-sphere_position[2];
+    const Real dx = x-position[0], dy = y-position[1], dz = z-position[2];
     return radius - std::sqrt(dx*dx + dy*dy + dz*dz); // pos inside, neg outside
+  }
+};
+}
+
+namespace HemiSphereObstacle
+{
+struct FillBlocks : FillBlocksBase<FillBlocks>
+{
+  const Real radius, safety;
+  const double position[3];
+  const Real box[3][2] = {
+    {(Real)position[0] -radius -safety, (Real)position[0] +safety},
+    {(Real)position[1] -radius -safety, (Real)position[1] +radius +safety},
+    {(Real)position[2] -radius -safety, (Real)position[2] +radius +safety}
+  };
+
+  FillBlocks(const Real _radius, const Real max_dx, const double pos[3]):
+  radius(_radius), safety(2*max_dx), position{pos[0],pos[1],pos[2]} {}
+
+  inline bool isTouching(const FluidBlock&b) const
+  {
+    const Real intersect[3][2] = {
+        std::max(b.min_pos[0], box[0][0]), std::min(b.max_pos[0], box[0][1]),
+        std::max(b.min_pos[1], box[1][0]), std::min(b.max_pos[1], box[1][1]),
+        std::max(b.min_pos[2], box[2][0]), std::min(b.max_pos[2], box[2][1])
+    };
+    return intersect[0][1]-intersect[0][0]>0 &&
+           intersect[1][1]-intersect[1][0]>0 &&
+           intersect[2][1]-intersect[2][0]>0;
+  }
+
+  inline Real signedDistance(const Real x, const Real y, const Real z) const
+  { // pos inside, neg outside
+    const Real dx = x-position[0], dy = y-position[1], dz = z-position[2];
+    return std::min( -dx, radius -std::sqrt(dx*dx + dy*dy + dz*dz) );
   }
 };
 }
@@ -64,6 +85,7 @@ IF3D_SphereObstacleOperator::IF3D_SphereObstacleOperator(
     : IF3D_ObstacleOperator(s, p), radius(0.5*length)
 {
   accel_decel = p("-accel").asBool(false);
+  bHemi = p("-hemisphere").asBool(false);
   if(accel_decel) {
     if(not bForcedInSimFrame[0]) {
       printf("Warning: sphere was not set to be forced in x-dir, yet the accel_decel pattern is active.\n");
@@ -92,9 +114,14 @@ IF3D_SphereObstacleOperator::IF3D_SphereObstacleOperator(
 
 void IF3D_SphereObstacleOperator::create()
 {
-  const SphereObstacle::FillBlocks K(radius, vInfo[0].h_gridpoint, position);
-
-  create_base<SphereObstacle::FillBlocks>(K);
+  const Real h = vInfo[0].h_gridpoint;
+  if(bHemi) {
+    const HemiSphereObstacle::FillBlocks K(radius, h, position);
+    create_base<HemiSphereObstacle::FillBlocks>(K);
+  } else {
+    const SphereObstacle::FillBlocks K(radius, h, position);
+    create_base<SphereObstacle::FillBlocks>(K);
+  }
 }
 
 void IF3D_SphereObstacleOperator::finalize()

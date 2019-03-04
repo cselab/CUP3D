@@ -273,29 +273,19 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
     const Real p[3], const Real q[4]) : e0(_e0), e1(_e1), e2(_e2), h(_h),
     position{p[0],p[1],p[2]}, quaternion{q[0],q[1],q[2],q[3]} { }
 
-  bool _is_touching(const Real min_pos[3], const Real max_pos[3]) const
+  inline bool isTouching(const FluidBlock&b) const
   {
-    Real intersection[3][2] = {
-      std::max(min_pos[0], box[0][0]), std::min(max_pos[0], box[0][1]),
-      std::max(min_pos[1], box[1][0]), std::min(max_pos[1], box[1][1]),
-      std::max(min_pos[2], box[2][0]), std::min(max_pos[2], box[2][1])
+    const Real intersect[3][2] = {
+        std::max(b.min_pos[0], box[0][0]),
+        std::min(b.max_pos[0], box[0][1]),
+        std::max(b.min_pos[1], box[1][0]),
+        std::min(b.max_pos[1], box[1][1]),
+        std::max(b.min_pos[2], box[2][0]),
+        std::min(b.max_pos[2], box[2][1])
     };
-    return
-        intersection[0][1]-intersection[0][0]>0 &&
-        intersection[1][1]-intersection[1][0]>0 &&
-        intersection[2][1]-intersection[2][0]>0;
-  }
-
-  bool isTouching(const BlockInfo& info, const int buffer_dx=0) const
-  {
-    Real min_pos[3], max_pos[3];
-    info.pos(min_pos, 0,0,0);
-    info.pos(max_pos, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
-    for(int i=0;i<3;++i) {
-      min_pos[i]-=buffer_dx*info.h_gridpoint;
-      max_pos[i]+=buffer_dx*info.h_gridpoint;
-    }
-    return _is_touching(min_pos,max_pos);
+    return intersect[0][1]-intersect[0][0]>0 &&
+           intersect[1][1]-intersect[1][0]>0 &&
+           intersect[2][1]-intersect[2][0]>0;
   }
 
   inline Real signedDistance(const Real xo, const Real yo, const Real zo) const

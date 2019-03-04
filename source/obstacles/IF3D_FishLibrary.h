@@ -182,7 +182,7 @@ class FishMidlineData
   void _computeMidlineNormals();
 
  public:
-  FishMidlineData(double L, double Tp, double phi, double _h, const double _ampFac=1.0):
+  FishMidlineData(double L, double Tp, double phi, double _h, double _ampFac=1):
    length(L), Tperiod(Tp), phaseShift(phi), h(_h), amplitudeFactor(_ampFac),
    rS(_alloc(Nm)), rX(_alloc(Nm)), rY(_alloc(Nm)), vX(_alloc(Nm)), vY(_alloc(Nm)),
    norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)),

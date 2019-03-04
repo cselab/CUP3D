@@ -17,13 +17,13 @@ class KernelPressureRHS
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   PoissonSolver * const solver;
 
-  inline bool _is_touching(const BlockInfo& i) const
-  {
-    Real maxP[3], minP[3]; i.pos(minP, 0, 0, 0);
-    i.pos(maxP, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1);
-    const bool touchW= fadeLen[0]>=minP[0], touchE= fadeLen[0]>=ext[0]-maxP[0];
-    const bool touchS= fadeLen[1]>=minP[1], touchN= fadeLen[1]>=ext[1]-maxP[1];
-    const bool touchB= fadeLen[2]>=minP[2], touchF= fadeLen[2]>=ext[2]-maxP[2];
+  inline bool _is_touching(const FluidBlock& b) const {
+    const bool touchW = fadeLen[0] >= b.min_pos[0];
+    const bool touchE = fadeLen[0] >= ext[0] - b.max_pos[0];
+    const bool touchS = fadeLen[1] >= b.min_pos[1];
+    const bool touchN = fadeLen[1] >= ext[1] - b.max_pos[1];
+    const bool touchB = fadeLen[2] >= b.min_pos[2];
+    const bool touchF = fadeLen[2] >= ext[2] - b.max_pos[2];
     return touchN || touchE || touchS || touchW || touchF || touchB;
   }
 
@@ -86,7 +86,7 @@ class KernelPressureRHS
   {
     const Real h = info.h_gridpoint, fac = .5*h*h/dt, pFac = .5*dt/h;
     const size_t offset = solver->_offset_ext(info);
-    if( not _is_touching(info) )
+    if( not _is_touching(o) )
     {
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -116,13 +116,13 @@ class KernelPressureRHS_nonUniform
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   PoissonSolver * const solver;
 
-  inline bool _is_touching(const BlockInfo& i) const
-  {
-    Real maxP[3], minP[3]; i.pos(minP, 0, 0, 0);
-    i.pos(maxP, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1);
-    const bool touchW= fadeLen[0]>=minP[0], touchE= fadeLen[0]>=ext[0]-maxP[0];
-    const bool touchS= fadeLen[1]>=minP[1], touchN= fadeLen[1]>=ext[1]-maxP[1];
-    const bool touchB= fadeLen[2]>=minP[2], touchF= fadeLen[2]>=ext[2]-maxP[2];
+  inline bool _is_touching(const FluidBlock& b) const {
+    const bool touchW = fadeLen[0] >= b.min_pos[0];
+    const bool touchE = fadeLen[0] >= ext[0] - b.max_pos[0];
+    const bool touchS = fadeLen[1] >= b.min_pos[1];
+    const bool touchN = fadeLen[1] >= ext[1] - b.max_pos[1];
+    const bool touchB = fadeLen[2] >= b.min_pos[2];
+    const bool touchF = fadeLen[2] >= ext[2] - b.max_pos[2];
     return touchN || touchE || touchS || touchW || touchF || touchB;
   }
 
@@ -201,7 +201,7 @@ class KernelPressureRHS_nonUniform
     const size_t offset = solver->_offset_ext(info);
     // FD coefficients for first derivative
     const BlkCoeffX &cx =o.fd_cx.first, &cy =o.fd_cy.first, &cz =o.fd_cz.first;
-    if( not _is_touching(info) )
+    if( not _is_touching(o) )
     {
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)

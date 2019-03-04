@@ -13,15 +13,13 @@
 
 #include "obstacles/IF3D_CarlingFishOperator.h"
 //#include "obstacles/IF3D_CylinderObstacleOperator.h"
-#include "obstacles/IF3D_DCylinderObstacleOperator.h"
-//#include "obstacles/IF3D_DeadFishOperator.h"
+#include "obstacles/IF3D_CylinderObstacleOperator.h"
 #include "obstacles/IF3D_EllipsoidObstacleOperator.h"
 #include "obstacles/IF3D_ExternalObstacleOperator.h"
-// #include "obstacles/IF3D_NacaOperator.h"
+#include "obstacles/IF3D_NacaOperator.h"
 #include "obstacles/IF3D_PlateObstacleOperator.h"
 #include "obstacles/IF3D_SphereObstacleOperator.h"
 #include "obstacles/IF3D_StefanFishOperator.h"
-// #include "obstacles/IF3D_TestDiffusionObstacleOperator.h"
 
 //#include "obstacles/IF3D_ElasticFishOperator.h"
 //#include "obstacles/IF3D_EllipseObstacleOperator.h"
@@ -81,10 +79,6 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     {
       retval.push_back(new IF3D_SphereObstacleOperator(sim,object.second));
     }
-    //else if( objectName == "IF3D_DeadFish" )
-    //{
-    //  retval.push_back(new IF3D_DeadFishOperator(grid,object.second,Uinf));
-    //}
     else if( objectName == "IF3D_StefanFish" )
     {
       retval.push_back(new IF3D_StefanFishOperator(sim,object.second));
@@ -93,22 +87,18 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     {
       retval.push_back(new IF3D_CarlingFishOperator(sim,object.second));
     }
-    //else if( objectName == "IF3D_NacaOperator" )
-    //{
-    //  retval.push_back(new IF3D_NacaOperator(sim,object.second));
-    //}
-    else if( objectName == "IF3D_DCylinder" )
+    else if( objectName == "IF3D_NacaOperator" )
     {
-      retval.push_back(new IF3D_DCylinderObstacleOperator(sim,object.second));
+      retval.push_back(new IF3D_NacaOperator(sim,object.second));
+    }
+    else if( objectName == "IF3D_Cylinder" )
+    {
+      retval.push_back(new IF3D_CylinderObstacleOperator(sim,object.second));
     }
     else if( objectName == "IF3D_PlateObstacle" )
     {
       retval.push_back(new IF3D_PlateObstacleOperator(sim,object.second));
     }
-    //else if( objectName == "IF3D_TestDiffusionObstacle" )
-    //{
-    //  retval.push_back(new IF3D_TestDiffusionObstacleOperator(sim,object.second));
-    //}
     else if( objectName == "IF3D_ExternalObstacleOperator" )
     {
       retval.push_back(new IF3D_ExternalObstacleOperator(sim,object.second));
@@ -125,18 +115,6 @@ std::vector<IF3D_ObstacleOperator*> IF3D_ObstacleFactory::create(ArgumentParser 
     else if( objectName == "IF3D_CylinderPair" )
     {
         retval.push_back(new IF3D_CylinderPairOperator(grid,object.second,max_bpd));
-    }
-    else if( objectName == "IF3D_DeadFish" )
-    {
-        retval.push_back(new IF3D_DeadFishOperator(grid,object.second,max_bpd));
-    }
-    else if( objectName == "IF3D_StefanTurn" )
-    {
-        retval.push_back(new IF3D_StefanTurnOperator(grid,object.second,max_bpd));
-    }
-    else if( objectName == "IF3D_StefanLearnTurn" )
-    {
-        retval.push_back(new IF3D_StefanLearnTurnOperator(grid,object.second,max_bpd));
     }
     else if( objectName == "IF3D_Cstart" )
     {
