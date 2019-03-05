@@ -8,7 +8,7 @@
 
 #include "operators/ObstaclesUpdate.h"
 #include "obstacles/ObstacleVector.h"
-#include "operators/MatArrayMath.h"
+#include "utils/MatArrayMath.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -144,11 +144,16 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     //solve avel = invJ \dot angMomentum
     const SymM invJ = invertSym(J);
     const GenM GinvJ = multSyms(G, invJ);
-    const GenM EyeGinvJ = {{ 1+GinvJ[0],   GinvJ[1],   GinvJ[2],
-                               GinvJ[3], 1+GinvJ[4],   GinvJ[5],
-                               GinvJ[6],   GinvJ[7], 1+GinvJ[8]}};
+    const int bRotate[3] = { obst->bBlockRotation[0] ? 0 : 1,
+                             obst->bBlockRotation[1] ? 0 : 1,
+                             obst->bBlockRotation[2] ? 0 : 1 };
+    const GenM EyeGinvJ = {{ //if locked obst, skip correction due to implicit
+      1 +GinvJ[0]*bRotate[0],    GinvJ[1]*bRotate[1],    GinvJ[2]*bRotate[2],
+         GinvJ[3]*bRotate[0], 1 +GinvJ[4]*bRotate[1],    GinvJ[5]*bRotate[2],
+         GinvJ[6]*bRotate[0],    GinvJ[7]*bRotate[1], 1 +GinvJ[8]*bRotate[2] }};
     const GenM invPenMom = invertGen(EyeGinvJ);
     const GenV implAngMom = {{ M[4], M[5], M[6] }};
+    // implicit computation of torque for freely-moving obstacle:
     const GenV implTorque = multGenVec(invPenMom, implAngMom);
     const GenV implAngAcc = multSymVec(invJ, implTorque);
     assert(std::fabs(obst->mass - M[ 0]) < 10*DBLEPS);
@@ -159,9 +164,9 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     assert(std::fabs(obst->J[4] - M[11]) < 10*DBLEPS);
     assert(std::fabs(obst->J[5] - M[12]) < 10*DBLEPS);
 
-    obst->force[0]  = M[ 1] / (1 + penalFac);
-    obst->force[1]  = M[ 2] / (1 + penalFac);
-    obst->force[2]  = M[ 3] / (1 + penalFac);
+    obst->force[0] = M[1] * (obst->bForcedInSimFrame[0]? 1 : 1/(1+penalFac) );
+    obst->force[1] = M[2] * (obst->bForcedInSimFrame[1]? 1 : 1/(1+penalFac) );
+    obst->force[2] = M[3] * (obst->bForcedInSimFrame[2]? 1 : 1/(1+penalFac) );
     obst->torque[0] = implTorque[0];
     obst->torque[1] = implTorque[1];
     obst->torque[2] = implTorque[2];

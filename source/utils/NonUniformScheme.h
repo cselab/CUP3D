@@ -15,7 +15,7 @@
 #include <vector>
 #include <cstdlib>
 
-#include "../Definitions.h"
+#include "Definitions.h"
 #include "Cubism/BlockInfo.h"
 #include "Cubism/MeshMap.h"
 

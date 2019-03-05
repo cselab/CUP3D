@@ -15,8 +15,8 @@
 #include "Communicator.h"
 #endif
 
-#include "StateRewardData.h"
-#include "ObstacleVector.h"
+#include "utils/StateRewardData.h"
+#include "obstacles/ObstacleVector.h"
 #include "Cubism/ArgumentParser.h"
 
 CubismUP_3D_NAMESPACE_BEGIN

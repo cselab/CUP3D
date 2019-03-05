@@ -8,7 +8,7 @@
 
 #include "operators/ObstaclesCreate.h"
 #include "obstacles/ObstacleVector.h"
-#include "operators/MatArrayMath.h"
+#include "utils/MatArrayMath.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

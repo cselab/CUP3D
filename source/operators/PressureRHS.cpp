@@ -45,7 +45,7 @@ class KernelPressureRHS
     return 1-std::pow(std::min( std::max({zt,zb,yt,yb,xt,xb}), (Real)1), 2);
   }
 
-  inline Real RHS(Lab&l, const int x,const int y,const int z,const Real F) const
+  inline Real RHS(Lab&l, const int x,const int y,const int z) const
   {
     const FluidElement & L  = l(x,  y,  z);
     const FluidElement & LW = l(x-1,y,  z  ), & LE = l(x+1,y,  z  );
@@ -56,8 +56,7 @@ class KernelPressureRHS
   }
 
  public:
-  const std::array<int, 3> stencil_start = {-1, -1, -1};
-  const std::array<int, 3> stencil_end = {2, 2, 2};
+  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil=StencilInfo(-1,-1,-1,2,2,2,false,6,1,2,3,5,6,7);
 
 
@@ -69,14 +68,14 @@ class KernelPressureRHS
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-    const Real h = info.h_gridpoint, fac = .5*h*h/dt, pFac = .5*dt/h;
+    const Real h = info.h_gridpoint, fac = .5*h*h/dt;
     const size_t offset = solver->_offset_ext(info);
     if( not _is_touching(o) )
     {
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        solver->_cub2fftw(offset, iz,iy,ix, fac * RHS(lab, ix,iy,iz, pFac) );
+        solver->_cub2fftw(offset, iz,iy,ix, fac * RHS(lab, ix,iy,iz) );
         //o(ix,iy,iz).p = fac * RHS(lab, ix,iy,iz, pFac); //will break t>0
       }
     }
@@ -85,7 +84,7 @@ class KernelPressureRHS
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        const Real RHS_ = fade(info, ix,iy,iz) * RHS(lab, ix,iy,iz, pFac);
+        const Real RHS_ = fade(info, ix,iy,iz) * RHS(lab, ix,iy,iz);
         solver->_cub2fftw(offset, iz,iy,ix, fac * RHS_);
         //o(ix,iy,iz).p = fac * RHS_; //will break t>0
       }
