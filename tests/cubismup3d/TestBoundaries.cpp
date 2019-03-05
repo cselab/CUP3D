@@ -57,9 +57,6 @@ bool testPeriodicBoundaries() {
     SD.BCx_flag = periodic;  // <--- Periodic boundaries.
     SD.BCy_flag = periodic;
     SD.BCz_flag = periodic;
-    SD.extent[0] = 1.0;      // Otherwise it uses stretched grid.
-    SD.extent[1] = -1.0;
-    SD.extent[2] = -1.0;
     SD.setCells(CELLS_X, CELLS_Y, CELLS_Z);
     return SD;
   };

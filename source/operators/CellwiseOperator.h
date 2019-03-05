@@ -33,6 +33,7 @@ struct CellInfo
   const BlockInfo &block_info;
   int ix, iy, iz;
 
+  std::array<double, 3> get_pos() const { return block_info.pos(ix, iy, iz); }
   int get_abs_ix() const { return ix + block_info.index[0] * FluidBlock::sizeX; }
   int get_abs_iy() const { return iy + block_info.index[1] * FluidBlock::sizeY; }
   int get_abs_iz() const { return iz + block_info.index[2] * FluidBlock::sizeZ; }

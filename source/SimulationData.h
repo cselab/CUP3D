@@ -74,7 +74,7 @@ struct SimulationData
   int local_bpdx=-1, local_bpdy=-1, local_bpdz=-1;
   int bpdx=-1, bpdy=-1, bpdz=-1;
   Real maxextent = 1;
-  Real extent[3] = {1, 1, 1};
+  Real extent[3] = {1, 0, 0};  // Uniform grid by default.
   bool bUseStretchedGrid = false;
   Real hmin=0;
 

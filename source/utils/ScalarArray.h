@@ -16,7 +16,7 @@ namespace cubismup3d {
 
 /*
  * Extension of std::array that implements operators +, - between themselves
- * and * with scalar.
+ * and operator * with a scalar.
  */
 template <typename T, int N>
 struct ScalarArray {
