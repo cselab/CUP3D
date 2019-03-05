@@ -15,6 +15,8 @@ set(BLOCK_SIZE "16" CACHE String "Number of grid points in a block, per dimensio
 
 option(COMPILE_EXE "Compile executable" OFF)
 option(COMPILE_STATIC_LIB "Compile static library" ON)
+
+# Compile-time settings. Stored in a configuration file CubismUP3DMacros.h and imported by Definitions.h.
 option(CUP_ASYNC_DUMP "Use asynchronous data dumps (requires additional memory)" ON)
 option(CUP_DUMP_SURFACE_BINARY "Dump binary surface data for each obstacle" OFF)
 option(CUP_HDF5_DOUBLE_PRECISION "Dump HDF5 data in double precision" OFF)
@@ -131,29 +133,6 @@ endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
-# Global flags
-if (CUP_DUMP_SURFACE_BINARY)
-    add_definitions("-DCUP_DUMP_SURFACE_BINARY")
-endif()
-if (CUP_HDF5_DOUBLE_PRECISION)
-    add_definitions("-DCUP_HDF5_DOUBLE_PRECISION")
-endif()
-if (CUP_SINGLE_PRECISION)
-    add_definitions("-DCUP_SINGLE_PRECISION")
-endif()
-if (CUP_VERBOSE)
-    add_definitions("-DCUP_VERBOSE")
-endif()
-add_definitions("-DCUP_ALIGNMENT=64")
-add_definitions("-DCUP_BLOCK_SIZE=${BLOCK_SIZE}")
-
-# Indicate that this is an internal compilation (all macros are defined from compile flags).
-add_definitions("-DCUP_INTERNAL_COMPILATION")
-
-# Generate macro file with current compilation settings.
-# https://cmake.org/cmake/help/latest/command/configure_file.html
-configure_file(${ROOT_FOLDER}/cmake/CubismUP3D_macros.template.h ${ROOT_FOLDER}/build/include/CubismUP3D_macros.h)
-
 # OpenMP support
 find_package(OpenMP REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
@@ -162,7 +141,6 @@ set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}
 
 # MPI
 find_package(MPI REQUIRED)
-add_definitions("-DMPI_ENABLE")
 set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
 set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
 
@@ -175,15 +153,10 @@ endif()
 execute_process(COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ./check_mpi_thread_safety
                 ERROR_QUIET
                 OUTPUT_QUIET
-                RESULT_VARIABLE CHECK_MPI_THREAD_SAFETY)
-if (${CHECK_MPI_THREAD_SAFETY} EQUAL 0)
-    if (CUP_ASYNC_DUMP)
-        add_definitions("-DCUP_ASYNC_DUMP")
-    endif()
-else()
+                RESULT_VARIABLE CUP_IS_MPI_THREAD_UNSAFE)
+if (${CUP_IS_MPI_THREAD_UNSAFE})
     message("Note: MPI not thread safe, fallback to synchronous HDF5 dumping!")
 endif()
-
 
 # CMake for some reason decides to replace `/full/path/libasdf.so` with
 # `-lasdf` sometimes, and then messes up everything. This hack prevents that.
@@ -195,7 +168,6 @@ if (NOT HDF5_ROOT AND EXISTS ${ROOT_FOLDER}/dependencies/build/hdf5-1.10.1)
 endif()
 set(HDF5_PREFER_PARALLEL ON)
 find_package(HDF5 REQUIRED)
-add_definitions("-DCUBISM_USE_HDF")
 include_directories(${HDF5_INCLUDE_DIRS})
 
 # FFTW
@@ -242,3 +214,8 @@ endif()
 
 enable_testing()
 add_subdirectory(tests)
+
+# Generate macro file with current compilation settings. This file is generated
+# at configuration time (`cmake ..`), so it should be available for compilation # immediately.
+# https://cmake.org/cmake/help/latest/command/configure_file.html
+configure_file(${ROOT_FOLDER}/cmake/CubismUP3DMacros.template.h ${ROOT_FOLDER}/build/include/CubismUP3DMacros.h)

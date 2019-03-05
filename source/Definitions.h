@@ -9,10 +9,10 @@
 #ifndef CubismUP_3D_DataStructures_h
 #define CubismUP_3D_DataStructures_h
 
-// Are we compiling from CubismUP3D's makefiles or from external codes?
-#ifndef CUP_INTERNAL_COMPILATION
-// External. In that case, import a generated macro file.
-#include "../build/include/CubismUP3D_macros.h"
+// Are we compiling from CubismUP3D's makefile?
+#ifndef CUP_NO_MACROS_HEADER
+// No, it's either CMake or external code. Load compile-time settings from this header file.
+#include "../build/include/CubismUP3DMacros.h"
 #endif
 
 //#include <cassert>
