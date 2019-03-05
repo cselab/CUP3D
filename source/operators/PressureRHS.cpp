@@ -165,7 +165,7 @@ class KernelPressureRHS_nonUniform
         Real h[3]; info.spacing(h, ix, iy, iz);
         const Real fac = h[0]*h[1]*h[2]*invdt;
         const Real RHS_ = RHS(lab, ix,iy,iz, cx,cy,cz);
-        solver->_cub2fftw(offset, iz,iy,ix, fac * fac );
+        solver->_cub2fftw(offset, iz,iy,ix, fac * RHS_ );
         //o(ix,iy,iz).p = fac * RHS(lab, ix,iy,iz, pFac); //will break t>0
       }
     }
@@ -177,7 +177,7 @@ class KernelPressureRHS_nonUniform
         Real h[3]; info.spacing(h, ix, iy, iz);
         const Real fac = h[0]*h[1]*h[2]*invdt;
         const Real RHS_ = fade(info, ix,iy,iz) * RHS(lab, ix,iy,iz, cx,cy,cz);
-        solver->_cub2fftw(offset, iz,iy,ix, fac * RHS_);
+        solver->_cub2fftw(offset, iz,iy,ix, fac * RHS_ );
         //o(ix,iy,iz).p = fac * RHS_; //will break t>0
       }
     }
