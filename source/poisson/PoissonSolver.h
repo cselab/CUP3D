@@ -99,11 +99,13 @@ class PoissonSolver
   inline void _cub2fftw(const size_t offset, const int z, const int y, const int x, const Real rhs) const
   {
     const size_t dest_index = _dest(offset, z, y, x);
+    assert(data_size > dest_index);
     data[dest_index] = rhs;
   }
   inline Real _fftw2cub(const size_t offset, const int z, const int y, const int x) const
   {
     const size_t dest_index = _dest(offset, z, y, x);
+    assert(data_size > dest_index);
     return data[dest_index];
   }
 
