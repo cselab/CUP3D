@@ -22,9 +22,10 @@ class Fish: public Obstacle
   FishMidlineData * myFish = nullptr;
   //phaseShift=0, phase=0,
   double Tperiod=0;
-  double volume_internal=0, J_internal=0, CoM_internal[2]={0,0}, vCoM_internal[2]={0,0};
+  double volume_internal=0, J_internal=0;
+  double CoM_internal[2]={0,0}, vCoM_internal[2]={0,0};
   double theta_internal=0, angvel_internal=0, angvel_internal_prev=0;
-  double CoM_interpolated[3] = {0,0,0}, angvel_integral[3] = {0,0,0};
+  double angvel_integral[3] = {0,0,0};
   double adjTh=0, adjDy=0, followX=0, followY=0;
   bool bCorrectTrajectory=false;
 
@@ -48,8 +49,6 @@ class Fish: public Obstacle
   void restart(std::string filename = std::string()) override;
 
   virtual void update() override;
-
-  void getCenterOfMass(double CM[3]) const override;
 
   virtual void create() override;
   virtual void finalize() override;

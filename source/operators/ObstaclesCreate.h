@@ -6,25 +6,22 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_3D_PressurePenalization_h
-#define CubismUP_3D_PressurePenalization_h
+#ifndef CubismUP_3D_ObstaclesCreate_h
+#define CubismUP_3D_ObstaclesCreate_h
 
 #include "operators/Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-class PressurePenalization : public Operator
+class CreateObstacles : public Operator
 {
- protected:
-  PoissonSolver * pressureSolver;
-
  public:
-  PressurePenalization(SimulationData & s);
+  CreateObstacles(SimulationData & s) : Operator(s) {}
 
   void operator()(const double dt);
 
-  std::string getName() { return "PressurePenalization"; }
+  std::string getName() { return "CreateObstacles"; }
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif
+#endif // CubismUP_3D_ObstaclesCreate_h

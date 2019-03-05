@@ -44,7 +44,7 @@ void ExternalForcing::operator()(const double dt)
   for(size_t i=0; i<vInfo.size(); i++)
       kernel(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
   sim.stopProfiler();
-  check("forcing - end");
+  check("ExternalForcing");
 }
 
 CubismUP_3D_NAMESPACE_END

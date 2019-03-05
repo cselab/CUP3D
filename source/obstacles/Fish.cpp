@@ -191,6 +191,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
 
   // clear deformation velocities
   for(auto & entry : obstacleBlocks) {
+    if(entry == nullptr) continue;
     delete entry;
     entry = nullptr;
   }
@@ -311,31 +312,9 @@ void Fish::create()
 
 void Fish::finalize()
 {
-  // 10. compute all shit: linear momentum, angular momentum etc.
-  // 11. correct deformation velocity to nullify momenta for the final discrete representation
-
-  // 10.
-  std::vector<double> com(4, 0);
-  for (auto & block : obstacleBlocks) {
-    com[0] += block->mass;
-    com[1] += block->CoM_x;
-    com[2] += block->CoM_y;
-    com[3] += block->CoM_z;
-  }
-
-  MPI_Allreduce(MPI_IN_PLACE, com.data(), 4, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
-
-  assert(com[0]>std::numeric_limits<Real>::epsilon());
-  CoM_interpolated[0]=com[1]/com[0];
-  CoM_interpolated[1]=com[2]/com[0];
-  CoM_interpolated[2]=com[3]/com[0];
-
   #ifdef __useSkin_
-  myFish->surfaceToComputationalFrame(_2Dangle,CoM_interpolated);
+  myFish->surfaceToComputationalFrame(_2Dangle, centerOfMass);
   #endif
-
-  // 11.
-  _makeDefVelocitiesMomentumFree(CoM_interpolated);
 }
 
 void Fish::update()
@@ -351,14 +330,6 @@ void Fish::update()
   auto P = 2*(myFish->timeshift-myFish->time0/myFish->l_Tp) +myFish->phaseShift;
   sr.phaseShift = fmod(P,2)<0 ? 2+fmod(P,2) : fmod(P,2);
   #endif
-}
-
-void Fish::getCenterOfMass(double CM[3]) const
-{
-  // return computation CoM, not the one were advecting
-  CM[0]=CoM_interpolated[0];
-  CM[1]=CoM_interpolated[1];
-  CM[2]=CoM_interpolated[2];
 }
 
 void Fish::save(std::string filename)

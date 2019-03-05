@@ -133,13 +133,13 @@ BUILDDIR = .
 SRC_DIR = $(sort $(dir $(wildcard $(BUILDDIR)/../source/*/)))
 CUBISM_DIR = $(BUILDDIR)/../Cubism/src/
 
-OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o \
-	Fish.o StefanFish.o CarlingFish.o Sphere.o Plate.o BufferedLogger.o \
-	FishLibrary.o ExternalObstacle.o FluidSolidForces.o Cylinder.o \
-	SimulationData.o Simulation.o AdvectionDiffusion.o ComputeDissipation.o \
-	ExternalForcing.o FadeOut.o InitialConditions.o ObstacleManagement.o \
-	PressurePenalization.o PressureRHS.o PoissonSolver.o PoissonSolverMixed.o \
-	Naca.o ArgumentParser.o # Temporary solution for Cubism .cpp files.
+OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
+	Fish.o StefanFish.o CarlingFish.o Sphere.o Plate.o ExternalObstacle.o Naca.o \
+	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o PoissonSolver.o \
+	PoissonSolverMixed.o AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
+	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
+	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o FadeOut.o \
+	ArgumentParser.o # Temporary solution for Cubism .cpp files.
 	#ElasticFishOperator.o
 
 ifeq "$(hypre)" "true"

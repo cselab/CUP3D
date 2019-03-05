@@ -6,22 +6,12 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_3D_ObstacleManagement_h
-#define CubismUP_3D_ObstacleManagement_h
+#ifndef CubismUP_3D_ObstaclesUpdate_h
+#define CubismUP_3D_ObstaclesUpdate_h
 
 #include "operators/Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
-
-class CreateObstacles : public Operator
-{
- public:
-  CreateObstacles(SimulationData & s) : Operator(s) {}
-
-  void operator()(const double dt);
-
-  std::string getName() { return "CreateObstacles"; }
-};
 
 class UpdateObstacles : public Operator
 {
@@ -30,8 +20,8 @@ class UpdateObstacles : public Operator
 
   void operator()(const double dt);
 
-  std::string getName() { return "UpdateObstacles"; }
+  std::string getName() { return "UpdateObstacles Vel"; }
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif
+#endif // CubismUP_3D_ObstaclesUpdate_h

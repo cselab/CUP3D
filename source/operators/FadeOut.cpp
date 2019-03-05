@@ -67,7 +67,7 @@ void FadeOut::operator()(const double dt)
       kernel(vInfo[i], *(FluidBlock*) vInfo[i].ptrBlock);
   }
   sim.stopProfiler();
-  check("FadeOut - end");
+  check("FadeOut");
 }
 
 CubismUP_3D_NAMESPACE_END

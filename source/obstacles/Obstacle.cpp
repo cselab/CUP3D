@@ -121,243 +121,46 @@ Obstacle::Obstacle(
   bForces = args.bComputeForces;
 }
 
-void Obstacle::_computeUdefMoments(double lin_momenta[3],
-  double ang_momenta[3], const double CoM[3])
-{
-  const double oldCorrVel[3] = {
-    transVel_correction[0], transVel_correction[1], transVel_correction[2]
-  };
-
-  double V=0, FX=0, FY=0, FZ=0, TX=0, TY=0, TZ=0;
-  double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0;
-  #pragma omp parallel for schedule(dynamic) \
-  reduction(+ : V, FX, FY, FZ, TX, TY, TZ, J0, J1, J2, J3, J4, J5)
-  for(size_t i=0; i<vInfo.size(); i++)
-  {
-    const BlockInfo info = vInfo[i];
-    const auto pos = obstacleBlocks[info.blockID];
-    if(pos == nullptr) continue;
-    CHIMAT & __restrict__ CHI = pos->chi;
-    UDEFMAT & __restrict__ UDEF = pos->udef;
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-    {
-      if (CHI[iz][iy][ix] <= 0) continue;
-      double p[3]; info.pos(p, ix, iy, iz);
-      const Real dv = dvol(info, ix, iy, iz);
-      const double X = CHI[iz][iy][ix];
-      const double dUs = UDEF[iz][iy][ix][0] - oldCorrVel[0];
-      const double dVs = UDEF[iz][iy][ix][1] - oldCorrVel[1];
-      const double dWs = UDEF[iz][iy][ix][2] - oldCorrVel[2];
-      p[0] -= CoM[0]; p[1] -= CoM[1]; p[2] -= CoM[2];
-      V  += X * dv;
-      FX += X * UDEF[iz][iy][ix][0] * dv;
-      FY += X * UDEF[iz][iy][ix][1] * dv;
-      FZ += X * UDEF[iz][iy][ix][2] * dv;
-      TX += X * ( p[1]*dWs - p[2]*dVs ) * dv;
-      TY += X * ( p[2]*dUs - p[0]*dWs ) * dv;
-      TZ += X * ( p[0]*dVs - p[1]*dUs ) * dv;
-      J0 += X * ( p[1]*p[1]+p[2]*p[2] ) * dv; J3 -= X * p[0]*p[1] * dv;
-      J1 += X * ( p[0]*p[0]+p[2]*p[2] ) * dv; J4 -= X * p[0]*p[2] * dv;
-      J2 += X * ( p[0]*p[0]+p[1]*p[1] ) * dv; J5 -= X * p[1]*p[2] * dv;
-    }
-  }
-
-  double globals[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
-  double locals[13] = {FX,FY,FZ,V,TX,TY,TZ,J0,J1,J2,J3,J4,J5};
-  MPI_Allreduce(locals, globals, 13, MPI_DOUBLE,MPI_SUM,grid->getCartComm());
-  assert(globals[3] > DBLEPS);
-
-  lin_momenta[0] = globals[0]/globals[3];
-  lin_momenta[1] = globals[1]/globals[3];
-  lin_momenta[2] = globals[2]/globals[3];
-  volume         = globals[3];
-  J[0] = globals[ 7]; J[1] = globals[ 8]; J[2] = globals[ 9];
-  J[3] = globals[10]; J[4] = globals[11]; J[5] = globals[12];
-  //if(bFixToPlanar) {
-  //  ang_momenta[0] = ang_momenta[1] = 0.0;
-  //  ang_momenta[2] = globals[2]/globals[5]; // av2/j2
-  //} else
-  {
-    //solve avel = invJ \dot angMomentum, do not multiply by h^3, but by h for numerics
-    const double AM[3] = {globals[ 4], globals[ 5], globals[ 6]};
-    const double detJ = J[0] * (J[1] * J[2] - J[5] * J[5])+
-                        J[3] * (J[4] * J[5] - J[2] * J[3])+
-                        J[4] * (J[3] * J[5] - J[1] * J[4]);
-    assert(std::fabs(detJ)>0);
-    const double invJ[6] = {
-      (J[1] * J[2] - J[5] * J[5]) / detJ, (J[0] * J[2] - J[4] * J[4]) / detJ,
-      (J[0] * J[1] - J[3] * J[3]) / detJ, (J[4] * J[5] - J[2] * J[3]) / detJ,
-      (J[3] * J[5] - J[1] * J[4]) / detJ, (J[3] * J[4] - J[0] * J[5]) / detJ
-    };
-
-    ang_momenta[0] = invJ[0]*AM[0] + invJ[3]*AM[1] + invJ[4]*AM[2];
-    ang_momenta[1] = invJ[3]*AM[0] + invJ[1]*AM[1] + invJ[5]*AM[2];
-    ang_momenta[2] = invJ[4]*AM[0] + invJ[5]*AM[1] + invJ[2]*AM[2];
-  }
-}
-
-void Obstacle::_makeDefVelocitiesMomentumFree(const double CoM[3])
-{
-  _computeUdefMoments(transVel_correction, angVel_correction, CoM);
-  #ifdef CUP_VERBOSE
-   if(sim.rank==0)
-      printf("Correction of: lin mom [%f %f %f] ang mom [%f %f %f]\n",
-        transVel_correction[0], transVel_correction[1], transVel_correction[2],
-     angVel_correction[0], angVel_correction[1], angVel_correction[2]);
-  #endif
-
-  #pragma omp parallel for schedule(dynamic)
-  for(size_t i=0; i<vInfo.size(); i++)
-  {
-    const BlockInfo info = vInfo[i];
-    const auto pos = obstacleBlocks[info.blockID];
-    if(pos == nullptr) continue;
-    UDEFMAT & __restrict__ UDEF = pos->udef;
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      double p[3]; info.pos(p, ix, iy, iz);
-      p[0] -= CoM[0]; p[1] -= CoM[1]; p[2] -= CoM[2];
-      const double rotVel_correction[3] = {
-        angVel_correction[1]*p[2] - angVel_correction[2]*p[1],
-        angVel_correction[2]*p[0] - angVel_correction[0]*p[2],
-        angVel_correction[0]*p[1] - angVel_correction[1]*p[0]
-      };
-      UDEF[iz][iy][ix][0] -= transVel_correction[0] + rotVel_correction[0];
-      UDEF[iz][iy][ix][1] -= transVel_correction[1] + rotVel_correction[1];
-      UDEF[iz][iy][ix][2] -= transVel_correction[2] + rotVel_correction[2];
-    }
-  }
-  #ifndef NDEBUG
-    double dummy_ang[3], dummy_lin[3];
-    _computeUdefMoments(dummy_lin, dummy_ang, CoM);
-    assert(std::fabs(dummy_lin[0])<10*EPS && std::fabs(dummy_ang[0])<10*EPS);
-    assert(std::fabs(dummy_lin[1])<10*EPS && std::fabs(dummy_ang[1])<10*EPS);
-    assert(std::fabs(dummy_lin[2])<10*EPS && std::fabs(dummy_ang[2])<10*EPS);
-  #endif
-}
-
 void Obstacle::computeVelocities()
 {
-  const Real dt = sim.dt, lambda = sim.lambda;
-  double CM[3];
-  this->getCenterOfMass(CM);
-  double globals[13] = {0,0,0,0,0,0,0,0,0,0,0,0,0};
-  {
-    double V=0, FX=0, FY=0, FZ=0, TX=0, TY=0, TZ=0;
-    double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0;
-    #pragma omp parallel for schedule(dynamic) \
-    reduction(+ : V, FX, FY, FZ, TX, TY, TZ, J0, J1, J2, J3, J4, J5)
-    for(size_t i=0; i<vInfo.size(); i++)
-    {
-      const BlockInfo info = vInfo[i];
-      const FluidBlock & b = *(FluidBlock*)info.ptrBlock;
-      const auto pos = obstacleBlocks[info.blockID];
-      if(pos == nullptr) continue;
-      CHIMAT & __restrict__ CHI = pos->chi;
-      UDEFMAT & __restrict__ UDEF = pos->udef;
-
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        if (CHI[iz][iy][ix] <= 0) continue;
-        double p[3]; info.pos(p, ix, iy, iz);
-        const double dv = dvol(info, ix, iy, iz);
-        const double X = CHI[iz][iy][ix];
-        p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
-        const double object_UR[3] = {
-            angVel[1] * p[2] - angVel[2] * p[1],
-            angVel[2] * p[0] - angVel[0] * p[2],
-            angVel[0] * p[1] - angVel[1] * p[0]
-        };
-        const double UDIFF[3] = {
-            b(ix,iy,iz).u - transVel[0] - object_UR[0] - UDEF[iz][iy][ix][0],
-            b(ix,iy,iz).v - transVel[1] - object_UR[1] - UDEF[iz][iy][ix][1],
-            b(ix,iy,iz).w - transVel[2] - object_UR[2] - UDEF[iz][iy][ix][2]
-        };
-        // the gridsize h is included here for numeric safety
-        V  += X * dv;
-        FX += X * UDIFF[0] * dv;
-        FY += X * UDIFF[1] * dv;
-        FZ += X * UDIFF[2] * dv;
-        TX += X * ( p[1] * UDIFF[2] - p[2] * UDIFF[1] ) * dv;
-        TY += X * ( p[2] * UDIFF[0] - p[0] * UDIFF[2] ) * dv;
-        TZ += X * ( p[0] * UDIFF[1] - p[1] * UDIFF[0] ) * dv;
-        J0 += X * ( p[1]*p[1] + p[2]*p[2] ) * dv; J3 -= X * p[0]*p[1] * dv;
-        J1 += X * ( p[0]*p[0] + p[2]*p[2] ) * dv; J4 -= X * p[0]*p[2] * dv;
-        J2 += X * ( p[0]*p[0] + p[1]*p[1] ) * dv; J5 -= X * p[1]*p[2] * dv;
-      }
-    }
-
-    double locals[13] = {FX,FY,FZ,V,TX,TY,TZ,J0,J1,J2,J3,J4,J5};
-    MPI_Allreduce(locals, globals, 13, MPI_DOUBLE,MPI_SUM,grid->getCartComm());
-    assert(globals[3] > DBLEPS);
-  }
-
-  mass = globals[3];
-  volume = globals[3];
-  force[0] = globals[0]*lambda;
-  force[1] = globals[1]*lambda;
-  force[2] = globals[2]*lambda;
-  torque[0] = globals[4]*lambda;
-  torque[1] = globals[5]*lambda;
-  torque[2] = globals[6]*lambda;
-  J[0] = globals[ 7]; J[1] = globals[ 8];
-  J[2] = globals[ 9]; J[3] = globals[10];
-  J[4] = globals[11]; J[5] = globals[12];
-
-  transVel_computed[0] = transVel[0] + dt * force[0] / mass;
-  transVel_computed[1] = transVel[1] + dt * force[1] / mass;
-  transVel_computed[2] = transVel[2] + dt * force[2] / mass;
-
   if(bForcedInSimFrame[0]) transVel[0] = transVel_imposed[0];
   else transVel[0] = transVel_computed[0];
+
   if(bForcedInSimFrame[1]) transVel[1] = transVel_imposed[1];
   else transVel[1] = transVel_computed[1];
+
   if(bForcedInSimFrame[2]) transVel[2] = transVel_imposed[2];
   else if (bFixToPlanar) transVel[2] = 0.0;
   else transVel[2] = transVel_computed[2];
 
   if(bFixToPlanar)
   {
-    angVel[0] = angVel[1] = 0.0;
-    angVel_computed[0] = angVel_computed[1] = 0.0;
-    angVel_computed[2] = angVel[2] + dt * torque[2] / J[2];
-    if( not bBlockRotation[2] ) angVel[2] = angVel_computed[2];
-    else angVel[2] = 0.0;
+    angVel[0] = 0.0;
+    angVel[1] = 0.0;
+    angVel_computed[0] = 0.0;
+    angVel_computed[1] = 0.0;
+    angVel_computed[2] = angVel[2] + sim.dt * torque[2] / J[2];
   }
   else
   {
-    //solve avel = invJ \dot angMomentum, do not multiply by h^3 for numerics
-    const double detJ = J[0] * (J[1] * J[2] - J[5] * J[5])+
-                        J[3] * (J[4] * J[5] - J[2] * J[3])+
-                        J[4] * (J[3] * J[5] - J[1] * J[4]);
-    assert(std::fabs(detJ)>0);
-    const double invJ[6] = {
-      (J[1] * J[2] - J[5] * J[5]) / detJ, (J[0] * J[2] - J[4] * J[4]) / detJ,
-      (J[0] * J[1] - J[3] * J[3]) / detJ, (J[4] * J[5] - J[2] * J[3]) / detJ,
-      (J[3] * J[5] - J[1] * J[4]) / detJ, (J[3] * J[4] - J[0] * J[5]) / detJ
-    };
-    const Real AnA0 = invJ[0]*torque[0] + invJ[3]*torque[1] + invJ[4]*torque[2];
-    const Real AnA1 = invJ[3]*torque[0] + invJ[1]*torque[1] + invJ[5]*torque[2];
-    const Real AnA2 = invJ[4]*torque[0] + invJ[5]*torque[1] + invJ[2]*torque[2];
-    angVel_computed[0] = angVel[0] + dt * AnA0;
-    angVel_computed[1] = angVel[1] + dt * AnA1;
-    angVel_computed[2] = angVel[2] + dt * AnA2;
-    if(not bBlockRotation[0]) angVel[0] = angVel_computed[0];
-    if(not bBlockRotation[1]) angVel[1] = angVel_computed[1];
-    if(not bBlockRotation[2]) angVel[2] = angVel_computed[2];
+    if(not bBlockRotation[0]) angVel[0] = 0;
+    else angVel[0] = angVel_computed[0];
+
+    if(not bBlockRotation[1]) angVel[1] = 0;
+    else angVel[1] = angVel_computed[1];
   }
+  if( bBlockRotation[2] ) angVel[2] = 0.0;
+  else angVel[2] = angVel_computed[2];
 }
 
 void Obstacle::computeForces()
 {
   static const int nQoI = ObstacleBlock::nQoI;
   std::vector<double> sum = std::vector<double>(nQoI, 0);
-  for (auto & block : obstacleBlocks) block->sumQoI(sum);
+  for (auto & block : obstacleBlocks) {
+    if(block == nullptr) continue;
+    block->sumQoI(sum);
+  }
 
   MPI_Allreduce(MPI_IN_PLACE, sum.data(), nQoI, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
@@ -386,7 +189,10 @@ void Obstacle::computeForces()
     char buf[500];
     sprintf(buf,"surface_%02d_%07d_rank%03d.raw",obstacleID,sim.step,sim.rank);
     FILE * pFile = fopen (buf, "wb");
-    for(auto & block : obstacleBlocks) block->print(pFile);
+    for(auto & block : obstacleBlocks) {
+      if(block == nullptr) continue;
+      block->print(pFile);
+    }
     fflush(pFile);
     fclose(pFile);
   }
@@ -492,39 +298,19 @@ void Obstacle::create()
 void Obstacle::finalize()
 { }
 
-void Obstacle::getTranslationVelocity(double UT[3]) const
+std::array<double,3> Obstacle::getTranslationVelocity() const
 {
-  UT[0]=transVel[0];
-  UT[1]=transVel[1];
-  UT[2]=transVel[2];
+  return std::array<double,3> {{transVel[0],transVel[1],transVel[2]}};
 }
 
-void Obstacle::setTranslationVelocity(double UT[3])
+std::array<double,3> Obstacle::getAngularVelocity() const
 {
-  transVel[0] = UT[0];
-  transVel[1] = UT[1];
-  transVel[2] = UT[2];
+  return std::array<double,3> {{angVel[0],angVel[1],angVel[2]}};
 }
 
-void Obstacle::getAngularVelocity(double W[3]) const
+std::array<double,3> Obstacle::getCenterOfMass() const
 {
-  W[0]=angVel[0];
-  W[1]=angVel[1];
-  W[2]=angVel[2];
-}
-
-void Obstacle::setAngularVelocity(const double W[3])
-{
-  angVel[0]=W[0];
-  angVel[1]=W[1];
-  angVel[2]=W[2];
-}
-
-void Obstacle::getCenterOfMass(double CM[3]) const
-{
-  CM[0]=position[0];
-  CM[1]=position[1];
-  CM[2]=position[2];
+  return std::array<double,3> {{centerOfMass[0],centerOfMass[1],centerOfMass[2]}};
 }
 
 void Obstacle::save(std::string filename)
@@ -587,7 +373,6 @@ void Obstacle::Accept(ObstacleVisitor * visitor)
  visitor->visit(this);
 }
 
-
 #ifdef RL_LAYER
 void Obstacle::getSkinsAndPOV(Real& x, Real& y, Real& th,
   Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
@@ -626,7 +411,7 @@ void Obstacle::_writeComputedVelToFile()
     savestream<<"step"<<tab<<"time"<<tab<<"CMx"<<tab<<"CMy"<<tab<<"CMz"<<tab
     <<"quat_0"<<tab<<"quat_1"<<tab<<"quat_2"<<tab<<"quat_3"<<tab
     <<"vel_x"<<tab<<"vel_y"<<tab<<"vel_z"<<tab
-    <<"angvel_x"<<tab<<"angvel_y"<<tab<<"angvel_z"<<tab<<"volume"<<tab
+    <<"angvel_x"<<tab<<"angvel_y"<<tab<<"angvel_z"<<tab<<"mass"<<tab
     <<"J0"<<tab<<"J1"<<tab<<"J2"<<tab<<"J3"<<tab<<"J4"<<tab<<"J5"<<std::endl;
   }
 
@@ -636,7 +421,7 @@ void Obstacle::_writeComputedVelToFile()
   savestream <<sim.time<<tab<<position[0]<<tab<<position[1]<<tab<<position[2]<<tab
     <<quaternion[0]<<tab<<quaternion[1]<<tab<<quaternion[2]<<tab<<quaternion[3]
     <<tab<<transVel[0]<<tab<<transVel[1]<<tab<<transVel[2]
-    <<tab<<angVel[0]<<tab<<angVel[1]<<tab<<angVel[2]<<tab<<volume<<tab
+    <<tab<<angVel[0]<<tab<<angVel[1]<<tab<<angVel[2]<<tab<<mass<<tab
     <<J[0]<<tab<<J[1]<<tab<<J[2]<<tab<<J[3]<<tab<<J[4]<<tab<<J[5]<<std::endl;
 }
 
@@ -658,7 +443,7 @@ void Obstacle::_writeSurfForcesToFile()
   ssF << sim.step << tab;
   ssF.setf(std::ios::scientific);
   ssF.precision(std::numeric_limits<float>::digits10 + 1);
-  ssF<<sim.time<<tab<<volume<<tab<<surfForce[0]<<tab<<surfForce[1]<<tab<<surfForce[2]
+  ssF<<sim.time<<tab<<mass<<tab<<surfForce[0]<<tab<<surfForce[1]<<tab<<surfForce[2]
      <<tab<<surfTorque[0]<<tab<<surfTorque[1]<<tab<<surfTorque[2]<<tab
      <<presForce[0]<<tab<<presForce[1]<<tab<<presForce[2]<<tab<<viscForce[0]
      <<tab<<viscForce[1]<<tab<<viscForce[2]<<tab<<gamma[0]<<tab<<gamma[1]

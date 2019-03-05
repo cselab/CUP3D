@@ -13,13 +13,6 @@
 //#define __2Leads_
 //#define __DumpWakeStefan 9
 
-// 3 options for penalization:
-// 0 : explicit
-// 1 : implicit without taking into account divF in pressure eq
-// 2 : implicit by approximating penalization force into pressure eq
-#define PENAL_TYPE 1
-
-
 #define __useSkin_
 #include <cassert>
 #include <fstream>

@@ -3,14 +3,14 @@ NNODEX=${NNODEX:-4}
 NNODEY=${NNODEY:-1}
 NNODE=$(($NNODEX * $NNODEY))
 
-BPDX=${BPDX:-32}
+BPDX=${BPDX:-64}
 BPDY=${BPDY:-$((${BPDX}/2))} #${BPDY:-32}
-BPDZ=${BPDZ:-$((${BPDX}/2))} #${BPDZ:-32}
+BPDZ=${BPDZ:-$((${BPDX}/4))} #${BPDZ:-32}
 
-NU=${NU:-0.00005333333333}
+NU=${NU:-0.00001}
 BC=${BC:-freespace}
 
-FACTORY='CarlingFish L=0.2 T=1.0 xpos=0.35 ypos=0.125 zpos=0.125 bFixToPlanar=1 bFixFrameOfRef=1 heightProfile=danio widthProfile=danio
+FACTORY='CarlingFish L=0.2 T=1.0 xpos=0.3 bFixToPlanar=1 bFixFrameOfRef=1 heightProfile=danio widthProfile=danio
 '
 
 OPTIONS=

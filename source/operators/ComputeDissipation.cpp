@@ -113,7 +113,7 @@ void ComputeDissipation::operator()(const double dt)
   }
   sim.stopProfiler();
 
-  check("dissipation - end");
+  check("ComputeDissipation");
 }
 
 CubismUP_3D_NAMESPACE_END

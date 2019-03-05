@@ -67,8 +67,10 @@ public:
   bool bFixToPlanar=1, bInteractive=0, bHasSkin=0, bForces=0;
   double quaternion[4] = {1,0,0,0}, _2Dangle = 0, phaseShift=0; //orientation
   double position[3] = {0,0,0}, absPos[3] = {0,0,0}, transVel[3] = {0,0,0};
-  double angVel[3] = {0,0,0}, volume = 0, J[6] = {0,0,0,0,0,0}; //mom of inertia
-  //from diagnostics:
+  double angVel[3] = {0,0,0}, J[6] = {0,0,0,0,0,0}; //mom of inertia
+  // computed from chi on the grid:
+  double centerOfMass[3] = {0,0,0};
+  //from penalization:
   double mass=0, force[3] = {0,0,0}, torque[3] = {0,0,0};
   //from compute forces: perimeter, circulation and forces
   double totChi=0, gamma[3]={0,0,0}, surfForce[3]={0,0,0};
@@ -90,8 +92,6 @@ protected:
   virtual void _writeComputedVelToFile();
   virtual void _writeDiagForcesToFile();
   virtual void _writeSurfForcesToFile();
-  void _makeDefVelocitiesMomentumFree(const double CoM[3]);
-  void _computeUdefMoments(double lin_momenta[3], double ang_momenta[3], const double CoM[3]);
   //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
 
 public:
@@ -143,18 +143,10 @@ public:
     obstacleBlocks.clear();
   }
 
-  virtual void getTranslationVelocity(double UT[3]) const;
-  virtual void getAngularVelocity(double W[3]) const;
-  virtual void getCenterOfMass(double CM[3]) const;
-  virtual void setTranslationVelocity(double UT[3]);
-  virtual void setAngularVelocity(const double W[3]);
+  virtual std::array<double,3> getTranslationVelocity() const;
+  virtual std::array<double,3> getAngularVelocity() const;
+  virtual std::array<double,3> getCenterOfMass() const;
 
-  inline double dvol(const cubism::BlockInfo&info,
-                     const int x, const int y, const int z)
-  const {
-    double h[3]; info.spacing(h, x, y, z);
-    return h[0] * h[1] * h[2];
-  }
   // driver to execute finite difference kernels either on all points relevant
   // to the mass of the obstacle (where we have char func) or only on surface
 
@@ -162,6 +154,7 @@ public:
   void create_base(const T& kernel)
   {
     for(auto & entry : obstacleBlocks) {
+      if(entry == nullptr) continue;
       delete entry;
       entry = nullptr;
     }

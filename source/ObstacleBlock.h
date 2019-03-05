@@ -54,12 +54,20 @@ struct ObstacleBlock
   double *vxDef = nullptr, *vyDef = nullptr, *vzDef = nullptr;
 
   //additive quantities:
-    double   CoM_x   = 0,   CoM_y   = 0,   CoM_z   = 0, mass = 0;
-    double  forcex   = 0,  forcey   = 0,  forcez   = 0;
-    double  forcex_P = 0,  forcey_P = 0,  forcez_P = 0;
-    double  forcex_V = 0,  forcey_V = 0,  forcez_V = 0;
-    double torquex   = 0, torquey   = 0, torquez   = 0;
-    double  gammax   = 0,  gammay   = 0,  gammaz   = 0;
+  // construct CHI & center of mass interpolated on grid:
+  double CoM_x = 0, CoM_y = 0, CoM_z = 0, mass = 0;
+
+  // Penalization volume integral forces:
+  double V =0, FX=0, FY=0, FZ=0, TX=0, TY=0, TZ=0;
+  double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0;
+  double GX=0, G0=0, G1=0, G2=0, G3=0, G4=0, G5=0;
+
+  // Fluid-structure interface forces: (these are the 22 quantities of nQoI)
+  double  forcex   = 0,  forcey   = 0,  forcez   = 0;
+  double  forcex_P = 0,  forcey_P = 0,  forcez_P = 0;
+  double  forcex_V = 0,  forcey_V = 0,  forcez_V = 0;
+  double torquex   = 0, torquey   = 0, torquez   = 0;
+  double  gammax   = 0,  gammay   = 0,  gammaz   = 0;
   //Real torquex_P = 0, torquey_P = 0, torquez_P = 0;
   //Real torquex_V = 0, torquey_V = 0, torquez_V = 0;
   double drag = 0, thrust = 0, Pout=0, PoutBnd=0, defPower=0, defPowerBnd = 0, pLocom = 0;

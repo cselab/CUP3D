@@ -1,5 +1,5 @@
 #!/bin/bash
-NNODEX=${NNODEX:-8}
+NNODEX=${NNODEX:-4}
 NNODEY=${NNODEY:-1}
 NNODE=$(($NNODEX * $NNODEY))
 
@@ -7,7 +7,7 @@ BPDX=${BPDX:-64}
 BPDY=${BPDY:-$((${BPDX}/2))} #${BPDY:-32}
 BPDZ=${BPDZ:-$((${BPDX}/4))} #${BPDZ:-32}
 
-NU=${NU:-0.0000225} # Re 4k
+NU=${NU:-0.00001} # Re 4k
 BC=${BC:-freespace}
 
 FACTORY='StefanFish L=0.2 T=1 xpos=0.3 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1

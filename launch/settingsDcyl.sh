@@ -11,7 +11,7 @@ NU=${NU:-0.00001}
 
 # L is the diameter.
 # Obstacle is both fixed and forced. We impose an uniform velocity and the sim box follows it
-FACTORY='Cylinder L=0.1 xpos=0.2 xvel=0.1 bFixFrameOfRef=1 bForcedInSimFrame=1 section=D
+FACTORY='Cylinder L=0.125 xpos=0.3 xvel=0.1 bFixFrameOfRef=1 bForcedInSimFrame=1 section=D
 '
 
 OPTIONS=

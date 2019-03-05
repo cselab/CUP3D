@@ -48,10 +48,9 @@ struct KernelComputeForces : public ObstacleVisitor
     if (o->nPoints == 0) return;
     assert(o->filled);
 
-    double uTrans[3], omega[3], CM[3];
-    op->getCenterOfMass(CM);
-    op->getAngularVelocity(omega);
-    op->getTranslationVelocity(uTrans);
+    const std::array<double,3> CM = op->getCenterOfMass();
+    const std::array<double,3> omega = op->getAngularVelocity();
+    const std::array<double,3> uTrans = op->getTranslationVelocity();
     double velUnit[3] = {0., 0., 0.};
     const double vel_norm = std::sqrt(uTrans[0]*uTrans[0]
                                     + uTrans[1]*uTrans[1]
@@ -171,7 +170,7 @@ void ComputeForces::operator()(const double dt)
   // do the final reductions and so on
   sim.obstacle_vector->computeForces();
   sim.stopProfiler();
-  check("obst. forces");
+  check("ComputeForces");
 }
 
 struct DumpWake
