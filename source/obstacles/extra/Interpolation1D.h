@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_Interpolation1D_h
 #define CubismUP_3D_Interpolation1D_h
 
-#include <iostream>
+#include <cstdio>
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -52,8 +52,9 @@ class Interpolation1D
       }
 
       const double h = x[khi]-x[klo];
-      if(abs(h)<2.2e-16)
-      {std::cout<<"Interpolation points must be distinct!"<<std::endl;abort();}
+      if(abs(h)<2.2e-16) {
+        printf("Interpolation points must be distinct!"); fflush(0); abort();
+      }
       const double a = (x[khi]-(xx[j]+offset))/h;
       const double b = ((xx[j]+offset)-x[klo])/h;
       yy[j] = a*y[klo]+b*y[khi]+((a*a*a-a)*y2[klo]+(b*b*b-b)*y2[khi])*(h*h)/6;

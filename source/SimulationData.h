@@ -18,11 +18,10 @@
 #endif
 //#include "Cubism/ZBinDumper_MPI.h"
 
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <unistd.h>
 #include <array>
+#ifdef CUP_ASYNC_DUMP
 #include <thread>
+#endif
 #include <vector>
 
 CubismUP_3D_NAMESPACE_BEGIN

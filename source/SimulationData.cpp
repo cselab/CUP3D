@@ -6,6 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
+#include <unistd.h>
+
 #include "SimulationData.h"
 #include "operators/Operator.h"
 #include "obstacles/ObstacleVector.h"

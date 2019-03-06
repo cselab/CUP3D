@@ -11,7 +11,7 @@
 #define CubismUP_3D_NonUniformScheme_h
 
 #include <cassert>
-#include <iostream>
+#include <cstdio>
 #include <vector>
 #include <cstdlib>
 
@@ -104,8 +104,8 @@ public:
     {
         if (!m_initialized)
         {
-            std::cerr << "ERROR: NonUniformScheme: Not initialized." << std::endl;
-            abort();
+            fprintf(stderr,"ERROR: NonUniformScheme: Not initialized.\n");
+            fflush(0); abort();
         }
 
         // 0. some checks
@@ -169,8 +169,8 @@ public:
     {
         if (!m_initialized)
         {
-            std::cerr << "ERROR: NonUniformScheme: Not initialized." << std::endl;
-            abort();
+            fprintf(stderr,"ERROR: NonUniformScheme: Not initialized.\n");
+            fflush(0); abort();
         }
 
 #pragma omp parallel for
@@ -246,7 +246,7 @@ private:
 
     void _compute_mesh_stats(const std::string header, const std::string name, const double* const data, const unsigned int N)
     {
-        std::cout << name << " statistics: " << header << std::endl;
+        printf("%s statistics %s.\n", name.c_str(), header.c_str());
         {
             double mean = 0;
             double var = 0;
@@ -280,12 +280,7 @@ private:
             var  = M2 / (k - 1);
             skew = std::sqrt(k) * M3 / std::pow(M2, 1.5);
             kurt = k * M4 / (M2 * M2) - 3;
-            std::cout << "\tMesh spacing:  mean=" << std::scientific << mean;
-            std::cout << "; std=" << std::scientific << std::sqrt(var);
-            std::cout << "; skew=" << std::scientific << skew;
-            std::cout << "; kurt=" << std::scientific << kurt;
-            std::cout << "; min=" << std::scientific << min;
-            std::cout << "; max=" << std::scientific << max << std::endl;
+            printf("\tMesh spacing: mean=%e; std=%e; skew=%e; kurt=%e; min=%e; max=%e\n",mean,std::sqrt(var),skew,kurt,min,max);
         }
         {
             double mean = 0;
@@ -322,12 +317,7 @@ private:
             var  = M2 / (k - 1);
             skew = std::sqrt(k) * M3 / std::pow(M2, 1.5);
             kurt = k * M4 / (M2 * M2) - 3;
-            std::cout << "\tGrowth factor: mean=" << std::scientific << mean;
-            std::cout << "; std=" << std::scientific << std::sqrt(var);
-            std::cout << "; skew=" << std::scientific << skew;
-            std::cout << "; kurt=" << std::scientific << kurt;
-            std::cout << "; min=" << std::scientific << min;
-            std::cout << "; max=" << std::scientific << max << std::endl;
+            printf("\tGrowth factor: mean=%e; std=%e; skew=%e; kurt=%e; min=%e; max=%e\n",mean,std::sqrt(var),skew,kurt,min,max);
         }
     }
 };
