@@ -15,7 +15,7 @@ using namespace cubism;
 
 std::vector<std::array<int, 2>> ObstacleVector::collidingObstacles()
 {
-  std::vector<std::array<int, 2>> colliding; //IDs of colliding obstacles
+  std::set<std::array<int, 2>> colliding; //IDs of colliding obstacles
   //vector containing pointers to defBLock maps:
   std::vector<std::vector<ObstacleBlock*>*> obstBlocks(obstacles.size());
   int ID = 0;
@@ -34,18 +34,12 @@ std::vector<std::array<int, 2>> ObstacleVector::collidingObstacles()
     assert(x.size() == y.size());
     for (size_t k=0; k<x.size(); k++) {
       if(x[k] not_eq nullptr && y[k] not_eq nullptr) {
-            std::array<int,2> hit = {IDs[i],IDs[j]};
-            colliding.push_back(hit);
+        std::array<int,2> hit = {IDs[i],IDs[j]};
+        colliding.insert(hit); //it's a set: only unique pairs are inserted
       }
     }
   }
-  return colliding;
-}
-
-void ObstacleVector::characteristic_function()
-{
-    for(const auto & obstacle_ptr : obstacles)
-        obstacle_ptr->characteristic_function();
+  return std::vector<std::array<int,2>>(colliding.begin(), colliding.end());
 }
 
 void ObstacleVector::update()
@@ -60,21 +54,10 @@ void ObstacleVector::create()
     obstacle_ptr->create();
 }
 
-
 void ObstacleVector::finalize()
 {
   for(const auto & obstacle_ptr : obstacles)
     obstacle_ptr->finalize();
-}
-
-std::vector<int> ObstacleVector::intersectingBlockIDs(const int buffer) const
-{
-  std::set<int> IDcollection;
-  for(const auto & obstacle_ptr : obstacles) {
-    std::vector<int> myIDs = obstacle_ptr->intersectingBlockIDs(buffer);
-    IDcollection.insert(myIDs.begin(), myIDs.end()); // it's a set, so only unique values are inserted
-  }
-  return std::vector<int>(IDcollection.begin(), IDcollection.end());
 }
 
 void ObstacleVector::computeVelocities()
@@ -122,6 +105,7 @@ void ObstacleVector::Accept(ObstacleVisitor * visitor)
   for(size_t i=0;i<obstacles.size();++i)
     obstacles[i]->Accept(visitor);
 }
+
 Real ObstacleVector::getD() const
 {
   Real maxL = 0;

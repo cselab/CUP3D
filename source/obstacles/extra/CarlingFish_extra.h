@@ -254,7 +254,7 @@ CarlingFishMidlineData* CarlingFish::readHingeParams(ArgumentParser&p)
   }
 
   return new CarlingFishMidlineData_Hinged(sHinge, aHinge, phiHinge, tHinge,
-    length, Tperiod, phaseShift, vInfo[0].h_gridpoint, ampFac);
+    length, Tperiod, phaseShift, sim.maxH(), ampFac);
 }
 
 CarlingFishMidlineData* CarlingFish::readBurstCoastParams(ArgumentParser&p)
@@ -280,7 +280,7 @@ CarlingFishMidlineData* CarlingFish::readBurstCoastParams(ArgumentParser&p)
     abort();
   }
   return new CarlingFishMidlineData_BurstCoast(tStart, t0, t1, t2, t3,
-    lowestAmp, length, Tperiod, phaseShift, vInfo[0].h_gridpoint, ampFac);
+    lowestAmp, length, Tperiod, phaseShift, sim.maxH(), ampFac);
 }
 
 #if 0 // COMPUTE MIDLINES AND VELS WITH DOUBLE HINGE

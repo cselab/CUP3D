@@ -17,16 +17,16 @@ namespace SphereObstacle
 {
 struct FillBlocks : FillBlocksBase<FillBlocks>
 {
-  const Real radius, safe_radius;
+  const Real radius, h, safety = (2+SURFDH)*h;
   const double position[3];
   const Real box[3][2] = {
-    {(Real)position[0] - safe_radius, (Real)position[0] + safe_radius},
-    {(Real)position[1] - safe_radius, (Real)position[1] + safe_radius},
-    {(Real)position[2] - safe_radius, (Real)position[2] + safe_radius}
+    {(Real)position[0] - (radius+safety), (Real)position[0] + (radius+safety)},
+    {(Real)position[1] - (radius+safety), (Real)position[1] + (radius+safety)},
+    {(Real)position[2] - (radius+safety), (Real)position[2] + (radius+safety)}
   };
 
   FillBlocks(const Real _radius, const Real max_dx, const double pos[3]):
-  radius(_radius),safe_radius(radius+2*max_dx),position{pos[0],pos[1],pos[2]} {}
+  radius(_radius), h(max_dx), position{pos[0],pos[1],pos[2]} {}
 
   inline bool isTouching(const FluidBlock&b) const
   {
@@ -52,7 +52,7 @@ namespace HemiSphereObstacle
 {
 struct FillBlocks : FillBlocksBase<FillBlocks>
 {
-  const Real radius, safety;
+  const Real radius, h, safety = (2+SURFDH)*h;
   const double position[3];
   const Real box[3][2] = {
     {(Real)position[0] -radius -safety, (Real)position[0] +safety},
@@ -61,7 +61,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   };
 
   FillBlocks(const Real _radius, const Real max_dx, const double pos[3]):
-  radius(_radius), safety(2*max_dx), position{pos[0],pos[1],pos[2]} {}
+  radius(_radius), h(max_dx), position{pos[0],pos[1],pos[2]} {}
 
   inline bool isTouching(const FluidBlock&b) const
   {
@@ -116,7 +116,7 @@ Sphere::Sphere(
 
 void Sphere::create()
 {
-  const Real h = vInfo[0].h_gridpoint;
+  const Real h = sim.maxH();
   if(bHemi) {
     const HemiSphereObstacle::FillBlocks K(radius, h, position);
     create_base<HemiSphereObstacle::FillBlocks>(K);

@@ -50,59 +50,66 @@ class KernelCharacteristicFunction
         Real p[3]; info.pos(p, ix,iy,iz);
         if (SDF[iz][iy][ix] > +2*h || SDF[iz][iy][ix] < -2*h)
         {
-          const Real H = SDF[iz][iy][ix] > 0 ? 1 : 0;
-          b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-          CHI[iz][iy][ix] = H;
-          o->CoM_x += p[0]*H;
-          o->CoM_y += p[1]*H;
-          o->CoM_z += p[2]*H;
-          o->mass  += H;
-          continue;
+          CHI[iz][iy][ix] = SDF[iz][iy][ix] > 0 ? 1 : 0;
+        }
+        else
+        {
+          const Real distPx =lab(ix+1,iy,iz).tmpU, distMx =lab(ix-1,iy,iz).tmpU;
+          const Real distPy =lab(ix,iy+1,iz).tmpU, distMy =lab(ix,iy-1,iz).tmpU;
+          const Real distPz =lab(ix,iy,iz+1).tmpU, distMz =lab(ix,iy,iz-1).tmpU;
+          // gradU
+          const Real gradUX = inv2h*(distPx - distMx);
+          const Real gradUY = inv2h*(distPy - distMy);
+          const Real gradUZ = inv2h*(distPz - distMz);
+          const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
+
+          const Real IplusX = distPx < 0 ? 0 : distPx;
+          const Real IminuX = distMx < 0 ? 0 : distMx;
+          const Real IplusY = distPy < 0 ? 0 : distPy;
+          const Real IminuY = distMy < 0 ? 0 : distMy;
+          const Real IplusZ = distPz < 0 ? 0 : distPz;
+          const Real IminuZ = distMz < 0 ? 0 : distMz;
+          // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
+          const Real gradIX = inv2h*(IplusX - IminuX);
+          const Real gradIY = inv2h*(IplusY - IminuY);
+          const Real gradIZ = inv2h*(IplusZ - IminuZ);
+          const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
+          CHI[iz][iy][ix]  =        numH/gradUSq;
         }
 
-        const Real distPx = lab(ix+1,iy,iz).tmpU, distMx = lab(ix-1,iy,iz).tmpU;
-        const Real distPy = lab(ix,iy+1,iz).tmpU, distMy = lab(ix,iy-1,iz).tmpU;
-        const Real distPz = lab(ix,iy,iz+1).tmpU, distMz = lab(ix,iy,iz-1).tmpU;
-        // gradU
+        b(ix,iy,iz).chi = std::max(CHI[iz][iy][ix], b(ix,iy,iz).chi);
+        o->CoM_x += CHI[iz][iy][ix] * p[0];
+        o->CoM_y += CHI[iz][iy][ix] * p[1];
+        o->CoM_z += CHI[iz][iy][ix] * p[2];
+        o->mass  += CHI[iz][iy][ix];
+
+        // allows shifting the SDF outside the body:
+        const Real sdf = SDF[iz][iy][ix] + h*SURFDH; // negative outside
+        if (sdf > +2*h || sdf < -2*h) continue; // no need to compute gradChi
+
+        const Real distPx =lab(ix+1,iy,iz).tmpU + h*SURFDH;
+        const Real distMx =lab(ix-1,iy,iz).tmpU + h*SURFDH;
+        const Real distPy =lab(ix,iy+1,iz).tmpU + h*SURFDH;
+        const Real distMy =lab(ix,iy-1,iz).tmpU + h*SURFDH;
+        const Real distPz =lab(ix,iy,iz+1).tmpU + h*SURFDH;
+        const Real distMz =lab(ix,iy,iz-1).tmpU + h*SURFDH;
         const Real gradUX = inv2h*(distPx - distMx);
         const Real gradUY = inv2h*(distPy - distMy);
         const Real gradUZ = inv2h*(distPz - distMz);
-        const Real gradUSq = gradUX*gradUX +gradUY*gradUY +gradUZ*gradUZ + EPS;
-
-        const Real IplusX = distPx < 0 ? 0 : distPx;
-        const Real IminuX = distMx < 0 ? 0 : distMx;
-        const Real IplusY = distPy < 0 ? 0 : distPy;
-        const Real IminuY = distMy < 0 ? 0 : distMy;
-        const Real IplusZ = distPz < 0 ? 0 : distPz;
-        const Real IminuZ = distMz < 0 ? 0 : distMz;
-        const Real HplusX = std::fabs(distPx)<EPS ? 0.5 : (distPx < 0 ? 0 : 1);
-        const Real HminuX = std::fabs(distMx)<EPS ? 0.5 : (distMx < 0 ? 0 : 1);
-        const Real HplusY = std::fabs(distPy)<EPS ? 0.5 : (distPy < 0 ? 0 : 1);
-        const Real HminuY = std::fabs(distMy)<EPS ? 0.5 : (distMy < 0 ? 0 : 1);
-        const Real HplusZ = std::fabs(distPz)<EPS ? 0.5 : (distPz < 0 ? 0 : 1);
-        const Real HminuZ = std::fabs(distMz)<EPS ? 0.5 : (distMz < 0 ? 0 : 1);
-
-        // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
-        const Real gradIX = inv2h*(IplusX - IminuX);
-        const Real gradIY = inv2h*(IplusY - IminuY);
-        const Real gradIZ = inv2h*(IplusZ - IminuZ);
+        const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
+        const Real HplusX = std::fabs(distPx)<EPS ? 0.5 : (distPx<0? 0 : 1);
+        const Real HminuX = std::fabs(distMx)<EPS ? 0.5 : (distMx<0? 0 : 1);
+        const Real HplusY = std::fabs(distPy)<EPS ? 0.5 : (distPy<0? 0 : 1);
+        const Real HminuY = std::fabs(distMy)<EPS ? 0.5 : (distMy<0? 0 : 1);
+        const Real HplusZ = std::fabs(distPz)<EPS ? 0.5 : (distPz<0? 0 : 1);
+        const Real HminuZ = std::fabs(distMz)<EPS ? 0.5 : (distMz<0? 0 : 1);
         const Real gradHX = (HplusX - HminuX);
         const Real gradHY = (HplusY - HminuY);
         const Real gradHZ = (HplusZ - HminuZ);
-        const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
         const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
         const Real Delta = fac1 * numD/gradUSq; //h^3 * Delta
-        const Real H     = numH/gradUSq;
-
-        CHI[iz][iy][ix] = H;
-        if (Delta>1e-6) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
-        b(ix,iy,iz).chi = std::max(H, b(ix,iy,iz).chi);
-        o->CoM_x += p[0]*H;
-        o->CoM_y += p[1]*H;
-        o->CoM_z += p[2]*H;
-        o->mass  += H;
+        if (Delta>EPS) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
       }
-
       o->allocate_surface();
     }
   }

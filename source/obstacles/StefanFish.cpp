@@ -253,7 +253,7 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
 {
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift,
-    vInfo[0].h_gridpoint, ampFac);
+    sim.maxH(), ampFac);
 
   std::string heightName = p("-heightProfile").asString("baseline");
   std::string  widthName = p( "-widthProfile").asString("baseline");

@@ -247,9 +247,9 @@ void FishMidlineData::surfaceToComputationalFrame(const double theta_comp, const
   }
 }
 
-void VolumeSegment_OBB::prepare(std::pair<int, int> _s_range, const Real bbox[3][2], const Real safe_dist)
+void VolumeSegment_OBB::prepare(std::pair<int, int> _s_range, const Real bbox[3][2], const Real h)
 {
-  safe_distance = safe_dist;
+  safe_distance = (SURFDH+2)*h; //two points on each side for Towers
   s_range.first = _s_range.first;
   s_range.second = _s_range.second;
   for(int i=0; i<3; ++i) {
@@ -461,9 +461,13 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
             (int)std::floor((myP[1]-org[1])*invh),
             (int)std::floor((myP[2]-org[2])*invh)
         };
-        if(iap[0]+3 <= 0 || iap[0]-1 >= BS[0]) continue; // NearNeigh loop
-        if(iap[1]+3 <= 0 || iap[1]-1 >= BS[1]) continue; // does not intersect
-        if(iap[2]+3 <= 0 || iap[2]-1 >= BS[2]) continue; // with this block
+        // support is two points left, two points right --> Towers Chi
+        // will be one point left, one point right, but needs SDF wider
+        const int ST[3] = { iap[0]-1-SURFDH, iap[1]-1-SURFDH, iap[2]-1-SURFDH };
+        const int EN[3] = { iap[0]+3+SURFDH, iap[1]+3+SURFDH, iap[2]+3+SURFDH };
+        if(EN[0] <= 0 || ST[0] >= BS[0]) continue; // NearNeigh loop
+        if(EN[1] <= 0 || ST[1] >= BS[1]) continue; // does not intersect
+        if(EN[2] <= 0 || ST[2] >= BS[2]) continue; // with this block
         Real pP[3] = {rX[ss+1] +width[ss+1]*costh*norX[ss+1],
                       rY[ss+1] +width[ss+1]*costh*norY[ss+1], height[ss+1]*sinth
         };
@@ -477,11 +481,9 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
         };
         changeVelocityToComputationalFrame(udef);
 
-        // support is two points left, two points right --> Towers Chi
-        // will be one point left, one point right, but needs SDF wider
-        for(int sz =std::max(0, iap[2]-1); sz <std::min(iap[2]+3, BS[2]); ++sz)
-        for(int sy =std::max(0, iap[1]-1); sy <std::min(iap[1]+3, BS[1]); ++sy)
-        for(int sx =std::max(0, iap[0]-1); sx <std::min(iap[0]+3, BS[0]); ++sx)
+        for(int sz =std::max(0, ST[2]); sz <std::min(EN[2], BS[2]); ++sz)
+        for(int sy =std::max(0, ST[1]); sy <std::min(EN[1], BS[1]); ++sy)
+        for(int sx =std::max(0, ST[0]); sx <std::min(EN[0], BS[0]); ++sx)
         {
           Real p[3];
           info.pos(p, sx, sy, sz);

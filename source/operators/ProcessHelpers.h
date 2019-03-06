@@ -20,10 +20,9 @@ inline Real findMaxU(
       )
 {
   Real maxU = 0;
-  const int N = myInfo.size();
   const Real U[3] = {uinf[0], uinf[1], uinf[2]};
   #pragma omp parallel for schedule(static) reduction(max : maxU)
-  for(int i=0; i<N; i++)
+  for(size_t i=0; i<myInfo.size(); i++)
   {
     const cubism::BlockInfo& info = myInfo[i];
     const FluidBlock& b = *(const FluidBlock *)info.ptrBlock;
@@ -38,6 +37,54 @@ inline Real findMaxU(
     }
   }
   return maxU;
+}
+
+using v_v_ob = std::vector<std::vector<ObstacleBlock*>*>;
+
+inline void putCHIonGrid(
+        const std::vector<cubism::BlockInfo>& vInfo,
+        const v_v_ob & vec_obstacleBlocks )
+{
+  #pragma omp parallel for schedule(dynamic,1)
+  for(size_t i=0; i<vInfo.size(); i++)
+  {
+    FluidBlock& b = * (FluidBlock*) vInfo[i].ptrBlock;
+    for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+    for(int iy=0; iy<FluidBlock::sizeY; iy++)
+    for(int ix=0; ix<FluidBlock::sizeX; ix++) b(ix,iy,iz).chi = 0;
+    for(size_t o=0; o<vec_obstacleBlocks.size(); o++)
+    {
+      const auto& pos = ( * vec_obstacleBlocks[o] )[vInfo[i].blockID];
+      if(pos == nullptr) continue;
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+      for(int iy=0; iy<FluidBlock::sizeY; iy++)
+      for(int ix=0; ix<FluidBlock::sizeX; ix++)
+        b(ix,iy,iz).chi = std::max(pos->chi[iz][iy][ix], b(ix,iy,iz).chi);
+    }
+  }
+}
+
+inline void putSDFonGrid(
+        const std::vector<cubism::BlockInfo>& vInfo,
+        const v_v_ob & vec_obstacleBlocks )
+{
+  #pragma omp parallel for schedule(dynamic,1)
+  for(size_t i=0; i<vInfo.size(); i++)
+  {
+    FluidBlock& b = * (FluidBlock*) vInfo[i].ptrBlock;
+    for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+    for(int iy=0; iy<FluidBlock::sizeY; iy++)
+    for(int ix=0; ix<FluidBlock::sizeX; ix++) b(ix,iy,iz).p = -1;
+    for(size_t o=0; o<vec_obstacleBlocks.size(); o++)
+    {
+      const auto& pos = ( * vec_obstacleBlocks[o] )[vInfo[i].blockID];
+      if(pos == nullptr) continue;
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+      for(int iy=0; iy<FluidBlock::sizeY; iy++)
+      for(int ix=0; ix<FluidBlock::sizeX; ix++)
+        b(ix,iy,iz).p = std::max(pos->sdf[iz][iy][ix], b(ix,iy,iz).p);
+    }
+  }
 }
 
 #ifdef CUP_ASYNC_DUMP

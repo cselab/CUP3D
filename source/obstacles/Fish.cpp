@@ -33,7 +33,7 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
 
   followX = p("-followX").asDouble(-1);
   followY = p("-followY").asDouble(-1);
-  const double hh = 0.5*vInfo[0].h_gridpoint;
+  const double hh = 0.5*sim.maxH();
   position[2] = p("-zpos").asDouble(sim.extent[2]/2 + hh);
 
   #ifdef __useSkin_
@@ -154,11 +154,11 @@ std::vector<VolumeSegment_OBB> Fish::prepare_vSegments()
   #pragma omp parallel for schedule(static)
   for(int i=0; i<Nsegments; ++i)
   {
-    const int next_idx = (i+1)*(Nm-1)/Nsegments;
+    const int nextidx = (i+1)*(Nm-1)/Nsegments;
     const int idx = i * (Nm-1)/Nsegments;
     // find bounding box based on this
     Real bbox[3][2] = {{1e9, -1e9}, {1e9, -1e9}, {1e9, -1e9}};
-    for(int ss=idx; ss<=next_idx; ++ss)
+    for(int ss=idx; ss<=nextidx; ++ss)
     {
       const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
           myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
@@ -176,9 +176,7 @@ std::vector<VolumeSegment_OBB> Fish::prepare_vSegments()
       bbox[2][1] = std::max(bbox[2][1], maxZ);
     }
 
-    const Real safe_distance = 2*vInfo[0].h_gridpoint; //two points on each side
-    //const Real safe_distance = info.h_gridpoint; // one point on each side for Towers
-    vSegments[i].prepare(std::make_pair(idx, next_idx), bbox, safe_distance);
+    vSegments[i].prepare(std::make_pair(idx,nextidx), bbox, sim.maxH());
     vSegments[i].changeToComputationalFrame(position,quaternion);
   }
   return vSegments;
@@ -187,6 +185,7 @@ std::vector<VolumeSegment_OBB> Fish::prepare_vSegments()
 using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;
 intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
 {
+  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   std::vector<std::vector<VolumeSegment_OBB*>> ret(vInfo.size());
 
   // clear deformation velocities
@@ -223,6 +222,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
 
 void Fish::writeSDFOnBlocks(const intersect_t& segmentsPerBlock)
 {
+  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel
   {
     PutFishOnBlocks putfish(myFish, position, quaternion);

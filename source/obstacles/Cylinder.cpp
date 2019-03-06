@@ -17,7 +17,7 @@ namespace DCylinderObstacle
 {
 struct FillBlocks : FillBlocksBase<FillBlocks>
 {
-  const Real radius, halflength, safety;
+  const Real radius, halflength, h, safety = (2+SURFDH)*h;
   const double position[3];
   const Real box[3][2] = {
     {position[0] - radius     - safety, position[0]              + safety},
@@ -25,8 +25,8 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
     {position[2] - halflength - safety, position[2] + halflength + safety}
   };
 
-  FillBlocks(const Real r, const Real halfl, const Real h, const double p[3]):
-  radius(r), halflength(halfl), safety(2*h), position{p[0],p[1],p[2]} {}
+  FillBlocks(const Real r, const Real halfl, const Real _h, const double p[3]):
+  radius(r), halflength(halfl), h(_h), position{p[0],p[1],p[2]} {}
 
   inline bool isTouching(const FluidBlock&b, const int buffer_dx=0) const
   {
@@ -57,7 +57,7 @@ namespace CylinderObstacle
 {
 struct FillBlocks : FillBlocksBase<FillBlocks>
 {
-  const Real radius, halflength, safety;
+  const Real radius, halflength, h, safety = (2+SURFDH)*h;
   const double position[3];
   const Real box[3][2] = {
     {position[0] - radius     - safety, position[0] + radius     + safety},
@@ -65,8 +65,8 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
     {position[2] - halflength - safety, position[2] + halflength + safety}
   };
 
-  FillBlocks(const Real r, const Real halfl, const Real h, const double p[3]):
-  radius(r), halflength(halfl), safety(2*h), position{p[0],p[1],p[2]} {}
+  FillBlocks(const Real r, const Real halfl, const Real _h, const double p[3]):
+  radius(r), halflength(halfl), h(_h), position{p[0],p[1],p[2]} {}
 
   inline bool isTouching(const FluidBlock&b, const int buffer_dx=0) const
   {
@@ -126,14 +126,15 @@ void Cylinder::_init(void)
 
 void Cylinder::create()
 {
+  const Real h = sim.maxH();
   if(section == "D")
   {
-    const DCylinderObstacle::FillBlocks kernel(radius, halflength, vInfo[0].h_gridpoint, position);
+    const DCylinderObstacle::FillBlocks kernel(radius, halflength, h, position);
     create_base<DCylinderObstacle::FillBlocks>(kernel);
   }
   else /* else do square section, but figure how to make code smaller */
   {    /* else normal cylinder */
-    const CylinderObstacle::FillBlocks kernel(radius, halflength, vInfo[0].h_gridpoint, position);
+    const CylinderObstacle::FillBlocks kernel(radius, halflength, h, position);
     create_base<CylinderObstacle::FillBlocks>(kernel);
   }
 }

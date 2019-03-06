@@ -257,13 +257,13 @@ static Real distancePointEllipsoid(const Real e[3], const Real y[3], Real x[3])
 
 struct FillBlocks : FillBlocksBase<FillBlocks>
 {
-  const Real e0, e1, e2, h;
+  const Real e0, e1, e2, h, safety = (2+SURFDH)*h;
   const Real maxAxis = std::max({e0, e1, e2});
   const Real position[3], quaternion[4];
   const Real box[3][2] = {
-    {position[0] - 2*(maxAxis + 2*h), position[0] + 2*(maxAxis + 2*h)},
-    {position[1] - 2*(maxAxis + 2*h), position[1] + 2*(maxAxis + 2*h)},
-    {position[2] - 2*(maxAxis + 2*h), position[2] + 2*(maxAxis + 2*h)}
+    {position[0] - 2*(maxAxis+safety), position[0] + 2*(maxAxis+safety)},
+    {position[1] - 2*(maxAxis+safety), position[1] + 2*(maxAxis+safety)},
+    {position[2] - 2*(maxAxis+safety), position[2] + 2*(maxAxis+safety)}
   };
   const Real w=quaternion[0], x=quaternion[1], y=quaternion[2], z=quaternion[3];
   const Real Rmatrix[3][3] = {
@@ -330,7 +330,7 @@ Ellipsoid::Ellipsoid(SimulationData& s, ArgumentParser& p)
 
 void Ellipsoid::create()
 {
-  const Real h = vInfo[0].h_gridpoint;
+  const Real h = sim.maxH();
   const EllipsoidObstacle::FillBlocks K(e0,e1,e2, h, position, quaternion);
 
   create_base<EllipsoidObstacle::FillBlocks>(K);

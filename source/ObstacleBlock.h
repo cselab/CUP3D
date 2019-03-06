@@ -11,6 +11,9 @@
 
 #include "Definitions.h"
 
+// to shift the surface where I compute gradchi for surface integrals
+// if set to value greater than 0, it shifts surface by that many mesh sizes
+#define SURFDH 0
 #include <vector> //surface vector
 #include <cstring> //memset
 #include <cstdio> //print
@@ -25,7 +28,7 @@ struct surface_data
   surface_data(int _ix, int _iy, int _iz, double _dchidx, double _dchidy,
     double _dchidz, double _delta) : ix(_ix), iy(_iy), iz(_iz),
     dchidx(_dchidx), dchidy(_dchidy), dchidz(_dchidz), delta(_delta) {}
-  surface_data():ix(0), iy(0), iz(0),  dchidx(0), dchidy(0), dchidz(0), delta(0) {printf("AAAA\n"); fflush(0); abort();}
+  surface_data() = delete;
 };
 
 struct ObstacleBlock

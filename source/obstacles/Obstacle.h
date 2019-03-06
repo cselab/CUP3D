@@ -58,7 +58,6 @@ class Obstacle
 protected:
   const SimulationData & sim;
   FluidGridMPI * const grid = sim.grid;
-  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   std::vector<ObstacleBlock*> obstacleBlocks;
   bool printedHeaderVels = false;
   bool isSelfPropelled = false;
@@ -110,7 +109,6 @@ public:
   virtual void save(std::string filename = std::string());
   virtual void restart(std::string filename = std::string());
 
-  // some non-pure methods
   virtual void create();
   virtual void finalize();
 
@@ -123,14 +121,10 @@ public:
   {
       return &obstacleBlocks;
   }
-
   void getObstacleBlocks(std::vector<ObstacleBlock*>*& obstblock_ptr)
   {
       obstblock_ptr = &obstacleBlocks;
   }
-  virtual void characteristic_function();
-
-  virtual std::vector<int> intersectingBlockIDs(const int buffer) const;
 
   virtual ~Obstacle()
   {
@@ -158,6 +152,7 @@ public:
       delete entry;
       entry = nullptr;
     }
+    const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
     obstacleBlocks.resize(vInfo.size(), nullptr);
 
     #pragma omp parallel for schedule(dynamic, 1)

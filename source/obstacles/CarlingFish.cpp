@@ -181,7 +181,7 @@ CarlingFish::CarlingFish(SimulationData&s, ArgumentParser&p) : Fish(s, p)
   if(bHinge) localFish = readHingeParams(p);
   else
   localFish = new CarlingFishMidlineData(length, Tperiod, phaseShift,
-    vInfo[0].h_gridpoint, ampFac);
+    sim.maxH(), ampFac);
 
   // generic copy for base class:
   assert( myFish == nullptr );

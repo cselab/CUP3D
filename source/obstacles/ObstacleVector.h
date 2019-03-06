@@ -24,13 +24,11 @@ class ObstacleVector : public Obstacle
     : Obstacle(s), obstacles(o) {}
     ~ObstacleVector();
 
-    void characteristic_function() override;
     int nObstacles() const {return obstacles.size();}
     void computeVelocities() override;
     void update() override;
     void restart(std::string filename = std::string()) override;
     void save(std::string filename = std::string()) override;
-    std::vector<int> intersectingBlockIDs(const int buffer) const override;
 
     void computeForces() override;
 

@@ -181,7 +181,7 @@ void Obstacle::computeForces()
   EffPDefBnd = Pthrust/(Pthrust-         defPowerBnd        +EPS);
 
   #if defined(CUP_DUMP_SURFACE_BINARY) && !defined(RL_LAYER)
-  if (bDump) {
+  if (sim.bDump) {
     char buf[500];
     sprintf(buf,"surface_%02d_%07d_rank%03d.raw",obstacleID,sim.step,sim.rank);
     FILE * pFile = fopen (buf, "wb");
@@ -258,30 +258,6 @@ void Obstacle::update()
 
   _writeComputedVelToFile();
   _writeDiagForcesToFile();
-}
-
-void Obstacle::characteristic_function()
-{
-  #pragma omp parallel for schedule(dynamic)
-  for(size_t i=0; i<vInfo.size(); i++) {
-    const BlockInfo info = vInfo[i];
-    const auto pos = obstacleBlocks[info.blockID];
-    if(pos == nullptr) continue;
-    FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-    for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-    for(int iy=0; iy<FluidBlock::sizeY; iy++)
-    for(int ix=0; ix<FluidBlock::sizeX; ix++)
-      b(ix,iy,iz).chi = std::max(pos->chi[iz][iy][ix], b(ix,iy,iz).chi);
-  }
-}
-
-std::vector<int> Obstacle::intersectingBlockIDs(const int buffer) const
-{
-  assert(buffer <= 2); // only works for 2: if different definition of deformation blocks, implement your own
-  std::vector<int> ret;
-  for(size_t i=0; i<vInfo.size(); i++)
-  if(obstacleBlocks[vInfo[i].blockID]!=nullptr) ret.push_back(vInfo[i].blockID);
-  return ret;
 }
 
 void Obstacle::create()

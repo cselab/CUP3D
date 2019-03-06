@@ -115,7 +115,7 @@ Naca::Naca(SimulationData&s, ArgumentParser&p) : Fish(s, p), bCreated(false)
     Ppitch, Mpitch, Fheave, Aheave);
   bBlockRotation[0] = true;
   bBlockRotation[1] = true;
-  myFish = new NacaMidlineData(length, vInfo[0].h_gridpoint, sim.extent[2], thickness);
+  myFish = new NacaMidlineData(length, sim.maxH(), sim.extent[2], thickness);
 }
 
 void Naca::update()
@@ -161,6 +161,7 @@ void Naca::computeVelocities()
 using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;
 void Naca::writeSDFOnBlocks(const intersect_t& segmentsPerBlock)
 {
+  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel
   {
     PutNacaOnBlocks putfish(myFish, position, quaternion);

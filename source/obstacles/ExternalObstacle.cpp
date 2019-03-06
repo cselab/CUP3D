@@ -105,6 +105,7 @@ void ExternalObstacle::create()
     const FillBlocksExternal kernel(settings);
     create_base<FillBlocksExternal>(kernel);
 
+    const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
     #pragma omp parallel for schedule(dynamic, 1)
     for (int i = 0; i < (int)vInfo.size(); ++i) {
         const BlockInfo &info = vInfo[i];

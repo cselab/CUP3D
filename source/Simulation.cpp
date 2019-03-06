@@ -271,6 +271,9 @@ void Simulation::setupOperators()
   // u_{t+1} = \tilde{u} -\delta t \nabla P. This is final pre-penal vel field.
   sim.pipeline.push_back(new PressureProjection(sim));
 
+  // before penalization kills transition region, compute forces:
+  sim.pipeline.push_back(new ComputeForces(sim));
+
   // Compute velocity of the obstacles and, in the same sweep if frame of ref
   // is moving, we update uinf. Requires the pre-penal vel field on the grid!!
   // We also update position and quaternions of the obstacles.
@@ -279,9 +282,7 @@ void Simulation::setupOperators()
   // With pre-penal vel field and obstacles' velocities perform penalization.
   sim.pipeline.push_back(new Penalization(sim));
 
-  // With finalized velocity and pressure, compute forces and dissipation
-  sim.pipeline.push_back(new ComputeForces(sim));
-
+  // With finalized velocity and pressure, compute dissipation
   if(sim.computeDissipation)
     sim.pipeline.push_back(new ComputeDissipation(sim));
 
@@ -341,6 +342,11 @@ void Simulation::_serialize(const std::string append)
     fprintf(f, "uinfy: %20.20e\n", sim.uinf[1]);
     fprintf(f, "uinfz: %20.20e\n", sim.uinf[2]);
     fclose(f);
+  }
+  if(0) // hack to write sdf ... on pressure field. only debug.
+  {
+    const auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
+    putSDFonGrid(sim.vInfo(), vecOB);
   }
 
   #ifdef CUBISM_USE_HDF

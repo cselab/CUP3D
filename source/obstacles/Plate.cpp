@@ -73,7 +73,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
                const Real bx, const Real by, const Real bz,
                const Real half_a,
                const Real half_b,
-               const Real half_thickness);
+               const Real half_thickness, const Real h);
 
     // Required by FillBlocksBase.
     bool isTouching(const FluidBlock&b) const;
@@ -87,7 +87,7 @@ FillBlocks::FillBlocks(
         const Real _bx, const Real _by, const Real _bz,
         const Real _half_a,
         const Real _half_b,
-        const Real _half_thickness)
+        const Real _half_thickness, const Real h)
     : cx(_cx), cy(_cy), cz(_cz),
       nx(_nx), ny(_ny), nz(_nz),
       ax(_ax), ay(_ay), az(_az),
@@ -130,12 +130,12 @@ FillBlocks::FillBlocks(
         return std::max(std::max(coord[0], coord[1]),
                         std::max(coord[2], coord[3]));
     };
-    box[0][0] = min(corners[0]) - half_thickness;
-    box[0][1] = max(corners[0]) + half_thickness;
-    box[1][0] = min(corners[1]) - half_thickness;
-    box[1][1] = max(corners[1]) + half_thickness;
-    box[2][0] = min(corners[2]) - half_thickness;
-    box[2][1] = max(corners[2]) + half_thickness;
+    box[0][0] = min(corners[0]) - (half_thickness + (2+SURFDH)*h);
+    box[0][1] = max(corners[0]) + (half_thickness + (2+SURFDH)*h);
+    box[1][0] = min(corners[1]) - (half_thickness + (2+SURFDH)*h);
+    box[1][1] = max(corners[1]) + (half_thickness + (2+SURFDH)*h);
+    box[2][0] = min(corners[2]) - (half_thickness + (2+SURFDH)*h);
+    box[2][1] = max(corners[2]) + (half_thickness + (2+SURFDH)*h);
 }
 
 bool FillBlocks::isTouching(const FluidBlock&b) const
@@ -274,11 +274,12 @@ void Plate::_init(void)
 
 void Plate::create()
 {
+  const Real h = sim.maxH();
   const PlateObstacle::FillBlocks K(position[0], position[1], position[2],
                                    nx, ny, nz,
                                    ax, ay, az,
                                    bx, by, bz,
-                                   half_a, half_b, half_thickness);
+                                   half_a, half_b, half_thickness, h);
 
   create_base<PlateObstacle::FillBlocks>(K);
 }
