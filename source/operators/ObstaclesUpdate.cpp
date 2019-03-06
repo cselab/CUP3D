@@ -137,25 +137,35 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     const auto comm = grid->getCartComm();
     MPI_Allreduce(MPI_IN_PLACE, M, 20, MPI_DOUBLE, MPI_SUM, comm);
     assert(M[0] > DBLEPS);
-
     const double mass = M[0], penalFac = M[13];
+    const int bRotate[3] = { obst->bBlockRotation[0] ? 0 : 1,
+                             obst->bBlockRotation[1] ? 0 : 1,
+                             obst->bBlockRotation[2] ? 0 : 1 };
     const SymM J = {{ M[ 7], M[ 8], M[ 9], M[10], M[11], M[12] }};
     const SymM G = {{ M[14], M[15], M[16], M[17], M[18], M[19] }};
     //solve avel = invJ \dot angMomentum
     const SymM invJ = invertSym(J);
     const GenM GinvJ = multSyms(G, invJ);
-    const int bRotate[3] = { obst->bBlockRotation[0] ? 0 : 1,
-                             obst->bBlockRotation[1] ? 0 : 1,
-                             obst->bBlockRotation[2] ? 0 : 1 };
     const GenM EyeGinvJ = {{ //if locked obst, skip correction due to implicit
       1 +GinvJ[0]*bRotate[0],    GinvJ[1]*bRotate[1],    GinvJ[2]*bRotate[2],
          GinvJ[3]*bRotate[0], 1 +GinvJ[4]*bRotate[1],    GinvJ[5]*bRotate[2],
          GinvJ[6]*bRotate[0],    GinvJ[7]*bRotate[1], 1 +GinvJ[8]*bRotate[2] }};
-    const GenM invPenMom = invertGen(EyeGinvJ);
-    const GenV implAngMom = {{ M[4], M[5], M[6] }};
+    const GenM invPenalMomInertia = invertGen(EyeGinvJ);
+    const GenV penalAngMom = {{ M[4], M[5], M[6] }};
     // implicit computation of torque for freely-moving obstacle:
-    const GenV implTorque = multGenVec(invPenMom, implAngMom);
-    const GenV implAngAcc = multSymVec(invJ, implTorque);
+    const GenV implTorque = multGenVec(invPenalMomInertia, penalAngMom);
+    // Obstacles may prevent rotation along certain coordinates, but we want to
+    // still record the imposed angular acceleration for dbg/post.
+    // Cross terms in the J matrix describe how angular momentum is transferred
+    // across directions. If direction is locked it absorbs energy (ie. applies
+    // constraint force) which prevents momentum transfer from that direction.
+    // We accomplish this by zeroing some terms in invJ. E.g if obstacle can
+    // only rotate around z, \dot{omega}_z = \tau_z / J_zz
+    const GenM fullInvJ = {{
+      invJ[0]*bRotate[0], invJ[3]*bRotate[1], invJ[4]*bRotate[2],
+      invJ[3]*bRotate[0], invJ[1]*bRotate[1], invJ[5]*bRotate[2],
+      invJ[4]*bRotate[0], invJ[5]*bRotate[1], invJ[2]*bRotate[2] }};
+    const GenV angAcc = multGenVec(fullInvJ, implTorque);
     assert(std::fabs(obst->mass - M[ 0]) < 10*DBLEPS);
     assert(std::fabs(obst->J[0] - M[ 7]) < 10*DBLEPS);
     assert(std::fabs(obst->J[1] - M[ 8]) < 10*DBLEPS);
@@ -163,19 +173,18 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     assert(std::fabs(obst->J[3] - M[10]) < 10*DBLEPS);
     assert(std::fabs(obst->J[4] - M[11]) < 10*DBLEPS);
     assert(std::fabs(obst->J[5] - M[12]) < 10*DBLEPS);
-
-    obst->force[0] = M[1] * (obst->bForcedInSimFrame[0]? 1 : 1/(1+penalFac) );
-    obst->force[1] = M[2] * (obst->bForcedInSimFrame[1]? 1 : 1/(1+penalFac) );
-    obst->force[2] = M[3] * (obst->bForcedInSimFrame[2]? 1 : 1/(1+penalFac) );
+    obst->force[0] = M[1]*(obst->bForcedInSimFrame[0]? 1 : 1/(1+penalFac/mass));
+    obst->force[1] = M[2]*(obst->bForcedInSimFrame[1]? 1 : 1/(1+penalFac/mass));
+    obst->force[2] = M[3]*(obst->bForcedInSimFrame[2]? 1 : 1/(1+penalFac/mass));
     obst->torque[0] = implTorque[0];
     obst->torque[1] = implTorque[1];
     obst->torque[2] = implTorque[2];
     obst->transVel_computed[0] = obst->transVel[0] + dt * obst->force[0] / mass;
     obst->transVel_computed[1] = obst->transVel[1] + dt * obst->force[1] / mass;
     obst->transVel_computed[2] = obst->transVel[2] + dt * obst->force[2] / mass;
-    obst->angVel_computed[0] = obst->angVel[0] + dt * implAngAcc[0];
-    obst->angVel_computed[1] = obst->angVel[1] + dt * implAngAcc[1];
-    obst->angVel_computed[2] = obst->angVel[2] + dt * implAngAcc[2];
+    obst->angVel_computed[0] = obst->angVel[0] + dt * angAcc[0];
+    obst->angVel_computed[1] = obst->angVel[1] + dt * angAcc[1];
+    obst->angVel_computed[2] = obst->angVel[2] + dt * angAcc[2];
 
     obst->computeVelocities();
 
@@ -211,7 +220,7 @@ void UpdateObstacles::operator()(const double dt)
   //  printf("New Uinf %g %g %g (from %d %d %d)\n",
   //  uInf[0],uInf[1],uInf[2],nSum[0],nSum[1],nSum[2]);
   delete K;
-
+  // Obstacles' advection must be done after we compute new uinf :
   sim.obstacle_vector->update();
   sim.stopProfiler();
 

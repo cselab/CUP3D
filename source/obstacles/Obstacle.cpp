@@ -105,7 +105,6 @@ Obstacle::Obstacle(
       }
     }
   }
-  bFixToPlanar = args.bFixToPlanar;
 
   const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2];
   if(anyVelForced) {
@@ -113,6 +112,14 @@ Obstacle::Obstacle(
     bBlockRotation[0] = true;
     bBlockRotation[1] = true;
     bBlockRotation[2] = true;
+  }
+  const bool bFixToPlanar = args.bFixToPlanar;
+  if(bFixToPlanar) {
+    if (!sim.rank) printf("Obstacle motion restricted to constant Z-plane.\n");
+    bForcedInSimFrame[2] = true;
+    transVel_imposed[2] = 0;
+    bBlockRotation[1] = true;
+    bBlockRotation[0] = true;
   }
 
   bFixFrameOfRef[0] = args.bFixFrameOfRef[0];
@@ -130,25 +137,14 @@ void Obstacle::computeVelocities()
   else transVel[1] = transVel_computed[1];
 
   if(bForcedInSimFrame[2]) transVel[2] = transVel_imposed[2];
-  else if (bFixToPlanar) transVel[2] = 0.0;
   else transVel[2] = transVel_computed[2];
 
-  if(bFixToPlanar)
-  {
-    angVel[0] = 0.0;
-    angVel[1] = 0.0;
-    angVel_computed[0] = 0.0;
-    angVel_computed[1] = 0.0;
-    angVel_computed[2] = angVel[2] + sim.dt * torque[2] / J[2];
-  }
-  else
-  {
-    if(not bBlockRotation[0]) angVel[0] = 0;
-    else angVel[0] = angVel_computed[0];
+  if( bBlockRotation[0]) angVel[0] = 0;
+  else angVel[0] = angVel_computed[0];
 
-    if(not bBlockRotation[1]) angVel[1] = 0;
-    else angVel[1] = angVel_computed[1];
-  }
+  if( bBlockRotation[1]) angVel[1] = 0;
+  else angVel[1] = angVel_computed[1];
+
   if( bBlockRotation[2] ) angVel[2] = 0.0;
   else angVel[2] = angVel_computed[2];
 }
