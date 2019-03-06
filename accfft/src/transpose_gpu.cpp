@@ -59,6 +59,7 @@ template <typename T>
 Mem_Mgr_gpu<T>::Mem_Mgr_gpu(int N0,int N1,int tuples,MPI_Comm Comm, int howmany,
     ptrdiff_t specified_alloc_local)
 {
+
   N[0]=N0;
   N[1]=N1;
   n_tuples=tuples;
@@ -122,16 +123,28 @@ Mem_Mgr_gpu<T>::Mem_Mgr_gpu(int N0,int N1,int tuples,MPI_Comm Comm, int howmany,
     err=posix_memalign((void **)&buffer,64, alloc_local);
     assert(err==0 && "posix_memalign failed to allocate memory in Mem_Mgr_gpu");
   }
+  if(buffer_d not_eq nullptr) {
+    printf("Attempting to reallocate buffer_d!?\n");
+    fflush(0); cudaFree(buffer_d);
+  }
   cudaMalloc((void **)&buffer_d, alloc_local);
-  cudaMalloc((void **)&buffer_d2, alloc_local);
-  cudaMalloc((void **)&buffer_d3, alloc_local);
+
+  if(buffer_d2 not_eq nullptr) {
+    printf("Attempting to reallocate buffer_d2!?\n");
+    fflush(0); cudaFree(buffer_d2);
+  }
+  printf("Skipping allocation of buffer_d2 of size %dl if not necessary\n",alloc_local); fflush(0);
+  //cudaMalloc((void **)&buffer_d2, alloc_local);
+
+  //cudaMalloc((void **)&buffer_d3, alloc_local);
   memset( buffer,0, alloc_local );
   memset( buffer_2,0, alloc_local );
 
 }
 
 template <typename T>
-Mem_Mgr_gpu<T>::~Mem_Mgr_gpu() {
+Mem_Mgr_gpu<T>::~Mem_Mgr_gpu()
+{
 
 #ifdef ENABLE_GPU
   cudaError_t cuda_err1=cudaSuccess, cuda_err2=cudaSuccess,cuda_err3=cudaSuccess;
@@ -146,9 +159,11 @@ Mem_Mgr_gpu<T>::~Mem_Mgr_gpu() {
     free(buffer);
     free(buffer_2);
   }
-  cuda_err3=cudaFree(buffer_d);
-  cuda_err3=cudaFree(buffer_d2);
-  cuda_err3=cudaFree(buffer_d3);
+  if(buffer_d not_eq nullptr)
+    cuda_err3=cudaFree(buffer_d);
+  if(buffer_d2 not_eq nullptr)
+    cuda_err3=cudaFree(buffer_d2);
+  //cuda_err3=cudaFree(buffer_d3);
   if(cuda_err3!=cudaSuccess) {
     std::cout<<"!!!!!!!!!! Failed to cudaFree in MemMgr; err3= "<<cuda_err3<<std::endl;
   }
@@ -160,7 +175,8 @@ Mem_Mgr_gpu<T>::~Mem_Mgr_gpu() {
 }
 
 template <typename T>
-T_Plan_gpu<T>::T_Plan_gpu(int N0, int N1,int tuples, Mem_Mgr_gpu<T> * Mem_mgr, MPI_Comm Comm, int howmany) {
+T_Plan_gpu<T>::T_Plan_gpu(int N0, int N1,int tuples, Mem_Mgr_gpu<T> * Mem_mgr, MPI_Comm Comm, int howmany)
+{
 
   N[0]=N0;
   N[1]=N1;
@@ -179,9 +195,9 @@ T_Plan_gpu<T>::T_Plan_gpu(int N0, int N1,int tuples, Mem_Mgr_gpu<T> * Mem_mgr, M
   memset(local_1_start_proc,0,sizeof(int)*nprocs);
 
   // Determine local_n0/n1 of each processor
-
   local_0_start_proc[0]=0;local_1_start_proc[0]=0;
-  for (int proc=0;proc<nprocs;++proc) {
+  for (int proc=0;proc<nprocs;++proc)
+  {
     local_n0_proc[proc]=ceil(N[0]/(double)nprocs);
     local_n1_proc[proc]=ceil(N[1]/(double)nprocs);
 
@@ -192,7 +208,6 @@ T_Plan_gpu<T>::T_Plan_gpu(int N0, int N1,int tuples, Mem_Mgr_gpu<T> * Mem_mgr, M
       local_0_start_proc[proc]=local_0_start_proc[proc-1]+local_n0_proc[proc-1];
       local_1_start_proc[proc]=local_1_start_proc[proc-1]+local_n1_proc[proc-1];
     }
-
   }
 
   local_n0=local_n0_proc[procid];
@@ -337,7 +352,8 @@ T_Plan_gpu<T>::T_Plan_gpu(int N0, int N1,int tuples, Mem_Mgr_gpu<T> * Mem_mgr, M
   //rtype_v8_=new MPI_Datatype[nprocs];
   //rtype_v8=new MPI_Datatype[nprocs];
 
-  for (int i=0;i<nprocs;i++) {
+  for (int i=0;i<nprocs;i++)
+  {
     MPI_Type_vector(howmany,scount_proc[i],local_n0*N[1]*n_tuples, MPI_T, &stype[i]);
     MPI_Type_vector(howmany,rcount_proc[i],local_n1*N[0]*n_tuples, MPI_T, &rtype[i]);
 
@@ -371,7 +387,6 @@ T_Plan_gpu<T>::T_Plan_gpu(int N0, int N1,int tuples, Mem_Mgr_gpu<T> * Mem_mgr, M
      MPI_Type_commit(&stype_v8[i]);
      MPI_Type_commit(&rtype_v8[i]);
      */
-
   }
 
   comm=Comm; // MPI Communicator
@@ -380,7 +395,6 @@ T_Plan_gpu<T>::T_Plan_gpu(int N0, int N1,int tuples, Mem_Mgr_gpu<T> * Mem_mgr, M
   buffer_d=Mem_mgr->buffer_d;
   buffer_d2=Mem_mgr->buffer_d2;
   //data_cpu=Mem_mgr->data_cpu;
-
 }
 
 template <typename T>
@@ -630,7 +644,8 @@ struct accfft_sort_pred_gpu {
 };
 
 template <typename T>
-void T_Plan_gpu<T>::which_fast_method_gpu(T_Plan_gpu* T_plan,T* data_d, unsigned flags, int howmany,int tag) {
+void T_Plan_gpu<T>::which_fast_method_gpu(T_Plan_gpu* T_plan,T* data_d, unsigned flags, int howmany,int tag)
+{
 
   double dummy[4]= {0};
   double tmp;
@@ -745,7 +760,8 @@ void T_Plan_gpu<T>::which_fast_method_gpu(T_Plan_gpu* T_plan,T* data_d, unsigned
 
 template<typename T>
 void fast_transpose_cuda_v_hi(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    int kway, unsigned flags, int howmany, int tag, int method) {
+    int kway, unsigned flags, int howmany, int tag, int method)
+{
 
   if (howmany == 1) {
     return fast_transpose_cuda_v_i(T_plan, data, timings, kway, flags,
@@ -871,6 +887,13 @@ void fast_transpose_cuda_v_hi(T_Plan_gpu<T>* T_plan, T * data, double *timings,
   T *s_buf, *r_buf;
   s_buf = data_cpu;
   r_buf = send_recv_cpu;
+  if(T_plan->buffer_d2 == nullptr)
+  {
+    printf("Performing delayed allocation of buffer_d2 of size %dl\n",
+      T_plan->alloc_local); fflush(0);
+    cudaMalloc((void **)& T_plan->buffer_d2, T_plan->alloc_local);
+  }
+
   T * r_buf_d = T_plan->buffer_d2;
   T * s_buf_d = send_recv_d;
   for (int proc = 0; proc < nprocs; ++proc) {
@@ -1053,7 +1076,8 @@ void fast_transpose_cuda_v_hi(T_Plan_gpu<T>* T_plan, T * data, double *timings,
   reshuffle_time -= MPI_Wtime();
   ptr = 0;
   for (int h = 0; h < howmany; ++h) {
-    for (int proc = 0; proc < nprocs_0; ++proc) {
+    for (int proc = 0; proc < nprocs_0; ++proc)
+    {
       cudaMemcpy(&send_recv_d[ptr],
           &T_plan->buffer_d2[h * T_plan->rcount_proc[proc]
               + T_plan->roffset_proc[proc] * howmany],
@@ -1108,7 +1132,8 @@ void fast_transpose_cuda_v_hi(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v_i(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    int kway, unsigned flags, int howmany, int tag, int method) {
+    int kway, unsigned flags, int howmany, int tag, int method)
+{
 
   if (howmany > 1) {
     return fast_transpose_cuda_v_hi(T_plan, data, timings, kway, flags,
@@ -1451,7 +1476,8 @@ void fast_transpose_cuda_v_i(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    int kway, unsigned flags, int howmany, int tag, int method) {
+    int kway, unsigned flags, int howmany, int tag, int method)
+{
 
   if (howmany > 1) {
     return fast_transpose_cuda_v_h(T_plan, data, timings, kway, flags,
@@ -1801,7 +1827,8 @@ void fast_transpose_cuda_v(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v_h(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    int kway, unsigned flags, int howmany, int tag, int method) {
+    int kway, unsigned flags, int howmany, int tag, int method)
+{
 
   if (howmany == 1) {
     return fast_transpose_cuda_v(T_plan, data, timings, kway, flags,
@@ -2184,7 +2211,8 @@ void fast_transpose_cuda_v_h(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v1_h(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    unsigned flags, int howmany, int tag) {
+    unsigned flags, int howmany, int tag)
+{
 
   if (howmany == 1) {
     return fast_transpose_cuda_v1(T_plan, data, timings, flags, howmany,
@@ -2795,7 +2823,8 @@ void fast_transpose_cuda_v1_2_h(T_Plan_gpu<T>* T_plan, T * data,
 
 template<typename T>
 void fast_transpose_cuda_v1_3_h(T_Plan_gpu<T>* T_plan, T * data,
-    double *timings, unsigned flags, int howmany, int tag) {
+    double *timings, unsigned flags, int howmany, int tag)
+{
 
   if (howmany == 1) {
     return fast_transpose_cuda_v1_3(T_plan, data, timings, flags, howmany,
@@ -3078,7 +3107,8 @@ void fast_transpose_cuda_v1_3_h(T_Plan_gpu<T>* T_plan, T * data,
 
 template<typename T>
 void fast_transpose_cuda_v1(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    unsigned flags, int howmany, int tag) {
+    unsigned flags, int howmany, int tag)
+{
 
   if (howmany > 1) {
     return fast_transpose_cuda_v1_h(T_plan, data, timings, flags, howmany,
@@ -3321,7 +3351,8 @@ void fast_transpose_cuda_v1(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v1_2(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    unsigned flags, int howmany, int tag) {
+    unsigned flags, int howmany, int tag)
+{
 
   if (howmany > 1) {
     return fast_transpose_cuda_v1_2_h(T_plan, data, timings, flags, howmany,
@@ -3572,7 +3603,8 @@ void fast_transpose_cuda_v1_2(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v1_3(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    unsigned flags, int howmany, int tag) {
+    unsigned flags, int howmany, int tag)
+{
 
   if (howmany > 1) {
     return fast_transpose_cuda_v1_3_h(T_plan, data, timings, flags, howmany,
@@ -3807,7 +3839,8 @@ void fast_transpose_cuda_v1_3(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v2(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    unsigned flags, int howmany, int tag) {
+    unsigned flags, int howmany, int tag)
+{
   // This function handles cases where howmany=1 (it is more optimal)
 
   if (howmany > 1) {
@@ -4022,7 +4055,8 @@ void fast_transpose_cuda_v2(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v3(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    int kway, unsigned flags, int howmany, int tag) {
+    int kway, unsigned flags, int howmany, int tag)
+{
   // This function handles cases where howmany=1 (it is more optimal)
 
   if (howmany > 1) {
@@ -4236,7 +4270,8 @@ void fast_transpose_cuda_v3(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v3_2(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    int kway, unsigned flags, int howmany, int tag) {
+    int kway, unsigned flags, int howmany, int tag)
+{
   // This function handles cases where howmany=1 (it is more optimal)
   if (howmany > 1) {
     std::cout << "Error in fast_transpose_cuda_v3_2 howmany>1\n";
@@ -4453,7 +4488,8 @@ void fast_transpose_cuda_v3_2(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v2_h(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    unsigned flags, int howmany, int tag) {
+    unsigned flags, int howmany, int tag)
+{
 
   if (howmany == 1) {
     return fast_transpose_cuda_v2(T_plan, data, timings, flags, howmany,
@@ -4727,7 +4763,8 @@ void fast_transpose_cuda_v2_h(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void fast_transpose_cuda_v3_h(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    int kway, unsigned flags, int howmany, int tag) {
+    int kway, unsigned flags, int howmany, int tag)
+{
 
   if (howmany == 1) {
     return fast_transpose_cuda_v3(T_plan, data, timings, kway, flags,
@@ -5009,7 +5046,8 @@ void fast_transpose_cuda_v3_h(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void transpose_cuda_v5(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    unsigned flags, int howmany, int tag) {
+    unsigned flags, int howmany, int tag)
+{
 
   std::bitset < 8 > Flags(flags); // 1 Transposed in, 2 Transposed out
   if (Flags[1] == 1 && Flags[0] == 0 && T_plan->nprocs == 1) { // If Flags==Transposed_Out return
@@ -5239,7 +5277,8 @@ void transpose_cuda_v5(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void transpose_cuda_v5_2(T_Plan_gpu<T>* T_plan, T* data, double *timings,
-    unsigned flags, int howmany, int tag) {
+    unsigned flags, int howmany, int tag)
+{
 
   std::bitset < 8 > Flags(flags); // 1 Transposed in, 2 Transposed out
   if (Flags[1] == 1 && Flags[0] == 0 && T_plan->nprocs == 1) { // If Flags==Transposed_Out return
@@ -5487,7 +5526,8 @@ void transpose_cuda_v5_2(T_Plan_gpu<T>* T_plan, T* data, double *timings,
 
 template<typename T>
 void transpose_cuda_v5_3(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    unsigned flags, int howmany, int tag) {
+    unsigned flags, int howmany, int tag)
+{
 
   std::bitset < 8 > Flags(flags); // 1 Transposed in, 2 Transposed out
   if (Flags[1] == 1 && Flags[0] == 0 && T_plan->nprocs == 1) { // If Flags==Transposed_Out return
@@ -5709,7 +5749,8 @@ void transpose_cuda_v5_3(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void transpose_cuda_v6(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    unsigned flags, int howmany, int tag) {
+    unsigned flags, int howmany, int tag)
+{
 
   std::bitset < 8 > Flags(flags); // 1 Transposed in, 2 Transposed out
   if (Flags[1] == 1 && Flags[0] == 0 && T_plan->nprocs == 1) { // If Flags==Transposed_Out return
@@ -5910,7 +5951,8 @@ void transpose_cuda_v6(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void transpose_cuda_v7(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    int kway, unsigned flags, int howmany, int tag) {
+    int kway, unsigned flags, int howmany, int tag)
+{
 
   std::bitset < 8 > Flags(flags); // 1 Transposed in, 2 Transposed out
   if (Flags[1] == 1 && Flags[0] == 0 && T_plan->nprocs == 1) { // If Flags==Transposed_Out return
@@ -6115,7 +6157,8 @@ void transpose_cuda_v7(T_Plan_gpu<T>* T_plan, T * data, double *timings,
 
 template<typename T>
 void transpose_cuda_v7_2(T_Plan_gpu<T>* T_plan, T * data, double *timings,
-    int kway, unsigned flags, int howmany, int tag) {
+    int kway, unsigned flags, int howmany, int tag)
+{
 
   std::bitset < 8 > Flags(flags); // 1 Transposed in, 2 Transposed out
   if (Flags[1] == 1 && Flags[0] == 0 && T_plan->nprocs == 1) { // If Flags==Transposed_Out return

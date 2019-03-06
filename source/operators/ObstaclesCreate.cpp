@@ -43,9 +43,9 @@ class KernelCharacteristicFunction
       CHIMAT & __restrict__ SDF = o->sdf;
       o->CoM_x = 0; o->CoM_y = 0; o->CoM_z = 0; o->mass  = 0;
 
-      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-      for(int iy=0; iy<FluidBlock::sizeY; iy++)
-      for(int ix=0; ix<FluidBlock::sizeX; ix++)
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       {
         Real p[3]; info.pos(p, ix,iy,iz);
         if (SDF[iz][iy][ix] > +2*h || SDF[iz][iy][ix] < -2*h)
@@ -185,9 +185,9 @@ struct KernelIntegrateUdefMomenta : public ObstacleVisitor
     VV = 0; FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
     J0 = 0; J1 = 0; J2 = 0; J3 = 0; J4 = 0; J5 = 0;
 
-    for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-    for(int iy=0; iy<FluidBlock::sizeY; iy++)
-    for(int ix=0; ix<FluidBlock::sizeX; ix++)
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
       if (CHI[iz][iy][ix] <= 0) continue;
       double p[3]; info.pos(p, ix, iy, iz);

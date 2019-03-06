@@ -44,9 +44,9 @@ public:
 
   T* buffer;
   T* buffer_2;
-  T* buffer_d;
-  T* buffer_d2;
-  T* buffer_d3;
+  T* buffer_d = nullptr;
+  T* buffer_d2 = nullptr;
+  //T* buffer_d3;
   //T * data_cpu;
   //MPI_Comm comm;
   // Deconstructor

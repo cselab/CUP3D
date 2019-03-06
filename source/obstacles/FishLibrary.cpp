@@ -445,7 +445,8 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
       const int Ntheta = std::ceil(2*M_PI/dtheta_tgt);
       const Real dtheta = 2*M_PI/((Real) Ntheta);
 
-      for(int tt=0; tt<Ntheta; ++tt) {
+      for(int tt=0; tt<Ntheta; ++tt)
+      {
         const Real theta = tt*dtheta + offset;
         const Real sinth = std::sin(theta), costh = std::cos(theta);
         // create a surface point
@@ -453,6 +454,16 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
                       rY[ss+0] +width[ss+0]*costh*norY[ss+0], height[ss+0]*sinth
         };
         changeToComputationalFrame(myP);
+
+        // myP is now lab frame, find index of the fluid elem near it
+        const int iap[3] = {
+            (int)std::floor((myP[0]-org[0])*invh),
+            (int)std::floor((myP[1]-org[1])*invh),
+            (int)std::floor((myP[2]-org[2])*invh)
+        };
+        if(iap[0]+3 <= 0 || iap[0]-1 >= BS[0]) continue; // NearNeigh loop
+        if(iap[1]+3 <= 0 || iap[1]-1 >= BS[1]) continue; // does not intersect
+        if(iap[2]+3 <= 0 || iap[2]-1 >= BS[2]) continue; // with this block
         Real pP[3] = {rX[ss+1] +width[ss+1]*costh*norX[ss+1],
                       rY[ss+1] +width[ss+1]*costh*norY[ss+1], height[ss+1]*sinth
         };
@@ -461,13 +472,6 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
         };
         changeToComputationalFrame(pM);
         changeToComputationalFrame(pP);
-
-        // myP is now lab frame, find index of the fluid elem near it
-        const int iap[3] = {
-            (int)std::floor((myP[0]-org[0])*invh),
-            (int)std::floor((myP[1]-org[1])*invh),
-            (int)std::floor((myP[2]-org[2])*invh)
-        };
         Real udef[3] = { vX[ss+0] +width[ss+0]*costh*vNorX[ss+0],
                          vY[ss+0] +width[ss+0]*costh*vNorY[ss+0], 0
         };
@@ -557,6 +561,7 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
   CHIMAT & __restrict__ CHI = defblock->chi;
   CHIMAT & __restrict__ SDF = defblock->sdf;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
+  static constexpr int BS[3] = {FluidBlock::sizeX, FluidBlock::sizeY, FluidBlock::sizeZ};
   const Real *const rX = cfish->rX, *const norX = cfish->norX;
   const Real *const rY = cfish->rY, *const norY = cfish->norY;
   const Real *const vX = cfish->vX, *const vNorX = cfish->vNorX;
@@ -587,12 +592,16 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
         xp[0] = (xp[0]-org[0])*invh; // how many grid points
         xp[1] = (xp[1]-org[1])*invh; // from this block origin
         xp[2] = (xp[2]-org[2])*invh; // is this fishpoint located at?
-        Real udef[3] = {vX[ss]+offsetW*vNorX[ss], vY[ss]+offsetW*vNorY[ss], 0};
-        changeVelocityToComputationalFrame(udef);
         const Real ap[3] = {
             std::floor(xp[0]), std::floor(xp[1]), std::floor(xp[2])
         };
         const int iap[3] = { (int)ap[0], (int)ap[1], (int)ap[2] };
+        if(iap[0]+2 <= 0 || iap[0] >= BS[0]) continue; // hatP2M loop
+        if(iap[1]+2 <= 0 || iap[1] >= BS[1]) continue; // does not intersect
+        if(iap[2]+2 <= 0 || iap[2] >= BS[2]) continue; // with this block
+
+        Real udef[3] = {vX[ss]+offsetW*vNorX[ss], vY[ss]+offsetW*vNorY[ss], 0};
+        changeVelocityToComputationalFrame(udef);
         Real wghts[3][2]; // P2M weights
         for(int c=0; c<3; ++c) {
           const Real t[2] = { // we floored, hat between xp and grid point +-1
@@ -603,15 +612,13 @@ void PutFishOnBlocks::constructInternl(const BlockInfo& info, FluidBlock& b, Obs
           assert(wghts[c][0]>=0 && wghts[c][1]>=0);
         }
 
-        using std::max; using std::min;
-        for(int sz=max(0,0-iap[2]); sz<min(2,FluidBlock::sizeZ-iap[2]); ++sz)
-        for(int sy=max(0,0-iap[1]); sy<min(2,FluidBlock::sizeY-iap[1]); ++sy)
-        for(int sx=max(0,0-iap[0]); sx<min(2,FluidBlock::sizeX-iap[0]); ++sx) {
+        for(int idz =std::max(0, iap[2]); idz <std::min(iap[2]+2, BS[2]); ++idz)
+        for(int idy =std::max(0, iap[1]); idy <std::min(iap[1]+2, BS[1]); ++idy)
+        for(int idx =std::max(0, iap[0]); idx <std::min(iap[0]+2, BS[0]); ++idx)
+        {
+          const int sx = idx - iap[0], sy = idy - iap[1], sz = idz - iap[2];
+          assert( sx>=0 && sx<2 && sy>=0 && sy<2 && sz>=0 && sz<2 );
           const Real wxwywz = wghts[2][sz] * wghts[1][sy] * wghts[0][sx];
-          const int idx = iap[0]+sx, idy = iap[1]+sy, idz = iap[2]+sz;
-          assert(idx>=0 && idx<FluidBlock::sizeX);
-          assert(idy>=0 && idy<FluidBlock::sizeY);
-          assert(idz>=0 && idz<FluidBlock::sizeZ);
           assert(wxwywz>=0 && wxwywz<=1);
           UDEF[idz][idy][idx][0] += wxwywz*udef[0];
           UDEF[idz][idy][idx][1] += wxwywz*udef[1];

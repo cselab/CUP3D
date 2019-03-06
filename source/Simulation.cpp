@@ -295,7 +295,8 @@ double Simulation::calcMaxTimestep()
   // if DLM>=1, adapt lambda such that penal term is independent of time step
   if (sim.DLM >= 1) sim.lambda = sim.DLM / sim.dt;
   if (sim.verbose)
-    printf("maxU %f dtF %e dtC %e dt %e\n", globMaxU, dtDif, dtAdv, sim.dt);
+    printf("maxU:%f dtF:%e dtC:%e dt:%e lambda:%e\n",
+      globMaxU, dtDif, dtAdv, sim.dt, sim.lambda);
   return sim.dt;
 }
 

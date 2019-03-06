@@ -68,9 +68,9 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
     J0 = 0; J1 = 0; J2 = 0; J3 = 0; J4 = 0; J5 = 0;
     GX = 0; G0 = 0; G1 = 0; G2 = 0; G3 = 0; G4 = 0; G5 = 0;
 
-    for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-    for(int iy=0; iy<FluidBlock::sizeY; iy++)
-    for(int ix=0; ix<FluidBlock::sizeX; ix++) {
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
       if (CHI[iz][iy][ix] <= 0) continue;
       double p[3]; info.pos(p, ix, iy, iz);
       const double dv = dvol(info, ix, iy, iz), X = CHI[iz][iy][ix];

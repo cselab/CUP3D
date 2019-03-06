@@ -50,9 +50,9 @@ struct KernelPenalization : public ObstacleVisitor
     CHIMAT & __restrict__ CHI = o->chi;
     UDEFMAT & __restrict__ UDEF = o->udef;
 
-    for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-    for(int iy=0; iy<FluidBlock::sizeY; iy++)
-    for(int ix=0; ix<FluidBlock::sizeX; ix++)
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
       // What if multiple obstacles share a block? Do not write udef onto
       // grid if CHI stored on the grid is greater than obst's CHI.
