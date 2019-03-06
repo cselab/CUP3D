@@ -261,7 +261,7 @@ custom fields. Anything else is forwarded to the parent view.
     // Internal variables and enums.
     var CUBISM_NAME = "CubismUP_3D";
     var SPHERE = "Sphere";
-    var DCYLINDER = "Half-cylinder";
+    var CYLINDER = "Cylinder";
     var NACA = "NACA";
     var FISH = "Fish";
     var FISH_MOTION_TYPES = {
@@ -420,15 +420,15 @@ custom fields. Anything else is forwarded to the parent view.
                     error = "Center position not specified.";
                 }
             }
-            if (type == DCYLINDER) {
-                var c = o["dcylinder_center"];
+            if (type == CYLINDER) {
+                var c = o["cylinder_center"];
                 if (is_ok(c)) {
                     params["xpos"] = c[0];
                     params["ypos"] = c[1];
                 } else {
                     error = "Center position not specified.";
                 }
-                var zz = o["dcylinder_z_range"];
+                var zz = o["cylinder_z_range"];
                 if (is_ok(zz)) {
                     params["zpos"] = .5 * (zz[0] + zz[1]);
                     params["halflength"] = .5 * Math.abs(zz[1] - zz[0]);
@@ -438,7 +438,7 @@ custom fields. Anything else is forwarded to the parent view.
             }
 
             /* Length and radius */
-            if (type == SPHERE || type == DCYLINDER) {
+            if (type == SPHERE || type == CYLINDER) {
                 if (o["radius"])
                     params["L"] = 2 * o["radius"];
                 else
@@ -453,9 +453,9 @@ custom fields. Anything else is forwarded to the parent view.
 
             /* Name */
             switch(type) {
-                case SPHERE: name = "IF3D_Sphere"; break;
-                case DCYLINDER: name = "IF3D_DCylinder"; break;
-                case NACA: name = "IF3D_NacaOperator"; break;
+                case SPHERE: name = "Sphere"; break;
+                case CYLINDER: name = "Cylinder"; break;
+                case NACA: name = "NacaOperator"; break;
                 case FISH: /* see below */ break;
                 default: error = "Unknown type??"; break;
             };
@@ -500,7 +500,7 @@ custom fields. Anything else is forwarded to the parent view.
                 if (is_ok(v[0])) params["xvel"] = v[0];
                 if (is_ok(v[1])) params["yvel"] = v[1];
                 if (is_ok(v[2])) params["zvel"] = v[2];
-                if (is_ok(v) && (type == SPHERE || type == DCYLINDER)) {
+                if (is_ok(v) && (type == SPHERE || type == CYLINDER)) {
                     var v = Math.sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
                     var Re_curr = v * params["L"] / flow["nu"];
                     var formula = "<span class=\"formula\">Re = u L / &nu;</span>";
@@ -749,7 +749,7 @@ custom fields. Anything else is forwarded to the parent view.
                     "type": "object",
                     "properties": {
                         "obstacle_type": {
-                            "enum": [SPHERE, DCYLINDER, NACA, FISH],
+                            "enum": [SPHERE, CYLINDER, NACA, FISH],
                         },
                         "center": {
                             "title": "Center",
@@ -760,7 +760,7 @@ custom fields. Anything else is forwarded to the parent view.
                                 "maximum": 1.0,
                             },
                         },
-                        "dcylinder_center": {
+                        "cylinder_center": {
                             "title": "Center (XY)",
                             "default": [0.5, 0.5],
                             "items": {
@@ -769,7 +769,7 @@ custom fields. Anything else is forwarded to the parent view.
                                 "maximum": 1.0,
                             },
                         },
-                        "dcylinder_z_range": {
+                        "cylinder_z_range": {
                             "title": "Z<sub>low</sub> and Z<sub>high</sub>",
                             "default": [0.0, 1.0],
                             "items": {
@@ -854,8 +854,8 @@ custom fields. Anything else is forwarded to the parent view.
                     },
                     "dependencies": {
                         "center": ["obstacle_type"],
-                        "dcylinder_center": ["obstacle_type"],
-                        "dcylinder_z_range": ["obstacle_type"],
+                        "cylinder_center": ["obstacle_type"],
+                        "cylinder_z_range": ["obstacle_type"],
                         "radius": ["obstacle_type"],
                         "length": ["obstacle_type"],
                         "NACA_thickness": ["obstacle_type"],
@@ -946,15 +946,15 @@ custom fields. Anything else is forwarded to the parent view.
                                 "required": true,
                                 "dependencies": { "obstacle_type": [SPHERE, NACA, FISH], },
                             },
-                            "dcylinder_center": {
+                            "cylinder_center": {
                                 "type": "multivalue",
                                 "required": true,
-                                "dependencies": { "obstacle_type": [DCYLINDER], },
+                                "dependencies": { "obstacle_type": [CYLINDER], },
                             },
-                            "dcylinder_z_range": {
+                            "cylinder_z_range": {
                                 "type": "multivalue",
                                 "required": true,
-                                "dependencies": { "obstacle_type": [DCYLINDER], },
+                                "dependencies": { "obstacle_type": [CYLINDER], },
                                 "helpers": [
                                     "For cylinders extending the whole Z range, consider using <i>Periodic in Z</i> option.",
                                     "The flat part of the half-cylinder is oriented in +X direction.",
@@ -962,7 +962,7 @@ custom fields. Anything else is forwarded to the parent view.
                             },
                             "radius": {
                                 "required": true,
-                                "dependencies": { "obstacle_type": [SPHERE, DCYLINDER], },
+                                "dependencies": { "obstacle_type": [SPHERE, CYLINDER], },
                             },
                             "length": {
                                 "required": true,

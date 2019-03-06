@@ -1396,7 +1396,10 @@ void accfft_execute_y_gpuf(accfft_plan_gpuf* plan, int direction, float * data_d
   int *osize_y = plan->osize_y;
   int *osize_yi = plan->osize_yi;
   size_t N_local = plan->isize[0] * plan->isize[1] * plan->isize[2];
-  float* cwork_d = plan->Mem_mgr->buffer_d3;
+  printf("For memory reasons, accfft_execute_y_gpu is not supported!\n");
+  fflush(0);
+  MPI_Abort(MPI_COMM_WORLD, 1);
+  float* cwork_d = nullptr; //plan->Mem_mgr->buffer_d3;
 
   if (direction == -1) {
     /**************************************************************/
@@ -1543,7 +1546,10 @@ void accfft_execute_x_gpuf(accfft_plan_gpuf* plan, int direction, float * data_d
   int *osize_x = plan->osize_x;
   int *osize_xi = plan->osize_xi;
   size_t N_local = plan->isize[0] * plan->isize[1] * plan->isize[2];
-  float* cwork_d = plan->Mem_mgr->buffer_d3;
+  printf("For memory reasons, accfft_execute_y_gpu is not supported!\n");
+  fflush(0);
+  MPI_Abort(MPI_COMM_WORLD, 1);
+  float* cwork_d = nullptr; //plan->Mem_mgr->buffer_d3;
 
   if (direction == -1) {
     /**************************************************************/

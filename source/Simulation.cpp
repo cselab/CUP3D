@@ -6,23 +6,29 @@
 //  Written by Guido Novati (novatig@ethz.ch).
 //
 #include "Simulation.h"
-#include "obstacles/IF3D_ObstacleVector.h"
+#include "obstacles/ObstacleVector.h"
 
 #include "operators/AdvectionDiffusion.h"
 #include "operators/ComputeDissipation.h"
 #include "operators/ExternalForcing.h"
 #include "operators/FadeOut.h"
+#include "operators/FluidSolidForces.h"
 #include "operators/InitialConditions.h"
-#include "operators/ObstacleManagement.h"
-#include "operators/PressurePenalization.h"
+#include "operators/ObstaclesCreate.h"
+#include "operators/ObstaclesUpdate.h"
+#include "operators/Penalization.h"
+#include "operators/PressureProjection.h"
 #include "operators/PressureRHS.h"
 
-#include "obstacles/IF3D_ObstacleFactory.h"
-#include "utils/ProcessOperatorsOMP.h"
+#include "obstacles/ObstacleFactory.h"
+#include "operators/ProcessHelpers.h"
 #include "Cubism/HDF5Dumper_MPI.h"
 #include "Cubism/MeshKernels.h"
 #include <iomanip>
 #include <iostream>
+
+CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 // Initialization from cmdline arguments is done in few steps, because grid has
 // to be created before the obstacles and slices are created.
@@ -34,7 +40,7 @@ Simulation::Simulation(const SimulationData &_sim) : sim(_sim)
   setupGrid();
 
   // Define an empty obstacle vector, which can be later modified.
-  setObstacleVector(new IF3D_ObstacleVector(sim));
+  setObstacleVector(new ObstacleVector(sim));
 
   _init(false);
 }
@@ -59,14 +65,15 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
     sim.m_slices = SliceType::getEntities<SliceType>(parser, * sim.grid);
   #endif
 
-  IF3D_ObstacleFactory factory(sim);
-  setObstacleVector(new IF3D_ObstacleVector(sim, factory.create(parser)));
+  // ========== OBSTACLES ==========
+  ObstacleFactory factory(sim);
+  setObstacleVector(new ObstacleVector(sim, factory.create(parser)));
 
   const bool bRestart = parser("-restart").asBool(false);
   _init(bRestart);
 }
 
-const std::vector<IF3D_ObstacleOperator*>& Simulation::getObstacleVector() const
+const std::vector<Obstacle*>& Simulation::getObstacleVector() const
 {
     return sim.obstacle_vector->getObstacleVector();
 }
@@ -120,7 +127,7 @@ Simulation::Simulation(
   sim.bpdz = cells[2] / FluidBlock::sizeZ;
   sim._preprocessArguments();
   setupGrid();  // Grid has to be initialized before slices and obstacles.
-  setObstacleVector(new IF3D_ObstacleVector(sim));
+  setObstacleVector(new ObstacleVector(sim));
   _init(restart);
 }
 */
@@ -205,9 +212,19 @@ void Simulation::setupGrid()
     sim.nonuniform->print_mesh_statistics(sim.rank == 0);
     sim.hmin = sim.nonuniform->minimum_cell_width();
   }
+
+  const std::vector<BlockInfo>& vInfo = sim.vInfo();
+  #pragma omp parallel for schedule(static)
+  for(size_t i=0; i<vInfo.size(); i++) {
+    FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+    vInfo[i].pos(b.min_pos, 0, 0, 0);
+    vInfo[i].pos(b.max_pos, FluidBlock::sizeX-1,
+                            FluidBlock::sizeY-1,
+                            FluidBlock::sizeZ-1);
+  }
 }
 
-void Simulation::setObstacleVector(IF3D_ObstacleVector * const obstacle_vector_)
+void Simulation::setObstacleVector(ObstacleVector * const obstacle_vector_)
 {
   sim.obstacle_vector = obstacle_vector_;
 
@@ -224,45 +241,49 @@ void Simulation::setObstacleVector(IF3D_ObstacleVector * const obstacle_vector_)
 void Simulation::setupOperators()
 {
   sim.pipeline.clear();
+  // Do not change order of operations without explicit permission from Guido
 
+  // Creates the char function, sdf, and def vel for all obstacles at the curr
+  // timestep. At this point we do NOT know the translation and rot vel of the
+  // obstacles. We need to solve implicit system when the pre-penalization vel
+  // is finalized on the grid.
+  // Here we also compute obstacles' centres of mass which are computed from
+  // the char func on the grid. This is different from "position" which is
+  // the quantity that is advected and used to construct shape.
   sim.pipeline.push_back(new CreateObstacles(sim));
-
-  #if PENAL_TYPE==0 // if explicit penal then update vel with ut on the grid:
-  // WILL BREAK ANY NON-STATIONARY OBSTACLE BECAUSE NEXT OPS WILL READ WRONG VEL FOR PENAL
-  sim.pipeline.push_back(new UpdateObstacles(sim));
-  #endif
 
   // Performs:
   // \tilde{u} = u_t + \delta t (\nu \nabla^2 u_t - (u_t \cdot \nabla) u_t )
   sim.pipeline.push_back(new AdvectionDiffusion(sim));
 
+  // Used to add an uniform pressure gradient / uniform driving force.
+  // If the force were space-varying then we would need to include in the
+  // pressure equation's RHS.
   if(sim.uMax_forced > 0 && sim.initCond not_eq "taylorGreen")
     sim.pipeline.push_back(new ExternalForcing(sim));
 
   // Places Udef on the grid and computes the RHS of the Poisson Eq
   // overwrites tmpU, tmpV, tmpW and pressure solver's RHS
-  // places in press RHS = - X^2 \nabla \cdot u_s
-  // or - X^2 \nabla \cdot u_s
+  // places in press RHS = \nabla \cdot u_f - X \nabla \cdot u_def
   sim.pipeline.push_back(new PressureRHS(sim));
 
-  // solves the Poisson Eq to get the pressure and finalizes the velocity
-  // !!! requires udef on the grid !!!
-  // u_{t+1} = \tilde{u} - \delta t \nabla P + \chi ( u_s - u_{t+1} )
-  sim.pipeline.push_back(new PressurePenalization(sim));
+  // Solves the Poisson Eq to get the pressure and finalizes the velocity
+  // u_{t+1} = \tilde{u} -\delta t \nabla P. This is final pre-penal vel field.
+  sim.pipeline.push_back(new PressureProjection(sim));
+
+  // Compute velocity of the obstacles and, in the same sweep if frame of ref
+  // is moving, we update uinf. Requires the pre-penal vel field on the grid!!
+  // We also update position and quaternions of the obstacles.
+  sim.pipeline.push_back(new UpdateObstacles(sim));
+
+  // With pre-penal vel field and obstacles' velocities perform penalization.
+  sim.pipeline.push_back(new Penalization(sim));
 
   // With finalized velocity and pressure, compute forces and dissipation
   sim.pipeline.push_back(new ComputeForces(sim));
 
   if(sim.computeDissipation)
     sim.pipeline.push_back(new ComputeDissipation(sim));
-
-  // Obstacles are updated now because we have on the grid u_{t+1}
-  // and therefore we can compute the penalization from above as
-  // F_penal = \chi / \delta t ( u_s - u_{t+1} )  // (this is solid onto fluid)
-  // this computes the penalization force, the obstacle's velocity, moves CM
-  #if PENAL_TYPE!=0 // if implicit penal then update vel with ut+1 on the grid:
-  sim.pipeline.push_back(new UpdateObstacles(sim));
-  #endif
 
   sim.pipeline.push_back(new FadeOut(sim));
 
@@ -278,7 +299,7 @@ void Simulation::setupOperators()
 double Simulation::calcMaxTimestep()
 {
   assert(sim.grid not_eq nullptr);
-  double locMaxU = (double)findMaxUOMP(sim.vInfo(), * sim.grid, sim.uinf);
+  double locMaxU = (double)findMaxU(sim.vInfo(), * sim.grid, sim.uinf);
   double globMaxU;
   const double h = sim.vInfo()[0].h_gridpoint;
 
@@ -295,7 +316,8 @@ double Simulation::calcMaxTimestep()
   // if DLM>=1, adapt lambda such that penal term is independent of time step
   if (sim.DLM >= 1) sim.lambda = sim.DLM / sim.dt;
   if (sim.verbose)
-    printf("maxU %f dtF %e dtC %e dt %e\n", globMaxU, dtDif, dtAdv, sim.dt);
+    printf("maxU:%f dtF:%e dtC:%e dt:%e lambda:%e\n",
+      globMaxU, dtDif, dtAdv, sim.dt, sim.lambda);
   return sim.dt;
 }
 
@@ -309,7 +331,7 @@ void Simulation::_serialize(const std::string append)
   if(sim.rank==0) std::cout<<"Saving to "<<fpath<<"\n";
 
   if (sim.rank==0) { //rank 0 saves step id and obstacles
-    sim.obstacle_vector->save(sim.step,sim.time,fpath);
+    sim.obstacle_vector->save(fpath);
     //safety status in case of crash/timeout during grid save:
     FILE * f = fopen((fpath+".status").c_str(), "w");
     assert(f != NULL);
@@ -442,7 +464,7 @@ void Simulation::_deserialize()
     MPI_Abort(sim.grid->getCartComm(), 1);
   #endif
 
-  sim.obstacle_vector->restart(sim.time, sim.path4serialization+"/"+ssR.str());
+  sim.obstacle_vector->restart(sim.path4serialization+"/"+ssR.str());
 
   printf("DESERIALIZATION: time is %f and step id is %d\n", sim.time, sim.step);
   // prepare time for next save
@@ -491,3 +513,5 @@ bool Simulation::timestep(const double dt)
 
     return false;  // Not yet finished.
 }
+
+CubismUP_3D_NAMESPACE_END

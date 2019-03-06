@@ -1,5 +1,5 @@
 //
-//  CubismUP_2D
+//  CubismUP_3D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
@@ -8,11 +8,14 @@
 
 #include "SimulationData.h"
 #include "operators/Operator.h"
-#include "obstacles/IF3D_ObstacleVector.h"
+#include "obstacles/ObstacleVector.h"
 #include "Cubism/ArgumentParser.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
-SimulationData::SimulationData(MPI_Comm mpicomm) : app_comm(mpicomm)
+SimulationData::SimulationData(MPI_Comm mpicomm) :
+  app_comm(mpicomm)
 {
   MPI_Comm_rank(app_comm, &rank);
   MPI_Comm_size(app_comm, &nprocs);
@@ -38,8 +41,8 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   // FLOW
   nu = parser("-nu").asDouble();
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
-  lambda = 0.0; //parser("-lambda").asDouble(1e6);
-  DLM = 1.0;//parser("-use-dlm").asDouble(0.0);
+  lambda = parser("-lambda").asDouble(0);
+  DLM = parser("-use-dlm").asDouble(1.0);
   CFL = parser("-CFL").asDouble(.1);
   uinf[0] = parser("-uinfx").asDouble(0.0);
   uinf[1] = parser("-uinfy").asDouble(0.0);
@@ -198,6 +201,7 @@ void SimulationData::_preprocessArguments()
 SimulationData::~SimulationData()
 {
   delete grid;
+  delete profiler;
   //delete m_nonuniform;
   delete obstacle_vector;
   while(!pipeline.empty()) {
@@ -230,20 +234,16 @@ void SimulationData::setCells(const int nx, const int ny, const int nz) {
 
 void SimulationData::startProfiler(std::string name) const
 {
-  #ifndef SMARTIES_APP
-    profiler->push_start(name);
-  #endif
+  profiler->push_start(name);
 }
 void SimulationData::stopProfiler() const
 {
-  #ifndef SMARTIES_APP
-    profiler->pop_stop();
-  #endif
+  profiler->pop_stop();
 }
 void SimulationData::printResetProfiler()
 {
-  #ifndef SMARTIES_APP
-    profiler->printSummary();
-    profiler->reset();
-  #endif
+  profiler->printSummary();
+  profiler->reset();
 }
+
+CubismUP_3D_NAMESPACE_END

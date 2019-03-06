@@ -11,6 +11,8 @@
 
 #include "operators/Operator.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class InitialConditions : public Operator
 {
  public:
@@ -28,4 +30,5 @@ class InitialConditions : public Operator
   std::string getName() { return "IC"; }
 };
 
+CubismUP_3D_NAMESPACE_END
 #endif

@@ -11,6 +11,8 @@
 
 #include "operators/Operator.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class ComputeDissipation : public Operator
 {
   Real oldKE=0.0;
@@ -19,4 +21,6 @@ public:
   void operator()(const double dt);
   std::string getName() { return "Dissipation"; }
 };
+
+CubismUP_3D_NAMESPACE_END
 #endif

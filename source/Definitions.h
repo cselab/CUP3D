@@ -19,13 +19,6 @@
 //#define __2Leads_
 //#define __DumpWakeStefan 9
 
-// 3 options for penalization:
-// 0 : explicit
-// 1 : implicit without taking into account divF in pressure eq
-// 2 : implicit by approximating penalization force into pressure eq
-#define PENAL_TYPE 2
-
-
 #define __useSkin_
 #include <cassert>
 #include <cstddef>   // For `offsetof()`.
@@ -50,6 +43,14 @@ typedef double DumpReal;
 #endif
 #define CUBISM_ALIGNMENT CUP_ALIGNMENT
 
+#ifndef CubismUP_3D_NAMESPACE_BEGIN
+#define CubismUP_3D_NAMESPACE_BEGIN namespace cubismup3d {
+#endif
+
+#ifndef CubismUP_3D_NAMESPACE_END
+#define CubismUP_3D_NAMESPACE_END   }  // namespace cubism
+#endif
+
 // Cubism dependencies.
 #include "Cubism/Grid.h"
 #include "Cubism/GridMPI.h"
@@ -60,14 +61,14 @@ typedef double DumpReal;
 #include "Cubism/BlockLab.h"
 #include "Cubism/BlockLabMPI.h"
 
-using namespace cubism;
-
 #ifndef CUP_BLOCK_SIZE
 #define CUP_BLOCK_SIZE 16
 #endif
 
 #include "utils/AlignedAllocator.h"
 #include "utils/FDcoeffs.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 struct FluidElement
 {
@@ -142,7 +143,7 @@ struct BaseBlock
   Real __attribute__((__aligned__(32))) invh_x[sizeX]; // pre-compute inverse mesh-spacings
   Real __attribute__((__aligned__(32))) invh_y[sizeY]; // pre-compute inverse mesh-spacings
   Real __attribute__((__aligned__(32))) invh_z[sizeZ]; // pre-compute inverse mesh-spacings
-
+  Real min_pos[3], max_pos[3];
   //required from Grid.h
   void clear()
   {
@@ -278,7 +279,7 @@ struct StreamerPressure
 
 
 template<typename BlockType, template<typename X> class allocator=std::allocator>
-class BlockLabBC: public BlockLab<BlockType,allocator>
+class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
 {
   typedef typename BlockType::ElementType ElementTypeBlock;
   static constexpr int sizeX = BlockType::sizeX;
@@ -377,7 +378,7 @@ class BlockLabBC: public BlockLab<BlockType,allocator>
   BlockLabBC& operator=(const BlockLabBC&) = delete;
 
   // Called by Cubism:
-  void _apply_bc(const BlockInfo& info, const Real t=0)
+  void _apply_bc(const cubism::BlockInfo& info, const Real t=0)
   {
     if(BCX == periodic) {   /* PERIODIC */ }
     else if (BCX == wall) { /* WALL */
@@ -409,9 +410,10 @@ class BlockLabBC: public BlockLab<BlockType,allocator>
 };
 
 using FluidBlock = BaseBlock<FluidElement>;
-typedef Grid<FluidBlock, aligned_allocator> FluidGrid;
-typedef GridMPI<FluidGrid> FluidGridMPI;
-typedef BlockLabBC<FluidBlock, aligned_allocator> Lab;
-typedef BlockLabMPI<Lab> LabMPI;
+using FluidGrid    = cubism::Grid<FluidBlock, aligned_allocator> ;
+using FluidGridMPI = cubism::GridMPI<FluidGrid> ;
+using Lab          = BlockLabBC<FluidBlock, aligned_allocator> ;
+using LabMPI       = cubism::BlockLabMPI<Lab> ;
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_DataStructures_h

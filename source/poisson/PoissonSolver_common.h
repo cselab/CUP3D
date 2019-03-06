@@ -6,7 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef CubismUP_3D_PoissonSolver_common_h
+#define CubismUP_3D_PoissonSolver_common_h
 
 #include <fftw3-mpi.h>
 #ifndef CUP_SINGLE_PRECISION
@@ -20,3 +21,5 @@ typedef fftw_plan fft_plan;
 typedef fftwf_complex fft_c;
 typedef fftwf_plan fft_plan;
 #endif /* CUP_SINGLE_PRECISION */
+
+#endif // CubismUP_3D_PoissonSolver_common_h

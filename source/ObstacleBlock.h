@@ -15,6 +15,8 @@
 #include <cstring> //memset
 #include <cstdio> //print
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 struct surface_data
 {
   const int ix, iy, iz;
@@ -35,6 +37,7 @@ struct ObstacleBlock
 
   // bulk quantities:
   Real          chi[BS][BS][BS];
+  Real          sdf[BS][BS][BS];
   Real         udef[BS][BS][BS][3];
   int sectionMarker[BS][BS][BS];
 
@@ -51,12 +54,20 @@ struct ObstacleBlock
   double *vxDef = nullptr, *vyDef = nullptr, *vzDef = nullptr;
 
   //additive quantities:
-    double   CoM_x   = 0,   CoM_y   = 0,   CoM_z   = 0, mass = 0;
-    double  forcex   = 0,  forcey   = 0,  forcez   = 0;
-    double  forcex_P = 0,  forcey_P = 0,  forcez_P = 0;
-    double  forcex_V = 0,  forcey_V = 0,  forcez_V = 0;
-    double torquex   = 0, torquey   = 0, torquez   = 0;
-    double  gammax   = 0,  gammay   = 0,  gammaz   = 0;
+  // construct CHI & center of mass interpolated on grid:
+  double CoM_x = 0, CoM_y = 0, CoM_z = 0, mass = 0;
+
+  // Penalization volume integral forces:
+  double V =0, FX=0, FY=0, FZ=0, TX=0, TY=0, TZ=0;
+  double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0;
+  double GX=0, G0=0, G1=0, G2=0, G3=0, G4=0, G5=0;
+
+  // Fluid-structure interface forces: (these are the 22 quantities of nQoI)
+  double  forcex   = 0,  forcey   = 0,  forcez   = 0;
+  double  forcex_P = 0,  forcey_P = 0,  forcez_P = 0;
+  double  forcex_V = 0,  forcey_V = 0,  forcez_V = 0;
+  double torquex   = 0, torquey   = 0, torquez   = 0;
+  double  gammax   = 0,  gammay   = 0,  gammaz   = 0;
   //Real torquex_P = 0, torquey_P = 0, torquez_P = 0;
   //Real torquex_V = 0, torquey_V = 0, torquez_V = 0;
   double drag = 0, thrust = 0, Pout=0, PoutBnd=0, defPower=0, defPowerBnd = 0, pLocom = 0;
@@ -91,12 +102,12 @@ struct ObstacleBlock
   {
     filled=false;
     nPoints=0;
-      CoM_x  =  CoM_y  =  CoM_z  =0;
-     forcex  = forcey  = forcez  =0;
-     forcex_P= forcey_P= forcez_P=0;
-     forcex_V= forcey_V= forcez_V=0;
-     gammax  = gammay  = gammaz  =0;
-    torquex  =torquey  =torquez  =0;
+    CoM_x    = CoM_y    = CoM_z    =0;
+    forcex   = forcey   = forcez   =0;
+    forcex_P = forcey_P = forcez_P =0;
+    forcex_V = forcey_V = forcez_V =0;
+    gammax   = gammay   = gammaz   =0;
+    torquex  = torquey  = torquez  =0;
     //torquex_P=torquey_P=torquez_P=0;
     //torquex_V=torquey_V=torquez_V=0;
     mass=drag=thrust=Pout=PoutBnd=defPower=defPowerBnd=0;
@@ -133,25 +144,20 @@ struct ObstacleBlock
   {
     clear_surface();
     memset(chi,  0, sizeof(Real)*sizeX*sizeY*sizeZ);
+    memset(sdf,  0, sizeof(Real)*sizeX*sizeY*sizeZ);
     memset(udef, 0, sizeof(Real)*sizeX*sizeY*sizeZ*3);
     memset(sectionMarker, 0, sizeof(int)*sizeX*sizeY*sizeZ);
   }
 
-  inline void write(const int ix, const int iy, const int iz, const Real _chi, const Real delta, const Real gradUX, const Real gradUY, const Real gradUZ, const Real fac)
+  inline void write(const int ix, const int iy, const int iz, const Real delta, const Real gradUX, const Real gradUY, const Real gradUZ)
   {
     //if(_chi<chi[iz][iy][ix]) return;
     assert(!filled);
-    chi[iz][iy][ix] = _chi;
-
-    if (delta>1e-6)
-    {
-      nPoints++;
-      const double dchidx = -delta*double(gradUX) * double(fac);
-      const double dchidy = -delta*double(gradUY) * double(fac);
-      const double dchidz = -delta*double(gradUZ) * double(fac);
-      const double _delta =  delta                * double(fac);
-      surface.push_back(new surface_data(ix,iy,iz,dchidx,dchidy,dchidz,_delta));
-    }
+    nPoints++;
+    const double dchidx = -delta*gradUX;
+    const double dchidy = -delta*gradUY;
+    const double dchidz = -delta*gradUZ;
+    surface.push_back(new surface_data(ix,iy,iz,dchidx,dchidy,dchidz,delta));
   }
 
   void allocate_surface()
@@ -207,4 +213,5 @@ struct ObstacleBlock
   }
 };
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_ObstacleBlock_h

@@ -9,6 +9,8 @@
 #include "poisson/PoissonSolverMixed.h"
 #include "poisson/PoissonSolver_common.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 PoissonSolverMixed::PoissonSolverMixed(SimulationData & s) : PoissonSolver(s)
 {
@@ -105,4 +107,5 @@ PoissonSolverMixed::~PoissonSolverMixed()
   _FFTW_(mpi_cleanup)();
 }
 
+CubismUP_3D_NAMESPACE_END
 #undef MPIREAL

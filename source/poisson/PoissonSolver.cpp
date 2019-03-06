@@ -1,13 +1,14 @@
 //
-//  CubismUP_2D
+//  CubismUP_3D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-
 #include "poisson/PoissonSolver.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 void PoissonSolver::_cub2fftw() const
 {
@@ -69,3 +70,5 @@ void PoissonSolver::_fftw2cub() const
   }
   memset(data, 0, data_size * sizeof(Real));
 }
+
+CubismUP_3D_NAMESPACE_END

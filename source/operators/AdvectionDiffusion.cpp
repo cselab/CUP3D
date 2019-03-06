@@ -8,6 +8,9 @@
 
 #include "operators/AdvectionDiffusion.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
+
 class KernelAdvectDiffuse
 {
   private:
@@ -140,40 +143,6 @@ class KernelAdvectDiffuse_HighOrder
   }
 };
 
-class KernelExplPenPart1
-{
-  private:
-  const double dt;
-  const double lambda;
-
-  public:
-  const std::array<int, 3> stencil_start = {-1, -1, -1};
-  const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
-
-  KernelExplPenPart1(double _dt, Real l) : dt(_dt), lambda(l) { }
-
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-  {
-    const Real fac = - 0.5 * dt / info.h_gridpoint;
-    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      const FluidElement &L =lab(ix,iy,iz);
-      const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
-      const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
-      const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
-      o(ix,iy,iz).u = L.tmpU - L.chi * L.u; // explicit penal part 1
-      o(ix,iy,iz).v = L.tmpV - L.chi * L.v; // explicit penal part 1
-      o(ix,iy,iz).w = L.tmpW - L.chi * L.w; // explicit penal part 1
-      o(ix,iy,iz).tmpU = L.tmpU + fac*(LE.p-LW.p); // approximate ufuild
-      o(ix,iy,iz).tmpV = L.tmpV + fac*(LN.p-LS.p); // approximate ufuild
-      o(ix,iy,iz).tmpW = L.tmpW + fac*(LB.p-LF.p); // using old pressure
-    }
-  }
-};
-
 class KernelAdvectDiffuse_nonUniform
 {
   private:
@@ -249,25 +218,20 @@ void AdvectionDiffusion::operator()(const double dt)
   sim.stopProfiler();
 
   sim.startProfiler("AdvDiff copy");
-  #if PENAL_TYPE==0
+  #pragma omp parallel for schedule(static)
+  for(size_t i=0; i<vInfo.size(); i++)
   {
-    const KernelExplPenPart1 K(dt, sim.lambda);
-    compute<KernelExplPenPart1>(K);
-  }
-  #else
-    #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<vInfo.size(); i++)
-    {
-      FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
-        b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
-        b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
-      }
+    FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
+      b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
+      b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
     }
-  #endif
+  }
   sim.stopProfiler();
-  check("AdvectionDiffusion - end");
+  check("AdvectionDiffusion");
 }
+
+CubismUP_3D_NAMESPACE_END

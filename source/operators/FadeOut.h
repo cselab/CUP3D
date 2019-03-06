@@ -6,10 +6,12 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_3D_CoordinatorFadeOut_h
-#define CubismUP_3D_CoordinatorFadeOut_h
+#ifndef CubismUP_3D_FadeOut_h
+#define CubismUP_3D_FadeOut_h
 
 #include "operators/Operator.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class FadeOut : public Operator
 {
@@ -19,4 +21,5 @@ class FadeOut : public Operator
   std::string getName() { return "FadeOut"; }
 };
 
+CubismUP_3D_NAMESPACE_END
 #endif

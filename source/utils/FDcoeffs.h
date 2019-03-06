@@ -6,8 +6,9 @@
  *  Copyright 2017 ETH Zurich. All rights reserved.
  *
  */
-#ifndef FDCOEFFS_H_RJG1BXTH
-#define FDCOEFFS_H_RJG1BXTH
+
+#ifndef CubismUP_3D_FDcoeffs_h
+#define CubismUP_3D_FDcoeffs_h
 
 #include <cassert>
 #include <cstdlib>
@@ -17,6 +18,8 @@
 ///////////////////////////////////////////////////////////////////////////////
 #define __FD_2ND(i,c,um1,u00,up1) (c.cm1[i]*um1 + c.c00[i]*u00 + c.cp1[i]*up1)
 #define __FD_4TH(i,c,um2,um1,u00,up1,up2) (c.cm2[i]*um2 + c.cm1[i]*um1 + c.c00[i]*u00 + c.cp1[i]*up1 + c.cp2[i]*up2)
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 // coefficient set
 ///////////////////////////////////////////////////////////////////////////////
@@ -451,4 +454,5 @@ protected:
     }
 };
 
-#endif /* FDCOEFFS_H_RJG1BXTH */
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_FDcoeffs_h

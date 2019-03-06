@@ -1,17 +1,19 @@
 //
-//  CubismUP_2D
+//  CubismUP_3D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-
-#pragma once
+#ifndef CubismUP_3D_PoissonSolverMixed_HYPRE_h
+#define CubismUP_3D_PoissonSolverMixed_HYPRE_h
 #ifdef CUP_HYPRE
 
 #include "HYPRE_struct_ls.h"
 #include "poisson/PoissonSolver.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class PoissonSolverMixed_HYPRE : public PoissonSolver
 {
@@ -78,4 +80,6 @@ class PoissonSolverMixed_HYPRE : public PoissonSolver
   ~PoissonSolverMixed_HYPRE();
 };
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CUP_HYPRE
+#endif // CubismUP_3D_PoissonSolverMixed_HYPRE_h

@@ -8,18 +8,22 @@
 
 #include "operators/FadeOut.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
+
 class KernelFadeOut
 {
  private:
   const Real ext[3], fadeLen[3], iFade[3];
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-  inline bool _is_touching(const BlockInfo& i) const
+  inline bool _is_touching(const FluidBlock& b) const
   {
-    Real maxP[3], minP[3]; i.pos(minP, 0, 0, 0);
-    i.pos(maxP, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1, CUP_BLOCK_SIZE-1);
-    const bool touchW= fadeLen[0]>=minP[0], touchE= fadeLen[0]>=ext[0]-maxP[0];
-    const bool touchS= fadeLen[1]>=minP[1], touchN= fadeLen[1]>=ext[1]-maxP[1];
-    const bool touchB= fadeLen[2]>=minP[2], touchF= fadeLen[2]>=ext[2]-maxP[2];
+    const bool touchW = fadeLen[0] >= b.min_pos[0];
+    const bool touchE = fadeLen[0] >= ext[0] - b.max_pos[0];
+    const bool touchS = fadeLen[1] >= b.min_pos[1];
+    const bool touchN = fadeLen[1] >= ext[1] - b.max_pos[1];
+    const bool touchB = fadeLen[2] >= b.min_pos[2];
+    const bool touchF = fadeLen[2] >= ext[2] - b.max_pos[2];
     return touchN || touchE || touchS || touchW || touchF || touchB;
   }
   inline Real fade(const BlockInfo&i, const int x,const int y,const int z) const
@@ -41,7 +45,7 @@ class KernelFadeOut
 
   void operator()(const BlockInfo& info, FluidBlock& b) const
   {
-    if( _is_touching(info) )
+    if( _is_touching(b) )
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -63,5 +67,7 @@ void FadeOut::operator()(const double dt)
       kernel(vInfo[i], *(FluidBlock*) vInfo[i].ptrBlock);
   }
   sim.stopProfiler();
-  check("FadeOut - end");
+  check("FadeOut");
 }
+
+CubismUP_3D_NAMESPACE_END

@@ -6,9 +6,12 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef CubismUP_3D_PoissonSolverUnboundedACC_h
+#define CubismUP_3D_PoissonSolverUnboundedACC_h
 
 #include "poisson/PoissonSolver.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class PoissonSolverUnbounded : public PoissonSolver
 {
@@ -46,3 +49,6 @@ public:
   void gpu2padded() const;
   ~PoissonSolverUnbounded();
 };
+
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_PoissonSolverUnboundedACC_h

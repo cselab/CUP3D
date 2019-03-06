@@ -11,6 +11,8 @@
 
 #include "operators/Operator.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class AdvectionDiffusion : public Operator
 {
 public:
@@ -23,4 +25,5 @@ public:
   std::string getName() { return "AdvectionDiffusion"; }
 };
 
+CubismUP_3D_NAMESPACE_END
 #endif

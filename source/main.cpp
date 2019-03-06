@@ -7,7 +7,6 @@
 //
 
 #include "Simulation.h"
-#include "obstacles/IF3D_ObstacleFactory.h"
 #include "Cubism/ArgumentParser.h"
 
 #include <iostream>
@@ -40,8 +39,8 @@ int main(int argc, char **argv)
 #endif
   }
 
-  ArgumentParser parser(argc, argv);
-  Simulation *sim = new Simulation(MPI_COMM_WORLD, parser);
+  cubism::ArgumentParser parser(argc, argv);
+  cubismup3d::Simulation *sim = new cubismup3d::Simulation(MPI_COMM_WORLD, parser);
   sim->run();
   delete sim;
 

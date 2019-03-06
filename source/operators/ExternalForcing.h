@@ -12,6 +12,8 @@
 #include "SimulationData.h"
 #include "operators/Operator.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+
 class ExternalForcing : public Operator
 {
  public:
@@ -22,4 +24,5 @@ class ExternalForcing : public Operator
   std::string getName() { return "ExternalForcing"; }
 };
 
+CubismUP_3D_NAMESPACE_END
 #endif

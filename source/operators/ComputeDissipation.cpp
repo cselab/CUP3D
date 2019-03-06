@@ -9,6 +9,9 @@
 #include "operators/ComputeDissipation.h"
 #include "utils/BufferedLogger.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
+
 class KernelDissipation
 {
   public:
@@ -110,5 +113,7 @@ void ComputeDissipation::operator()(const double dt)
   }
   sim.stopProfiler();
 
-  check("dissipation - end");
+  check("ComputeDissipation");
 }
+
+CubismUP_3D_NAMESPACE_END

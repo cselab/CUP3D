@@ -8,6 +8,9 @@
 
 #include "operators/ExternalForcing.h"
 
+CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
+
 template<int DIRECTION>
 class KernelExternalForcing
 {
@@ -22,9 +25,6 @@ class KernelExternalForcing
         if (DIRECTION == 0) b(ix,iy,iz).u    += gradPdT;
         if (DIRECTION == 1) b(ix,iy,iz).v    += gradPdT;
         if (DIRECTION == 2) b(ix,iy,iz).w    += gradPdT;
-        if (DIRECTION == 0) b(ix,iy,iz).tmpU += gradPdT;
-        if (DIRECTION == 1) b(ix,iy,iz).tmpV += gradPdT;
-        if (DIRECTION == 2) b(ix,iy,iz).tmpW += gradPdT;
     }
   }
 };
@@ -41,5 +41,7 @@ void ExternalForcing::operator()(const double dt)
   for(size_t i=0; i<vInfo.size(); i++)
       kernel(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
   sim.stopProfiler();
-  check("forcing - end");
+  check("ExternalForcing");
 }
+
+CubismUP_3D_NAMESPACE_END

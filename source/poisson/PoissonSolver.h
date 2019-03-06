@@ -1,20 +1,22 @@
 //
-//  CubismUP_2D
+//  CubismUP_3D
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#pragma once
+#ifndef CubismUP_3D_PoissonSolver_h
+#define CubismUP_3D_PoissonSolver_h
 
 #include <vector>
 #include <cassert>
 #include <cstring>
 
 #include "SimulationData.h"
-
 #include "Cubism/BlockInfo.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 class PoissonSolver
 {
@@ -27,7 +29,7 @@ class PoissonSolver
   const int m_rank = sim.rank, m_size = sim.nprocs;
 
   static constexpr int bs[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
-  const std::vector<BlockInfo> local_infos = grid.getResidentBlocksInfo();
+  const std::vector<cubism::BlockInfo> local_infos = grid.getResidentBlocksInfo();
 
   const size_t mybpd[3] = {
       static_cast<size_t>(grid.getResidentBlocksPerDimension(0)),
@@ -64,20 +66,15 @@ class PoissonSolver
 
   inline size_t _offset(const int blockID) const
   {
-    const BlockInfo &info = local_infos[blockID];
+    const cubism::BlockInfo &info = local_infos[blockID];
     return _offset(info);
   }
-  inline size_t _offset_ext(const BlockInfo &info) const
+  inline size_t _offset_ext(const cubism::BlockInfo &info) const
   {
     assert(local_infos[info.blockID].blockID == info.blockID);
     return _offset(local_infos[info.blockID]);
-    //for(const auto & local_info : local_infos)
-    //  if(local_info.blockID == info.blockID)
-    //    return _offset(local_info);
-    //printf("PSolver cannot find obstacle block\n");
-    //abort();
   }
-  inline size_t _offset(const BlockInfo &info) const
+  inline size_t _offset(const cubism::BlockInfo &info) const
   {
     assert(stridez>0);
     assert(stridey>0);
@@ -102,11 +99,13 @@ class PoissonSolver
   inline void _cub2fftw(const size_t offset, const int z, const int y, const int x, const Real rhs) const
   {
     const size_t dest_index = _dest(offset, z, y, x);
+    assert(data_size > dest_index);
     data[dest_index] = rhs;
   }
   inline Real _fftw2cub(const size_t offset, const int z, const int y, const int x) const
   {
     const size_t dest_index = _dest(offset, z, y, x);
+    assert(data_size > dest_index);
     return data[dest_index];
   }
 
@@ -117,3 +116,6 @@ class PoissonSolver
   //  assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*nz_hat*2);
   // assert(dest_index < m_local_N0*m_NN1*2*m_Nzhat);
 };
+
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_PoissonSolver_h

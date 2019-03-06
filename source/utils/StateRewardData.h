@@ -12,7 +12,6 @@
 //#define __2Leads_
 //#define __DumpWakeStefan 9
 #define __useSkin_
-using namespace std;
 //#include <assert.h>
 
 // utmost import to be defined before including cubism
@@ -30,6 +29,8 @@ static const int NpLatLine = 10;
 
 #include "Definitions.h"
 #include "ObstacleBlock.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 struct StateReward
 {
@@ -629,4 +630,5 @@ struct StateReward
   }
 };
 
-#endif
+CubismUP_3D_NAMESPACE_END
+#endif // CubismUP_3D_StateRewardData_h
