@@ -8,6 +8,7 @@
 
 #include "obstacles/StefanFish.h"
 #include "obstacles/FishLibrary.h"
+#include "obstacles/FishShapes.h"
 #include "Cubism/ArgumentParser.h"
 
 #include <cmath>

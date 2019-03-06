@@ -22,42 +22,27 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 struct FishSkin
 {
-    public:
-    const int Npoints;
-    Real * const xSurf;
-    Real * const ySurf;
-    Real * const normXSurf;
-    Real * const normYSurf;
-    Real * const midX;
-    Real * const midY;
+  const int Npoints;
+  Real * const xSurf;
+  Real * const ySurf;
+  Real * const normXSurf;
+  Real * const normYSurf;
+  Real * const midX;
+  Real * const midY;
 
-    FishSkin(const int N): Npoints(N), xSurf(_alloc(N)), ySurf(_alloc(N)),
-    normXSurf(_alloc(N-1)), normYSurf(_alloc(N-1)), midX(_alloc(N-1)), midY(_alloc(N-1))
-    {}
+  FishSkin(const int N): Npoints(N), xSurf(_alloc(N)), ySurf(_alloc(N)),
+  normXSurf(_alloc(N-1)), normYSurf(_alloc(N-1)), midX(_alloc(N-1)), midY(_alloc(N-1)) {}
 
-    virtual ~FishSkin()
-    {
-        _dealloc(xSurf);
-        _dealloc(ySurf);
-        _dealloc(normXSurf);
-        _dealloc(normYSurf);
-        _dealloc(midX);
-        _dealloc(midY);
-    }
+  virtual ~FishSkin() {
+    _dealloc(xSurf); _dealloc(normXSurf); _dealloc(midX);
+    _dealloc(ySurf); _dealloc(normYSurf); _dealloc(midY);
+  }
 
-    protected:
-    Real * _alloc(const int N)
-    {
-        return new Real[N];
-    }
+  Real* _alloc(const int N) { return new Real[N]; }
 
-    void _dealloc(Real * ptr)
-    {
-        if(ptr not_eq nullptr) {
-            delete [] ptr;
-            ptr=nullptr;
-        }
-    }
+  void _dealloc(Real * ptr) {
+    if(ptr not_eq nullptr) { delete [] ptr; ptr=nullptr; }
+  }
 };
 
 class FishMidlineData
@@ -378,26 +363,6 @@ struct PutNacaOnBlocks: public PutFishOnBlocks
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const override;
 };
-
-namespace MidlineShapes
-{
-  /*
-  function inputs: xc, yc are n sized arrays which contain the control points of the cubic b spline
-  function outputs onto res: assumed to be either the width or the height
-  */
-  void integrateBSpline(const double*const xc, const double*const yc,
-  const int n, const double length, Real*const rS,Real*const res,const int Nm);
-
-  void naca_width(const double t_ratio, const double L, Real*const rS,
-    Real*const res, const int Nm);
-  void stefan_width(const double L, Real*const rS, Real*const res, const int Nm);
-  void stefan_height(const double L, Real*const rS, Real*const res, const int Nm);
-  void danio_width(const double L, Real*const rS, Real*const res, const int Nm);
-  void danio_height(const double L, Real*const rS, Real*const res, const int Nm);
-
-  void computeWidthsHeights(const std::string &heightName, const std::string &widthName,
-                            double L, Real *rS, Real *height, Real *width, int nM, int mpirank);
-}
 
 CubismUP_3D_NAMESPACE_END
 #endif // CubismUP_3D_FishLibrary_h

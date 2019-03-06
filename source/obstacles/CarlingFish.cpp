@@ -8,6 +8,7 @@
 
 #include "obstacles/CarlingFish.h"
 #include "obstacles/FishLibrary.h"
+#include "obstacles/FishShapes.h"
 #include "Cubism/ArgumentParser.h"
 
 CubismUP_3D_NAMESPACE_BEGIN

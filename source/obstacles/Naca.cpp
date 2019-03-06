@@ -8,7 +8,7 @@
 
 #include "obstacles/Naca.h"
 #include "obstacles/FishLibrary.h"
-
+#include "obstacles/FishShapes.h"
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/HDF5Dumper_MPI.h"
 
