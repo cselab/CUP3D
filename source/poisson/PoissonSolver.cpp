@@ -49,6 +49,7 @@ void PoissonSolver::_cub2fftw() const
       for(size_t i=0; i<data_size; ++i) sumRHSpost += data[i];
       MPI_Allreduce(MPI_IN_PLACE, &sumRHSpost, 1, MPI_DOUBLE,MPI_SUM, m_comm);
       printf("Sum of RHS after correction:%e\n", sumRHSpost);
+      fflush(0);
     }
     #endif
   #endif

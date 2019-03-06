@@ -243,12 +243,12 @@ struct KernelAccumulateUdefMomenta : public ObstacleVisitor
     const SymM invJ = invertSym(J);
 
     if(justDebug) {
-      assert(std::fabs(M[ 1]/M[0])<10*DBLEPS);
-      assert(std::fabs(M[ 2]/M[0])<10*DBLEPS);
-      assert(std::fabs(M[ 3]/M[0])<10*DBLEPS);
-      assert(std::fabs(invJ[0]*AM[0] +invJ[3]*AM[1] +invJ[4]*AM[2])<10*DBLEPS);
-      assert(std::fabs(invJ[3]*AM[0] +invJ[1]*AM[1] +invJ[5]*AM[2])<10*DBLEPS);
-      assert(std::fabs(invJ[4]*AM[0] +invJ[5]*AM[1] +invJ[2]*AM[2])<10*DBLEPS);
+      assert(std::fabs(M[ 1]/M[0])<100*DBLEPS);
+      assert(std::fabs(M[ 2]/M[0])<100*DBLEPS);
+      assert(std::fabs(M[ 3]/M[0])<100*DBLEPS);
+      assert(std::fabs(invJ[0]*AM[0] +invJ[3]*AM[1] +invJ[4]*AM[2])<100*DBLEPS);
+      assert(std::fabs(invJ[3]*AM[0] +invJ[1]*AM[1] +invJ[5]*AM[2])<100*DBLEPS);
+      assert(std::fabs(invJ[4]*AM[0] +invJ[5]*AM[1] +invJ[2]*AM[2])<100*DBLEPS);
     } else {
       //solve avel = invJ \dot angMomentum
       obst->mass                   = M[ 0];
