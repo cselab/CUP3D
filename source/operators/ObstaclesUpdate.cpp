@@ -254,6 +254,8 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
 
 void UpdateObstacles::operator()(const double dt)
 {
+  if(sim.obstacle_vector->nObstacles() == 0) return;
+
   sim.startProfiler("Obst Int Vel");
   { // integrate momenta by looping over grid
     #pragma omp parallel

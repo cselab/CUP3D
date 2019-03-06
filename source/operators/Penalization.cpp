@@ -80,6 +80,8 @@ Penalization::Penalization(SimulationData & s) : Operator(s) {}
 
 void Penalization::operator()(const double dt)
 {
+  if(sim.obstacle_vector->nObstacles() == 0) return;
+
   sim.startProfiler("Penalization");
   #pragma omp parallel
   { // each thread needs to call its own non-const operator() function

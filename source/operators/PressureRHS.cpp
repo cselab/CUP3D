@@ -16,6 +16,7 @@ using namespace cubism;
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 
+template<int withObstacles = 1>
 class KernelPressureRHS
 {
   Real dt, lamdt;
@@ -52,7 +53,8 @@ class KernelPressureRHS
     const FluidElement & LS = l(x,  y-1,z  ), & LN = l(x,  y+1,z  );
     const FluidElement & LF = l(x,  y,  z-1), & LB = l(x,  y,  z+1);
     const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
-    return LE.u-LW.u + LN.v-LS.v + LB.w-LF.w - L.chi*divUs;
+    const Real divUf = LE.u-LW.u + LN.v-LS.v + LB.w-LF.w;
+    return withObstacles ? divUf - L.chi*divUs : divUf;
   }
 
  public:
@@ -92,6 +94,7 @@ class KernelPressureRHS
   }
 };
 
+template<int withObstacles = 1>
 class KernelPressureRHS_nonUniform
 {
  private:
@@ -132,12 +135,12 @@ class KernelPressureRHS_nonUniform
     const Real dudx = __FD_2ND(ix, cx, LW.u, L.u, LE.u);
     const Real dvdy = __FD_2ND(iy, cy, LS.v, L.v, LN.v);
     const Real dwdz = __FD_2ND(iz, cz, LF.w, L.w, LB.w);
-    const Real divUt = dudx + dvdy + dwdz;
+    const Real divUf = dudx + dvdy + dwdz;
     const Real dusdx = __FD_2ND(ix, cx, LW.tmpU, L.tmpU, LE.tmpU);
     const Real dvsdy = __FD_2ND(iy, cy, LS.tmpV, L.tmpV, LN.tmpV);
     const Real dwsdz = __FD_2ND(iz, cz, LF.tmpW, L.tmpW, LB.tmpW);
     const Real divUs = dusdx + dvsdy + dwsdz;
-    return divUt - L.chi*divUs;
+    return withObstacles ? divUf - L.chi*divUs : divUf;
   }
 
  public:
@@ -228,6 +231,7 @@ struct PressureRHSObstacleVisitor : public ObstacleVisitor
 void PressureRHS::operator()(const double dt)
 {
   sim.startProfiler("PresRHS Udef");
+  if(sim.obstacle_vector->nObstacles() > 0)
   { //zero fields, going to contain Udef:
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++) {
@@ -248,8 +252,34 @@ void PressureRHS::operator()(const double dt)
   sim.startProfiler("PresRHS Kernel");
   //place onto p: ( div u^(t+1) - div u^* ) / dt
   //where i want div u^(t+1) to be equal to div udef
-  const KernelPressureRHS K(dt, sim.lambda, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
-  compute<KernelPressureRHS>(K);
+  if(sim.bUseStretchedGrid)
+  {
+    if(sim.obstacle_vector->nObstacles())
+    {
+      const KernelPressureRHS_nonUniform<1> K(dt, sim.lambda, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
+      compute<KernelPressureRHS_nonUniform<1>>(K);
+    }
+    else
+    {
+      const KernelPressureRHS_nonUniform<0> K(dt, sim.lambda, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
+      compute<KernelPressureRHS_nonUniform<0>>(K);
+    }
+  }
+  else
+  {
+    if(sim.obstacle_vector->nObstacles())
+    {
+      const KernelPressureRHS<1> K(dt, sim.lambda, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
+      compute<KernelPressureRHS<1>>(K);
+    }
+    else
+    {
+      const KernelPressureRHS<0> K(dt, sim.lambda, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
+      compute<KernelPressureRHS<0>>(K);
+    }
+  }
+
+
   sim.stopProfiler();
 
   check("PressureRHS");

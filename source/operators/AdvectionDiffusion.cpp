@@ -161,7 +161,6 @@ class KernelAdvectDiffuse_nonUniform
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-    const Real facA = -dt, facD = mu * dt;
     // FD coefficients for first and second derivative
     const BlkCoeffX & c1x = o.fd_cx.first, & c2x = o.fd_cx.second;
     const BlkCoeffY & c1y = o.fd_cy.first, & c2y = o.fd_cy.second;
@@ -211,9 +210,18 @@ void AdvectionDiffusion::operator()(const double dt)
 {
   sim.startProfiler("AdvDiff Kernel");
   {
-    using K_t = KernelAdvectDiffuse;
-    const K_t K(dt, sim.nu, sim.uinf, sim.lambda);
-    compute<K_t>(K);
+    if(sim.bUseStretchedGrid)
+    {
+      const KernelAdvectDiffuse_nonUniform K(dt, sim.nu, sim.uinf, sim.lambda);
+      compute<KernelAdvectDiffuse_nonUniform>(K);
+    }
+    else
+    {
+      //using K_t = KernelAdvectDiffuse_HighOrder;
+      using K_t = KernelAdvectDiffuse;
+      const K_t K(dt, sim.nu, sim.uinf, sim.lambda);
+      compute<K_t>(K);
+    }
   }
   sim.stopProfiler();
 

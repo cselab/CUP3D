@@ -102,8 +102,14 @@ void PressureProjection::operator()(const double dt)
 {
   pressureSolver->solve();
 
-  sim.startProfiler("GradP");
-  { //pressure correction dudt* = - grad P / rho
+  sim.startProfiler("GradP"); //pressure correction dudt* = - grad P / rho
+  if(sim.bUseStretchedGrid)
+  {
+    const KernelGradP_nonUniform K(dt, sim.extent);
+    compute<KernelGradP_nonUniform>(K);
+  }
+  else
+  {
     const KernelGradP K(dt, sim.extent);
     compute<KernelGradP>(K);
   }

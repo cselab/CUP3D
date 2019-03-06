@@ -412,6 +412,28 @@ void PutFishOnBlocks::operator()(const BlockInfo& info, FluidBlock& b, ObstacleB
   //                    std::chrono::duration<double>(t3-t2).count());
 }
 
+inline Real distPlane(const Real p1[3], const Real p2[3], const Real p3[3],
+                      const Real s[3], const Real IN[3])
+{
+  // make p1 origin of a frame of ref
+  const Real t[3] = {  s[0]-p1[0],  s[1]-p1[1],  s[2]-p1[2] };
+  const Real u[3] = { p2[0]-p1[0], p2[1]-p1[1], p2[2]-p1[2] };
+  const Real v[3] = { p3[0]-p1[0], p3[1]-p1[1], p3[2]-p1[2] };
+  const Real i[3] = { IN[0]-p1[0], IN[1]-p1[1], IN[2]-p1[2] };
+  // normal to the plane:
+  const Real n[3] = {  u[1]*v[2] - u[2]*v[1],
+                       u[2]*v[0] - u[0]*v[2],
+                       u[0]*v[1] - u[1]*v[0]};
+  // if normal points inside then this is going to be positive:
+  const Real projInner = i[0]*n[0] + i[1]*n[1] + i[2]*n[2];
+  // if normal points outside we need to change sign of result:
+  const Real signIn = projInner>0 ? 1 : -1;
+  //every point of the plane will have no projection onto n
+  // therefore, distance of t from plane is:
+  const Real norm = std::sqrt(n[0]*n[0] + n[1]*n[1] + n[2]*n[2]);
+  return signIn * (t[0]*n[0] + t[1]*n[1] + t[2]*n[2]) / norm;
+}
+
 void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
   Real org[3];
@@ -490,7 +512,6 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
           const Real dist0 = eulerDistSq3D(p, myP);
           const Real distP = eulerDistSq3D(p, pP);
           const Real distM = eulerDistSq3D(p, pM);
-          assert(dist0 <= 12*h*h);
           // check if this grid point has already found a closer surf-point:
           if(std::fabs(SDF[sz][sy][sx])<std::min({dist0,distP,distM})) continue;
 
@@ -524,7 +545,49 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
           UDEF[sz][sy][sx][1] = udef[1];
           UDEF[sz][sy][sx][2] = udef[2];
           CHI[sz][sy][sx] = 1; // Not chi, just used to interpolate udef!
-          if(dSsq >= cnt2ML+nxt2ML -corr) // if ds > delta radius
+
+          if(close_s == cfish->Nm-2 || secnd_s == cfish->Nm-2)
+          {
+            // process end of tail:
+            const int TT = cfish->Nm-1, TS = cfish->Nm-2;
+            assert(width[TT]<2.2e-16 && height[TT]<2.2e-16);
+            //compute the 5 corners of the pyramid around tail last point
+            const Real PC[3] = {rX[TT], rY[TT], 0 };
+            const Real PF[3] = {rX[TS], rY[TS], 0 };
+            const Real DXT = p[0] - PF[0], DYT = p[1] - PF[1];
+            const Real projW = width[TS]*norX[TS]*DXT + width[TS]*norY[TS]*DYT;
+            if(p[2] > 0 && projW>0)
+            {
+              const Real PT[3] = {rX[TS], rY[TS],  height[TS] };
+              const Real PP[3] = {rX[TS] +width[TS]*norX[TS], // port
+                                  rY[TS] +width[TS]*norY[TS], 0 };
+              SDF[sz][sy][sx] = distPlane(PC, PT, PP, p, PF);
+            }
+            else
+            if(p[2] > 0 && projW<=0)
+            {
+              const Real PT[3] = {rX[TS], rY[TS],  height[TS] };
+              const Real PS[3] = {rX[TS] -width[TS]*norX[TS], // starbord
+                                  rY[TS] -width[TS]*norY[TS], 0 };
+              SDF[sz][sy][sx] = distPlane(PC, PT, PS, p, PF);
+            }
+            else
+            if(p[2] <= 0 && projW>0)
+            {
+              const Real PB[3] = {rX[TS], rY[TS], -height[TS] };
+              const Real PP[3] = {rX[TS] +width[TS]*norX[TS], // port
+                                  rY[TS] +width[TS]*norY[TS], 0 };
+              SDF[sz][sy][sx] = distPlane(PC, PB, PP, p, PF);
+            }
+            else
+            {
+              const Real PB[3] = {rX[TS], rY[TS], -height[TS] };
+              const Real PS[3] = {rX[TS] -width[TS]*norX[TS], // starbord
+                                  rY[TS] -width[TS]*norY[TS], 0 };
+              SDF[sz][sy][sx] = distPlane(PC, PB, PS, p, PF);
+            }
+          }
+          else if(dSsq >= cnt2ML+nxt2ML -corr) // if ds > delta radius
           { // if no abrupt changes in width we use nearest neighbour
             const Real xMidl[3] = {rX[close_s], rY[close_s], 0};
             const Real grd2ML = eulerDistSq3D(p, xMidl);
