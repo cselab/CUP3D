@@ -30,7 +30,7 @@ namespace cubismup3d {
  */
 struct CellInfo
 {
-  const BlockInfo &block_info;
+  const cubism::BlockInfo &block_info;
   int ix, iy, iz;
 
   std::array<double, 3> get_pos() const { return block_info.pos(ix, iy, iz); }
@@ -53,7 +53,7 @@ struct CellInfo
 template <typename Func>
 void applyKernel(SimulationData &sim, Func func)
 {
-  const std::vector<BlockInfo> &vInfo = sim.vInfo();
+  const std::vector<cubism::BlockInfo> &vInfo = sim.vInfo();
   int size = (int)vInfo.size();
 
   #pragma omp parallel for schedule(static)
@@ -95,14 +95,14 @@ struct StencilKernelLab {
  *    });
  */
 template <typename Func>
-void applyStencilKernel(SimulationData &sim, StencilInfo stencil, Func func)
+void applyStencilKernel(SimulationData &sim, cubism::StencilInfo stencil, Func func)
 {
   // Block-based kernel.
   struct Kernel {
-    const StencilInfo stencil;
+    const cubism::StencilInfo stencil;
     Func func;
 
-    void operator()(LabMPI &lab, const BlockInfo &block_info, FluidBlock &out) const
+    void operator()(LabMPI &lab, const cubism::BlockInfo &block_info, FluidBlock &out) const
     {
       for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
       for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
@@ -117,7 +117,7 @@ void applyStencilKernel(SimulationData &sim, StencilInfo stencil, Func func)
   struct CellwiseOperator : Operator {
     Kernel kernel;
 
-    CellwiseOperator(SimulationData &s, const StencilInfo &stencil, Func func)
+    CellwiseOperator(SimulationData &s, const cubism::StencilInfo &stencil, Func func)
         : Operator(s), kernel{stencil, func} {}
 
     void operator()(const double /* dt */) {

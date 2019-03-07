@@ -3,6 +3,9 @@
 #include "operators/CellwiseOperator.h"
 #include "operators/LinearInterpolation.h"
 
+using namespace cubism;
+using namespace cubismup3d;
+
 double getValue(std::array<double, 3> p) {
   // Must be linear (we are testing linear interpolation).
   return 100.0 * p[0] + 2343 * p[1] + 123. * p[2];

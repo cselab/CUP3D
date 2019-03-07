@@ -48,7 +48,7 @@ typedef double DumpReal;
 #endif
 
 #ifndef CubismUP_3D_NAMESPACE_END
-#define CubismUP_3D_NAMESPACE_END   }  // namespace cubism
+#define CubismUP_3D_NAMESPACE_END   }  // namespace cubismup3d
 #endif
 
 // Cubism dependencies.
