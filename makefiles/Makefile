@@ -28,12 +28,9 @@ bs ?= 16
 hdf ?= true
 hypre ?= false
 petsc ?= false
-rk2 ?= false
 accfft ?= false
 zlib ?= 0
 verbose ?= false
-bc ?= open
-unboundedfft ?= false
 dump_surface_binary ?= false
 
 ifeq "$(dump_surface_binary)" "true"
