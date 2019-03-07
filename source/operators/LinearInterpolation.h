@@ -25,7 +25,7 @@ class Kernel
 public:
   static constexpr std::array<int, 3> stencil_start{-1, -1, -1};
   static constexpr std::array<int, 3> stencil_end{2, 2, 2};
-  const StencilInfo stencil;
+  const cubism::StencilInfo stencil;
 
   Kernel(const LinearCellCenteredInterpolation &_owner,
          Getter &_getter,
@@ -38,7 +38,7 @@ public:
   { }
 
   template <typename Lab, typename BlockType>
-  void operator()(Lab &lab, const BlockInfo &info, BlockType &o) const;
+  void operator()(Lab &lab, const cubism::BlockInfo &info, BlockType &o) const;
 
 private:
   const LinearCellCenteredInterpolation &owner;
@@ -134,7 +134,7 @@ template <typename Getter, typename Setter>
 template <typename Lab, typename BlockType>
 void Kernel<Getter, Setter>::operator()(
     Lab &lab,
-    const BlockInfo &info,
+    const cubism::BlockInfo &info,
     BlockType &o) const
 {
   typedef typename FluidGridMPI::BlockType Block;

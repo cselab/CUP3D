@@ -15,6 +15,7 @@ set(BLOCK_SIZE "16" CACHE String "Number of grid points in a block, per dimensio
 
 option(COMPILE_EXE "Compile executable" OFF)
 option(COMPILE_STATIC_LIB "Compile static library" ON)
+option(COMPILE_PY_SO "Compile Python bindings" OFF)
 
 # Compile-time settings. Stored in a configuration file CubismUP3DMacros.h and imported by Definitions.h.
 option(CUP_ASYNC_DUMP "Use asynchronous data dumps (requires additional memory)" ON)
@@ -31,24 +32,32 @@ execute_process(
     OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE retcode1)
 execute_process(
-    COMMAND python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX')[:-3])"
+    #COMMAND python3 -c "import sysconfig; print(sysconfig.get_config_var('EXT_SUFFIX')[:-3])"
+    COMMAND python3-config --extension-suffix
     OUTPUT_VARIABLE PY_SO_SUFFIX
     OUTPUT_STRIP_TRAILING_WHITESPACE
     RESULT_VARIABLE retcode2)
+execute_process(
+    COMMAND python3-config --ldflags
+    OUTPUT_VARIABLE PYTHON_LIBRARIES
+    OUTPUT_STRIP_TRAILING_WHITESPACE
+    RESULT_VARIABLE retcode3)
 separate_arguments(PYBIND11_INCLUDES)
 set(PYBIND11_FLAGS -shared -fPIC ${PYBIND11_INCLUDES})
 if("${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang")
     set(PYBIND11_FLAGS ${PYBIND11_FLAGS} -undefined dynamic_lookup)
 endif()
 
-set(COMPILE_PY_SO "0")
-if (NOT "${retcode1}" STREQUAL "0")
-    message(WARNING "pybind11 not installed, not compiling .so!")
-    set(COMPILE_PY_SO "0")
-endif()
-if (NOT "${retcode2}" STREQUAL "0")
-    message(WARNING "Cannot get Python .so suffix, not compiling it!")
-    set(COMPILE_PY_SO "0")
+if (COMPILE_PY_SO)
+    if (NOT "${retcode1}" STREQUAL "0")
+        message(FATAL_ERROR "pybind11 not installed, cannot compile Python bindings!")
+    endif()
+    if (NOT "${retcode2}" STREQUAL "0")
+        message(FATAL_ERROR "Cannot get which Python .so suffix to use, cannot compile bindings!")
+    endif()
+    if (NOT "${retcode3}" STREQUAL "0")
+        message(FATAL_ERROR "Command `python3-config --ldflags` failed, cannot compile bindings!")
+    endif()
 endif()
 
 
@@ -60,6 +69,7 @@ set(PY_SO "_cubismup3d${PY_SO_SUFFIX}")  # Has to match the name in `PYBIND11_MO
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})  # Prefer static over dynamic libraries.
 set(CMAKE_SHARED_LIBRARY_PREFIX "")      # No "lib" prefix for shared.
+set(CMAKE_SHARED_LIBRARY_SUFFIX "")      # We already specify it manually.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
 set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
 
@@ -68,32 +78,39 @@ include_directories(${ROOT_FOLDER}/source/)
 set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/Cubism/src/ArgumentParser.cpp  # Temporary solution for Cubism .cpp files.
     ${ROOT_FOLDER}/source/utils/BufferedLogger.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_CarlingFishOperator.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_DCylinderObstacleOperator.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_ExternalObstacleOperator.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_FishLibrary.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_FishOperator.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_NacaOperator.cpp
-    # ${ROOT_FOLDER}/source/obstacles/IF3D_ElasticFishOperator.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_ObstacleFactory.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_ObstacleOperator.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_ObstacleVector.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_PlateObstacleOperator.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_SphereObstacleOperator.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_StefanFishOperator.cpp
-    ${ROOT_FOLDER}/source/obstacles/IF3D_TestDiffusionObstacleOperator.cpp
+
+    ${ROOT_FOLDER}/source/obstacles/CarlingFish.cpp
+    ${ROOT_FOLDER}/source/obstacles/Cylinder.cpp
+    # ${ROOT_FOLDER}/source/obstacles/ElasticFish.cpp
+    ${ROOT_FOLDER}/source/obstacles/Ellipsoid.cpp
+    ${ROOT_FOLDER}/source/obstacles/ExternalObstacle.cpp
+    ${ROOT_FOLDER}/source/obstacles/Fish.cpp
+    ${ROOT_FOLDER}/source/obstacles/FishLibrary.cpp
+    ${ROOT_FOLDER}/source/obstacles/FishShapes.cpp
+    ${ROOT_FOLDER}/source/obstacles/Naca.cpp
+    ${ROOT_FOLDER}/source/obstacles/Obstacle.cpp
+    ${ROOT_FOLDER}/source/obstacles/ObstacleFactory.cpp
+    ${ROOT_FOLDER}/source/obstacles/ObstacleVector.cpp
+    ${ROOT_FOLDER}/source/obstacles/Plate.cpp
+    ${ROOT_FOLDER}/source/obstacles/Sphere.cpp
+    ${ROOT_FOLDER}/source/obstacles/StefanFish.cpp
+
     ${ROOT_FOLDER}/source/operators/AdvectionDiffusion.cpp
     ${ROOT_FOLDER}/source/operators/ComputeDissipation.cpp
     ${ROOT_FOLDER}/source/operators/ExternalForcing.cpp
     ${ROOT_FOLDER}/source/operators/FadeOut.cpp
+    ${ROOT_FOLDER}/source/operators/FluidSolidForces.cpp
     ${ROOT_FOLDER}/source/operators/InitialConditions.cpp
-    ${ROOT_FOLDER}/source/operators/ObstacleManagement.cpp
-    ${ROOT_FOLDER}/source/operators/PressurePenalization.cpp
+    ${ROOT_FOLDER}/source/operators/ObstaclesCreate.cpp
+    ${ROOT_FOLDER}/source/operators/ObstaclesUpdate.cpp
+    ${ROOT_FOLDER}/source/operators/Penalization.cpp
+    ${ROOT_FOLDER}/source/operators/PressureProjection.cpp
     ${ROOT_FOLDER}/source/operators/PressureRHS.cpp
     ${ROOT_FOLDER}/source/poisson/PoissonSolver.cpp
     ${ROOT_FOLDER}/source/poisson/PoissonSolverMixed.cpp
     ${ROOT_FOLDER}/source/poisson/PoissonSolverUnbounded.cpp
     ${ROOT_FOLDER}/source/poisson/PoissonSolverPeriodic.cpp
+
     ${ROOT_FOLDER}/source/Simulation.cpp
     ${ROOT_FOLDER}/source/SimulationData.cpp
 )
@@ -121,12 +138,13 @@ if (COMPILE_STATIC_LIB)
                 ${ROOT_FOLDER}/source/cubism_main.cpp
                 ${ROOT_FOLDER}/source/CubismUP_3D.cpp)
 endif()
-if ("${COMPILE_PY_SO}" STREQUAL "1")
+if (COMPILE_PY_SO)
     set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ROOT_FOLDER}/python/cubismup3d)
     add_library(${PY_SO} SHARED
                 ${COMMON_SOURCES}
                 ${ROOT_FOLDER}/source/bindings/Simulation.cpp)
     target_compile_options(${PY_SO} PRIVATE ${PYBIND11_FLAGS})
+    target_link_libraries(${PY_SO} ${PYTHON_LIBRARIES})
     # https://github.com/conda-forge/hdf5-feedstock/issues/58#issuecomment-310865909
     target_compile_definitions(${PY_SO} PRIVATE "-DH5_BUILT_AS_DYNAMIC_LIB")
 endif()
@@ -206,14 +224,16 @@ if (COMPILE_STATIC_LIB)
         DEPENDS ${STATIC_LIB})
     add_custom_target(${STATIC_LIB_MERGED} ALL DEPENDS ${STATIC_LIB_MERGED_PATH})
 endif()
-if ("${COMPILE_PY_SO}" STREQUAL "1")
+if (COMPILE_PY_SO)
     target_link_libraries(${PY_SO} ${LIBPREFIX}${HDF5_LIBRARIES})
     target_link_libraries(${PY_SO} ${LIBPREFIX}${FFTW_LIBRARIES})
     target_link_libraries(${PY_SO} ${LIBPREFIX}${GSL_LIBRARIES})
 endif()
 
-enable_testing()
-add_subdirectory(tests)
+if (COMPILE_STATIC_LIB)
+    enable_testing()
+    add_subdirectory(tests)
+endif()
 
 # Generate macro file with current compilation settings. This file is generated
 # at configuration time (`cmake ..`), so it should be available for compilation # immediately.

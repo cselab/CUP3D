@@ -2,6 +2,7 @@
 #include "Simulation.h"
 #include "operators/CellwiseOperator.h"
 
+using namespace cubism;
 using namespace cubismup3d;
 
 static constexpr int CELLS_X = 128;
