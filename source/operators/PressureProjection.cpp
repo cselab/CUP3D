@@ -24,12 +24,13 @@ using namespace cubism;
 
 class KernelGradP
 {
-  const Real dt, extent[3];
+  const Real dt;
+  const std::array<Real, 3> extent;
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
 
-  KernelGradP(double _dt, const Real ext[3]): dt(_dt), extent{ext[0],ext[1],ext[2]} {}
+  KernelGradP(double _dt, const std::array<Real, 3> &ext): dt(_dt), extent{ext} {}
 
   ~KernelGradP() {}
 
@@ -50,12 +51,13 @@ class KernelGradP
 
 class KernelGradP_nonUniform
 {
-  const Real dt, extent[3];
+  const Real dt;
+  const std::array<Real, 3> extent;
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
 
-  KernelGradP_nonUniform(double _dt, const Real ext[3]): dt(_dt), extent{ext[0],ext[1],ext[2]} {}
+  KernelGradP_nonUniform(double _dt, const std::array<Real, 3> &ext): dt(_dt), extent{ext} {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const

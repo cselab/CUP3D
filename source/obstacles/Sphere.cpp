@@ -83,8 +83,8 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 };
 }
 
-Sphere::Sphere(SimulationData& s, ArgumentParser& p )
-    : Obstacle(s, p), radius(0.5*length)
+Sphere::Sphere(SimulationData& s, ArgumentParser& p)
+    : Obstacle(s, p), SphereArguments(0.5 * length)
 {
   accel_decel = p("-accel").asBool(false);
   bHemi = p("-hemisphere").asBool(false);
@@ -102,7 +102,7 @@ Sphere::Sphere(
     SimulationData& s,
     ObstacleArguments &args,
     const double R)
-    : Obstacle(s, args), radius(R) { }
+    : Obstacle(s, args), SphereArguments(R) { }
 
 
 Sphere::Sphere(
@@ -111,7 +111,16 @@ Sphere::Sphere(
     const double R,
     const double _umax,
     const double _tmax)
-    : Obstacle(s, args), radius(R), umax(_umax), tmax(_tmax) { }
+    : Obstacle(s, args), SphereArguments(R)
+{
+  umax = _umax;
+  tmax = _tmax;
+}
+
+Sphere::Sphere(
+    SimulationData &s,
+    const ObstacleAndSphereArguments &args)
+    : Obstacle(s, args), SphereArguments(args) { }  // Object slicing.
 
 
 void Sphere::create()

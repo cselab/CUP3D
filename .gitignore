@@ -4,6 +4,7 @@
 *.o
 */*.o
 *.a
+*.dat
 *.so
 *.h5
 *.xmf
@@ -13,6 +14,7 @@ __pycache__
 
 .DS_Store
 ._*
+.pytest_cache
 *.swp
 *.xcodeproj
 /build

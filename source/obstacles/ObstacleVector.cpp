@@ -72,12 +72,6 @@ void ObstacleVector::computeForces()
     obstacle_ptr->computeForces();
 }
 
-ObstacleVector::~ObstacleVector()
-{
-  for(const auto& obstacle_ptr :obstacles) delete obstacle_ptr;
-  obstacles.clear();
-}
-
 void ObstacleVector::save(std::string filename)
 {
   int cntr = 0;

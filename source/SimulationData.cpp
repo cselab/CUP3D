@@ -12,6 +12,7 @@
 #include "operators/Operator.h"
 #include "obstacles/ObstacleVector.h"
 #include "Cubism/ArgumentParser.h"
+#include "Cubism/Profiler.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -131,6 +132,9 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
 
 void SimulationData::_preprocessArguments()
 {
+  assert(profiler == nullptr);  // This should not be possible at all.
+  profiler = new cubism::Profiler();
+
   // Grid.
   if (bpdx < 1 || bpdy < 1 || bpdz < 1) {
       fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);

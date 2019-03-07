@@ -15,6 +15,37 @@
 #include <array>
 #include <fstream>
 
+/*
+ * HOW OBSTACLES WORK
+ *
+ * Each obstacle type T defines 1) an operator `T`, 2) an arguments struct
+ * `TArguments` and 3) a struct `ObstacleAndTArguments` combined struct.
+ *
+ * 1) The operator `T` derives from a base operator `Obstacle` and from the
+ *    struct `TArguments`.
+ * 2) The struct `TArguments` is a stand-alone struct that defines only the
+ *    additional properties of the obstacle type T.
+ * 3) The struct `ObstacleAndTArguments`, used only for construction (from
+ *    Python bindings), derives from `ObstacleArguments` and `TArguments`, and
+ *    defined a constructor these two components.
+ *
+ * The operator `T` then defines the following constructor:
+ *      T(SimulationData &s, const ObstacleAndTArguments &args)
+ *        : Obstacle(s, args), TArguments(args) { ... }
+ *
+ * See `Sphere.h` for an example.
+ *
+ *
+ * POTENTIAL ALTERNATIVE IMPLEMENTATION
+ *
+ * Make `TArguments` a derived class of `ObstacleArguments`.
+ * With that, `Obstacle` must be a template class, e.g.
+ *      `class Sphere : ObstacleImpl<Sphere, SphereArguments> { ... }`.
+ *
+ * Where `ObstacleImpl<>` derives from an abstract `Obstacle`.
+ */
+
+
 // forward declaration of derived class for visitor
 
 namespace cubism { class ArgumentParser; }
@@ -31,7 +62,7 @@ struct ObstacleArguments
 {
   double length = 0.0;
   std::array<double, 3> position = {{0.0, 0.0, 0.0}};
-  std::array<double, 4> quaternion = {{0.0, 0.0, 0.0, 0.0}};
+  std::array<double, 4> quaternion = {{1.0, 0.0, 0.0, 0.0}};
   std::array<double, 3> enforcedVelocity = {{0.0, 0.0, 0.0}};  // Only if bForcedInSimFrame.
   std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
   std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
@@ -120,10 +151,6 @@ public:
   std::vector<ObstacleBlock*>* getObstacleBlocksPtr()
   {
       return &obstacleBlocks;
-  }
-  void getObstacleBlocks(std::vector<ObstacleBlock*>*& obstblock_ptr)
-  {
-      obstblock_ptr = &obstacleBlocks;
   }
 
   virtual ~Obstacle()

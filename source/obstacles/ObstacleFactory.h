@@ -10,6 +10,7 @@
 #define CubismUP_3D_ObstacleFactory_h
 
 #include "obstacles/Obstacle.h"
+#include <memory>
 
 namespace cubism { struct ArgumentParser; }
 
@@ -21,9 +22,11 @@ class ObstacleFactory
   int _getlines(std::string filename);
 
 public:
+  typedef std::vector<std::shared_ptr<Obstacle>> VectorType;
+
   ObstacleFactory(SimulationData & s) : sim(s) { }
   ~ObstacleFactory() {}
-  std::vector<Obstacle *> create(cubism::ArgumentParser &parser);
+  VectorType create(cubism::ArgumentParser &parser);
 };
 
 CubismUP_3D_NAMESPACE_END

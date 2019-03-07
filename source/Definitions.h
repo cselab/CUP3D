@@ -143,7 +143,8 @@ struct BaseBlock
   Real __attribute__((__aligned__(32))) invh_x[sizeX]; // pre-compute inverse mesh-spacings
   Real __attribute__((__aligned__(32))) invh_y[sizeY]; // pre-compute inverse mesh-spacings
   Real __attribute__((__aligned__(32))) invh_z[sizeZ]; // pre-compute inverse mesh-spacings
-  Real min_pos[3], max_pos[3];
+  std::array<Real, 3> min_pos;
+  std::array<Real, 3> max_pos;
   //required from Grid.h
   void clear()
   {

@@ -10,6 +10,8 @@
 #define CubismUP_3D_Simulation_h
 
 #include "SimulationData.h"
+#include <memory>
+
 // Forward declarations.
 namespace cubism { class ArgumentParser; }
 
@@ -26,7 +28,6 @@ class Simulation
 public:
 
   SimulationData sim;
-  cubism::ArgumentParser * parser_ptr = nullptr;
 
   void _init(bool restart = false);
 
@@ -36,7 +37,7 @@ public:
   void _argumentsSanityCheck();
   void setObstacleVector(ObstacleVector *obstacle_vector_);
   void setupOperators();
-  void setupGrid();
+  void setupGrid(cubism::ArgumentParser *parser_ptr = nullptr);
   void _ic();
 
  public:
@@ -52,7 +53,7 @@ public:
   // void removeObstacle(IF3D_ObstacleOperator *obstacle);
 
   /* Get reference to the obstacle container. */
-  const std::vector<Obstacle *> &getObstacleVector() const;
+  const std::vector<std::shared_ptr<Obstacle>> &getObstacleVector() const;
 
   /* Calculate maximum allowed time step, including CFL and ramp-up. */
   double calcMaxTimestep();

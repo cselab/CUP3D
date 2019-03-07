@@ -52,12 +52,13 @@ class KernelIC_RT
 
 class KernelIC_taylorGreen
 {
-  const Real ext[3], uMax;
+  const std::array<Real, 3> ext;
+  const Real uMax;
   const Real a = 2*M_PI / ext[0], b = 2*M_PI / ext[1], c = 2*M_PI / ext[2];
   const Real A = uMax, B = - uMax * ext[1] / ext[0];
  public:
   ~KernelIC_taylorGreen() {}
-  KernelIC_taylorGreen(const Real extent[3], const Real U): ext{extent[0],extent[1],extent[2]}, uMax(U) {}
+  KernelIC_taylorGreen(const std::array<Real, 3> &extent, const Real U): ext{extent}, uMax(U) {}
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -75,11 +76,12 @@ class KernelIC_taylorGreen
 class KernelIC_channel
 {
   const int dir;
-  const Real ext[3], uMax, H = ext[dir], FAC = 4*uMax/H/H; // FAC = 0.5*G/mu
+  const std::array<Real, 3> ext;
+  const Real uMax, H = ext[dir], FAC = 4*uMax/H/H; // FAC = 0.5*G/mu
   //umax =  0.5*G/mu * 0.25*H*H
  public:
-  KernelIC_channel(const Real extent[3], const Real U, const int _dir):
-    dir(_dir), ext{extent[0],extent[1],extent[2]}, uMax(U) {}
+  KernelIC_channel(const std::array<Real, 3> &extent, const Real U, const int _dir):
+    dir(_dir), ext{extent}, uMax(U) {}
   ~KernelIC_channel() {}
 
   void operator()(const BlockInfo& info, FluidBlock& block) const
@@ -191,7 +193,7 @@ void InitialConditions::operator()(const double dt)
       }
     }
     //store deformation velocities onto tmp fields:
-    ObstacleVisitor* visitor = new InitialPenalization(grid, dt, sim.uinf);
+    ObstacleVisitor* visitor = new InitialPenalization(grid, dt, sim.uinf.data());
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
   }

@@ -203,7 +203,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
     const FluidBlock & b = *(FluidBlock*)info.ptrBlock;
 
     for(size_t s=0; s<vSegments.size(); ++s)
-      if(vSegments[s].isIntersectingWithAABB(b.min_pos, b.max_pos)) {
+      if(vSegments[s].isIntersectingWithAABB(b.min_pos.data(), b.max_pos.data())) {
         VolumeSegment_OBB*const ptr  = & vSegments[s];
         ret[info.blockID].push_back( ptr );
       }

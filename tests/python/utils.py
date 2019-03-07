@@ -1,6 +1,6 @@
 import os, sys
 sys.path.insert(
-        1, os.path.normpath(os.path.join(os.path.dirname(__file__), '..', 'python')))
+        1, os.path.normpath(os.path.join(os.path.dirname(__file__), '..', '..', 'python')))
 
 import unittest
 

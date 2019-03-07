@@ -26,10 +26,9 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-std::vector<Obstacle*> ObstacleFactory::create(cubism::ArgumentParser & parser)
+ObstacleFactory::VectorType
+ObstacleFactory::create(cubism::ArgumentParser & parser)
 {
-  std::vector<Obstacle*> retval;
-
   // Read parser information
   parser.unset_strict_mode();
   const std::string factory_filename = parser("-factory").asString("factory");
@@ -64,11 +63,13 @@ std::vector<Obstacle*> ObstacleFactory::create(cubism::ArgumentParser & parser)
   if(factoryLines.size() == 0) {
     if(sim.rank==0)
       std::cout<<"OBSTACLE FACTORY did not create any obstacles."<<std::endl;
-    return retval;
+    return {};
   }
   if(sim.rank==0)
   std::cout << "-------------   OBSTACLE FACTORY : START (" << factoryLines.size() <<" objects)   ------------" << std::endl;
 
+  VectorType retval;
+  retval.reserve(factoryLines.size());
   int k = 0;
   for(auto & object : factoryLines)
   {
@@ -76,52 +77,52 @@ std::vector<Obstacle*> ObstacleFactory::create(cubism::ArgumentParser & parser)
 
       if( objectName == "Sphere" )
     {
-      retval.push_back(new Sphere(sim,object.second));
+      retval.emplace_back(std::make_shared<Sphere>(sim, object.second));
     }
     else if( objectName == "StefanFish" )
     {
-      retval.push_back(new StefanFish(sim,object.second));
+      retval.emplace_back(std::make_shared<StefanFish>(sim, object.second));
     }
     else if( objectName == "CarlingFish" )
     {
-      retval.push_back(new CarlingFish(sim,object.second));
+      retval.emplace_back(std::make_shared<CarlingFish>(sim, object.second));
     }
     else if( objectName == "Naca" )
     {
-      retval.push_back(new Naca(sim,object.second));
+      retval.emplace_back(std::make_shared<Naca>(sim, object.second));
     }
     else if( objectName == "Cylinder" )
     {
-      retval.push_back(new Cylinder(sim,object.second));
+      retval.emplace_back(std::make_shared<Cylinder>(sim, object.second));
     }
     else if( objectName == "Plate" )
     {
-      retval.push_back(new Plate(sim,object.second));
+      retval.emplace_back(std::make_shared<Plate>(sim, object.second));
     }
     else if( objectName == "ExternalObstacle" )
     {
-      retval.push_back(new ExternalObstacle(sim,object.second));
+      retval.emplace_back(std::make_shared<ExternalObstacle>(sim, object.second));
     }
     else if( objectName == "Ellipsoid" )
     {
-      retval.push_back(new Ellipsoid(sim,object.second));
+      retval.emplace_back(std::make_shared<Ellipsoid>(sim, object.second));
     }
     /*
     else if( objectName == "ElasticFish" )
     {
-      retval.push_back(new ElasticFish(grid,object.second,Uinf));
+      retval.emplace_back(std::make_shared<ElasticFish>(grid, object.second, Uinf));
     }
     else if( objectName == "CylinderPair" )
     {
-        retval.push_back(new CylinderPair(grid,object.second,max_bpd));
+        retval.emplace_back(std::make_shared<CylinderPair>(grid, object.second, max_bpd));
     }
     else if( objectName == "Cstart" )
     {
-        retval.push_back(new Cstart(grid,object.second,max_bpd));
+        retval.emplace_back(std::make_shared<Cstart>(grid, object.second, max_bpd));
     }
     else if( objectName == "VortexGenerator" )
     {
-        retval.push_back(new GenerateVortex(grid,object.second,max_bpd));
+        retval.emplace_back(std::make_shared<GenerateVortex>(grid, object.second, max_bpd));
     }
      */
     else

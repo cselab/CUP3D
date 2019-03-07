@@ -212,14 +212,14 @@ void AdvectionDiffusion::operator()(const double dt)
   {
     if(sim.bUseStretchedGrid)
     {
-      const KernelAdvectDiffuse_nonUniform K(dt, sim.nu, sim.uinf, sim.lambda);
+      const KernelAdvectDiffuse_nonUniform K(dt, sim.nu, sim.uinf.data(), sim.lambda);
       compute<KernelAdvectDiffuse_nonUniform>(K);
     }
     else
     {
       //using K_t = KernelAdvectDiffuse_HighOrder;
       using K_t = KernelAdvectDiffuse;
-      const K_t K(dt, sim.nu, sim.uinf, sim.lambda);
+      const K_t K(dt, sim.nu, sim.uinf.data(), sim.lambda);
       compute<K_t>(K);
     }
   }

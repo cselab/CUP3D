@@ -47,7 +47,16 @@ cmake ..
 make
 ```
 
-If that doesn't work, read the following section.
+If that doesn't work, read the [Detailed installation instructions](#detailed-installation-instructions) below.
+
+# Tests
+
+To run the tests, starting from the repository root folder, execute the following:
+```
+cd build
+ctest
+pytest ../tests/python/
+```
 
 # Detailed installation instructions
 

@@ -1,12 +1,17 @@
 #include <mpi.h>
 #include "bindings/Common.h"
 #include "Simulation.h"
+#include "obstacles/Obstacle.h"
+#include "obstacles/Sphere.h"
 
-using namespace cubismup3d::pytypes;
+using namespace cubismup3d;
+using namespace cubismup3d::pybindings;
 using namespace pybind11::literals;
+namespace py = pybind11;
 
 namespace {
 
+/* Ensure that we load highest thread level we need. */
 struct CUP_MPI_Loader {
   CUP_MPI_Loader() {
     int flag, provided;
@@ -32,45 +37,57 @@ struct CUP_MPI_Loader {
   }
 } cup_mpi_loader;
 
+
+std::shared_ptr<SimulationData> init_SimulationData(
+    MPI_Comm comm,
+    double CFL,
+    std::array<int, 3> cells,
+    std::array<Real, 3> uinf)
+{
+  auto SD = std::make_shared<SimulationData>(comm);
+  SD->setCells(cells[0], cells[1], cells[2]);
+  SD->CFL = CFL;
+  SD->uinf[0] = uinf[0];
+  SD->uinf[1] = uinf[1];
+  SD->uinf[2] = uinf[2];
+  return SD;
+}
+
 }  // namespace
 
-namespace py = pybind11;
-PYBIND11_MODULE(_cubismup3d, m) {
+PYBIND11_MODULE(cubismup3d, m) {
 
-    m.doc() = "CubismUP3D solver for incompressible Navier-Stokes";
+  m.doc() = "CubismUP3D solver for incompressible Navier-Stokes";
 
-    // This should support everything that ArgumentParser version of the
-    // Simulation constructor has.
-    py::class_<Simulation, std::shared_ptr<Simulation>>(m, "Simulation")
-        .def(py::init<int3, int3,
-                      MPI_Comm,
-                      int, double,
-                      double, double, double, double,
-                      double3,
-                      bool, bool,
-                      bool, bool,
-                      double /* fadeOutLength */,
-                      int, double,
-                      const std::string &,
-                      bool>(),
-             py::return_value_policy::take_ownership,
-             "cells"_a, "nproc"_a = int3{-1, -1, -1},
-             "comm"_a = MPI_COMM_WORLD,
-             "nsteps"_a = 0, "endTime"_a = 0.0,
-             "nu"_a = 0.0, "CFL"_a = 0.1, "lambda_"_a = 0.0, "DLM"_a = 1.0,
-             "uinf"_a = double3{0.0, 0.0, 0.0},
-             "verbose"_a = true, "computeDissipation"_a = false,
-             "dump3D"_a = true, "dump2D"_a = false,
-             "fadeOutLength"_a = 0.005,
-             "saveFreq"_a = 0, "saveTime"_a = 0.0,
-             "path4serialization"_a = std::string("./"),
-             "restart"_a = false, R"(
-            Documentation....
-        )")
-        .def_readonly("bpdx", &Simulation::bpdx, "Blocks in x-direction.")
-        .def_readonly("bpdy", &Simulation::bpdy, "Blocks in y-direction.")
-        .def_readonly("bpdz", &Simulation::bpdz, "Blocks in z-direction.")
-        .def_readonly("nprocsx", &Simulation::nprocsx)
-        .def_readonly("nprocsy", &Simulation::nprocsy)
-        .def_readonly("nprocsz", &Simulation::nprocsz);
+  /* SimulationData */
+  SimulationData SD{MPI_COMM_WORLD};  // For default values.
+  py::class_<SimulationData, std::shared_ptr<SimulationData>>(m, "SimulationData")
+      .def(py::init<MPI_Comm>())
+      .def(py::init(&init_SimulationData),
+           "comm"_a = MPI_COMM_WORLD,
+           "CFL"_a,    // Mandatory.
+           "cells"_a,  // Mandatory.
+           "uinf"_a = SD.uinf)
+      .def_readwrite("CFL", &SimulationData::CFL)
+      .def_readwrite("BCx_flag", &SimulationData::BCx_flag, "Boundary condition in x-axis.")
+      .def_readwrite("BCy_flag", &SimulationData::BCy_flag, "Boundary condition in y-axis.")
+      .def_readwrite("BCz_flag", &SimulationData::BCz_flag, "Boundary condition in z-axis.")
+      .def_readwrite("extent", &SimulationData::extent)
+      .def_readwrite("uinf", &SimulationData::uinf)
+      .def_readwrite("nsteps", &SimulationData::nsteps)
+      .def("setCells", &SimulationData::setCells);
+
+
+  /* Simulation */
+  py::class_<Simulation, std::shared_ptr<Simulation>>(m, "Simulation")
+      .def(py::init<const SimulationData &>(),
+           R"(
+               Simulation documentation....
+           )")
+      .def_readonly("sim", &Simulation::sim, py::return_value_policy::reference)
+      .def("run", &Simulation::run)
+      .def("add_obstacle", &Simulation_addObstacle);
+
+
+  bindObstacles(m);
 }

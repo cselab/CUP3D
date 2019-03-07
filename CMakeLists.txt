@@ -64,8 +64,7 @@ endif()
 # Source files and target
 set(STATIC_LIB "cubismup3d")
 set(STATIC_LIB_MERGED "cubismup3d_merged")  # Merged with 3rd party libraries.
-set(PY_SO "_cubismup3d${PY_SO_SUFFIX}")  # Has to match the name in `PYBIND11_MODULE`.
-                                         # Wrapped by `python/cubismup3d/__init__.py`.
+set(PY_SO "cubismup3d${PY_SO_SUFFIX}")
 
 set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})  # Prefer static over dynamic libraries.
 set(CMAKE_SHARED_LIBRARY_PREFIX "")      # No "lib" prefix for shared.
@@ -117,7 +116,7 @@ set(COMMON_SOURCES           # Common for app and lib.
 
 # GCC flags
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-maybe-uninitialized")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wshadow")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O3 -march=native -fstrict-aliasing -ffast-math -falign-functions=32")
 set(CMAKE_CXX_EXTENSIONS OFF)  # -std=c++11, not -std=gnu++11!
@@ -135,13 +134,13 @@ if (COMPILE_STATIC_LIB)
     set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${ROOT_FOLDER}/lib)
     add_library(${STATIC_LIB}
                 ${COMMON_SOURCES}
-                ${ROOT_FOLDER}/source/cubism_main.cpp
-                ${ROOT_FOLDER}/source/CubismUP_3D.cpp)
+                ${ROOT_FOLDER}/source/cubism_main.cpp)
 endif()
 if (COMPILE_PY_SO)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ROOT_FOLDER}/python/cubismup3d)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${ROOT_FOLDER}/python)
     add_library(${PY_SO} SHARED
                 ${COMMON_SOURCES}
+                ${ROOT_FOLDER}/source/bindings/Obstacles.cpp
                 ${ROOT_FOLDER}/source/bindings/Simulation.cpp)
     target_compile_options(${PY_SO} PRIVATE ${PYBIND11_FLAGS})
     target_link_libraries(${PY_SO} ${PYTHON_LIBRARIES})
