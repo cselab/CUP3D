@@ -8,6 +8,7 @@ function(add_unittest TEST_NAME)
 endfunction()
 
 add_library(cup_tests_lib
-            ${ROOT_FOLDER}/tests/Utils.cpp)
+            ${ROOT_FOLDER}/tests/cubismup3d/Utils.cpp)
 add_unittest(TestBoundaries)
 add_unittest(TestInterpolation)
+add_unittest(TestBufferedLogger)

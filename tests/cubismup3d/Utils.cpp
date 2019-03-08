@@ -4,7 +4,7 @@
 namespace cubismup3d {
 namespace tests {
 
-void init(int *argc, char ***argv) {
+void init_mpi(int *argc, char ***argv) {
   int provided;
   #ifdef CUP_ASYNC_DUMP
     const auto SECURITY = MPI_THREAD_MULTIPLE;
@@ -19,7 +19,7 @@ void init(int *argc, char ***argv) {
   }
 }
 
-void finalize(void) {
+void finalize_mpi(void) {
   MPI_Finalize();
 }
 

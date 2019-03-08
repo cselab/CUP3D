@@ -1,4 +1,4 @@
-#include "../Utils.h"
+#include "Utils.h"
 #include "Simulation.h"
 #include "operators/CellwiseOperator.h"
 #include "operators/LinearInterpolation.h"
@@ -65,9 +65,9 @@ bool testLinearInterpolation() {
 }
 
 int main(int argc, char **argv) {
-  cubismup3d::tests::init(&argc, &argv);
+  tests::init_mpi(&argc, &argv);
 
   CUP_RUN_TEST(testLinearInterpolation);
 
-  cubismup3d::tests::finalize();
+  tests::finalize_mpi();
 }

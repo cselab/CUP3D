@@ -1,4 +1,4 @@
-#include "../Utils.h"
+#include "Utils.h"
 #include "Simulation.h"
 #include "operators/CellwiseOperator.h"
 
@@ -10,12 +10,14 @@ static constexpr int CELLS_Y = 32;
 static constexpr int CELLS_Z = 32;
 
 /* Expected value of a given cell. */
-double getElementValue(int abs_ix, int abs_iy, int abs_iz) {
+double getElementValue(int abs_ix, int abs_iy, int abs_iz)
+{
   return abs_ix + 1000 * abs_iy + 1000000 * abs_iz;
 }
 
 /* Test one stencil on periodic boundaries with a ready simulation object. */
-void _testPeriodicBoundaries(Simulation &S, StencilInfo stencil, int dx, int dy, int dz) {
+void _testPeriodicBoundaries(Simulation &S, StencilInfo stencil, int dx, int dy, int dz)
+{
   // Reset the grid to some initial vlaue.
   applyKernel(S.sim, [](CellInfo info, FluidElement &e) {
     e.u = getElementValue(info.get_abs_ix(), info.get_abs_iy(), info.get_abs_iz());
@@ -50,7 +52,8 @@ void _testPeriodicBoundaries(Simulation &S, StencilInfo stencil, int dx, int dy,
 }
 
 /* Test stencils on periodic boundaries. */
-bool testPeriodicBoundaries() {
+bool testPeriodicBoundaries()
+{
   // Prepare simulation data and the simulation object.
   auto prepareSimulationData = []() {
     SimulationData SD{MPI_COMM_WORLD};
@@ -72,10 +75,11 @@ bool testPeriodicBoundaries() {
   return true;
 }
 
-int main(int argc, char **argv) {
-  tests::init(&argc, &argv);
+int main(int argc, char **argv)
+{
+  tests::init_mpi(&argc, &argv);
 
   CUP_RUN_TEST(testPeriodicBoundaries);
 
-  tests::finalize();
+  tests::finalize_mpi();
 }
