@@ -75,4 +75,4 @@ void BufferedLogger::flush(void) {
     impl->flush(pair);
 }
 
-}
+}  // namespace cubismup3d

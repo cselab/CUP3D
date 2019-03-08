@@ -12,7 +12,7 @@
 #include "operators/Operator.h"
 #include <vector>
 
-namespace cubismup3d {
+CubismUP_3D_NAMESPACE_BEGIN
 
 namespace _linint_impl {
 
@@ -218,6 +218,6 @@ void linearCellCenteredInterpolation(
 }
 
 
-}  // cubismup3d
+CubismUP_3D_NAMESPACE_END
 
 #endif

@@ -9,6 +9,7 @@
 #include <iostream>
 #include <fstream>
 #include "obstacles/ObstacleFactory.h"
+#include "obstacles/ObstacleVector.h"
 #include "obstacles/extra/FactoryFileLineParser.h"
 
 #include "obstacles/CarlingFish.h"
@@ -99,15 +100,15 @@ ObstacleFactory::create(cubism::ArgumentParser & parser)
     {
       retval.emplace_back(std::make_shared<Plate>(sim, object.second));
     }
-    else if( objectName == "ExternalObstacle" )
-    {
-      retval.emplace_back(std::make_shared<ExternalObstacle>(sim, object.second));
-    }
     else if( objectName == "Ellipsoid" )
     {
       retval.emplace_back(std::make_shared<Ellipsoid>(sim, object.second));
     }
     /*
+    else if( objectName == "ExternalObstacle" )
+    {
+      retval.emplace_back(std::make_shared<ExternalObstacle>(sim, object.second));
+    }
     else if( objectName == "ElasticFish" )
     {
       retval.emplace_back(std::make_shared<ElasticFish>(grid, object.second, Uinf));
@@ -141,5 +142,12 @@ ObstacleFactory::create(cubism::ArgumentParser & parser)
 
   return retval;
 }
+
+
+void ObstacleFactory::addObstacle(const ObstacleAndExternalArguments &args)
+{
+  sim.obstacle_vector->addObstacle(std::make_shared<ExternalObstacle>(sim, args));
+}
+
 
 CubismUP_3D_NAMESPACE_END

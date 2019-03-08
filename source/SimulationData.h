@@ -116,6 +116,9 @@ struct SimulationData
   void printResetProfiler();
   void _preprocessArguments();
   ~SimulationData();
+  SimulationData() = delete;
+  SimulationData(const SimulationData &);
+  SimulationData(SimulationData &&);
   SimulationData(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
   SimulationData(MPI_Comm mpicomm);
   void setCells(int nx, int ny, int nz);
