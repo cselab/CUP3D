@@ -32,7 +32,7 @@ public:
             const double yS, const double yE,
             const double zS, const double zE,
             const unsigned int nBlocksX, const unsigned int nBlocksY, const unsigned int nBlocksZ) :
-        m_h_min{HUGE_VAL,HUGE_VAL,HUGE_VAL},
+        m_h_min{HUGE_VAL,HUGE_VAL,HUGE_VAL},  m_h_max{-1,-1,-1},
         m_initialized(false),
         m_map_x(xS,xE,nBlocksX),
         m_map_y(yS,yE,nBlocksY),
@@ -82,18 +82,23 @@ public:
         m_map_z.init(kernel_z, StencilMax, StencilMax, &ghosts[0]);
         m_all_delta_z.fill(m_map_z, &ghosts[0]);
 
-        for (size_t i = 0; i < m_map_x.ncells(); ++i)
-            if (m_map_x.cell_width(i) < m_h_min[0])
-                m_h_min[0] = m_map_x.cell_width(i);
+        for (size_t i = 0; i < m_map_x.ncells(); ++i) {
+          if(m_map_x.cell_width(i)>m_h_max[0]) m_h_max[0]=m_map_x.cell_width(i);
+          if(m_map_x.cell_width(i)<m_h_min[0]) m_h_min[0]=m_map_x.cell_width(i);
+        }
 
-        for (size_t i = 0; i < m_map_y.ncells(); ++i)
-            if (m_map_y.cell_width(i) < m_h_min[1])
-                m_h_min[1] = m_map_y.cell_width(i);
+        for (size_t i = 0; i < m_map_y.ncells(); ++i) {
+          if(m_map_y.cell_width(i)>m_h_max[1]) m_h_max[1]=m_map_y.cell_width(i);
+          if(m_map_y.cell_width(i)<m_h_min[1]) m_h_min[1]=m_map_y.cell_width(i);
+        }
 
-        for (size_t i = 0; i < m_map_z.ncells(); ++i)
-            if (m_map_z.cell_width(i) < m_h_min[2])
-                m_h_min[2] = m_map_z.cell_width(i);
-
+        for (size_t i = 0; i < m_map_z.ncells(); ++i) {
+          if(m_map_z.cell_width(i)>m_h_max[2]) m_h_max[2]=m_map_z.cell_width(i);
+          if(m_map_z.cell_width(i)<m_h_min[2]) m_h_min[2]=m_map_z.cell_width(i);
+        }
+        assert(m_h_max[0]>=m_h_min[0] &&
+               m_h_max[1]>=m_h_min[1] &&
+               m_h_max[2]>=m_h_min[2]);
         m_initialized = true;
     }
 
@@ -173,7 +178,7 @@ public:
             exit(1);
         }
 
-#pragma omp parallel for
+        #pragma omp parallel for
         for(int i=0; i<(int)infos.size(); ++i)
         {
             cubism::BlockInfo info = infos[i];
@@ -203,17 +208,27 @@ public:
 
     inline double minimum_cell_width(const int i=-1) const
     {
-        assert(i < 3);
-        assert(i > -2);
+        assert(i < 3 && i > -2);
         if (!m_initialized)
         {
             fprintf(stderr, "ERROR: NonUniformScheme.h: minimum_cell_width() can not return m_h_min, not initialized.\n");
             exit(1);
         }
-        double all_min = (m_h_min[0]<m_h_min[1]) ? m_h_min[0] : m_h_min[1];
-        all_min = (all_min < m_h_min[2]) ? all_min : m_h_min[2];
+        const double all_min = std::min({m_h_min[0], m_h_min[1], m_h_min[2]});
         if (-1 == i) return all_min;
         else         return m_h_min[i];
+    }
+    inline double maximum_cell_width(const int i=-1) const
+    {
+        assert(i < 3 && i > -2);
+        if (!m_initialized)
+        {
+            fprintf(stderr, "ERROR: NonUniformScheme.h: maximum_cell_width() can not return m_h_max, not initialized.\n");
+            exit(1);
+        }
+        const double all_max = std::max({m_h_max[0], m_h_max[1], m_h_max[2]});
+        if (-1 == i) return all_max;
+        else         return m_h_max[i];
     }
 
     void print_mesh_statistics(const bool verb=true)
@@ -227,7 +242,7 @@ public:
     }
 
 private:
-    double m_h_min[3];
+    double m_h_min[3], m_h_max[3];
     bool m_initialized;
     TMeshMap m_map_x;
     TMeshMap m_map_y;

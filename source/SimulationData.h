@@ -10,8 +10,6 @@
 #define CubismUP_3D_SimulationData_h
 
 #include "Definitions.h"
-#include "utils/NonUniformScheme.h"
-#include "Cubism/HDF5SliceDumperMPI.h"
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
 #endif
@@ -23,7 +21,11 @@
 #endif
 #include <vector>
 
-namespace cubism { class Profiler; }
+namespace cubism {
+  class Profiler;
+  class ArgumentParser;
+  namespace SliceTypesMPI { template<typename grid_t> class Slice; }
+}
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -44,13 +46,10 @@ struct SimulationData
   cubism::Profiler * profiler = nullptr;
 
   FluidGridMPI * grid = nullptr;
-  NonUniformScheme<FluidBlock>* nonuniform = nullptr;
   const inline std::vector<cubism::BlockInfo>& vInfo() const {
     return grid->getBlocksInfo();
   }
-  Real maxH() const { // TODO
-    return vInfo()[0].h_gridpoint;
-  }
+  Real maxH() const { return hmax; }
 
   // vector of 2D slices (for dumping)
   std::vector<SliceType> m_slices;
@@ -78,7 +77,7 @@ struct SimulationData
   Real maxextent = 1;
   std::array<Real, 3> extent = {{1, 0, 0}};  // Uniform grid by default.
   bool bUseStretchedGrid = false;
-  Real hmin=0;
+  Real hmin=0, hmax=0;
 
   // flow variables
   std::array<Real, 3> uinf = {{0, 0, 0}};
@@ -110,7 +109,6 @@ struct SimulationData
     MPI_Comm dump_comm = MPI_COMM_NULL;
     DumpGridMPI * dump = nullptr;
     std::thread * dumper = nullptr;
-    NonUniformScheme<DumpBlock>* nonuniform_dump = nullptr;
   #endif
 
   void startProfiler(std::string name) const;

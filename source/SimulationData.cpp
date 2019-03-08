@@ -13,6 +13,7 @@
 #include "obstacles/ObstacleVector.h"
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/Profiler.h"
+#include "Cubism/HDF5SliceDumperMPI.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -208,7 +209,6 @@ SimulationData::~SimulationData()
 {
   delete grid;
   delete profiler;
-  //delete m_nonuniform;
   delete obstacle_vector;
   while(!pipeline.empty()) {
     auto * g = pipeline.back();

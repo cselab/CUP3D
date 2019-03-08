@@ -93,9 +93,6 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
   const double dt, lambda;
   FluidGridMPI * const grid;
 
-  std::array<   int, 3> nSum = {{0, 0, 0}};
-  std::array<double, 3> uSum = {{0, 0, 0}};
-
   KernelFinalizeObstacleVel(double _dt, double _lambda, FluidGridMPI*g) :
     dt(_dt), lambda(_lambda), grid(g) { }
 
@@ -185,11 +182,6 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     #endif
 
     obst->computeVelocities();
-
-    const auto &bFixFrameOfRef = obst->bFixFrameOfRef;
-    if (bFixFrameOfRef[0]) { nSum[0]++; uSum[0] -= obst->transVel[0]; }
-    if (bFixFrameOfRef[1]) { nSum[1]++; uSum[1] -= obst->transVel[1]; }
-    if (bFixFrameOfRef[2]) { nSum[2]++; uSum[2] -= obst->transVel[2]; }
   }
 };
 
@@ -209,19 +201,11 @@ void UpdateObstacles::operator()(const double dt)
   sim.stopProfiler();
 
   sim.startProfiler("Obst Upd Vel");
-  auto* K = new KernelFinalizeObstacleVel(dt, sim.lambda, sim.grid);
-  ObstacleVisitor* kernel = static_cast<ObstacleVisitor*>(K);
-  assert(kernel not_eq nullptr);
-  sim.obstacle_vector->Accept(kernel); // accept you son of a french cow
-  if( K->nSum[0] > 0 ) sim.uinf[0] = K->uSum[0] / K->nSum[0];
-  if( K->nSum[1] > 0 ) sim.uinf[1] = K->uSum[1] / K->nSum[1];
-  if( K->nSum[2] > 0 ) sim.uinf[2] = K->uSum[2] / K->nSum[2];
-  //if(rank == 0) if(nSum[0] || nSum[1] || nSum[2])
-  //  printf("New Uinf %g %g %g (from %d %d %d)\n",
-  //  uInf[0],uInf[1],uInf[2],nSum[0],nSum[1],nSum[2]);
-  delete K;
-  // Obstacles' advection must be done after we compute new uinf :
-  sim.obstacle_vector->update();
+  {
+    ObstacleVisitor*K = new KernelFinalizeObstacleVel(dt, sim.lambda, sim.grid);
+    sim.obstacle_vector->Accept(K); // accept you son of a french cow
+    delete K;
+  }
   sim.stopProfiler();
 
   check("UpdateObstacles");

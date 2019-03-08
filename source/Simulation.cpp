@@ -23,13 +23,21 @@
 #include "obstacles/ObstacleFactory.h"
 #include "operators/ProcessHelpers.h"
 #include "Cubism/HDF5Dumper_MPI.h"
+#include "Cubism/HDF5SliceDumperMPI.h"
 #include "Cubism/MeshKernels.h"
+#include "utils/NonUniformScheme.h"
 #include <iomanip>
 #include <iostream>
 #include <sstream>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
+
+#ifdef CUP_ASYNC_DUMP
+ using SliceType  = cubism::SliceTypesMPI::Slice<DumpGridMPI>;
+#else
+ using SliceType  = cubism::SliceTypesMPI::Slice<FluidGridMPI>;
+#endif
 
 // Initialization from cmdline arguments is done in few steps, because grid has
 // to be created before the obstacles and slices are created.
@@ -168,50 +176,53 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                                   sim.local_bpdx,sim.local_bpdy,sim.local_bpdz,
                                   sim.maxextent, sim.dump_comm);
     #endif
+    sim.hmin = sim.grid->getBlocksInfo()[0].h_gridpoint;
+    sim.hmax = sim.grid->getBlocksInfo()[0].h_gridpoint;
   }
   else
   {
     if(sim.rank==0)
       printf("Stretched grid of sizes: %f %f %f\n",
       sim.extent[0],sim.extent[1],sim.extent[2]);
-    sim.nonuniform = new NonUniformScheme<FluidBlock>( 0, sim.extent[0],
+    NonUniformScheme<FluidBlock> nonuniform( 0, sim.extent[0],
       0, sim.extent[1], 0, sim.extent[2], sim.bpdx, sim.bpdy, sim.bpdz);
 
     // initialize scheme
     assert(parser_ptr != nullptr
            && "Cannot use a stretched grid and initialize without an ArgumentParser.");
     MeshDensityFactory mk(* parser_ptr);
-    sim.nonuniform->init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
+    nonuniform.init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
 
     sim.grid = new FluidGridMPI(
-      & sim.nonuniform->get_map_x(), & sim.nonuniform->get_map_y(),
-      & sim.nonuniform->get_map_z(), sim.nprocsx, sim.nprocsy, sim.nprocsz,
+      & nonuniform.get_map_x(), & nonuniform.get_map_y(),
+      & nonuniform.get_map_z(), sim.nprocsx, sim.nprocsy, sim.nprocsz,
       sim.local_bpdx, sim.local_bpdy, sim.local_bpdz, sim.app_comm);
     assert(sim.grid != nullptr);
 
     #ifdef CUP_ASYNC_DUMP
       // create new comm so that if there is a barrier main work is not affected
       MPI_Comm_split(sim.app_comm, 0, sim.rank, & sim.dump_comm);
-      sim.nonuniform_dump = new NonUniformScheme<DumpBlock>( 0, sim.extent[0],
+      NonUniformScheme<DumpBlock> nonuniform_dump( 0, sim.extent[0],
         0, sim.extent[1], 0, sim.extent[2], sim.bpdx, sim.bpdy, sim.bpdz);
-      sim.nonuniform_dump->init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
+      nonuniform_dump.init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
       sim.dump = new  DumpGridMPI(
-        & sim.nonuniform_dump->get_map_x(), & sim.nonuniform_dump->get_map_y(),
-        & sim.nonuniform_dump->get_map_z(), sim.nprocsx,sim.nprocsy,sim.nprocsz,
+        & nonuniform_dump.get_map_x(), & nonuniform_dump.get_map_y(),
+        & nonuniform_dump.get_map_z(), sim.nprocsx,sim.nprocsy,sim.nprocsz,
         sim.local_bpdx, sim.local_bpdy, sim.local_bpdz, sim.dump_comm);
     #endif
 
     // setp block coefficients
-    sim.nonuniform->template setup_coefficients<FDcoeffs_2ndOrder>(
+    nonuniform.template setup_coefficients<FDcoeffs_2ndOrder>(
       sim.grid->getBlocksInfo());
-    sim.nonuniform->template setup_coefficients<FDcoeffs_4thOrder>(
+    nonuniform.template setup_coefficients<FDcoeffs_4thOrder>(
       sim.grid->getBlocksInfo(), true);
-    sim.nonuniform->setup_inverse_spacing(
+    nonuniform.setup_inverse_spacing(
       sim.grid->getBlocksInfo());
 
     // some statistics
-    sim.nonuniform->print_mesh_statistics(sim.rank == 0);
-    sim.hmin = sim.nonuniform->minimum_cell_width();
+    nonuniform.print_mesh_statistics(sim.rank == 0);
+    sim.hmin = nonuniform.minimum_cell_width();
+    sim.hmax = nonuniform.maximum_cell_width();
   }
 
   const std::vector<BlockInfo>& vInfo = sim.vInfo();
@@ -273,9 +284,6 @@ void Simulation::setupOperators()
   // u_{t+1} = \tilde{u} -\delta t \nabla P. This is final pre-penal vel field.
   sim.pipeline.push_back(new PressureProjection(sim));
 
-  // before penalization kills transition region, compute forces:
-  sim.pipeline.push_back(new ComputeForces(sim));
-
   // Compute velocity of the obstacles and, in the same sweep if frame of ref
   // is moving, we update uinf. Requires the pre-penal vel field on the grid!!
   // We also update position and quaternions of the obstacles.
@@ -284,7 +292,8 @@ void Simulation::setupOperators()
   // With pre-penal vel field and obstacles' velocities perform penalization.
   sim.pipeline.push_back(new Penalization(sim));
 
-  // With finalized velocity and pressure, compute dissipation
+  // With finalized velocity and pressure, compute forces and dissipation
+  sim.pipeline.push_back(new ComputeForces(sim));
   if(sim.computeDissipation)
     sim.pipeline.push_back(new ComputeDissipation(sim));
 

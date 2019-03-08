@@ -87,9 +87,8 @@ struct KernelPenalization : public ObstacleVisitor
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
-      // What if two obstacles overlap? Let's plus equal. After all here
-      // we are computing divUs, maybe one obstacle has divUs 0. We will
-      // need a repulsion term of the velocity at some point in the code.
+      // What if two obstacles overlap? Let's plus equal. We will need a
+      // repulsion term of the velocity at some point in the code.
       #ifndef OLD_INTEGRATE_MOM
         b(ix,iy,iz).u += X * ( U_TOT[0] - b(ix,iy,iz).u ) * penalFac;
         b(ix,iy,iz).v += X * ( U_TOT[1] - b(ix,iy,iz).v ) * penalFac;
@@ -118,6 +117,9 @@ void Penalization::operator()(const double dt)
   }
   sim.stopProfiler();
 
+  sim.uinf = sim.obstacle_vector->updateUinf();
+  // Obstacles' advection must be done after we perform penalization:
+  sim.obstacle_vector->update();
   check("Penalization");
 }
 
