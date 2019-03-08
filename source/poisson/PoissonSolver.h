@@ -54,9 +54,9 @@ class PoissonSolver
   PoissonSolver(SimulationData&s) : sim(s)
   {
     if (StreamerDiv::channels != 1) {
-      std::cout << "PoissonSolverScalar_MPI(): Error: StreamerDiv::channels is "
-                << StreamerDiv::channels << " (should be 1)." << std::endl;
-      abort();
+      fprintf(stderr, "PoissonSolverScalar_MPI(): Error: StreamerDiv::channels is %d (should be 1)\n",
+              StreamerDiv::channels);
+      exit(1);
     }
   }
   PoissonSolver(const PoissonSolver& c) = delete;

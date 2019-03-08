@@ -1,4 +1,4 @@
-#include "../Utils.h"
+#include "Utils.h"
 #include "Simulation.h"
 #include "operators/CellwiseOperator.h"
 #include "operators/LinearInterpolation.h"
@@ -6,14 +6,14 @@
 using namespace cubism;
 using namespace cubismup3d;
 
-double getValue(std::array<double, 3> p) {
+double getValue(std::array<Real, 3> p) {
   // Must be linear (we are testing linear interpolation).
   return 100.0 * p[0] + 2343 * p[1] + 123. * p[2];
 }
 
 bool testLinearInterpolation() {
   constexpr int NUM_POINTS = 10000;
-  constexpr double extent = 100.0;
+  constexpr Real extent = 100.0;
 
   // Prepare simulation data and the simulation object.
   auto prepareSimulationData = []() {
@@ -34,12 +34,12 @@ bool testLinearInterpolation() {
   });
 
   // Generate random points. Avoid boundaries.
-  std::vector<std::array<double, 3>> points;
+  std::vector<std::array<Real, 3>> points;
   points.reserve(NUM_POINTS);
   for (int i = 0; i < NUM_POINTS; ++i) {
-    double x = extent * (0.1 + 0.8 / RAND_MAX * rand());
-    double y = extent * (0.1 + 0.8 / RAND_MAX * rand());
-    double z = extent * (0.1 + 0.8 / RAND_MAX * rand());
+    Real x = extent * (0.1 + 0.8 / RAND_MAX * rand());
+    Real y = extent * (0.1 + 0.8 / RAND_MAX * rand());
+    Real z = extent * (0.1 + 0.8 / RAND_MAX * rand());
     points.push_back({x, y, z});
   }
   std::vector<double> result(NUM_POINTS);
@@ -65,9 +65,9 @@ bool testLinearInterpolation() {
 }
 
 int main(int argc, char **argv) {
-  cubismup3d::tests::init(&argc, &argv);
+  tests::init_mpi(&argc, &argv);
 
   CUP_RUN_TEST(testLinearInterpolation);
 
-  cubismup3d::tests::finalize();
+  tests::finalize_mpi();
 }

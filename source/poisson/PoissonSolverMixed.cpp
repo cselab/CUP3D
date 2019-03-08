@@ -17,14 +17,14 @@ PoissonSolverMixed::PoissonSolverMixed(SimulationData & s) : PoissonSolver(s)
   int supported_threads;
   MPI_Query_thread(&supported_threads);
   if (supported_threads<MPI_THREAD_FUNNELED) {
-  std::cout<<"PoissonSolverMixed ERROR: MPI implementation does not support threads."<<std::endl;
-  abort();
+    fprintf(stderr, "PoissonSolverMixed ERROR: MPI implementation does not support threads.\n");
+    exit(1);
   }
 
   const int retval = _FFTW_(init_threads)();
   if(retval==0) {
-    std::cout << "PoissonSolverMixed ERROR: Call to fftw_init_threads() returned zero." << std::endl;
-    abort();
+    fprintf(stderr, "PoissonSolverMixed ERROR: Call to fftw_init_threads() returned zero.\n");
+    exit(1);
   }
   const int desired_threads = omp_get_max_threads();
 

@@ -8,33 +8,71 @@
 
 #include "BufferedLogger.h"
 #include <fstream>
+#include <unordered_map>
 
 namespace cubismup3d {
 
 BufferedLogger logger;
 
-static constexpr int AUTO_FLUSH_COUNT = 100;
+struct BufferedLoggerImpl {
+  struct Stream {
+    std::stringstream stream;
+    int requests_since_last_flush = 0;
 
-void BufferedLogger::flush(BufferedLogger::container_type::iterator it) {
+    // GN: otherwise icpc complains
+    Stream() = default;
+    Stream(Stream &&) = default;
+    Stream(const Stream& c) : requests_since_last_flush(c.requests_since_last_flush)
+    {
+      stream << c.stream.rdbuf();
+    }
+  };
+  typedef std::unordered_map<std::string, Stream> container_type;
+  container_type files;
+
+  /*
+   * Flush a single stream and reset the counter.
+   */
+  void flush(container_type::value_type &p) {
+    fprintf(stderr, "Flush %s %d\n", p.first.c_str(), p.second.requests_since_last_flush);
     std::ofstream savestream;
-    savestream.open(it->first, std::ios::app | std::ios::out);
-    savestream << it->second.stream.rdbuf();
+    savestream.open(p.first, std::ios::app | std::ios::out);
+    savestream << p.second.stream.rdbuf();
     savestream.close();
-    it->second.requests_since_last_flush = 0;
+    p.second.requests_since_last_flush = 0;
+  }
+
+  std::stringstream& get_stream(const std::string &filename) {
+    auto it = files.find(filename);
+    if (it != files.end()) {
+      if (++it->second.requests_since_last_flush == BufferedLogger::AUTO_FLUSH_COUNT) {
+        fprintf(stderr, "get_stream Flush %s %d\n", it->first.c_str(), it->second.requests_since_last_flush);
+        flush(*it);
+      }
+      return it->second.stream;
+    } else {
+      // With request_since_last_flush == 0,
+      // the first flush will have AUTO_FLUSH_COUNT frames.
+      auto new_it = files.emplace(filename, Stream()).first;
+      return new_it->second.stream;
+    }
+  }
+};
+
+BufferedLogger::BufferedLogger() : impl(new BufferedLoggerImpl) { }
+
+BufferedLogger::~BufferedLogger() {
+  flush();
+  delete impl;
 }
 
 std::stringstream& BufferedLogger::get_stream(const std::string &filename) {
-    auto it = files.find(filename);
-    if (it != files.end()) {
-        if (++it->second.requests_since_last_flush == AUTO_FLUSH_COUNT)
-            flush(it);
-        return it->second.stream;
-    } else {
-        // With request_since_last_flush == 0,
-        // the first flush will have AUTO_FLUSH_COUNT frames.
-        auto new_it = files.emplace(filename, Stream()).first;
-        return new_it->second.stream;
-    }
+  return impl->get_stream(filename);
+}
+
+void BufferedLogger::flush(void) {
+  for (auto &pair : impl->files)
+    impl->flush(pair);
 }
 
 }

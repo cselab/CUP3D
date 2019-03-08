@@ -33,7 +33,7 @@ struct CellInfo
   const cubism::BlockInfo &block_info;
   int ix, iy, iz;
 
-  std::array<double, 3> get_pos() const { return block_info.pos(ix, iy, iz); }
+  std::array<Real, 3> get_pos() const { return block_info.pos<Real>(ix, iy, iz); }
   int get_abs_ix() const { return ix + block_info.index[0] * FluidBlock::sizeX; }
   int get_abs_iy() const { return iy + block_info.index[1] * FluidBlock::sizeY; }
   int get_abs_iz() const { return iz + block_info.index[2] * FluidBlock::sizeZ; }
@@ -86,7 +86,7 @@ struct StencilKernelLab {
  * Apply a given stencil kernel to each cell of the grid.
  *
  * Usage example:
- *    double factor = 0.5 / h;
+ *    Real factor = 0.5 / h;
  *    applyStencilKernel(
  *      sim,
  *      StencilInfo{-1, 0, 0, 2, 1, 1, false, 1, CUP_ELEMENT_INDEX(u)},
@@ -120,7 +120,7 @@ void applyStencilKernel(SimulationData &sim, cubism::StencilInfo stencil, Func f
     CellwiseOperator(SimulationData &s, const cubism::StencilInfo &stencil, Func func)
         : Operator(s), kernel{stencil, func} {}
 
-    void operator()(const double /* dt */) {
+    void operator()(const Real /* dt */) {
       // For now we ignore the `dt` argument. We could e.g. pass it via the
       // `CellInfo` struct. In that case, we would need to rename it to
       // something like `Extra`.

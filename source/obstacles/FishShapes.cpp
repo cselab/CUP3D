@@ -10,6 +10,7 @@
 #include "obstacles/FishShapes.h"
 #include <gsl/gsl_bspline.h>
 #include <gsl/gsl_statistics.h>
+#include <iostream>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

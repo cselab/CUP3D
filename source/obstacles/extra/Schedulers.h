@@ -13,6 +13,8 @@
 
 #include <cmath>
 #include <array>
+#include <iostream>  // Schedulers.h not included from many files.
+#include <fstream>   // Schedulers.h not included from many files.
 
 CubismUP_3D_NAMESPACE_BEGIN
 

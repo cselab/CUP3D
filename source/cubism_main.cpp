@@ -11,6 +11,7 @@
 
 #include <iostream>
 #include <cmath>
+#include <unistd.h>
 
 using std::cout;
 
@@ -19,7 +20,7 @@ int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
   int rank;
   MPI_Comm_rank(app_comm, &rank);
 
-  ArgumentParser parser(argc,argv);
+  cubism::ArgumentParser parser(argc,argv);
   parser.set_strict_mode();
 
   int supported_threads;
@@ -40,9 +41,8 @@ int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
     cout << "====================================================================================================================\n";
   }
 
-  Simulation * sim = new Simulation(app_comm, parser);
-  sim->run();
-  delete sim;
+  cubismup3d::Simulation sim(app_comm, parser);
+  sim.run();
 
   return 0;
 }

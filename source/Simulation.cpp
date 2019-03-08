@@ -26,6 +26,7 @@
 #include "Cubism/MeshKernels.h"
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -37,7 +38,7 @@ Simulation::Simulation(const SimulationData &_sim) : sim(_sim)
   sim._preprocessArguments();
 
   // Grid has to be initialized before slices and obstacles.
-  setupGrid();
+  setupGrid(nullptr);
 
   // Define an empty obstacle vector, which can be later modified.
   setObstacleVector(new ObstacleVector(sim));
@@ -52,12 +53,12 @@ Simulation::Simulation(MPI_Comm mpicomm) : sim(mpicomm)
 }
 
 Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
-    : sim(mpicomm, parser), parser_ptr(& parser)
+    : sim(mpicomm, parser)
 {
   sim._preprocessArguments();
 
   // Grid has to be initialized before slices and obstacles.
-  setupGrid();
+  setupGrid(&parser);
 
   #ifdef CUP_ASYNC_DUMP
     sim.m_slices = SliceType::getEntities<SliceType>(parser, * sim.dump);
@@ -73,7 +74,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
   _init(bRestart);
 }
 
-const std::vector<Obstacle*>& Simulation::getObstacleVector() const
+const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() const
 {
     return sim.obstacle_vector->getObstacleVector();
 }
@@ -87,7 +88,7 @@ Simulation::Simulation(
   std::array<double,3> uinf, bool verbose, bool computeDissipation,
   bool b3Ddump, bool b2Ddump, double fadeOutLength, int saveFreq,
   double saveTime, const std::string &path4serialization, bool restart) :
-  sim(comm), parser_ptr(nullptr)
+  sim(comm)
 {
   sim.nprocsx = nproc[0];
   sim.nprocsy = nproc[1];
@@ -148,7 +149,7 @@ void Simulation::_ic()
   sim.stopProfiler();
 }
 
-void Simulation::setupGrid()
+void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
 {
   if( not sim.bUseStretchedGrid )
   {
@@ -217,15 +218,16 @@ void Simulation::setupGrid()
   #pragma omp parallel for schedule(static)
   for(size_t i=0; i<vInfo.size(); i++) {
     FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-    vInfo[i].pos(b.min_pos, 0, 0, 0);
-    vInfo[i].pos(b.max_pos, FluidBlock::sizeX-1,
-                            FluidBlock::sizeY-1,
-                            FluidBlock::sizeZ-1);
+    b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
+    b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,
+                                   FluidBlock::sizeY-1,
+                                   FluidBlock::sizeZ-1);
   }
 }
 
 void Simulation::setObstacleVector(ObstacleVector * const obstacle_vector_)
 {
+  assert(sim.obstacle_vector == nullptr);
   sim.obstacle_vector = obstacle_vector_;
 
   if (sim.rank == 0)
@@ -300,7 +302,7 @@ void Simulation::setupOperators()
 double Simulation::calcMaxTimestep()
 {
   assert(sim.grid not_eq nullptr);
-  double locMaxU = (double)findMaxU(sim.vInfo(), * sim.grid, sim.uinf);
+  double locMaxU = (double)findMaxU(sim.vInfo(), * sim.grid, sim.uinf.data());
   double globMaxU;
   const double h = sim.vInfo()[0].h_gridpoint;
 

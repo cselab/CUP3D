@@ -14,26 +14,63 @@
  * defined by an external code. Intended to be used when CubismUP_3D used as a
  * library.
  */
-#include "CubismUP_3D.h"
 #include "obstacles/Obstacle.h"
+#include <functional>
 
 CubismUP_3D_NAMESPACE_BEGIN
+
+/*
+ * Callbacks and other information for `IF3D_ExternalObstacleOperator`.
+ *
+ * This structure enables the user to define a custom obstacle.
+ */
+struct ExternalObstacleSettings
+{
+  typedef std::array<Real, 3> Point;
+  typedef std::array<Real, 3> Velocity;
+
+  /*
+   * Check if given box is touching (intersecting) the object.
+   *
+   * False positives are allowed.
+   */
+  std::function<bool(Point low, Point high)> is_touching_fn;
+
+  /*
+   * Returns the signed distance to the object boundary.
+   *
+   * Positive values are to be returned for points inside the object,
+   * negative for points outside of the object. Must be precise only close to
+   * the obstacle surface.
+   */
+  std::function<Real(Point)> signed_distance_fn;
+
+  /* Returns the local object velocity at the given location. */
+  std::function<Velocity(Point)> velocity_fn;
+
+  /* Returns the center-of-mass velocity of the object. */
+  std::function<Point()> com_velocity_fn;
+
+  /* Approx. length of the object. */
+  Real length = 0.0;
+
+  /* Object center location. (center of mass? probably not so important) */
+  std::array<Real, 3> position{{(Real)0.5, (Real)0.5, (Real)0.5}};
+};
+
 
 class ExternalObstacle : public Obstacle
 {
 public:
-    cubismup3d::ExternalObstacleSettings settings;
+  ExternalObstacleSettings settings;
 
-    ExternalObstacle(
-            SimulationData&s,
-            const ObstacleArguments &args);
-    ExternalObstacle(
-            SimulationData&s, cubism::ArgumentParser &p)
-        : ExternalObstacle(s, ObstacleArguments(s, p)) {}
+  ExternalObstacle(SimulationData&s, const ObstacleArguments &args);
+  ExternalObstacle(SimulationData&s, cubism::ArgumentParser &p)
+      : ExternalObstacle(s, ObstacleArguments(s, p)) {}
 
-    void computeVelocities() override;
-    void create() override;
-    void finalize() override;
+  void computeVelocities() override;
+  void create() override;
+  void finalize() override;
 };
 
 CubismUP_3D_NAMESPACE_END

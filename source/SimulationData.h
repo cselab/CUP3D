@@ -10,7 +10,6 @@
 #define CubismUP_3D_SimulationData_h
 
 #include "Definitions.h"
-#include "Cubism/Profiler.h"
 #include "utils/NonUniformScheme.h"
 #include "Cubism/HDF5SliceDumperMPI.h"
 #ifdef _USE_ZLIB_
@@ -23,6 +22,8 @@
 #include <thread>
 #endif
 #include <vector>
+
+namespace cubism { class Profiler; }
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -40,7 +41,7 @@ class PoissonSolver;
 
 struct SimulationData
 {
-  cubism::Profiler * profiler = new cubism::Profiler();
+  cubism::Profiler * profiler = nullptr;
 
   FluidGridMPI * grid = nullptr;
   NonUniformScheme<FluidBlock>* nonuniform = nullptr;
@@ -75,12 +76,12 @@ struct SimulationData
   int local_bpdx=-1, local_bpdy=-1, local_bpdz=-1;
   int bpdx=-1, bpdy=-1, bpdz=-1;
   Real maxextent = 1;
-  Real extent[3] = {1, 0, 0};  // Uniform grid by default.
+  std::array<Real, 3> extent = {{1, 0, 0}};  // Uniform grid by default.
   bool bUseStretchedGrid = false;
   Real hmin=0;
 
   // flow variables
-  Real uinf[3] = {0, 0, 0};
+  std::array<Real, 3> uinf = {{0, 0, 0}};
   double nu=0, CFL=0, lambda=-1, DLM=1;
 
   // simulation settings

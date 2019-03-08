@@ -83,7 +83,7 @@ void ComputeDissipation::operator()(const double dt)
   std::vector<KernelDissipation*> diss(nthreads, nullptr);
   #pragma omp parallel for schedule(static, 1)
   for(int i=0; i<nthreads; ++i)
-    diss[i] = new KernelDissipation(dt, sim.extent, sim.nu);
+    diss[i] = new KernelDissipation(dt, sim.extent.data(), sim.nu);
 
   compute<KernelDissipation>(diss);
   sim.stopProfiler();

@@ -10,19 +10,19 @@
 #define CubismUP_3D_ObstacleVector_h
 
 #include "obstacles/Obstacle.h"
+#include <memory>
+#include <utility>
 
 CubismUP_3D_NAMESPACE_BEGIN
 
 class ObstacleVector : public Obstacle
 {
- protected:
-    std::vector<Obstacle*> obstacles;
-
  public:
+    typedef std::vector<std::shared_ptr<Obstacle>> VectorType;
+
     ObstacleVector(SimulationData&s) : Obstacle(s) {}
-    ObstacleVector(SimulationData&s, std::vector<Obstacle*> o)
-    : Obstacle(s), obstacles(o) {}
-    ~ObstacleVector();
+    ObstacleVector(SimulationData&s, VectorType o)
+        : Obstacle(s), obstacles(std::move(o)) {}
 
     int nObstacles() const {return obstacles.size();}
     void computeVelocities() override;
@@ -38,12 +38,12 @@ class ObstacleVector : public Obstacle
 
     std::vector<std::array<int, 2>> collidingObstacles();
 
-    void addObstacle(Obstacle * obstacle)
+    void addObstacle(std::shared_ptr<Obstacle> obstacle)
     {
-        obstacles.push_back(obstacle);
+        obstacles.emplace_back(std::move(obstacle));
     }
 
-    const std::vector<Obstacle*> & getObstacleVector() const
+    const VectorType& getObstacleVector() const
     {
         return obstacles;
     }
@@ -67,6 +67,9 @@ class ObstacleVector : public Obstacle
 
       void interpolateOnSkin(const double time, const int step, bool dumpWake=false) override;
     #endif
+
+ protected:
+    VectorType obstacles;
 };
 
 CubismUP_3D_NAMESPACE_END

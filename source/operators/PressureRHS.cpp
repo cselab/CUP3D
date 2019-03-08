@@ -62,7 +62,7 @@ class KernelPressureRHS
   const StencilInfo stencil=StencilInfo(-1,-1,-1,2,2,2,false,6,1,2,3,5,6,7);
 
 
-  KernelPressureRHS(double _dt, double lambda, const Real B[3], const Real E[3],
+  KernelPressureRHS(double _dt, double lambda, const Real B[3], const std::array<Real, 3> &E,
     PoissonSolver* ps) : dt(_dt), lamdt(_dt*lambda), fadeLen{B[0],B[1],B[2]},
     ext{E[0],E[1],E[2]}, iFade{1/(B[0]+EPS),1/(B[1]+EPS),1/(B[2]+EPS)}, solver(ps) {}
   ~KernelPressureRHS() {}
@@ -150,7 +150,7 @@ class KernelPressureRHS_nonUniform
 
 
   KernelPressureRHS_nonUniform(double _dt, double lambda, const Real buf[3],
-  const Real E[3], PoissonSolver* ps): dt(_dt), invdt(1/_dt), lamdt(_dt*lambda),
+  const std::array<Real, 3> &E, PoissonSolver* ps): dt(_dt), invdt(1/_dt), lamdt(_dt*lambda),
   fadeLen{buf[0],buf[1],buf[2]}, ext{E[0],E[1],E[2]}, iFade{1/(buf[0]+EPS), 1/(buf[1]+EPS), 1/(buf[2]+EPS)}, solver(ps) {}
 
   template <typename Lab, typename BlockType>
