@@ -16,6 +16,8 @@ namespace cubism { struct ArgumentParser; }
 
 CubismUP_3D_NAMESPACE_BEGIN
 
+class ObstacleAndExternalArguments;  // For ExternalObstacle.
+
 class ObstacleFactory
 {
   SimulationData & sim;
@@ -27,6 +29,9 @@ public:
   ObstacleFactory(SimulationData & s) : sim(s) { }
   ~ObstacleFactory() {}
   VectorType create(cubism::ArgumentParser &parser);
+
+  /* Helper function for external codes to avoid std::make_shared on their side... */
+  void addObstacle(const ObstacleAndExternalArguments &args);
 };
 
 CubismUP_3D_NAMESPACE_END

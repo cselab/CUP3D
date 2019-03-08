@@ -24,7 +24,7 @@ CubismUP_3D_NAMESPACE_BEGIN
  *
  * This structure enables the user to define a custom obstacle.
  */
-struct ExternalObstacleSettings
+struct ExternalObstacleArguments
 {
   typedef std::array<Real, 3> Point;
   typedef std::array<Real, 3> Velocity;
@@ -34,7 +34,7 @@ struct ExternalObstacleSettings
    *
    * False positives are allowed.
    */
-  std::function<bool(Point low, Point high)> is_touching_fn;
+  std::function<bool(Point low, Point high)> isTouchingFn;
 
   /*
    * Returns the signed distance to the object boundary.
@@ -43,30 +43,25 @@ struct ExternalObstacleSettings
    * negative for points outside of the object. Must be precise only close to
    * the obstacle surface.
    */
-  std::function<Real(Point)> signed_distance_fn;
+  std::function<Real(Point)> signedDistanceFn;
 
   /* Returns the local object velocity at the given location. */
-  std::function<Velocity(Point)> velocity_fn;
+  std::function<Velocity(Point)> velocityFn;
 
   /* Returns the center-of-mass velocity of the object. */
-  std::function<Point()> com_velocity_fn;
-
-  /* Approx. length of the object. */
-  Real length = 0.0;
-
-  /* Object center location. (center of mass? probably not so important) */
-  std::array<Real, 3> position{{(Real)0.5, (Real)0.5, (Real)0.5}};
+  std::function<Point()> comVelocityFn;
 };
 
+struct ObstacleAndExternalArguments : ObstacleArguments, ExternalObstacleArguments
+{
+  ObstacleAndExternalArguments() = default;
+  ObstacleAndExternalArguments(ObstacleArguments o, ExternalObstacleArguments e);
+};
 
-class ExternalObstacle : public Obstacle
+class ExternalObstacle : public Obstacle, private ExternalObstacleArguments
 {
 public:
-  ExternalObstacleSettings settings;
-
-  ExternalObstacle(SimulationData&s, const ObstacleArguments &args);
-  ExternalObstacle(SimulationData&s, cubism::ArgumentParser &p)
-      : ExternalObstacle(s, ObstacleArguments(s, p)) {}
+  ExternalObstacle(SimulationData &s, const ObstacleAndExternalArguments &);
 
   void computeVelocities() override;
   void create() override;
