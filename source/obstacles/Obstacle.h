@@ -13,7 +13,6 @@
 #include "SimulationData.h"
 
 #include <array>
-#include <fstream>
 
 /*
  * HOW OBSTACLES WORK

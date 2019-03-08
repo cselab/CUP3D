@@ -19,21 +19,21 @@ using namespace cubism;
 PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData&s) : PoissonSolver(s)
 {
   if (m_N0 % m_size != 0 || m_NN1 % m_size != 0) {
-    std::cout << "PoissonSolverUnbounded: ERROR: Number of cells N0 and 2*N1 must be evenly divisible by the number of processes." << std::endl;
-    abort();
+    fprintf(stderr, "PoissonSolverUnbounded: ERROR: Number of cells N0 and 2*N1 must be evenly divisible by the number of processes.\n");
+    exit(1);
   }
 
   int supported_threads;
   MPI_Query_thread(&supported_threads);
   if (supported_threads < MPI_THREAD_FUNNELED) {
-  std::cout << "PoissonSolverUnbounded: ERROR: MPI implementation does not support threads." << std::endl;
-  abort();
+    fprintf(stderr, "PoissonSolverUnbounded: ERROR: MPI implementation does not support threads.\n");
+    exit(1);
   }
 
   const int retval = _FFTW_(init_threads)();
   if (retval == 0) {
-    std::cout << "PoissonSolverUnbounded: ERROR: Call to fftw_init_threads() returned zero." << std::endl;
-    abort();
+    fprintf(stderr, "PoissonSolverUnbounded: ERROR: Call to fftw_init_threads() returned zero.\n");
+    exit(1);
   }
   const int desired_threads = omp_get_max_threads();
   _FFTW_(plan_with_nthreads)(desired_threads);

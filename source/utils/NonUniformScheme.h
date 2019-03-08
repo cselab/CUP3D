@@ -105,7 +105,7 @@ public:
         if (!m_initialized)
         {
             fprintf(stderr,"ERROR: NonUniformScheme: Not initialized.\n");
-            fflush(0); abort();
+            exit(1);
         }
 
         // 0. some checks
@@ -170,7 +170,7 @@ public:
         if (!m_initialized)
         {
             fprintf(stderr,"ERROR: NonUniformScheme: Not initialized.\n");
-            fflush(0); abort();
+            exit(1);
         }
 
 #pragma omp parallel for
@@ -207,8 +207,8 @@ public:
         assert(i > -2);
         if (!m_initialized)
         {
-            std::cerr << "ERROR: NonUniformScheme.h: minimum_cell_width() can not return m_h_min, not initialized." << std::endl;
-            abort();
+            fprintf(stderr, "ERROR: NonUniformScheme.h: minimum_cell_width() can not return m_h_min, not initialized.\n");
+            exit(1);
         }
         double all_min = (m_h_min[0]<m_h_min[1]) ? m_h_min[0] : m_h_min[1];
         all_min = (all_min < m_h_min[2]) ? all_min : m_h_min[2];

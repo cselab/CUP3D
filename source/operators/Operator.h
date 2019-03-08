@@ -20,7 +20,7 @@ class Operator
   FluidGridMPI * const grid = sim.grid;
   const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
 
-  inline void check(std::string infoText)
+  inline void check(const std::string &infoText)
   {
     #ifndef NDEBUG
     int rank;
@@ -41,7 +41,8 @@ class Operator
             std::isnan(b(ix,iy,iz).w) || std::isnan(b(ix,iy,iz).p) )
         {
           fflush(stderr);
-          std::cout << "GenericCoordinator::check isnan " << infoText.c_str() << std::endl;
+          printf("GenericCoordinator::check isnan %s\n", infoText.c_str());
+          fflush(stdout);
           MPI_Abort(comm, 1);
         }
     }

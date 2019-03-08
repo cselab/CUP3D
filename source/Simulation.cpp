@@ -26,6 +26,7 @@
 #include "Cubism/MeshKernels.h"
 #include <iomanip>
 #include <iostream>
+#include <sstream>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

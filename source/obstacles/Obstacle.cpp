@@ -9,6 +9,7 @@
 #include "obstacles/Obstacle.h"
 #include "utils/BufferedLogger.h"
 #include "Cubism/ArgumentParser.h"
+#include <fstream>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -242,11 +243,12 @@ void Obstacle::update()
   if(sim.rank==0)
   {
     #ifdef CUP_VERBOSE
-     std::cout<<"POSITION INFO AFTER UPDATE T, DT: "<<sim.time<<" "<<sim.dt<<std::endl;
-     std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
-     std::cout<<"TVL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
-     std::cout<<"QUT: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
-     std::cout<<"AVL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
+     printf("POSITION INFO AFTER UPDATE T, DT: %lf %lf\n", sim.time, sim.dt);
+     printf("POS: %lf %lf %lf\n", position[0], position[1], position[2]);
+     printf("TVL: %lf %lf %lf\n", transVel[0], transVel[1], transVel[2]);
+     printf("QUT: %lf %lf %lf %lf\n", quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
+     printf("AVL: %lf %lf %lf\n", angVel[0], angVel[1], angVel[2]);
+     fflush(stdout);
     #endif
   }
   const double q_length=std::sqrt(quaternion[0]*quaternion[0]
@@ -263,8 +265,7 @@ void Obstacle::update()
 void Obstacle::create()
 {
   printf("Entered the wrong create operator\n");
-  fflush(0);
-  abort();
+  exit(1);
 }
 
 void Obstacle::finalize()
@@ -328,15 +329,15 @@ void Obstacle::restart(std::string filename)
   restartstream.close();
 
   {
-  std::cout<<"RESTARTED BODY: "<<std::endl;
-  std::cout<<"TIME: \t"<<restart_time<<std::endl;
-  std::cout<<"POS : \t"<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
-  std::cout<<"ABS POS : \t"<<absPos[0]<<" "<<absPos[1]<<" "<<absPos[2]<<std::endl;
-  std::cout<<"ANGLE:\t"<<quaternion[0]<<" "<<quaternion[1]<<" "
-                       <<quaternion[2]<<" "<<quaternion[3]<<std::endl;
-  std::cout<<"TVEL: \t"<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
-  std::cout<<"AVEL: \t"<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
-  std::cout<<"2D angle: \t"<<_2Dangle<<std::endl;
+  printf("RESTARTED BODY:\n");
+  printf("TIME: \t%lf\n", restart_time);
+  printf("POS:  \t%lf %lf %lf\n", position[0], position[1], position[2]);
+  printf("ABS POS: \t%lf %lf %lf\n", absPos[0], absPos[1], absPos[2]);
+  printf("ANGLE:\t%lf %lf %lf %lf\n", quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
+  printf("TVEL: \t%lf %lf %lf\n", transVel[0], transVel[1], transVel[2]);
+  printf("AVEL: \t%lf %lf %lf\n", angVel[0], angVel[1], angVel[2]);
+  printf("2D angle: \t%lf\n", _2Dangle);
+  fflush(stdout);
   }
 }
 
