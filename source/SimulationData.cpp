@@ -18,6 +18,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+SimulationData::SimulationData(const SimulationData &) = default;
+SimulationData::SimulationData(SimulationData &&) = default;
 SimulationData::SimulationData(MPI_Comm mpicomm) :
   app_comm(mpicomm)
 {

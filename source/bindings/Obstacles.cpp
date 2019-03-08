@@ -73,7 +73,7 @@ std::shared_ptr<ObstacleAndSphereArguments> init_ObstacleAndSphereArguments(
 }  // namespace (empty)
 
 
-namespace cubismup3d {
+CubismUP_3D_NAMESPACE_BEGIN
 namespace pybindings {
 
 void bindObstacles(py::module &m) {
@@ -128,4 +128,4 @@ void Simulation_addObstacle(Simulation &S, pybind11::object obstacle_args)
 }
 
 }  // namespace pybindings
-}  // namespace cubismup3d
+CubismUP_3D_NAMESPACE_END

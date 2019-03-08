@@ -62,7 +62,6 @@ struct ScalarArray {
     }
 };
 
-}  // cubismup3d
-
 CubismUP_3D_NAMESPACE_END
+
 #endif // CubismUP_3D_utils_ScalarArray_h

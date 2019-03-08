@@ -4,7 +4,7 @@
 #include <array>
 #include <pybind11/stl.h>
 
-namespace cubismup3d {
+CubismUP_3D_NAMESPACE_BEGIN
 
 class Simulation;
 
@@ -19,6 +19,6 @@ void bindObstacles(pybind11::module &m);
 void Simulation_addObstacle(Simulation &S, pybind11::object obstacle_args);
 
 }  // namespace pybindings
-}  // namespace cubismup3d
+CubismUP_3D_NAMESPACE_END
 
 #endif

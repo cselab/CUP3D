@@ -47,5 +47,6 @@ public:
 
 extern BufferedLogger logger;  // Declared in BufferedLogger.cpp.
 
-}
+}  // namespace cubismup3d
+
 #endif // CubismUP_3D_utils_BufferedLogger_h

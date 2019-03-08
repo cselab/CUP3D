@@ -15,7 +15,7 @@
 
 #include "operators/Operator.h"
 
-namespace cubismup3d {
+CubismUP_3D_NAMESPACE_BEGIN
 
 /*
  * Struct passed to kernels in `apply_kernel` and `apply_stencil_kernel` functions.
@@ -134,6 +134,6 @@ void applyStencilKernel(SimulationData &sim, cubism::StencilInfo stencil, Func f
   op(0.0);  // dt is unused for now.
 }
 
-}  // namespace cubismup3d
+CubismUP_3D_NAMESPACE_END
 
 #endif
