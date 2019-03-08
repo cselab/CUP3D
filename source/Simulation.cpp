@@ -294,8 +294,8 @@ void Simulation::setupOperators()
 
   // With finalized velocity and pressure, compute forces and dissipation
   sim.pipeline.push_back(new ComputeForces(sim));
-  if(sim.computeDissipation)
-    sim.pipeline.push_back(new ComputeDissipation(sim));
+  //if(sim.computeDissipation)
+  sim.pipeline.push_back(new ComputeDissipation(sim));
 
   sim.pipeline.push_back(new FadeOut(sim));
 

@@ -87,6 +87,102 @@ inline void putSDFonGrid(
   }
 }
 
+class KernelVorticity
+{
+  public:
+  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
+  const cubism::StencilInfo stencil = cubism::StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
+  {
+    const Real inv2h = .5 / info.h_gridpoint;
+    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+      const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+      const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+      o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
+      o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
+      o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
+      //o(ix,iy,iz).tmpU = __FD_2ND(iy, cy, phiS.w, phiC.w, phiN.w) - __FD_2ND(iz, cz, phiF.v, phiC.v, phiB.v);
+      //o(ix,iy,iz).tmpV = __FD_2ND(iz, cz, phiF.u, phiC.u, phiB.u) - __FD_2ND(ix, cx, phiW.w, phiC.w, phiE.w);
+      //o(ix,iy,iz).tmpW = __FD_2ND(ix, cx, phiW.v, phiC.v, phiE.v) - __FD_2ND(iy, cy, phiS.u, phiC.u, phiN.u);
+    }
+  }
+};
+
+class ComputeVorticity : public Operator
+{
+  public:
+  ComputeVorticity(SimulationData & s) : Operator(s) { }
+  void operator()(const double dt)
+  {
+    sim.startProfiler("Vorticity Kernel");
+    if(sim.bUseStretchedGrid) {
+      abort();
+    } else {
+      const KernelVorticity K;
+      compute<KernelVorticity>(K);
+    }
+    sim.stopProfiler();
+    check("Vorticity");
+  }
+  std::string getName() { return "Vorticity"; }
+};
+
+class KernelQcriterion
+{
+  public:
+  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
+  const cubism::StencilInfo stencil = cubism::StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
+  {
+    const Real inv2h = .5 / info.h_gridpoint;
+    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+      const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+      const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+      const Real WX  = inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
+      const Real WY  = inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
+      const Real WZ  = inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
+      const Real D11 = inv2h * (LE.u-LW.u); // shear stresses
+      const Real D22 = inv2h * (LN.v-LS.v); // shear stresses
+      const Real D33 = inv2h * (LB.w-LF.w); // shear stresses
+      const Real D12 = inv2h * (LN.u-LS.u + LE.v-LW.v); // shear stresses
+      const Real D13 = inv2h * (LE.w-LW.w + LB.u-LF.u); // shear stresses
+      const Real D23 = inv2h * (LB.v-LF.v + LN.w-LS.w); // shear stresses
+      // trace( S S^t ) where S is the sym part of the vel gradient:
+      const Real SS = D11*D11 +D22*D22 +D33*D33 +(D12*D12 +D13*D13 +D23*D23)/2;
+      o(ix,iy,iz).p = ( (WX*WX + WY*WY + WZ*WZ)/2 - SS ) / 2;
+    }
+  }
+};
+
+class ComputeQcriterion : public Operator
+{
+  public:
+  ComputeQcriterion(SimulationData & s) : Operator(s) { }
+  void operator()(const double dt)
+  {
+    sim.startProfiler("Qcriterion Kernel");
+    if(sim.bUseStretchedGrid) {
+      abort();
+    } else {
+      const KernelQcriterion K;
+      compute<KernelQcriterion>(K);
+    }
+    sim.stopProfiler();
+    check("Qcriterion");
+  }
+  std::string getName() { return "Qcriterion"; }
+};
+
 #ifdef CUP_ASYNC_DUMP
 static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
 {
