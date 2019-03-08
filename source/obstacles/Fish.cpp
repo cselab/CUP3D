@@ -36,9 +36,7 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
   const double hh = 0.5*sim.maxH();
   position[2] = p("-zpos").asDouble(sim.extent[2]/2 + hh);
 
-  #ifdef __useSkin_
-   bHasSkin = true;
-  #endif
+  bHasSkin = true;
 }
 
 Fish::~Fish()
@@ -131,9 +129,7 @@ void Fish::integrateMidline()
   }
   #endif
   //MPI_Barrier(grid->getCartComm());
-  #ifdef __useSkin_
   myFish->surfaceToCOMFrame(theta_internal,CoM_internal);
-  #endif
 }
 
 std::vector<VolumeSegment_OBB> Fish::prepare_vSegments()
@@ -290,9 +286,7 @@ void Fish::create()
 
   // 1.
   myFish->computeMidline(sim.time, sim.dt);
-  #ifdef __useSkin_
   myFish->computeSurface();
-  #endif
 
   // 2. & 3.
   integrateMidline();
@@ -312,9 +306,7 @@ void Fish::create()
 
 void Fish::finalize()
 {
-  #ifdef __useSkin_
   myFish->surfaceToComputationalFrame(_2Dangle, centerOfMass);
-  #endif
 }
 
 void Fish::update()
@@ -399,7 +391,6 @@ void Fish::getSkinsAndPOV(Real& x, Real& y, Real& th,
 
 void Fish::interpolateOnSkin(bool _dumpWake)
 {
-  #ifdef __useSkin_
   if( std::fabs(quaternion[1])>2e-16 || std::fabs(quaternion[2])>2e-16 ) {
     printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
     abort();
@@ -417,7 +408,6 @@ void Fish::interpolateOnSkin(bool _dumpWake)
   //  if(sim.rank==0) sr.print(obstacleID, stepID, time);
 
   //if(_dumpWake && _uInf not_eq nullptr) dumpWake(stepID, time, _uInf);
-  #endif
 }
 
 #endif // RL_LAYER

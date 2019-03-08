@@ -251,28 +251,26 @@ struct rayTracing
 
 void ObstacleVector::getFieldOfView(const double lengthscale)
 {
-  #ifdef __useSkin_
-    //two ingredients: all skins and containers for perceptions
-    vector<swimmerInFOV*> FOVobst;
-    vector<StateReward*>  FOVdata;
-    int cnt = 0;
-    for(const auto & obst_ptr : obstacles) { //stand-in
-      //if (obst_ptr->bCheckCollisions)
-      if(not obst_ptr->bHasSkin) return;
-      swimmerInFOV * F = new swimmerInFOV();
+  //two ingredients: all skins and containers for perceptions
+  std::vector<swimmerInFOV*> FOVobst;
+  std::vector<StateReward*>  FOVdata;
+  int cnt = 0;
+  for(const auto & obst_ptr : obstacles) { //stand-in
+    //if (obst_ptr->bCheckCollisions)
+    if(not obst_ptr->bHasSkin) return;
+    swimmerInFOV * F = new swimmerInFOV();
 
-      obst_ptr->getSkinsAndPOV(F->xPOV, F->yPOV, F->thetaPOV,
-      F->xSurfLower, F->ySurfLower, F->xSurfUpper, F->ySurfUpper, F->Npts);
-      StateReward* D = obst_ptr->_getData();
+    obst_ptr->getSkinsAndPOV(F->xPOV, F->yPOV, F->thetaPOV,
+    F->xSurfLower, F->ySurfLower, F->xSurfUpper, F->ySurfUpper, F->Npts);
+    StateReward* D = obst_ptr->_getData();
 
-      FOVobst.push_back(F);
-      FOVdata.push_back(D);
-      cnt++;
-    }
-    if(!cnt) return;
-    rayTracing tracing(FOVobst, FOVdata);
-    tracing.execute(lengthscale);
-  #endif
+    FOVobst.push_back(F);
+    FOVdata.push_back(D);
+    cnt++;
+  }
+  if(!cnt) return;
+  rayTracing tracing(FOVobst, FOVdata);
+  tracing.execute(lengthscale);
 }
 
 void ObstacleVector::interpolateOnSkin(const double time, const int step, bool dumpWake)

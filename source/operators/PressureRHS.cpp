@@ -71,14 +71,15 @@ class KernelPressureRHS
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
     const Real h = info.h_gridpoint, fac = .5*h*h/dt;
-    const size_t offset = solver->_offset_ext(info);
+    Real* __restrict__ const ret = solver->data + solver->_offset_ext(info);
+    const unsigned SX=solver->stridex, SY=solver->stridey, SZ=solver->stridez;
     if( not _is_touching(o) )
     {
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        solver->_cub2fftw(offset, iz,iy,ix, fac * RHS(lab, ix,iy,iz) );
-        //o(ix,iy,iz).p = fac * RHS(lab, ix,iy,iz, pFac); //will break t>0
+        ret[SZ*iz + SY*iy + SX*ix] = fac * RHS(lab, ix,iy,iz);
+        //o(ix,iy,iz).p = ret[SZ*iz + SY*iy + SX*ix];
       }
     }
     else
@@ -86,9 +87,8 @@ class KernelPressureRHS
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        const Real RHS_ = fade(info, ix,iy,iz) * RHS(lab, ix,iy,iz);
-        solver->_cub2fftw(offset, iz,iy,ix, fac * RHS_);
-        //o(ix,iy,iz).p = fac * RHS_; //will break t>0
+        ret[SZ*iz + SY*iy + SX*ix] = fac*fade(info,ix,iy,iz)*RHS(lab,ix,iy,iz);
+        //o(ix,iy,iz).p = ret[SZ*iz + SY*iy + SX*ix];
       }
     }
   }
@@ -206,8 +206,9 @@ struct PressureRHSObstacleVisitor : public ObstacleVisitor
         if(pos == nullptr) continue;
 
         FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        UDEFMAT & __restrict__ UDEF = pos->udef;
-        CHIMAT & __restrict__ CHI = pos->chi;
+        const UDEFMAT & __restrict__ UDEF = pos->udef;
+        const CHIMAT & __restrict__ CHI = pos->chi;
+        //const CHIMAT & __restrict__ SDF = pos->sdf;
 
         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)

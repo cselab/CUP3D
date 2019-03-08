@@ -44,13 +44,13 @@ class PoissonSolver
   const size_t myN[3]={ mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
   const double h = grid.getBlocksInfo().front().h_gridpoint;
 
+ public:
   size_t stridez = 0;
   size_t stridey = 0;
   size_t stridex = 0;
   size_t data_size = 0;
   Real* data;
 
- public:
   PoissonSolver(SimulationData&s) : sim(s)
   {
     if (StreamerDiv::channels != 1) {

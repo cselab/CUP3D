@@ -8,7 +8,8 @@ BPDX=${BPDX:-64}
 BPDY=${BPDY:-$((${BPDX}/2))} #${BPDY:-32}
 BPDZ=${BPDZ:-$((${BPDX}/4))} #${BPDZ:-32}
 
-NU=${NU:-0.0001636363636} # Re 4k
+#to compare against Wim's thesis:
+NU=${NU:-0.0001136363636} # Re 550
 BC=${BC:-freespace}
 
 #FACTORY='CarlingFish L=0.3 T=1 xpos=0.3 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1

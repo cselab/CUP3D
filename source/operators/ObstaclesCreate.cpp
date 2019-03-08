@@ -40,7 +40,7 @@ class KernelCharacteristicFunction
       ObstacleBlock*const o = obstacleBlocks[info.blockID];
       if(o == nullptr) return;
       CHIMAT & __restrict__ CHI = o->chi;
-      CHIMAT & __restrict__ SDF = o->sdf;
+      const CHIMAT & __restrict__ SDF = o->sdf;
       o->CoM_x = 0; o->CoM_y = 0; o->CoM_z = 0; o->mass  = 0;
 
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -48,6 +48,7 @@ class KernelCharacteristicFunction
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       {
         Real p[3]; info.pos(p, ix,iy,iz);
+        // here I read SDF to deal with obstacles sharing block
         if (SDF[iz][iy][ix] > +2*h || SDF[iz][iy][ix] < -2*h)
         {
           CHI[iz][iy][ix] = SDF[iz][iy][ix] > 0 ? 1 : 0;
@@ -137,7 +138,7 @@ class KernelCharacteristicFunction_nonUniform
       ObstacleBlock*const o = obstacleBlocks[info.blockID];
       if(o == nullptr) return;
       CHIMAT & __restrict__ CHI = o->chi;
-      CHIMAT & __restrict__ SDF = o->sdf;
+      const CHIMAT & __restrict__ SDF = o->sdf;
       o->CoM_x = 0; o->CoM_y = 0; o->CoM_z = 0; o->mass  = 0;
 
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -273,8 +274,8 @@ struct KernelIntegrateUdefMomenta : public ObstacleVisitor
       obstacle->transVel_correction[2]
     }};
 
-    CHIMAT & __restrict__ CHI = o->chi;
-    UDEFMAT & __restrict__ UDEF = o->udef;
+    const CHIMAT & __restrict__ CHI = o->chi;
+    const UDEFMAT & __restrict__ UDEF = o->udef;
     double &VV = o->V;
     double &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
     double &TX = o->TX, &TY = o->TY, &TZ = o->TZ;

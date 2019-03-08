@@ -16,7 +16,7 @@ using SymM = std::array<double,6>;
 using GenM = std::array<double,9>;
 using GenV = std::array<double,3>;
 
-static inline SymM invertSym(const SymM& J)
+static inline SymM invertSym(const SymM J)
 {
   const double detJ = J[0] * (J[1] * J[2] - J[5] * J[5])+
                       J[3] * (J[4] * J[5] - J[2] * J[3])+
@@ -38,7 +38,7 @@ static inline SymM invertSym(const SymM& J)
   }
 }
 
-static inline GenV multSymVec(const SymM& J, const GenV& V)
+static inline GenV multSymVec(const SymM J, const GenV V)
 {
   return GenV {{
     J[0] * V[0] + J[3] * V[1] + J[4] * V[2],
@@ -47,7 +47,7 @@ static inline GenV multSymVec(const SymM& J, const GenV& V)
  }};
 }
 
-static inline GenV multGenVec(const GenM& J, const GenV& V)
+static inline GenV multGenVec(const GenM J, const GenV V)
 {
   return GenV {{
     J[0] * V[0] + J[1] * V[1] + J[2] * V[2],
@@ -56,7 +56,7 @@ static inline GenV multGenVec(const GenM& J, const GenV& V)
  }};
 }
 
-static inline GenM multSyms(const SymM& J, const SymM& G)
+static inline GenM multSyms(const SymM J, const SymM G)
 {
   return GenM {{
     G[0]*J[0] + G[3]*J[3] + G[4]*J[4],
@@ -71,7 +71,7 @@ static inline GenM multSyms(const SymM& J, const SymM& G)
   }};
 }
 
-static inline GenM invertGen(const GenM & S)
+static inline GenM invertGen(const GenM S)
 {
   const double detS =  S[0]*S[4]*S[8] - S[0]*S[5]*S[7]
                      + S[1]*S[5]*S[6] - S[1]*S[3]*S[8]
@@ -96,7 +96,7 @@ static inline GenM invertGen(const GenM & S)
   }
 }
 
-static inline GenM multGens(const GenM& S, const GenM& G)
+static inline GenM multGens(const GenM S, const GenM G)
 {
   return GenM {{
     G[0]*S[0] + G[3]*S[1] + G[6]*S[2],

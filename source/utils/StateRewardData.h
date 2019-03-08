@@ -9,9 +9,6 @@
 #define CubismUP_3D_StateRewardData_h
 
 //#include <cassert>
-//#define __2Leads_
-//#define __DumpWakeStefan 9
-#define __useSkin_
 //#include <assert.h>
 
 // utmost import to be defined before including cubism

@@ -79,7 +79,8 @@ public:
   double defPower=0, defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
   double transVel_correction[3]={0,0,0}, angVel_correction[3]={0,0,0}, length;
   //forced obstacles:
-  double transVel_computed[3]= {0,0,0}, angVel_computed[3]= {0,0,0};
+  std::array<double,3> transVel_computed = {0,0,0}, angVel_computed = {0,0,0};
+  std::array<double,3> transVel_fluid    = {0,0,0}, angVel_fluid    = {0,0,0};
   double transVel_imposed[3]= {0,0,0};
 
   // stuff dealing with frame of reference:
