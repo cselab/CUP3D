@@ -84,7 +84,7 @@ struct SimulationData
   double nu=0, CFL=0, lambda=-1, DLM=1;
 
   // simulation settings
-  bool computeDissipation=false;
+  int freqDiagnostics = 0;
   bool b3Ddump=true, b2Ddump=false, bDump=false;
   int rampup = 100;
   bool verbose=false;

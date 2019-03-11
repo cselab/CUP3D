@@ -106,9 +106,12 @@ class KernelVorticity
       o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
       o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
       o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
-      //o(ix,iy,iz).tmpU = __FD_2ND(iy, cy, phiS.w, phiC.w, phiN.w) - __FD_2ND(iz, cz, phiF.v, phiC.v, phiB.v);
-      //o(ix,iy,iz).tmpV = __FD_2ND(iz, cz, phiF.u, phiC.u, phiB.u) - __FD_2ND(ix, cx, phiW.w, phiC.w, phiE.w);
-      //o(ix,iy,iz).tmpW = __FD_2ND(ix, cx, phiW.v, phiC.v, phiE.v) - __FD_2ND(iy, cy, phiS.u, phiC.u, phiN.u);
+      //o(ix,iy,iz).tmpU =  __FD_2ND(iy, cy, phiS.w, phiC.w, phiN.w)
+      //                  - __FD_2ND(iz, cz, phiF.v, phiC.v, phiB.v);
+      //o(ix,iy,iz).tmpV =  __FD_2ND(iz, cz, phiF.u, phiC.u, phiB.u)
+      //                  - __FD_2ND(ix, cx, phiW.w, phiC.w, phiE.w);
+      //o(ix,iy,iz).tmpW =  __FD_2ND(ix, cx, phiW.v, phiC.v, phiE.v)
+      //                  - __FD_2ND(iy, cy, phiS.u, phiC.u, phiN.u);
     }
   }
 };

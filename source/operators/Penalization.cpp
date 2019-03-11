@@ -46,28 +46,13 @@ struct KernelPenalization : public ObstacleVisitor
     const UDEFMAT & __restrict__ UDEF = o->udef;
     FluidBlock& b = *(FluidBlock*)info.ptrBlock;
     const std::array<double,3> CM = obstacle->getCenterOfMass();
-    const std::array<double,3> avobst = obstacle->getAngularVelocity();
-    const std::array<double,3> utobst = obstacle->getTranslationVelocity();
 
     #ifndef OLD_INTEGRATE_MOM
-      const Real penalFac = lamdt>32? 1 : 1 - std::exp(-lamdt); // anti nan
-      const std::array<double,3> avflow = obstacle->angVel_fluid;
-      const std::array<double,3> utflow = obstacle->transVel_fluid;
-      // if obstacle free to move according to fluid forces, momenta after penal
-      // should be equal to moments before penal!
-      const std::array<double,3> vel = {{
-        obstacle->bForcedInSimFrame[0] ? utobst[0] : utflow[0],
-        obstacle->bForcedInSimFrame[1] ? utobst[1] : utflow[1],
-        obstacle->bForcedInSimFrame[2] ? utobst[2] : utflow[2]
-      }};
-      const std::array<double,3> omega = {{
-        obstacle->bBlockRotation[0]    ? avobst[0] : avflow[0],
-        obstacle->bBlockRotation[1]    ? avobst[1] : avflow[1],
-        obstacle->bBlockRotation[2]    ? avobst[2] : avflow[2]
-      }};
+      const std::array<double,3> vel = obstacle->transVel_fluid;
+      const std::array<double,3> omega = obstacle->angVel_fluid;
     #else
-      const std::array<double,3> vel = utobst;
-      const std::array<double,3> omega = avobst;
+      const std::array<double,3> vel = obstacle->getAngularVelocity();
+      const std::array<double,3> omega = obstacle->getTranslationVelocity();
     #endif
 
 
@@ -89,15 +74,9 @@ struct KernelPenalization : public ObstacleVisitor
       };
       // What if two obstacles overlap? Let's plus equal. We will need a
       // repulsion term of the velocity at some point in the code.
-      #ifndef OLD_INTEGRATE_MOM
-        b(ix,iy,iz).u += X * ( U_TOT[0] - b(ix,iy,iz).u ) * penalFac;
-        b(ix,iy,iz).v += X * ( U_TOT[1] - b(ix,iy,iz).v ) * penalFac;
-        b(ix,iy,iz).w += X * ( U_TOT[2] - b(ix,iy,iz).w ) * penalFac;
-      #else
-        b(ix,iy,iz).u = (b(ix,iy,iz).u + X*lamdt * U_TOT[0]) / (1 + X*lamdt);
-        b(ix,iy,iz).v = (b(ix,iy,iz).v + X*lamdt * U_TOT[1]) / (1 + X*lamdt);
-        b(ix,iy,iz).w = (b(ix,iy,iz).w + X*lamdt * U_TOT[2]) / (1 + X*lamdt);
-      #endif
+      b(ix,iy,iz).u = (b(ix,iy,iz).u + X*lamdt * U_TOT[0]) / (1 + X*lamdt);
+      b(ix,iy,iz).v = (b(ix,iy,iz).v + X*lamdt * U_TOT[1]) / (1 + X*lamdt);
+      b(ix,iy,iz).w = (b(ix,iy,iz).w + X*lamdt * U_TOT[2]) / (1 + X*lamdt);
     }
   }
 };

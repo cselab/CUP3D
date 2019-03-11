@@ -93,7 +93,7 @@ const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() co
 Simulation::Simulation(
   std::array<int,3> cells, std::array<int, 3> nproc, MPI_Comm comm, int nsteps,
   double endTime, double nu, double CFL, double lambda, double DLM,
-  std::array<double,3> uinf, bool verbose, bool computeDissipation,
+  std::array<double,3> uinf, bool verbose, int freqDiagnostics,
   bool b3Ddump, bool b2Ddump, double fadeOutLength, int saveFreq,
   double saveTime, const std::string &path4serialization, bool restart) :
   sim(comm)
@@ -111,7 +111,7 @@ Simulation::Simulation(
   sim.lambda = lambda;
   sim.DLM = DLM;
   sim.verbose = verbose;
-  sim.computeDissipation = computeDissipation;
+  sim.freqDiagnostics = freqDiagnostics;
   sim.b3Ddump = b3Ddump;
   sim.b2Ddump = b2Ddump;
   sim.fadeOutLengthPRHS[0] = fadeOutLength;
@@ -294,7 +294,7 @@ void Simulation::setupOperators()
 
   // With finalized velocity and pressure, compute forces and dissipation
   sim.pipeline.push_back(new ComputeForces(sim));
-  //if(sim.computeDissipation)
+
   sim.pipeline.push_back(new ComputeDissipation(sim));
 
   sim.pipeline.push_back(new FadeOut(sim));
@@ -520,7 +520,7 @@ bool Simulation::timestep(const double dt)
     if( sim.bDump ) _serialize();
     sim.stopProfiler();
 
-    if (sim.step % 10 == 0 && sim.verbose) sim.printResetProfiler();
+    if (sim.step % 50 == 0 && sim.verbose) sim.printResetProfiler();
     if ((sim.endTime>0 && sim.time>sim.endTime) ||
         (sim.nsteps!=0 && sim.step>=sim.nsteps) ) {
       if(sim.verbose)

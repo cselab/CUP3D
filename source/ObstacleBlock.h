@@ -63,7 +63,9 @@ struct ObstacleBlock
   // Penalization volume integral forces:
   double V =0, FX=0, FY=0, FZ=0, TX=0, TY=0, TZ=0;
   double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0;
-  double GX=0, G0=0, G1=0, G2=0, G3=0, G4=0, G5=0;
+
+  double GfX=0, GpX=0, GpY=0, GpZ=0, Gj0=0, Gj1=0, Gj2=0, Gj3=0, Gj4=0, Gj5=0;
+  double GuX=0, GuY=0, GuZ=0, GaX=0, GaY=0, GaZ=0;
 
   // Fluid-structure interface forces: (these are the 22 quantities of nQoI)
   double  forcex   = 0,  forcey   = 0,  forcez   = 0;

@@ -115,6 +115,8 @@ class KernelDissipation
 
 void ComputeDissipation::operator()(const double dt)
 {
+  if(sim.freqDiagnostics == 0 || sim.step % sim.freqDiagnostics) return;
+
   sim.startProfiler("Dissip Kernel");
   const int nthreads = omp_get_max_threads();
   std::vector<KernelDissipation*> diss(nthreads, nullptr);
@@ -155,7 +157,7 @@ void ComputeDissipation::operator()(const double dt)
 
   if(sim.rank==0)
   {
-    std::stringstream &fileDissip = logger.get_stream("wakeDissipation.dat");
+    std::stringstream &fileDissip = logger.get_stream("diagnostics.dat");
     if(sim.step==0)
      fileDissip<<"step_id time circ_x circ_y circ_y linImp_x linImp_y linImp_z "
      "linMom_x linMom_y linMom_z angImp_x angImp_y angImp_z angMom_x angMom_y "

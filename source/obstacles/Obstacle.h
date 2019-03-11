@@ -100,14 +100,15 @@ public:
   // computed from chi on the grid:
   double centerOfMass[3] = {0,0,0};
   //from penalization:
-  double mass=0, force[3] = {0,0,0}, torque[3] = {0,0,0};
+  double mass=0, length=0;
+  std::array<double,3> force = {0,0,0}, torque = {0,0,0};
   //from compute forces: perimeter, circulation and forces
   double totChi=0, gamma[3]={0,0,0}, surfForce[3]={0,0,0};
   //pressure and viscous contribution from compute forces:
   double presForce[3]={0,0,0}, viscForce[3]={0,0,0}, surfTorque[3]={0,0,0};
   double drag=0, thrust=0, Pout=0, PoutBnd=0, pLocom=0;
   double defPower=0, defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
-  double transVel_correction[3]={0,0,0}, angVel_correction[3]={0,0,0}, length;
+  std::array<double,3> transVel_correction={0,0,0}, angVel_correction={0,0,0};
   //forced obstacles:
   std::array<double,3> transVel_computed = {0,0,0}, angVel_computed = {0,0,0};
   std::array<double,3> transVel_fluid    = {0,0,0}, angVel_fluid    = {0,0,0};

@@ -55,7 +55,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   uinf[2] = parser("-uinfz").asDouble(0.0);
 
   // PIPELINE
-  computeDissipation = (bool)parser("-compute-dissipation").asInt(0);
+  freqDiagnostics = parser("-freqDiagnostics").asInt(10);
 
   // OUTPUT
   verbose = parser("-verbose").asBool(true) && rank == 0;
