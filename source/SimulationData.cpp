@@ -14,6 +14,7 @@
 #include "Cubism/ArgumentParser.h"
 #include "Cubism/Profiler.h"
 #include "Cubism/HDF5SliceDumperMPI.h"
+#include "utils/NonUniformScheme.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -47,8 +48,8 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   // FLOW
   nu = parser("-nu").asDouble();
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
-  lambda = parser("-lambda").asDouble(0);
-  DLM = parser("-use-dlm").asDouble(1.0);
+  lambda = parser("-lambda").asDouble(1e6);
+  DLM = parser("-use-dlm").asDouble(0);
   CFL = parser("-CFL").asDouble(.1);
   uinf[0] = parser("-uinfx").asDouble(0.0);
   uinf[1] = parser("-uinfy").asDouble(0.0);
@@ -161,7 +162,7 @@ void SimulationData::_preprocessArguments()
 
   // Flow.
   assert(nu >= 0);
-  assert(lambda > 0 || DLM >= 1);
+  assert(lambda > 0 || DLM > 0);
   assert(CFL > 0.0);
 
   // Output.
@@ -212,6 +213,11 @@ SimulationData::~SimulationData()
   delete grid;
   delete profiler;
   delete obstacle_vector;
+  if(nonuniform not_eq nullptr) {
+    NonUniformScheme<FluidBlock>* nonuniform_ = static_cast<NonUniformScheme<FluidBlock>*>(nonuniform);
+    assert(nonuniform_ not_eq nullptr);
+    delete nonuniform_;
+  }
   while(!pipeline.empty()) {
     auto * g = pipeline.back();
     pipeline.pop_back();
@@ -223,6 +229,11 @@ SimulationData::~SimulationData()
       delete dumper;
     }
     delete dump;
+    if(dump_nonuniform not_eq nullptr) {
+      NonUniformScheme<DumpBlock>* dump_nonuniform_ = static_cast<NonUniformScheme<DumpBlock>*>(dump_nonuniform);
+      assert(dump_nonuniform_ not_eq nullptr);
+      delete dump_nonuniform_;
+    }
     if (dump_comm != MPI_COMM_NULL)
       MPI_Comm_free(&dump_comm);
   #endif

@@ -346,31 +346,3 @@ void UpdateObstacles::operator()(const double dt)
 }
 
 CubismUP_3D_NAMESPACE_END
-
-#if 0
-const double UFROT[3] = {
-    fluidAngVel[1]*p[2] - fluidAngVel[2]*p[1],
-    fluidAngVel[2]*p[0] - fluidAngVel[0]*p[2],
-    fluidAngVel[0]*p[1] - fluidAngVel[1]*p[0]
-};
-const double USROT[3] = {
-    omega[1]*p[2] - omega[2]*p[1],
-    omega[2]*p[0] - omega[0]*p[2],
-    omega[0]*p[1] - omega[1]*p[0]
-};
-const Real velFluctX = b(ix,iy,iz).u - fluidLinVel[0] - UFROT[0];
-const Real velFluctY = b(ix,iy,iz).v - fluidLinVel[1] - UFROT[1];
-const Real velFluctZ = b(ix,iy,iz).w - fluidLinVel[2] - UFROT[2];
-const Real deltaLinX = (            UT[0]-fluidLinVel[0]) * penalFX;
-const Real deltaLinY = (            UT[1]-fluidLinVel[1]) * penalFY;
-const Real deltaLinZ = (            UT[2]-fluidLinVel[2]) * penalFZ;
-const Real deltaAngX = (         USROT[0]-      UFROT[0]) * penalTX;
-const Real deltaAngY = (         USROT[1]-      UFROT[1]) * penalTY;
-const Real deltaAngZ = (         USROT[2]-      UFROT[2]) * penalTZ;
-const Real deltaDefX = (UD[iz][iy][ix][0]-    velFluctX ) * penalDef;
-const Real deltaDefY = (UD[iz][iy][ix][1]-    velFluctY ) * penalDef;
-const Real deltaDefZ = (UD[iz][iy][ix][2]-    velFluctZ ) * penalDef;
-b(ix,iy,iz).u += CHI[iz][iy][ix]*(deltaLinX + deltaAngX + deltaDefX);
-b(ix,iy,iz).v += CHI[iz][iy][ix]*(deltaLinY + deltaAngY + deltaDefY);
-b(ix,iy,iz).w += CHI[iz][iy][ix]*(deltaLinZ + deltaAngZ + deltaDefZ);
-#endif

@@ -144,9 +144,8 @@ class KernelPressureRHS_nonUniform
   }
 
  public:
-  const std::array<int, 3> stencil_start = {-1, -1, -1};
-  const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil=StencilInfo(-1,-1,-1,2,2,2,false,6,1,2,3,5,6,7);
+  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
+  const StencilInfo stencil = StencilInfo(-1,-1,-1,2,2,2,false, 6, 1,2,3,5,6,7);
 
 
   KernelPressureRHS_nonUniform(double _dt, double lambda, const Real buf[3],

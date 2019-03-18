@@ -46,6 +46,7 @@ struct SimulationData
   cubism::Profiler * profiler = nullptr;
 
   FluidGridMPI * grid = nullptr;
+  void * nonuniform = nullptr;
   const inline std::vector<cubism::BlockInfo>& vInfo() const {
     return grid->getBlocksInfo();
   }
@@ -107,6 +108,7 @@ struct SimulationData
 
   #ifdef CUP_ASYNC_DUMP
     MPI_Comm dump_comm = MPI_COMM_NULL;
+    void * dump_nonuniform = nullptr;
     DumpGridMPI * dump = nullptr;
     std::thread * dumper = nullptr;
   #endif

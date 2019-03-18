@@ -184,45 +184,49 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
     if(sim.rank==0)
       printf("Stretched grid of sizes: %f %f %f\n",
       sim.extent[0],sim.extent[1],sim.extent[2]);
-    NonUniformScheme<FluidBlock> nonuniform( 0, sim.extent[0],
+    NonUniformScheme<FluidBlock> * nonuniform = nullptr;
+    nonuniform = new NonUniformScheme<FluidBlock>( 0, sim.extent[0],
       0, sim.extent[1], 0, sim.extent[2], sim.bpdx, sim.bpdy, sim.bpdz);
-
+    assert(nonuniform not_eq nullptr);
     // initialize scheme
     assert(parser_ptr != nullptr
            && "Cannot use a stretched grid and initialize without an ArgumentParser.");
     MeshDensityFactory mk(* parser_ptr);
-    nonuniform.init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
+    nonuniform->init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
 
     sim.grid = new FluidGridMPI(
-      & nonuniform.get_map_x(), & nonuniform.get_map_y(),
-      & nonuniform.get_map_z(), sim.nprocsx, sim.nprocsy, sim.nprocsz,
+      & nonuniform->get_map_x(), & nonuniform->get_map_y(),
+      & nonuniform->get_map_z(), sim.nprocsx, sim.nprocsy, sim.nprocsz,
       sim.local_bpdx, sim.local_bpdy, sim.local_bpdz, sim.app_comm);
     assert(sim.grid != nullptr);
 
     #ifdef CUP_ASYNC_DUMP
       // create new comm so that if there is a barrier main work is not affected
       MPI_Comm_split(sim.app_comm, 0, sim.rank, & sim.dump_comm);
-      NonUniformScheme<DumpBlock> nonuniform_dump( 0, sim.extent[0],
+      NonUniformScheme<DumpBlock> * dump_nonuniform = nullptr;
+      dump_nonuniform = new NonUniformScheme<DumpBlock>( 0, sim.extent[0],
         0, sim.extent[1], 0, sim.extent[2], sim.bpdx, sim.bpdy, sim.bpdz);
-      nonuniform_dump.init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
+      dump_nonuniform->init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
       sim.dump = new  DumpGridMPI(
-        & nonuniform_dump.get_map_x(), & nonuniform_dump.get_map_y(),
-        & nonuniform_dump.get_map_z(), sim.nprocsx,sim.nprocsy,sim.nprocsz,
+        & dump_nonuniform->get_map_x(), & dump_nonuniform->get_map_y(),
+        & dump_nonuniform->get_map_z(), sim.nprocsx,sim.nprocsy,sim.nprocsz,
         sim.local_bpdx, sim.local_bpdy, sim.local_bpdz, sim.dump_comm);
+      sim.dump_nonuniform = (void *) dump_nonuniform; // to delete it at the end
     #endif
 
     // setp block coefficients
-    nonuniform.template setup_coefficients<FDcoeffs_2ndOrder>(
+    nonuniform->template setup_coefficients<FDcoeffs_2ndOrder>(
       sim.grid->getBlocksInfo());
-    nonuniform.template setup_coefficients<FDcoeffs_4thOrder>(
+    nonuniform->template setup_coefficients<FDcoeffs_4thOrder>(
       sim.grid->getBlocksInfo(), true);
-    nonuniform.setup_inverse_spacing(
+    nonuniform->setup_inverse_spacing(
       sim.grid->getBlocksInfo());
 
     // some statistics
-    nonuniform.print_mesh_statistics(sim.rank == 0);
-    sim.hmin = nonuniform.minimum_cell_width();
-    sim.hmax = nonuniform.maximum_cell_width();
+    nonuniform->print_mesh_statistics(sim.rank == 0);
+    sim.hmin = nonuniform->minimum_cell_width();
+    sim.hmax = nonuniform->maximum_cell_width();
+    sim.nonuniform = (void *) nonuniform; // to delete it at the end
   }
 
   const std::vector<BlockInfo>& vInfo = sim.vInfo();
@@ -325,8 +329,8 @@ double Simulation::calcMaxTimestep()
     const double rampCFL = std::exp(std::log(1e-4)*(1-x) + std::log(sim.CFL)*x);
     sim.dt = rampCFL * std::min(dtDif, dtAdv);
   }
-  // if DLM>=1, adapt lambda such that penal term is independent of time step
-  if (sim.DLM >= 1) sim.lambda = sim.DLM / sim.dt;
+  // if DLM>0, adapt lambda such that penal term is independent of time step
+  if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
   if (sim.verbose)
     printf("maxU:%f dtF:%e dtC:%e dt:%e lambda:%e\n",
       globMaxU, dtDif, dtAdv, sim.dt, sim.lambda);

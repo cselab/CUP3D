@@ -42,7 +42,7 @@ class PoissonSolverMixed_HYPRE : public PoissonSolver
     (int) myN[2] * (peidx[2]+1) - 1
   };
   HYPRE_Int iGridEnd[3] = {(int)gsize[0]-1, (int)gsize[1]-1, (int)gsize[2]-1};
-  const size_t fixed_idx  = linaccess(myN[0]-2, myN[1]-2, myN[2]-2);
+  const size_t fixed_idx = linaccess(myN[0]-2, myN[1]-2, myN[2]-2);
   Real coef_fixed_idx = 6 * h;
   const size_t fixed_m1x = linaccess(myN[0]-3, myN[1]-2, myN[2]-2);
   Real coef_fixed_m1z = h;
@@ -65,10 +65,11 @@ class PoissonSolverMixed_HYPRE : public PoissonSolver
     return ix + myN[0] * iy + myN[0]*myN[1] * iz;
   }
 
-  Real * prepareMat_nonUniform();
-  Real * prepareMat();
-
  public:
+  using RowType = Real[7];
+  RowType * prepareMat_nonUniform();
+  RowType * prepareMat();
+
   void solve() override;
 
   PoissonSolverMixed_HYPRE(SimulationData& s);

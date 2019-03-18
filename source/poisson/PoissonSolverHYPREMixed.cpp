@@ -55,7 +55,7 @@ void PoissonSolverMixed_HYPRE::solve()
   sim.startProfiler("HYPRE mean0");
   {
     Real avgP = 0;
-    const size_t dofNum = gsize[0] * gsize[1] * gsize[2];
+    const size_t dofNum = myN[0] * myN[1] * myN[2];
     const Real fac = 1.0 / dofNum;
     // Compute average pressure across all ranks:
     #pragma omp parallel for schedule(static) reduction(+ : avgP)
@@ -78,12 +78,12 @@ void PoissonSolverMixed_HYPRE::solve()
 }
 
 PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
-  PoissonSolver(s), solver("smg")
+  PoissonSolver(s), solver("pcg")
 {
   printf("Employing HYPRE-based Poisson solver with Dirichlet BCs. Rank %d pos {%d %d %d}\n", m_rank, peidx[0], peidx[1], peidx[2]);
   if(bRankHoldsFixedDOF)
     printf("Rank %d holds the fixed DOF!\n", m_rank);
-
+  fflush(0);
   data = new Real[myN[0] * myN[1] * myN[2]];
   data_size = (size_t) myN[0] * (size_t) myN[1] * (size_t) myN[2];
   stridez = myN[1] * myN[0]; // slow
@@ -121,17 +121,89 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
 
   { // Matrix
     HYPRE_StructMatrixCreate(m_comm, hypre_grid, hypre_stencil, &hypre_mat);
+    //HYPRE_StructMatrixSetSymmetric(hypre_mat, 1);
     HYPRE_StructMatrixInitialize(hypre_mat);
 
     // These indices must match to those in the offset array:
     HYPRE_Int inds[7] = {0, 1, 2, 3, 4, 5, 6};
 
 
-    Real * const linV = sim.bUseStretchedGrid ? prepareMat_nonUniform() : prepareMat();
+    RowType* const vals = sim.bUseStretchedGrid ? prepareMat_nonUniform()
+                                                : prepareMat();
+    if(sim.BCx_flag != periodic && ilower[0] == 0) {
+      #pragma omp parallel for schedule(static)
+      for(size_t k=0; k<myN[2]; k++) for(size_t j=0; j<myN[1]; j++) {
+        const auto idx = linaccess(0, j, k);
+        vals[idx][0] += vals[idx][1]; vals[idx][1] = 0;
+      }
+    }
+    if(sim.BCx_flag != periodic && iupper[0] == iGridEnd[0]) {
+      #pragma omp parallel for schedule(static)
+      for(size_t k=0; k<myN[2]; k++) for(size_t j=0; j<myN[1]; j++) {
+        const auto idx = linaccess(myN[0]-1, j, k);
+        vals[idx][0] += vals[idx][2]; vals[idx][2] = 0;
+      }
+    }
 
+    if(sim.BCy_flag != periodic && ilower[1] == 0) {
+      #pragma omp parallel for schedule(static)
+      for(size_t k=0; k<myN[2]; k++) for(size_t i=0; i<myN[0]; i++) {
+        const auto idx = linaccess(i, 0, k);
+        vals[idx][0] += vals[idx][3]; vals[idx][3] = 0;
+      }
+    }
+    if(sim.BCy_flag != periodic && iupper[1] == iGridEnd[1]) {
+      #pragma omp parallel for schedule(static)
+      for(size_t k=0; k<myN[2]; k++) for(size_t i=0; i<myN[0]; i++) {
+        const auto idx = linaccess(i, myN[1]-1, k);
+        vals[idx][0] += vals[idx][4]; vals[idx][4] = 0;
+      }
+    }
+
+    if(sim.BCz_flag != periodic && ilower[2] == 0) {
+      #pragma omp parallel for schedule(static)
+      for(size_t j=0; j<myN[1]; j++) for(size_t i=0; i<myN[0]; i++) {
+        const auto idx = linaccess(i, j, 0);
+        vals[idx][0] += vals[idx][5]; vals[idx][5] = 0;
+      }
+    }
+    if(sim.BCz_flag != periodic && iupper[2] == iGridEnd[2]) {
+      #pragma omp parallel for schedule(static)
+      for(size_t j=0; j<myN[1]; j++) for(size_t i=0; i<myN[0]; i++) {
+        const auto idx = linaccess(i, j, myN[2]-1);
+        vals[idx][0] += vals[idx][6]; vals[idx][6] = 0;
+      }
+    }
+
+    if(bRankHoldsFixedDOF)
+    {
+      // set last corner such that last point has pressure pLast
+      coef_fixed_idx = vals[fixed_idx][0];
+      assert(std::fabs(coef_fixed_idx) > 1e-16);
+      vals[fixed_idx][1] = 0; vals[fixed_idx][2] = 0;
+      vals[fixed_idx][3] = 0; vals[fixed_idx][4] = 0;
+      vals[fixed_idx][5] = 0; vals[fixed_idx][6] = 0;
+      // neighbours read value of corner from the RHS:
+      //fixed dof-1dz reads +1dz from RHS
+      coef_fixed_m1z = vals[fixed_m1z][6]; vals[fixed_m1z][6] = 0;
+      //fixed dof+1dz reads -1dz from RHS
+      coef_fixed_p1z = vals[fixed_p1z][5]; vals[fixed_p1z][5] = 0;
+      //fixed dof-1dy reads +1dy from RHS
+      coef_fixed_m1y = vals[fixed_m1y][4]; vals[fixed_m1y][4] = 0;
+      //fixed dof+1dy reads -1dy from RHS
+      coef_fixed_p1y = vals[fixed_p1y][3]; vals[fixed_p1y][3] = 0;
+      //fixed dof-1dx reads +1dx from RHS
+      coef_fixed_m1x = vals[fixed_m1x][2]; vals[fixed_m1x][2] = 0;
+      //fixed dof+1dx reads -1dx from RHS
+      coef_fixed_p1x = vals[fixed_p1x][1]; vals[fixed_p1x][1] = 0;
+    }
+
+    //Real* const linV = static_cast<Real*> (& vals[0][0]);
+    Real* const linV = reinterpret_cast<Real*> (vals);
+    assert(linV not_eq nullptr);
     HYPRE_StructMatrixSetBoxValues(hypre_mat, ilower, iupper, 7, inds, linV);
-    delete [] linV;
     HYPRE_StructMatrixAssemble(hypre_mat);
+    delete [] vals;
   }
 
   // Rhs and initial guess
@@ -151,7 +223,7 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
   HYPRE_StructVectorAssemble(hypre_sol);
 
   if (solver == "gmres") {
-    printf("Using GMRES solver\n");
+    printf("Using GMRES solver\n"); fflush(0);
     HYPRE_StructGMRESCreate(m_comm, &hypre_solver);
     HYPRE_StructGMRESSetTol(hypre_solver, 1e-2);
     HYPRE_StructGMRESSetPrintLevel(hypre_solver, 2);
@@ -159,7 +231,7 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
     HYPRE_StructGMRESSetup(hypre_solver, hypre_mat, hypre_rhs, hypre_sol);
   }
   else if (solver == "smg") {
-    printf("Using SMG solver\n");
+    printf("Using SMG solver\n"); fflush(0);
     HYPRE_StructSMGCreate(m_comm, &hypre_solver);
     //HYPRE_StructSMGSetMemoryUse(hypre_solver, 0);
     HYPRE_StructSMGSetMaxIter(hypre_solver, 100);
@@ -172,7 +244,7 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
     HYPRE_StructSMGSetup(hypre_solver, hypre_mat, hypre_rhs, hypre_sol);
   }
   else {
-    printf("Using PCG solver\n");
+    printf("Using PCG solver\n"); fflush(0);
     HYPRE_StructPCGCreate(m_comm, &hypre_solver);
     HYPRE_StructPCGSetMaxIter(hypre_solver, 1000);
     HYPRE_StructPCGSetTol(hypre_solver, 1e-2);
@@ -207,10 +279,11 @@ PoissonSolverMixed_HYPRE::~PoissonSolverMixed_HYPRE()
   delete [] data;
 }
 
-Real * PoissonSolverMixed_HYPRE::prepareMat_nonUniform()
+using RowType = PoissonSolverMixed_HYPRE::RowType;
+RowType* PoissonSolverMixed_HYPRE::prepareMat_nonUniform()
 {
-  using RowType = Real[7];
   RowType * const vals = new RowType[myN[0] * myN[1] * myN[2]];
+  const auto& vInfo = sim.vInfo();
   #pragma omp parallel for schedule(static)
   for(size_t i=0; i<local_infos.size(); ++i)
   {
@@ -222,7 +295,8 @@ Real * PoissonSolverMixed_HYPRE::prepareMat_nonUniform()
     for(size_t iy=0; iy < (size_t) BlockType::sizeY; iy++)
     {
       const size_t idx = _dest(offset, iz, iy, ix);
-      Real vh[3]; local_infos[i].spacing(vh, ix, iy, iz);
+      assert(idx < myN[0] * myN[1] * myN[2]);
+      Real vh[3]; vInfo[i].spacing(vh, ix, iy, iz);
       const Real dv = vh[0] * vh[1] * vh[2];
       vals[idx][0] = dv * ( cx.c00[ix] + cy.c00[iy] + cz.c00[iz] );
       vals[idx][1] = dv *   cx.cm1[ix]; /* west  */
@@ -231,60 +305,12 @@ Real * PoissonSolverMixed_HYPRE::prepareMat_nonUniform()
       vals[idx][4] = dv *   cy.cp1[iy]; /* north */
       vals[idx][5] = dv *   cz.cm1[iz]; /* front */
       vals[idx][6] = dv *   cz.cp1[iz]; /* back  */
-      if(ix == 0        && ilower[0]==0           && sim.BCx_flag != periodic) {
-        vals[idx][0] += vals[idx][1]; vals[idx][1] = 0;
-      }
-      if(ix == myN[0]-1 && iupper[0]==iGridEnd[0] && sim.BCx_flag != periodic) {
-        vals[idx][0] += vals[idx][2]; vals[idx][2] = 0;
-      }
-      if(iy == 0        && ilower[1]==0           && sim.BCy_flag != periodic) {
-        vals[idx][0] += vals[idx][3]; vals[idx][3] = 0;
-      }
-      if(iy == myN[1]-1 && iupper[1]==iGridEnd[1] && sim.BCy_flag != periodic) {
-        vals[idx][0] += vals[idx][4]; vals[idx][4] = 0;
-      }
-      if(iz == 0        && ilower[2]==0           && sim.BCz_flag != periodic) {
-        vals[idx][0] += vals[idx][5]; vals[idx][5] = 0;
-      }
-      if(iz == myN[2]-1 && iupper[2]==iGridEnd[2] && sim.BCz_flag != periodic) {
-        vals[idx][0] += vals[idx][6]; vals[idx][6] = 0;
-      }
-      if(bRankHoldsFixedDOF)
-      {
-        // set last corner such that last point has pressure pLast
-        if(fixed_idx == idx) {
-          coef_fixed_idx = vals[idx][0];
-          assert(std::fabs(coef_fixed_idx) > 1e-16);
-          vals[fixed_idx][1] = 0; vals[fixed_idx][2] = 0;
-          vals[fixed_idx][3] = 0; vals[fixed_idx][4] = 0;
-          vals[fixed_idx][5] = 0; vals[fixed_idx][6] = 0;
-        }
-        // neighbours read value of corner from the RHS:
-        if(fixed_m1z == idx) { //fixed dof-1dz reads +1dz from RHS
-          coef_fixed_m1z = vals[fixed_m1z][6]; vals[fixed_m1z][6] = 0;
-        }
-        if(fixed_p1z == idx) { //fixed dof+1dz reads -1dz from RHS
-          coef_fixed_p1z = vals[fixed_p1z][5]; vals[fixed_p1z][5] = 0;
-        }
-        if(fixed_m1y == idx) { //fixed dof-1dy reads +1dy from RHS
-          coef_fixed_m1y = vals[fixed_m1y][4]; vals[fixed_m1y][4] = 0;
-        }
-        if(fixed_p1y == idx) { //fixed dof+1dy reads -1dy from RHS
-          coef_fixed_p1y = vals[fixed_p1y][3]; vals[fixed_p1y][3] = 0;
-        }
-        if(fixed_m1x == idx) { //fixed dof-1dx reads +1dx from RHS
-          coef_fixed_m1x = vals[fixed_m1x][2]; vals[fixed_m1x][2] = 0;
-        }
-        if(fixed_p1x == idx) { //fixed dof+1dx reads -1dx from RHS
-          coef_fixed_p1x = vals[fixed_p1x][1]; vals[fixed_p1x][1] = 0;
-        }
-      }
     }
   }
-  return (Real*) vals;
+  return vals;
 }
 
-Real * PoissonSolverMixed_HYPRE::prepareMat()
+RowType* PoissonSolverMixed_HYPRE::prepareMat()
 {
   using RowType = Real[7];
   RowType * const vals = new RowType[myN[0] * myN[1] * myN[2]];
@@ -299,82 +325,7 @@ Real * PoissonSolverMixed_HYPRE::prepareMat()
     vals[idx][3] =  1*h; /* south  */ vals[idx][4] =  1*h; /* north  */
     vals[idx][5] =  1*h; /* front  */ vals[idx][6] =  1*h; /* back   */
   }
-
-  if( sim.BCx_flag != periodic )
-  {
-    // set 0 and iGridEnd[0] dof to dirichlet BC
-    if(ilower[0] == 0) {
-      #pragma omp parallel for schedule(static)
-      for (size_t k = 0; k < myN[2]; k++)
-      for (size_t j = 0; j < myN[1]; j++) {
-        const auto idx = linaccess(0, j, k);
-        vals[idx][0] += h; vals[idx][1] = 0;
-      }
-    }
-    if(iupper[0] == iGridEnd[0]) {
-      #pragma omp parallel for schedule(static)
-      for (size_t k = 0; k < myN[2]; k++)
-      for (size_t j = 0; j < myN[1]; j++) {
-        const auto idx = linaccess(myN[0]-1, j, k);
-        vals[idx][0] += h; vals[idx][2] = 0;
-      }
-    }
-  }
-  if( sim.BCy_flag != periodic )
-  {
-    if(ilower[1] == 0) {
-      #pragma omp parallel for schedule(static)
-      for (size_t k = 0; k < myN[2]; k++)
-      for (size_t i = 0; i < myN[0]; i++) {
-        const auto idx = linaccess(i, 0, k);
-        vals[idx][0] += h; vals[idx][3] = 0;
-      }
-    }
-    if(iupper[1] == iGridEnd[1]) {
-      #pragma omp parallel for schedule(static)
-      for (size_t k = 0; k < myN[2]; k++)
-      for (size_t i = 0; i < myN[0]; i++) {
-        const auto idx = linaccess(i, myN[1]-1, k);
-        vals[idx][0] += h; vals[idx][4] = 0;
-      }
-    }
-  }
-  if( sim.BCz_flag != periodic )
-  {
-    if(ilower[2] == 0) {
-      #pragma omp parallel for schedule(static)
-      for (size_t j = 0; j < myN[1]; j++)
-      for (size_t i = 0; i < myN[0]; i++) {
-        const auto idx = linaccess(i, j, 0);
-        vals[idx][0] += h; vals[idx][5] = 0;
-      }
-    }
-    if(iupper[2] == iGridEnd[2]) {
-      #pragma omp parallel for schedule(static)
-      for (size_t j = 0; j < myN[1]; j++)
-      for (size_t i = 0; i < myN[0]; i++) {
-        const auto idx = linaccess(i, j, myN[2]-1);
-        vals[idx][0] += h; vals[idx][6] = 0;
-      }
-    }
-  }
-  if(bRankHoldsFixedDOF)
-  {
-    // set last corner such that last point has pressure pLast
-    vals[fixed_idx][0] = 6*h; // for conditioning = 1
-    vals[fixed_idx][1] = 0; vals[fixed_idx][2] = 0;
-    vals[fixed_idx][3] = 0; vals[fixed_idx][4] = 0;
-    vals[fixed_idx][5] = 0; vals[fixed_idx][6] = 0;
-    // neighbours read value of corner from the RHS:
-    vals[fixed_m1z][6]=0; // fixed -1dz reads fixed dof (+1dz) from RHS
-    vals[fixed_p1z][5]=0; // fixed +1dz reads fixed dof (-1dz) from RHS
-    vals[fixed_m1y][4]=0; // fixed -1dy reads fixed dof (+1dy) from RHS
-    vals[fixed_p1y][3]=0; // fixed +1dy reads fixed dof (-1dy) from RHS
-    vals[fixed_m1x][2]=0; // fixed -1dx reads fixed dof (+1dx) from RHS
-    vals[fixed_p1x][1]=0; // fixed +1dx reads fixed dof (-1dx) from RHS
-  }
-
-  return (Real*) vals;
+  return vals;
 }
 
 CubismUP_3D_NAMESPACE_END

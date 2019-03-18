@@ -74,9 +74,15 @@ struct KernelPenalization : public ObstacleVisitor
       };
       // What if two obstacles overlap? Let's plus equal. We will need a
       // repulsion term of the velocity at some point in the code.
-      b(ix,iy,iz).u = (b(ix,iy,iz).u + X*lamdt * U_TOT[0]) / (1 + X*lamdt);
-      b(ix,iy,iz).v = (b(ix,iy,iz).v + X*lamdt * U_TOT[1]) / (1 + X*lamdt);
-      b(ix,iy,iz).w = (b(ix,iy,iz).w + X*lamdt * U_TOT[2]) / (1 + X*lamdt);
+      #ifndef OLD_INTEGRATE_MOM
+        b(ix,iy,iz).u = (b(ix,iy,iz).u + X*lamdt * U_TOT[0]) / (1 + X*lamdt);
+        b(ix,iy,iz).v = (b(ix,iy,iz).v + X*lamdt * U_TOT[1]) / (1 + X*lamdt);
+        b(ix,iy,iz).w = (b(ix,iy,iz).w + X*lamdt * U_TOT[2]) / (1 + X*lamdt);
+      #else
+        b(ix,iy,iz).u += X*lamdt * ( U_TOT[0] - b(ix,iy,iz).u );
+        b(ix,iy,iz).v += X*lamdt * ( U_TOT[1] - b(ix,iy,iz).v );
+        b(ix,iy,iz).w += X*lamdt * ( U_TOT[2] - b(ix,iy,iz).w );
+      #endif
     }
   }
 };
