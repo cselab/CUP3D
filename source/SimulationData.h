@@ -51,6 +51,14 @@ struct SimulationData
     return grid->getBlocksInfo();
   }
   Real maxH() const { return hmax; }
+  Real uniformH() const
+  {
+    if(std::fabs(hmin-hmax) > 1e-15) {
+      printf("ABORT: SimulationData::uniformH requires uniform grids.\n");
+      fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
+    }
+    return hmin;
+  }
 
   // vector of 2D slices (for dumping)
   std::vector<SliceType> m_slices;

@@ -33,7 +33,7 @@ class PoissonSolverUnbounded : public PoissonSolver
   const size_t m_start_N0 = m_local_N0 * m_rank;
   const size_t m_local_NN0 = m_NN0/m_size, m_start_NN0 = m_local_NN0*m_rank;
   const size_t m_local_NN1 = m_NN1/m_size, m_start_NN1 = m_local_NN1*m_rank;
-  const double h = grid.getBlocksInfo().front().h_gridpoint;
+  const double h = sim.uniformH();
   // data buffers for input and transform.  Split into 2 buffers to exploit
   // smaller transpose matrix and fewer FFT's due to zero-padded domain.
   // This is at the cost of higher memory requirements.

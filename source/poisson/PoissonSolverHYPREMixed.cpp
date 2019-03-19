@@ -312,7 +312,7 @@ RowType* PoissonSolverMixed_HYPRE::prepareMat_nonUniform()
 
 RowType* PoissonSolverMixed_HYPRE::prepareMat()
 {
-  const double h = grid.getBlocksInfo().front().h_gridpoint;
+  const double h = sim.uniformH();
   using RowType = Real[7];
   RowType * const vals = new RowType[myN[0] * myN[1] * myN[2]];
   #pragma omp parallel for schedule(static)
