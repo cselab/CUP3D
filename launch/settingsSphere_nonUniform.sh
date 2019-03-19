@@ -21,7 +21,7 @@ FACTORY='Sphere L=0.125 xpos=0.3 xvel=0.125 bForcedInSimFrame=1 bFixFrameOfRef=1
 
 OPTIONS=
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -extentx 2 -extenty 2 -extentz 1"
+OPTIONS+=" -extentx 2 -extenty 1 -extentz 1"
 OPTIONS+=" -dump2D 1 -dump3D 1 -tdump 0.5 -tend 8 "
 OPTIONS+=" -nslices 2 -slice1_direction 1 -slice2_direction 2 "
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"

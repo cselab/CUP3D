@@ -155,9 +155,10 @@ class KernelPressureRHS_nonUniform
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-    const size_t offset = solver->_offset_ext(info);
     // FD coefficients for first derivative
     const BlkCoeffX &cx =o.fd_cx.first, &cy =o.fd_cy.first, &cz =o.fd_cz.first;
+    Real* __restrict__ const ret = solver->data + solver->_offset_ext(info);
+    const unsigned SX=solver->stridex, SY=solver->stridey, SZ=solver->stridez;
     if( not _is_touching(o) )
     {
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -166,7 +167,7 @@ class KernelPressureRHS_nonUniform
         Real h[3]; info.spacing(h, ix, iy, iz);
         const Real fac = h[0]*h[1]*h[2]*invdt;
         const Real RHS_ = RHS(lab, ix,iy,iz, cx,cy,cz);
-        solver->_cub2fftw(offset, iz,iy,ix, fac * RHS_ );
+        ret[SZ*iz + SY*iy + SX*ix] = fac * RHS_;
         //o(ix,iy,iz).p = fac * RHS(lab, ix,iy,iz, pFac); //will break t>0
       }
     }
@@ -178,7 +179,7 @@ class KernelPressureRHS_nonUniform
         Real h[3]; info.spacing(h, ix, iy, iz);
         const Real fac = h[0]*h[1]*h[2]*invdt;
         const Real RHS_ = fade(info, ix,iy,iz) * RHS(lab, ix,iy,iz, cx,cy,cz);
-        solver->_cub2fftw(offset, iz,iy,ix, fac * RHS_ );
+        ret[SZ*iz + SY*iy + SX*ix] = fac * RHS_;
         //o(ix,iy,iz).p = fac * RHS_; //will break t>0
       }
     }

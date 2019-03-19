@@ -56,10 +56,9 @@ void PoissonSolverMixed_HYPRE::solve()
   {
     const Real avgP = sim.bUseStretchedGrid? computeAverage_nonUniform()
                                            : computeAverage();
-    const size_t dofNum = myN[0] * myN[1] * myN[2];
     // Subtract average pressure from all gridpoints
     #pragma omp parallel for schedule(static)
-    for (size_t i = 0; i < dofNum; i++) data[i] -= avgP;
+    for (size_t i = 0; i < data_size; i++) data[i] -= avgP;
     // Set this new mean-0 pressure as next guess
     HYPRE_StructVectorSetBoxValues(hypre_sol, ilower, iupper, data);
     // Save pressure of a corner of the grid so that it can be imposed next time

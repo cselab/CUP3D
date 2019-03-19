@@ -53,17 +53,18 @@ Real PoissonSolver::computeRelativeCorrection(bool coldrun) const
 Real PoissonSolver::computeRelativeCorrection_nonUniform(bool coldrun) const
 {
   Real sumRHS = 0, sumABS = 0;
-  const auto& vInfo = sim.vInfo();
+  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+  assert(vInfo.size() == local_infos.size());
   #pragma omp parallel for schedule(static) reduction(+ : sumRHS, sumABS)
   for(size_t i=0; i<vInfo.size(); ++i)
   {
-    const size_t offset = _offset( vInfo[i] );
+    const size_t offset = _offset( local_infos[i] );
     for(int iz=0; iz<BlockType::sizeZ; iz++)
-    for(int ix=0; ix<BlockType::sizeX; ix++)
-    for(int iy=0; iy<BlockType::sizeY; iy++) {
+    for(int iy=0; iy<BlockType::sizeY; iy++)
+    for(int ix=0; ix<BlockType::sizeX; ix++) {
       const size_t src_index = _dest(offset, iz, iy, ix);
       Real h[3]; vInfo[i].spacing(h, ix, iy, iz);
-      sumABS += h[0]*h[1]*h[2] * std::fabs(data[src_index]);
+      sumABS += h[0]*h[1]*h[2] * std::fabs( data[src_index] );
       sumRHS += h[0]*h[1]*h[2] * data[src_index];
     }
   }
@@ -82,10 +83,9 @@ Real PoissonSolver::computeRelativeCorrection_nonUniform(bool coldrun) const
 Real PoissonSolver::computeAverage() const
 {
   Real avgP = 0;
-  const size_t dofNum = myN[0] * myN[1] * myN[2];
-  const Real fac = 1.0 / dofNum;
+  const Real fac = 1.0 / (gsize[0] * gsize[1] * gsize[2]);
   #pragma omp parallel for schedule(static) reduction(+ : avgP)
-  for (size_t i = 0; i < dofNum; i++) avgP += fac * data[i];
+  for (size_t i = 0; i < data_size; i++) avgP += fac * data[i];
   MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, m_comm);
   return avgP;
 }
@@ -93,19 +93,22 @@ Real PoissonSolver::computeAverage() const
 Real PoissonSolver::computeAverage_nonUniform() const
 {
   Real avgP = 0;
-  const auto& vInfo = sim.vInfo();
+  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+  assert(vInfo.size() == local_infos.size());
   #pragma omp parallel for schedule(static) reduction(+ : avgP)
   for(size_t i=0; i<vInfo.size(); ++i)
   {
-    const size_t offset = _offset( vInfo[i] );
+    const size_t offset = _offset( local_infos[i] );
     for(int iz=0; iz<BlockType::sizeZ; iz++)
-    for(int ix=0; ix<BlockType::sizeX; ix++)
-    for(int iy=0; iy<BlockType::sizeY; iy++) {
+    for(int iy=0; iy<BlockType::sizeY; iy++)
+    for(int ix=0; ix<BlockType::sizeX; ix++) {
       Real h[3]; vInfo[i].spacing(h, ix, iy, iz);
-      avgP += h[0]*h[1]*h[2] * data[ _dest(offset, iz, iy, ix) ];
+      const size_t src_index = _dest(offset, iz, iy, ix);
+      avgP += h[0]*h[1]*h[2] * data[src_index];
     }
   }
   MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, m_comm);
+  avgP /= sim.extent[0] * sim.extent[1] * sim.extent[2];
   return avgP;
 }
 
@@ -117,8 +120,8 @@ void PoissonSolver::_fftw2cub() const
     BlockType& b = *(BlockType*) local_infos[i].ptrBlock;
     const size_t offset = _offset( local_infos[i] );
     for(int iz=0; iz<BlockType::sizeZ; iz++)
-    for(int ix=0; ix<BlockType::sizeX; ix++)
-    for(int iy=0; iy<BlockType::sizeY; iy++) {
+    for(int iy=0; iy<BlockType::sizeY; iy++)
+    for(int ix=0; ix<BlockType::sizeX; ix++) {
       const size_t src_index = _dest(offset, iz, iy, ix);
       b(ix,iy,iz).p = data[src_index];
     }
