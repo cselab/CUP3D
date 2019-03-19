@@ -54,13 +54,9 @@ void PoissonSolverMixed_HYPRE::solve()
 
   sim.startProfiler("HYPRE mean0");
   {
-    Real avgP = 0;
+    const Real avgP = sim.bUseStretchedGrid? computeAverage_nonUniform()
+                                           : computeAverage();
     const size_t dofNum = myN[0] * myN[1] * myN[2];
-    const Real fac = 1.0 / dofNum;
-    // Compute average pressure across all ranks:
-    #pragma omp parallel for schedule(static) reduction(+ : avgP)
-    for (size_t i = 0; i < dofNum; i++) avgP += fac * data[i];
-    MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, m_comm);
     // Subtract average pressure from all gridpoints
     #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < dofNum; i++) data[i] -= avgP;

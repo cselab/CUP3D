@@ -9,24 +9,31 @@
 #include "poisson/PoissonSolver.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+#ifndef CUP_SINGLE_PRECISION
+#define MPIREAL MPI_DOUBLE
+#else
+#define MPIREAL MPI_FLOAT
+#endif /* CUP_SINGLE_PRECISION */
 
 void PoissonSolver::_cub2fftw() const
 {
   assert(stridez>0 && stridey>0 && stridex>0 && data_size>0);
-  #if 0
-    #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<local_infos.size(); ++i) {
-      const BlockType& b = *(BlockType*) local_infos[i].ptrBlock;
-      const size_t offset = _offset(local_infos[i]);
-      for(int iz=0; iz<BlockType::sizeZ; iz++)
-      for(int ix=0; ix<BlockType::sizeX; ix++)
-      for(int iy=0; iy<BlockType::sizeY; iy++) {
-        const size_t dest_index = _dest(offset, iz, iy, ix);
-        data[dest_index] = b(ix,iy,iz).p;
-      }
-    }
-  #endif
 
+  const Real C = sim.bUseStretchedGrid? computeRelativeCorrection_nonUniform()
+                                      : computeRelativeCorrection();
+  #pragma omp parallel for schedule(static)
+  for(size_t i=0; i<data_size; ++i) data[i] -= std::fabs(data[i])*C;
+
+  #ifndef NDEBUG
+  {
+    sim.bUseStretchedGrid? computeRelativeCorrection_nonUniform()
+                         : computeRelativeCorrection();
+  }
+  #endif
+}
+
+Real PoissonSolver::computeRelativeCorrection(bool coldrun) const
+{
   Real sumRHS = 0, sumABS = 0;
   #pragma omp parallel for schedule(static) reduction(+ : sumRHS, sumABS)
   for(size_t i=0; i<data_size; ++i) {
@@ -36,23 +43,70 @@ void PoissonSolver::_cub2fftw() const
   MPI_Allreduce(MPI_IN_PLACE, sums, 2, MPI_DOUBLE,MPI_SUM, m_comm);
   sums[1] = std::max(std::numeric_limits<double>::epsilon(), sums[1]);
   const Real correction = sums[0] / sums[1];
-  if(m_rank == 0)
-    printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
-  #if 1
-    #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<data_size; ++i) data[i] -= std::fabs(data[i])*correction;
+  if(m_rank == 0) {
+    if(coldrun) printf("Integral of RHS after correction:%e\n", sums[0]);
+    else printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
+  }
+  return correction;
+}
 
-    #ifndef NDEBUG
-    {
-      double sumRHSpost = 0;
-      #pragma omp parallel for schedule(static) reduction(+ : sumRHSpost)
-      for(size_t i=0; i<data_size; ++i) sumRHSpost += data[i];
-      MPI_Allreduce(MPI_IN_PLACE, &sumRHSpost, 1, MPI_DOUBLE,MPI_SUM, m_comm);
-      printf("Sum of RHS after correction:%e\n", sumRHSpost);
-      fflush(0);
+Real PoissonSolver::computeRelativeCorrection_nonUniform(bool coldrun) const
+{
+  Real sumRHS = 0, sumABS = 0;
+  const auto& vInfo = sim.vInfo();
+  #pragma omp parallel for schedule(static) reduction(+ : sumRHS, sumABS)
+  for(size_t i=0; i<vInfo.size(); ++i)
+  {
+    const size_t offset = _offset( vInfo[i] );
+    for(int iz=0; iz<BlockType::sizeZ; iz++)
+    for(int ix=0; ix<BlockType::sizeX; ix++)
+    for(int iy=0; iy<BlockType::sizeY; iy++) {
+      const size_t src_index = _dest(offset, iz, iy, ix);
+      Real h[3]; vInfo[i].spacing(h, ix, iy, iz);
+      sumABS += h[0]*h[1]*h[2] * std::fabs(data[src_index]);
+      sumRHS += h[0]*h[1]*h[2] * data[src_index];
     }
-    #endif
-  #endif
+  }
+
+  double sums[2] = {sumRHS, sumABS};
+  MPI_Allreduce(MPI_IN_PLACE, sums, 2, MPI_DOUBLE,MPI_SUM, m_comm);
+  sums[1] = std::max(std::numeric_limits<double>::epsilon(), sums[1]);
+  const Real correction = sums[0] / sums[1];
+  if(m_rank == 0) {
+    if(coldrun) printf("Integral of RHS after correction:%e\n", sums[0]);
+    else printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
+  }
+  return correction;
+}
+
+Real PoissonSolver::computeAverage() const
+{
+  Real avgP = 0;
+  const size_t dofNum = myN[0] * myN[1] * myN[2];
+  const Real fac = 1.0 / dofNum;
+  #pragma omp parallel for schedule(static) reduction(+ : avgP)
+  for (size_t i = 0; i < dofNum; i++) avgP += fac * data[i];
+  MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, m_comm);
+  return avgP;
+}
+
+Real PoissonSolver::computeAverage_nonUniform() const
+{
+  Real avgP = 0;
+  const auto& vInfo = sim.vInfo();
+  #pragma omp parallel for schedule(static) reduction(+ : avgP)
+  for(size_t i=0; i<vInfo.size(); ++i)
+  {
+    const size_t offset = _offset( vInfo[i] );
+    for(int iz=0; iz<BlockType::sizeZ; iz++)
+    for(int ix=0; ix<BlockType::sizeX; ix++)
+    for(int iy=0; iy<BlockType::sizeY; iy++) {
+      Real h[3]; vInfo[i].spacing(h, ix, iy, iz);
+      avgP += h[0]*h[1]*h[2] * data[ _dest(offset, iz, iy, ix) ];
+    }
+  }
+  MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, m_comm);
+  return avgP;
 }
 
 void PoissonSolver::_fftw2cub() const

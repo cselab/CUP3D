@@ -43,6 +43,10 @@ class PoissonSolver
   };
   const size_t myN[3]={ mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
 
+  Real computeAverage() const;
+  Real computeAverage_nonUniform() const;
+  Real computeRelativeCorrection(bool coldrun = false) const;
+  Real computeRelativeCorrection_nonUniform(bool coldrun = false) const;
  public:
   size_t stridez = 0;
   size_t stridey = 0;

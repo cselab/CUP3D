@@ -55,7 +55,7 @@ struct SimulationData
   {
     if(std::fabs(hmin-hmax) > 1e-15) {
       printf("ABORT: SimulationData::uniformH requires uniform grids.\n");
-      fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
+      fflush(0); MPI_Abort(grid->getCartComm(), 1);
     }
     return hmin;
   }
