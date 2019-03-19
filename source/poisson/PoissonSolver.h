@@ -42,7 +42,6 @@ class PoissonSolver
       static_cast<size_t>(grid.getBlocksPerDimension(2)*bs[2])
   };
   const size_t myN[3]={ mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
-  const double h = grid.getBlocksInfo().front().h_gridpoint;
 
  public:
   size_t stridez = 0;

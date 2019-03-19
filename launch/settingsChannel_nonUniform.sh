@@ -14,7 +14,9 @@ FACTORY=''
 OPTIONS=
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
 OPTIONS+=" -extentx 6.2831853072 -extenty 2 -extentz 4.7123889804"
-OPTIONS+=" -mesh_density_y SinusoidalDensity -eta_y 1"
+#OPTIONS+=" -mesh_density_y SinusoidalDensity -eta_y 0.75" # first mesh point at 0.012523878 (Kim and Moin 1987)
+OPTIONS+=" -mesh_density_y SinusoidalDensity -eta_y 0.5" # first mesh point at y+ = 0.018313569
+#OPTIONS+=" -extentx 2 -extenty 2 -extentz 1"
 #OPTIONS+=" -extent 2 "
 OPTIONS+=" -useSolver hypre"
 OPTIONS+=" -dump2D 1 -dump3D 1 -tdump 0.1"

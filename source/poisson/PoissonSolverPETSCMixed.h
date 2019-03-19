@@ -19,7 +19,7 @@ class PoissonSolverMixed_PETSC : public PoissonSolver
 {
   const std::string solver;
   Real pLast = 0;
-
+  const double h = grid.getBlocksInfo().front().h_gridpoint;
   int peidx_0() const {  int ret[3]; grid.peindex(ret); return ret[0]; }
   int peidx_1() const {  int ret[3]; grid.peindex(ret); return ret[1]; }
   int peidx_2() const {  int ret[3]; grid.peindex(ret); return ret[2]; }

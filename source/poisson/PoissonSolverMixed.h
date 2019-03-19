@@ -26,6 +26,7 @@ class PoissonSolverMixed : public PoissonSolver
   template<bool DFTX, bool DFTY, bool DFTZ> void _solve()
   {
     // if BC flag == 1 fourier, else cosine transform
+    const double h = grid.getBlocksInfo().front().h_gridpoint;
     const Real normX = (DFTX ? 1.0 : 0.5) / ( gsize[0]*h );
     const Real normY = (DFTY ? 1.0 : 0.5) / ( gsize[1]*h );
     const Real normZ = (DFTZ ? 1.0 : 0.5) / ( gsize[2]*h );

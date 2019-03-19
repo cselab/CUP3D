@@ -21,6 +21,7 @@ class PoissonSolverUnbounded : public PoissonSolver
   const size_t mz_pad = mz/2 +1, myftNx = (mx+1)/m_size;
   const int szFft[3] = {(int) myftNx, (int) gsize[1], (int) gsize[2] };
   const int szCup[3] = {std::min(szFft[0],(int)myN[0]),(int)myN[1],(int)myN[2]};
+  const double h = grid.getBlocksInfo().front().h_gridpoint;
 
   MPI_Comm sort_comm, c_comm;
   int s_rank;

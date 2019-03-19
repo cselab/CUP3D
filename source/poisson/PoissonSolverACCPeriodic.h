@@ -25,6 +25,8 @@ class PoissonSolverPeriodic : public PoissonSolver
   Real * phi_hat;
   void * plan;
 
+  const double h = grid.getBlocksInfo().front().h_gridpoint;
+
 public:
   PoissonSolverPeriodic(SimulationData & s);
 
