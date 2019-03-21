@@ -128,7 +128,7 @@ int app_main(
     unsigned step = 0;
     double avgReward = 0;
     bool policyFailed = false;
-    sim->reset(); // TODO IMPLEMENT PROPER RESET (EG TIME AND STEP)
+    sim->reset(); // TODO Does not work for obstacles
 
     while (true) //simulation loop
     {

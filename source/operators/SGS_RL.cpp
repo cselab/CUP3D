@@ -15,19 +15,20 @@ using namespace cubism;
 class KernelSGS_RL_nonUniform
 {
   private:
-  const Real dt, mu;
+  const Real time, mu;
   const Real* const uInf;
   Communicator& comm;
   const bool timeOut;
   const double reward;
   const int nBlocks;
+  const envInfo rlSeqInfo = time<=0? INIT_COMM:(timeOut? TRNC_COMM : CONT_COMM);
 
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
 
-  KernelSGS_RL_nonUniform(double _dt, double m, Real*const u, Communicator& c,
-    bool over, double rew, int nblocks) : dt(_dt), mu(m), uInf(u), comm(c),
+  KernelSGS_RL_nonUniform(double t, double m, Real*const u, Communicator& c,
+    bool over, double rew, int nblocks) : time(t), mu(m), uInf(u), comm(c),
     timeOut(over), reward(rew), nBlocks(nblocks) { }
 
   template <typename Lab, typename BlockType>
@@ -42,10 +43,12 @@ class KernelSGS_RL_nonUniform
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
     for (int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
-      // one element per block is a proper agent, other are not
+      // one element per block is a proper agent: will add seq to train data
+      // other are nThreads and are only there for thread safety
+      // states get overwritten: TODO check that it works properly
       const int agentID = iz==0 && iy==0 && iz==0? info.blockID : nBlocks+thrID;
       const std::vector<double> dummy(27, 0);
-      comm.sendState(agentID, TRNC_COMM, dummy, reward);
+      comm.sendState(agentID, rlSeqInfo, dummy, reward);
       /*
         const FluidElement &L =lab(ix,iy,iz);
         const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
@@ -91,7 +94,7 @@ SGS_RL::SGS_RL(SimulationData & s, Communicator* c, bool _timeOut, double rew) :
 void SGS_RL::operator()(const double dt)
 {
   sim.startProfiler("SGS_RL Kernel");
-  const KernelSGS_RL_nonUniform K(dt, sim.nu, sim.uinf.data(), * comm,
+  const KernelSGS_RL_nonUniform K(sim.time, sim.nu, sim.uinf.data(), * comm,
     timeOut, reward, sim.vInfo().size());
   compute<KernelSGS_RL_nonUniform>(K);
   sim.stopProfiler();
