@@ -29,8 +29,8 @@ public:
 
   SimulationData sim;
 
+  void reset();
   void _init(bool restart = false);
-
   void _serialize(const std::string append = std::string());
   void _deserialize();
 

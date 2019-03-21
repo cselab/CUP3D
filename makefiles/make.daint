@@ -7,7 +7,7 @@ accfft-lib = $(ACCFFTDIR)/lib/
 accfft?=true
 
 ifeq ($(INTEL_LICENSE_FILE),)
-CPPFLAGS += -dynamic
+#CPPFLAGS += -dynamic
 else
 CPPFLAGS += -static
 endif
@@ -17,6 +17,8 @@ CPPFLAGS+= -I/users/novatig/hypre/build/include/
 LIBS+= -L/users/novatig/hypre/build/lib/
 endif
 
+ifeq "$(accfft)" "true"
 LIBS += $(CRAY_CUDATOOLKIT_POST_LINK_OPTS)
+endif
 
 CPPFLAGS += -DCUP_ASYNC_DUMP

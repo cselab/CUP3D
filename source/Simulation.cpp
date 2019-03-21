@@ -149,6 +149,21 @@ void Simulation::_init(const bool restart)
   MPI_Barrier(sim.app_comm);
 }
 
+
+void Simulation::reset()
+{
+  _ic();
+  sim.nextSaveTime = 0;
+  sim.step = 0; sim.time = 0;
+  sim.uinf = std::array<Real,3> {{ (Real)0, (Real)0, (Real)0 }};
+  //sim.obstacle_vector->reset(); // TODO
+  if(sim.obstacle_vector->nObstacles() > 0) {
+    printf("TODO Implement reset also for obstacles if needed!\n");
+    fflush(0); MPI_Abort(sim.app_comm, 1);
+  }
+  MPI_Barrier(sim.app_comm);
+}
+
 void Simulation::_ic()
 {
   InitialConditions coordIC(sim);

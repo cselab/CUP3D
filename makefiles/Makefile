@@ -1,17 +1,40 @@
+ifeq ($(shell uname -s), Darwin)
+	CPPFLAGS+=-dynamic  # Something specific to Darwin linker(?)
+	CC=mpic++
+	LD=mpic++
+	accfft=false
+endif
+
+ifneq "$(findstring nid,$(shell hostname))" ""
+	include make.daint
+endif
+ifneq "$(findstring daint,$(shell hostname))" ""
+	include make.daint
+endif
+ifneq "$(findstring panda,$(shell hostname))" ""
+	include make.panda
+endif
+ifneq "$(findstring euler,$(shell hostname))" ""
+	include make.euler
+endif
+ifneq "$(findstring eu-,$(shell hostname))" ""
+	include make.euler
+endif
+
 ifeq ($(INTEL_LICENSE_FILE),)
-compiler ?= gnu
+	compiler ?= gnu
 else
-compiler ?= intel
+	compiler ?= intel
 endif
 
 ifeq "$(compiler)" "intel"
-CXX ?= icpc
-LD = $(CXX)
-include make.icc.flags
+	CXX ?= icpc
+	LD = $(CXX)
+	include make.icc.flags
 else
-CXX ?= g++
-LD = $(CXX)
-include make.gcc.flags
+	CXX ?= g++
+	LD = $(CXX)
+	include make.gcc.flags
 endif
 
 NVCC?=nvcc
@@ -34,7 +57,7 @@ verbose ?= false
 dump_surface_binary ?= false
 
 ifeq "$(dump_surface_binary)" "true"
-        CPPFLAGS += -DCUP_DUMP_SURFACE_BINARY
+	CPPFLAGS += -DCUP_DUMP_SURFACE_BINARY
 endif
 
 ifeq "$(verbose)" "true"
@@ -62,30 +85,6 @@ CPPFLAGS += -DCUP_NO_MACROS_HEADER
 
 #CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 
-# needed in order to compile on nodes
-# include make.daint
-ifeq ($(shell uname -s), Darwin)
-CPPFLAGS += -dynamic  # Something specific to Darwin linker(?)
-CC=mpic++
-LD=mpic++
-accfft=false
-endif
-
-ifneq "$(findstring nid,$(shell hostname))" ""
-	include make.daint
-endif
-ifneq "$(findstring daint,$(shell hostname))" ""
-	include make.daint
-endif
-ifneq "$(findstring panda,$(shell hostname))" ""
-       include make.panda
-endif
-ifneq "$(findstring euler,$(shell hostname))" ""
-include make.euler
-endif
-ifneq "$(findstring eu-,$(shell hostname))" ""
-	include make.euler
-endif
 
 CPPFLAGS += -I../source/ -I../Cubism/include/
 NVFLAGS += -I../source/
@@ -94,7 +93,7 @@ NVFLAGS += -I../source/
 LDFLAGS = $(CPPFLAGS)
 
 ifeq "$(hdf)" "true"
-CPPFLAGS+= -DCUBISM_USE_HDF #-I$(hdf-inc)
+	CPPFLAGS+= -DCUBISM_USE_HDF #-I$(hdf-inc)
 ifneq ($(HDF5_LIB),)
 	LIBS+= -L$(HDF5_LIB) -lhdf5 #-L$(hdf-lib) -lhdf5
 else
@@ -112,6 +111,7 @@ endif
 ifneq ($(FFTW_INC),)   # If not empty.
 	CPPFLAGS += -I$(FFTW_INC)
 endif
+
 ifeq ($(FFTW_DIR),)
 ifeq "$(precision)" "single"
 	FFTW_LIBS = -lfftw3f_mpi -lfftw3f_omp -lfftw3f
@@ -119,7 +119,7 @@ else
 	FFTW_LIBS = -lfftw3_mpi -lfftw3_omp -lfftw3
 endif
 else
-FFTW_LIBS = -L$(FFTW_DIR) -L$(FFTW_DIR)/lib
+	FFTW_LIBS = -L$(FFTW_DIR) -L$(FFTW_DIR)/lib
 ifeq "$(precision)" "single"
 	FFTW_LIBS += -fftw3f_threads -lfftw3f_mpi -lfftw3f
 else
@@ -143,8 +143,8 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 
 ifeq "$(hypre)" "true"
 ifeq "$(compiler)" "gnu"
-# I don't want to see g++ complaining about hypre:
-CPPFLAGS+= -Wno-redundant-decls
+	# I don't want to see g++ complaining about hypre:
+	CPPFLAGS+= -Wno-redundant-decls
 endif
 LIBS+= -lHYPRE
 CPPFLAGS+= -DCUP_HYPRE
@@ -152,8 +152,8 @@ OBJECTS+= PoissonSolverHYPREMixed.o
 endif
 
 ifeq "$(petsc)" "true"
-CPPFLAGS+= -DCUP_PETSC
-OBJECTS+= PoissonSolverPETSCMixed.o
+	CPPFLAGS+= -DCUP_PETSC
+	OBJECTS+= PoissonSolverPETSCMixed.o
 endif
 
 ifeq "$(accfft)" "true"
@@ -173,13 +173,17 @@ ifneq "$(GSL_ROOT_DIR)" ""
 	CPPFLAGS += -I$(GSL_ROOT_DIR)/include
 	LIBS += -L$(GSL_ROOT_DIR)/lib
 endif
-LIBS += -lgsl -lgslcblas -lstdc++
+LIBS += -lgsl -lgslcblas
 
-EXEOBJ = $(OBJECTS)  main.o
+ifneq "$(smarties)" "false"
+	SMARTIESDIR ?= ../../smarties/source/
+	CPPFLAGS += -I$(SMARTIESDIR)/Communicators/ -DSMARTIES_APP
+endif
+
+EXEOBJ = $(OBJECTS) main.o
 LIBOBJ = $(OBJECTS) cubism_main.o CubismUP_3D.o
-LIBRLOBJ = $(OBJECTS) ext_app_main.o
 VPATH := $(VPATH):$(SRC_DIR):$(CUBISM_DIR)
-ALLOBJ := $(sort $(EXEOBJ) $(LIBOBJ) $(LIBRLOBJ) $(NVOBJECTS))  # `sort` removes duplicates.
+ALLOBJ := $(sort $(EXEOBJ) $(LIBOBJ) $(NVOBJECTS))  # `sort` removes duplicates.
 DEPS := $(ALLOBJ:%.o=%.d)
 
 #ifeq "$(rltrain)" "true"
@@ -197,8 +201,8 @@ lib: $(LIBOBJ) $(NVOBJECTS)
 	mkdir -p ../lib
 	ar rs ../lib/libcubismup3d.a $(FFTW_LIBS) $(LIBOBJ) $(NVOBJECTS)
 
-librl: $(LIBRLOBJ) $(NVOBJECTS)
-	ar rs libsim_rl.a $(LIBRLOBJ) $(NVOBJECTS)
+testRL: main_RL_test.o SGS_RL.o $(EXEOBJ) $(NVOBJECTS)
+	ar rs libsimulation.a $^
 
 -include $(DEPS)
 

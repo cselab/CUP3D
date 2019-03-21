@@ -421,6 +421,8 @@ struct KernelRemoveUdefMomenta : public ObstacleVisitor
 
 void CreateObstacles::operator()(const double dt)
 {
+  if(sim.obstacle_vector->nObstacles() == 0) return;
+
   sim.startProfiler("Obst Reset");
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i)
@@ -434,8 +436,6 @@ void CreateObstacles::operator()(const double dt)
     }
   }
   sim.stopProfiler();
-
-  if(sim.obstacle_vector->nObstacles() == 0) return;
 
   sim.startProfiler("Obst SDF");
   { // put signed distance function on the grid
