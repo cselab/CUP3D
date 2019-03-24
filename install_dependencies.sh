@@ -1,6 +1,9 @@
 #!/bin/bash
 
 # TODO: sha256 and md5 check for Mac.
+# TODO: For each dependency, put the installation steps in a function.
+# TODO: Update $SOURCES to $PWD/source/dependencies or something.
+
 
 set -e
 
@@ -14,8 +17,14 @@ SOURCES=${SOURCES:-$PWD/dependencies}
 INSTALL_PATH=${INSTALL_PATH:-$PWD/dependencies/build}
 
 # Shorthands for versions.
+# NOTE: Avoid updating the version (of CMake) because on clusters it may
+#       require manual installation, which means adding ~15k files!
 # NOTE: Changing these numbers may not be enough for the script to work properly!
-# NOTE: Update CMakeLists.txt if updating versions!
+# NOTE: Update `CMakeLists.txt` and `README.md` if updating versions!
+ACCFFT_GIT_URL='https://github.com/novatig/accfft'
+ACCFFT_COMMIT='b88432cd71118b7997fa67948cb32125cb881fc1'
+
+CMAKE_MINIMUM_REQUIRED_VERSION=3.2  # See `CMakeLists.txt`.
 CMAKE_VERSION=3.11.1
 CMAKE_VERSION_SHORT=3.11
 CMAKE_SHA_256='57bebc6ca4d1d42c6385249d148d9216087e0fda57a47dc5c858790a70217d0c  cmake-3.11.1.tar.gz'
@@ -33,6 +42,7 @@ GSL_VERSION=2.1
 TAR="tar --keep-newer-files"
 
 # Flags. By default all are disabled.
+INSTALL_ACCFFT=
 INSTALL_CMAKE=
 INSTALL_FFTW=
 INSTALL_HDF5=
@@ -40,12 +50,13 @@ INSTALL_GSL=
 UNKNOWN_ARGUMENT=
 PRINT_EXPORT=
 
-# Determine what users wants.
+# Determine what the user wants.
 while [[ $# -gt 0 ]]; do
     key="$1"
     case $key in
-        -a|--all) INSTALL_CMAKE=1; INSTALL_FFTW=1; INSTALL_HDF5=1; INSTALL_GSL=1; shift ;;
+        -a|--all) INSTALL_ACCFFT=1; INSTALL_CMAKE=1; INSTALL_FFTW=1; INSTALL_HDF5=1; INSTALL_GSL=1; shift ;;
         -e|--export) PRINT_EXPORT=1; shift ;;
+        --accfft) INSTALL_ACCFFT=1; shift ;;
         --cmake) INSTALL_CMAKE=1; shift ;;
         --fftw) INSTALL_FFTW=1; shift ;;
         --hdf5) INSTALL_HDF5=1; shift ;;
@@ -55,27 +66,32 @@ while [[ $# -gt 0 ]]; do
 done
 
 
-if [ -z "$INSTALL_CMAKE" -a -z "$INSTALL_FFTW" -a -z "$INSTALL_HDF5" -a -z "$INSTALL_GSL" -a -z "$PRINT_EXPORT" -o -n "$UNKNOWN_ARGUMENT" ]; then
+if [ -z "$INSTALL_ACCFFT" -a -z "$INSTALL_CMAKE" -a -z "$INSTALL_FFTW" -a -z "$INSTALL_HDF5" -a -z "$INSTALL_GSL" -a -z "$PRINT_EXPORT" -o -n "$UNKNOWN_ARGUMENT" ]; then
     echo "Usage:
-    ./install_dependencies [-a | --all | [[--cmake] [--fftw] [--hdf5] [--gsl]]]
+    ./install_dependencies [-a | --all | [[--accfft] [--cmake] [--fftw] [--hdf5] [--gsl]]]
 
 Arguments:
   -a,  --all    - Install all available libraries and tools
   -e,  --export - Print export commands for all libraries and tools
                   (assuming they are installed)
-  --cmake       - Install CMake ${CMAKE_VERSION} (required at least 3.2)
+  --accfft      - Install AccFFT
+  --cmake       - Install CMake ${CMAKE_VERSION} (required at least ${CMAKE_MINIMUM_REQUIRED_VERSION})
   --fftw        - Install FFTW ${FFTW_VERSION}
   --hdf5        - Install HDF5 ${HDF5_VERSION}
   --gsl         - Install GSL ${GSL_VERSION}
 
 All libraries and tools are installed locally in the dependencies/ folder.
-Note that this script tries to not redo everything from scratch if run multiple
-times. Therefore, in case of errors, try erasing dependencies/ folder."
+Note that this script tries not to redo everything from scratch if run multiple
+times. Therefore, in case of errors, try erasing the dependencies/ folder.
+
+Note: AccFFT requires FFTW as a dependency!
+"
     exit
 fi
 
 
 BASEPWD=$PWD
+
 
 if [ -n "$INSTALL_CMAKE" ]; then
     echo "Installing CMake ${CMAKE_VERSION}..."
@@ -98,9 +114,43 @@ if [ -n "$INSTALL_FFTW" ]; then
     [ -x "$(command -v md5sum)" ] && md5sum --quiet -c - <<< $FFTW_MD5
     $TAR -xzvf fftw-${FFTW_VERSION}.tar.gz
     cd fftw-${FFTW_VERSION}
-    ./configure --prefix=$INSTALL_PATH/fftw-${FFTW_VERSION}/ --enable-mpi --enable-threads --enable-shared
+    FFTW_ROOT=$INSTALL_PATH/fftw-${FFTW_VERSION}/
+    ./configure --prefix=$FFTW_ROOT --enable-mpi --enable-threads --enable-shared
     make -j${JOBS}
     make install -j${JOBS}
+    cd $BASEPWD
+fi
+
+
+if [ -n "$INSTALL_ACCFFT" ]; then
+    echo "Installing AccFFT ${CMAKE_VERSION}..."
+    if [ -n "${FFTW_ROOT}" ]; then
+        : # OK
+    elif [ -n "${FFTW_DIR}" ]; then
+        FFTW_ROOT=${FFTW_DIR}/../
+    elif [ -n "${FFTW3_ROOT_DIR}" ]; then
+        FFTW_ROOT=${FFTW3_ROOT_DIR}
+    else
+        echo "FFTW not found, aborting. None of the following environment variables set:"
+        echo "    FFTW_ROOT, FFTW_DIR, FFTW3_ROOT_DIR"
+        exit 1
+    fi
+    mkdir -p $SOURCES
+    cd $SOURCES
+    rm -rf accfft
+    git clone ${ACCFFT_GIT_URL} accfft
+    cd accfft
+    git checkout ${ACCFFT_COMMIT}
+    mkdir build
+    cd build
+    # For FFTW_ROOT below, note that CMake variables are not the same as env variables.
+    cmake -DCMAKE_INSTALL_PREFIX=$INSTALL_PATH/accfft/ \
+          -DFFTW_ROOT="$FFTW_ROOT" \
+          -DBUILD_GPU=true \
+          -DBUILD_SHARED=false \
+          ..
+    make -j $JOBS
+    make install
     cd $BASEPWD
 fi
 

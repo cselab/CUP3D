@@ -1,5 +1,5 @@
-CC=/users/novatig/mpich-3.2/build/bin/mpic++
-CC=/users/novatig/mpich-3.2/build/bin/mpic++
+CXX=/users/novatig/mpich-3.2/build/bin/mpic++
+LD=/users/novatig/mpich-3.2/build/bin/mpic++
 CPPFLAGS+= -I/users/novatig/mpich-3.2/build/include/
 export LD_LIBRARY_PATH=/users/novatig/mpich-3.2/build/lib/:$LD_LIBRARY_PATH
 LIBS+= -L/users/novatig/mpich-3.2/build/lib/

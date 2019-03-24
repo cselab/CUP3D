@@ -1,4 +1,4 @@
-CC=CC
+CXX=CC
 LD=CC
 
 ACCFFTDIR=../accfft/build/

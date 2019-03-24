@@ -82,20 +82,24 @@ If `module load` is not available, but libraries are installed, set the above me
 
 ## Cluster-specific modules
 
-Piz Daint:
+#### Piz Daint:
 ```shell
-module load gcc
-module swap PrgEnv-cray PrgEnv-gnu
-module load cray-hdf5-parallel
-module load fftw
-module load daint-gpu
-module load cudatoolkit/8.0.44_GA_2.2.7_g4a6c213-2.1
-module load GSL/2.1-CrayGNU-2016.11
+module unload PrgEnv-cray
+module load PrgEnv-gnu cray-hdf5-parallel cray-fftw daint-gpu cudatoolkit/9.2.148_3.19-6.0.7.1_2.1__g3d9acc8 GSL/2.5-CrayGNU-18.08 CMake/3.12.0
 ```
 
-Euler:
+
+#### Euler:
+First, load the following modules:
 ```shell
-module load new modules gcc/6.3.0 open_mpi/2.1.1 fftw/3.3.4 binutils/2.25 gsl/1.16 hwloc/1.11.0 fftw_sp/3.3.4
+module load new modules gcc/6.3.0 open_mpi/2.1.1 fftw/3.3.4 binutils/2.25 gsl/1.16 hwloc/1.11.0
+# For the single precision FFTW, load `fftw_sp/3.3.4` instead of `fftw/3.3.4`.
+```
+Then, manually install HDF5 using the provided script and add the required paths to your `.bashrc`:
+```shell
+./install_dependencies.sh --hdf5
+echo "export HDF5_ROOT=$PWD/dependencies/build/hdf5-1.10.1-parallel/" >> ~/.bashrc
+echo "export LD_LIBRARY_PATH=\$HDF5_ROOT/lib:\$LD_LIBRARY_PATH" >> ~/.bashrc
 ```
 
 
@@ -130,7 +134,7 @@ Run `./install_dependencies.sh` to get the full list of available flags.
 
 All dependencies are installed in the folder `dependencies/`.
 Full installation takes 5-15 minutes, depending on the machine.
-To specify number of parallel jobs in the internal `make`, write
+To specify the number of parallel jobs in the internal `make`, write
 ```
 JOBS=10 ./install_dependencies.sh [flags]
 ```

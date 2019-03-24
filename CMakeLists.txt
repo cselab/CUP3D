@@ -1,5 +1,5 @@
+# NOTE: Update `install_dependencies.sh` if updating the minimum required version.
 cmake_minimum_required(VERSION 3.2)
-
 project(CubismUP_3D)
 
 # Choose Release mode as default.
@@ -8,6 +8,21 @@ if(NOT CMAKE_BUILD_TYPE)
         "Choose the type of build, options are: Debug Release RelWithDebInfo MinSizeRel."
         FORCE)
 endif(NOT CMAKE_BUILD_TYPE)
+
+set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
+
+
+# https://stackoverflow.com/a/31832359
+function(ARRAY_JOIN OUTPUT GLUE)
+    set(_TMP_RESULT "")
+    set(_GLUE "") # effective glue is empty at the beginning
+    foreach(arg ${ARGN})
+        set(_TMP_RESULT "${_TMP_RESULT}${_GLUE}${arg}")
+        set(_GLUE "${GLUE}")
+    endforeach()
+    set(${OUTPUT} "${_TMP_RESULT}" PARENT_SCOPE)
+endfunction()
+
 
 # Options
 set(EXE "cubismup3d_simulation")
@@ -61,16 +76,34 @@ if (COMPILE_PY_SO)
 endif()
 
 
-# Source files and target
+# MPI - must be before modifying CMAKE_SHARED_LIBRARY_SUFFIX (?).
+find_package(MPI REQUIRED)
+set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
+set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
+
+# Check if MPI is thread safe.
+execute_process(COMMAND ${CMAKE_CXX_COMPILER} ${ROOT_FOLDER}/cmake/check_mpi_thread_safety.cpp -o check_mpi_thread_safety
+                RESULT_VARIABLE _IS_COMPILED)
+if (NOT _IS_COMPILED STREQUAL "0")
+    message(FATAL_ERROR "Cannot compile a simple MPI program to determine whether MPI is thread safe.")
+endif()
+execute_process(COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ./check_mpi_thread_safety
+                ERROR_QUIET
+                OUTPUT_QUIET
+                RESULT_VARIABLE CUP_IS_MPI_THREAD_UNSAFE)
+if (${CUP_IS_MPI_THREAD_UNSAFE})
+    message("Note: MPI not thread safe, fallback to synchronous HDF5 dumping!")
+endif()
+
+
+# Source files and target.
 set(STATIC_LIB "cubismup3d")
 set(STATIC_LIB_MERGED "cubismup3d_merged")  # Merged with 3rd party libraries.
 set(PY_SO "cubismup3d${PY_SO_SUFFIX}")
 
-set(CMAKE_FIND_LIBRARY_SUFFIXES .a ${CMAKE_FIND_LIBRARY_SUFFIXES})  # Prefer static over dynamic libraries.
 set(CMAKE_SHARED_LIBRARY_PREFIX "")      # No "lib" prefix for shared.
 set(CMAKE_SHARED_LIBRARY_SUFFIX "")      # We already specify it manually.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
-set(ROOT_FOLDER ${CMAKE_CURRENT_LIST_DIR})
 
 include_directories(${ROOT_FOLDER}/Cubism/include/)
 include_directories(${ROOT_FOLDER}/source/)
@@ -114,7 +147,7 @@ set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/SimulationData.cpp
 )
 
-# GCC flags
+# GCC flags.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-maybe-uninitialized")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
@@ -124,14 +157,13 @@ if (NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 11)
 endif()
 
-# Define targets (executables). We have two: one for open, one for periodic
-# boundary conditions (periodic in Z).
+# Targets.
 if (COMPILE_EXE)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${ROOT_FOLDER}/bin)
     add_executable(${EXE} ${COMMON_SOURCES} ${ROOT_FOLDER}/source/main.cpp)
 endif()
 if (COMPILE_STATIC_LIB)
-    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${ROOT_FOLDER}/lib)
+    set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${ROOT_FOLDER}/build/lib)
     add_library(${STATIC_LIB}
                 ${COMMON_SOURCES}
                 ${ROOT_FOLDER}/source/cubism_main.cpp)
@@ -155,29 +187,6 @@ find_package(OpenMP REQUIRED)
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${OpenMP_C_FLAGS}")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${OpenMP_EXE_LINKER_FLAGS}")
-
-# MPI
-find_package(MPI REQUIRED)
-set(CMAKE_C_COMPILER ${MPI_C_COMPILER})
-set(CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER})
-
-# Check if MPI thread safe
-execute_process(COMMAND ${CMAKE_CXX_COMPILER} ${ROOT_FOLDER}/cmake/check_mpi_thread_safety.cpp -o check_mpi_thread_safety
-                RESULT_VARIABLE _IS_COMPILED)
-if (NOT _IS_COMPILED STREQUAL "0")
-    message(FATAL_ERROR "Cannot compile a simple MPI program to determine whether MPI is thread safe.")
-endif()
-execute_process(COMMAND ${MPIEXEC_EXECUTABLE} ${MPIEXEC_NUMPROC_FLAG} 2 ./check_mpi_thread_safety
-                ERROR_QUIET
-                OUTPUT_QUIET
-                RESULT_VARIABLE CUP_IS_MPI_THREAD_UNSAFE)
-if (${CUP_IS_MPI_THREAD_UNSAFE})
-    message("Note: MPI not thread safe, fallback to synchronous HDF5 dumping!")
-endif()
-
-# CMake for some reason decides to replace `/full/path/libasdf.so` with
-# `-lasdf` sometimes, and then messes up everything. This hack prevents that.
-set(LIBPREFIX "///")
 
 # HDF5
 if (NOT HDF5_ROOT AND EXISTS ${ROOT_FOLDER}/dependencies/build/hdf5-1.10.1)
@@ -204,29 +213,29 @@ find_package(GSL REQUIRED)
 include_directories(${GSL_INCLUDE_DIRS})
 
 if (COMPILE_EXE)
-    target_link_libraries(${EXE} ${LIBPREFIX}${HDF5_LIBRARIES})
-    target_link_libraries(${EXE} ${LIBPREFIX}${FFTW_LIBRARIES})
-    target_link_libraries(${EXE} ${LIBPREFIX}${GSL_LIBRARIES})
+    target_link_libraries(${EXE} ${HDF5_LIBRARIES})
+    target_link_libraries(${EXE} ${FFTW_LIBRARIES})
+    target_link_libraries(${EXE} ${GSL_LIBRARIES})
 endif()
 if (COMPILE_STATIC_LIB)
-    target_link_libraries(${STATIC_LIB} ${LIBPREFIX}${HDF5_LIBRARIES})
-    target_link_libraries(${STATIC_LIB} ${LIBPREFIX}${FFTW_LIBRARIES})
-    target_link_libraries(${STATIC_LIB} ${LIBPREFIX}${GSL_LIBRARIES})
-    # Merge cubismup3d library with its dependencies.
-    set(STATIC_LIB_MERGED_PATH ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}/lib${STATIC_LIB_MERGED}.a)
-    add_custom_command(
-        OUTPUT ${STATIC_LIB_MERGED_PATH}
-        COMMAND libtool ARGS -static -o ${STATIC_LIB_MERGED_PATH} $<TARGET_FILE:${STATIC_LIB}>
-        ${LIBPREFIX}${HDF5_LIBRARIES}
-        ${LIBPREFIX}${FFTW_LIBRARIES}
-        ${LIBPREFIX}${GSL_LIBRARIES}
-        DEPENDS ${STATIC_LIB})
-    add_custom_target(${STATIC_LIB_MERGED} ALL DEPENDS ${STATIC_LIB_MERGED_PATH})
+    target_link_libraries(${STATIC_LIB} ${HDF5_LIBRARIES})
+    target_link_libraries(${STATIC_LIB} ${FFTW_LIBRARIES})
+    target_link_libraries(${STATIC_LIB} ${GSL_LIBRARIES})
+
+    # For applications that use CubismUP3D as a library, prepare a list of all
+    # link dependencies and store them in a file as a space-separated list.
+    get_target_property(_LINK_DEPENDENCIES ${STATIC_LIB} LINK_LIBRARIES)
+    array_join(_LINK_DEPENDENCIES " " ${_LINK_DEPENDENCIES})
+
+    # `configure_file` will touch the file only if the new content is different
+    # than the existing one (if any), which makes it Makefile-friendly.
+    configure_file(${ROOT_FOLDER}/cmake/CubismUP3DDependencies.template.txt
+                   ${ROOT_FOLDER}/build/CubismUP3DDependencies.txt)
 endif()
 if (COMPILE_PY_SO)
-    target_link_libraries(${PY_SO} ${LIBPREFIX}${HDF5_LIBRARIES})
-    target_link_libraries(${PY_SO} ${LIBPREFIX}${FFTW_LIBRARIES})
-    target_link_libraries(${PY_SO} ${LIBPREFIX}${GSL_LIBRARIES})
+    target_link_libraries(${PY_SO} ${HDF5_LIBRARIES})
+    target_link_libraries(${PY_SO} ${FFTW_LIBRARIES})
+    target_link_libraries(${PY_SO} ${GSL_LIBRARIES})
 endif()
 
 if (COMPILE_STATIC_LIB)

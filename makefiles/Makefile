@@ -1,6 +1,6 @@
 ifeq ($(shell uname -s), Darwin)
 	CPPFLAGS+=-dynamic  # Something specific to Darwin linker(?)
-	CC=mpic++
+	CXX=mpic++
 	LD=mpic++
 	accfft=false
 endif
@@ -12,6 +12,9 @@ ifneq "$(findstring daint,$(shell hostname))" ""
 	include make.daint
 endif
 ifneq "$(findstring panda,$(shell hostname))" ""
+	include make.panda
+endif
+ifneq "$(findstring falcon,$(shell hostname))" ""
 	include make.panda
 endif
 ifneq "$(findstring euler,$(shell hostname))" ""
@@ -39,7 +42,7 @@ endif
 
 NVCC?=nvcc
 NVFLAGS?=-std=c++11 -code=sm_60 -arch=compute_60
-LD=$(CC)
+LD=$(CXX)
 
 # this only affects amount of memory allocated by block processing:
 nthreads ?= 24 # needs to be modified if user wants to use more threads per rank
@@ -92,39 +95,62 @@ NVFLAGS += -I../source/
 
 LDFLAGS = $(CPPFLAGS)
 
-ifeq "$(hdf)" "true"
-	CPPFLAGS+= -DCUBISM_USE_HDF #-I$(hdf-inc)
-ifneq ($(HDF5_LIB),)
-	LIBS+= -L$(HDF5_LIB) -lhdf5 #-L$(hdf-lib) -lhdf5
-else
-	LIBS+= -lhdf5 #-L$(hdf-lib) -lhdf5
+#################################################
+# ACCFFT
+#################################################
+ifeq "$(accfft)" "true"
+	ifneq ($(ACCFFT_ROOT),)
+		# OK
+	else ifneq (,$(wildcard ../dependencies/build/accfft))
+		ACCFFT_ROOT = ../dependencies/build/accfft
+	else
+		ERROR = "AccFFT not found, aborting."
+	endif
+	LIBS     += -L$(ACCFFT_ROOT)/lib
+	CPPFLAGS += -I$(ACCFFT_ROOT)/include
+	NVFLAGS  += -I$(ACCFFT_ROOT)/include
 endif
+
+#################################################
+# HDF5
+#################################################
+ifeq "$(hdf)" "true"
+	# If you have issues with linking HDF5 so files, add $HDF5_ROOT/lib to your LD_LIBRARY_PATH.
+	# For that reason we do not automatically check ../dependencies/build/hdf5-*.
+	ifneq ($(HDF5_ROOT),)
+		# OK
+	else ifneq ($(HDF5ROOT),)
+		HDF5_ROOT = HDF5ROOT
+	else
+		ERROR = "Neither HDF5_ROOT nor HDF5ROOT environment variables set. Did you forget to `module load`?"
+	endif
+	LIBS     += -L$(HDF5_ROOT)/lib -lhdf5
+	CPPFLAGS += -I$(HDF5_ROOT)/include -DCUBISM_USE_HDF
 endif
 
 #################################################
 # FFTW
 #################################################
+ifneq ($(FFTW_ROOT),)
+	# OK
+else ifneq ($(FFTW3_ROOT_DIR),)
+	FFTW_ROOT = $(FFTW3_ROOT_DIR)  # Euler.
+else ifneq ($(FFTW_DIR),)
+	FFTW_ROOT = $(FFTW_DIR)/..
+else
+	ERROR = "None of the FFTW_ROOT, FFTW_ROOT_DIR or FFTW_DIR environment variables set. Did you forget to `module load`?"
+endif
+FFTW_LIBS  = -L$(FFTW_ROOT)/lib
+CPPFLAGS  += -I$(FFTW_ROOT)/include
 
-# `FFTW_INC` and `FFTW_DIR` are for custom installation. Names are in fact
-# compatible with `module load`, so the `else` statement should work for daint
-# too.
-ifneq ($(FFTW_INC),)   # If not empty.
-	CPPFLAGS += -I$(FFTW_INC)
+ifneq ($(ERROR),)
+$(error $(ERROR))  # Easiest way I found to avoid unindenting the code above...
 endif
 
-ifeq ($(FFTW_DIR),)
 ifeq "$(precision)" "single"
-	FFTW_LIBS = -lfftw3f_mpi -lfftw3f_omp -lfftw3f
+	FFTW_LIBS += -lfftw3f_mpi -lfftw3f_omp -lfftw3f
 else
-	FFTW_LIBS = -lfftw3_mpi -lfftw3_omp -lfftw3
-endif
-else
-	FFTW_LIBS = -L$(FFTW_DIR) -L$(FFTW_DIR)/lib
-ifeq "$(precision)" "single"
-	FFTW_LIBS += -fftw3f_threads -lfftw3f_mpi -lfftw3f
-else
-	FFTW_LIBS += -lfftw3_threads -lfftw3_mpi -lfftw3
-endif
+	FFTW_LIBS += -lfftw3_mpi -lfftw3_omp -lfftw3
 endif
 
 BUILDDIR = .
@@ -207,7 +233,7 @@ testRL: main_RL_test.o SGS_RL.o $(EXEOBJ) $(NVOBJECTS)
 -include $(DEPS)
 
 %.o: %.cpp
-	$(CC) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
+	$(CXX) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 
 PoissonSolverACC_kernels.o: PoissonSolverACC_kernels.cu
 	$(NVCC) $(NVFLAGS) -c $< -o $@
