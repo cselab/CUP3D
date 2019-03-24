@@ -9,6 +9,14 @@
 #include "poisson/PoissonSolverACCPeriodic.h"
 #include <cuda_runtime_api.h>
 #include "poisson/PoissonSolverACC_common.h"
+#include "accfft_common.h"
+#ifndef CUP_SINGLE_PRECISION
+  #include "accfft_gpu.h"
+  typedef accfft_plan_gpu acc_plan;
+#else
+  #include "accfft_gpuf.h"
+  typedef accfft_plan_gpuf acc_plan;
+#endif
 
 void _fourier_filter_gpu(
   acc_c*const __restrict__ data_hat, const size_t gsize[3],

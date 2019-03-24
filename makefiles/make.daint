@@ -1,9 +1,7 @@
 CXX=CC
 LD=CC
 
-ACCFFTDIR=../accfft/build/
-accfft-inc = $(ACCFFTDIR)/include/
-accfft-lib = $(ACCFFTDIR)/lib/
+ACCFFT_ROOT=../accfft/build/
 accfft?=true
 
 ifeq ($(INTEL_LICENSE_FILE),)

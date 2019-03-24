@@ -10,13 +10,23 @@
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h>
 #include "poisson/PoissonSolverACC_common.h"
+#include "accfft_common.h"
+#ifndef CUP_SINGLE_PRECISION
+  #include "accfft_gpu.h"
+  typedef accfft_plan_gpu acc_plan;
+#else
+  #include "accfft_gpuf.h"
+  typedef accfft_plan_gpuf acc_plan;
+#endif
 
 void dSolveFreespace(const int ox,const int oy,const int oz,const size_t mz_pad,
   const Real*const G_hat, Real*const gpu_rhs);
 
-void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
-    const int nx,const int ny,const int nz, const Real h, acc_plan* const fwd,
-    Real*const m_kernel, Real*const gpu_rhs);
+void initGreen(const int *isz, const int *ist,
+  int nx, int ny, int nz, const Real h, Real*const gpu_rhs);
+
+void realGreen(const int*osz, const int*ost, int nx, int ny, int nz,
+  const Real h, Real*const m_kernel, Real*const gpu_rhs);
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -64,7 +74,16 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolv
   cudaMalloc((void**) &gpuGhat, alloc_max/2);
   acc_plan* P = accfft_plan_dft(M, gpu_rhs, gpu_rhs, c_comm, ACCFFT_MEASURE);
   plan = (void*) P;
-  initGreen(isize,osize,istart,ostart, gsize[0],gsize[1],gsize[2], h,P, gpuGhat,gpu_rhs);
+
+  {
+  // compure green function convolution coefficients ...
+  initGreen(isize, istart, gsize[0],gsize[1],gsize[2], h, gpu_rhs);
+  // ... to fourier space
+  accfft_exec_r2c(P, gpu_rhs, (acc_c*) gpu_rhs);
+  CUDA_Check(cudaDeviceSynchronize());
+  // ... then take only the real part
+  realGreen(osize,ostart, gsize[0],gsize[1],gsize[2], h, gpuGhat,gpu_rhs);
+  }
 
   data = (Real*) malloc(myN[0]*  myN[1]*(  myN[2] * sizeof(Real)));
   data_size = (size_t) myN[0] * (size_t) myN[1] * (size_t) myN[2];

@@ -437,6 +437,10 @@ void CreateObstacles::operator()(const double dt)
   }
   sim.stopProfiler();
 
+  // Obstacles' advection must be done after we perform penalization:
+  sim.uinf = sim.obstacle_vector->updateUinf();
+  sim.obstacle_vector->update();
+
   sim.startProfiler("Obst SDF");
   { // put signed distance function on the grid
     sim.obstacle_vector->create();

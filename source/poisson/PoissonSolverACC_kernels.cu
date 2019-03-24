@@ -135,31 +135,28 @@ void dSolveFreespace(const int ox,const int oy,const int oz,const size_t mz_pad,
   CUDA_Check(cudaDeviceSynchronize());
 }
 
-void initGreen(const int *isz,const int *osz,const int *ist,const int *ost,
-  const int nx,const int ny,const int nz, const Real h, acc_plan* const fwd,
-  Real*const m_kernel, Real*const gpu_rhs)
+void initGreen(const int *isz, const int *ist,
+  int nx, int ny, int nz, const Real h, Real*const gpu_rhs)
+{
+  const int mz = 2*nz -1, mz_pad = mz/2 +1;
+  dim3 dB(4, 4, 4);
+  dim3 dG(std::ceil(isz[0]/4.), std::ceil(isz[1]/4.), std::ceil(isz[2]/4.));
+  //cout<<isz[0]<<" "<<isz[1]<<" "<<isz[2]<<" "<< ist[0]<<" "<<ist[1]<<" "<<ist[2]<<" "<<nx<<" "<<ny<<" "<<nz<<" "<<mz_pad<<endl;
+  kGreen<<<dG, dB>>> (isz[0],isz[1],isz[2], ist[0],ist[1],ist[2],
+    nx, ny, nz, mz_pad, h, gpu_rhs);
+  CUDA_Check(cudaDeviceSynchronize());
+}
+
+void realGreen(const int*osz, const int*ost, int nx, int ny, int nz,
+  const Real h, Real*const m_kernel, Real*const gpu_rhs)
 {
   const int mx = 2*nx -1, my = 2*ny -1, mz = 2*nz -1, mz_pad = mz/2 +1;
-  {
-    dim3 dB(4, 4, 4);
-    dim3 dG(std::ceil(isz[0]/4.), std::ceil(isz[1]/4.), std::ceil(isz[2]/4.));
-    //cout<<isz[0]<<" "<<isz[1]<<" "<<isz[2]<<" "<< ist[0]<<" "<<ist[1]<<" "<<ist[2]<<" "<<nx<<" "<<ny<<" "<<nz<<" "<<mz_pad<<endl;
-    kGreen<<<dG, dB>>> (isz[0],isz[1],isz[2], ist[0],ist[1],ist[2],
-      nx, ny, nz, mz_pad, h, gpu_rhs);
-    CUDA_Check(cudaDeviceSynchronize());
-  }
-
-  accfft_exec_r2c(fwd, gpu_rhs, (acc_c*) gpu_rhs);
+  const Real norm = 1.0 / (mx*h * my*h * mz*h);
+  dim3 dB(4, 4, 4);
+  dim3 dG(std::ceil(osz[0]/4.), std::ceil(osz[1]/4.), std::ceil(osz[2]/4.));
+  kCopyC2R<<<dG, dB>>> (osz[0],osz[1],osz[2], norm, mz_pad,
+    (acc_c*)gpu_rhs, m_kernel);
   CUDA_Check(cudaDeviceSynchronize());
-
-  {
-    const Real norm = 1.0 / (mx*h * my*h * mz*h);
-    dim3 dB(4, 4, 4);
-    dim3 dG(std::ceil(osz[0]/4.), std::ceil(osz[1]/4.), std::ceil(osz[2]/4.));
-    kCopyC2R<<<dG, dB>>> (osz[0],osz[1],osz[2], norm, mz_pad,
-      (acc_c*)gpu_rhs, m_kernel);
-    CUDA_Check(cudaDeviceSynchronize());
-  }
   //{
   //  dim3 dB(4, 4, 4);
   //  dim3 dG(std::ceil(isz[0]/4.), std::ceil(isz[1]/4.), std::ceil(isz[2]/4.));

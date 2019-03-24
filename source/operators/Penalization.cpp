@@ -101,10 +101,6 @@ void Penalization::operator()(const double dt)
     for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
   }
   sim.stopProfiler();
-
-  sim.uinf = sim.obstacle_vector->updateUinf();
-  // Obstacles' advection must be done after we perform penalization:
-  sim.obstacle_vector->update();
   check("Penalization");
 }
 

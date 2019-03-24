@@ -277,7 +277,10 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
       int rank;
       MPI_Comm_rank(MPI_COMM_WORLD,&rank);
       if(rank==0) {
-        printf("Mom fluid: lin={%f %f %f}, ang={%f %f %f}\n Mom solid: lin={%f %f %f}, ang={%f %f %f}\n",
+        //printf("Mom fluid: lin={%e %e}, ang={%e} J=%e M=%e\n",
+        //       M[23],M[24],M[28],M[19],M[13]);
+        printf("Mom fluid: lin={%e %e %e}, ang={%e %e %e}\n"
+               "Mom solid: lin={%e %e %e}, ang={%e %e %e}\n",
         obst->transVel_computed[0], obst->transVel_computed[1],
         obst->transVel_computed[2], obst->angVel_computed[0],
         obst->angVel_computed[1], obst->angVel_computed[2],
@@ -289,6 +292,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
       obst->transVel_fluid = obst->transVel_computed;
       gsl_permutation_free (permgsl);
       gsl_vector_free (xgsl);
+
       obst->force[0] = mass*(obst->transVel_computed[0]-obst->transVel[0])/dt;
       obst->force[1] = mass*(obst->transVel_computed[1]-obst->transVel[1])/dt;
       obst->force[2] = mass*(obst->transVel_computed[2]-obst->transVel[2])/dt;
