@@ -38,7 +38,7 @@ class KernelCharacteristicFunction
     {
       const auto& obstacleBlocks = * vec_obstacleBlocks[obst_id];
       ObstacleBlock*const o = obstacleBlocks[info.blockID];
-      if(o == nullptr) return;
+      if(o == nullptr) continue;
       CHIMAT & __restrict__ CHI = o->chi;
       const CHIMAT & __restrict__ SDF = o->sdf;
       o->CoM_x = 0; o->CoM_y = 0; o->CoM_z = 0; o->mass  = 0;
@@ -136,7 +136,7 @@ class KernelCharacteristicFunction_nonUniform
     {
       const auto& obstacleBlocks = * vec_obstacleBlocks[obst_id];
       ObstacleBlock*const o = obstacleBlocks[info.blockID];
-      if(o == nullptr) return;
+      if(o == nullptr) continue;
       CHIMAT & __restrict__ CHI = o->chi;
       const CHIMAT & __restrict__ SDF = o->sdf;
       o->CoM_x = 0; o->CoM_y = 0; o->CoM_z = 0; o->mass  = 0;
