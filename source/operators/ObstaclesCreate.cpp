@@ -467,7 +467,7 @@ void CreateObstacles::operator()(const double dt)
   { // integrate momenta by looping over grid
     #pragma omp parallel
     { // each thread needs to call its own non-const operator() function
-      auto K = KernelIntegrateUdefMomenta(sim.obstacle_vector);
+      KernelIntegrateUdefMomenta K(sim.obstacle_vector);
       #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
     }
@@ -494,7 +494,7 @@ void CreateObstacles::operator()(const double dt)
   { // integrate momenta by looping over grid
     #pragma omp parallel
     { // each thread needs to call its own non-const operator() function
-      auto K = KernelIntegrateUdefMomenta(sim.obstacle_vector);
+      KernelIntegrateUdefMomenta K(sim.obstacle_vector);
       #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
     }

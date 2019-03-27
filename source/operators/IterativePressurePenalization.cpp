@@ -519,7 +519,7 @@ void IterativePressurePenalization::operator()(const double dt)
     { // integrate momenta by looping over grid
       #pragma omp parallel
       { // each thread needs to call its own non-const operator() function
-        auto K = KernelIntegrateFluidMomenta(dt, sim.lambda,
+        KernelIntegrateFluidMomenta K(dt, sim.lambda,
             sim.obstacle_vector, penalBlocksInfo);
         #pragma omp for schedule(dynamic, 1)
         for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
@@ -541,7 +541,7 @@ void IterativePressurePenalization::operator()(const double dt)
       double M[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
       #pragma omp parallel reduction (+ : M[:6])
       { // each thread needs to call its own non-const operator() function
-        auto K = KernelPenalization(dt*sim.lambda, sim.obstacle_vector, penalBlocksInfo);
+        KernelPenalization K(dt*sim.lambda, sim.obstacle_vector, penalBlocksInfo);
         #pragma omp for schedule(dynamic, 1)
         for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
         M[0] += K.MX; M[3] += K.DMX;

@@ -83,7 +83,7 @@ void Penalization::operator()(const double dt)
   sim.startProfiler("Penalization");
   #pragma omp parallel
   { // each thread needs to call its own non-const operator() function
-    auto K = KernelPenalization(dt*sim.lambda, sim.obstacle_vector);
+    KernelPenalization K(dt*sim.lambda, sim.obstacle_vector);
     #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
   }

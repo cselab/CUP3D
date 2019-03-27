@@ -185,7 +185,7 @@ void UpdateObstacles::operator()(const double dt)
   { // integrate momenta by looping over grid
     #pragma omp parallel
     { // each thread needs to call its own non-const operator() function
-      auto K = KernelIntegrateFluidMomenta(dt, sim.lambda, sim.obstacle_vector);
+      KernelIntegrateFluidMomenta K(dt, sim.lambda, sim.obstacle_vector);
       #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
     }
