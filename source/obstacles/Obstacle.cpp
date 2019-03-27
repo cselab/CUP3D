@@ -9,6 +9,7 @@
 #include "obstacles/Obstacle.h"
 #include "utils/BufferedLogger.h"
 #include "Cubism/ArgumentParser.h"
+#include <gsl/gsl_linalg.h>
 #include <fstream>
 
 CubismUP_3D_NAMESPACE_BEGIN
@@ -131,23 +132,110 @@ Obstacle::Obstacle(
 
 void Obstacle::computeVelocities()
 {
-  if(bForcedInSimFrame[0]) transVel[0] = transVel_imposed[0];
-  else transVel[0] = transVel_computed[0];
+  double A[6][6] = {
+ {     penalM,         0.0,         0.0,         0.0, +penalCM[2], -penalCM[1]},
+ {        0.0,      penalM,         0.0, -penalCM[2],         0.0, +penalCM[0]},
+ {        0.0,         0.0,      penalM, +penalCM[1], -penalCM[0],         0.0},
+ {        0.0, -penalCM[2], +penalCM[1],   penalJ[0],   penalJ[3],   penalJ[4]},
+ {+penalCM[2],         0.0, -penalCM[0],   penalJ[3],   penalJ[1],   penalJ[5]},
+ {-penalCM[1], +penalCM[0],         0.0,   penalJ[4],   penalJ[5],   penalJ[2]}
+  };
 
-  if(bForcedInSimFrame[1]) transVel[1] = transVel_imposed[1];
-  else transVel[1] = transVel_computed[1];
+  // TODO here we can add dt * appliedForce/Torque[i]
+  double b[6] = {
+    penalLmom[0], penalLmom[1], penalLmom[2],
+    penalAmom[0], penalAmom[1], penalAmom[2]
+  };
 
-  if(bForcedInSimFrame[2]) transVel[2] = transVel_imposed[2];
-  else transVel[2] = transVel_computed[2];
+  //Momenta are conserved if a dof (a row of mat A) is not externally forced
+  //This means that if obstacle is free to move according to fluid forces,
+  //momenta after penal should be equal to moments before penal!
+  //If dof is forced, change in momt. assumed to be entirely due to forcing.
+  //In this case, leave row diagonal to compute change in momt for post/dbg.
+  //If dof (row) is free then i need to fill the non-diagonal terms.
+  if( bForcedInSimFrame[0] ) { //then momenta not conserved in this dof
+    A[0][1] = 0; A[0][2] = 0; A[0][3] = 0; A[0][4] = 0; A[0][5] = 0;
+    b[0] = penalM * transVel_imposed[0]; // multply by penalM for conditioning
+  }
+  if( bForcedInSimFrame[1] ) { //then momenta not conserved in this dof
+    A[1][0] = 0; A[1][2] = 0; A[1][3] = 0; A[1][4] = 0; A[1][5] = 0;
+    b[1] = penalM * transVel_imposed[1];
+  }
+  if( bForcedInSimFrame[2] ) { //then momenta not conserved in this dof
+    A[2][0] = 0; A[2][1] = 0; A[2][3] = 0; A[2][4] = 0; A[2][5] = 0;
+    b[2] = penalM * transVel_imposed[2];
+  }
+  if( bBlockRotation[0] ) { //then momenta not conserved in this dof
+    A[3][0] = 0; A[3][1] = 0; A[3][2] = 0; A[3][4] = 0; A[3][5] = 0;
+    b[3] = 0; // TODO IMPOSED ANG VEL?
+  }
+  if( bBlockRotation[1] ) { //then momenta not conserved in this dof
+    A[4][0] = 0; A[4][1] = 0; A[4][2] = 0; A[4][3] = 0; A[4][5] = 0;
+    b[4] = 0; // TODO IMPOSED ANG VEL?
+  }
+  if( bBlockRotation[2] ) { //then momenta not conserved in this dof
+    A[5][0] = 0; A[5][1] = 0; A[5][2] = 0; A[5][3] = 0; A[5][4] = 0;
+    b[5] = 0; // TODO IMPOSED ANG VEL?
+  }
 
-  if( bBlockRotation[0]) angVel[0] = 0;
-  else angVel[0] = angVel_computed[0];
+  gsl_matrix_view Agsl = gsl_matrix_view_array (&A[0][0], 6, 6);
+  gsl_vector_view bgsl = gsl_vector_view_array (b, 6);
+  gsl_vector *xgsl = gsl_vector_alloc (6);
+  int sgsl;
+  gsl_permutation * permgsl = gsl_permutation_alloc (6);
+  gsl_linalg_LU_decomp (& Agsl.matrix, permgsl, & sgsl);
+  gsl_linalg_LU_solve (& Agsl.matrix, permgsl, & bgsl.vector, xgsl);
+  transVel_computed[0] = gsl_vector_get(xgsl, 0);
+  transVel_computed[1] = gsl_vector_get(xgsl, 1);
+  transVel_computed[2] = gsl_vector_get(xgsl, 2);
+  angVel_computed[0]   = gsl_vector_get(xgsl, 3);
+  angVel_computed[1]   = gsl_vector_get(xgsl, 4);
+  angVel_computed[2]   = gsl_vector_get(xgsl, 5);
 
-  if( bBlockRotation[1]) angVel[1] = 0;
-  else angVel[1] = angVel_computed[1];
+  gsl_permutation_free (permgsl);
+  gsl_vector_free (xgsl);
 
-  if( bBlockRotation[2] ) angVel[2] = 0.0;
-  else angVel[2] = angVel_computed[2];
+  force[0] = mass * (transVel_computed[0] - transVel[0]) / sim.dt;
+  force[1] = mass * (transVel_computed[1] - transVel[1]) / sim.dt;
+  force[2] = mass * (transVel_computed[2] - transVel[2]) / sim.dt;
+  const std::array<double,3> dAv = {
+    (angVel_computed[0] - angVel[0]) / sim.dt,
+    (angVel_computed[1] - angVel[1]) / sim.dt,
+    (angVel_computed[2] - angVel[2]) / sim.dt
+  };
+  torque[0] = J[0] * dAv[0] + J[3] * dAv[1] + J[4] * dAv[2];
+  torque[1] = J[3] * dAv[0] + J[1] * dAv[1] + J[5] * dAv[2];
+  torque[2] = J[4] * dAv[0] + J[5] * dAv[1] + J[2] * dAv[2];
+
+  if(bForcedInSimFrame[0]) {
+    assert( std::fabs(transVel[0] - transVel_imposed[0]) < 1e-12 );
+    transVel[0] = transVel_imposed[0];
+  } else transVel[0] = transVel_computed[0];
+
+  if(bForcedInSimFrame[1]) {
+    assert( std::fabs(transVel[1] - transVel_imposed[1]) < 1e-12 );
+    transVel[1] = transVel_imposed[1];
+  } else transVel[1] = transVel_computed[1];
+
+  if(bForcedInSimFrame[2]) {
+    assert( std::fabs(transVel[2] - transVel_imposed[2]) < 1e-12 );
+    transVel[2] = transVel_imposed[2];
+  } else transVel[2] = transVel_computed[2];
+
+  if( bBlockRotation[0] ) {
+    assert( std::fabs(angVel[0] - 0) < 1e-12 );
+    angVel[0] = 0;
+  } else angVel[0] = angVel_computed[0];
+
+  if( bBlockRotation[1] ) {
+    assert( std::fabs(angVel[1] - 0) < 1e-12 );
+    angVel[1] = 0;
+  } else angVel[1] = angVel_computed[1];
+
+  if( bBlockRotation[2] ) {
+    assert( std::fabs(angVel[2] - 0) < 1e-12 );
+    angVel[2] = 0;
+  } else angVel[2] = angVel_computed[2];
 }
 
 void Obstacle::computeForces()

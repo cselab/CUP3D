@@ -54,7 +54,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   uinf[0] = parser("-uinfx").asDouble(0.0);
   uinf[1] = parser("-uinfy").asDouble(0.0);
   uinf[2] = parser("-uinfz").asDouble(0.0);
-
+  bIterativePenalization = parser("-iterativePenalization").asBool(false);
   // PIPELINE
   freqDiagnostics = parser("-freqDiagnostics").asInt(10);
 

@@ -279,8 +279,6 @@ void PressureRHS::operator()(const double dt)
       compute<KernelPressureRHS<0>>(K);
     }
   }
-
-
   sim.stopProfiler();
 
   check("PressureRHS");

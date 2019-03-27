@@ -110,14 +110,17 @@ public:
   double defPower=0, defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
   std::array<double,3> transVel_correction={0,0,0}, angVel_correction={0,0,0};
   //forced obstacles:
-  std::array<double,3> transVel_computed = {0,0,0}, angVel_computed = {0,0,0};
-  std::array<double,3> transVel_fluid    = {0,0,0}, angVel_fluid    = {0,0,0};
   double transVel_imposed[3]= {0,0,0};
 
   // stuff dealing with frame of reference:
   std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
   std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
   std::array<bool, 3> bBlockRotation = {{false, false, false}};
+
+  std::array<double,3> transVel_computed = {0,0,0}, angVel_computed = {0,0,0};
+  std::array<double,3> penalLmom={0,0,0}, penalAmom={0,0,0}, penalCM={0,0,0};
+  std::array<double,6> penalJ = {0,0,0,0,0,0};
+  double penalM;
 
 protected:
   virtual void _writeComputedVelToFile();

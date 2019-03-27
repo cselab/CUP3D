@@ -46,15 +46,8 @@ struct KernelPenalization : public ObstacleVisitor
     const UDEFMAT & __restrict__ UDEF = o->udef;
     FluidBlock& b = *(FluidBlock*)info.ptrBlock;
     const std::array<double,3> CM = obstacle->getCenterOfMass();
-
-    #ifndef OLD_INTEGRATE_MOM
-      const std::array<double,3> vel = obstacle->transVel_fluid;
-      const std::array<double,3> omega = obstacle->angVel_fluid;
-    #else
-      const std::array<double,3> vel = obstacle->getAngularVelocity();
-      const std::array<double,3> omega = obstacle->getTranslationVelocity();
-    #endif
-
+    const std::array<double,3> vel = obstacle->getAngularVelocity();
+    const std::array<double,3> omega = obstacle->getTranslationVelocity();
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -74,15 +67,9 @@ struct KernelPenalization : public ObstacleVisitor
       };
       // What if two obstacles overlap? Let's plus equal. We will need a
       // repulsion term of the velocity at some point in the code.
-      #ifndef OLD_INTEGRATE_MOM
-        b(ix,iy,iz).u = (b(ix,iy,iz).u + X*lamdt * U_TOT[0]) / (1 + X*lamdt);
-        b(ix,iy,iz).v = (b(ix,iy,iz).v + X*lamdt * U_TOT[1]) / (1 + X*lamdt);
-        b(ix,iy,iz).w = (b(ix,iy,iz).w + X*lamdt * U_TOT[2]) / (1 + X*lamdt);
-      #else
-        b(ix,iy,iz).u += X*lamdt * ( U_TOT[0] - b(ix,iy,iz).u );
-        b(ix,iy,iz).v += X*lamdt * ( U_TOT[1] - b(ix,iy,iz).v );
-        b(ix,iy,iz).w += X*lamdt * ( U_TOT[2] - b(ix,iy,iz).w );
-      #endif
+      b(ix,iy,iz).u = (b(ix,iy,iz).u + X*lamdt * U_TOT[0]) / (1 + X*lamdt);
+      b(ix,iy,iz).v = (b(ix,iy,iz).v + X*lamdt * U_TOT[1]) / (1 + X*lamdt);
+      b(ix,iy,iz).w = (b(ix,iy,iz).w + X*lamdt * U_TOT[2]) / (1 + X*lamdt);
     }
   }
 };

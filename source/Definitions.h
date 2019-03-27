@@ -86,6 +86,27 @@ struct FluidElement
   }
 };
 
+struct PenalizationHelperElement
+{
+  typedef Real RealType;
+  // Vel b4 pressure projection and after. These quantitites are not penalized.
+  Real uPre, vPre, wPre, uFluid, vFluid, wFluid;
+  PenalizationHelperElement(): uPre(0),vPre(0),wPre(0), uFluid(0),vFluid(0),wFluid(0) {}
+  void clear() { uPre=0; vPre=0; wPre=0; uFluid=0; vFluid=0; wFluid=0; }
+  PenalizationHelperElement(const PenalizationHelperElement& c) = delete;
+  PenalizationHelperElement& operator=(const PenalizationHelperElement& c) {
+    uPre = c.uPre; vPre = c.vPre; wPre = c.wPre;
+    uFluid = c.uFluid; vFluid = c.vFluid; wFluid = c.wFluid;
+    return *this;
+  }
+};
+
+struct DumpElement {
+    DumpReal u, v, w, chi, p;
+    DumpElement() : u(0), v(0), w(0), chi(0), p(0) {}
+    void clear() { u = v = w = chi = p = 0; }
+};
+
 /* Returns the index of the item in the `FluidElement` struct. */
 #define CUP_ELEMENT_INDEX(x) (offsetof(FluidElement, x) / sizeof(FluidElement::RealType))
 
@@ -104,12 +125,6 @@ inline BCflag string2BCflag(const std::string strFlag)
     return periodic; // dummy
   }
 }
-
-struct DumpElement {
-    DumpReal u, v, w, chi, p;
-    DumpElement() : u(0), v(0), w(0), chi(0), p(0) {}
-    void clear() { u = v = w = chi = p = 0; }
-};
 
 struct StreamerDiv
 {
@@ -412,10 +427,15 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
 };
 
 using FluidBlock = BaseBlock<FluidElement>;
-using FluidGrid    = cubism::Grid<FluidBlock, aligned_allocator> ;
-using FluidGridMPI = cubism::GridMPI<FluidGrid> ;
-using Lab          = BlockLabBC<FluidBlock, aligned_allocator> ;
-using LabMPI       = cubism::BlockLabMPI<Lab> ;
+using FluidGrid    = cubism::Grid<FluidBlock, aligned_allocator>;
+using FluidGridMPI = cubism::GridMPI<FluidGrid>;
+
+using PenalizationBlock   = BaseBlock<PenalizationHelperElement>;
+using PenalizationGrid    = cubism::Grid<PenalizationBlock, aligned_allocator>;
+using PenalizationGridMPI = cubism::GridMPI<PenalizationGrid>;
+
+using Lab          = BlockLabBC<FluidBlock, aligned_allocator>;
+using LabMPI       = cubism::BlockLabMPI<Lab>;
 
 CubismUP_3D_NAMESPACE_END
 #endif // CubismUP_3D_DataStructures_h

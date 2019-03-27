@@ -46,6 +46,7 @@ struct SimulationData
   cubism::Profiler * profiler = nullptr;
 
   FluidGridMPI * grid = nullptr;
+  PenalizationGridMPI * penalizationgrid = nullptr;
   void * nonuniform = nullptr;
   const inline std::vector<cubism::BlockInfo>& vInfo() const {
     return grid->getBlocksInfo();
@@ -86,6 +87,7 @@ struct SimulationData
   Real maxextent = 1;
   std::array<Real, 3> extent = {{1, 0, 0}};  // Uniform grid by default.
   bool bUseStretchedGrid = false;
+  bool bIterativePenalization = false;
   Real hmin=0, hmax=0;
 
   // flow variables

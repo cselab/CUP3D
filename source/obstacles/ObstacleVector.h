@@ -57,16 +57,16 @@ class ObstacleVector : public Obstacle
     }
     Real getD() const override;
 
-    std::array<double,3> updateUinf() const
+    std::array<Real,3> updateUinf() const
     {
-      std::array<   int,3> nSum = {0, 0, 0};
-      std::array<double,3> uSum = {0, 0, 0};
+      std::array<Real,3> nSum = {0, 0, 0};
+      std::array<Real,3> uSum = {0, 0, 0};
       for(const auto & obstacle_ptr : obstacles) {
         const auto obstacle_fix = obstacle_ptr->bFixFrameOfRef;
         const auto obstacle_vel = obstacle_ptr->transVel;
-        if (obstacle_fix[0]) { nSum[0]++; uSum[0] -= obstacle_vel[0]; }
-        if (obstacle_fix[1]) { nSum[1]++; uSum[1] -= obstacle_vel[1]; }
-        if (obstacle_fix[2]) { nSum[2]++; uSum[2] -= obstacle_vel[2]; }
+        if (obstacle_fix[0]) { nSum[0]+=1; uSum[0] -= obstacle_vel[0]; }
+        if (obstacle_fix[1]) { nSum[1]+=1; uSum[1] -= obstacle_vel[1]; }
+        if (obstacle_fix[2]) { nSum[2]+=1; uSum[2] -= obstacle_vel[2]; }
       }
       if(nSum[0]>0) uSum[0] = uSum[0] / nSum[0];
       if(nSum[1]>0) uSum[1] = uSum[1] / nSum[1];

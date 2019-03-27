@@ -259,11 +259,11 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 {
   const Real e0, e1, e2, h, safety = (2+SURFDH)*h;
   const Real maxAxis = std::max({e0, e1, e2});
-  const Real position[3], quaternion[4];
+  const double position[3], quaternion[4];
   const Real box[3][2] = {
-    {position[0] - 2*(maxAxis+safety), position[0] + 2*(maxAxis+safety)},
-    {position[1] - 2*(maxAxis+safety), position[1] + 2*(maxAxis+safety)},
-    {position[2] - 2*(maxAxis+safety), position[2] + 2*(maxAxis+safety)}
+   {(Real)position[0]-2*(maxAxis+safety), (Real)position[0]+2*(maxAxis+safety)},
+   {(Real)position[1]-2*(maxAxis+safety), (Real)position[1]+2*(maxAxis+safety)},
+   {(Real)position[2]-2*(maxAxis+safety), (Real)position[2]+2*(maxAxis+safety)}
   };
   const Real w=quaternion[0], x=quaternion[1], y=quaternion[2], z=quaternion[3];
   const Real Rmatrix[3][3] = {
@@ -273,7 +273,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   };
 
   FillBlocks(const Real _e0, const Real _e1, const Real _e2, const Real _h,
-    const Real p[3], const Real q[4]) : e0(_e0), e1(_e1), e2(_e2), h(_h),
+    const double p[3], const double q[4]) : e0(_e0), e1(_e1), e2(_e2), h(_h),
     position{p[0],p[1],p[2]}, quaternion{q[0],q[1],q[2],q[3]} { }
 
   inline bool isTouching(const FluidBlock&b) const
@@ -293,7 +293,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 
   inline Real signedDistance(const Real xo, const Real yo, const Real zo) const
   {
-    const Real p[3] = {xo-position[0], yo-position[1], zo-position[2]};
+    const Real p[3] = {xo-(Real)position[0], yo-(Real)position[1], zo-(Real)position[2]};
     // rotate
     const Real t[3] = {
         Rmatrix[0][0]*p[0] + Rmatrix[0][1]*p[1] + Rmatrix[0][2]*p[2],

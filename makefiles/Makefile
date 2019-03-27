@@ -164,7 +164,7 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	PoissonSolverMixed.o AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
 	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o FadeOut.o \
-	FishShapes.o ArgumentParser.o # Temporary solution for Cubism .cpp files.
+	FishShapes.o IterativePressurePenalization.o ArgumentParser.o # Temporary solution for Cubism .cpp files.
 	#ElasticFishOperator.o
 
 ifeq "$(hypre)" "true"

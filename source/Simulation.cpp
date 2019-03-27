@@ -18,6 +18,7 @@
 #include "operators/ObstaclesUpdate.h"
 #include "operators/Penalization.h"
 #include "operators/PressureProjection.h"
+#include "operators/IterativePressurePenalization.h"
 #include "operators/PressureRHS.h"
 
 #include "obstacles/ObstacleFactory.h"
@@ -253,6 +254,17 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                                    FluidBlock::sizeY-1,
                                    FluidBlock::sizeZ-1);
   }
+
+  if(sim.bIterativePenalization)
+  {
+    // no need to allocate stretched mesh stuff here because we will never read
+    // grid spacing from this grid!
+    if(sim.rank==0) printf("Allocating the penalization helper grid.\n");
+    sim.penalizationgrid = new PenalizationGridMPI(
+      sim.nprocsx,sim.nprocsy,sim.nprocsz, sim.local_bpdx,
+      sim.local_bpdy,sim.local_bpdz, sim.maxextent, sim.app_comm);
+    assert(sim.grid != nullptr);
+  }
 }
 
 void Simulation::setObstacleVector(ObstacleVector * const obstacle_vector_)
@@ -294,22 +306,29 @@ void Simulation::setupOperators()
   if(sim.uMax_forced > 0 && sim.initCond not_eq "taylorGreen")
     sim.pipeline.push_back(new ExternalForcing(sim));
 
-  // Places Udef on the grid and computes the RHS of the Poisson Eq
-  // overwrites tmpU, tmpV, tmpW and pressure solver's RHS
-  // places in press RHS = \nabla \cdot u_f - X \nabla \cdot u_def
-  sim.pipeline.push_back(new PressureRHS(sim));
+  if(sim.bIterativePenalization)
+  {
+   sim.pipeline.push_back(new IterativePressurePenalization(sim));
+  }
+  else
+  {
+    // Places Udef on the grid and computes the RHS of the Poisson Eq
+    // overwrites tmpU, tmpV, tmpW and pressure solver's RHS
+    // places in press RHS = \nabla \cdot u_f - X \nabla \cdot u_def
+    sim.pipeline.push_back(new PressureRHS(sim));
 
-  // Solves the Poisson Eq to get the pressure and finalizes the velocity
-  // u_{t+1} = \tilde{u} -\delta t \nabla P. This is final pre-penal vel field.
-  sim.pipeline.push_back(new PressureProjection(sim));
+    // Solves the Poisson Eq to get the pressure and finalizes the velocity
+    // u_{t+1} = \tilde{u} -\delta t \nabla P. This is final pre-penal vel field.
+    sim.pipeline.push_back(new PressureProjection(sim));
 
-  // Compute velocity of the obstacles and, in the same sweep if frame of ref
-  // is moving, we update uinf. Requires the pre-penal vel field on the grid!!
-  // We also update position and quaternions of the obstacles.
-  sim.pipeline.push_back(new UpdateObstacles(sim));
+    // Compute velocity of the obstacles and, in the same sweep if frame of ref
+    // is moving, we update uinf. Requires the pre-penal vel field on the grid!!
+    // We also update position and quaternions of the obstacles.
+    sim.pipeline.push_back(new UpdateObstacles(sim));
 
-  // With pre-penal vel field and obstacles' velocities perform penalization.
-  sim.pipeline.push_back(new Penalization(sim));
+    // With pre-penal vel field and obstacles' velocities perform penalization.
+    sim.pipeline.push_back(new Penalization(sim));
+  }
 
   // With finalized velocity and pressure, compute forces and dissipation
   sim.pipeline.push_back(new ComputeForces(sim));
