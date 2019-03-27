@@ -108,6 +108,10 @@ void PressureProjection::operator()(const double dt)
 {
   pressureSolver->solve();
 
+  sim.startProfiler("sol2cub");
+  pressureSolver->_fftw2cub();
+  sim.stopProfiler();
+
   sim.startProfiler("GradP"); //pressure correction dudt* = - grad P / rho
   if(sim.bUseStretchedGrid)
   {

@@ -65,7 +65,7 @@ class PoissonSolverUnbounded : public PoissonSolver
 
   void _initialize_green();
 
-  void clear();
+  void reset() const override;
 
   void _copy_fwd_local();
 

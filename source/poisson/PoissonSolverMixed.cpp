@@ -93,10 +93,6 @@ void PoissonSolverMixed::solve()
   sim.startProfiler("MFFTW c2r");
   _FFTW_(execute)( (fft_plan) bwd);
   sim.stopProfiler();
-
-  sim.startProfiler("MFFTW rhs2cub");
-  _fftw2cub();
-  sim.stopProfiler();
 }
 
 PoissonSolverMixed::~PoissonSolverMixed()

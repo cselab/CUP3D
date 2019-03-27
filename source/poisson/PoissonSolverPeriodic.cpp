@@ -121,10 +121,6 @@ void PoissonSolverPeriodic::solve()
   sim.startProfiler("FFTW c2r");
   _FFTW_(execute)((fft_plan) bwd);
   sim.stopProfiler();
-
-  sim.startProfiler("FFTW rhs2cub");
-  _fftw2cub();
-  sim.stopProfiler();
 }
 
 PoissonSolverPeriodic::~PoissonSolverPeriodic()

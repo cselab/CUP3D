@@ -66,10 +66,6 @@ void PoissonSolverMixed_HYPRE::solve()
     printf("Avg Pressure:%f\n", avgP);
   }
   sim.stopProfiler();
-
-  sim.startProfiler("HYPRE rhs2cub");
-  _fftw2cub();
-  sim.stopProfiler();
 }
 
 PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :

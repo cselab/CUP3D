@@ -126,6 +126,10 @@ void PoissonSolver::_fftw2cub() const
       b(ix,iy,iz).p = data[src_index];
     }
   }
+}
+
+void PoissonSolver::reset() const
+{
   memset(data, 0, data_size * sizeof(Real));
 }
 

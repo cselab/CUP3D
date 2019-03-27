@@ -148,11 +148,6 @@ void PoissonSolverUnbounded::solve()
   _copy_bwd_local();
   _FFTW_(execute)((fft_plan) m_bwd_tp);
   _FFTW_(execute)((fft_plan) m_bwd_2D);
-
-  sim.startProfiler("UFFTW rhs2cub");
-  _fftw2cub();
-  sim.stopProfiler();
-  clear(); // clear buffers for next invocation
 }
 
 
@@ -242,7 +237,7 @@ void PoissonSolverUnbounded::_initialize_green()
   _FFTW_(destroy_plan)(greenTP);
 }
 
-void PoissonSolverUnbounded::clear()
+void PoissonSolverUnbounded::reset() const
 {
   std::memset(data, 0, 2*m_tp_size*sizeof(Real));
   std::memset(m_buf_full, 0, 2*m_full_size*sizeof(Real));

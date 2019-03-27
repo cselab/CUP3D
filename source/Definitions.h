@@ -74,23 +74,18 @@ CubismUP_3D_NAMESPACE_BEGIN
 struct FluidElement
 {
   typedef Real RealType;
-  //If you modify these (adding, moving, shuffling, whatever) you kill the code
-  Real chi, u, v, w, p, tmpU, tmpV, tmpW;
-  FluidElement(): chi(0),u(0),v(0),w(0),p(0),tmpU(0),tmpV(0),tmpW(0) {}
+  Real chi=0, u=0, v=0, w=0, p=0, tmpU=0, tmpV=0, tmpW=0;
   void clear() { chi =0; u =0; v =0; w =0; p =0; tmpU =0; tmpV =0; tmpW =0; }
   FluidElement(const FluidElement& c) = delete;
-  FluidElement& operator=(const FluidElement&) = default;
 };
 
 struct PenalizationHelperElement
 {
   typedef Real RealType;
   // Vel b4 pressure projection and after. These quantitites are not penalized.
-  Real uPre, vPre, wPre, uFluid, vFluid, wFluid;
-  PenalizationHelperElement(): uPre(0),vPre(0),wPre(0), uFluid(0),vFluid(0),wFluid(0) {}
+  Real uPre=0, vPre=0, wPre=0, uFluid=0, vFluid=0, wFluid=0;
   void clear() { uPre=0; vPre=0; wPre=0; uFluid=0; vFluid=0; wFluid=0; }
   PenalizationHelperElement(const PenalizationHelperElement& c) = delete;
-  PenalizationHelperElement& operator=(const PenalizationHelperElement&) = default;
 };
 
 struct DumpElement {

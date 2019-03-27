@@ -254,17 +254,6 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                                    FluidBlock::sizeY-1,
                                    FluidBlock::sizeZ-1);
   }
-
-  if(sim.bIterativePenalization)
-  {
-    // no need to allocate stretched mesh stuff here because we will never read
-    // grid spacing from this grid!
-    if(sim.rank==0) printf("Allocating the penalization helper grid.\n");
-    sim.penalizationgrid = new PenalizationGridMPI(
-      sim.nprocsx,sim.nprocsy,sim.nprocsz, sim.local_bpdx,
-      sim.local_bpdy,sim.local_bpdz, sim.maxextent, sim.app_comm);
-    assert(sim.grid != nullptr);
-  }
 }
 
 void Simulation::setObstacleVector(ObstacleVector * const obstacle_vector_)

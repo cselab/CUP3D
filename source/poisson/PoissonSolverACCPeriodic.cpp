@@ -88,9 +88,6 @@ void PoissonSolverPeriodic::solve()
   sim.startProfiler("ACCDFT gpu2cpu");
   cudaMemcpy(data, phi_hat, alloc_max, cudaMemcpyDeviceToHost);
   sim.stopProfiler();
-  sim.startProfiler("ACCDFT rhs2cub");
-  _fftw2cub();
-  sim.stopProfiler();
 }
 
 PoissonSolverPeriodic::~PoissonSolverPeriodic()

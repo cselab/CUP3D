@@ -257,6 +257,8 @@ void PressureRHS::operator()(const double dt)
   sim.startProfiler("PresRHS Kernel");
   //place onto p: ( div u^(t+1) - div u^* ) / dt
   //where i want div u^(t+1) to be equal to div udef
+  sim.pressureSolver->reset();
+
   if(sim.bUseStretchedGrid)
   {
     if(sim.obstacle_vector->nObstacles())

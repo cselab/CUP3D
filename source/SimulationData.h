@@ -46,7 +46,6 @@ struct SimulationData
   cubism::Profiler * profiler = nullptr;
 
   FluidGridMPI * grid = nullptr;
-  PenalizationGridMPI * penalizationgrid = nullptr;
   void * nonuniform = nullptr;
   const inline std::vector<cubism::BlockInfo>& vInfo() const {
     return grid->getBlocksInfo();

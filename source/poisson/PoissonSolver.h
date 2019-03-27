@@ -115,6 +115,8 @@ class PoissonSolver
   void _cub2fftw() const;
 
   void _fftw2cub() const;
+
+  virtual void reset() const;
   //  assert(src_index>=0 && src_index<gsize[0]*gsize[1]*gsize[2]);
   //  assert(dest_index>=0 && dest_index<gsize[0]*gsize[1]*nz_hat*2);
   // assert(dest_index < m_local_N0*m_NN1*2*m_Nzhat);

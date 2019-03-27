@@ -399,7 +399,7 @@ struct KernelPenalization : public ObstacleVisitor
     const UDEFMAT & __restrict__ UDEF = o->udef;
     FluidBlock& b = *(FluidBlock*)info.ptrBlock;
     const auto& penalInfo = tmpInfo[info.blockID];
-    const PenalizationBlock& t = *(PenalizationBlock*) penalInfo.ptrBlock;
+    PenalizationBlock& t = *(PenalizationBlock*) penalInfo.ptrBlock;
 
     const std::array<double,3> CM = obstacle->getCenterOfMass();
     const std::array<double,3> vel = obstacle->getAngularVelocity();
@@ -420,18 +420,32 @@ struct KernelPenalization : public ObstacleVisitor
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
-      //uNxt = uPostPenal + uPostPresProj - uPrePresProj = uPostPenal + presProj
-      const Real uNext = b(ix,iy,iz).u + t(ix,iy,iz).uFluid - t(ix,iy,iz).uPre;
-      const Real vNext = b(ix,iy,iz).v + t(ix,iy,iz).vFluid - t(ix,iy,iz).vPre;
-      const Real wNext = b(ix,iy,iz).w + t(ix,iy,iz).wFluid - t(ix,iy,iz).wPre;
-      const Real DPX = Xlamdt * (U_TOT[0] - uNext) / (1 + Xlamdt);
-      const Real DPY = Xlamdt * (U_TOT[1] - vNext) / (1 + Xlamdt);
-      const Real DPZ = Xlamdt * (U_TOT[2] - wNext) / (1 + Xlamdt);
-      // What if two obstacles overlap? Let's plus equal. We will need a
-      // repulsion term of the velocity at some point in the code.
-      b(ix,iy,iz).u += DPX;
-      b(ix,iy,iz).v += DPY;
-      b(ix,iy,iz).w += DPZ;
+      #if 1
+        // with this option i do not accumulate penalization
+        // but rather I fix a lamda and velocity post penalization is vel
+        // post advection plus penalization force with that lambda
+        // but the penalization force is computed from fluid with press applied
+        const Real FPX = Xlamdt * (U_TOT[0] -t(ix,iy,iz).uFluid)/(1 + Xlamdt);
+        const Real FPY = Xlamdt * (U_TOT[1] -t(ix,iy,iz).vFluid)/(1 + Xlamdt);
+        const Real FPZ = Xlamdt * (U_TOT[2] -t(ix,iy,iz).wFluid)/(1 + Xlamdt);
+        const Real DPX = t(ix,iy,iz).uPre + FPX - b(ix,iy,iz).u;
+        const Real DPY = t(ix,iy,iz).vPre + FPY - b(ix,iy,iz).v;
+        const Real DPZ = t(ix,iy,iz).wPre + FPZ - b(ix,iy,iz).w;
+        b(ix,iy,iz).u  = t(ix,iy,iz).uPre + FPX;
+        b(ix,iy,iz).v  = t(ix,iy,iz).vPre + FPY;
+        b(ix,iy,iz).w  = t(ix,iy,iz).wPre + FPZ;
+      #else
+        //uNxt = uPostPenal + uPostPres - uPrePres = uPostPenal + presProj
+        const Real DVX = t(ix,iy,iz).uFluid - t(ix,iy,iz).uPre;
+        const Real DVY = t(ix,iy,iz).vFluid - t(ix,iy,iz).vPre;
+        const Real DVZ = t(ix,iy,iz).wFluid - t(ix,iy,iz).wPre;
+        const Real DPX = Xlamdt * (U_TOT[0] -b(ix,iy,iz).u -DVX)/(1 + Xlamdt);
+        const Real DPY = Xlamdt * (U_TOT[1] -b(ix,iy,iz).v -DVY)/(1 + Xlamdt);
+        const Real DPZ = Xlamdt * (U_TOT[2] -b(ix,iy,iz).w -DVZ)/(1 + Xlamdt);
+        b(ix,iy,iz).u += DPX;
+        b(ix,iy,iz).v += DPY;
+        b(ix,iy,iz).w += DPZ;
+      #endif
       MX += std::pow( b(ix,iy,iz).u, 2 ); DMX += std::pow( DPX, 2 );
       MY += std::pow( b(ix,iy,iz).v, 2 ); DMY += std::pow( DPY, 2 );
       MZ += std::pow( b(ix,iy,iz).w, 2 ); DMZ += std::pow( DPZ, 2 );
@@ -488,11 +502,24 @@ IterativePressurePenalization::IterativePressurePenalization(SimulationData & s)
   else
   pressureSolver = new PoissonSolverMixed(sim);
   sim.pressureSolver = pressureSolver;
+
+  // no need to allocate stretched mesh stuff here because we will never read
+  // grid spacing from this grid!
+  if(sim.rank==0) printf("Allocating the penalization helper grid.\n");
+
+  penalizationGrid = new PenalizationGridMPI(
+    sim.nprocsx, sim.nprocsy, sim.nprocsz, sim.local_bpdx,
+    sim.local_bpdy, sim.local_bpdz, sim.maxextent, sim.app_comm);
+
+  // deltaP = (Real*) malloc( pressureSolver->data_size * sizeof(Real) );
+  // pOld = (Real*) malloc( pressureSolver->data_size * sizeof(Real) );
+  // memset(deltaP, 0, pressureSolver->data_size * sizeof(Real) );
+  // memset(pOld, 0, pressureSolver->data_size * sizeof(Real) );
 }
 
 void IterativePressurePenalization::operator()(const double dt)
 {
-  const auto& penalBlocksInfo = sim.penalizationgrid->getBlocksInfo();
+  const auto& penalBlocksInfo = penalizationGrid->getBlocksInfo();
   // first copy velocity before either Pres or Penal onto penalization blocks
   // also put udef into tmpU fields
   initializeFields(penalBlocksInfo);
@@ -503,6 +530,7 @@ void IterativePressurePenalization::operator()(const double dt)
   {
     {
       sim.startProfiler("PresRHS Kernel");
+      sim.pressureSolver->reset();
       //place onto p: ( div u^(t+1) - div u^* ) / dt
       //where i want div u^(t+1) to be equal to div udef
       const KernelPressureRHS K(dt, sim.lambda, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
@@ -511,6 +539,26 @@ void IterativePressurePenalization::operator()(const double dt)
     }
 
     pressureSolver->solve();
+
+    /*
+    const size_t psize = pressureSolver->data_size;
+    Real* const pNxt = pressureSolver->data;
+    #pragma omp parallel for schedule(static)
+    for(size_t i=0; i<psize; ++i) {
+      const Real DP = pNxt[i] - pOld[i], LP = deltaP[i];
+      const Real maxStep = DP>0 ? std::max(DP, LP) : std::min(DP, LP);
+      const Real minStep = DP>0 ? std::min(DP, LP) : std::max(DP, LP);
+      // if delta and DP move in the same direction take the bolder step
+      // with help from other one, else take current step weighted with delta
+      deltaP[i] = DP*LP>0 ? 0.2*maxStep + DP : DP + 0.8*LP;
+      pNxt[i] = pOld[i] + deltaP[i];
+      pOld[i] = pNxt[i]; // back up for later
+    }
+    */
+
+    sim.startProfiler("sol2cub");
+    pressureSolver->_fftw2cub();
+    sim.stopProfiler();
 
     {
       // compute velocity after pressure projection (PP) but without Penal
@@ -560,7 +608,7 @@ void IterativePressurePenalization::operator()(const double dt)
     sim.stopProfiler();
 
     if(sim.verbose) printf("iter:%02d - max relative error: %f\n", iter, relDF);
-    if(iter && relDF < 0.0001) break; // do at least 2 iterations
+    if(iter && relDF < 0.001) break; // do at least 2 iterations
   }
 
   sim.startProfiler("GradP"); //pressure correction dudt* = - grad P / rho

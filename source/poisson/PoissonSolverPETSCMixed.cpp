@@ -156,10 +156,6 @@ void PoissonSolverMixed_PETSC::solve()
     }
     sim.stopProfiler();
   }
-
-  sim.startProfiler("PETSC rhs2cub");
-  _fftw2cub();
-  sim.stopProfiler();
 }
 
 PetscErrorCode ComputeRHS(KSP solver, Vec RHS, void * Sptr)

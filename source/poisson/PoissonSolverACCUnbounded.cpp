@@ -135,11 +135,6 @@ void PoissonSolverUnbounded::solve()
   sim.startProfiler("ACCUNB pad2rhs");
   padded2cub();
   sim.stopProfiler();
-
-  // MPI transfer of data from 1D-padded FFT distribution to CUP distribution
-  sim.startProfiler("ACCUNB rhs2cub");
-  _fftw2cub();
-  sim.stopProfiler();
 }
 
 void PoissonSolverUnbounded::cub2padded() const
