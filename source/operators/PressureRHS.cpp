@@ -13,6 +13,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 
@@ -228,6 +230,8 @@ struct PressureRHSObstacleVisitor : public ObstacleVisitor
     }
   }
 };
+
+}
 
 void PressureRHS::operator()(const double dt)
 {

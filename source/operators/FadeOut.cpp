@@ -11,6 +11,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 class KernelFadeOut
 {
  private:
@@ -55,6 +57,7 @@ class KernelFadeOut
   }
 };
 
+}
 
 void FadeOut::operator()(const double dt)
 {

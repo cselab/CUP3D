@@ -550,7 +550,7 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
           {
             // process end of tail:
             const int TT = cfish->Nm-1, TS = cfish->Nm-2;
-            assert(width[TT]<2.2e-16 && height[TT]<2.2e-16);
+            //assert(width[TT]<2.2e-16 && height[TT]<2.2e-16);
             //compute the 5 corners of the pyramid around tail last point
             const Real PC[3] = {rX[TT], rY[TT], 0 };
             const Real PF[3] = {rX[TS], rY[TS], 0 };

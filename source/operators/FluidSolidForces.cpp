@@ -12,6 +12,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 struct KernelComputeForces : public ObstacleVisitor
 {
   ObstacleVector * const obstacle_vector;
@@ -155,24 +157,6 @@ struct KernelComputeForces : public ObstacleVisitor
   }
 };
 
-void ComputeForces::operator()(const double dt)
-{
-  sim.startProfiler("Obst. Forces");
-  const int nthreads = omp_get_max_threads();
-  std::vector<KernelComputeForces*> K(nthreads, nullptr);
-  #pragma omp parallel for schedule(static,1)
-  for(int i=0; i<nthreads; ++i)
-    K[i] = new KernelComputeForces(sim.nu, sim.dt, sim.obstacle_vector);
-
-  compute<KernelComputeForces>(K);
-
-  for(int i=0; i<nthreads; i++) delete K[i];
-  // do the final reductions and so on
-  sim.obstacle_vector->computeForces();
-  sim.stopProfiler();
-  check("ComputeForces");
-}
-
 struct DumpWake
 {
   double t;
@@ -215,5 +199,25 @@ struct DumpWake
     }
   }
 };
+
+}
+
+void ComputeForces::operator()(const double dt)
+{
+  sim.startProfiler("Obst. Forces");
+  const int nthreads = omp_get_max_threads();
+  std::vector<KernelComputeForces*> K(nthreads, nullptr);
+  #pragma omp parallel for schedule(static,1)
+  for(int i=0; i<nthreads; ++i)
+    K[i] = new KernelComputeForces(sim.nu, sim.dt, sim.obstacle_vector);
+
+  compute<KernelComputeForces>(K);
+
+  for(int i=0; i<nthreads; i++) delete K[i];
+  // do the final reductions and so on
+  sim.obstacle_vector->computeForces();
+  sim.stopProfiler();
+  check("ComputeForces");
+}
 
 CubismUP_3D_NAMESPACE_END

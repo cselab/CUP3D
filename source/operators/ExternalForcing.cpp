@@ -11,6 +11,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 template<int DIRECTION>
 class KernelExternalForcing
 {
@@ -28,6 +30,7 @@ class KernelExternalForcing
     }
   }
 };
+}
 
 void ExternalForcing::operator()(const double dt)
 {

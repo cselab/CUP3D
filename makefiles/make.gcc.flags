@@ -11,10 +11,15 @@ ifeq "$(findstring prod,$(config))" ""
 CPPFLAGS+= -g -O0
 NVFLAGS+= -O0 -g
 
-#CPPFLAGS+= -fsanitize=address
-#LIBS+= -fsanitize=address
-#CPPFLAGS+= -fsanitize=undefined
-#LIBS+= -fsanitize=undefined
+ifeq "$(config)" "segf"
+CPPFLAGS+= -fsanitize=address
+LIBS+= -fsanitize=address
+endif
+ifeq "$(config)" "nans"
+CPPFLAGS+= -fsanitize=undefined
+LIBS+= -fsanitize=undefined
+endif
+
 $(info *** WARNING! Compiling with debug flags. Use config=prod for optimized code ***)
 
 else

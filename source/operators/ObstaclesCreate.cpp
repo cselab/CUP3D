@@ -13,6 +13,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
@@ -418,6 +420,8 @@ struct KernelRemoveUdefMomenta : public ObstacleVisitor
     }
   }
 };
+
+}
 
 void CreateObstacles::operator()(const double dt)
 {

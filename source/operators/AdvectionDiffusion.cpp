@@ -11,6 +11,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 class KernelAdvectDiffuse
 {
   private:
@@ -205,6 +207,7 @@ class KernelAdvectDiffuse_nonUniform
     }
   }
 };
+}
 
 void AdvectionDiffusion::operator()(const double dt)
 {

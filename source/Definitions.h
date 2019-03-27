@@ -79,11 +79,7 @@ struct FluidElement
   FluidElement(): chi(0),u(0),v(0),w(0),p(0),tmpU(0),tmpV(0),tmpW(0) {}
   void clear() { chi =0; u =0; v =0; w =0; p =0; tmpU =0; tmpV =0; tmpW =0; }
   FluidElement(const FluidElement& c) = delete;
-  FluidElement& operator=(const FluidElement& c) {
-    chi = c.chi; u = c.u; v = c.v; w = c.w; p = c.p;
-    tmpU = c.tmpU; tmpV = c.tmpV; tmpW = c.tmpW;
-    return *this;
-  }
+  FluidElement& operator=(const FluidElement&) = default;
 };
 
 struct PenalizationHelperElement
@@ -94,11 +90,7 @@ struct PenalizationHelperElement
   PenalizationHelperElement(): uPre(0),vPre(0),wPre(0), uFluid(0),vFluid(0),wFluid(0) {}
   void clear() { uPre=0; vPre=0; wPre=0; uFluid=0; vFluid=0; wFluid=0; }
   PenalizationHelperElement(const PenalizationHelperElement& c) = delete;
-  PenalizationHelperElement& operator=(const PenalizationHelperElement& c) {
-    uPre = c.uPre; vPre = c.vPre; wPre = c.wPre;
-    uFluid = c.uFluid; vFluid = c.vFluid; wFluid = c.wFluid;
-    return *this;
-  }
+  PenalizationHelperElement& operator=(const PenalizationHelperElement&) = default;
 };
 
 struct DumpElement {

@@ -12,6 +12,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 class KernelIC
 {
  public:
@@ -154,6 +156,8 @@ struct InitialPenalization : public ObstacleVisitor
     }
   }
 };
+
+}
 
 void InitialConditions::operator()(const double dt)
 {

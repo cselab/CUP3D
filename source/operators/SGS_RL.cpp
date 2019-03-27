@@ -12,6 +12,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 class KernelSGS_RL_nonUniform
 {
   private:
@@ -87,6 +89,8 @@ class KernelSGS_RL_nonUniform
     }
   }
 };
+
+}
 
 SGS_RL::SGS_RL(SimulationData & s, Communicator* c, bool _timeOut, double rew) :
   Operator(s), comm(c), timeOut(_timeOut), reward(rew) { }

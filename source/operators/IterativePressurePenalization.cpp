@@ -28,6 +28,9 @@ using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 static constexpr Real DBLEPS = std::numeric_limits<double>::epsilon();
 
+namespace
+{
+
 struct PressureRHSObstacleVisitor : public ObstacleVisitor
 {
   FluidGridMPI * const grid;
@@ -436,6 +439,8 @@ struct KernelPenalization : public ObstacleVisitor
   }
 };
 
+}
+
 void IterativePressurePenalization::initializeFields(const std::vector<BlockInfo>& tmpInfo)
 {
   sim.startProfiler("PresRHS Udef");
@@ -554,7 +559,7 @@ void IterativePressurePenalization::operator()(const double dt)
     }
     sim.stopProfiler();
 
-    printf("iter:%02d - max relative error: %f\n", iter, relDF);
+    if(sim.verbose) printf("iter:%02d - max relative error: %f\n", iter, relDF);
     if(iter && relDF < 0.0001) break; // do at least 2 iterations
   }
 

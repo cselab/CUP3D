@@ -12,6 +12,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 
@@ -73,6 +75,8 @@ struct KernelPenalization : public ObstacleVisitor
     }
   }
 };
+
+}
 
 Penalization::Penalization(SimulationData & s) : Operator(s) {}
 

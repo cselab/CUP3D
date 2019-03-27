@@ -22,6 +22,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 class KernelGradP
 {
   const Real dt;
@@ -80,6 +82,8 @@ class KernelGradP_nonUniform
     }
   }
 };
+
+}
 
 PressureProjection::PressureProjection(SimulationData & s) : Operator(s)
 {

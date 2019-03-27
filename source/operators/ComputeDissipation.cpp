@@ -12,6 +12,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+namespace {
+
 class KernelDissipation
 {
   public:
@@ -112,6 +114,7 @@ class KernelDissipation
     }
   }
 };
+}
 
 void ComputeDissipation::operator()(const double dt)
 {
