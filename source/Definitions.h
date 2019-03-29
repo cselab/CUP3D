@@ -17,10 +17,6 @@
 
 //#include <cassert>
 
-// define this to update obstacles with old (mrag-like) approach of integrating
-// momenta contained in chi before the penalization step:
-//#define OLD_INTEGRATE_MOM
-
 #include <cassert>
 #include <cstddef>   // For `offsetof()`.
 #include <array>

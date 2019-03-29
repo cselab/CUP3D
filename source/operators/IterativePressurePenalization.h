@@ -18,9 +18,9 @@ class IterativePressurePenalization : public Operator
  protected:
   PoissonSolver * pressureSolver;
   PenalizationGridMPI * penalizationGrid = nullptr;
-  Real* pOld;
-  Real* deltaP;
-  void initializeFields(const std::vector<cubism::BlockInfo>& tmpInfo);
+  PenalizationGridMPI * accelerationGrid = nullptr;
+
+  void initializeFields();
 
  public:
   IterativePressurePenalization(SimulationData & s);
