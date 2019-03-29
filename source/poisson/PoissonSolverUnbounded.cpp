@@ -95,8 +95,6 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData&s) : PoissonSolver
   m_bwd_tp = (void*) _FFTW_(mpi_plan_many_transpose)(m_NN1, m_N0, 2*m_Nzhat,
           m_local_NN1, m_local_N0, data, data, m_comm,
           FFTW_MEASURE | FFTW_MPI_TRANSPOSED_IN);
-
-  clear();
 }
 
 PoissonSolverUnbounded::~PoissonSolverUnbounded()
