@@ -23,7 +23,7 @@
 // define this to update obstacles with old (mrag-like) approach of integrating
 // momenta contained in chi before the penalization step:
 #define OLD_INTEGRATE_MOM
-// #define EXTRAFAST
+#define EXTRAFAST
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -428,8 +428,8 @@ struct KernelPenalization : public ObstacleVisitor
     #endif
 
     const std::array<double,3> CM = obstacle->getCenterOfMass();
-    const std::array<double,3> vel = obstacle->getAngularVelocity();
-    const std::array<double,3> omega = obstacle->getTranslationVelocity();
+    const std::array<double,3> vel = obstacle->getTranslationVelocity();
+    const std::array<double,3> omega = obstacle->getAngularVelocity();
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)

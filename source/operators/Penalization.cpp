@@ -48,8 +48,8 @@ struct KernelPenalization : public ObstacleVisitor
     const UDEFMAT & __restrict__ UDEF = o->udef;
     FluidBlock& b = *(FluidBlock*)info.ptrBlock;
     const std::array<double,3> CM = obstacle->getCenterOfMass();
-    const std::array<double,3> vel = obstacle->getAngularVelocity();
-    const std::array<double,3> omega = obstacle->getTranslationVelocity();
+    const std::array<double,3> vel = obstacle->getTranslationVelocity();
+    const std::array<double,3> omega = obstacle->getAngularVelocity();
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
