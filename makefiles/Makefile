@@ -134,7 +134,7 @@ endif
 ifneq ($(FFTW_ROOT),)
 	# OK
 else ifneq ($(FFTW3_ROOT_DIR),)
-	FFTW_ROOT = $(FFTW3_ROOT_DIR)  # Euler.
+	FFTW_ROOT = $(FFTW3_ROOT_DIR)
 else ifneq ($(FFTW_DIR),)
 	FFTW_ROOT = $(FFTW_DIR)/..
 else
