@@ -238,7 +238,7 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
     printf("Using PCG solver\n"); fflush(0);
     HYPRE_StructPCGCreate(m_comm, &hypre_solver);
     HYPRE_StructPCGSetMaxIter(hypre_solver, 1000);
-    HYPRE_StructPCGSetTol(hypre_solver, 1e-2);
+    HYPRE_StructPCGSetTol(hypre_solver, 1e-3);
     HYPRE_StructPCGSetPrintLevel(hypre_solver, 2);
     if(0)
     { // Use SMG preconditioner
@@ -282,8 +282,8 @@ RowType* PoissonSolverMixed_HYPRE::prepareMat_nonUniform()
     const FluidBlock& b = *(FluidBlock*) local_infos[i].ptrBlock;
     const BlkCoeffX &cx=b.fd_cx.second, &cy=b.fd_cy.second, &cz=b.fd_cz.second;
     for(size_t iz=0; iz < (size_t) BlockType::sizeZ; iz++)
-    for(size_t ix=0; ix < (size_t) BlockType::sizeX; ix++)
     for(size_t iy=0; iy < (size_t) BlockType::sizeY; iy++)
+    for(size_t ix=0; ix < (size_t) BlockType::sizeX; ix++)
     {
       const size_t idx = _dest(offset, iz, iy, ix);
       assert(idx < myN[0] * myN[1] * myN[2]);
