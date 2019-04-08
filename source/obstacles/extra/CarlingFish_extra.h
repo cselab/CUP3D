@@ -32,7 +32,9 @@ class CarlingFishMidlineData_BurstCoast : public CarlingFishMidlineData
     double T2, double T3, double lowAmp, double L, double T, double phi,
     double _h, double A) : CarlingFishMidlineData(L,T,phi,_h,A),
     tStart(_tStart), t0(T0), t1(T1), t2(T2), t3(T3), lowestAmp(lowAmp)
-  {  }
+  {
+    printf("CarlingFishMidlineData_BurstCoast NOT SUPPORTED\n"); abort();
+  }
 };
 
 class CarlingFishMidlineData_Hinged : public CarlingFishMidlineData
@@ -54,16 +56,18 @@ class CarlingFishMidlineData_Hinged : public CarlingFishMidlineData
     return aParabola*s*s + bParabola*s + cParabola;
   }
 
-  Real midline(const Real s, const Real t) const override;
+  Real midline(const Real s, const Real t) const;
 
-  Real midlineVel(const Real s, const Real t) const override;
+  Real midlineVel(const Real s, const Real t) const;
 
  public:
   CarlingFishMidlineData_Hinged(double _sHinge,double _Ahinge,double _phiHinge,
    double _Thinge, double L,double T,double phi,double _h,double A) :
    CarlingFishMidlineData(L,T,phi,_h,A), sHinge(_sHinge), ThingeTheta(_Thinge),
     AhingeTheta(M_PI*_Ahinge/180.0), hingePhi(_phiHinge/360.0)
-  { }
+  {
+    printf("CarlingFishMidlineData_Hinged NOT SUPPORTED\n"); abort();
+  }
 };
 
 void CarlingFishMidlineData_BurstCoast::computeMidline(const double t, const double dt)
@@ -129,7 +133,7 @@ void CarlingFishMidlineData_BurstCoast::computeMidline(const double t, const dou
 
 Real CarlingFishMidlineData_Hinged::midline(const Real s, const Real t) const
 {
-  double yCurrent = CarlingFishMidlineData::midline(s, t);
+  double yCurrent = 0;//CarlingFishMidlineData::midline(s, t);
 
   if(s >= sLeft)
   {
@@ -171,7 +175,7 @@ Real CarlingFishMidlineData_Hinged::midline(const Real s, const Real t) const
 
 Real CarlingFishMidlineData_Hinged::midlineVel(const Real s, const Real t) const
 {
-  double velCurrent = CarlingFishMidlineData::midlineVel(s, t);
+  double velCurrent = 0; //CarlingFishMidlineData::midlineVel(s, t);
   if(s>=sLeft)
   {
     const Real argLeft = getArg(sLeft, t), ampLeft = getQuadAmp(sLeft);

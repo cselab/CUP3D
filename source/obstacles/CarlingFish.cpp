@@ -50,22 +50,15 @@ class CarlingFishMidlineData : public FishMidlineData
     return 2.0*M_PI*(s/(waveLength*length) - t/Tperiod + phaseShift);
   }
 
-  virtual Real midline(const Real s, const Real t) const;
-
-  virtual Real midlineVel(const Real s, const Real t) const;
-
   // This needed only during burstCoast
-  std::pair<double, double> cubicHermite(const double f1, const double f2, const double x){
+  std::pair<double, double> cubicHermite(const double f1, const double f2, const double x)
+  {
     const double a =  2*(f1-f2);
     const double b = -3*(f1-f2);
     const double retVal = a*x*x*x + b*x*x + f1;
     const double deriv = 3*a*x*x + 2*b*x;
     return std::make_pair(retVal, deriv);
   }
-
-  virtual void _computeMidlineCoordinates(const Real time);
-
-  virtual void _computeMidlineVelocities(const Real time);
 
  public:
   // L=length, T=period, phi=phase shift, _h=grid size, A=amplitude modulation
@@ -78,14 +71,45 @@ class CarlingFishMidlineData : public FishMidlineData
   }
 
   virtual void computeMidline(const double t, const double dt) override;
+
+  template<bool bQuadratic>
+  void _computeMidlinePosVel(const Real t)
+  {
+    const Real rampFac = rampFactorSine(t, Tperiod), dArg = -2*M_PI/Tperiod;
+    const Real rampFacVel = rampFactorVelSine(t, Tperiod);
+    {
+      const Real arg = getArg(rS[0], t);
+      const Real cosa = std::cos(arg), sina = std::sin(arg);
+      const Real amp = bQuadratic? getQuadAmp(rS[0]) : getLinAmp(rS[0]);
+      const Real Y = sina * amp, VY = cosa * dArg * amp;
+      rX[0] = 0.0; vX[0] = 0.0; //rX[0] is constant
+      rY[0] = rampFac*Y;
+      vY[0] = rampFac*VY + rampFacVel*Y;
+    }
+    for(int i=1; i<Nm; ++i)
+    {
+      const Real arg = getArg(rS[i], t);
+      const Real cosa = std::cos(arg), sina = std::sin(arg);
+      const Real amp = bQuadratic? getQuadAmp(rS[i]) : getLinAmp(rS[i]);
+      const Real Y = sina * amp, VY = cosa * dArg * amp;
+      rY[i] = rampFac*Y;
+      vY[i] = rampFac*VY + rampFacVel*Y;
+      const Real dy = rY[i]-rY[i-1], ds = rS[i]-rS[i-1], dVy = vY[i]-vY[i-1];
+      const Real dx = std::sqrt(ds*ds-dy*dy);
+      assert(dx>0);
+      rX[i] = rX[i-1] + dx;
+      vX[i] = vX[i-1] - dy/dx *dVy; // use ds^2 = dx^2+dy^2 -> ddx = -dy/dx*ddy
+    }
+  }
 };
 
 #include "obstacles/extra/CarlingFish_extra.h"
 
 void CarlingFishMidlineData::computeMidline(const double t,const double dt)
 {
-  _computeMidlineCoordinates(t);
-  _computeMidlineVelocities(t);
+  if(quadraticAmplitude) _computeMidlinePosVel<true >(t);
+  else                   _computeMidlinePosVel<false>(t);
+
   _computeMidlineNormals();
   #if 0
     #warning USED MPI COMM WORLD
@@ -100,73 +124,11 @@ void CarlingFishMidlineData::computeMidline(const double t,const double dt)
   #endif
 }
 
-Real CarlingFishMidlineData::midline(const Real s, const Real t) const
-{
-  const Real arg = getArg(s, t);
-
-  double yCurrent;
-  if(quadraticAmplitude){
-    yCurrent = getQuadAmp(s) * std::sin(arg);
-  } else {
-    yCurrent =  getLinAmp(s) * std::sin(arg);
-  }
-
-  return yCurrent;
-}
-
-Real CarlingFishMidlineData::midlineVel(const Real s, const Real t) const
-{
-  const Real arg = getArg(s, t);
-  const Real dArg = -2*M_PI/Tperiod;
-
-  double velCurrent;
-  if(quadraticAmplitude) {
-    velCurrent = getQuadAmp(s) * dArg * std::cos(arg);
-  }else{
-    velCurrent =  getLinAmp(s) * dArg * std::cos(arg);
-  }
-
-  return velCurrent;
-}
-
-void CarlingFishMidlineData::_computeMidlineCoordinates(const Real t)
-{
-  const Real rampFac = rampFactorSine(t, Tperiod);
-  rX[0] = 0.0;
-  rY[0] = rampFac*midline(rS[0], t);
-
-  for(int i=1;i<Nm;++i)
-  {
-    rY[i] = rampFac*midline(rS[i], t);
-    const Real dy = rY[i]-rY[i-1], ds = rS[i]-rS[i-1];
-    Real dx = std::sqrt(ds*ds-dy*dy);
-    assert(dx>0);
-    rX[i] = rX[i-1] + dx;
-  }
-}
-
-void CarlingFishMidlineData::_computeMidlineVelocities(const Real t)
-{
-  const Real rampFac =    rampFactorSine(t, Tperiod);
-  const Real rampFacVel = rampFactorVelSine(t, Tperiod);
-
-  vX[0] = 0.0; //rX[0] is constant
-  vY[0] = rampFac*midlineVel(rS[0],t) + rampFacVel*midline(rS[0],t);
-
-  for(int i=1; i<Nm; ++i)
-  {
-    vY[i]=rampFac*midlineVel(rS[i],t) + rampFacVel*midline(rS[i],t);
-    const Real dy = rY[i]-rY[i-1], dx = rX[i]-rX[i-1], dVy = vY[i]-vY[i-1];
-    assert(dx>0);
-    vX[i] = vX[i-1] - dy/dx *dVy; // use ds^2 = dx^2+dy^2 -> ddx = -dy/dx*ddy
-  }
-}
-
 CarlingFish::CarlingFish(SimulationData&s, ArgumentParser&p) : Fish(s, p)
 {
   // _ampFac=0.0 for towed fish :
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
-  const bool bQuadratic = p("-bQuadratic").asBool(true);
+  const bool bQuadratic = p("-bQuadratic").asBool(false);
   const bool bBurst = p("-BurstCoast").asBool(false);
   const bool bHinge = p("-HingedFin").asBool(false);
   if(bBurst && bHinge) {
@@ -196,24 +158,6 @@ CarlingFish::CarlingFish(SimulationData&s, ArgumentParser&p) : Fish(s, p)
   if(!sim.rank)
     printf("CarlingFish: N:%d, L:%f, T:%f, phi:%f, amplitude:%f\n",
         myFish->Nm, length, Tperiod, phaseShift, ampFac);
-
-  #ifdef RL_LAYER
-    sr = StateReward(length, Tperiod);
-    sr.parseArguments(p);
-    sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
-                      _2Dangle, transVel[0], transVel[1], angVel[2]);
-  #endif
 }
-
-
-#ifdef RL_LAYER
-
-void CarlingFish::execute(const int i, const double t, const std::vector<double>a)
-{
-  sr.resetAverage();
-  sr.t_next_comm=1e6;
-}
-
-#endif
 
 CubismUP_3D_NAMESPACE_END

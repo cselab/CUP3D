@@ -96,8 +96,10 @@ PressureProjection::PressureProjection(SimulationData & s) : Operator(s)
   pressureSolver = new PoissonSolverMixed_HYPRE(sim);
   #endif
   #ifdef CUP_PETSC
-  else if (sim.useSolver == "petsc")
+  else if (sim.useSolver == "petsc") {
+    printf("PoissonSolverMixed_PETSC\n"); fflush(0);
   pressureSolver = new PoissonSolverMixed_PETSC(sim);
+  }
   #endif
   else
   pressureSolver = new PoissonSolverMixed(sim);

@@ -194,7 +194,12 @@ void Obstacle::computeVelocities()
 
   gsl_permutation_free (permgsl);
   gsl_vector_free (xgsl);
-
+  //if(sim.verbose)
+  //{
+  //  printf("um:%e lm:%e am:%e m:%e j:%e u:%e v:%e a:%e\n",
+  //  penalLmom[0], penalLmom[1], penalAmom[2], penalM, penalJ[2],
+  //  transVel_computed[0], transVel_computed[1], angVel_computed[2]);
+  //}
   force[0] = mass * (transVel_computed[0] - transVel[0]) / sim.dt;
   force[1] = mass * (transVel_computed[1] - transVel[1]) / sim.dt;
   force[2] = mass * (transVel_computed[2] - transVel[2]) / sim.dt;

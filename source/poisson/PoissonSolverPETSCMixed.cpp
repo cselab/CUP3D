@@ -67,6 +67,7 @@ PoissonSolverMixed_PETSC::PoissonSolverMixed_PETSC(SimulationData&s) : PoissonSo
   stridez = myN[1] * myN[0]; // slow
   stridey = myN[0];
   stridex = 1; // fast
+  const double h = sim.bUseStretchedGrid? -1 : sim.uniformH();
   S= new PetscData(m_comm, gsize[0], gsize[1], gsize[2], myN[0], myN[1], myN[2],
     data_size, sim.BCx_flag, sim.BCy_flag, sim.BCz_flag, h, data, local_infos);
   S->rank = m_rank;
@@ -80,7 +81,8 @@ PoissonSolverMixed_PETSC::PoissonSolverMixed_PETSC(SimulationData&s) : PoissonSo
   ierr = DMDACreate3d(m_comm,
     sim.BCx_flag == periodic ? DM_BOUNDARY_PERIODIC : DM_BOUNDARY_NONE,
     sim.BCy_flag == periodic ? DM_BOUNDARY_PERIODIC : DM_BOUNDARY_NONE,
-    sim.BCz_flag == periodic ? DM_BOUNDARY_PERIODIC : DM_BOUNDARY_NONE, DMDA_STENCIL_STAR, gsize[0], gsize[1], gsize[2],
+    sim.BCz_flag == periodic ? DM_BOUNDARY_PERIODIC : DM_BOUNDARY_NONE,
+    DMDA_STENCIL_STAR, gsize[0], gsize[1], gsize[2],
     sim.nprocsx, sim.nprocsy, sim.nprocsz, 1, 1, NULL, NULL, NULL, & S->grid);
   ierr = DMSetFromOptions(S->grid);
   ierr = DMSetUp(S->grid);
@@ -158,7 +160,7 @@ PetscErrorCode ComputeRHS(KSP solver, Vec RHS, void * Sptr)
   for (PetscInt k=0; k<zSpan; k++)
   for (PetscInt j=0; j<ySpan; j++)
   for (PetscInt i=0; i<xSpan; i++)
-    array[k+zStart][j+yStart][i+xStart] = - CubRHS[i + cSx*j + cSx*cSy*k];
+    array[k+zStart][j+yStart][i+xStart] = CubRHS[i + cSx*j + cSx*cSy*k];
 
   DMDAVecRestoreArray(S.grid, RHS, & array);
   VecAssemblyBegin(RHS);
@@ -190,13 +192,13 @@ PetscErrorCode ComputeMAT(KSP solver, Mat AMAT, Mat PMAT, void *Sptr)
     MatStencil R, C[7];
     R.k = K; R.j = J; R.i = I;
     PetscScalar V[7];
-    V[0] =6*h; C[0].i = I;   C[0].j = J;   C[0].k = K;
-    V[1] =-h;  C[1].i = I-1; C[1].j = J;   C[1].k = K;
-    V[2] =-h;  C[2].i = I+1; C[2].j = J;   C[2].k = K;
-    V[3] =-h;  C[3].i = I;   C[3].j = J-1; C[3].k = K;
-    V[4] =-h;  C[4].i = I;   C[4].j = J+1; C[4].k = K;
-    V[5] =-h;  C[5].i = I;   C[5].j = J;   C[5].k = K-1;
-    V[6] =-h;  C[6].i = I;   C[6].j = J;   C[6].k = K+1;
+    V[0] = -6*h; C[0].i = I;   C[0].j = J;   C[0].k = K;
+    V[1] =    h; C[1].i = I-1; C[1].j = J;   C[1].k = K;
+    V[2] =    h; C[2].i = I+1; C[2].j = J;   C[2].k = K;
+    V[3] =    h; C[3].i = I;   C[3].j = J-1; C[3].k = K;
+    V[4] =    h; C[4].i = I;   C[4].j = J+1; C[4].k = K;
+    V[5] =    h; C[5].i = I;   C[5].j = J;   C[5].k = K-1;
+    V[6] =    h; C[6].i = I;   C[6].j = J;   C[6].k = K+1;
     // Apply dirichlet BC:
     if( S.BCz != periodic && K == S.gNz-1 ) { V[0] -= h; V[6] = 0; }
     if( S.BCz != periodic && K ==       0 ) { V[0] -= h; V[5] = 0; }
@@ -256,9 +258,9 @@ PetscErrorCode ComputeMAT_nonUniform(KSP solver, Mat AMAT, Mat PMAT, void *Sptr)
   PetscInt xSt, ySt, zSt, xSpan, ySpan, zSpan;
   DMDAGetCorners(S.grid, &xSt,&ySt,&zSt, &xSpan,&ySpan,&zSpan);
   assert(zSpan==S.myNx && ySpan==S.myNy && xSpan==S.myNz);
-  static constexpr int BS[3] = {BlockType::sizeX, BlockType::sizeY, BlockType::sizeZ};
+  static constexpr int BS[3] = {CUP_BLOCK_SIZE, CUP_BLOCK_SIZE, CUP_BLOCK_SIZE};
 
-  const auto& local_infos = S.local_infos();
+  const auto& local_infos = S.local_infos;
   #pragma omp parallel for schedule(static)
   for(size_t i=0; i<local_infos.size(); ++i)
   {
@@ -271,9 +273,9 @@ PetscErrorCode ComputeMAT_nonUniform(KSP solver, Mat AMAT, Mat PMAT, void *Sptr)
     const FluidBlock& b = *(FluidBlock*) local_infos[i].ptrBlock;
     const BlkCoeffX &cx=b.fd_cx.second, &cy=b.fd_cy.second, &cz=b.fd_cz.second;
 
-    for(size_t iz=0; iz < (size_t) BlockType::sizeZ; iz++)
-    for(size_t iy=0; iy < (size_t) BlockType::sizeY; iy++)
-    for(size_t ix=0; ix < (size_t) BlockType::sizeX; ix++)
+    for(size_t iz=0; iz < (size_t) cubismup3d::FluidBlock::sizeZ; iz++)
+    for(size_t iy=0; iy < (size_t) cubismup3d::FluidBlock::sizeY; iy++)
+    for(size_t ix=0; ix < (size_t) cubismup3d::FluidBlock::sizeX; ix++)
     {
       const int I = xSt + bIstart[0] + iz;
       const int J = ySt + bIstart[1] + iy;

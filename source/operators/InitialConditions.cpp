@@ -9,6 +9,8 @@
 #include "operators/InitialConditions.h"
 #include "obstacles/ObstacleVector.h"
 
+#include<random>
+
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
@@ -98,6 +100,32 @@ class KernelIC_channel
   }
 };
 
+class KernelIC_channelrandom
+{
+  const int dir;
+  const std::array<Real, 3> ext;
+  const Real uMax, H = ext[dir], FAC = 4*uMax/H/H; // FAC = 0.5*G/mu
+  //umax =  0.5*G/mu * 0.25*H*H
+ public:
+  KernelIC_channelrandom(const std::array<Real, 3> &extent, const Real U, const int _dir):
+    dir(_dir), ext{extent}, uMax(U) {}
+
+  void operator()(const BlockInfo& info, FluidBlock& block) const
+  {
+    std::random_device seed;
+    std::mt19937 gen(seed());
+    std::normal_distribution<Real> dist(0.0, 0.01);
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      block(ix,iy,iz).clear();
+      Real p[3]; info.pos(p, ix, iy, iz);
+      const Real U = FAC * p[dir] * (H-p[dir]);
+      block(ix,iy,iz).u = U * (1 + dist(gen));
+    }
+  }
+};
+
 struct InitialPenalization : public ObstacleVisitor
 {
   FluidGridMPI * const grid;
@@ -168,6 +196,21 @@ void InitialConditions::operator()(const double dt)
   if(sim.initCond == "taylorGreen") {
     if(sim.verbose) printf("Taylor Green vortex initial conditions.\n");
     run(KernelIC_taylorGreen(sim.extent, sim.uMax_forced));
+  }
+  if(sim.initCond == "channelRandom")
+  {
+    if(sim.verbose) printf("Channel flow random initial conditions.\n");
+    if( sim.BCx_flag == wall ) {
+      printf("ERROR: channel flow must be periodic or dirichlet in x.\n");
+      abort();
+    }
+    const bool channelY = sim.BCy_flag==wall, channelZ = sim.BCz_flag==wall;
+    if( (channelY && channelZ) or (!channelY && !channelZ) ) {
+      printf("ERROR: wrong channel flow BC in y or z.\n");
+      abort();
+    }
+    const int dir = channelY? 1 : 2;
+    run(KernelIC_channelrandom(sim.extent, sim.uMax_forced, dir));
   }
   if(sim.initCond == "channel")
   {
