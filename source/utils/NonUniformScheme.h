@@ -241,6 +241,25 @@ public:
         }
     }
 
+    double compute_mean_grid_spacing()
+    {
+      const double avgHx = _harmonicMean(m_map_x.data_grid_spacing(),
+                                         m_map_x.ncells());
+      const double avgHy = _harmonicMean(m_map_y.data_grid_spacing(),
+                                         m_map_y.ncells());
+      const double avgHz = _harmonicMean(m_map_z.data_grid_spacing(),
+                                         m_map_z.ncells());
+      //return ( avgHx + avgHy + avgHz ) / 3;
+      return 3 / (1/avgHx + 1/avgHy + 1/avgHz);
+    }
+
+    double _harmonicMean(const double* const data, const unsigned int N)
+    {
+      double hmean = 0;
+      for (unsigned int i = 0; i < N; ++i) hmean += 1.0 / data[i];
+      return N / hmean;
+    }
+
 private:
     double m_h_min[3], m_h_max[3];
     bool m_initialized;

@@ -18,6 +18,7 @@
 #include "operators/ObstaclesUpdate.h"
 #include "operators/Penalization.h"
 #include "operators/PressureProjection.h"
+#include "operators/IterativePressureNonUniform.h"
 #include "operators/IterativePressurePenalization.h"
 #include "operators/PressureRHS.h"
 
@@ -192,8 +193,9 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                                   sim.local_bpdx,sim.local_bpdy,sim.local_bpdz,
                                   sim.maxextent, sim.dump_comm);
     #endif
-    sim.hmin = sim.grid->getBlocksInfo()[0].h_gridpoint;
-    sim.hmax = sim.grid->getBlocksInfo()[0].h_gridpoint;
+    sim.hmin  = sim.grid->getBlocksInfo()[0].h_gridpoint;
+    sim.hmax  = sim.grid->getBlocksInfo()[0].h_gridpoint;
+    sim.hmean = sim.grid->getBlocksInfo()[0].h_gridpoint;
   }
   else
   {
@@ -240,8 +242,10 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
 
     // some statistics
     nonuniform->print_mesh_statistics(sim.rank == 0);
-    sim.hmin = nonuniform->minimum_cell_width();
-    sim.hmax = nonuniform->maximum_cell_width();
+    sim.hmin  = nonuniform->minimum_cell_width();
+    sim.hmax  = nonuniform->maximum_cell_width();
+    sim.hmean = nonuniform->compute_mean_grid_spacing();
+    printf("hmin:%e hmax:%e hmean:%e\n", sim.hmin, sim.hmax, sim.hmean);
     sim.nonuniform = (void *) nonuniform; // to delete it at the end
   }
 
@@ -297,7 +301,18 @@ void Simulation::setupOperators()
 
   if(sim.bIterativePenalization)
   {
-   sim.pipeline.push_back(new IterativePressurePenalization(sim));
+    if(sim.bUseStretchedGrid && sim.obstacle_vector->nObstacles() > 0) {
+      printf("Non-uniform grids AND obstacles AND iterative penalization are not compatible. Pick 2 out of 3.\n");
+      fflush(0); MPI_Abort(sim.app_comm, 1);
+    }
+    if(sim.bUseStretchedGrid)
+      sim.pipeline.push_back(new IterativePressureNonUniform(sim));
+    else if (sim.obstacle_vector->nObstacles() > 0)
+      sim.pipeline.push_back(new IterativePressurePenalization(sim));
+    else {
+      printf("Undefined type of pressure iteration. What are ya simulating?\n");
+      fflush(0); MPI_Abort(sim.app_comm, 1);
+    }
   }
   else
   {

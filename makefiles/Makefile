@@ -55,6 +55,7 @@ hdf ?= true
 hypre ?= false
 petsc ?= false
 accfft ?= false
+smarties ?= false
 zlib ?= 0
 verbose ?= false
 dump_surface_binary ?= false
@@ -85,10 +86,7 @@ CPPFLAGS += -DCUP_ALIGNMENT=64
 CPPFLAGS += -DCUP_BLOCK_SIZE=$(bs)
 CPPFLAGS += -DCUP_NO_MACROS_HEADER
 #CPPFLAGS += -lm
-
 #CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
-
-
 CPPFLAGS += -I../source/ -I../Cubism/include/
 NVFLAGS += -I../source/
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
@@ -164,7 +162,8 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	PoissonSolverMixed.o AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
 	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o FadeOut.o \
-	FishShapes.o IterativePressurePenalization.o ArgumentParser.o # Temporary solution for Cubism .cpp files.
+	FishShapes.o IterativePressurePenalization.o IterativePressureNonUniform.o \
+	ArgumentParser.o # Temporary solution for Cubism .cpp files.
 	#ElasticFishOperator.o
 
 ifeq "$(hypre)" "true"
@@ -211,11 +210,6 @@ LIBOBJ = $(OBJECTS) cubism_main.o CubismUP_3D.o
 VPATH := $(VPATH):$(SRC_DIR):$(CUBISM_DIR)
 ALLOBJ := $(sort $(EXEOBJ) $(LIBOBJ) $(NVOBJECTS))  # `sort` removes duplicates.
 DEPS := $(ALLOBJ:%.o=%.d)
-
-#ifeq "$(rltrain)" "true"
-#EXEOBJ += Communicator.o
-#VPATH = $(VPATH):${HOME}/smarties/source/
-#endif
 
 .DEFAULT_GOAL := ../bin/simulation
 

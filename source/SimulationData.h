@@ -54,10 +54,10 @@ struct SimulationData
   Real uniformH() const
   {
     if(std::fabs(hmin-hmax) > 1e-15) {
-      printf("ABORT: SimulationData::uniformH requires uniform grids.\n");
-      fflush(0); MPI_Abort(grid->getCartComm(), 1);
+      printf("WARNING: SimulationData::uniformH used with nonuniform grids.\n");
+      fflush(0);
     }
-    return hmin;
+    return hmean;
   }
 
   // vector of 2D slices (for dumping)
@@ -87,7 +87,7 @@ struct SimulationData
   std::array<Real, 3> extent = {{1, 0, 0}};  // Uniform grid by default.
   bool bUseStretchedGrid = false;
   bool bIterativePenalization = false;
-  Real hmin=0, hmax=0;
+  Real hmin=0, hmax=0, hmean=0;
 
   // flow variables
   std::array<Real, 3> uinf = {{0, 0, 0}};

@@ -17,7 +17,7 @@ class PoissonSolverMixed : public PoissonSolver
 {
   void * fwd, * bwd;
   ptrdiff_t alloc_local=0,local_n0=0,local_0_start=0,local_n1=0,local_1_start=0;
-
+  const double h = sim.uniformH();
   inline bool DFT_X() const { return sim.BCx_flag == periodic; }
   inline bool DFT_Y() const { return sim.BCy_flag == periodic; }
   inline bool DFT_Z() const { return sim.BCz_flag == periodic; }
@@ -26,7 +26,6 @@ class PoissonSolverMixed : public PoissonSolver
   template<bool DFTX, bool DFTY, bool DFTZ> void _solve()
   {
     // if BC flag == 1 fourier, else cosine transform
-    const double h = sim.uniformH();
     const Real normX = (DFTX ? 1.0 : 0.5) / ( gsize[0]*h );
     const Real normY = (DFTY ? 1.0 : 0.5) / ( gsize[1]*h );
     const Real normZ = (DFTZ ? 1.0 : 0.5) / ( gsize[2]*h );
