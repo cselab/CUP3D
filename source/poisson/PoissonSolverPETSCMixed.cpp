@@ -200,12 +200,12 @@ PetscErrorCode ComputeMAT(KSP solver, Mat AMAT, Mat PMAT, void *Sptr)
     V[5] =    h; C[5].i = I;   C[5].j = J;   C[5].k = K-1;
     V[6] =    h; C[6].i = I;   C[6].j = J;   C[6].k = K+1;
     // Apply dirichlet BC:
-    if( S.BCz != periodic && K == S.gNz-1 ) { V[0] -= h; V[6] = 0; }
-    if( S.BCz != periodic && K ==       0 ) { V[0] -= h; V[5] = 0; }
-    if( S.BCy != periodic && J == S.gNy-1 ) { V[0] -= h; V[4] = 0; }
-    if( S.BCy != periodic && J ==       0 ) { V[0] -= h; V[3] = 0; }
-    if( S.BCx != periodic && I == S.gNx-1 ) { V[0] -= h; V[2] = 0; }
-    if( S.BCx != periodic && I ==       0 ) { V[0] -= h; V[1] = 0; }
+    if( S.BCz != periodic && K == S.gNz-1 ) { V[0] += V[6]; V[6] = 0; }
+    if( S.BCz != periodic && K ==       0 ) { V[0] += V[5]; V[5] = 0; }
+    if( S.BCy != periodic && J == S.gNy-1 ) { V[0] += V[4]; V[4] = 0; }
+    if( S.BCy != periodic && J ==       0 ) { V[0] += V[3]; V[3] = 0; }
+    if( S.BCx != periodic && I == S.gNx-1 ) { V[0] += V[2]; V[2] = 0; }
+    if( S.BCx != periodic && I ==       0 ) { V[0] += V[1]; V[1] = 0; }
 
     int nFilled = 7;
     if( std::fabs(V[6]) < 1e-16 ) { nFilled--;  // row 6 is unneeded
@@ -257,7 +257,7 @@ PetscErrorCode ComputeMAT_nonUniform(KSP solver, Mat AMAT, Mat PMAT, void *Sptr)
   printf("ComputeJacobian_nonUniform %d\n", S.rank); fflush(0);
   PetscInt xSt, ySt, zSt, xSpan, ySpan, zSpan;
   DMDAGetCorners(S.grid, &xSt,&ySt,&zSt, &xSpan,&ySpan,&zSpan);
-  assert(zSpan==S.myNx && ySpan==S.myNy && xSpan==S.myNz);
+  assert(zSpan==S.myNz && ySpan==S.myNy && xSpan==S.myNx);
   static constexpr int BS[3] = {CUP_BLOCK_SIZE, CUP_BLOCK_SIZE, CUP_BLOCK_SIZE};
 
   const auto& local_infos = S.local_infos;
@@ -309,12 +309,12 @@ PetscErrorCode ComputeMAT_nonUniform(KSP solver, Mat AMAT, Mat PMAT, void *Sptr)
       C[6].i = I;   C[6].j = J;   C[6].k = K+1;
 
       // Apply dirichlet BC:
-      if( S.BCz != periodic && K == S.gNz-1 ) { V[0] -= V[6]; V[6] = 0; }
-      if( S.BCz != periodic && K ==       0 ) { V[0] -= V[5]; V[5] = 0; }
-      if( S.BCy != periodic && J == S.gNy-1 ) { V[0] -= V[4]; V[4] = 0; }
-      if( S.BCy != periodic && J ==       0 ) { V[0] -= V[3]; V[3] = 0; }
-      if( S.BCx != periodic && I == S.gNx-1 ) { V[0] -= V[2]; V[2] = 0; }
-      if( S.BCx != periodic && I ==       0 ) { V[0] -= V[1]; V[1] = 0; }
+      if( S.BCz != periodic && K == S.gNz-1 ) { V[0] += V[6]; V[6] = 0; }
+      if( S.BCz != periodic && K ==       0 ) { V[0] += V[5]; V[5] = 0; }
+      if( S.BCy != periodic && J == S.gNy-1 ) { V[0] += V[4]; V[4] = 0; }
+      if( S.BCy != periodic && J ==       0 ) { V[0] += V[3]; V[3] = 0; }
+      if( S.BCx != periodic && I == S.gNx-1 ) { V[0] += V[2]; V[2] = 0; }
+      if( S.BCx != periodic && I ==       0 ) { V[0] += V[1]; V[1] = 0; }
 
       int nFilled = 7;
       if( std::fabs(V[6]) < 1e-16 ) { nFilled--;  // row 6 is unneeded
