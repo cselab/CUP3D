@@ -78,6 +78,7 @@ class KernelPressureRHS_nonUniform
     const FluidElement& LW = l(ix-1,iy,  iz  ), & LE = l(ix+1,iy,  iz  );
     const FluidElement& LS = l(ix,  iy-1,iz  ), & LN = l(ix,  iy+1,iz  );
     const FluidElement& LF = l(ix,  iy,  iz-1), & LB = l(ix,  iy,  iz+1);
+    assert(cx.c00[ix]<=0 && cy.c00[iy]<=0 && cz.c00[iz]<=0);
     const Real f000 = L.p * (6*h + V * (cx.c00[ix] + cy.c00[iy] + cz.c00[iz]) );
     const Real fm00 = LW.p * (h - V * cx.cm1[ix]);
     const Real fp00 = LE.p * (h - V * cx.cp1[ix]);
@@ -101,6 +102,7 @@ class KernelPressureRHS_nonUniform
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
     // FD coefficients for first derivative
+    const Real vHat = std::pow(meanh, 3);
     const auto &c1x =o.fd_cx.first,  &c1y =o.fd_cy.first,  &c1z =o.fd_cz.first;
     const auto &c2x =o.fd_cx.second, &c2y =o.fd_cy.second, &c2z =o.fd_cz.second;
     Real* __restrict__ const ret = solver->data + solver->_offset_ext(info);
@@ -110,10 +112,8 @@ class KernelPressureRHS_nonUniform
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        Real h[3]; info.spacing(h, ix, iy, iz);
-        const Real fac = h[0] * h[1] * h[2];
-        const Real RHSV_ = fac * RHSV(lab, ix,iy,iz, c1x,c1y,c1z) * invdt;
-        const Real RHSP_ = RHSP(lab, ix,iy,iz, meanh, fac, c2x,c2y,c2z);
+        const Real RHSV_ = vHat * RHSV(lab, ix,iy,iz, c1x,c1y,c1z) * invdt;
+        const Real RHSP_ = RHSP(lab, ix,iy,iz, meanh, vHat, c2x,c2y,c2z);
         ret[SZ*iz + SY*iy + SX*ix] = RHSV_ + RHSP_;
       }
     }
@@ -122,10 +122,8 @@ class KernelPressureRHS_nonUniform
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        Real h[3]; info.spacing(h, ix, iy, iz);
-        const Real fac = h[0] * h[1] * h[2];
-        const Real RHSV_ = fac * RHSV(lab, ix,iy,iz, c1x,c1y,c1z) * invdt;
-        const Real RHSP_ = RHSP(lab, ix,iy,iz, meanh, fac, c2x,c2y,c2z);
+        const Real RHSV_ = vHat * RHSV(lab, ix,iy,iz, c1x,c1y,c1z) * invdt;
+        const Real RHSP_ = RHSP(lab, ix,iy,iz, meanh, vHat, c2x,c2y,c2z);
         ret[SZ*iz + SY*iy + SX*ix] = fade(info, ix,iy,iz) * (RHSV_ + RHSP_);
       }
     }

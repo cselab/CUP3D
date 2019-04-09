@@ -93,21 +93,20 @@ NVFLAGS += -I../source/
 
 LDFLAGS = $(CPPFLAGS)
 
-#################################################
-# ACCFFT
-#################################################
-ifeq "$(accfft)" "true"
-	ifneq ($(ACCFFT_ROOT),)
-		# OK
-	else ifneq (,$(wildcard ../dependencies/build/accfft))
-		ACCFFT_ROOT = ../dependencies/build/accfft
-	else
-		ERROR = "AccFFT not found, aborting."
-	endif
-	LIBS     += -L$(ACCFFT_ROOT)/lib
-	CPPFLAGS += -I$(ACCFFT_ROOT)/include
-	NVFLAGS  += -I$(ACCFFT_ROOT)/include
-endif
+BUILDDIR = .
+#SRC_DIR = $(BUILDDIR)/../source/
+SRC_DIR = $(sort $(dir $(wildcard $(BUILDDIR)/../source/*/)))
+CUBISM_DIR = $(BUILDDIR)/../Cubism/src/
+
+OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
+	Fish.o StefanFish.o CarlingFish.o Sphere.o Plate.o ExternalObstacle.o Naca.o \
+	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o PoissonSolver.o \
+	PoissonSolverMixed.o AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
+	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
+	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o FadeOut.o \
+	FishShapes.o IterativePressurePenalization.o IterativePressureNonUniform.o \
+	ArgumentParser.o # Temporary solution for Cubism .cpp files.
+	#ElasticFishOperator.o
 
 #################################################
 # HDF5
@@ -151,21 +150,34 @@ else
 	FFTW_LIBS += -lfftw3_mpi -lfftw3_omp -lfftw3
 endif
 
-BUILDDIR = .
-#SRC_DIR = $(BUILDDIR)/../source/
-SRC_DIR = $(sort $(dir $(wildcard $(BUILDDIR)/../source/*/)))
-CUBISM_DIR = $(BUILDDIR)/../Cubism/src/
+#################################################
+# ACCFFT
+#################################################
+ifeq "$(accfft)" "true"
+	ifneq ($(ACCFFT_ROOT),)
+		# OK
+	else ifneq (,$(wildcard ../dependencies/build/accfft))
+		ACCFFT_ROOT = ../dependencies/build/accfft
+	else
+		ERROR = "AccFFT not found, aborting."
+	endif
+	LIBS     += -L$(ACCFFT_ROOT)/lib
+	LIBS += -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu -lcufft
+	CPPFLAGS += -I$(ACCFFT_ROOT)/include
+	CPPFLAGS += -D_ACCFFT_ -Wno-float-equal
+	NVFLAGS  += -I$(ACCFFT_ROOT)/include
+	NVFLAGS  += -I$(MPICH_DIR)/include/
+	NVOBJECTS = PoissonSolverACC_kernels.o
+	OBJECTS += PoissonSolverACCUnbounded.o PoissonSolverACCPeriodic.o
+else
+	OBJECTS += PoissonSolverUnbounded.o PoissonSolverPeriodic.o
+	NVOBJECTS =
+	LIBS += $(FFTW_LIBS)
+endif
 
-OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
-	Fish.o StefanFish.o CarlingFish.o Sphere.o Plate.o ExternalObstacle.o Naca.o \
-	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o PoissonSolver.o \
-	PoissonSolverMixed.o AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
-	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
-	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o FadeOut.o \
-	FishShapes.o IterativePressurePenalization.o IterativePressureNonUniform.o \
-	ArgumentParser.o # Temporary solution for Cubism .cpp files.
-	#ElasticFishOperator.o
-
+#################################################
+# HYPRE & PETSC & MISC
+#################################################
 ifeq "$(hypre)" "true"
 ifeq "$(compiler)" "gnu"
 	# I don't want to see g++ complaining about hypre:
@@ -181,17 +193,6 @@ ifeq "$(petsc)" "true"
 	OBJECTS+= PoissonSolverPETSCMixed.o
 endif
 
-ifeq "$(accfft)" "true"
-	CPPFLAGS += -D_ACCFFT_ -I$(accfft-inc) -Wno-float-equal
-	NVFLAGS += -I$(accfft-inc) -I$(MPICH_DIR)/include/
-	LIBS += -L$(accfft-lib) -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu -lcufft
-	NVOBJECTS = PoissonSolverACC_kernels.o
-	OBJECTS += PoissonSolverACCUnbounded.o PoissonSolverACCPeriodic.o
-else
-	OBJECTS += PoissonSolverUnbounded.o PoissonSolverPeriodic.o
-	NVOBJECTS =
-	LIBS += $(FFTW_LIBS)
-endif
 
 #LIBS += -L../tools/fpzip/lib -lfpzip
 ifneq "$(GSL_ROOT_DIR)" ""
@@ -204,6 +205,8 @@ ifneq "$(smarties)" "false"
 	SMARTIESDIR ?= ../../smarties/source/
 	CPPFLAGS += -I$(SMARTIESDIR)/Communicators/ -DSMARTIES_APP
 endif
+
+#################################################
 
 EXEOBJ = $(OBJECTS) main.o
 LIBOBJ = $(OBJECTS) cubism_main.o CubismUP_3D.o

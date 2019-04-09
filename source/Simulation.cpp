@@ -149,6 +149,7 @@ void Simulation::_init(const bool restart)
   if (restart) _deserialize();
   else _ic();
   MPI_Barrier(sim.app_comm);
+  _serialize("init");
 }
 
 

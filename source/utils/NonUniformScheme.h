@@ -31,7 +31,8 @@ public:
             const double xS, const double xE,
             const double yS, const double yE,
             const double zS, const double zE,
-            const unsigned int nBlocksX, const unsigned int nBlocksY, const unsigned int nBlocksZ) :
+            const unsigned int nBlocksX, const unsigned int nBlocksY,
+            const unsigned int nBlocksZ) :
         m_h_min{HUGE_VAL,HUGE_VAL,HUGE_VAL},  m_h_max{-1,-1,-1},
         m_initialized(false),
         m_map_x(xS,xE,nBlocksX),
@@ -83,22 +84,28 @@ public:
         m_all_delta_z.fill(m_map_z, &ghosts[0]);
 
         for (size_t i = 0; i < m_map_x.ncells(); ++i) {
-          if(m_map_x.cell_width(i)>m_h_max[0]) m_h_max[0]=m_map_x.cell_width(i);
-          if(m_map_x.cell_width(i)<m_h_min[0]) m_h_min[0]=m_map_x.cell_width(i);
+          m_h_max[0] = std::max( m_h_max[0], m_map_x.cell_width(i) );
+          m_h_min[0] = std::min( m_h_min[0], m_map_x.cell_width(i) );
+          //if(m_map_x.cell_width(i)>m_h_max[0]) m_h_max[0]=m_map_x.cell_width(i);
+          //if(m_map_x.cell_width(i)<m_h_min[0]) m_h_min[0]=m_map_x.cell_width(i);
         }
 
         for (size_t i = 0; i < m_map_y.ncells(); ++i) {
-          if(m_map_y.cell_width(i)>m_h_max[1]) m_h_max[1]=m_map_y.cell_width(i);
-          if(m_map_y.cell_width(i)<m_h_min[1]) m_h_min[1]=m_map_y.cell_width(i);
+          m_h_max[1] = std::max( m_h_max[1], m_map_y.cell_width(i) );
+          m_h_min[1] = std::min( m_h_min[1], m_map_y.cell_width(i) );
+          //if(m_map_y.cell_width(i)>m_h_max[1]) m_h_max[1]=m_map_y.cell_width(i);
+          //if(m_map_y.cell_width(i)<m_h_min[1]) m_h_min[1]=m_map_y.cell_width(i);
         }
 
         for (size_t i = 0; i < m_map_z.ncells(); ++i) {
-          if(m_map_z.cell_width(i)>m_h_max[2]) m_h_max[2]=m_map_z.cell_width(i);
-          if(m_map_z.cell_width(i)<m_h_min[2]) m_h_min[2]=m_map_z.cell_width(i);
+          m_h_max[2] = std::max( m_h_max[2], m_map_z.cell_width(i) );
+          m_h_min[2] = std::min( m_h_min[2], m_map_z.cell_width(i) );
+          //if(m_map_z.cell_width(i)>m_h_max[2]) m_h_max[2]=m_map_z.cell_width(i);
+          //if(m_map_z.cell_width(i)<m_h_min[2]) m_h_min[2]=m_map_z.cell_width(i);
         }
-        assert(m_h_max[0]>=m_h_min[0] &&
-               m_h_max[1]>=m_h_min[1] &&
-               m_h_max[2]>=m_h_min[2]);
+        assert( m_h_max[0]>=m_h_min[0] );
+        assert( m_h_max[1]>=m_h_min[1] );
+        assert( m_h_max[2]>=m_h_min[2] );
         m_initialized = true;
     }
 
@@ -211,7 +218,8 @@ public:
         assert(i < 3 && i > -2);
         if (!m_initialized)
         {
-            fprintf(stderr, "ERROR: NonUniformScheme.h: minimum_cell_width() can not return m_h_min, not initialized.\n");
+            fprintf(stderr, "ERROR: NonUniformScheme.h: minimum_cell_width() "
+                            "can not return m_h_min, not initialized.\n");
             exit(1);
         }
         const double all_min = std::min({m_h_min[0], m_h_min[1], m_h_min[2]});
@@ -223,7 +231,8 @@ public:
         assert(i < 3 && i > -2);
         if (!m_initialized)
         {
-            fprintf(stderr, "ERROR: NonUniformScheme.h: maximum_cell_width() can not return m_h_max, not initialized.\n");
+            fprintf(stderr, "ERROR: NonUniformScheme.h: maximum_cell_width() "
+                            "can not return m_h_max, not initialized.\n");
             exit(1);
         }
         const double all_max = std::max({m_h_max[0], m_h_max[1], m_h_max[2]});
@@ -235,9 +244,12 @@ public:
     {
         if (verb)
         {
-            _compute_mesh_stats("x-direction", m_map_x.kernel_name(), m_map_x.data_grid_spacing(), m_map_x.ncells());
-            _compute_mesh_stats("y-direction", m_map_y.kernel_name(), m_map_y.data_grid_spacing(), m_map_y.ncells());
-            _compute_mesh_stats("z-direction", m_map_z.kernel_name(), m_map_z.data_grid_spacing(), m_map_z.ncells());
+            _compute_mesh_stats("x-direction", m_map_x.kernel_name(),
+                       m_map_x.data_grid_spacing(), m_map_x.ncells() );
+            _compute_mesh_stats("y-direction", m_map_y.kernel_name(),
+                       m_map_y.data_grid_spacing(), m_map_y.ncells() );
+            _compute_mesh_stats("z-direction", m_map_z.kernel_name(),
+                       m_map_z.data_grid_spacing(), m_map_z.ncells() );
         }
     }
 
@@ -278,80 +290,78 @@ private:
             invh[i] = 1.0/grid_spacing[i];
     }
 
-    void _compute_mesh_stats(const std::string header, const std::string name, const double* const data, const unsigned int N)
+    void _compute_mesh_stats(const std::string header, const std::string name,
+                             const double* const data, const unsigned int N)
     {
+        const auto deltaM2 = [](double i, double delta) {
+          return std::pow(delta, 2) * i / (i+1.0);
+        };
+        const auto deltaM3 = [](double i, double delta, double M2) {
+          const double norm = i * (i-1.0) / std::pow(i+1.0, 2);
+          const double corr = 3*delta * M2 / (i+1.0);
+          return std::pow(delta, 3) * norm - corr;
+        };
+        const auto deltaM4 = [](double i, double delta, double M2, double M3) {
+          const double norm = i * (i*i - i + 1.0) / std::pow(i+1.0, 3);
+          const double cor1 = 6 * std::pow(delta, 2) * M2 / std::pow(i+1.0, 2);
+          const double cor2 = 4 * delta * M3 / (i+1.0);
+          return std::pow(delta, 4) * norm + cor1 - cor2;
+        };
+
         printf("%s statistics %s.\n", name.c_str(), header.c_str());
         {
-            double mean = 0;
-            double var = 0;
-            double skew = 0;
-            double kurt = 0;
-            double min =  HUGE_VAL;
-            double max = -HUGE_VAL;
+            double mean = 0, var = 0, skew = 0, kurt = 0;
+            double min =  HUGE_VAL, max = -HUGE_VAL;
 
-            for (unsigned int i = 0; i < N; ++i)
-            {
+            for (unsigned int i = 0; i < N; ++i) {
                 if (data[i] < min) min = data[i];
                 if (data[i] > max) max = data[i];
             }
 
-            int k = 0;
             double M2 = 0, M3 = 0, M4 = 0;
-            for (unsigned int i = 0; i < N; ++i)
-            {
-                const int k1 = k;
-                ++k;
+            for (unsigned int i = 0; i < N; ++i) {
                 const double delta = data[i] - mean;
-                const double delta_k = delta / k;
-                const double delta_k2 = delta_k * delta_k;
-                const double term1 = delta * delta_k * k1;
-                mean += delta_k;
-                M4 += term1 * delta_k2 * (k*k - 3*k + 3) + 6 * delta_k2 * M2 - 4 * delta_k * M3;
-                M3 += term1 * delta_k * (k - 2) - 3 * delta_k * M2;
-                M2 += term1;
+                const double dM2 = deltaM2(i, delta);
+                const double dM3 = deltaM3(i, delta, M2);
+                const double dM4 = deltaM4(i, delta, M2, M3);
+                mean += delta / (i+1.0);
+                M4 += dM4;
+                M3 += dM3;
+                M2 += dM2;
             }
-            assert(k > 1);
-            var  = M2 / (k - 1);
-            skew = std::sqrt(k) * M3 / std::pow(M2, 1.5);
-            kurt = k * M4 / (M2 * M2) - 3;
-            printf("\tMesh spacing: mean=%e; std=%e; skew=%e; kurt=%e; min=%e; max=%e\n",mean,std::sqrt(var),skew,kurt,min,max);
+            var  = M2 / (N - 1);
+            skew = std::sqrt(N) * M3 / std::pow(M2 + 2e-16, 1.5);
+            kurt = N * M4 / (M2 * M2 + 2e-16) - 3;
+            printf("\tMesh spacing: mean=%e; std=%e; skew=%e; kurt=%e; min=%e; max=%e\n",
+                   mean, std::sqrt(var), skew, kurt, min, max);
         }
         {
-            double mean = 0;
-            double var = 0;
-            double skew = 0;
-            double kurt = 0;
-            double min =  HUGE_VAL;
-            double max = -HUGE_VAL;
+            double mean = 0, var = 0, skew = 0, kurt = 0;
+            double min =  HUGE_VAL, max = -HUGE_VAL;
 
-            for (unsigned int i = 1; i < N; ++i)
-            {
+            for (unsigned int i = 1; i < N; ++i) {
                 const double r = data[i]/data[i-1];
                 if (r < min) min = r;
                 if (r > max) max = r;
             }
 
-            int k = 0;
             double M2 = 0, M3 = 0, M4 = 0;
-            for (unsigned int i = 1; i < N; ++i)
-            {
+            for (unsigned int i = 1; i < N; ++i) {
                 const double r = data[i]/data[i-1];
-                const int k1 = k;
-                ++k;
                 const double delta = r - mean;
-                const double delta_k = delta / k;
-                const double delta_k2 = delta_k * delta_k;
-                const double term1 = delta * delta_k * k1;
-                mean += delta_k;
-                M4 += term1 * delta_k2 * (k*k - 3*k + 3) + 6 * delta_k2 * M2 - 4 * delta_k * M3;
-                M3 += term1 * delta_k * (k - 2) - 3 * delta_k * M2;
-                M2 += term1;
+                const double dM2 = deltaM2(i, delta);
+                const double dM3 = deltaM3(i, delta, M2);
+                const double dM4 = deltaM4(i, delta, M2, M3);
+                mean += delta / (i+1.0);
+                M4 += dM4;
+                M3 += dM3;
+                M2 += dM2;
             }
-            assert(k > 1);
-            var  = M2 / (k - 1);
-            skew = std::sqrt(k) * M3 / std::pow(M2, 1.5);
-            kurt = k * M4 / (M2 * M2) - 3;
-            printf("\tGrowth factor: mean=%e; std=%e; skew=%e; kurt=%e; min=%e; max=%e\n",mean,std::sqrt(var),skew,kurt,min,max);
+            var  = M2 / (N - 1);
+            skew = std::sqrt(N) * M3 / std::pow(M2 + 2e-16, 1.5);
+            kurt = N * M4 / (M2 * M2 + 2e-16) - 3;
+            printf("\tGrowth factor: mean=%e; std=%e; skew=%e; kurt=%e; min=%e; max=%e\n",
+                   mean, std::sqrt(var), skew, kurt, min, max);
         }
     }
 };
