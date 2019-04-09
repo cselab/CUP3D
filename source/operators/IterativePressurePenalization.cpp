@@ -22,8 +22,8 @@
 
 // define this to update obstacles with old (mrag-like) approach of integrating
 // momenta contained in chi before the penalization step:
-#define OLD_INTEGRATE_MOM
-#define EXTRAFAST
+#define EXPL_INTEGRATE_MOM
+// #define EXTRAFAST
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -122,7 +122,6 @@ struct KernelPressureRHS
     const FluidElement & LF = l(x,  y,  z-1), & LB = l(x,  y,  z+1);
     const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
     const Real divUf = LE.u-LW.u + LN.v-LS.v + LB.w-LF.w;
-    //const Real X = L.chi, fac = (1 + lamdt*X) * X - lamdt*X;
     return divUf - L.chi * divUs;
   }
 
@@ -172,10 +171,10 @@ struct KernelIterateGradP
     dt(_dt), penGrid{pen} {}
 
   template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& i, BlockType& o) const
+  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-    const Real fac = - 0.5 * dt / i.h_gridpoint;
-    PenalizationBlock& t = * getPenalBlockPtr(penGrid, i.blockID);
+    const Real fac = - 0.5 * dt / info.h_gridpoint;
+    PenalizationBlock& t = * getPenalBlockPtr(penGrid, info.blockID);
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -261,7 +260,7 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
     double &J3 = o->J3, &J4 = o->J4, &J5 = o->J5;
     J0 = 0; J1 = 0; J2 = 0; J3 = 0; J4 = 0; J5 = 0;
 
-    #ifndef OLD_INTEGRATE_MOM
+    #ifndef EXPL_INTEGRATE_MOM
       const UDEFMAT & __restrict__ UDEF = o->udef;
       o->GfX = 0;
       o->GpX = 0; o->GpY = 0; o->GpZ = 0;
@@ -296,7 +295,7 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
       TY += X * dv * ( p[2] * b(ix,iy,iz).uFluid - p[0] * b(ix,iy,iz).wFluid );
       TZ += X * dv * ( p[0] * b(ix,iy,iz).vFluid - p[1] * b(ix,iy,iz).uFluid );
 
-      #ifndef OLD_INTEGRATE_MOM
+      #ifndef EXPL_INTEGRATE_MOM
         const Real penalFac = dv * lambdt * X / ( 1 + X * lambdt );
         o->GfX += penalFac;
         o->GpX += penalFac * p[0];
@@ -347,7 +346,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
       M[k++] += oBlock[i]->TX; M[k++] += oBlock[i]->TY; M[k++] += oBlock[i]->TZ;
       M[k++] += oBlock[i]->J0; M[k++] += oBlock[i]->J1; M[k++] += oBlock[i]->J2;
       M[k++] += oBlock[i]->J3; M[k++] += oBlock[i]->J4; M[k++] += oBlock[i]->J5;
-      #ifndef OLD_INTEGRATE_MOM
+      #ifndef EXPL_INTEGRATE_MOM
       M[k++] +=oBlock[i]->GfX;
       M[k++] +=oBlock[i]->GpX; M[k++] +=oBlock[i]->GpY; M[k++] +=oBlock[i]->GpZ;
       M[k++] +=oBlock[i]->Gj0; M[k++] +=oBlock[i]->Gj1; M[k++] +=oBlock[i]->Gj2;
@@ -370,7 +369,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     assert(std::fabs(obst->J[5] - M[12]) < 10*DBLEPS);
     assert(M[0] > DBLEPS);
 
-    #ifndef OLD_INTEGRATE_MOM
+    #ifndef EXPL_INTEGRATE_MOM
       obst->penalM    = M[13];
       obst->penalCM   = { M[14], M[15], M[16] };
       obst->penalJ    = { M[17], M[18], M[19], M[20], M[21], M[22] };
@@ -446,23 +445,24 @@ struct KernelPenalization : public ObstacleVisitor
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
-      //uNxt = uPostPenal + uPostPres - uPrePres = uPostPenal + presProj
-      //const Real VnxtX = b(ix,iy,iz).u + t(ix,iy,iz).uFluid-t(ix,iy,iz).uPre;
-      //const Real VnxtY = b(ix,iy,iz).v + t(ix,iy,iz).vFluid-t(ix,iy,iz).vPre;
-      //const Real VnxtZ = b(ix,iy,iz).w + t(ix,iy,iz).wFluid-t(ix,iy,iz).wPre;
-      const Real FPX = Xlamdt * (U_TOT[0] - t(ix,iy,iz).uFluid); //(1 + Xlamdt);
-      const Real FPY = Xlamdt * (U_TOT[1] - t(ix,iy,iz).vFluid); //(1 + Xlamdt);
-      const Real FPZ = Xlamdt * (U_TOT[2] - t(ix,iy,iz).wFluid); //(1 + Xlamdt);
-      const Real DPX = t(ix,iy,iz).uPre+FPX - b(ix,iy,iz).u;
-      const Real DPY = t(ix,iy,iz).vPre+FPY - b(ix,iy,iz).v;
-      const Real DPZ = t(ix,iy,iz).wPre+FPZ - b(ix,iy,iz).w;
+      #ifdef EXPL_INTEGRATE_MOM
+        const Real penalFac = Xlamdt;
+      #else
+        const Real penalFac = Xlamdt / (1 + Xlamdt);
+      #endif
+      const Real FPX = penalFac * (U_TOT[0] - t(ix,iy,iz).uFluid);
+      const Real FPY = penalFac * (U_TOT[1] - t(ix,iy,iz).vFluid);
+      const Real FPZ = penalFac * (U_TOT[2] - t(ix,iy,iz).wFluid);
+      const Real UP = t(ix,iy,iz).uPre + FPX, DPX = UP - b(ix,iy,iz).u;
+      const Real VP = t(ix,iy,iz).vPre + FPY, DPY = VP - b(ix,iy,iz).v;
+      const Real WP = t(ix,iy,iz).wPre + FPZ, DPZ = WP - b(ix,iy,iz).w;
       #ifdef EXTRAFAST
+        const Real newDX = DPX,                newUP = b(ix,iy,iz).u;
+        const Real newDY = DPY,                newVP = b(ix,iy,iz).v;
+        const Real newDZ = DPZ,                newWP = b(ix,iy,iz).w;
         const Real oldDX = a(ix,iy,iz).uFluid, oldUP = a(ix,iy,iz).uPre;
         const Real oldDY = a(ix,iy,iz).vFluid, oldVP = a(ix,iy,iz).vPre;
         const Real oldDZ = a(ix,iy,iz).wFluid, oldWP = a(ix,iy,iz).wPre;
-        const Real newDX = DPX, newUP = b(ix,iy,iz).u, UP= t(ix,iy,iz).uPre+FPX;
-        const Real newDY = DPY, newVP = b(ix,iy,iz).v, VP= t(ix,iy,iz).vPre+FPY;
-        const Real newDZ = DPZ, newWP = b(ix,iy,iz).w, WP= t(ix,iy,iz).wPre+FPZ;
         a(ix,iy,iz).uFluid = newDX;            a(ix,iy,iz).uPre = newUP;
         a(ix,iy,iz).vFluid = newDY;            a(ix,iy,iz).vPre = newVP;
         a(ix,iy,iz).wFluid = newDZ;            a(ix,iy,iz).wPre = newWP;
@@ -490,13 +490,13 @@ struct KernelPenalization : public ObstacleVisitor
         else
       #endif
         {
-          b(ix,iy,iz).u = b(ix,iy,iz).u + DPX; // u,v,w go to Poisson solver
-          b(ix,iy,iz).v = b(ix,iy,iz).v + DPY; // therefore they are vel b4
-          b(ix,iy,iz).w = b(ix,iy,iz).w + DPZ; // press, but with penaliz.
+          b(ix,iy,iz).u = UP; // u,v,w go to Poisson solver
+          b(ix,iy,iz).v = VP; // therefore they are vel b4
+          b(ix,iy,iz).w = WP; // press, but with penaliz.
         }
-      MX += std::pow( b(ix,iy,iz).u, 2 ); DMX += std::pow( DPX, 2 );
-      MY += std::pow( b(ix,iy,iz).v, 2 ); DMY += std::pow( DPY, 2 );
-      MZ += std::pow( b(ix,iy,iz).w, 2 ); DMZ += std::pow( DPZ, 2 );
+      MX += std::pow(b(ix,iy,iz).u, 2); DMX += std::pow( DPX, 2 );
+      MY += std::pow(b(ix,iy,iz).v, 2); DMY += std::pow( DPY, 2 );
+      MZ += std::pow(b(ix,iy,iz).w, 2); DMZ += std::pow( DPZ, 2 );
     }
   }
 };
@@ -568,13 +568,16 @@ IterativePressurePenalization::IterativePressurePenalization(SimulationData & s)
 
 void IterativePressurePenalization::operator()(const double dt)
 {
-  sim.lambda = 1.0/dt;
+  #ifdef EXPL_INTEGRATE_MOM
+    sim.lambda = 1.0/dt;
+  #endif
   // first copy velocity before either Pres or Penal onto penalization blocks
   // also put udef into tmpU fields
   initializeFields();
 
   int iter=0;
   Real relDF = 1e3;
+  bool bConverged = false;
   for(iter = 0; iter < 1000; iter++)
   {
     {
@@ -592,6 +595,8 @@ void IterativePressurePenalization::operator()(const double dt)
     sim.startProfiler("sol2cub");
     pressureSolver->_fftw2cub();
     sim.stopProfiler();
+
+    if(bConverged) break;
 
     {
       // compute velocity after pressure projection (PP) but without Penal
@@ -641,7 +646,8 @@ void IterativePressurePenalization::operator()(const double dt)
     sim.stopProfiler();
 
     if(sim.verbose) printf("iter:%02d - max relative error: %f\n", iter, relDF);
-    if(iter && relDF < 0.001) break; // do at least 2 iterations
+    //if(relDF < 0.001) break;
+    if(relDF < 0.001) bConverged = true;
   }
 
   sim.startProfiler("GradP"); //pressure correction dudt* = - grad P / rho

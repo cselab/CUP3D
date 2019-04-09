@@ -12,7 +12,7 @@
 
 // define this to update obstacles with old (mrag-like) approach of integrating
 // momenta contained in chi before the penalization step:
-// #define OLD_INTEGRATE_MOM
+// #define EXPL_INTEGRATE_MOM
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -59,7 +59,6 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
     const std::array<double,3> CM = op->getCenterOfMass();
     const FluidBlock &b = *(FluidBlock *)info.ptrBlock;
     const CHIMAT & __restrict__ CHI = o->chi;
-    const UDEFMAT & __restrict__ UDEF = o->udef;
     double &VV = o->V;
     double &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
     double &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
@@ -67,13 +66,18 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
     double &J0 = o->J0, &J1 = o->J1, &J2 = o->J2;
     double &J3 = o->J3, &J4 = o->J4, &J5 = o->J5;
     J0 = 0; J1 = 0; J2 = 0; J3 = 0; J4 = 0; J5 = 0;
-    o->GfX = 0;
-    o->GpX = 0; o->GpY = 0; o->GpZ = 0;
-    o->Gj0 = 0; o->Gj1 = 0; o->Gj2 = 0;
-    o->Gj3 = 0; o->Gj4 = 0; o->Gj5 = 0;
-    o->GuX = 0; o->GuY = 0; o->GuZ = 0;
-    o->GaX = 0; o->GaY = 0; o->GaZ = 0;
-    const Real lambdt = lambda*dt;
+
+    #ifndef EXPL_INTEGRATE_MOM
+      const UDEFMAT & __restrict__ UDEF = o->udef;
+      o->GfX = 0;
+      o->GpX = 0; o->GpY = 0; o->GpZ = 0;
+      o->Gj0 = 0; o->Gj1 = 0; o->Gj2 = 0;
+      o->Gj3 = 0; o->Gj4 = 0; o->Gj5 = 0;
+      o->GuX = 0; o->GuY = 0; o->GuZ = 0;
+      o->GaX = 0; o->GaY = 0; o->GaZ = 0;
+      const Real lambdt = lambda*dt;
+    #endif
+
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -98,28 +102,30 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
       TY += X * dv * ( p[2] * b(ix,iy,iz).u - p[0] * b(ix,iy,iz).w );
       TZ += X * dv * ( p[0] * b(ix,iy,iz).v - p[1] * b(ix,iy,iz).u );
 
-      const Real penalFac = dv * lambdt * X / ( 1 + X * lambdt );
-      o->GfX += penalFac;
-      o->GpX += penalFac * p[0];
-      o->GpY += penalFac * p[1];
-      o->GpZ += penalFac * p[2];
-      o->Gj0 += penalFac * ( p[1]*p[1] + p[2]*p[2] );
-      o->Gj1 += penalFac * ( p[0]*p[0] + p[2]*p[2] );
-      o->Gj2 += penalFac * ( p[0]*p[0] + p[1]*p[1] );
-      o->Gj3 -= penalFac * p[0]*p[1];
-      o->Gj4 -= penalFac * p[0]*p[2];
-      o->Gj5 -= penalFac * p[1]*p[2];
-      const double DiffU[3] = {
-        b(ix,iy,iz).u - UDEF[iz][iy][ix][0],
-        b(ix,iy,iz).v - UDEF[iz][iy][ix][1],
-        b(ix,iy,iz).w - UDEF[iz][iy][ix][2]
-      };
-      o->GuX += penalFac * DiffU[0];
-      o->GuY += penalFac * DiffU[1];
-      o->GuZ += penalFac * DiffU[2];
-      o->GaX += penalFac * ( p[1] * DiffU[2] - p[2] * DiffU[1] );
-      o->GaY += penalFac * ( p[2] * DiffU[0] - p[0] * DiffU[2] );
-      o->GaZ += penalFac * ( p[0] * DiffU[1] - p[1] * DiffU[0] );
+      #ifndef EXPL_INTEGRATE_MOM
+        const Real penalFac = dv * lambdt * X / ( 1 + X * lambdt );
+        o->GfX += penalFac;
+        o->GpX += penalFac * p[0];
+        o->GpY += penalFac * p[1];
+        o->GpZ += penalFac * p[2];
+        o->Gj0 += penalFac * ( p[1]*p[1] + p[2]*p[2] );
+        o->Gj1 += penalFac * ( p[0]*p[0] + p[2]*p[2] );
+        o->Gj2 += penalFac * ( p[0]*p[0] + p[1]*p[1] );
+        o->Gj3 -= penalFac * p[0]*p[1];
+        o->Gj4 -= penalFac * p[0]*p[2];
+        o->Gj5 -= penalFac * p[1]*p[2];
+        const double DiffU[3] = {
+          b(ix,iy,iz).u - UDEF[iz][iy][ix][0],
+          b(ix,iy,iz).v - UDEF[iz][iy][ix][1],
+          b(ix,iy,iz).w - UDEF[iz][iy][ix][2]
+        };
+        o->GuX += penalFac * DiffU[0];
+        o->GuY += penalFac * DiffU[1];
+        o->GuZ += penalFac * DiffU[2];
+        o->GaX += penalFac * ( p[1] * DiffU[2] - p[2] * DiffU[1] );
+        o->GaY += penalFac * ( p[2] * DiffU[0] - p[0] * DiffU[2] );
+        o->GaZ += penalFac * ( p[0] * DiffU[1] - p[1] * DiffU[0] );
+      #endif
     }
   }
 };
@@ -146,6 +152,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
       M[k++] += oBlock[i]->TX; M[k++] += oBlock[i]->TY; M[k++] += oBlock[i]->TZ;
       M[k++] += oBlock[i]->J0; M[k++] += oBlock[i]->J1; M[k++] += oBlock[i]->J2;
       M[k++] += oBlock[i]->J3; M[k++] += oBlock[i]->J4; M[k++] += oBlock[i]->J5;
+      #ifndef EXPL_INTEGRATE_MOM
       M[k++] +=oBlock[i]->GfX;
       M[k++] +=oBlock[i]->GpX; M[k++] +=oBlock[i]->GpY; M[k++] +=oBlock[i]->GpZ;
       M[k++] +=oBlock[i]->Gj0; M[k++] +=oBlock[i]->Gj1; M[k++] +=oBlock[i]->Gj2;
@@ -153,6 +160,9 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
       M[k++] +=oBlock[i]->GuX; M[k++] +=oBlock[i]->GuY; M[k++] +=oBlock[i]->GuZ;
       M[k++] +=oBlock[i]->GaX; M[k++] +=oBlock[i]->GaY; M[k++] +=oBlock[i]->GaZ;
       assert(k==29);
+      #else
+      assert(k==13);
+      #endif
     }
     const auto comm = grid->getCartComm();
     MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_DOUBLE, MPI_SUM, comm);
@@ -165,7 +175,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     assert(std::fabs(obst->J[5] - M[12]) < 10*DBLEPS);
     assert(M[0] > DBLEPS);
 
-    #ifndef OLD_INTEGRATE_MOM
+    #ifndef EXPL_INTEGRATE_MOM
       obst->penalM    = M[13];
       obst->penalCM   = { M[14], M[15], M[16] };
       obst->penalJ    = { M[17], M[18], M[19], M[20], M[21], M[22] };
