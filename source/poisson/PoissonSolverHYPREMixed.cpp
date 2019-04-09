@@ -63,7 +63,7 @@ void PoissonSolverMixed_HYPRE::solve()
     HYPRE_StructVectorSetBoxValues(hypre_sol, ilower, iupper, data);
     // Save pressure of a corner of the grid so that it can be imposed next time
     pLast = data[fixed_idx];
-    printf("Avg Pressure:%f\n", avgP);
+    if(sim.verbose) printf("Avg Pressure:%f\n", avgP);
   }
   sim.stopProfiler();
 }
@@ -239,7 +239,7 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
     HYPRE_StructPCGCreate(m_comm, &hypre_solver);
     HYPRE_StructPCGSetMaxIter(hypre_solver, 1000);
     HYPRE_StructPCGSetTol(hypre_solver, 1e-3);
-    HYPRE_StructPCGSetPrintLevel(hypre_solver, 2);
+    HYPRE_StructPCGSetPrintLevel(hypre_solver, 0);
     if(0)
     { // Use SMG preconditioner
       HYPRE_StructSMGCreate(m_comm, &hypre_precond);
