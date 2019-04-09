@@ -178,6 +178,7 @@ void IterativePressureNonUniform::operator()(const double dt)
 {
   int iter=0;
   Real relDF = 1e3;
+  const Real unifH = sim.uniformH();
   for(iter = 0; iter < 1000; iter++)
   {
     {
@@ -185,7 +186,7 @@ void IterativePressureNonUniform::operator()(const double dt)
       sim.pressureSolver->reset();
       //place onto p: ( div u^(t+1) - div u^* ) / dt
       //where i want div u^(t+1) to be equal to div udef
-      const KernelPressureRHS_nonUniform K(dt, sim.uniformH(), sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
+      const KernelPressureRHS_nonUniform K(dt, unifH, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
       compute<KernelPressureRHS_nonUniform>(K);
       sim.stopProfiler();
     }

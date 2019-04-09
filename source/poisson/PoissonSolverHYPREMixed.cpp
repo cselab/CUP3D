@@ -92,9 +92,9 @@ PoissonSolverMixed_HYPRE::PoissonSolverMixed_HYPRE(SimulationData&s) :
   // if grid is periodic, this function takes the period
   // length... ie. the grid size.
   HYPRE_Int iPeriod[3] = {
-    sim.BCx_flag == periodic ? iGridEnd[0] : 0,
-    sim.BCy_flag == periodic ? iGridEnd[1] : 0,
-    sim.BCz_flag == periodic ? iGridEnd[2] : 0
+    sim.BCx_flag == periodic ? iGridEnd[0]+1 : 0,
+    sim.BCy_flag == periodic ? iGridEnd[1]+1 : 0,
+    sim.BCz_flag == periodic ? iGridEnd[2]+1 : 0
   };
   HYPRE_StructGridSetPeriodic(hypre_grid, iPeriod);
 

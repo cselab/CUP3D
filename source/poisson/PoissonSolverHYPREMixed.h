@@ -52,8 +52,8 @@ class PoissonSolverMixed_HYPRE : public PoissonSolver
   Real coef_fixed_idx=0, coef_fixed_m1z=0, coef_fixed_p1z=0, coef_fixed_m1y=0;
   Real coef_fixed_p1y=0, coef_fixed_m1x=0, coef_fixed_p1x=0;
 
-  const bool bRankHoldsFixedDOF =
-    iupper[0]==iGridEnd[0] && iupper[1]==iGridEnd[1] && iupper[2]==iGridEnd[2];
+  const bool bRankHoldsFixedDOF = false;
+  //iupper[0]==iGridEnd[0] && iupper[1]==iGridEnd[1] && iupper[2]==iGridEnd[2];
 
   inline size_t linaccess(const size_t ix,const size_t iy,const size_t iz) const
   {
