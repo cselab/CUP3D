@@ -84,9 +84,15 @@ If `module load` is not available, but libraries are installed, set the above me
 
 #### Piz Daint:
 ```shell
-module unload PrgEnv-cray
-module load PrgEnv-gnu cray-hdf5-parallel cray-fftw daint-gpu cudatoolkit/9.2.148_3.19-6.0.7.1_2.1__g3d9acc8 GSL/2.5-CrayGNU-18.08 CMake/3.12.0
+module swap PrgEnv-cray PrgEnv-gnu
+module load daint-gpu cray-python/3.6.1.1 cray-hdf5-parallel cray-fftw cray-petsc/3.8.4.0 cudatoolkit/9.2.148_3.19-6.0.7.1_2.1__g3d9acc8 CrayGNU/.18.08 GSL/2.5-CrayGNU-18.08 CMake/3.12.0
 ```
+Then install accFFT
+```shell
+git clone https://github.com/novatig/accfft accfft
+cd accfft
+```
+and follow the instructions in README.md
 
 
 #### Euler:
