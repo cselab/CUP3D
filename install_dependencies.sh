@@ -115,7 +115,7 @@ if [ -n "$INSTALL_FFTW" ]; then
     $TAR -xzvf fftw-${FFTW_VERSION}.tar.gz
     cd fftw-${FFTW_VERSION}
     FFTW_ROOT=$INSTALL_PATH/fftw-${FFTW_VERSION}/
-    ./configure --prefix=$FFTW_ROOT --enable-mpi --enable-threads --enable-shared
+    ./configure --prefix=$FFTW_ROOT --enable-mpi --enable-openmp --enable-shared
     make -j${JOBS}
     make install -j${JOBS}
     cd $BASEPWD

@@ -9,11 +9,7 @@
 #ifndef CubismUP_3D_DataStructures_h
 #define CubismUP_3D_DataStructures_h
 
-// Are we compiling from CubismUP3D's makefile?
-#ifndef CUP_NO_MACROS_HEADER
-// No, it's either CMake or external code. Load compile-time settings from this header file.
-#include "../build/include/CubismUP3DMacros.h"
-#endif
+#include "Base.h"
 
 //#include <cassert>
 
@@ -23,30 +19,6 @@
 #include <iosfwd>
 #include <string>
 
-#ifndef CUP_SINGLE_PRECISION
-typedef double Real;
-#else // CUP_SINGLE_PRECISION
-typedef float Real;
-#endif // CUP_SINGLE_PRECISION
-
-#ifndef CUP_HDF5_DOUBLE_PRECISION
-typedef float DumpReal;
-#else
-typedef double DumpReal;
-#endif
-
-#ifndef CUP_ALIGNMENT
-#define CUP_ALIGNMENT 64
-#endif
-#define CUBISM_ALIGNMENT CUP_ALIGNMENT
-
-#ifndef CubismUP_3D_NAMESPACE_BEGIN
-#define CubismUP_3D_NAMESPACE_BEGIN namespace cubismup3d {
-#endif
-
-#ifndef CubismUP_3D_NAMESPACE_END
-#define CubismUP_3D_NAMESPACE_END   }  // namespace cubismup3d
-#endif
 
 // Cubism dependencies.
 #include "Cubism/Grid.h"

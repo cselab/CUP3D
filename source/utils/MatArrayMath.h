@@ -6,11 +6,10 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "array"
-#include "limits"
+#include <array>
+#include <limits>
 
 CubismUP_3D_NAMESPACE_BEGIN
-using namespace cubism;
 
 using SymM = std::array<double,6>;
 using GenM = std::array<double,9>;
