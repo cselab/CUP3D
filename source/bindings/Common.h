@@ -3,6 +3,7 @@
 
 #include <array>
 #include <pybind11/stl.h>
+#include "../Base.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
