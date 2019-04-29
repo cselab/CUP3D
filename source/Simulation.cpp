@@ -341,6 +341,7 @@ void Simulation::setupOperators()
   sim.pipeline.push_back(new ComputeDissipation(sim));
 
   sim.pipeline.push_back(new FadeOut(sim));
+  sim.pipeline.push_back(new InflowBC(sim));
 
   if(sim.rank==0) {
     printf("Coordinator/Operator ordering:\n");

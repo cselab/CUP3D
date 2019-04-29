@@ -239,7 +239,8 @@ SimulationData::~SimulationData()
   #endif
 }
 
-void SimulationData::setCells(const int nx, const int ny, const int nz) {
+void SimulationData::setCells(const int nx, const int ny, const int nz)
+{
   if (   nx % (nprocsx * FluidBlock::sizeX) != 0
       || ny % (nprocsy * FluidBlock::sizeY) != 0
       || nz % (nprocsz * FluidBlock::sizeZ) != 0) {

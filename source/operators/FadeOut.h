@@ -21,5 +21,13 @@ class FadeOut : public Operator
   std::string getName() { return "FadeOut"; }
 };
 
+class InflowBC : public Operator
+{
+ public:
+  InflowBC(SimulationData & s) : Operator(s) { }
+  void operator()(const double dt);
+  std::string getName() { return "InflowBC"; }
+};
+
 CubismUP_3D_NAMESPACE_END
 #endif

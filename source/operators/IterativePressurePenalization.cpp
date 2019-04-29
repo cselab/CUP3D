@@ -578,28 +578,11 @@ void IterativePressurePenalization::operator()(const double dt)
   int iter=0;
   Real relDF = 1e3;
   bool bConverged = false;
-  for(iter = 0; iter < 1000; iter++)
+  for(iter = 0; iter < 1000; ++iter)
   {
     {
-      sim.startProfiler("PresRHS Kernel");
-      sim.pressureSolver->reset();
-      //place onto p: ( div u^(t+1) - div u^* ) / dt
-      //where i want div u^(t+1) to be equal to div udef
-      const KernelPressureRHS K(dt, sim.lambda, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
-      compute<KernelPressureRHS>(K);
-      sim.stopProfiler();
-    }
-
-    pressureSolver->solve();
-
-    sim.startProfiler("sol2cub");
-    pressureSolver->_fftw2cub();
-    sim.stopProfiler();
-
-    if(bConverged) break;
-
-    {
       // compute velocity after pressure projection (PP) but without Penal
+      // using pressure computed at prior step / iteration
       sim.startProfiler("GradP"); //pressure correction dudt* = - grad P / rho
       const KernelIterateGradP K(dt, penalizationGrid);
       compute<KernelIterateGradP>(K);
@@ -647,7 +630,25 @@ void IterativePressurePenalization::operator()(const double dt)
 
     if(sim.verbose) printf("iter:%02d - max relative error: %f\n", iter, relDF);
     //if(relDF < 0.001) break;
-    if(relDF < 0.001) bConverged = true;
+    if(iter>0 && relDF<0.001) bConverged = true;
+
+    {
+      sim.startProfiler("PresRHS Kernel");
+      sim.pressureSolver->reset();
+      //place onto p: ( div u^(t+1) - div u^* ) / dt
+      //where i want div u^(t+1) to be equal to div udef
+      const KernelPressureRHS K(dt, sim.lambda, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
+      compute<KernelPressureRHS>(K);
+      sim.stopProfiler();
+    }
+
+    pressureSolver->solve();
+
+    sim.startProfiler("sol2cub");
+    pressureSolver->_fftw2cub();
+    sim.stopProfiler();
+
+    if(bConverged) break;
   }
 
   sim.startProfiler("GradP"); //pressure correction dudt* = - grad P / rho
