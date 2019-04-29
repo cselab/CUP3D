@@ -133,6 +133,8 @@ set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/operators/FadeOut.cpp
     ${ROOT_FOLDER}/source/operators/FluidSolidForces.cpp
     ${ROOT_FOLDER}/source/operators/InitialConditions.cpp
+    ${ROOT_FOLDER}/source/operators/IterativePressureNonUniform.cpp
+    ${ROOT_FOLDER}/source/operators/IterativePressurePenalization.cpp
     ${ROOT_FOLDER}/source/operators/ObstaclesCreate.cpp
     ${ROOT_FOLDER}/source/operators/ObstaclesUpdate.cpp
     ${ROOT_FOLDER}/source/operators/Penalization.cpp
