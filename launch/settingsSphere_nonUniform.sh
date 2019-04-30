@@ -3,27 +3,27 @@ NNODEX=${NNODEX:-4}
 NNODEY=${NNODEY:-1}
 NNODE=$(($NNODEX * $NNODEY))
 
-DLM=${DLM:-1}
 LAMBDA=${LAMBDA:-1e4}
 
-BPDX=${BPDX:-64}
-BPDY=${BPDY:-$((${BPDX}/2))} #${BPDY:-32}
-BPDZ=${BPDZ:-$((${BPDX}/2))} #${BPDZ:-32}
+BPDX=${BPDX:-16}
+BPDY=${BPDY:-${BPDX}}
+BPDZ=${BPDZ:-${BPDX}}
 
-#to compare against Mimeau Cottet Mortazavi 2016:
-NU=${NU:-0.00005208333333} # Re 300
-BC=${BC:-freespace} # Re 550
+NU=${NU:-0.0004} # Re 300
 
-FACTORY='Sphere L=0.125 xpos=0.3 xvel=0.125 bForcedInSimFrame=1 bFixFrameOfRef=1
+FACTORY='Sphere L=0.5 xpos=1 xvel=1 bForcedInSimFrame=1 bFixFrameOfRef=1
 '
 # for accel and decel start and stop add accel=1 T=time_for_accel
 # shift center to shed vortices immediately by ypos=0.250244140625 zpos=0.250244140625
 
 OPTIONS=
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -extentx 2 -extenty 1 -extentz 1"
+OPTIONS+=" -extentx 4 -extenty 2 -extentz 4"
+OPTIONS+=" -mesh_density_y SinusoidalDensity -eta_y 0.95"
+OPTIONS+=" -BC_x dirichlet -BC_y wall -BC_z dirichlet -fadeLen 0 -initCond channelRandom"
 OPTIONS+=" -dump2D 1 -dump3D 1 -tdump 0.5 -tend 8 "
+#OPTIONS+=" -iterativePenalization 0 -useSolver hypre"
+OPTIONS+=" -iterativePenalization 0 -useSolver petsc"
 OPTIONS+=" -nslices 2 -slice1_direction 1 -slice2_direction 2 "
-OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
 OPTIONS+=" -nprocsx ${NNODEX} -nprocsy ${NNODEY} -nprocsz 1"
-OPTIONS+=" -CFL 0.1 -lambda ${LAMBDA} -use-dlm ${DLM} -nu ${NU}"
+OPTIONS+=" -CFL 0.1 -lambda ${LAMBDA} -use-dlm 0 -nu ${NU}"

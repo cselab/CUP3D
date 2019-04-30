@@ -199,10 +199,10 @@ class KernelCharacteristicFunction_nonUniform
         }
 
         b(ix,iy,iz).chi = std::max(CHI[iz][iy][ix], b(ix,iy,iz).chi);
-        o->CoM_x += CHI[iz][iy][ix] * p[0];
-        o->CoM_y += CHI[iz][iy][ix] * p[1];
-        o->CoM_z += CHI[iz][iy][ix] * p[2];
-        o->mass  += CHI[iz][iy][ix];
+        o->CoM_x += vol * CHI[iz][iy][ix] * p[0];
+        o->CoM_y += vol * CHI[iz][iy][ix] * p[1];
+        o->CoM_z += vol * CHI[iz][iy][ix] * p[2];
+        o->mass  += vol * CHI[iz][iy][ix];
       }
       o->allocate_surface();
     }
@@ -452,7 +452,14 @@ void CreateObstacles::operator()(const double dt)
   sim.stopProfiler();
 
   sim.startProfiler("Obst CHI");
-  { // compute discretized heaviside (CHI) with Towers 2009
+  if(sim.bUseStretchedGrid)
+  {
+    auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
+    const KernelCharacteristicFunction_nonUniform K(vecOB);
+    compute<KernelCharacteristicFunction_nonUniform>(K);
+  }
+  else
+  {
     auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
     const KernelCharacteristicFunction K(vecOB);
     compute<KernelCharacteristicFunction>(K);

@@ -355,28 +355,24 @@ void Simulation::setupOperators()
 double Simulation::calcMaxTimestep()
 {
   assert(sim.grid not_eq nullptr);
-  double maxUoverH = 0;
-  if(sim.bUseStretchedGrid)
-    maxUoverH = findMaxUoverH(sim.vInfo(), *sim.grid, sim.uinf.data());
-  else
-    maxUoverH = findMaxU(sim.vInfo(), *sim.grid, sim.uinf.data())/sim.hmin;
-
-  MPI_Allreduce(MPI_IN_PLACE, &maxUoverH, 1, MPI_DOUBLE, MPI_MAX, sim.app_comm);
-  assert(maxUoverH >= 0);
-  const double dtDif = sim.hmin * sim.hmin / sim.nu;
-  const double dtAdv = 1.0 / ( maxUoverH + 1e-8 );
-  sim.dt = sim.CFL * std::min(dtDif, dtAdv);
+  const double hMin = sim.hmin, CFL = sim.CFL;
+  double maxU = findMaxU(sim.vInfo(), *sim.grid, sim.uinf.data());
+  MPI_Allreduce(MPI_IN_PLACE, & maxU, 1, MPI_DOUBLE, MPI_MAX, sim.app_comm);
+  assert(maxU >= 0);
+  const double dtDif = hMin * hMin / sim.nu;
+  const double dtAdv = hMin / ( maxU + 1e-8 );
+  sim.dt = CFL * std::min(dtDif, dtAdv);
   if ( sim.step < sim.rampup )
   {
     const double x = (sim.step+1.0)/sim.rampup;
-    const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(sim.CFL)*x);
+    const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(CFL)*x);
     sim.dt = rampCFL * std::min(dtDif, dtAdv);
   }
   // if DLM>0, adapt lambda such that penal term is independent of time step
   if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
   if (sim.verbose)
-    printf("maxUoverH:%f dtF:%e dtC:%e dt:%e lambda:%e\n",
-      maxUoverH, dtDif, dtAdv, sim.dt, sim.lambda);
+    printf("maxU:%f minH:%f dtF:%e dtC:%e dt:%e lambda:%e\n",
+      maxU, hMin, dtDif, dtAdv, sim.dt, sim.lambda);
   return sim.dt;
 }
 
