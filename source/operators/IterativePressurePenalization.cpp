@@ -84,77 +84,28 @@ struct PressureRHSObstacleVisitor : public ObstacleVisitor
   }
 };
 
-struct KernelPressureRHS
+struct KernelInitialPressureRHS
 {
-  Real dt, lamdt;
-  const Real fadeLen[3], ext[3], iFade[3];
-  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-  PoissonSolver * const solver;
-
-  inline bool _is_touching(const FluidBlock& b) const {
-    const bool touchW = fadeLen[0] >= b.min_pos[0];
-    const bool touchE = fadeLen[0] >= ext[0] - b.max_pos[0];
-    const bool touchS = fadeLen[1] >= b.min_pos[1];
-    const bool touchN = fadeLen[1] >= ext[1] - b.max_pos[1];
-    const bool touchB = fadeLen[2] >= b.min_pos[2];
-    const bool touchF = fadeLen[2] >= ext[2] - b.max_pos[2];
-    return touchN || touchE || touchS || touchW || touchF || touchB;
-  }
-
-  inline Real fade(const BlockInfo&i, const int x,const int y,const int z) const
-  {
-    Real p[3]; i.pos(p, x, y, z);
-    const Real zt = iFade[2] * std::max(Real(0), fadeLen[2] -(ext[2]-p[2]) );
-    const Real zb = iFade[2] * std::max(Real(0), fadeLen[2] - p[2] );
-    const Real yt = iFade[1] * std::max(Real(0), fadeLen[1] -(ext[1]-p[1]) );
-    const Real yb = iFade[1] * std::max(Real(0), fadeLen[1] - p[1] );
-    const Real xt = iFade[0] * std::max(Real(0), fadeLen[0] -(ext[0]-p[0]) );
-    const Real xb = iFade[0] * std::max(Real(0), fadeLen[0] - p[0] );
-    return 1-std::pow(std::min( std::max({zt,zb,yt,yb,xt,xb}), (Real)1), 2);
-  }
-
-  inline Real RHS(Lab&l, const int x,const int y,const int z) const
-  {
-    const FluidElement & L  = l(x,  y,  z);
-    const FluidElement & LW = l(x-1,y,  z  ), & LE = l(x+1,y,  z  );
-    const FluidElement & LS = l(x,  y-1,z  ), & LN = l(x,  y+1,z  );
-    const FluidElement & LF = l(x,  y,  z-1), & LB = l(x,  y,  z+1);
-    const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
-    const Real divUf = LE.u-LW.u + LN.v-LS.v + LB.w-LF.w;
-    return divUf + L.chi * divUs;
-  }
-
+  PenalizationGridMPI * const penGrid;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1,2,2,2,false,6,1,2,3,5,6,7);
+  const StencilInfo stencil = StencilInfo(-1,-1,-1,2,2,2,false, 6, 1,2,3,5,6,7);
 
-  KernelPressureRHS(double _dt, double L, const Real B[3], std::array<Real,3> E,
-    PoissonSolver* ps) : dt(_dt), lamdt(_dt*L), fadeLen{B[0],B[1],B[2]},
-    ext{E[0],E[1],E[2]}, iFade{1/(B[0]+EPS),1/(B[1]+EPS),1/(B[2]+EPS)},
-    solver(ps) {}
+  KernelInitialPressureRHS(PenalizationGridMPI * const pen) : penGrid(pen) {}
 
   template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  void operator()(Lab & l, const BlockInfo& info, BlockType& o) const
   {
-    const Real h = info.h_gridpoint, fac = .5*h*h/dt;
-    Real* __restrict__ const ret = solver->data + solver->_offset_ext(info);
-    const unsigned SX=solver->stridex, SY=solver->stridey, SZ=solver->stridez;
-    if( not _is_touching(o) )
-    {
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        ret[SZ*iz + SY*iy + SX*ix] = fac * RHS(lab, ix,iy,iz);
-        //o(ix,iy,iz).p = ret[SZ*iz + SY*iy + SX*ix];
-      }
-    }
-    else
-    {
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        ret[SZ*iz + SY*iy + SX*ix] = fac*fade(info,ix,iy,iz)*RHS(lab,ix,iy,iz);
-        //o(ix,iy,iz).p = ret[SZ*iz + SY*iy + SX*ix];
-      }
+    PenalizationBlock& t = * getPenalBlockPtr(penGrid, info.blockID);
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      const FluidElement & L  = l(ix,  iy,  iz);
+      const FluidElement & LW = l(ix-1,iy,  iz  ), & LE = l(ix+1,iy,  iz  );
+      const FluidElement & LS = l(ix,  iy-1,iz  ), & LN = l(ix,  iy+1,iz  );
+      const FluidElement & LF = l(ix,  iy,  iz-1), & LB = l(ix,  iy,  iz+1);
+      const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
+      const Real divUf = LE.u   -LW.u    + LN.v   -LS.v    + LB.w   -LF.w;
+      t(ix,iy,iz).rhs0 = divUf - L.chi * divUs;
     }
   }
 };
@@ -171,48 +122,17 @@ struct KernelIterateGradP
     dt(_dt), penGrid{pen} {}
 
   template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  void operator()(Lab & l, const BlockInfo& info, BlockType& o) const
   {
-    const Real fac = - 0.5 * dt / info.h_gridpoint;
+    const Real F = - 0.5 * dt / info.h_gridpoint;
     PenalizationBlock& t = * getPenalBlockPtr(penGrid, info.blockID);
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
        // p contains the pressure correction after the Poisson solver
-      const Real dU = fac * ( lab(ix+1,iy,iz).p - lab(ix-1,iy,iz).p );
-      const Real dV = fac * ( lab(ix,iy+1,iz).p - lab(ix,iy-1,iz).p );
-      const Real dW = fac * ( lab(ix,iy,iz+1).p - lab(ix,iy,iz-1).p );
-      t(ix,iy,iz).uPres = lab(ix,iy,iz).u + dU;
-      t(ix,iy,iz).vPres = lab(ix,iy,iz).v + dV;
-      t(ix,iy,iz).wPres = lab(ix,iy,iz).w + dW;
-    }
-  }
-};
-
-// place on grid the penalized velocity plus pressure correction
-struct KernelGradP
-{
-  const Real dt;
-  PenalizationGridMPI * const penGrid;
-  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
-
-  KernelGradP(double _dt, PenalizationGridMPI * const pen): dt(_dt), penGrid{pen} {}
-
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-  {
-    const Real fac = - 0.5 * dt / info.h_gridpoint;
-    const PenalizationBlock& t = * getPenalBlockPtr(penGrid, info.blockID);
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-       const Real dU = fac * ( lab(ix+1,iy,iz).p - lab(ix-1,iy,iz).p );
-       const Real dV = fac * ( lab(ix,iy+1,iz).p - lab(ix,iy-1,iz).p );
-       const Real dW = fac * ( lab(ix,iy,iz+1).p - lab(ix,iy,iz-1).p );
-       o(ix,iy,iz).u = t(ix,iy,iz).uPenl + dU;
-       o(ix,iy,iz).v = t(ix,iy,iz).vPenl + dV;
-       o(ix,iy,iz).w = t(ix,iy,iz).wPenl + dW;
+      t(ix,iy,iz).uPres = l(ix,iy,iz).u + F * (l(ix+1,iy,iz).p-l(ix-1,iy,iz).p);
+      t(ix,iy,iz).vPres = l(ix,iy,iz).v + F * (l(ix,iy+1,iz).p-l(ix,iy-1,iz).p);
+      t(ix,iy,iz).wPres = l(ix,iy,iz).w + F * (l(ix,iy,iz+1).p-l(ix,iy,iz-1).p);
     }
   }
 };
@@ -471,45 +391,140 @@ struct KernelPenalization : public ObstacleVisitor
       // grid if CHI stored on the grid is greater than obst's CHI.
       if(b(ix,iy,iz).chi > CHI[iz][iy][ix]) continue;
       if(CHI[iz][iy][ix] <= 0) continue; // no need to do anything
-      double p[3]; info.pos(p, ix, iy, iz);
+      Real p[3]; info.pos(p, ix, iy, iz);
       p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
-      const double U_TOT[3] = {
+      const Real X = CHI[iz][iy][ix], U_TOT[3] = {
           vel[0] + omega[1]*p[2] - omega[2]*p[1] + UDEF[iz][iy][ix][0],
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
       #ifdef EXPL_INTEGRATE_MOM
-        const Real penalFac = lambda;
+        const Real penalFac = X * lambda;
       #else
-        const Real penalFac = lambda / (1 + dt * CHI[iz][iy][ix] * lambda);
+        const Real penalFac = X * lambda / (1 + dt * X * lambda);
       #endif
       const Real FPX = penalFac * (U_TOT[0] - t(ix,iy,iz).uPres);
       const Real FPY = penalFac * (U_TOT[1] - t(ix,iy,iz).vPres);
       const Real FPZ = penalFac * (U_TOT[2] - t(ix,iy,iz).wPres);
+      const Real uNext  = t(ix,iy,iz).uPres + dt * FPX;
+      const Real vNext  = t(ix,iy,iz).vPres + dt * FPY;
+      const Real wNext  = t(ix,iy,iz).wPres + dt * FPZ;
+      // uPres now becomes delta Vel
+      t(ix,iy,iz).uPres = dt * (uNext - U_TOT[0]);
+      t(ix,iy,iz).vPres = dt * (vNext - U_TOT[1]);
+      t(ix,iy,iz).wPres = dt * (wNext - U_TOT[2]);
+      b(ix,iy,iz).tmpU = dt * FPX;
+      b(ix,iy,iz).tmpV = dt * FPY;
+      b(ix,iy,iz).tmpW = dt * FPZ;
 
-      const Real UPenal = b(ix,iy,iz).u + dt * CHI[iz][iy][ix] * FPX;
-      const Real VPenal = b(ix,iy,iz).v + dt * CHI[iz][iy][ix] * FPY;
-      const Real WPenal = b(ix,iy,iz).w + dt * CHI[iz][iy][ix] * FPZ;
-      const Real DPX = UPenal - t(ix,iy,iz).uPenl;
-      const Real DPY = VPenal - t(ix,iy,iz).vPenl;
-      const Real DPZ = WPenal - t(ix,iy,iz).wPenl;
+      FX += dv * FPX;
+      FY += dv * FPY;
+      FZ += dv * FPZ;
+      TX += dv * ( p[1] * FPZ - p[2] * FPY );
+      TY += dv * ( p[2] * FPX - p[0] * FPZ );
+      TZ += dv * ( p[0] * FPY - p[1] * FPX );
+      MX += std::pow(X * (uNext - U_TOT[0]), 2); DMX += std::pow(uNext, 2);
+      MY += std::pow(X * (vNext - U_TOT[1]), 2); DMY += std::pow(vNext, 2);
+      MZ += std::pow(X * (wNext - U_TOT[2]), 2); DMZ += std::pow(wNext, 2);
+    }
+  }
+};
 
-      t(ix,iy,iz).uPenl = UPenal;
-      t(ix,iy,iz).vPenl = VPenal;
-      t(ix,iy,iz).wPenl = WPenal;
-      b(ix,iy,iz).tmpU = dt*FPX - UDEF[iz][iy][ix][0]; // used to compute press
-      b(ix,iy,iz).tmpV = dt*FPY - UDEF[iz][iy][ix][1]; // rhs: includes penal
-      b(ix,iy,iz).tmpW = dt*FPZ - UDEF[iz][iy][ix][2]; // force-udef, without X
+struct KernelPressureRHS
+{
+  Real dt;
+  const Real fadeLen[3], ext[3], iFade[3];
+  PenalizationGridMPI * const penGrid;
+  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
+  PoissonSolver * const solver;
 
-      FX += dv * CHI[iz][iy][ix] * FPX;
-      FY += dv * CHI[iz][iy][ix] * FPY;
-      FZ += dv * CHI[iz][iy][ix] * FPZ;
-      TX += dv * CHI[iz][iy][ix] * ( p[1] * FPZ - p[2] * FPY );
-      TY += dv * CHI[iz][iy][ix] * ( p[2] * FPX - p[0] * FPZ );
-      TZ += dv * CHI[iz][iy][ix] * ( p[0] * FPY - p[1] * FPX );
-      MX += std::pow(UPenal, 2); DMX += std::pow(DPX, 2);
-      MY += std::pow(VPenal, 2); DMY += std::pow(DPY, 2);
-      MZ += std::pow(WPenal, 2); DMZ += std::pow(DPZ, 2);
+  inline bool _is_touching(const FluidBlock& b) const {
+    const bool touchW = fadeLen[0] >= b.min_pos[0];
+    const bool touchE = fadeLen[0] >= ext[0] - b.max_pos[0];
+    const bool touchS = fadeLen[1] >= b.min_pos[1];
+    const bool touchN = fadeLen[1] >= ext[1] - b.max_pos[1];
+    const bool touchB = fadeLen[2] >= b.min_pos[2];
+    const bool touchF = fadeLen[2] >= ext[2] - b.max_pos[2];
+    return touchN || touchE || touchS || touchW || touchF || touchB;
+  }
+
+  inline Real fade(const BlockInfo&i, const int x,const int y,const int z) const
+  {
+    Real p[3]; i.pos(p, x, y, z);
+    const Real zt = iFade[2] * std::max(Real(0), fadeLen[2] -(ext[2]-p[2]) );
+    const Real zb = iFade[2] * std::max(Real(0), fadeLen[2] - p[2] );
+    const Real yt = iFade[1] * std::max(Real(0), fadeLen[1] -(ext[1]-p[1]) );
+    const Real yb = iFade[1] * std::max(Real(0), fadeLen[1] - p[1] );
+    const Real xt = iFade[0] * std::max(Real(0), fadeLen[0] -(ext[0]-p[0]) );
+    const Real xb = iFade[0] * std::max(Real(0), fadeLen[0] - p[0] );
+    return 1-std::pow(std::min( std::max({zt,zb,yt,yb,xt,xb}), (Real)1), 2);
+  }
+
+  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, 0,5,6,7);
+
+  KernelPressureRHS(double _dt, const Real B[3], std::array<Real,3> E,
+    PoissonSolver* ps, PenalizationGridMPI* const pen) : dt(_dt),
+    fadeLen{B[0],B[1],B[2]}, ext{E[0],E[1],E[2]},
+    iFade{1/(B[0]+EPS),1/(B[1]+EPS),1/(B[2]+EPS)}, penGrid(pen),
+    solver(ps) {}
+
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  {
+    const Real h = info.h_gridpoint, fac = .5*h*h/dt;
+    const PenalizationBlock& t = * getPenalBlockPtr(penGrid, info.blockID);
+    Real* __restrict__ const ret = solver->data + solver->_offset_ext(info);
+    const unsigned SX=solver->stridex, SY=solver->stridey, SZ=solver->stridez;
+
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
+      const PenalizationHelperElement& P = t(ix,iy,iz);
+      const FluidElement &LW = lab(ix-1,iy,  iz  ), &LE = lab(ix+1,iy,  iz  );
+      const FluidElement &LS = lab(ix,  iy-1,iz  ), &LN = lab(ix,  iy+1,iz  );
+      const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
+      const Real divFdt = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
+      const Real dXx = LE.chi-LW.chi, dXy = LN.chi-LS.chi, dXz = LB.chi-LF.chi;
+      const Real deltaUgradX = dXx * P.uPres + dXy * P.vPres + dXz * P.wPres;
+      ret[SZ*iz + SY*iy + SX*ix] = fac * ( P.rhs0 + divFdt + deltaUgradX );
+      //o(ix,iy,iz).p = ret[SZ*iz + SY*iy + SX*ix];
+    }
+
+    if( _is_touching(o) )
+    {
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        ret[SZ*iz + SY*iy + SX*ix] *= fade(info,ix,iy,iz);
+    }
+  }
+};
+
+// place on grid the penalized velocity plus pressure correction
+struct KernelGradP
+{
+  const Real dt;
+  PenalizationGridMPI * const penGrid;
+  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+
+  KernelGradP(double _dt, PenalizationGridMPI*const pen): dt(_dt),penGrid{pen}{}
+
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  {
+    const Real fac = - 0.5 * dt / info.h_gridpoint;
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+       const Real dUpres = fac * ( lab(ix+1,iy,iz).p - lab(ix-1,iy,iz).p );
+       const Real dVpres = fac * ( lab(ix,iy+1,iz).p - lab(ix,iy-1,iz).p );
+       const Real dWpres = fac * ( lab(ix,iy,iz+1).p - lab(ix,iy,iz-1).p );
+       o(ix,iy,iz).u = o(ix,iy,iz).u + o(ix,iy,iz).tmpU + dUpres;
+       o(ix,iy,iz).v = o(ix,iy,iz).v + o(ix,iy,iz).tmpV + dVpres;
+       o(ix,iy,iz).w = o(ix,iy,iz).w + o(ix,iy,iz).tmpW + dWpres;
     }
   }
 };
@@ -518,22 +533,16 @@ struct KernelPenalization : public ObstacleVisitor
 
 void IterativePressurePenalization::initializeFields()
 {
-  /*
-  sim.startProfiler("PresRHS Udef");
   if(sim.obstacle_vector->nObstacles() > 0)
   { //zero fields, going to contain Udef:
+    sim.startProfiler("PresRHS Udef");
     #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<vInfo.size(); i++)
-    {
+    for(size_t i=0; i<vInfo.size(); i++) {
       assert((size_t) vInfo[i].blockID == i);
       FluidBlock&        b = *(FluidBlock*) vInfo[i].ptrBlock;
-      PenalizationBlock& t = * getPenalBlockPtr(penalizationGrid, i);
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        t(ix,iy,iz).uPre = b(ix,iy,iz).u;
-        t(ix,iy,iz).vPre = b(ix,iy,iz).v;
-        t(ix,iy,iz).wPre = b(ix,iy,iz).w;
         b(ix,iy,iz).tmpU = 0;
         b(ix,iy,iz).tmpV = 0;
         b(ix,iy,iz).tmpW = 0;
@@ -543,9 +552,16 @@ void IterativePressurePenalization::initializeFields()
     ObstacleVisitor* visitor = new PressureRHSObstacleVisitor(grid);
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
+    sim.stopProfiler();
   }
-  sim.stopProfiler();
-  */
+  {
+    // compute velocity after pressure projection (PP) but without Penal
+    // using pressure computed at prior step / iteration
+    sim.startProfiler("rhs0"); //pressure correction dudt* = - grad P / rho
+    const KernelInitialPressureRHS K(penalizationGrid);
+    compute<KernelInitialPressureRHS>(K);
+    sim.stopProfiler();
+  }
 }
 
 IterativePressurePenalization::IterativePressurePenalization(SimulationData & s) : Operator(s)
@@ -598,8 +614,8 @@ void IterativePressurePenalization::operator()(const double dt)
       sim.stopProfiler();
     }
 
-    sim.startProfiler("Obst Int Vel");
     { // integrate momenta by looping over grid
+      sim.startProfiler("Obst Int Vel");
       #pragma omp parallel
       { // each thread needs to call its own non-const operator() function
         KernelIntegrateFluidMomenta K(dt, sim.lambda,
@@ -607,20 +623,16 @@ void IterativePressurePenalization::operator()(const double dt)
         #pragma omp for schedule(dynamic, 1)
         for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
       }
-    }
-    sim.stopProfiler();
 
-    sim.startProfiler("Obst Upd Vel");
-    {
       ObstacleVisitor*K = new KernelFinalizeObstacleVel(dt, sim.lambda, sim.grid);
       sim.obstacle_vector->Accept(K); // accept you son of a french cow
       delete K;
+      sim.stopProfiler();
     }
-    sim.stopProfiler();
 
     // finally update vel with penalization but without pressure
-    sim.startProfiler("Penalization");
     {
+      sim.startProfiler("Penalization");
       double M[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
       #pragma omp parallel reduction (+ : M[:6])
       { // each thread needs to call its own non-const operator() function
@@ -639,8 +651,8 @@ void IterativePressurePenalization::operator()(const double dt)
       sim.obstacle_vector->Accept(K); // accept you son of a french cow
       delete K;
 
+      sim.stopProfiler();
     }
-    sim.stopProfiler();
 
     if(sim.verbose) printf("iter:%02d - max relative error: %f\n", iter, relDF);
     //if(relDF < 0.001) break;
@@ -651,7 +663,8 @@ void IterativePressurePenalization::operator()(const double dt)
       sim.pressureSolver->reset();
       //place onto p: ( div u^(t+1) - div u^* ) / dt
       //where i want div u^(t+1) to be equal to div udef
-      const KernelPressureRHS K(dt, sim.lambda, sim.fadeOutLengthPRHS, sim.extent, sim.pressureSolver);
+      const KernelPressureRHS K(dt, sim.fadeOutLengthPRHS, sim.extent,
+        sim.pressureSolver, penalizationGrid);
       compute<KernelPressureRHS>(K);
       sim.stopProfiler();
     }

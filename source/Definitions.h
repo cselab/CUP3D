@@ -51,9 +51,8 @@ struct PenalizationHelperElement
 {
   typedef Real RealType;
   // Vel b4 pressure projection and after. These quantitites are not penalized.
-  Real uPres=0, vPres=0, wPres=0;
-  Real uPenl=0, vPenl=0, wPenl=0;
-  void clear() { uPres=0; vPres=0; wPres=0; uPenl=0; vPenl=0; wPenl=0; }
+  Real uPres=0, vPres=0, wPres=0, rhs0=0;
+  void clear() { uPres=0; vPres=0; wPres=0; rhs0=0; }
   PenalizationHelperElement(const PenalizationHelperElement& c) = delete;
 };
 
