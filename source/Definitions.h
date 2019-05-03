@@ -51,8 +51,9 @@ struct PenalizationHelperElement
 {
   typedef Real RealType;
   // Vel b4 pressure projection and after. These quantitites are not penalized.
-  Real uPre=0, vPre=0, wPre=0, uFluid=0, vFluid=0, wFluid=0;
-  void clear() { uPre=0; vPre=0; wPre=0; uFluid=0; vFluid=0; wFluid=0; }
+  Real uPres=0, vPres=0, wPres=0;
+  Real uPenl=0, vPenl=0, wPenl=0;
+  void clear() { uPres=0; vPres=0; wPres=0; uPenl=0; vPenl=0; wPenl=0; }
   PenalizationHelperElement(const PenalizationHelperElement& c) = delete;
 };
 
@@ -275,23 +276,12 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
     int s[3] = {0,0,0}, e[3] = {0,0,0};
     const int* const stenBeg = this->m_stencilStart;
     const int* const stenEnd = this->m_stencilEnd;
-    // This code is needed if we ever need corners:
-    //s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : stenBeg[0];
-    //s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : stenBeg[1];
-    //s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : stenBeg[2];
-    //e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 )
-    //               : sizeX +  stenEnd[0]-1;
-    //e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 )
-    //               : sizeY +  stenEnd[1]-1;
-    //e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 )
-    //               : sizeZ +  stenEnd[2]-1;
     s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : 0;
     s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : 0;
     s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : 0;
     e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX;
     e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY;
     e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 ) : sizeZ;
-    //
     for(int iz=s[2]; iz<e[2]; iz++)
     for(int iy=s[1]; iy<e[1]; iy++)
     for(int ix=s[0]; ix<e[0]; ix++)
@@ -330,7 +320,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
           ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
           ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
         );
-      DST.p = SRCP.p;    DST.chi = 0;
+      DST.p =    SRCP.p; DST.chi  =  0;
       DST.u =  - SRCV.u; DST.tmpU =  - SRCV.tmpU;
       DST.v =  - SRCV.v; DST.tmpV =  - SRCV.tmpV;
       DST.w =  - SRCV.w; DST.tmpW =  - SRCV.tmpW;
@@ -338,7 +328,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   }
 
  public:
-  void setBC(BCflag _BCX, BCflag _BCY, BCflag _BCZ) {
+  void setBC(const BCflag _BCX, const BCflag _BCY, const BCflag _BCZ) {
     BCX=_BCX; BCY=_BCY; BCZ=_BCZ;
   }
   bool is_xperiodic() { return BCX == periodic; }

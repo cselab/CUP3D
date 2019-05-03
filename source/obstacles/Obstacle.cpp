@@ -288,6 +288,7 @@ void Obstacle::computeForces()
   }
   #endif
   _writeSurfForcesToFile();
+  _writeDiagForcesToFile();
 }
 
 void Obstacle::update()
@@ -351,8 +352,7 @@ void Obstacle::update()
   assert(std::abs(q_length-1.0) < 5*EPS);
   #endif
 
-  _writeComputedVelToFile();
-  _writeDiagForcesToFile();
+  if(dt>0) _writeComputedVelToFile();
 }
 
 void Obstacle::create()
@@ -539,15 +539,29 @@ void Obstacle::_writeDiagForcesToFile()
   const std::string tab("\t");
   if(sim.step==0) {
     ssF << "step" << tab << "time" << tab << "mass" << tab
-     << "force_x" << tab << "force_y" << tab << "force_z" << tab
-     << "torque_x" << tab << "torque_y" << tab << "torque_z" << std::endl;
+    << "force_x" << tab << "force_y" << tab << "force_z" << tab
+    << "torque_x" << tab << "torque_y" << tab << "torque_z"<< tab
+    << "penalLmom_x" << tab << "penalLmom_y" << tab << "penalLmom_z" << tab
+    << "penalAmom_x" << tab << "penalAmom_y" << tab << "penalAmom_z" << tab
+    << "penalCM_x" << tab << "penalCM_y" << tab << "penalCM_z" << tab
+   << "linVel_comp_x" << tab << "linVel_comp_y" << tab << "linVel_comp_z" << tab
+   << "angVel_comp_x" << tab << "angVel_comp_y" << tab << "angVel_comp_z" << tab
+   << "penalM"<<tab << "penalJ0" << tab << "penalJ1" << tab << "penalJ2" << tab
+   << "penalJ3" << tab << "penalJ4" << tab << "penalJ5" << std::endl;
   }
 
   ssF << sim.step << tab;
   ssF.setf(std::ios::scientific);
   ssF.precision(std::numeric_limits<float>::digits10 + 1);
   ssF<<sim.time<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
-     <<torque[0]<<tab<<torque[1]<<tab<<torque[2]<<std::endl;
+     <<torque[0]<<tab<<torque[1]<<tab<<torque[2]
+     <<tab<<penalLmom[0]<<tab<<penalLmom[1]<<tab<<penalLmom[2]
+     <<tab<<penalAmom[0]<<tab<<penalAmom[1]<<tab<<penalAmom[2]
+     <<tab<<penalCM[0]<<tab<<penalCM[1]<<tab<<penalCM[2]
+     <<tab<<transVel_computed[0]<<tab<<transVel_computed[1]<<tab<<transVel_computed[2]
+     <<tab<<angVel_computed[0]<<tab<<angVel_computed[1]<<tab<<angVel_computed[2]
+     <<tab<<penalM<<tab<<penalJ[0]<<tab<<penalJ[1]<<tab<<penalJ[2]
+     <<tab<<penalJ[3]<<tab<<penalJ[4]<<tab<<penalJ[5] <<std::endl;
 }
 
 CubismUP_3D_NAMESPACE_END

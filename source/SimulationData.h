@@ -114,6 +114,7 @@ struct SimulationData
 
   bool bUseUnboundedBC = false;
   bool bUseFourierBC = false;
+  bool bKeepMomentumConstant = true;
 
   #ifdef CUP_ASYNC_DUMP
     MPI_Comm dump_comm = MPI_COMM_NULL;

@@ -23,7 +23,6 @@
 // define this to update obstacles with old (mrag-like) approach of integrating
 // momenta contained in chi before the penalization step:
 #define EXPL_INTEGRATE_MOM
-// #define EXTRAFAST
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -64,7 +63,7 @@ struct PressureRHSObstacleVisitor : public ObstacleVisitor
 
         FluidBlock& b = *(FluidBlock*)info.ptrBlock;
         const UDEFMAT & __restrict__ UDEF = pos->udef;
-        const CHIMAT & __restrict__ CHI = pos->chi;
+        const  CHIMAT & __restrict__  CHI = pos->chi;
 
         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -122,7 +121,7 @@ struct KernelPressureRHS
     const FluidElement & LF = l(x,  y,  z-1), & LB = l(x,  y,  z+1);
     const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
     const Real divUf = LE.u-LW.u + LN.v-LS.v + LB.w-LF.w;
-    return divUf - L.chi * divUs;
+    return divUf + L.chi * divUs;
   }
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
@@ -160,6 +159,7 @@ struct KernelPressureRHS
   }
 };
 
+// place in PenalizationBlocks velocity before iterations plus pressure correct
 struct KernelIterateGradP
 {
   const Real dt;
@@ -182,34 +182,37 @@ struct KernelIterateGradP
       const Real dU = fac * ( lab(ix+1,iy,iz).p - lab(ix-1,iy,iz).p );
       const Real dV = fac * ( lab(ix,iy+1,iz).p - lab(ix,iy-1,iz).p );
       const Real dW = fac * ( lab(ix,iy,iz+1).p - lab(ix,iy,iz-1).p );
-      t(ix,iy,iz).uFluid = t(ix,iy,iz).uPre + dU;
-      t(ix,iy,iz).vFluid = t(ix,iy,iz).vPre + dV;
-      t(ix,iy,iz).wFluid = t(ix,iy,iz).wPre + dW;
+      t(ix,iy,iz).uPres = lab(ix,iy,iz).u + dU;
+      t(ix,iy,iz).vPres = lab(ix,iy,iz).v + dV;
+      t(ix,iy,iz).wPres = lab(ix,iy,iz).w + dW;
     }
   }
 };
 
+// place on grid the penalized velocity plus pressure correction
 struct KernelGradP
 {
   const Real dt;
+  PenalizationGridMPI * const penGrid;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
 
-  KernelGradP(double _dt): dt(_dt) {}
-
-  ~KernelGradP() {}
+  KernelGradP(double _dt, PenalizationGridMPI * const pen): dt(_dt), penGrid{pen} {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
     const Real fac = - 0.5 * dt / info.h_gridpoint;
+    const PenalizationBlock& t = * getPenalBlockPtr(penGrid, info.blockID);
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-       // p contains the pressure correction after the Poisson solver
-       o(ix,iy,iz).u += fac * ( lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p );
-       o(ix,iy,iz).v += fac * ( lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p );
-       o(ix,iy,iz).w += fac * ( lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p );
+       const Real dU = fac * ( lab(ix+1,iy,iz).p - lab(ix-1,iy,iz).p );
+       const Real dV = fac * ( lab(ix,iy+1,iz).p - lab(ix,iy-1,iz).p );
+       const Real dW = fac * ( lab(ix,iy,iz+1).p - lab(ix,iy,iz-1).p );
+       o(ix,iy,iz).u = t(ix,iy,iz).uPenl + dU;
+       o(ix,iy,iz).v = t(ix,iy,iz).vPenl + dV;
+       o(ix,iy,iz).w = t(ix,iy,iz).wPenl + dW;
     }
   }
 };
@@ -288,12 +291,12 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
       J4 -= X * dv * p[0]*p[2];
       J5 -= X * dv * p[1]*p[2];
 
-      FX += X * dv * b(ix,iy,iz).uFluid;
-      FY += X * dv * b(ix,iy,iz).vFluid;
-      FZ += X * dv * b(ix,iy,iz).wFluid;
-      TX += X * dv * ( p[1] * b(ix,iy,iz).wFluid - p[2] * b(ix,iy,iz).vFluid );
-      TY += X * dv * ( p[2] * b(ix,iy,iz).uFluid - p[0] * b(ix,iy,iz).wFluid );
-      TZ += X * dv * ( p[0] * b(ix,iy,iz).vFluid - p[1] * b(ix,iy,iz).uFluid );
+      FX += X * dv * b(ix,iy,iz).uPres;
+      FY += X * dv * b(ix,iy,iz).vPres;
+      FZ += X * dv * b(ix,iy,iz).wPres;
+      TX += X * dv * ( p[1] * b(ix,iy,iz).wPres - p[2] * b(ix,iy,iz).vPres );
+      TY += X * dv * ( p[2] * b(ix,iy,iz).uPres - p[0] * b(ix,iy,iz).wPres );
+      TZ += X * dv * ( p[0] * b(ix,iy,iz).vPres - p[1] * b(ix,iy,iz).uPres );
 
       #ifndef EXPL_INTEGRATE_MOM
         const Real penalFac = dv * lambdt * X / ( 1 + X * lambdt );
@@ -308,9 +311,9 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
         o->Gj4 -= penalFac * p[0]*p[2];
         o->Gj5 -= penalFac * p[1]*p[2];
         const double DiffU[3] = {
-          b(ix,iy,iz).uFluid - UDEF[iz][iy][ix][0],
-          b(ix,iy,iz).vFluid - UDEF[iz][iy][ix][1],
-          b(ix,iy,iz).wFluid - UDEF[iz][iy][ix][2]
+          b(ix,iy,iz).uPres - UDEF[iz][iy][ix][0],
+          b(ix,iy,iz).vPres - UDEF[iz][iy][ix][1],
+          b(ix,iy,iz).wPres - UDEF[iz][iy][ix][2]
         };
         o->GuX += penalFac * DiffU[0];
         o->GuY += penalFac * DiffU[1];
@@ -347,15 +350,15 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
       M[k++] += oBlock[i]->J0; M[k++] += oBlock[i]->J1; M[k++] += oBlock[i]->J2;
       M[k++] += oBlock[i]->J3; M[k++] += oBlock[i]->J4; M[k++] += oBlock[i]->J5;
       #ifndef EXPL_INTEGRATE_MOM
-      M[k++] +=oBlock[i]->GfX;
-      M[k++] +=oBlock[i]->GpX; M[k++] +=oBlock[i]->GpY; M[k++] +=oBlock[i]->GpZ;
-      M[k++] +=oBlock[i]->Gj0; M[k++] +=oBlock[i]->Gj1; M[k++] +=oBlock[i]->Gj2;
-      M[k++] +=oBlock[i]->Gj3; M[k++] +=oBlock[i]->Gj4; M[k++] +=oBlock[i]->Gj5;
-      M[k++] +=oBlock[i]->GuX; M[k++] +=oBlock[i]->GuY; M[k++] +=oBlock[i]->GuZ;
-      M[k++] +=oBlock[i]->GaX; M[k++] +=oBlock[i]->GaY; M[k++] +=oBlock[i]->GaZ;
-      assert(k==29);
+        M[k++]+=oBlock[i]->GfX;
+        M[k++]+=oBlock[i]->GpX; M[k++]+=oBlock[i]->GpY; M[k++]+=oBlock[i]->GpZ;
+        M[k++]+=oBlock[i]->Gj0; M[k++]+=oBlock[i]->Gj1; M[k++]+=oBlock[i]->Gj2;
+        M[k++]+=oBlock[i]->Gj3; M[k++]+=oBlock[i]->Gj4; M[k++]+=oBlock[i]->Gj5;
+        M[k++]+=oBlock[i]->GuX; M[k++]+=oBlock[i]->GuY; M[k++]+=oBlock[i]->GuZ;
+        M[k++]+=oBlock[i]->GaX; M[k++]+=oBlock[i]->GaY; M[k++]+=oBlock[i]->GaZ;
+        assert(k==29);
       #else
-      assert(k==13);
+        assert(k==13);
       #endif
     }
     const auto comm = grid->getCartComm();
@@ -387,18 +390,46 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
   }
 };
 
+struct KernelFinalizePenalizationForce : public ObstacleVisitor
+{
+  FluidGridMPI * const grid;
+
+  KernelFinalizePenalizationForce(FluidGridMPI*g) : grid(g) { }
+
+  void visit(Obstacle* const obst)
+  {
+    static constexpr int nQoI = 6;
+    double M[nQoI] = { 0 };
+    const auto& oBlock = obst->getObstacleBlocks();
+    #pragma omp parallel for schedule(static,1) reduction(+ : M[:nQoI])
+    for (size_t i=0; i<oBlock.size(); ++i) {
+      if(oBlock[i] == nullptr) continue;
+      M[0] += oBlock[i]->FX; M[1] += oBlock[i]->FY; M[2] += oBlock[i]->FZ;
+      M[3] += oBlock[i]->TX; M[4] += oBlock[i]->TY; M[5] += oBlock[i]->TZ;
+    }
+    const auto comm = grid->getCartComm();
+    MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_DOUBLE, MPI_SUM, comm);
+    obst->force[0]  = M[0];
+    obst->force[1]  = M[1];
+    obst->force[2]  = M[2];
+    obst->torque[0] = M[3];
+    obst->torque[1] = M[4];
+    obst->torque[2] = M[5];
+  }
+};
+
 struct KernelPenalization : public ObstacleVisitor
 {
   Real MX = 0, MY = 0, MZ = 0, DMX = 0, DMY = 0, DMZ = 0;
-  const double lamdt; const int iter;
+  const double lambda, dt; const int iter;
   ObstacleVector * const obstacle_vector;
   PenalizationGridMPI * const penGrid;
   PenalizationGridMPI * const accGrid;
   const cubism::BlockInfo * info_ptr = nullptr;
 
-  KernelPenalization(double lambdadt, ObstacleVector* ov, int _iter,
+  KernelPenalization(double _lambda, double _dt, ObstacleVector* ov, int _iter,
     PenalizationGridMPI* const _pen, PenalizationGridMPI* const _acc) :
-    lamdt(lambdadt), iter(_iter), obstacle_vector(ov), penGrid(_pen), accGrid(_acc) {}
+    lambda(_lambda), dt(_dt), iter(_iter), obstacle_vector(ov), penGrid(_pen), accGrid(_acc) {}
 
   void operator()(const cubism::BlockInfo& info)
   {
@@ -415,20 +446,22 @@ struct KernelPenalization : public ObstacleVisitor
     const BlockInfo& info = * info_ptr;
     assert(info_ptr not_eq nullptr);
     const auto& obstblocks = obstacle->getObstacleBlocks();
-    const ObstacleBlock*const o = obstblocks[info.blockID];
+    ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;
 
     const CHIMAT & __restrict__ CHI = o->chi;
     const UDEFMAT & __restrict__ UDEF = o->udef;
     FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-    const PenalizationBlock& t = * getPenalBlockPtr(penGrid, info.blockID);
-    #ifdef EXTRAFAST
-      PenalizationBlock& a = * getPenalBlockPtr(accGrid, info.blockID);
-    #endif
+    PenalizationBlock& t = * getPenalBlockPtr(penGrid, info.blockID);
+
+    double &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
+    double &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
+    FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
 
     const std::array<double,3> CM = obstacle->getCenterOfMass();
     const std::array<double,3> vel = obstacle->getTranslationVelocity();
     const std::array<double,3> omega = obstacle->getAngularVelocity();
+    const double dv = std::pow(info.h_gridpoint, 3);
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -440,63 +473,42 @@ struct KernelPenalization : public ObstacleVisitor
       if(CHI[iz][iy][ix] <= 0) continue; // no need to do anything
       double p[3]; info.pos(p, ix, iy, iz);
       p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
-      const double Xlamdt = CHI[iz][iy][ix]*lamdt, U_TOT[3] = {
+      const double U_TOT[3] = {
           vel[0] + omega[1]*p[2] - omega[2]*p[1] + UDEF[iz][iy][ix][0],
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
       #ifdef EXPL_INTEGRATE_MOM
-        const Real penalFac = Xlamdt;
+        const Real penalFac = lambda;
       #else
-        const Real penalFac = Xlamdt / (1 + Xlamdt);
+        const Real penalFac = lambda / (1 + dt * CHI[iz][iy][ix] * lambda);
       #endif
-      const Real FPX = penalFac * (U_TOT[0] - t(ix,iy,iz).uFluid);
-      const Real FPY = penalFac * (U_TOT[1] - t(ix,iy,iz).vFluid);
-      const Real FPZ = penalFac * (U_TOT[2] - t(ix,iy,iz).wFluid);
-      const Real UP = t(ix,iy,iz).uPre + FPX, DPX = UP - b(ix,iy,iz).u;
-      const Real VP = t(ix,iy,iz).vPre + FPY, DPY = VP - b(ix,iy,iz).v;
-      const Real WP = t(ix,iy,iz).wPre + FPZ, DPZ = WP - b(ix,iy,iz).w;
-      #ifdef EXTRAFAST
-        const Real newDX = DPX,                newUP = b(ix,iy,iz).u;
-        const Real newDY = DPY,                newVP = b(ix,iy,iz).v;
-        const Real newDZ = DPZ,                newWP = b(ix,iy,iz).w;
-        const Real oldDX = a(ix,iy,iz).uFluid, oldUP = a(ix,iy,iz).uPre;
-        const Real oldDY = a(ix,iy,iz).vFluid, oldVP = a(ix,iy,iz).vPre;
-        const Real oldDZ = a(ix,iy,iz).wFluid, oldWP = a(ix,iy,iz).wPre;
-        a(ix,iy,iz).uFluid = newDX;            a(ix,iy,iz).uPre = newUP;
-        a(ix,iy,iz).vFluid = newDY;            a(ix,iy,iz).vPre = newVP;
-        a(ix,iy,iz).wFluid = newDZ;            a(ix,iy,iz).wPre = newWP;
+      const Real FPX = penalFac * (U_TOT[0] - t(ix,iy,iz).uPres);
+      const Real FPY = penalFac * (U_TOT[1] - t(ix,iy,iz).vPres);
+      const Real FPZ = penalFac * (U_TOT[2] - t(ix,iy,iz).wPres);
+      const Real UPenal = b(ix,iy,iz).u + dt * FPX;
+      const Real VPenal = b(ix,iy,iz).v + dt * FPY;
+      const Real WPenal = b(ix,iy,iz).w + dt * FPZ;
+      const Real DPX = UPenal - t(ix,iy,iz).uPenl;
+      const Real DPY = VPenal - t(ix,iy,iz).vPenl;
+      const Real DPZ = WPenal - t(ix,iy,iz).wPenl;
 
-        if(iter > 0)
-        {
-          if( (UP-oldUP)*oldDX > 0 ) { // what step should have i taken at k-1?
-            const Real alpha = (UP-oldUP) / oldDX;
-            const Real safeAlpha = alpha>1 ? 2*alpha/(1+alpha) : 0.5*(1+alpha);
-            b(ix,iy,iz).u += safeAlpha * DPX;
-          } else b(ix,iy,iz).u += 0.8*DPX; // probably oscillations
+      t(ix,iy,iz).uPenl = UPenal;
+      t(ix,iy,iz).vPenl = VPenal;
+      t(ix,iy,iz).wPenl = WPenal;
+      b(ix,iy,iz).tmpU = dt*FPX - UDEF[iz][iy][ix][0]; // used to compute press
+      b(ix,iy,iz).tmpV = dt*FPY - UDEF[iz][iy][ix][1]; // rhs: includes penal
+      b(ix,iy,iz).tmpW = dt*FPZ - UDEF[iz][iy][ix][2]; // force-udef, without X
 
-          if( (VP-oldVP)*oldDY > 0 ) { // what step should have i taken at k-1?
-            const Real alpha = (VP-oldVP) / oldDY;
-            const Real safeAlpha = alpha>1 ? 2*alpha/(1+alpha) : 0.5*(1+alpha);
-            b(ix,iy,iz).v += safeAlpha * DPY;
-          } else b(ix,iy,iz).v += 0.8*DPY; // probably oscillations
-
-          if( (WP-oldWP)*oldDZ > 0 ) { // what step should have i taken at k-1?
-            const Real alpha = (WP-oldWP) / oldDZ;
-            const Real safeAlpha = alpha>1 ? 2*alpha/(1+alpha) : 0.5*(1+alpha);
-            b(ix,iy,iz).w += safeAlpha * DPZ;
-          } else b(ix,iy,iz).w += 0.8*DPZ; // probably oscillations
-        }
-        else
-      #endif
-        {
-          b(ix,iy,iz).u = UP; // u,v,w go to Poisson solver
-          b(ix,iy,iz).v = VP; // therefore they are vel b4
-          b(ix,iy,iz).w = WP; // press, but with penaliz.
-        }
-      MX += std::pow(b(ix,iy,iz).u, 2); DMX += std::pow( DPX, 2 );
-      MY += std::pow(b(ix,iy,iz).v, 2); DMY += std::pow( DPY, 2 );
-      MZ += std::pow(b(ix,iy,iz).w, 2); DMZ += std::pow( DPZ, 2 );
+      FX += dv * CHI[iz][iy][ix] * FPX;
+      FY += dv * CHI[iz][iy][ix] * FPY;
+      FZ += dv * CHI[iz][iy][ix] * FPZ;
+      TX += dv * CHI[iz][iy][ix] * ( p[1] * FPZ - p[2] * FPY );
+      TY += dv * CHI[iz][iy][ix] * ( p[2] * FPX - p[0] * FPZ );
+      TZ += dv * CHI[iz][iy][ix] * ( p[0] * FPY - p[1] * FPX );
+      MX += std::pow(UPenal, 2); DMX += std::pow(DPX, 2);
+      MY += std::pow(VPenal, 2); DMY += std::pow(DPY, 2);
+      MZ += std::pow(WPenal, 2); DMZ += std::pow(DPZ, 2);
     }
   }
 };
@@ -505,6 +517,7 @@ struct KernelPenalization : public ObstacleVisitor
 
 void IterativePressurePenalization::initializeFields()
 {
+  /*
   sim.startProfiler("PresRHS Udef");
   if(sim.obstacle_vector->nObstacles() > 0)
   { //zero fields, going to contain Udef:
@@ -531,6 +544,7 @@ void IterativePressurePenalization::initializeFields()
     delete visitor;
   }
   sim.stopProfiler();
+  */
 }
 
 IterativePressurePenalization::IterativePressurePenalization(SimulationData & s) : Operator(s)
@@ -558,12 +572,6 @@ IterativePressurePenalization::IterativePressurePenalization(SimulationData & s)
   penalizationGrid = new PenalizationGridMPI(
     sim.nprocsx, sim.nprocsy, sim.nprocsz, sim.local_bpdx,
     sim.local_bpdy, sim.local_bpdz, sim.maxextent, sim.app_comm);
-
-  #ifdef EXTRAFAST
-    accelerationGrid = new PenalizationGridMPI(
-      sim.nprocsx, sim.nprocsy, sim.nprocsz, sim.local_bpdx,
-      sim.local_bpdy, sim.local_bpdz, sim.maxextent, sim.app_comm);
-  #endif
 }
 
 void IterativePressurePenalization::operator()(const double dt)
@@ -615,7 +623,7 @@ void IterativePressurePenalization::operator()(const double dt)
       double M[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
       #pragma omp parallel reduction (+ : M[:6])
       { // each thread needs to call its own non-const operator() function
-        KernelPenalization K(dt*sim.lambda, sim.obstacle_vector, iter, penalizationGrid, accelerationGrid);
+        KernelPenalization K(sim.lambda, dt, sim.obstacle_vector, iter, penalizationGrid, accelerationGrid);
         #pragma omp for schedule(dynamic, 1)
         for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
         M[0] += K.MX; M[3] += K.DMX;
@@ -625,6 +633,11 @@ void IterativePressurePenalization::operator()(const double dt)
       const auto comm = sim.grid->getCartComm();
       MPI_Allreduce(MPI_IN_PLACE, M, 6, MPI_DOUBLE, MPI_SUM, comm);
       relDF = std::sqrt( (M[3]+M[4]+M[5]) / (EPS + M[0]+M[1]+M[2]) );
+
+      ObstacleVisitor*K = new KernelFinalizePenalizationForce(sim.grid);
+      sim.obstacle_vector->Accept(K); // accept you son of a french cow
+      delete K;
+
     }
     sim.stopProfiler();
 
@@ -653,7 +666,7 @@ void IterativePressurePenalization::operator()(const double dt)
 
   sim.startProfiler("GradP"); //pressure correction dudt* = - grad P / rho
   {
-    const KernelGradP K(dt);
+    const KernelGradP K(dt, penalizationGrid);
     compute<KernelGradP>(K);
   }
   sim.stopProfiler();
