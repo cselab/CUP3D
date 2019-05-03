@@ -486,9 +486,10 @@ struct KernelPenalization : public ObstacleVisitor
       const Real FPX = penalFac * (U_TOT[0] - t(ix,iy,iz).uPres);
       const Real FPY = penalFac * (U_TOT[1] - t(ix,iy,iz).vPres);
       const Real FPZ = penalFac * (U_TOT[2] - t(ix,iy,iz).wPres);
-      const Real UPenal = b(ix,iy,iz).u + dt * FPX;
-      const Real VPenal = b(ix,iy,iz).v + dt * FPY;
-      const Real WPenal = b(ix,iy,iz).w + dt * FPZ;
+
+      const Real UPenal = b(ix,iy,iz).u + dt * CHI[iz][iy][ix] * FPX;
+      const Real VPenal = b(ix,iy,iz).v + dt * CHI[iz][iy][ix] * FPY;
+      const Real WPenal = b(ix,iy,iz).w + dt * CHI[iz][iy][ix] * FPZ;
       const Real DPX = UPenal - t(ix,iy,iz).uPenl;
       const Real DPY = VPenal - t(ix,iy,iz).vPenl;
       const Real DPZ = WPenal - t(ix,iy,iz).wPenl;
