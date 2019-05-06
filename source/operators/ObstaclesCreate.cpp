@@ -27,7 +27,28 @@ class KernelCharacteristicFunction
 
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
+  #ifdef STAGGERED_GRID
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, true, 1, 5);
+  #else
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 5);
+  #endif
+
+  static Real computeCHI(const Real h, const Real dist,
+                         const Real distPx, const Real distMx,
+                         const Real distPy, const Real distMy,
+                         const Real distPz, const Real distMz)
+  {
+    if (dist > +2*h || dist < -2*h) return dist > 0 ? 1 : 0;
+
+    Real gradUX = distPx-distMx, gradUY = distPy-distMy, gradUZ = distPz-distMz;
+    const Real IplusX = distPx<0? 0 : distPx, IminuX = distMx<0? 0 : distMx;
+    const Real IplusY = distPy<0? 0 : distPy, IminuY = distMy<0? 0 : distMy;
+    const Real IplusZ = distPz<0? 0 : distPz, IminuZ = distMz<0? 0 : distMz;
+    // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
+    Real gradIX = IplusX-IminuX, gradIY = IplusY-IminuY, gradIZ = IplusZ-IminuZ;
+    const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
+    return (gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ)/std::max(gradUSq, EPS);
+  }
 
   KernelCharacteristicFunction(const v_v_ob& v) : vec_obstacleBlocks(v) {}
 
@@ -49,37 +70,37 @@ class KernelCharacteristicFunction
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       {
+        // here I read fist from SDF to deal with obstacles sharing block
+        CHI[iz][iy][ix] = computeCHI(h, SDF[iz][iy][ix],
+          lab(ix+1,iy,iz).tmpU, lab(ix-1,iy,iz).tmpU,
+          lab(ix,iy+1,iz).tmpU, lab(ix,iy-1,iz).tmpU,
+          lab(ix,iy,iz+1).tmpU, lab(ix,iy,iz-1).tmpU);
+
+        #ifdef STAGGERED_GRID
+          o->chiX[iz][iy][ix] = computeCHI(h,
+            (SDF[iz][iy][ix]      + lab(ix-1,iy,iz).tmpU ) /2,
+            SDF[iz][iy][ix], lab(ix-1,iy,iz).tmpU,
+            (lab(ix,iy+1,iz).tmpU + lab(ix-1,iy+1,iz).tmpU ) /2,
+            (lab(ix,iy-1,iz).tmpU + lab(ix-1,iy-1,iz).tmpU ) /2,
+            (lab(ix,iy,iz+1).tmpU + lab(ix-1,iy,iz+1).tmpU ) /2,
+            (lab(ix,iy,iz-1).tmpU + lab(ix-1,iy,iz-1).tmpU ) /2);
+          o->chiY[iz][iy][ix] = computeCHI(h,
+            (SDF[iz][iy][ix] + lab(ix,iy-1,iz).tmpU ) /2,
+            (lab(ix+1,iy,iz).tmpU + lab(ix+1,iy-1,iz).tmpU ) /2,
+            (lab(ix-1,iy,iz).tmpU + lab(ix-1,iy-1,iz).tmpU ) /2,
+            SDF[iz][iy][ix], lab(ix,iy-1,iz).tmpU,
+            (lab(ix,iy,iz+1).tmpU + lab(ix,iy-1,iz+1).tmpU ) /2,
+            (lab(ix,iy,iz-1).tmpU + lab(ix,iy-1,iz-1).tmpU ) /2);
+          o->chiZ[iz][iy][ix] = computeCHI(h,
+            (SDF[iz][iy][ix] + lab(ix,iy,iz-1).tmpU ) /2,
+            (lab(ix+1,iy,iz).tmpU + lab(ix+1,iy,iz-1).tmpU ) /2,
+            (lab(ix-1,iy,iz).tmpU + lab(ix-1,iy,iz-1).tmpU ) /2,
+            (lab(ix,iy+1,iz).tmpU + lab(ix,iy+1,iz-1).tmpU ) /2,
+            (lab(ix,iy-1,iz).tmpU + lab(ix,iy-1,iz-1).tmpU ) /2,
+            SDF[iz][iy][ix], lab(ix,iy,iz-1).tmpU);
+        #endif
+
         Real p[3]; info.pos(p, ix,iy,iz);
-        // here I read SDF to deal with obstacles sharing block
-        if (SDF[iz][iy][ix] > +2*h || SDF[iz][iy][ix] < -2*h)
-        {
-          CHI[iz][iy][ix] = SDF[iz][iy][ix] > 0 ? 1 : 0;
-        }
-        else
-        {
-          const Real distPx =lab(ix+1,iy,iz).tmpU, distMx =lab(ix-1,iy,iz).tmpU;
-          const Real distPy =lab(ix,iy+1,iz).tmpU, distMy =lab(ix,iy-1,iz).tmpU;
-          const Real distPz =lab(ix,iy,iz+1).tmpU, distMz =lab(ix,iy,iz-1).tmpU;
-          // gradU
-          const Real gradUX = inv2h*(distPx - distMx);
-          const Real gradUY = inv2h*(distPy - distMy);
-          const Real gradUZ = inv2h*(distPz - distMz);
-          const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
-
-          const Real IplusX = distPx < 0 ? 0 : distPx;
-          const Real IminuX = distMx < 0 ? 0 : distMx;
-          const Real IplusY = distPy < 0 ? 0 : distPy;
-          const Real IminuY = distMy < 0 ? 0 : distMy;
-          const Real IplusZ = distPz < 0 ? 0 : distPz;
-          const Real IminuZ = distMz < 0 ? 0 : distMz;
-          // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
-          const Real gradIX = inv2h*(IplusX - IminuX);
-          const Real gradIY = inv2h*(IplusY - IminuY);
-          const Real gradIZ = inv2h*(IplusZ - IminuZ);
-          const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
-          CHI[iz][iy][ix]  =        numH/gradUSq;
-        }
-
         b(ix,iy,iz).chi = std::max(CHI[iz][iy][ix], b(ix,iy,iz).chi);
         o->CoM_x += CHI[iz][iy][ix] * p[0];
         o->CoM_y += CHI[iz][iy][ix] * p[1];
@@ -113,6 +134,42 @@ class KernelCharacteristicFunction
         const Real Delta = fac1 * numD/gradUSq; //h^3 * Delta
         if (Delta>EPS) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
       }
+
+      #ifdef STAGGERED_GRID
+        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for(int ix=FluidBlock::sizeX; ix<=FluidBlock::sizeX; ++ix)
+          o->chiX[iz][iy][ix] = computeCHI(h,
+            (lab(ix,iy,iz).tmpU   + lab(ix-1,iy,iz).tmpU   ) /2,
+             lab(ix,iy,iz).tmpU,    lab(ix-1,iy,iz).tmpU,
+            (lab(ix,iy+1,iz).tmpU + lab(ix-1,iy+1,iz).tmpU ) /2,
+            (lab(ix,iy-1,iz).tmpU + lab(ix-1,iy-1,iz).tmpU ) /2,
+            (lab(ix,iy,iz+1).tmpU + lab(ix-1,iy,iz+1).tmpU ) /2,
+            (lab(ix,iy,iz-1).tmpU + lab(ix-1,iy,iz-1).tmpU ) /2);
+
+        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for(int iy=FluidBlock::sizeY; iy<=FluidBlock::sizeY; ++iy)
+        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+          o->chiY[iz][iy][ix] = computeCHI(h,
+            (lab(ix,iy,iz).tmpU   + lab(ix,iy-1,iz).tmpU   ) /2,
+            (lab(ix+1,iy,iz).tmpU + lab(ix+1,iy-1,iz).tmpU ) /2,
+            (lab(ix-1,iy,iz).tmpU + lab(ix-1,iy-1,iz).tmpU ) /2,
+             lab(ix,iy,iz).tmpU   , lab(ix,iy-1,iz).tmpU,
+            (lab(ix,iy,iz+1).tmpU + lab(ix,iy-1,iz+1).tmpU ) /2,
+            (lab(ix,iy,iz-1).tmpU + lab(ix,iy-1,iz-1).tmpU ) /2);
+
+        for(int iz=FluidBlock::sizeZ; iz<=FluidBlock::sizeZ; ++iz)
+        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+          o->chiZ[iz][iy][ix] = computeCHI(h,
+            (lab(ix  ,iy,iz).tmpU + lab(ix  ,iy,iz-1).tmpU ) /2,
+            (lab(ix+1,iy,iz).tmpU + lab(ix+1,iy,iz-1).tmpU ) /2,
+            (lab(ix-1,iy,iz).tmpU + lab(ix-1,iy,iz-1).tmpU ) /2,
+            (lab(ix,iy+1,iz).tmpU + lab(ix,iy+1,iz-1).tmpU ) /2,
+            (lab(ix,iy-1,iz).tmpU + lab(ix,iy-1,iz-1).tmpU ) /2,
+             lab(ix,iy  ,iz).tmpU , lab(ix,iy  ,iz-1).tmpU);
+      #endif
+
       o->allocate_surface();
     }
   }

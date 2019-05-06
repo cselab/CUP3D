@@ -21,6 +21,12 @@ class PoissonSolverMixed : public PoissonSolver
   inline bool DFT_X() const { return sim.BCx_flag == periodic; }
   inline bool DFT_Y() const { return sim.BCy_flag == periodic; }
   inline bool DFT_Z() const { return sim.BCz_flag == periodic; }
+  #ifdef STAGGERED_GRID
+    float * const COScoefX = new float[ gsize[0] ];
+    float * const COScoefY = new float[ local_n1 ];
+    float * const COScoefZ = new float[ gsize[2] ];
+  #endif
+
  protected:
 
   template<bool DFTX, bool DFTY, bool DFTZ> void _solve()
@@ -51,8 +57,7 @@ class PoissonSolverMixed : public PoissonSolver
       const Real rkx = ( kx + (DFTX ? 0 : (Real)0.5 ) ) * waveFactX;
       const Real rky = ( ky + (DFTY ? 0 : (Real)0.5 ) ) * waveFactY;
       const Real rkz = ( kz + (DFTZ ? 0 : (Real)0.5 ) ) * waveFactZ;
-      const Real kinv = -1/(rkx*rkx + rky*rky + rkz*rkz);
-      in_out[linidx] *= kinv*norm_factor;
+      in_out[linidx] *= - norm_factor/(rkx*rkx + rky*rky + rkz*rkz);
     }
     //if (shifty==0 && DFTX && DFTY && DFTZ) in_out[0] = 0;
     if (shifty==0) in_out[0] = 0;

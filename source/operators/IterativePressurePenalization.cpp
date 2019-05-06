@@ -19,6 +19,8 @@
 #include "poisson/PoissonSolverMixed.h"
 #include "poisson/PoissonSolverHYPREMixed.h"
 #include "poisson/PoissonSolverPETSCMixed.h"
+#include "Cubism/HDF5SliceDumperMPI.h"
+#include <iomanip>
 
 // define this to update obstacles with old (mrag-like) approach of integrating
 // momenta contained in chi before the penalization step:
@@ -128,11 +130,20 @@ struct KernelIterateGradP
     PenalizationBlock& t = * getPenalBlockPtr(penGrid, info.blockID);
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-       // p contains the pressure correction after the Poisson solver
-      t(ix,iy,iz).uPres = l(ix,iy,iz).u + F * (l(ix+1,iy,iz).p-l(ix-1,iy,iz).p);
-      t(ix,iy,iz).vPres = l(ix,iy,iz).v + F * (l(ix,iy+1,iz).p-l(ix,iy-1,iz).p);
-      t(ix,iy,iz).wPres = l(ix,iy,iz).w + F * (l(ix,iy,iz+1).p-l(ix,iy,iz-1).p);
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
+      #ifdef STAGGERED_GRID
+        const Real dU = 2*F * (l(ix,iy,iz).p-l(ix-1,iy,iz).p);
+        const Real dV = 2*F * (l(ix,iy,iz).p-l(ix,iy-1,iz).p);
+        const Real dW = 2*F * (l(ix,iy,iz).p-l(ix,iy,iz-1).p);
+      #else
+        const Real dU = F * (l(ix+1,iy,iz).p-l(ix-1,iy,iz).p);
+        const Real dV = F * (l(ix,iy+1,iz).p-l(ix,iy-1,iz).p);
+        const Real dW = F * (l(ix,iy,iz+1).p-l(ix,iy,iz-1).p);
+      #endif
+      t(ix,iy,iz).uPres = l(ix,iy,iz).u + (1-l(ix,iy,iz).chi) * dU;
+      t(ix,iy,iz).vPres = l(ix,iy,iz).v + (1-l(ix,iy,iz).chi) * dV;
+      t(ix,iy,iz).wPres = l(ix,iy,iz).w + (1-l(ix,iy,iz).chi) * dW;
     }
   }
 };
@@ -263,22 +274,18 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     for (size_t i=0; i<oBlock.size(); i++)
     {
       if(oBlock[i] == nullptr) continue;
-      int k = 0;
-      M[k++] += oBlock[i]->V ;
-      M[k++] += oBlock[i]->FX; M[k++] += oBlock[i]->FY; M[k++] += oBlock[i]->FZ;
-      M[k++] += oBlock[i]->TX; M[k++] += oBlock[i]->TY; M[k++] += oBlock[i]->TZ;
-      M[k++] += oBlock[i]->J0; M[k++] += oBlock[i]->J1; M[k++] += oBlock[i]->J2;
-      M[k++] += oBlock[i]->J3; M[k++] += oBlock[i]->J4; M[k++] += oBlock[i]->J5;
+      M[ 0] += oBlock[i]->V ;
+      M[ 1] += oBlock[i]->FX; M[ 2] += oBlock[i]->FY; M[ 3] += oBlock[i]->FZ;
+      M[ 4] += oBlock[i]->TX; M[ 5] += oBlock[i]->TY; M[ 6] += oBlock[i]->TZ;
+      M[ 7] += oBlock[i]->J0; M[ 8] += oBlock[i]->J1; M[ 9] += oBlock[i]->J2;
+      M[10] += oBlock[i]->J3; M[11] += oBlock[i]->J4; M[12] += oBlock[i]->J5;
       #ifndef EXPL_INTEGRATE_MOM
-        M[k++]+=oBlock[i]->GfX;
-        M[k++]+=oBlock[i]->GpX; M[k++]+=oBlock[i]->GpY; M[k++]+=oBlock[i]->GpZ;
-        M[k++]+=oBlock[i]->Gj0; M[k++]+=oBlock[i]->Gj1; M[k++]+=oBlock[i]->Gj2;
-        M[k++]+=oBlock[i]->Gj3; M[k++]+=oBlock[i]->Gj4; M[k++]+=oBlock[i]->Gj5;
-        M[k++]+=oBlock[i]->GuX; M[k++]+=oBlock[i]->GuY; M[k++]+=oBlock[i]->GuZ;
-        M[k++]+=oBlock[i]->GaX; M[k++]+=oBlock[i]->GaY; M[k++]+=oBlock[i]->GaZ;
-        assert(k==29);
-      #else
-        assert(k==13);
+        M[13]+= oBlock[i]->GfX;
+        M[14]+= oBlock[i]->GpX; M[15]+= oBlock[i]->GpY; M[16]+= oBlock[i]->GpZ;
+        M[17]+= oBlock[i]->Gj0; M[18]+= oBlock[i]->Gj1; M[19]+= oBlock[i]->Gj2;
+        M[20]+= oBlock[i]->Gj3; M[21]+= oBlock[i]->Gj4; M[22]+= oBlock[i]->Gj5;
+        M[23]+= oBlock[i]->GuX; M[24]+= oBlock[i]->GuY; M[25]+= oBlock[i]->GuZ;
+        M[26]+= oBlock[i]->GaX; M[27]+= oBlock[i]->GaY; M[28]+= oBlock[i]->GaZ;
       #endif
     }
     const auto comm = grid->getCartComm();
@@ -321,7 +328,7 @@ struct KernelFinalizePenalizationForce : public ObstacleVisitor
     static constexpr int nQoI = 6;
     double M[nQoI] = { 0 };
     const auto& oBlock = obst->getObstacleBlocks();
-    #pragma omp parallel for schedule(static,1) reduction(+ : M[:nQoI])
+    #pragma omp parallel for schedule(static) reduction(+ : M[:nQoI])
     for (size_t i=0; i<oBlock.size(); ++i) {
       if(oBlock[i] == nullptr) continue;
       M[0] += oBlock[i]->FX; M[1] += oBlock[i]->FY; M[2] += oBlock[i]->FZ;
@@ -413,6 +420,7 @@ struct KernelPenalization : public ObstacleVisitor
       t(ix,iy,iz).uPres = dt * (uNext - U_TOT[0]);
       t(ix,iy,iz).vPres = dt * (vNext - U_TOT[1]);
       t(ix,iy,iz).wPres = dt * (wNext - U_TOT[2]);
+      const Real oldF[]= {b(ix,iy,iz).tmpU, b(ix,iy,iz).tmpV, b(ix,iy,iz).tmpW};
       b(ix,iy,iz).tmpU = dt * FPX;
       b(ix,iy,iz).tmpV = dt * FPY;
       b(ix,iy,iz).tmpW = dt * FPZ;
@@ -423,9 +431,12 @@ struct KernelPenalization : public ObstacleVisitor
       TX += dv * ( p[1] * FPZ - p[2] * FPY );
       TY += dv * ( p[2] * FPX - p[0] * FPZ );
       TZ += dv * ( p[0] * FPY - p[1] * FPX );
-      MX += std::pow(X * (uNext - U_TOT[0]), 2); DMX += std::pow(uNext, 2);
-      MY += std::pow(X * (vNext - U_TOT[1]), 2); DMY += std::pow(vNext, 2);
-      MZ += std::pow(X * (wNext - U_TOT[2]), 2); DMZ += std::pow(wNext, 2);
+      MX  += std::pow(b(ix,iy,iz).tmpU        , 2);
+      DMX += std::pow(b(ix,iy,iz).tmpU-oldF[0], 2);
+      MY  += std::pow(b(ix,iy,iz).tmpV        , 2);
+      DMY += std::pow(b(ix,iy,iz).tmpV-oldF[1], 2);
+      MZ  += std::pow(b(ix,iy,iz).tmpW        , 2);
+      DMZ += std::pow(b(ix,iy,iz).tmpW-oldF[2], 2);
     }
   }
 };
@@ -486,12 +497,12 @@ struct KernelPressureRHS
       const FluidElement &LS = lab(ix,  iy-1,iz  ), &LN = lab(ix,  iy+1,iz  );
       const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
       const Real divFdt = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
-      const Real dXx = LE.chi-LW.chi, dXy = LN.chi-LS.chi, dXz = LB.chi-LF.chi;
-      const Real deltaUgradX = dXx * P.uPres + dXy * P.vPres + dXz * P.wPres;
-      ret[SZ*iz + SY*iy + SX*ix] = fac * ( P.rhs0 + divFdt + deltaUgradX );
+      //const Real dXx = LE.chi-LW.chi, dXy = LN.chi-LS.chi, dXz = LB.chi-LF.chi;
+      //const Real deltaUgradX = dXx * P.uPres + dXy * P.vPres + dXz * P.wPres;
+      ret[SZ*iz + SY*iy + SX*ix] = fac * ( P.rhs0 + divFdt );//+ deltaUgradX );
       //o(ix,iy,iz).p = ret[SZ*iz + SY*iy + SX*ix];
     }
-
+    /*
     if( _is_touching(o) )
     {
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -499,6 +510,7 @@ struct KernelPressureRHS
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         ret[SZ*iz + SY*iy + SX*ix] *= fade(info,ix,iy,iz);
     }
+    */
   }
 };
 
@@ -518,13 +530,20 @@ struct KernelGradP
     const Real fac = - 0.5 * dt / info.h_gridpoint;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-       const Real dUpres = fac * ( lab(ix+1,iy,iz).p - lab(ix-1,iy,iz).p );
-       const Real dVpres = fac * ( lab(ix,iy+1,iz).p - lab(ix,iy-1,iz).p );
-       const Real dWpres = fac * ( lab(ix,iy,iz+1).p - lab(ix,iy,iz-1).p );
-       o(ix,iy,iz).u = o(ix,iy,iz).u + o(ix,iy,iz).tmpU + dUpres;
-       o(ix,iy,iz).v = o(ix,iy,iz).v + o(ix,iy,iz).tmpV + dVpres;
-       o(ix,iy,iz).w = o(ix,iy,iz).w + o(ix,iy,iz).tmpW + dWpres;
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
+      #ifdef STAGGERED_GRID
+      const Real dUpres = 2*fac * ( lab(ix,iy,iz).p - lab(ix-1,iy,iz).p );
+      const Real dVpres = 2*fac * ( lab(ix,iy,iz).p - lab(ix,iy-1,iz).p );
+      const Real dWpres = 2*fac * ( lab(ix,iy,iz).p - lab(ix,iy,iz-1).p );
+      #else
+      const Real dUpres = fac * ( lab(ix+1,iy,iz).p - lab(ix-1,iy,iz).p );
+      const Real dVpres = fac * ( lab(ix,iy+1,iz).p - lab(ix,iy-1,iz).p );
+      const Real dWpres = fac * ( lab(ix,iy,iz+1).p - lab(ix,iy,iz-1).p );
+      #endif
+      o(ix,iy,iz).u = o(ix,iy,iz).u + o(ix,iy,iz).tmpU + (1-lab(ix,iy,iz).chi) * dUpres;
+      o(ix,iy,iz).v = o(ix,iy,iz).v + o(ix,iy,iz).tmpV + (1-lab(ix,iy,iz).chi) * dVpres;
+      o(ix,iy,iz).w = o(ix,iy,iz).w + o(ix,iy,iz).tmpW + (1-lab(ix,iy,iz).chi) * dWpres;
     }
   }
 };
@@ -668,6 +687,17 @@ void IterativePressurePenalization::operator()(const double dt)
       compute<KernelPressureRHS>(K);
       sim.stopProfiler();
     }
+
+    /*
+    std::stringstream ssF;
+    ssF<<"p_step"<<std::setfill('0')<<std::setw(9)<<sim.step<<"_iter"<<iter;
+    for (const auto& slice : sim.m_slices) {
+      DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
+        slice, sim.step, sim.time,
+        StreamerPressure::prefix()+ssF.str(),
+        sim.path4serialization);
+    }
+    */
 
     pressureSolver->solve();
 
