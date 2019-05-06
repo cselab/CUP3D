@@ -19,12 +19,12 @@ using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 
 struct KernelPenalization : public ObstacleVisitor
 {
-  const double lamdt;
+  const Real dt, lambda;
   ObstacleVector * const obstacle_vector;
   const cubism::BlockInfo * info_ptr = nullptr;
 
-  KernelPenalization(double lambdadt, ObstacleVector* ov) :
-    lamdt(lambdadt), obstacle_vector(ov) {}
+  KernelPenalization(double _dt, double _lambda, ObstacleVector* ov) :
+    dt(_dt), lambda(_lambda), obstacle_vector(ov) {}
 
   void operator()(const cubism::BlockInfo& info)
   {
@@ -41,7 +41,7 @@ struct KernelPenalization : public ObstacleVisitor
     const BlockInfo& info = * info_ptr;
     assert(info_ptr not_eq nullptr);
     const auto& obstblocks = obstacle->getObstacleBlocks();
-    const ObstacleBlock*const o = obstblocks[info.blockID];
+    ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;
 
     const CHIMAT & __restrict__ CHI = o->chi;
@@ -50,6 +50,11 @@ struct KernelPenalization : public ObstacleVisitor
     const std::array<double,3> CM = obstacle->getCenterOfMass();
     const std::array<double,3> vel = obstacle->getTranslationVelocity();
     const std::array<double,3> omega = obstacle->getAngularVelocity();
+    const Real dv = std::pow(info.h_gridpoint, 3);
+
+    double &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
+    double &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
+    FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -67,12 +72,51 @@ struct KernelPenalization : public ObstacleVisitor
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
+      const Real penalFac = X*lambda / (1 + X*lambda*dt);
+      const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u);
+      const Real FPY = penalFac * (U_TOT[1] - b(ix,iy,iz).v);
+      const Real FPZ = penalFac * (U_TOT[2] - b(ix,iy,iz).w);
       // What if two obstacles overlap? Let's plus equal. We will need a
       // repulsion term of the velocity at some point in the code.
-      b(ix,iy,iz).u = (b(ix,iy,iz).u + X*lamdt * U_TOT[0]) / (1 + X*lamdt);
-      b(ix,iy,iz).v = (b(ix,iy,iz).v + X*lamdt * U_TOT[1]) / (1 + X*lamdt);
-      b(ix,iy,iz).w = (b(ix,iy,iz).w + X*lamdt * U_TOT[2]) / (1 + X*lamdt);
+      b(ix,iy,iz).u = b(ix,iy,iz).u + dt * FPX;
+      b(ix,iy,iz).v = b(ix,iy,iz).v + dt * FPY;
+      b(ix,iy,iz).w = b(ix,iy,iz).w + dt * FPZ;
+
+      FX += dv * FPX;
+      FY += dv * FPY;
+      FZ += dv * FPZ;
+      TX += dv * ( p[1] * FPZ - p[2] * FPY );
+      TY += dv * ( p[2] * FPX - p[0] * FPZ );
+      TZ += dv * ( p[0] * FPY - p[1] * FPX );
     }
+  }
+};
+
+struct KernelFinalizePenalizationForce : public ObstacleVisitor
+{
+  FluidGridMPI * const grid;
+
+  KernelFinalizePenalizationForce(FluidGridMPI*g) : grid(g) { }
+
+  void visit(Obstacle* const obst)
+  {
+    static constexpr int nQoI = 6;
+    double M[nQoI] = { 0 };
+    const auto& oBlock = obst->getObstacleBlocks();
+    #pragma omp parallel for schedule(static) reduction(+ : M[:nQoI])
+    for (size_t i=0; i<oBlock.size(); ++i) {
+      if(oBlock[i] == nullptr) continue;
+      M[0] += oBlock[i]->FX; M[1] += oBlock[i]->FY; M[2] += oBlock[i]->FZ;
+      M[3] += oBlock[i]->TX; M[4] += oBlock[i]->TY; M[5] += oBlock[i]->TZ;
+    }
+    const auto comm = grid->getCartComm();
+    MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_DOUBLE, MPI_SUM, comm);
+    obst->force[0]  = M[0];
+    obst->force[1]  = M[1];
+    obst->force[2]  = M[2];
+    obst->torque[0] = M[3];
+    obst->torque[1] = M[4];
+    obst->torque[2] = M[5];
   }
 };
 
@@ -87,10 +131,15 @@ void Penalization::operator()(const double dt)
   sim.startProfiler("Penalization");
   #pragma omp parallel
   { // each thread needs to call its own non-const operator() function
-    KernelPenalization K(dt*sim.lambda, sim.obstacle_vector);
+    KernelPenalization K(dt, sim.lambda, sim.obstacle_vector);
     #pragma omp for schedule(dynamic, 1)
     for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
   }
+
+  ObstacleVisitor*K = new KernelFinalizePenalizationForce(sim.grid);
+  sim.obstacle_vector->Accept(K); // accept you son of a french cow
+  delete K;
+
   sim.stopProfiler();
   check("Penalization");
 }

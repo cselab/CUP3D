@@ -132,6 +132,7 @@ struct KernelIterateGradP
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
+      //const Real chiFac = 1 - l(ix,iy,iz).chi;
       #ifdef STAGGERED_GRID
         const Real dU = 2*F * (l(ix,iy,iz).p-l(ix-1,iy,iz).p);
         const Real dV = 2*F * (l(ix,iy,iz).p-l(ix,iy-1,iz).p);
@@ -141,9 +142,9 @@ struct KernelIterateGradP
         const Real dV = F * (l(ix,iy+1,iz).p-l(ix,iy-1,iz).p);
         const Real dW = F * (l(ix,iy,iz+1).p-l(ix,iy,iz-1).p);
       #endif
-      t(ix,iy,iz).uPres = l(ix,iy,iz).u + (1-l(ix,iy,iz).chi) * dU;
-      t(ix,iy,iz).vPres = l(ix,iy,iz).v + (1-l(ix,iy,iz).chi) * dV;
-      t(ix,iy,iz).wPres = l(ix,iy,iz).w + (1-l(ix,iy,iz).chi) * dW;
+      t(ix,iy,iz).uPres = l(ix,iy,iz).u + dU;
+      t(ix,iy,iz).vPres = l(ix,iy,iz).v + dV;
+      t(ix,iy,iz).wPres = l(ix,iy,iz).w + dW;
     }
   }
 };
@@ -499,7 +500,7 @@ struct KernelPressureRHS
       const Real divFdt = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
       //const Real dXx = LE.chi-LW.chi, dXy = LN.chi-LS.chi, dXz = LB.chi-LF.chi;
       //const Real deltaUgradX = dXx * P.uPres + dXy * P.vPres + dXz * P.wPres;
-      ret[SZ*iz + SY*iy + SX*ix] = fac * ( P.rhs0 + divFdt );//+ deltaUgradX );
+      ret[SZ*iz + SY*iy + SX*ix] = fac * (P.rhs0 + divFdt); //+deltaUgradX );
       //o(ix,iy,iz).p = ret[SZ*iz + SY*iy + SX*ix];
     }
     /*
@@ -532,18 +533,19 @@ struct KernelGradP
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
+      //const Real chiFac = 1 - lab(ix,iy,iz).chi;
       #ifdef STAGGERED_GRID
       const Real dUpres = 2*fac * ( lab(ix,iy,iz).p - lab(ix-1,iy,iz).p );
       const Real dVpres = 2*fac * ( lab(ix,iy,iz).p - lab(ix,iy-1,iz).p );
       const Real dWpres = 2*fac * ( lab(ix,iy,iz).p - lab(ix,iy,iz-1).p );
       #else
-      const Real dUpres = fac * ( lab(ix+1,iy,iz).p - lab(ix-1,iy,iz).p );
-      const Real dVpres = fac * ( lab(ix,iy+1,iz).p - lab(ix,iy-1,iz).p );
-      const Real dWpres = fac * ( lab(ix,iy,iz+1).p - lab(ix,iy,iz-1).p );
+      const Real dUpres = fac * (lab(ix+1,iy,iz).p - lab(ix-1,iy,iz).p);
+      const Real dVpres = fac * (lab(ix,iy+1,iz).p - lab(ix,iy-1,iz).p);
+      const Real dWpres = fac * (lab(ix,iy,iz+1).p - lab(ix,iy,iz-1).p);
       #endif
-      o(ix,iy,iz).u = o(ix,iy,iz).u + o(ix,iy,iz).tmpU + (1-lab(ix,iy,iz).chi) * dUpres;
-      o(ix,iy,iz).v = o(ix,iy,iz).v + o(ix,iy,iz).tmpV + (1-lab(ix,iy,iz).chi) * dVpres;
-      o(ix,iy,iz).w = o(ix,iy,iz).w + o(ix,iy,iz).tmpW + (1-lab(ix,iy,iz).chi) * dWpres;
+      o(ix,iy,iz).u = o(ix,iy,iz).u + o(ix,iy,iz).tmpU + dUpres;
+      o(ix,iy,iz).v = o(ix,iy,iz).v + o(ix,iy,iz).tmpV + dVpres;
+      o(ix,iy,iz).w = o(ix,iy,iz).w + o(ix,iy,iz).tmpW + dWpres;
     }
   }
 };
