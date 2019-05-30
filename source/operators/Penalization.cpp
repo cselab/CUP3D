@@ -12,6 +12,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+#define EXPL_INTEGRATE_MOM
+
 namespace {
 
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
@@ -72,7 +74,13 @@ struct KernelPenalization : public ObstacleVisitor
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
-      const Real penalFac = X*lambda / (1 + X*lambda*dt);
+
+      #ifndef EXPL_INTEGRATE_MOM
+        const Real penalFac = X*lambda / (1 + X*lambda*dt);
+      #else
+        const Real penalFac = X;
+      #endif
+
       const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u);
       const Real FPY = penalFac * (U_TOT[1] - b(ix,iy,iz).v);
       const Real FPZ = penalFac * (U_TOT[2] - b(ix,iy,iz).w);
