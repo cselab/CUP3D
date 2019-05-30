@@ -86,7 +86,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   std::string BC_x = parser("-BC_x").asString("dirichlet");
   std::string BC_y = parser("-BC_y").asString("dirichlet");
   std::string BC_z = parser("-BC_z").asString("dirichlet");
-  const Real fadeLen = parser("-fade_len").asDouble(.005);
+  const Real fadeLen = parser("-fade_len").asDouble(0.0);
   // BC
   if(BC_x=="unbounded") BC_x = "freespace"; // tomato tomato
   if(BC_y=="unbounded") BC_y = "freespace"; // tomato tomato

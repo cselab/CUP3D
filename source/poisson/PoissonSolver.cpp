@@ -19,15 +19,15 @@ void PoissonSolver::_cub2fftw() const
 {
   assert(stridez>0 && stridey>0 && stridex>0 && data_size>0);
 
-  const Real C = sim.bUseStretchedGrid? computeRelativeCorrection_nonUniform()
-                                      : computeRelativeCorrection();
-  #pragma omp parallel for schedule(static)
-  for(size_t i=0; i<data_size; ++i) data[i] -= std::fabs(data[i])*C;
+  //const Real C = sim.bUseStretchedGrid? computeRelativeCorrection_nonUniform()
+  //                                    : computeRelativeCorrection();
+  //#pragma omp parallel for schedule(static)
+  //for(size_t i=0; i<data_size; ++i) data[i] -= std::fabs(data[i])*C;
 
   #ifndef NDEBUG
   {
-    sim.bUseStretchedGrid? computeRelativeCorrection_nonUniform()
-                         : computeRelativeCorrection();
+    sim.bUseStretchedGrid? computeRelativeCorrection_nonUniform(true)
+                         : computeRelativeCorrection(true);
   }
   #endif
 }
