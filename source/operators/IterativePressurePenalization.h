@@ -18,7 +18,6 @@ class IterativePressurePenalization : public Operator
  protected:
   PoissonSolver * pressureSolver;
   PenalizationGridMPI * penalizationGrid = nullptr;
-  PenalizationGridMPI * accelerationGrid = nullptr;
 
   void initializeFields();
 

@@ -15,8 +15,10 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class PressureRHS : public Operator
 {
+  PenalizationGridMPI * penalizationGrid = nullptr;
  public:
-  PressureRHS(SimulationData & s) : Operator(s) {}
+  PressureRHS(SimulationData & s);
+  ~PressureRHS();
 
   void operator()(const double dt);
 

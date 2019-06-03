@@ -339,12 +339,11 @@ struct KernelPenalization : public ObstacleVisitor
   const double lambda, dt; const int iter;
   ObstacleVector * const obstacle_vector;
   PenalizationGridMPI * const penGrid;
-  PenalizationGridMPI * const accGrid;
   const cubism::BlockInfo * info_ptr = nullptr;
 
   KernelPenalization(double _lambda, double _dt, ObstacleVector* ov, int _iter,
-    PenalizationGridMPI* const _pen, PenalizationGridMPI* const _acc) :
-    lambda(_lambda), dt(_dt), iter(_iter), obstacle_vector(ov), penGrid(_pen), accGrid(_acc) {}
+    PenalizationGridMPI* const _pen) : lambda(_lambda), dt(_dt), iter(_iter),
+    obstacle_vector(ov), penGrid(_pen) {}
 
   void operator()(const cubism::BlockInfo& info)
   {
@@ -526,7 +525,8 @@ void IterativePressurePenalization::initializeFields()
   }
 }
 
-IterativePressurePenalization::IterativePressurePenalization(SimulationData & s) : Operator(s)
+IterativePressurePenalization::IterativePressurePenalization(SimulationData& s)
+  : Operator(s)
 {
   if(sim.bUseFourierBC)
   pressureSolver = new PoissonSolverPeriodic(sim);
@@ -598,7 +598,7 @@ void IterativePressurePenalization::operator()(const double dt)
       double M[6] = { 0.0, 0.0, 0.0, 0.0, 0.0, 0.0 };
       #pragma omp parallel reduction (+ : M[:6])
       { // each thread needs to call its own non-const operator() function
-        KernelPenalization K(sim.lambda, dt, sim.obstacle_vector, iter, penalizationGrid, accelerationGrid);
+        KernelPenalization K(sim.lambda, dt, sim.obstacle_vector, iter, penalizationGrid);
         #pragma omp for schedule(dynamic, 1)
         for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
         M[0] += K.MX; M[3] += K.DMX;

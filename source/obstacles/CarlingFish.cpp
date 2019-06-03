@@ -17,7 +17,7 @@ using namespace cubism;
 class CarlingFishMidlineData : public FishMidlineData
 {
  public:
-  bool quadraticAmplitude = true;
+  bool quadraticAmplitude = false;
  protected:
   const double carlingAmp;
   static constexpr double carlingInv = 0.03125;

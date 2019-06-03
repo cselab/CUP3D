@@ -322,13 +322,13 @@ void Simulation::setupOperators()
     // We also update position and quaternions of the obstacles.
     sim.pipeline.push_back(new UpdateObstacles(sim));
 
-    // With pre-penal vel field and obstacles' velocities perform penalization.
-    sim.pipeline.push_back(new Penalization(sim));
-
     // Places Udef on the grid and computes the RHS of the Poisson Eq
     // overwrites tmpU, tmpV, tmpW and pressure solver's RHS
     // places in press RHS = \nabla \cdot u_f - X \nabla \cdot u_def
     sim.pipeline.push_back(new PressureRHS(sim));
+
+    // With pre-penal vel field and obstacles' velocities perform penalization.
+    sim.pipeline.push_back(new Penalization(sim));
 
     // Solves the Poisson Eq to get the pressure and finalizes the velocity
     // u_{t+1} = \tilde{u} -\delta t \nabla P. This is final pre-penal vel field.
