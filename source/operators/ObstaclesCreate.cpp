@@ -27,11 +27,7 @@ class KernelCharacteristicFunction
 
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  #ifdef STAGGERED_GRID
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, true, 1, 5);
-  #else
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 5);
-  #endif
 
   static Real computeCHI(const Real h, const Real dist,
                          const Real distPx, const Real distMx,

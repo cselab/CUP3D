@@ -86,6 +86,7 @@ struct SimulationData
   Real maxextent = 1;
   std::array<Real, 3> extent = {{1, 0, 0}};  // Uniform grid by default.
   bool bUseStretchedGrid = false;
+  bool bImplicitPenalization = false;
   bool bIterativePenalization = false;
   Real hmin=0, hmax=0, hmean=0;
 

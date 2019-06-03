@@ -21,11 +21,6 @@ class PoissonSolverMixed : public PoissonSolver
   inline bool DFT_X() const { return sim.BCx_flag == periodic; }
   inline bool DFT_Y() const { return sim.BCy_flag == periodic; }
   inline bool DFT_Z() const { return sim.BCz_flag == periodic; }
-  #ifdef STAGGERED_GRID
-    float * const COScoefX = new float[ gsize[0] ];
-    float * const COScoefY = new float[ local_n1 ];
-    float * const COScoefZ = new float[ gsize[2] ];
-  #endif
 
  protected:
 

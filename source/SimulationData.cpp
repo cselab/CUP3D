@@ -55,6 +55,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   uinf[1] = parser("-uinfy").asDouble(0.0);
   uinf[2] = parser("-uinfz").asDouble(0.0);
   bIterativePenalization = parser("-iterativePenalization").asBool(false);
+  bImplicitPenalization = parser("-implicitPenalization").asBool(false);
   // PIPELINE
   freqDiagnostics = parser("-freqDiagnostics").asInt(10);
 
@@ -95,7 +96,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   fadeOutLengthPRHS[0] = BC_x=="dirichlet"? fadeLen : 0;
   fadeOutLengthPRHS[1] = BC_y=="dirichlet"? fadeLen : 0;
   fadeOutLengthPRHS[2] = BC_z=="dirichlet"? fadeLen : 0;
-  bKeepMomentumConstant = parser("-bKeepMomentumConstant").asInt(0);
 
   if(BC_x=="freespace" || BC_y=="freespace" || BC_z=="freespace")
   {

@@ -12,7 +12,6 @@
 
 // define this to update obstacles with old (mrag-like) approach of integrating
 // momenta contained in chi before the penalization step:
-#define EXPL_INTEGRATE_MOM
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -24,13 +23,14 @@ using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 static constexpr Real DBLEPS = std::numeric_limits<double>::epsilon();
 
+template<bool implicitPenalization>
 struct KernelIntegrateFluidMomenta : public ObstacleVisitor
 {
   const double lambda, dt;
   ObstacleVector * const obstacle_vector;
   const cubism::BlockInfo * info_ptr = nullptr;
-  inline double dvol(const cubism::BlockInfo&info, const int x, const int y, const int z) const {
-    double h[3]; info.spacing(h, x, y, z);
+  double dvol(const BlockInfo&I, const int x, const int y, const int z) const {
+    double h[3]; I.spacing(h, x, y, z);
     return h[0] * h[1] * h[2];
   }
 
@@ -67,16 +67,17 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
     double &J3 = o->J3, &J4 = o->J4, &J5 = o->J5;
     J0 = 0; J1 = 0; J2 = 0; J3 = 0; J4 = 0; J5 = 0;
 
-    #ifndef EXPL_INTEGRATE_MOM
-      const UDEFMAT & __restrict__ UDEF = o->udef;
+    const UDEFMAT & __restrict__ UDEF = o->udef;
+    const Real lambdt = lambda*dt;
+    if(implicitPenalization)
+    {
       o->GfX = 0;
       o->GpX = 0; o->GpY = 0; o->GpZ = 0;
       o->Gj0 = 0; o->Gj1 = 0; o->Gj2 = 0;
       o->Gj3 = 0; o->Gj4 = 0; o->Gj5 = 0;
       o->GuX = 0; o->GuY = 0; o->GuZ = 0;
       o->GaX = 0; o->GaY = 0; o->GaZ = 0;
-      const Real lambdt = lambda*dt;
-    #endif
+    }
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -102,7 +103,8 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
       TY += X * dv * ( p[2] * b(ix,iy,iz).u - p[0] * b(ix,iy,iz).w );
       TZ += X * dv * ( p[0] * b(ix,iy,iz).v - p[1] * b(ix,iy,iz).u );
 
-      #ifndef EXPL_INTEGRATE_MOM
+      if(implicitPenalization)
+      {
         const Real penalFac = dv * lambdt * X / ( 1 + X * lambdt );
         o->GfX += penalFac;
         o->GpX += penalFac * p[0];
@@ -125,11 +127,12 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
         o->GaX += penalFac * ( p[1] * DiffU[2] - p[2] * DiffU[1] );
         o->GaY += penalFac * ( p[2] * DiffU[0] - p[0] * DiffU[2] );
         o->GaZ += penalFac * ( p[0] * DiffU[1] - p[1] * DiffU[0] );
-      #endif
+      }
     }
   }
 };
 
+template<bool implicitPenalization>
 struct KernelFinalizeObstacleVel : public ObstacleVisitor
 {
   const double dt, lambda;
@@ -152,7 +155,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
       M[k++] += oBlock[i]->TX; M[k++] += oBlock[i]->TY; M[k++] += oBlock[i]->TZ;
       M[k++] += oBlock[i]->J0; M[k++] += oBlock[i]->J1; M[k++] += oBlock[i]->J2;
       M[k++] += oBlock[i]->J3; M[k++] += oBlock[i]->J4; M[k++] += oBlock[i]->J5;
-      #ifndef EXPL_INTEGRATE_MOM
+      if(implicitPenalization) {
       M[k++] +=oBlock[i]->GfX;
       M[k++] +=oBlock[i]->GpX; M[k++] +=oBlock[i]->GpY; M[k++] +=oBlock[i]->GpZ;
       M[k++] +=oBlock[i]->Gj0; M[k++] +=oBlock[i]->Gj1; M[k++] +=oBlock[i]->Gj2;
@@ -160,9 +163,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
       M[k++] +=oBlock[i]->GuX; M[k++] +=oBlock[i]->GuY; M[k++] +=oBlock[i]->GuZ;
       M[k++] +=oBlock[i]->GaX; M[k++] +=oBlock[i]->GaY; M[k++] +=oBlock[i]->GaZ;
       assert(k==29);
-      #else
-      assert(k==13);
-      #endif
+      } else  assert(k==13);
     }
     const auto comm = grid->getCartComm();
     MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_DOUBLE, MPI_SUM, comm);
@@ -175,19 +176,19 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     assert(std::fabs(obst->J[5] - M[12]) < 10*DBLEPS);
     assert(M[0] > DBLEPS);
 
-    #ifndef EXPL_INTEGRATE_MOM
+    if(implicitPenalization) {
       obst->penalM    = M[13];
       obst->penalCM   = { M[14], M[15], M[16] };
       obst->penalJ    = { M[17], M[18], M[19], M[20], M[21], M[22] };
       obst->penalLmom = { M[23], M[24], M[25] };
       obst->penalAmom = { M[26], M[27], M[28] };
-    #else
+    } else {
       obst->penalM    = M[0];
       obst->penalCM   = { 0, 0, 0 };
       obst->penalJ    = { M[ 7], M[ 8], M[ 9], M[10], M[11], M[12] };
       obst->penalLmom = { M[1], M[2], M[3] };
       obst->penalAmom = { M[4], M[5], M[6] };
-    #endif
+    }
 
     obst->computeVelocities();
   }
@@ -203,16 +204,26 @@ void UpdateObstacles::operator()(const double dt)
   { // integrate momenta by looping over grid
     #pragma omp parallel
     { // each thread needs to call its own non-const operator() function
-      KernelIntegrateFluidMomenta K(dt, sim.lambda, sim.obstacle_vector);
-      #pragma omp for schedule(dynamic, 1)
-      for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
+      if(sim.bImplicitPenalization) {
+        KernelIntegrateFluidMomenta<1> K(dt, sim.lambda, sim.obstacle_vector);
+        #pragma omp for schedule(dynamic, 1)
+        for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
+      } else {
+        KernelIntegrateFluidMomenta<0> K(dt, sim.lambda, sim.obstacle_vector);
+        #pragma omp for schedule(dynamic, 1)
+        for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
+      }
     }
   }
   sim.stopProfiler();
 
   sim.startProfiler("Obst Upd Vel");
-  {
-    ObstacleVisitor*K = new KernelFinalizeObstacleVel(dt, sim.lambda, sim.grid);
+  if(sim.bImplicitPenalization) {
+    ObstacleVisitor*K= new KernelFinalizeObstacleVel<1>(dt,sim.lambda,sim.grid);
+    sim.obstacle_vector->Accept(K); // accept you son of a french cow
+    delete K;
+  } else {
+    ObstacleVisitor*K= new KernelFinalizeObstacleVel<0>(dt,sim.lambda,sim.grid);
     sim.obstacle_vector->Accept(K); // accept you son of a french cow
     delete K;
   }

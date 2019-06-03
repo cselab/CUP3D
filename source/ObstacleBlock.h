@@ -43,11 +43,6 @@ struct ObstacleBlock
   Real          sdf[BS][BS][BS];
   Real         udef[BS][BS][BS][3];
   int sectionMarker[BS][BS][BS];
-  #ifdef STAGGERED_GRID
-  Real         chiX[BS+1][BS][BS];
-  Real         chiY[BS][BS+1][BS];
-  Real         chiZ[BS][BS][BS+1];
-  #endif
 
   //surface quantities:
   int nPoints = 0;

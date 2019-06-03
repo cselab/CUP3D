@@ -262,8 +262,10 @@ void AdvectionDiffusion::operator()(const double dt)
       }
     }
 
-    const Real corr = sumInflow/std::max(throughFlow, EPS);
-    printf("Relative inflow correction %e\n",corr);
+    double sums[2] = {sumInflow, throughFlow};
+    MPI_Allreduce(MPI_IN_PLACE, sums,2,MPI_DOUBLE,MPI_SUM, grid->getCartComm());
+    const Real corr = sums[0] / std::max(EPS, sums[1]);
+    printf("Relative inflow correction %e\n", corr);
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++)
     {

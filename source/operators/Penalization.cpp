@@ -12,16 +12,15 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-#define EXPL_INTEGRATE_MOM
-
 namespace {
 
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 
+template<bool implicitPenalization>
 struct KernelPenalization : public ObstacleVisitor
 {
-  const Real dt, lambda;
+  const Real dt, invdt = 1.0/dt, lambda;
   ObstacleVector * const obstacle_vector;
   const cubism::BlockInfo * info_ptr = nullptr;
 
@@ -74,12 +73,8 @@ struct KernelPenalization : public ObstacleVisitor
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
-
-      #ifndef EXPL_INTEGRATE_MOM
-        const Real penalFac = X*lambda / (1 + X*lambda*dt);
-      #else
-        const Real penalFac = X;
-      #endif
+      const Real penalFac = implicitPenalization? X*lambda / (1 + X*lambda*dt)
+                                                : X * invdt;
 
       const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u);
       const Real FPY = penalFac * (U_TOT[1] - b(ix,iy,iz).v);
@@ -90,9 +85,7 @@ struct KernelPenalization : public ObstacleVisitor
       b(ix,iy,iz).v = b(ix,iy,iz).v + dt * FPY;
       b(ix,iy,iz).w = b(ix,iy,iz).w + dt * FPZ;
 
-      FX += dv * FPX;
-      FY += dv * FPY;
-      FZ += dv * FPZ;
+      FX += dv * FPX; FY += dv * FPY; FZ += dv * FPZ;
       TX += dv * ( p[1] * FPZ - p[2] * FPY );
       TY += dv * ( p[2] * FPX - p[0] * FPZ );
       TZ += dv * ( p[0] * FPY - p[1] * FPX );
@@ -119,12 +112,8 @@ struct KernelFinalizePenalizationForce : public ObstacleVisitor
     }
     const auto comm = grid->getCartComm();
     MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_DOUBLE, MPI_SUM, comm);
-    obst->force[0]  = M[0];
-    obst->force[1]  = M[1];
-    obst->force[2]  = M[2];
-    obst->torque[0] = M[3];
-    obst->torque[1] = M[4];
-    obst->torque[2] = M[5];
+    obst->force[0]  = M[0]; obst->force[1]  = M[1]; obst->force[2]  = M[2];
+    obst->torque[0] = M[3]; obst->torque[1] = M[4]; obst->torque[2] = M[5];
   }
 };
 
@@ -139,9 +128,18 @@ void Penalization::operator()(const double dt)
   sim.startProfiler("Penalization");
   #pragma omp parallel
   { // each thread needs to call its own non-const operator() function
-    KernelPenalization K(dt, sim.lambda, sim.obstacle_vector);
-    #pragma omp for schedule(dynamic, 1)
-    for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
+    if(sim.bImplicitPenalization)
+    {
+      KernelPenalization<1> K(dt, sim.lambda, sim.obstacle_vector);
+      #pragma omp for schedule(dynamic, 1)
+      for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
+    }
+    else
+    {
+      KernelPenalization<0> K(dt, sim.lambda, sim.obstacle_vector);
+      #pragma omp for schedule(dynamic, 1)
+      for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
+    }
   }
 
   ObstacleVisitor*K = new KernelFinalizePenalizationForce(sim.grid);
