@@ -41,7 +41,7 @@ struct KernelPressureRHS : public ObstacleVisitor
   Lab * lab_ptr = nullptr;
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 6, 0,1,2,3);
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, 0,1,2,3);
 
   KernelPressureRHS(PoissonSolver* pois, PenalizationGridMPI* penG,
     ObstacleVector* oVec, double _dt) : dt(_dt), solver(pois), penGrid(penG),
@@ -76,7 +76,7 @@ struct KernelPressureRHS : public ObstacleVisitor
 
   void visit(Obstacle* const obstacle)
   {
-    assert(info_ptr == nullptr && lab_ptr == nullptr);
+    assert(info_ptr not_eq nullptr && lab_ptr not_eq nullptr);
     const BlockInfo& info = * info_ptr;
     Lab& lab = * lab_ptr;
     const auto& obstblocks = obstacle->getObstacleBlocks();
@@ -141,7 +141,7 @@ struct KernelPressureRHS_nonUniform : public ObstacleVisitor
   Lab * lab_ptr = nullptr;
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 6, 0,1,2,3);
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, 0,1,2,3);
 
   KernelPressureRHS_nonUniform(PoissonSolver* pois, PenalizationGridMPI* penG,
     ObstacleVector* oVec, double _dt) : dt(_dt), solver(pois), penGrid(penG),
@@ -181,7 +181,7 @@ struct KernelPressureRHS_nonUniform : public ObstacleVisitor
 
   void visit(Obstacle* const obstacle)
   {
-    assert(info_ptr == nullptr && lab_ptr == nullptr);
+    assert(info_ptr not_eq nullptr && lab_ptr not_eq nullptr);
     const BlockInfo& info = * info_ptr;
     Lab& lab = * lab_ptr;
     const auto& obstblocks = obstacle->getObstacleBlocks();
@@ -301,9 +301,6 @@ void PressureRHS::operator()(const double dt)
   //place onto p: ( div u^(t+1) - div u^* ) / dt
   //where i want div u^(t+1) to be equal to div udef
   sim.pressureSolver->reset();
-   {
-    printf("killed support : todo\n"); fflush(0); abort();
-  }
 
   const size_t nShapes = sim.obstacle_vector->nObstacles();
   std::vector<Real> corrFactors(nShapes, 0);
