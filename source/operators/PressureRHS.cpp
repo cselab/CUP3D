@@ -62,7 +62,7 @@ struct KernelPressureRHS : public ObstacleVisitor
       const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
       ret[SZ*iz +SY*iy +SX*ix] = fac*(LE.u-LW.u + LN.v-LS.v + LB.w-LF.w);
     }
-
+return; // TODO DEBUG
     // first store the lab and info, then do visitor
     assert(info_ptr == nullptr && lab_ptr == nullptr);
     info_ptr = & info;
@@ -345,6 +345,7 @@ void PressureRHS::operator()(const double dt)
   }
   sim.stopProfiler();
 
+  if(0) // TODO DEBUG
   {
     sim.startProfiler("PresRHS Correct");
     ObstacleVisitor*K = new KernelFinalizePerimeters(sim.pressureSolver, penalizationGrid, corrFactors);
