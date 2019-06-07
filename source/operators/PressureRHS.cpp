@@ -62,16 +62,14 @@ struct KernelPressureRHS : public ObstacleVisitor
       const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
       ret[SZ*iz +SY*iy +SX*ix] = fac*(LE.u-LW.u + LN.v-LS.v + LB.w-LF.w);
     }
-return; // TODO DEBUG
+
     // first store the lab and info, then do visitor
     assert(info_ptr == nullptr && lab_ptr == nullptr);
-    info_ptr = & info;
-    lab_ptr = & lab;
+    info_ptr =  & info; lab_ptr =   & lab;
     ObstacleVisitor* const base = static_cast<ObstacleVisitor*> (this);
     assert( base not_eq nullptr );
     obstacle_vector->Accept( base );
-    info_ptr = nullptr;
-    lab_ptr = nullptr;
+    info_ptr = nullptr; lab_ptr = nullptr;
   }
 
   void visit(Obstacle* const obstacle)
@@ -85,7 +83,7 @@ return; // TODO DEBUG
 
     const  CHIMAT & __restrict__  CHI = o->chi;
     const UDEFMAT & __restrict__ UDEF = o->udef;
-    const Real h = info.h_gridpoint, fac = .5*h*h/dt;
+    const Real h = info.h_gridpoint, fac = 0.5 * h * h / dt;
     const std::array<double,3> CM = obstacle->getCenterOfMass();
     const std::array<double,3> vel = obstacle->getTranslationVelocity();
     const std::array<double,3> omega = obstacle->getAngularVelocity();
@@ -294,6 +292,7 @@ PressureRHS::PressureRHS(SimulationData & s) : Operator(s)
     sim.nprocsx, sim.nprocsy, sim.nprocsz, sim.local_bpdx,
     sim.local_bpdy, sim.local_bpdz, sim.maxextent, sim.app_comm);
 }
+
 PressureRHS::~PressureRHS() { delete penalizationGrid; }
 
 void PressureRHS::operator()(const double dt)
@@ -345,7 +344,7 @@ void PressureRHS::operator()(const double dt)
   }
   sim.stopProfiler();
 
-  if(0) // TODO DEBUG
+  //if(0) // TODO DEBUG
   {
     sim.startProfiler("PresRHS Correct");
     ObstacleVisitor*K = new KernelFinalizePerimeters(sim.pressureSolver, penalizationGrid, corrFactors);

@@ -211,12 +211,30 @@ void AdvectionDiffusion::operator()(const double dt)
 
   sim.startProfiler("AdvDiff copy");
   {
-    const auto isW =[&](const BlockInfo&I) {return I.index[0] == 0;         };
-    const auto isE =[&](const BlockInfo&I) {return I.index[0] == sim.bpdx-1;};
-    const auto isS =[&](const BlockInfo&I) {return I.index[1] == 0;         };
-    const auto isN =[&](const BlockInfo&I) {return I.index[1] == sim.bpdy-1;};
-    const auto isB =[&](const BlockInfo&I) {return I.index[2] == 0;         };
-    const auto isF =[&](const BlockInfo&I) {return I.index[2] == sim.bpdz-1;};
+    const auto isW =[&](const BlockInfo&I) {
+      if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return false;
+      return I.index[0] == 0;
+    };
+    const auto isE =[&](const BlockInfo&I) {
+      if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return false;
+      return I.index[0] == sim.bpdx-1;
+    };
+    const auto isS =[&](const BlockInfo&I) {
+      if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return false;
+      return I.index[1] == 0;
+    };
+    const auto isN =[&](const BlockInfo&I) {
+      if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return false;
+      return I.index[1] == sim.bpdy-1;
+    };
+    const auto isF =[&](const BlockInfo&I) {
+      if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return false;
+      return I.index[2] == 0;
+    };
+    const auto isB =[&](const BlockInfo&I) {
+      if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return false;
+      return I.index[2] == sim.bpdz-1;
+    };
     static constexpr int BEG = 0, END = CUP_BLOCK_SIZE-1;
     Real sumInflow = 0, throughFlow = 0;
     #pragma omp parallel for schedule(static) reduction(+:sumInflow,throughFlow)
@@ -251,12 +269,12 @@ void AdvectionDiffusion::operator()(const double dt)
         sumInflow += b(ix,END,iz).v; throughFlow += std::fabs(b(ix,END,iz).v);
       }
 
-      for (int iy=0; iy<FluidBlock::sizeY && isB(vInfo[i]); ++iy)
+      for (int iy=0; iy<FluidBlock::sizeY && isF(vInfo[i]); ++iy)
       for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
         sumInflow -= b(ix,iy,BEG).w; throughFlow += std::fabs(b(ix,iy,BEG).w);
       }
 
-      for (int iy=0; iy<FluidBlock::sizeY && isF(vInfo[i]); ++iy)
+      for (int iy=0; iy<FluidBlock::sizeY && isB(vInfo[i]); ++iy)
       for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
         sumInflow += b(ix,iy,END).w; throughFlow += std::fabs(b(ix,iy,END).w);
       }
@@ -287,11 +305,11 @@ void AdvectionDiffusion::operator()(const double dt)
       for (int ix=0; ix<FluidBlock::sizeX; ++ix)
         b(ix,END,iz).v -= corr * std::fabs(b(ix,END,iz).v);
 
-      for (int iy=0; iy<FluidBlock::sizeY && isB(vInfo[i]); ++iy)
+      for (int iy=0; iy<FluidBlock::sizeY && isF(vInfo[i]); ++iy)
       for (int ix=0; ix<FluidBlock::sizeX; ++ix)
         b(ix,iy,BEG).w += corr * std::fabs(b(ix,iy,BEG).w);
 
-      for (int iy=0; iy<FluidBlock::sizeY && isF(vInfo[i]); ++iy)
+      for (int iy=0; iy<FluidBlock::sizeY && isB(vInfo[i]); ++iy)
       for (int ix=0; ix<FluidBlock::sizeX; ++ix)
         b(ix,iy,END).w -= corr * std::fabs(b(ix,iy,END).w);
     }

@@ -40,12 +40,13 @@ Real PoissonSolver::computeRelativeCorrection(bool coldrun) const
     sumABS += std::fabs(data[i]); sumRHS += data[i];
   }
   double sums[2] = {sumRHS, sumABS};
-  MPI_Allreduce(MPI_IN_PLACE, sums, 2, MPI_DOUBLE,MPI_SUM, m_comm);
+  MPI_Allreduce(MPI_IN_PLACE, sums, 2, MPI_DOUBLE, MPI_SUM, m_comm);
   sums[1] = std::max(std::numeric_limits<double>::epsilon(), sums[1]);
   const Real correction = sums[0] / sums[1];
   if(m_rank == 0) {
-    if(coldrun) printf("Integral of RHS after correction:%e\n", sums[0]);
-    else printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
+    //if(coldrun) printf("Integral of RHS after correction:%e\n", sums[0]);
+    //else
+    printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
   }
   return correction;
 }
@@ -74,8 +75,8 @@ Real PoissonSolver::computeRelativeCorrection_nonUniform(bool coldrun) const
   sums[1] = std::max(std::numeric_limits<double>::epsilon(), sums[1]);
   const Real correction = sums[0] / sums[1];
   if(m_rank == 0) {
-    if(coldrun) printf("Integral of RHS after correction:%e\n", sums[0]);
-    else printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
+    //if(coldrun) printf("Integral of RHS after correction:%e\n", sums[0]);
+    printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
   }
   return correction;
 }
