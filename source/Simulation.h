@@ -35,10 +35,10 @@ public:
   void _deserialize();
 
   void _argumentsSanityCheck();
-  void setObstacleVector(ObstacleVector *obstacle_vector_);
   void setupOperators();
   void setupGrid(cubism::ArgumentParser *parser_ptr = nullptr);
   void _ic();
+  void _prerun();
 
  public:
   Simulation(const SimulationData &);

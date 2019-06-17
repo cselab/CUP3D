@@ -9,26 +9,24 @@
 #ifndef CubismUP_3D_ObstacleFactory_h
 #define CubismUP_3D_ObstacleFactory_h
 
-#include "obstacles/Obstacle.h"
-#include <memory>
+#include "obstacles/ObstacleVector.h"
 
 namespace cubism { struct ArgumentParser; }
 
 CubismUP_3D_NAMESPACE_BEGIN
 
 class ObstacleAndExternalArguments;  // For ExternalObstacle.
-
 class ObstacleFactory
 {
   SimulationData & sim;
-  int _getlines(std::string filename);
-
 public:
-  typedef std::vector<std::shared_ptr<Obstacle>> VectorType;
-
   ObstacleFactory(SimulationData & s) : sim(s) { }
-  ~ObstacleFactory() {}
-  VectorType create(cubism::ArgumentParser &parser);
+
+  /* Add obstacles defined with `-factory` and `-factory-content` arguments. */
+  void addObstacles(cubism::ArgumentParser &parser);
+
+  /* Add obstacles specified with a given string. */
+  void addObstacles(const std::string &factoryContent);
 
   /* Helper function for external codes to avoid std::make_shared on their side... */
   void addObstacle(const ObstacleAndExternalArguments &args);

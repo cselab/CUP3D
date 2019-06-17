@@ -51,14 +51,15 @@ Simulation::Simulation(const SimulationData &_sim) : sim(_sim)
   setupGrid(nullptr);
 
   // Define an empty obstacle vector, which can be later modified.
-  setObstacleVector(new ObstacleVector(sim));
+  sim.obstacle_vector = new ObstacleVector(sim);
 
   _init(false);
 }
 
 Simulation::Simulation(MPI_Comm mpicomm) : sim(mpicomm)
 {
-  // What about setupGrid, setObstacleVector and other stuff?
+  // What about setupGrid and other stuff?
+  sim.obstacle_vector = new ObstacleVector(sim);
   _init(false);
 }
 
@@ -77,8 +78,8 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
   #endif
 
   // ========== OBSTACLES ==========
-  ObstacleFactory factory(sim);
-  setObstacleVector(new ObstacleVector(sim, factory.create(parser)));
+  sim.obstacle_vector = new ObstacleVector(sim);
+  ObstacleFactory(sim).addObstacles(parser);
 
   const bool bRestart = parser("-restart").asBool(false);
   _init(bRestart);
@@ -261,11 +262,9 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
   }
 }
 
-void Simulation::setObstacleVector(ObstacleVector * const obstacle_vector_)
+void Simulation::_prerun()
 {
-  assert(sim.obstacle_vector == nullptr);
-  sim.obstacle_vector = obstacle_vector_;
-
+  assert(sim.obstacle_vector != nullptr);
   if (sim.rank == 0)
   {
     const double maxU = std::max({sim.uinf[0], sim.uinf[1], sim.uinf[2]});
@@ -533,13 +532,14 @@ void Simulation::_deserialize()
 
 void Simulation::run()
 {
-    for (;;) {
-        sim.startProfiler("DT");
-        const double dt = calcMaxTimestep();
-        sim.stopProfiler();
+  _prerun();
+  for (;;) {
+    sim.startProfiler("DT");
+    const double dt = calcMaxTimestep();
+    sim.stopProfiler();
 
-        if (timestep(dt)) break;
-    }
+    if (timestep(dt)) break;
+  }
 }
 
 bool Simulation::timestep(const double dt)

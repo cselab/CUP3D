@@ -21,8 +21,6 @@ class ObstacleVector : public Obstacle
     typedef std::vector<std::shared_ptr<Obstacle>> VectorType;
 
     ObstacleVector(SimulationData&s) : Obstacle(s) {}
-    ObstacleVector(SimulationData&s, VectorType o)
-        : Obstacle(s), obstacles(std::move(o)) {}
 
     int nObstacles() const {return obstacles.size();}
     void computeVelocities() override;
@@ -40,6 +38,7 @@ class ObstacleVector : public Obstacle
 
     void addObstacle(std::shared_ptr<Obstacle> obstacle)
     {
+        obstacle->obstacleID = obstacles.size();
         obstacles.emplace_back(std::move(obstacle));
     }
 
