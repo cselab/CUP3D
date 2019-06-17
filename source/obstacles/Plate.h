@@ -17,8 +17,8 @@ CubismUP_3D_NAMESPACE_BEGIN
  * Plate operator.
  *
  * Defined by center location, side lengths and inclination angle
- *      OR by center location, side lengths, normal vector and the vector of
- *            direction of one of the edge.
+ *      OR by center location, side lengths, normal vector
+ *            and the vector of direction of one of the edges.
  *
  * Factory example:
  *     IF3D_PlateObstacle L=0.1 xpos=0.25 ypos=0.25 zpos=0.25 a=0.1 b=0.2 thickness=0.02 alpha=30
@@ -46,29 +46,28 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class Plate : public Obstacle
 {
-    // Vectors n, a and b are unit vectors and mutually orthogonal.
-    double nx, ny, nz;      // Normal.
-    double ax, ay, az;      // A-side vector.
-    double bx, by, bz;      // B-side vector.
-    double half_a;          // Half-size in A direction.
-    double half_b;          // Half-size in B direction.
-    double half_thickness;
+  // Vectors n, a and b are unit vectors and mutually orthogonal.
+  double nx, ny, nz;      // Normal.
+  double ax, ay, az;      // A-side vector.
+  double bx, by, bz;      // B-side vector.
+  double half_a;          // Half-size in A direction.
+  double half_b;          // Half-size in B direction.
+  double half_thickness;
+
+  void _from_alpha(double alpha);  // Alpha in radians.
+  void _init(void);
 
 public:
-    Plate(SimulationData & s, cubism::ArgumentParser &p);
-    Plate(
-            SimulationData & s, ObstacleArguments &args,
-            double a, double b, double thickness,
-            double alpha);
-    Plate(
-            SimulationData & s, ObstacleArguments &args,
-            double a, double b, double thickness,
-            double nx, double ny, double nz, double ax, double ay, double az);
+  Plate(SimulationData &s, cubism::ArgumentParser &p);
+  Plate(SimulationData &s, ObstacleArguments &args,
+        double a, double b, double thickness,
+        double alpha);  // Alpha in radians.
+  Plate(SimulationData &s, ObstacleArguments &args,
+        double a, double b, double thickness,
+        double nx, double ny, double nz, double ax, double ay, double az);
 
-    void _from_alpha(double alpha);
-    void _init(void);
-    void create() override;
-    void finalize() override;
+  void create() override;
+  void finalize() override;
 };
 
 CubismUP_3D_NAMESPACE_END
