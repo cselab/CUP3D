@@ -66,7 +66,7 @@ struct DumpElement {
 #define CUP_ELEMENT_INDEX(x) (offsetof(FluidElement, x) / sizeof(FluidElement::RealType))
 
 enum BCflag {dirichlet, periodic, wall, freespace};
-inline BCflag string2BCflag(const std::string strFlag)
+inline BCflag string2BCflag(const std::string &strFlag)
 {
   if (strFlag == "periodic") return periodic;
   else

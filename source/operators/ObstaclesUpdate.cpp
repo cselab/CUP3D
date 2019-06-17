@@ -194,7 +194,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
   }
 };
 
-}
+}  // Anonymous namespace.
 
 void UpdateObstacles::operator()(const double dt)
 {

@@ -112,9 +112,14 @@ public:
   //forced obstacles:
   double transVel_imposed[3]= {0,0,0};
 
-  // stuff dealing with frame of reference:
+  // Should the camera follow the obstacle? If multiple obstacles set
+  // this to true, the average velocity is taken.
   std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
+
+  // If true, the xvel/yvel/zvel velocities are used, otherwise the velocities
+  // are computed from the fluid forced on the obstacle.
   std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
+
   std::array<bool, 3> bBlockRotation = {{false, false, false}};
 
   std::array<double,3> transVel_computed = {0,0,0}, angVel_computed = {0,0,0};

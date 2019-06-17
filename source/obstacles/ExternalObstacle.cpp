@@ -65,9 +65,8 @@ ExternalObstacle::ExternalObstacle(
     const ObstacleAndExternalArguments &args)
     : Obstacle(s, args), ExternalObstacleArguments(args)  // Object slicing.
 {
-  // bForcedInSimFrame = {true, true, true};
-  // bFixFrameOfRef = {true, true, true};
-  // bBlockRotation = {true, true, true};
+  bForcedInSimFrame = {true, true, true};
+  bBlockRotation = {true, true, true};
 }
 
 void ExternalObstacle::computeVelocities()

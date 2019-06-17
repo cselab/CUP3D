@@ -15,8 +15,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 
 /*
- * Extension of std::array that implements operators +, - between themselves
- * and operator * with a scalar.
+ * Extension of std::array that implements the operators +, - between
+ * themselves and the operator * with a scalar.
  *
  * Used for interpolation API.
  */
@@ -73,28 +73,28 @@ struct ScalarArray {
   // parts away.
   friend inline ScalarArray operator+(const ScalarArray &A, const ScalarArray &B) {
     ScalarArray<T, N> result;
-    for (int i = 0; i < N; ++i)
+    for (size_type i = 0; i < N; ++i)
       result[i] = A[i] + B[i];
     return result;
   }
 
   friend inline ScalarArray operator-(const ScalarArray &A, const ScalarArray &B) {
     ScalarArray<T, N> result;
-    for (int i = 0; i < N; ++i)
+    for (size_type i = 0; i < N; ++i)
       result[i] = A[i] - B[i];
     return result;
   }
 
   friend inline ScalarArray operator*(const T &A, const ScalarArray &B) {
     ScalarArray<T, N> result;
-    for (int i = 0; i < N; ++i)
+    for (size_type i = 0; i < N; ++i)
       result[i] = A * B[i];
     return result;
   }
 
   friend inline ScalarArray operator*(const ScalarArray &A, const T &B) {
     ScalarArray<T, N> result;
-    for (int i = 0; i < N; ++i)
+    for (size_type i = 0; i < N; ++i)
       result[i] = A[i] * B;
     return result;
   }

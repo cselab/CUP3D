@@ -389,6 +389,10 @@ void Obstacle::save(std::string filename)
   savestream.setf(std::ios::scientific);
   savestream.precision(std::numeric_limits<Real>::digits10 + 1);
   savestream.open(filename+".txt");
+  if (!savestream) {
+    fprintf(stderr, "Couldn't open \"%s.txt\".\n", filename.c_str());
+    exit(1);
+  }
   savestream<<sim.time<<std::endl;
   savestream<<position[0]<<"\t"<<position[1]<<"\t"<<position[2]<<std::endl;
   savestream<<absPos[0]<<"\t"<<absPos[1]<<"\t"<<absPos[2]<<std::endl;

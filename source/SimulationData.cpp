@@ -160,6 +160,7 @@ void SimulationData::_preprocessArguments()
   } else {
     bUseStretchedGrid = true;
   }
+  printf("Domain extent: %lg %lg %lg\n", extent[0], extent[1], extent[2]);
 
   // Flow.
   assert(nu >= 0);

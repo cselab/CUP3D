@@ -34,7 +34,6 @@ struct BufferedLoggerImpl {
    * Flush a single stream and reset the counter.
    */
   void flush(container_type::value_type &p) {
-    fprintf(stderr, "Flush %s %d\n", p.first.c_str(), p.second.requests_since_last_flush);
     std::ofstream savestream;
     savestream.open(p.first, std::ios::app | std::ios::out);
     savestream << p.second.stream.rdbuf();
@@ -45,10 +44,8 @@ struct BufferedLoggerImpl {
   std::stringstream& get_stream(const std::string &filename) {
     auto it = files.find(filename);
     if (it != files.end()) {
-      if (++it->second.requests_since_last_flush == BufferedLogger::AUTO_FLUSH_COUNT) {
-        fprintf(stderr, "get_stream Flush %s %d\n", it->first.c_str(), it->second.requests_since_last_flush);
+      if (++it->second.requests_since_last_flush == BufferedLogger::AUTO_FLUSH_COUNT)
         flush(*it);
-      }
       return it->second.stream;
     } else {
       // With request_since_last_flush == 0,
