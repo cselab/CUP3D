@@ -151,6 +151,16 @@ void Simulation::_init(const bool restart)
   else _ic();
   MPI_Barrier(sim.app_comm);
   _serialize("init");
+
+  assert(sim.obstacle_vector != nullptr);
+  if (sim.rank == 0)
+  {
+    const double maxU = std::max({sim.uinf[0], sim.uinf[1], sim.uinf[2]});
+    const double length = sim.obstacle_vector->getD();
+    const double re = length * std::max(maxU, length) / sim.nu;
+    assert(length > 0 || sim.obstacle_vector->getObstacleVector().empty());
+    printf("Kinematic viscosity:%f, Re:%f, length scale:%f\n",sim.nu,re,length);
+  }
 }
 
 
@@ -259,19 +269,6 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
     b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,
                                    FluidBlock::sizeY-1,
                                    FluidBlock::sizeZ-1);
-  }
-}
-
-void Simulation::_prerun()
-{
-  assert(sim.obstacle_vector != nullptr);
-  if (sim.rank == 0)
-  {
-    const double maxU = std::max({sim.uinf[0], sim.uinf[1], sim.uinf[2]});
-    const double length = sim.obstacle_vector->getD();
-    const double re = length * std::max(maxU, length) / sim.nu;
-    assert(length > 0 || sim.obstacle_vector->getObstacleVector().empty());
-    printf("Kinematic viscosity:%f, Re:%f, length scale:%f\n",sim.nu,re,length);
   }
 }
 
@@ -532,7 +529,6 @@ void Simulation::_deserialize()
 
 void Simulation::run()
 {
-  _prerun();
   for (;;) {
     sim.startProfiler("DT");
     const double dt = calcMaxTimestep();
