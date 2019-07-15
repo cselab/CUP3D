@@ -17,6 +17,16 @@ source $SETTINGSNAME
 FOLDER=${BASEPATH}${BASENAME}
 mkdir -p ${FOLDER}
 
+if [[ ! -z "$icH5Path" ]] && [ ! -z "$icH5File" ]; then
+  icFile=${icH5Path}/${icH5File}.h5
+  if [ -f ${icFile} ]; then
+    cp ${icFile} ${FOLDER}
+  else
+    echo "${icFile} does not exist"
+    exit 0
+  fi
+fi
+
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
 cp ../bin/simulation ${FOLDER}

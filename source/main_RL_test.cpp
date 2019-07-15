@@ -16,14 +16,155 @@
 #include "Communicator.h"
 #include "Simulation.h"
 #include "operators/SGS_RL.h"
+#include "operators/SpectralAnalysis.h"
 #include "Cubism/ArgumentParser.h"
 
 #include "mpi.h"
 #define FREQ_UPDATE 1
 
+struct targetData
+{
+  int nModes;
+  std::vector<double> E_mean;
+  std::vector<double> E_std2;
+
+  int nSamplePerMode;
+  std::vector<double> E_kde;
+  std::vector<double> P_kde;
+
+  double tau_integral;
+  double tau_eta;
+  double max_rew;
+
+  double getRewardL2(const int modeID, const double msr) const{
+    double r = (E_mean[modeID] - msr)/E_mean[modeID];
+    return -r*r;
+  }
+
+  double getRewardKDE(const int modeID, const double msr) const{
+    if (msr <= E_kde[modeID*nSamplePerMode] or msr >= E_kde[modeID*nSamplePerMode + nSamplePerMode - 1]){
+      return 0;
+    }
+    size_t lower = modeID*nSamplePerMode;
+    size_t upper = modeID*nSamplePerMode + nSamplePerMode - 1;
+
+
+    size_t idx = -1;
+    for (int i=0; i<nSamplePerMode; i++){
+      idx = modeID*nSamplePerMode + i;
+      if (msr < E_kde[idx])
+        break;
+    }
+    double  ret = P_kde[idx] + (P_kde[idx-1] - P_kde[idx]) / (E_kde[idx] - E_kde[idx-1]) * (E_kde[idx] - msr);
+
+    return ret;
+  }
+};
+
+
+// Here I assume that the target files are given for the same modes
+// as the one that we will measure during training.
+inline targetData getTarget(cubismup3d::SimulationData& sim, const bool bTrain)
+{
+  printf("Setting up target data\n");
+  targetData ret;
+
+  std::vector<double> E_mean;
+  std::vector<double> E_std2;
+
+
+  std::ifstream inFile;
+  std::string fileName_scale = "../scaleTarget.dat";
+  std::string fileName_mean  = "../meanTarget.dat";
+  std::string fileName_kde   = "../kdeTarget.dat";
+
+  // First get mean and std of the energy spectrum
+  inFile.open(fileName_mean);
+
+  if (!inFile){
+    std::cout<<"Cannot open "<<fileName_mean<<std::endl;
+    abort();
+  }
+
+
+  const long maxGridSize = std::max({sim.bpdx * cubismup3d::FluidBlock::sizeX,
+                                     sim.bpdy * cubismup3d::FluidBlock::sizeY,
+                                     sim.bpdz * cubismup3d::FluidBlock::sizeZ});
+  ret.nModes =  (int) maxGridSize/2 -1;
+
+  int n=0;
+  for(std::string line; std::getline(inFile, line); )
+  {
+    if (n>ret.nModes) break;
+    std::istringstream in(line);
+    Real k, mean, std2;
+    in >> k >> mean >> std2;
+    E_mean.push_back(mean);
+    E_std2.push_back(std2);
+    n++;
+  }
+
+  ret.E_mean = E_mean;
+  ret.E_std2 = E_std2;
+  inFile.close();
+
+
+  // Get the Kernel Density Estimations from 'kdeTarget.dat'
+  inFile.open(fileName_kde);
+  std::string line;
+  if (!inFile){
+    std::cout<<"Cannot open "<<fileName_kde<<std::endl;
+    abort();
+  }
+
+  // First line is nSamplePerMode
+  std::getline(inFile, line);
+  std::istringstream in(line);
+  in >> ret.nSamplePerMode;
+
+  size_t size = ret.nSamplePerMode * ret.nModes;
+  std::vector<double> E_kde(size, 0.0);
+  std::vector<double> P_kde(size, 0.0);
+
+  for (int i=0; i<ret.nModes; i++){
+    std::getline(inFile, line);
+    std::getline(inFile, line);
+    for (int j=0; j<ret.nSamplePerMode; j++){
+      std::getline(inFile, line);
+      std::istringstream in(line);
+      size_t idx = i * ret.nSamplePerMode + j;
+      in >> E_kde[idx] >> P_kde[idx];
+    }
+  }
+
+  ret.E_kde = E_kde;
+  ret.P_kde = P_kde;
+  inFile.close();
+
+  // Get tau_integral and tau_eta from 'scaleTarget.dat'
+  inFile.open(fileName_scale);
+  if (!inFile){
+    std::cout<<"Cannot open "<<fileName_scale<<std::endl;
+    abort();
+  }
+  std::getline(inFile, line);
+  in = std::istringstream(line);
+  in >> ret.tau_integral;
+  std::getline(inFile, line);
+  in = std::istringstream(line);
+  in >> ret.tau_eta;
+  std::getline(inFile, line);
+  in = std::istringstream(line);
+  in >> ret.max_rew;
+
+
+  return ret;
+}
+
 inline bool isTerminal(cubismup3d::SimulationData& sim)
 {
-  std::atomic<bool> terminal { false };
+  std::atomic<bool> bSimValid { true };
+
   const auto& vInfo = sim.vInfo();
   const auto isNotValid = [](const Real val) {
     return std::isnan(val) || std::fabs(val)>1e3;
@@ -37,16 +178,20 @@ inline bool isTerminal(cubismup3d::SimulationData& sim)
     for(int ix=0; ix<cubismup3d::FluidBlock::sizeX; ++ix)
       if ( isNotValid(b(ix,iy,iz).u) || isNotValid(b(ix,iy,iz).v) ||
            isNotValid(b(ix,iy,iz).w) || isNotValid(b(ix,iy,iz).p) )
-        terminal = true;
+        bSimValid = false;
   }
-  return terminal.load();
+  MPI_Allreduce(MPI_IN_PLACE, &bSimValid, 1, MPI_INT, MPI_PROD, sim.grid->getCartComm());
+  return not(bSimValid.load());
 }
 
-inline double updateReward(cubismup3d::SimulationData&sim, const double oldRew)
+inline double updateReward(double oldRew, const int nBin, const targetData tgt, const double msr[], const double alpha)
 {
-  const Real alpha = 0.999; //there are formulas to determne size of integration window
-  const Real newReward = 1; // dummy
-  return alpha*oldRew + (1-alpha) * newReward;
+  double newRew = 0;
+  for (int i=0; i<nBin; i++){
+    //newRew += tgt.getRewardL2(i, msr[i]);
+    newRew += tgt.getRewardKDE(i, msr[i]);
+  }
+  return oldRew=0 ? newRew : (1-alpha)*oldRew + alpha*newRew;
 }
 
 
@@ -90,7 +235,10 @@ int app_main(
 
   cubismup3d::Simulation *sim = new cubismup3d::Simulation(mpicom, parser);
 
-  const int nActions = 1, nStates = 27;
+  std::cout<<"Setting up target data"<<std::endl;
+  targetData target = getTarget(sim->sim, comm->isTraining());
+  //targetData target;
+  const int nActions = 1, nStates = 9;
   // BIG TROUBLE WITH NAGENTS!
   // If every grid point is an agent: probably will allocate too much memory
   // and crash because smarties allocates a trajectory for each point
@@ -98,16 +246,22 @@ int app_main(
   // send clean Sequences.
   // Also, rememebr that separate agents are thread safe!
   // let's say that each fluid block has one agent
-  const int nValidAgents = sim->sim.local_bpdx * sim->sim.local_bpdy * sim->sim.local_bpdz;
-  const int nThreadSafetyAgents = omp_get_num_threads();
+  const int nAgentPerBlock = sim->sim.nAgentsPerBlock;
+  const int nBlocks = sim->sim.local_bpdx * sim->sim.local_bpdy * sim->sim.local_bpdz;
+  const int nValidAgents = nBlocks * nAgentPerBlock;
+  const int nThreadSafetyAgents = omp_get_max_threads();
   comm->update_state_action_dims(nStates, nActions);
-  comm->setnAgents(nValidAgents + nThreadSafetyAgents);
-  comm->disableDataTrackingForAgents(nValidAgents, nValidAgents + nThreadSafetyAgents);
-  const std::vector<double> lower_act_bound{-0.01}, upper_act_bound{0.01};
+  comm->setnAgents(nValidAgents + nThreadSafetyAgents, nThreadSafetyAgents);
+
+  const std::vector<double> lower_act_bound{0.04}, upper_act_bound{0.08};
   comm->set_action_scales(upper_act_bound, lower_act_bound, false);
 
+  comm->workerCreateLearners_upcxx();
+  comm->disableDataTrackingForAgents(nValidAgents, nValidAgents + nThreadSafetyAgents);
+  comm->sendStateActionShape_upcxx();
+
   if( comm->isTraining() ) { // disable all dumping. comment out for dbg
-    sim->sim.b3Ddump = false; sim->sim.muteAll = true;
+    sim->sim.b3Ddump = false; sim->sim.muteAll  = true;
     sim->sim.b2Ddump = false; sim->sim.saveFreq = 0;
     sim->sim.verbose = false; sim->sim.saveTime = 0;
   }
@@ -117,44 +271,50 @@ int app_main(
   // Terminate loop if reached max number of time steps. Never terminate if 0
   while( numSteps == 0 || tot_steps<numSteps ) // train loop
   {
-    if( not comm->isTraining() ) { // avoid too many unneeded folders created
+    if( not comm->isTraining()) { // avoid too many unneeded folders created
       sprintf(dirname, "run_%08u/", sim_id); // by fast simulations when train
       printf("Starting a new sim in directory %s\n", dirname);
       mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
       chdir(dirname);
     }
 
-    double time = 0;
-    unsigned step = 0;
-    double avgReward = 0;
+    double time = 0.0;
+    double tStart = 5.0;
+    int step = 0;
+    double avgReward  = 0;
+
     bool policyFailed = false;
-    sim->reset(); // TODO Does not work for obstacles
+    sim->reset(comm->getPRNG(), tStart, nAgentPerBlock, sim_id, comm->isTraining()); // TODO Does not work for obstacles
+    cubismup3d::SpectralAnalysis* sA = new cubismup3d::SpectralAnalysis(sim->sim);
+
+    const Real tau_eta       = target.tau_eta;
+    const Real tau_integral  = target.tau_integral;
+    const Real timeUpdateLES = 0.5*tau_eta;
+
+    const unsigned int nIntegralTime = 10;
+    const int maxNumUpdatesPerSim = (int) (nIntegralTime * tau_integral / timeUpdateLES);
 
     while (true) //simulation loop
     {
-      // Assume Re = halfLy * U_mean / nu ~ 2500. Then for channel Re_\tau = 180
-      // Also: L_\tau = halfLy/ Re_\tau and T_\tau = L_\tau / U_mean
-      // next line assumes U_mean = 1 and halfLy = 1. TODO generalize:
-      const double freqUpdateLES = 1.0 / 180.0;
-      // A simulation is composed of how many LES updates?
-      const unsigned maxNumUpdatesPerSim = 1000; // random number... TODO
-
       const bool timeOut = step >= maxNumUpdatesPerSim;
-      // even if timeOut call updateLES to send all the states of last step:
-      cubismup3d::SGS_RL updateLES(sim->sim, comm, timeOut, avgReward);
+      // even if timeOut call updateLES to send all the states of last step
+      bool evalStep = true;
+      cubismup3d::SGS_RL updateLES(sim->sim, comm, step, timeOut, evalStep, avgReward, nAgentPerBlock);
       updateLES.run();
       if(timeOut) break;
 
-      while ( time < (step+1)*freqUpdateLES )
+      while ( time < (step+1)*timeUpdateLES )
       {
         const double dt = sim->calcMaxTimestep();
         time += dt;
-
+        sA->run();
+        const double alpha = dt / tau_integral;
+        avgReward = updateReward(avgReward, sA->nBin, target, sA->E_msr, alpha);
         if ( sim->timestep( dt ) ) { // if true sim has ended
           printf("Set -tend 0. This file decides the length of train sim.\n");
           assert(false); fflush(0); MPI_Abort(mpicom, 1);
         }
-        if ( isTerminal( sim->sim ) ) {
+        if ( isTerminal( sim->sim )) {
           policyFailed = true;
           break;
         }
@@ -162,19 +322,18 @@ int app_main(
       step++;
       tot_steps++;
 
-      avgReward = updateReward(sim->sim, avgReward);
-
       if ( policyFailed )
       {
-        printf("Policy failed\n"); fflush(0);
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
-        const double R_T = -1000;
-        for(int i=0; i<nValidAgents; i++) comm->sendTermState(S_T, R_T, i);
+        const double R_T = (double) (0.5*target.max_rew*(step - maxNumUpdatesPerSim));
+        for(int i=0; i<nValidAgents; i++) comm->termSeq_upcxx(S_T, R_T, i);
         break;
       }
     } // simulation is done
-
-    if( not comm->isTraining() ) chdir("../"); // matches previous if
+    delete sA;
+    if( not comm->isTraining()) {
+      chdir("../"); // matches previous if
+    }
     sim_id++;
   }
 

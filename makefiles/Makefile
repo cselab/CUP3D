@@ -105,8 +105,9 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
 	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o FadeOut.o \
 	FishShapes.o IterativePressurePenalization.o IterativePressureNonUniform.o \
-	ArgumentParser.o # Temporary solution for Cubism .cpp files.
-	#ElasticFishOperator.o
+	FixedMassFlux_nonUniform.o SGS.o Analysis.o SpectralManip.o SpectralIcGenerator.o \
+	SpectralAnalysis.o SpectralForcing.o ArgumentParser.o \
+	#ElasticFishOperator.o # Temporary solution for Cubism .cpp files.
 
 #################################################
 # HDF5

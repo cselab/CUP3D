@@ -29,7 +29,7 @@ public:
 
   SimulationData sim;
 
-  void reset();
+  void reset(std::mt19937& gen, const Real tStart, const int nAgentsPerBlock, const int sim_id, const bool bTrain);
   void _init(bool restart = false);
   void _serialize(const std::string append = std::string());
   void _deserialize();
@@ -38,6 +38,7 @@ public:
   void setupOperators();
   void setupGrid(cubism::ArgumentParser *parser_ptr = nullptr);
   void _ic();
+  void _icFromH5(std::string h5File);
 
  public:
   Simulation(const SimulationData &);

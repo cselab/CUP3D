@@ -20,6 +20,7 @@
 #include <thread>
 #endif
 #include <vector>
+#include <random>
 
 namespace cubism {
   class Profiler;
@@ -32,6 +33,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 class Operator;
 class ObstacleVector;
 class PoissonSolver;
+class SpectralManip;
 
 #ifdef CUP_ASYNC_DUMP
  using DumpBlock  = BaseBlock<DumpElement>;
@@ -68,6 +70,7 @@ struct SimulationData
   //The antagonist
   std::vector<Operator*> pipeline;
   PoissonSolver * pressureSolver = nullptr;
+  SpectralManip * spectralManip = nullptr;
   // simulation status
   // nsteps==0 means that this stopping criteria is not active
   int step=0, nsteps=0;
@@ -94,6 +97,39 @@ struct SimulationData
   std::array<Real, 3> uinf = {{0, 0, 0}};
   double nu=0, CFL=0, lambda=-1, DLM=1;
 
+  // initial conditions
+  std::string initCond = "zero";
+  std::string spectralIC = "";
+  std::string spectralICFile = "";
+  double k0=0;
+  double tke0=0;
+  std::string icFromH5 = "";
+
+  // forcing
+  bool fixedMassFlux = false;
+  Real uMax_forced = 0;
+  bool spectralForcing = false;
+  double tkeTgt=0;
+
+  // sgs
+  std::string sgs = "";
+  double cs = 0.0;
+  int nAgentsPerBlock = 1;
+  bool sgs_rl = false;
+  Real cs2_rl = 0.0;
+
+  // analysis
+  std::string analysis;
+  double timeAnalysis = 0;
+  int freqAnalysis = 0;
+  double analysisTime=0, nextAnalysisTime=0;
+  std::vector<Real> Ux_avg_tgt;
+  std::vector<Real> kx_avg_tgt;
+  std::vector<Real> Ux_avg_msr;
+  std::vector<Real> kx_avg_msr;
+  Real reTau = 0.;
+  double nu_sgs=0;
+
   // simulation settings
   int freqDiagnostics = 0;
   bool b3Ddump=true, b2Ddump=false, bDump=false;
@@ -108,7 +144,6 @@ struct SimulationData
   int saveFreq=0;
   double saveTime=0, nextSaveTime=0;
   std::string path4serialization = "./";
-  std::string initCond = "zero";
   std::string useSolver = "";
   // flags assume value 0 for dirichlet/unbounded, 1 for periodic, 2 for wall
   BCflag BCx_flag = dirichlet, BCy_flag = dirichlet, BCz_flag = dirichlet;

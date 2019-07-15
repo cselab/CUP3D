@@ -116,6 +116,10 @@ struct BaseBlock
   Real __attribute__((__aligned__(32))) invh_z[sizeZ]; // pre-compute inverse mesh-spacings
   std::array<Real, 3> min_pos;
   std::array<Real, 3> max_pos;
+
+  //for smarties channel flow RL
+  std::vector<int> iAgentX, iAgentY, iAgentZ;
+
   //required from Grid.h
   void clear()
   {

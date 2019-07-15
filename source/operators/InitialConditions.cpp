@@ -8,6 +8,7 @@
 
 #include "operators/InitialConditions.h"
 #include "obstacles/ObstacleVector.h"
+#include "operators/SpectralIcGenerator.h"
 
 #include<random>
 
@@ -105,6 +106,7 @@ class KernelIC_channelrandom
   const int dir;
   const std::array<Real, 3> ext;
   const Real uMax, H = ext[dir], FAC = 4*uMax/H/H; // FAC = 0.5*G/mu
+  const Real delta_tau = 5.0/180;
   //umax =  0.5*G/mu * 0.25*H*H
  public:
   KernelIC_channelrandom(const std::array<Real, 3> &extent, const Real U, const int _dir):
@@ -226,6 +228,13 @@ void InitialConditions::operator()(const double dt)
     }
     const int dir = channelY? 1 : 2;
     run(KernelIC_channel(sim.extent, sim.uMax_forced, dir));
+  }
+  if (sim.initCond == "HITurbulence")
+  {
+    if(sim.verbose) printf("Homogeneous Isotropic Turbulence initial conditions.\n");
+
+    SpectralIcGenerator sIc(sim);
+    sIc.run();
   }
   {
     //zero fields, going to contain Udef:

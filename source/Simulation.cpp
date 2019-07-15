@@ -21,6 +21,11 @@
 #include "operators/IterativePressureNonUniform.h"
 #include "operators/IterativePressurePenalization.h"
 #include "operators/PressureRHS.h"
+#include "operators/FixedMassFlux_nonUniform.h"
+#include "operators/SGS.h"
+#include "operators/SGS_RL.h"
+#include "operators/Analysis.h"
+#include "operators/SpectralForcing.h"
 
 #include "obstacles/ObstacleFactory.h"
 #include "operators/ProcessHelpers.h"
@@ -147,8 +152,12 @@ Simulation::Simulation(
 void Simulation::_init(const bool restart)
 {
   setupOperators();
-  if (restart) _deserialize();
-  else _ic();
+  if (restart)
+    _deserialize();
+  else if (sim.icFromH5 != "")
+    _icFromH5(sim.icFromH5);
+  else
+    _ic();
   MPI_Barrier(sim.app_comm);
   _serialize("init");
 
@@ -164,9 +173,17 @@ void Simulation::_init(const bool restart)
 }
 
 
-void Simulation::reset()
+void Simulation::reset(std::mt19937& gen, const Real tStart, const int nAgentsPerBlock, const int sim_id, const bool bTrain)
 {
-  _ic();
+  if (sim.icFromH5 != ""){
+    std::string h5File = sim.icFromH5;
+    if (not bTrain)
+      h5File = "../" + h5File;
+    _icFromH5(h5File);
+  }
+  else
+    _ic();
+
   sim.nextSaveTime = 0;
   sim.step = 0; sim.time = 0;
   sim.uinf = std::array<Real,3> {{ (Real)0, (Real)0, (Real)0 }};
@@ -175,6 +192,35 @@ void Simulation::reset()
     printf("TODO Implement reset also for obstacles if needed!\n");
     fflush(0); MPI_Abort(sim.app_comm, 1);
   }
+
+  // Set up tracked agent
+  // TODO : make sure there are no agents on the same grid point...
+  const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
+  std::uniform_int_distribution<int> distX(0,FluidBlock::sizeX-1);
+  std::uniform_int_distribution<int> distY(0,FluidBlock::sizeY-1);
+  std::uniform_int_distribution<int> distZ(0,FluidBlock::sizeZ-1);
+  #pragma omp parallel for schedule(static)
+  for (size_t i=0; i<myInfo.size(); i++){
+    const BlockInfo& info = myInfo[i];
+    FluidBlock* b = (FluidBlock*) info.ptrBlock;
+    if (sim_id==0){
+      b->iAgentX = std::vector<int>(nAgentsPerBlock, 0);
+      b->iAgentY = std::vector<int>(nAgentsPerBlock, 0);
+      b->iAgentZ = std::vector<int>(nAgentsPerBlock, 0);
+    }
+    for (int k=0; k<nAgentsPerBlock; k++){
+      b->iAgentX[k]=distX(gen);
+      b->iAgentY[k]=distY(gen);
+      b->iAgentZ[k]=distZ(gen);
+    }
+  }
+  printf("Reset simulation up to time=%g\n", tStart);
+  while (sim.time < tStart){
+    sim.sgs    = "SSM";
+    const double dt = calcMaxTimestep();
+    timestep(dt);
+  }
+  sim.sgs    = "RLSM";
   MPI_Barrier(sim.app_comm);
 }
 
@@ -184,6 +230,25 @@ void Simulation::_ic()
   sim.startProfiler(coordIC.getName());
   coordIC(0);
   sim.stopProfiler();
+}
+
+void Simulation::_icFromH5(std::string h5File)
+{
+  if (sim.rank==0) std::cout << "Extracting Initial Conditions from " << h5File << std::endl;
+
+  #ifdef CUBISM_USE_HDF
+    ReadHDF5_MPI<StreamerVelocityVector, DumpReal>(* sim.grid,
+      h5File, sim.path4serialization);
+  #else
+    printf("Unable to restart without  HDF5 library. Aborting...\n");
+    MPI_Abort(sim.grid->getCartComm(), 1);
+  #endif
+
+  sim.obstacle_vector->restart(sim.path4serialization+"/"+sim.icFromH5);
+
+  // prepare time for next save
+  sim.nextSaveTime = sim.time + sim.saveTime;
+  MPI_Barrier(sim.app_comm);
 }
 
 void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
@@ -290,11 +355,18 @@ void Simulation::setupOperators()
   // \tilde{u} = u_t + \delta t (\nu \nabla^2 u_t - (u_t \cdot \nabla) u_t )
   sim.pipeline.push_back(new AdvectionDiffusion(sim));
 
+  if (sim.sgs != "")
+    sim.pipeline.push_back(new SGS(sim));
+
   // Used to add an uniform pressure gradient / uniform driving force.
   // If the force were space-varying then we would need to include in the
   // pressure equation's RHS.
-  if(sim.uMax_forced > 0 && sim.initCond not_eq "taylorGreen")
+  if(sim.uMax_forced > 0 && sim.initCond not_eq "taylorGreen" && not sim.fixedMassFlux)
     sim.pipeline.push_back(new ExternalForcing(sim));
+
+
+  if (sim.spectralForcing)
+    sim.pipeline.push_back(new SpectralForcing(sim));
 
   if(sim.bIterativePenalization)
   {
@@ -336,8 +408,13 @@ void Simulation::setupOperators()
 
   sim.pipeline.push_back(new ComputeDissipation(sim));
 
+  if (sim.fixedMassFlux)
+    sim.pipeline.push_back(new FixedMassFlux_nonUniform(sim));
+
+
+  sim.pipeline.push_back(new Analysis(sim));
+
   //sim.pipeline.push_back(new FadeOut(sim));
-  //sim.pipeline.push_back(new InflowBC(sim));
 
   if(sim.rank==0) {
     printf("Coordinator/Operator ordering:\n");

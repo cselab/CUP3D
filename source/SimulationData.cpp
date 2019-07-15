@@ -47,7 +47,29 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
 
   // FLOW
   nu = parser("-nu").asDouble();
+
+  // IC
+  initCond = parser("-initCond").asString("zero");
+  spectralIC = parser("-spectralIC").asString("");
+  spectralICFile = parser("-spectralICFile").asString("");
+  k0 = parser("-k0").asDouble(10.0);
+  tke0 = parser("-tke0").asDouble(1.0);
+  icFromH5 = parser("-icFromH5").asString("");
+
+  // FORCING Channel
+  fixedMassFlux = parser("-fixedMassFlux").asBool(false);
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
+
+  // FORCING HIT
+  spectralForcing = parser("-spectralForcing").asBool(false);
+  tkeTgt = parser("-tkeTarget").asDouble(0);
+
+  // SGS
+  sgs = parser("-sgs").asString("");
+  cs = parser("-cs").asDouble(0.2);
+  sgs_rl = parser("-sgs_rl").asBool(false);
+  nAgentsPerBlock = parser("-nAgentsPerBlock").asInt(1);
+
   lambda = parser("-lambda").asDouble(1e6);
   DLM = parser("-use-dlm").asDouble(0);
   CFL = parser("-CFL").asDouble(.1);
@@ -63,6 +85,11 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   verbose = parser("-verbose").asBool(true) && rank == 0;
   b2Ddump = parser("-dump2D").asBool(false);
   b3Ddump = parser("-dump3D").asBool(true);
+
+  // ANALYSIS
+  analysis = parser("-analysis").asString("");
+  timeAnalysis = parser("-tAnalysis").asDouble(0.0);
+  freqAnalysis = parser("-fAnalysis").asInt(0);
 
   int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
   double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
@@ -80,7 +107,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   path4serialization = parser("-serialization").asString("./");
 
   // INITIALIZATION: Mostly unused
-  initCond = parser("-initCond").asString("zero");
   useSolver = parser("-useSolver").asString("");
   // BOUNDARY CONDITIONS
   // accepted dirichlet, periodic, freespace/unbounded, fakeOpen
