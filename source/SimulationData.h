@@ -138,7 +138,6 @@ struct SimulationData
   bool muteAll = false;
   Real fadeOutLengthU[3] = {0, 0, 0};
   Real fadeOutLengthPRHS[3] = {0, 0, 0};
-  Real uMax_forced = 0;
 
   // output
   int saveFreq=0;

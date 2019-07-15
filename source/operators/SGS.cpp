@@ -42,7 +42,7 @@ class KernelSGS_SSM {
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
 
   KernelSGS_SSM(SGSGridMPI*const _sgsGrid, const Real _Cs)
-      : sgsGrid(_sgsGrid), Cs(_Cs) {}
+      : Cs(_Cs), sgsGrid(_sgsGrid) {}
 
   ~KernelSGS_SSM() {}
   template <typename Lab, typename BlockType>
@@ -201,6 +201,8 @@ inline  Real facFilter(const int i, const int j, const int k){
     return 4.0/64;
   else if (abs(i)+abs(j)+abs(k) == 0)    // Center cells
     return 8.0/64;
+  else assert(false);
+  return 0;
 }
 
 struct filterFluidElement

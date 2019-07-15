@@ -100,8 +100,8 @@ static void _addObstacles(SimulationData &sim, std::stringstream &stream)
               << factoryLines.size() << " objects)   ------------\n";
   }
 
-  for (auto &line : factoryLines)
-    sim.obstacle_vector->addObstacle(_createObstacle(sim, line.first, line.second));
+  for (auto & l : factoryLines)
+    sim.obstacle_vector->addObstacle(_createObstacle(sim, l.first, l.second));
 
   if (sim.rank == 0)
     std::cout << "-------------   OBSTACLE FACTORY : END   ------------" << std::endl;
