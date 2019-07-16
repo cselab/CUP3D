@@ -11,7 +11,9 @@
 
 #include "operators/Operator.h"
 
+namespace smarties {
 class Communicator;
+}
 
 CubismUP_3D_NAMESPACE_BEGIN
 

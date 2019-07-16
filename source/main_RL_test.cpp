@@ -36,12 +36,14 @@ struct targetData
   double tau_eta;
   double max_rew;
 
-  double getRewardL2(const int modeID, const double msr) const{
+  double getRewardL2(const int modeID, const double msr) const
+  {
     double r = (E_mean[modeID] - msr)/E_mean[modeID];
     return -r*r;
   }
 
-  double getRewardKDE(const int modeID, const double msr) const{
+  double getRewardKDE(const int modeID, const double msr) const
+  {
     if (msr <= E_kde[modeID*nSamplePerMode] or msr >= E_kde[modeID*nSamplePerMode + nSamplePerMode - 1]){
       return 0;
     }
@@ -180,8 +182,9 @@ inline bool isTerminal(cubismup3d::SimulationData& sim)
            isNotValid(b(ix,iy,iz).w) || isNotValid(b(ix,iy,iz).p) )
         bSimValid = false;
   }
-  MPI_Allreduce(MPI_IN_PLACE, &bSimValid, 1, MPI_INT, MPI_PROD, sim.grid->getCartComm());
-  return not(bSimValid.load());
+  int isSimValid = bSimValid.load() == true? 1 : 0; // just for clarity
+  MPI_Allreduce(MPI_IN_PLACE, &isSimValid, 1, MPI_INT, MPI_PROD, sim.grid->getCartComm());
+  return isSimValid == 0;
 }
 
 inline double updateReward(double oldRew, const int nBin, const targetData tgt, const double msr[], const double alpha)

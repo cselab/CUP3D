@@ -8,17 +8,17 @@
 
 #include "operators/Operator.h"
 #include "operators/SGS_RL.h"
-#include "Communicator.h"
+#include "Communicators/Communicator.h"
 
-CubismUP_3D_NAMESPACE_BEGIN using namespace cubism;
-
-
+CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 // Product of two symmetric matrices stored as 1D vectors with 6 elts {M_00, M_01, M_02,
 //                                                                           M_11, M_12,
 //                                                                                 M_22}
 // Returns a symmetric matrix.
-std::vector<Real> symProd(const std::vector<Real> mat1, const std::vector<Real> mat2)
+std::vector<Real> symProd(const std::vector<Real> mat1,
+                          const std::vector<Real> mat2)
 {
   assert(mat1.size()==6 && mat2.size()==6);
   std::vector<Real> ret(6, 0);
@@ -32,7 +32,8 @@ std::vector<Real> symProd(const std::vector<Real> mat1, const std::vector<Real> 
 }
 // Product of two anti symmetric matrices stored as 1D vector with 3 elts (M_01, M_02, M_12)
 // Returns a symmetric matrix.
-std::vector<Real> antiSymProd(const std::vector<Real> mat1, const std::vector<Real> mat2)
+std::vector<Real> antiSymProd(const std::vector<Real> mat1,
+                              const std::vector<Real> mat2)
 {
   assert(mat1.size()==3 && mat2.size()==3);
   std::vector<Real> ret(6, 0);
@@ -53,15 +54,17 @@ Real traceOfProd(const std::vector<Real> mat1, const std::vector<Real> mat2)
   return ret;
 }
 
-std::vector<Real> flowInvariants(const Real d1udx1, const Real d1vdx1, const Real d1wdx1,
-                                 const Real d1udy1, const Real d1vdy1, const Real d1wdy1,
-                                 const Real d1udz1, const Real d1vdz1, const Real d1wdz1)
+std::vector<Real> flowInvariants(
+  const Real d1udx1, const Real d1vdx1, const Real d1wdx1,
+  const Real d1udy1, const Real d1vdy1, const Real d1wdy1,
+  const Real d1udz1, const Real d1vdz1, const Real d1wdz1)
 {
-  const std::vector<Real> S = {d1udx1, 0.5*(d1vdx1 + d1udy1), 0.5*(d1wdx1 + d1udz1),
-                                                d1vdy1      , 0.5*(d1wdy1 + d1vdz1),
-                                                                      d1wdz1      };
+  const std::vector<Real> S = {
+    d1udx1, (d1vdx1 + d1udy1)/2, (d1wdx1 + d1udz1)/2,
+    d1vdy1, (d1wdy1 + d1vdz1)/2, d1wdz1 };
 
-  const std::vector<Real> R = {0.5*(d1vdx1 - d1udy1), 0.5*(d1wdx1 - d1udz1), 0.5*(d1wdy1 - d1vdz1)};
+  const std::vector<Real> R = {
+    (d1vdx1 - d1udy1)/2, (d1wdx1 - d1udz1)/2, (d1wdy1 - d1vdz1)/2};
 
   const std::vector<Real> S2  = symProd(S, S);
   const std::vector<Real> R2  = antiSymProd(R, R);
@@ -78,9 +81,10 @@ std::vector<Real> flowInvariants(const Real d1udx1, const Real d1vdx1, const Rea
 int getAgentId(const int idx, const int idy, const int idz,
                const std::vector<int> trackedAgentsX,
                const std::vector<int> trackedAgentsY,
-               const std::vector<int> trackedAgentsZ){
+               const std::vector<int> trackedAgentsZ)
+{
   const int nAgentsPerBlock = trackedAgentsX.size();
-  for (int i=0; i<nAgentsPerBlock; i++)
+  for (int i=0; i<nAgentsPerBlock; ++i)
   {
     if (idx==trackedAgentsX[i] and idy==trackedAgentsY[i] and idz==trackedAgentsZ[i])
       return i;
@@ -88,7 +92,10 @@ int getAgentId(const int idx, const int idy, const int idz,
   return -1;
 }
 
-std::vector<double> getState_uniform(Lab& lab, const int ix, const int iy, const int iz, const Real h){
+std::vector<double> getState_uniform(Lab& lab,
+                                     const int ix, const int iy, const int iz,
+                                     const Real h)
+{
   const FluidElement &L  = lab(ix, iy, iz);
   const FluidElement &LW = lab(ix - 1, iy, iz),
                      &LE = lab(ix + 1, iy, iz);
@@ -101,9 +108,10 @@ std::vector<double> getState_uniform(Lab& lab, const int ix, const int iy, const
   const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
   const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
   /*
-  const std::vector<double> ret = flowInvariants(d1udx1/(2*h), d1vdx1/(2*h), d1wdx1/(2*h),
-                                                 d1udy1/(2*h), d1vdy1/(2*h), d1wdy1/(2*h),
-                                                 d1udz1/(2*h), d1vdz1/(2*h), d1wdz1/(2*h));
+  const std::vector<double> ret =
+    flowInvariants(d1udx1/(2*h), d1vdx1/(2*h), d1wdx1/(2*h),
+                   d1udy1/(2*h), d1vdy1/(2*h), d1wdy1/(2*h),
+                   d1udz1/(2*h), d1vdz1/(2*h), d1wdz1/(2*h));
   */
   const std::vector<double> ret = {d1udx1/(2*h), d1vdx1/(2*h), d1wdx1/(2*h),
                                    d1udy1/(2*h), d1vdy1/(2*h), d1wdy1/(2*h),
@@ -142,7 +150,8 @@ class KernelSGS_RL {
         nAgentsPerBlock(_nAgentsPerBlock) {}
 
   template <typename Lab, typename BlockType>
-  void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const {
+  void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
+  {
     // FD coefficients for first and second derivative
     const Real h = info.h_gridpoint;
     const int thrID = omp_get_thread_num();
@@ -150,28 +159,24 @@ class KernelSGS_RL {
     size_t lastRealAgent = info.blockID;
 
     // Deal with the real agents first
-    for (size_t k = 0; k < nAgentsPerBlock; k++) {
+    for (size_t k = 0; k < nAgentsPerBlock; k++)
+    {
       const int ix = o.iAgentX[k], iy = o.iAgentY[k], iz = o.iAgentZ[k];
       const size_t agentID = nAgentsPerBlock*info.blockID + k;
       const std::vector<double> state = getState_uniform(lab, ix, iy, iz, h);
-      if (&upcxx::current_persona()==&upcxx::backend::master)
-        upcxx::liberate_master_persona();
-        #pragma omp critical
-        {
-          upcxx::persona_scope scope(upcxx::master_persona());
-          if (!timeOut){
-            std::vector<double> Cs2_RL =
-                comm.computeAction_upcxx(rlSeqInfo, state, reward, agentID);
-            o(ix, iy, iz).chi = Cs2_RL[0];
-          }
-          else comm.truncSeq_upcxx(state, reward, agentID);
-        }
+      if (!timeOut) {
+        std::vector<double> Cs2_RL =
+            comm.computeAction_upcxx(rlSeqInfo, state, reward, agentID);
+        o(ix, iy, iz).chi = Cs2_RL[0];
+      }
+      else comm.truncSeq_upcxx(state, reward, agentID);
     }
 
     // Then the fake agents
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
-    for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
+    for (int ix = 0; ix < FluidBlock::sizeX; ++ix)
+    {
       // one element per block is a proper agent: will add seq to train data
       // other are nThreads and are only there for thread safety
       // states get overwritten
@@ -272,12 +277,16 @@ void SGS_RL::runKernel(const Kernel& kernel)
   MPI_Barrier(grid->getCartComm());
 }
 
-SGS_RL::SGS_RL(SimulationData& s, Communicator* _comm, const int _step,
-               const bool _timeOut, const bool _evalStep, const double _reward,
-               const int _nAgentsPerBlock)
-    : Operator(s), comm(_comm), step(_step), timeOut(_timeOut), evalStep(_evalStep), reward(_reward), nAgentsPerBlock(_nAgentsPerBlock) {}
+SGS_RL::SGS_RL(SimulationData& s, smarties::Communicator* _comm,
+               const int _step, const bool _timeOut,
+               const bool _evalStep, const double _reward,
+               const int _nAgentsPerBlock) : Operator(s), comm(_comm),
+               step(_step), timeOut(_timeOut), evalStep(_evalStep),
+               reward(_reward), nAgentsPerBlock(_nAgentsPerBlock)
+{}
 
-void SGS_RL::operator()(const double dt) {
+void SGS_RL::operator()(const double dt)
+{
   sim.startProfiler("SGS_RL");
   const KernelSGS_RL K_SGS_RL(*comm, step, timeOut, evalStep, reward, sim.vInfo().size(), nAgentsPerBlock);
 
