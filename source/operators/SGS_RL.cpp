@@ -10,6 +10,7 @@
 #include "operators/SGS_RL.h"
 #include "Communicators/Communicator.h"
 
+#include <functional>
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
@@ -17,8 +18,8 @@ using namespace cubism;
 //                                                                           M_11, M_12,
 //                                                                                 M_22}
 // Returns a symmetric matrix.
-std::vector<Real> symProd(const std::vector<Real> mat1,
-                          const std::vector<Real> mat2)
+inline std::vector<Real> symProd(const std::vector<Real> mat1,
+                                 const std::vector<Real> mat2)
 {
   assert(mat1.size()==6 && mat2.size()==6);
   std::vector<Real> ret(6, 0);
@@ -32,8 +33,8 @@ std::vector<Real> symProd(const std::vector<Real> mat1,
 }
 // Product of two anti symmetric matrices stored as 1D vector with 3 elts (M_01, M_02, M_12)
 // Returns a symmetric matrix.
-std::vector<Real> antiSymProd(const std::vector<Real> mat1,
-                              const std::vector<Real> mat2)
+inline std::vector<Real> antiSymProd(const std::vector<Real> mat1,
+                                     const std::vector<Real> mat2)
 {
   assert(mat1.size()==3 && mat2.size()==3);
   std::vector<Real> ret(6, 0);
@@ -46,7 +47,8 @@ std::vector<Real> antiSymProd(const std::vector<Real> mat1,
   return ret;
 }
 // Returns the Tr[mat1*mat2] with mat1 and mat2 symmetric matrices stored as 1D vector.
-Real traceOfProd(const std::vector<Real> mat1, const std::vector<Real> mat2)
+inline Real traceOfProd(const std::vector<Real> mat1,
+                        const std::vector<Real> mat2)
 {
   assert(mat1.size()==6 && mat2.size()==6);
   Real ret =   mat1[0]*mat2[0] +   mat1[3]*mat2[3]  +   mat1[5]*mat2[5]
@@ -54,7 +56,7 @@ Real traceOfProd(const std::vector<Real> mat1, const std::vector<Real> mat2)
   return ret;
 }
 
-std::vector<Real> flowInvariants(
+inline std::vector<Real> flowInvariants(
   const Real d1udx1, const Real d1vdx1, const Real d1wdx1,
   const Real d1udy1, const Real d1vdy1, const Real d1wdy1,
   const Real d1udz1, const Real d1vdz1, const Real d1wdz1)
@@ -78,7 +80,7 @@ std::vector<Real> flowInvariants(
   return ret;
 }
 
-int getAgentId(const int idx, const int idy, const int idz,
+inline int getAgentId(const int idx, const int idy, const int idz,
                const std::vector<int> trackedAgentsX,
                const std::vector<int> trackedAgentsY,
                const std::vector<int> trackedAgentsZ)
@@ -92,11 +94,11 @@ int getAgentId(const int idx, const int idy, const int idz,
   return -1;
 }
 
-std::vector<double> getState_uniform(Lab& lab,
+inline std::vector<double> getState_uniform(Lab& lab,
                                      const int ix, const int iy, const int iz,
                                      const Real h)
 {
-  const FluidElement &L  = lab(ix, iy, iz);
+  //const FluidElement &L  = lab(ix, iy, iz);
   const FluidElement &LW = lab(ix - 1, iy, iz),
                      &LE = lab(ix + 1, iy, iz);
   const FluidElement &LS = lab(ix, iy - 1, iz),
@@ -130,7 +132,7 @@ class KernelSGS_RL
   const bool evalStep;
   const double reward;
   const size_t nBlocks;
-  const int nAgentsPerBlock;
+  const size_t nAgentsPerBlock;
 
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
@@ -138,7 +140,7 @@ class KernelSGS_RL
 
   KernelSGS_RL(smarties::Communicator& _comm, const int _step,
                const bool _timeOut, const bool _evalStep, const double _reward,
-               const size_t _nBlocks, const int _nAgentsPerBlock)
+               const size_t _nBlocks, const size_t _nAgentsPerBlock)
       : comm(_comm),
         step(_step),
         timeOut(_timeOut),
@@ -155,16 +157,14 @@ class KernelSGS_RL
     const int thrID = omp_get_thread_num();
     const size_t nAgents = nAgentsPerBlock * nBlocks;
     size_t lastRealAgent = info.blockID;
-    const auto sendState =
-        step == 0 ? [&](std::vector<double> S, double R, size_t ID) {
-            comm.sendInitState(S, ID);
-        } : (
-        timeOut   ? [&](std::vector<double> S, double R, size_t ID) {
-            comm.sendLastState(S, R, ID);
-        } :
-                    [&](std::vector<double> S, double R, size_t ID) {
-            comm.sendState(S, R, ID);
-        } );
+    using send_t = std::function<void(const std::vector<double>,double,size_t)>;
+    const send_t Finit = [&](const std::vector<double> S, double R, size_t ID) {
+            comm.sendInitState(S, ID); };
+    const send_t Fcont = [&](const std::vector<double> S, double R, size_t ID) {
+            comm.sendState(S, R, ID); };
+    const send_t Flast = [&](const std::vector<double> S, double R, size_t ID) {
+            comm.sendLastState(S, R, ID); };
+    const send_t sendState = step == 0 ? Finit : ( timeOut ? Flast : Fcont );
 
     // Deal with the real agents first
     for (size_t k = 0; k < nAgentsPerBlock; ++k)

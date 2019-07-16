@@ -12,8 +12,10 @@
 #include <cmath>
 #include <sstream>
 #include <atomic>
+#include <unistd.h> // chdir
+#include <sys/stat.h> // mkdir options
 
-#include "Communicator.h"
+#include "Communicators/Communicator.h"
 #include "Simulation.h"
 #include "operators/SGS_RL.h"
 #include "operators/SpectralAnalysis.h"
@@ -48,8 +50,8 @@ struct targetData
         msr >= E_kde[modeID*nSamplePerMode + nSamplePerMode - 1]) {
       return 0;
     }
-    size_t lower = modeID*nSamplePerMode;
-    size_t upper = modeID*nSamplePerMode + nSamplePerMode - 1;
+    //size_t lower = modeID*nSamplePerMode;
+    //size_t upper = modeID*nSamplePerMode + nSamplePerMode - 1;
 
 
     size_t idx = -1;
@@ -134,9 +136,9 @@ inline targetData getTarget(cubismup3d::SimulationData& sim, const bool bTrain)
     std::getline(inFile, line);
     for (int j=0; j<ret.nSamplePerMode; j++){
       std::getline(inFile, line);
-      std::istringstream in(line);
+      std::istringstream iss(line);
       size_t idx = i * ret.nSamplePerMode + j;
-      in >> E_kde[idx] >> P_kde[idx];
+      iss >> E_kde[idx] >> P_kde[idx];
     }
   }
 
@@ -275,7 +277,7 @@ int app_main(
   unsigned sim_id = 0, tot_steps = 0;
 
   // Terminate loop if reached max number of time steps. Never terminate if 0
-  while( numSteps == 0 || tot_steps<numSteps ) // train loop
+  while(true) // train loop
   {
     if( not comm->isTraining()) { // avoid too many unneeded folders created
       sprintf(dirname, "run_%08u/", sim_id); // by fast simulations when train
@@ -332,7 +334,7 @@ int app_main(
       {
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
         const double R_T = (double) (0.5*target.max_rew*(step - maxNumUpdatesPerSim));
-        for(int i=0; i<nValidAgents; i++) comm->termSeq_upcxx(S_T, R_T, i);
+        for(int i=0; i<nValidAgents; i++) comm->sendTermState(S_T, R_T, i);
         break;
       }
     } // simulation is done

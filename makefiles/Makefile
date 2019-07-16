@@ -41,7 +41,7 @@ else
 endif
 
 NVCC?=nvcc
-NVFLAGS?=-std=c++11 -code=sm_60 -arch=compute_60
+NVFLAGS?=-std=c++14 -code=sm_60 -arch=compute_60
 LD=$(CXX)
 
 # this only affects amount of memory allocated by block processing:
@@ -204,7 +204,7 @@ LIBS += -lgsl -lgslcblas
 
 ifneq "$(smarties)" "false"
 	SMARTIESDIR ?= ../../smarties/source/
-	CPPFLAGS += -I$(SMARTIESDIR)/Communicators/ -DSMARTIES_APP
+	CPPFLAGS += -I$(SMARTIESDIR)
 endif
 
 #################################################
