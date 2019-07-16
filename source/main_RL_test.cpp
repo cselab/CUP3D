@@ -44,7 +44,8 @@ struct targetData
 
   double getRewardKDE(const int modeID, const double msr) const
   {
-    if (msr <= E_kde[modeID*nSamplePerMode] or msr >= E_kde[modeID*nSamplePerMode + nSamplePerMode - 1]){
+    if (msr <= E_kde[modeID*nSamplePerMode] or
+        msr >= E_kde[modeID*nSamplePerMode + nSamplePerMode - 1]) {
       return 0;
     }
     size_t lower = modeID*nSamplePerMode;
@@ -83,7 +84,7 @@ inline targetData getTarget(cubismup3d::SimulationData& sim, const bool bTrain)
   // First get mean and std of the energy spectrum
   inFile.open(fileName_mean);
 
-  if (!inFile){
+  if (!inFile) {
     std::cout<<"Cannot open "<<fileName_mean<<std::endl;
     abort();
   }
@@ -199,10 +200,9 @@ inline double updateReward(double oldRew, const int nBin, const targetData tgt, 
 
 
 int app_main(
-  Communicator*const comm, // communicator with smarties
-  MPI_Comm mpicom,         // mpi_comm that mpi-based apps can use
-  int argc, char**argv,    // arguments read from app's runtime settings file
-  const unsigned numSteps  // number of time steps to run before exit
+  smarties::Communicator*const comm, // communicator with smarties
+  MPI_Comm mpicom,                  // mpi_comm that mpi-based apps can use
+  int argc, char**argv             // args read from app's runtime settings file
 )
 {
   // print received arguments:
@@ -241,7 +241,11 @@ int app_main(
   std::cout<<"Setting up target data"<<std::endl;
   targetData target = getTarget(sim->sim, comm->isTraining());
   //targetData target;
-  const int nActions = 1, nStates = 9;
+  #ifdef SGSRL_STATE_INVARIANTS
+    const int nActions = 1, nStates = 5;
+  #else
+    const int nActions = 1, nStates = 9;
+  #endif
   // BIG TROUBLE WITH NAGENTS!
   // If every grid point is an agent: probably will allocate too much memory
   // and crash because smarties allocates a trajectory for each point
@@ -253,15 +257,14 @@ int app_main(
   const int nBlocks = sim->sim.local_bpdx * sim->sim.local_bpdy * sim->sim.local_bpdz;
   const int nValidAgents = nBlocks * nAgentPerBlock;
   const int nThreadSafetyAgents = omp_get_max_threads();
-  comm->update_state_action_dims(nStates, nActions);
-  comm->setnAgents(nValidAgents + nThreadSafetyAgents, nThreadSafetyAgents);
+  comm->set_state_action_dims(nStates, nActions);
+  comm->set_num_agents(nValidAgents + nThreadSafetyAgents);
 
   const std::vector<double> lower_act_bound{0.04}, upper_act_bound{0.08};
   comm->set_action_scales(upper_act_bound, lower_act_bound, false);
-
-  comm->workerCreateLearners_upcxx();
   comm->disableDataTrackingForAgents(nValidAgents, nValidAgents + nThreadSafetyAgents);
-  comm->sendStateActionShape_upcxx();
+
+  comm->finalize_problem_description(); // required for thread safety
 
   if( comm->isTraining() ) { // disable all dumping. comment out for dbg
     sim->sim.b3Ddump = false; sim->sim.muteAll  = true;

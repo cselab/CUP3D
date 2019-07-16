@@ -23,7 +23,6 @@
 #include "operators/PressureRHS.h"
 #include "operators/FixedMassFlux_nonUniform.h"
 #include "operators/SGS.h"
-#include "operators/SGS_RL.h"
 #include "operators/Analysis.h"
 #include "operators/SpectralForcing.h"
 
