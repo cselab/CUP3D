@@ -225,7 +225,7 @@ lib: $(LIBOBJ) $(NVOBJECTS)
 	mkdir -p ../lib
 	ar rs ../lib/libcubismup3d.a $(FFTW_LIBS) $(LIBOBJ) $(NVOBJECTS)
 
-testRL: main_RL_test.o SGS_RL.o $(EXEOBJ) $(NVOBJECTS)
+RL_HIT: main_RL_HIT.o SGS_RL.o $(EXEOBJ) $(NVOBJECTS)
 	ar rs libsimulation.a $^
 
 -include $(DEPS)
