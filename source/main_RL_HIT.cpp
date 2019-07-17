@@ -3,10 +3,15 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch) and Hugues
-//  Lascombes de Laroussilhe (huguesdelaroussilhe@gmail.com).
+//  Created by Guido Novati (novatig@ethz.ch) and
+//  Hugues de Laroussilhe (huguesdelaroussilhe@gmail.com).
 //
 
+#include "Communicators/Communicator.h"
+#include "Simulation.h"
+#include "operators/SGS_RL.h"
+#include "operators/SpectralAnalysis.h"
+#include "Cubism/ArgumentParser.h"
 
 #include <iostream>
 #include <string>
@@ -16,12 +21,6 @@
 #include <atomic>
 #include <unistd.h> // chdir
 #include <sys/stat.h> // mkdir options
-
-#include "Communicators/Communicator.h"
-#include "Simulation.h"
-#include "operators/SGS_RL.h"
-#include "operators/SpectralAnalysis.h"
-#include "Cubism/ArgumentParser.h"
 
 #include "mpi.h"
 #define FREQ_UPDATE 1
@@ -67,7 +66,6 @@ struct targetData
     return ret;
   }
 };
-
 
 // Here I assume that the target files are given for the same modes
 // as the one that we will measure during training.
@@ -164,7 +162,6 @@ inline targetData getTarget(cubismup3d::SimulationData& sim, const bool bTrain)
   in = std::istringstream(line);
   in >> ret.max_rew;
 
-
   return ret;
 }
 
@@ -201,7 +198,6 @@ inline double updateReward(double oldRew, const int nBin, const targetData tgt, 
   }
   return oldRew=0 ? newRew : (1-alpha)*oldRew + alpha*newRew;
 }
-
 
 int app_main(
   smarties::Communicator*const comm, // communicator with smarties
@@ -294,7 +290,8 @@ int app_main(
     double avgReward  = 0;
 
     bool policyFailed = false;
-    sim->reset(comm->getPRNG(), tStart, nAgentPerBlock, sim_id, comm->isTraining()); // TODO Does not work for obstacles
+    // TODO relying on chi field does not work is obstacles are present
+    sim->reset(comm->getPRNG(), tStart, nAgentPerBlock, sim_id, comm->isTraining());
     cubismup3d::SpectralAnalysis* sA = new cubismup3d::SpectralAnalysis(sim->sim);
 
     const Real tau_eta       = target.tau_eta;
@@ -302,7 +299,7 @@ int app_main(
     const Real timeUpdateLES = 0.5*tau_eta;
 
     const unsigned int nIntegralTime = 10;
-    const int maxNumUpdatesPerSim = (int) (nIntegralTime * tau_integral / timeUpdateLES);
+    const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
 
     while (true) //simulation loop
     {
@@ -335,7 +332,7 @@ int app_main(
       if ( policyFailed )
       {
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
-        const double R_T = (double) (0.5*target.max_rew*(step - maxNumUpdatesPerSim));
+        const double R_T = 0.5 * target.max_rew * (step - maxNumUpdatesPerSim);
         for(int i=0; i<nValidAgents; i++) comm->sendTermState(S_T, R_T, i);
         break;
       }

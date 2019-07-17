@@ -204,6 +204,8 @@ struct DumpWake
 
 void ComputeForces::operator()(const double dt)
 {
+  if(sim.obstacle_vector->nObstacles() == 0) return;
+
   sim.startProfiler("Obst. Forces");
   const int nthreads = omp_get_max_threads();
   std::vector<KernelComputeForces*> K(nthreads, nullptr);

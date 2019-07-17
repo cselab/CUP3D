@@ -106,7 +106,7 @@ struct SimulationData
   std::string icFromH5 = "";
 
   // forcing
-  bool fixedMassFlux = false;
+  bool bChannelFixedMassFlux = false;
   Real uMax_forced = 0;
   bool spectralForcing = false;
   double tkeTgt=0;
@@ -149,7 +149,7 @@ struct SimulationData
 
   bool bUseUnboundedBC = false;
   bool bUseFourierBC = false;
-  bool bKeepMomentumConstant = true;
+  bool bKeepMomentumConstant = false;
 
   #ifdef CUP_ASYNC_DUMP
     MPI_Comm dump_comm = MPI_COMM_NULL;

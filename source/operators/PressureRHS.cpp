@@ -63,6 +63,8 @@ struct KernelPressureRHS : public ObstacleVisitor
       ret[SZ*iz +SY*iy +SX*ix] = fac*(LE.u-LW.u + LN.v-LS.v + LB.w-LF.w);
     }
 
+    if(nShapes == 0) return; // no need to account for obstacles
+
     // first store the lab and info, then do visitor
     assert(info_ptr == nullptr && lab_ptr == nullptr);
     info_ptr =  & info; lab_ptr =   & lab;
@@ -165,6 +167,8 @@ struct KernelPressureRHS_nonUniform : public ObstacleVisitor
       const Real dwdz = __FD_2ND(iz, cz, LF.w, L.w, LB.w);
       ret[SZ*iz +SY*iy +SX*ix] = h[0]*h[1]*h[2]*invdt * (dudx + dvdy + dwdz);
     }
+
+    if(nShapes == 0) return; // no need to account for obstacles
 
     // first store the lab and info, then do visitor
     assert(info_ptr == nullptr && lab_ptr == nullptr);
@@ -304,8 +308,7 @@ void PressureRHS::operator()(const double dt)
   const size_t nShapes = sim.obstacle_vector->nObstacles();
   std::vector<Real> corrFactors(nShapes, 0);
   const int nthreads = omp_get_max_threads();
-  Real * const sumRHS = (Real*) calloc(nShapes, sizeof(Real));
-  Real * const absRHS = (Real*) calloc(nShapes, sizeof(Real));
+  std::vector<double> sumRHS(nShapes, 0), absRHS(nShapes, 0);
 
   sim.startProfiler("PresRHS Kernel");
   if(sim.bUseStretchedGrid)
@@ -321,7 +324,6 @@ void PressureRHS::operator()(const double dt)
     for(size_t j = 0; j<nShapes; ++j) {
       for(int i=0; i<nthreads; ++i) absRHS[j] += K[i]->absRHS[j];
       for(int i=0; i<nthreads; ++i) sumRHS[j] += K[i]->sumRHS[j];
-      corrFactors[j] = sumRHS[j] / std::max(absRHS[j], EPS);
     }
     for(int i=0; i<nthreads; i++) delete K[i];
   }
@@ -338,11 +340,18 @@ void PressureRHS::operator()(const double dt)
     for(size_t j = 0; j<nShapes; ++j) {
       for(int i=0; i<nthreads; ++i) absRHS[j] += K[i]->absRHS[j];
       for(int i=0; i<nthreads; ++i) sumRHS[j] += K[i]->sumRHS[j];
-      corrFactors[j] = sumRHS[j] / std::max(absRHS[j], EPS);
     }
     for(int i=0; i<nthreads; i++) delete K[i];
   }
   sim.stopProfiler();
+
+  if(nShapes == 0) return; // no need to deal with obstacles perimeters
+
+  const auto& COMM = sim.app_comm;
+  MPI_Allreduce(MPI_IN_PLACE, sumRHS.data(), nShapes, MPI_DOUBLE,MPI_SUM, COMM);
+  MPI_Allreduce(MPI_IN_PLACE, absRHS.data(), nShapes, MPI_DOUBLE,MPI_SUM, COMM);
+  for(size_t j = 0; j<nShapes; ++j)
+    corrFactors[j] = sumRHS[j] / std::max(absRHS[j], EPS);
 
   //if(0) // TODO DEBUG
   {

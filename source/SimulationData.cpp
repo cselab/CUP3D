@@ -56,13 +56,17 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   tke0 = parser("-tke0").asDouble(1.0);
   icFromH5 = parser("-icFromH5").asString("");
 
-  // FORCING Channel
-  fixedMassFlux = parser("-fixedMassFlux").asBool(false);
-  uMax_forced = parser("-uMax_forced").asDouble(0.0);
-
   // FORCING HIT
   spectralForcing = parser("-spectralForcing").asBool(false);
   tkeTgt = parser("-tkeTarget").asDouble(0);
+
+  // PIPELINE && FORCING
+  freqDiagnostics = parser("-freqDiagnostics").asInt(10);
+  bIterativePenalization = parser("-iterativePenalization").asBool(false);
+  bImplicitPenalization = parser("-implicitPenalization").asBool(false);
+  bKeepMomentumConstant = parser("-keepMomentumConstant").asBool(false);
+  bChannelFixedMassFlux = parser("-channelFixedMassFlux").asBool(false);
+  uMax_forced = parser("-uMax_forced").asDouble(0.0);
 
   // SGS
   sgs = parser("-sgs").asString("");
@@ -76,10 +80,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   uinf[0] = parser("-uinfx").asDouble(0.0);
   uinf[1] = parser("-uinfy").asDouble(0.0);
   uinf[2] = parser("-uinfz").asDouble(0.0);
-  bIterativePenalization = parser("-iterativePenalization").asBool(false);
-  bImplicitPenalization = parser("-implicitPenalization").asBool(false);
-  // PIPELINE
-  freqDiagnostics = parser("-freqDiagnostics").asInt(10);
 
   // OUTPUT
   verbose = parser("-verbose").asBool(true) && rank == 0;

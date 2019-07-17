@@ -10,7 +10,8 @@
 CubismUP_3D_NAMESPACE_BEGIN using namespace cubism;
 
 static Real avgUx_nonUniform(const std::vector<BlockInfo>& myInfo,
-                     const Real* const uInf, const Real volume) {
+                             const Real* const uInf, const Real volume)
+{
   // Average Ux on the simulation volume :
   //   Sum on the xz-plane (uniform)
   //   Integral along Y    (non-uniform)
@@ -21,7 +22,8 @@ static Real avgUx_nonUniform(const std::vector<BlockInfo>& myInfo,
   //            = /1(Nx.Ny.Ly) . \Sum_{ix,iy,iz} u(ix,iy,iz).h_y(ix,iy,iz)
   Real avgUx = 0.;
   const int nBlocks = myInfo.size();
-#pragma omp parallel for schedule(static) reduction(+ : avgUx)
+
+  #pragma omp parallel for schedule(static) reduction(+ : avgUx)
   for (int i = 0; i < nBlocks; i++) {
     const BlockInfo& info = myInfo[i];
     const FluidBlock& b = *(const FluidBlock*)info.ptrBlock;
@@ -37,53 +39,38 @@ static Real avgUx_nonUniform(const std::vector<BlockInfo>& myInfo,
   return avgUx;
 }
 
-template <int DIRECTION>
-class KernelFixedMassFlux_nonUniform {
- private:
-  const Real dt, scale;
-  const Real y_max;
+class KernelFixedMassFlux_nonUniform
+{
+  const Real dt, scale, y_max;
 
  public:
   KernelFixedMassFlux_nonUniform(double _dt, double _scale, double _y_max)
-      : dt(_dt),
-        scale(_scale),
-        y_max(_y_max) {
-    assert(0 <= DIRECTION && DIRECTION <= 2);
-  }
+      : dt(_dt), scale(_scale), y_max(_y_max) { }
 
-  void operator()(const BlockInfo& info, FluidBlock& o) const {
+  void operator()(const BlockInfo& info, FluidBlock& o) const
+  {
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
-      for (int iy = 0; iy < FluidBlock::sizeY; ++iy) {
-        Real p[3]; info.pos(p, 0, iy, 0);
-        const Real y = p[1];
-        for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
-          if (DIRECTION == 0)
-            //o(ix,iy,iz).u += scale * u_max*(1. - 4./y_max/y_max*(y-y_max/2.)*(y-y_max/2.));
-            o(ix, iy, iz).u += 6 * scale * y/y_max * (1.0 - y/y_max);
-
-          o(ix, iy, iz).p += 0;
-
-          if (DIRECTION == 1) o(ix, iy, iz).v -= scale;
-
-          if (DIRECTION == 2) o(ix, iy, iz).w -= scale;
-        }
-      }
+    for (int iy = 0; iy < FluidBlock::sizeY; ++iy) {
+      Real p[3]; info.pos(p, 0, iy, 0);
+      const Real y = p[1];
+      for (int ix = 0; ix < FluidBlock::sizeX; ++ix)
+          o(ix, iy, iz).u += 6 * scale * y/y_max * (1.0 - y/y_max);
+    }
   }
 };
 
 FixedMassFlux_nonUniform::FixedMassFlux_nonUniform(SimulationData& s)
     : Operator(s) {}
 
-void FixedMassFlux_nonUniform::operator()(const double dt) {
+void FixedMassFlux_nonUniform::operator()(const double dt)
+{
   sim.startProfiler("FixedMassFlux");
-  int rank, nprocs;
-  MPI_Comm_size(grid->getCartComm(), &nprocs);
-  MPI_Comm_rank(grid->getCartComm(), &rank);
+
   // fix base_u_avg and y_max AD HOC for channel flow
   Real u_avg_msr, delta_u;
   const Real volume = sim.extent[0]*sim.extent[1]*sim.extent[2];
   const Real y_max = sim.extent[1];
-  const Real u_avg = 2.0/3 * sim.uMax_forced;
+  const Real u_avg = 2.0/3.0 * sim.uMax_forced;
 
   u_avg_msr = avgUx_nonUniform(vInfo, sim.uinf.data(), volume);
   MPI_Allreduce(MPI_IN_PLACE, &u_avg_msr, 1, MPI_DOUBLE, MPI_SUM,
@@ -93,7 +80,7 @@ void FixedMassFlux_nonUniform::operator()(const double dt) {
   const Real reTau = sqrt(std::fabs(delta_u/sim.dt)) / sim.nu;
 
   const Real scale = 6*delta_u;
-  if (rank == 0) {
+  if (sim.rank == 0) {
     printf(
         "Measured <Ux>_V = %25.16e,\n"
         "target   <Ux>_V = %25.16e,\n"
@@ -102,9 +89,9 @@ void FixedMassFlux_nonUniform::operator()(const double dt) {
         "Re_tau          = %25.16e,\n",
         u_avg_msr, u_avg, delta_u, scale, reTau);
   }
-  KernelFixedMassFlux_nonUniform<0> K(sim.dt, scale, y_max);
-#pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < vInfo.size(); i++)
+  KernelFixedMassFlux_nonUniform K(sim.dt, scale, y_max);
+  #pragma omp parallel for schedule(static)
+  for(size_t i=0; i<vInfo.size(); i++)
     K(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
 
   sim.stopProfiler();

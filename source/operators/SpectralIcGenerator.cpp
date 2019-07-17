@@ -125,7 +125,7 @@ void SpectralIcGenerator::_compute()
   fft_c *const cplxData_u = (fft_c *) sM->data_u;
   fft_c *const cplxData_v = (fft_c *) sM->data_v;
   fft_c *const cplxData_w = (fft_c *) sM->data_w;
-#pragma omp parallel for reduction(+:tke)
+  #pragma omp parallel for reduction(+:tke)
   for(long j = 0; j<static_cast<long>(sM->local_n1); ++j)
   for(long i = 0; i<static_cast<long>(sM->gsize[0]); ++i)
   for(long k = 0; k<static_cast<long>(sM->nz_hat);   ++k) {

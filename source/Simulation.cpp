@@ -360,7 +360,9 @@ void Simulation::setupOperators()
   // Used to add an uniform pressure gradient / uniform driving force.
   // If the force were space-varying then we would need to include in the
   // pressure equation's RHS.
-  if(sim.uMax_forced > 0 && sim.initCond not_eq "taylorGreen" && not sim.fixedMassFlux)
+  if(   sim.uMax_forced > 0
+     && sim.initCond not_eq "taylorGreen"  // also uses sim.uMax_forced param
+     && sim.channelFixedMassFlux == false) // also uses sim.uMax_forced param
     sim.pipeline.push_back(new ExternalForcing(sim));
 
 
@@ -407,7 +409,7 @@ void Simulation::setupOperators()
 
   sim.pipeline.push_back(new ComputeDissipation(sim));
 
-  if (sim.fixedMassFlux)
+  if (sim.bChannelFixedMassFlux)
     sim.pipeline.push_back(new FixedMassFlux_nonUniform(sim));
 
 
@@ -428,9 +430,8 @@ double Simulation::calcMaxTimestep()
 {
   assert(sim.grid not_eq nullptr);
   const double hMin = sim.hmin, CFL = sim.CFL;
-  double maxU = findMaxU(sim.vInfo(), *sim.grid, sim.uinf.data());
-  MPI_Allreduce(MPI_IN_PLACE, & maxU, 1, MPI_DOUBLE, MPI_MAX, sim.app_comm);
-  assert(maxU >= 0);
+  const double maxU = sim.bKeepMomentumConstant? findMaxUzeroMom(sim)
+                                               : findMaxU(sim);
   const double dtDif = hMin * hMin / sim.nu;
   const double dtAdv = hMin / ( maxU + 1e-8 );
   sim.dt = CFL * std::min(dtDif, dtAdv);
