@@ -362,7 +362,7 @@ void Simulation::setupOperators()
   // pressure equation's RHS.
   if(   sim.uMax_forced > 0
      && sim.initCond not_eq "taylorGreen"  // also uses sim.uMax_forced param
-     && sim.channelFixedMassFlux == false) // also uses sim.uMax_forced param
+     && sim.bChannelFixedMassFlux == false) // also uses sim.uMax_forced param
     sim.pipeline.push_back(new ExternalForcing(sim));
 
 

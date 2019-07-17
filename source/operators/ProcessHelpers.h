@@ -50,7 +50,7 @@ inline Real findMaxUzeroMom(const SimulationData& sim)
   for(size_t i=0; i<myInfo.size(); i++)
   {
     const cubism::BlockInfo& info = myInfo[i];
-    const FluidBlock& b = *(const FluidBlock *)info.ptrBlock;
+    FluidBlock& b = *(FluidBlock *)info.ptrBlock;
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -82,9 +82,10 @@ inline Real findMaxU(const SimulationData& sim)
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      Real u=b(ix,iy,iz).u+U[0], v=b(ix,iy,iz).v+U[1], w=b(ix,iy,iz).w+U[2];
-      Real au = std::fabs(u), av = std::fabs(v), aw = std::fabs(w);
-      const Real maxUl = std::max({au, av, aw});
+      const Real advu = std::fabs(b(ix,iy,iz).u + uinf[0]);
+      const Real advv = std::fabs(b(ix,iy,iz).v + uinf[1]);
+      const Real advw = std::fabs(b(ix,iy,iz).w + uinf[2]);
+      const Real maxUl = std::max({advu, advv, advw});
       maxU = std::max(maxU, maxUl);
     }
   }
