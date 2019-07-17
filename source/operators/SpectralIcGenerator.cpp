@@ -98,10 +98,8 @@ energySpectrum SpectralIcGenerator::_generateTarget()
     energySpectrum target = energySpectrum(k,E);
 
     // Set target tke
-    const int nyquist = (int) sM->maxGridSize/2;
-    const int nBin = nyquist-1;
     Real k_eval = 0.0, tke0 = 0.0;
-    for (int i = 0; i<nBin; i++){
+    for (int i = 0; i<sM->maxGridSize; i++){
       k_eval = (i+1) * 2*M_PI / sM->maxBoxLength;
       tke0  += target.interpE(k_eval);
     }
@@ -153,6 +151,8 @@ void SpectralIcGenerator::_compute()
     const Real fac = k_norm*k_xy;
     const Real invFac = (fac==0)? 0. : 1.0/fac;
 
+    const int mult = (k==0) or (k==sM->nKz/2) ? 1 : 2;
+
     cplxData_u[linidx][0] = (k_norm==0)? 0.0 : invFac * (noise_a[0] * k_norm * ky + noise_b[0] * kx * kz );
     cplxData_u[linidx][1] = (k_norm==0)? 0.0 : invFac * (noise_a[0] * k_norm * ky + noise_b[1] * kx * kz );
 
@@ -162,7 +162,7 @@ void SpectralIcGenerator::_compute()
     cplxData_w[linidx][0] = (k_norm==0)? 0.0 : -noise_b[0] * k_xy / k_norm;
     cplxData_w[linidx][1] = (k_norm==0)? 0.0 : -noise_b[1] * k_xy / k_norm;
 
-    tke += pow2_cplx(cplxData_u[linidx]) + pow2_cplx(cplxData_u[linidx]) + pow2_cplx(cplxData_u[linidx]);
+    tke += 0.5*mult*(pow2_cplx(cplxData_u[linidx]) + pow2_cplx(cplxData_v[linidx]) + pow2_cplx(cplxData_w[linidx]));
   }
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, sM->m_comm);
 

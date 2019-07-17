@@ -96,7 +96,7 @@ inline int getAgentId(const int idx, const int idy, const int idz,
 
 inline std::vector<double> getState_uniform(Lab& lab,
                                      const int ix, const int iy, const int iz,
-                                     const Real h)
+                                     const Real h, const Real scaleGrads)
 {
   //const FluidElement &L  = lab(ix, iy, iz);
   const FluidElement &LW = lab(ix - 1, iy, iz),
@@ -109,16 +109,16 @@ inline std::vector<double> getState_uniform(Lab& lab,
   const Real d1udx1= LE.u-LW.u, d1vdx1= LE.v-LW.v, d1wdx1= LE.w-LW.w;
   const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
   const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
-
+  const Real fac = scaleGrads / (2*h);
   #ifdef SGSRL_STATE_INVARIANTS
   const std::vector<double> ret =
-    flowInvariants(d1udx1/(2*h), d1vdx1/(2*h), d1wdx1/(2*h),
-                   d1udy1/(2*h), d1vdy1/(2*h), d1wdy1/(2*h),
-                   d1udz1/(2*h), d1vdz1/(2*h), d1wdz1/(2*h));
+    flowInvariants(d1udx1 * fac, d1vdx1 * fac, d1wdx1 * fac,
+                   d1udy1 * fac, d1vdy1 * fac, d1wdy1 * fac,
+                   d1udz1 * fac, d1vdz1 * fac, d1wdz1 * fac);
   #else
-  const std::vector<double> ret = {d1udx1/(2*h), d1vdx1/(2*h), d1wdx1/(2*h),
-                                   d1udy1/(2*h), d1vdy1/(2*h), d1wdy1/(2*h),
-                                   d1udz1/(2*h), d1vdz1/(2*h), d1wdz1/(2*h)};
+  const std::vector<double> ret = {d1udx1 * fac, d1vdx1 * fac, d1wdx1 * fac,
+                                   d1udy1 * fac, d1vdy1 * fac, d1wdy1 * fac,
+                                   d1udz1 * fac, d1vdz1 * fac, d1wdz1 * fac};
   #endif
   return ret;
 }
@@ -129,25 +129,20 @@ class KernelSGS_RL
   smarties::Communicator& comm;
   const int step;
   const bool timeOut;
-  const bool evalStep;
   const double reward;
   const size_t nBlocks;
   const size_t nAgentsPerBlock;
+  const Real scaleGrads;
 
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2, 2, 2, false, 3, 1,2,3);
 
   KernelSGS_RL(smarties::Communicator& _comm, const int _step,
-               const bool _timeOut, const bool _evalStep, const double _reward,
-               const size_t _nBlocks, const size_t _nAgentsPerBlock)
-      : comm(_comm),
-        step(_step),
-        timeOut(_timeOut),
-        evalStep(_evalStep),
-        reward(_reward),
-        nBlocks(_nBlocks),
-        nAgentsPerBlock(_nAgentsPerBlock) {}
+               const bool _timeOut, const double _rew, const Real _scaleGrads,
+               const size_t _nBlocks, const size_t _nAgentsPerBlock) :
+  comm(_comm), step(_step), timeOut(_timeOut), reward(_rew), nBlocks(_nBlocks),
+  nAgentsPerBlock(_nAgentsPerBlock), scaleGrads(_scaleGrads) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
@@ -156,7 +151,6 @@ class KernelSGS_RL
     const Real h = info.h_gridpoint;
     const int thrID = omp_get_thread_num();
     const size_t nAgents = nAgentsPerBlock * nBlocks;
-    size_t lastRealAgent = info.blockID;
     using send_t = std::function<void(const std::vector<double>,double,size_t)>;
     const send_t Finit = [&](const std::vector<double> S, double R, size_t ID) {
             comm.sendInitState(S, ID); };
@@ -171,7 +165,8 @@ class KernelSGS_RL
     {
       const int ix = o.iAgentX[k], iy = o.iAgentY[k], iz = o.iAgentZ[k];
       const size_t agentID = nAgentsPerBlock*info.blockID + k;
-      sendState(getState_uniform(lab, ix, iy, iz, h), reward, agentID);
+      const auto state = getState_uniform(lab, ix, iy, iz, h, scaleGrads);
+      sendState(state, reward, agentID);
       if (!timeOut) o(ix,iy,iz).chi = comm.recvAction(agentID)[0];
     }
 
@@ -189,12 +184,10 @@ class KernelSGS_RL
       const int locAgentID= getAgentId(ix,iy,iz, o.iAgentX,o.iAgentY,o.iAgentZ);
 
       //std::cout<<"Local Agent id"<< localAgentID << std::endl;
-      if (locAgentID>=0) {
-        lastRealAgent = nAgentsPerBlock * info.blockID + locAgentID;
-        continue;
-      }
+      if (locAgentID>=0) continue;
       const size_t agentID =  nAgents + thrID;
-      sendState(getState_uniform(lab, ix,iy,iz, h), reward, agentID);
+      const auto state = getState_uniform(lab, ix, iy, iz, h, scaleGrads);
+      sendState(state, reward, agentID);
       if (!timeOut) o(ix,iy,iz).chi = comm.recvAction(agentID)[0];
     }
   }
@@ -202,16 +195,17 @@ class KernelSGS_RL
 
 SGS_RL::SGS_RL(SimulationData& s, smarties::Communicator* _comm,
                const int _step, const bool _timeOut,
-               const bool _evalStep, const double _reward,
+               const double _reward, const double _scaleGrads,
                const int _nAgentsPerBlock) : Operator(s), comm(_comm),
-               step(_step), timeOut(_timeOut), evalStep(_evalStep),
-               reward(_reward), nAgentsPerBlock(_nAgentsPerBlock)
+               step(_step), timeOut(_timeOut), reward(_reward),
+               scaleGrads(_scaleGrads), nAgentsPerBlock(_nAgentsPerBlock)
 {}
 
 void SGS_RL::operator()(const double dt)
 {
   sim.startProfiler("SGS_RL");
-  const KernelSGS_RL K_SGS_RL(*comm, step, timeOut, evalStep, reward, sim.vInfo().size(), nAgentsPerBlock);
+  const KernelSGS_RL K_SGS_RL(*comm, step, timeOut, reward, scaleGrads,
+                              sim.vInfo().size(), nAgentsPerBlock);
 
   compute<KernelSGS_RL>(K_SGS_RL);
   sim.stopProfiler();

@@ -199,6 +199,11 @@ inline double updateReward(double oldRew, const int nBin, const targetData tgt, 
   return oldRew=0 ? newRew : (1-alpha)*oldRew + alpha*newRew;
 }
 
+inline double updateScale(double oldScale, double newScale, const double alpha)
+{
+  return (1-alpha)*oldScale + alpha*newScale;
+}
+
 int app_main(
   smarties::Communicator*const comm, // communicator with smarties
   MPI_Comm mpicom,                  // mpi_comm that mpi-based apps can use
@@ -285,7 +290,7 @@ int app_main(
     }
 
     double time = 0.0;
-    double tStart = 5.0;
+    double tStart = 10.0;
     int step = 0;
     double avgReward  = 0;
 
@@ -293,10 +298,25 @@ int app_main(
     // TODO relying on chi field does not work is obstacles are present
     sim->reset(comm->getPRNG(), tStart, nAgentPerBlock, sim_id, comm->isTraining());
     cubismup3d::SpectralAnalysis* sA = new cubismup3d::SpectralAnalysis(sim->sim);
+    sA->run();
 
     const Real tau_eta       = target.tau_eta;
     const Real tau_integral  = target.tau_integral;
     const Real timeUpdateLES = 0.5*tau_eta;
+
+    // Scale gradients with tau_eta corrected with eps_forcing and nu_sgs
+    // tau_eta = (nu/eps)^0.5 but nu_tot  = nu + nu_sgs
+    // and eps_tot = eps_nu + eps_numerics + eps_sgs = eps_forcing
+    // tau_eta_corrected = tau_eta +
+    //                   D(tau_eta)/Dnu * delta_nu + D(tau_eta)/Deps * delta_eps
+    //                   = tau_eta * 1/2 * tau_eta * delta_nu / nu
+    //                             - 1/2 * tau_eta * (delta_eps / eps) )
+    //                   = tau_eta * (1 + 1/2 * nu_sgs / nu
+    //                                 - 1/2 (eps_forcing - eps) / eps )
+    Real tau_eta_sim = sqrt(sim->sim.nu/sA->eps);
+    Real correction = 1.0 - 0.5*(sim->sim.epsForcing - sA->eps)/sA->eps
+                          + 0.5* sim->sim.nu_sgs/sim->sim.nu;
+    Real scaleGrads = tau_eta_sim * correction;
 
     const unsigned int nIntegralTime = 10;
     const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
@@ -305,8 +325,8 @@ int app_main(
     {
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
-      bool evalStep = true;
-      cubismup3d::SGS_RL updateLES(sim->sim, comm, step, timeOut, evalStep, avgReward, nAgentPerBlock);
+      cubismup3d::SGS_RL updateLES(sim->sim, comm, step, timeOut, avgReward,
+                                   scaleGrads, nAgentPerBlock);
       updateLES.run();
       if(timeOut) break;
 
@@ -315,8 +335,17 @@ int app_main(
         const double dt = sim->calcMaxTimestep();
         time += dt;
         sA->run();
+        // Average reward over integral time
         const double alpha = dt / tau_integral;
         avgReward = updateReward(avgReward, sA->nBin, target, sA->E_msr, alpha);
+        // Average gradient scale over time between LES updates
+        const double beta = dt / timeUpdateLES;
+        tau_eta_sim = sqrt(sim->sim.nu/sA->eps);
+        correction = 1.0 - 0.5*(1-sim->sim.epsForcing/sA->eps)
+                         + 0.5*sim->sim.nu_sgs/sqrt(sim->sim.nu * sA->eps);
+        const double newScale = tau_eta_sim * correction;
+        scaleGrads = updateScale(scaleGrads, newScale, beta);
+
         if ( sim->timestep( dt ) ) { // if true sim has ended
           printf("Set -tend 0. This file decides the length of train sim.\n");
           assert(false); fflush(0); MPI_Abort(mpicom, 1);

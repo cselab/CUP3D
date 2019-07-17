@@ -71,6 +71,9 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   // SGS
   sgs = parser("-sgs").asString("");
   cs = parser("-cs").asDouble(0.2);
+  bComputeCs2Spectrum = parser("-cs2spectrum").asBool(false);
+
+  // SGS_RL
   sgs_rl = parser("-sgs_rl").asBool(false);
   nAgentsPerBlock = parser("-nAgentsPerBlock").asInt(1);
 

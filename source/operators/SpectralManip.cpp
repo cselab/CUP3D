@@ -109,6 +109,10 @@ SpectralManip::SpectralManip(SimulationData & s) : sim(s)
   data_u = _FFTW_(alloc_real)(2*alloc_local);
   data_v = _FFTW_(alloc_real)(2*alloc_local);
   data_w = _FFTW_(alloc_real)(2*alloc_local);
+
+  bAllocCs2 = s.bComputeCs2Spectrum;
+  if (bAllocCs2)
+    data_cs2 = _FFTW_(alloc_real)(2*alloc_local);
 }
 
 void SpectralManip::prepareFwd()
@@ -122,6 +126,9 @@ void SpectralManip::prepareFwd()
   fwd_w = (void*) _FFTW_(mpi_plan_dft_r2c_3d)(gsize[0], gsize[1], gsize[2],
     data_w, (fft_c*)data_w, m_comm, FFTW_MPI_TRANSPOSED_OUT  | FFTW_MEASURE);
 
+  if (bAllocCs2)
+    fwd_cs2 = (void*) _FFTW_(mpi_plan_dft_r2c_3d)(gsize[0], gsize[1], gsize[2],
+      data_cs2, (fft_c*)data_cs2, m_comm, FFTW_MPI_TRANSPOSED_OUT  | FFTW_MEASURE);
   bAllocFwd = true;
 }
 
@@ -145,6 +152,9 @@ void SpectralManip::runFwd()
   _FFTW_(execute)((fft_plan) fwd_u);
   _FFTW_(execute)((fft_plan) fwd_v);
   _FFTW_(execute)((fft_plan) fwd_w);
+
+  if (bAllocCs2)
+    _FFTW_(execute)((fft_plan) fwd_cs2);
 }
 
 void SpectralManip::runBwd()
@@ -165,12 +175,18 @@ SpectralManip::~SpectralManip()
   _FFTW_(destroy_plan)((fft_plan) fwd_u);
   _FFTW_(destroy_plan)((fft_plan) fwd_v);
   _FFTW_(destroy_plan)((fft_plan) fwd_w);
+  if (bAllocCs2)
+    _FFTW_(destroy_plan)((fft_plan) fwd_cs2);
   }
   if (bAllocBwd){
   _FFTW_(destroy_plan)((fft_plan) bwd_u);
   _FFTW_(destroy_plan)((fft_plan) bwd_v);
   _FFTW_(destroy_plan)((fft_plan) bwd_w);
   }
+
+  if (bAllocCs2)
+    _FFTW_(free)(data_cs2);
+
   _FFTW_(mpi_cleanup)();
 }
 CubismUP_3D_NAMESPACE_END

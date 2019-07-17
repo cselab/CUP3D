@@ -31,7 +31,8 @@ static inline SGSBlock* getSGSBlockPtr(
 }
 
 
-class KernelSGS_SSM {
+class KernelSGS_SSM
+{
  private:
   const Real Cs;
   SGSGridMPI * const sgsGrid;
@@ -79,7 +80,8 @@ class KernelSGS_SSM {
   }
 };
 
-class KernelSGS_RLSM {
+class KernelSGS_RLSM
+{
  private:
   SGSGridMPI * const sgsGrid;
 
@@ -125,7 +127,8 @@ class KernelSGS_RLSM {
   }
 };
 
-class KernelSGS_nonUniform {
+class KernelSGS_nonUniform
+{
  private:
   const double dt;
   const Real* const uInf;
@@ -201,7 +204,7 @@ inline  Real facFilter(const int i, const int j, const int k){
     return 4.0/64;
   else if (abs(i)+abs(j)+abs(k) == 0)    // Center cells
     return 8.0/64;
-  else assert(false);
+  else // assert(false); // TODO: huguesl, is 0 a valid outcome?
   return 0;
 }
 
@@ -217,7 +220,8 @@ struct filterFluidElement
   Real shear_S_xx = 0., shear_S_xy = 0., shear_S_xz = 0.;
   Real shear_S_yy = 0., shear_S_yz = 0., shear_S_zz = 0.;
 
-  filterFluidElement(Lab& lab, const int ix, const int iy, const int iz, const Real h){
+  filterFluidElement(Lab& lab, const int ix, const int iy, const int iz, const Real h)
+  {
     for (int i=-1; i<2; i++)
     for (int j=-1; j<2; j++)
     for (int k=-1; k<2; k++){
@@ -230,8 +234,8 @@ struct filterFluidElement
       uu += f*L.u*L.u; uv += f*L.u*L.v; uw += f*L.u*L.w;
       vv += f*L.v*L.v; vw += f*L.v*L.w; ww += f*L.w*L.w;
 
-      const FluidElement &LW=lab(ix+i-1, iy+j,   iz+k),   &LE=lab(ix+i+1, iy+j,   iz+k);
-      const FluidElement &LS=lab(ix+i,   iy+j-1, iz+k),   &LN=lab(ix+i,   iy+j+1, iz+k);
+      const FluidElement &LW=lab(ix+i-1, iy+j,   iz+k  ), &LE=lab(ix+i+1, iy+j,   iz+k  );
+      const FluidElement &LS=lab(ix+i,   iy+j-1, iz+k  ), &LN=lab(ix+i,   iy+j+1, iz+k  );
       const FluidElement &LF=lab(ix+i,   iy+j,   iz+k-1), &LB=lab(ix+i,   iy+k,   iz+k+1);
 
       const Real d1udx1 = (LE.u-LW.u), d1vdx1 = (LE.v-LW.v), d1wdx1 = (LE.w-LW.w);
@@ -239,8 +243,8 @@ struct filterFluidElement
       const Real d1udz1 = (LB.u-LF.u), d1vdz1 = (LB.v-LF.v), d1wdz1 = (LB.w-LF.w);
 
       const Real shear_g = sqrt(2*(d1udx1)*(d1udx1) + 2*(d1vdy1)*(d1vdy1) + 2*(d1wdz1)*(d1wdz1)
-                             + (d1udy1+d1vdx1)*(d1udy1+d1vdx1) + (d1udz1+d1wdx1)*(d1udz1+d1wdx1)
-                             + (d1wdy1+d1vdz1)*(d1wdy1+d1vdz1)) / (2*h);
+                                + (d1udy1+d1vdx1)*(d1udy1+d1vdx1) + (d1udz1+d1wdx1)*(d1udz1+d1wdx1)
+                                + (d1wdy1+d1vdz1)*(d1wdy1+d1vdz1)) / (2*h);
 
       shear += f*shear_g;
 
@@ -261,7 +265,8 @@ struct filterFluidElement
   }
 };
 
-class KernelSGS_DSM {
+class KernelSGS_DSM
+{
  private:
   SGSGridMPI * const sgsGrid;
 
@@ -311,7 +316,8 @@ class KernelSGS_DSM {
   }
 };
 
-class KernelSGS_DSM_avg {
+class KernelSGS_DSM_avg
+{
  private:
   SGSGridMPI * const sgsGrid;
 
@@ -357,21 +363,24 @@ class KernelSGS_DSM_avg {
         l_dot_m += f * lab(ix+i, iy+j, iz+k).tmpV;
         m_dot_m += f * lab(ix+i, iy+j, iz+k).tmpW;
       }
+    
+      Real Cs2 = (m_dot_m==0) ? 0.0 : 0.5 * l_dot_m / (h*h * m_dot_m);
 
-      Real Cs2 = 0.5 * l_dot_m / (h*h * m_dot_m);
-      if (sqrt(Cs2) >= 0.25) Cs2 = 0.25*0.25;
       if (Cs2 < 0) Cs2 = 0;
+      if (sqrt(Cs2) >= 0.25) Cs2 = 0.25*0.25;
 
       sgs.nu = Cs2 * h*h * shear;
       sgs.duD = (LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6)/(h*h);
       sgs.dvD = (LN.v+LS.v + LE.v+LW.v + LF.v+LB.v - L.v*6)/(h*h);
       sgs.dwD = (LN.w+LS.w + LE.w+LW.w + LF.w+LB.w - L.w*6)/(h*h);
       o(ix,iy,iz).tmpU = sgs.nu;
+      o(ix,iy,iz).chi = Cs2;
     }
   }
 };
 
-class KernelSGS_gradNu {
+class KernelSGS_gradNu
+{
  private:
   SGSGridMPI * const sgsGrid;
 
@@ -412,14 +421,15 @@ class KernelSGS_gradNu {
   }
 };
 
-class KernelSGS_apply {
+class KernelSGS_apply
+{
  private:
   const double dt;
   SGSGridMPI * const sgsGrid;
 
  public:
   Real nu_sgs = 0.0;
-  Real cs2_rl = 0.0;
+  Real cs2_avg = 0.0;
   const std::array<int, 3> stencil_start = {0, 0, 0};
   const std::array<int, 3> stencil_end = {1, 1, 1};
   const StencilInfo stencil = StencilInfo(0,0,0, 1,1,1, false, 3, 1,2,3);
@@ -436,12 +446,13 @@ class KernelSGS_apply {
     for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
       const SGSHelperElement& sgs = t(ix,iy,iz);
 
-      o(ix, iy, iz).u += dt * sgs.nu * sgs.duD + dt * sgs.Dj_nu_Sxj;
-      o(ix, iy, iz).v += dt * sgs.nu * sgs.dvD + dt * sgs.Dj_nu_Syj;
-      o(ix, iy, iz).w += dt * sgs.nu * sgs.dwD + dt * sgs.Dj_nu_Szj;
+      // adding gradient of nu term leads to instability.
+      o(ix, iy, iz).u += dt * sgs.nu * sgs.duD;// + dt * 2 * sgs.Dj_nu_Sxj;
+      o(ix, iy, iz).v += dt * sgs.nu * sgs.dvD;// + dt * 2 * sgs.Dj_nu_Syj;
+      o(ix, iy, iz).w += dt * sgs.nu * sgs.dwD;// + dt * 2 * sgs.Dj_nu_Szj;
 
       nu_sgs += sgs.nu;
-      cs2_rl += lab(ix,iy,iz).chi;
+      cs2_avg += lab(ix,iy,iz).chi;
     }
   }
 };
@@ -486,7 +497,7 @@ void SGS::operator()(const double dt) {
   }
 
   Real nu_sgs  = 0.0;
-  Real cs2_rl  = 0.0;
+  Real cs2_avg = 0.0;
   size_t normalize = FluidBlock::sizeX * FluidBlock::sizeY * FluidBlock::sizeZ * sim.bpdx * sim.bpdy * sim.bpdz;
 
   using K_t = KernelSGS_gradNu;
@@ -501,15 +512,15 @@ void SGS::operator()(const double dt) {
   compute<KernelSGS_apply>(sgs);
 
   for (int i=0; i<nthreads; ++i){
-    cs2_rl += sgs[i]->cs2_rl;
-    nu_sgs += sgs[i]->nu_sgs;
+    cs2_avg += sgs[i]->cs2_avg;
+    nu_sgs  += sgs[i]->nu_sgs;
   }
   nu_sgs  = nu_sgs / normalize;
-  cs2_rl   = cs2_rl  / normalize;
+  cs2_avg   = cs2_avg  / normalize;
   MPI_Allreduce(MPI_IN_PLACE, &nu_sgs, 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  MPI_Allreduce(MPI_IN_PLACE, &cs2_rl , 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE, &cs2_avg , 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
   sim.nu_sgs = nu_sgs;
-  sim.cs2_rl = cs2_rl;
+  sim.cs2_avg = cs2_avg;
 
   delete sgsGrid;
   sim.stopProfiler();

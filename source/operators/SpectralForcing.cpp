@@ -80,11 +80,12 @@ void KernelSpectralForcing::_compute()
     const Real k2 = kx*kx + ky*ky + kz*kz;
     const Real k_norm = sqrt(k2);
 
+    const int mult = (k==0) or (k==sM->nKz/2) ? 1 : 2;
     const Real E = pow2_cplx(cplxData_u[linidx])
                  + pow2_cplx(cplxData_v[linidx])
                  + pow2_cplx(cplxData_w[linidx]);
-    tke += E;
-    if (0 < k_norm and k_norm <= 2) tke_filtered += E;
+    tke += 0.5*mult*E;
+    if (0 < k_norm and k_norm <= 2) tke_filtered += 0.5*mult*E;
     else
     {
       cplxData_u[linidx][0] = cplxData_u[linidx][1] = 0.;
@@ -101,8 +102,19 @@ void KernelSpectralForcing::_compute()
 
 void KernelSpectralForcing::_fftw2cub()
 {
+  //With non spectral IC, the target tke may not be defined here
   if (sM->sim.tkeTgt ==0) sM->sim.tkeTgt = tke;
+
   const Real eps = (sM->sim.tkeTgt - tke)/dt;
+
+  // If there's too much energy, let dissipation do its job
+  if (eps < 0) {
+    sM->sim.epsForcing = 0;
+    return;
+  }
+
+  // Otherwise, inject energy to match target tke
+  sM->sim.epsForcing = eps;
   const Real fac = dt * eps / (2*tke_filtered) / sM->normalizeFFT;
   const size_t NlocBlocks = sM->local_infos.size();
   #pragma omp parallel for

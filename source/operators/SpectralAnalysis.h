@@ -30,9 +30,11 @@ class SpectralAnalysis
   Real lambda = 0., uprime = 0., Re_lambda = 0.;
   Real u_avg[3] = {0.};
 
-
   Real * k_msr;
   Real * E_msr;
+
+  bool bComputeCs2Spectrum = false;
+  Real * cs2_msr;
 
   SpectralAnalysis(SimulationData & s);
   ~SpectralAnalysis();

@@ -110,25 +110,30 @@ struct SimulationData
   Real uMax_forced = 0;
   bool spectralForcing = false;
   double tkeTgt=0;
+  double epsForcing=0;
 
   // sgs
   std::string sgs = "";
   double cs = 0.0;
   int nAgentsPerBlock = 1;
   bool sgs_rl = false;
-  Real cs2_rl = 0.0;
+  double cs2_avg = 0.0;
+  double nu_sgs=0;
+  bool bComputeCs2Spectrum = false;
 
   // analysis
   std::string analysis;
   double timeAnalysis = 0;
   int freqAnalysis = 0;
   double analysisTime=0, nextAnalysisTime=0;
+  double grad_mean = 0., grad_std=0.;
+
+  // analysis (channel)
   std::vector<Real> Ux_avg_tgt;
   std::vector<Real> kx_avg_tgt;
   std::vector<Real> Ux_avg_msr;
   std::vector<Real> kx_avg_msr;
   Real reTau = 0.;
-  double nu_sgs=0;
 
   // simulation settings
   int freqDiagnostics = 0;

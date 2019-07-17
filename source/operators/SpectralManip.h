@@ -96,8 +96,10 @@ class SpectralManip
   const long nKz = static_cast<long>(gsize[2]);
 
   const long maxGridSize = std::max({gsize[0], gsize[1], gsize[2]});
+  const long minGridSize = std::max({gsize[0], gsize[1], gsize[2]});
   const std::array<double, 3> lBox = sim.extent;
   const Real maxBoxLength = std::max({lBox[0], lBox[1], lBox[2]});
+  const Real minBoxLength = std::min({lBox[0], lBox[1], lBox[2]});
 
   const size_t nz_hat = gsize[2]/2+1;
   const double h = sim.uniformH();
@@ -105,13 +107,14 @@ class SpectralManip
                                 2.0 * M_PI / lBox[1],
                                 2.0 * M_PI / lBox[2]};
   bool bAllocFwd = false, bAllocBwd = false;
+  bool bAllocCs2 = false;
 
   const int nBin = std::ceil(sqrt(3.0)*maxGridSize/2.0)+1;
   const Real binSize = M_PI*sqrt(3)*maxGridSize/(nBin*maxBoxLength);
 
 
-  Real * data_u, * data_v, * data_w;
-  void * fwd_u, * fwd_v, * fwd_w;
+  Real * data_u, * data_v, * data_w, * data_cs2;
+  void * fwd_u, * fwd_v, * fwd_w, * fwd_cs2;
   void * bwd_u, * bwd_v, * bwd_w;
 
 public:

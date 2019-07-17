@@ -13,12 +13,52 @@
 
 CubismUP_3D_NAMESPACE_BEGIN using namespace cubism;
 
-inline void avgUx_wallNormal(Real *avgFlow_xz, const std::vector<BlockInfo>& myInfo,
-                                    const Real* const uInf, const int bpdy) {
+class KernelAnalysis_gradStats
+{
+ public:
+  Real grad_mean = 0.0;
+  Real grad_std  = 0.0;
+  const std::array<int, 3> stencil_start = {-1, -1, -1};
+  const std::array<int, 3> stencil_end = {2, 2, 2};
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+
+  KernelAnalysis_gradStats() {}
+
+  ~KernelAnalysis_gradStats() {}
+
+  template <typename Lab, typename BlockType>
+  void operator()(Lab& lab, const BlockInfo& info, BlockType& o)
+  {
+    const Real h = info.h_gridpoint;
+    for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
+    for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
+    for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
+      const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+      const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+      const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+
+      const Real d1udx1= LE.u-LW.u, d1vdx1= LE.v-LW.v, d1wdx1= LE.w-LW.w;
+      const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
+      const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
+
+      const Real grad2 = (d1udx1*d1udx1 + d1vdx1*d1vdx1 + d1wdx1*d1wdx1
+                        + d1udy1*d1udy1 + d1vdy1*d1vdy1 + d1wdy1*d1wdy1
+                        + d1udz1*d1udz1 + d1vdz1*d1vdz1 + d1wdz1*d1wdz1)/(4*h*h);
+      grad_mean += sqrt(grad2);
+      grad_std  += grad2;
+    }
+  }
+};
+
+inline void avgUx_wallNormal(Real *avgFlow_xz,
+                             const std::vector<BlockInfo>& myInfo,
+                             const Real* const uInf, const int bpdy)
+{
   size_t nGridPointsY = bpdy * FluidBlock::sizeY;
   const size_t nBlocks = myInfo.size();
   size_t normalize = FluidBlock::sizeX * FluidBlock::sizeZ * nBlocks/bpdy;
-#pragma omp parallel for schedule(static) reduction(+ : avgFlow_xz[:2*nGridPointsY])
+  #pragma omp parallel for schedule(static) \
+                                      reduction(+ : avgFlow_xz[:2*nGridPointsY])
   for (size_t i = 0; i < nBlocks; i++) {
     const BlockInfo& info = myInfo[i];
     const FluidBlock& b = *(const FluidBlock*)info.ptrBlock;
@@ -110,6 +150,35 @@ void Analysis::operator()(const double dt) {
   if (sim.analysis == "HIT")
   {
     sim.startProfiler("HIT Analysis");
+    // Compute Gradient stats
+    const int nthreads = omp_get_max_threads();
+    std::vector<KernelAnalysis_gradStats*> gradStats(nthreads, nullptr);
+    #pragma omp parallel for schedule(static, 1)
+    for(int i=0; i<nthreads; ++i)
+      gradStats[i] = new KernelAnalysis_gradStats();
+    compute<KernelAnalysis_gradStats>(gradStats);
+
+    const size_t normalize = sim.bpdx * FluidBlock::sizeX *
+                             sim.bpdy * FluidBlock::sizeY *
+                             sim.bpdz * FluidBlock::sizeZ;
+
+    Real grad_mean = 0.0;
+    Real grad_std  = 0.0;
+    for (int i=0; i<nthreads; ++i){
+      grad_mean += gradStats[i]->grad_mean;
+      grad_std  += gradStats[i]->grad_std;
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &grad_mean, 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+    MPI_Allreduce(MPI_IN_PLACE, &grad_std , 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+    grad_mean /= normalize;
+    grad_std  /= normalize;
+
+    grad_std = sqrt(grad_std - grad_mean*grad_mean);
+
+    sim.grad_mean = grad_mean;
+    sim.grad_std  = grad_std;
+
+    // Compute spectral analysis
     SpectralAnalysis * sA = new SpectralAnalysis(sim);
     sA->run();
     if (sim.rank==0) sA->dump2File(nFile);

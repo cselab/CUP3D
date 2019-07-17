@@ -24,13 +24,13 @@ class SGS_RL : public Operator
   smarties::Communicator * const comm;
   const int step;
   const bool timeOut;
-  const bool evalStep;
   const double reward;
+  const double scaleGrads;
   const int nAgentsPerBlock;
 
 public:
   SGS_RL(SimulationData& s, smarties::Communicator* _comm, const int _step,
-         const bool _timeOut,const bool _evalStep, const double _reward,
+         const bool _timeOut, const double _reward, const double _scaleGrads,
          const int nAgentsPerBlock);
 
   ~SGS_RL() { }

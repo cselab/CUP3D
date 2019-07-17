@@ -30,6 +30,10 @@ SpectralAnalysis::SpectralAnalysis(SimulationData & s)
 
   E_msr  = (Real*) std::calloc(nBin, sizeof(Real));
 
+  bComputeCs2Spectrum = s.bComputeCs2Spectrum;
+  if (bComputeCs2Spectrum)
+    cs2_msr  = (Real*) std::calloc(nBin, sizeof(Real));
+
   sM->prepareFwd();
 }
 
@@ -49,9 +53,12 @@ void SpectralAnalysis::_cub2fftw()
       const Real v = b(ix,iy,iz).v;
       const Real w = b(ix,iy,iz).w;
       u_avg[0] += u; u_avg[1] += v; u_avg[2] += w;
+      u_avg[0] += 0.5*(u*u + v*v + w*w);
       sM->data_u[src_index] = u;
       sM->data_v[src_index] = v;
       sM->data_w[src_index] = w;
+      if (bComputeCs2Spectrum)
+        sM->data_cs2[src_index] = b(ix,iy,iz).chi;
     }
   }
   MPI_Allreduce(MPI_IN_PLACE, u_avg, 3, MPIREAL, MPI_SUM, sM->m_comm);
@@ -66,6 +73,7 @@ void SpectralAnalysis::_compute()
   fft_c *const cplxData_u  = (fft_c *) sM->data_u;
   fft_c *const cplxData_v  = (fft_c *) sM->data_v;
   fft_c *const cplxData_w  = (fft_c *) sM->data_w;
+  fft_c *const cplxData_cs2  = (fft_c *) sM->data_cs2;
   // Let's only measure spectrum up to Nyquist.
 #pragma omp parallel for reduction(+ : E_msr[:nBin], tke, eps, tau_integral)
   for(long j = 0; j<static_cast<long>(sM->local_n1); ++j)
@@ -77,29 +85,54 @@ void SpectralAnalysis::_compute()
     const long jj = (l <= sM->nKy/2) ? l : -(sM->nKy-l);
     const long kk = (k <= sM->nKz/2) ? k : -(sM->nKz-k);
 
-    const Real E = pow2_cplx(cplxData_u[linidx])
-                 + pow2_cplx(cplxData_v[linidx])
-                 + pow2_cplx(cplxData_w[linidx]);
+    const int mult = (k==0) or (k==sM->nKz/2) ? 1 : 2;
+
     const Real kx = ii*sM->waveFactor[0], ky = jj*sM->waveFactor[1], kz = kk*sM->waveFactor[2];
     const Real k_norm = sqrt(kx*kx + ky*ky + kz*kz);
     const Real ks = sqrt(ii*ii + jj*jj + kk*kk);
+
+    const Real E =
+        0.5 * mult *
+        (pow2_cplx(cplxData_u[linidx]) +
+         pow2_cplx(cplxData_v[linidx]) +
+         pow2_cplx(cplxData_w[linidx]));
+
+    // Total kinetic energy
     tke += E;
+    // Dissipation rate
     eps += pow2(k_norm) * E;
+    // Large eddy turnover time
     tau_integral += (k_norm > 0) ? E / k_norm : 0.;
     if (ks <= nyquist){
       int binID = std::floor(ks * (nyquist-1)/nyquist);
       E_msr[binID] += E;
+      if (bComputeCs2Spectrum){
+        const Real cs2 = sqrt(pow2_cplx(cplxData_cs2[linidx]));
+        cs2_msr[binID] += mult*cs2;
+      }
     }
   }
   MPI_Allreduce(MPI_IN_PLACE, E_msr,  nBin, MPIREAL, MPI_SUM, sM->m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, sM->m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, sM->m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tau_integral, 1, MPIREAL, MPI_SUM, sM->m_comm);
+
+  if (bComputeCs2Spectrum){
+    #pragma omp parallel reduction(+ : cs2_msr[:nBin])
+    MPI_Allreduce(MPI_IN_PLACE, cs2_msr, nBin, MPIREAL, MPI_SUM, sM->m_comm);
+  }
+
   const size_t normalize = pow2(sM->normalizeFFT);
-  for (int binID = 0; binID < nBin; binID++) E_msr[binID] /= normalize;
+
+  for (int binID = 0; binID < nBin; binID++){
+    E_msr[binID] /= normalize;
+    if (bComputeCs2Spectrum)
+      cs2_msr[binID] /= sM->normalizeFFT;
+  }
 
   tke = tke / normalize;
-  eps = eps * 2*(sM->sim.nu + sM->sim.nu_sgs) / normalize;
+  eps = eps * 2*(sM->sim.nu)/ normalize;
+
   uprime = sqrt(2*tke/3);
   lambda = sqrt(15.0*sM->sim.nu/eps)*uprime;
   Re_lambda = uprime*lambda/sM->sim.nu;
@@ -131,10 +164,10 @@ void SpectralAnalysis::dump2File(const int nFile) const {
     << " #turbulent kinetic energy" << std::endl;
 
   f << std::left << std::setw(15) << "eps" << std::setw(15) << eps
-    << " #dissipation rate" << std::endl;
+    << " #Viscous dissipation rate" << std::endl;
 
-  f << std::left << std::setw(15) << "uprime" << std::setw(15) << uprime
-    << " #Average RMS velocity" << std::endl;
+  f << std::left << std::setw(15) << "eps_f" << std::setw(15) << sM->sim.epsForcing
+    << " #Total dissipation rate" << std::endl;
 
   f << std::left << std::setw(15) << "lambda" << std::setw(15) << lambda
     << " #Taylor microscale" << std::endl;
@@ -154,15 +187,34 @@ void SpectralAnalysis::dump2File(const int nFile) const {
   f << std::left << std::setw(15) << "nu_sgs" << std::setw(15) << sM->sim.nu_sgs
     << " #Average SGS viscosity" << std::endl;
 
-  f << std::left << std::setw(15) << "cs2_rl" << std::setw(15) << sM->sim.cs2_rl
-    << " #Average Cs2 from RL" << std::endl
+  f << std::left << std::setw(15) << "cs2_avg" << std::setw(15) << sM->sim.cs2_avg
+    << " #Average Cs2 if dynamic model" << std::endl;
+
+  f << std::left << std::setw(15) << "mean_grad" << std::setw(15) << sM->sim.grad_mean
+    << " #Average gradient magnitude" << std::endl;
+
+  f << std::left << std::setw(15) << "std_grad" << std::setw(15) << sM->sim.grad_std
+    << " #Stdev gradient magnitude" << std::endl
     << std::endl;
 
   f << std::left << std::setw(15) << "k * (lBox/2pi)" << std::setw(15) << "E_k" << std::endl;
-  for (int i = 0; i < nBin; i++) {
-    f << std::left << std::setw(15) << k_msr[i] << std::setw(15) << E_msr[i] << std::endl;
-  }
+  for (int i = 0; i < nBin; i++)
+    f << std::left << std::setw(15) << k_msr[i]
+                   << std::setw(15) << E_msr[i] << std::endl;
   f.close();
+
+  if (bComputeCs2Spectrum){
+    std::stringstream ssR_cs2;
+    ssR_cs2 << "analysis/spectralAnalysisCs2_" << std::setfill('0') << std::setw(9)
+      << nFile;
+    f.open(ssR_cs2.str());
+    f << std::left << "Cs2 spectrum :" << std::endl;
+    f << std::left << std::setw(15) << "k * (lBox/2pi)" << std::setw(15) << "Cs2_k" << std::endl;
+    for (int i = 0; i < nBin; i++)
+      f << std::left << std::setw(15) << k_msr[i]
+                     << std::setw(15) << cs2_msr[i] << std::endl;
+    f.close();
+  }
 }
 
 void SpectralAnalysis::reset(){
