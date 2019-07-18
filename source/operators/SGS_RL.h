@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_SGS_RL_h
 #define CubismUP_3D_SGS_RL_h
 
-//#define SGSRL_STATE_INVARIANTS
+#define SGSRL_STATE_INVARIANTS
 
 #include "operators/Operator.h"
 

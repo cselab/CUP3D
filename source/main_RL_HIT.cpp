@@ -290,7 +290,7 @@ int app_main(
     }
 
     double time = 0.0;
-    double tStart = 10.0;
+    double tStart = 5.0;
     int step = 0;
     double avgReward  = 0;
 
