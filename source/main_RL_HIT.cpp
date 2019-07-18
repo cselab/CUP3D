@@ -7,7 +7,7 @@
 //  Hugues de Laroussilhe (huguesdelaroussilhe@gmail.com).
 //
 
-#include "Communicators/Communicator.h"
+#include "Communicators/Communicator_MPI.h"
 #include "Simulation.h"
 #include "operators/SGS_RL.h"
 #include "operators/SpectralAnalysis.h"
