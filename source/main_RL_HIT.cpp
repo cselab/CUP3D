@@ -13,16 +13,9 @@
 #include "operators/SpectralAnalysis.h"
 #include "Cubism/ArgumentParser.h"
 
-#include <iostream>
-#include <string>
-#include <vector>
-#include <cmath>
-#include <sstream>
-#include <atomic>
 #include <unistd.h> // chdir
 #include <sys/stat.h> // mkdir options
 
-#include "mpi.h"
 #define FREQ_UPDATE 1
 
 struct targetData
