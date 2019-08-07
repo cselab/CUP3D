@@ -168,66 +168,86 @@ void SpectralAnalysis::dump2File(const int nFile) const
       << nFile;
   std::ofstream f;
   f.open(ssR.str());
-  f << std::left << "Spectral Analysis :" << std::endl;
-  f << std::left << std::setw(15) << "time" << std::setw(15) << sM->sim.time
-    << " #simulation time" << std::endl;
+  f << std::left << "Spectral Analysis :" << "\n";
+  f << std::left << std::setw(15) << "time"
+    << std::setw(15) << sM->sim.time
+    << " #simulation time" << "\n";
 
-  f << std::left << std::setw(15) << "lBox" << std::setw(15) << sM->maxBoxLength
-    << " #simulation box length" << std::endl;
+  f << std::left << std::setw(15) << "lBox"
+    << std::setw(15) << sM->maxBoxLength
+    << " #simulation box length" << "\n";
 
-  f << std::left << std::setw(15) << "tke" << std::setw(15) << tke
-    << " #turbulent kinetic energy" << std::endl;
+  f << std::left << std::setw(15) << "tke"
+    << std::setw(15) << tke
+    << " #turbulent kinetic energy" << "\n";
 
-  f << std::left << std::setw(15) << "eps" << std::setw(15) << eps
-    << " #Viscous dissipation rate" << std::endl;
+  f << std::left << std::setw(15) << "eps"
+    << std::setw(15) << eps
+    << " #Viscous dissipation rate" << "\n";
 
-  f << std::left << std::setw(15) << "eps_f" << std::setw(15) << sM->sim.epsForcing
-    << " #Total dissipation rate" << std::endl;
+  f << std::left << std::setw(15) << "eps_f"
+    << std::setw(15) << sM->sim.injectedPower
+    << " #Total dissipation rate" << "\n";
 
-  f << std::left << std::setw(15) << "lambda" << std::setw(15) << lambda
-    << " #Taylor microscale" << std::endl;
+  f << std::left << std::setw(15) << "lambda"
+    << std::setw(15) << lambda
+    << " #Taylor microscale" << "\n";
 
-  f << std::left << std::setw(15) << "Re_lambda" << std::setw(15) << Re_lambda
-    << " #Turbulent Reynolds based on lambda" << std::endl;
+  f << std::left << std::setw(15) << "Re_lambda"
+    << std::setw(15) << Re_lambda
+    << " #Turbulent Reynolds based on lambda" << "\n";
 
-  f << std::left << std::setw(15) << "eta" << std::setw(15) << pow(pow3(sM->sim.nu)/eps, 1.0/4)
-    << " #Kolmogorov length scale" << std::endl;
+  f << std::left << std::setw(15) << "eta"
+    << std::setw(15) << std::pow(pow3(sM->sim.nu)/eps, 1.0/4)
+    << " #Kolmogorov length scale" << "\n";
 
-  f << std::left << std::setw(15) << "tau_integral" << std::setw(15) << tau_integral
-    << " #Integral time scale" << std::endl;
+  f << std::left << std::setw(15) << "tau_integral"
+    << std::setw(15) << tau_integral
+    << " #Integral time scale" << "\n";
 
-  f << std::left << std::setw(15) << "tau_eta" << std::setw(15) << std::sqrt(sM->sim.nu/eps)
-    << " #Kolmogorov time scale" << std::endl;
+  f << std::left << std::setw(15) << "tau_eta"
+    << std::setw(15) << std::sqrt(sM->sim.nu/eps)
+    << " #Kolmogorov time scale" << "\n";
 
-  f << std::left << std::setw(15) << "nu_sgs" << std::setw(15) << sM->sim.nu_sgs
-    << " #Average SGS viscosity" << std::endl;
+  f << std::left << std::setw(15) << "nu_sgs"
+    << std::setw(15) << sM->sim.nu_sgs
+    << " #Average SGS viscosity" << "\n";
 
-  f << std::left << std::setw(15) << "cs2_avg" << std::setw(15) << sM->sim.cs2_avg
-    << " #Average Cs2 if dynamic model" << std::endl;
+  f << std::left << std::setw(15) << "cs2_avg"
+    << std::setw(15) << sM->sim.cs2_avg
+    << " #Average Cs2 if dynamic model" << "\n";
 
-  f << std::left << std::setw(15) << "mean_grad" << std::setw(15) << sM->sim.grad_mean
-    << " #Average gradient magnitude" << std::endl;
+  f << std::left << std::setw(15) << "mean_grad"
+    << std::setw(15) << sM->sim.grad_mean
+    << " #Average gradient magnitude" << "\n";
 
-  f << std::left << std::setw(15) << "std_grad" << std::setw(15) << sM->sim.grad_std
-    << " #Stdev gradient magnitude" << std::endl
-    << std::endl;
+  f << std::left << std::setw(15) << "std_grad"
+    << std::setw(15) << sM->sim.grad_std
+    << " #Stdev gradient magnitude" << "\n"
+    << "\n";
 
-  f << std::left << std::setw(15) << "k * (lBox/2pi)" << std::setw(15) << "E_k" << std::endl;
+  f << std::left << std::setw(15) << "k * (lBox/2pi)"
+    << std::setw(15) << "E_k" << "\n";
+
   for (int i = 0; i < nBin; i++)
     f << std::left << std::setw(15) << k_msr[i]
-                   << std::setw(15) << E_msr[i] << std::endl;
+                   << std::setw(15) << E_msr[i] << "\n";
+  f.flush();
   f.close();
 
-  if (bComputeCs2Spectrum){
+  if (bComputeCs2Spectrum)
+  {
     std::stringstream ssR_cs2;
-    ssR_cs2 << "analysis/spectralAnalysisCs2_" << std::setfill('0') << std::setw(9)
-      << nFile;
+    ssR_cs2 << "analysis/spectralAnalysisCs2_" << std::setfill('0')
+            << std::setw(9) << nFile;
     f.open(ssR_cs2.str());
-    f << std::left << "Cs2 spectrum :" << std::endl;
-    f << std::left << std::setw(15) << "k * (lBox/2pi)" << std::setw(15) << "Cs2_k" << std::endl;
+    f << std::left << "Cs2 spectrum :" << "\n";
+    f << std::left << std::setw(15) << "k * (lBox/2pi)"
+                   << std::setw(15) << "Cs2_k" << "\n";
     for (int i = 0; i < nBin; i++)
       f << std::left << std::setw(15) << k_msr[i]
-                     << std::setw(15) << cs2_msr[i] << std::endl;
+                     << std::setw(15) << cs2_msr[i] << "\n";
+    f.flush();
     f.close();
   }
 }

@@ -109,8 +109,9 @@ struct SimulationData
   bool bChannelFixedMassFlux = false;
   Real uMax_forced = 0;
   bool spectralForcing = false;
-  double tkeTgt=0;
-  double epsForcing=0;
+  double turbKinEn_target = 0;
+  double enInjectionRate = 0;
+  double injectedPower = 0; // this is only for post processing
 
   // sgs
   std::string sgs = "";
@@ -126,7 +127,7 @@ struct SimulationData
   double timeAnalysis = 0;
   int freqAnalysis = 0;
   double analysisTime=0, nextAnalysisTime=0;
-  double grad_mean = 0., grad_std=0.;
+  double grad_mean = 0, grad_std=0;
 
   // analysis (channel)
   std::vector<Real> Ux_avg_tgt;

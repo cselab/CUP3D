@@ -36,6 +36,7 @@ void PoissonSolverPeriodic::_solve()
       in_out[linidx][1] *= solutionFactor;
     }
 
+    // there are 8 modes that are undefined with this solution
     const long lastI = nKx/2, lastJ = nKy/2 - local_1_start, lastK = nKz/2;
     if (local_1_start == 0) {
       const size_t idWSF = (0*gsize[0] +0)*nz_hat + 0;

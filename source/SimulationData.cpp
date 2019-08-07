@@ -56,9 +56,16 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   tke0 = parser("-tke0").asDouble(1.0);
   icFromH5 = parser("-icFromH5").asString("");
 
-  // FORCING HIT
-  spectralForcing = parser("-spectralForcing").asBool(false);
-  tkeTgt = parser("-tkeTarget").asDouble(0);
+  // FORCING HIT=
+  turbKinEn_target = parser("-turbKinEn_target").asDouble(0);
+  enInjectionRate = parser("-energyInjectionRate").asDouble(0);
+  const bool bSpectralForcingHint = turbKinEn_target>0 || enInjectionRate>0;
+  spectralForcing = parser("-spectralForcing").asBool(bSpectralForcingHint);
+  if(turbKinEn_target>0 && enInjectionRate>0) {
+    fprintf(stderr,"ERROR: either constant energy injection rate "
+                   "or forcing to fixed energy target\n");
+    fflush(0); abort();
+  }
 
   // PIPELINE && FORCING
   freqDiagnostics = parser("-freqDiagnostics").asInt(10);

@@ -96,7 +96,7 @@ void KernelSpectralForcing::_compute()
                  + pow2_cplx(cplxData_v[linidx])
                  + pow2_cplx(cplxData_w[linidx]);
     tke += mult*E/2;
-    if (0 < k_norm && k_norm <= 2) {
+    if (k_norm > 0 && k_norm <= 2) {
       tke_filtered += mult*E/2;
     } else {
       cplxData_u[linidx][0] = 0;
@@ -117,19 +117,21 @@ void KernelSpectralForcing::_compute()
 void KernelSpectralForcing::_fftw2cub()
 {
   //With non spectral IC, the target tke may not be defined here
-  if (sM->sim.tkeTgt ==0) sM->sim.tkeTgt = tke;
-
-  const Real eps = (sM->sim.tkeTgt - tke)/dt;
+  if      (sM->sim.turbKinEn_target > 0) // inject energy to match target tke
+       sM->sim.injectedPower = (sM->sim.turbKinEn_target - tke)/dt;
+  else if (sM->sim.enInjectionRate > 0) // constant power input:
+       sM->sim.injectedPower =  sM->sim.enInjectionRate;
+  else sM->sim.injectedPower = 0;
 
   // If there's too much energy, let dissipation do its job
-  if (eps < 0) {
-    sM->sim.epsForcing = 0;
+  if (sM->sim.injectedPower <= 0) {
+    sM->sim.injectedPower = 0;
     return;
   }
 
-  // Otherwise, inject energy to match target tke
-  sM->sim.epsForcing = eps;
-  const Real fac = dt * eps / (2*tke_filtered) / sM->normalizeFFT;
+  printf("Total Kin E = %f, E_|k|<2 = %f, injected power %f (energy = %f)\n",
+    tke, tke_filtered, sM->sim.injectedPower, dt * sM->sim.injectedPower);
+  const Real F = dt * sM->sim.injectedPower /(2*tke_filtered) /sM->normalizeFFT;
   const size_t NlocBlocks = sM->local_infos.size();
   const Real * const data_u = sM->data_u;
   const Real * const data_v = sM->data_v;
@@ -143,9 +145,9 @@ void KernelSpectralForcing::_fftw2cub()
     for(int iy=0; iy<BlockType::sizeY; ++iy)
     for(int ix=0; ix<BlockType::sizeX; ++ix) {
       const size_t src_index = sM->_dest(offset, iz, iy, ix);
-      b(ix,iy,iz).u += fac * data_u[src_index];
-      b(ix,iy,iz).v += fac * data_v[src_index];
-      b(ix,iy,iz).w += fac * data_w[src_index];
+      b(ix,iy,iz).u += F * data_u[src_index];
+      b(ix,iy,iz).v += F * data_v[src_index];
+      b(ix,iy,iz).w += F * data_w[src_index];
     }
   }
 }
