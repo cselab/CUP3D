@@ -66,9 +66,12 @@ class KernelSGS_SSM
       const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
       const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
 
-      const Real shear = sqrt(2*(d1udx1)*(d1udx1) + 2*(d1vdy1)*(d1vdy1) + 2*(d1wdz1)*(d1wdz1)
-                          + (d1udy1+d1vdx1)*(d1udy1+d1vdx1) + (d1udz1+d1wdx1)*(d1udz1+d1wdx1)
-                          + (d1wdy1+d1vdz1)*(d1wdy1+d1vdz1)) / (2*h);
+      const Real shear = std::sqrt( 2*d1udx1*d1udx1
+                                   +2*d1vdy1*d1vdy1
+                                   +2*d1wdz1*d1wdz1
+                                   +(d1udy1+d1vdx1)*(d1udy1+d1vdx1)
+                                   +(d1udz1+d1wdx1)*(d1udz1+d1wdx1)
+                                   +(d1wdy1+d1vdz1)*(d1wdy1+d1vdz1))/(2*h);
 
       sgs.nu = Cs2 * h*h * shear;
       sgs.duD = (LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6)/(h*h);
@@ -112,10 +115,12 @@ class KernelSGS_RLSM
       const Real d1udx1= LE.u-LW.u, d1vdx1= LE.v-LW.v, d1wdx1= LE.w-LW.w;
       const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
       const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
-
-      const Real shear = sqrt(2*(d1udx1)*(d1udx1) + 2*(d1vdy1)*(d1vdy1) + 2*(d1wdz1)*(d1wdz1)
-                          + (d1udy1+d1vdx1)*(d1udy1+d1vdx1) + (d1udz1+d1wdx1)*(d1udz1+d1wdx1)
-                          + (d1wdy1+d1vdz1)*(d1wdy1+d1vdz1)) / (2*h);
+      const Real shear = std::sqrt( 2*d1udx1*d1udx1
+                                   +2*d1vdy1*d1vdy1
+                                   +2*d1wdz1*d1wdz1
+                                   +(d1udy1+d1vdx1)*(d1udy1+d1vdx1)
+                                   +(d1udz1+d1wdx1)*(d1udz1+d1wdx1)
+                                   +(d1wdy1+d1vdz1)*(d1wdy1+d1vdz1))/(2*h);
 
       sgs.nu = L.chi * h*h * shear;
       sgs.duD = (LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6)/(h*h);
@@ -144,7 +149,8 @@ class KernelSGS_nonUniform
 
   ~KernelSGS_nonUniform() {}
   template <typename Lab, typename BlockType>
-  void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const {
+  void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
+  {
     const double Cs2 = 0.20*0.20;
     const BlkCoeffX & c1x = o.fd_cx.first, & c2x = o.fd_cx.second;
     const BlkCoeffY & c1y = o.fd_cy.first, & c2y = o.fd_cy.second;
@@ -180,13 +186,15 @@ class KernelSGS_nonUniform
       const Real duD = d2udx2 + d2udy2 + d2udz2;
       const Real dvD = d2vdx2 + d2vdy2 + d2vdz2;
       const Real dwD = d2wdx2 + d2wdy2 + d2wdz2;
+      const Real S = std::sqrt( 2*d1udx1*d1udx1
+                               +2*d1vdy1*d1vdy1
+                               +2*d1wdz1*d1wdz1
+                               +(d1udy1+d1vdx1)*(d1udy1+d1vdx1)
+                               +(d1udz1+d1wdx1)*(d1udz1+d1wdx1)
+                               +(d1wdy1+d1vdz1)*(d1wdy1+d1vdz1));
 
-      const Real S = sqrt(2*(d1udx1)*(d1udx1) + 2*(d1vdy1)*(d1vdy1) + 2*(d1wdz1)*(d1wdz1)
-                          + (d1udy1+d1vdx1)*(d1udy1+d1vdx1) + (d1udz1+d1wdx1)*(d1udz1+d1wdx1)
-                          + (d1wdy1+d1vdz1)*(d1wdy1+d1vdz1));
-
-      const Real facD = bSGS_RL ? L.chi * pow(h[0] * h[1] * h[2], 2.0 / 3) * S
-                                :   Cs2 * pow(h[0] * h[1] * h[2], 2.0 / 3) * S;
+      const Real facD = bSGS_RL ? L.chi * std::pow(h[0]*h[1]*h[2], 2.0 / 3) * S
+                                :   Cs2 * std::pow(h[0]*h[1]*h[2], 2.0 / 3) * S;
 
       o(ix, iy, iz).tmpU = L.u + dt * facD * duD;
       o(ix, iy, iz).tmpV = L.v + dt * facD * dvD;
@@ -224,7 +232,8 @@ struct filterFluidElement
   {
     for (int i=-1; i<2; i++)
     for (int j=-1; j<2; j++)
-    for (int k=-1; k<2; k++){
+    for (int k=-1; k<2; k++)
+    {
       const Real f = facFilter(i,j,k);
 
       const FluidElement &L =lab(ix+i, iy+j, iz+k);
@@ -234,17 +243,23 @@ struct filterFluidElement
       uu += f*L.u*L.u; uv += f*L.u*L.v; uw += f*L.u*L.w;
       vv += f*L.v*L.v; vw += f*L.v*L.w; ww += f*L.w*L.w;
 
-      const FluidElement &LW=lab(ix+i-1, iy+j,   iz+k  ), &LE=lab(ix+i+1, iy+j,   iz+k  );
-      const FluidElement &LS=lab(ix+i,   iy+j-1, iz+k  ), &LN=lab(ix+i,   iy+j+1, iz+k  );
-      const FluidElement &LF=lab(ix+i,   iy+j,   iz+k-1), &LB=lab(ix+i,   iy+k,   iz+k+1);
+      const FluidElement &LW=lab(ix+i-1, iy+j,   iz+k  );
+      const FluidElement &LE=lab(ix+i+1, iy+j,   iz+k  );
+      const FluidElement &LS=lab(ix+i,   iy+j-1, iz+k  );
+      const FluidElement &LN=lab(ix+i,   iy+j+1, iz+k  );
+      const FluidElement &LF=lab(ix+i,   iy+j,   iz+k-1);
+      const FluidElement &LB=lab(ix+i,   iy+k,   iz+k+1);
 
-      const Real d1udx1 = (LE.u-LW.u), d1vdx1 = (LE.v-LW.v), d1wdx1 = (LE.w-LW.w);
-      const Real d1udy1 = (LN.u-LS.u), d1vdy1 = (LN.v-LS.v), d1wdy1 = (LN.w-LS.w);
-      const Real d1udz1 = (LB.u-LF.u), d1vdz1 = (LB.v-LF.v), d1wdz1 = (LB.w-LF.w);
+      const Real d1udx1 = LE.u-LW.u, d1vdx1 = LE.v-LW.v, d1wdx1 = LE.w-LW.w;
+      const Real d1udy1 = LN.u-LS.u, d1vdy1 = LN.v-LS.v, d1wdy1 = LN.w-LS.w;
+      const Real d1udz1 = LB.u-LF.u, d1vdz1 = LB.v-LF.v, d1wdz1 = LB.w-LF.w;
 
-      const Real shear_g = sqrt(2*(d1udx1)*(d1udx1) + 2*(d1vdy1)*(d1vdy1) + 2*(d1wdz1)*(d1wdz1)
-                                + (d1udy1+d1vdx1)*(d1udy1+d1vdx1) + (d1udz1+d1wdx1)*(d1udz1+d1wdx1)
-                                + (d1wdy1+d1vdz1)*(d1wdy1+d1vdz1)) / (2*h);
+      const Real shear_g = std::sqrt( 2*d1udx1*d1udx1
+                                     +2*d1vdy1*d1vdy1
+                                     +2*d1wdz1*d1wdz1
+                                     +(d1udy1+d1vdx1)*(d1udy1+d1vdx1)
+                                     +(d1udz1+d1wdx1)*(d1udz1+d1wdx1)
+                                     +(d1wdy1+d1vdz1)*(d1wdy1+d1vdz1))/(2*h);
 
       shear += f*shear_g;
 
@@ -305,10 +320,10 @@ class KernelSGS_DSM
       const Real l_zz = L_f.ww - L_f.w * L_f.w - traceTerm;
 
       const Real l_dot_m = l_xx * m_xx + l_yy * m_yy + l_zz * m_zz +
-                    2.0 * (l_xy * m_xy + l_xz * m_xz + l_yz * m_yz);
+                      2 * (l_xy * m_xy + l_xz * m_xz + l_yz * m_yz);
 
       const Real m_dot_m = m_xx * m_xx + m_yy * m_yy + m_zz * m_zz +
-                    2.0 * (m_xy * m_xy + m_xz * m_xz + m_yz * m_yz);
+                      2 * (m_xy * m_xy + m_xz * m_xz + m_yz * m_yz);
 
       o(ix,iy,iz).tmpV = l_dot_m;
       o(ix,iy,iz).tmpW = m_dot_m;
@@ -349,25 +364,27 @@ class KernelSGS_DSM_avg
       const Real d1udx1= LE.u-LW.u, d1vdx1= LE.v-LW.v, d1wdx1= LE.w-LW.w;
       const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
       const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
-
-      const Real shear = sqrt(2*(d1udx1)*(d1udx1) + 2*(d1vdy1)*(d1vdy1) + 2*(d1wdz1)*(d1wdz1)
-                          + (d1udy1+d1vdx1)*(d1udy1+d1vdx1) + (d1udz1+d1wdx1)*(d1udz1+d1wdx1)
-                          + (d1wdy1+d1vdz1)*(d1wdy1+d1vdz1)) / (2*h);
+      const Real shear = std::sqrt( 2*d1udx1*d1udx1
+                                   +2*d1vdy1*d1vdy1
+                                   +2*d1wdz1*d1wdz1
+                                   +(d1udy1+d1vdx1)*(d1udy1+d1vdx1)
+                                   +(d1udz1+d1wdx1)*(d1udz1+d1wdx1)
+                                   +(d1wdy1+d1vdz1)*(d1wdy1+d1vdz1))/(2*h);
 
       Real l_dot_m = 0.0;
       Real m_dot_m = 0.0;
-      for (int i=-1; i<2; i++)
-      for (int j=-1; j<2; j++)
-      for (int k=-1; k<2; k++){
+      for (int i=-1; i<2; ++i)
+      for (int j=-1; j<2; ++j)
+      for (int k=-1; k<2; ++k){
         const Real f = facFilter(i,j,k);
         l_dot_m += f * lab(ix+i, iy+j, iz+k).tmpV;
         m_dot_m += f * lab(ix+i, iy+j, iz+k).tmpW;
       }
-    
-      Real Cs2 = (m_dot_m==0) ? 0.0 : 0.5 * l_dot_m / (h*h * m_dot_m);
+
+      Real Cs2 = (m_dot_m==0) ? 0.0 : l_dot_m/2 / (h*h * m_dot_m);
 
       if (Cs2 < 0) Cs2 = 0;
-      if (sqrt(Cs2) >= 0.25) Cs2 = 0.25*0.25;
+      if (std::sqrt(Cs2) >= 0.25) Cs2 = 0.25*0.25;
 
       sgs.nu = Cs2 * h*h * shear;
       sgs.duD = (LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6)/(h*h);
@@ -395,7 +412,7 @@ class KernelSGS_gradNu
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
   {
-    const Real h = info.h_gridpoint;
+    const Real h = info.h_gridpoint, F = 1/(2*h);
     SGSBlock& t = * getSGSBlockPtr(sgsGrid, info.blockID);
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
@@ -406,17 +423,17 @@ class KernelSGS_gradNu
       const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
       const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
 
-      const Real d1udx1= LE.u-LW.u, d1vdx1= LE.v-LW.v, d1wdx1= LE.w-LW.w;
-      const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
-      const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
+      const Real dudx= LE.u-LW.u, dvdx= LE.v-LW.v, dwdx= LE.w-LW.w;
+      const Real dudy= LN.u-LS.u, dvdy= LN.v-LS.v, dwdy= LN.w-LS.w;
+      const Real dudz= LB.u-LF.u, dvdz= LB.v-LF.v, dwdz= LB.w-LF.w;
 
-      const Real d1nudx1 = (LE.tmpU-LW.tmpU)/(2*h);
-      const Real d1nudy1 = (LN.tmpU-LS.tmpU)/(2*h);
-      const Real d1nudz1 = (LB.tmpU-LF.tmpU)/(2*h);
+      const Real dnudx = F * (LE.tmpU-LW.tmpU);
+      const Real dnudy = F * (LN.tmpU-LS.tmpU);
+      const Real dnudz = F * (LB.tmpU-LF.tmpU);
 
-      sgs.Dj_nu_Sxj = (d1udx1 * d1nudx1 + 0.5*(d1udy1+d1vdx1) * d1nudy1 + 0.5*(d1udz1+d1wdx1) * d1nudz1) / (2*h);
-      sgs.Dj_nu_Syj = (0.5*(d1udy1+d1vdx1) * d1nudx1 + d1vdy1 * d1nudy1 + 0.5*(d1vdz1+d1wdy1) * d1nudz1) / (2*h);
-      sgs.Dj_nu_Szj = (0.5*(d1udz1+d1wdx1) * d1nudx1 + 0.5*(d1udy1+d1vdx1) * d1nudy1 + d1wdz1 * d1nudz1) / (2*h);
+      sgs.Dj_nu_Sxj= F*(dudx*dnudx + dnudy*(dudy+dvdx)/2 + dnudz*(dudz+dwdx)/2);
+      sgs.Dj_nu_Syj= F*(dnudx*(dudy+dvdx)/2 + dnudy*dvdy + dnudz*(dvdz+dwdy)/2);
+      sgs.Dj_nu_Szj= F*(dnudx*(dudz+dwdx)/2 + dnudy*(dudy+dvdx)/2 + dnudz*dwdz);
     }
   }
 };

@@ -19,7 +19,7 @@ Real energySpectrum::interpE(const Real _k)
   int idx_k = -1;
   int size = k.size();
   Real energy = 0.;
-  for (int i = 0; i < size; i ++){
+  for (int i = 0; i < size; ++i){
     if ( _k < k[i]){
       idx_k = i;
       break;
@@ -41,7 +41,7 @@ Real energySpectrum::interpSigma2(const Real _k)
   int idx_k = -1;
   int size = k.size();
   Real s2 = 0.;
-  for (int i = 0; i < size; i ++){
+  for (int i = 0; i < size; ++i){
     if ( _k < k[i]){
       idx_k = i;
       break;
@@ -60,14 +60,14 @@ Real energySpectrum::interpSigma2(const Real _k)
 
 void energySpectrum::dump2File(const int nBin, const int nGrid, const Real lBox)
 {
-  const int nBins = ceil(sqrt(3.0)*nGrid)/2.0;//*waveFact);
-  const Real binSize = M_PI*sqrt(3)*nGrid/(nBins*lBox);
+  const int nBins = std::ceil(std::sqrt(3)*nGrid)/2.0;//*waveFact);
+  const Real binSize = M_PI*std::sqrt(3)*nGrid/(nBins*lBox);
   std::stringstream ssR;
   ssR<<"initialSpectrum.dat";
   std::ofstream f;
   f.open (ssR.str());
   f << std::left << std::setw(20) << "k" << std::setw(20) << "Pk" <<std::endl;
-  for (int i = 0; i < nBins; i++){
+  for (int i = 0; i < nBins; ++i){
     const Real k_msr = (i+0.5)*binSize;
     f << std::left << std::setw(20) << k_msr << std::setw(20) << interpE(k_msr) <<std::endl;
   }

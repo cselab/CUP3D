@@ -97,7 +97,7 @@ class SpectralManip
 
   const long maxGridSize = std::max({gsize[0], gsize[1], gsize[2]});
   const long minGridSize = std::max({gsize[0], gsize[1], gsize[2]});
-  const std::array<double, 3> lBox = sim.extent;
+  const std::array<Real, 3> lBox = sim.extent;
   const Real maxBoxLength = std::max({lBox[0], lBox[1], lBox[2]});
   const Real minBoxLength = std::min({lBox[0], lBox[1], lBox[2]});
 

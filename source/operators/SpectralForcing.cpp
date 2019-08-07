@@ -45,7 +45,11 @@ KernelSpectralForcing::KernelSpectralForcing(SimulationData & s) : dt(s.dt)
 void KernelSpectralForcing::_cub2fftw() const
 {
   const size_t NlocBlocks = sM->local_infos.size();
-  #pragma omp parallel for
+  Real * const data_u = sM->data_u;
+  Real * const data_v = sM->data_v;
+  Real * const data_w = sM->data_w;
+
+  #pragma omp parallel for schedule(static)
   for(size_t i=0; i<NlocBlocks; ++i) {
     BlockType& b = *(BlockType*) sM->local_infos[i].ptrBlock;
     const size_t offset = sM->_offset( sM->local_infos[i] );
@@ -53,9 +57,9 @@ void KernelSpectralForcing::_cub2fftw() const
     for(int iy=0; iy<BlockType::sizeY; iy++)
     for(int ix=0; ix<BlockType::sizeX; ix++) {
       const size_t src_index = sM->_dest(offset, iz, iy, ix);
-      sM->data_u[src_index] = b(ix,iy,iz).u;
-      sM->data_v[src_index] = b(ix,iy,iz).v;
-      sM->data_w[src_index] = b(ix,iy,iz).w;
+      data_u[src_index] = b(ix,iy,iz).u;
+      data_v[src_index] = b(ix,iy,iz).v;
+      data_w[src_index] = b(ix,iy,iz).w;
     }
   }
 }
@@ -65,32 +69,42 @@ void KernelSpectralForcing::_compute()
   fft_c *const cplxData_u = (fft_c *) sM->data_u;
   fft_c *const cplxData_v = (fft_c *) sM->data_v;
   fft_c *const cplxData_w = (fft_c *) sM->data_w;
+  const Real waveFactorX = sM->waveFactor[0];
+  const Real waveFactorY = sM->waveFactor[1];
+  const Real waveFactorZ = sM->waveFactor[2];
+  const long nKx = sM->nKx, nKy = sM->nKy, nKz = sM->nKz;
+  const long sizeX = sM->gsize[0], sizeZ_hat = sM->nz_hat;
+  const long loc_n1 = sM->local_n1, shifty = sM->shifty;
 
-#pragma omp parallel for reduction(+: tke, tke_filtered)
-  for(long j = 0; j<static_cast<long>(sM->local_n1); ++j)
-  for(long i = 0; i<static_cast<long>(sM->gsize[0]); ++i)
-  for(long k = 0; k<static_cast<long>(sM->nz_hat);   ++k) {
-    const size_t linidx = (j*sM->gsize[0] +i)*sM->nz_hat + k;
-    const long ii = (i <= sM->nKx/2) ? i : -(sM->nKx-i);
-    const long l = sM->shifty + j; //memory index plus shift due to decomp
-    const long jj = (l <= sM->nKy/2) ? l : -(sM->nKy-l);
-    const long kk = (k <= sM->nKz/2) ? k : -(sM->nKz-k);
+  #pragma omp parallel for reduction(+: tke, tke_filtered) schedule(static)
+  for(long j = 0; j<loc_n1; ++j)
+  for(long i = 0; i<sizeX;  ++i)
+  for(long k = 0; k<sizeZ_hat; ++k)
+  {
+    const long linidx = (j*sizeX +i)*sizeZ_hat + k;
+    const long ii = (i <= nKx/2) ? i : -(nKx-i);
+    const long l = shifty + j; //memory index plus shift due to decomp
+    const long jj = (l <= nKy/2) ? l : -(nKy-l);
+    const long kk = (k <= nKz/2) ? k : -(nKz-k);
 
-    const Real kx = ii*sM->waveFactor[0], ky = jj*sM->waveFactor[1], kz = kk*sM->waveFactor[2];
+    const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
     const Real k2 = kx*kx + ky*ky + kz*kz;
-    const Real k_norm = sqrt(k2);
+    const Real k_norm = std::sqrt(k2);
 
-    const int mult = (k==0) or (k==sM->nKz/2) ? 1 : 2;
+    const int mult = (k==0) or (k==nKz/2) ? 1 : 2;
     const Real E = pow2_cplx(cplxData_u[linidx])
                  + pow2_cplx(cplxData_v[linidx])
                  + pow2_cplx(cplxData_w[linidx]);
-    tke += 0.5*mult*E;
-    if (0 < k_norm and k_norm <= 2) tke_filtered += 0.5*mult*E;
-    else
-    {
-      cplxData_u[linidx][0] = cplxData_u[linidx][1] = 0.;
-      cplxData_v[linidx][0] = cplxData_v[linidx][1] = 0.;
-      cplxData_w[linidx][0] = cplxData_w[linidx][1] = 0.;
+    tke += mult*E/2;
+    if (0 < k_norm && k_norm <= 2) {
+      tke_filtered += mult*E/2;
+    } else {
+      cplxData_u[linidx][0] = 0;
+      cplxData_u[linidx][1] = 0;
+      cplxData_v[linidx][0] = 0;
+      cplxData_v[linidx][1] = 0;
+      cplxData_w[linidx][0] = 0;
+      cplxData_w[linidx][1] = 0;
     }
   }
   MPI_Allreduce(MPI_IN_PLACE, &tke_filtered, 1, MPIREAL, MPI_SUM, sM->m_comm);
@@ -117,7 +131,11 @@ void KernelSpectralForcing::_fftw2cub()
   sM->sim.epsForcing = eps;
   const Real fac = dt * eps / (2*tke_filtered) / sM->normalizeFFT;
   const size_t NlocBlocks = sM->local_infos.size();
-  #pragma omp parallel for
+  const Real * const data_u = sM->data_u;
+  const Real * const data_v = sM->data_v;
+  const Real * const data_w = sM->data_w;
+
+  #pragma omp parallel for schedule(static)
   for(size_t i=0; i<NlocBlocks; ++i) {
     BlockType& b = *(BlockType*) sM->local_infos[i].ptrBlock;
     const size_t offset = sM->_offset( sM->local_infos[i] );
@@ -125,9 +143,9 @@ void KernelSpectralForcing::_fftw2cub()
     for(int iy=0; iy<BlockType::sizeY; ++iy)
     for(int ix=0; ix<BlockType::sizeX; ++ix) {
       const size_t src_index = sM->_dest(offset, iz, iy, ix);
-      b(ix,iy,iz).u += fac*sM->data_u[src_index];
-      b(ix,iy,iz).v += fac*sM->data_v[src_index];
-      b(ix,iy,iz).w += fac*sM->data_w[src_index];
+      b(ix,iy,iz).u += fac * data_u[src_index];
+      b(ix,iy,iz).v += fac * data_v[src_index];
+      b(ix,iy,iz).w += fac * data_w[src_index];
     }
   }
 }

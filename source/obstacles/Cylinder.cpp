@@ -20,9 +20,9 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   const Real radius, halflength, h, safety = (2+SURFDH)*h;
   const double position[3];
   const Real box[3][2] = {
-    {position[0] - radius     - safety, position[0]              + safety},
-    {position[1] - radius     - safety, position[1] + radius     + safety},
-    {position[2] - halflength - safety, position[2] + halflength + safety}
+    {(Real)position[0]-radius    -safety, (Real)position[0]+radius    +safety},
+    {(Real)position[1]-radius    -safety, (Real)position[1]+radius    +safety},
+    {(Real)position[2]-halflength-safety, (Real)position[2]+halflength+safety}
   };
 
   FillBlocks(const Real r, const Real halfl, const Real _h, const double p[3]):
@@ -60,9 +60,9 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   const Real radius, halflength, h, safety = (2+SURFDH)*h;
   const double position[3];
   const Real box[3][2] = {
-    {position[0] - radius     - safety, position[0] + radius     + safety},
-    {position[1] - radius     - safety, position[1] + radius     + safety},
-    {position[2] - halflength - safety, position[2] + halflength + safety}
+    {(Real)position[0]-radius    -safety, (Real)position[0]+radius    +safety},
+    {(Real)position[1]-radius    -safety, (Real)position[1]+radius    +safety},
+    {(Real)position[2]-halflength-safety, (Real)position[2]+halflength+safety}
   };
 
   FillBlocks(const Real r, const Real halfl, const Real _h, const double p[3]):

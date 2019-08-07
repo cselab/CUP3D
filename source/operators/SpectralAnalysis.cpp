@@ -41,24 +41,31 @@ void SpectralAnalysis::_cub2fftw()
 {
   // Let's also compute u_avg here
   const size_t NlocBlocks = sM->local_infos.size();
-  #pragma omp parallel for reduction(+: u_avg[:3])
-  for(size_t i=0; i<NlocBlocks; ++i) {
+  Real * const data_u = sM->data_u;
+  Real * const data_v = sM->data_v;
+  Real * const data_w = sM->data_w;
+  Real * const data_cs2 = sM->data_cs2;
+
+  #pragma omp parallel for reduction(+: u_avg[:3]) schedule(static)
+  for(size_t i=0; i<NlocBlocks; ++i)
+  {
     BlockType& b = *(BlockType*) sM->local_infos[i].ptrBlock;
     const size_t offset = sM->_offset( sM->local_infos[i] );
     for(int iz=0; iz<BlockType::sizeZ; ++iz)
     for(int iy=0; iy<BlockType::sizeY; ++iy)
-    for(int ix=0; ix<BlockType::sizeX; ++ix) {
+    for(int ix=0; ix<BlockType::sizeX; ++ix)
+    {
       const size_t src_index = sM->_dest(offset, iz, iy, ix);
       const Real u = b(ix,iy,iz).u;
       const Real v = b(ix,iy,iz).v;
       const Real w = b(ix,iy,iz).w;
       u_avg[0] += u; u_avg[1] += v; u_avg[2] += w;
-      u_avg[0] += 0.5*(u*u + v*v + w*w);
-      sM->data_u[src_index] = u;
-      sM->data_v[src_index] = v;
-      sM->data_w[src_index] = w;
+      u_avg[0] += (u*u + v*v + w*w)/2;
+      data_u[src_index] = u;
+      data_v[src_index] = v;
+      data_w[src_index] = w;
       if (bComputeCs2Spectrum)
-        sM->data_cs2[src_index] = b(ix,iy,iz).chi;
+        data_cs2[src_index] = b(ix,iy,iz).chi;
     }
   }
   MPI_Allreduce(MPI_IN_PLACE, u_avg, 3, MPIREAL, MPI_SUM, sM->m_comm);
@@ -74,22 +81,29 @@ void SpectralAnalysis::_compute()
   fft_c *const cplxData_v  = (fft_c *) sM->data_v;
   fft_c *const cplxData_w  = (fft_c *) sM->data_w;
   fft_c *const cplxData_cs2  = (fft_c *) sM->data_cs2;
+  const Real waveFactorX = sM->waveFactor[0];
+  const Real waveFactorY = sM->waveFactor[1];
+  const Real waveFactorZ = sM->waveFactor[2];
+  const long nKx = sM->nKx, nKy = sM->nKy, nKz = sM->nKz;
+  const long loc_n1 = sM->local_n1, shifty = sM->shifty;
+  const long sizeX = sM->gsize[0], sizeZ_hat = sM->nz_hat;
+
   // Let's only measure spectrum up to Nyquist.
-#pragma omp parallel for reduction(+ : E_msr[:nBin], tke, eps, tau_integral)
-  for(long j = 0; j<static_cast<long>(sM->local_n1); ++j)
-  for(long i = 0; i<static_cast<long>(sM->gsize[0]); ++i)
-  for(long k = 0; k<static_cast<long>(sM->nz_hat);   ++k) {
-    const size_t linidx = (j*sM->gsize[0] +i)*sM->nz_hat + k;
-    const long ii = (i <= sM->nKx/2) ? i : -(sM->nKx-i);
-    const long l = sM->shifty + j; //memory index plus shift due to decomp
-    const long jj = (l <= sM->nKy/2) ? l : -(sM->nKy-l);
-    const long kk = (k <= sM->nKz/2) ? k : -(sM->nKz-k);
+  #pragma omp parallel for reduction(+ : E_msr[:nBin], tke, eps, tau_integral)  schedule(static)
+  for(long j = 0; j<loc_n1; ++j)
+  for(long i = 0; i<sizeX;  ++i)
+  for(long k = 0; k<sizeZ_hat; ++k)
+  {
+    const long linidx = (j*sizeX +i)*sizeZ_hat + k;
+    const long ii = (i <= nKx/2) ? i : -(nKx-i);
+    const long l = shifty + j; //memory index plus shift due to decomp
+    const long jj = (l <= nKy/2) ? l : -(nKy-l);
+    const long kk = (k <= nKz/2) ? k : -(nKz-k);
 
-    const int mult = (k==0) or (k==sM->nKz/2) ? 1 : 2;
-
-    const Real kx = ii*sM->waveFactor[0], ky = jj*sM->waveFactor[1], kz = kk*sM->waveFactor[2];
-    const Real k_norm = sqrt(kx*kx + ky*ky + kz*kz);
-    const Real ks = sqrt(ii*ii + jj*jj + kk*kk);
+    const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
+    const int mult = (k==0) or (k==nKz/2) ? 1 : 2;
+    const Real k_norm = std::sqrt(kx*kx + ky*ky + kz*kz);
+    const Real ks = std::sqrt(ii*ii + jj*jj + kk*kk);
 
     const Real E =
         0.5 * mult *
@@ -107,7 +121,7 @@ void SpectralAnalysis::_compute()
       int binID = std::floor(ks * (nyquist-1)/nyquist);
       E_msr[binID] += E;
       if (bComputeCs2Spectrum){
-        const Real cs2 = sqrt(pow2_cplx(cplxData_cs2[linidx]));
+        const Real cs2 = std::sqrt(pow2_cplx(cplxData_cs2[linidx]));
         cs2_msr[binID] += mult*cs2;
       }
     }
@@ -124,7 +138,7 @@ void SpectralAnalysis::_compute()
 
   const size_t normalize = pow2(sM->normalizeFFT);
 
-  for (int binID = 0; binID < nBin; binID++){
+  for (int binID = 0; binID < nBin; binID++) {
     E_msr[binID] /= normalize;
     if (bComputeCs2Spectrum)
       cs2_msr[binID] /= sM->normalizeFFT;
@@ -133,8 +147,8 @@ void SpectralAnalysis::_compute()
   tke = tke / normalize;
   eps = eps * 2*(sM->sim.nu)/ normalize;
 
-  uprime = sqrt(2*tke/3);
-  lambda = sqrt(15.0*sM->sim.nu/eps)*uprime;
+  uprime = std::sqrt(2*tke/3);
+  lambda = std::sqrt(15.0*sM->sim.nu/eps)*uprime;
   Re_lambda = uprime*lambda/sM->sim.nu;
 
   tau_integral = M_PI / (2*pow3(uprime)) * tau_integral / normalize;
@@ -147,7 +161,8 @@ void SpectralAnalysis::run()
   _compute();
 }
 
-void SpectralAnalysis::dump2File(const int nFile) const {
+void SpectralAnalysis::dump2File(const int nFile) const
+{
   std::stringstream ssR;
   ssR << "analysis/spectralAnalysis_" << std::setfill('0') << std::setw(9)
       << nFile;
@@ -181,7 +196,7 @@ void SpectralAnalysis::dump2File(const int nFile) const {
   f << std::left << std::setw(15) << "tau_integral" << std::setw(15) << tau_integral
     << " #Integral time scale" << std::endl;
 
-  f << std::left << std::setw(15) << "tau_eta" << std::setw(15) << sqrt(sM->sim.nu/eps)
+  f << std::left << std::setw(15) << "tau_eta" << std::setw(15) << std::sqrt(sM->sim.nu/eps)
     << " #Kolmogorov time scale" << std::endl;
 
   f << std::left << std::setw(15) << "nu_sgs" << std::setw(15) << sM->sim.nu_sgs
@@ -217,7 +232,8 @@ void SpectralAnalysis::dump2File(const int nFile) const {
   }
 }
 
-void SpectralAnalysis::reset(){
+void SpectralAnalysis::reset()
+{
   memset(E_msr, 0, nBin * sizeof(Real));
   memset(k_msr, 0, nBin * sizeof(Real));
 }

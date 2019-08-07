@@ -57,7 +57,7 @@ energySpectrum SpectralIcGenerator::_generateTarget()
     k[18] = 20.00;  E[18] =   0.8;
     const Real M = 5.08;
 
-    const Real u_ref = sqrt(3.0/2)*22.2;
+    const Real u_ref = std::sqrt(3.0/2)*22.2;
     const Real L_ref = 10.8*M;
 
     for (std::size_t idx = 0; idx < k.size(); idx++){
@@ -75,7 +75,7 @@ energySpectrum SpectralIcGenerator::_generateTarget()
     k = std::vector<Real> (sM->nBin, 0.0); E = std::vector<Real> (sM->nBin, 0.0);
     for (int i=0; i<sM->nBin; i++){
       k[i] = (i+0.5) * sM->binSize;
-      E[i] = 32 * tke0 / (3*k0) * sqrt(2.0/M_PI) * pow(k[i]/k0,4.0) * exp(-2*pow(k[i]/k0,2.0));
+      E[i] = 32 * tke0 / (3*k0) * std::sqrt(2.0/M_PI) * pow(k[i]/k0,4.0) * exp(-2*pow(k[i]/k0,2.0));
     }
   }
 
@@ -123,35 +123,46 @@ void SpectralIcGenerator::_compute()
   fft_c *const cplxData_u = (fft_c *) sM->data_u;
   fft_c *const cplxData_v = (fft_c *) sM->data_v;
   fft_c *const cplxData_w = (fft_c *) sM->data_w;
-  #pragma omp parallel for reduction(+:tke)
-  for(long j = 0; j<static_cast<long>(sM->local_n1); ++j)
-  for(long i = 0; i<static_cast<long>(sM->gsize[0]); ++i)
-  for(long k = 0; k<static_cast<long>(sM->nz_hat);   ++k) {
-    const size_t linidx = (j*sM->gsize[0] +i)*sM->nz_hat + k;
-    const long ii = (i <= sM->nKx/2) ? i : -(sM->nKx-i);
-    const long l = sM->shifty + j; //memory index plus shift due to decomp
-    const long jj = (l <= sM->nKy/2) ? l : -(sM->nKy-l);
-    const long kk = (k <= sM->nKz/2) ? k : -(sM->nKz-k);
+  const Real waveFactorX = sM->waveFactor[0];
+  const Real waveFactorY = sM->waveFactor[1];
+  const Real waveFactorZ = sM->waveFactor[2];
+  const long nKx = sM->nKx, nKy = sM->nKy, nKz = sM->nKz;
+  const long sizeX = sM->gsize[0], sizeZ_hat = sM->nz_hat;
+  const long loc_n1 = sM->local_n1, shifty = sM->shifty;
 
-    const Real kx = ii*sM->waveFactor[0], ky = jj*sM->waveFactor[1], kz = kk*sM->waveFactor[2];
+  #pragma omp parallel for reduction(+:tke) schedule(static)
+  for(long j = 0; j<loc_n1; ++j)
+  for(long i = 0; i<sizeX; ++i)
+  for(long k = 0; k<sizeZ_hat;   ++k)
+  {
+    const long linidx = (j*sizeX +i) * sizeZ_hat + k;
+    const long ii = (i <= nKx/2) ? i : -(nKx-i);
+    const long l = shifty + j; //memory index plus shift due to decomp
+    const long jj = (l <= nKy/2) ? l : -(nKy-l);
+    const long kk = (k <= nKz/2) ? k : -(nKz-k);
+
+    const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
     const Real k2 = kx*kx + ky*ky + kz*kz;
-    const Real k_xy = sqrt(kx*kx + ky*ky);
-    const Real k_norm = sqrt(k2);
+    const Real k_xy = std::sqrt(kx*kx + ky*ky);
+    const Real k_norm = std::sqrt(k2);
 
     const Real E_k = target.interpE(k_norm);
-    const Real amp = (k2==0)? 0. : sqrt(E_k /(2*M_PI* pow(k_norm/sM->waveFactor[0], 2)));
+    const Real amp = (k2==0)? 0
+                    : std::sqrt(E_k/(2*M_PI*std::pow(k_norm/waveFactorX,2)));
 
-    const Real theta1 = randUniform(gen)*2.0*M_PI;
-    const Real theta2 = randUniform(gen)*2.0*M_PI;
-    const Real phi    = randUniform(gen)*2.0*M_PI;
+    const Real theta1 = randUniform(gen)*2*M_PI;
+    const Real theta2 = randUniform(gen)*2*M_PI;
+    const Real phi    = randUniform(gen)*2*M_PI;
 
-    const Real noise_a[2] = {amp * cos(theta1) * cos(phi), amp * sin(theta1) * cos(phi)};
-    const Real noise_b[2] = {amp * cos(theta2) * sin(phi), amp * sin(theta2) * sin(phi)};
+    const Real noise_a[2] = {amp * std::cos(theta1) * std::cos(phi),
+                             amp * std::sin(theta1) * std::cos(phi)};
+    const Real noise_b[2] = {amp * std::cos(theta2) * std::sin(phi),
+                             amp * std::sin(theta2) * std::sin(phi)};
 
     const Real fac = k_norm*k_xy;
-    const Real invFac = (fac==0)? 0. : 1.0/fac;
+    const Real invFac = (fac==0)? 0 : 1/fac;
 
-    const int mult = (k==0) or (k==sM->nKz/2) ? 1 : 2;
+    const int mult = (k==0) or (k==nKz/2) ? 1 : 2;
 
     cplxData_u[linidx][0] = (k_norm==0)? 0.0 : invFac * (noise_a[0] * k_norm * ky + noise_b[0] * kx * kz );
     cplxData_u[linidx][1] = (k_norm==0)? 0.0 : invFac * (noise_a[0] * k_norm * ky + noise_b[1] * kx * kz );

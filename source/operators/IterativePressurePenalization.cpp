@@ -388,9 +388,9 @@ struct KernelPenalization : public ObstacleVisitor
       Real p[3]; info.pos(p, ix, iy, iz);
       p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
       const Real X = CHI[iz][iy][ix], U_TOT[3] = {
-          vel[0] + omega[1]*p[2] - omega[2]*p[1] + UDEF[iz][iy][ix][0],
-          vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
-          vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
+          (Real)(vel[0] + omega[1]*p[2] - omega[2]*p[1] + UDEF[iz][iy][ix][0]),
+          (Real)(vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1]),
+          (Real)(vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2])
       };
       #ifdef EXPL_INTEGRATE_MOM
         const Real penalFac = X * lambda;

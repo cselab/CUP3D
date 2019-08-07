@@ -29,11 +29,8 @@ void PoissonSolverPeriodic::_solve()
     for(long k = 0; k<static_cast<long>(nz_hat);   ++k)
     {
       const size_t linidx = (j*gsize[0] +i)*nz_hat + k;
-      const long kx = (i <= nKx/2) ? i : -(nKx-i);
       const long l = local_1_start + j; //memory index plus shift due to decomp
-      const long ky = (l <= nKy/2) ? l : -(nKy-l);
-      const long kz = (k <= nKz/2) ? k : -(nKz-k);
-      const Real D = std::cos(wFacX*kx) +std::cos(wFacY*ky) +std::cos(wFacZ*kz);
+      const Real D = std::cos(wFacX*i) +std::cos(wFacY*l) +std::cos(wFacZ*k);
       const Real solutionFactor = norm_factor / (2*D - 6);
       in_out[linidx][0] *= solutionFactor;
       in_out[linidx][1] *= solutionFactor;

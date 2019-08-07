@@ -104,9 +104,9 @@ struct KernelPressureRHS : public ObstacleVisitor
       Real p[3]; info.pos(p, ix, iy, iz);
       p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
       const Real U_TOT[3] = {
-          vel[0] + omega[1]*p[2] - omega[2]*p[1] + UDEF[iz][iy][ix][0],
-          vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
-          vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
+          (Real)(vel[0] + omega[1]*p[2] - omega[2]*p[1] + UDEF[iz][iy][ix][0]),
+          (Real)(vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1]),
+          (Real)(vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2])
       };
 
       const FluidElement &LW = lab(ix-1,iy,  iz  ), &LE = lab(ix+1,iy,  iz  );
@@ -214,9 +214,9 @@ struct KernelPressureRHS_nonUniform : public ObstacleVisitor
       const Real fac = h[0] * h[1] * h[2] * invdt;
       p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
       const Real U_TOT[3] = {
-          vel[0] + omega[1]*p[2] - omega[2]*p[1] + UDEF[iz][iy][ix][0],
-          vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
-          vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
+          (Real)(vel[0] + omega[1]*p[2] - omega[2]*p[1] + UDEF[iz][iy][ix][0]),
+          (Real)(vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1]),
+          (Real)(vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2])
       };
 
       const FluidElement &LW = lab(ix-1,iy,  iz  ), &LE = lab(ix+1,iy,  iz  );
@@ -351,7 +351,7 @@ void PressureRHS::operator()(const double dt)
   MPI_Allreduce(MPI_IN_PLACE, sumRHS.data(), nShapes, MPI_DOUBLE,MPI_SUM, COMM);
   MPI_Allreduce(MPI_IN_PLACE, absRHS.data(), nShapes, MPI_DOUBLE,MPI_SUM, COMM);
   for(size_t j = 0; j<nShapes; ++j)
-    corrFactors[j] = sumRHS[j] / std::max(absRHS[j], EPS);
+    corrFactors[j] = sumRHS[j] / std::max(absRHS[j], (double) EPS);
 
   //if(0) // TODO DEBUG
   {
