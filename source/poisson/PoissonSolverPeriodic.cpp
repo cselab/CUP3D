@@ -15,54 +15,78 @@ using namespace cubism;
 void PoissonSolverPeriodic::_solve()
 {
   fft_c *const in_out = (fft_c *) data;
-  #if 0
-    const Real h2 = h*h;
-    const Real factor = h2*norm_factor;
-
-    #pragma omp parallel for
-    for(int j = 0; j<local_n1; ++j)
-    for(int i = 0; i<gsize[0]; ++i)
-    for(int k = 0; k<nz_hat; ++k) {
-      const int linidx = (j*gsize[0] +i)*nz_hat + k;
-      assert(linidx >=0 && linidx<nx*local_n1*nz_hat);
-      assert(linidx < alloc_local);
-
-      const Real denom = 32.*(cos(2.*M_PI*i/nx) + cos(2.*M_PI*(local_1_start+j)/ny) + cos(2.*M_PI*k/nz)) -
-                2.*(cos(4.*M_PI*i/nx) + cos(4.*M_PI*(local_1_start+j)/ny) + cos(4.*M_PI*k/nz)) - 90.;
-
-      const Real inv_denom = (denom==0)? 0.:1./denom;
-      const Real fatfactor = 12. * inv_denom * factor;
-
-      in_out[linidx][0] *= fatfactor;
-      in_out[linidx][1] *= fatfactor;
-    }
-  #else
-    const Real waveFactX = 2.0*M_PI/(gsize[0]*h);
-    const Real waveFactY = 2.0*M_PI/(gsize[1]*h);
-    const Real waveFactZ = 2.0*M_PI/(gsize[2]*h);
-    const long nKx = static_cast<long>(gsize[0]);
-    const long nKy = static_cast<long>(gsize[1]);
-    const long nKz = static_cast<long>(gsize[2]);
-    const long shifty = static_cast<long>(local_1_start);
-    #pragma omp parallel for
+  // RHS comes into this function premultiplied by h^3 (as in FMM)
+  #if 1 // grid-consistent
+    // Solution has to be normalized (1/N^3) and multiplied by Laplace op finite
+    // diffs coeff. We use finite diffs consistent with press proj, therefore
+    // +/- 2h, and Poisson coef is (2h)^2. Due to RHS premultiplied by h^3:
+    const Real norm_factor = 4/(gsize[0]*h*gsize[1]*gsize[2]);
+    const long nKx = (long)gsize[0], nKy = (long)gsize[1], nKz = (long)gsize[2];
+    const Real wFacX = 4*M_PI / nKx, wFacY = 4*M_PI / nKy, wFacZ = 4*M_PI / nKz;
+    #pragma omp parallel for schedule(static)
     for(long j = 0; j<static_cast<long>(local_n1); ++j)
     for(long i = 0; i<static_cast<long>(gsize[0]); ++i)
-    for(long k = 0; k<static_cast<long>(nz_hat);   ++k) {
+    for(long k = 0; k<static_cast<long>(nz_hat);   ++k)
+    {
       const size_t linidx = (j*gsize[0] +i)*nz_hat + k;
       const long kx = (i <= nKx/2) ? i : -(nKx-i);
-      const long l = shifty + j; //memory index plus shift due to decomp
+      const long l = local_1_start + j; //memory index plus shift due to decomp
+      const long ky = (l <= nKy/2) ? l : -(nKy-l);
+      const long kz = (k <= nKz/2) ? k : -(nKz-k);
+      const Real D = std::cos(wFacX*kx) +std::cos(wFacY*ky) +std::cos(wFacZ*kz);
+      const Real solutionFactor = norm_factor / (2*D - 6);
+      in_out[linidx][0] *= solutionFactor;
+      in_out[linidx][1] *= solutionFactor;
+    }
+
+    const long lastI = nKx/2, lastJ = nKy/2 - local_1_start, lastK = nKz/2;
+    if (local_1_start == 0) {
+      const size_t idWSF = (0*gsize[0] +0)*nz_hat + 0;
+      const size_t idWSB = (0*gsize[0] +0)*nz_hat + lastK;
+      const size_t idESF = (0*gsize[0] +lastI)*nz_hat + 0;
+      const size_t idESB = (0*gsize[0] +lastI)*nz_hat + lastK;
+      in_out[idWSF][0] = 0; in_out[idWSF][1] = 0;
+      in_out[idWSB][0] = 0; in_out[idWSB][1] = 0;
+      in_out[idESF][0] = 0; in_out[idESF][1] = 0;
+      in_out[idESB][0] = 0; in_out[idESB][1] = 0;
+    }
+    if(local_1_start <= nKy/2 && local_1_start+local_n1 > nKy/2) {
+      assert(lastJ < (long) local_n1);
+      const size_t idWNF = (lastJ*gsize[0] +0)*nz_hat + 0;
+      const size_t idWNB = (lastJ*gsize[0] +0)*nz_hat + lastK;
+      const size_t idENF = (lastJ*gsize[0] +lastI)*nz_hat + 0;
+      const size_t idENB = (lastJ*gsize[0] +lastI)*nz_hat + lastK;
+      in_out[idWNF][0] = 0; in_out[idWNF][1] = 0;
+      in_out[idWNB][0] = 0; in_out[idWNB][1] = 0;
+      in_out[idENF][0] = 0; in_out[idENF][1] = 0;
+      in_out[idENB][0] = 0; in_out[idENB][1] = 0;
+    }
+
+  #else // spectral
+    // Solution has to be normalized by (1/N^3) and we take out h^3 factor:
+    const Real norm_factor = 1/(gsize[0]*h*gsize[1]*h*gsize[2]*h);
+    const long nKx = (long)gsize[0], nKy = (long)gsize[1], nKz = (long)gsize[2];
+    const Real wFacX=2*M_PI/(nKx*h), wFacY=2*M_PI/(nKy*h), wFacZ=2*M_PI/(nKz*h);
+    #pragma omp parallel for schedule(static)
+    for(long j = 0; j<static_cast<long>(local_n1); ++j)
+    for(long i = 0; i<static_cast<long>(gsize[0]); ++i)
+    for(long k = 0; k<static_cast<long>(nz_hat);   ++k)
+    {
+      const size_t linidx = (j*gsize[0] +i)*nz_hat + k;
+      const long kx = (i <= nKx/2) ? i : -(nKx-i);
+      const long l = local_1_start + j; //memory index plus shift due to decomp
       const long ky = (l <= nKy/2) ? l : -(nKy-l);
       const long kz = (k <= nKz/2) ? k : -(nKz-k);
 
-      const Real rkx = kx*waveFactX, rky = ky*waveFactY, rkz = kz*waveFactZ;
-      const Real kinv =  -1/(rkx*rkx+rky*rky+rkz*rkz);
-      in_out[linidx][0] *= kinv*norm_factor;
-      in_out[linidx][1] *= kinv*norm_factor;
+      const Real rkx = kx*wFacX, rky = ky*wFacY, rkz = kz*wFacZ;
+      const Real solutionFactor =  - norm_factor / (rkx*rkx+rky*rky+rkz*rkz);
+      in_out[linidx][0] *= solutionFactor;
+      in_out[linidx][1] *= solutionFactor;
     }
+    //this is sparta!
+    if (local_1_start == 0) in_out[0][0] = in_out[0][1] = 0;
   #endif
 
-  //this is sparta!
-  if (local_1_start == 0) in_out[0][0] = in_out[0][1] = 0;
 }
 
 PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver(s)

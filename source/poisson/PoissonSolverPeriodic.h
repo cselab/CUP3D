@@ -18,7 +18,6 @@ class PoissonSolverPeriodic : public PoissonSolver
   void * fwd, * bwd;
   const size_t nz_hat = gsize[2]/2+1;
   const double h = sim.uniformH();
-  const double norm_factor = 1./(gsize[0]*h*gsize[1]*h*gsize[2]*h);
   ptrdiff_t alloc_local=0, local_n0=0, local_0_start=0, local_n1=0, local_1_start=0;
 
  protected:
