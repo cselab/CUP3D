@@ -17,6 +17,7 @@
 #include <sys/stat.h> // mkdir options
 
 #define FREQ_UPDATE 1
+#define SGSRL_STATE_SCALING
 
 struct targetData
 {
@@ -47,14 +48,14 @@ struct targetData
     //size_t lower = modeID*nSamplePerMode;
     //size_t upper = modeID*nSamplePerMode + nSamplePerMode - 1;
 
-
     size_t idx = -1;
     for (int i=0; i<nSamplePerMode; i++){
       idx = modeID*nSamplePerMode + i;
       if (msr < E_kde[idx])
         break;
     }
-    double  ret = P_kde[idx] + (P_kde[idx-1] - P_kde[idx]) / (E_kde[idx] - E_kde[idx-1]) * (E_kde[idx] - msr);
+    const double scale = (P_kde[idx-1] -P_kde[idx])/(E_kde[idx] -E_kde[idx-1]);
+    double  ret = P_kde[idx] + scale * (E_kde[idx] - msr);
 
     return ret;
   }
@@ -80,10 +81,15 @@ inline targetData getTarget(cubismup3d::SimulationData& sim, const bool bTrain)
   inFile.open(fileName_mean);
 
   if (!inFile) {
-    std::cout<<"Cannot open "<<fileName_mean<<std::endl;
-    abort();
+    fileName_scale = "../../scaleTarget.dat";
+    fileName_mean  = "../../meanTarget.dat";
+    fileName_kde   = "../../kdeTarget.dat";
+    inFile.open(fileName_mean);
+    if (!inFile) {
+      std::cout<<"Cannot open "<<fileName_mean<<std::endl;
+      abort();
+    }
   }
-
 
   const long maxGridSize = std::max({sim.bpdx * cubismup3d::FluidBlock::sizeX,
                                      sim.bpdy * cubismup3d::FluidBlock::sizeY,
@@ -109,13 +115,13 @@ inline targetData getTarget(cubismup3d::SimulationData& sim, const bool bTrain)
 
   // Get the Kernel Density Estimations from 'kdeTarget.dat'
   inFile.open(fileName_kde);
-  std::string line;
   if (!inFile){
     std::cout<<"Cannot open "<<fileName_kde<<std::endl;
     abort();
   }
 
   // First line is nSamplePerMode
+  std::string line;
   std::getline(inFile, line);
   std::istringstream in(line);
   in >> ret.nSamplePerMode;
@@ -124,7 +130,7 @@ inline targetData getTarget(cubismup3d::SimulationData& sim, const bool bTrain)
   std::vector<double> E_kde(size, 0.0);
   std::vector<double> P_kde(size, 0.0);
 
-  for (int i=0; i<ret.nModes; i++){
+  for (int i=0; i<ret.nModes; i++) {
     std::getline(inFile, line);
     std::getline(inFile, line);
     for (int j=0; j<ret.nSamplePerMode; j++){
@@ -189,7 +195,7 @@ inline double updateReward(double oldRew, const int nBin, const targetData tgt, 
     //newRew += tgt.getRewardL2(i, msr[i]);
     newRew += tgt.getRewardKDE(i, msr[i]);
   }
-  return oldRew=0 ? newRew : (1-alpha)*oldRew + alpha*newRew;
+  return (1-alpha)*oldRew + alpha*newRew;
 }
 
 inline double updateScale(double oldScale, double newScale, const double alpha)
@@ -238,7 +244,6 @@ int app_main(
 
   std::cout<<"Setting up target data"<<std::endl;
   targetData target = getTarget(sim->sim, comm->isTraining());
-  //targetData target;
   #ifdef SGSRL_STATE_INVARIANTS
     const int nActions = 1, nStates = 5;
   #else
@@ -283,7 +288,7 @@ int app_main(
     }
 
     double time = 0.0;
-    double tStart = 5.0;
+    double tStart = 2.5 * target.tau_integral;
     int step = 0;
     double avgReward  = 0;
 
@@ -306,10 +311,14 @@ int app_main(
     //                             - 1/2 * tau_eta * (delta_eps / eps) )
     //                   = tau_eta * (1 + 1/2 * nu_sgs / nu
     //                                 - 1/2 (eps_forcing - eps) / eps )
-    Real tau_eta_sim = sqrt(sim->sim.nu/sA->eps);
-    Real correction = 1.0 - 0.5*(sim->sim.epsForcing - sA->eps)/sA->eps
-                          + 0.5* sim->sim.nu_sgs/sim->sim.nu;
-    Real scaleGrads = tau_eta_sim * correction;
+    #ifdef SGSRL_STATE_SCALING
+      Real tau_eta_sim = std::sqrt(sim->sim.nu/sA->eps);
+      Real correction = 1.0 - 0.5*(sim->sim.epsForcing - sA->eps)/sA->eps
+                            + 0.5* sim->sim.nu_sgs/sim->sim.nu;
+      Real scaleGrads = tau_eta_sim * correction;
+    #else
+      const Real scaleGrads = 1.0;
+    #endif
 
     const unsigned int nIntegralTime = 10;
     const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
@@ -331,13 +340,16 @@ int app_main(
         // Average reward over integral time
         const double alpha = dt / tau_integral;
         avgReward = updateReward(avgReward, sA->nBin, target, sA->E_msr, alpha);
-        // Average gradient scale over time between LES updates
-        const double beta = dt / timeUpdateLES;
-        tau_eta_sim = sqrt(sim->sim.nu/sA->eps);
-        correction = 1.0 - 0.5*(1-sim->sim.epsForcing/sA->eps)
-                         + 0.5*sim->sim.nu_sgs/sqrt(sim->sim.nu * sA->eps);
-        const double newScale = tau_eta_sim * correction;
-        scaleGrads = updateScale(scaleGrads, newScale, beta);
+
+        #ifdef SGSRL_STATE_SCALING
+          // Average gradient scale over time between LES updates
+          const double beta = dt / timeUpdateLES;
+          tau_eta_sim = std::sqrt(sim->sim.nu/sA->eps);
+          correction = 1.0 - 0.5*(1-sim->sim.epsForcing/sA->eps)
+                           + 0.5*sim->sim.nu_sgs/sqrt(sim->sim.nu * sA->eps);
+          const double newScale = tau_eta_sim * correction;
+          scaleGrads = updateScale(scaleGrads, newScale, beta);
+        #endif
 
         if ( sim->timestep( dt ) ) { // if true sim has ended
           printf("Set -tend 0. This file decides the length of train sim.\n");
@@ -353,12 +365,16 @@ int app_main(
 
       if ( policyFailed )
       {
+        // Agent gets penalized if the simulations blows up. For KDE reward,
+        // penal is -0.5 max_reward * (n of missing steps to finish the episode)
+        // WARNING: not consistent with L2 norm reward
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
         const double R_T = 0.5 * target.max_rew * (step - maxNumUpdatesPerSim);
         for(int i=0; i<nValidAgents; i++) comm->sendTermState(S_T, R_T, i);
         break;
       }
     } // simulation is done
+
     delete sA;
     if( not comm->isTraining()) {
       chdir("../"); // matches previous if
