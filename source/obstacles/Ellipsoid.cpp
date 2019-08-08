@@ -54,7 +54,7 @@ static Real distPointEllipseSpecial(const Real e[2], const Real y[2], Real x[2])
       const Real x0de0 = e0y0/denom0;
       const Real x0de0sqr = x0de0*x0de0;
       x[0] = e[0]*x0de0;
-      x[1] = e[1]*sqrt(fabs((Real)1 - x0de0sqr));
+      x[1] = e[1]*std::sqrt(std::fabs((Real)1 - x0de0sqr));
       const Real d0 = x[0] - y[0];
       return std::sqrt(d0*d0 + x[1]*x[1]);
     } else {

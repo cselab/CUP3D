@@ -345,8 +345,8 @@ int app_main(
           // Average gradient scale over time between LES updates
           const double beta = dt / timeUpdateLES;
           tau_eta_sim = std::sqrt(sim->sim.nu/sA->eps);
-          correction = 1.0 - 0.5*(1-sim->sim.epsForcing/sA->eps)
-                           + 0.5*sim->sim.nu_sgs/sqrt(sim->sim.nu * sA->eps);
+          correction = 1 -0.5*(1-sim->sim.epsForcing/sA->eps)
+                         +0.5*sim->sim.nu_sgs/std::sqrt(sim->sim.nu * sA->eps);
           const double newScale = tau_eta_sim * correction;
           scaleGrads = updateScale(scaleGrads, newScale, beta);
         #endif

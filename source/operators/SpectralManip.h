@@ -15,11 +15,9 @@
 #include<iomanip>
 #include<sstream>
 
-
 #include "SimulationData.h"
 #include "Cubism/BlockInfo.h"
 #include "poisson/PoissonSolver_common.h"
-
 
 template <class T>
 inline T pow2(const T val) {
@@ -81,7 +79,6 @@ class SpectralManip
       static_cast<size_t>(grid.getBlocksPerDimension(2)*bs[2])
   };
   const size_t myN[3]={ mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
-  const size_t normalizeFFT = gsize[0] * gsize[1] * gsize[2];
   ptrdiff_t alloc_local=0, local_n0=0, local_0_start=0, local_n1=0, local_1_start=0;
 
   size_t stridez = 0;
@@ -109,15 +106,17 @@ class SpectralManip
   bool bAllocFwd = false, bAllocBwd = false;
   bool bAllocCs2 = false;
 
-  const int nBin = std::ceil(sqrt(3.0)*maxGridSize/2.0)+1;
-  const Real binSize = M_PI*sqrt(3)*maxGridSize/(nBin*maxBoxLength);
-
+  const int nBin = std::ceil(std::sqrt(3.0)*maxGridSize/2.0)+1;
+  const Real binSize = M_PI*std::sqrt(3.0)*maxGridSize/(nBin*maxBoxLength);
 
   Real * data_u, * data_v, * data_w, * data_cs2;
   void * fwd_u, * fwd_v, * fwd_w, * fwd_cs2;
   void * bwd_u, * bwd_v, * bwd_w;
 
 public:
+
+  const size_t normalizeFFT = gsize[0] * gsize[1] * gsize[2];
+
   SpectralManip(SimulationData & s);
   ~SpectralManip();
 
@@ -156,8 +155,8 @@ public:
     return offset + stridez*z + stridey*y + stridex*x;
   }
 
-  void runFwd();
-  void runBwd();
+  void runFwd() const;
+  void runBwd() const;
 
   void reset() const
   {

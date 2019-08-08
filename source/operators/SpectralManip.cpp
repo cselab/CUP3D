@@ -146,9 +146,13 @@ void SpectralManip::prepareBwd()
   bAllocBwd = true;
 }
 
-void SpectralManip::runFwd()
+void SpectralManip::runFwd() const
 {
   assert(bAllocFwd);
+  // we can use one plan for multiple data:
+  //_FFTW_(execute_dft_r2c)( (fft_plan) fwd_u, data_u, (fft_c*)data_u );
+  //_FFTW_(execute_dft_r2c)( (fft_plan) fwd_u, data_v, (fft_c*)data_v );
+  //_FFTW_(execute_dft_r2c)( (fft_plan) fwd_u, data_w, (fft_c*)data_w );
   _FFTW_(execute)((fft_plan) fwd_u);
   _FFTW_(execute)((fft_plan) fwd_v);
   _FFTW_(execute)((fft_plan) fwd_w);
@@ -157,9 +161,13 @@ void SpectralManip::runFwd()
     _FFTW_(execute)((fft_plan) fwd_cs2);
 }
 
-void SpectralManip::runBwd()
+void SpectralManip::runBwd() const
 {
   assert(bAllocBwd);
+  // we can use one plan for multiple data:
+  //_FFTW_(execute_dft_c2r)( (fft_plan) bwd_u, (fft_c*)data_u, data_u );
+  //_FFTW_(execute_dft_c2r)( (fft_plan) bwd_u, (fft_c*)data_v, data_v );
+  //_FFTW_(execute_dft_c2r)( (fft_plan) bwd_u, (fft_c*)data_w, data_w );
   _FFTW_(execute)((fft_plan) bwd_u);
   _FFTW_(execute)((fft_plan) bwd_v);
   _FFTW_(execute)((fft_plan) bwd_w);

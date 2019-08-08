@@ -7,6 +7,7 @@
 //
 
 #include "operators/SpectralIcGenerator.h"
+#include "operators/SpectralManip.h"
 
 #include<random>
 #include<iomanip>
@@ -14,7 +15,6 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
-
 
 SpectralIcGenerator::SpectralIcGenerator(SimulationData &s)
 {
@@ -25,10 +25,9 @@ SpectralIcGenerator::SpectralIcGenerator(SimulationData &s)
   sM->prepareBwd();
 }
 
-energySpectrum SpectralIcGenerator::_generateTarget()
+void SpectralIcGenerator::_generateTarget(std::vector<Real>& k,
+                                          std::vector<Real>& E)
 {
-  std::vector<Real> k; std::vector<Real> E;
-
   if (sM->sim.spectralIC=="cbc") {
     // Set-up Energy Spectrum from COMTE-BELLOT-CORRSIN experiment :
     // Wave numbers are given from experiment units [cm-1]
@@ -113,10 +112,6 @@ energySpectrum SpectralIcGenerator::_generateTarget()
         sM->sim.turbKinEn_target <= 0 &&
         sM->sim.enInjectionRate  <= 0) sM->sim.turbKinEn_target = tke0;
   }
-
-  energySpectrum target = energySpectrum(k, E);
-
-  return target;
 }
 
 void SpectralIcGenerator::_compute()
@@ -125,7 +120,9 @@ void SpectralIcGenerator::_compute()
   std::mt19937 gen(seed());
   std::uniform_real_distribution<Real> randUniform(0,1);
 
-  energySpectrum target = _generateTarget();
+  std::vector<Real> K, E;
+  _generateTarget(K, E);
+  energySpectrum target = energySpectrum(K, E);
 
   Real tke = 0.0;
   fft_c *const cplxData_u = (fft_c *) sM->data_u;
@@ -169,8 +166,7 @@ void SpectralIcGenerator::_compute()
 
     const Real fac = k_norm*k_xy;
     const Real invFac = (fac==0)? 0 : 1/fac;
-
-    const int mult = (k==0) or (k==nKz/2) ? 1 : 2;
+    const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
 
     cplxData_u[linidx][0] = k_norm==0? 0
                   : invFac * (noise_a[0] * k_norm * ky + noise_b[0] * kx * kz );
@@ -185,9 +181,9 @@ void SpectralIcGenerator::_compute()
     cplxData_w[linidx][0] = k_norm==0? 0 : -noise_b[0] * k_xy / k_norm;
     cplxData_w[linidx][1] = k_norm==0? 0 : -noise_b[1] * k_xy / k_norm;
 
-    tke += 0.5 * mult * ( pow2_cplx(cplxData_u[linidx])
-                         +pow2_cplx(cplxData_v[linidx])
-                         +pow2_cplx(cplxData_w[linidx]));
+    tke += mult/2 * ( pow2_cplx(cplxData_u[linidx])
+                     +pow2_cplx(cplxData_v[linidx])
+                     +pow2_cplx(cplxData_w[linidx]));
   }
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, sM->m_comm);
 

@@ -71,11 +71,11 @@ void MidlineShapes::naca_width(const double t_ratio, const double L,
       /*
       if(s>0.99*L){ // Go linear, otherwise trailing edge is not closed - NACA analytical's fault
         const Real temp = 0.99;
-        const Real y1 = 5*t* (a*sqrt(temp) +b*temp +c*temp*temp +d*temp*temp*temp + e*temp*temp*temp*temp);
+        const Real y1 = 5*t* (a*std::sqrt(temp) +b*temp +c*temp*temp +d*temp*temp*temp + e*temp*temp*temp*temp);
         const Real dydx = (0-y1)/(L-0.99*L);
         return y1 + dydx * (s - 0.99*L);
       }else{ // NACA analytical
-        return 5*t* (a*sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
+        return 5*t* (a*std::sqrt(p) +b*p +c*p*p +d*p*p*p + e*p*p*p*p);
       }
       */
     }

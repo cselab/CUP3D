@@ -77,7 +77,7 @@ void FixedMassFlux_nonUniform::operator()(const double dt)
                 grid->getCartComm());
 
   delta_u = u_avg - u_avg_msr;
-  const Real reTau = sqrt(std::fabs(delta_u/sim.dt)) / sim.nu;
+  const Real reTau = std::sqrt(std::fabs(delta_u/sim.dt)) / sim.nu;
 
   const Real scale = 6*delta_u;
   if (sim.rank == 0) {

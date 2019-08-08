@@ -13,9 +13,12 @@
 #include <cassert>
 #include <cstring>
 
-#include "operators/SpectralManip.h"
+#include "SimulationData.h"
+#include "Cubism/BlockInfo.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+
+class SpectralManip;
 
 class SpectralIcGenerator
 {
@@ -30,7 +33,7 @@ public:
 private:
   SpectralManip * sM;
 
-  energySpectrum _generateTarget();
+  void _generateTarget(std::vector<Real>& k, std::vector<Real>& E);
   void _compute();
   void _fftw2cub() const;
 };

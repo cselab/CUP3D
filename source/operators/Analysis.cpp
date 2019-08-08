@@ -7,6 +7,7 @@
 //
 
 #include "operators/Analysis.h"
+#include "operators/SpectralAnalysis.h"
 #include <sys/stat.h>
 #include <iomanip>
 #include <sstream>
@@ -29,7 +30,7 @@ class KernelAnalysis_gradStats
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o)
   {
-    const Real h = info.h_gridpoint;
+    const Real h = info.h_gridpoint, fac = 1/(4*h*h);
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
     for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
@@ -41,10 +42,10 @@ class KernelAnalysis_gradStats
       const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
       const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
 
-      const Real grad2 = (d1udx1*d1udx1 + d1vdx1*d1vdx1 + d1wdx1*d1wdx1
-                        + d1udy1*d1udy1 + d1vdy1*d1vdy1 + d1wdy1*d1wdy1
-                        + d1udz1*d1udz1 + d1vdz1*d1vdz1 + d1wdz1*d1wdz1)/(4*h*h);
-      grad_mean += sqrt(grad2);
+      const Real grad2 = fac*(d1udx1*d1udx1 + d1vdx1*d1vdx1 + d1wdx1*d1wdx1
+                            + d1udy1*d1udy1 + d1vdy1*d1vdy1 + d1wdy1*d1wdy1
+                            + d1udz1*d1udz1 + d1vdz1*d1vdz1 + d1wdz1*d1wdz1);
+      grad_mean += std::sqrt(grad2);
       grad_std  += grad2;
     }
   }
@@ -86,7 +87,13 @@ inline void avgUx_wallNormal(Real *avgFlow_xz,
 
 Analysis::Analysis(SimulationData& s) : Operator(s) {}
 
-void Analysis::operator()(const double dt) {
+Analysis::~Analysis()
+{
+  if(sA not_eq nullptr) delete sA;
+}
+
+void Analysis::operator()(const double dt)
+{
   const bool bFreq = (sim.freqAnalysis!=0 && (sim.step+ 1)%sim.freqAnalysis==0);
   const bool bTime = (sim.timeAnalysis!=0 && (sim.time+dt)>sim.nextAnalysisTime);
   const bool bAnalysis =  bFreq || bTime;
@@ -167,24 +174,27 @@ void Analysis::operator()(const double dt) {
     for (int i=0; i<nthreads; ++i){
       grad_mean += gradStats[i]->grad_mean;
       grad_std  += gradStats[i]->grad_std;
+      delete gradStats[i];
     }
+
     MPI_Allreduce(MPI_IN_PLACE, &grad_mean, 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
     MPI_Allreduce(MPI_IN_PLACE, &grad_std , 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
     grad_mean /= normalize;
     grad_std  /= normalize;
 
-    grad_std = sqrt(grad_std - grad_mean*grad_mean);
+    grad_std = std::sqrt(grad_std - grad_mean*grad_mean);
 
     sim.grad_mean = grad_mean;
     sim.grad_std  = grad_std;
 
     // Compute spectral analysis
-    SpectralAnalysis * sA = new SpectralAnalysis(sim);
+    if(sA == nullptr) sA = new SpectralAnalysis(sim);
     sA->run();
     if (sim.rank==0) sA->dump2File(nFile);
-    delete sA;
+
     sim.stopProfiler();
     check("HIT Analysis");
   }
 }
+
 CubismUP_3D_NAMESPACE_END

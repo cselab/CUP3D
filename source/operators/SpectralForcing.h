@@ -15,10 +15,17 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
+class SpectralManip;
+
 class SpectralForcing : public Operator
 {
+  Real totalKinEn = 0.0;
+  Real viscousDissip = 0.0;
+  Real totalKinEnPrev = 0.0;
+  Real largeModesKinEn = 0.0;
+
  public:
-  SpectralForcing(SimulationData & s) : Operator(s) {}
+  SpectralForcing(SimulationData & s);
 
   void operator()(const double dt);
 

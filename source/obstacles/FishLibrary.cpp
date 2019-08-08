@@ -539,13 +539,21 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
           const Real nxt2ML = std::pow( width[secnd_s]*costh,2)
                              +std::pow(height[secnd_s]*sinth,2);
 
-          const Real corr = 2*std::sqrt(cnt2ML*nxt2ML);
+          const Real W = std::max(1 - std::sqrt(dist1) * (invh / 3), (Real)0);
+          // W behaves like hat interpolation kernel that is used for internal
+          // fish points. Introducing W (used to be W=1) smoothens transition
+          // from surface to internal points. In fact, later we plus equal
+          // udef*hat of internal points. If hat>0, point should behave like
+          // internal point, meaning that fish-section udef rotation should
+          // multiply distance from midline instead of entire half-width.
+          // Remember that uder will become udef / chi, so W simplifies out.
           MARK[sz][sy][sx] = close_s;
-          UDEF[sz][sy][sx][0] = udef[0];
-          UDEF[sz][sy][sx][1] = udef[1];
-          UDEF[sz][sy][sx][2] = udef[2];
-          CHI[sz][sy][sx] = 1; // Not chi, just used to interpolate udef!
+          UDEF[sz][sy][sx][0] = W * udef[0];
+          UDEF[sz][sy][sx][1] = W * udef[1];
+          UDEF[sz][sy][sx][2] = W * udef[2];
+          CHI[sz][sy][sx] = W; // Not chi, just used to interpolate udef!
 
+          const Real corr = 2*std::sqrt(cnt2ML*nxt2ML);
           if(close_s == cfish->Nm-2 || secnd_s == cfish->Nm-2)
           {
             // process end of tail:

@@ -123,7 +123,7 @@ class ElasticMidlineData : public FishMidlineData
       r21x = r1x - r2x;
       r23y = r3y - r2y;
       r21y = r1y - r2y;
-      temp = dotProduct(r23x,r23y,r21x,r21y) / sqrt(dotProduct(r23x,r23y,r23x,r23y)*dotProduct(r21x,r21y,r21x,r21y));
+      temp = dotProduct(r23x,r23y,r21x,r21y) / std::sqrt(dotProduct(r23x,r23y,r23x,r23y)*dotProduct(r21x,r21y,r21x,r21y));
       if(temp > 1.0){
         temp = 1.0;
       }else if(temp < -1.0){
@@ -135,9 +135,9 @@ class ElasticMidlineData : public FishMidlineData
 
       // Mapping the angles to the range [0, 2*pi]
       if(crossproduct > 0.0){
-        theta[i] = 2*M_PI - acos(temp);
+        theta[i] = 2*M_PI - std::acos(temp);
       }else{
-        theta[i] = acos(temp);
+        theta[i] = std::acos(temp);
       }
 
       // Assert angles bigger than zero
@@ -210,8 +210,8 @@ class ElasticMidlineData : public FishMidlineData
       double r21x = r1x - r2x;
       double r21y = r1y - r2y;
 
-      double r21_norm = sqrt(dotProduct(r21x,r21y,r21x,r21y));
-      double r23_norm = sqrt(dotProduct(r23x,r23y,r23x,r23y));
+      double r21_norm = std::sqrt(dotProduct(r21x,r21y,r21x,r21y));
+      double r23_norm = std::sqrt(dotProduct(r23x,r23y,r23x,r23y));
 
       double sintheta_abs = sqrt(1-cosTheta[i]*cosTheta[i]);
       if (sintheta_abs < epsilon){
@@ -310,7 +310,7 @@ class ElasticMidlineData : public FishMidlineData
       double vY12 = vY1 - vY2;
 
       double sigmadot = dotProduct(vX12, vY12, rX12, rY12);
-      double residual = abs(sigmadot) / Nm;
+      double residual = std::fabs(sigmadot) / Nm;
 
       if (residual > max_residual)
       {
@@ -344,8 +344,8 @@ class ElasticMidlineData : public FishMidlineData
       double ssX = rX1 + sim_dt*vX1 - rX2 - sim_dt*vX2;
       double ssY = rY1 + sim_dt*vY1 - rY2 - sim_dt*vY2;
 
-      double ss_norm = sqrt(dotProduct(ssX, ssY, ssX, ssY));
-      double residual = abs(ss_norm - linkLength[c]) / Nm;
+      double ss_norm = std::sqrt(dotProduct(ssX, ssY, ssX, ssY));
+      double residual = std::fabs(ss_norm - linkLength[c]) / Nm;
 
       // printf("residual = %le \n", residual);
       // printf("rX1 = %le \n", rX1);

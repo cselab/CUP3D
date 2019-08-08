@@ -10,16 +10,18 @@
 #define CubismUP_3D_Analysis_h
 
 #include "operators/Operator.h"
-#include "operators/SpectralAnalysis.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
+class SpectralAnalysis;
+
 class Analysis : public Operator
 {
+  SpectralAnalysis * sA = nullptr;
 public:
   Analysis(SimulationData& s);
 
-  ~Analysis() { }
+  ~Analysis();
 
   void operator()(const double dt);
 

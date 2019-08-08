@@ -7,6 +7,7 @@
 //
 
 #include "operators/SpectralAnalysis.h"
+#include "operators/SpectralManip.h"
 
 #include <sys/stat.h>
 #include <iomanip>
@@ -17,8 +18,7 @@ using namespace cubism;
 
 SpectralAnalysis::SpectralAnalysis(SimulationData & s)
 {
-  if (s.spectralManip == nullptr)
-    s.spectralManip = new SpectralManip(s);
+  if (s.spectralManip == nullptr) s.spectralManip = new SpectralManip(s);
 
   sM = s.spectralManip;
 
@@ -26,7 +26,7 @@ SpectralAnalysis::SpectralAnalysis(SimulationData & s)
   nBin = nyquist-1;
 
   k_msr  = (Real*) std::calloc(nBin, sizeof(Real));
-  for (int i = 0; i<nBin; i++)k_msr[i] = (i+1) * 2*M_PI / sM->maxBoxLength;
+  for (int i = 0; i<nBin; i++) k_msr[i] = (i+1) * 2*M_PI / sM->maxBoxLength;
 
   E_msr  = (Real*) std::calloc(nBin, sizeof(Real));
 
@@ -45,27 +45,28 @@ void SpectralAnalysis::_cub2fftw()
   Real * const data_v = sM->data_v;
   Real * const data_w = sM->data_w;
   Real * const data_cs2 = sM->data_cs2;
+  const SpectralManip & helper = * sM;
 
-  #pragma omp parallel for reduction(+: u_avg[:3]) schedule(static)
+  u_avg[0] = 0; u_avg[1] = 0; u_avg[2] = 0; unorm_avg = 0;
+  #pragma omp parallel for reduction(+: u_avg[:3], unorm_avg) schedule(static)
   for(size_t i=0; i<NlocBlocks; ++i)
   {
-    BlockType& b = *(BlockType*) sM->local_infos[i].ptrBlock;
-    const size_t offset = sM->_offset( sM->local_infos[i] );
+    const BlockType& b = *(BlockType*) helper.local_infos[i].ptrBlock;
+    const size_t offset = helper._offset( helper.local_infos[i] );
     for(int iz=0; iz<BlockType::sizeZ; ++iz)
     for(int iy=0; iy<BlockType::sizeY; ++iy)
     for(int ix=0; ix<BlockType::sizeX; ++ix)
     {
-      const size_t src_index = sM->_dest(offset, iz, iy, ix);
+      const size_t src_index = helper._dest(offset, iz, iy, ix);
       const Real u = b(ix,iy,iz).u;
       const Real v = b(ix,iy,iz).v;
       const Real w = b(ix,iy,iz).w;
       u_avg[0] += u; u_avg[1] += v; u_avg[2] += w;
-      u_avg[0] += (u*u + v*v + w*w)/2;
+      unorm_avg += (u*u + v*v + w*w)/2;
       data_u[src_index] = u;
       data_v[src_index] = v;
       data_w[src_index] = w;
-      if (bComputeCs2Spectrum)
-        data_cs2[src_index] = b(ix,iy,iz).chi;
+      if (bComputeCs2Spectrum) data_cs2[src_index] = b(ix,iy,iz).chi;
     }
   }
   MPI_Allreduce(MPI_IN_PLACE, u_avg, 3, MPIREAL, MPI_SUM, sM->m_comm);
@@ -88,6 +89,11 @@ void SpectralAnalysis::_compute()
   const long loc_n1 = sM->local_n1, shifty = sM->shifty;
   const long sizeX = sM->gsize[0], sizeZ_hat = sM->nz_hat;
 
+  tke = 0;
+  eps = 0;
+  tau_integral = 0;
+  memset(E_msr, 0, nBin * sizeof(Real));
+
   // Let's only measure spectrum up to Nyquist.
   #pragma omp parallel for reduction(+ : E_msr[:nBin], tke, eps, tau_integral)  schedule(static)
   for(long j = 0; j<loc_n1; ++j)
@@ -101,23 +107,19 @@ void SpectralAnalysis::_compute()
     const long kk = (k <= nKz/2) ? k : -(nKz-k);
 
     const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
-    const int mult = (k==0) or (k==nKz/2) ? 1 : 2;
-    const Real k_norm = std::sqrt(kx*kx + ky*ky + kz*kz);
+    const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
+    const Real k2 = kx*kx + ky*ky + kz*kz, k_norm = std::sqrt(k2);
     const Real ks = std::sqrt(ii*ii + jj*jj + kk*kk);
-
-    const Real E =
-        0.5 * mult *
-        (pow2_cplx(cplxData_u[linidx]) +
-         pow2_cplx(cplxData_v[linidx]) +
-         pow2_cplx(cplxData_w[linidx]));
+    const Real E = mult/2 * ( pow2_cplx(cplxData_u[linidx])
+      + pow2_cplx(cplxData_v[linidx]) + pow2_cplx(cplxData_w[linidx]) );
 
     // Total kinetic energy
     tke += E;
     // Dissipation rate
-    eps += pow2(k_norm) * E;
+    eps += k2 * E;
     // Large eddy turnover time
     tau_integral += (k_norm > 0) ? E / k_norm : 0.;
-    if (ks <= nyquist){
+    if (ks <= nyquist) {
       int binID = std::floor(ks * (nyquist-1)/nyquist);
       E_msr[binID] += E;
       if (bComputeCs2Spectrum){
@@ -132,8 +134,9 @@ void SpectralAnalysis::_compute()
   MPI_Allreduce(MPI_IN_PLACE, &tau_integral, 1, MPIREAL, MPI_SUM, sM->m_comm);
 
   if (bComputeCs2Spectrum){
-    #pragma omp parallel reduction(+ : cs2_msr[:nBin])
-    MPI_Allreduce(MPI_IN_PLACE, cs2_msr, nBin, MPIREAL, MPI_SUM, sM->m_comm);
+    assert(false);
+    //#pragma omp parallel reduction(+ : cs2_msr[:nBin])
+    //MPI_Allreduce(MPI_IN_PLACE, cs2_msr, nBin, MPIREAL, MPI_SUM, sM->m_comm);
   }
 
   const size_t normalize = pow2(sM->normalizeFFT);
@@ -186,7 +189,7 @@ void SpectralAnalysis::dump2File(const int nFile) const
     << " #Viscous dissipation rate" << "\n";
 
   f << std::left << std::setw(15) << "eps_f"
-    << std::setw(15) << sM->sim.injectedPower
+    << std::setw(15) << sM->sim.dissipationRate
     << " #Total dissipation rate" << "\n";
 
   f << std::left << std::setw(15) << "lambda"

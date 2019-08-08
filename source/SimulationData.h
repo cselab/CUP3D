@@ -111,7 +111,7 @@ struct SimulationData
   bool spectralForcing = false;
   double turbKinEn_target = 0;
   double enInjectionRate = 0;
-  double injectedPower = 0; // this is only for post processing
+  double dissipationRate = 0; // this is only for post processing
 
   // sgs
   std::string sgs = "";
