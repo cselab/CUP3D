@@ -171,16 +171,14 @@ void SpectralForcing::operator()(const double dt)
     const std::string tab("\t");
     if(sim.step==0) {
       ssF<<"step \t time \t dt \t totalKinEn \t largeModesKinEn \t "\
-           "viscousDissip \t totalDissipRate \t injectionRate \t totalKinEn\n";
+           "viscousDissip \t totalDissipRate \t injectionRate\n";
     }
 
     ssF << sim.step << tab;
     ssF.setf(std::ios::scientific);
     ssF.precision(std::numeric_limits<float>::digits10 + 1);
-    ssF << sim.step << tab << sim.time << tab << sim.dt << tab
-        << totalKinEn << tab << largeModesKinEn << tab
-        << viscousDissip << tab << sim.dissipationRate << tab
-        << injectionRate << tab << totalKinEn << tab << "\n";
+    ssF<<sim.time<<tab<<sim.dt<<tab<<totalKinEn<<tab<<largeModesKinEn<<tab
+       <<viscousDissip<<tab<<sim.dissipationRate<<tab<<injectionRate<<"\n";
   }
 
   const Real fac = sim.dt *injectionRate/(2*largeModesKinEn)/sM->normalizeFFT;
