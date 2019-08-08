@@ -41,27 +41,31 @@ CubismUP_3D_NAMESPACE_BEGIN
 template <typename Derived>
 struct FillBlocksBase
 {
-using CHIMAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX];
-#define DERIVED (static_cast<const Derived *>(this))
-    void operator()(const cubism::BlockInfo &info, ObstacleBlock* const o) const
-    {
-      // TODO: Remove `isTouching` check and verify that all dependencies are
-      //       using this function properly.
-      FluidBlock &b = *(FluidBlock *)info.ptrBlock;
-      if (!DERIVED->isTouching(b)) return;
-      CHIMAT & __restrict__ SDF = o->sdf;
-      for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
-      for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
-      for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
-        Real p[3];
-        info.pos(p, ix, iy, iz);
-        const Real dist = DERIVED->signedDistance(p[0], p[1], p[2]);
-        SDF[iz][iy][ix] = dist;
-        // negative outside of the obstacle, therefore max = minimal distance.
-        b(ix,iy,iz).tmpU = std::max(dist, b(ix,iy,iz).tmpU);
-      }
+  using CHIMAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX];
+  void operator()(const cubism::BlockInfo &info, ObstacleBlock* const o) const
+  {
+    // TODO: Remove `isTouching` check and verify that all dependencies are
+    //       using this function properly.
+    FluidBlock &b = *(FluidBlock *)info.ptrBlock;
+    if (!derived()->isTouching(b)) return;
+    CHIMAT & __restrict__ SDF = o->sdf;
+    for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
+    for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
+    for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
+      Real p[3];
+      info.pos(p, ix, iy, iz);
+      const Real dist = derived()->signedDistance(p[0], p[1], p[2]);
+      SDF[iz][iy][ix] = dist;
+      // negative outside of the obstacle, therefore max = minimal distance.
+      b(ix,iy,iz).tmpU = std::max(dist, b(ix,iy,iz).tmpU);
     }
-#undef DERIVED
+  }
+
+private:
+  const Derived* derived() const noexcept
+  {
+    return static_cast<const Derived *>(this);
+  }
 };
 
 namespace TorusObstacle
