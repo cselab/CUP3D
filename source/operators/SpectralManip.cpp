@@ -14,6 +14,9 @@
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
 
+CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
+
 Real energySpectrum::interpE(const Real _k)
 {
   int idx_k = -1;
@@ -73,8 +76,6 @@ void energySpectrum::dump2File(const int nBin, const int nGrid, const Real lBox)
   }
 }
 
-CubismUP_3D_NAMESPACE_BEGIN
-using namespace cubism;
 SpectralManip::SpectralManip(SimulationData & s) : sim(s)
 {
   printf("New SpectralManip\n");

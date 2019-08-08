@@ -14,7 +14,7 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-namespace _linint_impl {
+namespace detail {
 
 class LinearCellCenteredInterpolation;
 
@@ -53,7 +53,7 @@ class LinearCellCenteredInterpolation : public Operator
 public:
   LinearCellCenteredInterpolation(SimulationData &s) : Operator(s) { }
 
-  inline int get_cell_index(double x, int d) const
+  int get_cell_index(double x, int d) const noexcept
   {
     // We assume non-periodic boundaries and that the query points will not be
     // very close to the boundary.
@@ -61,7 +61,7 @@ public:
     return std::max(0, std::min(id, CN[d] - 2));
   }
 
-  inline std::array<int, 3> get_cell_index(const double p[3]) const
+  std::array<int, 3> get_cell_index(const double p[3]) const noexcept
   {
     return {
       get_cell_index(p[0], 0),
@@ -86,7 +86,6 @@ public:
     CN_over_extent[0] = CN[0] / sim.maxextent;
     CN_over_extent[1] = CN[1] / sim.maxextent;
     CN_over_extent[2] = CN[2] / sim.maxextent;
-    particles.clear();
     particles.resize(N[0] * N[1] * N[2]);
 
     // Map particles to the blocks.
@@ -209,11 +208,11 @@ template <typename Array, typename Getter, typename Setter>
 void linearCellCenteredInterpolation(
     SimulationData &sim,
     const Array &points,
-    Getter getter,
-    Setter setter,
+    Getter&& getter,
+    Setter&& setter,
     const std::vector<int> &components)
 {
-  _linint_impl::LinearCellCenteredInterpolation I{sim};
+  detail::LinearCellCenteredInterpolation I{sim};
   I.interpolate(points, getter, setter, components);
 }
 

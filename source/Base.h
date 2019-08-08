@@ -19,6 +19,22 @@
 #include "../build/include/CubismUP3DMacros.h"
 #endif
 
+#ifndef CubismUP_3D_NAMESPACE_BEGIN
+#define CubismUP_3D_NAMESPACE_BEGIN namespace cubismup3d {
+#endif
+
+#ifndef CubismUP_3D_NAMESPACE_END
+#define CubismUP_3D_NAMESPACE_END   }  // namespace cubismup3d
+#endif
+
+#ifndef CUP_ALIGNMENT
+#define CUP_ALIGNMENT 64
+#endif
+#define CUBISM_ALIGNMENT CUP_ALIGNMENT
+
+
+CubismUP_3D_NAMESPACE_BEGIN
+
 #ifndef CUP_SINGLE_PRECISION
 typedef double Real;
 #else
@@ -31,17 +47,6 @@ typedef float DumpReal;
 typedef double DumpReal;
 #endif
 
-#ifndef CUP_ALIGNMENT
-#define CUP_ALIGNMENT 64
-#endif
-#define CUBISM_ALIGNMENT CUP_ALIGNMENT
-
-#ifndef CubismUP_3D_NAMESPACE_BEGIN
-#define CubismUP_3D_NAMESPACE_BEGIN namespace cubismup3d {
-#endif
-
-#ifndef CubismUP_3D_NAMESPACE_END
-#define CubismUP_3D_NAMESPACE_END   }  // namespace cubismup3d
-#endif
+CubismUP_3D_NAMESPACE_END
 
 #endif  // CubismUP_3D_Base_h

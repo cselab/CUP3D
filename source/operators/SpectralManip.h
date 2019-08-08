@@ -12,12 +12,14 @@
 #include <vector>
 #include <cassert>
 #include <cstring>
-#include<iomanip>
-#include<sstream>
+#include <iomanip>
+#include <sstream>
 
 #include "SimulationData.h"
 #include "Cubism/BlockInfo.h"
 #include "poisson/PoissonSolver_common.h"
+
+CubismUP_3D_NAMESPACE_BEGIN
 
 template <class T>
 inline T pow2(const T val) {
@@ -49,8 +51,6 @@ public:
   Real interpSigma2(const Real k);
   void dump2File(const int nBin, const int nGrid, const Real h);
 };
-
-CubismUP_3D_NAMESPACE_BEGIN
 
 class SpectralManip
 {

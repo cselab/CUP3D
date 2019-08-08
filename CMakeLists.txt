@@ -128,9 +128,11 @@ set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/obstacles/StefanFish.cpp
 
     ${ROOT_FOLDER}/source/operators/AdvectionDiffusion.cpp
+    ${ROOT_FOLDER}/source/operators/Analysis.cpp
     ${ROOT_FOLDER}/source/operators/ComputeDissipation.cpp
     ${ROOT_FOLDER}/source/operators/ExternalForcing.cpp
     ${ROOT_FOLDER}/source/operators/FadeOut.cpp
+    ${ROOT_FOLDER}/source/operators/FixedMassFlux_nonUniform.cpp
     ${ROOT_FOLDER}/source/operators/FluidSolidForces.cpp
     ${ROOT_FOLDER}/source/operators/InitialConditions.cpp
     ${ROOT_FOLDER}/source/operators/IterativePressureNonUniform.cpp
@@ -140,6 +142,11 @@ set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/operators/Penalization.cpp
     ${ROOT_FOLDER}/source/operators/PressureProjection.cpp
     ${ROOT_FOLDER}/source/operators/PressureRHS.cpp
+    ${ROOT_FOLDER}/source/operators/SGS.cpp
+    ${ROOT_FOLDER}/source/operators/SpectralAnalysis.cpp
+    ${ROOT_FOLDER}/source/operators/SpectralForcing.cpp
+    ${ROOT_FOLDER}/source/operators/SpectralIcGenerator.cpp
+    ${ROOT_FOLDER}/source/operators/SpectralManip.cpp
     ${ROOT_FOLDER}/source/poisson/PoissonSolver.cpp
     ${ROOT_FOLDER}/source/poisson/PoissonSolverMixed.cpp
     ${ROOT_FOLDER}/source/poisson/PoissonSolverUnbounded.cpp
@@ -152,11 +159,11 @@ set(COMMON_SOURCES           # Common for app and lib.
 # GCC flags.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wno-unused-parameter -Wno-maybe-uninitialized")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=3")
-set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0")
+set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O3 -march=native -fstrict-aliasing -ffast-math -falign-functions=32")
 set(CMAKE_CXX_EXTENSIONS OFF)  # -std=c++11, not -std=gnu++11!
 if (NOT CMAKE_CXX_STANDARD)
-    set(CMAKE_CXX_STANDARD 11)
+    set(CMAKE_CXX_STANDARD 17)
 endif()
 
 # Targets.
