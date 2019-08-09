@@ -505,27 +505,27 @@ void Simulation::_serialize(const std::string append)
   const auto dumpFunction = [=] () {
     if(sim.b2Ddump) {
       for (const auto& slice : sim.m_slices) {
+        const auto nameV = StreamerVelocityVector::prefix()+name2d;
+        const auto nameP = StreamerPressure::prefix()+name2d;
+        const auto nameX = StreamerChi::prefix()+name2d;
         DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
-          slice, sim.step, sim.time, StreamerVelocityVector::prefix()+name2d,
-          sim.path4serialization);
+          slice, sim.step, sim.time, nameV, sim.path4serialization);
         DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
-          slice, sim.step, sim.time, StreamerPressure::prefix()+name2d,
-          sim.path4serialization);
+          slice, sim.step, sim.time, nameP, sim.path4serialization);
         DumpSliceHDF5MPI<StreamerChi, DumpReal>(
-          slice, sim.step, sim.time, StreamerChi::prefix()+name2d,
-          sim.path4serialization);
+          slice, sim.step, sim.time, nameX, sim.path4serialization);
       }
     }
     if(sim.b3Ddump) {
+      const auto nameV = StreamerVelocityVector::prefix()+name3d;
+      const auto nameP = StreamerPressure::prefix()+name3d;
+      const auto nameX = StreamerChi::prefix()+name3d;
       DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
-        *grid2Dump, sim.step, sim.time, StreamerVelocityVector::prefix()+name3d,
-        sim.path4serialization);
+        *grid2Dump, sim.step, sim.time, nameV, sim.path4serialization);
       DumpHDF5_MPI<StreamerPressure, DumpReal>(
-        *grid2Dump, sim.step, sim.time, StreamerPressure::prefix()+name3d,
-        sim.path4serialization);
+        *grid2Dump, sim.step, sim.time, nameP, sim.path4serialization);
       DumpHDF5_MPI<StreamerChi, DumpReal>(
-        *grid2Dump, sim.step, sim.time, StreamerChi::prefix()+name3d,
-        sim.path4serialization);
+        *grid2Dump, sim.step, sim.time, nameX, sim.path4serialization);
     }
   };
 

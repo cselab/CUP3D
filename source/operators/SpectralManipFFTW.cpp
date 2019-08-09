@@ -72,9 +72,9 @@ void SpectralManipPeriodic::_compute_largeModesForcing()
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
 
-  stats.tke_filtered *=  1 / pow2(normalizeFFT);
-  stats.tke *= 1 / pow2(normalizeFFT);
-  stats.eps *= 2*(sim.nu) / pow2(normalizeFFT);
+  stats.tke_filtered = tkeFiltered / pow2(normalizeFFT);
+  stats.tke = tke / pow2(normalizeFFT);
+  stats.eps = eps * 2*(sim.nu) / pow2(normalizeFFT);
 }
 
 void SpectralManipPeriodic::_compute_analysis()
@@ -145,18 +145,18 @@ void SpectralManipPeriodic::_compute_analysis()
     //MPI_Allreduce(MPI_IN_PLACE, cs2_msr, nBin, MPIREAL, MPI_SUM, sM->m_comm);
   //}
 
+  const Real normalization = 1 / pow2(normalizeFFT);
   for (size_t binID = 0; binID < nBins; binID++) {
-    E_msr[binID] *= 1 / pow2(normalizeFFT);
+    E_msr[binID] *= normalization;
     //if (bComputeCs2Spectrum) cs2_msr[binID] /= normalizeFFT;
   }
-
-  stats.tke *= 1 / pow2(normalizeFFT);
-  stats.eps *= 2 * (sim.nu) / pow2(normalizeFFT);
+  stats.tke = tke * normalization;
+  stats.eps = eps * 2 * (sim.nu) * normalization;
 
   stats.uprime = std::sqrt(2 * stats.tke / 3);
   stats.lambda = std::sqrt(15 * sim.nu / stats.eps) * stats.uprime;
   stats.Re_lambda = stats.uprime * stats.lambda / sim.nu;
-  stats.tau_integral *= M_PI / (2*pow3(stats.uprime)) / pow2(normalizeFFT);
+  stats.tau_integral = tauIntegral * M_PI/(2*pow3(stats.uprime)) *normalization;
 }
 
 void SpectralManipPeriodic::_compute_IC(const std::vector<Real> &K,

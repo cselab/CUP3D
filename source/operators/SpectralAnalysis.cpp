@@ -40,7 +40,7 @@ void SpectralAnalysis::_cub2fftw()
   const SpectralManip & helper = * sM;
 
   u_avg[0] = 0; u_avg[1] = 0; u_avg[2] = 0; unorm_avg = 0;
-  #pragma omp parallel for reduction(+: u_avg[:3], unorm_avg) schedule(static)
+  #pragma omp parallel for reduction(+: u_avg[:3]) schedule(static)
   for(size_t i=0; i<NlocBlocks; ++i)
   {
     const BlockType& b = *(BlockType*) helper.local_infos[i].ptrBlock;
@@ -54,7 +54,7 @@ void SpectralAnalysis::_cub2fftw()
       const Real v = b(ix,iy,iz).v;
       const Real w = b(ix,iy,iz).w;
       u_avg[0] += u; u_avg[1] += v; u_avg[2] += w;
-      unorm_avg += (u*u + v*v + w*w)/2;
+      //unorm_avg += (u*u + v*v + w*w)/2;
       data_u[src_index] = u;
       data_v[src_index] = v;
       data_w[src_index] = w;
