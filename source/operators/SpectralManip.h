@@ -50,15 +50,15 @@ struct EnergySpectrum
 struct HITstatistics
 {
   HITstatistics(const int maxGridSize, const Real maxBoxLength):
-    N(maxGridSize), nyquist(N/2), nBin(nyquist-1), L(maxBoxLength),
+    N(maxGridSize), L(maxBoxLength),
     k_msr(new Real[nBin]), E_msr(new Real[nBin]), cs2_msr(new Real[nBin])
   {
     reset();
     for (int i = 0; i<nBin; ++i) k_msr[i] = (i+1) * 2*M_PI / L;
   }
 
-  HITstatistics(const HITstatistics&c) : N(c.N), nyquist(N/2), nBin(nyquist-1),
-  L(c.L), k_msr(new Real[nBin]), E_msr(new Real[nBin]), cs2_msr(new Real[nBin])
+  HITstatistics(const HITstatistics&c) : N(c.N), L(c.L),
+    k_msr(new Real[nBin]), E_msr(new Real[nBin]), cs2_msr(new Real[nBin])
   {
     reset();
     for (int i = 0; i<nBin; ++i) k_msr[i] = (i+1) * 2*M_PI / L;
@@ -80,7 +80,7 @@ struct HITstatistics
   }
 
   // Parameters of the histogram
-  const int N, nyquist, nBin = nyquist-1;
+  const int N, nyquist = N/2, nBin = nyquist-1;
   const Real L;
 
   // Output of the analysis

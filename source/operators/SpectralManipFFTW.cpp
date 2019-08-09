@@ -94,8 +94,9 @@ void SpectralManipPeriodic::_compute_analysis()
 
   Real tke = 0, eps = 0, tauIntegral = 0;
   Real * const E_msr = stats.E_msr;
-  const size_t nBins = stats.N;
+  const size_t nBins = stats.nBin;
   const Real nyquist = stats.nyquist;
+  const Real nyquist_scaling = ((int)nyquist-1) / (int)nyquist;
   memset(E_msr, 0, nBins * sizeof(Real));
 
   // Let's only measure spectrum up to Nyquist.
@@ -124,7 +125,7 @@ void SpectralManipPeriodic::_compute_analysis()
     // Large eddy turnover time
     tauIntegral += (k_norm > 0) ? E / k_norm : 0.;
     if (ks <= nyquist) {
-      int binID = std::floor(ks * (nyquist-1)/nyquist);
+      int binID = std::floor(ks * nyquist_scaling);
       E_msr[binID] += E;
       //if (bComputeCs2Spectrum){
       //  const Real cs2 = std::sqrt(pow2_cplx(cplxData_cs2[linidx]));
@@ -162,11 +163,11 @@ void SpectralManipPeriodic::_compute_IC(const std::vector<Real> &K,
                                         const std::vector<Real> &E)
 {
   std::random_device seed;
-  std::mt19937 gen(seed());
-  std::uniform_real_distribution<Real> randUniform(0,1);
+  const int nthreads = omp_get_max_threads();
+  std::vector<std::mt19937> gens(nthreads);
+  for(int i=0; i<nthreads; ++i) gens[i] = std::mt19937(seed());
 
   const EnergySpectrum target(K, E);
-
   fft_c *const cplxData_u = (fft_c *) data_u;
   fft_c *const cplxData_v = (fft_c *) data_v;
   fft_c *const cplxData_w = (fft_c *) data_w;
@@ -179,49 +180,55 @@ void SpectralManipPeriodic::_compute_IC(const std::vector<Real> &K,
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
   const long loc_n1 = local_n1, shifty = local_1_start;
 
-  #pragma omp parallel for schedule(static)
-  for(long j = 0; j<loc_n1;  ++j)
-  for(long i = 0; i<sizeX;    ++i)
-  for(long k = 0; k<sizeZ_hat; ++k)
+  #pragma omp parallel
   {
-    const long linidx = (j*sizeX +i) * sizeZ_hat + k;
-    const long ii = (i <= nKx/2) ? i : -(nKx-i);
-    const long l = shifty + j; //memory index plus shift due to decomp
-    const long jj = (l <= nKy/2) ? l : -(nKy-l);
-    const long kk = (k <= nKz/2) ? k : -(nKz-k);
+    std::mt19937 & gen = gens[omp_get_thread_num()];
+    std::uniform_real_distribution<Real> randUniform(0,1);
 
-    const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
-    const Real k2 = kx*kx + ky*ky + kz*kz;
-    const Real k_xy = std::sqrt(kx*kx + ky*ky);
-    const Real k_norm = std::sqrt(k2);
+    #pragma omp for schedule(static)
+    for(long j = 0; j<loc_n1;  ++j)
+    for(long i = 0; i<sizeX;    ++i)
+    for(long k = 0; k<sizeZ_hat; ++k)
+    {
+      const long linidx = (j*sizeX +i) * sizeZ_hat + k;
+      const long ii = (i <= nKx/2) ? i : -(nKx-i);
+      const long l = shifty + j; //memory index plus shift due to decomp
+      const long jj = (l <= nKy/2) ? l : -(nKy-l);
+      const long kk = (k <= nKz/2) ? k : -(nKz-k);
 
-    const Real E_k = target.interpE(k_norm);
-    const Real amp = (k2==0)? 0
-                    : std::sqrt(E_k/(2*M_PI*std::pow(k_norm/waveFactorX,2)));
+      const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
+      const Real k2 = kx*kx + ky*ky + kz*kz;
+      const Real k_xy = std::sqrt(kx*kx + ky*ky);
+      const Real k_norm = std::sqrt(k2);
 
-    const Real theta1 = randUniform(gen)*2*M_PI;
-    const Real theta2 = randUniform(gen)*2*M_PI;
-    const Real phi    = randUniform(gen)*2*M_PI;
+      const Real E_k = target.interpE(k_norm);
+      const Real amp = (k2==0)? 0
+                      : std::sqrt(E_k/(2*M_PI*std::pow(k_norm/waveFactorX,2)));
 
-    const Real noise_a[2] = {amp * std::cos(theta1) * std::cos(phi),
-                             amp * std::sin(theta1) * std::cos(phi)};
-    const Real noise_b[2] = {amp * std::cos(theta2) * std::sin(phi),
-                             amp * std::sin(theta2) * std::sin(phi)};
+      const Real theta1 = randUniform(gen)*2*M_PI;
+      const Real theta2 = randUniform(gen)*2*M_PI;
+      const Real phi    = randUniform(gen)*2*M_PI;
 
-    const Real fac = k_norm*k_xy, invFac = fac==0? 0 : 1/fac;
+      const Real noise_a[2] = {amp * std::cos(theta1) * std::cos(phi),
+                               amp * std::sin(theta1) * std::cos(phi)};
+      const Real noise_b[2] = {amp * std::cos(theta2) * std::sin(phi),
+                               amp * std::sin(theta2) * std::sin(phi)};
 
-    cplxData_u[linidx][0] = k_norm==0? 0
-                  : invFac * (noise_a[0] * k_norm * ky + noise_b[0] * kx * kz );
-    cplxData_u[linidx][1] = k_norm==0? 0
-                  : invFac * (noise_a[0] * k_norm * ky + noise_b[1] * kx * kz );
+      const Real fac = k_norm*k_xy, invFac = fac==0? 0 : 1/fac;
 
-    cplxData_v[linidx][0] = k_norm==0? 0
-                  : invFac * (noise_b[0] * ky * kz - noise_a[0] * k_norm * kx );
-    cplxData_v[linidx][1] = k_norm==0? 0
-                  : invFac * (noise_b[1] * ky * kz - noise_a[1] * k_norm * kx );
+      cplxData_u[linidx][0] = k_norm==0? 0
+                    : invFac * (noise_a[0] * k_norm*ky + noise_b[0] * kx*kz );
+      cplxData_u[linidx][1] = k_norm==0? 0
+                    : invFac * (noise_a[0] * k_norm*ky + noise_b[1] * kx*kz );
 
-    cplxData_w[linidx][0] = k_norm==0? 0 : -noise_b[0] * k_xy / k_norm;
-    cplxData_w[linidx][1] = k_norm==0? 0 : -noise_b[1] * k_xy / k_norm;
+      cplxData_v[linidx][0] = k_norm==0? 0
+                    : invFac * (noise_b[0] * ky*kz - noise_a[0] * k_norm*kx );
+      cplxData_v[linidx][1] = k_norm==0? 0
+                    : invFac * (noise_b[1] * ky*kz - noise_a[1] * k_norm*kx );
+
+      cplxData_w[linidx][0] = k_norm==0? 0 : -noise_b[0] * k_xy / k_norm;
+      cplxData_w[linidx][1] = k_norm==0? 0 : -noise_b[1] * k_xy / k_norm;
+    }
   }
 }
 
