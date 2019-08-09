@@ -91,6 +91,10 @@ void ExternalObstacle::create()
     // Instead of changing the code there, we ignore that `create` request here.
     return;
   }
+  if (lambdaFactorFn) {
+    // Read the new value of the lambda factor.
+    this->lambda_factor = lambdaFactorFn(sim.time);
+  }
 
   const FillBlocksExternal kernel{*this};
   create_base(kernel);

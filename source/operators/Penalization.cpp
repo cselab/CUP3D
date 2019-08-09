@@ -53,6 +53,9 @@ struct KernelPenalization : public ObstacleVisitor
     const std::array<double,3> omega = obstacle->getAngularVelocity();
     const Real dv = std::pow(info.h_gridpoint, 3);
 
+    // Obstacle-specific lambda, useful for gradually adding an obstacle to the flow.
+    const double lambda_fac = lambda * obstacle->lambda_factor;
+
     double &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
     double &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
     FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
@@ -73,7 +76,7 @@ struct KernelPenalization : public ObstacleVisitor
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
-      const Real penalFac = implicitPenalization? X*lambda / (1 + X*lambda*dt)
+      const Real penalFac = implicitPenalization? X*lambda_fac / (1 + lambda_fac*dt*X)
                                                 : X * invdt;
 
       const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u);

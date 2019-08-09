@@ -102,6 +102,7 @@ public:
   //from penalization:
   double mass=0, length=0;
   std::array<double,3> force = {0,0,0}, torque = {0,0,0};
+  double lambda_factor = 1.0;
   //from compute forces: perimeter, circulation and forces
   double totChi=0, gamma[3]={0,0,0}, surfForce[3]={0,0,0};
   //pressure and viscous contribution from compute forces:

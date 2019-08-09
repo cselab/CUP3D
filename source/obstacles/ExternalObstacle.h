@@ -50,6 +50,9 @@ struct ExternalObstacleArguments
 
   /* Returns the center-of-mass velocity of the object. */
   std::function<Point()> comVelocityFn;
+
+  /* Returns the lambda factor (opacity), given the current time. */
+  std::function<double(double)> lambdaFactorFn;
 };
 
 struct ObstacleAndExternalArguments : ObstacleArguments, ExternalObstacleArguments
