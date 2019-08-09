@@ -7,7 +7,7 @@
 //
 
 #include "SpectralManipFFTW.h"
-#include "poisson/PoissonSolver_common.h"
+#include "../poisson/PoissonSolver_common.h"
 
 #ifndef CUP_SINGLE_PRECISION
 #define MPIREAL MPI_DOUBLE
