@@ -9,12 +9,12 @@
 #ifndef CubismUP_3D_SpectralIcGenerator_h
 #define CubismUP_3D_SpectralIcGenerator_h
 
+#include "../SimulationData.h"
+#include "Cubism/BlockInfo.h"
+
 #include <vector>
 #include <cassert>
 #include <cstring>
-
-#include "../SimulationData.h"
-#include "Cubism/BlockInfo.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -22,6 +22,7 @@ class SpectralManip;
 
 class SpectralIcGenerator
 {
+  SimulationData & sim;
 public:
   typedef typename FluidGridMPI::BlockType BlockType;
 
@@ -31,10 +32,9 @@ public:
   void run();
 
 private:
-  SpectralManip * sM;
 
-  void _generateTarget(std::vector<Real>& k, std::vector<Real>& E);
-  void _fftw2cub() const;
+  void _generateTarget(std::vector<Real>&, std::vector<Real>&, SpectralManip&);
+  void _fftw2cub(const SpectralManip&) const;
 };
 
 CubismUP_3D_NAMESPACE_END

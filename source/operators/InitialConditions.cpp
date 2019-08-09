@@ -7,7 +7,7 @@
 //
 
 #include "InitialConditions.h"
-#include "SpectralIcGenerator.h"
+#include "../spectralOperators/SpectralIcGenerator.h"
 #include "../obstacles/ObstacleVector.h"
 
 #include <random>

@@ -168,7 +168,9 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     const auto comm = grid->getCartComm();
     MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_DOUBLE, MPI_SUM, comm);
 
-    const Real J_magnitude = obst->J[0] + obst->J[1] + obst->J[2];
+    #ifndef NDEBUG
+      const Real J_magnitude = obst->J[0] + obst->J[1] + obst->J[2];
+    #endif
     assert(std::fabs(obst->mass - M[ 0]) < 10 * DBLEPS * obst->mass);
     assert(std::fabs(obst->J[0] - M[ 7]) < 10 * DBLEPS * J_magnitude);
     assert(std::fabs(obst->J[1] - M[ 8]) < 10 * DBLEPS * J_magnitude);

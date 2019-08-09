@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_SpectralForcing_h
 #define CubismUP_3D_SpectralForcing_h
 
-#include "Operator.h"
+#include "../operators/Operator.h"
 #include "Cubism/BlockInfo.h"
 
 CubismUP_3D_NAMESPACE_BEGIN

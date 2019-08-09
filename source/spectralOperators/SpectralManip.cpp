@@ -8,15 +8,17 @@
 
 #ifdef _ACCFFT_
 #include "SpectralManipACC.h"
-#else
-#include "SpectralManipFFTW.h"
 #endif
+#include "SpectralManipFFTW.h"
 
 #ifndef CUP_SINGLE_PRECISION
 #define MPIREAL MPI_DOUBLE
 #else
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
+
+#include <sstream>
+#include <iomanip>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -94,7 +96,20 @@ void initSpectralAnalysisSolver(SimulationData & sim)
     printf("ERROR: spectral analysis functions support all-periodic BCs!\n");
     fflush(0); MPI_Abort(sim.app_comm, 1);
   }
-  sim.spectralManip = new SpectralManipPeriodic(sim);
+  #ifdef _ACCFFT_
+    sim.spectralManip = new SpectralManipACC(sim);
+  #else
+    sim.spectralManip = new SpectralManipFFTW(sim);
+  #endif
+}
+
+SpectralManip* initFFTWSpectralAnalysisSolver(SimulationData & sim)
+{
+  if(not sim.bUseFourierBC) {
+    printf("ERROR: spectral analysis functions support all-periodic BCs!\n");
+    fflush(0); MPI_Abort(sim.app_comm, 1);
+  }
+  return new SpectralManipFFTW(sim);
 }
 
 SpectralManip::SpectralManip(SimulationData & s) : sim(s)

@@ -16,17 +16,13 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-SpectralIcGenerator::SpectralIcGenerator(SimulationData &s)
-{
-  initSpectralAnalysisSolver(s);
-  s.spectralManip->prepareBwd();
-  sM = s.spectralManip;
-}
+SpectralIcGenerator::SpectralIcGenerator(SimulationData &s) : sim(s) {}
 
 void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,
-                                          std::vector<Real>& E)
+                                          std::vector<Real>& E,
+                                          SpectralManip& SM)
 {
-  if (sM->sim.spectralIC=="cbc") {
+  if (sim.spectralIC=="cbc") {
     // Set-up Energy Spectrum from COMTE-BELLOT-CORRSIN experiment :
     // Wave numbers are given from experiment units [cm-1]
     //     => Need to convert to [m^-1] and non-dimensionalize with L_ref
@@ -64,14 +60,13 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,
     }
   }
 
-  else if (sM->sim.spectralIC=="art") {
+  else if (sim.spectralIC=="art") {
     // Initial spectrum from :
     // P. Sullivan, Neal & Mahalingam, Shankar & Kerr, Robert. (1994).
     // Deterministic forcing of homogeneous, isotropic turbulence.
     // Physics of Fluids. 6. 10.1063/1.868274.
-    const Real k0   = sM->sim.k0;
-    const Real tke0 = sM->sim.tke0;
-    const Real maxGridN = sM->maxGridN, maxGridL = sM->maxGridL;
+    const Real k0   = sim.k0, tke0 = sim.tke0;
+    const Real maxGridN = SM.maxGridN, maxGridL = SM.maxGridL;
     const int nBins = std::ceil(std::sqrt(3.0) * maxGridN / 2.0) + 1;
     const Real binSize = M_PI*std::sqrt(3.0) * maxGridN / (nBins * maxGridL);
 
@@ -85,9 +80,9 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,
     }
   }
 
-  else if (sM->sim.spectralIC=="fromFile") {
+  else if (sim.spectralIC=="fromFile") {
     std::ifstream inFile;
-    std::string fileName = sM->sim.spectralICFile;
+    std::string fileName = sim.spectralICFile;
     inFile.open(fileName);
     if (!inFile){
       std::cout<<"SpectralICGenerator: cannot open file :"<<fileName<<std::endl;
@@ -105,50 +100,53 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,
 
     // Set target tke
     Real k_eval = 0.0, tke0 = 0.0;
-    for (int i = 0; i<sM->maxGridN; i++) {
-      k_eval = (i+1) * 2*M_PI / sM->maxGridL;
+    for (int i = 0; i<SM.maxGridN; i++) {
+      k_eval = (i+1) * 2*M_PI / SM.maxGridL;
       tke0  += target.interpE(k_eval);
     }
 
     // if user asked spectral forcing, but no value specified, satisfy spectrum
-    if (sM->sim.spectralForcing       &&
-        sM->sim.turbKinEn_target <= 0 &&
-        sM->sim.enInjectionRate  <= 0) sM->sim.turbKinEn_target = tke0;
+    if (sim.spectralForcing       &&
+        sim.turbKinEn_target <= 0 &&
+        sim.enInjectionRate  <= 0) sim.turbKinEn_target = tke0;
   }
 }
 
-void SpectralIcGenerator::_fftw2cub() const
+void SpectralIcGenerator::_fftw2cub(const SpectralManip& SM) const
 {
-  const size_t NlocBlocks = sM->local_infos.size();
+  const size_t NlocBlocks = SM.local_infos.size();
   #pragma omp parallel for schedule(static)
   for(size_t i=0; i<NlocBlocks; ++i) {
-    BlockType& b = *(BlockType*) sM->local_infos[i].ptrBlock;
-    const size_t offset = sM->_offset( sM->local_infos[i] );
+    BlockType& b = *(BlockType*) SM.local_infos[i].ptrBlock;
+    const size_t offset = SM._offset( SM.local_infos[i] );
     for(int iz=0; iz<BlockType::sizeZ; iz++)
     for(int iy=0; iy<BlockType::sizeY; iy++)
     for(int ix=0; ix<BlockType::sizeX; ix++) {
-      const size_t src_index = sM->_dest(offset, iz, iy, ix);
-      b(ix,iy,iz).u = sM->data_u[src_index];
-      b(ix,iy,iz).v = sM->data_v[src_index];
-      b(ix,iy,iz).w = sM->data_w[src_index];
+      const size_t src_index = SM._dest(offset, iz, iy, ix);
+      b(ix,iy,iz).u = SM.data_u[src_index];
+      b(ix,iy,iz).v = SM.data_v[src_index];
+      b(ix,iy,iz).w = SM.data_w[src_index];
     }
   }
 }
 
 void SpectralIcGenerator::run()
 {
+  SpectralManip* SM = initFFTWSpectralAnalysisSolver(sim);
+  SM->prepareBwd();
   std::vector<Real> K, E;
-  _generateTarget(K, E);
-  sM->_compute_IC(K, E);
-  sM->_compute_analysis();
+  _generateTarget(K, E, * SM);
+  SM->_compute_IC(K, E);
+  SM->_compute_analysis();
   // if user asked spectral forcing, but no value specified, satisfy spectrum
-  if (sM->sim.spectralForcing       &&
-      sM->sim.turbKinEn_target <= 0 &&
-      sM->sim.enInjectionRate  <= 0 )
-      sM->sim.turbKinEn_target = sM->stats.tke;
+  if (sim.spectralForcing       &&
+      sim.turbKinEn_target <= 0 &&
+      sim.enInjectionRate  <= 0 )
+      sim.turbKinEn_target = SM->stats.tke;
 
-  sM->runBwd();
-  _fftw2cub();
+  SM->runBwd();
+  _fftw2cub(* SM);
+  delete SM;
 }
 
 CubismUP_3D_NAMESPACE_END

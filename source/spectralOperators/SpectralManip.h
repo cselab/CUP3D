@@ -9,14 +9,12 @@
 #ifndef CubismUP_3D_SpectralManip_h
 #define CubismUP_3D_SpectralManip_h
 
+#include "../SimulationData.h"
+#include "Cubism/BlockInfo.h"
+
 #include <vector>
 #include <cassert>
 #include <cstring>
-#include <iomanip>
-#include <sstream>
-
-#include "../SimulationData.h"
-#include "Cubism/BlockInfo.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -30,7 +28,10 @@ inline T pow3(const T val) {
     return val*val*val;
 }
 
+class SpectralManip;
+
 void initSpectralAnalysisSolver(SimulationData & sim);
+SpectralManip* initFFTWSpectralAnalysisSolver(SimulationData & sim);
 
 struct EnergySpectrum
 {

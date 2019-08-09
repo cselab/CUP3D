@@ -6,25 +6,26 @@
 //  Created by Hugues de Laroussilhe.
 //
 
-#ifndef CubismUP_3D_SpectralManipFFTW_h
-#define CubismUP_3D_SpectralManipFFTW_h
+#ifndef CubismUP_3D_SpectralManipACCFFT_h
+#define CubismUP_3D_SpectralManipACCFFT_h
 
 #include "SpectralManip.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-class SpectralManipPeriodic : public SpectralManip
+class SpectralManipACC : public SpectralManip
 {
-  ptrdiff_t alloc_local=0;
-  ptrdiff_t local_n0=0, local_0_start=0;
-  ptrdiff_t local_n1=0, local_1_start=0;
-  void * fwd_u, * fwd_v, * fwd_w, * fwd_cs2;
-  void * bwd_u, * bwd_v, * bwd_w;
+  MPI_Comm acc_comm;
+  // the local pencil size and the allocation size
+  int isize[3], osize[3], istart[3], ostart[3];
+  size_t alloc_max;
+  Real * phi_hat;
+  void * plan;
 
 public:
 
-  SpectralManipPeriodic(SimulationData & s);
-  ~SpectralManipPeriodic();
+  SpectralManipACC(SimulationData & s);
+  ~SpectralManipACC();
 
   void prepareFwd() override;
   void prepareBwd() override;
@@ -39,4 +40,4 @@ public:
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_SpectralManipFFTW_h
+#endif // CubismUP_3D_SpectralManipACCFFT_h

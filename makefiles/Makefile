@@ -106,7 +106,7 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o FadeOut.o \
 	FishShapes.o IterativePressurePenalization.o IterativePressureNonUniform.o \
 	FixedMassFlux_nonUniform.o SGS.o Analysis.o SpectralManip.o \
-	SpectralIcGenerator.o \
+	SpectralIcGenerator.o SpectralManipFFTW.o \
 	SpectralAnalysis.o SpectralForcing.o ArgumentParser.o \
 	#ElasticFishOperator.o # Temporary solution for Cubism .cpp files.
 
@@ -172,7 +172,7 @@ ifeq "$(accfft)" "true"
 	NVOBJECTS = PoissonSolverACC_kernels.o
 	OBJECTS += PoissonSolverACCUnbounded.o PoissonSolverACCPeriodic.o SpectralManipACC.o
 else
-	OBJECTS += PoissonSolverUnbounded.o PoissonSolverPeriodic.o SpectralManipFFTW.o
+	OBJECTS += PoissonSolverUnbounded.o PoissonSolverPeriodic.o
 	NVOBJECTS =
 	LIBS += $(FFTW_LIBS)
 endif

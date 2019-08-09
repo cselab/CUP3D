@@ -22,7 +22,7 @@ static inline Real pow2_cplx(const fft_c cplx_val) {
   return pow2(cplx_val[0]) + pow2(cplx_val[1]);
 }
 
-void SpectralManipPeriodic::_compute_largeModesForcing()
+void SpectralManipFFTW::_compute_largeModesForcing()
 {
   fft_c *const cplxData_u = (fft_c *) data_u;
   fft_c *const cplxData_v = (fft_c *) data_v;
@@ -77,7 +77,7 @@ void SpectralManipPeriodic::_compute_largeModesForcing()
   stats.eps = eps * 2*(sim.nu) / pow2(normalizeFFT);
 }
 
-void SpectralManipPeriodic::_compute_analysis()
+void SpectralManipFFTW::_compute_analysis()
 {
   fft_c *const cplxData_u  = (fft_c *) data_u;
   fft_c *const cplxData_v  = (fft_c *) data_v;
@@ -91,12 +91,12 @@ void SpectralManipPeriodic::_compute_analysis()
   const Real waveFactorZ = 2.0 * M_PI / sim.extent[2];
   const long loc_n1 = local_n1, shifty = local_1_start;
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
-
-  Real tke = 0, eps = 0, tauIntegral = 0;
-  Real * const E_msr = stats.E_msr;
   const size_t nBins = stats.nBin;
   const Real nyquist = stats.nyquist;
   const Real nyquist_scaling = ((int)nyquist-1) / (int)nyquist;
+
+  Real tke = 0, eps = 0, tauIntegral = 0;
+  Real * const E_msr = stats.E_msr;
   memset(E_msr, 0, nBins * sizeof(Real));
 
   // Let's only measure spectrum up to Nyquist.
@@ -159,7 +159,7 @@ void SpectralManipPeriodic::_compute_analysis()
   stats.tau_integral = tauIntegral * M_PI/(2*pow3(stats.uprime)) *normalization;
 }
 
-void SpectralManipPeriodic::_compute_IC(const std::vector<Real> &K,
+void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
                                         const std::vector<Real> &E)
 {
   std::random_device seed;
@@ -232,7 +232,7 @@ void SpectralManipPeriodic::_compute_IC(const std::vector<Real> &K,
   }
 }
 
-SpectralManipPeriodic::SpectralManipPeriodic(SimulationData&s): SpectralManip(s)
+SpectralManipFFTW::SpectralManipFFTW(SimulationData&s): SpectralManip(s)
 {
   const int retval = _FFTW_(init_threads)();
   if(retval==0) {
@@ -258,7 +258,7 @@ SpectralManipPeriodic::SpectralManipPeriodic(SimulationData&s): SpectralManip(s)
   // data_cs2 = _FFTW_(alloc_real)(2*alloc_local);
 }
 
-void SpectralManipPeriodic::prepareFwd()
+void SpectralManipFFTW::prepareFwd()
 {
   if (bAllocFwd) return;
 
@@ -274,7 +274,7 @@ void SpectralManipPeriodic::prepareFwd()
   bAllocFwd = true;
 }
 
-void SpectralManipPeriodic::prepareBwd()
+void SpectralManipFFTW::prepareBwd()
 {
   if (bAllocBwd) return;
 
@@ -288,7 +288,7 @@ void SpectralManipPeriodic::prepareBwd()
   bAllocBwd = true;
 }
 
-void SpectralManipPeriodic::runFwd() const
+void SpectralManipFFTW::runFwd() const
 {
   assert(bAllocFwd);
   // we can use one plan for multiple data:
@@ -302,7 +302,7 @@ void SpectralManipPeriodic::runFwd() const
   // _FFTW_(execute)((fft_plan) fwd_cs2);
 }
 
-void SpectralManipPeriodic::runBwd() const
+void SpectralManipFFTW::runBwd() const
 {
   assert(bAllocBwd);
   // we can use one plan for multiple data:
@@ -314,7 +314,7 @@ void SpectralManipPeriodic::runBwd() const
   _FFTW_(execute)((fft_plan) bwd_w);
 }
 
-SpectralManipPeriodic::~SpectralManipPeriodic()
+SpectralManipFFTW::~SpectralManipFFTW()
 {
   _FFTW_(free)(data_u);
   _FFTW_(free)(data_v);

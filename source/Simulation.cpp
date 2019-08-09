@@ -24,7 +24,7 @@
 #include "operators/FixedMassFlux_nonUniform.h"
 #include "operators/SGS.h"
 #include "operators/Analysis.h"
-#include "operators/SpectralForcing.h"
+#include "spectralOperators/SpectralForcing.h"
 
 #include "obstacles/ObstacleFactory.h"
 #include "operators/ProcessHelpers.h"

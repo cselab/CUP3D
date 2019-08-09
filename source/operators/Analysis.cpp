@@ -7,7 +7,7 @@
 //
 
 #include "Analysis.h"
-#include "SpectralAnalysis.h"
+#include "../spectralOperators/SpectralAnalysis.h"
 
 #include <sys/stat.h>
 #include <iomanip>
