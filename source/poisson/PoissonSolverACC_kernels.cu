@@ -205,7 +205,7 @@ void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
   const long k = blockDim.z * blockIdx.z + threadIdx.z;
   Real tke = 0, eps = 0, tkeFiltered = 0;
 
-  if( i < nx || j < ny || k < nz )
+  if( i < nx && j < ny && k < nz )
   {
     const long kx = sx + i, ky = sy + j, kz = sz + k;
     const Real kkx = kx > Gx/2 ? kx-Gx : kx;
@@ -259,7 +259,7 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
   const long k = blockDim.z * blockIdx.z + threadIdx.z;
   Real tke = 0, eps = 0, tau = 0;
 
-  if( i < nx || j < ny || k < nz )
+  if( i < nx && j < ny && k < nz )
   {
     const long kx = sx + i, ky = sy + j, kz = sz + k;
     const Real kkx = kx > Gx/2 ? kx-Gx : kx;
@@ -278,7 +278,7 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
     eps = k2 * E; // Dissipation rate
     tau = (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy turnover time
     if (ks <= nyquist) {
-      int binID = std::floor(ks * nyquist_scaling);
+      const int binID = std::floor(ks * nyquist_scaling);
       // reduction buffer here holds also the energy spectrum, shifted by 3
       // to hold also tke, eps and tau
       atomicAdd(reductionBuf + 3 + binID, E);
@@ -326,6 +326,7 @@ void _compute_HIT_forcing(
   cudaMemcpy(rdxBuf+0, &tke, sizeof(Real), cudaMemcpyDeviceToHost);
   cudaMemcpy(rdxBuf+1, &eps, sizeof(Real), cudaMemcpyDeviceToHost);
   cudaMemcpy(rdxBuf+2, &tkeFiltered, sizeof(Real), cudaMemcpyDeviceToHost);
+  CUDA_Check( cudaDeviceSynchronize() );
   cudaFree(rdxBuf);
 }
 
@@ -364,5 +365,6 @@ void _compute_HIT_analysis(
   cudaMemcpy(rdxBuf+1, &eps, sizeof(Real), cudaMemcpyDeviceToHost);
   cudaMemcpy(rdxBuf+2, &tau, sizeof(Real), cudaMemcpyDeviceToHost);
   cudaMemcpy(rdxBuf+3, eSpectrum, nBins * sizeof(Real), cudaMemcpyDeviceToHost);
+  CUDA_Check( cudaDeviceSynchronize() );
   cudaFree(rdxBuf);
 }

@@ -48,6 +48,10 @@ void SpectralForcing::operator()(const double dt)
 
   // If there's too much energy, let dissipation do its job
   if(sim.rank == 0) {
+    printf("step:%d time:%f dt:%f totalKinEn:%f largeModesKinEn:%f "\
+           "viscousDissip:%f totalDissipRate:%f injectionRate:%f\n",
+           sim.step, sim.time, sim.dt, totalKinEn, largeModesKinEn,
+           viscousDissip, sim.dissipationRate, injectionRate );
     std::stringstream &ssF = logger.get_stream("forcingData.dat");
     const std::string tab("\t");
     if(sim.step==0) {
