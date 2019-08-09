@@ -22,7 +22,7 @@ struct KernelComputeForces : public ObstacleVisitor
   const BlockInfo * info_ptr = nullptr;
 
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+  StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, FE_U,FE_V,FE_W);
 
   KernelComputeForces(double _nu, double _dt, ObstacleVector* ov) :
     obstacle_vector(ov), nu(_nu), dt(_dt) { }
@@ -161,7 +161,7 @@ struct DumpWake
 {
   double t;
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, FE_P);
   const Real *Uinf;
   const double *CM, length, theta = 0.15;
   FILE* const pFile;

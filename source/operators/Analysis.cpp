@@ -21,7 +21,7 @@ class KernelAnalysis_gradStats
   Real grad_std  = 0.0;
   const std::array<int, 3> stencil_start = {-1, -1, -1};
   const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, FE_U,FE_V,FE_W);
 
   KernelAnalysis_gradStats() {}
 

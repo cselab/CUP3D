@@ -89,7 +89,7 @@ struct StencilKernelLab {
  *    Real factor = 0.5 / h;
  *    applyStencilKernel(
  *      sim,
- *      StencilInfo{-1, 0, 0, 2, 1, 1, false, 1, CUP_ELEMENT_INDEX(u)},
+ *      StencilInfo{-1, 0, 0, 2, 1, 1, false, 1, FE_U},
  *      [factor](StencilKernelLab lab, CellInfo info, FluidElement &out) {
  *        out.df = factor * (lab(1, 0, 0).f - lab(-1, 0, 0).f);
  *    });

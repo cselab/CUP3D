@@ -88,7 +88,7 @@ struct KernelInitialPressureRHS
 {
   PenalizationGridMPI * const penGrid;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1,2,2,2,false, 6, 1,2,3,5,6,7);
+  const StencilInfo stencil = StencilInfo(-1,-1,-1,2,2,2,false, 6, FE_U,FE_V,FE_W,FE_TMPU,FE_TMPV,FE_TMPW);
 
   KernelInitialPressureRHS(PenalizationGridMPI * const pen) : penGrid(pen) {}
 
@@ -116,7 +116,7 @@ struct KernelIterateGradP
   const Real dt;
   PenalizationGridMPI * const penGrid;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, FE_P);
 
   KernelIterateGradP(double _dt, PenalizationGridMPI * const pen) :
     dt(_dt), penGrid{pen} {}
@@ -434,7 +434,7 @@ struct KernelPressureRHS
   PoissonSolver * const solver;
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 5,6,7);
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, FE_TMPU,FE_TMPV,FE_TMPW);
 
   KernelPressureRHS(double _dt, PoissonSolver*ps, PenalizationGridMPI*const pen)
     : dt(_dt), penGrid(pen), solver(ps) {}
@@ -468,7 +468,7 @@ struct KernelGradP
   const Real dt;
   PenalizationGridMPI * const penGrid;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, FE_P);
 
   KernelGradP(double _dt, PenalizationGridMPI*const pen): dt(_dt),penGrid{pen}{}
 
