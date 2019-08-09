@@ -142,14 +142,15 @@ set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/source/operators/PressureProjection.cpp
     ${ROOT_FOLDER}/source/operators/PressureRHS.cpp
     ${ROOT_FOLDER}/source/operators/SGS.cpp
-    ${ROOT_FOLDER}/source/operators/SpectralAnalysis.cpp
-    ${ROOT_FOLDER}/source/operators/SpectralForcing.cpp
-    ${ROOT_FOLDER}/source/operators/SpectralIcGenerator.cpp
-    ${ROOT_FOLDER}/source/operators/SpectralManip.cpp
     ${ROOT_FOLDER}/source/poisson/PoissonSolver.cpp
     ${ROOT_FOLDER}/source/poisson/PoissonSolverMixed.cpp
-    ${ROOT_FOLDER}/source/poisson/PoissonSolverUnbounded.cpp
     ${ROOT_FOLDER}/source/poisson/PoissonSolverPeriodic.cpp
+    ${ROOT_FOLDER}/source/poisson/PoissonSolverUnbounded.cpp
+    ${ROOT_FOLDER}/source/spectralOperators/SpectralAnalysis.cpp
+    ${ROOT_FOLDER}/source/spectralOperators/SpectralForcing.cpp
+    ${ROOT_FOLDER}/source/spectralOperators/SpectralIcGenerator.cpp
+    ${ROOT_FOLDER}/source/spectralOperators/SpectralManip.cpp
+    ${ROOT_FOLDER}/source/spectralOperators/SpectralManipFFTW.cpp
 
     ${ROOT_FOLDER}/source/Simulation.cpp
     ${ROOT_FOLDER}/source/SimulationData.cpp

@@ -118,7 +118,7 @@ struct KernelIterateGradP
   const Real dt;
   PenalizationGridMPI * const penGrid;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_P}}};
 
   KernelIterateGradP(double _dt, PenalizationGridMPI * const pen) :
     dt(_dt), penGrid{pen} {}
@@ -470,7 +470,7 @@ struct KernelGradP
   const Real dt;
   PenalizationGridMPI * const penGrid;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_P}}};
 
   KernelGradP(double _dt, PenalizationGridMPI*const pen): dt(_dt),penGrid{pen}{}
 

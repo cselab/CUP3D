@@ -67,9 +67,9 @@ bool testPeriodicBoundaries()
   Simulation S{prepareSimulationData()};
 
   // Try out 3 different stencils.
-  _testPeriodicBoundaries(S, StencilInfo(-1, -1, -1, 2, 2, 2, false, 1, FE_U), -1, 0, 0);
-  _testPeriodicBoundaries(S, StencilInfo(-1, -1, -1, 2, 2, 2, false, 1, FE_U), +1, 0, 0);
-  _testPeriodicBoundaries(S, StencilInfo(-2, -2, -2, 3, 3, 3, true,  1, FE_U), -1, +1, +2);
+  _testPeriodicBoundaries(S, StencilInfo(-1, -1, -1, 2, 2, 2, false, {{FE_U}}), -1, 0, 0);
+  _testPeriodicBoundaries(S, StencilInfo(-1, -1, -1, 2, 2, 2, false, {{FE_U}}), +1, 0, 0);
+  _testPeriodicBoundaries(S, StencilInfo(-2, -2, -2, 3, 3, 3, true,  {{FE_U}}), -1, +1, +2);
 
   return true;
 }

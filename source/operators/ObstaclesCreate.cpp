@@ -27,7 +27,7 @@ class KernelCharacteristicFunction
 
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_TMPU}};
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_TMPU}}};
 
   static Real computeCHI(const Real h, const Real dist,
                          const Real distPx, const Real distMx,
@@ -143,7 +143,7 @@ class KernelCharacteristicFunction_nonUniform
 
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_TMPU}};
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_TMPU}}};
 
   KernelCharacteristicFunction_nonUniform(const v_v_ob& v) : vec_obstacleBlocks(v) {}
 

@@ -161,7 +161,7 @@ struct DumpWake
 {
   double t;
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_P}}};
   const Real *Uinf;
   const double *CM, length, theta = 0.15;
   FILE* const pFile;

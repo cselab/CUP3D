@@ -30,7 +30,7 @@ class KernelGradP
   const std::array<Real, 3> extent;
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_P}}};
 
   KernelGradP(double _dt, const std::array<Real, 3> &ext): dt(_dt), extent{ext} {}
 
@@ -57,7 +57,7 @@ class KernelGradP_nonUniform
   const std::array<Real, 3> extent;
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_P}}};
 
   KernelGradP_nonUniform(double _dt, const std::array<Real, 3> &ext): dt(_dt), extent{ext} {}
 

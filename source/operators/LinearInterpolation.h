@@ -30,8 +30,8 @@ public:
   Kernel(const LinearCellCenteredInterpolation &_owner,
          Getter &_getter,
          Setter &_setter,
-         const std::vector<int> &components)
-      : stencil(-1, -1, -1, 2, 2, 2, true, components),
+         std::vector<int> components)
+      : stencil(-1, -1, -1, 2, 2, 2, true, std::move(components)),
         owner(_owner),
         getter(_getter),
         setter(_setter)
@@ -74,7 +74,7 @@ public:
   void interpolate(const Array &points,
                    Getter &getter,
                    Setter &setter,
-                   const std::vector<int> &components)
+                   std::vector<int> components)
   {
     typedef typename FluidGridMPI::BlockType Block;
     N[0] = grid->getBlocksPerDimension(0);
@@ -109,7 +109,7 @@ public:
     }
 
     Kernel<decltype(getter), decltype(setter)>
-        kernel(*this, getter, setter, components);
+        kernel(*this, getter, setter, std::move(components));
     compute(kernel);
   }
 
@@ -210,10 +210,10 @@ void linearCellCenteredInterpolation(
     const Array &points,
     Getter&& getter,
     Setter&& setter,
-    const std::vector<int> &components)
+    std::vector<int> components)
 {
   detail::LinearCellCenteredInterpolation I{sim};
-  I.interpolate(points, getter, setter, components);
+  I.interpolate(points, getter, setter, std::move(components));
 }
 
 

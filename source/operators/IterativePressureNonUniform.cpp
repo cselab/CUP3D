@@ -135,7 +135,7 @@ class KernelGradP_nonUniform
   const Real dt;
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_P}}};
 
   KernelGradP_nonUniform(double _dt): dt(_dt) {}
 
