@@ -106,7 +106,6 @@ protected:
   size_t stridey = 0;
   size_t stridex = 0;
   size_t data_size = 0;
-  HITstatistics stats = HITstatistics(maxGridN, maxGridL);
 
   // spectral manips are only supported for fully periodic flows
   bool bAllocFwd = false;
@@ -137,6 +136,7 @@ public:
   const size_t nz_hat = gsize[2]/2+1;
   const long maxGridN = std::max({gsize[0], gsize[1], gsize[2]});
   const Real maxGridL = std::max({sim.extent[0], sim.extent[1], sim.extent[2]});
+  HITstatistics stats = HITstatistics(maxGridN, maxGridL);
   //const double h = sim.uniformH();
 
   SpectralManip(SimulationData & s);
