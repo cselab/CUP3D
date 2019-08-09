@@ -150,7 +150,7 @@ class KernelVorticity
 {
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const cubism::StencilInfo stencil = cubism::StencilInfo(-1,-1,-1, 2,2,2, false, 3, FE_U,FE_V,FE_W);
+  const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
@@ -198,7 +198,7 @@ class KernelQcriterion
 {
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const cubism::StencilInfo stencil = cubism::StencilInfo(-1,-1,-1, 2,2,2, false, 3, FE_U,FE_V,FE_W);
+  const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const

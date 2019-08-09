@@ -38,7 +38,7 @@ class KernelDissipation
 
   const Real dt, nu, center[3];
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, FE_U,FE_V,FE_W,FE_P);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W,FE_P}};
 
   KernelDissipation(double _dt, const Real ext[3], Real _nu)
   : dt(_dt), nu(_nu), center{ext[0]/2, ext[1]/2, ext[2]/2} { }

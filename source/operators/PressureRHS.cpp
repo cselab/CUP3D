@@ -41,7 +41,7 @@ struct KernelPressureRHS : public ObstacleVisitor
   Lab * lab_ptr = nullptr;
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, FE_CHI,FE_U,FE_V,FE_W);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_CHI,FE_U,FE_V,FE_W}};
 
   KernelPressureRHS(PoissonSolver* pois, PenalizationGridMPI* penG,
     ObstacleVector* oVec, double _dt) : dt(_dt), solver(pois), penGrid(penG),
@@ -141,7 +141,7 @@ struct KernelPressureRHS_nonUniform : public ObstacleVisitor
   Lab * lab_ptr = nullptr;
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 4, FE_CHI,FE_U,FE_V,FE_W);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_CHI,FE_U,FE_V,FE_W}};
 
   KernelPressureRHS_nonUniform(PoissonSolver* pois, PenalizationGridMPI* penG,
     ObstacleVector* oVec, double _dt) : dt(_dt), solver(pois), penGrid(penG),

@@ -33,7 +33,7 @@ struct KernelAdvectDiffuseBase
   static constexpr int BEG = -1, END = CUP_BLOCK_SIZE;
   static constexpr std::array<int, 3> stencil_start = {-1,-1,-1};
   static constexpr std::array<int, 3> stencil_end   = { 2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, FE_U,FE_V,FE_W);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   void applyBCwest(const BlockInfo & I, Lab & L) const {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
