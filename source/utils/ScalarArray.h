@@ -9,7 +9,8 @@
 #ifndef CubismUP_3D_utils_ScalarArray_h
 #define CubismUP_3D_utils_ScalarArray_h
 
-#include "Base.h"
+#include "../Base.h"
+
 #include <array>
 
 CubismUP_3D_NAMESPACE_BEGIN

@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/SGS.h"
+#include "SGS.h"
 
 CubismUP_3D_NAMESPACE_BEGIN using namespace cubism;
 
@@ -40,7 +40,7 @@ class KernelSGS_SSM
  public:
   const std::array<int, 3> stencil_start = {-1, -1, -1};
   const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   KernelSGS_SSM(SGSGridMPI*const _sgsGrid, const Real _Cs)
       : Cs(_Cs), sgsGrid(_sgsGrid) {}
@@ -91,7 +91,7 @@ class KernelSGS_RLSM
  public:
   const std::array<int, 3> stencil_start = {-1, -1, -1};
   const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   KernelSGS_RLSM(SGSGridMPI * const _sgsGrid)
       : sgsGrid(_sgsGrid) {}
@@ -142,7 +142,7 @@ class KernelSGS_nonUniform
  public:
   const std::array<int, 3> stencil_start = {-1, -1, -1};
   const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   KernelSGS_nonUniform(double _dt, const Real* const _uInf, const bool _bSGS_RL)
       : dt(_dt), uInf(_uInf), bSGS_RL(_bSGS_RL) {}
@@ -288,7 +288,7 @@ class KernelSGS_DSM
  public:
   const std::array<int, 3> stencil_start = {-3, -3, -3};
   const std::array<int, 3> stencil_end = {4, 4, 4};
-  const StencilInfo stencil = StencilInfo(-3,-3,-3, 4,4,4, true, 3, 1,2,3);
+  const StencilInfo stencil{-3,-3,-3, 4,4,4, true, {FE_U,FE_V,FE_W}};
 
   KernelSGS_DSM(SGSGridMPI * const _sgsGrid)
       : sgsGrid(_sgsGrid) {}
@@ -339,7 +339,7 @@ class KernelSGS_DSM_avg
  public:
   const std::array<int, 3> stencil_start = {-1, -1, -1};
   const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, true, 3, 1,2,3);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, true, {FE_U,FE_V,FE_W}};
 
   KernelSGS_DSM_avg(SGSGridMPI * const _sgsGrid)
       : sgsGrid(_sgsGrid) {}
@@ -404,7 +404,7 @@ class KernelSGS_gradNu
  public:
   const std::array<int, 3> stencil_start = {-1, -1, -1};
   const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   KernelSGS_gradNu(SGSGridMPI * const _sgsGrid) : sgsGrid(_sgsGrid) {}
 
@@ -449,7 +449,7 @@ class KernelSGS_apply
   Real cs2_avg = 0.0;
   const std::array<int, 3> stencil_start = {0, 0, 0};
   const std::array<int, 3> stencil_end = {1, 1, 1};
-  const StencilInfo stencil = StencilInfo(0,0,0, 1,1,1, false, 3, 1,2,3);
+  const StencilInfo stencil{0,0,0, 1,1,1, false, {FE_U,FE_V,FE_W}};
 
   KernelSGS_apply(double _dt, SGSGridMPI * const _sgsGrid) : dt(_dt), sgsGrid(_sgsGrid) {}
 

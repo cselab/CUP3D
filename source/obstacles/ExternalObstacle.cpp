@@ -6,8 +6,8 @@
 //  Created by Ivica Kicic (kicici@ethz.ch) in May 2018.
 //
 
-#include "obstacles/ExternalObstacle.h"
-#include "obstacles/extra/ObstacleLibrary.h"
+#include "ExternalObstacle.h"
+#include "extra/ObstacleLibrary.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

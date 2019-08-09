@@ -7,10 +7,12 @@
 #ifndef CubismUP_3D_aligned_allocator_h
 #define CubismUP_3D_aligned_allocator_h
 
-#include <stdlib.h>
+#include <cstdlib>
+#include <memory>
+
 //#include <malloc.h>
 // ALIGNMENT must be a power of 2 !
-#define ALIGNMENT 32
+static constexpr int ALIGNMENT = 32;
 
 CubismUP_3D_NAMESPACE_BEGIN
 

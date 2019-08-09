@@ -6,20 +6,21 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/IterativePressurePenalization.h"
-#include "obstacles/ObstacleVector.h"
+#include "IterativePressurePenalization.h"
+#include "../obstacles/ObstacleVector.h"
 #ifdef _ACCFFT_
-#include "poisson/PoissonSolverACCPeriodic.h"
-#include "poisson/PoissonSolverACCUnbounded.h"
+#include "../poisson/PoissonSolverACCPeriodic.h"
+#include "../poisson/PoissonSolverACCUnbounded.h"
 #else
-#include "poisson/PoissonSolverPeriodic.h"
-#include "poisson/PoissonSolverUnbounded.h"
+#include "../poisson/PoissonSolverPeriodic.h"
+#include "../poisson/PoissonSolverUnbounded.h"
 #endif
 // TODO : Cosine transform on GPU!?
-#include "poisson/PoissonSolverMixed.h"
-#include "poisson/PoissonSolverHYPREMixed.h"
-#include "poisson/PoissonSolverPETSCMixed.h"
-#include "Cubism/HDF5SliceDumperMPI.h"
+#include "../poisson/PoissonSolverMixed.h"
+#include "../poisson/PoissonSolverHYPREMixed.h"
+#include "../poisson/PoissonSolverPETSCMixed.h"
+
+#include <Cubism/HDF5SliceDumperMPI.h>
 #include <iomanip>
 
 // define this to update obstacles with old (mrag-like) approach of integrating
@@ -88,7 +89,8 @@ struct KernelInitialPressureRHS
 {
   PenalizationGridMPI * const penGrid;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1,2,2,2,false, 6, 1,2,3,5,6,7);
+  const StencilInfo stencil{
+      -1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W,FE_TMPU,FE_TMPV,FE_TMPW}};
 
   KernelInitialPressureRHS(PenalizationGridMPI * const pen) : penGrid(pen) {}
 
@@ -116,7 +118,7 @@ struct KernelIterateGradP
   const Real dt;
   PenalizationGridMPI * const penGrid;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
 
   KernelIterateGradP(double _dt, PenalizationGridMPI * const pen) :
     dt(_dt), penGrid{pen} {}
@@ -434,7 +436,7 @@ struct KernelPressureRHS
   PoissonSolver * const solver;
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 5,6,7);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_TMPU,FE_TMPV,FE_TMPW}};
 
   KernelPressureRHS(double _dt, PoissonSolver*ps, PenalizationGridMPI*const pen)
     : dt(_dt), penGrid(pen), solver(ps) {}
@@ -468,7 +470,7 @@ struct KernelGradP
   const Real dt;
   PenalizationGridMPI * const penGrid;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
 
   KernelGradP(double _dt, PenalizationGridMPI*const pen): dt(_dt),penGrid{pen}{}
 

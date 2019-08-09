@@ -9,7 +9,8 @@
 #ifndef CubismUP_3D_ObstacleVector_h
 #define CubismUP_3D_ObstacleVector_h
 
-#include "obstacles/Obstacle.h"
+#include "Obstacle.h"
+
 #include <memory>
 #include <utility>
 

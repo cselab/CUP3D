@@ -11,34 +11,32 @@
 
 #include "Base.h"
 
-//#include <cassert>
-
-#include <cassert>
-#include <cstddef>   // For `offsetof()`.
-#include <array>
-#include <iosfwd>
-#include <string>
-
+#include "utils/AlignedAllocator.h"
+#include "utils/FDcoeffs.h"
 
 // Cubism dependencies.
-#include "Cubism/Grid.h"
-#include "Cubism/GridMPI.h"
-#include "Cubism/BlockInfo.h"
+#include <Cubism/Grid.h>
+#include <Cubism/GridMPI.h>
+#include <Cubism/BlockInfo.h>
 #ifdef _VTK_
-#include "Cubism/SerializerIO_ImageVTK.h"
+#include <Cubism/SerializerIO_ImageVTK.h>
 #endif
-#include "Cubism/BlockLab.h"
-#include "Cubism/BlockLabMPI.h"
+#include <Cubism/BlockLab.h>
+#include <Cubism/BlockLabMPI.h>
 
 #ifndef CUP_BLOCK_SIZE
 #define CUP_BLOCK_SIZE 16
 #endif
 
-#include "utils/AlignedAllocator.h"
-#include "utils/FDcoeffs.h"
+#include <array>
+#include <cassert>
+#include <cstddef>   // For `offsetof()`.
+#include <iosfwd>
+#include <string>
 
 CubismUP_3D_NAMESPACE_BEGIN
 
+enum { FE_CHI = 0, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW };
 struct FluidElement
 {
   typedef Real RealType;
@@ -61,9 +59,6 @@ struct DumpElement {
     DumpElement() : u(0), v(0), w(0), chi(0), p(0) {}
     void clear() { u = v = w = chi = p = 0; }
 };
-
-/* Returns the index of the item in the `FluidElement` struct. */
-#define CUP_ELEMENT_INDEX(x) (offsetof(FluidElement, x) / sizeof(FluidElement::RealType))
 
 enum BCflag {dirichlet, periodic, wall, freespace};
 inline BCflag string2BCflag(const std::string &strFlag)

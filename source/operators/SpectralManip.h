@@ -15,7 +15,7 @@
 #include <iomanip>
 #include <sstream>
 
-#include "SimulationData.h"
+#include "../SimulationData.h"
 #include "Cubism/BlockInfo.h"
 
 CubismUP_3D_NAMESPACE_BEGIN

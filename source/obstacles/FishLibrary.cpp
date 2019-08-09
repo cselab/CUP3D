@@ -6,8 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
-
-#include "obstacles/FishLibrary.h"
+#include "FishLibrary.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

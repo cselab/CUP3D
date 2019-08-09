@@ -9,8 +9,7 @@
 #ifndef CubismUP_3D_SpectralForcing_h
 #define CubismUP_3D_SpectralForcing_h
 
-#include "SimulationData.h"
-#include "operators/Operator.h"
+#include "Operator.h"
 #include "Cubism/BlockInfo.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
@@ -35,4 +34,4 @@ class SpectralForcing : public Operator
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif
+#endif //CubismUP_3D_SpectralForcing_h

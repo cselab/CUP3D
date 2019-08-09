@@ -6,10 +6,10 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "poisson/PoissonSolverACCUnbounded.h"
+#include "PoissonSolverACCUnbounded.h"
 #include <cuda_runtime_api.h>
 #include <cuda_runtime.h>
-#include "poisson/PoissonSolverACC_common.h"
+#include "PoissonSolverACC_common.h"
 #include "accfft_common.h"
 #ifndef CUP_SINGLE_PRECISION
   #include "accfft_gpu.h"

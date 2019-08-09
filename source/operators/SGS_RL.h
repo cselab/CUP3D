@@ -11,7 +11,7 @@
 
 #define SGSRL_STATE_INVARIANTS
 
-#include "operators/Operator.h"
+#include "Operator.h"
 
 namespace smarties {
 class Communicator;

@@ -10,14 +10,15 @@
 #ifndef CubismUP_3D_NonUniformScheme_h
 #define CubismUP_3D_NonUniformScheme_h
 
+#include "../Definitions.h"
+
+#include <Cubism/BlockInfo.h>
+#include <Cubism/MeshMap.h>
+
 #include <cassert>
 #include <cstdio>
-#include <vector>
 #include <cstdlib>
-
-#include "Definitions.h"
-#include "Cubism/BlockInfo.h"
-#include "Cubism/MeshMap.h"
+#include <vector>
 
 CubismUP_3D_NAMESPACE_BEGIN
 

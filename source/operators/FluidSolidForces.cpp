@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/FluidSolidForces.h"
-#include "obstacles/ObstacleVector.h"
+#include "FluidSolidForces.h"
+#include "../obstacles/ObstacleVector.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -22,7 +22,7 @@ struct KernelComputeForces : public ObstacleVisitor
   const BlockInfo * info_ptr = nullptr;
 
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 3, 1,2,3);
+  StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   KernelComputeForces(double _nu, double _dt, ObstacleVector* ov) :
     obstacle_vector(ov), nu(_nu), dt(_dt) { }
@@ -161,7 +161,7 @@ struct DumpWake
 {
   double t;
   const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
   const Real *Uinf;
   const double *CM, length, theta = 0.15;
   FILE* const pFile;

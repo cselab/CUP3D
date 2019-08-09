@@ -6,12 +6,12 @@
 //  Created by Hugues de Laroussilhe.
 //
 
-#include "operators/SpectralIcGenerator.h"
-#include "operators/SpectralManip.h"
+#include "SpectralIcGenerator.h"
+#include "SpectralManip.h"
 
-#include<random>
-#include<iomanip>
-#include<sstream>
+#include <random>
+#include <iomanip>
+#include <sstream>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -151,4 +151,3 @@ void SpectralIcGenerator::run()
 }
 
 CubismUP_3D_NAMESPACE_END
-#undef MPIREAL

@@ -6,7 +6,7 @@
 //  Created by Hugues de Laroussilhe.
 //
 
-#include "operators/SpectralManipFFTW.h"
+#include "SpectralManipFFTW.h"
 #include "poisson/PoissonSolver_common.h"
 
 #ifndef CUP_SINGLE_PRECISION

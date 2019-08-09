@@ -6,9 +6,10 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "obstacles/Obstacle.h"
-#include "utils/BufferedLogger.h"
-#include "Cubism/ArgumentParser.h"
+#include "Obstacle.h"
+#include "../utils/BufferedLogger.h"
+
+#include <Cubism/ArgumentParser.h>
 #include <gsl/gsl_linalg.h>
 #include <fstream>
 

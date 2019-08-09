@@ -9,7 +9,7 @@
 #ifndef CUBISMUP_3D_LINEAR_INTERPOLATION_H
 #define CUBISMUP_3D_LINEAR_INTERPOLATION_H
 
-#include "operators/Operator.h"
+#include "Operator.h"
 #include <vector>
 
 CubismUP_3D_NAMESPACE_BEGIN

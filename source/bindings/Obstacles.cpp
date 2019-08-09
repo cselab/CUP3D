@@ -1,7 +1,7 @@
-#include "bindings/Common.h"
-#include "obstacles/ObstacleVector.h"
-#include "obstacles/Sphere.h"
-#include "Simulation.h"
+#include "Common.h"
+#include "../Simulation.h"
+#include "../obstacles/ObstacleVector.h"
+#include "../obstacles/Sphere.h"
 
 using namespace cubismup3d;
 using namespace cubismup3d::pybindings;

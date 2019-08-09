@@ -10,6 +10,7 @@
 #define CubismUP_3D_Simulation_h
 
 #include "SimulationData.h"
+
 #include <memory>
 
 // Forward declarations.

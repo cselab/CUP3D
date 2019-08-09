@@ -10,8 +10,9 @@
 #define CubismUP_3D_PoissonSolverMixed_HYPRE_h
 #ifdef CUP_HYPRE
 
+#include "PoissonSolver.h"
+
 #include "HYPRE_struct_ls.h"
-#include "poisson/PoissonSolver.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

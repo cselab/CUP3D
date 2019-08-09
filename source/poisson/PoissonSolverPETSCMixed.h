@@ -11,7 +11,7 @@
 #define CubismUP_3D_PoissonSolverMixed_PETSC_h
 #ifdef CUP_PETSC
 
-#include "poisson/PoissonSolver.h"
+#include "PoissonSolver.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

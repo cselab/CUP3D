@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch) and Christian Conti.
 //
 
-#include "operators/ExternalForcing.h"
+#include "ExternalForcing.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

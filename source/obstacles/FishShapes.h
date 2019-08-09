@@ -9,8 +9,10 @@
 #ifndef CubismUP_3D_FishShapes_h
 #define CubismUP_3D_FishShapes_h
 //#define BBURST
+
+#include "../Definitions.h"
+
 #include <cmath>
-#include "Definitions.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

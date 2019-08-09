@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_PressureRHS_h
 #define CubismUP_3D_PressureRHS_h
 
-#include "operators/Operator.h"
+#include "Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

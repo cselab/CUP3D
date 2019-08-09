@@ -6,12 +6,12 @@
 //  Created by Hugues de Laroussilhe.
 //
 
-#include "operators/SpectralForcing.h"
-#include "operators/SpectralManip.h"
-#include "operators/SpectralAnalysis.h"
-#include "utils/BufferedLogger.h"
+#include "SpectralForcing.h"
+#include "SpectralManip.h"
+#include "../utils/BufferedLogger.h"
 
-CubismUP_3D_NAMESPACE_BEGIN using namespace cubism;
+CubismUP_3D_NAMESPACE_BEGIN
+using namespace cubism;
 
 SpectralForcing::SpectralForcing(SimulationData & s) : Operator(s)
 {
@@ -117,6 +117,4 @@ void SpectralForcing::_fftw2cub(const Real factor) const
   }
 }
 
-
 CubismUP_3D_NAMESPACE_END
-#undef MPIREAL

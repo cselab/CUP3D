@@ -9,12 +9,13 @@
 #ifndef CubismUP_3D_FishLibrary_h
 #define CubismUP_3D_FishLibrary_h
 //#define BBURST
-#include <cmath>
 
-#include "Definitions.h"
-#include "obstacles/extra/Frenet.h"
-#include "obstacles/extra/Schedulers.h"
-#include "ObstacleBlock.h"
+#include "../Definitions.h"
+#include "../ObstacleBlock.h"
+#include "extra/Frenet.h"
+#include "extra/Schedulers.h"
+
+#include <cmath>
 
 CubismUP_3D_NAMESPACE_BEGIN
 

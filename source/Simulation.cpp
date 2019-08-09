@@ -28,10 +28,12 @@
 
 #include "obstacles/ObstacleFactory.h"
 #include "operators/ProcessHelpers.h"
-#include "Cubism/HDF5Dumper_MPI.h"
-#include "Cubism/HDF5SliceDumperMPI.h"
-#include "Cubism/MeshKernels.h"
 #include "utils/NonUniformScheme.h"
+
+#include <Cubism/HDF5Dumper_MPI.h>
+#include <Cubism/HDF5SliceDumperMPI.h>
+#include <Cubism/MeshKernels.h>
+
 #include <iomanip>
 #include <iostream>
 #include <sstream>

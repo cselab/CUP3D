@@ -5,7 +5,7 @@
 //  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
-#include "operators/FixedMassFlux_nonUniform.h"
+#include "FixedMassFlux_nonUniform.h"
 
 CubismUP_3D_NAMESPACE_BEGIN using namespace cubism;
 

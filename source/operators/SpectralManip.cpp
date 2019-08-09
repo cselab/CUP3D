@@ -7,9 +7,9 @@
 //
 
 #ifdef _ACCFFT_
-#include "operators/SpectralManipACC.h"
+#include "SpectralManipACC.h"
 #else
-#include "operators/SpectralManipFFTW.h"
+#include "SpectralManipFFTW.h"
 #endif
 
 #ifndef CUP_SINGLE_PRECISION

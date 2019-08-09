@@ -6,9 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/ObstaclesCreate.h"
-#include "obstacles/ObstacleVector.h"
-#include "utils/MatArrayMath.h"
+#include "ObstaclesCreate.h"
+#include "../obstacles/ObstacleVector.h"
+#include "../utils/MatArrayMath.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -27,7 +27,7 @@ class KernelCharacteristicFunction
 
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 5);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_TMPU}};
 
   static Real computeCHI(const Real h, const Real dist,
                          const Real distPx, const Real distMx,
@@ -143,7 +143,7 @@ class KernelCharacteristicFunction_nonUniform
 
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 5);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_TMPU}};
 
   KernelCharacteristicFunction_nonUniform(const v_v_ob& v) : vec_obstacleBlocks(v) {}
 

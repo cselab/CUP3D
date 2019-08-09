@@ -6,18 +6,18 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/PressureProjection.h"
+#include "PressureProjection.h"
 #ifdef _ACCFFT_
-#include "poisson/PoissonSolverACCPeriodic.h"
-#include "poisson/PoissonSolverACCUnbounded.h"
+#include "../poisson/PoissonSolverACCPeriodic.h"
+#include "../poisson/PoissonSolverACCUnbounded.h"
 #else
-#include "poisson/PoissonSolverPeriodic.h"
-#include "poisson/PoissonSolverUnbounded.h"
+#include "../poisson/PoissonSolverPeriodic.h"
+#include "../poisson/PoissonSolverUnbounded.h"
 #endif
 // TODO : Cosine transform on GPU!?
-#include "poisson/PoissonSolverMixed.h"
-#include "poisson/PoissonSolverHYPREMixed.h"
-#include "poisson/PoissonSolverPETSCMixed.h"
+#include "../poisson/PoissonSolverMixed.h"
+#include "../poisson/PoissonSolverHYPREMixed.h"
+#include "../poisson/PoissonSolverPETSCMixed.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -30,7 +30,7 @@ class KernelGradP
   const std::array<Real, 3> extent;
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
 
   KernelGradP(double _dt, const std::array<Real, 3> &ext): dt(_dt), extent{ext} {}
 
@@ -57,7 +57,7 @@ class KernelGradP_nonUniform
   const std::array<Real, 3> extent;
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, 1, 4);
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P}};
 
   KernelGradP_nonUniform(double _dt, const std::array<Real, 3> &ext): dt(_dt), extent{ext} {}
 

@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "poisson/PoissonSolver.h"
+#include "PoissonSolver.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 #ifndef CUP_SINGLE_PRECISION

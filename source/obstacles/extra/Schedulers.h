@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_Schedulers_h
 #define CubismUP_3D_Schedulers_h
 
-#include "obstacles/extra/Interpolation1D.h"
+#include "Interpolation1D.h"
 
 #include <cmath>
 #include <array>

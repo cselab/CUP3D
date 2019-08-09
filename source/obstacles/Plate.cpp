@@ -6,9 +6,10 @@
 //  Written by Ivica Kicic (kicici@ethz.ch).
 //
 
-#include "obstacles/Plate.h"
-#include "obstacles/extra/ObstacleLibrary.h"
-#include "Cubism/ArgumentParser.h"
+#include "Plate.h"
+#include "extra/ObstacleLibrary.h"
+
+#include <Cubism/ArgumentParser.h>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

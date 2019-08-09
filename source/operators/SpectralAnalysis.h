@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_SpectralAnalysis_h
 #define CubismUP_3D_SpectralAnalysis_h
 
-#include "SimulationData.h"
+#include "../SimulationData.h"
 #include "Cubism/BlockInfo.h"
 
 #include <vector>

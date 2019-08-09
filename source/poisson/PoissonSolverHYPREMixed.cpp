@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "poisson/PoissonSolverHYPREMixed.h"
+#include "PoissonSolverHYPREMixed.h"
 #ifdef CUP_HYPRE
 #ifndef CUP_SINGLE_PRECISION
 #define MPIREAL MPI_DOUBLE

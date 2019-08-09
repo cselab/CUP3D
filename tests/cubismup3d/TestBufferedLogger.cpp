@@ -1,5 +1,5 @@
 #include "Utils.h"
-#include "utils/BufferedLogger.h"
+#include "../../source/utils/BufferedLogger.h"
 
 using namespace cubismup3d;
 

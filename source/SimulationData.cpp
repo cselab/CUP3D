@@ -11,10 +11,11 @@
 #include "SimulationData.h"
 #include "operators/Operator.h"
 #include "obstacles/ObstacleVector.h"
-#include "Cubism/ArgumentParser.h"
-#include "Cubism/Profiler.h"
-#include "Cubism/HDF5SliceDumperMPI.h"
 #include "utils/NonUniformScheme.h"
+
+#include <Cubism/ArgumentParser.h>
+#include <Cubism/Profiler.h>
+#include <Cubism/HDF5SliceDumperMPI.h>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

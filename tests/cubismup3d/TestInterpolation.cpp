@@ -1,7 +1,7 @@
 #include "Utils.h"
-#include "Simulation.h"
-#include "operators/CellwiseOperator.h"
-#include "operators/LinearInterpolation.h"
+#include "../../source/Simulation.h"
+#include "../../source/operators/CellwiseOperator.h"
+#include "../../source/operators/LinearInterpolation.h"
 
 using namespace cubism;
 using namespace cubismup3d;
@@ -50,7 +50,7 @@ bool testLinearInterpolation() {
       points,
       [](const FluidElement &e) { return e.u; },      // What to interpolate.
       [&result](int k, double v) { result[k] = v; },  // Where to store the result.
-      std::vector<int>({CUP_ELEMENT_INDEX(u)}));      // Components for stencil.
+      std::vector<int>({FE_U}));                      // Components for stencil.
 
   // Check if result correct.
   for (int i = 0; i < NUM_POINTS; ++i) {

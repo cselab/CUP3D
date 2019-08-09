@@ -6,23 +6,24 @@
 //  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
+#include "ObstacleFactory.h"
+#include "ObstacleVector.h"
+#include "extra/FactoryFileLineParser.h"
+
+#include "CarlingFish.h"
+#include "Cylinder.h"
+#include "Ellipsoid.h"
+#include "ExternalObstacle.h"
+#include "Naca.h"
+#include "Plate.h"
+#include "Sphere.h"
+#include "StefanFish.h"
+
 #include <iostream>
 #include <fstream>
-#include "obstacles/ObstacleFactory.h"
-#include "obstacles/ObstacleVector.h"
-#include "obstacles/extra/FactoryFileLineParser.h"
 
-#include "obstacles/CarlingFish.h"
-#include "obstacles/Cylinder.h"
-#include "obstacles/Ellipsoid.h"
-#include "obstacles/ExternalObstacle.h"
-#include "obstacles/Naca.h"
-#include "obstacles/Plate.h"
-#include "obstacles/Sphere.h"
-#include "obstacles/StefanFish.h"
-
-//#include "obstacles/IF3D_ElasticFishOperator.h"
-//#include "obstacles/IF3D_CylinderPairOperator.h"
+//#include "IF3D_ElasticFishOperator.h"
+//#include "IF3D_CylinderPairOperator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

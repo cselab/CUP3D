@@ -1,9 +1,10 @@
 #ifndef CUBIMSUP3D_BINDINGS_COMMON_H
 #define CUBIMSUP3D_BINDINGS_COMMON_H
 
+#include "../Base.h"
+
 #include <array>
 #include <pybind11/stl.h>
-#include "../Base.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

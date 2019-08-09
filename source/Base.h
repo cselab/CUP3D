@@ -13,7 +13,7 @@
  * Macros and definition used by other header files.
  */
 
-// Are we compiling from CubismUP3D's makefile?
+// Are we compiling from CubismUP_3D's makefile?
 #ifndef CUP_NO_MACROS_HEADER
 // No, it's either CMake or external code. Load compile-time settings from this header file.
 #include "../build/include/CubismUP3DMacros.h"

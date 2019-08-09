@@ -9,8 +9,8 @@
 #ifndef CubismUP_3D_ExternalForcing_h
 #define CubismUP_3D_ExternalForcing_h
 
-#include "SimulationData.h"
-#include "operators/Operator.h"
+#include "../SimulationData.h"
+#include "Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
