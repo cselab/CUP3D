@@ -13,6 +13,7 @@
 #include "PoissonSolverACC_common.h"
 
 #include <cassert>
+#include <cmath>
 
 using Real = cubismup3d::Real;
 
@@ -171,6 +172,26 @@ void realGreen(const int*osz, const int*ost, int nx, int ny, int nz,
 #define warpShflDown(var, delta)   __shfl_down (var, delta)
 #endif
 
+
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
+#else
+__device__ double atomicAdd(double* address, double val)
+{
+    using ULLI_t = unsigned long long int;
+    ULLI_t* address_as_ull = (ULLI_t*)address;
+    ULLI_t old = *address_as_ull, assumed;
+    do {
+        assumed = old;
+        old = atomicCAS(address_as_ull, assumed,
+                        __double_as_longlong(val +
+                               __longlong_as_double(assumed)));
+    // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+    } while (assumed != old);
+    return __longlong_as_double(old);
+}
+#endif
+
+
 __global__
 void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
   acc_c*const __restrict__ Vhat, acc_c*const __restrict__ What,
@@ -187,9 +208,9 @@ void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
   if( i < nx || j < ny || k < nz )
   {
     const long kx = sx + i, ky = sy + j, kz = sz + k;
-    const long kkx = kx > Gx/2 ? kx-Gx : kx;
-    const long kky = ky > Gy/2 ? ky-Gy : ky;
-    const long kkz = kz > Gz/2 ? kz-Gz : kz;
+    const Real kkx = kx > Gx/2 ? kx-Gx : kx;
+    const Real kky = ky > Gy/2 ? ky-Gy : ky;
+    const Real kkz = kz > Gz/2 ? kz-Gz : kz;
     const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
     const Real k2 = rkx*rkx + rky*rky + rkz*rkz;
     const Real mult = (kz==0) or (kz==Gz/2) ? 1 : 2;
@@ -241,9 +262,9 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
   if( i < nx || j < ny || k < nz )
   {
     const long kx = sx + i, ky = sy + j, kz = sz + k;
-    const long kkx = kx > Gx/2 ? kx-Gx : kx;
-    const long kky = ky > Gy/2 ? ky-Gy : ky;
-    const long kkz = kz > Gz/2 ? kz-Gz : kz;
+    const Real kkx = kx > Gx/2 ? kx-Gx : kx;
+    const Real kky = ky > Gy/2 ? ky-Gy : ky;
+    const Real kkz = kz > Gz/2 ? kz-Gz : kz;
     const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
     const Real k2 = rkx*rkx + rky*rky + rkz*rkz;
     const Real ks = std::sqrt(kkx*kkx + kky*kky + kkz*kkz);
@@ -297,7 +318,7 @@ void _compute_HIT_forcing(
   int blocksInY = std::ceil(osize[1] / 4.);
   int blocksInZ = std::ceil(osize[2] / 4.);
   dim3 Dg(blocksInX, blocksInY, blocksInZ), Db(4, 4, 4);
-  _forcing_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What
+  _forcing_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What,
      gsize[0], gsize[1], gsize[2], osize[0],osize[1],osize[2],
     ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2], rdxBuf);
 
@@ -330,7 +351,7 @@ void _compute_HIT_analysis(
   int blocksInY = std::ceil(osize[1] / 4.);
   int blocksInZ = std::ceil(osize[2] / 4.);
   dim3 Dg(blocksInX, blocksInY, blocksInZ), Db(4, 4, 4);
-  _analysis_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What
+  _analysis_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What,
      gsize[0], gsize[1], gsize[2], osize[0],osize[1],osize[2],
     ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2],
     nyquist, nyquist_scaling, rdxBuf);
