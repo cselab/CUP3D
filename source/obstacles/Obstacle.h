@@ -9,8 +9,8 @@
 #ifndef CubismUP_3D_Obstacle_h
 #define CubismUP_3D_Obstacle_h
 
-#include "ObstacleBlock.h"
-#include "SimulationData.h"
+#include "../ObstacleBlock.h"
+#include "../SimulationData.h"
 
 #include <array>
 

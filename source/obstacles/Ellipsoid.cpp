@@ -6,9 +6,10 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "obstacles/Ellipsoid.h"
-#include "obstacles/extra/ObstacleLibrary.h"
-#include "Cubism/ArgumentParser.h"
+#include "Ellipsoid.h"
+#include "extra/ObstacleLibrary.h"
+
+#include <Cubism/ArgumentParser.h>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

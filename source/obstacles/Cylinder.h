@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_Cylinder_h
 #define CubismUP_3D_Cylinder_h
 
-#include "obstacles/Obstacle.h"
+#include "Obstacle.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

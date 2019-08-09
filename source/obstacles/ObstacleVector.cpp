@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "obstacles/ObstacleVector.h"
+#include "ObstacleVector.h"
 
 #include <sstream>
 

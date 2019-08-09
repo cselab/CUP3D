@@ -6,10 +6,10 @@
 //  Created by Hugues de Laroussilhe.
 //
 
-#include "operators/SpectralForcing.h"
-#include "operators/SpectralManip.h"
-#include "operators/SpectralAnalysis.h"
-#include "utils/BufferedLogger.h"
+#include "SpectralForcing.h"
+#include "SpectralManip.h"
+#include "SpectralAnalysis.h"
+#include "../utils/BufferedLogger.h"
 
 CubismUP_3D_NAMESPACE_BEGIN using namespace cubism;
 

@@ -24,8 +24,8 @@ static const int NpLatLine = 10;
 // - cleaning: maybe compile cubism and set flags based on user's app choice
 #endif
 
-#include "Definitions.h"
-#include "ObstacleBlock.h"
+#include "../Definitions.h"
+#include "../ObstacleBlock.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

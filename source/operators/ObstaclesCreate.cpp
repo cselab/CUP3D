@@ -6,9 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/ObstaclesCreate.h"
-#include "obstacles/ObstacleVector.h"
-#include "utils/MatArrayMath.h"
+#include "ObstaclesCreate.h"
+#include "../obstacles/ObstacleVector.h"
+#include "../utils/MatArrayMath.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

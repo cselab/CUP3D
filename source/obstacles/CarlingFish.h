@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_CarlingFish_h
 #define CubismUP_3D_CarlingFish_h
 
-#include "obstacles/Fish.h"
+#include "Fish.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

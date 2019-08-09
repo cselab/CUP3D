@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_ProcessOperators_h
 #define CubismUP_3D_ProcessOperators_h
 
-#include "SimulationData.h"
+#include "../SimulationData.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

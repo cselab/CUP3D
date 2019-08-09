@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_ObstacleFactory_h
 #define CubismUP_3D_ObstacleFactory_h
 
-#include "obstacles/ObstacleVector.h"
+#include "ObstacleVector.h"
 
 namespace cubism { struct ArgumentParser; }
 

@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/FluidSolidForces.h"
-#include "obstacles/ObstacleVector.h"
+#include "FluidSolidForces.h"
+#include "../obstacles/ObstacleVector.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

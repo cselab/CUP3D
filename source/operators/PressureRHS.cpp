@@ -6,9 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/PressureRHS.h"
-#include "poisson/PoissonSolver.h"
-#include "obstacles/ObstacleVector.h"
+#include "PressureRHS.h"
+#include "../poisson/PoissonSolver.h"
+#include "../obstacles/ObstacleVector.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_Analysis_h
 #define CubismUP_3D_Analysis_h
 
-#include "operators/Operator.h"
+#include "Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

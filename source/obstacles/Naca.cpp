@@ -6,11 +6,12 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "obstacles/Naca.h"
-#include "obstacles/FishLibrary.h"
-#include "obstacles/FishShapes.h"
-#include "Cubism/ArgumentParser.h"
-#include "Cubism/HDF5Dumper_MPI.h"
+#include "Naca.h"
+#include "FishLibrary.h"
+#include "FishShapes.h"
+
+#include <Cubism/ArgumentParser.h>
+#include <Cubism/HDF5Dumper_MPI.h>
 
 #include <cmath>
 

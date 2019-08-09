@@ -6,7 +6,7 @@
 //  Created by Hugues de Laroussilhe.
 //
 
-#include "operators/SpectralManip.h"
+#include "SpectralManip.h"
 
 #ifndef CUP_SINGLE_PRECISION
 #define MPIREAL MPI_DOUBLE

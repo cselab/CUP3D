@@ -13,7 +13,7 @@
 #ifndef CUBISMUP3D_CELLWISE_OPERATOR_H
 #define CUBISMUP3D_CELLWISE_OPERATOR_H
 
-#include "operators/Operator.h"
+#include "Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

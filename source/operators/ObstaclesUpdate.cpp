@@ -6,9 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/ObstaclesUpdate.h"
-#include "obstacles/ObstacleVector.h"
-#include "utils/MatArrayMath.h"
+#include "ObstaclesUpdate.h"
+#include "../obstacles/ObstacleVector.h"
+#include "../utils/MatArrayMath.h"
 
 // define this to update obstacles with old (mrag-like) approach of integrating
 // momenta contained in chi before the penalization step:

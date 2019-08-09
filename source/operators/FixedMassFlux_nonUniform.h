@@ -8,7 +8,7 @@
 #ifndef CubismUP_3D_FixedMassFlux_nonUniformh
 #define CubismUP_3D_FixedMassFlux_nonUniform_h
 
-#include "operators/Operator.h"
+#include "Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

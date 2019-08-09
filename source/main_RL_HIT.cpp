@@ -8,13 +8,15 @@
 //
 
 #include "Communicators/Communicator_MPI.h"
+
 #include "Simulation.h"
 #include "operators/SGS_RL.h"
 #include "operators/SpectralAnalysis.h"
-#include "Cubism/ArgumentParser.h"
 
-#include <unistd.h> // chdir
-#include <sys/stat.h> // mkdir options
+#include <Cubism/ArgumentParser.h>
+
+#include <sys/stat.h>  // mkdir options
+#include <unistd.h>    // chdir
 
 #define FREQ_UPDATE 1
 #define SGSRL_STATE_SCALING

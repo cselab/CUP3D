@@ -7,10 +7,11 @@
 //
 
 #include "Simulation.h"
-#include "Cubism/ArgumentParser.h"
 
-#include <iostream>
+#include <Cubism/ArgumentParser.h>
+
 #include <cmath>
+#include <iostream>
 #include <unistd.h>
 
 using std::cout;

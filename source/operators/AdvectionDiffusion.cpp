@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/AdvectionDiffusion.h"
+#include "AdvectionDiffusion.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

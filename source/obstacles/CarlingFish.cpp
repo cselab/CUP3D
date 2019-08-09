@@ -6,10 +6,11 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "obstacles/CarlingFish.h"
-#include "obstacles/FishLibrary.h"
-#include "obstacles/FishShapes.h"
-#include "Cubism/ArgumentParser.h"
+#include "CarlingFish.h"
+#include "FishLibrary.h"
+#include "FishShapes.h"
+
+#include <Cubism/ArgumentParser.h>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -103,7 +104,7 @@ class CarlingFishMidlineData : public FishMidlineData
   }
 };
 
-#include "obstacles/extra/CarlingFish_extra.h"
+#include "extra/CarlingFish_extra.h"
 
 void CarlingFishMidlineData::computeMidline(const double t,const double dt)
 {

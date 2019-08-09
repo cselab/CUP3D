@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_PressureProjection_h
 #define CubismUP_3D_PressureProjection_h
 
-#include "operators/Operator.h"
+#include "Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

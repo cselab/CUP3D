@@ -9,15 +9,16 @@
 #ifndef CubismUP_3D_SpectralManip_h
 #define CubismUP_3D_SpectralManip_h
 
-#include <vector>
+#include "../SimulationData.h"
+#include "../poisson/PoissonSolver_common.h"
+
+#include <Cubism/BlockInfo.h>
+
 #include <cassert>
 #include <cstring>
 #include <iomanip>
 #include <sstream>
-
-#include "SimulationData.h"
-#include "Cubism/BlockInfo.h"
-#include "poisson/PoissonSolver_common.h"
+#include <vector>
 
 CubismUP_3D_NAMESPACE_BEGIN
 

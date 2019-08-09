@@ -10,8 +10,8 @@
 //  WARNING: This implementation only works with a 1D domain decomposition
 //  along the x-coordinate.
 
-#include "poisson/PoissonSolverUnbounded.h"
-#include "poisson/PoissonSolver_common.h"
+#include "PoissonSolverUnbounded.h"
+#include "PoissonSolver_common.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

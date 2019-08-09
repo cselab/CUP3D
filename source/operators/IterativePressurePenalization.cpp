@@ -6,20 +6,21 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/IterativePressurePenalization.h"
-#include "obstacles/ObstacleVector.h"
+#include "IterativePressurePenalization.h"
+#include "../obstacles/ObstacleVector.h"
 #ifdef _ACCFFT_
-#include "poisson/PoissonSolverACCPeriodic.h"
-#include "poisson/PoissonSolverACCUnbounded.h"
+#include "../poisson/PoissonSolverACCPeriodic.h"
+#include "../poisson/PoissonSolverACCUnbounded.h"
 #else
-#include "poisson/PoissonSolverPeriodic.h"
-#include "poisson/PoissonSolverUnbounded.h"
+#include "../poisson/PoissonSolverPeriodic.h"
+#include "../poisson/PoissonSolverUnbounded.h"
 #endif
 // TODO : Cosine transform on GPU!?
-#include "poisson/PoissonSolverMixed.h"
-#include "poisson/PoissonSolverHYPREMixed.h"
-#include "poisson/PoissonSolverPETSCMixed.h"
-#include "Cubism/HDF5SliceDumperMPI.h"
+#include "../poisson/PoissonSolverMixed.h"
+#include "../poisson/PoissonSolverHYPREMixed.h"
+#include "../poisson/PoissonSolverPETSCMixed.h"
+
+#include <Cubism/HDF5SliceDumperMPI.h>
 #include <iomanip>
 
 // define this to update obstacles with old (mrag-like) approach of integrating

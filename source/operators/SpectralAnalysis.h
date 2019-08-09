@@ -9,12 +9,13 @@
 #ifndef CubismUP_3D_SpectralAnalysis_h
 #define CubismUP_3D_SpectralAnalysis_h
 
-#include "SimulationData.h"
-#include "Cubism/BlockInfo.h"
+#include "../SimulationData.h"
 
-#include <vector>
+#include <Cubism/BlockInfo.h>
+
 #include <cassert>
 #include <cstring>
+#include <vector>
 
 CubismUP_3D_NAMESPACE_BEGIN
 

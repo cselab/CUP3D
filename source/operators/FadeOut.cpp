@@ -6,7 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/FadeOut.h"
+#include "FadeOut.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

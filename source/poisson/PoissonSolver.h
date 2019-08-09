@@ -9,12 +9,13 @@
 #ifndef CubismUP_3D_PoissonSolver_h
 #define CubismUP_3D_PoissonSolver_h
 
+#include "../SimulationData.h"
+
+#include <Cubism/BlockInfo.h>
+
 #include <vector>
 #include <cassert>
 #include <cstring>
-
-#include "SimulationData.h"
-#include "Cubism/BlockInfo.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

@@ -106,7 +106,6 @@ set(CMAKE_SHARED_LIBRARY_SUFFIX "")      # We already specify it manually.
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ".")
 
 include_directories(${ROOT_FOLDER}/Cubism/include/)
-include_directories(${ROOT_FOLDER}/source/)
 set(COMMON_SOURCES           # Common for app and lib.
     ${ROOT_FOLDER}/Cubism/src/ArgumentParser.cpp  # Temporary solution for Cubism .cpp files.
     ${ROOT_FOLDER}/source/utils/BufferedLogger.cpp

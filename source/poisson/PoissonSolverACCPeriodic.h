@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_PoissonSolverPeriodicACC_h
 #define CubismUP_3D_PoissonSolverPeriodicACC_h
 
-#include "poisson/PoissonSolver.h"
+#include "PoissonSolver.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

@@ -6,8 +6,8 @@
 //  Created by Hugues de Laroussilhe.
 //
 
-#include "operators/SpectralAnalysis.h"
-#include "operators/SpectralManip.h"
+#include "SpectralAnalysis.h"
+#include "SpectralManip.h"
 
 #include <sys/stat.h>
 #include <iomanip>

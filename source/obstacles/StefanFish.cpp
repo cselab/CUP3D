@@ -6,13 +6,14 @@
 //  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
-#include "obstacles/StefanFish.h"
-#include "obstacles/FishLibrary.h"
-#include "obstacles/FishShapes.h"
-#include "Cubism/ArgumentParser.h"
+#include "StefanFish.h"
+#include "FishLibrary.h"
+#include "FishShapes.h"
 
-#include <cmath>
+#include <Cubism/ArgumentParser.h>
+
 #include <array>
+#include <cmath>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

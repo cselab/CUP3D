@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/Operator.h"
-#include "operators/SGS_RL.h"
+#include "Operator.h"
+#include "SGS_RL.h"
 #include "Communicators/Communicator.h"
 
 #include <functional>

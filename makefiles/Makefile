@@ -87,8 +87,7 @@ CPPFLAGS += -DCUP_BLOCK_SIZE=$(bs)
 CPPFLAGS += -DCUP_NO_MACROS_HEADER
 #CPPFLAGS += -lm
 #CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
-CPPFLAGS += -I../source/ -I../Cubism/include/
-NVFLAGS += -I../source/
+CPPFLAGS += -I../Cubism/include/
 #CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)

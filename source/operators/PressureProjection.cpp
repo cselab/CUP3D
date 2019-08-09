@@ -6,18 +6,18 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/PressureProjection.h"
+#include "PressureProjection.h"
 #ifdef _ACCFFT_
-#include "poisson/PoissonSolverACCPeriodic.h"
-#include "poisson/PoissonSolverACCUnbounded.h"
+#include "../poisson/PoissonSolverACCPeriodic.h"
+#include "../poisson/PoissonSolverACCUnbounded.h"
 #else
-#include "poisson/PoissonSolverPeriodic.h"
-#include "poisson/PoissonSolverUnbounded.h"
+#include "../poisson/PoissonSolverPeriodic.h"
+#include "../poisson/PoissonSolverUnbounded.h"
 #endif
 // TODO : Cosine transform on GPU!?
-#include "poisson/PoissonSolverMixed.h"
-#include "poisson/PoissonSolverHYPREMixed.h"
-#include "poisson/PoissonSolverPETSCMixed.h"
+#include "../poisson/PoissonSolverMixed.h"
+#include "../poisson/PoissonSolverHYPREMixed.h"
+#include "../poisson/PoissonSolverPETSCMixed.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

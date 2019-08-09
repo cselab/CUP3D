@@ -6,11 +6,11 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/InitialConditions.h"
-#include "obstacles/ObstacleVector.h"
-#include "operators/SpectralIcGenerator.h"
+#include "InitialConditions.h"
+#include "SpectralIcGenerator.h"
+#include "../obstacles/ObstacleVector.h"
 
-#include<random>
+#include <random>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

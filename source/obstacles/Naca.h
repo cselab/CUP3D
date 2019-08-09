@@ -9,7 +9,7 @@
 #ifndef CubismUP_3D_Naca_h
 #define CubismUP_3D_Naca_h
 
-#include "obstacles/Fish.h"
+#include "Fish.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

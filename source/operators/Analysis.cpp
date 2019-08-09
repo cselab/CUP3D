@@ -6,8 +6,9 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "operators/Analysis.h"
-#include "operators/SpectralAnalysis.h"
+#include "Analysis.h"
+#include "SpectralAnalysis.h"
+
 #include <sys/stat.h>
 #include <iomanip>
 #include <sstream>

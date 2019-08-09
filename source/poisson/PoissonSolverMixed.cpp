@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#include "poisson/PoissonSolverMixed.h"
-#include "poisson/PoissonSolver_common.h"
+#include "PoissonSolverMixed.h"
+#include "PoissonSolver_common.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

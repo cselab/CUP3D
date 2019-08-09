@@ -1,6 +1,6 @@
 #include "Utils.h"
-#include "Simulation.h"
-#include "operators/CellwiseOperator.h"
+#include "../../source/Simulation.h"
+#include "../../source/operators/CellwiseOperator.h"
 
 using namespace cubism;
 using namespace cubismup3d;

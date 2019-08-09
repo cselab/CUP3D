@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
+#include "FishShapes.h"
 
-#include "obstacles/FishShapes.h"
 #include <gsl/gsl_bspline.h>
 #include <gsl/gsl_statistics.h>
 #include <iostream>

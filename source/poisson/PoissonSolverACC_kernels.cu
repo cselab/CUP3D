@@ -8,13 +8,11 @@
 
 //#include "PoissonSolverScalarFFTW_ACC.h"
 //#include <cuda_runtime_api.h>
+
+#include "../Base.h"
+#include "PoissonSolverACC_common.h"
+
 #include <cassert>
-#ifndef CUP_SINGLE_PRECISION
-  typedef double Real;
-#else
-  typedef float Real;
-#endif
-#include "poisson/PoissonSolverACC_common.h"
 
 __global__
 void _fourier_filter_kernel(acc_c*const __restrict__ out,

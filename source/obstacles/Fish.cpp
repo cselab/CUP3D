@@ -6,11 +6,11 @@
 //  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
-#include "obstacles/Fish.h"
-#include "obstacles/FishLibrary.h"
+#include "Fish.h"
+#include "FishLibrary.h"
 
-#include "Cubism/ArgumentParser.h"
-#include "Cubism/HDF5Dumper_MPI.h"
+#include <Cubism/ArgumentParser.h>
+#include <Cubism/HDF5Dumper_MPI.h>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

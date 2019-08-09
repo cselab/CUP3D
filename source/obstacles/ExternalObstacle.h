@@ -14,7 +14,8 @@
  * defined by an external code. Intended to be used when CubismUP_3D used as a
  * library.
  */
-#include "obstacles/Obstacle.h"
+#include "Obstacle.h"
+
 #include <functional>
 
 CubismUP_3D_NAMESPACE_BEGIN

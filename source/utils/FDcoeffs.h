@@ -10,9 +10,10 @@
 #ifndef CubismUP_3D_FDcoeffs_h
 #define CubismUP_3D_FDcoeffs_h
 
+#include <Cubism/MeshMap.h>
+
 #include <cassert>
 #include <cstdlib>
-#include "Cubism/MeshMap.h"
 
 // helpers
 ///////////////////////////////////////////////////////////////////////////////

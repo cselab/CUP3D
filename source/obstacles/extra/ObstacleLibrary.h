@@ -9,8 +9,8 @@
 #ifndef CubismUP_3D_ObstacleLibrary_h
 #define CubismUP_3D_ObstacleLibrary_h
 
-#include "Definitions.h"
-#include "obstacles/extra/Interpolation1D.h"
+#include "../../Definitions.h"
+#include "Interpolation1D.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

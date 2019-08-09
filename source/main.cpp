@@ -7,7 +7,8 @@
 //
 
 #include "Simulation.h"
-#include "Cubism/ArgumentParser.h"
+
+#include <Cubism/ArgumentParser.h>
 
 #include <iostream>
 

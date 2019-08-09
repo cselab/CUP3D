@@ -7,6 +7,7 @@
 //
 
 #include "BufferedLogger.h"
+
 #include <fstream>
 #include <unordered_map>
 
