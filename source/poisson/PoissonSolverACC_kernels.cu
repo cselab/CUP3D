@@ -163,3 +163,185 @@ void realGreen(const int*osz, const int*ost, int nx, int ny, int nz,
   //  kPos<<<dG, dB>>> (isz[0],isz[1],isz[2], ist[0],ist[1],ist[2], mx,my,mz, mz_pad, gpu_rhs);
   //}
 }
+
+#if __CUDACC_VER_MAJOR__ >= 9
+#define MASK_ALL_WARP 0xFFFFFFFF
+#define warpShflDown(var, delta)   __shfl_down_sync (MASK_ALL_WARP, var, delta)
+#else
+#define warpShflDown(var, delta)   __shfl_down (var, delta)
+#endif
+
+__global__
+void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
+  acc_c*const __restrict__ Vhat, acc_c*const __restrict__ What,
+  const long Gx, const long Gy, const long Gz,
+  const long nx, const long ny, const long nz,
+  const long sx, const long sy, const long sz,
+  const Real wx, const Real wy, const Real wz, Real * const reductionBuf)
+{
+  const long i = blockDim.x * blockIdx.x + threadIdx.x;
+  const long j = blockDim.y * blockIdx.y + threadIdx.y;
+  const long k = blockDim.z * blockIdx.z + threadIdx.z;
+  Real tke = 0, eps = 0, tkeFiltered = 0;
+
+  if( i < nx || j < ny || k < nz )
+  {
+    const long kx = sx + i, ky = sy + j, kz = sz + k;
+    const long kkx = kx > Gx/2 ? kx-Gx : kx;
+    const long kky = ky > Gy/2 ? ky-Gy : ky;
+    const long kkz = kz > Gz/2 ? kz-Gz : kz;
+    const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
+    const Real k2 = rkx*rkx + rky*rky + rkz*rkz;
+    const Real mult = (kz==0) or (kz==Gz/2) ? 1 : 2;
+    const long ind = i*nz*ny + j*nz + k;
+    const Real EU = Uhat[ind][0] * Uhat[ind][0] + Uhat[ind][1] * Uhat[ind][1];
+    const Real EV = Vhat[ind][0] * Vhat[ind][0] + Vhat[ind][1] * Vhat[ind][1];
+    const Real EW = What[ind][0] * What[ind][0] + What[ind][1] * What[ind][1];
+    const Real E = mult/2 * ( EU + EV + EW );
+    tke = E; // Total kinetic energy
+    eps = k2 * E; // Dissipation rate
+    if (k2 > 0 && k2 <= 2 * 2) tkeFiltered = E;
+    else {
+      Uhat[ind][0] = 0; Uhat[ind][1] = 0;
+      Vhat[ind][0] = 0; Vhat[ind][1] = 0;
+      What[ind][0] = 0; What[ind][1] = 0;
+    }
+  }
+
+  // reduction within same warp: result is summed down to thread 0
+  #pragma unroll
+  for (int offset = warpSize/2; offset > 0; offset /= 2) {
+    tke         = tke         + warpShflDown(tke,         offset);
+    eps         = eps         + warpShflDown(eps,         offset);
+    tkeFiltered = tkeFiltered + warpShflDown(tkeFiltered, offset);
+  }
+
+  if (threadIdx.x % warpSize == 0) { // thread 0 does the only atomic sum
+    atomicAdd(reductionBuf + 0, tke);
+    atomicAdd(reductionBuf + 1, eps);
+    atomicAdd(reductionBuf + 2, tkeFiltered);
+  }
+}
+
+
+__global__
+void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
+  acc_c*const __restrict__ Vhat, acc_c*const __restrict__ What,
+  const long Gx, const long Gy, const long Gz,
+  const long nx, const long ny, const long nz,
+  const long sx, const long sy, const long sz,
+  const Real wx, const Real wy, const Real wz,
+  const Real nyquist, const Real nyquist_scaling, Real * const reductionBuf)
+{
+  const long i = blockDim.x * blockIdx.x + threadIdx.x;
+  const long j = blockDim.y * blockIdx.y + threadIdx.y;
+  const long k = blockDim.z * blockIdx.z + threadIdx.z;
+  Real tke = 0, eps = 0, tau = 0;
+
+  if( i < nx || j < ny || k < nz )
+  {
+    const long kx = sx + i, ky = sy + j, kz = sz + k;
+    const long kkx = kx > Gx/2 ? kx-Gx : kx;
+    const long kky = ky > Gy/2 ? ky-Gy : ky;
+    const long kkz = kz > Gz/2 ? kz-Gz : kz;
+    const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
+    const Real k2 = rkx*rkx + rky*rky + rkz*rkz;
+    const Real ks = std::sqrt(kkx*kkx + kky*kky + kkz*kkz);
+    const Real mult = (kz==0) or (kz==Gz/2) ? 1 : 2;
+    const long ind = i*nz*ny + j*nz + k;
+    const Real EU = Uhat[ind][0] * Uhat[ind][0] + Uhat[ind][1] * Uhat[ind][1];
+    const Real EV = Vhat[ind][0] * Vhat[ind][0] + Vhat[ind][1] * Vhat[ind][1];
+    const Real EW = What[ind][0] * What[ind][0] + What[ind][1] * What[ind][1];
+    const Real E = mult/2 * ( EU + EV + EW );
+    tke = E; // Total kinetic energy
+    eps = k2 * E; // Dissipation rate
+    tau = (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy turnover time
+    if (ks <= nyquist) {
+      int binID = std::floor(ks * nyquist_scaling);
+      // reduction buffer here holds also the energy spectrum, shifted by 3
+      // to hold also tke, eps and tau
+      atomicAdd(reductionBuf + 3 + binID, E);
+    }
+  }
+
+  #pragma unroll
+  for (int offset = warpSize/2; offset > 0; offset /= 2) {
+    tke = tke + warpShflDown(tke, offset);
+    eps = eps + warpShflDown(eps, offset);
+    tau = tau + warpShflDown(tau, offset);
+  }
+
+  if (threadIdx.x % warpSize == 0) {
+    atomicAdd(reductionBuf + 0, tke);
+    atomicAdd(reductionBuf + 1, eps);
+    atomicAdd(reductionBuf + 2, tau);
+  }
+}
+
+void _compute_HIT_forcing(
+  acc_c*const Uhat, acc_c*const Vhat, acc_c*const What,
+  const size_t gsize[3], const int osize[3] , const int ostart[3], const Real h,
+  Real & tke, Real & eps, Real & tkeFiltered
+)
+{
+  Real * rdxBuf;
+  cudaMalloc((void**)& rdxBuf, 3 * sizeof(Real));
+  cudaMemset(rdxBuf, 0, 3 * sizeof(Real));
+
+  const Real wfac[3] = {
+    Real(2*M_PI)/(h*gsize[0]),
+    Real(2*M_PI)/(h*gsize[1]),
+    Real(2*M_PI)/(h*gsize[2])
+  };
+  int blocksInX = std::ceil(osize[0] / 4.);
+  int blocksInY = std::ceil(osize[1] / 4.);
+  int blocksInZ = std::ceil(osize[2] / 4.);
+  dim3 Dg(blocksInX, blocksInY, blocksInZ), Db(4, 4, 4);
+  _forcing_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What
+     gsize[0], gsize[1], gsize[2], osize[0],osize[1],osize[2],
+    ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2], rdxBuf);
+
+  CUDA_Check( cudaDeviceSynchronize() );
+  cudaMemcpy(rdxBuf+0, &tke, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(rdxBuf+1, &eps, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(rdxBuf+2, &tkeFiltered, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaFree(rdxBuf);
+}
+
+void _compute_HIT_analysis(
+  acc_c*const Uhat, acc_c*const Vhat, acc_c*const What,
+  const size_t gsize[3], const int osize[3] , const int ostart[3], const Real h,
+  Real & tke, Real & eps, Real & tau, Real * const eSpectrum,
+  const size_t nBins, const Real nyquist
+)
+{
+  Real * rdxBuf;
+  // single buffer to contain both eps, tke, tau and spectrum
+  cudaMalloc((void**)& rdxBuf, (3+nBins) * sizeof(Real));
+  cudaMemset(rdxBuf, 0, (3+nBins) * sizeof(Real));
+
+  const Real wfac[3] = {
+    Real(2*M_PI)/(h*gsize[0]),
+    Real(2*M_PI)/(h*gsize[1]),
+    Real(2*M_PI)/(h*gsize[2])
+  };
+  const Real nyquist_scaling = ((int)nyquist-1) / (int)nyquist;
+  int blocksInX = std::ceil(osize[0] / 4.);
+  int blocksInY = std::ceil(osize[1] / 4.);
+  int blocksInZ = std::ceil(osize[2] / 4.);
+  dim3 Dg(blocksInX, blocksInY, blocksInZ), Db(4, 4, 4);
+  _analysis_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What
+     gsize[0], gsize[1], gsize[2], osize[0],osize[1],osize[2],
+    ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2],
+    nyquist, nyquist_scaling, rdxBuf);
+
+  //if(ostart[0]==0 && ostart[1]==0 && ostart[2]==0)
+  //  cudaMemset(data_hat, 0, 2 * sizeof(Real));
+
+  CUDA_Check( cudaDeviceSynchronize() );
+  cudaMemcpy(rdxBuf+0, &tke, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(rdxBuf+1, &eps, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(rdxBuf+2, &tau, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(rdxBuf+3, eSpectrum, nBins * sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaFree(rdxBuf);
+}

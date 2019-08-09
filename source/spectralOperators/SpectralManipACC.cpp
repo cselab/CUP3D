@@ -24,6 +24,20 @@
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
 
+void _compute_HIT_forcing(
+  acc_c*const Uhat, acc_c*const Vhat, acc_c*const What,
+  const size_t gsize[3], const int osize[3] , const int ostart[3],
+  const cubismup3d::Real h,
+  cubismup3d::Real& tke, cubismup3d::Real& eps, cubismup3d::Real& tkeFiltered
+)
+void _compute_HIT_analysis(
+  acc_c*const Uhat, acc_c*const Vhat, acc_c*const What,
+  const size_t gsize[3], const int osize[3] , const int ostart[3],
+  const cubismup3d::Real h, cubismup3d::Real& tke, cubismup3d::Real& eps,
+  cubismup3d::Real& tau, cubismup3d::Real * const eSpectrum,
+  const size_t nBins, const cubismup3d::Real nyquist
+)
+
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
@@ -32,6 +46,8 @@ void SpectralManipACC::_compute_largeModesForcing()
   Real eps = 0, tke = 0, tkeFiltered = 0;
 
   // kernel
+  _compute_HIT_forcing( (acc_c*) gpu_u, (acc_c*) gpu_v, (acc_c*) gpu_w,
+    gsize[3], osize[3], ostart[3], h, tke, eps, tkeFiltered );
 
   MPI_Allreduce(MPI_IN_PLACE, &tkeFiltered, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
@@ -44,16 +60,20 @@ void SpectralManipACC::_compute_largeModesForcing()
 
 void SpectralManipACC::_compute_analysis()
 {
-  Real tke = 0, eps = 0, tauIntegral = 0;
+  const size_t nBins = stats.nBin;
+  const Real nyquist = stats.nyquist;
+  Real tke = 0, eps = 0, tau = 0;
   Real * const E_msr = stats.E_msr;
   memset(E_msr, 0, nBins * sizeof(Real));
 
   // kernel
+  _compute_HIT_analysis( (acc_c*) gpu_u, (acc_c*) gpu_v, (acc_c*) gpu_w,
+    gsize[3], osize[3], ostart[3], h, tke, eps, tau, E_msr, nyquist);
 
   MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
-  MPI_Allreduce(MPI_IN_PLACE, &tauIntegral, 1, MPIREAL, MPI_SUM, m_comm);
+  MPI_Allreduce(MPI_IN_PLACE, &tau, 1, MPIREAL, MPI_SUM, m_comm);
 
   const Real normalization = 1 / pow2(normalizeFFT);
   for (size_t binID = 0; binID < nBins; binID++) E_msr[binID] *= normalization;
@@ -63,7 +83,7 @@ void SpectralManipACC::_compute_analysis()
   stats.uprime = std::sqrt(2 * stats.tke / 3);
   stats.lambda = std::sqrt(15 * sim.nu / stats.eps) * stats.uprime;
   stats.Re_lambda = stats.uprime * stats.lambda / sim.nu;
-  stats.tau_integral = tauIntegral * M_PI/(2*pow3(stats.uprime)) *normalization;
+  stats.tau_integral = tau * M_PI/(2*pow3(stats.uprime)) * normalization;
 }
 
 void SpectralManipACC::_compute_IC(const std::vector<Real> &K,

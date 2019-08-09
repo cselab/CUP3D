@@ -113,7 +113,7 @@ void SpectralManipFFTW::_compute_analysis()
 
     const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
     const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
-    const Real k2 = kx*kx + ky*ky + kz*kz, k_norm = std::sqrt(k2);
+    const Real k2 = kx*kx + ky*ky + kz*kz;
     const Real ks = std::sqrt(ii*ii + jj*jj + kk*kk);
     const Real E = mult/2 * ( pow2_cplx(cplxData_u[linidx])
       + pow2_cplx(cplxData_v[linidx]) + pow2_cplx(cplxData_w[linidx]) );
@@ -123,7 +123,7 @@ void SpectralManipFFTW::_compute_analysis()
     // Dissipation rate
     eps += k2 * E;
     // Large eddy turnover time
-    tauIntegral += (k_norm > 0) ? E / k_norm : 0.;
+    tauIntegral += (k2 > 0) ? E / std::sqrt(k2) : 0.;
     if (ks <= nyquist) {
       int binID = std::floor(ks * nyquist_scaling);
       E_msr[binID] += E;
