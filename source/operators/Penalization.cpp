@@ -54,7 +54,9 @@ struct KernelPenalization : public ObstacleVisitor
     const Real dv = std::pow(info.h_gridpoint, 3);
 
     // Obstacle-specific lambda, useful for gradually adding an obstacle to the flow.
-    const double lambda_fac = lambda * obstacle->lambda_factor;
+    const double rampUp = obstacle->lambda_factor;
+    // lambda = 1/dt hardcoded for expl time int, other options are wrong.
+    const double lambdaFac = rampUp * (implicitPenalization? lambda : invdt);
 
     double &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
     double &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
@@ -76,8 +78,8 @@ struct KernelPenalization : public ObstacleVisitor
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
-      const Real penalFac = implicitPenalization? X*lambda_fac / (1 + lambda_fac*dt*X)
-                                                : X * invdt;
+      const Real penalFac = implicitPenalization? X*lambdaFac/(1+lambdaFac*dt*X)
+                                                : X*lambdaFac;
 
       const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u);
       const Real FPY = penalFac * (U_TOT[1] - b(ix,iy,iz).v);
