@@ -67,17 +67,17 @@ class PoissonSolver
 
   virtual void solve() = 0;
 
-  inline size_t _offset(const int blockID) const
+  size_t _offset(const int blockID) const
   {
     const cubism::BlockInfo &info = local_infos[blockID];
     return _offset(info);
   }
-  inline size_t _offset_ext(const cubism::BlockInfo &info) const
+  size_t _offset_ext(const cubism::BlockInfo &info) const
   {
     assert(local_infos[info.blockID].blockID == info.blockID);
     return _offset(local_infos[info.blockID]);
   }
-  inline size_t _offset(const cubism::BlockInfo &info) const
+  size_t _offset(const cubism::BlockInfo &info) const
   {
     assert(stridez>0);
     assert(stridey>0);
@@ -90,7 +90,8 @@ class PoissonSolver
     };
     return stridez*myIstart[2] + stridey*myIstart[1] + stridex*myIstart[0];
   }
-  inline size_t _dest(const size_t offset,const int z,const int y,const int x) const
+
+  size_t _dest(const size_t offset,const int z,const int y,const int x) const
   {
     assert(stridez>0);
     assert(stridey>0);
@@ -99,13 +100,14 @@ class PoissonSolver
     return offset + stridez*z + stridey*y + stridex*x;
   }
 
-  inline void _cub2fftw(const size_t offset, const int z, const int y, const int x, const Real rhs) const
+  void _cub2fftw(const size_t offset, const int z, const int y, const int x, const Real rhs) const
   {
     const size_t dest_index = _dest(offset, z, y, x);
     assert(data_size > dest_index);
     data[dest_index] = rhs;
   }
-  inline Real _fftw2cub(const size_t offset, const int z, const int y, const int x) const
+
+  Real _fftw2cub(const size_t offset, const int z, const int y, const int x) const
   {
     const size_t dest_index = _dest(offset, z, y, x);
     assert(data_size > dest_index);

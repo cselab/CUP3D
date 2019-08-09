@@ -151,6 +151,7 @@ Simulation::Simulation(
 void Simulation::_init(const bool restart)
 {
   setupOperators();
+
   if (restart)
     _deserialize();
   else if (sim.icFromH5 != "")

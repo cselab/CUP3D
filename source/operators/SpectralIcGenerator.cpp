@@ -18,14 +18,11 @@ using namespace cubism;
 
 SpectralIcGenerator::SpectralIcGenerator(SimulationData &s)
 {
-  if (s.spectralManip == nullptr)
-    s.spectralManip = new SpectralManip(s);
-
-  sM = s.spectralManip;
-  sM->prepareBwd();
+  initSpectralAnalysisSolver(s);
+  s.spectralManip->prepareBwd();
 }
 
-void SpectralIcGenerator::_generateTarget(std::vector<Real>& k,
+void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,
                                           std::vector<Real>& E)
 {
   if (sM->sim.spectralIC=="cbc") {
@@ -34,37 +31,38 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& k,
     //     => Need to convert to [m^-1] and non-dimensionalize with L_ref
     // Energy is given from experiment units [cm3/s2]
     //     => Need to convert to [m^3/s^2] and non-dimensionalize with L_ref and U0
-    k = std::vector<Real> (19, 0.0);
+    K = std::vector<Real> (19, 0.0);
     E = std::vector<Real> (19, 0.0);
-    k[0]  =  0.20;  E[0]  = 129.0;
-    k[1]  =  0.25;  E[1]  = 230.0;
-    k[2]  =  0.30;  E[2]  = 322.0;
-    k[3]  =  0.40;  E[3]  = 435.0;
-    k[4]  =  0.50;  E[4]  = 457.0;
-    k[5]  =  0.70;  E[5]  = 380.0;
-    k[6]  =  1.00;  E[6]  = 270.0;
-    k[7]  =  1.50;  E[7]  = 168.0;
-    k[8]  =  2.00;  E[8]  = 120.0;
-    k[9]  =  2.50;  E[9]  =  89.0;
-    k[10] =  3.00;  E[10] =  70.3;
-    k[11] =  4.00;  E[11] =  47.0;
-    k[12] =  6.00;  E[12] =  24.7;
-    k[13] =  8.00;  E[13] =  12.6;
-    k[14] = 10.00;  E[14] =  7.42;
-    k[15] = 12.50;  E[15] =  3.96;
-    k[16] = 15.00;  E[16] =  2.33;
-    k[17] = 17.50;  E[17] =  1.34;
-    k[18] = 20.00;  E[18] =   0.8;
+    K[0]  =  0.20;  E[0]  = 129.0;
+    K[1]  =  0.25;  E[1]  = 230.0;
+    K[2]  =  0.30;  E[2]  = 322.0;
+    K[3]  =  0.40;  E[3]  = 435.0;
+    K[4]  =  0.50;  E[4]  = 457.0;
+    K[5]  =  0.70;  E[5]  = 380.0;
+    K[6]  =  1.00;  E[6]  = 270.0;
+    K[7]  =  1.50;  E[7]  = 168.0;
+    K[8]  =  2.00;  E[8]  = 120.0;
+    K[9]  =  2.50;  E[9]  =  89.0;
+    K[10] =  3.00;  E[10] =  70.3;
+    K[11] =  4.00;  E[11] =  47.0;
+    K[12] =  6.00;  E[12] =  24.7;
+    K[13] =  8.00;  E[13] =  12.6;
+    K[14] = 10.00;  E[14] =  7.42;
+    K[15] = 12.50;  E[15] =  3.96;
+    K[16] = 15.00;  E[16] =  2.33;
+    K[17] = 17.50;  E[17] =  1.34;
+    K[18] = 20.00;  E[18] =   0.8;
     const Real M = 5.08;
 
     const Real u_ref = std::sqrt(3.0/2)*22.2;
     const Real L_ref = 10.8*M;
 
-    for (std::size_t idx = 0; idx < k.size(); idx++) {
-      k[idx] *= L_ref * 0.01 * 2 * M_PI;
+    for (std::size_t idx = 0; idx < K.size(); idx++) {
+      K[idx] *= L_ref * 0.01 * 2 * M_PI;
       E[idx] /= u_ref * u_ref * L_ref;
     }
   }
+
   else if (sM->sim.spectralIC=="art") {
     // Initial spectrum from :
     // P. Sullivan, Neal & Mahalingam, Shankar & Kerr, Robert. (1994).
@@ -72,13 +70,17 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& k,
     // Physics of Fluids. 6. 10.1063/1.868274.
     const Real k0   = sM->sim.k0;
     const Real tke0 = sM->sim.tke0;
-    k = std::vector<Real> (sM->nBin, 0.0);
-    E = std::vector<Real> (sM->nBin, 0.0);
+    const Real maxGridN = sM->maxGridN, maxGridL = sM->maxGridL;
+    const int nBins = std::ceil(std::sqrt(3.0) * maxGridN / 2.0) + 1;
+    const Real binSize = M_PI*std::sqrt(3.0) * maxGridN / (nBins * maxGridL);
+
+    K = std::vector<Real> (nBins, 0.0);
+    E = std::vector<Real> (nBins, 0.0);
     const Real coef = 32 * tke0 / (3*k0) * std::sqrt(2.0/M_PI);
 
-    for (int i=0; i<sM->nBin; i++) {
-      k[i] = (i+0.5) * sM->binSize;
-      E[i] = coef * std::pow(k[i]/k0,4) * std::exp(-2*std::pow(k[i]/k0,2));
+    for (int i=0; i<nBins; i++) {
+      K[i] = (i+0.5) * binSize;
+      E[i] = coef * std::pow(K[i]/k0,4) * std::exp(-2*std::pow(K[i]/k0,2));
     }
   }
 
@@ -95,15 +97,15 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& k,
       std::istringstream in(line);
       Real k_r, E_r;
       in >> k_r >> E_r;
-      k.push_back(k_r);
+      K.push_back(k_r);
       E.push_back(E_r);
     }
-    energySpectrum target = energySpectrum(k,E);
+    EnergySpectrum target(K,E);
 
     // Set target tke
     Real k_eval = 0.0, tke0 = 0.0;
-    for (int i = 0; i<sM->maxGridSize; i++) {
-      k_eval = (i+1) * 2*M_PI / sM->maxBoxLength;
+    for (int i = 0; i<sM->maxGridN; i++) {
+      k_eval = (i+1) * 2*M_PI / sM->maxGridL;
       tke0  += target.interpE(k_eval);
     }
 
@@ -112,85 +114,6 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& k,
         sM->sim.turbKinEn_target <= 0 &&
         sM->sim.enInjectionRate  <= 0) sM->sim.turbKinEn_target = tke0;
   }
-}
-
-void SpectralIcGenerator::_compute()
-{
-  std::random_device seed;
-  std::mt19937 gen(seed());
-  std::uniform_real_distribution<Real> randUniform(0,1);
-
-  std::vector<Real> K, E;
-  _generateTarget(K, E);
-  energySpectrum target = energySpectrum(K, E);
-
-  Real tke = 0.0;
-  fft_c *const cplxData_u = (fft_c *) sM->data_u;
-  fft_c *const cplxData_v = (fft_c *) sM->data_v;
-  fft_c *const cplxData_w = (fft_c *) sM->data_w;
-  const Real waveFactorX = sM->waveFactor[0];
-  const Real waveFactorY = sM->waveFactor[1];
-  const Real waveFactorZ = sM->waveFactor[2];
-  const long nKx = sM->nKx, nKy = sM->nKy, nKz = sM->nKz;
-  const long sizeX = sM->gsize[0], sizeZ_hat = sM->nz_hat;
-  const long loc_n1 = sM->local_n1, shifty = sM->shifty;
-
-  #pragma omp parallel for reduction(+:tke) schedule(static)
-  for(long j = 0; j<loc_n1;  ++j)
-  for(long i = 0; i<sizeX;    ++i)
-  for(long k = 0; k<sizeZ_hat; ++k)
-  {
-    const long linidx = (j*sizeX +i) * sizeZ_hat + k;
-    const long ii = (i <= nKx/2) ? i : -(nKx-i);
-    const long l = shifty + j; //memory index plus shift due to decomp
-    const long jj = (l <= nKy/2) ? l : -(nKy-l);
-    const long kk = (k <= nKz/2) ? k : -(nKz-k);
-
-    const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
-    const Real k2 = kx*kx + ky*ky + kz*kz;
-    const Real k_xy = std::sqrt(kx*kx + ky*ky);
-    const Real k_norm = std::sqrt(k2);
-
-    const Real E_k = target.interpE(k_norm);
-    const Real amp = (k2==0)? 0
-                    : std::sqrt(E_k/(2*M_PI*std::pow(k_norm/waveFactorX,2)));
-
-    const Real theta1 = randUniform(gen)*2*M_PI;
-    const Real theta2 = randUniform(gen)*2*M_PI;
-    const Real phi    = randUniform(gen)*2*M_PI;
-
-    const Real noise_a[2] = {amp * std::cos(theta1) * std::cos(phi),
-                             amp * std::sin(theta1) * std::cos(phi)};
-    const Real noise_b[2] = {amp * std::cos(theta2) * std::sin(phi),
-                             amp * std::sin(theta2) * std::sin(phi)};
-
-    const Real fac = k_norm*k_xy;
-    const Real invFac = (fac==0)? 0 : 1/fac;
-    const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
-
-    cplxData_u[linidx][0] = k_norm==0? 0
-                  : invFac * (noise_a[0] * k_norm * ky + noise_b[0] * kx * kz );
-    cplxData_u[linidx][1] = k_norm==0? 0
-                  : invFac * (noise_a[0] * k_norm * ky + noise_b[1] * kx * kz );
-
-    cplxData_v[linidx][0] = k_norm==0? 0
-                  : invFac * (noise_b[0] * ky * kz - noise_a[0] * k_norm * kx );
-    cplxData_v[linidx][1] = k_norm==0? 0
-                  : invFac * (noise_b[1] * ky * kz - noise_a[1] * k_norm * kx );
-
-    cplxData_w[linidx][0] = k_norm==0? 0 : -noise_b[0] * k_xy / k_norm;
-    cplxData_w[linidx][1] = k_norm==0? 0 : -noise_b[1] * k_xy / k_norm;
-
-    tke += mult/2 * ( pow2_cplx(cplxData_u[linidx])
-                     +pow2_cplx(cplxData_v[linidx])
-                     +pow2_cplx(cplxData_w[linidx]));
-  }
-  MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, sM->m_comm);
-
-  // if user asked spectral forcing, but no value specified, satisfy spectrum
-  if (sM->sim.spectralForcing       &&
-      sM->sim.turbKinEn_target <= 0 &&
-      sM->sim.enInjectionRate  <= 0) sM->sim.turbKinEn_target = tke;
 }
 
 void SpectralIcGenerator::_fftw2cub() const
@@ -213,7 +136,16 @@ void SpectralIcGenerator::_fftw2cub() const
 
 void SpectralIcGenerator::run()
 {
-  _compute();
+  std::vector<Real> K, E;
+  _generateTarget(K, E);
+  sM->_compute_IC(K, E);
+  sM->_compute_analysis();
+  // if user asked spectral forcing, but no value specified, satisfy spectrum
+  if (sM->sim.spectralForcing       &&
+      sM->sim.turbKinEn_target <= 0 &&
+      sM->sim.enInjectionRate  <= 0 )
+      sM->sim.turbKinEn_target = sM->stats.tke;
+
   sM->runBwd();
   _fftw2cub();
 }

@@ -20,7 +20,7 @@
 
 void _fourier_filter_gpu(
   acc_c*const __restrict__ data_hat, const size_t gsize[3],
-  const int osize[3], const int ostart[3], const Real h);
+  const int osize[3], const int ostart[3], const cubismup3d::Real h);
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

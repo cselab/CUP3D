@@ -19,14 +19,19 @@
   typedef accfft_plan_gpuf acc_plan;
 #endif
 
-void dSolveFreespace(const int ox,const int oy,const int oz,const size_t mz_pad,
-  const Real*const G_hat, Real*const gpu_rhs);
+void dSolveFreespace(const int ox, const int oy, const int oz,
+                     const size_t mz_pad,
+                     const cubismup3d::Real*const G_hat,
+                           cubismup3d::Real*const gpu_rhs);
 
 void initGreen(const int *isz, const int *ist,
-  int nx, int ny, int nz, const Real h, Real*const gpu_rhs);
+               int nx, int ny, int nz, const cubismup3d::Real h,
+               cubismup3d::Real*const gpu_rhs);
 
-void realGreen(const int*osz, const int*ost, int nx, int ny, int nz,
-  const Real h, Real*const m_kernel, Real*const gpu_rhs);
+void realGreen(const int*osz, const int*ost,
+               int nx, int ny, int nz, const cubismup3d::Real h,
+               cubismup3d::Real*const m_kernel,
+               cubismup3d::Real*const gpu_rhs);
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

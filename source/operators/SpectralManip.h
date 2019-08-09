@@ -17,7 +17,6 @@
 
 #include "SimulationData.h"
 #include "Cubism/BlockInfo.h"
-#include "poisson/PoissonSolver_common.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -31,37 +30,92 @@ inline T pow3(const T val) {
     return val*val*val;
 }
 
-inline Real pow2_cplx(const fft_c cplx_val) {
-  return pow2(cplx_val[0]) + pow2(cplx_val[1]);
-}
+void initSpectralAnalysisSolver(SimulationData & sim);
 
-struct energySpectrum
+struct EnergySpectrum
 {
-public:
   const std::vector<Real> k;
   const std::vector<Real> E;
   const std::vector<Real> sigma2;
 
-  energySpectrum(std::vector<Real> _k, std::vector<Real> _E) : k(_k), E(_E) {}
-  energySpectrum(std::vector<Real> _k, std::vector<Real> _E,
-                 std::vector<Real> _sigma2)
-      : k(_k), E(_E), sigma2(_sigma2) {}
+  EnergySpectrum(const std::vector<Real> &_k, const std::vector<Real> &_E);
+  EnergySpectrum(const std::vector<Real> &_k, const std::vector<Real> &_E,
+                 const std::vector<Real> &_sigma2);
 
-  Real interpE(const Real k);
-  Real interpSigma2(const Real k);
+  Real interpE(const Real k) const;
+  Real interpSigma2(const Real k) const;
   void dump2File(const int nBin, const int nGrid, const Real h);
+};
+
+struct HITstatistics
+{
+  HITstatistics(const int maxGridSize, const Real maxBoxLength):
+    N(maxGridSize), nyquist(N/2), nBin(nyquist-1), L(maxBoxLength),
+    k_msr(new Real[nBin]), E_msr(new Real[nBin]), cs2_msr(new Real[nBin])
+  {
+    reset();
+    for (int i = 0; i<nBin; ++i) k_msr[i] = (i+1) * 2*M_PI / L;
+  }
+
+  HITstatistics(const HITstatistics&c) : N(c.N), nyquist(N/2), nBin(nyquist-1),
+  L(c.L), k_msr(new Real[nBin]), E_msr(new Real[nBin]), cs2_msr(new Real[nBin])
+  {
+    reset();
+    for (int i = 0; i<nBin; ++i) k_msr[i] = (i+1) * 2*M_PI / L;
+  }
+
+  ~HITstatistics()
+  {
+    delete [] k_msr;
+    delete [] E_msr;
+    delete [] cs2_msr;
+  }
+
+  void reset()
+  {
+    tke = 0; eps = 0; tau_integral = 0; tke_filtered = 0;
+    lambda = 0; uprime = 0; Re_lambda = 0;
+    memset(E_msr, 0, nBin * sizeof(Real));
+    memset(cs2_msr, 0, nBin * sizeof(Real));
+  }
+
+  // Parameters of the histogram
+  const int N, nyquist, nBin = nyquist-1;
+  const Real L;
+
+  // Output of the analysis
+  Real tke = 0, eps = 0, tau_integral = 0, tke_filtered = 0;
+  Real lambda = 0, uprime = 0, Re_lambda = 0;
+  Real * const k_msr;
+  Real * const E_msr;
+  Real * const cs2_msr;
 };
 
 class SpectralManip
 {
   friend class SpectralIcGenerator;
   friend class SpectralAnalysis;
-  friend class KernelSpectralForcing;
- private:
+  friend class SpectralForcing;
+
+protected:
   typedef typename FluidGridMPI::BlockType BlockType;
   SimulationData & sim;
   FluidGridMPI& grid = * sim.grid;
-  // MPI related
+
+  size_t stridez = 0;
+  size_t stridey = 0;
+  size_t stridex = 0;
+  size_t data_size = 0;
+  HITstatistics stats = HITstatistics(maxGridN, maxGridL);
+
+  // spectral manips are only supported for fully periodic flows
+  bool bAllocFwd = false;
+  bool bAllocBwd = false;
+
+  Real * data_u, * data_v, * data_w;
+  // * data_cs2;
+
+public:
   const MPI_Comm m_comm = grid.getCartComm();
   const int m_rank = sim.rank, m_size = sim.nprocs;
 
@@ -79,74 +133,45 @@ class SpectralManip
       static_cast<size_t>(grid.getBlocksPerDimension(2)*bs[2])
   };
   const size_t myN[3]={ mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
-  ptrdiff_t alloc_local=0, local_n0=0, local_0_start=0, local_n1=0, local_1_start=0;
-
-  size_t stridez = 0;
-  size_t stridey = 0;
-  size_t stridex = 0;
-  size_t data_size = 0;
-
-  long shifty=0;
-
-  const long nKx = static_cast<long>(gsize[0]);
-  const long nKy = static_cast<long>(gsize[1]);
-  const long nKz = static_cast<long>(gsize[2]);
-
-  const long maxGridSize = std::max({gsize[0], gsize[1], gsize[2]});
-  const long minGridSize = std::max({gsize[0], gsize[1], gsize[2]});
-  const std::array<Real, 3> lBox = sim.extent;
-  const Real maxBoxLength = std::max({lBox[0], lBox[1], lBox[2]});
-  const Real minBoxLength = std::min({lBox[0], lBox[1], lBox[2]});
-
-  const size_t nz_hat = gsize[2]/2+1;
-  const double h = sim.uniformH();
-  const double waveFactor[3] = {2.0 * M_PI / lBox[0],
-                                2.0 * M_PI / lBox[1],
-                                2.0 * M_PI / lBox[2]};
-  bool bAllocFwd = false, bAllocBwd = false;
-  bool bAllocCs2 = false;
-
-  const int nBin = std::ceil(std::sqrt(3.0)*maxGridSize/2.0)+1;
-  const Real binSize = M_PI*std::sqrt(3.0)*maxGridSize/(nBin*maxBoxLength);
-
-  Real * data_u, * data_v, * data_w, * data_cs2;
-  void * fwd_u, * fwd_v, * fwd_w, * fwd_cs2;
-  void * bwd_u, * bwd_v, * bwd_w;
-
-public:
-
   const size_t normalizeFFT = gsize[0] * gsize[1] * gsize[2];
+  const size_t nz_hat = gsize[2]/2+1;
+  const long maxGridN = std::max({gsize[0], gsize[1], gsize[2]});
+  const Real maxGridL = std::max({sim.extent[0], sim.extent[1], sim.extent[2]});
+  //const double h = sim.uniformH();
 
   SpectralManip(SimulationData & s);
-  ~SpectralManip();
+  virtual ~SpectralManip();
 
-  void prepareFwd();
-  void prepareBwd();
+  virtual void prepareFwd() = 0;
+  virtual void prepareBwd() = 0;
 
-  inline size_t _offset(const int blockID) const
+  size_t _offset(const int blockID) const
   {
     const cubism::BlockInfo &info = local_infos[blockID];
     return _offset(info);
   }
-  inline size_t _offset_ext(const cubism::BlockInfo &info) const
+
+  size_t _offset_ext(const cubism::BlockInfo &info) const
   {
     assert(local_infos[info.blockID].blockID == info.blockID);
     return _offset(local_infos[info.blockID]);
   }
-  inline size_t _offset(const cubism::BlockInfo &info) const
+
+  size_t _offset(const cubism::BlockInfo &info) const
   {
     assert(stridez>0);
     assert(stridey>0);
     assert(stridex>0);
     assert(data_size>0);
     const int myIstart[3] = {
-      info.index[0]*bs[0],
-      info.index[1]*bs[1],
-      info.index[2]*bs[2]
+      info.index[0] * bs[0],
+      info.index[1] * bs[1],
+      info.index[2] * bs[2]
     };
     return stridez*myIstart[2] + stridey*myIstart[1] + stridex*myIstart[0];
   }
-  inline size_t _dest(const size_t offset,const int z,const int y,const int x) const
+
+  size_t _dest(const size_t offset,const int z,const int y,const int x) const
   {
     assert(stridez>0);
     assert(stridey>0);
@@ -155,8 +180,13 @@ public:
     return offset + stridez*z + stridey*y + stridex*x;
   }
 
-  void runFwd() const;
-  void runBwd() const;
+  virtual void runFwd() const = 0;
+  virtual void runBwd() const = 0;
+
+  virtual void _compute_largeModesForcing() = 0;
+  virtual void _compute_analysis() = 0;
+  virtual void _compute_IC(const std::vector<Real> &K,
+                           const std::vector<Real> &E) = 0;
 
   void reset() const
   {

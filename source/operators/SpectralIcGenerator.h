@@ -34,7 +34,6 @@ private:
   SpectralManip * sM;
 
   void _generateTarget(std::vector<Real>& k, std::vector<Real>& E);
-  void _compute();
   void _fftw2cub() const;
 };
 
