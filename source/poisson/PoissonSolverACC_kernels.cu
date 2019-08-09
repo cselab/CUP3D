@@ -323,9 +323,9 @@ void _compute_HIT_forcing(
     ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2], rdxBuf);
 
   CUDA_Check( cudaDeviceSynchronize() );
-  cudaMemcpy(rdxBuf+0, &tke, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(rdxBuf+1, &eps, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(rdxBuf+2, &tkeFiltered, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&tke,         rdxBuf+0, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&eps,         rdxBuf+1, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&tkeFiltered, rdxBuf+2, sizeof(Real), cudaMemcpyDeviceToHost);
   CUDA_Check( cudaDeviceSynchronize() );
   cudaFree(rdxBuf);
 }
@@ -361,10 +361,10 @@ void _compute_HIT_analysis(
   //  cudaMemset(data_hat, 0, 2 * sizeof(Real));
 
   CUDA_Check( cudaDeviceSynchronize() );
-  cudaMemcpy(rdxBuf+0, &tke, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(rdxBuf+1, &eps, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(rdxBuf+2, &tau, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(rdxBuf+3, eSpectrum, nBins * sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&tke,      rdxBuf+0, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&eps,      rdxBuf+1, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&tau,      rdxBuf+2, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(eSpectrum, rdxBuf+3, nBins * sizeof(Real), cudaMemcpyDeviceToHost);
   CUDA_Check( cudaDeviceSynchronize() );
   cudaFree(rdxBuf);
 }
