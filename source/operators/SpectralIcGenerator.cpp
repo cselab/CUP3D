@@ -20,6 +20,7 @@ SpectralIcGenerator::SpectralIcGenerator(SimulationData &s)
 {
   initSpectralAnalysisSolver(s);
   s.spectralManip->prepareBwd();
+  sM = s.spectralManip;
 }
 
 void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,

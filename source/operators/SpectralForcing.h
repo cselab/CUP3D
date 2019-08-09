@@ -14,8 +14,6 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-class SpectralManip;
-
 class SpectralForcing : public Operator
 {
   Real totalKinEn = 0.0;
