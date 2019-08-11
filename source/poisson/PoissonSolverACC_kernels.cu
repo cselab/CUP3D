@@ -191,6 +191,12 @@ __device__ double atomicAdd(double* address, double val)
 }
 #endif
 
+__device__ inline uint32_t __laneid()
+{
+    uint32_t laneid;
+    asm volatile("mov.u32 %0, %%laneid;" : "=r"(laneid));
+    return laneid;
+}
 
 __global__
 void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
@@ -229,6 +235,7 @@ void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
     }
   }
 
+#if 1
   // reduction within same warp: result is summed down to thread 0
   #pragma unroll
   for (int offset = warpSize/2; offset > 0; offset /= 2) {
@@ -237,11 +244,16 @@ void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
     tkeFiltered = tkeFiltered + warpShflDown(tkeFiltered, offset);
   }
 
-  if (threadIdx.x % warpSize == 0) { // thread 0 does the only atomic sum
+  if (__laneid() == 0) { // thread 0 does the only atomic sum
     atomicAdd(reductionBuf + 0, tke);
     atomicAdd(reductionBuf + 1, eps);
     atomicAdd(reductionBuf + 2, tkeFiltered);
   }
+#else
+  atomicAdd(reductionBuf + 0, tke);
+  atomicAdd(reductionBuf + 1, eps);
+  atomicAdd(reductionBuf + 2, tkeFiltered);
+#endif
 }
 
 
@@ -292,7 +304,7 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
     tau = tau + warpShflDown(tau, offset);
   }
 
-  if (threadIdx.x % warpSize == 0) {
+  if (__laneid() == 0) { // thread 0 does the only atomic sum
     atomicAdd(reductionBuf + 0, tke);
     atomicAdd(reductionBuf + 1, eps);
     atomicAdd(reductionBuf + 2, tau);
