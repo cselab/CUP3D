@@ -8,7 +8,7 @@
 
 #include "Operator.h"
 #include "SGS_RL.h"
-#include "Communicators/Communicator.h"
+#include "smarties.h"
 
 #include <functional>
 CubismUP_3D_NAMESPACE_BEGIN
@@ -80,20 +80,6 @@ inline std::vector<Real> flowInvariants(
   return ret;
 }
 
-inline int getAgentId(const int idx, const int idy, const int idz,
-               const std::vector<int> trackedAgentsX,
-               const std::vector<int> trackedAgentsY,
-               const std::vector<int> trackedAgentsZ)
-{
-  const int nAgentsPerBlock = trackedAgentsX.size();
-  for (int i=0; i<nAgentsPerBlock; ++i)
-  {
-    if (idx==trackedAgentsX[i] and idy==trackedAgentsY[i] and idz==trackedAgentsZ[i])
-      return i;
-  }
-  return -1;
-}
-
 inline std::vector<double> getState_uniform(Lab& lab,
                                      const int ix, const int iy, const int iz,
                                      const Real h, const Real scaleGrads)
@@ -123,89 +109,113 @@ inline std::vector<double> getState_uniform(Lab& lab,
   return ret;
 }
 
+using rlApi_t = std::function<Real(const std::vector<double>, const double,
+                                   const size_t, const size_t,
+                                   const int, const int, const int)>;
 class KernelSGS_RL
 {
  private:
-  smarties::Communicator& comm;
-  const int step;
-  const bool timeOut;
-  const double reward;
-  const size_t nBlocks;
-  const size_t nAgentsPerBlock;
+  const rlApi_t& sendStateRecvAct;
   const Real scaleGrads;
 
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2, 2, 2, false, {FE_U,FE_V,FE_W}};
 
-  KernelSGS_RL(smarties::Communicator& _comm, const int _step,
-               const bool _timeOut, const double _rew, const Real _scaleGrads,
-               const size_t _nBlocks, const size_t _nAgentsPerBlock) :
-  comm(_comm), step(_step), timeOut(_timeOut), reward(_rew), nBlocks(_nBlocks),
-  nAgentsPerBlock(_nAgentsPerBlock), scaleGrads(_scaleGrads) {}
+  KernelSGS_RL(const rlApi_t& api, const Real _scaleGrads) :
+    sendStateRecvAct(api), scaleGrads(_scaleGrads) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
   {
     // FD coefficients for first and second derivative
     const Real h = info.h_gridpoint;
-    const int thrID = omp_get_thread_num();
-    const size_t nAgents = nAgentsPerBlock * nBlocks;
-    using send_t = std::function<void(const std::vector<double>,double,size_t)>;
-    const send_t Finit = [&](const std::vector<double> S, double R, size_t ID) {
-            comm.sendInitState(S, ID); };
-    const send_t Fcont = [&](const std::vector<double> S, double R, size_t ID) {
-            comm.sendState(S, R, ID); };
-    const send_t Flast = [&](const std::vector<double> S, double R, size_t ID) {
-            comm.sendLastState(S, R, ID); };
-    const send_t sendState = step == 0 ? Finit : ( timeOut ? Flast : Fcont );
+    const size_t thrID = omp_get_thread_num(), blockID = info.blockID;
 
-    // Deal with the real agents first
-    for (size_t k = 0; k < nAgentsPerBlock; ++k)
-    {
-      const int ix = o.iAgentX[k], iy = o.iAgentY[k], iz = o.iAgentZ[k];
-      const size_t agentID = nAgentsPerBlock*info.blockID + k;
-      const auto state = getState_uniform(lab, ix, iy, iz, h, scaleGrads);
-      sendState(state, reward, agentID);
-      if (!timeOut) o(ix,iy,iz).chi = comm.recvAction(agentID)[0];
-    }
-
-    // Then the fake agents
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
-    for (int ix = 0; ix < FluidBlock::sizeX; ++ix)
-    {
-      // one element per block is a proper agent: will add seq to train data
-      // other are nThreads and are only there for thread safety
-      // states get overwritten
-
+    for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
+      const auto state = getState_uniform(lab, ix, iy, iz, h, scaleGrads);
       // LES coef can be stored in chi as long as we do not have obstacles
       // otherwise we will have to figure out smth
-      const int locAgentID= getAgentId(ix,iy,iz, o.iAgentX,o.iAgentY,o.iAgentZ);
-
-      //std::cout<<"Local Agent id"<< localAgentID << std::endl;
-      if (locAgentID>=0) continue;
-      const size_t agentID =  nAgents + thrID;
-      const auto state = getState_uniform(lab, ix, iy, iz, h, scaleGrads);
-      sendState(state, reward, agentID);
-      if (!timeOut) o(ix,iy,iz).chi = comm.recvAction(agentID)[0];
+      // we could compute a local reward here, place as second arg
+      o(ix,iy,iz).chi = sendStateRecvAct(state, 0, blockID, thrID, ix,iy,iz);
     }
   }
 };
 
-SGS_RL::SGS_RL(SimulationData& s, smarties::Communicator* _comm,
-               const int _step, const bool _timeOut,
-               const double _reward, const double _scaleGrads,
-               const int _nAgentsPerBlock) : Operator(s), comm(_comm),
-               step(_step), timeOut(_timeOut), reward(_reward),
-               scaleGrads(_scaleGrads), nAgentsPerBlock(_nAgentsPerBlock)
-{}
+SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
+               const int nAgentsPB) : Operator(s), commPtr(_comm),
+               nAgentsPerBlock(nAgentsPB)
+{
+  // TODO relying on chi field does not work is obstacles are present
+  // TODO : make sure there are no agents on the same grid point if nAgentsPB>1
+  assert(nAgentsPB == 1); // TODO
+  std::mt19937& gen = commPtr->getPRNG();
+  const std::vector<BlockInfo>& myInfo = sim.vInfo();
+  std::uniform_int_distribution<int> distX(0, FluidBlock::sizeX-1);
+  std::uniform_int_distribution<int> distY(0, FluidBlock::sizeY-1);
+  std::uniform_int_distribution<int> distZ(0, FluidBlock::sizeZ-1);
+  agentsIDX.resize(myInfo.size(), -1);
+  agentsIDY.resize(myInfo.size(), -1);
+  agentsIDZ.resize(myInfo.size(), -1);
 
-void SGS_RL::operator()(const double dt)
+  for (size_t i=0; i<myInfo.size(); ++i) {
+    agentsIDX[i] = distX(gen);
+    agentsIDY[i] = distY(gen);
+    agentsIDZ[i] = distZ(gen);
+  }
+}
+
+void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
+                 const Real stateScaling, const Real collectiveReward)
 {
   sim.startProfiler("SGS_RL");
-  const KernelSGS_RL K_SGS_RL(*comm, step, timeOut, reward, scaleGrads,
-                              sim.vInfo().size(), nAgentsPerBlock);
+  smarties::Communicator & comm = * commPtr;
+  const size_t nBlocks = sim.vInfo().size();
+
+  // one element per block is a proper agent: will add seq to train data
+  // other are nThreads and are only there for thread safety
+  // states get overwritten
+
+  const rlApi_t Finit = [&](const std::vector<double>&S, const double localRew,
+                            const size_t blockID, const size_t threadID,
+                            const int ix,const int iy,const int iz)
+  {
+    const bool bAgent = ix == agentsIDX[blockID] &&
+                        iy == agentsIDY[blockID] &&
+                        iz == agentsIDZ[blockID];
+    const size_t agentID = bAgent? blockID : nBlocks + threadID;
+    comm.sendInitState(S, agentID);
+    return comm.recvAction(agentID)[0];
+  };
+  const rlApi_t Fcont = [&](const std::vector<double>&S, const double localRew,
+                            const size_t blockID, const size_t threadID,
+                            const int ix,const int iy,const int iz)
+  {
+    const bool bAgent = ix == agentsIDX[blockID] &&
+                        iy == agentsIDY[blockID] &&
+                        iz == agentsIDZ[blockID];
+    const size_t agentID = bAgent? blockID : nBlocks + threadID;
+    const Real R = collectiveReward; // can weigh with local
+    comm.sendState(S, R, agentID);
+    return comm.recvAction(agentID)[0];
+  };
+  const rlApi_t Flast = [&](const std::vector<double>&S, const double localRew,
+                            const size_t blockID, const size_t threadID,
+                            const int ix,const int iy,const int iz)
+  {
+    const bool bAgent = ix == agentsIDX[blockID] &&
+                        iy == agentsIDY[blockID] &&
+                        iz == agentsIDZ[blockID];
+    const size_t agentID = bAgent? blockID : nBlocks + threadID;
+    const Real R = collectiveReward; // can weigh with local
+    comm.sendLastState(S, R, agentID);
+    return (Real) 0;
+  };
+  const rlApi_t sendState = RLinit ? Finit : ( RLover ? Flast : Fcont );
+
+  const KernelSGS_RL K_SGS_RL(sendState, stateScaling);
 
   compute<KernelSGS_RL>(K_SGS_RL);
   sim.stopProfiler();

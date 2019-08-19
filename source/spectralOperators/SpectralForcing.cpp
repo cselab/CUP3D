@@ -39,12 +39,12 @@ void SpectralForcing::operator()(const double dt)
   largeModesKinEn = sM->stats.tke_filtered;
   sim.dissipationRate = (totalKinEnPrev - totalKinEn) / dt;
   totalKinEnPrev = totalKinEn;
-  Real injectionRate = 0;
+  sim.actualInjectionRate = 0;
   //With non spectral IC, the target tke may not be defined here
   if      (sim.turbKinEn_target > 0) // inject energy to match target tke
-       injectionRate = (sim.turbKinEn_target - totalKinEn)/dt;
+       sim.actualInjectionRate = (sim.turbKinEn_target - totalKinEn)/dt;
   else if (sim.enInjectionRate  > 0) // constant power input:
-       injectionRate =  sim.enInjectionRate;
+       sim.actualInjectionRate =  sim.enInjectionRate;
 
   // If there's too much energy, let dissipation do its job
   if(sim.rank == 0) {
@@ -59,10 +59,10 @@ void SpectralForcing::operator()(const double dt)
     ssF.setf(std::ios::scientific);
     ssF.precision(std::numeric_limits<float>::digits10 + 1);
     ssF<<sim.time<<tab<<sim.dt<<tab<<totalKinEn<<tab<<largeModesKinEn<<tab
-       <<viscousDissip<<tab<<sim.dissipationRate<<tab<<injectionRate<<"\n";
+       <<viscousDissip<<tab<<sim.dissipationRate<<tab<<sim.actualInjectionRate<<"\n";
   }
 
-  const Real fac = sim.dt *injectionRate/(2*largeModesKinEn)/sM->normalizeFFT;
+  const Real fac = sim.dt * sim.actualInjectionRate / (2*largeModesKinEn) / sM->normalizeFFT;
 
   if(fac>0) _fftw2cub(fac);
 

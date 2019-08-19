@@ -21,22 +21,18 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class SGS_RL : public Operator
 {
-  smarties::Communicator * const comm;
-  const int step;
-  const bool timeOut;
-  const double reward;
-  const double scaleGrads;
+  smarties::Communicator * const commPtr;
   const int nAgentsPerBlock;
+  std::vector<int> agentsIDX;
+  std::vector<int> agentsIDY;
+  std::vector<int> agentsIDZ;
 
 public:
-  SGS_RL(SimulationData& s, smarties::Communicator* _comm, const int _step,
-         const bool _timeOut, const double _reward, const double _scaleGrads,
-         const int nAgentsPerBlock);
+  SGS_RL(SimulationData&s, smarties::Communicator*_comm, const int nAgentsPB);
 
-  ~SGS_RL() { }
-
-  void run() { return (*this)(0.0); /* call next fun with dummy dt */ };
-  void operator()(const double dt);
+  void run(const double dt, const bool RLinit, const bool RLover,
+           const Real stateScaling, const Real collectiveReward);
+  void operator()(const double dt) override {}
 
   std::string getName() { return "SGS_RL"; }
 };

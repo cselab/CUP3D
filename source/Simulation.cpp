@@ -175,16 +175,10 @@ void Simulation::_init(const bool restart)
 }
 
 
-void Simulation::reset(std::mt19937& gen, const Real tStart, const int nAgentsPerBlock, const int sim_id, const bool bTrain)
+void Simulation::reset()
 {
-  if (sim.icFromH5 != ""){
-    std::string h5File = sim.icFromH5;
-    if (not bTrain)
-      h5File = "../" + h5File;
-    _icFromH5(h5File);
-  }
-  else
-    _ic();
+  if (sim.icFromH5 != "") _icFromH5(sim.icFromH5);
+  else _ic();
 
   sim.nextSaveTime = 0;
   sim.step = 0; sim.time = 0;
@@ -194,36 +188,6 @@ void Simulation::reset(std::mt19937& gen, const Real tStart, const int nAgentsPe
     printf("TODO Implement reset also for obstacles if needed!\n");
     fflush(0); MPI_Abort(sim.app_comm, 1);
   }
-
-  // Set up tracked agent
-  // TODO : make sure there are no agents on the same grid point...
-  const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
-  std::uniform_int_distribution<int> distX(0,FluidBlock::sizeX-1);
-  std::uniform_int_distribution<int> distY(0,FluidBlock::sizeY-1);
-  std::uniform_int_distribution<int> distZ(0,FluidBlock::sizeZ-1);
-  #pragma omp parallel for schedule(static)
-  for (size_t i=0; i<myInfo.size(); i++){
-    const BlockInfo& info = myInfo[i];
-    FluidBlock* b = (FluidBlock*) info.ptrBlock;
-    if (sim_id==0){
-      b->iAgentX = std::vector<int>(nAgentsPerBlock, 0);
-      b->iAgentY = std::vector<int>(nAgentsPerBlock, 0);
-      b->iAgentZ = std::vector<int>(nAgentsPerBlock, 0);
-    }
-    for (int k=0; k<nAgentsPerBlock; k++){
-      b->iAgentX[k]=distX(gen);
-      b->iAgentY[k]=distY(gen);
-      b->iAgentZ[k]=distZ(gen);
-    }
-  }
-  printf("Reset simulation up to time=%g\n", tStart);
-  while (sim.time < tStart){
-    sim.sgs    = "SSM";
-    const double dt = calcMaxTimestep();
-    timestep(dt);
-  }
-  sim.sgs    = "RLSM";
-  MPI_Barrier(sim.app_comm);
 }
 
 void Simulation::_ic()

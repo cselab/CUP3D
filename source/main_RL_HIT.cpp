@@ -7,19 +7,22 @@
 //  Hugues de Laroussilhe (huguesdelaroussilhe@gmail.com).
 //
 
-#include "Communicators/Communicator_MPI.h"
+#include "smarties.h"
 
 #include "Simulation.h"
 #include "operators/SGS_RL.h"
-#include "operators/SpectralAnalysis.h"
+#include "spectralOperators/SpectralManip.h"
 
 #include <Cubism/ArgumentParser.h>
 
 #include <sys/stat.h>  // mkdir options
 #include <unistd.h>    // chdir
+#include <sstream>    // chdir
 
 #define FREQ_UPDATE 1
 #define SGSRL_STATE_SCALING
+
+using Real = cubismup3d::Real;
 
 struct targetData
 {
@@ -190,22 +193,48 @@ inline bool isTerminal(cubismup3d::SimulationData& sim)
   return isSimValid == 0;
 }
 
-inline double updateReward(double oldRew, const int nBin, const targetData tgt, const double msr[], const double alpha)
+inline void updateReward(const cubismup3d::HITstatistics& stats,
+                         const targetData& target,
+                         const Real alpha, Real & reward)
 {
   double newRew = 0;
-  for (int i=0; i<nBin; i++){
+  for (int i=0; i<stats.nBin; ++i) {
     //newRew += tgt.getRewardL2(i, msr[i]);
-    newRew += tgt.getRewardKDE(i, msr[i]);
+    newRew += target.getRewardKDE(i, stats.E_msr[i]);
   }
-  return (1-alpha)*oldRew + alpha*newRew;
+  reward = (1-alpha) * reward + alpha * newRew;
 }
 
-inline double updateScale(double oldScale, double newScale, const double alpha)
+inline void updateGradScaling(const cubismup3d::SimulationData& sim,
+                              const cubismup3d::HITstatistics& stats,
+                              const Real timeUpdateLES,
+                                    Real & scaling_factor)
 {
-  return (1-alpha)*oldScale + alpha*newScale;
+  // Scale gradients with tau_eta corrected with eps_forcing and nu_sgs
+  // tau_eta = (nu/eps)^0.5 but nu_tot  = nu + nu_sgs
+  // and eps_tot = eps_nu + eps_numerics + eps_sgs = eps_forcing
+  // tau_eta_corrected = tau_eta +
+  //                   D(tau_eta)/Dnu * delta_nu + D(tau_eta)/Deps * delta_eps
+  //                   = tau_eta * 1/2 * tau_eta * delta_nu / nu
+  //                             - 1/2 * tau_eta * (delta_eps / eps) )
+  //                   = tau_eta * (1 + 1/2 * nu_sgs / nu
+  //                                 - 1/2 (eps_forcing - eps) / eps )
+  // Average gradient scaling over time between LES updates
+  const Real beta = sim.dt / timeUpdateLES;
+  //const Real turbEnergy = stats.tke;
+  const Real viscDissip = stats.eps;
+  const Real totalDissip = sim.dissipationRate;
+  const Real avgSGS_nu = sim.nu_sgs, nu = sim.nu;
+  const Real tau_eta_sim = std::sqrt(nu / viscDissip);
+  const Real correction = 1.0 + 0.5 * (totalDissip - viscDissip) / viscDissip
+                              + 0.5 * avgSGS_nu / nu;
+                            //+ 0.5 * avgSGS_nu / std::sqrt(nu * viscDissip);
+  const Real newScaling = tau_eta_sim * correction;
+  if(scaling_factor < 0) scaling_factor = newScaling; // initialization
+  else scaling_factor = (1-beta) * scaling_factor + beta * newScaling;
 }
 
-int app_main(
+inline void app_main(
   smarties::Communicator*const comm, // communicator with smarties
   MPI_Comm mpicom,                  // mpi_comm that mpi-based apps can use
   int argc, char**argv             // args read from app's runtime settings file
@@ -276,13 +305,15 @@ int app_main(
     sim->sim.b2Ddump = false; sim->sim.saveFreq = 0;
     sim->sim.verbose = false; sim->sim.saveTime = 0;
   }
+  sim->sim.icFromH5 = "../" + sim->sim.icFromH5; // bcz we will create a run dir
+
   char dirname[1024]; dirname[1023] = '\0';
   unsigned sim_id = 0, tot_steps = 0;
 
   // Terminate loop if reached max number of time steps. Never terminate if 0
   while(true) // train loop
   {
-    if( not comm->isTraining()) { // avoid too many unneeded folders created
+    if(sim_id == 0 || ! comm->isTraining()) { // avoid too many unneeded folders
       sprintf(dirname, "run_%08u/", sim_id); // by fast simulations when train
       printf("Starting a new sim in directory %s\n", dirname);
       mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -290,67 +321,55 @@ int app_main(
     }
 
     double time = 0.0;
-    double tStart = 2.5 * target.tau_integral;
     int step = 0;
     double avgReward  = 0;
-
     bool policyFailed = false;
-    // TODO relying on chi field does not work is obstacles are present
-    sim->reset(comm->getPRNG(), tStart, nAgentPerBlock, sim_id, comm->isTraining());
-    cubismup3d::SpectralAnalysis* sA = new cubismup3d::SpectralAnalysis(sim->sim);
-    sA->run();
+
+    sim->reset();
+    const double tStart = 2.5 * target.tau_integral;
+    printf("Reset simulation up to time=%g with SGS\n", tStart);
+    while (sim->sim.time < tStart){
+      sim->sim.sgs = "SSM";
+      const double dt = sim->calcMaxTimestep();
+      sim->timestep(dt);
+    }
+    sim->sim.sgs = "RLSM";
+    MPI_Barrier(sim->sim.app_comm);
 
     const Real tau_eta       = target.tau_eta;
     const Real tau_integral  = target.tau_integral;
     const Real timeUpdateLES = 0.5*tau_eta;
+    assert(sim not_eq nullptr && sim->sim.spectralManip not_eq nullptr);
+    const cubismup3d::HITstatistics& HTstats = sim->sim.spectralManip->stats;
 
-    // Scale gradients with tau_eta corrected with eps_forcing and nu_sgs
-    // tau_eta = (nu/eps)^0.5 but nu_tot  = nu + nu_sgs
-    // and eps_tot = eps_nu + eps_numerics + eps_sgs = eps_forcing
-    // tau_eta_corrected = tau_eta +
-    //                   D(tau_eta)/Dnu * delta_nu + D(tau_eta)/Deps * delta_eps
-    //                   = tau_eta * 1/2 * tau_eta * delta_nu / nu
-    //                             - 1/2 * tau_eta * (delta_eps / eps) )
-    //                   = tau_eta * (1 + 1/2 * nu_sgs / nu
-    //                                 - 1/2 (eps_forcing - eps) / eps )
     #ifdef SGSRL_STATE_SCALING
-      Real tau_eta_sim = std::sqrt(sim->sim.nu/sA->eps);
-      Real correction = 1.0 - 0.5*(sim->sim.epsForcing - sA->eps)/sA->eps
-                            + 0.5* sim->sim.nu_sgs/sim->sim.nu;
-      Real scaleGrads = tau_eta_sim * correction;
+      Real scaleGrads = -1;
+      updateGradScaling(sim->sim, HTstats, timeUpdateLES, scaleGrads);
     #else
       const Real scaleGrads = 1.0;
     #endif
 
     const unsigned int nIntegralTime = 10;
     const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
+    cubismup3d::SGS_RL updateLES(sim->sim, comm, nAgentPerBlock);
 
     while (true) //simulation loop
     {
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
-      cubismup3d::SGS_RL updateLES(sim->sim, comm, step, timeOut, avgReward,
-                                   scaleGrads, nAgentPerBlock);
-      updateLES.run();
+      updateLES.run(sim->sim.dt, step==0, timeOut, scaleGrads, avgReward);
       if(timeOut) break;
 
       while ( time < (step+1)*timeUpdateLES )
       {
         const double dt = sim->calcMaxTimestep();
         time += dt;
-        sA->run();
         // Average reward over integral time
         const double alpha = dt / tau_integral;
-        avgReward = updateReward(avgReward, sA->nBin, target, sA->E_msr, alpha);
+        updateReward(HTstats, target, alpha, avgReward);
 
         #ifdef SGSRL_STATE_SCALING
-          // Average gradient scale over time between LES updates
-          const double beta = dt / timeUpdateLES;
-          tau_eta_sim = std::sqrt(sim->sim.nu/sA->eps);
-          correction = 1 -0.5*(1-sim->sim.epsForcing/sA->eps)
-                         +0.5*sim->sim.nu_sgs/std::sqrt(sim->sim.nu * sA->eps);
-          const double newScale = tau_eta_sim * correction;
-          scaleGrads = updateScale(scaleGrads, newScale, beta);
+          updateGradScaling(sim->sim, HTstats, timeUpdateLES, scaleGrads);
         #endif
 
         if ( sim->timestep( dt ) ) { // if true sim has ended
@@ -377,13 +396,19 @@ int app_main(
       }
     } // simulation is done
 
-    delete sA;
-    if( not comm->isTraining()) {
+    if( not comm->isTraining() ) {
       chdir("../"); // matches previous if
     }
     sim_id++;
   }
 
   delete sim;
+}
+
+int main(int argc, char**argv)
+{
+  smarties::Engine e(argc, argv);
+  if( e.parse() ) return 1;
+  e.run( app_main );
   return 0;
 }

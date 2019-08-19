@@ -109,17 +109,18 @@ struct SimulationData
   bool bChannelFixedMassFlux = false;
   Real uMax_forced = 0;
   bool spectralForcing = false;
-  double turbKinEn_target = 0;
-  double enInjectionRate = 0;
-  double dissipationRate = 0; // this is only for post processing
+  double turbKinEn_target = 0; // read from settings
+  double enInjectionRate = 0; // read from settings
+  double dissipationRate = 0; // computed by specralManip, post processing
+  double actualInjectionRate = 0; // computed by specralManip, post processing
 
   // sgs
   std::string sgs = "";
   double cs = 0.0;
   int nAgentsPerBlock = 1;
   bool sgs_rl = false;
-  double cs2_avg = 0.0;
-  double nu_sgs=0;
+  double cs2_avg = 0.0; // computed by SGS, for post processing
+  double nu_sgs=0; // computed by SGS, for post processing
   bool bComputeCs2Spectrum = false;
 
   // analysis

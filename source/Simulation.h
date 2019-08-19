@@ -30,7 +30,7 @@ public:
 
   SimulationData sim;
 
-  void reset(std::mt19937& gen, const Real tStart, const int nAgentsPerBlock, const int sim_id, const bool bTrain);
+  void reset();
   void _init(bool restart = false);
   void _serialize(const std::string append = std::string());
   void _deserialize();
