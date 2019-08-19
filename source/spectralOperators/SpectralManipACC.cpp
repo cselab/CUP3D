@@ -29,14 +29,14 @@ void _compute_HIT_forcing(
   const size_t gsize[3], const int osize[3] , const int ostart[3],
   const cubismup3d::Real h,
   cubismup3d::Real& tke, cubismup3d::Real& eps, cubismup3d::Real& tkeFiltered
-)
+);
 void _compute_HIT_analysis(
   acc_c*const Uhat, acc_c*const Vhat, acc_c*const What,
   const size_t gsize[3], const int osize[3] , const int ostart[3],
   const cubismup3d::Real h, cubismup3d::Real& tke, cubismup3d::Real& eps,
   cubismup3d::Real& tau, cubismup3d::Real * const eSpectrum,
   const size_t nBins, const cubismup3d::Real nyquist
-)
+);
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -44,10 +44,11 @@ using namespace cubism;
 void SpectralManipACC::_compute_largeModesForcing()
 {
   Real eps = 0, tke = 0, tkeFiltered = 0;
+  const double h = sim.uniformH();
 
   // kernel
   _compute_HIT_forcing( (acc_c*) gpu_u, (acc_c*) gpu_v, (acc_c*) gpu_w,
-    gsize[3], osize[3], ostart[3], h, tke, eps, tkeFiltered );
+    gsize, osize, ostart, h, tke, eps, tkeFiltered );
 
   MPI_Allreduce(MPI_IN_PLACE, &tkeFiltered, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
@@ -60,6 +61,7 @@ void SpectralManipACC::_compute_largeModesForcing()
 
 void SpectralManipACC::_compute_analysis()
 {
+  const double h = sim.uniformH();
   const size_t nBins = stats.nBin;
   const Real nyquist = stats.nyquist;
   Real tke = 0, eps = 0, tau = 0;
@@ -68,7 +70,7 @@ void SpectralManipACC::_compute_analysis()
 
   // kernel
   _compute_HIT_analysis( (acc_c*) gpu_u, (acc_c*) gpu_v, (acc_c*) gpu_w,
-    gsize[3], osize[3], ostart[3], h, tke, eps, tau, E_msr, nyquist);
+    gsize, osize, ostart, h, tke, eps, tau, E_msr, nBins, nyquist);
 
   MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
@@ -90,7 +92,7 @@ void SpectralManipACC::_compute_IC(const std::vector<Real> &K,
                                    const std::vector<Real> &E)
 {
   printf("ABORT: SpectralManipACC does not support _compute_IC\n");
-  fflush(0); abort(0);
+  fflush(0); abort();
 }
 
 SpectralManipACC::SpectralManipACC(SimulationData&s): SpectralManip(s)
@@ -107,14 +109,14 @@ SpectralManipACC::SpectralManipACC(SimulationData&s): SpectralManip(s)
   int totN[3] = { (int)gsize[0], (int)gsize[1], (int)gsize[2] };
 
   alloc_max = accfft_local_size(totN, isize, istart, osize, ostart, acc_comm);
-  assert(alloc_max == isize[0] * isize[1] * 2*gz_hat * sizeof(Real));
+  assert(alloc_max == isize[0] * isize[1] * 2*nz_hat * sizeof(Real));
 
   if(isize[0]!=(int)myN[0] || isize[1]!=(int)myN[1] || isize[2]!=(int)myN[2]) {
     printf("PoissonSolverPeriodic: something wrong in isize\n");
     abort();
   }
 
-  data_size = (size_t) isize[0] * (size_t) isize[1] * (size_t) 2*gz_hat;
+  data_size = (size_t) isize[0] * (size_t) isize[1] * (size_t) 2*nz_hat;
   data_u = (Real*) malloc(data_size*sizeof(Real));
   data_v = (Real*) malloc(data_size*sizeof(Real));
   data_w = (Real*) malloc(data_size*sizeof(Real));
@@ -122,8 +124,8 @@ SpectralManipACC::SpectralManipACC(SimulationData&s): SpectralManip(s)
   cudaMalloc((void**) & gpu_v, alloc_max);
   cudaMalloc((void**) & gpu_w, alloc_max);
   stridez = 1; // fast
-  stridey = 2*gz_hat;
-  stridex = myN[1] * 2*gz_hat; // slow
+  stridey = 2*nz_hat;
+  stridex = myN[1] * 2*nz_hat; // slow
 
   acc_plan* P = accfft_plan_dft(totN, gpu_u, gpu_u, acc_comm, ACCFFT_MEASURE);
   plan = (void*) P;
@@ -168,7 +170,7 @@ SpectralManipACC::~SpectralManipACC()
   cudaFree(gpu_w);
   accfft_destroy_plan_gpu((acc_plan*)plan);
   accfft_clean();
-  MPI_Comm_free(&c_comm);
+  MPI_Comm_free(&acc_comm);
 }
 
 CubismUP_3D_NAMESPACE_END

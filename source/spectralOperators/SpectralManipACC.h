@@ -19,7 +19,9 @@ class SpectralManipACC : public SpectralManip
   // the local pencil size and the allocation size
   int isize[3], osize[3], istart[3], ostart[3];
   size_t alloc_max;
-  Real * phi_hat;
+  Real * gpu_u;
+  Real * gpu_v;
+  Real * gpu_w;
   void * plan;
 
 public:

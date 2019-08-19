@@ -13,6 +13,7 @@
 #include "PoissonSolverACC_common.h"
 
 #include <cassert>
+#include <cmath>
 
 using Real = cubismup3d::Real;
 
@@ -171,6 +172,32 @@ void realGreen(const int*osz, const int*ost, int nx, int ny, int nz,
 #define warpShflDown(var, delta)   __shfl_down (var, delta)
 #endif
 
+
+#if !defined(__CUDA_ARCH__) || __CUDA_ARCH__ >= 600
+#else
+__device__ double atomicAdd(double* address, double val)
+{
+    using ULLI_t = unsigned long long int;
+    ULLI_t* address_as_ull = (ULLI_t*)address;
+    ULLI_t old = *address_as_ull, assumed;
+    do {
+        assumed = old;
+        old = atomicCAS(address_as_ull, assumed,
+                        __double_as_longlong(val +
+                               __longlong_as_double(assumed)));
+    // Note: uses integer comparison to avoid hang in case of NaN (since NaN != NaN)
+    } while (assumed != old);
+    return __longlong_as_double(old);
+}
+#endif
+
+__device__ inline uint32_t __laneid()
+{
+    uint32_t laneid;
+    asm volatile("mov.u32 %0, %%laneid;" : "=r"(laneid));
+    return laneid;
+}
+
 __global__
 void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
   acc_c*const __restrict__ Vhat, acc_c*const __restrict__ What,
@@ -184,12 +211,12 @@ void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
   const long k = blockDim.z * blockIdx.z + threadIdx.z;
   Real tke = 0, eps = 0, tkeFiltered = 0;
 
-  if( i < nx || j < ny || k < nz )
+  if( i < nx && j < ny && k < nz )
   {
     const long kx = sx + i, ky = sy + j, kz = sz + k;
-    const long kkx = kx > Gx/2 ? kx-Gx : kx;
-    const long kky = ky > Gy/2 ? ky-Gy : ky;
-    const long kkz = kz > Gz/2 ? kz-Gz : kz;
+    const Real kkx = kx > Gx/2 ? kx-Gx : kx;
+    const Real kky = ky > Gy/2 ? ky-Gy : ky;
+    const Real kkz = kz > Gz/2 ? kz-Gz : kz;
     const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
     const Real k2 = rkx*rkx + rky*rky + rkz*rkz;
     const Real mult = (kz==0) or (kz==Gz/2) ? 1 : 2;
@@ -208,6 +235,7 @@ void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
     }
   }
 
+#if 1
   // reduction within same warp: result is summed down to thread 0
   #pragma unroll
   for (int offset = warpSize/2; offset > 0; offset /= 2) {
@@ -216,11 +244,16 @@ void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
     tkeFiltered = tkeFiltered + warpShflDown(tkeFiltered, offset);
   }
 
-  if (threadIdx.x % warpSize == 0) { // thread 0 does the only atomic sum
+  if (__laneid() == 0) { // thread 0 does the only atomic sum
     atomicAdd(reductionBuf + 0, tke);
     atomicAdd(reductionBuf + 1, eps);
     atomicAdd(reductionBuf + 2, tkeFiltered);
   }
+#else
+  atomicAdd(reductionBuf + 0, tke);
+  atomicAdd(reductionBuf + 1, eps);
+  atomicAdd(reductionBuf + 2, tkeFiltered);
+#endif
 }
 
 
@@ -238,12 +271,12 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
   const long k = blockDim.z * blockIdx.z + threadIdx.z;
   Real tke = 0, eps = 0, tau = 0;
 
-  if( i < nx || j < ny || k < nz )
+  if( i < nx && j < ny && k < nz )
   {
     const long kx = sx + i, ky = sy + j, kz = sz + k;
-    const long kkx = kx > Gx/2 ? kx-Gx : kx;
-    const long kky = ky > Gy/2 ? ky-Gy : ky;
-    const long kkz = kz > Gz/2 ? kz-Gz : kz;
+    const Real kkx = kx > Gx/2 ? kx-Gx : kx;
+    const Real kky = ky > Gy/2 ? ky-Gy : ky;
+    const Real kkz = kz > Gz/2 ? kz-Gz : kz;
     const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
     const Real k2 = rkx*rkx + rky*rky + rkz*rkz;
     const Real ks = std::sqrt(kkx*kkx + kky*kky + kkz*kkz);
@@ -257,7 +290,7 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
     eps = k2 * E; // Dissipation rate
     tau = (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy turnover time
     if (ks <= nyquist) {
-      int binID = std::floor(ks * nyquist_scaling);
+      const int binID = std::floor(ks * nyquist_scaling);
       // reduction buffer here holds also the energy spectrum, shifted by 3
       // to hold also tke, eps and tau
       atomicAdd(reductionBuf + 3 + binID, E);
@@ -271,7 +304,7 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
     tau = tau + warpShflDown(tau, offset);
   }
 
-  if (threadIdx.x % warpSize == 0) {
+  if (__laneid() == 0) { // thread 0 does the only atomic sum
     atomicAdd(reductionBuf + 0, tke);
     atomicAdd(reductionBuf + 1, eps);
     atomicAdd(reductionBuf + 2, tau);
@@ -297,14 +330,15 @@ void _compute_HIT_forcing(
   int blocksInY = std::ceil(osize[1] / 4.);
   int blocksInZ = std::ceil(osize[2] / 4.);
   dim3 Dg(blocksInX, blocksInY, blocksInZ), Db(4, 4, 4);
-  _forcing_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What
+  _forcing_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What,
      gsize[0], gsize[1], gsize[2], osize[0],osize[1],osize[2],
     ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2], rdxBuf);
 
   CUDA_Check( cudaDeviceSynchronize() );
-  cudaMemcpy(rdxBuf+0, &tke, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(rdxBuf+1, &eps, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(rdxBuf+2, &tkeFiltered, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&tke,         rdxBuf+0, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&eps,         rdxBuf+1, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&tkeFiltered, rdxBuf+2, sizeof(Real), cudaMemcpyDeviceToHost);
+  CUDA_Check( cudaDeviceSynchronize() );
   cudaFree(rdxBuf);
 }
 
@@ -330,7 +364,7 @@ void _compute_HIT_analysis(
   int blocksInY = std::ceil(osize[1] / 4.);
   int blocksInZ = std::ceil(osize[2] / 4.);
   dim3 Dg(blocksInX, blocksInY, blocksInZ), Db(4, 4, 4);
-  _analysis_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What
+  _analysis_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What,
      gsize[0], gsize[1], gsize[2], osize[0],osize[1],osize[2],
     ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2],
     nyquist, nyquist_scaling, rdxBuf);
@@ -339,9 +373,10 @@ void _compute_HIT_analysis(
   //  cudaMemset(data_hat, 0, 2 * sizeof(Real));
 
   CUDA_Check( cudaDeviceSynchronize() );
-  cudaMemcpy(rdxBuf+0, &tke, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(rdxBuf+1, &eps, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(rdxBuf+2, &tau, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(rdxBuf+3, eSpectrum, nBins * sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&tke,      rdxBuf+0, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&eps,      rdxBuf+1, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&tau,      rdxBuf+2, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(eSpectrum, rdxBuf+3, nBins * sizeof(Real), cudaMemcpyDeviceToHost);
+  CUDA_Check( cudaDeviceSynchronize() );
   cudaFree(rdxBuf);
 }
