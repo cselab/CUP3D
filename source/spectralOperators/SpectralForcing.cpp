@@ -51,7 +51,7 @@ void SpectralForcing::operator()(const double dt)
     printf("step:%d time:%f dt:%f totalKinEn:%f largeModesKinEn:%f "\
            "viscousDissip:%f totalDissipRate:%f injectionRate:%f\n",
            sim.step, sim.time, sim.dt, totalKinEn, largeModesKinEn,
-           viscousDissip, sim.dissipationRate, injectionRate );
+           viscousDissip, sim.dissipationRate, sim.actualInjectionRate);
     std::stringstream &ssF = logger.get_stream("forcingData.dat");
     const std::string tab("\t");
     if(sim.step==0) {
