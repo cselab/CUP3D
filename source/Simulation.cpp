@@ -280,8 +280,8 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
       sim.grid->getBlocksInfo());
     nonuniform->template setup_coefficients<FDcoeffs_4thOrder>(
       sim.grid->getBlocksInfo(), true);
-    nonuniform->setup_inverse_spacing(
-      sim.grid->getBlocksInfo());
+    //nonuniform->setup_inverse_spacing(
+    //  sim.grid->getBlocksInfo());
 
     // some statistics
     nonuniform->print_mesh_statistics(sim.rank == 0);

@@ -106,14 +106,11 @@ struct BaseBlock
   FDBlockCoeffs_x __attribute__((__aligned__(32))) fd_cx; // finite-difference single coefficients
   FDBlockCoeffs_y __attribute__((__aligned__(32))) fd_cy; // finite-difference single coefficients
   FDBlockCoeffs_z __attribute__((__aligned__(32))) fd_cz; // finite-difference single coefficients
-  Real __attribute__((__aligned__(32))) invh_x[sizeX]; // pre-compute inverse mesh-spacings
-  Real __attribute__((__aligned__(32))) invh_y[sizeY]; // pre-compute inverse mesh-spacings
-  Real __attribute__((__aligned__(32))) invh_z[sizeZ]; // pre-compute inverse mesh-spacings
+  //Real __attribute__((__aligned__(32))) invh_x[sizeX]; // pre-compute inverse mesh-spacings
+  //Real __attribute__((__aligned__(32))) invh_y[sizeY]; // pre-compute inverse mesh-spacings
+  //Real __attribute__((__aligned__(32))) invh_z[sizeZ]; // pre-compute inverse mesh-spacings
   std::array<Real, 3> min_pos;
   std::array<Real, 3> max_pos;
-
-  //for smarties channel flow RL
-  std::vector<int> iAgentX, iAgentY, iAgentZ;
 
   //required from Grid.h
   void clear()

@@ -176,36 +176,33 @@ public:
         }
     }
 
-// TODO: [fabianw@mavt.ethz.ch; Mon Jan 22 2018 07:44:01 PM (+0100)] Is this
-// stuff really needed?
+    // TODO: [fabianw@mavt.ethz.ch; Mon Jan 22 2018 07:44:01 PM (+0100)] Is this
+    /*
     void setup_inverse_spacing(std::vector<cubism::BlockInfo>& infos)
     {
-        if (!m_initialized)
-        {
-            fprintf(stderr,"ERROR: NonUniformScheme: Not initialized.\n");
-            exit(1);
-        }
+      if (!m_initialized)
+      {
+        fprintf(stderr,"ERROR: NonUniformScheme: Not initialized.\n");
+        exit(1);
+      }
 
-        #pragma omp parallel for
-        for(int i=0; i<(int)infos.size(); ++i)
-        {
-            cubism::BlockInfo info = infos[i];
-            TBlock& b = *(TBlock*)info.ptrBlock;
+      #pragma omp parallel for
+      for(int i=0; i<(int)infos.size(); ++i)
+      {
+        cubism::BlockInfo info = infos[i];
+        TBlock& b = *(TBlock*)info.ptrBlock;
 
-            {
-                const int index = info.index[0];
-                _set_block_invh<CUP_BLOCK_SIZE>(m_map_x.get_grid_spacing(index), &b.invh_x[0]);
-            }
-            {
-                const int index = info.index[1];
-                _set_block_invh<CUP_BLOCK_SIZE>(m_map_y.get_grid_spacing(index), &b.invh_y[0]);
-            }
-            {
-                const int index = info.index[2];
-                _set_block_invh<CUP_BLOCK_SIZE>(m_map_z.get_grid_spacing(index), &b.invh_z[0]);
-            }
-        }
+        const int indx = info.index[0];
+        _set_block_invh<CUP_BLOCK_SIZE>(m_map_x.get_grid_spacing(indx), &b.invh_x[0]);
+
+        const int indy = info.index[1];
+        _set_block_invh<CUP_BLOCK_SIZE>(m_map_y.get_grid_spacing(indy), &b.invh_y[0]);
+
+        const int indy = info.index[2];
+        _set_block_invh<CUP_BLOCK_SIZE>(m_map_z.get_grid_spacing(indz), &b.invh_z[0]);
+      }
     }
+    */
 
     inline const TMeshMap& get_map_x() const { return m_map_x; }
     inline const TMeshMap& get_map_y() const { return m_map_y; }
