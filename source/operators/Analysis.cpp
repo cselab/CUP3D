@@ -170,8 +170,8 @@ void Analysis::operator()(const double dt)
                              sim.bpdy * FluidBlock::sizeY *
                              sim.bpdz * FluidBlock::sizeZ;
 
-    Real grad_mean = 0.0;
-    Real grad_std  = 0.0;
+    double grad_mean = 0.0;
+    double grad_std  = 0.0;
     for (int i=0; i<nthreads; ++i){
       grad_mean += gradStats[i]->grad_mean;
       grad_std  += gradStats[i]->grad_std;

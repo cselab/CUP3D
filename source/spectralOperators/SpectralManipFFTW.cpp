@@ -49,14 +49,14 @@ void SpectralManipFFTW::_compute_largeModesForcing()
     const long kk = (k <= nKz/2) ? k : -(nKz-k);
 
     const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
-    const Real k2 = kx*kx + ky*ky + kz*kz, k_norm = std::sqrt(k2);
+    const Real k2 = kx*kx + ky*ky + kz*kz;
 
     const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
     const Real E = mult/2 * ( pow2_cplx(cplxData_u[linidx])
       + pow2_cplx(cplxData_v[linidx]) + pow2_cplx(cplxData_w[linidx]) );
     tke += E; // Total kinetic energy
     eps += k2 * E; // Dissipation rate
-    if (k_norm > 0 && k_norm <= 2) {
+    if (k2 > 0 && k2 <= 4) {
       tkeFiltered += E;
     } else {
       cplxData_u[linidx][0] = 0;
