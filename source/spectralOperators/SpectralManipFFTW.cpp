@@ -93,8 +93,8 @@ void SpectralManipFFTW::_compute_analysis()
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
   const size_t nBins = stats.nBin;
   const Real nyquist = stats.nyquist;
-  const Real nyquist_scaling = ((int)nyquist-1) / (int)nyquist;
-
+  const Real nyquist_scaling = (nyquist-1) / nyquist;
+  assert(nyquist > 0 && nyquist_scaling > 0);
   Real tke = 0, eps = 0, tauIntegral = 0;
   Real * const E_msr = stats.E_msr;
   memset(E_msr, 0, nBins * sizeof(Real));
@@ -138,14 +138,14 @@ void SpectralManipFFTW::_compute_analysis()
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tauIntegral, 1, MPIREAL, MPI_SUM, m_comm);
-
+  std::cout<<nyquist<<" "<<tke<<" "<<eps<<" "<<tauIntegral<<"\n";
   //if (bComputeCs2Spectrum){
   //  assert(false);
     //#pragma omp parallel reduction(+ : cs2_msr[:nBin])
     //MPI_Allreduce(MPI_IN_PLACE, cs2_msr, nBin, MPIREAL, MPI_SUM, sM->m_comm);
   //}
 
-  const Real normalization = 1 / pow2(normalizeFFT);
+  const Real normalization = 1.0 / pow2(normalizeFFT);
   for (size_t binID = 0; binID < nBins; binID++) {
     E_msr[binID] *= normalization;
     //if (bComputeCs2Spectrum) cs2_msr[binID] /= normalizeFFT;
