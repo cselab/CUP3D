@@ -49,14 +49,14 @@ void SpectralManipFFTW::_compute_largeModesForcing()
     const long kk = (k <= nKz/2) ? k : -(nKz-k);
 
     const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
-    const Real k2 = kx*kx + ky*ky + kz*kz, k_norm = std::sqrt(k2);
+    const Real k2 = kx*kx + ky*ky + kz*kz;
 
     const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
     const Real E = mult/2 * ( pow2_cplx(cplxData_u[linidx])
       + pow2_cplx(cplxData_v[linidx]) + pow2_cplx(cplxData_w[linidx]) );
     tke += E; // Total kinetic energy
     eps += k2 * E; // Dissipation rate
-    if (k_norm > 0 && k_norm <= 2) {
+    if (k2 > 0 && k2 <= 4) {
       tkeFiltered += E;
     } else {
       cplxData_u[linidx][0] = 0;
@@ -93,8 +93,8 @@ void SpectralManipFFTW::_compute_analysis()
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
   const size_t nBins = stats.nBin;
   const Real nyquist = stats.nyquist;
-  const Real nyquist_scaling = ((int)nyquist-1) / (int)nyquist;
-
+  const Real nyquist_scaling = (nyquist-1) / nyquist;
+  assert(nyquist > 0 && nyquist_scaling > 0);
   Real tke = 0, eps = 0, tauIntegral = 0;
   Real * const E_msr = stats.E_msr;
   memset(E_msr, 0, nBins * sizeof(Real));
@@ -138,14 +138,14 @@ void SpectralManipFFTW::_compute_analysis()
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tauIntegral, 1, MPIREAL, MPI_SUM, m_comm);
-
+  std::cout<<nyquist<<" "<<tke<<" "<<eps<<" "<<tauIntegral<<"\n";
   //if (bComputeCs2Spectrum){
   //  assert(false);
     //#pragma omp parallel reduction(+ : cs2_msr[:nBin])
     //MPI_Allreduce(MPI_IN_PLACE, cs2_msr, nBin, MPIREAL, MPI_SUM, sM->m_comm);
   //}
 
-  const Real normalization = 1 / pow2(normalizeFFT);
+  const Real normalization = 1.0 / pow2(normalizeFFT);
   for (size_t binID = 0; binID < nBins; binID++) {
     E_msr[binID] *= normalization;
     //if (bComputeCs2Spectrum) cs2_msr[binID] /= normalizeFFT;

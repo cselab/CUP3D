@@ -94,7 +94,7 @@ void SpectralManipACC::_compute_analysis()
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tau, 1, MPIREAL, MPI_SUM, m_comm);
 
-  const Real normalization = 1 / pow2(normalizeFFT);
+  const Real normalization = 1.0 / pow2(normalizeFFT);
   for (size_t binID = 0; binID < nBins; binID++) E_msr[binID] *= normalization;
   stats.tke = tke * normalization;
   stats.eps = eps * 2 * (sim.nu) * normalization;

@@ -359,7 +359,7 @@ void _compute_HIT_analysis(
     Real(2*M_PI)/(h*gsize[1]),
     Real(2*M_PI)/(h*gsize[2])
   };
-  const Real nyquist_scaling = ((int)nyquist-1) / (int)nyquist;
+  const Real nyquist_scaling = (nyquist-1) / nyquist;
   int blocksInX = std::ceil(osize[0] / 4.);
   int blocksInY = std::ceil(osize[1] / 4.);
   int blocksInZ = std::ceil(osize[2] / 4.);
