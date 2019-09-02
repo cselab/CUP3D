@@ -472,11 +472,11 @@ void Simulation::_serialize(const std::string append)
         const auto nameP = StreamerPressure::prefix()+name2d;
         const auto nameX = StreamerChi::prefix()+name2d;
         DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
-          slice, sim.step, sim.time, nameV, sim.path4serialization);
+          slice, sim.time, nameV, sim.path4serialization);
         DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
-          slice, sim.step, sim.time, nameP, sim.path4serialization);
+          slice, sim.time, nameP, sim.path4serialization);
         DumpSliceHDF5MPI<StreamerChi, DumpReal>(
-          slice, sim.step, sim.time, nameX, sim.path4serialization);
+          slice, sim.time, nameX, sim.path4serialization);
       }
     }
     if(sim.b3Ddump) {
