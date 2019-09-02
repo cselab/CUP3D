@@ -1,8 +1,6 @@
+
 ifeq ($(shell uname -s), Darwin)
-	CPPFLAGS+=-dynamic  # Something specific to Darwin linker(?)
-	CXX=mpic++
-	LD=mpic++
-	accfft=false
+include make.macos
 endif
 
 ifneq "$(findstring nid,$(shell hostname))" ""
@@ -24,20 +22,17 @@ ifneq "$(findstring eu-,$(shell hostname))" ""
 	include make.euler
 endif
 
-ifeq ($(INTEL_LICENSE_FILE),)
-	compiler ?= gnu
+ifeq "$(shell $(CXX) --version | grep -ci 'icpc')" "0"
+ifeq "$(shell $(CXX) --version | grep -ci 'llvm')" "0"
+compiler=gnu
+include make.gcc.flags
 else
-	compiler ?= intel
+compiler=llvm
+include make.llvm.flags
 endif
-
-ifeq "$(compiler)" "intel"
-	CXX ?= icpc
-	LD = $(CXX)
-	include make.icc.flags
 else
-	CXX ?= g++
-	LD = $(CXX)
-	include make.gcc.flags
+compiler=intel
+include make.icc.flags
 endif
 
 NVCC?=nvcc
@@ -115,14 +110,16 @@ ifeq "$(hdf)" "true"
 	# If you have issues with linking HDF5 so files, add $HDF5_ROOT/lib to your LD_LIBRARY_PATH.
 	# For that reason we do not automatically check ../dependencies/build/hdf5-*.
 	ifneq ($(HDF5_ROOT),)
-		# OK
+		# OK, do not overwrite HDF5_ROOT
 	else ifneq ($(HDF5ROOT),)
-		HDF5_ROOT = HDF5ROOT
-	else
-		ERROR = "Neither HDF5_ROOT nor HDF5ROOT environment variables set. Did you forget to `module load`?"
+		HDF5_ROOT = $(HDF5ROOT)
 	endif
-	LIBS     += -L$(HDF5_ROOT)/lib -lhdf5
-	CPPFLAGS += -I$(HDF5_ROOT)/include -DCUBISM_USE_HDF
+	ifneq ($(HDF5_ROOT),)
+		LIBS     += -L$(HDF5_ROOT)/lib
+		CPPFLAGS += -I$(HDF5_ROOT)/include
+	endif
+	LIBS     += -lhdf5
+	CPPFLAGS += -DCUBISM_USE_HDF
 endif
 
 #################################################
@@ -138,10 +135,6 @@ endif
 ifneq ($(FFTW_ROOT),)
 	FFTW_LIBS  = -L$(FFTW_ROOT)/lib
 	CPPFLAGS  += -I$(FFTW_ROOT)/include
-endif
-
-ifneq ($(ERROR),)
-$(error $(ERROR))  # Easiest way I found to avoid unindenting the code above...
 endif
 
 ifeq "$(precision)" "single"
@@ -193,7 +186,6 @@ ifeq "$(petsc)" "true"
 	OBJECTS+= PoissonSolverPETSCMixed.o
 endif
 
-
 #LIBS += -L../tools/fpzip/lib -lfpzip
 ifneq "$(GSL_ROOT_DIR)" ""
 	CPPFLAGS += -I$(GSL_ROOT_DIR)/include
@@ -202,6 +194,9 @@ endif
 LIBS += -lgsl -lgslcblas
 
 #################################################
+ifneq ($(ERROR),)
+$(error $(ERROR))  # Easiest way I found to avoid unindenting the code above...
+endif
 
 EXEOBJ = $(OBJECTS) main.o
 LIBOBJ = $(OBJECTS) cubism_main.o CubismUP_3D.o
@@ -242,7 +237,7 @@ clean:
 
 ifeq "$(config)" "prod"
 else
-        #RED='\033[0;31m'
-        #NC='\033[0m' # No Color
-$(info *** WARNING! Compiling with debug flags. Use config=prod for optimized code ***)
+	#RED='\033[0;31m'
+	#NC='\033[0m' # No Color
+	$(info *** WARNING! Compiling with debug flags. Use config=prod for optimized code ***)
 endif

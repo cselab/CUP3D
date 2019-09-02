@@ -24,7 +24,7 @@ class SpectralManipFFTW : public SpectralManip
 public:
 
   SpectralManipFFTW(SimulationData & s);
-  ~SpectralManipFFTW();
+  ~SpectralManipFFTW() override;
 
   void prepareFwd() override;
   void prepareBwd() override;

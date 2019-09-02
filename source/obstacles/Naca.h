@@ -16,7 +16,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 class Naca: public Fish
 {
   double Apitch, Fpitch, Ppitch, Mpitch, Fheave, Aheave;
-  bool bCreated;
+
  public:
   Naca(SimulationData&s, cubism::ArgumentParser&p);
   void update() override;

@@ -79,7 +79,7 @@ class NacaMidlineData : public FishMidlineData
   }
 };
 
-Naca::Naca(SimulationData&s, ArgumentParser&p) : Fish(s, p), bCreated(false)
+Naca::Naca(SimulationData&s, ArgumentParser&p) : Fish(s, p)
 {
   absPos[0] = 0;
   #if 1

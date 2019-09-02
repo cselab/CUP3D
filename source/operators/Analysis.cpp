@@ -95,8 +95,8 @@ Analysis::~Analysis()
 
 void Analysis::operator()(const double dt)
 {
-  const bool bFreq = (sim.freqAnalysis!=0 && (sim.step+ 1)%sim.freqAnalysis==0);
-  const bool bTime = (sim.timeAnalysis!=0 && (sim.time+dt)>sim.nextAnalysisTime);
+  const bool bFreq = (sim.freqAnalysis>0 && (sim.step+ 1)%sim.freqAnalysis==0);
+  const bool bTime = (sim.timeAnalysis>0 && (sim.time+dt)>sim.nextAnalysisTime);
   const bool bAnalysis =  bFreq || bTime;
 
   if (sim.step==0 and sim.rank==0)
@@ -107,7 +107,7 @@ void Analysis::operator()(const double dt)
   int nFile;
   if (bTime){
     sim.nextAnalysisTime += sim.timeAnalysis;
-    nFile = (sim.time==0)? 0 : 1+(int)(sim.time/sim.timeAnalysis);
+    nFile = (sim.time<=0)? 0 : 1+(int)(sim.time/sim.timeAnalysis);
   }
   else nFile = sim.step;
 
@@ -117,9 +117,9 @@ void Analysis::operator()(const double dt)
 
     int nGridPointsY = sim.bpdy * FluidBlock::sizeY;
 
-    Real avgFlow_xz[2*nGridPointsY] = {};
-    avgUx_wallNormal(avgFlow_xz, vInfo, sim.uinf.data(), sim.bpdy);
-    MPI_Allreduce(MPI_IN_PLACE, avgFlow_xz, 2*nGridPointsY, MPI_DOUBLE,
+    std::vector<Real> avgFlow_xz(2*nGridPointsY, 0);
+    avgUx_wallNormal(avgFlow_xz.data(), vInfo, sim.uinf.data(), sim.bpdy);
+    MPI_Allreduce(MPI_IN_PLACE, avgFlow_xz.data(), 2*nGridPointsY, MPI_DOUBLE,
                   MPI_SUM, grid->getCartComm());
 
     // avgFlow_xz = [ <Ux>_{xz}, <Ux^2>_{xz}]
@@ -145,11 +145,12 @@ void Analysis::operator()(const double dt)
       std::ofstream f;
       f.open (ssR.str());
       f << "Channel Analysis : time=" << sim.time << std::endl;
-      f << std::left << std::setw(25) << "<Ux>" << std::setw(25) << "<kx>" << std::endl;
-      for (int i = 0; i < nGridPointsY; i++){
-        const Real kx = 0.5*(avgFlow_xz[i+nGridPointsY]/sim.nprocs - avgFlow_xz[i]*avgFlow_xz[i]/sim.nprocs/sim.nprocs);
-        const Real ux = avgFlow_xz[i]/sim.nprocs;
-        f << std::left << std::setw(25) << ux << std::setw(25) << kx << std::endl;
+      f << std::left << std::setw(25) << "<Ux>" << std::setw(25) << "<kx>\n";
+      for (int i = 0; i < nGridPointsY; i++) {
+        const auto NP = sim.nprocs;
+        const Real ux = avgFlow_xz[i]/NP;
+        const Real kx = (avgFlow_xz[i+nGridPointsY]/NP - ux*ux)/2;
+        f << std::left << std::setw(25) << ux << std::setw(25) << kx << "\n";
       }
     }
     sim.stopProfiler();
@@ -178,8 +179,8 @@ void Analysis::operator()(const double dt)
       delete gradStats[i];
     }
 
-    MPI_Allreduce(MPI_IN_PLACE, &grad_mean, 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-    MPI_Allreduce(MPI_IN_PLACE, &grad_std , 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+    MPI_Allreduce(MPI_IN_PLACE, &grad_mean, 1, MPI_DOUBLE,MPI_SUM,sim.app_comm);
+    MPI_Allreduce(MPI_IN_PLACE, &grad_std , 1, MPI_DOUBLE,MPI_SUM,sim.app_comm);
     grad_mean /= normalize;
     grad_std  /= normalize;
 

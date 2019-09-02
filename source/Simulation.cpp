@@ -437,11 +437,10 @@ void Simulation::_serialize(const std::string append)
     fprintf(f, "uinfz: %20.20e\n", sim.uinf[2]);
     fclose(f);
   }
-  if(0) // hack to write sdf ... on pressure field. only debug.
-  {
-    const auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
-    putSDFonGrid(sim.vInfo(), vecOB);
-  }
+
+  // hack to write sdf ... on pressure field. only debug.
+  //const auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
+  //putSDFonGrid(sim.vInfo(), vecOB);
 
   #ifdef CUBISM_USE_HDF
   std::stringstream ssF;
@@ -485,11 +484,11 @@ void Simulation::_serialize(const std::string append)
       const auto nameP = StreamerPressure::prefix()+name3d;
       const auto nameX = StreamerChi::prefix()+name3d;
       DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
-        *grid2Dump, sim.step, sim.time, nameV, sim.path4serialization);
+        *grid2Dump, sim.time, nameV, sim.path4serialization);
       DumpHDF5_MPI<StreamerPressure, DumpReal>(
-        *grid2Dump, sim.step, sim.time, nameP, sim.path4serialization);
+        *grid2Dump, sim.time, nameP, sim.path4serialization);
       DumpHDF5_MPI<StreamerChi, DumpReal>(
-        *grid2Dump, sim.step, sim.time, nameX, sim.path4serialization);
+        *grid2Dump, sim.time, nameX, sim.path4serialization);
     }
   };
 

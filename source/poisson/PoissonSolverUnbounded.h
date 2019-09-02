@@ -30,9 +30,9 @@ class PoissonSolverUnbounded : public PoissonSolver
   const size_t m_NN2t = 2*m_N2-1; //Nz of padded domain (w/o periodic copies, actual transform size)
 
   const size_t m_local_N0 = m_N0 / m_size;
-  const size_t m_start_N0 = m_local_N0 * m_rank;
+  //const size_t m_start_N0 = m_local_N0 * m_rank;
   const size_t m_local_NN0 = m_NN0/m_size, m_start_NN0 = m_local_NN0*m_rank;
-  const size_t m_local_NN1 = m_NN1/m_size, m_start_NN1 = m_local_NN1*m_rank;
+  const size_t m_local_NN1 = m_NN1/m_size;// m_start_NN1 = m_local_NN1*m_rank;
   const double h = sim.uniformH();
   // data buffers for input and transform.  Split into 2 buffers to exploit
   // smaller transpose matrix and fewer FFT's due to zero-padded domain.
@@ -57,7 +57,7 @@ class PoissonSolverUnbounded : public PoissonSolver
   PoissonSolverUnbounded(SimulationData&s);
 
   PoissonSolverUnbounded(const PoissonSolverUnbounded& c) = delete;
-  ~PoissonSolverUnbounded();
+  ~PoissonSolverUnbounded() override;
 
   void solve() override;
 

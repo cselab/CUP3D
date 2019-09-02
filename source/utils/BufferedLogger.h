@@ -13,7 +13,7 @@
 
 namespace cubismup3d {
 
-class BufferedLoggerImpl;
+struct BufferedLoggerImpl;
 /*
  * Buffered file logging with automatic flush.
  *

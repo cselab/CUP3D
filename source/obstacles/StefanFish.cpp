@@ -44,7 +44,7 @@ class CurvatureDefinedFishData : public FishMidlineData
 
   void execute(const double time, const double l_tnext, const std::vector<double>& input) override;
 
-  ~CurvatureDefinedFishData()
+  ~CurvatureDefinedFishData() override
   {
     _dealloc(rK);
     _dealloc(vK);

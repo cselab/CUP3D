@@ -21,7 +21,6 @@ class KernelIC
 {
  public:
   KernelIC(const Real u) {}
-  ~KernelIC() {}
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -34,7 +33,6 @@ class KernelIC_RT
 {
  public:
   KernelIC_RT(const Real rhoS) {}
-  ~KernelIC_RT() {}
 
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
@@ -62,7 +60,6 @@ class KernelIC_taylorGreen
   const Real a = 2*M_PI / ext[0], b = 2*M_PI / ext[1], c = 2*M_PI / ext[2];
   const Real A = uMax, B = - uMax * ext[1] / ext[0];
  public:
-  ~KernelIC_taylorGreen() {}
   KernelIC_taylorGreen(const std::array<Real, 3> &extent, const Real U): ext{extent}, uMax(U) {}
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
@@ -87,7 +84,6 @@ class KernelIC_channel
  public:
   KernelIC_channel(const std::array<Real, 3> &extent, const Real U, const int _dir):
     dir(_dir), ext{extent}, uMax(U) {}
-  ~KernelIC_channel() {}
 
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {

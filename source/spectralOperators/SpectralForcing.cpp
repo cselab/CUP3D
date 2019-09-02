@@ -66,9 +66,8 @@ void SpectralForcing::operator()(const double dt)
        <<viscousDissip<<tab<<sim.dissipationRate<<tab<<sim.actualInjectionRate<<"\n";
   }
 
-  const Real fac = sim.dt * sim.actualInjectionRate / (2*largeModesKinEn) / sM->normalizeFFT;
-
-  if(fac>0) _fftw2cub(fac);
+  const Real fac = sim.dt * sim.actualInjectionRate / (2*largeModesKinEn);
+  if(fac>0) _fftw2cub(fac / sM->normalizeFFT);
 
   sim.stopProfiler();
 

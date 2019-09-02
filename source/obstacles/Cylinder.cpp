@@ -32,12 +32,9 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   inline bool isTouching(const FluidBlock&b, const int buffer_dx=0) const
   {
     const Real intersect[3][2] = {
-        std::max(b.min_pos[0], box[0][0]),
-        std::min(b.max_pos[0], box[0][1]),
-        std::max(b.min_pos[1], box[1][0]),
-        std::min(b.max_pos[1], box[1][1]),
-        std::max(b.min_pos[2], box[2][0]),
-        std::min(b.max_pos[2], box[2][1])
+      {std::max(b.min_pos[0], box[0][0]), std::min(b.max_pos[0], box[0][1])},
+      {std::max(b.min_pos[1], box[1][0]), std::min(b.max_pos[1], box[1][1])},
+      {std::max(b.min_pos[2], box[2][0]), std::min(b.max_pos[2], box[2][1])}
     };
     return intersect[0][1]-intersect[0][0]>0 &&
            intersect[1][1]-intersect[1][0]>0 &&
@@ -72,12 +69,9 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   inline bool isTouching(const FluidBlock&b, const int buffer_dx=0) const
   {
     const Real intersect[3][2] = {
-        std::max(b.min_pos[0], box[0][0]),
-        std::min(b.max_pos[0], box[0][1]),
-        std::max(b.min_pos[1], box[1][0]),
-        std::min(b.max_pos[1], box[1][1]),
-        std::max(b.min_pos[2], box[2][0]),
-        std::min(b.max_pos[2], box[2][1])
+      {std::max(b.min_pos[0], box[0][0]), std::min(b.max_pos[0], box[0][1])},
+      {std::max(b.min_pos[1], box[1][0]), std::min(b.max_pos[1], box[1][1])},
+      {std::max(b.min_pos[2], box[2][0]), std::min(b.max_pos[2], box[2][1])}
     };
     return intersect[0][1]-intersect[0][0]>0 &&
            intersect[1][1]-intersect[1][0]>0 &&

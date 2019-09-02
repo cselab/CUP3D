@@ -38,6 +38,7 @@ class SpectralAnalysis
 private:
   SpectralManip * sM;
   void _cub2fftw();
+  void _fftw2cub() const;
 };
 
 CubismUP_3D_NAMESPACE_END

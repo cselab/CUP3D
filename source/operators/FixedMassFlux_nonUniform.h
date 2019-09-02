@@ -5,7 +5,7 @@
 //  Copyright (c) 2017 ETHZ. All rights reserved.
 //
 
-#ifndef CubismUP_3D_FixedMassFlux_nonUniformh
+#ifndef CubismUP_3D_FixedMassFlux_nonUniform_h
 #define CubismUP_3D_FixedMassFlux_nonUniform_h
 
 #include "Operator.h"

@@ -27,12 +27,11 @@ namespace {
 class KernelGradP
 {
   const Real dt;
-  const std::array<Real, 3> extent;
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_P}}};
 
-  KernelGradP(double _dt, const std::array<Real, 3> &ext): dt(_dt), extent{ext} {}
+  KernelGradP(double _dt, const std::array<Real, 3> &ext): dt(_dt) {}
 
   ~KernelGradP() {}
 
@@ -54,12 +53,11 @@ class KernelGradP
 class KernelGradP_nonUniform
 {
   const Real dt;
-  const std::array<Real, 3> extent;
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_P}}};
 
-  KernelGradP_nonUniform(double _dt, const std::array<Real, 3> &ext): dt(_dt), extent{ext} {}
+  KernelGradP_nonUniform(double _dt, const std::array<Real, 3> &ext): dt(_dt) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const

@@ -14,9 +14,9 @@ struct SGSHelperElement
 {
   typedef Real RealType;
   // Derivatives of nu_sgs
-  Real nu, Dj_nu_Sxj=0, Dj_nu_Syj=0, Dj_nu_Szj=0;
+  Real nu=0, Dj_nu_Sxj=0, Dj_nu_Syj=0, Dj_nu_Szj=0;
   Real duD=0, dvD=0, dwD=0;
-  void clear() {nu=0, Dj_nu_Sxj=0, Dj_nu_Sxj=0, Dj_nu_Sxj=0, duD=0, dvD=0, dwD=0; }
+  void clear() {nu=0; Dj_nu_Sxj=0; Dj_nu_Sxj=0; Dj_nu_Sxj=0; duD=0; dvD=0; dwD=0; }
   SGSHelperElement(const SGSHelperElement& c) = delete;
 };
 using SGSBlock   = BaseBlock<SGSHelperElement>;
@@ -136,7 +136,7 @@ class KernelSGS_nonUniform
 {
  private:
   const double dt;
-  const Real* const uInf;
+  //const Real* const uInf;
   const bool bSGS_RL;
 
  public:
@@ -145,7 +145,7 @@ class KernelSGS_nonUniform
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   KernelSGS_nonUniform(double _dt, const Real* const _uInf, const bool _bSGS_RL)
-      : dt(_dt), uInf(_uInf), bSGS_RL(_bSGS_RL) {}
+      : dt(_dt), bSGS_RL(_bSGS_RL) {}
 
   ~KernelSGS_nonUniform() {}
   template <typename Lab, typename BlockType>

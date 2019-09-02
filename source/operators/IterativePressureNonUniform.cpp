@@ -24,14 +24,14 @@ using namespace cubism;
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-static constexpr Real DBLEPS = std::numeric_limits<double>::epsilon();
+//static constexpr Real DBLEPS = std::numeric_limits<double>::epsilon();
 
 namespace {
 
 class KernelPressureRHS_nonUniform
 {
  private:
-  const Real dt, invdt, meanh;
+  const Real invdt, meanh;
   const Real fadeLen[3], ext[3], iFade[3];
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   PoissonSolver * const solver;
@@ -94,7 +94,7 @@ class KernelPressureRHS_nonUniform
   const StencilInfo stencil{-1,-1,-1,2,2,2,false, {FE_U,FE_V,FE_W}};
 
   KernelPressureRHS_nonUniform(double _dt, double _h, const Real buf[3],
-  const std::array<Real, 3> &E, PoissonSolver* ps): dt(_dt), invdt(1/_dt),
+  const std::array<Real, 3> &E, PoissonSolver* ps): invdt(1/_dt),
   meanh(_h), fadeLen{buf[0],buf[1],buf[2]}, ext{E[0],E[1],E[2]},
   iFade{1/(buf[0]+EPS), 1/(buf[1]+EPS), 1/(buf[2]+EPS)}, solver(ps) {}
 

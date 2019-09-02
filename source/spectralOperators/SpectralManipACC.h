@@ -27,7 +27,7 @@ class SpectralManipACC : public SpectralManip
 public:
 
   SpectralManipACC(SimulationData & s);
-  ~SpectralManipACC();
+  ~SpectralManipACC() override;
 
   void prepareFwd() override;
   void prepareBwd() override;

@@ -89,6 +89,8 @@ void SpectralManipFFTW::_compute_analysis()
   const Real waveFactorX = 2.0 * M_PI / sim.extent[0];
   const Real waveFactorY = 2.0 * M_PI / sim.extent[1];
   const Real waveFactorZ = 2.0 * M_PI / sim.extent[2];
+  const Real wFacX = 2*M_PI / nKx, wFacY = 2*M_PI / nKy, wFacZ = 2*M_PI / nKz;
+
   const long loc_n1 = local_n1, shifty = local_1_start;
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
   const size_t nBins = stats.nBin;
@@ -100,7 +102,7 @@ void SpectralManipFFTW::_compute_analysis()
   memset(E_msr, 0, nBins * sizeof(Real));
 
   // Let's only measure spectrum up to Nyquist.
-  #pragma omp parallel for reduction(+ : E_msr[:nBins], tke, eps, tauIntegral)  schedule(static)
+  #pragma omp parallel for reduction(+ : E_msr[:nBins], tke, eps, tauIntegral) schedule(static)
   for(long j = 0; j<loc_n1; ++j)
   for(long i = 0; i<sizeX;  ++i)
   for(long k = 0; k<sizeZ_hat; ++k)
@@ -114,17 +116,32 @@ void SpectralManipFFTW::_compute_analysis()
     const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
     const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
     const Real k2 = kx*kx + ky*ky + kz*kz;
-    const Real ks = std::sqrt(ii*ii + jj*jj + kk*kk);
-    const Real E = mult/2 * ( pow2_cplx(cplxData_u[linidx])
-      + pow2_cplx(cplxData_v[linidx]) + pow2_cplx(cplxData_w[linidx]) );
+    // Dissipation rate
+    const Real dXfac = 2*std::sin(wFacX*ii);
+    const Real dYfac = 2*std::sin(wFacY*jj);
+    const Real dZfac = 2*std::sin(wFacZ*kk);
+    const Real UR = cplxData_u[linidx][0], UI = cplxData_u[linidx][1];
+    const Real VR = cplxData_v[linidx][0], VI = cplxData_v[linidx][1];
+    const Real WR = cplxData_w[linidx][0], WI = cplxData_w[linidx][1];
+    const Real dUdYR = - UI * dYfac, dUdYI = UR * dYfac;
+    const Real dUdZR = - UI * dZfac, dUdZI = UR * dZfac;
+    const Real dVdXR = - VI * dXfac, dVdXI = VR * dXfac;
+    const Real dVdZR = - VI * dZfac, dVdZI = VR * dZfac;
+    const Real dWdXR = - WI * dXfac, dWdXI = WR * dXfac;
+    const Real dWdYR = - WI * dYfac, dWdYI = WR * dYfac;
+    const Real OMGXR = dWdYR - dVdZR, OMGXI = dWdYI - dVdZI;
+    const Real OMGYR = dUdZR - dWdXR, OMGYI = dUdZI - dWdXI;
+    const Real OMGZR = dVdXR - dUdYR, OMGZI = dVdXI - dUdYI;
+
+    const Real E = mult/2 * (UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
 
     // Total kinetic energy
     tke += E;
-    // Dissipation rate
     eps += k2 * E;
     // Large eddy turnover time
     tauIntegral += (k2 > 0) ? E / std::sqrt(k2) : 0.;
-    if (ks <= nyquist) {
+    if (k2 <= nyquist * nyquist) {
+      const Real ks = std::sqrt(ii*ii + jj*jj + kk*kk);
       int binID = std::floor(ks * nyquist_scaling);
       E_msr[binID] += E;
       //if (bComputeCs2Spectrum){
@@ -132,6 +149,12 @@ void SpectralManipFFTW::_compute_analysis()
       //  cs2_msr[binID] += mult*cs2;
       //}
     }
+    cplxData_u[linidx][0] = OMGXR;
+    cplxData_v[linidx][0] = OMGYR;
+    cplxData_w[linidx][0] = OMGZR;
+    cplxData_u[linidx][1] = OMGXI;
+    cplxData_v[linidx][1] = OMGYI;
+    cplxData_w[linidx][1] = OMGZI;
   }
 
   MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
@@ -202,7 +225,7 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
       const Real k_norm = std::sqrt(k2);
 
       const Real E_k = target.interpE(k_norm);
-      const Real amp = (k2==0)? 0
+      const Real amp = (k2<=0)? 0
                       : std::sqrt(E_k/(2*M_PI*std::pow(k_norm/waveFactorX,2)));
 
       const Real theta1 = randUniform(gen)*2*M_PI;
@@ -214,20 +237,20 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
       const Real noise_b[2] = {amp * std::cos(theta2) * std::sin(phi),
                                amp * std::sin(theta2) * std::sin(phi)};
 
-      const Real fac = k_norm*k_xy, invFac = fac==0? 0 : 1/fac;
+      const Real fac = k_norm*k_xy, invFac = fac<=0? 0 : 1/fac;
 
-      cplxData_u[linidx][0] = k_norm==0? 0
+      cplxData_u[linidx][0] = k_norm<=0? 0
                     : invFac * (noise_a[0] * k_norm*ky + noise_b[0] * kx*kz );
-      cplxData_u[linidx][1] = k_norm==0? 0
+      cplxData_u[linidx][1] = k_norm<=0? 0
                     : invFac * (noise_a[0] * k_norm*ky + noise_b[1] * kx*kz );
 
-      cplxData_v[linidx][0] = k_norm==0? 0
+      cplxData_v[linidx][0] = k_norm<=0? 0
                     : invFac * (noise_b[0] * ky*kz - noise_a[0] * k_norm*kx );
-      cplxData_v[linidx][1] = k_norm==0? 0
+      cplxData_v[linidx][1] = k_norm<=0? 0
                     : invFac * (noise_b[1] * ky*kz - noise_a[1] * k_norm*kx );
 
-      cplxData_w[linidx][0] = k_norm==0? 0 : -noise_b[0] * k_xy / k_norm;
-      cplxData_w[linidx][1] = k_norm==0? 0 : -noise_b[1] * k_xy / k_norm;
+      cplxData_w[linidx][0] = k_norm<=0? 0 : -noise_b[0] * k_xy / k_norm;
+      cplxData_w[linidx][1] = k_norm<=0? 0 : -noise_b[1] * k_xy / k_norm;
     }
   }
 }

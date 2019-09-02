@@ -286,6 +286,8 @@ struct PutFishOnBlocks
   {2*(q[1]*q[3]-q[2]*q[0]), 2*(q[2]*q[3]+q[1]*q[0]), 1-2*(q[1]*q[1]+q[2]*q[2])}
   } { }
 
+  virtual ~PutFishOnBlocks() {}
+
   static inline Real eulerDistSq3D(const Real a[3], const Real b[3]) {
     return std::pow(a[0]-b[0],2) +std::pow(a[1]-b[1],2) +std::pow(a[2]-b[2],2);
   }

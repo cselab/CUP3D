@@ -11,11 +11,12 @@
 
 #include "ObstacleVector.h"
 
-namespace cubism { struct ArgumentParser; }
+namespace cubism { class ArgumentParser; }
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-class ObstacleAndExternalArguments;  // For ExternalObstacle.
+struct ObstacleAndExternalArguments;  // For ExternalObstacle.
+
 class ObstacleFactory
 {
   SimulationData & sim;

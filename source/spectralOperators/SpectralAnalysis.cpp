@@ -8,6 +8,7 @@
 
 #include "SpectralAnalysis.h"
 #include "SpectralManip.h"
+#include <Cubism/HDF5Dumper_MPI.h>
 
 #include <sys/stat.h>
 #include <iomanip>
@@ -68,11 +69,45 @@ void SpectralAnalysis::_cub2fftw()
   u_avg[2] /= sM->normalizeFFT;
 }
 
+
+void SpectralAnalysis::_fftw2cub() const
+{
+  const size_t NlocBlocks = sM->local_infos.size();
+  const Real * const data_u = sM->data_u;
+  const Real * const data_v = sM->data_v;
+  const Real * const data_w = sM->data_w;
+  const Real factor = 1 / sM->normalizeFFT;
+
+  #pragma omp parallel for schedule(static)
+  for(size_t i=0; i<NlocBlocks; ++i) {
+    FluidBlock& b = *(FluidBlock*) sM->local_infos[i].ptrBlock;
+    const size_t offset = sM->_offset( sM->local_infos[i] );
+    for(size_t iz=0; iz< (size_t) FluidBlock::sizeZ; ++iz)
+    for(size_t iy=0; iy< (size_t) FluidBlock::sizeY; ++iy)
+    for(size_t ix=0; ix< (size_t) FluidBlock::sizeX; ++ix) {
+      const size_t src_index = sM->_dest(offset, iz, iy, ix);
+      b(ix,iy,iz).tmpU += factor * data_u[src_index];
+      b(ix,iy,iz).tmpV += factor * data_v[src_index];
+      b(ix,iy,iz).tmpW += factor * data_w[src_index];
+    }
+  }
+}
+
 void SpectralAnalysis::run()
 {
   _cub2fftw();
   sM->runFwd();
   sM->_compute_analysis();
+  sM->runBwd();
+  _fftw2cub();
+
+  std::stringstream ssR; ssR<<std::setfill('0')<<std::setw(9)<<sM->sim.step;
+  const auto nameV = StreamerVelocityVector::prefix() + ssR.str();
+  const auto nameO = StreamerTmpVector::prefix() + ssR.str();
+  DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
+    *sM->sim.grid, sM->sim.time, nameV, sM->sim.path4serialization);
+  DumpHDF5_MPI<StreamerTmpVector, DumpReal>(
+    *sM->sim.grid, sM->sim.time, nameO, sM->sim.path4serialization);
 }
 
 void SpectralAnalysis::dump2File(const int nFile) const

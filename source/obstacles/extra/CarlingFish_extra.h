@@ -33,7 +33,7 @@ class CarlingFishMidlineData_BurstCoast : public CarlingFishMidlineData
     double _h, double A) : CarlingFishMidlineData(L,T,phi,_h,A),
     tStart(_tStart), t0(T0), t1(T1), t2(T2), t3(T3), lowestAmp(lowAmp)
   {
-    printf("CarlingFishMidlineData_BurstCoast NOT SUPPORTED\n"); abort();
+    printf("CarlingFishMidlineData_BurstCoast NOT SUPPORTED\n");
   }
 };
 
@@ -66,7 +66,7 @@ class CarlingFishMidlineData_Hinged : public CarlingFishMidlineData
    CarlingFishMidlineData(L,T,phi,_h,A), sHinge(_sHinge), ThingeTheta(_Thinge),
     AhingeTheta(M_PI*_Ahinge/180.0), hingePhi(_phiHinge/360.0)
   {
-    printf("CarlingFishMidlineData_Hinged NOT SUPPORTED\n"); abort();
+    printf("CarlingFishMidlineData_Hinged NOT SUPPORTED\n");
   }
 };
 
