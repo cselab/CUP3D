@@ -129,16 +129,16 @@ endif
 # FFTW
 #################################################
 ifneq ($(FFTW_ROOT),)
-	# OK
+	# do not overwrite FFTW_ROOT
 else ifneq ($(FFTW3_ROOT_DIR),)
 	FFTW_ROOT = $(FFTW3_ROOT_DIR)
 else ifneq ($(FFTW_DIR),)
 	FFTW_ROOT = $(FFTW_DIR)/..
-else
-	ERROR = "None of the FFTW_ROOT, FFTW_ROOT_DIR or FFTW_DIR environment variables set. Did you forget to `module load`?"
 endif
-FFTW_LIBS  = -L$(FFTW_ROOT)/lib
-CPPFLAGS  += -I$(FFTW_ROOT)/include
+ifneq ($(FFTW_ROOT),)
+	FFTW_LIBS  = -L$(FFTW_ROOT)/lib
+	CPPFLAGS  += -I$(FFTW_ROOT)/include
+endif
 
 ifneq ($(ERROR),)
 $(error $(ERROR))  # Easiest way I found to avoid unindenting the code above...
@@ -220,9 +220,9 @@ lib: $(LIBOBJ) $(NVOBJECTS)
 	ar rs ../lib/libcubismup3d.a $(FFTW_LIBS) $(LIBOBJ) $(NVOBJECTS)
 
 rlHIT: $(OBJECTS) $(NVOBJECTS)
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_INCLUDE} -c ../source/main_RL_HIT.cpp -o main_RL_HIT.o
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_INCLUDE} -c ../source/operators/SGS_RL.cpp -o SGS_RL.o
-	$(LD) -o $@ $^ main_RL_HIT.o SGS_RL.o $(LIBS) -L${SMARTIES_LIB} -lsmarties
+	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_HIT.cpp -o main_RL_HIT.o
+	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/operators/SGS_RL.cpp -o SGS_RL.o
+	$(LD) -o $@ $^ main_RL_HIT.o SGS_RL.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
 
 -include $(DEPS)
 
