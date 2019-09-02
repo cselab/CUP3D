@@ -221,9 +221,9 @@ lib: $(LIBOBJ) $(NVOBJECTS)
 	ar rs ../lib/libcubismup3d.a $(FFTW_LIBS) $(LIBOBJ) $(NVOBJECTS)
 
 rlHIT: $(OBJECTS) $(NVOBJECTS)
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_INCLUDE} -c ../source/main_RL_HIT.cpp -o main_RL_HIT.o
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_INCLUDE} -c ../source/operators/SGS_RL.cpp -o SGS_RL.o
-	$(LD) -o $@ $^ main_RL_HIT.o SGS_RL.o $(LIBS) -L${SMARTIES_LIB} -lsmarties
+	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/main_RL_HIT.cpp -o main_RL_HIT.o
+	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/operators/SGS_RL.cpp -o SGS_RL.o
+	$(LD) -o $@ $^ main_RL_HIT.o SGS_RL.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
 
 -include $(DEPS)
 
