@@ -129,16 +129,16 @@ endif
 # FFTW
 #################################################
 ifneq ($(FFTW_ROOT),)
-	# OK
+	# do not overwrite FFTW_ROOT
 else ifneq ($(FFTW3_ROOT_DIR),)
 	FFTW_ROOT = $(FFTW3_ROOT_DIR)
 else ifneq ($(FFTW_DIR),)
 	FFTW_ROOT = $(FFTW_DIR)/..
-else
-	ERROR = "None of the FFTW_ROOT, FFTW_ROOT_DIR or FFTW_DIR environment variables set. Did you forget to `module load`?"
 endif
-FFTW_LIBS  = -L$(FFTW_ROOT)/lib
-CPPFLAGS  += -I$(FFTW_ROOT)/include
+ifneq ($(FFTW_ROOT),)
+	FFTW_LIBS  = -L$(FFTW_ROOT)/lib
+	CPPFLAGS  += -I$(FFTW_ROOT)/include
+endif
 
 ifneq ($(ERROR),)
 $(error $(ERROR))  # Easiest way I found to avoid unindenting the code above...
