@@ -1,4 +1,3 @@
-
 ifeq ($(shell uname -s), Darwin)
 include make.macos
 endif
@@ -22,6 +21,20 @@ ifneq "$(findstring eu-,$(shell hostname))" ""
 	include make.euler
 endif
 
+# this only affects amount of memory allocated by block processing:
+nthreads ?= 24 # needs to be modified if user wants to use more threads per rank
+config ?= prod
+precision ?= double
+precision_dump ?= single
+bs ?= 16
+hdf ?= true
+hypre ?= false
+petsc ?= false
+accfft ?= false
+zlib ?= 0
+verbose ?= false
+dump_surface_binary ?= false
+
 ifeq "$(shell $(CXX) --version | grep -ci 'icpc')" "0"
 ifeq "$(shell $(CXX) --version | grep -ci 'llvm')" "0"
 compiler=gnu
@@ -38,20 +51,6 @@ endif
 NVCC?=nvcc
 NVFLAGS?=-std=c++14 -code=sm_60 -arch=compute_60
 LD=$(CXX)
-
-# this only affects amount of memory allocated by block processing:
-nthreads ?= 24 # needs to be modified if user wants to use more threads per rank
-config ?= prod
-precision ?= double
-precision_dump ?= single
-bs ?= 16
-hdf ?= true
-hypre ?= false
-petsc ?= false
-accfft ?= false
-zlib ?= 0
-verbose ?= false
-dump_surface_binary ?= false
 
 ifeq "$(dump_surface_binary)" "true"
 	CPPFLAGS += -DCUP_DUMP_SURFACE_BINARY

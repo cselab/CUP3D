@@ -10,6 +10,8 @@
 #define CubismUP_3D_ProcessOperators_h
 
 #include "../SimulationData.h"
+#include "../ObstacleBlock.h"
+#include "Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

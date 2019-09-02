@@ -137,7 +137,7 @@ public:
       static_cast<size_t>(grid.getBlocksPerDimension(2)*bs[2])
   };
   const size_t myN[3]={ mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
-  const size_t normalizeFFT = gsize[0] * gsize[1] * gsize[2];
+  const Real normalizeFFT = gsize[0] * gsize[1] * gsize[2];
   const size_t nz_hat = gsize[2]/2+1;
   const long maxGridN = std::max({gsize[0], gsize[1], gsize[2]});
   const Real maxGridL = std::max({sim.extent[0], sim.extent[1], sim.extent[2]});

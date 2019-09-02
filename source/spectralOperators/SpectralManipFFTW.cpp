@@ -33,6 +33,7 @@ void SpectralManipFFTW::_compute_largeModesForcing()
   const Real waveFactorX = 2.0 * M_PI / sim.extent[0];
   const Real waveFactorY = 2.0 * M_PI / sim.extent[1];
   const Real waveFactorZ = 2.0 * M_PI / sim.extent[2];
+  const Real wFacX = 2*M_PI / nKx, wFacY = 2*M_PI / nKy, wFacZ = 2*M_PI / nKz;
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
   const long loc_n1 = local_n1, shifty = local_1_start;
 
@@ -47,15 +48,32 @@ void SpectralManipFFTW::_compute_largeModesForcing()
     const long l = shifty + j; //memory index plus shift due to decomp
     const long jj = (l <= nKy/2) ? l : -(nKy-l);
     const long kk = (k <= nKz/2) ? k : -(nKz-k);
+    const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
 
     const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
     const Real k2 = kx*kx + ky*ky + kz*kz;
+    const Real dXfac = 2*std::sin(wFacX*ii);
+    const Real dYfac = 2*std::sin(wFacY*jj);
+    const Real dZfac = 2*std::sin(wFacZ*kk);
+    const Real UR = cplxData_u[linidx][0], UI = cplxData_u[linidx][1];
+    const Real VR = cplxData_v[linidx][0], VI = cplxData_v[linidx][1];
+    const Real WR = cplxData_w[linidx][0], WI = cplxData_w[linidx][1];
+    const Real dUdYR = - UI * dYfac, dUdYI = UR * dYfac;
+    const Real dUdZR = - UI * dZfac, dUdZI = UR * dZfac;
+    const Real dVdXR = - VI * dXfac, dVdXI = VR * dXfac;
+    const Real dVdZR = - VI * dZfac, dVdZI = VR * dZfac;
+    const Real dWdXR = - WI * dXfac, dWdXI = WR * dXfac;
+    const Real dWdYR = - WI * dYfac, dWdYI = WR * dYfac;
+    const Real OMGXR = dWdYR - dVdZR, OMGXI = dWdYI - dVdZI;
+    const Real OMGYR = dUdZR - dWdXR, OMGYI = dUdZI - dWdXI;
+    const Real OMGZR = dVdXR - dUdYR, OMGZI = dVdXI - dUdYI;
+    const Real E = mult/2 * (UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
 
-    const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
-    const Real E = mult/2 * ( pow2_cplx(cplxData_u[linidx])
-      + pow2_cplx(cplxData_v[linidx]) + pow2_cplx(cplxData_w[linidx]) );
     tke += E; // Total kinetic energy
-    eps += k2 * E; // Dissipation rate
+    eps += mult/2 * ( OMGXR*OMGXR + OMGXI*OMGXI
+                    + OMGYR*OMGYR + OMGYI*OMGYI
+                    + OMGZR*OMGZR + OMGZI*OMGZI);    // Dissipation rate
+    //eps += k2 * E; // Dissipation rate
     if (k2 > 0 && k2 <= 4) {
       tkeFiltered += E;
     } else {
@@ -74,7 +92,8 @@ void SpectralManipFFTW::_compute_largeModesForcing()
 
   stats.tke_filtered = tkeFiltered / pow2(normalizeFFT);
   stats.tke = tke / pow2(normalizeFFT);
-  stats.eps = eps * 2*(sim.nu) / pow2(normalizeFFT);
+  stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT * 2 * sim.uniformH());
+  //stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT);
 }
 
 void SpectralManipFFTW::_compute_analysis()
@@ -116,7 +135,6 @@ void SpectralManipFFTW::_compute_analysis()
     const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
     const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
     const Real k2 = kx*kx + ky*ky + kz*kz;
-    // Dissipation rate
     const Real dXfac = 2*std::sin(wFacX*ii);
     const Real dYfac = 2*std::sin(wFacY*jj);
     const Real dZfac = 2*std::sin(wFacZ*kk);
@@ -135,11 +153,12 @@ void SpectralManipFFTW::_compute_analysis()
 
     const Real E = mult/2 * (UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
 
-    // Total kinetic energy
-    tke += E;
-    eps += k2 * E;
-    // Large eddy turnover time
-    tauIntegral += (k2 > 0) ? E / std::sqrt(k2) : 0.;
+    tke += E; // Total kinetic energy
+    //eps += k2 * E; // Dissipation rate
+    eps += mult/2 * ( OMGXR*OMGXR + OMGXI*OMGXI
+                    + OMGYR*OMGYR + OMGYI*OMGYI
+                    + OMGZR*OMGZR + OMGZI*OMGZI);    // Dissipation rate
+    tauIntegral += (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy turnover time
     if (k2 <= nyquist * nyquist) {
       const Real ks = std::sqrt(ii*ii + jj*jj + kk*kk);
       int binID = std::floor(ks * nyquist_scaling);
@@ -149,19 +168,15 @@ void SpectralManipFFTW::_compute_analysis()
       //  cs2_msr[binID] += mult*cs2;
       //}
     }
-    cplxData_u[linidx][0] = OMGXR;
-    cplxData_v[linidx][0] = OMGYR;
-    cplxData_w[linidx][0] = OMGZR;
-    cplxData_u[linidx][1] = OMGXI;
-    cplxData_v[linidx][1] = OMGYI;
-    cplxData_w[linidx][1] = OMGZI;
+    //cplxData_u[linidx][0] = OMGXR; cplxData_u[linidx][1] = OMGXI;
+    //cplxData_v[linidx][0] = OMGYR; cplxData_v[linidx][1] = OMGYI;
+    //cplxData_w[linidx][0] = OMGZR; cplxData_w[linidx][1] = OMGZI;
   }
 
   MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tauIntegral, 1, MPIREAL, MPI_SUM, m_comm);
-  std::cout<<nyquist<<" "<<tke<<" "<<eps<<" "<<tauIntegral<<"\n";
   //if (bComputeCs2Spectrum){
   //  assert(false);
     //#pragma omp parallel reduction(+ : cs2_msr[:nBin])
@@ -174,7 +189,8 @@ void SpectralManipFFTW::_compute_analysis()
     //if (bComputeCs2Spectrum) cs2_msr[binID] /= normalizeFFT;
   }
   stats.tke = tke * normalization;
-  stats.eps = eps * 2 * (sim.nu) * normalization;
+  stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT * 2 * sim.uniformH());
+  //stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT);
 
   stats.uprime = std::sqrt(2 * stats.tke / 3);
   stats.lambda = std::sqrt(15 * sim.nu / stats.eps) * stats.uprime;
