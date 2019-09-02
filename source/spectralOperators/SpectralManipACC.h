@@ -13,6 +13,8 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
+struct myCUDAstreams;
+
 class SpectralManipACC : public SpectralManip
 {
   MPI_Comm acc_comm;
@@ -23,6 +25,8 @@ class SpectralManipACC : public SpectralManip
   Real * gpu_v;
   Real * gpu_w;
   void * plan;
+
+  myCUDAstreams * const streams;
 
 public:
 

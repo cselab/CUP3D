@@ -41,6 +41,23 @@ void _compute_HIT_analysis(
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+struct myCUDAstreams
+{
+  cudaStream_t u;
+  cudaStream_t v;
+  cudaStream_t w;
+  myCUDAstreams()
+  {
+    cudaStreamCreate ( & u );
+    cudaStreamCreate ( & v );
+    cudaStreamCreate ( & w );
+  }
+  ~myCUDAstreams()
+  {
+    // how to deallocate?
+  }
+};
+
 void SpectralManipACC::_compute_largeModesForcing()
 {
   Real eps = 0, tke = 0, tkeFiltered = 0;
@@ -95,7 +112,8 @@ void SpectralManipACC::_compute_IC(const std::vector<Real> &K,
   fflush(0); abort();
 }
 
-SpectralManipACC::SpectralManipACC(SimulationData&s): SpectralManip(s)
+SpectralManipACC::SpectralManipACC(SimulationData&s): SpectralManip(s),
+streams(new myCUDAstreams())
 {
   if (gsize[2]!=myN[2]) {
     printf("SpectralManipACC assumes grid is distrubuted in x and y.\n");
@@ -141,22 +159,28 @@ void SpectralManipACC::prepareBwd()
 
 void SpectralManipACC::runFwd() const
 {
-  cudaMemcpy(gpu_u, data_u, alloc_max, cudaMemcpyHostToDevice);
-  cudaMemcpy(gpu_v, data_v, alloc_max, cudaMemcpyHostToDevice);
-  cudaMemcpy(gpu_w, data_w, alloc_max, cudaMemcpyHostToDevice);
+  cudaMemcpyAsync(gpu_u, data_u, alloc_max, cudaMemcpyHostToDevice, streams->u);
+  cudaMemcpyAsync(gpu_v, data_v, alloc_max, cudaMemcpyHostToDevice, streams->v);
+  cudaMemcpyAsync(gpu_w, data_w, alloc_max, cudaMemcpyHostToDevice, streams->w);
+  cudaStreamSynchronize ( streams->u );
   accfft_exec_r2c((acc_plan*)plan, gpu_u, (acc_c*)gpu_u);
+  cudaStreamSynchronize ( streams->v );
   accfft_exec_r2c((acc_plan*)plan, gpu_v, (acc_c*)gpu_v);
+  cudaStreamSynchronize ( streams->w );
   accfft_exec_r2c((acc_plan*)plan, gpu_w, (acc_c*)gpu_w);
 }
 
 void SpectralManipACC::runBwd() const
 {
   accfft_exec_c2r((acc_plan*)plan, (acc_c*)gpu_u, gpu_u);
+  cudaMemcpyAsync(data_u, gpu_u, alloc_max, cudaMemcpyDeviceToHost, streams->u);
   accfft_exec_c2r((acc_plan*)plan, (acc_c*)gpu_v, gpu_v);
+  cudaMemcpyAsync(data_v, gpu_v, alloc_max, cudaMemcpyDeviceToHost, streams->v);
   accfft_exec_c2r((acc_plan*)plan, (acc_c*)gpu_w, gpu_w);
-  cudaMemcpy(data_u, gpu_u, alloc_max, cudaMemcpyDeviceToHost);
-  cudaMemcpy(data_v, gpu_v, alloc_max, cudaMemcpyDeviceToHost);
-  cudaMemcpy(data_w, gpu_w, alloc_max, cudaMemcpyDeviceToHost);
+  cudaMemcpyAsync(data_w, gpu_w, alloc_max, cudaMemcpyDeviceToHost, streams->w);
+  cudaStreamSynchronize ( streams->u );
+  cudaStreamSynchronize ( streams->v );
+  cudaStreamSynchronize ( streams->w );
 }
 
 SpectralManipACC::~SpectralManipACC()
@@ -171,6 +195,7 @@ SpectralManipACC::~SpectralManipACC()
   accfft_destroy_plan_gpu((acc_plan*)plan);
   accfft_clean();
   MPI_Comm_free(&acc_comm);
+  delete streams;
 }
 
 CubismUP_3D_NAMESPACE_END
