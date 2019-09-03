@@ -105,9 +105,9 @@ void Analysis::operator()(const double dt)
   if (not bAnalysis) return;
 
   int nFile;
-  if (bTime){
+  if (bTime) {
     sim.nextAnalysisTime += sim.timeAnalysis;
-    nFile = (sim.time<=0)? 0 : 1+(int)(sim.time/sim.timeAnalysis);
+    nFile = (sim.time<=0)? 0 : 1 + (int)(sim.time/sim.timeAnalysis);
   }
   else nFile = sim.step;
 

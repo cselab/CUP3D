@@ -40,6 +40,7 @@ void SpectralAnalysis::_cub2fftw()
   Real * const data_v = sM->data_v;
   Real * const data_w = sM->data_w;
   //Real * const data_cs2 = sM->data_cs2;
+  assert(sM not_eq nullptr);
   const SpectralManip & helper = * sM;
 
   u_avg[0] = 0; u_avg[1] = 0; u_avg[2] = 0; unorm_avg = 0;
@@ -53,14 +54,10 @@ void SpectralAnalysis::_cub2fftw()
     for(int ix=0; ix<BlockType::sizeX; ++ix)
     {
       const size_t src_index = helper._dest(offset, iz, iy, ix);
-      const Real u = b(ix,iy,iz).u;
-      const Real v = b(ix,iy,iz).v;
-      const Real w = b(ix,iy,iz).w;
-      u_avg[0] += u; u_avg[1] += v; u_avg[2] += w;
-      //unorm_avg += (u*u + v*v + w*w)/2;
-      data_u[src_index] = u;
-      data_v[src_index] = v;
-      data_w[src_index] = w;
+      u_avg[0]+=b(ix,iy,iz).u; u_avg[1]+=b(ix,iy,iz).v; u_avg[2]+=b(ix,iy,iz).w;
+      data_u[src_index] = b(ix,iy,iz).u;
+      data_v[src_index] = b(ix,iy,iz).v;
+      data_w[src_index] = b(ix,iy,iz).w;
       // data_cs2[src_index] = b(ix,iy,iz).chi;
     }
   }
@@ -122,8 +119,7 @@ void SpectralAnalysis::run()
 void SpectralAnalysis::dump2File(const int nFile) const
 {
   std::stringstream ssR;
-  ssR << "analysis/spectralAnalysis_" << std::setfill('0') << std::setw(9)
-      << nFile;
+  ssR<<"analysis/spectralAnalysis_"<<std::setfill('0')<<std::setw(9)<<nFile;
   std::ofstream f;
   f.open(ssR.str());
   f << std::left << "Spectral Analysis :" << "\n";
@@ -162,6 +158,10 @@ void SpectralAnalysis::dump2File(const int nFile) const
   f << std::left << std::setw(15) << "tau_integral"
     << std::setw(15) << sM->stats.tau_integral
     << " #Integral time scale" << "\n";
+
+  f << std::left << std::setw(15) << "l_integral"
+    << std::setw(15) << sM->stats.l_integral
+    << " #Integral length scale" << "\n";
 
   f << std::left << std::setw(15) << "tau_eta"
     << std::setw(15) << std::sqrt( sM->sim.nu / sM->stats.eps )

@@ -37,8 +37,8 @@ void SpectralManipFFTW::_compute_largeModesForcing()
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
   const long loc_n1 = local_n1, shifty = local_1_start;
 
-  Real eps = 0, tke = 0, tkeFiltered = 0;
-  #pragma omp parallel for reduction(+: eps, tke, tkeFiltered) schedule(static)
+  Real eps = 0, tke = 0, tkeFiltered = 0, lIntegral = 0;
+  #pragma omp parallel for reduction(+: eps, tke, tkeFiltered, lIntegral) schedule(static)
   for(long j = 0; j<loc_n1; ++j)
   for(long i = 0; i<sizeX;  ++i)
   for(long k = 0; k<sizeZ_hat; ++k)
@@ -74,6 +74,7 @@ void SpectralManipFFTW::_compute_largeModesForcing()
                     + OMGYR*OMGYR + OMGYI*OMGYI
                     + OMGZR*OMGZR + OMGZI*OMGZI);    // Dissipation rate
     //eps += k2 * E; // Dissipation rate
+    lIntegral += (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy length scale
     if (k2 > 0 && k2 <= 4) {
       tkeFiltered += E;
     } else {
@@ -89,10 +90,20 @@ void SpectralManipFFTW::_compute_largeModesForcing()
   MPI_Allreduce(MPI_IN_PLACE, &tkeFiltered, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
+  MPI_Allreduce(MPI_IN_PLACE, &lIntegral, 1, MPIREAL, MPI_SUM, m_comm);
 
   stats.tke_filtered = tkeFiltered / pow2(normalizeFFT);
   stats.tke = tke / pow2(normalizeFFT);
   stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT * 2 * sim.uniformH());
+
+  stats.uprime = std::sqrt(2 * stats.tke / 3);
+  stats.lambda = std::sqrt(15 * sim.nu / stats.eps) * stats.uprime;
+  stats.Re_lambda = stats.uprime * stats.lambda / sim.nu;
+  stats.l_integral = lIntegral / tke;
+  stats.tau_integral = stats.l_integral / stats.uprime;
+  //const Real tau_integral =
+  //  lIntegral * M_PI / (2*pow3(stats.uprime)) / pow2(normalizeFFT);
+  //printf("%e %e %e\n", stats.l_integral, stats.tau_integral, tau_integral);
   //stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT);
 }
 
@@ -113,15 +124,15 @@ void SpectralManipFFTW::_compute_analysis()
   const long loc_n1 = local_n1, shifty = local_1_start;
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
   const size_t nBins = stats.nBin;
-  const Real nyquist = stats.nyquist;
-  const Real nyquist_scaling = (nyquist-1) / nyquist;
+  const long nyquist = stats.nyquist;
+  const Real nyquist_scaling = (nyquist-1) / (Real) nyquist;
   assert(nyquist > 0 && nyquist_scaling > 0);
-  Real tke = 0, eps = 0, tauIntegral = 0;
+  Real tke = 0, eps = 0, lIntegral = 0;
   Real * const E_msr = stats.E_msr;
   memset(E_msr, 0, nBins * sizeof(Real));
 
   // Let's only measure spectrum up to Nyquist.
-  #pragma omp parallel for reduction(+ : E_msr[:nBins], tke, eps, tauIntegral) schedule(static)
+  #pragma omp parallel for reduction(+ : E_msr[:nBins], tke, eps, lIntegral) schedule(static)
   for(long j = 0; j<loc_n1; ++j)
   for(long i = 0; i<sizeX;  ++i)
   for(long k = 0; k<sizeZ_hat; ++k)
@@ -158,10 +169,13 @@ void SpectralManipFFTW::_compute_analysis()
     eps += mult/2 * ( OMGXR*OMGXR + OMGXI*OMGXI
                     + OMGYR*OMGYR + OMGYI*OMGYI
                     + OMGZR*OMGZR + OMGZI*OMGZI);    // Dissipation rate
-    tauIntegral += (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy turnover time
-    if (k2 <= nyquist * nyquist) {
-      const Real ks = std::sqrt(ii*ii + jj*jj + kk*kk);
-      int binID = std::floor(ks * nyquist_scaling);
+    lIntegral += (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy length scale
+
+    const long kind = ii*ii + jj*jj + kk*kk;
+    if (kind < nyquist * nyquist)
+    {
+      const size_t binID = std::floor(std::sqrt(kind) * nyquist_scaling);
+      assert(binID < nBins);
       E_msr[binID] += E;
       //if (bComputeCs2Spectrum){
       //  const Real cs2 = std::sqrt(pow2_cplx(cplxData_cs2[linidx]));
@@ -176,7 +190,7 @@ void SpectralManipFFTW::_compute_analysis()
   MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
-  MPI_Allreduce(MPI_IN_PLACE, &tauIntegral, 1, MPIREAL, MPI_SUM, m_comm);
+  MPI_Allreduce(MPI_IN_PLACE, &lIntegral, 1, MPIREAL, MPI_SUM, m_comm);
   //if (bComputeCs2Spectrum){
   //  assert(false);
     //#pragma omp parallel reduction(+ : cs2_msr[:nBin])
@@ -195,7 +209,9 @@ void SpectralManipFFTW::_compute_analysis()
   stats.uprime = std::sqrt(2 * stats.tke / 3);
   stats.lambda = std::sqrt(15 * sim.nu / stats.eps) * stats.uprime;
   stats.Re_lambda = stats.uprime * stats.lambda / sim.nu;
-  stats.tau_integral = tauIntegral * M_PI/(2*pow3(stats.uprime)) *normalization;
+  stats.l_integral = lIntegral / tke;
+  stats.tau_integral = stats.l_integral / stats.uprime;
+  //stats.tau_integral = lIntegral * M_PI/(2*pow3(stats.uprime)) *normalization;
 }
 
 void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,

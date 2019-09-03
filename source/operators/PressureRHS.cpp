@@ -34,8 +34,8 @@ struct KernelPressureRHS : public ObstacleVisitor
   ObstacleVector * const obstacle_vector;
   const size_t nShapes = obstacle_vector->nObstacles();
   // non-const non thread safe:
-  Real * const sumRHS = (Real*) calloc(nShapes, sizeof(Real));
-  Real * const absRHS = (Real*) calloc(nShapes, sizeof(Real));
+  std::vector<Real> sumRHS = std::vector<Real>(nShapes, 0);
+  std::vector<Real> absRHS = std::vector<Real>(nShapes, 0);
   // modified before going into accept
   const cubism::BlockInfo * info_ptr = nullptr;
   Lab * lab_ptr = nullptr;
@@ -45,12 +45,12 @@ struct KernelPressureRHS : public ObstacleVisitor
 
   KernelPressureRHS(PoissonSolver* pois, PenalizationGridMPI* penG,
     ObstacleVector* oVec, double _dt) : dt(_dt), solver(pois), penGrid(penG),
-    obstacle_vector(oVec) {}
+    obstacle_vector(oVec) { }
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o)
   {
-    const Real h = info.h_gridpoint, fac = .5*h*h/dt;
+    const Real h = info.h_gridpoint, fac = 0.5*h*h/dt;
     Real* __restrict__ const ret = solver->data + solver->_offset_ext(info);
     const unsigned SX=solver->stridex, SY=solver->stridey, SZ=solver->stridez;
 
@@ -134,8 +134,8 @@ struct KernelPressureRHS_nonUniform : public ObstacleVisitor
   ObstacleVector * const obstacle_vector;
   const size_t nShapes = obstacle_vector->nObstacles();
   // non-const non thread safe:
-  Real * const sumRHS = (Real*) calloc(nShapes, sizeof(Real));
-  Real * const absRHS = (Real*) calloc(nShapes, sizeof(Real));
+  std::vector<Real> sumRHS = std::vector<Real>(nShapes, 0);
+  std::vector<Real> absRHS = std::vector<Real>(nShapes, 0);
   // modified before going into accept
   const cubism::BlockInfo * info_ptr = nullptr;
   Lab * lab_ptr = nullptr;

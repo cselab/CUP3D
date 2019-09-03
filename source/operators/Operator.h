@@ -82,20 +82,23 @@ class Operator
       }
     }
 
-    std::vector<cubism::BlockInfo> avail1 = Synch.avail_halo();
-    const int Nhalo = avail1.size();
-
-    #pragma omp parallel
+    if(sim.nprocs>1)
     {
-      int tid = omp_get_thread_num();
-      Kernel& kernel = * (kernels[tid]); LabMPI& lab = labs[tid];
+      std::vector<cubism::BlockInfo> avail1 = Synch.avail_halo();
+      const int Nhalo = avail1.size();
 
-      #pragma omp for schedule(static)
-      for(int i=0; i<Nhalo; i++) {
-        const cubism::BlockInfo& I = avail1[i];
-        FluidBlock& b = *(FluidBlock*)I.ptrBlock;
-        lab.load(I, 0);
-        kernel(lab, I, b);
+      #pragma omp parallel
+      {
+        int tid = omp_get_thread_num();
+        Kernel& kernel = * (kernels[tid]); LabMPI& lab = labs[tid];
+
+        #pragma omp for schedule(static)
+        for(int i=0; i<Nhalo; i++) {
+          const cubism::BlockInfo& I = avail1[i];
+          FluidBlock& b = *(FluidBlock*)I.ptrBlock;
+          lab.load(I, 0);
+          kernel(lab, I, b);
+        }
       }
     }
 
@@ -139,20 +142,23 @@ class Operator
       }
     }
 
-    std::vector<cubism::BlockInfo> avail1 = Synch.avail_halo();
-    const int Nhalo = avail1.size();
-
-    #pragma omp parallel
+    if(sim.nprocs>1)
     {
-      int tid = omp_get_thread_num();
-      LabMPI& lab = labs[tid];
+      std::vector<cubism::BlockInfo> avail1 = Synch.avail_halo();
+      const int Nhalo = avail1.size();
 
-      #pragma omp for schedule(static)
-      for(int i=0; i<Nhalo; i++) {
-        const cubism::BlockInfo I = avail1[i];
-        FluidBlock& b = *(FluidBlock*)I.ptrBlock;
-        lab.load(I, 0);
-        kernel(lab, I, b);
+      #pragma omp parallel
+      {
+        int tid = omp_get_thread_num();
+        LabMPI& lab = labs[tid];
+
+        #pragma omp for schedule(static)
+        for(int i=0; i<Nhalo; i++) {
+          const cubism::BlockInfo I = avail1[i];
+          FluidBlock& b = *(FluidBlock*)I.ptrBlock;
+          lab.load(I, 0);
+          kernel(lab, I, b);
+        }
       }
     }
 

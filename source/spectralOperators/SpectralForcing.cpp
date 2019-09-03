@@ -38,7 +38,6 @@ void SpectralForcing::operator()(const double dt)
   viscousDissip = sM->stats.eps;
   largeModesKinEn = sM->stats.tke_filtered;
   sim.dissipationRate = (totalKinEnPrev - totalKinEn) / dt;
-  totalKinEnPrev = totalKinEn;
   sim.actualInjectionRate = 0;
   //With non spectral IC, the target tke may not be defined here
   if      (sim.turbKinEn_target > 0) // inject energy to match target tke
@@ -48,26 +47,32 @@ void SpectralForcing::operator()(const double dt)
 
   // If there's too much energy, let dissipation do its job
   if(sim.rank == 0) {
-    printf("step:%d time:%f dt:%f totalKinEn:%f largeModesKinEn:%f "\
-           "viscousDissip:%f totalDissipRate:%f injectionRate:%f\n",
-           sim.step, sim.time, sim.dt, totalKinEn, largeModesKinEn,
-           viscousDissip, sim.dissipationRate, sim.actualInjectionRate);
+    printf("step:%d time:%e dt:%e totalKinEn:%e largeModesKinEn:%e "\
+           "viscousDissip:%e totalDissipRate:%e injectionRate:%e lIntegral:%e\n",
+      sim.step, sim.time, sim.dt, totalKinEn, largeModesKinEn, viscousDissip,
+      sim.dissipationRate, sim.actualInjectionRate, sM->stats.l_integral);
     std::stringstream &ssF = logger.get_stream("forcingData.dat");
     const std::string tab("\t");
     if(sim.step==0) {
       ssF<<"step \t time \t dt \t totalKinEn \t largeModesKinEn \t "\
-           "viscousDissip \t totalDissipRate \t injectionRate\n";
+           "viscousDissip \t totalDissipRate \t injectionRate \t lIntegral\n";
     }
 
     ssF << sim.step << tab;
     ssF.setf(std::ios::scientific);
     ssF.precision(std::numeric_limits<float>::digits10 + 1);
     ssF<<sim.time<<tab<<sim.dt<<tab<<totalKinEn<<tab<<largeModesKinEn<<tab
-       <<viscousDissip<<tab<<sim.dissipationRate<<tab<<sim.actualInjectionRate<<"\n";
+       <<viscousDissip<<tab<<sim.dissipationRate<<tab<<sim.actualInjectionRate
+       <<tab<<sM->stats.l_integral<<"\n";
   }
 
   const Real fac = sim.dt * sim.actualInjectionRate / (2*largeModesKinEn);
-  if(fac>0) _fftw2cub(fac / sM->normalizeFFT);
+  if(fac>0) {
+    totalKinEnPrev = totalKinEn + dt*sim.actualInjectionRate;
+    _fftw2cub(fac / sM->normalizeFFT);
+  } else {
+    totalKinEnPrev = totalKinEn;
+  }
 
   sim.stopProfiler();
 

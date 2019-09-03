@@ -89,7 +89,7 @@ struct HITstatistics
   const Real L;
 
   // Output of the analysis
-  Real tke = 0, eps = 0, tau_integral = 0, tke_filtered = 0;
+  Real tke = 0, eps = 0, tau_integral = 0, l_integral = 0, tke_filtered = 0;
   Real lambda = 0, uprime = 0, Re_lambda = 0;
   Real * const k_msr;
   Real * const E_msr;
