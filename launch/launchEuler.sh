@@ -8,12 +8,19 @@ fi
 BASEPATH=${SCRATCH}/CubismUP3D/
 
 INTERACTIVE=0
-#INTERACTIVE=1
-if [ $# -gt 1 ] ; then
-    if [ "${2}" = "node" ]; then
+NNODE=1
+if [ $# -gt 2 ] ; then
+    if [ "${3}" = "node" ]; then
         echo "Running on current node"
         INTERACTIVE=1
+    else
+        NNODE=$3
     fi
+fi
+
+NTHREADS=36
+if [ $# -gt 3 ] ; then
+NTHREADS=$4
 fi
 
 if [ ! -f $SETTINGSNAME ];then
@@ -22,14 +29,13 @@ if [ ! -f $SETTINGSNAME ];then
 fi
 source $SETTINGSNAME
 
-NPROCESSORS=$((${NNODE}*12))
+NPROCESSORS=$((${NNODE}*${NTHREADS}))
 FOLDER=${BASEPATH}${BASENAME}
 mkdir -p ${FOLDER}
 
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
-cp ../bin/Swim3D_open ${FOLDER}/simulation
-#cp launchBrutus.sh ${FOLDER}
+cp ../bin/simulation ${FOLDER}/simulation
 cp runEuler.sh ${FOLDER}/run.sh
 
 #CURRDIR=`pwd`
@@ -37,22 +43,22 @@ cd $FOLDER
 
 unset LSB_AFFINITY_HOSTFILE
 export MV2_ENABLE_AFFINITY=0
+export OMP_NUM_THREADS=${NTHREADS}
 echo $OPTIONS > settings.txt
 
 export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH
 
 if [ $INTERACTIVE -eq 1 ] ; then
-   export OMP_NUM_THREADS=12
-   export MV2_ENABLE_AFFINITY=0
-   echo $OPTIONS > settings.txt
-   mpirun -np ${NNODE} -ppn 1 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
-   #mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0 valgrind --tool=memcheck --leak-check=yes --track-origins=yes --show-reachable=yes ./simulation ${OPTIONS}
-   #mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0 valgrind --tool=memcheck --undef-value-errors=no --num-callers=500  ./simulation ${OPTIONS}
-   mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0  ./simulation ${OPTIONS} -factory-content "${FACTORY}"
-   #mpirun -np ${NNODE} -ppn 1 ./simulation ${OPTIONS}
+echo $OPTIONS > settings.txt
+#mpirun -n ${NNODE} --map-by ppr:1:node ./simulation ${OPTIONS} -factory-content "${FACTORY}"
+mpirun -n ${NNODE} ./simulation ${OPTIONS} -factory-content "${FACTORY}"
+#mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0 valgrind --tool=memcheck --leak-check=yes --track-origins=yes --show-reachable=yes ./simulation ${OPTIONS}
+#mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0 valgrind --tool=memcheck --undef-value-errors=no --num-callers=500  ./simulation ${OPTIONS}
+#mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0  ./simulation ${OPTIONS} -factory-content "${FACTORY}"
+#mpirun -np ${NNODE} -ppn 1 ./simulation ${OPTIONS}
 else
-    bsub  -R "select[model==XeonE5_2680v3]" -n ${NPROCESSORS} -W 24:00 -J ${BASENAME} < run.sh
+bsub -R "select[model==XeonE5_2680v3] span[ptile=${NTHREADS}]" -n ${NPROCESSORS} -W 24:00 \
+-J ${BASENAME} < run.sh
 fi
 
-#cd $CURRDIR
 #valgrind --tool=memcheck --track-origins=yes --leak-check=yes
