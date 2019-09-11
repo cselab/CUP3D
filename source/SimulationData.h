@@ -101,9 +101,8 @@ struct SimulationData
   std::string initCond = "zero";
   std::string spectralIC = "";
   std::string spectralICFile = "";
-  double k0=0;
-  double tke0=0;
   std::string icFromH5 = "";
+  double k0 = 0, tke0 = 0;
 
   // forcing
   bool bChannelFixedMassFlux = false;
@@ -135,7 +134,7 @@ struct SimulationData
   std::vector<Real> kx_avg_tgt;
   std::vector<Real> Ux_avg_msr;
   std::vector<Real> kx_avg_msr;
-  Real reTau = 0.;
+  Real reTau = 0.0;
 
   // simulation settings
   int freqDiagnostics = 0;

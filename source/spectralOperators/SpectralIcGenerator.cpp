@@ -110,6 +110,32 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,
         sim.turbKinEn_target <= 0 &&
         sim.enInjectionRate  <= 0) sim.turbKinEn_target = tke0;
   }
+
+  else if (sim.spectralIC=="fromFit") {
+    const Real eps = sim.enInjectionRate;
+    const Real maxGridN = SM.maxGridN, maxGridL = SM.maxGridL;
+    const int nBins = std::ceil(std::sqrt(3.0) * maxGridN / 2.0) + 1;
+    const Real binSize = M_PI*std::sqrt(3.0) * maxGridN / (nBins * maxGridL);
+
+    K = std::vector<Real> (nBins, 0.0);
+    E = std::vector<Real> (nBins, 0.0);
+
+    const Real LintegralFit = 1.35793122 * std::pow(sim.nu, 1/6.0);
+    const Real Lkolmogorov = std::pow(sim.nu, 0.75) * std::pow(eps, 0.25);
+    const Real C  = 3.62590946e+00;
+    const Real CI = 1.58981122e-04;
+    const Real CE = 1.78026894e-01;
+    const Real BE = 5.24030627e+00; // 5.2 from theory
+    const Real P0 = 6.69070846e+03; // should be 2, but we force large scales
+
+    for (int i=0; i<nBins; i++) {
+      K[i] = (i+0.5) * binSize;
+      const Real KI = K[i] * LintegralFit, KE4 = std::pow(K[i] * Lkolmogorov,4);
+      const Real FL = std::pow(KI / std::sqrt(KI*KI + CI), 5/3.0 + P0 );
+      const Real FE = std::exp(-BE*(std::pow(KE4 + std::pow(CE,4), 0.25 ) -CE));
+      E[i] = C * std::pow(eps, 2/3.0) * std::pow(K[i], -5/3.0) * FL * FE;
+    }
+  }
 }
 
 void SpectralIcGenerator::_fftw2cub(const SpectralManip& SM) const
