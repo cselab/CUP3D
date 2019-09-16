@@ -16,9 +16,12 @@ struct SGSHelperElement
   // Derivatives of nu_sgs
   Real nu=0, Dj_nu_Sxj=0, Dj_nu_Syj=0, Dj_nu_Szj=0;
   Real duD=0, dvD=0, dwD=0;
-  void clear() {nu=0; Dj_nu_Sxj=0; Dj_nu_Sxj=0; Dj_nu_Sxj=0; duD=0; dvD=0; dwD=0; }
+  void clear() {
+    nu=0; Dj_nu_Sxj=0; Dj_nu_Sxj=0; Dj_nu_Sxj=0; duD=0; dvD=0; dwD=0;
+  }
   SGSHelperElement(const SGSHelperElement& c) = delete;
 };
+
 using SGSBlock   = BaseBlock<SGSHelperElement>;
 using SGSGrid    = cubism::Grid<SGSBlock, aligned_allocator>;
 using SGSGridMPI = cubism::GridMPI<SGSGrid>;
@@ -475,23 +478,25 @@ class KernelSGS_apply
 };
 
 SGS::SGS(SimulationData& s) : Operator(s) {
-}
-
-void SGS::operator()(const double dt) {
-
   SGSGridMPI * sgsGrid = new SGSGridMPI(
     sim.nprocsx, sim.nprocsy, sim.nprocsz, sim.local_bpdx,
     sim.local_bpdy, sim.local_bpdz, sim.maxextent, sim.app_comm);
+}
 
+SGS::~SGS() {
+  delete sgsGrid;
+}
+
+void SGS::operator()(const double dt)
+{
   sim.startProfiler("SGS Kernel");
-  if(sim.bUseStretchedGrid){
+  if(sim.bUseStretchedGrid) {
     printf("ERROR: SGS model not implemented with non uniform grid.\n");
     abort();
     //const KernelSGS_nonUniform sgs(dt, sim.uinf.data());
     //compute<KernelSGS_nonUniform>(sgs);
-  }
-  else{
-    if (sim.sgs=="DSM"){ // Dynamic Smagorinsky Model
+  } else {
+    if (sim.sgs=="DSM") { // Dynamic Smagorinsky Model
       using K_t1 = KernelSGS_DSM;
       const K_t1 computeCs(sgsGrid);
       compute<K_t1>(computeCs);
@@ -500,17 +505,16 @@ void SGS::operator()(const double dt) {
       const K_t2 averageCs(sgsGrid);
       compute<K_t2>(averageCs);
     }
-    if (sim.sgs=="SSM"){ // Standard Smagorinsky Model
+    if (sim.sgs=="SSM") { // Standard Smagorinsky Model
       using K_t = KernelSGS_SSM;
       const K_t K(sgsGrid, sim.cs);
       compute<K_t>(K);
     }
-    if (sim.sgs=="RLSM"){ // RL Smagorinsky Model
+    if (sim.sgs=="RLSM") { // RL Smagorinsky Model
       using K_t = KernelSGS_RLSM;
       const K_t K(sgsGrid);
       compute<K_t>(K);
     }
-
   }
 
   Real nu_sgs  = 0.0;
@@ -523,14 +527,17 @@ void SGS::operator()(const double dt) {
 
   const int nthreads = omp_get_max_threads();
   std::vector<KernelSGS_apply*> sgs(nthreads, nullptr);
+
   #pragma omp parallel for schedule(static, 1)
   for(int i=0; i<nthreads; ++i)
     sgs[i] = new KernelSGS_apply(dt, sgsGrid);
+
   compute<KernelSGS_apply>(sgs);
 
-  for (int i=0; i<nthreads; ++i){
+  for (int i=0; i<nthreads; ++i) {
     cs2_avg += sgs[i]->cs2_avg;
     nu_sgs  += sgs[i]->nu_sgs;
+    delete sgs[i];
   }
   nu_sgs  = nu_sgs / normalize;
   cs2_avg   = cs2_avg  / normalize;
@@ -539,9 +546,9 @@ void SGS::operator()(const double dt) {
   sim.nu_sgs = nu_sgs;
   sim.cs2_avg = cs2_avg;
 
-  delete sgsGrid;
   sim.stopProfiler();
 
   check("SGS");
 }
+
 CubismUP_3D_NAMESPACE_END
