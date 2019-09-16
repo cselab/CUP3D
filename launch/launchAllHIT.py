@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 import os, numpy as np
 nNus = 16
 nEps = 16
@@ -19,15 +20,14 @@ for nu in np.logspace(np.log10(0.002), np.log10(0.02), nNus) :
         if etaFit(nu,eps) > h or etaFit(nu,eps) < h/8: continue
         print("HIT_RE_EPS%.02f_NU%.04f_RUN%d"%(eps,nu,run))
         cases += 1
-    '''
-    ext = scal * np.pi
-    os.system("\
-    export NU=%f \n\
-    export EPS=%f \n\
-    echo $NU $EPS \n\
-    ./launchEuler.sh settingsHIT_DNS.sh HIT_DNS2_EXT2_EPS%.03f_NU%.04f_RUN%d"
-    % (nu, eps, eps, nu, run))
-    '''
+        #'''
+        os.system(" \
+        export NU=%f \n \
+        export EPS=%f \n \
+        echo $NU $EPS \n \
+        ./launchEuler.sh settingsHIT_DNS.sh HIT_DNS2_EXT2pi_EPS%.03f_NU%.04f_RUN%d" \
+        % (nu, eps, eps, nu, run))
+        #'''
 print(cases)
 
 #for nu in [0.002, 0.004, 0.008] :

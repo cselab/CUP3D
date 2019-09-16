@@ -124,7 +124,7 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,
     // const Real ReLamdFit = 7.10538 * std::pow(eps, 1/6.0) / std::sqrt(nu);
     // const Real TintFit = 0.9718 * std::pow(eps,-1/3.0) * std::pow(nu, 1/6.0);
     // const Real gradFit = 0.8941 std::sqrt(eps) / std::sqrt(nu);
-    const Real LintFit = 0.9453764*std::pow(EPS,-0.04163)*std::pow(NU, 0.1189);
+    const Real LintFit = 0.9453764*std::pow(eps,-0.04163)*std::pow(nu, 0.1189);
     //const Real LintFit = 0.79538 * std::pow(eps,-1/24.) * std::pow(nu,1/12.);
     const Real Lkolmogorov = std::pow(nu, 0.75) * std::pow(eps, 0.25);
     const Real C  = 3.91456169e+00;
