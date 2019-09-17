@@ -9,7 +9,7 @@ def    etaFit(nu, eps): return np.power(eps, 0.25) * np.power(nu, 0.75)
 def lambdaFit(nu, eps): return 5.2623 * np.power(eps,-1/6.0) * np.sqrt(nu);
 
 def runspec(nu, eps, run):
-    return "HIT_DNS2_EXT2pi_EPS%.03f_NU%.04f_RUN%d" % (eps, nu, run)
+    return "HITBND_DNS_EXT2pi_EPS%.03f_NU%.04f_RUN%d" % (eps, nu, run)
 
 def getSettings(nu, eps):
     return '-bpdx 12 -bpdy 12 -bpdz 12 -extentx 6.2831853072 -CFL 0.02 ' \
@@ -29,13 +29,17 @@ def launchEuler(nu, eps, run):
                 % (nu, eps, runname) )
 
 def launchDaint(nCases):
-    f = open('HIT_sbatch','w+')
+    f = open('HIT_sbatch','w')
     f.write('#!/bin/bash -l \n')
-    f.write('COMMNAME=DNS_HIT \n')
-    f.write('#SBATCH --job-name=${COMMNAME} --time=24:00:00 \n')
-    f.write('#SBATCH --output=out.txt --error=err.txt --constraint=gpu \n')
-    f.write('#SBATCH --account=929 --partition=normal \n')
-    f.write('#SBATCH --array=0-%d --ntasks-per-node=1 \n' % (nCases-1) )
+    f.write('#SBATCH --job-name=DNS_HIT \n')
+    f.write('#SBATCH --time=24:00:00 \n')
+    f.write('#SBATCH --output=out.txt \n')
+    f.write('#SBATCH --error=err.txt \n')
+    f.write('#SBATCH --constraint=gpu \n')
+    f.write('#SBATCH --account=s929 \n')
+    #f.write('#SBATCH --partition=normal \n')
+    f.write('#SBATCH --array=0-%d \n' % (nCases-1))
+    #f.write('#SBATCH --ntasks-per-node=1 \n')
     
     f.write('ind=$SLURM_ARRAY_TASK_ID \n')
     f.write('RUNDIRN=`./launchAllHIT.py --case ${ind} --printName` \n')
@@ -49,7 +53,7 @@ def launchDaint(nCases):
     f.write('export CRAY_CUDA_MPS=1 \n')
     f.write('srun --ntasks 1 --ntasks-per-node=1 ./exec ${OPTIONS} \n')
     f.close()
-    #os.system('sbatch daint_sbatch')
+    os.system('sbatch HIT_sbatch')
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(

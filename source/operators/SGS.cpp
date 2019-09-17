@@ -478,17 +478,17 @@ class KernelSGS_apply
 };
 
 SGS::SGS(SimulationData& s) : Operator(s) {
-  SGSGridMPI * sgsGrid = new SGSGridMPI(
-    sim.nprocsx, sim.nprocsy, sim.nprocsz, sim.local_bpdx,
-    sim.local_bpdy, sim.local_bpdz, sim.maxextent, sim.app_comm);
+  _sgsGrid = new SGSGridMPI(sim.nprocsx, sim.nprocsy, sim.nprocsz,
+    sim.local_bpdx, sim.local_bpdy, sim.local_bpdz, sim.maxextent, sim.app_comm);
 }
 
 SGS::~SGS() {
-  delete sgsGrid;
+  delete (SGSGridMPI*) _sgsGrid;
 }
 
 void SGS::operator()(const double dt)
 {
+  SGSGridMPI * sgsGrid = (SGSGridMPI*) _sgsGrid;
   sim.startProfiler("SGS Kernel");
   if(sim.bUseStretchedGrid) {
     printf("ERROR: SGS model not implemented with non uniform grid.\n");

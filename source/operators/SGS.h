@@ -13,16 +13,14 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-class SGSGridMPI;
-
 class SGS : public Operator
 {
-  SGSGridMPI * sgsGrid;
+  void * _sgsGrid;
 
 public:
   SGS(SimulationData& s);
 
-  ~SGS() { }
+  ~SGS();
 
   void operator()(const double dt);
 
