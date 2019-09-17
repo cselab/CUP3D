@@ -205,30 +205,24 @@ inline void updateReward(const cubismup3d::HITstatistics& stats,
   reward = (1-alpha) * reward + alpha * newRew;
 }
 
-#if 0 // TODO data-driven fit target
 inline void updateReward(const cubismup3d::HITstatistics& stats,
                          const cubismup3d::SimulationData& sim,
                          const Real alpha, Real & reward)
 {
-  const Real eps = sim.enInjectionRate, nu = sim.nu;
-  const Real LintFit = 0.9453764*std::pow(eps,-0.04163)*std::pow(nu, 0.1189);
-  const Real binSize = M_PI*std::sqrt(3.0) * maxGridN / (nBins * maxGridL);
-  //const Real LintFit = 0.79538 * std::pow(eps,-1/24.) * std::pow(nu,1/12.);
-  const Real Lkolmogorov = std::pow(nu, 0.75) * std::pow(eps, 0.25);
-  const Real C  = 3.91456169e+00;
-  const Real CI = 1.81115404e-04;
-  const Real CE = 1.91885659e-01;
-  const Real BE = 5.39434097e+00; // 5.2 from theory
-  const Real P0 = 6.18697056e+03; // should be 2, but we force large scales
-  for (int i=0; i<stats.nBin; i++) {
-    K[i] = (i+0.5) * binSize;
-    const Real KI = K[i] * LintFit, KE4 = std::pow(K[i] * Lkolmogorov,4);
-    const Real FL = std::pow(KI / std::sqrt(KI*KI + CI), 5/3.0 + P0 );
-    const Real FE = std::exp(-BE*(std::pow(KE4 + std::pow(CE,4), 0.25 ) -CE));
-    E[i] = C * std::pow(eps, 2/3.0) * std::pow(K[i], -5/3.0) * FL * FE;
+  std::vector<Real> K = std::vector<Real> (stats.nBin, 0.0);
+  std::vector<Real> Etgt = std::vector<Real> (stats.nBin, 0.0);
+  stats.getTargetSpectrumFit(sim.enInjectionRate, sim.nu, K, Etgt);
+  static constexpr Real lnEPS = std::log(std::numeric_limits<Real>::epsilon());
+
+  double newRew = 0;
+  for (int i=0; i<stats.nBin; i++)
+  {
+    const Real logEkTgt = std::log(Etgt[i]), logEk = std::log(stats.E_msr[i]);
+    const Real logRk = std::pow((logEkTgt-logEk)/std::max(logEkTgt, lnEPS), 2);
+    newRew += std::exp(-logRk) / stats.nBin;
   }
+  reward = (1-alpha) * reward + alpha * newRew;
 }
-#endif
 
 inline void updateGradScaling(const cubismup3d::SimulationData& sim,
                               const cubismup3d::HITstatistics& stats,
@@ -256,6 +250,24 @@ inline void updateGradScaling(const cubismup3d::SimulationData& sim,
   const Real newScaling = tau_eta_sim * correction;
   if(scaling_factor < 0) scaling_factor = newScaling; // initialization
   else scaling_factor = (1-beta) * scaling_factor + beta * newScaling;
+}
+
+inline void sampleNuEps(Real & eps, Real & nu, std::mt19937& gen,
+                        const cubismup3d::HITstatistics& stats)
+{
+  std::uniform_real_distribution<Real> disEps(std::log(0.01), std::log(2.0));
+  std::uniform_real_distribution<Real> disNu(std::log(0.002), std::log(0.02));
+  const Real refH = 2 * M_PI / 16 / 12;
+  while (true) {
+    eps = std::exp(disEps(gen));
+    nu = std::exp(disNu(gen));
+    if( stats.getHITReynoldsFit(eps,nu) < 100 &&
+        stats.getHITReynoldsFit(eps,nu) >  20 &&
+        stats.getTaylorMicroscaleFit(eps, nu) < 0.1 * stats.L &&
+        stats.getKolmogorovL(eps, nu) < refH &&
+        stats.getKolmogorovL(eps, nu) > refH/8 )
+      break; // eps, nu within problem bounds
+  }
 }
 
 inline void app_main(
@@ -294,11 +306,13 @@ inline void app_main(
   }
 
   cubism::ArgumentParser parser(argc, argv);
+  cubismup3d::Simulation sim(mpicom, parser);
 
-  cubismup3d::Simulation *sim = new cubismup3d::Simulation(mpicom, parser);
+  #ifdef CUP3D_USE_FILE_TARGET
+    std::cout<<"Setting up target data"<<std::endl;
+    targetData target = getTarget(sim.sim, comm->isTraining());
+  #endif
 
-  std::cout<<"Setting up target data"<<std::endl;
-  targetData target = getTarget(sim->sim, comm->isTraining());
   #ifdef SGSRL_STATE_INVARIANTS
     const int nActions = 1, nStates = 5;
   #else
@@ -311,25 +325,25 @@ inline void app_main(
   // send clean Sequences.
   // Also, rememebr that separate agents are thread safe!
   // let's say that each fluid block has one agent
-  const int nAgentPerBlock = sim->sim.nAgentsPerBlock;
-  const int nBlocks = sim->sim.local_bpdx * sim->sim.local_bpdy * sim->sim.local_bpdz;
-  const int nValidAgents = nBlocks * nAgentPerBlock;
+  const int nAgentPerBlock = sim.sim.nAgentsPerBlock;
+  const int nBlock=sim.sim.local_bpdx * sim.sim.local_bpdy * sim.sim.local_bpdz;
+  const int nAgents = nBlock * nAgentPerBlock; // actual learning agents
   const int nThreadSafetyAgents = omp_get_max_threads();
   comm->set_state_action_dims(nStates, nActions);
-  comm->set_num_agents(nValidAgents + nThreadSafetyAgents);
+  comm->set_num_agents(nAgents + nThreadSafetyAgents);
 
   const std::vector<double> lower_act_bound{0.04}, upper_act_bound{0.08};
   comm->set_action_scales(upper_act_bound, lower_act_bound, false);
-  comm->disableDataTrackingForAgents(nValidAgents, nValidAgents + nThreadSafetyAgents);
+  comm->disableDataTrackingForAgents(nAgents, nAgents + nThreadSafetyAgents);
 
   comm->finalize_problem_description(); // required for thread safety
 
   if( comm->isTraining() ) { // disable all dumping. comment out for dbg
-    sim->sim.b3Ddump = false; sim->sim.muteAll  = true;
-    sim->sim.b2Ddump = false; sim->sim.saveFreq = 0;
-    sim->sim.verbose = false; sim->sim.saveTime = 0;
+    sim.sim.b3Ddump = false; sim.sim.muteAll  = true;
+    sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
+    sim.sim.verbose = false; sim.sim.saveTime = 0;
   }
-  sim->sim.icFromH5 = "../" + sim->sim.icFromH5; // bcz we will create a run dir
+  sim.sim.icFromH5 = "../" + sim.sim.icFromH5; // bcz we will create a run dir
 
   char dirname[1024]; dirname[1023] = '\0';
   unsigned sim_id = 0, tot_steps = 0;
@@ -344,63 +358,74 @@ inline void app_main(
       chdir(dirname);
     }
 
-    double time = 0.0;
     int step = 0;
+    double time = 0;
     double avgReward  = 0;
     bool policyFailed = false;
 
-    sim->reset();
-    const double tStart = 2.5 * target.tau_integral;
-    printf("Reset simulation up to time=%g with SGS\n", tStart);
-    while (sim->sim.time < tStart){
-      sim->sim.sgs = "SSM";
-      const double dt = sim->calcMaxTimestep();
-      sim->timestep(dt);
+    Real eps, nu;
+    const cubismup3d::HITstatistics& HTstats = sim.sim.spectralManip->stats;
+    sampleNuEps(eps, nu, comm->getPRNG(), HTstats);
+    sim.sim.enInjectionRate = eps;
+    sim.sim.nu = nu;
+    sim.reset();
+    //const double tStart = 2.5 * target.tau_integral; // CUP3D_USE_FILE_TARGET
+    const Real tau_integral  = HTstats.getIntegralTimeFit(eps, nu);
+    const Real tau_eta       = HTstats.getKolmogorovT(eps, nu);
+    const Real timeUpdateLES = tau_eta;
+    printf("Reset simulation up to time=%g with SGS\n", 2.5 * tau_integral);
+    while (sim.sim.time < 2.5 * tau_integral) {
+      sim.sim.sgs = "SSM";
+      const double dt = sim.calcMaxTimestep();
+      sim.timestep(dt);
+      if ( isTerminal( sim.sim ) ) {
+        policyFailed = true;
+        break;
+      }
     }
-    sim->sim.sgs = "RLSM";
-    MPI_Barrier(sim->sim.app_comm);
+    if( policyFailed ) break;
+    sim.sim.sgs = "RLSM";
 
-    const Real tau_eta       = target.tau_eta;
-    const Real tau_integral  = target.tau_integral;
-    const Real timeUpdateLES = 0.5*tau_eta;
-    assert(sim not_eq nullptr && sim->sim.spectralManip not_eq nullptr);
-    const cubismup3d::HITstatistics& HTstats = sim->sim.spectralManip->stats;
+    assert(sim not_eq nullptr && sim.sim.spectralManip not_eq nullptr);
 
     #ifdef SGSRL_STATE_SCALING
       Real scaleGrads = -1;
-      updateGradScaling(sim->sim, HTstats, timeUpdateLES, scaleGrads);
+      updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
     #else
       const Real scaleGrads = 1.0;
     #endif
 
     const unsigned int nIntegralTime = 10;
     const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
-    cubismup3d::SGS_RL updateLES(sim->sim, comm, nAgentPerBlock);
+    cubismup3d::SGS_RL updateLES(sim.sim, comm, nAgentPerBlock);
 
     while (true) //simulation loop
     {
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
-      updateLES.run(sim->sim.dt, step==0, timeOut, scaleGrads, avgReward);
+      updateLES.run(sim.sim.dt, step==0, timeOut, scaleGrads, avgReward);
       if(timeOut) break;
 
       while ( time < (step+1)*timeUpdateLES )
       {
-        const double dt = sim->calcMaxTimestep();
+        const double dt = sim.calcMaxTimestep();
         time += dt;
         // Average reward over integral time
-        const double alpha = dt / tau_integral;
-        updateReward(HTstats, target, alpha, avgReward);
-
-        #ifdef SGSRL_STATE_SCALING
-          updateGradScaling(sim->sim, HTstats, timeUpdateLES, scaleGrads);
+        #ifdef CUP3D_USE_FILE_TARGET
+          updateReward(HTstats,  target, dt / tau_integral, avgReward);
+        #else
+          updateReward(HTstats, sim.sim, dt / tau_integral, avgReward);
         #endif
 
-        if ( sim->timestep( dt ) ) { // if true sim has ended
+        #ifdef SGSRL_STATE_SCALING
+          updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
+        #endif
+
+        if ( sim.timestep( dt ) ) { // if true sim has ended
           printf("Set -tend 0. This file decides the length of train sim.\n");
           assert(false); fflush(0); MPI_Abort(mpicom, 1);
         }
-        if ( isTerminal( sim->sim )) {
+        if ( isTerminal( sim.sim ) ) {
           policyFailed = true;
           break;
         }
@@ -408,14 +433,13 @@ inline void app_main(
       step++;
       tot_steps++;
 
-      if ( policyFailed )
-      {
+      if ( policyFailed ) {
         // Agent gets penalized if the simulations blows up. For KDE reward,
         // penal is -0.5 max_reward * (n of missing steps to finish the episode)
         // WARNING: not consistent with L2 norm reward
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
-        const double R_T = 0.5 * target.max_rew * (step - maxNumUpdatesPerSim);
-        for(int i=0; i<nValidAgents; i++) comm->sendTermState(S_T, R_T, i);
+        const double R_T = (step - maxNumUpdatesPerSim);
+        for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, R_T, i);
         break;
       }
     } // simulation is done
@@ -425,8 +449,6 @@ inline void app_main(
     }
     sim_id++;
   }
-
-  delete sim;
 }
 
 int main(int argc, char**argv)

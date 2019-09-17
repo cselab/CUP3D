@@ -84,6 +84,16 @@ struct HITstatistics
     memset(cs2_msr, 0, nBin * sizeof(Real));
   }
 
+  void getTargetSpectrumFit(const Real eps, const Real nu,
+                            std::vector<Real>& K, std::vector<Real>& E) const;
+  static Real getIntegralTimeFit(const Real eps, const Real nu);
+  static Real getIntegralLengthFit(const Real eps, const Real nu);
+  static Real getTaylorMicroscaleFit(const Real eps, const Real nu);
+  static Real getHITReynoldsFit(const Real eps, const Real nu);
+  static Real getTurbKinEnFit(const Real eps, const Real nu);
+  static Real getKolmogorovL(const Real eps, const Real nu);
+  static Real getKolmogorovT(const Real eps, const Real nu);
+
   // Parameters of the histogram
   const int N, nyquist = N/2, nBin = nyquist-1;
   const Real L;

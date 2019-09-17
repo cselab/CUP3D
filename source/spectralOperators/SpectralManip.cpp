@@ -23,6 +23,63 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+void HITstatistics::getTargetSpectrumFit(const Real _eps, const Real _nu,
+                          std::vector<Real>& K, std::vector<Real>& E) const
+{
+  assert(K.size() == E.size() && K.size() > 0);
+  // const Real gradFit = 0.8941 std::sqrt(_eps) / std::sqrt(_nu);
+  const Real LintFit = getIntegralLengthFit(_eps, _nu);
+  const Real Lkolmogorov = getKolmogorovL(_eps, _nu);
+  const Real C  = 3.91456169e+00;
+  const Real CI = 1.81115404e-04;
+  const Real CE = 1.91885659e-01;
+  const Real BE = 5.39434097e+00; // 5.2 from theory
+  const Real P0 = 6.18697056e+03; // should be 2, but we force large scales
+
+  for (size_t i=0; i<K.size(); ++i) {
+    K[i] = (i+0.5) * 2 * M_PI / L;
+    const Real KI = K[i] * LintFit, KE4 = std::pow(K[i] * Lkolmogorov,4);
+    const Real FL = std::pow(KI / std::sqrt(KI*KI + CI), 5/3.0 + P0 );
+    const Real FE = std::exp(-BE*(std::pow(KE4 + std::pow(CE,4), 0.25 ) -CE));
+    E[i] = C * std::pow(_eps, 2/3.0) * std::pow(K[i], -5/3.0) * FL * FE;
+  }
+}
+
+Real HITstatistics::getIntegralTimeFit(const Real eps, const Real nu)
+{
+  return 0.9718 * std::pow(eps, -1/3.0) * std::pow(nu, 1/6.0);
+}
+
+Real HITstatistics::getIntegralLengthFit(const Real eps, const Real nu)
+{
+  return 0.9453764 * std::pow(eps, -0.04163) * std::pow(nu, 0.1189);;
+}
+
+Real HITstatistics::getTaylorMicroscaleFit(const Real eps, const Real nu)
+{
+  return 5.2623 * std::pow(eps, -1/6.0) * std::sqrt(nu);
+}
+
+Real HITstatistics::getTurbKinEnFit(const Real eps, const Real nu)
+{
+  return 2.73216 * std::pow(eps, 2/3.0);
+}
+
+Real HITstatistics::getHITReynoldsFit(const Real eps, const Real nu)
+{
+  return 7.10538 * std::pow(eps, 1/6.0) / std::sqrt(nu);
+}
+
+Real HITstatistics::getKolmogorovL(const Real eps, const Real nu)
+{
+  return std::pow(eps, 0.25) * std::pow(nu, 0.75);
+}
+
+Real HITstatistics::getKolmogorovT(const Real eps, const Real nu)
+{
+  return std::sqrt(nu / eps);
+}
+
 EnergySpectrum::EnergySpectrum(const std::vector<Real>& _k,
                                const std::vector<Real>& _E) : k(_k), E(_E) {}
 EnergySpectrum::EnergySpectrum(const std::vector<Real>& _k,

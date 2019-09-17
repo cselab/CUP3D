@@ -42,9 +42,9 @@ void SpectralAnalysis::_cub2fftw()
   //Real * const data_cs2 = sM->data_cs2;
   assert(sM not_eq nullptr);
   const SpectralManip & helper = * sM;
-
-  u_avg[0] = 0; u_avg[1] = 0; u_avg[2] = 0; unorm_avg = 0;
-  #pragma omp parallel for reduction(+: u_avg[:3]) schedule(static)
+  //Real unorm = 0;
+  //u_avg[0] = 0; u_avg[1] = 0; u_avg[2] = 0; unorm = 0;
+  #pragma omp parallel for schedule(static) // reduction(+: u_avg[:3], unorm)
   for(size_t i=0; i<NlocBlocks; ++i)
   {
     const BlockType& b = *(BlockType*) helper.local_infos[i].ptrBlock;
@@ -53,19 +53,23 @@ void SpectralAnalysis::_cub2fftw()
     for(int iy=0; iy<BlockType::sizeY; ++iy)
     for(int ix=0; ix<BlockType::sizeX; ++ix)
     {
-      const size_t src_index = helper._dest(offset, iz, iy, ix);
-      u_avg[0]+=b(ix,iy,iz).u; u_avg[1]+=b(ix,iy,iz).v; u_avg[2]+=b(ix,iy,iz).w;
-      data_u[src_index] = b(ix,iy,iz).u;
-      data_v[src_index] = b(ix,iy,iz).v;
-      data_w[src_index] = b(ix,iy,iz).w;
-      // data_cs2[src_index] = b(ix,iy,iz).chi;
+      const size_t ind = helper._dest(offset, iz, iy, ix);
+      data_u[ind] = b(ix,iy,iz).u;
+      data_v[ind] = b(ix,iy,iz).v;
+      data_w[ind] = b(ix,iy,iz).w;
+      //u_avg[0]+= data_u[ind]; u_avg[1]+= data_v[ind]; u_avg[2]+= data_w[ind];
+      //unorm += pow2(data_u[ind]) + pow2(data_v[ind]) + pow2(data_w[ind]);
+      //data_cs2[src_index] = b(ix,iy,iz).chi;
     }
   }
-  MPI_Allreduce(MPI_IN_PLACE, u_avg, 3, MPIREAL, MPI_SUM, sM->m_comm);
+  //MPI_Allreduce(MPI_IN_PLACE, &unorm, 1, MPIREAL, MPI_SUM, sM->m_comm);
+  //MPI_Allreduce(MPI_IN_PLACE, u_avg, 3, MPIREAL, MPI_SUM, sM->m_comm);
   // normalizeFFT is the total number of grid cells
-  u_avg[0] /= sM->normalizeFFT;
-  u_avg[1] /= sM->normalizeFFT;
-  u_avg[2] /= sM->normalizeFFT;
+  //u_avg[0] /= sM->normalizeFFT;
+  //u_avg[1] /= sM->normalizeFFT;
+  //u_avg[2] /= sM->normalizeFFT;
+  //unorm = unorm / 2 / sM->normalizeFFT;
+  //printf("UNORM %f\n", unorm);
 }
 
 
