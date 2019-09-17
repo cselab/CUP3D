@@ -249,33 +249,33 @@ void AdvectionDiffusion::operator()(const double dt)
         b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
       }
 
-      for (int iz=0; iz<FluidBlock::sizeZ && isW(vInfo[i]); ++iz)
-      for (int iy=0; iy<FluidBlock::sizeY; ++iy) {
+      if(isW(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                        for (int iy=0; iy<FluidBlock::sizeY; ++iy) {
         sumInflow -= b(BEG,iy,iz).u; throughFlow += std::fabs(b(BEG,iy,iz).u);
       }
 
-      for (int iz=0; iz<FluidBlock::sizeZ && isE(vInfo[i]); ++iz)
-      for (int iy=0; iy<FluidBlock::sizeY; ++iy) {
+      if(isE(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                        for (int iy=0; iy<FluidBlock::sizeY; ++iy) {
         sumInflow += b(END,iy,iz).u; throughFlow += std::fabs(b(END,iy,iz).u);
       }
 
-      for (int iz=0; iz<FluidBlock::sizeZ && isS(vInfo[i]); ++iz)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      if(isS(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                        for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
         sumInflow -= b(ix,BEG,iz).v; throughFlow += std::fabs(b(ix,BEG,iz).v);
       }
 
-      for (int iz=0; iz<FluidBlock::sizeZ && isN(vInfo[i]); ++iz)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      if(isN(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                        for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
         sumInflow += b(ix,END,iz).v; throughFlow += std::fabs(b(ix,END,iz).v);
       }
 
-      for (int iy=0; iy<FluidBlock::sizeY && isF(vInfo[i]); ++iy)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      if(isF(vInfo[i])) for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+                        for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
         sumInflow -= b(ix,iy,BEG).w; throughFlow += std::fabs(b(ix,iy,BEG).w);
       }
 
-      for (int iy=0; iy<FluidBlock::sizeY && isB(vInfo[i]); ++iy)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      if(isB(vInfo[i])) for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+                        for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
         sumInflow += b(ix,iy,END).w; throughFlow += std::fabs(b(ix,iy,END).w);
       }
     }
@@ -289,28 +289,28 @@ void AdvectionDiffusion::operator()(const double dt)
     {
       FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
 
-      for (int iz=0; iz<FluidBlock::sizeZ && isW(vInfo[i]); ++iz)
-      for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+      if(isW(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                        for (int iy=0; iy<FluidBlock::sizeY; ++iy)
         b(BEG,iy,iz).u += corr * std::fabs(b(BEG,iy,iz).u);
 
-      for (int iz=0; iz<FluidBlock::sizeZ && isE(vInfo[i]); ++iz)
-      for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+      if(isE(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                        for (int iy=0; iy<FluidBlock::sizeY; ++iy)
         b(END,iy,iz).u -= corr * std::fabs(b(END,iy,iz).u);
 
-      for (int iz=0; iz<FluidBlock::sizeZ && isS(vInfo[i]); ++iz)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+      if(isS(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                        for (int ix=0; ix<FluidBlock::sizeX; ++ix)
         b(ix,BEG,iz).v += corr * std::fabs(b(ix,BEG,iz).v);
 
-      for (int iz=0; iz<FluidBlock::sizeZ && isN(vInfo[i]); ++iz)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+      if(isN(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                        for (int ix=0; ix<FluidBlock::sizeX; ++ix)
         b(ix,END,iz).v -= corr * std::fabs(b(ix,END,iz).v);
 
-      for (int iy=0; iy<FluidBlock::sizeY && isF(vInfo[i]); ++iy)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+      if(isF(vInfo[i])) for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+                        for (int ix=0; ix<FluidBlock::sizeX; ++ix)
         b(ix,iy,BEG).w += corr * std::fabs(b(ix,iy,BEG).w);
 
-      for (int iy=0; iy<FluidBlock::sizeY && isB(vInfo[i]); ++iy)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+      if(isB(vInfo[i])) for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+                        for (int ix=0; ix<FluidBlock::sizeX; ++ix)
         b(ix,iy,END).w -= corr * std::fabs(b(ix,iy,END).w);
     }
   }
