@@ -20,6 +20,7 @@
 #include <sstream>
 
 #define FREQ_UPDATE 1
+#define LES_HIT_RL_INIT_T 0
 #define SGSRL_STATE_SCALING
 
 using Real = cubismup3d::Real;
@@ -175,7 +176,7 @@ inline bool isTerminal(cubismup3d::SimulationData& sim)
 
   const auto& vInfo = sim.vInfo();
   const auto isNotValid = [](const Real val) {
-    return std::isnan(val) || std::fabs(val)>1e3;
+    return std::isnan(val) || std::isinf(val);
   };
 
   #pragma omp parallel for schedule(static)
@@ -343,7 +344,7 @@ inline void app_main(
     sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
     sim.sim.verbose = false; sim.sim.saveTime = 0;
   }
-  sim.sim.icFromH5 = "../" + sim.sim.icFromH5; // bcz we will create a run dir
+  //sim.sim.icFromH5 = "../" + sim.sim.icFromH5; // bcz we will create a run dir
 
   char dirname[1024]; dirname[1023] = '\0';
   unsigned sim_id = 0, tot_steps = 0;
@@ -358,35 +359,41 @@ inline void app_main(
       chdir(dirname);
     }
 
+    assert(sim.sim.spectralManip not_eq nullptr);
+    const cubismup3d::HITstatistics& HTstats = sim.sim.spectralManip->stats;
+
+    Real eps, nu;
+    while(true) { // initialization loop
+      sampleNuEps(eps, nu, comm->getPRNG(), HTstats);
+      sim.sim.enInjectionRate = eps;
+      sim.sim.nu = nu;
+      sim.reset();
+      //const double tStart = 2.5 * target.tau_integral; // CUP3D_USE_FILE_TARGET
+      const Real tau_integral  = HTstats.getIntegralTimeFit(eps, nu);
+      //const Real tau_eta       = HTstats.getKolmogorovT(eps, nu);
+      printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f\n",
+             2.5 * tau_integral, eps, nu, HTstats.getHITReynoldsFit(eps, nu));
+      bool ICsuccess = true;
+      while (sim.sim.time < LES_HIT_RL_INIT_T * tau_integral) {
+        sim.sim.sgs = "SSM";
+        const double dt = sim.calcMaxTimestep();
+        sim.timestep(dt);
+        if ( isTerminal( sim.sim ) ) {
+          ICsuccess = false;
+          break;
+        }
+      }
+      if( ICsuccess ) break;
+      printf("failed, try new IC\n");
+    }
+
     int step = 0;
     double time = 0;
     double avgReward  = 0;
     bool policyFailed = false;
-
-    Real eps, nu;
-    const cubismup3d::HITstatistics& HTstats = sim.sim.spectralManip->stats;
-    sampleNuEps(eps, nu, comm->getPRNG(), HTstats);
-    sim.sim.enInjectionRate = eps;
-    sim.sim.nu = nu;
-    sim.reset();
-    //const double tStart = 2.5 * target.tau_integral; // CUP3D_USE_FILE_TARGET
+    const Real timeUpdateLES = HTstats.getKolmogorovT(eps, nu);
     const Real tau_integral  = HTstats.getIntegralTimeFit(eps, nu);
-    const Real tau_eta       = HTstats.getKolmogorovT(eps, nu);
-    const Real timeUpdateLES = tau_eta;
-    printf("Reset simulation up to time=%g with SGS\n", 2.5 * tau_integral);
-    while (sim.sim.time < 2.5 * tau_integral) {
-      sim.sim.sgs = "SSM";
-      const double dt = sim.calcMaxTimestep();
-      sim.timestep(dt);
-      if ( isTerminal( sim.sim ) ) {
-        policyFailed = true;
-        break;
-      }
-    }
-    if( policyFailed ) break;
     sim.sim.sgs = "RLSM";
-
-    assert(sim not_eq nullptr && sim.sim.spectralManip not_eq nullptr);
 
     #ifdef SGSRL_STATE_SCALING
       Real scaleGrads = -1;
