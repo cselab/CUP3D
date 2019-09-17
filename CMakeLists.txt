@@ -128,6 +128,7 @@ set(COMMON_SOURCES           # Common for app and lib.
 
     ${ROOT_FOLDER}/source/operators/AdvectionDiffusion.cpp
     ${ROOT_FOLDER}/source/operators/Analysis.cpp
+    ${ROOT_FOLDER}/source/operators/Checkpoint.cpp
     ${ROOT_FOLDER}/source/operators/ComputeDissipation.cpp
     ${ROOT_FOLDER}/source/operators/ExternalForcing.cpp
     ${ROOT_FOLDER}/source/operators/FadeOut.cpp
@@ -161,7 +162,7 @@ set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra -pedantic -Wno-unused-para
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fmax-errors=3")
 set(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -O0 -g")
 set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -DNDEBUG -O3 -march=native -fstrict-aliasing -ffast-math -falign-functions=32")
-set(CMAKE_CXX_EXTENSIONS OFF)  # -std=c++11, not -std=gnu++11!
+set(CMAKE_CXX_EXTENSIONS OFF)  # -std=c++17, not -std=gnu++17!
 if (NOT CMAKE_CXX_STANDARD)
     set(CMAKE_CXX_STANDARD 17)
 endif()

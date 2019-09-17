@@ -18,6 +18,7 @@ namespace cubism { class ArgumentParser; }
 
 CubismUP_3D_NAMESPACE_BEGIN
 
+class Checkpoint;
 class Obstacle;
 
 class Simulation
@@ -29,6 +30,7 @@ class Simulation
 public:
 
   SimulationData sim;
+  Checkpoint *checkpointPostVelocity = nullptr;
 
   void reset();
   void _init(bool restart = false);

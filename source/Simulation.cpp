@@ -9,6 +9,7 @@
 #include "obstacles/ObstacleVector.h"
 
 #include "operators/AdvectionDiffusion.h"
+#include "operators/Checkpoint.h"
 #include "operators/ComputeDissipation.h"
 #include "operators/ExternalForcing.h"
 #include "operators/FadeOut.h"
@@ -379,6 +380,9 @@ void Simulation::setupOperators()
   if (sim.bChannelFixedMassFlux)
     sim.pipeline.push_back(new FixedMassFlux_nonUniform(sim));
 
+  // At this point the velocity computation is finished.
+  sim.pipeline.push_back(
+      checkpointPostVelocity = new Checkpoint(sim, "PostVelocity"));
 
   sim.pipeline.push_back(new Analysis(sim));
 
