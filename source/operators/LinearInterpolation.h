@@ -83,9 +83,9 @@ public:
     CN[0] = N[0] * Block::sizeX;
     CN[1] = N[1] * Block::sizeY;
     CN[2] = N[2] * Block::sizeZ;
-    CN_over_extent[0] = CN[0] / sim.maxextent;
-    CN_over_extent[1] = CN[1] / sim.maxextent;
-    CN_over_extent[2] = CN[2] / sim.maxextent;
+    CN_over_extent[0] = CN[0] / sim.extent[0];
+    CN_over_extent[1] = CN[1] / sim.extent[1];
+    CN_over_extent[2] = CN[2] / sim.extent[2];
     particles.resize(N[0] * N[1] * N[2]);
 
     // Map particles to the blocks.
