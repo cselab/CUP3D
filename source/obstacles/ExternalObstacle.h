@@ -9,6 +9,8 @@
 #ifndef CubismUP_3D_ExternalObstacle_h
 #define CubismUP_3D_ExternalObstacle_h
 
+// XXX: DEPRECATED, use ObstacleFromShape instead. Remove in 2020.
+
 /*
  * This obstacle can be used to insert obstacles whose shape and velocity is
  * defined by an external code. Intended to be used when CubismUP_3D used as a
