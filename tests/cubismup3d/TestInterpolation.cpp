@@ -6,13 +6,13 @@
 using namespace cubism;
 using namespace cubismup3d;
 
-double getValue(std::array<Real, 3> p) {
+static double getValue(std::array<Real, 3> p) {
   // Must be linear (we are testing linear interpolation).
   return 100.0 * p[0] + 2343 * p[1] + 123. * p[2];
 }
 
-bool testLinearInterpolation() {
-  constexpr int NUM_POINTS = 10000;
+static bool testLinearInterpolation() {
+  constexpr int NUM_POINTS = 1000;
   constexpr Real extent = 100.0;
 
   // Prepare simulation data and the simulation object.
@@ -23,7 +23,7 @@ bool testLinearInterpolation() {
     SD.BCy_flag = periodic;
     SD.BCz_flag = periodic;
     SD.extent[0] = extent;
-    SD.setCells(64, 64, 64);
+    SD.setCells(64, 128, 32);
     return SD;
   };
   Simulation S{prepareSimulationData()};
@@ -37,9 +37,9 @@ bool testLinearInterpolation() {
   std::vector<std::array<Real, 3>> points;
   points.reserve(NUM_POINTS);
   for (int i = 0; i < NUM_POINTS; ++i) {
-    Real x = extent * (0.1 + 0.8 / RAND_MAX * rand());
-    Real y = extent * (0.1 + 0.8 / RAND_MAX * rand());
-    Real z = extent * (0.1 + 0.8 / RAND_MAX * rand());
+    Real x = S.sim.extent[0] * (0.1 + 0.8 / RAND_MAX * rand());
+    Real y = S.sim.extent[1] * (0.1 + 0.8 / RAND_MAX * rand());
+    Real z = S.sim.extent[2] * (0.1 + 0.8 / RAND_MAX * rand());
     points.push_back({x, y, z});
   }
   std::vector<double> result(NUM_POINTS);
@@ -55,9 +55,10 @@ bool testLinearInterpolation() {
   // Check if result correct.
   for (int i = 0; i < NUM_POINTS; ++i) {
     double expected = getValue(points[i]);
-    if (std::fabs(expected - result[i]) > 1e-9) {
+    if (std::fabs(expected - result[i]) / expected > 1e-9) {
       fprintf(stderr, "Expected %lf, got %lf. Point is (%lf, %lf %lf).\n",
               expected, result[i], points[i][0], points[i][1], points[i][2]);
+      return false;
     }
   }
 
