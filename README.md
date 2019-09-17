@@ -67,11 +67,11 @@ If the dependencies are already available, but CMake does not detect them, appro
 CubismUP requires the following 3rd party libraries:
 
 | Dependency            | Environment variable pointing to the existing installation |
-|-----------------------|----------------------------------|
-| FFTW (3.3.7) (\*)     | $FFTWDIR                         |
-| HDF5 (1.10.1) (\*)    | $HDF5_ROOT                       |
-| GSL (2.1) (\*)        | $GSL_ROOT_DIR                    |
-| MPI                   | [See instructions][mpi-path] (\*\*) |
+|-----------------------|-----------------------------------------------|
+| FFTW (3.3.7) (\*)     | `$FFTW_ROOT`, `$FFTW_ROOT_DIR` or `$FFTW_DIR` |
+| HDF5 (1.10.1) (\*)    | `$HDF5_ROOT` or `$HDF5ROOT`                   |
+| GSL (2.1) (\*)        | `$GSL_ROOT_DIR`                               |
+| MPI                   | [See instructions][mpi-path] (\*\*)           |
 
 (\*) Tested with the listed versions, higher versions probably work too.<br>
 (\*\*) Especially if installing the dependencies, make sure that `mpicc` points to a MPI-compatible `C` compiler, and `mpic++` to a MPI-compatible `C++` compiler.
