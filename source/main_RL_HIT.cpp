@@ -387,6 +387,7 @@ inline void app_main(
       printf("failed, try new IC\n");
     }
 
+    fflush(0);
     int step = 0;
     double time = 0;
     double avgReward  = 0;

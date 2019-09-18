@@ -229,9 +229,9 @@ PoissonSolverACC_kernels.o: PoissonSolverACC_kernels.cu
 
 clean:
 	rm -f $(EXEOBJ) $(LIBOBJ)
-	rm -f $(DEPS)
+	rm -f $(DEPS) *.d *.o
 	rm -f PoissonSolver*.o PoissonSolver*.d
-	rm -f ../bin/simulation Communicator.o ../lib/libcubismup3d.a PoissonSolverScalar*.o
+	rm -f ../bin/simulation ../lib/libcubismup3d.a PoissonSolverScalar*.o
 	rmdir ../bin 2> /dev/null || true
 	rmdir ../lib 2> /dev/null || true
 

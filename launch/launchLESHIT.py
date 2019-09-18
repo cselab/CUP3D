@@ -54,11 +54,11 @@ def launchDaint(nCases, les):
     
     f.write('ind=$SLURM_ARRAY_TASK_ID \n')
     if les:
-      f.write('RUNDIRN=`./launchAllHIT.py --LES --case ${ind} --printName` \n')
-      f.write('OPTIONS=`./launchAllHIT.py --LES --case ${ind} --printOptions` \n')
+      f.write('RUNDIRN=`./launchLESHIT.py --LES --case ${ind} --printName` \n')
+      f.write('OPTIONS=`./launchLESHIT.py --LES --case ${ind} --printOptions` \n')
     else:
-      f.write('RUNDIRN=`./launchAllHIT.py --case ${ind} --printName` \n')
-      f.write('OPTIONS=`./launchAllHIT.py --case ${ind} --printOptions` \n')
+      f.write('RUNDIRN=`./launchLESHIT.py --case ${ind} --printName` \n')
+      f.write('OPTIONS=`./launchLESHIT.py --case ${ind} --printOptions` \n')
 
     f.write('mkdir -p %s/CubismUP3D/${RUNDIRN} \n' % SCRATCH)
     f.write('cd %s/CubismUP3D/${RUNDIRN} \n' % SCRATCH)
@@ -112,7 +112,7 @@ if __name__ == '__main__':
           for i in [0, 1, 2] :
             NUS,EPS,RUN,CSS = NUS+[nu], EPS+[eps], RUN+[i], CSS+[les]
     nCases = len(NUS)
-    print('Defined %d cases' % nCases)
+    #print('Defined %d cases' % nCases)
 
     if args.launchDaint: launchDaint(nCases, args.LES)
 
