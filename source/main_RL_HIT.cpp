@@ -20,7 +20,7 @@
 #include <sstream>
 
 #define FREQ_UPDATE 1
-#define LES_HIT_RL_INIT_T 0
+#define LES_HIT_RL_INIT_T 1
 #define SGSRL_STATE_SCALING
 
 using Real = cubismup3d::Real;
