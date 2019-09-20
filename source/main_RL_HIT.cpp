@@ -21,7 +21,7 @@
 
 #define FREQ_UPDATE 1
 #define LES_HIT_RL_INIT_T 1
-#define SGSRL_STATE_SCALING
+//#define SGSRL_STATE_SCALING
 
 using Real = cubismup3d::Real;
 
@@ -220,8 +220,10 @@ inline void updateReward(const cubismup3d::HITstatistics& stats,
   {
     const Real logEkTgt = std::log(Etgt[i]), logEk = std::log(stats.E_msr[i]);
     const Real logRk = std::pow((logEkTgt-logEk)/std::max(logEkTgt, lnEPS), 2);
-    newRew += std::exp(-logRk) / stats.nBin;
+    newRew += logRk;
   }
+  newRew = std::exp(- newRew / stats.nBin );
+  //printf("Rt : %f\n", newRew);
   reward = (1-alpha) * reward + alpha * newRew;
 }
 
@@ -241,8 +243,7 @@ inline void updateGradScaling(const cubismup3d::SimulationData& sim,
   // Average gradient scaling over time between LES updates
   const Real beta = sim.dt / timeUpdateLES;
   //const Real turbEnergy = stats.tke;
-  const Real viscDissip = stats.eps;
-  const Real totalDissip = sim.dissipationRate;
+  const Real viscDissip = stats.eps, totalDissip = sim.dissipationRate;
   const Real avgSGS_nu = sim.nu_sgs, nu = sim.nu;
   const Real tau_eta_sim = std::sqrt(nu / viscDissip);
   const Real correction = 1.0 + 0.5 * (totalDissip - viscDissip) / viscDissip
@@ -372,7 +373,8 @@ inline void app_main(
       const Real tau_integral  = HTstats.getIntegralTimeFit(eps, nu);
       //const Real tau_eta       = HTstats.getKolmogorovT(eps, nu);
       printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f\n",
-             2.5 * tau_integral, eps, nu, HTstats.getHITReynoldsFit(eps, nu));
+             LES_HIT_RL_INIT_T * tau_integral, eps, nu,
+             HTstats.getHITReynoldsFit(eps, nu));
       bool ICsuccess = true;
       while (sim.sim.time < LES_HIT_RL_INIT_T * tau_integral) {
         sim.sim.sgs = "SSM";
@@ -392,7 +394,7 @@ inline void app_main(
     double time = 0;
     double avgReward  = 0;
     bool policyFailed = false;
-    const Real timeUpdateLES = HTstats.getKolmogorovT(eps, nu);
+    const Real timeUpdateLES = 0.5 * HTstats.getKolmogorovT(eps, nu);
     const Real tau_integral  = HTstats.getIntegralTimeFit(eps, nu);
     sim.sim.sgs = "RLSM";
 
@@ -400,10 +402,10 @@ inline void app_main(
       Real scaleGrads = -1;
       updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
     #else
-      const Real scaleGrads = 1.0;
+      const Real scaleGrads = std::sqrt(nu / eps);
     #endif
 
-    const unsigned int nIntegralTime = 10;
+    const unsigned int nIntegralTime = 20;
     const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
     cubismup3d::SGS_RL updateLES(sim.sim, comm, nAgentPerBlock);
 
