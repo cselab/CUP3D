@@ -309,6 +309,10 @@ void Simulation::setupOperators()
   sim.pipeline.clear();
   // Do not change order of operations without explicit permission from Guido
 
+  // Obstacle shape has to be known already here.
+  sim.pipeline.push_back(
+      checkpointPreObstacles = new Checkpoint(sim, "PreObstacles"));
+
   // Creates the char function, sdf, and def vel for all obstacles at the curr
   // timestep. At this point we do NOT know the translation and rot vel of the
   // obstacles. We need to solve implicit system when the pre-penalization vel

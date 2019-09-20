@@ -30,6 +30,7 @@ class Simulation
 public:
 
   SimulationData sim;
+  Checkpoint *checkpointPreObstacles = nullptr;
   Checkpoint *checkpointPostVelocity = nullptr;
 
   void reset();
