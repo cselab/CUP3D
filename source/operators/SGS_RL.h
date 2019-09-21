@@ -26,6 +26,7 @@ class SGS_RL : public Operator
   std::vector<int> agentsIDX;
   std::vector<int> agentsIDY;
   std::vector<int> agentsIDZ;
+  std::vector<double> localRewards;
 
 public:
   SGS_RL(SimulationData&s, smarties::Communicator*_comm, const int nAgentsPB);
