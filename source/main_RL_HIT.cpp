@@ -327,7 +327,7 @@ inline void app_main(
   // send clean Sequences.
   // Also, rememebr that separate agents are thread safe!
   // let's say that each fluid block has one agent
-  const int nAgentPerBlock = sim.sim.nAgentsPerBlock;
+  const int nAgentPerBlock = 1;
   const int nBlock=sim.sim.local_bpdx * sim.sim.local_bpdy * sim.sim.local_bpdz;
   const int nAgents = nBlock * nAgentPerBlock; // actual learning agents
   const int nThreadSafetyAgents = omp_get_max_threads();
@@ -405,7 +405,7 @@ inline void app_main(
       const Real scaleGrads = std::sqrt(nu / eps);
     #endif
 
-    const unsigned int nIntegralTime = 20;
+    const unsigned int nIntegralTime = 10;
     const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
     cubismup3d::SGS_RL updateLES(sim.sim, comm, nAgentPerBlock);
 

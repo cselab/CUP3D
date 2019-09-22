@@ -273,7 +273,7 @@ class KernelSGS_RL
       // we could compute a local reward here, place as second arg
       o(ix,iy,iz).chi = sendStateRecvAct(state, 0, blockID, thrID, ix,iy,iz);
     }
-    computeNextLocalRew(blockID, lab);
+    //computeNextLocalRew(blockID, lab);
   }
 };
 
