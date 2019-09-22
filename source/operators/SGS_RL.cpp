@@ -251,7 +251,8 @@ class KernelSGS_RL
 
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2, 2, 2, false, {FE_U,FE_V,FE_W}};
+  //const StencilInfo stencil{-1,-1,-1, 2, 2, 2, false, {FE_U,FE_V,FE_W}};
+  const StencilInfo stencil = StencilInfo(-2,-2,-2, 3,3,3, true, {0,1,2,3});
 
   KernelSGS_RL(const rlApi_t& api, const locRewF_t& lRew, const Real _scaleG) :
     sendStateRecvAct(api), computeNextLocalRew(lRew), scaleGrads(_scaleG) {}

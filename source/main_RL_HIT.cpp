@@ -334,7 +334,7 @@ inline void app_main(
   comm->set_state_action_dims(nStates, nActions);
   comm->set_num_agents(nAgents + nThreadSafetyAgents);
 
-  const std::vector<double> lower_act_bound{0.04}, upper_act_bound{0.08};
+  const std::vector<double> lower_act_bound{0.04}, upper_act_bound{0.06};
   comm->set_action_scales(upper_act_bound, lower_act_bound, false);
   comm->disableDataTrackingForAgents(nAgents, nAgents + nThreadSafetyAgents);
 
