@@ -228,12 +228,12 @@ inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
   tau_yy -= traceTerm;
   tau_zz -= traceTerm;
 
-  ret[0] = (l_xx - (t_xx - tau_xx))/l_xx;
-  ret[1] = (l_xy - (t_xy - tau_xy))/l_xy*2;
-  ret[2] = (l_xz - (t_xz - tau_xz))/l_xz*2;
-  ret[3] = (l_yy - (t_yy - tau_yy))/l_yy;
-  ret[4] = (l_yz - (t_yz - tau_yz))/l_yz*2;
-  ret[5] = (l_zz - (t_zz - tau_zz))/l_zz;
+  ret[0] = (l_xx - (t_xx - tau_xx));
+  ret[1] = (l_xy - (t_xy - tau_xy))*2;
+  ret[2] = (l_xz - (t_xz - tau_xz))*2;
+  ret[3] = (l_yy - (t_yy - tau_yy));
+  ret[4] = (l_yz - (t_yz - tau_yz))*2;
+  ret[5] = (l_zz - (t_zz - tau_zz));
   return ret;
 }
 
