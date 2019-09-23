@@ -407,7 +407,7 @@ class KernelSGS_gradNu
  public:
   const std::array<int, 3> stencil_start = {-1, -1, -1};
   const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W,FE_TMPU}};
 
   KernelSGS_gradNu(SGSGridMPI * const _sgsGrid) : sgsGrid(_sgsGrid) {}
 
@@ -467,9 +467,9 @@ class KernelSGS_apply
       const SGSHelperElement& sgs = t(ix,iy,iz);
 
       // adding gradient of nu term leads to instability.
-      o(ix, iy, iz).u += dt * sgs.nu * sgs.duD;// + dt * 2 * sgs.Dj_nu_Sxj;
-      o(ix, iy, iz).v += dt * sgs.nu * sgs.dvD;// + dt * 2 * sgs.Dj_nu_Syj;
-      o(ix, iy, iz).w += dt * sgs.nu * sgs.dwD;// + dt * 2 * sgs.Dj_nu_Szj;
+      o(ix, iy, iz).u += dt * sgs.nu * sgs.duD + dt * 2 * sgs.Dj_nu_Sxj;
+      o(ix, iy, iz).v += dt * sgs.nu * sgs.dvD + dt * 2 * sgs.Dj_nu_Syj;
+      o(ix, iy, iz).w += dt * sgs.nu * sgs.dwD + dt * 2 * sgs.Dj_nu_Szj;
 
       nu_sgs += sgs.nu;
       cs2_avg += lab(ix,iy,iz).chi;
