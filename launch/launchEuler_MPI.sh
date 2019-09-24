@@ -36,7 +36,9 @@ mkdir -p ${FOLDER}
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
 cp ../bin/simulation ${FOLDER}/simulation
+cp runEuler.sh ${FOLDER}/run.sh
 
+#CURRDIR=`pwd`
 cd $FOLDER
 
 unset LSB_AFFINITY_HOSTFILE
@@ -49,16 +51,14 @@ export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/l
 if [ $INTERACTIVE -eq 1 ] ; then
 echo $OPTIONS > settings.txt
 #mpirun -n ${NNODE} --map-by ppr:1:node ./simulation ${OPTIONS} -factory-content "${FACTORY}"
-#mpirun -n ${NNODE} ./simulation ${OPTIONS} -factory-content "${FACTORY}"
-./simulation ${OPTIONS} -factory-content "${FACTORY}"
+mpirun -n ${NNODE} ./simulation ${OPTIONS} -factory-content "${FACTORY}"
 #mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0 valgrind --tool=memcheck --leak-check=yes --track-origins=yes --show-reachable=yes ./simulation ${OPTIONS}
 #mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0 valgrind --tool=memcheck --undef-value-errors=no --num-callers=500  ./simulation ${OPTIONS}
 #mpirun -n ${NNODE} --map-by ppr:1:socket:pe=12 --bind-to core -report-bindings --mca mpi_cuda_support 0  ./simulation ${OPTIONS} -factory-content "${FACTORY}"
 #mpirun -np ${NNODE} -ppn 1 ./simulation ${OPTIONS}
 else
-#bsub -R "select[model==XeonE5_2680v3] span[ptile=${NTHREADS}]" -n ${NPROCESSORS} -W 24:00 \
-#-J ${BASENAME} "mpirun -n ${NNODE} ./simulation ${OPTIONS} -factory-content "${FACTORY}""
-bsub -n ${NPROCESSORS} -W 24:00 -J ${BASENAME} "./simulation ${OPTIONS}"
+bsub -R "select[model==XeonE5_2680v3] span[ptile=${NTHREADS}]" -n ${NPROCESSORS} -W 24:00 \
+-J ${BASENAME} < run.sh
 fi
 
 #valgrind --tool=memcheck --track-origins=yes --leak-check=yes

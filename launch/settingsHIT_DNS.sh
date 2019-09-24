@@ -13,6 +13,7 @@ NU=${NU:-0.005}
 #TKE0=${TKE0:-0.6}
 EPS=${EPS:-0.1}
 EXT=${EXT:-6.2831853072}
+TANALYSIS=${TANALYSIS:-0.1}
 
 FACTORY=''
 
@@ -31,6 +32,6 @@ OPTIONS+=" -energyInjectionRate ${EPS}"
 
 OPTIONS+=" -nprocsx ${NNODEX} -nprocsy 1 -nprocsz 1"
 OPTIONS+=" -CFL 0.02 -tend 100 -compute-dissipation 1"
-OPTIONS+=" -analysis HIT -tAnalysis 0.1"
+OPTIONS+=" -analysis HIT -tAnalysis ${TANALYSIS}"
 OPTIONS+=" -keepMomentumConstant 1"
 OPTIONS+=" -nu ${NU}"
