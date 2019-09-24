@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 import os, numpy as np, argparse
 
-def    relFit(nu, eps): return 7.10538 * np.power(eps, 1/6.0) / np.sqrt(nu)
+def    relFit(nu, eps): return 7.33972668 * np.power(eps, 1/6.0) / np.sqrt(nu)
 
-def    etaFit(nu, eps): return np.power(eps, 0.25) * np.power(nu, 0.75)
+def    etaFit(nu, eps): return np.power(eps, -0.25) * np.power(nu, 0.75)
 
-def lambdaFit(nu, eps): return 5.2623 * np.power(eps,-1/6.0) * np.sqrt(nu);
+def lambdaFit(nu, eps): return 5.35507603 * np.power(eps,-1/6.0) * np.sqrt(nu);
 
 def runspec(nu, eps, run, cs):
     if cs is not None:
@@ -21,19 +21,22 @@ def getSettings(nu, eps, cs):
     else:
       options = '-bpdx 12 -bpdy 12 -bpdz 12 -CFL 0.02 '
 
+    tAnalysis = np.sqrt(nu / eps)
     return options + '-extentx 6.2831853072 -dump2D 0 -dump3D 0 ' \
        '-tdump 1 -BC_x periodic -BC_y periodic -BC_z periodic ' \
-       '-spectralIC fromFit -initCond HITurbulence -tAnalysis 0.1 ' \
+       '-spectralIC fromFit -initCond HITurbulence -tAnalysis %f ' \
        '-compute-dissipation 1 -nprocsx 1 -nprocsy 1 -nprocsz 1 ' \
        '-spectralForcing 1 -tend 100  -keepMomentumConstant 1 ' \
-       '-analysis HIT -nu %f -energyInjectionRate %f ' % (nu, eps)
+       '-analysis HIT -nu %f -energyInjectionRate %f ' \
+       % (tAnalysis, nu, eps)
 
 def launchEuler(nu, eps, run):
     runname = runspec(nu, eps, run)
     print(runname)
-    os.system("export NU=%f \n export EPS=%f \n echo $NU $EPS \n \
-               ./launchEuler.sh settingsHIT_DNS.sh %s " \
-               % (nu, eps, runname) )
+    tAnalysis = np.sqrt(nu / eps)
+    os.system("export NU=%f \n export EPS=%f \n export TANALYSIS=%f \n " \
+              "echo $NU $EPS \n ./launchEuler.sh settingsHIT_DNS.sh %s " \
+               % (nu, eps, tAnalysis, runname) )
 
 def launchDaint(nCases, les):
     SCRATCH = os.getenv('SCRATCH')
