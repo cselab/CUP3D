@@ -84,6 +84,7 @@ struct HITstatistics
     memset(cs2_msr, 0, nBin * sizeof(Real));
   }
 
+  Real getSimpleSpectrumFit(const Real _k, const Real _eps) const;
   void getTargetSpectrumFit(const Real eps, const Real nu,
                             std::vector<Real>& K, std::vector<Real>& E) const;
   static Real getIntegralTimeFit(const Real eps, const Real nu);
