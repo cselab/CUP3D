@@ -27,14 +27,14 @@ void HITstatistics::getTargetSpectrumFit(const Real _eps, const Real _nu,
                           std::vector<Real>& K, std::vector<Real>& E) const
 {
   assert(K.size() == E.size() && K.size() > 0);
-  // const Real gradFit = 0.8941 std::sqrt(_eps) / std::sqrt(_nu);
+  // const Real gradFit = 0.8879967 std::sqrt(_eps) / std::sqrt(_nu);
   const Real LintFit = getIntegralLengthFit(_eps, _nu);
   const Real Lkolmogorov = getKolmogorovL(_eps, _nu);
-  const Real C  = 3.91456169e+00;
-  const Real CI = 1.81115404e-04;
-  const Real CE = 1.91885659e-01;
-  const Real BE = 5.39434097e+00; // 5.2 from theory
-  const Real P0 = 6.18697056e+03; // should be 2, but we force large scales
+  const Real C  = 2.53086387;
+  const Real CI = 0;
+  const Real CE = 0.238214;
+  const Real BE = 5.0635006; // 5.2 from theory
+  const Real P0 = 1.40558973; // should be 2, but we force large scales
 
   for (size_t i=0; i<K.size(); ++i) {
     K[i] = (i+0.5) * 2 * M_PI / L;
@@ -45,34 +45,40 @@ void HITstatistics::getTargetSpectrumFit(const Real _eps, const Real _nu,
   }
 }
 
+Real HITstatistics::getSimpleSpectrumFit(const Real _k, const Real _eps) const
+{
+  const Real C  = 2.53086387;
+  return C * std::pow(_eps, 2/3.0) * std::pow(_k, -5/3.0);
+}
+
 Real HITstatistics::getIntegralTimeFit(const Real eps, const Real nu)
 {
-  return 0.9718 * std::pow(eps, -1/3.0) * std::pow(nu, 1/6.0);
+  return 0.93931475 * std::pow(eps, -1/3.0) * std::pow(nu, 1/6.0);
 }
 
 Real HITstatistics::getIntegralLengthFit(const Real eps, const Real nu)
 {
-  return 0.9453764 * std::pow(eps, -0.04163) * std::pow(nu, 0.1189);;
+  return 0.74885397 * std::pow(eps, -0.0233311) * std::pow(nu, 0.07192009);
 }
 
 Real HITstatistics::getTaylorMicroscaleFit(const Real eps, const Real nu)
 {
-  return 5.2623 * std::pow(eps, -1/6.0) * std::sqrt(nu);
+  return 5.35507603 * std::pow(eps, -1/6.0) * std::sqrt(nu);
 }
 
 Real HITstatistics::getTurbKinEnFit(const Real eps, const Real nu)
 {
-  return 2.73216 * std::pow(eps, 2/3.0);
+  return 2.81574396 * std::pow(eps, 2/3.0);
 }
 
 Real HITstatistics::getHITReynoldsFit(const Real eps, const Real nu)
 {
-  return 7.10538 * std::pow(eps, 1/6.0) / std::sqrt(nu);
+  return 7.33972668 * std::pow(eps, 1/6.0) / std::sqrt(nu);
 }
 
 Real HITstatistics::getKolmogorovL(const Real eps, const Real nu)
 {
-  return std::pow(eps, 0.25) * std::pow(nu, 0.75);
+  return std::pow(eps, -0.25) * std::pow(nu, 0.75);
 }
 
 Real HITstatistics::getKolmogorovT(const Real eps, const Real nu)
