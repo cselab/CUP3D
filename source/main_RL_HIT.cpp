@@ -365,9 +365,10 @@ inline void app_main(
 
     Real eps, nu;
     while(true) { // initialization loop
-      sampleNuEps(eps, nu, comm->getPRNG(), HTstats);
-      sim.sim.enInjectionRate = eps;
-      sim.sim.nu = nu;
+      // TODO : FIGURE OUT BOUNDS:
+      //sampleNuEps(eps, nu, comm->getPRNG(), HTstats);
+      sim.sim.enInjectionRate = 0.1;
+      sim.sim.nu = 0.003;
       sim.reset();
       //const double tStart = 2.5 * target.tau_integral; // CUP3D_USE_FILE_TARGET
       const Real tau_integral  = HTstats.getIntegralTimeFit(eps, nu);
