@@ -27,33 +27,54 @@ class PoissonSolverMixed : public PoissonSolver
   template<bool DFTX, bool DFTY, bool DFTZ> void _solve()
   {
     // if BC flag == 1 fourier, else cosine transform
-    const Real normX = (DFTX ? 1.0 : 0.5) / ( gsize[0]*h );
-    const Real normY = (DFTY ? 1.0 : 0.5) / ( gsize[1]*h );
-    const Real normZ = (DFTZ ? 1.0 : 0.5) / ( gsize[2]*h );
-    const Real waveFactX = (DFTX ? 2 : 1) * M_PI / ( gsize[0]*h );
-    const Real waveFactY = (DFTY ? 2 : 1) * M_PI / ( gsize[1]*h );
-    const Real waveFactZ = (DFTZ ? 2 : 1) * M_PI / ( gsize[2]*h );
-    const Real norm_factor = normX * normY * normZ;
+    const Real normX = (DFTX ? 1.0 : 0.5) / gsize[0];
+    const Real normY = (DFTY ? 1.0 : 0.5) / gsize[1];
+    const Real normZ = (DFTZ ? 1.0 : 0.5) / gsize[2];
+    const Real waveFacX = (DFTX ? 2 : 1) * M_PI / gsize[0];
+    const Real waveFacY = (DFTY ? 2 : 1) * M_PI / gsize[1];
+    const Real waveFacZ = (DFTZ ? 2 : 1) * M_PI / gsize[2];
+    // factor 1/h here is becz input to this solver is h^3 * RHS:
+    // (other h^2 goes away from FD coef or wavenumeber coef)
+    const Real norm_factor = (normX / h) * normY * normZ;
     Real *const in_out = data;
     const long nKx = static_cast<long>(gsize[0]);
     const long nKy = static_cast<long>(gsize[1]);
     const long nKz = static_cast<long>(gsize[2]);
     const long shifty = static_cast<long>(local_1_start);
+
+    // BALANCE TWO PROBLEMS:
+    // - if only grid consistent odd DOF and even DOF do not 'talk' to each others
+    // - if only spectral then nont really div free
+    // COMPROMISE: define a tolerance that balances two effects
+    static const Real tol = 0.01;
+
     #pragma omp parallel for schedule(static)
-    for(long j = 0; j<static_cast<long>(local_n1); ++j)
-    for(long i = 0; i<static_cast<long>(gsize[0]); ++i)
-    for(long k = 0; k<static_cast<long>(gsize[2]); ++k)
+    for(long lj = 0; lj<static_cast<long>(local_n1); ++lj)
     {
-      const size_t linidx = (j*gsize[0] +i)*gsize[2] + k;
-      const long J = shifty + j; //memory index plus shift due to decomp
-      const long kx = DFTX ? ((i <= nKx/2) ? i : nKx-i) : i;
-      const long ky = DFTY ? ((J <= nKy/2) ? J : nKy-J) : J;
-      const long kz = DFTZ ? ((k <= nKz/2) ? k : nKz-k) : k;
-      const Real rkx = ( kx + (DFTX ? 0 : (Real)0.5 ) ) * waveFactX;
-      const Real rky = ( ky + (DFTY ? 0 : (Real)0.5 ) ) * waveFactY;
-      const Real rkz = ( kz + (DFTZ ? 0 : (Real)0.5 ) ) * waveFactZ;
-      in_out[linidx] *= - norm_factor/(rkx*rkx + rky*rky + rkz*rkz);
+      const long j = shifty + lj; //memory index plus shift due to decomp
+      const long ky = DFTY ? ((j <= nKy/2) ? j : nKy-j) : j;
+      const Real rky2 = std::pow( (ky + (DFTY? 0 : (Real)0.5)) * waveFacY, 2);
+      const Real denY = (1-tol) * (std::cos(2*waveFacY*j)-1)/2 - tol*rky2;
+
+      for(long  i = 0;  i<static_cast<long>(gsize[0]); ++ i)
+      {
+        const long kx = DFTX ? ((i <= nKx/2) ? i : nKx-i) : i;
+        const Real rkx2 = std::pow( (kx + (DFTX? 0 : (Real)0.5)) * waveFacX, 2);
+        const Real denX = (1-tol) * (std::cos(2*waveFacX*i)-1)/2 - tol*rkx2;
+
+        for(long  k = 0;  k<static_cast<long>(gsize[2]); ++ k)
+        {
+          const size_t linidx = (lj*gsize[0] +i)*gsize[2] + k;
+          const long kz = DFTZ ? ((k <= nKz/2) ? k : nKz-k) : k;
+          const Real rkz2 = std::pow( (kz + (DFTZ? 0 : (Real)0.5)) * waveFacZ, 2);
+          const Real denZ = (1-tol) * (std::cos(2*waveFacZ*k)-1)/2 - tol*rkz2;
+
+          in_out[linidx] *= norm_factor/(denX + denY + denZ);
+        }
+      }
+
     }
+
     //if (shifty==0 && DFTX && DFTY && DFTZ) in_out[0] = 0;
     if (shifty==0) in_out[0] = 0;
   }

@@ -115,6 +115,11 @@ void SpectralManipACC::_compute_IC(const std::vector<Real> &K,
 SpectralManipACC::SpectralManipACC(SimulationData&s): SpectralManip(s),
 streams(new myCUDAstreams())
 {
+  {
+    printf("SpectralManipACC OUT OF DATE.\n");
+    abort();
+  }
+
   if (gsize[2]!=myN[2]) {
     printf("SpectralManipACC assumes grid is distrubuted in x and y.\n");
     abort();

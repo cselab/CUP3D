@@ -190,53 +190,115 @@ struct KernelAdvectDiffuse_nonUniform : public KernelAdvectDiffuseBase
   }
 };
 
-}
-
-void AdvectionDiffusion::operator()(const double dt)
+struct UpdateAndCorrectInflow
 {
-  sim.startProfiler("AdvDiff Kernel");
+  SimulationData & sim;
+  FluidGridMPI * const grid = sim.grid;
+  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+
+  static constexpr int BEG = 0, END = CUP_BLOCK_SIZE-1;
+  inline bool isW(const BlockInfo&I) const {
+    if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return false;
+    return I.index[0] == 0;
+  };
+  inline bool isE(const BlockInfo&I) const {
+    if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return false;
+    return I.index[0] == sim.bpdx-1;
+  };
+  inline bool isS(const BlockInfo&I) const {
+    if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return false;
+    return I.index[1] == 0;
+  };
+  inline bool isN(const BlockInfo&I) const {
+    if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return false;
+    return I.index[1] == sim.bpdy-1;
+  };
+  inline bool isF(const BlockInfo&I) const {
+    if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return false;
+    return I.index[2] == 0;
+  };
+  inline bool isB(const BlockInfo&I) const {
+    if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return false;
+    return I.index[2] == sim.bpdz-1;
+  };
+
+  UpdateAndCorrectInflow(SimulationData & s) : sim(s) { }
+
+  virtual void operate() const
   {
-    if(sim.bUseStretchedGrid)
+    double sumInflow = 0;
+    #pragma omp parallel for schedule(static) reduction(+:sumInflow)
+    for(size_t i=0; i<vInfo.size(); i++)
     {
-      const KernelAdvectDiffuse_nonUniform K(sim, dt);
-      compute<KernelAdvectDiffuse_nonUniform>(K);
+      FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+        b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
+        b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
+        b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
+      }
+
+      if (isW(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for (int iy=0; iy<FluidBlock::sizeY; ++iy) sumInflow -= b(BEG,iy,iz).u;
+
+      if (isE(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for (int iy=0; iy<FluidBlock::sizeY; ++iy) sumInflow += b(END,iy,iz).u;
+
+      if (isS(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for (int ix=0; ix<FluidBlock::sizeX; ++ix) sumInflow -= b(ix,BEG,iz).v;
+
+      if (isN(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for (int ix=0; ix<FluidBlock::sizeX; ++ix) sumInflow += b(ix,END,iz).v;
+
+      if (isF(vInfo[i])) for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for (int ix=0; ix<FluidBlock::sizeX; ++ix) sumInflow -= b(ix,iy,BEG).w;
+
+      if (isB(vInfo[i])) for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for (int ix=0; ix<FluidBlock::sizeX; ++ix) sumInflow += b(ix,iy,END).w;
     }
-    else
+
+    const auto & comm = grid->getCartComm();
+    MPI_Allreduce(MPI_IN_PLACE, & sumInflow, 1, MPI_DOUBLE, MPI_SUM, comm);
+    const auto nTotX = FluidBlock::sizeX * sim.bpdx;
+    const auto nTotY = FluidBlock::sizeY * sim.bpdy;
+    const auto nTotZ = FluidBlock::sizeZ * sim.bpdz;
+    const Real corr = sumInflow / (2*(nTotX*nTotY + nTotX*nTotZ + nTotY*nTotZ));
+    if(sim.verbose) printf("Inflow correction %e\n", corr);
+    #pragma omp parallel for schedule(static)
+    for(size_t i=0; i<vInfo.size(); i++)
     {
-      const KernelAdvectDiffuse K(sim, dt);
-      compute<KernelAdvectDiffuse>(K);
+      FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
+
+      if(isW(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for (int iy=0; iy<FluidBlock::sizeY; ++iy) b(BEG,iy,iz).u += corr;
+
+      if(isE(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for (int iy=0; iy<FluidBlock::sizeY; ++iy) b(END,iy,iz).u -= corr;
+
+      if(isS(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for (int ix=0; ix<FluidBlock::sizeX; ++ix) b(ix,BEG,iz).v += corr;
+
+      if(isN(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for (int ix=0; ix<FluidBlock::sizeX; ++ix) b(ix,END,iz).v -= corr;
+
+      if(isF(vInfo[i])) for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for (int ix=0; ix<FluidBlock::sizeX; ++ix) b(ix,iy,BEG).w += corr;
+
+      if(isB(vInfo[i])) for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for (int ix=0; ix<FluidBlock::sizeX; ++ix) b(ix,iy,END).w -= corr;
     }
   }
-  sim.stopProfiler();
+};
 
-  sim.startProfiler("AdvDiff copy");
+struct UpdateAndCorrectInflow_nonUniform : public UpdateAndCorrectInflow
+{
+  UpdateAndCorrectInflow_nonUniform(SimulationData & s) :
+    UpdateAndCorrectInflow(s) { }
+
+  void operate() const override
   {
-    const auto isW =[&](const BlockInfo&I) {
-      if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return false;
-      return I.index[0] == 0;
-    };
-    const auto isE =[&](const BlockInfo&I) {
-      if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return false;
-      return I.index[0] == sim.bpdx-1;
-    };
-    const auto isS =[&](const BlockInfo&I) {
-      if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return false;
-      return I.index[1] == 0;
-    };
-    const auto isN =[&](const BlockInfo&I) {
-      if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return false;
-      return I.index[1] == sim.bpdy-1;
-    };
-    const auto isF =[&](const BlockInfo&I) {
-      if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return false;
-      return I.index[2] == 0;
-    };
-    const auto isB =[&](const BlockInfo&I) {
-      if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return false;
-      return I.index[2] == sim.bpdz-1;
-    };
-    static constexpr int BEG = 0, END = CUP_BLOCK_SIZE-1;
-    Real sumInflow = 0, throughFlow = 0;
+    double sumInflow = 0, throughFlow = 0;
     #pragma omp parallel for schedule(static) reduction(+:sumInflow,throughFlow)
     for(size_t i=0; i<vInfo.size(); i++)
     {
@@ -314,8 +376,35 @@ void AdvectionDiffusion::operator()(const double dt)
         b(ix,iy,END).w -= corr * std::fabs(b(ix,iy,END).w);
     }
   }
+};
 
-  sim.stopProfiler();
+}
+
+void AdvectionDiffusion::operator()(const double dt)
+{
+  if(sim.bUseStretchedGrid)
+  {
+    sim.startProfiler("AdvDiff Kernel");
+    const KernelAdvectDiffuse_nonUniform K(sim, dt);
+    compute<KernelAdvectDiffuse_nonUniform>(K);
+    sim.stopProfiler();
+    sim.startProfiler("AdvDiff copy");
+    const UpdateAndCorrectInflow_nonUniform U(sim);
+    U.operate();
+    sim.stopProfiler();
+  }
+  else
+  {
+    sim.startProfiler("AdvDiff Kernel");
+    const KernelAdvectDiffuse K(sim, dt);
+    compute<KernelAdvectDiffuse>(K);
+    sim.stopProfiler();
+    sim.startProfiler("AdvDiff copy");
+    //const UpdateAndCorrectInflow U(sim);
+    const UpdateAndCorrectInflow_nonUniform U(sim);
+    U.operate();
+    sim.stopProfiler();
+  }
   check("AdvectionDiffusion");
 }
 
