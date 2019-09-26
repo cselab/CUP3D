@@ -30,16 +30,16 @@ void HITstatistics::getTargetSpectrumFit(const Real _eps, const Real _nu,
   // const Real gradFit = 0.8879967 std::sqrt(_eps) / std::sqrt(_nu);
   const Real LintFit = getIntegralLengthFit(_eps, _nu);
   const Real Lkolmogorov = getKolmogorovL(_eps, _nu);
-  const Real C  = 2.53086387;
-  const Real CI = 0;
-  const Real CE = 0.238214;
-  const Real BE = 5.0635006; // 5.2 from theory
-  const Real P0 = 1.40558973; // should be 2, but we force large scales
+  const Real C  = 5.7;
+  const Real CI = 1e-3;
+  const Real CE = 0;
+  const Real BE = 4.9; // 5.2 from theory
+  const Real P0 = 600; // should be 2, but we force large scales
 
   for (size_t i=0; i<K.size(); ++i) {
     K[i] = (i+0.5) * 2 * M_PI / L;
     const Real KI = K[i] * LintFit, KE4 = std::pow(K[i] * Lkolmogorov,4);
-    const Real FL = std::pow(KI / std::sqrt(KI*KI + CI), 5/3.0 + P0 );
+    const Real FL = std::pow(KI / (KI + CI), 5/3.0 + P0 );
     const Real FE = std::exp(-BE*(std::pow(KE4 + std::pow(CE,4), 0.25 ) -CE));
     E[i] = C * std::pow(_eps, 2/3.0) * std::pow(K[i], -5/3.0) * FL * FE;
   }
@@ -47,7 +47,7 @@ void HITstatistics::getTargetSpectrumFit(const Real _eps, const Real _nu,
 
 Real HITstatistics::getSimpleSpectrumFit(const Real _k, const Real _eps) const
 {
-  const Real C  = 2.53086387;
+  const Real C  = 5.7;
   return C * std::pow(_eps, 2/3.0) * std::pow(_k, -5/3.0);
 }
 
