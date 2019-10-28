@@ -320,7 +320,8 @@ void Simulation::setupOperators()
   // Here we also compute obstacles' centres of mass which are computed from
   // the char func on the grid. This is different from "position" which is
   // the quantity that is advected and used to construct shape.
-  sim.pipeline.push_back(new CreateObstacles(sim));
+  Operator *createObstacles = new CreateObstacles(sim);
+  sim.pipeline.push_back(createObstacles);
 
   // Performs:
   // \tilde{u} = u_t + \delta t (\nu \nabla^2 u_t - (u_t \cdot \nabla) u_t )
@@ -398,7 +399,7 @@ void Simulation::setupOperators()
       printf("\t%s\n", sim.pipeline[c]->getName().c_str());
   }
   //immediately call create!
-  (*sim.pipeline[1])(0);
+  (*createObstacles)(0);
 }
 
 double Simulation::calcMaxTimestep()
