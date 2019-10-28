@@ -398,7 +398,7 @@ void Simulation::setupOperators()
       printf("\t%s\n", sim.pipeline[c]->getName().c_str());
   }
   //immediately call create!
-  (*sim.pipeline[0])(0);
+  (*sim.pipeline[1])(0);
 }
 
 double Simulation::calcMaxTimestep()
