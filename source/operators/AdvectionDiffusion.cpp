@@ -264,7 +264,10 @@ struct UpdateAndCorrectInflow
     const auto nTotY = FluidBlock::sizeY * sim.bpdy;
     const auto nTotZ = FluidBlock::sizeZ * sim.bpdz;
     const Real corr = sumInflow / (2*(nTotX*nTotY + nTotX*nTotZ + nTotY*nTotZ));
+
+    if(std::fabs(corr) < EPS) return;
     if(sim.verbose) printf("Inflow correction %e\n", corr);
+
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++)
     {
@@ -345,7 +348,10 @@ struct UpdateAndCorrectInflow_nonUniform : public UpdateAndCorrectInflow
     double sums[2] = {sumInflow, throughFlow};
     MPI_Allreduce(MPI_IN_PLACE, sums,2,MPI_DOUBLE,MPI_SUM, grid->getCartComm());
     const Real corr = sums[0] / std::max((double)EPS, sums[1]);
+
+    if(std::fabs(corr) < EPS) return;
     if(sim.verbose) printf("Relative inflow correction %e\n", corr);
+
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++)
     {
