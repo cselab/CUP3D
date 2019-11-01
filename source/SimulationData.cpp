@@ -69,7 +69,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   }
 
   // PIPELINE && FORCING
-  freqDiagnostics = parser("-freqDiagnostics").asInt(10);
+  freqDiagnostics = parser("-freqDiagnostics").asInt(100);
   bIterativePenalization = parser("-iterativePenalization").asBool(false);
   bImplicitPenalization = parser("-implicitPenalization").asBool(false);
   bKeepMomentumConstant = parser("-keepMomentumConstant").asBool(false);
