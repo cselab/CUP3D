@@ -120,7 +120,7 @@ struct TargetData
         size_t i = 0;
         std::istringstream linestream(line);
         while (std::getline(linestream, line, ','))
-          invC[j][i++] = std::stof(line);
+          logE_invCov[j][i++] = std::stof(line);
         assert(i==N);
         j++;
     }
@@ -131,7 +131,7 @@ struct TargetData
   {
   }
 
-  static std::vector<std::string> readTargetSpecifiers(std::string paramsList)
+  static std::vector<std::string> readTargetSpecs(std::string paramsList)
   {
     std::stringstream ss(paramsList);
     std::vector<std::string> tokens;
@@ -297,12 +297,12 @@ inline void app_main(
     assert(sim.sim.spectralManip not_eq nullptr);
     const cubismup3d::HITstatistics& HTstats = sim.sim.spectralManip->stats;
 
-    target.sampleParametersToken(comm->getPRNG());
+    target.sampleParameters(comm->getPRNG());
     sim.sim.enInjectionRate = target.eps;
     sim.sim.nu = target.nu;
-    sim.spectralIC = "fromFile";
-    sim.initCondModes = target.mode;
-    sim.initCondSpectrum = target.E_mean;
+    sim.sim.spectralIC = "fromFile";
+    sim.sim.initCondModes = target.mode;
+    sim.sim.initCondSpectrum = target.E_mean;
     const Real tau_integral = target.tInteg;
     const Real tInit = LES_HIT_RL_INIT_T * target.tInteg;
     printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f\n",
@@ -330,14 +330,14 @@ inline void app_main(
     double time = 0;
     double avgReward  = 0;
     bool policyFailed = false;
-    const Real timeUpdateLES = 0.5 * HTstats.getKolmogorovT(eps, nu);
+    const Real timeUpdateLES = HTstats.getKolmogorovT(target.eps, target.nu)/2;
     sim.sim.sgs = "RLSM";
 
     #ifdef SGSRL_STATE_SCALING
       Real scaleGrads = -1;
       updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
     #else
-      const Real scaleGrads = std::sqrt(nu / eps);
+      const Real scaleGrads = std::sqrt(target.nu / target.eps);
     #endif
 
     const auto nIntegralTime = 10;

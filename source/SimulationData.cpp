@@ -52,7 +52,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   // IC
   initCond = parser("-initCond").asString("zero");
   spectralIC = parser("-spectralIC").asString("");
-  spectralICFile = parser("-spectralICFile").asString("");
   k0 = parser("-k0").asDouble(10.0);
   tke0 = parser("-tke0").asDouble(1.0);
   icFromH5 = parser("-icFromH5").asString("");
