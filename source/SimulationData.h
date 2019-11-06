@@ -100,7 +100,8 @@ struct SimulationData
   // initial conditions
   std::string initCond = "zero";
   std::string spectralIC = "";
-  std::string spectralICFile = "";
+  std::vector<double> initCondModes;
+  std::vector<double> initCondSpectrum;
   std::string icFromH5 = "";
   double k0 = 0, tke0 = 0;
 

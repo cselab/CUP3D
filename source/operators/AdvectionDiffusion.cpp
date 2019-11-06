@@ -37,7 +37,9 @@ struct KernelAdvectDiffuseBase
 
   void applyBCwest(const BlockInfo & I, Lab & L) const {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
-    else if (I.index[0] not_eq 0) return;
+    else if (I.index[0] not_eq 0) return; // not near boundary
+    else if (fadeW >= 1) return; // no momentum killing at this boundary
+    assert(fadeW <= 1 && fadeW >= 0);
     for (int iz=-1; iz<=FluidBlock::sizeZ; ++iz)
     for (int iy=-1; iy<=FluidBlock::sizeY; ++iy) {
       L(BEG,iy,iz).u *= fadeW; L(BEG,iy,iz).v *= fadeW; L(BEG,iy,iz).w *= fadeW;
@@ -46,7 +48,9 @@ struct KernelAdvectDiffuseBase
 
   void applyBCeast(const BlockInfo & I, Lab & L) const {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
-    else if (I.index[0] not_eq sim.bpdx - 1) return;
+    else if (I.index[0] not_eq sim.bpdx - 1) return; // not near boundary
+    else if (fadeE >= 1) return; // no momentum killing at this boundary
+    assert(fadeE <= 1 && fadeE >= 0);
     for (int iz=-1; iz<=FluidBlock::sizeZ; ++iz)
     for (int iy=-1; iy<=FluidBlock::sizeY; ++iy) {
       L(END,iy,iz).u *= fadeE; L(END,iy,iz).v *= fadeE; L(END,iy,iz).w *= fadeE;
@@ -55,7 +59,9 @@ struct KernelAdvectDiffuseBase
 
   void applyBCsouth(const BlockInfo & I, Lab & L) const {
     if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return;
-    else if (I.index[1] not_eq 0) return;
+    else if (I.index[1] not_eq 0) return; // not near boundary
+    else if (fadeS >= 1) return; // no momentum killing at this boundary
+    assert(fadeS <= 1 && fadeS >= 0);
     for (int iz=-1; iz<=FluidBlock::sizeZ; ++iz)
     for (int ix=-1; ix<=FluidBlock::sizeX; ++ix) {
       L(ix,BEG,iz).u *= fadeS; L(ix,BEG,iz).v *= fadeS; L(ix,BEG,iz).w *= fadeS;
@@ -64,7 +70,9 @@ struct KernelAdvectDiffuseBase
 
   void applyBCnorth(const BlockInfo & I, Lab & L) const {
     if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return;
-    else if (I.index[1] not_eq sim.bpdy - 1) return;
+    else if (I.index[1] not_eq sim.bpdy - 1) return; // not near boundary
+    else if (fadeN >= 1) return; // no momentum killing at this boundary
+    assert(fadeN <= 1 && fadeN >= 0);
     for (int iz=-1; iz<=FluidBlock::sizeZ; ++iz)
     for (int ix=-1; ix<=FluidBlock::sizeX; ++ix) {
       L(ix,END,iz).u *= fadeN; L(ix,END,iz).v *= fadeN; L(ix,END,iz).w *= fadeN;
@@ -73,7 +81,9 @@ struct KernelAdvectDiffuseBase
 
   void applyBCfront(const BlockInfo & I, Lab & L) const {
     if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return;
-    else if (I.index[2] not_eq 0) return;
+    else if (I.index[2] not_eq 0) return; // not near boundary
+    else if (fadeF >= 1) return; // no momentum killing at this boundary
+    assert(fadeF <= 1 && fadeF >= 0);
     for (int iy=-1; iy<=FluidBlock::sizeY; ++iy)
     for (int ix=-1; ix<=FluidBlock::sizeX; ++ix) {
       L(ix,iy,BEG).u *= fadeF; L(ix,iy,BEG).v *= fadeF; L(ix,iy,BEG).w *= fadeF;
@@ -82,7 +92,9 @@ struct KernelAdvectDiffuseBase
 
   void applyBCback(const BlockInfo & I, Lab & L) const {
     if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return;
-    else if (I.index[2] not_eq sim.bpdz - 1) return;
+    else if (I.index[2] not_eq sim.bpdz - 1) return; // not near boundary
+    else if (fadeB >= 1) return; // no momentum killing at this boundary
+    assert(fadeB <= 1 && fadeB >= 0);
     for (int iy=-1; iy<=FluidBlock::sizeY; ++iy)
     for (int ix=-1; ix<=FluidBlock::sizeX; ++ix) {
       L(ix,iy,END).u *= fadeB; L(ix,iy,END).v *= fadeB; L(ix,iy,END).w *= fadeB;
@@ -392,7 +404,7 @@ void AdvectionDiffusion::operator()(const double dt)
   {
     sim.startProfiler("AdvDiff Kernel");
     const KernelAdvectDiffuse_nonUniform K(sim, dt);
-    compute<KernelAdvectDiffuse_nonUniform>(K);
+    compute(K);
     sim.stopProfiler();
     sim.startProfiler("AdvDiff copy");
     const UpdateAndCorrectInflow_nonUniform U(sim);
@@ -403,7 +415,7 @@ void AdvectionDiffusion::operator()(const double dt)
   {
     sim.startProfiler("AdvDiff Kernel");
     const KernelAdvectDiffuse K(sim, dt);
-    compute<KernelAdvectDiffuse>(K);
+    compute(K);
     sim.stopProfiler();
     sim.startProfiler("AdvDiff copy");
     //const UpdateAndCorrectInflow U(sim);

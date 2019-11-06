@@ -81,34 +81,12 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,
   }
 
   else if (sim.spectralIC=="fromFile") {
-    std::ifstream inFile;
-    std::string fileName = sim.spectralICFile;
-    inFile.open(fileName);
-    if (!inFile){
-      std::cout<<"SpectralICGenerator: cannot open file :"<<fileName<<std::endl;
-      fflush(0); abort();
-    }
-    for(std::string line; std::getline(inFile, line); )
-    {
-      std::istringstream in(line);
-      Real k_r, E_r;
-      in >> k_r >> E_r;
-      K.push_back(k_r);
-      E.push_back(E_r);
-    }
-    EnergySpectrum target(K,E);
-
-    // Set target tke
-    Real k_eval = 0.0, tke0 = 0.0;
-    for (int i = 0; i<SM.maxGridN; i++) {
-      k_eval = (i+1) * 2*M_PI / SM.maxGridL;
-      tke0  += target.interpE(k_eval);
-    }
-
-    // if user asked spectral forcing, but no value specified, satisfy spectrum
-    if (sim.spectralForcing       &&
-        sim.turbKinEn_target <= 0 &&
-        sim.enInjectionRate  <= 0) sim.turbKinEn_target = tke0;
+    const int nBins = std::ceil(std::sqrt(3.0) * SM.maxGridN / 2.0) + 1;
+    K = std::vector<Real>(sim.initCondModes);
+    E = std::vector<Real>(sim.initCondSpectrum);
+    assert( nBins <= (int) K.size() && nBins <= (int) E.size() );
+    K.resize(nBins);
+    E.resize(nBins);
   }
 
   else if (sim.spectralIC=="fromFit") {

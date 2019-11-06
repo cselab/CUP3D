@@ -14,11 +14,8 @@ struct SGSHelperElement
 {
   typedef Real RealType;
   // Derivatives of nu_sgs
-  Real nu=0, Dj_nu_Sxj=0, Dj_nu_Syj=0, Dj_nu_Szj=0;
-  Real duD=0, dvD=0, dwD=0;
-  void clear() {
-    nu=0; Dj_nu_Sxj=0; Dj_nu_Sxj=0; Dj_nu_Sxj=0; duD=0; dvD=0; dwD=0;
-  }
+  Real nu=0, duD=0, dvD=0, dwD=0;
+  void clear() { nu=0; duD=0; dvD=0; dwD=0; }
   SGSHelperElement(const SGSHelperElement& c) = delete;
 };
 
@@ -33,7 +30,7 @@ static inline SGSBlock* getSGSBlockPtr(
   return (SGSBlock*) vInfo[blockID].ptrBlock;
 }
 
-
+template<bool readFromChi>
 class KernelSGS_SSM
 {
  private:
@@ -41,19 +38,16 @@ class KernelSGS_SSM
   SGSGridMPI * const sgsGrid;
 
  public:
-  const std::array<int, 3> stencil_start = {-1, -1, -1};
-  const std::array<int, 3> stencil_end = {2, 2, 2};
+  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   KernelSGS_SSM(SGSGridMPI*const _sgsGrid, const Real _Cs)
       : Cs(_Cs), sgsGrid(_sgsGrid) {}
 
-  ~KernelSGS_SSM() {}
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
   {
-    const Real Cs2 = Cs*Cs;
-    const Real h = info.h_gridpoint;
+    const Real Cs2 = Cs*Cs, h = info.h_gridpoint;
     SGSBlock& t = * getSGSBlockPtr(sgsGrid, info.blockID);
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
@@ -65,67 +59,16 @@ class KernelSGS_SSM
       const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
       const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
 
-      const Real d1udx1= LE.u-LW.u, d1vdx1= LE.v-LW.v, d1wdx1= LE.w-LW.w;
-      const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
-      const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
+      const Real dudx = LE.u-LW.u, dvdx = LE.v-LW.v, dwdx = LE.w-LW.w;
+      const Real dudy = LN.u-LS.u, dvdy = LN.v-LS.v, dwdy = LN.w-LS.w;
+      const Real dudz = LB.u-LF.u, dvdz = LB.v-LF.v, dwdz = LB.w-LF.w;
 
-      const Real shear = std::sqrt( 2*d1udx1*d1udx1
-                                   +2*d1vdy1*d1vdy1
-                                   +2*d1wdz1*d1wdz1
-                                   +(d1udy1+d1vdx1)*(d1udy1+d1vdx1)
-                                   +(d1udz1+d1wdx1)*(d1udz1+d1wdx1)
-                                   +(d1wdy1+d1vdz1)*(d1wdy1+d1vdz1))/(2*h);
-
-      sgs.nu = Cs2 * h*h * shear;
-      sgs.duD = (LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6)/(h*h);
-      sgs.dvD = (LN.v+LS.v + LE.v+LW.v + LF.v+LB.v - L.v*6)/(h*h);
-      sgs.dwD = (LN.w+LS.w + LE.w+LW.w + LF.w+LB.w - L.w*6)/(h*h);
-
-      o(ix, iy, iz).tmpU = sgs.nu;
-    }
-  }
-};
-
-class KernelSGS_RLSM
-{
- private:
-  SGSGridMPI * const sgsGrid;
-
- public:
-  const std::array<int, 3> stencil_start = {-1, -1, -1};
-  const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
-
-  KernelSGS_RLSM(SGSGridMPI * const _sgsGrid)
-      : sgsGrid(_sgsGrid) {}
-
-  ~KernelSGS_RLSM() {}
-  template <typename Lab, typename BlockType>
-  void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
-  {
-    const Real h = info.h_gridpoint;
-    SGSBlock& t = * getSGSBlockPtr(sgsGrid, info.blockID);
-    for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
-    for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
-    for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
-      SGSHelperElement& sgs = t(ix,iy,iz);
-
-      const FluidElement &L =lab(ix,iy,iz);
-      const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
-      const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
-      const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
-
-      const Real d1udx1= LE.u-LW.u, d1vdx1= LE.v-LW.v, d1wdx1= LE.w-LW.w;
-      const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
-      const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
-      const Real shear = std::sqrt( 2*d1udx1*d1udx1
-                                   +2*d1vdy1*d1vdy1
-                                   +2*d1wdz1*d1wdz1
-                                   +(d1udy1+d1vdx1)*(d1udy1+d1vdx1)
-                                   +(d1udz1+d1wdx1)*(d1udz1+d1wdx1)
-                                   +(d1wdy1+d1vdz1)*(d1wdy1+d1vdz1))/(2*h);
-
-      sgs.nu = L.chi * h*h * shear;
+      const Real shear = std::sqrt( 2*dudx*dudx + 2*dvdy*dvdy + 2*dwdz*dwdz
+                                   + (dudy+dvdx)*(dudy+dvdx)
+                                   + (dudz+dwdx)*(dudz+dwdx)
+                                   + (dwdy+dvdz)*(dwdy+dvdz) ) / (2*h);
+      const Real elemCs2 = readFromChi? L.chi : Cs2;
+      sgs.nu = elemCs2 * h*h * shear;
       sgs.duD = (LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6)/(h*h);
       sgs.dvD = (LN.v+LS.v + LE.v+LW.v + LF.v+LB.v - L.v*6)/(h*h);
       sgs.dwD = (LN.w+LS.w + LE.w+LW.w + LF.w+LB.w - L.w*6)/(h*h);
@@ -206,7 +149,8 @@ class KernelSGS_nonUniform
   }
 };
 
-inline  Real facFilter(const int i, const int j, const int k){
+inline  Real facFilter(const int i, const int j, const int k)
+{
   if (abs(i)+abs(j)+abs(k) == 3)         // Corner cells
     return 1.0/64;
   else if (abs(i)+abs(j)+abs(k) == 2)    // Side-Corner cells
@@ -405,13 +349,11 @@ class KernelSGS_gradNu
   SGSGridMPI * const sgsGrid;
 
  public:
-  const std::array<int, 3> stencil_start = {-1, -1, -1};
-  const std::array<int, 3> stencil_end = {2, 2, 2};
+  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2,2,2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W,FE_TMPU}};
 
   KernelSGS_gradNu(SGSGridMPI * const _sgsGrid) : sgsGrid(_sgsGrid) {}
 
-  ~KernelSGS_gradNu() {}
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
   {
@@ -420,23 +362,23 @@ class KernelSGS_gradNu
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
     for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
-      SGSHelperElement& sgs = t(ix,iy,iz);
+      const FluidElement &LW = lab(ix-1,iy,iz), &LE = lab(ix+1,iy,iz);
+      const FluidElement &LS = lab(ix,iy-1,iz), &LN = lab(ix,iy+1,iz);
+      const FluidElement &LF = lab(ix,iy,iz-1), &LB = lab(ix,iy,iz+1);
 
-      const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
-      const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
-      const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
-
-      const Real dudx= LE.u-LW.u, dvdx= LE.v-LW.v, dwdx= LE.w-LW.w;
-      const Real dudy= LN.u-LS.u, dvdy= LN.v-LS.v, dwdy= LN.w-LS.w;
-      const Real dudz= LB.u-LF.u, dvdz= LB.v-LF.v, dwdz= LB.w-LF.w;
-
-      const Real dnudx = F * (LE.tmpU-LW.tmpU);
-      const Real dnudy = F * (LN.tmpU-LS.tmpU);
-      const Real dnudz = F * (LB.tmpU-LF.tmpU);
-
-      sgs.Dj_nu_Sxj= F*(dudx*dnudx + dnudy*(dudy+dvdx)/2 + dnudz*(dudz+dwdx)/2);
-      sgs.Dj_nu_Syj= F*(dnudx*(dudy+dvdx)/2 + dnudy*dvdy + dnudz*(dvdz+dwdy)/2);
-      sgs.Dj_nu_Szj= F*(dnudx*(dudz+dwdx)/2 + dnudy*(dudy+dvdx)/2 + dnudz*dwdz);
+      const Real dudx = LE.u-LW.u, dvdx = LE.v-LW.v, dwdx = LE.w-LW.w;
+      const Real dudy = LN.u-LS.u, dvdy = LN.v-LS.v, dwdy = LN.w-LS.w;
+      const Real dudz = LB.u-LF.u, dvdz = LB.v-LF.v, dwdz = LB.w-LF.w;
+      const Real dnudx = LE.tmpU-LW.tmpU;
+      const Real dnudy = LN.tmpU-LS.tmpU;
+      const Real dnudz = LB.tmpU-LF.tmpU;
+      const Real DnuSx = dudx*dnudx + dnudy*(dudy+dvdx)/2 + dnudz*(dudz+dwdx)/2;
+      const Real DnuSy = dnudx*(dudy+dvdx)/2 + dnudy*dvdy + dnudz*(dvdz+dwdy)/2;
+      const Real DnuSz = dnudx*(dudz+dwdx)/2 + dnudy*(dudy+dvdx)/2 + dnudz*dwdz;
+      // double F factor because of fdiff u multiplied by f diff nu
+      t(ix,iy,iz).duD = t(ix,iy,iz).nu * t(ix,iy,iz).duD + 2 * F*F * DnuSx;
+      t(ix,iy,iz).dvD = t(ix,iy,iz).nu * t(ix,iy,iz).dvD + 2 * F*F * DnuSy;
+      t(ix,iy,iz).dwD = t(ix,iy,iz).nu * t(ix,iy,iz).dwD + 2 * F*F * DnuSz;
     }
   }
 };
@@ -444,35 +386,26 @@ class KernelSGS_gradNu
 class KernelSGS_apply
 {
  private:
-  const double dt;
+  const Real dt;
   SGSGridMPI * const sgsGrid;
 
  public:
-  Real nu_sgs = 0.0;
-  Real cs2_avg = 0.0;
-  const std::array<int, 3> stencil_start = {0, 0, 0};
-  const std::array<int, 3> stencil_end = {1, 1, 1};
-  const StencilInfo stencil{0,0,0, 1,1,1, false, {FE_U,FE_V,FE_W}};
+  Real nu_sgs = 0.0, cs2_avg = 0.0;
 
-  KernelSGS_apply(double _dt, SGSGridMPI * const _sgsGrid) : dt(_dt), sgsGrid(_sgsGrid) {}
+  KernelSGS_apply(Real _dt, SGSGridMPI*const _sgs) : dt(_dt), sgsGrid(_sgs) {}
 
-  ~KernelSGS_apply() {}
-  template <typename Lab, typename BlockType>
-  void operator()(Lab& lab, const BlockInfo& info, BlockType& o)
+  void operator()(const BlockInfo& info, FluidBlock& o)
   {
     const SGSBlock& t = * getSGSBlockPtr(sgsGrid, info.blockID);
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
     for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
-      const SGSHelperElement& sgs = t(ix,iy,iz);
+      o(ix,iy,iz).u += dt * t(ix,iy,iz).duD;
+      o(ix,iy,iz).v += dt * t(ix,iy,iz).dvD;
+      o(ix,iy,iz).w += dt * t(ix,iy,iz).dwD;
 
-      // adding gradient of nu term leads to instability.
-      o(ix, iy, iz).u += dt * sgs.nu * sgs.duD + dt * 2 * sgs.Dj_nu_Sxj;
-      o(ix, iy, iz).v += dt * sgs.nu * sgs.dvD + dt * 2 * sgs.Dj_nu_Syj;
-      o(ix, iy, iz).w += dt * sgs.nu * sgs.dwD + dt * 2 * sgs.Dj_nu_Szj;
-
-      nu_sgs += sgs.nu;
-      cs2_avg += lab(ix,iy,iz).chi;
+      nu_sgs += t(ix,iy,iz).nu;
+      cs2_avg += o(ix,iy,iz).chi;
     }
   }
 };
@@ -497,54 +430,45 @@ void SGS::operator()(const double dt)
     //compute<KernelSGS_nonUniform>(sgs);
   } else {
     if (sim.sgs=="DSM") { // Dynamic Smagorinsky Model
-      using K_t1 = KernelSGS_DSM;
-      const K_t1 computeCs(sgsGrid);
-      compute<K_t1>(computeCs);
+      const KernelSGS_DSM computeCs(sgsGrid);
+      compute(computeCs);
 
-      using K_t2 = KernelSGS_DSM_avg;
-      const K_t2 averageCs(sgsGrid);
-      compute<K_t2>(averageCs);
+      const KernelSGS_DSM_avg averageCs(sgsGrid);
+      compute(averageCs);
     }
     if (sim.sgs=="SSM") { // Standard Smagorinsky Model
-      using K_t = KernelSGS_SSM;
-      const K_t K(sgsGrid, sim.cs);
-      compute<K_t>(K);
+      const KernelSGS_SSM<false> K(sgsGrid, sim.cs);
+      compute(K);
     }
     if (sim.sgs=="RLSM") { // RL Smagorinsky Model
-      using K_t = KernelSGS_RLSM;
-      const K_t K(sgsGrid);
-      compute<K_t>(K);
+      const KernelSGS_SSM<true> K(sgsGrid, sim.cs);
+      compute(K);
     }
   }
-
-  Real nu_sgs  = 0.0;
-  Real cs2_avg = 0.0;
-  size_t normalize = FluidBlock::sizeX * FluidBlock::sizeY * FluidBlock::sizeZ * sim.bpdx * sim.bpdy * sim.bpdz;
 
   using K_t = KernelSGS_gradNu;
   const K_t K(sgsGrid);
   compute<K_t>(K);
 
-  const int nthreads = omp_get_max_threads();
-  std::vector<KernelSGS_apply*> sgs(nthreads, nullptr);
+  Real reduction[2] = {(Real) 0, (Real) 0};
+  #pragma omp parallel reduction(+ : reduction[:2])
+  {
+    KernelSGS_apply kernel(dt, sgsGrid);
+    #pragma omp for schedule(static)
+    for (size_t i=0; i<vInfo.size(); i++)
+      kernel(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
 
-  #pragma omp parallel for schedule(static, 1)
-  for(int i=0; i<nthreads; ++i)
-    sgs[i] = new KernelSGS_apply(dt, sgsGrid);
-
-  compute<KernelSGS_apply>(sgs);
-
-  for (int i=0; i<nthreads; ++i) {
-    cs2_avg += sgs[i]->cs2_avg;
-    nu_sgs  += sgs[i]->nu_sgs;
-    delete sgs[i];
+    reduction[0] += kernel.cs2_avg;
+    reduction[1] += kernel.nu_sgs;
   }
-  nu_sgs  = nu_sgs / normalize;
-  cs2_avg   = cs2_avg  / normalize;
-  MPI_Allreduce(MPI_IN_PLACE, &nu_sgs, 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  MPI_Allreduce(MPI_IN_PLACE, &cs2_avg , 1, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  sim.nu_sgs = nu_sgs;
-  sim.cs2_avg = cs2_avg;
+
+  const size_t normalize = FluidBlock::sizeX*sim.bpdx
+                      * FluidBlock::sizeY*sim.bpdy * FluidBlock::sizeZ*sim.bpdz;
+  reduction[0] = reduction[0] / normalize;
+  reduction[1] = reduction[1] / normalize;
+  MPI_Allreduce(MPI_IN_PLACE, reduction, 2, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  sim.cs2_avg = reduction[0];
+  sim.nu_sgs = reduction[1];
 
   sim.stopProfiler();
 

@@ -25,150 +25,140 @@
 
 using Real = cubismup3d::Real;
 
-struct targetData
+struct TargetData
 {
-  int nModes;
-  std::vector<double> E_mean;
-  std::vector<double> E_std2;
+  std::vector<std::string> targetFiles_tokens;
+  std::string active_token; // specifies eps/nu combo, taken from the list above
 
-  int nSamplePerMode;
-  std::vector<double> E_kde;
-  std::vector<double> P_kde;
+  size_t nModes;
+  std::vector<double> logE_mean, mode, E_mean;
+  std::vector<std::vector<double>> logE_invCov;
 
-  double tau_integral;
-  double tau_eta;
-  double max_rew;
+  double eps, nu, tKinEn, lambda, Re_lam, tInteg, lInteg, avg_Du, epsVis;
 
-  double getRewardL2(const int modeID, const double msr) const
+  void sampleParameters(std::mt19937& gen)
   {
-    double r = (E_mean[modeID] - msr)/E_mean[modeID];
-    return -r*r;
+    std::uniform_int_distribution<size_t> dist(0, targetFiles_tokens.size()-1);
+    active_token = targetFiles_tokens[dist(gen)];
+    readScalars(active_token); // for a (eps,nu) read TKE, lambda, epsVisc...
+    readMeanSpectrum(active_token); // read also mean energy spectrum
+    readInvCovSpectrum(active_token); // read also covariance matrix of logE
   }
 
-  double getRewardKDE(const int modeID, const double msr) const
+  void readScalars(const std::string paramspec)
   {
-    if (msr <= E_kde[modeID*nSamplePerMode] or
-        msr >= E_kde[modeID*nSamplePerMode + nSamplePerMode - 1]) {
-      return 0;
-    }
-    //size_t lower = modeID*nSamplePerMode;
-    //size_t upper = modeID*nSamplePerMode + nSamplePerMode - 1;
+    std::string line; char arg[32]; double stdev;
+    std::ifstream file("../../scalars_" + paramspec);
+    if (!file.is_open()) printf("scalars FILE NOT FOUND\n");
 
-    size_t idx = -1;
-    for (int i=0; i<nSamplePerMode; i++){
-      idx = modeID*nSamplePerMode + i;
-      if (msr < E_kde[idx])
-        break;
-    }
-    const double scale = (P_kde[idx-1] -P_kde[idx])/(E_kde[idx] -E_kde[idx-1]);
-    double  ret = P_kde[idx] + scale * (E_kde[idx] - msr);
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le", arg, &eps);
+    assert(strcmp(arg, "eps") == 0);
 
-    return ret;
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le", arg, &nu);
+    assert(strcmp(arg, "nu") == 0);
+
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le %le", arg, &tKinEn, &stdev);
+    assert(strcmp(arg, "tKinEn") == 0);
+
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le %le", arg, &lambda, &stdev);
+    assert(strcmp(arg, "lambda") == 0);
+
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le %le", arg, &Re_lam, &stdev);
+    assert(strcmp(arg, "Re_lam") == 0);
+
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le %le", arg, &tInteg, &stdev);
+    assert(strcmp(arg, "tInteg") == 0);
+
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le %le", arg, &lInteg, &stdev);
+    assert(strcmp(arg, "lInteg") == 0);
+
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le %le", arg, &avg_Du, &stdev);
+    assert(strcmp(arg, "avg_Du") == 0);
+
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le %le", arg, &epsVis, &stdev);
+    assert(strcmp(arg, "epsVis") == 0);
+
+    printf("Params eps:%e nu:%e with mean quantities: tKinEn=%e lambda=%e "
+           "Re_lam=%e tInteg=%e lInteg=%e avg_Du=%e epsVis=%e\n", eps, nu,
+            tKinEn, lambda, Re_lam, tInteg, lInteg, avg_Du, epsVis);
+  }
+
+  void readMeanSpectrum(const std::string paramspec)
+  {
+    std::string line;
+    logE_mean.clear(); mode.clear();
+    std::ifstream file("../../spectrumLogE_" + paramspec);
+    if (!file.is_open()) printf("spectrumLogE FILE NOT FOUND\n");
+    while (std::getline(file, line)) {
+        mode.push_back(0); logE_mean.push_back(0);
+        sscanf(line.c_str(), "%le, %le", & mode.back(), & logE_mean.back());
+    }
+    //for (size_t i=0; i<N; ++i) printf("%f %f\n", mode[i], mean[i]);
+    nModes = mode.size();
+    E_mean = std::vector<double>(nModes);
+    for(size_t i = 0; i<nModes; ++i) E_mean[i] = std::exp(logE_mean[i]);
+  }
+
+  void readInvCovSpectrum(const std::string paramspec)
+  {
+    std::string line;
+    logE_invCov = std::vector<std::vector<double>>(
+        nModes, std::vector<double>(nModes,0) );
+    std::ifstream file("../../invCovLogE_" + paramspec);
+    if (!file.is_open()) printf("invCovLogE FILE NOT FOUND\n");
+    size_t j = 0;
+    while (std::getline(file, line)) {
+        size_t i = 0;
+        std::istringstream linestream(line);
+        while (std::getline(linestream, line, ','))
+          logE_invCov[j][i++] = std::stof(line);
+        assert(i==N);
+        j++;
+    }
+    assert(j==N);
+  }
+
+  TargetData(std::string params) : targetFiles_tokens(readTargetSpecs(params))
+  {
+  }
+
+  static std::vector<std::string> readTargetSpecs(std::string paramsList)
+  {
+    std::stringstream ss(paramsList);
+    std::vector<std::string> tokens;
+    std::string item;
+    while (getline(ss, item, ',')) tokens.push_back(item);
+    return tokens;
+  }
+
+  inline void updateReward(const cubismup3d::HITstatistics& stats,
+                           const Real alpha, Real & reward)
+  {
+    std::vector<double> logE(stats.nBin);
+    assert(stats.nBin == (int) stats.E_msr.size());
+    for (int i=0; i<stats.nBin; i++) logE[i] = std::log(stats.E_msr[i]);
+
+    double dev = 0;
+    for (int j=0; j<stats.nBin; j++)
+     for (int i=0; i<stats.nBin; i++)
+      dev += (logE[i]-logE_mean[i])* logE_invCov[j][i] *(logE[j]-logE_mean[j]);
+
+    // normalize with expectation of L2 squared norm of N(0,I) distrib vector:
+    // E[X^2] = sum E[x^2] = sum Var[x] = trace I = nBin
+    const double newRew = std::exp( - dev / stats.nBin );
+    //printf("Rt : %f\n", newRew);
+    reward = (1-alpha) * reward + alpha * newRew;
   }
 };
-
-// Here I assume that the target files are given for the same modes
-// as the one that we will measure during training.
-inline targetData getTarget(cubismup3d::SimulationData& sim, const bool bTrain)
-{
-  printf("Setting up target data\n");
-  targetData ret;
-
-  std::vector<double> E_mean;
-  std::vector<double> E_std2;
-
-
-  std::ifstream inFile;
-  std::string fileName_scale = "../scaleTarget.dat";
-  std::string fileName_mean  = "../meanTarget.dat";
-  std::string fileName_kde   = "../kdeTarget.dat";
-
-  // First get mean and std of the energy spectrum
-  inFile.open(fileName_mean);
-
-  if (!inFile) {
-    fileName_scale = "../../scaleTarget.dat";
-    fileName_mean  = "../../meanTarget.dat";
-    fileName_kde   = "../../kdeTarget.dat";
-    inFile.open(fileName_mean);
-    if (!inFile) {
-      std::cout<<"Cannot open "<<fileName_mean<<std::endl;
-      abort();
-    }
-  }
-
-  const long maxGridSize = std::max({sim.bpdx * cubismup3d::FluidBlock::sizeX,
-                                     sim.bpdy * cubismup3d::FluidBlock::sizeY,
-                                     sim.bpdz * cubismup3d::FluidBlock::sizeZ});
-  ret.nModes =  (int) maxGridSize/2 -1;
-
-  int n=0;
-  for(std::string line; std::getline(inFile, line); )
-  {
-    if (n>ret.nModes) break;
-    std::istringstream in(line);
-    Real k, mean, std2;
-    in >> k >> mean >> std2;
-    E_mean.push_back(mean);
-    E_std2.push_back(std2);
-    n++;
-  }
-
-  ret.E_mean = E_mean;
-  ret.E_std2 = E_std2;
-  inFile.close();
-
-
-  // Get the Kernel Density Estimations from 'kdeTarget.dat'
-  inFile.open(fileName_kde);
-  if (!inFile){
-    std::cout<<"Cannot open "<<fileName_kde<<std::endl;
-    abort();
-  }
-
-  // First line is nSamplePerMode
-  std::string line;
-  std::getline(inFile, line);
-  std::istringstream in(line);
-  in >> ret.nSamplePerMode;
-
-  size_t size = ret.nSamplePerMode * ret.nModes;
-  std::vector<double> E_kde(size, 0.0);
-  std::vector<double> P_kde(size, 0.0);
-
-  for (int i=0; i<ret.nModes; i++) {
-    std::getline(inFile, line);
-    std::getline(inFile, line);
-    for (int j=0; j<ret.nSamplePerMode; j++){
-      std::getline(inFile, line);
-      std::istringstream iss(line);
-      size_t idx = i * ret.nSamplePerMode + j;
-      iss >> E_kde[idx] >> P_kde[idx];
-    }
-  }
-
-  ret.E_kde = E_kde;
-  ret.P_kde = P_kde;
-  inFile.close();
-
-  // Get tau_integral and tau_eta from 'scaleTarget.dat'
-  inFile.open(fileName_scale);
-  if (!inFile){
-    std::cout<<"Cannot open "<<fileName_scale<<std::endl;
-    abort();
-  }
-  std::getline(inFile, line);
-  in = std::istringstream(line);
-  in >> ret.tau_integral;
-  std::getline(inFile, line);
-  in = std::istringstream(line);
-  in >> ret.tau_eta;
-  std::getline(inFile, line);
-  in = std::istringstream(line);
-  in >> ret.max_rew;
-
-  return ret;
-}
 
 inline bool isTerminal(cubismup3d::SimulationData& sim)
 {
@@ -192,39 +182,6 @@ inline bool isTerminal(cubismup3d::SimulationData& sim)
   int isSimValid = bSimValid.load() == true? 1 : 0; // just for clarity
   MPI_Allreduce(MPI_IN_PLACE, &isSimValid, 1, MPI_INT, MPI_PROD, sim.grid->getCartComm());
   return isSimValid == 0;
-}
-
-inline void updateReward(const cubismup3d::HITstatistics& stats,
-                         const targetData& target,
-                         const Real alpha, Real & reward)
-{
-  double newRew = 0;
-  for (int i=0; i<stats.nBin; ++i) {
-    //newRew += tgt.getRewardL2(i, msr[i]);
-    newRew += target.getRewardKDE(i, stats.E_msr[i]);
-  }
-  reward = (1-alpha) * reward + alpha * newRew;
-}
-
-inline void updateReward(const cubismup3d::HITstatistics& stats,
-                         const cubismup3d::SimulationData& sim,
-                         const Real alpha, Real & reward)
-{
-  std::vector<Real> K = std::vector<Real> (stats.nBin, 0.0);
-  std::vector<Real> Etgt = std::vector<Real> (stats.nBin, 0.0);
-  stats.getTargetSpectrumFit(sim.enInjectionRate, sim.nu, K, Etgt);
-  static constexpr Real lnEPS = std::log(std::numeric_limits<Real>::epsilon());
-
-  double newRew = 0;
-  for (int i=0; i<stats.nBin; i++)
-  {
-    const Real logEkTgt = std::log(Etgt[i]), logEk = std::log(stats.E_msr[i]);
-    const Real logRk = std::pow((logEkTgt-logEk)/std::max(logEkTgt, lnEPS), 2);
-    newRew += logRk;
-  }
-  newRew = std::exp(- newRew / stats.nBin );
-  //printf("Rt : %f\n", newRew);
-  reward = (1-alpha) * reward + alpha * newRew;
 }
 
 inline void updateGradScaling(const cubismup3d::SimulationData& sim,
@@ -252,24 +209,6 @@ inline void updateGradScaling(const cubismup3d::SimulationData& sim,
   const Real newScaling = tau_eta_sim * correction;
   if(scaling_factor < 0) scaling_factor = newScaling; // initialization
   else scaling_factor = (1-beta) * scaling_factor + beta * newScaling;
-}
-
-inline void sampleNuEps(Real & eps, Real & nu, std::mt19937& gen,
-                        const cubismup3d::HITstatistics& stats)
-{
-  std::uniform_real_distribution<Real> disEps(std::log(0.01), std::log(2.0));
-  std::uniform_real_distribution<Real> disNu(std::log(0.002), std::log(0.02));
-  const Real refH = 2 * M_PI / 16 / 12;
-  while (true) {
-    eps = std::exp(disEps(gen));
-    nu = std::exp(disNu(gen));
-    if( stats.getHITReynoldsFit(eps,nu) < 100 &&
-        stats.getHITReynoldsFit(eps,nu) >  20 &&
-        stats.getTaylorMicroscaleFit(eps, nu) < 0.1 * stats.L &&
-        stats.getKolmogorovL(eps, nu) < refH &&
-        stats.getKolmogorovL(eps, nu) > refH/8 )
-      break; // eps, nu within problem bounds
-  }
 }
 
 inline void app_main(
@@ -309,11 +248,7 @@ inline void app_main(
 
   cubism::ArgumentParser parser(argc, argv);
   cubismup3d::Simulation sim(mpicom, parser);
-
-  #ifdef CUP3D_USE_FILE_TARGET
-    std::cout<<"Setting up target data"<<std::endl;
-    targetData target = getTarget(sim.sim, comm->isTraining());
-  #endif
+  TargetData target(parser("-initCondFileTokens").asString());
 
   #ifdef SGSRL_STATE_INVARIANTS
     const int nActions = 1, nStates = 5;
@@ -345,7 +280,6 @@ inline void app_main(
     sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
     sim.sim.verbose = false; sim.sim.saveTime = 0;
   }
-  //sim.sim.icFromH5 = "../" + sim.sim.icFromH5; // bcz we will create a run dir
 
   char dirname[1024]; dirname[1023] = '\0';
   unsigned sim_id = 0, tot_steps = 0;
@@ -363,21 +297,22 @@ inline void app_main(
     assert(sim.sim.spectralManip not_eq nullptr);
     const cubismup3d::HITstatistics& HTstats = sim.sim.spectralManip->stats;
 
-    Real eps, nu;
+    target.sampleParameters(comm->getPRNG());
+    sim.sim.enInjectionRate = target.eps;
+    sim.sim.nu = target.nu;
+    sim.sim.spectralIC = "fromFile";
+    sim.sim.initCondModes = target.mode;
+    sim.sim.initCondSpectrum = target.E_mean;
+    const Real tau_integral = target.tInteg;
+    const Real tInit = LES_HIT_RL_INIT_T * target.tInteg;
+    printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f\n",
+           tInit, target.eps, target.nu, target.Re_lam);
+    //const Real tau_eta       = HTstats.getKolmogorovT(eps, nu);
+
     while(true) { // initialization loop
-      // TODO : FIGURE OUT BOUNDS:
-      //sampleNuEps(eps, nu, comm->getPRNG(), HTstats);
-      sim.sim.enInjectionRate = 0.1;
-      sim.sim.nu = 0.003;
       sim.reset();
-      //const double tStart = 2.5 * target.tau_integral; // CUP3D_USE_FILE_TARGET
-      const Real tau_integral  = HTstats.getIntegralTimeFit(eps, nu);
-      //const Real tau_eta       = HTstats.getKolmogorovT(eps, nu);
-      printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f\n",
-             LES_HIT_RL_INIT_T * tau_integral, eps, nu,
-             HTstats.getHITReynoldsFit(eps, nu));
       bool ICsuccess = true;
-      while (sim.sim.time < LES_HIT_RL_INIT_T * tau_integral) {
+      while (sim.sim.time < tInit) {
         sim.sim.sgs = "SSM";
         const double dt = sim.calcMaxTimestep();
         sim.timestep(dt);
@@ -395,18 +330,17 @@ inline void app_main(
     double time = 0;
     double avgReward  = 0;
     bool policyFailed = false;
-    const Real timeUpdateLES = 0.5 * HTstats.getKolmogorovT(eps, nu);
-    const Real tau_integral  = HTstats.getIntegralTimeFit(eps, nu);
+    const Real timeUpdateLES = HTstats.getKolmogorovT(target.eps, target.nu)/2;
     sim.sim.sgs = "RLSM";
 
     #ifdef SGSRL_STATE_SCALING
       Real scaleGrads = -1;
       updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
     #else
-      const Real scaleGrads = std::sqrt(nu / eps);
+      const Real scaleGrads = std::sqrt(target.nu / target.eps);
     #endif
 
-    const unsigned int nIntegralTime = 10;
+    const auto nIntegralTime = 10;
     const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
     cubismup3d::SGS_RL updateLES(sim.sim, comm, nAgentPerBlock);
 
@@ -421,12 +355,8 @@ inline void app_main(
       {
         const double dt = sim.calcMaxTimestep();
         time += dt;
-        // Average reward over integral time
-        #ifdef CUP3D_USE_FILE_TARGET
-          updateReward(HTstats,  target, dt / tau_integral, avgReward);
-        #else
-          updateReward(HTstats, sim.sim, dt / tau_integral, avgReward);
-        #endif
+        // Average reward over integral time:
+        target.updateReward(HTstats, dt / tau_integral, avgReward);
 
         #ifdef SGSRL_STATE_SCALING
           updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
