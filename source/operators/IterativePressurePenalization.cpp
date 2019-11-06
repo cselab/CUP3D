@@ -33,7 +33,6 @@ using namespace cubism;
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-static constexpr Real DBLEPS = std::numeric_limits<double>::epsilon();
 
 namespace
 {
@@ -432,7 +431,6 @@ struct KernelPressureRHS
 {
   const Real dt;
   PenalizationGridMPI * const penGrid;
-  static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
   PoissonSolver * const solver;
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};

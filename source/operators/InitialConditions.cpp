@@ -29,30 +29,6 @@ class KernelIC
   }
 };
 
-class KernelIC_RT
-{
- public:
-  KernelIC_RT(const Real rhoS) {}
-
-  void operator()(const BlockInfo& info, FluidBlock& block) const
-  {
-    const Real d = .25, a = .05;//.25
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      block(ix,iy,iz).clear();
-      Real p[3];
-      info.pos(p, ix, iy, iz);
-      Real x = p[0] - d*.5;
-      Real y = p[1] - d*2.5;
-      Real z = p[2] - d*.5;
-      //Real eta = -.1*a*cos(2*M_PI*x/d);
-      Real eta = -a*.25*std::cos(2*M_PI*x/d)*std::cos(2*M_PI*z/d);
-      block(ix,iy,iz).chi = .5+.5*std::tanh((y-eta)/info.h_gridpoint);
-    }
-  }
-};
-
 class KernelIC_taylorGreen
 {
   const std::array<Real, 3> ext;

@@ -151,6 +151,7 @@ inline void putSDFonGrid(
 class KernelVorticity
 {
   public:
+  KernelVorticity() = default;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
@@ -200,6 +201,7 @@ class ComputeVorticity : public Operator
 class KernelQcriterion
 {
   public:
+  KernelQcriterion() = default;
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 

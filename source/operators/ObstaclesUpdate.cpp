@@ -20,8 +20,6 @@ namespace {
 
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
-static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-static constexpr Real DBLEPS = std::numeric_limits<double>::epsilon();
 
 template<bool implicitPenalization>
 struct KernelIntegrateFluidMomenta : public ObstacleVisitor

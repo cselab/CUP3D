@@ -18,9 +18,9 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-static inline Real pow2_cplx(const fft_c cplx_val) {
-  return pow2(cplx_val[0]) + pow2(cplx_val[1]);
-}
+//static inline Real pow2_cplx(const fft_c cplx_val) {
+//  return pow2(cplx_val[0]) + pow2(cplx_val[1]);
+//}
 
 void SpectralManipFFTW::_compute_largeModesForcing()
 {
@@ -128,7 +128,7 @@ void SpectralManipFFTW::_compute_analysis()
   const Real nyquist_scaling = (nyquist-1) / (Real) nyquist;
   assert(nyquist > 0 && nyquist_scaling > 0);
   Real tke = 0, eps = 0, lIntegral = 0;
-  Real * const E_msr = stats.E_msr;
+  Real * E_msr = stats.E_msr;
   memset(E_msr, 0, nBins * sizeof(Real));
 
   // Let's only measure spectrum up to Nyquist.

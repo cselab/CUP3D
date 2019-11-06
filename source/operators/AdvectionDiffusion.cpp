@@ -31,8 +31,8 @@ struct KernelAdvectDiffuseBase
   const Real fadeN = 1 - std::pow( std::min(uInf[1],(Real) 0) / norUinf, 2);
   const Real fadeB = 1 - std::pow( std::min(uInf[2],(Real) 0) / norUinf, 2);
   static constexpr int BEG = -1, END = CUP_BLOCK_SIZE;
-  static constexpr std::array<int, 3> stencil_start = {-1,-1,-1};
-  static constexpr std::array<int, 3> stencil_end   = { 2, 2, 2};
+  //static constexpr std::array<int, 3> stencil_start = {-1,-1,-1};
+  //static constexpr std::array<int, 3> stencil_end   = { 2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   void applyBCwest(const BlockInfo & I, Lab & L) const {

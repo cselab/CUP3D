@@ -19,12 +19,12 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 
-static inline PenalizationBlock* getPenalBlockPtr(
-  PenalizationGridMPI*const grid, const int blockID) {
-  assert(grid not_eq nullptr);
-  const std::vector<BlockInfo>& vInfo = grid->getBlocksInfo();
-  return (PenalizationBlock*) vInfo[blockID].ptrBlock;
-}
+//static inline PenalizationBlock* getPenalBlockPtr(
+//  PenalizationGridMPI*const grid, const int blockID) {
+//  assert(grid not_eq nullptr);
+//  const std::vector<BlockInfo>& vInfo = grid->getBlocksInfo();
+//  return (PenalizationBlock*) vInfo[blockID].ptrBlock;
+//}
 
 struct KernelPressureRHS : public ObstacleVisitor
 {

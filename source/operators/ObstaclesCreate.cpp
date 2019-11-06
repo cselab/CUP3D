@@ -18,7 +18,6 @@ namespace {
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-static constexpr Real DBLEPS = std::numeric_limits<double>::epsilon();
 
 class KernelCharacteristicFunction
 {
@@ -28,7 +27,7 @@ class KernelCharacteristicFunction
   public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_TMPU}}};
-
+  /* // now not in use
   static Real computeCHI(const Real h, const Real dist,
                          const Real distPx, const Real distMx,
                          const Real distPy, const Real distMy,
@@ -45,6 +44,7 @@ class KernelCharacteristicFunction
     const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
     return (gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ)/std::max(gradUSq, EPS);
   }
+  */
 
   KernelCharacteristicFunction(const v_v_ob& v) : vec_obstacleBlocks(v) {}
 
