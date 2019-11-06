@@ -102,8 +102,8 @@ struct TargetData
         mode.push_back(0); logE_mean.push_back(0);
         sscanf(line.c_str(), "%le, %le", & mode.back(), & logE_mean.back());
     }
-    //for (size_t i=0; i<N; ++i) printf("%f %f\n", mode[i], mean[i]);
     nModes = mode.size();
+    for (size_t i=0; i<nModes; ++i) printf("%f %f\n", mode[i], logE_mean[i]);
     E_mean = std::vector<double>(nModes);
     for(size_t i = 0; i<nModes; ++i) E_mean[i] = std::exp(logE_mean[i]);
   }
@@ -121,10 +121,10 @@ struct TargetData
         std::istringstream linestream(line);
         while (std::getline(linestream, line, ','))
           logE_invCov[j][i++] = std::stof(line);
-        assert(i==N);
+        assert(i==nModes);
         j++;
     }
-    assert(j==N);
+    assert(j==nModes);
   }
 
   TargetData(std::string params) : targetFiles_tokens(readTargetSpecs(params))
@@ -144,7 +144,6 @@ struct TargetData
                            const Real alpha, Real & reward)
   {
     std::vector<double> logE(stats.nBin);
-    assert(stats.nBin == (int) stats.E_msr.size());
     for (int i=0; i<stats.nBin; i++) logE[i] = std::log(stats.E_msr[i]);
 
     double dev = 0;

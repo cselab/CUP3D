@@ -279,14 +279,14 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
     }
     const auto comm = grid->getCartComm();
     MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_DOUBLE, MPI_SUM, comm);
-    assert(std::fabs(obst->mass - M[ 0]) < 10*DBLEPS);
-    assert(std::fabs(obst->J[0] - M[ 7]) < 10*DBLEPS);
-    assert(std::fabs(obst->J[1] - M[ 8]) < 10*DBLEPS);
-    assert(std::fabs(obst->J[2] - M[ 9]) < 10*DBLEPS);
-    assert(std::fabs(obst->J[3] - M[10]) < 10*DBLEPS);
-    assert(std::fabs(obst->J[4] - M[11]) < 10*DBLEPS);
-    assert(std::fabs(obst->J[5] - M[12]) < 10*DBLEPS);
-    assert(M[0] > DBLEPS);
+    assert(std::fabs(obst->mass - M[ 0]) < 10*EPS);
+    assert(std::fabs(obst->J[0] - M[ 7]) < 10*EPS);
+    assert(std::fabs(obst->J[1] - M[ 8]) < 10*EPS);
+    assert(std::fabs(obst->J[2] - M[ 9]) < 10*EPS);
+    assert(std::fabs(obst->J[3] - M[10]) < 10*EPS);
+    assert(std::fabs(obst->J[4] - M[11]) < 10*EPS);
+    assert(std::fabs(obst->J[5] - M[12]) < 10*EPS);
+    assert(M[0] > EPS);
 
     #ifndef EXPL_INTEGRATE_MOM
       obst->penalM    = M[13];

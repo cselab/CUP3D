@@ -168,15 +168,16 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
 
     #ifndef NDEBUG
       const Real J_magnitude = obst->J[0] + obst->J[1] + obst->J[2];
+      static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
     #endif
-    assert(std::fabs(obst->mass - M[ 0]) < 10 * DBLEPS * obst->mass);
-    assert(std::fabs(obst->J[0] - M[ 7]) < 10 * DBLEPS * J_magnitude);
-    assert(std::fabs(obst->J[1] - M[ 8]) < 10 * DBLEPS * J_magnitude);
-    assert(std::fabs(obst->J[2] - M[ 9]) < 10 * DBLEPS * J_magnitude);
-    assert(std::fabs(obst->J[3] - M[10]) < 10 * DBLEPS * J_magnitude);
-    assert(std::fabs(obst->J[4] - M[11]) < 10 * DBLEPS * J_magnitude);
-    assert(std::fabs(obst->J[5] - M[12]) < 10 * DBLEPS * J_magnitude);
-    assert(M[0] > DBLEPS);
+    assert(std::fabs(obst->mass - M[ 0]) < 10 * EPS * obst->mass);
+    assert(std::fabs(obst->J[0] - M[ 7]) < 10 * EPS * J_magnitude);
+    assert(std::fabs(obst->J[1] - M[ 8]) < 10 * EPS * J_magnitude);
+    assert(std::fabs(obst->J[2] - M[ 9]) < 10 * EPS * J_magnitude);
+    assert(std::fabs(obst->J[3] - M[10]) < 10 * EPS * J_magnitude);
+    assert(std::fabs(obst->J[4] - M[11]) < 10 * EPS * J_magnitude);
+    assert(std::fabs(obst->J[5] - M[12]) < 10 * EPS * J_magnitude);
+    assert(M[0] > EPS);
 
     if(implicitPenalization) {
       obst->penalM    = M[13];

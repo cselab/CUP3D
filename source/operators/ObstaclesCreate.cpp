@@ -355,19 +355,19 @@ struct KernelAccumulateUdefMomenta : public ObstacleVisitor
     }
     const auto comm = grid->getCartComm();
     MPI_Allreduce(MPI_IN_PLACE, M, 13, MPI_DOUBLE, MPI_SUM, comm);
-    assert(M[0] > DBLEPS);
+    assert(M[0] > EPS);
 
     const GenV AM = {{ M[ 4], M[ 5], M[ 6] }};
     const SymM J =  {{ M[ 7], M[ 8], M[ 9], M[10], M[11], M[12] }};
     const SymM invJ = invertSym(J);
 
     if(justDebug) {
-      assert(std::fabs(M[ 1])<100*DBLEPS);
-      assert(std::fabs(M[ 2])<100*DBLEPS);
-      assert(std::fabs(M[ 3])<100*DBLEPS);
-      assert(std::fabs(AM[0])<100*DBLEPS);
-      assert(std::fabs(AM[1])<100*DBLEPS);
-      assert(std::fabs(AM[2])<100*DBLEPS);
+      assert(std::fabs(M[ 1])<100*EPS);
+      assert(std::fabs(M[ 2])<100*EPS);
+      assert(std::fabs(M[ 3])<100*EPS);
+      assert(std::fabs(AM[0])<100*EPS);
+      assert(std::fabs(AM[1])<100*EPS);
+      assert(std::fabs(AM[2])<100*EPS);
     } else {
       //solve avel = invJ \dot angMomentum
       obst->mass                   = M[ 0];
