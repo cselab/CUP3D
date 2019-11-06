@@ -185,7 +185,8 @@ class ComputeVorticity : public Operator
   {
     sim.startProfiler("Vorticity Kernel");
     if(sim.bUseStretchedGrid) {
-      abort();
+      printf("TODO Compute Vorticity with stretched grids");
+      fflush(0); abort();
     } else {
       const KernelVorticity K;
       compute<KernelVorticity>(K);
@@ -236,7 +237,8 @@ class ComputeQcriterion : public Operator
   {
     sim.startProfiler("Qcriterion Kernel");
     if(sim.bUseStretchedGrid) {
-      abort();
+      printf("TODO Compute Q-criterion with stretched grids");
+      fflush(0); abort();
     } else {
       const KernelQcriterion K;
       compute<KernelQcriterion>(K);
@@ -255,8 +257,7 @@ static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
   const int N = vInfo1.size();
   if(vInfo1.size() != vInfo2.size()) {
      printf("Async dump fail 1.\n");
-     fflush(0);
-     MPI_Abort(grid.getCartComm(), MPI_ERR_OTHER);
+     fflush(0); MPI_Abort(grid.getCartComm(), MPI_ERR_OTHER);
    }
   #pragma omp parallel for schedule(static)
   for(int i=0; i<N; i++) {
@@ -271,8 +272,7 @@ static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
           fabs(p1[1]-p2[1])>info1.h_gridpoint/2 ||
           fabs(p1[2]-p2[2])>info1.h_gridpoint/2) {
              printf("Async dump fail 2.\n");
-             fflush(0);
-             MPI_Abort(grid.getCartComm(), MPI_ERR_OTHER);
+             fflush(0); MPI_Abort(grid.getCartComm(), MPI_ERR_OTHER);
           }
     #endif
 

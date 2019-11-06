@@ -86,7 +86,7 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,
     inFile.open(fileName);
     if (!inFile){
       std::cout<<"SpectralICGenerator: cannot open file :"<<fileName<<std::endl;
-      abort();
+      fflush(0); abort();
     }
     for(std::string line; std::getline(inFile, line); )
     {

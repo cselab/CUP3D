@@ -23,8 +23,7 @@ int main(int argc, char **argv)
   MPI_Init_thread(&argc, &argv, SECURITY, &provided);
   if (provided < SECURITY ) {
     printf("ERROR: MPI implementation does not have required thread support\n");
-    fflush(0);
-    MPI_Abort(MPI_COMM_WORLD, 1);
+    fflush(0); MPI_Abort(MPI_COMM_WORLD, 1);
   }
   int rank;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);

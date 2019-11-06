@@ -359,7 +359,7 @@ void Obstacle::update()
 void Obstacle::create()
 {
   printf("Entered the wrong create operator\n");
-  exit(1);
+  fflush(0); exit(1);
 }
 
 void Obstacle::finalize()
@@ -392,7 +392,7 @@ void Obstacle::save(std::string filename)
   savestream.open(filename+".txt");
   if (!savestream) {
     fprintf(stderr, "Couldn't open \"%s.txt\".\n", filename.c_str());
-    exit(1);
+    fflush(0); exit(1);
   }
   savestream<<sim.time<<std::endl;
   savestream<<position[0]<<"\t"<<position[1]<<"\t"<<position[2]<<std::endl;

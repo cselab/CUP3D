@@ -118,7 +118,7 @@ public:
         if (!m_initialized)
         {
             fprintf(stderr,"ERROR: NonUniformScheme: Not initialized.\n");
-            exit(1);
+            fflush(0); exit(1);
         }
 
         // 0. some checks
@@ -183,7 +183,7 @@ public:
       if (!m_initialized)
       {
         fprintf(stderr,"ERROR: NonUniformScheme: Not initialized.\n");
-        exit(1);
+        fflush(0); exit(1);
       }
 
       #pragma omp parallel for
@@ -218,7 +218,7 @@ public:
         {
             fprintf(stderr, "ERROR: NonUniformScheme.h: minimum_cell_width() "
                             "can not return m_h_min, not initialized.\n");
-            exit(1);
+            fflush(0); exit(1);
         }
         const double all_min = std::min({m_h_min[0], m_h_min[1], m_h_min[2]});
         if (-1 == i) return all_min;
@@ -231,7 +231,7 @@ public:
         {
             fprintf(stderr, "ERROR: NonUniformScheme.h: maximum_cell_width() "
                             "can not return m_h_max, not initialized.\n");
-            exit(1);
+            fflush(0); exit(1);
         }
         const double all_max = std::max({m_h_max[0], m_h_max[1], m_h_max[2]});
         if (-1 == i) return all_max;

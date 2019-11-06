@@ -182,7 +182,7 @@ SpectralManip::SpectralManip(SimulationData & s) : sim(s)
   MPI_Query_thread(&supported_threads);
   if (supported_threads<MPI_THREAD_FUNNELED) {
     fprintf(stderr, "SpectralManip ERROR: MPI implementation does not support threads.\n");
-    exit(1);
+    fflush(0); exit(1);
   }
 }
 

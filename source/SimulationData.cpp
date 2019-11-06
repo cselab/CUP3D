@@ -180,7 +180,7 @@ void SimulationData::_preprocessArguments()
   // Grid.
   if (bpdx < 1 || bpdy < 1 || bpdz < 1) {
       fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);
-      abort();
+      fflush(0); abort();
   }
   const double NFE[3] = {
       (double) bpdx * FluidBlock::sizeX,
@@ -216,14 +216,14 @@ void SimulationData::_preprocessArguments()
   if (nprocsx * nprocsy * nprocsz != nprocs) {
     fprintf(stderr, "Invalid domain decomposition. %d x %d x %d != %d!\n",
             nprocsx, nprocsy, nprocsz, nprocs);
-    MPI_Abort(app_comm, 1);
+    fflush(0); MPI_Abort(app_comm, 1);
   }
 
   if ( bpdx % nprocsx != 0 ||
        bpdy % nprocsy != 0 ||
        bpdz % nprocsz != 0   ) {
     printf("Incompatible domain decomposition: bpd*/nproc* should be an integer");
-    MPI_Abort(app_comm, 1);
+    fflush(0); MPI_Abort(app_comm, 1);
   }
 
   local_bpdx = bpdx / nprocsx;

@@ -200,12 +200,12 @@ void InitialConditions::operator()(const double dt)
     if(sim.verbose) printf("Channel flow random initial conditions.\n");
     if( sim.BCx_flag == wall ) {
       printf("ERROR: channel flow must be periodic or dirichlet in x.\n");
-      abort();
+      fflush(0); abort();
     }
     const bool channelY = sim.BCy_flag==wall, channelZ = sim.BCz_flag==wall;
     if( (channelY && channelZ) or (!channelY && !channelZ) ) {
       printf("ERROR: wrong channel flow BC in y or z.\n");
-      abort();
+      fflush(0); abort();
     }
     const int dir = channelY? 1 : 2;
     run(KernelIC_channelrandom(sim.extent, sim.uMax_forced, dir));
@@ -215,12 +215,12 @@ void InitialConditions::operator()(const double dt)
     if(sim.verbose) printf("Channel flow initial conditions.\n");
     if( sim.BCx_flag == wall ) {
       printf("ERROR: channel flow must be periodic or dirichlet in x.\n");
-      abort();
+      fflush(0); abort();
     }
     const bool channelY = sim.BCy_flag==wall, channelZ = sim.BCz_flag==wall;
     if( (channelY && channelZ) or (!channelY && !channelZ) ) {
       printf("ERROR: wrong channel flow BC in y or z.\n");
-      abort();
+      fflush(0); abort();
     }
     const int dir = channelY? 1 : 2;
     run(KernelIC_channel(sim.extent, sim.uMax_forced, dir));

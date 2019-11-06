@@ -191,11 +191,11 @@ struct ObstacleBlock
     const int ret = posix_memalign((void **)&ptr, 32, N * sizeof(T));
     if (ret == EINVAL) {
         fprintf(stderr, "posix_memalign somehow returned EINVAL...\n");
-        abort();
+        fflush(0); abort();
     } else if (ret == ENOMEM) {
         fprintf(stderr, "Cannot allocate %dx%d bytes with align 32!\n",
                 N, (int)sizeof(T));
-        abort();
+        fflush(0); abort();
     }
     assert(ptr != nullptr);
     memset(ptr, 0, N * sizeof(T));

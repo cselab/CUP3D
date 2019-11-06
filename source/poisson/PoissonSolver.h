@@ -60,7 +60,7 @@ class PoissonSolver
     if (StreamerDiv::channels != 1) {
       fprintf(stderr, "PoissonSolverScalar_MPI(): Error: StreamerDiv::channels is %d (should be 1)\n",
               StreamerDiv::channels);
-      exit(1);
+      fflush(0); exit(1);
     }
   }
   PoissonSolver(const PoissonSolver& c) = delete;

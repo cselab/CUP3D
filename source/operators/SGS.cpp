@@ -492,7 +492,7 @@ void SGS::operator()(const double dt)
   sim.startProfiler("SGS Kernel");
   if(sim.bUseStretchedGrid) {
     printf("ERROR: SGS model not implemented with non uniform grid.\n");
-    abort();
+    fflush(0); abort();
     //const KernelSGS_nonUniform sgs(dt, sim.uinf.data());
     //compute<KernelSGS_nonUniform>(sgs);
   } else {

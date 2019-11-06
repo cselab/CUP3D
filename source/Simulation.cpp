@@ -208,7 +208,7 @@ void Simulation::_icFromH5(std::string h5File)
       h5File, sim.path4serialization);
   #else
     printf("Unable to restart without  HDF5 library. Aborting...\n");
-    MPI_Abort(sim.grid->getCartComm(), 1);
+    fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
   #endif
 
   sim.obstacle_vector->restart(sim.path4serialization+"/"+sim.icFromH5);
@@ -556,7 +556,7 @@ void Simulation::_deserialize()
     fclose(f);
     if( (not ret) || sim.step<0 || sim.time<0) {
       printf("Error reading restart file. Aborting...\n");
-      MPI_Abort(sim.grid->getCartComm(), 1);
+      fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
     }
   }
 
@@ -569,7 +569,7 @@ void Simulation::_deserialize()
       StreamerVelocityVector::prefix()+ssR.str(), sim.path4serialization);
   #else
     printf("Unable to restart without  HDF5 library. Aborting...\n");
-    MPI_Abort(sim.grid->getCartComm(), 1);
+    fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
   #endif
 
   sim.obstacle_vector->restart(sim.path4serialization+"/"+ssR.str());

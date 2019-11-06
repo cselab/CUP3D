@@ -42,8 +42,7 @@ class Operator
         {
           fflush(stderr);
           printf("GenericCoordinator::check isnan %s\n", infoText.c_str());
-          fflush(stdout);
-          MPI_Abort(comm, 1);
+          fflush(stdout); MPI_Abort(comm, 1);
         }
     }
     MPI_Barrier(comm);

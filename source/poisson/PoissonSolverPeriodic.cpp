@@ -93,13 +93,13 @@ PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver
   MPI_Query_thread(&supported_threads);
   if (supported_threads<MPI_THREAD_FUNNELED) {
     fprintf(stderr, "PoissonSolverPeriodic ERROR: MPI implementation does not support threads.\n");
-    exit(1);
+    fflush(0); exit(1);
   }
 
   const int retval = _FFTW_(init_threads)();
   if(retval==0) {
     fprintf(stderr, "PoissonSolverPeriodic: ERROR: Call to fftw_init_threads() returned zero.\n");
-    exit(1);
+    fflush(0); exit(1);
   }
   const int desired_threads = omp_get_max_threads();
   _FFTW_(plan_with_nthreads)(desired_threads);
