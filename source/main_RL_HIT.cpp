@@ -48,8 +48,8 @@ struct TargetData
   void readScalars(const std::string paramspec)
   {
     std::string line; char arg[32]; double stdev;
-    std::ifstream file("../scalars_" + paramspec);
-    assert (file.is_open());
+    std::ifstream file("../../scalars_" + paramspec);
+    if (!file.is_open()) printf("scalars FILE NOT FOUND\n");
 
     std::getline(file, line);
     sscanf(line.c_str(), "%s %le", arg, &eps);
@@ -96,8 +96,8 @@ struct TargetData
   {
     std::string line;
     logE_mean.clear(); mode.clear();
-    std::ifstream file("../spectrumLogE_" + paramspec);
-    assert (file.is_open());
+    std::ifstream file("../../spectrumLogE_" + paramspec);
+    if (!file.is_open()) printf("spectrumLogE FILE NOT FOUND\n");
     while (std::getline(file, line)) {
         mode.push_back(0); logE_mean.push_back(0);
         sscanf(line.c_str(), "%le, %le", & mode.back(), & logE_mean.back());
@@ -113,8 +113,8 @@ struct TargetData
     std::string line;
     logE_invCov = std::vector<std::vector<double>>(
         nModes, std::vector<double>(nModes,0) );
-    std::ifstream file("../invCovLogE_" + paramspec);
-    assert (file.is_open());
+    std::ifstream file("../../invCovLogE_" + paramspec);
+    if (!file.is_open()) printf("invCovLogE FILE NOT FOUND\n");
     size_t j = 0;
     while (std::getline(file, line)) {
         size_t i = 0;
