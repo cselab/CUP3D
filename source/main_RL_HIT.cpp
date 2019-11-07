@@ -17,6 +17,7 @@
 
 #include <sys/stat.h> // mkdir options
 #include <unistd.h>  // chdir
+#include <sys/unistd.h> // hostname
 #include <sstream>
 
 #define FREQ_UPDATE 1
@@ -103,7 +104,7 @@ struct TargetData
         sscanf(line.c_str(), "%le, %le", & mode.back(), & logE_mean.back());
     }
     nModes = mode.size();
-    for (size_t i=0; i<nModes; ++i) printf("%f %f\n", mode[i], logE_mean[i]);
+    //for (size_t i=0; i<nModes; ++i) printf("%f %f\n", mode[i], logE_mean[i]);
     E_mean = std::vector<double>(nModes);
     for(size_t i = 0; i<nModes; ++i) E_mean[i] = std::exp(logE_mean[i]);
   }
@@ -144,11 +145,11 @@ struct TargetData
                            const Real alpha, Real & reward)
   {
     std::vector<double> logE(stats.nBin);
-    for (int i=0; i<stats.nBin; i++) logE[i] = std::log(stats.E_msr[i]);
+    for (int i=0; i<stats.nBin; ++i) logE[i] = std::log(stats.E_msr[i]);
 
     double dev = 0;
-    for (int j=0; j<stats.nBin; j++)
-     for (int i=0; i<stats.nBin; i++)
+    for (int j=0; j<stats.nBin; ++j)
+     for (int i=0; i<stats.nBin; ++i)
       dev += (logE[i]-logE_mean[i])* logE_invCov[j][i] *(logE[j]-logE_mean[j]);
 
     // normalize with expectation of L2 squared norm of N(0,I) distrib vector:
@@ -234,6 +235,9 @@ inline void app_main(
   int rank; MPI_Comm_rank(mpicom, &rank);
 
   if (rank==0) {
+    char hostname[1024];
+    hostname[1023] = '\0';
+    gethostname(hostname, 1023);
     std::cout <<
     "=======================================================================\n";
     std::cout <<
@@ -241,9 +245,9 @@ inline void app_main(
     std::cout <<
     "=======================================================================\n";
     #ifdef NDEBUG
-        std::cout << "Running in RELEASE mode!\n";
+        std::cout<<"Running on "<<hostname<<"in RELEASE mode!\n";
     #else
-        std::cout << "Running in DEBUG mode!\n";
+        std::cout<<"Running on "<<hostname<<"in DEBUG mode!\n";
     #endif
   }
 
@@ -267,14 +271,14 @@ inline void app_main(
   const int nBlock=sim.sim.local_bpdx * sim.sim.local_bpdy * sim.sim.local_bpdz;
   const int nAgents = nBlock * nAgentPerBlock; // actual learning agents
   const int nThreadSafetyAgents = omp_get_max_threads();
-  comm->set_state_action_dims(nStates, nActions);
-  comm->set_num_agents(nAgents + nThreadSafetyAgents);
+  comm->setStateActionDims(nStates, nActions);
+  comm->setNumAgents(nAgents + nThreadSafetyAgents);
 
   const std::vector<double> lower_act_bound{0.04}, upper_act_bound{0.06};
-  comm->set_action_scales(upper_act_bound, lower_act_bound, false);
+  comm->setActionScales(upper_act_bound, lower_act_bound, false);
   comm->disableDataTrackingForAgents(nAgents, nAgents + nThreadSafetyAgents);
 
-  comm->finalize_problem_description(); // required for thread safety
+  comm->finalizeProblemDescription(); // required for thread safety
 
   if( comm->isTraining() ) { // disable all dumping. comment out for dbg
     sim.sim.b3Ddump = false; sim.sim.muteAll  = true;
@@ -338,6 +342,7 @@ inline void app_main(
       Real scaleGrads = -1;
       updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
     #else
+      //const Real scaleGrads = HTstats.tke /  HTstats.eps;
       const Real scaleGrads = std::sqrt(target.nu / target.eps);
     #endif
 

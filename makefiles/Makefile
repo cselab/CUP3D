@@ -231,7 +231,7 @@ clean:
 	rm -f $(EXEOBJ) $(LIBOBJ)
 	rm -f $(DEPS) *.d *.o
 	rm -f PoissonSolver*.o PoissonSolver*.d
-	rm -f ../bin/simulation ../lib/libcubismup3d.a PoissonSolverScalar*.o
+	rm -f ../bin/simulation ../lib/libcubismup3d.a rlHIT PoissonSolverScalar*.o
 	rmdir ../bin 2> /dev/null || true
 	rmdir ../lib 2> /dev/null || true
 

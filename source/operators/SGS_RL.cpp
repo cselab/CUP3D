@@ -38,9 +38,9 @@ struct filteredQuatities
 
   filteredQuatities(Lab& lab, const int ix, const int iy, const int iz, const Real h)
   {
-    for (int i=-1; i<2; i++)
-    for (int j=-1; j<2; j++)
-    for (int k=-1; k<2; k++)
+    for (int k=-1; k<2; ++k)
+    for (int j=-1; j<2; ++j)
+    for (int i=-1; i<2; ++i)
     {
       const Real f = facFilter(i,j,k);
       const FluidElement &L =lab(ix+i, iy+j, iz+k);
@@ -69,8 +69,8 @@ struct filteredQuatities
 //                                                                           M_11, M_12,
 //                                                                                 M_22}
 // Returns a symmetric matrix.
-inline std::vector<Real> symProd(const std::vector<Real> mat1,
-                                 const std::vector<Real> mat2)
+inline std::vector<Real> symProd(const std::vector<Real> & mat1,
+                                 const std::vector<Real> & mat2)
 {
   assert(mat1.size()==6 && mat2.size()==6);
   std::vector<Real> ret(6, 0);
@@ -84,8 +84,8 @@ inline std::vector<Real> symProd(const std::vector<Real> mat1,
 }
 // Product of two anti symmetric matrices stored as 1D vector with 3 elts (M_01, M_02, M_12)
 // Returns a symmetric matrix.
-inline std::vector<Real> antiSymProd(const std::vector<Real> mat1,
-                                     const std::vector<Real> mat2)
+inline std::vector<Real> antiSymProd(const std::vector<Real> & mat1,
+                                     const std::vector<Real> & mat2)
 {
   assert(mat1.size()==3 && mat2.size()==3);
   std::vector<Real> ret(6, 0);
@@ -98,8 +98,8 @@ inline std::vector<Real> antiSymProd(const std::vector<Real> mat1,
   return ret;
 }
 // Returns the Tr[mat1*mat2] with mat1 and mat2 symmetric matrices stored as 1D vector.
-inline Real traceOfProd(const std::vector<Real> mat1,
-                        const std::vector<Real> mat2)
+inline Real traceOfSymProd(const std::vector<Real> & mat1,
+                           const std::vector<Real> & mat2)
 {
   assert(mat1.size()==6 && mat2.size()==6);
   Real ret =   mat1[0]*mat2[0] +   mat1[3]*mat2[3]  +   mat1[5]*mat2[5]
@@ -121,13 +121,19 @@ inline std::vector<Real> flowInvariants(
 
   const std::vector<Real> S2  = symProd(S, S);
   const std::vector<Real> R2  = antiSymProd(R, R);
-  const std::vector<Real> R2S = symProd(R2, S);
+  //const std::vector<Real> R2S = symProd(R2, S);
   std::vector<Real> ret(5, 0);
-  ret[0] = S2[0] + S2[3] + S2[5]; // Tr(S^2)
-  ret[1] = R2[0] + R2[3] + R2[5]; // Tr(R^2)
-  ret[2] = traceOfProd(S2, S);    // Tr(S^3)
-  ret[3] = traceOfProd(R2, S);    // Tr(R^2.S)
-  ret[4] = traceOfProd(R2, S2);   // Tr(R^2.S^2)
+  const auto sqrtDist = [](const Real val) {
+    return val>=0? std::sqrt(val) : -std::sqrt(-val);
+  };
+  const auto frthDist = [](const Real val) {
+    return val>=0? std::sqrt(std::sqrt(val)) : -std::sqrt(std::sqrt(-val));
+  };
+  ret[0] = sqrtDist(S2[0] + S2[3] + S2[5]);  // Tr(S^2)
+  ret[1] = sqrtDist(R2[0] + R2[3] + R2[5]);  // Tr(R^2)
+  ret[2] = std::cbrt(traceOfSymProd(S2, S)); // Tr(S^3)
+  ret[3] = std::cbrt(traceOfSymProd(R2, S)); // Tr(R^2.S)
+  ret[4] = frthDist(traceOfSymProd(R2, S2)); // Tr(R^2.S^2)
   return ret;
 }
 
