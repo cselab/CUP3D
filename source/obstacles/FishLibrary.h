@@ -83,14 +83,14 @@ class FishMidlineData
   double * const torque;
   Real oldTime = 0.0;
   // quantities needed to correctly control the speed of the midline maneuvers
-  double l_Tp = Tperiod, timeshift = 0, time0 = 0;
+  //double l_Tp = Tperiod, timeshift = 0, time0 = 0;
   bool firstStep = true;
 
   double linMom[2], vol, J, angMom; // for diagnostics
   // start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
-  Schedulers::ParameterSchedulerVector<6> curvScheduler;
-  Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
-  Schedulers::ParameterSchedulerVector<6> adjustScheduler;
+  //Schedulers::ParameterSchedulerVector<6> curvScheduler;
+  //Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
+  //Schedulers::ParameterSchedulerVector<6> adjustScheduler;
   FishSkin * upperSkin, * lowerSkin;
 
  protected:

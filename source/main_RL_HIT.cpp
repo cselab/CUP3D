@@ -233,6 +233,7 @@ inline void app_main(
     fflush(0); MPI_Abort(mpicom, 1);
   }
   int rank; MPI_Comm_rank(mpicom, &rank);
+  int wrank; MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
 
   if (rank==0) {
     char hostname[1024];
@@ -280,7 +281,7 @@ inline void app_main(
 
   comm->finalizeProblemDescription(); // required for thread safety
 
-  if( comm->isTraining() ) { // disable all dumping. comment out for dbg
+  if( comm->isTraining() && wrank != 1) { // disable all dumping.
     sim.sim.b3Ddump = false; sim.sim.muteAll  = true;
     sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
     sim.sim.verbose = false; sim.sim.saveTime = 0;
@@ -292,7 +293,8 @@ inline void app_main(
   // Terminate loop if reached max number of time steps. Never terminate if 0
   while(true) // train loop
   {
-    if(sim_id == 0 || ! comm->isTraining()) { // avoid too many unneeded folders
+    // avoid too many unneeded folders:
+    if(sim_id == 0 || not comm->isTraining() || wrank == 1) {
       sprintf(dirname, "run_%08u/", sim_id); // by fast simulations when train
       printf("Starting a new sim in directory %s\n", dirname);
       mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -391,7 +393,7 @@ inline void app_main(
       }
     } // simulation is done
 
-    if( not comm->isTraining() ) {
+    if( not comm->isTraining() || wrank == 1 ) {
       chdir("../"); // matches previous if
     }
     sim_id++;

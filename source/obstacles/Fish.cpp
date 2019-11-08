@@ -31,8 +31,7 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
   if(p("-amplitudeFactor").asDouble(1.0)>0)
     isSelfPropelled = true;
 
-  followX = p("-followX").asDouble(-1);
-  followY = p("-followY").asDouble(-1);
+  bCorrectPosition = p("-bCorrectPosition").asBool(false);
   const double hh = 0.5*sim.maxH();
   position[2] = p("-zpos").asDouble(sim.extent[2]/2 + hh);
 
@@ -42,62 +41,6 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
 Fish::~Fish()
 {
   if(myFish not_eq nullptr) delete myFish;
-}
-
-void Fish::apply_pid_corrections()
-{
-  if (bCorrectTrajectory && sim.time>0.312)
-  {
-    assert(followX < 0 && followY < 0);
-    const double AngDiff  = std::atan2(-transVel[1], -transVel[0]);
-    adjTh = (1.0-sim.dt) * adjTh + sim.dt * AngDiff;
-    const double INST = (AngDiff*angVel[2]>0) ? AngDiff*std::fabs(angVel[2]) : 0;
-    const double PID = 0.1*adjTh + 0.01*INST;
-    myFish->_correctTrajectory(PID, 0, sim.time, sim.dt);
-  }
-
-  if (followX > 0 && followY > 0) //then i control the position
-  {
-    assert(not bCorrectTrajectory);
-    const double AngDiff  = _2Dangle; // std::atan2(-transVel[1], -transVel[0]);
-
-    // Control posDiffs
-    const double xDiff = (position[0] - followX)/length;
-    const double yDiff = (position[1] - followY)/length;
-    const double absDY = std::fabs(yDiff);
-    const double velAbsDY = (yDiff>0? 1 : -1) * (transVel[1] + sim.uinf[1])/length;
-    const double velDAvg = AngDiff-adjTh + sim.dt*angVel[2];
-
-    adjTh = (1-sim.dt) * adjTh + sim.dt * AngDiff;
-    adjDy = (1-sim.dt) * adjDy + sim.dt * yDiff;
-
-    //If angle is positive: positive curvature only if Dy<0 (must go up)
-    //If angle is negative: negative curvature only if Dy>0 (must go down)
-    //const Real INST = (AngDiff*angVel[2]>0 && yDiff*AngDiff<0) ? AngDiff*std::fabs(yDiff*angVel[2]) : 0;
-    const double PROP = (adjTh  *yDiff<0) ?   adjTh*absDY : 0;
-    const double INST = (AngDiff*yDiff<0) ? AngDiff*absDY : 0;
-
-    //zero also the derivatives when appropriate
-    const double f1 = std::fabs(PROP)>2e-16 ? 20 : 0;
-    const double f2 = std::fabs(INST)>2e-16 ? 50 : 0, f3=1;
-
-    // Linearly increase (or decrease) amplitude to 1.2X (decrease to 0.8X)
-    //(experiments observed 1.2X increase in amplitude when swimming faster)
-    //if fish falls back 1 body length. Beyond that, will still increase but dunno if will work
-    const double ampFac = f3*xDiff + 1.0;
-    const double ampVel = f3*(transVel[0] + sim.uinf[0])/length;
-
-    const double curv1fac = f1*PROP;
-    const double curv1vel = f1*(velAbsDY*adjTh   + absDY*velDAvg);
-    const double curv2fac = f2*INST;
-    const double curv2vel = f2*(velAbsDY*AngDiff + absDY*angVel[2]);
-                //const Real vPID = velAbsDY*(f1*adjTh + f2*AngDiff) + absDY*(f1*velDAvg+f2*angVel[2]);
-                //const Real PID = f1*PROP + f2*INST;
-    if(!sim.rank) printf("%f\t f1: %f %f\t f2: %f %f\t f3: %f %f\n", sim.time,
-      curv1fac, curv1vel, curv2fac, curv2vel, ampFac, ampVel);
-    myFish->_correctTrajectory(curv1fac+curv2fac, curv1vel+curv2vel, sim.time, sim.dt);
-    myFish->_correctAmplitude(ampFac, ampVel, sim.time, sim.dt);
-  }
 }
 
 void Fish::integrateMidline()
@@ -282,7 +225,7 @@ void Fish::create()
   // 7. for each of those blocks, allocate an ObstacleBlock
 
   // 8. put the 3D shape on the grid: SDF-P2M for sdf, normal P2M for udef
-  apply_pid_corrections();
+  //apply_pid_corrections();
 
   // 1.
   myFish->computeMidline(sim.time, sim.dt);
@@ -337,7 +280,7 @@ void Fish::save(std::string filename)
     savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
     savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
     savestream<<angVel[0]<<"\t"<<angVel[1]<<"\t"<<angVel[2]<<std::endl;
-    savestream<<theta_internal<<"\t"<<angvel_internal<<"\t"<<adjTh<<std::endl;
+    savestream<<theta_internal<<"\t"<<angvel_internal<<std::endl; // <<"\t"<<adjTh
     savestream<<_2Dangle;
     savestream.close();
 }
@@ -356,14 +299,15 @@ void Fish::restart(std::string filename)
   restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
   restartstream >> transVel[0] >> transVel[1] >> transVel[2];
   restartstream >> angVel[0] >> angVel[1] >> angVel[2];
-  restartstream >> theta_internal >> angvel_internal >> adjTh;
+  restartstream >> theta_internal >> angvel_internal;// >> adjTh;
   restartstream >> _2Dangle;
   restartstream.close();
 
   std::cout<<"RESTARTED FISH: "<<std::endl;
   std::cout<<"TIME, DT: "<<restart_time<<" "<<restart_dt<<std::endl;
   std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
-  std::cout<<"ANGLE: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
+  std::cout<<"ANGLE: "<<quaternion[0]<<" "<<quaternion[1]
+           <<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
   std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
   std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
   std::cout<<"INTERN: "<<theta_internal<<" "<<angvel_internal<<std::endl;

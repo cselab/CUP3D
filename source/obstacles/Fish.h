@@ -26,11 +26,11 @@ class Fish: public Obstacle
   double CoM_internal[2]={0,0}, vCoM_internal[2]={0,0};
   double theta_internal=0, angvel_internal=0, angvel_internal_prev=0;
   double angvel_integral[3] = {0,0,0};
-  double adjTh=0, adjDy=0, followX=0, followY=0;
-  bool bCorrectTrajectory=false;
+  //double adjTh=0, adjDy=0;
+  bool bCorrectTrajectory=false, bCorrectPosition=false;
 
   void integrateMidline();
-  void apply_pid_corrections();
+  //void apply_pid_corrections();
 
   // first how to create blocks of segments:
   typedef std::vector<VolumeSegment_OBB> vecsegm_t;
