@@ -104,10 +104,10 @@ Cylinder::Cylinder(
     }
     umax = - p("-xvel").asDouble(0.0);
     tmax = p("-T").asDouble(1.0);
+    transVel_imposed[0] = 0;
   }
   _init();
 }
-
 
 Cylinder::Cylinder(
     SimulationData& s,
