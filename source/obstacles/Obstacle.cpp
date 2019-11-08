@@ -29,10 +29,29 @@ ObstacleArguments::ObstacleArguments(
   position[0] = parser("-xpos").asDouble();  // Mandatory.
   position[1] = parser("-ypos").asDouble(sim.extent[1] / 2);
   position[2] = parser("-zpos").asDouble(sim.extent[2] / 2);
-  quaternion[0] = parser("-quat0").asDouble(1.0);
+  quaternion[0] = parser("-quat0").asDouble(0.0);
   quaternion[1] = parser("-quat1").asDouble(0.0);
   quaternion[2] = parser("-quat2").asDouble(0.0);
   quaternion[3] = parser("-quat3").asDouble(0.0);
+  planarAngle = parser("-planarAngle").asDouble(0.0) / 180 * M_PI;
+  const double q_length = std::sqrt(quaternion[0]*quaternion[0]
+                                 +  quaternion[1]*quaternion[1]
+                                 +  quaternion[2]*quaternion[2]
+                                 +  quaternion[3]*quaternion[3]);
+
+  if(std::fabs(q_length-1.0) > 5*EPS) {
+    quaternion[0] = std::cos(0.5*planarAngle);
+    quaternion[1] = 0;
+    quaternion[2] = 0;
+    quaternion[3] = std::sin(0.5*planarAngle);
+  } else {
+    if(std::fabs(planarAngle) > 0 && sim.rank == 0)
+      printf("WARNING: Obstacle arguments include both quaternions and "
+             "planarAngle. Quaterion arguments have priority and therefore "
+             "planarAngle will be ignored.");
+
+    planarAngle = 2 * std::atan2(quaternion[3], quaternion[0]);
+  }
 
   // if true, obstacle will never change its velocity:
   // bForcedInLabFrame = parser("-bForcedInLabFrame").asBool(false);
@@ -75,7 +94,7 @@ Obstacle::Obstacle(
   quaternion[1] = args.quaternion[1];
   quaternion[2] = args.quaternion[2];
   quaternion[3] = args.quaternion[3];
-  _2Dangle = 2 * std::atan2(quaternion[3], quaternion[0]);
+  _2Dangle = args.planarAngle;
 
   if (!sim.rank) {
     printf("Obstacle L=%g, pos=[%g %g %g], q=[%g %g %g %g]\n",

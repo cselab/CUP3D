@@ -18,7 +18,8 @@ namespace DCylinderObstacle
 {
 struct FillBlocks : FillBlocksBase<FillBlocks>
 {
-  const Real radius, halflength, h, safety = (2+SURFDH)*h;
+  const Real radius, halflength, angle, h, safety = (2+SURFDH)*h;
+  const Real cosang = std::cos(angle), sinang = std::sin(angle);
   const double position[3];
   const Real box[3][2] = {
     {(Real)position[0]-radius    -safety, (Real)position[0]+radius    +safety},
@@ -26,8 +27,9 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
     {(Real)position[2]-halflength-safety, (Real)position[2]+halflength+safety}
   };
 
-  FillBlocks(const Real r, const Real halfl, const Real _h, const double p[3]):
-  radius(r), halflength(halfl), h(_h), position{p[0],p[1],p[2]} {}
+  FillBlocks(const Real r, const Real halfl, const Real ang,
+             const Real _h, const double p[3]):
+  radius(r), halflength(halfl), angle(ang), h(_h), position{p[0],p[1],p[2]} {}
 
   inline bool isTouching(const FluidBlock&b, const int buffer_dx=0) const
   {
@@ -44,7 +46,8 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   inline Real signedDistance(const Real xo, const Real yo, const Real zo) const
   {
     const Real x = xo - position[0], y = yo - position[1], z = zo - position[2];
-    const Real planeDist = std::min( -x, radius-std::sqrt(x*x+y*y) );
+    const Real x_rotated =   x * cosang + y * sinang;
+    const Real planeDist = std::min( -x_rotated, radius-std::sqrt(x*x+y*y) );
     const Real vertiDist = halflength - std::fabs(z);
     return std::min(planeDist, vertiDist);
   }
@@ -124,7 +127,8 @@ void Cylinder::create()
   const Real h = sim.maxH();
   if(section == "D")
   {
-    const DCylinderObstacle::FillBlocks kernel(radius, halflength, h, position);
+    const DCylinderObstacle::FillBlocks kernel(radius, halflength, _2Dangle,
+                                               h, position);
     create_base<DCylinderObstacle::FillBlocks>(kernel);
   }
   else /* else do square section, but figure how to make code smaller */

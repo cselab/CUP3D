@@ -60,6 +60,7 @@ class ObstacleVector;
 struct ObstacleArguments
 {
   double length = 0.0;
+  double planarAngle = 0.0;
   std::array<double, 3> position = {{0.0, 0.0, 0.0}};
   std::array<double, 4> quaternion = {{1.0, 0.0, 0.0, 0.0}};
   std::array<double, 3> enforcedVelocity = {{0.0, 0.0, 0.0}};  // Only if bForcedInSimFrame.
