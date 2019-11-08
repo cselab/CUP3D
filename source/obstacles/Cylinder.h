@@ -18,6 +18,11 @@ class Cylinder : public Obstacle
   const double radius;
   const double halflength;
   std::string section = "circular"; // or whatever
+  double umax = 0;
+  double tmax = 1;
+  //special case: startup with unif accel to umax in tmax, and then decel to 0
+  bool accel = false;
+
 public:
   Cylinder(SimulationData&s, cubism::ArgumentParser &p);
   Cylinder(SimulationData&s, ObstacleArguments &args,

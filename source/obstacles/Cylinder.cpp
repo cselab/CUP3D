@@ -97,6 +97,14 @@ Cylinder::Cylinder(
       halflength(p("-halflength").asDouble(.5 * sim.extent[2]))
 {
   section = p("-section").asString("circular");
+  accel = p("-accel").asBool(false);
+  if(accel) {
+    if(not bForcedInSimFrame[0]) {
+      printf("Warning: Cylinder was not set to be forced in x-dir, yet the accel pattern is active.\n");
+    }
+    umax = - p("-xvel").asDouble(0.0);
+    tmax = p("-T").asDouble(1.0);
+  }
   _init();
 }
 
@@ -136,6 +144,17 @@ void Cylinder::create()
     const CylinderObstacle::FillBlocks kernel(radius, halflength, h, position);
     create_base<CylinderObstacle::FillBlocks>(kernel);
   }
+}
+
+
+void Cylinder::computeVelocities()
+{
+  if(accel) {
+    if(sim.time<tmax) transVel_imposed[0] = umax*sim.time/tmax;
+    else transVel_imposed[0] = umax;
+  }
+
+  Obstacle::computeVelocities();
 }
 
 void Cylinder::finalize()

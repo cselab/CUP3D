@@ -146,13 +146,16 @@ void Sphere::finalize()
 
 void Sphere::computeVelocities()
 {
-  Obstacle::computeVelocities();
-
   if(accel_decel) {
-    if(sim.time<tmax) transVel[0] = umax*sim.time/tmax;
-    else if (sim.time<2*tmax) transVel[0] = umax*(2*tmax-sim.time)/tmax;
-    else transVel[0] = 0;
+    if(sim.time<tmax)
+      transVel_imposed[0] = umax*sim.time/tmax;
+    else if (sim.time<2*tmax)
+      transVel_imposed[0] = umax*(2*tmax-sim.time)/tmax;
+    else
+      transVel_imposed[0] = 0;
   }
+
+  Obstacle::computeVelocities();
 }
 
 CubismUP_3D_NAMESPACE_END
