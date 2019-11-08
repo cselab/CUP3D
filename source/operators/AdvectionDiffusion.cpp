@@ -22,14 +22,15 @@ struct KernelAdvectDiffuseBase
   const SimulationData & sim;
   const Real dt, mu = sim.nu;
   const std::array<Real, 3>& uInf = sim.uinf;
+  const Real fac = std::min((Real)1, sim.uMax_measured * sim.dt / sim.hmean);
   const Real norUinf = std::max({std::fabs(uInf[0]), std::fabs(uInf[1]),
                                  std::fabs(uInf[2]), EPS});
-  const Real fadeW = 1 - std::pow( std::max(uInf[0],(Real) 0) / norUinf, 2);
-  const Real fadeS = 1 - std::pow( std::max(uInf[1],(Real) 0) / norUinf, 2);
-  const Real fadeF = 1 - std::pow( std::max(uInf[2],(Real) 0) / norUinf, 2);
-  const Real fadeE = 1 - std::pow( std::min(uInf[0],(Real) 0) / norUinf, 2);
-  const Real fadeN = 1 - std::pow( std::min(uInf[1],(Real) 0) / norUinf, 2);
-  const Real fadeB = 1 - std::pow( std::min(uInf[2],(Real) 0) / norUinf, 2);
+  const Real fadeW = 1 - fac * std::pow(std::max(uInf[0],(Real)0) / norUinf, 2);
+  const Real fadeS = 1 - fac * std::pow(std::max(uInf[1],(Real)0) / norUinf, 2);
+  const Real fadeF = 1 - fac * std::pow(std::max(uInf[2],(Real)0) / norUinf, 2);
+  const Real fadeE = 1 - fac * std::pow(std::min(uInf[0],(Real)0) / norUinf, 2);
+  const Real fadeN = 1 - fac * std::pow(std::min(uInf[1],(Real)0) / norUinf, 2);
+  const Real fadeB = 1 - fac * std::pow(std::min(uInf[2],(Real)0) / norUinf, 2);
   static constexpr int BEG = -1, END = CUP_BLOCK_SIZE;
   //static constexpr std::array<int, 3> stencil_start = {-1,-1,-1};
   //static constexpr std::array<int, 3> stencil_end   = { 2, 2, 2};

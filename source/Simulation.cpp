@@ -406,10 +406,10 @@ double Simulation::calcMaxTimestep()
 {
   assert(sim.grid not_eq nullptr);
   const double hMin = sim.hmin, CFL = sim.CFL;
-  const double maxU = sim.bKeepMomentumConstant? findMaxUzeroMom(sim)
+  sim.uMax_measured = sim.bKeepMomentumConstant? findMaxUzeroMom(sim)
                                                : findMaxU(sim);
   const double dtDif = hMin * hMin / sim.nu;
-  const double dtAdv = hMin / ( maxU + 1e-8 );
+  const double dtAdv = hMin / ( sim.uMax_measured + 1e-8 );
   sim.dt = CFL * std::min(dtDif, dtAdv);
   if ( sim.step < sim.rampup )
   {
@@ -421,7 +421,7 @@ double Simulation::calcMaxTimestep()
   if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
   if (sim.verbose)
     printf("maxU:%f minH:%f dtF:%e dtC:%e dt:%e lambda:%e\n",
-      maxU, hMin, dtDif, dtAdv, sim.dt, sim.lambda);
+      sim.uMax_measured, hMin, dtDif, dtAdv, sim.dt, sim.lambda);
   return sim.dt;
 }
 
@@ -476,10 +476,12 @@ void Simulation::_serialize(const std::string append)
 
   const auto dumpFunction = [=] () {
     if(sim.b2Ddump) {
+      int sliceIdx = 0;
       for (const auto& slice : sim.m_slices) {
-        const std::string nameV = StreamerVelocityVector::prefix()+name2d;
-        const std::string nameP = StreamerPressure::prefix()+name2d;
-        const std::string nameX = StreamerChi::prefix()+name2d;
+        const std::string slicespec = "slice_"+std::to_string(sliceIdx++)+"_";
+        const auto nameV = slicespec + StreamerVelocityVector::prefix() +name2d;
+        const auto nameP = slicespec + StreamerPressure::prefix() +name2d;
+        const auto nameX = slicespec + StreamerChi::prefix() +name2d;
         DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
           slice, sim.time, nameV, sim.path4serialization);
         DumpSliceHDF5MPI<StreamerPressure, DumpReal>(

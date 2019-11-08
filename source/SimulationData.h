@@ -107,7 +107,7 @@ struct SimulationData
 
   // forcing
   bool bChannelFixedMassFlux = false;
-  Real uMax_forced = 0;
+  Real uMax_forced = 0, uMax_measured = 0;
   bool spectralForcing = false;
   double turbKinEn_target = 0; // read from settings
   double enInjectionRate = 0; // read from settings
