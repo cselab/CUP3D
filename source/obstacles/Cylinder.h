@@ -31,6 +31,7 @@ public:
   void _init(void);
   void create() override;
   void finalize() override;
+  void computeVelocities() override;
 };
 
 CubismUP_3D_NAMESPACE_END
