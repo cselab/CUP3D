@@ -25,6 +25,7 @@ class SpectralManipACC : public SpectralManip
   Real * gpu_v;
   Real * gpu_w;
   void * plan;
+  int cufft_fwd, cufft_bwd;
 
   myCUDAstreams * const streams;
 

@@ -27,77 +27,163 @@ using namespace cubism;
 
 PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver(s)
 {
-  if (gsize[2]!=myN[2]) {
-    printf("PoissonSolverPeriodic assumes grid is distrubuted in x and y.\n");
-    abort();
+  if(s.nprocs > 1)
+  {
+    const size_t gz_hat = gsize[2] / 2 + 1;
+    if (gsize[2]!=myN[2]) {
+      printf("PoissonSolverPeriodic assumes grid is distrubuted in x and y.\n");
+      abort();
+    }
+    int c_dims[2] = {
+      static_cast<int>(gsize[0]/myN[0]), static_cast<int>(gsize[1]/myN[1])
+    };
+    assert(gsize[0]%myN[0]==0 && gsize[1]%myN[1]==0);
+    accfft_create_comm(grid.getCartComm(), c_dims, &c_comm);
+    testComm();
+    int totN[3] = { (int)gsize[0], (int)gsize[1], (int)gsize[2] };
+
+    alloc_max = accfft_local_size(totN, isize, istart, osize, ostart, c_comm);
+    assert(alloc_max == isize[0] * isize[1] * 2*gz_hat * sizeof(Real));
+
+    printf("[mpi rank %d] max:%lu isize:{%3d %3d %3d} osize:{%3d %3d %3d}\n"
+      "istart:{%3d %3d %3d} ostart:{%3d %3d %3d} gsize:{%d %d %d}.\n", m_rank,
+      alloc_max,isize[0],isize[1],isize[2],osize[0],osize[1],osize[2],istart[0],
+      istart[1],istart[2],ostart[0],ostart[1],ostart[2],totN[0],totN[1],totN[2]);
+    fflush(0);
+
+    if(isize[0]!=(int)myN[0] || isize[1]!=(int)myN[1] || isize[2]!=(int)myN[2]) {
+      printf("PoissonSolverPeriodic: something wrong in isize\n");
+      abort();
+    }
+
+    cudaMalloc((void**) &phi_hat, alloc_max);
+
+    acc_plan* P = accfft_plan_dft(totN, phi_hat,phi_hat, c_comm,ACCFFT_MEASURE);
+    plan = (void*) P;
+
+    data = (Real*) malloc(myN[0] * myN[1] * 2*gz_hat * sizeof(Real));
+    data_size = (size_t) myN[0] * (size_t) myN[1] * (size_t) 2*gz_hat;
+    stridez = 1; // fast
+    stridey = 2*gz_hat;
+    stridex = myN[1] * 2*gz_hat; // slow
   }
-  int c_dims[2] = {
-    static_cast<int>(gsize[0]/myN[0]), static_cast<int>(gsize[1]/myN[1])
-  };
-  assert(gsize[0]%myN[0]==0 && gsize[1]%myN[1]==0);
-  accfft_create_comm(grid.getCartComm(), c_dims, &c_comm);
-  testComm();
-  int totN[3] = { (int)gsize[0], (int)gsize[1], (int)gsize[2] };
+  else
+  {
+    // for cuFFT we use x as fast index instead of z:
+    const size_t gx_hat = gsize[0] / 2 + 1;
+    osize[0] = myN[2]; isize[0] = myN[2];
+    osize[1] = myN[1]; isize[1] = myN[1];
+    osize[2] = myN[0]; isize[2] = myN[0];
+    //osize[0] = myN[0]; isize[0] = myN[0];
+    //osize[1] = myN[1]; isize[1] = myN[1];
+    //osize[2] = myN[2]; isize[2] = myN[2];
+    ostart[0] = 0; istart[0] = 0;
+    ostart[1] = 0; istart[1] = 0;
+    ostart[2] = 0; istart[2] = 0;
+    alloc_max = 0;
+    printf("[mpi rank %d] istart:{%3d %3d %3d} ostart:{%3d %3d %3d}\n"
+      "isize:{%3d %3d %3d} osize:{%3d %3d %3d} gsize:{%lu %lu %lu}.\n", m_rank,
+      istart[0],istart[1],istart[2], ostart[0],ostart[1],ostart[2], isize[0],
+      isize[1],isize[2],osize[0],osize[1],osize[2],gsize[0],gsize[1],gsize[2]);
+    fflush(0);
+    cufftPlan3d(&cufft_fwd, myN[2], myN[1], myN[0], cufftPlanFWD);
+    cufftPlan3d(&cufft_bwd, myN[2], myN[1], myN[0], cufftPlanBWD);
+    cudaMalloc((void**) &phi_hat, myN[2] * myN[1] * gx_hat * sizeof(cufftCmpT));
 
-  alloc_max = accfft_local_size(totN, isize, istart, osize, ostart, c_comm);
-  assert(alloc_max == isize[0] * isize[1] * 2*gz_hat * sizeof(Real));
-
-  printf("[mpi rank %d] max:%lu isize:{%3d %3d %3d} osize:{%3d %3d %3d}\n"
-    "istart:{%3d %3d %3d} ostart:{%3d %3d %3d} gsize:{%d %d %d}.\n", m_rank,
-    alloc_max,isize[0],isize[1],isize[2],osize[0],osize[1],osize[2],istart[0],
-    istart[1],istart[2],ostart[0],ostart[1],ostart[2],totN[0],totN[1],totN[2]);
-  fflush(0);
-
-  if(isize[0]!=(int)myN[0] || isize[1]!=(int)myN[1] || isize[2]!=(int)myN[2]) {
-    printf("PoissonSolverPeriodic: something wrong in isize\n");
-    abort();
+    data_size = (size_t) myN[2] * (size_t) myN[1] * (size_t) 2*gx_hat;
+    data = (Real*) malloc(data_size * sizeof(Real));
+    stridez = myN[1] * 2*gx_hat; // slow
+    stridey = 2*gx_hat;
+    stridex = 1; // fast
   }
-
-  data = (Real*) malloc(isize[0]*isize[1]*2*gz_hat*sizeof(Real));
-  data_size = (size_t) isize[0] * (size_t) isize[1] * (size_t) 2*gz_hat;
-  stridez = 1; // fast
-  stridey = 2*gz_hat;
-  stridex = myN[1] * 2*gz_hat; // slow
-
-  cudaMalloc((void**) &phi_hat, alloc_max);
-
-  acc_plan* P = accfft_plan_dft(totN, phi_hat,phi_hat, c_comm,ACCFFT_MEASURE);
-  plan = (void*) P;
 }
 
 void PoissonSolverPeriodic::solve()
 {
+  if(sim.nprocs > 1) solve_multiNode();
+  else solve_singleNode();
+}
+
+void PoissonSolverPeriodic::solve_multiNode()
+{
   sim.startProfiler("ACCDFT cub2rhs");
   _cub2fftw();
   sim.stopProfiler();
+
   sim.startProfiler("ACCDFT cpu2gpu");
   cudaMemcpy(phi_hat, data, alloc_max, cudaMemcpyHostToDevice);
   sim.stopProfiler();
+
   // Perform forward FFT
   sim.startProfiler("ACCDFT r2c");
   accfft_exec_r2c((acc_plan*)plan, phi_hat, (acc_c*)phi_hat);
   sim.stopProfiler();
+
   // Spectral solve
   sim.startProfiler("ACCDFT solve");
   _fourier_filter_gpu((acc_c*)phi_hat, gsize, osize, ostart, h);
   sim.stopProfiler();
+
   // Perform backward FFT
   sim.startProfiler("ACCDFT c2r");
   accfft_exec_c2r((acc_plan*)plan, (acc_c*)phi_hat, phi_hat);
   sim.stopProfiler();
+
   sim.startProfiler("ACCDFT gpu2cpu");
   cudaMemcpy(data, phi_hat, alloc_max, cudaMemcpyDeviceToHost);
+  sim.stopProfiler();
+}
+
+void PoissonSolverPeriodic::solve_singleNode()
+{
+  sim.startProfiler("ACCDFT cub2rhs");
+  _cub2fftw();
+  sim.stopProfiler();
+
+  sim.startProfiler("ACCDFT cpu2gpu");
+  cudaMemcpy(phi_hat, data, data_size * sizeof(Real), cudaMemcpyHostToDevice);
+  CUDA_Check( cudaDeviceSynchronize() );
+  sim.stopProfiler();
+
+  // Perform forward FFT
+  sim.startProfiler("ACCDFT r2c");
+  cufftExecFWD(cufft_fwd, phi_hat, (cufftCmpT*) phi_hat);
+  CUDA_Check( cudaDeviceSynchronize() );
+  sim.stopProfiler();
+
+  // Spectral solve
+  sim.startProfiler("ACCDFT solve");
+  // for cuFFT we use x as fast index instead of z:
+  const size_t gsize_T[3] = {gsize[2], gsize[1], gsize[0]};
+  _fourier_filter_gpu((acc_c*)phi_hat, gsize_T, osize, ostart, h);
+  //_fourier_filter_gpu_transp((cufftCmpT*)phi_hat, gsize, osize, ostart, h);
+  CUDA_Check( cudaDeviceSynchronize() );
+  sim.stopProfiler();
+
+  // Perform backward FFT
+  sim.startProfiler("ACCDFT c2r");
+  cufftExecBWD(cufft_bwd, (cufftCmpT*) phi_hat, phi_hat);
+  CUDA_Check( cudaDeviceSynchronize() );
+  sim.stopProfiler();
+
+  sim.startProfiler("ACCDFT gpu2cpu");
+  cudaMemcpy(data, phi_hat, data_size * sizeof(Real), cudaMemcpyDeviceToHost);
+  CUDA_Check( cudaDeviceSynchronize() );
   sim.stopProfiler();
 }
 
 PoissonSolverPeriodic::~PoissonSolverPeriodic()
 {
   free(data);
-  //cudaFree(rho_gpu);
   cudaFree(phi_hat);
-  accfft_destroy_plan_gpu((acc_plan*)plan);
-  accfft_clean();
-  MPI_Comm_free(&c_comm);
+  if(sim.nprocs > 1) {
+    accfft_destroy_plan_gpu((acc_plan*)plan);
+    accfft_clean();
+    MPI_Comm_free(&c_comm);
+  } else {
+    cufftDestroy(cufft_fwd);
+    cufftDestroy(cufft_bwd);
+  }
 }
 
 void PoissonSolverPeriodic::testComm()

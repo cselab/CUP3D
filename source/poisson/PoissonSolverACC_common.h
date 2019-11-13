@@ -15,6 +15,11 @@
 #ifndef CUP_SINGLE_PRECISION
   typedef double acc_c[2];
   #define MPIREAL MPI_DOUBLE
+  #define cufftCmpT cufftDoubleComplex
+  #define cufftPlanFWD CUFFT_D2Z
+  #define cufftPlanBWD CUFFT_Z2D
+  #define cufftExecFWD cufftExecD2Z
+  #define cufftExecBWD cufftExecZ2D
   #define accfft_local_size accfft_local_size_dft_r2c_gpu
   #define accfft_plan_dft accfft_plan_dft_3d_r2c_gpu
   #define accfft_delplan accfft_destroy_plan_gpu
@@ -24,6 +29,11 @@
 #else
   typedef float acc_c[2];
   #define MPIREAL MPI_FLOAT
+  #define cufftCmpT cufftComplex
+  #define cufftPlanFWD CUFFT_R2C
+  #define cufftPlanBWD CUFFT_C2R
+  #define cufftExecFWD cufftExecR2C
+  #define cufftExecBWD cufftExecC2R
   #define accfft_local_size accfft_local_size_dft_r2c_gpuf
   #define accfft_plan_dft accfft_plan_dft_3d_r2c_gpuf
   #define accfft_delplan accfft_destroy_plan_gpu

@@ -14,61 +14,126 @@
 
 #include <cassert>
 #include <cmath>
+#include <cufft.h>
+#include <limits>
 
 using Real = cubismup3d::Real;
 
 __global__
-void _fourier_filter_kernel(acc_c*const __restrict__ out,
+void _poisson_spectral_kernel(acc_c*const __restrict__ out,
   const long Gx, const long Gy, const long Gz,
-  const long nx, const long ny, const long nz,
+  const long nx, const long ny, const long nz, const long nz_hat,
   const long sx, const long sy, const long sz,
   const Real wx, const Real wy, const Real wz, const Real fac)
 {
-  const long i = blockDim.x * blockIdx.x + threadIdx.x;
+  const long k = blockDim.x * blockIdx.x + threadIdx.x;
   const long j = blockDim.y * blockIdx.y + threadIdx.y;
-  const long k = blockDim.z * blockIdx.z + threadIdx.z;
-  if( i >= nx || j >= ny || k >= nz ) return;
+  const long i = blockDim.z * blockIdx.z + threadIdx.z;
+  if( i >= nx || j >= ny || k >= nz_hat ) return;
 
   const long kx = sx + i, ky = sy + j, kz = sz + k;
   const long kkx = kx > Gx/2 ? kx-Gx : kx;
   const long kky = ky > Gy/2 ? ky-Gy : ky;
   const long kkz = kz > Gz/2 ? kz-Gz : kz;
-  // For some reason accfft now does this for Laplace operator:
-  //const size_t kkx = kx>Gx/2 ? kx-Gx : ( kx==Gx/2 ? 0 : kx );
-  //const size_t kky = ky>Gy/2 ? ky-Gy : ( ky==Gy/2 ? 0 : ky );
-  //const size_t kkz = kz>Gz/2 ? kz-Gz : ( kz==Gz/2 ? 0 : kz );
   const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
   const Real kinv = kkx||kky||kkz? -fac/(rkx*rkx + rky*rky + rkz*rkz) : 0;
-  //const Real kinv = fac;
-  const long index = i*nz*ny + j*nz + k;
-  out[index][0] *= kinv; out[index][1] *= kinv;
+  const long index = i*nz_hat*ny + j*nz_hat + k;
+  out[index][0] *= kinv;
+  out[index][1] *= kinv;
 }
 
+__global__
+void _poisson_findiff_kernel(acc_c*const __restrict__ out,
+  const long Gx, const long Gy, const long Gz,
+  const long nx, const long ny, const long nz, const long nz_hat,
+  const long sx, const long sy, const long sz,
+  const Real wx, const Real wy, const Real wz, const Real fac)
+{
+  const long k = blockDim.x * blockIdx.x + threadIdx.x;
+  const long j = blockDim.y * blockIdx.y + threadIdx.y;
+  const long i = blockDim.z * blockIdx.z + threadIdx.z;
+  if( i >= nx || j >= ny || k >= nz_hat ) return;
+
+  const long kx = sx + i, ky = sy + j, kz = sz + k;
+  const Real denom = 2*(std::cos(wx*kx) +std::cos(wy*ky) +std::cos(wz*kz)) - 6;
+  static constexpr Real EPS = 2.2204460492503131E-16;
+  const Real solutionFactor = denom < -EPS? fac / denom : 0;
+  const long index = i*nz_hat*ny + j*nz_hat + k;
+  out[index][0] *= solutionFactor;
+  out[index][1] *= solutionFactor;
+}
 
 void _fourier_filter_gpu(acc_c*const __restrict__ data_hat,
  const size_t gsize[3],const int osize[3] , const int ostart[3], const Real h)
 {
-  const Real wfac[3] = {
-    Real(2*M_PI)/(h*gsize[0]),
-    Real(2*M_PI)/(h*gsize[1]),
-    Real(2*M_PI)/(h*gsize[2])
-  };
-  const Real norm = 1.0 / ( gsize[0]*h * gsize[1]*h * gsize[2]*h );
-  //const Real fac = 1.0 / ( gsize[0] * gsize[1] * gsize[2] );
-  int blocksInX = std::ceil(osize[0] / 4.);
+  int blocksInX = std::ceil(osize[2] / 4.);
   int blocksInY = std::ceil(osize[1] / 4.);
-  int blocksInZ = std::ceil(osize[2] / 4.);
+  int blocksInZ = std::ceil(osize[0] / 4.);
+  const int nz_hat = gsize[2]/2 + 1;
   dim3 Dg(blocksInX, blocksInY, blocksInZ), Db(4, 4, 4);
-  _fourier_filter_kernel<<<Dg, Db>>>(
-   data_hat, gsize[0], gsize[1], gsize[2],osize[0],osize[1],osize[2],
-            ostart[0],ostart[1],ostart[2], wfac[0], wfac[1], wfac[2], norm);
-
-  //if(ostart[0]==0 && ostart[1]==0 && ostart[2]==0)
-  //  cudaMemset(data_hat, 0, 2 * sizeof(Real));
-
+  // RHS comes into this function premultiplied by h^3 (as in FMM):
+  if(1)
+  {
+    // Solution has to be normalized (1/N^3) and multiplied by Laplace op finite
+    // diffs coeff. We use finite diffs consistent with press proj, therefore
+    // +/- 2h, and Poisson coef is (2h)^2. Due to RHS premultiplied by h^3:
+    const Real norm = 4.0 / ( gsize[0]*h * gsize[1] * gsize[2] );
+    const Real wfac[3] = {
+      Real(4*M_PI)/(gsize[0]), Real(4*M_PI)/(gsize[1]), Real(4*M_PI)/(gsize[2])
+    };
+    _poisson_findiff_kernel<<<Dg, Db>>>(data_hat,
+                      gsize[0],  gsize[1],  gsize[2],
+                      osize[0],  osize[1],  osize[2], nz_hat,
+                     ostart[0], ostart[1], ostart[2],
+                       wfac[0],   wfac[1],   wfac[2], norm);
+    // const long lastI = (long) gsize[0]/2 - ostart[0];
+    // const long lastJ = (long) gsize[1]/2 - ostart[1];
+    // const long lastK = (long) gsize[2]/2 - ostart[2];
+    // if(ostart[0] == 0 &&
+    //    ostart[1] == 0) {
+    //   const size_t idWSF = (0 * osize[1] + 0)*nz_hat + 0;
+    //   const size_t idWSB = (0 * osize[1] + 0)*nz_hat + lastK;
+    //   cudaMemset(data_hat + idWSF, 0, 2 * sizeof(Real));
+    //   cudaMemset(data_hat + idWSB, 0, 2 * sizeof(Real));
+    // }
+    // if(ostart[0] == 0 &&
+    //    ostart[1] <= gsize[1]/2 && ostart[1]+osize[1] > gsize[1]/2) {
+    //   const size_t idWNF = (0 * osize[1] + lastJ)*nz_hat + 0;
+    //   const size_t idWNB = (0 * osize[1] + lastJ)*nz_hat + lastK;
+    //   cudaMemset(data_hat + idWNF, 0, 2 * sizeof(Real));
+    //   cudaMemset(data_hat + idWNB, 0, 2 * sizeof(Real));
+    // }
+    // if(ostart[0] <= gsize[0]/2 && ostart[0]+osize[0] > gsize[0]/2 &&
+    //    ostart[1] == 0) {
+    //   const size_t idESF = (lastI * osize[1] + 0)*nz_hat + 0;
+    //   const size_t idESB = (lastI * osize[1] + 0)*nz_hat + lastK;
+    //   cudaMemset(data_hat + idESF, 0, 2 * sizeof(Real));
+    //   cudaMemset(data_hat + idESB, 0, 2 * sizeof(Real));
+    // }
+    // if(ostart[0] <= gsize[0]/2 && ostart[0]+osize[0] > gsize[0]/2 &&
+    //    ostart[1] <= gsize[1]/2 && ostart[1]+osize[1] > gsize[1]/2) {
+    //   const size_t idENF = (lastI * osize[1] + lastJ)*nz_hat + 0;
+    //   const size_t idENB = (lastI * osize[1] + lastJ)*nz_hat + lastK;
+    //   cudaMemset(data_hat + idENF, 0, 2 * sizeof(Real));
+    //   cudaMemset(data_hat + idENB, 0, 2 * sizeof(Real));
+    // }
+  }
+  else
+  {
+    const Real norm = 1.0 / ( gsize[0]*h * gsize[1]*h * gsize[2]*h );
+    const Real wfac[3] = {
+      2*M_PI/(h*gsize[0]), 2*M_PI/(h*gsize[1]), 2*M_PI/(h*gsize[2])
+    };
+    _poisson_spectral_kernel<<<Dg, Db>>>(data_hat,
+                      gsize[0],  gsize[1],  gsize[2],
+                      osize[0],  osize[1],  osize[2], nz_hat,
+                     ostart[0], ostart[1], ostart[2],
+                       wfac[0],   wfac[1],   wfac[2], norm);
+    //if(ostart[0]==0 && ostart[1]==0 && ostart[2]==0)
+    //  cudaMemset(data_hat, 0, 2 * sizeof(Real));
+  }
   CUDA_Check( cudaDeviceSynchronize() );
 }
-
 
 __global__ void kPos(const int iSzX, const int iSzY, const int iSzZ,
   const int iStX, const int iStY, const int iStZ, const int nGlobX,
@@ -202,58 +267,82 @@ __global__
 void _forcing_filter_kernel( acc_c*const __restrict__ Uhat,
   acc_c*const __restrict__ Vhat, acc_c*const __restrict__ What,
   const long Gx, const long Gy, const long Gz,
-  const long nx, const long ny, const long nz,
-  const long sx, const long sy, const long sz,
+  const long nx, const long ny, const long nz, const long nz_hat,
+  const long sx, const long sy, const long sz, const Real h,
   const Real wx, const Real wy, const Real wz, Real * const reductionBuf)
 {
-  const long i = blockDim.x * blockIdx.x + threadIdx.x;
+  const long k = blockDim.x * blockIdx.x + threadIdx.x;
   const long j = blockDim.y * blockIdx.y + threadIdx.y;
-  const long k = blockDim.z * blockIdx.z + threadIdx.z;
-  Real tke = 0, eps = 0, tkeFiltered = 0;
+  const long i = blockDim.z * blockIdx.z + threadIdx.z;
+  Real tke = 0, eps = 0, tkeFiltered = 0, lIntegral = 0;
 
-  if( i < nx && j < ny && k < nz )
+  if( i < nx && j < ny && k < nz_hat )
   {
+    const long ind = i*nz_hat*ny + j*nz_hat + k;
     const long kx = sx + i, ky = sy + j, kz = sz + k;
     const Real kkx = kx > Gx/2 ? kx-Gx : kx;
     const Real kky = ky > Gy/2 ? ky-Gy : ky;
     const Real kkz = kz > Gz/2 ? kz-Gz : kz;
-    const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
-    const Real k2 = rkx*rkx + rky*rky + rkz*rkz;
+    const Real rkx = kkx * wx, rky = kky * wy, rkz = kkz * wz;
+    const Real k2 = rkx * rkx + rky * rky + rkz * rkz;
     const Real mult = (kz==0) or (kz==Gz/2) ? 1 : 2;
-    const long ind = i*nz*ny + j*nz + k;
-    const Real EU = Uhat[ind][0] * Uhat[ind][0] + Uhat[ind][1] * Uhat[ind][1];
-    const Real EV = Vhat[ind][0] * Vhat[ind][0] + Vhat[ind][1] * Vhat[ind][1];
-    const Real EW = What[ind][0] * What[ind][0] + What[ind][1] * What[ind][1];
-    const Real E = mult/2 * ( EU + EV + EW );
+    //const Real dXfac = 2*std::sin(h * rkx);
+    //const Real dYfac = 2*std::sin(h * rky);
+    //const Real dZfac = 2*std::sin(h * rkz);
+
+    const Real UR = Uhat[ind][0], UI = Uhat[ind][1];
+    const Real VR = Vhat[ind][0], VI = Vhat[ind][1];
+    const Real WR = What[ind][0], WI = What[ind][1];
+    /*
+    const Real dUdYR = - UI * dYfac, dUdYI = UR * dYfac;
+    const Real dUdZR = - UI * dZfac, dUdZI = UR * dZfac;
+    const Real dVdXR = - VI * dXfac, dVdXI = VR * dXfac;
+    const Real dVdZR = - VI * dZfac, dVdZI = VR * dZfac;
+    const Real dWdXR = - WI * dXfac, dWdXI = WR * dXfac;
+    const Real dWdYR = - WI * dYfac, dWdYI = WR * dYfac;
+    const Real OMGXR = dWdYR - dVdZR, OMGXI = dWdYI - dVdZI;
+    const Real OMGYR = dUdZR - dWdXR, OMGYI = dUdZI - dWdXI;
+    const Real OMGZR = dVdXR - dUdYR, OMGZI = dVdXI - dUdYI;
+    */
+    const Real E = mult/2 * (UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
+
     tke = E; // Total kinetic energy
+    //eps = mult/2 * ( OMGXR*OMGXR + OMGXI*OMGXI
+    //               + OMGYR*OMGYR + OMGYI*OMGYI
+    //               + OMGZR*OMGZR + OMGZI*OMGZI);    // Dissipation rate
     eps = k2 * E; // Dissipation rate
-    if (k2 > 0 && k2 <= 2 * 2) tkeFiltered = E;
-    else {
+    lIntegral = (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy length scale
+    if (k2 > 0 && k2 <= 4) {
+      tkeFiltered = E;
+    } else {
       Uhat[ind][0] = 0; Uhat[ind][1] = 0;
       Vhat[ind][0] = 0; Vhat[ind][1] = 0;
       What[ind][0] = 0; What[ind][1] = 0;
     }
   }
 
-#if 1
-  // reduction within same warp: result is summed down to thread 0
-  #pragma unroll
-  for (int offset = warpSize/2; offset > 0; offset /= 2) {
-    tke         = tke         + warpShflDown(tke,         offset);
-    eps         = eps         + warpShflDown(eps,         offset);
-    tkeFiltered = tkeFiltered + warpShflDown(tkeFiltered, offset);
-  }
+  #if 1
+    // reduction within same warp: result is summed down to thread 0
+    #pragma unroll
+    for (int offset = warpSize/2; offset > 0; offset /= 2) {
+      tke         = tke         + warpShflDown(tke,         offset);
+      eps         = eps         + warpShflDown(eps,         offset);
+      tkeFiltered = tkeFiltered + warpShflDown(tkeFiltered, offset);
+      lIntegral   = lIntegral   + warpShflDown(lIntegral,   offset);
+    }
 
-  if (__laneid() == 0) { // thread 0 does the only atomic sum
+    if (__laneid() == 0) { // thread 0 does the only atomic sum
+      atomicAdd(reductionBuf + 0, tke);
+      atomicAdd(reductionBuf + 1, eps);
+      atomicAdd(reductionBuf + 2, tkeFiltered);
+      atomicAdd(reductionBuf + 3, lIntegral);
+    }
+  #else
     atomicAdd(reductionBuf + 0, tke);
     atomicAdd(reductionBuf + 1, eps);
     atomicAdd(reductionBuf + 2, tkeFiltered);
-  }
-#else
-  atomicAdd(reductionBuf + 0, tke);
-  atomicAdd(reductionBuf + 1, eps);
-  atomicAdd(reductionBuf + 2, tkeFiltered);
-#endif
+    atomicAdd(reductionBuf + 3, lIntegral);
+  #endif
 }
 
 
@@ -261,36 +350,56 @@ __global__
 void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
   acc_c*const __restrict__ Vhat, acc_c*const __restrict__ What,
   const long Gx, const long Gy, const long Gz,
-  const long nx, const long ny, const long nz,
+  const long nx, const long ny, const long nz, const long nz_hat,
   const long sx, const long sy, const long sz,
-  const Real wx, const Real wy, const Real wz,
+  const Real wx, const Real wy, const Real wz, const Real h,
   const Real nyquist, const Real nyquist_scaling, Real * const reductionBuf)
 {
-  const long i = blockDim.x * blockIdx.x + threadIdx.x;
+  const long k = blockDim.x * blockIdx.x + threadIdx.x;
   const long j = blockDim.y * blockIdx.y + threadIdx.y;
-  const long k = blockDim.z * blockIdx.z + threadIdx.z;
-  Real tke = 0, eps = 0, tau = 0;
+  const long i = blockDim.z * blockIdx.z + threadIdx.z;
+  Real tke = 0, eps = 0, lInt = 0;
 
-  if( i < nx && j < ny && k < nz )
+  if( i < nx && j < ny && k < nz_hat )
   {
     const long kx = sx + i, ky = sy + j, kz = sz + k;
     const Real kkx = kx > Gx/2 ? kx-Gx : kx;
     const Real kky = ky > Gy/2 ? ky-Gy : ky;
     const Real kkz = kz > Gz/2 ? kz-Gz : kz;
-    const Real rkx = kkx*wx, rky = kky*wy, rkz = kkz*wz;
-    const Real k2 = rkx*rkx + rky*rky + rkz*rkz;
-    const Real ks = std::sqrt(kkx*kkx + kky*kky + kkz*kkz);
+
+    const Real rkx = kkx * wx, rky = kky * wy, rkz = kkz * wz;
+    const Real k2 = rkx * rkx + rky * rky + rkz * rkz;
     const Real mult = (kz==0) or (kz==Gz/2) ? 1 : 2;
-    const long ind = i*nz*ny + j*nz + k;
-    const Real EU = Uhat[ind][0] * Uhat[ind][0] + Uhat[ind][1] * Uhat[ind][1];
-    const Real EV = Vhat[ind][0] * Vhat[ind][0] + Vhat[ind][1] * Vhat[ind][1];
-    const Real EW = What[ind][0] * What[ind][0] + What[ind][1] * What[ind][1];
-    const Real E = mult/2 * ( EU + EV + EW );
+    const long ind = i*nz_hat*ny + j*nz_hat + k;
+
+    const Real dXfac = 2*std::sin(h * rkx);
+    const Real dYfac = 2*std::sin(h * rky);
+    const Real dZfac = 2*std::sin(h * rkz);
+    const Real UR = Uhat[ind][0], UI = Uhat[ind][1];
+    const Real VR = Vhat[ind][0], VI = Vhat[ind][1];
+    const Real WR = What[ind][0], WI = What[ind][1];
+
+    const Real dUdYR = - UI * dYfac, dUdYI = UR * dYfac;
+    const Real dUdZR = - UI * dZfac, dUdZI = UR * dZfac;
+    const Real dVdXR = - VI * dXfac, dVdXI = VR * dXfac;
+    const Real dVdZR = - VI * dZfac, dVdZI = VR * dZfac;
+    const Real dWdXR = - WI * dXfac, dWdXI = WR * dXfac;
+    const Real dWdYR = - WI * dYfac, dWdYI = WR * dYfac;
+    const Real OMGXR = dWdYR - dVdZR, OMGXI = dWdYI - dVdZI;
+    const Real OMGYR = dUdZR - dWdXR, OMGYI = dUdZI - dWdXI;
+    const Real OMGZR = dVdXR - dUdYR, OMGZI = dVdXI - dUdYI;
+    const Real E = mult/2 * (UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
+
     tke = E; // Total kinetic energy
-    eps = k2 * E; // Dissipation rate
-    tau = (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy turnover time
-    if (ks <= nyquist) {
-      const int binID = std::floor(ks * nyquist_scaling);
+    eps = mult/2 * ( OMGXR*OMGXR + OMGXI*OMGXI
+                   + OMGYR*OMGYR + OMGYI*OMGYI
+                   + OMGZR*OMGZR + OMGZI*OMGZI);    // Dissipation rate
+    //eps += k2 * E; // Dissipation rate
+    lInt = (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy length scale
+
+    const long kind = kkx * kkx + kky * kky + kkz * kkz;
+    if (kind < nyquist*nyquist) {
+      const int binID = std::floor(std::sqrt((Real) kind) * nyquist_scaling);
       // reduction buffer here holds also the energy spectrum, shifted by 3
       // to hold also tke, eps and tau
       atomicAdd(reductionBuf + 3 + binID, E);
@@ -299,45 +408,48 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
 
   #pragma unroll
   for (int offset = warpSize/2; offset > 0; offset /= 2) {
-    tke = tke + warpShflDown(tke, offset);
-    eps = eps + warpShflDown(eps, offset);
-    tau = tau + warpShflDown(tau, offset);
+    tke  = tke  + warpShflDown(tke,  offset);
+    eps  = eps  + warpShflDown(eps,  offset);
+    lInt = lInt + warpShflDown(lInt, offset);
   }
 
   if (__laneid() == 0) { // thread 0 does the only atomic sum
     atomicAdd(reductionBuf + 0, tke);
     atomicAdd(reductionBuf + 1, eps);
-    atomicAdd(reductionBuf + 2, tau);
+    atomicAdd(reductionBuf + 2, lInt);
   }
 }
 
 void _compute_HIT_forcing(
   acc_c*const Uhat, acc_c*const Vhat, acc_c*const What,
   const size_t gsize[3], const int osize[3] , const int ostart[3], const Real h,
-  Real & tke, Real & eps, Real & tkeFiltered
+  Real & tke, Real & eps, Real & tkeFiltered, Real & lIntegral
 )
 {
   Real * rdxBuf;
-  cudaMalloc((void**)& rdxBuf, 3 * sizeof(Real));
-  cudaMemset(rdxBuf, 0, 3 * sizeof(Real));
+  cudaMalloc((void**)& rdxBuf, 4 * sizeof(Real));
+  cudaMemset(rdxBuf, 0, 4 * sizeof(Real));
 
   const Real wfac[3] = {
     Real(2*M_PI)/(h*gsize[0]),
     Real(2*M_PI)/(h*gsize[1]),
     Real(2*M_PI)/(h*gsize[2])
   };
-  int blocksInX = std::ceil(osize[0] / 4.);
+  const int nz_hat = gsize[2]/2 + 1;
+  int blocksInX = std::ceil(osize[2] / 4.);
   int blocksInY = std::ceil(osize[1] / 4.);
-  int blocksInZ = std::ceil(osize[2] / 4.);
+  int blocksInZ = std::ceil(osize[0] / 4.);
   dim3 Dg(blocksInX, blocksInY, blocksInZ), Db(4, 4, 4);
+
   _forcing_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What,
-     gsize[0], gsize[1], gsize[2], osize[0],osize[1],osize[2],
-    ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2], rdxBuf);
+     gsize[0], gsize[1], gsize[2], osize[0],osize[1],osize[2], nz_hat,
+    ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2], h, rdxBuf);
 
   CUDA_Check( cudaDeviceSynchronize() );
   cudaMemcpy(&tke,         rdxBuf+0, sizeof(Real), cudaMemcpyDeviceToHost);
   cudaMemcpy(&eps,         rdxBuf+1, sizeof(Real), cudaMemcpyDeviceToHost);
   cudaMemcpy(&tkeFiltered, rdxBuf+2, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&lIntegral,   rdxBuf+3, sizeof(Real), cudaMemcpyDeviceToHost);
   CUDA_Check( cudaDeviceSynchronize() );
   cudaFree(rdxBuf);
 }
@@ -345,12 +457,12 @@ void _compute_HIT_forcing(
 void _compute_HIT_analysis(
   acc_c*const Uhat, acc_c*const Vhat, acc_c*const What,
   const size_t gsize[3], const int osize[3] , const int ostart[3], const Real h,
-  Real & tke, Real & eps, Real & tau, Real * const eSpectrum,
+  Real & tke, Real & eps, Real & lInt, Real * const eSpectrum,
   const size_t nBins, const Real nyquist
 )
 {
   Real * rdxBuf;
-  // single buffer to contain both eps, tke, tau and spectrum
+  // single buffer to contain both eps, tke, lInt and spectrum
   cudaMalloc((void**)& rdxBuf, (3+nBins) * sizeof(Real));
   cudaMemset(rdxBuf, 0, (3+nBins) * sizeof(Real));
 
@@ -359,23 +471,22 @@ void _compute_HIT_analysis(
     Real(2*M_PI)/(h*gsize[1]),
     Real(2*M_PI)/(h*gsize[2])
   };
-  const Real nyquist_scaling = (nyquist-1) / nyquist;
-  int blocksInX = std::ceil(osize[0] / 4.);
+  const int nz_hat = gsize[2]/2 + 1;
+  const Real nyquist_scaling = (nyquist-1) / (Real) nyquist;
+  int blocksInX = std::ceil(osize[2] / 4.);
   int blocksInY = std::ceil(osize[1] / 4.);
-  int blocksInZ = std::ceil(osize[2] / 4.);
+  int blocksInZ = std::ceil(osize[0] / 4.);
   dim3 Dg(blocksInX, blocksInY, blocksInZ), Db(4, 4, 4);
-  _analysis_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What,
-     gsize[0], gsize[1], gsize[2], osize[0],osize[1],osize[2],
-    ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2],
-    nyquist, nyquist_scaling, rdxBuf);
 
-  //if(ostart[0]==0 && ostart[1]==0 && ostart[2]==0)
-  //  cudaMemset(data_hat, 0, 2 * sizeof(Real));
+  _analysis_filter_kernel<<<Dg, Db>>>( Uhat, Vhat, What,
+     gsize[0], gsize[1], gsize[2], osize[0],osize[1],osize[2], nz_hat,
+    ostart[0],ostart[1],ostart[2],  wfac[0], wfac[1], wfac[2],
+    h, nyquist, nyquist_scaling, rdxBuf);
 
   CUDA_Check( cudaDeviceSynchronize() );
-  cudaMemcpy(&tke,      rdxBuf+0, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(&eps,      rdxBuf+1, sizeof(Real), cudaMemcpyDeviceToHost);
-  cudaMemcpy(&tau,      rdxBuf+2, sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&tke,      rdxBuf+0,         sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&eps,      rdxBuf+1,         sizeof(Real), cudaMemcpyDeviceToHost);
+  cudaMemcpy(&lInt,     rdxBuf+2,         sizeof(Real), cudaMemcpyDeviceToHost);
   cudaMemcpy(eSpectrum, rdxBuf+3, nBins * sizeof(Real), cudaMemcpyDeviceToHost);
   CUDA_Check( cudaDeviceSynchronize() );
   cudaFree(rdxBuf);

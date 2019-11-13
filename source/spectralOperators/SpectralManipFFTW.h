@@ -15,6 +15,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class SpectralManipFFTW : public SpectralManip
 {
+  const size_t nz_hat = gsize[2]/2+1;
   ptrdiff_t alloc_local=0;
   ptrdiff_t local_n0=0, local_0_start=0;
   ptrdiff_t local_n1=0, local_1_start=0;

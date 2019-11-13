@@ -391,8 +391,6 @@ void Simulation::setupOperators()
 
   sim.pipeline.push_back(new Analysis(sim));
 
-  //sim.pipeline.push_back(new FadeOut(sim));
-
   if(sim.rank==0) {
     printf("Coordinator/Operator ordering:\n");
     for (size_t c=0; c<sim.pipeline.size(); c++)
