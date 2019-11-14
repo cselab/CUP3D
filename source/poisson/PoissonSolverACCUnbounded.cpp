@@ -83,11 +83,13 @@ PoissonSolverUnbounded::PoissonSolverUnbounded(SimulationData & s) : PoissonSolv
   {
   // compure green function convolution coefficients ...
   initGreen(isize, istart, gsize[0],gsize[1],gsize[2], h, gpu_rhs);
+  CUDA_Check(cudaDeviceSynchronize());
   // ... to fourier space
   accfft_exec_r2c(P, gpu_rhs, (acc_c*) gpu_rhs);
   CUDA_Check(cudaDeviceSynchronize());
   // ... then take only the real part
   realGreen(osize,ostart, gsize[0],gsize[1],gsize[2], h, gpuGhat,gpu_rhs);
+  CUDA_Check(cudaDeviceSynchronize());
   }
 
   data = (Real*) malloc(myN[0]*  myN[1]*(  myN[2] * sizeof(Real)));
@@ -147,7 +149,7 @@ void PoissonSolverUnbounded::cub2padded() const
   int pos[3], dst[3];
   MPI_Cart_coords(m_comm, m_rank, 3, pos);
   memset(fft_rhs, 0, myftNx * gsize[1] * (gsize[2] * sizeof(Real)) );
-  std::vector<MPI_Request> reqs = std::vector<MPI_Request>(m_size*2, MPI_REQUEST_NULL);
+  auto reqs = std::vector<MPI_Request>(m_size*2, MPI_REQUEST_NULL);
   const int m_ind =  pos[0]   * myN[0], m_pos =  s_rank   * szFft[0];
   const int m_nxt = (pos[0]+1)* myN[0], m_end = (s_rank+1)* szFft[0];
   for(int i=0; i<m_size; i++)
@@ -186,7 +188,7 @@ void PoissonSolverUnbounded::padded2cub() const
   int pos[3], dst[3];
   MPI_Cart_coords(m_comm, m_rank, 3, pos);
 
-  std::vector<MPI_Request> reqs = std::vector<MPI_Request>(m_size*2, MPI_REQUEST_NULL);
+  auto reqs = std::vector<MPI_Request>(m_size*2, MPI_REQUEST_NULL);
   const int m_ind =  pos[0]   * myN[0], m_pos =  s_rank   * szFft[0];
   const int m_nxt = (pos[0]+1)* myN[0], m_end = (s_rank+1)* szFft[0];
   for(int i=0; i<m_size; i++)
@@ -224,7 +226,8 @@ void PoissonSolverUnbounded::padded2gpu() const
   {
   #if 1
     cudaMemcpy3DParms p = {};
-    p.srcPos.x=0; p.srcPos.y=0; p.srcPos.z=0; p.dstPos.x=0; p.dstPos.y=0; p.dstPos.z=0;
+    p.srcPos.x=0; p.srcPos.y=0; p.srcPos.z=0;
+    p.dstPos.x=0; p.dstPos.y=0; p.dstPos.z=0;
     p.dstPtr = make_cudaPitchedPtr(gpu_rhs, 2*mz_pad*sizeof(Real), 2*mz_pad, my);
     p.srcPtr = make_cudaPitchedPtr(fft_rhs, szFft[2]*sizeof(Real), szFft[2], szFft[1]);
     p.extent = make_cudaExtent(szFft[2]*sizeof(Real), szFft[1], szFft[0]);
@@ -249,7 +252,8 @@ void PoissonSolverUnbounded::gpu2padded() const
   {
   #if 1
     cudaMemcpy3DParms p = {};
-    p.srcPos.x=0; p.srcPos.y=0; p.srcPos.z=0; p.dstPos.x=0; p.dstPos.y=0; p.dstPos.z=0;
+    p.srcPos.x=0; p.srcPos.y=0; p.srcPos.z=0;
+    p.dstPos.x=0; p.dstPos.y=0; p.dstPos.z=0;
     p.srcPtr = make_cudaPitchedPtr(gpu_rhs, 2*mz_pad*sizeof(Real), 2*mz_pad, my);
     p.dstPtr = make_cudaPitchedPtr(fft_rhs, szFft[2]*sizeof(Real), szFft[2], szFft[1]);
     p.extent = make_cudaExtent(szFft[2]*sizeof(Real), szFft[1], szFft[0]);
