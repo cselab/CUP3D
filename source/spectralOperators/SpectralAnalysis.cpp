@@ -122,6 +122,12 @@ void SpectralAnalysis::run()
 
 void SpectralAnalysis::dump2File(const int nFile) const
 {
+  if(sM->sim.verbose)
+    printf("step:%d time:%e totalKinEn:%e "\
+         "viscousDissip:%e totalDissipRate:%e injectionRate:%e lIntegral:%e\n",
+    sM->sim.step, sM->sim.time, sM->stats.tke, sM->stats.eps,
+    sM->sim.dissipationRate, sM->sim.actualInjectionRate, sM->stats.l_integral);
+
   std::stringstream ssR;
   ssR<<"analysis/spectralAnalysis_"<<std::setfill('0')<<std::setw(9)<<nFile;
   std::ofstream f;

@@ -159,11 +159,11 @@ void initSpectralAnalysisSolver(SimulationData & sim)
     printf("ERROR: spectral analysis functions support all-periodic BCs!\n");
     fflush(0); MPI_Abort(sim.app_comm, 1);
   }
-  //#ifdef _ACCFFT_
+  #ifdef _ACCFFT_
     sim.spectralManip = new SpectralManipACC(sim);
-  //#else
-  //  sim.spectralManip = new SpectralManipFFTW(sim);
-  //#endif
+  #else
+    sim.spectralManip = new SpectralManipFFTW(sim);
+  #endif
 }
 
 SpectralManip* initFFTWSpectralAnalysisSolver(SimulationData & sim)

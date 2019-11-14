@@ -119,7 +119,8 @@ void SpectralManipACC::_compute_analysis()
   const Real normalization = 1.0 / pow2(normalizeFFT);
   for (size_t binID = 0; binID < nBins; binID++) E_msr[binID] *= normalization;
   stats.tke = tke * normalization;
-  stats.eps = eps * 2 * (sim.nu) * normalization;
+  //stats.eps = eps * 2 * (sim.nu) * normalization;
+  stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT * 2 * sim.uniformH());
 
   stats.uprime = std::sqrt(2 * stats.tke / 3);
   stats.lambda = std::sqrt(15 * sim.nu / stats.eps) * stats.uprime;
@@ -234,6 +235,7 @@ void SpectralManipACC::runFwd() const
   cudaStreamSynchronize ( streams->w );
   cufftExecFWD(cufft_fwd, gpu_w, (cufftCmpT*)gpu_w);
   }
+
   sim.stopProfiler();
   sim.startProfiler("SpectralForcing");
 }
@@ -264,6 +266,7 @@ void SpectralManipACC::runBwd() const
   cudaStreamSynchronize ( streams->u );
   cudaStreamSynchronize ( streams->v );
   cudaStreamSynchronize ( streams->w );
+
   sim.stopProfiler();
   sim.startProfiler("SpectralForcing");
 }

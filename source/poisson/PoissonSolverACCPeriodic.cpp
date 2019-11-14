@@ -142,13 +142,11 @@ void PoissonSolverPeriodic::solve_singleNode()
 
   sim.startProfiler("ACCDFT cpu2gpu");
   cudaMemcpy(phi_hat, data, data_size * sizeof(Real), cudaMemcpyHostToDevice);
-  CUDA_Check( cudaDeviceSynchronize() );
   sim.stopProfiler();
 
   // Perform forward FFT
   sim.startProfiler("ACCDFT r2c");
   cufftExecFWD(cufft_fwd, phi_hat, (cufftCmpT*) phi_hat);
-  CUDA_Check( cudaDeviceSynchronize() );
   sim.stopProfiler();
 
   // Spectral solve
@@ -157,18 +155,15 @@ void PoissonSolverPeriodic::solve_singleNode()
   const size_t gsize_T[3] = {gsize[2], gsize[1], gsize[0]};
   _fourier_filter_gpu((acc_c*)phi_hat, gsize_T, osize, ostart, h);
   //_fourier_filter_gpu_transp((cufftCmpT*)phi_hat, gsize, osize, ostart, h);
-  CUDA_Check( cudaDeviceSynchronize() );
   sim.stopProfiler();
 
   // Perform backward FFT
   sim.startProfiler("ACCDFT c2r");
   cufftExecBWD(cufft_bwd, (cufftCmpT*) phi_hat, phi_hat);
-  CUDA_Check( cudaDeviceSynchronize() );
   sim.stopProfiler();
 
   sim.startProfiler("ACCDFT gpu2cpu");
   cudaMemcpy(data, phi_hat, data_size * sizeof(Real), cudaMemcpyDeviceToHost);
-  CUDA_Check( cudaDeviceSynchronize() );
   sim.stopProfiler();
 }
 
