@@ -310,10 +310,13 @@ inline void app_main(
     sim.sim.spectralIC = "fromFile";
     sim.sim.initCondModes = target.mode;
     sim.sim.initCondSpectrum = target.E_mean;
+    const auto nIntegralTime = 20;
     const Real tau_integral = target.tInteg;
     const Real tInit = LES_HIT_RL_INIT_T * target.tInteg;
-    printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f\n",
-           tInit, target.eps, target.nu, target.Re_lam);
+    const Real timeUpdateLES = HTstats.getKolmogorovT(target.eps, target.nu)/10;
+    const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
+    printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f. Max %d action turns per simulation.\n",
+           tInit, target.eps, target.nu, target.Re_lam, maxNumUpdatesPerSim);
     //const Real tau_eta       = HTstats.getKolmogorovT(eps, nu);
 
     while(true) { // initialization loop
@@ -337,7 +340,6 @@ inline void app_main(
     double time = 0;
     double avgReward  = 0;
     bool policyFailed = false;
-    const Real timeUpdateLES = HTstats.getKolmogorovT(target.eps, target.nu)/2;
     sim.sim.sgs = "RLSM";
 
     #ifdef SGSRL_STATE_SCALING
@@ -348,8 +350,6 @@ inline void app_main(
       const Real scaleGrads = std::sqrt(target.nu / target.eps);
     #endif
 
-    const auto nIntegralTime = 10;
-    const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
     cubismup3d::SGS_RL updateLES(sim.sim, comm, nAgentPerBlock);
 
     while (true) //simulation loop
