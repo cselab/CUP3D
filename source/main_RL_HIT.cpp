@@ -233,7 +233,7 @@ inline void app_main(
     fflush(0); MPI_Abort(mpicom, 1);
   }
   int rank; MPI_Comm_rank(mpicom, &rank);
-  int wrank; MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
+  //int wrank; MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
 
   if (rank==0) {
     char hostname[1024];
@@ -256,11 +256,7 @@ inline void app_main(
   cubismup3d::Simulation sim(mpicom, parser);
   TargetData target(parser("-initCondFileTokens").asString());
 
-  #ifdef SGSRL_STATE_INVARIANTS
-    const int nActions = 1, nStates = 5;
-  #else
-    const int nActions = 1, nStates = 9;
-  #endif
+  const int nActions = 1, nStates = 9;
   // BIG TROUBLE WITH NAGENTS!
   // If every grid point is an agent: probably will allocate too much memory
   // and crash because smarties allocates a trajectory for each point
@@ -281,7 +277,7 @@ inline void app_main(
 
   comm->finalizeProblemDescription(); // required for thread safety
 
-  if( comm->isTraining() && wrank != 1) { // disable all dumping.
+  if( comm->isTraining() ) { // disable all dumping. //  && wrank != 1
     sim.sim.b3Ddump = false; sim.sim.muteAll  = true;
     sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
     sim.sim.verbose = false; sim.sim.saveTime = 0;
@@ -294,8 +290,8 @@ inline void app_main(
   while(true) // train loop
   {
     // avoid too many unneeded folders:
-    if(sim_id == 0 || not comm->isTraining() || wrank == 1) {
-      sprintf(dirname, "run_%08u/", sim_id); // by fast simulations when train
+    if(sim_id == 0 || not comm->isTraining()) { //  || wrank == 1
+      sprintf(dirname, "run_%08u/", sim_id);
       printf("Starting a new sim in directory %s\n", dirname);
       mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
       chdir(dirname);
@@ -337,16 +333,11 @@ inline void app_main(
     double time = 0;
     double avgReward  = 0;
     bool policyFailed = false;
-    const Real timeUpdateLES = HTstats.getKolmogorovT(target.eps, target.nu)/2;
+    const Real timeUpdateLES = HTstats.getKolmogorovT(target.epsVis,target.nu)/2;
     sim.sim.sgs = "RLSM";
 
-    #ifdef SGSRL_STATE_SCALING
-      Real scaleGrads = -1;
-      updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
-    #else
-      //const Real scaleGrads = HTstats.tke /  HTstats.eps;
-      const Real scaleGrads = std::sqrt(target.nu / target.eps);
-    #endif
+      //Real scaleGrads = -1;
+      //updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
 
     const auto nIntegralTime = 10;
     const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
@@ -356,7 +347,7 @@ inline void app_main(
     {
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
-      updateLES.run(sim.sim.dt, step==0, timeOut, scaleGrads, avgReward);
+      updateLES.run(sim.sim.dt, step==0, timeOut, target.tKinEn, target.epsVis, avgReward);
       if(timeOut) break;
 
       while ( time < (step+1)*timeUpdateLES )
@@ -366,9 +357,7 @@ inline void app_main(
         // Average reward over integral time:
         target.updateReward(HTstats, dt / tau_integral, avgReward);
 
-        #ifdef SGSRL_STATE_SCALING
-          updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
-        #endif
+        //updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
 
         if ( sim.timestep( dt ) ) { // if true sim has ended
           printf("Set -tend 0. This file decides the length of train sim.\n");
@@ -393,7 +382,7 @@ inline void app_main(
       }
     } // simulation is done
 
-    if( not comm->isTraining() || wrank == 1 ) {
+    if(not comm->isTraining()) { //  || wrank == 1
       chdir("../"); // matches previous if
     }
     sim_id++;

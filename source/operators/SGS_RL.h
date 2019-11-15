@@ -32,7 +32,7 @@ public:
   SGS_RL(SimulationData&s, smarties::Communicator*_comm, const int nAgentsPB);
 
   void run(const double dt, const bool RLinit, const bool RLover,
-           const Real stateScaling, const Real collectiveReward);
+           const Real eps, const Real tke, const Real collectiveReward);
   void operator()(const double dt) override {}
 
   std::string getName() { return "SGS_RL"; }

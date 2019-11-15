@@ -69,11 +69,9 @@ struct filteredQuatities
 //                                                                           M_11, M_12,
 //                                                                                 M_22}
 // Returns a symmetric matrix.
-inline std::vector<Real> symProd(const std::vector<Real> & mat1,
-                                 const std::vector<Real> & mat2)
-{
-  assert(mat1.size()==6 && mat2.size()==6);
-  std::vector<Real> ret(6, 0);
+inline std::array<Real,6> symProd(const std::array<Real,6> & mat1,
+                                  const std::array<Real,6> & mat2) {
+  std::array<Real,6> ret;
   ret[0] = mat1[0]*mat2[0] + mat1[1]*mat2[1] + mat1[2]*mat2[2];
   ret[1] = mat1[0]*mat2[1] + mat1[1]*mat2[3] + mat1[2]*mat2[4];
   ret[2] = mat1[0]*mat2[2] + mat1[1]*mat2[4] + mat1[2]*mat2[5];
@@ -84,11 +82,10 @@ inline std::vector<Real> symProd(const std::vector<Real> & mat1,
 }
 // Product of two anti symmetric matrices stored as 1D vector with 3 elts (M_01, M_02, M_12)
 // Returns a symmetric matrix.
-inline std::vector<Real> antiSymProd(const std::vector<Real> & mat1,
-                                     const std::vector<Real> & mat2)
+inline std::array<Real,6> antiSymProd(const std::array<Real,3> & mat1,
+                                      const std::array<Real,3> & mat2)
 {
-  assert(mat1.size()==3 && mat2.size()==3);
-  std::vector<Real> ret(6, 0);
+  std::array<Real,6> ret;
   ret[0] = - mat1[0]*mat2[0] - mat1[1]*mat2[1];
   ret[1] = - mat1[1]*mat2[2];
   ret[2] =   mat1[0]*mat2[2];
@@ -98,75 +95,13 @@ inline std::vector<Real> antiSymProd(const std::vector<Real> & mat1,
   return ret;
 }
 // Returns the Tr[mat1*mat2] with mat1 and mat2 symmetric matrices stored as 1D vector.
-inline Real traceOfSymProd(const std::vector<Real> & mat1,
-                           const std::vector<Real> & mat2)
+inline Real traceOfSymProd(const std::array<Real,6> & mat1,
+                           const std::array<Real,6> & mat2)
 {
-  assert(mat1.size()==6 && mat2.size()==6);
   Real ret =   mat1[0]*mat2[0] +   mat1[3]*mat2[3]  +   mat1[5]*mat2[5]
            + 2*mat1[1]*mat2[1] + 2*mat1[2]*mat2[2]  + 2*mat1[4]*mat2[4];
   return ret;
 }
-
-inline std::vector<Real> flowInvariants(
-  const Real d1udx1, const Real d1vdx1, const Real d1wdx1,
-  const Real d1udy1, const Real d1vdy1, const Real d1wdy1,
-  const Real d1udz1, const Real d1vdz1, const Real d1wdz1)
-{
-  const std::vector<Real> S = {
-    d1udx1, (d1vdx1 + d1udy1)/2, (d1wdx1 + d1udz1)/2,
-    d1vdy1, (d1wdy1 + d1vdz1)/2, d1wdz1 };
-
-  const std::vector<Real> R = {
-    (d1vdx1 - d1udy1)/2, (d1wdx1 - d1udz1)/2, (d1wdy1 - d1vdz1)/2};
-
-  const std::vector<Real> S2  = symProd(S, S);
-  const std::vector<Real> R2  = antiSymProd(R, R);
-  //const std::vector<Real> R2S = symProd(R2, S);
-  std::vector<Real> ret(5, 0);
-  const auto sqrtDist = [](const Real val) {
-    return val>=0? std::sqrt(val) : -std::sqrt(-val);
-  };
-  const auto frthDist = [](const Real val) {
-    return val>=0? std::sqrt(std::sqrt(val)) : -std::sqrt(std::sqrt(-val));
-  };
-  ret[0] = sqrtDist(S2[0] + S2[3] + S2[5]);  // Tr(S^2)
-  ret[1] = sqrtDist(R2[0] + R2[3] + R2[5]);  // Tr(R^2)
-  ret[2] = std::cbrt(traceOfSymProd(S2, S)); // Tr(S^3)
-  ret[3] = std::cbrt(traceOfSymProd(R2, S)); // Tr(R^2.S)
-  ret[4] = frthDist(traceOfSymProd(R2, S2)); // Tr(R^2.S^2)
-  return ret;
-}
-
-inline std::vector<double> getState_uniform(Lab& lab,
-                                     const int ix, const int iy, const int iz,
-                                     const Real h, const Real scaleGrads)
-{
-  //const FluidElement &L  = lab(ix, iy, iz);
-  const FluidElement &LW = lab(ix - 1, iy, iz),
-                     &LE = lab(ix + 1, iy, iz);
-  const FluidElement &LS = lab(ix, iy - 1, iz),
-                     &LN = lab(ix, iy + 1, iz);
-  const FluidElement &LF = lab(ix, iy, iz - 1),
-                     &LB = lab(ix, iy, iz + 1);
-
-  const Real d1udx1= LE.u-LW.u, d1vdx1= LE.v-LW.v, d1wdx1= LE.w-LW.w;
-  const Real d1udy1= LN.u-LS.u, d1vdy1= LN.v-LS.v, d1wdy1= LN.w-LS.w;
-  const Real d1udz1= LB.u-LF.u, d1vdz1= LB.v-LF.v, d1wdz1= LB.w-LF.w;
-  const Real fac = scaleGrads / (2*h);
-  #ifdef SGSRL_STATE_INVARIANTS
-  const std::vector<double> ret =
-    flowInvariants(d1udx1 * fac, d1vdx1 * fac, d1wdx1 * fac,
-                   d1udy1 * fac, d1vdy1 * fac, d1wdy1 * fac,
-                   d1udz1 * fac, d1vdz1 * fac, d1wdz1 * fac);
-  #else
-  const std::vector<double> ret = {d1udx1 * fac, d1vdx1 * fac, d1wdx1 * fac,
-                                   d1udy1 * fac, d1vdy1 * fac, d1wdy1 * fac,
-                                   d1udz1 * fac, d1vdz1 * fac, d1wdz1 * fac};
-  #endif
-  return ret;
-}
-
-
 
 inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
                                   const int ix, const int iy, const int iz)
@@ -253,15 +188,93 @@ class KernelSGS_RL
  private:
   const rlApi_t& sendStateRecvAct;
   const locRewF_t& computeNextLocalRew;
-  const Real scaleGrads;
+  const Real eps, tke, h;
+  // const Real scaleL = std::pow(tke, 1.5) / eps; [L]
+  const Real scalVel = 1 / std::sqrt(tke); // [T/L]
+  const Real scalGrad = tke / eps / (2*h); // [T] * finite differences factor
+  const Real scalLap = std::pow(tke, 2.5) / std::pow(eps,2) / (h*h); // [TL]
+
+  Real sqrtDist(const Real val) const {
+    return val>=0? std::sqrt(val) : -std::sqrt(-val);
+  };
+  Real frthDist(const Real val) const {
+    return val>=0? std::sqrt(std::sqrt(val)) : -std::sqrt(std::sqrt(-val));
+  };
+
+  std::array<Real,5> popeInvariants(
+    const Real d1udx1, const Real d1vdx1, const Real d1wdx1,
+    const Real d1udy1, const Real d1vdy1, const Real d1wdy1,
+    const Real d1udz1, const Real d1vdz1, const Real d1wdz1) const
+  {
+    const std::array<Real,6> S = {
+      d1udx1, (d1vdx1 + d1udy1)/2, (d1wdx1 + d1udz1)/2,
+      d1vdy1, (d1wdy1 + d1vdz1)/2, d1wdz1 };
+
+    const std::array<Real,3> R = {
+      (d1vdx1 - d1udy1)/2, (d1wdx1 - d1udz1)/2, (d1wdy1 - d1vdz1)/2};
+
+    const std::array<Real,6> S2  = symProd(S, S);
+    const std::array<Real,6> R2  = antiSymProd(R, R);
+    //const std::vector<Real> R2S = symProd(R2, S);
+    std::array<Real,5> ret;
+
+    ret[0] = sqrtDist(S2[0] + S2[3] + S2[5]);  // Tr(S^2)
+    ret[1] = sqrtDist(R2[0] + R2[3] + R2[5]);  // Tr(R^2)
+    ret[2] = std::cbrt(traceOfSymProd(S2, S)); // Tr(S^3)
+    ret[3] = std::cbrt(traceOfSymProd(R2, S)); // Tr(R^2.S)
+    ret[4] = frthDist(traceOfSymProd(R2, S2)); // Tr(R^2.S^2)
+
+    return ret;
+  }
+
+  std::array<Real,3> mainMatInvariants(
+    const Real xx, const Real xy, const Real xz,
+    const Real yx, const Real yy, const Real yz,
+    const Real zx, const Real zy, const Real zz) const
+  {
+    const Real I1 = xx + yy + zz; // Tr(Mat)
+    // ( Tr(Mat)^2 - Tr(Mat^2) ) / 2:
+    const Real I2 = xx*yy + yy*zz + xx*zz - xy*yx - yz*zy - xz*zx;
+    // Det(Mat):
+    const Real I3 = xy*yz*zx + xz*yx*zy + xx*yy*zz
+                  - xz*yy*zx - xx*yz*zy - xy*yx*zz;
+    return {I1, sqrtDist(I2), std::cbrt(I3)};
+  }
+
+  std::vector<double> getState_uniform(Lab& lab,
+                                 const int ix, const int iy, const int iz) const
+  {
+    const FluidElement &L  = lab(ix, iy, iz);
+    const FluidElement &LW = lab(ix - 1, iy, iz), &LE = lab(ix + 1, iy, iz);
+    const FluidElement &LS = lab(ix, iy - 1, iz), &LN = lab(ix, iy + 1, iz);
+    const FluidElement &LF = lab(ix, iy, iz - 1), &LB = lab(ix, iy, iz + 1);
+
+    const Real d1udx = scalGrad*(LE.u-LW.u), d2udx = scalLap*(LN.u+LS.u-L.u*6);
+    const Real d1vdx = scalGrad*(LE.v-LW.v), d2vdx = scalLap*(LN.v+LS.v-L.v*6);
+    const Real d1wdx = scalGrad*(LE.w-LW.w), d2wdx = scalLap*(LN.w+LS.w-L.w*6);
+    const Real d1udy = scalGrad*(LN.u-LS.u), d2udy = scalLap*(LE.u+LW.u-L.u*2);
+    const Real d1vdy = scalGrad*(LN.v-LS.v), d2vdy = scalLap*(LE.v+LW.v-L.v*2);
+    const Real d1wdy = scalGrad*(LN.w-LS.w), d2wdy = scalLap*(LE.w+LW.w-L.w*2);
+    const Real d1udz = scalGrad*(LB.u-LF.u), d2udz = scalLap*(LF.u+LB.u-L.u*2);
+    const Real d1vdz = scalGrad*(LB.v-LF.v), d2vdz = scalLap*(LF.v+LB.v-L.v*2);
+    const Real d1wdz = scalGrad*(LB.w-LF.w), d2wdz = scalLap*(LF.w+LB.w-L.w*2);
+    const Real S0 = scalVel * std::sqrt(L.u*L.u + L.v*L.v + L.w*L.w);
+    const std::array<double,5> S1 = popeInvariants(d1udx, d1vdx, d1wdx,
+                                                  d1udy, d1vdy, d1wdy,
+                                                  d1udz, d1vdz, d1wdz);
+    const std::array<double,3> S2 = mainMatInvariants(d2udx, d2vdx, d2wdx,
+                                                     d2udy, d2vdy, d2wdy,
+                                                     d2udz, d2vdz, d2wdz);
+    return {S0, S1[0], S1[1], S1[2], S1[3], S1[4], S2[0], S2[1], S2[2]};
+  }
 
  public:
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  //const StencilInfo stencil{-1,-1,-1, 2, 2, 2, false, {FE_U,FE_V,FE_W}};
-  const StencilInfo stencil = StencilInfo(-2,-2,-2, 3,3,3, true, {0,1,2,3});
+  const StencilInfo stencil{-1,-1,-1, 2, 2, 2, false, {FE_U,FE_V,FE_W}};
+  //const StencilInfo stencil = StencilInfo(-2,-2,-2, 3,3,3, true, {0,1,2,3});
 
-  KernelSGS_RL(const rlApi_t& api, const locRewF_t& lRew, const Real _scaleG) :
-    sendStateRecvAct(api), computeNextLocalRew(lRew), scaleGrads(_scaleG) {}
+  KernelSGS_RL(rlApi_t& api, locRewF_t& lRew, Real _eps, Real _tke) :
+    sendStateRecvAct(api), computeNextLocalRew(lRew), eps(_eps), tke(_tke) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
@@ -308,7 +321,7 @@ SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
 }
 
 void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
-                 const Real stateScaling, const Real collectiveReward)
+                 const Real eps, const Real tke, const Real collectiveReward)
 {
   sim.startProfiler("SGS_RL");
   smarties::Communicator & comm = * commPtr;
@@ -367,7 +380,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                                 std::fabs(germano[4])+std::fabs(germano[5]))/9;
   };
 
-  const KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, stateScaling);
+  const KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, eps, tke);
 
   compute<KernelSGS_RL>(K_SGS_RL);
   sim.stopProfiler();
