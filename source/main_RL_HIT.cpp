@@ -21,7 +21,9 @@
 #include <sstream>
 
 #define FREQ_UPDATE 1
-#define LES_HIT_RL_INIT_T 1
+#define LES_RL_INIT_T 5
+#define LES_RL_N_TSIM 15
+#define LES_RL_FREQ_A 10
 //#define SGSRL_STATE_SCALING
 
 using Real = cubismup3d::Real;
@@ -233,7 +235,7 @@ inline void app_main(
     fflush(0); MPI_Abort(mpicom, 1);
   }
   int rank; MPI_Comm_rank(mpicom, &rank);
-  int wrank; MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
+  //int wrank; MPI_Comm_rank(MPI_COMM_WORLD, &wrank);
 
   if (rank==0) {
     char hostname[1024];
@@ -256,11 +258,7 @@ inline void app_main(
   cubismup3d::Simulation sim(mpicom, parser);
   TargetData target(parser("-initCondFileTokens").asString());
 
-  #ifdef SGSRL_STATE_INVARIANTS
-    const int nActions = 1, nStates = 5;
-  #else
-    const int nActions = 1, nStates = 9;
-  #endif
+  const int nActions = 1, nStates = 11;
   // BIG TROUBLE WITH NAGENTS!
   // If every grid point is an agent: probably will allocate too much memory
   // and crash because smarties allocates a trajectory for each point
@@ -275,13 +273,13 @@ inline void app_main(
   comm->setStateActionDims(nStates, nActions);
   comm->setNumAgents(nAgents + nThreadSafetyAgents);
 
-  const std::vector<double> lower_act_bound{0.04}, upper_act_bound{0.06};
+  const std::vector<double> lower_act_bound{0.03}, upper_act_bound{0.05};
   comm->setActionScales(upper_act_bound, lower_act_bound, false);
   comm->disableDataTrackingForAgents(nAgents, nAgents + nThreadSafetyAgents);
 
   comm->finalizeProblemDescription(); // required for thread safety
 
-  if( comm->isTraining() && wrank != 1) { // disable all dumping.
+  if( comm->isTraining() ) { // disable all dumping. //  && wrank != 1
     sim.sim.b3Ddump = false; sim.sim.muteAll  = true;
     sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
     sim.sim.verbose = false; sim.sim.saveTime = 0;
@@ -294,8 +292,8 @@ inline void app_main(
   while(true) // train loop
   {
     // avoid too many unneeded folders:
-    if(sim_id == 0 || not comm->isTraining() || wrank == 1) {
-      sprintf(dirname, "run_%08u/", sim_id); // by fast simulations when train
+    if(sim_id == 0 || not comm->isTraining()) { //  || wrank == 1
+      sprintf(dirname, "run_%08u/", sim_id);
       printf("Starting a new sim in directory %s\n", dirname);
       mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
       chdir(dirname);
@@ -310,14 +308,13 @@ inline void app_main(
     sim.sim.spectralIC = "fromFile";
     sim.sim.initCondModes = target.mode;
     sim.sim.initCondSpectrum = target.E_mean;
-    const auto nIntegralTime = 20;
     const Real tau_integral = target.tInteg;
-    const Real tInit = LES_HIT_RL_INIT_T * target.tInteg;
-    const Real timeUpdateLES = HTstats.getKolmogorovT(target.eps, target.nu)/10;
-    const int maxNumUpdatesPerSim= nIntegralTime * tau_integral / timeUpdateLES;
+    const Real tInit = LES_RL_INIT_T * target.tInteg;
+    const Real tau_eta = HTstats.getKolmogorovT(target.epsVis, target.nu);
+    const Real timeUpdateLES = tau_eta / LES_RL_FREQ_A;
+    const int maxNumUpdatesPerSim= LES_RL_N_TSIM * tau_integral / timeUpdateLES;
     printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f. Max %d action turns per simulation.\n",
            tInit, target.eps, target.nu, target.Re_lam, maxNumUpdatesPerSim);
-    //const Real tau_eta       = HTstats.getKolmogorovT(eps, nu);
 
     while(true) { // initialization loop
       sim.reset();
@@ -342,13 +339,8 @@ inline void app_main(
     bool policyFailed = false;
     sim.sim.sgs = "RLSM";
 
-    #ifdef SGSRL_STATE_SCALING
-      Real scaleGrads = -1;
-      updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
-    #else
-      //const Real scaleGrads = HTstats.tke /  HTstats.eps;
-      const Real scaleGrads = std::sqrt(target.nu / target.eps);
-    #endif
+      //Real scaleGrads = -1;
+      //updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
 
     cubismup3d::SGS_RL updateLES(sim.sim, comm, nAgentPerBlock);
 
@@ -356,7 +348,7 @@ inline void app_main(
     {
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
-      updateLES.run(sim.sim.dt, step==0, timeOut, scaleGrads, avgReward);
+      updateLES.run(sim.sim.dt, step==0, timeOut, target.tKinEn, target.epsVis, avgReward);
       if(timeOut) break;
 
       while ( time < (step+1)*timeUpdateLES )
@@ -366,9 +358,7 @@ inline void app_main(
         // Average reward over integral time:
         target.updateReward(HTstats, dt / tau_integral, avgReward);
 
-        #ifdef SGSRL_STATE_SCALING
-          updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
-        #endif
+        //updateGradScaling(sim.sim, HTstats, timeUpdateLES, scaleGrads);
 
         if ( sim.timestep( dt ) ) { // if true sim has ended
           printf("Set -tend 0. This file decides the length of train sim.\n");
@@ -393,7 +383,7 @@ inline void app_main(
       }
     } // simulation is done
 
-    if( not comm->isTraining() || wrank == 1 ) {
+    if(not comm->isTraining()) { //  || wrank == 1
       chdir("../"); // matches previous if
     }
     sim_id++;
@@ -404,6 +394,8 @@ int main(int argc, char**argv)
 {
   smarties::Engine e(argc, argv);
   if( e.parse() ) return 1;
+  // print only one agent per simulation:
+  e.setIsLoggingAllData(2);
   e.run( app_main );
   return 0;
 }
