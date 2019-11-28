@@ -14,69 +14,6 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-struct ActionInterpolator
-{
-  const int NX, NY, NZ;
-  static constexpr int NB = CUP_BLOCK_SIZE;
-
-  std::vector<std::vector<std::vector<double>>> actions =
-    std::vector<std::vector<std::vector<double>>> (
-      NZ, std::vector<std::vector<double>>(NY, std::vector<double>(NX, 0) ) );
-
-  ActionInterpolator(int _NX, int _NY, int _NZ) : NX(_NX), NY(_NY), NZ(_NZ)
-  {
-  }
-
-  double operator()(const int bix, const int biy, const int biz,
-    const int ix, const int iy, const int iz) const
-  {
-    // linear interpolation betwen element's block (bix, biy, biz) and second
-    // nearest. figure out which from element's index (ix, iy, iz) in block:
-    const int nbix = ix < NB/2 ? bix - 1 : bix + 1;
-    const int nbiy = iy < NB/2 ? biy - 1 : biy + 1;
-    const int nbiz = iz < NB/2 ? biz - 1 : biz + 1;
-    // distance from second nearest block along its direction:
-    const Real dist_nbix = ix < NB/2 ? NB/2 + ix + 0.5 : 3*NB/2 - ix - 0.5;
-    const Real dist_nbiy = iy < NB/2 ? NB/2 + iy + 0.5 : 3*NB/2 - iy - 0.5;
-    const Real dist_nbiz = iz < NB/2 ? NB/2 + iz + 0.5 : 3*NB/2 - iz - 0.5;
-    // distance from block's center:
-    const Real dist_bix = std::fabs(ix + 0.5 - NB/2);
-    const Real dist_biy = std::fabs(iy + 0.5 - NB/2);
-    const Real dist_biz = std::fabs(iz + 0.5 - NB/2);
-
-    double weighted_sum_act = 0;
-    double sum_acts_weights = 0;
-    for(int z = 0; z < 2; ++z) // 0 is current block, 1 is nearest along z, y, x
-      for(int y = 0; y < 2; ++y)
-        for(int x = 0; x < 2; ++x) {
-          const Real distx = x? dist_nbix : dist_bix;
-          const Real disty = y? dist_nbiy : dist_biy;
-          const Real distz = z? dist_nbiz : dist_biz;
-          const Real act = action(x? nbix : bix, y? nbiy : biy, z? nbiz : biz);
-          const Real dist = std::sqrt(distx*distx + disty*disty + distz*distz);
-          const Real weight = std::max( (NB - dist)/NB, (Real) 0);
-          weighted_sum_act += act * weight;
-          sum_acts_weights += weight;
-        }
-    //return sum_acts_weights;
-    return weighted_sum_act / std::max(sum_acts_weights, (double) 1e-16);
-  }
-
-  void set(const double act, const int bix, const int biy, const int biz)
-  {
-    action(bix, biy, biz) = act;
-  }
-
-  const double & action(int bix, int biy, int biz) const
-  {
-    return actions[(biz+NZ) % NZ][(biy+NY) % NY][(bix+NX) % NX];
-  }
-  double & action(int bix, int biy, int biz)
-  {
-    return actions[(biz+NZ) % NZ][(biy+NY) % NY][(bix+NX) % NX];
-  }
-};
-
 inline Real facFilter(const int i, const int j, const int k)
 {
   if (std::abs(i) + std::abs(j) + std::abs(k) == 3)         // Corner cells
@@ -133,8 +70,7 @@ struct filteredQuatities
 //                                                                                 M_22}
 // Returns a symmetric matrix.
 inline std::array<Real,6> symProd(const std::array<Real,6> & mat1,
-                                  const std::array<Real,6> & mat2)
-{
+                                  const std::array<Real,6> & mat2) {
   std::array<Real,6> ret;
   ret[0] = mat1[0]*mat2[0] + mat1[1]*mat2[1] + mat1[2]*mat2[2];
   ret[1] = mat1[0]*mat2[1] + mat1[1]*mat2[3] + mat1[2]*mat2[4];
@@ -242,7 +178,9 @@ inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
   return ret;
 }
 
-using rlApi_t = std::function<Real(const std::vector<double>&, const size_t)>;
+using rlApi_t = std::function<Real(const std::vector<double>, const double,
+                                   const size_t, const size_t,
+                                   const int, const int, const int)>;
 using locRewF_t = std::function<void(const size_t blockID, Lab & lab)>;
 
 class KernelSGS_RL
@@ -250,7 +188,6 @@ class KernelSGS_RL
  private:
   const rlApi_t& sendStateRecvAct;
   const locRewF_t& computeNextLocalRew;
-  ActionInterpolator & actInterp;
   const Real eps, tke, nu, dt_nonDim;
   const Real invEta = std::pow(eps/(nu*nu*nu), 0.25);
   // const Real scaleL = std::pow(tke, 1.5) / eps; [L]
@@ -305,7 +242,6 @@ class KernelSGS_RL
     return {I1, sqrtDist(I2), std::cbrt(I3)};
   }
 
-  template <typename Lab>
   std::vector<double> getState_uniform(Lab& lab, const Real h,
         const Real h_nonDim, const int ix, const int iy, const int iz) const
   {
@@ -340,9 +276,8 @@ class KernelSGS_RL
   const StencilInfo stencil{-1,-1,-1, 2, 2, 2, false, {FE_U,FE_V,FE_W}};
   //const StencilInfo stencil = StencilInfo(-2,-2,-2, 3,3,3, true, {0,1,2,3});
 
-  KernelSGS_RL(const rlApi_t& api, const locRewF_t& lRew,
-        ActionInterpolator& interp, Real _eps, Real _tke, Real _nu, Real _dt) :
-        sendStateRecvAct(api), computeNextLocalRew(lRew), actInterp(interp),
+  KernelSGS_RL(const rlApi_t& api, const locRewF_t& lRew, Real _eps, Real _tke,
+        Real _nu, Real _dt) : sendStateRecvAct(api), computeNextLocalRew(lRew),
         eps(_eps), tke(_tke), nu(_nu), dt_nonDim(_dt * eps / tke) {}
 
   template <typename Lab, typename BlockType>
@@ -363,36 +298,6 @@ class KernelSGS_RL
     }
     //computeNextLocalRew(blockID, lab);
   }
-
-  void state_center(const BlockInfo& info)
-  {
-    FluidBlock & o = * (FluidBlock *) info.ptrBlock;
-    // FD coefficients for first and second derivative
-    const Real h = info.h_gridpoint, h_nonDim = h * invEta;
-    const int idx = CUP_BLOCK_SIZE/2 - 1, ipx = CUP_BLOCK_SIZE/2;
-    std::vector<double> avgState(11, 0);
-    const double factor = 1.0 / 8;
-    for (int iz = idx; iz <= ipx; ++iz)
-    for (int iy = idx; iy <= ipx; ++iy)
-    for (int ix = idx; ix <= ipx; ++ix) {
-      const auto state = getState_uniform(o, h, h_nonDim, ix, iy, iz);
-      for (int k = 0; k < 11; ++k) avgState[k] += factor * state[k];
-      // LES coef can be stored in chi as long as we do not have obstacles
-      // otherwise we will have to figure out smth
-      // we could compute a local reward here, place as second arg
-    }
-    actInterp.set(sendStateRecvAct(avgState, info.blockID),
-      info.index[0], info.index[1], info.index[2]);
-  }
-
-  void apply_actions(const BlockInfo& info) const
-  {
-    FluidBlock & o = * (FluidBlock *) info.ptrBlock;
-    for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
-    for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
-    for (int ix = 0; ix < FluidBlock::sizeX; ++ix)
-      o(ix,iy,iz).chi = actInterp(info.index[0], info.index[1], info.index[2], ix, iy, iz);
-  }
 };
 
 SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
@@ -402,7 +307,6 @@ SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
   // TODO relying on chi field does not work is obstacles are present
   // TODO : make sure there are no agents on the same grid point if nAgentsPB>1
   assert(nAgentsPB == 1); // TODO
-
   std::mt19937& gen = commPtr->getPRNG();
   const std::vector<BlockInfo>& myInfo = sim.vInfo();
   std::uniform_int_distribution<int> distX(0, FluidBlock::sizeX-1);
@@ -425,32 +329,45 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
 {
   sim.startProfiler("SGS_RL");
   smarties::Communicator & comm = * commPtr;
-  //const size_t nBlocks = sim.vInfo().size();
+  const size_t nBlocks = sim.vInfo().size();
   std::vector<double> nextlocRewards(localRewards.size(), 0);
-  ActionInterpolator actInterp( sim.grid->getResidentBlocksPerDimension(2),
-                                sim.grid->getResidentBlocksPerDimension(1),
-                                sim.grid->getResidentBlocksPerDimension(0) );
-
-
   // one element per block is a proper agent: will add seq to train data
   // other are nThreads and are only there for thread safety
   // states get overwritten
 
-  const rlApi_t Finit = [&](const std::vector<double>&S, const size_t blockID)
+  const rlApi_t Finit = [&](const std::vector<double>&S, const double localRew,
+                            const size_t blockID, const size_t threadID,
+                            const int ix,const int iy,const int iz)
   {
-    comm.sendInitState(S, blockID);
-    return comm.recvAction(blockID)[0];
+    const bool bAgent = ix == agentsIDX[blockID] &&
+                        iy == agentsIDY[blockID] &&
+                        iz == agentsIDZ[blockID];
+    const size_t agentID = bAgent? blockID : nBlocks + threadID;
+    comm.sendInitState(S, agentID);
+    return comm.recvAction(agentID)[0];
   };
-  const rlApi_t Fcont = [&](const std::vector<double>&S, const size_t blockID)
+  const rlApi_t Fcont = [&](const std::vector<double>&S, const double localRew,
+                            const size_t blockID, const size_t threadID,
+                            const int ix,const int iy,const int iz)
   {
+    const bool bAgent = ix == agentsIDX[blockID] &&
+                        iy == agentsIDY[blockID] &&
+                        iz == agentsIDZ[blockID];
+    const size_t agentID = bAgent? blockID : nBlocks + threadID;
     const Real R = collectiveReward + localRewards[blockID];
-    comm.sendState(S, R, blockID);
-    return comm.recvAction(blockID)[0];
+    comm.sendState(S, R, agentID);
+    return comm.recvAction(agentID)[0];
   };
-  const rlApi_t Flast = [&](const std::vector<double>&S, const size_t blockID)
+  const rlApi_t Flast = [&](const std::vector<double>&S, const double localRew,
+                            const size_t blockID, const size_t threadID,
+                            const int ix,const int iy,const int iz)
   {
+    const bool bAgent = ix == agentsIDX[blockID] &&
+                        iy == agentsIDY[blockID] &&
+                        iz == agentsIDZ[blockID];
+    const size_t agentID = bAgent? blockID : nBlocks + threadID;
     const Real R = collectiveReward + localRewards[blockID];
-    comm.sendLastState(S, R, blockID);
+    comm.sendLastState(S, R, agentID);
     return (Real) 0;
   };
   const rlApi_t sendState = RLinit ? Finit : ( RLover ? Flast : Fcont );
@@ -467,12 +384,9 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                                 std::fabs(germano[4])+std::fabs(germano[5]))/9;
   };
 
-  KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, actInterp,
-    eps, tke, sim.nu, dt);
+  const KernelSGS_RL K_SGS_RL(sendState,computeNextLocalRew,eps,tke,sim.nu,dt);
 
-  for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.state_center(vInfo[i]);
-  for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.apply_actions(vInfo[i]);
-  //compute<KernelSGS_RL>(K_SGS_RL);
+  compute<KernelSGS_RL>(K_SGS_RL);
   sim.stopProfiler();
   check("SGS_RL");
   localRewards = nextlocRewards;
