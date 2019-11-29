@@ -17,7 +17,7 @@ using namespace cubism;
 struct ActionInterpolator
 {
   const int NX, NY, NZ;
-  static constexpr int NB = CUP_BLOCK_SIZE;
+  const int NB = CUP_BLOCK_SIZE;
 
   std::vector<std::vector<std::vector<double>>> actions =
     std::vector<std::vector<std::vector<double>>> (
@@ -44,8 +44,8 @@ struct ActionInterpolator
     const Real dist_biy = std::fabs(iy + 0.5 - NB/2);
     const Real dist_biz = std::fabs(iz + 0.5 - NB/2);
 
-    double weighted_sum_act = 0;
-    double sum_acts_weights = 0;
+    const double weighted_sum_act = 0;
+    const double sum_acts_weights = 0;
     for(int z = 0; z < 2; ++z) // 0 is current block, 1 is nearest along z, y, x
       for(int y = 0; y < 2; ++y)
         for(int x = 0; x < 2; ++x) {
@@ -53,13 +53,13 @@ struct ActionInterpolator
           const Real disty = y? dist_nbiy : dist_biy;
           const Real distz = z? dist_nbiz : dist_biz;
           const Real act = action(x? nbix : bix, y? nbiy : biy, z? nbiz : biz);
-          const Real dist = std::sqrt(distx*distx + disty*disty + distz*distz);
+          const Real dist = std::sqrt(distx*distx + disty*disty + distz+distz);
           const Real weight = std::max( (NB - dist)/NB, (Real) 0);
           weighted_sum_act += act * weight;
           sum_acts_weights += weight;
         }
-    //return sum_acts_weights;
-    return weighted_sum_act / std::max(sum_acts_weights, (double) 1e-16);
+
+    return weighted_sum_act / std::max(sum_acts_weights, EPS);
   }
 
   void set(const double act, const int bix, const int biy, const int biz)
@@ -340,9 +340,8 @@ class KernelSGS_RL
   const StencilInfo stencil{-1,-1,-1, 2, 2, 2, false, {FE_U,FE_V,FE_W}};
   //const StencilInfo stencil = StencilInfo(-2,-2,-2, 3,3,3, true, {0,1,2,3});
 
-  KernelSGS_RL(const rlApi_t& api, const locRewF_t& lRew,
-        ActionInterpolator& interp, Real _eps, Real _tke, Real _nu, Real _dt) :
-        sendStateRecvAct(api), computeNextLocalRew(lRew), actInterp(interp),
+  KernelSGS_RL(const rlApi_t& api, const locRewF_t& lRew, Real _eps, Real _tke,
+        Real _nu, Real _dt) : sendStateRecvAct(api), computeNextLocalRew(lRew),
         eps(_eps), tke(_tke), nu(_nu), dt_nonDim(_dt * eps / tke) {}
 
   template <typename Lab, typename BlockType>
@@ -387,7 +386,6 @@ class KernelSGS_RL
 
   void apply_actions(const BlockInfo& info) const
   {
-    FluidBlock & o = * (FluidBlock *) info.ptrBlock;
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
     for (int ix = 0; ix < FluidBlock::sizeX; ++ix)
@@ -402,22 +400,16 @@ SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
   // TODO relying on chi field does not work is obstacles are present
   // TODO : make sure there are no agents on the same grid point if nAgentsPB>1
   assert(nAgentsPB == 1); // TODO
+  localRewards = std::vector<double>(sim.vInfo().size(), 0);
 
-  std::mt19937& gen = commPtr->getPRNG();
-  const std::vector<BlockInfo>& myInfo = sim.vInfo();
-  std::uniform_int_distribution<int> distX(0, FluidBlock::sizeX-1);
-  std::uniform_int_distribution<int> distY(0, FluidBlock::sizeY-1);
-  std::uniform_int_distribution<int> distZ(0, FluidBlock::sizeZ-1);
-  agentsIDX.resize(myInfo.size(), -1);
-  agentsIDY.resize(myInfo.size(), -1);
-  agentsIDZ.resize(myInfo.size(), -1);
-  localRewards = std::vector<double>(myInfo.size(), 0);
-
-  for (size_t i=0; i<myInfo.size(); ++i) {
-    agentsIDX[i] = distX(gen);
-    agentsIDY[i] = distY(gen);
-    agentsIDZ[i] = distZ(gen);
-  }
+  const FluidGridMPI & grid = * sim.grid;
+  actions = std::vector<std::vector<std::vector<double>>> (
+    grid.getResidentBlocksPerDimension(2), std::vector<std::vector<double>>(
+      grid.getResidentBlocksPerDimension(1), std::vector<double>(
+        grid.getResidentBlocksPerDimension(0), 0
+      )
+    )
+  );
 }
 
 void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
@@ -425,13 +417,8 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
 {
   sim.startProfiler("SGS_RL");
   smarties::Communicator & comm = * commPtr;
-  //const size_t nBlocks = sim.vInfo().size();
+  const size_t nBlocks = sim.vInfo().size();
   std::vector<double> nextlocRewards(localRewards.size(), 0);
-  ActionInterpolator actInterp( sim.grid->getResidentBlocksPerDimension(2),
-                                sim.grid->getResidentBlocksPerDimension(1),
-                                sim.grid->getResidentBlocksPerDimension(0) );
-
-
   // one element per block is a proper agent: will add seq to train data
   // other are nThreads and are only there for thread safety
   // states get overwritten
@@ -467,12 +454,10 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                                 std::fabs(germano[4])+std::fabs(germano[5]))/9;
   };
 
-  KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, actInterp,
+  const KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, actInterp,
     eps, tke, sim.nu, dt);
 
-  #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.state_center(vInfo[i]);
-  #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.apply_actions(vInfo[i]);
   //compute<KernelSGS_RL>(K_SGS_RL);
   sim.stopProfiler();
