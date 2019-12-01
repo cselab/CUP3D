@@ -9,6 +9,7 @@
 #include "Operator.h"
 #include "SGS_RL.h"
 #include "smarties.h"
+#include "../spectralOperators/SpectralManip.h"
 
 #include <functional>
 CubismUP_3D_NAMESPACE_BEGIN
@@ -90,7 +91,7 @@ inline Real facFilter(const int i, const int j, const int k)
   else return 0;
 }
 
-struct filteredQuatities
+struct FilteredQuatities
 {
   Real u  = 0., v  = 0., w  = 0.;
   Real uu = 0., uv = 0., uw = 0.;
@@ -99,7 +100,7 @@ struct filteredQuatities
   Real S_xx = 0., S_xy = 0., S_xz = 0.;
   Real S_yy = 0., S_yz = 0., S_zz = 0.;
 
-  filteredQuatities(Lab& lab, const int ix, const int iy, const int iz, const Real h)
+  FilteredQuatities(Lab& lab, const int ix, const int iy, const int iz, const Real h)
   {
     for (int k=-1; k<2; ++k)
     for (int j=-1; j<2; ++j)
@@ -172,8 +173,8 @@ inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
 {
   std::vector<Real> ret(6,0);
 
-  filteredQuatities fq(lab,ix,iy,iz, h);
-  const FluidElement &L =lab(ix, iy, iz);
+  FilteredQuatities fq(lab, ix,iy,iz, h);
+  const FluidElement & L = lab(ix, iy, iz);
 
   const Real shear_t = std::sqrt(
       2 * (fq.S_xx * fq.S_xx + fq.S_yy * fq.S_yy + fq.S_zz * fq.S_zz) +
@@ -242,21 +243,23 @@ inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
   return ret;
 }
 
-using rlApi_t = std::function<Real(const std::vector<double>&, const size_t)>;
+using rlApi_t = std::function<Real(const std::array<Real, 9> &, const size_t)>;
 using locRewF_t = std::function<void(const size_t blockID, Lab & lab)>;
 
 class KernelSGS_RL
 {
  private:
-  const rlApi_t& sendStateRecvAct;
-  const locRewF_t& computeNextLocalRew;
+  const rlApi_t & sendStateRecvAct;
+  const locRewF_t & computeNextLocalRew;
   ActionInterpolator & actInterp;
-  const Real eps, tke, nu, dt_nonDim;
-  const Real invEta = std::pow(eps/(nu*nu*nu), 0.25);
+  const HITstatistics & stats;
+
+  const Real eps = stats.dissip_tot;
+  const Real tke = stats.tke;
   // const Real scaleL = std::pow(tke, 1.5) / eps; [L]
   const Real scaleVel = 1 / std::sqrt(tke); // [T/L]
   const Real scaleGrad = tke / eps; // [T]
-  const Real scaleLap = std::pow(tke, 2.5) / std::pow(eps,2); // [TL]
+  const Real scaleLap = std::pow(tke, 2.5) / std::pow(eps, 2); // [TL]
 
   Real sqrtDist(const Real val) const {
     return val>=0? std::sqrt(val) : -std::sqrt(-val);
@@ -306,8 +309,8 @@ class KernelSGS_RL
   }
 
   template <typename Lab>
-  std::vector<double> getState_uniform(Lab& lab, const Real h,
-        const Real h_nonDim, const int ix, const int iy, const int iz) const
+  std::array<Real, 9> getState_uniform(Lab& lab, const Real h,
+        const int ix, const int iy, const int iz) const
   {
     const Real facGrad = scaleGrad / (2*h), facLap = scaleLap / (h*h);
     const FluidElement &L  = lab(ix, iy, iz);
@@ -331,8 +334,7 @@ class KernelSGS_RL
     const std::array<double,3> S2 = mainMatInvariants(d2udx, d2vdx, d2wdx,
                                                      d2udy, d2vdy, d2wdy,
                                                      d2udz, d2vdz, d2wdz);
-    return {dt_nonDim, h_nonDim, S0,
-            S1[0], S1[1], S1[2], S1[3], S1[4], S2[0], S2[1], S2[2]};
+    return {S0, S1[0], S1[1], S1[2], S1[3], S1[4], S2[0], S2[1], S2[2]};
   }
 
  public:
@@ -341,21 +343,21 @@ class KernelSGS_RL
   //const StencilInfo stencil = StencilInfo(-2,-2,-2, 3,3,3, true, {0,1,2,3});
 
   KernelSGS_RL(const rlApi_t& api, const locRewF_t& lRew,
-        ActionInterpolator& interp, Real _eps, Real _tke, Real _nu, Real _dt) :
-        sendStateRecvAct(api), computeNextLocalRew(lRew), actInterp(interp),
-        eps(_eps), tke(_tke), nu(_nu), dt_nonDim(_dt * eps / tke) {}
+        ActionInterpolator& interp, const HITstatistics& _stats) :
+        sendStateRecvAct(api), computeNextLocalRew(lRew),
+        actInterp(interp), stats(_stats) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
   {
     // FD coefficients for first and second derivative
-    const Real h = info.h_gridpoint, h_nonDim = h * invEta;
+    const Real h = info.h_gridpoint;
     const size_t thrID = omp_get_thread_num(), blockID = info.blockID;
 
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
     for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
-      const auto state = getState_uniform(lab, h, h_nonDim, ix, iy, iz);
+      const auto state = getState_uniform(lab, h, ix, iy, iz);
       // LES coef can be stored in chi as long as we do not have obstacles
       // otherwise we will have to figure out smth
       // we could compute a local reward here, place as second arg
@@ -368,15 +370,15 @@ class KernelSGS_RL
   {
     FluidBlock & o = * (FluidBlock *) info.ptrBlock;
     // FD coefficients for first and second derivative
-    const Real h = info.h_gridpoint, h_nonDim = h * invEta;
+    const Real h = info.h_gridpoint;
     const int idx = CUP_BLOCK_SIZE/2 - 1, ipx = CUP_BLOCK_SIZE/2;
-    std::vector<double> avgState(11, 0);
+    std::array<Real, 9> avgState = {0.};
     const double factor = 1.0 / 8;
     for (int iz = idx; iz <= ipx; ++iz)
     for (int iy = idx; iy <= ipx; ++iy)
     for (int ix = idx; ix <= ipx; ++ix) {
-      const auto state = getState_uniform(o, h, h_nonDim, ix, iy, iz);
-      for (int k = 0; k < 11; ++k) avgState[k] += factor * state[k];
+      const auto state = getState_uniform(o, h, ix, iy, iz);
+      for (int k = 0; k < 9; ++k) avgState[k] += factor * state[k];
       // LES coef can be stored in chi as long as we do not have obstacles
       // otherwise we will have to figure out smth
       // we could compute a local reward here, place as second arg
@@ -421,7 +423,7 @@ SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
 }
 
 void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
-                 const Real eps, const Real tke, const Real collectiveReward)
+                 const HITstatistics& stats, const Real collectiveReward)
 {
   sim.startProfiler("SGS_RL");
   smarties::Communicator & comm = * commPtr;
@@ -435,20 +437,44 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   // one element per block is a proper agent: will add seq to train data
   // other are nThreads and are only there for thread safety
   // states get overwritten
+  const Real h_nonDim = sim.uniformH() / stats.getKolmogorovL();
+  const Real dt_nonDim = dt * stats.dissip_tot / stats.tke;
+  const Real tke_nonDim = stats.tke / std::sqrt(stats.dissip_tot * stats.nu);
+  const Real visc_nonDim = stats.dissip_visc / stats.dissip_tot;
+  const Real length_nonDim = stats.l_integral / stats.lambda;
+  const Real inject_nonDim = sim.actualInjectionRate / stats.dissip_tot;
 
-  const rlApi_t Finit = [&](const std::vector<double>&S, const size_t blockID)
+  std::array<Real, 6> sharedState = {
+   h_nonDim, dt_nonDim, tke_nonDim, visc_nonDim, length_nonDim, inject_nonDim };
+
+  const rlApi_t Finit = [&](const std::array<Real,9>& localS, const size_t blockID)
   {
+    const std::vector<double> S = {
+      localS[0], localS[1], localS[2], localS[3], localS[4], localS[5],
+      localS[6], localS[7], localS[8], sharedState[0], sharedState[1],
+      sharedState[2], sharedState[3], sharedState[4], sharedState[5]
+    };
     comm.sendInitState(S, blockID);
     return comm.recvAction(blockID)[0];
   };
-  const rlApi_t Fcont = [&](const std::vector<double>&S, const size_t blockID)
+  const rlApi_t Fcont = [&](const std::array<Real,9>& localS, const size_t blockID)
   {
+    const std::vector<double> S = {
+      localS[0], localS[1], localS[2], localS[3], localS[4], localS[5],
+      localS[6], localS[7], localS[8], sharedState[0], sharedState[1],
+      sharedState[2], sharedState[3], sharedState[4], sharedState[5]
+    };
     const Real R = collectiveReward + localRewards[blockID];
     comm.sendState(S, R, blockID);
     return comm.recvAction(blockID)[0];
   };
-  const rlApi_t Flast = [&](const std::vector<double>&S, const size_t blockID)
+  const rlApi_t Flast = [&](const std::array<Real,9>& localS, const size_t blockID)
   {
+    const std::vector<double> S = {
+      localS[0], localS[1], localS[2], localS[3], localS[4], localS[5],
+      localS[6], localS[7], localS[8], sharedState[0], sharedState[1],
+      sharedState[2], sharedState[3], sharedState[4], sharedState[5]
+    };
     const Real R = collectiveReward + localRewards[blockID];
     comm.sendLastState(S, R, blockID);
     return (Real) 0;
@@ -467,8 +493,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                                 std::fabs(germano[4])+std::fabs(germano[5]))/9;
   };
 
-  KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, actInterp,
-    eps, tke, sim.nu, dt);
+  KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, actInterp, stats);
 
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.state_center(vInfo[i]);

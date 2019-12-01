@@ -20,7 +20,6 @@
 #include <sys/unistd.h> // hostname
 #include <sstream>
 
-#define FREQ_UPDATE 1
 #define LES_RL_INIT_T 5
 #define LES_RL_N_TSIM 15
 #define LES_RL_FREQ_A 10
@@ -204,7 +203,7 @@ inline void updateGradScaling(const cubismup3d::SimulationData& sim,
   // Average gradient scaling over time between LES updates
   const Real beta = sim.dt / timeUpdateLES;
   //const Real turbEnergy = stats.tke;
-  const Real viscDissip = stats.eps, totalDissip = sim.dissipationRate;
+  const Real viscDissip = stats.dissip_visc, totalDissip = stats.dissip_tot;
   const Real avgSGS_nu = sim.nu_sgs, nu = sim.nu;
   const Real tau_eta_sim = std::sqrt(nu / viscDissip);
   const Real correction = 1.0 + 0.5 * (totalDissip - viscDissip) / viscDissip
@@ -258,7 +257,7 @@ inline void app_main(
   cubismup3d::Simulation sim(mpicom, parser);
   TargetData target(parser("-initCondFileTokens").asString());
 
-  const int nActions = 1, nStates = 11;
+  const int nActions = 1, nStates = 15;
   // BIG TROUBLE WITH NAGENTS!
   // If every grid point is an agent: probably will allocate too much memory
   // and crash because smarties allocates a trajectory for each point
@@ -348,7 +347,7 @@ inline void app_main(
     {
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
-      updateLES.run(sim.sim.dt, step==0, timeOut, target.tKinEn, target.epsVis, avgReward);
+      updateLES.run(sim.sim.dt, step==0, timeOut, HTstats, avgReward);
       if(timeOut) break;
 
       while ( time < (step+1)*timeUpdateLES )

@@ -45,6 +45,23 @@ void HITstatistics::getTargetSpectrumFit(const Real _eps, const Real _nu,
   }
 }
 
+void HITstatistics::updateDerivedQuantities(const Real _nu, const Real _dt,
+                             const Real injectionRate)
+{
+  dt = _dt;
+  nu = _nu;
+  if(injectionRate >= 0) {
+    dissip_tot = (tke_prev - tke) / dt;
+    // tke_prev for next step will be current plus whatever we inject:
+    tke_prev = tke + dt * injectionRate;
+  }
+  uprime = std::sqrt(2.0/3.0 * tke);
+  lambda = std::sqrt(15 * nu / dissip_tot) * uprime;
+  Re_lambda = uprime * lambda / nu;
+  tau_integral = l_integral / uprime;
+  //tau_integral = l_integral * M_PI/(2*pow3(uprime));
+}
+
 Real HITstatistics::getSimpleSpectrumFit(const Real _k, const Real _eps) const
 {
   const Real C  = 5.7;

@@ -111,7 +111,6 @@ struct SimulationData
   bool spectralForcing = false;
   double turbKinEn_target = 0; // read from settings
   double enInjectionRate = 0; // read from settings
-  double dissipationRate = 0; // computed by specralManip, post processing
   double actualInjectionRate = 0; // computed by specralManip, post processing
 
   // sgs

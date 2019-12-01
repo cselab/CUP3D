@@ -16,10 +16,6 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class SpectralForcing : public Operator
 {
-  Real totalKinEn = 0.0;
-  Real viscousDissip = 0.0;
-  Real totalKinEnPrev = 0.0;
-  Real largeModesKinEn = 0.0;
   void _cub2fftw() const;
   void _fftw2cub(const Real factor) const;
 

@@ -23,34 +23,36 @@ SpectralForcing::SpectralForcing(SimulationData & s) : Operator(s)
 void SpectralForcing::operator()(const double dt)
 {
   sim.startProfiler("SpectralForcing");
-  SpectralManip * const sM = sim.spectralManip;
+  SpectralManip & sM = * sim.spectralManip;
+  HITstatistics & stats = sM.stats;
   assert(sM not_eq nullptr);
 
   _cub2fftw();
 
-  sM->runFwd();
+  sM.runFwd();
 
-  sM->_compute_largeModesForcing();
+  sM._compute_largeModesForcing();
 
-  sM->runBwd();
+  sM.runBwd();
 
-  totalKinEn = sM->stats.tke;
-  viscousDissip = sM->stats.eps;
-  largeModesKinEn = sM->stats.tke_filtered;
-  sim.dissipationRate = (totalKinEnPrev - totalKinEn) / dt;
   sim.actualInjectionRate = 0;
   //With non spectral IC, the target tke may not be defined here
   if      (sim.turbKinEn_target > 0) // inject energy to match target tke
-       sim.actualInjectionRate = (sim.turbKinEn_target - totalKinEn)/dt;
+       sim.actualInjectionRate = (sim.turbKinEn_target - stats.tke)/dt;
   else if (sim.enInjectionRate  > 0) // constant power input:
        sim.actualInjectionRate =  sim.enInjectionRate;
+
+  stats.updateDerivedQuantities(sim.nu, dt, sim.actualInjectionRate);
+  const Real fac = dt * sim.actualInjectionRate / (2 * stats.tke_filtered);
+
+  if(fac>0) _fftw2cub(fac / sM.normalizeFFT);
 
   // If there's too much energy, let dissipation do its job
   if(sim.verbose)
     printf("step:%d time:%e dt:%e totalKinEn:%e largeModesKinEn:%e "\
          "viscousDissip:%e totalDissipRate:%e injectionRate:%e lIntegral:%e\n",
-    sim.step, sim.time, sim.dt, totalKinEn, largeModesKinEn, viscousDissip,
-    sim.dissipationRate, sim.actualInjectionRate, sM->stats.l_integral);
+    sim.step, sim.time, dt, stats.tke, stats.tke_filtered, stats.dissip_visc,
+    stats.dissip_tot, sim.actualInjectionRate, stats.l_integral);
 
   if(sim.rank == 0 and not sim.muteAll) {
     std::stringstream &ssF = logger.get_stream("forcingData.dat");
@@ -63,17 +65,9 @@ void SpectralForcing::operator()(const double dt)
     ssF << sim.step << tab;
     ssF.setf(std::ios::scientific);
     ssF.precision(std::numeric_limits<float>::digits10 + 1);
-    ssF<<sim.time<<tab<<sim.dt<<tab<<totalKinEn<<tab<<largeModesKinEn<<tab
-       <<viscousDissip<<tab<<sim.dissipationRate<<tab<<sim.actualInjectionRate
-       <<tab<<sM->stats.l_integral<<"\n";
-  }
-
-  const Real fac = sim.dt * sim.actualInjectionRate / (2*largeModesKinEn);
-  if(fac>0) {
-    totalKinEnPrev = totalKinEn + dt*sim.actualInjectionRate;
-    _fftw2cub(fac / sM->normalizeFFT);
-  } else {
-    totalKinEnPrev = totalKinEn;
+    ssF<<sim.time<<tab<<sim.dt<<tab<<stats.tke<<tab<<stats.tke_filtered<<tab
+       <<stats.dissip_visc<<tab<<stats.dissip_tot<<tab<<sim.actualInjectionRate
+       <<tab<<stats.l_integral<<"\n";
   }
 
   sim.stopProfiler();

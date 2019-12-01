@@ -78,11 +78,16 @@ struct HITstatistics
 
   void reset()
   {
-    tke = 0; eps = 0; tau_integral = 0; tke_filtered = 0;
+    tke = 0; tke_filtered = 0; tke_prev = 0;
+    dissip_tot = 0; dissip_visc = 0;
+    tau_integral = 0; l_integral = 0;
     lambda = 0; uprime = 0; Re_lambda = 0;
     memset(E_msr, 0, nBin * sizeof(Real));
     memset(cs2_msr, 0, nBin * sizeof(Real));
   }
+
+  void updateDerivedQuantities(const Real nu, const Real dt,
+                               const Real injectionRate = -1.0);
 
   Real getSimpleSpectrumFit(const Real _k, const Real _eps) const;
   void getTargetSpectrumFit(const Real eps, const Real nu,
@@ -92,16 +97,27 @@ struct HITstatistics
   static Real getTaylorMicroscaleFit(const Real eps, const Real nu);
   static Real getHITReynoldsFit(const Real eps, const Real nu);
   static Real getTurbKinEnFit(const Real eps, const Real nu);
+
   static Real getKolmogorovL(const Real eps, const Real nu);
+  Real getKolmogorovL() const {
+    return getKolmogorovL(dissip_tot > 0? dissip_tot : dissip_visc, nu);
+  }
+
   static Real getKolmogorovT(const Real eps, const Real nu);
+  Real getKolmogorovT() const {
+    return getKolmogorovT(dissip_tot > 0? dissip_tot : dissip_visc, nu);
+  }
 
   // Parameters of the histogram
   const int N, nyquist = N/2, nBin = nyquist-1;
   const Real L;
 
   // Output of the analysis
-  Real tke = 0, eps = 0, tau_integral = 0, l_integral = 0, tke_filtered = 0;
+  Real tke = 0, tke_filtered = 0, tke_prev = 0;
+  Real dissip_tot = 0, dissip_visc = 0;
+  Real tau_integral = 0, l_integral = 0;
   Real lambda = 0, uprime = 0, Re_lambda = 0;
+  Real dt = 0, nu = 0;
   Real * const k_msr;
   Real * const E_msr;
   Real * const cs2_msr;
@@ -143,9 +159,9 @@ public:
       static_cast<size_t>(grid.getResidentBlocksPerDimension(2))
   };
   const size_t gsize[3] = {
-      static_cast<size_t>(grid.getBlocksPerDimension(0)*bs[0]),
-      static_cast<size_t>(grid.getBlocksPerDimension(1)*bs[1]),
-      static_cast<size_t>(grid.getBlocksPerDimension(2)*bs[2])
+      static_cast<size_t>(grid.getBlocksPerDimension(0) * bs[0]),
+      static_cast<size_t>(grid.getBlocksPerDimension(1) * bs[1]),
+      static_cast<size_t>(grid.getBlocksPerDimension(2) * bs[2])
   };
   const size_t myN[3]={ mybpd[0]*bs[0], mybpd[1]*bs[1], mybpd[2]*bs[2] };
   const Real normalizeFFT = gsize[0] * gsize[1] * gsize[2];

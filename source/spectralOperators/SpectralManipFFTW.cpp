@@ -94,17 +94,10 @@ void SpectralManipFFTW::_compute_largeModesForcing()
 
   stats.tke_filtered = tkeFiltered / pow2(normalizeFFT);
   stats.tke = tke / pow2(normalizeFFT);
-  stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT * 2 * sim.uniformH());
-
-  stats.uprime = std::sqrt(2 * stats.tke / 3);
-  stats.lambda = std::sqrt(15 * sim.nu / stats.eps) * stats.uprime;
-  stats.Re_lambda = stats.uprime * stats.lambda / sim.nu;
   stats.l_integral = lIntegral / tke;
-  stats.tau_integral = stats.l_integral / stats.uprime;
+  stats.dissip_visc = eps * 2 * sim.nu /pow2(normalizeFFT * 2 * sim.uniformH());
   //const Real tau_integral =
   //  lIntegral * M_PI / (2*pow3(stats.uprime)) / pow2(normalizeFFT);
-  //printf("%e %e %e\n", stats.l_integral, stats.tau_integral, tau_integral);
-  //stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT);
 }
 
 void SpectralManipFFTW::_compute_analysis()
@@ -198,20 +191,13 @@ void SpectralManipFFTW::_compute_analysis()
   //}
 
   const Real normalization = 1.0 / pow2(normalizeFFT);
-  for (size_t binID = 0; binID < nBins; binID++) {
-    E_msr[binID] *= normalization;
-    //if (bComputeCs2Spectrum) cs2_msr[binID] /= normalizeFFT;
-  }
-  stats.tke = tke * normalization;
-  stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT * 2 * sim.uniformH());
-  //stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT);
+  for (size_t binID = 0; binID < nBins; binID++) E_msr[binID] *= normalization;
+  //if (bComputeCs2Spectrum) cs2_msr[binID] /= normalizeFFT;
 
-  stats.uprime = std::sqrt(2 * stats.tke / 3);
-  stats.lambda = std::sqrt(15 * sim.nu / stats.eps) * stats.uprime;
-  stats.Re_lambda = stats.uprime * stats.lambda / sim.nu;
+  stats.tke = tke * normalization;
   stats.l_integral = lIntegral / tke;
-  stats.tau_integral = stats.l_integral / stats.uprime;
-  //stats.tau_integral = lIntegral * M_PI/(2*pow3(stats.uprime)) *normalization;
+  stats.dissip_visc = 2 * eps * sim.nu * normalization / pow2(2*sim.uniformH());
+  //stats.dissip_visc = eps * 2 * sim.nu / pow2(normalizeFFT);
 }
 
 void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,

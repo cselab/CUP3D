@@ -101,23 +101,7 @@ void SpectralAnalysis::run()
   _cub2fftw();
   sM->runFwd();
   sM->_compute_analysis();
-  //sM->runBwd();
-  //_fftw2cub();
-
-  //std::stringstream ssR; ssR<<std::setfill('0')<<std::setw(9)<<sM->sim.step;
-  //const auto nameV = StreamerVelocityVector::prefix() + ssR.str();
-  //const auto nameO = StreamerTmpVector::prefix() + ssR.str();
-  //DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
-  //  *sM->sim.grid, sM->sim.time, nameV, sM->sim.path4serialization);
-  //DumpHDF5_MPI<StreamerTmpVector, DumpReal>(
-  //  *sM->sim.grid, sM->sim.time, nameO, sM->sim.path4serialization);
-
-  //ComputeVorticity K(sM->sim);
-  //K(sM->sim.dt);
-  //const auto nameW = "omega_" + ssR.str();
-  //DumpHDF5_MPI<StreamerTmpVector, DumpReal>(
-  //  *sM->sim.grid, sM->sim.time, nameW, sM->sim.path4serialization);
-
+  sM->stats.updateDerivedQuantities(sM->sim.nu, sM->sim.dt);
 }
 
 void SpectralAnalysis::dump2File(const int nFile) const
@@ -125,8 +109,8 @@ void SpectralAnalysis::dump2File(const int nFile) const
   if(sM->sim.verbose)
     printf("step:%d time:%e totalKinEn:%e "\
          "viscousDissip:%e totalDissipRate:%e injectionRate:%e lIntegral:%e\n",
-    sM->sim.step, sM->sim.time, sM->stats.tke, sM->stats.eps,
-    sM->sim.dissipationRate, sM->sim.actualInjectionRate, sM->stats.l_integral);
+    sM->sim.step, sM->sim.time, sM->stats.tke, sM->stats.dissip_visc,
+    sM->stats.dissip_tot, sM->sim.actualInjectionRate, sM->stats.l_integral);
 
   std::stringstream ssR;
   ssR<<"analysis/spectralAnalysis_"<<std::setfill('0')<<std::setw(9)<<nFile;
@@ -146,11 +130,11 @@ void SpectralAnalysis::dump2File(const int nFile) const
     << " #turbulent kinetic energy" << "\n";
 
   f << std::left << std::setw(15) << "eps"
-    << std::setw(15) << sM->stats.eps
+    << std::setw(15) << sM->stats.dissip_visc
     << " #Viscous dissipation rate" << "\n";
 
   f << std::left << std::setw(15) << "eps_f"
-    << std::setw(15) << sM->sim.dissipationRate
+    << std::setw(15) << sM->stats.dissip_tot
     << " #Total dissipation rate" << "\n";
 
   f << std::left << std::setw(15) << "lambda"
@@ -162,7 +146,7 @@ void SpectralAnalysis::dump2File(const int nFile) const
     << " #Turbulent Reynolds based on lambda" << "\n";
 
   f << std::left << std::setw(15) << "eta"
-    << std::setw(15) << std::pow( pow3(sM->sim.nu) / sM->stats.eps, 1.0/4)
+    << std::setw(15) << std::pow(pow3(sM->sim.nu)/sM->stats.dissip_tot, 1.0/4)
     << " #Kolmogorov length scale" << "\n";
 
   f << std::left << std::setw(15) << "tau_integral"
@@ -174,7 +158,7 @@ void SpectralAnalysis::dump2File(const int nFile) const
     << " #Integral length scale" << "\n";
 
   f << std::left << std::setw(15) << "tau_eta"
-    << std::setw(15) << std::sqrt( sM->sim.nu / sM->stats.eps )
+    << std::setw(15) << std::sqrt( sM->sim.nu / sM->stats.dissip_tot )
     << " #Kolmogorov time scale" << "\n";
 
   f << std::left << std::setw(15) << "nu_sgs"

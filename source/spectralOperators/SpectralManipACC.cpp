@@ -80,13 +80,8 @@ void SpectralManipACC::_compute_largeModesForcing()
 
   stats.tke_filtered = tkeFiltered / pow2(normalizeFFT);
   stats.tke = tke / pow2(normalizeFFT);
-  stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT * 2 * sim.uniformH());
-
-  stats.uprime = std::sqrt(2 * stats.tke / 3);
-  stats.lambda = std::sqrt(15 * sim.nu / stats.eps) * stats.uprime;
-  stats.Re_lambda = stats.uprime * stats.lambda / sim.nu;
   stats.l_integral = lIntegral / tke;
-  stats.tau_integral = stats.l_integral / stats.uprime;
+  stats.dissip_visc = eps * 2 * sim.nu /pow2(normalizeFFT * 2 * sim.uniformH());
 
   sim.stopProfiler();
   sim.startProfiler("SpectralForcing");
@@ -100,7 +95,7 @@ void SpectralManipACC::_compute_analysis()
   const double h = sim.uniformH();
   const size_t nBins = stats.nBin;
   const Real nyquist = stats.nyquist;
-  Real tke = 0, eps = 0, tau = 0;
+  Real tke = 0, eps = 0, lIntegral = 0;
   Real * const E_msr = stats.E_msr;
   memset(E_msr, 0, nBins * sizeof(Real));
 
@@ -109,23 +104,20 @@ void SpectralManipACC::_compute_analysis()
   // for cuFFT we use x as fast index instead of z:
   if(sim.nprocs > 1) { gsize_[0] = gsize[2]; gsize_[2] = gsize[0]; }
   _compute_HIT_analysis( (acc_c*) gpu_u, (acc_c*) gpu_v, (acc_c*) gpu_w,
-    gsize_, osize, ostart, h, tke, eps, tau, E_msr, nBins, nyquist);
+    gsize_,osize,ostart, h, tke, eps, lIntegral, E_msr, nBins, nyquist);
 
   MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
-  MPI_Allreduce(MPI_IN_PLACE, &tau, 1, MPIREAL, MPI_SUM, m_comm);
+  MPI_Allreduce(MPI_IN_PLACE, &lIntegral, 1, MPIREAL, MPI_SUM, m_comm);
 
   const Real normalization = 1.0 / pow2(normalizeFFT);
   for (size_t binID = 0; binID < nBins; binID++) E_msr[binID] *= normalization;
-  stats.tke = tke * normalization;
-  //stats.eps = eps * 2 * (sim.nu) * normalization;
-  stats.eps = eps * 2 * sim.nu / pow2(normalizeFFT * 2 * sim.uniformH());
 
-  stats.uprime = std::sqrt(2 * stats.tke / 3);
-  stats.lambda = std::sqrt(15 * sim.nu / stats.eps) * stats.uprime;
-  stats.Re_lambda = stats.uprime * stats.lambda / sim.nu;
-  stats.tau_integral = tau * M_PI/(2*pow3(stats.uprime)) * normalization;
+  stats.tke = tke * normalization;
+  stats.l_integral = lIntegral / tke;
+  stats.dissip_visc = 2 * eps * sim.nu * normalization / pow2(2*sim.uniformH());
+  //stats.dissip_visc = eps * 2 * sim.nu * normalization;
 
   sim.stopProfiler();
   sim.startProfiler("SpectralForcing");

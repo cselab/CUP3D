@@ -236,6 +236,7 @@ struct UpdateAndCorrectInflow
   };
 
   UpdateAndCorrectInflow(SimulationData & s) : sim(s) { }
+  virtual ~UpdateAndCorrectInflow() {}
 
   virtual void operate() const
   {
