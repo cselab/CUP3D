@@ -20,6 +20,7 @@ class Communicator;
 CubismUP_3D_NAMESPACE_BEGIN
 
 struct HITstatistics;
+struct HITtargetData;
 
 class SGS_RL : public Operator
 {
@@ -34,7 +35,8 @@ public:
   SGS_RL(SimulationData&s, smarties::Communicator*_comm, const int nAgentsPB);
 
   void run(const double dt, const bool RLinit, const bool RLover,
-           const HITstatistics& stats, const Real collectiveReward);
+           const HITstatistics& stats, const HITtargetData& target,
+           const Real collectiveReward);
   void operator()(const double dt) override {}
 
   std::string getName() override { return "SGS_RL"; }

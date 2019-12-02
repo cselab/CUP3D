@@ -12,9 +12,7 @@
 #include "../SimulationData.h"
 #include "Cubism/BlockInfo.h"
 
-#include <vector>
-#include <cassert>
-#include <cstring>
+#include "HITstatistics.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -46,81 +44,6 @@ struct EnergySpectrum
   Real interpE(const Real k) const;
   Real interpSigma2(const Real k) const;
   void dump2File(const int nBin, const int nGrid, const Real h);
-};
-
-struct HITstatistics
-{
-  HITstatistics() = delete;
-
-  HITstatistics(const int maxGridSize, const Real maxBoxLength):
-    N(maxGridSize), L(maxBoxLength),
-    k_msr(new Real[nBin]), E_msr(new Real[nBin]), cs2_msr(new Real[nBin])
-  {
-    //printf("maxGridSize %d %d %d\n", maxGridSize, N, nyquist);
-    reset();
-    for (int i = 0; i<nBin; ++i) k_msr[i] = (i+1) * 2*M_PI / L;
-  }
-
-  HITstatistics(const HITstatistics&c) : N(c.N), L(c.L),
-    k_msr(new Real[nBin]), E_msr(new Real[nBin]), cs2_msr(new Real[nBin])
-  {
-    //printf("maxGridSize %d %d %d\n", c.N, N, nyquist);
-    reset();
-    for (int i = 0; i<nBin; ++i) k_msr[i] = (i+1) * 2*M_PI / L;
-  }
-
-  ~HITstatistics()
-  {
-    delete [] k_msr;
-    delete [] E_msr;
-    delete [] cs2_msr;
-  }
-
-  void reset()
-  {
-    tke = 0; tke_filtered = 0; tke_prev = 0;
-    dissip_tot = 0; dissip_visc = 0;
-    tau_integral = 0; l_integral = 0;
-    lambda = 0; uprime = 0; Re_lambda = 0;
-    memset(E_msr, 0, nBin * sizeof(Real));
-    memset(cs2_msr, 0, nBin * sizeof(Real));
-  }
-
-  void updateDerivedQuantities(const Real nu, const Real dt,
-                               const Real injectionRate = -1.0);
-
-  Real getSimpleSpectrumFit(const Real _k, const Real _eps) const;
-  void getTargetSpectrumFit(const Real eps, const Real nu,
-                            std::vector<Real>& K, std::vector<Real>& E) const;
-  static Real getIntegralTimeFit(const Real eps, const Real nu);
-  static Real getIntegralLengthFit(const Real eps, const Real nu);
-  static Real getTaylorMicroscaleFit(const Real eps, const Real nu);
-  static Real getHITReynoldsFit(const Real eps, const Real nu);
-  static Real getTurbKinEnFit(const Real eps, const Real nu);
-
-  static Real getKolmogorovL(const Real eps, const Real nu);
-  Real getKolmogorovL() const {
-    return getKolmogorovL(dissip_tot > 0? dissip_tot : dissip_visc, nu);
-  }
-
-  static Real getKolmogorovT(const Real eps, const Real nu);
-  Real getKolmogorovT() const {
-    return getKolmogorovT(dissip_tot > 0? dissip_tot : dissip_visc, nu);
-  }
-
-  // Parameters of the histogram
-  const int N, nyquist = N/2, nBin = nyquist-1;
-  const Real L;
-
-  // Output of the analysis
-  Real tke = 0, tke_filtered = 0, tke_prev = 0;
-  Real dissip_tot = 0, dissip_visc = 0;
-  Real tau_integral = 0, l_integral = 0;
-  Real lambda = 0, uprime = 0, Re_lambda = 0;
-  Real dt = 0, nu = 0;
-  Real * const k_msr;
-  Real * const E_msr;
-  Real * const cs2_msr;
 };
 
 class SpectralManip

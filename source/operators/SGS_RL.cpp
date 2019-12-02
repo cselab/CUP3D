@@ -10,6 +10,7 @@
 #include "SGS_RL.h"
 #include "smarties.h"
 #include "../spectralOperators/SpectralManip.h"
+#include "../spectralOperators/HITtargetData.h"
 
 #include <functional>
 CubismUP_3D_NAMESPACE_BEGIN
@@ -93,12 +94,12 @@ inline Real facFilter(const int i, const int j, const int k)
 
 struct FilteredQuatities
 {
-  Real u  = 0., v  = 0., w  = 0.;
-  Real uu = 0., uv = 0., uw = 0.;
-  Real vv = 0., vw = 0., ww = 0.;
+  Real u  = 0.0, v  = 0.0, w  = 0.0;
+  Real uu = 0.0, uv = 0.0, uw = 0.0;
+  Real vv = 0.0, vw = 0.0, ww = 0.0;
 
-  Real S_xx = 0., S_xy = 0., S_xz = 0.;
-  Real S_yy = 0., S_yz = 0., S_zz = 0.;
+  Real S_xx = 0.0, S_xy = 0.0, S_xz = 0.0;
+  Real S_yy = 0.0, S_yz = 0.0, S_zz = 0.0;
 
   FilteredQuatities(Lab& lab, const int ix, const int iy, const int iz, const Real h)
   {
@@ -259,7 +260,7 @@ class KernelSGS_RL
   // const Real scaleL = std::pow(tke, 1.5) / eps; [L]
   const Real scaleVel = 1 / std::sqrt(tke); // [T/L]
   const Real scaleGrad = tke / eps; // [T]
-  const Real scaleLap = std::pow(tke, 2.5) / std::pow(eps, 2); // [TL]
+  const Real scaleLap = scaleGrad * stats.getKolmogorovL(); // [TL]
 
   Real sqrtDist(const Real val) const {
     return val>=0? std::sqrt(val) : -std::sqrt(-val);
@@ -318,22 +319,22 @@ class KernelSGS_RL
     const FluidElement &LS = lab(ix, iy - 1, iz), &LN = lab(ix, iy + 1, iz);
     const FluidElement &LF = lab(ix, iy, iz - 1), &LB = lab(ix, iy, iz + 1);
 
-    const Real d1udx = facGrad*(LE.u-LW.u), d2udx = facLap*(LN.u+LS.u-L.u*6);
-    const Real d1vdx = facGrad*(LE.v-LW.v), d2vdx = facLap*(LN.v+LS.v-L.v*6);
-    const Real d1wdx = facGrad*(LE.w-LW.w), d2wdx = facLap*(LN.w+LS.w-L.w*6);
-    const Real d1udy = facGrad*(LN.u-LS.u), d2udy = facLap*(LE.u+LW.u-L.u*2);
-    const Real d1vdy = facGrad*(LN.v-LS.v), d2vdy = facLap*(LE.v+LW.v-L.v*2);
-    const Real d1wdy = facGrad*(LN.w-LS.w), d2wdy = facLap*(LE.w+LW.w-L.w*2);
-    const Real d1udz = facGrad*(LB.u-LF.u), d2udz = facLap*(LF.u+LB.u-L.u*2);
-    const Real d1vdz = facGrad*(LB.v-LF.v), d2vdz = facLap*(LF.v+LB.v-L.v*2);
-    const Real d1wdz = facGrad*(LB.w-LF.w), d2wdz = facLap*(LF.w+LB.w-L.w*2);
+    const Real d1udx = facGrad*(LE.u-LW.u), d2udx = facLap*(LE.u+LW.u-L.u*2);
+    const Real d1vdx = facGrad*(LE.v-LW.v), d2vdx = facLap*(LE.v+LW.v-L.v*2);
+    const Real d1wdx = facGrad*(LE.w-LW.w), d2wdx = facLap*(LE.w+LW.w-L.w*2);
+    const Real d1udy = facGrad*(LN.u-LS.u), d2udy = facLap*(LN.u+LS.u-L.u*2);
+    const Real d1vdy = facGrad*(LN.v-LS.v), d2vdy = facLap*(LN.v+LS.v-L.v*2);
+    const Real d1wdy = facGrad*(LN.w-LS.w), d2wdy = facLap*(LN.w+LS.w-L.w*2);
+    const Real d1udz = facGrad*(LB.u-LF.u), d2udz = facLap*(LB.u+LF.u-L.u*2);
+    const Real d1vdz = facGrad*(LB.v-LF.v), d2vdz = facLap*(LB.v+LF.v-L.v*2);
+    const Real d1wdz = facGrad*(LB.w-LF.w), d2wdz = facLap*(LB.w+LF.w-L.w*2);
     const Real S0 = scaleVel * std::sqrt(L.u*L.u + L.v*L.v + L.w*L.w);
     const std::array<double,5> S1 = popeInvariants(d1udx, d1vdx, d1wdx,
-                                                  d1udy, d1vdy, d1wdy,
-                                                  d1udz, d1vdz, d1wdz);
+                                                   d1udy, d1vdy, d1wdy,
+                                                   d1udz, d1vdz, d1wdz);
     const std::array<double,3> S2 = mainMatInvariants(d2udx, d2vdx, d2wdx,
-                                                     d2udy, d2vdy, d2wdy,
-                                                     d2udz, d2vdz, d2wdz);
+                                                      d2udy, d2vdy, d2wdy,
+                                                      d2udz, d2vdz, d2wdz);
     return {S0, S1[0], S1[1], S1[2], S1[3], S1[4], S2[0], S2[1], S2[2]};
   }
 
@@ -423,7 +424,8 @@ SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
 }
 
 void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
-                 const HITstatistics& stats, const Real collectiveReward)
+                 const HITstatistics& stats, const HITtargetData& target,
+                 const Real collectiveReward)
 {
   sim.startProfiler("SGS_RL");
   smarties::Communicator & comm = * commPtr;
@@ -441,39 +443,37 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   const Real dt_nonDim = dt * stats.dissip_tot / stats.tke;
   const Real tke_nonDim = stats.tke / std::sqrt(stats.dissip_tot * stats.nu);
   const Real visc_nonDim = stats.dissip_visc / stats.dissip_tot;
-  const Real length_nonDim = stats.l_integral / stats.lambda;
+  const Real lenIn_nonDim = stats.l_integral / stats.lambda;
   const Real inject_nonDim = sim.actualInjectionRate / stats.dissip_tot;
+  const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / stats.tke;
 
-  std::array<Real, 6> sharedState = {
-   h_nonDim, dt_nonDim, tke_nonDim, visc_nonDim, length_nonDim, inject_nonDim };
+  std::array<Real, 7> globalS = { h_nonDim, dt_nonDim,
+    tke_nonDim, visc_nonDim, lenIn_nonDim, inject_nonDim, deltaEn_nonDim };
 
-  const rlApi_t Finit = [&](const std::array<Real,9>& localS, const size_t blockID)
+  const rlApi_t Finit = [&](const std::array<Real,9>&locS, const size_t blockID)
   {
-    const std::vector<double> S = {
-      localS[0], localS[1], localS[2], localS[3], localS[4], localS[5],
-      localS[6], localS[7], localS[8], sharedState[0], sharedState[1],
-      sharedState[2], sharedState[3], sharedState[4], sharedState[5]
+    const std::vector<double> S = { locS[0], locS[1], locS[2], locS[3], locS[4],
+      locS[5], locS[6], locS[7], locS[8], globalS[0], globalS[1], globalS[2],
+      globalS[3], globalS[4], globalS[5], globalS[6]
     };
     comm.sendInitState(S, blockID);
     return comm.recvAction(blockID)[0];
   };
-  const rlApi_t Fcont = [&](const std::array<Real,9>& localS, const size_t blockID)
+  const rlApi_t Fcont = [&](const std::array<Real,9>&locS, const size_t blockID)
   {
-    const std::vector<double> S = {
-      localS[0], localS[1], localS[2], localS[3], localS[4], localS[5],
-      localS[6], localS[7], localS[8], sharedState[0], sharedState[1],
-      sharedState[2], sharedState[3], sharedState[4], sharedState[5]
+    const std::vector<double> S = { locS[0], locS[1], locS[2], locS[3], locS[4],
+      locS[5], locS[6], locS[7], locS[8], globalS[0], globalS[1], globalS[2],
+      globalS[3], globalS[4], globalS[5], globalS[6]
     };
     const Real R = collectiveReward + localRewards[blockID];
     comm.sendState(S, R, blockID);
     return comm.recvAction(blockID)[0];
   };
-  const rlApi_t Flast = [&](const std::array<Real,9>& localS, const size_t blockID)
+  const rlApi_t Flast = [&](const std::array<Real,9>&locS, const size_t blockID)
   {
-    const std::vector<double> S = {
-      localS[0], localS[1], localS[2], localS[3], localS[4], localS[5],
-      localS[6], localS[7], localS[8], sharedState[0], sharedState[1],
-      sharedState[2], sharedState[3], sharedState[4], sharedState[5]
+    const std::vector<double> S = { locS[0], locS[1], locS[2], locS[3], locS[4],
+      locS[5], locS[6], locS[7], locS[8], globalS[0], globalS[1], globalS[2],
+      globalS[3], globalS[4], globalS[5], globalS[6]
     };
     const Real R = collectiveReward + localRewards[blockID];
     comm.sendLastState(S, R, blockID);
@@ -497,8 +497,10 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
 
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.state_center(vInfo[i]);
+
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.apply_actions(vInfo[i]);
+
   //compute<KernelSGS_RL>(K_SGS_RL);
   sim.stopProfiler();
   check("SGS_RL");

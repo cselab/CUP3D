@@ -53,7 +53,7 @@ struct ActionInterpolator
           const Real disty = y? dist_nbiy : dist_biy;
           const Real distz = z? dist_nbiz : dist_biz;
           const Real act = action(x? nbix : bix, y? nbiy : biy, z? nbiz : biz);
-          const Real dist = std::sqrt(distx*distx + disty*disty + distz+distz);
+          const Real dist = std::sqrt(distx*distx + disty*disty + distz*distz);
           const Real weight = std::max( (NB - dist)/NB, (Real) 0);
           weighted_sum_act += act * weight;
           sum_acts_weights += weight;
