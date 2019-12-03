@@ -150,7 +150,8 @@ streams(new myCUDAstreams())
     alloc_max = accfft_local_size(totN, isize, istart, osize, ostart, acc_comm);
     assert(alloc_max == isize[0] * isize[1] * 2*nz_hat * sizeof(Real));
 
-    if(isize[0]!=(int)myN[0] || isize[1]!=(int)myN[1] || isize[2]!=(int)myN[2]) {
+    if(isize[0]!=(int)myN[0] || isize[1]!=(int)myN[1] || isize[2]!=(int)myN[2])
+    {
       printf("PoissonSolverPeriodic: something wrong in isize\n");
       abort();
     }
@@ -205,9 +206,10 @@ void SpectralManipACC::runFwd() const
 {
   sim.stopProfiler();
   sim.startProfiler("ACCForce fwd");
-  cudaMemcpyAsync(gpu_u, data_u, data_size*sizeof(Real), cudaMemcpyHostToDevice, streams->u);
-  cudaMemcpyAsync(gpu_v, data_v, data_size*sizeof(Real), cudaMemcpyHostToDevice, streams->v);
-  cudaMemcpyAsync(gpu_w, data_w, data_size*sizeof(Real), cudaMemcpyHostToDevice, streams->w);
+  const size_t bufSize = data_size * sizeof(Real);
+  cudaMemcpyAsync(gpu_u, data_u, bufSize, cudaMemcpyHostToDevice, streams->u);
+  cudaMemcpyAsync(gpu_v, data_v, bufSize, cudaMemcpyHostToDevice, streams->v);
+  cudaMemcpyAsync(gpu_w, data_w, bufSize, cudaMemcpyHostToDevice, streams->w);
 
   if(sim.nprocs > 1)
   {
@@ -248,12 +250,13 @@ void SpectralManipACC::runBwd() const
   }
   else
   {
+  const size_t bufSize = data_size * sizeof(Real);
   cufftExecBWD(cufft_bwd, (cufftCmpT*)gpu_u, gpu_u);
-  cudaMemcpyAsync(data_u, gpu_u, data_size*sizeof(Real), cudaMemcpyDeviceToHost, streams->u);
+  cudaMemcpyAsync(data_u, gpu_u, bufSize, cudaMemcpyDeviceToHost, streams->u);
   cufftExecBWD(cufft_bwd, (cufftCmpT*)gpu_v, gpu_v);
-  cudaMemcpyAsync(data_v, gpu_v, data_size*sizeof(Real), cudaMemcpyDeviceToHost, streams->v);
+  cudaMemcpyAsync(data_v, gpu_v, bufSize, cudaMemcpyDeviceToHost, streams->v);
   cufftExecBWD(cufft_bwd, (cufftCmpT*)gpu_w, gpu_w);
-  cudaMemcpyAsync(data_w, gpu_w, data_size*sizeof(Real), cudaMemcpyDeviceToHost, streams->w);
+  cudaMemcpyAsync(data_w, gpu_w, bufSize, cudaMemcpyDeviceToHost, streams->w);
   }
   cudaStreamSynchronize ( streams->u );
   cudaStreamSynchronize ( streams->v );
