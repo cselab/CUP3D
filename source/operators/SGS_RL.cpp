@@ -244,7 +244,8 @@ inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
   return ret;
 }
 
-using rlApi_t = std::function<Real(const std::array<Real, 9> &, const size_t)>;
+using rlApi_t = std::function<Real(const std::array<Real, 9> &, const size_t,
+                                   const size_t,const int,const int,const int)>;
 using locRewF_t = std::function<void(const size_t blockID, Lab & lab)>;
 
 class KernelSGS_RL
@@ -254,13 +255,7 @@ class KernelSGS_RL
   const locRewF_t & computeNextLocalRew;
   ActionInterpolator & actInterp;
   const HITstatistics & stats;
-
-  const Real eps = stats.dissip_tot;
-  const Real tke = stats.tke;
-  // const Real scaleL = std::pow(tke, 1.5) / eps; [L]
-  const Real scaleVel = 1 / std::sqrt(tke); // [T/L]
-  const Real scaleGrad = tke / eps; // [T]
-  const Real scaleLap = scaleGrad * stats.getKolmogorovL(); // [TL]
+  const Real scaleVel, scaleGrad, scaleLap;
 
   Real sqrtDist(const Real val) const {
     return val>=0? std::sqrt(val) : -std::sqrt(-val);
@@ -344,9 +339,11 @@ class KernelSGS_RL
   //const StencilInfo stencil = StencilInfo(-2,-2,-2, 3,3,3, true, {0,1,2,3});
 
   KernelSGS_RL(const rlApi_t& api, const locRewF_t& lRew,
-        ActionInterpolator& interp, const HITstatistics& _stats) :
+        ActionInterpolator& interp, const HITstatistics& _stats,
+        const Real _facVel, const Real _facGrad, const Real _facLap) :
         sendStateRecvAct(api), computeNextLocalRew(lRew),
-        actInterp(interp), stats(_stats) {}
+        actInterp(interp), stats(_stats), scaleVel(_facVel),
+        scaleGrad(_facGrad), scaleLap(_facLap) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
@@ -362,7 +359,7 @@ class KernelSGS_RL
       // LES coef can be stored in chi as long as we do not have obstacles
       // otherwise we will have to figure out smth
       // we could compute a local reward here, place as second arg
-      o(ix,iy,iz).chi = sendStateRecvAct(state, 0, blockID, thrID, ix,iy,iz);
+      o(ix,iy,iz).chi = sendStateRecvAct(state, blockID, thrID, ix,iy,iz);
     }
     //computeNextLocalRew(blockID, lab);
   }
@@ -372,6 +369,7 @@ class KernelSGS_RL
     FluidBlock & o = * (FluidBlock *) info.ptrBlock;
     // FD coefficients for first and second derivative
     const Real h = info.h_gridpoint;
+    const size_t thrID = omp_get_thread_num(), blockID = info.blockID;
     const int idx = CUP_BLOCK_SIZE/2 - 1, ipx = CUP_BLOCK_SIZE/2;
     std::array<Real, 9> avgState = {0.};
     const double factor = 1.0 / 8;
@@ -384,17 +382,17 @@ class KernelSGS_RL
       // otherwise we will have to figure out smth
       // we could compute a local reward here, place as second arg
     }
-    actInterp.set(sendStateRecvAct(avgState, info.blockID),
+    actInterp.set(sendStateRecvAct(avgState, blockID, thrID, idx,idx,idx),
       info.index[0], info.index[1], info.index[2]);
   }
 
-  void apply_actions(const BlockInfo& info) const
+  void apply_actions(const BlockInfo & i) const
   {
-    FluidBlock & o = * (FluidBlock *) info.ptrBlock;
+    FluidBlock & o = * (FluidBlock *) i.ptrBlock;
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
     for (int ix = 0; ix < FluidBlock::sizeX; ++ix)
-      o(ix,iy,iz).chi = actInterp(info.index[0], info.index[1], info.index[2], ix, iy, iz);
+      o(ix,iy,iz).chi = actInterp(i.index[0], i.index[1], i.index[2], ix,iy,iz);
   }
 };
 
@@ -425,83 +423,123 @@ SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
 
 void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                  const HITstatistics& stats, const HITtargetData& target,
-                 const Real collectiveReward)
+                 const Real globalR)
 {
   sim.startProfiler("SGS_RL");
   smarties::Communicator & comm = * commPtr;
-  //const size_t nBlocks = sim.vInfo().size();
   std::vector<double> nextlocRewards(localRewards.size(), 0);
   ActionInterpolator actInterp( sim.grid->getResidentBlocksPerDimension(2),
                                 sim.grid->getResidentBlocksPerDimension(1),
                                 sim.grid->getResidentBlocksPerDimension(0) );
 
+  #if 0 // non-dimensionalize wrt flow quantities
+    const Real scaleVel = 1 / std::sqrt(stats.tke); // [T/L]
+    const Real scaleGrad = stats.tke / stats.dissip_tot; // [T]
+    const Real scaleLap = scaleGrad * stats.getKolmogorovL(); // [TL]
 
-  // one element per block is a proper agent: will add seq to train data
-  // other are nThreads and are only there for thread safety
-  // states get overwritten
-  const Real h_nonDim = sim.uniformH() / stats.getKolmogorovL();
-  const Real dt_nonDim = dt * stats.dissip_tot / stats.tke;
-  const Real tke_nonDim = stats.tke / std::sqrt(stats.dissip_tot * stats.nu);
-  const Real visc_nonDim = stats.dissip_visc / stats.dissip_tot;
-  const Real lenIn_nonDim = stats.l_integral / stats.lambda;
-  const Real inject_nonDim = sim.actualInjectionRate / stats.dissip_tot;
-  const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / stats.tke;
+    // one element per block is a proper agent: will add seq to train data
+    // other are nThreads and are only there for thread safety
+    // states get overwritten
+    const Real h_nonDim = sim.uniformH() / stats.getKolmogorovL();
+    const Real dt_nonDim = dt * stats.dissip_tot / stats.tke;
+    const Real tke_nonDim = stats.tke / std::sqrt(stats.dissip_tot * stats.nu);
+    const Real visc_nonDim = stats.dissip_visc / stats.dissip_tot;
+    const Real lenIn_nonDim = stats.l_integral / stats.lambda;
+    const Real inject_nonDim = sim.actualInjectionRate / stats.dissip_tot;
+    const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / stats.tke;
+  #else // non-dimensionalize wrt *target* flow quantities
+    const Real eta = stats.getKolmogorovL(target.epsVis, target.nu);
+    const Real scaleVel = 1 / std::sqrt(target.tKinEn);
+    const Real scaleGrad = target.tKinEn / target.epsVis;
+    const Real scaleLap = scaleGrad * eta;
+    const Real h_nonDim = sim.uniformH() / eta;
+    const Real dt_nonDim = dt / scaleGrad;
+    const Real tke_nonDim = stats.tke / std::sqrt(target.epsVis * target.nu);
+    const Real visc_nonDim = stats.dissip_visc / target.epsVis;
+    const Real lenIn_nonDim = stats.l_integral / target.lInteg;
+    const Real inject_nonDim = stats.dissip_tot / sim.actualInjectionRate;
+    const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / target.tKinEn;
+  #endif
 
   std::array<Real, 7> globalS = { h_nonDim, dt_nonDim,
     tke_nonDim, visc_nonDim, lenIn_nonDim, inject_nonDim, deltaEn_nonDim };
 
-  const rlApi_t Finit = [&](const std::array<Real,9>&locS, const size_t blockID)
-  {
-    const std::vector<double> S = { locS[0], locS[1], locS[2], locS[3], locS[4],
+  const auto getState = [&] (const std::array<Real,9> & locS) {
+    return std::vector<double> { locS[0], locS[1], locS[2], locS[3], locS[4],
       locS[5], locS[6], locS[7], locS[8], globalS[0], globalS[1], globalS[2],
-      globalS[3], globalS[4], globalS[5], globalS[6]
-    };
-    comm.sendInitState(S, blockID);
-    return comm.recvAction(blockID)[0];
+      globalS[3], globalS[4], globalS[5], globalS[6] };
   };
-  const rlApi_t Fcont = [&](const std::array<Real,9>&locS, const size_t blockID)
-  {
-    const std::vector<double> S = { locS[0], locS[1], locS[2], locS[3], locS[4],
-      locS[5], locS[6], locS[7], locS[8], globalS[0], globalS[1], globalS[2],
-      globalS[3], globalS[4], globalS[5], globalS[6]
+
+  #if 0 // old setup:
+    // Randomly scattered agent-grid-points that sample the policy for Cs.
+    // Rest of grid follows the mean of the policy s.t. grad log pi := 0.
+    // Therefore only one element per block is a proper agent: will add EP to
+    // train data, while other are nThreads agents and are only there for thread
+    // safety: their states get overwritten, actions are policy mean.
+    const size_t nBlocks = sim.vInfo().size();
+    const Uint getAgentID = [&](const size_t blockID, const size_t threadID,
+                                const int ix,const int iy,const int iz) {
+      const bool bAgent = ix == agentsIDX[blockID] &&
+                          iy == agentsIDY[blockID] &&
+                          iz == agentsIDZ[blockID];
+      return bAgent? blockID : nBlocks + threadID;
     };
-    const Real R = collectiveReward + localRewards[blockID];
-    comm.sendState(S, R, blockID);
-    return comm.recvAction(blockID)[0];
+  #else // new setup:
+    // Agents in block centers and linear interpolate Cs on the grid.
+    // The good: (i.) stronger signals for rewards (fewer agents take decisions)
+    // (ii.) can use RNN. The bad: Less powerful model, coarse grained state.
+    const auto getAgentID = [&](const size_t blockID, const size_t threadID,
+                                const int ix,const int iy,const int iz) {
+      return blockID;
+    };
+  #endif
+
+  const rlApi_t Finit = [&](const std::array<Real,9> & locS, const size_t bID,
+                   const size_t thrID, const int ix, const int iy, const int iz)
+  {
+    const size_t agentID = getAgentID(bID, thrID, ix, iy, iz);
+    comm.sendInitState(getState(locS), agentID);
+    return comm.recvAction(agentID)[0];
   };
-  const rlApi_t Flast = [&](const std::array<Real,9>&locS, const size_t blockID)
+  const rlApi_t Fcont = [&](const std::array<Real,9> & locS, const size_t bID,
+                   const size_t thrID, const int ix, const int iy, const int iz)
   {
-    const std::vector<double> S = { locS[0], locS[1], locS[2], locS[3], locS[4],
-      locS[5], locS[6], locS[7], locS[8], globalS[0], globalS[1], globalS[2],
-      globalS[3], globalS[4], globalS[5], globalS[6]
-    };
-    const Real R = collectiveReward + localRewards[blockID];
-    comm.sendLastState(S, R, blockID);
+    const size_t agentID = getAgentID(bID, thrID, ix, iy, iz);
+    comm.sendState(getState(locS), globalR + localRewards[bID], agentID);
+    return comm.recvAction(agentID)[0];
+  };
+  const rlApi_t Flast = [&](const std::array<Real,9> & locS, const size_t bID,
+                   const size_t thrID, const int ix, const int iy, const int iz)
+  {
+    const size_t agentID = getAgentID(bID, thrID, ix, iy, iz);
+    comm.sendLastState(getState(locS), globalR + localRewards[bID], agentID);
     return (Real) 0;
   };
   const rlApi_t sendState = RLinit ? Finit : ( RLover ? Flast : Fcont );
 
-  const locRewF_t computeNextLocalRew = [&] (const size_t blockID, Lab& lab)
+  const locRewF_t computeNextLocalRew = [&] (const size_t bID, Lab& lab)
   {
-    const auto ix = agentsIDX[blockID];
-    const auto iy = agentsIDY[blockID];
-    const auto iz = agentsIDZ[blockID];
-    const Real h = sim.vInfo()[blockID].h_gridpoint;
+    const auto ix = agentsIDX[bID], iy = agentsIDY[bID], iz = agentsIDZ[bID];
+    const Real h = sim.vInfo()[bID].h_gridpoint;
     const std::vector<Real> germano = germanoIdentity(lab, ix, iy, iz, h);
-    nextlocRewards[blockID] = -(std::fabs(germano[0])+std::fabs(germano[1]) +
-                                std::fabs(germano[2])+std::fabs(germano[3]) +
-                                std::fabs(germano[4])+std::fabs(germano[5]))/9;
+    nextlocRewards[bID] = -(std::fabs(germano[0])+std::fabs(germano[1]) +
+                            std::fabs(germano[2])+std::fabs(germano[3]) +
+                            std::fabs(germano[4])+std::fabs(germano[5]))/9;
   };
 
-  KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, actInterp, stats);
+  KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, actInterp,
+                        stats, scaleVel, scaleGrad, scaleLap);
 
-  #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.state_center(vInfo[i]);
+  #if 0 // old setup :
+    compute<KernelSGS_RL>(K_SGS_RL);
+  #else // new setup : (first get actions for block centers, then interpolate)
+    #pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.state_center(vInfo[i]);
 
-  #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.apply_actions(vInfo[i]);
+    #pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.apply_actions(vInfo[i]);
+  #endif
 
-  //compute<KernelSGS_RL>(K_SGS_RL);
   sim.stopProfiler();
   check("SGS_RL");
   localRewards = nextlocRewards;

@@ -95,7 +95,7 @@ inline void app_main(
   cubismup3d::Simulation sim(mpicom, parser);
   cubismup3d::HITtargetData target(parser("-initCondFileTokens").asString());
 
-  const int nActions = 1, nStates = 15;
+  const int nActions = 1, nStates = 16;
   // BIG TROUBLE WITH NAGENTS!
   // If every grid point is an agent: probably will allocate too much memory
   // and crash because smarties allocates a trajectory for each point

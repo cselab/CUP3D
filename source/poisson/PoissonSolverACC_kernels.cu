@@ -396,6 +396,7 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
     const long kind = kkx * kkx + kky * kky + kkz * kkz;
     if (kind < nyquist*nyquist) {
       const int binID = std::floor(std::sqrt((Real) kind) * nyquist_scaling);
+      assert(binID < nBins);
       // reduction buffer here holds also the energy spectrum, shifted by 3
       // to hold also tke, eps and tau
       atomicAdd(reductionBuf + 3 + binID, E);

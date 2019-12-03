@@ -78,12 +78,9 @@ void SpectralManipFFTW::_compute_largeModesForcing()
     if (k2 > 0 && k2 <= 4) {
       tkeFiltered += E;
     } else {
-      cplxData_u[linidx][0] = 0;
-      cplxData_u[linidx][1] = 0;
-      cplxData_v[linidx][0] = 0;
-      cplxData_v[linidx][1] = 0;
-      cplxData_w[linidx][0] = 0;
-      cplxData_w[linidx][1] = 0;
+      cplxData_u[linidx][0] = 0; cplxData_u[linidx][1] = 0;
+      cplxData_v[linidx][0] = 0; cplxData_v[linidx][1] = 0;
+      cplxData_w[linidx][0] = 0; cplxData_w[linidx][1] = 0;
     }
   }
 
@@ -167,7 +164,7 @@ void SpectralManipFFTW::_compute_analysis()
     const long kind = ii*ii + jj*jj + kk*kk;
     if (kind < nyquist * nyquist)
     {
-      const size_t binID = std::floor(std::sqrt(kind) * nyquist_scaling);
+      const size_t binID = std::floor(std::sqrt((Real) kind) * nyquist_scaling);
       assert(binID < nBins);
       E_msr[binID] += E;
       //if (bComputeCs2Spectrum){

@@ -70,8 +70,7 @@ struct HITstatistics
 
   Real getSimpleSpectrumFit(const Real _k, const Real _eps) const
   {
-    const Real C  = 5.7;
-    return C * std::pow(_eps, 2/3.0) * std::pow(_k, -5/3.0);
+    return 5.7 * std::pow(_eps, 2/3.0) * std::pow(_k, -5/3.0);
   }
 
   void getTargetSpectrumFit(const Real _eps, const Real _nu,

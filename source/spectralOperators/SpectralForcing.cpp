@@ -25,7 +25,6 @@ void SpectralForcing::operator()(const double dt)
   sim.startProfiler("SpectralForcing");
   SpectralManip & sM = * sim.spectralManip;
   HITstatistics & stats = sM.stats;
-  assert(sM not_eq nullptr);
 
   _cub2fftw();
 

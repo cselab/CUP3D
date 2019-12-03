@@ -116,75 +116,21 @@ void SpectralAnalysis::dump2File(const int nFile) const
   ssR<<"analysis/spectralAnalysis_"<<std::setfill('0')<<std::setw(9)<<nFile;
   std::ofstream f;
   f.open(ssR.str());
-  f << std::left << "Spectral Analysis :" << "\n";
-  f << std::left << std::setw(15) << "time"
-    << std::setw(15) << sM->sim.time
-    << " #simulation time" << "\n";
-
-  f << std::left << std::setw(15) << "lBox"
-    << std::setw(15) << sM->maxGridL
-    << " #simulation box length" << "\n";
-
-  f << std::left << std::setw(15) << "tke"
-    << std::setw(15) << sM->stats.tke
-    << " #turbulent kinetic energy" << "\n";
-
-  f << std::left << std::setw(15) << "eps"
-    << std::setw(15) << sM->stats.dissip_visc
-    << " #Viscous dissipation rate" << "\n";
-
-  f << std::left << std::setw(15) << "eps_f"
-    << std::setw(15) << sM->stats.dissip_tot
-    << " #Total dissipation rate" << "\n";
-
-  f << std::left << std::setw(15) << "lambda"
-    << std::setw(15) << sM->stats.lambda
-    << " #Taylor microscale" << "\n";
-
-  f << std::left << std::setw(15) << "Re_lambda"
-    << std::setw(15) << sM->stats.Re_lambda
-    << " #Turbulent Reynolds based on lambda" << "\n";
-
-  f << std::left << std::setw(15) << "eta"
-    << std::setw(15) << std::pow(pow3(sM->sim.nu)/sM->stats.dissip_tot, 1.0/4)
-    << " #Kolmogorov length scale" << "\n";
-
-  f << std::left << std::setw(15) << "tau_integral"
-    << std::setw(15) << sM->stats.tau_integral
-    << " #Integral time scale" << "\n";
-
-  f << std::left << std::setw(15) << "l_integral"
-    << std::setw(15) << sM->stats.l_integral
-    << " #Integral length scale" << "\n";
-
-  f << std::left << std::setw(15) << "tau_eta"
-    << std::setw(15) << std::sqrt( sM->sim.nu / sM->stats.dissip_tot )
-    << " #Kolmogorov time scale" << "\n";
-
-  f << std::left << std::setw(15) << "nu_sgs"
-    << std::setw(15) << sM->sim.nu_sgs
-    << " #Average SGS viscosity" << "\n";
-
-  f << std::left << std::setw(15) << "cs2_avg"
-    << std::setw(15) << sM->sim.cs2_avg
-    << " #Average Cs2 if dynamic model" << "\n";
-
-  f << std::left << std::setw(15) << "mean_grad"
-    << std::setw(15) << sM->sim.grad_mean
-    << " #Average gradient magnitude" << "\n";
-
-  f << std::left << std::setw(15) << "std_grad"
-    << std::setw(15) << sM->sim.grad_std
-    << " #Stdev gradient magnitude" << "\n"
-    << "\n";
-
-  f << std::left << std::setw(15) << "k * (lBox/2pi)"
-    << std::setw(15) << "E_k" << "\n";
-
-  const int nBins = sM->stats.nBin;
-  for (int i = 0; i < nBins; i++)
-    f << std::left << std::setw(15) << sM->stats.k_msr[i]
-                   << std::setw(15) << sM->stats.E_msr[i] << "\n";
+  f <<        "time " << sM->sim.time << "\n";
+  f <<          "dt " << sM->sim.dt << "\n";
+  f <<        "lBox " << sM->maxGridL << "\n";
+  f <<         "tke " << sM->stats.tke << "\n";
+  f <<"tke_filtered " << sM->stats.tke_filtered << "\n";
+  f << "dissip_visc " << sM->stats.dissip_visc << "\n";
+  f <<  "dissip_tot " << sM->stats.dissip_tot << "\n";
+  f <<  "l_integral " << sM->stats.l_integral << "\n";
+  f <<      "nu_sgs " << sM->sim.nu_sgs << "\n";
+  f <<     "cs2_avg " << sM->sim.cs2_avg << "\n";
+  f <<   "mean_grad " << sM->sim.grad_mean << "\n";
+  f <<    "std_grad " << sM->sim.grad_std << "\n\n";
+  f << "k*(lBox/2pi) E_k" << "\n";
+  for (int i = 0; i < sM->stats.nBin; ++i)
+    f << sM->stats.k_msr[i] << " " << sM->stats.E_msr[i] << "\n";
   f.flush();
   f.close();
 
