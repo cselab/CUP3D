@@ -97,7 +97,6 @@ struct FilteredQuatities
   Real u  = 0.0, v  = 0.0, w  = 0.0;
   Real uu = 0.0, uv = 0.0, uw = 0.0;
   Real vv = 0.0, vw = 0.0, ww = 0.0;
-
   Real S_xx = 0.0, S_xy = 0.0, S_xz = 0.0;
   Real S_yy = 0.0, S_yz = 0.0, S_zz = 0.0;
 
@@ -108,18 +107,13 @@ struct FilteredQuatities
     for (int i=-1; i<2; ++i)
     {
       const Real f = facFilter(i,j,k);
-      const FluidElement &L =lab(ix+i, iy+j, iz+k);
+      const auto & L = lab(ix+i, iy+j, iz+k);
       u  += f * L.u;     v  += f * L.v;     w  += f * L.w;
       uu += f * L.u*L.u; uv += f * L.u*L.v; uw += f * L.u*L.w;
       vv += f * L.v*L.v; vw += f * L.v*L.w; ww += f * L.w*L.w;
-
-      const FluidElement &LW=lab(ix+i-1, iy+j,   iz+k  );
-      const FluidElement &LE=lab(ix+i+1, iy+j,   iz+k  );
-      const FluidElement &LS=lab(ix+i,   iy+j-1, iz+k  );
-      const FluidElement &LN=lab(ix+i,   iy+j+1, iz+k  );
-      const FluidElement &LF=lab(ix+i,   iy+j,   iz+k-1);
-      const FluidElement &LB=lab(ix+i,   iy+k,   iz+k+1);
-
+      const auto & LW=lab(ix+i-1, iy+j, iz+k), & LE=lab(ix+i+1, iy+j, iz+k);
+      const auto & LS=lab(ix+i, iy+j-1, iz+k), & LN=lab(ix+i, iy+j+1, iz+k);
+      const auto & LF=lab(ix+i, iy+j, iz+k-1), & LB=lab(ix+i, iy+k, iz+k+1);
       S_xx += f * (LE.u-LW.u)             / (2*h);
       S_xy += f * (LE.v-LW.v + LN.u-LS.u) / (4*h);
       S_xz += f * (LE.w-LW.w + LB.u-LF.u) / (4*h);
@@ -137,92 +131,72 @@ struct FilteredQuatities
 inline std::array<Real,6> symProd(const std::array<Real,6> & mat1,
                                   const std::array<Real,6> & mat2)
 {
-  std::array<Real,6> ret;
-  ret[0] = mat1[0]*mat2[0] + mat1[1]*mat2[1] + mat1[2]*mat2[2];
-  ret[1] = mat1[0]*mat2[1] + mat1[1]*mat2[3] + mat1[2]*mat2[4];
-  ret[2] = mat1[0]*mat2[2] + mat1[1]*mat2[4] + mat1[2]*mat2[5];
-  ret[3] = mat1[1]*mat2[1] + mat1[3]*mat2[3] + mat1[4]*mat2[4];
-  ret[4] = mat1[1]*mat2[2] + mat1[3]*mat2[4] + mat1[4]*mat2[5];
-  ret[5] = mat1[2]*mat2[2] + mat1[4]*mat2[4] + mat1[5]*mat2[5];
-  return ret;
+  return { mat1[0]*mat2[0] + mat1[1]*mat2[1] + mat1[2]*mat2[2],
+           mat1[0]*mat2[1] + mat1[1]*mat2[3] + mat1[2]*mat2[4],
+           mat1[0]*mat2[2] + mat1[1]*mat2[4] + mat1[2]*mat2[5],
+           mat1[1]*mat2[1] + mat1[3]*mat2[3] + mat1[4]*mat2[4],
+           mat1[1]*mat2[2] + mat1[3]*mat2[4] + mat1[4]*mat2[5],
+           mat1[2]*mat2[2] + mat1[4]*mat2[4] + mat1[5]*mat2[5] };
 }
 // Product of two anti symmetric matrices stored as 1D vector with 3 elts (M_01, M_02, M_12)
 // Returns a symmetric matrix.
 inline std::array<Real,6> antiSymProd(const std::array<Real,3> & mat1,
                                       const std::array<Real,3> & mat2)
 {
-  std::array<Real,6> ret;
-  ret[0] = - mat1[0]*mat2[0] - mat1[1]*mat2[1];
-  ret[1] = - mat1[1]*mat2[2];
-  ret[2] =   mat1[0]*mat2[2];
-  ret[3] = - mat1[0]*mat2[0] - mat1[2]*mat2[2];
-  ret[4] = - mat1[0]*mat2[1];
-  ret[5] = - mat1[1]*mat2[1] - mat1[2]*mat2[2];
-  return ret;
+  return { - mat1[0]*mat2[0] - mat1[1]*mat2[1],
+           - mat1[1]*mat2[2],
+             mat1[0]*mat2[2],
+           - mat1[0]*mat2[0] - mat1[2]*mat2[2],
+           - mat1[0]*mat2[1],
+           - mat1[1]*mat2[1] - mat1[2]*mat2[2] };
 }
 // Returns the Tr[mat1*mat2] with mat1 and mat2 symmetric matrices stored as 1D vector.
 inline Real traceOfSymProd(const std::array<Real,6> & mat1,
                            const std::array<Real,6> & mat2)
 {
-  Real ret =   mat1[0]*mat2[0] +   mat1[3]*mat2[3]  +   mat1[5]*mat2[5]
-           + 2*mat1[1]*mat2[1] + 2*mat1[2]*mat2[2]  + 2*mat1[4]*mat2[4];
-  return ret;
+  return mat1[0]*mat2[0] +   mat1[3]*mat2[3]  +   mat1[5]*mat2[5]
+     + 2*mat1[1]*mat2[1] + 2*mat1[2]*mat2[2]  + 2*mat1[4]*mat2[4];
 }
 
 inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
                                   const int ix, const int iy, const int iz)
 {
-  std::vector<Real> ret(6,0);
-
   FilteredQuatities fq(lab, ix,iy,iz, h);
   const FluidElement & L = lab(ix, iy, iz);
-
-  const Real shear_t = std::sqrt(
-      2 * (fq.S_xx * fq.S_xx + fq.S_yy * fq.S_yy + fq.S_zz * fq.S_zz) +
-      4 * (fq.S_xy * fq.S_xy + fq.S_yz * fq.S_yz + fq.S_xz * fq.S_xz));
-
-  Real traceTerm = (fq.uu+fq.vv+fq.ww -fq.u*fq.u -fq.v*fq.v -fq.w*fq.w)/3;
+  const Real shear_t = std::sqrt(2*(pow2(fq.S_xx)+pow2(fq.S_yy)+pow2(fq.S_zz))
+                               + 4*(pow2(fq.S_xy)+pow2(fq.S_yz)+pow2(fq.S_xz)));
+  const Real traceTerm = (fq.uu+fq.vv+fq.ww -fq.u*fq.u -fq.v*fq.v -fq.w*fq.w)/3;
   const Real l_xx = fq.uu - fq.u * fq.u - traceTerm;
   const Real l_xy = fq.uv - fq.u * fq.v;
   const Real l_xz = fq.uw - fq.u * fq.w;
   const Real l_yy = fq.vv - fq.v * fq.v - traceTerm;
   const Real l_yz = fq.vw - fq.v * fq.w;
   const Real l_zz = fq.ww - fq.w * fq.w - traceTerm;
-
   Real t_xx = - 2 * L.chi * (4*h*h) * shear_t * fq.S_xx;
   Real t_xy = - 2 * L.chi * (4*h*h) * shear_t * fq.S_xy;
   Real t_xz = - 2 * L.chi * (4*h*h) * shear_t * fq.S_xz;
   Real t_yy = - 2 * L.chi * (4*h*h) * shear_t * fq.S_yy;
   Real t_yz = - 2 * L.chi * (4*h*h) * shear_t * fq.S_yz;
   Real t_zz = - 2 * L.chi * (4*h*h) * shear_t * fq.S_zz;
-  traceTerm = (t_xx + t_yy + t_zz)/3;
-  t_xx -= traceTerm;
-  t_yy -= traceTerm;
-  t_zz -= traceTerm;
+  t_xx -= (t_xx + t_yy + t_zz)/3; // remove trace
+  t_yy -= (t_xx + t_yy + t_zz)/3; // remove trace
+  t_zz -= (t_xx + t_yy + t_zz)/3; // remove trace
 
-
-  Real tau_xx = 0., tau_xy = 0., tau_xz = 0.;
-  Real tau_yy = 0., tau_yz = 0., tau_zz = 0.;
-
-  for (int i=-1; i<2; i++)
-  for (int j=-1; j<2; j++)
-  for (int k=-1; k<2; k++)
+  Real tau_xx = 0, tau_xy = 0, tau_xz = 0, tau_yy = 0, tau_yz = 0, tau_zz = 0;
+  for (int i = -1; i < 2; ++i)
+  for (int j = -1; j < 2; ++j)
+  for (int k = -1; k < 2; ++k)
   {
     const Real f = facFilter(i,j,k);
     //const FluidElement &LL=lab(ix+i,iy+j,iz+k);
-    const FluidElement &LW=lab(ix+i-1,iy+j,iz+k), &LE=lab(ix+i+1,iy+j,iz+k);
-    const FluidElement &LS=lab(ix+i,iy+j-1,iz+k), &LN=lab(ix+i,iy+j+1,iz+k);
-    const FluidElement &LF=lab(ix+i,iy+j,iz+k-1), &LB=lab(ix+i,iy+j,iz+k+1);
+    const auto & LW = lab(ix+i-1,iy+j,iz+k), & LE = lab(ix+i+1,iy+j,iz+k);
+    const auto & LS = lab(ix+i,iy+j-1,iz+k), & LN = lab(ix+i,iy+j+1,iz+k);
+    const auto & LF = lab(ix+i,iy+j,iz+k-1), & LB = lab(ix+i,iy+j,iz+k+1);
     const Real dudx = LE.u-LW.u, dvdx = LE.v-LW.v, dwdx = LE.w-LW.w;
     const Real dudy = LN.u-LS.u, dvdy = LN.v-LS.v, dwdy = LN.w-LS.w;
     const Real dudz = LB.u-LF.u, dvdz = LB.v-LF.v, dwdz = LB.w-LF.w;
-
-    const Real shear = std::sqrt(
-       2*(dudx*dudx) + 2*(dvdy*dvdy) + 2*(dwdz*dwdz)
-       + (dudy+dvdx)*(dudy+dvdx)
-       + (dudz+dwdx)*(dudz+dwdx)
-       + (dwdy+dvdz)*(dwdy+dvdz) ) / (2*h);
-
+    const Real shear = std::sqrt( 2*(dudx*dudx) + 2*(dvdy*dvdy) + 2*(dwdz*dwdz)
+                + pow2(dudy+dvdx) + pow2(dudz+dwdx) + pow2(dwdy+dvdz) ) / (2*h);
     tau_xx -= f * 2 * L.chi * shear * h*h *  dudx         / (2*h);
     tau_xy -= f * 2 * L.chi * shear * h*h * (dudy + dvdx) / (4*h);
     tau_xz -= f * 2 * L.chi * shear * h*h * (dudz + dwdx) / (4*h);
@@ -230,18 +204,13 @@ inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
     tau_yz -= f * 2 * L.chi * shear * h*h * (dwdy + dvdz) / (4*h);
     tau_zz -= f * 2 * L.chi * shear * h*h *  dwdz         / (2*h);
   }
-  traceTerm = (tau_xx + tau_yy + tau_zz)/3;
-  tau_xx -= traceTerm;
-  tau_yy -= traceTerm;
-  tau_zz -= traceTerm;
 
-  ret[0] = (l_xx - (t_xx - tau_xx));
-  ret[1] = (l_xy - (t_xy - tau_xy))*2;
-  ret[2] = (l_xz - (t_xz - tau_xz))*2;
-  ret[3] = (l_yy - (t_yy - tau_yy));
-  ret[4] = (l_yz - (t_yz - tau_yz))*2;
-  ret[5] = (l_zz - (t_zz - tau_zz));
-  return ret;
+  return {     ( l_xx - t_xx + tau_xx - (tau_xx + tau_yy + tau_zz)/3),
+           2 * ( l_xy - t_xy + tau_xy                               ),
+           2 * ( l_xz - t_xz + tau_xz                               ),
+               ( l_yy - t_yy + tau_yy - (tau_xx + tau_yy + tau_zz)/3),
+           2 * ( l_yz - t_yz + tau_yz                               ),
+               ( l_zz - t_zz + tau_zz - (tau_xx + tau_yy + tau_zz)/3) };
 }
 
 using rlApi_t = std::function<Real(const std::array<Real, 9> &, const size_t,
@@ -260,6 +229,9 @@ class KernelSGS_RL
   Real sqrtDist(const Real val) const {
     return val>=0? std::sqrt(val) : -std::sqrt(-val);
   };
+  Real cbrtDist(const Real val) const {
+    return std::cbrt(val);
+  };
   Real frthDist(const Real val) const {
     return val>=0? std::sqrt(std::sqrt(val)) : -std::sqrt(std::sqrt(-val));
   };
@@ -269,25 +241,18 @@ class KernelSGS_RL
     const Real d1udy1, const Real d1vdy1, const Real d1wdy1,
     const Real d1udz1, const Real d1vdz1, const Real d1wdz1) const
   {
-    const std::array<Real,6> S = {
-      d1udx1, (d1vdx1 + d1udy1)/2, (d1wdx1 + d1udz1)/2,
-      d1vdy1, (d1wdy1 + d1vdz1)/2, d1wdz1 };
-
+    const std::array<Real,6> S = { d1udx1, (d1vdx1 + d1udy1)/2,
+      (d1wdx1 + d1udz1)/2, d1vdy1, (d1wdy1 + d1vdz1)/2, d1wdz1 };
     const std::array<Real,3> R = {
-      (d1vdx1 - d1udy1)/2, (d1wdx1 - d1udz1)/2, (d1wdy1 - d1vdz1)/2};
-
+      (d1vdx1 - d1udy1)/2, (d1wdx1 - d1udz1)/2, (d1wdy1 - d1vdz1)/2 };
     const std::array<Real,6> S2  = symProd(S, S);
     const std::array<Real,6> R2  = antiSymProd(R, R);
     //const std::vector<Real> R2S = symProd(R2, S);
-    std::array<Real,5> ret;
-
-    ret[0] = sqrtDist(S2[0] + S2[3] + S2[5]);  // Tr(S^2)
-    ret[1] = sqrtDist(R2[0] + R2[3] + R2[5]);  // Tr(R^2)
-    ret[2] = std::cbrt(traceOfSymProd(S2, S)); // Tr(S^3)
-    ret[3] = std::cbrt(traceOfSymProd(R2, S)); // Tr(R^2.S)
-    ret[4] = frthDist(traceOfSymProd(R2, S2)); // Tr(R^2.S^2)
-
-    return ret;
+    return { sqrtDist(S2[0] + S2[3] + S2[5]),   // Tr(S^2)
+             sqrtDist(R2[0] + R2[3] + R2[5]),   // Tr(R^2)
+             cbrtDist(traceOfSymProd(S2, S)),   // Tr(S^3)
+             cbrtDist(traceOfSymProd(R2, S)),   // Tr(R^2.S)
+             frthDist(traceOfSymProd(R2,S2)) }; // Tr(R^2.S^2)
   }
 
   std::array<Real,3> mainMatInvariants(
@@ -301,7 +266,7 @@ class KernelSGS_RL
     // Det(Mat):
     const Real I3 = xy*yz*zx + xz*yx*zy + xx*yy*zz
                   - xz*yy*zx - xx*yz*zy - xy*yx*zz;
-    return {I1, sqrtDist(I2), std::cbrt(I3)};
+    return {I1, sqrtDist(I2), cbrtDist(I3)};
   }
 
   template <typename Lab>
@@ -406,18 +371,16 @@ SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
 
   std::mt19937& gen = commPtr->getPRNG();
   const std::vector<BlockInfo>& myInfo = sim.vInfo();
-  std::uniform_int_distribution<int> distX(0, FluidBlock::sizeX-1);
-  std::uniform_int_distribution<int> distY(0, FluidBlock::sizeY-1);
-  std::uniform_int_distribution<int> distZ(0, FluidBlock::sizeZ-1);
+  std::uniform_int_distribution<int> disX(0, FluidBlock::sizeX-1);
+  std::uniform_int_distribution<int> disY(0, FluidBlock::sizeY-1);
+  std::uniform_int_distribution<int> disZ(0, FluidBlock::sizeZ-1);
   agentsIDX.resize(myInfo.size(), -1);
   agentsIDY.resize(myInfo.size(), -1);
   agentsIDZ.resize(myInfo.size(), -1);
   localRewards = std::vector<double>(myInfo.size(), 0);
 
   for (size_t i=0; i<myInfo.size(); ++i) {
-    agentsIDX[i] = distX(gen);
-    agentsIDY[i] = distY(gen);
-    agentsIDZ[i] = distZ(gen);
+    agentsIDX[i]= disX(gen); agentsIDY[i]= disY(gen); agentsIDZ[i]= disZ(gen);
   }
 }
 
@@ -449,9 +412,9 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / stats.tke;
   #else // non-dimensionalize wrt *target* flow quantities
     const Real eta = stats.getKolmogorovL(target.epsVis, target.nu);
-    const Real scaleVel = 1 / std::sqrt(target.tKinEn);
-    const Real scaleGrad = target.tKinEn / target.epsVis;
-    const Real scaleLap = scaleGrad * eta;
+    const Real scaleVel = 1 / std::sqrt(target.tKinEn); // [T/L]
+    const Real scaleGrad = target.tKinEn / target.epsVis; // [T]
+    const Real scaleLap = scaleGrad * eta; // [TL]
     const Real h_nonDim = sim.uniformH() / eta;
     const Real dt_nonDim = dt / scaleGrad;
     const Real tke_nonDim = stats.tke / std::sqrt(target.epsVis * target.nu);

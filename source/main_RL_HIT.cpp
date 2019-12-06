@@ -23,7 +23,7 @@
 
 #define LES_RL_INIT_T 5
 #define LES_RL_N_TSIM 15
-#define LES_RL_FREQ_A 10
+#define LES_RL_FREQ_A 2
 //#define SGSRL_STATE_SCALING
 
 using Real = cubismup3d::Real;
