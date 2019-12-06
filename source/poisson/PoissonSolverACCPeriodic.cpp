@@ -74,9 +74,6 @@ PoissonSolverPeriodic::PoissonSolverPeriodic(SimulationData & s) : PoissonSolver
     osize[0] = myN[2]; isize[0] = myN[2];
     osize[1] = myN[1]; isize[1] = myN[1];
     osize[2] = myN[0]; isize[2] = myN[0];
-    //osize[0] = myN[0]; isize[0] = myN[0];
-    //osize[1] = myN[1]; isize[1] = myN[1];
-    //osize[2] = myN[2]; isize[2] = myN[2];
     ostart[0] = 0; istart[0] = 0;
     ostart[1] = 0; istart[1] = 0;
     ostart[2] = 0; istart[2] = 0;

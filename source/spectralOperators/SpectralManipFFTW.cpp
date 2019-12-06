@@ -33,9 +33,10 @@ void SpectralManipFFTW::_compute_largeModesForcing()
   const Real waveFactorX = 2.0 * M_PI / sim.extent[0];
   const Real waveFactorY = 2.0 * M_PI / sim.extent[1];
   const Real waveFactorZ = 2.0 * M_PI / sim.extent[2];
-  const Real wFacX = 2*M_PI / nKx, wFacY = 2*M_PI / nKy, wFacZ = 2*M_PI / nKz;
+  //const Real wFacX = 2*M_PI / nKx, wFacY = 2*M_PI / nKy, wFacZ = 2*M_PI / nKz;
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
   const long loc_n1 = local_n1, shifty = local_1_start;
+  const Real h = sim.uniformH();
 
   Real eps = 0, tke = 0, tkeFiltered = 0, lIntegral = 0;
   #pragma omp parallel for reduction(+: eps, tke, tkeFiltered, lIntegral) schedule(static)
@@ -52,9 +53,9 @@ void SpectralManipFFTW::_compute_largeModesForcing()
 
     const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
     const Real k2 = kx*kx + ky*ky + kz*kz;
-    const Real dXfac = 2*std::sin(wFacX*ii);
-    const Real dYfac = 2*std::sin(wFacY*jj);
-    const Real dZfac = 2*std::sin(wFacZ*kk);
+    const Real dXfac = 2*std::sin(h * kx);
+    const Real dYfac = 2*std::sin(h * ky);
+    const Real dZfac = 2*std::sin(h * kz);
     const Real UR = cplxData_u[linidx][0], UI = cplxData_u[linidx][1];
     const Real VR = cplxData_v[linidx][0], VI = cplxData_v[linidx][1];
     const Real WR = cplxData_w[linidx][0], WI = cplxData_w[linidx][1];
@@ -92,7 +93,7 @@ void SpectralManipFFTW::_compute_largeModesForcing()
   stats.tke_filtered = tkeFiltered / pow2(normalizeFFT);
   stats.tke = tke / pow2(normalizeFFT);
   stats.l_integral = lIntegral / tke;
-  stats.dissip_visc = eps * 2 * sim.nu /pow2(normalizeFFT * 2 * sim.uniformH());
+  stats.dissip_visc = eps * 2 * sim.nu /pow2(normalizeFFT * 2 * h);
   //const Real tau_integral =
   //  lIntegral * M_PI / (2*pow3(stats.uprime)) / pow2(normalizeFFT);
 }
@@ -109,7 +110,8 @@ void SpectralManipFFTW::_compute_analysis()
   const Real waveFactorX = 2.0 * M_PI / sim.extent[0];
   const Real waveFactorY = 2.0 * M_PI / sim.extent[1];
   const Real waveFactorZ = 2.0 * M_PI / sim.extent[2];
-  const Real wFacX = 2*M_PI / nKx, wFacY = 2*M_PI / nKy, wFacZ = 2*M_PI / nKz;
+  //const Real wFacX = 2*M_PI / nKx, wFacY = 2*M_PI / nKy, wFacZ = 2*M_PI / nKz;
+  const Real h = sim.uniformH();
 
   const long loc_n1 = local_n1, shifty = local_1_start;
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
@@ -136,9 +138,9 @@ void SpectralManipFFTW::_compute_analysis()
     const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
     const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
     const Real k2 = kx*kx + ky*ky + kz*kz;
-    const Real dXfac = 2*std::sin(wFacX*ii);
-    const Real dYfac = 2*std::sin(wFacY*jj);
-    const Real dZfac = 2*std::sin(wFacZ*kk);
+    const Real dXfac = 2*std::sin(h * kx);
+    const Real dYfac = 2*std::sin(h * ky);
+    const Real dZfac = 2*std::sin(h * kz);
     const Real UR = cplxData_u[linidx][0], UI = cplxData_u[linidx][1];
     const Real VR = cplxData_v[linidx][0], VI = cplxData_v[linidx][1];
     const Real WR = cplxData_w[linidx][0], WI = cplxData_w[linidx][1];
@@ -155,7 +157,7 @@ void SpectralManipFFTW::_compute_analysis()
     const Real E = mult/2 * (UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
 
     tke += E; // Total kinetic energy
-    //eps += k2 * E; // Dissipation rate
+    //eps += k2 * mult/2 * E; // Dissipation rate
     eps += mult/2 * ( OMGXR*OMGXR + OMGXI*OMGXI
                     + OMGYR*OMGYR + OMGYI*OMGYI
                     + OMGZR*OMGZR + OMGZI*OMGZI);    // Dissipation rate

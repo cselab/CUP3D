@@ -69,7 +69,7 @@ void SpectralManipACC::_compute_largeModesForcing()
   // kernel
   size_t gsize_[3] = {gsize[0], gsize[1], gsize[2]};
   // for cuFFT we use x as fast index instead of z:
-  if(sim.nprocs > 1) { gsize_[0] = gsize[2]; gsize_[2] = gsize[0]; }
+  if(sim.nprocs < 2) { gsize_[0] = gsize[2]; gsize_[2] = gsize[0]; }
   _compute_HIT_forcing( (acc_c*) gpu_u, (acc_c*) gpu_v, (acc_c*) gpu_w,
     gsize_, osize, ostart, h, tke, eps, tkeFiltered, lIntegral);
 
@@ -102,7 +102,7 @@ void SpectralManipACC::_compute_analysis()
   // kernel
   size_t gsize_[3] = {gsize[0], gsize[1], gsize[2]};
   // for cuFFT we use x as fast index instead of z:
-  if(sim.nprocs > 1) { gsize_[0] = gsize[2]; gsize_[2] = gsize[0]; }
+  if(sim.nprocs < 2) { gsize_[0] = gsize[2]; gsize_[2] = gsize[0]; }
   _compute_HIT_analysis( (acc_c*) gpu_u, (acc_c*) gpu_v, (acc_c*) gpu_w,
     gsize_,osize,ostart, h, tke, eps, lIntegral, E_msr, nBins, nyquist);
 
@@ -116,7 +116,7 @@ void SpectralManipACC::_compute_analysis()
 
   stats.tke = tke * normalization;
   stats.l_integral = lIntegral / tke;
-  stats.dissip_visc = 2 * eps * sim.nu * normalization / pow2(2*sim.uniformH());
+  stats.dissip_visc = 2 * eps * sim.nu * normalization / pow2(2*h);
   //stats.dissip_visc = eps * 2 * sim.nu * normalization;
 
   sim.stopProfiler();
@@ -191,7 +191,6 @@ streams(new myCUDAstreams())
     stridey = 2*nx_hat;
     stridex = 1; // slow
   }
-
 }
 
 void SpectralManipACC::prepareFwd()
@@ -210,7 +209,9 @@ void SpectralManipACC::runFwd() const
   cudaMemcpyAsync(gpu_u, data_u, bufSize, cudaMemcpyHostToDevice, streams->u);
   cudaMemcpyAsync(gpu_v, data_v, bufSize, cudaMemcpyHostToDevice, streams->v);
   cudaMemcpyAsync(gpu_w, data_w, bufSize, cudaMemcpyHostToDevice, streams->w);
-
+  //cudaMemcpy(gpu_u, data_u, bufSize, cudaMemcpyHostToDevice);
+  //cudaMemcpy(gpu_v, data_v, bufSize, cudaMemcpyHostToDevice);
+  //cudaMemcpy(gpu_w, data_w, bufSize, cudaMemcpyHostToDevice);
   if(sim.nprocs > 1)
   {
   cudaStreamSynchronize ( streams->u );
@@ -238,6 +239,8 @@ void SpectralManipACC::runBwd() const
 {
   sim.stopProfiler();
   sim.startProfiler("ACCForce bwd");
+  const size_t bufSize = data_size * sizeof(Real);
+
   if(sim.nprocs > 1)
   {
   accfft_exec_c2r((acc_plan*)plan, (acc_c*)gpu_u, gpu_u);
@@ -246,11 +249,9 @@ void SpectralManipACC::runBwd() const
   cudaMemcpyAsync(data_v, gpu_v, alloc_max, cudaMemcpyDeviceToHost, streams->v);
   accfft_exec_c2r((acc_plan*)plan, (acc_c*)gpu_w, gpu_w);
   cudaMemcpyAsync(data_w, gpu_w, alloc_max, cudaMemcpyDeviceToHost, streams->w);
-
   }
   else
   {
-  const size_t bufSize = data_size * sizeof(Real);
   cufftExecBWD(cufft_bwd, (cufftCmpT*)gpu_u, gpu_u);
   cudaMemcpyAsync(data_u, gpu_u, bufSize, cudaMemcpyDeviceToHost, streams->u);
   cufftExecBWD(cufft_bwd, (cufftCmpT*)gpu_v, gpu_v);
@@ -261,6 +262,9 @@ void SpectralManipACC::runBwd() const
   cudaStreamSynchronize ( streams->u );
   cudaStreamSynchronize ( streams->v );
   cudaStreamSynchronize ( streams->w );
+  //cudaMemcpy(data_u, gpu_u, bufSize, cudaMemcpyDeviceToHost);
+  //cudaMemcpy(data_v, gpu_v, bufSize, cudaMemcpyDeviceToHost);
+  //cudaMemcpy(data_w, gpu_w, bufSize, cudaMemcpyDeviceToHost);
 
   sim.stopProfiler();
   sim.startProfiler("SpectralForcing");
@@ -288,3 +292,4 @@ SpectralManipACC::~SpectralManipACC()
 
 CubismUP_3D_NAMESPACE_END
 #undef MPIREAL
+

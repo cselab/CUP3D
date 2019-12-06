@@ -112,28 +112,54 @@ void SpectralAnalysis::dump2File(const int nFile) const
     sM->sim.step, sM->sim.time, sM->stats.tke, sM->stats.dissip_visc,
     sM->stats.dissip_tot, sM->sim.actualInjectionRate, sM->stats.l_integral);
 
-  std::stringstream ssR;
-  ssR<<"analysis/spectralAnalysis_"<<std::setfill('0')<<std::setw(9)<<nFile;
-  std::ofstream f;
-  f.open(ssR.str());
-  f <<        "time " << sM->sim.time << "\n";
-  f <<          "dt " << sM->sim.dt << "\n";
-  f <<        "lBox " << sM->maxGridL << "\n";
-  f <<         "tke " << sM->stats.tke << "\n";
-  f <<"tke_filtered " << sM->stats.tke_filtered << "\n";
-  f << "dissip_visc " << sM->stats.dissip_visc << "\n";
-  f <<  "dissip_tot " << sM->stats.dissip_tot << "\n";
-  f <<  "l_integral " << sM->stats.l_integral << "\n";
-  f <<      "nu_sgs " << sM->sim.nu_sgs << "\n";
-  f <<     "cs2_avg " << sM->sim.cs2_avg << "\n";
-  f <<   "mean_grad " << sM->sim.grad_mean << "\n";
-  f <<    "std_grad " << sM->sim.grad_std << "\n\n";
-  f << "k*(lBox/2pi) E_k" << "\n";
-  for (int i = 0; i < sM->stats.nBin; ++i)
-    f << sM->stats.k_msr[i] << " " << sM->stats.E_msr[i] << "\n";
-  f.flush();
-  f.close();
+  std::vector<double> buf = std::vector<double>{
+    sM->sim.time,
+    sM->sim.dt,
+    sM->maxGridL,
+    sM->stats.tke,
+    sM->stats.tke_filtered,
+    sM->stats.dissip_visc,
+    sM->stats.dissip_tot,
+    sM->stats.l_integral,
+    sM->stats.tau_integral,
+    sM->sim.nu_sgs,
+    sM->sim.cs2_avg,
+    sM->sim.grad_mean,
+    sM->sim.grad_std
+  };
+  buf.reserve(buf.size() + sM->stats.nBin);
+  for (int i = 0; i < sM->stats.nBin; ++i) buf.push_back(sM->stats.E_msr[i]);
 
+  {
+    FILE * pFile = fopen ("spectralAnalysis.raw", "ab");
+    fwrite (buf.data(), sizeof(double), buf.size(), pFile);
+    fflush(pFile);
+    fclose(pFile);
+  }
+
+  #if 0
+    std::stringstream ssR;
+    ssR<<"analysis/spectralAnalysis_"<<std::setfill('0')<<std::setw(9)<<nFile;
+    std::ofstream f;
+    f.open(ssR.str());
+    f <<        "time " << sM->sim.time << "\n";
+    f <<          "dt " << sM->sim.dt << "\n";
+    f <<        "lBox " << sM->maxGridL << "\n";
+    f <<         "tke " << sM->stats.tke << "\n";
+    f <<"tke_filtered " << sM->stats.tke_filtered << "\n";
+    f << "dissip_visc " << sM->stats.dissip_visc << "\n";
+    f <<  "dissip_tot " << sM->stats.dissip_tot << "\n";
+    f <<  "l_integral " << sM->stats.l_integral << "\n";
+    f <<      "nu_sgs " << sM->sim.nu_sgs << "\n";
+    f <<     "cs2_avg " << sM->sim.cs2_avg << "\n";
+    f <<   "mean_grad " << sM->sim.grad_mean << "\n";
+    f <<    "std_grad " << sM->sim.grad_std << "\n\n";
+    f << "k*(lBox/2pi) E_k" << "\n";
+    for (int i = 0; i < sM->stats.nBin; ++i)
+      f << sM->stats.k_msr[i] << " " <<  << "\n";
+    f.flush();
+    f.close();
+  #endif
   /*
     std::stringstream ssR_cs2;
     ssR_cs2 << "analysis/spectralAnalysisCs2_" << std::setfill('0')
