@@ -24,7 +24,13 @@ struct HITtargetData
   std::vector<double> logE_mean, mode, E_mean;
   std::vector<std::vector<double>> logE_invCov;
 
-  double eps, nu, tKinEn, lambda, Re_lam, tInteg, lInteg, avg_Du, epsVis;
+  double eps, nu, tKinEn, epsVis, epsTot, lInteg, tInteg, avg_Du, std_Du;
+  double Re_lambda() const
+  {
+     const double uprime = std::sqrt(2.0/3.0 * tKinEn);
+     const double lambda = std::sqrt(15 * nu / epsTot) * uprime;
+     return uprime * lambda / nu;
+  }
 
   void sampleParameters(std::mt19937& gen)
   {
@@ -37,7 +43,7 @@ struct HITtargetData
 
   void readScalars(const std::string paramspec)
   {
-    std::string line; char arg[32]; double stdev;
+    std::string line; char arg[32]; double stdev, _dt;
     std::ifstream file("../../scalars_" + paramspec);
     if (!file.is_open()) printf("scalars FILE NOT FOUND\n");
 
@@ -50,36 +56,40 @@ struct HITtargetData
     assert(strcmp(arg, "nu") == 0);
 
     std::getline(file, line);
+    sscanf(line.c_str(), "%s %le %le", arg, &_dt, &stdev);
+    assert(strcmp(arg, "dt") == 0);
+
+    std::getline(file, line);
     sscanf(line.c_str(), "%s %le %le", arg, &tKinEn, &stdev);
     assert(strcmp(arg, "tKinEn") == 0);
 
     std::getline(file, line);
-    sscanf(line.c_str(), "%s %le %le", arg, &lambda, &stdev);
-    assert(strcmp(arg, "lambda") == 0);
+    sscanf(line.c_str(), "%s %le %le", arg, &epsVis, &stdev);
+    assert(strcmp(arg, "epsVis") == 0);
 
     std::getline(file, line);
-    sscanf(line.c_str(), "%s %le %le", arg, &Re_lam, &stdev);
-    assert(strcmp(arg, "Re_lam") == 0);
-
-    std::getline(file, line);
-    sscanf(line.c_str(), "%s %le %le", arg, &tInteg, &stdev);
-    assert(strcmp(arg, "tInteg") == 0);
+    sscanf(line.c_str(), "%s %le %le", arg, &epsTot, &stdev);
+    assert(strcmp(arg, "epsTot") == 0);
 
     std::getline(file, line);
     sscanf(line.c_str(), "%s %le %le", arg, &lInteg, &stdev);
     assert(strcmp(arg, "lInteg") == 0);
 
     std::getline(file, line);
+    sscanf(line.c_str(), "%s %le %le", arg, &tInteg, &stdev);
+    assert(strcmp(arg, "tInteg") == 0);
+
+    std::getline(file, line);
     sscanf(line.c_str(), "%s %le %le", arg, &avg_Du, &stdev);
     assert(strcmp(arg, "avg_Du") == 0);
 
     std::getline(file, line);
-    sscanf(line.c_str(), "%s %le %le", arg, &epsVis, &stdev);
-    assert(strcmp(arg, "epsVis") == 0);
+    sscanf(line.c_str(), "%s %le %le", arg, &std_Du, &stdev);
+    assert(strcmp(arg, "std_Du") == 0);
 
-    printf("Params eps:%e nu:%e with mean quantities: tKinEn=%e lambda=%e "
-           "Re_lam=%e tInteg=%e lInteg=%e avg_Du=%e epsVis=%e\n", eps, nu,
-            tKinEn, lambda, Re_lam, tInteg, lInteg, avg_Du, epsVis);
+    printf("Params eps:%e nu:%e with mean quantities: tKinEn=%e epsVis=%e "
+           "epsTot=%e tInteg=%e lInteg=%e avg_Du=%e std_Du=%e\n", eps, nu,
+            tKinEn, epsVis, epsTot, tInteg, lInteg, avg_Du, std_Du);
   }
 
   void readMeanSpectrum(const std::string paramspec)

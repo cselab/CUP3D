@@ -151,7 +151,7 @@ inline void app_main(
     const Real timeUpdateLES = tau_eta / LES_RL_FREQ_A;
     const int maxNumUpdatesPerSim= LES_RL_N_TSIM * tau_integral / timeUpdateLES;
     printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f. Max %d action turns per simulation.\n",
-           tInit, target.eps, target.nu, target.Re_lam, maxNumUpdatesPerSim);
+        tInit, target.eps, target.nu, target.Re_lambda(), maxNumUpdatesPerSim);
 
     while(true) { // initialization loop
       sim.reset();
