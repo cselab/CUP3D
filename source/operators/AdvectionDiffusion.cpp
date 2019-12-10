@@ -17,11 +17,15 @@ namespace {
 
 struct KernelAdvectDiffuseBase
 {
-  KernelAdvectDiffuseBase(const SimulationData&s, double _dt): sim(s),dt(_dt) {}
+  KernelAdvectDiffuseBase(const SimulationData&s, double _dt, int beg, int end)
+  : sim(s), dt(_dt), stencilBeg(beg), stencilEnd(end) {}
 
   const SimulationData & sim;
   const Real dt, mu = sim.nu;
+  const int stencilBeg, stencilEnd;
   const std::array<Real, 3>& uInf = sim.uinf;
+  const int loopBeg = stencilBeg, loopEnd = CUP_BLOCK_SIZE-1 + stencilBeg;
+
   const Real fac = std::min((Real)1, sim.uMax_measured * sim.dt / sim.hmean);
   const Real norUinf = std::max({std::fabs(uInf[0]), std::fabs(uInf[1]),
                                  std::fabs(uInf[2]), EPS});
@@ -31,19 +35,19 @@ struct KernelAdvectDiffuseBase
   const Real fadeE = 1 - fac * std::pow(std::min(uInf[0],(Real)0) / norUinf, 2);
   const Real fadeN = 1 - fac * std::pow(std::min(uInf[1],(Real)0) / norUinf, 2);
   const Real fadeB = 1 - fac * std::pow(std::min(uInf[2],(Real)0) / norUinf, 2);
-  static constexpr int BEG = -1, END = CUP_BLOCK_SIZE;
-  //static constexpr std::array<int, 3> stencil_start = {-1,-1,-1};
-  //static constexpr std::array<int, 3> stencil_end   = { 2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
+  const StencilInfo stencil{stencilBeg, stencilBeg, stencilBeg,
+                            stencilEnd, stencilEnd, stencilEnd,
+                            false, {FE_U,FE_V,FE_W}};
 
   void applyBCwest(const BlockInfo & I, Lab & L) const {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
     else if (I.index[0] not_eq 0) return; // not near boundary
     else if (fadeW >= 1) return; // no momentum killing at this boundary
     assert(fadeW <= 1 && fadeW >= 0);
-    for (int iz=-1; iz<=FluidBlock::sizeZ; ++iz)
-    for (int iy=-1; iy<=FluidBlock::sizeY; ++iy) {
-      L(BEG,iy,iz).u *= fadeW; L(BEG,iy,iz).v *= fadeW; L(BEG,iy,iz).w *= fadeW;
+    for (int iz = loopBeg; iz < loopEnd; ++iz)
+    for (int iy = loopBeg; iy < loopEnd; ++iy)
+    for (int ix = loopBeg; ix < 0; ++ix) {
+      L(ix,iy,iz).u *= fadeW; L(ix,iy,iz).v *= fadeW; L(ix,iy,iz).w *= fadeW;
     }
   }
 
@@ -52,9 +56,10 @@ struct KernelAdvectDiffuseBase
     else if (I.index[0] not_eq sim.bpdx - 1) return; // not near boundary
     else if (fadeE >= 1) return; // no momentum killing at this boundary
     assert(fadeE <= 1 && fadeE >= 0);
-    for (int iz=-1; iz<=FluidBlock::sizeZ; ++iz)
-    for (int iy=-1; iy<=FluidBlock::sizeY; ++iy) {
-      L(END,iy,iz).u *= fadeE; L(END,iy,iz).v *= fadeE; L(END,iy,iz).w *= fadeE;
+    for (int iz = loopBeg; iz < loopEnd; ++iz)
+    for (int iy = loopBeg; iy < loopEnd; ++iy)
+    for (int ix = CUP_BLOCK_SIZE; ix < loopEnd; ++ix) {
+      L(ix,iy,iz).u *= fadeE; L(ix,iy,iz).v *= fadeE; L(ix,iy,iz).w *= fadeE;
     }
   }
 
@@ -63,9 +68,10 @@ struct KernelAdvectDiffuseBase
     else if (I.index[1] not_eq 0) return; // not near boundary
     else if (fadeS >= 1) return; // no momentum killing at this boundary
     assert(fadeS <= 1 && fadeS >= 0);
-    for (int iz=-1; iz<=FluidBlock::sizeZ; ++iz)
-    for (int ix=-1; ix<=FluidBlock::sizeX; ++ix) {
-      L(ix,BEG,iz).u *= fadeS; L(ix,BEG,iz).v *= fadeS; L(ix,BEG,iz).w *= fadeS;
+    for (int iz = loopBeg; iz < loopEnd; ++iz)
+    for (int iy = loopBeg; iy < 0; ++iy)
+    for (int ix = loopBeg; ix < loopEnd; ++ix) {
+      L(ix,iy,iz).u *= fadeS; L(ix,iy,iz).v *= fadeS; L(ix,iy,iz).w *= fadeS;
     }
   }
 
@@ -74,9 +80,10 @@ struct KernelAdvectDiffuseBase
     else if (I.index[1] not_eq sim.bpdy - 1) return; // not near boundary
     else if (fadeN >= 1) return; // no momentum killing at this boundary
     assert(fadeN <= 1 && fadeN >= 0);
-    for (int iz=-1; iz<=FluidBlock::sizeZ; ++iz)
-    for (int ix=-1; ix<=FluidBlock::sizeX; ++ix) {
-      L(ix,END,iz).u *= fadeN; L(ix,END,iz).v *= fadeN; L(ix,END,iz).w *= fadeN;
+    for (int iz = loopBeg; iz < loopEnd; ++iz)
+    for (int iy = CUP_BLOCK_SIZE; iy < loopEnd; ++iy)
+    for (int ix = loopBeg; ix < loopEnd; ++ix) {
+      L(ix,iy,iz).u *= fadeN; L(ix,iy,iz).v *= fadeN; L(ix,iy,iz).w *= fadeN;
     }
   }
 
@@ -85,9 +92,10 @@ struct KernelAdvectDiffuseBase
     else if (I.index[2] not_eq 0) return; // not near boundary
     else if (fadeF >= 1) return; // no momentum killing at this boundary
     assert(fadeF <= 1 && fadeF >= 0);
-    for (int iy=-1; iy<=FluidBlock::sizeY; ++iy)
-    for (int ix=-1; ix<=FluidBlock::sizeX; ++ix) {
-      L(ix,iy,BEG).u *= fadeF; L(ix,iy,BEG).v *= fadeF; L(ix,iy,BEG).w *= fadeF;
+    for (int iz = loopBeg; iz < 0; ++iz)
+    for (int iy = loopBeg; iy < loopEnd; ++iy)
+    for (int ix = loopBeg; ix < loopEnd; ++ix) {
+      L(ix,iy,iz).u *= fadeF; L(ix,iy,iz).v *= fadeF; L(ix,iy,iz).w *= fadeF;
     }
   }
 
@@ -96,9 +104,72 @@ struct KernelAdvectDiffuseBase
     else if (I.index[2] not_eq sim.bpdz - 1) return; // not near boundary
     else if (fadeB >= 1) return; // no momentum killing at this boundary
     assert(fadeB <= 1 && fadeB >= 0);
-    for (int iy=-1; iy<=FluidBlock::sizeY; ++iy)
-    for (int ix=-1; ix<=FluidBlock::sizeX; ++ix) {
-      L(ix,iy,END).u *= fadeB; L(ix,iy,END).v *= fadeB; L(ix,iy,END).w *= fadeB;
+    for (int iz = CUP_BLOCK_SIZE; iz < loopEnd; ++iz)
+    for (int iy = loopBeg; iy < loopEnd; ++iy)
+    for (int ix = loopBeg; ix < loopEnd; ++ix) {
+      L(ix,iy,iz).u *= fadeB; L(ix,iy,iz).v *= fadeB; L(ix,iy,iz).w *= fadeB;
+    }
+  }
+};
+
+struct KernelAdvectDiffuse3rdOrderUpwind : public KernelAdvectDiffuseBase
+{
+  KernelAdvectDiffuse3rdOrderUpwind(const SimulationData&s, double _dt) :
+    KernelAdvectDiffuseBase(s, _dt, -2, 3) {}
+
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  {
+    const Real facA = -dt/(6*info.h_gridpoint);
+    const Real facD = (mu/info.h_gridpoint) * (dt/info.h_gridpoint);
+    applyBCwest(info, lab);
+    applyBCeast(info, lab);
+    applyBCsouth(info, lab);
+    applyBCnorth(info, lab);
+    applyBCfront(info, lab);
+    applyBCback(info, lab);
+
+    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
+      const FluidElement &L   = lab(ix,iy,iz);
+      const FluidElement &LW  = lab(ix-1,iy,iz), &LE  = lab(ix+1,iy,iz);
+      const FluidElement &LS  = lab(ix,iy-1,iz), &LN  = lab(ix,iy+1,iz);
+      const FluidElement &LF  = lab(ix,iy,iz-1), &LB  = lab(ix,iy,iz+1);
+      const FluidElement &LW2 = lab(ix-2,iy,iz), &LE2 = lab(ix+2,iy,iz);
+      const FluidElement &LS2 = lab(ix,iy-2,iz), &LN2 = lab(ix,iy+2,iz);
+      const FluidElement &LF2 = lab(ix,iy,iz-2), &LB2 = lab(ix,iy,iz+2);
+
+      const Real u = L.u+uInf[0], v = L.v+uInf[1], w = L.w+uInf[2];
+      const Real dudx = u>0 ?         2*LE.u +3*L.u -6*LW.u +LW2.u
+                            : -LE2.u +6*LE.u -3*L.u -2*LW.u;
+      const Real dvdx = u>0 ?         2*LE.v +3*L.v -6*LW.v +LW2.v
+                            : -LE2.v +6*LE.v -3*L.v -2*LW.v;
+      const Real dwdx = u>0 ?         2*LE.w +3*L.w -6*LW.w +LW2.w
+                            : -LE2.w +6*LE.w -3*L.w -2*LW.w;
+      const Real dudy = v>0 ?         2*LN.u +3*L.u -6*LS.u +LS2.u
+                            : -LN2.u +6*LN.u -3*L.u -2*LS.u;
+      const Real dvdy = v>0 ?         2*LN.v +3*L.v -6*LS.v +LS2.v
+                            : -LN2.v +6*LN.v -3*L.v -2*LS.v;
+      const Real dwdy = v>0 ?         2*LN.w +3*L.w -6*LS.w +LS2.w
+                            : -LN2.w +6*LN.w -3*L.w -2*LS.w;
+      const Real dudz = w>0 ?         2*LB.u +3*L.u -6*LF.u +LF2.u
+                            : -LB2.u +6*LB.u -3*L.u -2*LF.u;
+      const Real dvdz = w>0 ?         2*LB.v +3*L.v -6*LF.v +LF2.v
+                            : -LB2.v +6*LB.v -3*L.v -2*LF.v;
+      const Real dwdz = w>0 ?         2*LB.w +3*L.w -6*LF.w +LF2.w
+                            : -LB2.w +6*LB.w -3*L.w -2*LF.w;
+
+      const Real duD = LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6;
+      const Real dvD = LN.v+LS.v + LE.v+LW.v + LF.v+LB.v - L.v*6;
+      const Real dwD = LN.w+LS.w + LE.w+LW.w + LF.w+LB.w - L.w*6;
+      const Real duA = u * dudx + v * dudy + w * dudz;
+      const Real dvA = u * dvdx + v * dvdy + w * dvdz;
+      const Real dwA = u * dwdx + v * dwdy + w * dwdz;
+      o(ix,iy,iz).tmpU = L.u + facA*duA + facD*duD;
+      o(ix,iy,iz).tmpV = L.v + facA*dvA + facD*dvD;
+      o(ix,iy,iz).tmpW = L.w + facA*dwA + facD*dwD;
     }
   }
 };
@@ -106,7 +177,7 @@ struct KernelAdvectDiffuseBase
 struct KernelAdvectDiffuse : public KernelAdvectDiffuseBase
 {
   KernelAdvectDiffuse(const SimulationData&s, double _dt) :
-    KernelAdvectDiffuseBase(s, _dt) {}
+    KernelAdvectDiffuseBase(s, _dt, -1, 2) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
@@ -147,7 +218,7 @@ struct KernelAdvectDiffuse : public KernelAdvectDiffuseBase
 struct KernelAdvectDiffuse_nonUniform : public KernelAdvectDiffuseBase
 {
   KernelAdvectDiffuse_nonUniform(const SimulationData&s, double _dt) :
-    KernelAdvectDiffuseBase(s, _dt) {}
+    KernelAdvectDiffuseBase(s, _dt, -1, 2) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
@@ -416,7 +487,7 @@ void AdvectionDiffusion::operator()(const double dt)
   else
   {
     sim.startProfiler("AdvDiff Kernel");
-    const KernelAdvectDiffuse K(sim, dt);
+    const KernelAdvectDiffuse3rdOrderUpwind K(sim, dt);
     compute(K);
     sim.stopProfiler();
     sim.startProfiler("AdvDiff copy");
