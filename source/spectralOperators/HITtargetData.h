@@ -145,17 +145,19 @@ struct HITtargetData
   {
     std::vector<double> logE(stats.nBin);
     for (int i=0; i<stats.nBin; ++i) logE[i] = std::log(stats.E_msr[i]);
-
-    double dev = 0;
+    const double fac = 1.0 / stats.nBin;
+    long double dev = 0;
     for (int j=0; j<stats.nBin; ++j)
-     for (int i=0; i<stats.nBin; ++i)
-      dev += (logE[i]-logE_mean[i])* logE_invCov[j][i] *(logE[j]-logE_mean[j]);
-
+      for (int i=0; i<stats.nBin; ++i) {
+        const double dLogEi = logE[i] - logE_mean[i];
+        const double dLogEj = logE[j] - logE_mean[j];
+        dev += fac * dLogEj * logE_invCov[j][i] * dLogEi;
+      }
+    //printf("got dE Cov dE = %Le\n", dev);
     // normalize with expectation of L2 squared norm of N(0,I) distrib vector:
     // E[X^2] = sum E[x^2] = sum Var[x] = trace I = nBin
     assert(dev >= 0);
-    const double arg = dev / stats.nBin;
-    const double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);
+    const double newRew = dev > 1 ? 1 / dev : std::exp(1-dev);
     //printf("Rt : %f\n", newRew);
     reward = (1-alpha) * reward + alpha * newRew;
   }

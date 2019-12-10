@@ -99,9 +99,6 @@ void Analysis::operator()(const double dt)
   const bool bTime = (sim.timeAnalysis>0 && (sim.time+dt)>sim.nextAnalysisTime);
   const bool bAnalysis =  bFreq || bTime;
 
-  if (sim.step==0 and sim.rank==0)
-    mkdir("analysis", S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
-
   if (not bAnalysis) return;
 
   int nFile;
@@ -159,6 +156,7 @@ void Analysis::operator()(const double dt)
   if (sim.analysis == "HIT")
   {
     sim.startProfiler("HIT Analysis");
+    //printf("HIT Analysis\n");
     // Compute Gradient stats
     const int nthreads = omp_get_max_threads();
     std::vector<KernelAnalysis_gradStats*> gradStats(nthreads, nullptr);

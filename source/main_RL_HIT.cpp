@@ -156,6 +156,7 @@ inline void app_main(
     while(true) { // initialization loop
       sim.reset();
       bool ICsuccess = true;
+      sim.sim.nextAnalysisTime = tInit;
       while (sim.sim.time < tInit) {
         sim.sim.sgs = "SSM";
         const double dt = sim.calcMaxTimestep();
@@ -175,7 +176,7 @@ inline void app_main(
     double avgReward  = 0;
     bool policyFailed = false;
     sim.sim.sgs = "RLSM";
-
+    const double time0 = sim.sim.time;
     //Real scaleGrads = -1;
     //updateGradScaling(sim.sim, stats, timeUpdateLES, scaleGrads);
 
@@ -185,22 +186,24 @@ inline void app_main(
     {
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
+      //printf("updateLES %f %f %f\n", sim.sim.time-time0, time, step * timeUpdateLES);
       updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, avgReward);
       if(timeOut) break;
-
+      sim.sim.nextAnalysisTime = time0 + (step+1) * timeUpdateLES;
       while ( time < (step+1)*timeUpdateLES )
       {
         const double dt = sim.calcMaxTimestep();
         time += dt;
-        // Average reward over integral time:
-        target.updateReward(stats, dt / tau_integral, avgReward);
-
-        //updateGradScaling(sim.sim, stats, timeUpdateLES, scaleGrads);
 
         if ( sim.timestep( dt ) ) { // if true sim has ended
           printf("Set -tend 0. This file decides the length of train sim.\n");
           assert(false); fflush(0); MPI_Abort(mpicom, 1);
         }
+
+        // Average reward over integral time:
+        target.updateReward(stats, dt / tau_integral, avgReward);
+        //updateGradScaling(sim.sim, stats, timeUpdateLES, scaleGrads);
+
         if ( isTerminal( sim.sim ) ) {
           policyFailed = true;
           break;

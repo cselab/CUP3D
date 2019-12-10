@@ -188,7 +188,7 @@ inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
   for (int k = -1; k < 2; ++k)
   {
     const Real f = facFilter(i,j,k);
-    //const FluidElement &LL=lab(ix+i,iy+j,iz+k);
+    //const auto &LL=lab(ix+i,iy+j,iz+k);
     const auto & LW = lab(ix+i-1,iy+j,iz+k), & LE = lab(ix+i+1,iy+j,iz+k);
     const auto & LS = lab(ix+i,iy+j-1,iz+k), & LN = lab(ix+i,iy+j+1,iz+k);
     const auto & LF = lab(ix+i,iy+j,iz+k-1), & LB = lab(ix+i,iy+j,iz+k+1);
@@ -411,9 +411,9 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     const Real inject_nonDim = sim.actualInjectionRate / stats.dissip_tot;
     const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / stats.tke;
   #else // non-dimensionalize wrt *target* flow quantities
-    const Real eta = stats.getKolmogorovL(target.epsVis, target.nu);
+    const Real eta = stats.getKolmogorovL(target.epsTot, target.nu);
     const Real scaleVel = 1 / std::sqrt(target.tKinEn); // [T/L]
-    const Real scaleGrad = target.tKinEn / target.epsVis; // [T]
+    const Real scaleGrad = target.tKinEn / target.epsTot; // [T]
     const Real scaleLap = scaleGrad * eta; // [TL]
     const Real h_nonDim = sim.uniformH() / eta;
     const Real dt_nonDim = dt / scaleGrad;
