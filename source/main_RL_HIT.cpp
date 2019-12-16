@@ -15,16 +15,16 @@
 #include "spectralOperators/HITtargetData.h"
 
 #include <Cubism/ArgumentParser.h>
+#include <Cubism/Profiler.h>
 
-#include <sys/stat.h> // mkdir options
-#include <unistd.h>  // chdir
 #include <sys/unistd.h> // hostname
+#include <sys/stat.h>  // mkdir options
+#include <unistd.h>   // chdir
 #include <sstream>
 
 #define LES_RL_INIT_T 5
 #define LES_RL_N_TSIM 15
-#define LES_RL_FREQ_A 2
-//#define SGSRL_STATE_SCALING
+#define LES_RL_FREQ_A 4
 
 using Real = cubismup3d::Real;
 
@@ -94,6 +94,8 @@ inline void app_main(
   cubism::ArgumentParser parser(argc, argv);
   cubismup3d::Simulation sim(mpicom, parser);
   cubismup3d::HITtargetData target(parser("-initCondFileTokens").asString());
+  target.smartiesFolderStructure = true;
+  cubism::Profiler profiler;
 
   const int nActions = 1, nStates = 16;
   // BIG TROUBLE WITH NAGENTS!
@@ -113,6 +115,7 @@ inline void app_main(
   const std::vector<double> lower_act_bound{0.03}, upper_act_bound{0.05};
   comm->setActionScales(upper_act_bound, lower_act_bound, false);
   comm->disableDataTrackingForAgents(nAgents, nAgents + nThreadSafetyAgents);
+  comm->agentsShareExplorationNoise();
 
   comm->finalizeProblemDescription(); // required for thread safety
 
@@ -140,6 +143,7 @@ inline void app_main(
     const cubismup3d::HITstatistics & stats = sim.sim.spectralManip->stats;
 
     target.sampleParameters(comm->getPRNG());
+    assert(target.holdsTargetData == true);
     sim.sim.enInjectionRate = target.eps;
     sim.sim.nu = target.nu;
     sim.sim.spectralIC = "fromFile";
@@ -150,25 +154,24 @@ inline void app_main(
     const Real tau_eta = stats.getKolmogorovT(target.epsVis, target.nu);
     const Real timeUpdateLES = tau_eta / LES_RL_FREQ_A;
     const int maxNumUpdatesPerSim= LES_RL_N_TSIM * tau_integral / timeUpdateLES;
-    printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f. Max %d action turns per simulation.\n",
-        tInit, target.eps, target.nu, target.Re_lambda(), maxNumUpdatesPerSim);
+    printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f. "
+           "Max %d action turns per simulation.\n", tInit, target.eps,
+           target.nu, target.Re_lambda(), maxNumUpdatesPerSim);
 
+    profiler.push_start("init");
     while(true) { // initialization loop
       sim.reset();
       bool ICsuccess = true;
       sim.sim.nextAnalysisTime = tInit;
       while (sim.sim.time < tInit) {
         sim.sim.sgs = "SSM";
-        const double dt = sim.calcMaxTimestep();
-        sim.timestep(dt);
-        if ( isTerminal( sim.sim ) ) {
-          ICsuccess = false;
-          break;
-        }
+        sim.timestep( sim.calcMaxTimestep() );
+        if ( isTerminal( sim.sim ) ) { ICsuccess = false; break; }
       }
       if( ICsuccess ) break;
       printf("failed, try new IC\n");
     }
+    profiler.pop_stop();
 
     fflush(0);
     int step = 0;
@@ -177,8 +180,6 @@ inline void app_main(
     bool policyFailed = false;
     sim.sim.sgs = "RLSM";
     const double time0 = sim.sim.time;
-    //Real scaleGrads = -1;
-    //updateGradScaling(sim.sim, stats, timeUpdateLES, scaleGrads);
 
     cubismup3d::SGS_RL updateLES(sim.sim, comm, nAgentPerBlock);
 
@@ -187,9 +188,18 @@ inline void app_main(
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
       //printf("updateLES %f %f %f\n", sim.sim.time-time0, time, step * timeUpdateLES);
+      profiler.push_start("rl");
       updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, avgReward);
-      if(timeOut) break;
+      profiler.pop_stop();
+
+      if(timeOut) {
+        profiler.printSummary();
+        profiler.reset();
+        break;
+      }
+
       sim.sim.nextAnalysisTime = time0 + (step+1) * timeUpdateLES;
+      profiler.push_start("sim");
       while ( time < (step+1)*timeUpdateLES )
       {
         const double dt = sim.calcMaxTimestep();
@@ -202,13 +212,13 @@ inline void app_main(
 
         // Average reward over integral time:
         target.updateReward(stats, dt / tau_integral, avgReward);
-        //updateGradScaling(sim.sim, stats, timeUpdateLES, scaleGrads);
 
         if ( isTerminal( sim.sim ) ) {
           policyFailed = true;
           break;
         }
       }
+      profiler.pop_stop();
       step++;
       tot_steps++;
 
@@ -219,6 +229,8 @@ inline void app_main(
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
         const double R_T = (step - maxNumUpdatesPerSim);
         for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, R_T, i);
+        profiler.printSummary();
+        profiler.reset();
         break;
       }
     } // simulation is done
@@ -226,6 +238,7 @@ inline void app_main(
     if(not comm->isTraining()) { //  || wrank == 1
       chdir("../"); // matches previous if
     }
+
     sim_id++;
   }
 }

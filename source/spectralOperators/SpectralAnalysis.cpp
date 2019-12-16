@@ -8,6 +8,7 @@
 
 #include "SpectralAnalysis.h"
 #include "SpectralManip.h"
+#include "HITtargetData.h"
 #include "../operators/ProcessHelpers.h"
 #include <Cubism/HDF5Dumper_MPI.h>
 
@@ -30,6 +31,9 @@ SpectralAnalysis::SpectralAnalysis(SimulationData & s)
   s.spectralManip->prepareFwd();
   s.spectralManip->prepareBwd();
   sM = s.spectralManip;
+  target = new HITtargetData("");
+  target->smartiesFolderStructure = false;
+  target->readAll("target");
 }
 
 void SpectralAnalysis::_cub2fftw()
@@ -72,7 +76,6 @@ void SpectralAnalysis::_cub2fftw()
   //printf("UNORM %f\n", unorm);
 }
 
-
 void SpectralAnalysis::_fftw2cub() const
 {
   const size_t NlocBlocks = sM->local_infos.size();
@@ -104,8 +107,20 @@ void SpectralAnalysis::run()
   sM->stats.updateDerivedQuantities(sM->sim.nu, sM->sim.dt);
 }
 
-void SpectralAnalysis::dump2File(const int nFile) const
+void SpectralAnalysis::dump2File() const
 {
+  if(target and target->holdsTargetData) {
+    const double newP = target->computeLogP(sM->stats);
+    pSamplesCount ++;
+    assert(pSamplesCount > 0);
+    const auto alpha = 1.0 / (long double) pSamplesCount;
+    avgP = (1-alpha) * avgP + alpha * newP;
+    printf("Updated average probability of spectrum: %e\n", avgP);
+    FILE * pFile = fopen ("spectrumProbability.text", "w");
+    fprintf (pFile, "%e %e\n", sM->sim.cs, avgP);
+    fflush(pFile); fclose(pFile);
+  }
+
   if(sM->sim.verbose)
     printf("step:%d time:%e totalKinEn:%e "\
          "viscousDissip:%e totalDissipRate:%e injectionRate:%e lIntegral:%e\n",
@@ -113,19 +128,10 @@ void SpectralAnalysis::dump2File(const int nFile) const
     sM->stats.dissip_tot, sM->sim.actualInjectionRate, sM->stats.l_integral);
 
   std::vector<double> buf = std::vector<double>{
-    sM->sim.time,
-    sM->sim.dt,
-    sM->maxGridL,
-    sM->stats.tke,
-    sM->stats.tke_filtered,
-    sM->stats.dissip_visc,
-    sM->stats.dissip_tot,
-    sM->stats.l_integral,
-    sM->stats.tau_integral,
-    sM->sim.nu_sgs,
-    sM->sim.cs2_avg,
-    sM->sim.grad_mean,
-    sM->sim.grad_std
+    sM->sim.time,         sM->sim.dt,             sM->maxGridL,
+    sM->stats.tke,        sM->stats.tke_filtered, sM->stats.dissip_visc,
+    sM->stats.dissip_tot, sM->stats.l_integral,   sM->stats.tau_integral,
+    sM->sim.nu_sgs, sM->sim.cs2_avg, sM->sim.grad_mean, sM->sim.grad_std
   };
   buf.reserve(buf.size() + sM->stats.nBin);
   for (int i = 0; i < sM->stats.nBin; ++i) buf.push_back(sM->stats.E_msr[i]);
@@ -133,8 +139,7 @@ void SpectralAnalysis::dump2File(const int nFile) const
   {
     FILE * pFile = fopen ("spectralAnalysis.raw", "ab");
     fwrite (buf.data(), sizeof(double), buf.size(), pFile);
-    fflush(pFile);
-    fclose(pFile);
+    fflush(pFile); fclose(pFile);
   }
 
   #if 0
@@ -182,6 +187,7 @@ void SpectralAnalysis::reset()
 
 SpectralAnalysis::~SpectralAnalysis()
 {
+  if (target not_eq nullptr) delete target;
 }
 
 CubismUP_3D_NAMESPACE_END

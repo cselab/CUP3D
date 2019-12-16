@@ -20,11 +20,19 @@ struct HITtargetData
   std::vector<std::string> targetFiles_tokens;
   std::string active_token; // specifies eps/nu combo, taken from the list above
 
+  // If we read the target data in order to compute the RL reward mind that
+  // smarties will copy target data to a base run directory, there it will mkdir
+  // a folder for each environment simulation and therein a subfolder for each
+  // simulation run. Therefore, the path to the target data begins with '../../'
+  bool smartiesFolderStructure = true;
+  bool holdsTargetData = false;
   size_t nModes;
   std::vector<double> logE_mean, mode, E_mean;
   std::vector<std::vector<double>> logE_invCov;
 
   double eps, nu, tKinEn, epsVis, epsTot, lInteg, tInteg, avg_Du, std_Du;
+  double logPdenom;
+
   double Re_lambda() const
   {
      const double uprime = std::sqrt(2.0/3.0 * tKinEn);
@@ -36,16 +44,27 @@ struct HITtargetData
   {
     std::uniform_int_distribution<size_t> dist(0, targetFiles_tokens.size()-1);
     active_token = targetFiles_tokens[dist(gen)];
-    readScalars(active_token); // for a (eps,nu) read TKE, lambda, epsVisc...
-    readMeanSpectrum(active_token); // read also mean energy spectrum
-    readInvCovSpectrum(active_token); // read also covariance matrix of logE
+    readAll(active_token);
+  }
+
+  void readAll(const std::string paramspec)
+  {
+    holdsTargetData = true;
+    readScalars(paramspec); // for a (eps,nu) read TKE, lambda, epsVisc...
+    readMeanSpectrum(paramspec); // read also mean energy spectrum
+    readInvCovSpectrum(paramspec); // read also covariance matrix of logE
   }
 
   void readScalars(const std::string paramspec)
   {
     std::string line; char arg[32]; double stdev, _dt;
-    std::ifstream file("../../scalars_" + paramspec);
-    if (!file.is_open()) printf("scalars FILE NOT FOUND\n");
+    std::string fpath = smartiesFolderStructure? "../../" : "./";
+    std::ifstream file(fpath + "scalars_" + paramspec);
+    if (!file.is_open()) {
+      printf("scalars FILE NOT FOUND\n");
+      holdsTargetData = false;
+      return;
+    }
 
     std::getline(file, line);
     sscanf(line.c_str(), "%s %le", arg, &eps);
@@ -87,6 +106,14 @@ struct HITtargetData
     sscanf(line.c_str(), "%s %le %le", arg, &std_Du, &stdev);
     assert(strcmp(arg, "std_Du") == 0);
 
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le", arg, &stdev);
+    assert(strcmp(arg, "ReLamd") == 0);
+
+    std::getline(file, line);
+    sscanf(line.c_str(), "%s %le", arg, &logPdenom);
+    assert(strcmp(arg, "logPdenom") == 0);
+
     printf("Params eps:%e nu:%e with mean quantities: tKinEn=%e epsVis=%e "
            "epsTot=%e tInteg=%e lInteg=%e avg_Du=%e std_Du=%e\n", eps, nu,
             tKinEn, epsVis, epsTot, tInteg, lInteg, avg_Du, std_Du);
@@ -96,8 +123,14 @@ struct HITtargetData
   {
     std::string line;
     logE_mean.clear(); mode.clear();
-    std::ifstream file("../../spectrumLogE_" + paramspec);
-    if (!file.is_open()) printf("spectrumLogE FILE NOT FOUND\n");
+    std::string fpath = smartiesFolderStructure? "../../" : "./";
+    std::ifstream file(fpath + "spectrumLogE_" + paramspec);
+    if (!file.is_open()) {
+      printf("spectrumLogE FILE NOT FOUND\n");
+      holdsTargetData = false;
+      return;
+    }
+
     while (std::getline(file, line)) {
         mode.push_back(0); logE_mean.push_back(0);
         sscanf(line.c_str(), "%le, %le", & mode.back(), & logE_mean.back());
@@ -113,8 +146,14 @@ struct HITtargetData
     std::string line;
     logE_invCov = std::vector<std::vector<double>>(
         nModes, std::vector<double>(nModes,0) );
-    std::ifstream file("../../invCovLogE_" + paramspec);
-    if (!file.is_open()) printf("invCovLogE FILE NOT FOUND\n");
+    std::string fpath = smartiesFolderStructure? "../../" : "./";
+    std::ifstream file(fpath + "invCovLogE_" + paramspec);
+    if (!file.is_open()) {
+      printf("invCovLogE FILE NOT FOUND\n");
+      holdsTargetData = false;
+      return;
+    }
+
     size_t j = 0;
     while (std::getline(file, line)) {
         size_t i = 0;
@@ -140,12 +179,11 @@ struct HITtargetData
     return tokens;
   }
 
-  void updateReward(const HITstatistics& stats,
-                    const Real alpha, Real & reward)
+  double computeLogP(const HITstatistics& stats)
   {
     std::vector<double> logE(stats.nBin);
     for (int i=0; i<stats.nBin; ++i) logE[i] = std::log(stats.E_msr[i]);
-    const double fac = 1.0 / stats.nBin;
+    const double fac = 0.5 / stats.nBin;
     long double dev = 0;
     for (int j=0; j<stats.nBin; ++j)
       for (int i=0; i<stats.nBin; ++i) {
@@ -157,8 +195,14 @@ struct HITtargetData
     // normalize with expectation of L2 squared norm of N(0,I) distrib vector:
     // E[X^2] = sum E[x^2] = sum Var[x] = trace I = nBin
     assert(dev >= 0);
-    const double newRew = dev > 1 ? 1 / dev : std::exp(1-dev);
-    //printf("Rt : %f\n", newRew);
+    return logPdenom - dev;
+  }
+
+  void updateReward(const HITstatistics& stats, const Real alpha, Real& reward)
+  {
+    const double arg = 1 - computeLogP(stats);
+    const double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);
+    //printf("Rt : %e, %e - %Le\n", newRew, logPdenom, dev);
     reward = (1-alpha) * reward + alpha * newRew;
   }
 };

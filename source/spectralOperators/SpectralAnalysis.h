@@ -19,6 +19,7 @@
 CubismUP_3D_NAMESPACE_BEGIN
 
 class SpectralManip;
+struct HITtargetData;
 
 class SpectralAnalysis
 {
@@ -32,11 +33,15 @@ class SpectralAnalysis
   ~SpectralAnalysis();
 
   void run();
-  void dump2File(const int nFile) const;
+  void dump2File() const;
   void reset();
 
 private:
-  SpectralManip * sM;
+  SpectralManip * sM = nullptr;
+  HITtargetData * target = nullptr;
+  mutable double avgP = 0;
+  mutable size_t pSamplesCount = 0;
+
   void _cub2fftw();
   void _fftw2cub() const;
 };

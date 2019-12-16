@@ -101,13 +101,6 @@ void Analysis::operator()(const double dt)
 
   if (not bAnalysis) return;
 
-  int nFile;
-  if (bTime) {
-    sim.nextAnalysisTime += sim.timeAnalysis;
-    nFile = (sim.time<=0)? 0 : 1 + (int)(sim.time/sim.timeAnalysis);
-  }
-  else nFile = sim.step;
-
   if (sim.analysis == "channel")
   {
     sim.startProfiler("Channel Analysis");
@@ -138,7 +131,7 @@ void Analysis::operator()(const double dt)
     if (sim.rank==0)
     {
       std::stringstream ssR;
-      ssR<<"analysis/analysis_"<<std::setfill('0')<<std::setw(9)<<nFile;
+      ssR<<"analysis_"<<std::setfill('0')<<std::setw(9)<<sim.step;
       std::ofstream f;
       f.open (ssR.str());
       f << "Channel Analysis : time=" << sim.time << std::endl;
@@ -190,7 +183,7 @@ void Analysis::operator()(const double dt)
     // Compute spectral analysis
     if(sA == nullptr) sA = new SpectralAnalysis(sim);
     sA->run();
-    if (sim.rank==0) sA->dump2File(nFile);
+    if (sim.rank==0) sA->dump2File();
 
     sim.stopProfiler();
     check("HIT Analysis");
