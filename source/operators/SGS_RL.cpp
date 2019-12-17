@@ -404,7 +404,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     // other are nThreads and are only there for thread safety
     // states get overwritten
     const Real h_nonDim = sim.uniformH() / stats.getKolmogorovL();
-    const Real dt_nonDim = dt * stats.dissip_tot / stats.tke;
+    const Real dt_nonDim = dt / scaleGrad;
     const Real tke_nonDim = stats.tke / std::sqrt(stats.dissip_tot * stats.nu);
     const Real visc_nonDim = stats.dissip_visc / stats.dissip_tot;
     const Real lenIn_nonDim = stats.l_integral / stats.lambda;

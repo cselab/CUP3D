@@ -22,8 +22,8 @@
 #include <unistd.h>   // chdir
 #include <sstream>
 
-#define LES_RL_INIT_T 5
-#define LES_RL_N_TSIM 15
+#define LES_RL_INIT_T 0
+#define LES_RL_N_TSIM 10
 #define LES_RL_FREQ_A 4
 
 using Real = cubismup3d::Real;
@@ -176,7 +176,7 @@ inline void app_main(
     fflush(0);
     int step = 0;
     double time = 0;
-    double avgReward  = 0;
+    double avgReward = 0;
     bool policyFailed = false;
     sim.sim.sgs = "RLSM";
     const double time0 = sim.sim.time;

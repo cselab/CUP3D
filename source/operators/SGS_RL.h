@@ -10,7 +10,7 @@
 #define CubismUP_3D_SGS_RL_h
 
 #define SGSRL_STATE_INVARIANTS
-#define SGSRL_ALLGRID_AGENTS
+//#define SGSRL_ALLGRID_AGENTS
 
 #include "Operator.h"
 
