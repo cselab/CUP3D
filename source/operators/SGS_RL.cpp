@@ -433,14 +433,14 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
       globalS[3], globalS[4], globalS[5], globalS[6] };
   };
 
-  #if 0 // old setup:
+  #ifdef SGSRL_ALLGRID_AGENTS // old setup:
     // Randomly scattered agent-grid-points that sample the policy for Cs.
     // Rest of grid follows the mean of the policy s.t. grad log pi := 0.
     // Therefore only one element per block is a proper agent: will add EP to
     // train data, while other are nThreads agents and are only there for thread
     // safety: their states get overwritten, actions are policy mean.
     const size_t nBlocks = sim.vInfo().size();
-    const Uint getAgentID = [&](const size_t blockID, const size_t threadID,
+    const auto getAgentID = [&](const size_t blockID, const size_t threadID,
                                 const int ix,const int iy,const int iz) {
       const bool bAgent = ix == agentsIDX[blockID] &&
                           iy == agentsIDY[blockID] &&
@@ -493,7 +493,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, actInterp,
                         stats, scaleVel, scaleGrad, scaleLap);
 
-  #if 0 // old setup :
+  #ifdef SGSRL_ALLGRID_AGENTS // old setup :
     compute<KernelSGS_RL>(K_SGS_RL);
   #else // new setup : (first get actions for block centers, then interpolate)
     #pragma omp parallel for schedule(static)
