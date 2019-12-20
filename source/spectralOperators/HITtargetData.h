@@ -17,6 +17,8 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 struct HITtargetData
 {
+  const int myGridN;
+  const int nyquist = myGridN/2, nBin = nyquist-1;
   std::vector<std::string> targetFiles_tokens;
   std::string active_token; // specifies eps/nu combo, taken from the list above
 
@@ -117,6 +119,7 @@ struct HITtargetData
     printf("Params eps:%e nu:%e with mean quantities: tKinEn=%e epsVis=%e "
            "epsTot=%e tInteg=%e lInteg=%e avg_Du=%e std_Du=%e\n", eps, nu,
             tKinEn, epsVis, epsTot, tInteg, lInteg, avg_Du, std_Du);
+    fflush(0);
   }
 
   void readMeanSpectrum(const std::string paramspec)
@@ -136,7 +139,9 @@ struct HITtargetData
         sscanf(line.c_str(), "%le, %le", & mode.back(), & logE_mean.back());
     }
     nModes = mode.size();
+    assert(myGridN <= (int) nModes);
     //for (size_t i=0; i<nModes; ++i) printf("%f %f\n", mode[i], logE_mean[i]);
+    //fflush(0);
     E_mean = std::vector<double>(nModes);
     for(size_t i = 0; i<nModes; ++i) E_mean[i] = std::exp(logE_mean[i]);
   }
@@ -154,19 +159,20 @@ struct HITtargetData
       return;
     }
 
-    size_t j = 0;
+    int j = 0;
     while (std::getline(file, line)) {
-        size_t i = 0;
+        int i = 0;
         std::istringstream linestream(line);
         while (std::getline(linestream, line, ','))
           logE_invCov[j][i++] = std::stof(line);
-        assert(i==nModes);
+        assert(i >= nBin);
         j++;
     }
-    assert(j==nModes);
+    assert(j >= nBin);
   }
 
-  HITtargetData(std::string params): targetFiles_tokens(readTargetSpecs(params))
+  HITtargetData(const int maxGridN, std::string params): myGridN(maxGridN),
+    targetFiles_tokens(readTargetSpecs(params))
   {
   }
 

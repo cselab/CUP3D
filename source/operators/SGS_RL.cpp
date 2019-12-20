@@ -66,6 +66,7 @@ struct ActionInterpolator
 
   void set(const double act, const int bix, const int biy, const int biz)
   {
+    //printf("action:%e\n", act);
     action(bix, biy, biz) = act;
   }
 

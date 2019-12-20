@@ -31,9 +31,9 @@ SpectralAnalysis::SpectralAnalysis(SimulationData & s)
   s.spectralManip->prepareFwd();
   s.spectralManip->prepareBwd();
   sM = s.spectralManip;
-  target = new HITtargetData("");
-  target->smartiesFolderStructure = false;
-  target->readAll("target");
+  //target = new HITtargetData(sM->maxGridN, "");
+  //target->smartiesFolderStructure = false;
+  //target->readAll("target");
 }
 
 void SpectralAnalysis::_cub2fftw()
@@ -109,7 +109,7 @@ void SpectralAnalysis::run()
 
 void SpectralAnalysis::dump2File() const
 {
-  if(target and target->holdsTargetData) {
+  if(target not_eq nullptr and target->holdsTargetData) {
     const double newP = target->computeLogP(sM->stats);
     pSamplesCount ++;
     assert(pSamplesCount > 0);

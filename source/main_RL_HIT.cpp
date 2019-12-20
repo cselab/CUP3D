@@ -93,7 +93,8 @@ inline void app_main(
 
   cubism::ArgumentParser parser(argc, argv);
   cubismup3d::Simulation sim(mpicom, parser);
-  cubismup3d::HITtargetData target(parser("-initCondFileTokens").asString());
+  const int maxGridN = sim.sim.local_bpdx * CUP_BLOCK_SIZE;
+  cubismup3d::HITtargetData target(64, parser("-initCondFileTokens").asString());
   target.smartiesFolderStructure = true;
   cubism::Profiler profiler;
 
@@ -161,25 +162,25 @@ inline void app_main(
     profiler.push_start("init");
     while(true) { // initialization loop
       sim.reset();
+      //printf("sim.reset\n"); fflush(0);
       bool ICsuccess = true;
       sim.sim.nextAnalysisTime = tInit;
-      while (sim.sim.time < tInit) {
+      while (sim.sim.time <= tInit) {
         sim.sim.sgs = "SSM";
-        sim.timestep( sim.calcMaxTimestep() );
+        const double dt = sim.calcMaxTimestep();
+        sim.timestep(dt);
         if ( isTerminal( sim.sim ) ) { ICsuccess = false; break; }
       }
       if( ICsuccess ) break;
       printf("failed, try new IC\n");
     }
     profiler.pop_stop();
+    //printf("finished init\n"); fflush(0);
 
-    fflush(0);
     int step = 0;
-    double time = 0;
     double avgReward = 0;
     bool policyFailed = false;
     sim.sim.sgs = "RLSM";
-    const double time0 = sim.sim.time;
 
     cubismup3d::SGS_RL updateLES(sim.sim, comm, nAgentPerBlock);
 
@@ -187,7 +188,6 @@ inline void app_main(
     {
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
-      //printf("updateLES %f %f %f\n", sim.sim.time-time0, time, step * timeUpdateLES);
       profiler.push_start("rl");
       updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, avgReward);
       profiler.pop_stop();
@@ -198,13 +198,11 @@ inline void app_main(
         break;
       }
 
-      sim.sim.nextAnalysisTime = time0 + (step+1) * timeUpdateLES;
+      sim.sim.nextAnalysisTime = (step+1) * timeUpdateLES;
       profiler.push_start("sim");
-      while ( time < (step+1)*timeUpdateLES )
+      while ( sim.sim.time < (step+1)*timeUpdateLES )
       {
         const double dt = sim.calcMaxTimestep();
-        time += dt;
-
         if ( sim.timestep( dt ) ) { // if true sim has ended
           printf("Set -tend 0. This file decides the length of train sim.\n");
           assert(false); fflush(0); MPI_Abort(mpicom, 1);
@@ -212,11 +210,9 @@ inline void app_main(
 
         // Average reward over integral time:
         target.updateReward(stats, dt / tau_integral, avgReward);
+        //target.updateReward(stats, dt / tau_eta, avgReward);
 
-        if ( isTerminal( sim.sim ) ) {
-          policyFailed = true;
-          break;
-        }
+        if ( isTerminal( sim.sim ) ) { policyFailed = true; break; }
       }
       profiler.pop_stop();
       step++;
@@ -229,6 +225,7 @@ inline void app_main(
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
         const double R_T = (step - maxNumUpdatesPerSim);
         for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, R_T, i);
+        //printf("comm->sendTermState"); fflush(0);
         profiler.printSummary();
         profiler.reset();
         break;

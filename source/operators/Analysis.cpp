@@ -96,7 +96,7 @@ Analysis::~Analysis()
 void Analysis::operator()(const double dt)
 {
   const bool bFreq = (sim.freqAnalysis>0 && (sim.step+ 1)%sim.freqAnalysis==0);
-  const bool bTime = (sim.timeAnalysis>0 && (sim.time+dt)>sim.nextAnalysisTime);
+  const bool bTime = (sim.timeAnalysis>0 && (sim.time+dt)>=sim.nextAnalysisTime);
   const bool bAnalysis =  bFreq || bTime;
 
   if (not bAnalysis) return;
