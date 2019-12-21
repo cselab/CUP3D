@@ -102,12 +102,18 @@ struct KernelPressureRHS : public ObstacleVisitor
       const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
       const Real dXx = LE.chi-LW.chi, dXy = LN.chi-LS.chi, dXz = LB.chi-LF.chi;
       const bool bSurface = dXx * dXx + dXy * dXy + dXz * dXz > 0;
-      if(bSurface) bElemTouchSurf[idx] = obstID;
       const Real srcBulk = - CHI[iz][iy][ix] * ret[idx];
+      #ifndef ALTMETHOD
+        if(bSurface) bElemTouchSurf[idx] = obstID;
+        posRHS[obstID] += bSurface * ret[idx] * (ret[idx] > 0);
+        negRHS[obstID] -= bSurface * ret[idx] * (ret[idx] < 0);
+      #else
+        bElemTouchSurf[idx] = obstID;
+        posRHS[obstID] += CHI[iz][iy][ix];
+        negRHS[obstID] += std::fabs(srcBulk);
+      #endif
       sumRHS[obstID] += srcBulk;
       ret[idx] += srcBulk;
-      posRHS[obstID] += bSurface * ret[idx] * (ret[idx] > 0);
-      negRHS[obstID] -= bSurface * ret[idx] * (ret[idx] < 0);
     }
   }
 };
@@ -239,6 +245,7 @@ struct KernelFinalizePerimeters : public ObstacleVisitor
         const cubism::BlockInfo& info = vInfo[i];
         if(obstblocks[info.blockID] == nullptr) continue;
 
+        const CHIMAT & __restrict__ CHI = obstblocks[info.blockID]->chi;
         const size_t offset = solver->_offset_ext(info);
         Real* __restrict__ const ret = solver->data;
 
@@ -246,9 +253,15 @@ struct KernelFinalizePerimeters : public ObstacleVisitor
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
           const size_t idx = offset + SZ * iz + SY * iy + SX * ix;
-          if (bElemTouchSurf[idx] not_eq obstID) continue;
-          if      (ret[idx]>0 and corr>0) ret[idx] -= corr * ret[idx];
-          else if (ret[idx]<0 and corr<0) ret[idx] += corr * ret[idx];
+          #ifndef ALTMETHOD
+            if (bElemTouchSurf[idx] not_eq obstID) continue;
+            if      (ret[idx]>0 and corr>0) ret[idx] -= corr * ret[idx];
+            else if (ret[idx]<0 and corr<0) ret[idx] += corr * ret[idx];
+          #else
+            if (bElemTouchSurf[idx] not_eq obstID) continue;
+            ret[idx] -= corr * CHI[iz][iy][ix];
+            //ret[idx] -= corr * std::fabs(ret[idx]);
+          #endif
         }
       }
     }
@@ -329,8 +342,13 @@ void PressureRHS::operator()(const double dt)
   MPI_Allreduce(MPI_IN_PLACE, posRHS.data(), nShapes, MPI_DOUBLE,MPI_SUM, COMM);
   MPI_Allreduce(MPI_IN_PLACE, negRHS.data(), nShapes, MPI_DOUBLE,MPI_SUM, COMM);
   for(size_t j = 0; j<nShapes; ++j) {
-    const double corrDenom = sumRHS[j]>0 ? posRHS[j] : negRHS[j];
-    corrFactors[j] = sumRHS[j] / std::max(corrDenom, (double) EPS);
+    #ifndef ALTMETHOD
+      const double corrDenom = sumRHS[j]>0 ? posRHS[j] : negRHS[j];
+      corrFactors[j] = sumRHS[j] / std::max(corrDenom, (double) EPS);
+    #else
+      //corrFactors[j] = sumRHS[j] / std::max(negRHS[j], (double) EPS);
+      corrFactors[j] = sumRHS[j] / std::max(posRHS[j], (double) EPS);
+    #endif
   }
 
   {
