@@ -30,7 +30,7 @@ void SpectralForcing::operator()(const double dt)
 
   sM.runFwd();
 
-  sM._compute_largeModesForcing();
+  sM._compute_forcing();
 
   sM.runBwd();
 

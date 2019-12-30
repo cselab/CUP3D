@@ -137,8 +137,7 @@ public:
   virtual void runFwd() const = 0;
   virtual void runBwd() const = 0;
 
-  virtual void _compute_largeModesForcing() = 0;
-  virtual void _compute_analysis() = 0;
+  virtual void _compute_forcing() = 0;
   virtual void _compute_IC(const std::vector<Real> &K,
                            const std::vector<Real> &E) = 0;
 

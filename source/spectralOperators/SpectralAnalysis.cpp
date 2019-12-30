@@ -103,7 +103,7 @@ void SpectralAnalysis::run()
 {
   _cub2fftw();
   sM->runFwd();
-  sM->_compute_analysis();
+  sM->_compute_forcing();
   sM->stats.updateDerivedQuantities(sM->sim.nu, sM->sim.dt);
 }
 

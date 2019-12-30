@@ -24,18 +24,12 @@
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
 
-void _compute_HIT_forcing(
-  acc_c*const Uhat, acc_c*const Vhat, acc_c*const What,
-  const size_t gsize[3], const int osize[3] , const int ostart[3],
-  const cubismup3d::Real h, cubismup3d::Real& tke, cubismup3d::Real& eps,
-  cubismup3d::Real& tkeFiltered, cubismup3d::Real& lIntegral
-);
+using treal = cubismup3d::Real;
 void _compute_HIT_analysis(
-  acc_c*const Uhat, acc_c*const Vhat, acc_c*const What,
-  const size_t gsize[3], const int osize[3] , const int ostart[3],
-  const cubismup3d::Real h, cubismup3d::Real& tke, cubismup3d::Real& eps,
-  cubismup3d::Real& tau, cubismup3d::Real * const eSpectrum,
-  const size_t nBins, const cubismup3d::Real nyquist
+  acc_c * const Uhat, acc_c * const Vhat, acc_c * const What,
+  const size_t gsize[3], const int osize[3], const int ostart[3],
+  const treal h, treal & tke, treal & eps, treal & tau, treal & tkeFiltered,
+  treal * const eSpectrum, const size_t nBins, const treal nyquist
 );
 
 CubismUP_3D_NAMESPACE_BEGIN
@@ -58,36 +52,7 @@ struct myCUDAstreams
   }
 };
 
-void SpectralManipACC::_compute_largeModesForcing()
-{
-  sim.stopProfiler();
-  sim.startProfiler("ACCForce force");
-
-  Real eps = 0, tke = 0, tkeFiltered = 0, lIntegral = 0;
-  const double h = sim.uniformH();
-
-  // kernel
-  size_t gsize_[3] = {gsize[0], gsize[1], gsize[2]};
-  // for cuFFT we use x as fast index instead of z:
-  if(sim.nprocs < 2) { gsize_[0] = gsize[2]; gsize_[2] = gsize[0]; }
-  _compute_HIT_forcing( (acc_c*) gpu_u, (acc_c*) gpu_v, (acc_c*) gpu_w,
-    gsize_, osize, ostart, h, tke, eps, tkeFiltered, lIntegral);
-
-  MPI_Allreduce(MPI_IN_PLACE, &tkeFiltered, 1, MPIREAL, MPI_SUM, m_comm);
-  MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
-  MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
-  MPI_Allreduce(MPI_IN_PLACE, &lIntegral, 1, MPIREAL, MPI_SUM, m_comm);
-
-  stats.tke_filtered = tkeFiltered / pow2(normalizeFFT);
-  stats.tke = tke / pow2(normalizeFFT);
-  stats.l_integral = lIntegral / tke;
-  stats.dissip_visc = eps * 2 * sim.nu /pow2(normalizeFFT * 2 * sim.uniformH());
-
-  sim.stopProfiler();
-  sim.startProfiler("SpectralForcing");
-}
-
-void SpectralManipACC::_compute_analysis()
+void SpectralManipACC::_compute_forcing()
 {
   sim.stopProfiler();
   sim.startProfiler("ACCForce ansys");
@@ -95,7 +60,7 @@ void SpectralManipACC::_compute_analysis()
   const double h = sim.uniformH();
   const size_t nBins = stats.nBin;
   const Real nyquist = stats.nyquist;
-  Real tke = 0, eps = 0, lIntegral = 0;
+  Real tke = 0, eps = 0, lIntegral = 0, tkeFiltered = 0;
   Real * const E_msr = stats.E_msr;
   memset(E_msr, 0, nBins * sizeof(Real));
 
@@ -103,19 +68,21 @@ void SpectralManipACC::_compute_analysis()
   size_t gsize_[3] = {gsize[0], gsize[1], gsize[2]};
   // for cuFFT we use x as fast index instead of z:
   if(sim.nprocs < 2) { gsize_[0] = gsize[2]; gsize_[2] = gsize[0]; }
-  _compute_HIT_analysis( (acc_c*) gpu_u, (acc_c*) gpu_v, (acc_c*) gpu_w,
-    gsize_,osize,ostart, h, tke, eps, lIntegral, E_msr, nBins, nyquist);
+  _compute_HIT_analysis( (acc_c*) gpu_u, (acc_c*) gpu_v, (acc_c*) gpu_w, gsize_,
+    osize, ostart, h, tke, eps, lIntegral, tkeFiltered, E_msr, nBins, nyquist);
 
-  MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &tke, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &eps, 1, MPIREAL, MPI_SUM, m_comm);
   MPI_Allreduce(MPI_IN_PLACE, &lIntegral, 1, MPIREAL, MPI_SUM, m_comm);
+  MPI_Allreduce(MPI_IN_PLACE, &tkeFiltered, 1, MPIREAL, MPI_SUM, m_comm);
+  MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
 
   const Real normalization = 1.0 / pow2(normalizeFFT);
   for (size_t binID = 0; binID < nBins; binID++) E_msr[binID] *= normalization;
 
   stats.tke = tke * normalization;
   stats.l_integral = lIntegral / tke;
+  stats.tke_filtered = tkeFiltered * normalization;
   stats.dissip_visc = 2 * eps * sim.nu * normalization / pow2(2*h);
   //stats.dissip_visc = eps * 2 * sim.nu * normalization;
 

@@ -40,8 +40,7 @@ public:
   void runFwd() const override;
   void runBwd() const override;
 
-  void _compute_largeModesForcing() override;
-  void _compute_analysis() override;
+  void _compute_forcing() override;
   void _compute_IC(const std::vector<Real> &K,
                    const std::vector<Real> &E) override;
 };
