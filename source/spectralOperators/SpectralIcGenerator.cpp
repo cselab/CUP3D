@@ -122,7 +122,7 @@ void SpectralIcGenerator::run()
   std::vector<Real> K, E;
   _generateTarget(K, E, * SM);
   SM->_compute_IC(K, E);
-  SM->_compute_analysis();
+  SM->_compute_forcing();
   // if user asked spectral forcing, but no value specified, satisfy spectrum
   if (sim.spectralForcing       &&
       sim.turbKinEn_target <= 0 &&

@@ -22,10 +22,6 @@
 #include <unistd.h>   // chdir
 #include <sstream>
 
-#define LES_RL_INIT_T 0
-#define LES_RL_N_TSIM 10
-#define LES_RL_FREQ_A 4
-
 using Real = cubismup3d::Real;
 
 inline bool isTerminal(cubismup3d::SimulationData& sim)
@@ -95,6 +91,8 @@ inline void app_main(
   cubismup3d::Simulation sim(mpicom, parser);
   const int maxGridN = sim.sim.local_bpdx * CUP_BLOCK_SIZE;
   cubismup3d::HITtargetData target(64, parser("-initCondFileTokens").asString());
+  const Real LES_RL_FREQ_A = parser("-RL_freqActions").asDouble( 4.0);
+  const Real LES_RL_N_TSIM = parser("-RL_nIntTperSim").asDouble(10.0);
   target.smartiesFolderStructure = true;
   cubism::Profiler profiler;
 
@@ -151,31 +149,27 @@ inline void app_main(
     sim.sim.initCondModes = target.mode;
     sim.sim.initCondSpectrum = target.E_mean;
     const Real tau_integral = target.tInteg;
-    const Real tInit = LES_RL_INIT_T * target.tInteg;
     const Real tau_eta = stats.getKolmogorovT(target.epsVis, target.nu);
     const Real timeUpdateLES = tau_eta / LES_RL_FREQ_A;
     const int maxNumUpdatesPerSim= LES_RL_N_TSIM * tau_integral / timeUpdateLES;
-    printf("Reset simulation up to time=%g with SGS for eps:%f nu:%f Re:%f. "
-           "Max %d action turns per simulation.\n", tInit, target.eps,
+    printf("Reset simulation up to time=0 with SGS for eps:%f nu:%f Re:%f. "
+           "Max %d action turns per simulation.\n", target.eps,
            target.nu, target.Re_lambda(), maxNumUpdatesPerSim);
 
     profiler.push_start("init");
     while(true) { // initialization loop
       sim.reset();
-      //printf("sim.reset\n"); fflush(0);
       bool ICsuccess = true;
-      sim.sim.nextAnalysisTime = tInit;
-      while (sim.sim.time <= tInit) {
+      sim.sim.nextAnalysisTime = 0;
+      while (sim.sim.time <= 0) {
         sim.sim.sgs = "SSM";
-        const double dt = sim.calcMaxTimestep();
-        sim.timestep(dt);
+        sim.timestep( sim.calcMaxTimestep() );
         if ( isTerminal( sim.sim ) ) { ICsuccess = false; break; }
       }
       if( ICsuccess ) break;
       printf("failed, try new IC\n");
     }
     profiler.pop_stop();
-    //printf("finished init\n"); fflush(0);
 
     int step = 0;
     double avgReward = 0;
@@ -189,14 +183,13 @@ inline void app_main(
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
       profiler.push_start("rl");
-      updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, avgReward);
+      // Sum of rewards should not have to change when i change action freq
+      // or num of integral time steps for sim. 40 is the reference value:
+      const double r_t = 40 * avgReward / (LES_RL_N_TSIM * LES_RL_FREQ_A);
+      updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, r_t);
       profiler.pop_stop();
 
-      if(timeOut) {
-        profiler.printSummary();
-        profiler.reset();
-        break;
-      }
+      if(timeOut) { profiler.printSummary(); profiler.reset(); break; }
 
       sim.sim.nextAnalysisTime = (step+1) * timeUpdateLES;
       profiler.push_start("sim");
@@ -207,11 +200,8 @@ inline void app_main(
           printf("Set -tend 0. This file decides the length of train sim.\n");
           assert(false); fflush(0); MPI_Abort(mpicom, 1);
         }
-
         // Average reward over integral time:
-        target.updateReward(stats, dt / tau_integral, avgReward);
-        //target.updateReward(stats, dt / tau_eta, avgReward);
-
+        target.updateReward(stats, dt / tau_eta, avgReward);
         if ( isTerminal( sim.sim ) ) { policyFailed = true; break; }
       }
       profiler.pop_stop();

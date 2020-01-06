@@ -28,7 +28,7 @@ using treal = cubismup3d::Real;
 void _compute_HIT_analysis(
   acc_c * const Uhat, acc_c * const Vhat, acc_c * const What,
   const size_t gsize[3], const int osize[3], const int ostart[3],
-  const treal h, treal & tke, treal & eps, treal & tau, treal & tkeFiltered,
+  const treal h, treal & tke, treal & eps, treal & lInt, treal & tkeFiltered,
   treal * const eSpectrum, const size_t nBins, const treal nyquist
 );
 

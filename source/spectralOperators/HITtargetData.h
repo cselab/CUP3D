@@ -185,16 +185,16 @@ struct HITtargetData
     return tokens;
   }
 
-  double computeLogP(const HITstatistics& stats)
+  long double computeLogP(const HITstatistics& stats)
   {
     std::vector<double> logE(stats.nBin);
     for (int i=0; i<stats.nBin; ++i) logE[i] = std::log(stats.E_msr[i]);
-    const double fac = 0.5 / stats.nBin;
+    const long double fac = 0.5 / stats.nBin;
     long double dev = 0;
     for (int j=0; j<stats.nBin; ++j)
       for (int i=0; i<stats.nBin; ++i) {
-        const double dLogEi = logE[i] - logE_mean[i];
-        const double dLogEj = logE[j] - logE_mean[j];
+        const long double dLogEi = logE[i] - logE_mean[i];
+        const long double dLogEj = logE[j] - logE_mean[j];
         dev += fac * dLogEj * logE_invCov[j][i] * dLogEi;
       }
     //printf("got dE Cov dE = %Le\n", dev);
@@ -206,8 +206,8 @@ struct HITtargetData
 
   void updateReward(const HITstatistics& stats, const Real alpha, Real& reward)
   {
-    const double arg = 1 - computeLogP(stats);
-    const double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);
+    const long double arg = 1 - computeLogP(stats);
+    const long double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);
     //printf("Rt : %e, %e - %Le\n", newRew, logPdenom, dev);
     reward = (1-alpha) * reward + alpha * newRew;
   }

@@ -319,7 +319,7 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
       //assert(binID < nBins);
       // reduction buffer here holds also the energy spectrum, shifted by 3
       // to hold also tke, eps and tau
-      atomicAdd(reductionBuf + 3 + binID, E);
+      atomicAdd(reductionBuf + 4 + binID, E);
     }
     if (k2 > (Real) 0.0 && k2 <= (Real) 4.0) {
       tkeFiltered += E;
@@ -335,6 +335,7 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
     tke  = tke  + warpShflDown(tke,  offset);
     eps  = eps  + warpShflDown(eps,  offset);
     lInt = lInt + warpShflDown(lInt, offset);
+    tkeFiltered = tkeFiltered + warpShflDown(tkeFiltered, offset);
   }
 
   if (__laneid() == 0) { // thread 0 does the only atomic sum

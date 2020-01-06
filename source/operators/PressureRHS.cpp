@@ -10,6 +10,8 @@
 #include "../poisson/PoissonSolver.h"
 #include "../obstacles/ObstacleVector.h"
 
+//#define ALTMETHOD
+
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
@@ -97,13 +99,13 @@ struct KernelPressureRHS : public ObstacleVisitor
       const size_t idx = offset + SZ * iz + SY * iy + SX * ix;
       assert(idx < bElemTouchSurf.size());
 
-      const FluidElement &LW = lab(ix-1,iy,  iz  ), &LE = lab(ix+1,iy,  iz  );
-      const FluidElement &LS = lab(ix,  iy-1,iz  ), &LN = lab(ix,  iy+1,iz  );
-      const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
-      const Real dXx = LE.chi-LW.chi, dXy = LN.chi-LS.chi, dXz = LB.chi-LF.chi;
-      const bool bSurface = dXx * dXx + dXy * dXy + dXz * dXz > 0;
       const Real srcBulk = - CHI[iz][iy][ix] * ret[idx];
       #ifndef ALTMETHOD
+        const FluidElement &LW = lab(ix-1,iy,  iz  ), &LE = lab(ix+1,iy,  iz  );
+        const FluidElement &LS = lab(ix,  iy-1,iz  ), &LN = lab(ix,  iy+1,iz  );
+        const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
+        const Real dXx = LE.chi-LW.chi, dXy = LN.chi-LS.chi, dXz = LB.chi-LF.chi;
+        const bool bSurface = dXx * dXx + dXy * dXy + dXz * dXz > 0;
         if(bSurface) bElemTouchSurf[idx] = obstID;
         posRHS[obstID] += bSurface * ret[idx] * (ret[idx] > 0);
         negRHS[obstID] -= bSurface * ret[idx] * (ret[idx] < 0);
