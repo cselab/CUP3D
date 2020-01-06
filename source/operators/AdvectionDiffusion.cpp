@@ -480,7 +480,7 @@ void AdvectionDiffusion::operator()(const double dt)
     compute(K);
     sim.stopProfiler();
     sim.startProfiler("AdvDiff copy");
-    const UpdateAndCorrectInflow U(sim);
+    const UpdateAndCorrectInflow_nonUniform U(sim);
     U.operate();
     sim.stopProfiler();
   }
@@ -491,8 +491,8 @@ void AdvectionDiffusion::operator()(const double dt)
     compute(K);
     sim.stopProfiler();
     sim.startProfiler("AdvDiff copy");
-    //const UpdateAndCorrectInflow U(sim);
-    const UpdateAndCorrectInflow_nonUniform U(sim);
+    const UpdateAndCorrectInflow U(sim);
+    //const UpdateAndCorrectInflow_nonUniform U(sim);
     U.operate();
     sim.stopProfiler();
   }

@@ -107,15 +107,17 @@ struct KernelPressureRHS : public ObstacleVisitor
         const Real dXx = LE.chi-LW.chi, dXy = LN.chi-LS.chi, dXz = LB.chi-LF.chi;
         const bool bSurface = dXx * dXx + dXy * dXy + dXz * dXz > 0;
         if(bSurface) bElemTouchSurf[idx] = obstID;
+        sumRHS[obstID] += srcBulk;
+        ret[idx] += srcBulk; // before we compute normalization
         posRHS[obstID] += bSurface * ret[idx] * (ret[idx] > 0);
         negRHS[obstID] -= bSurface * ret[idx] * (ret[idx] < 0);
       #else
         bElemTouchSurf[idx] = obstID;
         posRHS[obstID] += CHI[iz][iy][ix];
         negRHS[obstID] += std::fabs(srcBulk);
+        sumRHS[obstID] += srcBulk;
+        ret[idx] += srcBulk;
       #endif
-      sumRHS[obstID] += srcBulk;
-      ret[idx] += srcBulk;
     }
   }
 };
