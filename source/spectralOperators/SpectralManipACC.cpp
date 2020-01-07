@@ -62,6 +62,7 @@ void SpectralManipACC::_compute_forcing()
   const Real nyquist = stats.nyquist;
   Real tke = 0, eps = 0, lIntegral = 0, tkeFiltered = 0;
   Real * const E_msr = stats.E_msr;
+  //std::vector<Real> Eback(E_msr, E_msr + nBins);
   memset(E_msr, 0, nBins * sizeof(Real));
 
   // kernel
@@ -85,7 +86,12 @@ void SpectralManipACC::_compute_forcing()
   stats.tke_filtered = tkeFiltered * normalization;
   stats.dissip_visc = 2 * eps * sim.nu * normalization / pow2(2*h);
   //stats.dissip_visc = eps * 2 * sim.nu * normalization;
-
+  //std::cout << "step " << sim.step <<" E diff:";
+  //for (size_t i = 0; i < nBins; i++) {
+  //  assert(E_msr[i] >= 0 && Eback[i] >= 0);
+  //  std::cout<<' '<<(E_msr[i]-Eback[i])/std::max({E_msr[i], Eback[i], 1e-16});
+  //}
+  //std::cout << '\n';
   sim.stopProfiler();
   sim.startProfiler("SpectralForcing");
 }

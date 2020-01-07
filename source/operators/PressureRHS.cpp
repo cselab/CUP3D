@@ -10,7 +10,7 @@
 #include "../poisson/PoissonSolver.h"
 #include "../obstacles/ObstacleVector.h"
 
-//#define ALTMETHOD
+#define ALTMETHOD
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -114,9 +114,9 @@ struct KernelPressureRHS : public ObstacleVisitor
       #else
         bElemTouchSurf[idx] = obstID;
         posRHS[obstID] += CHI[iz][iy][ix];
-        negRHS[obstID] += std::fabs(srcBulk);
         sumRHS[obstID] += srcBulk;
         ret[idx] += srcBulk;
+        negRHS[obstID] += std::fabs(ret[idx]);
       #endif
     }
   }

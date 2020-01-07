@@ -190,11 +190,13 @@ inline void app_main(
       profiler.pop_stop();
 
       if(timeOut) { profiler.printSummary(); profiler.reset(); break; }
-
-      sim.sim.nextAnalysisTime = (step+1) * timeUpdateLES;
+      // old ver: seldom analyze was wrong because of exp average later
+      // sim.sim.nextAnalysisTime = (step+1) * timeUpdateLES;
       profiler.push_start("sim");
       while ( sim.sim.time < (step+1)*timeUpdateLES )
       {
+        // new ver: always analyze for updateReward to make sense
+        sim.sim.nextAnalysisTime = sim.sim.time;
         const double dt = sim.calcMaxTimestep();
         if ( sim.timestep( dt ) ) { // if true sim has ended
           printf("Set -tend 0. This file decides the length of train sim.\n");

@@ -18,96 +18,129 @@ namespace {
 struct KernelAdvectDiffuseBase
 {
   KernelAdvectDiffuseBase(const SimulationData&s, double _dt, int beg, int end)
-  : sim(s), dt(_dt), stencilBeg(beg), stencilEnd(end) {}
+  : sim(s), dt(_dt), stencilBeg(beg), stencilEnd(end) {
+    //printf("%d %d %e %e %e %e %e %e %e %e\n", loopBeg, loopEnd, CFL,
+    //  norUinf, fadeW, fadeS, fadeF, fadeE, fadeN, fadeB);
+  }
 
   const SimulationData & sim;
   const Real dt, mu = sim.nu;
   const int stencilBeg, stencilEnd;
   const std::array<Real, 3>& uInf = sim.uinf;
-  const int loopBeg = stencilBeg, loopEnd = CUP_BLOCK_SIZE-1 + stencilBeg;
+  const int loopBeg = stencilBeg, loopEnd = CUP_BLOCK_SIZE-1 + stencilEnd;
 
-  const Real fac = std::min((Real)1, sim.uMax_measured * sim.dt / sim.hmean);
+  const Real CFL = std::min((Real)1, sim.uMax_measured * sim.dt / sim.hmean);
   const Real norUinf = std::max({std::fabs(uInf[0]), std::fabs(uInf[1]),
                                  std::fabs(uInf[2]), EPS});
-  const Real fadeW = 1 - fac * std::pow(std::max(uInf[0],(Real)0) / norUinf, 2);
-  const Real fadeS = 1 - fac * std::pow(std::max(uInf[1],(Real)0) / norUinf, 2);
-  const Real fadeF = 1 - fac * std::pow(std::max(uInf[2],(Real)0) / norUinf, 2);
-  const Real fadeE = 1 - fac * std::pow(std::min(uInf[0],(Real)0) / norUinf, 2);
-  const Real fadeN = 1 - fac * std::pow(std::min(uInf[1],(Real)0) / norUinf, 2);
-  const Real fadeB = 1 - fac * std::pow(std::min(uInf[2],(Real)0) / norUinf, 2);
+  const Real fadeW = 1 - CFL * std::pow(std::max(uInf[0],(Real)0) / norUinf, 2);
+  const Real fadeS = 1 - CFL * std::pow(std::max(uInf[1],(Real)0) / norUinf, 2);
+  const Real fadeF = 1 - CFL * std::pow(std::max(uInf[2],(Real)0) / norUinf, 2);
+  const Real fadeE = 1 - CFL * std::pow(std::min(uInf[0],(Real)0) / norUinf, 2);
+  const Real fadeN = 1 - CFL * std::pow(std::min(uInf[1],(Real)0) / norUinf, 2);
+  const Real fadeB = 1 - CFL * std::pow(std::min(uInf[2],(Real)0) / norUinf, 2);
   const StencilInfo stencil{stencilBeg, stencilBeg, stencilBeg,
                             stencilEnd, stencilEnd, stencilEnd,
                             false, {FE_U,FE_V,FE_W}};
 
-  void applyBCwest(const BlockInfo & I, Lab & L) const {
+  void applyBCwest(const BlockInfo & I, Lab & L) const
+  {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
     else if (I.index[0] not_eq 0) return; // not near boundary
     else if (fadeW >= 1) return; // no momentum killing at this boundary
-    assert(fadeW <= 1 && fadeW >= 0);
-    for (int iz = loopBeg; iz < loopEnd; ++iz)
-    for (int iy = loopBeg; iy < loopEnd; ++iy)
-    for (int ix = loopBeg; ix < 0; ++ix) {
-      L(ix,iy,iz).u *= fadeW; L(ix,iy,iz).v *= fadeW; L(ix,iy,iz).w *= fadeW;
+    for (int ix = loopBeg; ix < 0; ++ix)
+    {
+      const Real fac = std::pow(fadeW, 0 - ix);
+      assert(fac <= 1 && fac >= 0);
+      for (int iz = loopBeg; iz < loopEnd; ++iz)
+      for (int iy = loopBeg; iy < loopEnd; ++iy)
+      {
+        L(ix,iy,iz).u *= fac; L(ix,iy,iz).v *= fac; L(ix,iy,iz).w *= fac;
+      }
     }
   }
 
-  void applyBCeast(const BlockInfo & I, Lab & L) const {
+  void applyBCeast(const BlockInfo & I, Lab & L) const
+  {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
     else if (I.index[0] not_eq sim.bpdx - 1) return; // not near boundary
     else if (fadeE >= 1) return; // no momentum killing at this boundary
-    assert(fadeE <= 1 && fadeE >= 0);
-    for (int iz = loopBeg; iz < loopEnd; ++iz)
-    for (int iy = loopBeg; iy < loopEnd; ++iy)
-    for (int ix = CUP_BLOCK_SIZE; ix < loopEnd; ++ix) {
-      L(ix,iy,iz).u *= fadeE; L(ix,iy,iz).v *= fadeE; L(ix,iy,iz).w *= fadeE;
+    for (int ix = CUP_BLOCK_SIZE; ix < loopEnd; ++ix)
+    {
+      const Real fac = std::pow(fadeE, ix - CUP_BLOCK_SIZE + 1);
+      assert(fac <= 1 && fac >= 0);
+      for (int iz = loopBeg; iz < loopEnd; ++iz)
+      for (int iy = loopBeg; iy < loopEnd; ++iy)
+      {
+        L(ix,iy,iz).u *= fac; L(ix,iy,iz).v *= fac; L(ix,iy,iz).w *= fac;
+      }
     }
   }
 
-  void applyBCsouth(const BlockInfo & I, Lab & L) const {
+  void applyBCsouth(const BlockInfo & I, Lab & L) const
+  {
     if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return;
     else if (I.index[1] not_eq 0) return; // not near boundary
     else if (fadeS >= 1) return; // no momentum killing at this boundary
-    assert(fadeS <= 1 && fadeS >= 0);
-    for (int iz = loopBeg; iz < loopEnd; ++iz)
     for (int iy = loopBeg; iy < 0; ++iy)
-    for (int ix = loopBeg; ix < loopEnd; ++ix) {
-      L(ix,iy,iz).u *= fadeS; L(ix,iy,iz).v *= fadeS; L(ix,iy,iz).w *= fadeS;
+    {
+      const Real fac = std::pow(fadeS, 0 - iy);
+      assert(fac <= 1 && fac >= 0);
+      for (int iz = loopBeg; iz < loopEnd; ++iz)
+      for (int ix = loopBeg; ix < loopEnd; ++ix)
+      {
+        L(ix,iy,iz).u *= fac; L(ix,iy,iz).v *= fac; L(ix,iy,iz).w *= fac;
+      }
     }
   }
 
-  void applyBCnorth(const BlockInfo & I, Lab & L) const {
+  void applyBCnorth(const BlockInfo & I, Lab & L) const
+  {
     if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return;
     else if (I.index[1] not_eq sim.bpdy - 1) return; // not near boundary
     else if (fadeN >= 1) return; // no momentum killing at this boundary
-    assert(fadeN <= 1 && fadeN >= 0);
-    for (int iz = loopBeg; iz < loopEnd; ++iz)
     for (int iy = CUP_BLOCK_SIZE; iy < loopEnd; ++iy)
-    for (int ix = loopBeg; ix < loopEnd; ++ix) {
-      L(ix,iy,iz).u *= fadeN; L(ix,iy,iz).v *= fadeN; L(ix,iy,iz).w *= fadeN;
+    {
+      const Real fac = std::pow(fadeN, iy - CUP_BLOCK_SIZE + 1);
+      assert(fac <= 1 && fac >= 0);
+      for (int iz = loopBeg; iz < loopEnd; ++iz)
+      for (int ix = loopBeg; ix < loopEnd; ++ix)
+      {
+        L(ix,iy,iz).u *= fac; L(ix,iy,iz).v *= fac; L(ix,iy,iz).w *= fac;
+      }
     }
   }
 
-  void applyBCfront(const BlockInfo & I, Lab & L) const {
+  void applyBCfront(const BlockInfo & I, Lab & L) const
+  {
     if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return;
     else if (I.index[2] not_eq 0) return; // not near boundary
     else if (fadeF >= 1) return; // no momentum killing at this boundary
-    assert(fadeF <= 1 && fadeF >= 0);
     for (int iz = loopBeg; iz < 0; ++iz)
-    for (int iy = loopBeg; iy < loopEnd; ++iy)
-    for (int ix = loopBeg; ix < loopEnd; ++ix) {
-      L(ix,iy,iz).u *= fadeF; L(ix,iy,iz).v *= fadeF; L(ix,iy,iz).w *= fadeF;
+    {
+      const Real fac = std::pow(fadeF, 0 - iz);
+      assert(fac <= 1 && fac >= 0);
+      for (int iy = loopBeg; iy < loopEnd; ++iy)
+      for (int ix = loopBeg; ix < loopEnd; ++ix)
+      {
+        L(ix,iy,iz).u *= fac; L(ix,iy,iz).v *= fac; L(ix,iy,iz).w *= fac;
+      }
     }
   }
 
-  void applyBCback(const BlockInfo & I, Lab & L) const {
+  void applyBCback(const BlockInfo & I, Lab & L) const
+  {
     if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return;
     else if (I.index[2] not_eq sim.bpdz - 1) return; // not near boundary
     else if (fadeB >= 1) return; // no momentum killing at this boundary
-    assert(fadeB <= 1 && fadeB >= 0);
     for (int iz = CUP_BLOCK_SIZE; iz < loopEnd; ++iz)
-    for (int iy = loopBeg; iy < loopEnd; ++iy)
-    for (int ix = loopBeg; ix < loopEnd; ++ix) {
-      L(ix,iy,iz).u *= fadeB; L(ix,iy,iz).v *= fadeB; L(ix,iy,iz).w *= fadeB;
+    {
+      const Real fac = std::pow(fadeB, iz - CUP_BLOCK_SIZE + 1);
+      assert(fac <= 1 && fac >= 0);
+      for (int iy = loopBeg; iy < loopEnd; ++iy)
+      for (int ix = loopBeg; ix < loopEnd; ++ix)
+      {
+        L(ix,iy,iz).u *= fac; L(ix,iy,iz).v *= fac; L(ix,iy,iz).w *= fac;
+      }
     }
   }
 };
@@ -488,11 +521,12 @@ void AdvectionDiffusion::operator()(const double dt)
   {
     sim.startProfiler("AdvDiff Kernel");
     const KernelAdvectDiffuse3rdOrderUpwind K(sim, dt);
+    //const KernelAdvectDiffuse K(sim, dt);
     compute(K);
     sim.stopProfiler();
     sim.startProfiler("AdvDiff copy");
-    const UpdateAndCorrectInflow U(sim);
-    //const UpdateAndCorrectInflow_nonUniform U(sim);
+    //const UpdateAndCorrectInflow U(sim);
+    const UpdateAndCorrectInflow_nonUniform U(sim);
     U.operate();
     sim.stopProfiler();
   }

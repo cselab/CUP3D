@@ -332,9 +332,9 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
 
   #pragma unroll
   for (int offset = warpSize/2; offset > 0; offset /= 2) {
-    tke  = tke  + warpShflDown(tke,  offset);
-    eps  = eps  + warpShflDown(eps,  offset);
-    lInt = lInt + warpShflDown(lInt, offset);
+    tke         = tke         + warpShflDown(        tke, offset);
+    eps         = eps         + warpShflDown(        eps, offset);
+    lInt        = lInt        + warpShflDown(       lInt, offset);
     tkeFiltered = tkeFiltered + warpShflDown(tkeFiltered, offset);
   }
 
