@@ -8,6 +8,7 @@
 
 #include "SpectralIcGenerator.h"
 #include "SpectralManip.h"
+#include "HITtargetData.h"
 
 #include <random>
 #include <iomanip>
@@ -82,9 +83,23 @@ void SpectralIcGenerator::_generateTarget(std::vector<Real>& K,
 
   else if (sim.spectralIC=="fromFile") {
     const int nBins = std::ceil(std::sqrt(3.0) * SM.maxGridN / 2.0) + 1;
+    if(sim.initCondSpectrum.size() == 0) {
+      HITtargetData target(SM.maxGridN, "");
+      target.smartiesFolderStructure = false;
+      target.readAll("target");
+      if (not target.holdsTargetData) {
+        printf("FATAL: Unable to find initial conditions file!\n");
+        fflush(0); abort();
+      }
+      sim.initCondModes    = target.mode;
+      sim.initCondSpectrum = target.E_mean;
+    }
     K = std::vector<Real>(sim.initCondModes);
     E = std::vector<Real>(sim.initCondSpectrum);
-    assert( nBins <= (int) K.size() && nBins <= (int) E.size() );
+    if ( nBins > (int) K.size() or nBins > (int) E.size() ) {
+      printf("FATAL: Invalid initial conditions file!\n");
+        fflush(0); abort();
+    }
     K.resize(nBins);
     E.resize(nBins);
   }
