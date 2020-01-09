@@ -12,6 +12,7 @@
 #include "Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
+#define PENAL_THEN_PRES
 
 class PressureRHS : public Operator
 {

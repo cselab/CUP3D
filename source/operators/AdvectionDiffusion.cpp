@@ -7,6 +7,7 @@
 //
 
 #include "AdvectionDiffusion.h"
+#include "../obstacles/ObstacleVector.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -520,13 +521,17 @@ void AdvectionDiffusion::operator()(const double dt)
   else
   {
     sim.startProfiler("AdvDiff Kernel");
-    const KernelAdvectDiffuse3rdOrderUpwind K(sim, dt);
-    //const KernelAdvectDiffuse K(sim, dt);
-    compute(K);
+    if(sim.obstacle_vector->nObstacles() == 0) {
+      const KernelAdvectDiffuse3rdOrderUpwind K(sim, dt);
+      compute(K);
+    } else {
+      const KernelAdvectDiffuse K(sim, dt);
+      compute(K);
+    }
     sim.stopProfiler();
     sim.startProfiler("AdvDiff copy");
-    //const UpdateAndCorrectInflow U(sim);
-    const UpdateAndCorrectInflow_nonUniform U(sim);
+    const UpdateAndCorrectInflow U(sim);
+    //const UpdateAndCorrectInflow_nonUniform U(sim);
     U.operate();
     sim.stopProfiler();
   }

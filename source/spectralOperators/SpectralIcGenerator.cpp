@@ -137,6 +137,10 @@ void SpectralIcGenerator::run()
   std::vector<Real> K, E;
   _generateTarget(K, E, * SM);
   SM->_compute_IC(K, E);
+  SM->runBwd();
+  _fftw2cub(* SM);
+
+  SM->runFwd();
   SM->_compute_forcing();
   // if user asked spectral forcing, but no value specified, satisfy spectrum
   if (sim.spectralForcing       &&
@@ -144,8 +148,6 @@ void SpectralIcGenerator::run()
       sim.enInjectionRate  <= 0 )
       sim.turbKinEn_target = SM->stats.tke;
 
-  SM->runBwd();
-  _fftw2cub(* SM);
   delete SM;
 }
 
