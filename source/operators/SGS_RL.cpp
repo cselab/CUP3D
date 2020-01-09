@@ -396,20 +396,20 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                                 sim.grid->getResidentBlocksPerDimension(1),
                                 sim.grid->getResidentBlocksPerDimension(0) );
 
-  #if 0 // non-dimensionalize wrt flow quantities
+  #if 1 // non-dimensionalize wrt flow quantities
     const Real scaleVel = 1 / std::sqrt(stats.tke); // [T/L]
-    const Real scaleGrad = stats.tke / stats.dissip_tot; // [T]
+    const Real scaleGrad = stats.tke / sim.actualInjectionRate; // [T]
     const Real scaleLap = scaleGrad * stats.getKolmogorovL(); // [TL]
 
     // one element per block is a proper agent: will add seq to train data
     // other are nThreads and are only there for thread safety
     // states get overwritten
     const Real h_nonDim = sim.uniformH() / stats.getKolmogorovL();
-    const Real dt_nonDim = dt / scaleGrad;
-    const Real tke_nonDim = stats.tke / std::sqrt(stats.dissip_tot * stats.nu);
-    const Real visc_nonDim = stats.dissip_visc / stats.dissip_tot;
-    const Real lenIn_nonDim = stats.l_integral / stats.lambda;
-    const Real inject_nonDim = sim.actualInjectionRate / stats.dissip_tot;
+    const Real dt_nonDim = dt / stats.getKolmogorovT();
+    const Real tke_nonDim = stats.tke / std::sqrt(sim.actualInjectionRate * stats.nu);
+    const Real visc_nonDim = stats.dissip_visc / sim.actualInjectionRate;
+    const Real dissi_nonDim = stats.dissip_tot / sim.actualInjectionRate;
+    const Real lenInt_nonDim = stats.lambda / stats.l_integral;
     const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / stats.tke;
   #else // non-dimensionalize wrt *target* flow quantities
     const Real eta = stats.getKolmogorovL(target.epsTot, target.nu);
@@ -417,21 +417,29 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     const Real scaleGrad = target.tKinEn / target.epsTot; // [T]
     const Real scaleLap = scaleGrad * eta; // [TL]
     const Real h_nonDim = sim.uniformH() / eta;
-    const Real dt_nonDim = dt / scaleGrad;
+    const Real dt_nonDim = dt / stats.getKolmogorovT(target.epsTot, target.nu);
     const Real tke_nonDim = stats.tke / std::sqrt(target.epsVis * target.nu);
     const Real visc_nonDim = stats.dissip_visc / target.epsVis;
-    const Real lenIn_nonDim = stats.l_integral / target.lInteg;
-    const Real inject_nonDim = stats.dissip_tot / sim.actualInjectionRate;
+    const Real dissi_nonDim = stats.dissip_tot / sim.actualInjectionRate;
+    const Real lenInt_nonDim = stats.l_integral / target.lInteg;
     const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / target.tKinEn;
   #endif
 
-  std::array<Real, 7> globalS = { h_nonDim, dt_nonDim,
-    tke_nonDim, visc_nonDim, lenIn_nonDim, inject_nonDim, deltaEn_nonDim };
-
   const auto getState = [&] (const std::array<Real,9> & locS) {
-    return std::vector<double> { locS[0], locS[1], locS[2], locS[3], locS[4],
-      locS[5], locS[6], locS[7], locS[8], globalS[0], globalS[1], globalS[2],
-      globalS[3], globalS[4], globalS[5], globalS[6] };
+    return std::vector<double> {
+      locS[0],
+      locS[1], locS[2], locS[3], locS[4], locS[5]
+      #ifdef SGSRL_STATE_LAPLACIAN
+        , locS[6], locS[7], locS[8]
+      #endif
+      #ifdef SGSRL_STATE_SCALES
+        , h_nonDim , dt_nonDim
+      #endif
+      , tke_nonDim , visc_nonDim , dissi_nonDim, lenInt_nonDim
+      #ifdef SGSRL_STATE_TARGET
+        , deltaEn_nonDim
+      #endif
+    };
   };
 
   #ifdef SGSRL_ALLGRID_AGENTS // old setup:
@@ -507,6 +515,21 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   sim.stopProfiler();
   check("SGS_RL");
   localRewards = nextlocRewards;
+}
+
+int SGS_RL::nStateComponents()
+{
+  return 10
+  #ifdef SGSRL_STATE_LAPLACIAN
+            + 3
+  #endif
+  #ifdef SGSRL_STATE_SCALES
+            + 2
+  #endif
+  #ifdef SGSRL_STATE_TARGET
+            + 1
+  #endif
+            ;
 }
 
 CubismUP_3D_NAMESPACE_END

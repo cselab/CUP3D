@@ -11,6 +11,9 @@
 
 #define SGSRL_STATE_INVARIANTS
 //#define SGSRL_ALLGRID_AGENTS
+//#define SGSRL_STATE_LAPLACIAN
+//#define SGSRL_STATE_SCALES
+//#define SGSRL_STATE_TARGET
 
 #include "Operator.h"
 
@@ -41,6 +44,7 @@ public:
   void operator()(const double dt) override {}
 
   std::string getName() override { return "SGS_RL"; }
+  static int nStateComponents();
 };
 
 CubismUP_3D_NAMESPACE_END

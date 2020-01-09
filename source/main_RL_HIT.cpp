@@ -96,7 +96,7 @@ inline void app_main(
   target.smartiesFolderStructure = true;
   cubism::Profiler profiler;
 
-  const int nActions = 1, nStates = 16;
+  const int nActions = 1, nStates = cubismup3d::SGS_RL::nStateComponents();
   // BIG TROUBLE WITH NAGENTS!
   // If every grid point is an agent: probably will allocate too much memory
   // and crash because smarties allocates a trajectory for each point
@@ -186,6 +186,7 @@ inline void app_main(
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
       const double r_t = 40 * avgReward / (LES_RL_N_TSIM * LES_RL_FREQ_A);
+      printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc, stats.dissip_tot, stats.lambda, stats.l_integral);
       updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, r_t);
       profiler.pop_stop();
 
@@ -204,6 +205,7 @@ inline void app_main(
         }
         // Average reward over integral time:
         target.updateReward(stats, dt / tau_eta, avgReward);
+        printf("r:%e\n", (double) target.computeLogP(stats));
         if ( isTerminal( sim.sim ) ) { policyFailed = true; break; }
       }
       profiler.pop_stop();

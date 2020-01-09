@@ -10,8 +10,6 @@
 #include "../poisson/PoissonSolver.h"
 #include "../obstacles/ObstacleVector.h"
 
-#define ALTMETHOD
-
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
@@ -28,12 +26,14 @@ using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 //  return (PenalizationBlock*) vInfo[blockID].ptrBlock;
 //}
 
+template<bool implicitPenalization>
 struct KernelPressureRHS : public ObstacleVisitor
 {
-  const Real dt;
-  PoissonSolver * const solver;
+  SimulationData & sim;
+  const Real dt = sim.dt;
+  PoissonSolver * const solver = sim.pressureSolver;
   std::vector<int> & bElemTouchSurf;
-  ObstacleVector * const obstacle_vector;
+  ObstacleVector * const obstacle_vector = sim.obstacle_vector;
   const int nShapes = obstacle_vector->nObstacles();
   // non-const non thread safe:
   std::vector<Real> sumRHS = std::vector<Real>(nShapes, 0);
@@ -44,11 +44,15 @@ struct KernelPressureRHS : public ObstacleVisitor
   Lab * lab_ptr = nullptr;
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_CHI,FE_U,FE_V,FE_W}};
+  const StencilInfo stencil =
+  #ifdef PENAL_THEN_PRES
+    nShapes>0 ? StencilInfo(-1,-1,-1, 2,2,2, false,
+                                    {FE_U,FE_V,FE_W,FE_TMPU,FE_TMPV,FE_TMPW} ) :
+  #endif
+                StencilInfo(-1,-1,-1, 2,2,2, false, {FE_U, FE_V, FE_W});
 
-  KernelPressureRHS(PoissonSolver* pois, std::vector<int> & bETS,
-    ObstacleVector* oVec, double _dt) : dt(_dt), solver(pois),
-    bElemTouchSurf(bETS), obstacle_vector(oVec) { }
+  KernelPressureRHS(SimulationData& s, std::vector<int> & bETS) :
+    sim(s), bElemTouchSurf(bETS) { }
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o)
@@ -91,6 +95,14 @@ struct KernelPressureRHS : public ObstacleVisitor
     const size_t SX=solver->stridex, SY=solver->stridey, SZ=solver->stridez;
     const int obstID = obstacle->obstacleID; assert(obstID < nShapes);
 
+    // Obstacle-specific lambda, useful for gradually adding an obstacle to the flow.
+    const Real rampUp = obstacle->lambda_factor;
+    // lambda = 1/dt hardcoded for expl time int, other options are wrong.
+    const Real lamDt = rampUp * (implicitPenalization? sim.lambda * dt : 1.0);
+    #ifdef PENAL_THEN_PRES
+      const Real h = info.h_gridpoint, fac = 0.5*h*h/dt;
+    #endif
+
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -98,36 +110,33 @@ struct KernelPressureRHS : public ObstacleVisitor
       if (lab(ix,iy,iz).chi > CHI[iz][iy][ix]) continue;
       const size_t idx = offset + SZ * iz + SY * iy + SX * ix;
       assert(idx < bElemTouchSurf.size());
-
-      const Real srcBulk = - CHI[iz][iy][ix] * ret[idx];
-      #ifndef ALTMETHOD
+      const Real X=CHI[iz][iy][ix], penalFac = not implicitPenalization? X*lamDt
+                                               : X * lamDt/(1 + lamDt * X);
+      #ifdef PENAL_THEN_PRES
         const FluidElement &LW = lab(ix-1,iy,  iz  ), &LE = lab(ix+1,iy,  iz  );
         const FluidElement &LS = lab(ix,  iy-1,iz  ), &LN = lab(ix,  iy+1,iz  );
         const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
-        const Real dXx = LE.chi-LW.chi, dXy = LN.chi-LS.chi, dXz = LB.chi-LF.chi;
-        const bool bSurface = dXx * dXx + dXy * dXy + dXz * dXz > 0;
-        if(bSurface) bElemTouchSurf[idx] = obstID;
-        sumRHS[obstID] += srcBulk;
-        ret[idx] += srcBulk; // before we compute normalization
-        posRHS[obstID] += bSurface * ret[idx] * (ret[idx] > 0);
-        negRHS[obstID] -= bSurface * ret[idx] * (ret[idx] < 0);
+        const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
+        const Real srcBulk = - penalFac * fac * divUs;
       #else
-        bElemTouchSurf[idx] = obstID;
-        posRHS[obstID] += CHI[iz][iy][ix];
-        sumRHS[obstID] += srcBulk;
-        ret[idx] += srcBulk;
-        negRHS[obstID] += std::fabs(ret[idx]);
+        const Real srcBulk = - penalFac * ret[idx];
       #endif
+      bElemTouchSurf[idx] = obstID;
+      posRHS[obstID] += CHI[iz][iy][ix];
+      sumRHS[obstID] += srcBulk;
+      ret[idx] += srcBulk;
+      negRHS[obstID] += std::fabs(ret[idx]);
     }
   }
 };
 
 struct KernelPressureRHS_nonUniform : public ObstacleVisitor
 {
-  const Real dt, invdt = 1.0/dt;
-  PoissonSolver * const solver;
+  SimulationData & sim;
+  const Real dt = sim.dt;
+  PoissonSolver * const solver = sim.pressureSolver;
   std::vector<int> & bElemTouchSurf;
-  ObstacleVector * const obstacle_vector;
+  ObstacleVector * const obstacle_vector = sim.obstacle_vector;
   const int nShapes = obstacle_vector->nObstacles();
   // non-const non thread safe:
   std::vector<Real> sumRHS = std::vector<Real>(nShapes, 0);
@@ -140,9 +149,8 @@ struct KernelPressureRHS_nonUniform : public ObstacleVisitor
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_CHI,FE_U,FE_V,FE_W}};
 
-  KernelPressureRHS_nonUniform(PoissonSolver* pois, std::vector<int> & bETS,
-    ObstacleVector* oVec, double _dt) : dt(_dt), solver(pois),
-    bElemTouchSurf(bETS), obstacle_vector(oVec) {}
+  KernelPressureRHS_nonUniform(SimulationData & s, std::vector<int> & bETS) :
+    sim(s), bElemTouchSurf(bETS) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o)
@@ -150,6 +158,7 @@ struct KernelPressureRHS_nonUniform : public ObstacleVisitor
     Real* __restrict__ const ret = solver->data + solver->_offset_ext(info);
     const unsigned SX=solver->stridex, SY=solver->stridey, SZ=solver->stridez;
     const BlkCoeffX &cx =o.fd_cx.first, &cy =o.fd_cy.first, &cz =o.fd_cz.first;
+    const Real invdt = 1.0 / dt;
 
     for(unsigned iz=0; iz < (unsigned) FluidBlock::sizeZ; ++iz)
     for(unsigned iy=0; iy < (unsigned) FluidBlock::sizeY; ++iy)
@@ -257,15 +266,52 @@ struct KernelFinalizePerimeters : public ObstacleVisitor
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
           const size_t idx = offset + SZ * iz + SY * iy + SX * ix;
-          #ifndef ALTMETHOD
-            if (bElemTouchSurf[idx] not_eq obstID) continue;
-            if      (ret[idx]>0 and corr>0) ret[idx] -= corr * ret[idx];
-            else if (ret[idx]<0 and corr<0) ret[idx] += corr * ret[idx];
-          #else
-            if (bElemTouchSurf[idx] not_eq obstID) continue;
-            ret[idx] -= corr * CHI[iz][iy][ix];
-            //ret[idx] -= corr * std::fabs(ret[idx]);
-          #endif
+          if (bElemTouchSurf[idx] not_eq obstID) continue;
+          //ret[idx] -= corr * CHI[iz][iy][ix];
+          ret[idx] -= corr * std::fabs(ret[idx]);
+        }
+      }
+    }
+  }
+};
+
+struct PressureRHSObstacleVisitor : public ObstacleVisitor
+{
+  FluidGridMPI * const grid;
+  const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
+
+  PressureRHSObstacleVisitor(FluidGridMPI*g) : grid(g) { }
+
+  void visit(Obstacle* const obstacle)
+  {
+    #pragma omp parallel
+    {
+      const auto& obstblocks = obstacle->getObstacleBlocks();
+      #pragma omp for schedule(dynamic, 1)
+      for (size_t i = 0; i < vInfo.size(); ++i)
+      {
+        const cubism::BlockInfo& info = vInfo[i];
+        const auto pos = obstblocks[info.blockID];
+        if(pos == nullptr) continue;
+
+        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+        const UDEFMAT & __restrict__ UDEF = pos->udef;
+        const CHIMAT & __restrict__ CHI = pos->chi;
+        //const CHIMAT & __restrict__ SDF = pos->sdf;
+
+        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        {
+          // What if multiple obstacles share a block? Do not write udef onto
+          // grid if CHI stored on the grid is greater than obst's CHI.
+          if(b(ix,iy,iz).chi > CHI[iz][iy][ix]) continue;
+          // What if two obstacles overlap? Let's plus equal. After all here
+          // we are computing divUs, maybe one obstacle has divUs 0. We will
+          // need a repulsion term of the velocity at some point in the code.
+          b(ix,iy,iz).tmpU += UDEF[iz][iy][ix][0];
+          b(ix,iy,iz).tmpV += UDEF[iz][iy][ix][1];
+          b(ix,iy,iz).tmpW += UDEF[iz][iy][ix][2];
         }
       }
     }
@@ -287,6 +333,19 @@ PressureRHS::PressureRHS(SimulationData & s) : Operator(s)
 
 PressureRHS::~PressureRHS() { delete penalizationGrid; }
 
+
+#define PRESRHS_LOOP(T) do {                                                 \
+      std::vector< T *> K(nthreads, nullptr);                                \
+      for(int i=0;i<nthreads;++i) K[i] = new T (sim,elemTouchSurf);          \
+      compute< T >(K);                                                       \
+      for(size_t j = 0; j<nShapes; ++j) {                                    \
+        for(int i=0; i<nthreads; ++i) sumRHS[j] += K[i]->sumRHS[j];          \
+        for(int i=0; i<nthreads; ++i) posRHS[j] += K[i]->posRHS[j];          \
+        for(int i=0; i<nthreads; ++i) negRHS[j] += K[i]->negRHS[j];          \
+      }                                                                      \
+      for(int i=0; i<nthreads; i++) delete K[i];                             \
+    } while(0)
+
 void PressureRHS::operator()(const double dt)
 {
   //place onto p: ( div u^(t+1) - div u^* ) / dt
@@ -299,40 +358,32 @@ void PressureRHS::operator()(const double dt)
   std::vector<double> sumRHS(nShapes,0), posRHS(nShapes,0), negRHS(nShapes,0);
   std::vector<int> elemTouchSurf(sim.pressureSolver->data_size, -1);
 
+  #ifdef PENAL_THEN_PRES
+    sim.startProfiler("PresRHS Udef");
+    if(nShapes > 0)
+    { //zero fields, going to contain Udef:
+      #pragma omp parallel for schedule(static)
+      for(size_t i=0; i<vInfo.size(); i++) {
+        FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+          b(ix,iy,iz).tmpU = 0; b(ix,iy,iz).tmpV = 0; b(ix,iy,iz).tmpW = 0;
+        }
+      }
+      //store deformation velocities onto tmp fields:
+      ObstacleVisitor* visitor = new PressureRHSObstacleVisitor(grid);
+      sim.obstacle_vector->Accept(visitor);
+      delete visitor;
+    }
+    sim.stopProfiler();
+  #endif
+
   sim.startProfiler("PresRHS Kernel");
-  if(sim.bUseStretchedGrid)
-  {
-    std::vector<KernelPressureRHS_nonUniform*> K(nthreads, nullptr);
-    #pragma omp parallel for schedule(static, 1)
-    for(int i=0; i<nthreads; ++i)
-      K[i] = new KernelPressureRHS_nonUniform(sim.pressureSolver,
-        elemTouchSurf, sim.obstacle_vector, dt);
-
-    compute<KernelPressureRHS_nonUniform>(K);
-
-    for(size_t j = 0; j<nShapes; ++j) {
-      for(int i=0; i<nthreads; ++i) sumRHS[j] += K[i]->sumRHS[j];
-      for(int i=0; i<nthreads; ++i) posRHS[j] += K[i]->posRHS[j];
-      for(int i=0; i<nthreads; ++i) negRHS[j] += K[i]->negRHS[j];
-    }
-    for(int i=0; i<nthreads; i++) delete K[i];
-  }
-  else
-  {
-    std::vector<KernelPressureRHS*> K(nthreads, nullptr);
-    #pragma omp parallel for schedule(static, 1)
-    for(int i=0; i<nthreads; ++i)
-      K[i] = new KernelPressureRHS(sim.pressureSolver, elemTouchSurf,
-        sim.obstacle_vector, dt);
-
-    compute<KernelPressureRHS>(K);
-
-    for(size_t j = 0; j<nShapes; ++j) {
-      for(int i=0; i<nthreads; ++i) sumRHS[j] += K[i]->sumRHS[j];
-      for(int i=0; i<nthreads; ++i) posRHS[j] += K[i]->posRHS[j];
-      for(int i=0; i<nthreads; ++i) negRHS[j] += K[i]->negRHS[j];
-    }
-    for(int i=0; i<nthreads; i++) delete K[i];
+  if(sim.bUseStretchedGrid) PRESRHS_LOOP(KernelPressureRHS_nonUniform);
+  else {
+    if(sim.bImplicitPenalization) PRESRHS_LOOP(KernelPressureRHS<1>);
+    else PRESRHS_LOOP(KernelPressureRHS<0>);
   }
   sim.stopProfiler();
 
@@ -346,13 +397,8 @@ void PressureRHS::operator()(const double dt)
   MPI_Allreduce(MPI_IN_PLACE, posRHS.data(), nShapes, MPI_DOUBLE,MPI_SUM, COMM);
   MPI_Allreduce(MPI_IN_PLACE, negRHS.data(), nShapes, MPI_DOUBLE,MPI_SUM, COMM);
   for(size_t j = 0; j<nShapes; ++j) {
-    #ifndef ALTMETHOD
-      const double corrDenom = sumRHS[j]>0 ? posRHS[j] : negRHS[j];
-      corrFactors[j] = sumRHS[j] / std::max(corrDenom, (double) EPS);
-    #else
-      //corrFactors[j] = sumRHS[j] / std::max(negRHS[j], (double) EPS);
-      corrFactors[j] = sumRHS[j] / std::max(posRHS[j], (double) EPS);
-    #endif
+      corrFactors[j] = sumRHS[j] / std::max(negRHS[j], (double) EPS);
+      //corrFactors[j] = sumRHS[j] / std::max(posRHS[j], (double) EPS);
   }
 
   {

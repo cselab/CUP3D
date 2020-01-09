@@ -484,6 +484,8 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
         };
         // support is two points left, two points right --> Towers Chi
         // will be one point left, one point right, but needs SDF wider
+        //const int ST[3]={ iap[0]-1-SURFDH, iap[1]-1-SURFDH, iap[2]-1-SURFDH };
+        //const int EN[3]={ iap[0]+3+SURFDH, iap[1]+3+SURFDH, iap[2]+3+SURFDH };
         const int ST[3] = { iap[0]-1-SURFDH, iap[1]-1-SURFDH, iap[2]-1-SURFDH };
         const int EN[3] = { iap[0]+3+SURFDH, iap[1]+3+SURFDH, iap[2]+3+SURFDH };
         if(EN[0] <= 0 || ST[0] >= BS[0]) continue; // NearNeigh loop
