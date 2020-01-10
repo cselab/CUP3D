@@ -406,7 +406,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     // states get overwritten
     const Real h_nonDim = sim.uniformH() / stats.getKolmogorovL();
     const Real dt_nonDim = dt / stats.getKolmogorovT();
-    const Real tke_nonDim = stats.tke / std::sqrt(sim.actualInjectionRate * stats.nu);
+    const Real tke_nonDim = stats.tke/std::sqrt(sim.actualInjectionRate*sim.nu);
     const Real visc_nonDim = stats.dissip_visc / sim.actualInjectionRate;
     const Real dissi_nonDim = stats.dissip_tot / sim.actualInjectionRate;
     const Real lenInt_nonDim = stats.lambda / stats.l_integral;

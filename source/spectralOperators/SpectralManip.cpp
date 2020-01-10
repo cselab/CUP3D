@@ -33,8 +33,8 @@ EnergySpectrum::EnergySpectrum(const std::vector<Real>& _k,
 Real EnergySpectrum::interpE(const Real _k) const
 {
   int idx_k = -1;
-  int size = k.size();
-  Real energy = 0.;
+  const int size = k.size();
+  Real energy = 0;
   for (int i = 0; i < size; ++i){
     if ( _k < k[i]){
       idx_k = i;

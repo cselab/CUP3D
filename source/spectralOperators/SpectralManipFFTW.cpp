@@ -157,7 +157,15 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
   const long sizeX = gsize[0], sizeZ_hat = nz_hat;
   const long loc_n1 = local_n1, shifty = local_1_start;
 
-  #pragma omp parallel
+  const size_t nBins = stats.nBin;
+  const long nyquist = stats.nyquist;
+  const Real nyquist_scaling = (nyquist-1) / (Real) nyquist;
+  assert(nyquist > 0 && nyquist_scaling > 0);
+
+  Real * const E_msr = new Real[nBins];
+  memset(E_msr, 0, nBins * sizeof(Real));
+
+  #pragma omp parallel reduction(+ : E_msr[:nBins])
   {
     std::mt19937 & gen = gens[omp_get_thread_num()];
     std::uniform_real_distribution<Real> randUniform(0,1);
@@ -172,6 +180,7 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
       const long l = shifty + j; //memory index plus shift due to decomp
       const long jj = (l <= nKy/2) ? l : -(nKy-l);
       const long kk = (k <= nKz/2) ? k : -(nKz-k);
+      const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
 
       const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
       const Real k2 = kx*kx + ky*ky + kz*kz;
@@ -179,34 +188,106 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
       const Real k_norm = std::sqrt(k2);
 
       const Real E_k = target.interpE(k_norm);
-      const Real amp = (k2<=0)? 0
-                      : std::sqrt(E_k/(2*M_PI*std::pow(k_norm/waveFactorX,2)));
-
+      //const Real amp = (k2<=0)? 0 // hugues:
+      //                : std::sqrt(E_k/(2*M_PI*std::pow(k_norm/waveFactorX,2)));
+      const Real amp = (k2<=0)? 0 : std::sqrt(E_k/(2*M_PI*k_norm*k_norm));
       const Real theta1 = randUniform(gen)*2*M_PI;
       const Real theta2 = randUniform(gen)*2*M_PI;
       const Real phi    = randUniform(gen)*2*M_PI;
 
-      const Real noise_a[2] = {amp * std::cos(theta1) * std::cos(phi),
-                               amp * std::sin(theta1) * std::cos(phi)};
-      const Real noise_b[2] = {amp * std::cos(theta2) * std::sin(phi),
-                               amp * std::sin(theta2) * std::sin(phi)};
+      const Real alpha_r = amp * std::cos(theta1) * std::cos(phi);
+      const Real alpha_i = amp * std::sin(theta1) * std::cos(phi);
+      const Real beta_r = amp * std::cos(theta2) * std::sin(phi);
+      const Real beta_i = amp * std::sin(theta2) * std::sin(phi);
 
       const Real fac = k_norm*k_xy, invFac = fac<=0? 0 : 1/fac;
 
       cplxData_u[linidx][0] = k_norm<=0? 0
-                    : invFac * (noise_a[0] * k_norm*ky + noise_b[0] * kx*kz );
+                    : invFac * (alpha_r * k_norm*ky + beta_r * kx*kz );
       cplxData_u[linidx][1] = k_norm<=0? 0
-                    : invFac * (noise_a[0] * k_norm*ky + noise_b[1] * kx*kz );
+                    : invFac * (alpha_i * k_norm*ky + beta_i * kx*kz );
 
       cplxData_v[linidx][0] = k_norm<=0? 0
-                    : invFac * (noise_b[0] * ky*kz - noise_a[0] * k_norm*kx );
+                    : invFac * (beta_r * ky*kz - alpha_r * k_norm*kx );
       cplxData_v[linidx][1] = k_norm<=0? 0
-                    : invFac * (noise_b[1] * ky*kz - noise_a[1] * k_norm*kx );
+                    : invFac * (beta_i * ky*kz - alpha_i * k_norm*kx );
 
-      cplxData_w[linidx][0] = k_norm<=0? 0 : -noise_b[0] * k_xy / k_norm;
-      cplxData_w[linidx][1] = k_norm<=0? 0 : -noise_b[1] * k_xy / k_norm;
+      cplxData_w[linidx][0] = k_norm<=0? 0 : -beta_r * k_xy / k_norm;
+      cplxData_w[linidx][1] = k_norm<=0? 0 : -beta_i * k_xy / k_norm;
+
+      const Real UR = cplxData_u[linidx][0], UI = cplxData_u[linidx][1];
+      const Real VR = cplxData_v[linidx][0], VI = cplxData_v[linidx][1];
+      const Real WR = cplxData_w[linidx][0], WI = cplxData_w[linidx][1];
+      const long kind = ii*ii + jj*jj + kk*kk;
+      if (kind < nyquist * nyquist) {
+        const size_t binID = std::floor(std::sqrt((Real) kind)*nyquist_scaling);
+        assert(binID < nBins);
+        E_msr[binID] += mult/2 *(UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
+      }
     }
   }
+
+  MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
+  const Real normalization = 1.0 ;/// pow2(normalizeFFT);
+  for (size_t binID = 0; binID < nBins; binID++) E_msr[binID] *= normalization;
+
+  #pragma omp parallel for schedule(static)
+  for(long j = 0; j<loc_n1;  ++j)
+  for(long i = 0; i<sizeX;    ++i)
+  for(long k = 0; k<sizeZ_hat; ++k) {
+    const long linidx = (j*sizeX +i) * sizeZ_hat + k;
+    const long ii = (i <= nKx/2) ? i : -(nKx-i);
+    const long l = shifty + j; //memory index plus shift due to decomp
+    const long jj = (l <= nKy/2) ? l : -(nKy-l);
+    const long kk = (k <= nKz/2) ? k : -(nKz-k);
+
+    const long kind = ii*ii + jj*jj + kk*kk;
+    if (kind < nyquist * nyquist) {
+      const size_t binID = std::floor(std::sqrt((Real) kind) * nyquist_scaling);
+      assert(binID < nBins);
+      const Real fac = E_msr[binID]>0? std::sqrt(E[binID] / E_msr[binID]) : 1;
+      cplxData_u[linidx][0] *= fac; cplxData_u[linidx][1] *= fac;
+      cplxData_v[linidx][0] *= fac; cplxData_v[linidx][1] *= fac;
+      cplxData_w[linidx][0] *= fac; cplxData_w[linidx][1] *= fac;
+    }
+  }
+
+  #if 0 # to debug and check that spectrum matches target
+    std::cout << "E pre:";
+    for (int i = 0; i < nBins; i++) std::cout << E_msr[i] << " ";
+    std::cout << std::endl;
+    std::cout << "ratio:";
+    for (int i = 0; i < nBins; i++) std::cout << E[i] / E_msr[i] << " ";
+    std::cout << std::endl;
+    memset(E_msr, 0, nBins * sizeof(Real));
+    #pragma omp parallel for schedule(static) reduction(+ : E_msr[:nBins])
+    for(long j = 0; j<loc_n1;  ++j)
+    for(long i = 0; i<sizeX;    ++i)
+    for(long k = 0; k<sizeZ_hat; ++k) {
+      const long linidx = (j*sizeX +i) * sizeZ_hat + k;
+      const long ii = (i <= nKx/2) ? i : -(nKx-i);
+      const long l = shifty + j; //memory index plus shift due to decomp
+      const long jj = (l <= nKy/2) ? l : -(nKy-l);
+      const long kk = (k <= nKz/2) ? k : -(nKz-k);
+      const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
+
+      const Real UR = cplxData_u[linidx][0], UI = cplxData_u[linidx][1];
+      const Real VR = cplxData_v[linidx][0], VI = cplxData_v[linidx][1];
+      const Real WR = cplxData_w[linidx][0], WI = cplxData_w[linidx][1];
+
+      const long kind = ii*ii + jj*jj + kk*kk;
+      if (kind < nyquist * nyquist) {
+        const size_t binID = std::floor(std::sqrt((Real) kind)*nyquist_scaling);
+        assert(binID < nBins);
+        E_msr[binID] += mult/2 * (UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
+      }
+    }
+    std::cout << "E post:";
+    for (int i = 0; i < nBins; i++) std::cout << E_msr[i] << " ";
+    std::cout << std::endl;
+  #endif
+
+  delete [] E_msr;
 }
 
 SpectralManipFFTW::SpectralManipFFTW(SimulationData&s): SpectralManip(s)

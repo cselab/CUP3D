@@ -134,6 +134,7 @@ void SpectralIcGenerator::run()
 {
   SpectralManip* SM = initFFTWSpectralAnalysisSolver(sim);
   SM->prepareBwd();
+  SM->prepareFwd();
   std::vector<Real> K, E;
   _generateTarget(K, E, * SM);
   SM->_compute_IC(K, E);
@@ -142,12 +143,20 @@ void SpectralIcGenerator::run()
 
   SM->runFwd();
   SM->_compute_forcing();
+  SM->stats.updateDerivedQuantities(sim.nu, sim.dt, 0);
   // if user asked spectral forcing, but no value specified, satisfy spectrum
   if (sim.spectralForcing       &&
       sim.turbKinEn_target <= 0 &&
       sim.enInjectionRate  <= 0 )
       sim.turbKinEn_target = SM->stats.tke;
-
+  std::cout << "T:";
+  for (int binID = 0; binID < sim.initCondSpectrum.size(); binID++)
+    std::cout << sim.initCondSpectrum[binID] << " ";
+  std::cout << std::endl;
+  std::cout << "E:";
+  for (int binID = 0; binID < SM->stats.nBin; binID++)
+    std::cout << SM->stats.E_msr[binID] << " ";
+  std::cout << std::endl;
   delete SM;
 }
 

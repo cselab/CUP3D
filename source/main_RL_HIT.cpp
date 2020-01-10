@@ -90,7 +90,7 @@ inline void app_main(
   cubism::ArgumentParser parser(argc, argv);
   cubismup3d::Simulation sim(mpicom, parser);
   const int maxGridN = sim.sim.local_bpdx * CUP_BLOCK_SIZE;
-  cubismup3d::HITtargetData target(64, parser("-initCondFileTokens").asString());
+  cubismup3d::HITtargetData target(maxGridN, parser("-initCondFileTokens").asString());
   const Real LES_RL_FREQ_A = parser("-RL_freqActions").asDouble( 4.0);
   const Real LES_RL_N_TSIM = parser("-RL_nIntTperSim").asDouble(10.0);
   target.smartiesFolderStructure = true;
@@ -186,7 +186,8 @@ inline void app_main(
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
       const double r_t = 40 * avgReward / (LES_RL_N_TSIM * LES_RL_FREQ_A);
-      printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc, stats.dissip_tot, stats.lambda, stats.l_integral);
+      //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
+      //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
       updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, r_t);
       profiler.pop_stop();
 
@@ -205,7 +206,8 @@ inline void app_main(
         }
         // Average reward over integral time:
         target.updateReward(stats, dt / tau_eta, avgReward);
-        printf("r:%e\n", (double) target.computeLogP(stats));
+        //printf("r:%Le %Le\n", target.computeLogP(stats),
+        //  target.logPdenom - target.computeLogP(stats)); fflush(0);
         if ( isTerminal( sim.sim ) ) { policyFailed = true; break; }
       }
       profiler.pop_stop();

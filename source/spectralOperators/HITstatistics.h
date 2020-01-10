@@ -63,7 +63,7 @@ struct HITstatistics
       tke_prev = tke + dt * injectionRate;
     }
     uprime = std::sqrt(2.0/3.0 * tke);
-    lambda = std::sqrt(15 * nu / dissip_tot) * uprime;
+    lambda = std::sqrt(15 * nu / dissip_visc) * uprime;
     Re_lambda = uprime * lambda / nu;
     tau_integral = l_integral / uprime;
     //tau_integral = l_integral * M_PI/(2*pow3(uprime));
