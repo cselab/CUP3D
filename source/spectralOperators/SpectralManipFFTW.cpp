@@ -142,7 +142,8 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
   std::random_device seed;
   const int nthreads = omp_get_max_threads();
   std::vector<std::mt19937> gens(nthreads);
-  for(int i=0; i<nthreads; ++i) gens[i] = std::mt19937(seed());
+  gens[0] = std::mt19937(seed());
+  for(int i=1; i<nthreads; ++i) gens[i] = std::mt19937(gens[0]());
 
   const EnergySpectrum target(K, E);
   fft_c *const cplxData_u = (fft_c *) data_u;
