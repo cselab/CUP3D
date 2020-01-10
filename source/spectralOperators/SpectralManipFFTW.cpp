@@ -252,7 +252,7 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
     }
   }
 
-  #if 0 # to debug and check that spectrum matches target
+  #if 0 // to debug and check that spectrum matches target
     std::cout << "E pre:";
     for (int i = 0; i < nBins; i++) std::cout << E_msr[i] << " ";
     std::cout << std::endl;

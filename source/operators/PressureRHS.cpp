@@ -258,7 +258,7 @@ struct KernelFinalizePerimeters : public ObstacleVisitor
         const cubism::BlockInfo& info = vInfo[i];
         if(obstblocks[info.blockID] == nullptr) continue;
 
-        const CHIMAT & __restrict__ CHI = obstblocks[info.blockID]->chi;
+        //const CHIMAT & __restrict__ CHI = obstblocks[info.blockID]->chi;
         const size_t offset = solver->_offset_ext(info);
         Real* __restrict__ const ret = solver->data;
 
