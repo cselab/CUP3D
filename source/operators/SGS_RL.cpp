@@ -80,51 +80,6 @@ struct ActionInterpolator
   }
 };
 
-inline Real facFilter(const int i, const int j, const int k)
-{
-  if (std::abs(i) + std::abs(j) + std::abs(k) == 3)         // Corner cells
-    return 1.0/64;
-  else if (std::abs(i) + std::abs(j) + std::abs(k) == 2)    // Side-Corner cells
-    return 2.0/64;
-  else if (std::abs(i) + std::abs(j) + std::abs(k) == 1)    // Side cells
-    return 4.0/64;
-  else if (std::abs(i) + std::abs(j) + std::abs(k) == 0)    // Center cells
-    return 8.0/64;
-  else return 0;
-}
-
-struct FilteredQuatities
-{
-  Real u  = 0.0, v  = 0.0, w  = 0.0;
-  Real uu = 0.0, uv = 0.0, uw = 0.0;
-  Real vv = 0.0, vw = 0.0, ww = 0.0;
-  Real S_xx = 0.0, S_xy = 0.0, S_xz = 0.0;
-  Real S_yy = 0.0, S_yz = 0.0, S_zz = 0.0;
-
-  FilteredQuatities(Lab& lab, const int ix, const int iy, const int iz, const Real h)
-  {
-    for (int k=-1; k<2; ++k)
-    for (int j=-1; j<2; ++j)
-    for (int i=-1; i<2; ++i)
-    {
-      const Real f = facFilter(i,j,k);
-      const auto & L = lab(ix+i, iy+j, iz+k);
-      u  += f * L.u;     v  += f * L.v;     w  += f * L.w;
-      uu += f * L.u*L.u; uv += f * L.u*L.v; uw += f * L.u*L.w;
-      vv += f * L.v*L.v; vw += f * L.v*L.w; ww += f * L.w*L.w;
-      const auto & LW=lab(ix+i-1, iy+j, iz+k), & LE=lab(ix+i+1, iy+j, iz+k);
-      const auto & LS=lab(ix+i, iy+j-1, iz+k), & LN=lab(ix+i, iy+j+1, iz+k);
-      const auto & LF=lab(ix+i, iy+j, iz+k-1), & LB=lab(ix+i, iy+k, iz+k+1);
-      S_xx += f * (LE.u-LW.u)             / (2*h);
-      S_xy += f * (LE.v-LW.v + LN.u-LS.u) / (4*h);
-      S_xz += f * (LE.w-LW.w + LB.u-LF.u) / (4*h);
-      S_yy += f * (LN.v-LS.v)             / (2*h);
-      S_yz += f * (LN.w-LS.w + LB.v-LF.v) / (4*h);
-      S_zz += f * (LB.w-LF.w)             / (2*h);
-    }
-  }
-};
-
 // Product of two symmetric matrices stored as 1D vectors with 6 elts {M_00, M_01, M_02,
 //                                                                           M_11, M_12,
 //                                                                                 M_22}
@@ -159,59 +114,131 @@ inline Real traceOfSymProd(const std::array<Real,6> & mat1,
      + 2*mat1[1]*mat2[1] + 2*mat1[2]*mat2[2]  + 2*mat1[4]*mat2[4];
 }
 
+// In principle, SGS closure (a prescription for C_s) can be derived from properties
+// of the resolved flow. C_s should be independant of the chosen filter scale h as
+// long as h is in the inertial range of the turbulent flow. If you consider two
+// filters with width H > h, then the residual-stress tensor
+//        \tau(H) = Filter_H(\tau(h)) + L(h, H)                                           (1)
+// where the Leonard tensor L(h, H) is the residual-stress tensor associated to the
+// velocity fluctiation in the intermediate range of scales h < ... < H.
+//        L_ij(h, H) = Filter_H( u_i(h) u_j(h)) - Filter_H( u_i(h) ) Filter_H( u_j(h) )   (2)
+// In LES, (2) can evalated using the resolved flow only whereas \tau(H) and \tau(h)
+// are obtained from a SGS closure. A good SGS closure should satisfy the Germano identity (1)
+// for any test filter H, if h and H are in the intertial range.
+inline Real facFilter(const int i, const int j, const int k)
+{
+  if (std::abs(i) + std::abs(j) + std::abs(k) == 3)         // Corner cells
+    return 1.0/64;
+  else if (std::abs(i) + std::abs(j) + std::abs(k) == 2)    // Side-Corner cells
+    return 2.0/64;
+  else if (std::abs(i) + std::abs(j) + std::abs(k) == 1)    // Side cells
+    return 4.0/64;
+  else if (std::abs(i) + std::abs(j) + std::abs(k) == 0)    // Center cells
+    return 8.0/64;
+  else return 0;
+}
+
+// FilteredQuantities is a container that will be used to evaluate (1) with a
+// linear test filter with H = 2 * h (people rather use Gaussian filters).
+struct FilteredQuantities
+{
+  // Filter_H( u_i(h) ) : filtered velocity components.
+  Real u  = 0.0, v  = 0.0, w  = 0.0;
+  // Filter_H( u_i(h) u_j(h) ) : product of velocity components filtered.
+  Real uu = 0.0, uv = 0.0, uw = 0.0;
+  Real vv = 0.0, vw = 0.0, ww = 0.0;
+  // Filtered_H( S_ij(h) ) : used to compute \tau(H).
+  Real S_xx = 0.0, S_xy = 0.0, S_xz = 0.0;
+  Real S_yy = 0.0, S_yz = 0.0, S_zz = 0.0;
+  // Filter_H ( tau(h) ).
+  Real tau_xx = 0.0, tau_xy = 0.0, tau_xz = 0.0;
+  Real tau_yy = 0.0, tau_yz = 0.0, tau_zz = 0.0;
+
+  FilteredQuantities(Lab& lab, const int ix, const int iy, const int iz, const Real h)
+  {
+    for (int k=-1; k<2; ++k)
+    for (int j=-1; j<2; ++j)
+    for (int i=-1; i<2; ++i)
+    {
+      const Real f = facFilter(i,j,k);
+      const auto & L = lab(ix+i, iy+j, iz+k);
+      u  += f * L.u;     v  += f * L.v;     w  += f * L.w;
+      uu += f * L.u*L.u; uv += f * L.u*L.v; uw += f * L.u*L.w;
+      vv += f * L.v*L.v; vw += f * L.v*L.w; ww += f * L.w*L.w;
+      const auto & LW=lab(ix+i-1, iy+j, iz+k), & LE=lab(ix+i+1, iy+j, iz+k);
+      const auto & LS=lab(ix+i, iy+j-1, iz+k), & LN=lab(ix+i, iy+j+1, iz+k);
+      const auto & LF=lab(ix+i, iy+j, iz+k-1), & LB=lab(ix+i, iy+k, iz+k+1);
+      const Real dudx = LE.u-LW.u, dvdx = LE.v-LW.v, dwdx = LE.w-LW.w;
+      const Real dudy = LN.u-LS.u, dvdy = LN.v-LS.v, dwdy = LN.w-LS.w;
+      const Real dudz = LB.u-LF.u, dvdz = LB.v-LF.v, dwdz = LB.w-LF.w;
+      S_xx += f * (dudx)        / (2*h);
+      S_xy += f * (dudy + dvdx) / (4*h);
+      S_xz += f * (dudz + dwdx) / (4*h);
+      S_yy += f * (dvdy)        / (2*h);
+      S_yz += f * (dvdz + dwdy) / (4*h);
+      S_zz += f * (dwdz)        / (2*h);
+      const Real shear = std::sqrt( 2 * (dudx*dudx) +
+                                    2 * (dvdy*dvdy) +
+                                    2 * (dwdz*dwdz) +
+                                    pow2(dudy+dvdx) +
+                                    pow2(dudz+dwdx) +
+                                    pow2(dwdy+dvdz) ) / (2*h);
+      tau_xx -= f * 2 * L.chi * shear * h*h * (dudx)        / (2*h);
+      tau_xy -= f * 2 * L.chi * shear * h*h * (dudy + dvdx) / (4*h);
+      tau_xz -= f * 2 * L.chi * shear * h*h * (dudz + dwdx) / (4*h);
+      tau_yy -= f * 2 * L.chi * shear * h*h * (dvdy)        / (2*h);
+      tau_yz -= f * 2 * L.chi * shear * h*h * (dwdy + dvdz) / (4*h);
+      tau_zz -= f * 2 * L.chi * shear * h*h * (dwdz)        / (2*h);
+    }
+    // Remove trace of Filter_H( \tau(h) )
+    // NOTE: By construction, it should already be trace free.
+    const Real tau_trace = (tau_xx + tau_yy + tau_zz)/3;
+    tau_xx -= tau_trace;
+    tau_yy -= tau_trace;
+    tau_zz -= tau_trace;
+  }
+};
+
+// Returns the tensor components of [(2) - L_ij]. A perfect closure model would
+// return only zeros for any test filter H.
 inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
                                   const int ix, const int iy, const int iz)
 {
-  FilteredQuatities fq(lab, ix,iy,iz, h);
+  const Real H = 2*h;
+  FilteredQuantities filter_H(lab, ix,iy,iz, h);
   const FluidElement & L = lab(ix, iy, iz);
-  const Real shear_t = std::sqrt(2*(pow2(fq.S_xx)+pow2(fq.S_yy)+pow2(fq.S_zz))
-                               + 4*(pow2(fq.S_xy)+pow2(fq.S_yz)+pow2(fq.S_xz)));
-  const Real traceTerm = (fq.uu+fq.vv+fq.ww -fq.u*fq.u -fq.v*fq.v -fq.w*fq.w)/3;
-  const Real l_xx = fq.uu - fq.u * fq.u - traceTerm;
-  const Real l_xy = fq.uv - fq.u * fq.v;
-  const Real l_xz = fq.uw - fq.u * fq.w;
-  const Real l_yy = fq.vv - fq.v * fq.v - traceTerm;
-  const Real l_yz = fq.vw - fq.v * fq.w;
-  const Real l_zz = fq.ww - fq.w * fq.w - traceTerm;
-  Real t_xx = - 2 * L.chi * (4*h*h) * shear_t * fq.S_xx;
-  Real t_xy = - 2 * L.chi * (4*h*h) * shear_t * fq.S_xy;
-  Real t_xz = - 2 * L.chi * (4*h*h) * shear_t * fq.S_xz;
-  Real t_yy = - 2 * L.chi * (4*h*h) * shear_t * fq.S_yy;
-  Real t_yz = - 2 * L.chi * (4*h*h) * shear_t * fq.S_yz;
-  Real t_zz = - 2 * L.chi * (4*h*h) * shear_t * fq.S_zz;
-  t_xx -= (t_xx + t_yy + t_zz)/3; // remove trace
-  t_yy -= (t_xx + t_yy + t_zz)/3; // remove trace
-  t_zz -= (t_xx + t_yy + t_zz)/3; // remove trace
-
-  Real tau_xx = 0, tau_xy = 0, tau_xz = 0, tau_yy = 0, tau_yz = 0, tau_zz = 0;
-  for (int i = -1; i < 2; ++i)
-  for (int j = -1; j < 2; ++j)
-  for (int k = -1; k < 2; ++k)
-  {
-    const Real f = facFilter(i,j,k);
-    //const auto &LL=lab(ix+i,iy+j,iz+k);
-    const auto & LW = lab(ix+i-1,iy+j,iz+k), & LE = lab(ix+i+1,iy+j,iz+k);
-    const auto & LS = lab(ix+i,iy+j-1,iz+k), & LN = lab(ix+i,iy+j+1,iz+k);
-    const auto & LF = lab(ix+i,iy+j,iz+k-1), & LB = lab(ix+i,iy+j,iz+k+1);
-    const Real dudx = LE.u-LW.u, dvdx = LE.v-LW.v, dwdx = LE.w-LW.w;
-    const Real dudy = LN.u-LS.u, dvdy = LN.v-LS.v, dwdy = LN.w-LS.w;
-    const Real dudz = LB.u-LF.u, dvdz = LB.v-LF.v, dwdz = LB.w-LF.w;
-    const Real shear = std::sqrt( 2*(dudx*dudx) + 2*(dvdy*dvdy) + 2*(dwdz*dwdz)
-                + pow2(dudy+dvdx) + pow2(dudz+dwdx) + pow2(dwdy+dvdz) ) / (2*h);
-    tau_xx -= f * 2 * L.chi * shear * h*h *  dudx         / (2*h);
-    tau_xy -= f * 2 * L.chi * shear * h*h * (dudy + dvdx) / (4*h);
-    tau_xz -= f * 2 * L.chi * shear * h*h * (dudz + dwdx) / (4*h);
-    tau_yy -= f * 2 * L.chi * shear * h*h *  dvdy         / (2*h);
-    tau_yz -= f * 2 * L.chi * shear * h*h * (dwdy + dvdz) / (4*h);
-    tau_zz -= f * 2 * L.chi * shear * h*h *  dwdz         / (2*h);
-  }
-
-  return {     ( l_xx - t_xx + tau_xx - (tau_xx + tau_yy + tau_zz)/3),
-           2 * ( l_xy - t_xy + tau_xy                               ),
-           2 * ( l_xz - t_xz + tau_xz                               ),
-               ( l_yy - t_yy + tau_yy - (tau_xx + tau_yy + tau_zz)/3),
-           2 * ( l_yz - t_yz + tau_yz                               ),
-               ( l_zz - t_zz + tau_zz - (tau_xx + tau_yy + tau_zz)/3) };
+  const Real shear_H = std::sqrt( 2 * pow2(filter_H.S_xx) +
+                                  2 * pow2(filter_H.S_yy) +
+                                  2 * pow2(filter_H.S_zz) +
+                                  4 * pow2(filter_H.S_xy) +
+                                  4 * pow2(filter_H.S_yz) +
+                                  4 * pow2(filter_H.S_xz) );
+  const Real L_trace = ( filter_H.uu + filter_H.vv + filter_H.ww
+                        - filter_H.u*filter_H.u
+                        - filter_H.v*filter_H.v
+                        - filter_H.w*filter_H.w ) / 3;
+  // Leonard tensor:
+  const Real L_xx = filter_H.uu - filter_H.u * filter_H.u - L_trace;
+  const Real L_xy = filter_H.uv - filter_H.u * filter_H.v;
+  const Real L_xz = filter_H.uw - filter_H.u * filter_H.w;
+  const Real L_yy = filter_H.vv - filter_H.v * filter_H.v - L_trace;
+  const Real L_yz = filter_H.vw - filter_H.v * filter_H.w;
+  const Real L_zz = filter_H.ww - filter_H.w * filter_H.w - L_trace;
+  const Real tau_factor = - 2 * L.chi * (H*H) * shear_H;
+  const Real tau_H_trace = (filter_H.S_xx + filter_H.S_yy + filter_H.S_zz)/3;
+  // Residual-stress tensor for filter H : \tau(H) (remove trace)
+  const Real tau_H_xx = tau_factor * ( filter_H.S_xx  - tau_H_trace );
+  const Real tau_H_xy = tau_factor * ( filter_H.S_xy );
+  const Real tau_H_xz = tau_factor * ( filter_H.S_xz );
+  const Real tau_H_yy = tau_factor * ( filter_H.S_yy  - tau_H_trace );
+  const Real tau_H_yz = tau_factor * ( filter_H.S_yz );
+  const Real tau_H_zz = tau_factor * ( filter_H.S_zz  - tau_H_trace );
+  return {     ( L_xx - tau_H_xx + filter_H.tau_xx ),
+           2 * ( L_xy - tau_H_xy + filter_H.tau_xy ),
+           2 * ( L_xz - tau_H_xz + filter_H.tau_xz ),
+               ( L_yy - tau_H_yy + filter_H.tau_yy ),
+           2 * ( L_yz - tau_H_yz + filter_H.tau_yz ),
+               ( L_zz - tau_H_zz + filter_H.tau_zz ) };
 }
 
 using rlApi_t = std::function<Real(const std::array<Real, 9> &, const size_t,
@@ -382,6 +409,7 @@ SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
 
   for (size_t i=0; i<myInfo.size(); ++i) {
     agentsIDX[i]= disX(gen); agentsIDY[i]= disY(gen); agentsIDZ[i]= disZ(gen);
+    //agentsIDX[i] = 8; agentsIDY[i] = 8; agentsIDZ[i] = 8;
   }
 }
 
@@ -454,6 +482,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
       const bool bAgent = ix == agentsIDX[blockID] &&
                           iy == agentsIDY[blockID] &&
                           iz == agentsIDZ[blockID];
+      //const bool bAgent = ix == 8 && iy == 8 && iz == 8;
       return bAgent? blockID : nBlocks + threadID;
     };
   #else // new setup:
