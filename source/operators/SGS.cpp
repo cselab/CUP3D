@@ -429,18 +429,18 @@ void SGS::operator()(const double dt)
     //const KernelSGS_nonUniform sgs(dt, sim.uinf.data());
     //compute<KernelSGS_nonUniform>(sgs);
   } else {
-    if (sim.sgs=="DSM") { // Dynamic Smagorinsky Model
+    if (sim.sgs=="DSM" or sim.cs < 0) { // Dynamic Smagorinsky Model
       const KernelSGS_DSM computeCs(sgsGrid);
       compute(computeCs);
 
       const KernelSGS_DSM_avg averageCs(sgsGrid);
       compute(averageCs);
     }
-    if (sim.sgs=="SSM") { // Standard Smagorinsky Model
+    else if (sim.sgs=="SSM") { // Standard Smagorinsky Model
       const KernelSGS_SSM<false> K(sgsGrid, sim.cs);
       compute(K);
     }
-    if (sim.sgs=="RLSM") { // RL Smagorinsky Model
+    else if (sim.sgs=="RLSM") { // RL Smagorinsky Model
       const KernelSGS_SSM<true> K(sgsGrid, sim.cs);
       compute(K);
     }

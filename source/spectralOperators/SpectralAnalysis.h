@@ -39,7 +39,8 @@ class SpectralAnalysis
 private:
   SpectralManip * sM = nullptr;
   HITtargetData * target = nullptr;
-  mutable double avgP = 0;
+  mutable long double avgP = 0;
+  mutable long double m2P = 0;
   mutable size_t pSamplesCount = 0;
 
   void _cub2fftw();
