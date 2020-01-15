@@ -139,6 +139,7 @@ struct HITstatistics
   Real tke = 0, tke_filtered = 0, tke_prev = 0;
   Real dissip_tot = 0, dissip_visc = 0;
   Real tau_integral = 0, l_integral = 0;
+  Real expectedNextTke = 0;
   Real lambda = 0, uprime = 0, Re_lambda = 0;
   Real dt = 0, nu = 0;
   Real * const k_msr;

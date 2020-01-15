@@ -176,6 +176,56 @@ struct KernelAdvectDiffuse3rdOrderUpwind : public KernelAdvectDiffuseBase
       const FluidElement &LF2 = lab(ix,iy,iz-2), &LB2 = lab(ix,iy,iz+2);
 
       const Real u = L.u+uInf[0], v = L.v+uInf[1], w = L.w+uInf[2];
+      #if 0
+      const Real dudxM =         2*LE.u +3*L.u -6*LW.u +LW2.u;
+      const Real dudxP = -LE2.u +6*LE.u -3*L.u -2*LW.u;
+      const Real dvdxM =         2*LE.v +3*L.v -6*LW.v +LW2.v;
+      const Real dvdxP = -LE2.v +6*LE.v -3*L.v -2*LW.v;
+      const Real dwdxM =         2*LE.w +3*L.w -6*LW.w +LW2.w;
+      const Real dwdxP = -LE2.w +6*LE.w -3*L.w -2*LW.w;
+      const Real dudyM =         2*LN.u +3*L.u -6*LS.u +LS2.u;
+      const Real dudyP = -LN2.u +6*LN.u -3*L.u -2*LS.u;
+      const Real dvdyM =         2*LN.v +3*L.v -6*LS.v +LS2.v;
+      const Real dvdyP = -LN2.v +6*LN.v -3*L.v -2*LS.v;
+      const Real dwdyM =         2*LN.w +3*L.w -6*LS.w +LS2.w;
+      const Real dwdyP = -LN2.w +6*LN.w -3*L.w -2*LS.w;
+      const Real dudzM =         2*LB.u +3*L.u -6*LF.u +LF2.u;
+      const Real dudzP = -LB2.u +6*LB.u -3*L.u -2*LF.u;
+      const Real dvdzM =         2*LB.v +3*L.v -6*LF.v +LF2.v;
+      const Real dvdzP = -LB2.v +6*LB.v -3*L.v -2*LF.v;
+      const Real dwdzM =         2*LB.w +3*L.w -6*LF.w +LF2.w;
+      const Real dwdzP = -LB2.w +6*LB.w -3*L.w -2*LF.w;
+      const Real dudxC = LE.u-LW.u, dvdxC = LE.v-LW.v, dwdxC = LE.w-LW.w;
+      const Real dudyC = LN.u-LS.u, dvdyC = LN.v-LS.v, dwdyC = LN.w-LS.w;
+      const Real dudzC = LB.u-LF.u, dvdzC = LB.v-LF.v, dwdzC = LB.w-LF.w;
+      #if 1
+      const Real invU = 1.0 / std::sqrt(u*u + v*v + w*w);
+      const Real UP = std::max((Real)0, u), UM = std::min((Real)0, u);
+      const Real VP = std::max((Real)0, v), VM = std::min((Real)0, v);
+      const Real WP = std::max((Real)0, w), WM = std::min((Real)0, w);
+      const Real WXM = UP*invU, WXP = -UM*invU, WXC = 1-std::fabs(u)*invU;
+      const Real WYM = VP*invU, WYP = -VM*invU, WYC = 1-std::fabs(v)*invU;
+      const Real WZM = WP*invU, WZP = -WM*invU, WZC = 1-std::fabs(w)*invU;
+      #else
+      const Real invU = 1.0 / (u*u + v*v + w*w);
+      const Real UP = std::max((Real)0, u), UM = std::min((Real)0, u);
+      const Real VP = std::max((Real)0, v), VM = std::min((Real)0, v);
+      const Real WP = std::max((Real)0, w), WM = std::min((Real)0, w);
+      const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-u*u*invU;
+      const Real WYM = VP*VP*invU, WYP = VM*VM*invU, WYC = 1-v*v*invU;
+      const Real WZM = WP*WP*invU, WZP = WM*WM*invU, WZC = 1-w*w*invU;
+      #endif
+      //printf("%e %e %e\n", WXM+WXP+WXC-1,WYM+WYP+WYC-1,WZM+WZP+WZC-1);
+      const Real dudx = WXM * dudxM + WXP * dudxP + WXC * 3*dudxC;
+      const Real dvdx = WXM * dvdxM + WXP * dvdxP + WXC * 3*dvdxC;
+      const Real dwdx = WXM * dwdxM + WXP * dwdxP + WXC * 3*dwdxC;
+      const Real dudy = WYM * dudyM + WYP * dudyP + WYC * 3*dudyC;
+      const Real dvdy = WYM * dvdyM + WYP * dvdyP + WYC * 3*dvdyC;
+      const Real dwdy = WYM * dwdyM + WYP * dwdyP + WYC * 3*dwdyC;
+      const Real dudz = WZM * dudzM + WZP * dudzP + WZC * 3*dudzC;
+      const Real dvdz = WZM * dvdzM + WZP * dvdzP + WZC * 3*dvdzC;
+      const Real dwdz = WZM * dwdzM + WZP * dwdzP + WZC * 3*dwdzC;
+      #else
       const Real dudx = u>0 ?         2*LE.u +3*L.u -6*LW.u +LW2.u
                             : -LE2.u +6*LE.u -3*L.u -2*LW.u;
       const Real dvdx = u>0 ?         2*LE.v +3*L.v -6*LW.v +LW2.v
@@ -194,6 +244,7 @@ struct KernelAdvectDiffuse3rdOrderUpwind : public KernelAdvectDiffuseBase
                             : -LB2.v +6*LB.v -3*L.v -2*LF.v;
       const Real dwdz = w>0 ?         2*LB.w +3*L.w -6*LF.w +LF2.w
                             : -LB2.w +6*LB.w -3*L.w -2*LF.w;
+      #endif
 
       const Real duD = LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6;
       const Real dvD = LN.v+LS.v + LE.v+LW.v + LF.v+LB.v - L.v*6;
@@ -522,6 +573,7 @@ void AdvectionDiffusion::operator()(const double dt)
   {
     sim.startProfiler("AdvDiff Kernel");
     if(sim.obstacle_vector->nObstacles() == 0) {
+      //const KernelAdvectDiffuse K(sim, dt);
       const KernelAdvectDiffuse3rdOrderUpwind K(sim, dt);
       compute(K);
     } else {

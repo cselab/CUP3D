@@ -610,7 +610,7 @@ bool Simulation::timestep(const double dt)
     sim.step++;
     sim.time+=dt;
 
-    if(sim.verbose) printf("%d : %f uInf {%f %f %f}\n",
+    if(sim.verbose) printf("%d : %e uInf {%f %f %f}\n",
       sim.step,sim.time,sim.uinf[0],sim.uinf[1],sim.uinf[2]);
 
     sim.startProfiler("Save");

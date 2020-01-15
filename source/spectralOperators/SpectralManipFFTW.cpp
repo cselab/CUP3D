@@ -99,7 +99,8 @@ void SpectralManipFFTW::_compute_forcing()
       //  cs2_msr[binID] += mult*cs2;
       //}
     }
-    if (k2 > 0 && k2 <= 4) {
+    if (k2 > 0 && kind < nyquist * nyquist) {
+    //if (k2 > 0) {
       tkeFiltered += E;
     } else {
       cplxData_u[linidx][0] = 0; cplxData_u[linidx][1] = 0;
