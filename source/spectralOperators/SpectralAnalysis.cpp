@@ -121,11 +121,12 @@ void SpectralAnalysis::dump2File() const
     fflush(pFile); fclose(pFile);
   }
 
+  const Real denom =  sM->sim.dt * sM->sim.actualInjectionRate;
+  const Real errTKE = (sM->stats.tke - sM->stats.expectedNextTke) / denom;
   if(sM->sim.verbose)
-    printf("step:%d time:%e totalKinEn:%e "\
-         "viscousDissip:%e totalDissipRate:%e injectionRate:%e lIntegral:%e\n",
-    sM->sim.step, sM->sim.time, sM->stats.tke, sM->stats.dissip_visc,
-    sM->stats.dissip_tot, sM->sim.actualInjectionRate, sM->stats.l_integral);
+    printf("Re:%e tke:%e errTKE:%e viscousDissip:%e totalDissipRate:%e lIntegral:%e\n",
+    sM->stats.Re_lambda, sM->stats.tke, errTKE, sM->stats.dissip_visc,
+    sM->stats.dissip_tot, sM->stats.l_integral);
 
   std::vector<double> buf = std::vector<double>{
     sM->sim.time,         sM->sim.dt,             sM->maxGridL,
