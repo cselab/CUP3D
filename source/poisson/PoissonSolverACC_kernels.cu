@@ -288,9 +288,9 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
     const Real k2 = rkx * rkx + rky * rky + rkz * rkz;
     const Real mult = (kz==0) or (kz==Gz/2) ? 1 : 2;
 
-    const Real dXfac = 2.0 * sin(h * rkz);
-    const Real dYfac = 2.0 * sin(h * rky);
-    const Real dZfac = 2.0 * sin(h * rkx);
+    const Real dXfac = 2.0 * std::sin(h * rkz);
+    const Real dYfac = 2.0 * std::sin(h * rky);
+    const Real dZfac = 2.0 * std::sin(h * rkx);
     const Real UR = Uhat[ind][0], UI = Uhat[ind][1];
     const Real VR = Vhat[ind][0], VI = Vhat[ind][1];
     const Real WR = What[ind][0], WI = What[ind][1];
@@ -311,7 +311,7 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
     eps  += mult/2 * ( OMGXR*OMGXR + OMGXI*OMGXI
                      + OMGYR*OMGYR + OMGYI*OMGYI
                      + OMGZR*OMGZR + OMGZI*OMGZI);    // Dissipation rate
-    lInt += (k2 > 0) ? E / sqrt(k2) : 0; // Large eddy length scale
+    lInt += (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy length scale
 
     const long kind = kkx * kkx + kky * kky + kkz * kkz;
     if (kind < nyquist*nyquist) {
@@ -321,7 +321,7 @@ void _analysis_filter_kernel( acc_c*const __restrict__ Uhat,
       // to hold also tke, eps and tau
       atomicAdd(reductionBuf + 4 + binID, E);
     }
-    if (k2 > (Real) 0.0 && k2 <= (Real) 4.0) {
+    if (k2 > 0 && kind < nyquist*nyquist) {
       tkeFiltered += E;
     } else {
       Uhat[ind][0] = 0; Uhat[ind][1] = 0;
