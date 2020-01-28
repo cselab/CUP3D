@@ -176,7 +176,7 @@ struct KernelAdvectDiffuse3rdOrderUpwind : public KernelAdvectDiffuseBase
       const FluidElement &LF2 = lab(ix,iy,iz-2), &LB2 = lab(ix,iy,iz+2);
 
       const Real u = L.u+uInf[0], v = L.v+uInf[1], w = L.w+uInf[2];
-      #if 0
+      #if 1
       const Real dudxM =         2*LE.u +3*L.u -6*LW.u +LW2.u;
       const Real dudxP = -LE2.u +6*LE.u -3*L.u -2*LW.u;
       const Real dvdxM =         2*LE.v +3*L.v -6*LW.v +LW2.v;
@@ -198,7 +198,7 @@ struct KernelAdvectDiffuse3rdOrderUpwind : public KernelAdvectDiffuseBase
       const Real dudxC = LE.u-LW.u, dvdxC = LE.v-LW.v, dwdxC = LE.w-LW.w;
       const Real dudyC = LN.u-LS.u, dvdyC = LN.v-LS.v, dwdyC = LN.w-LS.w;
       const Real dudzC = LB.u-LF.u, dvdzC = LB.v-LF.v, dwdzC = LB.w-LF.w;
-      #if 1
+      #if 0
       const Real invU = 1.0 / std::sqrt(u*u + v*v + w*w);
       const Real UP = std::max((Real)0, u), UM = std::min((Real)0, u);
       const Real VP = std::max((Real)0, v), VM = std::min((Real)0, v);
@@ -573,8 +573,8 @@ void AdvectionDiffusion::operator()(const double dt)
   {
     sim.startProfiler("AdvDiff Kernel");
     if(sim.obstacle_vector->nObstacles() == 0) {
-      //const KernelAdvectDiffuse K(sim, dt);
-      const KernelAdvectDiffuse3rdOrderUpwind K(sim, dt);
+      const KernelAdvectDiffuse K(sim, dt);
+      //const KernelAdvectDiffuse3rdOrderUpwind K(sim, dt);
       compute(K);
     } else {
       const KernelAdvectDiffuse K(sim, dt);

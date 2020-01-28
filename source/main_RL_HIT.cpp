@@ -30,7 +30,7 @@ inline bool isTerminal(cubismup3d::SimulationData& sim)
 
   const auto& vInfo = sim.vInfo();
   const auto isNotValid = [](const Real val) {
-    return std::isnan(val) || std::isinf(val);
+    return std::fabs(val) > 1e5;
   };
 
   #pragma omp parallel for schedule(static)
@@ -40,7 +40,7 @@ inline bool isTerminal(cubismup3d::SimulationData& sim)
     for(int iy=0; iy<cubismup3d::FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<cubismup3d::FluidBlock::sizeX; ++ix)
       if ( isNotValid(b(ix,iy,iz).u) || isNotValid(b(ix,iy,iz).v) ||
-           isNotValid(b(ix,iy,iz).w) || isNotValid(b(ix,iy,iz).p) )
+           isNotValid(b(ix,iy,iz).w) )
         bSimValid = false;
   }
   int isSimValid = bSimValid.load() == true? 1 : 0; // just for clarity
@@ -92,7 +92,8 @@ inline void app_main(
   const int maxGridN = sim.sim.local_bpdx * CUP_BLOCK_SIZE;
   cubismup3d::HITtargetData target(maxGridN, parser("-initCondFileTokens").asString());
   const Real LES_RL_FREQ_A = parser("-RL_freqActions").asDouble( 4.0);
-  const Real LES_RL_N_TSIM = parser("-RL_nIntTperSim").asDouble(10.0);
+  const Real fac = 2.5 / std::sqrt(LES_RL_FREQ_A);
+  const Real LES_RL_N_TSIM = parser("-RL_nIntTperSim").asDouble(20.0) * fac;
   target.smartiesFolderStructure = true;
   cubism::Profiler profiler;
 
@@ -111,7 +112,7 @@ inline void app_main(
   comm->setStateActionDims(nStates, nActions);
   comm->setNumAgents(nAgents + nThreadSafetyAgents);
 
-  const std::vector<double> lower_act_bound{0.03}, upper_act_bound{0.05};
+  const std::vector<double> lower_act_bound{0.06}, upper_act_bound{0.09};
   comm->setActionScales(upper_act_bound, lower_act_bound, false);
   comm->disableDataTrackingForAgents(nAgents, nAgents + nThreadSafetyAgents);
   comm->agentsShareExplorationNoise();
@@ -126,6 +127,7 @@ inline void app_main(
 
   char dirname[1024]; dirname[1023] = '\0';
   unsigned sim_id = 0, tot_steps = 0;
+  double minRew = -1;
 
   // Terminate loop if reached max number of time steps. Never terminate if 0
   while(true) // train loop
@@ -151,7 +153,8 @@ inline void app_main(
     const Real tau_integral = target.tInteg;
     const Real tau_eta = stats.getKolmogorovT(target.epsVis, target.nu);
     const Real timeUpdateLES = tau_eta / LES_RL_FREQ_A;
-    const int maxNumUpdatesPerSim= LES_RL_N_TSIM * tau_integral / timeUpdateLES;
+    const Real timeSimulationMax = LES_RL_N_TSIM * tau_integral;
+    const int maxNumUpdatesPerSim = timeSimulationMax / timeUpdateLES;
     printf("Reset simulation up to time=0 with SGS for eps:%f nu:%f Re:%f. "
            "Max %d action turns per simulation.\n", target.eps,
            target.nu, target.Re_lambda(), maxNumUpdatesPerSim);
@@ -185,7 +188,8 @@ inline void app_main(
       profiler.push_start("rl");
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
-      const double r_t = 40 * avgReward / (LES_RL_N_TSIM * LES_RL_FREQ_A);
+      const double r_t = avgReward / maxNumUpdatesPerSim;
+      minRew = std::min(minRew, r_t);
       //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
       //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
       updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, r_t);
@@ -205,10 +209,12 @@ inline void app_main(
           assert(false); fflush(0); MPI_Abort(mpicom, 1);
         }
         // Average reward over integral time:
-        target.updateReward(stats, dt / tau_eta, avgReward);
+        target.updateReward(stats, dt / timeUpdateLES, avgReward);
         //printf("r:%Le %Le\n", target.computeLogP(stats),
         //  target.logPdenom - target.computeLogP(stats)); fflush(0);
-        if ( isTerminal( sim.sim ) ) { policyFailed = true; break; }
+        if ( isTerminal( sim.sim ) || avgReward < -1e4 ) {
+           policyFailed = true; break;
+        }
       }
       profiler.pop_stop();
       step++;
@@ -219,7 +225,7 @@ inline void app_main(
         // penal is -0.5 max_reward * (n of missing steps to finish the episode)
         // WARNING: not consistent with L2 norm reward
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
-        const double R_T = (step - maxNumUpdatesPerSim);
+        const double R_T = minRew * (maxNumUpdatesPerSim - step);
         for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, R_T, i);
         //printf("comm->sendTermState"); fflush(0);
         profiler.printSummary();

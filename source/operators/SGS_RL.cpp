@@ -424,7 +424,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                                 sim.grid->getResidentBlocksPerDimension(1),
                                 sim.grid->getResidentBlocksPerDimension(0) );
 
-  #if 1 // non-dimensionalize wrt flow quantities
+  #if 0 // non-dimensionalize wrt flow quantities
     const Real scaleVel = 1 / std::sqrt(stats.tke); // [T/L]
     const Real scaleGrad = stats.tke / sim.actualInjectionRate; // [T]
     const Real scaleLap = scaleGrad * stats.getKolmogorovL(); // [TL]
@@ -440,17 +440,18 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     const Real lenInt_nonDim = stats.lambda / stats.l_integral;
     const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / stats.tke;
   #else // non-dimensionalize wrt *target* flow quantities
-    const Real eta = stats.getKolmogorovL(target.epsTot, target.nu);
+    const Real inpEn = sim.actualInjectionRate, nu = sim.nu;
+    const Real eta = stats.getKolmogorovL(inpEn, nu);
     const Real scaleVel = 1 / std::sqrt(target.tKinEn); // [T/L]
-    const Real scaleGrad = target.tKinEn / target.epsTot; // [T]
+    const Real scaleGrad = target.tKinEn / inpEn; // [T]
     const Real scaleLap = scaleGrad * eta; // [TL]
     const Real h_nonDim = sim.uniformH() / eta;
-    const Real dt_nonDim = dt / stats.getKolmogorovT(target.epsTot, target.nu);
-    const Real tke_nonDim = stats.tke / std::sqrt(target.epsVis * target.nu);
-    const Real visc_nonDim = stats.dissip_visc / target.epsVis;
+    const Real dt_nonDim = dt / stats.getKolmogorovT(inpEn, nu);
+    const Real tke_nonDim = stats.tke / std::sqrt(inpEn * nu);
+    const Real visc_nonDim = stats.dissip_visc / sim.actualInjectionRate;
     const Real dissi_nonDim = stats.dissip_tot / sim.actualInjectionRate;
     const Real lenInt_nonDim = stats.l_integral / target.lInteg;
-    const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / target.tKinEn;
+    const Real deltaEn_nonDim = stats.tke / target.tKinEn;
   #endif
 
   const auto getState = [&] (const std::array<Real,9> & locS) {

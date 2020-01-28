@@ -185,7 +185,7 @@ struct HITtargetData
     return tokens;
   }
 
-  long double computeLogP(const HITstatistics& stats)
+  long double computeLogArg(const HITstatistics& stats)
   {
     std::vector<double> logE(stats.nBin);
     for (int i=0; i<stats.nBin; ++i) logE[i] = std::log(stats.E_msr[i]);
@@ -201,13 +201,21 @@ struct HITtargetData
     // normalize with expectation of L2 squared norm of N(0,I) distrib vector:
     // E[X^2] = sum E[x^2] = sum Var[x] = trace I = nBin
     assert(dev >= 0);
-    return logPdenom - dev;
+    return dev;
+  }
+
+  long double computeLogP(const HITstatistics& stats)
+  {
+     return logPdenom - computeLogArg(stats);
   }
 
   void updateReward(const HITstatistics& stats, const Real alpha, Real& reward)
   {
-    const long double arg = 1 - computeLogP(stats);
-    const long double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);
+    auto logarg = computeLogArg(stats);
+    if (logarg > 10.0) logarg = 10.0 * std::sqrt(logarg / 10.0);
+    //const long double arg = 1 - computeLogP(stats);
+    //const long double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);
+    const long double newRew = logPdenom - logarg; // computeLogP(stats);
     //printf("Rt : %e, %e - %Le\n", newRew, logPdenom, dev);
     reward = (1-alpha) * reward + alpha * newRew;
   }
