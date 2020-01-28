@@ -177,16 +177,14 @@ struct filterFluidElement
 
   filterFluidElement(Lab& lab, const int ix, const int iy, const int iz, const Real h)
   {
-    for (int i=-1; i<2; i++)
-    for (int j=-1; j<2; j++)
-    for (int k=-1; k<2; k++)
+    for (int i = -1; i < 2; ++i)
+    for (int j = -1; j < 2; ++j)
+    for (int k = -1; k < 2; ++k)
     {
       const Real f = facFilter(i,j,k);
+      const FluidElement & L = lab(ix+i, iy+j, iz+k);
 
-      const FluidElement &L =lab(ix+i, iy+j, iz+k);
-
-      u += f*L.u; v += f*L.v; w += f*L.w;
-
+      u  += f*L.u;     v  += f*L.v;     w  += f*L.w;
       uu += f*L.u*L.u; uv += f*L.u*L.v; uw += f*L.u*L.w;
       vv += f*L.v*L.v; vw += f*L.v*L.w; ww += f*L.w*L.w;
 
@@ -197,32 +195,32 @@ struct filterFluidElement
       const FluidElement &LF=lab(ix+i,   iy+j,   iz+k-1);
       const FluidElement &LB=lab(ix+i,   iy+k,   iz+k+1);
 
-      const Real d1udx1 = LE.u-LW.u, d1vdx1 = LE.v-LW.v, d1wdx1 = LE.w-LW.w;
-      const Real d1udy1 = LN.u-LS.u, d1vdy1 = LN.v-LS.v, d1wdy1 = LN.w-LS.w;
-      const Real d1udz1 = LB.u-LF.u, d1vdz1 = LB.v-LF.v, d1wdz1 = LB.w-LF.w;
+      const Real dudx = LE.u-LW.u, dvdx = LE.v-LW.v, dwdx = LE.w-LW.w;
+      const Real dudy = LN.u-LS.u, dvdy = LN.v-LS.v, dwdy = LN.w-LS.w;
+      const Real dudz = LB.u-LF.u, dvdz = LB.v-LF.v, dwdz = LB.w-LF.w;
 
-      const Real shear_g = std::sqrt( 2*d1udx1*d1udx1
-                                     +2*d1vdy1*d1vdy1
-                                     +2*d1wdz1*d1wdz1
-                                     +(d1udy1+d1vdx1)*(d1udy1+d1vdx1)
-                                     +(d1udz1+d1wdx1)*(d1udz1+d1wdx1)
-                                     +(d1wdy1+d1vdz1)*(d1wdy1+d1vdz1))/(2*h);
+      const Real shear_g = std::sqrt( 2 * (dudx*dudx) +
+                                      2 * (dvdy*dvdy) +
+                                      2 * (dwdz*dwdz) +
+                                      std::pow(dudy+dvdx, 2) +
+                                      std::pow(dudz+dwdx, 2) +
+                                      std::pow(dwdy+dvdz, 2) ) / (2*h);
 
-      shear += f*shear_g;
+      shear += f * shear_g;
 
-      shear_S_xx += f*(shear_g * d1udx1 / (2*h));
-      shear_S_xy += f*(shear_g * (d1udy1 + d1vdx1) / (2*2*h));
-      shear_S_xz += f*(shear_g * (d1udz1 + d1wdx1) / (2*2*h));
-      shear_S_yy += f*(shear_g * d1vdy1 / (2*h));
-      shear_S_yz += f*(shear_g * (d1wdy1 + d1vdz1) / (2*2*h));
-      shear_S_zz += f*(shear_g * d1wdz1 / (2*h));
+      shear_S_xx += f * shear_g *  dudx         / (2*h);
+      shear_S_xy += f * shear_g * (dudy + dvdx) / (2*2*h);
+      shear_S_xz += f * shear_g * (dudz + dwdx) / (2*2*h);
+      shear_S_yy += f * shear_g *  dvdy         / (2*h);
+      shear_S_yz += f * shear_g * (dwdy + dvdz) / (2*2*h);
+      shear_S_zz += f * shear_g *  dwdz         / (2*h);
 
-      S_xx += f*(d1udx1 / (2*h));
-      S_xy += f*((d1udy1 + d1vdx1) / (2*2*h));
-      S_xz += f*((d1udz1 + d1wdx1) / (2*2*h));
-      S_yy += f*(d1vdy1 / (2*h));
-      S_yz += f*((d1wdy1 + d1vdz1) / (2*2*h));
-      S_zz += f*(d1wdz1 / (2*h));
+      S_xx += f *  dudx         / (2*h);
+      S_xy += f * (dudy + dvdx) / (2*2*h);
+      S_xz += f * (dudz + dwdx) / (2*2*h);
+      S_yy += f *  dvdy         / (2*h);
+      S_yz += f * (dwdy + dvdz) / (2*2*h);
+      S_zz += f *  dwdz         / (2*h);
     }
   }
 };
@@ -258,7 +256,8 @@ class KernelSGS_DSM
       const Real m_yz = L_f.shear_S_yz - 4 * L_f.shear * L_f.S_yz;
       const Real m_zz = L_f.shear_S_zz - 4 * L_f.shear * L_f.S_zz;
 
-      const Real traceTerm = 1.0/3 * (L_f.uu + L_f.vv + L_f.ww - L_f.u * L_f.u - L_f.v * L_f.v - L_f.w * L_f.w);
+      const Real traceTerm = 1.0/3 * (L_f.uu + L_f.vv + L_f.ww
+                              - L_f.u * L_f.u - L_f.v * L_f.v - L_f.w * L_f.w);
       const Real l_xx = L_f.uu - L_f.u * L_f.u - traceTerm;
       const Real l_xy = L_f.uv - L_f.u * L_f.v;
       const Real l_xz = L_f.uw - L_f.u * L_f.w;
@@ -322,16 +321,16 @@ class KernelSGS_DSM_avg
       Real m_dot_m = 0.0;
       for (int i=-1; i<2; ++i)
       for (int j=-1; j<2; ++j)
-      for (int k=-1; k<2; ++k){
+      for (int k=-1; k<2; ++k) {
         const Real f = facFilter(i,j,k);
         l_dot_m += f * lab(ix+i, iy+j, iz+k).tmpV;
         m_dot_m += f * lab(ix+i, iy+j, iz+k).tmpW;
       }
 
-      Real Cs2 = (m_dot_m==0) ? 0.0 : l_dot_m/2 / (h*h * m_dot_m);
+      Real Cs2 = (m_dot_m<=0) ? 0.0 : l_dot_m/2 / (h*h * m_dot_m);
 
       if (Cs2 < 0) Cs2 = 0;
-      if (std::sqrt(Cs2) >= 0.25) Cs2 = 0.25*0.25;
+      //if (Cs2 >= 0.25*0.25) Cs2 = 0.25*0.25;
 
       sgs.nu = Cs2 * h*h * shear;
       sgs.duD = (LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6)/(h*h);
@@ -429,18 +428,18 @@ void SGS::operator()(const double dt)
     //const KernelSGS_nonUniform sgs(dt, sim.uinf.data());
     //compute<KernelSGS_nonUniform>(sgs);
   } else {
-    if (sim.sgs=="DSM") { // Dynamic Smagorinsky Model
+    if (sim.sgs=="DSM" or sim.cs < 0) { // Dynamic Smagorinsky Model
       const KernelSGS_DSM computeCs(sgsGrid);
       compute(computeCs);
 
       const KernelSGS_DSM_avg averageCs(sgsGrid);
       compute(averageCs);
     }
-    if (sim.sgs=="SSM") { // Standard Smagorinsky Model
+    else if (sim.sgs=="SSM") { // Standard Smagorinsky Model
       const KernelSGS_SSM<false> K(sgsGrid, sim.cs);
       compute(K);
     }
-    if (sim.sgs=="RLSM") { // RL Smagorinsky Model
+    else if (sim.sgs=="RLSM") { // RL Smagorinsky Model
       const KernelSGS_SSM<true> K(sgsGrid, sim.cs);
       compute(K);
     }
