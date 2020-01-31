@@ -205,37 +205,51 @@ struct Upwind3rd
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix-1,iy,iz), um2 = inp<step,dir>(L,ix-2,iy,iz);
     const Real up1 = inp<step,dir>(L,ix+1,iy,iz), up2 = inp<step,dir>(L,ix+2,iy,iz);
-    #if 0 // todo
-    const Real ddxM = 2*up1 +3*ucc -6*um1 +um2;
-    const Real ddxP = -up2 +6*up1 -3*ucc -2*um1;
-    const Real ddxC = up1 - um1, invU = 1.0 / (u*u + v*v + w*w);
-    const Real UP = std::max((Real)0, uAbs[0]), UM = std::min((Real)0, uAbs[0]);
-    const Real VP = std::max((Real)0, uAbs[1]), VM = std::min((Real)0, uAbs[1]);
-    const Real WP = std::max((Real)0, uAbs[2]), WM = std::min((Real)0, uAbs[2]);
-    const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-uAbs[0]*uAbs[0]*invU;
-    const Real WYM = VP*VP*invU, WYP = VM*VM*invU, WYC = 1-uAbs[1]*uAbs[1]*invU;
-    const Real WZM = WP*WP*invU, WZP = WM*WM*invU, WZC = 1-uAbs[2]*uAbs[2]*invU;
-    return WXM * ddxM + WXP * ddxP + WXC * 3*ddxC;
-    #elif 0
-    const Real invU = 1.0 / std::sqrt(u*u + v*v + w*w);
-    const Real WXM = UP*invU, WXP = -UM*invU, WXC = 1-std::fabs(u)*invU;
-    const Real WYM = VP*invU, WYP = -VM*invU, WYC = 1-std::fabs(v)*invU;
-    const Real WZM = WP*invU, WZP = -WM*invU, WZC = 1-std::fabs(w)*invU;
+    #if 1
+      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2;
+      const Real ddxP = -up2 +6*up1 -3*ucc -2*um1;
+      const Real ddxC = up1 - um1, U = uAbs[dir];
+      const Real invU = 1/(uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2]);
+      const Real UP = std::max((Real)0, U), UM = std::min((Real)0, U);
+      const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-U*U*invU;
+      return WXM * ddxM + WXP * ddxP + WXC * 3*ddxC;
+      //const Real invU = 1/std::sqrt(uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2]);
+      //const Real WXM = UP*invU, WXP = -UM*invU, WXC = 1-std::fabs(U)*invU;
     #else
-    return uAbs[0]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+      return uAbs[0]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
     #endif
   }
   template<StepType step, int dir> Real diffy(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix,iy-1,iz), um2 = inp<step,dir>(L,ix,iy-2,iz);
     const Real up1 = inp<step,dir>(L,ix,iy+1,iz), up2 = inp<step,dir>(L,ix,iy+2,iz);
-    return uAbs[1]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+    #if 1
+      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2;
+      const Real ddxP = -up2 +6*up1 -3*ucc -2*um1;
+      const Real ddxC = up1 - um1, U = uAbs[dir];
+      const Real invU = 1/(uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2]);
+      const Real UP = std::max((Real)0, U), UM = std::min((Real)0, U);
+      const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-U*U*invU;
+      return WXM * ddxM + WXP * ddxP + WXC * 3*ddxC;
+    #else
+      return uAbs[1]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+    #endif
   }
   template<StepType step, int dir> Real diffz(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix,iy,iz-1), um2 = inp<step,dir>(L,ix,iy,iz-2);
     const Real up1 = inp<step,dir>(L,ix,iy,iz+1), up2 = inp<step,dir>(L,ix,iy,iz+2);
-    return uAbs[2]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+    #if 1
+      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2;
+      const Real ddxP = -up2 +6*up1 -3*ucc -2*um1;
+      const Real ddxC = up1 - um1, U = uAbs[dir];
+      const Real invU = 1/(uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2]);
+      const Real UP = std::max((Real)0, U), UM = std::min((Real)0, U);
+      const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-U*U*invU;
+      return WXM * ddxM + WXP * ddxP + WXC * 3*ddxC;
+    #else
+      return uAbs[2]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+    #endif
   }
   template<StepType step, int dir> Real   lap(LabMPI& L, const FluidBlock& o, const int ix, const int iy, const int iz) const {
     return  inp<step,dir>(L,ix+1,iy,iz) + inp<step,dir>(L,ix-1,iy,iz)
@@ -509,9 +523,9 @@ void AdvectionDiffusion::operator()(const double dt)
   {
     if(sim.obstacle_vector->nObstacles() == 0) {
       sim.startProfiler("AdvDiff Kernel");
-      const KernelAdvectDiffuse<RK1, Central> K1(sim);
+      const KernelAdvectDiffuse<RK1, Upwind3rd /*Central*/> K1(sim);
       compute(K1);
-      const KernelAdvectDiffuse<RK2, Central> K2(sim);
+      const KernelAdvectDiffuse<RK2, Upwind3rd /*Central*/> K2(sim);
       compute(K2);
       sim.stopProfiler();
       sim.startProfiler("AdvDiff copy");
