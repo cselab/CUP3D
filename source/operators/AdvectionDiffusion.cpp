@@ -206,10 +206,9 @@ struct Upwind3rd
     const Real um1 = inp<step,dir>(L,ix-1,iy,iz), um2 = inp<step,dir>(L,ix-2,iy,iz);
     const Real up1 = inp<step,dir>(L,ix+1,iy,iz), up2 = inp<step,dir>(L,ix+2,iy,iz);
     #if 1
-      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2;
-      const Real ddxP = -up2 +6*up1 -3*ucc -2*um1;
-      const Real ddxC = up1 - um1, U = uAbs[dir];
-      const Real invU = 1/(uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2]);
+      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
+      const Real uAbsNorm = uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2];
+      const Real ddxC = up1 - um1, U = uAbs[dir], invU = 1/std::max(uAbsNorm, EPS);
       const Real UP = std::max((Real)0, U), UM = std::min((Real)0, U);
       const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-U*U*invU;
       return WXM * ddxM + WXP * ddxP + WXC * 3*ddxC;
@@ -224,10 +223,9 @@ struct Upwind3rd
     const Real um1 = inp<step,dir>(L,ix,iy-1,iz), um2 = inp<step,dir>(L,ix,iy-2,iz);
     const Real up1 = inp<step,dir>(L,ix,iy+1,iz), up2 = inp<step,dir>(L,ix,iy+2,iz);
     #if 1
-      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2;
-      const Real ddxP = -up2 +6*up1 -3*ucc -2*um1;
-      const Real ddxC = up1 - um1, U = uAbs[dir];
-      const Real invU = 1/(uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2]);
+      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
+      const Real uAbsNorm = uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2];
+      const Real ddxC = up1 - um1, U = uAbs[dir], invU = 1/std::max(uAbsNorm, EPS);
       const Real UP = std::max((Real)0, U), UM = std::min((Real)0, U);
       const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-U*U*invU;
       return WXM * ddxM + WXP * ddxP + WXC * 3*ddxC;
@@ -240,10 +238,9 @@ struct Upwind3rd
     const Real um1 = inp<step,dir>(L,ix,iy,iz-1), um2 = inp<step,dir>(L,ix,iy,iz-2);
     const Real up1 = inp<step,dir>(L,ix,iy,iz+1), up2 = inp<step,dir>(L,ix,iy,iz+2);
     #if 1
-      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2;
-      const Real ddxP = -up2 +6*up1 -3*ucc -2*um1;
-      const Real ddxC = up1 - um1, U = uAbs[dir];
-      const Real invU = 1/(uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2]);
+      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
+      const Real uAbsNorm = uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2];
+      const Real ddxC = up1 - um1, U = uAbs[dir], invU = 1/std::max(uAbsNorm, EPS);
       const Real UP = std::max((Real)0, U), UM = std::min((Real)0, U);
       const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-U*U*invU;
       return WXM * ddxM + WXP * ddxP + WXC * 3*ddxC;
