@@ -20,14 +20,11 @@ namespace {
 
 enum StepType { Euler = 0, RK1, RK2 };
 
+// input : field with ghosts from which finite differences are computed
 template<StepType step, int i> Real& inp(LabMPI& L, const int ix, const int iy, const int iz);
-template<StepType step, int i> Real& inp(LabMPI& L, const int ix, const int iy, const int iz);
-template<StepType step, int i> Real& inp(LabMPI& L, const int ix, const int iy, const int iz);
+// out   : output field (without ghosts) onto which we save the updated field
 template<StepType step, int i> Real& out(FluidBlock& L, const int ix, const int iy, const int iz);
-template<StepType step, int i> Real& out(FluidBlock& L, const int ix, const int iy, const int iz);
-template<StepType step, int i> Real& out(FluidBlock& L, const int ix, const int iy, const int iz);
-template<StepType step, int i> Real& field(LabMPI&, FluidBlock&, const int ix, const int iy, const int iz);
-template<StepType step, int i> Real& field(LabMPI&, FluidBlock&, const int ix, const int iy, const int iz);
+// field : field (with or without ghosts) that we are updating with the operation
 template<StepType step, int i> Real& field(LabMPI&, FluidBlock&, const int ix, const int iy, const int iz);
 
 template<StepType step, typename Discretization>
@@ -42,15 +39,8 @@ struct KernelAdvectDiffuse : public Discretization
   const Real dt = sim.dt, mu = sim.nu;
   const std::array<Real, 3>& uInf = sim.uinf;
   const int loopBeg = this->getStencilBeg(), loopEnd = CUP_BLOCK_SIZE-1 + this->getStencilEnd();
-
   const Real CFL = std::min((Real)1, sim.uMax_measured * sim.dt / sim.hmean);
-  const Real norUinf = std::max({std::fabs(uInf[0]), std::fabs(uInf[1]), std::fabs(uInf[2]), EPS});
-  const Real fadeW = 1 - CFL * std::pow(std::max(uInf[0],(Real)0) / norUinf, 2);
-  const Real fadeS = 1 - CFL * std::pow(std::max(uInf[1],(Real)0) / norUinf, 2);
-  const Real fadeF = 1 - CFL * std::pow(std::max(uInf[2],(Real)0) / norUinf, 2);
-  const Real fadeE = 1 - CFL * std::pow(std::min(uInf[0],(Real)0) / norUinf, 2);
-  const Real fadeN = 1 - CFL * std::pow(std::min(uInf[1],(Real)0) / norUinf, 2);
-  const Real fadeB = 1 - CFL * std::pow(std::min(uInf[2],(Real)0) / norUinf, 2);
+  const Real norUinf = 1 / std::max({std::fabs(uInf[0]), std::fabs(uInf[1]), std::fabs(uInf[2]), EPS});
   const StencilInfo stencil{this->getStencilBeg(), this->getStencilBeg(), this->getStencilBeg(),
                             this->getStencilEnd(), this->getStencilEnd(), this->getStencilEnd(),
                             false, {FE_U,FE_V,FE_W}};
@@ -58,7 +48,8 @@ struct KernelAdvectDiffuse : public Discretization
   void applyBCwest(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
     else if (I.index[0] not_eq 0) return; // not near boundary
-    else if (fadeW >= 1) return; // no momentum killing at this boundary
+    const Real fadeW = 1 - CFL*std::pow(std::max(uInf[0],(Real)0) * norUinf, 2);
+    if (fadeW >= 1) return; // no momentum killing at this boundary
     for (int ix = loopBeg; ix < 0; ++ix) {
       const Real fac = std::pow(fadeW, 0 - ix);
       assert(fac <= 1 && fac >= 0);
@@ -72,7 +63,8 @@ struct KernelAdvectDiffuse : public Discretization
   void applyBCeast(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
     else if (I.index[0] not_eq sim.bpdx - 1) return; // not near boundary
-    else if (fadeE >= 1) return; // no momentum killing at this boundary
+    const Real fadeE = 1 - CFL*std::pow(std::min(uInf[0],(Real)0) * norUinf, 2);
+    if (fadeE >= 1) return; // no momentum killing at this boundary
     for (int ix = CUP_BLOCK_SIZE; ix < loopEnd; ++ix) {
       const Real fac = std::pow(fadeE, ix - CUP_BLOCK_SIZE + 1);
       assert(fac <= 1 && fac >= 0);
@@ -86,7 +78,8 @@ struct KernelAdvectDiffuse : public Discretization
   void applyBCsouth(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return;
     else if (I.index[1] not_eq 0) return; // not near boundary
-    else if (fadeS >= 1) return; // no momentum killing at this boundary
+    const Real fadeS = 1 - CFL*std::pow(std::max(uInf[1],(Real)0) * norUinf, 2);
+    if (fadeS >= 1) return; // no momentum killing at this boundary
     for (int iy = loopBeg; iy < 0; ++iy) {
       const Real fac = std::pow(fadeS, 0 - iy);
       assert(fac <= 1 && fac >= 0);
@@ -100,7 +93,8 @@ struct KernelAdvectDiffuse : public Discretization
   void applyBCnorth(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return;
     else if (I.index[1] not_eq sim.bpdy - 1) return; // not near boundary
-    else if (fadeN >= 1) return; // no momentum killing at this boundary
+    const Real fadeN = 1 - CFL*std::pow(std::min(uInf[1],(Real)0) * norUinf, 2);
+    if (fadeN >= 1) return; // no momentum killing at this boundary
     for (int iy = CUP_BLOCK_SIZE; iy < loopEnd; ++iy) {
       const Real fac = std::pow(fadeN, iy - CUP_BLOCK_SIZE + 1);
       assert(fac <= 1 && fac >= 0);
@@ -114,7 +108,8 @@ struct KernelAdvectDiffuse : public Discretization
   void applyBCfront(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return;
     else if (I.index[2] not_eq 0) return; // not near boundary
-    else if (fadeF >= 1) return; // no momentum killing at this boundary
+    const Real fadeF = 1 - CFL*std::pow(std::max(uInf[2],(Real)0) * norUinf, 2);
+    if (fadeF >= 1) return; // no momentum killing at this boundary
     for (int iz = loopBeg; iz < 0; ++iz) {
       const Real fac = std::pow(fadeF, 0 - iz);
       assert(fac <= 1 && fac >= 0);
@@ -128,7 +123,8 @@ struct KernelAdvectDiffuse : public Discretization
   void applyBCback(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return;
     else if (I.index[2] not_eq sim.bpdz - 1) return; // not near boundary
-    else if (fadeB >= 1) return; // no momentum killing at this boundary
+    const Real fadeB = 1 - CFL*std::pow(std::min(uInf[2],(Real)0) * norUinf, 2);
+    if (fadeB >= 1) return; // no momentum killing at this boundary
     for (int iz = CUP_BLOCK_SIZE; iz < loopEnd; ++iz) {
       const Real fac = std::pow(fadeB, iz - CUP_BLOCK_SIZE + 1);
       assert(fac <= 1 && fac >= 0);
