@@ -518,11 +518,12 @@ void AdvectionDiffusion::operator()(const double dt)
   }
   else
   {
-    if(sim.obstacle_vector->nObstacles() == 0) {
+    if( true ) {
+    //if(sim.obstacle_vector->nObstacles() == 0) {
       sim.startProfiler("AdvDiff Kernel");
-      const KernelAdvectDiffuse<RK1, Upwind3rd /*Central*/> K1(sim);
+      const KernelAdvectDiffuse<RK1, Central> K1(sim);
       compute(K1);
-      const KernelAdvectDiffuse<RK2, Upwind3rd /*Central*/> K2(sim);
+      const KernelAdvectDiffuse<RK2, Central> K2(sim);
       compute(K2);
       sim.stopProfiler();
       sim.startProfiler("AdvDiff copy");
