@@ -127,7 +127,7 @@ inline void app_main(
 
   char dirname[1024]; dirname[1023] = '\0';
   unsigned sim_id = 0, tot_steps = 0;
-  double minRew = -1;
+  double minRew = 0;
 
   // Terminate loop if reached max number of time steps. Never terminate if 0
   while(true) // train loop
@@ -188,7 +188,7 @@ inline void app_main(
       profiler.push_start("rl");
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
-      const double r_t = avgReward / maxNumUpdatesPerSim;
+      const double r_t = std::exp(avgReward) / maxNumUpdatesPerSim;
       minRew = std::min(minRew, r_t);
       //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
       //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
