@@ -170,33 +170,33 @@ struct KernelAdvectDiffuse : public Discretization
 };
 
 template<> Real& inp<Euler,0>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).u; }
-template<> Real& inp<Euler,1>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).w; }
+template<> Real& inp<Euler,1>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).v; }
 template<> Real& inp<Euler,2>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).w; }
 template<> Real& out<Euler,0>(FluidBlock& o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).tmpU; }
 template<> Real& out<Euler,1>(FluidBlock& o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).tmpV; }
 template<> Real& out<Euler,2>(FluidBlock& o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).tmpW; }
 template<> Real& field<Euler,0>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return L(ix,iy,iz).u; }
-template<> Real& field<Euler,1>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return L(ix,iy,iz).w; }
+template<> Real& field<Euler,1>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return L(ix,iy,iz).v; }
 template<> Real& field<Euler,2>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return L(ix,iy,iz).w; }
 
 template<> Real& inp<RK1,0>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).u; }
-template<> Real& inp<RK1,1>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).w; }
+template<> Real& inp<RK1,1>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).v; }
 template<> Real& inp<RK1,2>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).w; }
 template<> Real& out<RK1,0>(FluidBlock& o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).tmpU; }
 template<> Real& out<RK1,1>(FluidBlock& o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).tmpV; }
 template<> Real& out<RK1,2>(FluidBlock& o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).tmpW; }
 template<> Real& field<RK1,0>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return L(ix,iy,iz).u; }
-template<> Real& field<RK1,1>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return L(ix,iy,iz).w; }
+template<> Real& field<RK1,1>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return L(ix,iy,iz).v; }
 template<> Real& field<RK1,2>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return L(ix,iy,iz).w; }
 
 template<> Real& inp<RK2,0>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).tmpU; }
 template<> Real& inp<RK2,1>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).tmpV; }
 template<> Real& inp<RK2,2>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).tmpW; }
 template<> Real& out<RK2,0>(FluidBlock& o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).u; }
-template<> Real& out<RK2,1>(FluidBlock& o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).w; }
+template<> Real& out<RK2,1>(FluidBlock& o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).v; }
 template<> Real& out<RK2,2>(FluidBlock& o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).w; }
 template<> Real& field<RK2,0>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).u; }
-template<> Real& field<RK2,1>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).w; }
+template<> Real& field<RK2,1>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).v; }
 template<> Real& field<RK2,2>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).w; }
 
 struct Upwind3rd
