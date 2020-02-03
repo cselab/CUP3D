@@ -26,11 +26,13 @@ template<StepType step, int i> Real& inp(LabMPI& L, const int ix, const int iy, 
 template<StepType step, int i> Real& out(FluidBlock& L, const int ix, const int iy, const int iz);
 // field : field (with or without ghosts) that we are updating with the operation
 template<StepType step, int i> Real& field(LabMPI&, FluidBlock&, const int ix, const int iy, const int iz);
+// stencil : which components of the field are read for finite differences
+template<StepType step> std::vector<int> stencilFields();
 
 template<StepType step, typename Discretization>
 struct KernelAdvectDiffuse : public Discretization
 {
-  KernelAdvectDiffuse(const SimulationData&s) : sim(s) {
+  KernelAdvectDiffuse(const SimulationData&s) : Discretization(s), sim(s) {
     //printf("%d %d %e %e %e %e %e %e %e %e\n", loopBeg, loopEnd, CFL,
     //  norUinf, fadeW, fadeS, fadeF, fadeE, fadeN, fadeB);
   }
@@ -43,7 +45,7 @@ struct KernelAdvectDiffuse : public Discretization
   const Real norUinf = 1 / std::max({std::fabs(uInf[0]), std::fabs(uInf[1]), std::fabs(uInf[2]), EPS});
   const StencilInfo stencil{this->getStencilBeg(), this->getStencilBeg(), this->getStencilBeg(),
                             this->getStencilEnd(), this->getStencilEnd(), this->getStencilEnd(),
-                            false, {FE_U,FE_V,FE_W}};
+                            false, stencilFields<step>()};
 
   void applyBCwest(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
@@ -199,21 +201,26 @@ template<> Real& field<RK2,0>(LabMPI&L, FluidBlock&o, const int ix, const int iy
 template<> Real& field<RK2,1>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).v; }
 template<> Real& field<RK2,2>(LabMPI&L, FluidBlock&o, const int ix, const int iy, const int iz) { return o(ix,iy,iz).w; }
 
+template<> std::vector<int> stencilFields<Euler>() { return {FE_U, FE_V, FE_W}; }
+template<> std::vector<int> stencilFields<RK1>() { return {FE_U, FE_V, FE_W}; }
+template<> std::vector<int> stencilFields<RK2>() { return {FE_TMPU, FE_TMPV, FE_TMPW}; }
+
 struct Upwind3rd
 {
+  const SimulationData& _sim;
+  const Real invU = 1 / std::max(EPS, _sim.uMax_measured);
+  Upwind3rd(const SimulationData& s) : _sim(s) {}
+
   template<StepType step, int dir> Real diffx(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix-1,iy,iz), um2 = inp<step,dir>(L,ix-2,iy,iz);
     const Real up1 = inp<step,dir>(L,ix+1,iy,iz), up2 = inp<step,dir>(L,ix+2,iy,iz);
     #if 1
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
-      const Real uAbsNorm = uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2];
-      const Real ddxC = up1 - um1, U = uAbs[dir], invU = 1/std::max(uAbsNorm, EPS);
-      const Real UP = std::max((Real)0, U), UM = std::min((Real)0, U);
-      const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-U*U*invU;
-      return WXM * ddxM + WXP * ddxP + WXC * 3*ddxC;
-      //const Real invU = 1/std::sqrt(uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2]);
-      //const Real WXM = UP*invU, WXP = -UM*invU, WXC = 1-std::fabs(U)*invU;
+      const Real ddxC = up1 - um1, U = uAbs[0] * invU;
+      const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
+      assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1);
+      return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
     #else
       return uAbs[0]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
     #endif
@@ -224,11 +231,10 @@ struct Upwind3rd
     const Real up1 = inp<step,dir>(L,ix,iy+1,iz), up2 = inp<step,dir>(L,ix,iy+2,iz);
     #if 1
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
-      const Real uAbsNorm = uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2];
-      const Real ddxC = up1 - um1, U = uAbs[dir], invU = 1/std::max(uAbsNorm, EPS);
-      const Real UP = std::max((Real)0, U), UM = std::min((Real)0, U);
-      const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-U*U*invU;
-      return WXM * ddxM + WXP * ddxP + WXC * 3*ddxC;
+      const Real ddxC = up1 - um1, U = uAbs[1] * invU;
+      const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
+      assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1);
+      return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3*ddxC;
     #else
       return uAbs[1]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
     #endif
@@ -239,11 +245,10 @@ struct Upwind3rd
     const Real up1 = inp<step,dir>(L,ix,iy,iz+1), up2 = inp<step,dir>(L,ix,iy,iz+2);
     #if 1
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
-      const Real uAbsNorm = uAbs[0]*uAbs[0] + uAbs[1]*uAbs[1] + uAbs[2]*uAbs[2];
-      const Real ddxC = up1 - um1, U = uAbs[dir], invU = 1/std::max(uAbsNorm, EPS);
-      const Real UP = std::max((Real)0, U), UM = std::min((Real)0, U);
-      const Real WXM = UP*UP*invU, WXP = UM*UM*invU, WXC = 1-U*U*invU;
-      return WXM * ddxM + WXP * ddxP + WXC * 3*ddxC;
+      const Real ddxC = up1 - um1, U = uAbs[2] * invU;
+      const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
+      assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1);
+      return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
     #else
       return uAbs[2]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
     #endif
@@ -282,6 +287,7 @@ template<> inline Real Upwind3rd::diffusionCoef<RK2>(const Real dt, const Real h
 
 struct Central
 {
+  Central(const SimulationData& s) {}
   template<StepType step, int dir> Real diffx(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
     return inp<step,dir>(L,ix+1,iy,iz) - inp<step,dir>(L,ix-1,iy,iz);
   }
@@ -325,6 +331,7 @@ template<> inline Real Central::diffusionCoef<RK2>(const Real dt, const Real h, 
 
 struct CentralStretched
 {
+  CentralStretched(const SimulationData& s) {}
   template<StepType step, int dir> Real diffx(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
     const Real um1 = inp<step,dir>(L,ix-1,iy,iz);
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
@@ -521,9 +528,11 @@ void AdvectionDiffusion::operator()(const double dt)
     if( true ) {
     //if(sim.obstacle_vector->nObstacles() == 0) {
       sim.startProfiler("AdvDiff Kernel");
-      const KernelAdvectDiffuse<RK1, Central> K1(sim);
+      //const KernelAdvectDiffuse<RK1, Central> K1(sim);
+      const KernelAdvectDiffuse<RK1, Upwind3rd> K1(sim);
       compute(K1);
-      const KernelAdvectDiffuse<RK2, Central> K2(sim);
+      //const KernelAdvectDiffuse<RK2, Central> K2(sim);
+      const KernelAdvectDiffuse<RK2, Upwind3rd> K2(sim);
       compute(K2);
       sim.stopProfiler();
       sim.startProfiler("AdvDiff copy");
