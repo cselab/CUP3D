@@ -547,11 +547,11 @@ void AdvectionDiffusion::operator()(const double dt)
     } else {
       sim.startProfiler("AdvDiff Kernel");
       if(sim.bAdvection3rdOrder) {
-        const KernelAdvectDiffuse<Euler, Upwind3rd> K2(sim);
-        compute(K2);
+        const KernelAdvectDiffuse<Euler, Upwind3rd> K(sim);
+        compute(K);
       } else {
-        const KernelAdvectDiffuse<Euler, Central> K2(sim);
-        compute(K2);
+        const KernelAdvectDiffuse<Euler, Central> K(sim);
+        compute(K);
       }
       sim.stopProfiler();
       sim.startProfiler("AdvDiff copy");

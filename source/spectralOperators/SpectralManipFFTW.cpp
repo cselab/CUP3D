@@ -89,23 +89,22 @@ void SpectralManipFFTW::_compute_forcing()
     lIntegral += (k2 > 0) ? E / std::sqrt(k2) : 0; // Large eddy length scale
 
     const long kind = ii*ii + jj*jj + kk*kk;
-    if (k2 > 0 && kind < nyquist * nyquist) {
+    if (kind > 0 && kind < nyquist * nyquist) {
       const size_t binID = std::floor(std::sqrt((Real) kind) * nyquist_scaling);
       assert(binID < nBins);
       E_msr[binID] += E;
-      tkeFiltered += E;
       //if (bComputeCs2Spectrum){
       //  const Real cs2 = std::sqrt(pow2_cplx(cplxData_cs2[linidx]));
       //  cs2_msr[binID] += mult*cs2;
       //}
+    }
+    if (kind > 0 && kind < 9) {
+      tkeFiltered += E;
     } else {
       cplxData_u[linidx][0] = 0; cplxData_u[linidx][1] = 0;
       cplxData_v[linidx][0] = 0; cplxData_v[linidx][1] = 0;
       cplxData_w[linidx][0] = 0; cplxData_w[linidx][1] = 0;
     }
-    //cplxData_u[linidx][0] = OMGXR; cplxData_u[linidx][1] = OMGXI;
-    //cplxData_v[linidx][0] = OMGYR; cplxData_v[linidx][1] = OMGYI;
-    //cplxData_w[linidx][0] = OMGZR; cplxData_w[linidx][1] = OMGZI;
   }
 
   MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
