@@ -48,8 +48,9 @@ void SpectralForcing::operator()(const double dt)
   stats.expectedNextTke = stats.tke + dt * sim.actualInjectionRate;
   // If there's too much energy, let dissipation do its job
   if(sim.verbose)
-    printf("totalKinEn:%e largeModesKinEn:%e injectionRate:%e\n",
-    stats.tke, stats.tke_filtered, sim.actualInjectionRate);
+    printf("totalKinEn:%e largeModesKinEn:%e injectionRate:%e viscousDissip:%e totalDissipRate:%e lIntegral:%e\n",
+    stats.tke, stats.tke_filtered, sim.actualInjectionRate,
+    stats.dissip_visc, stats.dissip_tot, stats.l_integral);
 
   if(sim.rank == 0 and not sim.muteAll) {
     std::stringstream &ssF = logger.get_stream("forcingData.dat");

@@ -101,10 +101,10 @@ void SpectralAnalysis::_fftw2cub() const
 
 void SpectralAnalysis::run()
 {
-  _cub2fftw();
-  sM->runFwd();
-  sM->_compute_forcing();
-  sM->stats.updateDerivedQuantities(sM->sim.nu, sM->sim.dt);
+  //_cub2fftw();
+  //sM->runFwd();
+  //sM->_compute_forcing();
+  //sM->stats.updateDerivedQuantities(sM->sim.nu, sM->sim.dt);
 }
 
 void SpectralAnalysis::dump2File() const

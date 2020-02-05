@@ -81,7 +81,7 @@ void SpectralManipFFTW::_compute_forcing()
     const Real OMGZR = dVdXR - dUdYR, OMGZI = dVdXI - dUdYI;
     const Real E = mult/2 * (UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
 
-    tke += E; // Total kinetic energy
+    tke += (k2 > 0) ? E : 0; // Total kinetic energy
     //eps += k2 * mult/2 * E; // Dissipation rate
     eps += mult/2 * ( OMGXR*OMGXR + OMGXI*OMGXI
                     + OMGYR*OMGYR + OMGYI*OMGYI

@@ -46,8 +46,8 @@ inline Real findMaxUzeroMom(const SimulationData& sim)
   const Real corrX = mom[0] / (sim.extent[0] * sim.extent[1] * sim.extent[2]);
   const Real corrY = mom[1] / (sim.extent[0] * sim.extent[1] * sim.extent[2]);
   const Real corrZ = mom[2] / (sim.extent[0] * sim.extent[1] * sim.extent[2]);
-  //if(sim.verbose)
-  //  printf("Correction in relative momenta:[%f %f %f]\n",corrX,corrY,corrZ);
+  if(sim.verbose)
+    printf("Correction in relative momenta:[%e %e %e]\n",corrX,corrY,corrZ);
 
   Real maxU = 0;
   #pragma omp parallel for schedule(static) reduction(max : maxU)
