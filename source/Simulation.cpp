@@ -338,6 +338,9 @@ void Simulation::setupOperators()
      && sim.bChannelFixedMassFlux == false) // also uses sim.uMax_forced param
     sim.pipeline.push_back(new ExternalForcing(sim));
 
+  if (sim.spectralForcing)
+    sim.pipeline.push_back(new SpectralForcing(sim));
+
   if(sim.bIterativePenalization)
   {
     if(sim.bUseStretchedGrid && sim.obstacle_vector->nObstacles() > 0) {
@@ -378,9 +381,6 @@ void Simulation::setupOperators()
       sim.pipeline.push_back(new Penalization(sim));
     #endif
   }
-
-  if (sim.spectralForcing)
-    sim.pipeline.push_back(new SpectralForcing(sim));
 
   // With finalized velocity and pressure, compute forces and dissipation
   sim.pipeline.push_back(new ComputeForces(sim));

@@ -99,7 +99,7 @@ void Analysis::operator()(const double dt)
   const bool bTime = (sim.timeAnalysis>0 && (sim.time+dt)>=sim.nextAnalysisTime);
   const bool bAnalysis =  bFreq || bTime;
   if (not bAnalysis) return;
-  sim.nextAnalysisTime += sim.timeAnalysis;
+  //sim.nextAnalysisTime += sim.timeAnalysis;
 
   if (sim.analysis == "channel")
   {
@@ -154,8 +154,7 @@ void Analysis::operator()(const double dt)
     const int nthreads = omp_get_max_threads();
     std::vector<KernelAnalysis_gradStats*> gradStats(nthreads, nullptr);
     #pragma omp parallel for schedule(static, 1)
-    for(int i=0; i<nthreads; ++i)
-      gradStats[i] = new KernelAnalysis_gradStats();
+    for(int i=0; i<nthreads; ++i) gradStats[i] = new KernelAnalysis_gradStats();
     compute<KernelAnalysis_gradStats>(gradStats);
 
     const size_t normalize = sim.bpdx * FluidBlock::sizeX *

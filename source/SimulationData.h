@@ -91,6 +91,8 @@ struct SimulationData
   bool bUseStretchedGrid = false;
   bool bImplicitPenalization = false;
   bool bIterativePenalization = false;
+  bool bRungeKutta23 = false;
+  bool bAdvection3rdOrder = false;
   Real hmin=0, hmax=0, hmean=0;
 
   // flow variables
