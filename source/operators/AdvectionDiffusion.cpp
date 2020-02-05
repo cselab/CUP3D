@@ -215,7 +215,7 @@ struct Upwind3rd
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix-1,iy,iz), um2 = inp<step,dir>(L,ix-2,iy,iz);
     const Real up1 = inp<step,dir>(L,ix+1,iy,iz), up2 = inp<step,dir>(L,ix+2,iy,iz);
-    #if 1
+    #if 0
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
       const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[0]*invU, (Real)-1));
       const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
@@ -229,7 +229,7 @@ struct Upwind3rd
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix,iy-1,iz), um2 = inp<step,dir>(L,ix,iy-2,iz);
     const Real up1 = inp<step,dir>(L,ix,iy+1,iz), up2 = inp<step,dir>(L,ix,iy+2,iz);
-    #if 1
+    #if 0
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
       const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[1]*invU, (Real)-1));
       const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
@@ -243,7 +243,7 @@ struct Upwind3rd
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix,iy,iz-1), um2 = inp<step,dir>(L,ix,iy,iz-2);
     const Real up1 = inp<step,dir>(L,ix,iy,iz+1), up2 = inp<step,dir>(L,ix,iy,iz+2);
-    #if 1
+    #if 0
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
       const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[2]*invU, (Real)-1));
       const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
@@ -583,7 +583,7 @@ struct KernelAdvectDiffuse3rdOrderUpwind : public KernelAdvectDiffuseBase
       assert(std::fabs(WP+WM-std::fabs(wAdvND))<EPS);
       //printf("%e %e %e\n", WXM+WXP+WXC-1,WYM+WYP+WYC-1,WZM+WZP+WZC-1);
       //printf("%e %e %e %e %e %e %e %e %e\n", WXM, WXP, WXC, WYM, WYP, WYC, WZM, WZP, WZC);
-      #if 1
+      #if 0
       const Real dudx = UP*UP*dudxM + UM*UM*dudxP + 3*(1-uAdvND*uAdvND) * dudxC;
       const Real dvdx = UP*UP*dvdxM + UM*UM*dvdxP + 3*(1-uAdvND*uAdvND) * dvdxC;
       const Real dwdx = UP*UP*dwdxM + UM*UM*dwdxP + 3*(1-uAdvND*uAdvND) * dwdxC;
@@ -593,6 +593,16 @@ struct KernelAdvectDiffuse3rdOrderUpwind : public KernelAdvectDiffuseBase
       const Real dudz = WP*WP*dudzM + WM*WM*dudzP + 3*(1-wAdvND*wAdvND) * dudzC;
       const Real dvdz = WP*WP*dvdzM + WM*WM*dvdzP + 3*(1-wAdvND*wAdvND) * dvdzC;
       const Real dwdz = WP*WP*dwdzM + WM*WM*dwdzP + 3*(1-wAdvND*wAdvND) * dwdzC;
+      #elif 1
+      const Real dudx = u>0 ? dudxM : dudxP;
+      const Real dvdx = u>0 ? dvdxM : dvdxP;
+      const Real dwdx = u>0 ? dwdxM : dwdxP;
+      const Real dudy = v>0 ? dudyM : dudyP;
+      const Real dvdy = v>0 ? dvdyM : dvdyP;
+      const Real dwdy = v>0 ? dwdyM : dwdyP;
+      const Real dudz = w>0 ? dudzM : dudzP;
+      const Real dvdz = w>0 ? dvdzM : dvdzP;
+      const Real dwdz = w>0 ? dwdzM : dwdzP;
       #elif 0
       const Real dudx = 3* dudxC;
       const Real dvdx = 3* dvdxC;
@@ -650,11 +660,11 @@ void AdvectionDiffusion::operator()(const double dt)
     if( 0 ) {
     //if(sim.obstacle_vector->nObstacles() == 0) {
       sim.startProfiler("AdvDiff Kernel");
-      const KernelAdvectDiffuse<RK1, Central> K1(sim);
-      //const KernelAdvectDiffuse<RK1, Upwind3rd> K1(sim);
+      //const KernelAdvectDiffuse<RK1, Central> K1(sim);
+      const KernelAdvectDiffuse<RK1, Upwind3rd> K1(sim);
       compute(K1);
-      const KernelAdvectDiffuse<RK2, Central> K2(sim);
-      //const KernelAdvectDiffuse<RK2, Upwind3rd> K2(sim);
+      //const KernelAdvectDiffuse<RK2, Central> K2(sim);
+      const KernelAdvectDiffuse<RK2, Upwind3rd> K2(sim);
       compute(K2);
       sim.stopProfiler();
       sim.startProfiler("AdvDiff copy");
