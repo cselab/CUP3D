@@ -46,7 +46,7 @@ class PoissonSolverMixed : public PoissonSolver
     // - if only grid consistent odd DOF and even DOF do not 'talk' to each others
     // - if only spectral then nont really div free
     // COMPROMISE: define a tolerance that balances two effects
-    static const Real tol = 0.01;
+    //static const Real tol = 0.01;
 
     #pragma omp parallel for schedule(static)
     for(long lj = 0; lj<static_cast<long>(local_n1); ++lj)
@@ -54,20 +54,23 @@ class PoissonSolverMixed : public PoissonSolver
       const long j = shifty + lj; //memory index plus shift due to decomp
       const long ky = DFTY ? ((j <= nKy/2) ? j : nKy-j) : j;
       const Real rky2 = std::pow( (ky + (DFTY? 0 : (Real)0.5)) * waveFacY, 2);
-      const Real denY = (1-tol) * (std::cos(2*waveFacY*j)-1)/2 - tol*rky2;
+      //const Real denY = (1-tol) * (std::cos(2*waveFacY*j)-1)/2 - tol*rky2;
+      const Real denY = - rky2;
 
       for(long  i = 0;  i<static_cast<long>(gsize[0]); ++ i)
       {
         const long kx = DFTX ? ((i <= nKx/2) ? i : nKx-i) : i;
         const Real rkx2 = std::pow( (kx + (DFTX? 0 : (Real)0.5)) * waveFacX, 2);
-        const Real denX = (1-tol) * (std::cos(2*waveFacX*i)-1)/2 - tol*rkx2;
+        //const Real denX = (1-tol) * (std::cos(2*waveFacX*i)-1)/2 - tol*rkx2;
+        const Real denX = - rkx2;
 
         for(long  k = 0;  k<static_cast<long>(gsize[2]); ++ k)
         {
           const size_t linidx = (lj*gsize[0] +i)*gsize[2] + k;
           const long kz = DFTZ ? ((k <= nKz/2) ? k : nKz-k) : k;
           const Real rkz2 = std::pow( (kz + (DFTZ? 0 : (Real)0.5)) * waveFacZ, 2);
-          const Real denZ = (1-tol) * (std::cos(2*waveFacZ*k)-1)/2 - tol*rkz2;
+          //const Real denZ = (1-tol) * (std::cos(2*waveFacZ*k)-1)/2 - tol*rkz2;
+          const Real denZ = - rkz2;
 
           in_out[linidx] *= norm_factor/(denX + denY + denZ);
         }
