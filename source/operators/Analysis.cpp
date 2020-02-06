@@ -99,7 +99,7 @@ void Analysis::operator()(const double dt)
   const bool bTime = (sim.timeAnalysis>0 && (sim.time+dt)>=sim.nextAnalysisTime);
   const bool bAnalysis =  bFreq || bTime;
   if (not bAnalysis) return;
-  //sim.nextAnalysisTime += sim.timeAnalysis;
+  sim.nextAnalysisTime += sim.timeAnalysis;
 
   if (sim.analysis == "channel")
   {

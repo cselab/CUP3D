@@ -98,7 +98,8 @@ void SpectralManipFFTW::_compute_forcing()
       //  cs2_msr[binID] += mult*cs2;
       //}
     }
-    if (kind > 0 && kind < 9) {
+    if (k2 > 0 && k2 < 3.5) {
+      // force first modes, 0.5 added to ensure inclusion of 1^2 + 1^2 + 1^2
       tkeFiltered += E;
     } else {
       cplxData_u[linidx][0] = 0; cplxData_u[linidx][1] = 0;
