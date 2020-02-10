@@ -215,7 +215,7 @@ struct Upwind3rd
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix-1,iy,iz), um2 = inp<step,dir>(L,ix-2,iy,iz);
     const Real up1 = inp<step,dir>(L,ix+1,iy,iz), up2 = inp<step,dir>(L,ix+2,iy,iz);
-    #if 1
+    #if 0
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
       const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[0]*invU, (Real)-1));
       const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
@@ -229,7 +229,7 @@ struct Upwind3rd
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix,iy-1,iz), um2 = inp<step,dir>(L,ix,iy-2,iz);
     const Real up1 = inp<step,dir>(L,ix,iy+1,iz), up2 = inp<step,dir>(L,ix,iy+2,iz);
-    #if 1
+    #if 0
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
       const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[1]*invU, (Real)-1));
       const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
@@ -243,7 +243,7 @@ struct Upwind3rd
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix,iy,iz-1), um2 = inp<step,dir>(L,ix,iy,iz-2);
     const Real up1 = inp<step,dir>(L,ix,iy,iz+1), up2 = inp<step,dir>(L,ix,iy,iz+2);
-    #if 1
+    #if 0
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
       const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[2]*invU, (Real)-1));
       const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
@@ -477,9 +477,9 @@ struct UpdateAndCorrectInflow
                       : sums[0] / (2*(nTotX*nTotY + nTotX*nTotZ + nTotY*nTotZ));
 
     const std::function<void(Real&, const Real)> update1 =
-      [&] (Real& vel, const Real correction) { vel += corr; };
+      [&] (Real& vel, const Real fac) { vel += fac; };
     const std::function<void(Real&, const Real)> update2 =
-      [&] (Real& vel, const Real correction) { vel += corr * std::fabs(vel); };
+      [&] (Real& vel, const Real fac) { vel += fac * std::fabs(vel); };
     const auto update = nonuniform ? update2 : update1;
 
     if(std::fabs(corr) < EPS) return;

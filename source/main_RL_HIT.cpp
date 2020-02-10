@@ -94,6 +94,8 @@ inline void app_main(
   const Real LES_RL_FREQ_A = parser("-RL_freqActions").asDouble( 4.0);
   const Real fac = 2.5 / std::sqrt(LES_RL_FREQ_A);
   const Real LES_RL_N_TSIM = parser("-RL_nIntTperSim").asDouble(20.0) * fac;
+  const bool bGridAgents = parser("-RL_gridPointAgents").asInt(0);
+
   target.smartiesFolderStructure = true;
   cubism::Profiler profiler;
 
@@ -112,7 +114,7 @@ inline void app_main(
   comm->setStateActionDims(nStates, nActions);
   comm->setNumAgents(nAgents + nThreadSafetyAgents);
 
-  const std::vector<double> lower_act_bound{0.06}, upper_act_bound{0.09};
+  const std::vector<double> lower_act_bound{0.02}, upper_act_bound{0.08};
   comm->setActionScales(upper_act_bound, lower_act_bound, false);
   comm->disableDataTrackingForAgents(nAgents, nAgents + nThreadSafetyAgents);
   comm->agentsShareExplorationNoise();
@@ -192,7 +194,7 @@ inline void app_main(
       minRew = std::min(minRew, r_t);
       //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
       //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
-      updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, r_t);
+      updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, r_t, bGridAgents);
       profiler.pop_stop();
 
       if(timeOut) { profiler.printSummary(); profiler.reset(); break; }

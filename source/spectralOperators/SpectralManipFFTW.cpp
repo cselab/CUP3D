@@ -56,10 +56,10 @@ void SpectralManipFFTW::_compute_forcing()
   for(long k = 0; k<sizeZ_hat; ++k)
   {
     const long linidx = (j*sizeX +i)*sizeZ_hat + k;
-    const long ii = (i <= nKx/2) ? i : -(nKx-i);
+    const long ii = (i <= nKx/2) ? i : i-nKx;
     const long l = shifty + j; //memory index plus shift due to decomp
-    const long jj = (l <= nKy/2) ? l : -(nKy-l);
-    const long kk = (k <= nKz/2) ? k : -(nKz-k);
+    const long jj = (l <= nKy/2) ? l : l-nKy;
+    const long kk = (k <= nKz/2) ? k : k-nKz;
 
     const Real kx = ii*waveFactorX, ky = jj*waveFactorY, kz = kk*waveFactorZ;
     const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
@@ -98,6 +98,7 @@ void SpectralManipFFTW::_compute_forcing()
       //  cs2_msr[binID] += mult*cs2;
       //}
     }
+
     if (k2 > 0 && k2 < 3.5) {
       // force first modes, 0.5 added to ensure inclusion of 1^2 + 1^2 + 1^2
       tkeFiltered += E;
@@ -213,11 +214,11 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
       cplxData_w[linidx][0] = k_norm<=0? 0 : -beta_r * k_xy / k_norm;
       cplxData_w[linidx][1] = k_norm<=0? 0 : -beta_i * k_xy / k_norm;
 
-      const Real UR = cplxData_u[linidx][0], UI = cplxData_u[linidx][1];
-      const Real VR = cplxData_v[linidx][0], VI = cplxData_v[linidx][1];
-      const Real WR = cplxData_w[linidx][0], WI = cplxData_w[linidx][1];
       const long kind = ii*ii + jj*jj + kk*kk;
-      if (kind < nyquist * nyquist) {
+      if (kind > 0 && kind < nyquist * nyquist) {
+        const Real UR = cplxData_u[linidx][0], UI = cplxData_u[linidx][1];
+        const Real VR = cplxData_v[linidx][0], VI = cplxData_v[linidx][1];
+        const Real WR = cplxData_w[linidx][0], WI = cplxData_w[linidx][1];
         const size_t binID = std::floor(std::sqrt((Real) kind)*nyquist_scaling);
         assert(binID < nBins);
         E_msr[binID] += mult/2 *(UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
@@ -226,8 +227,6 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
   }
 
   MPI_Allreduce(MPI_IN_PLACE, E_msr, nBins, MPIREAL, MPI_SUM, m_comm);
-  const Real normalization = 1.0 ;/// pow2(normalizeFFT);
-  for (size_t binID = 0; binID < nBins; binID++) E_msr[binID] *= normalization;
 
   #pragma omp parallel for schedule(static)
   for(long j = 0; j<loc_n1;  ++j)
@@ -249,6 +248,41 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
       cplxData_w[linidx][0] *= fac; cplxData_w[linidx][1] *= fac;
     }
   }
+
+  #if 0 // to debug and check that spectrum matches target
+    std::cout << "E pre:";
+    for (int i = 0; i < nBins; i++) std::cout << E_msr[i] << " ";
+    std::cout << std::endl;
+    std::cout << "ratio:";
+    for (int i = 0; i < nBins; i++) std::cout << E[i] / E_msr[i] << " ";
+    std::cout << std::endl;
+    memset(E_msr, 0, nBins * sizeof(Real));
+    #pragma omp parallel for schedule(static) reduction(+ : E_msr[:nBins])
+    for(long j = 0; j<loc_n1;  ++j)
+    for(long i = 0; i<sizeX;    ++i)
+    for(long k = 0; k<sizeZ_hat; ++k) {
+      const long linidx = (j*sizeX +i) * sizeZ_hat + k;
+      const long ii = (i <= nKx/2) ? i : -(nKx-i);
+      const long l = shifty + j; //memory index plus shift due to decomp
+      const long jj = (l <= nKy/2) ? l : -(nKy-l);
+      const long kk = (k <= nKz/2) ? k : -(nKz-k);
+      const Real mult = (k==0) or (k==nKz/2) ? 1 : 2;
+
+      const Real UR = cplxData_u[linidx][0], UI = cplxData_u[linidx][1];
+      const Real VR = cplxData_v[linidx][0], VI = cplxData_v[linidx][1];
+      const Real WR = cplxData_w[linidx][0], WI = cplxData_w[linidx][1];
+
+      const long kind = ii*ii + jj*jj + kk*kk;
+      if (kind > 0 && kind < nyquist * nyquist) {
+        const size_t binID = std::floor(std::sqrt((Real) kind)*nyquist_scaling);
+        assert(binID < nBins);
+        E_msr[binID] += mult/2 * (UR*UR + UI*UI + VR*VR + VI*VI + WR*WR + WI*WI);
+      }
+    }
+    std::cout << "E post:";
+    for (int i = 0; i < nBins; i++) std::cout << E_msr[i] << " ";
+    std::cout << std::endl;
+  #endif
 
   delete [] E_msr;
 }

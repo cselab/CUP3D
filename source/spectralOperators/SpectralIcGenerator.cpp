@@ -119,9 +119,9 @@ void SpectralIcGenerator::_fftw2cub(const SpectralManip& SM) const
   for(size_t i=0; i<NlocBlocks; ++i) {
     BlockType& b = *(BlockType*) SM.local_infos[i].ptrBlock;
     const size_t offset = SM._offset( SM.local_infos[i] );
-    for(int iz=0; iz<BlockType::sizeZ; iz++)
-    for(int iy=0; iy<BlockType::sizeY; iy++)
-    for(int ix=0; ix<BlockType::sizeX; ix++) {
+    for(int iz=0; iz<BlockType::sizeZ; ++iz)
+    for(int iy=0; iy<BlockType::sizeY; ++iy)
+    for(int ix=0; ix<BlockType::sizeX; ++ix) {
       const size_t src_index = SM._dest(offset, iz, iy, ix);
       b(ix,iy,iz).u = SM.data_u[src_index];
       b(ix,iy,iz).v = SM.data_v[src_index];

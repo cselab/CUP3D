@@ -212,6 +212,7 @@ struct HITtargetData
   void updateReward(const HITstatistics& stats, const Real alpha, Real& reward)
   {
     auto logarg = computeLogArg(stats);
+    //printf("Rt : %Le %e\n", logarg, logPdenom);
     if (logarg > 10.0) logarg = 10.0 * std::sqrt(logarg / 10.0);
     //const long double arg = 1 - computeLogP(stats);
     //const long double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);

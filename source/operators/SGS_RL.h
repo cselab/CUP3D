@@ -11,9 +11,9 @@
 
 #define SGSRL_STATE_INVARIANTS
 //#define SGSRL_ALLGRID_AGENTS
-#define SGSRL_STATE_LAPLACIAN
-#define SGSRL_STATE_SCALES
-#define SGSRL_STATE_TARGET
+//#define SGSRL_STATE_LAPLACIAN
+//#define SGSRL_STATE_SCALES
+//#define SGSRL_STATE_TARGET
 
 #include "Operator.h"
 
@@ -40,7 +40,7 @@ public:
 
   void run(const double dt, const bool RLinit, const bool RLover,
            const HITstatistics& stats, const HITtargetData& target,
-           const Real collectiveReward);
+           const Real collectiveReward, const bool bGridAgents);
   void operator()(const double dt) override {}
 
   std::string getName() override { return "SGS_RL"; }

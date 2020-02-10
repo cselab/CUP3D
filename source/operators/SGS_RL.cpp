@@ -415,7 +415,7 @@ SGS_RL::SGS_RL(SimulationData&s, smarties::Communicator*_comm,
 
 void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                  const HITstatistics& stats, const HITtargetData& target,
-                 const Real globalR)
+                 const Real globalR, const bool bGridAgents)
 {
   sim.startProfiler("SGS_RL");
   smarties::Communicator & comm = * commPtr;
@@ -471,30 +471,36 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     };
   };
 
-  #ifdef SGSRL_ALLGRID_AGENTS // old setup:
-    // Randomly scattered agent-grid-points that sample the policy for Cs.
-    // Rest of grid follows the mean of the policy s.t. grad log pi := 0.
-    // Therefore only one element per block is a proper agent: will add EP to
-    // train data, while other are nThreads agents and are only there for thread
-    // safety: their states get overwritten, actions are policy mean.
-    const size_t nBlocks = sim.vInfo().size();
-    const auto getAgentID = [&](const size_t blockID, const size_t threadID,
-                                const int ix,const int iy,const int iz) {
-      const bool bAgent = ix == agentsIDX[blockID] &&
-                          iy == agentsIDY[blockID] &&
-                          iz == agentsIDZ[blockID];
-      //const bool bAgent = ix == 8 && iy == 8 && iz == 8;
-      return bAgent? blockID : nBlocks + threadID;
-    };
-  #else // new setup:
-    // Agents in block centers and linear interpolate Cs on the grid.
-    // The good: (i.) stronger signals for rewards (fewer agents take decisions)
-    // (ii.) can use RNN. The bad: Less powerful model, coarse grained state.
-    const auto getAgentID = [&](const size_t blockID, const size_t threadID,
-                                const int ix,const int iy,const int iz) {
-      return blockID;
-    };
-  #endif
+  using getID_t = size_t(const size_t, const size_t, const int,const int,const int);
+
+  // ONE AGENT PER GRID POINT SETUP:
+  // Randomly scattered agent-grid-points that sample the policy for Cs.
+  // Rest of grid follows the mean of the policy s.t. grad log pi := 0.
+  // Therefore only one element per block is a proper agent: will add EP to
+  // train data, while other are nThreads agents and are only there for thread
+  // safety: their states get overwritten, actions are policy mean.
+  const size_t nBlocks = sim.vInfo().size();
+  const std::function<getID_t> getAgentID_grid = [&](const size_t blockID,
+    const size_t threadID, const int ix,const int iy,const int iz)
+  {
+    const bool bAgent = ix == agentsIDX[blockID] &&
+                        iy == agentsIDY[blockID] &&
+                        iz == agentsIDZ[blockID];
+    //const bool bAgent = ix == 8 && iy == 8 && iz == 8;
+    return bAgent? blockID : nBlocks + threadID;
+  };
+
+  // ONE AGENT PER FLUID BLOCK SETUP:
+  // Agents in block centers and linear interpolate Cs on the grid.
+  // The good: (i.) stronger signals for rewards (fewer agents take decisions)
+  // (ii.) can use RNN. The bad: Less powerful model, coarse grained state.
+  const std::function<getID_t> getAgentID_block = [&](const size_t blockID,
+    const size_t threadID, const int ix,const int iy,const int iz)
+  {
+    return blockID;
+  };
+
+  const auto getAgentID = bGridAgents ? getAgentID_grid : getAgentID_block;
 
   const rlApi_t Finit = [&](const std::array<Real,9> & locS, const size_t bID,
                    const size_t thrID, const int ix, const int iy, const int iz)
@@ -532,15 +538,16 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, actInterp,
                         stats, scaleVel, scaleGrad, scaleLap);
 
-  #ifdef SGSRL_ALLGRID_AGENTS // old setup :
+  if(bGridAgents) {
     compute<KernelSGS_RL>(K_SGS_RL);
-  #else // new setup : (first get actions for block centers, then interpolate)
+  } else {
+    // new setup : (first get actions for block centers, then interpolate)
     #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.state_center(vInfo[i]);
 
     #pragma omp parallel for schedule(static)
     for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.apply_actions(vInfo[i]);
-  #endif
+  }
 
   sim.stopProfiler();
   check("SGS_RL");
