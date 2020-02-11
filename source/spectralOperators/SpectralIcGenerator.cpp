@@ -150,7 +150,8 @@ void SpectralIcGenerator::run()
       sim.enInjectionRate  <= 0 )
       sim.turbKinEn_target = SM->stats.tke;
   //std::cout << "T:";
-  //for (int binID = 0; binID < sim.initCondSpectrum.size(); binID++)
+  //size_t sizeIC = std::min((size_t)SM->stats.nBin, sim.initCondSpectrum.size());
+  //for (size_t binID = 0; binID < sizeIC; binID++)
   //  std::cout << sim.initCondSpectrum[binID] << " ";
   //std::cout << std::endl;
   //std::cout << "E:";

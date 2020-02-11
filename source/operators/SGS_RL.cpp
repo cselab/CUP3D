@@ -424,7 +424,8 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                                 sim.grid->getResidentBlocksPerDimension(1),
                                 sim.grid->getResidentBlocksPerDimension(0) );
 
-  #if 0 // non-dimensionalize wrt flow quantities
+  #if 1 // non-dimensionalize wrt flow quantities
+    const Real inpEn = sim.actualInjectionRate, nu = sim.nu;
     const Real scaleVel = 1 / std::sqrt(stats.tke); // [T/L]
     const Real scaleGrad = stats.tke / sim.actualInjectionRate; // [T]
     const Real scaleLap = scaleGrad * stats.getKolmogorovL(); // [TL]
@@ -434,11 +435,11 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     // states get overwritten
     const Real h_nonDim = sim.uniformH() / stats.getKolmogorovL();
     const Real dt_nonDim = dt / stats.getKolmogorovT();
-    const Real tke_nonDim = stats.tke/std::sqrt(sim.actualInjectionRate*sim.nu);
-    const Real visc_nonDim = stats.dissip_visc / sim.actualInjectionRate;
-    const Real dissi_nonDim = stats.dissip_tot / sim.actualInjectionRate;
+    const Real tke_nonDim = stats.tke/std::sqrt(inpEn * nu);
+    const Real visc_nonDim = stats.dissip_visc / inpEn;
+    const Real dissi_nonDim = stats.dissip_tot / inpEn;
     const Real lenInt_nonDim = stats.lambda / stats.l_integral;
-    const Real deltaEn_nonDim = (stats.tke - target.tKinEn) / stats.tke;
+    const Real deltaEn_nonDim = (stats.tke-target.tKinEn) / std::sqrt(inpEn*nu);
   #else // non-dimensionalize wrt *target* flow quantities
     const Real inpEn = sim.actualInjectionRate, nu = sim.nu;
     const Real eta = stats.getKolmogorovL(inpEn, nu);

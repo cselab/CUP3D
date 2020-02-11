@@ -165,9 +165,9 @@ inline void app_main(
     while(true) { // initialization loop
       sim.reset();
       bool ICsuccess = true;
-      sim.sim.nextAnalysisTime = 0;
-      while (sim.sim.time <= 0) {
+      for (int prelim_step = 0; prelim_step < 2; ++prelim_step) {
         sim.sim.sgs = "SSM";
+        sim.sim.nextAnalysisTime = 0;
         sim.timestep( sim.calcMaxTimestep() );
         if ( isTerminal( sim.sim ) ) { ICsuccess = false; break; }
       }
