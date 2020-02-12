@@ -30,7 +30,7 @@ inline bool isTerminal(cubismup3d::SimulationData& sim)
 
   const auto& vInfo = sim.vInfo();
   const auto isNotValid = [](const Real val) {
-    return std::fabs(val) > 1e5;
+    return std::fabs(val) > 1e3;
   };
 
   #pragma omp parallel for schedule(static)
@@ -114,7 +114,7 @@ inline void app_main(
   comm->setStateActionDims(nStates, nActions);
   comm->setNumAgents(nAgents + nThreadSafetyAgents);
 
-  const std::vector<double> lower_act_bound{0.02}, upper_act_bound{0.08};
+  const std::vector<double> lower_act_bound{0.04}, upper_act_bound{0.08};
   comm->setActionScales(upper_act_bound, lower_act_bound, false);
   comm->disableDataTrackingForAgents(nAgents, nAgents + nThreadSafetyAgents);
   comm->agentsShareExplorationNoise();
@@ -129,7 +129,6 @@ inline void app_main(
 
   char dirname[1024]; dirname[1023] = '\0';
   unsigned sim_id = 0, tot_steps = 0;
-  double minRew = 0;
 
   // Terminate loop if reached max number of time steps. Never terminate if 0
   while(true) // train loop
@@ -191,7 +190,7 @@ inline void app_main(
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
       const double r_t = std::exp(avgReward) / maxNumUpdatesPerSim;
-      minRew = std::min(minRew, r_t);
+
       //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
       //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
       updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, r_t, bGridAgents);
@@ -201,7 +200,7 @@ inline void app_main(
       // old ver: seldom analyze was wrong because of exp average later
       // sim.sim.nextAnalysisTime = (step+1) * timeUpdateLES;
       profiler.push_start("sim");
-      while ( sim.sim.time < (step+1)*timeUpdateLES )
+      while ( sim.sim.time < (step+1) * timeUpdateLES )
       {
         // new ver: always analyze for updateReward to make sense
         sim.sim.nextAnalysisTime = sim.sim.time;
@@ -214,7 +213,7 @@ inline void app_main(
         target.updateReward(stats, dt / timeUpdateLES, avgReward);
         //printf("r:%Le %Le\n", target.computeLogP(stats),
         //  target.logPdenom - target.computeLogP(stats)); fflush(0);
-        if ( isTerminal( sim.sim ) || avgReward < -1e4 ) {
+        if ( isTerminal( sim.sim ) or avgReward < 20 ) {
            policyFailed = true; break;
         }
       }
@@ -227,7 +226,7 @@ inline void app_main(
         // penal is -0.5 max_reward * (n of missing steps to finish the episode)
         // WARNING: not consistent with L2 norm reward
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
-        const double R_T = minRew * (maxNumUpdatesPerSim - step);
+        const double Nmax = maxNumUpdatesPerSim, R_T = 10 * (step - Nmax)/Nmax;
         for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, R_T, i);
         //printf("comm->sendTermState"); fflush(0);
         profiler.printSummary();
