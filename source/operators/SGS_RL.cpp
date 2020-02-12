@@ -484,10 +484,10 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   const std::function<getID_t> getAgentID_grid = [&](const size_t blockID,
     const size_t threadID, const int ix,const int iy,const int iz)
   {
-    const bool bAgent = ix == agentsIDX[blockID] &&
-                        iy == agentsIDY[blockID] &&
-                        iz == agentsIDZ[blockID];
-    //const bool bAgent = ix == 8 && iy == 8 && iz == 8;
+    //const bool bAgent = ix == agentsIDX[blockID] &&
+    //                    iy == agentsIDY[blockID] &&
+    //                    iz == agentsIDZ[blockID];
+    const bool bAgent = ix == 8 && iy == 8 && iz == 8;
     return bAgent? blockID : nBlocks + threadID;
   };
 

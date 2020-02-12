@@ -45,6 +45,7 @@ inline bool isTerminal(cubismup3d::SimulationData& sim)
   }
   int isSimValid = bSimValid.load() == true? 1 : 0; // just for clarity
   MPI_Allreduce(MPI_IN_PLACE, &isSimValid, 1, MPI_INT, MPI_PROD, sim.grid->getCartComm());
+  if (isSimValid == 0) printf("field exploded\n");
   return isSimValid == 0;
 }
 
@@ -213,7 +214,7 @@ inline void app_main(
         target.updateReward(stats, dt / timeUpdateLES, avgReward);
         //printf("r:%Le %Le\n", target.computeLogP(stats),
         //  target.logPdenom - target.computeLogP(stats)); fflush(0);
-        if ( isTerminal( sim.sim ) or avgReward < 20 ) {
+        if ( isTerminal( sim.sim ) ) {
            policyFailed = true; break;
         }
       }
@@ -227,6 +228,7 @@ inline void app_main(
         // WARNING: not consistent with L2 norm reward
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
         const double Nmax = maxNumUpdatesPerSim, R_T = 10 * (step - Nmax)/Nmax;
+        printf("policy failed with rew %f after %d steps\n", R_T, step);
         for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, R_T, i);
         //printf("comm->sendTermState"); fflush(0);
         profiler.printSummary();
