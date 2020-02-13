@@ -177,7 +177,7 @@ inline void app_main(
     profiler.pop_stop();
 
     int step = 0;
-    double avgReward = 0;
+    double avgReward1 = 0, avgReward2 = 1;
     bool policyFailed = false;
     sim.sim.sgs = "RLSM";
 
@@ -190,7 +190,8 @@ inline void app_main(
       profiler.push_start("rl");
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
-      const double r_t = std::exp(avgReward) / maxNumUpdatesPerSim;
+      //const double r_t = std::exp(avgReward1) / maxNumUpdatesPerSim;
+      const double r_t = avgReward2 / maxNumUpdatesPerSim;
 
       //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
       //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
@@ -211,7 +212,8 @@ inline void app_main(
           assert(false); fflush(0); MPI_Abort(mpicom, 1);
         }
         // Average reward over integral time:
-        target.updateReward(stats, dt / timeUpdateLES, avgReward);
+        target.updateReward (stats, dt / timeUpdateLES, avgReward1);
+        target.updateReward2(stats, dt / timeUpdateLES, avgReward2);
         //printf("r:%Le %Le\n", target.computeLogP(stats),
         //  target.logPdenom - target.computeLogP(stats)); fflush(0);
         if ( isTerminal( sim.sim ) ) {

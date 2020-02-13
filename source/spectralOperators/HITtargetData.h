@@ -29,7 +29,7 @@ struct HITtargetData
   bool smartiesFolderStructure = true;
   bool holdsTargetData = false;
   size_t nModes;
-  std::vector<double> logE_mean, mode, E_mean;
+  std::vector<double> logE_mean, mode, E_mean, logE_stdDev;
   std::vector<std::vector<double>> logE_invCov;
 
   double eps, nu, tKinEn, epsVis, epsTot, lInteg, tInteg, avg_Du, std_Du;
@@ -169,6 +169,22 @@ struct HITtargetData
         j++;
     }
     assert(j >= nBin);
+
+    file.open(fpath + "stdevLogE_" + paramspec);
+    if (!file.is_open()) {
+      printf("stdevLogE FILE NOT FOUND\n");
+      holdsTargetData = false;
+      return;
+    }
+    logE_stdDev.clear();
+    while (std::getline(file, line)) {
+        logE_stdDev.push_back(0);
+        sscanf(line.c_str(), "%le", & logE_stdDev.back() );
+    }
+    for (int i=0; i<nBin; ++i)
+        printf("%f %f %f\n", mode[i], logE_mean[i], logE_stdDev[i]);
+    fflush(0);
+    assert(logE_stdDev.size() >= nBin);
   }
 
   HITtargetData(const int maxGridN, std::string params): myGridN(maxGridN),
@@ -204,6 +220,22 @@ struct HITtargetData
     return dev;
   }
 
+  long double computeSumExp(const HITstatistics& stats)
+  {
+    long double ret = 0;
+    for (int i=0; i<stats.nBin; ++i) {
+      const long double dLogEi = std::log(stats.E_msr[i]) - logE_mean[i];
+      const auto arg = std::pow(dLogEi / logE_stdDev[i], 2);
+      const long double fac = 2 * std::exp(-2.0);
+      ret += arg>4 ? fac/(arg - 2) : std::exp(-arg / 2);
+    }
+    printf("got dE Cov dE = %Le\n", ret);
+    // normalize with expectation of L2 squared norm of N(0,I) distrib vector:
+    // E[X^2] = sum E[x^2] = sum Var[x] = trace I = nBin
+    assert(ret >= 0);
+    return ret / stats.nBin;
+  }
+
   long double computeLogP(const HITstatistics& stats)
   {
      return logPdenom - computeLogArg(stats);
@@ -219,6 +251,11 @@ struct HITtargetData
     const long double newRew = logPdenom - logarg; // computeLogP(stats);
     //printf("Rt : %e, %e - %Le\n", newRew, logPdenom, dev);
     reward = (1-alpha) * reward + alpha * newRew;
+  }
+
+  void updateReward2(const HITstatistics& stats, const Real alpha, Real& reward)
+  {
+    reward = (1-alpha) * reward + alpha * computeSumExp(stats);
   }
 };
 
