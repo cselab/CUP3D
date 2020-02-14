@@ -145,10 +145,9 @@ void SpectralIcGenerator::run()
   SM->_compute_forcing();
   SM->stats.updateDerivedQuantities(sim.nu, sim.dt, 0);
   // if user asked spectral forcing, but no value specified, satisfy spectrum
-  if (sim.spectralForcing       &&
-      sim.turbKinEn_target <= 0 &&
-      sim.enInjectionRate  <= 0 )
-      sim.turbKinEn_target = SM->stats.tke;
+  if (sim.spectralForcing       && sim.turbKinEn_target <= 0 &&
+      sim.enInjectionRate  <= 0 )  sim.turbKinEn_target = SM->stats.tke;
+
   #if 1
     std::cout << "T:";
     size_t nBin = std::min((size_t)SM->stats.nBin,sim.initCondSpectrum.size());
@@ -160,6 +159,7 @@ void SpectralIcGenerator::run()
       std::cout << SM->stats.E_msr[binID] << " ";
     std::cout << std::endl;
   #endif
+
   delete SM;
 }
 

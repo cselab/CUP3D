@@ -225,8 +225,9 @@ struct HITtargetData
     for (int i=0; i<stats.nBin; ++i) {
       const long double dLogEi = std::log(stats.E_msr[i]) - logE_mean[i];
       const auto arg = std::pow(dLogEi / logE_stdDev[i], 2);
-      const long double fac = 2 * std::exp(-2.0);
-      ret += arg>4 ? fac/(arg - 2) : std::exp(-arg / 2);
+      ret += arg>4 ? 2*std::exp(-2.0)/(arg - 2) : std::exp(-arg / 2);
+      //ret += arg>1 ? 2*std::exp(-0.5)/(arg + 1) : std::exp(-arg / 2);
+      //ret += std::exp(-arg / 2);
     }
     //printf("got dE Cov dE = %Le\n", ret / stats.nBin);
     assert(ret >= 0);
@@ -240,12 +241,13 @@ struct HITtargetData
 
   void updateReward(const HITstatistics& stats, const Real alpha, Real& reward)
   {
-    auto logarg = computeLogArg(stats);
+    const auto arg = std::sqrt( 2 * computeLogArg(stats) );
+    const long double newRew = arg>1 ? std::exp(-1.0)/arg : std::exp(-arg);
     //printf("Rt : %Le %e\n", logarg, logPdenom);
-    if (logarg > 10.0) logarg = 10.0 * std::sqrt(logarg / 10.0);
+    //if (logarg > 4.0) logarg = 4.0 * std::sqrt(logarg / 4.0);
     //const long double arg = 1 - computeLogP(stats);
     //const long double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);
-    const long double newRew = logPdenom - logarg; // computeLogP(stats);
+    //const long double newRew = logPdenom - logarg; // computeLogP(stats);
     //printf("Rt : %e, %e - %Le\n", newRew, logPdenom, dev);
     reward = (1-alpha) * reward + alpha * newRew;
   }
