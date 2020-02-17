@@ -23,6 +23,7 @@
 #include <sstream>
 
 using Real = cubismup3d::Real;
+static constexpr Real rew_baseline = 0.2;
 
 inline bool isTerminal(cubismup3d::SimulationData& sim)
 {
@@ -115,7 +116,7 @@ inline void app_main(
   comm->setStateActionDims(nStates, nActions);
   comm->setNumAgents(nAgents + nThreadSafetyAgents);
 
-  const std::vector<double> lower_act_bound{0.04}, upper_act_bound{0.08};
+  const std::vector<double> lower_act_bound{0.02}, upper_act_bound{0.08};
   comm->setActionScales(upper_act_bound, lower_act_bound, false);
   comm->disableDataTrackingForAgents(nAgents, nAgents + nThreadSafetyAgents);
   comm->agentsShareExplorationNoise();
@@ -192,9 +193,9 @@ inline void app_main(
       profiler.push_start("rl");
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
-      const double r_t = (avgReward2 + avgReward1);
       if(not comm->isTraining())
         target.updateAvgLogLikelihood(stats, nP, avgP, m2P, sim.sim.cs2_avg);
+      const double r_t = avgReward2 + avgReward1 - rew_baseline;
 
       //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
       //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
@@ -219,7 +220,7 @@ inline void app_main(
         target.updateReward2(stats, dt / timeUpdateLES, avgReward2);
         //printf("r:%e %e\n", avgReward1, avgReward2);
         //  target.logPdenom - target.computeLogP(stats)); fflush(0);
-        if ( isTerminal(sim.sim) or ((avgReward2 + avgReward1) < 0.25) ) {
+        if (isTerminal(sim.sim) or ((avgReward2 + avgReward1) < rew_baseline)) {
            policyFailed = true; break;
         }
       }

@@ -4,7 +4,7 @@ LD=CC
 ACCFFT_ROOT=../accfft/build/
 accfft?=true
 
-ifeq ($(INTEL_LICENSE_FILE),)
+ifeq "$(compiler)" "intel"
 #CPPFLAGS += -dynamic
 else
 CPPFLAGS += -static
