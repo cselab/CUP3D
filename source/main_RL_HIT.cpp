@@ -178,6 +178,8 @@ inline void app_main(
 
     int step = 0;
     double avgReward1 = 1, avgReward2 = 1;
+    // policy evaluation stats (log likelihood of spectrum):
+    long double avgP = 0, m2P = 0; size_t nP = 0;
     bool policyFailed = false;
     sim.sim.sgs = "RLSM";
 
@@ -191,6 +193,8 @@ inline void app_main(
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
       const double r_t = (avgReward2 + avgReward1);
+      if(not comm->isTraining())
+        target.updateAvgLogLikelihood(stats, nP, avgP, m2P, sim.sim.cs2_avg);
 
       //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
       //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
@@ -213,7 +217,7 @@ inline void app_main(
         // Average reward over integral time:
         target.updateReward (stats, dt / timeUpdateLES, avgReward1);
         target.updateReward2(stats, dt / timeUpdateLES, avgReward2);
-        //printf("r:%Le %Le\n", target.computeLogP(stats),
+        //printf("r:%e %e\n", avgReward1, avgReward2);
         //  target.logPdenom - target.computeLogP(stats)); fflush(0);
         if ( isTerminal(sim.sim) or ((avgReward2 + avgReward1) < 0.25) ) {
            policyFailed = true; break;
@@ -229,7 +233,7 @@ inline void app_main(
         // WARNING: not consistent with L2 norm reward
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
         //const double Nmax = maxNumUpdatesPerSim, R_T = (step - Nmax) / Nmax;
-        //printf("policy failed with rew %f after %d steps\n", R_T, step);
+        printf("policy failed after %d steps\n", step);
         for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, -1.0, i);
         //printf("comm->sendTermState"); fflush(0);
         profiler.printSummary();

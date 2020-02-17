@@ -225,7 +225,8 @@ struct HITtargetData
     for (int i=0; i<stats.nBin; ++i) {
       const long double dLogEi = std::log(stats.E_msr[i]) - logE_mean[i];
       const auto arg = std::pow(dLogEi / logE_stdDev[i], 2);
-      ret += arg>4 ? 2*std::exp(-2.0)/(arg - 2) : std::exp(-arg / 2);
+      //ret += arg>4 ? 2*std::exp(-2.0)/(arg - 2) : std::exp(-arg / 2);
+      ret += arg>2 ? 2*std::exp(-1.0)/arg : std::exp(-arg / 2);
       //ret += arg>1 ? 2*std::exp(-0.5)/(arg + 1) : std::exp(-arg / 2);
       //ret += std::exp(-arg / 2);
     }
@@ -241,7 +242,7 @@ struct HITtargetData
 
   void updateReward(const HITstatistics& stats, const Real alpha, Real& reward)
   {
-    const auto arg = std::sqrt( 2 * computeLogArg(stats) );
+    const auto arg = std::sqrt( computeLogArg(stats) );
     const long double newRew = arg>1 ? std::exp(-1.0)/arg : std::exp(-arg);
     //printf("Rt : %Le %e\n", logarg, logPdenom);
     //if (logarg > 4.0) logarg = 4.0 * std::sqrt(logarg / 4.0);
@@ -255,6 +256,25 @@ struct HITtargetData
   void updateReward2(const HITstatistics& stats, const Real alpha, Real& reward)
   {
     reward = (1-alpha) * reward + alpha * computeSumExp(stats);
+  }
+
+  void updateAvgLogLikelihood(
+    const HITstatistics & stats, size_t & pSamplesCount,
+    long double & avgP, long double & m2P, const Real CS)
+  {
+    const double newP = computeLogP(stats);
+    pSamplesCount ++;
+    assert(pSamplesCount > 0);
+    const auto alpha = 1.0 / (long double) pSamplesCount;
+    const auto delta = newP - avgP;
+    avgP += alpha * delta;
+    const auto deltaPost = newP - avgP;
+    m2P += delta * deltaPost;
+    const auto stdev = std::sqrt(alpha * m2P);
+    printf("Mean probability of spectrum: %Le (stdev: %Le)\n", avgP, stdev);
+    FILE * pFile = fopen ("spectrumProbability.text", "w");
+    fprintf (pFile, "%e %Le %Le\n", CS, avgP, stdev);
+    fflush(pFile); fclose(pFile);
   }
 };
 

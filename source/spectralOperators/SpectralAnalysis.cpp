@@ -111,21 +111,7 @@ void SpectralAnalysis::dump2File() const
 {
   if(target not_eq nullptr and target->holdsTargetData
      and sM->sim.time > 5 * sM->stats.tau_integral)
-  {
-    const double newP = target->computeLogP(sM->stats);
-    pSamplesCount ++;
-    assert(pSamplesCount > 0);
-    const auto alpha = 1.0 / (long double) pSamplesCount;
-    const auto delta = newP - avgP;
-    avgP += alpha * delta;
-    const auto deltaPost = newP - avgP;
-    m2P += delta * deltaPost;
-    const auto stdev = std::sqrt(alpha * m2P);
-    printf("Mean probability of spectrum: %Le (stdev: %Le)\n", avgP, stdev);
-    FILE * pFile = fopen ("spectrumProbability.text", "w");
-    fprintf (pFile, "%e %Le %Le\n", sM->sim.cs, avgP, stdev);
-    fflush(pFile); fclose(pFile);
-  }
+    target->updateAvgLogLikelihood(sM->stats,pSamplesCount,avgP,m2P,sM->sim.cs);
 
   const Real denom =  sM->sim.dt * sM->sim.actualInjectionRate;
   const Real errTKE = (sM->stats.tke - sM->stats.expectedNextTke) / denom;
