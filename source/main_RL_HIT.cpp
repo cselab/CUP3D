@@ -136,7 +136,7 @@ inline void app_main(
   while(true) // train loop
   {
     // avoid too many unneeded folders:
-    if(sim_id == 0 || not comm->isTraining()) { //  || wrank == 1
+    if(sim_id == 0 || comm->isTraining() == false) { //  || wrank == 1
       sprintf(dirname, "run_%08u/", sim_id);
       printf("Starting a new sim in directory %s\n", dirname);
       mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -165,6 +165,7 @@ inline void app_main(
     profiler.push_start("init");
     while(true) { // initialization loop
       sim.reset();
+      sim.sim.rampup = 2;
       bool ICsuccess = true;
       for (int prelim_step = 0; prelim_step < 2; ++prelim_step) {
         sim.sim.sgs = "SSM";
@@ -193,8 +194,10 @@ inline void app_main(
       profiler.push_start("rl");
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
-      if(not comm->isTraining())
+      if(not comm->isTraining()) {
         target.updateAvgLogLikelihood(stats, nP, avgP, m2P, sim.sim.cs2_avg);
+        // printf("%lu %d\n", nP, step); fflush(0);
+      }
       const double r_t = avgReward2 + avgReward1 - rew_baseline;
 
       //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
@@ -215,9 +218,10 @@ inline void app_main(
           assert(false); fflush(0); MPI_Abort(mpicom, 1);
         }
         // Average reward over integral time:
-        target.updateReward (stats, dt / timeUpdateLES, avgReward1);
-        target.updateReward2(stats, dt / timeUpdateLES, avgReward2);
-        //printf("r:%e %e\n", avgReward1, avgReward2);
+        const Real wUpdate = std::min((Real) 1, dt / tau_eta);
+        target.updateReward (stats, wUpdate, avgReward1);
+        target.updateReward2(stats, wUpdate, avgReward2);
+        // printf("r:%e %e %e\n", avgReward1, avgReward2, wUpdate);
         //  target.logPdenom - target.computeLogP(stats)); fflush(0);
         const bool spectrumFail = (avgReward2 + avgReward1) < rew_baseline;
         if (isTerminal(sim.sim) or (spectrumFail and comm->isTraining())) {
@@ -225,7 +229,8 @@ inline void app_main(
         }
       }
       profiler.pop_stop();
-      step++;
+
+      while(sim.sim.time >= (step+1) * timeUpdateLES) step++;
       tot_steps++;
 
       if ( policyFailed ) {
