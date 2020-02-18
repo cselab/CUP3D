@@ -57,7 +57,7 @@ inline void app_main(
 )
 {
   // print received arguments:
-  for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
+  for(int i=0; i<argc; i++) { printf("arg: %s\n", argv[i]); fflush(0); }
 
   #ifdef CUP_ASYNC_DUMP
     const auto SECURITY = MPI_THREAD_MULTIPLE;
@@ -178,10 +178,10 @@ inline void app_main(
     profiler.pop_stop();
 
     int step = 0;
+    bool policyFailed = false;
     double avgReward1 = 1, avgReward2 = 1;
     // policy evaluation stats (log likelihood of spectrum):
     long double avgP = 0, m2P = 0; size_t nP = 0;
-    bool policyFailed = false;
     sim.sim.sgs = "RLSM";
 
     cubismup3d::SGS_RL updateLES(sim.sim, comm, nAgentPerBlock);
@@ -203,8 +203,7 @@ inline void app_main(
       profiler.pop_stop();
 
       if(timeOut) { profiler.printSummary(); profiler.reset(); break; }
-      // old ver: seldom analyze was wrong because of exp average later
-      // sim.sim.nextAnalysisTime = (step+1) * timeUpdateLES;
+
       profiler.push_start("sim");
       while ( sim.sim.time < (step+1) * timeUpdateLES )
       {
@@ -220,7 +219,8 @@ inline void app_main(
         target.updateReward2(stats, dt / timeUpdateLES, avgReward2);
         //printf("r:%e %e\n", avgReward1, avgReward2);
         //  target.logPdenom - target.computeLogP(stats)); fflush(0);
-        if (isTerminal(sim.sim) or ((avgReward2 + avgReward1) < rew_baseline)) {
+        const bool spectrumFail = (avgReward2 + avgReward1) < rew_baseline;
+        if (isTerminal(sim.sim) or (spectrumFail and comm->isTraining())) {
            policyFailed = true; break;
         }
       }
@@ -236,7 +236,6 @@ inline void app_main(
         //const double Nmax = maxNumUpdatesPerSim, R_T = (step - Nmax) / Nmax;
         printf("policy failed after %d steps\n", step);
         for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, -1.0, i);
-        //printf("comm->sendTermState"); fflush(0);
         profiler.printSummary();
         profiler.reset();
         break;
