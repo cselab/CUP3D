@@ -31,6 +31,7 @@ SpectralAnalysis::SpectralAnalysis(SimulationData & s)
   s.spectralManip->prepareFwd();
   s.spectralManip->prepareBwd();
   sM = s.spectralManip;
+
   //target = new HITtargetData(sM->maxGridN, "");
   //target->smartiesFolderStructure = false;
   //target->readAll("target");
@@ -110,7 +111,7 @@ void SpectralAnalysis::run()
 void SpectralAnalysis::dump2File() const
 {
   if(target not_eq nullptr and target->holdsTargetData
-     and sM->sim.time > 5 * sM->stats.tau_integral)
+     and sM->sim.time > 5 * target->tInteg)
   {
     const double newP = target->computeLogP(sM->stats);
     pSamplesCount ++;
@@ -123,7 +124,7 @@ void SpectralAnalysis::dump2File() const
     const auto stdev = std::sqrt(alpha * m2P);
     printf("Mean probability of spectrum: %Le (stdev: %Le)\n", avgP, stdev);
     FILE * pFile = fopen ("spectrumProbability.text", "w");
-    fprintf (pFile, "%e %Le %Le\n", sM->sim.cs, avgP, stdev);
+    fprintf (pFile, "%e %Le %Le %lu\n", sM->sim.cs, avgP, stdev, pSamplesCount);
     fflush(pFile); fclose(pFile);
   }
 
