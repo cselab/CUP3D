@@ -161,7 +161,7 @@ void SpectralManipFFTW::_compute_IC(const std::vector<Real> &K,
   const Real nyquist_scaling = (nyquist-1) / (Real) nyquist;
   assert(nyquist > 0 && nyquist_scaling > 0);
 
-  Real * const E_msr = new Real[nBins];
+  Real * E_msr = new Real[nBins];
   memset(E_msr, 0, nBins * sizeof(Real));
 
   #pragma omp parallel reduction(+ : E_msr[:nBins])

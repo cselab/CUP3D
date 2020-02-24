@@ -23,6 +23,7 @@
 #include <sstream>
 
 using Real = cubismup3d::Real;
+static constexpr Real rew_baseline = - 36.0;
 
 inline bool isTerminal(cubismup3d::SimulationData& sim)
 {
@@ -56,7 +57,7 @@ inline void app_main(
 )
 {
   // print received arguments:
-  for(int i=0; i<argc; i++) {printf("arg: %s\n",argv[i]); fflush(0);}
+  for(int i=0; i<argc; i++) { printf("arg: %s\n", argv[i]); fflush(0); }
 
   #ifdef CUP_ASYNC_DUMP
     const auto SECURITY = MPI_THREAD_MULTIPLE;
@@ -93,7 +94,7 @@ inline void app_main(
   const int maxGridN = sim.sim.local_bpdx * CUP_BLOCK_SIZE;
   cubismup3d::HITtargetData target(maxGridN, parser("-initCondFileTokens").asString());
   const Real LES_RL_FREQ_A = parser("-RL_freqActions").asDouble( 4.0);
-  const Real fac = 2.5 / std::sqrt(LES_RL_FREQ_A);
+  const Real fac = std::sqrt(16.0 / LES_RL_FREQ_A);
   const Real LES_RL_N_TSIM = parser("-RL_nIntTperSim").asDouble(20.0) * fac;
   const bool bGridAgents = parser("-RL_gridPointAgents").asInt(0);
 
@@ -115,7 +116,7 @@ inline void app_main(
   comm->setStateActionDims(nStates, nActions);
   comm->setNumAgents(nAgents + nThreadSafetyAgents);
 
-  const std::vector<double> lower_act_bound{0.04}, upper_act_bound{0.08};
+  const std::vector<double> lower_act_bound{0.02}, upper_act_bound{0.06};
   comm->setActionScales(upper_act_bound, lower_act_bound, false);
   comm->disableDataTrackingForAgents(nAgents, nAgents + nThreadSafetyAgents);
   comm->agentsShareExplorationNoise();
@@ -135,7 +136,7 @@ inline void app_main(
   while(true) // train loop
   {
     // avoid too many unneeded folders:
-    if(sim_id == 0 || not comm->isTraining()) { //  || wrank == 1
+    if(sim_id == 0 || comm->isTraining() == false) { //  || wrank == 1
       sprintf(dirname, "run_%08u/", sim_id);
       printf("Starting a new sim in directory %s\n", dirname);
       mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -164,6 +165,7 @@ inline void app_main(
     profiler.push_start("init");
     while(true) { // initialization loop
       sim.reset();
+      sim.sim.rampup = 2;
       bool ICsuccess = true;
       for (int prelim_step = 0; prelim_step < 2; ++prelim_step) {
         sim.sim.sgs = "SSM";
@@ -177,8 +179,11 @@ inline void app_main(
     profiler.pop_stop();
 
     int step = 0;
-    double avgReward1 = 1, avgReward2 = 1;
     bool policyFailed = false;
+    double avgReward1 = 0, avgReward2 = 0;
+    double oldReward1 = 0, oldReward2 = 0;
+    // policy evaluation stats (log likelihood of spectrum):
+    long double avgP = 0, m2P = 0; size_t nP = 0;
     sim.sim.sgs = "RLSM";
 
     cubismup3d::SGS_RL updateLES(sim.sim, comm, nAgentPerBlock);
@@ -190,7 +195,12 @@ inline void app_main(
       profiler.push_start("rl");
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
-      const double r_t = (avgReward2 + avgReward1);
+      if(not comm->isTraining()) {
+        target.updateAvgLogLikelihood(stats, nP, avgP, m2P, sim.sim.cs2_avg);
+        // printf("%lu %d\n", nP, step); fflush(0);
+      }
+      const double r_t = avgReward1 + avgReward2 - (oldReward1 + oldReward2);
+      oldReward1 = avgReward1; oldReward2 = avgReward2;
 
       //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
       //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
@@ -198,8 +208,7 @@ inline void app_main(
       profiler.pop_stop();
 
       if(timeOut) { profiler.printSummary(); profiler.reset(); break; }
-      // old ver: seldom analyze was wrong because of exp average later
-      // sim.sim.nextAnalysisTime = (step+1) * timeUpdateLES;
+
       profiler.push_start("sim");
       while ( sim.sim.time < (step+1) * timeUpdateLES )
       {
@@ -211,16 +220,19 @@ inline void app_main(
           assert(false); fflush(0); MPI_Abort(mpicom, 1);
         }
         // Average reward over integral time:
-        target.updateReward (stats, dt / timeUpdateLES, avgReward1);
-        target.updateReward2(stats, dt / timeUpdateLES, avgReward2);
-        //printf("r:%Le %Le\n", target.computeLogP(stats),
+        const Real wUpdate = std::min((Real) 1, dt / timeUpdateLES);
+        target.updateReward (stats, wUpdate, avgReward1);
+        target.updateReward2(stats, wUpdate, avgReward2);
+        //printf("r:%e %e %e\n", avgReward1, avgReward2, wUpdate);
         //  target.logPdenom - target.computeLogP(stats)); fflush(0);
-        if ( isTerminal(sim.sim) or ((avgReward2 + avgReward1) < 0.25) ) {
+        const bool spectrumFail = (avgReward2 + avgReward1) < rew_baseline;
+        if (isTerminal(sim.sim) or (spectrumFail and comm->isTraining())) {
            policyFailed = true; break;
         }
       }
       profiler.pop_stop();
-      step++;
+
+      while(sim.sim.time >= (step+1) * timeUpdateLES) step++;
       tot_steps++;
 
       if ( policyFailed ) {
@@ -228,10 +240,10 @@ inline void app_main(
         // penal is -0.5 max_reward * (n of missing steps to finish the episode)
         // WARNING: not consistent with L2 norm reward
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
-        //const double Nmax = maxNumUpdatesPerSim, R_T = (step - Nmax) / Nmax;
-        //printf("policy failed with rew %f after %d steps\n", R_T, step);
-        for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, -1.0, i);
-        //printf("comm->sendTermState"); fflush(0);
+        //const double R_T = (step - maxNumUpdatesPerSim) / 2;
+        const double R_T = - 100.0;
+        printf("policy failed after %d steps with term reward %f\n", step, R_T);
+        for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, R_T, i);
         profiler.printSummary();
         profiler.reset();
         break;
