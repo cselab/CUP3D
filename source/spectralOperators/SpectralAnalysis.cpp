@@ -31,9 +31,10 @@ SpectralAnalysis::SpectralAnalysis(SimulationData & s)
   s.spectralManip->prepareFwd();
   s.spectralManip->prepareBwd();
   sM = s.spectralManip;
-  //target = new HITtargetData(sM->maxGridN, "");
-  //target->smartiesFolderStructure = false;
-  //target->readAll("target");
+
+  target = new HITtargetData(sM->maxGridN, "");
+  target->smartiesFolderStructure = false;
+  target->readAll("target");
 }
 
 void SpectralAnalysis::_cub2fftw()
@@ -110,7 +111,7 @@ void SpectralAnalysis::run()
 void SpectralAnalysis::dump2File() const
 {
   if(target not_eq nullptr and target->holdsTargetData
-     and sM->sim.time > 5 * sM->stats.tau_integral)
+     and sM->sim.time > 5 * target->tInteg)
     target->updateAvgLogLikelihood(sM->stats,pSamplesCount,avgP,m2P,sM->sim.cs);
 
   const Real denom =  sM->sim.dt * sM->sim.actualInjectionRate;

@@ -282,7 +282,7 @@ struct HITtargetData
     const auto stdev = std::sqrt(alpha * m2P);
     printf("Mean probability of spectrum: %Le (stdev: %Le)\n", avgP, stdev);
     FILE * pFile = fopen ("spectrumProbability.text", "w");
-    fprintf (pFile, "%e %Le %Le\n", CS, avgP, stdev);
+    fprintf (pFile, "%e %Le %Le %lu\n", CS, avgP, stdev, pSamplesCount);
     fflush(pFile); fclose(pFile);
   }
 };
