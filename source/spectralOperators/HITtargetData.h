@@ -259,12 +259,12 @@ struct HITtargetData
     //const long double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);
     //const long double newRew = logPdenom - logarg; // computeLogP(stats);
     //printf("Rt : %e, %e - %Le\n", newRew, logPdenom, dev);
-    reward = (1-alpha) * reward + alpha * 2 * newRew;
+    reward = (1-alpha) * reward + alpha * 1 * newRew;
   }
 
   void updateReward2(const HITstatistics& stats, const Real alpha, Real& reward)
   {
-    reward = (1-alpha) * reward + alpha * computeSumExp(stats);
+    reward = (1-alpha) * reward + alpha * 0; //computeSumExp(stats);
   }
 
   void updateAvgLogLikelihood(
