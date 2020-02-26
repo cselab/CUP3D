@@ -13,7 +13,7 @@
 //#define SGSRL_ALLGRID_AGENTS
 //#define SGSRL_STATE_LAPLACIAN
 //#define SGSRL_STATE_SCALES
-//#define SGSRL_STATE_TARGET
+#define SGSRL_STATE_TARGET
 
 #include "Operator.h"
 

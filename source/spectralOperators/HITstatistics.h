@@ -130,6 +130,9 @@ struct HITstatistics
   Real getKolmogorovT() const {
     return getKolmogorovT(dissip_tot > 0? dissip_tot : dissip_visc, nu);
   }
+  Real getKolmogorovU(const Real _eps, const Real _nu) const {
+    return std::pow( _eps * _nu , 0.25);
+  }
 
   // Parameters of the histogram
   const int N, nyquist = N/2, nBin = nyquist-1;

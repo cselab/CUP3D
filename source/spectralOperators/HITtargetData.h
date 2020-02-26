@@ -244,7 +244,7 @@ struct HITtargetData
 
   void updateReward(const HITstatistics& stats, const Real alpha, Real& reward)
   {
-    const auto arg = std::sqrt( 2 * computeLogArg(stats) );
+    //const auto arg = std::sqrt( 2 * computeLogArg(stats) );
     //const auto newRew = arg>2 ? std::exp(-2.0)/(arg-1) : std::exp(-arg);
     //const auto newRew = arg>1 ? std::exp(-1.0)/arg : std::exp(-arg);
 
@@ -254,12 +254,14 @@ struct HITtargetData
 
     //printf("Rt : %Le %e\n", logarg, logPdenom);
     //const auto newRew = arg>2 ? -std::sqrt(8*arg*arg - 16) : -arg*arg;
-    const auto newRew = arg>1 ? -std::sqrt(2*arg*arg - 1) : -arg*arg;
+    //const auto newRew = arg>1 ? -std::sqrt(2*arg*arg - 1) : -arg*arg;
     //const long double arg = 1 - computeLogP(stats);
     //const long double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);
     //const long double newRew = logPdenom - logarg; // computeLogP(stats);
     //printf("Rt : %e, %e - %Le\n", newRew, logPdenom, dev);
-    reward = (1-alpha) * reward + alpha * 1 * newRew;
+    const auto minusLogP = computeLogArg(stats);
+    assert(minusLogP >= 0);
+    reward = (1-alpha) * reward + alpha * (std::sqrt(2*minusLogP) - minusLogP);
   }
 
   void updateReward2(const HITstatistics& stats, const Real alpha, Real& reward)

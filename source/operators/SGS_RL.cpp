@@ -424,36 +424,24 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                                 sim.grid->getResidentBlocksPerDimension(1),
                                 sim.grid->getResidentBlocksPerDimension(0) );
 
-  #if 1 // non-dimensionalize wrt flow quantities
-    const Real inpEn = sim.actualInjectionRate, nu = sim.nu;
-    const Real scaleVel = 1 / std::sqrt(stats.tke); // [T/L]
-    const Real scaleGrad = stats.tke / sim.actualInjectionRate; // [T]
-    const Real scaleLap = scaleGrad * stats.getKolmogorovL(); // [TL]
+  const Real inpEn = sim.actualInjectionRate, nu = sim.nu;
+  const Real uEps = stats.getKolmogorovU(inpEn, nu);
+  const Real lEps = stats.getKolmogorovL(inpEn, nu);
+  const Real tEps = stats.getKolmogorovT(inpEn, nu);
+  const Real scaleVel = 1 / std::sqrt(stats.tke); // [T/L]
+  const Real scaleGrad = stats.tke / inpEn; // [T]
+  const Real scaleLap = scaleGrad * lEps; // [TL]
 
-    // one element per block is a proper agent: will add seq to train data
-    // other are nThreads and are only there for thread safety
-    // states get overwritten
-    const Real h_nonDim = sim.uniformH() / stats.getKolmogorovL();
-    const Real dt_nonDim = dt / stats.getKolmogorovT();
-    const Real tke_nonDim = stats.tke/std::sqrt(inpEn * nu);
-    const Real visc_nonDim = stats.dissip_visc / inpEn;
-    const Real dissi_nonDim = stats.dissip_tot / inpEn;
-    const Real lenInt_nonDim = stats.lambda / stats.l_integral;
-    const Real deltaEn_nonDim = (stats.tke-target.tKinEn) / std::sqrt(inpEn*nu);
-  #else // non-dimensionalize wrt *target* flow quantities
-    const Real inpEn = sim.actualInjectionRate, nu = sim.nu;
-    const Real eta = stats.getKolmogorovL(inpEn, nu);
-    const Real scaleVel = 1 / std::sqrt(target.tKinEn); // [T/L]
-    const Real scaleGrad = target.tKinEn / inpEn; // [T]
-    const Real scaleLap = scaleGrad * eta; // [TL]
-    const Real h_nonDim = sim.uniformH() / eta;
-    const Real dt_nonDim = dt / stats.getKolmogorovT(inpEn, nu);
-    const Real tke_nonDim = stats.tke / std::sqrt(inpEn * nu);
-    const Real visc_nonDim = stats.dissip_visc / sim.actualInjectionRate;
-    const Real dissi_nonDim = stats.dissip_tot / sim.actualInjectionRate;
-    const Real lenInt_nonDim = stats.l_integral / target.lInteg;
-    const Real deltaEn_nonDim = stats.tke / target.tKinEn;
-  #endif
+  // one element per block is a proper agent: will add seq to train data
+  // other are nThreads and are only there for thread safety
+  // states get overwritten
+  const Real h_nonDim = sim.uniformH() / lEps, dt_nonDim = dt / tEps;
+  const Real tke_nonDim = stats.tke / uEps / uEps;
+  const Real visc_nonDim = stats.dissip_visc / inpEn;
+  const Real dissi_nonDim = stats.dissip_tot / inpEn;
+  const Real lenInt_nonDim = stats.lambda / stats.l_integral;
+  //const Real deltaEn_nonDim = (stats.tke-target.tKinEn) / std::sqrt(inpEn*nu);
+  const Real deltaEn_nonDim = stats.E_msr[stats.nBin - 1] / uEps / uEps;
 
   const auto getState = [&] (const std::array<Real,9> & locS) {
     return std::vector<double> {

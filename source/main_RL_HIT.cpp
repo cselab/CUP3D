@@ -23,7 +23,7 @@
 #include <sstream>
 
 using Real = cubismup3d::Real;
-static constexpr Real rew_baseline = - 36.0;
+static constexpr Real rew_baseline = - 1000.0;
 
 inline bool isTerminal(cubismup3d::SimulationData& sim)
 {
@@ -180,8 +180,7 @@ inline void app_main(
 
     int step = 0;
     bool policyFailed = false;
-    double avgReward1 = 0, avgReward2 = 0;
-    double oldReward1 = 0, oldReward2 = 0;
+    double avgReward1 = 0, avgReward2 = 0, oldReward = 0;
     // policy evaluation stats (log likelihood of spectrum):
     long double avgP = 0, m2P = 0; size_t nP = 0;
     sim.sim.sgs = "RLSM";
@@ -199,8 +198,9 @@ inline void app_main(
         target.updateAvgLogLikelihood(stats, nP, avgP, m2P, sim.sim.cs2_avg);
         // printf("%lu %d\n", nP, step); fflush(0);
       }
-      const double r_t = avgReward1 + avgReward2 - (oldReward1 + oldReward2);
-      oldReward1 = avgReward1; oldReward2 = avgReward2;
+      const auto dRew = avgReward1 + avgReward2 - oldReward;
+      const double r_t = dRew > 0 ? dRew/2 : dRew;
+      oldReward = avgReward1 + avgReward2;
 
       //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
       //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);

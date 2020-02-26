@@ -215,12 +215,13 @@ struct Upwind3rd
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix-1,iy,iz), um2 = inp<step,dir>(L,ix-2,iy,iz);
     const Real up1 = inp<step,dir>(L,ix+1,iy,iz), up2 = inp<step,dir>(L,ix+2,iy,iz);
-    #if 0
+    #if 1
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
       const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[0]*invU, (Real)-1));
       const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
       assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1 && std::fabs(UP+UM-std::fabs(U))<EPS);
-      return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
+      //return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
+      return UP*UP * ddxM + UM*UM * ddxP + (1 - U*U) * 3 * ddxC;
     #else
       return uAbs[0]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
     #endif
@@ -229,12 +230,13 @@ struct Upwind3rd
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix,iy-1,iz), um2 = inp<step,dir>(L,ix,iy-2,iz);
     const Real up1 = inp<step,dir>(L,ix,iy+1,iz), up2 = inp<step,dir>(L,ix,iy+2,iz);
-    #if 0
+    #if 1
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
       const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[1]*invU, (Real)-1));
       const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
       assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1 && std::fabs(UP+UM-std::fabs(U))<EPS);
-      return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
+      //return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
+      return UP*UP * ddxM + UM*UM * ddxP + (1 - U*U) * 3 * ddxC;
     #else
       return uAbs[1]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
     #endif
@@ -243,12 +245,13 @@ struct Upwind3rd
     const Real ucc = inp<step,dir>(L,ix,iy,iz);
     const Real um1 = inp<step,dir>(L,ix,iy,iz-1), um2 = inp<step,dir>(L,ix,iy,iz-2);
     const Real up1 = inp<step,dir>(L,ix,iy,iz+1), up2 = inp<step,dir>(L,ix,iy,iz+2);
-    #if 0
+    #if 1
       const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
       const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[2]*invU, (Real)-1));
       const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
       assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1 && std::fabs(UP+UM-std::fabs(U))<EPS);
-      return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
+      //return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
+      return UP*UP * ddxM + UM*UM * ddxP + (1 - U*U) * 3 * ddxC;
     #else
       return uAbs[2]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
     #endif
@@ -370,14 +373,15 @@ struct CentralStretched
 template<> inline Real CentralStretched::advectionCoef<Euler>(const Real dt, const Real h) const {
   return -dt;
 }
+template<> inline Real CentralStretched::diffusionCoef<Euler>(const Real dt, const Real h, const Real mu) const {
+  return dt * mu;
+}
+/* // unused
 template<> inline Real CentralStretched::advectionCoef<RK1>(const Real dt, const Real h) const {
   return -dt / 2;
 }
 template<> inline Real CentralStretched::advectionCoef<RK2>(const Real dt, const Real h) const {
   return -dt;
-}
-template<> inline Real CentralStretched::diffusionCoef<Euler>(const Real dt, const Real h, const Real mu) const {
-  return dt * mu;
 }
 template<> inline Real CentralStretched::diffusionCoef<RK1>(const Real dt, const Real h, const Real mu) const {
   return dt * mu / 2;
@@ -385,6 +389,7 @@ template<> inline Real CentralStretched::diffusionCoef<RK1>(const Real dt, const
 template<> inline Real CentralStretched::diffusionCoef<RK2>(const Real dt, const Real h, const Real mu) const {
   return dt * mu;
 }
+*/
 
 struct UpdateAndCorrectInflow
 {

@@ -32,9 +32,9 @@ SpectralAnalysis::SpectralAnalysis(SimulationData & s)
   s.spectralManip->prepareBwd();
   sM = s.spectralManip;
 
-  target = new HITtargetData(sM->maxGridN, "");
-  target->smartiesFolderStructure = false;
-  target->readAll("target");
+  //target = new HITtargetData(sM->maxGridN, "");
+  //target->smartiesFolderStructure = false;
+  //target->readAll("target");
 }
 
 void SpectralAnalysis::_cub2fftw()

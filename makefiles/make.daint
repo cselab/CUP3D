@@ -7,7 +7,7 @@ accfft?=true
 ifeq "$(compiler)" "intel"
 #CPPFLAGS += -dynamic
 else
-CPPFLAGS += -static
+#CPPFLAGS += -static
 endif
 
 ifeq "$(hypre)" "true"
