@@ -125,12 +125,12 @@ void SpectralAnalysis::dump2File() const
     sM->sim.time,         sM->sim.dt,             sM->maxGridL,
     sM->stats.tke,        sM->stats.tke_filtered, sM->stats.dissip_visc,
     sM->stats.dissip_tot, sM->stats.l_integral,   sM->stats.tau_integral,
-    sM->sim.nu_sgs, sM->sim.cs2_avg, sM->sim.grad_mean, sM->sim.grad_std
+    sM->sim.nuSgsMean, sM->sim.cs2mean, sM->sim.grad_mean, sM->sim.grad_std
   };
-  buf.reserve(buf.size() + sM->stats.nBin);
-  for (int i = 0; i < sM->stats.nBin; ++i) buf.push_back(sM->stats.E_msr[i]);
 
-  {
+  if(sM->sim.rank==0 and not sM->sim.muteAll) {
+    buf.reserve(buf.size() + sM->stats.nBin);
+    for (int i = 0; i < sM->stats.nBin; ++i) buf.push_back(sM->stats.E_msr[i]);
     FILE * pFile = fopen ("spectralAnalysis.raw", "ab");
     fwrite (buf.data(), sizeof(double), buf.size(), pFile);
     fflush(pFile); fclose(pFile);

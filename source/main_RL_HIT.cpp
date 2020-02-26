@@ -168,14 +168,15 @@ inline void app_main(
       sim.sim.rampup = 2;
       bool ICsuccess = true;
       for (int prelim_step = 0; prelim_step < 2; ++prelim_step) {
-        sim.sim.sgs = "SSM";
-        sim.sim.nextAnalysisTime = 0;
+        sim.sim.sgs = "SSM"; sim.sim.nextAnalysisTime = 100;
         sim.timestep( sim.calcMaxTimestep() );
         if ( isTerminal( sim.sim ) ) { ICsuccess = false; break; }
       }
       if( ICsuccess ) break;
       printf("failed, try new IC\n");
     }
+    if( not comm->isTraining() ) sim.sim.saveTime = 10 * tau_eta;
+
     profiler.pop_stop();
 
     int step = 0;
@@ -195,7 +196,8 @@ inline void app_main(
       // Sum of rewards should not have to change when i change action freq
       // or num of integral time steps for sim. 40 is the reference value:
       if(not comm->isTraining()) {
-        target.updateAvgLogLikelihood(stats, nP, avgP, m2P, sim.sim.cs2_avg);
+        sim.sim.nextAnalysisTime = (step+1) * timeUpdateLES;
+        target.updateAvgLogLikelihood(stats, nP, avgP, m2P, sim.sim.cs2mean);
         // printf("%lu %d\n", nP, step); fflush(0);
       }
       const auto dRew = avgReward1 + avgReward2 - oldReward;
@@ -212,8 +214,6 @@ inline void app_main(
       profiler.push_start("sim");
       while ( sim.sim.time < (step+1) * timeUpdateLES )
       {
-        // new ver: always analyze for updateReward to make sense
-        sim.sim.nextAnalysisTime = sim.sim.time;
         const double dt = sim.calcMaxTimestep();
         if ( sim.timestep( dt ) ) { // if true sim has ended
           printf("Set -tend 0. This file decides the length of train sim.\n");
@@ -225,10 +225,7 @@ inline void app_main(
         target.updateReward2(stats, wUpdate, avgReward2);
         //printf("r:%e %e %e\n", avgReward1, avgReward2, wUpdate);
         //  target.logPdenom - target.computeLogP(stats)); fflush(0);
-        const bool spectrumFail = (avgReward2 + avgReward1) < rew_baseline;
-        if (isTerminal(sim.sim) or (spectrumFail and comm->isTraining())) {
-           policyFailed = true; break;
-        }
+        if (isTerminal(sim.sim)) { policyFailed = true; break; }
       }
       profiler.pop_stop();
 
@@ -240,10 +237,8 @@ inline void app_main(
         // penal is -0.5 max_reward * (n of missing steps to finish the episode)
         // WARNING: not consistent with L2 norm reward
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
-        //const double R_T = (step - maxNumUpdatesPerSim) / 2;
-        const double R_T = - 100.0;
-        printf("policy failed after %d steps with term reward %f\n", step, R_T);
-        for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, R_T, i);
+        printf("policy failed after %d steps\n", step);
+        for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, - 100.0, i);
         profiler.printSummary();
         profiler.reset();
         break;
@@ -252,6 +247,7 @@ inline void app_main(
 
     if(not comm->isTraining()) { //  || wrank == 1
       chdir("../"); // matches previous if
+      abort();
     }
 
     sim_id++;

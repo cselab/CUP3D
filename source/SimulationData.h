@@ -120,8 +120,8 @@ struct SimulationData
   double cs = 0.0;
   int nAgentsPerBlock = 1;
   bool sgs_rl = false;
-  double cs2_avg = 0.0; // computed by SGS, for post processing
-  double nu_sgs=0; // computed by SGS, for post processing
+  // computed by SGS, for post processing:
+  double cs2mean = 0, cs2stdev = 0, nuSgsMean = 0, nuSgsStdev = 0;
   bool bComputeCs2Spectrum = false;
 
   // analysis

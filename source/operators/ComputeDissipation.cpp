@@ -158,8 +158,7 @@ void ComputeDissipation::operator()(const double dt)
 
   MPI_Allreduce(MPI_IN_PLACE, RDX, 20,MPI_DOUBLE, MPI_SUM,grid->getCartComm());
 
-  if(sim.rank==0)
-  {
+  if(sim.rank==0 and not sim.muteAll) {
     std::stringstream &fileDissip = logger.get_stream("diagnostics.dat");
     if(sim.step==0)
      fileDissip<<"step_id time circ_x circ_y circ_y linImp_x linImp_y linImp_z "

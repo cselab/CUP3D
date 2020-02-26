@@ -384,14 +384,46 @@ class KernelSGS_gradNu
 
 class KernelSGS_apply
 {
- private:
   const Real dt;
   SGSGridMPI * const sgsGrid;
 
- public:
-  Real nu_sgs = 0.0, cs2_avg = 0.0;
-
+public:
   KernelSGS_apply(Real _dt, SGSGridMPI*const _sgs) : dt(_dt), sgsGrid(_sgs) {}
+
+  void operator()(const BlockInfo& info, FluidBlock& o) const
+  {
+    const SGSBlock& t = * getSGSBlockPtr(sgsGrid, info.blockID);
+    for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
+    for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
+    for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
+      o(ix,iy,iz).u += dt * t(ix,iy,iz).duD;
+      o(ix,iy,iz).v += dt * t(ix,iy,iz).dvD;
+      o(ix,iy,iz).w += dt * t(ix,iy,iz).dwD;
+    }
+  }
+};
+
+class KernelSGS_applyAndAnalyze
+{
+  const Real dt;
+  SGSGridMPI * const sgsGrid;
+
+  int CStoBinID(const Real CS2) const
+  {
+    const int signedID = (CS2 - minCS2) * nBins / (maxCS2 - minCS2);
+    //printf("%d %e\n", signedID, CS2);
+    return std::max((int) 0, std::min(signedID, nBins-1));
+  }
+
+public:
+
+  static constexpr Real maxCS2 = 0.09;
+  static constexpr Real minCS2 = 0;
+  static constexpr int nBins = 90;
+  Real cs2_sum = 0.0, cs2_sum2 = 0.0, nuSGS_sum = 0.0, nuSGS_sum2 = 0.0;
+  int histogramCS2[nBins] = {0};
+
+  KernelSGS_applyAndAnalyze(Real _dt, SGSGridMPI*const _sgs) : dt(_dt), sgsGrid(_sgs) {}
 
   void operator()(const BlockInfo& info, FluidBlock& o)
   {
@@ -403,8 +435,13 @@ class KernelSGS_apply
       o(ix,iy,iz).v += dt * t(ix,iy,iz).dvD;
       o(ix,iy,iz).w += dt * t(ix,iy,iz).dwD;
 
-      nu_sgs += t(ix,iy,iz).nu;
-      cs2_avg += o(ix,iy,iz).chi;
+      cs2_sum += o(ix,iy,iz).chi;
+      cs2_sum2 += o(ix,iy,iz).chi * o(ix,iy,iz).chi;
+      nuSGS_sum += t(ix,iy,iz).nu;
+      nuSGS_sum2 += t(ix,iy,iz).nu * t(ix,iy,iz).nu;
+      const int indCS = CStoBinID(o(ix,iy,iz).chi);
+      ++histogramCS2[indCS];
+      //printf("%d %d %e\n", indCS, histogramCS2[indCS], o(ix,iy,iz).chi);
     }
   }
 };
@@ -449,25 +486,53 @@ void SGS::operator()(const double dt)
   const K_t K(sgsGrid);
   compute<K_t>(K);
 
-  Real reduction[2] = {(Real) 0, (Real) 0};
-  #pragma omp parallel reduction(+ : reduction[:2])
+  if (sim.timeAnalysis>0 && (sim.time+dt) >= sim.nextAnalysisTime)
   {
-    KernelSGS_apply kernel(dt, sgsGrid);
-    #pragma omp for schedule(static)
-    for (size_t i=0; i<vInfo.size(); i++)
-      kernel(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
+    static constexpr int nBins = KernelSGS_applyAndAnalyze::nBins;
+    int histogram[nBins] = {0};
+    double reduction[4] = {(Real) 0, (Real) 0, (Real) 0, (Real) 0};
+    #pragma omp parallel reduction(+ : reduction[:4], histogram[:nBins])
+    {
+      KernelSGS_applyAndAnalyze kernel(dt, sgsGrid);
+      #pragma omp for schedule(static)
+      for (size_t i=0; i<vInfo.size(); i++)
+        kernel(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
 
-    reduction[0] += kernel.cs2_avg;
-    reduction[1] += kernel.nu_sgs;
+      reduction[0] += kernel.cs2_sum;
+      reduction[1] += kernel.cs2_sum2;
+      reduction[2] += kernel.nuSGS_sum;
+      reduction[3] += kernel.nuSGS_sum2;
+      for (int i=0; i<nBins; ++i) histogram[i] += kernel.histogramCS2[i];
+    }
+    MPI_Allreduce(MPI_IN_PLACE, reduction, 4, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+    MPI_Allreduce(MPI_IN_PLACE, histogram, nBins, MPI_INT, MPI_SUM, sim.app_comm);
+    const size_t normalize =  FluidBlock::sizeX * (size_t) sim.bpdx
+                            * FluidBlock::sizeY * (size_t) sim.bpdy
+                            * FluidBlock::sizeZ * (size_t) sim.bpdz;
+    const Real meanCS2 = reduction[0] / normalize;
+    const Real meanNUS = reduction[2] / normalize;
+    const Real varCS2 = reduction[1] / normalize - meanCS2 * meanCS2;
+    const Real varNUS = reduction[3] / normalize - meanNUS * meanNUS;
+    sim.cs2mean   = meanCS2; sim.cs2stdev   = std::sqrt(varCS2);
+    sim.nuSgsMean = meanNUS; sim.nuSgsStdev = std::sqrt(varNUS);
+    if(sim.rank==0 and not sim.muteAll) {
+      std::vector<double> buf{meanCS2, meanNUS, varCS2, varNUS};
+      buf.reserve(buf.size() + nBins);
+      //for (int i=0; i<nBins; ++i) printf("%d\n", histogram[i]);
+      for (int i = 0; i < nBins; ++i)
+          buf.push_back(histogram[i] / (double) normalize);
+      FILE * pFile = fopen ("sgsAnalysis.raw", "ab");
+      fwrite (buf.data(), sizeof(double), buf.size(), pFile);
+      fflush(pFile); fclose(pFile);
+    }
   }
-
-  const size_t normalize = FluidBlock::sizeX*sim.bpdx
-                      * FluidBlock::sizeY*sim.bpdy * FluidBlock::sizeZ*sim.bpdz;
-  reduction[0] = reduction[0] / normalize;
-  reduction[1] = reduction[1] / normalize;
-  MPI_Allreduce(MPI_IN_PLACE, reduction, 2, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  sim.cs2_avg = reduction[0];
-  sim.nu_sgs = reduction[1];
+  else
+  {
+    const KernelSGS_apply kernel(dt, sgsGrid);
+    #pragma omp parallel for schedule(static)
+    for (size_t i=0; i<vInfo.size(); i++)
+        kernel(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
+  }
 
   sim.stopProfiler();
 
