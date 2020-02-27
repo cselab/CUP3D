@@ -416,7 +416,7 @@ double Simulation::calcMaxTimestep()
   sim.dt = CFL * std::min(dtDif, dtAdv);
   if ( sim.step < sim.rampup )
   {
-    const double x = (sim.step+1.0)/sim.rampup;
+    const double x = sim.step / (double) sim.rampup;
     const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(CFL)*x);
     sim.dt = rampCFL * std::min(dtDif, dtAdv);
   }

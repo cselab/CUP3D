@@ -170,6 +170,7 @@ inline void app_main(
       for (int prelim_step = 0; prelim_step < 2; ++prelim_step) {
         sim.sim.sgs = "SSM"; sim.sim.nextAnalysisTime = 100;
         sim.timestep( sim.calcMaxTimestep() );
+        //printf("LL %Le\n", target.computeLogArg(stats));
         if ( isTerminal( sim.sim ) ) { ICsuccess = false; break; }
       }
       if( ICsuccess ) break;
@@ -181,7 +182,7 @@ inline void app_main(
 
     int step = 0;
     bool policyFailed = false;
-    double avgReward1 = 0, avgReward2 = 0, oldReward = 0;
+    double avgReward1 = 0, avgReward2 = 1, oldReward = 0, oldTime = 0;
     // policy evaluation stats (log likelihood of spectrum):
     long double avgP = 0, m2P = 0; size_t nP = 0;
     sim.sim.sgs = "RLSM";
@@ -193,20 +194,25 @@ inline void app_main(
       const bool timeOut = step >= maxNumUpdatesPerSim;
       // even if timeOut call updateLES to send all the states of last step
       profiler.push_start("rl");
-      // Sum of rewards should not have to change when i change action freq
-      // or num of integral time steps for sim. 40 is the reference value:
+
       if(not comm->isTraining()) {
         sim.sim.nextAnalysisTime = (step+1) * timeUpdateLES;
         target.updateAvgLogLikelihood(stats, nP, avgP, m2P, sim.sim.cs2mean);
         // printf("%lu %d\n", nP, step); fflush(0);
       }
-      const auto dRew = avgReward1 + avgReward2 - oldReward;
-      const double r_t = dRew > 0 ? dRew/2 : dRew;
-      oldReward = avgReward1 + avgReward2;
+      {
+        const double dt_t = std::max(sim.sim.time - oldTime, (double) 1e-7);
+        const double timeFac = 50 * dt_t / tau_eta;
+        const double dRew = (avgReward1 - oldReward) / timeFac;
+        const double r_t = (dRew>0? dRew/2 : dRew) + avgReward2;
+        //printf("r:%e %e %e\n", dRew>0? dRew/2 : dRew, avgReward2, avgReward1);
+        oldReward = avgReward1; oldTime = sim.sim.time;
+        //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
+        //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
+        const bool bInit = step == 0; const double dt = sim.sim.dt;
+        updateLES.run(dt, bInit, timeOut, stats, target, r_t, bGridAgents);
+      }
 
-      //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
-      //  stats.dissip_tot, stats.lambda, stats.l_integral); fflush(0);
-      updateLES.run(sim.sim.dt, step==0, timeOut, stats, target, r_t, bGridAgents);
       profiler.pop_stop();
 
       if(timeOut) { profiler.printSummary(); profiler.reset(); break; }
@@ -219,12 +225,10 @@ inline void app_main(
           printf("Set -tend 0. This file decides the length of train sim.\n");
           assert(false); fflush(0); MPI_Abort(mpicom, 1);
         }
-        // Average reward over integral time:
+        // Average reward over actuation time:
         const Real wUpdate = std::min((Real) 1, dt / timeUpdateLES);
         target.updateReward (stats, wUpdate, avgReward1);
         target.updateReward2(stats, wUpdate, avgReward2);
-        //printf("r:%e %e %e\n", avgReward1, avgReward2, wUpdate);
-        //  target.logPdenom - target.computeLogP(stats)); fflush(0);
         if (isTerminal(sim.sim)) { policyFailed = true; break; }
       }
       profiler.pop_stop();
@@ -233,9 +237,7 @@ inline void app_main(
       tot_steps++;
 
       if ( policyFailed ) {
-        // Agent gets penalized if the simulations blows up. For KDE reward,
-        // penal is -0.5 max_reward * (n of missing steps to finish the episode)
-        // WARNING: not consistent with L2 norm reward
+        // Agent gets penalized if the simulations blows up:
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
         printf("policy failed after %d steps\n", step);
         for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, - 100.0, i);

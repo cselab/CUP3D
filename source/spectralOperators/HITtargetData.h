@@ -216,7 +216,7 @@ struct HITtargetData
     // normalize with expectation of L2 squared norm of N(0,I) distrib vector:
     // E[X^2] = sum E[x^2] = sum Var[x] = trace I = nBin
     assert(dev >= 0);
-    return dev;
+    return std::max(dev, std::numeric_limits<long double>::epsilon());
   }
 
   long double computeSumExp(const HITstatistics& stats)
@@ -233,7 +233,7 @@ struct HITtargetData
       ret -= arg>1 ? std::sqrt(2*arg - 1) : arg;
     }
     //printf("got dE Cov dE = %Le\n", ret / stats.nBin);
-    assert(ret >= 0);
+    assert(ret <= 0);
     return ret / stats.nBin;
   }
 
@@ -260,13 +260,15 @@ struct HITtargetData
     //const long double newRew = logPdenom - logarg; // computeLogP(stats);
     //printf("Rt : %e, %e - %Le\n", newRew, logPdenom, dev);
     const auto minusLogP = computeLogArg(stats);
-    assert(minusLogP >= 0);
-    reward = (1-alpha) * reward + alpha * (std::sqrt(2*minusLogP) - minusLogP);
+    assert(minusLogP > 0);
+    reward = (1-alpha) * reward + alpha * (-std::sqrt(2*minusLogP) - minusLogP);
   }
 
   void updateReward2(const HITstatistics& stats, const Real alpha, Real& reward)
   {
-    reward = (1-alpha) * reward + alpha * 0; //computeSumExp(stats);
+    const auto arg = computeLogArg(stats);
+    const auto newRew = arg>2 ? std::exp(-2.0)/(arg-1) : std::exp(-arg);
+    reward = (1-alpha) * reward + alpha * newRew; //computeSumExp(stats);
   }
 
   void updateAvgLogLikelihood(
