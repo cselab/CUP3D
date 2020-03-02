@@ -267,7 +267,8 @@ struct HITtargetData
   void updateReward2(const HITstatistics& stats, const Real alpha, Real& reward)
   {
     const auto arg = computeLogArg(stats);
-    const auto newRew = arg>2 ? std::exp(-2.0)/(arg-1) : std::exp(-arg);
+    //const auto newRew = arg>2 ? std::exp(-2.0)/(arg-1) : std::exp(-arg);
+    const auto newRew = arg>1 ? std::exp(-0.5)/(arg + 0.5) : std::exp(-arg);
     reward = (1-alpha) * reward + alpha * newRew; //computeSumExp(stats);
   }
 

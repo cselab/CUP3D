@@ -16,6 +16,8 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+static constexpr int agentLocInBlock = CUP_BLOCK_SIZE/2;
+
 struct ActionInterpolator
 {
   const int NX, NY, NZ;
@@ -114,247 +116,115 @@ inline Real traceOfSymProd(const std::array<Real,6> & mat1,
      + 2*mat1[1]*mat2[1] + 2*mat1[2]*mat2[2]  + 2*mat1[4]*mat2[4];
 }
 
-// In principle, SGS closure (a prescription for C_s) can be derived from properties
-// of the resolved flow. C_s should be independant of the chosen filter scale h as
-// long as h is in the inertial range of the turbulent flow. If you consider two
-// filters with width H > h, then the residual-stress tensor
-//        \tau(H) = Filter_H(\tau(h)) + L(h, H)                                           (1)
-// where the Leonard tensor L(h, H) is the residual-stress tensor associated to the
-// velocity fluctiation in the intermediate range of scales h < ... < H.
-//        L_ij(h, H) = Filter_H( u_i(h) u_j(h)) - Filter_H( u_i(h) ) Filter_H( u_j(h) )   (2)
-// In LES, (2) can evalated using the resolved flow only whereas \tau(H) and \tau(h)
-// are obtained from a SGS closure. A good SGS closure should satisfy the Germano identity (1)
-// for any test filter H, if h and H are in the intertial range.
-inline Real facFilter(const int i, const int j, const int k)
-{
-  if (std::abs(i) + std::abs(j) + std::abs(k) == 3)         // Corner cells
-    return 1.0/64;
-  else if (std::abs(i) + std::abs(j) + std::abs(k) == 2)    // Side-Corner cells
-    return 2.0/64;
-  else if (std::abs(i) + std::abs(j) + std::abs(k) == 1)    // Side cells
-    return 4.0/64;
-  else if (std::abs(i) + std::abs(j) + std::abs(k) == 0)    // Center cells
-    return 8.0/64;
-  else return 0;
-}
-
-// FilteredQuantities is a container that will be used to evaluate (1) with a
-// linear test filter with H = 2 * h (people rather use Gaussian filters).
-struct FilteredQuantities
-{
-  // Filter_H( u_i(h) ) : filtered velocity components.
-  Real u  = 0.0, v  = 0.0, w  = 0.0;
-  // Filter_H( u_i(h) u_j(h) ) : product of velocity components filtered.
-  Real uu = 0.0, uv = 0.0, uw = 0.0;
-  Real vv = 0.0, vw = 0.0, ww = 0.0;
-  // Filtered_H( S_ij(h) ) : used to compute \tau(H).
-  Real S_xx = 0.0, S_xy = 0.0, S_xz = 0.0;
-  Real S_yy = 0.0, S_yz = 0.0, S_zz = 0.0;
-  // Filter_H ( tau(h) ).
-  Real tau_xx = 0.0, tau_xy = 0.0, tau_xz = 0.0;
-  Real tau_yy = 0.0, tau_yz = 0.0, tau_zz = 0.0;
-
-  FilteredQuantities(Lab& lab, const int ix, const int iy, const int iz, const Real h)
-  {
-    for (int k=-1; k<2; ++k)
-    for (int j=-1; j<2; ++j)
-    for (int i=-1; i<2; ++i)
-    {
-      const Real f = facFilter(i,j,k);
-      const auto & L = lab(ix+i, iy+j, iz+k);
-      u  += f * L.u;     v  += f * L.v;     w  += f * L.w;
-      uu += f * L.u*L.u; uv += f * L.u*L.v; uw += f * L.u*L.w;
-      vv += f * L.v*L.v; vw += f * L.v*L.w; ww += f * L.w*L.w;
-      const auto & LW=lab(ix+i-1, iy+j, iz+k), & LE=lab(ix+i+1, iy+j, iz+k);
-      const auto & LS=lab(ix+i, iy+j-1, iz+k), & LN=lab(ix+i, iy+j+1, iz+k);
-      const auto & LF=lab(ix+i, iy+j, iz+k-1), & LB=lab(ix+i, iy+k, iz+k+1);
-      const Real dudx = LE.u-LW.u, dvdx = LE.v-LW.v, dwdx = LE.w-LW.w;
-      const Real dudy = LN.u-LS.u, dvdy = LN.v-LS.v, dwdy = LN.w-LS.w;
-      const Real dudz = LB.u-LF.u, dvdz = LB.v-LF.v, dwdz = LB.w-LF.w;
-      S_xx += f * (dudx)        / (2*h);
-      S_xy += f * (dudy + dvdx) / (4*h);
-      S_xz += f * (dudz + dwdx) / (4*h);
-      S_yy += f * (dvdy)        / (2*h);
-      S_yz += f * (dvdz + dwdy) / (4*h);
-      S_zz += f * (dwdz)        / (2*h);
-      const Real shear = std::sqrt( 2 * (dudx*dudx) +
-                                    2 * (dvdy*dvdy) +
-                                    2 * (dwdz*dwdz) +
-                                    pow2(dudy+dvdx) +
-                                    pow2(dudz+dwdx) +
-                                    pow2(dwdy+dvdz) ) / (2*h);
-      tau_xx -= f * 2 * L.chi * shear * h*h * (dudx)        / (2*h);
-      tau_xy -= f * 2 * L.chi * shear * h*h * (dudy + dvdx) / (4*h);
-      tau_xz -= f * 2 * L.chi * shear * h*h * (dudz + dwdx) / (4*h);
-      tau_yy -= f * 2 * L.chi * shear * h*h * (dvdy)        / (2*h);
-      tau_yz -= f * 2 * L.chi * shear * h*h * (dwdy + dvdz) / (4*h);
-      tau_zz -= f * 2 * L.chi * shear * h*h * (dwdz)        / (2*h);
-    }
-    // Remove trace of Filter_H( \tau(h) )
-    // NOTE: By construction, it should already be trace free.
-    const Real tau_trace = (tau_xx + tau_yy + tau_zz)/3;
-    tau_xx -= tau_trace;
-    tau_yy -= tau_trace;
-    tau_zz -= tau_trace;
-  }
-};
-
-// Returns the tensor components of [(2) - L_ij]. A perfect closure model would
-// return only zeros for any test filter H.
-inline std::vector<Real> germanoIdentity(Lab& lab, const Real h,
-                                  const int ix, const int iy, const int iz)
-{
-  const Real H = 2*h;
-  FilteredQuantities filter_H(lab, ix,iy,iz, h);
-  const FluidElement & L = lab(ix, iy, iz);
-  const Real shear_H = std::sqrt( 2 * pow2(filter_H.S_xx) +
-                                  2 * pow2(filter_H.S_yy) +
-                                  2 * pow2(filter_H.S_zz) +
-                                  4 * pow2(filter_H.S_xy) +
-                                  4 * pow2(filter_H.S_yz) +
-                                  4 * pow2(filter_H.S_xz) );
-  const Real L_trace = ( filter_H.uu + filter_H.vv + filter_H.ww
-                        - filter_H.u*filter_H.u
-                        - filter_H.v*filter_H.v
-                        - filter_H.w*filter_H.w ) / 3;
-  // Leonard tensor:
-  const Real L_xx = filter_H.uu - filter_H.u * filter_H.u - L_trace;
-  const Real L_xy = filter_H.uv - filter_H.u * filter_H.v;
-  const Real L_xz = filter_H.uw - filter_H.u * filter_H.w;
-  const Real L_yy = filter_H.vv - filter_H.v * filter_H.v - L_trace;
-  const Real L_yz = filter_H.vw - filter_H.v * filter_H.w;
-  const Real L_zz = filter_H.ww - filter_H.w * filter_H.w - L_trace;
-  const Real tau_factor = - 2 * L.chi * (H*H) * shear_H;
-  const Real tau_H_trace = (filter_H.S_xx + filter_H.S_yy + filter_H.S_zz)/3;
-  // Residual-stress tensor for filter H : \tau(H) (remove trace)
-  const Real tau_H_xx = tau_factor * ( filter_H.S_xx  - tau_H_trace );
-  const Real tau_H_xy = tau_factor * ( filter_H.S_xy );
-  const Real tau_H_xz = tau_factor * ( filter_H.S_xz );
-  const Real tau_H_yy = tau_factor * ( filter_H.S_yy  - tau_H_trace );
-  const Real tau_H_yz = tau_factor * ( filter_H.S_yz );
-  const Real tau_H_zz = tau_factor * ( filter_H.S_zz  - tau_H_trace );
-  return {     ( L_xx - tau_H_xx + filter_H.tau_xx ),
-           2 * ( L_xy - tau_H_xy + filter_H.tau_xy ),
-           2 * ( L_xz - tau_H_xz + filter_H.tau_xz ),
-               ( L_yy - tau_H_yy + filter_H.tau_yy ),
-           2 * ( L_yz - tau_H_yz + filter_H.tau_yz ),
-               ( L_zz - tau_H_zz + filter_H.tau_zz ) };
-}
 
 using rlApi_t = std::function<Real(const std::array<Real, 9> &, const size_t,
                                    const size_t,const int,const int,const int)>;
 using locRewF_t = std::function<void(const size_t blockID, Lab & lab)>;
 
-class KernelSGS_RL
+inline Real sqrtDist(const Real val) {
+  return val>=0? std::sqrt(val) : -std::sqrt(-val);
+};
+inline Real cbrtDist(const Real val) {
+  return std::cbrt(val);
+};
+inline Real frthDist(const Real val) {
+  return val>=0? std::sqrt(std::sqrt(val)) : -std::sqrt(std::sqrt(-val));
+};
+
+inline std::array<Real,5> popeInvariants(
+  const Real d1udx1, const Real d1vdx1, const Real d1wdx1,
+  const Real d1udy1, const Real d1vdy1, const Real d1wdy1,
+  const Real d1udz1, const Real d1vdz1, const Real d1wdz1)
 {
- private:
+  const std::array<Real,6> S = { d1udx1, (d1vdx1 + d1udy1)/2,
+    (d1wdx1 + d1udz1)/2, d1vdy1, (d1wdy1 + d1vdz1)/2, d1wdz1 };
+  const std::array<Real,3> R = {
+    (d1vdx1 - d1udy1)/2, (d1wdx1 - d1udz1)/2, (d1wdy1 - d1vdz1)/2 };
+  const std::array<Real,6> S2  = symProd(S, S);
+  const std::array<Real,6> R2  = antiSymProd(R, R);
+  //const std::vector<Real> R2S = symProd(R2, S);
+  return { sqrtDist(S2[0] + S2[3] + S2[5]),   // Tr(S^2)
+           sqrtDist(R2[0] + R2[3] + R2[5]),   // Tr(R^2)
+           cbrtDist(traceOfSymProd(S2, S)),   // Tr(S^3)
+           cbrtDist(traceOfSymProd(R2, S)),   // Tr(R^2.S)
+           frthDist(traceOfSymProd(R2,S2)) }; // Tr(R^2.S^2)
+}
+
+inline std::array<Real,3> mainMatInvariants(
+  const Real xx, const Real xy, const Real xz,
+  const Real yx, const Real yy, const Real yz,
+  const Real zx, const Real zy, const Real zz)
+{
+  const Real I1 = xx + yy + zz; // Tr(Mat)
+  // ( Tr(Mat)^2 - Tr(Mat^2) ) / 2:
+  const Real I2 = xx*yy + yy*zz + xx*zz - xy*yx - yz*zy - xz*zx;
+  // Det(Mat):
+  const Real I3 = xy*yz*zx + xz*yx*zy + xx*yy*zz
+                - xz*yy*zx - xx*yz*zy - xy*yx*zz;
+  return {I1, sqrtDist(I2), cbrtDist(I3)};
+}
+
+template <typename Lab>
+inline std::array<Real, 9> getState_uniform(Lab& lab, const Real h,
+      const Real facVel, const Real facGrad, const Real facLap,
+      const int ix, const int iy, const int iz)
+{
+  const FluidElement &L  = lab(ix, iy, iz);
+  const FluidElement &LW = lab(ix - 1, iy, iz), &LE = lab(ix + 1, iy, iz);
+  const FluidElement &LS = lab(ix, iy - 1, iz), &LN = lab(ix, iy + 1, iz);
+  const FluidElement &LF = lab(ix, iy, iz - 1), &LB = lab(ix, iy, iz + 1);
+
+  const Real d1udx = facGrad*(LE.u-LW.u), d2udx = facLap*(LE.u+LW.u-L.u*2);
+  const Real d1vdx = facGrad*(LE.v-LW.v), d2vdx = facLap*(LE.v+LW.v-L.v*2);
+  const Real d1wdx = facGrad*(LE.w-LW.w), d2wdx = facLap*(LE.w+LW.w-L.w*2);
+  const Real d1udy = facGrad*(LN.u-LS.u), d2udy = facLap*(LN.u+LS.u-L.u*2);
+  const Real d1vdy = facGrad*(LN.v-LS.v), d2vdy = facLap*(LN.v+LS.v-L.v*2);
+  const Real d1wdy = facGrad*(LN.w-LS.w), d2wdy = facLap*(LN.w+LS.w-L.w*2);
+  const Real d1udz = facGrad*(LB.u-LF.u), d2udz = facLap*(LB.u+LF.u-L.u*2);
+  const Real d1vdz = facGrad*(LB.v-LF.v), d2vdz = facLap*(LB.v+LF.v-L.v*2);
+  const Real d1wdz = facGrad*(LB.w-LF.w), d2wdz = facLap*(LB.w+LF.w-L.w*2);
+  const Real S0 = facVel * std::sqrt(L.u*L.u + L.v*L.v + L.w*L.w);
+  const std::array<double,5> S1 = popeInvariants(d1udx, d1vdx, d1wdx,
+                                                 d1udy, d1vdy, d1wdy,
+                                                 d1udz, d1vdz, d1wdz);
+  const std::array<double,3> S2 = mainMatInvariants(d2udx, d2vdx, d2wdx,
+                                                    d2udy, d2vdy, d2wdy,
+                                                    d2udz, d2vdz, d2wdz);
+  return {S0, S1[0], S1[1], S1[2], S1[3], S1[4], S2[0], S2[1], S2[2]};
+}
+
+struct KernelSGS_RL
+{
   const rlApi_t & sendStateRecvAct;
-  const locRewF_t & computeNextLocalRew;
   ActionInterpolator & actInterp;
   const HITstatistics & stats;
   const Real scaleVel, scaleGrad, scaleLap;
 
-  Real sqrtDist(const Real val) const {
-    return val>=0? std::sqrt(val) : -std::sqrt(-val);
-  };
-  Real cbrtDist(const Real val) const {
-    return std::cbrt(val);
-  };
-  Real frthDist(const Real val) const {
-    return val>=0? std::sqrt(std::sqrt(val)) : -std::sqrt(std::sqrt(-val));
-  };
-
-  std::array<Real,5> popeInvariants(
-    const Real d1udx1, const Real d1vdx1, const Real d1wdx1,
-    const Real d1udy1, const Real d1vdy1, const Real d1wdy1,
-    const Real d1udz1, const Real d1vdz1, const Real d1wdz1) const
-  {
-    const std::array<Real,6> S = { d1udx1, (d1vdx1 + d1udy1)/2,
-      (d1wdx1 + d1udz1)/2, d1vdy1, (d1wdy1 + d1vdz1)/2, d1wdz1 };
-    const std::array<Real,3> R = {
-      (d1vdx1 - d1udy1)/2, (d1wdx1 - d1udz1)/2, (d1wdy1 - d1vdz1)/2 };
-    const std::array<Real,6> S2  = symProd(S, S);
-    const std::array<Real,6> R2  = antiSymProd(R, R);
-    //const std::vector<Real> R2S = symProd(R2, S);
-    return { sqrtDist(S2[0] + S2[3] + S2[5]),   // Tr(S^2)
-             sqrtDist(R2[0] + R2[3] + R2[5]),   // Tr(R^2)
-             cbrtDist(traceOfSymProd(S2, S)),   // Tr(S^3)
-             cbrtDist(traceOfSymProd(R2, S)),   // Tr(R^2.S)
-             frthDist(traceOfSymProd(R2,S2)) }; // Tr(R^2.S^2)
-  }
-
-  std::array<Real,3> mainMatInvariants(
-    const Real xx, const Real xy, const Real xz,
-    const Real yx, const Real yy, const Real yz,
-    const Real zx, const Real zy, const Real zz) const
-  {
-    const Real I1 = xx + yy + zz; // Tr(Mat)
-    // ( Tr(Mat)^2 - Tr(Mat^2) ) / 2:
-    const Real I2 = xx*yy + yy*zz + xx*zz - xy*yx - yz*zy - xz*zx;
-    // Det(Mat):
-    const Real I3 = xy*yz*zx + xz*yx*zy + xx*yy*zz
-                  - xz*yy*zx - xx*yz*zy - xy*yx*zz;
-    return {I1, sqrtDist(I2), cbrtDist(I3)};
-  }
-
-  template <typename Lab>
-  std::array<Real, 9> getState_uniform(Lab& lab, const Real h,
-        const int ix, const int iy, const int iz) const
-  {
-    const Real facGrad = scaleGrad / (2*h), facLap = scaleLap / (h*h);
-    const FluidElement &L  = lab(ix, iy, iz);
-    const FluidElement &LW = lab(ix - 1, iy, iz), &LE = lab(ix + 1, iy, iz);
-    const FluidElement &LS = lab(ix, iy - 1, iz), &LN = lab(ix, iy + 1, iz);
-    const FluidElement &LF = lab(ix, iy, iz - 1), &LB = lab(ix, iy, iz + 1);
-
-    const Real d1udx = facGrad*(LE.u-LW.u), d2udx = facLap*(LE.u+LW.u-L.u*2);
-    const Real d1vdx = facGrad*(LE.v-LW.v), d2vdx = facLap*(LE.v+LW.v-L.v*2);
-    const Real d1wdx = facGrad*(LE.w-LW.w), d2wdx = facLap*(LE.w+LW.w-L.w*2);
-    const Real d1udy = facGrad*(LN.u-LS.u), d2udy = facLap*(LN.u+LS.u-L.u*2);
-    const Real d1vdy = facGrad*(LN.v-LS.v), d2vdy = facLap*(LN.v+LS.v-L.v*2);
-    const Real d1wdy = facGrad*(LN.w-LS.w), d2wdy = facLap*(LN.w+LS.w-L.w*2);
-    const Real d1udz = facGrad*(LB.u-LF.u), d2udz = facLap*(LB.u+LF.u-L.u*2);
-    const Real d1vdz = facGrad*(LB.v-LF.v), d2vdz = facLap*(LB.v+LF.v-L.v*2);
-    const Real d1wdz = facGrad*(LB.w-LF.w), d2wdz = facLap*(LB.w+LF.w-L.w*2);
-    const Real S0 = scaleVel * std::sqrt(L.u*L.u + L.v*L.v + L.w*L.w);
-    const std::array<double,5> S1 = popeInvariants(d1udx, d1vdx, d1wdx,
-                                                   d1udy, d1vdy, d1wdy,
-                                                   d1udz, d1vdz, d1wdz);
-    const std::array<double,3> S2 = mainMatInvariants(d2udx, d2vdx, d2wdx,
-                                                      d2udy, d2vdy, d2wdy,
-                                                      d2udz, d2vdz, d2wdz);
-    return {S0, S1[0], S1[1], S1[2], S1[3], S1[4], S2[0], S2[1], S2[2]};
-  }
-
- public:
-  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2, 2, 2, false, {FE_U,FE_V,FE_W}};
-  //const StencilInfo stencil = StencilInfo(-2,-2,-2, 3,3,3, true, {0,1,2,3});
 
-  KernelSGS_RL(const rlApi_t& api, const locRewF_t& lRew,
+  KernelSGS_RL(const rlApi_t& api,
         ActionInterpolator& interp, const HITstatistics& _stats,
         const Real _facVel, const Real _facGrad, const Real _facLap) :
-        sendStateRecvAct(api), computeNextLocalRew(lRew),
-        actInterp(interp), stats(_stats), scaleVel(_facVel),
-        scaleGrad(_facGrad), scaleLap(_facLap) {}
+        sendStateRecvAct(api), actInterp(interp), stats(_stats),
+        scaleVel(_facVel), scaleGrad(_facGrad), scaleLap(_facLap) {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
   {
     // FD coefficients for first and second derivative
     const Real h = info.h_gridpoint;
+    const Real facV = scaleVel, facG = scaleGrad/(2*h), facL = scaleLap/(h*h);
     const size_t thrID = omp_get_thread_num(), blockID = info.blockID;
 
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
     for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
-      const auto state = getState_uniform(lab, h, ix, iy, iz);
+      const auto state = getState_uniform(lab, h, facV, facG, facL, ix, iy, iz);
       // LES coef can be stored in chi as long as we do not have obstacles
       // otherwise we will have to figure out smth
       // we could compute a local reward here, place as second arg
       o(ix,iy,iz).chi = sendStateRecvAct(state, blockID, thrID, ix,iy,iz);
     }
-    //computeNextLocalRew(blockID, lab);
   }
 
   void state_center(const BlockInfo& info)
@@ -362,6 +232,7 @@ class KernelSGS_RL
     FluidBlock & o = * (FluidBlock *) info.ptrBlock;
     // FD coefficients for first and second derivative
     const Real h = info.h_gridpoint;
+    const Real facV = scaleVel, facG = scaleGrad/(2*h), facL = scaleLap/(h*h);
     const size_t thrID = omp_get_thread_num(), blockID = info.blockID;
     const int idx = CUP_BLOCK_SIZE/2 - 1, ipx = CUP_BLOCK_SIZE/2;
     std::array<Real, 9> avgState = {0.};
@@ -369,7 +240,7 @@ class KernelSGS_RL
     for (int iz = idx; iz <= ipx; ++iz)
     for (int iy = idx; iy <= ipx; ++iy)
     for (int ix = idx; ix <= ipx; ++ix) {
-      const auto state = getState_uniform(o, h, ix, iy, iz);
+      const auto state = getState_uniform(o, h, facV, facG, facL, ix, iy, iz);
       for (int k = 0; k < 9; ++k) avgState[k] += factor * state[k];
       // LES coef can be stored in chi as long as we do not have obstacles
       // otherwise we will have to figure out smth
@@ -386,6 +257,174 @@ class KernelSGS_RL
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
     for (int ix = 0; ix < FluidBlock::sizeX; ++ix)
       o(ix,iy,iz).chi = actInterp(i.index[0], i.index[1], i.index[2], ix,iy,iz);
+  }
+};
+
+struct KernelGermanoError
+{
+  // In principle, SGS closure (a prescription for C_s) can be derived from
+  // properties of the resolved flow. C_s should be independant of the chosen
+  // filter scale h as long as h is in the inertial range of the turbulent flow.
+  // If you consider 2 filters with width H>h, then the residual-stress tensor :
+  //        \tau(H) = Filter_H(\tau(h)) + L(h, H)                                           (1)
+  // where the Leonard tensor L(h, H) is the residual-stress tensor associated
+  // to the vel fluctiation in the intermediate range of scales h < ... < H :
+  //        L_ij(h, H) = Filter_H( u_i(h) u_j(h)) - Filter_H( u_i(h) ) Filter_H( u_j(h) )   (2)
+  // In LES, (2) can evalated using the resolved flow only whereas \tau(H)
+  // and \tau(h) are obtained from a SGS closure. A good SGS closure should
+  // satisfy the Germano identity (1) for any test filter H, if h and H are
+  // in the intertial range.
+  //
+  // Returns the tensor components of [(2) - L_ij]. A perfect closure model
+  // would return only zeros for any test filter H.
+  const Real facVel;
+  const HITstatistics & stats;
+  std::vector<double> & localRewards;
+  //const StencilInfo stencil{-1,-1,-1, 2, 2, 2, true, {FE_CHI,FE_U,FE_V,FE_W}};
+  const StencilInfo stencil = StencilInfo(-2,-2,-2, 3,3,3, true, {FE_U,FE_V,FE_W});
+
+  static Real facFilter(const int i, const int j, const int k)
+  {
+    if (std::abs(i) + std::abs(j) + std::abs(k) == 3)         // Corner cells
+      return 1.0/64;
+    else if (std::abs(i) + std::abs(j) + std::abs(k) == 2)    // Side-Corner cells
+      return 2.0/64;
+    else if (std::abs(i) + std::abs(j) + std::abs(k) == 1)    // Side cells
+      return 4.0/64;
+    else if (std::abs(i) + std::abs(j) + std::abs(k) == 0)    // Center cells
+      return 8.0/64;
+    else return 0;
+  }
+
+  // FilteredQuantities is a container that will be used to evaluate (1) with a
+  // linear test filter with H = 2 * h (people rather use Gaussian filters).
+  struct FilteredQuantities
+  {
+    // Filter_H( u_i(h) ) : filtered velocity components.
+    Real u  = 0.0, v  = 0.0, w  = 0.0;
+    // Filter_H( u_i(h) u_j(h) ) : product of velocity components filtered.
+    Real uu = 0.0, uv = 0.0, uw = 0.0, vv = 0.0, vw = 0.0, ww = 0.0;
+    // Filtered_H( S_ij(h) ) : used to compute \tau(H).
+    Real S_xx = 0.0, S_xy = 0.0, S_xz = 0.0, S_yy = 0.0, S_yz = 0.0, S_zz = 0.0;
+    // Filter_H ( tau(h) ).
+    Real tau_xx = 0.0, tau_xy = 0.0, tau_xz = 0.0;
+    Real tau_yy = 0.0, tau_yz = 0.0, tau_zz = 0.0;
+
+    template <typename Lab>
+    FilteredQuantities(Lab& lab, const int ix, const int iy, const int iz, const Real h)
+    {
+      for (int k=-1; k<2; ++k)
+      for (int j=-1; j<2; ++j)
+      for (int i=-1; i<2; ++i) {
+        const Real f = facFilter(i,j,k);
+        const auto & L = lab(ix+i, iy+j, iz+k);
+        u  += f * L.u;     v  += f * L.v;     w  += f * L.w;
+        uu += f * L.u*L.u; uv += f * L.u*L.v; uw += f * L.u*L.w;
+        vv += f * L.v*L.v; vw += f * L.v*L.w; ww += f * L.w*L.w;
+        const auto & LW=lab(ix+i-1, iy+j, iz+k), & LE=lab(ix+i+1, iy+j, iz+k);
+        const auto & LS=lab(ix+i, iy+j-1, iz+k), & LN=lab(ix+i, iy+j+1, iz+k);
+        const auto & LF=lab(ix+i, iy+j, iz+k-1), & LB=lab(ix+i, iy+k, iz+k+1);
+        const Real dudx = LE.u-LW.u, dvdx = LE.v-LW.v, dwdx = LE.w-LW.w;
+        const Real dudy = LN.u-LS.u, dvdy = LN.v-LS.v, dwdy = LN.w-LS.w;
+        const Real dudz = LB.u-LF.u, dvdz = LB.v-LF.v, dwdz = LB.w-LF.w;
+        S_xx += f * (dudx)        / (2*h);
+        S_xy += f * (dudy + dvdx) / (4*h);
+        S_xz += f * (dudz + dwdx) / (4*h);
+        S_yy += f * (dvdy)        / (2*h);
+        S_yz += f * (dvdz + dwdy) / (4*h);
+        S_zz += f * (dwdz)        / (2*h);
+        const Real shear = std::sqrt( 2 * (dudx*dudx) +
+                                      2 * (dvdy*dvdy) +
+                                      2 * (dwdz*dwdz) +
+                                      pow2(dudy+dvdx) +
+                                      pow2(dudz+dwdx) +
+                                      pow2(dwdy+dvdz) ) / (2*h);
+        const Real tau_factor = - 2 * L.chi * shear * h * h;
+        tau_xx += f * tau_factor * (dudx)        / (2*h);
+        tau_xy += f * tau_factor * (dudy + dvdx) / (4*h);
+        tau_xz += f * tau_factor * (dudz + dwdx) / (4*h);
+        tau_yy += f * tau_factor * (dvdy)        / (2*h);
+        tau_yz += f * tau_factor * (dwdy + dvdz) / (4*h);
+        tau_zz += f * tau_factor * (dwdz)        / (2*h);
+      }
+      // Remove trace of Filter_H( \tau(h) )
+      // NOTE: By construction, it should already be trace free.
+      const Real tau_trace = (tau_xx + tau_yy + tau_zz)/3;
+      tau_xx -= tau_trace;
+      tau_yy -= tau_trace;
+      tau_zz -= tau_trace;
+    }
+  };
+
+  template <typename Lab>
+  static Real germanoError(Lab & lab, const Real h, const Real scaleVel,
+                           const int ix, const int iy, const int iz)
+  {
+    const Real H = 2*h;
+    FilteredQuantities filter_H(lab, ix,iy,iz, h);
+    const FluidElement & L = lab(ix, iy, iz);
+    const Real shear_H = std::sqrt( 2 * pow2(filter_H.S_xx) +
+                                    2 * pow2(filter_H.S_yy) +
+                                    2 * pow2(filter_H.S_zz) +
+                                    4 * pow2(filter_H.S_xy) +
+                                    4 * pow2(filter_H.S_yz) +
+                                    4 * pow2(filter_H.S_xz) );
+    const Real L_trace = ( filter_H.uu + filter_H.vv + filter_H.ww
+                          - filter_H.u * filter_H.u
+                          - filter_H.v * filter_H.v
+                          - filter_H.w * filter_H.w ) / 3;
+    // Leonard tensor:
+    const Real L_xx = filter_H.uu - filter_H.u * filter_H.u - L_trace;
+    const Real L_xy = filter_H.uv - filter_H.u * filter_H.v;
+    const Real L_xz = filter_H.uw - filter_H.u * filter_H.w;
+    const Real L_yy = filter_H.vv - filter_H.v * filter_H.v - L_trace;
+    const Real L_yz = filter_H.vw - filter_H.v * filter_H.w;
+    const Real L_zz = filter_H.ww - filter_H.w * filter_H.w - L_trace;
+    const Real tau_factor = - 2 * L.chi * (H*H) * shear_H;
+    const Real tau_H_trace = (filter_H.S_xx + filter_H.S_yy + filter_H.S_zz)/3;
+    // Residual-stress tensor for filter H : \tau(H) (remove trace)
+    const Real tau_H_xx = tau_factor * ( filter_H.S_xx  - tau_H_trace );
+    const Real tau_H_xy = tau_factor * ( filter_H.S_xy );
+    const Real tau_H_xz = tau_factor * ( filter_H.S_xz );
+    const Real tau_H_yy = tau_factor * ( filter_H.S_yy  - tau_H_trace );
+    const Real tau_H_yz = tau_factor * ( filter_H.S_yz );
+    const Real tau_H_zz = tau_factor * ( filter_H.S_zz  - tau_H_trace );
+    const Real dXX = std::pow(L_xx - tau_H_xx + filter_H.tau_xx, 2);
+    const Real dXY = std::pow(L_xy - tau_H_xy + filter_H.tau_xy, 2);
+    const Real dXZ = std::pow(L_xz - tau_H_xz + filter_H.tau_xz, 2);
+    const Real dYY = std::pow(L_yy - tau_H_yy + filter_H.tau_yy, 2);
+    const Real dYZ = std::pow(L_yz - tau_H_yz + filter_H.tau_yz, 2);
+    const Real dZZ = std::pow(L_zz - tau_H_zz + filter_H.tau_zz, 2);
+    // both L and tau have dimension Vel ** 2, L2 error has dim Vel ** 4
+    const Real nonDimFac = std::pow(scaleVel, 4);
+    return nonDimFac * (dXX + 2*dXY + 2*dXZ + dYY + 2*dYZ + dZZ) / 9;
+  }
+
+  KernelGermanoError(const HITstatistics& _stats, std::vector<double>& _locR,
+    Real scaleVel) : facVel(scaleVel), stats(_stats), localRewards(_locR) {}
+
+  template <typename Lab, typename BlockType>
+  void operator()(Lab& lab, const BlockInfo& i, BlockType& o) const
+  {
+    const int idx = agentLocInBlock-1, ipx = agentLocInBlock, BID = i.blockID;
+    const Real h = i.h_gridpoint;
+    localRewards[BID] = 0;
+    for (int iz = idx; iz <= ipx; ++iz)
+    for (int iy = idx; iy <= ipx; ++iy)
+    for (int ix = idx; ix <= ipx; ++ix)
+      localRewards[BID] -= germanoError(lab, h, facVel, ix, iy, iz) / 8.0;
+  }
+
+  void compute_locR(const BlockInfo & i) const
+  {
+    const int idx = agentLocInBlock-1, ipx = agentLocInBlock, BID = i.blockID;
+    FluidBlock & o = * (FluidBlock *) i.ptrBlock;
+    const Real h = i.h_gridpoint;
+    localRewards[BID] = 0;
+    for (int iz = idx; iz <= ipx; ++iz)
+    for (int iy = idx; iy <= ipx; ++iy)
+    for (int ix = idx; ix <= ipx; ++ix)
+      localRewards[BID] -= germanoError(o, h, facVel, ix, iy, iz) / 8.0;
   }
 };
 
@@ -419,7 +458,6 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
 {
   sim.startProfiler("SGS_RL");
   smarties::Communicator & comm = * commPtr;
-  std::vector<double> nextlocRewards(localRewards.size(), 0);
   ActionInterpolator actInterp( sim.grid->getResidentBlocksPerDimension(2),
                                 sim.grid->getResidentBlocksPerDimension(1),
                                 sim.grid->getResidentBlocksPerDimension(0) );
@@ -475,7 +513,9 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     //const bool bAgent = ix == agentsIDX[blockID] &&
     //                    iy == agentsIDY[blockID] &&
     //                    iz == agentsIDZ[blockID];
-    const bool bAgent = ix == 8 && iy == 8 && iz == 8;
+    const bool bAgent = ix == agentLocInBlock &&
+                        iy == agentLocInBlock &&
+                        iz == agentLocInBlock;
     return bAgent? blockID : nBlocks + threadID;
   };
 
@@ -502,6 +542,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                    const size_t thrID, const int ix, const int iy, const int iz)
   {
     const size_t agentID = getAgentID(bID, thrID, ix, iy, iz);
+    //printf("locR %e globR %e\n", localRewards[bID], globalR);
     comm.sendState(getState(locS), globalR + localRewards[bID], agentID);
     return comm.recvAction(agentID)[0];
   };
@@ -514,18 +555,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   };
   const rlApi_t sendState = RLinit ? Finit : ( RLover ? Flast : Fcont );
 
-  const locRewF_t computeNextLocalRew = [&] (const size_t bID, Lab& lab)
-  {
-    const auto ix = agentsIDX[bID], iy = agentsIDY[bID], iz = agentsIDZ[bID];
-    const Real h = sim.vInfo()[bID].h_gridpoint;
-    const std::vector<Real> germano = germanoIdentity(lab, ix, iy, iz, h);
-    nextlocRewards[bID] = -(std::fabs(germano[0])+std::fabs(germano[1]) +
-                            std::fabs(germano[2])+std::fabs(germano[3]) +
-                            std::fabs(germano[4])+std::fabs(germano[5]))/9;
-  };
-
-  KernelSGS_RL K_SGS_RL(sendState, computeNextLocalRew, actInterp,
-                        stats, scaleVel, scaleGrad, scaleLap);
+  KernelSGS_RL K_SGS_RL(sendState, actInterp, stats, scaleVel, scaleGrad, scaleLap);
 
   if(bGridAgents) {
     compute<KernelSGS_RL>(K_SGS_RL);
@@ -538,9 +568,15 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.apply_actions(vInfo[i]);
   }
 
+  KernelGermanoError KlocR(stats, localRewards, scaleVel);
+  if(CUP_BLOCK_SIZE > 4) {
+    #pragma omp parallel for schedule(static)
+    for (size_t i = 0; i < vInfo.size(); ++i) KlocR.compute_locR(vInfo[i]);
+  } else {
+    compute<KernelGermanoError>(KlocR);
+  }
   sim.stopProfiler();
   check("SGS_RL");
-  localRewards = nextlocRewards;
 }
 
 int SGS_RL::nStateComponents()
