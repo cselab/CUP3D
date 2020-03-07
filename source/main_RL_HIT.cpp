@@ -202,7 +202,7 @@ inline void app_main(
       }
       {
         const double dt_t = std::max(sim.sim.time - oldTime, (double) 1e-7);
-        const double timeFac = 20 * dt_t / tau_eta;
+        const double timeFac = dt_t / tau_eta;
         const double dRew = (avgReward1 - oldReward) / timeFac;
         const double r_t = (dRew>0? dRew/2 : dRew) + avgReward2;
         //printf("r:%e %e %e\n", dRew>0? dRew/2 : dRew, avgReward2, avgReward1);

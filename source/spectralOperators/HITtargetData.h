@@ -219,22 +219,30 @@ struct HITtargetData
     return std::max(dev, std::numeric_limits<long double>::epsilon());
   }
 
-  long double computeSumExp(const HITstatistics& stats)
+  long double computeDiagLogArg(const HITstatistics& stats)
+  {
+    long double ret = 0;
+    const long double fac = 0.5 / stats.nBin;
+    for (int i=0; i<stats.nBin; ++i) {
+      const long double dLogEi = std::log(stats.E_msr[i]) - logE_mean[i];
+      ret += fac * std::pow(dLogEi / logE_stdDev[i], 2);
+    }
+    return std::max(ret, std::numeric_limits<long double>::epsilon());
+  }
+  long double computeDiagExp(const HITstatistics& stats)
   {
     long double ret = 0;
     for (int i=0; i<stats.nBin; ++i) {
       const long double dLogEi = std::log(stats.E_msr[i]) - logE_mean[i];
-      const auto arg = std::pow(dLogEi / logE_stdDev[i], 2);
+      const auto arg = 0.5 * std::pow(dLogEi / logE_stdDev[i], 2);
       //ret += arg>4 ? 2*std::exp(-2.0)/(arg-2) : std::exp(-arg/2);
       //ret += arg>2 ? 2*std::exp(-1.0)/arg : std::exp(-arg / 2);
       //ret += arg>1 ? 2*std::exp(-0.5)/(arg + 1) : std::exp(-arg / 2);
-      //ret += std::exp(-arg / 2);
+      ret += arg>1 ? std::exp(-0.5)/(arg + 0.5) : std::exp(-arg);
       //ret -= arg>4 ? std::sqrt(8*arg - 16) : arg;
-      ret -= arg>1 ? std::sqrt(2*arg - 1) : arg;
+      //ret -= arg>1 ? std::sqrt(2*arg - 1) : arg;
     }
-    //printf("got dE Cov dE = %Le\n", ret / stats.nBin);
-    assert(ret <= 0);
-    return ret / stats.nBin;
+    return std::max(ret/stats.nBin, std::numeric_limits<long double>::epsilon());
   }
 
   long double computeLogP(const HITstatistics& stats)
@@ -259,17 +267,18 @@ struct HITtargetData
     //const long double newRew = arg > 1 ? 1 / arg : std::exp(1-arg);
     //const long double newRew = logPdenom - logarg; // computeLogP(stats);
     //printf("Rt : %e, %e - %Le\n", newRew, logPdenom, dev);
-    const auto minusLogP = computeLogArg(stats);
+    //const auto minusLogP = computeLogArg(stats);
+    const auto minusLogP = computeDiagLogArg(stats);
     assert(minusLogP > 0);
-    reward = (1-alpha) * reward + alpha * (-std::sqrt(2*minusLogP) - minusLogP);
+    reward = (1-alpha) * reward - alpha * minusLogP;
   }
 
   void updateReward2(const HITstatistics& stats, const Real alpha, Real& reward)
   {
-    const auto arg = computeLogArg(stats);
+    //const auto arg = computeLogArg(stats);
     //const auto newRew = arg>2 ? std::exp(-2.0)/(arg-1) : std::exp(-arg);
-    const auto newRew = arg>1 ? std::exp(-0.5)/(arg + 0.5) : std::exp(-arg);
-    reward = (1-alpha) * reward + alpha * newRew; //computeSumExp(stats);
+    //const auto newRew = arg>1 ? std::exp(-0.5)/(arg + 0.5) : std::exp(-arg);
+    reward = (1-alpha) * reward + alpha * computeDiagExp(stats);
   }
 
   void updateAvgLogLikelihood(

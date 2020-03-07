@@ -117,7 +117,7 @@ inline Real traceOfSymProd(const std::array<Real,6> & mat1,
 }
 
 
-using rlApi_t = std::function<Real(const std::array<Real, 9> &, const size_t,
+using rlApi_t = std::function<Real(const std::array<Real,13> &, const size_t,
                                    const size_t,const int,const int,const int)>;
 using locRewF_t = std::function<void(const size_t blockID, Lab & lab)>;
 
@@ -131,7 +131,7 @@ inline Real frthDist(const Real val) {
   return val>=0? std::sqrt(std::sqrt(val)) : -std::sqrt(std::sqrt(-val));
 };
 
-inline std::array<Real,5> popeInvariants(
+inline std::array<Real,6> popeInvariants(
   const Real d1udx1, const Real d1vdx1, const Real d1wdx1,
   const Real d1udy1, const Real d1vdy1, const Real d1wdy1,
   const Real d1udz1, const Real d1vdz1, const Real d1wdz1)
@@ -143,7 +143,8 @@ inline std::array<Real,5> popeInvariants(
   const std::array<Real,6> S2  = symProd(S, S);
   const std::array<Real,6> R2  = antiSymProd(R, R);
   //const std::vector<Real> R2S = symProd(R2, S);
-  return { sqrtDist(S2[0] + S2[3] + S2[5]),   // Tr(S^2)
+  return {         ( S[0] +  S[3] +  S[5]),   // Tr(S)
+           sqrtDist(S2[0] + S2[3] + S2[5]),   // Tr(S^2)
            sqrtDist(R2[0] + R2[3] + R2[5]),   // Tr(R^2)
            cbrtDist(traceOfSymProd(S2, S)),   // Tr(S^3)
            cbrtDist(traceOfSymProd(R2, S)),   // Tr(R^2.S)
@@ -165,7 +166,7 @@ inline std::array<Real,3> mainMatInvariants(
 }
 
 template <typename Lab>
-inline std::array<Real, 9> getState_uniform(Lab& lab, const Real h,
+inline std::array<Real, 13> getState_uniform(Lab& lab, const Real h,
       const Real facVel, const Real facGrad, const Real facLap,
       const int ix, const int iy, const int iz)
 {
@@ -184,13 +185,14 @@ inline std::array<Real, 9> getState_uniform(Lab& lab, const Real h,
   const Real d1vdz = facGrad*(LB.v-LF.v), d2vdz = facLap*(LB.v+LF.v-L.v*2);
   const Real d1wdz = facGrad*(LB.w-LF.w), d2wdz = facLap*(LB.w+LF.w-L.w*2);
   const Real S0 = facVel * std::sqrt(L.u*L.u + L.v*L.v + L.w*L.w);
-  const std::array<double,5> S1 = popeInvariants(d1udx, d1vdx, d1wdx,
+  const std::array<double,6> S1 = popeInvariants(d1udx, d1vdx, d1wdx,
                                                  d1udy, d1vdy, d1wdy,
                                                  d1udz, d1vdz, d1wdz);
-  const std::array<double,3> S2 = mainMatInvariants(d2udx, d2vdx, d2wdx,
-                                                    d2udy, d2vdy, d2wdy,
-                                                    d2udz, d2vdz, d2wdz);
-  return {S0, S1[0], S1[1], S1[2], S1[3], S1[4], S2[0], S2[1], S2[2]};
+  const std::array<double,6> S2 = popeInvariants(d2udx, d2vdx, d2wdx,
+                                                 d2udy, d2vdy, d2wdy,
+                                                 d2udz, d2vdz, d2wdz);
+  return {S0, S1[0], S1[1], S1[2], S1[3], S1[4], S1[5],
+              S2[0], S2[1], S2[2], S2[3], S2[4], S2[5]};
 }
 
 struct KernelSGS_RL
@@ -235,13 +237,13 @@ struct KernelSGS_RL
     const Real facV = scaleVel, facG = scaleGrad/(2*h), facL = scaleLap/(h*h);
     const size_t thrID = omp_get_thread_num(), blockID = info.blockID;
     const int idx = CUP_BLOCK_SIZE/2 - 1, ipx = CUP_BLOCK_SIZE/2;
-    std::array<Real, 9> avgState = {0.};
+    std::array<Real, 13> avgState = {0.};
     const double factor = 1.0 / 8;
     for (int iz = idx; iz <= ipx; ++iz)
     for (int iy = idx; iy <= ipx; ++iy)
     for (int ix = idx; ix <= ipx; ++ix) {
       const auto state = getState_uniform(o, h, facV, facG, facL, ix, iy, iz);
-      for (int k = 0; k < 9; ++k) avgState[k] += factor * state[k];
+      for (int k = 0; k < 13; ++k) avgState[k] += factor * state[k];
       // LES coef can be stored in chi as long as we do not have obstacles
       // otherwise we will have to figure out smth
       // we could compute a local reward here, place as second arg
@@ -462,10 +464,10 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                                 sim.grid->getResidentBlocksPerDimension(1),
                                 sim.grid->getResidentBlocksPerDimension(0) );
 
-  const Real inpEn = sim.actualInjectionRate, nu = sim.nu;
+  const Real inpEn = sim.actualInjectionRate, nu = sim.nu, h = sim.uniformH();
   const Real uEps = stats.getKolmogorovU(inpEn, nu);
   const Real lEps = stats.getKolmogorovL(inpEn, nu);
-  const Real tEps = stats.getKolmogorovT(inpEn, nu);
+  //const Real tEps = stats.getKolmogorovT(inpEn, nu);
   const Real scaleVel = 1 / std::sqrt(stats.tke); // [T/L]
   const Real scaleGrad = stats.tke / inpEn; // [T]
   const Real scaleLap = scaleGrad * lEps; // [TL]
@@ -473,28 +475,29 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   // one element per block is a proper agent: will add seq to train data
   // other are nThreads and are only there for thread safety
   // states get overwritten
-  const Real h_nonDim = sim.uniformH() / lEps, dt_nonDim = dt / tEps;
+  const Real h_nonDim = h / stats.getKolmogorovL(stats.dissip_visc, nu);
+  const Real dt_nonDim = dt / stats.getKolmogorovL(stats.dissip_visc, nu);
   const Real tke_nonDim = stats.tke / uEps / uEps;
   const Real visc_nonDim = stats.dissip_visc / inpEn;
   const Real dissi_nonDim = stats.dissip_tot / inpEn;
   const Real lenInt_nonDim = stats.lambda / stats.l_integral;
   //const Real deltaEn_nonDim = (stats.tke-target.tKinEn) / std::sqrt(inpEn*nu);
-  const Real deltaEn_nonDim = stats.E_msr[stats.nBin - 1] / uEps / uEps;
+  const Real En1_nonDim = stats.E_msr[stats.nBin - 1] / uEps / uEps;
+  const Real En2_nonDim = stats.E_msr[stats.nBin - 2] / uEps / uEps;
+  const Real En3_nonDim = stats.E_msr[stats.nBin - 3] / uEps / uEps;
+  const Real En4_nonDim = stats.E_msr[stats.nBin - 4] / uEps / uEps;
+  const Real En5_nonDim = stats.E_msr[stats.nBin - 5] / uEps / uEps;
+  const Real En6_nonDim = stats.E_msr[stats.nBin - 6] / uEps / uEps;
+  const Real En7_nonDim = stats.E_msr[stats.nBin - 7] / uEps / uEps;
+  const Real En8_nonDim = stats.E_msr[stats.nBin - 8] / uEps / uEps;
 
-  const auto getState = [&] (const std::array<Real,9> & locS) {
+  const auto getState = [&] (const std::array<Real,13> & locS) {
     return std::vector<double> {
-      locS[0],
-      locS[1], locS[2], locS[3], locS[4], locS[5]
-      #ifdef SGSRL_STATE_LAPLACIAN
-        , locS[6], locS[7], locS[8]
-      #endif
-      #ifdef SGSRL_STATE_SCALES
-        , h_nonDim , dt_nonDim
-      #endif
-      , tke_nonDim , visc_nonDim , dissi_nonDim, lenInt_nonDim
-      #ifdef SGSRL_STATE_TARGET
-        , deltaEn_nonDim
-      #endif
+      locS[ 0], locS[ 2], locS[ 3], locS[ 4], locS[ 5], locS[ 6],
+      locS[ 7], locS[ 8], locS[ 9], locS[10], locS[11], locS[12],
+      tke_nonDim , visc_nonDim , dissi_nonDim, lenInt_nonDim,
+      En1_nonDim, En2_nonDim, En3_nonDim, En4_nonDim,
+      En5_nonDim, En6_nonDim, En7_nonDim, En8_nonDim
     };
   };
 
@@ -531,14 +534,14 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
 
   const auto getAgentID = bGridAgents ? getAgentID_grid : getAgentID_block;
 
-  const rlApi_t Finit = [&](const std::array<Real,9> & locS, const size_t bID,
+  const rlApi_t Finit = [&](const std::array<Real,13> & locS, const size_t bID,
                    const size_t thrID, const int ix, const int iy, const int iz)
   {
     const size_t agentID = getAgentID(bID, thrID, ix, iy, iz);
     comm.sendInitState(getState(locS), agentID);
     return comm.recvAction(agentID)[0];
   };
-  const rlApi_t Fcont = [&](const std::array<Real,9> & locS, const size_t bID,
+  const rlApi_t Fcont = [&](const std::array<Real,13> & locS, const size_t bID,
                    const size_t thrID, const int ix, const int iy, const int iz)
   {
     const size_t agentID = getAgentID(bID, thrID, ix, iy, iz);
@@ -546,7 +549,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     comm.sendState(getState(locS), globalR + localRewards[bID], agentID);
     return comm.recvAction(agentID)[0];
   };
-  const rlApi_t Flast = [&](const std::array<Real,9> & locS, const size_t bID,
+  const rlApi_t Flast = [&](const std::array<Real,13> & locS, const size_t bID,
                    const size_t thrID, const int ix, const int iy, const int iz)
   {
     const size_t agentID = getAgentID(bID, thrID, ix, iy, iz);
@@ -581,17 +584,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
 
 int SGS_RL::nStateComponents()
 {
-  return 10
-  #ifdef SGSRL_STATE_LAPLACIAN
-            + 3
-  #endif
-  #ifdef SGSRL_STATE_SCALES
-            + 2
-  #endif
-  #ifdef SGSRL_STATE_TARGET
-            + 1
-  #endif
-            ;
+  return 24;
 }
 
 CubismUP_3D_NAMESPACE_END
