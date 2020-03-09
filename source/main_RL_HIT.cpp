@@ -97,6 +97,7 @@ inline void app_main(
   const Real fac = std::sqrt(16.0 / LES_RL_FREQ_A);
   const Real LES_RL_N_TSIM = parser("-RL_nIntTperSim").asDouble(20.0) * fac;
   const bool bGridAgents = parser("-RL_gridPointAgents").asInt(0);
+  const bool bEvaluating = not comm->isTraining();
 
   target.smartiesFolderStructure = true;
   cubism::Profiler profiler;
@@ -123,7 +124,7 @@ inline void app_main(
 
   comm->finalizeProblemDescription(); // required for thread safety
 
-  if( comm->isTraining() ) { // disable all dumping. //  && wrank != 1
+  if (not bEvaluating) { // disable all dumping. //  && wrank != 1
     sim.sim.b3Ddump = false; sim.sim.muteAll  = true;
     sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
     sim.sim.verbose = false; sim.sim.saveTime = 0;
@@ -136,7 +137,7 @@ inline void app_main(
   while(true) // train loop
   {
     // avoid too many unneeded folders:
-    if(sim_id == 0 || comm->isTraining() == false) { //  || wrank == 1
+    if (sim_id == 0 || bEvaluating) { //  || wrank == 1
       sprintf(dirname, "run_%08u/", sim_id);
       printf("Starting a new sim in directory %s\n", dirname);
       mkdir(dirname, S_IRWXU | S_IRWXG | S_IROTH | S_IXOTH);
@@ -176,7 +177,7 @@ inline void app_main(
       if( ICsuccess ) break;
       printf("failed, try new IC\n");
     }
-    if( not comm->isTraining() ) sim.sim.saveTime = 10 * tau_eta;
+    if (bEvaluating) sim.sim.saveTime = 10 * tau_eta;
 
     profiler.pop_stop();
 
@@ -195,16 +196,17 @@ inline void app_main(
       // even if timeOut call updateLES to send all the states of last step
       profiler.push_start("rl");
 
-      if(not comm->isTraining()) {
+      if(bEvaluating) {
         sim.sim.nextAnalysisTime = (step+1) * timeUpdateLES;
         target.updateAvgLogLikelihood(stats, nP, avgP, m2P, sim.sim.cs2mean);
-        // printf("%lu %d\n", nP, step); fflush(0);
       }
+
       {
         const double dt_t = std::max(sim.sim.time - oldTime, (double) 1e-7);
         const double timeFac = dt_t / tau_eta;
         const double dRew = (avgReward1 - oldReward) / timeFac;
         const double r_t = (dRew>0? dRew/2 : dRew) + avgReward2;
+        //const double r_t = avgReward2;
         //printf("r:%e %e %e\n", dRew>0? dRew/2 : dRew, avgReward2, avgReward1);
         oldReward = avgReward1; oldTime = sim.sim.time;
         //printf("S:%e %e %e %e %e\n", stats.tke, stats.dissip_visc,
@@ -236,7 +238,7 @@ inline void app_main(
       while(sim.sim.time >= (step+1) * timeUpdateLES) step++;
       tot_steps++;
 
-      if ( policyFailed ) {
+      if (policyFailed) {
         // Agent gets penalized if the simulations blows up:
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
         printf("policy failed after %d steps\n", step);
@@ -247,7 +249,7 @@ inline void app_main(
       }
     } // simulation is done
 
-    if(not comm->isTraining()) { //  || wrank == 1
+    if (bEvaluating) { //  || wrank == 1
       chdir("../"); // matches previous if
       abort();
     }

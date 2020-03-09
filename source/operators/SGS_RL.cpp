@@ -399,7 +399,7 @@ struct KernelGermanoError
     const Real dZZ = std::pow(L_zz - tau_H_zz + filter_H.tau_zz, 2);
     // both L and tau have dimension Vel ** 2, L2 error has dim Vel ** 4
     const Real nonDimFac = std::pow(scaleVel, 4);
-    return nonDimFac * (dXX + 2*dXY + 2*dXZ + dYY + 2*dYZ + dZZ) / 9;
+    return nonDimFac * (dXX + 2*dXY + 2*dXZ + dYY + 2*dYZ + dZZ);
   }
 
   KernelGermanoError(const HITstatistics& _stats, std::vector<double>& _locR,
@@ -578,6 +578,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   } else {
     compute<KernelGermanoError>(KlocR);
   }
+
   sim.stopProfiler();
   check("SGS_RL");
 }
