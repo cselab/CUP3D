@@ -25,6 +25,8 @@
 #include "operators/FixedMassFlux_nonUniform.h"
 #include "operators/SGS.h"
 #include "operators/Analysis.h"
+#include "operators/HITfiltering.h"
+
 #include "spectralOperators/SpectralForcing.h"
 
 #include "obstacles/ObstacleFactory.h"
@@ -395,6 +397,8 @@ void Simulation::setupOperators()
       checkpointPostVelocity = new Checkpoint(sim, "PostVelocity"));
 
   sim.pipeline.push_back(new Analysis(sim));
+
+  //sim.pipeline.push_back(new HITfiltering(sim));
 
   if(sim.rank==0) {
     printf("Coordinator/Operator ordering:\n");

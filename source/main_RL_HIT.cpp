@@ -159,6 +159,11 @@ inline void app_main(
     const Real timeUpdateLES = tau_eta / LES_RL_FREQ_A;
     const Real timeSimulationMax = LES_RL_N_TSIM * tau_integral;
     const int maxNumUpdatesPerSim = timeSimulationMax / timeUpdateLES;
+    if (bEvaluating) { // disable all dumping. //  && wrank != 1
+      sim.sim.b3Ddump = true;  sim.sim.muteAll  = false;
+      sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
+      sim.sim.verbose = true;  sim.sim.saveTime = timeUpdateLES;
+    }
     printf("Reset simulation up to time=0 with SGS for eps:%f nu:%f Re:%f. "
            "Max %d action turns per simulation.\n", target.eps,
            target.nu, target.Re_lambda(), maxNumUpdatesPerSim);
@@ -216,6 +221,7 @@ inline void app_main(
       }
 
       profiler.pop_stop();
+      if (bEvaluating and sim_id > 1) abort();
 
       if(timeOut) { profiler.printSummary(); profiler.reset(); break; }
 
@@ -251,7 +257,6 @@ inline void app_main(
 
     if (bEvaluating) { //  || wrank == 1
       chdir("../"); // matches previous if
-      abort();
     }
 
     sim_id++;

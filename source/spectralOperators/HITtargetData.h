@@ -232,16 +232,18 @@ struct HITtargetData
   long double computeDiagExp(const HITstatistics& stats)
   {
     long double ret = 0;
+    const long double fac = 0.5 / stats.nBin;
     for (int i=0; i<stats.nBin; ++i) {
       const long double dLogEi = std::log(stats.E_msr[i]) - logE_mean[i];
-      const auto arg = 0.5 * std::pow(dLogEi / logE_stdDev[i], 2);
+      ret += fac * std::pow(dLogEi / logE_stdDev[i], 2);
       //ret += arg>4 ? std::exp(-2.0)/(arg-1) : std::exp(-arg);
       //ret += arg>2 ? std::exp(-1.0)/arg : std::exp(-arg);
-      ret += arg>1 ? std::exp(-0.5)/(arg + 0.5) : std::exp(-arg);
+      //ret += arg>1 ? std::exp(-0.5)/(arg + 0.5) : std::exp(-arg);
       //ret -= arg>4 ? std::sqrt(8*arg - 16) : arg;
       //ret -= arg>1 ? std::sqrt(2*arg - 1) : arg;
     }
-    return std::max(ret/stats.nBin, std::numeric_limits<long double>::epsilon());
+    ret = std::max(ret, std::numeric_limits<long double>::epsilon());
+    return std::exp( - std::sqrt(ret) );
   }
 
   long double computeLogP(const HITstatistics& stats)
@@ -278,6 +280,8 @@ struct HITtargetData
     //const auto newRew = arg>2 ? std::exp(-2.0)/(arg-1) : std::exp(-arg);
     //const auto newRew = arg>1 ? std::exp(-0.5)/(arg + 0.5) : std::exp(-arg);
     reward = (1-alpha) * reward + alpha * computeDiagExp(stats);
+    //reward = (1-alpha) * reward + alpha * std::exp(-std::cbrt(arg));
+    //reward = (1-alpha) * reward + alpha * std::exp(-std::sqrt(arg));
   }
 
   void updateAvgLogLikelihood(const HITstatistics & stats,

@@ -18,6 +18,9 @@ using namespace cubism;
 
 static constexpr int agentLocInBlock = CUP_BLOCK_SIZE/2;
 
+#define GIVE_LOCL_STATEVARS
+#define GIVE_GRID_STATEVARS
+
 struct ActionInterpolator
 {
   const int NX, NY, NZ;
@@ -399,7 +402,7 @@ struct KernelGermanoError
     const Real dZZ = std::pow(L_zz - tau_H_zz + filter_H.tau_zz, 2);
     // both L and tau have dimension Vel ** 2, L2 error has dim Vel ** 4
     const Real nonDimFac = std::pow(scaleVel, 4);
-    return nonDimFac * (dXX + 2*dXY + 2*dXZ + dYY + 2*dYZ + dZZ);
+    return nonDimFac * (dXX + 2*dXY + 2*dXZ + dYY + 2*dYZ + dZZ) / 9;
   }
 
   KernelGermanoError(const HITstatistics& _stats, std::vector<double>& _locR,
@@ -475,29 +478,44 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   // one element per block is a proper agent: will add seq to train data
   // other are nThreads and are only there for thread safety
   // states get overwritten
-  const Real h_nonDim = h / stats.getKolmogorovL(stats.dissip_visc, nu);
-  const Real dt_nonDim = dt / stats.getKolmogorovL(stats.dissip_visc, nu);
+  //const Real  h_nonDim =  h / stats.getKolmogorovL(stats.dissip_visc, nu);
+  //const Real dt_nonDim = dt / stats.getKolmogorovL(stats.dissip_visc, nu);
   const Real tke_nonDim = stats.tke / uEps / uEps;
   const Real visc_nonDim = stats.dissip_visc / inpEn;
   const Real dissi_nonDim = stats.dissip_tot / inpEn;
   const Real lenInt_nonDim = stats.lambda / stats.l_integral;
   //const Real deltaEn_nonDim = (stats.tke-target.tKinEn) / std::sqrt(inpEn*nu);
-  const Real En1_nonDim = stats.E_msr[stats.nBin - 1] / uEps / uEps;
-  const Real En2_nonDim = stats.E_msr[stats.nBin - 2] / uEps / uEps;
-  const Real En3_nonDim = stats.E_msr[stats.nBin - 3] / uEps / uEps;
-  const Real En4_nonDim = stats.E_msr[stats.nBin - 4] / uEps / uEps;
-  const Real En5_nonDim = stats.E_msr[stats.nBin - 5] / uEps / uEps;
-  const Real En6_nonDim = stats.E_msr[stats.nBin - 6] / uEps / uEps;
-  const Real En7_nonDim = stats.E_msr[stats.nBin - 7] / uEps / uEps;
-  const Real En8_nonDim = stats.E_msr[stats.nBin - 8] / uEps / uEps;
+  const Real En01_nonDim = stats.E_msr[ 0] / uEps / uEps;
+  const Real En02_nonDim = stats.E_msr[ 1] / uEps / uEps;
+  const Real En03_nonDim = stats.E_msr[ 2] / uEps / uEps;
+  const Real En04_nonDim = stats.E_msr[ 3] / uEps / uEps;
+  const Real En05_nonDim = stats.E_msr[ 4] / uEps / uEps;
+  const Real En06_nonDim = stats.E_msr[ 5] / uEps / uEps;
+  const Real En07_nonDim = stats.E_msr[ 6] / uEps / uEps;
+  const Real En08_nonDim = stats.E_msr[ 7] / uEps / uEps;
+  const Real En09_nonDim = stats.E_msr[ 8] / uEps / uEps;
+  const Real En10_nonDim = stats.E_msr[ 9] / uEps / uEps;
+  const Real En11_nonDim = stats.E_msr[10] / uEps / uEps;
+  const Real En12_nonDim = stats.E_msr[11] / uEps / uEps;
+  const Real En13_nonDim = stats.E_msr[12] / uEps / uEps;
+  const Real En14_nonDim = stats.E_msr[13] / uEps / uEps;
+  const Real En15_nonDim = stats.E_msr[14] / uEps / uEps;
 
   const auto getState = [&] (const std::array<Real,13> & locS) {
     return std::vector<double> {
-      locS[ 0], locS[ 2], locS[ 3], locS[ 4], locS[ 5], locS[ 6],
-      locS[ 7], locS[ 8], locS[ 9], locS[10], locS[11], locS[12],
-      tke_nonDim , visc_nonDim , dissi_nonDim, lenInt_nonDim,
-      En1_nonDim, En2_nonDim, En3_nonDim, En4_nonDim,
-      En5_nonDim, En6_nonDim, En7_nonDim, En8_nonDim
+      #ifdef GIVE_LOCL_STATEVARS
+        locS[ 0], locS[ 2], locS[ 3], locS[ 4], locS[ 5], locS[ 6],
+        locS[ 7], locS[ 8], locS[ 9], locS[10], locS[11], locS[12]
+      #endif
+      #ifdef GIVE_GRID_STATEVARS
+        #ifdef GIVE_LOCL_STATEVARS
+          ,
+        #endif
+        tke_nonDim, visc_nonDim , dissi_nonDim, lenInt_nonDim,
+        En01_nonDim, En02_nonDim, En03_nonDim, En04_nonDim, En05_nonDim,
+        En06_nonDim, En07_nonDim, En08_nonDim, En09_nonDim, En10_nonDim,
+        En11_nonDim, En12_nonDim, En13_nonDim, En14_nonDim, En15_nonDim
+      #endif
     };
   };
 
@@ -545,7 +563,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
                    const size_t thrID, const int ix, const int iy, const int iz)
   {
     const size_t agentID = getAgentID(bID, thrID, ix, iy, iz);
-    //printf("locR %e globR %e\n", localRewards[bID], globalR);
+    //if (agentID==0) printf("locR %e globR %e\n", localRewards[bID], globalR);
     comm.sendState(getState(locS), globalR + localRewards[bID], agentID);
     return comm.recvAction(agentID)[0];
   };
@@ -571,6 +589,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
     for (size_t i = 0; i < vInfo.size(); ++i) K_SGS_RL.apply_actions(vInfo[i]);
   }
 
+  /*
   KernelGermanoError KlocR(stats, localRewards, scaleVel);
   if(CUP_BLOCK_SIZE > 4) {
     #pragma omp parallel for schedule(static)
@@ -578,6 +597,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   } else {
     compute<KernelGermanoError>(KlocR);
   }
+  */
 
   sim.stopProfiler();
   check("SGS_RL");
@@ -585,7 +605,14 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
 
 int SGS_RL::nStateComponents()
 {
-  return 24;
+  return 0
+  #ifdef GIVE_LOCL_STATEVARS
+    + 12
+  #endif
+  #ifdef GIVE_GRID_STATEVARS
+    + 19
+  #endif
+  ;
 }
 
 CubismUP_3D_NAMESPACE_END
