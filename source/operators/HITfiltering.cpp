@@ -15,25 +15,25 @@ struct FilteredQuantities
 {
   struct Fields
   {
-    Real Cs2 = 0;
-    Real u  = 0, v  = 0, w  = 0;
-    Real uu = 0, uv = 0, uw = 0;
-    Real vv = 0, vw = 0, ww = 0;
-    Real normalization = 0;
+    mutable Real Cs2 = 0;
+    mutable Real u  = 0, v  = 0, w  = 0;
+    mutable Real uu = 0, uv = 0, uw = 0;
+    mutable Real vv = 0, vw = 0, ww = 0;
+    mutable Real normalization = 0;
 
-    void reset() {
+    void reset() const {
       u  = 0; v  = 0; w  = 0; uu = 0; uv = 0; uw = 0; vv = 0; vw = 0; ww = 0;
       normalization = 0;
     }
 
-    void add(const Real U, const Real V, const Real W, const Real fac) {
+    void add(const Real U, const Real V, const Real W, const Real fac) const {
       u  += fac * U;   v  += fac * V;   w  += fac * W;
       uu += fac * U*U; uv += fac * U*V; uw += fac * U*W;
       vv += fac * V*V; vw += fac * V*W; ww += fac * W*W;
       normalization += fac;
     }
 
-    void reduce(const Fields & other) {
+    void reduce(const Fields & other) const {
       u  += other.u;  v  += other.v;  w  += other.w;
       uu += other.uu; uv += other.uv; uw += other.uw;
       vv += other.vv; vw += other.vw; ww += other.ww;
@@ -43,12 +43,12 @@ struct FilteredQuantities
 
   const int BPDX, BPDY, BPDZ;
   using data_t = std::vector<std::vector<std::vector<Fields>>>;
-  data_t F = data_t (
+  const data_t F = data_t (
       BPDZ, std::vector<std::vector<Fields>>(BPDY, std::vector<Fields>(BPDX)));
 
   FilteredQuantities(int NX, int NY, int NZ) : BPDX(NX), BPDY(NY), BPDZ(NZ) { }
 
-  Fields & operator() (const int bx, const int by, const int bz)
+  const Fields & operator() (const int bx, const int by, const int bz)
   {
     return F[(bz+BPDZ) % BPDZ][(by+BPDY) % BPDY][(bx+BPDX) % BPDX];
   }
@@ -123,7 +123,7 @@ struct FilteredQuantities
       const Real Tyy = vv - v*v - traceT;
       const Real Tyz = vw - v*w;
       const Real Tzz = ww - w*w - traceT;
-      const Real traceS = (dudx + dvdy + dwdz) / 3;
+      const Real traceS =  (dudx + dvdy + dwdz) / 3;
       const Real Sxx = 0.5/H * (dudx - traceS);
       const Real Sxy = 0.5/H * (dudy + dvdx) / 2;
       const Real Sxz = 0.5/H * (dudz + dwdx) / 2;
@@ -145,65 +145,76 @@ void HITfiltering::operator()(const double dt)
     return;
 
   sim.startProfiler("SGS Kernel");
-  const int BPDX = sim.grid->getBlocksPerDimension(2);
+  const int BPDX = sim.grid->getBlocksPerDimension(0);
   const int BPDY = sim.grid->getBlocksPerDimension(1);
-  const int BPDZ = sim.grid->getBlocksPerDimension(0);
+  const int BPDZ = sim.grid->getBlocksPerDimension(2);
   FilteredQuantities filtered(BPDX, BPDY, BPDZ);
 
   static constexpr int NB = CUP_BLOCK_SIZE;
 
   #pragma omp parallel for schedule(static) collapse(3)
-  for(int bix=0; bix<BPDZ; ++bix)
+  for(int biz=0; biz<BPDZ; ++biz)
   for(int biy=0; biy<BPDY; ++biy)
-  for(int biz=0; biz<BPDX; ++biz)
+  for(int bix=0; bix<BPDX; ++bix)
   {
     for (int iz = 0; iz < NB; ++iz)
     for (int iy = 0; iy < NB; ++iy)
     for (int ix = 0; ix < NB; ++ix)
     {
-      // linear interp betwen element's block (bix, biy, biz) and second
-      // nearest. figure out which from element's index (ix, iy, iz) in block:
-      const int nbix = ix < NB/2 ? bix - 1 : bix + 1;
-      const int nbiy = iy < NB/2 ? biy - 1 : biy + 1;
-      const int nbiz = iz < NB/2 ? biz - 1 : biz + 1;
-      // distance from second nearest block along its direction:
-      const Real dist_nbix = ix < NB/2 ? NB/2 + ix + 0.5 : 3*NB/2 - ix - 0.5;
-      const Real dist_nbiy = iy < NB/2 ? NB/2 + iy + 0.5 : 3*NB/2 - iy - 0.5;
-      const Real dist_nbiz = iz < NB/2 ? NB/2 + iz + 0.5 : 3*NB/2 - iz - 0.5;
-      // distance from block's center:
-      const Real dist_bix = std::fabs(ix + 0.5 - NB/2);
-      const Real dist_biy = std::fabs(iy + 0.5 - NB/2);
-      const Real dist_biz = std::fabs(iz + 0.5 - NB/2);
-
-      for(int dbz = 0; dbz < 2; ++dbz) // 0 is current block, 1 is
-      for(int dby = 0; dby < 2; ++dby) // nearest along z, y, x
-      for(int dbx = 0; dbx < 2; ++dbx)
-      {
-        const int bidx = dbx? nbix : bix;
-        const int bidy = dby? nbiy : biy;
-        const int bidz = dbz? nbiz : biz;
-        const int bid = ( (bidx+BPDX) % BPDX )
-                      + ( (bidy+BPDY) % BPDY ) * BPDX
-                      + ( (bidz+BPDZ) % BPDZ ) * BPDX * BPDY;
-        const BlockInfo & info = vInfo[bid];
-        FluidBlock& block = * (FluidBlock*) info.ptrBlock;
+      #if 0
+        const int bid = bix + biy * BPDX + biz * BPDX * BPDY;
+        FluidBlock & block = * (FluidBlock*) vInfo[bid].ptrBlock;
         const Real u = block(ix,iy,iz).u;
         const Real v = block(ix,iy,iz).v;
         const Real w = block(ix,iy,iz).w;
-        const Real distx = dbx? dist_nbix : dist_bix;
-        const Real disty = dby? dist_nbiy : dist_biy;
-        const Real distz = dbz? dist_nbiz : dist_biz;
-        const Real dist = std::sqrt(distx*distx + disty*disty + distz*distz);
-        const Real weight = std::max( (NB - dist)/NB, (Real) 0);
-        filtered.add(bix, biy, biz, u, v, w, weight);
-      }
+        filtered.add(bix, biy, biz, u, v, w, 1);
+      #else
+        // linear interp betwen element's block (bix, biy, biz) and second
+        // nearest. figure out which from element's index (ix, iy, iz) in block:
+        const int nbix = ix >= NB/2 ? bix - 1 : bix + 1;
+        const int nbiy = iy >= NB/2 ? biy - 1 : biy + 1;
+        const int nbiz = iz >= NB/2 ? biz - 1 : biz + 1;
+        // distance from second nearest block along its direction:
+        const Real dist_nbix = ix < NB/2 ? NB/2 + ix + 0.5 : 3*NB/2 - ix - 0.5;
+        const Real dist_nbiy = iy < NB/2 ? NB/2 + iy + 0.5 : 3*NB/2 - iy - 0.5;
+        const Real dist_nbiz = iz < NB/2 ? NB/2 + iz + 0.5 : 3*NB/2 - iz - 0.5;
+        // distance from block's center:
+        const Real dist_bix = std::fabs(ix + 0.5 - NB/2);
+        const Real dist_biy = std::fabs(iy + 0.5 - NB/2);
+        const Real dist_biz = std::fabs(iz + 0.5 - NB/2);
+
+        for(int dbz = 0; dbz < 2; ++dbz) // 0 is current block, 1 is
+        for(int dby = 0; dby < 2; ++dby) // nearest along z, y, x
+        for(int dbx = 0; dbx < 2; ++dbx)
+        {
+          const int bidx = dbx? nbix : bix;
+          const int bidy = dby? nbiy : biy;
+          const int bidz = dbz? nbiz : biz;
+          const int bid = ( (bidx+BPDX) % BPDX )
+                        + ( (bidy+BPDY) % BPDY ) * BPDX
+                        + ( (bidz+BPDZ) % BPDZ ) * BPDX * BPDY;
+          const BlockInfo & info = vInfo[bid];
+          FluidBlock& block = * (FluidBlock*) info.ptrBlock;
+          const Real u = block(ix,iy,iz).u;
+          const Real v = block(ix,iy,iz).v;
+          const Real w = block(ix,iy,iz).w;
+          const Real distx = (dbx? dist_nbix : dist_bix) / NB;
+          const Real disty = (dby? dist_nbiy : dist_biy) / NB;
+          const Real distz = (dbz? dist_nbiz : dist_biz) / NB;
+          assert(distx < 1.0 and disty < 1.0 and disty < 1.0);
+          //const Real dist =std::sqrt(distx*distx + disty*disty + distz*distz);
+          //const Real weight = std::max(1 - dist, (Real) 0);
+          const Real weight = (1 - distx) * (1 - disty) * (1 - distz);
+          filtered.add(bix, biy, biz, u, v, w, weight);
+        }
+      #endif
     }
   }
 
   filtered.computeCS(vInfo[0].h_gridpoint);
-  static constexpr Real maxCS2 = 0.09;
-  static constexpr Real minCS2 = 0;
-  static constexpr int nBins = 90;
+  static constexpr Real maxCS2 = 0.15;
+  static constexpr Real minCS2 = -0.1;
+  static constexpr int nBins = 200;
   int H[nBins] = {0};
 
   const auto CStoBinID = [&] (const Real CS2) {
