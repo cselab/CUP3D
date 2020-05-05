@@ -48,12 +48,13 @@ void Fish::integrateMidline()
   volume_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
   assert(volume_internal > std::numeric_limits<Real>::epsilon());
   myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
-
-  angvel_internal_prev = angvel_internal;
+  // compute angular velocity resulting from undulatory deformation
+  if(sim.dt>0) angvel_internal_prev = angvel_internal;
   myFish->integrateAngularMomentum(angvel_internal);
+  // because deformations cannot impose rotation, we both subtract the angvel
+  // from the midline velocity and remove it from the internal angle:
+  theta_internal -= sim.dt * (angvel_internal + angvel_internal_prev)/2;
   J_internal = myFish->J;
-  // update theta now with new angvel info
-  //theta_internal -= 0.5*sim_dt*(angvel_internal+angvel_internal_prev);//negative: we subtracted this angvel
   myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
 
   #ifndef NDEBUG
@@ -256,8 +257,6 @@ void Fish::update()
 {
   // update position and angles
   Obstacle::update();
-  // negative: we subtracted this angvel
-  theta_internal -= sim.dt * angvel_internal;
   angvel_integral[0] += sim.dt * angVel[0];
   angvel_integral[1] += sim.dt * angVel[1];
   angvel_integral[2] += sim.dt * angVel[2];
