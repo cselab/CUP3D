@@ -149,7 +149,8 @@ class FishMidlineData
   {
     const double dnorXi = _d_ds(idx, norX, Nm);
     const double dnorYi = _d_ds(idx, norY, Nm);
-    return 0.25*std::pow((double)width[idx],3)*height[idx]*(dnorXi*norY[idx] - dnorYi*norX[idx]);
+    const double W3H = std::pow(width[idx], 3) * height[idx];
+    return W3H/4 * (dnorXi*norY[idx] - dnorYi*norX[idx]);
   }
 
   inline double _integrationFac3(const int idx) const

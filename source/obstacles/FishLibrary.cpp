@@ -30,7 +30,7 @@ void FishMidlineData::writeMidline2File(const int step_id, std::string filename)
 
 void FishMidlineData::_computeMidlineNormals()
 {
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static)
   for(int i=0; i<Nm-1; i++) {
     const double ds = rS[i+1]-rS[i];
     const double tX = rX[i+1]-rX[i];
@@ -52,25 +52,25 @@ Real FishMidlineData::integrateLinearMomentum(double CoM[2], double vCoM[2])
 {   // already worked out the integrals for r, theta on paper
   // remaining integral done with composite trapezoidal rule
   // minimize rhs evaluations --> do first and last point separately
-  double _vol=0, _cmx=0, _cmy=0, _lmx=0, _lmy=0;
-  #pragma omp parallel for reduction(+:_vol,_cmx,_cmy,_lmx,_lmy)
+  double V=0, cmx=0, cmy=0, lmx=0, lmy=0;
+  #pragma omp parallel for schedule(static) reduction(+:V,cmx,cmy,lmx,lmy)
   for(int i=0;i<Nm;++i) {
     const double ds = (i==0) ? rS[1]-rS[0] :
         ((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
     const double fac1 = _integrationFac1(i);
     const double fac2 = _integrationFac2(i);
-    _vol += 0.5*fac1*ds;
-    _cmx += 0.5*(rX[i]*fac1 + norX[i]*fac2)*ds;
-    _cmy += 0.5*(rY[i]*fac1 + norY[i]*fac2)*ds;
-    _lmx += 0.5*(vX[i]*fac1 + vNorX[i]*fac2)*ds;
-    _lmy += 0.5*(vY[i]*fac1 + vNorY[i]*fac2)*ds;
+    V += 0.5*fac1*ds;
+    cmx += 0.5*(rX[i]*fac1 + norX[i]*fac2)*ds;
+    cmy += 0.5*(rY[i]*fac1 + norY[i]*fac2)*ds;
+    lmx += 0.5*(vX[i]*fac1 + vNorX[i]*fac2)*ds;
+    lmy += 0.5*(vY[i]*fac1 + vNorY[i]*fac2)*ds;
   }
 
-  vol=_vol*M_PI;
-  CoM[0]=_cmx*M_PI;
-  CoM[1]=_cmy*M_PI;
-  linMom[0]=_lmx*M_PI;
-  linMom[1]=_lmy*M_PI;
+  vol=V*M_PI;
+  CoM[0]=cmx*M_PI;
+  CoM[1]=cmy*M_PI;
+  linMom[0]=lmx*M_PI;
+  linMom[1]=lmy*M_PI;
 
   assert(vol> std::numeric_limits<double>::epsilon());
   const double ivol = 1.0/vol;
@@ -90,7 +90,7 @@ void FishMidlineData::integrateAngularMomentum(double& angVel)
   // remaining integral done with composite trapezoidal rule
   // minimize rhs evaluations --> do first and last point separately
   double _J = 0, _am = 0;
-  #pragma omp parallel for reduction(+:_J,_am)
+  #pragma omp parallel for schedule(static) reduction(+:_J,_am)
   for(int i=0;i<Nm;++i) {
     const double ds = (i==0) ? rS[1]-rS[0] :
         ((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
@@ -117,6 +117,7 @@ void FishMidlineData::integrateAngularMomentum(double& angVel)
 
 void FishMidlineData::changeToCoMFrameLinear(const double CoM_internal[2], const double vCoM_internal[2])
 {
+  #pragma omp parallel for schedule(static)
   for(int i=0;i<Nm;++i) {
     rX[i]-=CoM_internal[0];
     rY[i]-=CoM_internal[1];
@@ -128,7 +129,7 @@ void FishMidlineData::changeToCoMFrameLinear(const double CoM_internal[2], const
 void FishMidlineData::changeToCoMFrameAngular(const double theta_internal, const double angvel_internal)
 {
   _prepareRotation2D(theta_internal);
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static)
   for(int i=0;i<Nm;++i) {
     _rotate2D(rX[i],rY[i]);
     _rotate2D(vX[i],vY[i]);
@@ -142,7 +143,7 @@ void FishMidlineData::computeSurface()
 {
   const int Nskin = lowerSkin->Npoints;
   // Compute surface points by adding width to the midline points
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static)
   for(int i=0; i<Nskin; ++i)
   {
     double norm[2] = {norX[i], norY[i]};
@@ -160,6 +161,7 @@ void FishMidlineData::computeSurface()
 void FishMidlineData::computeSkinNormals(const double theta_comp, const double CoM_comp[3])
 {
   _prepareRotation2D(theta_comp);
+  #pragma omp parallel for schedule(static)
   for(int i=0; i<Nm; ++i) {
     _rotate2D(rX[i], rY[i]);
     rX[i] += CoM_comp[0];
@@ -168,7 +170,7 @@ void FishMidlineData::computeSkinNormals(const double theta_comp, const double C
 
   const int Nskin = lowerSkin->Npoints;
   // Compute midpoints as they will be pressure targets
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static)
   for(int i=0; i<Nskin-1; ++i)
   {
     lowerSkin->midX[i] = (lowerSkin->xSurf[i] + lowerSkin->xSurf[i+1])/2.;
@@ -217,7 +219,7 @@ void FishMidlineData::surfaceToCOMFrame(const double theta_internal, const doubl
   _prepareRotation2D(theta_internal);
   // Surface points rotation and translation
 
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static)
   for(int i=0; i<upperSkin->Npoints; ++i)
   //for(int i=0; i<upperSkin->Npoints-1; ++i)
   {
@@ -234,7 +236,7 @@ void FishMidlineData::surfaceToComputationalFrame(const double theta_comp, const
 {
   _prepareRotation2D(theta_comp);
 
-  #pragma omp parallel for
+  #pragma omp parallel for schedule(static)
   for(int i=0; i<upperSkin->Npoints; ++i)
   {
     _rotate2D(upperSkin->xSurf[i], upperSkin->ySurf[i]);
