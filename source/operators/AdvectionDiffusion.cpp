@@ -205,89 +205,6 @@ template<> inline std::vector<int> stencilFields<Euler>() { return {FE_U, FE_V, 
 template<> inline std::vector<int> stencilFields<RK1>() { return {FE_U, FE_V, FE_W}; }
 template<> inline std::vector<int> stencilFields<RK2>() { return {FE_TMPU, FE_TMPV, FE_TMPW}; }
 
-struct Upwind3rd
-{
-  const SimulationData& _sim;
-  const Real invU = 1 / std::max(EPS, _sim.uMax_measured);
-  Upwind3rd(const SimulationData& s) : _sim(s) {}
-
-  template<StepType step, int dir> Real diffx(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
-    const Real ucc = inp<step,dir>(L,ix,iy,iz);
-    const Real um1 = inp<step,dir>(L,ix-1,iy,iz), um2 = inp<step,dir>(L,ix-2,iy,iz);
-    const Real up1 = inp<step,dir>(L,ix+1,iy,iz), up2 = inp<step,dir>(L,ix+2,iy,iz);
-    #if 1
-      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
-      const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[0]*invU, (Real)-1));
-      const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
-      assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1 && std::fabs(UP+UM-std::fabs(U))<EPS);
-      //return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
-      return UP*UP * ddxM + UM*UM * ddxP + (1 - U*U) * 3 * ddxC;
-    #else
-      return uAbs[0]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
-    #endif
-  }
-  template<StepType step, int dir> Real diffy(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
-    const Real ucc = inp<step,dir>(L,ix,iy,iz);
-    const Real um1 = inp<step,dir>(L,ix,iy-1,iz), um2 = inp<step,dir>(L,ix,iy-2,iz);
-    const Real up1 = inp<step,dir>(L,ix,iy+1,iz), up2 = inp<step,dir>(L,ix,iy+2,iz);
-    #if 1
-      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
-      const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[1]*invU, (Real)-1));
-      const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
-      assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1 && std::fabs(UP+UM-std::fabs(U))<EPS);
-      //return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
-      return UP*UP * ddxM + UM*UM * ddxP + (1 - U*U) * 3 * ddxC;
-    #else
-      return uAbs[1]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
-    #endif
-  }
-  template<StepType step, int dir> Real diffz(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
-    const Real ucc = inp<step,dir>(L,ix,iy,iz);
-    const Real um1 = inp<step,dir>(L,ix,iy,iz-1), um2 = inp<step,dir>(L,ix,iy,iz-2);
-    const Real up1 = inp<step,dir>(L,ix,iy,iz+1), up2 = inp<step,dir>(L,ix,iy,iz+2);
-    #if 1
-      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
-      const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[2]*invU, (Real)-1));
-      const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
-      assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1 && std::fabs(UP+UM-std::fabs(U))<EPS);
-      //return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
-      return UP*UP * ddxM + UM*UM * ddxP + (1 - U*U) * 3 * ddxC;
-    #else
-      return uAbs[2]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
-    #endif
-  }
-  template<StepType step, int dir> Real   lap(LabMPI& L, const FluidBlock& o, const int ix, const int iy, const int iz) const {
-    return  inp<step,dir>(L,ix+1,iy,iz) + inp<step,dir>(L,ix-1,iy,iz)
-          + inp<step,dir>(L,ix,iy+1,iz) + inp<step,dir>(L,ix,iy-1,iz)
-          + inp<step,dir>(L,ix,iy,iz+1) + inp<step,dir>(L,ix,iy,iz-1)
-          - 6 * inp<step,dir>(L,ix,iy,iz);
-  }
-  template<StepType step> Real advectionCoef(const Real dt, const Real h) const;
-  template<StepType step> Real diffusionCoef(const Real dt, const Real h, const Real mu) const;
-
-  int getStencilBeg() const { return -2; }
-  int getStencilEnd() const { return  3; }
-};
-
-template<> inline Real Upwind3rd::advectionCoef<Euler>(const Real dt, const Real h) const {
-  return -dt/(6*h);
-}
-template<> inline Real Upwind3rd::advectionCoef<RK1>(const Real dt, const Real h) const {
-  return -dt/(12*h);
-}
-template<> inline Real Upwind3rd::advectionCoef<RK2>(const Real dt, const Real h) const {
-  return -dt/(6*h);
-}
-template<> inline Real Upwind3rd::diffusionCoef<Euler>(const Real dt, const Real h, const Real mu) const {
-  return (mu/h) * (dt/h);
-}
-template<> inline Real Upwind3rd::diffusionCoef<RK1>(const Real dt, const Real h, const Real mu) const {
-  return (mu/h) * (dt/h) / 2;
-}
-template<> inline Real Upwind3rd::diffusionCoef<RK2>(const Real dt, const Real h, const Real mu) const {
-  return (mu/h) * (dt/h);
-}
-
 struct Central
 {
   Central(const SimulationData& s) {}
@@ -390,6 +307,89 @@ template<> inline Real CentralStretched::diffusionCoef<RK2>(const Real dt, const
   return dt * mu;
 }
 */
+
+struct Upwind3rd
+{
+  const SimulationData& _sim;
+  const Real invU = 1 / std::max(EPS, _sim.uMax_measured);
+  Upwind3rd(const SimulationData& s) : _sim(s) {}
+
+  template<StepType step, int dir> Real diffx(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
+    const Real ucc = inp<step,dir>(L,ix,iy,iz);
+    const Real um1 = inp<step,dir>(L,ix-1,iy,iz), um2 = inp<step,dir>(L,ix-2,iy,iz);
+    const Real up1 = inp<step,dir>(L,ix+1,iy,iz), up2 = inp<step,dir>(L,ix+2,iy,iz);
+    #ifndef ADV_3RD_UPWIND
+      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
+      const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[0]*invU, (Real)-1));
+      const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
+      assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1 && std::fabs(UP+UM-std::fabs(U))<EPS);
+      //return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
+      return UP*UP * ddxM + UM*UM * ddxP + (1 - U*U) * 3 * ddxC;
+    #else
+      return uAbs[0]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+    #endif
+  }
+  template<StepType step, int dir> Real diffy(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
+    const Real ucc = inp<step,dir>(L,ix,iy,iz);
+    const Real um1 = inp<step,dir>(L,ix,iy-1,iz), um2 = inp<step,dir>(L,ix,iy-2,iz);
+    const Real up1 = inp<step,dir>(L,ix,iy+1,iz), up2 = inp<step,dir>(L,ix,iy+2,iz);
+    #ifndef ADV_3RD_UPWIND
+      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
+      const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[1]*invU, (Real)-1));
+      const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
+      assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1 && std::fabs(UP+UM-std::fabs(U))<EPS);
+      //return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
+      return UP*UP * ddxM + UM*UM * ddxP + (1 - U*U) * 3 * ddxC;
+    #else
+      return uAbs[1]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+    #endif
+  }
+  template<StepType step, int dir> Real diffz(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
+    const Real ucc = inp<step,dir>(L,ix,iy,iz);
+    const Real um1 = inp<step,dir>(L,ix,iy,iz-1), um2 = inp<step,dir>(L,ix,iy,iz-2);
+    const Real up1 = inp<step,dir>(L,ix,iy,iz+1), up2 = inp<step,dir>(L,ix,iy,iz+2);
+    #ifndef ADV_3RD_UPWIND
+      const Real ddxM = 2*up1 +3*ucc -6*um1 +um2, ddxP = -up2 +6*up1 -3*ucc -2*um1;
+      const Real ddxC = up1 - um1, U = std::min((Real)1, std::max(uAbs[2]*invU, (Real)-1));
+      const Real UP = std::max((Real)0, U), UM = - std::min((Real)0, U);
+      assert(UP>=0 && UP<=1 && UM>=0 && UM<=1 && U>=-1 && U<=1 && std::fabs(UP+UM-std::fabs(U))<EPS);
+      //return UP * ddxM + UM * ddxP + (1 - std::fabs(U)) * 3 * ddxC;
+      return UP*UP * ddxM + UM*UM * ddxP + (1 - U*U) * 3 * ddxC;
+    #else
+      return uAbs[2]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+    #endif
+  }
+  template<StepType step, int dir> Real   lap(LabMPI& L, const FluidBlock& o, const int ix, const int iy, const int iz) const {
+    return  inp<step,dir>(L,ix+1,iy,iz) + inp<step,dir>(L,ix-1,iy,iz)
+          + inp<step,dir>(L,ix,iy+1,iz) + inp<step,dir>(L,ix,iy-1,iz)
+          + inp<step,dir>(L,ix,iy,iz+1) + inp<step,dir>(L,ix,iy,iz-1)
+          - 6 * inp<step,dir>(L,ix,iy,iz);
+  }
+  template<StepType step> Real advectionCoef(const Real dt, const Real h) const;
+  template<StepType step> Real diffusionCoef(const Real dt, const Real h, const Real mu) const;
+
+  int getStencilBeg() const { return -2; }
+  int getStencilEnd() const { return  3; }
+};
+
+template<> inline Real Upwind3rd::advectionCoef<Euler>(const Real dt, const Real h) const {
+  return -dt/(6*h);
+}
+template<> inline Real Upwind3rd::advectionCoef<RK1>(const Real dt, const Real h) const {
+  return -dt/(12*h);
+}
+template<> inline Real Upwind3rd::advectionCoef<RK2>(const Real dt, const Real h) const {
+  return -dt/(6*h);
+}
+template<> inline Real Upwind3rd::diffusionCoef<Euler>(const Real dt, const Real h, const Real mu) const {
+  return (mu/h) * (dt/h);
+}
+template<> inline Real Upwind3rd::diffusionCoef<RK1>(const Real dt, const Real h, const Real mu) const {
+  return (mu/h) * (dt/h) / 2;
+}
+template<> inline Real Upwind3rd::diffusionCoef<RK2>(const Real dt, const Real h, const Real mu) const {
+  return (mu/h) * (dt/h);
+}
 
 struct UpdateAndCorrectInflow
 {
