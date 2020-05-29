@@ -90,6 +90,7 @@ Obstacle::Obstacle(
   position[0] = args.position[0];
   position[1] = args.position[1];
   position[2] = args.position[2];
+  absPos[0] = position[0]; absPos[1] = position[1]; absPos[2] = position[2];
   quaternion[0] = args.quaternion[0];
   quaternion[1] = args.quaternion[1];
   quaternion[2] = args.quaternion[2];
@@ -140,6 +141,7 @@ Obstacle::Obstacle(
     if (!sim.rank) printf("Obstacle motion restricted to constant Z-plane.\n");
     bForcedInSimFrame[2] = true;
     transVel_imposed[2] = 0;
+    //bBlockRotation[2] = true;
     bBlockRotation[1] = true;
     bBlockRotation[0] = true;
   }
@@ -508,7 +510,7 @@ void Obstacle::_writeComputedVelToFile()
   savestream<<sim.step<<tab;
   savestream.setf(std::ios::scientific);
   savestream.precision(std::numeric_limits<float>::digits10 + 1);
-  savestream <<sim.time<<tab<<position[0]<<tab<<position[1]<<tab<<position[2]<<tab
+  savestream <<sim.time<<tab<<absPos[0]<<tab<<absPos[1]<<tab<<absPos[2]<<tab
     <<quaternion[0]<<tab<<quaternion[1]<<tab<<quaternion[2]<<tab<<quaternion[3]
     <<tab<<transVel[0]<<tab<<transVel[1]<<tab<<transVel[2]
     <<tab<<angVel[0]<<tab<<angVel[1]<<tab<<angVel[2]<<tab<<mass<<tab

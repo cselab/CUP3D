@@ -27,11 +27,13 @@ class CarlingFishMidlineData : public FishMidlineData
 
   inline Real rampFactorSine(const Real t, const Real T) const
   {
+    //return (t<T ? ( 1 - std::cos(M_PI*t/T) )/2 : 1.0);
     return (t<T ? std::sin(0.5*M_PI*t/T) : 1.0);
   }
 
   inline Real rampFactorVelSine(const Real t, const Real T) const
   {
+    //return (t<T ? 0.5*M_PI/T * std::sin(M_PI*t/T) : 0.0);
     return (t<T ? 0.5*M_PI/T * std::cos(0.5*M_PI*t/T) : 0.0);
   }
 

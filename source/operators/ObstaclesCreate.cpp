@@ -103,16 +103,17 @@ class KernelCharacteristicFunction
         o->CoM_z += CHI[iz][iy][ix] * vol * p[2];
         o->mass  += CHI[iz][iy][ix] * vol;
 
+        static constexpr Real surfdh = 0; // SURFDH
         // allows shifting the SDF outside the body:
-        const Real sdf = SDF[iz][iy][ix] + h*SURFDH; // negative outside
+        const Real sdf = SDF[iz][iy][ix] + h*surfdh; // negative outside
         if (sdf > +2*h || sdf < -2*h) continue; // no need to compute gradChi
 
-        const Real distPx =lab(ix+1,iy,iz).tmpU + h*SURFDH;
-        const Real distMx =lab(ix-1,iy,iz).tmpU + h*SURFDH;
-        const Real distPy =lab(ix,iy+1,iz).tmpU + h*SURFDH;
-        const Real distMy =lab(ix,iy-1,iz).tmpU + h*SURFDH;
-        const Real distPz =lab(ix,iy,iz+1).tmpU + h*SURFDH;
-        const Real distMz =lab(ix,iy,iz-1).tmpU + h*SURFDH;
+        const Real distPx =lab(ix+1,iy,iz).tmpU + h*surfdh;
+        const Real distMx =lab(ix-1,iy,iz).tmpU + h*surfdh;
+        const Real distPy =lab(ix,iy+1,iz).tmpU + h*surfdh;
+        const Real distMy =lab(ix,iy-1,iz).tmpU + h*surfdh;
+        const Real distPz =lab(ix,iy,iz+1).tmpU + h*surfdh;
+        const Real distMz =lab(ix,iy,iz-1).tmpU + h*surfdh;
         const Real gradUX = inv2h*(distPx - distMx);
         const Real gradUY = inv2h*(distPy - distMy);
         const Real gradUZ = inv2h*(distPz - distMz);

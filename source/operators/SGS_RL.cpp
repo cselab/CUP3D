@@ -483,7 +483,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
   const Real tke_nonDim = stats.tke / uEps / uEps;
   const Real visc_nonDim = stats.dissip_visc / inpEn;
   const Real dissi_nonDim = stats.dissip_tot / inpEn;
-  const Real lenInt_nonDim = stats.lambda / stats.l_integral;
+  //const Real lenInt_nonDim = stats.lambda / stats.l_integral;
   //const Real deltaEn_nonDim = (stats.tke-target.tKinEn) / std::sqrt(inpEn*nu);
   const Real En01_nonDim = stats.E_msr[ 0] / uEps / uEps;
   const Real En02_nonDim = stats.E_msr[ 1] / uEps / uEps;
@@ -503,19 +503,15 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
 
   const auto getState = [&] (const std::array<Real,13> & locS) {
     return std::vector<double> {
-      #ifdef GIVE_LOCL_STATEVARS
-        locS[ 0], locS[ 2], locS[ 3], locS[ 4], locS[ 5], locS[ 6],
-        locS[ 7], locS[ 8], locS[ 9], locS[10], locS[11], locS[12]
-      #endif
-      #ifdef GIVE_GRID_STATEVARS
-        #ifdef GIVE_LOCL_STATEVARS
-          ,
-        #endif
-        tke_nonDim, visc_nonDim , dissi_nonDim, lenInt_nonDim,
+        // locS[ 0],
+        locS[ 2], locS[ 3], locS[ 4], locS[ 5], locS[ 6],
+        locS[ 7], locS[ 8], locS[ 9], locS[10], locS[11], locS[12],
+        // tke_nonDim,
+        visc_nonDim, dissi_nonDim,
+        // lenInt_nonDim,
         En01_nonDim, En02_nonDim, En03_nonDim, En04_nonDim, En05_nonDim,
         En06_nonDim, En07_nonDim, En08_nonDim, En09_nonDim, En10_nonDim,
         En11_nonDim, En12_nonDim, En13_nonDim, En14_nonDim, En15_nonDim
-      #endif
     };
   };
 
@@ -605,14 +601,7 @@ void SGS_RL::run(const double dt, const bool RLinit, const bool RLover,
 
 int SGS_RL::nStateComponents()
 {
-  return 0
-  #ifdef GIVE_LOCL_STATEVARS
-    + 12
-  #endif
-  #ifdef GIVE_GRID_STATEVARS
-    + 19
-  #endif
-  ;
+  return 28;
 }
 
 CubismUP_3D_NAMESPACE_END

@@ -23,6 +23,9 @@ class ObstacleVector : public Obstacle
 
     ObstacleVector(SimulationData&s) : Obstacle(s) {}
 
+    Obstacle * operator() (const size_t ind) const {
+      return obstacles[ind].get();
+    }
     int nObstacles() const {return obstacles.size();}
     void computeVelocities() override;
     void update() override;

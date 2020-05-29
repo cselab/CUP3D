@@ -86,21 +86,22 @@ class KernelGradP_nonUniform
 PressureProjection::PressureProjection(SimulationData & s) : Operator(s)
 {
   if(sim.bUseFourierBC)
-  pressureSolver = new PoissonSolverPeriodic(sim);
+    pressureSolver = new PoissonSolverPeriodic(sim);
   else if (sim.bUseUnboundedBC)
-  pressureSolver = new PoissonSolverUnbounded(sim);
+    pressureSolver = new PoissonSolverUnbounded(sim);
   #ifdef CUP_HYPRE
   else if (sim.useSolver == "hypre")
-  pressureSolver = new PoissonSolverMixed_HYPRE(sim);
+    pressureSolver = new PoissonSolverMixed_HYPRE(sim);
   #endif
   #ifdef CUP_PETSC
   else if (sim.useSolver == "petsc") {
     printf("PoissonSolverMixed_PETSC\n"); fflush(0);
-  pressureSolver = new PoissonSolverMixed_PETSC(sim);
+    pressureSolver = new PoissonSolverMixed_PETSC(sim);
   }
   #endif
   else
-  pressureSolver = new PoissonSolverMixed(sim);
+    pressureSolver = new PoissonSolverMixed(sim);
+    //pressureSolver = new PoissonSolverPeriodic(sim);
   sim.pressureSolver = pressureSolver;
 }
 

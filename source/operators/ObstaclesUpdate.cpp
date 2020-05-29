@@ -207,6 +207,7 @@ void UpdateObstacles::operator()(const double dt)
   { // integrate momenta by looping over grid
     #pragma omp parallel
     { // each thread needs to call its own non-const operator() function
+      //if(0) {
       if(sim.bImplicitPenalization) {
         KernelIntegrateFluidMomenta<1> K(dt, sim.lambda, sim.obstacle_vector);
         #pragma omp for schedule(dynamic, 1)
@@ -221,6 +222,7 @@ void UpdateObstacles::operator()(const double dt)
   sim.stopProfiler();
 
   sim.startProfiler("Obst Upd Vel");
+  //if(0) {
   if(sim.bImplicitPenalization) {
     ObstacleVisitor*K= new KernelFinalizeObstacleVel<1>(dt,sim.lambda,sim.grid);
     sim.obstacle_vector->Accept(K); // accept you son of a french cow

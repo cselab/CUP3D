@@ -24,6 +24,8 @@
 
 using Real = cubismup3d::Real;
 static constexpr Real rew_baseline = - 1000.0;
+#define GIVE_LOCL_STATEVARS
+#define GIVE_GRID_STATEVARS
 
 inline bool isTerminal(cubismup3d::SimulationData& sim)
 {
@@ -116,6 +118,18 @@ inline void app_main(
   const int nThreadSafetyAgents = omp_get_max_threads();
   comm->setStateActionDims(nStates, nActions);
   comm->setNumAgents(nAgents + nThreadSafetyAgents);
+  std::vector<bool> b_observable;
+  #ifdef GIVE_LOCL_STATEVARS
+    for(int i=0; i<11; i++) b_observable.push_back(true);
+  #else
+    for(int i=0; i<11; i++) b_observable.push_back(false);
+  #endif
+  #ifdef GIVE_GRID_STATEVARS
+    for(int i=0; i<17; i++) b_observable.push_back(true);
+  #else
+    for(int i=0; i<17; i++) b_observable.push_back(false);
+  #endif
+  comm->setStateObservable(b_observable);
 
   const std::vector<double> lower_act_bound{0.02}, upper_act_bound{0.06};
   comm->setActionScales(upper_act_bound, lower_act_bound, false);
@@ -159,7 +173,7 @@ inline void app_main(
     const Real timeUpdateLES = tau_eta / LES_RL_FREQ_A;
     const Real timeSimulationMax = LES_RL_N_TSIM * tau_integral;
     const int maxNumUpdatesPerSim = timeSimulationMax / timeUpdateLES;
-    if (bEvaluating) { // disable all dumping. //  && wrank != 1
+    if (0) { // enable all dumping. //  && wrank != 1
       sim.sim.b3Ddump = true;  sim.sim.muteAll  = false;
       sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
       sim.sim.verbose = true;  sim.sim.saveTime = timeUpdateLES;
@@ -173,7 +187,7 @@ inline void app_main(
       sim.reset();
       sim.sim.rampup = 2;
       bool ICsuccess = true;
-      for (int prelim_step = 0; prelim_step < 2; ++prelim_step) {
+      for (int step = 0; step < 2; ++step) {
         sim.sim.sgs = "SSM"; sim.sim.nextAnalysisTime = 100;
         sim.timestep( sim.calcMaxTimestep() );
         //printf("LL %Le\n", target.computeLogArg(stats));
@@ -182,7 +196,7 @@ inline void app_main(
       if( ICsuccess ) break;
       printf("failed, try new IC\n");
     }
-    if (bEvaluating) sim.sim.saveTime = 10 * tau_eta;
+    //if (bEvaluating) sim.sim.saveTime = 10 * tau_eta;
 
     profiler.pop_stop();
 
@@ -245,7 +259,7 @@ inline void app_main(
       tot_steps++;
 
       if (policyFailed) {
-        // Agent gets penalized if the simulations blows up:
+        // Agent gets penalized if the simulations blows up
         const std::vector<double> S_T(nStates, 0); // values in S_T dont matter
         printf("policy failed after %d steps\n", step);
         for(int i=0; i<nAgents; ++i) comm->sendTermState(S_T, - 100.0, i);
