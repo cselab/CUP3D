@@ -31,7 +31,7 @@ OR USE WEB SERVER VARIANT (NOTE: 60 UPDATES/HOUR LIMIT!!)
 
 This repository contains submodules, clone with:
 ```bash
-git clone --recursive git@gitlab.ethz.ch:mavt-cse/CubismUP_3D.git
+git clone --recursive https://github.com/cselab/CubismUP_3D.git
 ```
 
 To install Python dependencies, run:
@@ -47,7 +47,7 @@ cmake ..
 make
 ```
 
-If that doesn't work, read the [Detailed installation instructions](#detailed-installation-instructions) below.
+This process should take few minutes. If that doesn't work, read the [Detailed installation instructions](#detailed-installation-instructions) below.
 
 # Tests
 
@@ -79,6 +79,7 @@ CubismUP requires the following 3rd party libraries:
 We suggest first trying to compile the code with the libraries already installed on the target machine or cluster.
 If available, dependencies may be loaded with `module load ...` or `module load new ...`.
 If `module load` is not available, but libraries are installed, set the above mentioned environment variables.
+Installing all dependencies may require up to half an hour.
 
 ## Cluster-specific modules
 
