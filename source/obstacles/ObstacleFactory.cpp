@@ -11,6 +11,7 @@
 #include "extra/FactoryFileLineParser.h"
 
 #include "CarlingFish.h"
+#include "CStartFish.h"
 #include "Cylinder.h"
 #include "Ellipsoid.h"
 #include "ExternalObstacle.h"
@@ -43,6 +44,8 @@ _createObstacle(SimulationData &sim,
     return std::make_shared<StefanFish>(sim, lineParser);
   if (objectName == "CarlingFish")
     return std::make_shared<CarlingFish>(sim, lineParser);
+  if (objectName == "CStartFish")
+      return std::make_shared<CStartFish>(sim, lineParser);
   if (objectName == "Naca")
     return std::make_shared<Naca>(sim, lineParser);
   if (objectName == "Cylinder")
