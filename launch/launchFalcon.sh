@@ -6,7 +6,8 @@ if [ $# -lt 2 ] ; then
   echo "Usage "$0" SETTINGSNAME BASENAME"
   exit 1
 fi
-BASEPATH=${SCRATCH}/CubismUP3D/
+
+BASEPATH=${HOME}/git/CubismUP_3D/runs/
 
 if [ ! -f $SETTINGSNAME ]; then
     echo ${SETTINGSNAME}" not found! - exiting"
@@ -35,4 +36,4 @@ cd $FOLDER
 
 export OMP_NUM_THREADS=12
 echo "$OPTIONS" > settings.txt
-mpirun -np 1 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
+mpirun -np 4 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
