@@ -29,6 +29,8 @@ namespace MidlineShapes
 
   void naca_width(const double t_ratio, const double L, Real*const rS,
     Real*const res, const int Nm);
+  void cstart_width(const double L, Real*const rS, Real*const res, const int Nm);
+  void cstart_height(const double L, Real*const rS, Real*const res, const int Nm);
   void stefan_width(const double L, Real*const rS, Real*const res, const int Nm);
   void stefan_height(const double L, Real*const rS, Real*const res, const int Nm);
   void danio_width(const double L, Real*const rS, Real*const res, const int Nm);

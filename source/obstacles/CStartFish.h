@@ -3,7 +3,7 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
+//  Created by Ioannis Mandralis (ioannima@ethz.ch) adapted from code by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
 #ifndef CubismUP_3D_CStartFish_h

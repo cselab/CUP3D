@@ -82,6 +82,48 @@ void MidlineShapes::naca_width(const double t_ratio, const double L,
   }
 }
 
+void MidlineShapes::cstart_width(const double L, Real*const rS, Real*const res, const int Nm)
+{
+    const double sb = .0862*L;
+    const double st = .3448*L;
+    const double wt = .0254*L;
+    const double wh = .0635*L;
+
+    for(int i=0; i<Nm; ++i)
+    {
+        if(rS[i]<=0 or rS[i]>=L) res[i] = 0;
+        else {
+            const Real s = rS[i];
+            res[i] = (s<sb ? wh * std::sqrt(1 - std::pow((sb - s)/sb, 2)) :
+                      (s<st ? (-2*(wt-wh)-wt*(st-sb))*std::pow((s-sb)/(st-sb), 3)
+                              + (3*(wt-wh)+wt*(st-sb))*std::pow((s-sb)/(st-sb), 2)
+                              + wh: (wt - wt * std::pow((s-st)/(L-st), 2))));
+        }
+    }
+}
+
+void MidlineShapes::cstart_height(const double L, Real*const rS, Real*const res, const int Nm)
+{
+    const double s1 = 0.284*L;
+    const double s2 = 0.844*L;
+    const double s3 = 0.957*L;
+    const double h1 = 0.072*L;
+    const double h2 = 0.041*L;
+    const double h3 = 0.071*L;
+
+    for(int i=0; i<Nm; ++i)
+    {
+      if(rS[i]<=0 or rS[i]>=L) res[i] = 0;
+      else {
+        const Real s = rS[i];
+        res[i] = (s<s1 ? h1 * std::sqrt(1 - std::pow((s - s1)/s1, 2)) :
+                 (s<s2 ? -2*(h2-h1)*std::pow((s-s1)/(s2-s1), 3)+3*(h2-h1)*std::pow((s-s1)/(s2-s1), 2)
+                  + h1 : (s<s3 ? -2*(h3-h2)*std::pow((s-s2)/(s3-s2), 3)+3*(h3-h2)*std::pow((s-s2)/(s3-s2), 2)
+                  + h2 : (h3 * std::sqrt(1 - std::pow((s - s3)/(L - s3), 2))))));
+        }
+    }
+}
+
 void MidlineShapes::stefan_width(const double L, Real*const rS, Real*const res, const int Nm)
 {
   const double sb = .04*L;
@@ -247,15 +289,20 @@ void MidlineShapes::computeWidthsHeights(
       if(!mpirank)
         cout<<"Building object's height according to Stefan profile"<<endl;
       stefan_height(L, rS, height, nM);
-    } else {
+    } else
+    if ( heightName.compare("cstart") == 0 ) {
       if(!mpirank)
-        cout<<"Building object's height according to baseline profile."<<endl;
-      double xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
-      double yh[8] = {0, .055*L, .068*L, .076*L, .064*L, .0072*L, .11*L, 0};
-      integrateBSpline(xh, yh, 8, L, rS, height, nM);
-    }
+        cout<<"Building object's height according to CStart profile"<<endl;
+      cstart_height(L, rS, height, nM);
+      } else {
+        printf("In CStart height factory.\n");
+        if(!mpirank)
+          cout<<"Building object's height according to baseline profile."<<endl;
+        double xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
+        double yh[8] = {0, .055*L, .068*L, .076*L, .064*L, .0072*L, .11*L, 0};
+        integrateBSpline(xh, yh, 8, L, rS, height, nM);
+      }
   }
-
 
 
   {
@@ -281,13 +328,18 @@ void MidlineShapes::computeWidthsHeights(
       if(!mpirank)
         cout<<"Building object's width according to Stefan profile"<<endl;
       stefan_width(L, rS, width, nM);
-    } else {
+    } else
+    if ( widthName.compare("cstart") == 0 ) {
       if(!mpirank)
-        cout<<"Building object's width according to baseline profile."<<endl;
-      double xw[6] = {0, 0, L/3., 2*L/3., L, L};
-      double yw[6] = {0, 8.9e-2*L, 1.7e-2*L, 1.6e-2*L, 1.3e-2*L, 0};
-      integrateBSpline(xw, yw, 6, L, rS, width, nM);
-    }
+        cout<<"Building object's width according to CStart profile"<<endl;
+      cstart_width(L, rS, width, nM);
+      } else {
+        if(!mpirank)
+          cout<<"Building object's width according to baseline profile."<<endl;
+        double xw[6] = {0, 0, L/3., 2*L/3., L, L};
+        double yw[6] = {0, 8.9e-2*L, 1.7e-2*L, 1.6e-2*L, 1.3e-2*L, 0};
+        integrateBSpline(xw, yw, 6, L, rS, width, nM);
+      }
   }
 
   if(!mpirank) {

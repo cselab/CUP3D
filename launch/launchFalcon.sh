@@ -36,4 +36,4 @@ cd $FOLDER
 
 export OMP_NUM_THREADS=12
 echo "$OPTIONS" > settings.txt
-mpirun -np 4 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
+mpirun -np 1 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
