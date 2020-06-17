@@ -1,11 +1,11 @@
 #!/bin/bash
-NNODEX=${NNODEX:-1}
+NNODEX=${NNODEX:-64}
 NNODEY=${NNODEY:-1}
 NNODE=$(($NNODEX * $NNODEY))
 
 BPDX=${BPDX:-64}
-BPDY=${BPDY:-$((${BPDX}))} #${BPDY:-32}
-BPDZ=${BPDZ:-$((${BPDX/2}))} #${BPDZ:-16}
+BPDY=${BPDY:-$((${BPDX}))}
+BPDZ=${BPDZ:-$((${BPDX/4}))}
 
 NU=${NU:-0.0001931818182}
 BC=${BC:-freespace}
@@ -15,7 +15,7 @@ FACTORY='CStartFish L=0.25 T=0.5882352941 xpos=0.50 bFixToPlanar=1 bFixFrameOfRe
 
 OPTIONS=
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.01 -tend 2.0 "
+OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.01 -tend 1.5882352941 "
 #OPTIONS+=" -nslices 2 -slice1_direction 1 -slice2_direction 2 "
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
 OPTIONS+=" -nprocsx ${NNODEX} -nprocsy ${NNODEY} -nprocsz 1"
