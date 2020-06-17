@@ -34,6 +34,8 @@ git diff HEAD > ${FOLDER}/gitdiff.diff
 
 cd ${FOLDER}
 
+echo $NNODE
+
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
