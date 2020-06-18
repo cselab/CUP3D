@@ -195,44 +195,44 @@ void ControlledCurvatureDefinedFishMidlineData::computeMidline(const double t, c
     const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).2*length,
                                                   (Real).5*length, (Real).75*length, (Real).95*length, length};
 
-//    // Reproduces the C-start (Gazzola et. al.)
-//    if (t>=0.0 && act1){
-//        std::vector<double> a{-3.19, -0.74, -0.44, -5.73, -2.73, -1.09, 0.74, 0.4, 0.176};
-//        this->schedule(t, a);
-//        act1=false;
-//    }
-//    if (t>=0.7* this->Tperiod && act2){
-//        std::vector<double> a{0, 0, 0, -5.73, -2.73, -1.09, 0.74, 1, 0.7};
-//        this->schedule(t, a);
-//        act2=false;
-//    }
-
-    // Reproduces the 7.30mJ energy escape
+    // Reproduces the 3D C-start (Gazzola et. al.)
     if (t>=0.0 && act1){
-        std::vector<double> a{-4.623, -3.75, -2.034, -1.138, -0.948, -1.374, 0.521658, 0.1651, 0.544885};
+        std::vector<double> a{-1.96, -0.46, -0.56, -6.17, -3.71, -1.09, 0.65, 0.4, 0.1321};
         this->schedule(t, a);
         act1=false;
     }
-    if (t>=0.58255* this->Tperiod && act2){
-        std::vector<double> a{-3.082, -3.004, -1.725, -4.696, -2.979, -1.974, 0.23622, 0.1071, 0.756351};
+    if (t>=0.7* this->Tperiod && act2){
+        std::vector<double> a{0, 0, 0, -6.17, -3.71, -1.09, 0.65, 1, 0.1321};
         this->schedule(t, a);
         act2=false;
     }
-    if (t>=(0.58255 + 0.553544) * this->Tperiod && act3){
-        std::vector<double> a{-1.6024, -0.9016, -2.397, -1.356, -1.633, -4.0767, 0.6017, 0.3174, 0.390727};
-        this->schedule(t, a);
-        act3=false;
-    }
-    if (t>=(0.58255 + 0.553544 + 0.658692) * this->Tperiod && act4){
-        std::vector<double> a{-1.258, -0.928, -2.5133, -3.56, -2.574, -2.9287, 0.520897, 0.2516, 0.602385};
-        this->schedule(t, a);
-        act4=false;
-    }
-    if (t>=(0.58255 + 0.553544 + 0.658692 + 0.6358) * this->Tperiod && act5){
-        std::vector<double> a{-3.04523, -2.983, -2.784, -3.868, -2.648, -2.894, 0.493, 0.3608, 0.481728};
-        this->schedule(t, a);
-        act5=false;
-    }
+
+//    // Reproduces the 7.30mJ energy escape
+//    if (t>=0.0 && act1){
+//        std::vector<double> a{-4.623, -3.75, -2.034, -1.138, -0.948, -1.374, 0.521658, 0.1651, 0.544885};
+//        this->schedule(t, a);
+//        act1=false;
+//    }
+//    if (t>=0.58255* this->Tperiod && act2){
+//        std::vector<double> a{-3.082, -3.004, -1.725, -4.696, -2.979, -1.974, 0.23622, 0.1071, 0.756351};
+//        this->schedule(t, a);
+//        act2=false;
+//    }
+//    if (t>=(0.58255 + 0.553544) * this->Tperiod && act3){
+//        std::vector<double> a{-1.6024, -0.9016, -2.397, -1.356, -1.633, -4.0767, 0.6017, 0.3174, 0.390727};
+//        this->schedule(t, a);
+//        act3=false;
+//    }
+//    if (t>=(0.58255 + 0.553544 + 0.658692) * this->Tperiod && act4){
+//        std::vector<double> a{-1.258, -0.928, -2.5133, -3.56, -2.574, -2.9287, 0.520897, 0.2516, 0.602385};
+//        this->schedule(t, a);
+//        act4=false;
+//    }
+//    if (t>=(0.58255 + 0.553544 + 0.658692 + 0.6358) * this->Tperiod && act5){
+//        std::vector<double> a{-3.04523, -2.983, -2.784, -3.868, -2.648, -2.894, 0.493, 0.3608, 0.481728};
+//        this->schedule(t, a);
+//        act5=false;
+//    }
 
     // Write values to placeholders
     baselineCurvatureScheduler.gimmeValues(t, curvaturePoints, Nm, rS, rBC, vBC); // writes to rBC, vBC
