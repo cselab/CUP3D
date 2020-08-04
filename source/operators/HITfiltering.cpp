@@ -288,9 +288,9 @@ void StructureFunctions::operator()(const double dt)
   const FluidElement & ref_elem = ref_block(ref_ix, ref_iy, ref_iz);
   const std::array<Real,3> ref_pos = ref_info.pos<Real>(ref_ix, ref_iy, ref_iz);
 
-  static constexpr size_t 1D_ref_gridN = 32; // LES resolution
-  const Real delta_increments = sim.maxextent / 1D_ref_gridN;
-  static constexpr size_t n_shells = 1D_ref_gridN/2;
+  static constexpr size_t oneD_ref_gridN = 32; // LES resolution
+  const Real delta_increments = sim.maxextent / oneD_ref_gridN;
+  static constexpr size_t n_shells = oneD_ref_gridN / 2;
 
   double sum_S2[n_shells] = {0.0}, sumsq_S2[n_shells] = {0.0};
   double sum_S3[n_shells] = {0.0}, sumsq_S3[n_shells] = {0.0};
@@ -349,14 +349,14 @@ void StructureFunctions::operator()(const double dt)
 
   if(sim.rank==0 and not sim.muteAll)
   {
-    std::vector<double> buffer = sum_S2;
-    buffer.insert(buffer.end(), sumsq_S2, sumsq_S2 + n_shells);
+    std::vector<double> buffer;
+    buffer.insert(buffer.end(),   sum_S2,   sum_S2 + n_shells);
     buffer.insert(buffer.end(), sumsq_S2, sumsq_S2 + n_shells);
     buffer.insert(buffer.end(),   sum_S3,   sum_S3 + n_shells);
     buffer.insert(buffer.end(), sumsq_S3, sumsq_S3 + n_shells);
     buffer.insert(buffer.end(),   counts,   counts + n_shells); // to double
     FILE * pFile = fopen ("structureFunctionsAnalysis.raw", "ab");
-    fwrite (buf.data(), sizeof(double), buf.size(), pFile);
+    fwrite (buffer.data(), sizeof(double), buffer.size(), pFile);
     fflush(pFile); fclose(pFile);
   }
 
