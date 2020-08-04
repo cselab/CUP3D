@@ -288,13 +288,26 @@ void StructureFunctions::operator()(const double dt)
   const FluidElement & ref_elem = ref_block(ref_ix, ref_iy, ref_iz);
   const std::array<Real,3> ref_pos = ref_info.pos<Real>(ref_ix, ref_iy, ref_iz);
 
-  const Real h, delta_h = sim.uniformH(), 2 * h;
-  const size_t n_shells = sim.maxextent / delta_h;
+  static constexpr size_t 1D_ref_gridN = 32; // LES resolution
+  const Real delta_increments = sim.maxextent / 1D_ref_gridN;
+  static constexpr size_t n_shells = 1D_ref_gridN/2;
 
-  std::vector<double> sum_S2(n_shells, 0), sumsq_S2(n_shells, 0);
-  std::vector<double> sum_S3(n_shells, 0), sumsq_S3(n_shells, 0);
-  std::vector<int>  counts(n_shells, 0);
+  double sum_S2[n_shells] = {0.0}, sumsq_S2[n_shells] = {0.0};
+  double sum_S3[n_shells] = {0.0}, sumsq_S3[n_shells] = {0.0};
+  int    counts[n_shells] = {0};
 
+  const auto get_shell_id = [=](const Real delta) {
+    // first shell goes from 0 to 1.5 delta_increments
+    // then from 1.5 to 2.5 and so on, so we can compute with 0:N / eta
+    // NOTE: 'average' radius is = 3/4 * (B^4 - A^4) / (B^3 - A^3)
+    // where B and A are external and internal radius of shell respectively
+    if (delta <= delta_increments * 1.5) return (size_t) 0;
+    const Real delta_nondim = delta / delta_increments; //should be at least 1.5
+    assert(delta_nondim >= 1.5);
+    // in [1.5, 2.5) return 1, in [2.5, 3.5) return 2 and so on:
+    const size_t shell_id = std::max(delta_nondim - 0.5, (Real) 1);
+    return shell_id;
+  };
   #pragma omp parallel for schedule(static) reduction(+ : counts[:n_shells],   \
                                                           sum_S2[:n_shells],   \
                                                           sumsq_S2[:n_shells], \
@@ -311,7 +324,8 @@ void StructureFunctions::operator()(const double dt)
     {
       const std::array<Real,3> pos = info.pos<Real>(ix, iy, iz);
       const Real delta = periodic_distance(pos, ref_pos, sim.extent);
-      const size_t shell_id = delta / delta_h;
+      const size_t shell_id = get_shell_id(delta);
+
       if (shell_id >= n_shells) continue;
       const Real S2_ui = std::pow(block(ix,iy,iz).u - ref_elem.u, 2);
       const Real S2_vi = std::pow(block(ix,iy,iz).v - ref_elem.v, 2);
@@ -327,19 +341,20 @@ void StructureFunctions::operator()(const double dt)
     }
   }
 
-  MPI_Allreduce(MPI_IN_PLACE,   sum_S2.data(), n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  MPI_Allreduce(MPI_IN_PLACE, sumsq_S2.data(), n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  MPI_Allreduce(MPI_IN_PLACE,   sum_S3.data(), n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  MPI_Allreduce(MPI_IN_PLACE, sumsq_S3.data(), n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  MPI_Allreduce(MPI_IN_PLACE,   counts.data(), n_shells, MPI_INT,    MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE,   sum_S2, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE, sumsq_S2, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE,   sum_S3, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE, sumsq_S3, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE,   counts, n_shells, MPI_INT,    MPI_SUM, sim.app_comm);
 
   if(sim.rank==0 and not sim.muteAll)
   {
     std::vector<double> buffer = sum_S2;
-    buffer.insert(buffer.end(), sumsq_S2.begin(), sumsq_S2.end());
-    buffer.insert(buffer.end(),   sum_S3.begin(),   sum_S3.end());
-    buffer.insert(buffer.end(), sumsq_S3.begin(), sumsq_S3.end());
-    buffer.insert(buffer.end(),   counts.begin(),   counts.end());
+    buffer.insert(buffer.end(), sumsq_S2, sumsq_S2 + n_shells);
+    buffer.insert(buffer.end(), sumsq_S2, sumsq_S2 + n_shells);
+    buffer.insert(buffer.end(),   sum_S3,   sum_S3 + n_shells);
+    buffer.insert(buffer.end(), sumsq_S3, sumsq_S3 + n_shells);
+    buffer.insert(buffer.end(),   counts,   counts + n_shells); // to double
     FILE * pFile = fopen ("structureFunctionsAnalysis.raw", "ab");
     fwrite (buf.data(), sizeof(double), buf.size(), pFile);
     fflush(pFile); fclose(pFile);
