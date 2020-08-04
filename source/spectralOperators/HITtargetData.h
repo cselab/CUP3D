@@ -159,9 +159,9 @@ struct HITtargetData
       return;
     }
 
-    int j = 0;
+    size_t j = 0;
     while (std::getline(file, line)) {
-        int i = 0;
+        size_t i = 0;
         std::istringstream linestream(line);
         while (std::getline(linestream, line, ','))
           logE_invCov[j][i++] = std::stof(line);
@@ -169,6 +169,7 @@ struct HITtargetData
         j++;
     }
     assert(j >= nBin);
+    nModes = std::min(j, nModes);
     file.close();
     file.open(fpath + "stdevLogE_" + paramspec);
     if (!file.is_open()) {
@@ -182,6 +183,7 @@ struct HITtargetData
         sscanf(line.c_str(), "%le", & logE_stdDev.back() );
     }
     assert((int) logE_stdDev.size() >= nBin);
+    nModes = std::min(logE_stdDev.size(), nModes);
     //for (int i=0; i<nBin; ++i)  printf("%f %f %f\n", mode[i], logE_mean[i], logE_stdDev[i]);
     fflush(0);
   }
@@ -206,8 +208,9 @@ struct HITtargetData
     for (int i=0; i<stats.nBin; ++i) logE[i] = std::log(stats.E_msr[i]);
     const long double fac = 0.5 / stats.nBin;
     long double dev = 0;
-    for (int j=0; j<stats.nBin; ++j)
-      for (int i=0; i<stats.nBin; ++i) {
+    const size_t N = std::min((size_t) stats.nBin, nModes);
+    for (size_t j=0; j<N; ++j)
+      for (size_t i=0; i<N; ++i) {
         const long double dLogEi = logE[i] - logE_mean[i];
         const long double dLogEj = logE[j] - logE_mean[j];
         dev += fac * dLogEj * logE_invCov[j][i] * dLogEi;
@@ -223,7 +226,8 @@ struct HITtargetData
   {
     long double ret = 0;
     const long double fac = 0.5 / stats.nBin;
-    for (int i=0; i<stats.nBin; ++i) {
+    const size_t N = std::min((size_t) stats.nBin, nModes);
+    for (size_t i=0; i<N; ++i) {
       const long double dLogEi = std::log(stats.E_msr[i]) - logE_mean[i];
       ret += fac * std::pow(dLogEi / logE_stdDev[i], 2);
     }
@@ -233,7 +237,8 @@ struct HITtargetData
   {
     long double ret = 0;
     const long double fac = 0.5 / stats.nBin;
-    for (int i=0; i<stats.nBin; ++i) {
+    const size_t N = std::min((size_t) stats.nBin, nModes);
+    for (size_t i=0; i<N; ++i) {
       const long double dLogEi = std::log(stats.E_msr[i]) - logE_mean[i];
       ret += fac * std::pow(dLogEi / logE_stdDev[i], 2);
       //ret += arg>4 ? std::exp(-2.0)/(arg-1) : std::exp(-arg);

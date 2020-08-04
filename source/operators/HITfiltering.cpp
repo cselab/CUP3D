@@ -143,6 +143,7 @@ void HITfiltering::operator()(const double dt)
 {
   if ( not (sim.timeAnalysis>0 && (sim.time+dt) >= sim.nextAnalysisTime) )
     return;
+  if (sim.muteAll) return;
 
   sim.startProfiler("HITfiltering Kernel");
   const int BPDX = sim.grid->getBlocksPerDimension(0);
@@ -273,6 +274,7 @@ void StructureFunctions::operator()(const double dt)
 {
   if ( not (sim.timeAnalysis>0 && (sim.time+dt) >= sim.nextAnalysisTime) )
     return;
+  if (sim.muteAll) return;
 
   sim.startProfiler("StructureFunctions Kernel");
 

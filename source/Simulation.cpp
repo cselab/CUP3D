@@ -396,7 +396,8 @@ void Simulation::setupOperators()
   sim.pipeline.push_back(
       checkpointPostVelocity = new Checkpoint(sim, "PostVelocity"));
 
-  //sim.pipeline.push_back(new HITfiltering(sim));
+  sim.pipeline.push_back(new HITfiltering(sim));
+  sim.pipeline.push_back(new StructureFunctions(sim));
 
   sim.pipeline.push_back(new Analysis(sim));
 

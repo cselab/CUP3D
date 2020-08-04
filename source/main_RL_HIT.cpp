@@ -23,7 +23,6 @@
 #include <sstream>
 
 using Real = cubismup3d::Real;
-static constexpr Real rew_baseline = - 1000.0;
 #define GIVE_LOCL_STATEVARS
 #define GIVE_GRID_STATEVARS
 
