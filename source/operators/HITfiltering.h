@@ -24,5 +24,16 @@ public:
   std::string getName() { return "HITfiltering"; }
 };
 
+class StructureFunctions : public Operator
+{
+  std::mt19937 gen;
+public:
+  StructureFunctions(SimulationData& s);
+
+  void operator()(const double dt);
+
+  std::string getName() { return "StructureFunctions"; }
+};
+
 CubismUP_3D_NAMESPACE_END
 #endif
