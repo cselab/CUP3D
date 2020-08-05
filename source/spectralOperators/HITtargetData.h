@@ -195,8 +195,9 @@ struct HITtargetData
 
   static std::vector<std::string> readTargetSpecs(std::string paramsList)
   {
-    std::stringstream ss(paramsList);
     std::vector<std::string> tokens;
+    if (paramsList == "") return tokens;
+    std::stringstream ss(paramsList);
     std::string item;
     while (getline(ss, item, ',')) tokens.push_back(item);
     return tokens;
