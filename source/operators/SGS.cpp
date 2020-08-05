@@ -493,7 +493,7 @@ void SGS::operator()(const double dt)
         const Real EPS = std::numeric_limits<Real>::epsilon();
         const Real CS2 = mean[0] / std::max(mean[1], EPS); // prevent nan
         const Real Cs = std::sqrt(std::max(CS2, EPS));     // prevent nan
-        const KernelSGS_SSM<false> applyCs(sgsGrid, CS2);
+        const KernelSGS_SSM<false> applyCs(sgsGrid, Cs);
         compute(applyCs);
       #endif
     }
