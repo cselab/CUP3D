@@ -9,6 +9,7 @@
 #include "SGS.h"
 
 CubismUP_3D_NAMESPACE_BEGIN using namespace cubism;
+#define DSM_LILLY
 
 struct SGSHelperElement
 {
@@ -74,6 +75,7 @@ class KernelSGS_SSM
       sgs.dwD = (LN.w+LS.w + LE.w+LW.w + LF.w+LB.w - L.w*6)/(h*h);
 
       o(ix, iy, iz).tmpU = sgs.nu;
+      if(!readFromChi) o(ix, iy, iz).chi = Cs2;
     }
   }
 };
@@ -234,6 +236,8 @@ class KernelSGS_DSM
   const std::array<int, 3> stencil_start = {-3, -3, -3};
   const std::array<int, 3> stencil_end = {4, 4, 4};
   const StencilInfo stencil{-3,-3,-3, 4,4,4, true, {FE_U,FE_V,FE_W}};
+  mutable Real mean_l_dot_m = 0;
+  mutable Real mean_m_dot_m = 0;
 
   KernelSGS_DSM(SGSGridMPI * const _sgsGrid)
       : sgsGrid(_sgsGrid) {}
@@ -242,19 +246,19 @@ class KernelSGS_DSM
   template <typename Lab, typename BlockType>
   void operator()(Lab& lab, const BlockInfo& info, BlockType& o) const
   {
-    const Real h = info.h_gridpoint;
+    const Real h = info.h_gridpoint, mFac = 2 * h * h;
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
     for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
 
       const filterFluidElement L_f(lab,ix,iy,iz, h);
 
-      const Real m_xx = L_f.shear_S_xx - 4 * L_f.shear * L_f.S_xx;
-      const Real m_xy = L_f.shear_S_xy - 4 * L_f.shear * L_f.S_xy;
-      const Real m_xz = L_f.shear_S_xz - 4 * L_f.shear * L_f.S_xz;
-      const Real m_yy = L_f.shear_S_yy - 4 * L_f.shear * L_f.S_yy;
-      const Real m_yz = L_f.shear_S_yz - 4 * L_f.shear * L_f.S_yz;
-      const Real m_zz = L_f.shear_S_zz - 4 * L_f.shear * L_f.S_zz;
+      const Real m_xx = mFac * (L_f.shear_S_xx - 4 * L_f.shear * L_f.S_xx);
+      const Real m_xy = mFac * (L_f.shear_S_xy - 4 * L_f.shear * L_f.S_xy);
+      const Real m_xz = mFac * (L_f.shear_S_xz - 4 * L_f.shear * L_f.S_xz);
+      const Real m_yy = mFac * (L_f.shear_S_yy - 4 * L_f.shear * L_f.S_yy);
+      const Real m_yz = mFac * (L_f.shear_S_yz - 4 * L_f.shear * L_f.S_yz);
+      const Real m_zz = mFac * (L_f.shear_S_zz - 4 * L_f.shear * L_f.S_zz);
 
       const Real traceTerm = 1.0/3 * (L_f.uu + L_f.vv + L_f.ww
                               - L_f.u * L_f.u - L_f.v * L_f.v - L_f.w * L_f.w);
@@ -273,6 +277,10 @@ class KernelSGS_DSM
 
       o(ix,iy,iz).tmpV = l_dot_m;
       o(ix,iy,iz).tmpW = m_dot_m;
+      #ifdef DSM_LILLY
+      mean_l_dot_m += l_dot_m;
+      mean_m_dot_m += m_dot_m;
+      #endif
     }
   }
 };
@@ -327,10 +335,8 @@ class KernelSGS_DSM_avg
         m_dot_m += f * lab(ix+i, iy+j, iz+k).tmpW;
       }
 
-      Real Cs2 = (m_dot_m<=0) ? 0.0 : l_dot_m/2 / (h*h * m_dot_m);
-
+      Real Cs2 = (m_dot_m<=0) ? 0.0 : l_dot_m / m_dot_m;
       if (Cs2 < 0) Cs2 = 0;
-      //if (Cs2 >= 0.25*0.25) Cs2 = 0.25*0.25;
 
       sgs.nu = Cs2 * h*h * shear;
       sgs.duD = (LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6)/(h*h);
@@ -466,11 +472,30 @@ void SGS::operator()(const double dt)
     //compute<KernelSGS_nonUniform>(sgs);
   } else {
     if (sim.sgs=="DSM" or sim.cs < 0) { // Dynamic Smagorinsky Model
-      const KernelSGS_DSM computeCs(sgsGrid);
-      compute(computeCs);
+      #ifndef DSM_LILLY
+        const KernelSGS_DSM computeCs(sgsGrid);
+        compute(computeCs);
 
-      const KernelSGS_DSM_avg averageCs(sgsGrid);
-      compute(averageCs);
+        const KernelSGS_DSM_avg averageCs(sgsGrid);
+        compute(averageCs);
+      #else
+        const int nthreads = omp_get_max_threads();
+        std::vector<KernelSGS_DSM*> K(nthreads, nullptr);
+        for(int i=0; i<nthreads; ++i) K[i] = new KernelSGS_DSM(sgsGrid);
+        compute(K);
+        double mean[2];
+        for(int i=0; i<nthreads; ++i) {
+          mean[0] += K[i]->mean_l_dot_m;
+          mean[1] += K[i]->mean_m_dot_m;
+          delete K[i];
+        }
+        MPI_Allreduce(MPI_IN_PLACE, mean, 2, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+        const Real EPS = std::numeric_limits<Real>::epsilon();
+        const Real CS2 = mean[0] / std::max(mean[1], EPS); // prevent nan
+        const Real Cs = std::sqrt(std::max(CS2, EPS));     // prevent nan
+        const KernelSGS_SSM<false> applyCs(sgsGrid, CS2);
+        compute(applyCs);
+      #endif
     }
     else if (sim.sgs=="SSM") { // Standard Smagorinsky Model
       const KernelSGS_SSM<false> K(sgsGrid, sim.cs);
