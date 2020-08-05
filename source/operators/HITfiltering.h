@@ -30,6 +30,8 @@ class StructureFunctions : public Operator
   const Real computeInterval = sim.timeAnalysis / 10;
   Real nextComputeTime = 0;
 
+  std::array<double, 6> pick_ref_point();
+
 public:
   StructureFunctions(SimulationData& s);
 
