@@ -272,9 +272,10 @@ inline Real periodic_distance(const std::array<Real,3> & p1,
 
 void StructureFunctions::operator()(const double dt)
 {
-  if ( not (sim.timeAnalysis>0 && (sim.time+dt) >= sim.nextAnalysisTime) )
-    return;
   if (sim.muteAll) return;
+  if (computeInterval <= 0 or (sim.time+dt) < nextComputeTime)
+    return;
+  nextComputeTime += computeInterval;
 
   sim.startProfiler("StructureFunctions Kernel");
 
@@ -294,9 +295,10 @@ void StructureFunctions::operator()(const double dt)
   const Real delta_increments = sim.maxextent / oneD_ref_gridN;
   static constexpr size_t n_shells = oneD_ref_gridN / 2;
 
-  double sum_S2[n_shells] = {0.0}, sumsq_S2[n_shells] = {0.0};
-  double sum_S3[n_shells] = {0.0}, sumsq_S3[n_shells] = {0.0};
-  int    counts[n_shells] = {0};
+  unsigned long counts[n_shells] = {0};
+  double sum_S2[n_shells] = {0.0}, sum_S3[n_shells] = {0.0};
+  double sum_S4[n_shells] = {0.0}, sum_S6[n_shells] = {0.0};
+  double sum_A3[n_shells] = {0.0};
 
   const auto get_shell_id = [=](const Real delta) {
     // first shell goes from 0 to 1.5 delta_increments
@@ -310,11 +312,12 @@ void StructureFunctions::operator()(const double dt)
     const size_t shell_id = std::max(delta_nondim - 0.5, (Real) 1);
     return shell_id;
   };
-  #pragma omp parallel for schedule(static) reduction(+ : counts[:n_shells],   \
-                                                          sum_S2[:n_shells],   \
-                                                          sumsq_S2[:n_shells], \
-                                                          sum_S3[:n_shells],   \
-                                                          sumsq_S3[:n_shells])
+  #pragma omp parallel for schedule(static) reduction(+ : counts[:n_shells], \
+                                                          sum_S2[:n_shells], \
+                                                          sum_S3[:n_shells], \
+                                                          sum_S4[:n_shells], \
+                                                          sum_S6[:n_shells], \
+                                                          sum_A3[:n_shells])
   for (size_t i = 0; i < vInfo.size(); ++i)
   {
     const BlockInfo & info = vInfo[i];
@@ -329,34 +332,41 @@ void StructureFunctions::operator()(const double dt)
       const size_t shell_id = get_shell_id(delta);
 
       if (shell_id >= n_shells) continue;
-      const Real S2_ui = std::pow(block(ix,iy,iz).u - ref_elem.u, 2);
-      const Real S2_vi = std::pow(block(ix,iy,iz).v - ref_elem.v, 2);
-      const Real S2_wi = std::pow(block(ix,iy,iz).w - ref_elem.w, 2);
-      const Real S3_ui = std::pow(block(ix,iy,iz).u - ref_elem.u, 3);
-      const Real S3_vi = std::pow(block(ix,iy,iz).v - ref_elem.v, 3);
-      const Real S3_wi = std::pow(block(ix,iy,iz).w - ref_elem.w, 3);
-      sum_S2  [shell_id] += S2_ui + S2_vi + S2_wi;
-      sumsq_S2[shell_id] += S2_ui*S2_ui + S2_vi*S2_vi + S2_wi*S2_wi;
-      sum_S3  [shell_id] += S3_ui + S3_vi + S3_wi;
-      sumsq_S3[shell_id] += S3_ui*S3_ui + S3_vi*S3_vi + S3_wi*S3_wi;
-      counts  [shell_id] += 1;
+      const Real rx = pos[0] - ref_pos[0];
+      const Real ry = pos[1] - ref_pos[1];
+      const Real rz = pos[2] - ref_pos[2];
+      const Real rnorm = std::max(std::sqrt(rx*rx + ry*ry + rz*rz),
+                                  std::numeric_limits<Real>::epsilon());
+      const Real ex = rx/rnorm, ey = ry/rnorm, ez = rz/rnorm;
+      const Real du = block(ix,iy,iz).u - ref_elem.u;
+      const Real dv = block(ix,iy,iz).v - ref_elem.v;
+      const Real dw = block(ix,iy,iz).w - ref_elem.w;
+      const Real deltaU = du*ex + dv*ey + dw*ez;
+      counts[shell_id] += 1;
+      sum_S2[shell_id] += std::pow(deltaU, 2);
+      sum_S3[shell_id] += std::pow(deltaU, 3);
+      sum_S4[shell_id] += std::pow(deltaU, 4);
+      sum_S6[shell_id] += std::pow(deltaU, 6);
+      sum_A3[shell_id] += std::pow(std::fabs(deltaU), 3);
     }
   }
 
-  MPI_Allreduce(MPI_IN_PLACE,   sum_S2, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  MPI_Allreduce(MPI_IN_PLACE, sumsq_S2, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  MPI_Allreduce(MPI_IN_PLACE,   sum_S3, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  MPI_Allreduce(MPI_IN_PLACE, sumsq_S3, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-  MPI_Allreduce(MPI_IN_PLACE,   counts, n_shells, MPI_INT,    MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE, sum_S2, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE, sum_S3, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE, sum_S4, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE, sum_S6, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE, sum_A3, n_shells, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE, counts, n_shells, MPI_UNSIGNED_LONG, MPI_SUM, sim.app_comm);
 
   if(sim.rank==0 and not sim.muteAll)
   {
     std::vector<double> buffer;
-    buffer.insert(buffer.end(),   sum_S2,   sum_S2 + n_shells);
-    buffer.insert(buffer.end(), sumsq_S2, sumsq_S2 + n_shells);
-    buffer.insert(buffer.end(),   sum_S3,   sum_S3 + n_shells);
-    buffer.insert(buffer.end(), sumsq_S3, sumsq_S3 + n_shells);
-    buffer.insert(buffer.end(),   counts,   counts + n_shells); // to double
+    buffer.insert(buffer.end(), sum_S2, sum_S2 + n_shells);
+    buffer.insert(buffer.end(), sum_S3, sum_S3 + n_shells);
+    buffer.insert(buffer.end(), sum_S4, sum_S4 + n_shells);
+    buffer.insert(buffer.end(), sum_S6, sum_S6 + n_shells);
+    buffer.insert(buffer.end(), sum_A3, sum_A3 + n_shells);
+    buffer.insert(buffer.end(), counts, counts + n_shells); // to double
     FILE * pFile = fopen ("structureFunctionsAnalysis.raw", "ab");
     fwrite (buffer.data(), sizeof(double), buffer.size(), pFile);
     fflush(pFile); fclose(pFile);

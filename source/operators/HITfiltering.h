@@ -27,6 +27,9 @@ public:
 class StructureFunctions : public Operator
 {
   std::mt19937 gen;
+  const Real computeInterval = sim.timeAnalysis / 10;
+  Real nextComputeTime = 0;
+
 public:
   StructureFunctions(SimulationData& s);
 
