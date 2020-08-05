@@ -165,10 +165,10 @@ struct HITtargetData
         std::istringstream linestream(line);
         while (std::getline(linestream, line, ','))
           logE_invCov[j][i++] = std::stof(line);
-        assert(i >= nBin);
+        assert(i >= (size_t) nBin);
         j++;
     }
-    assert(j >= nBin);
+    assert(j >= (size_t) nBin);
     nModes = std::min(j, nModes);
     file.close();
     file.open(fpath + "stdevLogE_" + paramspec);
