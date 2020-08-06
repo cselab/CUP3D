@@ -161,7 +161,7 @@ inline  Real facFilter(const int i, const int j, const int k)
     return 4.0/64;
   else if (abs(i)+abs(j)+abs(k) == 0)    // Center cells
     return 8.0/64;
-  else // assert(false); // TODO: huguesl, is 0 a valid outcome?
+  else // assert(false);
   return 0;
 }
 
@@ -269,17 +269,18 @@ class KernelSGS_DSM
       const Real l_yz = L_f.vw - L_f.v * L_f.w;
       const Real l_zz = L_f.ww - L_f.w * L_f.w - traceTerm;
 
-      const Real l_dot_m = l_xx * m_xx + l_yy * m_yy + l_zz * m_zz +
-                      2 * (l_xy * m_xy + l_xz * m_xz + l_yz * m_yz);
+      Real l_dot_m = l_xx * m_xx + l_yy * m_yy + l_zz * m_zz +
+                2 * (l_xy * m_xy + l_xz * m_xz + l_yz * m_yz);
+      l_dot_m = std::max(l_dot_m, (Real) 0); // clip to positive
 
-      const Real m_dot_m = m_xx * m_xx + m_yy * m_yy + m_zz * m_zz +
-                      2 * (m_xy * m_xy + m_xz * m_xz + m_yz * m_yz);
+      Real m_dot_m = m_xx * m_xx + m_yy * m_yy + m_zz * m_zz +
+                2 * (m_xy * m_xy + m_xz * m_xz + m_yz * m_yz);
 
       o(ix,iy,iz).tmpV = l_dot_m;
       o(ix,iy,iz).tmpW = m_dot_m;
       #ifdef DSM_LILLY
-      mean_l_dot_m += l_dot_m;
-      mean_m_dot_m += m_dot_m;
+        mean_l_dot_m += l_dot_m;
+        mean_m_dot_m += m_dot_m;
       #endif
     }
   }
