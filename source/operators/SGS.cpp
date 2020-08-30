@@ -9,7 +9,10 @@
 #include "SGS.h"
 
 CubismUP_3D_NAMESPACE_BEGIN using namespace cubism;
-#define DSM_LILLY
+//#define DSM_LILLY
+//#define DSM_LOCAL
+
+static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 
 struct SGSHelperElement
 {
@@ -236,8 +239,10 @@ class KernelSGS_DSM
   const std::array<int, 3> stencil_start = {-3, -3, -3};
   const std::array<int, 3> stencil_end = {4, 4, 4};
   const StencilInfo stencil{-3,-3,-3, 4,4,4, true, {FE_U,FE_V,FE_W}};
+  #ifdef DSM_LILLY
   mutable Real mean_l_dot_m = 0;
   mutable Real mean_m_dot_m = 0;
+  #endif
 
   KernelSGS_DSM(SGSGridMPI * const _sgsGrid)
       : sgsGrid(_sgsGrid) {}
@@ -269,12 +274,11 @@ class KernelSGS_DSM
       const Real l_yz = L_f.vw - L_f.v * L_f.w;
       const Real l_zz = L_f.ww - L_f.w * L_f.w - traceTerm;
 
-      Real l_dot_m = l_xx * m_xx + l_yy * m_yy + l_zz * m_zz +
-                2 * (l_xy * m_xy + l_xz * m_xz + l_yz * m_yz);
-      l_dot_m = std::max(l_dot_m, (Real) 0); // clip to positive
+      const Real l_dot_m = l_xx * m_xx + l_yy * m_yy + l_zz * m_zz +
+                      2 * (l_xy * m_xy + l_xz * m_xz + l_yz * m_yz);
 
-      Real m_dot_m = m_xx * m_xx + m_yy * m_yy + m_zz * m_zz +
-                2 * (m_xy * m_xy + m_xz * m_xz + m_yz * m_yz);
+      const Real m_dot_m = m_xx * m_xx + m_yy * m_yy + m_zz * m_zz +
+                      2 * (m_xy * m_xy + m_xz * m_xz + m_yz * m_yz);
 
       o(ix,iy,iz).tmpV = l_dot_m;
       o(ix,iy,iz).tmpW = m_dot_m;
@@ -294,7 +298,8 @@ class KernelSGS_DSM_avg
  public:
   const std::array<int, 3> stencil_start = {-1, -1, -1};
   const std::array<int, 3> stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, true, {FE_U,FE_V,FE_W}};
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, true, {FE_U,FE_V,FE_W,
+                                                    FE_TMPV,FE_TMPW}};
 
   KernelSGS_DSM_avg(SGSGridMPI * const _sgsGrid)
       : sgsGrid(_sgsGrid) {}
@@ -326,18 +331,21 @@ class KernelSGS_DSM_avg
                                    +(d1udz1+d1wdx1)*(d1udz1+d1wdx1)
                                    +(d1wdy1+d1vdz1)*(d1wdy1+d1vdz1))/(2*h);
 
-      Real l_dot_m = 0.0;
-      Real m_dot_m = 0.0;
+      #ifndef DSM_LOCAL
+      Real l_dot_m = 0.0, m_dot_m = 0.0;
       for (int i=-1; i<2; ++i)
       for (int j=-1; j<2; ++j)
       for (int k=-1; k<2; ++k) {
-        const Real f = facFilter(i,j,k);
-        l_dot_m += f * lab(ix+i, iy+j, iz+k).tmpV;
-        m_dot_m += f * lab(ix+i, iy+j, iz+k).tmpW;
+        l_dot_m += facFilter(i,j,k) * lab(ix+i, iy+j, iz+k).tmpV;
+        m_dot_m += facFilter(i,j,k) * lab(ix+i, iy+j, iz+k).tmpW;
       }
-
-      Real Cs2 = (m_dot_m<=0) ? 0.0 : l_dot_m / m_dot_m;
-      if (Cs2 < 0) Cs2 = 0;
+      const Real hat = l_dot_m            / std::max(m_dot_m,            EPS);
+      const Real loc = lab(ix,iy,iz).tmpV / std::max(lab(ix,iy,iz).tmpW, EPS);
+      const Real Cs2 = std::max({hat, loc, (Real) 0});
+      #else
+      const Real Cs2 = std::max(lab(ix,iy,iz).tmpV, EPS)
+                     / std::max(lab(ix,iy,iz).tmpW, EPS);
+      #endif
 
       sgs.nu = Cs2 * h*h * shear;
       sgs.duD = (LN.u+LS.u + LE.u+LW.u + LF.u+LB.u - L.u*6)/(h*h);
@@ -491,7 +499,6 @@ void SGS::operator()(const double dt)
           delete K[i];
         }
         MPI_Allreduce(MPI_IN_PLACE, mean, 2, MPI_DOUBLE, MPI_SUM, sim.app_comm);
-        const Real EPS = std::numeric_limits<Real>::epsilon();
         const Real CS2 = mean[0] / std::max(mean[1], EPS); // prevent nan
         const Real Cs = std::sqrt(std::max(CS2, EPS));     // prevent nan
         const KernelSGS_SSM<false> applyCs(sgsGrid, Cs);
