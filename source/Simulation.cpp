@@ -164,7 +164,7 @@ void Simulation::_init(const bool restart)
   else
     _ic();
   MPI_Barrier(sim.app_comm);
-  _serialize("init");
+  //_serialize("init");
 
   assert(sim.obstacle_vector != nullptr);
   if (sim.rank == 0)

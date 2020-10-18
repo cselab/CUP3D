@@ -62,7 +62,7 @@ struct HITtargetData
     std::string line; char arg[32]; double stdev, _dt;
     std::string fpath = smartiesFolderStructure? "../../" : "./";
     std::ifstream file(fpath + "scalars_" + paramspec);
-    if (!file.is_open()) {
+    if (! file.good()) {
       printf("scalars FILE NOT FOUND\n");
       holdsTargetData = false;
       return;
@@ -128,7 +128,7 @@ struct HITtargetData
     logE_mean.clear(); mode.clear();
     std::string fpath = smartiesFolderStructure? "../../" : "./";
     std::ifstream file(fpath + "spectrumLogE_" + paramspec);
-    if (!file.is_open()) {
+    if (!file.good()) {
       printf("spectrumLogE FILE NOT FOUND\n");
       holdsTargetData = false;
       return;
@@ -153,7 +153,7 @@ struct HITtargetData
         nModes, std::vector<double>(nModes,0) );
     std::string fpath = smartiesFolderStructure? "../../" : "./";
     std::ifstream file(fpath + "invCovLogE_" + paramspec);
-    if (!file.is_open()) {
+    if (!file.good()) {
       printf("invCovLogE FILE NOT FOUND\n");
       holdsTargetData = false;
       return;
@@ -184,6 +184,7 @@ struct HITtargetData
     }
     assert((int) logE_stdDev.size() >= nBin);
     nModes = std::min(logE_stdDev.size(), nModes);
+    printf("found %lu out of %d modes\n", nModes, nBin);
     //for (int i=0; i<nBin; ++i)  printf("%f %f %f\n", mode[i], logE_mean[i], logE_stdDev[i]);
     fflush(0);
   }
@@ -294,7 +295,7 @@ struct HITtargetData
     size_t & pSamplesCount, long double & avgP, long double & m2P,
     const Real CS, const bool bPrint = true)
   {
-    const double newP = computeLogP(stats);
+    const double newP = - computeDiagLogArg(stats);
     pSamplesCount ++;
     assert(pSamplesCount > 0);
     const auto alpha = 1.0 / (long double) pSamplesCount;
@@ -313,6 +314,7 @@ struct HITtargetData
 };
 
 CubismUP_3D_NAMESPACE_END
+
 #endif
 
 #if 0
@@ -343,3 +345,4 @@ inline void updateGradScaling(const cubismup3d::SimulationData& sim,
   else scaling_factor = (1-beta) * scaling_factor + beta * newScaling;
 }
 #endif
+

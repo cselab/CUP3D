@@ -38,7 +38,7 @@ SpectralAnalysis::SpectralAnalysis(SimulationData & s)
   if (not target->holdsTargetData) {
     delete target;
     target = nullptr;
-  }
+  } else s.saveTime = target->tInteg;
 }
 
 void SpectralAnalysis::_cub2fftw()
@@ -135,10 +135,18 @@ void SpectralAnalysis::dump2File() const
 
   if(sM->sim.rank==0 and not sM->sim.muteAll) {
     buf.reserve(buf.size() + sM->stats.nBin);
-    for (int i = 0; i < sM->stats.nBin; ++i) buf.push_back(sM->stats.E_msr[i]);
+    for (int i=0; i<sM->stats.nBin; ++i) buf.push_back(sM->stats.E_msr[i]);
     FILE * pFile = fopen ("spectralAnalysis.raw", "ab");
     fwrite (buf.data(), sizeof(double), buf.size(), pFile);
     fflush(pFile); fclose(pFile);
+    #ifdef ENERGY_FLUX_SPECTRUM
+    buf.clear();
+    for (int i=0; i<sM->stats.nBin; ++i) buf.push_back(sM->stats.Eflux[i]);
+    //buf = std::vector<double>(sM->stats.Eflux, sM->stats.Eflux +sM->stats.nBin);
+    pFile = fopen ("fluxAnalysis.raw", "ab");
+    fwrite (buf.data(), sizeof(double), buf.size(), pFile);
+    fflush(pFile); fclose(pFile);
+    #endif
   }
 
   #if 0
