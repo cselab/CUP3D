@@ -357,62 +357,144 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
 
   // Used for Boundary Conditions:
   // Apply bc on face of direction dir and side side (0 or 1):
-  template<int dir, int side> void applyBCfaceOpen()
+  template<int dir, int side> void applyBCfaceOpen(const bool coarse = false)
   {
-    auto * const cb = this->m_cacheBlock;
-
-    int s[3] = {0,0,0}, e[3] = {0,0,0};
-    const int* const stenBeg = this->m_stencilStart;
-    const int* const stenEnd = this->m_stencilEnd;
-    s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : 0;
-    s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : 0;
-    s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : 0;
-    e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX;
-    e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY;
-    e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 ) : sizeZ;
-    for(int iz=s[2]; iz<e[2]; iz++)
-    for(int iy=s[1]; iy<e[1]; iy++)
-    for(int ix=s[0]; ix<e[0]; ix++)
-      cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = cb->Access
-        (
-          ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
-          ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
-          ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
-        );
-  }
-  template<int dir, int side> void applyBCfaceWall()
-  {
-    auto * const cb = this->m_cacheBlock;
-
-    int s[3] = {0,0,0}, e[3] = {0,0,0};
-    const int* const stenBeg = this->m_stencilStart;
-    const int* const stenEnd = this->m_stencilEnd;
-    s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : 0;
-    s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : 0;
-    s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : 0;
-    e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX;
-    e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY;
-    e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 ) : sizeZ;
-    for(int iz=s[2]; iz<e[2]; iz++)
-    for(int iy=s[1]; iy<e[1]; iy++)
-    for(int ix=s[0]; ix<e[0]; ix++)
+    if (!coarse)
     {
-      auto& DST = cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]);
-      const auto& SRCV = cb->Access (
-          ( dir==0 ? (side==0 ? -1 -ix : 2*sizeX -1 -ix ) : ix ) - stenBeg[0],
-          ( dir==1 ? (side==0 ? -1 -iy : 2*sizeY -1 -iy ) : iy ) - stenBeg[1],
-          ( dir==2 ? (side==0 ? -1 -iz : 2*sizeZ -1 -iz ) : iz ) - stenBeg[2]
-        );
-      const auto& SRCP = cb->Access (
-          ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
-          ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
-          ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
-        );
-      DST.p =    SRCP.p; DST.chi  =  0;
-      DST.u =  - SRCV.u; DST.tmpU =  - SRCV.tmpU;
-      DST.v =  - SRCV.v; DST.tmpV =  - SRCV.tmpV;
-      DST.w =  - SRCV.w; DST.tmpW =  - SRCV.tmpW;
+      auto * const cb = this->m_cacheBlock;
+  
+      int s[3] = {0,0,0}, e[3] = {0,0,0};
+      const int* const stenBeg = this->m_stencilStart;
+      const int* const stenEnd = this->m_stencilEnd;
+      s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : 0;
+      s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : 0;
+      s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : 0;
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY;
+      e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 ) : sizeZ;
+      for(int iz=s[2]; iz<e[2]; iz++)
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = cb->Access
+          (
+            ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
+            ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
+            ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
+          );      
     }
+    else
+    {
+      auto * const cb = this->m_CoarsenedBlock;
+  
+      int s[3] = {0,0,0}, e[3] = {0,0,0};
+      const int eI[3] = {(this->m_stencilEnd[0])/2 + 1 + this->m_InterpStencilEnd[0] -1,
+                         (this->m_stencilEnd[1])/2 + 1 + this->m_InterpStencilEnd[1] -1,
+                         (this->m_stencilEnd[2])/2 + 1 + this->m_InterpStencilEnd[2] -1};
+      const int sI[3] = {(this->m_stencilStart[0]-1)/2+  this->m_InterpStencilStart[0],
+                         (this->m_stencilStart[1]-1)/2+  this->m_InterpStencilStart[1],
+                         (this->m_stencilStart[2]-1)/2+  this->m_InterpStencilStart[2]};
+
+      const int* const stenBeg = sI;
+      const int* const stenEnd = eI;
+      s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX/2 ) : 0;
+      s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY/2 ) : 0;
+      s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ/2 ) : 0;
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX/2 + stenEnd[0]-1 ) : sizeX/2;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 ) : sizeY/2;
+      e[2] =  dir==2 ? (side==0 ? 0 : sizeZ/2 + stenEnd[2]-1 ) : sizeZ/2;
+      for(int iz=s[2]; iz<e[2]; iz++)
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = cb->Access
+          (
+            ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
+            ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
+            ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]
+          );
+  
+      }
+  }
+  template<int dir, int side> void applyBCfaceWall(const bool coarse=false)
+  {
+    if (!coarse)
+    {
+      auto * const cb = this->m_cacheBlock;
+  
+      int s[3] = {0,0,0}, e[3] = {0,0,0};
+      const int* const stenBeg = this->m_stencilStart;
+      const int* const stenEnd = this->m_stencilEnd;
+      s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : 0;
+      s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : 0;
+      s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : 0;
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY;
+      e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 ) : sizeZ;
+      for(int iz=s[2]; iz<e[2]; iz++)
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+      {
+        auto& DST = cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]);
+        const auto& SRCV = cb->Access (
+            ( dir==0 ? (side==0 ? -1 -ix : 2*sizeX -1 -ix ) : ix ) - stenBeg[0],
+            ( dir==1 ? (side==0 ? -1 -iy : 2*sizeY -1 -iy ) : iy ) - stenBeg[1],
+            ( dir==2 ? (side==0 ? -1 -iz : 2*sizeZ -1 -iz ) : iz ) - stenBeg[2]
+          );
+        const auto& SRCP = cb->Access (
+            ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
+            ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
+            ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
+          );
+        DST.p =    SRCP.p; DST.chi  =  0;
+        DST.u =  - SRCV.u; DST.tmpU =  - SRCV.tmpU;
+        DST.v =  - SRCV.v; DST.tmpV =  - SRCV.tmpV;
+        DST.w =  - SRCV.w; DST.tmpW =  - SRCV.tmpW;
+      }
+    }
+    else
+    {
+      auto * const cb = this->m_CoarsenedBlock;
+  
+      int s[3] = {0,0,0}, e[3] = {0,0,0};
+
+      const int eI[3] = {(this->m_stencilEnd[0])/2 + 1 + this->m_InterpStencilEnd[0] -1,
+                         (this->m_stencilEnd[1])/2 + 1 + this->m_InterpStencilEnd[1] -1,
+                         (this->m_stencilEnd[2])/2 + 1 + this->m_InterpStencilEnd[2] -1};
+      const int sI[3] = {(this->m_stencilStart[0]-1)/2+  this->m_InterpStencilStart[0],
+                         (this->m_stencilStart[1]-1)/2+  this->m_InterpStencilStart[1],
+                         (this->m_stencilStart[2]-1)/2+  this->m_InterpStencilStart[2]};
+
+      const int* const stenBeg = sI;
+      const int* const stenEnd = eI;
+
+      s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX/2 ) : 0;
+      s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY/2 ) : 0;
+      s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ/2 ) : 0;
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX/2 + stenEnd[0]-1 ) : sizeX/2;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 ) : sizeY/2;
+      e[2] =  dir==2 ? (side==0 ? 0 : sizeZ/2 + stenEnd[2]-1 ) : sizeZ/2;
+      for(int iz=s[2]; iz<e[2]; iz++)
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+      {
+        auto& DST = cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]);
+        const auto& SRCV = cb->Access (
+            ( dir==0 ? (side==0 ? -1 -ix : 2*sizeX/2 -1 -ix ) : ix ) - stenBeg[0],
+            ( dir==1 ? (side==0 ? -1 -iy : 2*sizeY/2 -1 -iy ) : iy ) - stenBeg[1],
+            ( dir==2 ? (side==0 ? -1 -iz : 2*sizeZ/2 -1 -iz ) : iz ) - stenBeg[2]
+          );
+        const auto& SRCP = cb->Access (
+            ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
+            ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
+            ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]
+          );
+        DST.p =    SRCP.p; DST.chi  =  0;
+        DST.u =  - SRCV.u; DST.tmpU =  - SRCV.tmpU;
+        DST.v =  - SRCV.v; DST.tmpV =  - SRCV.tmpV;
+        DST.w =  - SRCV.w; DST.tmpW =  - SRCV.tmpW;
+      }
+
+    }
+
   }
 
  public:
@@ -428,33 +510,33 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   BlockLabBC& operator=(const BlockLabBC&) = delete;
 
   // Called by Cubism:
-  void _apply_bc(const cubism::BlockInfo& info, const Real t=0, bool coarse = false)
+  void _apply_bc(const cubism::BlockInfo& info, const Real t=0, const bool coarse = false)
   {
     if(BCX == periodic) {   /* PERIODIC */ }
     else if (BCX == wall) { /* WALL */
-      if(info.index[0]==0 )          this->template applyBCfaceWall<0,0>();
-      if(info.index[0]==this->NX-1 ) this->template applyBCfaceWall<0,1>();
+      if(info.index[0]==0 )          this->template applyBCfaceWall<0,0>(coarse);
+      if(info.index[0]==this->NX-1 ) this->template applyBCfaceWall<0,1>(coarse);
     } else { /* dirichlet==absorbing==freespace */
-      if(info.index[0]==0 )          this->template applyBCfaceOpen<0,0>();
-      if(info.index[0]==this->NX-1 ) this->template applyBCfaceOpen<0,1>();
+      if(info.index[0]==0 )          this->template applyBCfaceOpen<0,0>(coarse);
+      if(info.index[0]==this->NX-1 ) this->template applyBCfaceOpen<0,1>(coarse);
     }
 
     if(BCY == periodic) {   /* PERIODIC */ }
     else if (BCY == wall) { /* WALL */
-      if(info.index[1]==0 )          this->template applyBCfaceWall<1,0>();
-      if(info.index[1]==this->NY-1 ) this->template applyBCfaceWall<1,1>();
+      if(info.index[1]==0 )          this->template applyBCfaceWall<1,0>(coarse);
+      if(info.index[1]==this->NY-1 ) this->template applyBCfaceWall<1,1>(coarse);
     } else { /* dirichlet==absorbing==freespace */
-      if(info.index[1]==0 )          this->template applyBCfaceOpen<1,0>();
-      if(info.index[1]==this->NY-1 ) this->template applyBCfaceOpen<1,1>();
+      if(info.index[1]==0 )          this->template applyBCfaceOpen<1,0>(coarse);
+      if(info.index[1]==this->NY-1 ) this->template applyBCfaceOpen<1,1>(coarse);
     }
 
     if(BCZ == periodic) {   /* PERIODIC */ }
     else if (BCZ == wall) { /* WALL */
-      if(info.index[2]==0 )          this->template applyBCfaceWall<2,0>();
-      if(info.index[2]==this->NZ-1 ) this->template applyBCfaceWall<2,1>();
+      if(info.index[2]==0 )          this->template applyBCfaceWall<2,0>(coarse);
+      if(info.index[2]==this->NZ-1 ) this->template applyBCfaceWall<2,1>(coarse);
     } else { /* dirichlet==absorbing==freespace */
-      if(info.index[2]==0 )          this->template applyBCfaceOpen<2,0>();
-      if(info.index[2]==this->NZ-1 ) this->template applyBCfaceOpen<2,1>();
+      if(info.index[2]==0 )          this->template applyBCfaceOpen<2,0>(coarse);
+      if(info.index[2]==this->NZ-1 ) this->template applyBCfaceOpen<2,1>(coarse);
     }
   }
 };
