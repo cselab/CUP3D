@@ -1,4 +1,4 @@
 [submodule "Cubism"]
 	path = Cubism
-	url = ../Cubism.git
+	url = git@gitlab.ethz.ch:/mavt-cse/Cubism
         branch = amr
