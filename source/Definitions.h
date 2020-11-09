@@ -41,16 +41,96 @@ CubismUP_3D_NAMESPACE_BEGIN
 enum { FE_CHI = 0, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW };
 struct FluidElement
 {
+  static constexpr int DIM = 8;
   typedef Real RealType;
   Real chi=0, u=0, v=0, w=0, p=0, tmpU=0, tmpV=0, tmpW=0;
   void clear() { chi =0; u =0; v =0; w =0; p =0; tmpU =0; tmpV =0; tmpW =0; }
-  FluidElement(const FluidElement& c) = delete;
   ~FluidElement() {}
   FluidElement& operator=(const FluidElement& c) {
     chi = c.chi; u = c.u; v = c.v; w = c.w; p = c.p;
     tmpU = c.tmpU; tmpV = c.tmpV; tmpW = c.tmpW;
     return *this;
   }
+
+    Real & member(int i)
+    {
+       Real * tmp = & this->chi;
+       return *(tmp + i);
+    }
+
+    Real magnitude()//not used
+    {
+        return u*u+v*v+w*w;
+    }
+
+    FluidElement &operator*=(const Real a)
+    {
+        this->chi  *= a;
+        this->u    *= a;
+        this->v    *= a;
+        this->w    *= a;
+        this->p    *= a;
+        this->tmpU *= a;
+        this->tmpV *= a;
+        this->tmpW *= a;
+
+        return *this;
+    }
+
+    FluidElement &operator+=(const FluidElement &rhs)
+    {
+        this->chi  += rhs.chi ;
+        this->u    += rhs.u   ;
+        this->v    += rhs.v   ;
+        this->w    += rhs.w   ;
+        this->p    += rhs.p   ;
+        this->tmpU += rhs.tmpU;
+        this->tmpV += rhs.tmpV;
+        this->tmpW += rhs.tmpW;
+        return *this;
+    }
+
+    FluidElement &operator-=(const FluidElement &rhs)
+    {
+        this->chi  -= rhs.chi ;
+        this->u    -= rhs.u   ;
+        this->v    -= rhs.v   ;
+        this->w    -= rhs.w   ;
+        this->p    -= rhs.p   ;
+        this->tmpU -= rhs.tmpU;
+        this->tmpV -= rhs.tmpV;
+        this->tmpW -= rhs.tmpW;
+        return *this;
+    }
+
+    //only for debug
+    FluidElement &operator=(const double a)
+    {
+        this->chi  = a;
+        this->u    = a;
+        this->v    = a;
+        this->w    = a;
+        this->p    = a;
+        this->tmpU = a;
+        this->tmpV = a;
+        this->tmpW = a;
+        return *this;
+    }
+
+    friend FluidElement operator*(const Real a, FluidElement el)
+    {
+        return (el *= a);
+    }
+
+    friend FluidElement operator+(FluidElement lhs, const FluidElement &rhs)
+    {
+        return (lhs += rhs);
+    }
+
+    friend FluidElement operator-(FluidElement lhs, const FluidElement &rhs)
+    {
+        return (lhs -= rhs);
+    }
 };
 
 struct PenalizationHelperElement
@@ -348,7 +428,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   BlockLabBC& operator=(const BlockLabBC&) = delete;
 
   // Called by Cubism:
-  void _apply_bc(const cubism::BlockInfo& info, const Real t=0)
+  void _apply_bc(const cubism::BlockInfo& info, const Real t=0, bool coarse = false)
   {
     if(BCX == periodic) {   /* PERIODIC */ }
     else if (BCX == wall) { /* WALL */
@@ -388,7 +468,7 @@ using PenalizationGrid    = cubism::Grid<PenalizationBlock, aligned_allocator>;
 using PenalizationGridMPI = cubism::GridMPI<PenalizationGrid>;
 
 using Lab          = BlockLabBC<FluidBlock, aligned_allocator>;
-using LabMPI       = cubism::BlockLabMPI<Lab>;
+using LabMPI       = cubism::BlockLabMPI<Lab,FluidGridMPI>;
 
 CubismUP_3D_NAMESPACE_END
 #endif // CubismUP_3D_DataStructures_h
