@@ -1,3 +1,4 @@
 [submodule "Cubism"]
 	path = Cubism
 	url = ../Cubism.git
+        branch = amr
