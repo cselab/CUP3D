@@ -21,7 +21,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
 
-inline Real findMaxUzeroMom(const SimulationData& sim)
+inline Real findMaxUzeroMom(SimulationData& sim)
 {
   const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
   const Real uinf[3] = {sim.uinf[0], sim.uinf[1], sim.uinf[2]};
@@ -71,7 +71,7 @@ inline Real findMaxUzeroMom(const SimulationData& sim)
   return maxU;
 }
 
-inline Real findMaxU(const SimulationData& sim)
+inline Real findMaxU(SimulationData& sim)
 {
   const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
   const Real uinf[3] = {sim.uinf[0], sim.uinf[1], sim.uinf[2]};

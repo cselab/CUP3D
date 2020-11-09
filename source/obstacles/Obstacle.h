@@ -87,7 +87,7 @@ struct ObstacleVisitor
 class Obstacle
 {
 protected:
-  const SimulationData & sim;
+  SimulationData & sim;
   FluidGridMPI * const grid = sim.grid;
   std::vector<ObstacleBlock*> obstacleBlocks;
   bool printedHeaderVels = false;
@@ -190,7 +190,7 @@ public:
       delete entry;
       entry = nullptr;
     }
-    const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
     obstacleBlocks.resize(vInfo.size(), nullptr);
 
     #pragma omp parallel for schedule(dynamic, 1)

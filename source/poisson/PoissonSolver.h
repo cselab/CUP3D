@@ -23,7 +23,7 @@ class PoissonSolver
 {
  protected:
   typedef typename FluidGridMPI::BlockType BlockType;
-  const SimulationData & sim;
+  SimulationData & sim;
   FluidGridMPI& grid = * sim.grid;
   // MPI related
   const MPI_Comm m_comm = grid.getCartComm();
