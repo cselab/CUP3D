@@ -49,7 +49,7 @@ struct SimulationData
 
   FluidGridMPI * grid = nullptr;
   void * nonuniform = nullptr;
-  const inline std::vector<cubism::BlockInfo>& vInfo() const {
+  inline std::vector<cubism::BlockInfo>& vInfo() {
     return grid->getBlocksInfo();
   }
   Real maxH() const { return hmax; }
