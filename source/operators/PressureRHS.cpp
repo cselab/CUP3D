@@ -352,6 +352,7 @@ void PressureRHS::operator()(const double dt)
   //where i want div u^(t+1) to be equal to div udef
   sim.pressureSolver->reset();
 
+  const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
   const size_t nShapes = sim.obstacle_vector->nObstacles();
   std::vector<Real> corrFactors(nShapes, 0);
   const int nthreads = omp_get_max_threads();

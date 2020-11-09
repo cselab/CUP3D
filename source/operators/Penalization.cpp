@@ -131,6 +131,7 @@ void Penalization::operator()(const double dt)
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
   sim.startProfiler("Penalization");
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel
   { // each thread needs to call its own non-const operator() function
     if(sim.bImplicitPenalization)

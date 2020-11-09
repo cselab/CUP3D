@@ -474,6 +474,7 @@ void SGS::operator()(const double dt)
 {
   SGSGridMPI * sgsGrid = (SGSGridMPI*) _sgsGrid;
   sim.startProfiler("SGS Kernel");
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   if(sim.bUseStretchedGrid) {
     printf("ERROR: SGS model not implemented with non uniform grid.\n");
     fflush(0); abort();

@@ -447,6 +447,7 @@ void CreateObstacles::operator()(const double dt)
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
   sim.startProfiler("Obst Reset");
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i)
   {

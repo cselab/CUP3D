@@ -209,6 +209,7 @@ void InitialConditions::operator()(const double dt)
     sIc.run();
   }
   {
+    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
     //zero fields, going to contain Udef:
     #pragma omp parallel for schedule(static)
     for(unsigned i=0; i<vInfo.size(); i++)

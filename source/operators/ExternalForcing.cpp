@@ -39,6 +39,7 @@ void ExternalForcing::operator()(const double dt)
   const Real H = sim.extent[dir];
   const Real gradPdt = 8*sim.uMax_forced*sim.nu/H/H * dt;
 
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   const KernelExternalForcing<0> kernel( gradPdt );
   #pragma omp parallel for schedule(static)
   for(size_t i=0; i<vInfo.size(); i++)

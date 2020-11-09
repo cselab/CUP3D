@@ -65,6 +65,7 @@ class KernelFadeOut
 void FadeOut::operator()(const double dt)
 {
   sim.startProfiler("FadeOut Kernel");
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel
   {
     KernelFadeOut kernel(sim.fadeOutLengthU, sim.extent.data());
@@ -103,6 +104,7 @@ void InflowBC::operator()(const double dt)
   const Real CS = std::max( UY,(Real)0)/norm, CN = std::max(-UY,(Real)0)/norm;
   const Real CB = std::max( UZ,(Real)0)/norm, CF = std::max(-UZ,(Real)0)/norm;
   sim.startProfiler("FadeOut Kernel");
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
 
   #pragma omp parallel for schedule(dynamic)
   for (size_t i=0; i < vInfo.size(); ++i)

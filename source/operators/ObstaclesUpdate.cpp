@@ -205,6 +205,7 @@ void UpdateObstacles::operator()(const double dt)
 
   sim.startProfiler("Obst Int Vel");
   { // integrate momenta by looping over grid
+    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
     #pragma omp parallel
     { // each thread needs to call its own non-const operator() function
       //if(0) {

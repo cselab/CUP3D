@@ -601,6 +601,7 @@ IterativePressurePenalization::IterativePressurePenalization(SimulationData& s)
 
 void IterativePressurePenalization::operator()(const double dt)
 {
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   const size_t nShapes = sim.obstacle_vector->nObstacles();
   const int nthreads = omp_get_max_threads();
   std::vector<double> sumDEF(nShapes, 0), supRHS(nShapes, 0);

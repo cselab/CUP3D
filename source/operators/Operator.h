@@ -18,11 +18,11 @@ class Operator
  protected:
   SimulationData & sim;
   FluidGridMPI * const grid = sim.grid;
-  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
 
   inline void check(const std::string &infoText)
   {
     #ifndef NDEBUG
+    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
     int rank;
     MPI_Comm comm = grid->getCartComm();
     MPI_Comm_rank(comm,&rank);

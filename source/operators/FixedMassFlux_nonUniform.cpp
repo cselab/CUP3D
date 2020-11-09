@@ -65,7 +65,7 @@ FixedMassFlux_nonUniform::FixedMassFlux_nonUniform(SimulationData& s)
 void FixedMassFlux_nonUniform::operator()(const double dt)
 {
   sim.startProfiler("FixedMassFlux");
-
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   // fix base_u_avg and y_max AD HOC for channel flow
   Real u_avg_msr, delta_u;
   const Real volume = sim.extent[0]*sim.extent[1]*sim.extent[2];

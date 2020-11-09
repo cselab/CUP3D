@@ -196,6 +196,7 @@ void IterativePressureNonUniform::operator()(const double dt)
     sim.startProfiler("sol2cub");
     {
       Real err = 0, norm = 0;
+      std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
       #pragma omp parallel for schedule(static) reduction(+ : err, norm)
       for(size_t i=0; i<vInfo.size(); i++)
       {

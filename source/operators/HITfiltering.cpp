@@ -146,6 +146,8 @@ void HITfiltering::operator()(const double dt)
   if (sim.muteAll) return;
 
   sim.startProfiler("HITfiltering Kernel");
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+
   const int BPDX = sim.grid->getBlocksPerDimension(0);
   const int BPDY = sim.grid->getBlocksPerDimension(1);
   const int BPDZ = sim.grid->getBlocksPerDimension(2);
@@ -272,6 +274,7 @@ inline Real periodic_distance(const std::array<Real,3> & p1,
 
 std::array<double, 6> StructureFunctions::pick_ref_point()
 {
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   std::uniform_int_distribution<int> distrib_ranks(0, sim.nprocs-1);
   std::uniform_int_distribution<size_t> distrib_block(0, vInfo.size()-1);
   std::uniform_int_distribution<int> distrib_elem(0, CUP_BLOCK_SIZE-1);
@@ -311,6 +314,7 @@ std::array<double, 6> StructureFunctions::pick_ref_point()
 void StructureFunctions::operator()(const double dt)
 {
   if (sim.muteAll) return;
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   if (computeInterval <= 0 or (sim.time+dt) < nextComputeTime)
     return;
   nextComputeTime += computeInterval;
