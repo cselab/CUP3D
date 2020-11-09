@@ -245,6 +245,9 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
   }
   else
   {
+    std::cout << "Stretched mesh cannot be used with AMR. Aborting..." << std::endl;
+    MPI_Abort(1,sim.app_comm);
+    #if 0
     if(sim.rank==0)
       printf("Stretched grid of sizes: %f %f %f\n",
       sim.extent[0],sim.extent[1],sim.extent[2]);
@@ -293,6 +296,7 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
     sim.hmean = nonuniform->compute_mean_grid_spacing();
     printf("hmin:%e hmax:%e hmean:%e\n", sim.hmin, sim.hmax, sim.hmean);
     sim.nonuniform = (void *) nonuniform; // to delete it at the end
+    #endif
   }
 
   const std::vector<BlockInfo>& vInfo = sim.vInfo();
@@ -484,6 +488,8 @@ void Simulation::_serialize(const std::string append)
 
   const auto dumpFunction = [=] () {
     if(sim.b2Ddump) {
+      std::cout << "Slice dumping is not ready for AMR (skipped this step)." << std::endl;
+      #if 0
       int sliceIdx = 0;
       for (const auto& slice : sim.m_slices) {
         const std::string slicespec = "slice_"+std::to_string(sliceIdx++)+"_";
@@ -497,6 +503,7 @@ void Simulation::_serialize(const std::string append)
         DumpSliceHDF5MPI<StreamerChi, DumpReal>(
           slice, sim.time, nameX, sim.path4serialization);
       }
+      #endif
     }
     if(sim.b3Ddump) {
       const std::string nameV = StreamerVelocityVector::prefix()+name3d;
