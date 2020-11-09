@@ -11,7 +11,7 @@
 #include <Cubism/ArgumentParser.h>
 
 #include <iostream>
-
+ MyClock Clock;
 int main(int argc, char **argv)
 {
   int provided;
