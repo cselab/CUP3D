@@ -18,7 +18,7 @@ class Operator
  protected:
   SimulationData & sim;
   FluidGridMPI * const grid = sim.grid;
-  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
 
   inline void check(const std::string &infoText)
   {
@@ -52,7 +52,7 @@ class Operator
   template <typename Kernel>
   void compute(const std::vector<Kernel*>& kernels)
   {
-    cubism::SynchronizerMPI<Real>& Synch = grid->sync(*(kernels[0]));
+    cubism::SynchronizerMPI_AMR<Real,FluidGridMPI>& Synch = *grid->sync(*(kernels[0]));
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
     #pragma omp parallel for schedule(static, 1)
@@ -64,7 +64,7 @@ class Operator
     int rank;
     MPI_Comm_rank(grid->getCartComm(), &rank);
     MPI_Barrier(grid->getCartComm());
-    std::vector<cubism::BlockInfo> avail0 = Synch.avail_inner();
+    std::vector<cubism::BlockInfo*> avail0 = Synch.avail_inner();
     const int Ninner = avail0.size();
 
     #pragma omp parallel
@@ -74,7 +74,7 @@ class Operator
 
       #pragma omp for schedule(static)
       for(int i=0; i<Ninner; i++) {
-        const cubism::BlockInfo& I = avail0[i];
+        const cubism::BlockInfo& I = *avail0[i];
         FluidBlock& b = *(FluidBlock*)I.ptrBlock;
         lab.load(I, 0);
         kernel(lab, I, b);
@@ -83,7 +83,7 @@ class Operator
 
     if(sim.nprocs>1)
     {
-      std::vector<cubism::BlockInfo> avail1 = Synch.avail_halo();
+      std::vector<cubism::BlockInfo*> avail1 = Synch.avail_halo();
       const int Nhalo = avail1.size();
 
       #pragma omp parallel
@@ -93,7 +93,7 @@ class Operator
 
         #pragma omp for schedule(static)
         for(int i=0; i<Nhalo; i++) {
-          const cubism::BlockInfo& I = avail1[i];
+          const cubism::BlockInfo& I = *avail1[i];
           FluidBlock& b = *(FluidBlock*)I.ptrBlock;
           lab.load(I, 0);
           kernel(lab, I, b);
@@ -112,7 +112,8 @@ class Operator
   template <typename Kernel>
   void compute(const Kernel& kernel)
   {
-    cubism::SynchronizerMPI<Real>& Synch = grid->sync(kernel);
+    cubism::SynchronizerMPI_AMR<Real,FluidGridMPI>& Synch = *grid->sync(kernel);
+
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
     #pragma omp parallel for schedule(static, 1)
@@ -124,7 +125,7 @@ class Operator
     int rank;
     MPI_Comm_rank(grid->getCartComm(), &rank);
     MPI_Barrier(grid->getCartComm());
-    std::vector<cubism::BlockInfo> avail0 = Synch.avail_inner();
+    std::vector<cubism::BlockInfo*> avail0 = Synch.avail_inner();
     const int Ninner = avail0.size();
 
     #pragma omp parallel
@@ -134,7 +135,7 @@ class Operator
 
       #pragma omp for schedule(static)
       for(int i=0; i<Ninner; i++) {
-        const cubism::BlockInfo I = avail0[i];
+        const cubism::BlockInfo I = *avail0[i];
         FluidBlock& b = *(FluidBlock*)I.ptrBlock;
         lab.load(I, 0);
         kernel(lab, I, b);
@@ -143,7 +144,7 @@ class Operator
 
     if(sim.nprocs>1)
     {
-      std::vector<cubism::BlockInfo> avail1 = Synch.avail_halo();
+      std::vector<cubism::BlockInfo*> avail1 = Synch.avail_halo();
       const int Nhalo = avail1.size();
 
       #pragma omp parallel
@@ -153,7 +154,7 @@ class Operator
 
         #pragma omp for schedule(static)
         for(int i=0; i<Nhalo; i++) {
-          const cubism::BlockInfo I = avail1[i];
+          const cubism::BlockInfo I = *avail1[i];
           FluidBlock& b = *(FluidBlock*)I.ptrBlock;
           lab.load(I, 0);
           kernel(lab, I, b);
