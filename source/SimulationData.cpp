@@ -39,9 +39,8 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   bpdx = parser("-bpdx").asInt();
   bpdy = parser("-bpdy").asInt();
   bpdz = parser("-bpdz").asInt();
-  nprocsx = parser("-nprocsx").asInt(-1);
-  nprocsy = parser("-nprocsy").asInt(-1);
-  nprocsz = parser("-nprocsz").asInt(-1);
+  levelMax = parser("-levelMax").asInt(1);
+  levelStart = parser("-levelStart").asInt(levelMax-1);
   extent[0] = parser("extentx").asDouble(1);
   extent[1] = parser("extenty").asDouble(0);
   extent[2] = parser("extentz").asDouble(0);
@@ -212,28 +211,6 @@ void SimulationData::_preprocessArguments()
   assert(saveFreq >= 0.0);
   assert(saveTime >= 0.0);
 
-  // MPI.
-  if (nprocsy <= 0) nprocsy = 1;
-  if (nprocsz <= 0) nprocsz = 1;
-  if (nprocsx <= 0) nprocsx = nprocs / nprocsy / nprocsz;
-
-  if (nprocsx * nprocsy * nprocsz != nprocs) {
-    fprintf(stderr, "Invalid domain decomposition. %d x %d x %d != %d!\n",
-            nprocsx, nprocsy, nprocsz, nprocs);
-    fflush(0); MPI_Abort(app_comm, 1);
-  }
-
-  if ( bpdx % nprocsx != 0 ||
-       bpdy % nprocsy != 0 ||
-       bpdz % nprocsz != 0   ) {
-    printf("Incompatible domain decomposition: bpd*/nproc* should be an integer");
-    fflush(0); MPI_Abort(app_comm, 1);
-  }
-
-  local_bpdx = bpdx / nprocsx;
-  local_bpdy = bpdy / nprocsy;
-  local_bpdz = bpdz / nprocsz;
-
   char hostname[1024];
   hostname[1023] = '\0';
   gethostname(hostname, 1023);
@@ -242,12 +219,6 @@ void SimulationData::_preprocessArguments()
           rank, nprocs, nthreads, hostname);
   //if (communicator not_eq nullptr) //Yo dawg I heard you like communicators.
   //  communicator->comm_MPI = grid->getCartComm();
-  if(rank==0) {
-    printf("Blocks per dimension: [%d %d %d]\n",bpdx,bpdy,bpdz);
-    printf("Nranks per dimension: [%d %d %d]\n",nprocsx,nprocsy,nprocsz);
-    printf("Local blocks per dimension: [%d %d %d]\n",
-      local_bpdx,local_bpdy,local_bpdz);
-  }
   fflush(0);
 }
 
@@ -284,15 +255,16 @@ SimulationData::~SimulationData()
 
 void SimulationData::setCells(const int nx, const int ny, const int nz)
 {
-  if (   nx % (nprocsx * FluidBlock::sizeX) != 0
-      || ny % (nprocsy * FluidBlock::sizeY) != 0
-      || nz % (nprocsz * FluidBlock::sizeZ) != 0) {
-    throw std::invalid_argument("Number of cells must be multiple of "
-                                "block size * number of processes.");
-  }
-  bpdx = nx / FluidBlock::sizeX;
-  bpdy = ny / FluidBlock::sizeY;
-  bpdz = nz / FluidBlock::sizeZ;
+  std::cout <<"setCells skipped!" << std::endl;
+  //if (   nx % (nprocsx * FluidBlock::sizeX) != 0
+  //    || ny % (nprocsy * FluidBlock::sizeY) != 0
+  //    || nz % (nprocsz * FluidBlock::sizeZ) != 0) {
+  //  throw std::invalid_argument("Number of cells must be multiple of "
+  //                              "block size * number of processes.");
+  //}
+  //bpdx = nx / FluidBlock::sizeX;
+  //bpdy = ny / FluidBlock::sizeY;
+  //bpdz = nz / FluidBlock::sizeZ;
 }
 
 void SimulationData::startProfiler(std::string name) const

@@ -227,17 +227,27 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
     if(sim.rank==0)
       printf("Uniform-resolution grid of sizes: %f %f %f\n",
       sim.extent[0],sim.extent[1],sim.extent[2]);
-    sim.grid = new FluidGridMPI(sim.nprocsx,sim.nprocsy,sim.nprocsz,
-                                sim.local_bpdx,sim.local_bpdy,sim.local_bpdz,
-                                sim.maxextent, sim.app_comm);
+    sim.grid = new FluidGridMPI(1, //these arguments are not used in Cubism-AMR
+                                1, //these arguments are not used in Cubism-AMR
+                                1, //these arguments are not used in Cubism-AMR
+                                sim.bpdx,
+                                sim.bpdy,
+                                sim.bpdz,
+                                sim.maxextent,
+                                sim.levelStart,sim.levelMax,sim.app_comm);
     assert(sim.grid != nullptr);
 
     #ifdef CUP_ASYNC_DUMP
       // create new comm so that if there is a barrier main work is not affected
       MPI_Comm_split(sim.app_comm, 0, sim.rank, &sim.dump_comm);
-      sim.dump = new  DumpGridMPI(sim.nprocsx,sim.nprocsy,sim.nprocsz,
-                                  sim.local_bpdx,sim.local_bpdy,sim.local_bpdz,
-                                  sim.maxextent, sim.dump_comm);
+      sim.dump = new  DumpGridMPI(1, //these arguments are not used in Cubism-AMR
+                                  1, //these arguments are not used in Cubism-AMR
+                                  1, //these arguments are not used in Cubism-AMR
+                                  sim.bpdx,
+                                  sim.bpdy,
+                                  sim.bpdz,
+                                  sim.maxextent,
+                                  sim.levelStart,sim.levelMax,sim.dump_comm);
     #endif
     sim.hmin  = sim.grid->getBlocksInfo()[0].h_gridpoint;
     sim.hmax  = sim.grid->getBlocksInfo()[0].h_gridpoint;
@@ -370,6 +380,9 @@ void Simulation::setupOperators()
       // With pre-penal vel field and obstacles' velocities perform penalization.
       sim.pipeline.push_back(new Penalization(sim));
     #endif
+
+
+    std::cout << "Skipping Poisson operators!!" << std::endl; /*
     // Places Udef on the grid and computes the RHS of the Poisson Eq
     // overwrites tmpU, tmpV, tmpW and pressure solver's RHS
     // places in press RHS = (1 - X) \nabla \cdot u_f
@@ -377,8 +390,7 @@ void Simulation::setupOperators()
 
     // Solves the Poisson Eq to get the pressure and finalizes the velocity
     // u_{t+1} = \tilde{u} -\delta t \nabla P. This is final pre-penal vel field.
-    sim.pipeline.push_back(new PressureProjection(sim));
-
+    sim.pipeline.push_back(new PressureProjection(sim));*/
     #ifndef PENAL_THEN_PRES
       sim.pipeline.push_back(new UpdateObstacles(sim));
       sim.pipeline.push_back(new Penalization(sim));

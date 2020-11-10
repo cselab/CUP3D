@@ -595,8 +595,12 @@ IterativePressurePenalization::IterativePressurePenalization(SimulationData& s)
   if(sim.rank==0) printf("Allocating the penalization helper grid.\n");
 
   penalizationGrid = new PenalizationGridMPI(
-    sim.nprocsx, sim.nprocsy, sim.nprocsz, sim.local_bpdx,
-    sim.local_bpdy, sim.local_bpdz, sim.maxextent, sim.app_comm);
+    1, //these arguments are not used by Cubism-AMR
+    1, //these arguments are not used by Cubism-AMR
+    1, //these arguments are not used by Cubism-AMR
+    sim.bpdx,
+    sim.bpdy,
+    sim.bpdz, sim.maxextent, sim.levelStart, sim.levelMax, sim.app_comm);
 }
 
 void IterativePressurePenalization::operator()(const double dt)

@@ -81,10 +81,8 @@ struct SimulationData
   // mpi
   MPI_Comm app_comm;
   int rank=-1, nprocs=-1;
-  int nprocsx=-1, nprocsy=-1, nprocsz=-1;
 
   // grid
-  int local_bpdx=-1, local_bpdy=-1, local_bpdz=-1;
   int bpdx=-1, bpdy=-1, bpdz=-1;
   Real maxextent = 1;
   std::array<Real, 3> extent = {{1, 0, 0}};  // Uniform grid by default.
@@ -94,6 +92,7 @@ struct SimulationData
   bool bRungeKutta23 = false;
   bool bAdvection3rdOrder = false;
   Real hmin=0, hmax=0, hmean=0;
+  int levelMax,levelStart;
 
   // flow variables
   std::array<Real, 3> uinf = {{0, 0, 0}};
