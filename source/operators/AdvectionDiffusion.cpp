@@ -408,7 +408,8 @@ struct UpdateAndCorrectInflow
   };
   inline bool isE(const BlockInfo&I) const {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return false;
-    return I.index[0] == sim.bpdx-1;
+    const int aux = 1 << I.level;
+    return I.index[0] == sim.bpdx*aux-1;
   };
   inline bool isS(const BlockInfo&I) const {
     if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return false;
@@ -416,7 +417,8 @@ struct UpdateAndCorrectInflow
   };
   inline bool isN(const BlockInfo&I) const {
     if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return false;
-    return I.index[1] == sim.bpdy-1;
+    const int aux = 1 << I.level;
+    return I.index[1] == sim.bpdy*aux-1;
   };
   inline bool isF(const BlockInfo&I) const {
     if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return false;
@@ -424,7 +426,8 @@ struct UpdateAndCorrectInflow
   };
   inline bool isB(const BlockInfo&I) const {
     if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return false;
-    return I.index[2] == sim.bpdz-1;
+    const int aux = 1 << I.level;
+    return I.index[2] == sim.bpdz*aux-1;
   };
 
   UpdateAndCorrectInflow(SimulationData & s) : sim(s) { }
