@@ -12,7 +12,7 @@ CPPFLAGS+= -g -O0
 NVFLAGS+= -O0 -g
 
 ifeq "$(config)" "segf"
-CPPFLAGS+= -fsanitize=address
+CPPFLAGS+= -fsanitize=address -static-libasan
 LIBS+= -fsanitize=address
 endif
 ifeq "$(config)" "nans"
