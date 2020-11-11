@@ -41,6 +41,9 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   bpdz = parser("-bpdz").asInt();
   levelMax = parser("-levelMax").asInt(1);
   levelStart = parser("-levelStart").asInt(levelMax-1);
+  Rtol = parser("-Rtol").asDouble(1.0);
+  Ctol = parser("-Ctol").asDouble(0.1);
+
   extent[0] = parser("extentx").asDouble(1);
   extent[1] = parser("extenty").asDouble(0);
   extent[2] = parser("extentz").asDouble(0);

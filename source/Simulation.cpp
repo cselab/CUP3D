@@ -238,8 +238,7 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
     assert(sim.grid != nullptr);
 
     //Refine/compress only according to chi field for now
-    sim.amr = new AMR( *(sim.grid),0.1,0.01);
-    //sim.amr = new cubism::MeshAdaptationMPI<FluidGridMPI,LabMPI>( *(sim.grid),0.1,0.01);
+    sim.amr = new AMR( *(sim.grid),sim.Rtol,sim.Ctol);
 
     #ifdef CUP_ASYNC_DUMP
       // create new comm so that if there is a barrier main work is not affected

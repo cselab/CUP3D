@@ -96,6 +96,7 @@ struct SimulationData
   bool bAdvection3rdOrder = false;
   Real hmin=0, hmax=0, hmean=0;
   int levelMax,levelStart;
+  double Rtol,Ctol;
 
   // flow variables
   std::array<Real, 3> uinf = {{0, 0, 0}};
