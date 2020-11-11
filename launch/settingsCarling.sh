@@ -3,7 +3,7 @@ NNODEX=${NNODEX:-4}
 NNODEY=${NNODEY:-1}
 NNODE=$(($NNODEX * $NNODEY))
 
-BPDX=${BPDX:-64}
+BPDX=${BPDX:-8}
 BPDY=${BPDY:-$((${BPDX}/2))} #${BPDY:-32}
 BPDZ=${BPDZ:-$((${BPDX}/4))} #${BPDZ:-32}
 
@@ -20,3 +20,4 @@ OPTIONS+=" -nslices 2 -slice1_direction 1 -slice2_direction 2 "
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
 OPTIONS+=" -nprocsx ${NNODEX} -nprocsy ${NNODEY} -nprocsz 1"
 OPTIONS+=" -CFL 0.1 -use-dlm 10 -nu ${NU}"
+OPTIONS+=" -levelMax 4 -levelStart 3 -Rtol 1.0 -Ctol 0.1"
