@@ -58,9 +58,9 @@ struct FluidElement
        return *(tmp + i);
     }
 
-    Real magnitude()//not used
+    Real magnitude()//used in TagLoadedBlock, to adapt the mesh
     {
-        return u*u+v*v+w*w;
+        return chi;
     }
 
     FluidElement &operator*=(const Real a)
