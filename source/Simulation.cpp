@@ -252,6 +252,7 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                                   sim.maxextent,
                                   sim.levelStart,sim.levelMax,sim.dump_comm);
     #endif
+    std::cout <<"hmin set to sim.grid->getBlocksInfo()[0].h_gridpoint" << std::endl;
     sim.hmin  = sim.grid->getBlocksInfo()[0].h_gridpoint;
     sim.hmax  = sim.grid->getBlocksInfo()[0].h_gridpoint;
     sim.hmean = sim.grid->getBlocksInfo()[0].h_gridpoint;

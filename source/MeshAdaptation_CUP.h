@@ -10,6 +10,9 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
  public:
    double Rtol_chi;
    double Ctol_chi;
+   typedef typename TGrid::Block BlockType;
+   typedef typename TGrid::BlockType::ElementType ElementType;
+   typedef typename TGrid::BlockType Block;
 
    MeshAdaptation_CUP(TGrid &grid, double Rtol, double Ctol): MeshAdaptationMPI<TGrid,TLab>(grid,Rtol,Ctol)
    {
@@ -27,7 +30,7 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
       int offsetX[2] = {0, nx / 2};
       int offsetY[2] = {0, ny / 2};
 
-      TLab &Lab = labs[tid];
+      TLab &Lab = MeshAdaptationMPI<TGrid,TLab>::labs[tid];
 
       const int nz = BlockType::sizeZ;
       int offsetZ[2] = {0, nz / 2};
@@ -78,8 +81,6 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
       }
    }
 
-
-
    virtual State TagLoadedBlock(TLab &Lab_, int level)
    {
       static const int nx = BlockType::sizeX;
@@ -94,6 +95,15 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
       {
         double s0 = std::fabs( Lab_(i, j, k).magnitude() );
         Linf = max(Linf,s0);
+        const Real inv2h = .5;
+        const ElementType &LW=Lab_(i-1,j  ,k  ), &LE=Lab_(i+1,j  ,k  );
+        const ElementType &LS=Lab_(i  ,j-1,k  ), &LN=Lab_(i  ,j+1,k  );
+        const ElementType &LF=Lab_(i  ,j  ,k-1), &LB=Lab_(i  ,j  ,k+1);
+        double omega_x = inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
+        double omega_y = inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
+        double omega_z = inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
+        double omega = pow(omega_x*omega_x + omega_y*omega_y + omega_z*omega_z,0.5);
+        Linf_2 = max(Linf_2,omega);
       }
       Linf   *= 1.0/(level+1);
       Linf_2 *= 1.0/(level+1);

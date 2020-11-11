@@ -64,7 +64,7 @@ struct KernelAdvectDiffuse : public Discretization
 
   void applyBCeast(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
-    else if (I.index[0] not_eq sim.bpdx - 1) return; // not near boundary
+    else if (I.index[0] not_eq sim.bpdx * (1<<I.level) - 1) return; // not near boundary
     const Real fadeE = 1 - CFL*std::pow(std::min(uInf[0],(Real)0) * norUinf, 2);
     if (fadeE >= 1) return; // no momentum killing at this boundary
     for (int ix = CUP_BLOCK_SIZE; ix < loopEnd; ++ix) {
@@ -94,7 +94,7 @@ struct KernelAdvectDiffuse : public Discretization
 
   void applyBCnorth(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCy_flag == wall || sim.BCy_flag == periodic) return;
-    else if (I.index[1] not_eq sim.bpdy - 1) return; // not near boundary
+    else if (I.index[1] not_eq sim.bpdy*(1<<I.level) - 1) return; // not near boundary
     const Real fadeN = 1 - CFL*std::pow(std::min(uInf[1],(Real)0) * norUinf, 2);
     if (fadeN >= 1) return; // no momentum killing at this boundary
     for (int iy = CUP_BLOCK_SIZE; iy < loopEnd; ++iy) {
@@ -124,7 +124,7 @@ struct KernelAdvectDiffuse : public Discretization
 
   void applyBCback(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCz_flag == wall || sim.BCz_flag == periodic) return;
-    else if (I.index[2] not_eq sim.bpdz - 1) return; // not near boundary
+    else if (I.index[2] not_eq sim.bpdz*(1<<I.level) - 1) return; // not near boundary
     const Real fadeB = 1 - CFL*std::pow(std::min(uInf[2],(Real)0) * norUinf, 2);
     if (fadeB >= 1) return; // no momentum killing at this boundary
     for (int iz = CUP_BLOCK_SIZE; iz < loopEnd; ++iz) {
@@ -448,42 +448,44 @@ struct UpdateAndCorrectInflow
           b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
         }
 
+      const Real h2 = vInfo[i].h_gridpoint * vInfo[i].h_gridpoint;
+
       if(isW(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
                         for (int iy=0; iy<FluidBlock::sizeY; ++iy) {
-        sumInflow -= b(BEG,iy,iz).u; throughFlow += std::fabs(b(BEG,iy,iz).u);
+        sumInflow -= h2*b(BEG,iy,iz).u; throughFlow += h2*std::fabs(b(BEG,iy,iz).u);
       }
 
       if(isE(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
                         for (int iy=0; iy<FluidBlock::sizeY; ++iy) {
-        sumInflow += b(END,iy,iz).u; throughFlow += std::fabs(b(END,iy,iz).u);
+        sumInflow += h2*b(END,iy,iz).u; throughFlow += h2*std::fabs(b(END,iy,iz).u);
       }
 
       if(isS(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
                         for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        sumInflow -= b(ix,BEG,iz).v; throughFlow += std::fabs(b(ix,BEG,iz).v);
+        sumInflow -= h2*b(ix,BEG,iz).v; throughFlow += h2*std::fabs(b(ix,BEG,iz).v);
       }
 
       if(isN(vInfo[i])) for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
                         for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        sumInflow += b(ix,END,iz).v; throughFlow += std::fabs(b(ix,END,iz).v);
+        sumInflow += h2*b(ix,END,iz).v; throughFlow += h2*std::fabs(b(ix,END,iz).v);
       }
 
       if(isF(vInfo[i])) for (int iy=0; iy<FluidBlock::sizeY; ++iy)
                         for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        sumInflow -= b(ix,iy,BEG).w; throughFlow += std::fabs(b(ix,iy,BEG).w);
+        sumInflow -= h2*b(ix,iy,BEG).w; throughFlow += h2*std::fabs(b(ix,iy,BEG).w);
       }
 
       if(isB(vInfo[i])) for (int iy=0; iy<FluidBlock::sizeY; ++iy)
                         for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        sumInflow += b(ix,iy,END).w; throughFlow += std::fabs(b(ix,iy,END).w);
+        sumInflow += h2*b(ix,iy,END).w; throughFlow += h2*std::fabs(b(ix,iy,END).w);
       }
     }
 
     double sums[2] = {sumInflow, throughFlow};
     MPI_Allreduce(MPI_IN_PLACE, sums,2,MPI_DOUBLE,MPI_SUM, grid->getCartComm());
-    const auto nTotX = FluidBlock::sizeX * sim.bpdx;
-    const auto nTotY = FluidBlock::sizeY * sim.bpdy;
-    const auto nTotZ = FluidBlock::sizeZ * sim.bpdz;
+    const auto nTotX = FluidBlock::sizeX * sim.bpdx * (1<<(sim.levelMax-1))*sim.hmin;
+    const auto nTotY = FluidBlock::sizeY * sim.bpdy * (1<<(sim.levelMax-1))*sim.hmin;
+    const auto nTotZ = FluidBlock::sizeZ * sim.bpdz * (1<<(sim.levelMax-1))*sim.hmin;
 
     const Real corr = nonuniform ? sums[0] / std::max((double)EPS, sums[1])
                       : sums[0] / (2*(nTotX*nTotY + nTotX*nTotZ + nTotY*nTotZ));
