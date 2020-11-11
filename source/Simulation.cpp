@@ -637,6 +637,15 @@ bool Simulation::timestep(const double dt)
     }
     sim.amr->AdaptTheMesh(sim.time);
 
+    //After mesh is refined/coarsened the arrays min_pos and max_pos need to change.
+    const std::vector<BlockInfo>& vInfo = sim.vInfo();
+    #pragma omp parallel for schedule(static)
+    for(size_t i=0; i<vInfo.size(); i++) {
+      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
+      b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
+    }
+
     sim.step++;
     sim.time+=dt;
 
