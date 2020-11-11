@@ -10,7 +10,6 @@
 #define CubismUP_3D_SimulationData_h
 
 #include "Definitions.h"
-#include "Cubism/AMR_MeshAdaptationMPI.h"
 
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
@@ -64,7 +63,7 @@ struct SimulationData
     return hmean;
   }
 
-  cubism::MeshAdaptationMPI<FluidGridMPI,LabMPI> * amr;
+  AMR * amr;
 
   // vector of 2D slices (for dumping)
   std::vector<SliceType> m_slices;

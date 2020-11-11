@@ -34,6 +34,8 @@
 #include <iosfwd>
 #include <string>
 
+#include "MeshAdaptation_CUP.h"
+
 CubismUP_3D_NAMESPACE_BEGIN
 
 //#define ENERGY_FLUX_SPECTRUM 1
@@ -498,6 +500,15 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   }
 
  public:
+
+  typedef typename BlockType::ElementType ElementType;
+  virtual void TestInterp(ElementType *C[3][3][3], ElementType &R, int x, int y, int z, const std::vector<int> & selcomponents) override
+  {
+     cubism::BlockLab<BlockType,allocator>::TestInterp(C,R,x,y,z,selcomponents);
+     if (R.chi < 0.0) R.chi = 0.0;
+     if (R.chi > 1.0) R.chi = 1.0;
+  }
+
   void setBC(const BCflag _BCX, const BCflag _BCY, const BCflag _BCZ) {
     BCX=_BCX; BCY=_BCY; BCZ=_BCZ;
   }
@@ -551,6 +562,8 @@ using PenalizationGridMPI = cubism::GridMPI<PenalizationGrid>;
 
 using Lab          = BlockLabBC<FluidBlock, aligned_allocator>;
 using LabMPI       = cubism::BlockLabMPI<Lab,FluidGridMPI>;
+
+using AMR = MeshAdaptation_CUP<FluidGridMPI,LabMPI>;
 
 CubismUP_3D_NAMESPACE_END
 #endif // CubismUP_3D_DataStructures_h
