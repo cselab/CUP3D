@@ -237,6 +237,9 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                                 sim.levelStart,sim.levelMax,sim.app_comm);
     assert(sim.grid != nullptr);
 
+    //Refine/compress only according to chi field for now
+    sim.amr = new cubism::MeshAdaptationMPI<FluidGridMPI,LabMPI>( *(sim.grid),0.1,0.01);
+
     #ifdef CUP_ASYNC_DUMP
       // create new comm so that if there is a barrier main work is not affected
       MPI_Comm_split(sim.app_comm, 0, sim.rank, &sim.dump_comm);
@@ -322,6 +325,7 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
 
 void Simulation::setupOperators()
 {
+  touch();
   sim.pipeline.clear();
   // Do not change order of operations without explicit permission from Guido
 
@@ -630,6 +634,8 @@ bool Simulation::timestep(const double dt)
       (*sim.pipeline[c])(dt);
       //_serialize(sim.pipeline[c]->getName()+std::to_string(sim.step));
     }
+    sim.amr->AdaptTheMesh(sim.time);
+
     sim.step++;
     sim.time+=dt;
 

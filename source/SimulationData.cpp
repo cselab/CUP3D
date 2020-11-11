@@ -185,10 +185,11 @@ void SimulationData::_preprocessArguments()
       fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);
       fflush(0); abort();
   }
+  int aux = 1 << (levelMax -1);
   const double NFE[3] = {
-      (double) bpdx * FluidBlock::sizeX,
-      (double) bpdy * FluidBlock::sizeY,
-      (double) bpdz * FluidBlock::sizeZ,
+      (double) bpdx * aux * FluidBlock::sizeX,
+      (double) bpdy * aux * FluidBlock::sizeY,
+      (double) bpdz * aux * FluidBlock::sizeZ,
   };
   const double maxbpd = std::max({NFE[0], NFE[1], NFE[2]});
   maxextent = std::max({extent[0], extent[1], extent[2]});

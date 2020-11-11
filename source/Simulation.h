@@ -68,6 +68,18 @@ public:
    * Returns true if the simulation is finished.
    */
   bool timestep(double dt);
+
+  inline void touch()
+  {
+    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+    #pragma omp parallel for schedule(static)
+    for (int i = 0; i < (int)vInfo.size(); ++i)
+    {
+      const cubism::BlockInfo info = vInfo[i];
+      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+      b.clear();
+    }
+  }
 };
 
 CubismUP_3D_NAMESPACE_END
