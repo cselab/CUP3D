@@ -234,7 +234,10 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                                 sim.bpdy,
                                 sim.bpdz,
                                 sim.maxextent,
-                                sim.levelStart,sim.levelMax,sim.app_comm);
+                                sim.levelStart,sim.levelMax,sim.app_comm,
+                                (sim.BCx_flag == periodic),
+                                (sim.BCy_flag == periodic),
+                                (sim.BCz_flag == periodic));
     assert(sim.grid != nullptr);
 
     //Refine/compress only according to chi field for now
@@ -250,7 +253,10 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                                   sim.bpdy,
                                   sim.bpdz,
                                   sim.maxextent,
-                                  sim.levelStart,sim.levelMax,sim.dump_comm);
+                                  sim.levelStart,sim.levelMax,sim.dump_comm,
+                                  (sim.BCx_flag == periodic),
+                                  (sim.BCy_flag == periodic),
+                                  (sim.BCz_flag == periodic));
     #endif
     std::cout <<"hmin set to sim.grid->getBlocksInfo()[0].h_gridpoint" << std::endl;
     sim.hmin  = sim.grid->getBlocksInfo()[0].h_gridpoint;

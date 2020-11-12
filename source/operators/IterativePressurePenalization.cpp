@@ -600,7 +600,10 @@ IterativePressurePenalization::IterativePressurePenalization(SimulationData& s)
     1, //these arguments are not used by Cubism-AMR
     sim.bpdx,
     sim.bpdy,
-    sim.bpdz, sim.maxextent, sim.levelStart, sim.levelMax, sim.app_comm);
+    sim.bpdz, sim.maxextent, sim.levelStart, sim.levelMax, sim.app_comm,
+   (sim.BCx_flag == periodic),
+   (sim.BCy_flag == periodic),
+   (sim.BCz_flag == periodic));
 }
 
 void IterativePressurePenalization::operator()(const double dt)
