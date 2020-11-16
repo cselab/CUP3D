@@ -154,14 +154,13 @@ Obstacle::Obstacle(
 
 void Obstacle::computeVelocities()
 {
-  double A[6][6] = {
- {     penalM,         0.0,         0.0,         0.0, +penalCM[2], -penalCM[1]},
- {        0.0,      penalM,         0.0, -penalCM[2],         0.0, +penalCM[0]},
- {        0.0,         0.0,      penalM, +penalCM[1], -penalCM[0],         0.0},
- {        0.0, -penalCM[2], +penalCM[1],   penalJ[0],   penalJ[3],   penalJ[4]},
- {+penalCM[2],         0.0, -penalCM[0],   penalJ[3],   penalJ[1],   penalJ[5]},
- {-penalCM[1], +penalCM[0],         0.0,   penalJ[4],   penalJ[5],   penalJ[2]}
-  };
+  std::vector<double> A(36);
+  A[0*6 + 0] =      penalM ; A[0*6 + 1] =         0.0 ; A[0*6 + 2] =         0.0; A[0*6 + 3] =         0.0; A[0*6 + 4] = +penalCM[2]; A[0*6 + 5] = -penalCM[1];
+  A[1*6 + 0] =         0.0 ; A[1*6 + 1] =      penalM ; A[1*6 + 2] =         0.0; A[1*6 + 3] = -penalCM[2]; A[1*6 + 4] =         0.0; A[1*6 + 5] = +penalCM[0];
+  A[2*6 + 0] =         0.0 ; A[2*6 + 1] =         0.0 ; A[2*6 + 2] =      penalM; A[2*6 + 3] = +penalCM[1]; A[2*6 + 4] = -penalCM[0]; A[2*6 + 5] =         0.0;
+  A[3*6 + 0] =         0.0 ; A[3*6 + 1] = -penalCM[2] ; A[3*6 + 2] = +penalCM[1]; A[3*6 + 3] =   penalJ[0]; A[3*6 + 4] =   penalJ[3]; A[3*6 + 5] =   penalJ[4];
+  A[4*6 + 0] = +penalCM[2] ; A[4*6 + 1] =         0.0 ; A[4*6 + 2] = -penalCM[0]; A[4*6 + 3] =   penalJ[3]; A[4*6 + 4] =   penalJ[1]; A[4*6 + 5] =   penalJ[5];
+  A[5*6 + 0] = -penalCM[1] ; A[5*6 + 1] = +penalCM[0] ; A[5*6 + 2] =         0.0; A[5*6 + 3] =   penalJ[4]; A[5*6 + 4] =   penalJ[5]; A[5*6 + 5] =   penalJ[2];
 
   // TODO here we can add dt * appliedForce/Torque[i]
   double b[6] = {
@@ -176,31 +175,31 @@ void Obstacle::computeVelocities()
   //In this case, leave row diagonal to compute change in momt for post/dbg.
   //If dof (row) is free then i need to fill the non-diagonal terms.
   if( bForcedInSimFrame[0] ) { //then momenta not conserved in this dof
-    A[0][1] = 0; A[0][2] = 0; A[0][3] = 0; A[0][4] = 0; A[0][5] = 0;
+    A[0*6+1] = 0; A[0*6+2] = 0; A[0*6+3] = 0; A[0*6+4] = 0; A[0*6+5] = 0;
     b[0] = penalM * transVel_imposed[0]; // multply by penalM for conditioning
   }
   if( bForcedInSimFrame[1] ) { //then momenta not conserved in this dof
-    A[1][0] = 0; A[1][2] = 0; A[1][3] = 0; A[1][4] = 0; A[1][5] = 0;
+    A[1*6+0] = 0; A[1*6+2] = 0; A[1*6+3] = 0; A[1*6+4] = 0; A[1*6+5] = 0;
     b[1] = penalM * transVel_imposed[1];
   }
   if( bForcedInSimFrame[2] ) { //then momenta not conserved in this dof
-    A[2][0] = 0; A[2][1] = 0; A[2][3] = 0; A[2][4] = 0; A[2][5] = 0;
+    A[2*6+0] = 0; A[2*6+1] = 0; A[2*6+3] = 0; A[2*6+4] = 0; A[2*6+5] = 0;
     b[2] = penalM * transVel_imposed[2];
   }
   if( bBlockRotation[0] ) { //then momenta not conserved in this dof
-    A[3][0] = 0; A[3][1] = 0; A[3][2] = 0; A[3][4] = 0; A[3][5] = 0;
+    A[3*6+0] = 0; A[3*6+1] = 0; A[3*6+2] = 0; A[3*6+4] = 0; A[3*6+5] = 0;
     b[3] = 0; // TODO IMPOSED ANG VEL?
   }
   if( bBlockRotation[1] ) { //then momenta not conserved in this dof
-    A[4][0] = 0; A[4][1] = 0; A[4][2] = 0; A[4][3] = 0; A[4][5] = 0;
+    A[4*6+0] = 0; A[4*6+1] = 0; A[4*6+2] = 0; A[4*6+3] = 0; A[4*6+5] = 0;
     b[4] = 0; // TODO IMPOSED ANG VEL?
   }
   if( bBlockRotation[2] ) { //then momenta not conserved in this dof
-    A[5][0] = 0; A[5][1] = 0; A[5][2] = 0; A[5][3] = 0; A[5][4] = 0;
+    A[5*6+0] = 0; A[5*6+1] = 0; A[5*6+2] = 0; A[5*6+3] = 0; A[5*6+4] = 0;
     b[5] = 0; // TODO IMPOSED ANG VEL?
   }
 
-  gsl_matrix_view Agsl = gsl_matrix_view_array (&A[0][0], 6, 6);
+  gsl_matrix_view Agsl = gsl_matrix_view_array (A.data(), 6, 6);
   gsl_vector_view bgsl = gsl_vector_view_array (b, 6);
   gsl_vector *xgsl = gsl_vector_alloc (6);
   int sgsl;
@@ -213,9 +212,9 @@ void Obstacle::computeVelocities()
   angVel_computed[0]   = gsl_vector_get(xgsl, 3);
   angVel_computed[1]   = gsl_vector_get(xgsl, 4);
   angVel_computed[2]   = gsl_vector_get(xgsl, 5);
-
   gsl_permutation_free (permgsl);
   gsl_vector_free (xgsl);
+
   //if(sim.verbose)
   //{
   //  printf("um:%e lm:%e am:%e m:%e j:%e u:%e v:%e a:%e\n",
