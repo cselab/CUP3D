@@ -26,7 +26,7 @@ class Operator
     MPI_Comm comm = grid->getCartComm();
     MPI_Barrier(comm);
 
-    #pragma omp parallel for schedule(static)
+    //#pragma omp parallel for schedule(static)
     for (int i = 0; i < (int)vInfo.size(); ++i)
     {
       const cubism::BlockInfo info = vInfo[i];
