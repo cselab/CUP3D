@@ -164,6 +164,31 @@ struct KernelAdvectDiffuse : public Discretization
       const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
       const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
       const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
+
+      #ifndef NDEBUG
+        bool isNan = (std::isnan(duA) || std::isnan(dvA) || std::isnan(dwA) || std::isnan(duD) || std::isnan(dvD) || std::isnan(dwD) );
+        if ( isNan )
+        {
+          std::cout << "NaN found in AdvectionDiffusion." << std::endl;
+          std::cout << "Block " << info.index[0] << "," << info.index[1] << "," << info.index[2] << " level="<<info.level << std::endl;
+          std::cout << "ix = " << ix << std::endl;
+          std::cout << "iy = " << iy << std::endl;
+          std::cout << "iz = " << iz << std::endl;
+          std::cout << duD << "," <<  dvD << "," <<  dwD << "," <<  duA << "," <<  dvA << "," <<  dwA     << std::endl;
+          std::cout << "dudx = " << dudx   << " --> " << lab(ix+1,iy,iz).u << " - " << lab(ix-1,iy,iz).u  << std::endl;
+          std::cout << "dvdx = " << dvdx   << " --> " << lab(ix+1,iy,iz).v << " - " << lab(ix-1,iy,iz).v  << std::endl;
+          std::cout << "dwdx = " << dwdx   << " --> " << lab(ix+1,iy,iz).w << " - " << lab(ix-1,iy,iz).w  << std::endl;
+          std::cout << "dudy = " << dudy   << " --> " << lab(ix,iy+1,iz).u << " - " << lab(ix,iy-1,iz).u  << std::endl;
+          std::cout << "dvdy = " << dvdy   << " --> " << lab(ix,iy+1,iz).v << " - " << lab(ix,iy-1,iz).v  << std::endl;
+          std::cout << "dwdy = " << dwdy   << " --> " << lab(ix,iy+1,iz).w << " - " << lab(ix,iy-1,iz).w  << std::endl;
+          std::cout << "dudz = " << dudz   << " --> " << lab(ix,iy,iz+1).u << " - " << lab(ix,iy,iz-1).u  << std::endl;
+          std::cout << "dvdz = " << dvdz   << " --> " << lab(ix,iy,iz+1).v << " - " << lab(ix,iy,iz-1).v  << std::endl;
+          std::cout << "dwdz = " << dwdz   << " --> " << lab(ix,iy,iz+1).w << " - " << lab(ix,iy,iz-1).w  << std::endl;
+          std::cout << "__________________________________________________________________________________________" << std::endl;
+          MPI_Abort(MPI_COMM_WORLD,6);
+        }
+      #endif
+
       out<step,0>(o,ix,iy,iz) = field<step,0>(lab,o,ix,iy,iz) + facA*duA + facD*duD;
       out<step,1>(o,ix,iy,iz) = field<step,1>(lab,o,ix,iy,iz) + facA*dvA + facD*dvD;
       out<step,2>(o,ix,iy,iz) = field<step,2>(lab,o,ix,iy,iz) + facA*dwA + facD*dwD;
