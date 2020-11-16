@@ -23,9 +23,7 @@ class Operator
   {
     #ifndef NDEBUG
     std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
-    int rank;
     MPI_Comm comm = grid->getCartComm();
-    MPI_Comm_rank(comm,&rank);
     MPI_Barrier(comm);
 
     #pragma omp parallel for schedule(static)
@@ -33,15 +31,32 @@ class Operator
     {
       const cubism::BlockInfo info = vInfo[i];
       const FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        if (std::isnan(b(ix,iy,iz).u) || std::isnan(b(ix,iy,iz).v) ||
-            std::isnan(b(ix,iy,iz).w) || std::isnan(b(ix,iy,iz).p) )
+        if (std::isnan(b(ix,iy,iz).u   ) || std::isnan(b(ix,iy,iz).v   ) ||
+            std::isnan(b(ix,iy,iz).w   ) || std::isnan(b(ix,iy,iz).p   ) ||
+            std::isnan(b(ix,iy,iz).tmpU) || std::isnan(b(ix,iy,iz).tmpV) ||
+            std::isnan(b(ix,iy,iz).tmpW) || std::isnan(b(ix,iy,iz).chi) )
         {
           fflush(stderr);
+          std::cout << "*************" << std::endl;
+          std::cout << "BLOCK (" << info.index[0] << "," << info.index[1] << "," << info.index[2] << ")" << std::endl;
+          std::cout << "level = " << info.level << std::endl;
+          std::cout << "Z = " << info.Z << std::endl;
+          std::cout << "ix=" << ix << std::endl;
+          std::cout << "iy=" << iy << std::endl;
+          std::cout << "iz=" << iz << std::endl;
+          std::cout << "u =" << b(ix,iy,iz).u << std::endl;
+          std::cout << "v =" << b(ix,iy,iz).v << std::endl;
+          std::cout << "w =" << b(ix,iy,iz).w << std::endl;
+          std::cout << "p =" << b(ix,iy,iz).p << std::endl;
+          std::cout << "tmpU =" << b(ix,iy,iz).tmpU << std::endl;
+          std::cout << "tmpV =" << b(ix,iy,iz).tmpV << std::endl;
+          std::cout << "tmpW =" << b(ix,iy,iz).tmpW << std::endl;
+          std::cout << "chi =" << b(ix,iy,iz).chi << std::endl;
           printf("GenericCoordinator::check isnan %s\n", infoText.c_str());
+          std::cout << "*************" << std::endl;
           fflush(stdout); MPI_Abort(comm, 1);
         }
     }
