@@ -14,7 +14,7 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
    typedef typename TGrid::BlockType::ElementType ElementType;
    typedef typename TGrid::BlockType Block;
 
-   MeshAdaptation_CUP(TGrid &grid, double Rtol, double Ctol, SimulationData & _s): MeshAdaptationMPI<TGrid,TLab>(grid,Rtol,Ctol)
+   MeshAdaptation_CUP(TGrid &grid, double Rtol, double Ctol): MeshAdaptationMPI<TGrid,TLab>(grid,Rtol,Ctol)
    {
     Rtol_chi = 0.01;
     Ctol_chi = 0.001;
