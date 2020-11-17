@@ -16,7 +16,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 class IterativePressurePenalization : public Operator
 {
  protected:
-  PoissonSolver * pressureSolver;
+  PoissonSolverAMR * pressureSolver;
   PenalizationGridMPI * penalizationGrid = nullptr;
 
   void initializeFields();
