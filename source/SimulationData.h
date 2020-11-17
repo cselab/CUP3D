@@ -33,7 +33,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class Operator;
 class ObstacleVector;
-class PoissonSolver;
+class PoissonSolverAMR;
 class SpectralManip;
 
 #ifdef CUP_ASYNC_DUMP
@@ -72,7 +72,7 @@ struct SimulationData
   ObstacleVector * obstacle_vector = nullptr;
   //The antagonist
   std::vector<Operator*> pipeline;
-  PoissonSolver * pressureSolver = nullptr;
+  PoissonSolverAMR * pressureSolver = nullptr;
   SpectralManip * spectralManip = nullptr;
   // simulation status
   // nsteps==0 means that this stopping criteria is not active

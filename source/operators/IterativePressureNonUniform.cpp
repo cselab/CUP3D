@@ -17,6 +17,8 @@
 // TODO : Cosine transform on GPU!?
 #include "../poisson/PoissonSolverMixed.h"
 
+#include "../poisson/PoissonSolverAMR_CG.h"
+
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -34,7 +36,8 @@ class KernelPressureRHS_nonUniform
   const Real invdt, meanh;
   const Real fadeLen[3], ext[3], iFade[3];
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-  PoissonSolver * const solver;
+  //PoissonSolver * const solver;
+  PoissonSolverAMR * const solver;
 
   inline bool _is_touching(const FluidBlock& b) const {
     const bool touchW = fadeLen[0] >= b.min_pos[0];
@@ -94,7 +97,7 @@ class KernelPressureRHS_nonUniform
   const StencilInfo stencil{-1,-1,-1,2,2,2,false, {FE_U,FE_V,FE_W}};
 
   KernelPressureRHS_nonUniform(double _dt, double _h, const Real buf[3],
-  const std::array<Real, 3> &E, PoissonSolver* ps): invdt(1/_dt),
+  const std::array<Real, 3> &E, PoissonSolverAMR* ps/* PoissonSolver* ps */): invdt(1/_dt),
   meanh(_h), fadeLen{buf[0],buf[1],buf[2]}, ext{E[0],E[1],E[2]},
   iFade{1/(buf[0]+EPS), 1/(buf[1]+EPS), 1/(buf[2]+EPS)}, solver(ps) {}
 
@@ -105,8 +108,8 @@ class KernelPressureRHS_nonUniform
     const Real vHat = std::pow(meanh, 3);
     const auto &c1x =o.fd_cx.first,  &c1y =o.fd_cy.first,  &c1z =o.fd_cz.first;
     const auto &c2x =o.fd_cx.second, &c2y =o.fd_cy.second, &c2z =o.fd_cz.second;
-    Real* __restrict__ const ret = solver->data + solver->_offset_ext(info);
-    const unsigned SX=solver->stridex, SY=solver->stridey, SZ=solver->stridez;
+    Real* __restrict__ const ret = solver->data.data() + solver->_offset(info);
+    const unsigned SY=FluidBlock::sizeX, SZ=FluidBlock::sizeX*FluidBlock::sizeY;
     if( not _is_touching(o) )
     {
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -114,7 +117,7 @@ class KernelPressureRHS_nonUniform
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         const Real RHSV_ = vHat * RHSV(lab, ix,iy,iz, c1x,c1y,c1z) * invdt;
         const Real RHSP_ = RHSP(lab, ix,iy,iz, meanh, vHat, c2x,c2y,c2z);
-        ret[SZ*iz + SY*iy + SX*ix] = RHSV_ + RHSP_;
+        ret[SZ*iz + SY*iy + ix] = RHSV_ + RHSP_;
       }
     }
     else
@@ -124,7 +127,7 @@ class KernelPressureRHS_nonUniform
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         const Real RHSV_ = vHat * RHSV(lab, ix,iy,iz, c1x,c1y,c1z) * invdt;
         const Real RHSP_ = RHSP(lab, ix,iy,iz, meanh, vHat, c2x,c2y,c2z);
-        ret[SZ*iz + SY*iy + SX*ix] = fade(info, ix,iy,iz) * (RHSV_ + RHSP_);
+        ret[SZ*iz + SY*iy + ix] = fade(info, ix,iy,iz) * (RHSV_ + RHSP_);
       }
     }
   }
@@ -165,17 +168,21 @@ class KernelGradP_nonUniform
 
 IterativePressureNonUniform::IterativePressureNonUniform(SimulationData & s) : Operator(s)
 {
-  if(sim.bUseFourierBC)
-  pressureSolver = new PoissonSolverPeriodic(sim);
-  else if (sim.bUseUnboundedBC)
-  pressureSolver = new PoissonSolverUnbounded(sim);
-  else
-  pressureSolver = new PoissonSolverMixed(sim);
+  //if(sim.bUseFourierBC)
+  //pressureSolver = new PoissonSolverPeriodic(sim);
+  //else if (sim.bUseUnboundedBC)
+  //pressureSolver = new PoissonSolverUnbounded(sim);
+  //else
+  //pressureSolver = new PoissonSolverMixed(sim);
+  pressureSolver = new PoissonSolverAMR_CG(sim);
   sim.pressureSolver = pressureSolver;
 }
 
 void IterativePressureNonUniform::operator()(const double dt)
 {
+  std::cout << "IterativePressureNonUniform not applicable for AMR" << std::endl; 
+  abort();
+  #if 0
   int iter=0;
   Real relDF = 1e3;
   const Real unifH = sim.uniformH();
@@ -202,16 +209,15 @@ void IterativePressureNonUniform::operator()(const double dt)
       {
         assert((size_t) vInfo[i].blockID == i);
         FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
-        const size_t offset = pressureSolver->_offset_ext(vInfo[i]);
-        Real* const ret = pressureSolver->data + offset;
-        const unsigned SX = pressureSolver->stridex;
-        const unsigned SY = pressureSolver->stridey;
-        const unsigned SZ = pressureSolver->stridez;
+        const size_t offset = pressureSolver->_offset(vInfo[i]);
+        Real* const ret = pressureSolver->data.data() + offset;
+        const unsigned SY = FluidBlock::sizeX;
+        const unsigned SZ = FluidBlock::sizeX*FluidBlock::sizeY;
         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
           b(ix,iy,iz).tmpU = b(ix,iy,iz).p; // stores old pressure
-          b(ix,iy,iz).p = ret[SZ*iz + SY*iy + SX*ix]; // stores new pressure
+          b(ix,iy,iz).p = ret[SZ*iz + SY*iy + ix]; // stores new pressure
           err += std::pow( b(ix,iy,iz).tmpU - b(ix,iy,iz).p, 2 );
           norm += std::pow( b(ix,iy,iz).p, 2 );
         }
@@ -235,6 +241,7 @@ void IterativePressureNonUniform::operator()(const double dt)
 
 
   check("IterativePressureNonUniform");
+  #endif
 }
 
 CubismUP_3D_NAMESPACE_END

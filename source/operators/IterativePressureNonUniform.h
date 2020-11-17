@@ -16,7 +16,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 class IterativePressureNonUniform : public Operator
 {
  protected:
-  PoissonSolver * pressureSolver;
+  PoissonSolverAMR * pressureSolver;
 
  public:
   IterativePressureNonUniform(SimulationData & s);
