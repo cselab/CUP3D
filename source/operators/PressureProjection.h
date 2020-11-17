@@ -16,7 +16,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 class PressureProjection : public Operator
 {
  protected:
-  PoissonSolver * pressureSolver;
+  PoissonSolverAMR * pressureSolver;
 
  public:
   PressureProjection(SimulationData & s);
