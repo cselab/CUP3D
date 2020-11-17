@@ -53,99 +53,143 @@ struct FluidElement
     tmpU = c.tmpU; tmpV = c.tmpV; tmpW = c.tmpW;
     return *this;
   }
-
-    Real & member(int i)
-    {
-       Real * tmp = & this->chi;
-       return *(tmp + i);
-    }
-
-    Real magnitude()//used in TagLoadedBlock, to adapt the mesh
-    {
-        return chi;
-    }
-
-    FluidElement &operator*=(const Real a)
-    {
-        this->chi  *= a;
-        this->u    *= a;
-        this->v    *= a;
-        this->w    *= a;
-        this->p    *= a;
-        this->tmpU *= a;
-        this->tmpV *= a;
-        this->tmpW *= a;
-
-        return *this;
-    }
-
-    FluidElement &operator+=(const FluidElement &rhs)
-    {
-        this->chi  += rhs.chi ;
-        this->u    += rhs.u   ;
-        this->v    += rhs.v   ;
-        this->w    += rhs.w   ;
-        this->p    += rhs.p   ;
-        this->tmpU += rhs.tmpU;
-        this->tmpV += rhs.tmpV;
-        this->tmpW += rhs.tmpW;
-        return *this;
-    }
-
-    FluidElement &operator-=(const FluidElement &rhs)
-    {
-        this->chi  -= rhs.chi ;
-        this->u    -= rhs.u   ;
-        this->v    -= rhs.v   ;
-        this->w    -= rhs.w   ;
-        this->p    -= rhs.p   ;
-        this->tmpU -= rhs.tmpU;
-        this->tmpV -= rhs.tmpV;
-        this->tmpW -= rhs.tmpW;
-        return *this;
-    }
-
-    //only for debug
-    FluidElement &operator=(const double a)
-    {
-        this->chi  = a;
-        this->u    = a;
-        this->v    = a;
-        this->w    = a;
-        this->p    = a;
-        this->tmpU = a;
-        this->tmpV = a;
-        this->tmpW = a;
-        return *this;
-    }
-
-    friend FluidElement operator*(const Real a, FluidElement el)
-    {
-        return (el *= a);
-    }
-
-    friend FluidElement operator+(FluidElement lhs, const FluidElement &rhs)
-    {
-        return (lhs += rhs);
-    }
-
-    friend FluidElement operator-(FluidElement lhs, const FluidElement &rhs)
-    {
-        return (lhs -= rhs);
-    }
+  Real & member(int i)
+  {
+    Real * tmp = & this->chi;
+    return *(tmp + i);
+  }
+  Real magnitude()//used in TagLoadedBlock, to adapt the mesh
+  {
+      return chi;
+  }
+  FluidElement &operator*=(const Real a)
+  {
+    this->chi  *= a;
+    this->u    *= a;
+    this->v    *= a;
+    this->w    *= a;
+    this->p    *= a;
+    this->tmpU *= a;
+    this->tmpV *= a;
+    this->tmpW *= a;
+    return *this;
+  }
+  FluidElement &operator+=(const FluidElement &rhs)
+  {
+    this->chi  += rhs.chi ;
+    this->u    += rhs.u   ;
+    this->v    += rhs.v   ;
+    this->w    += rhs.w   ;
+    this->p    += rhs.p   ;
+    this->tmpU += rhs.tmpU;
+    this->tmpV += rhs.tmpV;
+    this->tmpW += rhs.tmpW;
+    return *this;
+  }
+  FluidElement &operator-=(const FluidElement &rhs)
+  {
+    this->chi  -= rhs.chi ;
+    this->u    -= rhs.u   ;
+    this->v    -= rhs.v   ;
+    this->w    -= rhs.w   ;
+    this->p    -= rhs.p   ;
+    this->tmpU -= rhs.tmpU;
+    this->tmpV -= rhs.tmpV;
+    this->tmpW -= rhs.tmpW;
+    return *this;
+  }
+  //only for debug
+  FluidElement &operator=(const double a)
+  {
+    this->chi  = a;
+    this->u    = a;
+    this->v    = a;
+    this->w    = a;
+    this->p    = a;
+    this->tmpU = a;
+    this->tmpV = a;
+    this->tmpW = a;
+    return *this;
+  }
+  friend FluidElement operator*(const Real a, FluidElement el)
+  {
+    return (el *= a);
+  }
+  friend FluidElement operator+(FluidElement lhs, const FluidElement &rhs)
+  {
+    return (lhs += rhs);
+  }
+  friend FluidElement operator-(FluidElement lhs, const FluidElement &rhs)
+  {
+    return (lhs -= rhs);
+  }
 };
 
 struct PenalizationHelperElement
 {
+  static constexpr int DIM = 4;
   typedef Real RealType;
   // Vel b4 pressure projection and after. These quantitites are not penalized.
   Real uPres=0, vPres=0, wPres=0, rhs0=0;
   void clear() { uPres=0; vPres=0; wPres=0; rhs0=0; }
-  PenalizationHelperElement(const PenalizationHelperElement& c) = delete;
   ~PenalizationHelperElement() {}
   PenalizationHelperElement& operator=(const PenalizationHelperElement& c) {
     uPres = c.uPres; vPres = c.vPres; wPres = c.wPres; rhs0 = c.rhs0;
     return *this;
+  }
+  Real & member(int i)
+  {
+    Real * tmp = & this->uPres;
+    return *(tmp + i);
+  }
+  Real magnitude()//used in TagLoadedBlock, to adapt the mesh
+  {
+    return rhs0;
+  }
+  PenalizationHelperElement &operator*=(const Real a)
+  {
+    this->uPres *= a;
+    this->vPres *= a;
+    this->wPres *= a;
+    this->rhs0  *= a;
+    return *this;
+  }
+  PenalizationHelperElement &operator+=(const PenalizationHelperElement &rhs)
+  {
+    this->uPres+= rhs.uPres;
+    this->vPres+= rhs.vPres;
+    this->wPres+= rhs.wPres;
+    this->rhs0 += rhs.rhs0 ;
+    return *this;
+  }
+  PenalizationHelperElement &operator-=(const PenalizationHelperElement &rhs)
+  {
+    this->uPres-= rhs.uPres;
+    this->vPres-= rhs.vPres;
+    this->wPres-= rhs.wPres;
+    this->rhs0 -= rhs.rhs0 ;
+    return *this;
+  }
+  //only for debug
+  PenalizationHelperElement &operator=(const double a)
+  {
+    this->uPres = a;
+    this->vPres = a;
+    this->wPres = a;
+    this->rhs0  = a;
+    return *this;
+  }
+  friend PenalizationHelperElement operator*(const Real a, PenalizationHelperElement el)
+  {
+      return (el *= a);
+  }
+  friend PenalizationHelperElement operator+(PenalizationHelperElement lhs, const PenalizationHelperElement &rhs)
+  {
+      return (lhs += rhs);
+  }
+  friend PenalizationHelperElement operator-(PenalizationHelperElement lhs, const PenalizationHelperElement &rhs)
+  {
+      return (lhs -= rhs);
   }
 };
 
