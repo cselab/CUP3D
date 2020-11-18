@@ -216,6 +216,7 @@ class FishMidlineData
     _dealloc(width);
     _dealloc(forceX);
     _dealloc(forceY);
+    _dealloc(torque);
     if(upperSkin not_eq nullptr) {
       delete upperSkin;
       upperSkin=nullptr;
