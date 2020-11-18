@@ -46,7 +46,9 @@ struct FluidElement
   static constexpr int DIM = 8;
   typedef Real RealType;
   Real chi=0, u=0, v=0, w=0, p=0, tmpU=0, tmpV=0, tmpW=0;
+  
   void clear() { chi =0; u =0; v =0; w =0; p =0; tmpU =0; tmpV =0; tmpW =0; }
+
   ~FluidElement() {}
   FluidElement& operator=(const FluidElement& c) {
     chi = c.chi; u = c.u; v = c.v; w = c.w; p = c.p;
@@ -242,9 +244,9 @@ struct BaseBlock
   //__attribute__((aligned(32)))
   TElement data[sizeZ][sizeY][sizeX];
 
-  FDBlockCoeffs_x __attribute__((__aligned__(32))) fd_cx; // finite-difference single coefficients
-  FDBlockCoeffs_y __attribute__((__aligned__(32))) fd_cy; // finite-difference single coefficients
-  FDBlockCoeffs_z __attribute__((__aligned__(32))) fd_cz; // finite-difference single coefficients
+  FDBlockCoeffs_x /*__attribute__((__aligned__(32)))*/ fd_cx; // finite-difference single coefficients
+  FDBlockCoeffs_y /*__attribute__((__aligned__(32)))*/ fd_cy; // finite-difference single coefficients
+  FDBlockCoeffs_z /*__attribute__((__aligned__(32)))*/ fd_cz; // finite-difference single coefficients
   //Real __attribute__((__aligned__(32))) invh_x[sizeX]; // pre-compute inverse mesh-spacings
   //Real __attribute__((__aligned__(32))) invh_y[sizeY]; // pre-compute inverse mesh-spacings
   //Real __attribute__((__aligned__(32))) invh_z[sizeZ]; // pre-compute inverse mesh-spacings
