@@ -231,6 +231,9 @@ SimulationData::~SimulationData()
   delete grid;
   delete profiler;
   delete obstacle_vector;
+
+  if(amr not_eq nullptr) delete amr;
+
   if(nonuniform not_eq nullptr) {
     NonUniformScheme<FluidBlock>* nonuniform_ = static_cast<NonUniformScheme<FluidBlock>*>(nonuniform);
     assert(nonuniform_ not_eq nullptr);
