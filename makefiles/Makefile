@@ -100,7 +100,7 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	FixedMassFlux_nonUniform.o SGS.o Analysis.o SpectralManip.o \
 	SpectralIcGenerator.o SpectralManipFFTW.o HITfiltering.o \
 	SpectralAnalysis.o SpectralForcing.o ArgumentParser.o \
-	Checkpoint.o PoissonSolverAMR.o PoissonSolverAMR_CG.o
+	Checkpoint.o PoissonSolverAMR.o
 	#ElasticFishOperator.o # Temporary solution for Cubism .cpp files.
 
 #################################################
