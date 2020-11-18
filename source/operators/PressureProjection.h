@@ -10,6 +10,8 @@
 #define CubismUP_3D_PressureProjection_h
 
 #include "Operator.h"
+#include "../poisson/PoissonSolverAMR.h"
+
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -19,7 +21,15 @@ class PressureProjection : public Operator
   PoissonSolverAMR * pressureSolver;
 
  public:
-  PressureProjection(SimulationData & s);
+  PressureProjection(SimulationData & s); 
+  ~PressureProjection()
+  {
+    if (sim.pressureSolver != nullptr)
+    {
+        delete sim.pressureSolver;
+        sim.pressureSolver = nullptr;
+    }
+  };
 
   void operator()(const double dt);
 

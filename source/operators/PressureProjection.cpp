@@ -20,8 +20,6 @@
 #include "../poisson/PoissonSolverPETSCMixed.h"
 
 
-#include "../poisson/PoissonSolverAMR_CG.h"
-
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
@@ -105,7 +103,7 @@ PressureProjection::PressureProjection(SimulationData & s) : Operator(s)
   // else
   //   pressureSolver = new PoissonSolverMixed(sim);
   //   //pressureSolver = new PoissonSolverPeriodic(sim);
-  pressureSolver = new PoissonSolverAMR_CG(sim);
+  pressureSolver = new PoissonSolverAMR(sim);
   sim.pressureSolver = pressureSolver;
 }
 

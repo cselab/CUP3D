@@ -17,7 +17,7 @@
 // TODO : Cosine transform on GPU!?
 #include "../poisson/PoissonSolverMixed.h"
 
-#include "../poisson/PoissonSolverAMR_CG.h"
+#include "../poisson/PoissonSolverAMR.h"
 
 
 CubismUP_3D_NAMESPACE_BEGIN
@@ -174,7 +174,7 @@ IterativePressureNonUniform::IterativePressureNonUniform(SimulationData & s) : O
   //pressureSolver = new PoissonSolverUnbounded(sim);
   //else
   //pressureSolver = new PoissonSolverMixed(sim);
-  pressureSolver = new PoissonSolverAMR_CG(sim);
+  pressureSolver = new PoissonSolverAMR(sim);
   sim.pressureSolver = pressureSolver;
 }
 

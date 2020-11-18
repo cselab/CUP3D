@@ -11,6 +11,7 @@
 #include "Operator.h"
 
 #include "Cubism/FluxCorrectionMPI.h"
+#include "../poisson/PoissonSolverAMR.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 #define PENAL_THEN_PRES
@@ -20,7 +21,14 @@ class PressureRHS : public Operator
   PenalizationGridMPI * penalizationGrid = nullptr;
  public:
   PressureRHS(SimulationData & s);
-  ~PressureRHS();
+  ~PressureRHS()
+  {
+    if (sim.pressureSolver != nullptr)
+    {
+        delete sim.pressureSolver;
+        sim.pressureSolver = nullptr;
+    }
+  };
 
   void operator()(const double dt);
 

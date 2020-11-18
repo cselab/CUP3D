@@ -20,7 +20,7 @@
 #include "../poisson/PoissonSolverHYPREMixed.h"
 #include "../poisson/PoissonSolverPETSCMixed.h"
 
-#include "../poisson/PoissonSolverAMR_CG.h"
+#include "../poisson/PoissonSolverAMR.h"
 
 #include <Cubism/HDF5SliceDumperMPI.h>
 #include <iomanip>
@@ -591,7 +591,7 @@ IterativePressurePenalization::IterativePressurePenalization(SimulationData& s)
   // #endif
   // else
   //   pressureSolver = new PoissonSolverMixed(sim);
-  pressureSolver = new PoissonSolverAMR_CG(sim);
+  pressureSolver = new PoissonSolverAMR(sim);
     //pressureSolver = new PoissonSolverPeriodic(sim);
   sim.pressureSolver = pressureSolver;
 

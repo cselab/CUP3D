@@ -7,7 +7,6 @@
 //
 
 #include "PressureRHS.h"
-#include "../poisson/PoissonSolverAMR.h"
 #include "../obstacles/ObstacleVector.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
@@ -431,7 +430,7 @@ PressureRHS::PressureRHS(SimulationData & s) : Operator(s)
   //            (sim.BCz_flag == periodic));
 }
 
-PressureRHS::~PressureRHS() { /*delete penalizationGrid;*/ }
+//PressureRHS::~PressureRHS() { /*delete penalizationGrid;*/ }
 
 
 #define PRESRHS_LOOP(T) do {                                                 \
