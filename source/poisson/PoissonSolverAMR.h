@@ -19,6 +19,16 @@
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
 
+#define PRECOND
+
+#define pVector  tmpU
+#define rVector  tmpV
+#define xVector  p //current solution estimate
+#define sVector  u
+#define AxVector v
+#define zVector tmpW //preconditioner
+
+
 namespace cubismup3d {
 
 class PoissonSolverAMR
@@ -37,18 +47,11 @@ class PoissonSolverAMR
   //Real* data;
   std::vector<Real> data;//initially contains RHS and after solution it contains pressure
 
-  PoissonSolverAMR(SimulationData&s) : sim(s)
-  {
-    if (StreamerDiv::channels != 1) {
-      fprintf(stderr, "PoissonSolverScalar_MPI(): Error: StreamerDiv::channels is %d (should be 1)\n",
-              StreamerDiv::channels);
-      fflush(0); exit(1);
-    }
-  }
-  PoissonSolverAMR(const PoissonSolverAMR& c) = delete;
-  virtual ~PoissonSolverAMR() {}
+  PoissonSolverAMR(SimulationData&s);
+  PoissonSolverAMR(const PoissonSolverAMR& c) = delete; 
+  ~PoissonSolverAMR();
 
-  virtual void solve() = 0;
+  void solve();
 
   size_t _offset(const cubism::BlockInfo &info) const
   {
@@ -92,6 +95,17 @@ class PoissonSolverAMR
 
   void _fftw2cub() const;
 
+
+  //will need flux corrections!
+  void Get_LHS(bool useX);
+
+  #ifdef PRECOND
+  double getA_local(int I1,int I2);
+  void FindZ();
+  std::vector<std::vector<double>> Ld;
+  std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
+  std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
+  #endif
 };
 
 }//namespace cubismup3d
