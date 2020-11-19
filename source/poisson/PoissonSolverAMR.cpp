@@ -10,16 +10,6 @@
 
 namespace cubismup3d {
 
-void PoissonSolverAMR::_cub2fftw() const
-{
-  assert(data.size()>0);
-  #ifndef NDEBUG
-  {
-    computeRelativeCorrection();
-  }
-  #endif
-}
-
 Real PoissonSolverAMR::computeRelativeCorrection() const
 {
   Real sumRHS = 0, sumABS = 0;
@@ -27,14 +17,14 @@ Real PoissonSolverAMR::computeRelativeCorrection() const
   #pragma omp parallel for schedule(static) reduction(+ : sumRHS, sumABS)
   for(size_t i=0; i<vInfo.size(); ++i)
   {
+    BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
     const double h3 = vInfo[i].h_gridpoint * vInfo[i].h_gridpoint * vInfo[i].h_gridpoint;
-    const size_t offset = _offset( vInfo[i] );
     for(int iz=0; iz<BlockType::sizeZ; iz++)
     for(int iy=0; iy<BlockType::sizeY; iy++)
-    for(int ix=0; ix<BlockType::sizeX; ix++) {
-      const size_t src_index = _dest(offset, iz, iy, ix);
-      sumABS += h3 * std::fabs( data[src_index] );
-      sumRHS += h3 * data[src_index];
+    for(int ix=0; ix<BlockType::sizeX; ix++)
+    {
+      sumABS += h3 * std::fabs( b.tmp[iz][iy][ix] );
+      sumRHS += h3 * b.tmp[iz][iy][ix];
     }
   }
   double sums[2] = {sumRHS, sumABS};
@@ -54,13 +44,11 @@ Real PoissonSolverAMR::computeAverage() const
   for(size_t i=0; i<vInfo.size(); ++i)
   {
     const double h3 = vInfo[i].h_gridpoint * vInfo[i].h_gridpoint * vInfo[i].h_gridpoint;
-    const size_t offset = _offset( vInfo[i] );
+    BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
     for(int iz=0; iz<BlockType::sizeZ; iz++)
     for(int iy=0; iy<BlockType::sizeY; iy++)
-    for(int ix=0; ix<BlockType::sizeX; ix++) {
-      const size_t src_index = _dest(offset, iz, iy, ix);
-      avgP += h3 * data[src_index];
-    }
+    for(int ix=0; ix<BlockType::sizeX; ix++)
+      avgP += h3 * b.tmp[iz][iy][ix];
   }
   MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, m_comm);
   avgP /= sim.extent[0] * sim.extent[1] * sim.extent[2];
@@ -69,72 +57,42 @@ Real PoissonSolverAMR::computeAverage() const
 
 void PoissonSolverAMR::_fftw2cub() const
 {
-  const std::vector<cubism::BlockInfo>& vInfo = grid.getBlocksInfo();
-  #pragma omp parallel for schedule(static)
-  for(size_t i=0; i<vInfo.size(); ++i) {
-    BlockType& b = *(BlockType*) vInfo[i].ptrBlock;
-    const size_t offset = _offset( vInfo[i] );
-    for(int iz=0; iz<BlockType::sizeZ; iz++)
-    for(int iy=0; iy<BlockType::sizeY; iy++)
-    for(int ix=0; ix<BlockType::sizeX; ix++) {
-      const size_t src_index = _dest(offset, iz, iy, ix);
-      b(ix,iy,iz).p = data[src_index];
-    }
-  }
+
 }
-
-
 
 struct KernelLHS
 {
   const SimulationData & sim;
-  bool useX;
-  KernelLHS(const SimulationData&s, bool _useX) : sim(s), useX(_useX) {}
+  KernelLHS(const SimulationData&s) : sim(s) {}
 
   const StencilInfo stencil{-1,-1,-1,2,2,2,
-                            false, {FE_CHI, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW} };
+                            false, 
+                            {FE_CHI, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW} };
   void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
   {
     const double h = info.h_gridpoint; 
-    if (useX)
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        o(ix,iy,iz).AxVector = h*( lab(ix-1,iy,iz).xVector + 
-                                   lab(ix+1,iy,iz).xVector + 
-                                   lab(ix,iy-1,iz).xVector + 
-                                   lab(ix,iy+1,iz).xVector +
-                                   lab(ix,iy,iz-1).xVector +
-                                   lab(ix,iy,iz+1).xVector - 6.0*lab(ix,iy,iz).xVector);
-      }
-    }
-    else
-    {
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        o(ix,iy,iz).AxVector = h*( lab(ix-1,iy,iz).pVector + 
-                                   lab(ix+1,iy,iz).pVector + 
-                                   lab(ix,iy-1,iz).pVector + 
-                                   lab(ix,iy+1,iz).pVector +
-                                   lab(ix,iy,iz-1).pVector +
-                                   lab(ix,iy,iz+1).pVector - 6.0*lab(ix,iy,iz).pVector);
-      }
+      o(ix,iy,iz).AxVector = h*( lab(ix-1,iy,iz).pVector + 
+                                 lab(ix+1,iy,iz).pVector + 
+                                 lab(ix,iy-1,iz).pVector + 
+                                 lab(ix,iy+1,iz).pVector +
+                                 lab(ix,iy,iz-1).pVector +
+                                 lab(ix,iy,iz+1).pVector - 6.0*lab(ix,iy,iz).pVector);
     }
   }
 };
 
-void PoissonSolverAMR::Get_LHS (bool useX)
+void PoissonSolverAMR::Get_LHS ()
 {
     //compute A*x and store it into LHS
     //here A corresponds to the discrete Laplacian operator for an AMR mesh
 
     //copy - pasted from Operator.h
     // (good enough for now)
-    const KernelLHS kernel(sim,useX);
+    const KernelLHS kernel(sim);
 
     cubism::SynchronizerMPI_AMR<Real,FluidGridMPI>& Synch = *sim.grid->sync(kernel);
 
@@ -196,9 +154,7 @@ void PoissonSolverAMR::Get_LHS (bool useX)
 
 void PoissonSolverAMR::solve()
 {
-  sim.startProfiler("PoissonSolverAMR cub2rhs");
-  _cub2fftw();
-  sim.stopProfiler();
+  sim.startProfiler("PoissonSolverAMR :: step one");
 
   static constexpr int BSX = BlockType::sizeX;
   static constexpr int BSY = BlockType::sizeY;
@@ -210,8 +166,6 @@ void PoissonSolverAMR::solve()
   const size_t N = BSX*BSY*BSZ*Nblocks;
   size_t Nsystem;
   MPI_Allreduce(&N,&Nsystem,1,MPI_LONG,MPI_SUM,m_comm);
-
-  assert (N == data.size());
 
   /*
   The following vectors are needed:
@@ -247,7 +201,8 @@ void PoissonSolverAMR::solve()
     }
   }
 
-  const double max_error = 1e-6;
+  const double max_error = 1e-12;
+  const double max_rel_error = 1e-3;
   double err_min         = 1e50;
   double err             = 1;
   double alpha           = 1.0;
@@ -263,29 +218,17 @@ void PoissonSolverAMR::solve()
   for (size_t i=0; i < Nblocks; i++)
   {
     BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-    const size_t offset = _offset( vInfo[i] );
     for(int iz=0; iz<BlockType::sizeZ; iz++)
     for(int iy=0; iy<BlockType::sizeY; iy++)
     for(int ix=0; ix<BlockType::sizeX; ix++)
     {
-      const size_t src_index = _dest(offset, iz, iy, ix);
-      b(ix,iy,iz).rVector = data[src_index];
+      b(ix,iy,iz).rVector = b.tmp[iz][iy][ix];
+      b(ix,iy,iz).pVector = b(ix,iy,iz).xVector;//this is done because Get_LHS works with pVector
     }
   }
-
-  Get_LHS(true); // AxVector <-- A*x_{0}, x_0 = pressure
+  Get_LHS(); // AxVector <-- A*x_{0}, x_0 = pressure
 
   //rVector <-- rVector - alpha * AxVector
-  #pragma omp parallel for schedule(runtime)
-  for(size_t i=0; i< Nblocks; i++)
-  {
-    BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-    for(int iz=0; iz<BlockType::sizeZ; iz++)
-    for(int iy=0; iy<BlockType::sizeY; iy++)
-    for(int ix=0; ix<BlockType::sizeX; ix++)
-      b(ix,iy,iz).rVector -= alpha * b(ix,iy,iz).AxVector;
-  }
-
   //rk_rk = rVector /cdot rVector
   rk_rk = 0.0;
   #pragma omp parallel for reduction(+:rk_rk)
@@ -295,13 +238,17 @@ void PoissonSolverAMR::solve()
     for(int iz=0; iz<BlockType::sizeZ; iz++)
     for(int iy=0; iy<BlockType::sizeY; iy++)
     for(int ix=0; ix<BlockType::sizeX; ix++)
-      rk_rk += b(ix,iy,iz).rVector * b(ix,iy,iz).rVector;
+    {
+      b(ix,iy,iz).rVector -= alpha * b(ix,iy,iz).AxVector;
+      rk_rk += b(ix,iy,iz).rVector * b(ix,iy,iz).rVector;     
+    }
   }
   MPI_Allreduce(MPI_IN_PLACE,&rk_rk,1,MPI_DOUBLE,MPI_SUM,m_comm);
   
   #ifdef PRECOND
     FindZ();
     //rk_zk = rVector /cdot rVector
+    //pVector = zVector
     rk_zk = 0.0;
     #pragma omp parallel for reduction(+:rk_zk)
     for(size_t i=0; i< Nblocks; i++)
@@ -310,20 +257,12 @@ void PoissonSolverAMR::solve()
       for(int iz=0; iz<BlockType::sizeZ; iz++)
       for(int iy=0; iy<BlockType::sizeY; iy++)
       for(int ix=0; ix<BlockType::sizeX; ix++)
+      {
         rk_zk += b(ix,iy,iz).rVector * b(ix,iy,iz).zVector;
+        b(ix,iy,iz).pVector = b(ix,iy,iz).zVector;       
+      }
     }
     MPI_Allreduce(MPI_IN_PLACE,&rk_zk,1,MPI_DOUBLE,MPI_SUM,m_comm);
-
-    //pVector = zVector
-    #pragma omp parallel for schedule(runtime)
-    for (size_t i=0; i < Nblocks; i++)
-    {
-      BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-      for(int iz=0; iz<BlockType::sizeZ; iz++)
-      for(int iy=0; iy<BlockType::sizeY; iy++)
-      for(int ix=0; ix<BlockType::sizeX; ix++)
-        b(ix,iy,iz).pVector = b(ix,iy,iz).zVector;
-    }
   #else
     //pVector = rVector
     #pragma omp parallel for schedule(runtime)
@@ -339,7 +278,9 @@ void PoissonSolverAMR::solve()
  
   bool flag = false;
   int count = 0;
+  int err_init = std::sqrt(rk_rk)/Nsystem;
 
+  sim.stopProfiler();//step one
 
   for (size_t k = 1; k < 10000; k++)
   {    
@@ -363,11 +304,14 @@ void PoissonSolverAMR::solve()
       }
     }
 
-    if (err < max_error && k > 10) break;
+    if ( (err < max_error || err/err_init < max_rel_error ) && k > 5) break;
     if (  err/(err_min+1e-21) > 10.0 && k > 20) break; //error grows, stop iterations!
 
-    Get_LHS(false);// AxVector <-- A*pVector
+    sim.startProfiler("PoissonSolverAMR :: Get_LHS");
+    Get_LHS();// AxVector <-- A*pVector
+    sim.stopProfiler();
 
+    sim.startProfiler("PoissonSolverAMR :: loop");
     //pAp = pVector /cdot AxVector
     pAp = 0.0;
     #pragma omp parallel for reduction(+:pAp)
@@ -390,27 +334,7 @@ void PoissonSolverAMR::solve()
     #endif
 
     //x_{k+1} <-- x_{k} + alpha * p_{k}
-    #pragma omp parallel for schedule(runtime)
-    for(size_t i=0; i< Nblocks; i++)
-    {
-      BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-      for(int iz=0; iz<BlockType::sizeZ; iz++)
-      for(int iy=0; iy<BlockType::sizeY; iy++)
-      for(int ix=0; ix<BlockType::sizeX; ix++)
-        b(ix,iy,iz).xVector += alpha * b(ix,iy,iz).pVector;
-    }
-
     //r_{k+1} <-- r_{k} - alpha * Ax
-    #pragma omp parallel for schedule(runtime)
-    for(size_t i=0; i< Nblocks; i++)
-    {
-      BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-      for(int iz=0; iz<BlockType::sizeZ; iz++)
-      for(int iy=0; iy<BlockType::sizeY; iy++)
-      for(int ix=0; ix<BlockType::sizeX; ix++)
-        b(ix,iy,iz).rVector -= alpha * b(ix,iy,iz).AxVector;
-    }
-
     //rkp1_rkp1 = rVector /cdot rVector
     rkp1_rkp1 = 0.0;
     #pragma omp parallel for reduction(+:rkp1_rkp1)
@@ -420,10 +344,13 @@ void PoissonSolverAMR::solve()
       for(int iz=0; iz<BlockType::sizeZ; iz++)
       for(int iy=0; iy<BlockType::sizeY; iy++)
       for(int ix=0; ix<BlockType::sizeX; ix++)
+      {
+        b(ix,iy,iz).xVector += alpha * b(ix,iy,iz).pVector;
+        b(ix,iy,iz).rVector -= alpha * b(ix,iy,iz).AxVector;       
         rkp1_rkp1 += b(ix,iy,iz).rVector * b(ix,iy,iz).rVector;
+      }
     }
     MPI_Allreduce(MPI_IN_PLACE,&rkp1_rkp1,1,MPI_DOUBLE,MPI_SUM,m_comm);
-
 
     #ifdef PRECOND
       FindZ();
@@ -451,7 +378,6 @@ void PoissonSolverAMR::solve()
         for(int ix=0; ix<BlockType::sizeX; ix++)
           b(ix,iy,iz).pVector = beta * b(ix,iy,iz).pVector + b(ix,iy,iz).zVector;
       }
-
     #else
       beta = rkp1_rkp1 / rk_rk;
       //p_{k+1} <-- r_{k+1} + beta * p_{k}    
@@ -467,7 +393,10 @@ void PoissonSolverAMR::solve()
     #endif
 
     rk_rk = rkp1_rkp1;
+    sim.stopProfiler();
   }
+
+  sim.startProfiler("PoissonSolverAMR :: step two");
 
   if (flag)
   {
@@ -493,19 +422,27 @@ void PoissonSolverAMR::solve()
   for (size_t i=0; i < Nblocks; i++)
   {
     BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-    const size_t offset = _offset( vInfo[i] );
     for(int iz=0; iz<BlockType::sizeZ; iz++)
     for(int iy=0; iy<BlockType::sizeY; iy++)
     for(int ix=0; ix<BlockType::sizeX; ix++)
     {
-      const size_t src_index = _dest(offset, iz, iy, ix);
-      data[src_index] = b(ix,iy,iz).xVector;
+      b.tmp[iz][iy][ix] = b(ix,iy,iz).xVector;
     }
   }
+
   const Real avgP = computeAverage();
   // Subtract average pressure from all gridpoints
-  #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < data.size(); i++) data[i] -= avgP;
+  #pragma omp parallel for schedule(runtime)
+  for (size_t i=0; i < Nblocks; i++)
+  {
+    BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
+    for(int iz=0; iz<BlockType::sizeZ; iz++)
+    for(int iy=0; iy<BlockType::sizeY; iy++)
+    for(int ix=0; ix<BlockType::sizeX; ix++)
+    {
+      b.tmp[iz][iy][ix] -= avgP;
+    }
+  }
   std::cout <<"average = " << avgP << std::endl;
   //NOT DONE YET!!!!
   //// // Set this new mean-0 pressure as next guess
@@ -532,6 +469,18 @@ void PoissonSolverAMR::solve()
       b(ix,iy,iz).zVector  = storeGridElements[6*src_index+5];
     }
   }
+
+  #pragma omp parallel for schedule(static)
+  for(size_t i=0; i<vInfo.size(); ++i)
+  {
+    BlockType& b = *(BlockType*) vInfo[i].ptrBlock;
+    for(int iz=0; iz<BlockType::sizeZ; iz++)
+    for(int iy=0; iy<BlockType::sizeY; iy++)
+    for(int ix=0; ix<BlockType::sizeX; ix++)
+      b(ix,iy,iz).p = b.tmp[iz][iy][ix];
+  }
+
+  sim.stopProfiler();
 }
 
 
@@ -690,11 +639,6 @@ void PoissonSolverAMR::FindZ()
     }
   }
 }
-PoissonSolverAMR::~PoissonSolverAMR()
-{
-  std::cout << "~PoissonSolverAMR" << std::endl;
-  data.clear();
-}
 #else
 PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s)
 {
@@ -703,12 +647,6 @@ PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s)
             StreamerDiv::channels);
     fflush(0); exit(1);
   }
-}
-
-PoissonSolverAMR::~PoissonSolverAMR()
-{
-  std::cout << "~PoissonSolverAMR" << std::endl;
-  data.clear();
 }
 #endif
 

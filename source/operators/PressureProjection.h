@@ -1,13 +1,12 @@
 //
-//  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  CubismUP_3D
+//  Copyright (c) 2020 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
+//  Created by Michalis Chatzimanolakis (michaich@ethz.ch).
 //
 
-#ifndef CubismUP_3D_PressureProjection_h
-#define CubismUP_3D_PressureProjection_h
+#pragma once
 
 #include "Operator.h"
 #include "../poisson/PoissonSolverAMR.h"
@@ -26,8 +25,8 @@ class PressureProjection : public Operator
   {
     if (sim.pressureSolver != nullptr)
     {
-        delete sim.pressureSolver;
-        sim.pressureSolver = nullptr;
+      delete sim.pressureSolver;
+      sim.pressureSolver = nullptr;
     }
   };
 
@@ -37,4 +36,3 @@ class PressureProjection : public Operator
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_PressureProjection_h

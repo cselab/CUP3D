@@ -7,15 +7,6 @@
 //
 
 #include "IterativePressureNonUniform.h"
-#ifdef _ACCFFT_
-#include "../poisson/PoissonSolverACCPeriodic.h"
-#include "../poisson/PoissonSolverACCUnbounded.h"
-#else
-#include "../poisson/PoissonSolverPeriodic.h"
-#include "../poisson/PoissonSolverUnbounded.h"
-#endif
-// TODO : Cosine transform on GPU!?
-#include "../poisson/PoissonSolverMixed.h"
 
 #include "../poisson/PoissonSolverAMR.h"
 
@@ -36,7 +27,6 @@ class KernelPressureRHS_nonUniform
   const Real invdt, meanh;
   const Real fadeLen[3], ext[3], iFade[3];
   static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-  //PoissonSolver * const solver;
   PoissonSolverAMR * const solver;
 
   inline bool _is_touching(const FluidBlock& b) const {
@@ -108,8 +98,9 @@ class KernelPressureRHS_nonUniform
     const Real vHat = std::pow(meanh, 3);
     const auto &c1x =o.fd_cx.first,  &c1y =o.fd_cy.first,  &c1z =o.fd_cz.first;
     const auto &c2x =o.fd_cx.second, &c2y =o.fd_cy.second, &c2z =o.fd_cz.second;
-    Real* __restrict__ const ret = solver->data.data() + solver->_offset(info);
-    const unsigned SY=FluidBlock::sizeX, SZ=FluidBlock::sizeX*FluidBlock::sizeY;
+    
+    BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
+
     if( not _is_touching(o) )
     {
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -117,7 +108,7 @@ class KernelPressureRHS_nonUniform
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         const Real RHSV_ = vHat * RHSV(lab, ix,iy,iz, c1x,c1y,c1z) * invdt;
         const Real RHSP_ = RHSP(lab, ix,iy,iz, meanh, vHat, c2x,c2y,c2z);
-        ret[SZ*iz + SY*iy + ix] = RHSV_ + RHSP_;
+        b.tmp[iz][iy][ix] = RHSV_ + RHSP_;
       }
     }
     else
@@ -127,7 +118,7 @@ class KernelPressureRHS_nonUniform
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
         const Real RHSV_ = vHat * RHSV(lab, ix,iy,iz, c1x,c1y,c1z) * invdt;
         const Real RHSP_ = RHSP(lab, ix,iy,iz, meanh, vHat, c2x,c2y,c2z);
-        ret[SZ*iz + SY*iy + ix] = fade(info, ix,iy,iz) * (RHSV_ + RHSP_);
+        b.tmp[iz][iy][ix] = fade(info, ix,iy,iz) * (RHSV_ + RHSP_);
       }
     }
   }
@@ -168,12 +159,6 @@ class KernelGradP_nonUniform
 
 IterativePressureNonUniform::IterativePressureNonUniform(SimulationData & s) : Operator(s)
 {
-  //if(sim.bUseFourierBC)
-  //pressureSolver = new PoissonSolverPeriodic(sim);
-  //else if (sim.bUseUnboundedBC)
-  //pressureSolver = new PoissonSolverUnbounded(sim);
-  //else
-  //pressureSolver = new PoissonSolverMixed(sim);
   pressureSolver = new PoissonSolverAMR(sim);
   sim.pressureSolver = pressureSolver;
 }

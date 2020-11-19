@@ -37,26 +37,23 @@ class PoissonSolverAMR
   typedef typename FluidGridMPI::BlockType BlockType;
   SimulationData & sim;
   FluidGridMPI& grid = * sim.grid;
-  // MPI related
+
   const MPI_Comm m_comm = grid.getCartComm();
   const int m_rank = sim.rank, m_size = sim.nprocs;
 
   Real computeAverage() const;
   Real computeRelativeCorrection() const;
  public:
-  //Real* data;
-  std::vector<Real> data;//initially contains RHS and after solution it contains pressure
+  size_t datasize;
 
   PoissonSolverAMR(SimulationData&s);
   PoissonSolverAMR(const PoissonSolverAMR& c) = delete; 
-  ~PoissonSolverAMR();
 
   void solve();
 
   size_t _offset(const cubism::BlockInfo &info) const
   {
     assert (info.myrank == m_rank);
-
     //stupid simple and slow approach, good enough for now
     size_t PointsPerBlock = BlockType::sizeX * BlockType::sizeY * BlockType::sizeZ;
     size_t kount = 0;
@@ -72,32 +69,17 @@ class PoissonSolverAMR
   {
     const size_t PointsPerBlock = BlockType::sizeX * BlockType::sizeY * BlockType::sizeZ;
     const size_t Blocks = grid.getBlocksInfo().size();
-    data.resize(PointsPerBlock * Blocks, 0.0);
+    datasize = PointsPerBlock * Blocks;
   }
   size_t _dest(const size_t offset,const int z,const int y,const int x) const
   {
     return offset + (BlockType::sizeX*BlockType::sizeY)*z + BlockType::sizeX*y + x;
   }
-  //void _cub2fftw(const size_t offset, const int z, const int y, const int x, const Real rhs) const
-  //{
-  //  const size_t dest_index = _dest(offset, z, y, x);
-  //  assert(data.size() > dest_index);
-  //  data[dest_index] = rhs;
-  //}
-  Real _fftw2cub(const size_t offset, const int z, const int y, const int x) const
-  {
-    const size_t dest_index = _dest(offset, z, y, x);
-    assert(data.size() > dest_index);
-    return data[dest_index];
-  }
-
-  void _cub2fftw() const;
 
   void _fftw2cub() const;
 
-
   //will need flux corrections!
-  void Get_LHS(bool useX);
+  void Get_LHS();
 
   #ifdef PRECOND
   double getA_local(int I1,int I2);
