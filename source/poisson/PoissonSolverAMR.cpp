@@ -19,7 +19,8 @@ class ComputeLHS : public Operator
   
     const StencilInfo stencil{-1,-1,-1,2,2,2,
                               false, 
-                              {FE_CHI, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW} };
+                              //{FE_CHI, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW} };
+                              {FE_TMPU} };
     void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
     {
       const double h = info.h_gridpoint; 
