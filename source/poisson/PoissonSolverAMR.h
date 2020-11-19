@@ -76,10 +76,7 @@ class PoissonSolverAMR
     return offset + (BlockType::sizeX*BlockType::sizeY)*z + BlockType::sizeX*y + x;
   }
 
-  void _fftw2cub() const;
-
   //will need flux corrections!
-  void Get_LHS();
 
   #ifdef PRECOND
   double getA_local(int I1,int I2);

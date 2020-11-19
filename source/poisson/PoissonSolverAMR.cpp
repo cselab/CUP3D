@@ -7,8 +7,41 @@
 //
 
 #include "PoissonSolverAMR.h"
-
+#include "../operators/Operator.h"
 namespace cubismup3d {
+
+class ComputeLHS : public Operator
+{
+  struct KernelLHS
+  {
+    const SimulationData & sim;
+    KernelLHS(const SimulationData&s) : sim(s) {}
+  
+    const StencilInfo stencil{-1,-1,-1,2,2,2,
+                              false, 
+                              {FE_CHI, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW} };
+    void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
+    {
+      const double h = info.h_gridpoint; 
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      {
+        o(ix,iy,iz).AxVector = h*( lab(ix-1,iy,iz).pVector + lab(ix+1,iy,iz).pVector + 
+                                   lab(ix,iy-1,iz).pVector + lab(ix,iy+1,iz).pVector +
+                                   lab(ix,iy,iz-1).pVector + lab(ix,iy,iz+1).pVector - 6.0*lab(ix,iy,iz).pVector);
+      }
+    }
+  };
+  public:
+  ComputeLHS(SimulationData & s) : Operator(s) { }
+  void operator()(const double dt)
+  {
+    const KernelLHS K(sim);
+    compute<KernelLHS>(K);
+  }
+  std::string getName() { return "ComputeLHS"; }
+};
 
 Real PoissonSolverAMR::computeRelativeCorrection() const
 {
@@ -55,106 +88,11 @@ Real PoissonSolverAMR::computeAverage() const
   return avgP;
 }
 
-void PoissonSolverAMR::_fftw2cub() const
-{
-
-}
-
-struct KernelLHS
-{
-  const SimulationData & sim;
-  KernelLHS(const SimulationData&s) : sim(s) {}
-
-  const StencilInfo stencil{-1,-1,-1,2,2,2,
-                            false, 
-                            {FE_CHI, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW} };
-  void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
-  {
-    const double h = info.h_gridpoint; 
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-    {
-      o(ix,iy,iz).AxVector = h*( lab(ix-1,iy,iz).pVector + 
-                                 lab(ix+1,iy,iz).pVector + 
-                                 lab(ix,iy-1,iz).pVector + 
-                                 lab(ix,iy+1,iz).pVector +
-                                 lab(ix,iy,iz-1).pVector +
-                                 lab(ix,iy,iz+1).pVector - 6.0*lab(ix,iy,iz).pVector);
-    }
-  }
-};
-
-void PoissonSolverAMR::Get_LHS ()
-{
-    //compute A*x and store it into LHS
-    //here A corresponds to the discrete Laplacian operator for an AMR mesh
-
-    //copy - pasted from Operator.h
-    // (good enough for now)
-    const KernelLHS kernel(sim);
-
-    cubism::SynchronizerMPI_AMR<Real,FluidGridMPI>& Synch = *sim.grid->sync(kernel);
-
-    const int nthreads = omp_get_max_threads();
-    LabMPI * labs = new LabMPI[nthreads];
-    #pragma omp parallel for schedule(static, 1)
-    for(int i = 0; i < nthreads; ++i) {
-      labs[i].setBC(sim.BCx_flag, sim.BCy_flag, sim.BCz_flag);
-      labs[i].prepare(* sim.grid, Synch);
-    }
-
-    int rank;
-    MPI_Comm_rank(sim.grid->getCartComm(), &rank);
-    MPI_Barrier(sim.grid->getCartComm());
-    std::vector<cubism::BlockInfo*> avail0 = Synch.avail_inner();
-    const int Ninner = avail0.size();
-
-    #pragma omp parallel
-    {
-      int tid = omp_get_thread_num();
-      LabMPI& lab = labs[tid];
-
-      #pragma omp for schedule(static)
-      for(int i=0; i<Ninner; i++) {
-        const cubism::BlockInfo I = *avail0[i];
-        FluidBlock& b = *(FluidBlock*)I.ptrBlock;
-        lab.load(I, 0);
-        kernel(lab, I, b);
-      }
-    }
-
-    if(sim.nprocs>1)
-    {
-      std::vector<cubism::BlockInfo*> avail1 = Synch.avail_halo();
-      const int Nhalo = avail1.size();
-
-      #pragma omp parallel
-      {
-        int tid = omp_get_thread_num();
-        LabMPI& lab = labs[tid];
-
-        #pragma omp for schedule(static)
-        for(int i=0; i<Nhalo; i++) {
-          const cubism::BlockInfo I = *avail1[i];
-          FluidBlock& b = *(FluidBlock*)I.ptrBlock;
-          lab.load(I, 0);
-          kernel(lab, I, b);
-        }
-      }
-    }
-
-    if(labs != nullptr) {
-      delete [] labs;
-      labs = nullptr;
-    }
-
-    MPI_Barrier(sim.grid->getCartComm());
-}
-
 void PoissonSolverAMR::solve()
 {
   sim.startProfiler("PoissonSolverAMR :: step one");
+  
+  ComputeLHS findLHS(sim);
 
   static constexpr int BSX = BlockType::sizeX;
   static constexpr int BSY = BlockType::sizeY;
@@ -226,7 +164,7 @@ void PoissonSolverAMR::solve()
       b(ix,iy,iz).pVector = b(ix,iy,iz).xVector;//this is done because Get_LHS works with pVector
     }
   }
-  Get_LHS(); // AxVector <-- A*x_{0}, x_0 = pressure
+  findLHS(0); // AxVector <-- A*x_{0}, x_0 = pressure
 
   //rVector <-- rVector - alpha * AxVector
   //rk_rk = rVector /cdot rVector
@@ -307,8 +245,8 @@ void PoissonSolverAMR::solve()
     if ( (err < max_error || err/err_init < max_rel_error ) && k > 5) break;
     if (  err/(err_min+1e-21) > 10.0 && k > 20) break; //error grows, stop iterations!
 
-    sim.startProfiler("PoissonSolverAMR :: Get_LHS");
-    Get_LHS();// AxVector <-- A*pVector
+    sim.startProfiler("PoissonSolverAMR :: LHS");
+    findLHS(0);// AxVector <-- A*pVector
     sim.stopProfiler();
 
     sim.startProfiler("PoissonSolverAMR :: loop");
@@ -482,7 +420,6 @@ void PoissonSolverAMR::solve()
 
   sim.stopProfiler();
 }
-
 
 #ifdef PRECOND
 double PoissonSolverAMR::getA_local(int I1,int I2)
