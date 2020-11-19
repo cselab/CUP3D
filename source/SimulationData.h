@@ -63,7 +63,28 @@ struct SimulationData
     return hmean;
   }
 
+  void UpdateHmin()
+  {
+    hmin = 1e20;
+    hmax = 1e20;
+    std::vector<cubism::BlockInfo> & myInfos = grid->getBlocksInfo();
+
+    #pragma omp parallel for schedule(static) reduction(min : hmin,hmax)
+    for(size_t i=0; i<myInfos.size(); i++)
+    {
+      const cubism::BlockInfo & info = myInfos[i];
+      hmin = std::min(hmin,  info.h_gridpoint);
+      hmax = std::min(hmax, -info.h_gridpoint);
+    }
+    Real res [2] = {hmin,hmax};
+    MPI_Allreduce(MPI_IN_PLACE, & res, 2, MPI_REAL, MPI_MIN, app_comm);
+    hmin  =  res[0];
+    hmax  = -res[1];
+    hmean =  hmin;
+  }
+
   AMR * amr;
+  double div_loc;
 
   // vector of 2D slices (for dumping)
   std::vector<SliceType> m_slices;

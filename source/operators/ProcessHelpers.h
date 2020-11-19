@@ -293,5 +293,56 @@ static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
 }
 #endif
 
+class KernelDivergence
+{
+  public:
+      SimulationData & sim;
+  KernelDivergence(SimulationData & s): sim(s){sim.div_loc = 0.0;}
+  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
+  const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
+
+  template <typename Lab, typename BlockType>
+  void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
+  {
+    double s = 0.0;
+    const Real inv2h = .5 / info.h_gridpoint;
+    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
+      double div = inv2h * ( lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u +
+                             lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v +
+                             lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w );
+      s += std::fabs(div);
+    }
+    #pragma omp atomic
+    sim.div_loc += s*(info.h_gridpoint*info.h_gridpoint*info.h_gridpoint);
+  }
+};
+
+class ComputeDivergence : public Operator
+{
+  public:
+  ComputeDivergence(SimulationData & s) : Operator(s) { }
+  void operator()(const double dt)
+  {
+    sim.startProfiler("Divergence Kernel");
+    const KernelDivergence K(sim);
+    compute<KernelDivergence>(K);
+    double div_tot = 0.0;
+    MPI_Reduce(&sim.div_loc, &div_tot, 1, MPI_DOUBLE, MPI_SUM, 0, sim.app_comm);
+    if (sim.rank == 0)
+    {
+      std::cout << "Total div = " << div_tot << std::endl;
+      std::ofstream outfile;
+      outfile.open("div.txt", std::ios_base::app);
+      outfile << sim.time << " " << div_tot << "\n";
+      outfile.close();
+    }
+    sim.stopProfiler();
+  }
+  std::string getName() { return "Divergence"; }
+};
+
 CubismUP_3D_NAMESPACE_END
 #endif // CubismUP_3D_ProcessOperators_h

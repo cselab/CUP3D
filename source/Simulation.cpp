@@ -258,10 +258,7 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                                   (sim.BCy_flag == periodic),
                                   (sim.BCz_flag == periodic));
     #endif
-    std::cout <<"hmin set to sim.grid->getBlocksInfo()[0].h_gridpoint" << std::endl;
-    sim.hmin  = sim.grid->getBlocksInfo()[0].h_gridpoint;
-    sim.hmax  = sim.grid->getBlocksInfo()[0].h_gridpoint;
-    sim.hmean = sim.grid->getBlocksInfo()[0].h_gridpoint;
+    sim.UpdateHmin();
   }
   else
   {
@@ -426,6 +423,8 @@ void Simulation::setupOperators()
 
   sim.pipeline.push_back(new Analysis(sim));
 
+  sim.pipeline.push_back(new ComputeDivergence(sim));
+
   if(sim.rank==0) {
     printf("Coordinator/Operator ordering:\n");
     for (size_t c=0; c<sim.pipeline.size(); c++)
@@ -438,6 +437,7 @@ void Simulation::setupOperators()
 double Simulation::calcMaxTimestep()
 {
   assert(sim.grid not_eq nullptr);
+  sim.UpdateHmin();
   const double hMin = sim.hmin, CFL = sim.CFL;
   sim.uMax_measured = sim.bKeepMomentumConstant? findMaxUzeroMom(sim)
                                                : findMaxU(sim);
