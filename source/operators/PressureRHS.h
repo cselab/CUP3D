@@ -10,7 +10,6 @@
 
 #include "Operator.h"
 
-#include "Cubism/FluxCorrectionMPI.h"
 #include "../poisson/PoissonSolverAMR.h"
 
 CubismUP_3D_NAMESPACE_BEGIN

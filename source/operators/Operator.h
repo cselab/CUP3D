@@ -10,6 +10,7 @@
 #define CubismUP_3D_Operator_h
 
 #include "../SimulationData.h"
+#include "Cubism/FluxCorrectionMPI.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -18,6 +19,8 @@ class Operator
  protected:
   SimulationData & sim;
   FluidGridMPI * const grid = sim.grid;
+
+  FluxCorrectionMPI<FluxCorrection<FluidGridMPI,FluidBlock>,FluidGridMPI> Corrector;
 
   inline void check(const std::string &infoText)
   {
@@ -65,8 +68,10 @@ class Operator
   }
 
   template <typename Kernel>
-  void compute(const std::vector<Kernel*>& kernels)
+  void compute(const std::vector<Kernel*>& kernels, const bool applyFluxCorrection = false, const bool FluxIntegration = false)
   {
+    if (applyFluxCorrection) Corrector.prepare(*(sim.grid));
+
     cubism::SynchronizerMPI_AMR<Real,FluidGridMPI>& Synch = *grid->sync(*(kernels[0]));
     const int nthreads = omp_get_max_threads();
     LabMPI * labs = new LabMPI[nthreads];
@@ -121,12 +126,15 @@ class Operator
       labs=NULL;
     }
 
+    if (applyFluxCorrection) Corrector.FillBlockCases(FluxIntegration);
     MPI_Barrier(grid->getCartComm());
   }
 
   template <typename Kernel>
-  void compute(const Kernel& kernel)
+  void compute(const Kernel& kernel, const bool applyFluxCorrection = false, const bool FluxIntegration = false)
   {
+    if (applyFluxCorrection) Corrector.prepare(*(sim.grid));
+
     cubism::SynchronizerMPI_AMR<Real,FluidGridMPI>& Synch = *grid->sync(kernel);
 
     const int nthreads = omp_get_max_threads();
@@ -182,6 +190,7 @@ class Operator
       labs = nullptr;
     }
 
+    if (applyFluxCorrection) Corrector.FillBlockCases(FluxIntegration);
     MPI_Barrier(grid->getCartComm());
   }
 

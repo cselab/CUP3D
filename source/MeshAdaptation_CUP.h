@@ -53,7 +53,10 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
       for (int j = 0; j < ny; j++)
       for (int i = 0; i < nx; i++)
       {
-        double s0 = std::fabs( Lab_(i, j, k).magnitude() );
+        double dXdx = 0.5*( Lab_(i+1,j,k).chi - Lab_(i-1,j,k).chi );
+        double dXdy = 0.5*( Lab_(i,j+1,k).chi - Lab_(i,j-1,k).chi );
+        double dXdz = 0.5*( Lab_(i,j,k+1).chi - Lab_(i,j,k-1).chi );
+        double s0 = dXdx * dXdx + dXdy * dXdy + dXdz * dXdz;
         Linf = max(Linf,s0);
         const Real inv2h = .5;
         const ElementType &LW=Lab_(i-1,j  ,k  ), &LE=Lab_(i+1,j  ,k  );
