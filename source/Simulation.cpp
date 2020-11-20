@@ -423,7 +423,7 @@ void Simulation::setupOperators()
 
   sim.pipeline.push_back(new Analysis(sim));
 
-  sim.pipeline.push_back(new ComputeDivergence(sim));
+  //sim.pipeline.push_back(new ComputeDivergence(sim));
 
   if(sim.rank==0) {
     printf("Coordinator/Operator ordering:\n");
