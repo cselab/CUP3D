@@ -310,9 +310,9 @@ class KernelDivergence
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
     for (int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
-      double div = inv2h * ( lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u +
-                             lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v +
-                             lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w );
+      double div = (1.0 - o(ix,iy,iz).chi)*inv2h * ( lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u +
+                                                     lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v +
+                                                     lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w );
       s += std::fabs(div);
     }
     #pragma omp atomic
@@ -327,6 +327,9 @@ class ComputeDivergence : public Operator
   void operator()(const double dt)
   {
     sim.startProfiler("Divergence Kernel");
+
+    sim.div_loc = 0.0;
+
     const KernelDivergence K(sim);
     compute<KernelDivergence>(K);
     double div_tot = 0.0;
