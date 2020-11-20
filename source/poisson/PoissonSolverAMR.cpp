@@ -17,10 +17,7 @@ class ComputeLHS : public Operator
     const SimulationData & sim;
     KernelLHS(const SimulationData&s) : sim(s) {}
   
-    const StencilInfo stencil{-1,-1,-1,2,2,2,
-                              false, 
-                              //{FE_CHI, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW} };
-                              {FE_TMPU} };
+    const StencilInfo stencil{-1,-1,-1,2,2,2,false, {FE_TMPU} };
     void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
     {
       const double h = info.h_gridpoint; 
@@ -31,6 +28,83 @@ class ComputeLHS : public Operator
         o(ix,iy,iz).AxVector = h*( lab(ix-1,iy,iz).pVector + lab(ix+1,iy,iz).pVector + 
                                    lab(ix,iy-1,iz).pVector + lab(ix,iy+1,iz).pVector +
                                    lab(ix,iy,iz-1).pVector + lab(ix,iy,iz+1).pVector - 6.0*lab(ix,iy,iz).pVector);
+      }
+
+      BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
+      FluidBlock::ElementType * faceXm = nullptr;
+      FluidBlock::ElementType * faceXp = nullptr;
+      FluidBlock::ElementType * faceYm = nullptr;
+      FluidBlock::ElementType * faceYp = nullptr;
+      FluidBlock::ElementType * faceZp = nullptr;
+      FluidBlock::ElementType * faceZm = nullptr;
+      if (tempCase != nullptr)
+      {
+        faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+        faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+        faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+        faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+        faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
+        faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
+      }
+      if (faceXm != nullptr)
+      {
+        int ix = 0;
+        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+        {
+          faceXm[iy + FluidBlock::sizeY * iz].clear();
+          faceXm[iy + FluidBlock::sizeY * iz].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix-1,iy,iz).pVector);
+        }
+      }
+      if (faceXp != nullptr)
+      {
+        int ix = FluidBlock::sizeX-1;
+        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+        {
+          faceXp[iy + FluidBlock::sizeY * iz].clear();
+          faceXp[iy + FluidBlock::sizeY * iz].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix+1,iy,iz).pVector);
+        }
+      }
+      if (faceYm != nullptr)
+      {
+        int iy = 0;
+        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        {
+          faceYm[ix + FluidBlock::sizeX * iz].clear();
+          faceYm[ix + FluidBlock::sizeX * iz].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix,iy-1,iz).pVector);
+        }
+      }
+      if (faceYp != nullptr)
+      {
+        int iy = FluidBlock::sizeY-1;
+        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        {
+          faceYp[ix + FluidBlock::sizeX * iz].clear();
+          faceYp[ix + FluidBlock::sizeX * iz].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix,iy+1,iz).pVector);
+        }
+      }
+      if (faceZm != nullptr)
+      {
+        int iz = 0;
+        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        {
+          faceZm[ix + FluidBlock::sizeX * iy].clear();
+          faceZm[ix + FluidBlock::sizeX * iy].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix,iy,iz-1).pVector);
+        }
+      }
+      if (faceZp != nullptr)
+      {
+        int iz = FluidBlock::sizeZ-1;
+        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        {
+          faceZp[ix + FluidBlock::sizeX * iy].clear();
+          faceZp[ix + FluidBlock::sizeX * iy].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix,iy,iz+1).pVector);
+        }
       }
     }
   };
@@ -221,7 +295,8 @@ void PoissonSolverAMR::solve()
 
   sim.stopProfiler();//step one
 
-  for (size_t k = 1; k < 10000; k++)
+  //for (size_t k = 1; k < 10000; k++)
+  for (size_t k = 1; k < 4000; k++)
   {    
     count++;
     err = std::sqrt(rk_rk)/Nsystem;
@@ -244,7 +319,8 @@ void PoissonSolverAMR::solve()
     }
 
     if ( (err < max_error || err/err_init < max_rel_error ) && k > 5) break;
-    if (  err/(err_min+1e-21) > 10.0 && k > 20) break; //error grows, stop iterations!
+    //if (  err/(err_min+1e-21) > 10.0 && k > 20) break; //error grows, stop iterations!
+    if (  err/(err_min+1e-21) > 2.0 && k > 20) break; //error grows, stop iterations!
 
     sim.startProfiler("PoissonSolverAMR :: LHS");
     findLHS(0);// AxVector <-- A*pVector
