@@ -301,7 +301,7 @@ void PoissonSolverAMR::solve()
     count++;
     err = std::sqrt(rk_rk)/Nsystem;
 
-    if (m_rank == 0 && (k % 500 == 0|| k<5) ) std::cout << "k=" << k<<" err="<<err << std::endl;
+    if (m_rank == 0 && (k % 100 == 0) ) std::cout << "k=" << k<<" err="<<err << std::endl;
 
     if (err < err_min && k >=2)
     {
@@ -430,7 +430,7 @@ void PoissonSolverAMR::solve()
     err_min = err;
   }
 
-  std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
+  if (m_rank==0) std::cout << "CG Poisson solver took "<<count << " iterations. Final residual norm = "<< err_min << std::endl;
 
 
   #pragma omp parallel for schedule(runtime)
@@ -458,7 +458,7 @@ void PoissonSolverAMR::solve()
       b.tmp[iz][iy][ix] -= avgP;
     }
   }
-  std::cout <<"average = " << avgP << std::endl;
+  //std::cout <<"average = " << avgP << std::endl;
   //NOT DONE YET!!!!
   //// // Set this new mean-0 pressure as next guess
   //// // Save pressure of a corner of the grid so that it can be imposed next time
