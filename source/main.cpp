@@ -38,12 +38,16 @@ int main(int argc, char **argv)
     std::cout << "Running in DEBUG mode!\n";
 #endif
   }
-
+ 
+  MPI_Barrier(MPI_COMM_WORLD);
+  double t1 = MPI_Wtime();
   cubism::ArgumentParser parser(argc, argv);
   cubismup3d::Simulation *sim = new cubismup3d::Simulation(MPI_COMM_WORLD, parser);
-
   sim->run();
   delete sim;
+  MPI_Barrier(MPI_COMM_WORLD);
+  double t2 = MPI_Wtime();
+  if (rank == 0) std::cout << "Total time = " << t2 - t1 << std::endl;
 
   MPI_Finalize();
   return 0;
