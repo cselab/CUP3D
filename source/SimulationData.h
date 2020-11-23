@@ -79,7 +79,8 @@ struct SimulationData
     Real res [2] = {hmin,hmax};
     MPI_Allreduce(MPI_IN_PLACE, & res, 2, MPI_REAL, MPI_MIN, app_comm);
     hmin  =  res[0];
-    hmax  = -res[1];
+    //hmax  = -res[1];
+    hmax  =  hmin;
     hmean =  hmin;
   }
 
