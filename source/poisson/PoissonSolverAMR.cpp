@@ -113,7 +113,7 @@ class ComputeLHS : public Operator
   void operator()(const double dt)
   {
     const KernelLHS K(sim);
-    compute<KernelLHS>(K);
+    compute<KernelLHS>(K,true);
   }
   std::string getName() { return "ComputeLHS"; }
 };
