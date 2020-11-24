@@ -7,116 +7,8 @@
 //
 
 #include "PoissonSolverAMR.h"
-#include "../operators/Operator.h"
+
 namespace cubismup3d {
-
-class ComputeLHS : public Operator
-{
-  struct KernelLHS
-  {
-    const SimulationData & sim;
-    KernelLHS(const SimulationData&s) : sim(s) {}
-  
-    const StencilInfo stencil{-1,-1,-1,2,2,2,false, {FE_TMPU} };
-    void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
-    {
-      const double h = info.h_gridpoint; 
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        o(ix,iy,iz).AxVector = h*( lab(ix-1,iy,iz).pVector + lab(ix+1,iy,iz).pVector + 
-                                   lab(ix,iy-1,iz).pVector + lab(ix,iy+1,iz).pVector +
-                                   lab(ix,iy,iz-1).pVector + lab(ix,iy,iz+1).pVector - 6.0*lab(ix,iy,iz).pVector);
-      }
-
-      BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
-      FluidBlock::ElementType * faceXm = nullptr;
-      FluidBlock::ElementType * faceXp = nullptr;
-      FluidBlock::ElementType * faceYm = nullptr;
-      FluidBlock::ElementType * faceYp = nullptr;
-      FluidBlock::ElementType * faceZp = nullptr;
-      FluidBlock::ElementType * faceZm = nullptr;
-      if (tempCase != nullptr)
-      {
-        faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
-        faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
-        faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
-        faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
-        faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
-        faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
-      }
-      if (faceXm != nullptr)
-      {
-        int ix = 0;
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        {
-          faceXm[iy + FluidBlock::sizeY * iz].clear();
-          faceXm[iy + FluidBlock::sizeY * iz].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix-1,iy,iz).pVector);
-        }
-      }
-      if (faceXp != nullptr)
-      {
-        int ix = FluidBlock::sizeX-1;
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        {
-          faceXp[iy + FluidBlock::sizeY * iz].clear();
-          faceXp[iy + FluidBlock::sizeY * iz].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix+1,iy,iz).pVector);
-        }
-      }
-      if (faceYm != nullptr)
-      {
-        int iy = 0;
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        {
-          faceYm[ix + FluidBlock::sizeX * iz].clear();
-          faceYm[ix + FluidBlock::sizeX * iz].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix,iy-1,iz).pVector);
-        }
-      }
-      if (faceYp != nullptr)
-      {
-        int iy = FluidBlock::sizeY-1;
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        {
-          faceYp[ix + FluidBlock::sizeX * iz].clear();
-          faceYp[ix + FluidBlock::sizeX * iz].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix,iy+1,iz).pVector);
-        }
-      }
-      if (faceZm != nullptr)
-      {
-        int iz = 0;
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        {
-          faceZm[ix + FluidBlock::sizeX * iy].clear();
-          faceZm[ix + FluidBlock::sizeX * iy].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix,iy,iz-1).pVector);
-        }
-      }
-      if (faceZp != nullptr)
-      {
-        int iz = FluidBlock::sizeZ-1;
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        {
-          faceZp[ix + FluidBlock::sizeX * iy].clear();
-          faceZp[ix + FluidBlock::sizeX * iy].AxVector = h*(lab(ix,iy,iz).pVector - lab(ix,iy,iz+1).pVector);
-        }
-      }
-    }
-  };
-  public:
-  ComputeLHS(SimulationData & s) : Operator(s) { }
-  void operator()(const double dt)
-  {
-    const KernelLHS K(sim);
-    compute<KernelLHS>(K,true);
-  }
-  std::string getName() { return "ComputeLHS"; }
-};
 
 Real PoissonSolverAMR::computeRelativeCorrection() const
 {
@@ -167,8 +59,6 @@ void PoissonSolverAMR::solve()
 {
   sim.startProfiler("PoissonSolverAMR :: step one");
   
-  ComputeLHS findLHS(sim);
-
   static constexpr int BSX = BlockType::sizeX;
   static constexpr int BSY = BlockType::sizeY;
   static constexpr int BSZ = BlockType::sizeZ;
@@ -526,7 +416,7 @@ double PoissonSolverAMR::getA_local(int I1,int I2)
   }
 }
 
-PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s)
+PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s),findLHS(s)
 {
   if (StreamerDiv::channels != 1) {
     fprintf(stderr, "PoissonSolverScalar_MPI(): Error: StreamerDiv::channels is %d (should be 1)\n",
@@ -654,7 +544,7 @@ void PoissonSolverAMR::FindZ()
   }
 }
 #else
-PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s)
+PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s),findLHS(s)
 {
   if (StreamerDiv::channels != 1) {
     fprintf(stderr, "PoissonSolverScalar_MPI(): Error: StreamerDiv::channels is %d (should be 1)\n",

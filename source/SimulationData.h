@@ -10,6 +10,7 @@
 #define CubismUP_3D_SimulationData_h
 
 #include "Definitions.h"
+#include "Cubism/FluxCorrectionMPI.h"
 
 #ifdef _USE_ZLIB_
 #include "SerializerIO_WaveletCompression_MPI_Simple.h"
@@ -49,6 +50,7 @@ struct SimulationData
   cubism::Profiler * profiler = nullptr;
 
   FluidGridMPI * grid = nullptr;
+  FluxCorrectionMPI<FluxCorrection<FluidGridMPI,FluidBlock>,FluidGridMPI> Corrector;
   void * nonuniform = nullptr;
   inline std::vector<cubism::BlockInfo>& vInfo() {
     return grid->getBlocksInfo();
