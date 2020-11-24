@@ -35,12 +35,6 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-#ifndef CUP_SINGLE_PRECISION
-typedef double Real;
-#else
-typedef float Real;
-#endif
-
 #ifndef CUP_HDF5_DOUBLE_PRECISION
 typedef float DumpReal;
 #else
@@ -48,5 +42,11 @@ typedef double DumpReal;
 #endif
 
 CubismUP_3D_NAMESPACE_END
+
+#ifndef CUP_SINGLE_PRECISION
+typedef double Real;
+#else
+typedef float Real;
+#endif
 
 #endif  // CubismUP_3D_Base_h
