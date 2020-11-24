@@ -9,6 +9,7 @@
 #pragma once
 
 #include "../SimulationData.h"
+#include "../operators/Operator.h"
 #include <Cubism/BlockInfo.h>
 #include <vector>
 #include <cassert>
@@ -18,7 +19,6 @@
 #else
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
-#include "../operators/Operator.h"
 #define PRECOND
 
 #define pVector  tmpU
@@ -153,6 +153,9 @@ class PoissonSolverAMR
   Real computeRelativeCorrection() const;
 
   ComputeLHS findLHS;
+  std::vector<size_t> blocksOffset;
+  long long id_min;
+  long long id_max;
 
  public:
   size_t datasize;
@@ -165,29 +168,47 @@ class PoissonSolverAMR
   size_t _offset(const cubism::BlockInfo &info) const
   {
     assert (info.myrank == m_rank);
-    //stupid simple and slow approach, good enough for now
-    size_t PointsPerBlock = BlockType::sizeX * BlockType::sizeY * BlockType::sizeZ;
-    size_t kount = 0;
-    std::vector<BlockInfo> & vInfo = grid.getBlocksInfo();
-    for (size_t i = 0 ; i < vInfo.size(); i++)
-    {
-      if (vInfo[i].blockID == info.blockID) break;
-      kount ++;
-    }
-    return kount * PointsPerBlock;
+    #if 0 //stupid simple and slow approach
+      size_t PointsPerBlock = BlockType::sizeX * BlockType::sizeY * BlockType::sizeZ;
+      size_t kount = 0;
+      std::vector<BlockInfo> & vInfo = grid.getBlocksInfo();
+      for (size_t i = 0 ; i < vInfo.size(); i++)
+      {
+        if (vInfo[i].blockID == info.blockID) break;
+        kount ++;
+      }
+      assert(blocksOffset[info.blockID] == kount * PointsPerBlock);
+      return kount * PointsPerBlock;
+    #else
+      return blocksOffset[info.blockID];
+    #endif
   }
   void reset()
   {
     const size_t PointsPerBlock = BlockType::sizeX * BlockType::sizeY * BlockType::sizeZ;
     const size_t Blocks = grid.getBlocksInfo().size();
     datasize = PointsPerBlock * Blocks;
+
+    std::vector<BlockInfo> & vInfo = grid.getBlocksInfo();
+
+    id_min = vInfo[0].blockID;
+    id_max = vInfo[0].blockID;
+
+    for (size_t i = 1 ; i < vInfo.size(); i++)
+    {
+      id_min = std::min(vInfo[i].blockID,id_min);
+      id_max = std::max(vInfo[i].blockID,id_max);
+    }
+    blocksOffset.resize(id_max-id_min+1,0);
+    for (size_t i = 0 ; i < vInfo.size(); i++)
+    {
+      blocksOffset[ vInfo[i].blockID-id_min ] = i*PointsPerBlock;
+    }  
   }
   size_t _dest(const size_t offset,const int z,const int y,const int x) const
   {
     return offset + (BlockType::sizeX*BlockType::sizeY)*z + BlockType::sizeX*y + x;
   }
-
-  //will need flux corrections!
 
   #ifdef PRECOND
   double getA_local(int I1,int I2);
