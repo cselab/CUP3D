@@ -138,7 +138,8 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
     
       double Linf   = 0.0; //chi
       double Linf_2 = 0.0; //vorticity
-/*      for (int k = 0; k < nz; k++)
+
+      for (int k = 0; k < nz; k++)
       for (int j = 0; j < ny; j++)
       for (int i = 0; i < nx; i++)
       {
@@ -152,7 +153,7 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
         double omega = pow(omega_x*omega_x + omega_y*omega_y + omega_z*omega_z,0.5);
         Linf_2 = max(Linf_2,omega);
       }
-*/
+
       for (int k = 0 - 1; k < nz + 1; k++)
       for (int j = 0 - 1; j < ny + 1; j++)
       for (int i = 0 - 1; i < nx + 1; i++)
