@@ -26,7 +26,7 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
       static const int ny = BlockType::sizeY;
       static const int nz = BlockType::sizeZ;
 
-#if 1 //derivatives
+#if 0 //derivatives
       MeshAdaptationMPI<TGrid,TLab>::RefineBlocks(B,parent);
 
 #else //WENO3
