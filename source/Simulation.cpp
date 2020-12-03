@@ -205,7 +205,7 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
   else
   {
     std::cout << "Stretched mesh cannot be used with AMR. Aborting..." << std::endl;
-    MPI_Abort(1,sim.app_comm);
+    MPI_Abort(sim.app_comm,1);
     #if 0
     if(sim.rank==0)
       printf("Stretched grid of sizes: %f %f %f\n",
