@@ -50,28 +50,6 @@ using namespace cubism;
  using SliceType  = cubism::SliceTypesMPI::Slice<FluidGridMPI>;
 #endif
 
-// Initialization from cmdline arguments is done in few steps, because grid has
-// to be created before the obstacles and slices are created.
-Simulation::Simulation(const SimulationData &_sim) : sim(_sim)
-{
-  sim._preprocessArguments();
-
-  // Grid has to be initialized before slices and obstacles.
-  setupGrid(nullptr);
-
-  // Define an empty obstacle vector, which can be later modified.
-  sim.obstacle_vector = new ObstacleVector(sim);
-
-  _init(false);
-}
-
-Simulation::Simulation(MPI_Comm mpicomm) : sim(mpicomm)
-{
-  // What about setupGrid and other stuff?
-  sim.obstacle_vector = new ObstacleVector(sim);
-  _init(false);
-}
-
 Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
     : sim(mpicomm, parser)
 {
@@ -86,12 +64,8 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
     sim.m_slices = SliceType::getEntities<SliceType>(parser, * sim.grid);
   #endif
 
-  // ========== OBSTACLES ==========
-  sim.obstacle_vector = new ObstacleVector(sim);
-  ObstacleFactory(sim).addObstacles(parser);
-
   const bool bRestart = parser("-restart").asBool(false);
-  _init(bRestart);
+  _init(bRestart,parser);
 }
 
 const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() const
@@ -99,72 +73,40 @@ const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() co
     return sim.obstacle_vector->getObstacleVector();
 }
 
-/* DEPRECATED. Keep until `source/bindings/Simulation.cpp` is fixed.
-
-// For Python bindings. Really no need for `const` here...
-Simulation::Simulation(
-  std::array<int,3> cells, std::array<int, 3> nproc, MPI_Comm comm, int nsteps,
-  double endTime, double nu, double CFL, double lambda, double DLM,
-  std::array<double,3> uinf, bool verbose, int freqDiagnostics,
-  bool b3Ddump, bool b2Ddump, double fadeOutLength, int saveFreq,
-  double saveTime, const std::string &path4serialization, bool restart) :
-  sim(comm)
+void Simulation::_init(const bool restart,ArgumentParser & parser)
 {
-  sim.nprocsx = nproc[0];
-  sim.nprocsy = nproc[1];
-  sim.nprocsz = nproc[2];
-  sim.nsteps = nsteps;
-  sim.endTime = endTime;
-  sim.uinf[0] = uinf[0];
-  sim.uinf[1] = uinf[1];
-  sim.uinf[2] = uinf[2];
-  sim.nu = nu;
-  sim.CFL = CFL;
-  sim.lambda = lambda;
-  sim.DLM = DLM;
-  sim.verbose = verbose;
-  sim.freqDiagnostics = freqDiagnostics;
-  sim.b3Ddump = b3Ddump;
-  sim.b2Ddump = b2Ddump;
-  sim.fadeOutLengthPRHS[0] = fadeOutLength;
-  sim.fadeOutLengthPRHS[1] = fadeOutLength;
-  sim.fadeOutLengthPRHS[2] = fadeOutLength;
-  sim.fadeOutLengthU[0] = fadeOutLength;
-  sim.fadeOutLengthU[1] = fadeOutLength;
-  sim.fadeOutLengthU[2] = fadeOutLength;
-  sim.saveFreq = saveFreq;
-  sim.saveTime = saveTime;
-  sim.path4serialization = path4serialization;
-
-  if (cells[0] < 0 || cells[1] < 0 || cells[2] < 0)
-    throw std::invalid_argument("N. of cells not provided.");
-  if (   cells[0] % FluidBlock::sizeX != 0
-      || cells[1] % FluidBlock::sizeY != 0
-      || cells[2] % FluidBlock::sizeZ != 0 )
-    throw std::invalid_argument("N. of cells must be multiple of block size.");
-
-  sim.bpdx = cells[0] / FluidBlock::sizeX;
-  sim.bpdy = cells[1] / FluidBlock::sizeY;
-  sim.bpdz = cells[2] / FluidBlock::sizeZ;
-  sim._preprocessArguments();
-  setupGrid();  // Grid has to be initialized before slices and obstacles.
-  setObstacleVector(new ObstacleVector(sim));
-  _init(restart);
-}
-*/
-
-void Simulation::_init(const bool restart)
-{
-  setupOperators();
-
+  for (int l = 0 ; l < sim.levelMax ; l++)
+  {
+    setupOperators(parser);
+    sim.obstacle_vector = new ObstacleVector(sim);
+    ObstacleFactory(sim).addObstacles(parser);
+    (*sim.pipeline[1])(0);
+    sim.amr->AdaptTheMesh(sim.time);
+    //After mesh is refined/coarsened the arrays min_pos and max_pos need to change.
+    const std::vector<BlockInfo>& vInfo = sim.vInfo();
+    #pragma omp parallel for schedule(static)
+    for(size_t i=0; i<vInfo.size(); i++) {
+      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
+      b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
+    }
+    if (l !=sim.levelMax-1)
+    {
+      while(!sim.pipeline.empty()) {
+      auto * g = sim.pipeline.back();
+      sim.pipeline.pop_back();
+      delete g;
+      }
+      delete sim.obstacle_vector;
+    }
+  }
   if (restart)
     _deserialize();
   else if (sim.icFromH5 != "")
     _icFromH5(sim.icFromH5);
   else
-    _ic();
-  MPI_Barrier(sim.app_comm);
-  //_serialize("init");
+    _ic();  
+  _serialize("init");
 
   assert(sim.obstacle_vector != nullptr);
   if (sim.rank == 0)
@@ -327,7 +269,7 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
   }
 }
 
-void Simulation::setupOperators()
+void Simulation::setupOperators(ArgumentParser & parser)
 {
   touch();
   sim.pipeline.clear();
@@ -430,8 +372,6 @@ void Simulation::setupOperators()
     for (size_t c=0; c<sim.pipeline.size(); c++)
       printf("\t%s\n", sim.pipeline[c]->getName().c_str());
   }
-  //immediately call create!
-  (*createObstacles)(0);
 }
 
 double Simulation::calcMaxTimestep()
@@ -500,9 +440,11 @@ void Simulation::_serialize(const std::string append)
     }
     // copy qois from grid to dump
     copyDumpGrid(* sim.grid, * sim.dump);
-    const auto * const grid2Dump = sim.dump;
+    //const auto * const grid2Dump = sim.dump;
+    auto * grid2Dump = sim.dump;
   #else //CUP_ASYNC_DUMP
-    const auto * const grid2Dump = sim.grid;
+    //const auto * const grid2Dump = sim.grid;
+    auto * grid2Dump = sim.grid;
   #endif //CUP_ASYNC_DUMP
 
   const auto name3d = ssR.str(), name2d = ssF.str(); // sstreams are weird

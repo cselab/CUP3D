@@ -34,12 +34,12 @@ public:
   Checkpoint *checkpointPostVelocity = nullptr;
 
   void reset();
-  void _init(bool restart = false);
+  void _init(bool restart /*= false*/, ArgumentParser & parser);
   void _serialize(const std::string append = std::string());
   void _deserialize();
 
   void _argumentsSanityCheck();
-  void setupOperators();
+  void setupOperators(ArgumentParser & parser);
   void setupGrid(cubism::ArgumentParser *parser_ptr = nullptr);
   void _ic();
   void _icFromH5(std::string h5File);
