@@ -75,14 +75,27 @@ const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() co
 
 void Simulation::_init(const bool restart,ArgumentParser & parser)
 {
+  setupOperators(parser);
+
   for (int l = 0 ; l < sim.levelMax ; l++)
   {
-    setupOperators(parser);
     sim.obstacle_vector = new ObstacleVector(sim);
     ObstacleFactory(sim).addObstacles(parser);
     (*sim.pipeline[1])(0);
+
+    if (l == 0)
+    {
+      if (restart)
+        _deserialize();
+      else if (sim.icFromH5 != "")
+        _icFromH5(sim.icFromH5);
+      else
+      _ic();
+      (*sim.pipeline[1])(0);
+    }
+
     sim.amr->AdaptTheMesh(sim.time);
-    //After mesh is refined/coarsened the arrays min_pos and max_pos need to change.
+    //After mesh is refined/coarsened the arrays min_pos and max_pos need to change
     const std::vector<BlockInfo>& vInfo = sim.vInfo();
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++) {
@@ -90,22 +103,16 @@ void Simulation::_init(const bool restart,ArgumentParser & parser)
       b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
       b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
     }
-    if (l !=sim.levelMax-1)
-    {
-      while(!sim.pipeline.empty()) {
-      auto * g = sim.pipeline.back();
-      sim.pipeline.pop_back();
-      delete g;
-      }
+    touch();
+    if (l != sim.levelMax-1)
       delete sim.obstacle_vector;
-    }
   }
-  if (restart)
-    _deserialize();
-  else if (sim.icFromH5 != "")
-    _icFromH5(sim.icFromH5);
-  else
-    _ic();  
+//  if (restart)
+//    _deserialize();
+//  else if (sim.icFromH5 != "")
+//    _icFromH5(sim.icFromH5);
+//  else
+//    _ic();
   _serialize("init");
 
   assert(sim.obstacle_vector != nullptr);
