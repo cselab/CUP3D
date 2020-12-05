@@ -129,7 +129,7 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
       right = g1 * w1 + g2 * w2;
    }
 
-   virtual State TagLoadedBlock(TLab &Lab_, int level, BlockInfo & info)
+   virtual State TagLoadedBlock(TLab &Lab_, BlockInfo & info)
    {
       //This assumes zero Neumann BCs for velocity
       static const int nx = BlockType::sizeX;
@@ -162,7 +162,7 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
         if (s0 > Linf) Linf = s0;
       }
 
-      //Linf_2 *= 1.0/(level+1);
+      //Linf_2 *= 1.0/(info.level+1);
 
       if (Linf > Rtol_chi || Linf_2 > MeshAdaptationMPI<TGrid,TLab>::tolerance_for_refinement ) return Refine;
       if (Linf < Ctol_chi && Linf_2 < MeshAdaptationMPI<TGrid,TLab>::tolerance_for_compression) return Compress;    
