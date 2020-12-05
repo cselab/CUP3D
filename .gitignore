@@ -31,3 +31,5 @@ __pycache__
 /launch/misc/
 /source_old/
 /utils/
+
+/launch/test.sh
