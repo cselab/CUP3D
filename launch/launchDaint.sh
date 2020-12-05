@@ -28,6 +28,7 @@ cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
 cp ../bin/${EXEC} ${FOLDER}/simulation
 cp -r ../source ${FOLDER}/
+cp -r ../Cubism ${FOLDER}/
 cp $0 ${FOLDER}
 
 git diff HEAD > ${FOLDER}/gitdiff.diff
@@ -61,8 +62,8 @@ export OMP_NUM_THREADS=12
 srun --ntasks ${NNODE} --ntasks-per-node=1 ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
 
 EOF
-
 chmod 755 daint_sbatch
 sbatch daint_sbatch
 
-#srun --ntasks ${NNODE} --threads-per-core=1 --ntasks-per-node=1 --cpus-per-task=12 time ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
+#export OMP_NUM_THREADS=1
+#srun --ntasks ${NNODE} --ntasks-per-node=1 ./simulation ${OPTIONS} -factory-content ${FACTORY}
