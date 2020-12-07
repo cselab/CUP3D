@@ -8,43 +8,25 @@ parser.add_argument('--x0', help='first position in x', required=True, type=floa
 parser.add_argument('--y0', help='first position in y', required=True, type=float)
 parser.add_argument('--z0', help='first position in z', required=True, type=float)
 parser.add_argument('--delta', help='x/y spacing between the fish', required=True, type=float)
+parser.add_argument('--L', help='fish length', required=True, type=float)
 args = vars(parser.parse_args())
 numFish = args['numFish']
 x0 = args['x0']
 y0 = args['y0']
 z0 = args['z0']
 delta = args['delta']
+L = args['L']
 
 f = open("settingsCarlingSwarm.sh", "w")
-## WRITE GRID CONFIGURATION
-## FOR AMR CODE
-# f.write(
-# "#!/bin/bash\n\
-# NNODE=8\n\
-# \n\
-# BPDX=${BPDX:-64}\n\
-# BPDY=${BPDY:-64}\n\
-# BPDZ=${BPDZ:-64}\n\
-# \n\
-# NU=${NU:-0.00004}\n\
-# BC=${BC:-freespace}\n\
-# \n\
-# L=0.2\n\
-# \n\
-# FACTORY=\n"
-# )
 
 ## FOR UNIFORM CODE
 f.write(
 "#!/bin/bash\n\
-NNODEX=${NNODEX:-2}\n\
-NNODEY=${NNODEY:-2}\n\
-NNODEZ=${NNODEZ:-2}\n\
-NNODE=8\n\
+NNODE=256\n\
 \n\
-BPDX=${BPDX:-64}\n\
-BPDY=${BPDY:-64}\n\
-BPDZ=${BPDZ:-64}\n\
+BPDX=${BPDX:-8}\n\
+BPDY=${BPDY:-8}\n\
+BPDZ=${BPDZ:-8}\n\
 \n\
 NU=${NU:-0.00001}\n\
 BC=${BC:-freespace}\n\
@@ -68,31 +50,31 @@ for i in np.arange(numFish):
 
       # ADD FISH ON EDGE
       if counter == 0:
-        f.write('FACTORY+="CarlingFish L=0.1 T=1.0 xpos={} ypos={} zpos={} bFixToPlanar=1 bFixFrameOfRef=1 heightProfile=stefan widthProfile=stefan\n\
+        f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bFixToPlanar=1 bFixFrameOfRef=1 heightProfile=stefan widthProfile=stefan\n\
 "\n'.format(xOuter,yOuter,zOuter))
       else:   
-        f.write('FACTORY+="CarlingFish L=0.1 T=1.0 xpos={} ypos={} zpos={} bFixToPlanar=1 heightProfile=stefan widthProfile=stefan\n\
+        f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bFixToPlanar=1 heightProfile=stefan widthProfile=stefan\n\
 "\n'.format(xOuter,yOuter,zOuter))
       counter+=1
       # ADD FISH ON X-Z FACE
       if ( i != numFish-1 ) and ( k!= numFish-1 ):
-        f.write('FACTORY+="CarlingFish L=0.1 T=1.0 xpos={} ypos={} zpos={} bFixToPlanar=1 heightProfile=stefan widthProfile=stefan\n\
+        f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bFixToPlanar=1 heightProfile=stefan widthProfile=stefan\n\
 "\n'.format(xInner,yOuter,zInner))
         counter+=1
       # ADD FISH ON X-Y FACE
       if ( i != numFish-1 ) and ( j!= numFish-1 ):
-        f.write('FACTORY+="CarlingFish L=0.1 T=1.0 xpos={} ypos={} zpos={} bFixToPlanar=1 heightProfile=stefan widthProfile=stefan\n\
+        f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bFixToPlanar=1 heightProfile=stefan widthProfile=stefan\n\
 "\n'.format(xInner,yInner,zOuter))
         counter+=1
       # ADD FISH ON Y-Z FACE
       if ( j != numFish-1 ) and ( k!= numFish-1 ):
-        f.write('FACTORY+="CarlingFish L=0.1 T=1.0 xpos={} ypos={} zpos={} bFixToPlanar=1 heightProfile=stefan widthProfile=stefan\n\
+        f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bFixToPlanar=1 heightProfile=stefan widthProfile=stefan\n\
 "\n'.format(xOuter,yInner,zInner))
         counter+=1
  
 # WRITE SOLVER SETTINGS
 f.write('\nOPTIONS=\n\
-OPTIONS+="-extentx 4.0"\n\
+OPTIONS+=" -extentx 4.0"\n\
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"\n\
 OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 50.0 "\n\
 OPTIONS+=" -nslices 2 -slice1_direction 1 -slice2_direction 2 "\n\
