@@ -444,7 +444,7 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
   const Real *const rY = cfish->rY, *const norY = cfish->norY;
   const Real *const vX = cfish->vX, *const vNorX = cfish->vNorX;
   const Real *const vY = cfish->vY, *const vNorY = cfish->vNorY;
-  const Real *const width = cfish->width, *const height = cfish->height;
+  /*const */Real *const width = cfish->width, *const height = cfish->height;
   static constexpr int BS[3] = {FluidBlock::sizeX, FluidBlock::sizeY, FluidBlock::sizeZ};
   CHIMAT & __restrict__ CHI = defblock->chi;
   CHIMAT & __restrict__ SDF = defblock->sdf;
@@ -458,6 +458,8 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
     const int lastSegm =  std::min(vSegments[i]->s_range.second, cfish->Nm-2);
     for(int ss=firstSegm; ss<=lastSegm; ++ss)
     {
+      if (height[ss]<=0) {/*std::cout << "HEIGHT= " << height[ss] << std::endl; */height[ss]=1e-10;}
+      if (width [ss]<=0) {/*std::cout << "WIDTH = " << width [ss] << std::endl; */width [ss]=1e-10;}
       assert(height[ss]>0 && width[ss]>0);
       // fill chi by crating an ellipse around ss and finding all near neighs
       // assume width is major axis, else correction:
