@@ -350,9 +350,9 @@ void Obstacle::update()
   //keep consistency: get 2d angle from quaternions:
   _2Dangle = 2*std::atan2(quaternion[3], quaternion[0]);
   const double err = std::fabs(_2Dangle-old2DA-dt*angVel[2]);
-  if(err>EPS && !sim.rank)
-    printf("Discrepancy in angvel from quaternions: %f (%f %f)\n",
-      err, (_2Dangle-old2DA)/dt, angVel[2]);
+  //if(err>EPS && !sim.rank)
+    //printf("Discrepancy in angvel from quaternions: %f (%f %f)\n",
+    //  err, (_2Dangle-old2DA)/dt, angVel[2]);
 
   #ifndef NDEBUG
   if(sim.rank==0)
