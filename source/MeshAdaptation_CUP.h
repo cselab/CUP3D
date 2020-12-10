@@ -8,6 +8,7 @@ template <typename TGrid, typename TLab>
 class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
 {
  public:
+   int counter;
    double Rtol_chi;
    double Ctol_chi;
    typedef typename TGrid::Block BlockType;
@@ -16,9 +17,19 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
 
    MeshAdaptation_CUP(TGrid &grid, double Rtol, double Ctol): MeshAdaptationMPI<TGrid,TLab>(grid,Rtol,Ctol)
    {
+    counter = 0;
     Rtol_chi = 0.2;
     Ctol_chi = 0.000001;
    }
+   virtual void AdaptTheMesh(double t) override
+   {
+       counter = 0;
+       if (counter < 10)
+       Rtol_chi = 0.0001;
+       else
+       Rtol_chi = 0.2;
+       MeshAdaptationMPI<TGrid,TLab>::AdaptTheMesh(t);
+   }   
 
    virtual void RefineBlocks(BlockType *B[8], BlockInfo parent) override
    {
