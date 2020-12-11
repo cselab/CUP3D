@@ -158,16 +158,79 @@ class KernelVorticity
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
   {
-    const Real inv2h = .5 / info.h_gridpoint;
+    const Real inv2h = .5 / info.h_gridpoint;// *info.h_gridpoint*info.h_gridpoint*info.h_gridpoint;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
     for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
       const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
       const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
       const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+      const FluidElement &LC=lab(ix,iy,iz);
       o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
       o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
       o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
+#if 1
+      if (ix==0)
+      {
+        const FluidElement &LEE=lab(ix+2,iy,iz);
+        //const FluidElement &LE3=lab(ix+3,iy,iz);
+        //const FluidElement &LE4=lab(ix+4,iy,iz);
+        o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - 2*(-1.5*LC.w+2.0*LE.w-0.5*LEE.w) );
+        o(ix,iy,iz).tmpW = inv2h * ( +2*(-1.5*LC.v+2.0*LE.v-0.5*LEE.v) - (LN.u-LS.u) );
+        //o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - 2*(-25.0/12.0*LC.w+4.0*LE.w-3.0*LEE.w+4.0/3.0*LE3.w-0.25*LE4.w) );
+        //o(ix,iy,iz).tmpW = inv2h * ( +2*(-25.0/12.0*LC.v+4.0*LE.v-3.0*LEE.v+4.0/3.0*LE3.v-0.25*LE4.v) - (LN.u-LS.u) );
+      }
+      if (ix==FluidBlock::sizeX-1)
+      {
+        const FluidElement &LWW=lab(ix-2,iy,iz);
+        //const FluidElement &LW3=lab(ix-3,iy,iz);
+        //const FluidElement &LW4=lab(ix-4,iy,iz);
+        o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - 2*(+1.5*LC.w-2.0*LW.w+0.5*LWW.w) );
+        o(ix,iy,iz).tmpW = inv2h * ( +2*(+1.5*LC.v-2.0*LW.v+0.5*LWW.v) - (LN.u-LS.u) );
+        //o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - 2*(+25.0/12.0*LC.w-4.0*LW.w+3.0*LWW.w-4.0/3.0*LW3.w+0.25*LW4.w) );
+        //o(ix,iy,iz).tmpW = inv2h * ( +2*(+25.0/12.0*LC.v-4.0*LW.v+3.0*LWW.v-4.0/3.0*LW3.v+0.25*LW4.v) - (LN.u-LS.u) );
+      }
+      if (iy==0)
+      {
+        const FluidElement &LNN=lab(ix,iy+2,iz);
+        //const FluidElement &LN3=lab(ix,iy+3,iz);
+        //const FluidElement &LN4=lab(ix,iy+4,iz);
+        o(ix,iy,iz).tmpU = inv2h * ( +2*(-1.5*LC.w+2.0*LN.w-0.5*LNN.w) - (LB.v-LF.v) );
+        o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - 2*(-1.5*LC.u+2.0*LN.u-0.5*LNN.u) );
+        //o(ix,iy,iz).tmpU = inv2h * ( +2*(-25.0/12.0*LC.w+4.0*LN.w-3.0*LNN.w+4.0/3.0*LN3.w-0.25*LN4.w) - (LB.v-LF.v) );
+        //o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - 2*(-25.0/12.0*LC.u+4.0*LN.u-3.0*LNN.u+4.0/3.0*LN3.u-0.25*LN4.u) );
+      }
+      if (iy==FluidBlock::sizeY-1)
+      {
+        const FluidElement &LSS=lab(ix,iy-2,iz);
+        //const FluidElement &LS3=lab(ix,iy-3,iz);
+        //const FluidElement &LS4=lab(ix,iy-4,iz);
+        o(ix,iy,iz).tmpU = inv2h * ( +2*(+1.5*LC.w-2.0*LS.w+0.5*LSS.w) - (LB.v-LF.v) );
+        o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - 2*(+1.5*LC.u-2.0*LS.u+0.5*LSS.u) );
+        //o(ix,iy,iz).tmpU = inv2h * ( +2*(+25.0/12.0*LC.w-4.0*LS.w+3.0*LSS.w-4.0/3.0*LS3.w+0.25*LS4.w) - (LB.v-LF.v) );
+        //o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - 2*(+25.0/12.0*LC.u-4.0*LS.u+3.0*LSS.u-4.0/3.0*LS3.u+0.25*LS4.u) );
+      }
+      if (iz==0)
+      {
+        const FluidElement &LBB=lab(ix,iy,iz+2);
+        //const FluidElement &LB3=lab(ix,iy,iz+3);
+        //const FluidElement &LB4=lab(ix,iy,iz+4);
+        o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - 2*(-1.5*LC.v+2.0*LB.v-0.5*LBB.v) );
+        o(ix,iy,iz).tmpV = inv2h * (  2*(-1.5*LC.u+2.0*LB.u-0.5*LBB.u) - (LE.w-LW.w) );
+        //o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - 2*(-25.0/12.0*LC.v+4.0*LB.v-3.0*LBB.v+4.0/3.0*LB3.v-0.25*LB4.v) );
+        //o(ix,iy,iz).tmpV = inv2h * (  2*(-25.0/12.0*LC.u+4.0*LB.u-3.0*LBB.u+4.0/3.0*LB3.u-0.25*LB4.u) - (LE.w-LW.w) );
+      }
+      if (iz==FluidBlock::sizeZ-1)
+      {
+        const FluidElement &LFF=lab(ix,iy,iz-2);
+        //const FluidElement &LF3=lab(ix,iy,iz-3);
+        //const FluidElement &LF4=lab(ix,iy,iz-4);
+        o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - 2*(+1.5*LC.v-2.0*LF.v+0.5*LFF.v) );
+        o(ix,iy,iz).tmpV = inv2h * ( 2*(+1.5*LC.u-2.0*LF.u+0.5*LFF.u) - (LE.w-LW.w) );
+        //o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - 2*(+25.0/12.0*LC.v-4.0*LF.v+3.0*LFF.v-4.0/3.0*LF3.v+0.25*LF4.v) );
+        //o(ix,iy,iz).tmpV = inv2h * ( 2*(+25.0/12.0*LC.u-4.0*LF.u+3.0*LFF.u-4.0/3.0*LF3.u+0.25*LF4.u) - (LE.w-LW.w) );
+      }
+#endif
       //o(ix,iy,iz).tmpU =  __FD_2ND(iy, cy, phiS.w, phiC.w, phiN.w)
       //                  - __FD_2ND(iz, cz, phiF.v, phiC.v, phiB.v);
       //o(ix,iy,iz).tmpV =  __FD_2ND(iz, cz, phiF.u, phiC.u, phiB.u)
@@ -175,6 +238,114 @@ class KernelVorticity
       //o(ix,iy,iz).tmpW =  __FD_2ND(ix, cx, phiW.v, phiC.v, phiE.v)
       //                  - __FD_2ND(iy, cy, phiS.u, phiC.u, phiN.u);
     }
+#if 0
+    BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
+    typename BlockType::ElementType * faceXm = nullptr;
+    typename BlockType::ElementType * faceXp = nullptr;
+    typename BlockType::ElementType * faceYm = nullptr;
+    typename BlockType::ElementType * faceYp = nullptr;
+    typename BlockType::ElementType * faceZp = nullptr;
+    typename BlockType::ElementType * faceZm = nullptr;
+    if (tempCase != nullptr)
+    {
+        faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+        faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+        faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+        faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+        faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
+        faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
+    }
+    if (faceXm != nullptr)
+    {
+        int ix = 0;
+        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+        {
+          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LC=lab(ix,iy,iz);
+          faceXm[iy + FluidBlock::sizeY * iz].clear();
+          faceXm[iy + FluidBlock::sizeY * iz].tmpV = -inv2h*( LW.w + LC.w );
+          faceXm[iy + FluidBlock::sizeY * iz].tmpW = +inv2h*( LW.v + LC.v );
+        }
+    }
+    if (faceXp != nullptr)
+    {
+       int ix = FluidBlock::sizeX-1;
+       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+       {
+          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LC=lab(ix,iy,iz);
+          faceXp[iy + FluidBlock::sizeY * iz].clear();
+          faceXp[iy + FluidBlock::sizeY * iz].tmpV = +inv2h*( LE.w + LC.w );
+          faceXp[iy + FluidBlock::sizeY * iz].tmpW = -inv2h*( LE.v + LC.v );
+       }
+    }
+    if (faceYm != nullptr)
+    {
+       int iy = 0;
+       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+       {
+          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LC=lab(ix,iy,iz);
+          faceYm[ix + FluidBlock::sizeX * iz].clear();
+          faceYm[ix + FluidBlock::sizeX * iz].tmpU = +inv2h*(LS.w+LC.w);
+          faceYm[ix + FluidBlock::sizeX * iz].tmpW = -inv2h*(LS.u+LC.u);
+       }
+     }
+     if (faceYp != nullptr)
+     {
+       int iy = FluidBlock::sizeY-1;
+       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+       {
+          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LC=lab(ix,iy,iz);
+          faceYp[ix + FluidBlock::sizeX * iz].clear();
+          faceYp[ix + FluidBlock::sizeX * iz].tmpU = -inv2h*(LN.w+LC.w);
+          faceYp[ix + FluidBlock::sizeX * iz].tmpW = +inv2h*(LN.u+LC.u);
+       }
+     }
+     if (faceZm != nullptr)
+     {
+       int iz = 0;
+       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+       {
+          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LC=lab(ix,iy,iz);
+          faceZm[ix + FluidBlock::sizeX * iy].clear();
+          faceZm[ix + FluidBlock::sizeX * iy].tmpU = -inv2h*(LF.v+LC.v);
+          faceZm[ix + FluidBlock::sizeX * iy].tmpV = +inv2h*(LF.u+LC.u);
+       }
+     }
+     if (faceZp != nullptr)
+     {
+       int iz = FluidBlock::sizeZ-1;
+       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+       {
+          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
+          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
+          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LC=lab(ix,iy,iz);
+          faceZp[ix + FluidBlock::sizeX * iy].clear();
+          faceZp[ix + FluidBlock::sizeX * iy].tmpU = +inv2h*(LB.v+LC.v);
+          faceZp[ix + FluidBlock::sizeX * iy].tmpV = -inv2h*(LB.u+LC.u);
+       }
+     }
+#endif
   }
 };
 
@@ -190,7 +361,7 @@ class ComputeVorticity : public Operator
       fflush(0); abort();
     } else {
       const KernelVorticity K;
-      compute<KernelVorticity>(K);
+      compute<KernelVorticity>(K,true);
     }
     sim.stopProfiler();
     check("Vorticity");
