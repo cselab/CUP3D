@@ -79,6 +79,7 @@ void Simulation::_init(const bool restart,ArgumentParser & parser)
 
   for (int l = 0 ; l < sim.levelMax ; l++)
   {
+    sim.UpdateHmin();
     sim.obstacle_vector = new ObstacleVector(sim);
     ObstacleFactory(sim).addObstacles(parser);
     (*sim.pipeline[1])(0);
@@ -103,16 +104,12 @@ void Simulation::_init(const bool restart,ArgumentParser & parser)
       b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
       b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
     }
-    touch();
     if (l != sim.levelMax-1)
-      delete sim.obstacle_vector;
+    {
+      touch();
+      delete sim.obstacle_vector;      
+    }
   }
-//  if (restart)
-//    _deserialize();
-//  else if (sim.icFromH5 != "")
-//    _icFromH5(sim.icFromH5);
-//  else
-//    _ic();
   _serialize("init");
 
   assert(sim.obstacle_vector != nullptr);
@@ -213,56 +210,6 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
   {
     std::cout << "Stretched mesh cannot be used with AMR. Aborting..." << std::endl;
     MPI_Abort(sim.app_comm,1);
-    #if 0
-    if(sim.rank==0)
-      printf("Stretched grid of sizes: %f %f %f\n",
-      sim.extent[0],sim.extent[1],sim.extent[2]);
-    NonUniformScheme<FluidBlock> * nonuniform = nullptr;
-    nonuniform = new NonUniformScheme<FluidBlock>( 0, sim.extent[0],
-      0, sim.extent[1], 0, sim.extent[2], sim.bpdx, sim.bpdy, sim.bpdz);
-    assert(nonuniform not_eq nullptr);
-    // initialize scheme
-    assert(parser_ptr != nullptr
-           && "Cannot use a stretched grid and initialize without an ArgumentParser.");
-    MeshDensityFactory mk(* parser_ptr);
-    nonuniform->init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
-
-    sim.grid = new FluidGridMPI(
-      & nonuniform->get_map_x(), & nonuniform->get_map_y(),
-      & nonuniform->get_map_z(), sim.nprocsx, sim.nprocsy, sim.nprocsz,
-      sim.local_bpdx, sim.local_bpdy, sim.local_bpdz, sim.app_comm);
-    assert(sim.grid != nullptr);
-
-    #ifdef CUP_ASYNC_DUMP
-      // create new comm so that if there is a barrier main work is not affected
-      MPI_Comm_split(sim.app_comm, 0, sim.rank, & sim.dump_comm);
-      NonUniformScheme<DumpBlock> * dump_nonuniform = nullptr;
-      dump_nonuniform = new NonUniformScheme<DumpBlock>( 0, sim.extent[0],
-        0, sim.extent[1], 0, sim.extent[2], sim.bpdx, sim.bpdy, sim.bpdz);
-      dump_nonuniform->init(mk.get_mesh_kernel(0), mk.get_mesh_kernel(1), mk.get_mesh_kernel(2));
-      sim.dump = new  DumpGridMPI(
-        & dump_nonuniform->get_map_x(), & dump_nonuniform->get_map_y(),
-        & dump_nonuniform->get_map_z(), sim.nprocsx,sim.nprocsy,sim.nprocsz,
-        sim.local_bpdx, sim.local_bpdy, sim.local_bpdz, sim.dump_comm);
-      sim.dump_nonuniform = (void *) dump_nonuniform; // to delete it at the end
-    #endif
-
-    // setp block coefficients
-    nonuniform->template setup_coefficients<FDcoeffs_2ndOrder>(
-      sim.grid->getBlocksInfo());
-    nonuniform->template setup_coefficients<FDcoeffs_4thOrder>(
-      sim.grid->getBlocksInfo(), true);
-    //nonuniform->setup_inverse_spacing(
-    //  sim.grid->getBlocksInfo());
-
-    // some statistics
-    nonuniform->print_mesh_statistics(sim.rank == 0);
-    sim.hmin  = nonuniform->minimum_cell_width();
-    sim.hmax  = nonuniform->maximum_cell_width();
-    sim.hmean = nonuniform->compute_mean_grid_spacing();
-    printf("hmin:%e hmax:%e hmean:%e\n", sim.hmin, sim.hmax, sim.hmean);
-    sim.nonuniform = (void *) nonuniform; // to delete it at the end
-    #endif
   }
 
   const std::vector<BlockInfo>& vInfo = sim.vInfo();
@@ -407,29 +354,27 @@ double Simulation::calcMaxTimestep()
 
 void Simulation::_serialize(const std::string append)
 {
+  sim.startProfiler("Groups");
+  sim.grid->UpdateMyGroups();
+  sim.stopProfiler();
   std::stringstream ssR;
   if (append == "") ssR<<"restart_";
   else ssR<<append;
   ssR<<std::setfill('0')<<std::setw(9)<<sim.step;
   const std::string fpath = sim.path4serialization + "/" + ssR.str();
-  if(sim.rank==0) std::cout<<"Saving to "<<fpath<<"\n";
-
-  if (sim.rank==0) { //rank 0 saves step id and obstacles
-    sim.obstacle_vector->save(fpath);
-    //safety status in case of crash/timeout during grid save:
-    FILE * f = fopen((fpath+".status").c_str(), "w");
-    assert(f != NULL);
-    fprintf(f, "time: %20.20e\n", sim.time);
-    fprintf(f, "stepid: %d\n", (int)sim.step);
-    fprintf(f, "uinfx: %20.20e\n", sim.uinf[0]);
-    fprintf(f, "uinfy: %20.20e\n", sim.uinf[1]);
-    fprintf(f, "uinfz: %20.20e\n", sim.uinf[2]);
-    fclose(f);
-  }
-
-  // hack to write sdf ... on pressure field. only debug.
-  //const auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
-  //putSDFonGrid(sim.vInfo(), vecOB);
+  //  if(sim.rank==0) std::cout<<"Saving to "<<fpath<<"\n";
+  //  if (sim.rank==0) { //rank 0 saves step id and obstacles
+  //    sim.obstacle_vector->save(fpath);
+  //    //safety status in case of crash/timeout during grid save:
+  //    FILE * f = fopen((fpath+".status").c_str(), "w");
+  //    assert(f != NULL);
+  //    fprintf(f, "time: %20.20e\n", sim.time);
+  //    fprintf(f, "stepid: %d\n", (int)sim.step);
+  //    fprintf(f, "uinfx: %20.20e\n", sim.uinf[0]);
+  //    fprintf(f, "uinfy: %20.20e\n", sim.uinf[1]);
+  //    fprintf(f, "uinfz: %20.20e\n", sim.uinf[2]);
+  //    fclose(f);
+  //  }
 
   #ifdef CUBISM_USE_HDF
   std::stringstream ssF;
@@ -447,71 +392,84 @@ void Simulation::_serialize(const std::string append)
     }
     // copy qois from grid to dump
     copyDumpGrid(* sim.grid, * sim.dump);
-    //const auto * const grid2Dump = sim.dump;
     auto * grid2Dump = sim.dump;
   #else //CUP_ASYNC_DUMP
-    //const auto * const grid2Dump = sim.grid;
     auto * grid2Dump = sim.grid;
   #endif //CUP_ASYNC_DUMP
 
   const auto name3d = ssR.str(), name2d = ssF.str(); // sstreams are weird
+  //const auto dumpFunction = [=] () {
+  //  if(sim.b2Ddump) {
+  //    std::cout << "Slice dumping is not ready for AMR (skipped this step)." << std::endl;
+  //    #if 0
+  //    int sliceIdx = 0;
+  //    for (const auto& slice : sim.m_slices) {
+  //      const std::string slicespec = "slice_"+std::to_string(sliceIdx++)+"_";
+  //      const auto nameV = slicespec + StreamerVelocityVector::prefix() +name2d;
+  //      const auto nameP = slicespec + StreamerPressure::prefix() +name2d;
+  //      const auto nameX = slicespec + StreamerChi::prefix() +name2d;
+  //      DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
+  //        slice, sim.time, nameV, sim.path4serialization);
+  //      DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
+  //        slice, sim.time, nameP, sim.path4serialization);
+  //      DumpSliceHDF5MPI<StreamerChi, DumpReal>(
+  //        slice, sim.time, nameX, sim.path4serialization);
+  //    }
+  //    #endif
+  //  }
+  //if(sim.b3Ddump) {
 
-  const auto dumpFunction = [=] () {
-    if(sim.b2Ddump) {
-      std::cout << "Slice dumping is not ready for AMR (skipped this step)." << std::endl;
-      #if 0
-      int sliceIdx = 0;
-      for (const auto& slice : sim.m_slices) {
-        const std::string slicespec = "slice_"+std::to_string(sliceIdx++)+"_";
-        const auto nameV = slicespec + StreamerVelocityVector::prefix() +name2d;
-        const auto nameP = slicespec + StreamerPressure::prefix() +name2d;
-        const auto nameX = slicespec + StreamerChi::prefix() +name2d;
-        DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
-          slice, sim.time, nameV, sim.path4serialization);
-        DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
-          slice, sim.time, nameP, sim.path4serialization);
-        DumpSliceHDF5MPI<StreamerChi, DumpReal>(
-          slice, sim.time, nameX, sim.path4serialization);
-      }
-      #endif
-    }
-    if(sim.b3Ddump) {
+    sim.startProfiler("DumpHDF5 OMEFA");
+
+    ComputeVorticity  FindOmega(sim);
+    FindOmega(0);
+    sim.stopProfiler();
+
+    sim.startProfiler("DumpHDF5_MPI");
+    {
       const std::string nameV = StreamerVelocityVector::prefix()+name3d;
       const std::string nameP = StreamerPressure::prefix()+name3d;
       const std::string nameX = StreamerChi::prefix()+name3d;
-      DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
-        *grid2Dump, sim.time, nameV, sim.path4serialization);
-      DumpHDF5_MPI<StreamerPressure, DumpReal>(
-        *grid2Dump, sim.time, nameP, sim.path4serialization);
+      const std::string nameO = StreamerTmpVector::prefix()+name3d;
+      //DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
+      //  *grid2Dump, sim.time, nameV, sim.path4serialization);       
+      //DumpHDF5_MPI<StreamerPressure, DumpReal>(
+      //  *grid2Dump, sim.time, nameP, sim.path4serialization);
       DumpHDF5_MPI<StreamerChi, DumpReal>(
         *grid2Dump, sim.time, nameX, sim.path4serialization);
+      DumpHDF5_MPI<StreamerTmpVector, DumpReal>(
+        *grid2Dump, sim.time, nameO, sim.path4serialization);
     }
-  };
+    sim.stopProfiler();
 
+
+  sim.startProfiler("dumpfunction");
   #ifdef CUP_ASYNC_DUMP
-    sim.dumper = new std::thread( dumpFunction );
+  abort();
+  //  sim.dumper = new std::thread( dumpFunction );
   #else //CUP_ASYNC_DUMP
-    dumpFunction();
+  //  dumpFunction();
   #endif //CUP_ASYNC_DUMP
   #endif //CUBISM_USE_HDF
+  sim.stopProfiler();
 
 
-  if(sim.rank==0) { //saved the grid! Write status to remember most recent save
-    std::string restart_status = sim.path4serialization+"/restart.status";
-    FILE * f = fopen(restart_status.c_str(), "w");
-    assert(f != NULL);
-    fprintf(f, "time: %20.20e\n", sim.time);
-    fprintf(f, "stepid: %d\n", (int)sim.step);
-    fprintf(f, "uinfx: %20.20e\n", sim.uinf[0]);
-    fprintf(f, "uinfy: %20.20e\n", sim.uinf[1]);
-    fprintf(f, "uinfz: %20.20e\n", sim.uinf[2]);
-    fclose(f);
-    printf("time:  %20.20e\n", sim.time);
-    printf("stepid: %d\n", (int)sim.step);
-    printf("uinfx: %20.20e\n", sim.uinf[0]);
-    printf("uinfy: %20.20e\n", sim.uinf[1]);
-    printf("uinfz: %20.20e\n", sim.uinf[2]);
-  }
+  //if(sim.rank==0) { //saved the grid! Write status to remember most recent save
+  //  std::string restart_status = sim.path4serialization+"/restart.status";
+  //  FILE * f = fopen(restart_status.c_str(), "w");
+  //  assert(f != NULL);
+  //  fprintf(f, "time: %20.20e\n", sim.time);
+  //  fprintf(f, "stepid: %d\n", (int)sim.step);
+  //  fprintf(f, "uinfx: %20.20e\n", sim.uinf[0]);
+  //  fprintf(f, "uinfy: %20.20e\n", sim.uinf[1]);
+  //  fprintf(f, "uinfz: %20.20e\n", sim.uinf[2]);
+  //  fclose(f);
+  //  printf("time:  %20.20e\n", sim.time);
+  //  printf("stepid: %d\n", (int)sim.step);
+  //  printf("uinfx: %20.20e\n", sim.uinf[0]);
+  //  printf("uinfy: %20.20e\n", sim.uinf[1]);
+  //  printf("uinfz: %20.20e\n", sim.uinf[2]);
+  //}
 
   //CoordinatorDiagnostics coordDiags(grid,time,step);
   //coordDiags(dt);
