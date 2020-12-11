@@ -662,7 +662,7 @@ void PoissonSolverAMR::solve()
     size_t Nsystem;
     MPI_Allreduce(&N,&Nsystem,1,MPI_LONG,MPI_SUM,m_comm);
 
-    std::vector <Real> storeGridElements (8*N);
+    storeGridElements.resize(8*N);
     #pragma omp parallel for schedule(runtime)
     for (size_t i=0; i < Nblocks; i++)
     {
@@ -681,6 +681,7 @@ void PoissonSolverAMR::solve()
             storeGridElements[8*src_index+5] = b(ix,iy,iz).tmpU;
             storeGridElements[8*src_index+6] = b(ix,iy,iz).tmpV;
             storeGridElements[8*src_index+7] = b(ix,iy,iz).tmpW;
+            b(ix,iy,iz).zVector = b(ix,iy,iz).xVector;//this is done because Get_LHS works with zVector
         }
     }
 
@@ -688,15 +689,15 @@ void PoissonSolverAMR::solve()
     //2. rhatVector = rVector
     //3. rho = a = omega = 1.0
     //4. vVector = pVector = 0
-    #pragma omp parallel for schedule(runtime)
-    for (size_t i=0; i < Nblocks; i++)
-    {
-        BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-        for(int iz=0; iz<BlockType::sizeZ; iz++)
-        for(int iy=0; iy<BlockType::sizeY; iy++)
-        for(int ix=0; ix<BlockType::sizeX; ix++)
-            b(ix,iy,iz).zVector = b(ix,iy,iz).xVector;//this is done because Get_LHS works with zVector
-    }
+    //#pragma omp parallel for schedule(runtime)
+    //for (size_t i=0; i < Nblocks; i++)
+    //{
+    //    BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
+    //    for(int iz=0; iz<BlockType::sizeZ; iz++)
+    //    for(int iy=0; iy<BlockType::sizeY; iy++)
+    //    for(int ix=0; ix<BlockType::sizeX; ix++)
+    //        b(ix,iy,iz).zVector = b(ix,iy,iz).xVector;//this is done because Get_LHS works with zVector
+    //}
     findLHS(0); // AxVector <-- A*x_{0}, x_0 = pressure
     #pragma omp parallel for
     for(size_t i=0; i< Nblocks; i++)
@@ -745,16 +746,6 @@ void PoissonSolverAMR::solve()
         double beta = rho / (rho_m1+eps) * alpha / (omega+eps) ;
 
         //3. p_i = r_{i-1} + beta*(p_{i-1}-omega *v_{i-1})
-        #pragma omp parallel for schedule(runtime)
-        for (size_t i=0; i < Nblocks; i++)
-        {
-            BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
-                b(ix,iy,iz).pVector = b(ix,iy,iz).rVector + beta* ( b(ix,iy,iz).pVector - omega * b(ix,iy,iz).vVector);
-        }
-
         //4. z = K_2^{-1} p
         #pragma omp parallel for schedule(runtime)
         for (size_t i=0; i < Nblocks; i++)
@@ -763,7 +754,10 @@ void PoissonSolverAMR::solve()
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
-                b(ix,iy,iz).zVector = b(ix,iy,iz).pVector;
+            {
+                b(ix,iy,iz).pVector = b(ix,iy,iz).rVector + beta* ( b(ix,iy,iz).pVector - omega * b(ix,iy,iz).vVector);
+                b(ix,iy,iz).zVector = b(ix,iy,iz).pVector;             
+            }
         }
         getZ();
 
@@ -823,8 +817,10 @@ void PoissonSolverAMR::solve()
                 aux2 += b(ix,iy,iz).AxVector * b(ix,iy,iz).AxVector;
             }
         }
-        MPI_Allreduce(MPI_IN_PLACE,&aux1,1,MPI_DOUBLE,MPI_SUM,m_comm);
-        MPI_Allreduce(MPI_IN_PLACE,&aux2,1,MPI_DOUBLE,MPI_SUM,m_comm);
+        double aux_12[2] = {aux1,aux2};
+        MPI_Allreduce(MPI_IN_PLACE,&aux_12,2,MPI_DOUBLE,MPI_SUM,m_comm);
+        aux1 = aux_12[0];
+        aux2 = aux_12[1];
         omega = aux1 / (aux2+eps); 
 
         //13. x += omega * z
@@ -847,27 +843,25 @@ void PoissonSolverAMR::solve()
         MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
         norm = std::sqrt(norm) / Nsystem;
 
-        if (norm < min_norm)
-        {
-            min_norm = norm;
-            #pragma omp parallel for schedule(runtime)
-            for (size_t i=0; i < Nblocks; i++)
-            {
-                BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-                const size_t offset = _offset( vInfo[i] );
-                for(int iz=0; iz<BlockType::sizeZ; iz++)
-                for(int iy=0; iy<BlockType::sizeY; iy++)
-                for(int ix=0; ix<BlockType::sizeX; ix++)
-                {
-                    const size_t src_index = _dest(offset, iz, iy, ix);
-                    x_opt[src_index] = b(ix,iy,iz).xVector;
-                }
-            }
-        }
+        //if (norm < min_norm)
+        //{
+        //    min_norm = norm;
+        //    #pragma omp parallel for schedule(runtime)
+        //    for (size_t i=0; i < Nblocks; i++)
+        //    {
+        //        BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
+        //        const size_t offset = _offset( vInfo[i] );
+        //        for(int iz=0; iz<BlockType::sizeZ; iz++)
+        //        for(int iy=0; iy<BlockType::sizeY; iy++)
+        //        for(int ix=0; ix<BlockType::sizeX; ix++)
+        //        {
+        //            const size_t src_index = _dest(offset, iz, iy, ix);
+        //            x_opt[src_index] = b(ix,iy,iz).xVector;
+        //        }
+        //    }
+        //}
     
         if (k==1) init_norm = norm;
-
-
 
         if (norm / (init_norm+eps) > 2.0 && k > 10)
         {
@@ -877,7 +871,7 @@ void PoissonSolverAMR::solve()
             break;
         }
 
-        if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > 1 )
+        if ( (norm < max_error || norm/init_norm < max_rel_error ) )//&& k > 1 )
         {
             if (m_rank==0)
                 std::cout <<  "Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << std::endl;
@@ -887,37 +881,37 @@ void PoissonSolverAMR::solve()
     }//k-loop
 
 
-    if (useXopt)
-    {
-        #pragma omp parallel for schedule(runtime)
-        for (size_t i=0; i < Nblocks; i++)
-        {
-            BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-            const size_t offset = _offset( vInfo[i] );
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
-            {
-                const size_t src_index = _dest(offset, iz, iy, ix);
-                b(ix,iy,iz).xVector = x_opt[src_index];
-            }
-        }
-    }
+    //if (useXopt)
+    //{
+    //    #pragma omp parallel for schedule(runtime)
+    //    for (size_t i=0; i < Nblocks; i++)
+    //    {
+    //        BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
+    //        const size_t offset = _offset( vInfo[i] );
+    //        for(int iz=0; iz<BlockType::sizeZ; iz++)
+    //        for(int iy=0; iy<BlockType::sizeY; iy++)
+    //        for(int ix=0; ix<BlockType::sizeX; ix++)
+    //        {
+    //            const size_t src_index = _dest(offset, iz, iy, ix);
+    //            b(ix,iy,iz).xVector = x_opt[src_index];
+    //        }
+    //    }
+    //}
 
-    #pragma omp parallel for schedule(runtime)
-    for (size_t i=0; i < Nblocks; i++)
-    {
-        BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-        for(int iz=0; iz<BlockType::sizeZ; iz++)
-        for(int iy=0; iy<BlockType::sizeY; iy++)
-        for(int ix=0; ix<BlockType::sizeX; ix++)
-            b.tmp[iz][iy][ix] = b(ix,iy,iz).xVector;
-    }
+    //#pragma omp parallel for schedule(runtime)
+    //for (size_t i=0; i < Nblocks; i++)
+    //{
+    //    BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
+    //    for(int iz=0; iz<BlockType::sizeZ; iz++)
+    //    for(int iy=0; iy<BlockType::sizeY; iy++)
+    //    for(int ix=0; ix<BlockType::sizeX; ix++)
+    //        b.tmp[iz][iy][ix] = b(ix,iy,iz).xVector;
+    //}
   
     // Subtract average pressure from all gridpoints and copy back stuff
     const Real avgP = computeAverage();
-    if (m_rank == 0) 
-      std::cout << "avgP = " << avgP << std::endl; 
+    //if (m_rank == 0) 
+    //  std::cout << "avgP = " << avgP << std::endl; 
     #pragma omp parallel for schedule(runtime)
     for (size_t i=0; i < Nblocks; i++)
     {
@@ -927,17 +921,18 @@ void PoissonSolverAMR::solve()
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            b.tmp[iz][iy][ix] -= avgP;
+            b(ix,iy,iz).p -= avgP;//p is already the xVector!!
+            //b.tmp[iz][iy][ix] -= avgP;
             const size_t src_index = _dest(offset, iz, iy, ix);     
             b(ix,iy,iz).chi  = storeGridElements[8*src_index  ];
             b(ix,iy,iz).u    = storeGridElements[8*src_index+1];
             b(ix,iy,iz).v    = storeGridElements[8*src_index+2];
             b(ix,iy,iz).w    = storeGridElements[8*src_index+3];
-            b(ix,iy,iz).p    = storeGridElements[8*src_index+4];
+            //b(ix,iy,iz).p    = storeGridElements[8*src_index+4];
             b(ix,iy,iz).tmpU = storeGridElements[8*src_index+5];
             b(ix,iy,iz).tmpV = storeGridElements[8*src_index+6];
             b(ix,iy,iz).tmpW = storeGridElements[8*src_index+7];
-            b(ix,iy,iz).p = b.tmp[iz][iy][ix];
+            //b(ix,iy,iz).p = b.tmp[iz][iy][ix];
         }
     } 
 
