@@ -23,7 +23,8 @@ set(DEP_BUILD_DIR "${ROOT_DIR}/dependencies/build")
 set(EXE "cubismup3d_simulation")
 set(CORE "cubismup3d_core")
 set(CORE_PIC "cubismup3d_core_pic")  # Position independent code.
-set(DEPLIB "cubismup3d_dep")
+set(PUBLICDEP "cubismup3d_publicdep")    # Public dependencies and flags.
+set(PRIVATEDEP "cubismup3d_privatedep")  # Private dependencies and flags.
 set(LIB "cubismup3d")
 set(PYLIB "libcubismup3d")
 
@@ -31,7 +32,9 @@ set(PYLIB "libcubismup3d")
 # Options.
 set(CUP_BLOCK_SIZE "16" CACHE STRING "Number of grid points in a block, per dimension")
 option(CUP_TESTS "Enable tests" OFF)
-option(CUP_COMPILE_PY "Compile Python bindings" OFF)
+option(CUP_BUILD_EXE "Build the executable" ON)
+option(CUP_BUILD_LIB "Build the static library" OFF)
+option(CUP_BUILD_PY "Build Python bindings" OFF)
 
 # Compile-time settings. Stored in a configuration file CubismUP3DMacros.h and imported by Definitions.h.
 option(CUP_ASYNC_DUMP "Use asynchronous data dumps (requires additional memory)" ON)
@@ -39,6 +42,10 @@ option(CUP_DUMP_SURFACE_BINARY "Dump binary surface data for each obstacle" OFF)
 option(CUP_HDF5_DOUBLE_PRECISION "Dump HDF5 data in double precision" OFF)
 option(CUP_SINGLE_PRECISION "Compute in single precision" OFF)  # Because cmake/FindFFTW.cmake handles now only double precision.
 option(CUP_VERBOSE "Be verbose" OFF)
+
+if (CUP_SINGLE_PRECISION)
+    message(FATAL_ERROR "Single precision compilation not implemented. Check cmake/FindFFTW.cmake first.")
+endif()
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 
@@ -135,24 +142,31 @@ set(COMMON_SOURCES           # Common for app and lib.
     "${SRC_DIR}/SimulationData.cpp"
 )
 
-add_library(${DEPLIB} INTERFACE)
-target_link_libraries(${DEPLIB} INTERFACE OpenMP::OpenMP_CXX)
-target_link_libraries(${DEPLIB} INTERFACE MPI::MPI_CXX)
-target_link_libraries(${DEPLIB} INTERFACE Cubism::Cubism)
-target_link_libraries(${DEPLIB} INTERFACE FFTW::FFTW)
-target_link_libraries(${DEPLIB} INTERFACE GSL::gsl)
-target_link_libraries(${DEPLIB} INTERFACE ${HDF5_LIBRARIES})
-target_include_directories(${DEPLIB} INTERFACE ${HDF5_INCLUDE_DIRS})
+add_library(${PUBLICDEP} INTERFACE)
+target_link_libraries(${PUBLICDEP} INTERFACE OpenMP::OpenMP_CXX)
+target_link_libraries(${PUBLICDEP} INTERFACE MPI::MPI_CXX)
+target_link_libraries(${PUBLICDEP} INTERFACE Cubism::Cubism)
+target_link_libraries(${PUBLICDEP} INTERFACE FFTW::FFTW)
+target_link_libraries(${PUBLICDEP} INTERFACE GSL::gsl)
+target_link_libraries(${PUBLICDEP} INTERFACE ${HDF5_LIBRARIES})
+target_include_directories(${PUBLICDEP} INTERFACE ${HDF5_INCLUDE_DIRS})
 
-add_library(${CORE} STATIC ${COMMON_SOURCES})
+add_library(${PRIVATEDEP} INTERFACE)
+set(_PRIVATE_FLAGS -Wall -Wextra -Wno-unused-parameter -Wno-maybe-uninitialized -fmax-errors=3)
+set(_PRIVATE_RELEASE_FLAGS -march=native -fstrict-aliasing -ffast-math -falign-functions=32)
+target_compile_options(${PRIVATEDEP} INTERFACE ${_PRIVATE_FLAGS} $<$<CONFIG:Release>:${_PRIVATE_RELEASE_FLAGS}>)
+
+add_library(${CORE} STATIC EXCLUDE_FROM_ALL ${COMMON_SOURCES})
 add_library(cubismup3d::core ALIAS ${CORE})
-target_link_libraries(${CORE} PUBLIC ${DEPLIB})
+target_link_libraries(${CORE} PRIVATE ${PRIVATEDEP})
+target_link_libraries(${CORE} PUBLIC ${PUBLICDEP})
 
 # Add a copy of the core with -fPIC enabled. PIC affects performance but is
 # needed for compiling shared objects. Exclude from default make.
 add_library(${CORE_PIC} STATIC EXCLUDE_FROM_ALL ${COMMON_SOURCES})
 add_library(cubismup3d::core_pic ALIAS ${CORE_PIC})
-target_link_libraries(${CORE_PIC} PUBLIC ${DEPLIB})
+target_link_libraries(${CORE_PIC} PRIVATE ${PRIVATEDEP})
+target_link_libraries(${CORE_PIC} PUBLIC ${PUBLICDEP})
 set_property(TARGET ${CORE_PIC} PROPERTY POSITION_INDEPENDENT_CODE 1)
 
 # set(CMAKE_CXX_EXTENSIONS OFF)  # -std=c++17, not -std=gnu++17!
@@ -160,20 +174,19 @@ set_property(TARGET ${CORE_PIC} PROPERTY POSITION_INDEPENDENT_CODE 1)
 #     set(CMAKE_CXX_STANDARD 17)
 # endif()
 
-add_executable(${EXE} "${ROOT_DIR}/source/main.cpp")
-target_link_libraries(${EXE} PRIVATE ${CORE})
+if (CUP_BUILD_EXE)
+    add_executable(${EXE} "${ROOT_DIR}/source/main.cpp")
+    target_link_libraries(${EXE} PRIVATE ${CORE})
+    target_link_libraries(${EXE} PRIVATE ${PRIVATEDEP})
+endif()
 
-add_library(${LIB} STATIC "${ROOT_DIR}/source/cubism_main.cpp")
-target_link_libraries(${LIB} PUBLIC ${CORE})
+if (CUP_BUILD_LIB)
+    add_library(${LIB} STATIC "${ROOT_DIR}/source/cubism_main.cpp")
+    target_link_libraries(${LIB} PUBLIC ${CORE})
+    target_link_libraries(${LIB} PRIVATE ${PRIVATEDEP})
+endif()
 
-# Compiler flags.
-set(_PRIVATE_FLAGS -Wall -Wextra -Wno-unused-parameter -Wno-maybe-uninitialized -fmax-errors=3)
-set(_PRIVATE_RELEASE_FLAGS -march=native -fstrict-aliasing -ffast-math -falign-functions=32)
-target_compile_options(${CORE} PRIVATE ${_PRIVATE_FLAGS} $<$<CONFIG:Release>:${_PRIVATE_RELEASE_FLAGS}>)
-target_compile_options(${EXE} PRIVATE ${_PRIVATE_FLAGS} $<$<CONFIG:Release>:${_PRIVATE_RELEASE_FLAGS}>)
-target_compile_options(${LIB} PRIVATE ${_PRIVATE_FLAGS} $<$<CONFIG:Release>:${_PRIVATE_RELEASE_FLAGS}>)
-
-if (CUP_COMPILE_PY)
+if (CUP_BUILD_PY)
     set(PYTHON_SOURCES
         ${SRC_DIR}/bindings/Obstacles.cpp
         ${SRC_DIR}/bindings/Simulation.cpp
@@ -207,6 +220,7 @@ if (CUP_COMPILE_PY)
         target_include_directories(${PYLIB} PRIVATE ${_PYBIND11_INCLUDES})
     endif()
     target_link_libraries(${PYLIB} PUBLIC ${CORE_PIC})
+    target_link_libraries(${PYLIB} PRIVATE ${PRIVATEDEP})
 
     # Old flag, not sure if needed anymore.
     # # https://github.com/conda-forge/hdf5-feedstock/issues/58#issuecomment-310865909
