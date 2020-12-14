@@ -9,13 +9,11 @@ using namespace pybind11::literals;
 namespace py = pybind11;
 
 
-namespace {
-
 #define ATTR_FROM_KWARGS(o, item) \
       do { \
         (o).item = py::cast<decltype((o).item)>(kwargs_pop(#item, (o).item)); \
       } while(0)
-ObstacleArguments init_pop_ObstacleArguments(py::object &kwargs_pop)
+static ObstacleArguments popObstacleArguments(py::object &kwargs_pop)
 {
   ObstacleArguments o;
   ATTR_FROM_KWARGS(o, length);
@@ -28,7 +26,7 @@ ObstacleArguments init_pop_ObstacleArguments(py::object &kwargs_pop)
   ATTR_FROM_KWARGS(o, bComputeForces);
   return o;
 }
-SphereArguments init_pop_SphereArguments(py::object &kwargs_pop)
+static SphereArguments popSphereArguments(py::object &kwargs_pop)
 {
   SphereArguments s(py::cast<double>(kwargs_pop("radius")));
   ATTR_FROM_KWARGS(s, umax);
@@ -39,7 +37,7 @@ SphereArguments init_pop_SphereArguments(py::object &kwargs_pop)
 }
 #undef ATTR_FROM_KWARGS
 
-std::shared_ptr<ObstacleAndSphereArguments> init_ObstacleAndSphereArguments(
+static std::shared_ptr<ObstacleAndSphereArguments> createObstacleAndSphereArguments(
       double radius, double umax, double tmax, bool accel_decel, bool bHemi,
       py::kwargs kwargs)
 {
@@ -66,11 +64,9 @@ std::shared_ptr<ObstacleAndSphereArguments> init_ObstacleAndSphereArguments(
 
   // TODO: throw std:invalid_argument if kwargs not empty after construction.
   return std::make_shared<ObstacleAndSphereArguments>(
-      init_pop_ObstacleArguments(kwargs_pop),
-      init_pop_SphereArguments(kwargs_pop));
+      popObstacleArguments(kwargs_pop),
+      popSphereArguments(kwargs_pop));
 }
-
-}  // namespace (empty)
 
 
 CubismUP_3D_NAMESPACE_BEGIN
@@ -105,7 +101,7 @@ void bindObstacles(py::module &m) {
              ObstacleArguments,
              SphereArguments,
              std::shared_ptr<ObstacleAndSphereArguments>>(m, "Sphere")
-      .def(py::init(&init_ObstacleAndSphereArguments),
+      .def(py::init(&createObstacleAndSphereArguments),
            "radius"_a,
            "umax"_a = sa.umax,
            "tmax"_a = sa.tmax,

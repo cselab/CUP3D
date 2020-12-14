@@ -13,8 +13,10 @@ namespace py = pybind11;
 namespace {
 
 /* Ensure that we load highest thread level we need. */
-struct CUP_MPI_Loader {
-  CUP_MPI_Loader() {
+struct CUPMPILoader
+{
+  CUPMPILoader()
+  {
     int flag, provided;
     MPI_Initialized(&flag);
     if (!flag) {
@@ -38,37 +40,33 @@ struct CUP_MPI_Loader {
   }
 } cup_mpi_loader;
 
+}  // anonymous namespace
 
-std::shared_ptr<SimulationData> init_SimulationData(
+
+static std::shared_ptr<SimulationData> createSimulationData(
     MPI_Comm comm,
     double CFL,
     std::array<int, 3> cells,
     std::array<Real, 3> uinf)
 {
-  auto SD = std::make_shared<SimulationData>(comm);
-  SD->setCells(cells[0], cells[1], cells[2]);
-  SD->CFL = CFL;
-  SD->uinf[0] = uinf[0];
-  SD->uinf[1] = uinf[1];
-  SD->uinf[2] = uinf[2];
-  return SD;
+  auto sd = std::make_shared<SimulationData>(comm);
+  sd->setCells(cells[0], cells[1], cells[2]);
+  sd->CFL = CFL;
+  sd->uinf = uinf;
+  return sd;
 }
 
-}  // namespace
-
-PYBIND11_MODULE(cubismup3d, m) {
-
-  m.doc() = "CubismUP3D solver for incompressible Navier-Stokes";
-
+static void bindSimulationData(py::module &m)
+{
   /* SimulationData */
-  SimulationData SD{MPI_COMM_WORLD};  // For default values.
+  SimulationData sd{MPI_COMM_WORLD};  // For default values.
   py::class_<SimulationData, std::shared_ptr<SimulationData>>(m, "SimulationData")
       .def(py::init<MPI_Comm>())
-      .def(py::init(&init_SimulationData),
+      .def(py::init(&createSimulationData),
            "comm"_a = MPI_COMM_WORLD,
            "CFL"_a,    // Mandatory.
            "cells"_a,  // Mandatory.
-           "uinf"_a = SD.uinf)
+           "uinf"_a = sd.uinf)
       .def_readwrite("CFL", &SimulationData::CFL)
       .def_readwrite("BCx_flag", &SimulationData::BCx_flag, "Boundary condition in x-axis.")
       .def_readwrite("BCy_flag", &SimulationData::BCy_flag, "Boundary condition in y-axis.")
@@ -77,7 +75,13 @@ PYBIND11_MODULE(cubismup3d, m) {
       .def_readwrite("uinf", &SimulationData::uinf)
       .def_readwrite("nsteps", &SimulationData::nsteps)
       .def("setCells", &SimulationData::setCells);
+}
 
+PYBIND11_MODULE(libcubismup3d, m)
+{
+  m.doc() = "CubismUP3D solver for incompressible Navier-Stokes";
+
+  bindSimulationData(m);
 
   /* Simulation */
   py::class_<Simulation, std::shared_ptr<Simulation>>(m, "Simulation")
@@ -88,7 +92,6 @@ PYBIND11_MODULE(cubismup3d, m) {
       .def_readonly("sim", &Simulation::sim, py::return_value_policy::reference)
       .def("run", &Simulation::run)
       .def("add_obstacle", &Simulation_addObstacle);
-
 
   bindObstacles(m);
 }

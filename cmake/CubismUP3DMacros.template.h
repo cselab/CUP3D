@@ -5,7 +5,7 @@
 // https://cmake.org/cmake/help/latest/command/configure_file.html
 
 #define CUP_ALIGNMENT  64
-#define CUP_BLOCK_SIZE ${BLOCK_SIZE}
+#define CUP_BLOCK_SIZE ${CUP_BLOCK_SIZE}
 #define CUBISM_USE_HDF
 
 #cmakedefine01 CUP_IS_MPI_THREAD_UNSAFE

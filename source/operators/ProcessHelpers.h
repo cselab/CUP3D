@@ -252,7 +252,7 @@ class ComputeQcriterion : public Operator
 };
 
 #ifdef CUP_ASYNC_DUMP
-static void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
+inline void copyDumpGrid(FluidGridMPI& grid, DumpGridMPI& dump)
 {
   std::vector<cubism::BlockInfo> vInfo1 = grid.getBlocksInfo();
   std::vector<cubism::BlockInfo> vInfo2 = dump.getBlocksInfo();
