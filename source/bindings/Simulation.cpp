@@ -42,53 +42,30 @@ struct CUPMPILoader
 
 }  // anonymous namespace
 
-
-static std::shared_ptr<SimulationData> createSimulationData(
-    MPI_Comm comm,
-    double CFL,
-    std::array<int, 3> cells,
-    std::array<Real, 3> uinf)
-{
-  auto sd = std::make_shared<SimulationData>(comm);
-  sd->setCells(cells[0], cells[1], cells[2]);
-  sd->CFL = CFL;
-  sd->uinf = uinf;
-  return sd;
-}
-
 static void bindSimulationData(py::module &m)
 {
-  /* SimulationData */
-  SimulationData sd{MPI_COMM_WORLD};  // For default values.
-  py::class_<SimulationData, std::shared_ptr<SimulationData>>(m, "SimulationData")
-      .def(py::init<MPI_Comm>())
-      .def(py::init(&createSimulationData),
-           "comm"_a = MPI_COMM_WORLD,
-           "CFL"_a,    // Mandatory.
-           "cells"_a,  // Mandatory.
-           "uinf"_a = sd.uinf)
-      .def_readwrite("CFL", &SimulationData::CFL)
-      .def_readwrite("BCx_flag", &SimulationData::BCx_flag, "Boundary condition in x-axis.")
-      .def_readwrite("BCy_flag", &SimulationData::BCy_flag, "Boundary condition in y-axis.")
-      .def_readwrite("BCz_flag", &SimulationData::BCz_flag, "Boundary condition in z-axis.")
-      .def_readwrite("extent", &SimulationData::extent)
-      .def_readwrite("uinf", &SimulationData::uinf)
-      .def_readwrite("nsteps", &SimulationData::nsteps)
-      .def("setCells", &SimulationData::setCells);
+  py::class_<SimulationData>(m, "SimulationData")
+      .def_readonly("CFL", &SimulationData::CFL)
+      .def_readonly("BCx_flag", &SimulationData::BCx_flag, "Boundary condition in x-axis.")
+      .def_readonly("BCy_flag", &SimulationData::BCy_flag, "Boundary condition in y-axis.")
+      .def_readonly("BCz_flag", &SimulationData::BCz_flag, "Boundary condition in z-axis.")
+      .def_readonly("extent", &SimulationData::extent)
+      .def_readonly("uinf", &SimulationData::uinf)
+      .def_readonly("nsteps", &SimulationData::nsteps);
 }
 
 PYBIND11_MODULE(libcubismup3d, m)
 {
+  using namespace py::literals;
   m.doc() = "CubismUP3D solver for incompressible Navier-Stokes";
 
   bindSimulationData(m);
 
   /* Simulation */
   py::class_<Simulation, std::shared_ptr<Simulation>>(m, "Simulation")
-      .def(py::init<const SimulationData &>(),
-           R"(
-               Simulation documentation....
-           )")
+      .def(py::init([](const std::vector<std::string> &argv) {
+        return createSimulation(MPI_COMM_WORLD, argv);
+      }), "argv"_a)
       .def_readonly("sim", &Simulation::sim, py::return_value_policy::reference)
       .def("run", &Simulation::run)
       .def("add_obstacle", &Simulation_addObstacle);

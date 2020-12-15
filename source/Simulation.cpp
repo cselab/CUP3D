@@ -50,20 +50,21 @@ using namespace cubism;
  using SliceType  = cubism::SliceTypesMPI::Slice<FluidGridMPI>;
 #endif
 
-// Initialization from cmdline arguments is done in few steps, because grid has
-// to be created before the obstacles and slices are created.
-Simulation::Simulation(const SimulationData &_sim) : sim(_sim)
+std::shared_ptr<Simulation> createSimulation(
+    const MPI_Comm comm,
+    const std::vector<std::string> &argv)
 {
-  sim._preprocessArguments();
-
-  // Grid has to be initialized before slices and obstacles.
-  setupGrid(nullptr);
-
-  // Define an empty obstacle vector, which can be later modified.
-  sim.obstacle_vector = new ObstacleVector(sim);
-
-  _init(false);
+  std::vector<char *> cargv(argv.size() + 1);
+  char cmd[] = "prg";
+  cargv[0] = cmd;
+  for (size_t i = 0; i < argv.size(); ++i) {
+    // In C++14, std::string::data() returns a const char *.
+    cargv[i + 1] = const_cast<char *>(argv[i].data());
+  }
+  ArgumentParser parser((int)cargv.size(), cargv.data());
+  return std::make_shared<Simulation>(comm, parser);
 }
+
 
 Simulation::Simulation(MPI_Comm mpicomm) : sim(mpicomm)
 {
@@ -98,60 +99,6 @@ const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() co
 {
     return sim.obstacle_vector->getObstacleVector();
 }
-
-/* DEPRECATED. Keep until `source/bindings/Simulation.cpp` is fixed.
-
-// For Python bindings. Really no need for `const` here...
-Simulation::Simulation(
-  std::array<int,3> cells, std::array<int, 3> nproc, MPI_Comm comm, int nsteps,
-  double endTime, double nu, double CFL, double lambda, double DLM,
-  std::array<double,3> uinf, bool verbose, int freqDiagnostics,
-  bool b3Ddump, bool b2Ddump, double fadeOutLength, int saveFreq,
-  double saveTime, const std::string &path4serialization, bool restart) :
-  sim(comm)
-{
-  sim.nprocsx = nproc[0];
-  sim.nprocsy = nproc[1];
-  sim.nprocsz = nproc[2];
-  sim.nsteps = nsteps;
-  sim.endTime = endTime;
-  sim.uinf[0] = uinf[0];
-  sim.uinf[1] = uinf[1];
-  sim.uinf[2] = uinf[2];
-  sim.nu = nu;
-  sim.CFL = CFL;
-  sim.lambda = lambda;
-  sim.DLM = DLM;
-  sim.verbose = verbose;
-  sim.freqDiagnostics = freqDiagnostics;
-  sim.b3Ddump = b3Ddump;
-  sim.b2Ddump = b2Ddump;
-  sim.fadeOutLengthPRHS[0] = fadeOutLength;
-  sim.fadeOutLengthPRHS[1] = fadeOutLength;
-  sim.fadeOutLengthPRHS[2] = fadeOutLength;
-  sim.fadeOutLengthU[0] = fadeOutLength;
-  sim.fadeOutLengthU[1] = fadeOutLength;
-  sim.fadeOutLengthU[2] = fadeOutLength;
-  sim.saveFreq = saveFreq;
-  sim.saveTime = saveTime;
-  sim.path4serialization = path4serialization;
-
-  if (cells[0] < 0 || cells[1] < 0 || cells[2] < 0)
-    throw std::invalid_argument("N. of cells not provided.");
-  if (   cells[0] % FluidBlock::sizeX != 0
-      || cells[1] % FluidBlock::sizeY != 0
-      || cells[2] % FluidBlock::sizeZ != 0 )
-    throw std::invalid_argument("N. of cells must be multiple of block size.");
-
-  sim.bpdx = cells[0] / FluidBlock::sizeX;
-  sim.bpdy = cells[1] / FluidBlock::sizeY;
-  sim.bpdz = cells[2] / FluidBlock::sizeZ;
-  sim._preprocessArguments();
-  setupGrid();  // Grid has to be initialized before slices and obstacles.
-  setObstacleVector(new ObstacleVector(sim));
-  _init(restart);
-}
-*/
 
 void Simulation::_init(const bool restart)
 {
