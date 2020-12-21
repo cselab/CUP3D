@@ -117,7 +117,7 @@ private:
   {
     FillBlocks(Shape &shape) : shape_(shape) { }
 
-    bool isTouching(const FluidBlock &b) const
+    bool isTouching(const BlockInfo &, const FluidBlock &b) const
     {
       return shape_.isTouching(b.min_pos, b.max_pos);
     }

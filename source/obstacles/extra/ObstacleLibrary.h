@@ -10,7 +10,6 @@
 #define CubismUP_3D_ObstacleLibrary_h
 
 #include "../../Definitions.h"
-#include "Interpolation1D.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -24,7 +23,7 @@ CubismUP_3D_NAMESPACE_BEGIN
  *
  * and are required to implement following member functions:
  *
- * bool isTouching(const BlockInfo &info, int buffer_dx = 0) const;
+ * bool isTouching(const BlockInfo &info, const FluidBlock &block) const;
  *      Returns if the given blocks intersects or touches the object.
  *      False positives are acceptable.
  *
@@ -47,7 +46,7 @@ struct FillBlocksBase
     // TODO: Remove `isTouching` check and verify that all dependencies are
     //       using this function properly.
     FluidBlock &b = *(FluidBlock *)info.ptrBlock;
-    if (!derived()->isTouching(b)) return;
+    if (!derived()->isTouching(info, b)) return;
     CHIMAT & __restrict__ SDF = o->sdf;
     for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
     for (int iy = 0; iy < FluidBlock::sizeY; ++iy)

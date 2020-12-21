@@ -197,7 +197,7 @@ public:
     for(size_t i=0; i<vInfo.size(); i++) {
       const cubism::BlockInfo& info = vInfo[i];
       const FluidBlock &b = *(FluidBlock *)info.ptrBlock;
-      if(kernel.isTouching(b)) {
+      if(kernel.isTouching(info, b)) {
         assert(obstacleBlocks[info.blockID] == nullptr);
         obstacleBlocks[info.blockID] = new ObstacleBlock();
         obstacleBlocks[info.blockID]->clear(); //memset 0

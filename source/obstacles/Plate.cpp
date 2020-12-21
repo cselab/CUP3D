@@ -77,7 +77,7 @@ namespace
         Real half_thickness, Real h);
 
     // Required by FillBlocksBase.
-    bool isTouching(const FluidBlock&b) const;
+    bool isTouching(const BlockInfo&, const FluidBlock&b) const;
     Real signedDistance(Real x, Real y, Real z) const;
   };
 }  // Anonymous namespace.
@@ -124,7 +124,7 @@ PlateFillBlocks::PlateFillBlocks(
   aabb[2][1] = cz + tz;
 }
 
-bool PlateFillBlocks::isTouching(const FluidBlock&b) const
+bool PlateFillBlocks::isTouching(const BlockInfo&, const FluidBlock&b) const
 {
   return aabb[0][0] <= b.max_pos[0] && aabb[0][1] >= b.min_pos[0]
       && aabb[1][0] <= b.max_pos[1] && aabb[1][1] >= b.min_pos[1]
