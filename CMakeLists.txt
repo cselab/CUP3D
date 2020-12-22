@@ -16,7 +16,9 @@ if(NOT CMAKE_BUILD_TYPE)
 endif(NOT CMAKE_BUILD_TYPE)
 
 # Paths and target names.
+set(BUILD_DIR "${CMAKE_CURRENT_BINARY_DIR}")
 set(ROOT_DIR "${CMAKE_CURRENT_LIST_DIR}")
+set(GENERATED_DIR "${BUILD_DIR}/_generated")
 set(SRC_DIR "${ROOT_DIR}/source")
 set(DEP_BUILD_DIR "${ROOT_DIR}/dependencies/build")
 
@@ -150,6 +152,7 @@ target_link_libraries(${PUBLICDEP} INTERFACE FFTW::FFTW)
 target_link_libraries(${PUBLICDEP} INTERFACE GSL::gsl)
 target_link_libraries(${PUBLICDEP} INTERFACE ${HDF5_LIBRARIES})
 target_include_directories(${PUBLICDEP} INTERFACE ${HDF5_INCLUDE_DIRS})
+target_include_directories(${PUBLICDEP} INTERFACE ${GENERATED_DIR})
 
 add_library(${PRIVATEDEP} INTERFACE)
 set(_PRIVATE_FLAGS -Wall -Wextra -Wno-unused-parameter -Wno-maybe-uninitialized -fmax-errors=3)
@@ -237,4 +240,4 @@ endif()
 # immediately.
 # https://cmake.org/cmake/help/latest/command/configure_file.html
 configure_file(${ROOT_DIR}/cmake/CubismUP3DMacros.template.h
-               ${ROOT_DIR}/build/include/CubismUP3DMacros.h)
+               ${GENERATED_DIR}/generated.CubismUP3DMacros.h)

@@ -16,7 +16,7 @@
 // Are we compiling from CubismUP_3D's makefile?
 #ifndef CUP_NO_MACROS_HEADER
 // No, it's either CMake or external code. Load compile-time settings from this header file.
-#include "../build/include/CubismUP3DMacros.h"
+#include <generated.CubismUP3DMacros.h>
 #endif
 
 #ifndef CubismUP_3D_NAMESPACE_BEGIN
