@@ -168,6 +168,25 @@ else
 	LIBS += $(FFTW_LIBS)
 endif
 
+######################################################
+# VTK
+######################################################
+CPPFLAGS+=-I$(EBROOTVTK)/include/vtk-9.0
+LIBS    +=-L$(EBROOTVTK)/lib64
+CPPFLAGS+=-lvtkCommonCore-9.0
+CPPFLAGS+=-lvtkCommonDataModel-9.0
+CPPFLAGS+=-lvtkCommonMath-9.0
+CPPFLAGS+=-lvtkCommonMisc-9.0
+CPPFLAGS+=-lvtkIOAMR-9.0
+CPPFLAGS+=-lvtkIOCore-9.0
+CPPFLAGS+=-lvtkIOParallel-9.0
+CPPFLAGS+=-lvtkIOParallelXML-9.0
+CPPFLAGS+=-lvtkIOXML-9.0
+CPPFLAGS+=-lvtkIOXMLParser-9.0
+CPPFLAGS+=-lvtkParallelCore-9.0
+# I don't want to see g++ complaining about VTK
+CPPFLAGS+= -Wno-logical-op 
+
 #################################################
 # HYPRE & PETSC & MISC
 #################################################
