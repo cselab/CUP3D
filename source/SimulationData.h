@@ -11,15 +11,9 @@
 
 #include "Definitions.h"
 #include "Cubism/FluxCorrectionMPI.h"
-
-#ifdef _USE_ZLIB_
-#include "SerializerIO_WaveletCompression_MPI_Simple.h"
-#endif
-//#include <Cubism/ZBinDumper_MPI.h>
-
 #include <array>
 #ifdef CUP_ASYNC_DUMP
-#include <thread>
+ #include <thread>
 #endif
 #include <vector>
 #include <random>
@@ -27,7 +21,6 @@
 namespace cubism {
   class Profiler;
   class ArgumentParser;
-  namespace SliceTypesMPI { template<typename grid_t> class Slice; }
 }
 
 CubismUP_3D_NAMESPACE_BEGIN
@@ -40,9 +33,6 @@ class SpectralManip;
 #ifdef CUP_ASYNC_DUMP
  using DumpBlock  = BaseBlock<DumpElement>;
  using DumpGridMPI= cubism::GridMPI<cubism::Grid<DumpBlock, aligned_allocator>>;
- using SliceType  = cubism::SliceTypesMPI::Slice<DumpGridMPI>;
-#else
- using SliceType  = cubism::SliceTypesMPI::Slice<FluidGridMPI>;
 #endif
 
 struct SimulationData
@@ -51,7 +41,6 @@ struct SimulationData
 
   FluidGridMPI * grid = nullptr;
   FluxCorrectionMPI<FluxCorrection<FluidGridMPI,FluidBlock>,FluidGridMPI> Corrector;
-  void * nonuniform = nullptr;
   inline std::vector<cubism::BlockInfo>& vInfo() {
     return grid->getBlocksInfo();
   }
@@ -88,9 +77,6 @@ struct SimulationData
 
   AMR * amr;
   double div_loc;
-
-  // vector of 2D slices (for dumping)
-  std::vector<SliceType> m_slices;
 
   //The protagonist
   ObstacleVector * obstacle_vector = nullptr;
@@ -188,7 +174,6 @@ struct SimulationData
 
   #ifdef CUP_ASYNC_DUMP
     MPI_Comm dump_comm = MPI_COMM_NULL;
-    void * dump_nonuniform = nullptr;
     DumpGridMPI * dump = nullptr;
     std::thread * dumper = nullptr;
   #endif
@@ -198,12 +183,7 @@ struct SimulationData
   void printResetProfiler();
   void _preprocessArguments();
   ~SimulationData();
-  SimulationData() = delete;
-  SimulationData(const SimulationData &);
-  SimulationData(SimulationData &&);
   SimulationData(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
-  SimulationData(MPI_Comm mpicomm);
-  void setCells(int nx, int ny, int nz);
 };
 
 CubismUP_3D_NAMESPACE_END

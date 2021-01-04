@@ -11,27 +11,17 @@
 #include "SimulationData.h"
 #include "operators/Operator.h"
 #include "obstacles/ObstacleVector.h"
-#include "utils/NonUniformScheme.h"
-
 #include <Cubism/ArgumentParser.h>
 #include <Cubism/Profiler.h>
-#include <Cubism/HDF5SliceDumperMPI.h>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-SimulationData::SimulationData(const SimulationData &) = default;
-SimulationData::SimulationData(SimulationData &&) = default;
-SimulationData::SimulationData(MPI_Comm mpicomm) :
-  app_comm(mpicomm)
+SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_comm(mpicomm)
 {
   MPI_Comm_rank(app_comm, &rank);
   MPI_Comm_size(app_comm, &nprocs);
-}
 
-SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
-    : SimulationData(mpicomm)
-{
   if (rank == 0) parser.print_args();
 
   // ========== SIMULATION ==========
@@ -77,9 +67,8 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
   bChannelFixedMassFlux = parser("-channelFixedMassFlux").asBool(false);
 
   bRungeKutta23 = parser("-RungeKutta23").asBool(false);
-  //bAdvection3rdOrder = parser("-Advection3rdOrder").asBool(true);
-  bAdvection3rdOrder = parser("-Advection3rdOrder").asBool(false);
-
+  bAdvection3rdOrder = parser("-Advection3rdOrder").asBool(true);
+  
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
 
   // SGS
@@ -100,7 +89,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
 
   // OUTPUT
   verbose = parser("-verbose").asBool(true) && rank == 0;
-  b2Ddump = parser("-dump2D").asBool(false);
   b3Ddump = parser("-dump3D").asBool(true);
 
   // ANALYSIS
@@ -234,11 +222,6 @@ SimulationData::~SimulationData()
 
   if(amr not_eq nullptr) delete amr;
 
-  if(nonuniform not_eq nullptr) {
-    NonUniformScheme<FluidBlock>* nonuniform_ = static_cast<NonUniformScheme<FluidBlock>*>(nonuniform);
-    assert(nonuniform_ not_eq nullptr);
-    delete nonuniform_;
-  }
   while(!pipeline.empty()) {
     auto * g = pipeline.back();
     pipeline.pop_back();
@@ -250,28 +233,9 @@ SimulationData::~SimulationData()
       delete dumper;
     }
     delete dump;
-    if(dump_nonuniform not_eq nullptr) {
-      NonUniformScheme<DumpBlock>* dump_nonuniform_ = static_cast<NonUniformScheme<DumpBlock>*>(dump_nonuniform);
-      assert(dump_nonuniform_ not_eq nullptr);
-      delete dump_nonuniform_;
-    }
     if (dump_comm != MPI_COMM_NULL)
       MPI_Comm_free(&dump_comm);
   #endif
-}
-
-void SimulationData::setCells(const int nx, const int ny, const int nz)
-{
-  std::cout <<"setCells skipped!" << std::endl;
-  //if (   nx % (nprocsx * FluidBlock::sizeX) != 0
-  //    || ny % (nprocsy * FluidBlock::sizeY) != 0
-  //    || nz % (nprocsz * FluidBlock::sizeZ) != 0) {
-  //  throw std::invalid_argument("Number of cells must be multiple of "
-  //                              "block size * number of processes.");
-  //}
-  //bpdx = nx / FluidBlock::sizeX;
-  //bpdy = ny / FluidBlock::sizeY;
-  //bpdz = nz / FluidBlock::sizeZ;
 }
 
 void SimulationData::startProfiler(std::string name) const

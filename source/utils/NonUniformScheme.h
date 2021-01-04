@@ -13,7 +13,7 @@
 #include "../Definitions.h"
 
 #include <Cubism/BlockInfo.h>
-#include <Cubism/MeshMap.h>
+//#include <Cubism/MeshMap.h>
 
 #include <cassert>
 #include <cstdio>
@@ -21,7 +21,7 @@
 #include <vector>
 
 CubismUP_3D_NAMESPACE_BEGIN
-
+#if 0
 template <typename TBlock>
 class NonUniformScheme
 {
@@ -363,6 +363,6 @@ private:
         }
     }
 };
-
+#endif
 CubismUP_3D_NAMESPACE_END
 #endif // NonUniformScheme

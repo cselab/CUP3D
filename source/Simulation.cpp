@@ -34,8 +34,7 @@
 #include "utils/NonUniformScheme.h"
 
 #include <Cubism/HDF5Dumper_MPI.h>
-#include <Cubism/HDF5SliceDumperMPI.h>
-#include <Cubism/MeshKernels.h>
+#include <Cubism/ArgumentParser.h>
 
 #include <iomanip>
 #include <iostream>
@@ -44,12 +43,6 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-#ifdef CUP_ASYNC_DUMP
- using SliceType  = cubism::SliceTypesMPI::Slice<DumpGridMPI>;
-#else
- using SliceType  = cubism::SliceTypesMPI::Slice<FluidGridMPI>;
-#endif
-
 Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
     : sim(mpicomm, parser)
 {
@@ -57,13 +50,6 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
 
   // Grid has to be initialized before slices and obstacles.
   setupGrid(&parser);
-
-  #ifdef CUP_ASYNC_DUMP
-    sim.m_slices = SliceType::getEntities<SliceType>(parser, * sim.dump);
-  #else
-    sim.m_slices = SliceType::getEntities<SliceType>(parser, * sim.grid);
-  #endif
-
   const bool bRestart = parser("-restart").asBool(false);
   _init(bRestart,parser);
 }
@@ -357,6 +343,7 @@ void Simulation::_serialize(const std::string append)
   sim.startProfiler("Groups");
   sim.grid->UpdateMyGroups();
   sim.stopProfiler();
+
   std::stringstream ssR;
   if (append == "") ssR<<"restart_";
   else ssR<<append;

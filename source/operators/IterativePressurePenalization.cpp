@@ -10,7 +10,7 @@
 #include "../obstacles/ObstacleVector.h"
 #include "../poisson/PoissonSolverAMR.h"
 
-#include <Cubism/HDF5SliceDumperMPI.h>
+//#include <Cubism/HDF5SliceDumperMPI.h>
 #include <iomanip>
 
 // define this to update obstacles with old (mrag-like) approach of integrating
