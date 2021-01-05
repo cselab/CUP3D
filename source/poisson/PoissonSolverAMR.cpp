@@ -689,15 +689,6 @@ void PoissonSolverAMR::solve()
     //2. rhatVector = rVector
     //3. rho = a = omega = 1.0
     //4. vVector = pVector = 0
-    //#pragma omp parallel for schedule(runtime)
-    //for (size_t i=0; i < Nblocks; i++)
-    //{
-    //    BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-    //    for(int iz=0; iz<BlockType::sizeZ; iz++)
-    //    for(int iy=0; iy<BlockType::sizeY; iy++)
-    //    for(int ix=0; ix<BlockType::sizeX; ix++)
-    //        b(ix,iy,iz).zVector = b(ix,iy,iz).xVector;//this is done because Get_LHS works with zVector
-    //}
     findLHS(0); // AxVector <-- A*x_{0}, x_0 = pressure
     #pragma omp parallel for
     for(size_t i=0; i< Nblocks; i++)
@@ -901,21 +892,9 @@ void PoissonSolverAMR::solve()
             }
         }
     }
-
-    //#pragma omp parallel for schedule(runtime)
-    //for (size_t i=0; i < Nblocks; i++)
-    //{
-    //    BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-    //    for(int iz=0; iz<BlockType::sizeZ; iz++)
-    //    for(int iy=0; iy<BlockType::sizeY; iy++)
-    //    for(int ix=0; ix<BlockType::sizeX; ix++)
-    //        b.tmp[iz][iy][ix] = b(ix,iy,iz).xVector;
-    //}
   
     // Subtract average pressure from all gridpoints and copy back stuff
     const Real avgP = computeAverage();
-    //if (m_rank == 0) 
-    //  std::cout << "avgP = " << avgP << std::endl; 
     #pragma omp parallel for schedule(runtime)
     for (size_t i=0; i < Nblocks; i++)
     {
