@@ -268,7 +268,6 @@ class PoissonSolverAMR
   typedef typename FluidGridMPI::BlockType BlockType;
   SimulationData & sim;
   FluidGridMPI& grid = * sim.grid;
-  std::vector <Real> storeGridElements;
 
   const MPI_Comm m_comm = grid.getCartComm();
   const int m_rank = sim.rank, m_size = sim.nprocs;

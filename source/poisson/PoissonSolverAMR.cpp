@@ -662,7 +662,7 @@ void PoissonSolverAMR::solve()
     size_t Nsystem;
     MPI_Allreduce(&N,&Nsystem,1,MPI_LONG,MPI_SUM,m_comm);
 
-    storeGridElements.resize(8*N);
+    std::vector <Real> storeGridElements (8*N);
     #pragma omp parallel for schedule(runtime)
     for (size_t i=0; i < Nblocks; i++)
     {
@@ -725,6 +725,7 @@ void PoissonSolverAMR::solve()
     double norm;
     const double max_error = 1e-9;
     const double max_rel_error = 1e-2;
+    int iter_opt = 0;
 
     //5. for k = 1,2,...
     for (size_t k = 1; k < 4000; k++)
@@ -756,7 +757,7 @@ void PoissonSolverAMR::solve()
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
                 b(ix,iy,iz).pVector = b(ix,iy,iz).rVector + beta* ( b(ix,iy,iz).pVector - omega * b(ix,iy,iz).vVector);
-                b(ix,iy,iz).zVector = b(ix,iy,iz).pVector;             
+                b(ix,iy,iz).zVector = b(ix,iy,iz).pVector;
             }
         }
         getZ();
@@ -843,35 +844,38 @@ void PoissonSolverAMR::solve()
         MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
         norm = std::sqrt(norm) / Nsystem;
 
-        //if (norm < min_norm)
-        //{
-        //    min_norm = norm;
-        //    #pragma omp parallel for schedule(runtime)
-        //    for (size_t i=0; i < Nblocks; i++)
-        //    {
-        //        BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-        //        const size_t offset = _offset( vInfo[i] );
-        //        for(int iz=0; iz<BlockType::sizeZ; iz++)
-        //        for(int iy=0; iy<BlockType::sizeY; iy++)
-        //        for(int ix=0; ix<BlockType::sizeX; ix++)
-        //        {
-        //            const size_t src_index = _dest(offset, iz, iy, ix);
-        //            x_opt[src_index] = b(ix,iy,iz).xVector;
-        //        }
-        //    }
-        //}
+        if (norm < min_norm)
+        {
+          iter_opt = k;
+            min_norm = norm;
+            #pragma omp parallel for schedule(runtime)
+            for (size_t i=0; i < Nblocks; i++)
+            {
+                BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
+                const size_t offset = _offset( vInfo[i] );
+                for(int iz=0; iz<BlockType::sizeZ; iz++)
+                for(int iy=0; iy<BlockType::sizeY; iy++)
+                for(int ix=0; ix<BlockType::sizeX; ix++)
+                {
+                    const size_t src_index = _dest(offset, iz, iy, ix);
+                    x_opt[src_index] = b(ix,iy,iz).xVector;
+                }
+            }
+        }
     
         if (k==1) init_norm = norm;
+
+
 
         if (norm / (init_norm+eps) > 2.0 && k > 10)
         {
             useXopt = true;
             if (m_rank==0)
-                std::cout <<  "Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << std::endl;
+                std::cout <<  "XOPT Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << "  iter_opt="<< iter_opt << std::endl;
             break;
         }
 
-        if ( (norm < max_error || norm/init_norm < max_rel_error ) )//&& k > 1 )
+        if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > 1 )
         {
             if (m_rank==0)
                 std::cout <<  "Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << std::endl;
@@ -881,22 +885,22 @@ void PoissonSolverAMR::solve()
     }//k-loop
 
 
-    //if (useXopt)
-    //{
-    //    #pragma omp parallel for schedule(runtime)
-    //    for (size_t i=0; i < Nblocks; i++)
-    //    {
-    //        BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-    //        const size_t offset = _offset( vInfo[i] );
-    //        for(int iz=0; iz<BlockType::sizeZ; iz++)
-    //        for(int iy=0; iy<BlockType::sizeY; iy++)
-    //        for(int ix=0; ix<BlockType::sizeX; ix++)
-    //        {
-    //            const size_t src_index = _dest(offset, iz, iy, ix);
-    //            b(ix,iy,iz).xVector = x_opt[src_index];
-    //        }
-    //    }
-    //}
+    if (useXopt)
+    {
+        #pragma omp parallel for schedule(runtime)
+        for (size_t i=0; i < Nblocks; i++)
+        {
+            BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
+            const size_t offset = _offset( vInfo[i] );
+            for(int iz=0; iz<BlockType::sizeZ; iz++)
+            for(int iy=0; iy<BlockType::sizeY; iy++)
+            for(int ix=0; ix<BlockType::sizeX; ix++)
+            {
+                const size_t src_index = _dest(offset, iz, iy, ix);
+                b(ix,iy,iz).xVector = x_opt[src_index];
+            }
+        }
+    }
 
     //#pragma omp parallel for schedule(runtime)
     //for (size_t i=0; i < Nblocks; i++)
