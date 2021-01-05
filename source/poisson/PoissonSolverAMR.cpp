@@ -236,19 +236,19 @@ void PoissonSolverAMR::getZ()
   #pragma omp parallel
   { 
     int tid = omp_get_thread_num();
-    #pragma omp for schedule(runtime)
+    #pragma omp for //schedule(runtime)
     for (size_t i=0; i < Nblocks; i++)
     {
       BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
       const double invh = 1.0/vInfo[i].h_gridpoint;
   
       std::vector <double> tempZ (BSX*BSY*BSZ);
-      for(int iz=0; iz<BlockType::sizeZ; iz++)
-      for(int iy=0; iy<BlockType::sizeY; iy++)
-      for(int ix=0; ix<BlockType::sizeX; ix++)
-      {
-        tempZ[iz*BSX*BSY + iy*BSX + ix ] = b(ix,iy,iz).zVector;
-      }
+      //for(int iz=0; iz<BlockType::sizeZ; iz++)
+      //for(int iy=0; iy<BlockType::sizeY; iy++)
+      //for(int ix=0; ix<BlockType::sizeX; ix++)
+      //{
+      //  tempZ[iz*BSX*BSY + iy*BSX + ix ] = b(ix,iy,iz).zVector;
+      //}
 
       //1. z = L^{-1}r
       for (int I = 0; I < N ; I++)
@@ -266,6 +266,7 @@ void PoissonSolverAMR::getZ()
         int iz =  I / (BSX*BSY);
         int iy = (I - iz*(BSX*BSY) )/ BSX;
         int ix =  I - iz*(BSX*BSY) - iy * BSX;
+        tempZ[iz*BSX*BSY + iy*BSX + ix ] = b(ix,iy,iz).zVector;
         b(ix,iy,iz).zVector = (tempZ[iz*BSX*BSY + iy*BSX + ix ] - rhs) *Ld[tid][I];
       }
   
@@ -287,13 +288,13 @@ void PoissonSolverAMR::getZ()
         int iz =  I / (BSX*BSY);
         int iy = (I - iz*(BSX*BSY) )/ BSX;
         int ix =  I - iz*(BSX*BSY) - iy * BSX;
-        b(ix,iy,iz).zVector = (b(ix,iy,iz).zVector - rhs) *Ld[tid][I];
+        b(ix,iy,iz).zVector = -invh * (b(ix,iy,iz).zVector - rhs) *Ld[tid][I];
       }
 
-      for (int iz=0;iz<BSZ;iz++)
-      for (int iy=0;iy<BSY;iy++)
-      for (int ix=0;ix<BSX;ix++)
-        b(ix,iy,iz).zVector = -invh*b(ix,iy,iz).zVector;
+      //for (int iz=0;iz<BSZ;iz++)
+      //for (int iy=0;iy<BSY;iy++)
+      //for (int ix=0;ix<BSX;ix++)
+      //  b(ix,iy,iz).zVector = -invh*b(ix,iy,iz).zVector;
     }
   }
 }
@@ -648,7 +649,7 @@ void PoissonSolverAMR::solve()
 #else
 void PoissonSolverAMR::solve()
 {
-    sim.startProfiler("PoissonSolverAMR :: step one");
+    sim.startProfiler("Poisson :: 1");
   
     static constexpr int BSX = BlockType::sizeX;
     static constexpr int BSY = BlockType::sizeY;
@@ -684,7 +685,10 @@ void PoissonSolverAMR::solve()
             b(ix,iy,iz).zVector = b(ix,iy,iz).xVector;//this is done because Get_LHS works with zVector
         }
     }
+    sim.stopProfiler();
 
+
+    sim.startProfiler("Poisson :: 2");
     //1. rVector <-- b - AxVector
     //2. rhatVector = rVector
     //3. rho = a = omega = 1.0
@@ -712,12 +716,15 @@ void PoissonSolverAMR::solve()
     std::vector <Real> x_opt (N);
     bool useXopt = false;
     double min_norm = 1e50;
-    double init_norm;
+    double init_norm = 0;
     double norm;
     const double max_error = 1e-9;
     const double max_rel_error = 1e-2;
     int iter_opt = 0;
+    sim.stopProfiler();
 
+
+    sim.startProfiler("Poisson :: 3");
     //5. for k = 1,2,...
     for (size_t k = 1; k < 4000; k++)
     {
@@ -790,14 +797,16 @@ void PoissonSolverAMR::solve()
             }
         }
         getZ();
-
         //11. t = Az
         findLHS(0); // t stored in AxVector
 
-        //12. omega = ...
         double aux1 = 0;
         double aux2 = 0;
-        #pragma omp parallel for reduction (+:aux1,aux2)
+        norm = 0.0; 
+        #pragma omp parallel reduction (+:aux1,aux2,norm)
+        {
+        //12. omega = ...
+        #pragma omp parallel for //reduction (+:aux1,aux2)
         for (size_t i=0; i < Nblocks; i++)
         {
             BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
@@ -809,17 +818,20 @@ void PoissonSolverAMR::solve()
                 aux2 += b(ix,iy,iz).AxVector * b(ix,iy,iz).AxVector;
             }
         }
-        double aux_12[2] = {aux1,aux2};
-        MPI_Allreduce(MPI_IN_PLACE,&aux_12,2,MPI_DOUBLE,MPI_SUM,m_comm);
-        aux1 = aux_12[0];
-        aux2 = aux_12[1];
-        omega = aux1 / (aux2+eps); 
+        #pragma omp master
+        {
+          double aux_12[2] = {aux1,aux2};
+          MPI_Allreduce(MPI_IN_PLACE,&aux_12,2,MPI_DOUBLE,MPI_SUM,m_comm);
+          aux1 = aux_12[0];
+          aux2 = aux_12[1];
+          omega = aux1 / (aux2+eps);
+        }
+        #pragma omp barrier
 
         //13. x += omega * z
         //14.
         //15. r = s - omega * t
-        norm = 0.0; 
-        #pragma omp parallel for reduction(+:norm)
+        #pragma omp for //reduction(+:norm)
         for (size_t i=0; i < Nblocks; i++)
         {
             BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
@@ -831,6 +843,7 @@ void PoissonSolverAMR::solve()
                 b(ix,iy,iz).rVector  = b(ix,iy,iz).sVector- omega * b(ix,iy,iz).AxVector;
                 norm+= b(ix,iy,iz).rVector*b(ix,iy,iz).rVector; 
             }
+        }
         }
         MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
         norm = std::sqrt(norm) / Nsystem;
@@ -866,7 +879,7 @@ void PoissonSolverAMR::solve()
             break;
         }
 
-        if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > 1 )
+        if ( (norm < max_error || norm/init_norm < max_rel_error ) )//&& k > 1 )
         {
             if (m_rank==0)
                 std::cout <<  "Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << std::endl;
@@ -874,8 +887,10 @@ void PoissonSolverAMR::solve()
         }
 
     }//k-loop
+    sim.stopProfiler();
 
 
+    sim.startProfiler("Poisson :: 4");
     if (useXopt)
     {
         #pragma omp parallel for schedule(runtime)
@@ -917,8 +932,7 @@ void PoissonSolverAMR::solve()
             b(ix,iy,iz).tmpW = storeGridElements[8*src_index+7];
             //b(ix,iy,iz).p = b.tmp[iz][iy][ix];
         }
-    } 
-
+    }
     sim.stopProfiler();
 }
 
