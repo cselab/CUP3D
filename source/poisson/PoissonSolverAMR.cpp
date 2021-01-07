@@ -712,8 +712,8 @@ void PoissonSolverAMR::solve()
     std::vector <Real> x_opt (N);
     bool useXopt = false;
     double min_norm = 1e50;
-    double init_norm;
-    double norm;
+    double init_norm=0;
+    double norm=0;
     const double max_error = 1e-9;
     const double max_rel_error = 1e-2;
     int iter_opt = 0;
