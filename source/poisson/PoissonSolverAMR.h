@@ -290,7 +290,6 @@ class PoissonSolverAMR
 
   size_t _offset(const cubism::BlockInfo &info) const
   {
-    assert (info.myrank == m_rank);
     #if 0 //stupid simple and slow approach
       size_t PointsPerBlock = BlockType::sizeX * BlockType::sizeY * BlockType::sizeZ;
       size_t kount = 0;
