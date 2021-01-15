@@ -221,11 +221,11 @@ struct StreamerDiv
 {
   static const int channels = 1;
   template <typename T>
-  static void operate(const FluidElement& input, T output[1])
+  static void operate(FluidElement& input, T output[1])
   { output[0] = input.p; }
 
   template <typename T>
-  static void operate(const T input[1], FluidElement& output)
+  static void operate(T input[1], FluidElement& output)
   { output.p = input[0]; }
 };
 
@@ -301,7 +301,7 @@ struct StreamerChi
     static const int CLASS = 0;
 
     template <typename TBlock, typename T>
-    static inline void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).chi;
     }
@@ -320,7 +320,7 @@ struct StreamerVelocityVector
 
     // Write
     template <typename TBlock, typename T>
-    static inline void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
         output[0] = b(ix,iy,iz).u;
         output[1] = b(ix,iy,iz).v;
@@ -351,7 +351,7 @@ struct StreamerTmpVector
 
     // Write
     template <typename TBlock, typename T>
-    static inline void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
         output[0] = b(ix,iy,iz).tmpU;
         output[1] = b(ix,iy,iz).tmpV;
@@ -372,7 +372,7 @@ struct StreamerPressure
     static const int CLASS = 0;
 
     template <typename TBlock, typename T>
-    static inline void operate(const TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).p;
     }

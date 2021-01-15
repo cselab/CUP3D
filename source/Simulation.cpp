@@ -422,9 +422,9 @@ void Simulation::_serialize(const std::string append)
       //  *grid2Dump, sim.time, nameV, sim.path4serialization);       
       //DumpHDF5_MPI<StreamerPressure, DumpReal>(
       //  *grid2Dump, sim.time, nameP, sim.path4serialization);
-      DumpHDF5_MPI<StreamerChi, DumpReal>(
+      DumpHDF5_MPI<StreamerChi, DumpReal, FluidGridMPI, LabMPI>(
         *grid2Dump, sim.time, nameX, sim.path4serialization);
-      DumpHDF5_MPI<StreamerTmpVector, DumpReal>(
+      DumpHDF5_MPI<StreamerTmpVector, DumpReal, FluidGridMPI, LabMPI>(
         *grid2Dump, sim.time, nameO, sim.path4serialization);
     }
     sim.stopProfiler();
