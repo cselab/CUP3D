@@ -173,7 +173,7 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
         if (s0 > Linf) Linf = s0;
       }
 
-      //Linf_2 *= 1.0/(info.level+1);
+      Linf_2 *= 1.0/(info.level+1);
 
       if (Linf > Rtol_chi || Linf_2 > MeshAdaptationMPI<TGrid,TLab>::tolerance_for_refinement ) return Refine;
       if (Linf < Ctol_chi && Linf_2 < MeshAdaptationMPI<TGrid,TLab>::tolerance_for_compression) return Compress;    

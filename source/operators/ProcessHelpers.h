@@ -165,11 +165,11 @@ class KernelVorticity
       const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
       const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
       const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
-      const FluidElement &LC=lab(ix,iy,iz);
       o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
       o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
       o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
-#if 1
+#if 0
+      const FluidElement &LC=lab(ix,iy,iz);
       if (ix==0)
       {
         const FluidElement &LEE=lab(ix+2,iy,iz);
