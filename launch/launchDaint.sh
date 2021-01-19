@@ -39,6 +39,7 @@ cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
 #SBATCH --account=s929
+##SBATCH --account=eth2
 #SBATCH --job-name="${BASENAME}"
 #SBATCH --output=${BASENAME}_out_%j.txt
 #SBATCH --error=${BASENAME}_err_%j.txt
@@ -46,6 +47,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --time=${WCLOCK}
 #SBATCH --partition=${PARTITION}
 #SBATCH --constraint=gpu
+##SBATCH --constraint=mc
 
 #SBATCH --nodes=${NNODE}
 #SBATCH --ntasks-per-node=1
@@ -58,6 +60,7 @@ export MPICH_MAX_THREAD_SAFETY=multiple
 export OMP_PLACES=cores
 export OMP_PROC_BIND=close
 export OMP_NUM_THREADS=12
+#export OMP_NUM_THREADS=36
 
 srun --ntasks ${NNODE} --ntasks-per-node=1 ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
 
@@ -65,5 +68,5 @@ EOF
 chmod 755 daint_sbatch
 sbatch daint_sbatch
 
-#export OMP_NUM_THREADS=1
+#export OMP_NUM_THREADS=36
 #srun --ntasks ${NNODE} --ntasks-per-node=1 ./simulation ${OPTIONS} -factory-content ${FACTORY}

@@ -33,19 +33,21 @@ def FishSamples(a,b,c,fish,L):
   S[2][2] = c**2
   z_hat = np.zeros(3)
   xyz = sample(S,z_hat,12345*fish)
-  print(xyz)
 
   xvalid=[]
   yvalid=[]
   zvalid=[]
+  xL = 1.3
+  yL = 1.1
+  zL = 1.1
   for i in range(xyz.shape[1]):
     xtest = xyz[0,i]
     ytest = xyz[1,i]
     ztest = xyz[2,i]
     valid = True
     for j in range(len(xvalid)):
-       r = ((xtest-xvalid[j])/1.5/L)**2 + ((ytest-yvalid[j])/0.8/L)**2 + ((ztest-zvalid[j])/0.8/L)**2
-       if r < 1.0:
+       r = np.sqrt( ((xtest-xvalid[j])/xL)**2 + ((ytest-yvalid[j])/yL)**2 + ((ztest-zvalid[j])/zL)**2 )
+       if r < 1.0*L:
           valid=False
           break
     if valid == True:
@@ -60,10 +62,6 @@ def FishSamples(a,b,c,fish,L):
   return xvalid,yvalid,zvalid
 
 
-
-
-
-
 if __name__ == "__main__":
   parser = argparse.ArgumentParser()
   parser.add_argument('--fish', required=True, type=int)
@@ -71,18 +69,18 @@ if __name__ == "__main__":
   fish = args['fish']
   L = 0.2
 
-  x,y,z = FishSamples(1.5,0.5,0.5,fish,0.2)
+  x,y,z = FishSamples(2.2,1.2,1.2,fish,0.2)
   x = 4.0 + np.asarray(x) + 0.5*L
   y = 2.0 + np.asarray(y)
   z = 2.0 + np.asarray(z)
 
-  fig = plt.figure()
-  ax = fig.add_subplot(111, projection='3d')
-  ax.set_xlim((0,4))
-  ax.set_ylim((0,4))
-  ax.set_zlim((0,4))
-  ax.scatter(x, y, z)
-  plt.show()
+  #fig = plt.figure()
+  #ax = fig.add_subplot(111, projection='3d')
+  #ax.set_xlim((0,4))
+  #ax.set_ylim((0,4))
+  #ax.set_zlim((0,4))
+  #ax.scatter(x, y, z)
+  #plt.show()
 
   f = open("settingsEllipsoidSwarm.sh", "w")
   f.write(\
@@ -98,9 +96,9 @@ BC=${BC:-freespace}\n\
 FACTORY=\n")
   for j in range(fish):
     if j==0:
-      f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bFixFrameOfRef=1 heightProfile=stefan widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
+      f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bCorrectPosition=true bFixToPlanar=true bFixFrameOfRef=1 heightProfile=stefan widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
     else:
-      f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} heightProfile=stefan widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
+      f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bCorrectPosition=true bFixToPlanar=true heightProfile=stefan widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
 
   # WRITE SOLVER SETTINGS
   f.write('\nOPTIONS=\n\
