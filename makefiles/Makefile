@@ -34,7 +34,7 @@ accfft ?= false
 zlib ?= 0
 verbose ?= false
 dump_surface_binary ?= false
-usevtk ?= true
+usevtk ?= false
 
 ifeq "$(shell $(CXX) --version | grep -ci 'icpc')" "0"
 ifeq "$(shell $(CXX) --version | grep -ci 'llvm')" "0"
