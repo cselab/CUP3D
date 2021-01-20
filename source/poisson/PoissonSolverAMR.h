@@ -279,7 +279,7 @@ class PoissonSolverAMR
   std::vector<size_t> blocksOffset;
   long long id_min;
   long long id_max;
-  int iter_min;
+  size_t iter_min;
 
  public:
   size_t datasize;
