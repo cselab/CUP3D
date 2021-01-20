@@ -279,6 +279,7 @@ class PoissonSolverAMR
   std::vector<size_t> blocksOffset;
   long long id_min;
   long long id_max;
+  int iter_min;
 
  public:
   size_t datasize;
@@ -340,6 +341,10 @@ class PoissonSolverAMR
   std::vector<std::vector<double>> Ld;
   std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
   std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
+
+  std::vector< std::vector<int> >compute_ix;
+  std::vector< std::vector<int> >compute_iy;
+  std::vector< std::vector<int> >compute_iz;
   #endif
 };
 
