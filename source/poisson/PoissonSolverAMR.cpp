@@ -242,8 +242,7 @@ void PoissonSolverAMR::solve()
     static constexpr int BSY = BlockType::sizeY;
     static constexpr int BSZ = BlockType::sizeZ;
 
-    iter_min --;
-    if (iter_min < 0) iter_min = 0;
+    if (iter_min >= 1) iter_min --;
 
     std::vector<cubism::BlockInfo>& vInfo = grid.getBlocksInfo();
 
