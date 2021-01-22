@@ -32,10 +32,7 @@ template<StepType step> std::vector<int> stencilFields();
 template<StepType step, typename Discretization>
 struct KernelAdvectDiffuse : public Discretization
 {
-  KernelAdvectDiffuse(const SimulationData&s) : Discretization(s), sim(s) {
-    //printf("%d %d %e %e %e %e %e %e %e %e\n", loopBeg, loopEnd, CFL,
-    //  norUinf, fadeW, fadeS, fadeF, fadeE, fadeN, fadeB);
-  }
+  KernelAdvectDiffuse(const SimulationData&s) : Discretization(s), sim(s) {}
 
   const SimulationData & sim;
   const Real dt = sim.dt, mu = sim.nu;
@@ -44,8 +41,7 @@ struct KernelAdvectDiffuse : public Discretization
   const Real CFL = std::min((Real)1, sim.uMax_measured * sim.dt / sim.hmean);
   const Real norUinf = 1 / std::max({std::fabs(uInf[0]), std::fabs(uInf[1]), std::fabs(uInf[2]), EPS});
   const StencilInfo stencil{this->getStencilBeg(), this->getStencilBeg(), this->getStencilBeg(),
-                            this->getStencilEnd(), this->getStencilEnd(), this->getStencilEnd(),
-                            false, stencilFields<step>()};
+                            this->getStencilEnd(), this->getStencilEnd(), this->getStencilEnd(), false, stencilFields<step>()};
 
   void applyBCwest(const BlockInfo & I, LabMPI & L) const {
     if (sim.BCx_flag == wall || sim.BCx_flag == periodic) return;
@@ -145,10 +141,9 @@ struct KernelAdvectDiffuse : public Discretization
     applyBCeast(info, lab); applyBCnorth(info, lab); applyBCback(info, lab);
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      const Real uAbs[3] = { inp<step,0>(lab,ix,iy,iz) + uInf[0],
-                             inp<step,1>(lab,ix,iy,iz) + uInf[1],
-                             inp<step,2>(lab,ix,iy,iz) + uInf[2] };
+    for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
+      const Real uAbs[3] = { inp<step,0>(lab,ix,iy,iz) + uInf[0], inp<step,1>(lab,ix,iy,iz) + uInf[1], inp<step,2>(lab,ix,iy,iz) + uInf[2] };
       const Real dudx = this->template diffx<step,0>(lab, o, uAbs, ix, iy, iz);
       const Real dvdx = this->template diffx<step,1>(lab, o, uAbs, ix, iy, iz);
       const Real dwdx = this->template diffx<step,2>(lab, o, uAbs, ix, iy, iz);
@@ -164,31 +159,6 @@ struct KernelAdvectDiffuse : public Discretization
       const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
       const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
       const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-
-      #ifndef NDEBUG
-        bool isNan = (std::isnan(duA) || std::isnan(dvA) || std::isnan(dwA) || std::isnan(duD) || std::isnan(dvD) || std::isnan(dwD) );
-        if ( isNan )
-        {
-          std::cout << "NaN found in AdvectionDiffusion." << std::endl;
-          std::cout << "Block " << info.index[0] << "," << info.index[1] << "," << info.index[2] << " level="<<info.level << std::endl;
-          std::cout << "ix = " << ix << std::endl;
-          std::cout << "iy = " << iy << std::endl;
-          std::cout << "iz = " << iz << std::endl;
-          std::cout << duD << "," <<  dvD << "," <<  dwD << "," <<  duA << "," <<  dvA << "," <<  dwA     << std::endl;
-          std::cout << "dudx = " << dudx   << " --> " << lab(ix+1,iy,iz).u << " - " << lab(ix-1,iy,iz).u  << std::endl;
-          std::cout << "dvdx = " << dvdx   << " --> " << lab(ix+1,iy,iz).v << " - " << lab(ix-1,iy,iz).v  << std::endl;
-          std::cout << "dwdx = " << dwdx   << " --> " << lab(ix+1,iy,iz).w << " - " << lab(ix-1,iy,iz).w  << std::endl;
-          std::cout << "dudy = " << dudy   << " --> " << lab(ix,iy+1,iz).u << " - " << lab(ix,iy-1,iz).u  << std::endl;
-          std::cout << "dvdy = " << dvdy   << " --> " << lab(ix,iy+1,iz).v << " - " << lab(ix,iy-1,iz).v  << std::endl;
-          std::cout << "dwdy = " << dwdy   << " --> " << lab(ix,iy+1,iz).w << " - " << lab(ix,iy-1,iz).w  << std::endl;
-          std::cout << "dudz = " << dudz   << " --> " << lab(ix,iy,iz+1).u << " - " << lab(ix,iy,iz-1).u  << std::endl;
-          std::cout << "dvdz = " << dvdz   << " --> " << lab(ix,iy,iz+1).v << " - " << lab(ix,iy,iz-1).v  << std::endl;
-          std::cout << "dwdz = " << dwdz   << " --> " << lab(ix,iy,iz+1).w << " - " << lab(ix,iy,iz-1).w  << std::endl;
-          std::cout << "__________________________________________________________________________________________" << std::endl;
-          MPI_Abort(MPI_COMM_WORLD,6);
-        }
-      #endif
-
       out<step,0>(o,ix,iy,iz) = field<step,0>(lab,o,ix,iy,iz) + facA*duA + facD*duD;
       out<step,1>(o,ix,iy,iz) = field<step,1>(lab,o,ix,iy,iz) + facA*dvA + facD*dvD;
       out<step,2>(o,ix,iy,iz) = field<step,2>(lab,o,ix,iy,iz) + facA*dwA + facD*dwD;
@@ -230,108 +200,6 @@ template<> inline std::vector<int> stencilFields<Euler>() { return {FE_U, FE_V, 
 template<> inline std::vector<int> stencilFields<RK1>() { return {FE_U, FE_V, FE_W}; }
 template<> inline std::vector<int> stencilFields<RK2>() { return {FE_TMPU, FE_TMPV, FE_TMPW}; }
 
-struct Central
-{
-  Central(const SimulationData& s) {}
-  template<StepType step, int dir> Real diffx(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
-    return inp<step,dir>(L,ix+1,iy,iz) - inp<step,dir>(L,ix-1,iy,iz);
-  }
-  template<StepType step, int dir> Real diffy(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
-    return inp<step,dir>(L,ix,iy+1,iz) - inp<step,dir>(L,ix,iy-1,iz);
-  }
-  template<StepType step, int dir> Real diffz(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
-    return inp<step,dir>(L,ix,iy,iz+1) - inp<step,dir>(L,ix,iy,iz-1);
-  }
-  template<StepType step, int dir> Real   lap(LabMPI& L, const FluidBlock& o, const int ix, const int iy, const int iz) const {
-    return  inp<step,dir>(L,ix+1,iy,iz) + inp<step,dir>(L,ix-1,iy,iz)
-          + inp<step,dir>(L,ix,iy+1,iz) + inp<step,dir>(L,ix,iy-1,iz)
-          + inp<step,dir>(L,ix,iy,iz+1) + inp<step,dir>(L,ix,iy,iz-1)
-          - 6 * inp<step,dir>(L,ix,iy,iz);
-  }
-  template<StepType step> Real advectionCoef(const Real dt, const Real h) const;
-  template<StepType step> Real diffusionCoef(const Real dt, const Real h, const Real mu) const;
-
-  int getStencilBeg() const { return -1; }
-  int getStencilEnd() const { return  2; }
-};
-
-template<> inline Real Central::advectionCoef<Euler>(const Real dt, const Real h) const {
-  return -dt/(2*h);
-}
-template<> inline Real Central::advectionCoef<RK1>(const Real dt, const Real h) const {
-  return -dt/(4*h);
-}
-template<> inline Real Central::advectionCoef<RK2>(const Real dt, const Real h) const {
-  return -dt/(2*h);
-}
-template<> inline Real Central::diffusionCoef<Euler>(const Real dt, const Real h, const Real mu) const {
-  return (mu/h) * (dt/h);
-}
-template<> inline Real Central::diffusionCoef<RK1>(const Real dt, const Real h, const Real mu) const {
-  return (mu/h) * (dt/h) / 2;
-}
-template<> inline Real Central::diffusionCoef<RK2>(const Real dt, const Real h, const Real mu) const {
-  return (mu/h) * (dt/h);
-}
-
-struct CentralStretched
-{
-  CentralStretched(const SimulationData& s) {}
-  template<StepType step, int dir> Real diffx(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
-    const Real um1 = inp<step,dir>(L,ix-1,iy,iz);
-    const Real ucc = inp<step,dir>(L,ix,iy,iz);
-    const Real up1 = inp<step,dir>(L,ix+1,iy,iz);
-    return __FD_2ND(ix, o.fd_cx.first, um1, ucc, up1);
-  }
-  template<StepType step, int dir> Real diffy(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
-    const Real um1 = inp<step,dir>(L,ix,iy-1,iz);
-    const Real ucc = inp<step,dir>(L,ix,iy,iz);
-    const Real up1 = inp<step,dir>(L,ix,iy+1,iz);
-    return __FD_2ND(iy, o.fd_cy.first, um1, ucc, up1);
-  }
-  template<StepType step, int dir> Real diffz(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const {
-    const Real um1 = inp<step,dir>(L,ix,iy,iz-1);
-    const Real ucc = inp<step,dir>(L,ix,iy,iz);
-    const Real up1 = inp<step,dir>(L,ix,iy,iz+1);
-    return __FD_2ND(iz, o.fd_cz.first, um1, ucc, up1);
-  }
-  template<StepType step, int dir> Real   lap(LabMPI& L, const FluidBlock& o, const int ix, const int iy, const int iz) const {
-    const Real um1x = inp<step,dir>(L,ix-1,iy,iz), up1x = inp<step,dir>(L,ix+1,iy,iz);
-    const Real um1y = inp<step,dir>(L,ix,iy-1,iz), up1y = inp<step,dir>(L,ix,iy+1,iz);
-    const Real um1z = inp<step,dir>(L,ix,iy,iz-1), up1z = inp<step,dir>(L,ix,iy,iz+1);
-    const Real ucc = inp<step,dir>(L,ix,iy,iz);
-    const Real d2dx2 = __FD_2ND(ix, o.fd_cx.second, um1x, ucc, up1x);
-    const Real d2dy2 = __FD_2ND(iy, o.fd_cy.second, um1y, ucc, up1y);
-    const Real d2dz2 = __FD_2ND(iz, o.fd_cz.second, um1z, ucc, up1z);
-    return d2dx2 + d2dy2 + d2dz2;
-  }
-  template<StepType step> Real advectionCoef(const Real dt, const Real h) const;
-  template<StepType step> Real diffusionCoef(const Real dt, const Real h, const Real mu) const;
-
-  int getStencilBeg() const { return -1; }
-  int getStencilEnd() const { return  2; }
-};
-
-template<> inline Real CentralStretched::advectionCoef<Euler>(const Real dt, const Real h) const {
-  return -dt;
-}
-template<> inline Real CentralStretched::diffusionCoef<Euler>(const Real dt, const Real h, const Real mu) const {
-  return dt * mu;
-}
-/* // unused
-template<> inline Real CentralStretched::advectionCoef<RK1>(const Real dt, const Real h) const {
-  return -dt / 2;
-}
-template<> inline Real CentralStretched::advectionCoef<RK2>(const Real dt, const Real h) const {
-  return -dt;
-}
-template<> inline Real CentralStretched::diffusionCoef<RK1>(const Real dt, const Real h, const Real mu) const {
-  return dt * mu / 2;
-}
-template<> inline Real CentralStretched::diffusionCoef<RK2>(const Real dt, const Real h, const Real mu) const {
-  return dt * mu;
-}
-*/
 
 struct Upwind3rd
 {
@@ -552,54 +420,32 @@ struct UpdateAndCorrectInflow
 
 void AdvectionDiffusion::operator()(const double dt)
 {
-  if(sim.bUseStretchedGrid)
+  if(sim.bRungeKutta23)
   {
-    sim.startProfiler("AdvDiff Kernel");
-    const KernelAdvectDiffuse<Euler, CentralStretched> K(sim);
-    compute(K);
+    sim.startProfiler("AdvDiff23 Kernel");
+    const KernelAdvectDiffuse<RK1, Upwind3rd> K1(sim);
+    compute(K1);
+    const KernelAdvectDiffuse<RK2, Upwind3rd> K2(sim);
+    compute(K2);
     sim.stopProfiler();
-    sim.startProfiler("AdvDiff copy");
-    const UpdateAndCorrectInflow U(sim);
-    U.operate<true, true>();
-    sim.stopProfiler();
-  }
-  else
-  {
-    if(sim.bRungeKutta23) {
-      sim.startProfiler("AdvDiff23 Kernel");
-      if(sim.bAdvection3rdOrder) {
-        const KernelAdvectDiffuse<RK1, Upwind3rd> K1(sim);
-        compute(K1);
-        const KernelAdvectDiffuse<RK2, Upwind3rd> K2(sim);
-        compute(K2);
-      } else {
-        const KernelAdvectDiffuse<RK1, Central> K1(sim);
-        compute(K1);
-        const KernelAdvectDiffuse<RK2, Central> K2(sim);
-        compute(K2);
-      }
-      sim.stopProfiler();
-      if(not sim.bUseFourierBC) {
-        sim.startProfiler("AdvDiff copy");
-        const UpdateAndCorrectInflow U(sim);
-        U.operate<false>();
-        sim.stopProfiler();
-      }
-    } else {
-      sim.startProfiler("AdvDiff Kernel");
-      if(sim.bAdvection3rdOrder) {
-        const KernelAdvectDiffuse<Euler, Upwind3rd> K(sim);
-        compute(K);
-      } else {
-        const KernelAdvectDiffuse<Euler, Central> K(sim);
-        compute(K);
-      }
-      sim.stopProfiler();
+    if(not sim.bUseFourierBC)
+    {
       sim.startProfiler("AdvDiff copy");
       const UpdateAndCorrectInflow U(sim);
-      U.operate<true>();
+      U.operate<false>();
       sim.stopProfiler();
     }
+  } 
+  else 
+  {
+    sim.startProfiler("AdvDiff Kernel");
+    const KernelAdvectDiffuse<Euler, Upwind3rd> K(sim);
+    compute(K);
+    sim.stopProfiler();   
+    sim.startProfiler("AdvDiff copy");
+    const UpdateAndCorrectInflow U(sim);
+    U.operate<true>();
+    sim.stopProfiler();
   }
   check("AdvectionDiffusion");
 }
