@@ -19,7 +19,6 @@
 #include "operators/ObstaclesUpdate.h"
 #include "operators/Penalization.h"
 #include "operators/PressureProjection.h"
-#include "operators/IterativePressureNonUniform.h"
 #include "operators/IterativePressurePenalization.h"
 #include "operators/PressureRHS.h"
 #include "operators/FixedMassFlux_nonUniform.h"
@@ -31,7 +30,6 @@
 
 #include "obstacles/ObstacleFactory.h"
 #include "operators/ProcessHelpers.h"
-#include "utils/NonUniformScheme.h"
 
 #include <Cubism/HDF5Dumper_MPI.h>
 #include <Cubism/ArgumentParser.h>
@@ -154,28 +152,24 @@ void Simulation::_icFromH5(std::string h5File)
 
 void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
 {
-  if( not sim.bUseStretchedGrid )
-  {
-    if(sim.rank==0)
-      printf("Uniform-resolution grid of sizes: %f %f %f\n",
-      sim.extent[0],sim.extent[1],sim.extent[2]);
-    sim.grid = new FluidGridMPI(1, //these arguments are not used in Cubism-AMR
-                                1, //these arguments are not used in Cubism-AMR
-                                1, //these arguments are not used in Cubism-AMR
-                                sim.bpdx,
-                                sim.bpdy,
-                                sim.bpdz,
-                                sim.maxextent,
-                                sim.levelStart,sim.levelMax,sim.app_comm,
-                                (sim.BCx_flag == periodic),
-                                (sim.BCy_flag == periodic),
-                                (sim.BCz_flag == periodic));
-    assert(sim.grid != nullptr);
+  if(sim.rank==0) printf("Uniform-resolution grid of sizes: %f %f %f\n", sim.extent[0],sim.extent[1],sim.extent[2]);
+  sim.grid = new FluidGridMPI(1, //these arguments are not used in Cubism-AMR
+                              1, //these arguments are not used in Cubism-AMR
+                              1, //these arguments are not used in Cubism-AMR
+                              sim.bpdx,
+                              sim.bpdy,
+                              sim.bpdz,
+                              sim.maxextent,
+                              sim.levelStart,sim.levelMax,sim.app_comm,
+                              (sim.BCx_flag == periodic),
+                              (sim.BCy_flag == periodic),
+                              (sim.BCz_flag == periodic));
+  assert(sim.grid != nullptr);
 
-    //Refine/compress only according to chi field for now
-    sim.amr = new AMR( *(sim.grid),sim.Rtol,sim.Ctol);
+  //Refine/compress only according to chi field for now
+  sim.amr = new AMR( *(sim.grid),sim.Rtol,sim.Ctol);
 
-    #ifdef CUP_ASYNC_DUMP
+  #ifdef CUP_ASYNC_DUMP
       // create new comm so that if there is a barrier main work is not affected
       MPI_Comm_split(sim.app_comm, 0, sim.rank, &sim.dump_comm);
       sim.dump = new  DumpGridMPI(1, //these arguments are not used in Cubism-AMR
@@ -189,14 +183,8 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                                   (sim.BCx_flag == periodic),
                                   (sim.BCy_flag == periodic),
                                   (sim.BCz_flag == periodic));
-    #endif
-    sim.UpdateHmin();
-  }
-  else
-  {
-    std::cout << "Stretched mesh cannot be used with AMR. Aborting..." << std::endl;
-    MPI_Abort(sim.app_comm,1);
-  }
+  #endif
+  sim.UpdateHmin();
 
   const std::vector<BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel for schedule(static)
@@ -246,13 +234,7 @@ void Simulation::setupOperators(ArgumentParser & parser)
 
   if(sim.bIterativePenalization)
   {
-    if(sim.bUseStretchedGrid && sim.obstacle_vector->nObstacles() > 0) {
-      printf("Non-uniform grids AND obstacles AND iterative penalization are not compatible. Pick 2 out of 3.\n");
-      fflush(0); MPI_Abort(sim.app_comm, 1);
-    }
-    if(sim.bUseStretchedGrid)
-      sim.pipeline.push_back(new IterativePressureNonUniform(sim));
-    else if (sim.obstacle_vector->nObstacles() > 0)
+    if (sim.obstacle_vector->nObstacles() > 0)
       sim.pipeline.push_back(new IterativePressurePenalization(sim));
     else {
       printf("Undefined type of pressure iteration. What are ya simulating?\n");

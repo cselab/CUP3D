@@ -482,12 +482,7 @@ void SGS::operator()(const double dt)
   SGSGridMPI * sgsGrid = (SGSGridMPI*) _sgsGrid;
   sim.startProfiler("SGS Kernel");
   std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
-  if(sim.bUseStretchedGrid) {
-    printf("ERROR: SGS model not implemented with non uniform grid.\n");
-    fflush(0); abort();
-    //const KernelSGS_nonUniform sgs(dt, sim.uinf.data());
-    //compute<KernelSGS_nonUniform>(sgs);
-  } else {
+  {
     if (sim.sgs=="DSM" or sim.cs < 0) { // Dynamic Smagorinsky Model
       #ifndef DSM_LILLY
         const KernelSGS_DSM computeCs(sgsGrid);

@@ -356,13 +356,8 @@ class ComputeVorticity : public Operator
   void operator()(const double dt)
   {
     sim.startProfiler("Vorticity Kernel");
-    if(sim.bUseStretchedGrid) {
-      printf("TODO Compute Vorticity with stretched grids");
-      fflush(0); abort();
-    } else {
-      const KernelVorticity K;
-      compute<KernelVorticity>(K,true);
-    }
+    const KernelVorticity K;
+    compute<KernelVorticity>(K,true);
     sim.stopProfiler();
     check("Vorticity");
   }
@@ -409,13 +404,8 @@ class ComputeQcriterion : public Operator
   void operator()(const double dt)
   {
     sim.startProfiler("Qcriterion Kernel");
-    if(sim.bUseStretchedGrid) {
-      printf("TODO Compute Q-criterion with stretched grids");
-      fflush(0); abort();
-    } else {
-      const KernelQcriterion K;
-      compute<KernelQcriterion>(K);
-    }
+    const KernelQcriterion K;
+    compute<KernelQcriterion>(K);
     sim.stopProfiler();
     check("Qcriterion");
   }

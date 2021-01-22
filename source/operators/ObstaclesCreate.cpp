@@ -137,96 +137,6 @@ class KernelCharacteristicFunction
   }
 };
 
-class KernelCharacteristicFunction_nonUniform
-{
-  using v_v_ob = std::vector<std::vector<ObstacleBlock*>*>;
-  const v_v_ob & vec_obstacleBlocks;
-
-  public:
-  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_TMPU}}};
-
-  KernelCharacteristicFunction_nonUniform(const v_v_ob& v) : vec_obstacleBlocks(v) {}
-
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
-  {
-    const BlkCoeffX &cx =b.fd_cx.first, &cy =b.fd_cy.first, &cz =b.fd_cz.first;
-
-    for (size_t obst_id = 0; obst_id<vec_obstacleBlocks.size(); obst_id++)
-    {
-      const auto& obstacleBlocks = * vec_obstacleBlocks[obst_id];
-      ObstacleBlock*const o = obstacleBlocks[info.blockID];
-      if(o == nullptr) continue;
-      CHIMAT & __restrict__ CHI = o->chi;
-      const CHIMAT & __restrict__ SDF = o->sdf;
-      o->CoM_x = 0; o->CoM_y = 0; o->CoM_z = 0; o->mass  = 0;
-
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        Real p[3]; info.pos(p, ix,iy,iz);
-        Real h[3]; info.spacing(h, ix, iy, iz);
-        const Real vol = h[0]*h[1]*h[2];
-        const Real maxH = std::max({h[0],h[1],h[2]});
-        // towers would need two points on each side, but
-        // I do not really know what to do here, let's be safe:
-        if (SDF[iz][iy][ix] > +3*maxH || SDF[iz][iy][ix] < -3*maxH)
-        {
-          CHI[iz][iy][ix] = SDF[iz][iy][ix] > 0 ? 1 : 0;
-        }
-        else
-        {
-          const Real dist   =lab(ix,iy,iz).tmpU;
-          const Real distPx =lab(ix+1,iy,iz).tmpU, distMx =lab(ix-1,iy,iz).tmpU;
-          const Real distPy =lab(ix,iy+1,iz).tmpU, distMy =lab(ix,iy-1,iz).tmpU;
-          const Real distPz =lab(ix,iy,iz+1).tmpU, distMz =lab(ix,iy,iz-1).tmpU;
-          // gradU
-          const Real gradUX = __FD_2ND(ix, cx, distMx, dist, distPx);
-          const Real gradUY = __FD_2ND(iy, cy, distMy, dist, distPy);
-          const Real gradUZ = __FD_2ND(iz, cz, distMz, dist, distPz);
-          const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
-
-          const Real IplusX = distPx < 0 ? 0 : distPx;
-          const Real IminuX = distMx < 0 ? 0 : distMx;
-          const Real IplusY = distPy < 0 ? 0 : distPy;
-          const Real IminuY = distMy < 0 ? 0 : distMy;
-          const Real IplusZ = distPz < 0 ? 0 : distPz;
-          const Real IminuZ = distMz < 0 ? 0 : distMz;
-          const Real Icent  = dist   < 0 ? 0 : dist;
-          // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
-          const Real gradIX = __FD_2ND(ix, cx, IminuX, Icent, IplusX);
-          const Real gradIY = __FD_2ND(iy, cy, IminuY, Icent, IplusY);
-          const Real gradIZ = __FD_2ND(iz, cz, IminuZ, Icent, IplusZ);
-          const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
-          CHI[iz][iy][ix]  =        numH/gradUSq;
-
-          const double HplusX = std::fabs(distPx)<EPS ? 0.5 : (distPx<0? 0 : 1);
-          const double HminuX = std::fabs(distMx)<EPS ? 0.5 : (distMx<0? 0 : 1);
-          const double HplusY = std::fabs(distPy)<EPS ? 0.5 : (distPy<0? 0 : 1);
-          const double HminuY = std::fabs(distMy)<EPS ? 0.5 : (distMy<0? 0 : 1);
-          const double HplusZ = std::fabs(distPz)<EPS ? 0.5 : (distPz<0? 0 : 1);
-          const double HminuZ = std::fabs(distMz)<EPS ? 0.5 : (distMz<0? 0 : 1);
-          const double Hcent  = std::fabs(dist  )<EPS ? 0.5 : (dist  <0? 0 : 1);
-          const double gradHX = __FD_2ND(ix, cx, HminuX, Hcent, HplusX);
-          const double gradHY = __FD_2ND(iy, cy, HminuY, Hcent, HplusY);
-          const double gradHZ = __FD_2ND(iz, cz, HminuZ, Hcent, HplusZ);
-          const double numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
-          const double Delta = vol * numD/gradUSq; //h^3 * Delta
-          if (Delta>EPS) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
-        }
-
-        b(ix,iy,iz).chi = std::max(CHI[iz][iy][ix], b(ix,iy,iz).chi);
-        o->CoM_x += vol * CHI[iz][iy][ix] * p[0];
-        o->CoM_y += vol * CHI[iz][iy][ix] * p[1];
-        o->CoM_z += vol * CHI[iz][iy][ix] * p[2];
-        o->mass  += vol * CHI[iz][iy][ix];
-      }
-      o->allocate_surface();
-    }
-  }
-};
 
 struct KernelComputeGridCoM : public ObstacleVisitor
 {
@@ -472,13 +382,6 @@ void CreateObstacles::operator()(const double dt)
   sim.stopProfiler();
 
   sim.startProfiler("Obst CHI");
-  if(sim.bUseStretchedGrid)
-  {
-    auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
-    const KernelCharacteristicFunction_nonUniform K(vecOB);
-    compute<KernelCharacteristicFunction_nonUniform>(K);
-  }
-  else
   {
     auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
     const KernelCharacteristicFunction K(vecOB);

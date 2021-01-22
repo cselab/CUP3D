@@ -185,12 +185,11 @@ void SimulationData::_preprocessArguments()
   const double maxbpd = std::max({NFE[0], NFE[1], NFE[2]});
   maxextent = std::max({extent[0], extent[1], extent[2]});
   if( extent[0] <= 0 || extent[1] <= 0 || extent[2] <= 0 ) {
-    bUseStretchedGrid = false;
     extent[0] = (NFE[0]/maxbpd) * maxextent;
     extent[1] = (NFE[1]/maxbpd) * maxextent;
     extent[2] = (NFE[2]/maxbpd) * maxextent;
   } else {
-    bUseStretchedGrid = true;
+    abort();
   }
   printf("Domain extent: %lg %lg %lg\n", extent[0], extent[1], extent[2]);
 
