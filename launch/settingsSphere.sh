@@ -1,6 +1,6 @@
 #!/bin/bash
 NNODE=64
-DLM=${DLM:-0}
+DLM=${DLM:-1}
 LAMBDA=${LAMBDA:-1e6}
 BPDX=${BPDX:-8}
 BPDY=${BPDY:-8}
