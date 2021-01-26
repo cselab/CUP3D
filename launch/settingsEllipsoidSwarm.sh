@@ -1,5 +1,5 @@
 #!/bin/bash
-NNODE=256
+NNODE=300
 BPDX=${BPDX:-16}
 BPDY=${BPDY:-8}
 BPDZ=${BPDZ:-8}
@@ -612,8 +612,8 @@ FACTORY+="StefanFish L=0.2 T=1.0 xpos=2.6591624178615763 ypos=1.2877449276734139
 OPTIONS=
 OPTIONS+=" -extentx 8.0"
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.25 -tend 30.0 "
+OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.10 -tend 100.0 "
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
-OPTIONS+=" -CFL 0.20 -use-dlm 10 -nu ${NU}"
+OPTIONS+=" -CFL 0.25 -use-dlm 10 -nu ${NU}"
 OPTIONS+=" -levelMax 6 -levelStart 4 -Rtol 0.5 -Ctol 0.05"
 OPTIONS+=" -Advection3rdOrder=true"
