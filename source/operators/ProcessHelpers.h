@@ -165,78 +165,10 @@ class KernelVorticity
       const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
       const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
       const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
-      o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
-      o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
-      o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
-#if 0
-      const FluidElement &LC=lab(ix,iy,iz);
-      if (ix==0)
-      {
-        const FluidElement &LEE=lab(ix+2,iy,iz);
-        //const FluidElement &LE3=lab(ix+3,iy,iz);
-        //const FluidElement &LE4=lab(ix+4,iy,iz);
-        o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - 2*(-1.5*LC.w+2.0*LE.w-0.5*LEE.w) );
-        o(ix,iy,iz).tmpW = inv2h * ( +2*(-1.5*LC.v+2.0*LE.v-0.5*LEE.v) - (LN.u-LS.u) );
-        //o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - 2*(-25.0/12.0*LC.w+4.0*LE.w-3.0*LEE.w+4.0/3.0*LE3.w-0.25*LE4.w) );
-        //o(ix,iy,iz).tmpW = inv2h * ( +2*(-25.0/12.0*LC.v+4.0*LE.v-3.0*LEE.v+4.0/3.0*LE3.v-0.25*LE4.v) - (LN.u-LS.u) );
-      }
-      if (ix==FluidBlock::sizeX-1)
-      {
-        const FluidElement &LWW=lab(ix-2,iy,iz);
-        //const FluidElement &LW3=lab(ix-3,iy,iz);
-        //const FluidElement &LW4=lab(ix-4,iy,iz);
-        o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - 2*(+1.5*LC.w-2.0*LW.w+0.5*LWW.w) );
-        o(ix,iy,iz).tmpW = inv2h * ( +2*(+1.5*LC.v-2.0*LW.v+0.5*LWW.v) - (LN.u-LS.u) );
-        //o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - 2*(+25.0/12.0*LC.w-4.0*LW.w+3.0*LWW.w-4.0/3.0*LW3.w+0.25*LW4.w) );
-        //o(ix,iy,iz).tmpW = inv2h * ( +2*(+25.0/12.0*LC.v-4.0*LW.v+3.0*LWW.v-4.0/3.0*LW3.v+0.25*LW4.v) - (LN.u-LS.u) );
-      }
-      if (iy==0)
-      {
-        const FluidElement &LNN=lab(ix,iy+2,iz);
-        //const FluidElement &LN3=lab(ix,iy+3,iz);
-        //const FluidElement &LN4=lab(ix,iy+4,iz);
-        o(ix,iy,iz).tmpU = inv2h * ( +2*(-1.5*LC.w+2.0*LN.w-0.5*LNN.w) - (LB.v-LF.v) );
-        o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - 2*(-1.5*LC.u+2.0*LN.u-0.5*LNN.u) );
-        //o(ix,iy,iz).tmpU = inv2h * ( +2*(-25.0/12.0*LC.w+4.0*LN.w-3.0*LNN.w+4.0/3.0*LN3.w-0.25*LN4.w) - (LB.v-LF.v) );
-        //o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - 2*(-25.0/12.0*LC.u+4.0*LN.u-3.0*LNN.u+4.0/3.0*LN3.u-0.25*LN4.u) );
-      }
-      if (iy==FluidBlock::sizeY-1)
-      {
-        const FluidElement &LSS=lab(ix,iy-2,iz);
-        //const FluidElement &LS3=lab(ix,iy-3,iz);
-        //const FluidElement &LS4=lab(ix,iy-4,iz);
-        o(ix,iy,iz).tmpU = inv2h * ( +2*(+1.5*LC.w-2.0*LS.w+0.5*LSS.w) - (LB.v-LF.v) );
-        o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - 2*(+1.5*LC.u-2.0*LS.u+0.5*LSS.u) );
-        //o(ix,iy,iz).tmpU = inv2h * ( +2*(+25.0/12.0*LC.w-4.0*LS.w+3.0*LSS.w-4.0/3.0*LS3.w+0.25*LS4.w) - (LB.v-LF.v) );
-        //o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - 2*(+25.0/12.0*LC.u-4.0*LS.u+3.0*LSS.u-4.0/3.0*LS3.u+0.25*LS4.u) );
-      }
-      if (iz==0)
-      {
-        const FluidElement &LBB=lab(ix,iy,iz+2);
-        //const FluidElement &LB3=lab(ix,iy,iz+3);
-        //const FluidElement &LB4=lab(ix,iy,iz+4);
-        o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - 2*(-1.5*LC.v+2.0*LB.v-0.5*LBB.v) );
-        o(ix,iy,iz).tmpV = inv2h * (  2*(-1.5*LC.u+2.0*LB.u-0.5*LBB.u) - (LE.w-LW.w) );
-        //o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - 2*(-25.0/12.0*LC.v+4.0*LB.v-3.0*LBB.v+4.0/3.0*LB3.v-0.25*LB4.v) );
-        //o(ix,iy,iz).tmpV = inv2h * (  2*(-25.0/12.0*LC.u+4.0*LB.u-3.0*LBB.u+4.0/3.0*LB3.u-0.25*LB4.u) - (LE.w-LW.w) );
-      }
-      if (iz==FluidBlock::sizeZ-1)
-      {
-        const FluidElement &LFF=lab(ix,iy,iz-2);
-        //const FluidElement &LF3=lab(ix,iy,iz-3);
-        //const FluidElement &LF4=lab(ix,iy,iz-4);
-        o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - 2*(+1.5*LC.v-2.0*LF.v+0.5*LFF.v) );
-        o(ix,iy,iz).tmpV = inv2h * ( 2*(+1.5*LC.u-2.0*LF.u+0.5*LFF.u) - (LE.w-LW.w) );
-        //o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - 2*(+25.0/12.0*LC.v-4.0*LF.v+3.0*LFF.v-4.0/3.0*LF3.v+0.25*LF4.v) );
-        //o(ix,iy,iz).tmpV = inv2h * ( 2*(+25.0/12.0*LC.u-4.0*LF.u+3.0*LFF.u-4.0/3.0*LF3.u+0.25*LF4.u) - (LE.w-LW.w) );
-      }
-#endif
-      //o(ix,iy,iz).tmpU =  __FD_2ND(iy, cy, phiS.w, phiC.w, phiN.w)
-      //                  - __FD_2ND(iz, cz, phiF.v, phiC.v, phiB.v);
-      //o(ix,iy,iz).tmpV =  __FD_2ND(iz, cz, phiF.u, phiC.u, phiB.u)
-      //                  - __FD_2ND(ix, cx, phiW.w, phiC.w, phiE.w);
-      //o(ix,iy,iz).tmpW =  __FD_2ND(ix, cx, phiW.v, phiC.v, phiE.v)
-      //                  - __FD_2ND(iy, cy, phiS.u, phiC.u, phiN.u);
+      const Real mask = 1.0 - o(ix,iy,iz).chi;
+      o(ix,iy,iz).tmpU = mask * inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
+      o(ix,iy,iz).tmpV = mask * inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
+      o(ix,iy,iz).tmpW = mask * inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
     }
 #if 0
     BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
