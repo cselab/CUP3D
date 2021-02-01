@@ -89,10 +89,10 @@ class Obstacle
 protected:
   SimulationData & sim;
   FluidGridMPI * const grid = sim.grid;
-  std::vector<ObstacleBlock*> obstacleBlocks;
   bool printedHeaderVels = false;
   bool isSelfPropelled = false;
 public:
+  std::vector<ObstacleBlock*> obstacleBlocks;
   int obstacleID=0;
   bool bInteractive=0, bHasSkin=0, bForces=0;
   double quaternion[4] = {1,0,0,0}, _2Dangle = 0, phaseShift=0; //orientation
