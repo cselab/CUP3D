@@ -37,12 +37,7 @@ struct KernelPressureRHS : public ObstacleVisitor
   Lab * lab_ptr = nullptr;
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil =
-  #ifdef PENAL_THEN_PRES
-    nShapes>0 ? StencilInfo(-1,-1,-1, 2,2,2, false,
-                                    {FE_U,FE_V,FE_W,FE_TMPU,FE_TMPV,FE_TMPW} ) :
-  #endif
-                StencilInfo(-1,-1,-1, 2,2,2, false, {FE_U, FE_V, FE_W});
+  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, {FE_U, FE_V, FE_W});
 
   KernelPressureRHS(SimulationData& s, std::vector<int> & bETS) :sim(s), bElemTouchSurf(bETS) {}
 
@@ -168,9 +163,6 @@ struct KernelPressureRHS : public ObstacleVisitor
     const Real rampUp = obstacle->lambda_factor;
     // lambda = 1/dt hardcoded for expl time int, other options are wrong.
     const Real lamDt = rampUp * (implicitPenalization? sim.lambda * dt : 1.0);
-    #ifdef PENAL_THEN_PRES
-      const Real h = info.h_gridpoint, fac = 0.5*h*h/dt;
-    #endif
 
     BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -180,17 +172,8 @@ struct KernelPressureRHS : public ObstacleVisitor
       if (lab(ix,iy,iz).chi > CHI[iz][iy][ix]) continue;
       const size_t idx = offset + SZ * iz + SY * iy + ix;
       assert(idx < bElemTouchSurf.size());
-      const Real X=CHI[iz][iy][ix], penalFac = not implicitPenalization? X*lamDt
-                                               : X * lamDt/(1 + lamDt * X);
-      #ifdef PENAL_THEN_PRES
-        const FluidElement &LW = lab(ix-1,iy,  iz  ), &LE = lab(ix+1,iy,  iz  );
-        const FluidElement &LS = lab(ix,  iy-1,iz  ), &LN = lab(ix,  iy+1,iz  );
-        const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
-        const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
-        const Real srcBulk = - penalFac * fac * divUs;
-      #else
-        const Real srcBulk = - penalFac * b(ix,iy,iz).p;
-      #endif
+      const Real X=CHI[iz][iy][ix] , penalFac = not implicitPenalization? X*lamDt : X * lamDt/(1 + lamDt * X);
+      const Real srcBulk = - penalFac * b(ix,iy,iz).p;
       bElemTouchSurf[idx] = obstID;
       posRHS[obstID] += CHI[iz][iy][ix];
       sumRHS[obstID] += srcBulk;
@@ -214,72 +197,6 @@ struct KernelPressureRHS : public ObstacleVisitor
       faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
       faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
     }
-    #ifdef PENAL_THEN_PRES
-
-    if (faceXm != nullptr)
-    {
-      int ix = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      {
-        const Real X=CHI[iz][iy][ix], penalFac = not implicitPenalization? X*lamDt: X * lamDt/(1 + lamDt * X);
-        faceXm[iy + FluidBlock::sizeY * iz].p += - penalFac* fac *(lab(ix-1,iy,iz).tmpU + lab(ix,iy,iz).tmpU);
-      }
-    }
-    if (faceXp != nullptr)
-    {
-      int ix = FluidBlock::sizeX-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      {
-        const Real X=CHI[iz][iy][ix], penalFac = not implicitPenalization? X*lamDt: X * lamDt/(1 + lamDt * X);
-        faceXp[iy + FluidBlock::sizeY * iz].p +=   penalFac * fac *(lab(ix+1,iy,iz).tmpU + lab(ix,iy,iz).tmpU);
-      }
-    }
-    
-    if (faceYm != nullptr)
-    {
-      int iy = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        const Real X=CHI[iz][iy][ix], penalFac = not implicitPenalization? X*lamDt: X * lamDt/(1 + lamDt * X);
-        faceYm[ix + FluidBlock::sizeX * iz].p += - penalFac * fac *(lab(ix,iy-1,iz).tmpV + lab(ix,iy,iz).tmpV);
-      }
-    }
-    if (faceYp != nullptr)
-    {
-      int iy = FluidBlock::sizeY-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        const Real X=CHI[iz][iy][ix], penalFac = not implicitPenalization? X*lamDt: X * lamDt/(1 + lamDt * X);
-        faceYp[ix + FluidBlock::sizeX * iz].p +=  penalFac* fac *(lab(ix,iy+1,iz).tmpV + lab(ix,iy,iz).tmpV);
-      }
-    }
-    
-    if (faceZm != nullptr)
-    {
-      int iz = 0;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        const Real X=CHI[iz][iy][ix], penalFac = not implicitPenalization? X*lamDt: X * lamDt/(1 + lamDt * X);
-        faceZm[ix + FluidBlock::sizeX * iy].p += - penalFac *fac *(lab(ix,iy,iz-1).tmpW + lab(ix,iy,iz).tmpW);
-      }
-    }
-    if (faceZp != nullptr)
-    {
-      int iz = FluidBlock::sizeZ-1;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        const Real X=CHI[iz][iy][ix], penalFac = not implicitPenalization? X*lamDt: X * lamDt/(1 + lamDt * X);
-        faceZp[ix + FluidBlock::sizeX * iy].p +=  penalFac*fac *(lab(ix,iy,iz+1).tmpW + lab(ix,iy,iz).tmpW);
-      }
-    }
-    #else
-
     if (faceXm != nullptr)
     {
       int ix = 0;
@@ -342,7 +259,6 @@ struct KernelPressureRHS : public ObstacleVisitor
         faceZp[ix + FluidBlock::sizeX * iy].p *= (1.0 - penalFac);
       }
     }
-    #endif
   }
 };
 
@@ -492,27 +408,6 @@ void PressureRHS::operator()(const double dt)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       std::swap(b(ix,iy,iz).p, b.tmp[iz][iy][ix]);
   }
-
-  #ifdef PENAL_THEN_PRES
-    sim.startProfiler("PresRHS Udef");
-    if(nShapes > 0)
-    { //zero fields, going to contain Udef:
-      #pragma omp parallel for schedule(static)
-      for(size_t i=0; i<vInfo.size(); i++) {
-        FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-          b(ix,iy,iz).tmpU = 0; b(ix,iy,iz).tmpV = 0; b(ix,iy,iz).tmpW = 0;
-        }
-      }
-      //store deformation velocities onto tmp fields:
-      ObstacleVisitor* visitor = new PressureRHSObstacleVisitor(grid);
-      sim.obstacle_vector->Accept(visitor);
-      delete visitor;
-    }
-    sim.stopProfiler();
-  #endif
 
   sim.startProfiler("PresRHS Kernel");
   PRESRHS_LOOP(KernelPressureRHS<0>);
