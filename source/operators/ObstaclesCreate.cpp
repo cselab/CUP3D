@@ -25,26 +25,7 @@ class KernelCharacteristicFunction
   const v_v_ob & vec_obstacleBlocks;
 
   public:
-  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {{FE_TMPU}}};
-  /* // now not in use
-  static Real computeCHI(const Real h, const Real dist,
-                         const Real distPx, const Real distMx,
-                         const Real distPy, const Real distMy,
-                         const Real distPz, const Real distMz)
-  {
-    if (dist > +2*h || dist < -2*h) return dist > 0 ? 1 : 0;
-
-    Real gradUX = distPx-distMx, gradUY = distPy-distMy, gradUZ = distPz-distMz;
-    const Real IplusX = distPx<0? 0 : distPx, IminuX = distMx<0? 0 : distMx;
-    const Real IplusY = distPy<0? 0 : distPy, IminuY = distMy<0? 0 : distMy;
-    const Real IplusZ = distPz<0? 0 : distPz, IminuZ = distMz<0? 0 : distMz;
-    // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
-    Real gradIX = IplusX-IminuX, gradIY = IplusY-IminuY, gradIZ = IplusZ-IminuZ;
-    const Real gradUSq = gradUX*gradUX + gradUY*gradUY + gradUZ*gradUZ;
-    return (gradIX*gradUX +gradIY*gradUY +gradIZ*gradUZ)/std::max(gradUSq, EPS);
-  }
-  */
 
   KernelCharacteristicFunction(const v_v_ob& v) : vec_obstacleBlocks(v) {}
 
@@ -62,12 +43,14 @@ class KernelCharacteristicFunction
       const CHIMAT & __restrict__ SDF = o->sdf;
       o->CoM_x = 0; o->CoM_y = 0; o->CoM_z = 0; o->mass  = 0;
 
+      const int gp = 1;
+
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       {
         // here I read fist from SDF to deal with obstacles sharing block
-        if (SDF[iz][iy][ix] > +2*h || SDF[iz][iy][ix] < -2*h)
+        if (SDF[iz][iy][ix] > +gp*h || SDF[iz][iy][ix] < -gp*h)
         {
           CHI[iz][iy][ix] = SDF[iz][iy][ix] > 0 ? 1 : 0;
         }
@@ -77,23 +60,23 @@ class KernelCharacteristicFunction
           const Real distPy =lab(ix,iy+1,iz).tmpU, distMy =lab(ix,iy-1,iz).tmpU;
           const Real distPz =lab(ix,iy,iz+1).tmpU, distMz =lab(ix,iy,iz-1).tmpU;
           // gradU
-          const Real gradUX = inv2h*(distPx - distMx);
-          const Real gradUY = inv2h*(distPy - distMy);
-          const Real gradUZ = inv2h*(distPz - distMz);
+          const Real gradUX = distPx - distMx;
+          const Real gradUY = distPy - distMy;
+          const Real gradUZ = distPz - distMz;
           const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
-
-          const Real IplusX = distPx < 0 ? 0 : distPx;
-          const Real IminuX = distMx < 0 ? 0 : distMx;
-          const Real IplusY = distPy < 0 ? 0 : distPy;
-          const Real IminuY = distMy < 0 ? 0 : distMy;
-          const Real IplusZ = distPz < 0 ? 0 : distPz;
-          const Real IminuZ = distMz < 0 ? 0 : distMz;
+          const Real IplusX = std::max(0.0,distPx);
+          const Real IminuX = std::max(0.0,distMx);
+          const Real IplusY = std::max(0.0,distPy);
+          const Real IminuY = std::max(0.0,distMy);
+          const Real IplusZ = std::max(0.0,distPz);
+          const Real IminuZ = std::max(0.0,distMz);
           // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
-          const Real gradIX = inv2h*(IplusX - IminuX);
-          const Real gradIY = inv2h*(IplusY - IminuY);
-          const Real gradIZ = inv2h*(IplusZ - IminuZ);
+          const Real gradIX = IplusX - IminuX;
+          const Real gradIY = IplusY - IminuY;
+          const Real gradIZ = IplusZ - IminuZ;
           const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
-          CHI[iz][iy][ix]  =        numH/gradUSq;
+          CHI[iz][iy][ix] = numH/gradUSq;
+          //CHI[iz][iy][ix]  = 0.5/(gp*h)* ( SDF[iz][iy][ix] + gp*h);
         }
 
         Real p[3]; info.pos(p, ix,iy,iz);
@@ -106,7 +89,7 @@ class KernelCharacteristicFunction
         static constexpr Real surfdh = 0; // SURFDH
         // allows shifting the SDF outside the body:
         const Real sdf = SDF[iz][iy][ix] + h*surfdh; // negative outside
-        if (sdf > +2*h || sdf < -2*h) continue; // no need to compute gradChi
+        if (sdf > +gp*h || sdf < -gp*h) continue; // no need to compute gradChi
 
         const Real distPx =lab(ix+1,iy,iz).tmpU + h*surfdh;
         const Real distMx =lab(ix-1,iy,iz).tmpU + h*surfdh;
