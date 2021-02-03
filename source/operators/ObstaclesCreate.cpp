@@ -25,8 +25,8 @@ class KernelCharacteristicFunction
   const v_v_ob & vec_obstacleBlocks;
 
   public:
-  //const StencilInfo stencil{-1,-1,-1, 2,2,2, true, {{FE_TMPU}}};//for FDMH_1
-  const StencilInfo stencil{-4,-4,-4, 5,5,5, true, {{FE_TMPU}}};//for FDMH_2
+  const StencilInfo stencil{-1,-1,-1, 2,2,2, true, {{FE_TMPU}}};//for FDMH_1
+  //const StencilInfo stencil{-4,-4,-4, 5,5,5, true, {{FE_TMPU}}};//for FDMH_2
 
   KernelCharacteristicFunction(const v_v_ob& v) : vec_obstacleBlocks(v) {}
 
@@ -53,7 +53,7 @@ class KernelCharacteristicFunction
       CHIMAT & __restrict__ CHI = o->chi;
       const CHIMAT & __restrict__ SDF = o->sdf;
       o->CoM_x = 0; o->CoM_y = 0; o->CoM_z = 0; o->mass  = 0;
-#if 1
+#if 0
       //////////////////////////
       // FDMH_2 computation to approximate Heaviside function H(SDF(x,y,z))
       // Reference: John D.Towers, "Finite difference methods for approximating Heaviside functions", eq.(15)
