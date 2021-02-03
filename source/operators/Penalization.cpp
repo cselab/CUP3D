@@ -73,13 +73,14 @@ struct KernelPenalization : public ObstacleVisitor
       double p[3]; info.pos(p, ix, iy, iz);
       p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
 
-      const double X = CHI[iz][iy][ix], U_TOT[3] = {
+      const double U_TOT[3] = {
           vel[0] + omega[1]*p[2] - omega[2]*p[1] + UDEF[iz][iy][ix][0],
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
-      const Real penalFac = implicitPenalization? X*lambdaFac/(1+lambdaFac*dt*X)
-                                                : X*lambdaFac;
+      //chi is either 0 or 1 (not approximated by a mollified Heaviside here
+      //as this is a pointwise discrete scheme
+      const Real penalFac = implicitPenalization? lambdaFac/(1+lambdaFac*dt):lambdaFac;
 
       const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u);
       const Real FPY = penalFac * (U_TOT[1] - b(ix,iy,iz).v);
