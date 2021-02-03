@@ -129,6 +129,7 @@ class KernelCharacteristicFunction
 
           // Store grad(I^{2,h}) * grad(SDF) / |grad(SDF)|^2 to CHI
           CHI[iz][iy][ix] = (dIdx*dSdx + dIdy*dSdy + dIdz*dSdz) / normS;
+          if (CHI[iz][iy][ix] > 1.0 ) CHI[iz][iy][ix] = 1.0;
         }
         Real p[3]; info.pos(p, ix,iy,iz);
         b(ix,iy,iz).chi = std::max(CHI[iz][iy][ix], b(ix,iy,iz).chi);
