@@ -20,6 +20,8 @@ class Penalization : public Operator
 
   void operator()(const double dt);
 
+  void preventCollidingObstacles() const;
+
   std::string getName() { return "Penalization"; }
 };
 
