@@ -202,8 +202,8 @@ class KernelCharacteristicFunction
           const Real gradIY = IplusY - IminuY;
           const Real gradIZ = IplusZ - IminuZ;
           const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
-          //CHI[iz][iy][ix] = numH/gradUSq;
-          CHI[iz][iy][ix]  = 0.5/(gp*h)* ( SDF[iz][iy][ix] + gp*h);
+          CHI[iz][iy][ix] = numH/gradUSq;
+          //CHI[iz][iy][ix]  = 0.5/(gp*h)* ( SDF[iz][iy][ix] + gp*h);
         }
 
         Real p[3]; info.pos(p, ix,iy,iz);
