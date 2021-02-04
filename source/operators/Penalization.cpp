@@ -80,7 +80,8 @@ struct KernelPenalization : public ObstacleVisitor
       };
       //chi is either 0 or 1 (not approximated by a mollified Heaviside here
       //as this is a pointwise discrete scheme
-      const Real penalFac = implicitPenalization? lambdaFac/(1+lambdaFac*dt):lambdaFac;
+      const Real X = CHI[iz][iy][ix];
+      const Real penalFac = implicitPenalization? X*lambdaFac/(1+X*lambdaFac*dt):X*lambdaFac;
 
       const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u);
       const Real FPY = penalFac * (U_TOT[1] - b(ix,iy,iz).v);
@@ -135,12 +136,12 @@ void Penalization::preventCollidingObstacles() const
     const auto & infos  = sim.grid->getBlocksInfo();
     const size_t N = sim.obstacle_vector->nObstacles();
 
-    if (shapes[0]->bForcedInSimFrame[0]) shapes[0]->bForcedInSimFrame[0] = false;
-    if (shapes[0]->bForcedInSimFrame[1]) shapes[0]->bForcedInSimFrame[1] = false;
-    if (shapes[0]->bForcedInSimFrame[2]) shapes[0]->bForcedInSimFrame[2] = false;
-    if (shapes[0]->bFixFrameOfRef   [0]) shapes[0]->bFixFrameOfRef   [0] = false;
-    if (shapes[0]->bFixFrameOfRef   [1]) shapes[0]->bFixFrameOfRef   [1] = false;
-    if (shapes[0]->bFixFrameOfRef   [2]) shapes[0]->bFixFrameOfRef   [2] = false;
+    //if (shapes[0]->bForcedInSimFrame[0]) shapes[0]->bForcedInSimFrame[0] = false;
+    //if (shapes[0]->bForcedInSimFrame[1]) shapes[0]->bForcedInSimFrame[1] = false;
+    //if (shapes[0]->bForcedInSimFrame[2]) shapes[0]->bForcedInSimFrame[2] = false;
+    //if (shapes[0]->bFixFrameOfRef   [0]) shapes[0]->bFixFrameOfRef   [0] = false;
+    //if (shapes[0]->bFixFrameOfRef   [1]) shapes[0]->bFixFrameOfRef   [1] = false;
+    //if (shapes[0]->bFixFrameOfRef   [2]) shapes[0]->bFixFrameOfRef   [2] = false;
 
     struct CollisionInfo // hitter and hittee, symmetry but we do things twice
     {
