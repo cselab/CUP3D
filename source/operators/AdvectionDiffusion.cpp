@@ -174,9 +174,9 @@ struct KernelAdvectDiffuse : public Discretization
             const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
             const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
             const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-            o.data[iz][iy][ix].tmpU = facA*duA + facD*duD;
-            o.data[iz][iy][ix].tmpV = facA*dvA + facD*dvD;
-            o.data[iz][iy][ix].tmpW = facA*dwA + facD*dwD;
+            o.data[iz][iy][ix].tmpU += facA*duA + facD*duD;
+            o.data[iz][iy][ix].tmpV += facA*dvA + facD*dvD;
+            o.data[iz][iy][ix].tmpW += facA*dwA + facD*dwD;
         }
     }
 };
@@ -281,14 +281,7 @@ struct UpdateAndCorrectInflow
         {
             FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
 
-            for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-            for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-            for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-            {
-                b(ix,iy,iz).u += b(ix,iy,iz).tmpU;
-                b(ix,iy,iz).v += b(ix,iy,iz).tmpV;
-                b(ix,iy,iz).w += b(ix,iy,iz).tmpW;
-            }
+            b.update_data(sim.beta[sim.currentRKstep]);
 
             const Real h2 = vInfo[i].h_gridpoint * vInfo[i].h_gridpoint;
             if(isW(vInfo[i]))

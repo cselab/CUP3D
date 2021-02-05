@@ -75,6 +75,12 @@ struct SimulationData
     hmean =  hmin;
   }
 
+  int RKsteps;
+  std::vector<Real> alpha;
+  std::vector<Real> beta;
+  int currentRKstep{0};
+  size_t pipeline_index[3];
+
   AMR * amr;
   double div_loc;
 

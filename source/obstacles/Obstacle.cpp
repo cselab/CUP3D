@@ -315,12 +315,34 @@ void Obstacle::computeForces()
 void Obstacle::update()
 {
   const Real dt = sim.dt;
-  position[0] += dt * ( transVel[0] + sim.uinf[0] );
-  position[1] += dt * ( transVel[1] + sim.uinf[1] );
-  position[2] += dt * ( transVel[2] + sim.uinf[2] );
-  absPos[0] += dt * transVel[0];
-  absPos[1] += dt * transVel[1];
-  absPos[2] += dt * transVel[2];
+
+  const int currentRKstep = sim.currentRKstep;
+
+  RK_position  [0] *= sim.alpha[currentRKstep];
+  RK_position  [1] *= sim.alpha[currentRKstep];
+  RK_position  [2] *= sim.alpha[currentRKstep];
+  RK_absPos    [0] *= sim.alpha[currentRKstep];
+  RK_absPos    [1] *= sim.alpha[currentRKstep];
+  RK_absPos    [2] *= sim.alpha[currentRKstep];
+  RK_quaternion[0] *= sim.alpha[currentRKstep];
+  RK_quaternion[1] *= sim.alpha[currentRKstep];
+  RK_quaternion[2] *= sim.alpha[currentRKstep];
+  RK_quaternion[3] *= sim.alpha[currentRKstep];
+
+  RK_position[0] += dt * ( transVel[0] + sim.uinf[0] );
+  RK_position[1] += dt * ( transVel[1] + sim.uinf[1] );
+  RK_position[2] += dt * ( transVel[2] + sim.uinf[2] );
+  RK_absPos  [0] += dt * transVel[0];
+  RK_absPos  [1] += dt * transVel[1];
+  RK_absPos  [2] += dt * transVel[2];
+
+  position[0] += sim.beta[currentRKstep] * RK_position[0];
+  position[1] += sim.beta[currentRKstep] * RK_position[1];
+  position[2] += sim.beta[currentRKstep] * RK_position[2];
+  absPos  [0] += sim.beta[currentRKstep] * RK_absPos  [0];
+  absPos  [1] += sim.beta[currentRKstep] * RK_absPos  [1];
+  absPos  [2] += sim.beta[currentRKstep] * RK_absPos  [2];
+
   const double Q[] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]};
   const double dqdt[4] = {
     .5*( - angVel[0]*Q[1] - angVel[1]*Q[2] - angVel[2]*Q[3] ),
@@ -328,13 +350,28 @@ void Obstacle::update()
     .5*( - angVel[0]*Q[3] + angVel[1]*Q[0] + angVel[2]*Q[1] ),
     .5*( + angVel[0]*Q[2] - angVel[1]*Q[1] + angVel[2]*Q[0] )
   };
+  RK_quaternion[0] += dt* dqdt[0];
+  RK_quaternion[1] += dt* dqdt[1];
+  RK_quaternion[2] += dt* dqdt[2];
+  RK_quaternion[3] += dt* dqdt[3];
+  quaternion   [0] += sim.beta[currentRKstep] * RK_quaternion[0];
+  quaternion   [1] += sim.beta[currentRKstep] * RK_quaternion[1];
+  quaternion   [2] += sim.beta[currentRKstep] * RK_quaternion[2];
+  quaternion   [3] += sim.beta[currentRKstep] * RK_quaternion[3];
 
+  const double invD = 1.0/std::sqrt(quaternion[0]*quaternion[0] + quaternion[1]*quaternion[1] + quaternion[2]*quaternion[2] + quaternion[3]*quaternion[3]);
+  quaternion[0] *= invD;
+  quaternion[1] *= invD;
+  quaternion[2] *= invD;
+  quaternion[3] *= invD;
+
+/*
   // normality preserving advection (Simulation of colliding constrained rigid bodies - Kleppmann 2007 Cambridge University, p51)
   // move the correct distance on the quaternion unit ball surface, end up with normalized quaternion
   const double DQ[4] = { dqdt[0]*dt, dqdt[1]*dt, dqdt[2]*dt, dqdt[3]*dt };
   const double DQn = std::sqrt(DQ[0]*DQ[0]+DQ[1]*DQ[1]+DQ[2]*DQ[2]+DQ[3]*DQ[3]);
 
-  if(DQn>DBLEPS)
+  if(DQn>DBLEPS)// && currentRKstep == 0)
   {
     const double tanF = std::tan(DQn)/DQn;
     const double D[4] = {
@@ -344,7 +381,7 @@ void Obstacle::update()
     quaternion[0] = D[0] * invD; quaternion[1] = D[1] * invD;
     quaternion[2] = D[2] * invD; quaternion[3] = D[3] * invD;
   }
-
+*/
   //_2Dangle += dt*angVel[2];
   //const double old2DA = _2Dangle;
   //keep consistency: get 2d angle from quaternions:
@@ -373,7 +410,7 @@ void Obstacle::update()
   assert(std::abs(q_length-1.0) < 5*EPS);
   #endif
 
-  if(dt>0) _writeComputedVelToFile();
+  if (sim.currentRKstep == 0 && dt > 0) _writeComputedVelToFile();
 }
 
 void Obstacle::create()

@@ -23,10 +23,6 @@ class Obstacle;
 
 class Simulation
 {
-  //#ifdef _USE_ZLIB_
-  //  SerializerIO_WaveletCompression_MPI_SimpleBlocking<FluidGridMPI, ChiStreamer> waveletdumper_grid;
-  //#endif
-
 public:
 
   SimulationData sim;
@@ -44,7 +40,6 @@ public:
   void _ic();
   void _icFromH5(std::string h5File);
 
- public:
   Simulation(const SimulationData &);
   Simulation(MPI_Comm mpicomm);
   Simulation(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
@@ -52,9 +47,6 @@ public:
   virtual ~Simulation() = default;
 
   virtual void run();
-
-  // void addObstacle(IF3D_ObstacleOperator *obstacle);
-  // void removeObstacle(IF3D_ObstacleOperator *obstacle);
 
   /* Get reference to the obstacle container. */
   const std::vector<std::shared_ptr<Obstacle>> &getObstacleVector() const;
