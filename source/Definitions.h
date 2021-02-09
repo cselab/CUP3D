@@ -633,11 +633,15 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
  public:
 
   typedef typename BlockType::ElementType ElementType;
-  virtual void TestInterp(ElementType *C[3][3][3], ElementType &R, int x, int y, int z, const std::vector<int> & selcomponents) override
+  //virtual void TestInterp(ElementType *C[3][3][3], ElementType &R, int x, int y, int z, const std::vector<int> & selcomponents) override
+  virtual void TestInterp(ElementType *C[3][3][3], ElementType *R, int x, int y, int z, const std::vector<int> & selcomponents) override
   {
      cubism::BlockLab<BlockType,allocator>::TestInterp(C,R,x,y,z,selcomponents);
-     if (R.chi < 0.0) R.chi = 0.0;
-     if (R.chi > 1.0) R.chi = 1.0;
+     for (int i = 0; i < 8; i++)
+     {
+        R[i].chi = std::max(R[i].chi,0.0);
+        R[i].chi = std::min(R[i].chi,1.0);
+     }
   }
 
   void setBC(const BCflag _BCX, const BCflag _BCY, const BCflag _BCZ) {
