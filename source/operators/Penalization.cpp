@@ -354,6 +354,9 @@ void Penalization::preventCollidingObstacles() const
 
         if(projVel<=0) continue; // vel goes away from collision: no need to bounce
 
+        std::cout << "Collision between objects " << i << " and " << j << std::endl;
+        std::cout << " collision velocity = " << projVel << std::endl;
+
         //if (shapes[i]->bForcedInSimFrame[0]) shapes[i]->bForcedInSimFrame[0] = false;
         //if (shapes[i]->bForcedInSimFrame[1]) shapes[i]->bForcedInSimFrame[1] = false;
         //if (shapes[i]->bForcedInSimFrame[2]) shapes[i]->bForcedInSimFrame[2] = false;
