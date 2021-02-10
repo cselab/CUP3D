@@ -251,59 +251,12 @@ struct KernelPressureRHS : public ObstacleVisitor
   }
 };
 
-struct PressureRHSObstacleVisitor : public ObstacleVisitor
-{
-  typedef typename FluidGridMPI::BlockType BlockType;
-  FluidGridMPI * const grid;
-  const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
-
-  PressureRHSObstacleVisitor(FluidGridMPI*g) : grid(g) { }
-
-  void visit(Obstacle* const obstacle)
-  {
-    #pragma omp parallel
-    {
-      const auto& obstblocks = obstacle->getObstacleBlocks();
-      #pragma omp for schedule(dynamic, 1)
-      for (size_t i = 0; i < vInfo.size(); ++i)
-      {
-        const cubism::BlockInfo& info = vInfo[i];
-        const auto pos = obstblocks[info.blockID];
-        if(pos == nullptr) continue;
-
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-        const UDEFMAT & __restrict__ UDEF = pos->udef;
-        const CHIMAT & __restrict__ CHI = pos->chi;
-
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        {
-          // What if multiple obstacles share a block? Do not write udef onto
-          // grid if CHI stored on the grid is greater than obst's CHI.
-          if(b(ix,iy,iz).chi > CHI[iz][iy][ix]) continue;
-          b(ix,iy,iz).tmpU = UDEF[iz][iy][ix][0];
-          b(ix,iy,iz).tmpV = UDEF[iz][iy][ix][1];
-          b(ix,iy,iz).tmpW = UDEF[iz][iy][ix][2];
-        }
-      }
-    }
-  }
-};
-
 }
 
 PressureRHS::PressureRHS(SimulationData & s) : Operator(s)
 {
   if(sim.rank==0) std::cout << "penalizationGrid not allocated." << std::endl;
 }
-
-#define PRESRHS_LOOP(T) do {                                                 \
-      std::vector< T *> K(nthreads, nullptr);                                \
-      for(int i=0;i<nthreads;++i) K[i] = new T (sim);                        \
-      compute< T  >(K,true); /*true: apply FluxCorrection*/                  \
-      for(int i=0; i<nthreads; i++) delete K[i];                             \
-    } while(0)
 
 void PressureRHS::operator()(const double dt)
 {
@@ -326,12 +279,10 @@ void PressureRHS::operator()(const double dt)
       std::swap(b(ix,iy,iz).p, b.tmp[iz][iy][ix]);
   }
 
-  //store deformation velocities onto tmp fields:
-  ObstacleVisitor* visitor = new PressureRHSObstacleVisitor(grid);
-  sim.obstacle_vector->Accept(visitor);
-  delete visitor;
-
-  PRESRHS_LOOP(KernelPressureRHS);
+  std::vector< KernelPressureRHS *> K(nthreads, nullptr);
+  for(int i=0;i<nthreads;++i) K[i] = new KernelPressureRHS (sim);
+  compute< KernelPressureRHS  >(K,true);//true: apply FluxCorrection
+  for(int i=0; i<nthreads; i++) delete K[i];
 
   //tmp -> store RHS
   //(p and tmp swap)
