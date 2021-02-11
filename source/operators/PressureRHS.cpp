@@ -146,9 +146,6 @@ struct KernelPressureRHS : public ObstacleVisitor
     if (obstblocks[info.blockID] == nullptr) return;
 
     const CHIMAT & __restrict__ CHI = obstblocks[info.blockID]->chi;
-    const size_t offset = solver->_offset(info);
-    const unsigned SY=BlockType::sizeX, SZ=BlockType::sizeX*BlockType::sizeY;
-    const int obstID = obstacle->obstacleID; assert(obstID < nShapes);
 
     const Real h = info.h_gridpoint, fac = 0.5*h*h/dt;
 
