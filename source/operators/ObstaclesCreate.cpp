@@ -476,7 +476,6 @@ void CreateObstacles::operator()(const double dt)
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i)
   {
-    tmpUstored[i].resize(FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX);
     FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
