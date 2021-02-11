@@ -28,8 +28,6 @@ precision ?= double
 precision_dump ?= single
 bs ?= 8
 hdf ?= true
-hypre ?= false
-petsc ?= false
 accfft ?= false
 zlib ?= 0
 verbose ?= false
@@ -92,8 +90,8 @@ CUBISM_DIR = $(BUILDDIR)/../Cubism/src/
 
 OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	Fish.o StefanFish.o CarlingFish.o Sphere.o Plate.o ExternalObstacle.o Naca.o \
-	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o PoissonSolver.o \
-	PoissonSolverMixed.o AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
+	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o \
+	AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
 	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o FadeOut.o \
 	FishShapes.o IterativePressurePenalization.o \
@@ -160,31 +158,14 @@ ifeq "$(accfft)" "true"
 	CPPFLAGS += -D_ACCFFT_ -Wno-float-equal
 	NVFLAGS  += -I$(ACCFFT_ROOT)/include
 	NVFLAGS  += -I$(MPICH_DIR)/include/
-	NVOBJECTS = PoissonSolverACC_kernels.o
-	OBJECTS += PoissonSolverACCUnbounded.o PoissonSolverACCPeriodic.o SpectralManipACC.o
+	NVOBJECTS =
+	OBJECTS += SpectralManipACC.o
 else
-	OBJECTS += PoissonSolverUnbounded.o PoissonSolverPeriodic.o
+	OBJECTS +=
 	NVOBJECTS =
 	LIBS += $(FFTW_LIBS)
 endif
 
-#################################################
-# HYPRE & PETSC & MISC
-#################################################
-ifeq "$(hypre)" "true"
-ifeq "$(compiler)" "gnu"
-	# I don't want to see g++ complaining about hypre:
-	CPPFLAGS+= -Wno-redundant-decls
-endif
-LIBS+= -lHYPRE
-CPPFLAGS+= -DCUP_HYPRE
-OBJECTS+= PoissonSolverHYPREMixed.o
-endif
-
-ifeq "$(petsc)" "true"
-	CPPFLAGS+= -DCUP_PETSC
-	OBJECTS+= PoissonSolverPETSCMixed.o
-endif
 
 #LIBS += -L../tools/fpzip/lib -lfpzip
 ifneq "$(GSL_ROOT_DIR)" ""
@@ -224,8 +205,6 @@ rlHIT: $(OBJECTS) $(NVOBJECTS)
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 
-PoissonSolverACC_kernels.o: PoissonSolverACC_kernels.cu
-	$(NVCC) $(NVFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(EXEOBJ) $(LIBOBJ)
