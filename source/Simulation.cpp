@@ -204,7 +204,6 @@ void Simulation::setupOperators(ArgumentParser & parser)
 
   // Obstacle shape has to be known already here.
   sim.pipeline.push_back(checkpointPreObstacles = new Checkpoint(sim, "PreObstacles"));
-  sim.pipeline_index[0] = sim.pipeline.size()-1;
 
   // Creates the char function, sdf, and def vel for all obstacles at the curr
   // timestep. At this point we do NOT know the translation and rot vel of the
@@ -226,8 +225,6 @@ void Simulation::setupOperators(ArgumentParser & parser)
   // If the force were space-varying then we would need to include in the pressure equation's RHS.
   if(sim.uMax_forced > 0 && sim.initCond not_eq "taylorGreen" && sim.bChannelFixedMassFlux == false)  sim.pipeline.push_back(new ExternalForcing(sim));   // also uses sim.uMax_forced param
 
-  sim.pipeline_index[1] = sim.pipeline.size()-1;
-
   if(sim.bIterativePenalization)
   {
     if (sim.obstacle_vector->nObstacles() > 0)
@@ -248,8 +245,6 @@ void Simulation::setupOperators(ArgumentParser & parser)
     // u_{t+1} = \tilde{u} -\delta t \nabla P. This is final pre-penal vel field.
     sim.pipeline.push_back(new PressureProjection(sim));
 
-    sim.pipeline_index[2] = sim.pipeline.size();
-
     // Update obstacle velocities and penalize velocity
     sim.pipeline.push_back(new UpdateObstacles(sim));
     sim.pipeline.push_back(new Penalization(sim));
@@ -267,7 +262,7 @@ void Simulation::setupOperators(ArgumentParser & parser)
   //sim.pipeline.push_back(new HITfiltering(sim));
   sim.pipeline.push_back(new StructureFunctions(sim));
   sim.pipeline.push_back(new Analysis(sim));
-  //sim.pipeline.push_back(new ComputeDivergence(sim));
+  sim.pipeline.push_back(new ComputeDivergence(sim));
   if(sim.rank==0) {
     printf("Coordinator/Operator ordering:\n");
     for (size_t c=0; c<sim.pipeline.size(); c++)
@@ -490,57 +485,8 @@ bool Simulation::timestep(const double dt)
     if (bDumpTime) sim.nextSaveTime += sim.saveTime;
     sim.bDump = (bDumpFreq || bDumpTime);
 
-    for (size_t c=0; c<= sim.pipeline_index[0]; c++)
-    {
-      (*sim.pipeline[c])(dt);
-    }
-
-    //Low-storage Runge Kutta
-
-    //1. Runge Kutta coefficients
-    //2. Set RKarray to zero
-    const std::vector<BlockInfo>& vInfo = sim.vInfo();
-    #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<vInfo.size(); i++)
-    {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      b.clear_RKarray();
-    }
-
-    //3. Perform RKsteps
-    sim.currentRKstep = 0;
-    for (int s = 0 ; s < sim.RKsteps ; s++)
-    {
-      //I. q *= a_s
-      if (s!=0)
-      {
-        #pragma omp parallel for schedule(static)
-        for(size_t i=0; i<vInfo.size(); i++)
-        {
-          FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-          b.multiply_RKarray(sim.alpha[s]);
-        }
-      }
-
-      //II. q += dt*f(u)
-      for (size_t c=sim.pipeline_index[0]+1; c<= sim.pipeline_index[1]; c++)
-      {
-        (*sim.pipeline[c])(dt);
-      }
-
-      //III is done in AdvectionDiffusion!
-      //III. u+= b_s*q
-
-      //IV. pressure projection (u)
-      for (size_t c=sim.pipeline_index[1]+1; c<=sim.pipeline_index[2]; c++)
-      {
-        (*sim.pipeline[c])(dt);
-      }
-      sim.currentRKstep ++;
-    }
-
-    //4. penalization (u) and rest of post-timestep operations
-    for (size_t c=sim.pipeline_index[2]+1; c< sim.pipeline.size() ; c++)
+    const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+    for (size_t c=0; c< sim.pipeline.size() ; c++)
     {
       (*sim.pipeline[c])(dt);
     }
@@ -555,9 +501,7 @@ bool Simulation::timestep(const double dt)
           b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
         }
     }
-
     sim.step++;
-    //time is only updated here, this should not be the case if there's a time-dependant rhs forcing
     sim.time+=dt;
 
     if(sim.verbose) printf("%d : %e uInf {%f %f %f}\n",

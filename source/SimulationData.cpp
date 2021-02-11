@@ -164,26 +164,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
     fadeOutLengthPRHS[0], fadeOutLengthPRHS[1], fadeOutLengthPRHS[2]);
 
   // ============ REST =============
-
-  RKsteps = parser("-RKsteps").asInt(3);
-  if (RKsteps == 3) //Low Storage 3rd-order Runge Kutta
-  {
-    alpha.resize(3);
-    beta.resize(3);
-    alpha[0] = 0.0;
-    alpha[1] = -17.0/32.0;
-    alpha[2] = -32.0/27.0;
-    beta[0] = 1.0/4.0;
-    beta[1] = 8.0/9.0;
-    beta[2] = 3.0/4.0;
-  }
-  else// if (RKsteps == 1) //Explicit Euler
-  {
-    alpha.resize(1);
-    beta.resize(3);
-    alpha[0] = 0.0;
-    beta[0] = 1.0;
-  }
 }
 
 void SimulationData::_preprocessArguments()

@@ -10,32 +10,6 @@
 
 namespace cubismup3d {
 
-Real PoissonSolverAMR::computeRelativeCorrection() const
-{
-  Real sumRHS = 0, sumABS = 0;
-  const std::vector<cubism::BlockInfo>& vInfo = grid.getBlocksInfo();
-  #pragma omp parallel for schedule(static) reduction(+ : sumRHS, sumABS)
-  for(size_t i=0; i<vInfo.size(); ++i)
-  {
-    BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-    const double h3 = vInfo[i].h_gridpoint * vInfo[i].h_gridpoint * vInfo[i].h_gridpoint;
-    for(int iz=0; iz<BlockType::sizeZ; iz++)
-    for(int iy=0; iy<BlockType::sizeY; iy++)
-    for(int ix=0; ix<BlockType::sizeX; ix++)
-    {
-      sumABS += h3 * std::fabs( b.tmp[iz][iy][ix] );
-      sumRHS += h3 * b.tmp[iz][iy][ix];
-    }
-  }
-  double sums[2] = {sumRHS, sumABS};
-  MPI_Allreduce(MPI_IN_PLACE, sums, 2, MPI_DOUBLE,MPI_SUM, m_comm);
-  sums[1] = std::max(std::numeric_limits<double>::epsilon(), sums[1]);
-  const Real correction = sums[0] / sums[1];
-  if(sim.verbose)
-    printf("Relative RHS correction:%e / %e\n", sums[0], sums[1]);
-  return correction;
-}
-
 Real PoissonSolverAMR::computeAverage() const
 {
   Real avgP = 0;
@@ -48,7 +22,7 @@ Real PoissonSolverAMR::computeAverage() const
     for(int iz=0; iz<BlockType::sizeZ; iz++)
     for(int iy=0; iy<BlockType::sizeY; iy++)
     for(int ix=0; ix<BlockType::sizeX; ix++)
-      avgP += h3 * b.tmp[iz][iy][ix];
+      avgP += h3 * b.data[iz][iy][ix].p;
   }
   MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, m_comm);
   avgP /= sim.extent[0] * sim.extent[1] * sim.extent[2];
@@ -506,7 +480,6 @@ void PoissonSolverAMR::solve()
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
             b(ix,iy,iz).p -= avgP;//p is already the xVector!!
-            //b.tmp[iz][iy][ix] -= avgP;
             const size_t src_index = _dest(offset, iz, iy, ix);     
             b(ix,iy,iz).chi  = storeGridElements[8*src_index  ];
             b(ix,iy,iz).u    = storeGridElements[8*src_index+1];
@@ -516,10 +489,8 @@ void PoissonSolverAMR::solve()
             b(ix,iy,iz).tmpU = storeGridElements[8*src_index+5];
             b(ix,iy,iz).tmpV = storeGridElements[8*src_index+6];
             b(ix,iy,iz).tmpW = storeGridElements[8*src_index+7];
-            //b(ix,iy,iz).p = b.tmp[iz][iy][ix];
         }
     } 
-
     sim.stopProfiler();
 }
 

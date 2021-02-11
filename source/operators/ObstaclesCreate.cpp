@@ -473,7 +473,6 @@ void CreateObstacles::operator()(const double dt)
 
   sim.startProfiler("Obst Reset");
   std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
-  std::vector< std::vector<Real> > tmpUstored(vInfo.size());
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i)
   {
@@ -482,7 +481,6 @@ void CreateObstacles::operator()(const double dt)
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      tmpUstored[i][ix+iy*FluidBlock::sizeX+iz*FluidBlock::sizeX*FluidBlock::sizeY] = b(ix,iy,iz).tmpU;
       b(ix,iy,iz).chi = 0; // will be accessed by max with pos def qtity
       b(ix,iy,iz).tmpU = -1; // will be accessed by max with pos/neg qtity
     }
@@ -558,16 +556,6 @@ void CreateObstacles::operator()(const double dt)
 
   sim.startProfiler("Obst finalize");
   sim.obstacle_vector->finalize(); // whatever else the obstacle needs
-  #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < vInfo.size(); ++i)
-  {
-    FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      b(ix,iy,iz).tmpU = tmpUstored[i][ix+iy*FluidBlock::sizeX+iz*FluidBlock::sizeX*FluidBlock::sizeY];
-    }
-  }
   sim.stopProfiler();
   check("CreateObstacles");
 }

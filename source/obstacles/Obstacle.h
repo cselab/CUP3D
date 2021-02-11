@@ -129,11 +129,6 @@ public:
   std::array<double,6> penalJ = {0,0,0,0,0,0};
   double penalM;
 
-  //Runge Kutta arrays
-  double RK_quaternion[4] = {1,0,0,0}; //orientation
-  double RK_position[3] = {0,0,0};
-  double RK_absPos[3] = {0,0,0};
-
 protected:
   virtual void _writeComputedVelToFile();
   virtual void _writeDiagForcesToFile();

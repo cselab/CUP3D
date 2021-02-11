@@ -18,7 +18,7 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 using CHIMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
 using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
 
-struct KernelPressureRHS : public ObstacleVisitor
+struct KernelPressureRHS
 {
   typedef typename FluidGridMPI::BlockType BlockType;
   SimulationData & sim;
@@ -132,131 +132,12 @@ struct KernelPressureRHS : public ObstacleVisitor
         faceZp[ix + FluidBlock::sizeX * iy].p = - fac *(lab(ix,iy,iz+1).w + lab(ix,iy,iz).w);
       }
     }
-
-    if(nShapes == 0) return; // no need to account for obstacles
-
-    // first store the lab and info, then do visitor
-    assert(info_ptr == nullptr && lab_ptr == nullptr);
-    info_ptr =  & info; lab_ptr =   & lab;
-    ObstacleVisitor* const base = static_cast<ObstacleVisitor*> (this);
-    assert( base not_eq nullptr );
-    obstacle_vector->Accept( base );
-    info_ptr = nullptr; lab_ptr = nullptr;
-  }
-
-  void visit(Obstacle* const obstacle)
-  {
-    assert(info_ptr not_eq nullptr && lab_ptr not_eq nullptr);
-    const BlockInfo& info = * info_ptr;
-    Lab& lab = * lab_ptr;
-    const auto& obstblocks = obstacle->getObstacleBlocks();
-    if (obstblocks[info.blockID] == nullptr) return;
-
-    const CHIMAT & __restrict__ CHI = obstblocks[info.blockID]->chi;
-
-    const Real h = info.h_gridpoint, fac = 0.5*h*h/dt;
-
-    BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-    {
-      if (lab(ix,iy,iz).chi > CHI[iz][iy][ix]) continue;
-      const FluidElement &LW = lab(ix-1,iy,  iz  ), &LE = lab(ix+1,iy,  iz  );
-      const FluidElement &LS = lab(ix,  iy-1,iz  ), &LN = lab(ix,  iy+1,iz  );
-      const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
-      const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
-      b(ix,iy,iz).p -= CHI[iz][iy][ix] * fac * divUs;
-    }
-
-    BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
-    typename BlockType::ElementType * faceXm = nullptr;
-    typename BlockType::ElementType * faceXp = nullptr;
-    typename BlockType::ElementType * faceYm = nullptr;
-    typename BlockType::ElementType * faceYp = nullptr;
-    typename BlockType::ElementType * faceZp = nullptr;
-    typename BlockType::ElementType * faceZm = nullptr;
-    if (tempCase != nullptr)
-    {
-      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
-      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
-      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
-      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
-      faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
-      faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
-    }
-
-    if (faceXm != nullptr)
-    {
-      int ix = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      {
-        faceXm[iy + FluidBlock::sizeY * iz].clear();
-        faceXm[iy + FluidBlock::sizeY * iz].p -= CHI[iz][iy][ix]*fac *(lab(ix-1,iy,iz).tmpU + lab(ix,iy,iz).tmpU);
-      }
-    }
-    if (faceXp != nullptr)
-    {
-      int ix = FluidBlock::sizeX-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      {
-        faceXp[iy + FluidBlock::sizeY * iz].clear();
-        faceXp[iy + FluidBlock::sizeY * iz].p -= - CHI[iz][iy][ix]*fac *(lab(ix+1,iy,iz).tmpU + lab(ix,iy,iz).tmpU);
-      }
-    }
-    
-    if (faceYm != nullptr)
-    {
-      int iy = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceYm[ix + FluidBlock::sizeX * iz].clear();
-        faceYm[ix + FluidBlock::sizeX * iz].p -= CHI[iz][iy][ix]*fac *(lab(ix,iy-1,iz).tmpV + lab(ix,iy,iz).tmpV);
-      }
-    }
-    if (faceYp != nullptr)
-    {
-      int iy = FluidBlock::sizeY-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceYp[ix + FluidBlock::sizeX * iz].clear();
-        faceYp[ix + FluidBlock::sizeX * iz].p -= - CHI[iz][iy][ix]*fac *(lab(ix,iy+1,iz).tmpV + lab(ix,iy,iz).tmpV);
-      }
-    }
-    
-    if (faceZm != nullptr)
-    {
-      int iz = 0;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceZm[ix + FluidBlock::sizeX * iy].clear();
-        faceZm[ix + FluidBlock::sizeX * iy].p -= CHI[iz][iy][ix]*fac *(lab(ix,iy,iz-1).tmpW + lab(ix,iy,iz).tmpW);
-      }
-    }
-    if (faceZp != nullptr)
-    {
-      int iz = FluidBlock::sizeZ-1;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceZp[ix + FluidBlock::sizeX * iy].clear();
-        faceZp[ix + FluidBlock::sizeX * iy].p -= - CHI[iz][iy][ix]*fac *(lab(ix,iy,iz+1).tmpW + lab(ix,iy,iz).tmpW);
-      }
-    }
   }
 };
 
 }
 
-PressureRHS::PressureRHS(SimulationData & s) : Operator(s)
-{
-  if(sim.rank==0) std::cout << "penalizationGrid not allocated." << std::endl;
-}
+PressureRHS::PressureRHS(SimulationData & s) : Operator(s) {}
 
 void PressureRHS::operator()(const double dt)
 {

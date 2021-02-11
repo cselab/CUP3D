@@ -293,39 +293,6 @@ struct BaseBlock
         for(int ix=0; ix<sizeX; ix++)
           streamer.operate(input, data[iz][iy][ix]);
   }
-  void clear_RKarray()
-  {
-    TElement * entry = &data[0][0][0];
-    const int N = sizeX*sizeY*sizeZ;
-    for(int i=0; i<N; ++i)
-    {
-      entry[i].tmpU = 0.0;
-      entry[i].tmpV = 0.0;
-      entry[i].tmpW = 0.0;
-    }
-  }
-  void multiply_RKarray(Real a)
-  {
-    TElement * entry = &data[0][0][0];
-    const int N = sizeX*sizeY*sizeZ;
-    for(int i=0; i<N; ++i)
-    {
-      entry[i].tmpU *= a;
-      entry[i].tmpV *= a;
-      entry[i].tmpW *= a;
-    }
-  }
-  void update_data(Real b)
-  {
-    TElement * entry = &data   [0][0][0];
-    const int N = sizeX*sizeY*sizeZ;
-    for(int i=0; i<N; ++i)
-    {
-      entry[i].u += b*entry[i].tmpU;
-      entry[i].v += b*entry[i].tmpV;
-      entry[i].w += b*entry[i].tmpW;
-    }
-  }
 };
 
 struct StreamerChi

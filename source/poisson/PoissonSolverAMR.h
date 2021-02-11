@@ -273,7 +273,6 @@ class PoissonSolverAMR
   const int m_rank = sim.rank, m_size = sim.nprocs;
 
   Real computeAverage() const;
-  Real computeRelativeCorrection() const;
 
   ComputeLHS findLHS;
   std::vector<size_t> blocksOffset;
