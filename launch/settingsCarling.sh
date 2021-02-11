@@ -2,8 +2,8 @@
 NNODE=4
 
 BPDX=${BPDX:-8}
-BPDY=${BPDY:-2}
-BPDZ=${BPDZ:-2}
+BPDY=${BPDY:-4}
+BPDZ=${BPDZ:-4}
 
 NU=${NU:-0.00001}
 BC=${BC:-freespace}
@@ -18,3 +18,4 @@ OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 1.0 -tend 20.0 "
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
 OPTIONS+=" -CFL 0.7 -use-dlm 10 -nu ${NU}"
 OPTIONS+=" -levelMax 4 -levelStart 3 -Rtol 0.5 -Ctol 0.05"
+#OPTIONS+=" -implicitPenalization 1"
