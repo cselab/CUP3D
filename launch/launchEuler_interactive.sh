@@ -5,8 +5,8 @@ if [ $# -lt 2 ] ; then
   echo "Usage "$0" SETTINGSNAME BASENAME"
   exit 1
 fi
-#BASEPATH=${SCRATCH}/CubismUP3D/
-BASEPATH=~/RUNS/
+BASEPATH=${SCRATCH}/RUNS/
+#BASEPATH=~/RUNS/
 
 INTERACTIVE=0
 NNODE=1
