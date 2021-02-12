@@ -236,7 +236,6 @@ struct BaseBlock
   static constexpr int sizeX = BS;
   static constexpr int sizeY = BS;
   static constexpr int sizeZ = BS;
-  static constexpr std::array<int, 3> sizeArray = {BS, BS, BS};
   typedef TElement ElementType;
   typedef TElement element_type;
   typedef Real   RealType;
