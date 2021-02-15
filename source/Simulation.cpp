@@ -260,7 +260,7 @@ void Simulation::setupOperators(ArgumentParser & parser)
   //sim.pipeline.push_back(new HITfiltering(sim));
   sim.pipeline.push_back(new StructureFunctions(sim));
   sim.pipeline.push_back(new Analysis(sim));
-  sim.pipeline.push_back(new ComputeDivergence(sim));
+  //sim.pipeline.push_back(new ComputeDivergence(sim));
   if(sim.rank==0) {
     printf("Coordinator/Operator ordering:\n");
     for (size_t c=0; c<sim.pipeline.size(); c++)
