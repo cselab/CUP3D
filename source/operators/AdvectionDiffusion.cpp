@@ -29,7 +29,6 @@ struct KernelAdvectDiffuse : public Discretization
     const std::array<Real, 3>& uInf = sim.uinf;
     const int loopBeg = this->getStencilBeg();
     const int loopEnd = CUP_BLOCK_SIZE-1 + this->getStencilEnd();
-    const Real CFL = std::min((Real)1, sim.uMax_measured * sim.dt / sim.hmean);
     const Real norUinf = 1 / std::max({std::fabs(uInf[0]), std::fabs(uInf[1]), std::fabs(uInf[2]), EPS});
     const StencilInfo stencil{this->getStencilBeg(), this->getStencilBeg(),
                               this->getStencilBeg(), this->getStencilEnd(),
@@ -38,7 +37,7 @@ struct KernelAdvectDiffuse : public Discretization
     void applyBCwest(const BlockInfo & I, LabMPI & L) const
     {
         if (sim.BCx_flag == wall || sim.BCx_flag == periodic || I.index[0] != 0) return;
-        const Real fadeW = 1 - CFL*std::pow(std::max(uInf[0],(Real)0) * norUinf, 2);
+        const Real fadeW = 1 - std::pow(std::max(uInf[0],(Real)0) * norUinf, 2);
         if (fadeW >= 1) return; // no momentum killing at this boundary
         for (int ix = loopBeg; ix < 0; ++ix)
         {
@@ -56,7 +55,7 @@ struct KernelAdvectDiffuse : public Discretization
     void applyBCeast(const BlockInfo & I, LabMPI & L) const
     {
         if (sim.BCx_flag == wall || sim.BCx_flag == periodic || I.index[0] != (sim.bpdx * (1<<I.level) - 1)) return;
-        const Real fadeE = 1 - CFL*std::pow(std::min(uInf[0],(Real)0) * norUinf, 2);
+        const Real fadeE = 1 - std::pow(std::min(uInf[0],(Real)0) * norUinf, 2);
         if (fadeE >= 1) return; // no momentum killing at this boundary
         for (int ix = CUP_BLOCK_SIZE; ix < loopEnd; ++ix)
         {
@@ -74,7 +73,7 @@ struct KernelAdvectDiffuse : public Discretization
     void applyBCsouth(const BlockInfo & I, LabMPI & L) const
     {
         if (sim.BCy_flag == wall || sim.BCy_flag == periodic || I.index[1] != 0) return;
-        const Real fadeS = 1 - CFL*std::pow(std::max(uInf[1],(Real)0) * norUinf, 2);
+        const Real fadeS = 1 - std::pow(std::max(uInf[1],(Real)0) * norUinf, 2);
         if (fadeS >= 1) return; // no momentum killing at this boundary
         for (int iy = loopBeg; iy < 0; ++iy)
         {
@@ -92,7 +91,7 @@ struct KernelAdvectDiffuse : public Discretization
     void applyBCnorth(const BlockInfo & I, LabMPI & L) const
     {
         if (sim.BCy_flag == wall || sim.BCy_flag == periodic || I.index[1] != (sim.bpdy*(1<<I.level) - 1)) return;
-        const Real fadeN = 1 - CFL*std::pow(std::min(uInf[1],(Real)0) * norUinf, 2);
+        const Real fadeN = 1 - std::pow(std::min(uInf[1],(Real)0) * norUinf, 2);
         if (fadeN >= 1) return; // no momentum killing at this boundary
         for (int iy = CUP_BLOCK_SIZE; iy < loopEnd; ++iy)
         {
@@ -110,7 +109,7 @@ struct KernelAdvectDiffuse : public Discretization
     void applyBCfront(const BlockInfo & I, LabMPI & L) const
     {
         if (sim.BCz_flag == wall || sim.BCz_flag == periodic || I.index[2] != 0) return;
-        const Real fadeF = 1 - CFL*std::pow(std::max(uInf[2],(Real)0) * norUinf, 2);
+        const Real fadeF = 1 - std::pow(std::max(uInf[2],(Real)0) * norUinf, 2);
         if (fadeF >= 1) return; // no momentum killing at this boundary
         for (int iz = loopBeg; iz < 0; ++iz)
         {
@@ -128,7 +127,7 @@ struct KernelAdvectDiffuse : public Discretization
     void applyBCback(const BlockInfo & I, LabMPI & L) const
     {
         if (sim.BCz_flag == wall || sim.BCz_flag == periodic || I.index[2] != (sim.bpdz*(1<<I.level) - 1)) return;
-        const Real fadeB = 1 - CFL*std::pow(std::min(uInf[2],(Real)0) * norUinf, 2);
+        const Real fadeB = 1 - std::pow(std::min(uInf[2],(Real)0) * norUinf, 2);
         if (fadeB >= 1) return; // no momentum killing at this boundary
         for (int iz = CUP_BLOCK_SIZE; iz < loopEnd; ++iz)
         {
