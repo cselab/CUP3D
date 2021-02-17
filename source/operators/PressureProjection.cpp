@@ -49,12 +49,43 @@ PressureProjection::PressureProjection(SimulationData & s) : Operator(s)
 
 void PressureProjection::operator()(const double dt)
 {
+  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+
+  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start-1)
+  {
+    #pragma omp parallel for
+    for(size_t i=0; i<vInfo.size(); i++)
+    {
+      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+      {
+        b.dataOld[iz][iy][ix][3] = b(ix,iy,iz).p;
+        b(ix,iy,iz).p = 0.0;
+      }
+    }
+  }
+
   pressureSolver->solve();
 
   sim.startProfiler("GradP"); //pressure correction dudt* = - grad P / rho
-  const KernelGradP K(dt, sim.extent);
+  const KernelGradP K( (sim.TimeOrder == 1 || sim.step < sim.step_2nd_start) ? dt:(dt/sim.coefU[0]), sim.extent);
   compute<KernelGradP>(K);
   sim.stopProfiler();
+
+  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
+  {
+    #pragma omp parallel for
+    for(size_t i=0; i<vInfo.size(); i++)
+    {
+      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+        b(ix,iy,iz).p += b.dataOld[iz][iy][ix][3];
+    }
+  }
 
   check("PressureProjection");
 }

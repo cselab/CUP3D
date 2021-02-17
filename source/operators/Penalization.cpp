@@ -450,13 +450,13 @@ void Penalization::operator()(const double dt)
   { // each thread needs to call its own non-const operator() function
     if(sim.bImplicitPenalization)
     {
-      KernelPenalization<1> K(dt, sim.lambda, sim.obstacle_vector);
+      KernelPenalization<1> K((sim.TimeOrder == 1 || sim.step < sim.step_2nd_start) ? sim.dt:(sim.dt/sim.coefU[0]), sim.lambda, sim.obstacle_vector);
       #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
     }
     else
     {
-      KernelPenalization<0> K(dt, sim.lambda, sim.obstacle_vector);
+      KernelPenalization<0> K((sim.TimeOrder == 1 || sim.step < sim.step_2nd_start) ? sim.dt:(sim.dt/sim.coefU[0]), sim.lambda, sim.obstacle_vector);
       #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
     }

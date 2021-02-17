@@ -314,31 +314,83 @@ void Obstacle::computeForces()
 
 void Obstacle::update()
 {
-  const Real dt = sim.dt;
-
-  const double Q[] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]};
   const double dqdt[4] = {
-    .5*( - angVel[0]*Q[1] - angVel[1]*Q[2] - angVel[2]*Q[3] ),
-    .5*( + angVel[0]*Q[0] + angVel[1]*Q[3] - angVel[2]*Q[2] ),
-    .5*( - angVel[0]*Q[3] + angVel[1]*Q[0] + angVel[2]*Q[1] ),
-    .5*( + angVel[0]*Q[2] - angVel[1]*Q[1] + angVel[2]*Q[0] )
+    .5*( - angVel[0]*quaternion[1] - angVel[1]*quaternion[2] - angVel[2]*quaternion[3] ),
+    .5*( + angVel[0]*quaternion[0] + angVel[1]*quaternion[3] - angVel[2]*quaternion[2] ),
+    .5*( - angVel[0]*quaternion[3] + angVel[1]*quaternion[0] + angVel[2]*quaternion[1] ),
+    .5*( + angVel[0]*quaternion[2] - angVel[1]*quaternion[1] + angVel[2]*quaternion[0] )
   };
 
-  position  [0] += sim.dt * ( transVel[0] + sim.uinf[0] );
-  position  [1] += sim.dt * ( transVel[1] + sim.uinf[1] );
-  position  [2] += sim.dt * ( transVel[2] + sim.uinf[2] );
-  absPos    [0] += sim.dt * transVel[0];
-  absPos    [1] += sim.dt * transVel[1];
-  absPos    [2] += sim.dt * transVel[2];
-  quaternion[0] += sim.dt * dqdt[0];
-  quaternion[1] += sim.dt * dqdt[1];
-  quaternion[2] += sim.dt * dqdt[2];
-  quaternion[3] += sim.dt * dqdt[3];
+  if (sim.TimeOrder == 1)
+  {
+    position  [0] += sim.dt * ( transVel[0] + sim.uinf[0] );
+    position  [1] += sim.dt * ( transVel[1] + sim.uinf[1] );
+    position  [2] += sim.dt * ( transVel[2] + sim.uinf[2] );
+    absPos    [0] += sim.dt * transVel[0];
+    absPos    [1] += sim.dt * transVel[1];
+    absPos    [2] += sim.dt * transVel[2];
+    quaternion[0] += sim.dt * dqdt[0];
+    quaternion[1] += sim.dt * dqdt[1];
+    quaternion[2] += sim.dt * dqdt[2];
+    quaternion[3] += sim.dt * dqdt[3];
+  }
+  else if (sim.TimeOrder == 2 && sim.step < sim.step_2nd_start)
+  {
+    old_position  [0] = position  [0];
+    old_position  [1] = position  [1];
+    old_position  [2] = position  [2];
+    old_absPos    [0] = absPos    [0];
+    old_absPos    [1] = absPos    [1];
+    old_absPos    [2] = absPos    [2];
+    old_quaternion[0] = quaternion[0];
+    old_quaternion[1] = quaternion[1];
+    old_quaternion[2] = quaternion[2];
+    old_quaternion[3] = quaternion[3];
+    position  [0] += sim.dt * ( transVel[0] + sim.uinf[0] );
+    position  [1] += sim.dt * ( transVel[1] + sim.uinf[1] );
+    position  [2] += sim.dt * ( transVel[2] + sim.uinf[2] );
+    absPos    [0] += sim.dt * transVel[0];
+    absPos    [1] += sim.dt * transVel[1];
+    absPos    [2] += sim.dt * transVel[2];
+    quaternion[0] += sim.dt * dqdt[0];
+    quaternion[1] += sim.dt * dqdt[1];
+    quaternion[2] += sim.dt * dqdt[2];
+    quaternion[3] += sim.dt * dqdt[3];
+  }
+  else
+  {
+    const double aux = 1.0 / sim.coefU[0];
+
+    double temp [10] = {position[0],position[1],position[2],absPos[0],absPos[1],absPos[2],quaternion[0],quaternion[1],quaternion[2],quaternion[3]};
+    assert(sim.TimeOrder == 2);
+    position  [0] = aux * ( sim.dt * ( transVel[0] + sim.uinf[0] ) + ( - sim.coefU[1]*position  [0] - sim.coefU[2]*old_position  [0]) );
+    position  [1] = aux * ( sim.dt * ( transVel[1] + sim.uinf[1] ) + ( - sim.coefU[1]*position  [1] - sim.coefU[2]*old_position  [1]) );
+    position  [2] = aux * ( sim.dt * ( transVel[2] + sim.uinf[2] ) + ( - sim.coefU[1]*position  [2] - sim.coefU[2]*old_position  [2]) );
+    absPos    [0] = aux * ( sim.dt * ( transVel[0]               ) + ( - sim.coefU[1]*absPos    [0] - sim.coefU[2]*old_absPos    [0]) );
+    absPos    [1] = aux * ( sim.dt * ( transVel[1]               ) + ( - sim.coefU[1]*absPos    [1] - sim.coefU[2]*old_absPos    [1]) );
+    absPos    [2] = aux * ( sim.dt * ( transVel[2]               ) + ( - sim.coefU[1]*absPos    [2] - sim.coefU[2]*old_absPos    [2]) );
+    quaternion[0] = aux * ( sim.dt * ( dqdt[0]                   ) + ( - sim.coefU[1]*quaternion[0] - sim.coefU[2]*old_quaternion[0]) );
+    quaternion[1] = aux * ( sim.dt * ( dqdt[1]                   ) + ( - sim.coefU[1]*quaternion[1] - sim.coefU[2]*old_quaternion[1]) );
+    quaternion[2] = aux * ( sim.dt * ( dqdt[2]                   ) + ( - sim.coefU[1]*quaternion[2] - sim.coefU[2]*old_quaternion[2]) );
+    quaternion[3] = aux * ( sim.dt * ( dqdt[3]                   ) + ( - sim.coefU[1]*quaternion[3] - sim.coefU[2]*old_quaternion[3]) );
+    old_position  [0] = temp[0];
+    old_position  [1] = temp[1];
+    old_position  [2] = temp[2];
+    old_absPos    [0] = temp[3];
+    old_absPos    [1] = temp[4];
+    old_absPos    [2] = temp[5];
+    old_quaternion[0] = temp[6];
+    old_quaternion[1] = temp[7];
+    old_quaternion[2] = temp[8];
+    old_quaternion[3] = temp[9];
+  }
   const double invD = 1.0/std::sqrt(quaternion[0]*quaternion[0] + quaternion[1]*quaternion[1] + quaternion[2]*quaternion[2] + quaternion[3]*quaternion[3]);
   quaternion[0] *= invD;
   quaternion[1] *= invD;
   quaternion[2] *= invD;
   quaternion[3] *= invD;
+
+
 /*
   // normality preserving advection (Simulation of colliding constrained rigid bodies - Kleppmann 2007 Cambridge University, p51)
   // move the correct distance on the quaternion unit ball surface, end up with normalized quaternion
@@ -384,7 +436,7 @@ void Obstacle::update()
   assert(std::abs(q_length-1.0) < 5*EPS);
   #endif
 
-  if (dt > 0) _writeComputedVelToFile();
+  if (sim.dt > 0) _writeComputedVelToFile();
 }
 
 void Obstacle::create()

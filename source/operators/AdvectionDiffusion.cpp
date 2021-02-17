@@ -32,7 +32,7 @@ struct KernelAdvectDiffuse : public Discretization
     const Real norUinf = 1 / std::max({std::fabs(uInf[0]), std::fabs(uInf[1]), std::fabs(uInf[2]), EPS});
     const StencilInfo stencil{this->getStencilBeg(), this->getStencilBeg(),
                               this->getStencilBeg(), this->getStencilEnd(),
-                              this->getStencilEnd(), this->getStencilEnd(), false, {FE_U, FE_V, FE_W}};
+                              this->getStencilEnd(), this->getStencilEnd(), true, {FE_U, FE_V, FE_W, FE_P}};
 
     void applyBCwest(const BlockInfo & I, LabMPI & L) const
     {
@@ -153,30 +153,61 @@ struct KernelAdvectDiffuse : public Discretization
         applyBCeast (info, lab);
         applyBCnorth(info, lab);
         applyBCback (info, lab);
-        for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+        if (sim.TimeOrder == 1 || sim.step < sim.step_2nd_start)
         {
-              const Real uAbs[3] = { lab(ix,iy,iz).u + uInf[0], lab(ix,iy,iz).v + uInf[1], lab(ix,iy,iz).w + uInf[2] };
-              const Real dudx = this->template diffx<0>(lab, o, uAbs, ix, iy, iz);
-              const Real dvdx = this->template diffx<1>(lab, o, uAbs, ix, iy, iz);
-              const Real dwdx = this->template diffx<2>(lab, o, uAbs, ix, iy, iz);
-              const Real dudy = this->template diffy<0>(lab, o, uAbs, ix, iy, iz);
-              const Real dvdy = this->template diffy<1>(lab, o, uAbs, ix, iy, iz);
-              const Real dwdy = this->template diffy<2>(lab, o, uAbs, ix, iy, iz);
-              const Real dudz = this->template diffz<0>(lab, o, uAbs, ix, iy, iz);
-              const Real dvdz = this->template diffz<1>(lab, o, uAbs, ix, iy, iz);
-              const Real dwdz = this->template diffz<2>(lab, o, uAbs, ix, iy, iz);
-              const Real duD = this->template lap<0>(lab, o, ix, iy, iz);
-              const Real dvD = this->template lap<1>(lab, o, ix, iy, iz);
-              const Real dwD = this->template lap<2>(lab, o, ix, iy, iz);
-              const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
-              const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
-              const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-              o.data[iz][iy][ix].tmpU = lab(ix,iy,iz).u +  facA*duA + facD*duD;
-              o.data[iz][iy][ix].tmpV = lab(ix,iy,iz).v +  facA*dvA + facD*dvD;
-              o.data[iz][iy][ix].tmpW = lab(ix,iy,iz).w +  facA*dwA + facD*dwD;
-         }
+            for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+            for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+            for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+            {
+                const Real uAbs[3] = { lab(ix,iy,iz).u + uInf[0], lab(ix,iy,iz).v + uInf[1], lab(ix,iy,iz).w + uInf[2] };
+                const Real dudx = this->template diffx<0>(lab, o, uAbs, ix, iy, iz);
+                const Real dvdx = this->template diffx<1>(lab, o, uAbs, ix, iy, iz);
+                const Real dwdx = this->template diffx<2>(lab, o, uAbs, ix, iy, iz);
+                const Real dudy = this->template diffy<0>(lab, o, uAbs, ix, iy, iz);
+                const Real dvdy = this->template diffy<1>(lab, o, uAbs, ix, iy, iz);
+                const Real dwdy = this->template diffy<2>(lab, o, uAbs, ix, iy, iz);
+                const Real dudz = this->template diffz<0>(lab, o, uAbs, ix, iy, iz);
+                const Real dvdz = this->template diffz<1>(lab, o, uAbs, ix, iy, iz);
+                const Real dwdz = this->template diffz<2>(lab, o, uAbs, ix, iy, iz);
+                const Real duD = this->template lap<0>(lab, o, ix, iy, iz);
+                const Real dvD = this->template lap<1>(lab, o, ix, iy, iz);
+                const Real dwD = this->template lap<2>(lab, o, ix, iy, iz);
+                const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
+                const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
+                const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
+                o.data[iz][iy][ix].tmpU = lab(ix,iy,iz).u + ( facA*duA + facD*duD );
+                o.data[iz][iy][ix].tmpV = lab(ix,iy,iz).v + ( facA*dvA + facD*dvD );
+                o.data[iz][iy][ix].tmpW = lab(ix,iy,iz).w + ( facA*dwA + facD*dwD );
+            }
+        }
+        else
+        {
+            const double aux = 1.0/sim.coefU[0];
+            for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+            for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+            for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+            {
+                const Real uAbs[3] = { lab(ix,iy,iz).u + uInf[0], lab(ix,iy,iz).v + uInf[1], lab(ix,iy,iz).w + uInf[2] };
+                const Real dudx = this->template diffx<0>(lab, o, uAbs, ix, iy, iz);
+                const Real dvdx = this->template diffx<1>(lab, o, uAbs, ix, iy, iz);
+                const Real dwdx = this->template diffx<2>(lab, o, uAbs, ix, iy, iz);
+                const Real dudy = this->template diffy<0>(lab, o, uAbs, ix, iy, iz);
+                const Real dvdy = this->template diffy<1>(lab, o, uAbs, ix, iy, iz);
+                const Real dwdy = this->template diffy<2>(lab, o, uAbs, ix, iy, iz);
+                const Real dudz = this->template diffz<0>(lab, o, uAbs, ix, iy, iz);
+                const Real dvdz = this->template diffz<1>(lab, o, uAbs, ix, iy, iz);
+                const Real dwdz = this->template diffz<2>(lab, o, uAbs, ix, iy, iz);
+                const Real duD = this->template lap<0>(lab, o, ix, iy, iz);
+                const Real dvD = this->template lap<1>(lab, o, ix, iy, iz);
+                const Real dwD = this->template lap<2>(lab, o, ix, iy, iz);
+                const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
+                const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
+                const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
+                o.data[iz][iy][ix].tmpU =  aux * ( -sim.coefU[1]*lab(ix,iy,iz).u-sim.coefU[2]*o.dataOld[iz][iy][ix][0] +  facA*duA + facD*duD - dt*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p)/(2.0*info.h) );
+                o.data[iz][iy][ix].tmpV =  aux * ( -sim.coefU[1]*lab(ix,iy,iz).v-sim.coefU[2]*o.dataOld[iz][iy][ix][1] +  facA*dvA + facD*dvD - dt*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p)/(2.0*info.h) );
+                o.data[iz][iy][ix].tmpW =  aux * ( -sim.coefU[1]*lab(ix,iy,iz).w-sim.coefU[2]*o.dataOld[iz][iy][ix][2] +  facA*dwA + facD*dwD - dt*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p)/(2.0*info.h) );
+            }
+        }
     }
 };
 
@@ -280,6 +311,17 @@ struct UpdateAndCorrectInflow
         {
             FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
 
+            if (sim.TimeOrder == 2)
+            {
+                for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+                for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+                {
+                    b.dataOld[iz][iy][ix][0] = b(ix,iy,iz).u;
+                    b.dataOld[iz][iy][ix][1] = b(ix,iy,iz).v;
+                    b.dataOld[iz][iy][ix][2] = b(ix,iy,iz).w;
+                }
+            }
             for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
             for (int iy=0; iy<FluidBlock::sizeY; ++iy)
             for (int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -288,6 +330,7 @@ struct UpdateAndCorrectInflow
                 b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
                 b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
             }
+
             const Real h2 = vInfo[i].h_gridpoint * vInfo[i].h_gridpoint;
             if(isW(vInfo[i]))
                 for (int iz=0; iz<FluidBlock::sizeZ; ++iz)

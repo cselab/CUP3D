@@ -143,6 +143,13 @@ struct SimulationData
   double analysisTime=0, nextAnalysisTime=0;
   double grad_mean = 0, grad_std=0;
 
+  // time stepping
+  // if step < step_2nd_start, explicit Euler steps are performed
+  //(used to initialize u_{n-1} and u_n that are needed for 2nd order timestep)
+  int TimeOrder{1}; // =1 or =2
+  int step_2nd_start{1};
+  double coefU [3] = {1.5,-2.0,0.5};
+
   // analysis (channel)
   std::vector<Real> Ux_avg_tgt;
   std::vector<Real> kx_avg_tgt;
