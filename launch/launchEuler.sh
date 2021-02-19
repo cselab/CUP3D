@@ -29,5 +29,5 @@ unset LSB_AFFINITY_HOSTFILE
 export OMP_NUM_THREADS=${NTHREADS}
 echo $OPTIONS > settings.txt
 
-bsub -J ${BASENAME} -R "select[model==XeonGold_6150]fullnode" -n ${NPROCESSORS} "unset LSB_AFFINITY_HOSTFILE; mpirun -n ${NNODE} --map-by node:PE=36 ./simulation ${OPTIONS} -factory-content \"${FACTORY}\""
+bsub -J ${BASENAME} -W 24:00 -R "select[model==XeonGold_6150]fullnode" -n ${NPROCESSORS} "unset LSB_AFFINITY_HOSTFILE; mpirun -n ${NNODE} --map-by node:PE=36 ./simulation ${OPTIONS} -factory-content \"${FACTORY}\""
 
