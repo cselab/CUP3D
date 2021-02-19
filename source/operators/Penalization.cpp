@@ -180,7 +180,7 @@ void Penalization::preventCollidingObstacles() const
         const auto& iBlocks = shapes[i]->obstacleBlocks;
         const Real iU0      = shapes[i]->transVel[0];
         const Real iU1      = shapes[i]->transVel[1];
-        const Real iU2      = shapes[i]->transVel[1];
+        const Real iU2      = shapes[i]->transVel[2];
         const Real iomega0  = shapes[i]->angVel  [0];
         const Real iomega1  = shapes[i]->angVel  [1];
         const Real iomega2  = shapes[i]->angVel  [2];
@@ -235,16 +235,16 @@ void Penalization::preventCollidingObstacles() const
                 coll.iMomY += iChi[iz][iy][ix] * (iU1 + iUr1 + iUDEF[iz][iy][ix][1]);
                 coll.iMomZ += iChi[iz][iy][ix] * (iU2 + iUr2 + iUDEF[iz][iy][ix][2]);
 
-                const Real jUr0 = jomega1* (pos[2] - jCz) - iomega2*(pos[1]-jCy);
-                const Real jUr1 = jomega2* (pos[0] - jCx) - iomega0*(pos[2]-jCz);
-                const Real jUr2 = jomega0* (pos[1] - jCy) - iomega1*(pos[0]-jCx);
+                const Real jUr0 = jomega1* (pos[2] - jCz) - jomega2*(pos[1]-jCy);
+                const Real jUr1 = jomega2* (pos[0] - jCx) - jomega0*(pos[2]-jCz);
+                const Real jUr2 = jomega0* (pos[1] - jCy) - jomega1*(pos[0]-jCx);
                 coll.jM    += jChi[iz][iy][ix];
                 coll.jPosX += jChi[iz][iy][ix] * pos[0];
                 coll.jPosY += jChi[iz][iy][ix] * pos[1];
                 coll.jPosZ += jChi[iz][iy][ix] * pos[2];
                 coll.jMomX += jChi[iz][iy][ix] * (jU0 + jUr0 + jUDEF[iz][iy][ix][0]);
                 coll.jMomY += jChi[iz][iy][ix] * (jU1 + jUr1 + jUDEF[iz][iy][ix][1]);
-                coll.jMomZ += jChi[iz][iy][ix] * (jU2 + jUr2 + jUDEF[iz][iy][ix][1]);
+                coll.jMomZ += jChi[iz][iy][ix] * (jU2 + jUr2 + jUDEF[iz][iy][ix][2]);
 
                 coll.ivecX += //iChi[iz][iy][ix] *
                  ( (ix == 0) ? (iSDF[iz][iy][ix+1] - iSDF[iz][iy][ix]) : ( (ix == FluidBlock::sizeX-1) ? (iSDF[iz][iy][ix] - iSDF[iz][iy][ix-1]) : 0.5*(iSDF[iz][iy][ix+1] - iSDF[iz][iy][ix-1]) ) );
@@ -315,7 +315,7 @@ void Penalization::preventCollidingObstacles() const
         coll.jvecZ = buffer[20*i + 19];
     }
 
-    #pragma omp parallel for schedule(static)
+    //#pragma omp parallel for schedule(static)
     for (size_t i=0; i<N; ++i)
     for (size_t j=0; j<N; ++j)
     {
@@ -323,15 +323,44 @@ void Penalization::preventCollidingObstacles() const
 
         auto & coll = collisions[i];
         // less than one fluid element of overlap: wait to get closer. no hit
-        if(coll.iM < 20 || coll.jM < 20) continue;
+        //if(coll.iM < 20 || coll.jM < 20) continue;
+        if(coll.iM < 1 || coll.jM < 1) continue;
+
+        //std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+        //std::cout << "iM   (0) = " << collisions[0].iM    << " jM   (1) = " << collisions[1].jM    << std::endl;
+        //std::cout << "iPosX(0) = " << collisions[0].iPosX << " jPosX(1) = " << collisions[1].jPosX << std::endl;
+        //std::cout << "iPosY(0) = " << collisions[0].iPosY << " jPosY(1) = " << collisions[1].jPosY << std::endl;
+        //std::cout << "iPosZ(0) = " << collisions[0].iPosZ << " jPosZ(1) = " << collisions[1].jPosZ << std::endl;
+        //std::cout << "iMomX(0) = " << collisions[0].iMomX << " jMomX(1) = " << collisions[1].jMomX << std::endl;
+        //std::cout << "iMomY(0) = " << collisions[0].iMomY << " jMomY(1) = " << collisions[1].jMomY << std::endl;
+        //std::cout << "iMomZ(0) = " << collisions[0].iMomZ << " jMomZ(1) = " << collisions[1].jMomZ << std::endl;
+        //std::cout << "ivecX(0) = " << collisions[0].ivecX << " jvecX(1) = " << collisions[1].jvecX << std::endl;
+        //std::cout << "ivecY(0) = " << collisions[0].ivecY << " jvecY(1) = " << collisions[1].jvecY << std::endl;
+        //std::cout << "ivecZ(0) = " << collisions[0].ivecZ << " jvecZ(1) = " << collisions[1].jvecZ << std::endl;
+        //std::cout << "jM   (0) = " << collisions[0].jM    << " iM   (1) = " << collisions[1].iM    << std::endl;
+        //std::cout << "jPosX(0) = " << collisions[0].jPosX << " iPosX(1) = " << collisions[1].iPosX << std::endl;
+        //std::cout << "jPosY(0) = " << collisions[0].jPosY << " iPosY(1) = " << collisions[1].iPosY << std::endl;
+        //std::cout << "jPosZ(0) = " << collisions[0].jPosZ << " iPosZ(1) = " << collisions[1].iPosZ << std::endl;
+        //std::cout << "jMomX(0) = " << collisions[0].jMomX << " iMomX(1) = " << collisions[1].iMomX << std::endl;
+        //std::cout << "jMomY(0) = " << collisions[0].jMomY << " iMomY(1) = " << collisions[1].iMomY << std::endl;
+        //std::cout << "jMomZ(0) = " << collisions[0].jMomZ << " iMomZ(1) = " << collisions[1].iMomZ << std::endl;
+        //std::cout << "jvecX(0) = " << collisions[0].jvecX << " ivecX(1) = " << collisions[1].ivecX << std::endl;
+        //std::cout << "jvecY(0) = " << collisions[0].jvecY << " ivecY(1) = " << collisions[1].ivecY << std::endl;
+        //std::cout << "jvecZ(0) = " << collisions[0].jvecZ << " ivecZ(1) = " << collisions[1].ivecZ << std::endl;
+        //std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+        //std::cout << std::endl;
+        //std::cout << std::endl;
 
         //1. Compute collision normal vector (NX,NY,NZ)
         const Real inv_iM = 1.0/coll.iM;
         const Real inv_jM = 1.0/coll.jM;
-        const Real  inorm = 1.0/std::sqrt(coll.ivecX*coll.ivecX+coll.ivecY*coll.ivecY+coll.ivecZ*coll.ivecZ);
-        const Real NX = coll.ivecX * inorm;
-        const Real NY = coll.ivecY * inorm;
-        const Real NZ = coll.ivecZ * inorm;
+        const Real mX = coll.ivecX - coll.jvecX;
+        const Real mY = coll.ivecY - coll.jvecY;
+        const Real mZ = coll.ivecZ - coll.jvecZ;
+        const Real inorm = 1.0/std::sqrt(mX*mX + mY*mY + mZ*mZ);
+        const Real NX = mX * inorm;
+        const Real NY = mY * inorm;
+        const Real NZ = mZ * inorm;
 
         //2. Compute collision location
         const Real iPX = coll.iPosX * inv_iM; // object i collision location
@@ -356,6 +385,7 @@ void Penalization::preventCollidingObstacles() const
 
         std::cout << "Collision between objects " << i << " and " << j << std::endl;
         std::cout << " collision velocity = " << projVel << std::endl;
+        std::cout << " collision normal vector = (" << NX << "," << NY << "," << NZ << ")" << std::endl;
 
         //if (shapes[i]->bForcedInSimFrame[0]) shapes[i]->bForcedInSimFrame[0] = false;
         //if (shapes[i]->bForcedInSimFrame[1]) shapes[i]->bForcedInSimFrame[1] = false;
@@ -389,9 +419,14 @@ void Penalization::preventCollidingObstacles() const
         const Real FZdt = meanMassZ * projVel * NZ;
 
         // Forced obstacles are not updated because InvMass = 0
+        //std::cout << " Shape " << i << " before collision u=(" << shapes[i]->transVel[0] << "," << shapes[i]->transVel[1] << "," << shapes[i]->transVel[2] << ")" << std::endl;
+        //std::cout << " Shape " << i << " before collision u= " << sqrt(shapes[i]->transVel[0]*shapes[i]->transVel[0] +shapes[i]->transVel[1]*shapes[i]->transVel[1] + shapes[i]->transVel[2]*shapes[i]->transVel[2]) << std::endl;
         shapes[i]->transVel[0] += FXdt * iInvMassX;
         shapes[i]->transVel[1] += FYdt * iInvMassY;
         shapes[i]->transVel[2] += FZdt * iInvMassY;
+        //std::cout << " Shape " << i << " after collision u=(" << shapes[i]->transVel[0] << "," << shapes[i]->transVel[1] << "," << shapes[i]->transVel[2] << ")" << std::endl;
+        //std::cout << " Shape " << i << " after collision u= " << sqrt(shapes[i]->transVel[0]*shapes[i]->transVel[0] +shapes[i]->transVel[1]*shapes[i]->transVel[1] + shapes[i]->transVel[2]*shapes[i]->transVel[2]) << std::endl;
+
 
         // 5a. Conservation of angular momentum
         const Real iCx =shapes[i]->centerOfMass[0];
@@ -429,9 +464,11 @@ void Penalization::preventCollidingObstacles() const
         a23 *= determinant;
         a33 *= determinant;
 
+        //std::cout << " Shape " << i << " before collision omega=(" << shapes[i]->angVel[0] << "," << shapes[i]->angVel[1] << "," << shapes[i]->angVel[2] << ")" << std::endl;
         shapes[i]->angVel[0] += a11*RcrossF0 + a12*RcrossF1 + a13*RcrossF2;
-        shapes[i]->angVel[0] += a12*RcrossF0 + a22*RcrossF1 + a23*RcrossF2;
-        shapes[i]->angVel[0] += a13*RcrossF0 + a23*RcrossF1 + a33*RcrossF2;
+        shapes[i]->angVel[1] += a12*RcrossF0 + a22*RcrossF1 + a23*RcrossF2;
+        shapes[i]->angVel[2] += a13*RcrossF0 + a23*RcrossF1 + a33*RcrossF2;
+        //std::cout << " Shape " << i << " after collision omega=(" << shapes[i]->angVel[0] << "," << shapes[i]->angVel[1] << "," << shapes[i]->angVel[2] << ")" << std::endl;
     }
 }
 
