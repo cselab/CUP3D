@@ -467,7 +467,8 @@ void PutFishOnBlocks::constructSurface(const BlockInfo& info, FluidBlock& b, Obs
       const Real ell_a = std::max(height[ss], width[ss]);
       // max distance between two points is ell_a * sin(dtheta): set it to dx/2
       const Real dtheta_tgt = std::fabs(std::asin(h/(ell_a+h)/2));
-      const int Ntheta = std::ceil(2*M_PI/dtheta_tgt);
+      int Ntheta = std::ceil(2*M_PI/dtheta_tgt);
+      if (Ntheta % 2 == 1) Ntheta++; // by forcing Ntheta to be an even number we make sure the fish is symmetric
       const Real dtheta = 2*M_PI/((Real) Ntheta);
 
       for(int tt=0; tt<Ntheta; ++tt)
