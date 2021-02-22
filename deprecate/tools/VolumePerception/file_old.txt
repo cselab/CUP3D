@@ -1,2 +1,0 @@
-/scratch/daint/cconti/FallingSamaraFixed_24h_1024_310116/vorticity62360.vpcache
-/scratch/daint/cconti/FallingSamaraFixed_24h_1024_310116/chi62360.vpcache

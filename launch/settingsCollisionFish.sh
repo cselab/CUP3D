@@ -1,5 +1,5 @@
 #!/bin/bash
-NNODE=4
+NNODE=32
 
 BPDX=${BPDX:-8}
 BPDY=${BPDY:-4}
@@ -16,9 +16,9 @@ FACTORY+='CarlingFish L=0.2 T=1.0 xpos=0.6 ypos=0.15 planarAngle=-25.0 heightPro
 OPTIONS=
 OPTIONS+=" -extentx 1.0"
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 6.0"
+OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.05 -tend 20.0"
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
-OPTIONS+=" -CFL 0.2 -use-dlm 10 -nu ${NU}"
+OPTIONS+=" -CFL 0.4 -use-dlm -10 -nu ${NU}"
 OPTIONS+=" -levelMax 4 -levelStart 2 -Rtol 0.5 -Ctol 0.05"
 OPTIONS+=" -implicitPenalization 1"
-OPTIONS+=" -TimeOrder 1"
+OPTIONS+=" -TimeOrder 2"

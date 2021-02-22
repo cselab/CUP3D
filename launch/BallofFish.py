@@ -37,9 +37,12 @@ def FishSamples(a,b,c,fish,L):
   xvalid=[]
   yvalid=[]
   zvalid=[]
-  xL = 1.3
-  yL = 1.1
-  zL = 1.1
+  #xL = 1.3
+  #yL = 1.1
+  #zL = 1.1
+  xL = 1.1
+  yL = 0.9
+  zL = 0.9
   for i in range(xyz.shape[1]):
     xtest = xyz[0,i]
     ytest = xyz[1,i]
@@ -69,23 +72,17 @@ if __name__ == "__main__":
   fish = args['fish']
   L = 0.2
 
-  x,y,z = FishSamples(2.2,1.2,1.2,fish,0.2)
-  x = 4.0 + np.asarray(x) + 0.5*L
-  y = 2.0 + np.asarray(y)
-  z = 2.0 + np.asarray(z)
-
-  #fig = plt.figure()
-  #ax = fig.add_subplot(111, projection='3d')
-  #ax.set_xlim((0,4))
-  #ax.set_ylim((0,4))
-  #ax.set_zlim((0,4))
-  #ax.scatter(x, y, z)
-  #plt.show()
+  #x,y,z = FishSamples(2.2,1.2,1.2,fish,0.2)
+  #x,y,z = FishSamples(0.9,0.5,0.5,fish,0.2)
+  x,y,z = FishSamples(0.5,0.3,0.3,fish,0.2)
+  x = 1.0 + np.asarray(x) + 0.5*L
+  y = 0.5 + np.asarray(y)
+  z = 0.5 + np.asarray(z)
 
   f = open("settingsEllipsoidSwarm.sh", "w")
   f.write(\
 "#!/bin/bash\n\
-NNODE=256\n\
+NNODE=32\n\
 BPDX=${BPDX:-8}\n\
 BPDY=${BPDY:-4}\n\
 BPDZ=${BPDZ:-4}\n\
@@ -96,16 +93,16 @@ BC=${BC:-freespace}\n\
 FACTORY=\n")
   for j in range(fish):
     if j==0:
-      f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bCorrectPosition=true bFixToPlanar=true bFixFrameOfRef=1 heightProfile=stefan widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
+      f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bFixFrameOfRef=1 heightProfile=stefan widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
     else:
-      f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bCorrectPosition=true bFixToPlanar=true heightProfile=stefan widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
+      f.write('FACTORY+="CarlingFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} heightProfile=stefan widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
 
   # WRITE SOLVER SETTINGS
   f.write('\nOPTIONS=\n\
-OPTIONS+=" -extentx 8.0"\n\
+OPTIONS+=" -extentx 2.0"\n\
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"\n\
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 100.0 "\n\
+OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 50.0 "\n\
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"\n\
-OPTIONS+=" -CFL 0.6 -use-dlm 10 -nu ${NU}"\n\
-OPTIONS+=" -levelMax 7 -levelStart 4 -Rtol 0.1 -Ctol 0.01"\n\
-OPTIONS+=" -Advection3rdOrder=true"')
+OPTIONS+=" -CFL 0.5 -use-dlm -1 -nu ${NU}"\n\
+OPTIONS+=" -levelMax 5 -levelStart 3 -Rtol 0.1 -Ctol 0.01"\n\
+OPTIONS+=" -TimeOrder 1")

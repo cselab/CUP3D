@@ -1,1 +1,0 @@
-outputs//output-0000-cam0000.tga

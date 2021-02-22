@@ -1,2 +1,0 @@
-/scratch/daint/cconti/FallingSamaraFixed_long_DP_512_180216_Dora/vorticity11522.vpcache
-/scratch/daint/cconti/FallingSamaraFixed_long_DP_512_180216_Dora/chi11522.vpcache
