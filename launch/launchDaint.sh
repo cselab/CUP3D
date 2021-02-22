@@ -6,7 +6,7 @@ if [ $# -lt 2 ] ; then
   exit 1
 fi
 
-WCLOCK=${WCLOCK:-01:00:00}
+WCLOCK=${WCLOCK:-24:00:00}
 PARTITION=${PARTITION:-normal}
 EXEC=${EXEC:-simulation}
 

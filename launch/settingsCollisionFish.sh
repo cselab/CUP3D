@@ -1,5 +1,5 @@
 #!/bin/bash
-NNODE=32
+NNODE=16
 
 BPDX=${BPDX:-8}
 BPDY=${BPDY:-4}
