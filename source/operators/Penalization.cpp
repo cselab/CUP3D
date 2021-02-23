@@ -383,9 +383,9 @@ void Penalization::preventCollidingObstacles() const
 
         if(projVel<=0) continue; // vel goes away from collision: no need to bounce
 
-        std::cout << "Collision between objects " << i << " and " << j << std::endl;
-        std::cout << " collision velocity = " << projVel << std::endl;
-        std::cout << " collision normal vector = (" << NX << "," << NY << "," << NZ << ")" << std::endl;
+        if (sim.verbose)std::cout << "Collision between objects " << i << " and " << j << std::endl;
+        //std::cout << " collision velocity = " << projVel << std::endl;
+        //std::cout << " collision normal vector = (" << NX << "," << NY << "," << NZ << ")" << std::endl;
 
         //if (shapes[i]->bForcedInSimFrame[0]) shapes[i]->bForcedInSimFrame[0] = false;
         //if (shapes[i]->bForcedInSimFrame[1]) shapes[i]->bForcedInSimFrame[1] = false;
@@ -419,13 +419,11 @@ void Penalization::preventCollidingObstacles() const
         const Real FZdt = meanMassZ * projVel * NZ;
 
         // Forced obstacles are not updated because InvMass = 0
-        //std::cout << " Shape " << i << " before collision u=(" << shapes[i]->transVel[0] << "," << shapes[i]->transVel[1] << "," << shapes[i]->transVel[2] << ")" << std::endl;
-        //std::cout << " Shape " << i << " before collision u= " << sqrt(shapes[i]->transVel[0]*shapes[i]->transVel[0] +shapes[i]->transVel[1]*shapes[i]->transVel[1] + shapes[i]->transVel[2]*shapes[i]->transVel[2]) << std::endl;
+        if (sim.verbose) std::cout << " Shape " << i << " before collision u=(" << shapes[i]->transVel[0] << "," << shapes[i]->transVel[1] << "," << shapes[i]->transVel[2] << ")" << std::endl;
         shapes[i]->transVel[0] += FXdt * iInvMassX;
         shapes[i]->transVel[1] += FYdt * iInvMassY;
         shapes[i]->transVel[2] += FZdt * iInvMassY;
-        //std::cout << " Shape " << i << " after collision u=(" << shapes[i]->transVel[0] << "," << shapes[i]->transVel[1] << "," << shapes[i]->transVel[2] << ")" << std::endl;
-        //std::cout << " Shape " << i << " after collision u= " << sqrt(shapes[i]->transVel[0]*shapes[i]->transVel[0] +shapes[i]->transVel[1]*shapes[i]->transVel[1] + shapes[i]->transVel[2]*shapes[i]->transVel[2]) << std::endl;
+        if (sim.verbose) std::cout << " Shape " << i << " after collision u=(" << shapes[i]->transVel[0] << "," << shapes[i]->transVel[1] << "," << shapes[i]->transVel[2] << ")" << std::endl;
 
 
         // 5a. Conservation of angular momentum
@@ -464,11 +462,11 @@ void Penalization::preventCollidingObstacles() const
         a23 *= determinant;
         a33 *= determinant;
 
-        //std::cout << " Shape " << i << " before collision omega=(" << shapes[i]->angVel[0] << "," << shapes[i]->angVel[1] << "," << shapes[i]->angVel[2] << ")" << std::endl;
+        if (sim.verbose) std::cout << " Shape " << i << " before collision omega=(" << shapes[i]->angVel[0] << "," << shapes[i]->angVel[1] << "," << shapes[i]->angVel[2] << ")" << std::endl;
         shapes[i]->angVel[0] += a11*RcrossF0 + a12*RcrossF1 + a13*RcrossF2;
         shapes[i]->angVel[1] += a12*RcrossF0 + a22*RcrossF1 + a23*RcrossF2;
         shapes[i]->angVel[2] += a13*RcrossF0 + a23*RcrossF1 + a33*RcrossF2;
-        //std::cout << " Shape " << i << " after collision omega=(" << shapes[i]->angVel[0] << "," << shapes[i]->angVel[1] << "," << shapes[i]->angVel[2] << ")" << std::endl;
+        if (sim.verbose) std::cout << " Shape " << i << " after collision omega=(" << shapes[i]->angVel[0] << "," << shapes[i]->angVel[1] << "," << shapes[i]->angVel[2] << ")" << std::endl;
     }
 }
 
