@@ -175,9 +175,9 @@ struct KernelAdvectDiffuse : public Discretization
                 const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
                 const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
                 const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-                o.data[iz][iy][ix].tmpU = lab(ix,iy,iz).u + ( facA*duA + facD*duD );
-                o.data[iz][iy][ix].tmpV = lab(ix,iy,iz).v + ( facA*dvA + facD*dvD );
-                o.data[iz][iy][ix].tmpW = lab(ix,iy,iz).w + ( facA*dwA + facD*dwD );
+                o.data[iz][iy][ix].tmpU = o.data[iz][iy][ix].u + ( facA*duA + facD*duD );
+                o.data[iz][iy][ix].tmpV = o.data[iz][iy][ix].v + ( facA*dvA + facD*dvD );
+                o.data[iz][iy][ix].tmpW = o.data[iz][iy][ix].w + ( facA*dwA + facD*dwD );
             }
         }
         else
@@ -203,9 +203,9 @@ struct KernelAdvectDiffuse : public Discretization
                 const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
                 const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
                 const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-                o.data[iz][iy][ix].tmpU =  aux * ( -sim.coefU[1]*lab(ix,iy,iz).u-sim.coefU[2]*o.dataOld[iz][iy][ix][0] +  facA*duA + facD*duD - dt*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p)/(2.0*info.h) );
-                o.data[iz][iy][ix].tmpV =  aux * ( -sim.coefU[1]*lab(ix,iy,iz).v-sim.coefU[2]*o.dataOld[iz][iy][ix][1] +  facA*dvA + facD*dvD - dt*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p)/(2.0*info.h) );
-                o.data[iz][iy][ix].tmpW =  aux * ( -sim.coefU[1]*lab(ix,iy,iz).w-sim.coefU[2]*o.dataOld[iz][iy][ix][2] +  facA*dwA + facD*dwD - dt*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p)/(2.0*info.h) );
+                o.data[iz][iy][ix].tmpU =  aux * ( -sim.coefU[1]*o.data[iz][iy][ix].u-sim.coefU[2]*o.dataOld[iz][iy][ix][0] +  facA*duA + facD*duD - dt*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p)/(2.0*info.h) );
+                o.data[iz][iy][ix].tmpV =  aux * ( -sim.coefU[1]*o.data[iz][iy][ix].v-sim.coefU[2]*o.dataOld[iz][iy][ix][1] +  facA*dvA + facD*dvD - dt*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p)/(2.0*info.h) );
+                o.data[iz][iy][ix].tmpW =  aux * ( -sim.coefU[1]*o.data[iz][iy][ix].w-sim.coefU[2]*o.dataOld[iz][iy][ix][2] +  facA*dwA + facD*dwD - dt*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p)/(2.0*info.h) );
             }
         }
     }
