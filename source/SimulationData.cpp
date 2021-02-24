@@ -165,7 +165,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
 
   // order of accuracy of timestepping
   TimeOrder = parser("-TimeOrder").asInt(1);
-  assert (TimeOrder == 1 && TimeOrder == 2);
+  assert (TimeOrder == 1 || TimeOrder == 2);
   step_2nd_start = 5;
 
   // ============ REST =============
