@@ -354,16 +354,16 @@ void StefanFish::create()
     const double periodFac = 1.0 - xDiff;
     const double periodVel =     - relU;
 
-    if(not sim.muteAll) {
-      std::ofstream filePID;
-      std::stringstream ssF;
-      ssF<<"PID_"<<obstacleID<<".dat";
-      filePID.open(ssF.str().c_str(), std::ios::app);
-      filePID<<time<<" "<<valIangPdy<<" "<<difIangPdy
-                   <<" "<<valPangIdy<<" "<<difPangIdy
-                   <<" "<<valIangIdy<<" "<<difIangIdy
-                   <<" "<<periodFac <<" "<<periodVel <<"\n";
-    }
+    //if(not sim.muteAll) {
+    //  std::ofstream filePID;
+    //  std::stringstream ssF;
+    //  ssF<<"PID_"<<obstacleID<<".dat";
+    //  filePID.open(ssF.str().c_str(), std::ios::app);
+    //  filePID<<time<<" "<<valIangPdy<<" "<<difIangPdy
+    //               <<" "<<valPangIdy<<" "<<difPangIdy
+    //               <<" "<<valIangIdy<<" "<<difIangIdy
+    //               <<" "<<periodFac <<" "<<periodVel <<"\n";
+    //}
     const double totalTerm = valIangPdy + valPangIdy + valIangIdy;
     const double totalDiff = difIangPdy + difPangIdy + difIangIdy;
     cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
@@ -381,14 +381,14 @@ void StefanFish::create()
     const double totalTerm = coefInst*termInst + coefAvg*avgDangle;
     const double totalDiff = coefInst*diffInst + coefAvg*velDAavg;
 
-    if(not sim.muteAll) {
-      std::ofstream filePID;
-      std::stringstream ssF;
-      ssF<<"PID_"<<obstacleID<<".dat";
-      filePID.open(ssF.str().c_str(), std::ios::app);
-      filePID<<time<<" "<<coefInst*termInst<<" "<<coefInst*diffInst
-                   <<" "<<coefAvg*avgDangle<<" "<<coefAvg*velDAavg<<"\n";
-    }
+    //if(not sim.muteAll) {
+    //  std::ofstream filePID;
+    //  std::stringstream ssF;
+    //  ssF<<"PID_"<<obstacleID<<".dat";
+    //  filePID.open(ssF.str().c_str(), std::ios::app);
+    //  filePID<<time<<" "<<coefInst*termInst<<" "<<coefInst*diffInst
+    //               <<" "<<coefAvg*avgDangle<<" "<<coefAvg*velDAavg<<"\n";
+    //}
     cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
   }
 
