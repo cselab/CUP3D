@@ -43,7 +43,7 @@ cat <<EOF >daint_sbatch
 #SBATCH --cpus-per-task=12
 #SBATCH --hint=nomultithread
 
-export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+export OMP_NUM_THREADS=12
 
 srun ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
 
