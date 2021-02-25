@@ -136,13 +136,6 @@ void Penalization::preventCollidingObstacles() const
     const auto & infos  = sim.grid->getBlocksInfo();
     const size_t N = sim.obstacle_vector->nObstacles();
 
-    //if (shapes[0]->bForcedInSimFrame[0]) shapes[0]->bForcedInSimFrame[0] = false;
-    //if (shapes[0]->bForcedInSimFrame[1]) shapes[0]->bForcedInSimFrame[1] = false;
-    //if (shapes[0]->bForcedInSimFrame[2]) shapes[0]->bForcedInSimFrame[2] = false;
-    //if (shapes[0]->bFixFrameOfRef   [0]) shapes[0]->bFixFrameOfRef   [0] = false;
-    //if (shapes[0]->bFixFrameOfRef   [1]) shapes[0]->bFixFrameOfRef   [1] = false;
-    //if (shapes[0]->bFixFrameOfRef   [2]) shapes[0]->bFixFrameOfRef   [2] = false;
-
     struct CollisionInfo // hitter and hittee, symmetry but we do things twice
     {
         Real iM = 0;
@@ -321,35 +314,16 @@ void Penalization::preventCollidingObstacles() const
     {
         if (i==j) continue;
 
-        auto & coll = collisions[i];
+        auto & coll       = collisions[i];
+        auto & coll_other = collisions[j];
         // less than one fluid element of overlap: wait to get closer. no hit
-        //if(coll.iM < 20 || coll.jM < 20) continue;
-        if(coll.iM < 1 || coll.jM < 1) continue;
+        if(coll.iM       < 1 || coll.jM       < 1) continue; //object i did not collide
+        if(coll_other.iM < 1 || coll_other.jM < 1) continue; //object j did not collide
 
-        //std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-        //std::cout << "iM   (0) = " << collisions[0].iM    << " jM   (1) = " << collisions[1].jM    << std::endl;
-        //std::cout << "iPosX(0) = " << collisions[0].iPosX << " jPosX(1) = " << collisions[1].jPosX << std::endl;
-        //std::cout << "iPosY(0) = " << collisions[0].iPosY << " jPosY(1) = " << collisions[1].jPosY << std::endl;
-        //std::cout << "iPosZ(0) = " << collisions[0].iPosZ << " jPosZ(1) = " << collisions[1].jPosZ << std::endl;
-        //std::cout << "iMomX(0) = " << collisions[0].iMomX << " jMomX(1) = " << collisions[1].jMomX << std::endl;
-        //std::cout << "iMomY(0) = " << collisions[0].iMomY << " jMomY(1) = " << collisions[1].jMomY << std::endl;
-        //std::cout << "iMomZ(0) = " << collisions[0].iMomZ << " jMomZ(1) = " << collisions[1].jMomZ << std::endl;
-        //std::cout << "ivecX(0) = " << collisions[0].ivecX << " jvecX(1) = " << collisions[1].jvecX << std::endl;
-        //std::cout << "ivecY(0) = " << collisions[0].ivecY << " jvecY(1) = " << collisions[1].jvecY << std::endl;
-        //std::cout << "ivecZ(0) = " << collisions[0].ivecZ << " jvecZ(1) = " << collisions[1].jvecZ << std::endl;
-        //std::cout << "jM   (0) = " << collisions[0].jM    << " iM   (1) = " << collisions[1].iM    << std::endl;
-        //std::cout << "jPosX(0) = " << collisions[0].jPosX << " iPosX(1) = " << collisions[1].iPosX << std::endl;
-        //std::cout << "jPosY(0) = " << collisions[0].jPosY << " iPosY(1) = " << collisions[1].iPosY << std::endl;
-        //std::cout << "jPosZ(0) = " << collisions[0].jPosZ << " iPosZ(1) = " << collisions[1].iPosZ << std::endl;
-        //std::cout << "jMomX(0) = " << collisions[0].jMomX << " iMomX(1) = " << collisions[1].iMomX << std::endl;
-        //std::cout << "jMomY(0) = " << collisions[0].jMomY << " iMomY(1) = " << collisions[1].iMomY << std::endl;
-        //std::cout << "jMomZ(0) = " << collisions[0].jMomZ << " iMomZ(1) = " << collisions[1].iMomZ << std::endl;
-        //std::cout << "jvecX(0) = " << collisions[0].jvecX << " ivecX(1) = " << collisions[1].ivecX << std::endl;
-        //std::cout << "jvecY(0) = " << collisions[0].jvecY << " ivecY(1) = " << collisions[1].ivecY << std::endl;
-        //std::cout << "jvecZ(0) = " << collisions[0].jvecZ << " ivecZ(1) = " << collisions[1].ivecZ << std::endl;
-        //std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
-        //std::cout << std::endl;
-        //std::cout << std::endl;
+        if (std::fabs(coll.iPosX - coll_other.iPosY) + std::fabs(coll.iPosY - coll_other.iPosY) + std::fabs(coll.iPosZ - coll_other.iPosZ) > 1e-4 )
+        {
+            continue; // then both objects i and j collided, but not with each other!
+        }
 
         //1. Compute collision normal vector (NX,NY,NZ)
         const Real inv_iM = 1.0/coll.iM;
@@ -383,16 +357,35 @@ void Penalization::preventCollidingObstacles() const
 
         if(projVel<=0) continue; // vel goes away from collision: no need to bounce
 
-        if (sim.verbose)std::cout << "Collision between objects " << i << " and " << j << std::endl;
-        //std::cout << " collision velocity = " << projVel << std::endl;
-        //std::cout << " collision normal vector = (" << NX << "," << NY << "," << NZ << ")" << std::endl;
 
-        //if (shapes[i]->bForcedInSimFrame[0]) shapes[i]->bForcedInSimFrame[0] = false;
-        //if (shapes[i]->bForcedInSimFrame[1]) shapes[i]->bForcedInSimFrame[1] = false;
-        //if (shapes[i]->bForcedInSimFrame[2]) shapes[i]->bForcedInSimFrame[2] = false;
-        //if (shapes[j]->bForcedInSimFrame[0]) shapes[j]->bForcedInSimFrame[0] = false;
-        //if (shapes[j]->bForcedInSimFrame[1]) shapes[j]->bForcedInSimFrame[1] = false;
-        //if (shapes[j]->bForcedInSimFrame[2]) shapes[j]->bForcedInSimFrame[2] = false;
+        if (sim.verbose)
+        {
+            std::cout << "Collision between objects " << i << " and " << j << std::endl;
+            std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+            std::cout << "iM   (0) = " << collisions[i].iM    << " jM   (1) = " << collisions[j].jM    << std::endl;
+            std::cout << "iPosX(0) = " << collisions[i].iPosX << " jPosX(1) = " << collisions[j].jPosX << std::endl;
+            std::cout << "iPosY(0) = " << collisions[i].iPosY << " jPosY(1) = " << collisions[j].jPosY << std::endl;
+            std::cout << "iPosZ(0) = " << collisions[i].iPosZ << " jPosZ(1) = " << collisions[j].jPosZ << std::endl;
+            std::cout << "iMomX(0) = " << collisions[i].iMomX << " jMomX(1) = " << collisions[j].jMomX << std::endl;
+            std::cout << "iMomY(0) = " << collisions[i].iMomY << " jMomY(1) = " << collisions[j].jMomY << std::endl;
+            std::cout << "iMomZ(0) = " << collisions[i].iMomZ << " jMomZ(1) = " << collisions[j].jMomZ << std::endl;
+            std::cout << "ivecX(0) = " << collisions[i].ivecX << " jvecX(1) = " << collisions[j].jvecX << std::endl;
+            std::cout << "ivecY(0) = " << collisions[i].ivecY << " jvecY(1) = " << collisions[j].jvecY << std::endl;
+            std::cout << "ivecZ(0) = " << collisions[i].ivecZ << " jvecZ(1) = " << collisions[j].jvecZ << std::endl;
+            std::cout << "jM   (0) = " << collisions[i].jM    << " iM   (1) = " << collisions[j].iM    << std::endl;
+            std::cout << "jPosX(0) = " << collisions[i].jPosX << " iPosX(1) = " << collisions[j].iPosX << std::endl;
+            std::cout << "jPosY(0) = " << collisions[i].jPosY << " iPosY(1) = " << collisions[j].iPosY << std::endl;
+            std::cout << "jPosZ(0) = " << collisions[i].jPosZ << " iPosZ(1) = " << collisions[j].iPosZ << std::endl;
+            std::cout << "jMomX(0) = " << collisions[i].jMomX << " iMomX(1) = " << collisions[j].iMomX << std::endl;
+            std::cout << "jMomY(0) = " << collisions[i].jMomY << " iMomY(1) = " << collisions[j].iMomY << std::endl;
+            std::cout << "jMomZ(0) = " << collisions[i].jMomZ << " iMomZ(1) = " << collisions[j].iMomZ << std::endl;
+            std::cout << "jvecX(0) = " << collisions[i].jvecX << " ivecX(1) = " << collisions[j].ivecX << std::endl;
+            std::cout << "jvecY(0) = " << collisions[i].jvecY << " ivecY(1) = " << collisions[j].ivecY << std::endl;
+            std::cout << "jvecZ(0) = " << collisions[i].jvecZ << " ivecZ(1) = " << collisions[j].ivecZ << std::endl;
+            std::cout << "~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~" << std::endl;
+            std::cout << std::endl;
+            std::cout << std::endl;
+        }
 
         //5. Take care of the collision. Assume elastic collision (kinetic energy is conserved)
 
