@@ -320,7 +320,9 @@ void Penalization::preventCollidingObstacles() const
         if(coll.iM       < 1 || coll.jM       < 1) continue; //object i did not collide
         if(coll_other.iM < 1 || coll_other.jM < 1) continue; //object j did not collide
 
-        if (std::fabs(coll.iPosX - coll_other.iPosY) + std::fabs(coll.iPosY - coll_other.iPosY) + std::fabs(coll.iPosZ - coll_other.iPosZ) > 1e-4 )
+        if (std::fabs(coll.iPosX - coll_other.iPosX) + 
+            std::fabs(coll.iPosY - coll_other.iPosY) + 
+            std::fabs(coll.iPosZ - coll_other.iPosZ) > 1e-4 )
         {
             continue; // then both objects i and j collided, but not with each other!
         }
