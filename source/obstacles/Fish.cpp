@@ -170,7 +170,7 @@ void Fish::writeSDFOnBlocks(const intersect_t& segmentsPerBlock)
     #pragma omp for schedule(dynamic, 1)
     for(size_t i=0; i<vInfo.size(); i++)
     {
-      const BlockInfo info = vInfo[i];
+      const BlockInfo & info = vInfo[i];
       const std::vector<VolumeSegment_OBB*>& S = segmentsPerBlock[info.blockID];
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;
 
