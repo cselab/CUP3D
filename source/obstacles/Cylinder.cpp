@@ -121,7 +121,7 @@ Cylinder::Cylinder(
 
 void Cylinder::_init(void)
 {
-  printf("Created Cylinder with radius %f and halflength %f\n", radius, halflength);
+  if (sim.verbose) printf("Created Cylinder with radius %f and halflength %f\n", radius, halflength);
 
   // D-cyl can float around the domain, but does not support rotation. TODO
   bBlockRotation[0] = true;
