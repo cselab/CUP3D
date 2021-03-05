@@ -158,19 +158,17 @@ class KernelVorticity
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
   {
-    const Real inv2h = .5 / info.h_gridpoint;// *info.h_gridpoint*info.h_gridpoint*info.h_gridpoint;
+    const Real inv2h = .5 * info.h_gridpoint * info.h_gridpoint;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
     for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
       const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
       const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
       const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
-      const Real mask = 1.0 - o(ix,iy,iz).chi;
-      o(ix,iy,iz).tmpU = mask * inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
-      o(ix,iy,iz).tmpV = mask * inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
-      o(ix,iy,iz).tmpW = mask * inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
+      o(ix,iy,iz).tmpU = inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
+      o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
+      o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
     }
-#if 0
     BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
     typename BlockType::ElementType * faceXm = nullptr;
     typename BlockType::ElementType * faceXp = nullptr;
@@ -193,9 +191,7 @@ class KernelVorticity
         for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         {
-          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
-          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
-          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LW=lab(ix-1,iy,iz);
           const FluidElement &LC=lab(ix,iy,iz);
           faceXm[iy + FluidBlock::sizeY * iz].clear();
           faceXm[iy + FluidBlock::sizeY * iz].tmpV = -inv2h*( LW.w + LC.w );
@@ -208,9 +204,7 @@ class KernelVorticity
        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
        {
-          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
-          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
-          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LE=lab(ix+1,iy,iz);
           const FluidElement &LC=lab(ix,iy,iz);
           faceXp[iy + FluidBlock::sizeY * iz].clear();
           faceXp[iy + FluidBlock::sizeY * iz].tmpV = +inv2h*( LE.w + LC.w );
@@ -223,9 +217,7 @@ class KernelVorticity
        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
        {
-          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
-          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
-          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LS=lab(ix,iy-1,iz);
           const FluidElement &LC=lab(ix,iy,iz);
           faceYm[ix + FluidBlock::sizeX * iz].clear();
           faceYm[ix + FluidBlock::sizeX * iz].tmpU = +inv2h*(LS.w+LC.w);
@@ -238,9 +230,7 @@ class KernelVorticity
        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
        {
-          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
-          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
-          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LN=lab(ix,iy+1,iz);
           const FluidElement &LC=lab(ix,iy,iz);
           faceYp[ix + FluidBlock::sizeX * iz].clear();
           faceYp[ix + FluidBlock::sizeX * iz].tmpU = -inv2h*(LN.w+LC.w);
@@ -253,9 +243,7 @@ class KernelVorticity
        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
        {
-          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
-          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
-          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LF=lab(ix,iy,iz-1);
           const FluidElement &LC=lab(ix,iy,iz);
           faceZm[ix + FluidBlock::sizeX * iy].clear();
           faceZm[ix + FluidBlock::sizeX * iy].tmpU = -inv2h*(LF.v+LC.v);
@@ -268,16 +256,13 @@ class KernelVorticity
        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
        {
-          const FluidElement &LW=lab(ix-1,iy,iz), &LE=lab(ix+1,iy,iz);
-          const FluidElement &LS=lab(ix,iy-1,iz), &LN=lab(ix,iy+1,iz);
-          const FluidElement &LF=lab(ix,iy,iz-1), &LB=lab(ix,iy,iz+1);
+          const FluidElement &LB=lab(ix,iy,iz+1);
           const FluidElement &LC=lab(ix,iy,iz);
           faceZp[ix + FluidBlock::sizeX * iy].clear();
           faceZp[ix + FluidBlock::sizeX * iy].tmpU = +inv2h*(LB.v+LC.v);
           faceZp[ix + FluidBlock::sizeX * iy].tmpV = -inv2h*(LB.u+LC.u);
        }
      }
-#endif
   }
 };
 
@@ -290,6 +275,22 @@ class ComputeVorticity : public Operator
     sim.startProfiler("Vorticity Kernel");
     const KernelVorticity K;
     compute<KernelVorticity>(K,true);
+    const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
+    #pragma omp parallel for
+    for(size_t i=0; i<myInfo.size(); i++)
+    {
+      const cubism::BlockInfo& info = myInfo[i];
+      FluidBlock& b = *( FluidBlock *)info.ptrBlock;
+      const double fac = 1.0/(info.h*info.h*info.h);
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      {
+        b(ix,iy,iz).tmpU *=fac;
+        b(ix,iy,iz).tmpV *=fac;
+        b(ix,iy,iz).tmpW *=fac;
+      }
+    }
     sim.stopProfiler();
     check("Vorticity");
   }
@@ -390,26 +391,99 @@ class KernelDivergence
 {
   public:
       SimulationData & sim;
-  KernelDivergence(SimulationData & s): sim(s){sim.div_loc = 0.0;}
+  KernelDivergence(SimulationData & s): sim(s){}
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
+  const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W,FE_TMPU}};
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
   {
-    double s = 0.0;
-    const Real inv2h = .5 / info.h_gridpoint;
+    const Real fac=0.5*info.h*info.h;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
     for (int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
-      double div = (1.0 - o(ix,iy,iz).chi)*inv2h * ( lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u +
-                                                     lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v +
-                                                     lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w );
-      s += std::fabs(div);
+      o(ix,iy,iz).tmpU = (1.0 - o(ix,iy,iz).chi)*fac * ( lab(ix+1,iy,iz).u - lab(ix-1,iy,iz).u +
+                                                         lab(ix,iy+1,iz).v - lab(ix,iy-1,iz).v +
+                                                         lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w );
     }
-    #pragma omp atomic
-    sim.div_loc += s*(info.h_gridpoint*info.h_gridpoint*info.h_gridpoint);
+
+    BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
+    typename BlockType::ElementType * faceXm = nullptr;
+    typename BlockType::ElementType * faceXp = nullptr;
+    typename BlockType::ElementType * faceYm = nullptr;
+    typename BlockType::ElementType * faceYp = nullptr;
+    typename BlockType::ElementType * faceZp = nullptr;
+    typename BlockType::ElementType * faceZm = nullptr;
+    if (tempCase != nullptr)
+    {
+      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+      faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
+      faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
+    }
+    if (faceXm != nullptr)
+    {
+      int ix = 0;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      {
+        faceXm[iy + FluidBlock::sizeY * iz].clear();
+        faceXm[iy + FluidBlock::sizeY * iz].tmpU = (1.0 - o(ix,iy,iz).chi)*fac *(lab(ix-1,iy,iz).u + lab(ix,iy,iz).u);
+      }
+    }
+    if (faceXp != nullptr)
+    {
+      int ix = FluidBlock::sizeX-1;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      {
+        faceXp[iy + FluidBlock::sizeY * iz].clear();
+        faceXp[iy + FluidBlock::sizeY * iz].tmpU = - (1.0 - o(ix,iy,iz).chi)*fac *(lab(ix+1,iy,iz).u + lab(ix,iy,iz).u);
+      }
+    }
+    if (faceYm != nullptr)
+    {
+      int iy = 0;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      {
+        faceYm[ix + FluidBlock::sizeX * iz].clear();
+        faceYm[ix + FluidBlock::sizeX * iz].tmpU = (1.0 - o(ix,iy,iz).chi)*fac *(lab(ix,iy-1,iz).v + lab(ix,iy,iz).v);
+      }
+    }
+    if (faceYp != nullptr)
+    {
+      int iy = FluidBlock::sizeY-1;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      {
+        faceYp[ix + FluidBlock::sizeX * iz].clear();
+        faceYp[ix + FluidBlock::sizeX * iz].tmpU = - (1.0 - o(ix,iy,iz).chi)*fac *(lab(ix,iy+1,iz).v + lab(ix,iy,iz).v);
+      }
+    }
+    if (faceZm != nullptr)
+    {
+      int iz = 0;
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      {
+        faceZm[ix + FluidBlock::sizeX * iy].clear();
+        faceZm[ix + FluidBlock::sizeX * iy].tmpU = (1.0 - o(ix,iy,iz).chi)*fac *(lab(ix,iy,iz-1).w + lab(ix,iy,iz).w);
+      }
+    }
+    if (faceZp != nullptr)
+    {
+      int iz = FluidBlock::sizeZ-1;
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      {
+        faceZp[ix + FluidBlock::sizeX * iy].clear();
+        faceZp[ix + FluidBlock::sizeX * iy].tmpU = - (1.0 - o(ix,iy,iz).chi)*fac *(lab(ix,iy,iz+1).w + lab(ix,iy,iz).w);
+      }
+    }
   }
 };
 
@@ -421,18 +495,33 @@ class ComputeDivergence : public Operator
   {
     sim.startProfiler("Divergence Kernel");
 
-    sim.div_loc = 0.0;
-
     const KernelDivergence K(sim);
-    compute<KernelDivergence>(K);
+    compute<KernelDivergence>(K,true);
+
+    double div_loc = 0.0;
+    const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
+    #pragma omp parallel for schedule(static) reduction(+: div_loc)
+    for(size_t i=0; i<myInfo.size(); i++)
+    {
+      const cubism::BlockInfo& info = myInfo[i];
+      const FluidBlock& b = *(const FluidBlock *)info.ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        div_loc += std::fabs(b(ix,iy,iz).tmpU);
+    }
     double div_tot = 0.0;
-    MPI_Reduce(&sim.div_loc, &div_tot, 1, MPI_DOUBLE, MPI_SUM, 0, sim.app_comm);
+    MPI_Reduce(&div_loc, &div_tot, 1, MPI_DOUBLE, MPI_SUM, 0, sim.app_comm);
+
+    size_t loc = myInfo.size();
+    size_t tot;
+    MPI_Reduce(&loc, &tot, 1, MPI_LONG, MPI_SUM, 0, sim.app_comm);
     if (sim.rank == 0)
     {
       std::cout << "Total div = " << div_tot << std::endl;
       std::ofstream outfile;
       outfile.open("div.txt", std::ios_base::app);
-      outfile << sim.time << " " << div_tot << "\n";
+      outfile << sim.time << " " << div_tot << " " << tot<< "\n";
       outfile.close();
     }
     sim.stopProfiler();

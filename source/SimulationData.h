@@ -76,7 +76,6 @@ struct SimulationData
   }
 
   AMR * amr;
-  double div_loc;
 
   //The protagonist
   ObstacleVector * obstacle_vector = nullptr;
