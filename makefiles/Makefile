@@ -26,6 +26,7 @@ nthreads ?= 24 # needs to be modified if user wants to use more threads per rank
 config ?= prod
 precision ?= double
 precision_dump ?= single
+usemap ?= false
 bs ?= 8
 bsx ?= 8
 bsy ?= 8
@@ -52,6 +53,10 @@ endif
 NVCC?=nvcc
 NVFLAGS?=-std=c++14 -code=sm_60 -arch=compute_60
 LD=$(CXX)
+
+ifeq "$(usemap)" "true"
+	CPPFLAGS += -DCUBISM_USE_MAP
+endif
 
 ifeq "$(dump_surface_binary)" "true"
 	CPPFLAGS += -DCUP_DUMP_SURFACE_BINARY
