@@ -12,7 +12,6 @@
 #include "operators/Checkpoint.h"
 #include "operators/ComputeDissipation.h"
 #include "operators/ExternalForcing.h"
-#include "operators/FadeOut.h"
 #include "operators/FluidSolidForces.h"
 #include "operators/InitialConditions.h"
 #include "operators/ObstaclesCreate.h"

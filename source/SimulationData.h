@@ -162,8 +162,6 @@ struct SimulationData
   int rampup = 100;
   bool verbose=false;
   bool muteAll = false;
-  Real fadeOutLengthU[3] = {0, 0, 0};
-  Real fadeOutLengthPRHS[3] = {0, 0, 0};
 
   // output
   int saveFreq=0;

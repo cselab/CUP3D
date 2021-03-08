@@ -93,7 +93,7 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o \
 	AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
-	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o FadeOut.o \
+	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o \
 	FishShapes.o IterativePressurePenalization.o \
 	SGS.o FixedMassFlux_nonUniform.o Analysis.o SpectralManip.o \
 	SpectralIcGenerator.o SpectralManipFFTW.o HITfiltering.o \

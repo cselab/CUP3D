@@ -294,7 +294,8 @@ void StefanFish::create()
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
-  const double DT = sim.dt/Tperiod, time = sim.time;
+  const double DT = sim.dt/Tperiod;
+  //const double time = sim.time;
   // Control pos diffs
   const double   xDiff = (position[0] - origC[0])/length;
   const double   yDiff = (position[1] - origC[1])/length;

@@ -118,15 +118,10 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   std::string BC_x = parser("-BC_x").asString("dirichlet");
   std::string BC_y = parser("-BC_y").asString("dirichlet");
   std::string BC_z = parser("-BC_z").asString("dirichlet");
-  const Real fadeLen = parser("-fade_len").asDouble(0.0);
   // BC
   if(BC_x=="unbounded") BC_x = "freespace"; // tomato tomato
   if(BC_y=="unbounded") BC_y = "freespace"; // tomato tomato
   if(BC_z=="unbounded") BC_z = "freespace"; // tomato tomato
-  // boundary killing useless for unbounded or periodic
-  fadeOutLengthPRHS[0] = BC_x=="dirichlet"? fadeLen : 0;
-  fadeOutLengthPRHS[1] = BC_y=="dirichlet"? fadeLen : 0;
-  fadeOutLengthPRHS[2] = BC_z=="dirichlet"? fadeLen : 0;
 
   if(BC_x=="freespace" || BC_y=="freespace" || BC_z=="freespace")
   {
@@ -142,9 +137,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   {
     if(BC_x=="fakeopen" && BC_y=="fakeopen" && BC_z=="fakeopen")
     {
-      fadeOutLengthU[0] = fadeLen; fadeOutLengthPRHS[0] = fadeLen;
-      fadeOutLengthU[1] = fadeLen; fadeOutLengthPRHS[1] = fadeLen;
-      fadeOutLengthU[2] = fadeLen; fadeOutLengthPRHS[2] = fadeLen;
       BC_x = "freespace"; BC_y = "freespace"; BC_z = "freespace";
       bUseFourierBC = true; // poisson solver
     } else {
@@ -159,9 +151,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
 
   // DFT if we are periodic in all directions:
   if(BC_x=="periodic"&&BC_y=="periodic"&&BC_z=="periodic") bUseFourierBC = true;
-  if(rank==0)
-  printf("Boundary pressure RHS / FD smoothing region sizes {%f,%f,%f}\n",
-    fadeOutLengthPRHS[0], fadeOutLengthPRHS[1], fadeOutLengthPRHS[2]);
 
   // order of accuracy of timestepping
   TimeOrder = parser("-TimeOrder").asInt(1);
@@ -175,11 +164,10 @@ void SimulationData::_preprocessArguments()
 {
   assert(profiler == nullptr);  // This should not be possible at all.
   profiler = new cubism::Profiler();
-
-  // Grid.
-  if (bpdx < 1 || bpdy < 1 || bpdz < 1) {
-      fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);
-      fflush(0); abort();
+  if (bpdx < 1 || bpdy < 1 || bpdz < 1)
+  {
+    fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);
+    fflush(0); abort();
   }
   int aux = 1 << (levelMax -1);
   const double NFE[3] = {
@@ -189,33 +177,21 @@ void SimulationData::_preprocessArguments()
   };
   const double maxbpd = std::max({NFE[0], NFE[1], NFE[2]});
   maxextent = std::max({extent[0], extent[1], extent[2]});
-  if( extent[0] <= 0 || extent[1] <= 0 || extent[2] <= 0 ) {
+  if( extent[0] <= 0 || extent[1] <= 0 || extent[2] <= 0 )
+  {
     extent[0] = (NFE[0]/maxbpd) * maxextent;
     extent[1] = (NFE[1]/maxbpd) * maxextent;
     extent[2] = (NFE[2]/maxbpd) * maxextent;
-  } else {
+  }
+  else
+  {
     abort();
   }
-  printf("Domain extent: %lg %lg %lg\n", extent[0], extent[1], extent[2]);
-
-  // Flow.
   assert(nu >= 0);
   assert(lambda > 0 || DLM > 0);
   assert(CFL > 0.0);
-
-  // Output.
   assert(saveFreq >= 0.0);
   assert(saveTime >= 0.0);
-
-  char hostname[1024];
-  hostname[1023] = '\0';
-  gethostname(hostname, 1023);
-  const int nthreads = omp_get_max_threads();
-  printf("Rank %d (of %d) with %d threads on host Hostname: %s\n",
-          rank, nprocs, nthreads, hostname);
-  //if (communicator not_eq nullptr) //Yo dawg I heard you like communicators.
-  //  communicator->comm_MPI = grid->getCartComm();
-  fflush(0);
 }
 
 SimulationData::~SimulationData()
