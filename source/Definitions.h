@@ -23,8 +23,11 @@
 #include <Cubism/BlockLab.h>
 #include <Cubism/BlockLabMPI.h>
 
-#ifndef CUP_BLOCK_SIZE
-#define CUP_BLOCK_SIZE 16
+#ifndef CUP_BLOCK_SIZEX
+//#define CUP_BLOCK_SIZE 16
+#define CUP_BLOCK_SIZEX 8
+#define CUP_BLOCK_SIZEY 8
+#define CUP_BLOCK_SIZEZ 8
 #endif
 
 #include <array>
@@ -232,10 +235,10 @@ template <typename TElement>
 struct BaseBlock
 {
   //these identifiers are required by cubism!
-  static constexpr int BS = CUP_BLOCK_SIZE;
-  static constexpr int sizeX = BS;
-  static constexpr int sizeY = BS;
-  static constexpr int sizeZ = BS;
+  //static constexpr int BS = CUP_BLOCK_SIZE;
+  static constexpr int sizeX = CUP_BLOCK_SIZEX;// BS;
+  static constexpr int sizeY = CUP_BLOCK_SIZEY;// BS;
+  static constexpr int sizeZ = CUP_BLOCK_SIZEZ;// BS;
   typedef TElement ElementType;
   typedef TElement element_type;
   typedef Real   RealType;

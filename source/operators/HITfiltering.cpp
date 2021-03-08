@@ -153,16 +153,18 @@ void HITfiltering::operator()(const double dt)
   const int BPDZ = sim.grid->getBlocksPerDimension(2);
   FilteredQuantities filtered(BPDX, BPDY, BPDZ);
 
-  static constexpr int NB = CUP_BLOCK_SIZE;
+  static constexpr int NBZ = CUP_BLOCK_SIZEZ;
+  static constexpr int NBY = CUP_BLOCK_SIZEY;
+  static constexpr int NBX = CUP_BLOCK_SIZEX;
 
   #pragma omp parallel for schedule(static) collapse(3)
   for(int biz=0; biz<BPDZ; ++biz)
   for(int biy=0; biy<BPDY; ++biy)
   for(int bix=0; bix<BPDX; ++bix)
   {
-    for (int iz = 0; iz < NB; ++iz)
-    for (int iy = 0; iy < NB; ++iy)
-    for (int ix = 0; ix < NB; ++ix)
+    for (int iz = 0; iz < NBZ; ++iz)
+    for (int iy = 0; iy < NBY; ++iy)
+    for (int ix = 0; ix < NBX; ++ix)
     {
       #if 0
         const int bid = bix + biy * BPDX + biz * BPDX * BPDY;
@@ -174,17 +176,17 @@ void HITfiltering::operator()(const double dt)
       #else
         // linear interp betwen element's block (bix, biy, biz) and second
         // nearest. figure out which from element's index (ix, iy, iz) in block:
-        const int nbix = ix >= NB/2 ? bix - 1 : bix + 1;
-        const int nbiy = iy >= NB/2 ? biy - 1 : biy + 1;
-        const int nbiz = iz >= NB/2 ? biz - 1 : biz + 1;
+        const int nbix = ix >= NBX/2 ? bix - 1 : bix + 1;
+        const int nbiy = iy >= NBY/2 ? biy - 1 : biy + 1;
+        const int nbiz = iz >= NBZ/2 ? biz - 1 : biz + 1;
         // distance from second nearest block along its direction:
-        const Real dist_nbix = ix < NB/2 ? NB/2 + ix + 0.5 : 3*NB/2 - ix - 0.5;
-        const Real dist_nbiy = iy < NB/2 ? NB/2 + iy + 0.5 : 3*NB/2 - iy - 0.5;
-        const Real dist_nbiz = iz < NB/2 ? NB/2 + iz + 0.5 : 3*NB/2 - iz - 0.5;
+        const Real dist_nbix = ix < NBX/2 ? NBX/2 + ix + 0.5 : 3*NBX/2 - ix - 0.5;
+        const Real dist_nbiy = iy < NBY/2 ? NBY/2 + iy + 0.5 : 3*NBY/2 - iy - 0.5;
+        const Real dist_nbiz = iz < NBZ/2 ? NBZ/2 + iz + 0.5 : 3*NBZ/2 - iz - 0.5;
         // distance from block's center:
-        const Real dist_bix = std::fabs(ix + 0.5 - NB/2);
-        const Real dist_biy = std::fabs(iy + 0.5 - NB/2);
-        const Real dist_biz = std::fabs(iz + 0.5 - NB/2);
+        const Real dist_bix = std::fabs(ix + 0.5 - NBX/2);
+        const Real dist_biy = std::fabs(iy + 0.5 - NBY/2);
+        const Real dist_biz = std::fabs(iz + 0.5 - NBZ/2);
 
         for(int dbz = 0; dbz < 2; ++dbz) // 0 is current block, 1 is
         for(int dby = 0; dby < 2; ++dby) // nearest along z, y, x
@@ -201,9 +203,9 @@ void HITfiltering::operator()(const double dt)
           const Real u = block(ix,iy,iz).u;
           const Real v = block(ix,iy,iz).v;
           const Real w = block(ix,iy,iz).w;
-          const Real distx = (dbx? dist_nbix : dist_bix) / NB;
-          const Real disty = (dby? dist_nbiy : dist_biy) / NB;
-          const Real distz = (dbz? dist_nbiz : dist_biz) / NB;
+          const Real distx = (dbx? dist_nbix : dist_bix) / NBX;
+          const Real disty = (dby? dist_nbiy : dist_biy) / NBY;
+          const Real distz = (dbz? dist_nbiz : dist_biz) / NBZ;
           assert(distx < 1.0 and disty < 1.0 and disty < 1.0);
           //const Real dist =std::sqrt(distx*distx + disty*disty + distz*distz);
           //const Real weight = std::max(1 - dist, (Real) 0);
@@ -277,7 +279,7 @@ std::array<double, 6> StructureFunctions::pick_ref_point()
   std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   std::uniform_int_distribution<int> distrib_ranks(0, sim.nprocs-1);
   std::uniform_int_distribution<size_t> distrib_block(0, vInfo.size()-1);
-  std::uniform_int_distribution<int> distrib_elem(0, CUP_BLOCK_SIZE-1);
+  std::uniform_int_distribution<int> distrib_elem(0, CUP_BLOCK_SIZEX-1);
   int ref_rank = distrib_ranks(gen);
   MPI_Bcast(&ref_rank, 1, MPI_INT, 0, sim.app_comm);
   const size_t ref_bid  = distrib_block(gen);
@@ -357,9 +359,9 @@ void StructureFunctions::operator()(const double dt)
     const BlockInfo & info = vInfo[i];
     FluidBlock& block = * (FluidBlock*) info.ptrBlock;
 
-    for (int iz = 0; iz < CUP_BLOCK_SIZE; ++iz)
-    for (int iy = 0; iy < CUP_BLOCK_SIZE; ++iy)
-    for (int ix = 0; ix < CUP_BLOCK_SIZE; ++ix)
+    for (int iz = 0; iz < CUP_BLOCK_SIZEZ; ++iz)
+    for (int iy = 0; iy < CUP_BLOCK_SIZEY; ++iy)
+    for (int ix = 0; ix < CUP_BLOCK_SIZEX; ++ix)
     {
       const std::array<Real,3> pos = info.pos<Real>(ix, iy, iz);
       const Real delta = periodic_distance(pos, ref_pos, sim.extent);

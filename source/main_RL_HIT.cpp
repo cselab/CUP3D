@@ -92,7 +92,7 @@ inline void app_main(
 
   cubism::ArgumentParser parser(argc, argv);
   cubismup3d::Simulation sim(mpicom, parser);
-  const int maxGridN = sim.sim.local_bpdx * CUP_BLOCK_SIZE;
+  const int maxGridN = sim.sim.local_bpdx * CUP_BLOCK_SIZEX;
   cubismup3d::HITtargetData target(maxGridN, parser("-initCondFileTokens").asString());
   const Real LES_RL_FREQ_A = parser("-RL_freqActions").asDouble( 4.0);
   const Real LES_RL_N_TSIM = parser("-RL_nIntTperSim").asDouble(20.0);

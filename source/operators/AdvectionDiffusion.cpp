@@ -28,7 +28,9 @@ struct KernelAdvectDiffuse : public Discretization
     const Real mu = sim.nu;
     const std::array<Real, 3>& uInf = sim.uinf;
     const int loopBeg = this->getStencilBeg();
-    const int loopEnd = CUP_BLOCK_SIZE-1 + this->getStencilEnd();
+    const int loopEndX = CUP_BLOCK_SIZEX-1 + this->getStencilEnd();
+    const int loopEndY = CUP_BLOCK_SIZEY-1 + this->getStencilEnd();
+    const int loopEndZ = CUP_BLOCK_SIZEZ-1 + this->getStencilEnd();
     const Real norUinf = 1 / std::max({std::fabs(uInf[0]), std::fabs(uInf[1]), std::fabs(uInf[2]), EPS});
     const StencilInfo stencil{this->getStencilBeg(), this->getStencilBeg(),
                               this->getStencilBeg(), this->getStencilEnd(),
@@ -43,8 +45,8 @@ struct KernelAdvectDiffuse : public Discretization
         {
             const Real fac = std::pow(fadeW, 0 - ix);
             assert(fac <= 1 && fac >= 0);
-            for (int iz = loopBeg; iz < loopEnd; ++iz)
-            for (int iy = loopBeg; iy < loopEnd; ++iy)
+            for (int iz = loopBeg; iz < loopEndZ; ++iz)
+            for (int iy = loopBeg; iy < loopEndY; ++iy)
             {
                 inp<0>(L,ix,iy,iz) *= fac;
                 inp<1>(L,ix,iy,iz) *= fac;
@@ -57,12 +59,12 @@ struct KernelAdvectDiffuse : public Discretization
         if (sim.BCx_flag == wall || sim.BCx_flag == periodic || I.index[0] != (sim.bpdx * (1<<I.level) - 1)) return;
         const Real fadeE = 1 - std::pow(std::min(uInf[0],(Real)0) * norUinf, 2);
         if (fadeE >= 1) return; // no momentum killing at this boundary
-        for (int ix = CUP_BLOCK_SIZE; ix < loopEnd; ++ix)
+        for (int ix = CUP_BLOCK_SIZEX; ix < loopEndX; ++ix)
         {
-            const Real fac = std::pow(fadeE, ix - CUP_BLOCK_SIZE + 1);
+            const Real fac = std::pow(fadeE, ix - CUP_BLOCK_SIZEX + 1);
             assert(fac <= 1 && fac >= 0);
-            for (int iz = loopBeg; iz < loopEnd; ++iz)
-            for (int iy = loopBeg; iy < loopEnd; ++iy)
+            for (int iz = loopBeg; iz < loopEndZ; ++iz)
+            for (int iy = loopBeg; iy < loopEndY; ++iy)
             {
                 inp<0>(L,ix,iy,iz) *= fac;
                 inp<1>(L,ix,iy,iz) *= fac;
@@ -79,8 +81,8 @@ struct KernelAdvectDiffuse : public Discretization
         {
             const Real fac = std::pow(fadeS, 0 - iy);
             assert(fac <= 1 && fac >= 0);
-            for (int iz = loopBeg; iz < loopEnd; ++iz)
-            for (int ix = loopBeg; ix < loopEnd; ++ix)
+            for (int iz = loopBeg; iz < loopEndZ; ++iz)
+            for (int ix = loopBeg; ix < loopEndX; ++ix)
             {
                 inp<0>(L,ix,iy,iz) *= fac;
                 inp<1>(L,ix,iy,iz) *= fac;
@@ -93,12 +95,12 @@ struct KernelAdvectDiffuse : public Discretization
         if (sim.BCy_flag == wall || sim.BCy_flag == periodic || I.index[1] != (sim.bpdy*(1<<I.level) - 1)) return;
         const Real fadeN = 1 - std::pow(std::min(uInf[1],(Real)0) * norUinf, 2);
         if (fadeN >= 1) return; // no momentum killing at this boundary
-        for (int iy = CUP_BLOCK_SIZE; iy < loopEnd; ++iy)
+        for (int iy = CUP_BLOCK_SIZEY; iy < loopEndY; ++iy)
         {
-            const Real fac = std::pow(fadeN, iy - CUP_BLOCK_SIZE + 1);
+            const Real fac = std::pow(fadeN, iy - CUP_BLOCK_SIZEY + 1);
             assert(fac <= 1 && fac >= 0);
-            for (int iz = loopBeg; iz < loopEnd; ++iz)
-            for (int ix = loopBeg; ix < loopEnd; ++ix)
+            for (int iz = loopBeg; iz < loopEndZ; ++iz)
+            for (int ix = loopBeg; ix < loopEndX; ++ix)
             {
                 inp<0>(L,ix,iy,iz) *= fac;
                 inp<1>(L,ix,iy,iz) *= fac;
@@ -115,8 +117,8 @@ struct KernelAdvectDiffuse : public Discretization
         {
             const Real fac = std::pow(fadeF, 0 - iz);
             assert(fac <= 1 && fac >= 0);
-            for (int iy = loopBeg; iy < loopEnd; ++iy)
-            for (int ix = loopBeg; ix < loopEnd; ++ix)
+            for (int iy = loopBeg; iy < loopEndY; ++iy)
+            for (int ix = loopBeg; ix < loopEndX; ++ix)
             {
                 inp<0>(L,ix,iy,iz) *= fac;
                 inp<1>(L,ix,iy,iz) *= fac;
@@ -129,12 +131,12 @@ struct KernelAdvectDiffuse : public Discretization
         if (sim.BCz_flag == wall || sim.BCz_flag == periodic || I.index[2] != (sim.bpdz*(1<<I.level) - 1)) return;
         const Real fadeB = 1 - std::pow(std::min(uInf[2],(Real)0) * norUinf, 2);
         if (fadeB >= 1) return; // no momentum killing at this boundary
-        for (int iz = CUP_BLOCK_SIZE; iz < loopEnd; ++iz)
+        for (int iz = CUP_BLOCK_SIZEZ; iz < loopEndZ; ++iz)
         {
-            const Real fac = std::pow(fadeB, iz - CUP_BLOCK_SIZE + 1);
+            const Real fac = std::pow(fadeB, iz - CUP_BLOCK_SIZEZ + 1);
             assert(fac <= 1 && fac >= 0);
-            for (int iy = loopBeg; iy < loopEnd; ++iy)
-            for (int ix = loopBeg; ix < loopEnd; ++ix)
+            for (int iy = loopBeg; iy < loopEndY; ++iy)
+            for (int ix = loopBeg; ix < loopEndX; ++ix)
             {
                 inp<0>(L,ix,iy,iz) *= fac;
                 inp<1>(L,ix,iy,iz) *= fac;

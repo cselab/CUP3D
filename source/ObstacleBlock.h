@@ -33,16 +33,16 @@ struct surface_data
 
 struct ObstacleBlock
 {
-  static constexpr int BS = FluidBlock::BS;
-  static constexpr int sizeX = BS;
-  static constexpr int sizeY = BS;
-  static constexpr int sizeZ = BS;
+  //static constexpr int BS = FluidBlock::BS;
+  static constexpr int sizeX = FluidBlock::sizeX;
+  static constexpr int sizeY = FluidBlock::sizeY;
+  static constexpr int sizeZ = FluidBlock::sizeZ;
 
   // bulk quantities:
-  Real          chi[BS][BS][BS];
-  Real          sdf[BS][BS][BS];
-  Real         udef[BS][BS][BS][3];
-  int sectionMarker[BS][BS][BS];
+  Real          chi[sizeZ][sizeY][sizeX];
+  Real          sdf[sizeZ][sizeY][sizeX];
+  Real         udef[sizeZ][sizeY][sizeX][3];
+  int sectionMarker[sizeZ][sizeY][sizeX];
 
   //surface quantities:
   int nPoints = 0;
@@ -96,7 +96,8 @@ struct ObstacleBlock
   {
     //rough estimate of surface cutting the block diagonally
     //with 2 points needed on each side of surface
-    surface.reserve(4*BS);
+    //surface.reserve(4*BS);
+    surface.reserve(4*sizeX);
   }
   virtual ~ObstacleBlock()
   {

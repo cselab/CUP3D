@@ -112,8 +112,8 @@ struct InitialPenalization : public ObstacleVisitor
 
   void visit(Obstacle* const obstacle)
   {
-    using CHI_MAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE];
-    using UDEFMAT = Real[CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][CUP_BLOCK_SIZE][3];
+    using CHI_MAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
+    using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
     #pragma omp parallel
     {
       const auto& obstblocks = obstacle->getObstacleBlocks();

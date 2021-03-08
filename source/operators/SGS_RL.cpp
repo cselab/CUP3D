@@ -16,7 +16,7 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-static constexpr int agentLocInBlock = CUP_BLOCK_SIZE/2;
+static constexpr int agentLocInBlock = CUP_BLOCK_SIZEX/2;
 
 #define GIVE_LOCL_STATEVARS
 #define GIVE_GRID_STATEVARS
@@ -24,7 +24,7 @@ static constexpr int agentLocInBlock = CUP_BLOCK_SIZE/2;
 struct ActionInterpolator
 {
   const int NX, NY, NZ;
-  static constexpr int NB = CUP_BLOCK_SIZE;
+  static constexpr int NB = CUP_BLOCK_SIZEX;
 
   std::vector<std::vector<std::vector<double>>> actions =
     std::vector<std::vector<std::vector<double>>> (
@@ -241,7 +241,7 @@ struct KernelSGS_RL
     const Real h = info.h_gridpoint;
     const Real facV = scaleVel, facG = scaleGrad/(2*h), facL = scaleLap/(h*h);
     const size_t thrID = omp_get_thread_num(), blockID = info.blockID;
-    const int idx = CUP_BLOCK_SIZE/2 - 1, ipx = CUP_BLOCK_SIZE/2;
+    const int idx = CUP_BLOCK_SIZEX/2 - 1, ipx = CUP_BLOCK_SIZEX/2;
     std::array<Real, 13> avgState = {0.};
     const double factor = 1.0 / 8;
     for (int iz = idx; iz <= ipx; ++iz)

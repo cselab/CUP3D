@@ -27,6 +27,9 @@ config ?= prod
 precision ?= double
 precision_dump ?= single
 bs ?= 8
+bsx ?= 8
+bsy ?= 8
+bsz ?= 8
 hdf ?= true
 accfft ?= false
 zlib ?= 0
@@ -73,7 +76,10 @@ ifeq "$(precision_dump)" "double"
 endif
 
 CPPFLAGS += -DCUP_ALIGNMENT=64
-CPPFLAGS += -DCUP_BLOCK_SIZE=$(bs)
+#CPPFLAGS += -DCUP_BLOCK_SIZE=$(bs)
+CPPFLAGS += -DCUP_BLOCK_SIZEX=$(bsx)
+CPPFLAGS += -DCUP_BLOCK_SIZEY=$(bsy)
+CPPFLAGS += -DCUP_BLOCK_SIZEZ=$(bsz)
 CPPFLAGS += -DCUP_NO_MACROS_HEADER
 NVFLAGS  += -DCUP_NO_MACROS_HEADER
 #CPPFLAGS += -lm
