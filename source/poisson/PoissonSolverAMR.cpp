@@ -283,7 +283,7 @@ void PoissonSolverAMR::solve()
     double min_norm = 1e50;
     double init_norm=norm;
     const double max_error = 1e-10;
-    const double max_rel_error = 1e-2;
+    const double max_rel_error = 1e-3;
     int iter_opt = 0;
 
     //5. for k = 1,2,...
