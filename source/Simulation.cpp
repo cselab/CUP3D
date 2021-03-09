@@ -313,123 +313,23 @@ void Simulation::_serialize(const std::string append)
   sim.grid->UpdateMyGroups();
   sim.stopProfiler();
 
-  std::stringstream ssR;
-  if (append == "") ssR<<"restart_";
-  else ssR<<append;
-  ssR<<std::setfill('0')<<std::setw(9)<<sim.step;
-  const std::string fpath = sim.path4serialization + "/" + ssR.str();
-  //  if(sim.rank==0) std::cout<<"Saving to "<<fpath<<"\n";
-  //  if (sim.rank==0) { //rank 0 saves step id and obstacles
-  //    sim.obstacle_vector->save(fpath);
-  //    //safety status in case of crash/timeout during grid save:
-  //    FILE * f = fopen((fpath+".status").c_str(), "w");
-  //    assert(f != NULL);
-  //    fprintf(f, "time: %20.20e\n", sim.time);
-  //    fprintf(f, "stepid: %d\n", (int)sim.step);
-  //    fprintf(f, "uinfx: %20.20e\n", sim.uinf[0]);
-  //    fprintf(f, "uinfy: %20.20e\n", sim.uinf[1]);
-  //    fprintf(f, "uinfz: %20.20e\n", sim.uinf[2]);
-  //    fclose(f);
-  //  }
-
-  #ifdef CUBISM_USE_HDF
-  std::stringstream ssF;
-  if (append == "")
-   ssF<<"avemaria_"<<std::setfill('0')<<std::setw(9)<<sim.step;
-  else
-   ssF<<"2D_"<<append<<std::setfill('0')<<std::setw(9)<<sim.step;
-
-  #ifdef CUP_ASYNC_DUMP
-    // if a thread was already created, make sure it has finished
-    if(sim.dumper not_eq nullptr) {
-      sim.dumper->join();
-      delete sim.dumper;
-      sim.dumper = nullptr;
-    }
-    // copy qois from grid to dump
-    copyDumpGrid(* sim.grid, * sim.dump);
-    auto * grid2Dump = sim.dump;
-  #else //CUP_ASYNC_DUMP
-    auto * grid2Dump = sim.grid;
-  #endif //CUP_ASYNC_DUMP
-
-  const auto name3d = ssR.str(), name2d = ssF.str(); // sstreams are weird
-  //const auto dumpFunction = [=] () {
-  //  if(sim.b2Ddump) {
-  //    std::cout << "Slice dumping is not ready for AMR (skipped this step)." << std::endl;
-  //    #if 0
-  //    int sliceIdx = 0;
-  //    for (const auto& slice : sim.m_slices) {
-  //      const std::string slicespec = "slice_"+std::to_string(sliceIdx++)+"_";
-  //      const auto nameV = slicespec + StreamerVelocityVector::prefix() +name2d;
-  //      const auto nameP = slicespec + StreamerPressure::prefix() +name2d;
-  //      const auto nameX = slicespec + StreamerChi::prefix() +name2d;
-  //      DumpSliceHDF5MPI<StreamerVelocityVector, DumpReal>(
-  //        slice, sim.time, nameV, sim.path4serialization);
-  //      DumpSliceHDF5MPI<StreamerPressure, DumpReal>(
-  //        slice, sim.time, nameP, sim.path4serialization);
-  //      DumpSliceHDF5MPI<StreamerChi, DumpReal>(
-  //        slice, sim.time, nameX, sim.path4serialization);
-  //    }
-  //    #endif
-  //  }
-  //if(sim.b3Ddump) {
-
-    sim.startProfiler("DumpHDF5 OMEFA");
-
-    ComputeVorticity  FindOmega(sim);
-    FindOmega(0);
-    sim.stopProfiler();
-
-    sim.startProfiler("DumpHDF5_MPI");
-    {
-      const std::string nameV = StreamerVelocityVector::prefix()+name3d;
-      const std::string nameP = StreamerPressure::prefix()+name3d;
-      const std::string nameX = StreamerChi::prefix()+name3d;
-      const std::string nameO = StreamerTmpVector::prefix()+name3d;
-      //DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(
-      //  *grid2Dump, sim.time, nameV, sim.path4serialization);       
-      //DumpHDF5_MPI<StreamerPressure, DumpReal>(
-      //  *grid2Dump, sim.time, nameP, sim.path4serialization);
-      DumpHDF5_MPI<StreamerChi, DumpReal, FluidGridMPI, LabMPI>(
-        *grid2Dump, sim.time, nameX, sim.path4serialization);
-      DumpHDF5_MPI<StreamerTmpVector, DumpReal, FluidGridMPI, LabMPI>(
-        *grid2Dump, sim.time, nameO, sim.path4serialization);
-    }
-    sim.stopProfiler();
-
-
-  sim.startProfiler("dumpfunction");
-  #ifdef CUP_ASYNC_DUMP
-  abort();
-  //  sim.dumper = new std::thread( dumpFunction );
-  #else //CUP_ASYNC_DUMP
-  //  dumpFunction();
-  #endif //CUP_ASYNC_DUMP
-  #endif //CUBISM_USE_HDF
+  sim.startProfiler("DumpHDF5_MPI");
+  std::stringstream name;
+  if (append == "") name<<"restart_";
+  else name<<append;
+  name<<std::setfill('0')<<std::setw(9)<<sim.step;
+  auto * grid2Dump = sim.grid;
+  ComputeVorticity  FindOmega(sim);
+  FindOmega(0);
+  const std::string nameV = StreamerVelocityVector::prefix()+name.str();
+  const std::string nameP = StreamerPressure::prefix()      +name.str();
+  const std::string nameX = StreamerChi::prefix()           +name.str();
+  const std::string nameO = StreamerTmpVector::prefix()     +name.str();
+  DumpHDF5_MPI<StreamerVelocityVector, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameV, sim.path4serialization);
+  DumpHDF5_MPI<StreamerPressure      , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameP, sim.path4serialization);
+  //DumpHDF5_MPI<StreamerChi           , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameX, sim.path4serialization);
+  //DumpHDF5_MPI<StreamerTmpVector     , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameO, sim.path4serialization);
   sim.stopProfiler();
-
-
-  //if(sim.rank==0) { //saved the grid! Write status to remember most recent save
-  //  std::string restart_status = sim.path4serialization+"/restart.status";
-  //  FILE * f = fopen(restart_status.c_str(), "w");
-  //  assert(f != NULL);
-  //  fprintf(f, "time: %20.20e\n", sim.time);
-  //  fprintf(f, "stepid: %d\n", (int)sim.step);
-  //  fprintf(f, "uinfx: %20.20e\n", sim.uinf[0]);
-  //  fprintf(f, "uinfy: %20.20e\n", sim.uinf[1]);
-  //  fprintf(f, "uinfz: %20.20e\n", sim.uinf[2]);
-  //  fclose(f);
-  //  printf("time:  %20.20e\n", sim.time);
-  //  printf("stepid: %d\n", (int)sim.step);
-  //  printf("uinfx: %20.20e\n", sim.uinf[0]);
-  //  printf("uinfy: %20.20e\n", sim.uinf[1]);
-  //  printf("uinfz: %20.20e\n", sim.uinf[2]);
-  //}
-
-  //CoordinatorDiagnostics coordDiags(grid,time,step);
-  //coordDiags(dt);
-  //obstacle_vector->interpolateOnSkin(time, step);
 }
 
 void Simulation::_deserialize()
