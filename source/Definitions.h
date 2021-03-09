@@ -598,15 +598,25 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
  public:
 
   typedef typename BlockType::ElementType ElementType;
-  //virtual void TestInterp(ElementType *C[3][3][3], ElementType &R, int x, int y, int z, const std::vector<int> & selcomponents) override
   virtual void TestInterp(ElementType *C[3][3][3], ElementType *R, int x, int y, int z, const std::vector<int> & selcomponents) override
   {
-     cubism::BlockLab<BlockType,allocator>::TestInterp(C,R,x,y,z,selcomponents);
-     for (int i = 0; i < 8; i++)
-     {
-        R[i].chi = std::max(R[i].chi,0.0);
-        R[i].chi = std::min(R[i].chi,1.0);
-     }
+    //cubism::BlockLab<BlockType,allocator>::TestInterp(C,R,x,y,z,selcomponents);
+    ElementType dudx = cubism::BlockLab<BlockType,allocator>::SlopeElement( *C[0][1][1] , *C[1][1][1] , *C[2][1][1], selcomponents);
+    ElementType dudy = cubism::BlockLab<BlockType,allocator>::SlopeElement( *C[1][0][1] , *C[1][1][1] , *C[1][2][1], selcomponents);
+    ElementType dudz = cubism::BlockLab<BlockType,allocator>::SlopeElement( *C[1][1][0] , *C[1][1][1] , *C[1][1][2], selcomponents);
+    R[0] = *C[1][1][1] - 0.25*dudx - 0.25*dudy - 0.25*dudz;
+    R[1] = *C[1][1][1] + 0.25*dudx - 0.25*dudy - 0.25*dudz;
+    R[2] = *C[1][1][1] - 0.25*dudx + 0.25*dudy - 0.25*dudz;
+    R[3] = *C[1][1][1] + 0.25*dudx + 0.25*dudy - 0.25*dudz;
+    R[4] = *C[1][1][1] - 0.25*dudx - 0.25*dudy + 0.25*dudz;
+    R[5] = *C[1][1][1] + 0.25*dudx - 0.25*dudy + 0.25*dudz;
+    R[6] = *C[1][1][1] - 0.25*dudx + 0.25*dudy + 0.25*dudz;
+    R[7] = *C[1][1][1] + 0.25*dudx + 0.25*dudy + 0.25*dudz;
+    for (int i = 0; i < 8; i++)
+    {
+      R[i].chi = std::max(R[i].chi,0.0);
+      R[i].chi = std::min(R[i].chi,1.0);
+    }
   }
 
   void setBC(const BCflag _BCX, const BCflag _BCY, const BCflag _BCZ) {
