@@ -325,10 +325,10 @@ void Simulation::_serialize(const std::string append)
   const std::string nameP = StreamerPressure::prefix()      +name.str();
   const std::string nameX = StreamerChi::prefix()           +name.str();
   const std::string nameO = StreamerTmpVector::prefix()     +name.str();
-  DumpHDF5_MPI<StreamerVelocityVector, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameV, sim.path4serialization);
-  DumpHDF5_MPI<StreamerPressure      , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameP, sim.path4serialization);
-  //DumpHDF5_MPI<StreamerChi           , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameX, sim.path4serialization);
-  //DumpHDF5_MPI<StreamerTmpVector     , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameO, sim.path4serialization);
+  //DumpHDF5_MPI<StreamerVelocityVector, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameV, sim.path4serialization);
+  //DumpHDF5_MPI<StreamerPressure      , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameP, sim.path4serialization);
+  DumpHDF5_MPI<StreamerChi           , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameX, sim.path4serialization);
+  DumpHDF5_MPI<StreamerTmpVector     , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameO, sim.path4serialization);
   sim.stopProfiler();
 }
 
