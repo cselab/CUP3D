@@ -33,7 +33,7 @@ def FishSamples(a,b,c,fish,L):
   S[1][1] = b**2
   S[2][2] = c**2
   z_hat = np.zeros(3)
-  xyz = sample(S,z_hat,12345*fish)
+  xyz = sample(S,z_hat,123*fish)
   xvalid=[]
   yvalid=[]
   zvalid=[]
@@ -76,7 +76,7 @@ if __name__ == "__main__":
   f = open("settingsEllipsoidSwarm.sh", "w")
   f.write(\
 "#!/bin/bash\n\
-NNODE=32\n\
+NNODE=256\n\
 BPDX=${BPDX:-8}\n\
 BPDY=${BPDY:-4}\n\
 BPDZ=${BPDZ:-4}\n\
@@ -87,9 +87,9 @@ BC=${BC:-freespace}\n\
 FACTORY=\n")
   for j in range(fish):
     if j==0:
-      f.write('FACTORY+="StefanFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bCorrectPosition=true heightProfile=danio widthProfile=danio bFixFrameOfRef=1 \n\"\n'.format(x[j],y[j],z[j]))
+      f.write('FACTORY+="StefanFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bCorrectPosition=true heightProfile=stefan widthProfile=stefan bFixFrameOfRef=1 \n\"\n'.format(x[j],y[j],z[j]))
     else:
-      f.write('FACTORY+="StefanFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bCorrectPosition=true heightProfile=danio widthProfile=danio\n\"\n'.format(x[j],y[j],z[j]))
+      f.write('FACTORY+="StefanFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bCorrectPosition=true heightProfile=stefan widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
 
   # WRITE SOLVER SETTINGS
   f.write('\nOPTIONS=\n\
@@ -97,6 +97,6 @@ OPTIONS+=" -extentx 8.0"\n\
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"\n\
 OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 100.0 "\n\
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"\n\
-OPTIONS+=" -CFL 0.5 -use-dlm -1 -nu ${NU}"\n\
+OPTIONS+=" -CFL 0.3 -use-dlm -1 -nu ${NU}"\n\
 OPTIONS+=" -levelMax 7 -levelStart 4 -Rtol 0.1 -Ctol 0.01"\n\
 OPTIONS+=" -TimeOrder 2"\n')
