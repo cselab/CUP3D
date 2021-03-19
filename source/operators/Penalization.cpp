@@ -487,7 +487,6 @@ void Penalization::preventCollidingObstacles() const
 {
     using CHI_MAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX];
     using UDEFMAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX][3];
-    const Real EPS = 1e-50;
 
     const auto & shapes = sim.obstacle_vector->getObstacleVector();
     const auto & infos  = sim.grid->getBlocksInfo();
