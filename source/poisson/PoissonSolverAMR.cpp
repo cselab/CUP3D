@@ -253,21 +253,44 @@ void PoissonSolverAMR::solve()
     //2. rhatVector = rVector
     //3. rho = a = omega = 1.0
     //4. vVector = pVector = 0
-    findLHS(0); // AxVector <-- A*x_{0}, x_0 = pressure
+
+    //skip LHS for second order time, as x0 = 0 is the initial guess (x := P^{n+1}-P^{n} for 2nd order time)
     double norm = 0.0; 
-    #pragma omp parallel for reduction (+:norm)
-    for(size_t i=0; i< Nblocks; i++)
+    if (sim.TimeOrder == 1 || sim.step < sim.step_2nd_start)
     {
-        BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
-        for(int iz=0; iz<BlockType::sizeZ; iz++)
-        for(int iy=0; iy<BlockType::sizeY; iy++)
-        for(int ix=0; ix<BlockType::sizeX; ix++)
+        findLHS(0); // AxVector <-- A*x_{0}, x_0 = pressure
+        #pragma omp parallel for reduction (+:norm)
+        for(size_t i=0; i< Nblocks; i++)
         {
-            b(ix,iy,iz).rVector = b.tmp[iz][iy][ix] - b(ix,iy,iz).AxVector;
-            b(ix,iy,iz).rhatVector = b(ix,iy,iz).rVector;
-            b(ix,iy,iz).pVector = 0.0;
-            b(ix,iy,iz).vVector = 0.0;
-            norm+= b(ix,iy,iz).rVector*b(ix,iy,iz).rVector;
+            BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
+            for(int iz=0; iz<BlockType::sizeZ; iz++)
+            for(int iy=0; iy<BlockType::sizeY; iy++)
+            for(int ix=0; ix<BlockType::sizeX; ix++)
+            {
+                b(ix,iy,iz).rVector = b.tmp[iz][iy][ix] - b(ix,iy,iz).AxVector;
+                b(ix,iy,iz).rhatVector = b(ix,iy,iz).rVector;
+                b(ix,iy,iz).pVector = 0.0;
+                b(ix,iy,iz).vVector = 0.0;
+                norm+= b(ix,iy,iz).rVector*b(ix,iy,iz).rVector;
+            }
+        }
+    }
+    else
+    {
+        #pragma omp parallel for reduction (+:norm)
+        for(size_t i=0; i< Nblocks; i++)
+        {
+            BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
+            for(int iz=0; iz<BlockType::sizeZ; iz++)
+            for(int iy=0; iy<BlockType::sizeY; iy++)
+            for(int ix=0; ix<BlockType::sizeX; ix++)
+            {
+                b(ix,iy,iz).rVector = b.tmp[iz][iy][ix];
+                b(ix,iy,iz).rhatVector = b(ix,iy,iz).rVector;
+                b(ix,iy,iz).pVector = 0.0;
+                b(ix,iy,iz).vVector = 0.0;
+                norm+= b(ix,iy,iz).rVector*b(ix,iy,iz).rVector;
+            }
         }
     }
     MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
