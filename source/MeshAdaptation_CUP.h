@@ -8,7 +8,6 @@ template <typename TGrid, typename TLab>
 class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
 {
  public:
-   int counter;
    double Rtol_chi;
    double Ctol_chi;
    typedef typename TGrid::Block BlockType;
@@ -17,18 +16,12 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
 
    MeshAdaptation_CUP(TGrid &grid, double Rtol, double Ctol): MeshAdaptationMPI<TGrid,TLab>(grid,Rtol,Ctol)
    {
-    counter = 0;
-    Rtol_chi = 0.2;
-    Ctol_chi = 0.000001;
+    Rtol_chi = 1e-6;
+    Ctol_chi = 1e-9;
    }
    virtual void AdaptTheMesh(double t) override
    {
-       counter = 0;
-       if (counter < 10)
-       Rtol_chi = 0.0001;
-       else
-       Rtol_chi = 0.2;
-       MeshAdaptationMPI<TGrid,TLab>::AdaptTheMesh(t);
+      MeshAdaptationMPI<TGrid,TLab>::AdaptTheMesh(t);
    }   
 
    virtual void RefineBlocks(BlockType *B[8], BlockInfo parent) override
@@ -124,11 +117,11 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
    }
    void WENOWavelets3(double cm, double c, double cp, double &left, double &right)
    {
-      double b1  = (c - cm) * (c - cm);
-      double b2  = (c - cp) * (c - cp);
+      const double b1  = (c - cm) * (c - cm);
+      const double b2  = (c - cp) * (c - cp);
       double w1  = (1e-6 + b2) * (1e-6 + b2); // yes, 2 goes to 1 and 1 goes to 2
       double w2  = (1e-6 + b1) * (1e-6 + b1);
-      double aux = 1.0 / (w1 + w2);
+      const double aux = 1.0 / (w1 + w2);
       w1 *= aux;
       w2 *= aux;
       double g1, g2;
@@ -146,37 +139,36 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
       static const int nx = BlockType::sizeX;
       static const int ny = BlockType::sizeY;
       static const int nz = BlockType::sizeZ;
-    
-      double Linf   = 0.0; //chi
+
+      const Real inv2h = .5/info.h;  
+      double Linf_1 = 0.0; //chi
       double Linf_2 = 0.0; //vorticity
 
       for (int k = 0; k < nz; k++)
       for (int j = 0; j < ny; j++)
       for (int i = 0; i < nx; i++)
       {
-        const Real inv2h = .5/info.h;
+        const double s0 = (Lab_(i+1,j,k).chi - Lab_(i-1,j,k).chi);
+        const double s1 = (Lab_(i,j+1,k).chi - Lab_(i,j-1,k).chi);
+        const double s2 = (Lab_(i,j,k+1).chi - Lab_(i,j,k-1).chi);
+        const double grad = s0*s0+s1*s1+s2*s2;
+        Linf_1 = max(Linf_1,grad);
+
         const ElementType &LW=Lab_(i-1,j  ,k  ), &LE=Lab_(i+1,j  ,k  );
         const ElementType &LS=Lab_(i  ,j-1,k  ), &LN=Lab_(i  ,j+1,k  );
         const ElementType &LF=Lab_(i  ,j  ,k-1), &LB=Lab_(i  ,j  ,k+1);
-        double omega_x = inv2h * ( (LN.w-LS.w) - (LB.v-LF.v) );
-        double omega_y = inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
-        double omega_z = inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
-        double omega = pow(omega_x*omega_x + omega_y*omega_y + omega_z*omega_z,0.5);
+        const double omega_x = (LN.w-LS.w) - (LB.v-LF.v);
+        const double omega_y = (LB.u-LF.u) - (LE.w-LW.w);
+        const double omega_z = (LE.v-LW.v) - (LN.u-LS.u);
+        const double omega = omega_x*omega_x + omega_y*omega_y + omega_z*omega_z;
         Linf_2 = max(Linf_2,omega);
       }
 
-      for (int k = 0 - 1; k < nz + 1; k++)
-      for (int j = 0 - 1; j < ny + 1; j++)
-      for (int i = 0 - 1; i < nx + 1; i++)
-      {
-        double s0 = Lab_(i,j,k).chi;
-        if (s0 > Linf) Linf = s0;
-      }
+      Linf_1 = inv2h * sqrt(Linf_1);
+      Linf_2 = inv2h * sqrt(Linf_2);
 
-      Linf_2 *= 1.0/(info.level+1);
-
-      if (Linf > Rtol_chi || Linf_2 > MeshAdaptationMPI<TGrid,TLab>::tolerance_for_refinement ) return Refine;
-      if (Linf < Ctol_chi && Linf_2 < MeshAdaptationMPI<TGrid,TLab>::tolerance_for_compression) return Compress;    
+      if (Linf_1 > Rtol_chi || Linf_2 > MeshAdaptationMPI<TGrid,TLab>::tolerance_for_refinement ) return Refine;
+      if (Linf_1 < Ctol_chi && Linf_2 < MeshAdaptationMPI<TGrid,TLab>::tolerance_for_compression) return Compress;    
       return Leave;
    }
 };
