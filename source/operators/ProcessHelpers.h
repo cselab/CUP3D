@@ -125,29 +125,6 @@ inline void putCHIonGrid(
   }
 }
 
-inline void putSDFonGrid(
-        const std::vector<cubism::BlockInfo>& vInfo,
-        const v_v_ob & vec_obstacleBlocks )
-{
-  #pragma omp parallel for schedule(dynamic,1)
-  for(size_t i=0; i<vInfo.size(); i++)
-  {
-    FluidBlock& b = * (FluidBlock*) vInfo[i].ptrBlock;
-    for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-    for(int iy=0; iy<FluidBlock::sizeY; iy++)
-    for(int ix=0; ix<FluidBlock::sizeX; ix++) b(ix,iy,iz).p = -1;
-    for(size_t o=0; o<vec_obstacleBlocks.size(); o++)
-    {
-      const auto& pos = ( * vec_obstacleBlocks[o] )[vInfo[i].blockID];
-      if(pos == nullptr) continue;
-      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-      for(int iy=0; iy<FluidBlock::sizeY; iy++)
-      for(int ix=0; ix<FluidBlock::sizeX; ix++)
-        b(ix,iy,iz).p = std::max(pos->sdf[iz][iy][ix], b(ix,iy,iz).p);
-    }
-  }
-}
-
 class KernelVorticity
 {
   public:
