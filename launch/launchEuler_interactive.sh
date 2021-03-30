@@ -31,4 +31,4 @@ export OMP_NUM_THREADS=36
 echo $OPTIONS > settings.txt
 export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH
 
-mpirun -n 10 --map-by node:PE=36 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
+mpirun -n 5 --map-by node:PE=36 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
