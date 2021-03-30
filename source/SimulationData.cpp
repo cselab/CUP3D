@@ -61,7 +61,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
 
   // PIPELINE && FORCING
   freqDiagnostics = parser("-freqDiagnostics").asInt(100);
-  bIterativePenalization = parser("-iterativePenalization").asBool(false);
   bImplicitPenalization = parser("-implicitPenalization").asBool(false);
   bKeepMomentumConstant = parser("-keepMomentumConstant").asBool(false);
   bChannelFixedMassFlux = parser("-channelFixedMassFlux").asBool(false);

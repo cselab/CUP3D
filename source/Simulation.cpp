@@ -18,7 +18,6 @@
 #include "operators/ObstaclesUpdate.h"
 #include "operators/Penalization.h"
 #include "operators/PressureProjection.h"
-#include "operators/IterativePressurePenalization.h"
 #include "operators/PressureRHS.h"
 #include "operators/FixedMassFlux_nonUniform.h"
 #include "operators/SGS.h"
@@ -224,16 +223,6 @@ void Simulation::setupOperators(ArgumentParser & parser)
   // If the force were space-varying then we would need to include in the pressure equation's RHS.
   if(sim.uMax_forced > 0 && sim.initCond not_eq "taylorGreen" && sim.bChannelFixedMassFlux == false)  sim.pipeline.push_back(new ExternalForcing(sim));   // also uses sim.uMax_forced param
 
-  if(sim.bIterativePenalization)
-  {
-    if (sim.obstacle_vector->nObstacles() > 0)
-      sim.pipeline.push_back(new IterativePressurePenalization(sim));
-    else {
-      printf("Undefined type of pressure iteration. What are ya simulating?\n");
-      fflush(0); MPI_Abort(sim.app_comm, 1);
-    }
-  }
-  else
   {
     // Update obstacle velocities and penalize velocity
     sim.pipeline.push_back(new UpdateObstacles(sim));
