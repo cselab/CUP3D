@@ -79,6 +79,8 @@ class Fish: public Obstacle
            + (FluidBlock::sizeZ+2)*(FluidBlock::sizeY+2)*(FluidBlock::sizeX+2)];
     int     i[FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX];
   };
+  MPI_Datatype MPI_BLOCKID;
+  MPI_Datatype MPI_OBSTACLE;
 
   #ifdef RL_LAYER
     void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL,
