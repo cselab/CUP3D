@@ -125,6 +125,11 @@ std::vector<VolumeSegment_OBB> Fish::prepare_vSegments()
 using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;
 intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
 {
+  MyBlockIDs.clear();
+  for (size_t j = 0 ; j < MySegments.size(); j++)
+      MySegments[j].clear();
+  MySegments.clear();
+
   const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   std::vector<std::vector<VolumeSegment_OBB*>> ret(vInfo.size());
 
@@ -142,10 +147,22 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
     const BlockInfo & info = vInfo[i];
     const FluidBlock & b = *(FluidBlock*)info.ptrBlock;
 
+    bool hasSegments = false;
     for(size_t s=0; s<vSegments.size(); ++s)
       if(vSegments[s].isIntersectingWithAABB(b.min_pos.data(), b.max_pos.data())) {
         VolumeSegment_OBB*const ptr  = & vSegments[s];
         ret[info.blockID].push_back( ptr );
+
+        #pragma omp critical
+        {
+          if (!hasSegments)
+          {
+              hasSegments = true;
+              MyBlockIDs.push_back({info.h,info.origin[0],info.origin[1],info.origin[2],info.blockID});
+              MySegments.resize(MySegments.size()+1);
+          }
+          MySegments.back().push_back(s);
+        }
       }
 
     // allocate new blocks if necessary
@@ -160,52 +177,24 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
   return ret;
 }
 
-void Fish::writeSDFOnBlocks(const intersect_t& segmentsPerBlock)
+void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
 {
-  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+#if 1 //no load-balancing here
   #pragma omp parallel
   {
     PutFishOnBlocks putfish(myFish, position, quaternion);
-
-    #pragma omp for schedule(dynamic, 1)
-    for(size_t i=0; i<vInfo.size(); i++)
+    #pragma omp for
+    for (size_t j=0 ; j < MyBlockIDs.size(); j++)
     {
-      const BlockInfo & info = vInfo[i];
-      const std::vector<VolumeSegment_OBB*>& S = segmentsPerBlock[info.blockID];
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-
-      if(S.size() > 0)
-      {
-        assert(obstacleBlocks[info.blockID] not_eq nullptr);
-        ObstacleBlock*const block = obstacleBlocks[info.blockID];
-        putfish(info, b, block, S);
-      }
-      else assert(obstacleBlocks[info.blockID] == nullptr);
+      std::vector<VolumeSegment_OBB*> S;
+      for (size_t k = 0 ; k < MySegments[j].size() ; k++)
+        S.push_back(& vSegments[MySegments[j][k]]);
+      ObstacleBlock*const block = obstacleBlocks[MyBlockIDs[j].blockID];
+      putfish(MyBlockIDs[j].h, MyBlockIDs[j].origin_x, MyBlockIDs[j].origin_y, MyBlockIDs[j].origin_z, block, S);
     }
   }
-
-  #if 0
-  #pragma omp parallel
-  {
-    #pragma omp for schedule(dynamic)
-    for (int i = 0; i < (int)vInfo.size(); ++i) {
-      const BlockInfo info = vInfo[i];
-      const auto pos = obstacleBlocks[info.blockID];
-      if(pos == nullptr) continue;
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        //b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
-        b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
-        b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
-        b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
-      }
-    }
-  }
-  DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(*grid, 0, 0, "SFD", "./");
-  abort();
-  #endif
+#else //load-balancing (TODO)
+#endif
 }
 
 void Fish::create()
@@ -242,10 +231,9 @@ void Fish::create()
 
   // 6. & 7.
   const intersect_t segmPerBlock = prepare_segPerBlock(vSegments);
-  assert(segmPerBlock.size() == obstacleBlocks.size());
 
   // 8.
-  writeSDFOnBlocks(segmPerBlock);
+  writeSDFOnBlocks(vSegments);
 }
 
 void Fish::finalize()

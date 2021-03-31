@@ -335,22 +335,16 @@ struct PutFishOnBlocks
     x[2]=Rmatrix3D[0][2]*p[0] + Rmatrix3D[1][2]*p[1] + Rmatrix3D[2][2]*p[2];
   }
 
-  void operator()(const cubism::BlockInfo&,
-                  FluidBlock&,
+  void operator()(const double , const double , const double , const double,
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const;
-  virtual void constructSurface(const cubism::BlockInfo&,
-                  FluidBlock&,
+  virtual void constructSurface(const double , const double , const double , const double,
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const;
-  virtual void constructInternl(const cubism::BlockInfo&,
-                  FluidBlock&,
+  virtual void constructInternl(const double , const double , const double , const double,
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const;
-  virtual void signedDistanceSqrt(const cubism::BlockInfo&,
-                  FluidBlock&,
-                  ObstacleBlock*const,
-                  const std::vector<VolumeSegment_OBB*>&) const;
+  virtual void signedDistanceSqrt(ObstacleBlock*const) const;
 };
 
 struct PutNacaOnBlocks: public PutFishOnBlocks
@@ -359,12 +353,10 @@ struct PutNacaOnBlocks: public PutFishOnBlocks
 
   Real getSmallerDistToMidLPlanar(const int start_s, const Real x[3], int & final_s) const;
 
-  void constructSurface(const cubism::BlockInfo&,
-                  FluidBlock&,
+  void constructSurface(const double , const double , const double , const double,
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const override;
-  void constructInternl(const cubism::BlockInfo&,
-                  FluidBlock&,
+  void constructInternl(const double , const double , const double , const double,
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const override;
 };

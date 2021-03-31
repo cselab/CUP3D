@@ -22,7 +22,7 @@ class Naca: public Fish
   void update() override;
   void computeVelocities() override;
   using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;
-  void writeSDFOnBlocks(const intersect_t& segmentsPerBlock) override;
+  void writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments) override;
 };
 
 CubismUP_3D_NAMESPACE_END

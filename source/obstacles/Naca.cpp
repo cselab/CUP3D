@@ -160,51 +160,30 @@ void Naca::computeVelocities()
 }
 
 using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;
-void Naca::writeSDFOnBlocks(const intersect_t& segmentsPerBlock)
+void Naca::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
 {
-  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel
   {
     PutNacaOnBlocks putfish(myFish, position, quaternion);
-
-    #pragma omp for schedule(dynamic, 1)
-    for(size_t i=0; i<vInfo.size(); i++)
+    #pragma omp for
+    for (size_t j=0 ; j < MyBlockIDs.size(); j++)
     {
-      const BlockInfo info = vInfo[i];
-      const std::vector<VolumeSegment_OBB*>& S = segmentsPerBlock[info.blockID];
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-
-      if(S.size() > 0) {
-        assert(obstacleBlocks[info.blockID] not_eq nullptr);
-        ObstacleBlock* const block = obstacleBlocks[info.blockID];
-        putfish(info, b, block, S);
+      std::vector<VolumeSegment_OBB*> S;
+      for (size_t k = 0 ; k < MySegments[j].size() ; k++)
+      {
+        VolumeSegment_OBB*const ptr  = & vSegments[MySegments[j][k]];
+        S.push_back(ptr);
       }
-      else assert(obstacleBlocks[info.blockID] == nullptr);
-    }
-  }
-
-  #if 0
-  #pragma omp parallel
-  {
-    #pragma omp for schedule(dynamic)
-    for (int i = 0; i < (int)vInfo.size(); ++i) {
-      const BlockInfo info = vInfo[i];
-      const auto pos = obstacleBlocks[info.blockID];
-      if(pos == nullptr) continue;
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        //b(ix,iy,iz).chi = pos->second->chi[iz][iy][ix];//b(ix,iy,iz).tmpU;
-        b(ix,iy,iz).u = b(ix,iy,iz).tmpU;
-        b(ix,iy,iz).v = b(ix,iy,iz).tmpV;
-        b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
+      if(S.size() > 0)
+      {
+        ObstacleBlock*const block = obstacleBlocks[MyBlockIDs[j].blockID];
+        putfish(MyBlockIDs[j].h,
+                MyBlockIDs[j].origin_x,
+                MyBlockIDs[j].origin_y,
+                MyBlockIDs[j].origin_z, block, S);
       }
     }
   }
-  DumpHDF5_MPI<StreamerVelocityVector, DumpReal>(*grid, 0, 0, "SFD", "./");
-  abort();
-  #endif
 }
 
 CubismUP_3D_NAMESPACE_END

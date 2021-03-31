@@ -40,8 +40,8 @@ struct ObstacleBlock
 
   // bulk quantities:
   Real          chi[sizeZ][sizeY][sizeX];
-  Real          sdf[sizeZ][sizeY][sizeX];
   Real         udef[sizeZ][sizeY][sizeX][3];
+  Real          sdfLab[sizeZ+2][sizeY+2][sizeX+2];
   int sectionMarker[sizeZ][sizeY][sizeX];
 
   //surface quantities:
@@ -150,9 +150,9 @@ struct ObstacleBlock
   {
     clear_surface();
     memset(chi,  0, sizeof(Real)*sizeX*sizeY*sizeZ);
-    memset(sdf,  0, sizeof(Real)*sizeX*sizeY*sizeZ);
     memset(udef, 0, sizeof(Real)*sizeX*sizeY*sizeZ*3);
     memset(sectionMarker, 0, sizeof(int)*sizeX*sizeY*sizeZ);
+    memset(sdfLab,  0, sizeof(Real)*(sizeX+2)*(sizeY+2)*(sizeZ+2));
   }
 
   inline void write(const int ix, const int iy, const int iz, const Real delta, const Real gradUX, const Real gradUY, const Real gradUZ)

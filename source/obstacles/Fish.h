@@ -40,7 +40,7 @@ class Fish: public Obstacle
   typedef std::vector<std::vector<VolumeSegment_OBB*>> intersect_t;
   virtual intersect_t prepare_segPerBlock(vecsegm_t& vSeg);
   // third how to interpolate on the grid given the intersections:
-  virtual void writeSDFOnBlocks(const intersect_t& segPerBlock);
+  virtual void writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments);
 
  public:
   Fish(SimulationData&s, cubism::ArgumentParser&p);
