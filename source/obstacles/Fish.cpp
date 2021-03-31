@@ -161,7 +161,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
               MyBlockIDs.push_back({info.h,info.origin[0],info.origin[1],info.origin[2],info.blockID});
               MySegments.resize(MySegments.size()+1);
           }
-          MySegments.back().push_back(s);
+          MySegments.back().push_back(s);        
         }
       }
 
@@ -179,7 +179,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
 
 void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
 {
-#if 1 //no load-balancing here
+#if 0 //no load-balancing here
   #pragma omp parallel
   {
     PutFishOnBlocks putfish(myFish, position, quaternion);
@@ -193,8 +193,321 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
       putfish(MyBlockIDs[j].h, MyBlockIDs[j].origin_x, MyBlockIDs[j].origin_y, MyBlockIDs[j].origin_z, block, S);
     }
   }
-#else //load-balancing (TODO)
-#endif
+#else //load-balancing
+
+  //Each MPI rank owns two arrays: 
+  // 1. MyBlockIDs[]: a list of blocks that have at least one segment
+  // 2. MySegments[i][j] : a list of integers j=0,... for MyBlockIDs[i]
+
+  std::vector<std::vector<int>> OtherSegments;
+
+  MPI_Datatype MPI_BLOCKID;
+  int array_of_blocklengths[2]       = {4, 1};
+  MPI_Aint array_of_displacements[2] = {0, 4 * sizeof(double)};
+  MPI_Datatype array_of_types[2]     = {MPI_DOUBLE, MPI_LONG};
+  MPI_Type_create_struct(2, array_of_blocklengths, array_of_displacements, array_of_types, &MPI_BLOCKID);
+  MPI_Type_commit(&MPI_BLOCKID);
+
+  MPI_Comm comm = grid->getCartComm();
+  int rank = grid->rank();
+  int size = grid->get_world_size();
+  int b = (int) MyBlockIDs.size();
+  std::vector<int> all_b(size);
+  MPI_Allgather(&b, 1, MPI_INT, all_b.data(), 1, MPI_INT, comm);
+
+  int total_load = 0;
+  for (int r = 0 ; r < size ; r++) total_load+= all_b[r];
+  int my_load =  total_load / size;
+  if (rank < (total_load % size) ) my_load += 1;
+
+  std::vector<int> index_start(size);
+  index_start[0] = 0;
+  for (int r = 1 ; r < size ; r++) index_start[r] = index_start[r-1] + all_b[r-1];
+
+  int ideal_index = ( total_load / size ) * rank;
+  ideal_index += (rank < (total_load % size)) ? rank : (total_load % size);
+
+  std::vector< std::vector<BlockID> > send_blocks(size);
+  std::vector< std::vector<BlockID> > recv_blocks(size);
+
+  for (int r = 0 ; r < size ; r ++) if (rank != r)
+  {
+     {  //check if I need to receive blocks
+        const int a1 = ideal_index;
+        const int a2 = ideal_index + my_load -1;
+        const int b1 = index_start[r];
+        const int b2 = index_start[r]+all_b[r]-1;
+        const int c1 = max(a1,b1);
+        const int c2 = min(a2,b2);
+        if (c2-c1 + 1>0) recv_blocks[r].resize(c2-c1+1);
+     }
+     {  //check if I need to send blocks
+        int other_ideal_index = ( total_load / size ) * r;
+        other_ideal_index += (r < (total_load % size)) ? r : (total_load % size); 
+        int other_load =  total_load / size;
+        if (r < (total_load%size)) other_load += 1;
+        const int a1 = other_ideal_index;
+        const int a2 = other_ideal_index + other_load -1;
+        const int b1 = index_start[rank];
+        const int b2 = index_start[rank]+all_b[rank]-1;
+        const int c1 = max(a1,b1);
+        const int c2 = min(a2,b2);
+        if (c2-c1 + 1>0) send_blocks[r].resize(c2-c1+1);
+     }
+  }
+
+  std::vector<MPI_Request> recv_request;
+  for (int r = 0 ; r < size ; r ++) if (recv_blocks[r].size() != 0)
+  {
+     MPI_Request req;
+     recv_request.push_back(req);
+     MPI_Irecv(recv_blocks[r].data(), recv_blocks[r].size(), MPI_BLOCKID, r, r*size+rank, comm, &recv_request.back());
+  }
+  std::vector<MPI_Request> send_request;
+  int counter_S = 0;
+  int counter_E = 0;
+  for (int r = 0 ; r < size ; r ++) if (send_blocks[r].size() != 0)
+  {
+
+     if (r < rank)
+     {
+        for (size_t i = 0 ; i < send_blocks[r].size() ; i ++)
+        {
+           send_blocks[r][i].h         = MyBlockIDs[counter_S + i].h        ;
+           send_blocks[r][i].origin_x  = MyBlockIDs[counter_S + i].origin_x ;
+           send_blocks[r][i].origin_y  = MyBlockIDs[counter_S + i].origin_y ;
+           send_blocks[r][i].origin_z  = MyBlockIDs[counter_S + i].origin_z ;
+           send_blocks[r][i].blockID   = MyBlockIDs[counter_S + i].blockID  ;
+        }
+        counter_S += send_blocks[r].size();
+     }
+     else
+     {
+        for (size_t i = 0 ; i < send_blocks[r].size() ; i ++)
+        {
+           send_blocks[r][i].h         = MyBlockIDs[MyBlockIDs.size() - 1 - (counter_E + i)].h        ;
+           send_blocks[r][i].origin_x  = MyBlockIDs[MyBlockIDs.size() - 1 - (counter_E + i)].origin_x ;
+           send_blocks[r][i].origin_y  = MyBlockIDs[MyBlockIDs.size() - 1 - (counter_E + i)].origin_y ;
+           send_blocks[r][i].origin_z  = MyBlockIDs[MyBlockIDs.size() - 1 - (counter_E + i)].origin_z ;
+           send_blocks[r][i].blockID   = MyBlockIDs[MyBlockIDs.size() - 1 - (counter_E + i)].blockID  ;
+        }
+        counter_E += send_blocks[r].size();
+     }
+     MPI_Request req;
+     send_request.push_back(req);
+     MPI_Isend(send_blocks[r].data(), send_blocks[r].size(), MPI_BLOCKID, r, r +rank*size, comm, &send_request.back());
+  }
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+  const int sizeZ = FluidBlock::sizeZ;
+  const int sizeY = FluidBlock::sizeY;
+  const int sizeX = FluidBlock::sizeX;
+  MPI_Datatype MPI_OBSTACLE;
+  int array_of_blocklengths1[2]       = {sizeZ*sizeY*sizeX*3 + (sizeZ+2)*(sizeY+2)*(sizeX+2), sizeZ*sizeY*sizeX};
+  MPI_Aint array_of_displacements1[2] = {0, (sizeZ*sizeY*sizeX*3 + (sizeZ+2)*(sizeY+2)*(sizeX+2)) * sizeof(double)};
+  MPI_Datatype array_of_types1[2]     = {MPI_DOUBLE, MPI_INT};
+  MPI_Type_create_struct(2, array_of_blocklengths1, array_of_displacements1, array_of_types1, &MPI_OBSTACLE);
+  MPI_Type_commit(&MPI_OBSTACLE);
+  std::vector< std::vector<MPI_Obstacle> > send_obstacles(size);
+  std::vector< std::vector<MPI_Obstacle> > recv_obstacles(size);
+  for (int r = 0 ; r < size ; r++)
+  {
+    send_obstacles[r].resize(send_blocks[r].size());
+    recv_obstacles[r].resize(recv_blocks[r].size());
+  }
+
+  MPI_Waitall(send_request.size(), send_request.data() , MPI_STATUSES_IGNORE);
+  MPI_Waitall(recv_request.size(), recv_request.data() , MPI_STATUSES_IGNORE);
+
+  // Do the blocks I received
+  for (int r = 0 ; r < size ; r++) if (recv_blocks[r].size() != 0)
+  {
+    for (size_t j = 0 ; j < OtherSegments.size(); j++) OtherSegments[j].clear();
+    OtherSegments.clear();
+    for(size_t i=0; i<recv_blocks[r].size(); ++i)
+    {
+      const auto & info = recv_blocks[r][i];
+  
+      bool hasSegments = false;
+  
+      for(size_t s=0; s<vSegments.size(); ++s)
+      {
+        double min_pos [3] = {info.origin_x + 0.5*info.h,info.origin_y + 0.5*info.h,info.origin_z + 0.5*info.h};
+        double max_pos [3] = {info.origin_x + (0.5+FluidBlock::sizeX-1)*info.h,
+                              info.origin_y + (0.5+FluidBlock::sizeY-1)*info.h,
+                              info.origin_z + (0.5+FluidBlock::sizeZ-1)*info.h};
+        if(vSegments[s].isIntersectingWithAABB(min_pos, max_pos))
+        {
+          if (!hasSegments)
+          {
+              hasSegments = true;
+              OtherSegments.resize(OtherSegments.size()+1);
+          }
+          OtherSegments.back().push_back(s);
+        }       
+      }
+    }
+
+    #pragma omp parallel
+    {
+      PutFishOnBlocks putfish(myFish, position, quaternion);
+      #pragma omp for
+      for (size_t j=0 ; j < recv_blocks[r].size(); j++)
+      {
+        std::vector<VolumeSegment_OBB*> S;
+        for (size_t k = 0 ; k < OtherSegments[j].size() ; k++)
+        {
+          VolumeSegment_OBB*const ptr  = & vSegments[OtherSegments[j][k]];
+            S.push_back(ptr);
+        }
+        if(S.size() > 0)
+        {
+          ObstacleBlock block;
+          block.clear();
+          putfish(recv_blocks[r][j].h,
+                  recv_blocks[r][j].origin_x,
+                  recv_blocks[r][j].origin_y,
+                  recv_blocks[r][j].origin_z, &block, S);
+
+          int kounter = 0;
+          for (int iz = 0 ; iz < sizeZ ; iz++)
+          for (int iy = 0 ; iy < sizeY ; iy++)
+          for (int ix = 0 ; ix < sizeX ; ix++)
+          {
+            recv_obstacles[r][j].d[                    kounter] = block.udef[iz][iy][ix][0];
+            recv_obstacles[r][j].d[sizeZ*sizeY*sizeX  +kounter] = block.udef[iz][iy][ix][1];
+            recv_obstacles[r][j].d[sizeZ*sizeY*sizeX*2+kounter] = block.udef[iz][iy][ix][2];
+            recv_obstacles[r][j].i[                    kounter] = block.sectionMarker[iz][iy][ix];
+            kounter ++;
+          }
+          kounter = 0;
+          for (int iz = 0 ; iz < sizeZ+2 ; iz++)
+          for (int iy = 0 ; iy < sizeY+2 ; iy++)
+          for (int ix = 0 ; ix < sizeX+2 ; ix++)
+          {
+            recv_obstacles[r][j].d[sizeZ*sizeY*sizeX*3 + kounter] = block.sdfLab[iz][iy][ix];
+            kounter ++;
+          }
+        }
+      }
+    }
+  }
+
+   //SEND AND RECEIVE DATA
+  {
+    std::vector<MPI_Request> recv_request;
+    for (int r = 0 ; r < size ; r ++) if (send_obstacles[r].size() != 0)
+    {
+       MPI_Request req;
+       recv_request.push_back(req);
+       MPI_Irecv(send_obstacles[r].data(), send_obstacles[r].size(), MPI_OBSTACLE, r, r*size+rank, comm, &recv_request.back());
+    }
+    std::vector<MPI_Request> send_request;
+    for (int r = 0 ; r < size ; r ++) if (recv_obstacles[r].size() != 0)
+    {
+       MPI_Request req;
+       send_request.push_back(req);
+       MPI_Isend(recv_obstacles[r].data(), recv_obstacles[r].size(), MPI_OBSTACLE, r, r +rank*size, comm, &send_request.back());
+    }
+
+ 
+    #pragma omp parallel
+    {
+      PutFishOnBlocks putfish(myFish, position, quaternion);
+      #pragma omp for
+      for(int j=counter_S; j<=(int)MyBlockIDs.size() - 1 - counter_E; ++j)
+      {
+        std::vector<VolumeSegment_OBB*> S;
+        for (size_t k = 0 ; k < MySegments[j].size() ; k++)
+        {
+          VolumeSegment_OBB*const ptr  = & vSegments[MySegments[j][k]];
+            S.push_back(ptr);
+        }
+        if(S.size() > 0)
+        {
+          ObstacleBlock*const block = obstacleBlocks[MyBlockIDs[j].blockID];
+          putfish(MyBlockIDs[j].h,
+                  MyBlockIDs[j].origin_x,
+                  MyBlockIDs[j].origin_y,
+                  MyBlockIDs[j].origin_z, block, S);
+        }
+      }
+    }
+
+
+
+    MPI_Waitall(send_request.size(), send_request.data() , MPI_STATUSES_IGNORE);
+    MPI_Waitall(recv_request.size(), recv_request.data() , MPI_STATUSES_IGNORE);
+
+    counter_S = 0;
+    counter_E = 0;
+    for (int r = 0 ; r < size ; r ++) if (send_obstacles[r].size() != 0)
+    {
+       if (r < rank)
+       {
+          for (size_t i = 0 ; i < send_blocks[r].size() ; i ++)
+          {
+             int id = MyBlockIDs[counter_S + i].blockID;
+
+             ObstacleBlock*const block = obstacleBlocks[id];
+             int kounter = 0;
+
+             for (int iz = 0 ; iz < sizeZ ; iz++)
+             for (int iy = 0 ; iy < sizeY ; iy++)
+             for (int ix = 0 ; ix < sizeX ; ix++)
+             {
+               block->udef[iz][iy][ix][0]       = send_obstacles[r][i].d[                    kounter];
+               block->udef[iz][iy][ix][1]       = send_obstacles[r][i].d[sizeZ*sizeY*sizeX  +kounter];
+               block->udef[iz][iy][ix][2]       = send_obstacles[r][i].d[sizeZ*sizeY*sizeX*2+kounter];
+               block->sectionMarker[iz][iy][ix] = send_obstacles[r][i].i[                    kounter];
+               kounter ++;
+             }
+             kounter = 0;
+             for (int iz = 0 ; iz < sizeZ+2 ; iz++)
+             for (int iy = 0 ; iy < sizeY+2 ; iy++)
+             for (int ix = 0 ; ix < sizeX+2 ; ix++)
+             {
+               block->sdfLab[iz][iy][ix] = send_obstacles[r][i].d[sizeZ*sizeY*sizeX*3 + kounter];
+               kounter ++;
+             }
+
+          }
+          counter_S += send_blocks[r].size();
+       }
+       else
+       {
+          for (size_t i = 0 ; i < send_blocks[r].size() ; i ++)
+          {
+             int id   = MyBlockIDs[MyBlockIDs.size() - 1 - (counter_E + i)].blockID  ;
+             ObstacleBlock*const block = obstacleBlocks[id];
+             int kounter = 0;
+             for (int iz = 0 ; iz < sizeZ ; iz++)
+             for (int iy = 0 ; iy < sizeY ; iy++)
+             for (int ix = 0 ; ix < sizeX ; ix++)
+             {
+               block->udef[iz][iy][ix][0]       = send_obstacles[r][i].d[                    kounter];
+               block->udef[iz][iy][ix][1]       = send_obstacles[r][i].d[sizeZ*sizeY*sizeX  +kounter];
+               block->udef[iz][iy][ix][2]       = send_obstacles[r][i].d[sizeZ*sizeY*sizeX*2+kounter];
+               block->sectionMarker[iz][iy][ix] = send_obstacles[r][i].i[                    kounter];
+               kounter ++;
+             }
+             kounter = 0;
+             for (int iz = 0 ; iz < sizeZ+2 ; iz++)
+             for (int iy = 0 ; iy < sizeY+2 ; iy++)
+             for (int ix = 0 ; ix < sizeX+2 ; ix++)
+             {
+               block->sdfLab[iz][iy][ix] = send_obstacles[r][i].d[sizeZ*sizeY*sizeX*3 + kounter];
+               kounter ++;
+             }
+          }
+          counter_E += send_blocks[r].size();
+       }
+    }
+  }
+  MPI_Type_free(&MPI_BLOCKID);
+  MPI_Type_free(&MPI_OBSTACLE);
+  #endif
 }
 
 void Fish::create()

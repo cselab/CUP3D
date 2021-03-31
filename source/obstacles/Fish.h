@@ -53,6 +53,33 @@ class Fish: public Obstacle
   virtual void create() override;
   virtual void finalize() override;
 
+  //MPI stuff, for ObstaclesCreate
+  struct BlockID
+  {
+    //BlockID(double a_h, double a_ox, double a_oy, double a_oz)
+    //{
+    //  h = a_h;
+    //  origin_x = a_ox;
+    //  origin_y = a_oy;
+    //  origin_z = a_oz;
+    //  blockID = 0;
+    //}
+    double h;
+    double origin_x;
+    double origin_y;
+    double origin_z;
+    size_t blockID;
+  };
+  std::vector<BlockID> MyBlockIDs;
+  std::vector<std::vector<int>> MySegments;
+
+  struct MPI_Obstacle
+  {
+    double d [FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX*3 
+           + (FluidBlock::sizeZ+2)*(FluidBlock::sizeY+2)*(FluidBlock::sizeX+2)];
+    int     i[FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX];
+  };
+
   #ifdef RL_LAYER
     void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL,
       Real*& pXU, Real*& pYU, int& Npts) override;
