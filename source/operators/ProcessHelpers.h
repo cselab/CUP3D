@@ -10,7 +10,6 @@
 #define CubismUP_3D_ProcessOperators_h
 
 #include "../SimulationData.h"
-#include "../ObstacleBlock.h"
 #include "Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
@@ -99,31 +98,6 @@ inline Real findMaxU(SimulationData& sim)
 }
 
 #undef MPIREAL
-
-using v_v_ob = std::vector<std::vector<ObstacleBlock*>*>;
-
-inline void putCHIonGrid(
-        const std::vector<cubism::BlockInfo>& vInfo,
-        const v_v_ob & vec_obstacleBlocks )
-{
-  #pragma omp parallel for schedule(dynamic,1)
-  for(size_t i=0; i<vInfo.size(); i++)
-  {
-    FluidBlock& b = * (FluidBlock*) vInfo[i].ptrBlock;
-    for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-    for(int iy=0; iy<FluidBlock::sizeY; iy++)
-    for(int ix=0; ix<FluidBlock::sizeX; ix++) b(ix,iy,iz).chi = 0;
-    for(size_t o=0; o<vec_obstacleBlocks.size(); o++)
-    {
-      const auto& pos = ( * vec_obstacleBlocks[o] )[vInfo[i].blockID];
-      if(pos == nullptr) continue;
-      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-      for(int iy=0; iy<FluidBlock::sizeY; iy++)
-      for(int ix=0; ix<FluidBlock::sizeX; ix++)
-        b(ix,iy,iz).chi = std::max(pos->chi[iz][iy][ix], b(ix,iy,iz).chi);
-    }
-  }
-}
 
 class KernelVorticity
 {
