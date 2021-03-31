@@ -68,7 +68,7 @@ class Fish: public Obstacle
     double origin_x;
     double origin_y;
     double origin_z;
-    size_t blockID;
+    long long blockID;
   };
   std::vector<BlockID> MyBlockIDs;
   std::vector<std::vector<int>> MySegments;
