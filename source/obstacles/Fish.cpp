@@ -159,7 +159,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
   }
   obstacleBlocks.resize(vInfo.size(), nullptr);
 
-  #pragma omp parallel for schedule(dynamic, 1)
+  //#pragma omp parallel for schedule(dynamic, 1)
   for(size_t i=0; i<vInfo.size(); ++i)
   {
     const BlockInfo & info = vInfo[i];
@@ -171,7 +171,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
         VolumeSegment_OBB*const ptr  = & vSegments[s];
         ret[info.blockID].push_back( ptr );
 
-        #pragma omp critical
+        //#pragma omp critical
         {
           if (!hasSegments)
           {
