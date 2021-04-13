@@ -15,11 +15,7 @@
 int main(int argc, char **argv)
 {
   int provided;
-  #ifdef CUP_ASYNC_DUMP
-    const auto SECURITY = MPI_THREAD_MULTIPLE;
-  #else
-    const auto SECURITY = MPI_THREAD_FUNNELED;
-  #endif
+  const auto SECURITY = MPI_THREAD_FUNNELED;
   MPI_Init_thread(&argc, &argv, SECURITY, &provided);
   if (provided < SECURITY ) {
     printf("ERROR: MPI implementation does not have required thread support\n");

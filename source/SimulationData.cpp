@@ -206,15 +206,6 @@ SimulationData::~SimulationData()
     pipeline.pop_back();
     delete g;
   }
-  #ifdef CUP_ASYNC_DUMP
-    if(dumper not_eq nullptr) {
-      dumper->join();
-      delete dumper;
-    }
-    delete dump;
-    if (dump_comm != MPI_COMM_NULL)
-      MPI_Comm_free(&dump_comm);
-  #endif
 }
 
 void SimulationData::startProfiler(std::string name) const

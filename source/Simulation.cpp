@@ -167,21 +167,6 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
   //Refine/compress only according to chi field for now
   sim.amr = new AMR( *(sim.grid),sim.Rtol,sim.Ctol);
 
-  #ifdef CUP_ASYNC_DUMP
-      // create new comm so that if there is a barrier main work is not affected
-      MPI_Comm_split(sim.app_comm, 0, sim.rank, &sim.dump_comm);
-      sim.dump = new  DumpGridMPI(1, //these arguments are not used in Cubism-AMR
-                                  1, //these arguments are not used in Cubism-AMR
-                                  1, //these arguments are not used in Cubism-AMR
-                                  sim.bpdx,
-                                  sim.bpdy,
-                                  sim.bpdz,
-                                  sim.maxextent,
-                                  sim.levelStart,sim.levelMax,sim.dump_comm,
-                                  (sim.BCx_flag == periodic),
-                                  (sim.BCy_flag == periodic),
-                                  (sim.BCz_flag == periodic));
-  #endif
   sim.UpdateHmin();
 
   const std::vector<BlockInfo>& vInfo = sim.vInfo();
