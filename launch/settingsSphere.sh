@@ -18,6 +18,7 @@ OPTIONS+=" -ImplicitPenalization 1"
 OPTIONS+=" -levelMax 4 -levelStart 3 -Rtol 0.40 -Ctol 0.10"
 OPTIONS+=" -extentx 4.0 "
 OPTIONS+=" -TimeOrder 2 "
+OPTIONS+=" -poissonTol 1e-6 "
 
 ####
 #### For a smaller domain use BPDX=16 and -extentx 2.0

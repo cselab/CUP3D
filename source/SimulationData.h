@@ -153,6 +153,7 @@ struct SimulationData
   int rampup = 100;
   bool verbose=false;
   bool muteAll = false;
+  double PoissonErrorTol = 1e-6;
 
   // output
   int saveFreq=0;
