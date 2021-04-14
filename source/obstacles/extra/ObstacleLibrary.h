@@ -48,16 +48,14 @@ struct FillBlocksBase
     //       using this function properly.
     FluidBlock &b = *(FluidBlock *)info.ptrBlock;
     if (!derived()->isTouching(b)) return;
-    CHIMAT & __restrict__ SDF = o->sdf;
-    for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
-    for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
-    for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
+    auto & SDFLAB = o->sdfLab;
+    for (int iz = -1; iz < FluidBlock::sizeZ+1; ++iz)
+    for (int iy = -1; iy < FluidBlock::sizeY+1; ++iy)
+    for (int ix = -1; ix < FluidBlock::sizeX+1; ++ix) {
       Real p[3];
       info.pos(p, ix, iy, iz);
       const Real dist = derived()->signedDistance(p[0], p[1], p[2]);
-      SDF[iz][iy][ix] = dist;
-      // negative outside of the obstacle, therefore max = minimal distance.
-      b(ix,iy,iz).tmpU = std::max(dist, b(ix,iy,iz).tmpU);
+      SDFLAB[iz+1][iy+1][ix+1] = dist;
     }
   }
 

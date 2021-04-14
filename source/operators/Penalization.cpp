@@ -555,8 +555,8 @@ void Penalization::preventCollidingObstacles() const
         {
             if ( iBlocks[k] == nullptr || jBlocks[k] == nullptr ) continue;
 
-            const CHI_MAT & iSDF  = iBlocks[k]->sdf;
-            const CHI_MAT & jSDF  = jBlocks[k]->sdf;
+            const auto & iSDF  = iBlocks[k]->sdfLab;
+            const auto & jSDF  = jBlocks[k]->sdfLab;
 
             const CHI_MAT & iChi  = iBlocks[k]->chi;
             const CHI_MAT & jChi  = jBlocks[k]->chi;
@@ -594,19 +594,13 @@ void Penalization::preventCollidingObstacles() const
                 coll.jMomY += jChi[iz][iy][ix] * (jU1 + jUr1 + jUDEF[iz][iy][ix][1]);
                 coll.jMomZ += jChi[iz][iy][ix] * (jU2 + jUr2 + jUDEF[iz][iy][ix][2]);
 
-                coll.ivecX += iChi[iz][iy][ix] *
-                 ( (ix == 0) ? (iSDF[iz][iy][ix+1] - iSDF[iz][iy][ix]) : ( (ix == FluidBlock::sizeX-1) ? (iSDF[iz][iy][ix] - iSDF[iz][iy][ix-1]) : 0.5*(iSDF[iz][iy][ix+1] - iSDF[iz][iy][ix-1]) ) );
-                coll.ivecY += iChi[iz][iy][ix] *
-                 ( (iy == 0) ? (iSDF[iz][iy+1][ix] - iSDF[iz][iy][ix]) : ( (iy == FluidBlock::sizeY-1) ? (iSDF[iz][iy][ix] - iSDF[iz][iy-1][ix]) : 0.5*(iSDF[iz][iy+1][ix] - iSDF[iz][iy-1][ix]) ) );
-                coll.ivecZ += iChi[iz][iy][ix] *
-                 ( (iz == 0) ? (iSDF[iz+1][iy][ix] - iSDF[iz][iy][ix]) : ( (iz == FluidBlock::sizeZ-1) ? (iSDF[iz][iy][ix] - iSDF[iz-1][iy][ix]) : 0.5*(iSDF[iz+1][iy][ix] - iSDF[iz-1][iy][ix]) ) );
+                coll.ivecX += iChi[iz][iy][ix] * 0.5*(iSDF[iz+1][iy+1][ix+2] - iSDF[iz+1][iy+1][ix  ]);
+                coll.ivecY += iChi[iz][iy][ix] * 0.5*(iSDF[iz+1][iy+2][ix+1] - iSDF[iz+1][iy  ][ix+1]);
+                coll.ivecZ += iChi[iz][iy][ix] * 0.5*(iSDF[iz+2][iy+1][ix+1] - iSDF[iz  ][iy+1][ix+1]);
 
-                coll.jvecX += jChi[iz][iy][ix] *
-                 ( (ix == 0) ? (jSDF[iz][iy][ix+1] - jSDF[iz][iy][ix]) : ( (ix == FluidBlock::sizeX-1) ? (jSDF[iz][iy][ix] - jSDF[iz][iy][ix-1]) : 0.5*(jSDF[iz][iy][ix+1] - jSDF[iz][iy][ix-1]) ) );
-                coll.jvecY += jChi[iz][iy][ix] *
-                 ( (iy == 0) ? (jSDF[iz][iy+1][ix] - jSDF[iz][iy][ix]) : ( (iy == FluidBlock::sizeY-1) ? (jSDF[iz][iy][ix] - jSDF[iz][iy-1][ix]) : 0.5*(jSDF[iz][iy+1][ix] - jSDF[iz][iy-1][ix]) ) );
-                coll.jvecZ += jChi[iz][iy][ix] *
-                 ( (iz == 0) ? (jSDF[iz+1][iy][ix] - jSDF[iz][iy][ix]) : ( (iz == FluidBlock::sizeZ-1) ? (jSDF[iz][iy][ix] - jSDF[iz-1][iy][ix]) : 0.5*(jSDF[iz+1][iy][ix] - jSDF[iz-1][iy][ix]) ) );
+                coll.jvecX += jChi[iz][iy][ix] * 0.5*(jSDF[iz+1][iy+1][ix+2] - jSDF[iz+1][iy+1][ix  ]);
+                coll.jvecY += jChi[iz][iy][ix] * 0.5*(jSDF[iz+1][iy+2][ix+1] - jSDF[iz+1][iy  ][ix+1]);
+                coll.jvecZ += jChi[iz][iy][ix] * 0.5*(jSDF[iz+2][iy+1][ix+1] - jSDF[iz  ][iy+1][ix+1]);
             }
         }
     }

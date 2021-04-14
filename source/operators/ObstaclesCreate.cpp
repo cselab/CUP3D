@@ -25,9 +25,6 @@ class KernelCharacteristicFunction
   const v_v_ob & vec_obstacleBlocks;
 
   public:
-  const StencilInfo stencil{-1,-1,-1, 2,2,2, true, {{FE_TMPU}}};//for FDMH_1
-  //const StencilInfo stencil{-4,-4,-4, 5,5,5, true, {{FE_P}}};//for FDMH_2
-
   KernelCharacteristicFunction(const v_v_ob& v) : vec_obstacleBlocks(v) {}
 
   Real J(const Real x) const
@@ -39,9 +36,8 @@ class KernelCharacteristicFunction
     return std::max(x,0.0);
   }
 
-
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& b) const
+  template <typename BlockType>
+  void operate(const BlockInfo& info, BlockType& b) const
   {
     const Real h = info.h_gridpoint, inv2h = .5/h, fac1 = .5*h*h, vol = h*h*h;
 
@@ -51,127 +47,8 @@ class KernelCharacteristicFunction
       ObstacleBlock* const o = obstacleBlocks[info.blockID];
       if(o == nullptr) continue;
       CHIMAT & __restrict__ CHI = o->chi;
-      const CHIMAT & __restrict__ SDF = o->sdf;
       o->CoM_x = 0; o->CoM_y = 0; o->CoM_z = 0; o->mass  = 0;
-#if 0
-      //////////////////////////
-      // FDMH_2 computation to approximate Heaviside function H(SDF(x,y,z))
-      // Reference: John D.Towers, "Finite difference methods for approximating Heaviside functions", eq.(15)
-      //////////////////////////
-      const int gp = 4;
-      const Real coef1 = 1.0/12.0;
-      const Real coef2 = 2.0/3.0;
-      //lab(ix,iy,iz).tmpU contains the SDF
-
-      const double inx = (FluidBlock::sizeX+4);
-      const double iny = (FluidBlock::sizeY+4);
-      const double inz = (FluidBlock::sizeZ+4);
-      std::vector<double> I2h(inx*iny*inz);
-
-      // 1. Compute I^{2,h} and store it to I2h
-      for(int iz=-2; iz<FluidBlock::sizeZ+2; ++iz)
-      for(int iy=-2; iy<FluidBlock::sizeY+2; ++iy)
-      for(int ix=-2; ix<FluidBlock::sizeX+2; ++ix)
-      {
-        if (lab(ix,iy,iz).tmpU > +gp*h || lab(ix,iy,iz).tmpU < -gp*h)
-        {
-          I2h[(ix+2)+(iy+2)*inx+(iz+2)*iny*inx] = I(lab(ix,iy,iz).tmpU);
-        }
-        else
-        {
-          // Compute grad(J) using 4th-order finite differences
-          // where J = 0.5*SDF^2 , if SDF > 0
-          //         = 0.0       , if SDF < 0
-          Real jm2,jm1,jp1,jp2;
-          jm2 = J(lab(ix-2,iy,iz).tmpU);
-          jm1 = J(lab(ix-1,iy,iz).tmpU);
-          jp1 = J(lab(ix+1,iy,iz).tmpU);
-          jp2 = J(lab(ix+2,iy,iz).tmpU);
-          const Real dJdx = coef1*(jm2-jp2) + coef2*(jp1-jm1);
-          jm2 = J(lab(ix,iy-2,iz).tmpU);
-          jm1 = J(lab(ix,iy-1,iz).tmpU);
-          jp1 = J(lab(ix,iy+1,iz).tmpU);
-          jp2 = J(lab(ix,iy+2,iz).tmpU);
-          const Real dJdy = coef1*(jm2-jp2) + coef2*(jp1-jm1);
-          jm2 = J(lab(ix,iy,iz-2).tmpU);
-          jm1 = J(lab(ix,iy,iz-1).tmpU);
-          jp1 = J(lab(ix,iy,iz+1).tmpU);
-          jp2 = J(lab(ix,iy,iz+2).tmpU);
-          const Real dJdz = coef1*(jm2-jp2) + coef2*(jp1-jm1);
-
-          // Compute grad(SDF) / |grad(SDF)|^2 using 4th-order finite differences
-          const Real dSdx = coef1*(lab(ix-2,iy,iz).tmpU - lab(ix+2,iy,iz).tmpU) + coef2*(lab(ix+1,iy,iz).tmpU - lab(ix-1,iy,iz).tmpU);
-          const Real dSdy = coef1*(lab(ix,iy-2,iz).tmpU - lab(ix,iy+2,iz).tmpU) + coef2*(lab(ix,iy+1,iz).tmpU - lab(ix,iy-1,iz).tmpU);
-          const Real dSdz = coef1*(lab(ix,iy,iz-2).tmpU - lab(ix,iy,iz+2).tmpU) + coef2*(lab(ix,iy,iz+1).tmpU - lab(ix,iy,iz-1).tmpU);
-          const Real normS = dSdx*dSdx+dSdy*dSdy+dSdz*dSdz + 1e-18;
-
-          // Store I^{2,h}
-          I2h[(ix+2)+(iy+2)*inx+(iz+2)*iny*inx] = (dJdx*dSdx + dJdy*dSdy + dJdz*dSdz) / normS;
-        }
-      }
-
-      // 2. Compute H^{2,h} and store it to CHI
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        if (lab(ix,iy,iz).tmpU > +gp*h || lab(ix,iy,iz).tmpU < -gp*h)
-        {
-          CHI[iz][iy][ix] = SDF[iz][iy][ix] > 0 ? 1 : 0;
-        }
-        else
-        {
-          // Compute grad(I^{2,h}) using 4th-order finite differences
-          const Real dIdx = coef1*(I2h[(ix+2-2)+(iy+2)*inx+(iz+2)*iny*inx] - I2h[(ix+2+2)+(iy+2)*inx+(iz+2)*iny*inx]) + coef2*(I2h[(ix+2+1)+(iy+2)*inx+(iz+2)*iny*inx] - I2h[(ix+2-1)+(iy+2)*inx+(iz+2)*iny*inx]);
-          const Real dIdy = coef1*(I2h[(ix+2)+(iy+2-2)*inx+(iz+2)*iny*inx] - I2h[(ix+2)+(iy+2+2)*inx+(iz+2)*iny*inx]) + coef2*(I2h[(ix+2)+(iy+2+1)*inx+(iz+2)*iny*inx] - I2h[(ix+2)+(iy+2-1)*inx+(iz+2)*iny*inx]);
-          const Real dIdz = coef1*(I2h[(ix+2)+(iy+2)*inx+(iz+2-2)*iny*inx] - I2h[(ix+2)+(iy+2)*inx+(iz+2+2)*iny*inx]) + coef2*(I2h[(ix+2)+(iy+2)*inx+(iz+2+1)*iny*inx] - I2h[(ix+2)+(iy+2)*inx+(iz+2-1)*iny*inx]);
-
-          // Compute grad(SDF) / |grad(SDF)|^2 using 4th-order finite differences
-          const Real dSdx = coef1*(lab(ix-2,iy,iz).tmpU - lab(ix+2,iy,iz).tmpU) + coef2*(lab(ix+1,iy,iz).tmpU - lab(ix-1,iy,iz).tmpU);
-          const Real dSdy = coef1*(lab(ix,iy-2,iz).tmpU - lab(ix,iy+2,iz).tmpU) + coef2*(lab(ix,iy+1,iz).tmpU - lab(ix,iy-1,iz).tmpU);
-          const Real dSdz = coef1*(lab(ix,iy,iz-2).tmpU - lab(ix,iy,iz+2).tmpU) + coef2*(lab(ix,iy,iz+1).tmpU - lab(ix,iy,iz-1).tmpU);
-          const Real normS = dSdx*dSdx+dSdy*dSdy+dSdz*dSdz + 1e-18;
-
-          // Store grad(I^{2,h}) * grad(SDF) / |grad(SDF)|^2 to CHI
-          CHI[iz][iy][ix] = (dIdx*dSdx + dIdy*dSdy + dIdz*dSdz) / normS;
-          if (CHI[iz][iy][ix] > 1.0 ) CHI[iz][iy][ix] = 1.0;
-        }
-        Real p[3]; info.pos(p, ix,iy,iz);
-        b(ix,iy,iz).chi = std::max(CHI[iz][iy][ix], b(ix,iy,iz).chi);
-        o->CoM_x += CHI[iz][iy][ix] * vol * p[0];
-        o->CoM_y += CHI[iz][iy][ix] * vol * p[1];
-        o->CoM_z += CHI[iz][iy][ix] * vol * p[2];
-        o->mass  += CHI[iz][iy][ix] * vol;
-
-        static constexpr Real surfdh = 0; // SURFDH
-        // allows shifting the SDF outside the body:
-        const Real sdf = SDF[iz][iy][ix] + h*surfdh; // negative outside
-        if (sdf > +gp*h || sdf < -gp*h) continue; // no need to compute gradChi
-
-        const Real distPx =lab(ix+1,iy,iz).tmpU + h*surfdh;
-        const Real distMx =lab(ix-1,iy,iz).tmpU + h*surfdh;
-        const Real distPy =lab(ix,iy+1,iz).tmpU + h*surfdh;
-        const Real distMy =lab(ix,iy-1,iz).tmpU + h*surfdh;
-        const Real distPz =lab(ix,iy,iz+1).tmpU + h*surfdh;
-        const Real distMz =lab(ix,iy,iz-1).tmpU + h*surfdh;
-        const Real gradUX = inv2h*(distPx - distMx);
-        const Real gradUY = inv2h*(distPy - distMy);
-        const Real gradUZ = inv2h*(distPz - distMz);
-        const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
-        const Real HplusX = std::fabs(distPx)<EPS ? 0.5 : (distPx<0? 0 : 1);
-        const Real HminuX = std::fabs(distMx)<EPS ? 0.5 : (distMx<0? 0 : 1);
-        const Real HplusY = std::fabs(distPy)<EPS ? 0.5 : (distPy<0? 0 : 1);
-        const Real HminuY = std::fabs(distMy)<EPS ? 0.5 : (distMy<0? 0 : 1);
-        const Real HplusZ = std::fabs(distPz)<EPS ? 0.5 : (distPz<0? 0 : 1);
-        const Real HminuZ = std::fabs(distMz)<EPS ? 0.5 : (distMz<0? 0 : 1);
-        const Real gradHX = (HplusX - HminuX);
-        const Real gradHY = (HplusY - HminuY);
-        const Real gradHZ = (HplusZ - HminuZ);
-        const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
-        const Real Delta = fac1 * numD/gradUSq; //h^3 * Delta
-        if (Delta>EPS) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
-      }
-#else
+      const auto & SDFLAB = o->sdfLab;
       //////////////////////////
       // FDMH_1 computation to approximate Heaviside function H(SDF(x,y,z))
       // Reference: John D.Towers, "Finite difference methods for approximating Heaviside functions", eq.(14)
@@ -182,19 +59,22 @@ class KernelCharacteristicFunction
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       {
         // here I read fist from SDF to deal with obstacles sharing block
-        if (SDF[iz][iy][ix] > +gp*h || SDF[iz][iy][ix] < -gp*h)
+        if (SDFLAB[iz+1][iy+1][ix+1] > +gp*h || SDFLAB[iz+1][iy+1][ix+1] < -gp*h)
         {
-          CHI[iz][iy][ix] = SDF[iz][iy][ix] > 0 ? 1 : 0;
+          CHI[iz][iy][ix] = SDFLAB[iz+1][iy+1][ix+1] > 0 ? 1 : 0;
         }
         else
         {
-          const Real distPx =lab(ix+1,iy,iz).tmpU, distMx =lab(ix-1,iy,iz).tmpU;
-          const Real distPy =lab(ix,iy+1,iz).tmpU, distMy =lab(ix,iy-1,iz).tmpU;
-          const Real distPz =lab(ix,iy,iz+1).tmpU, distMz =lab(ix,iy,iz-1).tmpU;
+          const Real distPx = SDFLAB[iz+1][iy+1][ix+1+1];
+          const Real distMx = SDFLAB[iz+1][iy+1][ix+1-1];
+          const Real distPy = SDFLAB[iz+1][iy+1+1][ix+1];
+          const Real distMy = SDFLAB[iz+1][iy+1-1][ix+1];
+          const Real distPz = SDFLAB[iz+1+1][iy+1][ix+1];
+          const Real distMz = SDFLAB[iz+1-1][iy+1][ix+1];
           // gradU
-          const Real gradUX = distPx - distMx;
-          const Real gradUY = distPy - distMy;
-          const Real gradUZ = distPz - distMz;
+          const Real gradUX = inv2h*(distPx - distMx);
+          const Real gradUY = inv2h*(distPy - distMy);
+          const Real gradUZ = inv2h*(distPz - distMz);
           const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
           const Real IplusX = std::max(0.0,distPx);
           const Real IminuX = std::max(0.0,distMx);
@@ -203,12 +83,25 @@ class KernelCharacteristicFunction
           const Real IplusZ = std::max(0.0,distPz);
           const Real IminuZ = std::max(0.0,distMz);
           // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
-          const Real gradIX = IplusX - IminuX;
-          const Real gradIY = IplusY - IminuY;
-          const Real gradIZ = IplusZ - IminuZ;
+          const Real gradIX = inv2h*(IplusX - IminuX);
+          const Real gradIY = inv2h*(IplusY - IminuY);
+          const Real gradIZ = inv2h*(IplusZ - IminuZ);
           const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
           CHI[iz][iy][ix] = numH/gradUSq;
           //CHI[iz][iy][ix]  = 0.5/(gp*h)* ( SDF[iz][iy][ix] + gp*h);
+
+          const Real HplusX = std::fabs(distPx)<EPS ? 0.5 : (distPx<0? 0 : 1);
+          const Real HminuX = std::fabs(distMx)<EPS ? 0.5 : (distMx<0? 0 : 1);
+          const Real HplusY = std::fabs(distPy)<EPS ? 0.5 : (distPy<0? 0 : 1);
+          const Real HminuY = std::fabs(distMy)<EPS ? 0.5 : (distMy<0? 0 : 1);
+          const Real HplusZ = std::fabs(distPz)<EPS ? 0.5 : (distPz<0? 0 : 1);
+          const Real HminuZ = std::fabs(distMz)<EPS ? 0.5 : (distMz<0? 0 : 1);
+          const Real gradHX = (HplusX - HminuX);
+          const Real gradHY = (HplusY - HminuY);
+          const Real gradHZ = (HplusZ - HminuZ);
+          const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
+          const Real Delta = fac1 * numD/gradUSq; //h^3 * Delta
+          if (Delta>EPS) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
         }
 
         Real p[3]; info.pos(p, ix,iy,iz);
@@ -217,34 +110,7 @@ class KernelCharacteristicFunction
         o->CoM_y += CHI[iz][iy][ix] * vol * p[1];
         o->CoM_z += CHI[iz][iy][ix] * vol * p[2];
         o->mass  += CHI[iz][iy][ix] * vol;
-
-        const Real sdf = SDF[iz][iy][ix];
-        if (sdf > +gp*h || sdf < -gp*h) continue; // no need to compute gradChi
-
-        const Real distPx =lab(ix+1,iy,iz).tmpU;
-        const Real distMx =lab(ix-1,iy,iz).tmpU;
-        const Real distPy =lab(ix,iy+1,iz).tmpU;
-        const Real distMy =lab(ix,iy-1,iz).tmpU;
-        const Real distPz =lab(ix,iy,iz+1).tmpU;
-        const Real distMz =lab(ix,iy,iz-1).tmpU;
-        const Real gradUX = inv2h*(distPx - distMx);
-        const Real gradUY = inv2h*(distPy - distMy);
-        const Real gradUZ = inv2h*(distPz - distMz);
-        const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
-        const Real HplusX = std::fabs(distPx)<EPS ? 0.5 : (distPx<0? 0 : 1);
-        const Real HminuX = std::fabs(distMx)<EPS ? 0.5 : (distMx<0? 0 : 1);
-        const Real HplusY = std::fabs(distPy)<EPS ? 0.5 : (distPy<0? 0 : 1);
-        const Real HminuY = std::fabs(distMy)<EPS ? 0.5 : (distMy<0? 0 : 1);
-        const Real HplusZ = std::fabs(distPz)<EPS ? 0.5 : (distPz<0? 0 : 1);
-        const Real HminuZ = std::fabs(distMz)<EPS ? 0.5 : (distMz<0? 0 : 1);
-        const Real gradHX = (HplusX - HminuX);
-        const Real gradHY = (HplusY - HminuY);
-        const Real gradHZ = (HplusZ - HminuZ);
-        const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
-        const Real Delta = fac1 * numD/gradUSq; //h^3 * Delta
-        if (Delta>EPS) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
       }
-#endif
       o->allocate_surface();
     }
   }
@@ -477,10 +343,8 @@ void CreateObstacles::operator()(const double dt)
     FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       b(ix,iy,iz).chi = 0; // will be accessed by max with pos def qtity
-      b(ix,iy,iz).tmpU = -1; // will be accessed by max with pos/neg qtity
-    }
   }
   sim.stopProfiler();
 
@@ -496,9 +360,17 @@ void CreateObstacles::operator()(const double dt)
 
   sim.startProfiler("Obst CHI");
   {
-    auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
-    const KernelCharacteristicFunction K(vecOB);
-    compute<KernelCharacteristicFunction>(K);
+    #pragma omp parallel
+    {
+      auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
+      const KernelCharacteristicFunction K(vecOB);
+      #pragma omp for
+      for (size_t i = 0; i < vInfo.size(); ++i)
+      {
+        FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+        K.operate<FluidBlock>(vInfo[i],b);
+      }
+    }
   }
   sim.stopProfiler();
 
@@ -536,20 +408,6 @@ void CreateObstacles::operator()(const double dt)
     delete visitor;
   }
   sim.stopProfiler();
-
-  #ifndef NDEBUG
-  { // integrate momenta by looping over grid
-    #pragma omp parallel
-    { // each thread needs to call its own non-const operator() function
-      KernelIntegrateUdefMomenta K(sim.obstacle_vector);
-      #pragma omp for schedule(dynamic, 1)
-      for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
-    }
-    ObstacleVisitor* visitor = new KernelAccumulateUdefMomenta(grid, true);
-    sim.obstacle_vector->Accept(visitor);
-    delete visitor;
-  }
-  #endif
 
   sim.startProfiler("Obst finalize");
   sim.obstacle_vector->finalize(); // whatever else the obstacle needs

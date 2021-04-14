@@ -40,7 +40,7 @@ class Fish: public Obstacle
   typedef std::vector<std::vector<VolumeSegment_OBB*>> intersect_t;
   virtual intersect_t prepare_segPerBlock(vecsegm_t& vSeg);
   // third how to interpolate on the grid given the intersections:
-  virtual void writeSDFOnBlocks(const intersect_t& segPerBlock);
+  virtual void writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments);
 
  public:
   Fish(SimulationData&s, cubism::ArgumentParser&p);
@@ -52,6 +52,35 @@ class Fish: public Obstacle
 
   virtual void create() override;
   virtual void finalize() override;
+
+  //MPI stuff, for ObstaclesCreate
+  struct BlockID
+  {
+    //BlockID(double a_h, double a_ox, double a_oy, double a_oz)
+    //{
+    //  h = a_h;
+    //  origin_x = a_ox;
+    //  origin_y = a_oy;
+    //  origin_z = a_oz;
+    //  blockID = 0;
+    //}
+    double h;
+    double origin_x;
+    double origin_y;
+    double origin_z;
+    long long blockID;
+  };
+  std::vector<BlockID> MyBlockIDs;
+  std::vector<std::vector<int>> MySegments;
+
+  struct MPI_Obstacle
+  {
+    double d [FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX*3 
+           + (FluidBlock::sizeZ+2)*(FluidBlock::sizeY+2)*(FluidBlock::sizeX+2)];
+    int     i[FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX];
+  };
+  MPI_Datatype MPI_BLOCKID;
+  MPI_Datatype MPI_OBSTACLE;
 
   #ifdef RL_LAYER
     void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL,

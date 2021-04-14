@@ -212,20 +212,12 @@ void PoissonSolverAMR::solve()
 {
     sim.startProfiler("Poisson solve");
 
-    static constexpr int BSX = BlockType::sizeX;
-    static constexpr int BSY = BlockType::sizeY;
-    static constexpr int BSZ = BlockType::sizeZ;
-
     if (iter_min >= 1) iter_min --;
 
     std::vector<cubism::BlockInfo>& vInfo = grid.getBlocksInfo();
-
     const double eps = 1e-21;
     const size_t Nblocks = vInfo.size();
-    const size_t N = BSX*BSY*BSZ*Nblocks;
-    size_t Nsystem;
-    MPI_Allreduce(&N,&Nsystem,1,MPI_LONG,MPI_SUM,m_comm);
-
+    const size_t N = BlockType::sizeX*BlockType::sizeY*BlockType::sizeZ*Nblocks;
     std::vector <Real> storeGridElements (8*N);
     #pragma omp parallel for schedule(runtime)
     for (size_t i=0; i < Nblocks; i++)
@@ -294,7 +286,7 @@ void PoissonSolverAMR::solve()
         }
     }
     MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
-    norm = std::sqrt(norm) / Nsystem;
+    norm = std::sqrt(norm);
 
     double rho = 1.0;
     double alpha = 1.0;
@@ -305,8 +297,9 @@ void PoissonSolverAMR::solve()
     bool useXopt = false;
     double min_norm = 1e50;
     double init_norm=norm;
-    const double max_error = 1e-10;
-    const double max_rel_error = 1e-3;
+    const double max_error = sim.PoissonErrorTol;
+    const double max_rel_error = sim.step < 100 ? 1e-3 : 1e-2;
+    bool serious_breakdown = false;
     int iter_opt = 0;
 
     //5. for k = 1,2,...
@@ -317,23 +310,59 @@ void PoissonSolverAMR::solve()
     //    std::cout <<  "Poisson solver converged after " <<  0 << " iterations. Error norm = " << norm << std::endl;
     //}
     //else
-    for (size_t k = 1; k < 4000; k++)
+    for (size_t k = 1; k < 500; k++)
     {
         //1. rho_i = (rhat_0,r_{k-1})
         //2. beta = rho_{i}/rho_{i-1} * alpha/omega_{i-1}
         rho_m1 = rho;
         rho = 0.0;
-        #pragma omp parallel for reduction(+:rho)
+        double norm_1 = 0.0;
+        double norm_2 = 0.0;
+        #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
         for(size_t i=0; i< Nblocks; i++)
         {
             BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
+            {
                 rho += b(ix,iy,iz).rVector * b(ix,iy,iz).rhatVector;
+                norm_1 += b(ix,iy,iz).rVector*b(ix,iy,iz).rVector;
+                norm_2 += b(ix,iy,iz).rhatVector*b(ix,iy,iz).rhatVector;
+            }
         }
-        MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_DOUBLE,MPI_SUM,m_comm);
+        double aux_norm [3] = {rho,norm_1,norm_2};
+        MPI_Allreduce(MPI_IN_PLACE,&aux_norm,3,MPI_DOUBLE,MPI_SUM,m_comm);
+        rho = aux_norm[0];
+        norm_1 = aux_norm[1];
+        norm_2 = aux_norm[2];
         double beta = rho / (rho_m1+eps) * alpha / (omega+eps) ;
+
+        norm_1 = sqrt(norm_1);
+        norm_2 = sqrt(norm_2);
+        double cosTheta = rho/norm_1/norm_2; 
+        serious_breakdown = std::fabs(cosTheta) < 1e-10;
+        if (serious_breakdown)
+        {
+            beta = 0.0;
+            rho = 0.0;
+            #pragma omp parallel for reduction(+:rho)
+            for(size_t i=0; i< Nblocks; i++)
+            {
+                BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
+                for(int iz=0; iz<BlockType::sizeZ; iz++)
+                for(int iy=0; iy<BlockType::sizeY; iy++)
+                for(int ix=0; ix<BlockType::sizeX; ix++)
+                {
+                    b(ix,iy,iz).rhatVector = b(ix,iy,iz).rVector;
+                    rho += b(ix,iy,iz).rVector * b(ix,iy,iz).rhatVector;
+                }
+            }
+            if (m_rank == 0) 
+                std::cout << "  [Poisson solver]: restart at iteration:" << k << 
+                             "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
+            MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_DOUBLE,MPI_SUM,m_comm);
+        }
 
         //3. p_i = r_{i-1} + beta*(p_{i-1}-omega *v_{i-1})
         //4. z = K_2^{-1} p
@@ -431,11 +460,12 @@ void PoissonSolverAMR::solve()
             }
         }
         MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
-        norm = std::sqrt(norm) / Nsystem;
+        norm = std::sqrt(norm);
 
         if (norm < min_norm)
         {
-          iter_opt = k;
+            useXopt = true;
+            iter_opt = k;
             min_norm = norm;
             #pragma omp parallel for schedule(runtime)
             for (size_t i=0; i < Nblocks; i++)
@@ -454,8 +484,6 @@ void PoissonSolverAMR::solve()
     
         if (k==1) init_norm = norm;
 
-
-
         if (norm / (init_norm+eps) > 2.0 && k > 10)
         {
             useXopt = true;
@@ -472,7 +500,6 @@ void PoissonSolverAMR::solve()
         }
 
     }//k-loop
-
 
     if (useXopt)
     {

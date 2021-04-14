@@ -21,8 +21,8 @@ struct KernelComputeForces : public ObstacleVisitor
   LabMPI * lab_ptr = nullptr;
   const BlockInfo * info_ptr = nullptr;
 
-  const int stencil_start[3] = {-1, -1, -1}, stencil_end[3] = {2, 2, 2};
-  StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
+  const int stencil_start[3] = {-3, -3, -3}, stencil_end[3] = {4, 4, 4};
+  StencilInfo stencil{-3,-3,-3, 4,4,4, false, {FE_U,FE_V,FE_W}};
 
   KernelComputeForces(double _nu, double _dt, ObstacleVector* ov) :
     obstacle_vector(ov), nu(_nu), dt(_dt) { }
@@ -80,23 +80,56 @@ struct KernelComputeForces : public ObstacleVisitor
       info.pos(p, ix, iy, iz);
 
       //shear stresses
-      const double D11 =    _1oH*(l(ix+1,iy,iz).u - l(ix-1,iy,iz).u);
-      const double D22 =    _1oH*(l(ix,iy+1,iz).v - l(ix,iy-1,iz).v);
-      const double D33 =    _1oH*(l(ix,iy,iz+1).w - l(ix,iy,iz-1).w);
-      const double D12 = .5*_1oH*(l(ix,iy+1,iz).u - l(ix,iy-1,iz).u
-                                 +l(ix+1,iy,iz).v - l(ix-1,iy,iz).v);
-      const double D13 = .5*_1oH*(l(ix,iy,iz+1).u - l(ix,iy,iz-1).u
-                                 +l(ix+1,iy,iz).w - l(ix-1,iy,iz).w);
-      const double D23 = .5*_1oH*(l(ix,iy+1,iz).w - l(ix,iy-1,iz).w
-                                 +l(ix,iy,iz+1).v - l(ix,iy,iz-1).v);
+      const double normX = o->surface[i]->dchidx; //*h^3 (multiplied in dchidx)
+      const double normY = o->surface[i]->dchidy; //*h^3 (multiplied in dchidy)
+      const double normZ = o->surface[i]->dchidz; //*h^3 (multiplied in dchidz)
+      const Real norm = 1.0/std::sqrt(normX*normX+normY*normY+normZ*normZ);
+
+      double dx = normX*norm;
+      double dy = normY*norm;
+      double dz = normZ*norm;
+      if      (dx < 0) dx -= 0.5;
+      else if (dx > 0) dx += 0.5;
+      if      (dy < 0) dy -= 0.5;
+      else if (dy > 0) dy += 0.5;
+      if      (dz < 0) dz -= 0.5;
+      else if (dz > 0) dz += 0.5;
+
+      const int x = ix + (int)(dx);
+      const int y = iy + (int)(dy);
+      const int z = iz + (int)(dz);
+
+      const double dudx2 = normX > 0 ? (l(x,iy,iz).u-2*l(x+1,iy,iz).u+l(x+2,iy,iz).u) : (l(x,iy,iz).u-2*l(x-1,iy,iz).u+l(x-2,iy,iz).u);
+      const double dvdx2 = normX > 0 ? (l(x,iy,iz).v-2*l(x+1,iy,iz).v+l(x+2,iy,iz).v) : (l(x,iy,iz).v-2*l(x-1,iy,iz).v+l(x-2,iy,iz).v);
+      const double dwdx2 = normX > 0 ? (l(x,iy,iz).w-2*l(x+1,iy,iz).w+l(x+2,iy,iz).w) : (l(x,iy,iz).w-2*l(x-1,iy,iz).w+l(x-2,iy,iz).w);
+      const double dudy2 = normY > 0 ? (l(ix,y,iz).u-2*l(ix,y+1,iz).u+l(ix,y+2,iz).u) : (l(ix,y,iz).u-2*l(ix,y-1,iz).u+l(ix,y-2,iz).u);
+      const double dvdy2 = normY > 0 ? (l(ix,y,iz).v-2*l(ix,y+1,iz).v+l(ix,y+2,iz).v) : (l(ix,y,iz).v-2*l(ix,y-1,iz).v+l(ix,y-2,iz).v);
+      const double dwdy2 = normY > 0 ? (l(ix,y,iz).w-2*l(ix,y+1,iz).w+l(ix,y+2,iz).w) : (l(ix,y,iz).w-2*l(ix,y-1,iz).w+l(ix,y-2,iz).w);
+      const double dudz2 = normZ > 0 ? (l(ix,iy,z).u-2*l(ix,iy,z+1).u+l(ix,iy,z+2).u) : (l(ix,iy,z).u-2*l(ix,iy,z-1).u+l(ix,iy,z-2).u);
+      const double dvdz2 = normZ > 0 ? (l(ix,iy,z).v-2*l(ix,iy,z+1).v+l(ix,iy,z+2).v) : (l(ix,iy,z).v-2*l(ix,iy,z-1).v+l(ix,iy,z-2).v);
+      const double dwdz2 = normZ > 0 ? (l(ix,iy,z).w-2*l(ix,iy,z+1).w+l(ix,iy,z+2).w) : (l(ix,iy,z).w-2*l(ix,iy,z-1).w+l(ix,iy,z-2).w);       
+
+      const double dudx = dudx2*(ix-x) + (normX> 0 ? (-1.5*l(x,iy,iz).u+2.0*l(x+1,iy,iz).u-0.5*l(x+2,iy,iz).u) : (1.5*l(x,iy,iz).u-2.0*l(x-1,iy,iz).u+0.5*l(x-2,iy,iz).u) );
+      const double dvdx = dvdx2*(ix-x) + (normX> 0 ? (-1.5*l(x,iy,iz).v+2.0*l(x+1,iy,iz).v-0.5*l(x+2,iy,iz).v) : (1.5*l(x,iy,iz).v-2.0*l(x-1,iy,iz).v+0.5*l(x-2,iy,iz).v) );
+      const double dwdx = dwdx2*(ix-x) + (normX> 0 ? (-1.5*l(x,iy,iz).w+2.0*l(x+1,iy,iz).w-0.5*l(x+2,iy,iz).w) : (1.5*l(x,iy,iz).w-2.0*l(x-1,iy,iz).w+0.5*l(x-2,iy,iz).w) );
+      const double dudy = dudy2*(iy-y) + (normY> 0 ? (-1.5*l(ix,y,iz).u+2.0*l(ix,y+1,iz).u-0.5*l(ix,y+2,iz).u) : (1.5*l(ix,y,iz).u-2.0*l(ix,y-1,iz).u+0.5*l(ix,y-2,iz).u) );
+      const double dvdy = dvdy2*(iy-y) + (normY> 0 ? (-1.5*l(ix,y,iz).v+2.0*l(ix,y+1,iz).v-0.5*l(ix,y+2,iz).v) : (1.5*l(ix,y,iz).v-2.0*l(ix,y-1,iz).v+0.5*l(ix,y-2,iz).v) );
+      const double dwdy = dwdy2*(iy-y) + (normY> 0 ? (-1.5*l(ix,y,iz).w+2.0*l(ix,y+1,iz).w-0.5*l(ix,y+2,iz).w) : (1.5*l(ix,y,iz).w-2.0*l(ix,y-1,iz).w+0.5*l(ix,y-2,iz).w) );
+      const double dudz = dudz2*(iz-z) + (normZ> 0 ? (-1.5*l(ix,iy,z).u+2.0*l(ix,iy,z+1).u-0.5*l(ix,iy,z+2).u) : (1.5*l(ix,iy,z).u-2.0*l(ix,iy,z-1).u+0.5*l(ix,iy,z-2).u) );
+      const double dvdz = dvdz2*(iz-z) + (normZ> 0 ? (-1.5*l(ix,iy,z).v+2.0*l(ix,iy,z+1).v-0.5*l(ix,iy,z+2).v) : (1.5*l(ix,iy,z).v-2.0*l(ix,iy,z-1).v+0.5*l(ix,iy,z-2).v) );
+      const double dwdz = dwdz2*(iz-z) + (normZ> 0 ? (-1.5*l(ix,iy,z).w+2.0*l(ix,iy,z+1).w-0.5*l(ix,iy,z+2).w) : (1.5*l(ix,iy,z).w-2.0*l(ix,iy,z-1).w+0.5*l(ix,iy,z-2).w) );       
+
+      const double D11 = 2*_1oH*(dudx     );
+      const double D22 = 2*_1oH*(dvdy     );
+      const double D33 = 2*_1oH*(dwdz     );
+      const double D12 =   _1oH*(dudy+dvdx);
+      const double D13 =   _1oH*(dudz+dwdx);
+      const double D23 =   _1oH*(dwdy+dvdz);
 
       //normals computed with Towers 2009
       // Actually using the volume integral, since (\iint -P \hat{n} dS) = (\iiint -\nabla P dV). Also, P*\nabla\Chi = \nabla P
       // penalty-accel and surf-force match up if resolution is high enough (200 points per fish)
       const double P = l(ix,iy,iz).p;
-      const double normX = o->surface[i]->dchidx; //*h^3 (multiplied in dchidx)
-      const double normY = o->surface[i]->dchidy; //*h^3 (multiplied in dchidy)
-      const double normZ = o->surface[i]->dchidz; //*h^3 (multiplied in dchidz)
       const double fXV = D11 * normX + D12 * normY + D13 * normZ;
       const double fYV = D12 * normX + D22 * normY + D23 * normZ;
       const double fZV = D13 * normX + D23 * normY + D33 * normZ;
@@ -204,6 +237,7 @@ struct DumpWake
 
 void ComputeForces::operator()(const double dt)
 {
+  if (sim.step % 20 != 0) return; //it's expensive to compute forces! Do it once every 20 timesteps.
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
   sim.startProfiler("Obst. Forces");

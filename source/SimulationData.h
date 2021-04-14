@@ -12,9 +12,6 @@
 #include "Definitions.h"
 #include "Cubism/FluxCorrectionMPI.h"
 #include <array>
-#ifdef CUP_ASYNC_DUMP
- #include <thread>
-#endif
 #include <vector>
 #include <random>
 
@@ -29,11 +26,6 @@ class Operator;
 class ObstacleVector;
 class PoissonSolverAMR;
 class SpectralManip;
-
-#ifdef CUP_ASYNC_DUMP
- using DumpBlock  = BaseBlock<DumpElement>;
- using DumpGridMPI= cubism::GridMPI<cubism::Grid<DumpBlock, aligned_allocator>>;
-#endif
 
 struct SimulationData
 {
@@ -161,6 +153,7 @@ struct SimulationData
   int rampup = 100;
   bool verbose=false;
   bool muteAll = false;
+  double PoissonErrorTol = 1e-6;
 
   // output
   int saveFreq=0;
@@ -173,12 +166,6 @@ struct SimulationData
   bool bUseUnboundedBC = false;
   bool bUseFourierBC = false;
   bool bKeepMomentumConstant = false;
-
-  #ifdef CUP_ASYNC_DUMP
-    MPI_Comm dump_comm = MPI_COMM_NULL;
-    DumpGridMPI * dump = nullptr;
-    std::thread * dumper = nullptr;
-  #endif
 
   void startProfiler(std::string name) const;
   void stopProfiler() const;

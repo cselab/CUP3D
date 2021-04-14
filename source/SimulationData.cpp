@@ -100,6 +100,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
   saveTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
   rampup = parser("-rampup").asInt(100); // number of dt ramp-up steps
+  PoissonErrorTol = parser("-poissonTol").asDouble(1e-6); // absolute error tolerance for poisson eq.
 
   nsteps = parser("-nsteps").asInt(0);    // 0 to disable this stopping critera.
   endTime = parser("-tend").asDouble(0);  // 0 to disable this stopping critera.
@@ -206,15 +207,6 @@ SimulationData::~SimulationData()
     pipeline.pop_back();
     delete g;
   }
-  #ifdef CUP_ASYNC_DUMP
-    if(dumper not_eq nullptr) {
-      dumper->join();
-      delete dumper;
-    }
-    delete dump;
-    if (dump_comm != MPI_COMM_NULL)
-      MPI_Comm_free(&dump_comm);
-  #endif
 }
 
 void SimulationData::startProfiler(std::string name) const

@@ -158,6 +158,9 @@ void ComputeDissipation::operator()(const double dt)
 
   MPI_Allreduce(MPI_IN_PLACE, RDX, 20,MPI_DOUBLE, MPI_SUM,grid->getCartComm());
 
+  size_t loc = sim.vInfo().size();
+  size_t tot;
+  MPI_Reduce(&loc, &tot, 1, MPI_LONG, MPI_SUM, 0, sim.app_comm);
   if(sim.rank==0)
   {
     std::ofstream outfile;
@@ -165,12 +168,12 @@ void ComputeDissipation::operator()(const double dt)
     if(sim.step==0)
       outfile<<"step_id time circ_x circ_y circ_y linImp_x linImp_y linImp_z "
       "linMom_x linMom_y linMom_z angImp_x angImp_y angImp_z angMom_x angMom_y "
-      "angMom_z presPow viscPow helicity kineticEn enstrophy"<<std::endl;
+      "angMom_z presPow viscPow helicity kineticEn enstrophy blocks"<<std::endl;
     outfile<<sim.step<<" "<<sim.time<<" "<<
     RDX[ 0]<<" "<<RDX[ 1]<<" "<<RDX[ 2]<<" "<<RDX[ 3]<<" "<<RDX[ 4]<<" "<<
     RDX[ 5]<<" "<<RDX[ 6]<<" "<<RDX[ 7]<<" "<<RDX[ 8]<<" "<<RDX[ 9]<<" "<<
     RDX[10]<<" "<<RDX[11]<<" "<<RDX[12]<<" "<<RDX[13]<<" "<<RDX[14]<<" "<<
-    RDX[15]<<" "<<RDX[16]<<" "<<RDX[17]<<" "<<RDX[18]<<" "<<RDX[19]<<std::endl;
+    RDX[15]<<" "<<RDX[16]<<" "<<RDX[17]<<" "<<RDX[18]<<" "<<RDX[19]<<" "<< tot << std::endl;
     outfile.close();
   }
   sim.stopProfiler();
