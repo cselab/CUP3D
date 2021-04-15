@@ -154,6 +154,7 @@ struct SimulationData
   bool verbose=false;
   bool muteAll = false;
   double PoissonErrorTol = 1e-6;
+  double PoissonErrorTolRel = 1e-4;
 
   // output
   int saveFreq=0;
