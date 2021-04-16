@@ -33,10 +33,13 @@ set(PYLIB "libcubismup3d")
 
 # Options.
 set(CUP_BLOCK_SIZE "16" CACHE STRING "Number of grid points in a block, per dimension")
+set(CUP_ROOT_DIR "${ROOT_DIR}" CACHE INTERNAL "CubismUP_3D repository root path")
+set(CUP_BUILD_DIR "${BUILD_DIR}" CACHE INTERNAL "CubismUP_3D build path")
 option(CUP_TESTS "Enable tests" OFF)
 option(CUP_BUILD_EXE "Build the executable" ON)
 option(CUP_BUILD_LIB "Build the static library" OFF)
 option(CUP_BUILD_PY "Build Python bindings" OFF)
+option(CUP_AUTO_INSTALL_DEPENDENCIES "Automatically install missing dependencies" OFF)
 
 # Compile-time settings. Stored in a configuration file CubismUP3DMacros.h and imported by Definitions.h.
 option(CUP_ASYNC_DUMP "Use asynchronous data dumps (requires additional memory)" ON)
@@ -73,27 +76,8 @@ add_subdirectory("${ROOT_DIR}/Cubism")
 # OpenMP.
 find_package(OpenMP REQUIRED)
 
-# HDF5.
-if (NOT HDF5_DIR AND EXISTS ${ROOT_FOLDER}/dependencies/build/hdf5-1.10.1)
-    set(HDF5_DIR ${ROOT_FOLDER}/dependencies/build/hdf5-1.10.1)
-endif()
-set(HDF5_PREFER_PARALLEL ON)
-find_package(HDF5 REQUIRED)
-
-# FFTW.
-# TODO: Single precision
-if (NOT FTTW_DIR AND NOT DEFINED ENV{FFTWDIR} AND EXISTS ${DEP_BUILD_DIR}/fftw-3.3.7)
-    set(FFTW_DIR ${DEP_BUILD_DIR}/fftw-3.3.7)
-endif()
-# set(FFTW_USE_STATIC_LIBS 1)
-find_package(FFTW REQUIRED)
-
-# GSL.
-if (NOT GSL_ROOT_DIR AND NOT DEFINED ENV{GSL_ROOT_DIR} AND EXISTS ${DEP_BUILD_DIR}/gsl-2.1)
-    set(GSL_ROOT_DIR ${DEP_BUILD_DIR}/gsl-2.1)
-endif()
-find_package(GSL REQUIRED)
-
+# 3rd party dependencies.
+include("${ROOT_DIR}/cmake/Dependencies.cmake")
 
 # Targets.
 set(COMMON_SOURCES           # Common for app and lib.

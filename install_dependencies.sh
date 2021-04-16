@@ -20,7 +20,7 @@ INSTALL_PATH=${INSTALL_PATH:-$PWD/dependencies/build}
 # NOTE: Avoid updating the version (of CMake) because on clusters it may
 #       require manual installation, which means adding ~15k files!
 # NOTE: Changing these numbers may not be enough for the script to work properly!
-# NOTE: Update `CMakeLists.txt` and `README.md` if updating versions!
+# NOTE: Update `cmake/Dependencies.txt` and `README.md` if updating versions!
 ACCFFT_GIT_URL='https://github.com/novatig/accfft'
 ACCFFT_COMMIT='b88432cd71118b7997fa67948cb32125cb881fc1'
 
