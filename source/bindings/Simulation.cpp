@@ -63,10 +63,13 @@ PYBIND11_MODULE(libcubismup3d, m)
 
   /* Simulation */
   py::class_<Simulation, std::shared_ptr<Simulation>>(m, "Simulation")
-      .def(py::init([](const std::vector<std::string> &argv) {
-        return createSimulation(MPI_COMM_WORLD, argv);
-      }), "argv"_a)
-      .def_readonly("sim", &Simulation::sim, py::return_value_policy::reference)
+      .def(py::init([](const std::vector<std::string> &argv, uintptr_t commPtr) {
+          // https://stackoverflow.com/questions/49259704/pybind11-possible-to-use-mpi4py
+          // In Python, pass `MPI._addressof(comm)` as the value of the `comm` argument.
+          MPI_Comm comm = commPtr ? *(MPI_Comm *)commPtr : MPI_COMM_WORLD;
+          return createSimulation(comm, argv);
+      }), "argv"_a, "comm"_a = 0)
+      .def_readonly("sim", &Simulation::sim, py::return_value_policy::reference_internal)
       .def("run", &Simulation::run)
       .def("add_obstacle", &Simulation_addObstacle);
 
