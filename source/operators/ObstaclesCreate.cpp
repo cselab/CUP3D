@@ -53,11 +53,12 @@ class KernelCharacteristicFunction
       // FDMH_1 computation to approximate Heaviside function H(SDF(x,y,z))
       // Reference: John D.Towers, "Finite difference methods for approximating Heaviside functions", eq.(14)
       //////////////////////////
-      const int gp = 1;
+      //const int gp = 1;
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       {
+        #if 0
         // here I read fist from SDF to deal with obstacles sharing block
         if (SDFLAB[iz+1][iy+1][ix+1] > +gp*h || SDFLAB[iz+1][iy+1][ix+1] < -gp*h)
         {
@@ -103,7 +104,31 @@ class KernelCharacteristicFunction
           const Real Delta = fac1 * numD/gradUSq; //h^3 * Delta
           if (Delta>EPS) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
         }
-
+        #else
+          CHI[iz][iy][ix] = SDFLAB[iz+1][iy+1][ix+1] > 0 ? 1 : 0;
+          const Real distPx = SDFLAB[iz+1][iy+1][ix+1+1];
+          const Real distMx = SDFLAB[iz+1][iy+1][ix+1-1];
+          const Real distPy = SDFLAB[iz+1][iy+1+1][ix+1];
+          const Real distMy = SDFLAB[iz+1][iy+1-1][ix+1];
+          const Real distPz = SDFLAB[iz+1+1][iy+1][ix+1];
+          const Real distMz = SDFLAB[iz+1-1][iy+1][ix+1];
+          const Real gradUX = inv2h*(distPx - distMx);
+          const Real gradUY = inv2h*(distPy - distMy);
+          const Real gradUZ = inv2h*(distPz - distMz);
+          const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
+          const Real HplusX = std::fabs(distPx)<EPS ? 0.5 : (distPx<0? 0 : 1);
+          const Real HminuX = std::fabs(distMx)<EPS ? 0.5 : (distMx<0? 0 : 1);
+          const Real HplusY = std::fabs(distPy)<EPS ? 0.5 : (distPy<0? 0 : 1);
+          const Real HminuY = std::fabs(distMy)<EPS ? 0.5 : (distMy<0? 0 : 1);
+          const Real HplusZ = std::fabs(distPz)<EPS ? 0.5 : (distPz<0? 0 : 1);
+          const Real HminuZ = std::fabs(distMz)<EPS ? 0.5 : (distMz<0? 0 : 1);
+          const Real gradHX = (HplusX - HminuX);
+          const Real gradHY = (HplusY - HminuY);
+          const Real gradHZ = (HplusZ - HminuZ);
+          const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
+          const Real Delta = fac1 * numD/gradUSq; //h^3 * Delta
+          if (Delta>EPS) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
+        #endif
         Real p[3]; info.pos(p, ix,iy,iz);
         b(ix,iy,iz).chi = std::max(CHI[iz][iy][ix], b(ix,iy,iz).chi);
         o->CoM_x += CHI[iz][iy][ix] * vol * p[0];
