@@ -297,8 +297,8 @@ void PoissonSolverAMR::solve()
     bool useXopt = false;
     double min_norm = 1e50;
     double init_norm=norm;
-    const double max_error     = sim.step < 100 ? 0.0 : sim.PoissonErrorTol;
-    const double max_rel_error = sim.step < 100 ? 0.0 : sim.PoissonErrorTolRel;
+    const double max_error     = sim.PoissonErrorTol;
+    const double max_rel_error = sim.PoissonErrorTolRel;
     bool serious_breakdown = false;
     int iter_opt = 0;
 
@@ -310,7 +310,7 @@ void PoissonSolverAMR::solve()
     //    std::cout <<  "Poisson solver converged after " <<  0 << " iterations. Error norm = " << norm << std::endl;
     //}
     //else
-    for (size_t k = 1; k < 300; k++)
+    for (size_t k = 1; k < 1000; k++)
     {
         //1. rho_i = (rhat_0,r_{k-1})
         //2. beta = rho_{i}/rho_{i-1} * alpha/omega_{i-1}
@@ -341,7 +341,7 @@ void PoissonSolverAMR::solve()
         norm_1 = sqrt(norm_1);
         norm_2 = sqrt(norm_2);
         double cosTheta = rho/norm_1/norm_2; 
-        serious_breakdown = std::fabs(cosTheta) < 1e-10;
+        serious_breakdown = std::fabs(cosTheta) < 1e-8;
         if (serious_breakdown)
         {
             beta = 0.0;
@@ -484,7 +484,7 @@ void PoissonSolverAMR::solve()
     
         if (k==1) init_norm = norm;
 
-        if (norm / (init_norm+eps) > 2.0 && k > 10)
+        if (norm / (init_norm+eps) > 1000.0 && k > 10)
         {
             useXopt = true;
             if (m_rank==0)
