@@ -73,6 +73,9 @@ ObstacleArguments::ObstacleArguments(
   bFixFrameOfRef[1] = bFOR_alldir || parser("-bFixFrameOfRef_y").asBool(false);
   bFixFrameOfRef[2] = bFOR_alldir || parser("-bFixFrameOfRef_z").asBool(false);
 
+  // boolean to break symmetry to trigger vortex shedding
+  bBreakSymmetry = parser("-bBreakSymmetry").asBool(false);
+
   // To force forced obst. into computeForces or to force self-propelled
   // into diagnostics forces (tasso del tasso del tasso):
   // If untouched forced only do diagnostics and selfprop only do surface.
@@ -149,6 +152,11 @@ Obstacle::Obstacle(
   bFixFrameOfRef[0] = args.bFixFrameOfRef[0];
   bFixFrameOfRef[1] = args.bFixFrameOfRef[1];
   bFixFrameOfRef[2] = args.bFixFrameOfRef[2];
+
+  bBreakSymmetry = args.bBreakSymmetry;
+  if( bBreakSymmetry )
+    if (!sim.rank) printf("Symmetry broken by imposing sinusodial y-velocity in t=[1,2].\n");
+
   bForces = args.bComputeForces;
 }
 
@@ -167,6 +175,15 @@ void Obstacle::computeVelocities()
     penalLmom[0], penalLmom[1], penalLmom[2],
     penalAmom[0], penalAmom[1], penalAmom[2]
   };
+
+  // modify y-velocity for symmetry breaking
+  if( bBreakSymmetry )
+  {
+    if( sim.time>3.0 && sim.time<4.0 )
+      transVel_imposed[1] = length*std::sin(M_PI*(sim.time-3.0));
+    else
+      transVel_imposed[1] = 0.0;
+  }
 
   //Momenta are conserved if a dof (a row of mat A) is not externally forced
   //This means that if obstacle is free to move according to fluid forces,

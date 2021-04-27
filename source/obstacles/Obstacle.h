@@ -68,6 +68,7 @@ struct ObstacleArguments
   std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
   bool bFixToPlanar = false;
   bool bComputeForces = true;
+  bool bBreakSymmetry = false;
 
   ObstacleArguments() = default;
 
@@ -123,6 +124,8 @@ public:
   std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
 
   std::array<bool, 3> bBlockRotation = {{false, false, false}};
+
+  bool bBreakSymmetry = false;
 
   std::array<double,3> transVel_computed = {0,0,0}, angVel_computed = {0,0,0};
   std::array<double,3> penalLmom={0,0,0}, penalAmom={0,0,0}, penalCM={0,0,0};
