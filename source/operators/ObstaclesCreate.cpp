@@ -58,7 +58,7 @@ class KernelCharacteristicFunction
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       {
-        #if 0
+        #if 1
         // here I read fist from SDF to deal with obstacles sharing block
         if (SDFLAB[iz+1][iy+1][ix+1] > +gp*h || SDFLAB[iz+1][iy+1][ix+1] < -gp*h)
         {
