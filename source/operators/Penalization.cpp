@@ -683,9 +683,6 @@ void Penalization::preventCollidingObstacles() const
             std::fabs(coll.iPosY/coll.iM  - coll_other.iPosY/coll_other.iM ) > 0.2 ||
             std::fabs(coll.iPosZ/coll.iM  - coll_other.iPosZ/coll_other.iM ) > 0.2 ) //used 0.2 because fish lenght is 0.2 usually!
         {
-          std::cout << coll.iPosX/coll.iM << " " << coll.iPosY/coll.iM << " " << coll.iPosZ/coll.iM << std::endl;
-          std::cout << coll_other.iPosX/coll_other.iM  << " " << coll_other.iPosY/coll_other.iM  << " " << coll_other.iPosZ/coll_other.iM  << std::endl;
-          abort();
             continue; // then both objects i and j collided, but not with each other!
         }
 
