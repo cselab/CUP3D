@@ -679,9 +679,9 @@ void Penalization::preventCollidingObstacles() const
         if(coll.iM       < 1.0 || coll.jM       < 1.0) continue; //object i did not collide
         if(coll_other.iM < 1.0 || coll_other.jM < 1.0) continue; //object j did not collide
 
-        if (std::fabs(coll.iPosX - coll_other.iPosX) + 
-            std::fabs(coll.iPosY - coll_other.iPosY) + 
-            std::fabs(coll.iPosZ - coll_other.iPosZ) > 1e-3 )
+        if (std::fabs(coll.iPosX - coll_other.iPosX) > 0.1 ||
+            std::fabs(coll.iPosY - coll_other.iPosY) > 0.1 ||
+            std::fabs(coll.iPosZ - coll_other.iPosZ) > 0.1 ) //used 0.1 because fish lenght is 0.2 usually!
         {
             continue; // then both objects i and j collided, but not with each other!
         }
