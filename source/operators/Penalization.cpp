@@ -676,13 +676,16 @@ void Penalization::preventCollidingObstacles() const
         auto & coll       = collisions[i];
         auto & coll_other = collisions[j];
         // less than one fluid element of overlap: wait to get closer. no hit
-        if(coll.iM       < 1.0 || coll.jM       < 1.0) continue; //object i did not collide
-        if(coll_other.iM < 1.0 || coll_other.jM < 1.0) continue; //object j did not collide
+        if(coll.iM       < 8.0 || coll.jM       < 8.0) continue; //object i did not collide
+        if(coll_other.iM < 8.0 || coll_other.jM < 8.0) continue; //object j did not collide
 
-        if (std::fabs(coll.iPosX - coll_other.iPosX) > 0.1 ||
-            std::fabs(coll.iPosY - coll_other.iPosY) > 0.1 ||
-            std::fabs(coll.iPosZ - coll_other.iPosZ) > 0.1 ) //used 0.1 because fish lenght is 0.2 usually!
+        if (std::fabs(coll.iPosX/coll.iM  - coll_other.iPosX/coll_other.iM ) > 0.2 ||
+            std::fabs(coll.iPosY/coll.iM  - coll_other.iPosY/coll_other.iM ) > 0.2 ||
+            std::fabs(coll.iPosZ/coll.iM  - coll_other.iPosZ/coll_other.iM ) > 0.2 ) //used 0.2 because fish lenght is 0.2 usually!
         {
+          std::cout << coll.iPosX/coll.iM << " " << coll.iPosY/coll.iM << " " << coll.iPosZ/coll.iM << std::endl;
+          std::cout << coll_other.iPosX/coll_other.iM  << " " << coll_other.iPosY/coll_other.iM  << " " << coll_other.iPosZ/coll_other.iM  << std::endl;
+          abort();
             continue; // then both objects i and j collided, but not with each other!
         }
 
