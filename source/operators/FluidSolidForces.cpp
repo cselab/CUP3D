@@ -21,8 +21,8 @@ struct KernelComputeForces : public ObstacleVisitor
   LabMPI * lab_ptr = nullptr;
   const BlockInfo * info_ptr = nullptr;
 
-  const int stencil_start[3] = {-3, -3, -3}, stencil_end[3] = {4, 4, 4};
-  StencilInfo stencil{-3,-3,-3, 4,4,4, false, {FE_U,FE_V,FE_W}};
+  const int stencil_start[3] = {-4, -4, -4}, stencil_end[3] = {5, 5, 5};
+  StencilInfo stencil{-4,-4,-4, 5,5,5, false, {FE_U,FE_V,FE_W}};
 
   KernelComputeForces(double _nu, double _dt, ObstacleVector* ov) :
     obstacle_vector(ov), nu(_nu), dt(_dt) { }
@@ -88,12 +88,12 @@ struct KernelComputeForces : public ObstacleVisitor
       double dx = normX*norm;
       double dy = normY*norm;
       double dz = normZ*norm;
-      if      (dx < 0) dx -= 0.5;
-      else if (dx > 0) dx += 0.5;
-      if      (dy < 0) dy -= 0.5;
-      else if (dy > 0) dy += 0.5;
-      if      (dz < 0) dz -= 0.5;
-      else if (dz > 0) dz += 0.5;
+      if      (dx < 0) dx -= 1.5;
+      else if (dx > 0) dx += 1.5;
+      if      (dy < 0) dy -= 1.5;
+      else if (dy > 0) dy += 1.5;
+      if      (dz < 0) dz -= 1.5;
+      else if (dz > 0) dz += 1.5;
 
       const int x = ix + (int)(dx);
       const int y = iy + (int)(dy);
@@ -107,7 +107,7 @@ struct KernelComputeForces : public ObstacleVisitor
       const double dwdy2 = normY > 0 ? (l(ix,y,iz).w-2*l(ix,y+1,iz).w+l(ix,y+2,iz).w) : (l(ix,y,iz).w-2*l(ix,y-1,iz).w+l(ix,y-2,iz).w);
       const double dudz2 = normZ > 0 ? (l(ix,iy,z).u-2*l(ix,iy,z+1).u+l(ix,iy,z+2).u) : (l(ix,iy,z).u-2*l(ix,iy,z-1).u+l(ix,iy,z-2).u);
       const double dvdz2 = normZ > 0 ? (l(ix,iy,z).v-2*l(ix,iy,z+1).v+l(ix,iy,z+2).v) : (l(ix,iy,z).v-2*l(ix,iy,z-1).v+l(ix,iy,z-2).v);
-      const double dwdz2 = normZ > 0 ? (l(ix,iy,z).w-2*l(ix,iy,z+1).w+l(ix,iy,z+2).w) : (l(ix,iy,z).w-2*l(ix,iy,z-1).w+l(ix,iy,z-2).w);       
+      const double dwdz2 = normZ > 0 ? (l(ix,iy,z).w-2*l(ix,iy,z+1).w+l(ix,iy,z+2).w) : (l(ix,iy,z).w-2*l(ix,iy,z-1).w+l(ix,iy,z-2).w);
 
       const double dudx = dudx2*(ix-x) + (normX> 0 ? (-1.5*l(x,iy,iz).u+2.0*l(x+1,iy,iz).u-0.5*l(x+2,iy,iz).u) : (1.5*l(x,iy,iz).u-2.0*l(x-1,iy,iz).u+0.5*l(x-2,iy,iz).u) );
       const double dvdx = dvdx2*(ix-x) + (normX> 0 ? (-1.5*l(x,iy,iz).v+2.0*l(x+1,iy,iz).v-0.5*l(x+2,iy,iz).v) : (1.5*l(x,iy,iz).v-2.0*l(x-1,iy,iz).v+0.5*l(x-2,iy,iz).v) );
@@ -237,7 +237,7 @@ struct DumpWake
 
 void ComputeForces::operator()(const double dt)
 {
-  //if (sim.step % 20 != 0) return; //it's expensive to compute forces! Do it once every 20 timesteps.
+  if (sim.step % 20 != 0) return; //it's expensive to compute forces! Do it once every 20 timesteps.
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
   sim.startProfiler("Obst. Forces");
