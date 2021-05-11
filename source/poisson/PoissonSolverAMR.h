@@ -30,7 +30,6 @@
 #define sVector    u
 #define AxVector   v
 #define zVector    w 
-
 namespace cubismup3d {
 
 class ComputeLHS : public Operator
@@ -137,6 +136,29 @@ class ComputeLHS : public Operator
   {
     const KernelLHS K(sim);
     compute<KernelLHS>(K,true);
+    double avgP = 0;
+
+    int index = -1;
+    const std::vector<cubism::BlockInfo>& vInfo = sim.grid->getBlocksInfo();
+    #pragma omp parallel for reduction(+ : avgP)
+    for(size_t i=0; i<vInfo.size(); ++i)
+    {
+      const bool cornerx = ( vInfo[i].index[0] == ( (sim.bpdx * (1<<(vInfo[i].level)) -1)/2 ) ); 
+      const bool cornery = ( vInfo[i].index[1] == ( (sim.bpdy * (1<<(vInfo[i].level)) -1)/2 ) ); 
+      const bool cornerz = ( vInfo[i].index[2] == ( (sim.bpdz * (1<<(vInfo[i].level)) -1)/2 ) ); 
+      FluidBlock & __restrict__ b  = *(FluidBlock*) vInfo[i].ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+      for(int iy=0; iy<FluidBlock::sizeY; iy++)
+      for(int ix=0; ix<FluidBlock::sizeX; ix++)
+        avgP += b(ix,iy,iz).zVector*vInfo[i].h*vInfo[i].h*vInfo[i].h;
+      if (cornerx && cornery && cornerz) index = i;
+    }
+    MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, sim.grid->getWorldComm());
+    if (index!=-1)
+    {
+      FluidBlock & __restrict__ b  = *(FluidBlock*) vInfo[index].ptrBlock;
+      b(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1).AxVector = avgP;
+    }
   }
   std::string getName() { return "ComputeLHS"; }
 };

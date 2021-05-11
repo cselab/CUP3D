@@ -219,9 +219,12 @@ void PoissonSolverAMR::solve()
     const size_t Nblocks = vInfo.size();
     const size_t N = BlockType::sizeX*BlockType::sizeY*BlockType::sizeZ*Nblocks;
     std::vector <Real> storeGridElements (8*N);
-    #pragma omp parallel for schedule(runtime)
+    #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
+        const bool cornerx = ( vInfo[i].index[0] == ( (sim.bpdx * (1<<(vInfo[i].level)) -1)/2 ) );
+        const bool cornery = ( vInfo[i].index[1] == ( (sim.bpdy * (1<<(vInfo[i].level)) -1)/2 ) );
+        const bool cornerz = ( vInfo[i].index[2] == ( (sim.bpdz * (1<<(vInfo[i].level)) -1)/2 ) );
         BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
         const size_t offset = _offset( vInfo[i] );
         for(int iz=0; iz<BlockType::sizeZ; iz++)
@@ -239,6 +242,8 @@ void PoissonSolverAMR::solve()
             storeGridElements[8*src_index+7] = b(ix,iy,iz).tmpW;
             b(ix,iy,iz).zVector = b(ix,iy,iz).xVector;//this is done because Get_LHS works with zVector
         }
+        if (cornerz && cornery && cornerx)
+          b.tmp[BlockType::sizeZ-1][BlockType::sizeY-1][BlockType::sizeX-1] = 0.0;
     }
 
     //1. rVector <-- b - AxVector
@@ -484,7 +489,7 @@ void PoissonSolverAMR::solve()
     
         if (k==1) init_norm = norm;
 
-        if (norm / (init_norm+eps) > 1000.0 && k > 10)
+        if (norm / (init_norm+eps) > 100000.0 && k > 10)
         {
             useXopt = true;
             if (m_rank==0)
