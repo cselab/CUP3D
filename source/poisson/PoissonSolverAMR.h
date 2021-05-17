@@ -177,8 +177,8 @@ class PoissonSolverAMR
 
   ComputeLHS findLHS;
   std::vector<size_t> blocksOffset;
-  long long id_min;
-  long long id_max;
+  unsigned long long id_min;
+  unsigned long long id_max;
   size_t iter_min;
 
  public:
