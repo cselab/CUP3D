@@ -150,7 +150,7 @@ void Simulation::_icFromH5(std::string h5File)
 
 void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
 {
-  if(sim.rank==0) printf("Uniform-resolution grid of sizes: %f %f %f\n", sim.extent[0],sim.extent[1],sim.extent[2]);
+  if(sim.rank==0) printf("Grid of sizes: %f %f %f\n", sim.extent[0],sim.extent[1],sim.extent[2]);
   sim.grid = new FluidGridMPI(1, //these arguments are not used in Cubism-AMR
                               1, //these arguments are not used in Cubism-AMR
                               1, //these arguments are not used in Cubism-AMR
@@ -244,25 +244,40 @@ void Simulation::setupOperators(ArgumentParser & parser)
 double Simulation::calcMaxTimestep()
 {
   const double dt_old = sim.dt;
-  assert(sim.grid not_eq nullptr);
   sim.UpdateHmin();
-  const double hMin = sim.hmin, CFL = sim.CFL;
-  sim.uMax_measured = sim.bKeepMomentumConstant? findMaxUzeroMom(sim)
-                                               : findMaxU(sim);
-  const double dtDif = hMin * hMin / sim.nu;
-  const double dtAdv = hMin / ( sim.uMax_measured + 1e-8 );
-  sim.dt = CFL * std::min(dtDif, dtAdv);
-  if ( sim.step < sim.rampup )
+  const double hMin = sim.hmin;
+  double CFL = sim.CFL;
+  sim.uMax_measured = sim.bKeepMomentumConstant? findMaxUzeroMom(sim) : findMaxU(sim);
+
+  if( CFL > 0 )
   {
-    const double x = sim.step / (double) sim.rampup;
-    const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(CFL)*x);
-    sim.dt = rampCFL * std::min(dtDif, dtAdv);
+    const double dtDiffusion = (1 / 6) * ( hMin * hMin / sim.nu );
+    const double dtAdvection = hMin / ( sim.uMax_measured + 1e-8 );
+    if ( sim.step < sim.rampup )
+    {
+      const double x = sim.step / (double) sim.rampup;
+      const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(CFL)*x);
+      sim.dt = std::min(dtDiffusion, rampCFL * dtAdvection);
+    }
+    else
+      sim.dt = std::min(dtDiffusion, CFL * dtAdvection);
   }
+  else
+  {
+    CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / hMin;
+  }
+
+  if( sim.dt <= 0 ){
+    printf("dt <= 0. Aborting...\n");
+    fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
+  }
+
+
   // if DLM>0, adapt lambda such that penal term is independent of time step
   if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
   if (sim.verbose)
-    printf("maxU:%f minH:%f dtF:%e dtC:%e dt:%e lambda:%e\n",
-      sim.uMax_measured, hMin, dtDif, dtAdv, sim.dt, sim.lambda);
+    printf("maxU:%f minH:%f dt:%e CFL:%e lambda:%e\n",
+      sim.uMax_measured, hMin, sim.dt, CFL, sim.lambda);
 
   if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
   {
