@@ -82,6 +82,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   lambda = parser("-lambda").asDouble(1e6);
   DLM = parser("-use-dlm").asDouble(0);
   CFL = parser("-CFL").asDouble(.1);
+  dt = parser("-dt").asDouble(0);
   uinf[0] = parser("-uinfx").asDouble(0.0);
   uinf[1] = parser("-uinfy").asDouble(0.0);
   uinf[2] = parser("-uinfz").asDouble(0.0);
@@ -190,7 +191,6 @@ void SimulationData::_preprocessArguments()
   }
   assert(nu >= 0);
   assert(lambda > 0 || DLM > 0);
-  assert(CFL > 0.0);
   assert(saveFreq >= 0.0);
   assert(saveTime >= 0.0);
 }
