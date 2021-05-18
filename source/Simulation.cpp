@@ -318,6 +318,38 @@ void Simulation::_serialize(const std::string append)
   //DumpHDF5_MPI<StreamerPressure      , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameP, sim.path4serialization);
   DumpHDF5_MPI<StreamerChi           , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameX, sim.path4serialization);
   DumpHDF5_MPI<StreamerTmpVector     , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameO, sim.path4serialization);
+#if 0
+  {
+    std::stringstream name1;
+    name1<<"Xrestart_";
+    name1<<std::setfill('0')<<std::setw(9)<<sim.step;
+    const std::string nameX = StreamerTmpVector::prefix() + name1.str();
+    ComputeVorticity  FindOmegaX(sim);
+    FindOmegaX.zeroX = true;
+    FindOmegaX(0);
+    DumpHDF5_MPI<StreamerTmpVector,DumpReal,FluidGridMPI,LabMPI> (*grid2Dump, sim.time, nameX, sim.path4serialization);
+  }
+  {
+    std::stringstream name1;
+    name1<<"Yrestart_";
+    name1<<std::setfill('0')<<std::setw(9)<<sim.step;
+    const std::string nameY = StreamerTmpVector::prefix() + name1.str();
+    ComputeVorticity  FindOmegaY(sim);
+    FindOmegaY.zeroY = true;
+    FindOmegaY(0);
+    DumpHDF5_MPI<StreamerTmpVector,DumpReal,FluidGridMPI,LabMPI> (*grid2Dump, sim.time, nameY, sim.path4serialization);
+  }
+  {
+    std::stringstream name1;
+    name1<<"Zrestart_";
+    name1<<std::setfill('0')<<std::setw(9)<<sim.step;
+    const std::string nameZ = StreamerTmpVector::prefix() + name1.str();
+    ComputeVorticity  FindOmegaZ(sim);
+    FindOmegaZ.zeroZ = true;
+    FindOmegaZ(0);
+    DumpHDF5_MPI<StreamerTmpVector,DumpReal,FluidGridMPI,LabMPI> (*grid2Dump, sim.time, nameZ, sim.path4serialization);
+  }
+#endif
   sim.stopProfiler();
 }
 
