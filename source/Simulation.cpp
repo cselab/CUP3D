@@ -251,7 +251,7 @@ double Simulation::calcMaxTimestep()
 
   if( CFL > 0 )
   {
-    const double dtDiffusion = (1 / 6) * ( hMin * hMin / sim.nu );
+    const double dtDiffusion = (1./ 6.) * ( hMin * hMin / sim.nu );
     const double dtAdvection = hMin / ( sim.uMax_measured + 1e-8 );
     if ( sim.step < sim.rampup )
     {
