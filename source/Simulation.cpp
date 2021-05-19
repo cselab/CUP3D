@@ -22,9 +22,7 @@
 #include "operators/FixedMassFlux_nonUniform.h"
 #include "operators/SGS.h"
 #include "operators/Analysis.h"
-#include "operators/HITfiltering.h"
 
-#include "spectralOperators/SpectralForcing.h"
 
 #include "obstacles/ObstacleFactory.h"
 #include "operators/ProcessHelpers.h"
@@ -221,8 +219,6 @@ void Simulation::setupOperators(ArgumentParser & parser)
     sim.pipeline.push_back(new PressureProjection(sim));
   }
 
-  if (sim.spectralForcing) sim.pipeline.push_back(new SpectralForcing(sim));
-
   // With finalized velocity and pressure, compute forces and dissipation
   sim.pipeline.push_back(new ComputeForces(sim));
   sim.pipeline.push_back(new ComputeDissipation(sim));
@@ -230,8 +226,6 @@ void Simulation::setupOperators(ArgumentParser & parser)
 
   // At this point the velocity computation is finished.
   sim.pipeline.push_back(checkpointPostVelocity = new Checkpoint(sim, "PostVelocity"));
-  //sim.pipeline.push_back(new HITfiltering(sim));
-  sim.pipeline.push_back(new StructureFunctions(sim));
   sim.pipeline.push_back(new Analysis(sim));
   //sim.pipeline.push_back(new ComputeDivergence(sim));
   if(sim.rank==0) {

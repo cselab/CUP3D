@@ -7,7 +7,6 @@
 //
 
 #include "Analysis.h"
-#include "../spectralOperators/SpectralAnalysis.h"
 
 #include <sys/stat.h>
 #include <iomanip>
@@ -90,7 +89,6 @@ Analysis::Analysis(SimulationData& s) : Operator(s) {}
 
 Analysis::~Analysis()
 {
-  if(sA not_eq nullptr) delete sA;
 }
 
 void Analysis::operator()(const double dt)
@@ -146,46 +144,6 @@ void Analysis::operator()(const double dt)
     }
     sim.stopProfiler();
     check("Channel Analysis");
-  }
-  if (sim.analysis == "HIT")
-  {
-    sim.startProfiler("HIT Analysis");
-    //printf("HIT Analysis\n");
-    // Compute Gradient stats
-    const int nthreads = omp_get_max_threads();
-    std::vector<KernelAnalysis_gradStats*> gradStats(nthreads, nullptr);
-    #pragma omp parallel for schedule(static, 1)
-    for(int i=0; i<nthreads; ++i) gradStats[i] = new KernelAnalysis_gradStats();
-    compute<KernelAnalysis_gradStats>(gradStats);
-
-    const size_t normalize = sim.bpdx * FluidBlock::sizeX *
-                             sim.bpdy * FluidBlock::sizeY *
-                             sim.bpdz * FluidBlock::sizeZ;
-
-    double grad_mean = 0.0, grad_std  = 0.0;
-    for (int i=0; i<nthreads; ++i){
-      grad_mean += gradStats[i]->grad_mean;
-      grad_std  += gradStats[i]->grad_std;
-      delete gradStats[i];
-    }
-
-    MPI_Allreduce(MPI_IN_PLACE, &grad_mean, 1, MPI_DOUBLE,MPI_SUM,sim.app_comm);
-    MPI_Allreduce(MPI_IN_PLACE, &grad_std , 1, MPI_DOUBLE,MPI_SUM,sim.app_comm);
-    grad_mean /= normalize;
-    grad_std  /= normalize;
-
-    grad_std = std::sqrt(grad_std - grad_mean*grad_mean);
-
-    sim.grad_mean = grad_mean;
-    sim.grad_std  = grad_std;
-
-    // Compute spectral analysis
-    if(sA == nullptr) sA = new SpectralAnalysis(sim);
-    sA->run();
-    if (sim.rank==0) sA->dump2File();
-
-    sim.stopProfiler();
-    check("HIT Analysis");
   }
 }
 

@@ -7,7 +7,6 @@
 //
 
 #include "InitialConditions.h"
-#include "../spectralOperators/SpectralIcGenerator.h"
 #include "../obstacles/ObstacleVector.h"
 
 #include <random>
@@ -93,9 +92,18 @@ class KernelIC_channelrandom
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
       block(ix,iy,iz).clear();
+      block(ix,iy,iz).u = dist(gen);
+    }
+    //If we set block(ix,iy,iz).u = U*(1.0+dist(gen)) the compiler gives 
+    //an annoying warning. Doing this slower approach with two loops makes
+    //the warning disappear. This won't impact performance as it's done
+    //onle once per simulation (initial conditions).
+    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
       Real p[3]; info.pos(p, ix, iy, iz);
       const Real U = FAC * p[dir] * (H-p[dir]);
-      block(ix,iy,iz).u = U * (1 + dist(gen));
+      block(ix,iy,iz).u = U * ( block(ix,iy,iz).u + 1.0 );
     }
   }
 };
@@ -200,13 +208,6 @@ void InitialConditions::operator()(const double dt)
     }
     const int dir = channelY? 1 : 2;
     run(KernelIC_channel(sim.extent, sim.uMax_forced, dir));
-  }
-  if (sim.initCond == "HITurbulence")
-  {
-    if(sim.verbose) printf("Homogeneous Isotropic Turbulence initial conditions.\n");
-
-    SpectralIcGenerator sIc(sim);
-    sIc.run();
   }
   {
     std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();

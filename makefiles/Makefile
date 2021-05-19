@@ -32,7 +32,6 @@ bsx ?= 8
 bsy ?= 8
 bsz ?= 8
 hdf ?= true
-accfft ?= false
 zlib ?= 0
 verbose ?= false
 dump_surface_binary ?= false
@@ -106,9 +105,8 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
 	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o \
 	FishShapes.o \
-	SGS.o FixedMassFlux_nonUniform.o Analysis.o SpectralManip.o \
-	SpectralIcGenerator.o SpectralManipFFTW.o HITfiltering.o \
-	SpectralAnalysis.o SpectralForcing.o ArgumentParser.o \
+	SGS.o FixedMassFlux_nonUniform.o Analysis.o \
+	ArgumentParser.o \
 	Checkpoint.o PoissonSolverAMR.o
 	#ElasticFishOperator.o # Temporary solution for Cubism .cpp files.
 
@@ -130,53 +128,6 @@ ifeq "$(hdf)" "true"
 	LIBS     += -lhdf5
 	CPPFLAGS += -DCUBISM_USE_HDF
 endif
-
-#################################################
-# FFTW
-#################################################
-ifneq ($(FFTW_ROOT),)
-	# do not overwrite FFTW_ROOT
-else ifneq ($(FFTW3_ROOT_DIR),)
-	FFTW_ROOT = $(FFTW3_ROOT_DIR)
-else ifneq ($(FFTW_DIR),)
-	FFTW_ROOT = $(FFTW_DIR)/..
-endif
-ifneq ($(FFTW_ROOT),)
-	FFTW_LIBS  = -L$(FFTW_ROOT)/lib
-	CPPFLAGS  += -I$(FFTW_ROOT)/include
-endif
-
-ifeq "$(precision)" "single"
-	FFTW_LIBS += -lfftw3f_mpi -lfftw3f_omp -lfftw3f
-else
-	FFTW_LIBS += -lfftw3_mpi -lfftw3_omp -lfftw3
-endif
-
-#################################################
-# ACCFFT
-#################################################
-ifeq "$(accfft)" "true"
-	ifneq ($(ACCFFT_ROOT),)
-		# OK
-	else ifneq (,$(wildcard ../dependencies/build/accfft))
-		ACCFFT_ROOT = ../dependencies/build/accfft
-	else
-		ERROR = "AccFFT not found, aborting."
-	endif
-	LIBS     += -L$(ACCFFT_ROOT)/lib
-	LIBS += -laccfft -laccfft_utils -laccfft_gpu -laccfft_utils_gpu -lcufft
-	CPPFLAGS += -I$(ACCFFT_ROOT)/include
-	CPPFLAGS += -D_ACCFFT_ -Wno-float-equal
-	NVFLAGS  += -I$(ACCFFT_ROOT)/include
-	NVFLAGS  += -I$(MPICH_DIR)/include/
-	NVOBJECTS =
-	OBJECTS += SpectralManipACC.o
-else
-	OBJECTS +=
-	NVOBJECTS =
-	LIBS += $(FFTW_LIBS)
-endif
-
 
 #LIBS += -L../tools/fpzip/lib -lfpzip
 ifneq "$(GSL_ROOT_DIR)" ""
@@ -201,15 +152,6 @@ DEPS := $(ALLOBJ:%.o=%.d)
 ../bin/simulation: $(EXEOBJ) $(NVOBJECTS)
 	mkdir -p ../bin
 	$(LD) $(EXEOBJ) $(NVOBJECTS) $(LDFLAGS) $(LIBS) -o $@
-
-lib: $(LIBOBJ) $(NVOBJECTS)
-	mkdir -p ../lib
-	ar rs ../lib/libcubismup3d.a $(FFTW_LIBS) $(LIBOBJ) $(NVOBJECTS)
-
-rlHIT: $(OBJECTS) $(NVOBJECTS)
-	$(CXX) $(CPPFLAGS) -fno-fast-math -I${SMARTIES_ROOT}/include -c ../source/main_RL_HIT.cpp -o main_RL_HIT.o
-	$(CXX) $(CPPFLAGS) -I${SMARTIES_ROOT}/include -c ../source/operators/SGS_RL.cpp -o SGS_RL.o
-	$(LD) -o $@ $^ main_RL_HIT.o SGS_RL.o $(LIBS) -L${SMARTIES_ROOT}/lib -lsmarties
 
 -include $(DEPS)
 

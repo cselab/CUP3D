@@ -13,11 +13,9 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-class SpectralAnalysis;
 
 class Analysis : public Operator
 {
-  SpectralAnalysis * sA = nullptr;
 public:
   Analysis(SimulationData& s);
 
