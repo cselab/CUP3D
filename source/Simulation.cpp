@@ -317,9 +317,9 @@ void Simulation::_serialize(const std::string append)
   //DumpHDF5_MPI<StreamerPressure      , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameP, sim.path4serialization);
   DumpHDF5_MPI<StreamerChi           , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameX, sim.path4serialization);
   DumpHDF5_MPI<StreamerTmpVector     , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameO, sim.path4serialization);
-  DumpHDF5_MPI<StreamerTmpVectorX    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameOx,sim.path4serialization);
-  DumpHDF5_MPI<StreamerTmpVectorY    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameOy,sim.path4serialization);
-  DumpHDF5_MPI<StreamerTmpVectorZ    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameOz,sim.path4serialization);
+  //DumpHDF5_MPI<StreamerTmpVectorX    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameOx,sim.path4serialization);
+  //DumpHDF5_MPI<StreamerTmpVectorY    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameOy,sim.path4serialization);
+  //DumpHDF5_MPI<StreamerTmpVectorZ    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameOz,sim.path4serialization);
 
   sim.stopProfiler();
 }
