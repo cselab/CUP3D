@@ -313,6 +313,62 @@ struct StreamerPressure
     static const char * getAttributeName() { return "Scalar"; }
 };
 
+struct StreamerTmpVectorX
+{
+    static const int NCHANNELS = 1;
+    static const int CLASS = 0;
+
+    template <typename TBlock, typename T>
+    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+    {
+      output[0] = b(ix,iy,iz).tmpU;
+    }
+
+    static std::string prefix()
+    {
+      return std::string("tmpU_");
+    }
+
+    static const char * getAttributeName() { return "Scalar"; }
+};
+
+struct StreamerTmpVectorY
+{
+    static const int NCHANNELS = 1;
+    static const int CLASS = 0;
+
+    template <typename TBlock, typename T>
+    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+    {
+      output[0] = b(ix,iy,iz).tmpV;
+    }
+
+    static std::string prefix()
+    {
+      return std::string("tmpV_");
+    }
+
+    static const char * getAttributeName() { return "Scalar"; }
+};
+
+struct StreamerTmpVectorZ
+{
+    static const int NCHANNELS = 1;
+    static const int CLASS = 0;
+
+    template <typename TBlock, typename T>
+    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+    {
+      output[0] = b(ix,iy,iz).tmpW;
+    }
+
+    static std::string prefix()
+    {
+      return std::string("tmpW_");
+    }
+
+    static const char * getAttributeName() { return "Scalar"; }
+};
 
 template<typename BlockType, template<typename X> class allocator=std::allocator>
 class BlockLabBC: public cubism::BlockLab<BlockType,allocator>

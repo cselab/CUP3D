@@ -221,9 +221,6 @@ class ComputeVorticity : public Operator
 {
   public:
   ComputeVorticity(SimulationData & s) : Operator(s) { }
-  bool zeroX{false};
-  bool zeroY{false};
-  bool zeroZ{false};
   void operator()(const double dt)
   {
     sim.startProfiler("Vorticity Kernel");
@@ -246,23 +243,6 @@ class ComputeVorticity : public Operator
       }
     }
 
-    if (zeroX || zeroY || zeroZ)
-    {
-      #pragma omp parallel for
-      for(size_t i=0; i<myInfo.size(); i++)
-      {
-        const cubism::BlockInfo& info = myInfo[i];
-        FluidBlock& b = *( FluidBlock *)info.ptrBlock;
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        {
-          if (zeroX) b(ix,iy,iz).tmpU = 0;
-          if (zeroY) b(ix,iy,iz).tmpV = 0;
-          if (zeroZ) b(ix,iy,iz).tmpW = 0;
-        }
-      }
-    }
     sim.stopProfiler();
     check("Vorticity");
   }
