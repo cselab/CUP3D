@@ -148,6 +148,7 @@ struct SimulationData
   Real fadeOutLengthPRHS[3] = {0, 0, 0};
 
   // output
+  int statsFreq=1;
   int saveFreq=0;
   double saveTime=0, nextSaveTime=0;
   std::string path4serialization = "./";

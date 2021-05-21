@@ -374,9 +374,10 @@ double Simulation::calcMaxTimestep()
   }
   // if DLM>0, adapt lambda such that penal term is independent of time step
   if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
-  if (sim.verbose)
+  if (sim.verbose && sim.statsFreq > 0 && (sim.step + 1) % sim.statsFreq == 0) {
     printf("maxU:%f minH:%f dtF:%e dtC:%e dt:%e lambda:%e\n",
-      sim.uMax_measured, hMin, dtDif, dtAdv, sim.dt, sim.lambda);
+           sim.uMax_measured, hMin, dtDif, dtAdv, sim.dt, sim.lambda);
+  }
   return sim.dt;
 }
 
@@ -561,8 +562,10 @@ bool Simulation::timestep(const double dt)
     sim.step++;
     sim.time+=dt;
 
-    if(sim.verbose) printf("%d : %e uInf {%f %f %f}\n",
-      sim.step,sim.time,sim.uinf[0],sim.uinf[1],sim.uinf[2]);
+    if (sim.verbose && sim.statsFreq > 0 && sim.step % sim.statsFreq == 0) {
+      printf("%d : %e uInf {%f %f %f}\n",
+             sim.step,sim.time,sim.uinf[0],sim.uinf[1],sim.uinf[2]);
+    }
 
     sim.startProfiler("Save");
     if( sim.bDump ) _serialize();

@@ -96,6 +96,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser)
 
   // OUTPUT
   verbose = parser("-verbose").asBool(true) && rank == 0;
+  statsFreq = parser("-stats-freq").asInt(1);
   b2Ddump = parser("-dump2D").asBool(false);
   b3Ddump = parser("-dump3D").asBool(true);
 

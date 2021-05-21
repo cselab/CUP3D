@@ -491,8 +491,9 @@ struct UpdateAndCorrectInflow
       [&] (Real& vel, const Real fac) { vel += fac * std::fabs(vel); };
     const auto update = nonuniform ? update2 : update1;
 
-    if(std::fabs(corr) < EPS) return;
-    if(sim.verbose) printf("Inflow correction %e\n", corr);
+    if (std::fabs(corr) < EPS) return;
+    if (sim.verbose && sim.statsFreq > 0 && (sim.step + 1) % sim.statsFreq == 0)
+      printf("Inflow correction %e\n", corr);
 
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++) {
