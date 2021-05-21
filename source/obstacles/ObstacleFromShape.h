@@ -35,36 +35,16 @@ CubismUP_3D_NAMESPACE_BEGIN
  *    <array of 3 Reals> localRelativeVelocity(<array of 3 Reals> position);
  *
  *    // Factor [0..1] multiplying the lambda,
- *    // used to gradually adding the obstacle to the flow.
+ *    // used to gradually add the obstacle to the flow.
  *    Real lambdaFactor();
  *
  *    // Set the current time, for time-dependent shapes.
- *    void setTime(Real);
+ *    void setTime(Real t);
  */
 template <typename Shape>
 class ObstacleFromShape : public Obstacle
 {
   using position_type = decltype(FluidBlock::min_pos);
-
-  // Expected functions in `Shape`.
-  static_assert(std::is_convertible<
-      decltype(std::declval<Shape>().isTouching(
-          position_type{}, position_type{})), bool>::value);
-  static_assert(std::is_convertible<
-      decltype(std::declval<Shape>().signedDistance({Real(), Real(), Real()})),
-      Real>::value);
-
-  // Here we check only that the velocity result behaves like an array.
-  static_assert(std::is_convertible<
-      decltype(std::declval<Shape>().comVelocity()[0]), Real>::value);
-  static_assert(std::is_convertible<
-      decltype(std::declval<Shape>().localRelativeVelocity(
-          {Real(), Real(), Real()})[0]), Real>::value);
-
-  static_assert(std::is_convertible<
-      decltype(std::declval<Shape>().lambdaFactor(Real())), Real>::value);
-  static_assert(std::is_same<
-      decltype(std::declval<Shape>().setTime(Real())), void>::value);
 
 public:
   ObstacleFromShape(SimulationData &s,
@@ -87,8 +67,6 @@ public:
   void create() override
   {
     shape_.setTime(sim.time);
-    printf("Cubism step = %d   time = %lg   Uinf = [%lg %lg %lg]\n",
-           sim.step, sim.time, sim.uinf[0], sim.uinf[1], sim.uinf[2]);
 
     // Read the new value of the lambda factor.
     lambda_factor = shape_.lambdaFactor(sim.time);
@@ -117,7 +95,7 @@ private:
   {
     FillBlocks(Shape &shape) : shape_(shape) { }
 
-    bool isTouching(const BlockInfo &, const FluidBlock &b) const
+    bool isTouching(const cubism::BlockInfo &, const FluidBlock &b) const
     {
       return shape_.isTouching(b.min_pos, b.max_pos);
     }

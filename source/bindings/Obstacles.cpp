@@ -2,12 +2,22 @@
 #include "../Simulation.h"
 #include "../obstacles/ObstacleVector.h"
 #include "../obstacles/Sphere.h"
+#include "../obstacles/MovingSphere.h"
+#include <pybind11/functional.h>
+#include <pybind11/stl.h>
 
-using namespace cubismup3d;
-using namespace cubismup3d::pybindings;
 using namespace pybind11::literals;
 namespace py = pybind11;
 
+CubismUP_3D_NAMESPACE_BEGIN
+
+static void assertKwargsEmpty(py::kwargs kwargs)
+{
+  for (auto item : kwargs) {
+    throw py::type_error("unexpected kwarg: "
+                         + py::cast<std::string>(py::str(item.first)));
+  }
+}
 
 #define ATTR_FROM_KWARGS(o, item) \
       do { \
@@ -36,6 +46,15 @@ static SphereArguments popSphereArguments(py::object &kwargs_pop)
   return s;
 }
 #undef ATTR_FROM_KWARGS
+
+/// Parse ObstacleArguments from kwargs. Throw an error if any kwarg is left.
+static ObstacleArguments parseObstacleArguments(py::kwargs kwargs)
+{
+  py::object pop = kwargs.attr("pop");
+  ObstacleArguments out = popObstacleArguments(pop);
+  assertKwargsEmpty(kwargs);
+  return out;
+}
 
 static std::shared_ptr<ObstacleAndSphereArguments> createObstacleAndSphereArguments(
       double radius, double umax, double tmax, bool accel_decel, bool bHemi,
@@ -68,13 +87,11 @@ static std::shared_ptr<ObstacleAndSphereArguments> createObstacleAndSphereArgume
       popSphereArguments(kwargs_pop));
 }
 
-
-CubismUP_3D_NAMESPACE_BEGIN
 namespace pybindings {
 
-void bindObstacles(py::module &m) {
+void bindObstacles(py::module &m)
+{
   /* ObstacleArguments */
-  ObstacleArguments oa;  // Take default values from the struct definition.
   py::class_<ObstacleArguments, std::shared_ptr<ObstacleArguments>>(m, "ObstacleArguments")
       .def_readwrite("length", &ObstacleArguments::length)
       .def_readwrite("position", &ObstacleArguments::position)
@@ -111,9 +128,24 @@ void bindObstacles(py::module &m) {
   /* Sphere */
   py::class_<Sphere, Obstacle, std::shared_ptr<Sphere>>(m, "SphereObstacle")
       .def(py::init<SimulationData &, ObstacleAndSphereArguments>());
+
+  /* MovingSphere */
+  m.def(
+      "create_moving_sphere",
+      [](Simulation &s, MovingSphereFunc func, double radius, py::kwargs kwargs) {
+        return createMovingSphere(s.sim, parseObstacleArguments(kwargs),
+                                  std::move(func), radius);
+      }, "sim"_a, "func"_a, "radius"_a,
+      "Create a sphere whose COM position and velocity are given by a "
+      "function (time)->(x, y, z, vx, vy, vz). The sphere is not rotating.");
 }
 
-void Simulation_addObstacle(Simulation &S, pybind11::object obstacle_args)
+void Simulation_addObstacle(Simulation &s, std::shared_ptr<Obstacle> obstacle)
+{
+  s.sim.obstacle_vector->addObstacle(std::move(obstacle));
+}
+
+void Simulation_parseAndAddObstacle(Simulation &S, pybind11::object obstacle_args)
 {
   if (py::isinstance<ObstacleAndSphereArguments>(obstacle_args)) {
     auto args = py::cast<ObstacleAndSphereArguments>(obstacle_args);

@@ -71,7 +71,8 @@ PYBIND11_MODULE(libcubismup3d, m)
       }), "argv"_a, "comm"_a = 0)
       .def_readonly("sim", &Simulation::sim, py::return_value_policy::reference_internal)
       .def("run", &Simulation::run)
-      .def("add_obstacle", &Simulation_addObstacle);
+      .def("add_obstacle", &Simulation_addObstacle)
+      .def("add_obstacle", &Simulation_parseAndAddObstacle);
 
   bindObstacles(m);
 }

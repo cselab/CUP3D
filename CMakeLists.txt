@@ -89,6 +89,7 @@ set(COMMON_SOURCES           # Common for app and lib.
     "${SRC_DIR}/obstacles/Fish.cpp"
     "${SRC_DIR}/obstacles/FishLibrary.cpp"
     "${SRC_DIR}/obstacles/FishShapes.cpp"
+    "${SRC_DIR}/obstacles/MovingSphere.cpp"
     "${SRC_DIR}/obstacles/Naca.cpp"
     "${SRC_DIR}/obstacles/Obstacle.cpp"
     "${SRC_DIR}/obstacles/ObstacleFactory.cpp"
