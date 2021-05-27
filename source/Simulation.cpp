@@ -301,18 +301,21 @@ void Simulation::_serialize(const std::string append)
   else name<<append;
   name<<std::setfill('0')<<std::setw(9)<<sim.step;
   auto * grid2Dump = sim.grid;
-  ComputeVorticity  FindOmega(sim);
-  FindOmega(0);
-  if (sim.dumpP        ) DumpHDF5_MPI<StreamerPressure  , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerPressure  ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpChi      ) DumpHDF5_MPI<StreamerChi       , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerChi       ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmega    ) DumpHDF5_MPI<StreamerTmpVector , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVector ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaX   ) DumpHDF5_MPI<StreamerTmpVectorX, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorX::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaY   ) DumpHDF5_MPI<StreamerTmpVectorY, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorY::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaZ   ) DumpHDF5_MPI<StreamerTmpVectorZ, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorZ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocity ) DumpHDF5_MPI<StreamerVelVector , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVector ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityX) DumpHDF5_MPI<StreamerVelVectorX, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorX::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityY) DumpHDF5_MPI<StreamerVelVectorY, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorY::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityZ) DumpHDF5_MPI<StreamerVelVectorZ, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorZ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmega || sim.dumpOmegaX || sim.dumpOmegaY || sim.dumpOmegaZ)
+  {
+    ComputeVorticity  FindOmega(sim);
+    FindOmega(0);
+  }
+  if (sim.dumpP        ) DumpHDF5_MPI<StreamerPressure      , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerPressure       ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpChi      ) DumpHDF5_MPI<StreamerChi           , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerChi            ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmega    ) DumpHDF5_MPI<StreamerTmpVector     , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVector      ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaX   ) DumpHDF5_MPI<StreamerTmpVectorX    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorX     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaY   ) DumpHDF5_MPI<StreamerTmpVectorY    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorY     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaZ   ) DumpHDF5_MPI<StreamerTmpVectorZ    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorZ     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocity ) DumpHDF5_MPI<StreamerVelocityVector, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelocityVector ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityX) DumpHDF5_MPI<StreamerVelVectorX    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorX     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityY) DumpHDF5_MPI<StreamerVelVectorY    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorY     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityZ) DumpHDF5_MPI<StreamerVelVectorZ    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorZ     ::prefix() + name.str(),sim.path4serialization);
 
   sim.stopProfiler();
 }
