@@ -20,56 +20,6 @@ CubismUP_3D_NAMESPACE_BEGIN
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
 
-inline Real findMaxUzeroMom(SimulationData& sim)
-{
-  const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
-  const Real uinf[3] = {sim.uinf[0], sim.uinf[1], sim.uinf[2]};
-  Real mom[3] = {0, 0, 0};
-  #pragma omp parallel for schedule(static) reduction(+ : mom[:3])
-  for(size_t i=0; i<myInfo.size(); i++)
-  {
-    const cubism::BlockInfo& info = myInfo[i];
-    const FluidBlock& b = *(const FluidBlock *)info.ptrBlock;
-
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      Real h[3]; info.spacing(h, ix, iy, iz);
-      const Real vol = h[0] * h[1] * h[2];
-      mom[0] += vol * b(ix,iy,iz).u;
-      mom[1] += vol * b(ix,iy,iz).v;
-      mom[2] += vol * b(ix,iy,iz).w;
-    }
-  }
-  MPI_Allreduce(MPI_IN_PLACE, mom, 3, MPIREAL, MPI_SUM, sim.app_comm);
-  const Real corrX = mom[0] / (sim.extent[0] * sim.extent[1] * sim.extent[2]);
-  const Real corrY = mom[1] / (sim.extent[0] * sim.extent[1] * sim.extent[2]);
-  const Real corrZ = mom[2] / (sim.extent[0] * sim.extent[1] * sim.extent[2]);
-  if(sim.verbose)
-    printf("Correction in relative momenta:[%e %e %e]\n",corrX,corrY,corrZ);
-
-  Real maxU = 0;
-  #pragma omp parallel for schedule(static) reduction(max : maxU)
-  for(size_t i=0; i<myInfo.size(); i++)
-  {
-    const cubism::BlockInfo& info = myInfo[i];
-    FluidBlock& b = *(FluidBlock *)info.ptrBlock;
-
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      b(ix,iy,iz).u -= corrX; const Real u = std::fabs(b(ix,iy,iz).u +uinf[0]);
-      b(ix,iy,iz).v -= corrY; const Real v = std::fabs(b(ix,iy,iz).v +uinf[1]);
-      b(ix,iy,iz).w -= corrZ; const Real w = std::fabs(b(ix,iy,iz).w +uinf[2]);
-      const Real maxUabsAdv = std::max({u, v, w});
-      maxU = std::max(maxU, maxUabsAdv);
-    }
-  }
-  MPI_Allreduce(MPI_IN_PLACE, & maxU, 1, MPIREAL, MPI_MAX, sim.app_comm);
-  assert(maxU >= 0);
-  return maxU;
-}
-
 inline Real findMaxU(SimulationData& sim)
 {
   const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
@@ -223,7 +173,6 @@ class ComputeVorticity : public Operator
   ComputeVorticity(SimulationData & s) : Operator(s) { }
   void operator()(const double dt)
   {
-    sim.startProfiler("Vorticity Kernel");
     const KernelVorticity K;
     compute<KernelVorticity>(K,true);
     const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
@@ -242,9 +191,6 @@ class ComputeVorticity : public Operator
         b(ix,iy,iz).tmpW *=fac;
       }
     }
-
-    sim.stopProfiler();
-    check("Vorticity");
   }
   std::string getName() { return "Vorticity"; }
 };
