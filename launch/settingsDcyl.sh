@@ -1,5 +1,5 @@
 #!/bin/bash
-NNODE=32
+NNODE=64
 
 BPDX=${BPDX:-8}
 BPDY=${BPDY:-8}
@@ -21,3 +21,13 @@ OPTIONS+=" -CFL 0.3 -use-dlm -10 -nu ${NU}"
 OPTIONS+=" -levelMax 6 -levelStart 3 -Rtol 0.5 -Ctol 0.05"
 OPTIONS+=" -implicitPenalization 1"
 OPTIONS+=" -TimeOrder 2"
+OPTIONS+=" -dumpP 1"
+OPTIONS+=" -dumpChi 1"
+OPTIONS+=" -dumpOmega 1"
+OPTIONS+=" -dumpOmegaX 1"
+OPTIONS+=" -dumpOmegaY 1"
+OPTIONS+=" -dumpOmegaZ 1"
+OPTIONS+=" -dumpVelocity 1"
+OPTIONS+=" -dumpVelocityX 1"
+OPTIONS+=" -dumpVelocityY 1"
+OPTIONS+=" -dumpVelocityZ 1"
