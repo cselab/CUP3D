@@ -1,23 +1,22 @@
 #!/bin/bash
-NNODEX=${NNODEX:-4}
-NNODEY=${NNODEY:-1}
-NNODE=$(($NNODEX * $NNODEY))
+NNODE=32
 
-BPDX=${BPDX:-32}
-BPDY=${BPDY:-$((${BPDX}/2))} #${BPDY:-32}
-BPDZ=${BPDZ:-$((${BPDX}/4))} #${BPDZ:-32}
-
-NU=${NU:-0.00001}
+BPDX=${BPDX:-8}
+BPDY=${BPDY:-8}
+BPDZ=${BPDZ:-8}
+NU=${NU:-0.0002} #Re=U*L/nu = 1*0.1/nu = 500
 
 # L is the diameter.
-# Obstacle is both fixed and forced. We impose an uniform velocity and the sim box follows it
-FACTORY='Cylinder L=0.125 xpos=0.3 xvel=0.1 bFixFrameOfRef=1 bForcedInSimFrame=1 section=D
+# We set the thickness equal to L/16 (halflength = thickness/2)
+FACTORY='Cylinder L=0.1 xpos=2.0 ypos=2.0 zpos=2.0 xvel=0.0 yvel=0.0 zvel=1.0 bFixFrameOfRef=1 bForcedInSimFrame=1 halflength=0.003125
 '
 
 OPTIONS=
+OPTIONS+=" -extentx 4.0"
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -dump2D 1 -dump3D 1 -tdump 0.1 -tend 20 "
-OPTIONS+=" -nslices 2 -slice1_direction 1 -slice2_direction 2 "
-OPTIONS+=" -BC_x dirichlet -BC_y dirichlet -BC_z periodic"
-OPTIONS+=" -nprocsx ${NNODEX} -nprocsy ${NNODEY} -nprocsz 1"
-OPTIONS+=" -CFL 0.1 -use-dlm 10 -nu ${NU}"
+OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 20.0 "
+OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
+OPTIONS+=" -CFL 0.3 -use-dlm -10 -nu ${NU}"
+OPTIONS+=" -levelMax 6 -levelStart 3 -Rtol 0.5 -Ctol 0.05"
+OPTIONS+=" -implicitPenalization 1"
+OPTIONS+=" -TimeOrder 2"
