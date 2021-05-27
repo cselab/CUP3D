@@ -62,12 +62,8 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   // PIPELINE && FORCING
   freqDiagnostics = parser("-freqDiagnostics").asInt(100);
   bImplicitPenalization = parser("-implicitPenalization").asBool(false);
-  bKeepMomentumConstant = parser("-keepMomentumConstant").asBool(false);
   bChannelFixedMassFlux = parser("-channelFixedMassFlux").asBool(false);
 
-  bRungeKutta23 = parser("-RungeKutta23").asBool(false);
-  bAdvection3rdOrder = parser("-Advection3rdOrder").asBool(true);
-  
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
 
   // SGS
@@ -89,7 +85,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
 
   // OUTPUT
   verbose = parser("-verbose").asBool(true) && rank == 0;
-  b3Ddump = parser("-dump3D").asBool(true);
 
   // ANALYSIS
   analysis = parser("-analysis").asString("");
@@ -120,44 +115,26 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   std::string BC_x = parser("-BC_x").asString("dirichlet");
   std::string BC_y = parser("-BC_y").asString("dirichlet");
   std::string BC_z = parser("-BC_z").asString("dirichlet");
-  // BC
-  if(BC_x=="unbounded") BC_x = "freespace"; // tomato tomato
-  if(BC_y=="unbounded") BC_y = "freespace"; // tomato tomato
-  if(BC_z=="unbounded") BC_z = "freespace"; // tomato tomato
-
-  if(BC_x=="freespace" || BC_y=="freespace" || BC_z=="freespace")
-  {
-    if(BC_x=="freespace" && BC_y=="freespace" && BC_z=="freespace") {
-      bUseUnboundedBC = true; // poisson solver
-    } else {
-     fprintf(stderr,"ERROR: either all or no BC can be freespace/unbounded!\n");
-     fflush(0); abort();
-    }
-  }
-
-  if(BC_x=="fakeopen" || BC_y=="fakeopen" || BC_z=="fakeopen")
-  {
-    if(BC_x=="fakeopen" && BC_y=="fakeopen" && BC_z=="fakeopen")
-    {
-      BC_x = "freespace"; BC_y = "freespace"; BC_z = "freespace";
-      bUseFourierBC = true; // poisson solver
-    } else {
-     fprintf(stderr,"ERROR: either all or no BC can be fakeopen!\n");
-     fflush(0); abort();
-    }
-  }
-
   BCx_flag = string2BCflag(BC_x);
   BCy_flag = string2BCflag(BC_y);
   BCz_flag = string2BCflag(BC_z);
-
-  // DFT if we are periodic in all directions:
-  if(BC_x=="periodic"&&BC_y=="periodic"&&BC_z=="periodic") bUseFourierBC = true;
 
   // order of accuracy of timestepping
   TimeOrder = parser("-TimeOrder").asInt(1);
   assert (TimeOrder == 1 || TimeOrder == 2);
   step_2nd_start = 50;
+
+  //Dumping
+  dumpChi = parser("-dumpChi").asBool(true);
+  dumpOmega = parser("-dumpOmega").asBool(true);
+  dumpP = parser("-dumpP").asBool(false);
+  dumpOmegaX = parser("-dumpOmegaX").asBool(false);
+  dumpOmegaY = parser("-dumpOmegaY").asBool(false);
+  dumpOmegaZ = parser("-dumpOmegaZ").asBool(false);
+  dumpVelocity = parser("-dumpVelocity").asBool(false);
+  dumpVelocityX = parser("-dumpVelocityX").asBool(false);
+  dumpVelocityY = parser("-dumpVelocityY").asBool(false);
+  dumpVelocityZ = parser("-dumpVelocityZ").asBool(false);
 
   // ============ REST =============
 }

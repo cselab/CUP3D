@@ -90,9 +90,7 @@ struct SimulationData
   int bpdx=-1, bpdy=-1, bpdz=-1;
   Real maxextent = 1;
   std::array<Real, 3> extent = {{1, 0, 0}};  // Uniform grid by default.
-  bool bImplicitPenalization = false;
-  bool bRungeKutta23 = false;
-  bool bAdvection3rdOrder = false;
+  bool bImplicitPenalization = true;
   Real hmin=0, hmax=0, hmean=0;
   int levelMax,levelStart;
   double Rtol,Ctol;
@@ -149,7 +147,7 @@ struct SimulationData
 
   // simulation settings
   int freqDiagnostics = 0;
-  bool b3Ddump=true, b2Ddump=false, bDump=false;
+  bool bDump=false;
   int rampup = 100;
   bool verbose=false;
   bool muteAll = false;
@@ -161,12 +159,12 @@ struct SimulationData
   double saveTime=0, nextSaveTime=0;
   std::string path4serialization = "./";
   std::string useSolver = "";
+  bool dumpP;
+  bool dumpChi;
+  bool dumpOmega,dumpOmegaX,dumpOmegaY,dumpOmegaZ;
+  bool dumpVelocity,dumpVelocityX,dumpVelocityY,dumpVelocityZ;
   // flags assume value 0 for dirichlet/unbounded, 1 for periodic, 2 for wall
   BCflag BCx_flag = dirichlet, BCy_flag = dirichlet, BCz_flag = dirichlet;
-
-  bool bUseUnboundedBC = false;
-  bool bUseFourierBC = false;
-  bool bKeepMomentumConstant = false;
 
   void startProfiler(std::string name) const;
   void stopProfiler() const;

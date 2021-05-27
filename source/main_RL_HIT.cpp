@@ -137,8 +137,8 @@ inline void app_main(
   comm->finalizeProblemDescription(); // required for thread safety
 
   if (not bEvaluating) { // disable all dumping. //  && wrank != 1
-    sim.sim.b3Ddump = false; sim.sim.muteAll  = true;
-    sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
+    sim.sim.muteAll  = true;
+    sim.sim.saveFreq = 0;
     sim.sim.verbose = false; sim.sim.saveTime = 0;
   }
 
@@ -172,8 +172,8 @@ inline void app_main(
     const Real timeSimulationMax = LES_RL_N_TSIM * tau_integral;
     const int maxNumUpdatesPerSim = timeSimulationMax / timeUpdateLES;
     if (bEvaluating) { // enable all dumping. //  && wrank != 1
-      sim.sim.b3Ddump = true;  sim.sim.muteAll  = false;
-      sim.sim.b2Ddump = false; sim.sim.saveFreq = 0;
+      sim.sim.muteAll  = false;
+      sim.sim.saveFreq = 0;
       //sim.sim.verbose = true;  sim.sim.saveTime = timeUpdateLES;
       sim.sim.verbose = true;  sim.sim.saveTime = tau_integral;
     }

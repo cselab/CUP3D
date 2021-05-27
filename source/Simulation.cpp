@@ -241,7 +241,7 @@ double Simulation::calcMaxTimestep()
   sim.UpdateHmin();
   const double hMin = sim.hmin;
   double CFL = sim.CFL;
-  sim.uMax_measured = sim.bKeepMomentumConstant? findMaxUzeroMom(sim) : findMaxU(sim);
+  sim.uMax_measured = findMaxU(sim);
 
   if( CFL > 0 )
   {
@@ -292,11 +292,10 @@ double Simulation::calcMaxTimestep()
 
 void Simulation::_serialize(const std::string append)
 {
-  sim.startProfiler("Groups");
-  sim.grid->UpdateMyGroups();
-  sim.stopProfiler();
-
   sim.startProfiler("DumpHDF5_MPI");
+
+  sim.grid->UpdateMyGroups();
+
   std::stringstream name;
   if (append == "") name<<"restart_";
   else name<<append;
@@ -304,22 +303,16 @@ void Simulation::_serialize(const std::string append)
   auto * grid2Dump = sim.grid;
   ComputeVorticity  FindOmega(sim);
   FindOmega(0);
-  const std::string nameV = StreamerVelocityVector::prefix()+name.str();
-  const std::string nameP = StreamerPressure::prefix()      +name.str();
-  const std::string nameX = StreamerChi::prefix()           +name.str();
-  const std::string nameO = StreamerTmpVector::prefix()     +name.str();
-
-  const std::string nameOx = StreamerTmpVectorX::prefix()     +name.str();
-  const std::string nameOy = StreamerTmpVectorY::prefix()     +name.str();
-  const std::string nameOz = StreamerTmpVectorZ::prefix()     +name.str();
-
-  //DumpHDF5_MPI<StreamerVelocityVector, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameV, sim.path4serialization);
-  //DumpHDF5_MPI<StreamerPressure      , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameP, sim.path4serialization);
-  DumpHDF5_MPI<StreamerChi           , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameX, sim.path4serialization);
-  DumpHDF5_MPI<StreamerTmpVector     , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameO, sim.path4serialization);
-  //DumpHDF5_MPI<StreamerTmpVectorX    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameOx,sim.path4serialization);
-  //DumpHDF5_MPI<StreamerTmpVectorY    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameOy,sim.path4serialization);
-  //DumpHDF5_MPI<StreamerTmpVectorZ    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, nameOz,sim.path4serialization);
+  if (sim.dumpP        ) DumpHDF5_MPI<StreamerPressure  , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerPressure  ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpChi      ) DumpHDF5_MPI<StreamerChi       , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerChi       ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmega    ) DumpHDF5_MPI<StreamerTmpVector , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVector ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaX   ) DumpHDF5_MPI<StreamerTmpVectorX, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorX::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaY   ) DumpHDF5_MPI<StreamerTmpVectorY, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorY::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaZ   ) DumpHDF5_MPI<StreamerTmpVectorZ, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorZ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocity ) DumpHDF5_MPI<StreamerVelVector , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVector ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityX) DumpHDF5_MPI<StreamerVelVectorX, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorX::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityY) DumpHDF5_MPI<StreamerVelVectorY, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorY::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityZ) DumpHDF5_MPI<StreamerVelVectorZ, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorZ::prefix() + name.str(),sim.path4serialization);
 
   sim.stopProfiler();
 }
