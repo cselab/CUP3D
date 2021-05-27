@@ -103,8 +103,12 @@ Cylinder::Cylinder(
       printf("Warning: Cylinder was not set to be forced in x-dir, yet the accel pattern is active.\n");
     }
     umax = - p("-xvel").asDouble(0.0);
+    vmax = - p("-yvel").asDouble(0.0);
+    wmax = - p("-zvel").asDouble(0.0);
     tmax = p("-T").asDouble(1.0);
     transVel_imposed[0] = 0;
+    transVel_imposed[1] = 0;
+    transVel_imposed[2] = 0;
   }
   _init();
 }
@@ -151,7 +155,12 @@ void Cylinder::computeVelocities()
 {
   if(accel) {
     if(sim.time<tmax) transVel_imposed[0] = umax*sim.time/tmax;
-    else transVel_imposed[0] = umax;
+    else
+    {
+       transVel_imposed[0] = umax;
+       transVel_imposed[1] = vmax;
+       transVel_imposed[2] = wmax;
+    }
   }
 
   Obstacle::computeVelocities();

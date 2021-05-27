@@ -19,6 +19,8 @@ class Cylinder : public Obstacle
   const double halflength;
   std::string section = "circular"; // or whatever
   double umax = 0;
+  double vmax = 0;
+  double wmax = 0;
   double tmax = 1;
   //special case: startup with unif accel to umax in tmax, and then decel to 0
   bool accel = false;
