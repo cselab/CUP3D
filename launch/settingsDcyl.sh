@@ -14,7 +14,6 @@ FACTORY='Cylinder L=0.1 xpos=2.0 ypos=2.0 zpos=2.0 xvel=0.0 yvel=0.0 zvel=1.0 bF
 
 OPTIONS=
 OPTIONS+=" -extentx 4.0"
-OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
 OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 20.0 "
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
 OPTIONS+=" -CFL 0.3 -use-dlm -10 -nu ${NU}"
