@@ -106,9 +106,6 @@ Cylinder::Cylinder(
     vmax = - p("-yvel").asDouble(0.0);
     wmax = - p("-zvel").asDouble(0.0);
     tmax = p("-T").asDouble(1.0);
-    transVel_imposed[0] = 0;
-    transVel_imposed[1] = 0;
-    transVel_imposed[2] = 0;
   }
   _init();
 }
