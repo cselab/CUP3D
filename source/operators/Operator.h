@@ -65,6 +65,8 @@ class Operator
     #endif
   }
 
+  /// Execute kernel for each block, where a different kernel instance is
+  /// provided for each thread.
   template <typename Kernel>
   void compute(const std::vector<Kernel*>& kernels, const bool applyFluxCorrection = false, const bool FluxIntegration = false)
   {
