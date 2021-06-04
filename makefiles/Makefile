@@ -106,7 +106,7 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	ObstaclesCreate.o ObstaclesUpdate.o ExternalForcing.o \
 	FishShapes.o \
 	SGS.o FixedMassFlux_nonUniform.o Analysis.o \
-	ArgumentParser.o \
+	ArgumentParser.o MyClock.o \
 	Checkpoint.o PoissonSolverAMR.o
 	#ElasticFishOperator.o # Temporary solution for Cubism .cpp files.
 

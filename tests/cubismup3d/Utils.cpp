@@ -1,10 +1,12 @@
 #include "Utils.h"
 #include <mpi.h>
+#include <stdexcept>
+#include <Cubism/MyClock.h>
 
 namespace cubismup3d {
-namespace tests {
 
-void init_mpi(int *argc, char ***argv) {
+void initMPI(int *argc, char ***argv)
+{
   int provided;
   #ifdef CUP_ASYNC_DUMP
     const auto SECURITY = MPI_THREAD_MULTIPLE;
@@ -19,9 +21,16 @@ void init_mpi(int *argc, char ***argv) {
   }
 }
 
-void finalize_mpi(void) {
+void finalizeMPI(void)
+{
   MPI_Finalize();
 }
 
-}  // testt
+std::string computeNumBlocksArg(int cells, int blockSize)
+{
+  if (cells % blockSize != 0)
+    throw std::runtime_error("num cells not divisible by block size");
+  return std::to_string(cells / blockSize);
+}
+
 }  // cubismup3d
