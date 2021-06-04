@@ -37,6 +37,20 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+std::shared_ptr<Simulation> createSimulation(
+    const MPI_Comm comm,
+    const std::vector<std::string> &argv)
+{
+  std::vector<char *> cargv(argv.size() + 1);
+  char cmd[] = "prg";
+  cargv[0] = cmd;
+  for (size_t i = 0; i < argv.size(); ++i) {
+    // In C++14, std::string::data() returns a const char *.
+    cargv[i + 1] = const_cast<char *>(argv[i].data());
+  }
+  ArgumentParser parser((int)cargv.size(), cargv.data());
+  return std::make_shared<Simulation>(comm, parser);
+}
 Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
     : sim(mpicomm, parser)
 {
@@ -269,9 +283,10 @@ double Simulation::calcMaxTimestep()
 
   // if DLM>0, adapt lambda such that penal term is independent of time step
   if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
-  if (sim.verbose)
+  if (sim.verbose && sim.statsFreq > 0 && (sim.step + 1) % sim.statsFreq == 0) {
     printf("maxU:%f minH:%f dt:%e CFL:%e lambda:%e\n",
       sim.uMax_measured, hMin, sim.dt, CFL, sim.lambda);
+  }
 
   if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
   {
@@ -438,8 +453,10 @@ bool Simulation::timestep(const double dt)
     sim.step++;
     sim.time+=dt;
 
-    if(sim.verbose) printf("%d : %e uInf {%f %f %f}\n",
-      sim.step,sim.time,sim.uinf[0],sim.uinf[1],sim.uinf[2]);
+    if (sim.verbose && sim.statsFreq > 0 && sim.step % sim.statsFreq == 0) {
+      printf("%d : %e uInf {%f %f %f}\n",
+             sim.step,sim.time,sim.uinf[0],sim.uinf[1],sim.uinf[2]);
+    }
 
     sim.startProfiler("Save");
     if( sim.bDump ) _serialize();

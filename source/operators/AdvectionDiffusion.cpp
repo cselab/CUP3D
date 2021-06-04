@@ -368,7 +368,8 @@ struct UpdateAndCorrectInflow
         const Real corr = sumInflow / (2*(nTotX*nTotY + nTotX*nTotZ + nTotY*nTotZ));
 
         if(std::fabs(corr) < EPS) return;
-        if(sim.verbose) printf("Inflow correction %e\n", corr);
+        if (sim.verbose && sim.statsFreq > 0 && (sim.step + 1) % sim.statsFreq == 0)
+          printf("Inflow correction %e\n", corr);
 
         #pragma omp parallel for schedule(static)
         for(size_t i=0; i<vInfo.size(); i++)

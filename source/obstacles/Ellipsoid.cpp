@@ -277,7 +277,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
     const double p[3], const double q[4]) : e0(_e0), e1(_e1), e2(_e2), h(_h),
     position{p[0],p[1],p[2]}, quaternion{q[0],q[1],q[2],q[3]} { }
 
-  inline bool isTouching(const FluidBlock&b) const
+  inline bool isTouching(const BlockInfo&, const FluidBlock&b) const
   {
     const Real intersect[3][2] = {
         {std::max(b.min_pos[0], box[0][0]), std::min(b.max_pos[0], box[0][1])},

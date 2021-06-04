@@ -1,4 +1,5 @@
 # Based on: https://github.com/libigl/eigen/blob/master/cmake/FindFFTW.cmake
+#           https://github.com/egpbos/findFFTW/blob/master/FindFFTW.cmake
 
 # - Find the FFTW library
 #
@@ -34,7 +35,7 @@ endif()
 find_package(PkgConfig)
 
 #Check whether to search static or dynamic libs
-set(CMAKE_FIND_LIBRARY_SUFFIXES_SAV ${CMAKE_FIND_LIBRARY_SUFFIXES})
+set(_CMAKE_FIND_LIBRARY_SUFFIXES_SAV ${CMAKE_FIND_LIBRARY_SUFFIXES})
 
 if (${FFTW_USE_STATIC_LIBS})
     set(CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_STATIC_LIBRARY_SUFFIX})
@@ -61,10 +62,14 @@ endif(FFTW_ROOT)
 
 set(FFTW_LIBRARIES ${FFTW_LIB1} ${FFTW_LIB2} ${FFTW_LIB3})
 
-set( CMAKE_FIND_LIBRARY_SUFFIXES ${CMAKE_FIND_LIBRARY_SUFFIXES_SAV} )
+set( CMAKE_FIND_LIBRARY_SUFFIXES ${_CMAKE_FIND_LIBRARY_SUFFIXES_SAV} )
 
 include(FindPackageHandleStandardArgs)
 find_package_handle_standard_args(FFTW DEFAULT_MSG
                                   FFTW_INCLUDES FFTW_LIBRARIES)
 
 mark_as_advanced(FFTW_INCLUDES FFTW_LIBRARIES FFTW_LIB FFTWF_LIB FFTWL_LIB)
+
+add_library(FFTW::FFTW INTERFACE IMPORTED)
+target_include_directorieS(FFTW::FFTW INTERFACE ${FFTW_INCLUDES})
+target_link_libraries(FFTW::FFTW INTERFACE ${FFTW_LIBRARIES})

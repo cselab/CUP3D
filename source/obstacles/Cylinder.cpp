@@ -31,7 +31,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
              const Real _h, const double p[3]):
   radius(r), halflength(halfl), angle(ang), h(_h), position{p[0],p[1],p[2]} {}
 
-  inline bool isTouching(const FluidBlock&b, const int buffer_dx=0) const
+  inline bool isTouching(const BlockInfo&, const FluidBlock&b) const
   {
     const Real intersect[3][2] = {
       {std::max(b.min_pos[0], box[0][0]), std::min(b.max_pos[0], box[0][1])},
@@ -69,7 +69,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   FillBlocks(const Real r, const Real halfl, const Real _h, const double p[3]):
   radius(r), halflength(halfl), h(_h), position{p[0],p[1],p[2]} {}
 
-  inline bool isTouching(const FluidBlock&b, const int buffer_dx=0) const
+  inline bool isTouching(const BlockInfo&, const FluidBlock&b) const
   {
     const Real intersect[3][2] = {
       {std::max(b.min_pos[0], box[0][0]), std::min(b.max_pos[0], box[0][1])},

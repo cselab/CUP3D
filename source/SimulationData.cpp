@@ -85,6 +85,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
 
   // OUTPUT
   verbose = parser("-verbose").asBool(true) && rank == 0;
+  statsFreq = parser("-stats-freq").asInt(1);
 
   // ANALYSIS
   analysis = parser("-analysis").asString("");

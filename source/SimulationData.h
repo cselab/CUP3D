@@ -155,6 +155,7 @@ struct SimulationData
   double PoissonErrorTolRel = 1e-4;
 
   // output
+  int statsFreq=1;
   int saveFreq=0;
   double saveTime=0, nextSaveTime=0;
   std::string path4serialization = "./";
@@ -171,6 +172,11 @@ struct SimulationData
   void printResetProfiler();
   void _preprocessArguments();
   ~SimulationData();
+  SimulationData() = delete;
+  SimulationData(const SimulationData &) = delete;
+  SimulationData(SimulationData &&) = delete;
+  SimulationData &operator=(const SimulationData &) = delete;
+  SimulationData &operator=(SimulationData &&) = delete;
   SimulationData(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
 };
 

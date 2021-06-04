@@ -197,7 +197,7 @@ void Kernel<Getter, Setter>::operator()(
  * Arguments:
  *   - points - Array of the points, where points support operator [] for
  *              accessing x, y, z coordinates.
- *   - getter - Lambda of a single argument (BlockLab), returning the value
+ *   - getter - Lambda of a single argument (FluidElement), returning the value
  *              to be interpolated. The value should support addition and
  *              multiplication by a scalar. If you are interpolating more than
  *              one value simultaneously, check `utils/ScalarArray.h`.
@@ -208,8 +208,8 @@ template <typename Array, typename Getter, typename Setter>
 void linearCellCenteredInterpolation(
     SimulationData &sim,
     const Array &points,
-    Getter&& getter,
-    Setter&& setter,
+    Getter &&getter,
+    Setter &&setter,
     std::vector<int> components)
 {
   detail::LinearCellCenteredInterpolation I{sim};

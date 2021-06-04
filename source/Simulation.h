@@ -43,6 +43,10 @@ public:
   Simulation(const SimulationData &);
   Simulation(MPI_Comm mpicomm);
   Simulation(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
+  Simulation(const Simulation &) = delete;
+  Simulation(Simulation &&) = delete;
+  Simulation &operator=(const Simulation &) = delete;
+  Simulation &operator=(Simulation &&) = delete;
 
   virtual ~Simulation() = default;
 
@@ -73,6 +77,16 @@ public:
     }
   }
 };
+
+/*
+ * Create a Simulation object from a vector of command-line arguments.
+ *
+ * The argv vector should NOT contain the argv[0] argument, it is filled with a
+ * dummy value instead.
+ */
+std::shared_ptr<Simulation> createSimulation(
+    MPI_Comm comm,
+    const std::vector<std::string> &argv);
 
 CubismUP_3D_NAMESPACE_END
 #endif // CubismUP_3D_Simulation_h

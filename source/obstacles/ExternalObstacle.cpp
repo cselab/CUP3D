@@ -21,7 +21,7 @@ struct FillBlocksExternal : FillBlocksBase<FillBlocksExternal>
 
   FillBlocksExternal(const ExternalObstacleArguments &_S) : S(_S) { }
 
-  inline bool isTouching(const FluidBlock&b) const
+  inline bool isTouching(const BlockInfo&, const FluidBlock&b) const
   {
     // Ask the external code if it the block is overlapping the box.
     return S.isTouchingFn(b.min_pos, b.max_pos);
