@@ -643,24 +643,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   typedef typename BlockType::ElementType ElementType;
   virtual void TestInterp(ElementType *C[3][3][3], ElementType *R, int x, int y, int z, const std::vector<int> & selcomponents) override
   {
-    //cubism::BlockLab<BlockType,allocator>::TestInterp(C,R,x,y,z,selcomponents);
-    ElementType dudx = cubism::BlockLab<BlockType,allocator>::SlopeElement( *C[0][1][1] , *C[1][1][1] , *C[2][1][1], selcomponents);
-    ElementType dudy = cubism::BlockLab<BlockType,allocator>::SlopeElement( *C[1][0][1] , *C[1][1][1] , *C[1][2][1], selcomponents);
-    ElementType dudz = cubism::BlockLab<BlockType,allocator>::SlopeElement( *C[1][1][0] , *C[1][1][1] , *C[1][1][2], selcomponents);
-    ElementType dudx2  = (*C[0][1][1]) + (-2.0)*(*C[1][1][1]) + (*C[2][1][1]);
-    ElementType dudy2  = (*C[1][0][1]) + (-2.0)*(*C[1][1][1]) + (*C[1][2][1]);
-    ElementType dudz2  = (*C[1][1][0]) + (-2.0)*(*C[1][1][1]) + (*C[1][1][2]);
-    ElementType dudxdy = 0.5*((*C[0][0][1]) + (*C[2][2][1]) - (*C[2][0][1]) - (*C[0][2][1]));
-    ElementType dudxdz = 0.5*((*C[0][1][0]) + (*C[2][1][2]) - (*C[2][1][0]) - (*C[0][1][2]));
-    ElementType dudydz = 0.5*((*C[1][0][0]) + (*C[1][2][2]) - (*C[1][2][0]) - (*C[1][0][2]));
-    R[0] = *C[1][1][1] - 0.25*dudx - 0.25*dudy - 0.25*dudz + 0.03125 * (dudx2 + dudy2 + dudz2) + 0.0625 * dudxdy + 0.0625 * dudxdz + 0.0625 * dudydz;
-    R[1] = *C[1][1][1] + 0.25*dudx - 0.25*dudy - 0.25*dudz + 0.03125 * (dudx2 + dudy2 + dudz2) - 0.0625 * dudxdy - 0.0625 * dudxdz + 0.0625 * dudydz;
-    R[2] = *C[1][1][1] - 0.25*dudx + 0.25*dudy - 0.25*dudz + 0.03125 * (dudx2 + dudy2 + dudz2) - 0.0625 * dudxdy + 0.0625 * dudxdz - 0.0625 * dudydz;
-    R[3] = *C[1][1][1] + 0.25*dudx + 0.25*dudy - 0.25*dudz + 0.03125 * (dudx2 + dudy2 + dudz2) + 0.0625 * dudxdy - 0.0625 * dudxdz - 0.0625 * dudydz;
-    R[4] = *C[1][1][1] - 0.25*dudx - 0.25*dudy + 0.25*dudz + 0.03125 * (dudx2 + dudy2 + dudz2) + 0.0625 * dudxdy - 0.0625 * dudxdz - 0.0625 * dudydz;
-    R[5] = *C[1][1][1] + 0.25*dudx - 0.25*dudy + 0.25*dudz + 0.03125 * (dudx2 + dudy2 + dudz2) - 0.0625 * dudxdy + 0.0625 * dudxdz - 0.0625 * dudydz;
-    R[6] = *C[1][1][1] - 0.25*dudx + 0.25*dudy + 0.25*dudz + 0.03125 * (dudx2 + dudy2 + dudz2) - 0.0625 * dudxdy - 0.0625 * dudxdz + 0.0625 * dudydz;
-    R[7] = *C[1][1][1] + 0.25*dudx + 0.25*dudy + 0.25*dudz + 0.03125 * (dudx2 + dudy2 + dudz2) + 0.0625 * dudxdy + 0.0625 * dudxdz + 0.0625 * dudydz;
+    cubism::BlockLab<BlockType,allocator>::TestInterp(C,R,x,y,z,selcomponents);
     for (int i = 0; i < 8; i++)
     {
       R[i].chi = std::max(R[i].chi,0.0);
