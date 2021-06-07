@@ -11,8 +11,6 @@ using namespace cubismup3d::pybindings;
 using namespace pybind11::literals;
 namespace py = pybind11;
 
-MyClock Clock;
-
 namespace {
 
 /* Ensure that we load highest thread level we need. */

@@ -2,12 +2,13 @@
 #define CUBISMUP3D_TESTS_UTILS_H
 
 #include <cstdio>
+#include <string>
 
 namespace cubismup3d {
-namespace tests {
 
-void init_mpi(int *argc, char ***argv);
-void finalize_mpi(void);
+void initMPI(int *argc, char ***argv);
+void finalizeMPI(void);
+std::string computeNumBlocksArg(int cells, int blockSize);
 
 #define CUP_RUN_TEST(test) do { \
       if(!(test)()) { \
@@ -22,8 +23,6 @@ void finalize_mpi(void);
       } \
     } while (0);
 
-
-}  // testt
 }  // cubismup3d
 
 #endif
