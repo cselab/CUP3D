@@ -7,7 +7,7 @@
 
 #include "AdvectionDiffusion.h"
 #include "../obstacles/ObstacleVector.h"
-
+#include "../poisson/PoissonSolverAMR.h"
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
@@ -17,7 +17,6 @@ namespace {
 
 // input : field with ghosts from which finite differences are computed
 template<int i> Real& inp(LabMPI& L, const int ix, const int iy, const int iz);
-
 
 template<typename Discretization>
 struct KernelAdvectDiffuse : public Discretization
@@ -147,15 +146,19 @@ struct KernelAdvectDiffuse : public Discretization
 
     void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
     {
-        const Real facA = this->template advectionCoef(dt, info.h_gridpoint);
-        const Real facD = this->template diffusionCoef(dt, info.h_gridpoint, mu);
+        const bool Euler = (sim.TimeOrder == 1 || sim.step < sim.step_2nd_start);
+        const Real h3   = info.h*info.h*info.h;
+        const Real ih   = 0.5/info.h;
+        const Real facA = this->template advectionCoef(dt, info.h);
+        const Real facD = this->template diffusionCoef(dt, info.h, mu);
         applyBCwest (info, lab);
         applyBCsouth(info, lab);
         applyBCfront(info, lab);
         applyBCeast (info, lab);
         applyBCnorth(info, lab);
         applyBCback (info, lab);
-        if (sim.TimeOrder == 1 || sim.step < sim.step_2nd_start)
+
+        if (Euler)
         {
             for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
             for (int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -177,14 +180,14 @@ struct KernelAdvectDiffuse : public Discretization
                 const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
                 const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
                 const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-                o.data[iz][iy][ix].tmpU = o.data[iz][iy][ix].u + ( facA*duA + facD*duD );
-                o.data[iz][iy][ix].tmpV = o.data[iz][iy][ix].v + ( facA*dvA + facD*dvD );
-                o.data[iz][iy][ix].tmpW = o.data[iz][iy][ix].w + ( facA*dwA + facD*dwD );
+                o.data[iz][iy][ix].tmpU = h3*( facA*duA + facD*duD );
+                o.data[iz][iy][ix].tmpV = h3*( facA*dvA + facD*dvD );
+                o.data[iz][iy][ix].tmpW = h3*( facA*dwA + facD*dwD );
             }
         }
         else
         {
-            const double aux = 1.0/sim.coefU[0];
+            const double aux = h3/sim.coefU[0];
             for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
             for (int iy=0; iy<FluidBlock::sizeY; ++iy)
             for (int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -205,9 +208,153 @@ struct KernelAdvectDiffuse : public Discretization
                 const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
                 const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
                 const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-                o.data[iz][iy][ix].tmpU =  aux * ( -sim.coefU[1]*o.data[iz][iy][ix].u-sim.coefU[2]*o.dataOld[iz][iy][ix][0] +  facA*duA + facD*duD - dt*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p)/(2.0*info.h) );
-                o.data[iz][iy][ix].tmpV =  aux * ( -sim.coefU[1]*o.data[iz][iy][ix].v-sim.coefU[2]*o.dataOld[iz][iy][ix][1] +  facA*dvA + facD*dvD - dt*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p)/(2.0*info.h) );
-                o.data[iz][iy][ix].tmpW =  aux * ( -sim.coefU[1]*o.data[iz][iy][ix].w-sim.coefU[2]*o.dataOld[iz][iy][ix][2] +  facA*dwA + facD*dwD - dt*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p)/(2.0*info.h) );
+                o.data[iz][iy][ix].tmpU =  aux * ( facA*duA + facD*duD - dt*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p)*ih );
+                o.data[iz][iy][ix].tmpV =  aux * ( facA*dvA + facD*dvD - dt*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p)*ih );
+                o.data[iz][iy][ix].tmpW =  aux * ( facA*dwA + facD*dwD - dt*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p)*ih );
+            }
+        }
+
+        const double aux = h3/sim.coefU[0];
+        BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
+        typename FluidBlock::ElementType * faceXm = nullptr;
+        typename FluidBlock::ElementType * faceXp = nullptr;
+        typename FluidBlock::ElementType * faceYm = nullptr;
+        typename FluidBlock::ElementType * faceYp = nullptr;
+        typename FluidBlock::ElementType * faceZp = nullptr;
+        typename FluidBlock::ElementType * faceZm = nullptr;
+        if (tempCase != nullptr)
+        {
+          faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+          faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+          faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+          faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+          faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
+          faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
+        }
+        if (Euler)
+        {
+            if (faceXm != nullptr)
+            {
+              int ix = 0;
+              for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+              for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+              {
+                faceXm[iy + FluidBlock::sizeY * iz].clear();
+                faceXm[iy + FluidBlock::sizeY * iz].tmpU = h3*facD*(lab(ix,iy,iz).u - lab(ix-1,iy,iz).u);
+              }
+            }
+            if (faceXp != nullptr)
+            {
+              int ix = FluidBlock::sizeX-1;
+              for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+              for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+              {
+                faceXp[iy + FluidBlock::sizeY * iz].clear();
+                faceXp[iy + FluidBlock::sizeY * iz].tmpU = h3*facD*(lab(ix,iy,iz).u - lab(ix+1,iy,iz).u);
+              }
+            }
+            if (faceYm != nullptr)
+            {
+              int iy = 0;
+              for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+              for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+              {
+                faceYm[ix + FluidBlock::sizeX * iz].clear();
+                faceYm[ix + FluidBlock::sizeX * iz].tmpV = h3*facD*(lab(ix,iy,iz).v - lab(ix,iy-1,iz).v);
+              }
+            }
+            if (faceYp != nullptr)
+            {
+              int iy = FluidBlock::sizeY-1;
+              for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+              for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+              {
+                faceYp[ix + FluidBlock::sizeX * iz].clear();
+                faceYp[ix + FluidBlock::sizeX * iz].tmpV = h3*facD*(lab(ix,iy,iz).v - lab(ix,iy+1,iz).v);
+              }
+            }
+            if (faceZm != nullptr)
+            {
+              int iz = 0;
+              for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+              for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+              {
+                faceZm[ix + FluidBlock::sizeX * iy].clear();
+                faceZm[ix + FluidBlock::sizeX * iy].tmpW = h3*facD*(lab(ix,iy,iz).w - lab(ix,iy,iz-1).w);
+              }
+            }
+            if (faceZp != nullptr)
+            {
+              int iz = FluidBlock::sizeZ-1;
+              for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+              for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+              {
+                faceZp[ix + FluidBlock::sizeX * iy].clear();
+                faceZp[ix + FluidBlock::sizeX * iy].tmpW = h3*facD*(lab(ix,iy,iz).w - lab(ix,iy,iz+1).w);
+              }
+            }
+        }
+        else
+        {
+            if (faceXm != nullptr)
+            {
+              int ix = 0;
+              for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+              for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+              {
+                faceXm[iy + FluidBlock::sizeY * iz].clear();
+                faceXm[iy + FluidBlock::sizeY * iz].tmpU = h3*facD*(lab(ix,iy,iz).u - lab(ix-1,iy,iz).u) - aux*dt*ih*(lab(ix,iy,iz).p+lab(ix-1,iy,iz).p);
+              }
+            }
+            if (faceXp != nullptr)
+            {
+              int ix = FluidBlock::sizeX-1;
+              for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+              for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+              {
+                faceXp[iy + FluidBlock::sizeY * iz].clear();
+                faceXp[iy + FluidBlock::sizeY * iz].tmpU = h3*facD*(lab(ix,iy,iz).u - lab(ix+1,iy,iz).u) + aux*dt*ih*(lab(ix,iy,iz).p+lab(ix+1,iy,iz).p);
+              }
+            }
+            if (faceYm != nullptr)
+            {
+              int iy = 0;
+              for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+              for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+              {
+                faceYm[ix + FluidBlock::sizeX * iz].clear();
+                faceYm[ix + FluidBlock::sizeX * iz].tmpV = h3*facD*(lab(ix,iy,iz).v - lab(ix,iy-1,iz).v) - aux*dt*ih*(lab(ix,iy,iz).p+lab(ix,iy-1,iz).p);
+              }
+            }
+            if (faceYp != nullptr)
+            {
+              int iy = FluidBlock::sizeY-1;
+              for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+              for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+              {
+                faceYp[ix + FluidBlock::sizeX * iz].clear();
+                faceYp[ix + FluidBlock::sizeX * iz].tmpV = h3*facD*(lab(ix,iy,iz).v - lab(ix,iy+1,iz).v) + aux*dt*ih*(lab(ix,iy,iz).p+lab(ix,iy+1,iz).p);
+              }
+            }
+            if (faceZm != nullptr)
+            {
+              int iz = 0;
+              for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+              for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+              {
+                faceZm[ix + FluidBlock::sizeX * iy].clear();
+                faceZm[ix + FluidBlock::sizeX * iy].tmpW = h3*facD*(lab(ix,iy,iz).w - lab(ix,iy,iz-1).w) - aux*dt*ih*(lab(ix,iy,iz).p+lab(ix,iy,iz-1).p);
+              }
+            }
+            if (faceZp != nullptr)
+            {
+              int iz = FluidBlock::sizeZ-1;
+              for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+              for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+              {
+                faceZp[ix + FluidBlock::sizeX * iy].clear();
+                faceZp[ix + FluidBlock::sizeX * iy].tmpW = h3*facD*(lab(ix,iy,iz).w - lab(ix,iy,iz+1).w) + aux*dt*ih*(lab(ix,iy,iz).p+lab(ix,iy,iz+1).p);
+              }
             }
         }
     }
@@ -312,17 +459,50 @@ struct UpdateAndCorrectInflow
         for(size_t i=0; i<vInfo.size(); i++)
         {
             FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
-
+            const double ih3 = 1.0/(vInfo[i].h*vInfo[i].h*vInfo[i].h);
             if (sim.TimeOrder == 2)
+            {
+                const double aux = 1.0/sim.coefU[0];
+                if (sim.step >= sim.step_2nd_start)
+                {
+                    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+                    for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+                    {
+                        b(ix,iy,iz).tmpU = b(ix,iy,iz).tmpU*ih3 + aux * ( -sim.coefU[1]*b.data[iz][iy][ix].u-sim.coefU[2]*b.dataOld[iz][iy][ix][0] );
+                        b(ix,iy,iz).tmpV = b(ix,iy,iz).tmpV*ih3 + aux * ( -sim.coefU[1]*b.data[iz][iy][ix].v-sim.coefU[2]*b.dataOld[iz][iy][ix][1] );
+                        b(ix,iy,iz).tmpW = b(ix,iy,iz).tmpW*ih3 + aux * ( -sim.coefU[1]*b.data[iz][iy][ix].w-sim.coefU[2]*b.dataOld[iz][iy][ix][2] );
+                        b.dataOld[iz][iy][ix][0] = b(ix,iy,iz).u;
+                        b.dataOld[iz][iy][ix][1] = b(ix,iy,iz).v;
+                        b.dataOld[iz][iy][ix][2] = b(ix,iy,iz).w;
+                    }
+
+                }
+                else
+                {
+                    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+                    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+                    for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+                    {
+                        b(ix,iy,iz).tmpU = b(ix,iy,iz).u + b(ix,iy,iz).tmpU*ih3;
+                        b(ix,iy,iz).tmpV = b(ix,iy,iz).v + b(ix,iy,iz).tmpV*ih3;
+                        b(ix,iy,iz).tmpW = b(ix,iy,iz).w + b(ix,iy,iz).tmpW*ih3;
+                        b.dataOld[iz][iy][ix][0] = b(ix,iy,iz).u;
+                        b.dataOld[iz][iy][ix][1] = b(ix,iy,iz).v;
+                        b.dataOld[iz][iy][ix][2] = b(ix,iy,iz).w;
+                    }
+                }
+            }
+            else
             {
                 for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
                 for (int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for (int ix=0; ix<FluidBlock::sizeX; ++ix)
                 {
-                    b.dataOld[iz][iy][ix][0] = b(ix,iy,iz).u;
-                    b.dataOld[iz][iy][ix][1] = b(ix,iy,iz).v;
-                    b.dataOld[iz][iy][ix][2] = b(ix,iy,iz).w;
-                }
+                    b(ix,iy,iz).tmpU = b(ix,iy,iz).u + b(ix,iy,iz).tmpU*ih3;
+                    b(ix,iy,iz).tmpV = b(ix,iy,iz).v + b(ix,iy,iz).tmpV*ih3;
+                    b(ix,iy,iz).tmpW = b(ix,iy,iz).w + b(ix,iy,iz).tmpW*ih3;
+                }               
             }
             for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
             for (int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -368,8 +548,7 @@ struct UpdateAndCorrectInflow
         const Real corr = sumInflow / (2*(nTotX*nTotY + nTotX*nTotZ + nTotY*nTotZ));
 
         if(std::fabs(corr) < EPS) return;
-        if (sim.verbose && sim.statsFreq > 0 && (sim.step + 1) % sim.statsFreq == 0)
-          printf("Inflow correction %e\n", corr);
+        if(sim.verbose) printf("Inflow correction %e\n", corr);
 
         #pragma omp parallel for schedule(static)
         for(size_t i=0; i<vInfo.size(); i++)
@@ -408,9 +587,8 @@ struct UpdateAndCorrectInflow
 void AdvectionDiffusion::operator()(const double dt)
 {
     sim.startProfiler("AdvDiff Kernel");
-
     const KernelAdvectDiffuse<Upwind3rd> K(sim);
-    compute(K);
+    compute(K,true);
     const UpdateAndCorrectInflow U(sim);
     U.operate();
     sim.stopProfiler();
