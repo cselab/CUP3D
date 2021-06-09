@@ -55,21 +55,21 @@ void _testPeriodicBoundaries(Simulation &S, StencilInfo stencil, int dx, int dy,
 bool testPeriodicBoundaries()
 {
   // Prepare simulation data and the simulation object.
-  auto prepareSimulationData = []() {
-    SimulationData SD{MPI_COMM_WORLD};
-    SD.CFL = 0.1;
-    SD.BCx_flag = periodic;  // <--- Periodic boundaries.
-    SD.BCy_flag = periodic;
-    SD.BCz_flag = periodic;
-    SD.setCells(CELLS_X, CELLS_Y, CELLS_Z);
-    return SD;
+  const std::vector<std::string> argv{
+    "-cfl", "0.1",
+    "-BC_x", "periodic",
+    "-BC_y", "periodic",
+    "-BC_z", "periodic",
+    "-bpdx", "8",
+    "-bpdy", "2",
+    "-bpdz", "2",
   };
-  Simulation S{prepareSimulationData()};
+  auto s = createSimulation(MPI_COMM_WORLD, argv);
 
   // Try out 3 different stencils.
-  _testPeriodicBoundaries(S, StencilInfo(-1, -1, -1, 2, 2, 2, false, {{FE_U}}), -1, 0, 0);
-  _testPeriodicBoundaries(S, StencilInfo(-1, -1, -1, 2, 2, 2, false, {{FE_U}}), +1, 0, 0);
-  _testPeriodicBoundaries(S, StencilInfo(-2, -2, -2, 3, 3, 3, true,  {{FE_U}}), -1, +1, +2);
+  _testPeriodicBoundaries(*s, StencilInfo(-1, -1, -1, 2, 2, 2, false, {{FE_U}}), -1, 0, 0);
+  _testPeriodicBoundaries(*s, StencilInfo(-1, -1, -1, 2, 2, 2, false, {{FE_U}}), +1, 0, 0);
+  _testPeriodicBoundaries(*s, StencilInfo(-2, -2, -2, 3, 3, 3, true,  {{FE_U}}), -1, +1, +2);
 
   return true;
 }

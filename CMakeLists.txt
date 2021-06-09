@@ -209,6 +209,7 @@ if (CUP_BUILD_PY)
     endif()
     target_link_libraries(${PYLIB} PUBLIC ${CORE_PIC})
     target_link_libraries(${PYLIB} PRIVATE ${PRIVATEDEP})
+    add_library(cubismup3d::python ALIAS ${PYLIB})
 
     # Old flag, not sure if needed anymore.
     # # https://github.com/conda-forge/hdf5-feedstock/issues/58#issuecomment-310865909
