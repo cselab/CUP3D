@@ -461,7 +461,7 @@ void CreateObstacles::operator()(const double dt)
   sim.stopProfiler();
 
   // Obstacles' advection must be done after we perform penalization:
-  sim.uinf = sim.obstacle_vector->updateUinf();
+  sim.uinf = sim.obstacle_vector->computeNewUinf(sim.uinf);
   sim.obstacle_vector->update();
 
   sim.startProfiler("Obst SDF");
