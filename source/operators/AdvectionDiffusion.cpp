@@ -33,7 +33,7 @@ struct KernelAdvectDiffuse : public Discretization
     const Real norUinf = 1 / std::max({std::fabs(uInf[0]), std::fabs(uInf[1]), std::fabs(uInf[2]), EPS});
     const StencilInfo stencil{this->getStencilBeg(), this->getStencilBeg(),
                               this->getStencilBeg(), this->getStencilEnd(),
-                              this->getStencilEnd(), this->getStencilEnd(), true, {FE_U, FE_V, FE_W, FE_P}};
+                              this->getStencilEnd(), this->getStencilEnd(), false, {FE_U, FE_V, FE_W, FE_P}};
 
     void applyBCwest(const BlockInfo & I, LabMPI & L) const
     {
