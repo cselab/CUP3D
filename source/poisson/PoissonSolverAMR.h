@@ -147,10 +147,11 @@ class ComputeLHS : public Operator
       const bool cornery = ( vInfoPoisson[i].index[1] == ( (sim.bpdy * (1<<(vInfoPoisson[i].level)) -1)/2 ) ); 
       const bool cornerz = ( vInfoPoisson[i].index[2] == ( (sim.bpdz * (1<<(vInfoPoisson[i].level)) -1)/2 ) ); 
       FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
+      const double h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
       for(int iz=0; iz<FluidBlock::sizeZ; iz++)
       for(int iy=0; iy<FluidBlock::sizeY; iy++)
       for(int ix=0; ix<FluidBlock::sizeX; ix++)
-        avgP += bPoisson(ix,iy,iz).s*vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
+        avgP += bPoisson(ix,iy,iz).s*h3;
       if (cornerx && cornery && cornerz) index = i;
     }
     MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, sim.grid->getWorldComm());
