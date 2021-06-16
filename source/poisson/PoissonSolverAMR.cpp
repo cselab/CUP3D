@@ -57,6 +57,8 @@ void PoissonSolverAMR::getZ()
             rr += r[ix+iy*nx+iz*nx*ny]*r[ix+iy*nx+iz*nx*ny];
         }
         norm0 = sqrt(norm0)/N;
+        double norm = 0;
+        if (norm0 > 1e-16)
         for (int k = 0 ; k < 100 ; k ++)
         {
             a2 = 0;
@@ -70,7 +72,7 @@ void PoissonSolverAMR::getZ()
                 a2 += p[index2]*Ax[index1];
             }
             const double a = rr/(a2+1e-55);
-            double norm = 0;
+            double norm_new = 0;
             beta = 0;
             for(int iz=0; iz<nz; iz++)
             for(int iy=0; iy<ny; iy++)
@@ -80,11 +82,13 @@ void PoissonSolverAMR::getZ()
                 const int index2 = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
                 x[index1] += a*p [index2];
                 r[index1] -= a*Ax[index1];
-                norm += r[index1]*r[index1];
+                norm_new += r[index1]*r[index1];
             }
-            beta = norm;
-            norm = sqrt(norm)/N;
-            if (norm/norm0< 1e-6) break;
+            beta = norm_new;
+            norm_new = sqrt(norm_new)/N;
+            if (k>3 && std::fabs(norm/norm_new - 1.0) < 1e-7) break;
+            norm = norm_new;
+            if (norm/norm0< 1e-5) break;
             double temp = rr;
             rr = beta;
             beta /= (temp+1e-55);
