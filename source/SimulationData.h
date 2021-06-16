@@ -36,6 +36,11 @@ struct SimulationData
   inline std::vector<cubism::BlockInfo>& vInfo() {
     return grid->getBlocksInfo();
   }
+  FluidGridMPIPoisson * gridPoisson = nullptr;
+  FluxCorrectionMPI<FluxCorrection<FluidGridMPIPoisson,FluidBlockPoisson>,FluidGridMPIPoisson> CorrectorPoisson;
+  inline std::vector<cubism::BlockInfo>& vInfoPoisson() {
+    return gridPoisson->getBlocksInfo();
+  }
   Real maxH() const { return hmax; }
   Real uniformH() const
   {
@@ -68,6 +73,7 @@ struct SimulationData
   }
 
   AMR * amr;
+  AMR2 * amr2;
 
   //The protagonist
   ObstacleVector * obstacle_vector = nullptr;

@@ -176,11 +176,11 @@ void SimulationData::_preprocessArguments()
 SimulationData::~SimulationData()
 {
   delete grid;
+  delete gridPoisson;
   delete profiler;
   delete obstacle_vector;
-
-  if(amr not_eq nullptr) delete amr;
-
+  delete amr;
+  delete amr2;
   while(!pipeline.empty()) {
     auto * g = pipeline.back();
     pipeline.pop_back();

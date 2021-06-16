@@ -90,6 +90,8 @@ void Simulation::_init(const bool restart,ArgumentParser & parser)
     }
 
     sim.amr->AdaptTheMesh(sim.time);
+    sim.amr2->AdaptLikeOther(*sim.grid);
+
     //After mesh is refined/coarsened the arrays min_pos and max_pos need to change
     const std::vector<BlockInfo>& vInfo = sim.vInfo();
     #pragma omp parallel for schedule(static)
@@ -176,9 +178,21 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
                               (sim.BCz_flag == periodic));
   assert(sim.grid != nullptr);
 
+  sim.gridPoisson = new FluidGridMPIPoisson(1, //these arguments are not used in Cubism-AMR
+                                            1, //these arguments are not used in Cubism-AMR
+                                            1, //these arguments are not used in Cubism-AMR
+                                            sim.bpdx,
+                                            sim.bpdy,
+                                            sim.bpdz,
+                                            sim.maxextent,
+                                            sim.levelStart,sim.levelMax,sim.app_comm,
+                                            (sim.BCx_flag == periodic),
+                                            (sim.BCy_flag == periodic),
+                                            (sim.BCz_flag == periodic));
+
   //Refine/compress only according to chi field for now
   sim.amr = new AMR( *(sim.grid),sim.Rtol,sim.Ctol);
-
+  sim.amr2 = new AMR2( *(sim.gridPoisson),sim.Rtol,sim.Ctol);
   sim.UpdateHmin();
 
   const std::vector<BlockInfo>& vInfo = sim.vInfo();
@@ -425,6 +439,7 @@ bool Simulation::timestep(const double dt)
             }
         }
         sim.amr->AdaptTheMesh(sim.time);
+        sim.amr2->AdaptLikeOther(*sim.grid);
         if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
         {
             #pragma omp parallel for

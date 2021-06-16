@@ -34,31 +34,31 @@ namespace cubismup3d {
 
 class ComputeLHS : public Operator
 {
-  struct KernelLHS
+  struct KernelLHSPoisson
   {
     const SimulationData & sim;
-    KernelLHS(const SimulationData&s) : sim(s) {}
+    KernelLHSPoisson(const SimulationData&s) : sim(s) {}
   
-    const StencilInfo stencil{-1,-1,-1,2,2,2,false, {FE_W} };
-    void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
+    const StencilInfo stencil{-1,-1,-1,2,2,2,false,{0}};
+    void operator()(LabMPIPoisson & lab, const BlockInfo& info, FluidBlockPoisson& o) const
     {
       const double h = info.h_gridpoint; 
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      for(int iz=0; iz<FluidBlockPoisson::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlockPoisson::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlockPoisson::sizeX; ++ix)
       {
-        o(ix,iy,iz).AxVector = h*( lab(ix-1,iy,iz).zVector + lab(ix+1,iy,iz).zVector + 
-                                   lab(ix,iy-1,iz).zVector + lab(ix,iy+1,iz).zVector +
-                                   lab(ix,iy,iz-1).zVector + lab(ix,iy,iz+1).zVector - 6.0*lab(ix,iy,iz).zVector);
+        o(ix,iy,iz).lhs = h*( lab(ix-1,iy,iz).s + lab(ix+1,iy,iz).s + 
+                              lab(ix,iy-1,iz).s + lab(ix,iy+1,iz).s +
+                              lab(ix,iy,iz-1).s + lab(ix,iy,iz+1).s - 6.0*lab(ix,iy,iz).s);
       }
 
-      BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
-      FluidBlock::ElementType * faceXm = nullptr;
-      FluidBlock::ElementType * faceXp = nullptr;
-      FluidBlock::ElementType * faceYm = nullptr;
-      FluidBlock::ElementType * faceYp = nullptr;
-      FluidBlock::ElementType * faceZp = nullptr;
-      FluidBlock::ElementType * faceZm = nullptr;
+      BlockCase<FluidBlockPoisson> * tempCase = (BlockCase<FluidBlockPoisson> *)(info.auxiliary);
+      FluidBlockPoisson::ElementType * faceXm = nullptr;
+      FluidBlockPoisson::ElementType * faceXp = nullptr;
+      FluidBlockPoisson::ElementType * faceYm = nullptr;
+      FluidBlockPoisson::ElementType * faceYp = nullptr;
+      FluidBlockPoisson::ElementType * faceZp = nullptr;
+      FluidBlockPoisson::ElementType * faceZm = nullptr;
       if (tempCase != nullptr)
       {
         faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
@@ -75,7 +75,7 @@ class ComputeLHS : public Operator
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         {
           faceXm[iy + FluidBlock::sizeY * iz].clear();
-          faceXm[iy + FluidBlock::sizeY * iz].AxVector = h*(lab(ix,iy,iz).zVector - lab(ix-1,iy,iz).zVector);
+          faceXm[iy + FluidBlock::sizeY * iz].lhs = h*(lab(ix,iy,iz).s - lab(ix-1,iy,iz).s);
         }
       }
       if (faceXp != nullptr)
@@ -85,7 +85,7 @@ class ComputeLHS : public Operator
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         {
           faceXp[iy + FluidBlock::sizeY * iz].clear();
-          faceXp[iy + FluidBlock::sizeY * iz].AxVector = h*(lab(ix,iy,iz).zVector - lab(ix+1,iy,iz).zVector);
+          faceXp[iy + FluidBlock::sizeY * iz].lhs = h*(lab(ix,iy,iz).s - lab(ix+1,iy,iz).s);
         }
       }
       if (faceYm != nullptr)
@@ -95,7 +95,7 @@ class ComputeLHS : public Operator
         for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         {
           faceYm[ix + FluidBlock::sizeX * iz].clear();
-          faceYm[ix + FluidBlock::sizeX * iz].AxVector = h*(lab(ix,iy,iz).zVector - lab(ix,iy-1,iz).zVector);
+          faceYm[ix + FluidBlock::sizeX * iz].lhs = h*(lab(ix,iy,iz).s - lab(ix,iy-1,iz).s);
         }
       }
       if (faceYp != nullptr)
@@ -105,7 +105,7 @@ class ComputeLHS : public Operator
         for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         {
           faceYp[ix + FluidBlock::sizeX * iz].clear();
-          faceYp[ix + FluidBlock::sizeX * iz].AxVector = h*(lab(ix,iy,iz).zVector - lab(ix,iy+1,iz).zVector);
+          faceYp[ix + FluidBlock::sizeX * iz].lhs = h*(lab(ix,iy,iz).s - lab(ix,iy+1,iz).s);
         }
       }
       if (faceZm != nullptr)
@@ -115,7 +115,7 @@ class ComputeLHS : public Operator
         for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         {
           faceZm[ix + FluidBlock::sizeX * iy].clear();
-          faceZm[ix + FluidBlock::sizeX * iy].AxVector = h*(lab(ix,iy,iz).zVector - lab(ix,iy,iz-1).zVector);
+          faceZm[ix + FluidBlock::sizeX * iy].lhs = h*(lab(ix,iy,iz).s - lab(ix,iy,iz-1).s);
         }
       }
       if (faceZp != nullptr)
@@ -125,39 +125,39 @@ class ComputeLHS : public Operator
         for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         {
           faceZp[ix + FluidBlock::sizeX * iy].clear();
-          faceZp[ix + FluidBlock::sizeX * iy].AxVector = h*(lab(ix,iy,iz).zVector - lab(ix,iy,iz+1).zVector);
+          faceZp[ix + FluidBlock::sizeX * iy].lhs = h*(lab(ix,iy,iz).s - lab(ix,iy,iz+1).s);
         }
       }
+
     }
   };
   public:
   ComputeLHS(SimulationData & s) : Operator(s) { }
   void operator()(const double dt)
   {
-    const KernelLHS K(sim);
-    compute<KernelLHS>(K,true);
+    std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson->getBlocksInfo();
+    const KernelLHSPoisson KPoisson(sim);
+    computePoisson<KernelLHSPoisson>(KPoisson,true);
     double avgP = 0;
-
     int index = -1;
-    const std::vector<cubism::BlockInfo>& vInfo = sim.grid->getBlocksInfo();
     #pragma omp parallel for reduction(+ : avgP)
-    for(size_t i=0; i<vInfo.size(); ++i)
+    for(size_t i=0; i<vInfoPoisson.size(); ++i)
     {
-      const bool cornerx = ( vInfo[i].index[0] == ( (sim.bpdx * (1<<(vInfo[i].level)) -1)/2 ) ); 
-      const bool cornery = ( vInfo[i].index[1] == ( (sim.bpdy * (1<<(vInfo[i].level)) -1)/2 ) ); 
-      const bool cornerz = ( vInfo[i].index[2] == ( (sim.bpdz * (1<<(vInfo[i].level)) -1)/2 ) ); 
-      FluidBlock & __restrict__ b  = *(FluidBlock*) vInfo[i].ptrBlock;
+      const bool cornerx = ( vInfoPoisson[i].index[0] == ( (sim.bpdx * (1<<(vInfoPoisson[i].level)) -1)/2 ) ); 
+      const bool cornery = ( vInfoPoisson[i].index[1] == ( (sim.bpdy * (1<<(vInfoPoisson[i].level)) -1)/2 ) ); 
+      const bool cornerz = ( vInfoPoisson[i].index[2] == ( (sim.bpdz * (1<<(vInfoPoisson[i].level)) -1)/2 ) ); 
+      FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
       for(int iz=0; iz<FluidBlock::sizeZ; iz++)
       for(int iy=0; iy<FluidBlock::sizeY; iy++)
       for(int ix=0; ix<FluidBlock::sizeX; ix++)
-        avgP += b(ix,iy,iz).zVector*vInfo[i].h*vInfo[i].h*vInfo[i].h;
+        avgP += bPoisson(ix,iy,iz).s*vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
       if (cornerx && cornery && cornerz) index = i;
     }
     MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, sim.grid->getWorldComm());
     if (index!=-1)
     {
-      FluidBlock & __restrict__ b  = *(FluidBlock*) vInfo[index].ptrBlock;
-      b(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1).AxVector = avgP;
+      FluidBlockPoisson & __restrict__ b  = *(FluidBlockPoisson*) vInfoPoisson[index].ptrBlock;
+      b(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1).lhs = avgP;
     }
   }
   std::string getName() { return "ComputeLHS"; }
@@ -167,8 +167,10 @@ class PoissonSolverAMR
 {
  protected:
   typedef typename FluidGridMPI::BlockType BlockType;
+  typedef typename FluidGridMPIPoisson::BlockType BlockTypePoisson;
   SimulationData & sim;
   FluidGridMPI& grid = * sim.grid;
+  FluidGridMPIPoisson& gridPoisson = * sim.gridPoisson;
 
   const MPI_Comm m_comm = grid.getCartComm();
   const int m_rank = sim.rank, m_size = sim.nprocs;
@@ -209,10 +211,10 @@ class PoissonSolverAMR
   void reset()
   {
     const size_t PointsPerBlock = BlockType::sizeX * BlockType::sizeY * BlockType::sizeZ;
-    const size_t Blocks = grid.getBlocksInfo().size();
+    const size_t Blocks = gridPoisson.getBlocksInfo().size();
     datasize = PointsPerBlock * Blocks;
 
-    std::vector<BlockInfo> & vInfo = grid.getBlocksInfo();
+    std::vector<BlockInfo> & vInfo = gridPoisson.getBlocksInfo();
 
     id_min = vInfo[0].blockID;
     id_max = vInfo[0].blockID;
@@ -226,13 +228,12 @@ class PoissonSolverAMR
     for (size_t i = 0 ; i < vInfo.size(); i++)
     {
       blocksOffset[ vInfo[i].blockID-id_min ] = i*PointsPerBlock;
-    }  
+    }
   }
   size_t _dest(const size_t offset,const int z,const int y,const int x) const
   {
     return offset + (BlockType::sizeX*BlockType::sizeY)*z + BlockType::sizeX*y + x;
   }
-
 
   #ifdef PRECOND
   double getA_local(int I1,int I2);

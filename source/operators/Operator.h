@@ -18,7 +18,7 @@ class Operator
  protected:
   SimulationData & sim;
   FluidGridMPI * const grid = sim.grid;
-
+  FluidGridMPIPoisson * const gridPoisson = sim.gridPoisson;
 
   inline void check(const std::string &infoText)
   {
@@ -158,7 +158,7 @@ class Operator
 
       #pragma omp for schedule(static)
       for(int i=0; i<Ninner; i++) {
-        const cubism::BlockInfo I = *avail0[i];
+        const cubism::BlockInfo &I = *avail0[i];
         FluidBlock& b = *(FluidBlock*)I.ptrBlock;
         lab.load(I, 0);
         kernel(lab, I, b);
@@ -177,7 +177,7 @@ class Operator
 
         #pragma omp for schedule(static)
         for(int i=0; i<Nhalo; i++) {
-          const cubism::BlockInfo I = *avail1[i];
+          const cubism::BlockInfo &I = *avail1[i];
           FluidBlock& b = *(FluidBlock*)I.ptrBlock;
           lab.load(I, 0);
           kernel(lab, I, b);
@@ -192,6 +192,70 @@ class Operator
 
     if (applyFluxCorrection) sim.Corrector.FillBlockCases(FluxIntegration);
     MPI_Barrier(grid->getCartComm());
+  }
+
+  template <typename Kernel>
+  void computePoisson(const Kernel& kernel, const bool applyFluxCorrection = false, const bool FluxIntegration = false)
+  {
+    if (applyFluxCorrection) sim.CorrectorPoisson.prepare(*(sim.gridPoisson));
+
+    cubism::SynchronizerMPI_AMR<Real,FluidGridMPIPoisson>& Synch = *gridPoisson->sync(kernel);
+
+    const int nthreads = omp_get_max_threads();
+    LabMPIPoisson * labs = new LabMPIPoisson[nthreads];
+    #pragma omp parallel for schedule(static, 1)
+    for(int i = 0; i < nthreads; ++i) {
+      labs[i].setBC(sim.BCx_flag, sim.BCy_flag, sim.BCz_flag);
+      labs[i].prepare(* sim.gridPoisson, Synch);
+    }
+
+    int rank;
+    MPI_Comm_rank(gridPoisson->getCartComm(), &rank);
+    MPI_Barrier(gridPoisson->getCartComm());
+    std::vector<cubism::BlockInfo*> avail0 = Synch.avail_inner();
+    const int Ninner = avail0.size();
+
+
+    #pragma omp parallel
+    {
+      int tid = omp_get_thread_num();
+      LabMPIPoisson& lab = labs[tid];
+
+      #pragma omp for
+      for(int i=0; i<Ninner; i++) {
+        const cubism::BlockInfo& I = *avail0[i];
+        FluidBlockPoisson& b = *(FluidBlockPoisson*)I.ptrBlock;
+        lab.load(I, 0);
+        kernel(lab, I, b);
+      }
+    }
+
+    if(sim.nprocs>1)
+    {
+      std::vector<cubism::BlockInfo*> avail1 = Synch.avail_halo();
+      const int Nhalo = avail1.size();
+
+      #pragma omp parallel
+      {
+        int tid = omp_get_thread_num();
+        LabMPIPoisson& lab = labs[tid];
+
+        #pragma omp for
+        for(int i=0; i<Nhalo; i++) {
+          const cubism::BlockInfo& I = *avail1[i];
+          FluidBlockPoisson& b = *(FluidBlockPoisson*)I.ptrBlock;
+          lab.load(I, 0);
+          kernel(lab, I, b);
+        }
+      }
+    }
+
+    if(labs != nullptr) {
+      delete [] labs;
+      labs = nullptr;
+    }
+    if (applyFluxCorrection) sim.CorrectorPoisson.FillBlockCases(FluxIntegration);
+    MPI_Barrier(gridPoisson->getCartComm());
   }
 
 public:
