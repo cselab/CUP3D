@@ -20,7 +20,6 @@
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
 
-#define PRECOND
 
 #define pVector    tmpU
 #define vVector    tmpV
@@ -236,18 +235,7 @@ class PoissonSolverAMR
     return offset + (BlockType::sizeX*BlockType::sizeY)*z + BlockType::sizeX*y + x;
   }
 
-  #ifdef PRECOND
-  double getA_local(int I1,int I2);
-  void FindZ();
   void getZ();
-  std::vector<std::vector<double>> Ld;
-  std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_row;
-  std::vector <  std::vector <std::vector< std::pair<int,double> > > >L_col;
-
-  std::vector< std::vector<int> >compute_ix;
-  std::vector< std::vector<int> >compute_iy;
-  std::vector< std::vector<int> >compute_iz;
-  #endif
 };
 
 }//namespace cubismup3d
