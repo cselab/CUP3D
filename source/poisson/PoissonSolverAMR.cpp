@@ -558,5 +558,4 @@ void PoissonSolverAMR::solve()
     //} 
     sim.stopProfiler();
 }
-#endif
 }//namespace cubismup3d
