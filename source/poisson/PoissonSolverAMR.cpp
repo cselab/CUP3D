@@ -407,43 +407,22 @@ void PoissonSolverAMR::solve()
 
     }//k-loop
 
-    if (useXopt)
+    double * xsol = useXopt ? x_opt.data():x.data();
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
     {
-        #pragma omp parallel for
-        for (size_t i=0; i < Nblocks; i++)
+        const int m = vInfoPoisson[i].level;
+        const int n = vInfoPoisson[i].Z;
+        const BlockInfo & info = grid.getBlockInfoAll(m,n);
+        BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
+        const size_t offset = _offset( vInfoPoisson[i] );
+        for(int iz=0; iz<BlockType::sizeZ; iz++)
+        for(int iy=0; iy<BlockType::sizeY; iy++)
+        for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            const int m = vInfoPoisson[i].level;
-            const int n = vInfoPoisson[i].Z;
-            const BlockInfo & info = grid.getBlockInfoAll(m,n);
-            BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-            const size_t offset = _offset( vInfoPoisson[i] );
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
-            {
-                const size_t src_index = _dest(offset, iz, iy, ix);
-                b(ix,iy,iz).p = x_opt[src_index];
-            }
+            const size_t src_index = _dest(offset, iz, iy, ix);
+            b(ix,iy,iz).p = xsol[src_index];
         }
-    }
-    else
-    {
-        #pragma omp parallel for
-        for (size_t i=0; i < Nblocks; i++)
-        {
-            const int m = vInfoPoisson[i].level;
-            const int n = vInfoPoisson[i].Z;
-            const BlockInfo & info = grid.getBlockInfoAll(m,n);
-            BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-            const size_t offset = _offset( vInfoPoisson[i] );
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
-            {
-                const size_t src_index = _dest(offset, iz, iy, ix);
-                b(ix,iy,iz).p = x[src_index];
-            }
-        }       
     }
   
     sim.stopProfiler();
