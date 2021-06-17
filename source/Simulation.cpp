@@ -481,7 +481,10 @@ bool Simulation::timestep(const double dt)
     if ((sim.endTime>0 && sim.time>sim.endTime) ||
         (sim.nsteps!=0 && sim.step>=sim.nsteps) ) {
       if(sim.verbose)
+      {
+        sim.printResetProfiler();
         std::cout<<"Finished at time "<<sim.time<<" in "<<sim.step<<" steps.\n";
+      }
       return true;  // Finished.
     }
 
