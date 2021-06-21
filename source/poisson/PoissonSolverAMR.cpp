@@ -137,7 +137,6 @@ void PoissonSolverAMR::solve()
         const bool cornerx = ( vInfo[i].index[0] == ( (sim.bpdx * (1<<(vInfo[i].level)) -1)/2 ) );
         const bool cornery = ( vInfo[i].index[1] == ( (sim.bpdy * (1<<(vInfo[i].level)) -1)/2 ) );
         const bool cornerz = ( vInfo[i].index[2] == ( (sim.bpdz * (1<<(vInfo[i].level)) -1)/2 ) );
-        //BlockType & __restrict__ b  = *(BlockType*) vInfo[i].ptrBlock;
         const int m = vInfoPoisson[i].level;
         const int n = vInfoPoisson[i].Z;
         const BlockInfo & info = grid.getBlockInfoAll(m,n);

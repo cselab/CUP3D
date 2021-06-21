@@ -175,8 +175,6 @@ class PoissonSolverAMR
   const MPI_Comm m_comm = grid.getCartComm();
   const int m_rank = sim.rank, m_size = sim.nprocs;
 
-  Real computeAverage() const;
-
   ComputeLHS findLHS;
   std::vector<size_t> blocksOffset;
   long long id_min;
