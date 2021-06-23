@@ -86,9 +86,9 @@ void PoissonSolverAMR::getZ()
             }
             beta = norm_new;
             norm_new = sqrt(norm_new)/N;
-            if (k>max(max(nx,ny),nz) && std::fabs(norm/norm_new - 1.0) < 1e-7) break;
+            //if (k>max(max(nx,ny),nz) && std::fabs(norm/norm_new - 1.0) < 1e-7) break;
             norm = norm_new;
-            if (norm/norm0< 1e-5) break;
+            if (norm/norm0< 1e-7) break;
             double temp = rr;
             rr = beta;
             beta /= (temp+1e-55);
