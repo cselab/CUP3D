@@ -53,12 +53,12 @@ def plotValidation():
   # Experimental Data from Roos et al. (1971)
   targetValues = { "300": 0.629, "500": 0.547, "1000": 0.472}
 
-  rootSCRATCH = "/scratch/snx3000/mchatzim/CubismUP3D/"
+  # rootSCRATCH = "/scratch/snx3000/mchatzim/CubismUP3D/"
   # rootSCRATCH = "/project/s929/mchatzim/SphereValidation/"
-  # rootSCRATCH = "/scratch/snx3000/pweber/CubismUP3D/"
+  rootSCRATCH = "/scratch/snx3000/pweber/CubismUP3D/"
   rootPROJECT = "/project/s929/pweber/CUP3D/unmollified-chi/"
   rootVALID = "/project/s929/pweber/sphereValidationData/"
-  cases= [ "300" ]
+  cases= [ "1000" ]
   levels = "4"
   poissonTol = "6"
 
@@ -115,11 +115,11 @@ def plotValidation():
       speed = 0.125
       radius = 0.0625
       # runname = "re"+cases[i]
-      runnames = [ "sphereRe1000_levels{}".format(level) for level in np.arange(4,7) ]
+      runnames = [ "sphereRe1000_levels{}".format(level) for level in np.arange(3,8) ]
       for j, runname in enumerate(runnames):
         plotDrag( rootSCRATCH, runname, speed, radius, j, cases[i] )
-        plt.xlim([0,10])
-        plt.ylim([0.1,10])
+        plt.xlim([0,2])
+        plt.ylim([0,3])
       # plotDrag( rootPROJECT, runnames[i], speed, radius, i, cases[i] )
 
   
@@ -163,12 +163,12 @@ def plotVortexSheet():
   plt.show()
 
 def plotRefinement():
-  rootSCRATCH = "/scratch/snx3000/pweber/CubismUP3D/"
+  rootSCRATCH = "/scratch/snx3000/pweber/CubismUP3D/poissonTol7/"
   cases= [ "1000" ]
   levels = np.arange(3,7)
   levels = levels[::-1]
-  timesteps = [ "1e-4", "2e-4", "5e-4", "1e-3", "2e-3"]
-  refinement = "space"
+  timesteps = [ "1e-2.25", "1e-2.5", "1e-2.75", "1e-3", "1e-3.25", "1e-3.5"]
+  refinement = "vorticity"
 
   if refinement != "vorticity":
     if refinement == "space":
@@ -239,8 +239,13 @@ def plotRefinement():
   else:
     ## data for vorticity for 
     #t=0.5
-    h = np.array([1658880, 1803968, 2902272, 3879360, 8062336, 28699840 ])
-    vorticityDiff = [ 0.034554, 0.0264363, 0.0156306, 0.00731397, 0.00309227, 0.00130656]
+    # from old runs
+    # h = np.array([1658880, 1803968, 2902272, 3879360, 8062336, 28699840 ])
+    # vorticityDiff = [ 0.034554, 0.0264363, 0.0156306, 0.00731397, 0.00309227, 0.00130656]
+    # h = np.array([1435638, 2281472, 6152192, 29620224 ])
+    # vorticityDiff = [ 0.0106758, 0.00469273, 0.00176592, 0.000703645]
+    h = np.array([1349632, 2080768, 5062656, 21735424 ])
+    vorticityDiff = [ 0.0095116, 0.00470031, 0.00180059, 0.000749308]
 
   ## Plot Order ##
   if refinement == "space":
@@ -258,11 +263,11 @@ def plotRefinement():
     # plt.ylim([0.02,5])
     plt.xlabel("Timestep")
   elif refinement == "vorticity":
-    plt.plot( h[2:], vorticityDiff[2:], "o")
-    plt.plot( h, 4*10**-1*h**(-1/3), label="1st order", linewidth=1, linestyle="--" )
-    plt.plot( h, 1.2*10**2*h**(-2/3), label="2nd order", linewidth=1, linestyle="--" )
-    plt.ylim([0.001,0.02])
-    plt.xlim([10**6,5*10**7])
+    plt.plot( h, vorticityDiff, "o")
+    plt.plot( h, 2*10**-1*h**(-1/3), label="1st order", linewidth=1, linestyle="--" )
+    plt.plot( h, 6*10**1*h**(-2/3), label="2nd order", linewidth=1, linestyle="--" )
+    # plt.ylim([0.001,0.02])
+    # plt.xlim([10**6,5*10**7])
     plt.xlabel("Number of Gridpoints")
 
   plt.xlabel("Number of Gridpoints")
@@ -275,6 +280,6 @@ def plotRefinement():
 
 if __name__ == '__main__':
   # plotValidation()
-  plotVortexSheet()
-  # plotRefinement()
+  # plotVortexSheet()
+  plotRefinement()
   # computeStrouhal()
