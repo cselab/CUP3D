@@ -1,5 +1,5 @@
 #!/bin/bash
-NNODE=256
+NNODE=512
 BPDX=${BPDX:-8}
 BPDY=${BPDY:-4}
 BPDZ=${BPDZ:-4}
@@ -715,7 +715,7 @@ OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
 OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 100.0 "
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
 OPTIONS+=" -CFL 0.4 -use-dlm -1 -nu ${NU}"
-OPTIONS+=" -levelMax 7 -levelStart 4 -Rtol 0.1 -Ctol 0.01"
+OPTIONS+=" -levelMax 7 -levelStart 4 -Rtol 1.0 -Ctol 0.1"
 OPTIONS+=" -TimeOrder 2"
-OPTIONS+=" -poissonTol 1e-5 "
-OPTIONS+=" -poissonTolRel 1e-3 "
+OPTIONS+=" -poissonTol 1e-6 "
+OPTIONS+=" -poissonTolRel 1e-4 "

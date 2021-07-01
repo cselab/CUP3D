@@ -150,10 +150,14 @@ import scipy.signal as signal
 #   plt.show()
 
 def plotVortexSheet():
-  data = np.loadtxt("/scratch/snx3000/mchatzim/CubismUP3D/step_spherical_levels5/gamma_integral_000000004.txt")
+  data = np.loadtxt("/scratch/snx3000/mchatzim/CubismUP3D/debug6/7/gamma_integral_000000020.txt")
   theta = data[:,0]
   gamma = data[:,1]
   speed = 0.125
+
+  tick_pos= np.linspace(0,np.pi,5)
+  labels = ['0','$\pi$/8','$\pi$/4','$\pi$/2','$\pi$']
+  plt.xticks(tick_pos, labels)
 
   plt.plot(theta, -1.5*np.sin(theta), "k--", label="analytic")
   plt.plot(theta, gamma, ".", label="present")
