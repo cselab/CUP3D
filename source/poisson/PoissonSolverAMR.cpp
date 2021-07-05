@@ -138,10 +138,9 @@ void PoissonSolverAMR::solve()
         const bool cornery = ( vInfo[i].index[1] == ( (sim.bpdy * (1<<(vInfo[i].level)) -1)/2 ) );
         const bool cornerz = ( vInfo[i].index[2] == ( (sim.bpdz * (1<<(vInfo[i].level)) -1)/2 ) );
         const int m = vInfoPoisson[i].level;
-        const int n = vInfoPoisson[i].Z;
+        const long long n = vInfoPoisson[i].Z;
         const BlockInfo & info = grid.getBlockInfoAll(m,n);
         BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-
         BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
         const size_t offset = _offset( vInfoPoisson[i] );
         for(int iz=0; iz<BlockType::sizeZ; iz++)
@@ -171,7 +170,7 @@ void PoissonSolverAMR::solve()
         for(size_t i=0; i< Nblocks; i++)
         {
             const int m = vInfoPoisson[i].level;
-            const int n = vInfoPoisson[i].Z;
+            const long long n = vInfoPoisson[i].Z;
             const BlockInfo & info = grid.getBlockInfoAll(m,n);
             BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
             BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
@@ -193,7 +192,7 @@ void PoissonSolverAMR::solve()
         for(size_t i=0; i< Nblocks; i++)
         {
             const int m = vInfoPoisson[i].level;
-            const int n = vInfoPoisson[i].Z;
+            const long long n = vInfoPoisson[i].Z;
             const BlockInfo & info = grid.getBlockInfoAll(m,n);
             BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
             const size_t offset = _offset( vInfoPoisson[i] );
@@ -411,7 +410,7 @@ void PoissonSolverAMR::solve()
     for (size_t i=0; i < Nblocks; i++)
     {
         const int m = vInfoPoisson[i].level;
-        const int n = vInfoPoisson[i].Z;
+        const long long n = vInfoPoisson[i].Z;
         const BlockInfo & info = grid.getBlockInfoAll(m,n);
         BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
         const size_t offset = _offset( vInfoPoisson[i] );
