@@ -33,103 +33,109 @@ def plotDrag( root, runname, speed, radius, i, label ):
   viscDrag = 2*data[:,12]/(radius*radius*np.pi*speed*speed)
   totDrag  = 2*data[:,3] /(radius*radius*np.pi*speed*speed)
 
-  # plt.plot(time, presDrag-1/3*totDrag, color=lighten_color(colors[i],1.2), label="$C_p-1/3C_D$" )# , label=runname+", $C_p(t={})=${}".format(time[-1],presDrag[-1]))
-  # plt.plot(time, viscDrag-2/3*totDrag, color=lighten_color(colors[i],1.4), label="$C_v-2/3C_D$")# , label=runname+", $C_v(t={})=${}".format(time[-1],viscDrag[-1]))
-  # plt.plot(time, totDrag, color=lighten_color(colors[i],1), label="present ({} levels)".format(7-i))
-  plt.plot(time, totDrag, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+3))#, label="present (dt = {})".format(i+1))
+  ### Plot components of Drag ###
+  # plt.plot(time, presDrag, color=lighten_color(colors[i],1.2))# , label=runname+", $C_p(t={})=${}".format(time[-1],presDrag[-1]))
+  # plt.plot(time, viscDrag, color=lighten_color(colors[i],1.4))# , label=runname+", $C_v(t={})=${}".format(time[-1],viscDrag[-1]))
+  ###############################
+
+  # plt.plot(time, totDrag, color=lighten_color(colors[i],1), label="present (Re = {})".format(label) )
+  plt.plot(time, totDrag, color=lighten_color(colors[i],1), label="present ({} levels)".format(i+3))
 
   plt.xlabel("Time $T=tu/D$")
   # plt.xlabel("Time $T=tu/r$")
   plt.ylabel("Drag Coefficient $C_D=2|F_x|/\pi r^2u^2$")
 
 
+### "The impulsive starting of a sphere", C.-Y. Wang ###
+def dragWang( Re, t ):
+  t = t*2 #Wang uses t*(u/r), not t*(u/D)
+  Re = int(Re)/2 # Wang uses radius-based Re
+  return 12*np.sqrt(1/(np.pi*t*Re))+12/Re
+########################################################
+
 def plotValidation():
-  # "The impulsive starting of a sphere", C.-Y. Wang
-  def dragWang( Re, t ):
-    # t = t*2 #Wang uses t*(u/r), not t*(u/D)
-    Re = int(Re)/2 # Wang uses radius-based Re
-    return 12*np.sqrt(1/(np.pi*t*Re))+12/Re
-
-  # Experimental Data from Roos et al. (1971)
+  ### Experimental Data from Roos et al. (1971) ###
   targetValues = { "300": 0.629, "500": 0.547, "1000": 0.472}
+  #################################################
 
-  # rootSCRATCH = "/scratch/snx3000/mchatzim/CubismUP3D/"
-  # rootSCRATCH = "/project/s929/mchatzim/SphereValidation/"
+  ### Simulation parameters ###
+  speed = 0.125
+  radius = 0.0625
+  #############################
+
+  ### Path to data ###
   rootSCRATCH = "/scratch/snx3000/pweber/CubismUP3D/"
-  rootPROJECT = "/project/s929/pweber/CUP3D/unmollified-chi/"
   rootVALID = "/project/s929/pweber/sphereValidationData/"
-  cases= [ "1000" ]
-  levels = "4"
-  poissonTol = "6"
+  ####################
 
-  # runnames = [ "sphereRe{}_levels{}_poissonTol{}".format(case, levels, poissonTol) for case in cases]
-  # runnames = [ "sphereRe{}_levels{}".format(case, levels, poissonTol) for case in cases]
-  # runnames = [ "sphereRe{}_poissonTol{}".format(case, poissonTol) for case in cases]
+  ### Re to plot ###
+  cases= [ "1000" ]
+  ##################
+
+  ### Legend Hack for initial times ###
+  # time = np.linspace( 0, 1, 1001 )
+  # plt.plot(time, dragWang( cases[0], time )+5, linestyle="--", color="black", label="Wang (1969)")
+  #####################################
 
   for i in range( len(cases) ):
-    # Plot analytical solution at initial times
+    ### Plot analytic solution by Wang at initial times ###
     # time = np.linspace( 0, 1, 1001 )
-    # plt.plot(time, dragWang( cases[i], time ), linestyle="--", color=lighten_color(colors[i],0.75), label="Wang (1969)")
+    # plt.plot(time, dragWang( cases[i], time ), linestyle="--", color=lighten_color(colors[i],0.75))
+    #######################################################
 
-    # Plot experimental value
+    ### Plot experimental value by Ross ###
     # time = np.linspace( 0, 200, 1001 )
     # Cd   = np.full(time.shape, targetValues[cases[i]])
     # plt.plot(time, Cd, color=lighten_color(colors[i],0.5), linestyle="--", label="Ross (1971)")
+    #######################################
 
-    # Plot Ploumhans simulation data
+    ### Plot simulation data by Ploumhans ###
     # ploumhansData = np.loadtxt(rootVALID+"Re"+cases[i]+".txt", delimiter=",")
     # plt.plot(ploumhansData[:,0], ploumhansData[:,1], marker="2", linestyle='None', color=lighten_color(colors[i],0.5), label="Ploumhans et al. (2002)") # , Winckelmans, Salmon, Leonard, and Warren
+    #########################################################
 
     if cases[i] == "300":
-      # Plot Johnson simulation data
+      ###  Plot simulation data by Johnson ###
       # johnsonData = np.loadtxt(rootVALID+"Re"+cases[i]+"-Johnson.txt", delimiter=",")
       # plt.plot(johnsonData[8:,0], johnsonData[8:,1], marker="+", linestyle='None', color=lighten_color(colors[i],0.5), label="Johnson and Patel (1998)")
-      # Plot Spietz simulation data
+      ########################################
+
+      ### Plot simulation data by Spietz ###
       # spietzData = np.loadtxt(rootVALID+"Re"+cases[i]+"-Spiez.txt", delimiter=",")
       # plt.plot(spietzData[8:,0], spietzData[8:,1], marker="--", linestyle='None', color=lighten_color(colors[i],0.5), label="Spietz et al. (2017)") # , Hejlesen, and Walther
-      # Plot simulation results
-      speed = 0.125
-      radius = 0.0625
-      runnames = [  "/Re300_long_levels3_big_domain"] #"diskRe300_levels4_breakSymmetry",
+      #######################################
+
+      ### Plot present results ###
+      runnames = [ "sphereRe300_levels6", "sphereRe300_levels7" ]
       for runname in runnames:
         plotDrag( rootSCRATCH, runname, speed, radius, i, cases[i] )
-      plt.xlim([0,200])
-      plt.ylim([0.65,0.75])
-      # plotDrag( rootPROJECT, runnames[i], speed, radius, i, cases[i] )
-    elif cases[i] == "500":
-      speed = 1
-      radius = 0.5
-      runname = "Re"+cases[i]+"_2"
-      plotDrag( rootSCRATCH, runname, speed, radius, i, cases[i] )
-      plt.xlim([0,50])
-      # plotDrag( rootPROJECT, runnames[i], speed, radius, i, cases[i] )
-
+      ############################
     elif cases[i] == "1000":
-      # Plot Mimeau simulation data
+      ### Plot simulation data by Mimeau ###
       # mimeauData = np.loadtxt(rootVALID+"Re"+cases[i]+"-Mimeau.txt", delimiter=",")
       # plt.plot(mimeauData[:,0], mimeauData[:,1], marker="+", linestyle='None', color=lighten_color(colors[i],0.5), label="Mimeau et al. (2016)") #, Cottet, and Mortazavi
-      # Plot Spietz simulation data
-      # mimeauData = np.loadtxt(rootVALID+"Re"+cases[i]+"-Spietz.txt", delimiter=",")
-      # plt.plot(mimeauData[:,0], mimeauData[:,1], marker=".", linestyle='None', color=lighten_color(colors[i],0.5), label="Spietz et al. (2017)") # , Hejlesen, and Walther
-      # Plot simulation results
-      speed = 0.125
-      radius = 0.0625
-      # runname = "re"+cases[i]
-      runnames = [ "sphereRe1000_levels{}".format(level) for level in np.arange(3,8) ]
+      ######################################
+
+      ### Plot simulation data by Spietz ###
+      # spietzData = np.loadtxt(rootVALID+"Re"+cases[i]+"-Spietz.txt", delimiter=",")
+      # plt.plot(spietzData[:,0], spietzData[:,1], marker=".", linestyle='None', color=lighten_color(colors[i],0.5), label="Spietz et al. (2017)") # , Hejlesen, and Walther
+      ######################################
+
+      ### Plot present results ###
+      runnames = ["sphereRe1000_levels3_Euler"] #+ [ "sphereRe1000_levels{}".format(level) for level in np.arange(4,8) ]
       for j, runname in enumerate(runnames):
         plotDrag( rootSCRATCH, runname, speed, radius, j, cases[i] )
-        plt.xlim([0,2])
-        plt.ylim([0,3])
-      # plotDrag( rootPROJECT, runnames[i], speed, radius, i, cases[i] )
-
+      ############################
   
-    # plt.legend(facecolor="white", edgecolor="white", ncol=4, loc="lower center", bbox_to_anchor=(0.5, -0.3))
-    plt.legend()
-    # plt.title("Re={}".format(cases[i]))
-    # plt.yscale("log")
-    plt.grid(b=True, which='minor', color="white", linestyle='-')
-    plt.tight_layout()
-    plt.show()
+  # plt.legend(facecolor="white", edgecolor="white", ncol=2 )#, loc="lower center", bbox_to_anchor=(0.5, -0.3))
+  plt.legend()
+  plt.xlim([0,0.5])
+  plt.ylim([0,50])
+  # plt.title("Re={}".format(cases[i]))
+  # plt.yscale("log")
+  plt.grid(b=True, which='minor', color="white", linestyle='-')
+  plt.tight_layout()
+  plt.show()
 
 import scipy.signal as signal
 
@@ -166,10 +172,10 @@ def plotVortexSheet():
   plt.legend()
   plt.show()
 
-def plotRefinement():
-  rootSCRATCH = "/scratch/snx3000/pweber/CubismUP3D/poissonTol7/"
+def plotVerification():
+  rootSCRATCH = "/scratch/snx3000/pweber/CubismUP3D/"
   cases= [ "1000" ]
-  levels = np.arange(3,7)
+  levels = np.arange(3,8)
   levels = levels[::-1]
   timesteps = [ "1e-2.25", "1e-2.5", "1e-2.75", "1e-3", "1e-3.25", "1e-3.5"]
   refinement = "vorticity"
@@ -182,7 +188,7 @@ def plotRefinement():
     
     # Get integration bounds for refinement study
     lowerBound = 0
-    upperBound = 8
+    upperBound = 0.5
 
     # container for QoI
     meanGridpoints = []
@@ -194,9 +200,9 @@ def plotRefinement():
 
       # Get drag
       data = np.loadtxt(rootSCRATCH+runnames[i]+"/forceValues_surface_0.dat", skiprows=1)
-      time = data[:,1]*speed/radius
-      presDrag = 2*data[:,9] /(radius*radius*np.pi*speed*speed)
-      viscDrag = 2*data[:,12]/(radius*radius*np.pi*speed*speed)
+      time = data[:,1] #*speed/radius
+      # presDrag = 2*data[:,9] /(radius*radius*np.pi*speed*speed)
+      # viscDrag = 2*data[:,12]/(radius*radius*np.pi*speed*speed)
       totDrag =  2*data[:,3] /(radius*radius*np.pi*speed*speed)
 
       # Get number of blocks
@@ -209,24 +215,25 @@ def plotRefinement():
       timeDiff = upperBound-lowerBound
       time = time[indices]
 
-      print("Number of Samples: ", len(presDrag[indices]))
+      # print("Number of Samples: ", len(totDrag[indices]))
 
       if refinement == "space":
-        if levels[i] == 6:
+        if levels[i] == 7:
           dragTarget = totDrag[indices]
-          fDragTarget = sp.interpolate.interp1d(time, dragTarget)
+          # dragTarget = dragWang(1000, time)
+          # fDragTarget = sp.interpolate.interp1d(time, dragTarget)
         else:
-          # errorDrag = np.abs( (totDrag[indices] - dragTarget ) )
-          errorDrag = np.abs( (totDrag[indices] - fDragTarget(time) ) )
+          errorDrag = np.abs( (totDrag[indices] - dragTarget ) )
+          # errorDrag = np.abs( (totDrag[indices] - fDragTarget(time) ) )
 
-          #plot instantaneous error
-          plt.plot( time, errorDrag, label="{} levels".format(levels[i]) )
+          ### plot instantaneous error ###
+          # plt.plot( time, errorDrag, label="{} levels".format(levels[i]) )
 
           #compute number of gridpoints
-          meanGridpoints.append( sp.integrate.simps( numBlocks*8**3, blockTime) )
+          meanGridpoints.append( sp.integrate.simps( numBlocks*8**3, blockTime) / timeDiff )
 
           #compute mean error drag
-          meanErrorDrag.append( sp.integrate.simps( errorDrag, time) )
+          meanErrorDrag.append( sp.integrate.simps( errorDrag, time) / timeDiff )
       elif refinement == "time":
         if timesteps[i] == "1e-4":
           dragTarget = totDrag[indices]
@@ -234,12 +241,12 @@ def plotRefinement():
         else:
           meanErrorDrag.append( sp.integrate.simps( np.abs( totDrag[indices]  - fDragTarget(time) ), time ) )
 
-    plt.xlabel("Time $T=tu/r$")
-    plt.ylabel("Instantaneous Error $\epsilon(t;l)$")
-    plt.legend()
-    plt.yscale("log")
-    plt.grid(b=True, which='minor', color="white", linestyle='-')
-    plt.show()
+    # plt.xlabel("Time $T=tu/D$")
+    # plt.ylabel("Instantaneous Error $\epsilon(t;l)$")
+    # plt.legend()
+    # plt.yscale("log")
+    # plt.grid(b=True, which='minor', color="white", linestyle='-')
+    # plt.show()
   else:
     ## data for vorticity for 
     #t=0.5
@@ -248,17 +255,22 @@ def plotRefinement():
     # vorticityDiff = [ 0.034554, 0.0264363, 0.0156306, 0.00731397, 0.00309227, 0.00130656]
     # h = np.array([1435638, 2281472, 6152192, 29620224 ])
     # vorticityDiff = [ 0.0106758, 0.00469273, 0.00176592, 0.000703645]
-    h = np.array([1349632, 2080768, 5062656, 21735424 ])
-    vorticityDiff = [ 0.0095116, 0.00470031, 0.00180059, 0.000749308]
+    # run with high PT
+    # h = np.array([1349632, 2080768, 5062656, 21735424 ])
+    # vorticityDiff = [ 0.0095116, 0.00470031, 0.00180059, 0.000749308]
+    # run with equal times
+    h = np.array([1335296, 2080768, 4962304, 20860928 ])
+    vorticityDiff = [ 0.0101682, 0.00494003, 0.00208448, 0.000849824]
 
   ## Plot Order ##
   if refinement == "space":
     meanGridpoints = np.array( meanGridpoints )
     plt.plot( meanGridpoints, meanErrorDrag, "o")
-    plt.plot( meanGridpoints, 2*10**0*meanGridpoints**(-1/3), label="1st order", linewidth=1, linestyle="--" )
-    plt.plot( meanGridpoints, 2*10**1*meanGridpoints**(-2/3), label="2nd order", linewidth=1, linestyle="--" )
-    # plt.ylim([0.01,1])
-    # plt.xlim([10**3,2*10**4])
+    plt.plot( meanGridpoints, 2*10**1*meanGridpoints**(-1/3), label="1st order", linewidth=1, linestyle="--" )
+    plt.plot( meanGridpoints, 6.6*10**3*meanGridpoints**(-2/3), label="2nd order", linewidth=1, linestyle="--" )
+    plt.plot( meanGridpoints, 2*10**6*meanGridpoints**(-3/3), label="3rd order", linewidth=1, linestyle="--" )
+    plt.ylim([0.01,1])
+    plt.xlim([4*10**6,10**8])
   elif refinement == "time":
     h = np.array( timesteps[1:] ).astype(np.float)
     plt.plot( h, meanErrorDrag, "o")
@@ -268,22 +280,33 @@ def plotRefinement():
     plt.xlabel("Timestep")
   elif refinement == "vorticity":
     plt.plot( h, vorticityDiff, "o")
-    plt.plot( h, 2*10**-1*h**(-1/3), label="1st order", linewidth=1, linestyle="--" )
+    plt.plot( h, 3*10**-1*h**(-1/3), label="1st order", linewidth=1, linestyle="--" )
     plt.plot( h, 6*10**1*h**(-2/3), label="2nd order", linewidth=1, linestyle="--" )
-    # plt.ylim([0.001,0.02])
-    # plt.xlim([10**6,5*10**7])
+    plt.plot( h, 1.2*10**4*h**(-3/3), label="3rd order", linewidth=1, linestyle="--" )
+    plt.ylim([0.0005,0.02])
+    plt.xlim([10**6,3*10**7])
     plt.xlabel("Number of Gridpoints")
 
   plt.xlabel("Number of Gridpoints")
   plt.ylabel("Error")
-  plt.xscale("log") #, base=2)
+  plt.xscale("log", base=2)
   plt.yscale("log")
   plt.legend()
   plt.grid(b=True, which='minor', color="white", linestyle='-')
   plt.show()
 
+def plotNumBlocks():
+  rootSCRATCH = "/scratch/snx3000/pweber/CubismUP3D/"
+  cases= [ "1000" ]
+  runname = [ "sphereRe1000_levels3_Rtol4" ]
+
+  data = np.loadtxt(rootSCRATCH+runname[0]+"/diagnostics.dat", skiprows=1)
+
+  plt.plot(data[:,1], data[:,-1])
+  plt.show()
+
 if __name__ == '__main__':
-  # plotValidation()
+  plotValidation()
   # plotVortexSheet()
-  plotRefinement()
-  # computeStrouhal()
+  # plotVerification()
+  # plotNumBlocks()

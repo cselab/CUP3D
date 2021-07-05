@@ -180,7 +180,8 @@ void Obstacle::computeVelocities()
   if( bBreakSymmetry )
   {
     if( sim.time>3.0 && sim.time<4.0 )
-      transVel_imposed[1] = length*std::sin(M_PI*(sim.time-3.0));
+      // transVel_imposed[1] = length*std::sin(M_PI*(sim.time-3.0)); // for Re=300
+      transVel_imposed[1] = 0.1*length*std::sin(M_PI*(sim.time-3.0)); // for Re=1000
     else
       transVel_imposed[1] = 0.0;
   }
