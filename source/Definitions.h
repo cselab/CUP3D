@@ -265,6 +265,8 @@ struct BaseBlock
       TElement * entry = &data[0][0][0];
       const int N = sizeX*sizeY*sizeZ;
       for(int i=0; i<N; ++i) entry[i].clear();
+      Real * entry1 = &dataOld[0][0][0][0];
+      for(int i=0; i<4*N; ++i) entry1[i] = 0.0;
   }
 
   TElement& operator()(int ix, int iy=0, int iz=0)

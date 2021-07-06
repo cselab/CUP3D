@@ -61,6 +61,36 @@ class Operator
           fflush(stdout); MPI_Abort(comm, 1);
         }
     }
+
+    if (sim.step >= sim.step_2nd_start-1 && sim.TimeOrder == 2)
+    for (int i = 0; i < (int)vInfo.size(); ++i)
+    {
+      const cubism::BlockInfo info = vInfo[i];
+      const FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        if (std::isnan(b.dataOld[iz][iy][ix][0]) ||
+            std::isnan(b.dataOld[iz][iy][ix][1]) ||
+            std::isnan(b.dataOld[iz][iy][ix][2]) )
+        {
+          fflush(stderr);
+          std::cout << "*************" << std::endl;
+          std::cout << "BLOCK (" << info.index[0] << "," << info.index[1] << "," << info.index[2] << ")" << std::endl;
+          std::cout << "level = " << info.level << std::endl;
+          std::cout << "Z = " << info.Z << std::endl;
+          std::cout << "ix=" << ix << std::endl;
+          std::cout << "iy=" << iy << std::endl;
+          std::cout << "iz=" << iz << std::endl;
+          std::cout << "data u =" << b.dataOld[iz][iy][ix][0] << std::endl;
+          std::cout << "data v =" << b.dataOld[iz][iy][ix][1] << std::endl;
+          std::cout << "data w =" << b.dataOld[iz][iy][ix][2] << std::endl;
+          std::cout << "data p =" << b.dataOld[iz][iy][ix][3] << std::endl;
+          printf("GenericCoordinator::check data isnan %s\n", infoText.c_str());
+          std::cout << "*************" << std::endl;
+          fflush(stdout); MPI_Abort(comm, 1);
+        }
+    }
     MPI_Barrier(comm);
     #endif
   }
