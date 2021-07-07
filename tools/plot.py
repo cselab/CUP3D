@@ -307,5 +307,5 @@ def plotNumBlocks():
 if __name__ == '__main__':
   plotValidation()
   # plotVortexSheet()
-  # plotVerification()
+  plotVerification()
   # plotNumBlocks()
