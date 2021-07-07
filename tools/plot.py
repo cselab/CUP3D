@@ -177,11 +177,11 @@ def plotVerification():
   levels = np.arange(3,8)
   levels = levels[::-1]
   timesteps = [ "1e-2.25", "1e-2.5", "1e-2.75", "1e-3", "1e-3.25", "1e-3.5"]
-  refinement = "vorticity"
+  refinement = "space"
 
   if refinement != "vorticity":
     if refinement == "space":
-      runnames = [ "sphereRe{}_levels{}".format(cases[0], level) for level in levels]
+      runnames = [ "sphereRe{}_levels{}_dt1e-4".format(cases[0], level) for level in levels]
     elif refinement == "time":
       runnames = [ "sphereRe{}_levels5_dt{}".format(cases[0], timestep) for timestep in timesteps]
     
