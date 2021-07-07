@@ -45,7 +45,6 @@ def plotDrag( root, runname, speed, radius, i, label ):
   # plt.xlabel("Time $T=tu/r$")
   plt.ylabel("Drag Coefficient $C_D=2|F_x|/\pi r^2u^2$")
 
-
 ### "The impulsive starting of a sphere", C.-Y. Wang ###
 def dragWang( Re, t ):
   t = t*2 #Wang uses t*(u/r), not t*(u/D)
@@ -122,7 +121,7 @@ def plotValidation():
       ######################################
 
       ### Plot present results ###
-      runnames = ["sphereRe1000_levels3_Euler"] #+ [ "sphereRe1000_levels{}".format(level) for level in np.arange(4,8) ]
+      runnames = [ "sphereRe1000_levels{}_dt1e-4".format(level) for level in np.arange(3,8) ]
       for j, runname in enumerate(runnames):
         plotDrag( rootSCRATCH, runname, speed, radius, j, cases[i] )
       ############################
