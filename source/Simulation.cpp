@@ -89,7 +89,8 @@ void Simulation::_init(const bool restart,ArgumentParser & parser)
       (*sim.pipeline[1])(0);
     }
 
-    sim.amr->AdaptTheMesh(sim.time);
+    sim.amr->Tag();
+    sim.amr->Adapt(sim.time,sim.verbose,false);
     sim.amr2->AdaptLikeOther(*sim.grid);
 
     //After mesh is refined/coarsened the arrays min_pos and max_pos need to change
@@ -438,7 +439,8 @@ bool Simulation::timestep(const double dt)
                }
             }
         }
-        sim.amr->AdaptTheMesh(sim.time);
+        sim.amr->Tag();
+        sim.amr->Adapt(sim.time,sim.verbose,false);
         sim.amr2->AdaptLikeOther(*sim.grid);
         if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
         {

@@ -19,10 +19,6 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
     Rtol_chi = 1e-6;
     Ctol_chi = 1e-9;
    }
-   virtual void AdaptTheMesh(double t) override
-   {
-      MeshAdaptationMPI<TGrid,TLab>::AdaptTheMesh(t);
-   }   
 
    virtual void RefineBlocks(BlockType *B[8], BlockInfo parent) override
    {
