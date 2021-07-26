@@ -90,8 +90,9 @@ void Simulation::_init(const bool restart,ArgumentParser & parser)
     }
 
     sim.amr->Tag();
+    sim.amr2->TagLike(sim.vInfo());
     sim.amr->Adapt(sim.time,sim.verbose,false);
-    sim.amr2->AdaptLikeOther(*sim.grid);
+    sim.amr2->Adapt(sim.time,false,true);
 
     //After mesh is refined/coarsened the arrays min_pos and max_pos need to change
     const std::vector<BlockInfo>& vInfo = sim.vInfo();
@@ -440,8 +441,9 @@ bool Simulation::timestep(const double dt)
             }
         }
         sim.amr->Tag();
+        sim.amr2->TagLike(sim.vInfo());
         sim.amr->Adapt(sim.time,sim.verbose,false);
-        sim.amr2->AdaptLikeOther(*sim.grid);
+        sim.amr2->Adapt(sim.time,false,true);
         if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
         {
             #pragma omp parallel for
