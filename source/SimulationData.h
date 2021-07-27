@@ -10,7 +10,6 @@
 #define CubismUP_3D_SimulationData_h
 
 #include "Definitions.h"
-#include "Cubism/FluxCorrectionMPI.h"
 #include <array>
 #include <vector>
 #include <random>
@@ -32,12 +31,10 @@ struct SimulationData
   cubism::Profiler * profiler = nullptr;
 
   FluidGridMPI * grid = nullptr;
-  FluxCorrectionMPI<FluxCorrection<FluidGridMPI,FluidBlock>,FluidGridMPI> Corrector;
   inline std::vector<cubism::BlockInfo>& vInfo() {
     return grid->getBlocksInfo();
   }
   FluidGridMPIPoisson * gridPoisson = nullptr;
-  FluxCorrectionMPI<FluxCorrection<FluidGridMPIPoisson,FluidBlockPoisson>,FluidGridMPIPoisson> CorrectorPoisson;
   inline std::vector<cubism::BlockInfo>& vInfoPoisson() {
     return gridPoisson->getBlocksInfo();
   }

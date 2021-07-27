@@ -10,6 +10,7 @@
 #define CubismUP_3D_Operator_h
 
 #include "../SimulationData.h"
+#include <Cubism/FluxCorrectionMPI.h>
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -100,7 +101,7 @@ class Operator
   template <typename Kernel>
   void compute(const std::vector<Kernel*>& kernels, const bool applyFluxCorrection = false, const bool FluxIntegration = false)
   {
-    if (applyFluxCorrection) sim.Corrector.prepare(*(sim.grid));
+    if (applyFluxCorrection) sim.grid->Corrector.prepare(*sim.grid);
 
     cubism::SynchronizerMPI_AMR<Real,FluidGridMPI>& Synch = *grid->sync(*(kernels[0]));
     const int nthreads = omp_get_max_threads();
@@ -156,15 +157,14 @@ class Operator
       labs=NULL;
     }
 
-    if (applyFluxCorrection) sim.Corrector.FillBlockCases(FluxIntegration);
+    if (applyFluxCorrection) sim.grid->Corrector.FillBlockCases(FluxIntegration);
     MPI_Barrier(grid->getCartComm());
   }
 
   template <typename Kernel>
   void compute(const Kernel& kernel, const bool applyFluxCorrection = false, const bool FluxIntegration = false)
   {
-    if (applyFluxCorrection) sim.Corrector.prepare(*(sim.grid));
-
+    if (applyFluxCorrection) sim.grid->Corrector.prepare(*sim.grid);
     cubism::SynchronizerMPI_AMR<Real,FluidGridMPI>& Synch = *grid->sync(kernel);
 
     const int nthreads = omp_get_max_threads();
@@ -220,14 +220,14 @@ class Operator
       labs = nullptr;
     }
 
-    if (applyFluxCorrection) sim.Corrector.FillBlockCases(FluxIntegration);
+    if (applyFluxCorrection) sim.grid->Corrector.FillBlockCases(FluxIntegration);
     MPI_Barrier(grid->getCartComm());
   }
 
   template <typename Kernel>
   void computePoisson(const Kernel& kernel, const bool applyFluxCorrection = false, const bool FluxIntegration = false)
   {
-    if (applyFluxCorrection) sim.CorrectorPoisson.prepare(*(sim.gridPoisson));
+    if (applyFluxCorrection) sim.gridPoisson->Corrector.prepare(*sim.gridPoisson);
 
     cubism::SynchronizerMPI_AMR<Real,FluidGridMPIPoisson>& Synch = *gridPoisson->sync(kernel);
 
@@ -284,7 +284,7 @@ class Operator
       delete [] labs;
       labs = nullptr;
     }
-    if (applyFluxCorrection) sim.CorrectorPoisson.FillBlockCases(FluxIntegration);
+    if (applyFluxCorrection) sim.gridPoisson->Corrector.FillBlockCases(FluxIntegration);
     MPI_Barrier(gridPoisson->getCartComm());
   }
 
