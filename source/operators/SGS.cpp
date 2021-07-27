@@ -20,7 +20,27 @@ struct SGSHelperElement
   // Derivatives of nu_sgs
   Real nu=0, duD=0, dvD=0, dwD=0;
   void clear() { nu=0; duD=0; dvD=0; dwD=0; }
-  SGSHelperElement(const SGSHelperElement& c) = delete;
+  //SGSHelperElement(const SGSHelperElement& c) = delete;
+  static constexpr int DIM = 4;
+  SGSHelperElement &operator+=(const SGSHelperElement &rhs)
+  {
+    this->nu+=rhs.nu;
+    this->duD+=rhs.duD;
+    this->dvD+=rhs.dvD;
+    this->dwD+=rhs.dwD;
+    return *this;
+  }
+  friend SGSHelperElement operator+(SGSHelperElement lhs1, const SGSHelperElement &rhs)
+  {
+      return (lhs1 += rhs);
+  }
+  Real & member(int i)
+  {
+    if (i==0) return nu;
+    if (i==1) return duD;
+    if (i==2) return dvD;
+    return dwD;
+  }
 };
 
 using SGSBlock   = BaseBlock<SGSHelperElement>;
