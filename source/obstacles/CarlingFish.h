@@ -17,8 +17,6 @@ class CarlingFishMidlineData;
 
 class CarlingFish: public Fish
 {
-  CarlingFishMidlineData* readHingeParams(cubism::ArgumentParser&p);
-  CarlingFishMidlineData* readBurstCoastParams(cubism::ArgumentParser&p);
  public:
   CarlingFish(SimulationData&s, cubism::ArgumentParser&p);
 

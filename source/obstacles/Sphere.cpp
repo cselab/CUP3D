@@ -126,7 +126,7 @@ Sphere::Sphere(
 
 void Sphere::create()
 {
-  const Real h = sim.maxH();
+  const Real h = sim.hmin;
   if(bHemi) {
     const HemiSphereObstacle::FillBlocks K(radius, h, position);
     create_base<HemiSphereObstacle::FillBlocks>(K);

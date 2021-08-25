@@ -133,7 +133,7 @@ void Cylinder::_init(void)
 
 void Cylinder::create()
 {
-  const Real h = sim.maxH();
+  const Real h = sim.hmin;
   if(section == "D")
   {
     const DCylinderObstacle::FillBlocks kernel(radius, halflength, _2Dangle,

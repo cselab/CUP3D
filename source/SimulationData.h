@@ -34,24 +34,15 @@ struct SimulationData
   inline std::vector<cubism::BlockInfo>& vInfo() {
     return grid->getBlocksInfo();
   }
+
   FluidGridMPIPoisson * gridPoisson = nullptr;
   inline std::vector<cubism::BlockInfo>& vInfoPoisson() {
     return gridPoisson->getBlocksInfo();
   }
-  Real maxH() const { return hmax; }
-  Real uniformH() const
-  {
-    if(std::fabs(hmin-hmax) > 1e-15) {
-      printf("WARNING: SimulationData::uniformH used with nonuniform grids.\n");
-      fflush(0);
-    }
-    return hmean;
-  }
 
-  void UpdateHmin()
+  // Utility to update minimal and maximal gridspacing
+  void updateH()
   {
-    hmin = 1e20;
-    hmax = 1e20;
     std::vector<cubism::BlockInfo> & myInfos = grid->getBlocksInfo();
 
     #pragma omp parallel for schedule(static) reduction(min : hmin,hmax)
@@ -64,9 +55,7 @@ struct SimulationData
     Real res [2] = {hmin,hmax};
     MPI_Allreduce(MPI_IN_PLACE, & res, 2, MPI_REAL, MPI_MIN, app_comm);
     hmin  =  res[0];
-    //hmax  = -res[1];
-    hmax  =  hmin;
-    hmean =  hmin;
+    hmax  = -res[1];
   }
 
   AMR * amr;
@@ -94,7 +83,7 @@ struct SimulationData
   Real maxextent = 1;
   std::array<Real, 3> extent = {{1, 0, 0}};  // Uniform grid by default.
   bool bImplicitPenalization = true;
-  Real hmin=0, hmax=0, hmean=0;
+  Real hmin=0, hmax=0;
   int levelMax,levelStart;
   double Rtol,Ctol;
 

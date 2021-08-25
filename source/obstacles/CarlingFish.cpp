@@ -53,16 +53,6 @@ class CarlingFishMidlineData : public FishMidlineData
     return 2.0*M_PI*(s/(waveLength*length) - t/Tperiod + phaseShift);
   }
 
-  // This needed only during burstCoast
-  std::pair<double, double> cubicHermite(const double f1, const double f2, const double x)
-  {
-    const double a =  2*(f1-f2);
-    const double b = -3*(f1-f2);
-    const double retVal = a*x*x*x + b*x*x + f1;
-    const double deriv = 3*a*x*x + 2*b*x;
-    return std::make_pair(retVal, deriv);
-  }
-
  public:
   // L=length, T=period, phi=phase shift, _h=grid size, A=amplitude modulation
   CarlingFishMidlineData(double L, double T, double phi, double _h, double A) :
@@ -106,8 +96,6 @@ class CarlingFishMidlineData : public FishMidlineData
   }
 };
 
-#include "extra/CarlingFish_extra.h"
-
 void CarlingFishMidlineData::computeMidline(const double t,const double dt)
 {
   if(quadraticAmplitude) _computeMidlinePosVel<true >(t);
@@ -132,21 +120,9 @@ CarlingFish::CarlingFish(SimulationData&s, ArgumentParser&p) : Fish(s, p)
   // _ampFac=0.0 for towed fish :
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   const bool bQuadratic = p("-bQuadratic").asBool(false);
-  const bool bBurst = p("-BurstCoast").asBool(false);
-  const bool bHinge = p("-HingedFin").asBool(false);
-  if(bBurst && bHinge) {
-    printf("Pick either hinge or burst and coast!\n"); fflush(0);
-    MPI_Abort(MPI_COMM_WORLD,1);
-  }
-  if(bBurst || bHinge) printf("WARNING: UNTESTED!!!\n");
 
-  CarlingFishMidlineData* localFish = nullptr; //could be class var if needed
-  if(bBurst) localFish = readBurstCoastParams(p);
-  else
-  if(bHinge) localFish = readHingeParams(p);
-  else
-  localFish = new CarlingFishMidlineData(length, Tperiod, phaseShift,
-    sim.maxH(), ampFac);
+  CarlingFishMidlineData* localFish = new CarlingFishMidlineData(length, Tperiod, phaseShift,
+    sim.hmin, ampFac);
 
   // generic copy for base class:
   assert( myFish == nullptr );

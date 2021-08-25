@@ -259,7 +259,7 @@ void Plate::_init(void)
 
 void Plate::create()
 {
-  const Real h = sim.maxH();
+  const Real h = sim.hmin;
   const PlateFillBlocks K(
       position[0], position[1], position[2],
       nx, ny, nz,

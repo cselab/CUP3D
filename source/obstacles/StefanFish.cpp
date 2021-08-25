@@ -266,7 +266,7 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
 {
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift,
-    sim.maxH(), ampFac);
+    sim.hmin, ampFac);
 
   std::string heightName = p("-heightProfile").asString("baseline");
   std::string  widthName = p( "-widthProfile").asString("baseline");
@@ -401,40 +401,252 @@ void StefanFish::create()
 }
 
 #if 0
-void StefanFish::execute(const int iAgent, const double time, const std::vector<double> act)
+
+void StefanFish::act(const Real t_rlAction, const std::vector<double>& a) const
 {
-  const int nActions = act.size();
-  constexpr double eps = std::numeric_limits<Real>::epsilon();
-  (void)eps;
-
-  assert(std::fabs(std::cos(0.5*_2Dangle)-quaternion[0]) < 1e-6);
-  assert(std::fabs(quaternion[1]) < eps);
-  assert(std::fabs(quaternion[2]) < eps);
-  assert(std::fabs(std::sin(0.5*_2Dangle)-quaternion[3]) < 1e-6);
-
-  myFish->execute(time, sr.t_next_comm, act);
-  sr.old_curv = sr.new_curv;
-  sr.new_curv = act[0];
-  if(nActions>1) {
-      sr.new_Tp = act[1];
-      sr.t_next_comm += .5*myFish->l_Tp;
-  } else if (nActions==1) {
-      sr.t_next_comm += .5*myFish->Tperiod;
-  }
-  sr.resetAverage();
-
-  /*
-  if(!sim.rank) {
-    printf("Next action of agent %d at time %g\n", obstacleID, sr.t_next_comm);
-    ofstream filedrag;
-    filedrag.open(("orders_"+to_string(obstacleID)+".txt").c_str(), ios::app);
-    filedrag<<time<<" "<<act[0];
-    if(nActions==2) filedrag<<" "<<act[1];
-    filedrag<<endl;
-    filedrag.close();
-  }
-  */
+  auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+  if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
+  cFish->execute(sim.time, t_rlAction, a);
 }
+
+double StefanFish::getLearnTPeriod() const
+{
+  auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+  if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
+  return cFish->periodPIDval;
+}
+
+std::vector<double> StefanFish::state() const
+{
+  auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+  if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
+  std::vector<double> S(10,0);
+  S[0] = ( center[0] - origC[0] )/ length;
+  S[1] = ( center[1] - origC[1] )/ length;
+  S[2] = getOrientation();
+  S[3] = getPhase( sim.time );
+  S[4] = getU() * Tperiod / length;
+  S[5] = getV() * Tperiod / length;
+  S[6] = getW() * Tperiod;
+  S[7] = cFish->lastTact;
+  S[8] = cFish->lastCurv;
+  S[9] = cFish->oldrCurv;
+
+  #ifndef STEFANS_SENSORS_STATE
+    return S;
+  #else
+    S.resize(16);
+
+    // Get blocks on this rank
+    const std::vector<cubism::BlockInfo>& myInfo = sim.grid->getBlocksInfo();
+
+    b(ix,iy).u[0];
+    b(ix,iy).s;
+
+    b(ix,iy,iz).u;
+    b(ix,iy,iz).v;
+    b(ix,iy,iz).w;
+    b(ix,iy,iz).p;
+
+    // Get fish skin
+    const auto &DU = myFish->upperSkin, &DL = myFish->lowerSkin;
+
+    //// Sensor Signal on Front of Fish ////
+    ////////////////////////////////////////
+
+    std::array<Real,2> tipShear;
+
+    // get front-point
+    const std::array<Real,2> pFront = {DU.xSurf[0], DU.ySurf[0]};
+
+    // get blockId for this point
+    const int blockIdFront = holdingBlockID(pFront, myInfo);
+
+    if( blockIdFront > 0 )
+    {
+      // get gridspacing and its inverse in block
+      const Real hFront = myInfo[blockIdFront].h_gridpoint, invhFront = 1/hFront;
+
+      // first point of the two skins is the same
+      // normal should be almost the same: take the mean
+      const Real normXfront = (DU.normXSurf[0] + DL.normXSurf[0]) / 2;
+      const Real normYfront = (DU.normYSurf[0] + DL.normYSurf[0]) / 2;
+
+      // compute point for sensor
+      const std::array<Real,2> pFrontSens = {pFront[0] + hFront * normXfront,
+                                        pFront[1] + hFront * normYfront};\
+    }
+
+    // get surface velocity and velocity at sensor
+    const std::array<Real,2> vSensFront = sensVel(pFrontSens, myInfo), vSkinFront = skinVel(pFront, myInfo);
+
+    tipShear[0] = (vSensFront[0] - vSkinFront[0]) * invhFront;
+    tipShear[1] = (vSensFront[1] - vSkinFront[1]) * invhFront;
+
+    //// Sensor Signal on Side of Fish ////
+    ///////////////////////////////////////
+
+    std::array<Real,2> lowShear, topShear;
+
+    // get index for sensors on the side of head
+    int iHeadSide = 0;
+    for(int i=0; i<myFish->Nm-1; ++i)
+      if( myFish->rS[i] <= 0.04*length && myFish->rS[i+1] > 0.04*length )
+        iHeadSide = i;
+    assert(iHeadSide>0);
+
+    for(int a = 0; a<2; ++a)
+    {
+      // distinguish upper and lower skin
+      const auto& D = a==0 ? myFish->upperSkin : myFish->lowerSkin;
+
+      // get point
+      const std::array<Real,2> pSide = {D.midX[iHeadSide], D.midY[iHeadSide]};
+
+      // get blockId
+      const size_t blockIdSide = holdingBlockID(pSide, velInfo);
+
+      // get gridspacing and its inverse in block
+      const Real hSide = velInfo[blockIdSide].h_gridpoint, invhSide = 1/hSide;
+
+      // get normal to surface
+      const Real normX = D.normXSurf[iHeadSide], normY = D.normYSurf[iHeadSide];
+
+      // compute point at sensor location
+      const std::array<Real,2> pSideSens = {pSide[0] + hSide * normX,
+                                        pSide[1] + hSide * normY};
+
+      // get surface velocity and velocity at sensor
+      const std::array<Real,2> vSens = sensVel(pSideSens, velInfo), vSkin = skinVel(pSide, velInfo);
+
+      // compute shear
+      const Real shearX = (vSens[0] - vSkin[0]) * invhSide;
+      const Real shearY = (vSens[1] - vSkin[1]) * invhSide;
+
+      // now figure out how to rotate it along the fish skin for consistency:
+      const Real dX = D.xSurf[iHeadSide+1] - D.xSurf[iHeadSide];
+      const Real dY = D.ySurf[iHeadSide+1] - D.ySurf[iHeadSide];
+      const Real proj = dX * normX - dY * normY;
+      const Real tangX = proj>0?  normX : -normX; // s.t. tang points from head
+      const Real tangY = proj>0? -normY :  normY; // to tail, normal outward
+      (a==0? topShear[0] : lowShear[0]) = shearX * normX + shearY * normY;
+      (a==0? topShear[1] : lowShear[1]) = shearX * tangX + shearY * tangY;
+    }
+
+    // put non-dimensional results into state into state
+    S[10] = tipShear[0] * Tperiod / length;
+    S[11] = tipShear[1] * Tperiod / length;
+    S[12] = lowShear[0] * Tperiod / length;
+    S[13] = lowShear[1] * Tperiod / length;
+    S[14] = topShear[0] * Tperiod / length;
+    S[15] = topShear[1] * Tperiod / length;
+    // printf("shear tip:[%f %f] lower side:[%f %f] upper side:[%f %f]\n", S[10],S[11], S[12],S[13], S[14],S[15]);
+    // fflush(0);
+    return S;
+  #endif
+}
+
+/* helpers to compute sensor information */
+
+// function that finds block id of block containing pos (x,y)
+int StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const
+{
+  for(int i=0; i<velInfo.size(); ++i)
+  {
+    // get gridspacing in block
+    const Real h = velInfo[i].h_gridpoint;
+
+    // compute lower left corner of block
+    std::array<Real,2> MIN = velInfo[i].pos<Real>(0, 0);
+    for(int j=0; j<2; ++j)
+      MIN[j] -= 0.5 * h; // pos returns cell centers
+
+    // compute top right corner of block
+    std::array<Real,2> MAX = velInfo[i].pos<Real>(VectorBlock::sizeX-1, VectorBlock::sizeY-1);
+    for(int j=0; j<2; ++j)
+      MAX[j] += 0.5 * h; // pos returns cell centers
+
+    // check whether point is inside block
+    if( pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] && pos[1] <= MAX[1] )
+    {
+      // select obstacle block
+      if(obstacleBlocks[i] != nullptr ){
+        return i;
+      }
+    }
+  }
+  // -1 is placeholder for not-finding the block on this rank
+  return -1;
+};
+
+// function that gives indice of point in block
+std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const
+{
+  const int indx = (int) std::round((pos[0] - org[0])*invh);
+  const int indy = (int) std::round((pos[1] - org[1])*invh);
+  const int ix = std::min( std::max(0, indx), VectorBlock::sizeX-1);
+  const int iy = std::min( std::max(0, indy), VectorBlock::sizeY-1);
+  return std::array<int, 2>{{ix, iy}};
+};
+
+// return fish velocity at a point on the fish skin:
+std::array<Real, 2> StefanFish::skinVel(const std::array<Real,2> pSkin, const std::vector<cubism::BlockInfo>& velInfo) const
+{
+  // get blockId for pSkin
+  const size_t blockId = holdingBlockID(pSkin, velInfo);
+
+  // get block
+  const auto& skinBinfo = velInfo[blockId];
+
+  // get origin of block
+  const std::array<Real,2> oSkin = skinBinfo.pos<Real>(0, 0);
+
+  // get inverse gridspacing on this block
+  const Real invh = 1/velInfo[blockId].h_gridpoint;
+
+  // get index of point in block
+  const std::array<int,2> iSkin = safeIdInBlock(pSkin, oSkin, invh);
+
+  //printf("skin pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
+  //  pSkin[0], pSkin[1], oSkin[0], oSkin[1], iSkin[0], iSkin[1]);
+
+  // get deformation velocity
+  const Real* const udef = obstacleBlocks[skinBinfo.blockID]->udef[iSkin[1]][iSkin[0]];
+
+  // compute velocity of skin point
+  const Real uSkin = u - omega * (pSkin[1]-centerOfMass[1]) + udef[0];
+  const Real vSkin = v + omega * (pSkin[0]-centerOfMass[0]) + udef[1];
+
+  return std::array<Real, 2>{{uSkin, vSkin}};
+};
+
+// return flow velocity at point of flow sensor:
+std::array<Real, 2> StefanFish::sensVel(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const
+{
+  // get blockId
+  const size_t blockId = holdingBlockID(pSens, velInfo);
+
+  // get block
+  const auto& sensBinfo = velInfo[blockId];
+
+  // get origin of block
+  const std::array<Real,2> oSens = sensBinfo.pos<Real>(0, 0);
+
+  // get inverse gridspacing in block
+  const Real invh = 1/velInfo[blockId].h_gridpoint;
+
+  // get index for sensor
+  const std::array<int,2> iSens = safeIdInBlock(pSens, oSens, invh);
+
+  //printf("sensor pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
+  //  pSens[0], pSens[1], oSens[0], oSens[1], iSens[0], iSens[1]);
+
+  // get velocity field at point
+  const VectorBlock& b = * (const VectorBlock*) sensBinfo.ptrBlock;
+
+  return std::array<Real, 2>{{b(iSens[0], iSens[1]).u[0],
+                              b(iSens[0], iSens[1]).u[1]}};
+};
 
 #endif
 

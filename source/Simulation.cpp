@@ -73,7 +73,7 @@ void Simulation::_init(const bool restart,ArgumentParser & parser)
 
   for (int l = 0 ; l < sim.levelMax ; l++)
   {
-    sim.UpdateHmin();
+    sim.updateH();
     sim.obstacle_vector = new ObstacleVector(sim);
     ObstacleFactory(sim).addObstacles(parser);
     (*sim.pipeline[1])(0);
@@ -195,7 +195,7 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
   //Refine/compress only according to chi field for now
   sim.amr = new AMR( *(sim.grid),sim.Rtol,sim.Ctol);
   sim.amr2 = new AMR2( *(sim.gridPoisson),sim.Rtol,sim.Ctol);
-  sim.UpdateHmin();
+  sim.updateH();
 
   const std::vector<BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel for schedule(static)
@@ -268,7 +268,7 @@ void Simulation::setupOperators(ArgumentParser & parser)
 double Simulation::calcMaxTimestep()
 {
   const double dt_old = sim.dt;
-  sim.UpdateHmin();
+  sim.updateH();
   const double hMin = sim.hmin;
   double CFL = sim.CFL;
   sim.uMax_measured = findMaxU(sim);

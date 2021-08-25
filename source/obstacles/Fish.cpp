@@ -32,8 +32,7 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
     isSelfPropelled = true;
 
   bCorrectPosition = p("-bCorrectPosition").asBool(false);
-  const double hh = 0.5*sim.maxH();
-  position[2] = p("-zpos").asDouble(sim.extent[2]/2 + hh);
+  position[2] = p("-zpos").asDouble(sim.extent[2]/2);
 
   bHasSkin = true;
 
@@ -134,7 +133,7 @@ std::vector<VolumeSegment_OBB> Fish::prepare_vSegments()
       bbox[2][1] = std::max(bbox[2][1], maxZ);
     }
 
-    vSegments[i].prepare(std::make_pair(idx,nextidx), bbox, sim.maxH());
+    vSegments[i].prepare(std::make_pair(idx,nextidx), bbox, sim.hmin);
     vSegments[i].changeToComputationalFrame(position,quaternion);
   }
   return vSegments;

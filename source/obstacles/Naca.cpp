@@ -116,7 +116,7 @@ Naca::Naca(SimulationData&s, ArgumentParser&p) : Fish(s, p)
     Ppitch, Mpitch, Fheave, Aheave);
   bBlockRotation[0] = true;
   bBlockRotation[1] = true;
-  myFish = new NacaMidlineData(length, sim.maxH(), sim.extent[2], thickness);
+  myFish = new NacaMidlineData(length, sim.hmin, sim.extent[2], thickness);
 }
 
 void Naca::update()

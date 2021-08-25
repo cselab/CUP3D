@@ -328,7 +328,7 @@ Ellipsoid::Ellipsoid(SimulationData& s, ArgumentParser& p)
 
 void Ellipsoid::create()
 {
-  const Real h = sim.maxH();
+  const Real h = sim.hmin;
   const EllipsoidObstacle::FillBlocks K(e0,e1,e2, h, position, quaternion);
 
   create_base<EllipsoidObstacle::FillBlocks>(K);
