@@ -33,3 +33,6 @@ __pycache__
 /utils/
 
 /launch/test.sh
+
+../makefiles/cup.libs.txt
+../makefiles/cup.cflags.txt
