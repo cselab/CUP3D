@@ -147,18 +147,28 @@ VPATH := $(VPATH):$(SRC_DIR):$(CUBISM_DIR)
 ALLOBJ := $(sort $(EXEOBJ) $(LIBOBJ) $(NVOBJECTS))  # `sort` removes duplicates.
 DEPS := $(ALLOBJ:%.o=%.d)
 
-.DEFAULT_GOAL := ../bin/simulation
+all: ../bin/simulation libcup.a cup.cflags.txt cup.libs.txt
+.DEFAULT : all
 
+# COMPILATION INSTRUCTIONS FOR APPLICATION AND LIBRARY
 ../bin/simulation: $(EXEOBJ) $(NVOBJECTS)
 	mkdir -p ../bin
 	$(LD) $(EXEOBJ) $(NVOBJECTS) $(LDFLAGS) $(LIBS) -o $@
 
--include $(DEPS)
+libcup.a: $(OBJECTS)
+	ar rcs $@ $(OBJECTS)
 
+cup.cflags.txt:
+	echo $(CPPFLAGS) > cup.cflags.txt
+
+cup.libs.txt:
+	echo $(LIBS) > cup.libs.txt
+
+# COMPILATION INSTRUCTIONS FOR OBJECT FILES
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 
-
+# COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
 	rm -f $(EXEOBJ) $(LIBOBJ)
 	rm -f $(DEPS) *.d *.o
@@ -167,6 +177,7 @@ clean:
 	rmdir ../bin 2> /dev/null || true
 	rmdir ../lib 2> /dev/null || true
 
+# WARN USER FOR NOT USING PRODUCTION FLAGS
 ifeq "$(config)" "prod"
 else
 	#RED='\033[0;31m'
