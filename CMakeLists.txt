@@ -83,9 +83,7 @@ include("${ROOT_DIR}/cmake/Dependencies.cmake")
 set(COMMON_SOURCES           # Common for app and lib.
     "${SRC_DIR}/obstacles/CarlingFish.cpp"
     "${SRC_DIR}/obstacles/Cylinder.cpp"
-    # "${SRC_DIR}/obstacles/ElasticFish.cpp"
     "${SRC_DIR}/obstacles/Ellipsoid.cpp"
-    "${SRC_DIR}/obstacles/ExternalObstacle.cpp"
     "${SRC_DIR}/obstacles/Fish.cpp"
     "${SRC_DIR}/obstacles/FishLibrary.cpp"
     "${SRC_DIR}/obstacles/FishShapes.cpp"

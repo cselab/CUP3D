@@ -99,7 +99,7 @@ SRC_DIR = $(sort $(dir $(wildcard $(BUILDDIR)/../source/*/)))
 CUBISM_DIR = $(BUILDDIR)/../Cubism/src/
 
 OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
-	Fish.o StefanFish.o CarlingFish.o Sphere.o Plate.o ExternalObstacle.o Naca.o \
+	Fish.o StefanFish.o CarlingFish.o Sphere.o Plate.o Naca.o \
 	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o \
 	AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
@@ -108,7 +108,6 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	SGS.o FixedMassFlux_nonUniform.o Analysis.o \
 	ArgumentParser.o \
 	Checkpoint.o PoissonSolverAMR.o
-	#ElasticFishOperator.o # Temporary solution for Cubism .cpp files.
 
 #################################################
 # HDF5
@@ -174,6 +173,7 @@ clean:
 	rm -f $(DEPS) *.d *.o
 	rm -f PoissonSolver*.o PoissonSolver*.d
 	rm -f ../bin/simulation ../lib/libcubismup3d.a rlHIT PoissonSolverScalar*.o
+	rm -f cup.cflags.txt cup.libs.txt libcup.a
 	rmdir ../bin 2> /dev/null || true
 	rmdir ../lib 2> /dev/null || true
 

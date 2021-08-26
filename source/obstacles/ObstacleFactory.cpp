@@ -13,7 +13,6 @@
 #include "CarlingFish.h"
 #include "Cylinder.h"
 #include "Ellipsoid.h"
-#include "ExternalObstacle.h"
 #include "Naca.h"
 #include "Plate.h"
 #include "Sphere.h"
@@ -21,9 +20,6 @@
 
 #include <iostream>
 #include <fstream>
-
-//#include "IF3D_ElasticFishOperator.h"
-//#include "IF3D_CylinderPairOperator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -51,19 +47,6 @@ _createObstacle(SimulationData &sim,
     return std::make_shared<Plate>(sim, lineParser);
   if (objectName == "Ellipsoid")
     return std::make_shared<Ellipsoid>(sim, lineParser);
-
-  /*
-  if (objectName == "ExternalObstacle")
-    return std::make_shared<ExternalObstacle>(sim, lineParser);
-  if (objectName == "ElasticFish")
-    return std::make_shared<ElasticFish>(grid, lineParser, Uinf);
-  if (objectName == "CylinderPair")
-    return std::make_shared<CylinderPair>(grid, lineParser, max_bpd);
-  if (objectName == "Cstart")
-    return std::make_shared<Cstart>(grid, lineParser, max_bpd);
-  if (objectName == "VortexGenerator")
-    return std::make_shared<GenerateVortex>(grid, lineParser, max_bpd);
-   */
 
   if (sim.rank == 0) {
     std::cout << "Case " << objectName << " is not defined: aborting\n" << std::flush;
@@ -134,11 +117,5 @@ void ObstacleFactory::addObstacles(const std::string &factoryContent)
   std::stringstream stream(factoryContent);
   _addObstacles(sim, stream);
 }
-
-void ObstacleFactory::addObstacle(const ObstacleAndExternalArguments &args)
-{
-  sim.obstacle_vector->addObstacle(std::make_shared<ExternalObstacle>(sim, args));
-}
-
 
 CubismUP_3D_NAMESPACE_END

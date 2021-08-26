@@ -15,8 +15,6 @@ namespace cubism { class ArgumentParser; }
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-struct ObstacleAndExternalArguments;  // For ExternalObstacle.
-
 class ObstacleFactory
 {
   SimulationData & sim;
