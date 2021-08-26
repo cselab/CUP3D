@@ -80,16 +80,6 @@ class ObstacleVector : public Obstacle
       //  uInf[0],uInf[1],uInf[2],nSum[0],nSum[1],nSum[2]);
     }
 
-    #ifdef RL_LAYER
-      std::vector<StateReward*> _getData();
-
-      void getFieldOfView(const double lengthscale);
-
-      void execute(const int iAgent, const double time, const std::vector<double> action) override;
-
-      void interpolateOnSkin(const double time, const int step, bool dumpWake=false) override;
-    #endif
-
  protected:
     VectorType obstacles;
 };

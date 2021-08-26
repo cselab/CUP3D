@@ -313,7 +313,7 @@ void Obstacle::computeForces()
   EffPDef    = Pthrust/(Pthrust-std::min(defPower,(double)0)+EPS);
   EffPDefBnd = Pthrust/(Pthrust-         defPowerBnd        +EPS);
 
-  #if defined(CUP_DUMP_SURFACE_BINARY) && !defined(RL_LAYER)
+  #ifdef CUP_DUMP_SURFACE_BINARY
   if (sim.bDump) {
     char buf[500];
     sprintf(buf,"surface_%02d_%07d_rank%03d.raw",obstacleID,sim.step,sim.rank);
@@ -484,9 +484,6 @@ std::array<double,3> Obstacle::getCenterOfMass() const
 void Obstacle::save(std::string filename)
 {
   if(sim.rank!=0) return;
-  #ifdef RL_LAYER
-  sr.save(sim.step,filename);
-  #endif
   std::ofstream savestream;
   savestream.setf(std::ios::scientific);
   savestream.precision(std::numeric_limits<Real>::digits10 + 1);
@@ -506,9 +503,6 @@ void Obstacle::save(std::string filename)
 
 void Obstacle::restart(std::string filename)
 {
-  #ifdef RL_LAYER
-    sr.restart(filename);
-  #endif
   std::ifstream restartstream;
   restartstream.open(filename+".txt");
   if(!restartstream.good()){
@@ -544,31 +538,6 @@ void Obstacle::Accept(ObstacleVisitor * visitor)
 {
  visitor->visit(this);
 }
-
-#ifdef RL_LAYER
-void Obstacle::getSkinsAndPOV(Real& x, Real& y, Real& th,
-  Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
-{
-  printf("Entered the wrong get skin operator\n");
-  fflush(0);
-  abort();
-}
-
-void Obstacle::execute(const int iAgent, const double time, const std::vector<double> action)
-{
-  printf("Entered the wrong execute operator\n");
-  fflush(0);
-  abort();
-}
-
-void Obstacle::interpolateOnSkin(const double time, const int stepID, bool dumpWake)
-{
-  //printf("Entered the wrong interpolate operator\n");
-  //fflush(0);
-  //abort();
-}
-
-#endif
 
 void Obstacle::_writeComputedVelToFile()
 {

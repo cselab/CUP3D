@@ -19,10 +19,6 @@ class CarlingFish: public Fish
 {
  public:
   CarlingFish(SimulationData&s, cubism::ArgumentParser&p);
-
-  #ifdef RL_LAYER
-    void execute(const int i,const double t,const vector<double>a) override;
-  #endif
 };
 
 CubismUP_3D_NAMESPACE_END

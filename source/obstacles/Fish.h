@@ -81,18 +81,6 @@ class Fish: public Obstacle
   };
   MPI_Datatype MPI_BLOCKID;
   MPI_Datatype MPI_OBSTACLE;
-
-  #ifdef RL_LAYER
-    void getSkinsAndPOV(Real& x, Real& y, Real& th, Real*& pXL, Real*& pYL,
-      Real*& pXU, Real*& pYU, int& Npts) override;
-
-    void interpolateOnSkin(const double time, const int stepID, bool dumpWake=false) override;
-  #endif
-  //  void computeVelocities(const Real Uinf[3]) override
-  //  {
-  //    computeVelocities_forced(Uinf);
-  //  }
-  // void setTranslationVelocity(double UT[3]) override  { }
 };
 
 CubismUP_3D_NAMESPACE_END

@@ -508,10 +508,6 @@ void Fish::update()
   angvel_integral[0] += sim.dt * angVel[0];
   angvel_integral[1] += sim.dt * angVel[1];
   angvel_integral[2] += sim.dt * angVel[2];
-  #ifdef RL_LAYER
-  auto P = 2*(myFish->timeshift-myFish->time0/myFish->l_Tp) +myFish->phaseShift;
-  sr.phaseShift = fmod(P,2)<0 ? 2+fmod(P,2) : fmod(P,2);
-  #endif
 }
 
 void Fish::save(std::string filename)
@@ -560,47 +556,5 @@ void Fish::restart(std::string filename)
   std::cout<<"INTERN: "<<theta_internal<<" "<<angvel_internal<<std::endl;
   std::cout<<"2D angle: \t"<<_2Dangle<<std::endl;
 }
-
-#ifdef RL_LAYER
-
-void Fish::getSkinsAndPOV(Real& x, Real& y, Real& th,
-  Real*& pXL, Real*& pYL, Real*& pXU, Real*& pYU, int& Npts)
-{
-  if( std::fabs(quaternion[1])>2e-16 || std::fabs(quaternion[2])>2e-16 ) {
-    printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
-    abort();
-  }
-  x  = position[0];
-  y  = position[1];
-  th  = _2Dangle;
-  pXL = myFish->lowerSkin->xSurf;
-  pYL = myFish->lowerSkin->ySurf;
-  pXU = myFish->upperSkin->xSurf;
-  pYU = myFish->upperSkin->ySurf;
-  Npts = myFish->lowerSkin->Npoints;
-}
-
-void Fish::interpolateOnSkin(bool _dumpWake)
-{
-  if( std::fabs(quaternion[1])>2e-16 || std::fabs(quaternion[2])>2e-16 ) {
-    printf("the fish skin works only if the fish angular velocity is limited to the z axis. Aborting"); fflush(NULL);
-    abort();
-  }
-  sr.updateStepId(stepID+obstacleID);
-  myFish->computeSkinNormals(_2Dangle, CoM_interpolated);
-
-  sr.nearestGridPoints(obstacleBlocks, vInfo, myFish->upperSkin->Npoints-1,
-                myFish->upperSkin->midX,      myFish->upperSkin->midY,
-                myFish->lowerSkin->midX,      myFish->lowerSkin->midY,
-                myFish->upperSkin->normXSurf, myFish->upperSkin->normYSurf,
-                myFish->lowerSkin->normXSurf, myFish->lowerSkin->normYSurf,
-                position[2], vInfo[0].h_gridpoint, grid->getCartComm());
-
-  //  if(sim.rank==0) sr.print(obstacleID, stepID, time);
-
-  //if(_dumpWake && _uInf not_eq nullptr) dumpWake(stepID, time, _uInf);
-}
-
-#endif // RL_LAYER
 
 CubismUP_3D_NAMESPACE_END

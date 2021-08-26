@@ -110,8 +110,7 @@ struct SimulationData
   // sgs
   std::string sgs = "";
   double cs = 0.0;
-  int nAgentsPerBlock = 1;
-  bool sgs_rl = false;
+
   // computed by SGS, for post processing:
   double cs2mean = 0, cs2stdev = 0, nuSgsMean = 0, nuSgsStdev = 0;
   bool bComputeCs2Spectrum = false;

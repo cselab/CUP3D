@@ -71,10 +71,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   cs = parser("-cs").asDouble(0.2);
   bComputeCs2Spectrum = parser("-cs2spectrum").asBool(false);
 
-  // SGS_RL
-  sgs_rl = parser("-sgs_rl").asBool(false);
-  nAgentsPerBlock = parser("-nAgentsPerBlock").asInt(1);
-
+  // SIMULATION PARAMETERS
   lambda = parser("-lambda").asDouble(1e6);
   DLM = parser("-use-dlm").asDouble(0);
   CFL = parser("-CFL").asDouble(.1);

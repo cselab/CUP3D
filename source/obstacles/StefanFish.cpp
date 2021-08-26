@@ -213,9 +213,6 @@ void StefanFish::save(std::string filename)
 
   cFish->curvatureScheduler.save(filename+"_curv");
   cFish->rlBendingScheduler.save(filename+"_control");
-  #ifdef RL_LAYER
-    sr.save(step_id, filename);
-  #endif
 }
 
 void StefanFish::restart(std::string filename)
@@ -280,13 +277,6 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
   //if(bKillAmplitude) myFish->killAmplitude();
 
   if(!sim.rank) printf("%d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
-
-  #ifdef RL_LAYER
-  sr = StateReward(length, Tperiod);
-  sr.parseArguments(p);
-  sr.updateInstant(position[0], absPos[0], position[1], absPos[1],
-                    _2Dangle, transVel[0], transVel[1], angVel[2]);
-  #endif
 }
 
 //static inline Real sgn(const Real val) { return (0 < val) - (val < 0); }
