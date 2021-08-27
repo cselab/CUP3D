@@ -134,9 +134,6 @@ void PoissonSolverAMR::solve()
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
-        const bool cornerx = ( vInfo[i].index[0] == ( (sim.bpdx * (1<<(vInfo[i].level)) -1)/2 ) );
-        const bool cornery = ( vInfo[i].index[1] == ( (sim.bpdy * (1<<(vInfo[i].level)) -1)/2 ) );
-        const bool cornerz = ( vInfo[i].index[2] == ( (sim.bpdz * (1<<(vInfo[i].level)) -1)/2 ) );
         const int m = vInfoPoisson[i].level;
         const long long n = vInfoPoisson[i].Z;
         const BlockInfo & info = grid.getBlockInfoAll(m,n);
@@ -151,8 +148,8 @@ void PoissonSolverAMR::solve()
             x[src_index]         = b(ix,iy,iz).p;
             bPoisson(ix,iy,iz).s = b(ix,iy,iz).p; //this is done because Get_LHS works with zVector
         }
-        if (cornerz && cornery && cornerx)
-          b.tmp[BlockType::sizeZ-1][BlockType::sizeY-1][BlockType::sizeX-1] = 0.0;
+        if (vInfo[i].index[0] == 0 && vInfo[i].index[1] == 0 && vInfo[i].index[2] == 0)
+          b.tmp[0][0][0] = 0.0;
     }
 
 
@@ -265,6 +262,10 @@ void PoissonSolverAMR::solve()
                 std::cout << "  [Poisson solver]: restart at iteration:" << k << 
                              "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
             MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_DOUBLE,MPI_SUM,m_comm);
+            alpha = 1.;
+            omega = 1.;
+            rho_m1 = 1.;
+            beta = rho / (rho_m1+eps) * alpha / (omega+eps) ;
         }
 
         //3. p_i = r_{i-1} + beta*(p_{i-1}-omega *v_{i-1})

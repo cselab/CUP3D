@@ -35,115 +35,6 @@ struct KernelAdvectDiffuse : public Discretization
                               this->getStencilBeg(), this->getStencilEnd(),
                               this->getStencilEnd(), this->getStencilEnd(), false, {FE_U, FE_V, FE_W, FE_P}};
 
-    void applyBCwest(const BlockInfo & I, LabMPI & L) const
-    {
-        if (sim.BCx_flag == wall || sim.BCx_flag == periodic || I.index[0] != 0) return;
-        const Real fadeW = 1 - std::pow(std::max(uInf[0],(Real)0) * norUinf, 2);
-        if (fadeW >= 1) return; // no momentum killing at this boundary
-        for (int ix = loopBeg; ix < 0; ++ix)
-        {
-            const Real fac = std::pow(fadeW, 0 - ix);
-            assert(fac <= 1 && fac >= 0);
-            for (int iz = loopBeg; iz < loopEndZ; ++iz)
-            for (int iy = loopBeg; iy < loopEndY; ++iy)
-            {
-                inp<0>(L,ix,iy,iz) *= fac;
-                inp<1>(L,ix,iy,iz) *= fac;
-                inp<2>(L,ix,iy,iz) *= fac;
-            }
-        }
-    }
-    void applyBCeast(const BlockInfo & I, LabMPI & L) const
-    {
-        if (sim.BCx_flag == wall || sim.BCx_flag == periodic || I.index[0] != (sim.bpdx * (1<<I.level) - 1)) return;
-        const Real fadeE = 1 - std::pow(std::min(uInf[0],(Real)0) * norUinf, 2);
-        if (fadeE >= 1) return; // no momentum killing at this boundary
-        for (int ix = CUP_BLOCK_SIZEX; ix < loopEndX; ++ix)
-        {
-            const Real fac = std::pow(fadeE, ix - CUP_BLOCK_SIZEX + 1);
-            assert(fac <= 1 && fac >= 0);
-            for (int iz = loopBeg; iz < loopEndZ; ++iz)
-            for (int iy = loopBeg; iy < loopEndY; ++iy)
-            {
-                inp<0>(L,ix,iy,iz) *= fac;
-                inp<1>(L,ix,iy,iz) *= fac;
-                inp<2>(L,ix,iy,iz) *= fac;
-            }
-        }
-    }
-    void applyBCsouth(const BlockInfo & I, LabMPI & L) const
-    {
-        if (sim.BCy_flag == wall || sim.BCy_flag == periodic || I.index[1] != 0) return;
-        const Real fadeS = 1 - std::pow(std::max(uInf[1],(Real)0) * norUinf, 2);
-        if (fadeS >= 1) return; // no momentum killing at this boundary
-        for (int iy = loopBeg; iy < 0; ++iy)
-        {
-            const Real fac = std::pow(fadeS, 0 - iy);
-            assert(fac <= 1 && fac >= 0);
-            for (int iz = loopBeg; iz < loopEndZ; ++iz)
-            for (int ix = loopBeg; ix < loopEndX; ++ix)
-            {
-                inp<0>(L,ix,iy,iz) *= fac;
-                inp<1>(L,ix,iy,iz) *= fac;
-                inp<2>(L,ix,iy,iz) *= fac;
-            }
-        }
-    }
-    void applyBCnorth(const BlockInfo & I, LabMPI & L) const
-    {
-        if (sim.BCy_flag == wall || sim.BCy_flag == periodic || I.index[1] != (sim.bpdy*(1<<I.level) - 1)) return;
-        const Real fadeN = 1 - std::pow(std::min(uInf[1],(Real)0) * norUinf, 2);
-        if (fadeN >= 1) return; // no momentum killing at this boundary
-        for (int iy = CUP_BLOCK_SIZEY; iy < loopEndY; ++iy)
-        {
-            const Real fac = std::pow(fadeN, iy - CUP_BLOCK_SIZEY + 1);
-            assert(fac <= 1 && fac >= 0);
-            for (int iz = loopBeg; iz < loopEndZ; ++iz)
-            for (int ix = loopBeg; ix < loopEndX; ++ix)
-            {
-                inp<0>(L,ix,iy,iz) *= fac;
-                inp<1>(L,ix,iy,iz) *= fac;
-                inp<2>(L,ix,iy,iz) *= fac;
-            }
-        }
-    }
-    void applyBCfront(const BlockInfo & I, LabMPI & L) const
-    {
-        if (sim.BCz_flag == wall || sim.BCz_flag == periodic || I.index[2] != 0) return;
-        const Real fadeF = 1 - std::pow(std::max(uInf[2],(Real)0) * norUinf, 2);
-        if (fadeF >= 1) return; // no momentum killing at this boundary
-        for (int iz = loopBeg; iz < 0; ++iz)
-        {
-            const Real fac = std::pow(fadeF, 0 - iz);
-            assert(fac <= 1 && fac >= 0);
-            for (int iy = loopBeg; iy < loopEndY; ++iy)
-            for (int ix = loopBeg; ix < loopEndX; ++ix)
-            {
-                inp<0>(L,ix,iy,iz) *= fac;
-                inp<1>(L,ix,iy,iz) *= fac;
-                inp<2>(L,ix,iy,iz) *= fac;
-            }
-        }
-    }
-    void applyBCback(const BlockInfo & I, LabMPI & L) const
-    {
-        if (sim.BCz_flag == wall || sim.BCz_flag == periodic || I.index[2] != (sim.bpdz*(1<<I.level) - 1)) return;
-        const Real fadeB = 1 - std::pow(std::min(uInf[2],(Real)0) * norUinf, 2);
-        if (fadeB >= 1) return; // no momentum killing at this boundary
-        for (int iz = CUP_BLOCK_SIZEZ; iz < loopEndZ; ++iz)
-        {
-            const Real fac = std::pow(fadeB, iz - CUP_BLOCK_SIZEZ + 1);
-            assert(fac <= 1 && fac >= 0);
-            for (int iy = loopBeg; iy < loopEndY; ++iy)
-            for (int ix = loopBeg; ix < loopEndX; ++ix)
-            {
-                inp<0>(L,ix,iy,iz) *= fac;
-                inp<1>(L,ix,iy,iz) *= fac;
-                inp<2>(L,ix,iy,iz) *= fac;
-            }
-        }
-    }
-
     void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
     {
         const bool Euler = (sim.TimeOrder == 1 || sim.step < sim.step_2nd_start);
@@ -151,12 +42,6 @@ struct KernelAdvectDiffuse : public Discretization
         const Real ih   = 0.5/info.h;
         const Real facA = this->template advectionCoef(dt, info.h);
         const Real facD = this->template diffusionCoef(dt, info.h, mu);
-        applyBCwest (info, lab);
-        applyBCsouth(info, lab);
-        applyBCfront(info, lab);
-        applyBCeast (info, lab);
-        applyBCnorth(info, lab);
-        applyBCback (info, lab);
 
         if (Euler)
         {
@@ -454,8 +339,10 @@ struct UpdateAndCorrectInflow
 
     void operate() const
     {
-        double sumInflow = 0;
-        #pragma omp parallel for schedule(static) reduction(+:sumInflow)
+        // no need for this correction if appropriate U,p BCs are applied
+        //double sumInflow = 0;
+        //#pragma omp parallel for schedule(static) reduction(+:sumInflow)
+        #pragma omp parallel for
         for(size_t i=0; i<vInfo.size(); i++)
         {
             FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
@@ -513,6 +400,8 @@ struct UpdateAndCorrectInflow
                 b(ix,iy,iz).w = b(ix,iy,iz).tmpW;
             }
 
+            // no need for this correction if appropriate U,p BCs are applied
+            /*
             const Real h2 = vInfo[i].h_gridpoint * vInfo[i].h_gridpoint;
             if(isW(vInfo[i]))
                 for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -538,8 +427,11 @@ struct UpdateAndCorrectInflow
                 for (int iy=0; iy<FluidBlock::sizeY; ++iy)
                 for (int ix=0; ix<FluidBlock::sizeX; ++ix)
                     sumInflow += h2*b(ix,iy,FluidBlock::sizeZ-1).w;
+            */
         }
 
+        // no need for this correction if appropriate U,p BCs are applied
+        /*
         MPI_Allreduce(MPI_IN_PLACE, &sumInflow, 1, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
 
         const double nTotX = FluidBlock::sizeX * sim.bpdx * (1<<(sim.levelMax-1))*sim.hmin;
@@ -579,6 +471,7 @@ struct UpdateAndCorrectInflow
             for (int ix=0; ix<FluidBlock::sizeX; ++ix)
                 b(ix,iy,FluidBlock::sizeZ-1).w -= corr;
         }
+        */
     }
 };
 
