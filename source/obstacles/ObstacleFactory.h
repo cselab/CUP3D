@@ -26,9 +26,6 @@ public:
 
   /* Add obstacles specified with a given string. */
   void addObstacles(const std::string &factoryContent);
-
-  /* Helper function for external codes to avoid std::make_shared on their side... */
-  void addObstacle(const ObstacleAndExternalArguments &args);
 };
 
 CubismUP_3D_NAMESPACE_END

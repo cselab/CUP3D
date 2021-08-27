@@ -17,6 +17,7 @@
 #include "Plate.h"
 #include "Sphere.h"
 #include "StefanFish.h"
+#include "ExternalObstacle.h"
 
 #include <iostream>
 #include <fstream>
@@ -47,6 +48,8 @@ _createObstacle(SimulationData &sim,
     return std::make_shared<Plate>(sim, lineParser);
   if (objectName == "Ellipsoid")
     return std::make_shared<Ellipsoid>(sim, lineParser);
+  if (objectName == "ExternalObstacle")
+    return std::make_shared<ExternalObstacle>(sim, lineParser);
 
   if (sim.rank == 0) {
     std::cout << "Case " << objectName << " is not defined: aborting\n" << std::flush;

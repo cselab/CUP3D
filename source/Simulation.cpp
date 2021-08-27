@@ -85,7 +85,7 @@ void Simulation::_init(const bool restart,ArgumentParser & parser)
       else if (sim.icFromH5 != "")
         _icFromH5(sim.icFromH5);
       else
-      _ic();
+        _ic();
       (*sim.pipeline[1])(0);
     }
 
@@ -292,7 +292,7 @@ double Simulation::calcMaxTimestep()
   }
 
   if( sim.dt <= 0 ){
-    printf("dt <= 0. Aborting...\n");
+    fprintf(stderr, "dt <= 0. CFL=%f, hMin=%f, sim.uMax_measured=%f. Aborting...\n", CFL, hMin, sim.uMax_measured);
     fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
   }
 

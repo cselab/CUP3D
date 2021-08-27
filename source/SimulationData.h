@@ -43,17 +43,20 @@ struct SimulationData
   // Utility to update minimal and maximal gridspacing
   void updateH()
   {
+    hmin = std::numeric_limits<Real>::max();
+    hmax = std::numeric_limits<Real>::max();
+
     std::vector<cubism::BlockInfo> & myInfos = grid->getBlocksInfo();
 
     #pragma omp parallel for schedule(static) reduction(min : hmin,hmax)
     for(size_t i=0; i<myInfos.size(); i++)
     {
-      const cubism::BlockInfo & info = myInfos[i];
+      const cubism::BlockInfo &info = myInfos[i];
       hmin = std::min(hmin,  info.h_gridpoint);
       hmax = std::min(hmax, -info.h_gridpoint);
     }
-    Real res [2] = {hmin,hmax};
-    MPI_Allreduce(MPI_IN_PLACE, & res, 2, MPI_REAL, MPI_MIN, app_comm);
+    Real res[2] = {hmin,hmax};
+    MPI_Allreduce(MPI_IN_PLACE, &res, 2, MPI_REAL, MPI_MIN, app_comm);
     hmin  =  res[0];
     hmax  = -res[1];
   }
