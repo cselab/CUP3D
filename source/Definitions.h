@@ -585,6 +585,16 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
             ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
             ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
           );      
+      if (ElementTypeBlock::DIM==8) // (u,v,w)*(nx,ny,nz) = 0
+      for(int iz=s[2]; iz<e[2]; iz++)
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) = (-1.)*cb->Access
+          (
+            ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
+            ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
+            ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
+          ).member(1+dir);      
 
       //tensorial edges and corners also filled
       int aux = coarse ? 2:1;
@@ -612,6 +622,24 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
         }
       }
 
+      if (ElementTypeBlock::DIM==8) // (u,v,w)*(nx,ny,nz) = 0
+      for(int b=0; b<2; ++b)
+      for(int a=0; a<2; ++a)
+      {
+        s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
+        s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
+        e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
+        e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
+        for(int iz=s_[2]; iz<e_[2]; iz++)
+        for(int iy=s_[1]; iy<e_[1]; iy++)
+        for(int ix=s_[0]; ix<e_[0]; ix++)
+        {
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) = dir==0?
+          (-1.)*cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) : (dir==1?
+          (-1.)*cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(1+dir) :
+          (-1.)*cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(1+dir));
+        }
+      }
     }
     else
     {
@@ -643,6 +671,17 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
             ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]);
       }
 
+      if (ElementTypeBlock::DIM==8) // (u,v,w)*(nx,ny,nz) = 0
+      for(int iz=s[2]; iz<e[2]; iz++)
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+      {
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) = (-1.)*cb->Access
+          ( ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
+            ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
+            ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]).member(1+dir);
+      }
+
       //tensorial edges and corners also filled (this is necessary for the coarse block!)
       int aux = coarse ? 2:1;
       const int bsize[3] = {sizeX/aux, sizeY/aux, sizeZ/aux};
@@ -668,6 +707,26 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
           cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]));
         }
       }
+
+      if (ElementTypeBlock::DIM==8) // (u,v,w)*(nx,ny,nz) = 0
+      for(int b=0; b<2; ++b)
+      for(int a=0; a<2; ++a)
+      {
+        s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
+        s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
+        e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
+        e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
+        for(int iz=s_[2]; iz<e_[2]; iz++)
+        for(int iy=s_[1]; iy<e_[1]; iy++)
+        for(int ix=s_[0]; ix<e_[0]; ix++)
+        {
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) = dir==0?
+          (-1.)*cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) : (dir==1?
+          (-1.)*cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(1+dir) :
+          (-1.)*cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(1+dir));
+        }
+      }
+
     }
   }
   template<int dir, int side> void applyBCfaceWall(const bool coarse=false)
