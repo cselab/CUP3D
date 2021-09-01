@@ -27,10 +27,12 @@ public:
   // member function for action in RL
   void act(const Real lTact, const std::vector<double>& a) const;
   double getLearnTPeriod() const;
+  double getPhase(const double t) const;
 
   // member functions for state in RL
   std::vector<double> state() const;
 
+  #if 0 // TODO
   // Helpers for state function
   size_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
 
@@ -39,6 +41,7 @@ public:
   std::array<Real, 2> skinVel(const std::array<Real,2> pSkin, const std::vector<cubism::BlockInfo>& velInfo) const;
 
   std::array<Real, 2> sensVel(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const;
+  #endif
 };
 
 CubismUP_3D_NAMESPACE_END
