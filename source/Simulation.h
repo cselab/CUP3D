@@ -71,7 +71,7 @@ public:
     #pragma omp parallel for schedule(static)
     for (int i = 0; i < (int)vInfo.size(); ++i)
     {
-      const cubism::BlockInfo info = vInfo[i];
+      const cubism::BlockInfo & info = vInfo[i];
       FluidBlock& b = *(FluidBlock*)info.ptrBlock;
       b.clear();
     }
