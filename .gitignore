@@ -34,5 +34,5 @@ __pycache__
 
 /launch/test.sh
 
-../makefiles/cup.libs.txt
-../makefiles/cup.cflags.txt
+/makefiles/cup.libs.txt
+/makefiles/cup.cflags.txt
