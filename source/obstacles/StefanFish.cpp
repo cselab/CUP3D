@@ -390,8 +390,6 @@ void StefanFish::create()
   Fish::create();
 }
 
-#if 0
-
 void StefanFish::act(const Real t_rlAction, const std::vector<double>& a) const
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
@@ -406,25 +404,37 @@ double StefanFish::getLearnTPeriod() const
   return cFish->periodPIDval;
 }
 
+double StefanFish::getPhase(const double t) const
+{
+  auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+  if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
+  const double T0 = cFish->time0;
+  const double Ts = cFish->timeshift;
+  const double Tp = cFish->periodPIDval;
+  const double arg  = 2*M_PI*((t-T0)/Tp +Ts) + M_PI*phaseShift;
+  const double phase = std::fmod(arg, 2*M_PI);
+  return (phase<0) ? 2*M_PI + phase : phase;
+}
+
 std::vector<double> StefanFish::state() const
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
   std::vector<double> S(10,0);
-  S[0] = ( center[0] - origC[0] )/ length;
-  S[1] = ( center[1] - origC[1] )/ length;
-  S[2] = getOrientation();
+  S[0] = ( position[0] - origC[0] )/ length;
+  S[1] = ( position[1] - origC[1] )/ length;
+  S[2] = _2Dangle;
   S[3] = getPhase( sim.time );
-  S[4] = getU() * Tperiod / length;
-  S[5] = getV() * Tperiod / length;
-  S[6] = getW() * Tperiod;
+  S[4] = transVel[0] * Tperiod / length;
+  S[5] = transVel[1] * Tperiod / length;
+  S[6] = angVel[2] * Tperiod;
   S[7] = cFish->lastTact;
   S[8] = cFish->lastCurv;
   S[9] = cFish->oldrCurv;
 
-  #ifndef STEFANS_SENSORS_STATE
+  #if 1
     return S;
-  #else
+  #else // TODO
     S.resize(16);
 
     // Get blocks on this rank
@@ -535,6 +545,8 @@ std::vector<double> StefanFish::state() const
     return S;
   #endif
 }
+
+#if 0 // TODO
 
 /* helpers to compute sensor information */
 

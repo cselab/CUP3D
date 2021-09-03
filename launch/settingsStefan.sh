@@ -1,29 +1,31 @@
 #!/bin/bash
-NNODEX=${NNODEX:-4}
-NNODEY=${NNODEY:-1}
-NNODE=$(($NNODEX * $NNODEY))
+NNODE=64
 DLM=${DLM:-1}
-CFL=${CFL:-0.1}
-LAMBDA=${LAMBDA:-1e4}
+LAMBDA=${LAMBDA:-1e6}
 BPDX=${BPDX:-32}
-BPDY=${BPDY:-$((${BPDX}/2))} #${BPDY:-32}
-BPDZ=${BPDZ:-$((${BPDX}/2))} #${BPDZ:-32}
+BPDY=${BPDY:-8}
+BPDZ=${BPDZ:-8}
+LEVELS=${LEVELS:-5}
+CFL=${CFL:-0.2} # if 0, DT is used
+DT=${DT:-1e-4}
+PT=${PT:-1e-8}
+PTR=${PTR:-1e-4}
+BC=${BC:-dirichlet}
 
-#to compare against Wim's thesis:
-NU=${NU:-0.0004545454545} # Re 550
-#NU=${NU:-0.0000224} # Re 550
-BC=${BC:-freespace}
-#BC=${BC:-dirichlet}
+# L=0.2 stefanfish Re=1'000 <-> NU=0.00004
+NU=${NU:-0.00004}
 
-#FACTORY='CarlingFish L=0.3 T=1 xpos=0.3 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1
-#FACTORY='StefanFish L=0.3 T=1 xpos=0.3 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1
-FACTORY='CarlingFish L=0.5 T=1.0 xpos=0.4 bFixToPlanar=1 bFixFrameOfRef=1 heightProfile=stefan widthProfile=stefan
-'
+FACTORY='StefanFish L=0.2 T=1 xpos=0.3 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1 heightProfile=danio widthProfile=stefan'
 
 OPTIONS=
-OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ} -restart 1"
-OPTIONS+=" -dump2D 1 -dump3D 1 -tdump 0.5 -tend 6 -freqDiagnostics 10 "
-OPTIONS+=" -nslices 2 -slice1_direction 1 -slice2_direction 2 "
-OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC} -iterativePenalization 1"
-OPTIONS+=" -nprocsx ${NNODEX} -nprocsy ${NNODEY} -nprocsz 1"
-OPTIONS+=" -CFL ${CFL} -lambda ${LAMBDA} -use-dlm ${DLM} -nu ${NU}"
+OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
+OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 5"
+OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
+OPTIONS+=" -CFL ${CFL} -dt ${DT} -lambda ${LAMBDA} -use-dlm ${DLM} -nu ${NU}"
+OPTIONS+=" -ImplicitPenalization 1"
+OPTIONS+=" -levelMax ${LEVELS} -levelStart 1 -Rtol 4.00 -Ctol 1.00"
+OPTIONS+=" -extentx 4.0 " # -extentx 2.0
+OPTIONS+=" -TimeOrder 2 "
+OPTIONS+=" -poissonTol ${PT} -poissonTolRel ${PTR} "
+OPTIONS+=" -dumpOmegaX 1 -dumpOmegaY 1 dumpOmegaZ 1"
+OPTIONS+=" -dumpVelocityX 1 -dumpVelocityY 1 -dumpVelocityZ 1"

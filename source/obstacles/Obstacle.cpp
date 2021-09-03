@@ -100,6 +100,11 @@ Obstacle::Obstacle(
   quaternion[3] = args.quaternion[3];
   _2Dangle = args.planarAngle;
 
+  // Store initial location
+  origC[0] = position[0];
+  origC[1] = position[1];
+  origC[2] = position[2];
+
   if (!sim.rank) {
     printf("Obstacle L=%g, pos=[%g %g %g], q=[%g %g %g %g]\n",
            length, position[0], position[1], position[2],
@@ -479,6 +484,23 @@ std::array<double,3> Obstacle::getAngularVelocity() const
 std::array<double,3> Obstacle::getCenterOfMass() const
 {
   return std::array<double,3> {{centerOfMass[0],centerOfMass[1],centerOfMass[2]}};
+}
+
+std::array<double,3> Obstacle::getInitialLocation() const
+{
+  return std::array<double,3> {{origC[0],origC[1],origC[2]}};
+}
+
+void Obstacle::setCenterOfMass( std::array<double,3> &loc )
+{
+  centerOfMass[0] = loc[0];
+  centerOfMass[1] = loc[1];
+  centerOfMass[2] = loc[2];
+}
+
+void Obstacle::setOrientation( double angle )
+{
+  _2Dangle = angle;
 }
 
 void Obstacle::save(std::string filename)
