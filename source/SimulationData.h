@@ -76,6 +76,7 @@ struct SimulationData
   // endTime==0  means that this stopping criteria is not active
   double time=0, endTime=0;
   double dt = 0;
+  double dt_old = 0;
 
   // mpi
   MPI_Comm app_comm;

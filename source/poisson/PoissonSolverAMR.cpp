@@ -158,50 +158,25 @@ void PoissonSolverAMR::solve()
     //3. rho = a = omega = 1.0
     //4. vVector = pVector = 0
 
-    //skip LHS for second order time, as x0 = 0 is the initial guess (x := P^{n+1}-P^{n} for 2nd order time)
     double norm = 0.0; 
-    if (sim.TimeOrder == 1 || sim.step < sim.step_2nd_start)
+    findLHS(0); // AxVector <-- A*x_{0}, x_0 = pressure
+    #pragma omp parallel for reduction (+:norm)
+    for(size_t i=0; i< Nblocks; i++)
     {
-        findLHS(0); // AxVector <-- A*x_{0}, x_0 = pressure
-        #pragma omp parallel for reduction (+:norm)
-        for(size_t i=0; i< Nblocks; i++)
+        const int m = vInfoPoisson[i].level;
+        const long long n = vInfoPoisson[i].Z;
+        const BlockInfo & info = grid.getBlockInfoAll(m,n);
+        BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
+        BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
+        const size_t offset = _offset( vInfoPoisson[i] );
+        for(int iz=0; iz<BlockType::sizeZ; iz++)
+        for(int iy=0; iy<BlockType::sizeY; iy++)
+        for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            const int m = vInfoPoisson[i].level;
-            const long long n = vInfoPoisson[i].Z;
-            const BlockInfo & info = grid.getBlockInfoAll(m,n);
-            BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-            BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
-            const size_t offset = _offset( vInfoPoisson[i] );
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
-            {
-                const size_t src_index = _dest(offset, iz, iy, ix);
-                r[src_index] = b.tmp[iz][iy][ix] - bPoisson(ix,iy,iz).lhs;// bPoisson.LHS[iz][iy][ix];
-                rhat[src_index] = r[src_index];
-                norm+= r[src_index]*r[src_index];
-            }
-        }
-    }
-    else
-    {
-        #pragma omp parallel for reduction (+:norm)
-        for(size_t i=0; i< Nblocks; i++)
-        {
-            const int m = vInfoPoisson[i].level;
-            const long long n = vInfoPoisson[i].Z;
-            const BlockInfo & info = grid.getBlockInfoAll(m,n);
-            BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-            const size_t offset = _offset( vInfoPoisson[i] );
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
-            {
-                const size_t src_index = _dest(offset, iz, iy, ix);
-                r[src_index] = b.tmp[iz][iy][ix];
-                rhat[src_index] = r[src_index];
-                norm+= r[src_index]*r[src_index];
-            }
+            const size_t src_index = _dest(offset, iz, iy, ix);
+            r[src_index] = b.tmp[iz][iy][ix] - bPoisson(ix,iy,iz).lhs;
+            rhat[src_index] = r[src_index];
+            norm+= r[src_index]*r[src_index];
         }
     }
     MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
