@@ -43,8 +43,8 @@ struct SimulationData
   // Utility to update minimal and maximal gridspacing
   void updateH()
   {
-    hmin = std::numeric_limits<Real>::max();
-    hmax = std::numeric_limits<Real>::max();
+    hmin = maxextent;
+    hmax = maxextent;
 
     std::vector<cubism::BlockInfo> & myInfos = grid->getBlocksInfo();
 
