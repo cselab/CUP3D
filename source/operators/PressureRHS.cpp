@@ -18,56 +18,6 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 using CHIMAT =  Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
 
-
-struct KernelRemovePressure
-{
-  typedef typename FluidGridMPI::BlockType BlockType;
-  const SimulationData & sim;
-  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, {FE_P});
-
-  KernelRemovePressure(const SimulationData& s) :sim(s) {}
-
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-  {
-    BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-    const Real fac = (1.0/sim.coefU[0]) * sim.dt * 0.5 / info.h;
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-    {
-      b(ix,iy,iz).u +=  fac * (lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p);
-      b(ix,iy,iz).v +=  fac * (lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p);
-      b(ix,iy,iz).w +=  fac * (lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p);
-    }
-  }
-};
-struct KernelAddPressure
-{
-  typedef typename FluidGridMPI::BlockType BlockType;
-  const SimulationData & sim;
-  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, {FE_P});
-
-  KernelAddPressure(const SimulationData& s) :sim(s) {}
-
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
-  {
-    BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-    const Real fac = (1.0/sim.coefU[0]) * sim.dt * 0.5 / info.h;
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-    {
-      b(ix,iy,iz).u -=  fac * (lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p);
-      b(ix,iy,iz).v -=  fac * (lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p);
-      b(ix,iy,iz).w -=  fac * (lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p);
-    }
-  }
-};
-
 struct KernelDivPressure
 {
   typedef typename FluidGridMPI::BlockType BlockType;
@@ -172,7 +122,7 @@ struct KernelPressureRHS : public ObstacleVisitor
 {
   typedef typename FluidGridMPI::BlockType BlockType;
   SimulationData & sim;
-  const Real dt = (sim.TimeOrder == 1 || sim.step < sim.step_2nd_start) ? sim.dt:(sim.dt/sim.coefU[0]);
+  const Real dt = sim.dt;
   PoissonSolverAMR * const solver = sim.pressureSolver;
   ObstacleVector * const obstacle_vector = sim.obstacle_vector;
   const int nShapes = obstacle_vector->nObstacles();
@@ -439,14 +389,7 @@ void PressureRHS::operator()(const double dt)
 
   sim.pressureSolver->reset();
 
-  //1. Remove grad(P) from (u,v,w)
-  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
-  {
-    const KernelRemovePressure K(sim);
-    compute(K);
-  }
-
-  //2. Compute pRHS
+  //1. Compute pRHS
   {
     const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
     const int nthreads = omp_get_max_threads();
@@ -501,14 +444,11 @@ void PressureRHS::operator()(const double dt)
     }
   }
 
-  ////3. Add div(p_old) to rhs
-  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
+  ////2. Add div(p_old) to rhs
+  if (sim.step> sim.step_2nd_start)
   {
     const KernelDivPressure K(sim);
     compute(K,true);
-  }
-  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
-  {
     const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
     #pragma omp parallel for
     for(size_t i=0; i<vInfo.size(); i++)
@@ -521,12 +461,6 @@ void PressureRHS::operator()(const double dt)
         b.tmp[iz][iy][ix] -= b(ix,iy,iz).tmpU;
       }
     }
-  }
-  //4. Add grad(P) to (u,v,w)
-  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
-  {
-    const KernelAddPressure K(sim);
-    compute(K);
   }
 
   check("PressureRHS");

@@ -20,24 +20,13 @@ class KernelGradP
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P} };
 
-  KernelGradP(double _dt, const std::array<Real, 3> &ext): dt(_dt) {}
+  KernelGradP(double _dt): dt(_dt) {}
 
   ~KernelGradP() {}
 
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-#if 0
-    const Real fac = - 0.5 * dt / info.h_gridpoint;
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-       // p contains the pressure correction after the Poisson solver
-       o(ix,iy,iz).u += fac*(lab(ix+1,iy,iz).p-lab(ix-1,iy,iz).p);
-       o(ix,iy,iz).v += fac*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p);
-       o(ix,iy,iz).w += fac*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p);
-    }
-#else
     const Real fac = -0.5*dt*info.h_gridpoint*info.h_gridpoint;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -47,7 +36,6 @@ class KernelGradP
       o(ix,iy,iz).tmpV = fac*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p);
       o(ix,iy,iz).tmpW = fac*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p);
     }
-#if 1
     BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
     typename BlockType::ElementType * faceXm = nullptr;
     typename BlockType::ElementType * faceXp = nullptr;
@@ -124,8 +112,6 @@ class KernelGradP
         faceZp[ix + FluidBlock::sizeX * iy].tmpW = - fac *(lab(ix,iy,iz+1).p + lab(ix,iy,iz).p);
       }
     }
-#endif
-#endif
   }
 };
 
@@ -141,7 +127,7 @@ void PressureProjection::operator()(const double dt)
 {
   const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
 
-  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start-1)
+  //initial guess phi = 0, i.e. p^{n+1}=p^{n}
   {
     #pragma omp parallel for
     for(size_t i=0; i<vInfo.size(); i++)
@@ -157,10 +143,23 @@ void PressureProjection::operator()(const double dt)
     }
   }
 
+  // solve for phi := p^{n+1}-p^{n}
   pressureSolver->solve();
+  if (sim.step > sim.step_2nd_start) //recover p^{n+1} from phi
+  {
+    #pragma omp parallel for
+    for(size_t i=0; i<vInfo.size(); i++)
+    {
+      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+      for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+        b(ix,iy,iz).p += b.dataOld[iz][iy][ix][3];
+    }
+  }
 
   sim.startProfiler("GradP"); //pressure correction dudt* = - grad P / rho
-  const KernelGradP K( (sim.TimeOrder == 1 || sim.step < sim.step_2nd_start) ? dt:(dt/sim.coefU[0]), sim.extent);
+  const KernelGradP K(dt);
   compute<KernelGradP>(K,true);
 
   #pragma omp parallel for
@@ -178,19 +177,6 @@ void PressureProjection::operator()(const double dt)
     }
   }
   sim.stopProfiler();
-
-  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
-  {
-    #pragma omp parallel for
-    for(size_t i=0; i<vInfo.size(); i++)
-    {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-        b(ix,iy,iz).p += b.dataOld[iz][iy][ix][3];
-    }
-  }
 
   check("PressureProjection");
 }
