@@ -268,6 +268,7 @@ void Simulation::setupOperators(ArgumentParser & parser)
 double Simulation::calcMaxTimestep()
 {
   const double dt_old = sim.dt;
+  sim.dt_old = sim.dt;
   sim.updateH();
   const double hMin = sim.hmin;
   double CFL = sim.CFL;
