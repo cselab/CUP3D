@@ -38,12 +38,12 @@ cat <<EOF >daint_sbatch
 #SBATCH --partition=${PARTITION}
 #SBATCH --constraint=gpu
 #SBATCH --nodes=${NNODE}
-#SBATCH --ntasks-per-node=1
+#SBATCH --ntasks-per-node=12
 #SBATCH --ntasks-per-core=1
-#SBATCH --cpus-per-task=12
+#SBATCH --cpus-per-task=1
 #SBATCH --hint=nomultithread
 
-export OMP_NUM_THREADS=12
+export OMP_NUM_THREADS=1
 
 srun ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
 
