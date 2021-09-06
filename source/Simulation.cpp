@@ -69,6 +69,12 @@ void Simulation::_init(const bool restart, ArgumentParser & parser)
   // Initial Compression of Grid
   for (int l = 0 ; l < sim.levelMax ; l++)
   {
+    if( sim.rank == 0 ) {
+      std::cout << "=======================================================================\n";
+      std::cout << "Initial Refinement of Grid " << l << "/" << sim.levelMax-1 << ".\n";
+      std::cout << "=======================================================================\n";
+    }
+
     // Initalize Obstacles
     sim.updateH();
     sim.obstacle_vector = new ObstacleVector(sim);
