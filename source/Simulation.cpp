@@ -37,10 +37,7 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-std::shared_ptr<Simulation> createSimulation(
-    const MPI_Comm comm,
-    const std::vector<std::string> &argv)
-{
+std::shared_ptr<Simulation> createSimulation(const MPI_Comm comm, const std::vector<std::string> &argv) {
   std::vector<char *> cargv(argv.size() + 1);
   char cmd[] = "prg";
   cargv[0] = cmd;
@@ -51,50 +48,52 @@ std::shared_ptr<Simulation> createSimulation(
   ArgumentParser parser((int)cargv.size(), cargv.data());
   return std::make_shared<Simulation>(comm, parser);
 }
-Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser)
-    : sim(mpicomm, parser)
-{
+
+Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm, parser) {
+  // Make sure given arguments are valid
   sim._preprocessArguments();
 
-  // Grid has to be initialized before slices and obstacles.
+  // Setup Grid
   setupGrid(&parser);
+
+  // Initialize Simulation
   const bool bRestart = parser("-restart").asBool(false);
   _init(bRestart,parser);
 }
 
-const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() const
+void Simulation::_init(const bool restart, ArgumentParser & parser)
 {
-    return sim.obstacle_vector->getObstacleVector();
-}
-
-void Simulation::_init(const bool restart,ArgumentParser & parser)
-{
+  // Setup Computational Pipeline
   setupOperators(parser);
 
+  // Initial Compression of Grid
   for (int l = 0 ; l < sim.levelMax ; l++)
   {
+    // Initalize Obstacles
     sim.updateH();
     sim.obstacle_vector = new ObstacleVector(sim);
     ObstacleFactory(sim).addObstacles(parser);
+
+    // CreateObstacles
     (*sim.pipeline[1])(0);
 
-    if (l == 0)
-    {
+    // Initialize Flow Field
+    if( l == 0 ) {
       if (restart)
         _deserialize();
       else if (sim.icFromH5 != "")
         _icFromH5(sim.icFromH5);
       else
         _ic();
-      (*sim.pipeline[1])(0);
     }
 
+    // Compression of Grid
     sim.amr->Tag();
     sim.amr2->TagLike(sim.vInfo());
     sim.amr->Adapt(sim.time,sim.verbose,false);
     sim.amr2->Adapt(sim.time,false,true);
 
-    //After mesh is refined/coarsened the arrays min_pos and max_pos need to change
+    // After mesh is refined/compressed min_pos and max_pos need to change
     const std::vector<BlockInfo>& vInfo = sim.vInfo();
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++) {
@@ -102,12 +101,13 @@ void Simulation::_init(const bool restart,ArgumentParser & parser)
       b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
       b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
     }
-    if (l != sim.levelMax-1)
-    {
+    if (l != sim.levelMax-1) {
       touch();
-      delete sim.obstacle_vector;      
+      delete sim.obstacle_vector;
     }
   }
+
+  // Save Initial Condition to File
   _serialize("init");
 
   assert(sim.obstacle_vector != nullptr);
@@ -121,6 +121,10 @@ void Simulation::_init(const bool restart,ArgumentParser & parser)
   }
 }
 
+const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() const
+{
+    return sim.obstacle_vector->getObstacleVector();
+}
 
 void Simulation::reset()
 {
@@ -166,7 +170,7 @@ void Simulation::_icFromH5(std::string h5File)
 
 void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
 {
-  if(sim.rank==0) printf("Grid of sizes: %f %f %f\n", sim.extent[0],sim.extent[1],sim.extent[2]);
+  // if(sim.rank==0) printf("Grid of sizes: %f %f %f\n", sim.extent[0],sim.extent[1],sim.extent[2]);
   sim.grid = new FluidGridMPI(1, //these arguments are not used in Cubism-AMR
                               1, //these arguments are not used in Cubism-AMR
                               1, //these arguments are not used in Cubism-AMR
@@ -259,9 +263,9 @@ void Simulation::setupOperators(ArgumentParser & parser)
   sim.pipeline.push_back(new Analysis(sim));
   //sim.pipeline.push_back(new ComputeDivergence(sim));
   if(sim.rank==0) {
-    printf("Coordinator/Operator ordering:\n");
+    printf("[CUP3D] Operator ordering:\n");
     for (size_t c=0; c<sim.pipeline.size(); c++)
-      printf("\t%s\n", sim.pipeline[c]->getName().c_str());
+      printf("\t - %s\n", sim.pipeline[c]->getName().c_str());
   }
 }
 
@@ -300,9 +304,10 @@ double Simulation::calcMaxTimestep()
 
   // if DLM>0, adapt lambda such that penal term is independent of time step
   if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
-  if (sim.verbose && sim.statsFreq > 0 && (sim.step + 1) % sim.statsFreq == 0) {
-    printf("maxU:%f minH:%f dt:%e CFL:%e lambda:%e\n",
-      sim.uMax_measured, hMin, sim.dt, CFL, sim.lambda);
+
+  if( sim.rank == 0 ) {
+    std::cout << "=======================================================================\n";
+    printf("[CUP3D] step: %d, time: %f, dt: %.2e, uinf: {%f %f %f}, maxU:%f, minH:%f, CFL:%.2e, lambda:%.2e\n",sim.step,sim.time, sim.dt, sim.uinf[0],sim.uinf[1],sim.uinf[2], sim.uMax_measured, hMin, CFL, sim.lambda);
   }
 
   if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
@@ -413,70 +418,65 @@ void Simulation::run()
 
 bool Simulation::timestep(const double dt)
 {
-    const bool bDumpFreq = (sim.saveFreq>0 && (sim.step+ 1)%sim.saveFreq==0);
-    const bool bDumpTime = (sim.saveTime>0 && (sim.time+dt)>sim.nextSaveTime);
-    if (bDumpTime) sim.nextSaveTime += sim.saveTime;
-    sim.bDump = (bDumpFreq || bDumpTime);
+  const bool bDumpFreq = (sim.saveFreq>0 && (sim.step+ 1)%sim.saveFreq==0);
+  const bool bDumpTime = (sim.saveTime>0 && (sim.time+dt)>sim.nextSaveTime);
+  if (bDumpTime) sim.nextSaveTime += sim.saveTime;
+  sim.bDump = (bDumpFreq || bDumpTime);
 
-    const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
-    for (size_t c=0; c< sim.pipeline.size() ; c++)
-    {
-      (*sim.pipeline[c])(dt);
-    }
-    if (sim.step % 5 == 0 || sim.step < 10)
-    {
-        if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
-        {
-            #pragma omp parallel for
-            for(size_t i=0; i<vInfo.size(); i++)
-            {
-               FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-               for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-               for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-               for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-               {
-                  b(ix,iy,iz).tmpU = b.dataOld[iz][iy][ix][0];
-                  b(ix,iy,iz).tmpV = b.dataOld[iz][iy][ix][1];
-                  b(ix,iy,iz).tmpW = b.dataOld[iz][iy][ix][2];
-               }
-            }
-        }
-        sim.amr->Tag();
-        sim.amr2->TagLike(sim.vInfo());
-        sim.amr->Adapt(sim.time,sim.verbose,false);
-        sim.amr2->Adapt(sim.time,false,true);
-        if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
-        {
-            #pragma omp parallel for
-            for(size_t i=0; i<vInfo.size(); i++)
-            {
-                FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-                for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-                for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-                for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-                {
-                   b.dataOld[iz][iy][ix][0] =  b(ix,iy,iz).tmpU;
-                   b.dataOld[iz][iy][ix][1] =  b(ix,iy,iz).tmpV;
-                   b.dataOld[iz][iy][ix][2] =  b(ix,iy,iz).tmpW;
-                }
-            }
-        }
+  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+  for (size_t c=0; c< sim.pipeline.size() ; c++)
+  {
+    (*sim.pipeline[c])(dt);
+  }
+  if (sim.step % 5 == 0 || sim.step < 10)
+  {
+      if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
+      {
+          #pragma omp parallel for
+          for(size_t i=0; i<vInfo.size(); i++)
+          {
+             FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+             for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+             for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+             for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+             {
+                b(ix,iy,iz).tmpU = b.dataOld[iz][iy][ix][0];
+                b(ix,iy,iz).tmpV = b.dataOld[iz][iy][ix][1];
+                b(ix,iy,iz).tmpW = b.dataOld[iz][iy][ix][2];
+             }
+          }
+      }
+      sim.amr->Tag();
+      sim.amr2->TagLike(sim.vInfo());
+      sim.amr->Adapt(sim.time,sim.verbose,false);
+      sim.amr2->Adapt(sim.time,false,true);
+      if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
+      {
+          #pragma omp parallel for
+          for(size_t i=0; i<vInfo.size(); i++)
+          {
+              FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+              for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+              for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+              for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+              {
+                 b.dataOld[iz][iy][ix][0] =  b(ix,iy,iz).tmpU;
+                 b.dataOld[iz][iy][ix][1] =  b(ix,iy,iz).tmpV;
+                 b.dataOld[iz][iy][ix][2] =  b(ix,iy,iz).tmpW;
+              }
+          }
+      }
 
-        //After mesh is refined/coarsened the arrays min_pos and max_pos need to change.
-        #pragma omp parallel for schedule(static)
-        for(size_t i=0; i<vInfo.size(); i++) {
-          FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-          b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
-          b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
-        }
+      //After mesh is refined/coarsened the arrays min_pos and max_pos need to change.
+      #pragma omp parallel for schedule(static)
+      for(size_t i=0; i<vInfo.size(); i++) {
+        FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+        b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
+        b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
+      }
     }
     sim.step++;
-    sim.time+=dt;
-
-    if (sim.verbose && sim.statsFreq > 0 && sim.step % sim.statsFreq == 0) {
-      printf("%d : %e uInf {%f %f %f}\n",
-             sim.step,sim.time,sim.uinf[0],sim.uinf[1],sim.uinf[2]);
-    }
+    sim.time += dt;
 
     sim.startProfiler("Save");
     if( sim.bDump ) _serialize();

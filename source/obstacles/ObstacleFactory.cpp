@@ -52,7 +52,7 @@ _createObstacle(SimulationData &sim,
     return std::make_shared<ExternalObstacle>(sim, lineParser);
 
   if (sim.rank == 0) {
-    std::cout << "Case " << objectName << " is not defined: aborting\n" << std::flush;
+    std::cout << "[CUP3D] Case " << objectName << " is not defined: aborting\n" << std::flush;
     abort();
   }
 
@@ -64,8 +64,8 @@ _createObstacle(SimulationData &sim,
  */
 static void _addObstacles(SimulationData &sim, std::stringstream &stream)
 {
-  if (sim.rank == 0)
-    printf("Factory content:\n%s\n\n", stream.str().c_str());
+  // if (sim.rank == 0)
+  //   printf("[CUP3D] Factory content:\n%s\n\n", stream.str().c_str());
   // here we store the data per object
   std::vector<std::pair<std::string, FactoryFileLineParser>> factoryLines;
   std::string line;
@@ -78,20 +78,19 @@ static void _addObstacles(SimulationData &sim, std::stringstream &stream)
       factoryLines.emplace_back(ID, FactoryFileLineParser(line_stream));
   }
   if (factoryLines.empty()) {
-    if (sim.rank == 0)
-      std::cout << "OBSTACLE FACTORY did not create any obstacles.\n";
+    if (sim.rank == 0 )
+      std::cout << "[CUP3D] OBSTACLE FACTORY did not create any obstacles.\n";
     return;
   }
-  if (sim.rank == 0) {
+  if (sim.rank == 0 ) {
     std::cout << "-------------   OBSTACLE FACTORY : START ("
               << factoryLines.size() << " objects)   ------------\n";
   }
 
-  for (auto & l : factoryLines)
+  for (auto & l : factoryLines) {
     sim.obstacle_vector->addObstacle(_createObstacle(sim, l.first, l.second));
-
-  if (sim.rank == 0)
-    std::cout << "-------------   OBSTACLE FACTORY : END   ------------" << std::endl;
+    if( sim.rank == 0 ) std::cout << "--------------------------------------------------------------------" << std::endl;
+  }
 }
 
 void ObstacleFactory::addObstacles(cubism::ArgumentParser &parser)

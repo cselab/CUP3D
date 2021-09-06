@@ -440,18 +440,19 @@ void Obstacle::update()
     //printf("Discrepancy in angvel from quaternions: %f (%f %f)\n",
     //  err, (_2Dangle-old2DA)/dt, angVel[2]);
 
-  #ifndef NDEBUG
   if(sim.rank==0)
   {
-    #ifdef CUP_VERBOSE
-     printf("POSITION INFO AFTER UPDATE T, DT: %lf %lf\n", sim.time, sim.dt);
-     printf("POS: %lf %lf %lf\n", position[0], position[1], position[2]);
-     printf("TVL: %lf %lf %lf\n", transVel[0], transVel[1], transVel[2]);
-     printf("QUT: %lf %lf %lf %lf\n", quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
-     printf("AVL: %lf %lf %lf\n", angVel[0], angVel[1], angVel[2]);
-     fflush(stdout);
-    #endif
+    // #ifdef CUP_VERBOSE
+     // printf("POSITION INFO AFTER UPDATE T, DT: %lf %lf\n", sim.time, sim.dt);
+     printf("POS: [%.2f %.2f %.2f], ANG: %.2f, ", position[0], position[1], position[2], _2Dangle);
+     printf("VEL: [%.2f %.2f %.2f], ANGVEL: %.2f, ", transVel[0], transVel[1], transVel[2],angVel[2]);
+     printf("M: %.2e, J: %.2e \n", penalM, penalJ[2]);
+     // printf("QUT: %lf %lf %lf %lf\n", quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
+     // printf("AVL: %lf %lf %lf\n", angVel[0], angVel[1], angVel[2]);
+     // fflush(stdout);
+    // #endif
   }
+  #ifndef NDEBUG
   const double q_length=std::sqrt(quaternion[0]*quaternion[0]
         +  quaternion[1]*quaternion[1]
         +  quaternion[2]*quaternion[2]

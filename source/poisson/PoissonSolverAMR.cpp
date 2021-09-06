@@ -375,7 +375,7 @@ void PoissonSolverAMR::solve()
         if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > iter_min )
         {
             if (m_rank==0)
-                std::cout <<  "Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << std::endl;
+                std::cout <<  "  [Poisson solver]: Converged after " <<  k << " iterations. Error norm = " << norm << std::endl;
             break;
         }
 
