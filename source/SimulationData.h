@@ -126,6 +126,9 @@ struct SimulationData
   double analysisTime=0, nextAnalysisTime=0;
   double grad_mean = 0, grad_std=0;
 
+  // indicator for collision
+  bool bCollision = false;
+
   // time stepping
   // if step < step_2nd_start, explicit Euler steps are performed
   //(used to initialize u_{n-1} and u_n that are needed for 2nd order timestep)

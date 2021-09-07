@@ -686,6 +686,9 @@ void Penalization::preventCollidingObstacles() const
             continue; // then both objects i and j collided, but not with each other!
         }
 
+        // A collision happened!
+        sim.bCollision = true;
+
         const bool iForcedX = shapes[i]->bForcedInSimFrame[0];
         const bool iForcedY = shapes[i]->bForcedInSimFrame[1];
         const bool iForcedZ = shapes[i]->bForcedInSimFrame[2];
