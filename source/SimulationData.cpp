@@ -81,7 +81,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   uinf[2] = parser("-uinfz").asDouble(0.0);
 
   // OUTPUT
-  verbose = parser("-verbose").asBool(true) && rank == 0;
+  verbose = parser("-verbose").asBool(false) && rank == 0;
   statsFreq = parser("-stats-freq").asInt(1);
 
   // ANALYSIS
@@ -162,7 +162,8 @@ void SimulationData::_preprocessArguments()
   }
   else
   {
-    abort();
+    fprintf(stderr, "Invalid extent: %f x %f x %f\n", extent[0], extent[1], extent[2]);
+    fflush(0); abort();
   }
   assert(nu >= 0);
   assert(lambda > 0 || DLM > 0);
