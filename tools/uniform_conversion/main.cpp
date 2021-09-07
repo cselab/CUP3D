@@ -249,13 +249,13 @@ void convert_to_uniform(std::string filename)
     H5Pclose(fapl_id);
     fapl_id = H5Pcreate(H5P_DATASET_XFER);
 
-    hsize_t chunk_dims[3];
-    chunk_dims[0] = 8;   
-    chunk_dims[1] = 8;   
-    chunk_dims[2] = 8;   
-    hid_t memspace  = H5Screate_simple(3, chunk_dims, NULL); 
-    H5Pset_chunk(fapl_id, 3, chunk_dims);
-    H5Sclose(memspace);
+    //hsize_t chunk_dims[3];
+    //chunk_dims[0] = 8;   
+    //chunk_dims[1] = 8;   
+    //chunk_dims[2] = 8;   
+    //hid_t memspace  = H5Screate_simple(3, chunk_dims, NULL); 
+    //H5Pset_chunk(fapl_id, 3, chunk_dims);
+    //H5Sclose(memspace);
 
     H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
     hsize_t dims[3]  = { (hsize_t)points[2],(hsize_t)points[1],(hsize_t)points[0] };
