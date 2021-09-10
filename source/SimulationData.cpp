@@ -19,95 +19,72 @@ using namespace cubism;
 
 SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_comm(mpicomm)
 {
+  // Initialize MPI related variables
   MPI_Comm_rank(app_comm, &rank);
   MPI_Comm_size(app_comm, &nprocs);
 
+  // Print parser content
   if (rank == 0) parser.print_args();
 
-  // ========== SIMULATION ==========
-  // GRID
+  // ========== PARSE ARGUMENTS ==========
+  // BLOCKS PER DIMENSION
   bpdx = parser("-bpdx").asInt();
   bpdy = parser("-bpdy").asInt();
   bpdz = parser("-bpdz").asInt();
-  levelMax = parser("-levelMax").asInt(1);
-  levelStart = parser("-levelStart").asInt(levelMax-1);
-  Rtol = parser("-Rtol").asDouble(1.0);
-  Ctol = parser("-Ctol").asDouble(0.1);
 
+  // AMR SETTINGS
+  levelMax = parser("-levelMax").asInt();
+  levelStart = parser("-levelStart").asInt(levelMax-1);
+  Rtol = parser("-Rtol").asDouble();
+  Ctol = parser("-Ctol").asDouble();
+
+  // SIMULATION DOMAIN
   extent[0] = parser("extentx").asDouble(1);
   extent[1] = parser("extenty").asDouble(0);
   extent[2] = parser("extentz").asDouble(0);
+
+  // SPEED OF FRAME OF REFERENCE
+  uinf[0] = parser("-uinfx").asDouble(0.0);
+  uinf[1] = parser("-uinfy").asDouble(0.0);
+  uinf[2] = parser("-uinfz").asDouble(0.0);
+
+  // TIMESTEPPING
+  CFL = parser("-CFL").asDouble(.1);
+  dt = parser("-dt").asDouble(0);
+  rampup = parser("-rampup").asInt(100); // number of dt ramp-up steps
+  nsteps = parser("-nsteps").asInt(0);    // 0 to disable this stopping critera.
+  endTime = parser("-tend").asDouble(0);  // 0 to disable this stopping critera.
+  TimeOrder = parser("-TimeOrder").asInt(1);   // order of accuracy of timestepping
+  assert (TimeOrder == 1 || TimeOrder == 2);
+  step_2nd_start = 2;
 
   // FLOW
   nu = parser("-nu").asDouble();
 
   // IC
   initCond = parser("-initCond").asString("zero");
-  spectralIC = parser("-spectralIC").asString("");
-  k0 = parser("-k0").asDouble(10.0);
-  tke0 = parser("-tke0").asDouble(1.0);
   icFromH5 = parser("-icFromH5").asString("");
 
-  // FORCING HIT=
-  turbKinEn_target = parser("-turbKinEn_target").asDouble(0);
-  enInjectionRate = parser("-energyInjectionRate").asDouble(0);
-  const bool bSpectralForcingHint = turbKinEn_target>0 || enInjectionRate>0;
-  spectralForcing = parser("-spectralForcing").asBool(bSpectralForcingHint);
-  if(turbKinEn_target>0 && enInjectionRate>0) {
-    fprintf(stderr,"ERROR: either constant energy injection rate "
-                   "or forcing to fixed energy target\n");
-    fflush(0); abort();
-  }
-
-  // PIPELINE && FORCING
-  freqDiagnostics = parser("-freqDiagnostics").asInt(100);
-  bImplicitPenalization = parser("-implicitPenalization").asBool(false);
-  bChannelFixedMassFlux = parser("-channelFixedMassFlux").asBool(false);
-
+  // SPEED FOR CHANNEL FLOW
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
+
+  // PENALIZATION
+  bImplicitPenalization = parser("-implicitPenalization").asBool(false);
+  lambda = parser("-lambda").asDouble(1e6);
+  DLM = parser("-use-dlm").asDouble(0);
+
+  // DISSIPATION DIAGNOSTIC
+  freqDiagnostics = parser("-freqDiagnostics").asInt(100);
 
   // SGS
   sgs = parser("-sgs").asString("");
   cs = parser("-cs").asDouble(0.2);
   bComputeCs2Spectrum = parser("-cs2spectrum").asBool(false);
 
-  // SIMULATION PARAMETERS
-  lambda = parser("-lambda").asDouble(1e6);
-  DLM = parser("-use-dlm").asDouble(0);
-  CFL = parser("-CFL").asDouble(.1);
-  dt = parser("-dt").asDouble(0);
-  uinf[0] = parser("-uinfx").asDouble(0.0);
-  uinf[1] = parser("-uinfy").asDouble(0.0);
-  uinf[2] = parser("-uinfz").asDouble(0.0);
+  // POISSON SOLVER
+  PoissonErrorTol = parser("-poissonTol").asDouble(1e-6); // absolute error
+  PoissonErrorTolRel = parser("-poissonTolRel").asDouble(1e-4); // relative error
 
-  // OUTPUT
-  verbose = parser("-verbose").asBool(false) && rank == 0;
-  statsFreq = parser("-stats-freq").asInt(1);
-
-  // ANALYSIS
-  analysis = parser("-analysis").asString("");
-  timeAnalysis = parser("-tAnalysis").asDouble(0.0);
-  freqAnalysis = parser("-fAnalysis").asInt(0);
-
-  int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
-  double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
-  saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
-  saveTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
-  rampup = parser("-rampup").asInt(100); // number of dt ramp-up steps
-  PoissonErrorTol = parser("-poissonTol").asDouble(1e-6); // absolute error tolerance for poisson eq.
-  PoissonErrorTolRel = parser("-poissonTolRel").asDouble(1e-4); // relative error tolerance for poisson eq.
-
-  nsteps = parser("-nsteps").asInt(0);    // 0 to disable this stopping critera.
-  endTime = parser("-tend").asDouble(0);  // 0 to disable this stopping critera.
-
-  // TEMP: Removed distinction saving-dumping. Backward compatibility:
-  if (saveFreq <= 0 && dumpFreq > 0) saveFreq = dumpFreq;
-  if (saveTime <= 0 && dumpTime > 0) saveTime = dumpTime;
-
-  path4serialization = parser("-serialization").asString("./");
-
-  // INITIALIZATION: Mostly unused
-  useSolver = parser("-useSolver").asString("");
   // BOUNDARY CONDITIONS
   // accepted dirichlet, periodic, freespace/unbounded, fakeOpen
   std::string BC_x = parser("-BC_x").asString("dirichlet");
@@ -117,12 +94,20 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   BCy_flag = string2BCflag(BC_y);
   BCz_flag = string2BCflag(BC_z);
 
-  // order of accuracy of timestepping
-  TimeOrder = parser("-TimeOrder").asInt(1);
-  assert (TimeOrder == 1 || TimeOrder == 2);
-  step_2nd_start = 2;
+  // OUTPUT
+  verbose = parser("-verbose").asBool(false) && rank == 0;
+  statsFreq = parser("-stats-freq").asInt(1);
+  int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
+  double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
+  saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
+  saveTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
 
-  //Dumping
+  // TEMP: Removed distinction saving-dumping. Backward compatibility:
+  if (saveFreq <= 0 && dumpFreq > 0) saveFreq = dumpFreq;
+  if (saveTime <= 0 && dumpTime > 0) saveTime = dumpTime;
+  path4serialization = parser("-serialization").asString("./");
+
+  // Dumping
   dumpChi = parser("-dumpChi").asBool(true);
   dumpOmega = parser("-dumpOmega").asBool(true);
   dumpP = parser("-dumpP").asBool(false);
@@ -133,8 +118,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   dumpVelocityX = parser("-dumpVelocityX").asBool(false);
   dumpVelocityY = parser("-dumpVelocityY").asBool(false);
   dumpVelocityZ = parser("-dumpVelocityZ").asBool(false);
-
-  // ============ REST =============
 }
 
 void SimulationData::_preprocessArguments()
@@ -165,6 +148,8 @@ void SimulationData::_preprocessArguments()
     fprintf(stderr, "Invalid extent: %f x %f x %f\n", extent[0], extent[1], extent[2]);
     fflush(0); abort();
   }
+  hmin = extent[0] / NFE[0];
+  hmax = extent[0] * aux / NFE[0];
   assert(nu >= 0);
   assert(lambda > 0 || DLM > 0);
   assert(saveFreq >= 0.0);

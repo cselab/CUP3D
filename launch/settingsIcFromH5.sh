@@ -21,8 +21,6 @@ OPTIONS+=" -BC_x ${BC_x} -BC_y ${BC_y} -BC_z ${BC_z}"
 OPTIONS+=" -extentx ${EXTENT_x}"
 
 OPTIONS+=" -icFromH5 $icH5File"
-OPTIONS+=" -spectralForcing 1 -sgs SSM -cs 0.2"
-OPTIONS+=" -analysis HIT -tAnalysis 0.1"
 OPTIONS+=" -CFL 0.1 -tend 20 -nu ${NU}"
 
 mkdir -p ${BASEPATH}${BASENAME}

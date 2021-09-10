@@ -6,26 +6,20 @@
 //  Written by Guido Novati (novatig@ethz.ch).
 //
 #include "Simulation.h"
-#include "obstacles/ObstacleVector.h"
 
-#include "operators/AdvectionDiffusion.h"
-#include "operators/Checkpoint.h"
-#include "operators/ComputeDissipation.h"
-#include "operators/ExternalForcing.h"
-#include "operators/FluidSolidForces.h"
 #include "operators/InitialConditions.h"
 #include "operators/ObstaclesCreate.h"
+#include "operators/AdvectionDiffusion.h"
 #include "operators/ObstaclesUpdate.h"
 #include "operators/Penalization.h"
-#include "operators/PressureProjection.h"
 #include "operators/PressureRHS.h"
-#include "operators/FixedMassFlux_nonUniform.h"
-#include "operators/SGS.h"
-#include "operators/Analysis.h"
-
-
-#include "obstacles/ObstacleFactory.h"
+#include "operators/PressureProjection.h"
+#include "operators/ComputeDissipation.h"
+#include "operators/FluidSolidForces.h"
 #include "operators/ProcessHelpers.h"
+
+#include "obstacles/ObstacleVector.h"
+#include "obstacles/ObstacleFactory.h"
 
 #include <Cubism/HDF5Dumper_MPI.h>
 #include <Cubism/ArgumentParser.h>
@@ -37,18 +31,6 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-std::shared_ptr<Simulation> createSimulation(const MPI_Comm comm, const std::vector<std::string> &argv) {
-  std::vector<char *> cargv(argv.size() + 1);
-  char cmd[] = "prg";
-  cargv[0] = cmd;
-  for (size_t i = 0; i < argv.size(); ++i) {
-    // In C++14, std::string::data() returns a const char *.
-    cargv[i + 1] = const_cast<char *>(argv[i].data());
-  }
-  ArgumentParser parser((int)cargv.size(), cargv.data());
-  return std::make_shared<Simulation>(comm, parser);
-}
-
 Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm, parser) {
   // Make sure given arguments are valid
   sim._preprocessArguments();
@@ -56,16 +38,31 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
   // Setup Grid
   setupGrid(&parser);
 
-  // Initialize Simulation
-  const bool bRestart = parser("-restart").asBool(false);
-  _init(bRestart,parser);
-}
-
-void Simulation::_init(const bool restart, ArgumentParser & parser)
-{
   // Setup Computational Pipeline
   setupOperators(parser);
 
+  // Initalize Obstacles
+  sim.obstacle_vector = new ObstacleVector(sim);
+  ObstacleFactory(sim).addObstacles(parser);
+
+  // CreateObstacles
+  (*sim.pipeline[0])(0);
+
+  // Initialize Flow Field
+  const bool bRestart = parser("-restart").asBool(false);
+  if (restart)
+    _deserialize();
+  else if (sim.icFromH5 != "")
+    _icFromH5(sim.icFromH5);
+  else
+    _ic();
+
+  // Initial refinemnt of Grid
+  refineGrid();
+}
+
+void Simulation::refineGrid()
+{
   // Initial Compression of Grid
   for (int l = 0 ; l < sim.levelMax ; l++)
   {
@@ -75,23 +72,8 @@ void Simulation::_init(const bool restart, ArgumentParser & parser)
       std::cout << "=======================================================================\n";
     }
 
-    // Initalize Obstacles
-    sim.updateH();
-    sim.obstacle_vector = new ObstacleVector(sim);
-    ObstacleFactory(sim).addObstacles(parser);
-
     // CreateObstacles
-    (*sim.pipeline[1])(0);
-
-    // Initialize Flow Field
-    if( l == 0 ) {
-      if (restart)
-        _deserialize();
-      else if (sim.icFromH5 != "")
-        _icFromH5(sim.icFromH5);
-      else
-        _ic();
-    }
+    (*sim.pipeline[0])(0);
 
     // Compression of Grid
     sim.amr->Tag();
@@ -107,44 +89,15 @@ void Simulation::_init(const bool restart, ArgumentParser & parser)
       b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
       b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
     }
-    if (l != sim.levelMax-1) {
-      touch();
-      delete sim.obstacle_vector;
-    }
   }
 
-  // Save Initial Condition to File
+  // Save Initial Flow Field to File
   _serialize("init");
-
-  assert(sim.obstacle_vector != nullptr);
-  if (sim.rank == 0)
-  {
-    const double maxU = std::max({sim.uinf[0], sim.uinf[1], sim.uinf[2]});
-    const double length = sim.obstacle_vector->getD();
-    const double re = length * std::max(maxU, length) / sim.nu;
-    assert(length > 0 || sim.obstacle_vector->getObstacleVector().empty());
-    printf("Kinematic viscosity:%f, Re:%f, length scale:%f\n",sim.nu,re,length);
-  }
 }
 
 const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() const
 {
     return sim.obstacle_vector->getObstacleVector();
-}
-
-void Simulation::reset()
-{
-  if (sim.icFromH5 != "") _icFromH5(sim.icFromH5);
-  else _ic();
-
-  sim.nextSaveTime = 0;
-  sim.step = 0; sim.time = 0;
-  sim.uinf = std::array<Real,3> {{ (Real)0, (Real)0, (Real)0 }};
-  //sim.obstacle_vector->reset(); // TODO
-  if(sim.obstacle_vector->nObstacles() > 0) {
-    printf("TODO Implement reset also for obstacles if needed!\n");
-    fflush(0); MPI_Abort(sim.app_comm, 1);
-  }
 }
 
 void Simulation::_ic()
@@ -205,7 +158,6 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
   //Refine/compress only according to chi field for now
   sim.amr = new AMR( *(sim.grid),sim.Rtol,sim.Ctol);
   sim.amr2 = new AMR2( *(sim.gridPoisson),sim.Rtol,sim.Ctol);
-  sim.updateH();
 
   const std::vector<BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel for schedule(static)
@@ -220,12 +172,6 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
 
 void Simulation::setupOperators(ArgumentParser & parser)
 {
-  touch();
-  sim.pipeline.clear();
-
-  // Obstacle shape has to be known already here.
-  sim.pipeline.push_back(checkpointPreObstacles = new Checkpoint(sim, "PreObstacles"));
-
   // Creates the char function, sdf, and def vel for all obstacles at the curr
   // timestep. At this point we do NOT know the translation and rot vel of the
   // obstacles. We need to solve implicit system when the pre-penalization vel
@@ -233,104 +179,33 @@ void Simulation::setupOperators(ArgumentParser & parser)
   // Here we also compute obstacles' centres of mass which are computed from
   // the char func on the grid. This is different from "position" which is
   // the quantity that is advected and used to construct shape.
-  Operator *createObstacles = new CreateObstacles(sim);
-  sim.pipeline.push_back(createObstacles);
+  sim.pipeline.push_back(new CreateObstacles(sim));
 
   // Performs:
   // \tilde{u} = u_t + \delta t (\nu \nabla^2 u_t - (u_t \cdot \nabla) u_t )
   sim.pipeline.push_back(new AdvectionDiffusion(sim));
 
-  if (sim.sgs != "") sim.pipeline.push_back(new SGS(sim));
+  // Update obstacle velocities and penalize velocity
+  sim.pipeline.push_back(new UpdateObstacles(sim));
+  sim.pipeline.push_back(new Penalization(sim));
 
-  // Used to add a uniform pressure gradient / uniform driving force.
-  // If the force were space-varying then we would need to include in the pressure equation's RHS.
-  if(sim.uMax_forced > 0 && sim.initCond not_eq "taylorGreen" && sim.bChannelFixedMassFlux == false)  sim.pipeline.push_back(new ExternalForcing(sim));   // also uses sim.uMax_forced param
+  // Places Udef on the grid and computes the RHS of the Poisson Eq
+  // overwrites tmpU, tmpV, tmpW and pressure solver's RHS
+  sim.pipeline.push_back(new PressureRHS(sim));
 
-  {
-    // Update obstacle velocities and penalize velocity
-    sim.pipeline.push_back(new UpdateObstacles(sim));
-    sim.pipeline.push_back(new Penalization(sim));
-
-    // Places Udef on the grid and computes the RHS of the Poisson Eq
-    // overwrites tmpU, tmpV, tmpW and pressure solver's RHS
-    sim.pipeline.push_back(new PressureRHS(sim));
-
-    // Solves the Poisson Eq to get the pressure and finalizes the velocity
-    sim.pipeline.push_back(new PressureProjection(sim));
-  }
+  // Solves the Poisson Eq to get the pressure and finalizes the velocity
+  sim.pipeline.push_back(new PressureProjection(sim));
 
   // With finalized velocity and pressure, compute forces and dissipation
   sim.pipeline.push_back(new ComputeForces(sim));
   sim.pipeline.push_back(new ComputeDissipation(sim));
-  if (sim.bChannelFixedMassFlux) sim.pipeline.push_back(new FixedMassFlux_nonUniform(sim));
 
-  // At this point the velocity computation is finished.
-  sim.pipeline.push_back(checkpointPostVelocity = new Checkpoint(sim, "PostVelocity"));
-  sim.pipeline.push_back(new Analysis(sim));
   //sim.pipeline.push_back(new ComputeDivergence(sim));
   if(sim.rank==0) {
     printf("[CUP3D] Operator ordering:\n");
     for (size_t c=0; c<sim.pipeline.size(); c++)
       printf("\t - %s\n", sim.pipeline[c]->getName().c_str());
   }
-}
-
-double Simulation::calcMaxTimestep()
-{
-  const double dt_old = sim.dt;
-  sim.dt_old = sim.dt;
-  sim.updateH();
-  const double hMin = sim.hmin;
-  double CFL = sim.CFL;
-  sim.uMax_measured = findMaxU(sim);
-
-  if( CFL > 0 )
-  {
-    const double dtDiffusion = (1./ 6.) * ( hMin * hMin / sim.nu );
-    const double dtAdvection = hMin / ( sim.uMax_measured + 1e-8 );
-    if ( sim.step < sim.rampup )
-    {
-      const double x = sim.step / (double) sim.rampup;
-      const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(CFL)*x);
-      sim.dt = std::min(dtDiffusion, rampCFL * dtAdvection);
-    }
-    else
-      sim.dt = std::min(dtDiffusion, CFL * dtAdvection);
-  }
-  else
-  {
-    CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / hMin;
-  }
-
-  if( sim.dt <= 0 ){
-    fprintf(stderr, "dt <= 0. CFL=%f, hMin=%f, sim.uMax_measured=%f. Aborting...\n", CFL, hMin, sim.uMax_measured);
-    fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
-  }
-
-
-  // if DLM>0, adapt lambda such that penal term is independent of time step
-  if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
-
-  if( sim.rank == 0 ) {
-    std::cout << "=======================================================================\n";
-    printf("[CUP3D] step: %d, time: %f, dt: %.2e, uinf: {%f %f %f}, maxU:%f, minH:%f, CFL:%.2e, lambda:%.2e\n",sim.step,sim.time, sim.dt, sim.uinf[0],sim.uinf[1],sim.uinf[2], sim.uMax_measured, hMin, CFL, sim.lambda);
-  }
-
-  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
-  {
-    const double a = dt_old;
-    const double b = sim.dt;
-    const double c1 = -(a+b)/(a*b);
-    const double c2 = b/(a+b)/a;
-    sim.coefU[0] = -b*(c1+c2);
-    sim.coefU[1] = b*c1;
-    sim.coefU[2] = b*c2;
-    //if (sim.verbose) std::cout << "coefs = " << sim.coefU[0] << " " << sim.coefU[1] << " " << sim.coefU[2] << std::endl;
-    //sim.coefU[0] = 1.5;
-    //sim.coefU[1] = -2.0;
-    //sim.coefU[2] = 0.5;
-  }
-  return sim.dt;
 }
 
 void Simulation::_serialize(const std::string append)
@@ -420,6 +295,63 @@ void Simulation::run()
 
     if (timestep(dt)) break;
   }
+}
+
+double Simulation::calcMaxTimestep()
+{
+  const double dt_old = sim.dt;
+  sim.dt_old = sim.dt;
+  const double hMin = sim.hmin;
+  double CFL = sim.CFL;
+  sim.uMax_measured = findMaxU(sim);
+
+  if( CFL > 0 )
+  {
+    const double dtDiffusion = (1./ 6.) * ( hMin * hMin / sim.nu );
+    const double dtAdvection = hMin / ( sim.uMax_measured + 1e-8 );
+    if ( sim.step < sim.rampup )
+    {
+      const double x = sim.step / (double) sim.rampup;
+      const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(CFL)*x);
+      sim.dt = std::min(dtDiffusion, rampCFL * dtAdvection);
+    }
+    else
+      sim.dt = std::min(dtDiffusion, CFL * dtAdvection);
+  }
+  else
+  {
+    CFL = ( sim.uMax_measured + 1e-8 ) * sim.dt / hMin;
+  }
+
+  if( sim.dt <= 0 ){
+    fprintf(stderr, "dt <= 0. CFL=%f, hMin=%f, sim.uMax_measured=%f. Aborting...\n", CFL, hMin, sim.uMax_measured);
+    fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
+  }
+
+
+  // if DLM>0, adapt lambda such that penal term is independent of time step
+  if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
+
+  if( sim.rank == 0 ) {
+    std::cout << "=======================================================================\n";
+    printf("[CUP3D] step: %d, time: %f, dt: %.2e, uinf: {%f %f %f}, maxU:%f, minH:%f, CFL:%.2e, lambda:%.2e\n",sim.step,sim.time, sim.dt, sim.uinf[0],sim.uinf[1],sim.uinf[2], sim.uMax_measured, hMin, CFL, sim.lambda);
+  }
+
+  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
+  {
+    const double a = dt_old;
+    const double b = sim.dt;
+    const double c1 = -(a+b)/(a*b);
+    const double c2 = b/(a+b)/a;
+    sim.coefU[0] = -b*(c1+c2);
+    sim.coefU[1] = b*c1;
+    sim.coefU[2] = b*c2;
+    //if (sim.verbose) std::cout << "coefs = " << sim.coefU[0] << " " << sim.coefU[1] << " " << sim.coefU[2] << std::endl;
+    //sim.coefU[0] = 1.5;
+    //sim.coefU[1] = -2.0;
+    //sim.coefU[2] = 0.5;
+  }
+  return sim.dt;
 }
 
 bool Simulation::timestep(const double dt)

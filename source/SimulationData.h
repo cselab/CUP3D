@@ -28,136 +28,122 @@ class SpectralManip;
 
 struct SimulationData
 {
+  // Profiler
   cubism::Profiler * profiler = nullptr;
 
+  // Grids for Velocity and Pressure
   FluidGridMPI * grid = nullptr;
+  FluidGridMPIPoisson * gridPoisson = nullptr;
+
+  // Get velocity blocks on current rank
   inline std::vector<cubism::BlockInfo>& vInfo() {
     return grid->getBlocksInfo();
   }
 
-  FluidGridMPIPoisson * gridPoisson = nullptr;
+  // Get pressure blocks on current rank
   inline std::vector<cubism::BlockInfo>& vInfoPoisson() {
     return gridPoisson->getBlocksInfo();
   }
 
-  // Utility to update minimal and maximal gridspacing
-  void updateH()
-  {
-    hmin = maxextent;
-    hmax = maxextent;
-
-    std::vector<cubism::BlockInfo> & myInfos = grid->getBlocksInfo();
-
-    #pragma omp parallel for schedule(static) reduction(min : hmin,hmax)
-    for(size_t i=0; i<myInfos.size(); i++)
-    {
-      const cubism::BlockInfo &info = myInfos[i];
-      hmin = std::min(hmin,  info.h_gridpoint);
-      hmax = std::min(hmax, -info.h_gridpoint);
-    }
-    Real res[2] = {hmin,hmax};
-    MPI_Allreduce(MPI_IN_PLACE, &res, 2, MPI_REAL, MPI_MIN, app_comm);
-    hmin  =  res[0];
-    hmax  = -res[1];
-  }
-
+  // Mesh Adaptation
   AMR * amr;
   AMR2 * amr2;
 
-  //The protagonist
+  // Container holding the obstacles
   ObstacleVector * obstacle_vector = nullptr;
-  //The antagonist
+
+  // Operator Pipeline
   std::vector<Operator*> pipeline;
+
+  // Pressure solver to be shared between PressureRHS and PressureProjection
   PoissonSolverAMR * pressureSolver = nullptr;
-  SpectralManip * spectralManip = nullptr;
-  // simulation status
-  // nsteps==0 means that this stopping criteria is not active
+
+  // Step Counter, Time, and stopping criteria (0 means inactive)
   int step=0, nsteps=0;
-  // endTime==0  means that this stopping criteria is not active
   double time=0, endTime=0;
+
+  // Current and Old Timestep
   double dt = 0;
   double dt_old = 0;
 
-  // mpi
+  // CFL number
+  double CFL=0;
+
+  // MPI
   MPI_Comm app_comm;
-  int rank=-1, nprocs=-1;
+  int rank, nprocs;
 
-  // grid
-  int bpdx=-1, bpdy=-1, bpdz=-1;
-  Real maxextent = 1;
-  std::array<Real, 3> extent = {{1, 0, 0}};  // Uniform grid by default.
-  bool bImplicitPenalization = true;
-  Real hmin=0, hmax=0;
-  int levelMax,levelStart;
-  double Rtol,Ctol;
+  // Blocks Per Dimension XYZ
+  int bpdx, bpdy, bpdz;
 
-  // flow variables
+  // Start and Maximal Level of Refinement
+  int levelStart, levelMax;
+
+  // Refinement and Compression Tolerances
+  double Rtol, Ctol;
+
+  // Simulation Domain
+  std::array<Real, 3> extent;  // Uniform grid by default.
+  Real maxextent;
+
+  // Resulting Maximal and Minimal Gridspacing
+  Real hmin, hmax;
+
+  // Velocity of Frame of Reference
   std::array<Real, 3> uinf = {{0, 0, 0}};
-  double nu=0, CFL=0, lambda=-1, DLM=1;
 
-  // initial conditions
+  // Flow Parameters
+  double nu;
+
+  // Penalisation Parameters
+  double lambda, DLM=1;
+
+  // Switch for Explicit/Implicit Penalisation
+  bool bImplicitPenalization = true;
+
+  // Initial conditions
   std::string initCond = "zero";
-  std::string spectralIC = "";
-  std::vector<double> initCondModes;
-  std::vector<double> initCondSpectrum;
   std::string icFromH5 = "";
-  double k0 = 0, tke0 = 0;
 
-  // forcing
-  bool bChannelFixedMassFlux = false;
-  Real uMax_forced = 0, uMax_measured = 0;
-  bool spectralForcing = false;
-  double turbKinEn_target = 0; // read from settings
-  double enInjectionRate = 0; // read from settings
-  double actualInjectionRate = 0; // computed by specralManip, post processing
+  // uMax Channel flow
+  Real uMax_forced = 0;
 
-  // sgs
-  std::string sgs = "";
-  double cs = 0.0;
+  // Measured Umax
+  Real uMax_measured = 0;
 
-  // computed by SGS, for post processing:
-  double cs2mean = 0, cs2stdev = 0, nuSgsMean = 0, nuSgsStdev = 0;
-  bool bComputeCs2Spectrum = false;
-
-  // analysis
-  std::string analysis;
-  double timeAnalysis = 0;
-  int freqAnalysis = 0;
-  double analysisTime=0, nextAnalysisTime=0;
-  double grad_mean = 0, grad_std=0;
-
-  // indicator for collision
-  bool bCollision = false;
-
-  // time stepping
+  // Time stepping
   // if step < step_2nd_start, explicit Euler steps are performed
   //(used to initialize u_{n-1} and u_n that are needed for 2nd order timestep)
-  int TimeOrder{1}; // =1 or =2
-  int step_2nd_start{1};
-  double coefU [3] = {1.5,-2.0,0.5};
+  int TimeOrder; // =1 or =2
+  int step_2nd_start;
+  double coefU[3] = {1.5,-2.0,0.5};
+  int rampup;
 
-  // analysis (channel)
-  std::vector<Real> Ux_avg_tgt;
-  std::vector<Real> kx_avg_tgt;
-  std::vector<Real> Ux_avg_msr;
-  std::vector<Real> kx_avg_msr;
-  Real reTau = 0.0;
+  // Poisson solver
+  double PoissonErrorTol;
+  double PoissonErrorTolRel;
 
-  // simulation settings
+  // SGS
+  std::string sgs = "";
+  double cs = 0.0;
+  double cs2mean = 0, cs2stdev = 0, nuSgsMean = 0, nuSgsStdev = 0;
+  bool bComputeCs2Spectrum = false;
+  double timeAnalysis = 0;
+
+  // Indicator for collision
+  bool bCollision = false;
+
+  // Dump Settingas
   int freqDiagnostics = 0;
   bool bDump=false;
-  int rampup = 100;
   bool verbose=false;
   bool muteAll = false;
-  double PoissonErrorTol = 1e-6;
-  double PoissonErrorTolRel = 1e-4;
 
   // output
   int statsFreq=1;
   int saveFreq=0;
   double saveTime=0, nextSaveTime=0;
   std::string path4serialization = "./";
-  std::string useSolver = "";
   bool dumpP;
   bool dumpChi;
   bool dumpOmega,dumpOmegaX,dumpOmegaY,dumpOmegaZ;

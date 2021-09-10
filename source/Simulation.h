@@ -29,8 +29,7 @@ public:
   Checkpoint *checkpointPreObstacles = nullptr;
   Checkpoint *checkpointPostVelocity = nullptr;
 
-  void reset();
-  void _init(bool restart /*= false*/, ArgumentParser & parser);
+  void refineGrid();
   void _serialize(const std::string append = std::string());
   void _deserialize();
 
@@ -40,8 +39,6 @@ public:
   void _ic();
   void _icFromH5(std::string h5File);
 
-  Simulation(const SimulationData &);
-  Simulation(MPI_Comm mpicomm);
   Simulation(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
   Simulation(const Simulation &) = delete;
   Simulation(Simulation &&) = delete;
@@ -64,29 +61,7 @@ public:
    * Returns true if the simulation is finished.
    */
   bool timestep(double dt);
-
-  inline void touch()
-  {
-    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
-    #pragma omp parallel for schedule(static)
-    for (int i = 0; i < (int)vInfo.size(); ++i)
-    {
-      const cubism::BlockInfo & info = vInfo[i];
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-      b.clear();
-    }
-  }
 };
-
-/*
- * Create a Simulation object from a vector of command-line arguments.
- *
- * The argv vector should NOT contain the argv[0] argument, it is filled with a
- * dummy value instead.
- */
-std::shared_ptr<Simulation> createSimulation(
-    MPI_Comm comm,
-    const std::vector<std::string> &argv);
 
 CubismUP_3D_NAMESPACE_END
 #endif // CubismUP_3D_Simulation_h
