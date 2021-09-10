@@ -50,7 +50,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
 
   // Initialize Flow Field
   const bool bRestart = parser("-restart").asBool(false);
-  if (restart)
+  if (bRestart)
     _deserialize();
   else if (sim.icFromH5 != "")
     _icFromH5(sim.icFromH5);
