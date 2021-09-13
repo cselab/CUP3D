@@ -6,6 +6,11 @@
 #include <sstream>
 #include <cstdio>
 #include <fstream>
+#include <algorithm>    // std::sort
+#include <fstream>
+#include <filesystem>
+namespace fs = std::filesystem;
+
 
 struct BlockGroup
 {
@@ -207,6 +212,42 @@ void convert_to_uniform(std::string filename)
       }
     }
   }
+  //if (rank == 0)
+  //{
+  //    std::stringstream s;
+  //    s << "<?xml version=\"1.0\" ?>\n";
+  //    s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
+  //    s << "<Xdmf Version=\"2.0\">\n";
+  //    s << "<Domain>\n";
+  //    //s << "  <Time Value=\"" << std::scientific << absTime << "\"/>\n\n";
+  //    s << "  <Grid GridType=\"Uniform\">\n";
+  //    s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << points[2] + 1 << " " << points[1] + 1<< " " << points[0] + 1 << "\"/>\n";
+  //    s << "    <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n";
+  //    s << "       <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
+  //    s << "            " << std::scientific << 0.0 << " " << 0.0 << " " << 0.0 << "\n";
+  //    s << "       </DataItem>\n";
+  //    s << "      <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
+  //    s << "            " << std::scientific << minh <<" "<< minh <<" "<< minh << "\n";
+  //    s << "       </DataItem>\n";
+  //    s << "   </Geometry>\n";
+  //    s << "   <Attribute Name=\"data\" AttributeType=\"" << "Scalar"<< "\" Center=\"Cell\">\n";
+  //    s << "      <DataItem ItemType=\"Uniform\"  Dimensions=\" " << points[2] << " " << points[1] << " " << points[0] << " " << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(H5T_NATIVE_FLOAT) << "\" Format=\"HDF\">\n";
+  //    s << "       " << (filename + "-uniform.h5").c_str() << ":/" << "data" << "\n";
+  //    s << "     </DataItem>\n";
+  //    s << "   </Attribute>\n";  
+  //    s << "  </Grid>\n\n";
+  //    s << "</Domain>\n";
+  //    s << "</Xdmf>\n";
+  //    std::string st = s.str();
+  //    std::ofstream out((filename + "-uniform.xmf").c_str());
+  //    out << st;
+  //    out.close();
+  //}
+  //
+
+
+  const int Cfactor = 8;
+
   if (rank == 0)
   {
       std::stringstream s;
@@ -216,36 +257,53 @@ void convert_to_uniform(std::string filename)
       s << "<Domain>\n";
       //s << "  <Time Value=\"" << std::scientific << absTime << "\"/>\n\n";
       s << "  <Grid GridType=\"Uniform\">\n";
-      s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << points[2] + 1 << " " << points[1] + 1<< " " << points[0] + 1 << "\"/>\n";
+      s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << points[2]/Cfactor + 1 << " " << points[1]/Cfactor + 1<< " " << points[0]/Cfactor + 1 << "\"/>\n";
       s << "    <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n";
       s << "       <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
       s << "            " << std::scientific << 0.0 << " " << 0.0 << " " << 0.0 << "\n";
       s << "       </DataItem>\n";
       s << "      <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
-      s << "            " << std::scientific << minh <<" "<< minh <<" "<< minh << "\n";
+      s << "            " << std::scientific << Cfactor*minh <<" "<< Cfactor*minh <<" "<< Cfactor*minh << "\n";
       s << "       </DataItem>\n";
       s << "   </Geometry>\n";
       s << "   <Attribute Name=\"data\" AttributeType=\"" << "Scalar"<< "\" Center=\"Cell\">\n";
-      s << "      <DataItem ItemType=\"Uniform\"  Dimensions=\" " << points[2] << " " << points[1] << " " << points[0] << " " << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(H5T_NATIVE_FLOAT) << "\" Format=\"HDF\">\n";
-      s << "       " << (filename + "-uniform.h5").c_str() << ":/" << "data" << "\n";
+      s << "      <DataItem ItemType=\"Uniform\"  Dimensions=\" " << points[2]/Cfactor << " " << points[1]/Cfactor << " " << points[0]/Cfactor << " " << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(H5T_NATIVE_FLOAT) << "\" Format=\"HDF\">\n";
+      s << "       " << (filename + "-uniformcoarse.h5").c_str() << ":/" << "data" << "\n";
       s << "     </DataItem>\n";
       s << "   </Attribute>\n";  
       s << "  </Grid>\n\n";
       s << "</Domain>\n";
       s << "</Xdmf>\n";
       std::string st = s.str();
-      std::ofstream out((filename + "-uniform.xmf").c_str());
+      std::ofstream out((filename + "-uniformcoarse.xmf").c_str());
       out << st;
       out.close();
   }
 
+
   //dump uniform grid
   {
+    std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[2]/Cfactor/Cfactor/Cfactor,0);
+    for (int z = 0 ; z < points[2]       ; z += Cfactor)
+    for (int y = 0 ; y < points[1]       ; y += Cfactor)
+    for (int x = 0 ; x < my_end-my_start ; x += Cfactor)
+    {
+      int i = (x/Cfactor) + (y/Cfactor)*(my_end-my_start)/Cfactor + (z/Cfactor)*(my_end-my_start)/Cfactor*points[1]/Cfactor;
+      const int base = x + y*(my_end-my_start) + z*(my_end-my_start)*points[1];
+      for (int iz = 0 ; iz < Cfactor ; iz++)
+      for (int iy = 0 ; iy < Cfactor ; iy++)
+      for (int ix = 0 ; ix < Cfactor ; ix++)
+        uniform_grid_coarse[i] += uniform_grid[base + ix + iy*(my_end-my_start) + iz*(my_end-my_start)*points[1] ];
+      uniform_grid_coarse[i] /= (Cfactor*Cfactor*Cfactor);
+    }
+
+
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
     H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
-    file_id = H5Fcreate((filename+"-uniform.h5").c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);        
+    //file_id = H5Fcreate((filename+"-uniform.h5").c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);        
+    file_id = H5Fcreate((filename+"-uniformcoarse.h5").c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);        
     H5Pclose(fapl_id);
     fapl_id = H5Pcreate(H5P_DATASET_XFER);
 
@@ -258,18 +316,23 @@ void convert_to_uniform(std::string filename)
     //H5Sclose(memspace);
 
     H5Pset_dxpl_mpio(fapl_id, H5FD_MPIO_COLLECTIVE);
-    hsize_t dims[3]  = { (hsize_t)points[2],(hsize_t)points[1],(hsize_t)points[0] };
+    //hsize_t dims[3]  = { (hsize_t)points[2],(hsize_t)points[1],(hsize_t)points[0] };
+    hsize_t dims[3]  = { (hsize_t)points[2]/Cfactor,(hsize_t)points[1]/Cfactor,(hsize_t)points[0]/Cfactor };
     fspace_id        = H5Screate_simple(3, dims, NULL);
-    dataset_id       = H5Dcreate (file_id, "data", H5T_NATIVE_FLOAT ,fspace_id,H5P_DEFAULT,fapl_id,H5P_DEFAULT);
+    //dataset_id       = H5Dcreate (file_id, "data", H5T_NATIVE_FLOAT ,fspace_id,H5P_DEFAULT,fapl_id,H5P_DEFAULT);
+    dataset_id       = H5Dcreate (file_id, "data", H5T_NATIVE_FLOAT ,fspace_id,H5P_DEFAULT,H5P_DEFAULT,H5P_DEFAULT);
     H5Sclose(fspace_id);
 
     fspace_id = H5Dget_space(dataset_id);
 
-    hsize_t count[3] = {(hsize_t)points[2],(hsize_t)points[1],(hsize_t)(my_end-my_start)};
-    hsize_t base_tmp[3] = {0,0,(hsize_t)my_start};
+    //hsize_t count[3] = {(hsize_t)points[2],(hsize_t)points[1],(hsize_t)(my_end-my_start)};
+    hsize_t count[3] = {(hsize_t)points[2]/Cfactor,(hsize_t)points[1]/Cfactor,(hsize_t)(my_end-my_start)/Cfactor};
+    //hsize_t base_tmp[3] = {0,0,(hsize_t)my_start};
+    hsize_t base_tmp[3] = {0,0,(hsize_t)my_start/Cfactor};
     mspace_id = H5Screate_simple(3, count, NULL);
     H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, base_tmp, NULL, count, NULL);
-    H5Dwrite(dataset_id, H5T_NATIVE_FLOAT,mspace_id,fspace_id,fapl_id,uniform_grid.data());
+    //H5Dwrite(dataset_id, H5T_NATIVE_FLOAT,mspace_id,fspace_id,fapl_id,uniform_grid.data());
+    H5Dwrite(dataset_id, H5T_NATIVE_FLOAT,mspace_id,fspace_id,fapl_id,uniform_grid_coarse.data());
     H5Sclose(mspace_id);
 
     H5Sclose(fspace_id);
@@ -279,6 +342,7 @@ void convert_to_uniform(std::string filename)
     H5close();
   } 
 }
+
 
 int main(int argc, char **argv)
 {
@@ -293,12 +357,26 @@ int main(int argc, char **argv)
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
 
   std::vector<std::string> filenames;
-  filenames.push_back("chi_init000000000");
-
-  for (size_t i = 0 ; i < filenames.size() ; i ++)
+  std::string path("./");
+  std::string ext(".h5");
+  for (auto &p : fs::recursive_directory_iterator(path))
   {
-    std::cout << "processing file: " << filenames[i] << std::endl;
+    if (p.path().extension() == ext)
+    {
+        std::string s = p.path().stem().string();
+        if ( s.back() != 's')
+        {
+          filenames.push_back(p.path().stem().string());
+        }
+    }
+  }
+  std::sort(filenames.begin(),filenames.end());
+
+  for (size_t i = 0 ; i < filenames.size()/2 ; i ++)
+  {
+    std::cout << "processing files: " << filenames[i] << " " << filenames[filenames.size()/2 + i] << std::endl;
     convert_to_uniform(filenames[i]);
+    convert_to_uniform(filenames[filenames.size()/2 + i]);
     MPI_Barrier(MPI_COMM_WORLD);
   }
   MPI_Finalize();
