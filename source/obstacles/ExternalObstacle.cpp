@@ -1,9 +1,7 @@
 //
 //  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
-//
-//  Created by Guido Novati (novatig@ethz.ch).
 //
 
 #include "ExternalObstacle.h"
@@ -74,7 +72,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
     : Obstacle(s, p)
 {
-  path = p("-externalObstaclePath").asString("./source/obstacles/extra/sphere.ply");
+  path = p("-externalObstaclePath").asString();
   // reading coordinates / indices from file
   if( std::filesystem::exists(path) )
   {
@@ -85,25 +83,12 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
     std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
     std::vector<std::vector<int>> fInd = plyIn.getFaceIndices<int>();
 
-    // Copy vectors to Vector3 required by triangleMeshSDF
-    for(const auto& point: vPos)
-    {
-      Vector3<Real> pt = { length*point[0], length*point[1], length*point[2] };
-      coordinates.push_back(pt);
-    }
-
-    for(const auto& indx: fInd)
-    { 
-      Vector3<int> id = { indx[0], indx[1], indx[2] };
-      indices.push_back(id);
-    }
-
     // Compute maximal extent
     Real MIN = std::numeric_limits<Real>::min();
     Real MAX = std::numeric_limits<Real>::max();
     Vector3<Real> min = { MAX, MAX, MAX };
     Vector3<Real> max = { MIN, MIN, MIN };
-    for(const auto& point: coordinates)
+    for(const auto& point: vPos)
     for( size_t i = 0; i<3; i++ )
     {
       if( point[i] < min[i] ) min[i] = point[i];
@@ -111,6 +96,20 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
     }
     Vector3<Real> diff = max-min;
     maxSize = std::max({diff[0], diff[1], diff[2]});
+    Real scalingFac = length / maxSize;
+
+    // Initialize vectors of Vector3 required by triangleMeshSDF
+    for(const auto& point: vPos)
+    {
+      Vector3<Real> pt = { scalingFac*point[0], scalingFac*point[1], scalingFac*point[2] };
+      coordinates.push_back(pt);
+    }
+
+    for(const auto& indx: fInd)
+    {
+      Vector3<int> id = { indx[0], indx[1], indx[2] };
+      indices.push_back(id);
+    }
   }
   else{
     fprintf(stderr, "ERROR: Unable to find %s file\n", path.c_str());

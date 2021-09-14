@@ -8,6 +8,7 @@
 #define CubismUP_3D_ExternalObstacle_h
 
 #include "Obstacle.h"
+// contains the Mesh / nonConvexSDF
 #include "extra/triangleMeshSDF.hpp"
 
 CubismUP_3D_NAMESPACE_BEGIN
@@ -28,4 +29,4 @@ public:
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_Sphere_h
+#endif // CubismUP_3D_ExternalObstacle_h

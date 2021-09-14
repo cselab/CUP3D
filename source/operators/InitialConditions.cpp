@@ -172,16 +172,16 @@ struct InitialPenalization : public ObstacleVisitor
 void InitialConditions::operator()(const double dt)
 {
   if(sim.initCond == "zero") {
-    if(sim.verbose) printf("Zero-values initial conditions.\n");
+    if(sim.verbose) printf("[CUP3D] - Zero-values initial conditions.\n");
     run(KernelIC(0));
   }
   if(sim.initCond == "taylorGreen") {
-    if(sim.verbose) printf("Taylor Green vortex initial conditions.\n");
+    if(sim.verbose) printf("[CUP3D] - Taylor Green vortex initial conditions.\n");
     run(KernelIC_taylorGreen(sim.extent, sim.uMax_forced));
   }
   if(sim.initCond == "channelRandom")
   {
-    if(sim.verbose) printf("Channel flow random initial conditions.\n");
+    if(sim.verbose) printf("[CUP3D] - Channel flow random initial conditions.\n");
     if( sim.BCx_flag == wall ) {
       printf("ERROR: channel flow must be periodic or dirichlet in x.\n");
       fflush(0); abort();
@@ -196,7 +196,7 @@ void InitialConditions::operator()(const double dt)
   }
   if(sim.initCond == "channel")
   {
-    if(sim.verbose) printf("Channel flow initial conditions.\n");
+    if(sim.verbose) printf("[CUP3D] - Channel flow initial conditions.\n");
     if( sim.BCx_flag == wall ) {
       printf("ERROR: channel flow must be periodic or dirichlet in x.\n");
       fflush(0); abort();

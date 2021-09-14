@@ -1,6 +1,9 @@
 #include <cmath>
 #include <vector>
 
+#ifndef CubismUP_3D_triangleMeshSDF_h
+#define CubismUP_3D_triangleMeshSDF_h
+
 template <typename T>
 struct Vector3 {
     T &operator[](int k) { return x_[k]; }
@@ -37,6 +40,11 @@ struct Vector3 {
     T x_[3];
 };
 
+// From https://stackoverflow.com/a/253874
+inline bool essentiallyEqual( Real a, Real b ) {
+    auto epsilon = std::numeric_limits<Real>::epsilon();
+    return std::abs(a - b) <= ( (std::abs(a) > std::abs(b) ? std::abs(b) : std::abs(a)) * epsilon);
+};
 
 inline Real pointTriangleSqrDistance(
         const Vector3<Vector3<Real>> &tri,
@@ -80,12 +88,11 @@ inline Real pointTriangleSqrDistance(
     }
 }
 
-
 class Mesh {
 public:
-    Mesh(std::vector<Vector3<Real>> x,
-         std::vector<Vector3<int>> tri) :
-        x_{std::move(x)}, tri_{std::move(tri)}
+    Mesh(const std::vector<Vector3<Real>> &x,
+         const std::vector<Vector3<int>>  &tri) :
+        x_{x}, tri_{tri}
     { }
 
     Real nonConvexSDF(Vector3<Real> p) const {
@@ -99,13 +106,13 @@ public:
                 x_[tri_[i][2]],
             };
             const Real sqrDist = pointTriangleSqrDistance(t, p);
-            if (sqrDist < minSqrDist) {
+            if( essentiallyEqual( sqrDist, minSqrDist ) )
+                closest.push_back(t);
+            else if (sqrDist < minSqrDist) {
                 minSqrDist = sqrDist;
                 closest.clear();
                 closest.push_back(t);
             }
-            else if( sqrDist == minSqrDist )
-                closest.push_back(t);
         }
         const auto dist = std::sqrt(minSqrDist);
 
@@ -114,28 +121,30 @@ public:
         if( closest.size() == 1 )
             n = cross(closest[0][1] - closest[0][0], closest[0][2] - closest[0][0]);     
         else if( closest.size() == 2 ){
-            // Closest point is on an edge, average 
+            // Closest point is on an edge, average the normals
             auto n1 = cross(closest[0][1] - closest[0][0], closest[0][2] - closest[0][0]);
             auto n2 = cross(closest[1][1] - closest[1][0], closest[1][2] - closest[1][0]);
             n = n1 + n2;
         }
         else { 
-            // Closest point is on an vertex, angle-weighted average (http://www2.compute.dtu.dk/pubdb/pubs/1833-full.html)
+            // Closest point is on a vertex, angle-weighted average (http://www2.compute.dtu.dk/pubdb/pubs/1833-full.html)
             for( const auto& triangle : closest ){
                 size_t i = 0;
                 for( ; i < 3; i++ )
                 {
                     auto dir = p - triangle[i];
-                    if( minSqrDist == dot(dir, dir) )
+                    if( essentiallyEqual( minSqrDist, dot(dir, dir) ) )
                         break;
                 }
                 // compute angle at edge of triangle 
                 auto edgeVec1 = triangle[ (i+1)%3 ] - triangle[i];
                 auto edgeVec2 = triangle[ (i+2)%3 ] - triangle[i];
-                Real cosalphai = dot(edgeVec1, edgeVec2)/(norm(edgeVec1)*norm(edgeVec2));
+                Real cosalphai = dot(edgeVec1, edgeVec2) / (norm(edgeVec1)*norm(edgeVec2));
                 Real alphai  = std::acos(cosalphai);
                 // compute normal of triangle
                 auto ni = cross(triangle[1] - triangle[0], triangle[2] - triangle[0]);
+                // normalize
+                ni = ( 1 / norm(ni) ) * ni;
                 // angle weighted sum of norm
                 n = n + alphai*ni;
             }
@@ -148,3 +157,5 @@ private:
     std::vector<Vector3<Real>> x_;
     std::vector<Vector3<int>> tri_;
 };
+
+#endif // CubismUP_3D_triangleMeshSDF_h

@@ -33,22 +33,34 @@ using namespace cubism;
 
 Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm, parser) {
   // Make sure given arguments are valid
+  if( sim.verbose )
+    std::cout << "[CUP3D] Parsing Arguments.. " << std::endl;
   sim._preprocessArguments();
 
   // Setup Grid
+  if( sim.verbose )
+    std::cout << "[CUP3D] Allocating Grid.. " << std::endl;
   setupGrid(&parser);
 
   // Setup Computational Pipeline
+  if( sim.verbose )
+    std::cout << "[CUP3D] Creating Computational Pipeline.. " << std::endl;
   setupOperators(parser);
 
   // Initalize Obstacles
+  if( sim.verbose )
+    std::cout << "[CUP3D] Initializing Obstacles.. " << std::endl;
   sim.obstacle_vector = new ObstacleVector(sim);
   ObstacleFactory(sim).addObstacles(parser);
 
   // CreateObstacles
+  if( sim.verbose )
+    std::cout << "[CUP3D] Creating Obstacles.. " << std::endl;
   (*sim.pipeline[0])(0);
 
   // Initialize Flow Field
+  if( sim.verbose )
+    std::cout << "[CUP3D] Initializing Flow Field.. " << std::endl;
   const bool bRestart = parser("-restart").asBool(false);
   if (bRestart)
     _deserialize();
@@ -57,7 +69,9 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
   else
     _ic();
 
-  // Initial refinemnt of Grid
+  // Initial refinement of Grid
+  if( sim.verbose )
+    std::cout << "[CUP3D] Performing Initial Refinement of Grid.. " << std::endl;
   refineGrid();
 }
 
@@ -66,6 +80,8 @@ void Simulation::refineGrid()
   // Initial Compression of Grid
   for (int l = 0 ; l < sim.levelMax ; l++)
   {
+    if( sim.verbose )
+      std::cout << "[CUP3D] - refinement " << l << "/" << sim.levelMax-1 << std::endl;
     // CreateObstacles
     (*sim.pipeline[0])(0);
 
