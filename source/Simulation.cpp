@@ -58,6 +58,9 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
     std::cout << "[CUP3D] Creating Obstacles.. " << std::endl;
   (*sim.pipeline[0])(0);
 
+  // Save Initial Flow Field to File
+  _serialize("init");
+
   // Initialize Flow Field
   if( sim.verbose )
     std::cout << "[CUP3D] Initializing Flow Field.. " << std::endl;
@@ -102,7 +105,7 @@ void Simulation::refineGrid()
   }
 
   // Save Initial Flow Field to File
-  _serialize("init");
+  _serialize("refined");
 }
 
 const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() const
