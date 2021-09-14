@@ -66,12 +66,6 @@ void Simulation::refineGrid()
   // Initial Compression of Grid
   for (int l = 0 ; l < sim.levelMax ; l++)
   {
-    if( sim.rank == 0 ) {
-      std::cout << "=======================================================================\n";
-      std::cout << "Initial Refinement of Grid " << l << "/" << sim.levelMax-1 << ".\n";
-      std::cout << "=======================================================================\n";
-    }
-
     // CreateObstacles
     (*sim.pipeline[0])(0);
 
