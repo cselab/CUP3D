@@ -11,9 +11,9 @@ DT=${DT:-1e-4}
 PT=${PT:-1e-8}
 PTR=${PTR:-1e-4}
 # Re=100 <-> 0.00125
-NU=${NU:-0.00125}
+NU=${NU:-0.000625}
 BC=${BC:-dirichlet}
-FACTORY='ExternalObstacle L=1 xpos=0.6 xvel=0.125 bForcedInSimFrame=1 bFixFrameOfRef=1 externalObstaclePath=/users/pweber/korali/examples/study.cases/CUP3D/_deps/CUP-3D/launch/externalObstacles/Robot.ply
+FACTORY='ExternalObstacle L=0.5 xpos=0.6 xvel=0.125 bForcedInSimFrame=1 bFixFrameOfRef=1 externalObstaclePath=/users/pweber/korali/examples/study.cases/CUP3D/_deps/CUP-3D/launch/externalObstacles/Robot.ply
 '
 
 OPTIONS=
