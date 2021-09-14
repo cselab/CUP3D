@@ -95,7 +95,7 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
       if( point[i] > max[i] ) max[i] = point[i];
     }
     Vector3<Real> diff = max-min;
-    maxSize = std::max({diff[0], diff[1], diff[2]});
+    Real maxSize = std::max({diff[0], diff[1], diff[2]});
     Real scalingFac = length / maxSize;
 
     // Initialize vectors of Vector3 required by triangleMeshSDF
@@ -121,7 +121,7 @@ void ExternalObstacle::create()
 {
   const Real h = sim.hmin;
   Mesh mesh(coordinates, indices);
-  ExternalObstacleObstacle::FillBlocks K(mesh, h, maxSize, position, quaternion);
+  ExternalObstacleObstacle::FillBlocks K(mesh, h, length, position, quaternion);
   create_base<ExternalObstacleObstacle::FillBlocks>(K);
 }
 

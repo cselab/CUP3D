@@ -18,7 +18,6 @@ class ExternalObstacle : public Obstacle
   std::string path;
   std::vector<Vector3<Real>> coordinates;
   std::vector<Vector3<int>> indices;
-  Real maxSize;
 
 public:
   ExternalObstacle(SimulationData&s,cubism::ArgumentParser&p);
