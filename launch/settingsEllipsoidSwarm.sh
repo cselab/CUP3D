@@ -1,5 +1,5 @@
 #!/bin/bash
-NNODE=512
+NNODE=${NNODE:-512}
 BPDX=${BPDX:-8}
 BPDY=${BPDY:-4}
 BPDZ=${BPDZ:-4}

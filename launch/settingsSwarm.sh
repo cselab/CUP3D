@@ -1,11 +1,11 @@
 #!/bin/bash
-NNODE=32
+NNODE=${NNODE:-64}
 DLM=${DLM:-0}
 LAMBDA=${LAMBDA:-1e6}
 BPDX=${BPDX:-4}
 BPDY=${BPDY:-2}
 BPDZ=${BPDZ:-2}
-LEVELS=${LEVELS:-6}
+LEVELS=${LEVELS:-7}
 CFL=${CFL:-0.4} # if 0, DT is used
 DT=${DT:-1e-4}
 PT=${PT:-1e-5}
@@ -65,7 +65,7 @@ FACTORY+="StefanFish L=0.2 T=1 xpos=1.20 ypos=1.00 zpos=1.20 bFixToPlanar=1 bFix
 
 OPTIONS=
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 5"
+OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 10"
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
 OPTIONS+=" -CFL ${CFL} -dt ${DT} -lambda ${LAMBDA} -use-dlm ${DLM} -nu ${NU}"
 OPTIONS+=" -ImplicitPenalization 1"

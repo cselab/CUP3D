@@ -5,7 +5,7 @@ LAMBDA=${LAMBDA:-1e6}
 BPDX=${BPDX:-32} #16
 BPDY=${BPDY:-8}
 BPDZ=${BPDZ:-8}
-LEVELS=${LEVELS:-5}
+LEVELS=${LEVELS:-6}
 CFL=${CFL:-0.2} # if 0, DT is used
 DT=${DT:-1e-4}
 PT=${PT:-1e-8}
@@ -19,7 +19,7 @@ FACTORY='Sphere L=0.125 xpos=0.6 xvel=0.125 bForcedInSimFrame=1 bFixFrameOfRef=1
 
 OPTIONS=
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0 -tend 0.5" # -fdump 1
+OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0 -tend 10" # -fdump 1
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
 OPTIONS+=" -CFL ${CFL} -dt ${DT} -lambda ${LAMBDA} -use-dlm ${DLM} -nu ${NU}"
 OPTIONS+=" -ImplicitPenalization 1 -verbose 1"

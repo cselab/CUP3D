@@ -5,7 +5,7 @@ LAMBDA=${LAMBDA:-1e6}
 BPDX=${BPDX:-16} #16
 BPDY=${BPDY:-8}
 BPDZ=${BPDZ:-8}
-LEVELS=${LEVELS:-6}
+LEVELS=${LEVELS:-4}
 CFL=${CFL:-0.2} # if 0, DT is used
 DT=${DT:-1e-4}
 PT=${PT:-1e-8}
@@ -18,11 +18,11 @@ FACTORY='ExternalObstacle L=0.5 xpos=0.6 xvel=0.125 bForcedInSimFrame=1 bFixFram
 
 OPTIONS=
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0 -tend 0.5" # -fdump 1
+OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0 -tend 100" # -fdump 1
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
 OPTIONS+=" -CFL ${CFL} -dt ${DT} -lambda ${LAMBDA} -use-dlm ${DLM} -nu ${NU}"
 OPTIONS+=" -ImplicitPenalization 1"
-OPTIONS+=" -levelMax ${LEVELS} -levelStart 1 -Rtol 4.00 -Ctol 1.00"
+OPTIONS+=" -levelMax ${LEVELS} -Rtol 4.00 -Ctol 1.00" #-levelStart 3 
 OPTIONS+=" -extentx 2.0 " # -extentx 2.0
 OPTIONS+=" -TimeOrder 2 "
 OPTIONS+=" -poissonTol ${PT} -poissonTolRel ${PTR} "
