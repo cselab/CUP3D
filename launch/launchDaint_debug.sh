@@ -4,7 +4,7 @@ set -e
 
 WCLOCK=${WCLOCK:-00:30:00}
 PARTITION=${PARTITION:-debug}
-NNODE=${NNODE:-4}
+NNODE=${NNODE:-10}
 _SCRIPTPATH=`pwd`"/launchDaint_debug.sh"
 
 source launchDaint.sh
