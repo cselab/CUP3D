@@ -41,9 +41,9 @@ struct Vector3 {
 };
 
 // From https://stackoverflow.com/a/253874
-inline bool essentiallyEqual( Real a, Real b ) {
+inline bool approximatelyEqual( Real a, Real b ) {
     auto epsilon = std::numeric_limits<Real>::epsilon();
-    return std::abs(a - b) <= ( (std::abs(a) > std::abs(b) ? std::abs(b) : std::abs(a)) * epsilon);
+    return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * epsilon;
 };
 
 inline Real pointTriangleSqrDistance(
@@ -95,7 +95,20 @@ public:
         x_{x}, tri_{tri}
     { }
 
-    Real nonConvexSDF(Vector3<Real> p) const {
+    void rotate( const Real Rmatrix[3][3], const double position[3]) {
+        for( auto& pt: x_ ){
+            // rotate point
+            pt = {
+              Rmatrix[0][0]*pt[0] + Rmatrix[1][0]*pt[1] + Rmatrix[2][0]*pt[2],
+              Rmatrix[0][1]*pt[0] + Rmatrix[1][1]*pt[1] + Rmatrix[2][1]*pt[2],
+              Rmatrix[0][2]*pt[0] + Rmatrix[1][2]*pt[1] + Rmatrix[2][2]*pt[2]
+            };
+            // translate point
+            pt = { pt[0]+position[0], pt[1]+position[1], pt[2]+position[2] };
+        }
+    }
+
+    Real nonConvexSDF(Vector3<Real> p, Real h) const {
         // Find the closest triangles and the distance to them.
         std::vector<Vector3<Vector3<Real>>> closest{};
         Real minSqrDist = 1e100;
@@ -106,7 +119,7 @@ public:
                 x_[tri_[i][2]],
             };
             const Real sqrDist = pointTriangleSqrDistance(t, p);
-            if( essentiallyEqual( sqrDist, minSqrDist ) )
+            if( approximatelyEqual( sqrDist, minSqrDist ) )
                 closest.push_back(t);
             else if (sqrDist < minSqrDist) {
                 minSqrDist = sqrDist;
@@ -114,7 +127,7 @@ public:
                 closest.push_back(t);
             }
         }
-        const auto dist = std::sqrt(minSqrDist);
+        const auto dist = std::sqrt(minSqrDist) > 2*h ? 2*h : std::sqrt(minSqrDist);
 
         // Check on which side of the closest triangle we are. Compute normal
         Vector3<Real> n{};
@@ -133,7 +146,7 @@ public:
                 for( ; i < 3; i++ )
                 {
                     auto dir = p - triangle[i];
-                    if( essentiallyEqual( minSqrDist, dot(dir, dir) ) )
+                    if( approximatelyEqual( minSqrDist, dot(dir, dir) ) )
                         break;
                 }
                 // compute angle at edge of triangle 
@@ -153,7 +166,6 @@ public:
         return std::copysign(dist, side); 
     }
 
-private:
     std::vector<Vector3<Real>> x_;
     std::vector<Vector3<int>> tri_;
 };
