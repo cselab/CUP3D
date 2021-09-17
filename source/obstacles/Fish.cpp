@@ -196,7 +196,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
 
 void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
 {
-#if 0 //no load-balancing here
+#if 1 //no load-balancing here
   #pragma omp parallel
   {
     PutFishOnBlocks putfish(myFish, position, quaternion);
@@ -210,7 +210,7 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
       putfish(MyBlockIDs[j].h, MyBlockIDs[j].origin_x, MyBlockIDs[j].origin_y, MyBlockIDs[j].origin_z, block, S);
     }
   }
-#else //load-balancing
+#else //load-balancing - there's a bug with message tags here!!!
 
   MPI_Comm comm = grid->getCartComm();
   const int rank = grid->rank();

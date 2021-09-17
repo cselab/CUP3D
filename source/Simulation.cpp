@@ -102,6 +102,9 @@ void Simulation::refineGrid()
       b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
       b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
     }
+    if (l != sim.levelMax-1) {
+      touch();
+    }
   }
 
   // Save Initial Flow Field to File
@@ -185,6 +188,7 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
 
 void Simulation::setupOperators(ArgumentParser & parser)
 {
+  touch();
   // Creates the char function, sdf, and def vel for all obstacles at the curr
   // timestep. At this point we do NOT know the translation and rot vel of the
   // obstacles. We need to solve implicit system when the pre-penalization vel
