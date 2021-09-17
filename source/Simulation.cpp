@@ -37,15 +37,16 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
     std::cout << "[CUP3D] Parsing Arguments.. " << std::endl;
   sim._preprocessArguments();
 
-  // Setup Grid
+  // Setup and Initialize Grid
   if( sim.verbose )
     std::cout << "[CUP3D] Allocating Grid.. " << std::endl;
-  setupGrid(&parser);
+  setupGrid();
+  touch();
 
   // Setup Computational Pipeline
   if( sim.verbose )
     std::cout << "[CUP3D] Creating Computational Pipeline.. " << std::endl;
-  setupOperators(parser);
+  setupOperators();
 
   // Initalize Obstacles
   if( sim.verbose )
@@ -102,9 +103,6 @@ void Simulation::refineGrid()
       b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
       b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
     }
-    if (l != sim.levelMax-1) {
-      touch();
-    }
   }
 
   // Save Initial Flow Field to File
@@ -143,7 +141,7 @@ void Simulation::_icFromH5(std::string h5File)
   MPI_Barrier(sim.app_comm);
 }
 
-void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
+void Simulation::setupGrid()
 {
   // if(sim.rank==0) printf("Grid of sizes: %f %f %f\n", sim.extent[0],sim.extent[1],sim.extent[2]);
   sim.grid = new FluidGridMPI(1, //these arguments are not used in Cubism-AMR
@@ -186,9 +184,8 @@ void Simulation::setupGrid(cubism::ArgumentParser *parser_ptr)
   }
 }
 
-void Simulation::setupOperators(ArgumentParser & parser)
+void Simulation::setupOperators()
 {
-  touch();
   // Creates the char function, sdf, and def vel for all obstacles at the curr
   // timestep. At this point we do NOT know the translation and rot vel of the
   // obstacles. We need to solve implicit system when the pre-penalization vel

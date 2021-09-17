@@ -34,8 +34,8 @@ public:
   void _deserialize();
 
   void _argumentsSanityCheck();
-  void setupOperators(ArgumentParser & parser);
-  void setupGrid(cubism::ArgumentParser *parser_ptr = nullptr);
+  void setupOperators();
+  void setupGrid();
   void _ic();
   void _icFromH5(std::string h5File);
 
