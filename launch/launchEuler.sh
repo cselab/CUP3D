@@ -7,7 +7,7 @@ if [ $# -lt 2 ] ; then
 fi
 BASEPATH=${SCRATCH}/CubismUP3D/
 
-NTHREADS=36
+NTHREADS=1
 
 if [ ! -f $SETTINGSNAME ];then
     echo ${SETTINGSNAME}" not found! - exiting"
@@ -26,8 +26,8 @@ cp ../bin/simulation ${FOLDER}/simulation
 cd $FOLDER
 
 unset LSB_AFFINITY_HOSTFILE
-export OMP_NUM_THREADS=${NTHREADS}
+export OMP_NUM_THREADS=1 #${NTHREADS}
 echo $OPTIONS > settings.txt
 
-bsub -J ${BASENAME} -W 24:00 -R "select[model==XeonGold_6150]fullnode" -n ${NPROCESSORS} "unset LSB_AFFINITY_HOSTFILE; mpirun -n ${NNODE} --map-by node:PE=36 ./simulation ${OPTIONS} -factory-content \"${FACTORY}\""
+bsub -J ${BASENAME} -W 24:00 -n 128 "unset LSB_AFFINITY_HOSTFILE; mpirun -n 128 --map-by core:PE=1 ./simulation ${OPTIONS} -factory-content \"${FACTORY}\""
 
