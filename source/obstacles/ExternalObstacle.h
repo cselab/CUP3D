@@ -19,6 +19,10 @@ class ExternalObstacle : public Obstacle
   std::vector<Vector3<Real>> coordinates;
   std::vector<Vector3<int>> indices;
 
+  std::mt19937 gen;
+  std::normal_distribution<Real> normalDistribution;
+  std::vector<Vector3<Real>> randomNormals;
+
 public:
   ExternalObstacle(SimulationData&s,cubism::ArgumentParser&p);
 

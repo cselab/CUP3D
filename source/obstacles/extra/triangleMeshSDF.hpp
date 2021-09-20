@@ -46,6 +46,39 @@ inline bool approximatelyEqual( Real a, Real b ) {
     return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * epsilon;
 };
 
+// From https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+inline int rayIntersectsTriangle(const Vector3<Real> &rayOrigin,
+                                 const Vector3<Real> &rayVector,
+                                 const Vector3<Vector3<Real>> &inTriangle,
+                                 Vector3<Real> &intersectionPoint )
+{
+    const Real EPS = std::numeric_limits<Real>::epsilon();
+    Vector3<Real> vertex0 = inTriangle[0];
+    Vector3<Real> vertex1 = inTriangle[1];
+    Vector3<Real> vertex2 = inTriangle[2];
+    Vector3<Real> edge1, edge2, h, s, q;
+    Real a,f,u,v;
+    edge1 = vertex1 - vertex0;
+    edge2 = vertex2 - vertex0;
+    h = cross( rayVector, edge2 );
+    a = dot( edge1, h );
+    if ( std::abs(a) <= norm(h) * norm(edge2) * EPS  )
+        return -1; // This ray is parallel to this triangle.
+    f = 1.0/a;
+    s = rayOrigin - vertex0;
+    u = f * dot( s, h );
+    if (u < 0.0 || u > 1.0)
+        return 0;
+    q = cross( s, edge1 );
+    v = f * dot( rayVector, q );
+    if (v < 0.0 || u + v > 1.0)
+        return 0;
+    // compute t and intersection point
+    Real t = f * dot( edge2,q );
+    intersectionPoint = rayOrigin + t * rayVector;
+    return 1;
+}
+
 inline Real pointTriangleSqrDistance(
         const Vector3<Vector3<Real>> &tri,
         const Vector3<Real> p) {
@@ -108,7 +141,7 @@ public:
         }
     }
 
-    Real nonConvexSDF(Vector3<Real> p, Real h) const {
+    Real nonConvexSDF(Vector3<Real> p, std::vector<Vector3<Real>> randomNormals) const {
         // Find the closest triangles and the distance to them.
         std::vector<Vector3<Vector3<Real>>> closest{};
         Real minSqrDist = 1e100;
@@ -127,43 +160,142 @@ public:
                 closest.push_back(t);
             }
         }
-        const auto dist = std::sqrt(minSqrDist) > 2*h ? 2*h : std::sqrt(minSqrDist);
+        const auto dist = std::sqrt(minSqrDist);
 
-        // Check on which side of the closest triangle we are. Compute normal
+        // Check on which side of the closest triangle we are. Compute normal and direction vector
         Vector3<Real> n{};
-        if( closest.size() == 1 )
-            n = cross(closest[0][1] - closest[0][0], closest[0][2] - closest[0][0]);     
-        else if( closest.size() == 2 ){
-            // Closest point is on an edge, average the normals
-            auto n1 = cross(closest[0][1] - closest[0][0], closest[0][2] - closest[0][0]);
-            auto n2 = cross(closest[1][1] - closest[1][0], closest[1][2] - closest[1][0]);
-            n = n1 + n2;
+        Vector3<Real> dir{};
+        if( closest.size() == 1 ) {
+            n = cross(closest[0][1] - closest[0][0], closest[0][2] - closest[0][0]);
+            dir = p - closest[0][0];
+        // }
+        // else if( closest.size() == 2 ) {
+
+        //     // Closest point is on an edge, average the normals
+        //     auto n1 = cross(closest[0][1] - closest[0][0], closest[0][2] - closest[0][0]);
+        //     auto n2 = cross(closest[1][1] - closest[1][0], closest[1][2] - closest[1][0]);
+        //     n = n1 + n2;
+        //     // Get closest point
+        //     for( size_t i = 0; i < 3; i++ )
+        //     {
+        //         dir = p - closest[0][i];
+        //         if( approximatelyEqual( minSqrDist, dot(dir, dir) ) )
+        //             break;
+        //     }
+        //     #pragma omp critical
+        //     {
+        //         std::cout << "closest.size() == 2\n";
+        //         std::cout << "n1 = " << n1[0] << ", " << n1[1] << ", " << n1[2] << "\n";
+        //         std::cout << "n2 = " << n2[0] << ", " << n2[1] << ", " << n2[2] << "\n";
+        //         std::cout << "n = " << n[0] << ", " << n[1] << ", " << n[2] << "\n";
+        //     }
+        // }
+        // else { 
+        //     // Closest point is on a vertex, angle-weighted average (http://www2.compute.dtu.dk/pubdb/pubs/1833-full.html)
+        //     std::vector<Vector3<Real>> normals;
+        //     std::vector<Real> angles;
+        //     for( const auto& triangle : closest ){
+        //         size_t i = 0;
+        //         for( ; i < 3; i++ )
+        //         {
+        //             dir = p - triangle[i];
+        //             if( approximatelyEqual( minSqrDist, dot(dir, dir) ) )
+        //                 break;
+        //         }
+        //         // compute angle at edge of triangle 
+        //         auto edgeVec1 = triangle[ (i+1)%3 ] - triangle[i];
+        //         auto edgeVec2 = triangle[ (i+2)%3 ] - triangle[i];
+        //         Real cosalphai = dot(edgeVec1, edgeVec2) / (norm(edgeVec1)*norm(edgeVec2));
+        //         Real alphai  = std::acos(cosalphai);
+        //         // put angle to container
+        //         angles.push_back(alphai);
+        //         // compute normal of triangle
+        //         auto ni = cross(triangle[1] - triangle[0], triangle[2] - triangle[0]);
+        //         // normalize
+        //         ni = ( 1 / norm(ni) ) * ni;
+        //         // put normal to container
+        //         normals.push_back(ni);
+        //     }
+        //     #pragma omp critical
+        //     {
+        //         std::cout << "closest.size() > 2\n";
+        //         for( size_t i = 0; i<normals.size(); i++ ) {
+        //             Real alphai = angles[i]; 
+        //             Vector3 ni  = normals[i];
+        //             // angle weighted sum of norm
+        //             n = n + alphai*ni;
+        //             std::cout << "alpha" << i << alphai << ", n" << i << " = " << ni[0] << ", " << ni[1] << ", " << ni[2] << "\n";
+        //         }
+        //         std::cout << "n" << " = " << n[0] << ", " << n[1] << ", " << n[2] << "\n";
+        //         std::cout << "######################################\n";
+        //     }  
+        // }
+            const auto side = dot(n, dir);
+            return std::copysign(dist, side); 
         }
-        else { 
-            // Closest point is on a vertex, angle-weighted average (http://www2.compute.dtu.dk/pubdb/pubs/1833-full.html)
-            for( const auto& triangle : closest ){
-                size_t i = 0;
-                for( ; i < 3; i++ )
-                {
-                    auto dir = p - triangle[i];
-                    if( approximatelyEqual( minSqrDist, dot(dir, dir) ) )
-                        break;
+        else {
+            // shoot ray to check whether block is close to surface or inside
+            size_t numIntersections = 0;
+            bool bInvalid;
+            for( size_t i = 0; i<randomNormals.size(); i++ ) { 
+              bInvalid = false;
+              for( const auto& tri: tri_ ) {
+                // get triangle points
+                Vector3<Vector3<Real>> t{ x_[tri[0]],
+                                          x_[tri[1]],
+                                          x_[tri[2]] };
+
+                // send ray
+                Vector3<Real> intersectionPoint{};
+                // returns 0 for miss, 1 for hit, -1 for failure
+                int intersection = rayIntersectsTriangle( p, randomNormals[i], t, intersectionPoint );
+
+                // .. if ray is parallel to triangle
+                if( intersection == -1 ) {
+                  fprintf(stderr, "WARNING: Ray is parallel to triangle: randomNormals[%ld][0]=%f, randomNormals[%ld][1]=%f, randomNormals[%ld][2]=%f, t[0][0]=%f, t[0][1]=%f, t[0][2]=%f, t[1][0]=%f, t[1][1]=%f, t[1][2]=%f, t[2][0]=%f, t[2][1]=%f, t[2][2]=%f, tri[0]=%d, tri[1]=%d, tri[2]=%d\n", i, randomNormals[i][0], i, randomNormals[i][1], i, randomNormals[i][2], t[0][0], t[0][1], t[0][2], t[1][0], t[1][1], t[1][2], t[2][0], t[2][1], t[2][2], tri[0], tri[1], tri[2]);
+                  bInvalid = true;
                 }
-                // compute angle at edge of triangle 
-                auto edgeVec1 = triangle[ (i+1)%3 ] - triangle[i];
-                auto edgeVec2 = triangle[ (i+2)%3 ] - triangle[i];
-                Real cosalphai = dot(edgeVec1, edgeVec2) / (norm(edgeVec1)*norm(edgeVec2));
-                Real alphai  = std::acos(cosalphai);
-                // compute normal of triangle
-                auto ni = cross(triangle[1] - triangle[0], triangle[2] - triangle[0]);
-                // normalize
-                ni = ( 1 / norm(ni) ) * ni;
-                // angle weighted sum of norm
-                n = n + alphai*ni;
+                if( bInvalid ) break;
+
+                // .. if ray intersects triangle
+                if( intersection == 1 ) {
+                  // .. if ray intersects corner
+                  for( size_t j = 0; j<3; j++ )
+                  if( approximatelyEqual(t[j][0], intersectionPoint[0]) &&
+                      approximatelyEqual(t[j][1], intersectionPoint[1]) &&
+                      approximatelyEqual(t[j][2], intersectionPoint[2]) ) {
+                    fprintf(stderr, "WARNING: Ray interesects a corner: intersectionPoint[0]=%f, intersectionPoint[1]=%f, intersectionPoint[2]=%f, t[%ld][0]=%f, t[%ld][1]=%f, t[%ld][2]=%f\n", intersectionPoint[0], intersectionPoint[1], intersectionPoint[2], j, t[j][0], j, t[j][1], j, t[j][2]);
+                    bInvalid = true;
+                  }
+                  if( bInvalid ) break;
+
+                  // .. if ray intersects edge (use triangle inequality)
+                  for( size_t j = 0; j<3; j++ ){
+                    Vector3<double> vecA= t[j] - intersectionPoint;
+                    Vector3<double> vecB= intersectionPoint - t[(j+1)%3];
+                    Vector3<double> vecC= t[j] - t[(j+1)%3];
+                    Real normA = norm( vecA );
+                    Real normB = norm( vecB );
+                    Real normC = norm( vecC );
+                    if( approximatelyEqual( normA+normB, normC ) ) {
+                      fprintf(stderr, "WARNING: Ray interesects an edge: a=%f, b=%f, c=%f\n", normA, normB, normC);
+                      bInvalid = true;
+                    }
+                  }
+                  if( bInvalid ) break;
+
+                  // count intersection
+                  numIntersections++;
+                }
+              }
+              if( not bInvalid ) break;
             }
+            if( bInvalid ) {
+              fprintf(stderr, "ERROR: Unable to find a valid ray. Aborting..\n");
+              fflush(0); abort();
+            }
+            return numIntersections%2 == 1 ? -dist : dist;
         }
-        const auto side = dot(n, p - closest[0][0]);
-        return std::copysign(dist, side); 
     }
 
     std::vector<Vector3<Real>> x_;
