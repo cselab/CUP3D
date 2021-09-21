@@ -347,7 +347,6 @@ double Simulation::calcMaxTimestep()
   if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
 
   if( sim.rank == 0 ) {
-    std::cout << "=======================================================================\n";
     printf("[CUP3D] step: %d, time: %f, dt: %.2e, uinf: {%f %f %f}, maxU:%f, minH:%f, CFL:%.2e, lambda:%.2e\n",sim.step,sim.time, sim.dt, sim.uinf[0],sim.uinf[1],sim.uinf[2], sim.uMax_measured, hMin, CFL, sim.lambda);
   }
 
