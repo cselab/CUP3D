@@ -73,7 +73,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   {
     Vector3<Real> p = { px, py, pz };
     // compute signed distance function
-    Real dist = -mesh.nonConvexSDF( p, randomNormals ); // pos inside, neg outside
+    Real dist = mesh.nonConvexSDF( p, randomNormals ); // pos inside, neg outside
     return dist;
   }
 };
@@ -133,7 +133,7 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
   for( size_t i = 0; i<10; i++ ) {
     Real normRandomNormal = 0.0;
     Vector3<Real> randomNormal;
-    while ( approximatelyEqual(normRandomNormal, 0.0) ) {
+    while ( approximatelyEqual(normRandomNormal, 0.0, 1e-7) ) {
       randomNormal = { normalDistribution(gen), 
                        normalDistribution(gen), 
                        normalDistribution(gen) };

@@ -41,42 +41,58 @@ struct Vector3 {
 };
 
 // From https://stackoverflow.com/a/253874
-inline bool approximatelyEqual( Real a, Real b ) {
-    auto epsilon = std::numeric_limits<Real>::epsilon();
+inline bool approximatelyEqual( Real a, Real b, Real eps ) {
+    auto epsilon = eps; // std::numeric_limits<Real>::epsilon();
     return std::abs(a - b) <= std::max(std::abs(a), std::abs(b)) * epsilon;
 };
 
-// From https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm
+// Müller-Trumbore (from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm)
 inline int rayIntersectsTriangle(const Vector3<Real> &rayOrigin,
                                  const Vector3<Real> &rayVector,
-                                 const Vector3<Vector3<Real>> &inTriangle,
-                                 Vector3<Real> &intersectionPoint )
-{
-    const Real EPS = std::numeric_limits<Real>::epsilon();
-    Vector3<Real> vertex0 = inTriangle[0];
-    Vector3<Real> vertex1 = inTriangle[1];
-    Vector3<Real> vertex2 = inTriangle[2];
-    Vector3<Real> edge1, edge2, h, s, q;
-    Real a,f,u,v;
-    edge1 = vertex1 - vertex0;
-    edge2 = vertex2 - vertex0;
-    h = cross( rayVector, edge2 );
-    a = dot( edge1, h );
-    if ( std::abs(a) <= norm(h) * norm(edge2) * EPS  )
-        return -1; // This ray is parallel to this triangle.
-    f = 1.0/a;
-    s = rayOrigin - vertex0;
-    u = f * dot( s, h );
-    if (u < 0.0 || u > 1.0)
-        return 0;
-    q = cross( s, edge1 );
-    v = f * dot( rayVector, q );
-    if (v < 0.0 || u + v > 1.0)
-        return 0;
-    // compute t and intersection point
-    Real t = f * dot( edge2,q );
-    intersectionPoint = rayOrigin + t * rayVector;
-    return 1;
+                                 const Vector3<Vector3<Real>> &triangle,
+                                 Vector3<Real> &intersectionPoint ) {
+  // read triangle vertices
+  Vector3<Real> vertex0 = triangle[0];
+  Vector3<Real> vertex1 = triangle[1];
+  Vector3<Real> vertex2 = triangle[2];
+
+  // compute triangle edges
+  Vector3<Real> edge1 = vertex1 - vertex0;
+  Vector3<Real> edge2 = vertex2 - vertex0;
+  
+  // compute determinant
+  Vector3<Real> h = cross( rayVector, edge2 );
+  Real a = dot( edge1, h );
+
+  // if determinant is close to zero, triangle is parallel
+  const Real EPS = 1e-8; //std::numeric_limits<Real>::epsilon();
+  if ( std::abs(a) < norm(edge1) * norm(h) * EPS  )
+    return -1;
+
+  // invert determinant
+  Real f = 1.0/a;
+
+  // solve for u and return if miss
+  Vector3<Real> s = rayOrigin - vertex0;
+  Real u = f * dot( s, h );
+  if (u < 0.0 || u > 1.0)
+    return 0;
+
+  // solve for v and return if miss
+  Vector3<Real> q = cross( s, edge1 );
+  Real v = f * dot( rayVector, q );
+  if (v < 0.0 || u + v > 1.0)
+    return 0;
+
+  // compute t and intersection point
+  Real t = f * dot( edge2, q );
+
+  // ray is in back
+  if ( t < 0 )
+    return -2;
+
+  intersectionPoint = rayOrigin + t * rayVector;
+  return 1;
 }
 
 inline Real pointTriangleSqrDistance(
@@ -142,98 +158,101 @@ public:
     }
 
     Real nonConvexSDF(Vector3<Real> p, std::vector<Vector3<Real>> randomNormals) const {
-        // Find the closest triangles and the distance to them.
-        std::vector<Vector3<Vector3<Real>>> closest{};
-        Real minSqrDist = 1e100;
-        for (int i = 0; i < (int)tri_.size(); ++i) {
-            Vector3<Vector3<Real>> t{
-                x_[tri_[i][0]],
-                x_[tri_[i][1]],
-                x_[tri_[i][2]],
-            };
-            const Real sqrDist = pointTriangleSqrDistance(t, p);
-            if( approximatelyEqual( sqrDist, minSqrDist ) )
-                closest.push_back(t);
-            else if (sqrDist < minSqrDist) {
-                minSqrDist = sqrDist;
-                closest.clear();
-                closest.push_back(t);
+      // Find the closest triangles and the distance to them.
+      std::vector<Vector3<Vector3<Real>>> closest{};
+      Real minSqrDist = 1e100;
+      for (int i = 0; i < (int)tri_.size(); ++i) {
+        Vector3<Vector3<Real>> t{
+            x_[tri_[i][0]],
+            x_[tri_[i][1]],
+            x_[tri_[i][2]],
+        };
+        const Real sqrDist = pointTriangleSqrDistance(t, p);
+        if( approximatelyEqual( sqrDist, minSqrDist, 1e-1 ) )
+            closest.push_back(t);
+        else if (sqrDist < minSqrDist) {
+            minSqrDist = sqrDist;
+            closest.clear();
+            closest.push_back(t);
+        }
+      }
+      const auto dist = std::sqrt(minSqrDist);
+
+      // Check on which side of the closest triangle we are. Compute normal and direction vector
+      Vector3<Real> n{};
+      Vector3<Real> dir{};
+      if( closest.size() == 1 ) {
+        n = cross(closest[0][1] - closest[0][0], closest[0][2] - closest[0][0]);
+        dir = p - closest[0][0];
+        const auto side = dot(n, dir);
+        return -std::copysign(dist, side);
+      }
+      else 
+      {
+        // shoot ray to check whether gridpoint is in- or outside of surface
+        bool bInvalid;
+        size_t numIntersections;;
+        for( size_t i = 0; i<randomNormals.size(); i++ ) { 
+          bInvalid = false;
+          numIntersections = 0;
+          for( const auto& tri: tri_ ) {
+            // get triangle points
+            Vector3<Vector3<Real>> t{ x_[tri[0]],
+                                      x_[tri[1]],
+                                      x_[tri[2]] };
+
+            // send ray
+            Vector3<Real> intersectionPoint{};
+            // returns 0 for miss, 1 for hit, -1 for parallel triangle, and -2 for line intersection
+            int intersection = rayIntersectsTriangle( p, randomNormals[i], t, intersectionPoint );
+
+            // if ray is parallel to triangle
+            if( intersection == -1 ) {
+              fprintf(stderr, "WARNING: Ray is parallel to triangle: randomNormals[%ld][0]=%f, randomNormals[%ld][1]=%f, randomNormals[%ld][2]=%f, t[0][0]=%f, t[0][1]=%f, t[0][2]=%f, t[1][0]=%f, t[1][1]=%f, t[1][2]=%f, t[2][0]=%f, t[2][1]=%f, t[2][2]=%f, tri[0]=%d, tri[1]=%d, tri[2]=%d\n", i, randomNormals[i][0], i, randomNormals[i][1], i, randomNormals[i][2], t[0][0], t[0][1], t[0][2], t[1][0], t[1][1], t[1][2], t[2][0], t[2][1], t[2][2], tri[0], tri[1], tri[2]);
+              bInvalid = true;
             }
-        }
-        const auto dist = std::sqrt(minSqrDist);
+            if( bInvalid ) break;
 
-        // Check on which side of the closest triangle we are. Compute normal and direction vector
-        Vector3<Real> n{};
-        Vector3<Real> dir{};
-        if( closest.size() == 1 ) {
-            n = cross(closest[0][1] - closest[0][0], closest[0][2] - closest[0][0]);
-            dir = p - closest[0][0];
-            const auto side = dot(n, dir);
-            return std::copysign(dist, side); 
-        }
-        else {
-            // shoot ray to check whether block is close to surface or inside
-            size_t numIntersections = 0;
-            bool bInvalid;
-            for( size_t i = 0; i<randomNormals.size(); i++ ) { 
-              bInvalid = false;
-              for( const auto& tri: tri_ ) {
-                // get triangle points
-                Vector3<Vector3<Real>> t{ x_[tri[0]],
-                                          x_[tri[1]],
-                                          x_[tri[2]] };
-
-                // send ray
-                Vector3<Real> intersectionPoint{};
-                // returns 0 for miss, 1 for hit, -1 for failure
-                int intersection = rayIntersectsTriangle( p, randomNormals[i], t, intersectionPoint );
-
-                // .. if ray is parallel to triangle
-                if( intersection == -1 ) {
-                  fprintf(stderr, "WARNING: Ray is parallel to triangle: randomNormals[%ld][0]=%f, randomNormals[%ld][1]=%f, randomNormals[%ld][2]=%f, t[0][0]=%f, t[0][1]=%f, t[0][2]=%f, t[1][0]=%f, t[1][1]=%f, t[1][2]=%f, t[2][0]=%f, t[2][1]=%f, t[2][2]=%f, tri[0]=%d, tri[1]=%d, tri[2]=%d\n", i, randomNormals[i][0], i, randomNormals[i][1], i, randomNormals[i][2], t[0][0], t[0][1], t[0][2], t[1][0], t[1][1], t[1][2], t[2][0], t[2][1], t[2][2], tri[0], tri[1], tri[2]);
-                  bInvalid = true;
+            // check whether ray is invalid
+            if( intersection >=0 ) {
+                // .. if ray intersects corner
+                for( size_t j = 0; j<3; j++ )
+                if( approximatelyEqual(t[j][0], intersectionPoint[0], std::numeric_limits<Real>::epsilon() ) &&
+                    approximatelyEqual(t[j][1], intersectionPoint[1], std::numeric_limits<Real>::epsilon() ) &&
+                    approximatelyEqual(t[j][2], intersectionPoint[2], std::numeric_limits<Real>::epsilon() ) ) 
+                {
+                    fprintf(stderr, "WARNING: Ray interesects a corner: intersectionPoint[0]=%f, intersectionPoint[1]=%f, intersectionPoint[2]=%f, t[%ld][0]=%f, t[%ld][1]=%f, t[%ld][2]=%f\n", intersectionPoint[0], intersectionPoint[1], intersectionPoint[2], j, t[j][0], j, t[j][1], j, t[j][2]);
+                    bInvalid = true;
                 }
                 if( bInvalid ) break;
 
-                // .. if ray intersects triangle
-                if( intersection == 1 ) {
-                  // .. if ray intersects corner
-                  for( size_t j = 0; j<3; j++ )
-                  if( approximatelyEqual(t[j][0], intersectionPoint[0]) &&
-                      approximatelyEqual(t[j][1], intersectionPoint[1]) &&
-                      approximatelyEqual(t[j][2], intersectionPoint[2]) ) {
-                    fprintf(stderr, "WARNING: Ray interesects a corner: intersectionPoint[0]=%f, intersectionPoint[1]=%f, intersectionPoint[2]=%f, t[%ld][0]=%f, t[%ld][1]=%f, t[%ld][2]=%f\n", intersectionPoint[0], intersectionPoint[1], intersectionPoint[2], j, t[j][0], j, t[j][1], j, t[j][2]);
-                    bInvalid = true;
-                  }
-                  if( bInvalid ) break;
-
-                  // .. if ray intersects edge (use triangle inequality)
-                  for( size_t j = 0; j<3; j++ ){
-                    Vector3<double> vecA= t[j] - intersectionPoint;
-                    Vector3<double> vecB= intersectionPoint - t[(j+1)%3];
-                    Vector3<double> vecC= t[j] - t[(j+1)%3];
+                // .. if ray intersects edge (use triangle inequality)
+                for( size_t j = 0; j<3; j++ ){
+                    Vector3<double> vecA= t[(j+1)%3] - intersectionPoint;
+                    Vector3<double> vecB= intersectionPoint - t[j];
+                    Vector3<double> vecC= t[(j+1)%3] - t[j];
                     Real normA = norm( vecA );
                     Real normB = norm( vecB );
                     Real normC = norm( vecC );
-                    if( approximatelyEqual( normA+normB, normC ) ) {
-                      fprintf(stderr, "WARNING: Ray interesects an edge: a=%f, b=%f, c=%f\n", normA, normB, normC);
+                    if( approximatelyEqual( normA+normB, normC, std::numeric_limits<Real>::epsilon() ) ) {
+                      fprintf(stderr, "WARNING: Ray [%f,%f,%f] interesects an edge between t[%ld] = [%f,%f,%f] and t[%ld]= [%f,%f,%f] at [%f,%f,%f] (a=%f, b=%f, c=%f)\n", randomNormals[i][0], randomNormals[i][1], randomNormals[i][2], j, t[j][0], t[j][1], t[j][2], (j+1)%3, t[(j+1)%3][0], t[(j+1)%3][1], t[(j+1)%3][2], intersectionPoint[0], intersectionPoint[1], intersectionPoint[2], normA, normB, normC);
                       bInvalid = true;
                     }
-                  }
-                  if( bInvalid ) break;
-
-                  // count intersection
-                  numIntersections++;
                 }
-              }
-              if( not bInvalid ) break;
+                if( bInvalid ) break;
+
+                // count intersection
+                numIntersections += intersection;
             }
-            if( bInvalid ) {
-              fprintf(stderr, "ERROR: Unable to find a valid ray. Aborting..\n");
-              fflush(0); abort();
-            }
-            return numIntersections%2 == 1 ? -dist : dist;
+          }
+          if( not bInvalid ) break;
         }
+        if( bInvalid ) {
+          fprintf(stderr, "ERROR: Unable to find a valid ray. Aborting..\n");
+          fflush(0); abort();
+        }
+        return numIntersections%2 == 1 ? dist : -dist;
+      }
     }
 
     std::vector<Vector3<Real>> x_;
