@@ -380,36 +380,10 @@ bool Simulation::timestep(const double dt)
   }
   if (sim.step % 5 == 0 || sim.step < 10)
   {
-    #pragma omp parallel for
-    for(size_t i=0; i<vInfo.size(); i++)
-    {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        b(ix,iy,iz).tmpU = b.dataOld[iz][iy][ix][0];
-        b(ix,iy,iz).tmpV = b.dataOld[iz][iy][ix][1];
-        b(ix,iy,iz).tmpW = b.dataOld[iz][iy][ix][2];
-      }
-    }
     sim.amr->Tag();
     sim.amr2->TagLike(sim.vInfo());
     sim.amr->Adapt(sim.time,sim.verbose,false);
     sim.amr2->Adapt(sim.time,false,true);
-    #pragma omp parallel for
-    for(size_t i=0; i<vInfo.size(); i++)
-    {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        b.dataOld[iz][iy][ix][0] =  b(ix,iy,iz).tmpU;
-        b.dataOld[iz][iy][ix][1] =  b(ix,iy,iz).tmpV;
-        b.dataOld[iz][iy][ix][2] =  b(ix,iy,iz).tmpW;
-      }
-    }
     //After mesh is refined/coarsened the arrays min_pos and max_pos need to change.
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++) {
