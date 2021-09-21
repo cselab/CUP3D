@@ -426,7 +426,7 @@ void Obstacle::update()
     //printf("Discrepancy in angvel from quaternions: %f (%f %f)\n",
     //  err, (_2Dangle-old2DA)/dt, angVel[2]);
 
-  if(false)//(sim.rank==0 && sim.time > 0)
+  if (sim.verbose && sim.time > 0)
   {
     // #ifdef CUP_VERBOSE
      // printf("POSITION INFO AFTER UPDATE T, DT: %lf %lf\n", sim.time, sim.dt);
