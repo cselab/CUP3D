@@ -86,6 +86,8 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
   // reading coordinates / indices from file
   if( std::filesystem::exists(path) )
   {
+    if( sim.rank == 0 )
+        std::cout << "[ExternalObstacle] Reading mesh from " << path << std::endl;
     // Construct the data object by reading from file
     happly::PLYData plyIn(path);
 
@@ -107,27 +109,35 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
     Vector3<Real> diff = max-min;
     Real maxSize = std::max({diff[0], diff[1], diff[2]});
     Real scalingFac = length / maxSize;
+    if( sim.rank == 0 )
+      std::cout << "[ExternalObstacle] Largest extent = " << maxSize << ", target length = " << length << ", scaling factor = " << scalingFac << std::endl;
 
     // Initialize vectors of Vector3 required by triangleMeshSDF
     for(const auto& point: vPos)
     {
       Vector3<Real> pt = { scalingFac*point[0], scalingFac*point[1], scalingFac*point[2] };
+      // if( sim.rank == 0 ) {
+      //   std::cout << "reading point [" << point[0] << ", " << point[1] << ", " << point[2] << "]" << std::endl;
+      //   std::cout << "after scaling [" << pt[0] << ", " << pt[1] << ", " << pt[2] << "]" << std::endl;
+      // }
       coordinates.push_back(pt);
     }
 
     for(const auto& indx: fInd)
     {
       Vector3<int> id = { indx[0], indx[1], indx[2] };
+      // if( sim.rank == 0 )
+      //   std::cout << "reading point indices [" << id[0] << ", " << id[1] << ", " << id[2] << "]" << std::endl;
       indices.push_back(id);
     }
     if( sim.rank == 0 )
-      std::cout << "nPoints = " << coordinates.size() << ", nTriangles = " << indices.size() << std::endl;
+      std::cout << "[ExternalObstacle] Read grid with nPoints = " << coordinates.size() << ", nTriangles = " << indices.size() << std::endl;
   }
   else{
-    fprintf(stderr, "ERROR: Unable to find %s file\n", path.c_str());
+    fprintf(stderr, "[ExternalObstacle] ERROR: Unable to find %s file\n", path.c_str());
     fflush(0); abort();
   }
-  // create 10 random vectors to determine if block is inside obstacle
+  // create 10 random vectors to determine if point is inside obstacle
   gen = std::mt19937();
   normalDistribution = std::normal_distribution<Real>(0.0, 1.0);
   for( size_t i = 0; i<10; i++ ) {
