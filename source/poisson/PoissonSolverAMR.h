@@ -137,6 +137,7 @@ class ComputeLHS : public Operator
     std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson->getBlocksInfo();
     const KernelLHSPoisson KPoisson(sim);
     computePoisson<KernelLHSPoisson>(KPoisson,true);
+#if 1
     double avgP = 0;
     #pragma omp parallel for reduction(+ : avgP)
     for(size_t i=0; i<vInfoPoisson.size(); ++i)
@@ -153,11 +154,13 @@ class ComputeLHS : public Operator
     for(size_t i=0; i<vInfoPoisson.size(); ++i)
     {
       FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
+      const double h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
       for(int iz=0; iz<FluidBlock::sizeZ; iz++)
       for(int iy=0; iy<FluidBlock::sizeY; iy++)
       for(int ix=0; ix<FluidBlock::sizeX; ix++)
-        bPoisson(ix,iy,iz).lhs -= avgP;
+        bPoisson(ix,iy,iz).lhs -= avgP*h3;
     }
+#endif
   }
   std::string getName() { return "ComputeLHS"; }
 };
