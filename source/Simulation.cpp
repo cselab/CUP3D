@@ -347,11 +347,10 @@ double Simulation::calcMaxTimestep()
   if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
 
   if( sim.rank == 0 ) {
-    std::cout << "=======================================================================\n";
     printf("[CUP3D] step: %d, time: %f, dt: %.2e, uinf: {%f %f %f}, maxU:%f, minH:%f, CFL:%.2e, lambda:%.2e\n",sim.step,sim.time, sim.dt, sim.uinf[0],sim.uinf[1],sim.uinf[2], sim.uMax_measured, hMin, CFL, sim.lambda);
   }
 
-  if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
+  if (sim.step > sim.step_2nd_start)
   {
     const double a = dt_old;
     const double b = sim.dt;
@@ -360,7 +359,6 @@ double Simulation::calcMaxTimestep()
     sim.coefU[0] = -b*(c1+c2);
     sim.coefU[1] = b*c1;
     sim.coefU[2] = b*c2;
-    //if (sim.verbose) std::cout << "coefs = " << sim.coefU[0] << " " << sim.coefU[1] << " " << sim.coefU[2] << std::endl;
     //sim.coefU[0] = 1.5;
     //sim.coefU[1] = -2.0;
     //sim.coefU[2] = 0.5;
@@ -382,70 +380,37 @@ bool Simulation::timestep(const double dt)
   }
   if (sim.step % 5 == 0 || sim.step < 10)
   {
-      if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
-      {
-          #pragma omp parallel for
-          for(size_t i=0; i<vInfo.size(); i++)
-          {
-             FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-             for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-             for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-             for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-             {
-                b(ix,iy,iz).tmpU = b.dataOld[iz][iy][ix][0];
-                b(ix,iy,iz).tmpV = b.dataOld[iz][iy][ix][1];
-                b(ix,iy,iz).tmpW = b.dataOld[iz][iy][ix][2];
-             }
-          }
-      }
-      sim.amr->Tag();
-      sim.amr2->TagLike(sim.vInfo());
-      sim.amr->Adapt(sim.time,sim.verbose,false);
-      sim.amr2->Adapt(sim.time,false,true);
-      if (sim.TimeOrder == 2 && sim.step >= sim.step_2nd_start)
-      {
-          #pragma omp parallel for
-          for(size_t i=0; i<vInfo.size(); i++)
-          {
-              FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-              for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-              for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-              for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-              {
-                 b.dataOld[iz][iy][ix][0] =  b(ix,iy,iz).tmpU;
-                 b.dataOld[iz][iy][ix][1] =  b(ix,iy,iz).tmpV;
-                 b.dataOld[iz][iy][ix][2] =  b(ix,iy,iz).tmpW;
-              }
-          }
-      }
-
-      //After mesh is refined/coarsened the arrays min_pos and max_pos need to change.
-      #pragma omp parallel for schedule(static)
-      for(size_t i=0; i<vInfo.size(); i++) {
-        FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-        b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
-        b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
-      }
+    sim.amr->Tag();
+    sim.amr2->TagLike(sim.vInfo());
+    sim.amr->Adapt(sim.time,sim.verbose,false);
+    sim.amr2->Adapt(sim.time,false,true);
+    //After mesh is refined/coarsened the arrays min_pos and max_pos need to change.
+    #pragma omp parallel for schedule(static)
+    for(size_t i=0; i<vInfo.size(); i++) {
+      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
+      b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
     }
-    sim.step++;
-    sim.time += dt;
+  }
+  sim.step++;
+  sim.time += dt;
 
-    sim.startProfiler("Save");
-    if( sim.bDump ) _serialize();
-    sim.stopProfiler();
+  sim.startProfiler("Save");
+  if( sim.bDump ) _serialize();
+  sim.stopProfiler();
 
-    if (sim.step % 50 == 0 && sim.verbose) sim.printResetProfiler();
-    if ((sim.endTime>0 && sim.time>sim.endTime) ||
-        (sim.nsteps!=0 && sim.step>=sim.nsteps) ) {
-      if(sim.verbose)
-      {
-        sim.printResetProfiler();
-        std::cout<<"Finished at time "<<sim.time<<" in "<<sim.step<<" steps.\n";
-      }
-      return true;  // Finished.
+  if (sim.step % 50 == 0 && sim.verbose) sim.printResetProfiler();
+  if ((sim.endTime>0 && sim.time>sim.endTime) ||
+      (sim.nsteps!=0 && sim.step>=sim.nsteps) ) {
+    if(sim.verbose)
+    {
+      sim.printResetProfiler();
+      std::cout<<"Finished at time "<<sim.time<<" in "<<sim.step<<" steps.\n";
     }
+    return true;  // Finished.
+  }
 
-    return false;  // Not yet finished.
+  return false;  // Not yet finished.
 }
 
 CubismUP_3D_NAMESPACE_END

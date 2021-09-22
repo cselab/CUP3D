@@ -237,7 +237,7 @@ struct DumpWake
 
 void ComputeForces::operator()(const double dt)
 {
-  if (sim.step >= 500 && sim.step % 10 != 0) return; //it's expensive to compute forces! Do it once every 10 timesteps.
+  //if (sim.step >= 500 && sim.step % 10 != 0) return; //it's expensive to compute forces! Do it once every 10 timesteps.
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
   sim.startProfiler("Obst. Forces");

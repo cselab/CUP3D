@@ -63,7 +63,7 @@ class Operator
         }
     }
 
-    if (sim.step >= sim.step_2nd_start-1 && sim.TimeOrder == 2)
+    if (sim.step > sim.step_2nd_start)
     for (int i = 0; i < (int)vInfo.size(); ++i)
     {
       const cubism::BlockInfo info = vInfo[i];

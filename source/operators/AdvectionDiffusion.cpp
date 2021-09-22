@@ -61,9 +61,9 @@ struct KernelAdvectDiffuse : public Discretization
             const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
             const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
             const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-            o.data[iz][iy][ix].tmpU += coef * h3*( facA*duA + facD*duD );
-            o.data[iz][iy][ix].tmpV += coef * h3*( facA*dvA + facD*dvD );
-            o.data[iz][iy][ix].tmpW += coef * h3*( facA*dwA + facD*dwD );
+            o.data[iz][iy][ix].tmpU = coef * h3*( facA*duA + facD*duD );
+            o.data[iz][iy][ix].tmpV = coef * h3*( facA*dvA + facD*dvD );
+            o.data[iz][iy][ix].tmpW = coef * h3*( facA*dwA + facD*dwD );
         }
 
         BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
@@ -201,11 +201,12 @@ struct Upwind3rd
 
 void AdvectionDiffusion::operator()(const double dt)
 {
+    //Midpoint integration
+
     sim.startProfiler("AdvDiff Kernel");
     const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
-    const double coef1 = (sim.step < sim.step_2nd_start) ? 1.0 :      (sim.dt_old+0.5*sim.dt)/sim.dt;// 1.5;
-    const double coef2 = (sim.step < sim.step_2nd_start) ? 0.0 : (1.0-(sim.dt_old+0.5*sim.dt)/sim.dt);//-0.5;
 
+    //1.Save u^{n} to dataOld
     #pragma omp parallel for
     for(size_t i=0; i<vInfo.size(); i++)
     {
@@ -214,34 +215,20 @@ void AdvectionDiffusion::operator()(const double dt)
         for (int iy=0; iy<FluidBlock::sizeY; ++iy)
         for (int ix=0; ix<FluidBlock::sizeX; ++ix)
         {
-            b(ix,iy,iz).tmpU = 0;
-            b(ix,iy,iz).tmpV = 0;
-            b(ix,iy,iz).tmpW = 0;
+            b.dataOld[iz][iy][ix][0] = b(ix,iy,iz).u;
+            b.dataOld[iz][iy][ix][1] = b(ix,iy,iz).v;
+            b.dataOld[iz][iy][ix][2] = b(ix,iy,iz).w;
         }
     }
 
-    //compute with u^{n}
-    const KernelAdvectDiffuse<Upwind3rd> step1(sim,coef1);
+    /********************************************************************/
+    // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
+
+    //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
+    const KernelAdvectDiffuse<Upwind3rd> step1(sim,0.5);
     compute(step1,true);
 
-    //compute with u^{n-1}
-    #pragma omp parallel for
-    for(size_t i=0; i<vInfo.size(); i++)
-    {
-        FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
-        for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-        {
-            std::swap(b(ix,iy,iz).u,b.dataOld[iz][iy][ix][0]);
-            std::swap(b(ix,iy,iz).v,b.dataOld[iz][iy][ix][1]);
-            std::swap(b(ix,iy,iz).w,b.dataOld[iz][iy][ix][2]);
-        }
-    }
-    const KernelAdvectDiffuse<Upwind3rd> step2(sim,coef2);
-    compute(step2,true);
-
-    //now dataOld has u^{n}
+    //   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
     #pragma omp parallel for
     for(size_t i=0; i<vInfo.size(); i++)
     {
@@ -256,6 +243,31 @@ void AdvectionDiffusion::operator()(const double dt)
             b(ix,iy,iz).w = b.dataOld[iz][iy][ix][2] + b(ix,iy,iz).tmpW*ih3;
         }
     }
+    /********************************************************************/
+
+
+    /********************************************************************/
+    // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
+    //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
+    const KernelAdvectDiffuse<Upwind3rd> step2(sim,1.0);
+    compute(step2,true);
+
+    //   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
+    #pragma omp parallel for
+    for(size_t i=0; i<vInfo.size(); i++)
+    {
+        FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
+        const double ih3 = 1.0/(vInfo[i].h*vInfo[i].h*vInfo[i].h);
+        for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+        {
+            b(ix,iy,iz).u = b.dataOld[iz][iy][ix][0] + b(ix,iy,iz).tmpU*ih3;
+            b(ix,iy,iz).v = b.dataOld[iz][iy][ix][1] + b(ix,iy,iz).tmpV*ih3;
+            b(ix,iy,iz).w = b.dataOld[iz][iy][ix][2] + b(ix,iy,iz).tmpW*ih3;
+        }
+    }
+    /********************************************************************/
 
     sim.stopProfiler();
     check("AdvectionDiffusion");

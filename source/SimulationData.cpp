@@ -54,8 +54,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   rampup = parser("-rampup").asInt(100); // number of dt ramp-up steps
   nsteps = parser("-nsteps").asInt(0);    // 0 to disable this stopping critera.
   endTime = parser("-tend").asDouble(0);  // 0 to disable this stopping critera.
-  TimeOrder = parser("-TimeOrder").asInt(1);   // order of accuracy of timestepping
-  assert (TimeOrder == 1 || TimeOrder == 2);
   step_2nd_start = 2;
 
   // FLOW

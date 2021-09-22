@@ -114,7 +114,6 @@ struct SimulationData
   // Time stepping
   // if step < step_2nd_start, explicit Euler steps are performed
   //(used to initialize u_{n-1} and u_n that are needed for 2nd order timestep)
-  int TimeOrder; // =1 or =2
   int step_2nd_start;
   double coefU[3] = {1.5,-2.0,0.5};
   int rampup;

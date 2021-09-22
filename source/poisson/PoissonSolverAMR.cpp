@@ -148,8 +148,6 @@ void PoissonSolverAMR::solve()
             x[src_index]         = b(ix,iy,iz).p;
             bPoisson(ix,iy,iz).s = b(ix,iy,iz).p; //this is done because Get_LHS works with zVector
         }
-        if (vInfo[i].index[0] == 0 && vInfo[i].index[1] == 0 && vInfo[i].index[2] == 0)
-          b.tmp[0][0][0] = 0.0;
     }
 
 

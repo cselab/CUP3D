@@ -121,6 +121,8 @@ class KernelCharacteristicFunction
           const Real gradHY = (iy == 0) ? 2.0*(-0.5*CHI[iz][iy+2][ix]+2.0*CHI[iz][iy+1][ix]-1.5*CHI[iz][iy][ix]) : ( (iy==FluidBlock::sizeY-1) ? 2.0*(1.5*CHI[iz][iy][ix]-2.0*CHI[iz][iy-1][ix]+0.5*CHI[iz][iy-2][ix]) : (CHI[iz][iy+1][ix]-CHI[iz][iy-1][ix]));
           const Real gradHZ = (iz == 0) ? 2.0*(-0.5*CHI[iz+2][iy][ix]+2.0*CHI[iz+1][iy][ix]-1.5*CHI[iz][iy][ix]) : ( (iz==FluidBlock::sizeZ-1) ? 2.0*(1.5*CHI[iz][iy][ix]-2.0*CHI[iz-1][iy][ix]+0.5*CHI[iz-2][iy][ix]) : (CHI[iz+1][iy][ix]-CHI[iz-1][iy][ix]));
 
+          if (gradHX*gradHX + gradHY*gradHY + gradHZ*gradHZ < 1e-12) continue;
+
           const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
           const Real Delta = fac1 * numD/gradUSq; //h^3 * Delta
           if (Delta>EPS) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);

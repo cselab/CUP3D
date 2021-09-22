@@ -138,7 +138,6 @@ class ComputeLHS : public Operator
     const KernelLHSPoisson KPoisson(sim);
     computePoisson<KernelLHSPoisson>(KPoisson,true);
     double avgP = 0;
-    int index = -1;
     #pragma omp parallel for reduction(+ : avgP)
     for(size_t i=0; i<vInfoPoisson.size(); ++i)
     {
@@ -148,13 +147,16 @@ class ComputeLHS : public Operator
       for(int iy=0; iy<FluidBlock::sizeY; iy++)
       for(int ix=0; ix<FluidBlock::sizeX; ix++)
         avgP += bPoisson(ix,iy,iz).s*h3;
-      if (vInfoPoisson[i].index[0] == 0 && vInfoPoisson[i].index[1] == 0 && vInfoPoisson[i].index[2] == 0) index = i;
     }
     MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, sim.grid->getWorldComm());
-    if (index!=-1)
+
+    for(size_t i=0; i<vInfoPoisson.size(); ++i)
     {
-      FluidBlockPoisson & __restrict__ b  = *(FluidBlockPoisson*) vInfoPoisson[index].ptrBlock;
-      b(0,0,0).lhs = avgP;
+      FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
+      for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+      for(int iy=0; iy<FluidBlock::sizeY; iy++)
+      for(int ix=0; ix<FluidBlock::sizeX; ix++)
+        bPoisson(ix,iy,iz).lhs -= avgP;
     }
   }
   std::string getName() { return "ComputeLHS"; }

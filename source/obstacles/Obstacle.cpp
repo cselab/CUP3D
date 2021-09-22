@@ -344,20 +344,7 @@ void Obstacle::update()
     .5*( + angVel[0]*quaternion[2] - angVel[1]*quaternion[1] + angVel[2]*quaternion[0] )
   };
 
-  if (sim.TimeOrder == 1)
-  {
-    position  [0] += sim.dt * ( transVel[0] + sim.uinf[0] );
-    position  [1] += sim.dt * ( transVel[1] + sim.uinf[1] );
-    position  [2] += sim.dt * ( transVel[2] + sim.uinf[2] );
-    absPos    [0] += sim.dt * transVel[0];
-    absPos    [1] += sim.dt * transVel[1];
-    absPos    [2] += sim.dt * transVel[2];
-    quaternion[0] += sim.dt * dqdt[0];
-    quaternion[1] += sim.dt * dqdt[1];
-    quaternion[2] += sim.dt * dqdt[2];
-    quaternion[3] += sim.dt * dqdt[3];
-  }
-  else if (sim.TimeOrder == 2 && sim.step < sim.step_2nd_start)
+  if (sim.step < sim.step_2nd_start)
   {
     old_position  [0] = position  [0];
     old_position  [1] = position  [1];
@@ -385,7 +372,6 @@ void Obstacle::update()
     const double aux = 1.0 / sim.coefU[0];
 
     double temp [10] = {position[0],position[1],position[2],absPos[0],absPos[1],absPos[2],quaternion[0],quaternion[1],quaternion[2],quaternion[3]};
-    assert(sim.TimeOrder == 2);
     position  [0] = aux * ( sim.dt * ( transVel[0] + sim.uinf[0] ) + ( - sim.coefU[1]*position  [0] - sim.coefU[2]*old_position  [0]) );
     position  [1] = aux * ( sim.dt * ( transVel[1] + sim.uinf[1] ) + ( - sim.coefU[1]*position  [1] - sim.coefU[2]*old_position  [1]) );
     position  [2] = aux * ( sim.dt * ( transVel[2] + sim.uinf[2] ) + ( - sim.coefU[1]*position  [2] - sim.coefU[2]*old_position  [2]) );
@@ -440,7 +426,7 @@ void Obstacle::update()
     //printf("Discrepancy in angvel from quaternions: %f (%f %f)\n",
     //  err, (_2Dangle-old2DA)/dt, angVel[2]);
 
-  if(sim.rank==0 && sim.time > 0)
+  if (sim.verbose && sim.time > 0)
   {
     // #ifdef CUP_VERBOSE
      // printf("POSITION INFO AFTER UPDATE T, DT: %lf %lf\n", sim.time, sim.dt);
