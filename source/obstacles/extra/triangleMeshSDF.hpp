@@ -189,9 +189,51 @@ public:
         if( closest.size() == 1 ) {
           n = cross(closest[0][1] - closest[0][0], closest[0][2] - closest[0][0]);
           dir = p - closest[0][0];
+          #if 1 // NEEDS TO BE 0 if PSEUDO-NORMAL IS 1 !
           const auto side = dot(n, dir);
           return -std::copysign(dist, side);
+          #endif
         }
+        #if 0// PSEUDO-NORMAL TO COMPUTE SIGN (http://www2.compute.dtu.dk/pubdb/pubs/1833-full.html) - DOES NOT WORK
+        else if( closest.size() == 2 ) {
+            // Closest point is on an edge, average the normals
+            auto n1 = cross(closest[0][1] - closest[0][0], closest[0][2] - closest[0][0]);
+            auto n2 = cross(closest[1][1] - closest[1][0], closest[1][2] - closest[1][0]);
+            n = n1 + n2;
+            // Get closest point
+            for( size_t i = 0; i < 3; i++ )
+            {
+                dir = p - closest[0][i];
+                if( approximatelyEqual( minSqrDist, dot(dir, dir), 1e-1 ) )
+                    break;
+            }
+        }
+        else {
+            // Closest point is on a vertex, angle-weighted average
+            for( const auto& triangle : closest ){
+                size_t i = 0;
+                for( ; i < 3; i++ )
+                {
+                    dir = p - triangle[i];
+                    if( approximatelyEqual( minSqrDist, dot(dir, dir), 1e-1 ) )
+                        break;
+                }
+                // compute angle at edge of triangle
+                auto edgeVec1 = triangle[ (i+1)%3 ] - triangle[i];
+                auto edgeVec2 = triangle[ (i+2)%3 ] - triangle[i];
+                Real cosalphai = dot(edgeVec1, edgeVec2) / (norm(edgeVec1)*norm(edgeVec2));
+                Real alphai  = std::acos(cosalphai);
+                // compute normal of triangle
+                auto ni = cross(triangle[1] - triangle[0], triangle[2] - triangle[0]);
+                // normalize
+                ni = ( 1 / norm(ni) ) * ni;
+                // compute angle averaged normal
+                n = n + alphai * ni;
+            }
+        }
+        const auto side = dot(n, dir);
+        return -std::copysign(dist, side);
+        #else // RAY TO COMPUTE SIGN
         else
         {
           // shoot ray to check whether gridpoint is in- or outside of surface
@@ -269,7 +311,7 @@ public:
                 }
                 if( rank == 0 ) {
                     #pragma omp master
-                    fprintf(stderr, "WARNING: Ignored %ld/%ld triangles and %ld parallel Rays.\n", nInvalidTriangles, tri_.size(), nParallelRays);
+                    fprintf(stderr, "[ExternalObstacle] Ignored %ld/%ld triangles and %ld parallel Rays.\n", nInvalidTriangles, tri_.size(), nParallelRays);
                 }
                 if( not bInvalid ) break;
             }
@@ -279,6 +321,7 @@ public:
             }
             return numIntersections%2 == 1 ? dist : -dist;
         }
+        #endif
     }
 
     std::vector<Vector3<Real>> x_;
