@@ -79,10 +79,10 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
 void Simulation::refineGrid()
 {
   // Initial Compression of Grid
-  for (int l = 0 ; l < 2*sim.levelMax ; l++)
+  for (int l = 0 ; l < 3*sim.levelMax ; l++)
   {
     if( sim.verbose )
-      std::cout << "[CUP3D] - refinement " << l << "/" << 2*sim.levelMax-1 << std::endl;
+      std::cout << "[CUP3D] - refinement " << l << "/" << 3*sim.levelMax-1 << std::endl;
     // CreateObstacles
     (*sim.pipeline[0])(0);
 
