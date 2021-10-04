@@ -12,23 +12,28 @@
 CubismUP_3D_NAMESPACE_BEGIN
 
 template <typename T>
-struct Vector3 {
+struct Vector3
+{
     T &operator[](int k) { return x_[k]; }
     const T &operator[](int k) const { return x_[k]; }
 
-    friend Vector3 operator+(const Vector3 &a, const Vector3 &b) {
+    friend Vector3 operator+(const Vector3 &a, const Vector3 &b)
+    {
         return {a[0] + b[0], a[1] + b[1], a[2] + b[2]};
     }
 
-    friend Vector3 operator-(const Vector3 &a, const Vector3 &b) {
+    friend Vector3 operator-(const Vector3 &a, const Vector3 &b)
+    {
         return {a[0] - b[0], a[1] - b[1], a[2] - b[2]};
     }
 
-    friend Vector3 operator*(const T &a, const Vector3 &b) {
+    friend Vector3 operator*(const T &a, const Vector3 &b)
+    {
         return {a*b[0], a*b[1], a*b[2]};
     }
 
-    friend Vector3 cross(const Vector3 &a, const Vector3 &b) {
+    friend Vector3 cross(const Vector3 &a, const Vector3 &b)
+    {
         return Vector3{
             a[1] * b[2] - a[2] * b[1],
             a[2] * b[0] - a[0] * b[2],
@@ -36,63 +41,51 @@ struct Vector3 {
         };
     }
 
-    friend auto dot(Vector3 a, Vector3 b) {
+    friend auto dot(Vector3 a, Vector3 b)
+    {
         return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     }
 
-    friend auto norm(Vector3 &a) {
+    friend auto norm(Vector3 &a)
+    {
         return std::sqrt( dot(a,a) );
     }
 
     T x_[3];
 };
 
-
 // Müller-Trumbore algorithm (from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm)
-inline int rayIntersectsTriangle(const Vector3<Real> &rayOrigin,
-                                 const Vector3<Real> &rayVector,
-                                 const Vector3<Vector3<Real>> &triangle,
-                                 Vector3<Real> &intersectionPoint ) {
-    // read triangle vertices
-    Vector3<Real> vertex0 = triangle[0];
-    Vector3<Real> vertex1 = triangle[1];
-    Vector3<Real> vertex2 = triangle[2];
-
+inline int rayIntersectsTriangle(const Vector3<Real> &rayOrigin, const Vector3<Real> &rayVector, const Vector3<Vector3<Real>> &triangle, Vector3<Real> &intersectionPoint )
+{
     // compute triangle edges
-    Vector3<Real> edge1 = vertex1 - vertex0;
-    Vector3<Real> edge2 = vertex2 - vertex0;
+    Vector3<Real> edge1 = triangle[1] - triangle[0];
+    Vector3<Real> edge2 = triangle[2] - triangle[0];
 
     // compute determinant
     Vector3<Real> h = cross( rayVector, edge2 );
     Real a = dot( edge1, h );
 
-    // if determinant is close to zero, triangle is parallel
-    //const Real EPS = std::numeric_limits<Real>::epsilon(); //1e-8;
-    if ( std::abs(a) <= norm(edge1) * norm(h) * 1e-10  )
-    //if ( std::fabs(a) < 1e-15  )
-        return -1;
+    // if cos(theta) is close to zero (theta is the angle between edge1 and h, triangle is parallel
+    if (std::abs(a) <= norm(edge1) * norm(h) * 1e-10) return -1;
 
     // invert determinant
     Real f = 1.0/a;
 
     // solve for u and return if miss
-    Vector3<Real> s = rayOrigin - vertex0;
+    Vector3<Real> s = rayOrigin - triangle[0];
     Real u = f * dot( s, h );
-    if (u < 0.0 || u > 1.0)
-        return 0;
+    if (u < 0.0 || u > 1.0) return 0;
 
     // solve for v and return if miss
     Vector3<Real> q = cross( s, edge1 );
     Real v = f * dot( rayVector, q );
-    if (v < 0.0 || u + v > 1.0)
-        return 0;
+    if (v < 0.0 || u + v > 1.0) return 0;
 
     // compute t and intersection point
     Real t = f * dot( edge2, q );
 
     // ray is in back
-    if ( t < 0 )
-        return -2;
+    if ( t < 0 ) return -2;
 
     intersectionPoint = rayOrigin + t * rayVector;
 
@@ -147,11 +140,7 @@ inline Real pointTriangleSqrDistance( const Vector3<Real> a, const Vector3<Real>
     }
     else if (u>=0 && v>=0 && w>=0) //point is inside the triangle
     {
-       //projected point in real space
-       rpt = u * a + v * b + w * c;
-       //if ( std::fabs(rpt[0]-rp[0]) > 1e-4 || 
-       //     std::fabs(rpt[1]-rp[1]) > 1e-4 || 
-       //     std::fabs(rpt[2]-rp[2]) > 1e-4 ) {MPI_Abort(MPI_COMM_WORLD,3);}
+       rpt = u * a + v * b + w * c; //projected point in real space
     }
     else if (u < 0 && v < 0)rpt = c;
     else if (u < 0 && w < 0)rpt = b;
@@ -164,15 +153,15 @@ inline Real pointTriangleSqrDistance( const Vector3<Real> a, const Vector3<Real>
     return retval;
 }
 
-class Mesh {
-public:
-    Mesh(const std::vector<Vector3<Real>> &x,
-         const std::vector<Vector3<int>>  &tri) :
-        x_{x}, tri_{tri}
-    { }
+class Mesh
+{
+  public:
+    Mesh(const std::vector<Vector3<Real>> &x, const std::vector<Vector3<int>>  &tri) : x_{x}, tri_{tri}{}
 
-    void rotate( const Real Rmatrix[3][3], const double position[3]) {
-        for( auto& pt: x_ ) {
+    void rotate( const Real Rmatrix[3][3], const double position[3])
+    {
+        for( auto& pt: x_ )
+        {
             // printf( "Before transformation [%f, %f, %f]\n", pt[0], pt[1], pt[2] );
             // rotate point
             Vector3<Real> pRot = {
@@ -186,11 +175,9 @@ public:
             // printf( "after transformation [%f, %f, %f]\n", pt[0], pt[1], pt[2] );
         }
     }
-
     std::vector<Vector3<Real>> x_;
     std::vector<Vector3<int>> tri_;
 };
-
 
 class ExternalObstacle : public Obstacle
 {
@@ -210,7 +197,6 @@ public:
   void computeVelocities() override;
 
   std::vector<std::vector<int>> BlocksToTriangles;
-
 };
 
 CubismUP_3D_NAMESPACE_END

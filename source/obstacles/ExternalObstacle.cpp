@@ -34,9 +34,10 @@ struct FillBlocks
   };
   std::array<std::array<Real,2>,3> box;
   std::vector<std::vector<int>> BlocksToTriangles;
+  double length;
 
-  FillBlocks(Real _h, const double p[3], const double q[4], Mesh &_mesh, std::vector<Vector3<Real>> _randomNomals, std::vector<std::vector<int>> _BlocksToTriangles): 
-  safety((2+SURFDH)*_h), position{p[0],p[1],p[2]}, quaternion{q[0],q[1],q[2],q[3]}, mesh(_mesh), randomNormals(_randomNomals), BlocksToTriangles(_BlocksToTriangles)
+  FillBlocks(Real _h, const double p[3], const double q[4], Mesh &_mesh, std::vector<Vector3<Real>> _randomNomals, std::vector<std::vector<int>> _BlocksToTriangles, double _length): 
+  safety((2+SURFDH)*_h), position{p[0],p[1],p[2]}, quaternion{q[0],q[1],q[2],q[3]}, mesh(_mesh), randomNormals(_randomNomals), BlocksToTriangles(_BlocksToTriangles), length(_length)
   {
     mesh.rotate( Rmatrix, position );
     // Compute maximal extents
@@ -73,7 +74,6 @@ struct FillBlocks
 
   inline Real signedDistance(const Real px, const Real py, const Real pz, const int id) const
   {
-    const double length = 0.5;
     const std::vector<int> & myTriangles = BlocksToTriangles[id];
     if (myTriangles.size() == 0) return -1; //very far
 
@@ -124,10 +124,6 @@ struct FillBlocks
 
   inline bool isInner(Vector3<Real> p) const
   {
-    //p[0] = 0.28;
-    //p[1] = 0.8;
-    //p[2] = 0.5;
-    int rays_inside = 0;
     std::vector<size_t> numIntersections(randomNormals.size(),0   );
     std::vector<bool  > validRay        (randomNormals.size(),true);
     for( size_t i = 0; i<randomNormals.size(); i++ )
@@ -147,11 +143,10 @@ struct FillBlocks
           const double d2= (C[0]-proj[0])*(C[0]-proj[0])
                           +(C[1]-proj[1])*(C[1]-proj[1])
                           +(C[2]-proj[2])*(C[2]-proj[2]);
-          if (d2 < 0.25*0.25) my_triangles.push_back(tri);
+          if (d2 < (0.5*length)*(0.5*length)) my_triangles.push_back(tri);
         }
 
         for( const auto& tri: my_triangles )
-        //for( const auto& tri: mesh.tri_ )
         {
           Vector3<Vector3<Real>> t{mesh.x_[tri[0]],mesh.x_[tri[1]],mesh.x_[tri[2]]};
 
@@ -179,31 +174,27 @@ struct FillBlocks
             numIntersections[i] += intersection;
           }
         }
-        //std::cout << "Ray " << i << " valid=" << validRay[i] << " inter=" << numIntersections[i] << std::endl;
-        //MPI_Abort(MPI_COMM_WORLD,12345);
         if( validRay[i] && numIntersections[i]%2 == 0) return false; //definetely outside
         if( validRay[i] && numIntersections[i]%2 == 1) return true;
     }
-    //if (rays_inside > 0) return true;
     std::cout << "Point " << p[0] << " " << p[1] << " " << p[2] << " has no valid rays!" << std::endl;
     for( size_t i = 0; i<randomNormals.size(); i++ )
     {
       std::cout << p[0] + randomNormals[i][0] << " " << p[1] +randomNormals[i][1] << " " << p[2] + randomNormals[i][2] << std::endl; 
     }
-    MPI_Abort(MPI_COMM_WORLD,12345);
+    abort();
   }
 
   using CHIMAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX];
   void operator()(const cubism::BlockInfo &info, ObstacleBlock* const o) const
   {
-    // TODO: Remove `isTouching` check and verify that all dependencies are
-    //       using this function properly.
     FluidBlock &b = *(FluidBlock *)info.ptrBlock;
     if (!isTouching(info, b)) return;
     auto & SDFLAB = o->sdfLab;
     for (int iz = -1; iz < FluidBlock::sizeZ+1; ++iz)
     for (int iy = -1; iy < FluidBlock::sizeY+1; ++iy)
-    for (int ix = -1; ix < FluidBlock::sizeX+1; ++ix) {
+    for (int ix = -1; ix < FluidBlock::sizeX+1; ++ix)
+    {
       Real p[3];
       info.pos(p, ix, iy, iz);
       const Real dist = signedDistance(p[0], p[1], p[2], info.blockID);
@@ -213,15 +204,15 @@ struct FillBlocks
 };
 }
 
-ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
-    : Obstacle(s, p)
+ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p): Obstacle(s, p)
 {
-  path = p("-externalObstaclePath").asString();
   // reading coordinates / indices from file
+  path = p("-externalObstaclePath").asString();
   if( std::filesystem::exists(path) )
   {
     if( sim.rank == 0 )
         std::cout << "[ExternalObstacle] Reading mesh from " << path << std::endl;
+
     // Construct the data object by reading from file
     happly::PLYData plyIn(path);
 
@@ -250,18 +241,12 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
     for(const auto& point: vPos)
     {
       Vector3<Real> pt = { scalingFac*point[0], scalingFac*point[1], scalingFac*point[2] };
-      // if( sim.rank == 0 ) {
-      //   std::cout << "reading point [" << point[0] << ", " << point[1] << ", " << point[2] << "]" << std::endl;
-      //   std::cout << "after scaling [" << pt[0] << ", " << pt[1] << ", " << pt[2] << "]" << std::endl;
-      // }
       coordinates.push_back(pt);
     }
 
     for(const auto& indx: fInd)
     {
       Vector3<int> id = { indx[0], indx[1], indx[2] };
-      // if( sim.rank == 0 )
-      //   std::cout << "reading point indices [" << id[0] << ", " << id[1] << ", " << id[2] << "]" << std::endl;
       indices.push_back(id);
     }
     if( sim.rank == 0 )
@@ -274,7 +259,7 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
   // create 10 random vectors to determine if point is inside obstacle
   gen = std::mt19937();
   normalDistribution = std::normal_distribution<Real>(0.0, 1.0);
-  for( size_t i = 0; i< 13; i++ ) {
+  for( size_t i = 0; i< 10; i++ ) {
     Real normRandomNormal = 0.0;
     Vector3<Real> randomNormal;
     while ( std::fabs(normRandomNormal) < 1e-7 ) {
@@ -284,12 +269,6 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p)
       normRandomNormal = norm( randomNormal );
     }
     randomNormal = ( 1/normRandomNormal )*randomNormal;
-    //if (i==0) { randomNormal[0] = 1.0; randomNormal[1] = 0.0; randomNormal[2] = 0.0;}
-    //if (i==1) { randomNormal[0] = 0.0; randomNormal[1] = 1.0; randomNormal[2] = 0.0;}
-    //if (i==2) { randomNormal[0] = 0.0; randomNormal[1] = 0.0; randomNormal[2] = 1.0;}
-    //if (i==3) { randomNormal[0] = -1.0; randomNormal[1] = 0.0; randomNormal[2] = 0.0;}
-    //if (i==4) { randomNormal[0] = 0.0; randomNormal[1] = -1.0; randomNormal[2] = 0.0;}
-    //if (i==5) { randomNormal[0] = 0.0; randomNormal[1] = 0.0; randomNormal[2] = -1.0;}
     randomNormals.push_back(randomNormal);
   }
 }
@@ -302,7 +281,7 @@ void ExternalObstacle::create()
 
   BlocksToTriangles.resize(vInfo.size()); //each block has a set of indices(triangles) that are inside it
 
-  int total = 0;
+  //int total = 0;
   const int BS = std::max({FluidBlock::sizeX,FluidBlock::sizeY,FluidBlock::sizeZ});
   for (size_t j = 0 ; j < indices.size() ; j++) //loop over all triangles
   {
@@ -337,37 +316,31 @@ void ExternalObstacle::create()
       const double sqrDist = pointTriangleSqrDistance(t0,t1,t2, centerV);
       if (sqrDist < BS * info.h) // info.h * BS/2 * sqrt(3), sqrt(3)/2=0.86, we use 1.0 to be on the safe side 
       {
-        total ++;
+        //total ++;
         found ++;
         BlocksToTriangles[b].push_back(j);
       }
     }
     MPI_Allreduce(MPI_IN_PLACE,&found,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
-    if (found == 0) MPI_Abort(MPI_COMM_WORLD,12345678);
+    if (found == 0)
+    {
+      std::cout << "There is a triangle that has no nearest blocks, this is impossible." << std::endl;
+      abort();
+    }
   }
-  int blocks = vInfo.size();
-  MPI_Allreduce(MPI_IN_PLACE,&blocks,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE,&total ,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
-  if (sim.rank == 0)
-    std::cout << " Average triangles per block = " << ((double) total)/blocks << std::endl;
-
+  //int blocks = vInfo.size();
+  //MPI_Allreduce(MPI_IN_PLACE,&blocks,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+  //MPI_Allreduce(MPI_IN_PLACE,&total ,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
+  //if (sim.rank == 0)
+  //  std::cout << " Average triangles per block = " << ((double) total)/blocks << std::endl;
   //after this loop, each block will have a set of triangles associated with it
 
   const Real h = sim.hmin;
   Mesh mesh(coordinates, indices);
 
-  ExternalObstacleObstacle::FillBlocks K(h, position, quaternion, mesh, randomNormals, BlocksToTriangles);
-  MPI_Barrier(MPI_COMM_WORLD);
-  if( sim.rank == 0 )
-      std::cout << "create 4" << std::endl;
-
+  ExternalObstacleObstacle::FillBlocks K(h, position, quaternion, mesh, randomNormals, BlocksToTriangles, length);
 
   create_base<ExternalObstacleObstacle::FillBlocks>(K);
-
-  MPI_Barrier(MPI_COMM_WORLD);
-  if( sim.rank == 0 )
-      std::cout << "create 5" << std::endl;
-
 }
 
 void ExternalObstacle::finalize()
