@@ -102,7 +102,7 @@ void Simulation::refineGrid()
     }
 
     //This may not be needed but has zero cost 
-    if (l != 2*sim.levelMax-1) touch();
+    if (l != 3*sim.levelMax-1) touch();
   }
 
   // Save Initial Flow Field to File
