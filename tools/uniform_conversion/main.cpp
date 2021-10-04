@@ -14,7 +14,7 @@ namespace fs = std::filesystem;
 
 #define DIMENSION 3
 #define BS 8
-#define Cfactor 1
+#define Cfactor 4
 
 
 
@@ -382,7 +382,7 @@ void convert_to_uniform(std::string filename,int tttt)
 
     std::vector<double> field(Nt*Nr,0.0);
     std::vector<double> mass (Nt*Nr,0.0);
-    const double x0 = 0.8;
+    const double x0 = 0.5;
     const double y0 = 0.5;
 
     for (int ir = 0 ; ir < Nr ; ir ++)
@@ -391,8 +391,8 @@ void convert_to_uniform(std::string filename,int tttt)
       const double r = r_min + (ir + 0.5) * dr;
       const double t = t_min + (it + 0.5) * dt;
 
-      const double x = r*cos(t) + x0;
-      const double y = r*sin(t) + y0;
+      const double x = r*cos(t+M_PI) + x0;
+      const double y = r*sin(t+M_PI) + y0;
 
       double ss = 0;
       double mm = 0;
@@ -514,12 +514,11 @@ int main(int argc, char **argv)
   }
   std::sort(filenames.begin(),filenames.end());
 
-  for (size_t i = filenames.size()/2-1 ; i >= 0  ; i --)
+  for (size_t i = filenames.size()-1 ; i >= 0  ; i --)
   {
     if (rank == 0)
-	    std::cout << "processing files: " << filenames[i] << " " << filenames[filenames.size()/2 + i] << std::endl;
+	    std::cout << "processing files: " << filenames[i] << std::endl;
     convert_to_uniform(filenames[i],i);
-    convert_to_uniform(filenames[filenames.size()/2 + i],i);
     MPI_Barrier(MPI_COMM_WORLD);
   }
   MPI_Finalize();
