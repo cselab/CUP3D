@@ -140,6 +140,11 @@ void PoissonSolverAMR::solve()
         BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
         BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
         const size_t offset = _offset( vInfoPoisson[i] );
+        if (vInfoPoisson[i].index[0] == 0 && 
+            vInfoPoisson[i].index[1] == 0 && 
+            vInfoPoisson[i].index[2] == 0)
+            b.tmp[4][4][4] = 0;
+
         for(int iz=0; iz<BlockType::sizeZ; iz++)
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)

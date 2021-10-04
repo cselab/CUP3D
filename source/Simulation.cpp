@@ -103,6 +103,10 @@ void Simulation::refineGrid()
       b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
       b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
     }
+
+    //This may not be needed but has zero cost 
+    if (l != sim.levelMax-1) touch();
+
   }
 
   // Save Initial Flow Field to File

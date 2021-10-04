@@ -697,8 +697,7 @@ void Penalization::preventCollidingObstacles() const
         const bool jForcedZ = shapes[j]->bForcedInSimFrame[2];
         if (iForcedX || iForcedY || iForcedZ || jForcedX || jForcedY || jForcedZ)
         {
-            if (sim.verbose)
-                std::cout << "Forced objects not supported for collision." << std::endl;
+            std::cout << "Forced objects not supported for collision." << std::endl;
             MPI_Abort(grid->getCartComm(),1);
         }
 
@@ -759,7 +758,7 @@ void Penalization::preventCollidingObstacles() const
         shapes[j]->angVel[1] = ho2[1];
         shapes[j]->angVel[2] = ho2[2];
 
-        if (sim.verbose)
+        //if (sim.verbose)
         {
             #pragma omp critical
             {
