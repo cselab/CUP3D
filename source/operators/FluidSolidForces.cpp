@@ -21,7 +21,7 @@ struct KernelComputeForces : public ObstacleVisitor
   LabMPI * lab_ptr = nullptr;
   const BlockInfo * info_ptr = nullptr;
 
-  const int big   = FluidBlock::sizeX + 4;
+  const int big   = 5;
   const int small = -4;
 
   const int stencil_start[3] = {small,small,small}, stencil_end[3] = {big,big,big};
