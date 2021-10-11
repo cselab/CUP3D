@@ -93,7 +93,8 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   BCz_flag = string2BCflag(BC_z);
 
   // OUTPUT
-  verbose = parser("-verbose").asBool(true) && rank == 0;
+  muteAll = parser("-muteAll").asBool(false);
+  verbose = muteAll ? false : parser("-verbose").asBool(true) && rank == 0;
   statsFreq = parser("-stats-freq").asInt(1);
   int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
   double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active

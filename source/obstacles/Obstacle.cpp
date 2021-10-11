@@ -492,7 +492,7 @@ void Obstacle::setOrientation( double angle )
 
 void Obstacle::save(std::string filename)
 {
-  if(sim.rank!=0) return;
+  if(sim.rank!=0 || sim.muteAll) return;
   std::ofstream savestream;
   savestream.setf(std::ios::scientific);
   savestream.precision(std::numeric_limits<Real>::digits10 + 1);
@@ -550,7 +550,7 @@ void Obstacle::Accept(ObstacleVisitor * visitor)
 
 void Obstacle::_writeComputedVelToFile()
 {
-  if(sim.rank!=0) return;
+  if(sim.rank!=0 || sim.muteAll) return;
   std::stringstream ssR;
   ssR<<"computedVelocity_"<<obstacleID<<".dat";
   std::stringstream &savestream = logger.get_stream(ssR.str());
@@ -577,7 +577,7 @@ void Obstacle::_writeComputedVelToFile()
 
 void Obstacle::_writeSurfForcesToFile()
 {
-  if(sim.rank!=0) return;
+  if(sim.rank!=0 || sim.muteAll) return;
   std::stringstream fnameF, fnameP;
   fnameF<<"forceValues_"<<(!isSelfPropelled?"surface_":"")<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());
@@ -616,7 +616,7 @@ void Obstacle::_writeSurfForcesToFile()
 
 void Obstacle::_writeDiagForcesToFile()
 {
-  if(sim.rank!=0) return;
+  if(sim.rank!=0 || sim.muteAll) return;
   std::stringstream fnameF;
   fnameF<<"forceValues_"<<(isSelfPropelled?"penalization_":"")<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());

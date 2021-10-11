@@ -135,8 +135,8 @@ struct SimulationData
   // Dump Settingas
   int freqDiagnostics = 0;
   bool bDump=false;
-  bool verbose=false;
-  bool muteAll = false;
+  bool verbose;
+  bool muteAll;
 
   // output
   int statsFreq=1;
