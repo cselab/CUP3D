@@ -96,7 +96,7 @@ public:
   std::vector<ObstacleBlock*> obstacleBlocks;
   int obstacleID=0;
   bool bInteractive=0, bHasSkin=0, bForces=0;
-  double quaternion[4] = {1,0,0,0}, _2Dangle = 0, phaseShift=0; //orientation
+  double quaternion[4] = {1,0,0,0}, _2Dangle = 0; //orientation
   double origC[3];
   double position[3] = {0,0,0}, absPos[3] = {0,0,0}, transVel[3] = {0,0,0};
   double angVel[3] = {0,0,0}, J[6] = {0,0,0,0,0,0}; //mom of inertia

@@ -102,6 +102,7 @@ void CurvatureDefinedFishData::execute(const double time, const double l_tnext,
                                        const std::vector<double>& input)
 {
   if (input.size()>1) {
+    // printf("Turning by %g at tsim %g with tact %g.\n", input[0], time, l_tnext);
     rlBendingScheduler.Turn(input[0], l_tnext);
     //first, shift time to  previous turn node
     timeshift += (l_tnext-time0)/periodPIDval;
@@ -109,7 +110,7 @@ void CurvatureDefinedFishData::execute(const double time, const double l_tnext,
     periodPIDval = Tperiod*(1.+input[1]);
     periodPIDdif = 0;
   } else if (input.size()>0) {
-    printf("Turning by %g at time %g with period %g.\n", input[0], time, l_tnext);
+    // printf("Turning by %g at tsim %g with tact %g.\n", input[0], time, l_tnext);
     rlBendingScheduler.Turn(input[0], l_tnext);
   }
 }
@@ -276,7 +277,7 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
   //bool bKillAmplitude = parser("-zeroAmplitude").asInt(0);
   //if(bKillAmplitude) myFish->killAmplitude();
 
-  if(!sim.rank) printf("%d %f %f %f\n",myFish->Nm, length, Tperiod, phaseShift);
+  if(!sim.rank) printf("nMidline=%d, length=%f, Tperiod=%f, phaseShift=%f\n",myFish->Nm, length, Tperiod, phaseShift);
 }
 
 //static inline Real sgn(const Real val) { return (0 < val) - (val < 0); }

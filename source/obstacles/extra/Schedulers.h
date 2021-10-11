@@ -247,7 +247,10 @@ struct ParameterSchedulerLearnWave : ParameterScheduler<Npoints>
           }
         }
       }
-      if (bCheck) { std::cout << "Ciaone2!" << std::endl; abort(); }
+      if (bCheck) {
+        std::cout << "[CUP3D] Argument c=positions_fine[i]*_1oL - (t - this->t0)*_1oT=" << positions_fine[i] << "*" << _1oL << "-(" << t << "-" << this->t0 << ")*" << _1oT << "=" << c << " could not be associated to wave nodes [Length="<< Length <<", Twave="<<Twave<<"]. Aborting..." << std::endl;
+        abort();
+      }
     }
   }
 

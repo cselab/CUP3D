@@ -20,14 +20,15 @@ class Fish: public Obstacle
 {
  protected:
   FishMidlineData * myFish = nullptr;
-  //phaseShift=0, phase=0,
-  double Tperiod=0;
+  // Arguments read from parser
+  double Tperiod, phaseShift;
+  bool bCorrectTrajectory, bCorrectPosition;
+  // Rest
   double volume_internal=0, J_internal=0;
   double CoM_internal[2]={0,0}, vCoM_internal[2]={0,0};
   double theta_internal=0, angvel_internal=0, angvel_internal_prev=0;
   double angvel_integral[3] = {0,0,0};
-  //double adjTh=0, adjDy=0;
-  bool bCorrectTrajectory=false, bCorrectPosition=false;
+
 
   void integrateMidline();
   //void apply_pid_corrections();
