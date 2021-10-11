@@ -347,7 +347,7 @@ double Simulation::calcMaxTimestep()
   if (sim.DLM > 0) sim.lambda = sim.DLM / sim.dt;
 
   if( sim.rank == 0 ) {
-    printf("[CUP3D] step: %d, time: %f, dt: %.2e, uinf: {%f %f %f}, maxU:%f, minH:%f, CFL:%.2e, lambda:%.2e\n",sim.step,sim.time, sim.dt, sim.uinf[0],sim.uinf[1],sim.uinf[2], sim.uMax_measured, hMin, CFL, sim.lambda);
+    printf("[CUP3D] step: %d, time: %f, dt: %.2e, uinf: {%f %f %f}, maxU:%f, minH:%f, CFL:%.2e, lambda:%.2e, collision?: %d \n",sim.step,sim.time, sim.dt, sim.uinf[0],sim.uinf[1],sim.uinf[2], sim.uMax_measured, hMin, CFL, sim.lambda, sim.bCollision);
   }
 
   if (sim.step > sim.step_2nd_start)
