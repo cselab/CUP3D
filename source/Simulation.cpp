@@ -106,7 +106,7 @@ void Simulation::refineGrid()
   }
 
   // Save Initial Flow Field to File
-  _serialize("init");
+  if ( sim.saveFreq>0 || sim.saveTime>0 ) _serialize("init");
 }
 
 const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() const
@@ -117,9 +117,7 @@ const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() co
 void Simulation::_ic()
 {
   InitialConditions coordIC(sim);
-  sim.startProfiler(coordIC.getName());
   coordIC(0);
-  sim.stopProfiler();
 }
 
 void Simulation::_icFromH5(std::string h5File)
@@ -303,9 +301,7 @@ void Simulation::_deserialize()
 void Simulation::run()
 {
   for (;;) {
-    sim.startProfiler("DT");
     const double dt = calcMaxTimestep();
-    sim.stopProfiler();
 
     if (timestep(dt)) break;
   }
@@ -376,10 +372,13 @@ bool Simulation::timestep(const double dt)
   const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   for (size_t c=0; c< sim.pipeline.size() ; c++)
   {
+    sim.startProfiler(sim.pipeline[c]->getName());
     (*sim.pipeline[c])(dt);
+    sim.stopProfiler();
   }
   if (sim.step % 5 == 0 || sim.step < 10)
   {
+    sim.startProfiler("Mesh refinement");
     sim.amr->Tag();
     sim.amr2->TagLike(sim.vInfo());
     sim.amr->Adapt(sim.time,sim.verbose,false);
@@ -391,13 +390,12 @@ bool Simulation::timestep(const double dt)
       b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
       b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
     }
+    sim.stopProfiler();
   }
   sim.step++;
   sim.time += dt;
 
-  sim.startProfiler("Save");
   if( sim.bDump ) _serialize();
-  sim.stopProfiler();
 
   if (sim.step % 50 == 0 && sim.verbose) sim.printResetProfiler();
   if ((sim.endTime>0 && sim.time>sim.endTime) ||

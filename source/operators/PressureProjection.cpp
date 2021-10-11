@@ -158,7 +158,7 @@ void PressureProjection::operator()(const double dt)
     }
   }
 
-  sim.startProfiler("GradP"); //pressure correction dudt* = - grad P / rho
+  //pressure correction dudt* = - grad P / rho
   const KernelGradP K(dt);
   compute<KernelGradP>(K,true);
 
@@ -176,7 +176,6 @@ void PressureProjection::operator()(const double dt)
       b(ix,iy,iz).w += fac*b(ix,iy,iz).tmpW;
     }
   }
-  sim.stopProfiler();
 
   check("PressureProjection");
 }

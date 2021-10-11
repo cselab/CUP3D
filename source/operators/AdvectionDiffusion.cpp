@@ -203,7 +203,6 @@ void AdvectionDiffusion::operator()(const double dt)
 {
     //Midpoint integration
 
-    sim.startProfiler("AdvDiff Kernel");
     const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
 
     //1.Save u^{n} to dataOld
@@ -269,7 +268,6 @@ void AdvectionDiffusion::operator()(const double dt)
     }
     /********************************************************************/
 
-    sim.stopProfiler();
     check("AdvectionDiffusion");
 }
 

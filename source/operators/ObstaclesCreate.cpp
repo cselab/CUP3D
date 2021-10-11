@@ -350,7 +350,6 @@ void CreateObstacles::operator()(const double dt)
 {
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
-  sim.startProfiler("Obst Reset");
   std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i)
@@ -361,19 +360,15 @@ void CreateObstacles::operator()(const double dt)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       b(ix,iy,iz).chi = 0; // will be accessed by max with pos def qtity
   }
-  sim.stopProfiler();
 
   // Obstacles' advection must be done after we perform penalization:
   sim.uinf = sim.obstacle_vector->updateUinf();
   sim.obstacle_vector->update();
 
-  sim.startProfiler("Obst SDF");
   { // put signed distance function on the grid
     sim.obstacle_vector->create();
   }
-  sim.stopProfiler();
 
-  sim.startProfiler("Obst CHI");
   {
     #pragma omp parallel
     {
@@ -387,17 +382,13 @@ void CreateObstacles::operator()(const double dt)
       }
     }
   }
-  sim.stopProfiler();
 
-  sim.startProfiler("Obst CoM");
   { // compute actual CoM given the CHI on the grid
     ObstacleVisitor* visitor = new KernelComputeGridCoM(grid);
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
   }
-  sim.stopProfiler();
 
-  sim.startProfiler("Obst Int Mom");
   { // integrate momenta by looping over grid
     #pragma omp parallel
     { // each thread needs to call its own non-const operator() function
@@ -406,27 +397,20 @@ void CreateObstacles::operator()(const double dt)
       for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
     }
   }
-  sim.stopProfiler();
 
-  sim.startProfiler("Obst Rdx Mom");
   { // reduce momenta across blocks and MPI
     ObstacleVisitor* visitor = new KernelAccumulateUdefMomenta(grid);
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
   }
-  sim.stopProfiler();
 
-  sim.startProfiler("Obst 0 Mom");
   { // remove momenta from udef
     ObstacleVisitor* visitor = new KernelRemoveUdefMomenta(grid);
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
   }
-  sim.stopProfiler();
 
-  sim.startProfiler("Obst finalize");
   sim.obstacle_vector->finalize(); // whatever else the obstacle needs
-  sim.stopProfiler();
   check("CreateObstacles");
 }
 
