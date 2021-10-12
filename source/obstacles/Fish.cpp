@@ -72,7 +72,7 @@ void Fish::integrateMidline()
   J_internal = myFish->J;
   myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
 
-  #ifndef NDEBUG
+  #if 0 //ndef NDEBUG
   {
     double dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
     // check that things are zero
