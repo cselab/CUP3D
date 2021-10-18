@@ -61,9 +61,9 @@ struct KernelAdvectDiffuse : public Discretization
             const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
             const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
             const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-            o.data[iz][iy][ix].tmpU = coef * h3*( facA*duA + facD*duD );
-            o.data[iz][iy][ix].tmpV = coef * h3*( facA*dvA + facD*dvD );
-            o.data[iz][iy][ix].tmpW = coef * h3*( facA*dwA + facD*dwD );
+            o(ix,iy,iz).tmpU = coef * h3*( facA*duA + facD*duD );
+            o(ix,iy,iz).tmpV = coef * h3*( facA*dvA + facD*dvD );
+            o(ix,iy,iz).tmpW = coef * h3*( facA*dwA + facD*dwD );
         }
 
         BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
@@ -203,7 +203,6 @@ void AdvectionDiffusion::operator()(const double dt)
 {
     //Midpoint integration
 
-    sim.startProfiler("AdvDiff Kernel");
     const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
 
     //1.Save u^{n} to dataOld
@@ -269,7 +268,6 @@ void AdvectionDiffusion::operator()(const double dt)
     }
     /********************************************************************/
 
-    sim.stopProfiler();
     check("AdvectionDiffusion");
 }
 

@@ -234,10 +234,8 @@ class ComputeQcriterion : public Operator
   ComputeQcriterion(SimulationData & s) : Operator(s) { }
   void operator()(const double dt)
   {
-    sim.startProfiler("Qcriterion Kernel");
     const KernelQcriterion K;
     compute<KernelQcriterion>(K);
-    sim.stopProfiler();
     check("Qcriterion");
   }
   std::string getName() { return "Qcriterion"; }
@@ -349,7 +347,6 @@ class ComputeDivergence : public Operator
   ComputeDivergence(SimulationData & s) : Operator(s) { }
   void operator()(const double dt)
   {
-    sim.startProfiler("Divergence Kernel");
 
     const KernelDivergence K(sim);
     compute<KernelDivergence>(K,true);
@@ -380,7 +377,6 @@ class ComputeDivergence : public Operator
       outfile << sim.time << " " << div_tot << " " << tot<< "\n";
       outfile.close();
     }
-    sim.stopProfiler();
   }
   std::string getName() { return "Divergence"; }
 };

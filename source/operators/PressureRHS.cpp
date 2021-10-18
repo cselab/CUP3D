@@ -385,7 +385,6 @@ PressureRHS::PressureRHS(SimulationData & s) : Operator(s) {}
 
 void PressureRHS::operator()(const double dt)
 {
-  sim.startProfiler("PresRHS Kernel");
 
   sim.pressureSolver->reset();
 
@@ -407,7 +406,6 @@ void PressureRHS::operator()(const double dt)
     }
 
     //place Udef on tmpU,tmpV,tmpW
-    sim.startProfiler("PresRHS Udef");
     const size_t nShapes = sim.obstacle_vector->nObstacles();
     if(nShapes > 0)
     { //zero fields, going to contain Udef:
@@ -425,7 +423,6 @@ void PressureRHS::operator()(const double dt)
       sim.obstacle_vector->Accept(visitor);
       delete visitor;
     }
-    sim.stopProfiler();
 
     std::vector< KernelPressureRHS *> K(nthreads, nullptr);
     for(int i=0;i<nthreads;++i) K[i] = new KernelPressureRHS (sim);
@@ -464,7 +461,6 @@ void PressureRHS::operator()(const double dt)
   }
 
   check("PressureRHS");
-  sim.stopProfiler();
 }
 
 CubismUP_3D_NAMESPACE_END

@@ -789,7 +789,6 @@ void Penalization::operator()(const double dt)
 
   preventCollidingObstacles();
 
-  sim.startProfiler("Penalization");
   std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel
   { // each thread needs to call its own non-const operator() function
@@ -811,7 +810,6 @@ void Penalization::operator()(const double dt)
   sim.obstacle_vector->Accept(K); // accept you son of a french cow
   delete K;
 
-  sim.stopProfiler();
   check("Penalization");
 }
 

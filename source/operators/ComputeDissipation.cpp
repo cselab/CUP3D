@@ -120,7 +120,6 @@ void ComputeDissipation::operator()(const double dt)
 {
   if(sim.freqDiagnostics == 0 || sim.step % sim.freqDiagnostics) return;
 
-  sim.startProfiler("Dissip Kernel");
   const int nthreads = omp_get_max_threads();
   std::vector<KernelDissipation*> diss(nthreads, nullptr);
   #pragma omp parallel for schedule(static, 1)
@@ -128,10 +127,8 @@ void ComputeDissipation::operator()(const double dt)
     diss[i] = new KernelDissipation(dt, sim.extent.data(), sim.nu);
 
   compute<KernelDissipation>(diss);
-  sim.stopProfiler();
 
   double RDX[20] = { 0.0 };
-  sim.startProfiler("Dissip Reduce");
   for(int i=0; i<nthreads; i++) {
     RDX[ 0] += diss[i]->circulation[0];
     RDX[ 1] += diss[i]->circulation[1];
@@ -176,7 +173,6 @@ void ComputeDissipation::operator()(const double dt)
     RDX[15]<<" "<<RDX[16]<<" "<<RDX[17]<<" "<<RDX[18]<<" "<<RDX[19]<<" "<< tot << std::endl;
     outfile.close();
   }
-  sim.stopProfiler();
 
   check("ComputeDissipation");
 }

@@ -112,9 +112,6 @@ class Operator
       labs[i].prepare(* sim.grid, Synch);
     }
 
-    int rank;
-    MPI_Comm_rank(grid->getCartComm(), &rank);
-    MPI_Barrier(grid->getCartComm());
     std::vector<cubism::BlockInfo*> avail0 = Synch.avail_inner();
     const int Ninner = avail0.size();
 
@@ -158,7 +155,6 @@ class Operator
     }
 
     if (applyFluxCorrection) sim.grid->Corrector.FillBlockCases(FluxIntegration);
-    MPI_Barrier(grid->getCartComm());
   }
 
   template <typename Kernel>
@@ -175,9 +171,6 @@ class Operator
       labs[i].prepare(* sim.grid, Synch);
     }
 
-    int rank;
-    MPI_Comm_rank(grid->getCartComm(), &rank);
-    MPI_Barrier(grid->getCartComm());
     std::vector<cubism::BlockInfo*> avail0 = Synch.avail_inner();
     const int Ninner = avail0.size();
 
@@ -221,7 +214,6 @@ class Operator
     }
 
     if (applyFluxCorrection) sim.grid->Corrector.FillBlockCases(FluxIntegration);
-    MPI_Barrier(grid->getCartComm());
   }
 
   template <typename Kernel>
@@ -239,9 +231,6 @@ class Operator
       labs[i].prepare(* sim.gridPoisson, Synch);
     }
 
-    int rank;
-    MPI_Comm_rank(gridPoisson->getCartComm(), &rank);
-    MPI_Barrier(gridPoisson->getCartComm());
     std::vector<cubism::BlockInfo*> avail0 = Synch.avail_inner();
     const int Ninner = avail0.size();
 
@@ -285,7 +274,6 @@ class Operator
       labs = nullptr;
     }
     if (applyFluxCorrection) sim.gridPoisson->Corrector.FillBlockCases(FluxIntegration);
-    MPI_Barrier(gridPoisson->getCartComm());
   }
 
 public:

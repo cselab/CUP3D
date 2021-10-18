@@ -203,7 +203,6 @@ void UpdateObstacles::operator()(const double dt)
 {
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
-  sim.startProfiler("Obst Int Vel");
   { // integrate momenta by looping over grid
     std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
     #pragma omp parallel
@@ -220,9 +219,7 @@ void UpdateObstacles::operator()(const double dt)
       }
     }
   }
-  sim.stopProfiler();
 
-  sim.startProfiler("Obst Upd Vel");
   //if(0) {
   if(sim.bImplicitPenalization) {
     ObstacleVisitor*K= new KernelFinalizeObstacleVel<1>(dt,sim.lambda,sim.grid);
@@ -233,7 +230,6 @@ void UpdateObstacles::operator()(const double dt)
     sim.obstacle_vector->Accept(K); // accept you son of a french cow
     delete K;
   }
-  sim.stopProfiler();
 
   check("UpdateObstacles");
 }

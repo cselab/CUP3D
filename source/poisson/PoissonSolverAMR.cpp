@@ -17,8 +17,6 @@ PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s),findLHS(s)
 
 void PoissonSolverAMR::getZ()
 {
-  sim.startProfiler("Poisson: getZ");
-
   const std::vector<cubism::BlockInfo>& vInfo = gridPoisson.getBlocksInfo();
   const size_t Nblocks = vInfo.size();
 
@@ -110,12 +108,10 @@ void PoissonSolverAMR::getZ()
         }
     }    
   }
-  sim.stopProfiler();
 }
 
 void PoissonSolverAMR::solve()
 {
-    sim.startProfiler("Poisson solve");
 
     if (iter_min >= 1) iter_min --;
 
@@ -402,6 +398,5 @@ void PoissonSolverAMR::solve()
         }
     }
   
-    sim.stopProfiler();
 }
 }//namespace cubismup3d
