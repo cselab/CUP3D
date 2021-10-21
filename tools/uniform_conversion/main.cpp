@@ -14,7 +14,7 @@ namespace fs = std::filesystem;
 
 #define DIMENSION 3
 #define BS 8
-#define Cfactor 4
+#define Cfactor 8
 
 
 
@@ -203,8 +203,8 @@ void convert_to_uniform(std::string filename,int tttt)
     std::cout << "uniform domain size=" << points[0] << " x " << points[1] << " x " << points[2] << std::endl;
 
   //the uniform domain is decomposed in the x-direction only!
-  decompose_1D(points[0],my_start,my_end);
-  std::vector<float> uniform_grid((my_end-my_start)*points[1]*points[2]);
+  decompose_1D(points[2],my_start,my_end);
+  std::vector<float> uniform_grid((my_end-my_start)*points[1]*points[0]);
 
   #pragma omp parallel for
   for (size_t i = 0 ; i < allGroups.size() ; i++)
@@ -214,17 +214,21 @@ void convert_to_uniform(std::string filename,int tttt)
 
     const int aux = 1 << (levelMax - 1 - group.level);
     const long long start_x = group.index[0]*BS*aux;
-    const long long end_x   = start_x + group.nx*aux;
+    //const long long end_x   = start_x + group.nx*aux;
 
-    if (end_x < my_start) continue;
-    if (start_x > my_end) continue;
+    //if (end_x < my_start) continue;
+    //if (start_x > my_end) continue;
 
     const long long start_y = group.index[1]*BS*aux;
     #if DIMENSION == 2
       const long long start_z = 0;
     #else
       const long long start_z = group.index[2]*BS*aux;
+      const long long end_z   = start_z + group.nz*aux;
     #endif
+    if (end_z < my_start) continue;
+    if (start_z > my_end) continue;
+
     for (int z = 0; z < group.nz; z++)
     for (int y = 0; y < group.ny; y++)
     for (int x = 0; x < group.nx; x++)
@@ -239,12 +243,15 @@ void convert_to_uniform(std::string filename,int tttt)
       for (int y_up = aux * y; y_up < aux * (y+1); y_up++)
       for (int x_up = aux * x; x_up < aux * (x+1); x_up++)
       {
+        const long long uniform_z = start_z + z_up;
         const long long uniform_x = start_x + x_up;
-        if (uniform_x >= my_start && uniform_x < my_end)
+        //if (uniform_x >= my_start && uniform_x < my_end)
+        if (uniform_z >= my_start && uniform_z < my_end)
         {
           const long long uniform_y = start_y + y_up;
-          const long long uniform_z = start_z + z_up;
-          const int base_up = uniform_x - my_start + uniform_y*(my_end-my_start) + uniform_z*(my_end-my_start)*points[1];        
+          //const long long uniform_z = start_z + z_up;
+          //const int base_up = uniform_x - my_start + uniform_y*(my_end-my_start) + uniform_z*(my_end-my_start)*points[1];        
+          const int base_up = uniform_x + uniform_y*points[0] + (uniform_z- my_start)*points[0]*points[1];        
           uniform_grid[base_up] = (float)value;
         }
       }
@@ -298,18 +305,22 @@ void convert_to_uniform(std::string filename,int tttt)
   //dump uniform grid
   {
     #if Cfactor > 1
-      std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[2]/Cfactor/Cfactor/Cfactor,0);
+      std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[0]/Cfactor/Cfactor/Cfactor,0);
       #pragma omp parallel for collapse(3)
-      for (int z = 0 ; z < points[2]       ; z += Cfactor)
+      //for (int z = 0 ; z < points[2]       ; z += Cfactor)
+      for (int z = 0 ; z < my_end-my_start ; z += Cfactor)
       for (int y = 0 ; y < points[1]       ; y += Cfactor)
-      for (int x = 0 ; x < my_end-my_start ; x += Cfactor)
+      for (int x = 0 ; x < points[0]       ; x += Cfactor)
+      //for (int x = 0 ; x < my_end-my_start ; x += Cfactor)
       {
-        int i = (x/Cfactor) + (y/Cfactor)*(my_end-my_start)/Cfactor + (z/Cfactor)*(my_end-my_start)/Cfactor*points[1]/Cfactor;
-        const int base = x + y*(my_end-my_start) + z*(my_end-my_start)*points[1];
+        //int i = (x/Cfactor) + (y/Cfactor)*(my_end-my_start)/Cfactor + (z/Cfactor)*(my_end-my_start)/Cfactor*points[1]/Cfactor;
+        int i = (x/Cfactor) + (y/Cfactor)*points[0]/Cfactor + (z/Cfactor)*points[0]/Cfactor*points[1]/Cfactor;
+        const int base = x + y*points[0] + z*points[0]*points[1];
         for (int iz = 0 ; iz < Cfactor ; iz++)
         for (int iy = 0 ; iy < Cfactor ; iy++)
         for (int ix = 0 ; ix < Cfactor ; ix++)
-          uniform_grid_coarse[i] += uniform_grid[base + ix + iy*(my_end-my_start) + iz*(my_end-my_start)*points[1] ];
+          //uniform_grid_coarse[i] += uniform_grid[base + ix + iy*(my_end-my_start) + iz*(my_end-my_start)*points[1] ];
+          uniform_grid_coarse[i] += uniform_grid[base + ix + iy*points[0] + iz*points[0]*points[1] ];
         uniform_grid_coarse[i] /= (Cfactor*Cfactor*Cfactor);
       }
     #endif
@@ -344,11 +355,13 @@ void convert_to_uniform(std::string filename,int tttt)
     fspace_id = H5Dget_space(dataset_id);
 
     #if DIMENSION == 3
-      hsize_t count[3] = {(hsize_t)points[2]/Cfactor,(hsize_t)points[1]/Cfactor,(hsize_t)(my_end-my_start)/Cfactor};
+      //hsize_t count[3] = {(hsize_t)points[2]/Cfactor,(hsize_t)points[1]/Cfactor,(hsize_t)(my_end-my_start)/Cfactor};
+      hsize_t count[3] = {(hsize_t)(my_end-my_start)/Cfactor,(hsize_t)points[1]/Cfactor,(hsize_t)points[0]/Cfactor};
     #else
       hsize_t count[3] = {(hsize_t)1,(hsize_t)points[1]/Cfactor,(hsize_t)(my_end-my_start)/Cfactor};
     #endif
-    hsize_t base_tmp[3] = {0,0,(hsize_t)my_start/Cfactor};
+    //hsize_t base_tmp[3] = {0,0,(hsize_t)my_start/Cfactor};
+    hsize_t base_tmp[3] = {(hsize_t)my_start/Cfactor,0,0};
     mspace_id = H5Screate_simple(3, count, NULL);
     H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, base_tmp, NULL, count, NULL);
     #if Cfactor > 1
@@ -514,7 +527,7 @@ int main(int argc, char **argv)
   }
   std::sort(filenames.begin(),filenames.end());
 
-  for (size_t i = filenames.size()-1 ; i >= 0  ; i --)
+  for (int i = filenames.size()-1 ; i >= 0  ; i --)
   {
     if (rank == 0)
 	    std::cout << "processing files: " << filenames[i] << std::endl;
