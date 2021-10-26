@@ -34,21 +34,21 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
 
   bHasSkin = true;
 
-  //MPI datatypes (used for load-balancing when creating the fish surface)
-  // int array_of_blocklengths[2]       = {4, 1};
-  // MPI_Aint array_of_displacements[2] = {0, 4 * sizeof(double)};
-  // MPI_Datatype array_of_types[2]     = {MPI_DOUBLE, MPI_LONG};
-  // MPI_Type_create_struct(2, array_of_blocklengths, array_of_displacements, array_of_types, &MPI_BLOCKID);
-  // MPI_Type_commit(&MPI_BLOCKID);
+  // MPI datatypes (used for load-balancing when creating the fish surface)
+  int array_of_blocklengths[2]       = {4, 1};
+  MPI_Aint array_of_displacements[2] = {0, 4 * sizeof(double)};
+  MPI_Datatype array_of_types[2]     = {MPI_DOUBLE, MPI_LONG};
+  MPI_Type_create_struct(2, array_of_blocklengths, array_of_displacements, array_of_types, &MPI_BLOCKID);
+  MPI_Type_commit(&MPI_BLOCKID);
 
-  // const int Z = FluidBlock::sizeZ;
-  // const int Y = FluidBlock::sizeY;
-  // const int X = FluidBlock::sizeX;
-  // int array_of_blocklengths1[2]       = {Z*Y*X*3 + (Z+2)*(Y+2)*(X+2), Z*Y*X};
-  // MPI_Aint array_of_displacements1[2] = {0, (Z*Y*X*3 + (Z+2)*(Y+2)*(X+2)) * sizeof(double)};
-  // MPI_Datatype array_of_types1[2]     = {MPI_DOUBLE, MPI_INT};
-  // MPI_Type_create_struct(2, array_of_blocklengths1, array_of_displacements1, array_of_types1, &MPI_OBSTACLE);
-  // MPI_Type_commit(&MPI_OBSTACLE);
+  const int Z = FluidBlock::sizeZ;
+  const int Y = FluidBlock::sizeY;
+  const int X = FluidBlock::sizeX;
+  int array_of_blocklengths1[2]       = {Z*Y*X*3 + (Z+2)*(Y+2)*(X+2), Z*Y*X};
+  MPI_Aint array_of_displacements1[2] = {0, (Z*Y*X*3 + (Z+2)*(Y+2)*(X+2)) * sizeof(double)};
+  MPI_Datatype array_of_types1[2]     = {MPI_DOUBLE, MPI_INT};
+  MPI_Type_create_struct(2, array_of_blocklengths1, array_of_displacements1, array_of_types1, &MPI_OBSTACLE);
+  MPI_Type_commit(&MPI_OBSTACLE);
 }
 
 Fish::~Fish()
