@@ -8,6 +8,7 @@
 *.so
 *.h5
 *.xmf
+*.eps
 
 *.pyc
 __pycache__
