@@ -7,7 +7,7 @@ def plotValidation():
   speed = 0.125
   radius = 0.0625
   cases= ["300","1000"] #Re to plot
-  runname= ["new_re0300","new_re1000"]
+  runname= ["Re300","Re1000"]
 
   colors = ["lightblue","maroon"]
   fig, axs = plt.subplots(2)
