@@ -138,19 +138,28 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
       static const int nz = BlockType::sizeZ;
 
       const Real inv2h = .5/info.h;  
-      double Linf_1 = 0.0; //chi
       double Linf_2 = 0.0; //vorticity
 
+      //Loop over block and halo cells and refine mesh
+      //if any of the cells have chi > 0 and chi < 0.9 (equivalent to grad(chi) != 0)
+      bool hasChi = false;
+      const int offset = (info.level == MeshAdaptationMPI<TGrid,TLab>::m_refGrid->getlevelMax()-1) ? 2 : 1;
+      for(int z=-offset; z<nz+offset; ++z)
+      for(int y=-offset; y<ny+offset; ++y)
+      for(int x=-offset; x<nx+offset; ++x)
+      {
+        Lab_(x,y,z).chi = std::min(Lab_(x,y,z).chi,1.0);
+        Lab_(x,y,z).chi = std::max(Lab_(x,y,z).chi,0.0);
+        if (Lab_(x,y,z).chi > 0.0 && Lab_(x,y,z).chi < 0.9)
+        {
+          hasChi = true;
+          break;
+        }
+      }
       for (int k = 0; k < nz; k++)
       for (int j = 0; j < ny; j++)
       for (int i = 0; i < nx; i++)
       {
-        const double s0 = (Lab_(i+1,j,k).chi - Lab_(i-1,j,k).chi);
-        const double s1 = (Lab_(i,j+1,k).chi - Lab_(i,j-1,k).chi);
-        const double s2 = (Lab_(i,j,k+1).chi - Lab_(i,j,k-1).chi);
-        const double grad = s0*s0+s1*s1+s2*s2;
-        Linf_1 = max(Linf_1,grad);
-
         const ElementType &LW=Lab_(i-1,j  ,k  ), &LE=Lab_(i+1,j  ,k  );
         const ElementType &LS=Lab_(i  ,j-1,k  ), &LN=Lab_(i  ,j+1,k  );
         const ElementType &LF=Lab_(i  ,j  ,k-1), &LB=Lab_(i  ,j  ,k+1);
@@ -160,12 +169,9 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
         const double omega = omega_x*omega_x + omega_y*omega_y + omega_z*omega_z;
         Linf_2 = max(Linf_2,omega);
       }
-
-      Linf_1 = inv2h * sqrt(Linf_1);
       Linf_2 = inv2h * sqrt(Linf_2);
 
-      if (Linf_1 > Rtol_chi || Linf_2 > MeshAdaptationMPI<TGrid,TLab>::tolerance_for_refinement ) return Refine;
-      if (Linf_1 < Ctol_chi && Linf_2 < MeshAdaptationMPI<TGrid,TLab>::tolerance_for_compression) return Compress;    
-      return Leave;
+      if ( Linf_2 > MeshAdaptationMPI<TGrid,TLab>::tolerance_for_refinement || hasChi) return Refine;
+      if ( Linf_2 < MeshAdaptationMPI<TGrid,TLab>::tolerance_for_compression && hasChi == false) return Compress;
    }
 };
