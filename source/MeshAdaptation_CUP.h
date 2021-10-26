@@ -173,5 +173,6 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
 
       if ( Linf_2 > MeshAdaptationMPI<TGrid,TLab>::tolerance_for_refinement || hasChi) return Refine;
       if ( Linf_2 < MeshAdaptationMPI<TGrid,TLab>::tolerance_for_compression && hasChi == false) return Compress;
+      return Leave;
    }
 };
