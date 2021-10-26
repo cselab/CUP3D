@@ -18,7 +18,6 @@ namespace cubism { class ArgumentParser; }
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-class Checkpoint;
 class Obstacle;
 
 class Simulation
@@ -26,8 +25,6 @@ class Simulation
 public:
 
   SimulationData sim;
-  Checkpoint *checkpointPreObstacles = nullptr;
-  Checkpoint *checkpointPostVelocity = nullptr;
 
   void refineGrid();
   void _serialize(const std::string append = std::string());
