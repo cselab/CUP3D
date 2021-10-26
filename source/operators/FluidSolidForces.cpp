@@ -100,11 +100,11 @@ struct KernelComputeForces : public ObstacleVisitor
       for (int kk = 1 ; kk < 10 ; kk++) //10 is arbitrary
       {
         if ((int)abs(kk*dx) > 3 || (int)abs(kk*dy) > 3 || (int)abs(kk*dz) > 3) break; //3 means we moved too far
-        if (l(x,y,z).chi <1e-5 && found == 1) break;
+        if (l(x,y,z).chi <0.3 && found == 1) break;
         x  = ix + kk*dx; 
         y  = iy + kk*dy;
         z  = iz + kk*dz;
-        if (l(x,y,z).chi < 1e-5 ) found ++;
+        if (l(x,y,z).chi < 0.3 ) found ++;
       }
 
       double dudx1 = normX > 0 ? (l(x+1,y,z).u-l(x,y,z).u) : (l(x,y,z).u-l(x-1,y,z).u);
@@ -382,17 +382,16 @@ struct KernelComputeForces : public ObstacleVisitor
       }
       if (normZ > 0 && z+3 <    big) 
       {
-        dudz3 = -l(x,y,z).u + 3*l(x,y+1,z).u - 3*l(x,y+2,z).u + l(x,y+3,z).u;
-        dvdz3 = -l(x,y,z).v + 3*l(x,y+1,z).v - 3*l(x,y+2,z).v + l(x,y+3,z).v;
-        dwdz3 = -l(x,y,z).w + 3*l(x,y+1,z).w - 3*l(x,y+2,z).w + l(x,y+3,z).w;
+        dudz3 = -l(x,y,z).u + 3*l(x,y,z+1).u - 3*l(x,y,z+2).u + l(x,y,z+3).u;
+        dvdz3 = -l(x,y,z).v + 3*l(x,y,z+1).v - 3*l(x,y,z+2).v + l(x,y,z+3).v;
+        dwdz3 = -l(x,y,z).w + 3*l(x,y,z+1).w - 3*l(x,y,z+2).w + l(x,y,z+3).w;
       }
       if (normZ < 0 && z-3 >= small)
       {
-        dudz3 =  l(x,y,z).u - 3*l(x,y-1,z).u + 3*l(x,y-2,z).u - l(x,y-3,z).u;
-        dvdz3 =  l(x,y,z).v - 3*l(x,y-1,z).v + 3*l(x,y-2,z).v - l(x,y-3,z).v;
-        dwdz3 =  l(x,y,z).w - 3*l(x,y-1,z).w + 3*l(x,y-2,z).w - l(x,y-3,z).w;
+        dudz3 =  l(x,y,z).u - 3*l(x,y,z-1).u + 3*l(x,y,z-2).u - l(x,y,z-3).u;
+        dvdz3 =  l(x,y,z).v - 3*l(x,y,z-1).v + 3*l(x,y,z-2).v - l(x,y,z-3).v;
+        dwdz3 =  l(x,y,z).w - 3*l(x,y,z-1).w + 3*l(x,y,z-2).w - l(x,y,z-3).w;
       }
-
 
       const double dudx = dudx1 + dudx2*(ix-x) + dudxdy1*(iy-y) + dudxdz1*(iz-z) + 0.5*dudx3*(ix-x)*(ix-x);
       const double dvdx = dvdx1 + dvdx2*(ix-x) + dvdxdy1*(iy-y) + dvdxdz1*(iz-z) + 0.5*dvdx3*(ix-x)*(ix-x);
