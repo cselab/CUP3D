@@ -100,7 +100,7 @@ struct KernelComputeForces : public ObstacleVisitor
       for (int kk = 1 ; kk < 10 ; kk++) //10 is arbitrary
       {
         if ((int)abs(kk*dx) > 3 || (int)abs(kk*dy) > 3 || (int)abs(kk*dz) > 3) break; //3 means we moved too far
-        if (l(x,y,z).chi <0.3 && found == 1) break;
+        if (l(x,y,z).chi <0.3 && found == 0) break;
         x  = ix + kk*dx; 
         y  = iy + kk*dy;
         z  = iz + kk*dz;
