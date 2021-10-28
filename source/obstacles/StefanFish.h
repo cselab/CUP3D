@@ -13,6 +13,8 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
+// #define STEFANS_SENSORS_STATE
+
 class StefanFish: public Fish
 {
 protected:
@@ -32,15 +34,13 @@ public:
   // member functions for state in RL
   std::vector<double> state() const;
 
-  #if 0 // TODO
+  #ifdef STEFANS_SENSORS_STATE
   // Helpers for state function
-  size_t holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
+  ssize_t holdingBlockID(const std::array<Real,3> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
 
-  std::array<int, 2> safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const;
+  std::array<int, 3> safeIdInBlock(const std::array<Real,3> pos, const std::array<Real,3> org, const Real invh ) const;
 
-  std::array<Real, 2> skinVel(const std::array<Real,2> pSkin, const std::vector<cubism::BlockInfo>& velInfo) const;
-
-  std::array<Real, 2> sensVel(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const;
+  std::array<Real, 2> getShear(const std::array<Real,3> pSurf, const std::array<Real,3> normSurf, const std::vector<cubism::BlockInfo>& velInfo) const;
   #endif
 };
 

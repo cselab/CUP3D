@@ -433,21 +433,13 @@ std::vector<double> StefanFish::state() const
   S[8] = cFish->lastCurv;
   S[9] = cFish->oldrCurv;
 
-  #if 1
+  #ifndef STEFANS_SENSORS_STATE
     return S;
-  #else // TODO
-    S.resize(16);
+  #else
+   S.resize(16); // ONLY 2D shear for consistency with 2D swimmers
 
-    // Get blocks on this rank
-    const std::vector<cubism::BlockInfo>& myInfo = sim.grid->getBlocksInfo();
-
-    b(ix,iy).u[0];
-    b(ix,iy).s;
-
-    b(ix,iy,iz).u;
-    b(ix,iy,iz).v;
-    b(ix,iy,iz).w;
-    b(ix,iy,iz).p;
+    // Get velInfo
+    const std::vector<cubism::BlockInfo>& velInfo = sim.vInfo();
 
     // Get fish skin
     const auto &DU = myFish->upperSkin, &DL = myFish->lowerSkin;
@@ -455,34 +447,17 @@ std::vector<double> StefanFish::state() const
     //// Sensor Signal on Front of Fish ////
     ////////////////////////////////////////
 
-    std::array<Real,2> tipShear;
-
     // get front-point
-    const std::array<Real,2> pFront = {DU.xSurf[0], DU.ySurf[0]};
+    const std::array<Real,3> pFront = {DU->xSurf[0], DU->ySurf[0], position[2]}; //TODO: what is the true z coordinate of the lateral line?
 
-    // get blockId for this point
-    const int blockIdFront = holdingBlockID(pFront, myInfo);
+    // first point of the two skins is the same
+    // normal should be almost the same: take the mean
+    const std::array<Real,3> normalFront = { (DU->normXSurf[0] + DL->normXSurf[0]) / 2,
+                                             (DU->normYSurf[0] + DL->normYSurf[0]) / 2,
+                                             0.0 }; //TODO: what is the true z coordinate of the lateral line normal?
 
-    if( blockIdFront > 0 )
-    {
-      // get gridspacing and its inverse in block
-      const Real hFront = myInfo[blockIdFront].h_gridpoint, invhFront = 1/hFront;
-
-      // first point of the two skins is the same
-      // normal should be almost the same: take the mean
-      const Real normXfront = (DU.normXSurf[0] + DL.normXSurf[0]) / 2;
-      const Real normYfront = (DU.normYSurf[0] + DL.normYSurf[0]) / 2;
-
-      // compute point for sensor
-      const std::array<Real,2> pFrontSens = {pFront[0] + hFront * normXfront,
-                                        pFront[1] + hFront * normYfront};\
-    }
-
-    // get surface velocity and velocity at sensor
-    const std::array<Real,2> vSensFront = sensVel(pFrontSens, myInfo), vSkinFront = skinVel(pFront, myInfo);
-
-    tipShear[0] = (vSensFront[0] - vSkinFront[0]) * invhFront;
-    tipShear[1] = (vSensFront[1] - vSkinFront[1]) * invhFront;
+    // compute shear stress
+    std::array<Real,2> tipShear = getShear( pFront, normalFront, velInfo );
 
     //// Sensor Signal on Side of Fish ////
     ///////////////////////////////////////
@@ -502,36 +477,22 @@ std::vector<double> StefanFish::state() const
       const auto& D = a==0 ? myFish->upperSkin : myFish->lowerSkin;
 
       // get point
-      const std::array<Real,2> pSide = {D.midX[iHeadSide], D.midY[iHeadSide]};
-
-      // get blockId
-      const size_t blockIdSide = holdingBlockID(pSide, velInfo);
-
-      // get gridspacing and its inverse in block
-      const Real hSide = velInfo[blockIdSide].h_gridpoint, invhSide = 1/hSide;
+      const std::array<Real,3> pSide = { D->midX[iHeadSide], D->midY[iHeadSide], position[2] };
 
       // get normal to surface
-      const Real normX = D.normXSurf[iHeadSide], normY = D.normYSurf[iHeadSide];
+      const std::array<Real,3> normSide = { D->normXSurf[iHeadSide], D->normYSurf[iHeadSide], 0.0 };
 
-      // compute point at sensor location
-      const std::array<Real,2> pSideSens = {pSide[0] + hSide * normX,
-                                        pSide[1] + hSide * normY};
-
-      // get surface velocity and velocity at sensor
-      const std::array<Real,2> vSens = sensVel(pSideSens, velInfo), vSkin = skinVel(pSide, velInfo);
-
-      // compute shear
-      const Real shearX = (vSens[0] - vSkin[0]) * invhSide;
-      const Real shearY = (vSens[1] - vSkin[1]) * invhSide;
+      // compute shear stress
+      std::array<Real,2> sideShear = getShear( pSide, normSide, velInfo );
 
       // now figure out how to rotate it along the fish skin for consistency:
-      const Real dX = D.xSurf[iHeadSide+1] - D.xSurf[iHeadSide];
-      const Real dY = D.ySurf[iHeadSide+1] - D.ySurf[iHeadSide];
-      const Real proj = dX * normX - dY * normY;
-      const Real tangX = proj>0?  normX : -normX; // s.t. tang points from head
-      const Real tangY = proj>0? -normY :  normY; // to tail, normal outward
-      (a==0? topShear[0] : lowShear[0]) = shearX * normX + shearY * normY;
-      (a==0? topShear[1] : lowShear[1]) = shearX * tangX + shearY * tangY;
+      const Real dX = D->xSurf[iHeadSide+1] - D->xSurf[iHeadSide];
+      const Real dY = D->ySurf[iHeadSide+1] - D->ySurf[iHeadSide];
+      const Real proj = dX * normSide[0] - dY * normSide[1];
+      const Real tangX = proj>0?  normSide[0] : -normSide[0]; // s.t. tang points from head
+      const Real tangY = proj>0? -normSide[1] :  normSide[1]; // to tail, normal outward
+      (a==0? topShear[0] : lowShear[0]) = sideShear[0] * normSide[0] + sideShear[1] * normSide[1];
+      (a==0? topShear[1] : lowShear[1]) = sideShear[0] * tangX + sideShear[1] * tangY;
     }
 
     // put non-dimensional results into state into state
@@ -547,110 +508,140 @@ std::vector<double> StefanFish::state() const
   #endif
 }
 
-#if 0 // TODO
-
 /* helpers to compute sensor information */
-
+#ifdef STEFANS_SENSORS_STATE
 // function that finds block id of block containing pos (x,y)
-int StefanFish::holdingBlockID(const std::array<Real,2> pos, const std::vector<cubism::BlockInfo>& velInfo) const
+ssize_t StefanFish::holdingBlockID(const std::array<Real,3> pos, const std::vector<cubism::BlockInfo>& velInfo) const
 {
-  for(int i=0; i<velInfo.size(); ++i)
+  for(size_t i=0; i<velInfo.size(); ++i)
   {
     // get gridspacing in block
     const Real h = velInfo[i].h_gridpoint;
 
     // compute lower left corner of block
-    std::array<Real,2> MIN = velInfo[i].pos<Real>(0, 0);
+    std::array<Real,3> MIN = velInfo[i].pos<Real>(0, 0, 0);
     for(int j=0; j<2; ++j)
       MIN[j] -= 0.5 * h; // pos returns cell centers
 
     // compute top right corner of block
-    std::array<Real,2> MAX = velInfo[i].pos<Real>(VectorBlock::sizeX-1, VectorBlock::sizeY-1);
+    std::array<Real,3> MAX = velInfo[i].pos<Real>(FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
     for(int j=0; j<2; ++j)
       MAX[j] += 0.5 * h; // pos returns cell centers
 
     // check whether point is inside block
-    if( pos[0] >= MIN[0] && pos[1] >= MIN[1] && pos[0] <= MAX[0] && pos[1] <= MAX[1] )
+    if( pos[0] > MIN[0] && pos[1] > MIN[1] && pos[2] > MIN[2] && pos[0] <= MAX[0] && pos[1] <= MAX[1] && pos[2] <= MAX[2] )
     {
-      // select obstacle block
-      if(obstacleBlocks[i] != nullptr ){
+      // check whether obstacle block exists
+      if(obstacleBlocks[i] != nullptr ) {
         return i;
+      }
+      else {
+        printf("ABORT: coordinate (%g,%g) in block %ld could not be associated to obstacle block\n", pos[0], pos[1], i);
+        fflush(0); abort();
       }
     }
   }
-  // -1 is placeholder for not-finding the block on this rank
+  // rank does not contain point
   return -1;
 };
 
 // function that gives indice of point in block
-std::array<int, 2> StefanFish::safeIdInBlock(const std::array<Real,2> pos, const std::array<Real,2> org, const Real invh ) const
+std::array<int, 3> StefanFish::safeIdInBlock(const std::array<Real,3> pos, const std::array<Real,3> org, const Real invh ) const
 {
   const int indx = (int) std::round((pos[0] - org[0])*invh);
   const int indy = (int) std::round((pos[1] - org[1])*invh);
-  const int ix = std::min( std::max(0, indx), VectorBlock::sizeX-1);
-  const int iy = std::min( std::max(0, indy), VectorBlock::sizeY-1);
-  return std::array<int, 2>{{ix, iy}};
+  const int indz = (int) std::round((pos[2] - org[2])*invh);
+  const int ix = std::min( std::max(0, indx), FluidBlock::sizeX-1);
+  const int iy = std::min( std::max(0, indy), FluidBlock::sizeY-1);
+  const int iz = std::min( std::max(0, indz), FluidBlock::sizeZ-1);
+  return std::array<int, 3>{{ix, iy, iz}};
 };
 
-// return fish velocity at a point on the fish skin:
-std::array<Real, 2> StefanFish::skinVel(const std::array<Real,2> pSkin, const std::vector<cubism::BlockInfo>& velInfo) const
+// returns shear at given surface location
+std::array<Real, 2> StefanFish::getShear(const std::array<Real,3> pSurf, const std::array<Real,3> normSurf, const std::vector<cubism::BlockInfo>& velInfo) const
 {
-  // get blockId for pSkin
-  const size_t blockId = holdingBlockID(pSkin, velInfo);
+  // Buffer to broadcast x-/y-velocities and gridspacing
+  double velocityH[3] = {0.0, 0.0, 0.0};
 
-  // get block
-  const auto& skinBinfo = velInfo[blockId];
+  // 1. Compute surface velocity on surface
+  // get blockId of surface
+  const ssize_t blockIdSurf = holdingBlockID(pSurf, velInfo);
 
-  // get origin of block
-  const std::array<Real,2> oSkin = skinBinfo.pos<Real>(0, 0);
+  // get surface velocity if block containing point found
+  if( blockIdSurf >= 0 ) {
+    // get block
+    const auto& skinBinfo = velInfo[blockIdSurf];
 
-  // get inverse gridspacing on this block
-  const Real invh = 1/velInfo[blockId].h_gridpoint;
+    // get origin of block
+    const std::array<Real,3> oBlockSkin = skinBinfo.pos<Real>(0, 0, 0);
 
-  // get index of point in block
-  const std::array<int,2> iSkin = safeIdInBlock(pSkin, oSkin, invh);
+    // get gridspacing on this block
+    velocityH[2] = velInfo[blockIdSurf].h_gridpoint;
 
-  //printf("skin pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
-  //  pSkin[0], pSkin[1], oSkin[0], oSkin[1], iSkin[0], iSkin[1]);
+    // get index of point in block
+    const std::array<int,3> iSkin = safeIdInBlock(pSurf, oBlockSkin, 1/velocityH[2]);
 
-  // get deformation velocity
-  const Real* const udef = obstacleBlocks[skinBinfo.blockID]->udef[iSkin[1]][iSkin[0]];
+    // get deformation velocity
+    const Real* const udef = obstacleBlocks[skinBinfo.blockID]->udef[iSkin[2]][iSkin[1]][iSkin[0]];
 
-  // compute velocity of skin point
-  const Real uSkin = u - omega * (pSkin[1]-centerOfMass[1]) + udef[0];
-  const Real vSkin = v + omega * (pSkin[0]-centerOfMass[0]) + udef[1];
+    // compute velocity of skin point
+    velocityH[0]=transVel[0]+( angVel[1]*(pSurf[2]-centerOfMass[2])-angVel[2]*(pSurf[1]-centerOfMass[1]))+udef[0];
+    velocityH[1]=transVel[1]+(-angVel[2]*(pSurf[0]-centerOfMass[0])+angVel[0]*(pSurf[2]-centerOfMass[2]))+udef[1];
+  }
 
-  return std::array<Real, 2>{{uSkin, vSkin}};
+  // Allreduce to Bcast surface velocity
+  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+
+  // Assign skin velocities and grid-spacing
+  const double uSkin = velocityH[0];
+  const double vSkin = velocityH[1];
+  const double h     = velocityH[2];
+  const double invh = 1/h;
+
+  // Reset buffer to 0
+  velocityH[0] = 0.0; velocityH[1] = 0.0; velocityH[2] = 0.0;
+
+  // 2. Compute flow velocity away from surface
+  // compute point on lifted surface
+  const std::array<Real,3> pLiftedSurf = { pSurf[0] + h * normSurf[0],
+                                           pSurf[1] + h * normSurf[1],
+                                           pSurf[2] + h * normSurf[2] };
+
+  // get blockId of lifted surface
+  const ssize_t blockIdLifted = holdingBlockID(pLiftedSurf, velInfo);
+
+  // get surface velocity if block containing point found
+  if( blockIdLifted >= 0 ) {
+    // get block
+    const auto& liftedBinfo = velInfo[blockIdLifted];
+
+    // get origin of block
+    const std::array<Real,3> oBlockLifted = liftedBinfo.pos<Real>(0, 0, 0);
+
+    // get inverse gridspacing in block
+    const Real invhLifted = 1/velInfo[blockIdLifted].h_gridpoint;
+
+    // get index for sensor
+    const std::array<int,3> iSens = safeIdInBlock(pLiftedSurf, oBlockLifted, invhLifted);
+
+    // get velocity field at point
+    const FluidBlock& b = * (const FluidBlock*) liftedBinfo.ptrBlock;
+    velocityH[0] = b(iSens[0], iSens[1], iSens[2]).u;
+    velocityH[1] = b(iSens[0], iSens[1], iSens[2]).v;
+  }
+
+  // Allreduce to Bcast flow velocity
+  MPI_Allreduce(MPI_IN_PLACE, velocityH, 3, MPI_DOUBLE, MPI_SUM, sim.app_comm);
+
+  // Assign lifted skin velocities
+  const double uLifted = velocityH[0];
+  const double vLifted = velocityH[1];
+
+  // return shear
+  return std::array<Real, 2>{{(uLifted - uSkin) * invh,
+                              (vLifted - vSkin) * invh }};
+
 };
-
-// return flow velocity at point of flow sensor:
-std::array<Real, 2> StefanFish::sensVel(const std::array<Real,2> pSens, const std::vector<cubism::BlockInfo>& velInfo) const
-{
-  // get blockId
-  const size_t blockId = holdingBlockID(pSens, velInfo);
-
-  // get block
-  const auto& sensBinfo = velInfo[blockId];
-
-  // get origin of block
-  const std::array<Real,2> oSens = sensBinfo.pos<Real>(0, 0);
-
-  // get inverse gridspacing in block
-  const Real invh = 1/velInfo[blockId].h_gridpoint;
-
-  // get index for sensor
-  const std::array<int,2> iSens = safeIdInBlock(pSens, oSens, invh);
-
-  //printf("sensor pos:[%f %f] -> block org:[%f %f] ind:[%d %d]\n",
-  //  pSens[0], pSens[1], oSens[0], oSens[1], iSens[0], iSens[1]);
-
-  // get velocity field at point
-  const VectorBlock& b = * (const VectorBlock*) sensBinfo.ptrBlock;
-
-  return std::array<Real, 2>{{b(iSens[0], iSens[1]).u[0],
-                              b(iSens[0], iSens[1]).u[1]}};
-};
-
 #endif
 
 CubismUP_3D_NAMESPACE_END
