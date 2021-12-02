@@ -480,7 +480,7 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
         const Real theta = tt*dtheta + offset;
         const Real sinth = std::sin(theta), costh = std::cos(theta);
         // create a surface point
-        Real myP[3] ={rX[ss+0] +width[ss+0]*costh*norX[ss+0],
+        myP[3] ={rX[ss+0] +width[ss+0]*costh*norX[ss+0],
                       rY[ss+0] +width[ss+0]*costh*norY[ss+0], height[ss+0]*sinth
         };
         changeToComputationalFrame(myP);
