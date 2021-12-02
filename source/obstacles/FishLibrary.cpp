@@ -479,10 +479,11 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
       {
         const Real theta = tt*dtheta + offset;
         const Real sinth = std::sin(theta), costh = std::cos(theta);
-        // create a surface point
-        myP[3] ={rX[ss+0] +width[ss+0]*costh*norX[ss+0],
-                      rY[ss+0] +width[ss+0]*costh*norY[ss+0], height[ss+0]*sinth
-        };
+        // Take surface point
+        myP[0] = rX[ss+0] +width[ss+0]*costh*norX[ss+0];
+        myP[1] = rY[ss+0] +width[ss+0]*costh*norY[ss+0];
+        myP[2] = height[ss+0]*sinth;
+
         changeToComputationalFrame(myP);
 
         // save location for side of head; for angle = 0 and angle = pi this is a sensor location
