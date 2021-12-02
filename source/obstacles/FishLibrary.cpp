@@ -440,6 +440,20 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
   auto & __restrict__ SDFLAB = defblock->sdfLab;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
   MARKMAT & __restrict__ MARK = defblock->sectionMarker;
+
+  // needed variables to store sensor location
+  const Real *const rS = cfish->rS;
+  const Real length = cfish->length;
+
+  // save location for tip of head
+  Real myP[3] ={ rX[0], rY[0], 0 };
+  changeToComputationalFrame(myP);
+  cfish->sensorLocation[0*3+0] = myP[0];
+  cfish->sensorLocation[0*3+1] = myP[1];
+  cfish->sensorLocation[0*3+2] = myP[2];
+  // printf("tip sensor location %f, %f, %f\n", myP[0], myP[1], myP[2]);
+  // fflush(0);
+
   // construct the shape (P2M with min(distance) as kernel) onto defblocks
   for(size_t i=0; i<vSegments.size(); ++i)
   {
@@ -470,6 +484,27 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
                       rY[ss+0] +width[ss+0]*costh*norY[ss+0], height[ss+0]*sinth
         };
         changeToComputationalFrame(myP);
+
+        // save location for side of head; for angle = 0 and angle = pi this is a sensor location
+        if( rS[ss] <= 0.04*length && rS[ss+1] > 0.04*length )
+        {
+          if( tt == 0 )
+          {
+            cfish->sensorLocation[1*3+0] = myP[0];
+            cfish->sensorLocation[1*3+1] = myP[1];
+            cfish->sensorLocation[1*3+2] = myP[2];
+            // printf("side sensor location 1 %f, %f, %f\n", myP[0], myP[1], myP[2]);
+            // fflush(0);
+          }
+          if( tt == (int)Ntheta/2 )
+          {
+            cfish->sensorLocation[2*3+0] = myP[0];
+            cfish->sensorLocation[2*3+1] = myP[1];
+            cfish->sensorLocation[2*3+2] = myP[2];
+            // printf("side sensor location 2 %f, %f, %f\n", myP[0], myP[1], myP[2]);
+            // fflush(0);
+          }
+        }
 
         // myP is now lab frame, find index of the fluid elem near it
         const int iap[3] = {
@@ -509,10 +544,12 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
           const Real dist0 = eulerDistSq3D(p, myP);
           const Real distP = eulerDistSq3D(p, pP);
           const Real distM = eulerDistSq3D(p, pM);
+
           // check if this grid point has already found a closer surf-point:
           if(std::fabs(SDFLAB[sz][sy][sx])<std::min({dist0,distP,distM})) continue;
 
           changeFromComputationalFrame(p);
+
           #ifndef NDEBUG // check that change of ref frame does not affect dist
             Real p0[3] = {rX[ss] +width[ss]*costh*norX[ss],
                           rY[ss] +width[ss]*costh*norY[ss], height[ss]*sinth

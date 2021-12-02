@@ -1,5 +1,5 @@
 #!/bin/bash
-NNODE=64
+NNODE=${NNODE:-64}
 DLM=${DLM:-1}
 LAMBDA=${LAMBDA:-1e6}
 BPDX=${BPDX:-32}

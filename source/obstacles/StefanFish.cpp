@@ -284,7 +284,7 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
 void StefanFish::create()
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
-  if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
+
   const double DT = sim.dt/Tperiod;
   //const double time = sim.time;
   // Control pos diffs
@@ -448,7 +448,7 @@ std::vector<double> StefanFish::state() const
     ////////////////////////////////////////
 
     // get front-point
-    const std::array<Real,3> pFront = {DU->xSurf[0], DU->ySurf[0], position[2]}; //TODO: what is the true z coordinate of the lateral line?
+    const std::array<Real,3> pFront = {cFish->sensorLocation[0], cFish->sensorLocation[1], cFish->sensorLocation[2]};
 
     // first point of the two skins is the same
     // normal should be almost the same: take the mean
@@ -477,7 +477,7 @@ std::vector<double> StefanFish::state() const
       const auto& D = a==0 ? myFish->upperSkin : myFish->lowerSkin;
 
       // get point
-      const std::array<Real,3> pSide = { D->midX[iHeadSide], D->midY[iHeadSide], position[2] };
+      const std::array<Real,3> pSide = {cFish->sensorLocation[(a+1)*3+0], cFish->sensorLocation[(a+1)*3+1], cFish->sensorLocation[(a+1)*3+2]};
 
       // get normal to surface
       const std::array<Real,3> normSide = { D->normXSurf[iHeadSide], D->normYSurf[iHeadSide], 0.0 };
@@ -531,14 +531,8 @@ ssize_t StefanFish::holdingBlockID(const std::array<Real,3> pos, const std::vect
     // check whether point is inside block
     if( pos[0] > MIN[0] && pos[1] > MIN[1] && pos[2] > MIN[2] && pos[0] <= MAX[0] && pos[1] <= MAX[1] && pos[2] <= MAX[2] )
     {
-      // check whether obstacle block exists
-      if(obstacleBlocks[i] != nullptr ) {
-        return i;
-      }
-      else {
-        printf("ABORT: coordinate (%g,%g) in block %ld could not be associated to obstacle block\n", pos[0], pos[1], i);
-        fflush(0); abort();
-      }
+      // return blockId holding point
+      return i;
     }
   }
   // rank does not contain point
@@ -569,6 +563,13 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,3> pSurf, const s
 
   // get surface velocity if block containing point found
   if( blockIdSurf >= 0 ) {
+    // check whether obstacle block exists
+    if(obstacleBlocks[skinBinfo.blockID] == nullptr ){
+      printf("[CUP2D, rank %u] obstacleBlocks[%llu] is a nullptr! obstacleBlocks.size()=%lu", sim.rank, skinBinfo.blockID, obstacleBlocks.size());
+      fflush(0);
+      abort();
+    }
+
     // get block
     const auto& skinBinfo = velInfo[blockIdSurf];
 

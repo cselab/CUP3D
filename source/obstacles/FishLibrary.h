@@ -92,6 +92,9 @@ class FishMidlineData
   //Schedulers::ParameterSchedulerVector<6> adjustScheduler;
   FishSkin * upperSkin, * lowerSkin;
 
+  // Sensor location for RL
+  std::array<Real, 9> sensorLocation;
+
  protected:
   double Rmatrix2D[2][2];
   double Rmatrix3D[3][3];
@@ -274,12 +277,12 @@ struct VolumeSegment_OBB
 
 struct PutFishOnBlocks
 {
-  const FishMidlineData * cfish;
+  FishMidlineData * cfish;
   const double position[3];
   const double quaternion[4];
   const double Rmatrix3D[3][3];
 
-  PutFishOnBlocks(const FishMidlineData* const _cfish, const double p[3], const double q[4]): cfish(_cfish), position{p[0],p[1],p[2]},
+  PutFishOnBlocks(FishMidlineData* _cfish, const double p[3], const double q[4]): cfish(_cfish), position{p[0],p[1],p[2]},
   quaternion{q[0],q[1],q[2],q[3]},
   Rmatrix3D{
   {1-2*(q[2]*q[2]+q[3]*q[3]), 2*(q[1]*q[2]-q[3]*q[0]), 2*(q[1]*q[3]+q[2]*q[0])},
@@ -348,7 +351,7 @@ struct PutFishOnBlocks
 
 struct PutNacaOnBlocks: public PutFishOnBlocks
 {
-  PutNacaOnBlocks(const FishMidlineData* const _cfish, const double p[3], const double q[4]): PutFishOnBlocks(_cfish, p, q) { }
+  PutNacaOnBlocks(FishMidlineData* _cfish, const double p[3], const double q[4]): PutFishOnBlocks(_cfish, p, q) { }
 
   Real getSmallerDistToMidLPlanar(const int start_s, const Real x[3], int & final_s) const;
 
