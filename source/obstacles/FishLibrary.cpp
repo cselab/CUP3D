@@ -478,9 +478,13 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
   // save location for tip of head
   Real myP[3] ={ rX[0], rY[0], rZ[0] };
   changeToComputationalFrame(myP);
-  cfish->sensorLocation[0*3+0] = myP[0];
-  cfish->sensorLocation[0*3+1] = myP[1];
-  cfish->sensorLocation[0*3+2] = myP[2];
+  cfish->sensorLocation[0] = myP[0];
+  cfish->sensorLocation[1] = myP[1];
+  cfish->sensorLocation[2] = myP[2];
+  cfish->SurfaceNormal(0,0,cfish->sensorNormals[0*3+0],cfish->sensorNormals[0*3+1],cfish->sensorNormals[0*3+2]);
+  cfish->sensorDelta[0] = 0;
+  cfish->sensorDelta[1] = 0;
+  cfish->sensorDelta[2] = 0;
   // printf("tip sensor location %f, %f, %f\n", myP[0], myP[1], myP[2]);
   // fflush(0);
 
@@ -524,6 +528,10 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
             cfish->sensorLocation[1*3+0] = myP[0];
             cfish->sensorLocation[1*3+1] = myP[1];
             cfish->sensorLocation[1*3+2] = myP[2];
+            cfish->SurfaceNormal(ss,theta,cfish->sensorNormals[1*3+0],cfish->sensorNormals[1*3+1],cfish->sensorNormals[1*3+2]);
+            cfish->sensorDelta[1*3+0] = rX[ss+1] +width[ss+1]*costh*norX[ss+1]+height[ss+1]*sinth*binX[ss+1] - cfish->sensorLocation[1*3+0];
+            cfish->sensorDelta[1*3+1] = rY[ss+1] +width[ss+1]*costh*norY[ss+1]+height[ss+1]*sinth*binY[ss+1] - cfish->sensorLocation[1*3+1];
+            cfish->sensorDelta[1*3+2] = rZ[ss+1] +width[ss+1]*costh*norZ[ss+1]+height[ss+1]*sinth*binZ[ss+1] - cfish->sensorLocation[1*3+2];
             // printf("side sensor location 1 %f, %f, %f\n", myP[0], myP[1], myP[2]);
             // fflush(0);
           }
@@ -532,6 +540,10 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
             cfish->sensorLocation[2*3+0] = myP[0];
             cfish->sensorLocation[2*3+1] = myP[1];
             cfish->sensorLocation[2*3+2] = myP[2];
+            cfish->SurfaceNormal(ss,theta,cfish->sensorNormals[2*3+0],cfish->sensorNormals[2*3+1],cfish->sensorNormals[2*3+2]);
+            cfish->sensorDelta[2*3+0] = rX[ss+1] +width[ss+1]*costh*norX[ss+1]+height[ss+1]*sinth*binX[ss+1] - cfish->sensorLocation[2*3+0];
+            cfish->sensorDelta[2*3+1] = rY[ss+1] +width[ss+1]*costh*norY[ss+1]+height[ss+1]*sinth*binY[ss+1] - cfish->sensorLocation[2*3+1];
+            cfish->sensorDelta[2*3+2] = rZ[ss+1] +width[ss+1]*costh*norZ[ss+1]+height[ss+1]*sinth*binZ[ss+1] - cfish->sensorLocation[2*3+2];
             // printf("side sensor location 2 %f, %f, %f\n", myP[0], myP[1], myP[2]);
             // fflush(0);
           }

@@ -50,19 +50,26 @@ class CurvatureDefinedFishData : public FishMidlineData
   Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
 
  protected:
-  Real * const rK;
-  Real * const vK;
-  Real * const rC;
-  Real * const vC;
-  Real * const rB;
-  Real * const vB;
+  Real * const rK; //curvature kappa(s,t) of midline
+  Real * const vK; //time derivative of curvature
+  Real * const rC; //control parameters of curvature/bending
+  Real * const vC; //control parameters of curvature/bending (=drC/dt)
+  Real * const rB; //control parameters of curvature/bending
+  Real * const vB; //control parameters of curvature/bending (=drB/dt)
+
+  Real * const rT; //torsion tau(s,t) of midline
+  Real * const vT; //time derivative of torsion
+  Real * const rC_T; //control parameters of torsion
+  Real * const vC_T; //control parameters of torsion (=drC_T/dt)
+  Real * const rB_T; //control parameters of torsion
+  Real * const vB_T; //control parameters of torsion (=drB_T/dt)
 
  public:
 
   CurvatureDefinedFishData(double L, double T, double phi, double _h, const double _ampFac)
   : FishMidlineData(L, T, phi, _h, _ampFac),
-    rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)),
-    rB(_alloc(Nm)),vB(_alloc(Nm)) { }
+    rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm)),
+    rT(_alloc(Nm)),vT(_alloc(Nm)), rC_T(_alloc(Nm)),vC_T(_alloc(Nm)), rB_T(_alloc(Nm)),vB_T(_alloc(Nm)) { }
 
   void correctTrajectory(const Real dtheta, const Real vtheta,
                          const Real t, const Real dt)
@@ -93,6 +100,8 @@ class CurvatureDefinedFishData : public FishMidlineData
   {
     _dealloc(rK); _dealloc(vK); _dealloc(rC);
     _dealloc(vC); _dealloc(rB); _dealloc(vB);
+    _dealloc(rT); _dealloc(vT); _dealloc(rC_T);
+    _dealloc(vC_T); _dealloc(rB_T); _dealloc(vB_T);
   }
 
   void computeMidline(const double time, const double dt) override;
@@ -156,34 +165,18 @@ void CurvatureDefinedFishData::computeMidline(const double t, const double dt)
     assert(not std::isinf(vK[i]));
   }
 
-  //printf("%g %g %g %g\n", rB[12], rB[425], rB[838], rB[1238]);
-  #if 0
-    { // we dump the profile points
-      FILE * f = fopen("stefan.dat","a");
-      std::array<Real, 6> curv,base;
-      curvScheduler.ParameterScheduler<6>::gimmeValues(time, curv);
-      baseScheduler.ParameterScheduler<6>::gimmeValues(time, base);
-      fprintf(f,"%9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e %9.9e\n",
-          time,curv[0],curv[1],curv[2],curv[3],curv[4],curv[5],base[0],base[1],base[2],base[3],base[4],base[5]);
-      fclose(f);
-    }
-  #endif
+  //need to come up with something for midline torsion here, use zero values for now
+  for(int i=0; i<Nm; ++i)
+  {
+    //const double s = rS[i];
+    //rT[i] = A*(exp(-30*s)-K*exp(-100*(s-0.2)*(s-0.2)));
+    rT[i] = 0.0;
+    vT[i] = 0.0;
+  }
+
   // solve frenet to compute midline parameters
-  Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
-  #if 0
-    #warning USED MPI COMM WORLD
-    {
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-      if (rank!=0) return;
-      FILE * f = fopen("stefan_profile","w");
-      for(int i=0;i<Nm;++i)
-        fprintf(f,"%d %g %g %g %g %g %g %g %g %g\n",
-          i,rS[i],rX[i],rY[i],vX[i],vY[i],
-          vNorX[i],vNorY[i],width[i],height[i]);
-      fclose(f);
-    }
-  #endif
+  //Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
+  Frenet3D::solve(Nm, rS, rK, vK, rT, vT, rX, rY, rZ, vX, vY, vZ, norX, norY, norZ, vNorX, vNorY, vNorZ, binX, binY, binZ, vBinX, vBinY, vBinZ);
 }
 
 void StefanFish::save(std::string filename)
@@ -206,10 +199,6 @@ void StefanFish::save(std::string filename)
   savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
   savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
   savestream<<angVel[0]<<"\t"<<angVel[1]<<"\t"<<angVel[2]<<std::endl;
-  savestream<<theta_internal<<"\t"<<angvel_internal<<std::endl;//<<"\t"<<adjTh
-  //savestream<<timeshift<<"\t"<<time0<<"\t"<<l_Tp<<std::endl;
-  //<<"\t"<<new_curv<<"\t"<<old_curv<<"\t"<<new_Tp<<std::endl;
-  //savestream<<_2Dangle<<"\t"<<old_curv<<"\t"<<new_curv<<std::endl;
   savestream.close();
 
   cFish->curvatureScheduler.save(filename+"_curv");
@@ -233,9 +222,6 @@ void StefanFish::restart(std::string filename)
   restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
   restartstream >> transVel[0] >> transVel[1] >> transVel[2];
   restartstream >> angVel[0] >> angVel[1] >> angVel[2];
-  restartstream >> theta_internal >> angvel_internal; //  >> adjTh
-  //restartstream >> timeshift >> time0 >> l_Tp;// >> new_curv >> old_curv >> new_Tp;
-  //restartstream >> _2Dangle >> old_curv >> new_curv;
   restartstream.close();
 
   cFish->curvatureScheduler.restart(filename+"_curv");
@@ -253,10 +239,6 @@ void StefanFish::restart(std::string filename)
   std::cout<<"ANGLE: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
   std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
   std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
-  std::cout<<"INTERN: "<<theta_internal<<" "<<angvel_internal<<std::endl;
-  //std::cout<<"TIMESHIFT: "<<timeshift<<" "<<time0<<" "<<l_Tp<<std::endl;
-  //std::cout<<"ACTIONS: "<<new_curv<<" "<<old_curv<<" "<<new_Tp<<std::endl;
-  std::cout<<"2D angle: "<<_2Dangle<<std::endl;
   }
 }
 
@@ -346,16 +328,6 @@ void StefanFish::create()
     const double periodFac = 1.0 - xDiff;
     const double periodVel =     - relU;
 
-    //if(not sim.muteAll) {
-    //  std::ofstream filePID;
-    //  std::stringstream ssF;
-    //  ssF<<"PID_"<<obstacleID<<".dat";
-    //  filePID.open(ssF.str().c_str(), std::ios::app);
-    //  filePID<<time<<" "<<valIangPdy<<" "<<difIangPdy
-    //               <<" "<<valPangIdy<<" "<<difPangIdy
-    //               <<" "<<valIangIdy<<" "<<difIangIdy
-    //               <<" "<<periodFac <<" "<<periodVel <<"\n";
-    //}
     const double totalTerm = valIangPdy + valPangIdy + valIangIdy;
     const double totalDiff = difIangPdy + difPangIdy + difIangIdy;
     cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
@@ -373,14 +345,6 @@ void StefanFish::create()
     const double totalTerm = coefInst*termInst + coefAvg*avgDangle;
     const double totalDiff = coefInst*diffInst + coefAvg*velDAavg;
 
-    //if(not sim.muteAll) {
-    //  std::ofstream filePID;
-    //  std::stringstream ssF;
-    //  ssF<<"PID_"<<obstacleID<<".dat";
-    //  filePID.open(ssF.str().c_str(), std::ios::app);
-    //  filePID<<time<<" "<<coefInst*termInst<<" "<<coefInst*diffInst
-    //               <<" "<<coefAvg*avgDangle<<" "<<coefAvg*velDAavg<<"\n";
-    //}
     cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
   }
 
@@ -391,6 +355,7 @@ void StefanFish::create()
   Fish::create();
 }
 
+#if 1
 void StefanFish::act(const Real t_rlAction, const std::vector<double>& a) const
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
@@ -441,9 +406,6 @@ std::vector<double> StefanFish::state() const
     // Get velInfo
     const std::vector<cubism::BlockInfo>& velInfo = sim.vInfo();
 
-    // Get fish skin
-    const auto &DU = myFish->upperSkin, &DL = myFish->lowerSkin;
-
     //// Sensor Signal on Front of Fish ////
     ////////////////////////////////////////
 
@@ -452,9 +414,9 @@ std::vector<double> StefanFish::state() const
 
     // first point of the two skins is the same
     // normal should be almost the same: take the mean
-    const std::array<Real,3> normalFront = { (DU->normXSurf[0] + DL->normXSurf[0]) / 2,
-                                             (DU->normYSurf[0] + DL->normYSurf[0]) / 2,
-                                             0.0 }; //TODO: what is the true z coordinate of the lateral line normal?
+    const std::array<Real,3> normalFront = { cFish->sensorNormals[0]
+                                             cFish->sensorNormals[1]
+                                             cFish->sensorNormals[2]};
 
     // compute shear stress
     std::array<Real,2> tipShear = getShear( pFront, normalFront, velInfo );
@@ -473,21 +435,21 @@ std::vector<double> StefanFish::state() const
 
     for(int a = 0; a<2; ++a)
     {
-      // distinguish upper and lower skin
-      const auto& D = a==0 ? myFish->upperSkin : myFish->lowerSkin;
-
       // get point
       const std::array<Real,3> pSide = {cFish->sensorLocation[(a+1)*3+0], cFish->sensorLocation[(a+1)*3+1], cFish->sensorLocation[(a+1)*3+2]};
 
       // get normal to surface
-      const std::array<Real,3> normSide = { D->normXSurf[iHeadSide], D->normYSurf[iHeadSide], 0.0 };
+      const std::array<Real,3> normSide = {cFish->sensorNormals[(a+1)*3+0], cFish->sensorNormals[(a+1)*3+1], cFish->sensorNormals[(a+1)*3+2]};
 
       // compute shear stress
       std::array<Real,2> sideShear = getShear( pSide, normSide, velInfo );
 
+      //Michalis: THIS ONLY WORKS FOR A FISH ON A PLANE
       // now figure out how to rotate it along the fish skin for consistency:
-      const Real dX = D->xSurf[iHeadSide+1] - D->xSurf[iHeadSide];
-      const Real dY = D->ySurf[iHeadSide+1] - D->ySurf[iHeadSide];
+      //const Real dX = D->xSurf[iHeadSide+1] - D->xSurf[iHeadSide];
+      //const Real dY = D->ySurf[iHeadSide+1] - D->ySurf[iHeadSide];
+      const Real dX = cFish->sensorDelta[0];
+      const Real dY = cFish->sensorDelta[1];
       const Real proj = dX * normSide[0] - dY * normSide[1];
       const Real tangX = proj>0?  normSide[0] : -normSide[0]; // s.t. tang points from head
       const Real tangY = proj>0? -normSide[1] :  normSide[1]; // to tail, normal outward
@@ -643,6 +605,7 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,3> pSurf, const s
                               (vLifted - vSkin) * invh }};
 
 };
+#endif
 #endif
 
 CubismUP_3D_NAMESPACE_END

@@ -70,6 +70,7 @@ class FishMidlineData
 
   std::array<Real, 9> sensorLocation; //Shear stress sensor locations (for RL)
   std::array<Real, 9> sensorNormals;  //Shear stress sensor surface (unit) normal vectors (for RL)
+  std::array<Real, 9> sensorDelta;
 
   // Midline has an orientation in space which is defined from the following quaternion.
   // When midline is defined, we change the frame of reference so that its origin is at the midline
@@ -155,6 +156,57 @@ class FishMidlineData
     fprintf(f, "s x y vX vY\n");
     for (int i=0; i<Nm; i++)
       fprintf(f, "%g %g %g %g %g\n", rS[i],rX[i],rY[i],vX[i],vY[i]);
+  }
+
+  void SurfaceNormal(const int idx, const Real theta, Real & nx, Real & ny, Real &nz)
+  {
+    //Surface is given from:
+    //x(s,theta) = rS(s) + nor(s)*width(s)*cos(theta) + bin(s)*height(s)*sin(theta)
+    //Here we compute n := dx/dtheta x dx/ds and we normalize the result, 
+    //                                       to get the unit normal vector to the fish surface
+
+    //if s = 0 then width = 0, height = 0 and the function is not differentiable.
+    //in this case, we DEFINE the "normal" vector as the tangent vector dr/ds 
+    //(i.e. the fish is looking forward)  
+    if (idx == 0)
+    {
+      nx = (rX[idx+1]-rX[idx])/(rS[idx+1]-rS[idx]);
+      ny = (rY[idx+1]-rY[idx])/(rS[idx+1]-rS[idx]);
+      nz = (rZ[idx+1]-rZ[idx])/(rS[idx+1]-rS[idx]);
+    }
+    else
+    {
+      const Real costheta = cos(theta);
+      const Real sintheta = sin(theta);
+
+      Real drXds   = _d_ds(idx,  rX,Nm);
+      Real drYds   = _d_ds(idx,  rY,Nm);
+      Real drZds   = _d_ds(idx,  rZ,Nm);
+      Real dnorXds = _d_ds(idx,norX,Nm);
+      Real dnorYds = _d_ds(idx,norY,Nm);
+      Real dnorZds = _d_ds(idx,norZ,Nm);
+      Real dbinXds = _d_ds(idx,binX,Nm);
+      Real dbinYds = _d_ds(idx,binY,Nm);
+      Real dbinZds = _d_ds(idx,binZ,Nm);
+      Real dwds    = _d_ds(idx, width,Nm);
+      Real dhds    = _d_ds(idx,height,Nm);
+
+      Real dxds = drXds + costheta * (dwds*norX[idx] + dnorXds*width[idx]) + sintheta * (dhds*binX[idx]+dbinXds*height[idx]);
+      Real dyds = drYds + costheta * (dwds*norY[idx] + dnorYds*width[idx]) + sintheta * (dhds*binY[idx]+dbinYds*height[idx]);
+      Real dzds = drZds + costheta * (dwds*norZ[idx] + dnorZds*width[idx]) + sintheta * (dhds*binZ[idx]+dbinZds*height[idx]);
+
+      Real dxdtheta = -sintheta*norX[idx]*width[idx] + costheta*binX[idx]*height[idx];
+      Real dydtheta = -sintheta*norY[idx]*width[idx] + costheta*binY[idx]*height[idx];
+      Real dzdtheta = -sintheta*norZ[idx]*width[idx] + costheta*binZ[idx]*height[idx];
+
+      nx = dydtheta * dzds - dzdtheta * dyds;
+      ny = dzdtheta * dxds - dxdtheta * dzds;
+      nz = dxdtheta * dyds - dydtheta * dxds;
+    }
+    const Real norm = 1.0/(sqrt(nx*nx+ny*ny+nz*nz)+std::numeric_limits<Real>::epsilon());
+    nx *= norm;
+    ny *= norm;
+    nz *= norm;
   }
 
   void integrateLinearMomentum();
