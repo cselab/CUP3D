@@ -60,35 +60,9 @@ Fish::~Fish()
 
 void Fish::integrateMidline()
 {
-  volume_internal = myFish->integrateLinearMomentum(CoM_internal, vCoM_internal);
-  assert(volume_internal > std::numeric_limits<Real>::epsilon());
-  myFish->changeToCoMFrameLinear(CoM_internal, vCoM_internal);
-  // compute angular velocity resulting from undulatory deformation
-  if(sim.dt>0) angvel_internal_prev = angvel_internal;
-  myFish->integrateAngularMomentum(angvel_internal);
-  // because deformations cannot impose rotation, we both subtract the angvel
-  // from the midline velocity and remove it from the internal angle:
-  theta_internal -= sim.dt * (angvel_internal + angvel_internal_prev)/2;
-  J_internal = myFish->J;
-  myFish->changeToCoMFrameAngular(theta_internal, angvel_internal);
+  myFish->integrateLinearMomentum();
 
-  #if 0 //ndef NDEBUG
-  {
-    double dummy_CoM_internal[2], dummy_vCoM_internal[2], dummy_angvel_internal;
-    // check that things are zero
-    const double volume_internal_check = myFish->integrateLinearMomentum(dummy_CoM_internal,dummy_vCoM_internal);
-    myFish->integrateAngularMomentum(dummy_angvel_internal);
-    const double EPS = 10*std::numeric_limits<Real>::epsilon();
-    assert(std::fabs(dummy_CoM_internal[0])<EPS);
-    assert(std::fabs(dummy_CoM_internal[1])<EPS);
-    assert(std::fabs(myFish->linMom[0])<EPS);
-    assert(std::fabs(myFish->linMom[1])<EPS);
-    assert(std::fabs(myFish->angMom)<EPS);
-    assert(std::fabs(volume_internal - volume_internal_check) < EPS);
-  }
-  #endif
-  //MPI_Barrier(grid->getCartComm());
-  myFish->surfaceToCOMFrame(theta_internal,CoM_internal);
+  myFish->integrateAngularMomentum(sim.dt);
 }
 
 std::vector<VolumeSegment_OBB> Fish::prepare_vSegments()
@@ -115,11 +89,12 @@ std::vector<VolumeSegment_OBB> Fish::prepare_vSegments()
     Real bbox[3][2] = {{1e9, -1e9}, {1e9, -1e9}, {1e9, -1e9}};
     for(int ss=idx; ss<=nextidx; ++ss)
     {
-      const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss],
-          myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss]};
-      const Real yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss],
-          myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss]};
-      const Real zBnd[2] = {-myFish->height[ss], +myFish->height[ss]};
+      const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss] - myFish->binX[ss]*myFish->height[ss],
+                            myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss] + myFish->binX[ss]*myFish->height[ss]};
+      const Real yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss] - myFish->binY[ss]*myFish->height[ss],
+                            myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss] + myFish->binY[ss]*myFish->height[ss]};
+      const Real zBnd[2] = {myFish->rZ[ss] - myFish->norZ[ss]*myFish->width[ss] - myFish->binZ[ss]*myFish->height[ss],
+                            myFish->rZ[ss] + myFish->norZ[ss]*myFish->width[ss] + myFish->binZ[ss]*myFish->height[ss]};
       const Real maxX=std::max(xBnd[0],xBnd[1]), minX=std::min(xBnd[0],xBnd[1]);
       const Real maxY=std::max(yBnd[0],yBnd[1]), minY=std::min(yBnd[0],yBnd[1]);
       const Real maxZ=std::max(zBnd[0],zBnd[1]), minZ=std::min(zBnd[0],zBnd[1]);
@@ -477,7 +452,6 @@ void Fish::create()
 
   // 1.
   myFish->computeMidline(sim.time, sim.dt);
-  myFish->computeSurface();
 
   // 2. & 3.
   integrateMidline();
@@ -494,23 +468,15 @@ void Fish::create()
   writeSDFOnBlocks(vSegments);
 }
 
-void Fish::finalize()
-{
-  myFish->surfaceToComputationalFrame(_2Dangle, centerOfMass);
-}
+void Fish::finalize() {}
 
 void Fish::update()
 {
-  // update position and angles
   Obstacle::update();
-  angvel_integral[0] += sim.dt * angVel[0];
-  angvel_integral[1] += sim.dt * angVel[1];
-  angvel_integral[2] += sim.dt * angVel[2];
 }
 
 void Fish::save(std::string filename)
 {
-    //assert(std::abs(t-sim_time)<std::numeric_limits<Real>::epsilon());
     std::ofstream savestream;
     savestream.setf(std::ios::scientific);
     savestream.precision(std::numeric_limits<Real>::digits10 + 1);
@@ -521,8 +487,6 @@ void Fish::save(std::string filename)
     savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
     savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
     savestream<<angVel[0]<<"\t"<<angVel[1]<<"\t"<<angVel[2]<<std::endl;
-    savestream<<theta_internal<<"\t"<<angvel_internal<<std::endl; // <<"\t"<<adjTh
-    savestream<<_2Dangle;
     savestream.close();
 }
 
@@ -540,8 +504,6 @@ void Fish::restart(std::string filename)
   restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
   restartstream >> transVel[0] >> transVel[1] >> transVel[2];
   restartstream >> angVel[0] >> angVel[1] >> angVel[2];
-  restartstream >> theta_internal >> angvel_internal;// >> adjTh;
-  restartstream >> _2Dangle;
   restartstream.close();
 
   std::cout<<"RESTARTED FISH: "<<std::endl;
@@ -551,8 +513,6 @@ void Fish::restart(std::string filename)
            <<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
   std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
   std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
-  std::cout<<"INTERN: "<<theta_internal<<" "<<angvel_internal<<std::endl;
-  std::cout<<"2D angle: \t"<<_2Dangle<<std::endl;
 }
 
 CubismUP_3D_NAMESPACE_END

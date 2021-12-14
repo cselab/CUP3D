@@ -78,6 +78,7 @@ class CarlingFishMidlineData : public FishMidlineData
       rX[0] = 0.0; vX[0] = 0.0; //rX[0] is constant
       rY[0] = rampFac*Y;
       vY[0] = rampFac*VY + rampFacVel*Y;
+      rZ[0] = 0.0; vZ[0] = 0.0;
     }
     for(int i=1; i<Nm; ++i)
     {
@@ -92,6 +93,8 @@ class CarlingFishMidlineData : public FishMidlineData
       assert(dx>0);
       rX[i] = rX[i-1] + dx;
       vX[i] = vX[i-1] - dy/dx *dVy; // use ds^2 = dx^2+dy^2 -> ddx = -dy/dx*ddy
+      rZ[i] = 0.0;
+      vZ[i] = 0.0;
     }
   }
 };
@@ -101,18 +104,38 @@ void CarlingFishMidlineData::computeMidline(const double t,const double dt)
   if(quadraticAmplitude) _computeMidlinePosVel<true >(t);
   else                   _computeMidlinePosVel<false>(t);
 
-  _computeMidlineNormals();
-  #if 0
-    #warning USED MPI COMM WORLD
-    // we dump the profile
-    int rank;
-    MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-    if (rank!=0) return;
-    FILE * f = fopen("fish_profile","w");
-    for(int i=0;i<Nm;++i) fprintf(f,"%d %g %g %g %g %g %g %g %g %g\n",
-     i,rS[i],rX[i],rY[i],norX[i],norY[i],vX[i],vY[i], vNorX[i],vNorY[i]);
-    fclose(f); printf("Dumped midline\n");
-  #endif
+  #pragma omp parallel for schedule(static)
+  for(int i=0; i<Nm-1; i++) {
+    const double ds = rS[i+1]-rS[i];
+    const double tX = rX[i+1]-rX[i];
+    const double tY = rY[i+1]-rY[i];
+    const double tVX = vX[i+1]-vX[i];
+    const double tVY = vY[i+1]-vY[i];
+    norX[i] = -tY/ds;
+    norY[i] =  tX/ds;
+    norZ[i] =  0.0;
+    vNorX[i] = -tVY/ds;
+    vNorY[i] =  tVX/ds;
+    vNorZ[i] = 0.0;
+    binX[i] =  0.0;
+    binY[i] =  0.0;
+    binZ[i] =  1.0;
+    vBinX[i] = 0.0;
+    vBinY[i] = 0.0;
+    vBinZ[i] = 0.0;
+  }
+  norX[Nm-1] = norX[Nm-2];
+  norY[Nm-1] = norY[Nm-2];
+  norZ[Nm-1] = norZ[Nm-2];
+  vNorX[Nm-1] = vNorX[Nm-2];
+  vNorY[Nm-1] = vNorY[Nm-2];
+  vNorZ[Nm-1] = vNorZ[Nm-2];
+  binX[Nm-1] = binX[Nm-2];
+  binY[Nm-1] = binY[Nm-2];
+  binZ[Nm-1] = binZ[Nm-2];
+  vBinX[Nm-1] = vBinX[Nm-2];
+  vBinY[Nm-1] = vBinY[Nm-2];
+  vBinZ[Nm-1] = vBinZ[Nm-2];
 }
 
 CarlingFish::CarlingFish(SimulationData&s, ArgumentParser&p) : Fish(s, p)

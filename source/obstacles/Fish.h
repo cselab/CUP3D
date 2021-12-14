@@ -23,15 +23,8 @@ class Fish: public Obstacle
   // Arguments read from parser
   double Tperiod, phaseShift;
   bool bCorrectTrajectory, bCorrectPosition;
-  // Rest
-  double volume_internal=0, J_internal=0;
-  double CoM_internal[2]={0,0}, vCoM_internal[2]={0,0};
-  double theta_internal=0, angvel_internal=0, angvel_internal_prev=0;
-  double angvel_integral[3] = {0,0,0};
-
 
   void integrateMidline();
-  //void apply_pid_corrections();
 
   // first how to create blocks of segments:
   typedef std::vector<VolumeSegment_OBB> vecsegm_t;
@@ -48,9 +41,7 @@ class Fish: public Obstacle
   ~Fish() override;
   void save(std::string filename = std::string()) override;
   void restart(std::string filename = std::string()) override;
-
   virtual void update() override;
-
   virtual void create() override;
   virtual void finalize() override;
 

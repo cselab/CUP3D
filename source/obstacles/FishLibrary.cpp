@@ -15,236 +15,264 @@ using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
 using MARKMAT = int [CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 using CHIMAT = Real [CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 
-void FishMidlineData::writeMidline2File(const int step_id, std::string filename)
-{
-  char buf[500];
-  sprintf(buf, "%s_midline_%07d.txt", filename.c_str(), step_id);
-  FILE * f = fopen(buf, "w");
-  fprintf(f, "s x y vX vY\n");
-  for (int i=0; i<Nm; i++) {
-    //dummy.changeToComputationalFrame(temp);
-    //dummy.changeVelocityToComputationalFrame(udef);
-    fprintf(f, "%g %g %g %g %g\n", rS[i],rX[i],rY[i],vX[i],vY[i]);
-  }
-}
 
-void FishMidlineData::_computeMidlineNormals()
+void FishMidlineData::integrateLinearMomentum()
 {
+  // Compute the center of mass and center of mass velocities of the fish.
+  // Then change midline frame of reference to that (new origin is the fish center of mass).
+  // Mass is computed as:
+  // M = int_{x} int_{y} int_{z} dx dy dz = int_{s} int_{E} |Jacobian| ds dE
+  // where E is an elliptic cross-section of the fish.
+  // The coordinate transformation that gives us the Jacobian is:
+  // x(s,h1,h2) = rS(s) + nor(s)*width(s)*h1 + bin(s)*height(s)*h2
+  // where h1,h2 are the coordinates in the ellipse
+  // Center of mass (and its velocity) is computed as:
+  // C_{x} = 1/M * int_{x} int_{y} int_{z} x dx dy dz = int_{s} int_{E} x |Jacobian| ds dE
+
+  Real V=0, cmx=0, cmy=0, cmz=0, lmx=0, lmy=0, lmz=0;
+  #pragma omp parallel for schedule(static) reduction(+:V,cmx,cmy,cmz,lmx,lmy,lmz)
+  for(int i=0;i<Nm;++i)
+  {  
+    const Real ds = 0.5* ( (i==0) ? rS[1]-rS[0] : ((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]) );
+
+    const Real c0 = norY[i]*binZ[i]-norZ[i]*binY[i];
+    const Real c1 = norZ[i]*binX[i]-norX[i]*binZ[i];
+    const Real c2 = norX[i]*binY[i]-norY[i]*binX[i];
+
+    const Real x0dot = _d_ds(i, rX  , Nm);
+    const Real x1dot = _d_ds(i, rY  , Nm);
+    const Real x2dot = _d_ds(i, rZ  , Nm);
+    const Real n0dot = _d_ds(i, norX, Nm);
+    const Real n1dot = _d_ds(i, norY, Nm);
+    const Real n2dot = _d_ds(i, norZ, Nm);
+    const Real b0dot = _d_ds(i, binX, Nm);
+    const Real b1dot = _d_ds(i, binY, Nm);
+    const Real b2dot = _d_ds(i, binZ, Nm);
+
+    const Real w = width[i];
+    const Real H = height[i];
+
+    const Real aux1 = w*H         *(c0*x0dot+c1*x1dot+c2*x2dot)*ds;
+    const Real aux2 = 0.25*w*w*w*H*(c0*n0dot+c1*n1dot+c2*n2dot)*ds;
+    const Real aux3 = 0.25*w*H*H*H*(c0*b0dot+c1*b1dot+c2*b2dot)*ds;
+
+    V   += aux1;
+    cmx += rX[i]*aux1 +norX[i]*aux2+ binX[i]*aux3;
+    cmy += rY[i]*aux1 +norY[i]*aux2+ binY[i]*aux3;
+    cmz += rZ[i]*aux1 +norZ[i]*aux2+ binZ[i]*aux3;
+    lmx += vX[i]*aux1+vNorX[i]*aux2+vBinX[i]*aux3;
+    lmy += vY[i]*aux1+vNorY[i]*aux2+vBinY[i]*aux3;
+    lmz += vZ[i]*aux1+vNorZ[i]*aux2+vBinZ[i]*aux3;
+  }
+  const double volume = V*M_PI;
+  const double aux = M_PI/volume;
+  cmx *= aux;
+  cmy *= aux;
+  cmz *= aux;
+  lmx *= aux;
+  lmy *= aux;
+  lmz *= aux;
+  
   #pragma omp parallel for schedule(static)
-  for(int i=0; i<Nm-1; i++) {
-    const double ds = rS[i+1]-rS[i];
-    const double tX = rX[i+1]-rX[i];
-    const double tY = rY[i+1]-rY[i];
-    const double tVX = vX[i+1]-vX[i];
-    const double tVY = vY[i+1]-vY[i];
-    norX[i] = -tY/ds;
-    norY[i] =  tX/ds;
-    vNorX[i] = -tVY/ds;
-    vNorY[i] =  tVX/ds;
-  }
-  norX[Nm-1] = norX[Nm-2];
-  norY[Nm-1] = norY[Nm-2];
-  vNorX[Nm-1] = vNorX[Nm-2];
-  vNorY[Nm-1] = vNorY[Nm-2];
-}
-
-Real FishMidlineData::integrateLinearMomentum(double CoM[2], double vCoM[2])
-{   // already worked out the integrals for r, theta on paper
-  // remaining integral done with composite trapezoidal rule
-  // minimize rhs evaluations --> do first and last point separately
-  double V=0, cmx=0, cmy=0, lmx=0, lmy=0;
-  #pragma omp parallel for schedule(static) reduction(+:V,cmx,cmy,lmx,lmy)
-  for(int i=0;i<Nm;++i) {
-    const double ds = (i==0) ? rS[1]-rS[0] :
-        ((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
-    const double fac1 = _integrationFac1(i);
-    const double fac2 = _integrationFac2(i);
-    V += 0.5*fac1*ds;
-    cmx += 0.5*(rX[i]*fac1 + norX[i]*fac2)*ds;
-    cmy += 0.5*(rY[i]*fac1 + norY[i]*fac2)*ds;
-    lmx += 0.5*(vX[i]*fac1 + vNorX[i]*fac2)*ds;
-    lmy += 0.5*(vY[i]*fac1 + vNorY[i]*fac2)*ds;
-  }
-
-  vol=V*M_PI;
-  CoM[0]=cmx*M_PI;
-  CoM[1]=cmy*M_PI;
-  linMom[0]=lmx*M_PI;
-  linMom[1]=lmy*M_PI;
-
-  assert(vol> std::numeric_limits<double>::epsilon());
-  const double ivol = 1.0/vol;
-
-  CoM[0]*=ivol;
-  CoM[1]*=ivol;
-  vCoM[0]=linMom[0]*ivol;
-  vCoM[1]=linMom[1]*ivol;
-  //printf("%f %f %f %f %f\n",CoM[0],CoM[1],vCoM[0],vCoM[1], vol);
-  return vol;
-}
-
-void FishMidlineData::integrateAngularMomentum(double& angVel)
-{
-  // assume we have already translated CoM and vCoM to nullify linear momentum
-  // already worked out the integrals for r, theta on paper
-  // remaining integral done with composite trapezoidal rule
-  // minimize rhs evaluations --> do first and last point separately
-  double _J = 0, _am = 0;
-  #pragma omp parallel for schedule(static) reduction(+:_J,_am)
-  for(int i=0;i<Nm;++i) {
-    const double ds = (i==0) ? rS[1]-rS[0] :
-        ((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]);
-    const double fac1 = _integrationFac1(i);
-    const double fac2 = _integrationFac2(i);
-    const double fac3 = _integrationFac3(i);
-    const double tmp_M = (rX[i]*vY[i] - rY[i]*vX[i])*fac1
-      + (rX[i]*vNorY[i] -rY[i]*vNorX[i] +vY[i]*norX[i] -vX[i]*norY[i])*fac2
-      + (norX[i]*vNorY[i] - norY[i]*vNorX[i])*fac3;
-
-    const double tmp_J = (rX[i]*rX[i] + rY[i]*rY[i])*fac1
-      + 2*(rX[i]*norX[i] + rY[i]*norY[i])*fac2
-      + fac3;
-
-    _am += 0.5*tmp_M*ds;
-    _J += 0.5*tmp_J*ds;
-  }
-
-  J=_J*M_PI;
-  angMom=_am*M_PI;
-  assert(J>std::numeric_limits<double>::epsilon());
-  angVel = angMom/J;
-}
-
-void FishMidlineData::changeToCoMFrameLinear(const double CoM_internal[2], const double vCoM_internal[2])
-{
-  #pragma omp parallel for schedule(static)
-  for(int i=0;i<Nm;++i) {
-    rX[i]-=CoM_internal[0];
-    rY[i]-=CoM_internal[1];
-    vX[i]-=vCoM_internal[0];
-    vY[i]-=vCoM_internal[1];
-  }
-}
-
-void FishMidlineData::changeToCoMFrameAngular(const double theta_internal, const double angvel_internal)
-{
-  _prepareRotation2D(theta_internal);
-  #pragma omp parallel for schedule(static)
-  for(int i=0;i<Nm;++i) {
-    _rotate2D(rX[i],rY[i]);
-    _rotate2D(vX[i],vY[i]);
-    vX[i] += angvel_internal*rY[i];
-    vY[i] -= angvel_internal*rX[i];
-  }
-  _computeMidlineNormals();
-}
-
-void FishMidlineData::computeSurface()
-{
-  const int Nskin = lowerSkin->Npoints;
-  // Compute surface points by adding width to the midline points
-  #pragma omp parallel for schedule(static)
-  for(int i=0; i<Nskin; ++i)
+  for(int i=0;i<Nm;++i)
   {
-    double norm[2] = {norX[i], norY[i]};
-    double const norm_mod1 = std::sqrt(norm[0]*norm[0] + norm[1]*norm[1]);
-    norm[0] /= norm_mod1;
-    norm[1] /= norm_mod1;
-    assert(width[i] >= 0);
-    lowerSkin->xSurf[i] = rX[i] - width[i]*norm[0];
-    lowerSkin->ySurf[i] = rY[i] - width[i]*norm[1];
-    upperSkin->xSurf[i] = rX[i] + width[i]*norm[0];
-    upperSkin->ySurf[i] = rY[i] + width[i]*norm[1];
+    rX[i]-=cmx; rY[i]-=cmy; rZ[i]-=cmz;
+    vX[i]-=lmx; vY[i]-=lmy; vZ[i]-=lmz;
   }
+  return;
 }
 
-void FishMidlineData::computeSkinNormals(const double theta_comp, const double CoM_comp[3])
+void FishMidlineData::integrateAngularMomentum(const Real dt)
 {
-  _prepareRotation2D(theta_comp);
-  #pragma omp parallel for schedule(static)
-  for(int i=0; i<Nm; ++i) {
-    _rotate2D(rX[i], rY[i]);
-    rX[i] += CoM_comp[0];
-    rY[i] += CoM_comp[1];
-  }
-
-  const int Nskin = lowerSkin->Npoints;
-  // Compute midpoints as they will be pressure targets
-  #pragma omp parallel for schedule(static)
-  for(int i=0; i<Nskin-1; ++i)
+  // Compute the moments of inertia and angular velocities of the fish.
+  // See comments in FishMidlineData::integrateLinearMomentum.
+  Real JXX = 0;
+  Real JYY = 0;
+  Real JZZ = 0;
+  Real JXY = 0;
+  Real JYZ = 0;
+  Real JZX = 0;
+  Real AM_X = 0;
+  Real AM_Y = 0;
+  Real AM_Z = 0;
+  for(int i=0;i<Nm;++i)
   {
-    lowerSkin->midX[i] = (lowerSkin->xSurf[i] + lowerSkin->xSurf[i+1])/2.;
-    upperSkin->midX[i] = (upperSkin->xSurf[i] + upperSkin->xSurf[i+1])/2.;
-    lowerSkin->midY[i] = (lowerSkin->ySurf[i] + lowerSkin->ySurf[i+1])/2.;
-    upperSkin->midY[i] = (upperSkin->ySurf[i] + upperSkin->ySurf[i+1])/2.;
+    const Real ds = 0.5* ( (i==0) ? rS[1]-rS[0] : ((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]) );
 
-    lowerSkin->normXSurf[i]=  (lowerSkin->ySurf[i+1]-lowerSkin->ySurf[i]);
-    upperSkin->normXSurf[i]=  (upperSkin->ySurf[i+1]-upperSkin->ySurf[i]);
-    lowerSkin->normYSurf[i]= -(lowerSkin->xSurf[i+1]-lowerSkin->xSurf[i]);
-    upperSkin->normYSurf[i]= -(upperSkin->xSurf[i+1]-upperSkin->xSurf[i]);
+    const Real c0 = norY[i]*binZ[i]-norZ[i]*binY[i];
+    const Real c1 = norZ[i]*binX[i]-norX[i]*binZ[i];
+    const Real c2 = norX[i]*binY[i]-norY[i]*binX[i];
+    const Real x0dot = _d_ds(i, rX  , Nm);
+    const Real x1dot = _d_ds(i, rY  , Nm);
+    const Real x2dot = _d_ds(i, rZ  , Nm);
+    const Real n0dot = _d_ds(i, norX, Nm);
+    const Real n1dot = _d_ds(i, norY, Nm);
+    const Real n2dot = _d_ds(i, norZ, Nm);
+    const Real b0dot = _d_ds(i, binX, Nm);
+    const Real b1dot = _d_ds(i, binY, Nm);
+    const Real b2dot = _d_ds(i, binZ, Nm);
 
-    const double normL = std::sqrt( std::pow(lowerSkin->normXSurf[i],2) +
-                                    std::pow(lowerSkin->normYSurf[i],2) );
-    const double normU = std::sqrt( std::pow(upperSkin->normXSurf[i],2) +
-                                    std::pow(upperSkin->normYSurf[i],2) );
+    const Real w = width[i];
+    const Real H = height[i];
 
-    lowerSkin->normXSurf[i] /= normL;
-    upperSkin->normXSurf[i] /= normU;
-    lowerSkin->normYSurf[i] /= normL;
-    upperSkin->normYSurf[i] /= normU;
+    const Real M00 = w*H;
+    const Real M11 = 0.25*w*w*w*H;
+    const Real M22 = 0.25*w*H*H*H;
 
-    //if too close to the head or tail, consider a point further in, so that we are pointing out for sure
-    const int ii = (i<8) ? 8 : ((i > Nskin-9) ? Nskin-9 : i);
+    const Real cR = c0*x0dot + c1*x1dot + c2*x2dot;
+    const Real cN = c0*n0dot + c1*n1dot + c2*n2dot;
+    const Real cB = c0*b0dot + c1*b1dot + c2*b2dot;
 
-    const Real dirL =
-      lowerSkin->normXSurf[i] * (lowerSkin->midX[i]-rX[ii]) +
-      lowerSkin->normYSurf[i] * (lowerSkin->midY[i]-rY[ii]);
-    const Real dirU =
-      upperSkin->normXSurf[i] * (upperSkin->midX[i]-rX[ii]) +
-      upperSkin->normYSurf[i] * (upperSkin->midY[i]-rY[ii]);
+    JXY -= ds*(cR* (rX[i]*rY[i]*M00
+                 + norX[i]*norY[i]*M11
+                 + binX[i]*binY[i]*M22) 
+                 + cN*M11* (rX[i]*norY[i] + rY[i]*norX[i]) 
+                 + cB*M22* (rX[i]*binY[i] + rY[i]*binX[i]));
+    JZX -= ds*(cR* (rZ [i]*rX  [i]*M00
+                 + norZ[i]*norX[i]*M11
+                 + binZ[i]*binX[i]*M22)
+                 + cN*M11* (rZ[i]*norX[i] + rX[i]*norZ[i]) 
+                 + cB*M22* (rZ[i]*binX[i] + rX[i]*binZ[i]));
+    JYZ -= ds*(cR* (rY  [i]*rZ  [i]*M00
+                 +  norY[i]*norZ[i]*M11 
+                 +  binY[i]*binZ[i]*M22)
+                 + cN*M11* (rY[i]*norZ[i] + rZ[i]*norY[i]) 
+                 + cB*M22* (rY[i]*binZ[i] + rZ[i]*binY[i]));
 
-    if(dirL < 0) {
-        lowerSkin->normXSurf[i] *= -1.0;
-        lowerSkin->normYSurf[i] *= -1.0;
+    const Real XX = ds*(cR* (rX[i]*rX[i]*M00 + norX[i]*norX[i]*M11 + binX[i]*binX[i]*M22) 
+                        + cN*M11* (rX[i]*norX[i] + rX[i]*norX[i])
+                        + cB*M22* (rX[i]*binX[i] + rX[i]*binX[i]));
+    const Real YY = ds*(cR* (rY[i]*rY[i]*M00 + norY[i]*norY[i]*M11 + binY[i]*binY[i]*M22)
+                        + cN*M11* (rY[i]*norY[i] + rY[i]*norY[i])
+                        + cB*M22* (rY[i]*binY[i] + rY[i]*binY[i]));
+    const Real ZZ = ds*(cR* (rZ[i]*rZ[i]*M00 + norZ[i]*norZ[i]*M11 + binZ[i]*binZ[i]*M22)
+                        + cN*M11* (rZ[i]*norZ[i] + rZ[i]*norZ[i])
+                        + cB*M22* (rZ[i]*binZ[i] + rZ[i]*binZ[i]));
+    JXX += YY + ZZ;
+    JYY += ZZ + XX;
+    JZZ += YY + XX;
+
+    const Real xd_y = cR* (vX[i]*rY[i]*M00 + vNorX[i]*norY[i]*M11 + vBinX[i]*binY[i]*M22) + cN*M11* (vX[i]*norY[i] + rY[i]*vNorX[i]) + cB*M22* (vX[i]*binY[i] + rY[i]*vBinX[i]);
+    const Real x_yd = cR* (rX[i]*vY[i]*M00 + norX[i]*vNorY[i]*M11 + binX[i]*vBinY[i]*M22) + cN*M11* (rX[i]*vNorY[i] + rY[i]*norX[i]) + cB*M22* (rX[i]*vBinY[i] + vY[i]*binX[i]);
+    const Real xd_z = cR* (rZ[i]*vX[i]*M00 + norZ[i]*vNorX[i]*M11 + binZ[i]*vBinX[i]*M22) + cN*M11* (rZ[i]*vNorX[i] + vX[i]*norZ[i]) + cB*M22* (rZ[i]*vBinX[i] + vX[i]*binZ[i]);
+    const Real x_zd = cR* (vZ[i]*rX[i]*M00 + vNorZ[i]*norX[i]*M11 + vBinZ[i]*binX[i]*M22) + cN*M11* (vZ[i]*norX[i] + rX[i]*vNorZ[i]) + cB*M22* (vZ[i]*binX[i] + rX[i]*vBinZ[i]);
+    const Real yd_z = cR* (vY[i]*rZ[i]*M00 + vNorY[i]*norZ[i]*M11 + vBinY[i]*binZ[i]*M22) + cN*M11* (vY[i]*norZ[i] + rZ[i]*vNorY[i]) + cB*M22* (vY[i]*binZ[i] + rZ[i]*vBinY[i]);
+    const Real y_zd = cR* (rY[i]*vZ[i]*M00 + norY[i]*vNorZ[i]*M11 + binY[i]*vBinZ[i]*M22) + cN*M11* (rY[i]*vNorZ[i] + vZ[i]*norY[i]) + cB*M22* (rY[i]*vBinZ[i] + vZ[i]*binY[i]);
+
+    AM_X += (y_zd - yd_z)*ds;
+    AM_Y += (xd_z - x_zd)*ds;
+    AM_Z += (x_yd - xd_y)*ds;
+  }
+  const Real eps = std::numeric_limits<Real>::epsilon();
+  if (JXX < eps) JXX +=eps;
+  if (JYY < eps) JYY +=eps;
+  if (JZZ < eps) JZZ +=eps;
+
+  JXX  *= M_PI;
+  JYY  *= M_PI;
+  JZZ  *= M_PI;
+  JXY  *= M_PI;
+  JYZ  *= M_PI;
+  JZX  *= M_PI;
+  AM_X *= M_PI;
+  AM_Y *= M_PI;
+  AM_Z *= M_PI;
+
+  //Invert I
+  const Real m00 = JXX;
+  const Real m01 = JXY;
+  const Real m02 = JZX;
+  const Real m11 = JYY;
+  const Real m12 = JYZ;
+  const Real m22 = JZZ;
+  const Real a00 = m22*m11 - m12*m12;
+  const Real a01 = m02*m12 - m22*m01;
+  const Real a02 = m01*m12 - m02*m11;
+  const Real a11 = m22*m00 - m02*m02;
+  const Real a12 = m01*m02 - m00*m12;
+  const Real a22 = m00*m11 - m01*m01;
+  const Real determinant =  1.0/((m00 * a00) + (m01 * a01) + (m02 * a02));
+  
+  Real angVel[3];
+  angVel[0] = (a00*AM_X + a01*AM_Y + a02*AM_Z)*determinant;
+  angVel[1] = (a01*AM_X + a11*AM_Y + a12*AM_Z)*determinant;
+  angVel[2] = (a02*AM_X + a12*AM_Y + a22*AM_Z)*determinant;
+
+  // because deformations cannot impose rotation, we both subtract the angvel
+  // from the midline velocity and remove it from the internal angle:
+  const double dqdt[4] = {
+    .5*( - (angVel[0]+angvel_internal[0])*quaternion_internal[1] - (angVel[1]+angvel_internal[1])*quaternion_internal[2] - (angVel[2]+angvel_internal[2])*quaternion_internal[3] ),
+    .5*( + (angVel[0]+angvel_internal[0])*quaternion_internal[0] + (angVel[1]+angvel_internal[1])*quaternion_internal[3] - (angVel[2]+angvel_internal[2])*quaternion_internal[2] ),
+    .5*( - (angVel[0]+angvel_internal[0])*quaternion_internal[3] + (angVel[1]+angvel_internal[1])*quaternion_internal[0] + (angVel[2]+angvel_internal[2])*quaternion_internal[1] ),
+    .5*( + (angVel[0]+angvel_internal[0])*quaternion_internal[2] - (angVel[1]+angvel_internal[1])*quaternion_internal[1] + (angVel[2]+angvel_internal[2])*quaternion_internal[0] )
+  };
+  quaternion_internal[0] -= 0.5*dt * dqdt[0];
+  quaternion_internal[1] -= 0.5*dt * dqdt[1];
+  quaternion_internal[2] -= 0.5*dt * dqdt[2];
+  quaternion_internal[3] -= 0.5*dt * dqdt[3];
+  angvel_internal[0] = angVel[0];
+  angvel_internal[1] = angVel[1];
+  angvel_internal[2] = angVel[2];
+
+  //now we do the rotation
+  Real R[3][3];
+  R[0][0] = 1-2*(quaternion_internal[2]*quaternion_internal[2]+quaternion_internal[3]*quaternion_internal[3]);
+  R[0][1] =   2*(quaternion_internal[1]*quaternion_internal[2]-quaternion_internal[3]*quaternion_internal[0]);
+  R[0][2] =   2*(quaternion_internal[1]*quaternion_internal[3]+quaternion_internal[2]*quaternion_internal[0]);
+
+  R[1][0] =   2*(quaternion_internal[1]*quaternion_internal[2]+quaternion_internal[3]*quaternion_internal[0]); 
+  R[1][1] = 1-2*(quaternion_internal[1]*quaternion_internal[1]+quaternion_internal[3]*quaternion_internal[3]);
+  R[1][2] =   2*(quaternion_internal[2]*quaternion_internal[3]-quaternion_internal[1]*quaternion_internal[0]);
+
+  R[2][0] =   2*(quaternion_internal[1]*quaternion_internal[3]-quaternion_internal[2]*quaternion_internal[0]); 
+  R[2][1] =   2*(quaternion_internal[2]*quaternion_internal[3]+quaternion_internal[1]*quaternion_internal[0]); 
+  R[2][2] = 1-2*(quaternion_internal[1]*quaternion_internal[1]+quaternion_internal[2]*quaternion_internal[2]);
+
+  #pragma omp parallel for schedule(static)
+  for(int i=0;i<Nm;++i)
+  {
+    //rotation position and velocity
+    {
+      double p[3] = {rX[i],rY[i],rZ[i]};
+      rX[i] = R[0][0] * p[0]  + R[0][1] * p[1] + R[0][2] * p[2];
+      rY[i] = R[1][0] * p[0]  + R[1][1] * p[1] + R[1][2] * p[2];
+      rZ[i] = R[2][0] * p[0]  + R[2][1] * p[1] + R[2][2] * p[2];
+      double v[3] = {vX[i],vY[i],vZ[i]};
+      vX[i] = R[0][0] * v[0]  + R[0][1] * v[1] + R[0][2] * v[2];
+      vY[i] = R[1][0] * v[0]  + R[1][1] * v[1] + R[1][2] * v[2];
+      vZ[i] = R[2][0] * v[0]  + R[2][1] * v[1] + R[2][2] * v[2];
+      vX[i] +=  angvel_internal[2]*rY[i] - angvel_internal[1]*rZ[i];
+      vY[i] +=  angvel_internal[0]*rZ[i] - angvel_internal[2]*rX[i];
+      vZ[i] +=  angvel_internal[1]*rX[i] - angvel_internal[0]*rY[i];
     }
-    if(dirU < 0) {
-        upperSkin->normXSurf[i] *= -1.0;
-        upperSkin->normYSurf[i] *= -1.0;
+    //rotation normal vector
+    {
+      double p[3] = {norX[i],norY[i],norZ[i]};
+      norX[i] = R[0][0] * p[0]  + R[0][1] * p[1] + R[0][2] * p[2];
+      norY[i] = R[1][0] * p[0]  + R[1][1] * p[1] + R[1][2] * p[2];
+      norZ[i] = R[2][0] * p[0]  + R[2][1] * p[1] + R[2][2] * p[2];
+      double v[3] = {vNorX[i],vNorY[i],vNorZ[i]};
+      vNorX[i] = R[0][0] * v[0]  + R[0][1] * v[1] + R[0][2] * v[2];
+      vNorY[i] = R[1][0] * v[0]  + R[1][1] * v[1] + R[1][2] * v[2];
+      vNorZ[i] = R[2][0] * v[0]  + R[2][1] * v[1] + R[2][2] * v[2];
+      vNorX[i] += angvel_internal[2]*norY[i] - angvel_internal[1]*norZ[i];
+      vNorY[i] += angvel_internal[0]*norZ[i] - angvel_internal[2]*norX[i];
+      vNorZ[i] += angvel_internal[1]*norX[i] - angvel_internal[0]*norY[i];
     }
-  }
-}
-
-void FishMidlineData::surfaceToCOMFrame(const double theta_internal, const double CoM_internal[2])
-{
-  _prepareRotation2D(theta_internal);
-  // Surface points rotation and translation
-
-  #pragma omp parallel for schedule(static)
-  for(int i=0; i<upperSkin->Npoints; ++i)
-  //for(int i=0; i<upperSkin->Npoints-1; ++i)
-  {
-    upperSkin->xSurf[i] -= CoM_internal[0];
-    upperSkin->ySurf[i] -= CoM_internal[1];
-    _rotate2D(upperSkin->xSurf[i], upperSkin->ySurf[i]);
-    lowerSkin->xSurf[i] -= CoM_internal[0];
-    lowerSkin->ySurf[i] -= CoM_internal[1];
-    _rotate2D(lowerSkin->xSurf[i], lowerSkin->ySurf[i]);
-  }
-}
-
-void FishMidlineData::surfaceToComputationalFrame(const double theta_comp, const double CoM_interpolated[3])
-{
-  _prepareRotation2D(theta_comp);
-
-  #pragma omp parallel for schedule(static)
-  for(int i=0; i<upperSkin->Npoints; ++i)
-  {
-    _rotate2D(upperSkin->xSurf[i], upperSkin->ySurf[i]);
-    upperSkin->xSurf[i] += CoM_interpolated[0];
-    upperSkin->ySurf[i] += CoM_interpolated[1];
-    _rotate2D(lowerSkin->xSurf[i], lowerSkin->ySurf[i]);
-    lowerSkin->xSurf[i] += CoM_interpolated[0];
-    lowerSkin->ySurf[i] += CoM_interpolated[1];
+    //rotation binormal vector
+    {
+      double p[3] = {binX[i],binY[i],binZ[i]};
+      binX[i] = R[0][0] * p[0]  + R[0][1] * p[1] + R[0][2] * p[2];
+      binY[i] = R[1][0] * p[0]  + R[1][1] * p[1] + R[1][2] * p[2];
+      binZ[i] = R[2][0] * p[0]  + R[2][1] * p[1] + R[2][2] * p[2];
+      double v[3] = {vNorX[i],vNorY[i],vNorZ[i]};
+      vBinX[i] = R[0][0] * v[0]  + R[0][1] * v[1] + R[0][2] * v[2];
+      vBinY[i] = R[1][0] * v[0]  + R[1][1] * v[1] + R[1][2] * v[2];
+      vBinZ[i] = R[2][0] * v[0]  + R[2][1] * v[1] + R[2][2] * v[2];
+      vBinX[i] += angvel_internal[2]*binY[i] - angvel_internal[1]*binZ[i];
+      vBinY[i] += angvel_internal[0]*binZ[i] - angvel_internal[2]*binX[i];
+      vBinZ[i] += angvel_internal[1]*binX[i] - angvel_internal[0]*binY[i];
+    }
   }
 }
 
@@ -430,10 +458,12 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
 {
   Real org[3] = {ox-h,oy-h,oz-h};
   const Real invh = 1.0/h;
-  const Real *const rX = cfish->rX, *const norX = cfish->norX;
-  const Real *const rY = cfish->rY, *const norY = cfish->norY;
-  const Real *const vX = cfish->vX, *const vNorX = cfish->vNorX;
-  const Real *const vY = cfish->vY, *const vNorY = cfish->vNorY;
+  const Real *const rX = cfish->rX, *const norX  = cfish->norX , *const vBinX = cfish->vBinX;
+  const Real *const rY = cfish->rY, *const norY  = cfish->norY , *const vBinY = cfish->vBinY;
+  const Real *const rZ = cfish->rZ, *const norZ  = cfish->norZ , *const vBinZ = cfish->vBinZ;
+  const Real *const vX = cfish->vX, *const vNorX = cfish->vNorX, *const binX  = cfish->binX ;
+  const Real *const vY = cfish->vY, *const vNorY = cfish->vNorY, *const binY  = cfish->binY ;
+  const Real *const vZ = cfish->vZ, *const vNorZ = cfish->vNorZ, *const binZ  = cfish->binZ ;
   /*const */Real *const width = cfish->width, *const height = cfish->height;
   static constexpr int BS[3] = {FluidBlock::sizeX+2, FluidBlock::sizeY+2, FluidBlock::sizeZ+2};
   CHIMAT & __restrict__ CHI = defblock->chi;
@@ -446,7 +476,7 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
   const Real length = cfish->length;
 
   // save location for tip of head
-  Real myP[3] ={ rX[0], rY[0], 0 };
+  Real myP[3] ={ rX[0], rY[0], rZ[0] };
   changeToComputationalFrame(myP);
   cfish->sensorLocation[0*3+0] = myP[0];
   cfish->sensorLocation[0*3+1] = myP[1];
@@ -462,8 +492,8 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
     const int lastSegm =  std::min(vSegments[i]->s_range.second, cfish->Nm-2);
     for(int ss=firstSegm; ss<=lastSegm; ++ss)
     {
-      if (height[ss]<=0) {/*std::cout << "HEIGHT= " << height[ss] << std::endl; */height[ss]=1e-10;}
-      if (width [ss]<=0) {/*std::cout << "WIDTH = " << width [ss] << std::endl; */width [ss]=1e-10;}
+      if (height[ss]<=0) height[ss]=1e-10;
+      if (width [ss]<=0) width [ss]=1e-10;
       assert(height[ss]>0 && width[ss]>0);
       // fill chi by crating an ellipse around ss and finding all near neighs
       // assume width is major axis, else correction:
@@ -480,9 +510,9 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
         const Real theta = tt*dtheta + offset;
         const Real sinth = std::sin(theta), costh = std::cos(theta);
         // Take surface point
-        myP[0] = rX[ss+0] +width[ss+0]*costh*norX[ss+0];
-        myP[1] = rY[ss+0] +width[ss+0]*costh*norY[ss+0];
-        myP[2] = height[ss+0]*sinth;
+        myP[0] = rX[ss] +width[ss]*costh*norX[ss]+height[ss]*sinth*binX[ss];
+        myP[1] = rY[ss] +width[ss]*costh*norY[ss]+height[ss]*sinth*binY[ss];
+        myP[2] = rZ[ss] +width[ss]*costh*norZ[ss]+height[ss]*sinth*binZ[ss];
 
         changeToComputationalFrame(myP);
 
@@ -520,24 +550,24 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
         if(EN[0] <= 0 || ST[0] >= BS[0]) continue; // NearNeigh loop
         if(EN[1] <= 0 || ST[1] >= BS[1]) continue; // does not intersect
         if(EN[2] <= 0 || ST[2] >= BS[2]) continue; // with this block
-        Real pP[3] = {rX[ss+1] +width[ss+1]*costh*norX[ss+1],
-                      rY[ss+1] +width[ss+1]*costh*norY[ss+1], height[ss+1]*sinth
-        };
-        Real pM[3] = {rX[ss-1] +width[ss-1]*costh*norX[ss-1],
-                      rY[ss-1] +width[ss-1]*costh*norY[ss-1], height[ss-1]*sinth
-        };
+        Real pP[3] = {rX[ss+1] +width[ss+1]*costh*norX[ss+1]+height[ss+1]*sinth*binX[ss+1],
+                      rY[ss+1] +width[ss+1]*costh*norY[ss+1]+height[ss+1]*sinth*binY[ss+1],
+                      rZ[ss+1] +width[ss+1]*costh*norZ[ss+1]+height[ss+1]*sinth*binZ[ss+1]};
+        Real pM[3] = {rX[ss-1] +width[ss-1]*costh*norX[ss-1]+height[ss-1]*sinth*binX[ss-1],
+                      rY[ss-1] +width[ss-1]*costh*norY[ss-1]+height[ss-1]*sinth*binY[ss-1],
+                      rZ[ss-1] +width[ss-1]*costh*norZ[ss-1]+height[ss-1]*sinth*binZ[ss-1]};
         changeToComputationalFrame(pM);
         changeToComputationalFrame(pP);
-        Real udef[3] = { vX[ss+0] +width[ss+0]*costh*vNorX[ss+0],
-                         vY[ss+0] +width[ss+0]*costh*vNorY[ss+0], 0
-        };
+        Real udef[3] = { vX[ss] +width[ss]*costh*vNorX[ss]+height[ss]*sinth*vBinX[ss],
+                         vY[ss] +width[ss]*costh*vNorY[ss]+height[ss]*sinth*vBinY[ss],
+                         vZ[ss] +width[ss]*costh*vNorZ[ss]+height[ss]*sinth*vBinZ[ss]};
         changeVelocityToComputationalFrame(udef);
 
         for(int sz =std::max(0, ST[2]); sz <std::min(EN[2], BS[2]); ++sz)
         for(int sy =std::max(0, ST[1]); sy <std::min(EN[1], BS[1]); ++sy)
         for(int sx =std::max(0, ST[0]); sx <std::min(EN[0], BS[0]); ++sx)
         {
-          Real p[3]; //info.pos(p, sx-1, sy-1, sz-1);
+          Real p[3];
           p[0] = ox + h * (sx - 1 + 0.5);
           p[1] = oy + h * (sy - 1 + 0.5);
           p[2] = oz + h * (sz - 1 + 0.5);
@@ -551,14 +581,6 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
 
           changeFromComputationalFrame(p);
 
-          #ifndef NDEBUG // check that change of ref frame does not affect dist
-            Real p0[3] = {rX[ss] +width[ss]*costh*norX[ss],
-                          rY[ss] +width[ss]*costh*norY[ss], height[ss]*sinth
-            };
-            const Real distC = eulerDistSq3D(p, p0);
-            assert(std::fabs(distC-dist0)<std::numeric_limits<Real>::epsilon());
-          #endif
-
           int close_s = ss, secnd_s = ss + (distP<distM? 1 : -1);
           Real dist1 = dist0, dist2 = distP<distM? distP : distM;
           if(distP < dist0 || distM < dist0) { // switch nearest surf point
@@ -567,7 +589,8 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
           }
 
           const Real dSsq = std::pow(rX[close_s]-rX[secnd_s], 2)
-                           +std::pow(rY[close_s]-rY[secnd_s], 2);
+                           +std::pow(rY[close_s]-rY[secnd_s], 2)
+                           +std::pow(rZ[close_s]-rZ[secnd_s], 2);
           assert(dSsq > 2.2e-16);
           const Real cnt2ML = std::pow( width[close_s]*costh,2)
                              +std::pow(height[close_s]*sinth,2);
@@ -599,46 +622,32 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
           {
             // process end of tail:
             const int TT = cfish->Nm-1, TS = cfish->Nm-2;
-            //assert(width[TT]<2.2e-16 && height[TT]<2.2e-16);
             //compute the 5 corners of the pyramid around tail last point
-            const Real PC[3] = {rX[TT], rY[TT], 0 };
-            const Real PF[3] = {rX[TS], rY[TS], 0 };
-            const Real DXT = p[0] - PF[0], DYT = p[1] - PF[1];
-            const Real projW = width[TS]*norX[TS]*DXT + width[TS]*norY[TS]*DYT;
-            if(p[2] > 0 && projW>0)
-            {
-              const Real PT[3] = {rX[TS], rY[TS],  height[TS] };
-              const Real PP[3] = {rX[TS] +width[TS]*norX[TS], // port
-                                  rY[TS] +width[TS]*norY[TS], 0 };
-              SDFLAB[sz][sy][sx] = distPlane(PC, PT, PP, p, PF);
-            }
-            else
-            if(p[2] > 0 && projW<=0)
-            {
-              const Real PT[3] = {rX[TS], rY[TS],  height[TS] };
-              const Real PS[3] = {rX[TS] -width[TS]*norX[TS], // starbord
-                                  rY[TS] -width[TS]*norY[TS], 0 };
-              SDFLAB[sz][sy][sx] = distPlane(PC, PT, PS, p, PF);
-            }
-            else
-            if(p[2] <= 0 && projW>0)
-            {
-              const Real PB[3] = {rX[TS], rY[TS], -height[TS] };
-              const Real PP[3] = {rX[TS] +width[TS]*norX[TS], // port
-                                  rY[TS] +width[TS]*norY[TS], 0 };
-              SDFLAB[sz][sy][sx] = distPlane(PC, PB, PP, p, PF);
-            }
-            else
-            {
-              const Real PB[3] = {rX[TS], rY[TS], -height[TS] };
-              const Real PS[3] = {rX[TS] -width[TS]*norX[TS], // starbord
-                                  rY[TS] -width[TS]*norY[TS], 0 };
-              SDFLAB[sz][sy][sx] = distPlane(PC, PB, PS, p, PF);
-            }
+            const Real PC[3] = {rX[TT], rY[TT], rZ[TT] };
+            const Real PF[3] = {rX[TS], rY[TS], rZ[TS] };
+            const Real DXT = p[0] - PF[0], DYT = p[1] - PF[1], DZT = p[2] - PF[2];      
+
+            const Real projW = (width[TS]*norX[TS])*DXT+
+                               (width[TS]*norY[TS])*DYT+
+                               (width[TS]*norZ[TS])*DZT;
+
+            const Real projH = (height[TS]*binX[TS])*DXT+
+                               (height[TS]*binY[TS])*DYT+
+                               (height[TS]*binZ[TS])*DZT;
+
+            const int signW = projW > 0 ? 1 : -1;
+            const int signH = projH > 0 ? 1 : -1;
+            const Real PT[3] =  {rX[TS] + signH * height[TS]*binX[TS],
+                                 rY[TS] + signH * height[TS]*binY[TS],
+                                 rZ[TS] + signH * height[TS]*binZ[TS]};
+            const Real PP[3] =  {rX[TS] + signW *  width[TS]*norX[TS],
+                                 rY[TS] + signW *  width[TS]*norY[TS],
+                                 rZ[TS] + signW *  width[TS]*norZ[TS]};
+            SDFLAB[sz][sy][sx] = distPlane(PC, PT, PP, p, PF);
           }
           else if(dSsq >= cnt2ML+nxt2ML -corr) // if ds > delta radius
           { // if no abrupt changes in width we use nearest neighbour
-            const Real xMidl[3] = {rX[close_s], rY[close_s], 0};
+            const Real xMidl[3] = {rX[close_s], rY[close_s], rZ[close_s]};
             const Real grd2ML = eulerDistSq3D(p, xMidl);
             const Real sign = grd2ML > cnt2ML ? -1 : 1;
             SDFLAB[sz][sy][sx] = sign*dist1;
@@ -656,7 +665,8 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
             const Real d = std::sqrt((Rsq - maxAx)/dSsq); // (divided by ds)
             // position of the centre of the sphere:
             const Real xMidl[3] = {rX[idAx1] +(rX[idAx1]-rX[idAx2])*d,
-                                   rY[idAx1] +(rY[idAx1]-rY[idAx2])*d, 0};
+                                   rY[idAx1] +(rY[idAx1]-rY[idAx2])*d, 
+                                   rZ[idAx1] +(rZ[idAx1]-rZ[idAx2])*d};
             const Real grd2Core = eulerDistSq3D(p, xMidl);
             const Real sign = grd2Core > Rsq ? -1 : 1;
             SDFLAB[sz][sy][sx] = sign*dist1;
@@ -677,11 +687,14 @@ void PutFishOnBlocks::constructInternl(const double h, const double ox, const do
   auto & __restrict__ SDFLAB = defblock->sdfLab;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
   static constexpr int BS[3] = {FluidBlock::sizeX+2, FluidBlock::sizeY+2, FluidBlock::sizeZ+2};
-  const Real *const rX = cfish->rX, *const norX = cfish->norX;
-  const Real *const rY = cfish->rY, *const norY = cfish->norY;
-  const Real *const vX = cfish->vX, *const vNorX = cfish->vNorX;
-  const Real *const vY = cfish->vY, *const vNorY = cfish->vNorY;
+  const Real *const rX = cfish->rX, *const norX  = cfish->norX , *const vBinX = cfish->vBinX;
+  const Real *const rY = cfish->rY, *const norY  = cfish->norY , *const vBinY = cfish->vBinY;
+  const Real *const rZ = cfish->rZ, *const norZ  = cfish->norZ , *const vBinZ = cfish->vBinZ;
+  const Real *const vX = cfish->vX, *const vNorX = cfish->vNorX, *const binX  = cfish->binX ;
+  const Real *const vY = cfish->vY, *const vNorY = cfish->vNorY, *const binY  = cfish->binY ;
+  const Real *const vZ = cfish->vZ, *const vNorZ = cfish->vNorZ, *const binZ  = cfish->binZ ;
   const Real *const width = cfish->width, *const height = cfish->height;
+
   // construct the deformation velocities (P2M with hat function as kernel)
   for(size_t i=0; i<vSegments.size(); ++i)
   {
@@ -701,7 +714,9 @@ void PutFishOnBlocks::constructInternl(const double h, const double ox, const do
       for(int iw = -Nw+1; iw < Nw; ++iw)
       {
         const Real offsetW = iw * h;
-        Real xp[3]= {rX[ss]+offsetW*norX[ss], rY[ss]+offsetW*norY[ss], offsetH};
+        Real xp[3]= {rX[ss]+offsetW*norX[ss]+offsetH*binX[ss], 
+                     rY[ss]+offsetW*norY[ss]+offsetH*binY[ss], 
+                     rZ[ss]+offsetW*norZ[ss]+offsetH*binZ[ss]};
         changeToComputationalFrame(xp);
         xp[0] = (xp[0]-org[0])*invh; // how many grid points
         xp[1] = (xp[1]-org[1])*invh; // from this block origin
@@ -714,7 +729,9 @@ void PutFishOnBlocks::constructInternl(const double h, const double ox, const do
         if(iap[1]+2 <= 0 || iap[1] >= BS[1]) continue; // does not intersect
         if(iap[2]+2 <= 0 || iap[2] >= BS[2]) continue; // with this block
 
-        Real udef[3] = {vX[ss]+offsetW*vNorX[ss], vY[ss]+offsetW*vNorY[ss], 0};
+        Real udef[3] = {vX[ss]+offsetW*vNorX[ss]+offsetH*vBinX[ss], 
+                        vY[ss]+offsetW*vNorY[ss]+offsetH*vBinY[ss], 
+                        vZ[ss]+offsetW*vNorZ[ss]+offsetH*vBinZ[ss]};
         changeVelocityToComputationalFrame(udef);
         Real wghts[3][2]; // P2M weights
         for(int c=0; c<3; ++c) {

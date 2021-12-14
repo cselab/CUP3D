@@ -3,12 +3,8 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
-//
 
-#ifndef CubismUP_3D_FishLibrary_h
-#define CubismUP_3D_FishLibrary_h
-//#define BBURST
+#pragma once
 
 #include "../Definitions.h"
 #include "../ObstacleBlock.h"
@@ -19,105 +15,76 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-#define __BSPLINE
-
-struct FishSkin
-{
-  const int Npoints;
-  Real * const xSurf;
-  Real * const ySurf;
-  Real * const normXSurf;
-  Real * const normYSurf;
-  Real * const midX;
-  Real * const midY;
-
-  FishSkin(const int N): Npoints(N), xSurf(_alloc(N)), ySurf(_alloc(N)),
-  normXSurf(_alloc(N-1)), normYSurf(_alloc(N-1)), midX(_alloc(N-1)), midY(_alloc(N-1)) {}
-
-  virtual ~FishSkin() {
-    _dealloc(xSurf); _dealloc(normXSurf); _dealloc(midX);
-    _dealloc(ySurf); _dealloc(normYSurf); _dealloc(midY);
-  }
-
-  Real* _alloc(const int N) { return new Real[N]; }
-
-  void _dealloc(Real * ptr) {
-    if(ptr not_eq nullptr) { delete [] ptr; ptr=nullptr; }
-  }
-};
-
 class FishMidlineData
 {
  public:
-  const double length, Tperiod, phaseShift, h;
-  const Real waveLength = 1;
-  const double amplitudeFactor;
+  const Real length;     //midline length
+  const Real Tperiod;    //tail-beat period
+  const Real phaseShift; //phase shift for tail-beat
+  const Real h;          //grid spacing of grid where midline will be created
+  const Real waveLength = 1; // midline (or its curvature) parametrized as wave with this wavelength
+  const Real amplitudeFactor;// midline curvature amplitude
 
-  // Midline is discretized by more points in first fraction and last fraction:
-  const double fracRefined = 0.1, fracMid = 1 - 2*fracRefined;
-  const double dSmid_tgt = h / std::sqrt(3);
-  const double dSrefine_tgt = 0.125 * h;
-
+  //Midline discretization parameters
+  //Midline is discretized by more points in first fraction and last fraction:
+  const Real fracRefined = 0.1;
+  const Real fracMid = 1 - 2*fracRefined;
+  const Real dSmid_tgt = h / std::sqrt(3);
+  const Real dSrefine_tgt = 0.125 * h;
   const int Nmid = (int)std::ceil(length * fracMid / dSmid_tgt / 8) * 8;
-  const double dSmid = length * fracMid / Nmid;
-
+  const Real dSmid = length * fracMid / Nmid;
   const int Nend = (int)std::ceil(fracRefined * length * 2 / (dSmid + dSrefine_tgt) / 4) * 4;
-  const double dSref = fracRefined * length * 2 / Nend - dSmid;
-
+  const Real dSref = fracRefined * length * 2 / Nend - dSmid;
   const int Nm = Nmid + 2 * Nend + 1; // plus 1 because we contain 0 and L
 
-  Real * const rS; // arclength discretization points
-  Real * const rX; // coordinates of midline discretization points
-  Real * const rY;
-  Real * const vX; // midline discretization velocities
-  Real * const vY;
-  Real * const norX; // normal vector to the midline discretization points
-  Real * const norY;
-  Real * const vNorX;
-  Real * const vNorY;
+  Real * const rS;   // arclength discretization points
+
+  Real * const rX;   // X-coordinate of midline discretization points
+  Real * const rY;   // Y-coordinate of midline discretization points
+  Real * const rZ;   // Z-coordinate of midline discretization points
+  Real * const vX;   // midline discretization velocities (=drX/dt)
+  Real * const vY;   // midline discretization velocities (=drY/dt)
+  Real * const vZ;   // midline discretization velocities (=drZ/dt)
+
+  Real * const norX; // normal vector to the midline discretization points (X component)
+  Real * const norY; // normal vector to the midline discretization points (Y component)
+  Real * const norZ; // normal vector to the midline discretization points (Z component)
+  Real * const vNorX;// time derivative of normal vector (=dnorX/dt)
+  Real * const vNorY;// time derivative of normal vector (=dnorY/dt)
+  Real * const vNorZ;// time derivative of normal vector (=dnorZ/dt)
+
+  Real * const binX; // binormal vector to the midline discretization points (X component)
+  Real * const binY; // binormal vector to the midline discretization points (Y component)
+  Real * const binZ; // binormal vector to the midline discretization points (Z component)
+  Real * const vBinX;// time derivative of binormal vector (=dbinX/dt)
+  Real * const vBinY;// time derivative of binormal vector (=dbinY/dt)
+  Real * const vBinZ;// time derivative of binormal vector (=dbinZ/dt)
+
+  //fish cross-section is an ellipse with axis 2*width(s) and 2*height(s)
+  //the surface is parametrized by two parameters: 
+  // s    : coordinate along midline (discretized by rS), in (0,L)
+  // theta: angle in a cross-section, in (0,2pi)
+  // The parametrization is: x(s,theta) = rS(s) + nor(s)*width(s)*cos(theta) + bin(s)*height(s)*sin(theta)
   Real * const width;
   Real * const height;
-  double * const forceX;
-  double * const forceY;
-  double * const torque;
-  Real oldTime = 0.0;
-  // quantities needed to correctly control the speed of the midline maneuvers
-  //double l_Tp = Tperiod, timeshift = 0, time0 = 0;
-  bool firstStep = true;
 
-  double linMom[2], vol, J, angMom; // for diagnostics
-  // start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
+  std::array<Real, 9> sensorLocation; //Shear stress sensor locations (for RL)
+  std::array<Real, 9> sensorNormals;  //Shear stress sensor surface (unit) normal vectors (for RL)
+
+  // Midline has an orientation in space which is defined from the following quaternion.
+  // When midline is defined, we change the frame of reference so that its origin is at the midline
+  // center of mass and its linear and angular momentums are zero.
+  Real quaternion_internal[4]={1,0,0,0};
+  Real angvel_internal[3]={0,0,0};
+
+  //probably deprecated, keep for now
+  //start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
   //Schedulers::ParameterSchedulerVector<6> curvScheduler;
-  //Schedulers::ParameterSchedulerLearnWave<7> baseScheduler;
-  //Schedulers::ParameterSchedulerVector<6> adjustScheduler;
-  FishSkin * upperSkin, * lowerSkin;
-
-  // Sensor location for RL
-  std::array<Real, 9> sensorLocation;
 
  protected:
-  double Rmatrix2D[2][2];
-  double Rmatrix3D[3][3];
 
-  inline void _rotate2D(Real &x, Real &y) const
-  {
-    const double p[2] = {x,y};
-    x = Rmatrix2D[0][0]*p[0] + Rmatrix2D[0][1]*p[1];
-    y = Rmatrix2D[1][0]*p[0] + Rmatrix2D[1][1]*p[1];
-  }
-
-  inline void _translateAndRotate2D(const Real pos[2], Real &x, Real &y) const
-  {
-    const double p[2] = {
-        x-pos[0],
-        y-pos[1]
-    };
-    // rotate
-    x = Rmatrix2D[0][0]*p[0] + Rmatrix2D[0][1]*p[1];
-    y = Rmatrix2D[1][0]*p[0] + Rmatrix2D[1][1]*p[1];
-  }
-
-  inline double _d_ds(const int idx, const Real* const vals, const int maxidx) const
+  //computes derivative d/ds of given quantity
+  inline Real _d_ds(const int idx, const Real* const vals, const int maxidx) const
   {
     if(idx==0)
       return (vals[idx+1]-vals[idx])/(rS[idx+1]-rS[idx]);
@@ -142,115 +109,64 @@ class FishMidlineData
     }
   }
 
-  inline double _integrationFac1(const int idx) const
-  {
-    return double(width[idx])*height[idx];
-  }
-
-  inline double _integrationFac2(const int idx) const
-  {
-    const double dnorXi = _d_ds(idx, norX, Nm);
-    const double dnorYi = _d_ds(idx, norY, Nm);
-    const double W3H = std::pow(width[idx], 3) * height[idx];
-    return W3H/4 * (dnorXi*norY[idx] - dnorYi*norX[idx]);
-  }
-
-  inline double _integrationFac3(const int idx) const
-  {
-    // const double drXi = _d_ds(idx, rX, Nm);
-    // const double drYi = _d_ds(idx, rY, Nm);
-    // return 0.25*std::pow(width[idx],3)*height[idx]*(drXi*norY[idx] - drYi*norX[idx]);
-    return 0.25*std::pow((double)width[idx],3)*height[idx];
-  }
-
-  void _prepareRotation2D(const double angle)
-  {
-    Rmatrix2D[0][0] = Rmatrix2D[1][1] = std::cos(angle);
-    Rmatrix2D[0][1] = -std::sin(angle);
-    Rmatrix2D[1][0] = -Rmatrix2D[0][1];
-  }
-
-  void _computeMidlineNormals();
-
  public:
   FishMidlineData(double L, double Tp, double phi, double _h, double _ampFac=1):
    length(L), Tperiod(Tp), phaseShift(phi), h(_h), amplitudeFactor(_ampFac),
-   rS(_alloc(Nm)), rX(_alloc(Nm)), rY(_alloc(Nm)), vX(_alloc(Nm)), vY(_alloc(Nm)),
-   norX(_alloc(Nm)), norY(_alloc(Nm)), vNorX(_alloc(Nm)), vNorY(_alloc(Nm)),
-   width(_alloc(Nm)), height(_alloc(Nm)), forceX(new double[Nm]),
-   forceY(new double[Nm]), torque(new double[Nm]),
-   upperSkin(new FishSkin(Nm)), lowerSkin(new FishSkin(Nm))
+   rS    (_alloc(Nm)),
+   rX    (_alloc(Nm)), rY   (_alloc(Nm)), rZ   (_alloc(Nm)),
+   vX    (_alloc(Nm)), vY   (_alloc(Nm)), vZ   (_alloc(Nm)),
+   norX  (_alloc(Nm)), norY (_alloc(Nm)), norZ (_alloc(Nm)),
+   vNorX (_alloc(Nm)), vNorY(_alloc(Nm)), vNorZ(_alloc(Nm)),
+   binX  (_alloc(Nm)), binY (_alloc(Nm)), binZ (_alloc(Nm)),
+   vBinX (_alloc(Nm)), vBinY(_alloc(Nm)), vBinZ(_alloc(Nm)),
+   width (_alloc(Nm)), height(_alloc(Nm))
   {
-    std::fill(forceX, forceX+Nm, 0.0); // these are initialized to 0 because
-    std::fill(forceY, forceY+Nm, 0.0); // force compute is at end of time step
-    std::fill(torque, torque+Nm, 0.0);
-    // extension head
+    // Define points along midline
     rS[0] = 0;
     int k = 0;
-    for(int i=0; i<Nend; ++i, k++)
+    for(int i=0; i<Nend; ++i, k++) //fish head
       rS[k+1] = rS[k] + dSref +(dSmid-dSref) *         i /((Real)Nend-1.);
-
-    // interior points
-    for(int i=0; i<Nmid; ++i, k++)
+    for(int i=0; i<Nmid; ++i, k++) //interion points
       rS[k+1] = rS[k] + dSmid;
-
-    // extension tail
-    for(int i=0; i<Nend; ++i, k++)
+    for(int i=0; i<Nend; ++i, k++) //fish tail
       rS[k+1] = rS[k] + dSref +(dSmid-dSref) * (Nend-i-1)/((Real)Nend-1.);
-
-    assert(k+1==Nm);
-    //cout << "Discrepancy of midline length: " << std::fabs(rS[k]-L) << endl;
     rS[k] = std::min(rS[k], (Real)L);
+    assert(k+1==Nm);
   }
 
   virtual ~FishMidlineData()
   {
     _dealloc(rS);
-    _dealloc(rX);
-    _dealloc(rY);
-    _dealloc(vX);
-    _dealloc(vY);
-    _dealloc(norX);
-    _dealloc(norY);
-    _dealloc(vNorX);
-    _dealloc(vNorY);
-    _dealloc(height);
+    _dealloc(   rX); _dealloc(   rY); _dealloc(   rZ);
+    _dealloc(   vX); _dealloc(   vY); _dealloc(   vZ);
+    _dealloc( norX); _dealloc( norY); _dealloc( norZ);
+    _dealloc(vNorX); _dealloc(vNorY); _dealloc(vNorZ);
+    _dealloc( binX); _dealloc( binY); _dealloc( binZ);
+    _dealloc(vBinX); _dealloc(vBinY); _dealloc(vBinZ);
     _dealloc(width);
-    _dealloc(forceX);
-    _dealloc(forceY);
-    _dealloc(torque);
-    if(upperSkin not_eq nullptr) {
-      delete upperSkin;
-      upperSkin=nullptr;
-    }
-    if(lowerSkin not_eq nullptr) {
-      delete lowerSkin;
-      lowerSkin=nullptr;
-    }
+    _dealloc(height);
   }
 
-  Real integrateLinearMomentum(double CoM[2], double vCoM[2]);
+  void writeMidline2File(const int step_id, std::string filename)
+  {
+    char buf[500];
+    sprintf(buf, "%s_midline_%07d.txt", filename.c_str(), step_id);
+    FILE * f = fopen(buf, "w");
+    fprintf(f, "s x y vX vY\n");
+    for (int i=0; i<Nm; i++)
+      fprintf(f, "%g %g %g %g %g\n", rS[i],rX[i],rY[i],vX[i],vY[i]);
+  }
 
-  void integrateAngularMomentum(double& angVel);
+  void integrateLinearMomentum();
 
-  void changeToCoMFrameLinear(const double CoM_internal[2], const double vCoM_internal[2]);
+  void integrateAngularMomentum(const Real dt);
 
-  void changeToCoMFrameAngular(const double theta_internal, const double angvel_internal);
+  // Derived class should provide the following function, which is responsible for defining 
+  // rX,rY,rZ,norX,norY,norZ,binX,binY,biZ,vX,vY,vZ,vNorX,vNorY,vNorZ,vBinX,vBinY,vBinZ 
+  virtual void computeMidline(const double time, const double dt) = 0; 
 
-  void computeSurface();
-
-  void computeSkinNormals(const double theta_comp, const double CoM_comp[3]);
-
-  void surfaceToCOMFrame(const double theta_internal, const double CoM_internal[2]);
-
-  void surfaceToComputationalFrame(const double theta_comp, const double CoM_interpolated[3]);
-
-  virtual void computeMidline(const double time, const double dt) = 0;
-
-  virtual void _correctAmplitude(const double dAmp, const double vAmp, const double time, const double dt) {}
-  virtual void _correctTrajectory(const double dtheta, const double vtheta, const double time, const double dt) {}
+  // used in RL
   virtual void execute(const double time, const double l_tnext, const std::vector<double>& input) {}
-  void writeMidline2File(const int step_id, std::string filename);
 };
 
 struct VolumeSegment_OBB
@@ -364,4 +280,3 @@ struct PutNacaOnBlocks: public PutFishOnBlocks
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_FishLibrary_h

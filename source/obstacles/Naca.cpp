@@ -52,8 +52,41 @@ class NacaMidlineData : public FishMidlineData
       for(int i=1; i<Nm; ++i) {
         rY[i] = vX[i] = vY[i] = 0;
         rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
+	rZ[i] = 0;
+	vZ[i] = 0;
       }
-      _computeMidlineNormals();
+      #pragma omp parallel for schedule(static)
+      for(int i=0; i<Nm-1; i++) {
+        const double ds = rS[i+1]-rS[i];
+        const double tX = rX[i+1]-rX[i];
+        const double tY = rY[i+1]-rY[i];
+        const double tVX = vX[i+1]-vX[i];
+        const double tVY = vY[i+1]-vY[i];
+        norX[i] = -tY/ds;
+        norY[i] =  tX/ds;
+        norZ[i] =  0.0;
+        vNorX[i] = -tVY/ds;
+        vNorY[i] =  tVX/ds;
+        vNorZ[i] = 0.0;
+        binX[i] =  0.0;
+        binY[i] =  0.0;
+        binZ[i] =  1.0;
+        vBinX[i] = 0.0;
+        vBinY[i] = 0.0;
+        vBinZ[i] = 0.0;
+      }
+      norX[Nm-1] = norX[Nm-2];
+      norY[Nm-1] = norY[Nm-2];
+      norZ[Nm-1] = norZ[Nm-2];
+      vNorX[Nm-1] = vNorX[Nm-2];
+      vNorY[Nm-1] = vNorY[Nm-2];
+      vNorZ[Nm-1] = vNorZ[Nm-2];
+      binX[Nm-1] = binX[Nm-2];
+      binY[Nm-1] = binY[Nm-2];
+      binZ[Nm-1] = binZ[Nm-2];
+      vBinX[Nm-1] = vBinX[Nm-2];
+      vBinY[Nm-1] = vBinY[Nm-2];
+      vBinZ[Nm-1] = vBinZ[Nm-2];
     #else // 2d stefan swimmer
       const std::array<double ,6> curvature_points = {
           0, .15*length, .4*length, .65*length, .9*length, length
