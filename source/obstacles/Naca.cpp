@@ -52,8 +52,8 @@ class NacaMidlineData : public FishMidlineData
       for(int i=1; i<Nm; ++i) {
         rY[i] = vX[i] = vY[i] = 0;
         rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
-	rZ[i] = 0;
-	vZ[i] = 0;
+  rZ[i] = 0;
+  vZ[i] = 0;
       }
       #pragma omp parallel for schedule(static)
       for(int i=0; i<Nm-1; i++) {

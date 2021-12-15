@@ -215,7 +215,7 @@ class FishMidlineData
 
   // Derived class should provide the following function, which is responsible for defining 
   // rX,rY,rZ,norX,norY,norZ,binX,binY,biZ,vX,vY,vZ,vNorX,vNorY,vNorZ,vBinX,vBinY,vBinZ 
-  virtual void computeMidline(const double time, const double dt) = 0; 
+  virtual void computeMidline(const double time, const double dt) = 0;
 
   // used in RL
   virtual void execute(const double time, const double l_tnext, const std::vector<double>& input) {}

@@ -72,14 +72,13 @@ void FishMidlineData::integrateLinearMomentum()
   lmx *= aux;
   lmy *= aux;
   lmz *= aux;
-  
+
   #pragma omp parallel for schedule(static)
   for(int i=0;i<Nm;++i)
   {
     rX[i]-=cmx; rY[i]-=cmy; rZ[i]-=cmz;
     vX[i]-=lmx; vY[i]-=lmy; vZ[i]-=lmz;
   }
-  return;
 }
 
 void FishMidlineData::integrateAngularMomentum(const Real dt)
@@ -227,7 +226,6 @@ void FishMidlineData::integrateAngularMomentum(const Real dt)
   R[2][0] =   2*(quaternion_internal[1]*quaternion_internal[3]-quaternion_internal[2]*quaternion_internal[0]); 
   R[2][1] =   2*(quaternion_internal[2]*quaternion_internal[3]+quaternion_internal[1]*quaternion_internal[0]); 
   R[2][2] = 1-2*(quaternion_internal[1]*quaternion_internal[1]+quaternion_internal[2]*quaternion_internal[2]);
-
   #pragma omp parallel for schedule(static)
   for(int i=0;i<Nm;++i)
   {
@@ -265,7 +263,7 @@ void FishMidlineData::integrateAngularMomentum(const Real dt)
       binX[i] = R[0][0] * p[0]  + R[0][1] * p[1] + R[0][2] * p[2];
       binY[i] = R[1][0] * p[0]  + R[1][1] * p[1] + R[1][2] * p[2];
       binZ[i] = R[2][0] * p[0]  + R[2][1] * p[1] + R[2][2] * p[2];
-      double v[3] = {vNorX[i],vNorY[i],vNorZ[i]};
+      double v[3] = {vBinX[i],vBinY[i],vBinZ[i]};
       vBinX[i] = R[0][0] * v[0]  + R[0][1] * v[1] + R[0][2] * v[2];
       vBinY[i] = R[1][0] * v[0]  + R[1][1] * v[1] + R[1][2] * v[2];
       vBinZ[i] = R[2][0] * v[0]  + R[2][1] * v[1] + R[2][2] * v[2];
