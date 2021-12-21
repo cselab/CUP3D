@@ -89,15 +89,24 @@ std::vector<VolumeSegment_OBB> Fish::prepare_vSegments()
     Real bbox[3][2] = {{1e9, -1e9}, {1e9, -1e9}, {1e9, -1e9}};
     for(int ss=idx; ss<=nextidx; ++ss)
     {
-      const Real xBnd[2] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss] - myFish->binX[ss]*myFish->height[ss],
+      const Real xBnd[4] = {myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss] - myFish->binX[ss]*myFish->height[ss],
+                            myFish->rX[ss] - myFish->norX[ss]*myFish->width[ss] + myFish->binX[ss]*myFish->height[ss],
+                            myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss] - myFish->binX[ss]*myFish->height[ss],
                             myFish->rX[ss] + myFish->norX[ss]*myFish->width[ss] + myFish->binX[ss]*myFish->height[ss]};
-      const Real yBnd[2] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss] - myFish->binY[ss]*myFish->height[ss],
+      const Real yBnd[4] = {myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss] - myFish->binY[ss]*myFish->height[ss],
+                            myFish->rY[ss] - myFish->norY[ss]*myFish->width[ss] + myFish->binY[ss]*myFish->height[ss],
+                            myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss] - myFish->binY[ss]*myFish->height[ss],
                             myFish->rY[ss] + myFish->norY[ss]*myFish->width[ss] + myFish->binY[ss]*myFish->height[ss]};
-      const Real zBnd[2] = {myFish->rZ[ss] - myFish->norZ[ss]*myFish->width[ss] - myFish->binZ[ss]*myFish->height[ss],
+      const Real zBnd[4] = {myFish->rZ[ss] - myFish->norZ[ss]*myFish->width[ss] - myFish->binZ[ss]*myFish->height[ss],
+                            myFish->rZ[ss] - myFish->norZ[ss]*myFish->width[ss] + myFish->binZ[ss]*myFish->height[ss],
+                            myFish->rZ[ss] + myFish->norZ[ss]*myFish->width[ss] - myFish->binZ[ss]*myFish->height[ss],
                             myFish->rZ[ss] + myFish->norZ[ss]*myFish->width[ss] + myFish->binZ[ss]*myFish->height[ss]};
-      const Real maxX=std::max(xBnd[0],xBnd[1]), minX=std::min(xBnd[0],xBnd[1]);
-      const Real maxY=std::max(yBnd[0],yBnd[1]), minY=std::min(yBnd[0],yBnd[1]);
-      const Real maxZ=std::max(zBnd[0],zBnd[1]), minZ=std::min(zBnd[0],zBnd[1]);
+      const Real maxX=std::max({xBnd[0],xBnd[1],xBnd[2],xBnd[3]});
+      const Real maxY=std::max({yBnd[0],yBnd[1],yBnd[2],yBnd[3]});
+      const Real maxZ=std::max({zBnd[0],zBnd[1],zBnd[2],zBnd[3]});
+      const Real minX=std::min({xBnd[0],xBnd[1],xBnd[2],xBnd[3]});
+      const Real minY=std::min({yBnd[0],yBnd[1],yBnd[2],yBnd[3]});
+      const Real minZ=std::min({zBnd[0],zBnd[1],zBnd[2],zBnd[3]});
       bbox[0][0] = std::min(bbox[0][0], minX);
       bbox[0][1] = std::max(bbox[0][1], maxX);
       bbox[1][0] = std::min(bbox[1][0], minY);
