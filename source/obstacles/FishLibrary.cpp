@@ -94,6 +94,7 @@ void FishMidlineData::integrateAngularMomentum(const Real dt)
   Real AM_X = 0;
   Real AM_Y = 0;
   Real AM_Z = 0;
+  #pragma omp parallel for reduction (+:JXX,JYY,JZZ,JXY,JYZ,JZX,AM_X,AM_Y,AM_Z)
   for(int i=0;i<Nm;++i)
   {
     const Real ds = 0.5* ( (i==0) ? rS[1]-rS[0] : ((i==Nm-1) ? rS[Nm-1]-rS[Nm-2] :rS[i+1]-rS[i-1]) );
@@ -122,17 +123,17 @@ void FishMidlineData::integrateAngularMomentum(const Real dt)
     const Real cN = c0*n0dot + c1*n1dot + c2*n2dot;
     const Real cB = c0*b0dot + c1*b1dot + c2*b2dot;
 
-    JXY -= ds*(cR* (rX[i]*rY[i]*M00
+    JXY +=-ds*(cR* (rX[i]*rY[i]*M00
                  + norX[i]*norY[i]*M11
                  + binX[i]*binY[i]*M22) 
                  + cN*M11* (rX[i]*norY[i] + rY[i]*norX[i]) 
                  + cB*M22* (rX[i]*binY[i] + rY[i]*binX[i]));
-    JZX -= ds*(cR* (rZ [i]*rX  [i]*M00
+    JZX += -ds*(cR* (rZ [i]*rX  [i]*M00
                  + norZ[i]*norX[i]*M11
                  + binZ[i]*binX[i]*M22)
                  + cN*M11* (rZ[i]*norX[i] + rX[i]*norZ[i]) 
                  + cB*M22* (rZ[i]*binX[i] + rX[i]*binZ[i]));
-    JYZ -= ds*(cR* (rY  [i]*rZ  [i]*M00
+    JYZ += -ds*(cR* (rY  [i]*rZ  [i]*M00
                  +  norY[i]*norZ[i]*M11 
                  +  binY[i]*binZ[i]*M22)
                  + cN*M11* (rY[i]*norZ[i] + rZ[i]*norY[i]) 
@@ -454,20 +455,42 @@ inline Real distPlane(const Real p1[3], const Real p2[3], const Real p3[3],
 
 void PutFishOnBlocks::constructSurface(const double h, const double ox, const double oy, const double oz, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
-  Real org[3] = {ox-h,oy-h,oz-h};
-  const Real invh = 1.0/h;
+  //Construct the surface of the fish.
+  //By definition, this is where SDF = 0.
+  //Here, we know an analytical expression for the fish surface:
+  // x(s,theta) = r(s) + width(s)*cos(theta)*nor(s) + height(s)*sin(theta)*bin(s)
+  //We loop over the discretized version of this equation and for each point of the surface we find
+  //the grid point that is the closest.
+  //The SDF is computed for that grid point plus the grid points that are within
+  //a distance of 2h of that point. This is done because we need the SDF in a zone of +-2h of the 
+  //actual surface, so that we can use the mollified Heaviside function from Towers for chi.
+
+  //Pointers to discrete values that describe the surface.
   const Real *const rX = cfish->rX, *const norX  = cfish->norX , *const vBinX = cfish->vBinX;
   const Real *const rY = cfish->rY, *const norY  = cfish->norY , *const vBinY = cfish->vBinY;
   const Real *const rZ = cfish->rZ, *const norZ  = cfish->norZ , *const vBinZ = cfish->vBinZ;
   const Real *const vX = cfish->vX, *const vNorX = cfish->vNorX, *const binX  = cfish->binX ;
   const Real *const vY = cfish->vY, *const vNorY = cfish->vNorY, *const binY  = cfish->binY ;
   const Real *const vZ = cfish->vZ, *const vNorZ = cfish->vNorZ, *const binZ  = cfish->binZ ;
-  /*const */Real *const width = cfish->width, *const height = cfish->height;
-  static constexpr int BS[3] = {FluidBlock::sizeX+2, FluidBlock::sizeY+2, FluidBlock::sizeZ+2};
+  Real *const width = cfish->width;
+  Real *const height = cfish->height;
+
+  //These are typically 8x8x8 (blocksize=8) matrices that are filled here.
   CHIMAT & __restrict__ CHI = defblock->chi;
-  auto & __restrict__ SDFLAB = defblock->sdfLab;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
   MARKMAT & __restrict__ MARK = defblock->sectionMarker;
+
+  //This is an (8+2)x(8+2)x(8+2) matrix with the SDF. We compute the sdf for the 8x8x8 block
+  //but we also add +-1 grid points of ghost values. That way there is no need for communication
+  //later on. We do this because an analytical expression is available and the extra cost
+  //for this computation is small.
+  auto & __restrict__ SDFLAB = defblock->sdfLab;
+
+  //Origin of the block, displaced by (-h,-h,-h). This is where the first ghost cell is.
+  Real org[3] = {ox-h,oy-h,oz-h};
+
+  const Real invh = 1.0/h;
+  const int BS[3] = {FluidBlock::sizeX+2, FluidBlock::sizeY+2, FluidBlock::sizeZ+2};
 
   // needed variables to store sensor location
   const Real *const rS = cfish->rS;
@@ -483,35 +506,39 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
   cfish->sensorDelta[0] = 0;
   cfish->sensorDelta[1] = 0;
   cfish->sensorDelta[2] = 0;
-  // printf("tip sensor location %f, %f, %f\n", myP[0], myP[1], myP[2]);
-  // fflush(0);
 
-  // construct the shape (P2M with min(distance) as kernel) onto defblocks
+  //Loop over vSegments of this block. 
   for(size_t i=0; i<vSegments.size(); ++i)
   {
-    //iterate over segments contained in the vSegm intersecting this block:
+    //Each segment has a range of s for the surface that intersects this block.
     const int firstSegm = std::max(vSegments[i]->s_range.first,            1);
     const int lastSegm =  std::min(vSegments[i]->s_range.second, cfish->Nm-2);
-    for(int ss=firstSegm; ss<=lastSegm; ++ss)
+
+    //Loop over discrete s of surface x(s,theta)
+    for(int ss=firstSegm; ss<=lastSegm; ++ss) 
     {
       if (height[ss]<=0) height[ss]=1e-10;
       if (width [ss]<=0) width [ss]=1e-10;
-      assert(height[ss]>0 && width[ss]>0);
-      // fill chi by crating an ellipse around ss and finding all near neighs
-      // assume width is major axis, else correction:
-      const Real offset = height[ss] > width[ss] ? M_PI/2 : 0;
-      const Real ell_a = std::max(height[ss], width[ss]);
-      // max distance between two points is ell_a * sin(dtheta): set it to dx/2
-      const Real dtheta_tgt = std::fabs(std::asin(h/(ell_a+h)/2));
+
+      //Here we discretize theta for the given s (for given s, the cross-section is an ellipse) 
+      //This is done by setting the maximum arclength to h/2.
+      //Note that maximum arclength = sin(dtheta) * (major_axis+h) = h/2
+      const Real major_axis = std::max(height[ss], width[ss]);
+      const Real dtheta_tgt = std::fabs(std::asin(h/(major_axis+h)/2));
       int Ntheta = std::ceil(2*M_PI/dtheta_tgt);
-      if (Ntheta % 2 == 1) Ntheta++; // by forcing Ntheta to be an even number we make sure the fish is symmetric
+      if (Ntheta % 2 == 1) Ntheta++; //force Ntheta to be even so that the fish is symmetric
       const Real dtheta = 2*M_PI/((Real) Ntheta);
 
+      //theta = 0 at the major axis, this variable takes care of that
+      const Real offset = height[ss] > width[ss] ? M_PI/2 : 0;
+
+      //Loop over discrete theta of surface x(s,theta)
       for(int tt=0; tt<Ntheta; ++tt)
       {
         const Real theta = tt*dtheta + offset;
         const Real sinth = std::sin(theta), costh = std::cos(theta);
-        // Take surface point
+
+        //Current surface point (in frame of reference of fish)
         myP[0] = rX[ss] +width[ss]*costh*norX[ss]+height[ss]*sinth*binX[ss];
         myP[1] = rY[ss] +width[ss]*costh*norY[ss]+height[ss]*sinth*binY[ss];
         myP[2] = rZ[ss] +width[ss]*costh*norZ[ss]+height[ss]*sinth*binZ[ss];
@@ -530,8 +557,6 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
             cfish->sensorDelta[1*3+0] = rX[ss+1] +width[ss+1]*costh*norX[ss+1]+height[ss+1]*sinth*binX[ss+1] - cfish->sensorLocation[1*3+0];
             cfish->sensorDelta[1*3+1] = rY[ss+1] +width[ss+1]*costh*norY[ss+1]+height[ss+1]*sinth*binY[ss+1] - cfish->sensorLocation[1*3+1];
             cfish->sensorDelta[1*3+2] = rZ[ss+1] +width[ss+1]*costh*norZ[ss+1]+height[ss+1]*sinth*binZ[ss+1] - cfish->sensorLocation[1*3+2];
-            // printf("side sensor location 1 %f, %f, %f\n", myP[0], myP[1], myP[2]);
-            // fflush(0);
           }
           if( tt == (int)Ntheta/2 )
           {
@@ -542,24 +567,25 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
             cfish->sensorDelta[2*3+0] = rX[ss+1] +width[ss+1]*costh*norX[ss+1]+height[ss+1]*sinth*binX[ss+1] - cfish->sensorLocation[2*3+0];
             cfish->sensorDelta[2*3+1] = rY[ss+1] +width[ss+1]*costh*norY[ss+1]+height[ss+1]*sinth*binY[ss+1] - cfish->sensorLocation[2*3+1];
             cfish->sensorDelta[2*3+2] = rZ[ss+1] +width[ss+1]*costh*norZ[ss+1]+height[ss+1]*sinth*binZ[ss+1] - cfish->sensorLocation[2*3+2];
-            // printf("side sensor location 2 %f, %f, %f\n", myP[0], myP[1], myP[2]);
-            // fflush(0);
           }
         }
 
-        // myP is now lab frame, find index of the fluid elem near it
-        const int iap[3] = {
-            (int)std::floor((myP[0]-org[0])*invh),
-            (int)std::floor((myP[1]-org[1])*invh),
-            (int)std::floor((myP[2]-org[2])*invh)
-        };
-        // support is two points left, two points right --> Towers Chi
-        // will be one point left, one point right, but needs SDF wider
-        const int ST[3] = { iap[0]-1-SURFDH, iap[1]-1-SURFDH, iap[2]-1-SURFDH };
-        const int EN[3] = { iap[0]+3+SURFDH, iap[1]+3+SURFDH, iap[2]+3+SURFDH };
-        if(EN[0] <= 0 || ST[0] >= BS[0]) continue; // NearNeigh loop
-        if(EN[1] <= 0 || ST[1] >= BS[1]) continue; // does not intersect
-        if(EN[2] <= 0 || ST[2] >= BS[2]) continue; // with this block
+        // Find index of nearest grid point to myP
+        const int iap[3] = {(int)std::floor((myP[0]-org[0])*invh),
+                            (int)std::floor((myP[1]-org[1])*invh),
+                            (int)std::floor((myP[2]-org[2])*invh)};
+
+        // Loop over that point and a neighborhood of +-3 points, to compute the SDF near the surface
+        const int nei = 3;
+        const int ST[3] = { iap[0]-nei , iap[1]-nei, iap[2]-nei};
+        const int EN[3] = { iap[0]+nei , iap[1]+nei, iap[2]+nei};
+
+        if(EN[0] <= 0 || ST[0] > BS[0]) continue; // NearNeigh loop
+        if(EN[1] <= 0 || ST[1] > BS[1]) continue; // does not intersect
+        if(EN[2] <= 0 || ST[2] > BS[2]) continue; // with this block
+
+        //Store the surface point at the next and the previous cross-sections.
+        //They will be used to compute the SDF later.
         Real pP[3] = {rX[ss+1] +width[ss+1]*costh*norX[ss+1]+height[ss+1]*sinth*binX[ss+1],
                       rY[ss+1] +width[ss+1]*costh*norY[ss+1]+height[ss+1]*sinth*binY[ss+1],
                       rZ[ss+1] +width[ss+1]*costh*norZ[ss+1]+height[ss+1]*sinth*binZ[ss+1]};
@@ -568,15 +594,18 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
                       rZ[ss-1] +width[ss-1]*costh*norZ[ss-1]+height[ss-1]*sinth*binZ[ss-1]};
         changeToComputationalFrame(pM);
         changeToComputationalFrame(pP);
+
+        //Deformation velocity of surface point.
         Real udef[3] = { vX[ss] +width[ss]*costh*vNorX[ss]+height[ss]*sinth*vBinX[ss],
                          vY[ss] +width[ss]*costh*vNorY[ss]+height[ss]*sinth*vBinY[ss],
                          vZ[ss] +width[ss]*costh*vNorZ[ss]+height[ss]*sinth*vBinZ[ss]};
         changeVelocityToComputationalFrame(udef);
 
-        for(int sz =std::max(0, ST[2]); sz <std::min(EN[2], BS[2]); ++sz)
-        for(int sy =std::max(0, ST[1]); sy <std::min(EN[1], BS[1]); ++sy)
-        for(int sx =std::max(0, ST[0]); sx <std::min(EN[0], BS[0]); ++sx)
+        for(int sz = std::max(0, ST[2]); sz < std::min(EN[2], BS[2]); ++sz)
+        for(int sy = std::max(0, ST[1]); sy < std::min(EN[1], BS[1]); ++sy)
+        for(int sx = std::max(0, ST[0]); sx < std::min(EN[0], BS[0]); ++sx)
         {
+          //Grid point in the neighborhood near surface
           Real p[3];
           p[0] = ox + h * (sx - 1 + 0.5);
           p[1] = oy + h * (sy - 1 + 0.5);
@@ -589,25 +618,24 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
           // check if this grid point has already found a closer surf-point:
           if(std::fabs(SDFLAB[sz][sy][sx])<std::min({dist0,distP,distM})) continue;
 
+          // if this grid point is > 2h distance of the grid point that is nearest to the surface
+          // don't compute the sdf
+          if(std::min({dist0,distP,distM})>4*h*h) continue;
+
           changeFromComputationalFrame(p);
 
+          // among the three points myP, pP, pM find the two that are the closest to this grid point
           int close_s = ss, secnd_s = ss + (distP<distM? 1 : -1);
           Real dist1 = dist0, dist2 = distP<distM? distP : distM;
-          if(distP < dist0 || distM < dist0) { // switch nearest surf point
-            dist1 = dist2; dist2 = dist0;
-            close_s = secnd_s; secnd_s = ss;
+          if(distP < dist0 || distM < dist0)
+          {
+            dist1 = dist2; 
+            dist2 = dist0;
+            close_s = secnd_s;
+            secnd_s = ss;
           }
 
-          const Real dSsq = std::pow(rX[close_s]-rX[secnd_s], 2)
-                           +std::pow(rY[close_s]-rY[secnd_s], 2)
-                           +std::pow(rZ[close_s]-rZ[secnd_s], 2);
-          assert(dSsq > 2.2e-16);
-          const Real cnt2ML = std::pow( width[close_s]*costh,2)
-                             +std::pow(height[close_s]*sinth,2);
-          const Real nxt2ML = std::pow( width[secnd_s]*costh,2)
-                             +std::pow(height[secnd_s]*sinth,2);
-
-          const Real W = std::max(1 - std::sqrt(dist1) * (invh / 3), (Real)0);
+          // Interpolate the surface deformation velocity to this grid point.
           // W behaves like hat interpolation kernel that is used for internal
           // fish points. Introducing W (used to be W=1) smoothens transition
           // from surface to internal points. In fact, later we plus equal
@@ -615,6 +643,7 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
           // internal point, meaning that fish-section udef rotation should
           // multiply distance from midline instead of entire half-width.
           // Remember that uder will become udef / chi, so W simplifies out.
+          const Real W = std::max(1 - std::sqrt(dist1) * (invh / 3), (Real)0);
           const bool inRange =(sz - 1 >=0 && sz - 1 < FluidBlock::sizeZ &&
                                sy - 1 >=0 && sy - 1 < FluidBlock::sizeY &&
                                sx - 1 >=0 && sx - 1 < FluidBlock::sizeX);
@@ -627,24 +656,57 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
             CHI [sz-1][sy-1][sx-1] = W; // Not chi, just used to interpolate udef!
           }
 
-          const Real corr = 2*std::sqrt(cnt2ML*nxt2ML);
-          if(close_s == cfish->Nm-2 || secnd_s == cfish->Nm-2)
+          //Now we compute the SDF of that point.
+          //If that point is close to the tail, we project is onto the plane defined by the tail
+          //and then compute the sign of the distance based on the side of the plane the point lies on.
+
+          //Else, we model the span between two ellipses (cross-sections) as a spherical segment.
+          //See also: http://mathworld.wolfram.com/SphericalSegment.html
+          //The spherical segment is defined by two circles.
+          //To define those cyrcles, we need their centers and a point on them.
+          //The points myP,pM,pP (we are using two of those three here) are the cyrcle points we need.
+          //The centers are found by taking the normal starting from myP/pM/pP to the line defined
+          //by the vector R1:
+          const Real R1[3]= {rX[secnd_s]-rX[close_s], rY[secnd_s]-rY[close_s], rZ[secnd_s]-rZ[close_s]};
+          const Real normR1 = 1.0/(1e-21+std::sqrt(R1[0]*R1[0]+R1[1]*R1[1]+R1[2]*R1[2]));
+          const Real nn[3] = {R1[0]*normR1,R1[1]*normR1,R1[2]*normR1};
+
+          const Real P1[3]= {width[close_s]*costh*norX[close_s]+height[close_s]*sinth*binX[close_s],
+                             width[close_s]*costh*norY[close_s]+height[close_s]*sinth*binY[close_s],
+                             width[close_s]*costh*norZ[close_s]+height[close_s]*sinth*binZ[close_s]};
+          const Real P2[3]= {width[secnd_s]*costh*norX[secnd_s]+height[secnd_s]*sinth*binX[secnd_s],
+                             width[secnd_s]*costh*norY[secnd_s]+height[secnd_s]*sinth*binY[secnd_s],
+                             width[secnd_s]*costh*norZ[secnd_s]+height[secnd_s]*sinth*binZ[secnd_s]};
+          const Real dot1  = P1[0]*R1[0] + P1[1]*R1[1] + P1[2]*R1[2];
+          const Real dot2  = P2[0]*R1[0] + P2[1]*R1[1] + P2[2]*R1[2];
+          const Real base1 = dot1 * normR1;
+          const Real base2 = dot2 * normR1;
+
+          //These are a^2 and b^2 in http://mathworld.wolfram.com/SphericalSegment.html
+          const Real radius_close  = std::pow( width[close_s]*costh,2) + std::pow(height[close_s]*sinth,2) - base1*base1;
+          const Real radius_second = std::pow( width[secnd_s]*costh,2) + std::pow(height[secnd_s]*sinth,2) - base2*base2;
+
+          const Real center_close  [3] = {rX[close_s]-nn[0]*base1,rY[close_s]-nn[1]*base1,rZ[close_s]-nn[2]*base1};
+          const Real center_second [3] = {rX[secnd_s]+nn[0]*base2,rY[secnd_s]+nn[1]*base2,rZ[secnd_s]+nn[2]*base2};
+
+          //This is h in http://mathworld.wolfram.com/SphericalSegment.html
+          const Real dSsq = std::pow(center_close[0]-center_second[0], 2)
+                           +std::pow(center_close[1]-center_second[1], 2)
+                           +std::pow(center_close[2]-center_second[2], 2);
+
+          const Real corr = 2*std::sqrt(radius_close*radius_second);
+
+          if (close_s == cfish->Nm-2 || secnd_s == cfish->Nm-2) //point is close to tail
           {
-            // process end of tail:
-            const int TT = cfish->Nm-1, TS = cfish->Nm-2;
             //compute the 5 corners of the pyramid around tail last point
+            const int TT = cfish->Nm-1, TS = cfish->Nm-2;
             const Real PC[3] = {rX[TT], rY[TT], rZ[TT] };
             const Real PF[3] = {rX[TS], rY[TS], rZ[TS] };
-            const Real DXT = p[0] - PF[0], DYT = p[1] - PF[1], DZT = p[2] - PF[2];      
-
-            const Real projW = (width[TS]*norX[TS])*DXT+
-                               (width[TS]*norY[TS])*DYT+
-                               (width[TS]*norZ[TS])*DZT;
-
-            const Real projH = (height[TS]*binX[TS])*DXT+
-                               (height[TS]*binY[TS])*DYT+
-                               (height[TS]*binZ[TS])*DZT;
-
+            const Real DXT = p[0] - PF[0];
+            const Real DYT = p[1] - PF[1];
+            const Real DZT = p[2] - PF[2];
+            const Real projW = ( width[TS]*norX[TS])*DXT+( width[TS]*norY[TS])*DYT+( width[TS]*norZ[TS])*DZT;
+            const Real projH = (height[TS]*binX[TS])*DXT+(height[TS]*binY[TS])*DYT+(height[TS]*binZ[TS])*DZT;
             const int signW = projW > 0 ? 1 : -1;
             const int signH = projH > 0 ? 1 : -1;
             const Real PT[3] =  {rX[TS] + signH * height[TS]*binX[TS],
@@ -655,34 +717,43 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
                                  rZ[TS] + signW *  width[TS]*norZ[TS]};
             SDFLAB[sz][sy][sx] = distPlane(PC, PT, PP, p, PF);
           }
-          else if(dSsq >= cnt2ML+nxt2ML -corr) // if ds > delta radius
-          { // if no abrupt changes in width we use nearest neighbour
+          else if (dSsq >= radius_close+radius_second -corr) // if ds > delta radius
+          { 
+            // if the two cross-sections are close and have axis that do not differ much, we just
+            // use the nearest neighbor to compute the sdf (no need for spherical segment model)
             const Real xMidl[3] = {rX[close_s], rY[close_s], rZ[close_s]};
             const Real grd2ML = eulerDistSq3D(p, xMidl);
-            const Real sign = grd2ML > cnt2ML ? -1 : 1;
+            const Real sign = grd2ML > radius_close ? -1 : 1;
             SDFLAB[sz][sy][sx] = sign*dist1;
           }
-          else
+          else //here we use the spherical segment model
           {
-            // else we model the span between ellipses as a spherical segment
-            // http://mathworld.wolfram.com/SphericalSegment.html
-            const Real Rsq = (cnt2ML +nxt2ML -corr +dSsq) //radius of the spere
-                            *(cnt2ML +nxt2ML +corr +dSsq)/4/dSsq;
-            const Real maxAx = std::max(cnt2ML, nxt2ML);
-            const int idAx1 = cnt2ML> nxt2ML? close_s : secnd_s;
-            const int idAx2 = idAx1==close_s? secnd_s : close_s;
+            const Real Rsq = (radius_close +radius_second -corr +dSsq) //radius of the spere
+                            *(radius_close +radius_second +corr +dSsq)/4/dSsq;
+            const Real maxAx = std::max(radius_close, radius_second);
+
             // 'submerged' fraction of radius:
-            const Real d = std::sqrt((Rsq - maxAx)/dSsq); // (divided by ds)
+            const Real d = std::sqrt((Rsq - maxAx)/dSsq); //(divided by ds)
             // position of the centre of the sphere:
-            const Real xMidl[3] = {rX[idAx1] +(rX[idAx1]-rX[idAx2])*d,
-                                   rY[idAx1] +(rY[idAx1]-rY[idAx2])*d, 
-                                   rZ[idAx1] +(rZ[idAx1]-rZ[idAx2])*d};
-            const Real grd2Core = eulerDistSq3D(p, xMidl);
-            const Real sign = grd2Core > Rsq ? -1 : 1;
+            Real sign;
+            if(radius_close> radius_second)
+            {
+              const Real xMidl[3] = {center_close[0] +(center_close[0]-center_second[0])*d,
+                                     center_close[1] +(center_close[1]-center_second[1])*d,
+                                     center_close[2] +(center_close[2]-center_second[2])*d};
+              const Real grd2Core = eulerDistSq3D(p, xMidl);
+              sign = grd2Core > Rsq ? -1 : 1;
+            }
+            else
+            {
+              const Real xMidl[3] = {center_second[0] +(center_second[0]-center_close[0])*d,
+                                     center_second[1] +(center_second[1]-center_close[1])*d,
+                                     center_second[2] +(center_second[2]-center_close[2])*d};
+              const Real grd2Core = eulerDistSq3D(p, xMidl);
+              sign = grd2Core > Rsq ? -1 : 1;
+            }
             SDFLAB[sz][sy][sx] = sign*dist1;
           }
-          // Not chi yet, I stored squared distance from analytical boundary
-          // distSq is updated only if curr value is smaller than the old one
         }
       }
     }
