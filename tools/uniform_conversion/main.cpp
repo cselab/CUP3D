@@ -14,7 +14,7 @@ namespace fs = std::filesystem;
 
 #define DIMENSION 3
 #define BS 8
-#define Cfactor 8
+#define Cfactor 2
 
 
 
@@ -27,20 +27,24 @@ struct BlockGroup
   int index[3];
 };
 
-void decompose_1D(long long tasks, long long & my_start, long long & my_end)
+void decompose_1D(long long tasks, long long & my_start, long long & my_end, const int compression=1)
 {
   int rank,size;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
-
-  long long my_share = tasks / size;
-  if (tasks % size != 0 && rank == size - 1) //last rank gets what's left
-  {
-    my_share += tasks % size;
+  if (tasks % compression != 0){
+	  std::cout << "Tasks must be divisible by Cfactor.\n";
+	  MPI_Abort(MPI_COMM_WORLD,1);
   }
 
-  my_start = rank * (tasks / size);
-  my_end = my_start + my_share;
+  long long my_share = tasks / compression / size;
+  if (tasks % size != 0 && rank == size - 1) //last rank gets what's left
+  {
+    my_share += (tasks/compression) % size;
+  }
+
+  my_start = rank * (tasks/compression / size) * compression;
+  my_end = my_start + my_share*compression;
 }
 
 std::vector<BlockGroup> get_amr_groups(std::string filename)
@@ -203,7 +207,7 @@ void convert_to_uniform(std::string filename,int tttt)
     std::cout << "uniform domain size=" << points[0] << " x " << points[1] << " x " << points[2] << std::endl;
 
   //the uniform domain is decomposed in the x-direction only!
-  decompose_1D(points[2],my_start,my_end);
+  decompose_1D(points[2],my_start,my_end,Cfactor);
   std::vector<float> uniform_grid((my_end-my_start)*points[1]*points[0]);
 
   #pragma omp parallel for
@@ -305,6 +309,8 @@ void convert_to_uniform(std::string filename,int tttt)
   //dump uniform grid
   {
     #if Cfactor > 1
+      MPI_Barrier(MPI_COMM_WORLD);
+	  std::cout << "Starting compression!"<<std::endl;
       std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[0]/Cfactor/Cfactor/Cfactor,0);
       #pragma omp parallel for collapse(3)
       //for (int z = 0 ; z < points[2]       ; z += Cfactor)
@@ -323,6 +329,8 @@ void convert_to_uniform(std::string filename,int tttt)
           uniform_grid_coarse[i] += uniform_grid[base + ix + iy*points[0] + iz*points[0]*points[1] ];
         uniform_grid_coarse[i] /= (Cfactor*Cfactor*Cfactor);
       }
+      MPI_Barrier(MPI_COMM_WORLD);
+	  std::cout << "Finished compression!"<<std::endl;
     #endif
 
 
@@ -381,121 +389,6 @@ void convert_to_uniform(std::string filename,int tttt)
   #if DIMENSION == 3 
   return;
   #endif
-
-  {
-    //t is theta!
-    const int Nt = 1024;
-    const int Nr = 8192;
-    const double t_min = 0.0;
-    const double t_max = 2.0*M_PI;
-    const double r_min = 0.1;
-    const double r_max = 0.6;
-    const double dr = (r_max - r_min)/Nr;
-    const double dt = (t_max - t_min)/Nt;
-
-    std::vector<double> field(Nt*Nr,0.0);
-    std::vector<double> mass (Nt*Nr,0.0);
-    const double x0 = 0.5;
-    const double y0 = 0.5;
-
-    for (int ir = 0 ; ir < Nr ; ir ++)
-    for (int it = 0 ; it < Nt ; it ++)
-    {
-      const double r = r_min + (ir + 0.5) * dr;
-      const double t = t_min + (it + 0.5) * dt;
-
-      const double x = r*cos(t+M_PI) + x0;
-      const double y = r*sin(t+M_PI) + y0;
-
-      double ss = 0;
-      double mm = 0;
-      const long long IX = x / minh;
-      const long long IY = y / minh;
-      for (long long iy = std::max(IY - 5,(long long)0       ); iy < std::min(IY + 5,points[1]); iy ++)
-      for (long long ix = std::max(IX - 5,(long long)my_start); ix < std::min(IX + 5,my_end   ); ix ++)
-      {
-        double p[2] = {(ix+0.5)*minh,(iy+0.5)*minh};
-        const double v = M6((p[0]-x)/minh,(p[1]-y)/minh);
-        ss += v * uniform_grid[(ix-my_start) + iy*(my_end-my_start)];
-        mm += v;
-      }
-      field[ir+it*Nr] += ss;
-      mass [ir+it*Nr] += mm;
-    }
-
-    MPI_Allreduce(MPI_IN_PLACE, field.data(), field.size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    MPI_Allreduce(MPI_IN_PLACE, mass .data(), mass .size(), MPI_DOUBLE, MPI_SUM, MPI_COMM_WORLD);
-    for (int it = 0 ; it < Nt; it ++)
-    for (int ir = 0 ; ir < Nr; ir ++)
-    {
-        field[ir+it*Nr] /= mass[ir+it*Nr]+1e-21;
-    }
-   
-    if (rank != 0) return;
-    if (rank == 0)
-    {
-      std::stringstream s;
-      s << "<?xml version=\"1.0\" ?>\n";
-      s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
-      s << "<Xdmf Version=\"2.0\">\n";
-      s << "<Domain>\n";
-      s << "  <Time Value=\"" << std::scientific << 0.05*tttt << "\"/>\n\n";
-      s << "  <Grid GridType=\"Uniform\">\n";
-      s << "    <Topology TopologyType=\"3DCoRectMesh\" Dimensions=\" " << 1 + 1<< " " << Nt + 1<< " " << Nr + 1 << "\"/>\n";
-      s << "    <Geometry GeometryType=\"ORIGIN_DXDYDZ\">\n";
-      s << "       <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
-      s << "            " << std::scientific << 0.0 << " " << 0.0 << " " << 0.0 << "\n";
-      s << "       </DataItem>\n";
-      s << "      <DataItem Dimensions=\"3\" NumberType=\"Double\" Precision=\"8\" " "Format=\"XML\">\n";
-      s << "            " << std::scientific << minh <<" "<< dt*r_min  <<" "<< dr<< "\n";
-      s << "       </DataItem>\n";
-      s << "   </Geometry>\n";
-      s << "   <Attribute Name=\"data\" AttributeType=\"" << "Scalar"<< "\" Center=\"Cell\">\n";
-      s << "      <DataItem ItemType=\"Uniform\"  Dimensions=\" " << 1 << " " << Nt << " " << Nr << " " << "\" NumberType=\"Float\" Precision=\" " << (int)sizeof(H5T_NATIVE_FLOAT) << "\" Format=\"HDF\">\n";
-      s << "       " << (filename + "-uniform-polar.h5").c_str() << ":/" << "data" << "\n";
-      s << "     </DataItem>\n";
-      s << "   </Attribute>\n";  
-      s << "  </Grid>\n\n";
-      s << "</Domain>\n";
-      s << "</Xdmf>\n";
-      std::string st = s.str();
-      std::ofstream out((filename + "-uniform-polar.xmf").c_str());
-      out << st;
-      out.close();
-    }
-
-    //Dump data
-    hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
-
-
-    hsize_t count[3]  = {1,Nt, Nr};
-    hsize_t dims[3]   = {1,Nt, Nr};
-    hsize_t offset[3] = {0, 0, 0};
-
-    H5open();
-    fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-    file_id = H5Fcreate((filename + "-uniform-polar.h5").c_str() , H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);
-    H5Pclose(fapl_id);
-
-    fapl_id = H5Pcreate(H5P_DATASET_XFER);
-    fspace_id = H5Screate_simple(3, dims, NULL);
-    dataset_id = H5Dcreate(file_id, "data", H5T_NATIVE_DOUBLE, fspace_id, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);
-
-    fspace_id = H5Dget_space(dataset_id);
-
-    H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, offset, NULL, count, NULL);
-
-    mspace_id = H5Screate_simple(3, count, NULL);
-
-    H5Dwrite(dataset_id, H5T_NATIVE_DOUBLE, mspace_id, fspace_id, fapl_id, field.data());
-    
-    H5Sclose(mspace_id);
-    H5Sclose(fspace_id);
-    H5Dclose(dataset_id);
-    H5Pclose(fapl_id);
-    H5Fclose(file_id);
-    H5close();
-  }
 }
 
 
