@@ -231,6 +231,8 @@ void PoissonSolverAMR::solve()
             {
                 rhat[i] = r[i];
                 rho += r[i]*rhat[i];
+                p[i] = 0.0;
+                v[i] = 0.0;
             }
             if (m_rank == 0) 
                 std::cout << "  [Poisson solver]: restart at iteration:" << k << 
