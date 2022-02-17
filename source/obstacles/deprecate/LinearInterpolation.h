@@ -93,7 +93,7 @@ void LinearInterpolationKernel<Getter, Setter>::operator()(
     typedef typename FluidGridMPI::BlockType Block;
     const int block_index = info.index[0] + owner.N[0] * (
                             info.index[1] + owner.N[1] * info.index[2]);
-    const double invh = 1.0 / info.h_gridpoint;
+    const double invh = 1.0 / info.h;
 
     for (const auto &part : owner.particles[block_index]) {
         // FIXME: This calculation of the index is not 100% consistent with the

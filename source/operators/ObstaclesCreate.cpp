@@ -39,7 +39,7 @@ class KernelCharacteristicFunction
   template <typename BlockType>
   void operate(const BlockInfo& info, BlockType& b) const
   {
-    const Real h = info.h_gridpoint, inv2h = .5/h, fac1 = .5*h*h, vol = h*h*h;
+    const Real h = info.h, inv2h = .5/h, fac1 = .5*h*h, vol = h*h*h;
     const int gp = 1;
 
     for (size_t obst_id = 0; obst_id<vec_obstacleBlocks.size(); obst_id++)

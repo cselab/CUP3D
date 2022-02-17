@@ -67,8 +67,8 @@ struct KernelComputeForces : public ObstacleVisitor
         velUnit[2] = uTrans[2] / vel_norm;
     }
 
-    const double _1oH = nu / info.h_gridpoint;
-    //const Real _h3 = std::pow(info.h_gridpoint,3);
+    const double _1oH = nu / info.h;
+    //const Real _h3 = std::pow(info.h,3);
 
     //loop over elements of block info that have nonzero gradChi
     for(int i=0; i<o->nPoints; i++)

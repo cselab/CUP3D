@@ -39,7 +39,7 @@ void PoissonSolverAMR::getZ()
     for (size_t i=0; i < Nblocks; i++)
     {
         BlockTypePoisson & __restrict__ b  = *(BlockTypePoisson*) vInfo[i].ptrBlock;
-        const double invh = 1.0/vInfo[i].h_gridpoint;
+        const double invh = 1.0/vInfo[i].h;
         double norm0 = 0;
         double rr = 0;
         double a2 = 0;

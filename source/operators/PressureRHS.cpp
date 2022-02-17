@@ -138,7 +138,7 @@ struct KernelPressureRHS : public ObstacleVisitor
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o)
   {
-    const Real h = info.h_gridpoint, fac = 0.5*h*h/dt;
+    const Real h = info.h, fac = 0.5*h*h/dt;
     BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -247,7 +247,7 @@ struct KernelPressureRHS : public ObstacleVisitor
 
     const CHIMAT & __restrict__ CHI = obstblocks[info.blockID]->chi;
 
-    const Real h = info.h_gridpoint, fac = 0.5*h*h/dt;
+    const Real h = info.h, fac = 0.5*h*h/dt;
 
     BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)

@@ -59,7 +59,7 @@ class KernelVorticity
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
   {
-    const Real inv2h = .5 * info.h_gridpoint * info.h_gridpoint;
+    const Real inv2h = .5 * info.h * info.h;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
     for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
@@ -205,7 +205,7 @@ class KernelQcriterion
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
   {
-    const Real inv2h = .5 / info.h_gridpoint;
+    const Real inv2h = .5 / info.h;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
     for (int ix=0; ix<FluidBlock::sizeX; ++ix) {
