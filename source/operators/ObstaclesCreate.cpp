@@ -165,8 +165,7 @@ struct KernelIntegrateUdefMomenta : public ObstacleVisitor
   ObstacleVector * const obstacle_vector;
   const cubism::BlockInfo * info_ptr = nullptr;
   inline double dvol(const cubism::BlockInfo&info, const int x, const int y, const int z) const {
-    double h[3]; info.spacing(h, x, y, z);
-    return h[0] * h[1] * h[2];
+    return info.h * info.h * info.h;
   }
 
   KernelIntegrateUdefMomenta(ObstacleVector* ov) : obstacle_vector(ov) {}
