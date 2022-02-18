@@ -196,7 +196,7 @@ public:
 
     const auto span = interpolator_.getBlockParticles(blockIdx);
     const int level = info.level;
-    const double invh = 1.0 / info.h_gridpoint;
+    const double invh = 1.0 / info.h;
     for (const auto *p = span.first; p != span.second; ++p) {
 
       // Position within a block, where the coordinate (0.0, 0.0) refers to the

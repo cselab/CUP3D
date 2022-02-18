@@ -41,7 +41,7 @@ class ComputeLHS : public Operator
     const StencilInfo stencil{-1,-1,-1,2,2,2,false,{0}};
     void operator()(LabMPIPoisson & lab, const BlockInfo& info, FluidBlockPoisson& o) const
     {
-      const double h = info.h_gridpoint; 
+      const double h = info.h; 
       for(int iz=0; iz<FluidBlockPoisson::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlockPoisson::sizeY; ++iy)
       for(int ix=0; ix<FluidBlockPoisson::sizeX; ++ix)

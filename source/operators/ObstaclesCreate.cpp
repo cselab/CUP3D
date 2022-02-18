@@ -39,7 +39,7 @@ class KernelCharacteristicFunction
   template <typename BlockType>
   void operate(const BlockInfo& info, BlockType& b) const
   {
-    const Real h = info.h_gridpoint, inv2h = .5/h, fac1 = .5*h*h, vol = h*h*h;
+    const Real h = info.h, inv2h = .5/h, fac1 = .5*h*h, vol = h*h*h;
     const int gp = 1;
 
     for (size_t obst_id = 0; obst_id<vec_obstacleBlocks.size(); obst_id++)
@@ -165,8 +165,7 @@ struct KernelIntegrateUdefMomenta : public ObstacleVisitor
   ObstacleVector * const obstacle_vector;
   const cubism::BlockInfo * info_ptr = nullptr;
   inline double dvol(const cubism::BlockInfo&info, const int x, const int y, const int z) const {
-    double h[3]; info.spacing(h, x, y, z);
-    return h[0] * h[1] * h[2];
+    return info.h * info.h * info.h;
   }
 
   KernelIntegrateUdefMomenta(ObstacleVector* ov) : obstacle_vector(ov) {}

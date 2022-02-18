@@ -51,7 +51,7 @@ struct KernelPenalization : public ObstacleVisitor
     const std::array<double,3> CM = obstacle->getCenterOfMass();
     const std::array<double,3> vel = obstacle->getTranslationVelocity();
     const std::array<double,3> omega = obstacle->getAngularVelocity();
-    const Real dv = std::pow(info.h_gridpoint, 3);
+    const Real dv = std::pow(info.h, 3);
 
     // Obstacle-specific lambda, useful for gradually adding an obstacle to the flow.
     const double rampUp = obstacle->lambda_factor;

@@ -28,8 +28,7 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
   ObstacleVector * const obstacle_vector;
   const cubism::BlockInfo * info_ptr = nullptr;
   double dvol(const BlockInfo&I, const int x, const int y, const int z) const {
-    double h[3]; I.spacing(h, x, y, z);
-    return h[0] * h[1] * h[2];
+    return I.h * I.h * I.h;
   }
 
   KernelIntegrateFluidMomenta(double _dt, double _lambda, ObstacleVector* ov)

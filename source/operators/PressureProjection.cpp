@@ -27,7 +27,7 @@ class KernelGradP
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
   {
-    const Real fac = -0.5*dt*info.h_gridpoint*info.h_gridpoint;
+    const Real fac = -0.5*dt*info.h*info.h;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)

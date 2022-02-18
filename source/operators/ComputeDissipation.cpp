@@ -46,7 +46,7 @@ class KernelDissipation
   template <typename Lab, typename BlockType>
   void operator()(Lab & lab, const BlockInfo& info, BlockType& o)
   {
-    const Real h = info.h_gridpoint;
+    const Real h = info.h;
     const Real hCube = std::pow(h,3), inv2h = .5 / h, invHh = 1/(h*h);
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
