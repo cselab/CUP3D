@@ -125,12 +125,7 @@ ifeq "$(hdf)" "true"
 	CPPFLAGS += -DCUBISM_USE_HDF
 endif
 
-#LIBS += -L../tools/fpzip/lib -lfpzip
-ifneq "$(GSL_ROOT_DIR)" ""
-	CPPFLAGS += -I$(GSL_ROOT_DIR)/include
-	LIBS += -L$(GSL_ROOT_DIR)/lib
-endif
-LIBS += -lgsl -lgslcblas
+LIBS += -lgsl #-lgslcblas
 
 #################################################
 ifneq ($(ERROR),)
