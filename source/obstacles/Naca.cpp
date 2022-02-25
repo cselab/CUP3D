@@ -154,11 +154,11 @@ Naca::Naca(SimulationData&s, ArgumentParser&p) : Fish(s, p)
 
 void Naca::update()
 {
-  _2Dangle =  Mpitch + Apitch * std::cos( 2*M_PI * (Fpitch*sim.time + Ppitch) );
-  quaternion[0] = std::cos(0.5*_2Dangle);
+  const Real angle_2D =  Mpitch + Apitch * std::cos( 2*M_PI * (Fpitch*sim.time + Ppitch) );
+  quaternion[0] = std::cos(0.5*angle_2D);
   quaternion[1] = 0;
   quaternion[2] = 0;
-  quaternion[3] = std::sin(0.5*_2Dangle);
+  quaternion[3] = std::sin(0.5*angle_2D);
 
   absPos[0] += sim.dt * transVel[0];
   absPos[1] += sim.dt * transVel[1];

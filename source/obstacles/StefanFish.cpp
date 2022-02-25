@@ -255,7 +255,7 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
 
   origC[0] = position[0];
   origC[1] = position[1];
-  origAng = _2Dangle;
+  origAng = 2 * std::atan2(quaternion[3], quaternion[0]);
   //bool bKillAmplitude = parser("-zeroAmplitude").asInt(0);
   //if(bKillAmplitude) myFish->killAmplitude();
 
@@ -272,7 +272,7 @@ void StefanFish::create()
   // Control pos diffs
   const double   xDiff = (position[0] - origC[0])/length;
   const double   yDiff = (position[1] - origC[1])/length;
-  const double angDiff =  _2Dangle    - origAng;
+  const double angDiff =  2 * std::atan2(quaternion[3], quaternion[0])    - origAng;
   const double relU = (transVel[0] + sim.uinf[0]) / length;
   const double relV = (transVel[1] + sim.uinf[1]) / length;
   const double aVelZ = angVel[2], lastAngVel = cFish->lastAvel;
@@ -389,7 +389,7 @@ std::vector<double> StefanFish::state() const
   std::vector<double> S(10,0);
   S[0] = ( position[0] - origC[0] )/ length;
   S[1] = ( position[1] - origC[1] )/ length;
-  S[2] = _2Dangle;
+  S[2] = 2 * std::atan2(quaternion[3], quaternion[0]);
   S[3] = getPhase( sim.time );
   S[4] = transVel[0] * Tperiod / length;
   S[5] = transVel[1] * Tperiod / length;

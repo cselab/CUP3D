@@ -17,11 +17,11 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class StefanFish: public Fish
 {
-protected:
-  Real origC[2] = {(Real)0, (Real)0};
-  Real origAng = 0;
 public:
   StefanFish(SimulationData&s, cubism::ArgumentParser&p);
+
+  Real origAng = 0; //initial planar angle (used for PID controller)
+
   void save(std::string filename = std::string()) override;
   void restart(std::string filename) override;
   void create() override;

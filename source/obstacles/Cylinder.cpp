@@ -136,8 +136,8 @@ void Cylinder::create()
   const Real h = sim.hmin;
   if(section == "D")
   {
-    const DCylinderObstacle::FillBlocks kernel(radius, halflength, _2Dangle,
-                                               h, position);
+    const Real angle = 2 * std::atan2(quaternion[3], quaternion[0]);//planar angle (xy plane)
+    const DCylinderObstacle::FillBlocks kernel(radius, halflength, angle, h, position);
     create_base<DCylinderObstacle::FillBlocks>(kernel);
   }
   else /* else do square section, but figure how to make code smaller */
