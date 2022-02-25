@@ -389,7 +389,7 @@ std::vector<double> StefanFish::state() const
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
-  std::vector<double> S(10,0);
+  std::vector<double> S(18,0);
   S[0 ] = ( position[0] - origC[0] )/ length;
   S[1 ] = ( position[1] - origC[1] )/ length;
   S[3 ] = ( position[2] - origC[2] )/ length;
