@@ -327,7 +327,7 @@ void StefanFish::create()
     const double totalTerm = valIangPdy + valPangIdy + valIangIdy;
     const double totalDiff = difIangPdy + difPangIdy + difIangIdy;
     cFish->correctTrajectory(totalTerm, totalDiff);
-    cFish->correctTailPeriod(periodFac, periodVel);
+    cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
   }
   // if absIy<EPS then we have just one fish that the simulation box follows
   // therefore we control the average angle but not the Y disp (which is 0)
