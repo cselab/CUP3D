@@ -20,6 +20,7 @@ class StefanFish: public Fish
 public:
   StefanFish(SimulationData&s, cubism::ArgumentParser&p);
 
+  double origC[3]; //initial location
   Real origAng = 0; //initial planar angle (used for PID controller)
 
   void save(std::string filename = std::string()) override;
@@ -33,6 +34,11 @@ public:
 
   // member functions for state in RL
   std::vector<double> state() const;
+
+  std::array<double,3> getInitialLocation() const
+  {
+     return std::array<double,3> {{origC[0],origC[1],origC[2]}};
+  }
 
   //#ifdef STEFANS_SENSORS_STATE
   //// Helpers for state function

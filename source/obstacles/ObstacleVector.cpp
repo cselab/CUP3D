@@ -100,15 +100,4 @@ void ObstacleVector::Accept(ObstacleVisitor * visitor)
     obstacles[i]->Accept(visitor);
 }
 
-Real ObstacleVector::getD() const
-{
-  Real maxL = 0;
-  for(size_t i=0; i<obstacles.size(); ++i) {
-      const Real Li = obstacles[i]->getD();
-      maxL = std::max(maxL,Li);
-      assert(Li>0.);
-  }
-  return maxL;
-}
-
 CubismUP_3D_NAMESPACE_END

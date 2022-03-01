@@ -139,7 +139,6 @@ Naca::Naca(SimulationData&s, ArgumentParser&p) : Fish(s, p)
       }
   #endif
   Aheave *= length;
-  isSelfPropelled = Aheave > 0;
 
   const double thickness = p("-thickness").asDouble(0.12); // (NON DIMENSIONAL)
 

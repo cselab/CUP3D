@@ -25,15 +25,6 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
   bCorrectTrajectory = p("-Correct").asBool(false);
   bCorrectPosition = p("-bCorrectPosition").asBool(false);
 
-  // Main amplitude modulation for all fish should be amplitudeFactor, otherwise
-  // new fish classes should take care to handle isSelfPropelled correctly.
-  // Additional shaping of the gait (eg curvatures, carling/quadratic factor)
-  // is then multiplied by this arg. If amplitudeFactor=0 fish is assumed towed.
-  if(p("-amplitudeFactor").asDouble(1.0)>0)
-    isSelfPropelled = true;
-
-  bHasSkin = true;
-
   // MPI datatypes (used for load-balancing when creating the fish surface)
   int array_of_blocklengths[2]       = {4, 1};
   MPI_Aint array_of_displacements[2] = {0, 4 * sizeof(double)};

@@ -1,13 +1,10 @@
 //
 //  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2022 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
-//
 
-#ifndef CubismUP_3D_Obstacle_h
-#define CubismUP_3D_Obstacle_h
+#pragma once
 
 #include "../ObstacleBlock.h"
 #include "../SimulationData.h"
@@ -67,7 +64,6 @@ struct ObstacleArguments
   std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
   std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
   bool bFixToPlanar = false;
-  bool bComputeForces = true;
   bool bBreakSymmetry = false;
 
   ObstacleArguments() = default;
@@ -80,9 +76,7 @@ struct ObstacleArguments
 struct ObstacleVisitor
 {
   virtual ~ObstacleVisitor() {}
-
   virtual void visit(Obstacle* const obstacle) = 0;
-  //virtual void visit(IF3D_ObstacleVector  * const obstacle) {}
 };
 
 class Obstacle
@@ -91,87 +85,96 @@ protected:
   SimulationData & sim;
   FluidGridMPI * const grid = sim.grid;
   bool printedHeaderVels = false;
-  bool isSelfPropelled = false;
 public:
   std::vector<ObstacleBlock*> obstacleBlocks;
-  int obstacleID=0;
-  bool bInteractive=0, bHasSkin=0, bForces=0;
-  double quaternion[4] = {1,0,0,0}; //orientation
-  double origC[3];
-  double position[3] = {0,0,0}, absPos[3] = {0,0,0}, transVel[3] = {0,0,0};
-  double angVel[3] = {0,0,0}, J[6] = {0,0,0,0,0,0}; //mom of inertia
-  // computed from chi on the grid:
-  double centerOfMass[3] = {0,0,0};
-  //from penalization:
-  double mass=0, length=0;
-  std::array<double,3> force = {0,0,0}, torque = {0,0,0};
-  double lambda_factor = 1.0;
-  //from compute forces: perimeter, circulation and forces
-  double totChi=0, gamma[3]={0,0,0}, surfForce[3]={0,0,0};
-  //pressure and viscous contribution from compute forces:
-  double presForce[3]={0,0,0}, viscForce[3]={0,0,0}, surfTorque[3]={0,0,0};
-  double drag=0, thrust=0, Pout=0, PoutBnd=0, pLocom=0;
-  double defPower=0, defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
-  std::array<double,3> transVel_correction={0,0,0}, angVel_correction={0,0,0};
-  //forced obstacles:
-  double transVel_imposed[3]= {0,0,0};
 
-  // Should the camera follow the obstacle? If multiple obstacles set
-  // this to true, the average velocity is taken.
-  std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
+  int obstacleID=0; //each obstacle has a unique ID
 
-  // If true, the xvel/yvel/zvel velocities are used, otherwise the velocities
-  // are computed from the fluid forced on the obstacle.
-  std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
+  //There are two frames of reference, denoted by (I) and (II):
+  // (I):  An absolute frame that is not moving.
+  // (II): A frame that is moving with sim.uinf. Generally, this frame follows the obstacles.
+  //       sim.uinf is the average velocity of obstacles with bFixFrameOfRef = true
+  //       (with the addition of a far field velocity field, if the user wants that).
 
-  std::array<bool, 3> bBlockRotation = {{false, false, false}};
+  double absPos  [3] = {0,0,0};     //position of obstacle in frame (I)
+  double position[3] = {0,0,0};     //position of obstacle in frame (II)
+  double quaternion[4] = {1,0,0,0}; //orientation (same for both frames)
+  double transVel[3] = {0,0,0};     //translational velocity in frame (I)
+  double angVel  [3] = {0,0,0};     //angular velocity
+  double mass;                      //obstacle mass
+  double length;                    //characteristic length of obstacle
+  double J[6] = {0,0,0,0,0,0};      //moments of inertia matrix (Jxx,Jyy,Jzz,Jxy,Jxz,Jyz}
 
-  bool bBreakSymmetry = false;
+  std::array<bool, 3> bFixFrameOfRef    = {{false, false, false}};//set to true if 'camera' will follow the obstacle in that direction
+  std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};//set to true if obstacle is forced
+  std::array<bool, 3> bBlockRotation    = {{false, false, false}};//set to true if obstacle is not allowed to rotate (forced)
+  double transVel_imposed[3]= {0,0,0}; //prescribed velocity (if the obstacle is forced)
 
-  std::array<double,3> transVel_computed = {0,0,0}, angVel_computed = {0,0,0};
-  std::array<double,3> penalLmom={0,0,0}, penalAmom={0,0,0}, penalCM={0,0,0};
-  std::array<double,6> penalJ = {0,0,0,0,0,0};
-  double penalM;
-
-  //used only for 2nd-order timestep
+  //auxiliary arrays used for 2nd order time integration of obstacle's position
   double old_position  [3] =   {0,0,0};
   double old_absPos    [3] =   {0,0,0};
   double old_quaternion[4] = {1,0,0,0};
 
+  //The obstacle's mass, linear momentum, angular momentum, center of mass and
+  //moments of inertia are computed from the chi field and stored here.
+  //Then, a 6x6 linear system is solved to determine transVel and angVel.
+  double penalM;
+  std::array<double,3> penalLmom = {0,0,0};
+  std::array<double,3> penalAmom = {0,0,0};
+  std::array<double,3> penalCM   = {0,0,0};
+  std::array<double,6> penalJ    = {0,0,0,0,0,0};
+
+  //Translational and angular velocities computed by solving the 6x6 linear system.
+  //If the obstacle is not forced, transVel and angVel are set equal to transVel_computed
+  //and angVel_computed. Otherwise, the forces and torques acting on the forced obstacle
+  //can be computed as force = mass * (transVel_computed - transVel) / sim.dt
+  std::array<double,3> transVel_computed = {0,0,0};
+  std::array<double,3> angVel_computed   = {0,0,0};
+
+  double centerOfMass[3] = {0,0,0}; //center of mass (used to resolve collisions), computed from chi
+
+  bool bBreakSymmetry = false; //if true obstacle is forced for a short period, to break symmetric flow conditions
+
+  //Quantities of Interest (forces, drag etc.)
+  std::array<double,3> force  = {0,0,0};
+  std::array<double,3> torque = {0,0,0};
+  double gamma[3]={0,0,0};
+  double surfForce[3]={0,0,0};
+  double presForce[3]={0,0,0};
+  double viscForce[3]={0,0,0};
+  double surfTorque[3]={0,0,0};
+  double drag=0, thrust=0, Pout=0, PoutBnd=0, pLocom=0;
+  double defPower=0, defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
+
+  //Used to 'stabilize' some computation in KernelIntegrateUdefMomenta from ObstaclesCreate.cpp
+  std::array<double,3> transVel_correction={0,0,0}, angVel_correction={0,0,0};
+
 protected:
+  //functions to save quantities of interest to files
   virtual void _writeComputedVelToFile();
   virtual void _writeDiagForcesToFile();
   virtual void _writeSurfForcesToFile();
-  //void _finalizeAngVel(Real AV[3], const Real J[6], const Real& gam0, const Real& gam1, const Real& gam2);
 
 public:
   Obstacle(SimulationData& s, const ObstacleArguments &args);
   Obstacle(SimulationData& s, cubism::ArgumentParser &parser);
-
   Obstacle(SimulationData& s) : sim(s) {  }
 
-
   virtual void Accept(ObstacleVisitor * visitor);
-  virtual Real getD() const {return length;}
 
-  virtual void computeVelocities();
-  virtual void computeForces();
-  virtual void update();
-  virtual void save(std::string filename = std::string());
-  virtual void restart(std::string filename = std::string());
+  virtual void computeVelocities();//solve the 6x6 linear system to get transVel and angvel
+  virtual void computeForces();    //compute quantities of interest for this obstacle
+  virtual void update();           //time integration of position and orientation
+  virtual void save(std::string filename = std::string());   //save information for restart
+  virtual void restart(std::string filename = std::string());//read information for restart
+  virtual void create();  //additional stuff to be done when creating an obstacle (optional)
+  virtual void finalize();//additional stuff to be done when deleting an obstacle (optional)
+  std::array<double,3> getTranslationVelocity() const;
+  std::array<double,3> getAngularVelocity() const;
+  std::array<double,3> getCenterOfMass() const;
 
-  virtual void create();
-  virtual void finalize();
-
-  //methods that work for all obstacles
-  std::vector<ObstacleBlock*> getObstacleBlocks() const
-  {
-      return obstacleBlocks;
-  }
-  std::vector<ObstacleBlock*>* getObstacleBlocksPtr()
-  {
-      return &obstacleBlocks;
-  }
+  std::vector<ObstacleBlock*>  getObstacleBlocks() const {return  obstacleBlocks;}
+  std::vector<ObstacleBlock*>* getObstacleBlocksPtr()    {return &obstacleBlocks;}
 
   virtual ~Obstacle()
   {
@@ -184,16 +187,8 @@ public:
     obstacleBlocks.clear();
   }
 
-  virtual std::array<double,3> getTranslationVelocity() const;
-  virtual std::array<double,3> getAngularVelocity() const;
-  virtual std::array<double,3> getCenterOfMass() const;
-  std::array<double,3> getInitialLocation() const;
-  void setCenterOfMass( std::array<double,3> &loc );
-  void setOrientation( std::array<double,4> &quat );
-
   // driver to execute finite difference kernels either on all points relevant
   // to the mass of the obstacle (where we have char func) or only on surface
-
   template<typename T>
   void create_base(const T& kernel)
   {
@@ -220,4 +215,3 @@ public:
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_Obstacle_h

@@ -58,7 +58,6 @@ class ObstacleVector : public Obstacle
       for(size_t i=0; i<Nobs; i++) ret[i]= obstacles[i]->getObstacleBlocksPtr();
       return ret;
     }
-    Real getD() const override;
 
     std::array<Real,3> updateUinf() const
     {

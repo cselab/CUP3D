@@ -75,11 +75,6 @@ ObstacleArguments::ObstacleArguments(
 
   // boolean to break symmetry to trigger vortex shedding
   bBreakSymmetry = parser("-bBreakSymmetry").asBool(false);
-
-  // To force forced obst. into computeForces or to force self-propelled
-  // into diagnostics forces (tasso del tasso del tasso):
-  // If untouched forced only do diagnostics and selfprop only do surface.
-  bComputeForces = parser("-computeForces").asBool(false);
 }
 
 Obstacle::Obstacle(SimulationData&s, ArgumentParser&p)
@@ -98,11 +93,6 @@ Obstacle::Obstacle(
   quaternion[1] = args.quaternion[1];
   quaternion[2] = args.quaternion[2];
   quaternion[3] = args.quaternion[3];
-
-  // Store initial location
-  origC[0] = position[0];
-  origC[1] = position[1];
-  origC[2] = position[2];
 
   if (!sim.rank) {
     printf("Obstacle L=%g, pos=[%g %g %g], q=[%g %g %g %g]\n",
@@ -160,8 +150,6 @@ Obstacle::Obstacle(
   bBreakSymmetry = args.bBreakSymmetry;
   if( bBreakSymmetry )
     if (!sim.rank) printf("Symmetry broken by imposing sinusodial y-velocity in t=[1,2].\n");
-
-  bForces = args.bComputeForces;
 }
 
 void Obstacle::computeVelocities()
@@ -464,26 +452,6 @@ std::array<double,3> Obstacle::getCenterOfMass() const
   return std::array<double,3> {{centerOfMass[0],centerOfMass[1],centerOfMass[2]}};
 }
 
-std::array<double,3> Obstacle::getInitialLocation() const
-{
-  return std::array<double,3> {{origC[0],origC[1],origC[2]}};
-}
-
-void Obstacle::setCenterOfMass( std::array<double,3> &loc )
-{
-  centerOfMass[0] = loc[0];
-  centerOfMass[1] = loc[1];
-  centerOfMass[2] = loc[2];
-}
-
-void Obstacle::setOrientation( std::array<double,4> &quat )
-{
-  quaternion[0] = quat[0];
-  quaternion[1] = quat[1];
-  quaternion[2] = quat[2];
-  quaternion[3] = quat[3];
-}
-
 void Obstacle::save(std::string filename)
 {
   if(sim.rank!=0 || sim.muteAll) return;
@@ -570,7 +538,7 @@ void Obstacle::_writeSurfForcesToFile()
 {
   if(sim.rank!=0 || sim.muteAll) return;
   std::stringstream fnameF, fnameP;
-  fnameF<<"forceValues_"<<(!isSelfPropelled?"surface_":"")<<obstacleID<<".dat";
+  fnameF<<"forceValues_"<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());
   const std::string tab("\t");
   if(sim.step==0) {
@@ -590,7 +558,7 @@ void Obstacle::_writeSurfForcesToFile()
      <<tab<<viscForce[1]<<tab<<viscForce[2]<<tab<<gamma[0]<<tab<<gamma[1]
      <<tab<<gamma[2]<<tab<<drag<<tab<<thrust<<std::endl;
 
-  fnameP<<"powerValues_"<<(!isSelfPropelled?"surface_":"")<<obstacleID<<".dat";
+  fnameP<<"powerValues_"<<obstacleID<<".dat";
   std::stringstream &ssP = logger.get_stream(fnameP.str());
   if(sim.step==0) {
     ssP<<"step"<<tab<<"time"<<tab<<"Pthrust"<<tab<<"Pdrag"<<tab
@@ -609,7 +577,7 @@ void Obstacle::_writeDiagForcesToFile()
 {
   if(sim.rank!=0 || sim.muteAll) return;
   std::stringstream fnameF;
-  fnameF<<"forceValues_"<<(isSelfPropelled?"penalization_":"")<<obstacleID<<".dat";
+  fnameF<<"forceValues_"<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());
   const std::string tab("\t");
   if(sim.step==0) {
