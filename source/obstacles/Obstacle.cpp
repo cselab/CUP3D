@@ -225,12 +225,6 @@ void Obstacle::computeVelocities()
   gsl_permutation_free (permgsl);
   gsl_vector_free (xgsl);
 
-  //if(sim.verbose)
-  //{
-  //  printf("um:%e lm:%e am:%e m:%e j:%e u:%e v:%e a:%e\n",
-  //  penalLmom[0], penalLmom[1], penalAmom[2], penalM, penalJ[2],
-  //  transVel_computed[0], transVel_computed[1], angVel_computed[2]);
-  //}
   force[0] = mass * (transVel_computed[0] - transVel[0]) / sim.dt;
   force[1] = mass * (transVel_computed[1] - transVel[1]) / sim.dt;
   force[2] = mass * (transVel_computed[2] - transVel[2]) / sim.dt;
@@ -408,14 +402,8 @@ void Obstacle::update()
   if (sim.verbose && sim.time > 0)
   {
     const Real ang = 2 * std::atan2(quaternion[3], quaternion[0]); //planar angle (xy plane)
-    printf("POS   : [%.2f %.2f %.2f]", position[0], position[1], position[2]);
-    printf("VEL   : [%.2f %.2f %.2f]", transVel[0], transVel[1], transVel[2]);
-    printf("ANGVEL: [%.2f %.2f %.2f]",   angVel[0],   angVel[1],   angVel[2]);
-    printf("Angle : %.2f \n", ang);
-    printf("MASS  : %.2e \n", penalM);
-    printf("Jxx   : %.2e \n", penalJ[0]);
-    printf("Jyy   : %.2e \n", penalJ[1]);
-    printf("Jzz   : %.2e \n", penalJ[2]);
+    printf("pos:[%.2f %.2f %.2f], vel:[%.2f %.2f %.2f], angvel:[%.2f %.2f %.2f], angle: %.2f \n",
+           absPos[0],absPos[1],absPos[2],transVel[0],transVel[1],transVel[2],angVel[0],angVel[1],angVel[2],ang);
   }
   #ifndef NDEBUG
   const double q_length=std::sqrt(quaternion[0]*quaternion[0]
@@ -481,8 +469,6 @@ void Obstacle::restart(std::string filename)
   }
   Real restart_time;
   restartstream >> restart_time;
-  //assert(std::abs(restart_time-t) < 1e-9);
-
   restartstream>>position[0]>>position[1]>>position[2];
   restartstream>>absPos[0]>>absPos[1]>>absPos[2];
   restartstream>>quaternion[0]>>quaternion[1]>>quaternion[2]>>quaternion[3];
