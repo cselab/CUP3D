@@ -143,6 +143,8 @@ CarlingFish::CarlingFish(SimulationData&s, ArgumentParser&p) : Fish(s, p)
   // _ampFac=0.0 for towed fish :
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   const bool bQuadratic = p("-bQuadratic").asBool(false);
+  const double Tperiod = p("-T").asDouble(1.0);
+  const double phaseShift = p("-phi").asDouble(0.0);
 
   CarlingFishMidlineData* localFish = new CarlingFishMidlineData(length, Tperiod, phaseShift,
     sim.hmin, ampFac);

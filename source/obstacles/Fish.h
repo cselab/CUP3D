@@ -1,13 +1,10 @@
 //
 //  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2022 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
-//
 
-#ifndef CubismUP_3D_Fish_h
-#define CubismUP_3D_Fish_h
+#pragma once
 
 #include "Obstacle.h"
 
@@ -20,9 +17,6 @@ class Fish: public Obstacle
 {
  protected:
   FishMidlineData * myFish = nullptr;
-  // Arguments read from parser
-  double Tperiod, phaseShift;
-  bool bCorrectTrajectory, bCorrectPosition;
 
   void integrateMidline();
 
@@ -45,17 +39,8 @@ class Fish: public Obstacle
   virtual void create() override;
   virtual void finalize() override;
 
-  //MPI stuff, for ObstaclesCreate
   struct BlockID
   {
-    //BlockID(double a_h, double a_ox, double a_oy, double a_oz)
-    //{
-    //  h = a_h;
-    //  origin_x = a_ox;
-    //  origin_y = a_oy;
-    //  origin_z = a_oz;
-    //  blockID = 0;
-    //}
     double h;
     double origin_x;
     double origin_y;
@@ -65,6 +50,8 @@ class Fish: public Obstacle
   std::vector<BlockID> MyBlockIDs;
   std::vector<std::vector<int>> MySegments;
 
+  #if 0
+  //MPI stuff, for ObstaclesCreate
   struct MPI_Obstacle
   {
     double d [FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX*3 
@@ -73,7 +60,7 @@ class Fish: public Obstacle
   };
   MPI_Datatype MPI_BLOCKID;
   MPI_Datatype MPI_OBSTACLE;
+  #endif
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_Fish_h

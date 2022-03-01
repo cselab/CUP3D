@@ -1,9 +1,7 @@
 //
 //  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2022 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
-//
-//  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
 #include "Fish.h"
@@ -18,20 +16,13 @@ using namespace cubism;
 Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
 {
   p.unset_strict_mode();
-  Tperiod = p("-T").asDouble(1.0);
-  phaseShift = p("-phi").asDouble(0.0);
-
-  //PID knobs
-  bCorrectTrajectory = p("-Correct").asBool(false);
-  bCorrectPosition = p("-bCorrectPosition").asBool(false);
-
+  #if 0
   // MPI datatypes (used for load-balancing when creating the fish surface)
   int array_of_blocklengths[2]       = {4, 1};
   MPI_Aint array_of_displacements[2] = {0, 4 * sizeof(double)};
   MPI_Datatype array_of_types[2]     = {MPI_DOUBLE, MPI_LONG};
   MPI_Type_create_struct(2, array_of_blocklengths, array_of_displacements, array_of_types, &MPI_BLOCKID);
   MPI_Type_commit(&MPI_BLOCKID);
-
   const int Z = FluidBlock::sizeZ;
   const int Y = FluidBlock::sizeY;
   const int X = FluidBlock::sizeX;
@@ -40,19 +31,21 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
   MPI_Datatype array_of_types1[2]     = {MPI_DOUBLE, MPI_INT};
   MPI_Type_create_struct(2, array_of_blocklengths1, array_of_displacements1, array_of_types1, &MPI_OBSTACLE);
   MPI_Type_commit(&MPI_OBSTACLE);
+  #endif
 }
 
 Fish::~Fish()
 {
   if(myFish not_eq nullptr) delete myFish;
+  #if 0
   MPI_Type_free(&MPI_BLOCKID);
   MPI_Type_free(&MPI_OBSTACLE);
+  #endif
 }
 
 void Fish::integrateMidline()
 {
   myFish->integrateLinearMomentum();
-
   myFish->integrateAngularMomentum(sim.dt);
 }
 

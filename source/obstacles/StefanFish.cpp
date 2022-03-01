@@ -244,9 +244,15 @@ void StefanFish::restart(std::string filename)
 
 StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
 {
+  const double Tperiod = p("-T").asDouble(1.0);
+  const double phaseShift = p("-phi").asDouble(0.0);
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
   myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift,
     sim.hmin, ampFac);
+
+  //PID knobs
+  bCorrectTrajectory = p("-Correct").asBool(false);
+  bCorrectPosition = p("-bCorrectPosition").asBool(false);
 
   std::string heightName = p("-heightProfile").asString("baseline");
   std::string  widthName = p( "-widthProfile").asString("baseline");
@@ -266,6 +272,7 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
 void StefanFish::create()
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+  const double Tperiod = cFish->Tperiod;
 
   const double DT = sim.dt/Tperiod;
   //const double time = sim.time;
@@ -380,6 +387,7 @@ double StefanFish::getPhase(const double t) const
   const double T0 = cFish->time0;
   const double Ts = cFish->timeshift;
   const double Tp = cFish->periodPIDval;
+  const double phaseShift = cFish->phaseShift;
   const double arg  = 2*M_PI*((t-T0)/Tp +Ts) + M_PI*phaseShift;
   const double phase = std::fmod(arg, 2*M_PI);
   return (phase<0) ? 2*M_PI + phase : phase;
@@ -389,6 +397,7 @@ std::vector<double> StefanFish::state() const
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
+  const double Tperiod = cFish->Tperiod;
   std::vector<double> S(18,0);
   S[0 ] = ( position[0] - origC[0] )/ length;
   S[1 ] = ( position[1] - origC[1] )/ length;
