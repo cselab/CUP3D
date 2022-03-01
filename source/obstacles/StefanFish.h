@@ -10,35 +10,24 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-// #define STEFANS_SENSORS_STATE
-
 class StefanFish: public Fish
 {
 public:
   StefanFish(SimulationData&s, cubism::ArgumentParser&p);
 
-  double origC[3]; //initial location
-  Real origAng = 0; //initial planar angle (used for PID controller)
-
+  //Used for PID controller (which tries to maintain the initial fish position)
   bool bCorrectTrajectory, bCorrectPosition;
+  double origC[3];   //initial location
+  double origAng = 0;//initial planar angle (in xy plane)
+
+  void create() override;
   void save(std::string filename = std::string()) override;
   void restart(std::string filename) override;
-  void create() override;
 
-  // member function for action in RL
-  void act(const Real lTact, const std::vector<double>& a) const;
-  double getLearnTPeriod() const;
-  double getPhase(const double t) const;
-
-  // member functions for state in RL
-  std::vector<double> state() const;
-
-  std::array<double,3> getInitialLocation() const
-  {
-     return std::array<double,3> {{origC[0],origC[1],origC[2]}};
-  }
-
-  //#ifdef STEFANS_SENSORS_STATE
+  //Reinforcement Learning functions
+  void act(const Real lTact, const std::vector<double>& a) const; //get vector of actions that will be taken at time lTact
+  std::vector<double> state() const;                              //return vector of state
+  double getLearnTPeriod() const; //take actions once every 0.5*getLearnTPeriod() time
   //// Helpers for state function
   //ssize_t holdingBlockID(const std::array<Real,3> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
   //std::array<int, 3> safeIdInBlock(const std::array<Real,3> pos, const std::array<Real,3> org, const Real invh ) const;

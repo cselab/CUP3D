@@ -1,9 +1,7 @@
 //
 //  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2022 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
-//
-//  Created by Guido Novati (novatig@ethz.ch) and Wim van Rees.
 //
 
 #include "StefanFish.h"
@@ -65,21 +63,18 @@ class CurvatureDefinedFishData : public FishMidlineData
   Real * const vB_T; //control parameters of torsion (=drB_T/dt)
 
  public:
-
   CurvatureDefinedFishData(double L, double T, double phi, double _h, const double _ampFac)
   : FishMidlineData(L, T, phi, _h, _ampFac),
     rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm)),
     rT(_alloc(Nm)),vT(_alloc(Nm)), rC_T(_alloc(Nm)),vC_T(_alloc(Nm)), rB_T(_alloc(Nm)),vB_T(_alloc(Nm)) { }
 
-  void correctTrajectory(const Real dtheta, const Real vtheta,
-                         const Real t, const Real dt)
+  void correctTrajectory(const Real dtheta, const Real vtheta)
   {
     curv_PID_fac = dtheta;
     curv_PID_dif = vtheta;
   }
 
-  void correctTailPeriod(const Real periodFac,const Real periodVel,
-                         const Real t, const Real dt)
+  void correctTailPeriod(const Real periodFac, const Real periodVel, const Real t, const Real dt)
   {
     assert(periodFac>0 && periodFac<2); // would be crazy
 
@@ -247,39 +242,33 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
   const double Tperiod = p("-T").asDouble(1.0);
   const double phaseShift = p("-phi").asDouble(0.0);
   const double ampFac = p("-amplitudeFactor").asDouble(1.0);
-  myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift,
-    sim.hmin, ampFac);
-
-  //PID knobs
   bCorrectTrajectory = p("-Correct").asBool(false);
   bCorrectPosition = p("-bCorrectPosition").asBool(false);
 
+  myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift, sim.hmin, ampFac);
+
   std::string heightName = p("-heightProfile").asString("baseline");
   std::string  widthName = p( "-widthProfile").asString("baseline");
-  MidlineShapes::computeWidthsHeights(heightName, widthName, length,
-    myFish->rS, myFish->height, myFish->width, myFish->Nm, sim.rank);
-
+  MidlineShapes::computeWidthsHeights(heightName, widthName, length, 
+		                      myFish->rS, myFish->height, myFish->width, myFish->Nm, sim.rank);
   origC[0] = position[0];
   origC[1] = position[1];
+  origC[2] = position[2];
   origAng = 2 * std::atan2(quaternion[3], quaternion[0]);
-  //bool bKillAmplitude = parser("-zeroAmplitude").asInt(0);
-  //if(bKillAmplitude) myFish->killAmplitude();
 
-  if(!sim.rank) printf("nMidline=%d, length=%f, Tperiod=%f, phaseShift=%f\n",myFish->Nm, length, Tperiod, phaseShift);
+  if(sim.rank==0) printf("nMidline=%d, length=%f, Tperiod=%f, phaseShift=%f\n",myFish->Nm, length, Tperiod, phaseShift);
 }
 
-//static inline Real sgn(const Real val) { return (0 < val) - (val < 0); }
 void StefanFish::create()
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   const double Tperiod = cFish->Tperiod;
 
   const double DT = sim.dt/Tperiod;
-  //const double time = sim.time;
   // Control pos diffs
   const double   xDiff = (position[0] - origC[0])/length;
   const double   yDiff = (position[1] - origC[1])/length;
-  const double angDiff =  2 * std::atan2(quaternion[3], quaternion[0])    - origAng;
+  const double angDiff =  2 * std::atan2(quaternion[3], quaternion[0]) - origAng;
   const double relU = (transVel[0] + sim.uinf[0]) / length;
   const double relV = (transVel[1] + sim.uinf[1]) / length;
   const double aVelZ = angVel[2], lastAngVel = cFish->lastAvel;
@@ -337,8 +326,8 @@ void StefanFish::create()
 
     const double totalTerm = valIangPdy + valPangIdy + valIangIdy;
     const double totalDiff = difIangPdy + difPangIdy + difIangIdy;
-    cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
-    cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
+    cFish->correctTrajectory(totalTerm, totalDiff);
+    cFish->correctTailPeriod(periodFac, periodVel);
   }
   // if absIy<EPS then we have just one fish that the simulation box follows
   // therefore we control the average angle but not the Y disp (which is 0)
@@ -352,12 +341,8 @@ void StefanFish::create()
     const double totalTerm = coefInst*termInst + coefAvg*avgDangle;
     const double totalDiff = coefInst*diffInst + coefAvg*velDAavg;
 
-    cFish->correctTrajectory(totalTerm, totalDiff, sim.time, sim.dt);
+    cFish->correctTrajectory(totalTerm, totalDiff);
   }
-
-  // to debug and check state function, but requires an other obstacle
-  //const int indCurrAct = (time + sim.dt)/(Tperiod/2);
-  //if(time < indCurrAct*Tperiod/2) state(sim.shapes[0]);
 
   Fish::create();
 }
@@ -380,50 +365,36 @@ double StefanFish::getLearnTPeriod() const
   return cFish->periodPIDval;
 }
 
-double StefanFish::getPhase(const double t) const
-{
-  auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
-  if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
-  const double T0 = cFish->time0;
-  const double Ts = cFish->timeshift;
-  const double Tp = cFish->periodPIDval;
-  const double phaseShift = cFish->phaseShift;
-  const double arg  = 2*M_PI*((t-T0)/Tp +Ts) + M_PI*phaseShift;
-  const double phase = std::fmod(arg, 2*M_PI);
-  return (phase<0) ? 2*M_PI + phase : phase;
-}
-
 std::vector<double> StefanFish::state() const
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
   const double Tperiod = cFish->Tperiod;
-  std::vector<double> S(18,0);
+  std::vector<double> S(17,0);
   S[0 ] = ( position[0] - origC[0] )/ length;
   S[1 ] = ( position[1] - origC[1] )/ length;
-  S[3 ] = ( position[2] - origC[2] )/ length;
-
-  S[4 ] = quaternion[0];
-  S[5 ] = quaternion[1];
-  S[6 ] = quaternion[2];
-  S[7 ] = quaternion[3];
-
-  S[8 ] = getPhase( sim.time );
-  S[9 ] = transVel[0] * Tperiod / length;
-  S[10] = transVel[1] * Tperiod / length;
-  S[11] = transVel[2] * Tperiod / length;
-
-  S[12] = angVel[0] * Tperiod;
-  S[13] = angVel[1] * Tperiod;
-  S[14] = angVel[2] * Tperiod;
-
-  S[15] = cFish->lastTact;
-  S[16] = cFish->lastCurv;
-  S[17] = cFish->oldrCurv;
-
-  #ifndef STEFANS_SENSORS_STATE
-    return S;
-  #else
+  S[2 ] = ( position[2] - origC[2] )/ length;
+  S[3 ] = quaternion[0];
+  S[4 ] = quaternion[1];
+  S[5 ] = quaternion[2];
+  S[6 ] = quaternion[3];
+  const double T0 = cFish->time0;
+  const double Ts = cFish->timeshift;
+  const double Tp = cFish->periodPIDval;
+  const double phaseShift = cFish->phaseShift;
+  const double arg  = 2*M_PI*((sim.time-T0)/Tp +Ts) + M_PI*phaseShift;
+  const double phase = std::fmod(arg, 2*M_PI);
+  S[7 ] = (phase<0) ? 2*M_PI + phase : phase;
+  S[8 ] = transVel[0] * Tperiod / length;
+  S[9 ] = transVel[1] * Tperiod / length;
+  S[10] = transVel[2] * Tperiod / length;
+  S[11] = angVel[0] * Tperiod;
+  S[12] = angVel[1] * Tperiod;
+  S[13] = angVel[2] * Tperiod;
+  S[14] = cFish->lastTact;
+  S[15] = cFish->lastCurv;
+  S[16] = cFish->oldrCurv;
+  return S;
   #if 0
    S.resize(16); // ONLY 2D shear for consistency with 2D swimmers
 
@@ -492,12 +463,10 @@ std::vector<double> StefanFish::state() const
     // fflush(0);
     return S;
   #endif
-  #endif
 }
 
 #if 0
 /* helpers to compute sensor information */
-#ifdef STEFANS_SENSORS_STATE
 // function that finds block id of block containing pos (x,y)
 ssize_t StefanFish::holdingBlockID(const std::array<Real,3> pos, const std::vector<cubism::BlockInfo>& velInfo) const
 {
@@ -631,7 +600,6 @@ std::array<Real, 2> StefanFish::getShear(const std::array<Real,3> pSurf, const s
                               (vLifted - vSkin) * invh }};
 
 };
-#endif
 #endif
 
 CubismUP_3D_NAMESPACE_END
