@@ -35,9 +35,7 @@ class Fish: public Obstacle
   ~Fish() override;
   void save(std::string filename = std::string()) override;
   void restart(std::string filename = std::string()) override;
-  virtual void update() override;
   virtual void create() override;
-  virtual void finalize() override;
 
   struct BlockID
   {

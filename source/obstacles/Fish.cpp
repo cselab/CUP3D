@@ -461,13 +461,6 @@ void Fish::create()
   writeSDFOnBlocks(vSegments);
 }
 
-void Fish::finalize() {}
-
-void Fish::update()
-{
-  Obstacle::update();
-}
-
 void Fish::save(std::string filename)
 {
     std::ofstream savestream;
