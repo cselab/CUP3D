@@ -56,7 +56,7 @@ for i in np.arange(numFish):
 f.write('\nOPTIONS=\n\
 OPTIONS+=" -extentx 8.0"\n\
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"\n\
-OPTIONS+=" -dump3D 1 -tdump 0.025 -tend 100.0 "\n\
+OPTIONS+=" -tdump 0.025 -tend 100.0 "\n\
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"\n\
 OPTIONS+=" -CFL 0.6 -nu ${NU}"\n\
 OPTIONS+=" -poissonTol 5e-7 -poissonTolRel 1e-4"\n\

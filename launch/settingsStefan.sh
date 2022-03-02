@@ -7,7 +7,6 @@ LEVELS=${LEVELS:-5}
 CFL=${CFL:-0.2} # if 0, DT is used
 PT=${PT:-1e-8}
 PTR=${PTR:-1e-4}
-BC=${BC:-dirichlet}
 
 # L=0.2 stefanfish Re=1'000 <-> NU=0.00004
 NU=${NU:-0.00004}
@@ -15,11 +14,8 @@ NU=${NU:-0.00004}
 FACTORY='StefanFish L=0.2 T=1 xpos=0.3 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1 heightProfile=danio widthProfile=stefan'
 
 OPTIONS=
-OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 5"
-OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
+OPTIONS+=" -tdump 0.1 -tend 5"
 OPTIONS+=" -CFL ${CFL} -nu ${NU}"
-OPTIONS+=" -ImplicitPenalization 1"
 OPTIONS+=" -levelMax ${LEVELS} -levelStart 1 -Rtol 4.00 -Ctol 1.00"
 OPTIONS+=" -extentx 2.0 "
 OPTIONS+=" -poissonTol ${PT} -poissonTolRel ${PTR} "

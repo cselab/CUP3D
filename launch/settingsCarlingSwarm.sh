@@ -741,9 +741,7 @@ FACTORY+="CarlingFish L=0.1 T=1.0 xpos=3.0 ypos=3.0 zpos=3.0 bFixToPlanar=1 heig
 OPTIONS=
 OPTIONS+=" -extentx 4.0"
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 50.0 "
-OPTIONS+=" -nslices 2 -slice1_direction 1 -slice2_direction 2 "
+OPTIONS+=" -tdump 0.1 -tend 50.0 "
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
-OPTIONS+=" -CFL 0.3 -use-dlm 10 -nu ${NU}"
+OPTIONS+=" -CFL 0.3 -nu ${NU}"
 OPTIONS+=" -levelMax 7 -levelStart 4 -Rtol 1.0 -Ctol 0.1"
-OPTIONS+=" -Advection3rdOrder=true"

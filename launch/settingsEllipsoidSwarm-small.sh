@@ -37,10 +37,9 @@ FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.49370783500755977 ypos=0.491504278692439
 OPTIONS=
 OPTIONS+=" -extentx 2.0"
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 30.0 "
+OPTIONS+=" -tdump 0.1 -tend 30.0 "
 OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
-OPTIONS+=" -CFL 0.3 -use-dlm -10 -nu ${NU}"
+OPTIONS+=" -CFL 0.3 -nu ${NU}"
 OPTIONS+=" -levelMax 7 -levelStart 3 -Rtol 1.0 -Ctol 0.05"
-OPTIONS+=" -TimeOrder 2"
 OPTIONS+=" -poissonTol 1e-7 -poissonTolRel 0"
 OPTIONS+=" -verbose 0"
