@@ -1,13 +1,10 @@
 //
 //  CubismUP_3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2022 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
-//
 
-#ifndef CubismUP_3D_SimulationData_h
-#define CubismUP_3D_SimulationData_h
+#pragma once
 
 #include "Definitions.h"
 #include <array>
@@ -24,7 +21,6 @@ CubismUP_3D_NAMESPACE_BEGIN
 class Operator;
 class ObstacleVector;
 class PoissonSolverAMR;
-class SpectralManip;
 
 struct SimulationData
 {
@@ -58,48 +54,46 @@ struct SimulationData
   // Pressure solver to be shared between PressureRHS and PressureProjection
   PoissonSolverAMR * pressureSolver = nullptr;
 
-  // Step Counter, Time, and stopping criteria (0 means inactive)
-  int step=0, nsteps=0;
-  double time=0, endTime=0;
-
-  // Current and Old Timestep
-  double dt = 0;
-  double dt_old = 0;
-
-  // CFL number
-  double CFL=0;
-
+  // Timestepping
+  double dt      = 0;//current timestep
+  double dt_old  = 0;//previous timestep
+  double CFL     = 0;//Courant number
+  double time    = 0;//current time
+  int step       = 0;//currect step number
+  double endTime = 0;//stop simulation at t=endTime (=0 means inactive)
+  int nsteps     = 0;//stop simulation after nsteps (=0 means inactive)
+  int rampup;        //exponential CFL rampup for the first 'rampup' steps
+  int step_2nd_start;//explicit Euler for the first 'step_2nd_start' steps 
+                     //(to initialize u_{n-1} for n=1)
+  double coefU[3] = {1.5,-2.0,0.5};//used for 2nd order time integration 
+                                   //of obstacle positions
   // MPI
   MPI_Comm app_comm;
   int rank, nprocs;
 
-  // Blocks Per Dimension XYZ
-  int bpdx, bpdy, bpdz;
+  //AMR & simulation domain
+  int bpdx, bpdy, bpdz;                //blocks per dimension at refinement level 0
+  int levelStart;                      //initial refinement level
+  int levelMax;                        //max refinement level
+  double Rtol;                         //mesh refinement tolerance
+  double Ctol;                         //mesh compression tolerance
+  std::array<double, 3> extent;        //simulation cubic domain extents
+  double maxextent ;                   //max(extent[0],extent[1],extent[2])
+  double hmin, hmax;                   //max and min grid spacing
+  std::array<double, 3> uinf = {0,0,0};//velocity of Frame of Reference
 
-  // Start and Maximal Level of Refinement
-  int levelStart, levelMax;
-
-  // Refinement and Compression Tolerances
-  double Rtol, Ctol;
-
-  // Simulation Domain
-  std::array<Real, 3> extent;  // Uniform grid by default.
-  Real maxextent;
-
-  // Resulting Maximal and Minimal Gridspacing
-  Real hmin, hmax;
-
-  // Velocity of Frame of Reference
-  std::array<Real, 3> uinf = {{0, 0, 0}};
-
-  // Flow Parameters
-  double nu;
-
-  // Penalisation Parameters
-  double lambda, DLM=1;
-
-  // Switch for Explicit/Implicit Penalisation
-  bool bImplicitPenalization = true;
+  //Other stuff
+  double uMax_measured = 0;         //max velocity at current timestep
+  double nu;                        //fluid kinematic viscosity
+  double lambda;                    //penalisation coefficient
+  bool bImplicitPenalization = true;//explicit/implicit Penalisation
+  double DLM=0;                     // if DLM>0 then lambda=DLM/dt
+  double PoissonErrorTol;           //Poisson solver absolute error tolerance
+  double PoissonErrorTolRel;        //Poisson solver relative error tolerance
+  bool bCollision = false;          //indicator for collision between obstacles
+  BCflag BCx_flag = freespace;      //boundary conditions in X
+  BCflag BCy_flag = freespace;      //boundary conditions in Y
+  BCflag BCz_flag = freespace;      //boundary conditions in Z
 
   // Initial conditions
   std::string initCond = "zero";
@@ -108,47 +102,19 @@ struct SimulationData
   // uMax Channel flow
   Real uMax_forced = 0;
 
-  // Measured Umax
-  Real uMax_measured = 0;
-
-  // Time stepping
-  // if step < step_2nd_start, explicit Euler steps are performed
-  //(used to initialize u_{n-1} and u_n that are needed for 2nd order timestep)
-  int step_2nd_start;
-  double coefU[3] = {1.5,-2.0,0.5};
-  int rampup;
-
-  // Poisson solver
-  double PoissonErrorTol;
-  double PoissonErrorTolRel;
-
-  // SGS
-  std::string sgs = "";
-  double cs = 0.0;
-  double cs2mean = 0, cs2stdev = 0, nuSgsMean = 0, nuSgsStdev = 0;
-  bool bComputeCs2Spectrum = false;
-  double timeAnalysis = 0;
-
-  // Indicator for collision
-  bool bCollision = false;
-
   // Dump Settingas
   int freqDiagnostics = 0;
-  bool bDump=false;
-  bool verbose;
-  bool muteAll;
-
-  // output
-  int statsFreq=1;
-  int saveFreq=0;
-  double saveTime=0, nextSaveTime=0;
+  int saveFreq = 0;
+  bool bDump = false;
+  bool verbose = false;
+  bool muteAll = false;
+  double saveTime=0;
+  double nextSaveTime=0;
   std::string path4serialization = "./";
   bool dumpP;
   bool dumpChi;
   bool dumpOmega,dumpOmegaX,dumpOmegaY,dumpOmegaZ;
   bool dumpVelocity,dumpVelocityX,dumpVelocityY,dumpVelocityZ;
-  // flags assume value 0 for dirichlet/unbounded, 1 for periodic, 2 for wall
-  BCflag BCx_flag = dirichlet, BCy_flag = dirichlet, BCz_flag = dirichlet;
 
   void startProfiler(std::string name) const;
   void stopProfiler() const;
@@ -164,4 +130,3 @@ struct SimulationData
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_SimulationData_h

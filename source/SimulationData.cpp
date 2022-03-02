@@ -67,36 +67,29 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
 
   // PENALIZATION
-  bImplicitPenalization = parser("-implicitPenalization").asBool(false);
+  bImplicitPenalization = parser("-implicitPenalization").asBool(true);
   lambda = parser("-lambda").asDouble(1e6);
   DLM = parser("-use-dlm").asDouble(0);
 
   // DISSIPATION DIAGNOSTIC
   freqDiagnostics = parser("-freqDiagnostics").asInt(100);
 
-  // SGS
-  sgs = parser("-sgs").asString("");
-  cs = parser("-cs").asDouble(0.2);
-  bComputeCs2Spectrum = parser("-cs2spectrum").asBool(false);
-
   // POISSON SOLVER
   PoissonErrorTol = parser("-poissonTol").asDouble(1e-6); // absolute error
   PoissonErrorTolRel = parser("-poissonTolRel").asDouble(1e-4); // relative error
 
   // BOUNDARY CONDITIONS
-  // accepted dirichlet, periodic, freespace/unbounded, fakeOpen
-  std::string BC_x = parser("-BC_x").asString("dirichlet");
-  std::string BC_y = parser("-BC_y").asString("dirichlet");
-  std::string BC_z = parser("-BC_z").asString("dirichlet");
+  // accepted periodic, freespace or wall
+  std::string BC_x = parser("-BC_x").asString("freespace");
+  std::string BC_y = parser("-BC_y").asString("freespace");
+  std::string BC_z = parser("-BC_z").asString("freespace");
   BCx_flag = string2BCflag(BC_x);
   BCy_flag = string2BCflag(BC_y);
   BCz_flag = string2BCflag(BC_z);
 
   // OUTPUT
-
   muteAll = parser("-muteAll").asInt(0);
   verbose = muteAll ? false : parser("-verbose").asInt(1) && rank == 0;
-  statsFreq = parser("-stats-freq").asInt(1);
   int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
   double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
   saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
@@ -108,13 +101,13 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   path4serialization = parser("-serialization").asString("./");
 
   // Dumping
-  dumpChi = parser("-dumpChi").asBool(true);
-  dumpOmega = parser("-dumpOmega").asBool(true);
-  dumpP = parser("-dumpP").asBool(false);
-  dumpOmegaX = parser("-dumpOmegaX").asBool(false);
-  dumpOmegaY = parser("-dumpOmegaY").asBool(false);
-  dumpOmegaZ = parser("-dumpOmegaZ").asBool(false);
-  dumpVelocity = parser("-dumpVelocity").asBool(false);
+  dumpChi       = parser("-dumpChi"      ).asBool(true);
+  dumpOmega     = parser("-dumpOmega"    ).asBool(true);
+  dumpP         = parser("-dumpP"        ).asBool(false);
+  dumpOmegaX    = parser("-dumpOmegaX"   ).asBool(false);
+  dumpOmegaY    = parser("-dumpOmegaY"   ).asBool(false);
+  dumpOmegaZ    = parser("-dumpOmegaZ"   ).asBool(false);
+  dumpVelocity  = parser("-dumpVelocity" ).asBool(false);
   dumpVelocityX = parser("-dumpVelocityX").asBool(false);
   dumpVelocityY = parser("-dumpVelocityY").asBool(false);
   dumpVelocityZ = parser("-dumpVelocityZ").asBool(false);

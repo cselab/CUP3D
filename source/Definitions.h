@@ -1,13 +1,10 @@
 //
 //  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2022 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
-//
 
-#ifndef CubismUP_3D_DataStructures_h
-#define CubismUP_3D_DataStructures_h
+#pragma once
 
 #include "Base.h"
 
@@ -17,14 +14,10 @@
 #include <Cubism/Grid.h>
 #include <Cubism/GridMPI.h>
 #include <Cubism/BlockInfo.h>
-#ifdef _VTK_
-#include <Cubism/SerializerIO_ImageVTK.h>
-#endif
 #include <Cubism/BlockLab.h>
 #include <Cubism/BlockLabMPI.h>
 
 #ifndef CUP_BLOCK_SIZEX
-//#define CUP_BLOCK_SIZE 16
 #define CUP_BLOCK_SIZEX 8
 #define CUP_BLOCK_SIZEY 8
 #define CUP_BLOCK_SIZEZ 8
@@ -32,15 +25,12 @@
 
 #include <array>
 #include <cassert>
-#include <cstddef>   // For `offsetof()`.
 #include <iosfwd>
 #include <string>
 
 #include "MeshAdaptation_CUP.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
-
-//#define ENERGY_FLUX_SPECTRUM 1
 
 struct PoissonElement
 {
@@ -206,48 +196,27 @@ struct FluidElement
   }
 };
 
-struct DumpElement {
-    DumpReal u, v, w, chi, p;
-    DumpElement() : u(0), v(0), w(0), chi(0), p(0) {}
-    void clear() { u = v = w = chi = p = 0; }
-};
-
-enum BCflag {dirichlet, periodic, wall, freespace};
+enum BCflag {freespace, periodic, wall};
 inline BCflag string2BCflag(const std::string &strFlag)
 {
-  if (strFlag == "periodic") return periodic;
+  if      (strFlag == "periodic" ) return periodic;
+  else if (strFlag == "wall"     ) return wall;
+  else if (strFlag == "freespace") return freespace;
   else
-  if (strFlag == "dirichlet") return dirichlet;
-  else
-  if (strFlag == "wall") return wall;
-  else
-  if (strFlag == "freespace") return freespace;
-  else {
-    fprintf(stderr,"BC not recognized %s\n",strFlag.c_str()); fflush(0);abort();
+  {
+    fprintf(stderr,"BC not recognized %s\n",strFlag.c_str());
+    fflush(0);abort();
     return periodic; // dummy
   }
 }
-
-struct StreamerDiv
-{
-  static const int channels = 1;
-  template <typename T>
-  static void operate(FluidElement& input, T output[1])
-  { output[0] = input.p; }
-
-  template <typename T>
-  static void operate(T input[1], FluidElement& output)
-  { output.p = input[0]; }
-};
 
 template <typename TElement>
 struct BaseBlock
 {
   //these identifiers are required by cubism!
-  //static constexpr int BS = CUP_BLOCK_SIZE;
-  static constexpr int sizeX = CUP_BLOCK_SIZEX;// BS;
-  static constexpr int sizeY = CUP_BLOCK_SIZEY;// BS;
-  static constexpr int sizeZ = CUP_BLOCK_SIZEZ;// BS;
+  static constexpr int sizeX = CUP_BLOCK_SIZEX;
+  static constexpr int sizeY = CUP_BLOCK_SIZEY;
+  static constexpr int sizeZ = CUP_BLOCK_SIZEZ;
   typedef TElement ElementType;
   typedef TElement element_type;
   typedef Real   RealType;
@@ -824,29 +793,35 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   // Called by Cubism:
   void _apply_bc(const cubism::BlockInfo& info, const Real t=0, const bool coarse = false)
   {
-    if(BCX == periodic) {   /* PERIODIC */ }
-    else if (BCX == wall) { /* WALL */
+    if (BCX == wall)
+    {
       if(info.index[0]==0 )          this->template applyBCfaceWall<0,0>(coarse);
       if(info.index[0]==this->NX-1 ) this->template applyBCfaceWall<0,1>(coarse);
-    } else { /* dirichlet==absorbing==freespace */
+    }
+    else if (BCX == freespace)
+    {
       if(info.index[0]==0 )          this->template applyBCfaceOpen<0,0>(coarse);
       if(info.index[0]==this->NX-1 ) this->template applyBCfaceOpen<0,1>(coarse);
     }
 
-    if(BCY == periodic) {   /* PERIODIC */ }
-    else if (BCY == wall) { /* WALL */
+    if (BCY == wall)
+    {
       if(info.index[1]==0 )          this->template applyBCfaceWall<1,0>(coarse);
       if(info.index[1]==this->NY-1 ) this->template applyBCfaceWall<1,1>(coarse);
-    } else { /* dirichlet==absorbing==freespace */
+    }
+    else if (BCY == freespace)
+    {
       if(info.index[1]==0 )          this->template applyBCfaceOpen<1,0>(coarse);
       if(info.index[1]==this->NY-1 ) this->template applyBCfaceOpen<1,1>(coarse);
     }
 
-    if(BCZ == periodic) {   /* PERIODIC */ }
-    else if (BCZ == wall) { /* WALL */
+    if (BCZ == wall)
+    {
       if(info.index[2]==0 )          this->template applyBCfaceWall<2,0>(coarse);
       if(info.index[2]==this->NZ-1 ) this->template applyBCfaceWall<2,1>(coarse);
-    } else { /* dirichlet==absorbing==freespace */
+    }
+    else if (BCZ == freespace)
+    {
       if(info.index[2]==0 )          this->template applyBCfaceOpen<2,0>(coarse);
       if(info.index[2]==this->NZ-1 ) this->template applyBCfaceOpen<2,1>(coarse);
     }
@@ -869,4 +844,3 @@ using LabMPIPoisson       = cubism::BlockLabMPI<LabPoisson,FluidGridMPIPoisson>;
 using AMR2 = MeshAdaptationMPI<FluidGridMPIPoisson,LabMPIPoisson,FluidGridMPI>;
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_DataStructures_h

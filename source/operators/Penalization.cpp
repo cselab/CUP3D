@@ -757,7 +757,7 @@ void Penalization::preventCollidingObstacles() const
         shapes[j]->angVel[1] = ho2[1];
         shapes[j]->angVel[2] = ho2[2];
 
-        if ( not sim.muteAll )
+        if ( sim.verbose )
         {
             #pragma omp critical
             {
