@@ -217,7 +217,6 @@ struct BaseBlock
   static constexpr int sizeY = CUP_BLOCK_SIZEY;
   static constexpr int sizeZ = CUP_BLOCK_SIZEZ;
   typedef TElement ElementType;
-  typedef TElement element_type;
   typedef Real   RealType;
   //__attribute__((aligned(32)))
   TElement data[sizeZ][sizeY][sizeX];
@@ -275,8 +274,7 @@ struct BaseBlockPoisson
   static constexpr int sizeY = CUP_BLOCK_SIZEY;
   static constexpr int sizeZ = CUP_BLOCK_SIZEZ;
   typedef TElement ElementType;
-  typedef TElement element_type;
-  typedef Real   RealType;
+  typedef Real RealType;
   TElement data[sizeZ][sizeY][sizeX];
 
   void clear()
@@ -306,204 +304,120 @@ struct BaseBlockPoisson
 struct StreamerChi
 {
     static const int NCHANNELS = 1;
-    static const int CLASS = 0;
-
     template <typename TBlock, typename T>
     static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).chi;
     }
-    static std::string prefix()
-    {
-      return std::string("chi_");
-    }
-
+    static std::string prefix() {return std::string("chi_");}
     static const char * getAttributeName() { return "Scalar"; }
 };
 
 struct StreamerVelocityVector
 {
     static const int NCHANNELS = 3;
-    static const int CLASS = 0;
-
-    // Write
     template <typename TBlock, typename T>
     static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
-        output[0] = b(ix,iy,iz).u;
-        output[1] = b(ix,iy,iz).v;
-        output[2] = b(ix,iy,iz).w;
+        output[0] = b(ix,iy,iz).u; output[1] = b(ix,iy,iz).v; output[2] = b(ix,iy,iz).w;
     }
-
-    // Read
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const T input[NCHANNELS], const int ix, const int iy, const int iz)
-    {
-        b(ix,iy,iz).u = input[0];
-        b(ix,iy,iz).v = input[1];
-        b(ix,iy,iz).w = input[2];
-    }
-
-    static std::string prefix()
-    {
-      return std::string("vel_");
-    }
-
+    static std::string prefix(){return std::string("vel_");}
     static const char * getAttributeName() { return "Vector"; }
 };
 
 struct StreamerTmpVector
 {
     static const int NCHANNELS = 3;
-    static const int CLASS = 0;
-
-    // Write
     template <typename TBlock, typename T>
     static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
-        output[0] = b(ix,iy,iz).tmpU;
-        output[1] = b(ix,iy,iz).tmpV;
-        output[2] = b(ix,iy,iz).tmpW;
+        output[0] = b(ix,iy,iz).tmpU; output[1] = b(ix,iy,iz).tmpV; output[2] = b(ix,iy,iz).tmpW;
     }
-
-    static std::string prefix()
-    {
-      return std::string("tmp_");
-    }
-
+    static std::string prefix(){return std::string("tmp_");}
     static const char * getAttributeName() { return "Vector"; }
 };
 
 struct StreamerPressure
 {
     static const int NCHANNELS = 1;
-    static const int CLASS = 0;
-
     template <typename TBlock, typename T>
     static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).p;
     }
-
-    static std::string prefix()
-    {
-      return std::string("pres_");
-    }
-
+    static std::string prefix(){return std::string("pres_");}
     static const char * getAttributeName() { return "Scalar"; }
 };
 
 struct StreamerTmpVectorX
 {
     static const int NCHANNELS = 1;
-    static const int CLASS = 0;
-
     template <typename TBlock, typename T>
     static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).tmpU;
     }
-
-    static std::string prefix()
-    {
-      return std::string("tmpU_");
-    }
-
+    static std::string prefix(){return std::string("tmpU_");}
     static const char * getAttributeName() { return "Scalar"; }
 };
 
 struct StreamerTmpVectorY
 {
     static const int NCHANNELS = 1;
-    static const int CLASS = 0;
-
     template <typename TBlock, typename T>
     static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).tmpV;
     }
-
-    static std::string prefix()
-    {
-      return std::string("tmpV_");
-    }
-
+    static std::string prefix(){return std::string("tmpV_");}
     static const char * getAttributeName() { return "Scalar"; }
 };
 
 struct StreamerTmpVectorZ
 {
     static const int NCHANNELS = 1;
-    static const int CLASS = 0;
-
     template <typename TBlock, typename T>
     static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).tmpW;
     }
-
-    static std::string prefix()
-    {
-      return std::string("tmpW_");
-    }
-
+    static std::string prefix(){return std::string("tmpW_");}
     static const char * getAttributeName() { return "Scalar"; }
 };
 
 struct StreamerVelVectorX
 {
     static const int NCHANNELS = 1;
-    static const int CLASS = 0;
-
     template <typename TBlock, typename T>
     static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).u;
     }
-
-    static std::string prefix()
-    {
-      return std::string("u_");
-    }
-
+    static std::string prefix(){return std::string("u_");}
     static const char * getAttributeName() { return "Scalar"; }
 };
 
 struct StreamerVelVectorY
 {
     static const int NCHANNELS = 1;
-    static const int CLASS = 0;
-
     template <typename TBlock, typename T>
     static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).v;
     }
-
-    static std::string prefix()
-    {
-      return std::string("v_");
-    }
-
+    static std::string prefix(){return std::string("v_");}
     static const char * getAttributeName() { return "Scalar"; }
 };
 
 struct StreamerVelVectorZ
 {
     static const int NCHANNELS = 1;
-    static const int CLASS = 0;
-
     template <typename TBlock, typename T>
     static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
     {
       output[0] = b(ix,iy,iz).w;
     }
-
-    static std::string prefix()
-    {
-      return std::string("w_");
-    }
-
+    static std::string prefix(){return std::string("w_");}
     static const char * getAttributeName() { return "Scalar"; }
 };
 
@@ -523,6 +437,10 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   // Apply bc on face of direction dir and side side (0 or 1):
   template<int dir, int side> void applyBCfaceOpen(const bool coarse = false)
   {
+    //First we apply zero Neumann BCs to all variables. Then, if we are dealing with a 
+    //FluidElement (which has DIM=8), we set the normal velocity to zero.
+    //Second order Neumann   BCs mean than u_{i} = u_{i+1}
+    //Second order Dirichlet BCs mean than u_{i} = -u_{i+1}
     if (!coarse)
     {
       auto * const cb = this->m_cacheBlock;
@@ -557,7 +475,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
           ).member(1+dir);      
 
       //tensorial edges and corners also filled
-      int aux = coarse ? 2:1;
+      const int aux = coarse ? 2:1;
       const int bsize[3] = {sizeX/aux, sizeY/aux, sizeZ/aux};
       int s_[3], e_[3];
       s_[dir] = stenBeg[dir]*(1-side) + bsize[dir]*side;
@@ -643,7 +561,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
       }
 
       //tensorial edges and corners also filled (this is necessary for the coarse block!)
-      int aux = coarse ? 2:1;
+      const int aux = coarse ? 2:1;
       const int bsize[3] = {sizeX/aux, sizeY/aux, sizeZ/aux};
       int s_[3], e_[3];
       s_[dir] = stenBeg[dir]*(1-side) + bsize[dir]*side;
@@ -691,80 +609,116 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   }
   template<int dir, int side> void applyBCfaceWall(const bool coarse=false)
   {
-    std::cout << "applyBCfaceWall not ready for coarse block" << std::endl; abort();
-    //if (!coarse)
-    //{
-    //  auto * const cb = this->m_cacheBlock;
-    //  int s[3] = {0,0,0}, e[3] = {0,0,0};
-    //  const int* const stenBeg = this->m_stencilStart;
-    //  const int* const stenEnd = this->m_stencilEnd;
-    //  s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : 0;
-    //  s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : 0;
-    //  s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : 0;
-    //  e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX;
-    //  e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY;
-    //  e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 ) : sizeZ;
-    //  for(int iz=s[2]; iz<e[2]; iz++)
-    //  for(int iy=s[1]; iy<e[1]; iy++)
-    //  for(int ix=s[0]; ix<e[0]; ix++)
-    //  {
-    //    auto& DST = cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]);
-    //    const auto& SRCV = cb->Access (
-    //        ( dir==0 ? (side==0 ? -1 -ix : 2*sizeX -1 -ix ) : ix ) - stenBeg[0],
-    //        ( dir==1 ? (side==0 ? -1 -iy : 2*sizeY -1 -iy ) : iy ) - stenBeg[1],
-    //        ( dir==2 ? (side==0 ? -1 -iz : 2*sizeZ -1 -iz ) : iz ) - stenBeg[2]
-    //      );
-    //    const auto& SRCP = cb->Access (
-    //        ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
-    //        ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
-    //        ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
-    //      );
-    //    DST.p =    SRCP.p; DST.chi  =  0;
-    //    DST.u =  - SRCV.u; DST.tmpU =  - SRCV.tmpU;
-    //    DST.v =  - SRCV.v; DST.tmpV =  - SRCV.tmpV;
-    //    DST.w =  - SRCV.w; DST.tmpW =  - SRCV.tmpW;
-    //  }
-    //}
-    //else
-    //{
-    //  auto * const cb = this->m_CoarsenedBlock;
-    //  int s[3] = {0,0,0}, e[3] = {0,0,0};
-    //  const int eI[3] = {(this->m_stencilEnd[0])/2 + 1 + this->m_InterpStencilEnd[0] -1,
-    //                     (this->m_stencilEnd[1])/2 + 1 + this->m_InterpStencilEnd[1] -1,
-    //                     (this->m_stencilEnd[2])/2 + 1 + this->m_InterpStencilEnd[2] -1};
-    //  const int sI[3] = {(this->m_stencilStart[0]-1)/2+  this->m_InterpStencilStart[0],
-    //                     (this->m_stencilStart[1]-1)/2+  this->m_InterpStencilStart[1],
-    //                     (this->m_stencilStart[2]-1)/2+  this->m_InterpStencilStart[2]};
-    //  const int* const stenBeg = sI;
-    //  const int* const stenEnd = eI;
-    //  s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX/2 ) : 0;
-    //  s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY/2 ) : 0;
-    //  s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ/2 ) : 0;
-    //  e[0] =  dir==0 ? (side==0 ? 0 : sizeX/2 + stenEnd[0]-1 ) : sizeX/2;
-    //  e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 ) : sizeY/2;
-    //  e[2] =  dir==2 ? (side==0 ? 0 : sizeZ/2 + stenEnd[2]-1 ) : sizeZ/2;
-    //  for(int iz=s[2]; iz<e[2]; iz++)
-    //  for(int iy=s[1]; iy<e[1]; iy++)
-    //  for(int ix=s[0]; ix<e[0]; ix++)
-    //  {
-    //    auto& DST = cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]);
-    //    const auto& SRCV = cb->Access (
-    //        ( dir==0 ? (side==0 ? -1 -ix : 2*sizeX/2 -1 -ix ) : ix ) - stenBeg[0],
-    //        ( dir==1 ? (side==0 ? -1 -iy : 2*sizeY/2 -1 -iy ) : iy ) - stenBeg[1],
-    //        ( dir==2 ? (side==0 ? -1 -iz : 2*sizeZ/2 -1 -iz ) : iz ) - stenBeg[2]
-    //      );
-    //    const auto& SRCP = cb->Access (
-    //        ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
-    //        ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
-    //        ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]
-    //      );
-    //    DST.p =    SRCP.p; DST.chi  =  0;
-    //    DST.u =  - SRCV.u; DST.tmpU =  - SRCV.tmpU;
-    //    DST.v =  - SRCV.v; DST.tmpV =  - SRCV.tmpV;
-    //    DST.w =  - SRCV.w; DST.tmpW =  - SRCV.tmpW;
-    //  }
-    //}
+    assert (ElementTypeBlock::DIM==FluidElement::DIM);
+    const int mask [8] = {-1,-1,-1,-1,+1,-1,-1,-1};//apply zero Dirichlet to all variables except pressure
+    if (!coarse)
+    {
+      auto * const cb = this->m_cacheBlock;
+      int s[3] = {0,0,0}, e[3] = {0,0,0};
+      const int* const stenBeg = this->m_stencilStart;
+      const int* const stenEnd = this->m_stencilEnd;
+      s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX ) : 0;
+      s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY ) : 0;
+      s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ ) : 0;
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY;
+      e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 ) : sizeZ;
+      for(int iz=s[2]; iz<e[2]; iz++)
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+      for(int k=0; k<ElementTypeBlock::DIM; k++)
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = mask[k]*cb->Access
+          (
+            ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
+            ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
+            ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
+          ).member(k);
 
+      //tensorial edges and corners also filled
+      const int aux = coarse ? 2:1;
+      const int bsize[3] = {sizeX/aux, sizeY/aux, sizeZ/aux};
+      int s_[3], e_[3];
+      s_[dir] = stenBeg[dir]*(1-side) + bsize[dir]*side;
+      e_[dir] = (bsize[dir]-1+stenEnd[dir])*side;
+      const int d1 = (dir + 1) % 3;
+      const int d2 = (dir + 2) % 3;
+      for(int b=0; b<2; ++b)
+      for(int a=0; a<2; ++a)
+      {
+        s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
+        s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
+        e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
+        e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
+        for(int iz=s_[2]; iz<e_[2]; iz++)
+        for(int iy=s_[1]; iy<e_[1]; iy++)
+        for(int ix=s_[0]; ix<e_[0]; ix++)
+        for(int k=0; k<ElementTypeBlock::DIM; k++)
+        {
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = mask[k] * dir==0?
+          cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) : (dir==1?
+          cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(k):
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(k));
+        }
+      }
+    }
+    else
+    {
+      auto * const cb = this->m_CoarsenedBlock;
+  
+      int s[3] = {0,0,0}, e[3] = {0,0,0};
+      const int eI[3] = {(this->m_stencilEnd[0])/2 + 1 + this->m_InterpStencilEnd[0] -1,
+                         (this->m_stencilEnd[1])/2 + 1 + this->m_InterpStencilEnd[1] -1,
+                         (this->m_stencilEnd[2])/2 + 1 + this->m_InterpStencilEnd[2] -1};
+      const int sI[3] = {(this->m_stencilStart[0]-1)/2+  this->m_InterpStencilStart[0],
+                         (this->m_stencilStart[1]-1)/2+  this->m_InterpStencilStart[1],
+                         (this->m_stencilStart[2]-1)/2+  this->m_InterpStencilStart[2]};
+
+      const int* const stenBeg = sI;
+      const int* const stenEnd = eI;
+      s[0] =  dir==0 ? (side==0 ? stenBeg[0] : sizeX/2 ) : 0;
+      s[1] =  dir==1 ? (side==0 ? stenBeg[1] : sizeY/2 ) : 0;
+      s[2] =  dir==2 ? (side==0 ? stenBeg[2] : sizeZ/2 ) : 0;
+      e[0] =  dir==0 ? (side==0 ? 0 : sizeX/2 + stenEnd[0]-1 ) : sizeX/2;
+      e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 ) : sizeY/2;
+      e[2] =  dir==2 ? (side==0 ? 0 : sizeZ/2 + stenEnd[2]-1 ) : sizeZ/2;
+      for(int iz=s[2]; iz<e[2]; iz++)
+      for(int iy=s[1]; iy<e[1]; iy++)
+      for(int ix=s[0]; ix<e[0]; ix++)
+      for(int k=0; k<ElementTypeBlock::DIM; k++)
+      {
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = mask[k]*cb->Access
+          ( ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
+            ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
+            ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]).member(k);
+      }
+
+      //tensorial edges and corners also filled (this is necessary for the coarse block!)
+      const int aux = coarse ? 2:1;
+      const int bsize[3] = {sizeX/aux, sizeY/aux, sizeZ/aux};
+      int s_[3], e_[3];
+      s_[dir] = stenBeg[dir]*(1-side) + bsize[dir]*side;
+      e_[dir] = (bsize[dir]-1+stenEnd[dir])*side;
+      const int d1 = (dir + 1) % 3;
+      const int d2 = (dir + 2) % 3;
+      for(int b=0; b<2; ++b)
+      for(int a=0; a<2; ++a)
+      {
+        s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
+        s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
+        e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
+        e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
+        for(int iz=s_[2]; iz<e_[2]; iz++)
+        for(int iy=s_[1]; iy<e_[1]; iy++)
+        for(int ix=s_[0]; ix<e_[0]; ix++)
+        for(int k=0; k<ElementTypeBlock::DIM; k++)
+        {
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = mask[k] * dir==0?
+          cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) : (dir==1?
+          cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(k) :
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(k));
+        }
+      }
+    }
   }
 
  public:
@@ -782,37 +736,43 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   BlockLabBC& operator=(const BlockLabBC&) = delete;
 
   // Called by Cubism:
+  // wall means u=v=w=0 and dp/dn=0
+  // freespace means normal velocity=0, dp/dn=0 and d(tangential velocities)/dn=0
   void _apply_bc(const cubism::BlockInfo& info, const Real t=0, const bool coarse = false)
   {
-    if (BCX == wall)
+    if (BCX == wall && ElementTypeBlock::DIM==FluidElement::DIM)//wall only makes sense for FluidElement
     {
       if(info.index[0]==0 )          this->template applyBCfaceWall<0,0>(coarse);
       if(info.index[0]==this->NX-1 ) this->template applyBCfaceWall<0,1>(coarse);
     }
-    else if (BCX == freespace)
+    else if (BCX != periodic)
     {
+      //then either we have freespace or wall. If we have wall, we still apply 
+      //freespace to the PoissonElement, as pressure has zero Neumann BCS
       if(info.index[0]==0 )          this->template applyBCfaceOpen<0,0>(coarse);
       if(info.index[0]==this->NX-1 ) this->template applyBCfaceOpen<0,1>(coarse);
     }
-
-    if (BCY == wall)
+    if (BCY == wall && ElementTypeBlock::DIM==FluidElement::DIM)//wall only makes sense for FluidElement
     {
       if(info.index[1]==0 )          this->template applyBCfaceWall<1,0>(coarse);
       if(info.index[1]==this->NY-1 ) this->template applyBCfaceWall<1,1>(coarse);
     }
-    else if (BCY == freespace)
+    else if (BCY != periodic)
     {
+      //then either we have freespace or wall. If we have wall, we still apply 
+      //freespace to the PoissonElement, as pressure has zero Neumann BCS
       if(info.index[1]==0 )          this->template applyBCfaceOpen<1,0>(coarse);
       if(info.index[1]==this->NY-1 ) this->template applyBCfaceOpen<1,1>(coarse);
     }
-
-    if (BCZ == wall)
+    if (BCZ == wall && ElementTypeBlock::DIM==FluidElement::DIM)//wall only makes sense for FluidElement
     {
       if(info.index[2]==0 )          this->template applyBCfaceWall<2,0>(coarse);
       if(info.index[2]==this->NZ-1 ) this->template applyBCfaceWall<2,1>(coarse);
     }
-    else if (BCZ == freespace)
+    else if (BCZ != periodic)
     {
+      //then either we have freespace or wall. If we have wall, we still apply 
+      //freespace to the PoissonElement, as pressure has zero Neumann BCS
       if(info.index[2]==0 )          this->template applyBCfaceOpen<2,0>(coarse);
       if(info.index[2]==this->NZ-1 ) this->template applyBCfaceOpen<2,1>(coarse);
     }
