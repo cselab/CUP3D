@@ -221,7 +221,6 @@ struct BaseBlock
   typedef Real   RealType;
   //__attribute__((aligned(32)))
   TElement data[sizeZ][sizeY][sizeX];
-  Real      tmp[sizeZ][sizeY][sizeX]; //used to store Poisson equation RHS
   Real  dataOld[sizeZ][sizeY][sizeX][4];//contains (u,v,w,p) from the previous timestep
 
   //required from Grid.h

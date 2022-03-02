@@ -20,15 +20,6 @@
 #define MPIREAL MPI_FLOAT
 #endif /* CUP_SINGLE_PRECISION */
 
-
-#define pVector    tmpU
-#define vVector    tmpV
-#define rVector    tmpW
-#define rhatVector chi
-#define xVector    p 
-#define sVector    u
-#define AxVector   v
-#define zVector    w 
 namespace cubismup3d {
 
 class ComputeLHS : public Operator

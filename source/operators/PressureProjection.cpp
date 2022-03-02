@@ -125,26 +125,12 @@ PressureProjection::PressureProjection(SimulationData & s) : Operator(s)
 
 void PressureProjection::operator()(const double dt)
 {
+  //The initial guess is contained in vInfoPoisson -> s
+  //The rhs is contained in vInfoPoisson -> lhs
   const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
 
-  //initial guess phi = 0, i.e. p^{n+1}=p^{n}
-  {
-    #pragma omp parallel for
-    for(size_t i=0; i<vInfo.size(); i++)
-    {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        b.dataOld[iz][iy][ix][3] = b(ix,iy,iz).p;
-        b(ix,iy,iz).p = 0.0;
-      }
-    }
-  }
-
   // solve for phi := p^{n+1}-p^{n}
-  pressureSolver->solve();
+  pressureSolver->solve();//will return p=phi
   if (sim.step > sim.step_2nd_start) //recover p^{n+1} from phi
   {
     #pragma omp parallel for

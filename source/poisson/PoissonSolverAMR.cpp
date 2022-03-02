@@ -130,24 +130,21 @@ void PoissonSolverAMR::solve()
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
-        const int m = vInfoPoisson[i].level;
-        const long long n = vInfoPoisson[i].Z;
-        const BlockInfo & info = grid.getBlockInfoAll(m,n);
-        BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
         BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
         const size_t offset = _offset( vInfoPoisson[i] );
         if (vInfoPoisson[i].index[0] == 0 && 
             vInfoPoisson[i].index[1] == 0 && 
             vInfoPoisson[i].index[2] == 0)
-            b.tmp[4][4][4] = 0;
+            bPoisson(4,4,4).lhs = 0.0;
 
         for(int iz=0; iz<BlockType::sizeZ; iz++)
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
             const size_t src_index = _dest(offset, iz, iy, ix);
-            x[src_index]         = b(ix,iy,iz).p;
-            bPoisson(ix,iy,iz).s = b(ix,iy,iz).p; //this is done because Get_LHS works with zVector
+            x[src_index] = bPoisson(ix,iy,iz).s;
+            r[src_index] = bPoisson(ix,iy,iz).lhs;//this is the rhs now
+            //bPoisson(ix,iy,iz).s = b(ix,iy,iz).p; //this is done because Get_LHS works with zVector
         }
     }
 
@@ -162,10 +159,6 @@ void PoissonSolverAMR::solve()
     #pragma omp parallel for reduction (+:norm)
     for(size_t i=0; i< Nblocks; i++)
     {
-        const int m = vInfoPoisson[i].level;
-        const long long n = vInfoPoisson[i].Z;
-        const BlockInfo & info = grid.getBlockInfoAll(m,n);
-        BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
         BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
         const size_t offset = _offset( vInfoPoisson[i] );
         for(int iz=0; iz<BlockType::sizeZ; iz++)
@@ -173,7 +166,7 @@ void PoissonSolverAMR::solve()
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
             const size_t src_index = _dest(offset, iz, iy, ix);
-            r[src_index] = b.tmp[iz][iy][ix] - bPoisson(ix,iy,iz).lhs;
+            r[src_index] -= bPoisson(ix,iy,iz).lhs;
             rhat[src_index] = r[src_index];
             norm+= r[src_index]*r[src_index];
         }

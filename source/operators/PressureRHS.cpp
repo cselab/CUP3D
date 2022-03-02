@@ -388,12 +388,14 @@ void PressureRHS::operator()(const double dt)
 
   sim.pressureSolver->reset();
 
+  const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson->getBlocksInfo();
+
   //1. Compute pRHS
   {
-    const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
     const int nthreads = omp_get_max_threads();
 
-    //tmp -> store p
+    //dataOld[3] -> store p
     //p -> store RHS
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++)
@@ -402,23 +404,18 @@ void PressureRHS::operator()(const double dt)
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        std::swap(b(ix,iy,iz).p, b.tmp[iz][iy][ix]);
+      {
+	b.dataOld[iz][iy][ix][3] = b(ix,iy,iz).p;//store old pressure where it should be stored
+        b(ix,iy,iz).tmpU = 0; 
+	b(ix,iy,iz).tmpV = 0;
+	b(ix,iy,iz).tmpW = 0;
+      }
     }
 
     //place Udef on tmpU,tmpV,tmpW
     const size_t nShapes = sim.obstacle_vector->nObstacles();
     if(nShapes > 0)
-    { //zero fields, going to contain Udef:
-      #pragma omp parallel for schedule(static)
-      for(size_t i=0; i<vInfo.size(); i++) {
-        FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-          b(ix,iy,iz).tmpU = 0; b(ix,iy,iz).tmpV = 0; b(ix,iy,iz).tmpW = 0;
-        }
-      }
-      //store deformation velocities onto tmp fields:
+    {
       ObstacleVisitor* visitor = new PressureRHSObstacleVisitor(grid);
       sim.obstacle_vector->Accept(visitor);
       delete visitor;
@@ -428,16 +425,18 @@ void PressureRHS::operator()(const double dt)
     for(int i=0;i<nthreads;++i) K[i] = new KernelPressureRHS (sim);
     compute< KernelPressureRHS  >(K,true);//true: apply FluxCorrection
     for(int i=0; i<nthreads; i++) delete K[i];
-    //tmp -> store RHS
-    //(p and tmp swap)
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++)
     {
       FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      FluidBlockPoisson& bPoisson = *(FluidBlockPoisson*)vInfoPoisson[i].ptrBlock;
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-        std::swap(b(ix,iy,iz).p, b.tmp[iz][iy][ix]);
+      {
+        bPoisson(ix,iy,iz).lhs = b(ix,iy,iz).p;
+        b(ix,iy,iz).p = b.dataOld[iz][iy][ix][3];
+      }
     }
   }
 
@@ -446,20 +445,32 @@ void PressureRHS::operator()(const double dt)
   {
     const KernelDivPressure K(sim);
     compute(K,true);
-    const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
     #pragma omp parallel for
     for(size_t i=0; i<vInfo.size(); i++)
     {
       FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      FluidBlockPoisson& bPoisson = *(FluidBlockPoisson*)vInfoPoisson[i].ptrBlock;
       for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for (int iy=0; iy<FluidBlock::sizeY; ++iy)
       for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        b.tmp[iz][iy][ix] -= b(ix,iy,iz).tmpU;
-      }
+        bPoisson(ix,iy,iz).lhs -= b(ix,iy,iz).tmpU;
     }
   }
 
+  //initial guess phi = 0, i.e. p^{n+1}=p^{n}
+  #pragma omp parallel for
+  for(size_t i=0; i<vInfo.size(); i++)
+  {
+    FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+    FluidBlockPoisson& bPoisson = *(FluidBlockPoisson*)vInfoPoisson[i].ptrBlock;
+    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+    for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+    {
+      bPoisson(ix,iy,iz).s = 0.0;//pass initial guess to solver
+      b(ix,iy,iz).p = 0.0;
+    }
+  }
   check("PressureRHS");
 }
 
