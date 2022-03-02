@@ -132,10 +132,11 @@ void PoissonSolverAMR::solve()
     {
         BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
         const size_t offset = _offset( vInfoPoisson[i] );
+	if (sim.bMeanConstraint == 1 || sim.bMeanConstraint > 2)
         if (vInfoPoisson[i].index[0] == 0 && 
             vInfoPoisson[i].index[1] == 0 && 
             vInfoPoisson[i].index[2] == 0)
-            bPoisson(4,4,4).lhs = 0.0;
+            bPoisson(0,0,0).lhs = 0.0;
 
         for(int iz=0; iz<BlockType::sizeZ; iz++)
         for(int iy=0; iy<BlockType::sizeY; iy++)
@@ -144,7 +145,6 @@ void PoissonSolverAMR::solve()
             const size_t src_index = _dest(offset, iz, iy, ix);
             x[src_index] = bPoisson(ix,iy,iz).s;
             r[src_index] = bPoisson(ix,iy,iz).lhs;//this is the rhs now
-            //bPoisson(ix,iy,iz).s = b(ix,iy,iz).p; //this is done because Get_LHS works with zVector
         }
     }
 

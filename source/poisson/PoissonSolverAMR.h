@@ -128,39 +128,60 @@ class ComputeLHS : public Operator
     std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson->getBlocksInfo();
     const KernelLHSPoisson KPoisson(sim);
     computePoisson<KernelLHSPoisson>(KPoisson,true);
-#if 1
-    //double avgP = 0;
-    int index = -1;
-    #pragma omp parallel for //reduction(+ : avgP)
-    for(size_t i=0; i<vInfoPoisson.size(); ++i)
-    {
-      //FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
-      //const double h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
-      if (vInfoPoisson[i].index[0] == 0 && 
-          vInfoPoisson[i].index[1] == 0 && 
-          vInfoPoisson[i].index[2] == 0)
-        index = i;
-      //for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-      //for(int iy=0; iy<FluidBlock::sizeY; iy++)
-      //for(int ix=0; ix<FluidBlock::sizeX; ix++)
-      //  avgP += bPoisson(ix,iy,iz).s*h3;
-    }
-    //MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, sim.grid->getWorldComm());
 
-    //for(size_t i=0; i<vInfoPoisson.size(); ++i)
-    if (index != -1)
+    if (sim.bMeanConstraint == 0) return;
+
+    if (sim.bMeanConstraint <= 2)
     {
-      int i = index;
-      FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
-      //bPoisson(4,4,4).lhs = avgP;
-      bPoisson(4,4,4).lhs = bPoisson(4,4,4).s;
-      //const double h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
-      //for(int iz=0; iz<FluidBlock::sizeZ; iz++)
-      //for(int iy=0; iy<FluidBlock::sizeY; iy++)
-      //for(int ix=0; ix<FluidBlock::sizeX; ix++)
-      //  bPoisson(ix,iy,iz).lhs -= avgP*h3;
+       double avgP = 0;
+       int index = -1;
+       #pragma omp parallel for reduction(+ : avgP)
+       for(size_t i=0; i<vInfoPoisson.size(); ++i)
+       {
+          FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
+          const double h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
+          if (vInfoPoisson[i].index[0] == 0 && 
+              vInfoPoisson[i].index[1] == 0 && 
+              vInfoPoisson[i].index[2] == 0)
+            index = i;
+          for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+          for(int iy=0; iy<FluidBlock::sizeY; iy++)
+          for(int ix=0; ix<FluidBlock::sizeX; ix++)
+            avgP += bPoisson(ix,iy,iz).s*h3;
+      }
+      MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, sim.grid->getWorldComm());
+
+      if (sim.bMeanConstraint == 1 && index != -1)
+      {
+         FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[index].ptrBlock;
+         bPoisson(0,0,0).lhs = avgP;
+      }
+      else if (sim.bMeanConstraint == 2)
+      {
+         #pragma omp parallel for reduction(+ : avgP)
+         for(size_t i=0; i<vInfoPoisson.size(); ++i)
+	 {
+            const double h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
+            for(int iz=0; iz<FluidBlock::sizeZ; iz++)
+            for(int iy=0; iy<FluidBlock::sizeY; iy++)
+            for(int ix=0; ix<FluidBlock::sizeX; ix++)
+               bPoisson(ix,iy,iz).lhs += avgP*h3;
+	 }
+      }
     }
-#endif
+    else // > 2
+    {
+       #pragma omp parallel for
+       for(size_t i=0; i<vInfoPoisson.size(); ++i)
+       {
+          FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
+          const double h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
+          if (vInfoPoisson[i].index[0] == 0 && 
+              vInfoPoisson[i].index[1] == 0 && 
+              vInfoPoisson[i].index[2] == 0)
+          bPoisson(0,0,0).lhs = bPoisson(0,0,0).s;
+      }
+    }
   }
   std::string getName() { return "ComputeLHS"; }
 };

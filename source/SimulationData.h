@@ -94,6 +94,12 @@ struct SimulationData
   BCflag BCx_flag = freespace;      //boundary conditions in X
   BCflag BCy_flag = freespace;      //boundary conditions in Y
   BCflag BCz_flag = freespace;      //boundary conditions in Z
+  int bMeanConstraint = 1;          // if 0, no zero mean constraint for Poisson
+                                    // if 1, replace one equation with zero mean contraint
+				    // if 2, add mean to LHS. Ie. solve nabla^2 P + mean(P) = RHS
+				    // which is mathematically equivalent to the zero-mean 
+				    // solution of nabla^2 P = RHS (for zero Neumann BCs of course)
+				    // if >2, we set one grid point to p=0
 
   // Initial conditions
   std::string initCond = "zero";
