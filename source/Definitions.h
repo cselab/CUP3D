@@ -526,7 +526,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   // finite differences on cell centers in practice they are the same.
   // (this does not equally hold for the Poisson solver)
   // In the future we might have to support more general ways to define BC
-  BCflag BCX = dirichlet, BCY = dirichlet, BCZ = dirichlet;
+  BCflag BCX = freespace, BCY = freespace, BCZ = freespace;
 
   // Used for Boundary Conditions:
   // Apply bc on face of direction dir and side side (0 or 1):
