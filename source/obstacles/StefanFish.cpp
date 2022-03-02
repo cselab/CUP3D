@@ -370,6 +370,7 @@ std::vector<double> StefanFish::state() const
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
   const double Tperiod = cFish->Tperiod;
+#if 0
   std::vector<double> S(17,0);
   S[0 ] = ( position[0] - origC[0] )/ length;
   S[1 ] = ( position[1] - origC[1] )/ length;
@@ -394,6 +395,22 @@ std::vector<double> StefanFish::state() const
   S[14] = cFish->lastTact;
   S[15] = cFish->lastCurv;
   S[16] = cFish->oldrCurv;
+#else
+  std::vector<double> S(13,0);
+  S[0 ] = ( absPos[0] - origC[0] )/ length;
+  S[1 ] = ( absPos[1] - origC[1] )/ length;
+  S[2 ] = ( absPos[2] - origC[2] )/ length;
+  S[3 ] = quaternion[0];
+  S[4 ] = quaternion[1];
+  S[5 ] = quaternion[2];
+  S[6 ] = quaternion[3];
+  S[7 ] = transVel[0] * Tperiod / length;
+  S[8 ] = transVel[1] * Tperiod / length;
+  S[9 ] = transVel[2] * Tperiod / length;
+  S[10] = angVel[0] * Tperiod;
+  S[11] = angVel[1] * Tperiod;
+  S[12] = angVel[2] * Tperiod;
+#endif
   return S;
   #if 0
    S.resize(16); // ONLY 2D shear for consistency with 2D swimmers
