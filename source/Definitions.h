@@ -10,7 +10,6 @@
 
 #include "utils/AlignedAllocator.h"
 
-// Cubism dependencies.
 #include <Cubism/Grid.h>
 #include <Cubism/GridMPI.h>
 #include <Cubism/BlockInfo.h>
@@ -224,9 +223,6 @@ struct BaseBlock
   TElement data[sizeZ][sizeY][sizeX];
   Real      tmp[sizeZ][sizeY][sizeX]; //used to store Poisson equation RHS
   Real  dataOld[sizeZ][sizeY][sizeX][4];//contains (u,v,w,p) from the previous timestep
-
-  std::array<Real, 3> min_pos;
-  std::array<Real, 3> max_pos;
 
   //required from Grid.h
   void clear()
@@ -520,13 +516,9 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   static constexpr int sizeY = BlockType::sizeY;
   static constexpr int sizeZ = BlockType::sizeZ;
 
-  // Each of these flags for now supports either 1 or anything else
-  // If 1 then periodic, if 2 then else dirichlet==absorbing==freespace
-  // In reality these 3 BC should be different, but since we only use second ord
-  // finite differences on cell centers in practice they are the same.
-  // (this does not equally hold for the Poisson solver)
-  // In the future we might have to support more general ways to define BC
-  BCflag BCX = freespace, BCY = freespace, BCZ = freespace;
+  BCflag BCX = freespace;
+  BCflag BCY = freespace;
+  BCflag BCZ = freespace;
 
   // Used for Boundary Conditions:
   // Apply bc on face of direction dir and side side (0 or 1):

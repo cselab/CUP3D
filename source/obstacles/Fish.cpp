@@ -128,11 +128,13 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
   for(size_t i=0; i<vInfo.size(); ++i)
   {
     const BlockInfo & info = vInfo[i];
-    const FluidBlock & b = *(FluidBlock*)info.ptrBlock;
+    Real MINP[3], MAXP[3];
+    info.pos(MINP, 0, 0, 0);
+    info.pos(MAXP, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
 
     bool hasSegments = false;
     for(size_t s=0; s<vSegments.size(); ++s)
-      if(vSegments[s].isIntersectingWithAABB(b.min_pos.data(), b.max_pos.data())) {
+      if(vSegments[s].isIntersectingWithAABB(MINP, MAXP)) {
         VolumeSegment_OBB*const ptr  = & vSegments[s];
         ret[info.blockID].push_back( ptr );
 

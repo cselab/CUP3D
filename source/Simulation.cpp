@@ -92,15 +92,6 @@ void Simulation::refineGrid()
     sim.amr->Adapt(sim.time,sim.verbose,false);
     sim.amr2->Adapt(sim.time,false,true);
 
-    // After mesh is refined/compressed min_pos and max_pos need to change
-    const std::vector<BlockInfo>& vInfo = sim.vInfo();
-    #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<vInfo.size(); i++) {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
-      b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
-    }
-
     //This may not be needed but has zero cost 
     if (l != 3*sim.levelMax-1) touch();
   }
@@ -170,16 +161,6 @@ void Simulation::setupGrid()
   //Refine/compress only according to chi field for now
   sim.amr = new AMR( *(sim.grid),sim.Rtol,sim.Ctol);
   sim.amr2 = new AMR2( *(sim.gridPoisson),sim.Rtol,sim.Ctol);
-
-  const std::vector<BlockInfo>& vInfo = sim.vInfo();
-  #pragma omp parallel for schedule(static)
-  for(size_t i=0; i<vInfo.size(); i++) {
-    FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-    b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
-    b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,
-                                   FluidBlock::sizeY-1,
-                                   FluidBlock::sizeZ-1);
-  }
 }
 
 void Simulation::setupOperators()
@@ -370,7 +351,6 @@ bool Simulation::timestep(const double dt)
   if (bDumpTime) sim.nextSaveTime += sim.saveTime;
   sim.bDump = (bDumpFreq || bDumpTime);
 
-  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
   for (size_t c=0; c< sim.pipeline.size() ; c++)
   {
     sim.startProfiler(sim.pipeline[c]->getName());
@@ -384,13 +364,6 @@ bool Simulation::timestep(const double dt)
     sim.amr2->TagLike(sim.vInfo());
     sim.amr->Adapt(sim.time,sim.verbose,false);
     sim.amr2->Adapt(sim.time,false,true);
-    //After mesh is refined/coarsened the arrays min_pos and max_pos need to change.
-    #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<vInfo.size(); i++) {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      b.min_pos = vInfo[i].pos<Real>(0, 0, 0);
-      b.max_pos = vInfo[i].pos<Real>(FluidBlock::sizeX-1,FluidBlock::sizeY-1,FluidBlock::sizeZ-1);
-    }
     sim.stopProfiler();
   }
   sim.step++;

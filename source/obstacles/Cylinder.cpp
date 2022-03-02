@@ -31,12 +31,15 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
              const Real _h, const double p[3]):
   radius(r), halflength(halfl), angle(ang), h(_h), position{p[0],p[1],p[2]} {}
 
-  inline bool isTouching(const BlockInfo&, const FluidBlock&b) const
+  inline bool isTouching(const BlockInfo & info, const FluidBlock&b) const
   {
+    Real MINP[3], MAXP[3];
+    info.pos(MINP, 0, 0, 0);
+    info.pos(MAXP, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
     const Real intersect[3][2] = {
-      {std::max(b.min_pos[0], box[0][0]), std::min(b.max_pos[0], box[0][1])},
-      {std::max(b.min_pos[1], box[1][0]), std::min(b.max_pos[1], box[1][1])},
-      {std::max(b.min_pos[2], box[2][0]), std::min(b.max_pos[2], box[2][1])}
+        {std::max(MINP[0], box[0][0]), std::min(MAXP[0], box[0][1])},
+        {std::max(MINP[1], box[1][0]), std::min(MAXP[1], box[1][1])},
+        {std::max(MINP[2], box[2][0]), std::min(MAXP[2], box[2][1])}
     };
     return intersect[0][1]-intersect[0][0]>0 &&
            intersect[1][1]-intersect[1][0]>0 &&
@@ -69,12 +72,15 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   FillBlocks(const Real r, const Real halfl, const Real _h, const double p[3]):
   radius(r), halflength(halfl), h(_h), position{p[0],p[1],p[2]} {}
 
-  inline bool isTouching(const BlockInfo&, const FluidBlock&b) const
+  inline bool isTouching(const BlockInfo & info, const FluidBlock&b) const
   {
+    Real MINP[3], MAXP[3];
+    info.pos(MINP, 0, 0, 0);
+    info.pos(MAXP, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
     const Real intersect[3][2] = {
-      {std::max(b.min_pos[0], box[0][0]), std::min(b.max_pos[0], box[0][1])},
-      {std::max(b.min_pos[1], box[1][0]), std::min(b.max_pos[1], box[1][1])},
-      {std::max(b.min_pos[2], box[2][0]), std::min(b.max_pos[2], box[2][1])}
+        {std::max(MINP[0], box[0][0]), std::min(MAXP[0], box[0][1])},
+        {std::max(MINP[1], box[1][0]), std::min(MAXP[1], box[1][1])},
+        {std::max(MINP[2], box[2][0]), std::min(MAXP[2], box[2][1])}
     };
     return intersect[0][1]-intersect[0][0]>0 &&
            intersect[1][1]-intersect[1][0]>0 &&

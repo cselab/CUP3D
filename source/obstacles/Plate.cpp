@@ -124,11 +124,14 @@ PlateFillBlocks::PlateFillBlocks(
   aabb[2][1] = cz + tz;
 }
 
-bool PlateFillBlocks::isTouching(const BlockInfo&, const FluidBlock&b) const
+bool PlateFillBlocks::isTouching(const BlockInfo & info, const FluidBlock&b) const
 {
-  return aabb[0][0] <= b.max_pos[0] && aabb[0][1] >= b.min_pos[0]
-      && aabb[1][0] <= b.max_pos[1] && aabb[1][1] >= b.min_pos[1]
-      && aabb[2][0] <= b.max_pos[2] && aabb[2][1] >= b.min_pos[2];
+  Real MINP[3], MAXP[3];
+  info.pos(MINP, 0, 0, 0);
+  info.pos(MAXP, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+  return aabb[0][0] <= MAXP[0] && aabb[0][1] >= MINP[0]
+      && aabb[1][0] <= MAXP[1] && aabb[1][1] >= MINP[1]
+      && aabb[2][0] <= MAXP[2] && aabb[2][1] >= MINP[2];
 }
 
 Real PlateFillBlocks::signedDistance(
