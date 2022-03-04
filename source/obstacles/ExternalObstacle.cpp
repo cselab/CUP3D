@@ -3,14 +3,15 @@
 //  Copyright (c) 2021 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-
 #include "ExternalObstacle.h"
 #include "extra/ObstacleLibrary.h"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wshadow"
 #include "extra/happly.h"
-#pragma GCC diagnostic pop
-#include <filesystem>
+#include <sys/stat.h>
+#include <unistd.h>
+#include <string>
+#include <fstream>
 
 #include <Cubism/ArgumentParser.h>
 
@@ -19,6 +20,12 @@ using namespace cubism;
 
 namespace ExternalObstacleObstacle
 {
+
+inline bool exists (const std::string& name) {
+  struct stat buffer;
+  return (stat (name.c_str(), &buffer) == 0); 
+}
+
 //struct FillBlocks : FillBlocksBase<FillBlocks>
 struct FillBlocks
 {
@@ -210,7 +217,7 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p): Obstac
 {
   // reading coordinates / indices from file
   path = p("-externalObstaclePath").asString();
-  if( std::filesystem::exists(path) )
+  if( ExternalObstacleObstacle::exists(path) )
   {
     if( sim.rank == 0 )
         std::cout << "[ExternalObstacle] Reading mesh from " << path << std::endl;
