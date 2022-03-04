@@ -14,7 +14,6 @@ using namespace cubism;
 
 namespace {
 
-static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 using CHIMAT =  Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
 

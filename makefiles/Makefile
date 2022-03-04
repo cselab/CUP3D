@@ -125,7 +125,7 @@ ifeq "$(hdf)" "true"
 	CPPFLAGS += -DCUBISM_USE_HDF
 endif
 
-LIBS += -lgsl #-lgslcblas
+LIBS += -lgsl -lgslcblas
 
 #################################################
 ifneq ($(ERROR),)

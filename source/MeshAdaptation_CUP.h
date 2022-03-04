@@ -130,7 +130,7 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
        }
    #endif
 
-   virtual State TagLoadedBlock(TLab &Lab_, BlockInfo & info)
+   virtual State TagLoadedBlock(TLab &Lab_, BlockInfo & info) override
    {
       //This assumes zero Neumann BCs for velocity
       static const int nx = BlockType::sizeX;

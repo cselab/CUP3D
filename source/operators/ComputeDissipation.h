@@ -15,7 +15,6 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class ComputeDissipation : public Operator
 {
-  Real oldKE=0.0;
 public:
   ComputeDissipation(SimulationData & s) : Operator(s) { }
   void operator()(const double dt);

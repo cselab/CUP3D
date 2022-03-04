@@ -39,8 +39,8 @@ struct KernelAdvectDiffuse : public Discretization
     void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
     {
         const Real h3   = info.h*info.h*info.h;
-        const Real facA = this->template advectionCoef(dt, info.h);
-        const Real facD = this->template diffusionCoef(dt, info.h, mu);
+        const Real facA = -dt/(6*info.h);
+        const Real facD = (mu/info.h)*(dt/info.h);
         for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for (int iy=0; iy<FluidBlock::sizeY; ++iy)
         for (int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -191,8 +191,6 @@ struct Upwind3rd
               + inp<dir>(L,ix,iy+1,iz) + inp<dir>(L,ix,iy-1,iz)
               + inp<dir>(L,ix,iy,iz+1) + inp<dir>(L,ix,iy,iz-1) - 6 * inp<dir>(L,ix,iy,iz);
     }
-    Real advectionCoef(const Real dt, const Real h) const {return -dt/(6*h);}
-    Real diffusionCoef(const Real dt, const Real h, const Real mu) const {return (mu/h) * (dt/h);}
     int getStencilBeg() const { return -2; }
     int getStencilEnd() const { return  3; }
 };

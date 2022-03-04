@@ -484,9 +484,6 @@ void ElasticCollision1(const double  m1,const double  m2,
 
 void Penalization::preventCollidingObstacles() const
 {
-    using CHI_MAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX];
-    using UDEFMAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX][3];
-
     const auto & shapes = sim.obstacle_vector->getObstacleVector();
     const auto & infos  = sim.grid->getBlocksInfo();
     const size_t N = sim.obstacle_vector->nObstacles();
@@ -557,8 +554,8 @@ void Penalization::preventCollidingObstacles() const
             const auto & iSDF  = iBlocks[k]->sdfLab;
             const auto & jSDF  = jBlocks[k]->sdfLab;
 
-            const CHI_MAT & iChi  = iBlocks[k]->chi;
-            const CHI_MAT & jChi  = jBlocks[k]->chi;
+            const CHIMAT & iChi  = iBlocks[k]->chi;
+            const CHIMAT & jChi  = jBlocks[k]->chi;
 
             const UDEFMAT & iUDEF = iBlocks[k]->udef;
             const UDEFMAT & jUDEF = jBlocks[k]->udef;

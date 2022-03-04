@@ -77,7 +77,7 @@ class KernelIC_channelrandom
   const int dir;
   const std::array<Real, 3> ext;
   const Real uMax, H = ext[dir], FAC = 4*uMax/H/H; // FAC = 0.5*G/mu
-  const Real delta_tau = 5.0/180;
+  //const Real delta_tau = 5.0/180;
   //umax =  0.5*G/mu * 0.25*H*H
  public:
   KernelIC_channelrandom(const std::array<Real, 3> &extent, const Real U, const int _dir):
