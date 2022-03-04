@@ -6,6 +6,7 @@
 
 #pragma once
 
+#define OMPI_SKIP_MPICXX 1 //silence annoying openmpi warnings
 #include "Base.h"
 
 #include "utils/AlignedAllocator.h"
@@ -21,7 +22,6 @@
 #define CUP_BLOCK_SIZEY 8
 #define CUP_BLOCK_SIZEZ 8
 #endif
-
 #include <array>
 #include <cassert>
 #include <iosfwd>
