@@ -384,9 +384,6 @@ PressureRHS::PressureRHS(SimulationData & s) : Operator(s) {}
 
 void PressureRHS::operator()(const double dt)
 {
-
-  sim.pressureSolver->reset();
-
   const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson->getBlocksInfo();
 

@@ -149,7 +149,7 @@ class ComputeLHS : public Operator
           for(int ix=0; ix<FluidBlock::sizeX; ix++)
             avgP += bPoisson(ix,iy,iz).s*h3;
       }
-      MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, sim.grid->getWorldComm());
+      MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, sim.grid->getCartComm());
 
       if (sim.bMeanConstraint == 1 && index != -1)
       {
@@ -194,69 +194,16 @@ class PoissonSolverAMR
   SimulationData & sim;
   FluidGridMPI& grid = * sim.grid;
   FluidGridMPIPoisson& gridPoisson = * sim.gridPoisson;
-
-  const MPI_Comm m_comm = grid.getCartComm();
-  const int m_rank = sim.rank, m_size = sim.nprocs;
-
   ComputeLHS findLHS;
-  std::vector<size_t> blocksOffset;
-  long long id_min;
-  long long id_max;
-  size_t iter_min;
-
+  void getZ();
+  size_t _dest(const cubism::BlockInfo &info , const int z, const int y, const int x) const
+  {
+    return BlockType::sizeX * ( BlockType::sizeY * (info.blockID * BlockType::sizeZ  + z) + y) + x;
+  }
  public:
-  size_t datasize;
-
   PoissonSolverAMR(SimulationData&s);
   PoissonSolverAMR(const PoissonSolverAMR& c) = delete; 
-
   void solve();
-
-  size_t _offset(const cubism::BlockInfo &info) const
-  {
-    #if 0 //stupid simple and slow approach
-      size_t PointsPerBlock = BlockType::sizeX * BlockType::sizeY * BlockType::sizeZ;
-      size_t kount = 0;
-      std::vector<BlockInfo> & vInfo = grid.getBlocksInfo();
-      for (size_t i = 0 ; i < vInfo.size(); i++)
-      {
-        if (vInfo[i].blockID == info.blockID) break;
-        kount ++;
-      }
-      assert(blocksOffset[info.blockID] == kount * PointsPerBlock);
-      return kount * PointsPerBlock;
-    #else
-      return blocksOffset[info.blockID];
-    #endif
-  }
-  void reset()
-  {
-    const size_t PointsPerBlock = BlockType::sizeX * BlockType::sizeY * BlockType::sizeZ;
-    const size_t Blocks = gridPoisson.getBlocksInfo().size();
-    datasize = PointsPerBlock * Blocks;
-
-    std::vector<BlockInfo> & vInfo = gridPoisson.getBlocksInfo();
-
-    id_min = vInfo[0].blockID;
-    id_max = vInfo[0].blockID;
-
-    for (size_t i = 1 ; i < vInfo.size(); i++)
-    {
-      id_min = std::min(vInfo[i].blockID,id_min);
-      id_max = std::max(vInfo[i].blockID,id_max);
-    }
-    blocksOffset.resize(id_max-id_min+1,0);
-    for (size_t i = 0 ; i < vInfo.size(); i++)
-    {
-      blocksOffset[ vInfo[i].blockID-id_min ] = i*PointsPerBlock;
-    }
-  }
-  size_t _dest(const size_t offset,const int z,const int y,const int x) const
-  {
-    return offset + (BlockType::sizeX*BlockType::sizeY)*z + BlockType::sizeX*y + x;
-  }
-
-  void getZ();
 };
 
 }//namespace cubismup3d

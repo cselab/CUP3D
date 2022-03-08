@@ -12,7 +12,6 @@ namespace cubismup3d {
 
 PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s),findLHS(s)
 {
-    iter_min = 20;
 }
 
 void PoissonSolverAMR::getZ()
@@ -32,7 +31,6 @@ void PoissonSolverAMR::getZ()
     const int N2 = nx2*ny2*nz2;
     std::vector<double> p (N2,0.0);
     std::vector<double> r (N ,0.0);
-    std::vector<double> x (N ,0.0);
     std::vector<double> Ax(N ,0.0);
 
     #pragma omp for
@@ -48,11 +46,11 @@ void PoissonSolverAMR::getZ()
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            x[ix+iy*nx+iz*nx*ny] = 0.0;
             r[ix+iy*nx+iz*nx*ny] = invh*b(ix,iy,iz).s;
             norm0 += r[ix+iy*nx+iz*nx*ny]*r[ix+iy*nx+iz*nx*ny];
             p[(ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2)] = r[ix+iy*nx+iz*nx*ny];
             rr += r[ix+iy*nx+iz*nx*ny]*r[ix+iy*nx+iz*nx*ny];
+	    b(ix,iy,iz).s = 0.0;
         }
         norm0 = sqrt(norm0)/N;
         double norm = 0;
@@ -78,7 +76,7 @@ void PoissonSolverAMR::getZ()
             {
                 const int index1 = ix+iy*nx+iz*nx*ny;
                 const int index2 = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
-                x[index1] += a*p [index2];
+	        b(ix,iy,iz).s += a*p [index2];
                 r[index1] -= a*Ax[index1];
                 norm_new += r[index1]*r[index1];
             }
@@ -99,22 +97,12 @@ void PoissonSolverAMR::getZ()
                 p[index2] =r[index1] + beta*p[index2];
             }
         }
-        for(int iz=0; iz<BlockType::sizeZ; iz++)
-        for(int iy=0; iy<BlockType::sizeY; iy++)
-        for(int ix=0; ix<BlockType::sizeX; ix++)
-        {
-            const int index1 = ix+iy*nx+iz*nx*ny;
-            b(ix,iy,iz).s = x[index1];
-        }
     }    
   }
 }
 
 void PoissonSolverAMR::solve()
 {
-
-    if (iter_min >= 1) iter_min --;
-
     std::vector<cubism::BlockInfo>& vInfo = grid.getBlocksInfo();
     const double eps = 1e-21;
     const size_t Nblocks = vInfo.size();
@@ -131,7 +119,6 @@ void PoissonSolverAMR::solve()
     for (size_t i=0; i < Nblocks; i++)
     {
         BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
-        const size_t offset = _offset( vInfoPoisson[i] );
 	if (sim.bMeanConstraint == 1 || sim.bMeanConstraint > 2)
         if (vInfoPoisson[i].index[0] == 0 && 
             vInfoPoisson[i].index[1] == 0 && 
@@ -142,7 +129,7 @@ void PoissonSolverAMR::solve()
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            const size_t src_index = _dest(offset, iz, iy, ix);
+            const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
             x[src_index] = bPoisson(ix,iy,iz).s;
             r[src_index] = bPoisson(ix,iy,iz).lhs;//this is the rhs now
         }
@@ -160,18 +147,17 @@ void PoissonSolverAMR::solve()
     for(size_t i=0; i< Nblocks; i++)
     {
         BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
-        const size_t offset = _offset( vInfoPoisson[i] );
         for(int iz=0; iz<BlockType::sizeZ; iz++)
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            const size_t src_index = _dest(offset, iz, iy, ix);
+            const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
             r[src_index] -= bPoisson(ix,iy,iz).lhs;
             rhat[src_index] = r[src_index];
             norm+= r[src_index]*r[src_index];
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
+    MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
     norm = std::sqrt(norm);
 
     double rho = 1.0;
@@ -205,7 +191,7 @@ void PoissonSolverAMR::solve()
             norm_2 += rhat[i]*rhat[i];
         }
         double aux_norm [3] = {rho,norm_1,norm_2};
-        MPI_Allreduce(MPI_IN_PLACE,&aux_norm,3,MPI_DOUBLE,MPI_SUM,m_comm);
+        MPI_Allreduce(MPI_IN_PLACE,&aux_norm,3,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
         rho = aux_norm[0];
         norm_1 = aux_norm[1];
         norm_2 = aux_norm[2];
@@ -227,10 +213,10 @@ void PoissonSolverAMR::solve()
                 p[i] = 0.0;
                 v[i] = 0.0;
             }
-            if (m_rank == 0) 
+            if (sim.rank==0) 
                 std::cout << "  [Poisson solver]: restart at iteration:" << k << 
                              "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
-            MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_DOUBLE,MPI_SUM,m_comm);
+            MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
             alpha = 1.;
             omega = 1.;
             rho_m1 = 1.;
@@ -243,12 +229,11 @@ void PoissonSolverAMR::solve()
         for (size_t i=0; i < Nblocks; i++)
         {
             BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
-            const size_t offset = _offset( vInfoPoisson[i] );
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
-                const size_t src_index = _dest(offset, iz, iy, ix);
+                const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
                 p[src_index] = r[src_index] + beta*(p[src_index]-omega*v[src_index]);
                 bPoisson(ix,iy,iz).s = p[src_index];
             }
@@ -263,17 +248,16 @@ void PoissonSolverAMR::solve()
         for (size_t i=0; i < Nblocks; i++)
         {
             BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
-            const size_t offset = _offset( vInfoPoisson[i] );
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
-                const size_t src_index = _dest(offset, iz, iy, ix);
-                v[src_index] = bPoisson(ix,iy,iz).lhs;//bPoisson.LHS[iz][iy][ix];
+                const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
+                v[src_index] = bPoisson(ix,iy,iz).lhs;
                 alpha += rhat[src_index] * v[src_index];
             }
         }  
-        MPI_Allreduce(MPI_IN_PLACE,&alpha,1,MPI_DOUBLE,MPI_SUM,m_comm);
+        MPI_Allreduce(MPI_IN_PLACE,&alpha,1,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
         alpha = rho / (alpha + eps);
         //7. x += a z
         //8. 
@@ -283,12 +267,11 @@ void PoissonSolverAMR::solve()
         for (size_t i=0; i < Nblocks; i++)
         {
             BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
-            const size_t offset = _offset( vInfoPoisson[i] );
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
-                const size_t src_index = _dest(offset, iz, iy, ix);
+                const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
                 x[src_index] += alpha * bPoisson(ix,iy,iz).s;
                 s[src_index] = r[src_index] - alpha * v[src_index];
                 bPoisson(ix,iy,iz).s = s[src_index];
@@ -306,18 +289,17 @@ void PoissonSolverAMR::solve()
         for (size_t i=0; i < Nblocks; i++)
         {
             BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
-            const size_t offset = _offset( vInfoPoisson[i] );
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
-                const size_t src_index = _dest(offset, iz, iy, ix);
+                const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
                 aux1 += bPoisson(ix,iy,iz).lhs * s[src_index];
                 aux2 += bPoisson(ix,iy,iz).lhs * bPoisson(ix,iy,iz).lhs;
             }
         }
         double aux_12[2] = {aux1,aux2};
-        MPI_Allreduce(MPI_IN_PLACE,&aux_12,2,MPI_DOUBLE,MPI_SUM,m_comm);
+        MPI_Allreduce(MPI_IN_PLACE,&aux_12,2,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
         aux1 = aux_12[0];
         aux2 = aux_12[1];
         omega = aux1 / (aux2+eps); 
@@ -330,18 +312,17 @@ void PoissonSolverAMR::solve()
         for (size_t i=0; i < Nblocks; i++)
         {
             BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
-            const size_t offset = _offset( vInfoPoisson[i] );
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
-                const size_t src_index = _dest(offset, iz, iy, ix);
+                const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
                 x[src_index] += omega * bPoisson(ix,iy,iz).s;
                 r[src_index] = s[src_index]-omega*bPoisson(ix,iy,iz).lhs;
                 norm+= r[src_index]*r[src_index];
             }
         }
-        MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,m_comm);
+        MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
         norm = std::sqrt(norm);
 
         if (norm < min_norm)
@@ -361,14 +342,14 @@ void PoissonSolverAMR::solve()
         if (norm / (init_norm+eps) > 100000.0 && k > 10)
         {
             useXopt = true;
-            if (m_rank==0)
+            if (sim.rank==0)
                 std::cout <<  "XOPT Poisson solver converged after " <<  k << " iterations. Error norm = " << norm << "  iter_opt="<< iter_opt << std::endl;
             break;
         }
 
-        if ( (norm < max_error || norm/init_norm < max_rel_error ) && k > iter_min )
+        if ( (norm < max_error || norm/init_norm < max_rel_error ) )
         {
-            if (m_rank==0)
+            if (sim.rank==0)
                 std::cout <<  "  [Poisson solver]: Converged after " <<  k << " iterations. Error norm = " << norm << std::endl;
             break;
         }
@@ -383,12 +364,11 @@ void PoissonSolverAMR::solve()
         const long long n = vInfoPoisson[i].Z;
         const BlockInfo & info = grid.getBlockInfoAll(m,n);
         BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-        const size_t offset = _offset( vInfoPoisson[i] );
         for(int iz=0; iz<BlockType::sizeZ; iz++)
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            const size_t src_index = _dest(offset, iz, iy, ix);
+            const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
             b(ix,iy,iz).p = xsol[src_index];
         }
     }
