@@ -16,7 +16,7 @@ using namespace cubism;
 Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
 {
   p.unset_strict_mode();
-  #if 0
+  #if 1
   // MPI datatypes (used for load-balancing when creating the fish surface)
   int array_of_blocklengths[2]       = {4, 1};
   MPI_Aint array_of_displacements[2] = {0, 4 * sizeof(Real)};
@@ -37,7 +37,7 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
 Fish::~Fish()
 {
   if(myFish not_eq nullptr) delete myFish;
-  #if 0
+  #if 1
   MPI_Type_free(&MPI_BLOCKID);
   MPI_Type_free(&MPI_OBSTACLE);
   #endif

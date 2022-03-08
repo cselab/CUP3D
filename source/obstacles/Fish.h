@@ -48,7 +48,7 @@ class Fish: public Obstacle
   std::vector<BlockID> MyBlockIDs;
   std::vector<std::vector<int>> MySegments;
 
-  #if 0
+  #if 1
   //MPI stuff, for ObstaclesCreate
   struct MPI_Obstacle
   {
