@@ -242,17 +242,20 @@ void Simulation::_deserialize()
     }
     assert(f != NULL);
     bool ret = true;
+    #ifdef _DOUBLE_PRECISION_
     ret = ret && 1==fscanf(f, "time: %le\n",   &sim.time);
     ret = ret && 1==fscanf(f, "stepid: %d\n", &sim.step);
-    #ifndef CUP_SINGLE_PRECISION
     ret = ret && 1==fscanf(f, "uinfx: %le\n", &sim.uinf[0]);
     ret = ret && 1==fscanf(f, "uinfy: %le\n", &sim.uinf[1]);
     ret = ret && 1==fscanf(f, "uinfz: %le\n", &sim.uinf[2]);
-    #else // CUP_SINGLE_PRECISION
+    #endif
+    #ifdef _FLOAT_PRECISION_
+    ret = ret && 1==fscanf(f, "time: %e\n",   &sim.time);
+    ret = ret && 1==fscanf(f, "stepid: %d\n", &sim.step);
     ret = ret && 1==fscanf(f, "uinfx: %e\n", &sim.uinf[0]);
     ret = ret && 1==fscanf(f, "uinfy: %e\n", &sim.uinf[1]);
     ret = ret && 1==fscanf(f, "uinfz: %e\n", &sim.uinf[2]);
-    #endif // CUP_SINGLE_PRECISION
+    #endif
     fclose(f);
     if( (not ret) || sim.step<0 || sim.time<0) {
       printf("Error reading restart file. Aborting...\n");

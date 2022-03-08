@@ -39,6 +39,7 @@ dump_surface_binary ?= false
 precision ?= double
 ifeq "$(precision)" "single"
 CPPFLAGS += -D_FLOAT_PRECISION_
+CPPFLAGS += -Wno-narrowing
 endif
 ifeq "$(precision)" "double"
 CPPFLAGS += -D_DOUBLE_PRECISION_
