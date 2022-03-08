@@ -205,8 +205,6 @@ void Simulation::_serialize(const std::string append)
 {
   sim.startProfiler("DumpHDF5_MPI");
 
-  sim.grid->UpdateMyGroups();
-
   std::stringstream name;
   if (append == "") name<<"restart_";
   else name<<append;
