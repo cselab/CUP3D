@@ -14,11 +14,6 @@
 #include <vector>
 #include <cassert>
 #include <cstring>
-#ifndef CUP_SINGLE_PRECISION
-#define MPIREAL MPI_DOUBLE
-#else
-#define MPIREAL MPI_FLOAT
-#endif /* CUP_SINGLE_PRECISION */
 
 namespace cubismup3d {
 
@@ -32,7 +27,7 @@ class ComputeLHS : public Operator
     const StencilInfo stencil{-1,-1,-1,2,2,2,false,{0}};
     void operator()(LabMPIPoisson & lab, const BlockInfo& info, FluidBlockPoisson& o) const
     {
-      const double h = info.h; 
+      const Real h = info.h; 
       for(int iz=0; iz<FluidBlockPoisson::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlockPoisson::sizeY; ++iy)
       for(int ix=0; ix<FluidBlockPoisson::sizeX; ++ix)
@@ -123,7 +118,7 @@ class ComputeLHS : public Operator
   };
   public:
   ComputeLHS(SimulationData & s) : Operator(s) { }
-  void operator()(const double dt)
+  void operator()(const Real dt)
   {
     std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson->getBlocksInfo();
     const KernelLHSPoisson KPoisson(sim);
@@ -133,13 +128,13 @@ class ComputeLHS : public Operator
 
     if (sim.bMeanConstraint <= 2)
     {
-       double avgP = 0;
+       Real avgP = 0;
        int index = -1;
        #pragma omp parallel for reduction(+ : avgP)
        for(size_t i=0; i<vInfoPoisson.size(); ++i)
        {
           FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
-          const double h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
+          const Real h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
           if (vInfoPoisson[i].index[0] == 0 && 
               vInfoPoisson[i].index[1] == 0 && 
               vInfoPoisson[i].index[2] == 0)
@@ -149,7 +144,7 @@ class ComputeLHS : public Operator
           for(int ix=0; ix<FluidBlock::sizeX; ix++)
             avgP += bPoisson(ix,iy,iz).s*h3;
       }
-      MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPIREAL, MPI_SUM, sim.grid->getCartComm());
+      MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPI_Real, MPI_SUM, sim.grid->getCartComm());
 
       if (sim.bMeanConstraint == 1 && index != -1)
       {
@@ -162,7 +157,7 @@ class ComputeLHS : public Operator
          for(size_t i=0; i<vInfoPoisson.size(); ++i)
 	 {
             FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
-            const double h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
+            const Real h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
             for(int iz=0; iz<FluidBlock::sizeZ; iz++)
             for(int iy=0; iy<FluidBlock::sizeY; iy++)
             for(int ix=0; ix<FluidBlock::sizeX; ix++)

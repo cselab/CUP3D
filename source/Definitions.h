@@ -98,7 +98,7 @@ struct PoissonElement
   {
      return (s >= other.s);
   }
-  double magnitude()
+  Real magnitude()
   {
     return s;
   }
@@ -169,7 +169,7 @@ struct FluidElement
     return *this;
   }
   //only for debug
-  FluidElement &operator=(const double a)
+  FluidElement &operator=(const Real a)
   {
     this->chi  = a;
     this->u    = a;

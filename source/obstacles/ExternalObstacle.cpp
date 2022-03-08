@@ -30,7 +30,7 @@ inline bool exists (const std::string& name) {
 struct FillBlocks
 {
   const Real safety;
-  const double position[3], quaternion[4];
+  const Real position[3], quaternion[4];
   Mesh mesh;
   std::vector<Vector3<Real>> randomNormals;
   const Real w=quaternion[0], x=quaternion[1], y=quaternion[2], z=quaternion[3];
@@ -41,9 +41,9 @@ struct FillBlocks
   };
   std::array<std::array<Real,2>,3> box;
   std::vector<std::vector<int>> BlocksToTriangles;
-  double length;
+  Real length;
 
-  FillBlocks(Real _h, const double p[3], const double q[4], Mesh &_mesh, std::vector<Vector3<Real>> _randomNomals, std::vector<std::vector<int>> _BlocksToTriangles, double _length): 
+  FillBlocks(Real _h, const Real p[3], const Real q[4], Mesh &_mesh, std::vector<Vector3<Real>> _randomNomals, std::vector<std::vector<int>> _BlocksToTriangles, Real _length): 
   safety((2+SURFDH)*_h), position{p[0],p[1],p[2]}, quaternion{q[0],q[1],q[2],q[3]}, mesh(_mesh), randomNormals(_randomNomals), BlocksToTriangles(_BlocksToTriangles), length(_length)
   {
     mesh.rotate( Rmatrix, position );
@@ -88,13 +88,13 @@ struct FillBlocks
 
     // Find the closest triangles and the distance to them.
     Vector3<Real> p = { px, py, pz };
-    double minSqrDist = 1e10;
+    Real minSqrDist = 1e10;
     std::vector<Vector3<Vector3<Real>>> closest{};
     for (size_t index = 0; index < myTriangles.size(); ++index)
     {
       const int i = myTriangles[index];
       Vector3<Vector3<Real>> t{mesh.x_[mesh.tri_[i][0]],mesh.x_[mesh.tri_[i][1]],mesh.x_[mesh.tri_[i][2]],};
-      const double sqrDist = pointTriangleSqrDistance(t[0],t[1],t[2], p);
+      const Real sqrDist = pointTriangleSqrDistance(t[0],t[1],t[2], p);
       if (std::fabs(sqrDist- minSqrDist)< length * 0.001)
       {
         if (sqrDist < minSqrDist) minSqrDist = sqrDist;
@@ -107,22 +107,22 @@ struct FillBlocks
         closest.push_back(t);
       }
     }
-    const double dist = minSqrDist;
+    const Real dist = minSqrDist;
 
     bool trust = true;    
-    double side = -1;
+    Real side = -1;
     for (size_t c = 0; c<closest.size(); c++)
     {
       Vector3<Real> n{};
       n = cross(closest[c][1] - closest[c][0], closest[c][2] - closest[c][0]);
-      const double delta0 = n[0]*closest[c][0][0]+n[1]*closest[c][0][1]+n[2]*closest[c][0][2];
-      const double delta1 = n[0]*closest[c][1][0]+n[1]*closest[c][1][1]+n[2]*closest[c][1][2];
-      const double delta2 = n[0]*closest[c][2][0]+n[1]*closest[c][2][1]+n[2]*closest[c][2][2];
-      const double delta_max = std::max({delta0,delta1,delta2});
-      const double delta_min = std::min({delta0,delta1,delta2});
-      const double delta = std::fabs(delta_max) > std::fabs(delta_min) ? delta_max : delta_min;   
-      const double dot_prod = n[0]*p[0]+n[1]*p[1]+n[2]*p[2];  
-      const double newside = -(dot_prod-delta);
+      const Real delta0 = n[0]*closest[c][0][0]+n[1]*closest[c][0][1]+n[2]*closest[c][0][2];
+      const Real delta1 = n[0]*closest[c][1][0]+n[1]*closest[c][1][1]+n[2]*closest[c][1][2];
+      const Real delta2 = n[0]*closest[c][2][0]+n[1]*closest[c][2][1]+n[2]*closest[c][2][2];
+      const Real delta_max = std::max({delta0,delta1,delta2});
+      const Real delta_min = std::min({delta0,delta1,delta2});
+      const Real delta = std::fabs(delta_max) > std::fabs(delta_min) ? delta_max : delta_min;   
+      const Real dot_prod = n[0]*p[0]+n[1]*p[1]+n[2]*p[2];  
+      const Real newside = -(dot_prod-delta);
       if (c > 0 && newside*side < 0) trust = false;
       side = newside;
       if (!trust) break;
@@ -142,14 +142,14 @@ struct FillBlocks
         std::vector<Vector3<int>> my_triangles;
         Vector3<Real> ray_start = p;
         Vector3<Real> ray_end;
-        const double LL = 3.0;
+        const Real LL = 3.0;
         ray_end = p + LL*randomNormals[i];
         for( const auto& tri: mesh.tri_ )
         {
           Vector3<Vector3<Real>> t{mesh.x_[tri[0]],mesh.x_[tri[1]],mesh.x_[tri[2]]};
           Vector3<Real> C = (1.0/3.0)*(t[0] + t[1] + t[2]);
           Vector3<Real> proj = ProjectToLine(ray_start, ray_end, C);
-          const double d2= (C[0]-proj[0])*(C[0]-proj[0])
+          const Real d2= (C[0]-proj[0])*(C[0]-proj[0])
                           +(C[1]-proj[1])*(C[1]-proj[1])
                           +(C[2]-proj[2])*(C[2]-proj[2]);
           if (d2 < (0.5*length)*(0.5*length)) my_triangles.push_back(tri);
@@ -172,9 +172,9 @@ struct FillBlocks
               if( std::fabs(t[j][0] - intersectionPoint[0]) < 1e-10 && 
                   std::fabs(t[j][1] - intersectionPoint[1]) < 1e-10 &&
                   std::fabs(t[j][2] - intersectionPoint[2]) < 1e-10 ) validRay[i] = false;
-              Vector3<double> vecA= t[(j+1)%3] - intersectionPoint;
-              Vector3<double> vecB= intersectionPoint - t[j];
-              Vector3<double> vecC= t[(j+1)%3] - t[j];
+              Vector3<Real> vecA= t[(j+1)%3] - intersectionPoint;
+              Vector3<Real> vecB= intersectionPoint - t[j];
+              Vector3<Real> vecC= t[(j+1)%3] - t[j];
               Real normA = norm( vecA );
               Real normB = norm( vecB );
               Real normC = norm( vecC );
@@ -226,7 +226,7 @@ ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p): Obstac
     happly::PLYData plyIn(path);
 
     // Get mesh-style data from the object
-    std::vector<std::array<double, 3>> vPos = plyIn.getVertexPositions();
+    std::vector<std::array<Real, 3>> vPos = plyIn.getVertexPositions();
     std::vector<std::vector<int>> fInd = plyIn.getFaceIndices<int>();
 
     // Compute maximal extent
@@ -299,7 +299,7 @@ void ExternalObstacle::create()
     {
       const cubism::BlockInfo & info = vInfo[b];
 
-      double center[3];
+      Real center[3];
       info.pos(center,FluidBlock::sizeX/2,FluidBlock::sizeY/2,FluidBlock::sizeZ/2);
 
       Vector3<Real> t0;
@@ -322,7 +322,7 @@ void ExternalObstacle::create()
       centerV[1] = center[1];
       centerV[2] = center[2];
 
-      const double sqrDist = pointTriangleSqrDistance(t0,t1,t2, centerV);
+      const Real sqrDist = pointTriangleSqrDistance(t0,t1,t2, centerV);
       if (sqrDist < BS * info.h) // info.h * BS/2 * sqrt(3), sqrt(3)/2=0.86, we use 1.0 to be on the safe side 
       {
         //total ++;
@@ -341,7 +341,7 @@ void ExternalObstacle::create()
   //MPI_Allreduce(MPI_IN_PLACE,&blocks,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
   //MPI_Allreduce(MPI_IN_PLACE,&total ,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
   //if (sim.rank == 0)
-  //  std::cout << " Average triangles per block = " << ((double) total)/blocks << std::endl;
+  //  std::cout << " Average triangles per block = " << ((Real) total)/blocks << std::endl;
   //after this loop, each block will have a set of triangles associated with it
 
   const Real h = sim.hmin;

@@ -26,7 +26,7 @@ class InitialConditions : public Operator
       kernel(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
   }
 
-  void operator()(const double dt);
+  void operator()(const Real dt);
 
   std::string getName() { return "IC"; }
 };

@@ -19,21 +19,21 @@ class Interpolation1D
 {
  public:
   template <typename T>
-  static void naturalCubicSpline(const double * x, const double * y, const unsigned int n, const T * xx, T * yy, const unsigned int nn)
+  static void naturalCubicSpline(const Real * x, const Real * y, const unsigned int n, const T * xx, T * yy, const unsigned int nn)
   {
       return naturalCubicSpline(x,y,n,xx,yy,nn,0);
   }
   template <typename T>
-  static void naturalCubicSpline(const double * x, const double * y, const unsigned int n, const T * xx, T * yy, const unsigned int nn, const Real offset)
+  static void naturalCubicSpline(const Real * x, const Real * y, const unsigned int n, const T * xx, T * yy, const unsigned int nn, const Real offset)
   {
-    double* y2  = new double[n];
-    double* u  = new double[n-1];
+    Real* y2  = new Real[n];
+    Real* u  = new Real[n-1];
 
     y2[0] = u[0] = 0.0;
     for(unsigned int i=1; i<n-1; i++)
     {
-      const double sig=(x[i]-x[i-1])/(x[i+1]-x[i-1]);
-      const double p=sig*y2[i-1]+2.0;
+      const Real sig=(x[i]-x[i-1])/(x[i+1]-x[i-1]);
+      const Real p=sig*y2[i-1]+2.0;
       y2[i]=(sig-1.0)/p;
       u[i]=(y[i+1]-y[i])/(x[i+1]-x[i])-(y[i]-y[i-1])/(x[i]-x[i-1]);
       u[i]=(6.0*u[i]/(x[i+1]-x[i-1])-sig*u[i-1])/p;
@@ -53,12 +53,12 @@ class Interpolation1D
         else klo=k;
       }
 
-      const double h = x[khi]-x[klo];
+      const Real h = x[khi]-x[klo];
       if(abs(h)<2.2e-16) {
         printf("Interpolation points must be distinct!"); fflush(0); abort();
       }
-      const double a = (x[khi]-(xx[j]+offset))/h;
-      const double b = ((xx[j]+offset)-x[klo])/h;
+      const Real a = (x[khi]-(xx[j]+offset))/h;
+      const Real b = ((xx[j]+offset)-x[klo])/h;
       yy[j] = a*y[klo]+b*y[khi]+((a*a*a-a)*y2[klo]+(b*b*b-b)*y2[khi])*(h*h)/6;
     }
 
@@ -67,22 +67,22 @@ class Interpolation1D
   }
 
   template <typename T>
-  static void cubicInterpolation(const double x0, const double x1, const double x, const double y0, const double y1, const double dy0, const double dy1, T & y, T & dy)
+  static void cubicInterpolation(const Real x0, const Real x1, const Real x, const Real y0, const Real y1, const Real dy0, const Real dy1, T & y, T & dy)
   {
-    const double xrel = (x-x0);
-    const double deltax = (x1-x0);
+    const Real xrel = (x-x0);
+    const Real deltax = (x1-x0);
 
-    const double a = (dy0+dy1)/(deltax*deltax) - 2*(y1-y0)/(deltax*deltax*deltax);
-    const double b = (-2*dy0-dy1)/deltax + 3*(y1-y0)/(deltax*deltax);
-    const double c = dy0;
-    const double d = y0;
+    const Real a = (dy0+dy1)/(deltax*deltax) - 2*(y1-y0)/(deltax*deltax*deltax);
+    const Real b = (-2*dy0-dy1)/deltax + 3*(y1-y0)/(deltax*deltax);
+    const Real c = dy0;
+    const Real d = y0;
 
     y = a*xrel*xrel*xrel + b*xrel*xrel + c*xrel + d;
     dy = 3*a*xrel*xrel + 2*b*xrel + c;
   }
 
   template <typename T>
-  static void cubicInterpolation(const double x0, const double x1, const double x, const double y0, const double y1, T & y, T & dy)
+  static void cubicInterpolation(const Real x0, const Real x1, const Real x, const Real y0, const Real y1, T & y, T & dy)
   {
       return cubicInterpolation(x0,x1,x,y0,y1,0.0,0.0,y,dy); // zero slope at end points
   }

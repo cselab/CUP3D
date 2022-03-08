@@ -111,11 +111,11 @@ class KernelIC_channelrandom
 struct InitialPenalization : public ObstacleVisitor
 {
   FluidGridMPI * const grid;
-  const double dt;
+  const Real dt;
   const Real * const uInf;
   const std::vector<BlockInfo>& vInfo = grid->getBlocksInfo();
 
-  InitialPenalization(FluidGridMPI*g, const double _dt,
+  InitialPenalization(FluidGridMPI*g, const Real _dt,
     const Real*const u) : grid(g), dt(_dt), uInf(u) { }
 
   void visit(Obstacle* const obstacle)
@@ -125,9 +125,9 @@ struct InitialPenalization : public ObstacleVisitor
     #pragma omp parallel
     {
       const auto& obstblocks = obstacle->getObstacleBlocks();
-      const std::array<double,3> centerOfMass = obstacle->getCenterOfMass();
-      const std::array<double,3> uBody = obstacle->getTranslationVelocity();
-      const std::array<double,3> omegaBody = obstacle->getAngularVelocity();
+      const std::array<Real,3> centerOfMass = obstacle->getCenterOfMass();
+      const std::array<Real,3> uBody = obstacle->getTranslationVelocity();
+      const std::array<Real,3> omegaBody = obstacle->getAngularVelocity();
 
       #pragma omp for schedule(dynamic)
       for (size_t i = 0; i < vInfo.size(); ++i)
@@ -169,7 +169,7 @@ struct InitialPenalization : public ObstacleVisitor
 
 }
 
-void InitialConditions::operator()(const double dt)
+void InitialConditions::operator()(const Real dt)
 {
   if(sim.initCond == "zero") {
     if(sim.verbose) printf("[CUP3D] - Zero-values initial conditions.\n");

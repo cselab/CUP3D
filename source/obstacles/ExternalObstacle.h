@@ -94,9 +94,9 @@ inline int rayIntersectsTriangle(const Vector3<Real> &rayOrigin, const Vector3<R
 
 inline Vector3<Real> ProjectToLine(const Vector3<Real> a, const Vector3<Real> b, const Vector3<Real> p)
 {
-    const double norm_ab = std::sqrt((b[0]-a[0])*(b[0]-a[0])+(b[1]-a[1])*(b[1]-a[1])+(b[2]-a[2])*(b[2]-a[2]));
-    const double proj_a = std::fabs(dot(p-a,b-a))/norm_ab;
-    const double proj_b = std::fabs(dot(p-b,b-a))/norm_ab;
+    const Real norm_ab = std::sqrt((b[0]-a[0])*(b[0]-a[0])+(b[1]-a[1])*(b[1]-a[1])+(b[2]-a[2])*(b[2]-a[2]));
+    const Real proj_a = std::fabs(dot(p-a,b-a))/norm_ab;
+    const Real proj_b = std::fabs(dot(p-b,b-a))/norm_ab;
     if (proj_a <= norm_ab && proj_b <= norm_ab) return a + (proj_a/norm_ab) * (b-a); //point is between a and b
     else if (proj_a < proj_b) return a;
     else return b;
@@ -108,20 +108,20 @@ inline Real pointTriangleSqrDistance( const Vector3<Real> a, const Vector3<Real>
     const auto ab = b - a;
     const auto ar = r - a;
     const auto n = cross(ab, ac);
-    const double alpha = dot(ar, n) / dot(n, n);
+    const Real alpha = dot(ar, n) / dot(n, n);
     const auto rp = r - alpha * n;
 
     // 2. compute the barycentric coordinates
-    double u = 0; 
-    double v = 0; 
-    double w = 0; 
+    Real u = 0; 
+    Real v = 0; 
+    Real w = 0; 
     const Vector3<Real> temp = rp - a;
-    const double d00 = dot(ab  , ab);
-    const double d01 = dot(ab  , ac);
-    const double d11 = dot(ac  , ac);
-    const double d20 = dot(temp, ab);
-    const double d21 = dot(temp, ac);
-    const double denom = d00 * d11 - d01 * d01;
+    const Real d00 = dot(ab  , ab);
+    const Real d01 = dot(ab  , ac);
+    const Real d11 = dot(ac  , ac);
+    const Real d20 = dot(temp, ab);
+    const Real d21 = dot(temp, ac);
+    const Real denom = d00 * d11 - d01 * d01;
     v = (d11 * d20 - d01 * d21) / denom;
     w = (d00 * d21 - d01 * d20) / denom;
     u = 1.0 - v - w;
@@ -130,9 +130,9 @@ inline Real pointTriangleSqrDistance( const Vector3<Real> a, const Vector3<Real>
 
     if (std::fabs(denom) < 1e-23) //then triangle is a line 
     {
-       const double ab1 = std::fabs(dot(ab,ab));
-       const double ac1 = std::fabs(dot(ac,ac));
-       const double bc1 = std::fabs(dot(b-c,b-c));
+       const Real ab1 = std::fabs(dot(ab,ab));
+       const Real ac1 = std::fabs(dot(ac,ac));
+       const Real bc1 = std::fabs(dot(b-c,b-c));
        if      (ab1 <= ac1 && ab1 <= bc1) rpt = ProjectToLine(a,c,rp);
        else if (ac1 <= ab1 && ac1 <= bc1) rpt = ProjectToLine(b,c,rp);
        else if (bc1 <= ab1 && bc1 <= ac1) rpt = ProjectToLine(a,b,rp);
@@ -149,7 +149,7 @@ inline Real pointTriangleSqrDistance( const Vector3<Real> a, const Vector3<Real>
     else if (v < 0) rpt = ProjectToLine(a,c,rp);
     else if (w < 0) rpt = ProjectToLine(a,b,rp);
 
-    double retval = std::sqrt((r[0]-rpt[0])*(r[0]-rpt[0])+(r[1]-rpt[1])*(r[1]-rpt[1])+(r[2]-rpt[2])*(r[2]-rpt[2]));
+    Real retval = std::sqrt((r[0]-rpt[0])*(r[0]-rpt[0])+(r[1]-rpt[1])*(r[1]-rpt[1])+(r[2]-rpt[2])*(r[2]-rpt[2]));
     return retval;
 }
 
@@ -158,7 +158,7 @@ class Mesh
   public:
     Mesh(const std::vector<Vector3<Real>> &x, const std::vector<Vector3<int>>  &tri) : x_{x}, tri_{tri}{}
 
-    void rotate( const Real Rmatrix[3][3], const double position[3])
+    void rotate( const Real Rmatrix[3][3], const Real position[3])
     {
         for( auto& pt: x_ )
         {

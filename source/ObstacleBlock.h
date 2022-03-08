@@ -23,10 +23,10 @@ CubismUP_3D_NAMESPACE_BEGIN
 struct surface_data
 {
   const int ix, iy, iz;
-  const double dchidx, dchidy, dchidz, delta;
+  const Real dchidx, dchidy, dchidz, delta;
 
-  surface_data(int _ix, int _iy, int _iz, double _dchidx, double _dchidy,
-    double _dchidz, double _delta) : ix(_ix), iy(_iy), iz(_iz),
+  surface_data(int _ix, int _iy, int _iz, Real _dchidx, Real _dchidy,
+    Real _dchidz, Real _delta) : ix(_ix), iy(_iy), iz(_iz),
     dchidx(_dchidx), dchidy(_dchidy), dchidz(_dchidz), delta(_delta) {}
   surface_data() = delete;
 };
@@ -49,36 +49,36 @@ struct ObstacleBlock
   bool filled = false;
   std::vector<surface_data*> surface;
   int *ss  = nullptr;
-  double *pX  = nullptr, *pY  = nullptr, *pZ  = nullptr, *P = nullptr;
-  double *fX  = nullptr, *fY  = nullptr, *fZ  = nullptr;
-  double *fxP = nullptr, *fyP = nullptr, *fzP = nullptr;
-  double *fxV = nullptr, *fyV = nullptr, *fzV = nullptr;
-  double *vX  = nullptr, *vY  = nullptr, *vZ  = nullptr;
-  double *vxDef = nullptr, *vyDef = nullptr, *vzDef = nullptr;
+  Real *pX  = nullptr, *pY  = nullptr, *pZ  = nullptr, *P = nullptr;
+  Real *fX  = nullptr, *fY  = nullptr, *fZ  = nullptr;
+  Real *fxP = nullptr, *fyP = nullptr, *fzP = nullptr;
+  Real *fxV = nullptr, *fyV = nullptr, *fzV = nullptr;
+  Real *vX  = nullptr, *vY  = nullptr, *vZ  = nullptr;
+  Real *vxDef = nullptr, *vyDef = nullptr, *vzDef = nullptr;
 
   //additive quantities:
   // construct CHI & center of mass interpolated on grid:
-  double CoM_x = 0, CoM_y = 0, CoM_z = 0, mass = 0;
+  Real CoM_x = 0, CoM_y = 0, CoM_z = 0, mass = 0;
 
   // Penalization volume integral forces:
-  double V =0, FX=0, FY=0, FZ=0, TX=0, TY=0, TZ=0;
-  double J0=0, J1=0, J2=0, J3=0, J4=0, J5=0;
+  Real V =0, FX=0, FY=0, FZ=0, TX=0, TY=0, TZ=0;
+  Real J0=0, J1=0, J2=0, J3=0, J4=0, J5=0;
 
-  double GfX=0, GpX=0, GpY=0, GpZ=0, Gj0=0, Gj1=0, Gj2=0, Gj3=0, Gj4=0, Gj5=0;
-  double GuX=0, GuY=0, GuZ=0, GaX=0, GaY=0, GaZ=0;
+  Real GfX=0, GpX=0, GpY=0, GpZ=0, Gj0=0, Gj1=0, Gj2=0, Gj3=0, Gj4=0, Gj5=0;
+  Real GuX=0, GuY=0, GuZ=0, GaX=0, GaY=0, GaZ=0;
 
   // Fluid-structure interface forces: (these are the 22 quantities of nQoI)
-  double  forcex   = 0,  forcey   = 0,  forcez   = 0;
-  double  forcex_P = 0,  forcey_P = 0,  forcez_P = 0;
-  double  forcex_V = 0,  forcey_V = 0,  forcez_V = 0;
-  double torquex   = 0, torquey   = 0, torquez   = 0;
-  double  gammax   = 0,  gammay   = 0,  gammaz   = 0;
+  Real  forcex   = 0,  forcey   = 0,  forcez   = 0;
+  Real  forcex_P = 0,  forcey_P = 0,  forcez_P = 0;
+  Real  forcex_V = 0,  forcey_V = 0,  forcez_V = 0;
+  Real torquex   = 0, torquey   = 0, torquez   = 0;
+  Real  gammax   = 0,  gammay   = 0,  gammaz   = 0;
   //Real torquex_P = 0, torquey_P = 0, torquez_P = 0;
   //Real torquex_V = 0, torquey_V = 0, torquez_V = 0;
-  double drag = 0, thrust = 0, Pout=0, PoutBnd=0, defPower=0, defPowerBnd = 0, pLocom = 0;
+  Real drag = 0, thrust = 0, Pout=0, PoutBnd=0, defPower=0, defPowerBnd = 0, pLocom = 0;
   static const int nQoI = 22;
 
-  virtual void sumQoI(std::vector<double>& sum)
+  virtual void sumQoI(std::vector<Real>& sum)
   {
     assert(sum.size() == nQoI);
     unsigned k = 0;
@@ -160,9 +160,9 @@ struct ObstacleBlock
     //if(_chi<chi[iz][iy][ix]) return;
     assert(!filled);
     nPoints++;
-    const double dchidx = -delta*gradUX;
-    const double dchidy = -delta*gradUY;
-    const double dchidz = -delta*gradUZ;
+    const Real dchidx = -delta*gradUX;
+    const Real dchidy = -delta*gradUY;
+    const Real dchidz = -delta*gradUZ;
     surface.push_back(new surface_data(ix,iy,iz,dchidx,dchidy,dchidz,delta));
   }
 
@@ -173,16 +173,16 @@ struct ObstacleBlock
     assert(pX==nullptr && pY==nullptr && pZ==nullptr);
     assert(vX==nullptr && vY==nullptr && vZ==nullptr);
     assert(fX==nullptr && fY==nullptr && fZ==nullptr);
-    pX   =init<double>(nPoints); pY   =init<double>(nPoints);
-    pZ   =init<double>(nPoints); vX   =init<double>(nPoints);
-    vY   =init<double>(nPoints); vZ   =init<double>(nPoints);
-    fX   =init<double>(nPoints); fY   =init<double>(nPoints);
-    fZ   =init<double>(nPoints); fxP  =init<double>(nPoints);
-    fyP  =init<double>(nPoints); fzP  =init<double>(nPoints);
-    fxV  =init<double>(nPoints); fyV  =init<double>(nPoints);
-    fzV  =init<double>(nPoints); vxDef=init<double>(nPoints);
-    vyDef=init<double>(nPoints); vzDef=init<double>(nPoints);
-    P    =init<double>(nPoints); ss   =init<int>(nPoints);
+    pX   =init<Real>(nPoints); pY   =init<Real>(nPoints);
+    pZ   =init<Real>(nPoints); vX   =init<Real>(nPoints);
+    vY   =init<Real>(nPoints); vZ   =init<Real>(nPoints);
+    fX   =init<Real>(nPoints); fY   =init<Real>(nPoints);
+    fZ   =init<Real>(nPoints); fxP  =init<Real>(nPoints);
+    fyP  =init<Real>(nPoints); fzP  =init<Real>(nPoints);
+    fxV  =init<Real>(nPoints); fyV  =init<Real>(nPoints);
+    fzV  =init<Real>(nPoints); vxDef=init<Real>(nPoints);
+    vyDef=init<Real>(nPoints); vzDef=init<Real>(nPoints);
+    P    =init<Real>(nPoints); ss   =init<int>(nPoints);
   }
 
   template <typename T>

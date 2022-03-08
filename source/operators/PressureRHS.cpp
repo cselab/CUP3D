@@ -382,7 +382,7 @@ struct PressureRHSObstacleVisitor : public ObstacleVisitor
 
 PressureRHS::PressureRHS(SimulationData & s) : Operator(s) {}
 
-void PressureRHS::operator()(const double dt)
+void PressureRHS::operator()(const Real dt)
 {
   const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
   const std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson->getBlocksInfo();

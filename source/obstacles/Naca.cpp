@@ -25,8 +25,8 @@ class NacaMidlineData : public FishMidlineData
  Real * const rC;
  Real * const vC;
  public:
-  NacaMidlineData(const double L, const double _h, double zExtent,
-    double t_ratio, double HoverL=1) : FishMidlineData(L, 1, 0, _h),
+  NacaMidlineData(const Real L, const Real _h, Real zExtent,
+    Real t_ratio, Real HoverL=1) : FishMidlineData(L, 1, 0, _h),
     rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm))
   {
     for(int i=0;i<Nm;++i) height[i] = length*HoverL/2;
@@ -45,7 +45,7 @@ class NacaMidlineData : public FishMidlineData
     #endif
   }
 
-  void computeMidline(const double time, const double dt) override
+  void computeMidline(const Real time, const Real dt) override
   {
     #if 1
       rX[0] = rY[0] = vX[0] = vY[0] = 0;
@@ -57,11 +57,11 @@ class NacaMidlineData : public FishMidlineData
       }
       #pragma omp parallel for schedule(static)
       for(int i=0; i<Nm-1; i++) {
-        const double ds = rS[i+1]-rS[i];
-        const double tX = rX[i+1]-rX[i];
-        const double tY = rY[i+1]-rY[i];
-        const double tVX = vX[i+1]-vX[i];
-        const double tVY = vY[i+1]-vY[i];
+        const Real ds = rS[i+1]-rS[i];
+        const Real tX = rX[i+1]-rX[i];
+        const Real tY = rY[i+1]-rY[i];
+        const Real tVX = vX[i+1]-vX[i];
+        const Real tVY = vY[i+1]-vY[i];
         norX[i] = -tY/ds;
         norY[i] =  tX/ds;
         norZ[i] =  0.0;
@@ -88,10 +88,10 @@ class NacaMidlineData : public FishMidlineData
       vBinY[Nm-1] = vBinY[Nm-2];
       vBinZ[Nm-1] = vBinZ[Nm-2];
     #else // 2d stefan swimmer
-      const std::array<double ,6> curvature_points = {
+      const std::array<Real ,6> curvature_points = {
           0, .15*length, .4*length, .65*length, .9*length, length
       };
-      const std::array<double ,6> curvature_values = {
+      const std::array<Real ,6> curvature_values = {
           0.82014/length, 1.46515/length, 2.57136/length,
           3.75425/length, 5.09147/length, 5.70449/length
       };
@@ -100,8 +100,8 @@ class NacaMidlineData : public FishMidlineData
       curvScheduler.gimmeValues(time, curvature_points, Nm, rS, rC, vC);
       // construct the curvature
       for(int i=0; i<Nm; i++) {
-        const double darg = 2.*M_PI;
-        const double arg  = 2.*M_PI*(time -rS[i]/length) + M_PI*phaseShift;
+        const Real darg = 2.*M_PI;
+        const Real arg  = 2.*M_PI*(time -rS[i]/length) + M_PI*phaseShift;
         rK[i] =   rC[i]*std::sin(arg);
         vK[i] =   vC[i]*std::sin(arg) + rC[i]*std::cos(arg)*darg;
       }
@@ -140,7 +140,7 @@ Naca::Naca(SimulationData&s, ArgumentParser&p) : Fish(s, p)
   #endif
   Aheave *= length;
 
-  const double thickness = p("-thickness").asDouble(0.12); // (NON DIMENSIONAL)
+  const Real thickness = p("-thickness").asDouble(0.12); // (NON DIMENSIONAL)
 
   if(!sim.rank)
     printf("Naca: pos=%3.3f, Apitch=%3.3f, Fpitch=%3.3f,Ppitch=%3.3f, "

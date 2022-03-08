@@ -18,7 +18,7 @@ class UpdateObstacles : public Operator
  public:
   UpdateObstacles(SimulationData & s) : Operator(s) {}
 
-  void operator()(const double dt);
+  void operator()(const Real dt);
 
   std::string getName() { return "UpdateObstacles Vel"; }
 };

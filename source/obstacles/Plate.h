@@ -47,24 +47,24 @@ CubismUP_3D_NAMESPACE_BEGIN
 class Plate : public Obstacle
 {
   // Vectors n, a and b are unit vectors and mutually orthogonal.
-  double nx, ny, nz;      // Normal.
-  double ax, ay, az;      // A-side vector.
-  double bx, by, bz;      // B-side vector.
-  double half_a;          // Half-size in A direction.
-  double half_b;          // Half-size in B direction.
-  double half_thickness;
+  Real nx, ny, nz;      // Normal.
+  Real ax, ay, az;      // A-side vector.
+  Real bx, by, bz;      // B-side vector.
+  Real half_a;          // Half-size in A direction.
+  Real half_b;          // Half-size in B direction.
+  Real half_thickness;
 
-  void _from_alpha(double alpha);  // Alpha in radians.
+  void _from_alpha(Real alpha);  // Alpha in radians.
   void _init(void);
 
 public:
   Plate(SimulationData &s, cubism::ArgumentParser &p);
   Plate(SimulationData &s, ObstacleArguments &args,
-        double a, double b, double thickness,
-        double alpha);  // Alpha in radians.
+        Real a, Real b, Real thickness,
+        Real alpha);  // Alpha in radians.
   Plate(SimulationData &s, ObstacleArguments &args,
-        double a, double b, double thickness,
-        double nx, double ny, double nz, double ax, double ay, double az);
+        Real a, Real b, Real thickness,
+        Real nx, Real ny, Real nz, Real ax, Real ay, Real az);
 
   void create() override;
   void finalize() override;

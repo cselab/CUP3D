@@ -19,7 +19,7 @@ using namespace cubism;
 using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
 using CHIMAT =  Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-static constexpr double DBLEPS = std::numeric_limits<double>::epsilon();
+static constexpr Real DBLEPS = std::numeric_limits<Real>::epsilon();
 
 ObstacleArguments::ObstacleArguments(
         const SimulationData & sim,
@@ -34,7 +34,7 @@ ObstacleArguments::ObstacleArguments(
   quaternion[2] = parser("-quat2").asDouble(0.0);
   quaternion[3] = parser("-quat3").asDouble(0.0);
   planarAngle = parser("-planarAngle").asDouble(0.0) / 180 * M_PI;
-  const double q_length = std::sqrt(quaternion[0]*quaternion[0]
+  const Real q_length = std::sqrt(quaternion[0]*quaternion[0]
                                  +  quaternion[1]*quaternion[1]
                                  +  quaternion[2]*quaternion[2]
                                  +  quaternion[3]*quaternion[3]);
@@ -100,7 +100,7 @@ Obstacle::Obstacle(
            quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
   }
 
-  const double one = std::sqrt(
+  const Real one = std::sqrt(
           quaternion[0] * quaternion[0] + quaternion[1] * quaternion[1]
         + quaternion[2] * quaternion[2] + quaternion[3] * quaternion[3]);
 
@@ -154,7 +154,7 @@ Obstacle::Obstacle(
 
 void Obstacle::computeVelocities()
 {
-  std::vector<double> A(36);
+  std::vector<double> A(36);//need to use double (not Real) for GSL
   A[0*6 + 0] =      penalM ; A[0*6 + 1] =         0.0 ; A[0*6 + 2] =         0.0; A[0*6 + 3] =         0.0; A[0*6 + 4] = +penalCM[2]; A[0*6 + 5] = -penalCM[1];
   A[1*6 + 0] =         0.0 ; A[1*6 + 1] =      penalM ; A[1*6 + 2] =         0.0; A[1*6 + 3] = -penalCM[2]; A[1*6 + 4] =         0.0; A[1*6 + 5] = +penalCM[0];
   A[2*6 + 0] =         0.0 ; A[2*6 + 1] =         0.0 ; A[2*6 + 2] =      penalM; A[2*6 + 3] = +penalCM[1]; A[2*6 + 4] = -penalCM[0]; A[2*6 + 5] =         0.0;
@@ -163,7 +163,7 @@ void Obstacle::computeVelocities()
   A[5*6 + 0] = -penalCM[1] ; A[5*6 + 1] = +penalCM[0] ; A[5*6 + 2] =         0.0; A[5*6 + 3] =   penalJ[4]; A[5*6 + 4] =   penalJ[5]; A[5*6 + 5] =   penalJ[2];
 
   // TODO here we can add dt * appliedForce/Torque[i]
-  double b[6] = {
+  double b[6] = { //need to use double (not Real) for GSL
     penalLmom[0], penalLmom[1], penalLmom[2],
     penalAmom[0], penalAmom[1], penalAmom[2]
   };
@@ -228,7 +228,7 @@ void Obstacle::computeVelocities()
   force[0] = mass * (transVel_computed[0] - transVel[0]) / sim.dt;
   force[1] = mass * (transVel_computed[1] - transVel[1]) / sim.dt;
   force[2] = mass * (transVel_computed[2] - transVel[2]) / sim.dt;
-  const std::array<double,3> dAv = {
+  const std::array<Real,3> dAv = {
     (angVel_computed[0] - angVel[0]) / sim.dt,
     (angVel_computed[1] - angVel[1]) / sim.dt,
     (angVel_computed[2] - angVel[2]) / sim.dt
@@ -271,13 +271,13 @@ void Obstacle::computeVelocities()
 void Obstacle::computeForces()
 {
   static const int nQoI = ObstacleBlock::nQoI;
-  std::vector<double> sum = std::vector<double>(nQoI, 0);
+  std::vector<Real> sum = std::vector<Real>(nQoI, 0);
   for (auto & block : obstacleBlocks) {
     if(block == nullptr) continue;
     block->sumQoI(sum);
   }
 
-  MPI_Allreduce(MPI_IN_PLACE, sum.data(), nQoI, MPI_DOUBLE, MPI_SUM, grid->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, sum.data(), nQoI, MPI_Real, MPI_SUM, grid->getCartComm());
 
   //additive quantities: (check against order in sumQoI of ObstacleBlocks.h )
   unsigned k = 0;
@@ -290,13 +290,13 @@ void Obstacle::computeForces()
   PoutBnd       = sum[k++]; defPower      = sum[k++]; defPowerBnd   = sum[k++];
   pLocom        = sum[k++];
 
-  const double vel_norm = std::sqrt(transVel[0]*transVel[0]
+  const Real vel_norm = std::sqrt(transVel[0]*transVel[0]
                                   + transVel[1]*transVel[1]
                                   + transVel[2]*transVel[2]);
   //derived quantities:
   Pthrust    = thrust*vel_norm;
   Pdrag      =   drag*vel_norm;
-  EffPDef    = Pthrust/(Pthrust-std::min(defPower,(double)0)+EPS);
+  EffPDef    = Pthrust/(Pthrust-std::min(defPower,(Real)0)+EPS);
   EffPDefBnd = Pthrust/(Pthrust-         defPowerBnd        +EPS);
 
   #ifdef CUP_DUMP_SURFACE_BINARY
@@ -318,11 +318,11 @@ void Obstacle::computeForces()
 
 void Obstacle::update()
 {
-  const double dqdt[4] = {
-    .5*( - angVel[0]*quaternion[1] - angVel[1]*quaternion[2] - angVel[2]*quaternion[3] ),
-    .5*( + angVel[0]*quaternion[0] + angVel[1]*quaternion[3] - angVel[2]*quaternion[2] ),
-    .5*( - angVel[0]*quaternion[3] + angVel[1]*quaternion[0] + angVel[2]*quaternion[1] ),
-    .5*( + angVel[0]*quaternion[2] - angVel[1]*quaternion[1] + angVel[2]*quaternion[0] )
+  const Real dqdt[4] = {
+    (Real).5*( - angVel[0]*quaternion[1] - angVel[1]*quaternion[2] - angVel[2]*quaternion[3] ),
+    (Real).5*( + angVel[0]*quaternion[0] + angVel[1]*quaternion[3] - angVel[2]*quaternion[2] ),
+    (Real).5*( - angVel[0]*quaternion[3] + angVel[1]*quaternion[0] + angVel[2]*quaternion[1] ),
+    (Real).5*( + angVel[0]*quaternion[2] - angVel[1]*quaternion[1] + angVel[2]*quaternion[0] )
   };
 
   if (sim.step < sim.step_2nd_start)
@@ -350,9 +350,9 @@ void Obstacle::update()
   }
   else
   {
-    const double aux = 1.0 / sim.coefU[0];
+    const Real aux = 1.0 / sim.coefU[0];
 
-    double temp [10] = {position[0],position[1],position[2],absPos[0],absPos[1],absPos[2],quaternion[0],quaternion[1],quaternion[2],quaternion[3]};
+    Real temp [10] = {position[0],position[1],position[2],absPos[0],absPos[1],absPos[2],quaternion[0],quaternion[1],quaternion[2],quaternion[3]};
     position  [0] = aux * ( sim.dt * ( transVel[0] + sim.uinf[0] ) + ( - sim.coefU[1]*position  [0] - sim.coefU[2]*old_position  [0]) );
     position  [1] = aux * ( sim.dt * ( transVel[1] + sim.uinf[1] ) + ( - sim.coefU[1]*position  [1] - sim.coefU[2]*old_position  [1]) );
     position  [2] = aux * ( sim.dt * ( transVel[2] + sim.uinf[2] ) + ( - sim.coefU[1]*position  [2] - sim.coefU[2]*old_position  [2]) );
@@ -374,7 +374,7 @@ void Obstacle::update()
     old_quaternion[2] = temp[8];
     old_quaternion[3] = temp[9];
   }
-  const double invD = 1.0/std::sqrt(quaternion[0]*quaternion[0] + quaternion[1]*quaternion[1] + quaternion[2]*quaternion[2] + quaternion[3]*quaternion[3]);
+  const Real invD = 1.0/std::sqrt(quaternion[0]*quaternion[0] + quaternion[1]*quaternion[1] + quaternion[2]*quaternion[2] + quaternion[3]*quaternion[3]);
   quaternion[0] *= invD;
   quaternion[1] *= invD;
   quaternion[2] *= invD;
@@ -384,16 +384,16 @@ void Obstacle::update()
 /*
   // normality preserving advection (Simulation of colliding constrained rigid bodies - Kleppmann 2007 Cambridge University, p51)
   // move the correct distance on the quaternion unit ball surface, end up with normalized quaternion
-  const double DQ[4] = { dqdt[0]*dt, dqdt[1]*dt, dqdt[2]*dt, dqdt[3]*dt };
-  const double DQn = std::sqrt(DQ[0]*DQ[0]+DQ[1]*DQ[1]+DQ[2]*DQ[2]+DQ[3]*DQ[3]);
+  const Real DQ[4] = { dqdt[0]*dt, dqdt[1]*dt, dqdt[2]*dt, dqdt[3]*dt };
+  const Real DQn = std::sqrt(DQ[0]*DQ[0]+DQ[1]*DQ[1]+DQ[2]*DQ[2]+DQ[3]*DQ[3]);
 
   if(DQn>DBLEPS)// && currentRKstep == 0)
   {
-    const double tanF = std::tan(DQn)/DQn;
-    const double D[4] = {
+    const Real tanF = std::tan(DQn)/DQn;
+    const Real D[4] = {
       Q[0] +tanF*DQ[0], Q[1] +tanF*DQ[1], Q[2] +tanF*DQ[2], Q[3] +tanF*DQ[3],
     };
-    const double invD = 1/std::sqrt(D[0]*D[0]+D[1]*D[1]+D[2]*D[2]+D[3]*D[3]);
+    const Real invD = 1/std::sqrt(D[0]*D[0]+D[1]*D[1]+D[2]*D[2]+D[3]*D[3]);
     quaternion[0] = D[0] * invD; quaternion[1] = D[1] * invD;
     quaternion[2] = D[2] * invD; quaternion[3] = D[3] * invD;
   }
@@ -406,7 +406,7 @@ void Obstacle::update()
            absPos[0],absPos[1],absPos[2],transVel[0],transVel[1],transVel[2],angVel[0],angVel[1],angVel[2],ang);
   }
   #ifndef NDEBUG
-  const double q_length=std::sqrt(quaternion[0]*quaternion[0]
+  const Real q_length=std::sqrt(quaternion[0]*quaternion[0]
         +  quaternion[1]*quaternion[1]
         +  quaternion[2]*quaternion[2]
         +  quaternion[3]*quaternion[3]);
@@ -425,19 +425,19 @@ void Obstacle::create()
 void Obstacle::finalize()
 { }
 
-std::array<double,3> Obstacle::getTranslationVelocity() const
+std::array<Real,3> Obstacle::getTranslationVelocity() const
 {
-  return std::array<double,3> {{transVel[0],transVel[1],transVel[2]}};
+  return std::array<Real,3> {{transVel[0],transVel[1],transVel[2]}};
 }
 
-std::array<double,3> Obstacle::getAngularVelocity() const
+std::array<Real,3> Obstacle::getAngularVelocity() const
 {
-  return std::array<double,3> {{angVel[0],angVel[1],angVel[2]}};
+  return std::array<Real,3> {{angVel[0],angVel[1],angVel[2]}};
 }
 
-std::array<double,3> Obstacle::getCenterOfMass() const
+std::array<Real,3> Obstacle::getCenterOfMass() const
 {
-  return std::array<double,3> {{centerOfMass[0],centerOfMass[1],centerOfMass[2]}};
+  return std::array<Real,3> {{centerOfMass[0],centerOfMass[1],centerOfMass[2]}};
 }
 
 void Obstacle::save(std::string filename)

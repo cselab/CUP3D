@@ -8,13 +8,13 @@ template <typename TGrid, typename TLab>
 class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
 {
  public:
-   double Rtol_chi;
-   double Ctol_chi;
+   Real Rtol_chi;
+   Real Ctol_chi;
    typedef typename TGrid::Block BlockType;
    typedef typename TGrid::BlockType::ElementType ElementType;
    typedef typename TGrid::BlockType Block;
 
-   MeshAdaptation_CUP(TGrid &grid, double Rtol, double Ctol): MeshAdaptationMPI<TGrid,TLab>(grid,Rtol,Ctol)
+   MeshAdaptation_CUP(TGrid &grid, Real Rtol, Real Ctol): MeshAdaptationMPI<TGrid,TLab>(grid,Rtol,Ctol)
    {
     Rtol_chi = 1e-6;
     Ctol_chi = 1e-9;
@@ -100,8 +100,8 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
         for (int iy = 0; iy < ny; iy ++)
         for (int ix = 0; ix < nx; ix ++)
         {
-          b(ix  ,iy  ,iz  ).chi = std::max( b(ix  ,iy  ,iz  ).chi, 0.0);
-          b(ix  ,iy  ,iz  ).chi = std::min( b(ix  ,iy  ,iz  ).chi, 1.0);
+          b(ix  ,iy  ,iz  ).chi = std::max( b(ix  ,iy  ,iz  ).chi,(Real) 0.0);
+          b(ix  ,iy  ,iz  ).chi = std::min( b(ix  ,iy  ,iz  ).chi,(Real) 1.0);
         }
       }
    }
@@ -111,16 +111,16 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
           for (int i = 0 ; i < ElementType::DIM ; i++)
             WENOWavelets3(E0.member(i), E1.member(i), E2.member(i), left.member(i), right.member(i));
        }
-       void WENOWavelets3(double cm, double c, double cp, double &left, double &right)
+       void WENOWavelets3(Real cm, Real c, Real cp, Real &left, Real &right)
        {
-          const double b1  = (c - cm) * (c - cm);
-          const double b2  = (c - cp) * (c - cp);
-          double w1  = (1e-6 + b2) * (1e-6 + b2); // yes, 2 goes to 1 and 1 goes to 2
-          double w2  = (1e-6 + b1) * (1e-6 + b1);
-          const double aux = 1.0 / (w1 + w2);
+          const Real b1  = (c - cm) * (c - cm);
+          const Real b2  = (c - cp) * (c - cp);
+          Real w1  = (1e-6 + b2) * (1e-6 + b2); // yes, 2 goes to 1 and 1 goes to 2
+          Real w2  = (1e-6 + b1) * (1e-6 + b1);
+          const Real aux = 1.0 / (w1 + w2);
           w1 *= aux;
           w2 *= aux;
-          double g1, g2;
+          Real g1, g2;
           g1    = 0.75 * c + 0.25 * cm;
           g2    = 1.25 * c - 0.25 * cp;
           left  = g1 * w1 + g2 * w2;
@@ -138,7 +138,7 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
       static const int nz = BlockType::sizeZ;
 
       const Real inv2h = .5/info.h;  
-      double Linf_2 = 0.0; //vorticity
+      Real Linf_2 = 0.0; //vorticity
 
       //Loop over block and halo cells and refine mesh
       //if any of the cells have chi > 0 and chi < 0.9 (equivalent to grad(chi) != 0)
@@ -148,8 +148,8 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
       for(int y=-offset; y<ny+offset; ++y)
       for(int x=-offset; x<nx+offset; ++x)
       {
-        Lab_(x,y,z).chi = std::min(Lab_(x,y,z).chi,1.0);
-        Lab_(x,y,z).chi = std::max(Lab_(x,y,z).chi,0.0);
+        Lab_(x,y,z).chi = std::min(Lab_(x,y,z).chi,(Real)1.0);
+        Lab_(x,y,z).chi = std::max(Lab_(x,y,z).chi,(Real)0.0);
         if (Lab_(x,y,z).chi > 0.0 && Lab_(x,y,z).chi < 0.9)
         {
           hasChi = true;
@@ -163,10 +163,10 @@ class MeshAdaptation_CUP : public MeshAdaptationMPI<TGrid,TLab>
         const ElementType &LW=Lab_(i-1,j  ,k  ), &LE=Lab_(i+1,j  ,k  );
         const ElementType &LS=Lab_(i  ,j-1,k  ), &LN=Lab_(i  ,j+1,k  );
         const ElementType &LF=Lab_(i  ,j  ,k-1), &LB=Lab_(i  ,j  ,k+1);
-        const double omega_x = (LN.w-LS.w) - (LB.v-LF.v);
-        const double omega_y = (LB.u-LF.u) - (LE.w-LW.w);
-        const double omega_z = (LE.v-LW.v) - (LN.u-LS.u);
-        const double omega = omega_x*omega_x + omega_y*omega_y + omega_z*omega_z;
+        const Real omega_x = (LN.w-LS.w) - (LB.v-LF.v);
+        const Real omega_y = (LB.u-LF.u) - (LE.w-LW.w);
+        const Real omega_z = (LE.v-LW.v) - (LN.u-LS.u);
+        const Real omega = omega_x*omega_x + omega_y*omega_y + omega_z*omega_z;
         Linf_2 = max(Linf_2,omega);
       }
       Linf_2 = inv2h * sqrt(Linf_2);

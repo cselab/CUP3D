@@ -40,7 +40,7 @@ class KernelDissipation
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W,FE_P}};
 
-  KernelDissipation(double _dt, const Real ext[3], Real _nu)
+  KernelDissipation(Real _dt, const Real ext[3], Real _nu)
   : dt(_dt), nu(_nu), center{ext[0]/2, ext[1]/2, ext[2]/2} { }
 
   template <typename Lab, typename BlockType>
@@ -116,7 +116,7 @@ class KernelDissipation
 };
 }
 
-void ComputeDissipation::operator()(const double dt)
+void ComputeDissipation::operator()(const Real dt)
 {
   if(sim.freqDiagnostics == 0 || sim.step % sim.freqDiagnostics) return;
 
@@ -128,7 +128,7 @@ void ComputeDissipation::operator()(const double dt)
 
   compute<KernelDissipation>(diss);
 
-  double RDX[20] = { 0.0 };
+  Real RDX[20] = { 0.0 };
   for(int i=0; i<nthreads; i++) {
     RDX[ 0] += diss[i]->circulation[0];
     RDX[ 1] += diss[i]->circulation[1];
@@ -153,7 +153,7 @@ void ComputeDissipation::operator()(const double dt)
     delete diss[i];
   }
 
-  MPI_Allreduce(MPI_IN_PLACE, RDX, 20,MPI_DOUBLE, MPI_SUM,grid->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, RDX, 20,MPI_Real, MPI_SUM,grid->getCartComm());
 
   size_t loc = sim.vInfo().size();
   size_t tot;

@@ -56,11 +56,11 @@ class ObstacleVector;
  */
 struct ObstacleArguments
 {
-  double length = 0.0;
-  double planarAngle = 0.0;
-  std::array<double, 3> position = {{0.0, 0.0, 0.0}};
-  std::array<double, 4> quaternion = {{1.0, 0.0, 0.0, 0.0}};
-  std::array<double, 3> enforcedVelocity = {{0.0, 0.0, 0.0}};  // Only if bForcedInSimFrame.
+  Real length = 0.0;
+  Real planarAngle = 0.0;
+  std::array<Real, 3> position = {{0.0, 0.0, 0.0}};
+  std::array<Real, 4> quaternion = {{1.0, 0.0, 0.0, 0.0}};
+  std::array<Real, 3> enforcedVelocity = {{0.0, 0.0, 0.0}};  // Only if bForcedInSimFrame.
   std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
   std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
   bool bFixToPlanar = false;
@@ -96,58 +96,58 @@ public:
   //       sim.uinf is the average velocity of obstacles with bFixFrameOfRef = true
   //       (with the addition of a far field velocity field, if the user wants that).
 
-  double absPos  [3] = {0,0,0};     //position of obstacle in frame (I)
-  double position[3] = {0,0,0};     //position of obstacle in frame (II)
-  double quaternion[4] = {1,0,0,0}; //orientation (same for both frames)
-  double transVel[3] = {0,0,0};     //translational velocity in frame (I)
-  double angVel  [3] = {0,0,0};     //angular velocity
-  double mass;                      //obstacle mass
-  double length;                    //characteristic length of obstacle
-  double J[6] = {0,0,0,0,0,0};      //moments of inertia matrix (Jxx,Jyy,Jzz,Jxy,Jxz,Jyz}
+  Real absPos  [3] = {0,0,0};     //position of obstacle in frame (I)
+  Real position[3] = {0,0,0};     //position of obstacle in frame (II)
+  Real quaternion[4] = {1,0,0,0}; //orientation (same for both frames)
+  Real transVel[3] = {0,0,0};     //translational velocity in frame (I)
+  Real angVel  [3] = {0,0,0};     //angular velocity
+  Real mass;                      //obstacle mass
+  Real length;                    //characteristic length of obstacle
+  Real J[6] = {0,0,0,0,0,0};      //moments of inertia matrix (Jxx,Jyy,Jzz,Jxy,Jxz,Jyz}
 
   std::array<bool, 3> bFixFrameOfRef    = {{false, false, false}};//set to true if 'camera' will follow the obstacle in that direction
   std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};//set to true if obstacle is forced
   std::array<bool, 3> bBlockRotation    = {{false, false, false}};//set to true if obstacle is not allowed to rotate (forced)
-  double transVel_imposed[3]= {0,0,0}; //prescribed velocity (if the obstacle is forced)
+  Real transVel_imposed[3]= {0,0,0}; //prescribed velocity (if the obstacle is forced)
 
   //auxiliary arrays used for 2nd order time integration of obstacle's position
-  double old_position  [3] =   {0,0,0};
-  double old_absPos    [3] =   {0,0,0};
-  double old_quaternion[4] = {1,0,0,0};
+  Real old_position  [3] =   {0,0,0};
+  Real old_absPos    [3] =   {0,0,0};
+  Real old_quaternion[4] = {1,0,0,0};
 
   //The obstacle's mass, linear momentum, angular momentum, center of mass and
   //moments of inertia are computed from the chi field and stored here.
   //Then, a 6x6 linear system is solved to determine transVel and angVel.
-  double penalM;
-  std::array<double,3> penalLmom = {0,0,0};
-  std::array<double,3> penalAmom = {0,0,0};
-  std::array<double,3> penalCM   = {0,0,0};
-  std::array<double,6> penalJ    = {0,0,0,0,0,0};
+  Real penalM;
+  std::array<Real,3> penalLmom = {0,0,0};
+  std::array<Real,3> penalAmom = {0,0,0};
+  std::array<Real,3> penalCM   = {0,0,0};
+  std::array<Real,6> penalJ    = {0,0,0,0,0,0};
 
   //Translational and angular velocities computed by solving the 6x6 linear system.
   //If the obstacle is not forced, transVel and angVel are set equal to transVel_computed
   //and angVel_computed. Otherwise, the forces and torques acting on the forced obstacle
   //can be computed as force = mass * (transVel_computed - transVel) / sim.dt
-  std::array<double,3> transVel_computed = {0,0,0};
-  std::array<double,3> angVel_computed   = {0,0,0};
+  std::array<Real,3> transVel_computed = {0,0,0};
+  std::array<Real,3> angVel_computed   = {0,0,0};
 
-  double centerOfMass[3] = {0,0,0}; //center of mass (used to resolve collisions), computed from chi
+  Real centerOfMass[3] = {0,0,0}; //center of mass (used to resolve collisions), computed from chi
 
   bool bBreakSymmetry = false; //if true obstacle is forced for a short period, to break symmetric flow conditions
 
   //Quantities of Interest (forces, drag etc.)
-  std::array<double,3> force  = {0,0,0};
-  std::array<double,3> torque = {0,0,0};
-  double gamma[3]={0,0,0};
-  double surfForce[3]={0,0,0};
-  double presForce[3]={0,0,0};
-  double viscForce[3]={0,0,0};
-  double surfTorque[3]={0,0,0};
-  double drag=0, thrust=0, Pout=0, PoutBnd=0, pLocom=0;
-  double defPower=0, defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
+  std::array<Real,3> force  = {0,0,0};
+  std::array<Real,3> torque = {0,0,0};
+  Real gamma[3]={0,0,0};
+  Real surfForce[3]={0,0,0};
+  Real presForce[3]={0,0,0};
+  Real viscForce[3]={0,0,0};
+  Real surfTorque[3]={0,0,0};
+  Real drag=0, thrust=0, Pout=0, PoutBnd=0, pLocom=0;
+  Real defPower=0, defPowerBnd=0, Pthrust=0, Pdrag=0, EffPDef=0, EffPDefBnd=0;
 
   //Used to 'stabilize' some computation in KernelIntegrateUdefMomenta from ObstaclesCreate.cpp
-  std::array<double,3> transVel_correction={0,0,0}, angVel_correction={0,0,0};
+  std::array<Real,3> transVel_correction={0,0,0}, angVel_correction={0,0,0};
 
 protected:
   //functions to save quantities of interest to files
@@ -169,9 +169,9 @@ public:
   virtual void restart(std::string filename = std::string());//read information for restart
   virtual void create();  //additional stuff to be done when creating an obstacle (optional)
   virtual void finalize();//additional stuff to be done when deleting an obstacle (optional)
-  std::array<double,3> getTranslationVelocity() const;
-  std::array<double,3> getAngularVelocity() const;
-  std::array<double,3> getCenterOfMass() const;
+  std::array<Real,3> getTranslationVelocity() const;
+  std::array<Real,3> getAngularVelocity() const;
+  std::array<Real,3> getCenterOfMass() const;
 
   std::vector<ObstacleBlock*>  getObstacleBlocks() const {return  obstacleBlocks;}
   std::vector<ObstacleBlock*>* getObstacleBlocksPtr()    {return &obstacleBlocks;}

@@ -260,7 +260,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 {
   const Real e0, e1, e2, h, safety = (2+SURFDH)*h;
   const Real maxAxis = std::max({e0, e1, e2});
-  const double position[3], quaternion[4];
+  const Real position[3], quaternion[4];
   const Real box[3][2] = {
    {(Real)position[0]-2*(maxAxis+safety), (Real)position[0]+2*(maxAxis+safety)},
    {(Real)position[1]-2*(maxAxis+safety), (Real)position[1]+2*(maxAxis+safety)},
@@ -274,7 +274,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   };
 
   FillBlocks(const Real _e0, const Real _e1, const Real _e2, const Real _h,
-    const double p[3], const double q[4]) : e0(_e0), e1(_e1), e2(_e2), h(_h),
+    const Real p[3], const Real q[4]) : e0(_e0), e1(_e1), e2(_e2), h(_h),
     position{p[0],p[1],p[2]}, quaternion{q[0],q[1],q[2],q[3]} { }
 
   inline bool isTouching(const BlockInfo & info, const FluidBlock&b) const

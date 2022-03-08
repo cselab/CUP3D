@@ -116,7 +116,7 @@ void Simulation::_icFromH5(std::string h5File)
   if (sim.rank==0) std::cout << "Extracting Initial Conditions from " << h5File << std::endl;
 
   #ifdef CUBISM_USE_HDF
-    ReadHDF5_MPI<StreamerVelocityVector, DumpReal>(* sim.grid,
+    ReadHDF5_MPI<StreamerVelocityVector, Real>(* sim.grid,
       h5File, sim.path4serialization);
   #else
     printf("Unable to restart without  HDF5 library. Aborting...\n");
@@ -217,16 +217,16 @@ void Simulation::_serialize(const std::string append)
     ComputeVorticity  FindOmega(sim);
     FindOmega(0);
   }
-  if (sim.dumpP        ) DumpHDF5_MPI<StreamerPressure      , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerPressure       ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpChi      ) DumpHDF5_MPI<StreamerChi           , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerChi            ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmega    ) DumpHDF5_MPI<StreamerTmpVector     , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVector      ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaX   ) DumpHDF5_MPI<StreamerTmpVectorX    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorX     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaY   ) DumpHDF5_MPI<StreamerTmpVectorY    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorY     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaZ   ) DumpHDF5_MPI<StreamerTmpVectorZ    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorZ     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocity ) DumpHDF5_MPI<StreamerVelocityVector, DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelocityVector ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityX) DumpHDF5_MPI<StreamerVelVectorX    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorX     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityY) DumpHDF5_MPI<StreamerVelVectorY    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorY     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityZ) DumpHDF5_MPI<StreamerVelVectorZ    , DumpReal, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorZ     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpP        ) DumpHDF5_MPI<StreamerPressure      , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerPressure       ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpChi      ) DumpHDF5_MPI<StreamerChi           , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerChi            ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmega    ) DumpHDF5_MPI<StreamerTmpVector     , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVector      ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaX   ) DumpHDF5_MPI<StreamerTmpVectorX    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorX     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaY   ) DumpHDF5_MPI<StreamerTmpVectorY    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorY     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaZ   ) DumpHDF5_MPI<StreamerTmpVectorZ    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorZ     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocity ) DumpHDF5_MPI<StreamerVelocityVector, Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelocityVector ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityX) DumpHDF5_MPI<StreamerVelVectorX    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorX     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityY) DumpHDF5_MPI<StreamerVelVectorY    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorY     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityZ) DumpHDF5_MPI<StreamerVelVectorZ    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorZ     ::prefix() + name.str(),sim.path4serialization);
 
   sim.stopProfiler();
 }
@@ -265,7 +265,7 @@ void Simulation::_deserialize()
   if (sim.rank==0) std::cout << "Restarting from " << ssR.str() << "\n";
 
   #ifdef CUBISM_USE_HDF
-    ReadHDF5_MPI<StreamerVelocityVector, DumpReal>(* sim.grid,
+    ReadHDF5_MPI<StreamerVelocityVector, Real>(* sim.grid,
       StreamerVelocityVector::prefix()+ssR.str(), sim.path4serialization);
   #else
     printf("Unable to restart without  HDF5 library. Aborting...\n");
@@ -282,28 +282,28 @@ void Simulation::_deserialize()
 void Simulation::run()
 {
   for (;;) {
-    const double dt = calcMaxTimestep();
+    const Real dt = calcMaxTimestep();
 
     if (timestep(dt)) break;
   }
 }
 
-double Simulation::calcMaxTimestep()
+Real Simulation::calcMaxTimestep()
 {
-  const double dt_old = sim.dt;
+  const Real dt_old = sim.dt;
   sim.dt_old = sim.dt;
-  const double hMin = sim.hmin;
-  double CFL = sim.CFL;
+  const Real hMin = sim.hmin;
+  Real CFL = sim.CFL;
   sim.uMax_measured = findMaxU(sim);
 
   if( CFL > 0 )
   {
-    const double dtDiffusion = (1./ 6.) * ( hMin * hMin / sim.nu );
-    const double dtAdvection = hMin / ( sim.uMax_measured + 1e-8 );
+    const Real dtDiffusion = (1./ 6.) * ( hMin * hMin / sim.nu );
+    const Real dtAdvection = hMin / ( sim.uMax_measured + 1e-8 );
     if ( sim.step < sim.rampup )
     {
-      const double x = sim.step / (double) sim.rampup;
-      const double rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(CFL)*x);
+      const Real x = sim.step / (Real) sim.rampup;
+      const Real rampCFL = std::exp(std::log(1e-3)*(1-x) + std::log(CFL)*x);
       sim.dt = std::min(dtDiffusion, rampCFL * dtAdvection);
     }
     else
@@ -330,10 +330,10 @@ double Simulation::calcMaxTimestep()
 
   if (sim.step > sim.step_2nd_start)
   {
-    const double a = dt_old;
-    const double b = sim.dt;
-    const double c1 = -(a+b)/(a*b);
-    const double c2 = b/(a+b)/a;
+    const Real a = dt_old;
+    const Real b = sim.dt;
+    const Real c1 = -(a+b)/(a*b);
+    const Real c2 = b/(a+b)/a;
     sim.coefU[0] = -b*(c1+c2);
     sim.coefU[1] = b*c1;
     sim.coefU[2] = b*c2;
@@ -344,7 +344,7 @@ double Simulation::calcMaxTimestep()
   return sim.dt;
 }
 
-bool Simulation::timestep(const double dt)
+bool Simulation::timestep(const Real dt)
 {
   const bool bDumpFreq = (sim.saveFreq>0 && (sim.step+ 1)%sim.saveFreq==0);
   const bool bDumpTime = (sim.saveTime>0 && (sim.time+dt)>sim.nextSaveTime);

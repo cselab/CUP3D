@@ -20,7 +20,7 @@ public:
 
   ~AdvectionDiffusion() { }
 
-  void operator()(const double dt);
+  void operator()(const Real dt);
 
   std::string getName() { return "AdvectionDiffusion"; }
 };

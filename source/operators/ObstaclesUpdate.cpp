@@ -24,14 +24,14 @@ using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
 template<bool implicitPenalization>
 struct KernelIntegrateFluidMomenta : public ObstacleVisitor
 {
-  const double lambda, dt;
+  const Real lambda, dt;
   ObstacleVector * const obstacle_vector;
   const cubism::BlockInfo * info_ptr = nullptr;
-  double dvol(const BlockInfo&I, const int x, const int y, const int z) const {
+  Real dvol(const BlockInfo&I, const int x, const int y, const int z) const {
     return I.h * I.h * I.h;
   }
 
-  KernelIntegrateFluidMomenta(double _dt, double _lambda, ObstacleVector* ov)
+  KernelIntegrateFluidMomenta(Real _dt, Real _lambda, ObstacleVector* ov)
     : lambda(_lambda), dt(_dt), obstacle_vector(ov) {}
 
   void operator()(const cubism::BlockInfo& info)
@@ -53,15 +53,15 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
     ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;
 
-    const std::array<double,3> CM = op->getCenterOfMass();
+    const std::array<Real,3> CM = op->getCenterOfMass();
     const FluidBlock &b = *(FluidBlock *)info.ptrBlock;
     const CHIMAT & __restrict__ CHI = o->chi;
-    double &VV = o->V;
-    double &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
-    double &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
+    Real &VV = o->V;
+    Real &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
+    Real &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
     VV = 0; FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
-    double &J0 = o->J0, &J1 = o->J1, &J2 = o->J2;
-    double &J3 = o->J3, &J4 = o->J4, &J5 = o->J5;
+    Real &J0 = o->J0, &J1 = o->J1, &J2 = o->J2;
+    Real &J3 = o->J3, &J4 = o->J4, &J5 = o->J5;
     J0 = 0; J1 = 0; J2 = 0; J3 = 0; J4 = 0; J5 = 0;
 
     const UDEFMAT & __restrict__ UDEF = o->udef;
@@ -81,8 +81,8 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
       if (CHI[iz][iy][ix] <= 0) continue;
-      double p[3]; info.pos(p, ix, iy, iz);
-      const double dv = dvol(info, ix, iy, iz), X = CHI[iz][iy][ix];
+      Real p[3]; info.pos(p, ix, iy, iz);
+      const Real dv = dvol(info, ix, iy, iz), X = CHI[iz][iy][ix];
       p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
 
       VV += X * dv;
@@ -113,7 +113,7 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
         o->Gj3 -= penalFac * p[0]*p[1];
         o->Gj4 -= penalFac * p[0]*p[2];
         o->Gj5 -= penalFac * p[1]*p[2];
-        const double DiffU[3] = {
+        const Real DiffU[3] = {
           b(ix,iy,iz).u - UDEF[iz][iy][ix][0],
           b(ix,iy,iz).v - UDEF[iz][iy][ix][1],
           b(ix,iy,iz).w - UDEF[iz][iy][ix][2]
@@ -132,16 +132,16 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
 template<bool implicitPenalization>
 struct KernelFinalizeObstacleVel : public ObstacleVisitor
 {
-  const double dt, lambda;
+  const Real dt, lambda;
   FluidGridMPI * const grid;
 
-  KernelFinalizeObstacleVel(double _dt, double _lambda, FluidGridMPI*g) :
+  KernelFinalizeObstacleVel(Real _dt, Real _lambda, FluidGridMPI*g) :
     dt(_dt), lambda(_lambda), grid(g) { }
 
   void visit(Obstacle* const obst)
   {
     static constexpr int nQoI = 29;
-    double M[nQoI] = { 0 };
+    Real M[nQoI] = { 0 };
     const auto& oBlock = obst->getObstacleBlocks();
     #pragma omp parallel for schedule(static,1) reduction(+ : M[:nQoI])
     for (size_t i=0; i<oBlock.size(); i++) {
@@ -163,7 +163,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
       } else  assert(k==13);
     }
     const auto comm = grid->getCartComm();
-    MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_Real, MPI_SUM, comm);
 
     #ifndef NDEBUG
       const Real J_magnitude = obst->J[0] + obst->J[1] + obst->J[2];
@@ -198,7 +198,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
 
 }  // Anonymous namespace.
 
-void UpdateObstacles::operator()(const double dt)
+void UpdateObstacles::operator()(const Real dt)
 {
   if(sim.obstacle_vector->nObstacles() == 0) return;
 

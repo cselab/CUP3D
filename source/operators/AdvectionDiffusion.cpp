@@ -21,11 +21,11 @@ template<int i> Real& inp(LabMPI& L, const int ix, const int iy, const int iz);
 template<typename Discretization>
 struct KernelAdvectDiffuse : public Discretization
 {
-    KernelAdvectDiffuse(const SimulationData&s, const double a_coef) : Discretization(s), sim(s), coef(a_coef) {}
+    KernelAdvectDiffuse(const SimulationData&s, const Real a_coef) : Discretization(s), sim(s), coef(a_coef) {}
     const SimulationData & sim;
     const Real dt = sim.dt;
     const Real mu = sim.nu;
-    const double coef;
+    const Real coef;
     const std::array<Real, 3>& uInf = sim.uinf;
     const int loopBeg = this->getStencilBeg();
     const int loopEndX = CUP_BLOCK_SIZEX-1 + this->getStencilEnd();
@@ -197,7 +197,7 @@ struct Upwind3rd
 
 }
 
-void AdvectionDiffusion::operator()(const double dt)
+void AdvectionDiffusion::operator()(const Real dt)
 {
     //Midpoint integration
 
@@ -230,7 +230,7 @@ void AdvectionDiffusion::operator()(const double dt)
     for(size_t i=0; i<vInfo.size(); i++)
     {
         FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
-        const double ih3 = 1.0/(vInfo[i].h*vInfo[i].h*vInfo[i].h);
+        const Real ih3 = 1.0/(vInfo[i].h*vInfo[i].h*vInfo[i].h);
         for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for (int iy=0; iy<FluidBlock::sizeY; ++iy)
         for (int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -254,7 +254,7 @@ void AdvectionDiffusion::operator()(const double dt)
     for(size_t i=0; i<vInfo.size(); i++)
     {
         FluidBlock& b = *(FluidBlock*) vInfo[i].ptrBlock;
-        const double ih3 = 1.0/(vInfo[i].h*vInfo[i].h*vInfo[i].h);
+        const Real ih3 = 1.0/(vInfo[i].h*vInfo[i].h*vInfo[i].h);
         for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for (int iy=0; iy<FluidBlock::sizeY; ++iy)
         for (int ix=0; ix<FluidBlock::sizeX; ++ix)

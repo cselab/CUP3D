@@ -17,33 +17,33 @@ using namespace cubism;
 //static constexpr Real EPSILON = std::numeric_limits<Real>::epsilon();
 
 static void _normalize(
-    double * const x,
-    double * const y,
-    double * const z) {
-  const double norm = std::sqrt(*x * *x + *y * *y + *z * *z);
+    Real * const x,
+    Real * const y,
+    Real * const z) {
+  const Real norm = std::sqrt(*x * *x + *y * *y + *z * *z);
   assert(norm > 1e-9);
-  const double inv = 1.0 / norm;
+  const Real inv = 1.0 / norm;
   *x = inv * *x;
   *y = inv * *y;
   *z = inv * *z;
 }
 
 static void _normalized_cross(
-    const double ax,
-    const double ay,
-    const double az,
-    const double bx,
-    const double by,
-    const double bz,
-    double * const cx,
-    double * const cy,
-    double * const cz) {
-  const double x = ay * bz - az * by;
-  const double y = az * bx - ax * bz;
-  const double z = ax * by - ay * bx;
-  const double norm = std::sqrt(x * x + y * y + z * z);
+    const Real ax,
+    const Real ay,
+    const Real az,
+    const Real bx,
+    const Real by,
+    const Real bz,
+    Real * const cx,
+    Real * const cy,
+    Real * const cz) {
+  const Real x = ay * bz - az * by;
+  const Real y = az * bx - ax * bz;
+  const Real z = ax * by - ay * bx;
+  const Real norm = std::sqrt(x * x + y * y + z * z);
   assert(norm > 1e-9);
-  const double inv = 1.0 / norm;
+  const Real inv = 1.0 / norm;
   *cx = inv * x;
   *cy = inv * y;
   *cz = inv * z;
@@ -111,10 +111,10 @@ PlateFillBlocks::PlateFillBlocks(
   assert(fabs(nx * bx + ny * by + nz * bz) < (Real)1e-9);
   assert(fabs(ax * bx + ay * by + az * bz) < (Real)1e-9);
 
-  const double skin = (2 + SURFDH) * h; 
-  const double tx = skin + fabs(ax * half_a) + fabs(bx * half_b) + fabs(nx * half_thickness);
-  const double ty = skin + fabs(ay * half_a) + fabs(by * half_b) + fabs(ny * half_thickness);
-  const double tz = skin + fabs(az * half_a) + fabs(bz * half_b) + fabs(nz * half_thickness);
+  const Real skin = (2 + SURFDH) * h; 
+  const Real tx = skin + fabs(ax * half_a) + fabs(bx * half_b) + fabs(nx * half_thickness);
+  const Real ty = skin + fabs(ay * half_a) + fabs(by * half_b) + fabs(ny * half_thickness);
+  const Real tz = skin + fabs(az * half_a) + fabs(bz * half_b) + fabs(nz * half_thickness);
 
   aabb[0][0] = cx - tx;
   aabb[0][1] = cx + tx;
@@ -206,10 +206,10 @@ Plate::Plate(SimulationData & s, ArgumentParser &p) : Obstacle(s, p)
 Plate::Plate(
     SimulationData & s,
     ObstacleArguments &args,
-    const double a,
-    const double b,
-    const double thickness,
-    const double alpha)
+    const Real a,
+    const Real b,
+    const Real thickness,
+    const Real alpha)
   : Obstacle(s, args),
     half_a(.5 * a),
     half_b(.5 * b),
@@ -222,11 +222,11 @@ Plate::Plate(
 Plate::Plate(
     SimulationData & s,
     ObstacleArguments &args,
-    const double a,
-    const double b,
-    const double thickness,
-    const double _nx, const double _ny, const double _nz,
-    const double _ax, const double _ay, const double _az)
+    const Real a,
+    const Real b,
+    const Real thickness,
+    const Real _nx, const Real _ny, const Real _nz,
+    const Real _ax, const Real _ay, const Real _az)
   : Obstacle(s, args),
     nx(_nx), ny(_ny), nz(_nz),
     ax(_ax), ay(_ay), az(_az),
@@ -237,7 +237,7 @@ Plate::Plate(
   _init();
 }
 
-void Plate::_from_alpha(const double alpha)
+void Plate::_from_alpha(const Real alpha)
 {
   nx = std::cos(alpha);
   ny = std::sin(alpha);

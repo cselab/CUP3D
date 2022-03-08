@@ -19,16 +19,16 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
   #if 0
   // MPI datatypes (used for load-balancing when creating the fish surface)
   int array_of_blocklengths[2]       = {4, 1};
-  MPI_Aint array_of_displacements[2] = {0, 4 * sizeof(double)};
-  MPI_Datatype array_of_types[2]     = {MPI_DOUBLE, MPI_LONG};
+  MPI_Aint array_of_displacements[2] = {0, 4 * sizeof(Real)};
+  MPI_Datatype array_of_types[2]     = {MPI_Real, MPI_LONG};
   MPI_Type_create_struct(2, array_of_blocklengths, array_of_displacements, array_of_types, &MPI_BLOCKID);
   MPI_Type_commit(&MPI_BLOCKID);
   const int Z = FluidBlock::sizeZ;
   const int Y = FluidBlock::sizeY;
   const int X = FluidBlock::sizeX;
   int array_of_blocklengths1[2]       = {Z*Y*X*3 + (Z+2)*(Y+2)*(X+2), Z*Y*X};
-  MPI_Aint array_of_displacements1[2] = {0, (Z*Y*X*3 + (Z+2)*(Y+2)*(X+2)) * sizeof(double)};
-  MPI_Datatype array_of_types1[2]     = {MPI_DOUBLE, MPI_INT};
+  MPI_Aint array_of_displacements1[2] = {0, (Z*Y*X*3 + (Z+2)*(Y+2)*(X+2)) * sizeof(Real)};
+  MPI_Datatype array_of_types1[2]     = {MPI_Real, MPI_INT};
   MPI_Type_create_struct(2, array_of_blocklengths1, array_of_displacements1, array_of_types1, &MPI_OBSTACLE);
   MPI_Type_commit(&MPI_OBSTACLE);
   #endif
@@ -143,7 +143,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
           if (!hasSegments)
           {
               hasSegments = true;
-              MyBlockIDs.push_back({info.h,info.origin[0],info.origin[1],info.origin[2],info.blockID});
+              MyBlockIDs.push_back({(Real)info.h,(Real)info.origin[0],(Real)info.origin[1],(Real)info.origin[2],info.blockID});
               MySegments.resize(MySegments.size()+1);
           }
           MySegments.back().push_back(s);        
@@ -290,8 +290,8 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
       bool hasSegments = false;
       for(size_t s=0; s<vSegments.size(); ++s)
       {
-        double min_pos [3] = {info.origin_x + 0.5*info.h,info.origin_y + 0.5*info.h,info.origin_z + 0.5*info.h};
-        double max_pos [3] = {info.origin_x + (0.5+FluidBlock::sizeX-1)*info.h,
+        Real min_pos [3] = {info.origin_x + 0.5*info.h,info.origin_y + 0.5*info.h,info.origin_z + 0.5*info.h};
+        Real max_pos [3] = {info.origin_x + (0.5+FluidBlock::sizeX-1)*info.h,
                               info.origin_y + (0.5+FluidBlock::sizeY-1)*info.h,
                               info.origin_z + (0.5+FluidBlock::sizeZ-1)*info.h};
         if(vSegments[s].isIntersectingWithAABB(min_pos, max_pos))

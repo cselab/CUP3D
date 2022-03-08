@@ -92,7 +92,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   muteAll = parser("-muteAll").asInt(0);
   verbose = muteAll ? false : parser("-verbose").asInt(1) && rank == 0;
   int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
-  double dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
+  Real dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
   saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
   saveTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
 
@@ -124,12 +124,12 @@ void SimulationData::_preprocessArguments()
     fflush(0); abort();
   }
   int aux = 1 << (levelMax -1);
-  const double NFE[3] = {
-      (double) bpdx * aux * FluidBlock::sizeX,
-      (double) bpdy * aux * FluidBlock::sizeY,
-      (double) bpdz * aux * FluidBlock::sizeZ,
+  const Real NFE[3] = {
+      (Real) bpdx * aux * FluidBlock::sizeX,
+      (Real) bpdy * aux * FluidBlock::sizeY,
+      (Real) bpdz * aux * FluidBlock::sizeZ,
   };
-  const double maxbpd = std::max({NFE[0], NFE[1], NFE[2]});
+  const Real maxbpd = std::max({NFE[0], NFE[1], NFE[2]});
   maxextent = std::max({extent[0], extent[1], extent[2]});
   if( extent[0] <= 0 || extent[1] <= 0 || extent[2] <= 0 )
   {

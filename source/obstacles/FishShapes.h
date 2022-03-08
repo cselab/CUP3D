@@ -8,7 +8,6 @@
 
 #ifndef CubismUP_3D_FishShapes_h
 #define CubismUP_3D_FishShapes_h
-//#define BBURST
 
 #include "../Definitions.h"
 
@@ -16,26 +15,24 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-#define __BSPLINE
-
 namespace MidlineShapes
 {
   /*
   function inputs: xc, yc are n sized arrays which contain the control points of the cubic b spline
   function outputs onto res: assumed to be either the width or the height
   */
-  void integrateBSpline(const double*const xc, const double*const yc,
-  const int n, const double length, Real*const rS,Real*const res,const int Nm);
+  void integrateBSpline(const Real*const xc, const Real*const yc,
+  const int n, const Real length, Real*const rS,Real*const res,const int Nm);
 
-  void naca_width(const double t_ratio, const double L, Real*const rS,
+  void naca_width(const Real t_ratio, const Real L, Real*const rS,
     Real*const res, const int Nm);
-  void stefan_width(const double L, Real*const rS, Real*const res, const int Nm);
-  void stefan_height(const double L, Real*const rS, Real*const res, const int Nm);
-  void danio_width(const double L, Real*const rS, Real*const res, const int Nm);
-  void danio_height(const double L, Real*const rS, Real*const res, const int Nm);
+  void stefan_width(const Real L, Real*const rS, Real*const res, const int Nm);
+  void stefan_height(const Real L, Real*const rS, Real*const res, const int Nm);
+  void danio_width(const Real L, Real*const rS, Real*const res, const int Nm);
+  void danio_height(const Real L, Real*const rS, Real*const res, const int Nm);
 
   void computeWidthsHeights(const std::string &heightName, const std::string &widthName,
-                            double L, Real *rS, Real *height, Real *width, int nM, int mpirank);
+                            Real L, Real *rS, Real *height, Real *width, int nM, int mpirank);
 }
 
 CubismUP_3D_NAMESPACE_END

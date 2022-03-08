@@ -15,20 +15,20 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class Cylinder : public Obstacle
 {
-  const double radius;
-  const double halflength;
+  const Real radius;
+  const Real halflength;
   std::string section = "circular"; // or whatever
-  double umax = 0;
-  double vmax = 0;
-  double wmax = 0;
-  double tmax = 1;
+  Real umax = 0;
+  Real vmax = 0;
+  Real wmax = 0;
+  Real tmax = 1;
   //special case: startup with unif accel to umax in tmax, and then decel to 0
   bool accel = false;
 
 public:
   Cylinder(SimulationData&s, cubism::ArgumentParser &p);
   Cylinder(SimulationData&s, ObstacleArguments &args,
-                                 double radius, double halflength);
+                                 Real radius, Real halflength);
 
   void _init(void);
   void create() override;

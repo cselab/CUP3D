@@ -17,17 +17,17 @@ public:
 
   //Used for PID controller (which tries to maintain the initial fish position)
   bool bCorrectTrajectory, bCorrectPosition;
-  double origC[3];   //initial location
-  double origAng = 0;//initial planar angle (in xy plane)
+  Real origC[3];   //initial location
+  Real origAng = 0;//initial planar angle (in xy plane)
 
   void create() override;
   void save(std::string filename = std::string()) override;
   void restart(std::string filename) override;
 
   //Reinforcement Learning functions
-  void act(const Real lTact, const std::vector<double>& a) const; //get vector of actions that will be taken at time lTact
-  std::vector<double> state() const;                              //return vector of state
-  double getLearnTPeriod() const; //take actions once every 0.5*getLearnTPeriod() time
+  void act(const Real lTact, const std::vector<Real>& a) const; //get vector of actions that will be taken at time lTact
+  std::vector<Real> state() const;                              //return vector of state
+  Real getLearnTPeriod() const; //take actions once every 0.5*getLearnTPeriod() time
   //// Helpers for state function
   //ssize_t holdingBlockID(const std::array<Real,3> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
   //std::array<int, 3> safeIdInBlock(const std::array<Real,3> pos, const std::array<Real,3> org, const Real invh ) const;

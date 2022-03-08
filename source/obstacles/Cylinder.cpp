@@ -20,7 +20,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 {
   const Real radius, halflength, angle, h, safety = (2+SURFDH)*h;
   const Real cosang = std::cos(angle), sinang = std::sin(angle);
-  const double position[3];
+  const Real position[3];
   const Real box[3][2] = {
     {(Real)position[0]-radius    -safety, (Real)position[0]+radius    +safety},
     {(Real)position[1]-radius    -safety, (Real)position[1]+radius    +safety},
@@ -28,7 +28,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   };
 
   FillBlocks(const Real r, const Real halfl, const Real ang,
-             const Real _h, const double p[3]):
+             const Real _h, const Real p[3]):
   radius(r), halflength(halfl), angle(ang), h(_h), position{p[0],p[1],p[2]} {}
 
   inline bool isTouching(const BlockInfo & info, const FluidBlock&b) const
@@ -62,14 +62,14 @@ namespace CylinderObstacle
 struct FillBlocks : FillBlocksBase<FillBlocks>
 {
   const Real radius, halflength, h, safety = (2+SURFDH)*h;
-  const double position[3];
+  const Real position[3];
   const Real box[3][2] = {
     {(Real)position[0]-radius    -safety, (Real)position[0]+radius    +safety},
     {(Real)position[1]-radius    -safety, (Real)position[1]+radius    +safety},
     {(Real)position[2]-halflength-safety, (Real)position[2]+halflength+safety}
   };
 
-  FillBlocks(const Real r, const Real halfl, const Real _h, const double p[3]):
+  FillBlocks(const Real r, const Real halfl, const Real _h, const Real p[3]):
   radius(r), halflength(halfl), h(_h), position{p[0],p[1],p[2]} {}
 
   inline bool isTouching(const BlockInfo & info, const FluidBlock&b) const
@@ -119,8 +119,8 @@ Cylinder::Cylinder(
 Cylinder::Cylinder(
     SimulationData& s,
     ObstacleArguments &args,
-    const double radius_,
-    const double halflength_)
+    const Real radius_,
+    const Real halflength_)
     : Obstacle(s, args), radius(radius_), halflength(halflength_)
 {
   _init();

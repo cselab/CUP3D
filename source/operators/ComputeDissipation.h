@@ -17,7 +17,7 @@ class ComputeDissipation : public Operator
 {
 public:
   ComputeDissipation(SimulationData & s) : Operator(s) { }
-  void operator()(const double dt);
+  void operator()(const Real dt);
   std::string getName() { return "Dissipation"; }
 };
 

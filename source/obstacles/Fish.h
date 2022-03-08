@@ -39,10 +39,10 @@ class Fish: public Obstacle
 
   struct BlockID
   {
-    double h;
-    double origin_x;
-    double origin_y;
-    double origin_z;
+    Real h;
+    Real origin_x;
+    Real origin_y;
+    Real origin_z;
     long long blockID;
   };
   std::vector<BlockID> MyBlockIDs;
@@ -52,7 +52,7 @@ class Fish: public Obstacle
   //MPI stuff, for ObstaclesCreate
   struct MPI_Obstacle
   {
-    double d [FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX*3 
+    Real d [FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX*3 
            + (FluidBlock::sizeZ+2)*(FluidBlock::sizeY+2)*(FluidBlock::sizeX+2)];
     int     i[FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX];
   };

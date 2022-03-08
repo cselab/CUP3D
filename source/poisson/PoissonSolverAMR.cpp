@@ -29,19 +29,19 @@ void PoissonSolverAMR::getZ()
     const int nz2 = nz + 2;
     const int N = nx*ny*nz;
     const int N2 = nx2*ny2*nz2;
-    std::vector<double> p (N2,0.0);
-    std::vector<double> r (N ,0.0);
-    std::vector<double> Ax(N ,0.0);
+    std::vector<Real> p (N2,0.0);
+    std::vector<Real> r (N ,0.0);
+    std::vector<Real> Ax(N ,0.0);
 
     #pragma omp for
     for (size_t i=0; i < Nblocks; i++)
     {
         BlockTypePoisson & __restrict__ b  = *(BlockTypePoisson*) vInfo[i].ptrBlock;
-        const double invh = 1.0/vInfo[i].h;
-        double norm0 = 0;
-        double rr = 0;
-        double a2 = 0;
-        double beta = 0;
+        const Real invh = 1.0/vInfo[i].h;
+        Real norm0 = 0;
+        Real rr = 0;
+        Real a2 = 0;
+        Real beta = 0;
         for(int iz=0; iz<BlockType::sizeZ; iz++)
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
@@ -53,7 +53,7 @@ void PoissonSolverAMR::getZ()
 	    b(ix,iy,iz).s = 0.0;
         }
         norm0 = sqrt(norm0)/N;
-        double norm = 0;
+        Real norm = 0;
         if (norm0 > 1e-16)
         for (int k = 0 ; k < 100 ; k ++)
         {
@@ -67,8 +67,8 @@ void PoissonSolverAMR::getZ()
                 Ax[index1] = p[index2 + 1] + p[index2 - 1] + p[index2 + nx2] + p[index2 - nx2] + p[index2 + nx2*ny2] + p[index2 - nx2*ny2] - 6.0*p[index2];
                 a2 += p[index2]*Ax[index1];
             }
-            const double a = rr/(a2+1e-55);
-            double norm_new = 0;
+            const Real a = rr/(a2+1e-55);
+            Real norm_new = 0;
             beta = 0;
             for(int iz=0; iz<nz; iz++)
             for(int iy=0; iy<ny; iy++)
@@ -85,7 +85,7 @@ void PoissonSolverAMR::getZ()
             //if (k>max(max(nx,ny),nz) && std::fabs(norm/norm_new - 1.0) < 1e-7) break;
             norm = norm_new;
             if (norm/norm0< 1e-7) break;
-            double temp = rr;
+            Real temp = rr;
             rr = beta;
             beta /= (temp+1e-55);
             for(int iz=0; iz<nz; iz++)
@@ -104,15 +104,15 @@ void PoissonSolverAMR::getZ()
 void PoissonSolverAMR::solve()
 {
     std::vector<cubism::BlockInfo>& vInfo = grid.getBlocksInfo();
-    const double eps = 1e-21;
+    const Real eps = 1e-21;
     const size_t Nblocks = vInfo.size();
     const size_t N = BlockType::sizeX*BlockType::sizeY*BlockType::sizeZ*Nblocks;
-    std::vector<double> x   (N,0.0);
-    std::vector<double> r   (N,0.0);
-    std::vector<double> p   (N,0.0);
-    std::vector<double> v   (N,0.0);
-    std::vector<double> s   (N,0.0);
-    std::vector<double> rhat(N,0.0);
+    std::vector<Real> x   (N,0.0);
+    std::vector<Real> r   (N,0.0);
+    std::vector<Real> p   (N,0.0);
+    std::vector<Real> v   (N,0.0);
+    std::vector<Real> s   (N,0.0);
+    std::vector<Real> rhat(N,0.0);
     std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson.getBlocksInfo();
 
     #pragma omp parallel for
@@ -141,7 +141,7 @@ void PoissonSolverAMR::solve()
     //3. rho = a = omega = 1.0
     //4. vVector = pVector = 0
 
-    double norm = 0.0; 
+    Real norm = 0.0; 
     findLHS(0); // AxVector <-- A*x_{0}, x_0 = pressure
     #pragma omp parallel for reduction (+:norm)
     for(size_t i=0; i< Nblocks; i++)
@@ -157,20 +157,20 @@ void PoissonSolverAMR::solve()
             norm+= r[src_index]*r[src_index];
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_SUM,grid.getCartComm());
     norm = std::sqrt(norm);
 
-    double rho = 1.0;
-    double alpha = 1.0;
-    double omega = 1.0;
-    double rho_m1;
+    Real rho = 1.0;
+    Real alpha = 1.0;
+    Real omega = 1.0;
+    Real rho_m1;
 
     std::vector <Real> x_opt (N);
     bool useXopt = false;
-    double min_norm = 1e50;
-    double init_norm=norm;
-    const double max_error     = sim.PoissonErrorTol;
-    const double max_rel_error = sim.PoissonErrorTolRel;
+    Real min_norm = 1e50;
+    Real init_norm=norm;
+    const Real max_error     = sim.PoissonErrorTol;
+    const Real max_rel_error = sim.PoissonErrorTolRel;
     bool serious_breakdown = false;
     int iter_opt = 0;
 
@@ -181,8 +181,8 @@ void PoissonSolverAMR::solve()
         //2. beta = rho_{i}/rho_{i-1} * alpha/omega_{i-1}
         rho_m1 = rho;
         rho = 0.0;
-        double norm_1 = 0.0;
-        double norm_2 = 0.0;
+        Real norm_1 = 0.0;
+        Real norm_2 = 0.0;
         #pragma omp parallel for reduction(+:rho,norm_1,norm_2)
         for(size_t i=0; i< N; i++)
         {
@@ -190,16 +190,16 @@ void PoissonSolverAMR::solve()
             norm_1 += r[i]*r[i];
             norm_2 += rhat[i]*rhat[i];
         }
-        double aux_norm [3] = {rho,norm_1,norm_2};
-        MPI_Allreduce(MPI_IN_PLACE,&aux_norm,3,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
+        Real aux_norm [3] = {rho,norm_1,norm_2};
+        MPI_Allreduce(MPI_IN_PLACE,&aux_norm,3,MPI_Real,MPI_SUM,grid.getCartComm());
         rho = aux_norm[0];
         norm_1 = aux_norm[1];
         norm_2 = aux_norm[2];
-        double beta = rho / (rho_m1+eps) * alpha / (omega+eps) ;
+        Real beta = rho / (rho_m1+eps) * alpha / (omega+eps) ;
 
         norm_1 = sqrt(norm_1);
         norm_2 = sqrt(norm_2);
-        double cosTheta = rho/norm_1/norm_2; 
+        Real cosTheta = rho/norm_1/norm_2; 
         serious_breakdown = std::fabs(cosTheta) < 1e-8;
         if (serious_breakdown)
         {
@@ -216,7 +216,7 @@ void PoissonSolverAMR::solve()
             if (sim.rank==0) 
                 std::cout << "  [Poisson solver]: restart at iteration:" << k << 
                              "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
-            MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
+            MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_Real,MPI_SUM,grid.getCartComm());
             alpha = 1.;
             omega = 1.;
             rho_m1 = 1.;
@@ -257,7 +257,7 @@ void PoissonSolverAMR::solve()
                 alpha += rhat[src_index] * v[src_index];
             }
         }  
-        MPI_Allreduce(MPI_IN_PLACE,&alpha,1,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
+        MPI_Allreduce(MPI_IN_PLACE,&alpha,1,MPI_Real,MPI_SUM,grid.getCartComm());
         alpha = rho / (alpha + eps);
         //7. x += a z
         //8. 
@@ -283,8 +283,8 @@ void PoissonSolverAMR::solve()
         findLHS(0); // t stored in AxVector
 
         //12. omega = ...
-        double aux1 = 0;
-        double aux2 = 0;
+        Real aux1 = 0;
+        Real aux2 = 0;
         #pragma omp parallel for reduction (+:aux1,aux2)
         for (size_t i=0; i < Nblocks; i++)
         {
@@ -298,8 +298,8 @@ void PoissonSolverAMR::solve()
                 aux2 += bPoisson(ix,iy,iz).lhs * bPoisson(ix,iy,iz).lhs;
             }
         }
-        double aux_12[2] = {aux1,aux2};
-        MPI_Allreduce(MPI_IN_PLACE,&aux_12,2,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
+        Real aux_12[2] = {aux1,aux2};
+        MPI_Allreduce(MPI_IN_PLACE,&aux_12,2,MPI_Real,MPI_SUM,grid.getCartComm());
         aux1 = aux_12[0];
         aux2 = aux_12[1];
         omega = aux1 / (aux2+eps); 
@@ -322,7 +322,7 @@ void PoissonSolverAMR::solve()
                 norm+= r[src_index]*r[src_index];
             }
         }
-        MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_DOUBLE,MPI_SUM,grid.getCartComm());
+        MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_SUM,grid.getCartComm());
         norm = std::sqrt(norm);
 
         if (norm < min_norm)
@@ -356,7 +356,7 @@ void PoissonSolverAMR::solve()
 
     }//k-loop
 
-    double * xsol = useXopt ? x_opt.data():x.data();
+    Real * xsol = useXopt ? x_opt.data():x.data();
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {

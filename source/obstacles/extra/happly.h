@@ -63,6 +63,16 @@ SOFTWARE.
 // General namespace wrapping all Happly things.
 namespace happly {
 
+#ifdef _FLOAT_PRECISION_
+using Real = float;
+#endif
+#ifdef _DOUBLE_PRECISION_
+using Real = double;
+#endif
+#ifdef _LONG_DOUBLE_PRECISION_
+using Real = long double;
+#endif
+
 // Enum specifying binary or ASCII filetypes. Binary can be little-endian
 // (default) or big endian.
 enum class DataFormat { ASCII, Binary, BinaryBigEndian };
@@ -82,7 +92,7 @@ template<> inline std::string typeName<double>()            { return "double";  
 // Template hackery that makes getProperty<T>() and friends pretty while automatically picking up smaller types
 namespace {
 
-// A pointer for the equivalent/smaller equivalent of a type (eg. when a double is requested a float works too, etc)
+// A pointer for the equivalent/smaller equivalent of a type (eg. when a Real is requested a float works too, etc)
 // long int is intentionally absent to avoid platform confusion
 template <class T> struct TypeChain                 { bool hasChildType = false;   typedef T            type; };
 template <> struct TypeChain<int64_t>               { bool hasChildType = true;    typedef int32_t      type; };
@@ -91,7 +101,7 @@ template <> struct TypeChain<int16_t>               { bool hasChildType = true; 
 template <> struct TypeChain<uint64_t>              { bool hasChildType = true;    typedef uint32_t     type; };
 template <> struct TypeChain<uint32_t>              { bool hasChildType = true;    typedef uint16_t     type; };
 template <> struct TypeChain<uint16_t>              { bool hasChildType = true;    typedef uint8_t      type; };
-template <> struct TypeChain<double>                { bool hasChildType = true;    typedef float        type; };
+template <> struct TypeChain<Real>                { bool hasChildType = true;    typedef float        type; };
 
 template <class T> struct CanonicalName                     { typedef T         type; };
 template <> struct CanonicalName<char>                      { typedef int8_t    type; };
@@ -405,7 +415,7 @@ public:
 
 
 /**
- * @brief A property which is a list of value (eg, 3 doubles). Note that lists are always variable length per-element.
+ * @brief A property which is a list of value (eg, 3 Reals). Note that lists are always variable length per-element.
  */
 template <class T>
 class TypedListProperty : public Property {
@@ -753,11 +763,11 @@ inline std::unique_ptr<Property> createPropertyWithType(const std::string& name,
   }
 
   // 64 bit float
-  else if (typeStr == "double" || typeStr == "float64") {
+  else if (typeStr == "Real" || typeStr == "float64") {
     if (isList) {
-      return std::unique_ptr<Property>(new TypedListProperty<double>(name, listCountBytes));
+      return std::unique_ptr<Property>(new TypedListProperty<Real>(name, listCountBytes));
     } else {
-      return std::unique_ptr<Property>(new TypedProperty<double>(name));
+      return std::unique_ptr<Property>(new TypedProperty<Real>(name));
     }
   }
 
@@ -885,7 +895,7 @@ public:
   /**
    * @brief Add a new list property for this element type.
    *
-   * @tparam T The type of the property (eg, "double" for a list of doubles)
+   * @tparam T The type of the property (eg, "Real" for a list of Reals)
    * @param propertyName The name of the property
    * @param data The data for the property. Outer vector must have the same length as the number of elements.
    */
@@ -1444,13 +1454,13 @@ public:
    *
    * @return A vector of vertex positions.
    */
-  std::vector<std::array<double, 3>> getVertexPositions(const std::string& vertexElementName = "vertex") {
+  std::vector<std::array<Real, 3>> getVertexPositions(const std::string& vertexElementName = "vertex") {
 
-    std::vector<double> xPos = getElement(vertexElementName).getProperty<double>("x");
-    std::vector<double> yPos = getElement(vertexElementName).getProperty<double>("y");
-    std::vector<double> zPos = getElement(vertexElementName).getProperty<double>("z");
+    std::vector<Real> xPos = getElement(vertexElementName).getProperty<Real>("x");
+    std::vector<Real> yPos = getElement(vertexElementName).getProperty<Real>("y");
+    std::vector<Real> zPos = getElement(vertexElementName).getProperty<Real>("z");
 
-    std::vector<std::array<double, 3>> result(xPos.size());
+    std::vector<std::array<Real, 3>> result(xPos.size());
     for (size_t i = 0; i < result.size(); i++) {
       result[i][0] = xPos[i];
       result[i][1] = yPos[i];
@@ -1511,7 +1521,7 @@ public:
    *
    * @param vertexPositions A vector of vertex positions
    */
-  void addVertexPositions(std::vector<std::array<double, 3>>& vertexPositions) {
+  void addVertexPositions(std::vector<std::array<Real, 3>>& vertexPositions) {
 
     std::string vertexName = "vertex";
     size_t N = vertexPositions.size();
@@ -1522,9 +1532,9 @@ public:
     }
 
     // De-interleave
-    std::vector<double> xPos(N);
-    std::vector<double> yPos(N);
-    std::vector<double> zPos(N);
+    std::vector<Real> xPos(N);
+    std::vector<Real> yPos(N);
+    std::vector<Real> zPos(N);
     for (size_t i = 0; i < vertexPositions.size(); i++) {
       xPos[i] = vertexPositions[i][0];
       yPos[i] = vertexPositions[i][1];
@@ -1532,9 +1542,9 @@ public:
     }
 
     // Store
-    getElement(vertexName).addProperty<double>("x", xPos);
-    getElement(vertexName).addProperty<double>("y", yPos);
-    getElement(vertexName).addProperty<double>("z", zPos);
+    getElement(vertexName).addProperty<Real>("x", xPos);
+    getElement(vertexName).addProperty<Real>("y", yPos);
+    getElement(vertexName).addProperty<Real>("z", zPos);
   }
 
   /**
@@ -1573,7 +1583,7 @@ public:
    *
    * @param colors A vector of vertex colors as floating point [0,1] values. Internally converted to [0,255] chars.
    */
-  void addVertexColors(std::vector<std::array<double, 3>>& colors) {
+  void addVertexColors(std::vector<std::array<Real, 3>>& colors) {
 
     std::string vertexName = "vertex";
     size_t N = colors.size();
@@ -1583,7 +1593,7 @@ public:
       addElement(vertexName, N);
     }
 
-    auto toChar = [](double v) {
+    auto toChar = [](Real v) {
       if (v < 0.0) v = 0.0;
       if (v > 1.0) v = 1.0;
       return static_cast<unsigned char>(v * 255.);

@@ -15,11 +15,11 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class Ellipsoid: public Obstacle
 {
-  const double radius;
+  const Real radius;
   Real e0, e1, e2;
   //special case: startup with unif accel to umax in tmax, and then decel to 0
   bool accel_decel = false;
-  double umax = 0, tmax = 1;
+  Real umax = 0, tmax = 1;
 
 public:
 

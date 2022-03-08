@@ -24,7 +24,7 @@ struct KernelPenalization : public ObstacleVisitor
   ObstacleVector * const obstacle_vector;
   const cubism::BlockInfo * info_ptr = nullptr;
 
-  KernelPenalization(double _dt, double _lambda, ObstacleVector* ov) :
+  KernelPenalization(Real _dt, Real _lambda, ObstacleVector* ov) :
     dt(_dt), lambda(_lambda), obstacle_vector(ov) {}
 
   void operator()(const cubism::BlockInfo& info)
@@ -48,17 +48,17 @@ struct KernelPenalization : public ObstacleVisitor
     const CHIMAT & __restrict__ CHI = o->chi;
     const UDEFMAT & __restrict__ UDEF = o->udef;
     FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-    const std::array<double,3> CM = obstacle->getCenterOfMass();
-    const std::array<double,3> vel = obstacle->getTranslationVelocity();
-    const std::array<double,3> omega = obstacle->getAngularVelocity();
+    const std::array<Real,3> CM = obstacle->getCenterOfMass();
+    const std::array<Real,3> vel = obstacle->getTranslationVelocity();
+    const std::array<Real,3> omega = obstacle->getAngularVelocity();
     const Real dv = std::pow(info.h, 3);
 
     // Obstacle-specific lambda, useful for gradually adding an obstacle to the flow.
     // lambda = 1/dt hardcoded for expl time int, other options are wrong.
-    const double lambdaFac = implicitPenalization? lambda : invdt;
+    const Real lambdaFac = implicitPenalization? lambda : invdt;
 
-    double &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
-    double &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
+    Real &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
+    Real &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
     FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -69,10 +69,10 @@ struct KernelPenalization : public ObstacleVisitor
       // grid if CHI stored on the grid is greater than obst's CHI.
       if(b(ix,iy,iz).chi > CHI[iz][iy][ix]) continue;
       if(CHI[iz][iy][ix] <= 0) continue; // no need to do anything
-      double p[3]; info.pos(p, ix, iy, iz);
+      Real p[3]; info.pos(p, ix, iy, iz);
       p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
 
-      const double U_TOT[3] = {
+      const Real U_TOT[3] = {
           vel[0] + omega[1]*p[2] - omega[2]*p[1] + UDEF[iz][iy][ix][0],
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
@@ -105,7 +105,7 @@ struct KernelFinalizePenalizationForce : public ObstacleVisitor
   void visit(Obstacle* const obst)
   {
     static constexpr int nQoI = 6;
-    double M[nQoI] = { 0 };
+    Real M[nQoI] = { 0 };
     const auto& oBlock = obst->getObstacleBlocks();
     #pragma omp parallel for schedule(static) reduction(+ : M[:nQoI])
     for (size_t i=0; i<oBlock.size(); ++i) {
@@ -114,39 +114,39 @@ struct KernelFinalizePenalizationForce : public ObstacleVisitor
       M[3] += oBlock[i]->TX; M[4] += oBlock[i]->TY; M[5] += oBlock[i]->TZ;
     }
     const auto comm = grid->getCartComm();
-    MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_Real, MPI_SUM, comm);
     obst->force[0]  = M[0]; obst->force[1]  = M[1]; obst->force[2]  = M[2];
     obst->torque[0] = M[3]; obst->torque[1] = M[4]; obst->torque[2] = M[5];
   }
 };
 
 #if 0
-void ElasticCollision(const double m1,
-                      const double m2,
-                      const double *I1,
-                      const double *I2,
-                      const double *v1,
-                      const double *v2,
-                      const double *o1,
-                      const double *o2,
-                      double *hv1,
-                      double *hv2,
-                      double *ho1,
-                      double *ho2,
-                      const double *C1,
-                      const double *C2,
-                      const double NX,
-                      const double NY,
-                      const double NZ,
-                      const double CX,
-                      const double CY,
-                      const double CZ)
+void ElasticCollision(const Real m1,
+                      const Real m2,
+                      const Real *I1,
+                      const Real *I2,
+                      const Real *v1,
+                      const Real *v2,
+                      const Real *o1,
+                      const Real *o2,
+                      Real *hv1,
+                      Real *hv2,
+                      Real *ho1,
+                      Real *ho2,
+                      const Real *C1,
+                      const Real *C2,
+                      const Real NX,
+                      const Real NY,
+                      const Real NZ,
+                      const Real CX,
+                      const Real CY,
+                      const Real CZ)
 {
-    double N[3] ={NX,NY,NZ};
-    double C[3] ={CX,CY,CZ};
+    Real N[3] ={NX,NY,NZ};
+    Real C[3] ={CX,CY,CZ};
 
-    double R1[3];
-    double R2[3];
+    Real R1[3];
+    Real R2[3];
     //R1 = (rc-c1) x n
     R1[0] = ( C[1] - C1[1] )*N[2] - ( C[2] - C1[2] )*N[1];
     R1[1] = ( C[2] - C1[2] )*N[0] - ( C[0] - C1[0] )*N[2];
@@ -196,10 +196,10 @@ void ElasticCollision(const double m1,
     b12 *= determinant2;
     b22 *= determinant2;
 
-    double k1[3];
-    double k2[3];
-    double J1[3];
-    double J2[3];
+    Real k1[3];
+    Real k2[3];
+    Real J1[3];
+    Real J2[3];
     k1[0] =  N[0]/m1;
     k1[1] =  N[1]/m1;
     k1[2] =  N[2]/m1;
@@ -213,14 +213,14 @@ void ElasticCollision(const double m1,
     J2[1] = b01*R2[0] + b11*R2[1] + b12*R2[2];
     J2[2] = b02*R2[0] + b12*R2[1] + b22*R2[2];
 
-    double nom   = 0;
-    double denom = 0;
+    Real nom   = 0;
+    Real denom = 0;
     nom = 2*m1*( v1[0]*k1[0] + v1[1]*k1[1] + v1[2]*k1[2])
         + 2*m2*( v2[0]*k2[0] + v2[1]*k2[1] + v2[2]*k2[2]);
     denom = m1*(k1[0]*k1[0]+k1[1]*k1[1]+k1[2]*k1[2])+
             m2*(k2[0]*k2[0]+k2[1]*k2[1]+k2[2]*k2[2]);
-    double II1[9] = {m00,m01,m02,m01,m11,m12,m02,m12,m22};
-    double II2[9] = {n00,n01,n02,n01,n11,n12,n02,n12,n22};
+    Real II1[9] = {m00,m01,m02,m01,m11,m12,m02,m12,m22};
+    Real II2[9] = {n00,n01,n02,n01,n11,n12,n02,n12,n22};
     for (int i=0;i<3;i++)
     for (int j=0;j<3;j++)
     {
@@ -229,7 +229,7 @@ void ElasticCollision(const double m1,
       denom += II1[3*i+j]*J1[i]*J1[j];
       denom += II2[3*i+j]*J2[i]*J2[j];
     }
-    const double impulse = -nom/denom;
+    const Real impulse = -nom/denom;
 
     hv1[0] = v1[0] + k1[0]*impulse;
     hv1[1] = v1[1] + k1[1]*impulse;
@@ -244,31 +244,31 @@ void ElasticCollision(const double m1,
     ho2[1] = o2[1] + J2[1]*impulse;
     ho2[2] = o2[2] + J2[2]*impulse;
 
-    double vp1_x = v1[0] + o1[1]*(C[2]-C1[2]) - o1[2]*(C[1]-C1[1]);
-    double vp1_y = v1[1] + o1[2]*(C[0]-C1[0]) - o1[0]*(C[2]-C1[2]);
-    double vp1_z = v1[2] + o1[0]*(C[1]-C1[1]) - o1[1]*(C[0]-C1[0]);
-    double hvp1_x = hv1[0] + ho1[1]*(C[2]-C1[2]) - ho1[2]*(C[1]-C1[1]);
-    double hvp1_y = hv1[1] + ho1[2]*(C[0]-C1[0]) - ho1[0]*(C[2]-C1[2]);
-    double hvp1_z = hv1[2] + ho1[0]*(C[1]-C1[1]) - ho1[1]*(C[0]-C1[0]);
+    Real vp1_x = v1[0] + o1[1]*(C[2]-C1[2]) - o1[2]*(C[1]-C1[1]);
+    Real vp1_y = v1[1] + o1[2]*(C[0]-C1[0]) - o1[0]*(C[2]-C1[2]);
+    Real vp1_z = v1[2] + o1[0]*(C[1]-C1[1]) - o1[1]*(C[0]-C1[0]);
+    Real hvp1_x = hv1[0] + ho1[1]*(C[2]-C1[2]) - ho1[2]*(C[1]-C1[1]);
+    Real hvp1_y = hv1[1] + ho1[2]*(C[0]-C1[0]) - ho1[0]*(C[2]-C1[2]);
+    Real hvp1_z = hv1[2] + ho1[0]*(C[1]-C1[1]) - ho1[1]*(C[0]-C1[0]);
 
 
-    double vp2_x = v2[0] + o2[1]*(C[2]-C2[2]) - o2[2]*(C[1]-C2[1]);
-    double vp2_y = v2[1] + o2[2]*(C[0]-C2[0]) - o2[0]*(C[2]-C2[2]);
-    double vp2_z = v2[2] + o2[0]*(C[1]-C2[1]) - o2[1]*(C[0]-C2[0]);
-    double hvp2_x = hv2[0] + ho2[1]*(C[2]-C2[2]) - ho2[2]*(C[1]-C2[1]);
-    double hvp2_y = hv2[1] + ho2[2]*(C[0]-C2[0]) - ho2[0]*(C[2]-C2[2]);
-    double hvp2_z = hv2[2] + ho2[0]*(C[1]-C2[1]) - ho2[1]*(C[0]-C2[0]);
+    Real vp2_x = v2[0] + o2[1]*(C[2]-C2[2]) - o2[2]*(C[1]-C2[1]);
+    Real vp2_y = v2[1] + o2[2]*(C[0]-C2[0]) - o2[0]*(C[2]-C2[2]);
+    Real vp2_z = v2[2] + o2[0]*(C[1]-C2[1]) - o2[1]*(C[0]-C2[0]);
+    Real hvp2_x = hv2[0] + ho2[1]*(C[2]-C2[2]) - ho2[2]*(C[1]-C2[1]);
+    Real hvp2_y = hv2[1] + ho2[2]*(C[0]-C2[0]) - ho2[0]*(C[2]-C2[2]);
+    Real hvp2_z = hv2[2] + ho2[0]*(C[1]-C2[1]) - ho2[1]*(C[0]-C2[0]);
 
 
-    double vv   =( vp2_x- vp1_x)*NX + ( vp2_y- vp1_y)*NY + ( vp2_z- vp1_z)*NZ;
-    double hvv = (hvp2_x-hvp1_x)*NX + (hvp2_y-hvp1_y)*NY + (hvp2_z-hvp1_z)*NZ;
+    Real vv   =( vp2_x- vp1_x)*NX + ( vp2_y- vp1_y)*NY + ( vp2_z- vp1_z)*NZ;
+    Real hvv = (hvp2_x-hvp1_x)*NX + (hvp2_y-hvp1_y)*NY + (hvp2_z-hvp1_z)*NZ;
 
     #if 1
     int rank ; MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     if (std::fabs(denom) < 1e-21) std::cout << "DENOM=" << denom << " nom="<< nom << std::endl;
     if (rank == 0) std::cout << "            impulse=" << impulse << " " << impulse*NX/m1 << " " << impulse*NY/m1 << " " << impulse*NZ/m1 << std::endl;
     //Total energy
-    const double E = m1*  (v1[0]*v1[0] +       v1[1]*v1[1] +       v1[2]*v1[2]) +
+    const Real E = m1*  (v1[0]*v1[0] +       v1[1]*v1[1] +       v1[2]*v1[2]) +
                      I1[0]*o1[0]*o1[0] + I1[3]*o1[0]*o1[1] + I1[4]*o1[0]*o1[2]+
                      I1[3]*o1[1]*o1[0] + I1[1]*o1[1]*o1[1] + I1[5]*o1[1]*o1[2]+
                      I1[4]*o1[2]*o1[0] + I1[5]*o1[2]*o1[1] + I1[2]*o1[2]*o1[2]+
@@ -276,7 +276,7 @@ void ElasticCollision(const double m1,
                      I2[0]*o2[0]*o2[0] + I2[3]*o2[0]*o2[1] + I2[4]*o2[0]*o2[2]+
                      I2[3]*o2[1]*o2[0] + I2[1]*o2[1]*o2[1] + I2[5]*o2[1]*o2[2]+
                      I2[4]*o2[2]*o2[0] + I2[5]*o2[2]*o2[1] + I2[2]*o2[2]*o2[2];
-    const double hE= m1*  (hv1[0]*hv1[0] +       hv1[1]*hv1[1] +       hv1[2]*hv1[2]) +
+    const Real hE= m1*  (hv1[0]*hv1[0] +       hv1[1]*hv1[1] +       hv1[2]*hv1[2]) +
                      I1[0]*ho1[0]*ho1[0] + I1[3]*ho1[0]*ho1[1] + I1[4]*ho1[0]*ho1[2]+
                      I1[3]*ho1[1]*ho1[0] + I1[1]*ho1[1]*ho1[1] + I1[5]*ho1[1]*ho1[2]+
                      I1[4]*ho1[2]*ho1[0] + I1[5]*ho1[2]*ho1[1] + I1[2]*ho1[2]*ho1[2]+
@@ -284,18 +284,18 @@ void ElasticCollision(const double m1,
                      I2[0]*ho2[0]*ho2[0] + I2[3]*ho2[0]*ho2[1] + I2[4]*ho2[0]*ho2[2]+
                      I2[3]*ho2[1]*ho2[0] + I2[1]*ho2[1]*ho2[1] + I2[5]*ho2[1]*ho2[2]+
                      I2[4]*ho2[2]*ho2[0] + I2[5]*ho2[2]*ho2[1] + I2[2]*ho2[2]*ho2[2];
-    const double Lx  = m1 * ( -  v1[1]*C1[2] +  v1[2]*C1[1]) + m2 * ( -  v2[1]*C2[2] +  v2[2]*C2[1]) + I1[0] *o1[0] + I1[3] *o1[1] + I1[4] *o1[2] + I2[0] *o2[0] + I2[3] *o2[1] + I2[4] *o2[2];
-    const double Ly  = m1 * ( -  v1[2]*C1[0] +  v1[0]*C1[2]) + m2 * ( -  v2[2]*C2[0] +  v2[0]*C2[2]) + I1[3] *o1[0] + I1[1] *o1[1] + I1[5] *o1[2] + I2[3] *o2[0] + I2[1] *o2[1] + I2[5] *o2[2];
-    const double Lz  = m1 * ( -  v1[0]*C1[1] +  v1[1]*C1[0]) + m2 * ( -  v2[0]*C2[1] +  v2[1]*C2[0]) + I1[4] *o1[0] + I1[5] *o1[1] + I1[2] *o1[2] + I2[4] *o2[0] + I2[5] *o2[1] + I2[2] *o2[2];
-    const double hLx = m1 * ( - hv1[1]*C1[2] + hv1[2]*C1[1]) + m2 * ( - hv2[1]*C2[2] + hv2[2]*C2[1]) + I1[0]*ho1[0] + I1[3]*ho1[1] + I1[4]*ho1[2] + I2[0]*ho2[0] + I2[3]*ho2[1] + I2[4]*ho2[2];
-    const double hLy = m1 * ( - hv1[2]*C1[0] + hv1[0]*C1[2]) + m2 * ( - hv2[2]*C2[0] + hv2[0]*C2[2]) + I1[3]*ho1[0] + I1[1]*ho1[1] + I1[5]*ho1[2] + I2[3]*ho2[0] + I2[1]*ho2[1] + I2[5]*ho2[2];
-    const double hLz = m1 * ( - hv1[0]*C1[1] + hv1[1]*C1[0]) + m2 * ( - hv2[0]*C2[1] + hv2[1]*C2[0]) + I1[4]*ho1[0] + I1[5]*ho1[1] + I1[2]*ho1[2] + I2[4]*ho2[0] + I2[5]*ho2[1] + I2[2]*ho2[2];
-    const double Mx = m1*v1[0] + m2*v2[0];
-    const double My = m1*v1[1] + m2*v2[1];
-    const double Mz = m1*v1[2] + m2*v2[2];
-    const double hMx = m1*hv1[0] + m2*hv2[0];
-    const double hMy = m1*hv1[1] + m2*hv2[1];
-    const double hMz = m1*hv1[2] + m2*hv2[2];
+    const Real Lx  = m1 * ( -  v1[1]*C1[2] +  v1[2]*C1[1]) + m2 * ( -  v2[1]*C2[2] +  v2[2]*C2[1]) + I1[0] *o1[0] + I1[3] *o1[1] + I1[4] *o1[2] + I2[0] *o2[0] + I2[3] *o2[1] + I2[4] *o2[2];
+    const Real Ly  = m1 * ( -  v1[2]*C1[0] +  v1[0]*C1[2]) + m2 * ( -  v2[2]*C2[0] +  v2[0]*C2[2]) + I1[3] *o1[0] + I1[1] *o1[1] + I1[5] *o1[2] + I2[3] *o2[0] + I2[1] *o2[1] + I2[5] *o2[2];
+    const Real Lz  = m1 * ( -  v1[0]*C1[1] +  v1[1]*C1[0]) + m2 * ( -  v2[0]*C2[1] +  v2[1]*C2[0]) + I1[4] *o1[0] + I1[5] *o1[1] + I1[2] *o1[2] + I2[4] *o2[0] + I2[5] *o2[1] + I2[2] *o2[2];
+    const Real hLx = m1 * ( - hv1[1]*C1[2] + hv1[2]*C1[1]) + m2 * ( - hv2[1]*C2[2] + hv2[2]*C2[1]) + I1[0]*ho1[0] + I1[3]*ho1[1] + I1[4]*ho1[2] + I2[0]*ho2[0] + I2[3]*ho2[1] + I2[4]*ho2[2];
+    const Real hLy = m1 * ( - hv1[2]*C1[0] + hv1[0]*C1[2]) + m2 * ( - hv2[2]*C2[0] + hv2[0]*C2[2]) + I1[3]*ho1[0] + I1[1]*ho1[1] + I1[5]*ho1[2] + I2[3]*ho2[0] + I2[1]*ho2[1] + I2[5]*ho2[2];
+    const Real hLz = m1 * ( - hv1[0]*C1[1] + hv1[1]*C1[0]) + m2 * ( - hv2[0]*C2[1] + hv2[1]*C2[0]) + I1[4]*ho1[0] + I1[5]*ho1[1] + I1[2]*ho1[2] + I2[4]*ho2[0] + I2[5]*ho2[1] + I2[2]*ho2[2];
+    const Real Mx = m1*v1[0] + m2*v2[0];
+    const Real My = m1*v1[1] + m2*v2[1];
+    const Real Mz = m1*v1[2] + m2*v2[2];
+    const Real hMx = m1*hv1[0] + m2*hv2[0];
+    const Real hMy = m1*hv1[1] + m2*hv2[1];
+    const Real hMz = m1*hv1[2] + m2*hv2[2];
 
     if (rank == 0)
     {
@@ -314,7 +314,7 @@ void ElasticCollision(const double m1,
 }
 #endif
 
-void ComputeJ(const double * Rc, const double * R, const double * N, const double * I, double *J)
+void ComputeJ(const Real * Rc, const Real * R, const Real * N, const Real * I, Real *J)
 {
     //Invert I
     const Real m00 = I[0];
@@ -337,50 +337,50 @@ void ComputeJ(const double * Rc, const double * R, const double * N, const doubl
     a12 *= determinant;
     a22 *= determinant;
 
-    const double aux_0 = ( Rc[1] - R[1] )*N[2] - ( Rc[2] - R[2] )*N[1];
-    const double aux_1 = ( Rc[2] - R[2] )*N[0] - ( Rc[0] - R[0] )*N[2];
-    const double aux_2 = ( Rc[0] - R[0] )*N[1] - ( Rc[1] - R[1] )*N[0];
+    const Real aux_0 = ( Rc[1] - R[1] )*N[2] - ( Rc[2] - R[2] )*N[1];
+    const Real aux_1 = ( Rc[2] - R[2] )*N[0] - ( Rc[0] - R[0] )*N[2];
+    const Real aux_2 = ( Rc[0] - R[0] )*N[1] - ( Rc[1] - R[1] )*N[0];
     J[0] = a00*aux_0 + a01*aux_1 + a02*aux_2;
     J[1] = a01*aux_0 + a11*aux_1 + a12*aux_2;
     J[2] = a02*aux_0 + a12*aux_1 + a22*aux_2;
 }
 
 
-void ElasticCollision1(const double  m1,const double  m2,
-                       const double *I1,const double *I2,
-                       const double *v1,const double *v2,
-                       const double *o1,const double *o2,
-                       double *hv1,double *hv2,
-                       double *ho1,double *ho2,
-                       const double *C1,const double *C2,
-                       const double  NX,const double  NY,const double NZ,
-                       const double  CX,const double  CY,const double CZ,
-                       double *vc1,double *vc2)
+void ElasticCollision1(const Real  m1,const Real  m2,
+                       const Real *I1,const Real *I2,
+                       const Real *v1,const Real *v2,
+                       const Real *o1,const Real *o2,
+                       Real *hv1,Real *hv2,
+                       Real *ho1,Real *ho2,
+                       const Real *C1,const Real *C2,
+                       const Real  NX,const Real  NY,const Real NZ,
+                       const Real  CX,const Real  CY,const Real CZ,
+                       Real *vc1,Real *vc2)
 {
-    const double e = 1.0; // coefficient of restitution
-    const double N[3] ={NX,NY,NZ};
-    const double C[3] ={CX,CY,CZ};
+    const Real e = 1.0; // coefficient of restitution
+    const Real N[3] ={NX,NY,NZ};
+    const Real C[3] ={CX,CY,CZ};
 
-    const double k1[3] = { N[0]/m1, N[1]/m1, N[2]/m1};
-    const double k2[3] = {-N[0]/m2,-N[1]/m2,-N[2]/m2};
-    double J1[3];
-    double J2[3]; 
+    const Real k1[3] = { N[0]/m1, N[1]/m1, N[2]/m1};
+    const Real k2[3] = {-N[0]/m2,-N[1]/m2,-N[2]/m2};
+    Real J1[3];
+    Real J2[3]; 
     ComputeJ(C,C1,N,I1,J1);
     ComputeJ(C,C2,N,I2,J2);
     J2[0] = -J2[0];
     J2[1] = -J2[1];
     J2[2] = -J2[2];
 
-    double u1DEF[3];
+    Real u1DEF[3];
     u1DEF[0] = vc1[0] - v1[0] - ( o1[1]*(C[2]-C1[2]) - o1[2]*(C[1]-C1[1]) );
     u1DEF[1] = vc1[1] - v1[1] - ( o1[2]*(C[0]-C1[0]) - o1[0]*(C[2]-C1[2]) );
     u1DEF[2] = vc1[2] - v1[2] - ( o1[0]*(C[1]-C1[1]) - o1[1]*(C[0]-C1[0]) );
-    double u2DEF[3];
+    Real u2DEF[3];
     u2DEF[0] = vc2[0] - v2[0] - ( o2[1]*(C[2]-C2[2]) - o2[2]*(C[1]-C2[1]) );
     u2DEF[1] = vc2[1] - v2[1] - ( o2[2]*(C[0]-C2[0]) - o2[0]*(C[2]-C2[2]) );
     u2DEF[2] = vc2[2] - v2[2] - ( o2[0]*(C[1]-C2[1]) - o2[1]*(C[0]-C2[0]) );
 
-    const double nom = e*( (vc1[0]-vc2[0])*N[0] + 
+    const Real nom = e*( (vc1[0]-vc2[0])*N[0] + 
                            (vc1[1]-vc2[1])*N[1] + 
                            (vc1[2]-vc2[2])*N[2] )
                        + ( (v1[0]-v2[0] + u1DEF[0] - u2DEF[0] )*N[0] + 
@@ -393,14 +393,14 @@ void ElasticCollision1(const double  m1,const double  m2,
                      (o2[2]*(C[0]-C2[0]) - o2[0]*(C[2]-C2[2]) )* N[1]+
                      (o2[0]*(C[1]-C2[1]) - o2[1]*(C[0]-C2[0]) )* N[2]);
 
-    const double denom = -(1.0/m1+1.0/m2) + 
+    const Real denom = -(1.0/m1+1.0/m2) + 
                +( ( J1[1]*(C[2]-C1[2]) - J1[2]*(C[1]-C1[1]) ) *(-N[0])+
                   ( J1[2]*(C[0]-C1[0]) - J1[0]*(C[2]-C1[2]) ) *(-N[1])+
                   ( J1[0]*(C[1]-C1[1]) - J1[1]*(C[0]-C1[0]) ) *(-N[2]))
                -( ( J2[1]*(C[2]-C2[2]) - J2[2]*(C[1]-C2[1]) ) *(-N[0])+
                   ( J2[2]*(C[0]-C2[0]) - J2[0]*(C[2]-C2[2]) ) *(-N[1])+
                   ( J2[0]*(C[1]-C2[1]) - J2[1]*(C[0]-C2[0]) ) *(-N[2]));
-    const double impulse = nom/(denom+1e-21);
+    const Real impulse = nom/(denom+1e-21);
     hv1[0] = v1[0] + k1[0]*impulse;
     hv1[1] = v1[1] + k1[1]*impulse;
     hv1[2] = v1[2] + k1[2]*impulse;
@@ -415,28 +415,28 @@ void ElasticCollision1(const double  m1,const double  m2,
     ho2[2] = o2[2] + J2[2]*impulse;
 
     #if 0
-    double vp1_x = v1[0] + o1[1]*(C[2]-C1[2]) - o1[2]*(C[1]-C1[1]);
-    double vp1_y = v1[1] + o1[2]*(C[0]-C1[0]) - o1[0]*(C[2]-C1[2]);
-    double vp1_z = v1[2] + o1[0]*(C[1]-C1[1]) - o1[1]*(C[0]-C1[0]);
-    double hvp1_x = hv1[0] + ho1[1]*(C[2]-C1[2]) - ho1[2]*(C[1]-C1[1]);
-    double hvp1_y = hv1[1] + ho1[2]*(C[0]-C1[0]) - ho1[0]*(C[2]-C1[2]);
-    double hvp1_z = hv1[2] + ho1[0]*(C[1]-C1[1]) - ho1[1]*(C[0]-C1[0]);
+    Real vp1_x = v1[0] + o1[1]*(C[2]-C1[2]) - o1[2]*(C[1]-C1[1]);
+    Real vp1_y = v1[1] + o1[2]*(C[0]-C1[0]) - o1[0]*(C[2]-C1[2]);
+    Real vp1_z = v1[2] + o1[0]*(C[1]-C1[1]) - o1[1]*(C[0]-C1[0]);
+    Real hvp1_x = hv1[0] + ho1[1]*(C[2]-C1[2]) - ho1[2]*(C[1]-C1[1]);
+    Real hvp1_y = hv1[1] + ho1[2]*(C[0]-C1[0]) - ho1[0]*(C[2]-C1[2]);
+    Real hvp1_z = hv1[2] + ho1[0]*(C[1]-C1[1]) - ho1[1]*(C[0]-C1[0]);
 
-    double vp2_x = v2[0] + o2[1]*(C[2]-C2[2]) - o2[2]*(C[1]-C2[1]);
-    double vp2_y = v2[1] + o2[2]*(C[0]-C2[0]) - o2[0]*(C[2]-C2[2]);
-    double vp2_z = v2[2] + o2[0]*(C[1]-C2[1]) - o2[1]*(C[0]-C2[0]);
-    double hvp2_x = hv2[0] + ho2[1]*(C[2]-C2[2]) - ho2[2]*(C[1]-C2[1]);
-    double hvp2_y = hv2[1] + ho2[2]*(C[0]-C2[0]) - ho2[0]*(C[2]-C2[2]);
-    double hvp2_z = hv2[2] + ho2[0]*(C[1]-C2[1]) - ho2[1]*(C[0]-C2[0]);
+    Real vp2_x = v2[0] + o2[1]*(C[2]-C2[2]) - o2[2]*(C[1]-C2[1]);
+    Real vp2_y = v2[1] + o2[2]*(C[0]-C2[0]) - o2[0]*(C[2]-C2[2]);
+    Real vp2_z = v2[2] + o2[0]*(C[1]-C2[1]) - o2[1]*(C[0]-C2[0]);
+    Real hvp2_x = hv2[0] + ho2[1]*(C[2]-C2[2]) - ho2[2]*(C[1]-C2[1]);
+    Real hvp2_y = hv2[1] + ho2[2]*(C[0]-C2[0]) - ho2[0]*(C[2]-C2[2]);
+    Real hvp2_z = hv2[2] + ho2[0]*(C[1]-C2[1]) - ho2[1]*(C[0]-C2[0]);
 
-    double vv   =( vp2_x- vp1_x)*NX + ( vp2_y- vp1_y)*NY + ( vp2_z- vp1_z)*NZ;
-    double hvv = (hvp2_x-hvp1_x)*NX + (hvp2_y-hvp1_y)*NY + (hvp2_z-hvp1_z)*NZ;
+    Real vv   =( vp2_x- vp1_x)*NX + ( vp2_y- vp1_y)*NY + ( vp2_z- vp1_z)*NZ;
+    Real hvv = (hvp2_x-hvp1_x)*NX + (hvp2_y-hvp1_y)*NY + (hvp2_z-hvp1_z)*NZ;
 
     int rank ; MPI_Comm_rank(MPI_COMM_WORLD,&rank);
     if (std::fabs(denom) < 1e-21) std::cout << "DENOM=" << denom << " nom="<< nom << std::endl;
     if (rank == 0) std::cout << "            impulse=" << impulse << " " << impulse*NX/m1 << " " << impulse*NY/m1 << " " << impulse*NZ/m1 << std::endl;
     //Total energy
-    const double E = m1*  (v1[0]*v1[0] +       v1[1]*v1[1] +       v1[2]*v1[2]) +
+    const Real E = m1*  (v1[0]*v1[0] +       v1[1]*v1[1] +       v1[2]*v1[2]) +
                      I1[0]*o1[0]*o1[0] + I1[3]*o1[0]*o1[1] + I1[4]*o1[0]*o1[2]+
                      I1[3]*o1[1]*o1[0] + I1[1]*o1[1]*o1[1] + I1[5]*o1[1]*o1[2]+
                      I1[4]*o1[2]*o1[0] + I1[5]*o1[2]*o1[1] + I1[2]*o1[2]*o1[2]+
@@ -444,7 +444,7 @@ void ElasticCollision1(const double  m1,const double  m2,
                      I2[0]*o2[0]*o2[0] + I2[3]*o2[0]*o2[1] + I2[4]*o2[0]*o2[2]+
                      I2[3]*o2[1]*o2[0] + I2[1]*o2[1]*o2[1] + I2[5]*o2[1]*o2[2]+
                      I2[4]*o2[2]*o2[0] + I2[5]*o2[2]*o2[1] + I2[2]*o2[2]*o2[2];
-    const double hE= m1*  (hv1[0]*hv1[0] +       hv1[1]*hv1[1] +       hv1[2]*hv1[2]) +
+    const Real hE= m1*  (hv1[0]*hv1[0] +       hv1[1]*hv1[1] +       hv1[2]*hv1[2]) +
                      I1[0]*ho1[0]*ho1[0] + I1[3]*ho1[0]*ho1[1] + I1[4]*ho1[0]*ho1[2]+
                      I1[3]*ho1[1]*ho1[0] + I1[1]*ho1[1]*ho1[1] + I1[5]*ho1[1]*ho1[2]+
                      I1[4]*ho1[2]*ho1[0] + I1[5]*ho1[2]*ho1[1] + I1[2]*ho1[2]*ho1[2]+
@@ -452,18 +452,18 @@ void ElasticCollision1(const double  m1,const double  m2,
                      I2[0]*ho2[0]*ho2[0] + I2[3]*ho2[0]*ho2[1] + I2[4]*ho2[0]*ho2[2]+
                      I2[3]*ho2[1]*ho2[0] + I2[1]*ho2[1]*ho2[1] + I2[5]*ho2[1]*ho2[2]+
                      I2[4]*ho2[2]*ho2[0] + I2[5]*ho2[2]*ho2[1] + I2[2]*ho2[2]*ho2[2];
-    const double Lx  = m1 * ( -  v1[1]*C1[2] +  v1[2]*C1[1]) + m2 * ( -  v2[1]*C2[2] +  v2[2]*C2[1]) + I1[0] *o1[0] + I1[3] *o1[1] + I1[4] *o1[2] + I2[0] *o2[0] + I2[3] *o2[1] + I2[4] *o2[2];
-    const double Ly  = m1 * ( -  v1[2]*C1[0] +  v1[0]*C1[2]) + m2 * ( -  v2[2]*C2[0] +  v2[0]*C2[2]) + I1[3] *o1[0] + I1[1] *o1[1] + I1[5] *o1[2] + I2[3] *o2[0] + I2[1] *o2[1] + I2[5] *o2[2];
-    const double Lz  = m1 * ( -  v1[0]*C1[1] +  v1[1]*C1[0]) + m2 * ( -  v2[0]*C2[1] +  v2[1]*C2[0]) + I1[4] *o1[0] + I1[5] *o1[1] + I1[2] *o1[2] + I2[4] *o2[0] + I2[5] *o2[1] + I2[2] *o2[2];
-    const double hLx = m1 * ( - hv1[1]*C1[2] + hv1[2]*C1[1]) + m2 * ( - hv2[1]*C2[2] + hv2[2]*C2[1]) + I1[0]*ho1[0] + I1[3]*ho1[1] + I1[4]*ho1[2] + I2[0]*ho2[0] + I2[3]*ho2[1] + I2[4]*ho2[2];
-    const double hLy = m1 * ( - hv1[2]*C1[0] + hv1[0]*C1[2]) + m2 * ( - hv2[2]*C2[0] + hv2[0]*C2[2]) + I1[3]*ho1[0] + I1[1]*ho1[1] + I1[5]*ho1[2] + I2[3]*ho2[0] + I2[1]*ho2[1] + I2[5]*ho2[2];
-    const double hLz = m1 * ( - hv1[0]*C1[1] + hv1[1]*C1[0]) + m2 * ( - hv2[0]*C2[1] + hv2[1]*C2[0]) + I1[4]*ho1[0] + I1[5]*ho1[1] + I1[2]*ho1[2] + I2[4]*ho2[0] + I2[5]*ho2[1] + I2[2]*ho2[2];
-    const double Mx = m1*v1[0] + m2*v2[0];
-    const double My = m1*v1[1] + m2*v2[1];
-    const double Mz = m1*v1[2] + m2*v2[2];
-    const double hMx = m1*hv1[0] + m2*hv2[0];
-    const double hMy = m1*hv1[1] + m2*hv2[1];
-    const double hMz = m1*hv1[2] + m2*hv2[2];
+    const Real Lx  = m1 * ( -  v1[1]*C1[2] +  v1[2]*C1[1]) + m2 * ( -  v2[1]*C2[2] +  v2[2]*C2[1]) + I1[0] *o1[0] + I1[3] *o1[1] + I1[4] *o1[2] + I2[0] *o2[0] + I2[3] *o2[1] + I2[4] *o2[2];
+    const Real Ly  = m1 * ( -  v1[2]*C1[0] +  v1[0]*C1[2]) + m2 * ( -  v2[2]*C2[0] +  v2[0]*C2[2]) + I1[3] *o1[0] + I1[1] *o1[1] + I1[5] *o1[2] + I2[3] *o2[0] + I2[1] *o2[1] + I2[5] *o2[2];
+    const Real Lz  = m1 * ( -  v1[0]*C1[1] +  v1[1]*C1[0]) + m2 * ( -  v2[0]*C2[1] +  v2[1]*C2[0]) + I1[4] *o1[0] + I1[5] *o1[1] + I1[2] *o1[2] + I2[4] *o2[0] + I2[5] *o2[1] + I2[2] *o2[2];
+    const Real hLx = m1 * ( - hv1[1]*C1[2] + hv1[2]*C1[1]) + m2 * ( - hv2[1]*C2[2] + hv2[2]*C2[1]) + I1[0]*ho1[0] + I1[3]*ho1[1] + I1[4]*ho1[2] + I2[0]*ho2[0] + I2[3]*ho2[1] + I2[4]*ho2[2];
+    const Real hLy = m1 * ( - hv1[2]*C1[0] + hv1[0]*C1[2]) + m2 * ( - hv2[2]*C2[0] + hv2[0]*C2[2]) + I1[3]*ho1[0] + I1[1]*ho1[1] + I1[5]*ho1[2] + I2[3]*ho2[0] + I2[1]*ho2[1] + I2[5]*ho2[2];
+    const Real hLz = m1 * ( - hv1[0]*C1[1] + hv1[1]*C1[0]) + m2 * ( - hv2[0]*C2[1] + hv2[1]*C2[0]) + I1[4]*ho1[0] + I1[5]*ho1[1] + I1[2]*ho1[2] + I2[4]*ho2[0] + I2[5]*ho2[1] + I2[2]*ho2[2];
+    const Real Mx = m1*v1[0] + m2*v2[0];
+    const Real My = m1*v1[1] + m2*v2[1];
+    const Real Mz = m1*v1[2] + m2*v2[2];
+    const Real hMx = m1*hv1[0] + m2*hv2[0];
+    const Real hMy = m1*hv1[1] + m2*hv2[1];
+    const Real hMz = m1*hv1[2] + m2*hv2[2];
 
     if (rank == 0)
     {
@@ -513,7 +513,7 @@ void Penalization::preventCollidingObstacles() const
     };
     std::vector<CollisionInfo> collisions(N);
 
-    std::vector <double> n_vec(3*N,0.0);
+    std::vector <Real> n_vec(3*N,0.0);
 
     #pragma omp parallel for schedule(static)
     for (size_t i=0; i<N; ++i)
@@ -601,7 +601,7 @@ void Penalization::preventCollidingObstacles() const
         }
     }
 
-    std::vector<double> buffer(20*N); //CollisionInfo holds 20 doubles
+    std::vector<Real> buffer(20*N); //CollisionInfo holds 20 Reals
     for (size_t i = 0 ; i < N ; i++)
     {
         auto & coll = collisions[i];
@@ -627,7 +627,7 @@ void Penalization::preventCollidingObstacles() const
         buffer[20*i + 19] = coll.jvecZ;
 
     }
-    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_DOUBLE, MPI_SUM, grid->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, grid->getCartComm());
     for (size_t i = 0 ; i < N ; i++)
     {
         auto & coll = collisions[i];
@@ -658,16 +658,16 @@ void Penalization::preventCollidingObstacles() const
     for (size_t j=i+1; j<N; ++j)
     {
         if (i==j) continue;
-        const double m1 = shapes[i]->mass;
-        const double m2 = shapes[j]->mass;
-        const double v1[3]={shapes[i]->transVel[0],shapes[i]->transVel[1],shapes[i]->transVel[2]};
-        const double o1[3]={shapes[i]->  angVel[0],shapes[i]->  angVel[1],shapes[i]->  angVel[2]};
-        const double v2[3]={shapes[j]->transVel[0],shapes[j]->transVel[1],shapes[j]->transVel[2]};
-        const double o2[3]={shapes[j]->  angVel[0],shapes[j]->  angVel[1],shapes[j]->  angVel[2]};
-        const double I1[6]={shapes[i]->J[0],shapes[i]->J[1],shapes[i]->J[2],shapes[i]->J[3],shapes[i]->J[4],shapes[i]->J[5]};
-        const double I2[6]={shapes[j]->J[0],shapes[j]->J[1],shapes[j]->J[2],shapes[j]->J[3],shapes[j]->J[4],shapes[j]->J[5]};
-        const double C1[3]={shapes[i]->centerOfMass[0],shapes[i]->centerOfMass[1],shapes[i]->centerOfMass[2]};
-        const double C2[3]={shapes[j]->centerOfMass[0],shapes[j]->centerOfMass[1],shapes[j]->centerOfMass[2]};
+        const Real m1 = shapes[i]->mass;
+        const Real m2 = shapes[j]->mass;
+        const Real v1[3]={shapes[i]->transVel[0],shapes[i]->transVel[1],shapes[i]->transVel[2]};
+        const Real o1[3]={shapes[i]->  angVel[0],shapes[i]->  angVel[1],shapes[i]->  angVel[2]};
+        const Real v2[3]={shapes[j]->transVel[0],shapes[j]->transVel[1],shapes[j]->transVel[2]};
+        const Real o2[3]={shapes[j]->  angVel[0],shapes[j]->  angVel[1],shapes[j]->  angVel[2]};
+        const Real I1[6]={shapes[i]->J[0],shapes[i]->J[1],shapes[i]->J[2],shapes[i]->J[3],shapes[i]->J[4],shapes[i]->J[5]};
+        const Real I2[6]={shapes[j]->J[0],shapes[j]->J[1],shapes[j]->J[2],shapes[j]->J[3],shapes[j]->J[4],shapes[j]->J[5]};
+        const Real C1[3]={shapes[i]->centerOfMass[0],shapes[i]->centerOfMass[1],shapes[i]->centerOfMass[2]};
+        const Real C2[3]={shapes[j]->centerOfMass[0],shapes[j]->centerOfMass[1],shapes[j]->centerOfMass[2]};
 
         auto & coll       = collisions[i];
         auto & coll_other = collisions[j];
@@ -697,10 +697,10 @@ void Penalization::preventCollidingObstacles() const
             MPI_Abort(grid->getCartComm(),1);
         }
 
-        double ho1[3];
-        double ho2[3];
-        double hv1[3];
-        double hv2[3];
+        Real ho1[3];
+        Real ho2[3];
+        Real hv1[3];
+        Real hv2[3];
 
         //1. Compute collision normal vector (NX,NY,NZ)
         const Real norm_i = std::sqrt(coll.ivecX*coll.ivecX + coll.ivecY*coll.ivecY + coll.ivecZ*coll.ivecZ);
@@ -720,8 +720,8 @@ void Penalization::preventCollidingObstacles() const
         const Real hitVelZ = coll.jMomZ / coll.jM - coll.iMomZ / coll.iM;
         const Real projVel = hitVelX * NX + hitVelY * NY + hitVelZ * NZ;
 
-        /*const*/ double vc1[3] = {coll.iMomX/coll.iM, coll.iMomY/coll.iM, coll.iMomZ/coll.iM};
-        /*const*/ double vc2[3] = {coll.jMomX/coll.jM, coll.jMomY/coll.jM, coll.jMomZ/coll.jM};
+        /*const*/ Real vc1[3] = {coll.iMomX/coll.iM, coll.iMomY/coll.iM, coll.iMomZ/coll.iM};
+        /*const*/ Real vc2[3] = {coll.jMomX/coll.jM, coll.jMomY/coll.jM, coll.jMomZ/coll.jM};
 
 
         if(projVel<=0) continue; // vel goes away from collision: no need to bounce
@@ -779,7 +779,7 @@ void Penalization::preventCollidingObstacles() const
 
 Penalization::Penalization(SimulationData & s) : Operator(s) {}
 
-void Penalization::operator()(const double dt)
+void Penalization::operator()(const Real dt)
 {
   if(sim.obstacle_vector->nObstacles() == 0) return;
 

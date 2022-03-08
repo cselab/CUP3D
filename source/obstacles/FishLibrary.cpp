@@ -64,8 +64,8 @@ void FishMidlineData::integrateLinearMomentum()
     lmy += vY[i]*aux1+vNorY[i]*aux2+vBinY[i]*aux3;
     lmz += vZ[i]*aux1+vNorZ[i]*aux2+vBinZ[i]*aux3;
   }
-  const double volume = V*M_PI;
-  const double aux = M_PI/volume;
+  const Real volume = V*M_PI;
+  const Real aux = M_PI/volume;
   cmx *= aux;
   cmy *= aux;
   cmz *= aux;
@@ -200,11 +200,11 @@ void FishMidlineData::integrateAngularMomentum(const Real dt)
 
   // because deformations cannot impose rotation, we both subtract the angvel
   // from the midline velocity and remove it from the internal angle:
-  const double dqdt[4] = {
-    .5*( - (angVel[0]+angvel_internal[0])*quaternion_internal[1] - (angVel[1]+angvel_internal[1])*quaternion_internal[2] - (angVel[2]+angvel_internal[2])*quaternion_internal[3] ),
-    .5*( + (angVel[0]+angvel_internal[0])*quaternion_internal[0] + (angVel[1]+angvel_internal[1])*quaternion_internal[3] - (angVel[2]+angvel_internal[2])*quaternion_internal[2] ),
-    .5*( - (angVel[0]+angvel_internal[0])*quaternion_internal[3] + (angVel[1]+angvel_internal[1])*quaternion_internal[0] + (angVel[2]+angvel_internal[2])*quaternion_internal[1] ),
-    .5*( + (angVel[0]+angvel_internal[0])*quaternion_internal[2] - (angVel[1]+angvel_internal[1])*quaternion_internal[1] + (angVel[2]+angvel_internal[2])*quaternion_internal[0] )
+  const Real dqdt[4] = {
+    (Real).5*( - (angVel[0]+angvel_internal[0])*quaternion_internal[1] - (angVel[1]+angvel_internal[1])*quaternion_internal[2] - (angVel[2]+angvel_internal[2])*quaternion_internal[3] ),
+    (Real).5*( + (angVel[0]+angvel_internal[0])*quaternion_internal[0] + (angVel[1]+angvel_internal[1])*quaternion_internal[3] - (angVel[2]+angvel_internal[2])*quaternion_internal[2] ),
+    (Real).5*( - (angVel[0]+angvel_internal[0])*quaternion_internal[3] + (angVel[1]+angvel_internal[1])*quaternion_internal[0] + (angVel[2]+angvel_internal[2])*quaternion_internal[1] ),
+    (Real).5*( + (angVel[0]+angvel_internal[0])*quaternion_internal[2] - (angVel[1]+angvel_internal[1])*quaternion_internal[1] + (angVel[2]+angvel_internal[2])*quaternion_internal[0] )
   };
   quaternion_internal[0] -= 0.5*dt * dqdt[0];
   quaternion_internal[1] -= 0.5*dt * dqdt[1];
@@ -232,11 +232,11 @@ void FishMidlineData::integrateAngularMomentum(const Real dt)
   {
     //rotation position and velocity
     {
-      double p[3] = {rX[i],rY[i],rZ[i]};
+      Real p[3] = {rX[i],rY[i],rZ[i]};
       rX[i] = R[0][0] * p[0]  + R[0][1] * p[1] + R[0][2] * p[2];
       rY[i] = R[1][0] * p[0]  + R[1][1] * p[1] + R[1][2] * p[2];
       rZ[i] = R[2][0] * p[0]  + R[2][1] * p[1] + R[2][2] * p[2];
-      double v[3] = {vX[i],vY[i],vZ[i]};
+      Real v[3] = {vX[i],vY[i],vZ[i]};
       vX[i] = R[0][0] * v[0]  + R[0][1] * v[1] + R[0][2] * v[2];
       vY[i] = R[1][0] * v[0]  + R[1][1] * v[1] + R[1][2] * v[2];
       vZ[i] = R[2][0] * v[0]  + R[2][1] * v[1] + R[2][2] * v[2];
@@ -246,11 +246,11 @@ void FishMidlineData::integrateAngularMomentum(const Real dt)
     }
     //rotation normal vector
     {
-      double p[3] = {norX[i],norY[i],norZ[i]};
+      Real p[3] = {norX[i],norY[i],norZ[i]};
       norX[i] = R[0][0] * p[0]  + R[0][1] * p[1] + R[0][2] * p[2];
       norY[i] = R[1][0] * p[0]  + R[1][1] * p[1] + R[1][2] * p[2];
       norZ[i] = R[2][0] * p[0]  + R[2][1] * p[1] + R[2][2] * p[2];
-      double v[3] = {vNorX[i],vNorY[i],vNorZ[i]};
+      Real v[3] = {vNorX[i],vNorY[i],vNorZ[i]};
       vNorX[i] = R[0][0] * v[0]  + R[0][1] * v[1] + R[0][2] * v[2];
       vNorY[i] = R[1][0] * v[0]  + R[1][1] * v[1] + R[1][2] * v[2];
       vNorZ[i] = R[2][0] * v[0]  + R[2][1] * v[1] + R[2][2] * v[2];
@@ -260,11 +260,11 @@ void FishMidlineData::integrateAngularMomentum(const Real dt)
     }
     //rotation binormal vector
     {
-      double p[3] = {binX[i],binY[i],binZ[i]};
+      Real p[3] = {binX[i],binY[i],binZ[i]};
       binX[i] = R[0][0] * p[0]  + R[0][1] * p[1] + R[0][2] * p[2];
       binY[i] = R[1][0] * p[0]  + R[1][1] * p[1] + R[1][2] * p[2];
       binZ[i] = R[2][0] * p[0]  + R[2][1] * p[1] + R[2][2] * p[2];
-      double v[3] = {vBinX[i],vBinY[i],vBinZ[i]};
+      Real v[3] = {vBinX[i],vBinY[i],vBinZ[i]};
       vBinX[i] = R[0][0] * v[0]  + R[0][1] * v[1] + R[0][2] * v[2];
       vBinY[i] = R[1][0] * v[0]  + R[1][1] * v[1] + R[1][2] * v[2];
       vBinZ[i] = R[2][0] * v[0]  + R[2][1] * v[1] + R[2][2] * v[2];
@@ -307,17 +307,17 @@ void VolumeSegment_OBB::normalizeNormals()
   }
 }
 
-void VolumeSegment_OBB::changeToComputationalFrame(const double position[3], const double quaternion[4])
+void VolumeSegment_OBB::changeToComputationalFrame(const Real position[3], const Real quaternion[4])
 {
   // we are in CoM frame and change to comp frame --> first rotate around CoM (which is at (0,0) in CoM frame), then update center
   const Real a = quaternion[0];
   const Real x = quaternion[1];
   const Real y = quaternion[2];
   const Real z = quaternion[3];
-  const double Rmatrix[3][3] = {
-      {1.-2*(y*y+z*z),    2*(x*y-z*a),    2*(x*z+y*a)},
-      {   2*(x*y+z*a), 1.-2*(x*x+z*z),    2*(y*z-x*a)},
-      {   2*(x*z-y*a),    2*(y*z+x*a), 1.-2*(x*x+y*y)}
+  const Real Rmatrix[3][3] = {
+      {(Real)1.-2*(y*y+z*z),(Real)    2*(x*y-z*a),(Real)    2*(x*z+y*a)},
+      {(Real)   2*(x*y+z*a),(Real) 1.-2*(x*x+z*z),(Real)    2*(y*z-x*a)},
+      {(Real)   2*(x*z-y*a),(Real)    2*(y*z+x*a),(Real) 1.-2*(x*x+y*y)}
   };
   const Real p[3] = {c[0],c[1],c[2]};
   const Real nx[3] = {normalI[0],normalI[1],normalI[2]};
@@ -419,7 +419,7 @@ bool VolumeSegment_OBB::isIntersectingWithAABB(const Real start[3],const Real en
   return true;
 }
 
-void PutFishOnBlocks::operator()(const double h, const double ox, const double oy, const double oz, ObstacleBlock* const oblock, const std::vector<VolumeSegment_OBB*>& vSegments) const
+void PutFishOnBlocks::operator()(const Real h, const Real ox, const Real oy, const Real oz, ObstacleBlock* const oblock, const std::vector<VolumeSegment_OBB*>& vSegments) const
 {
   auto & sdf_array = oblock->sdfLab;
   for(int iz=0; iz<FluidBlock::sizeZ+2; ++iz)
@@ -453,7 +453,7 @@ inline Real distPlane(const Real p1[3], const Real p2[3], const Real p3[3],
   return signIn * (t[0]*n[0] + t[1]*n[1] + t[2]*n[2]) / norm;
 }
 
-void PutFishOnBlocks::constructSurface(const double h, const double ox, const double oy, const double oz, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
+void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real oy, const Real oz, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
   //Construct the surface of the fish.
   //By definition, this is where SDF = 0.
@@ -760,7 +760,7 @@ void PutFishOnBlocks::constructSurface(const double h, const double ox, const do
   }
 }
 
-void PutFishOnBlocks::constructInternl(const double h, const double ox, const double oy, const double oz, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
+void PutFishOnBlocks::constructInternl(const Real h, const Real ox, const Real oy, const Real oz, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
   Real org[3] = {ox-h,oy-h,oz-h};
   const Real invh = 1.0/h;
@@ -876,7 +876,7 @@ void PutFishOnBlocks::signedDistanceSqrt(ObstacleBlock* const defblock) const
   }
 }
 
-void PutNacaOnBlocks::constructSurface(const double h, const double ox, const double oy, const double oz, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
+void PutNacaOnBlocks::constructSurface(const Real h, const Real ox, const Real oy, const Real oz, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
   Real org[3] = {ox-h,oy-h,oz-h};
   const Real invh = 1.0/h;
@@ -1014,7 +1014,7 @@ void PutNacaOnBlocks::constructSurface(const double h, const double ox, const do
   }
 }
 
-void PutNacaOnBlocks::constructInternl(const double h, const double ox, const double oy, const double oz, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
+void PutNacaOnBlocks::constructInternl(const Real h, const Real ox, const Real oy, const Real oz, ObstacleBlock* const defblock, const std::vector<VolumeSegment_OBB*>&vSegments) const
 {
   Real org[3] = {ox-h,oy-h,oz-h};
   const Real invh = 1.0/h;

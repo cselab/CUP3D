@@ -6,8 +6,7 @@
 //  Created by Ivica Kicic (kicici@ethz.ch).
 //
 
-#ifndef CubismUP_3D_Base_h
-#define CubismUP_3D_Base_h
+#pragma once
 
 /*
  * Macros and definition used by other header files.
@@ -32,21 +31,15 @@
 #endif
 #define CUBISM_ALIGNMENT CUP_ALIGNMENT
 
-
-CubismUP_3D_NAMESPACE_BEGIN
-
-#ifndef CUP_HDF5_DOUBLE_PRECISION
-typedef float DumpReal;
-#else
-typedef double DumpReal;
+#ifdef _FLOAT_PRECISION_
+using Real = float;
+#define MPI_Real MPI_FLOAT
 #endif
-
-CubismUP_3D_NAMESPACE_END
-
-#ifndef CUP_SINGLE_PRECISION
-typedef double Real;
-#else
-typedef float Real;
+#ifdef _DOUBLE_PRECISION_
+using Real = double;
+#define MPI_Real MPI_DOUBLE
 #endif
-
-#endif  // CubismUP_3D_Base_h
+#ifdef _LONG_DOUBLE_PRECISION_
+using Real = long double;
+#define MPI_Real MPI_LONG_DOUBLE
+#endif

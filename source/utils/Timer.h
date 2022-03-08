@@ -24,11 +24,11 @@ public:
 		t_start = std::chrono::high_resolution_clock::now();
 	}
 
-	double stop()
+	Real stop()
 	{
 		t_end = std::chrono::high_resolution_clock::now();
 
-		return std::chrono::duration<double>(t_end-t_start).count();
+		return std::chrono::duration<Real>(t_end-t_start).count();
 	}
 };
 

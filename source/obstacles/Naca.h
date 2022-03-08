@@ -15,7 +15,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class Naca: public Fish
 {
-  double Apitch, Fpitch, Ppitch, Mpitch, Fheave, Aheave;
+  Real Apitch, Fpitch, Ppitch, Mpitch, Fheave, Aheave;
 
  public:
   Naca(SimulationData&s, cubism::ArgumentParser&p);

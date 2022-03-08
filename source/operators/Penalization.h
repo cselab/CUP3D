@@ -18,7 +18,7 @@ class Penalization : public Operator
  public:
   Penalization(SimulationData & s);
 
-  void operator()(const double dt);
+  void operator()(const Real dt);
 
   void preventCollidingObstacles() const;
 

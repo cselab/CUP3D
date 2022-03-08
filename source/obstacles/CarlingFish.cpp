@@ -20,10 +20,10 @@ class CarlingFishMidlineData : public FishMidlineData
  public:
   bool quadraticAmplitude = false;
  protected:
-  const double carlingAmp;
-  static constexpr double carlingInv = 0.03125;
+  const Real carlingAmp;
+  static constexpr Real carlingInv = 0.03125;
 
-  const double quadraticFactor; // Should be set to 0.1, which gives peak-to-peak amp of 0.2L (this is physically observed in most fish species)
+  const Real quadraticFactor; // Should be set to 0.1, which gives peak-to-peak amp of 0.2L (this is physically observed in most fish species)
 
   inline Real rampFactorSine(const Real t, const Real T) const
   {
@@ -55,7 +55,7 @@ class CarlingFishMidlineData : public FishMidlineData
 
  public:
   // L=length, T=period, phi=phase shift, _h=grid size, A=amplitude modulation
-  CarlingFishMidlineData(double L, double T, double phi, double _h, double A) :
+  CarlingFishMidlineData(Real L, Real T, Real phi, Real _h, Real A) :
   FishMidlineData(L,T,phi,_h,A),carlingAmp(.1212121212*A),quadraticFactor(.1*A)
   {
     // FinSize has now been updated with value read from text file. Recompute heights to over-write with updated values
@@ -63,7 +63,7 @@ class CarlingFishMidlineData : public FishMidlineData
     //_computeWidthsHeights();
   }
 
-  virtual void computeMidline(const double t, const double dt) override;
+  virtual void computeMidline(const Real t, const Real dt) override;
 
   template<bool bQuadratic>
   void _computeMidlinePosVel(const Real t)
@@ -99,18 +99,18 @@ class CarlingFishMidlineData : public FishMidlineData
   }
 };
 
-void CarlingFishMidlineData::computeMidline(const double t,const double dt)
+void CarlingFishMidlineData::computeMidline(const Real t,const Real dt)
 {
   if(quadraticAmplitude) _computeMidlinePosVel<true >(t);
   else                   _computeMidlinePosVel<false>(t);
 
   #pragma omp parallel for schedule(static)
   for(int i=0; i<Nm-1; i++) {
-    const double ds = rS[i+1]-rS[i];
-    const double tX = rX[i+1]-rX[i];
-    const double tY = rY[i+1]-rY[i];
-    const double tVX = vX[i+1]-vX[i];
-    const double tVY = vY[i+1]-vY[i];
+    const Real ds = rS[i+1]-rS[i];
+    const Real tX = rX[i+1]-rX[i];
+    const Real tY = rY[i+1]-rY[i];
+    const Real tVX = vX[i+1]-vX[i];
+    const Real tVY = vY[i+1]-vY[i];
     norX[i] = -tY/ds;
     norY[i] =  tX/ds;
     norZ[i] =  0.0;
@@ -141,10 +141,10 @@ void CarlingFishMidlineData::computeMidline(const double t,const double dt)
 CarlingFish::CarlingFish(SimulationData&s, ArgumentParser&p) : Fish(s, p)
 {
   // _ampFac=0.0 for towed fish :
-  const double ampFac = p("-amplitudeFactor").asDouble(1.0);
+  const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   const bool bQuadratic = p("-bQuadratic").asBool(false);
-  const double Tperiod = p("-T").asDouble(1.0);
-  const double phaseShift = p("-phi").asDouble(0.0);
+  const Real Tperiod = p("-T").asDouble(1.0);
+  const Real phaseShift = p("-phi").asDouble(0.0);
 
   CarlingFishMidlineData* localFish = new CarlingFishMidlineData(length, Tperiod, phaseShift,
     sim.hmin, ampFac);

@@ -33,7 +33,7 @@ class KernelCharacteristicFunction
   }
   Real I(const Real x) const
   {
-    return std::max(x,0.0);
+    return std::max(x,(Real)0.0);
   }
 
   template <typename BlockType>
@@ -77,12 +77,12 @@ class KernelCharacteristicFunction
           const Real gradUY = inv2h*(distPy - distMy);
           const Real gradUZ = inv2h*(distPz - distMz);
           const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
-          const Real IplusX = std::max(0.0,distPx);
-          const Real IminuX = std::max(0.0,distMx);
-          const Real IplusY = std::max(0.0,distPy);
-          const Real IminuY = std::max(0.0,distMy);
-          const Real IplusZ = std::max(0.0,distPz);
-          const Real IminuZ = std::max(0.0,distMz);
+          const Real IplusX = std::max((Real)0.0,distPx);
+          const Real IminuX = std::max((Real)0.0,distMx);
+          const Real IplusY = std::max((Real)0.0,distPy);
+          const Real IminuY = std::max((Real)0.0,distMy);
+          const Real IplusZ = std::max((Real)0.0,distPz);
+          const Real IminuZ = std::max((Real)0.0,distMz);
           // gradI: first primitive of H(x): I(x) = int_0^x H(y) dy
           const Real gradIX = inv2h*(IplusX - IminuX);
           const Real gradIY = inv2h*(IplusY - IminuY);
@@ -141,7 +141,7 @@ struct KernelComputeGridCoM : public ObstacleVisitor
 
   void visit(Obstacle* const obstacle)
   {
-    double com[4] = {0.0, 0.0, 0.0, 0.0};
+    Real com[4] = {0.0, 0.0, 0.0, 0.0};
     const auto& obstblocks = obstacle->getObstacleBlocks();
     #pragma omp parallel for schedule(static,1) reduction(+ : com[:4])
     for (size_t i=0; i<obstblocks.size(); i++) {
@@ -151,7 +151,7 @@ struct KernelComputeGridCoM : public ObstacleVisitor
       com[2] += obstblocks[i]->CoM_y;
       com[3] += obstblocks[i]->CoM_z;
     }
-    MPI_Allreduce(MPI_IN_PLACE, com, 4,MPI_DOUBLE,MPI_SUM, grid->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, com, 4,MPI_Real,MPI_SUM, grid->getCartComm());
 
     assert(com[0]>std::numeric_limits<Real>::epsilon());
     obstacle->centerOfMass[0] = com[1]/com[0];
@@ -164,7 +164,7 @@ struct KernelIntegrateUdefMomenta : public ObstacleVisitor
 {
   ObstacleVector * const obstacle_vector;
   const cubism::BlockInfo * info_ptr = nullptr;
-  inline double dvol(const cubism::BlockInfo&info, const int x, const int y, const int z) const {
+  inline Real dvol(const cubism::BlockInfo&info, const int x, const int y, const int z) const {
     return info.h * info.h * info.h;
   }
 
@@ -189,10 +189,10 @@ struct KernelIntegrateUdefMomenta : public ObstacleVisitor
     ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;
 
-    const std::array<double,3> CM = obstacle->getCenterOfMass();
+    const std::array<Real,3> CM = obstacle->getCenterOfMass();
     //We use last momentum computed by this method to stabilize the computation
     //of the ang vel. This is because J is really tiny.
-    const std::array<double,3> oldCorrVel = {{
+    const std::array<Real,3> oldCorrVel = {{
       obstacle->transVel_correction[0],
       obstacle->transVel_correction[1],
       obstacle->transVel_correction[2]
@@ -200,11 +200,11 @@ struct KernelIntegrateUdefMomenta : public ObstacleVisitor
 
     const CHIMAT & __restrict__ CHI = o->chi;
     const UDEFMAT & __restrict__ UDEF = o->udef;
-    double &VV = o->V;
-    double &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
-    double &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
-    double &J0 = o->J0, &J1 = o->J1, &J2 = o->J2;
-    double &J3 = o->J3, &J4 = o->J4, &J5 = o->J5;
+    Real &VV = o->V;
+    Real &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
+    Real &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
+    Real &J0 = o->J0, &J1 = o->J1, &J2 = o->J2;
+    Real &J3 = o->J3, &J4 = o->J4, &J5 = o->J5;
     VV = 0; FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
     J0 = 0; J1 = 0; J2 = 0; J3 = 0; J4 = 0; J5 = 0;
 
@@ -213,14 +213,14 @@ struct KernelIntegrateUdefMomenta : public ObstacleVisitor
     for(int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
       if (CHI[iz][iy][ix] <= 0) continue;
-      double p[3]; info.pos(p, ix, iy, iz);
-      const double dv = dvol(info, ix, iy, iz), X = CHI[iz][iy][ix];
+      Real p[3]; info.pos(p, ix, iy, iz);
+      const Real dv = dvol(info, ix, iy, iz), X = CHI[iz][iy][ix];
       p[0] -= CM[0];
       p[1] -= CM[1];
       p[2] -= CM[2];
-      const double dUs = UDEF[iz][iy][ix][0] - oldCorrVel[0];
-      const double dVs = UDEF[iz][iy][ix][1] - oldCorrVel[1];
-      const double dWs = UDEF[iz][iy][ix][2] - oldCorrVel[2];
+      const Real dUs = UDEF[iz][iy][ix][0] - oldCorrVel[0];
+      const Real dVs = UDEF[iz][iy][ix][1] - oldCorrVel[1];
+      const Real dWs = UDEF[iz][iy][ix][2] - oldCorrVel[2];
       VV += X * dv;
       FX += X * UDEF[iz][iy][ix][0] * dv;
       FY += X * UDEF[iz][iy][ix][1] * dv;
@@ -246,7 +246,7 @@ struct KernelAccumulateUdefMomenta : public ObstacleVisitor
 
   void visit(Obstacle* const obst)
   {
-    double M[13] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+    Real M[13] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     const auto& oBlock = obst->getObstacleBlocks();
     #pragma omp parallel for schedule(static,1) reduction(+ : M[:13])
     for (size_t i=0; i<oBlock.size(); i++) {
@@ -258,7 +258,7 @@ struct KernelAccumulateUdefMomenta : public ObstacleVisitor
       M[10] += oBlock[i]->J3; M[11] += oBlock[i]->J4; M[12] += oBlock[i]->J5;
     }
     const auto comm = grid->getCartComm();
-    MPI_Allreduce(MPI_IN_PLACE, M, 13, MPI_DOUBLE, MPI_SUM, comm);
+    MPI_Allreduce(MPI_IN_PLACE, M, 13, MPI_Real, MPI_SUM, comm);
     assert(M[0] > EPS);
 
     const GenV AM = {{ M[ 4], M[ 5], M[ 6] }};
@@ -296,12 +296,12 @@ struct KernelRemoveUdefMomenta : public ObstacleVisitor
 
   void visit(Obstacle* const obstacle)
   {
-    const std::array<double,3> angVel_correction = {{
+    const std::array<Real,3> angVel_correction = {{
       obstacle->angVel_correction[0],
       obstacle->angVel_correction[1],
       obstacle->angVel_correction[2]
     }};
-    const std::array<double,3> transVel_correction = {{
+    const std::array<Real,3> transVel_correction = {{
       obstacle->transVel_correction[0],
       obstacle->transVel_correction[1],
       obstacle->transVel_correction[2]
@@ -315,7 +315,7 @@ struct KernelRemoveUdefMomenta : public ObstacleVisitor
           angVel_correction[2]);
     #endif
 
-    const std::array<double,3> CM = obstacle->getCenterOfMass();
+    const std::array<Real,3> CM = obstacle->getCenterOfMass();
     const auto & obstacleBlocks = obstacle->getObstacleBlocks();
 
     #pragma omp parallel for schedule(dynamic, 1)
@@ -328,9 +328,9 @@ struct KernelRemoveUdefMomenta : public ObstacleVisitor
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        double p[3]; info.pos(p, ix, iy, iz);
+        Real p[3]; info.pos(p, ix, iy, iz);
         p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
-        const double rotVel_correction[3] = {
+        const Real rotVel_correction[3] = {
           angVel_correction[1]*p[2] - angVel_correction[2]*p[1],
           angVel_correction[2]*p[0] - angVel_correction[0]*p[2],
           angVel_correction[0]*p[1] - angVel_correction[1]*p[0]
@@ -345,7 +345,7 @@ struct KernelRemoveUdefMomenta : public ObstacleVisitor
 
 }
 
-void CreateObstacles::operator()(const double dt)
+void CreateObstacles::operator()(const Real dt)
 {
   if(sim.obstacle_vector->nObstacles() == 0) return;
 

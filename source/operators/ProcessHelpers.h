@@ -14,12 +14,6 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-#ifndef CUP_SINGLE_PRECISION
-#define MPIREAL MPI_DOUBLE
-#else
-#define MPIREAL MPI_FLOAT
-#endif /* CUP_SINGLE_PRECISION */
-
 inline Real findMaxU(SimulationData& sim)
 {
   const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
@@ -42,12 +36,10 @@ inline Real findMaxU(SimulationData& sim)
       maxU = std::max(maxU, maxUl);
     }
   }
-  MPI_Allreduce(MPI_IN_PLACE, & maxU, 1, MPIREAL, MPI_MAX, sim.app_comm);
+  MPI_Allreduce(MPI_IN_PLACE, & maxU, 1, MPI_Real, MPI_MAX, sim.app_comm);
   assert(maxU >= 0);
   return maxU;
 }
-
-#undef MPIREAL
 
 class KernelVorticity
 {
@@ -171,7 +163,7 @@ class ComputeVorticity : public Operator
 {
   public:
   ComputeVorticity(SimulationData & s) : Operator(s) { }
-  void operator()(const double dt)
+  void operator()(const Real dt)
   {
     const KernelVorticity K;
     compute<KernelVorticity>(K,true);
@@ -181,7 +173,7 @@ class ComputeVorticity : public Operator
     {
       const cubism::BlockInfo& info = myInfo[i];
       FluidBlock& b = *( FluidBlock *)info.ptrBlock;
-      const double fac = 1.0/(info.h*info.h*info.h);
+      const Real fac = 1.0/(info.h*info.h*info.h);
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
@@ -232,7 +224,7 @@ class ComputeQcriterion : public Operator
 {
   public:
   ComputeQcriterion(SimulationData & s) : Operator(s) { }
-  void operator()(const double dt)
+  void operator()(const Real dt)
   {
     const KernelQcriterion K;
     compute<KernelQcriterion>(K);
@@ -345,13 +337,13 @@ class ComputeDivergence : public Operator
 {
   public:
   ComputeDivergence(SimulationData & s) : Operator(s) { }
-  void operator()(const double dt)
+  void operator()(const Real dt)
   {
 
     const KernelDivergence K(sim);
     compute<KernelDivergence>(K,true);
 
-    double div_loc = 0.0;
+    Real div_loc = 0.0;
     const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
     #pragma omp parallel for schedule(static) reduction(+: div_loc)
     for(size_t i=0; i<myInfo.size(); i++)
@@ -363,8 +355,8 @@ class ComputeDivergence : public Operator
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         div_loc += std::fabs(b(ix,iy,iz).tmpU);
     }
-    double div_tot = 0.0;
-    MPI_Reduce(&div_loc, &div_tot, 1, MPI_DOUBLE, MPI_SUM, 0, sim.app_comm);
+    Real div_tot = 0.0;
+    MPI_Reduce(&div_loc, &div_tot, 1, MPI_Real, MPI_SUM, 0, sim.app_comm);
 
     size_t loc = myInfo.size();
     size_t tot;

@@ -50,14 +50,14 @@ public:
   const std::vector<std::shared_ptr<Obstacle>> &getObstacleVector() const;
 
   /* Calculate maximum allowed time step, including CFL and ramp-up. */
-  double calcMaxTimestep();
+  Real calcMaxTimestep();
 
   /*
    * Perform one timestep of the simulation.
    *
    * Returns true if the simulation is finished.
    */
-  bool timestep(double dt);
+  bool timestep(Real dt);
   inline void touch()
   {
     std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();

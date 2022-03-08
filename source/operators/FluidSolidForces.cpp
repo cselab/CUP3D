@@ -17,7 +17,7 @@ namespace {
 struct KernelComputeForces : public ObstacleVisitor
 {
   ObstacleVector * const obstacle_vector;
-  const double nu, dt;
+  const Real nu, dt;
   LabMPI * lab_ptr = nullptr;
   const BlockInfo * info_ptr = nullptr;
 
@@ -27,7 +27,7 @@ struct KernelComputeForces : public ObstacleVisitor
   const int stencil_start[3] = {small,small,small}, stencil_end[3] = {big,big,big};
   StencilInfo stencil{small,small,small, big,big,big, true, {FE_CHI,FE_U,FE_V,FE_W}};
 
-  KernelComputeForces(double _nu, double _dt, ObstacleVector* ov) :
+  KernelComputeForces(Real _nu, Real _dt, ObstacleVector* ov) :
     obstacle_vector(ov), nu(_nu), dt(_dt) { }
 
   void operator()(LabMPI&lab,const BlockInfo&info,const FluidBlock&block)
@@ -54,11 +54,11 @@ struct KernelComputeForces : public ObstacleVisitor
     if (o->nPoints == 0) return;
     assert(o->filled);
 
-    const std::array<double,3> CM = op->getCenterOfMass();
-    const std::array<double,3> omega = op->getAngularVelocity();
-    const std::array<double,3> uTrans = op->getTranslationVelocity();
-    double velUnit[3] = {0., 0., 0.};
-    const double vel_norm = std::sqrt(uTrans[0]*uTrans[0]
+    const std::array<Real,3> CM = op->getCenterOfMass();
+    const std::array<Real,3> omega = op->getAngularVelocity();
+    const std::array<Real,3> uTrans = op->getTranslationVelocity();
+    Real velUnit[3] = {0., 0., 0.};
+    const Real vel_norm = std::sqrt(uTrans[0]*uTrans[0]
                                     + uTrans[1]*uTrans[1]
                                     + uTrans[2]*uTrans[2]);
     if (vel_norm>1e-9) {
@@ -67,7 +67,7 @@ struct KernelComputeForces : public ObstacleVisitor
         velUnit[2] = uTrans[2] / vel_norm;
     }
 
-    const double _1oH = nu / info.h;
+    const Real _1oH = nu / info.h;
     //const Real _h3 = std::pow(info.h,3);
 
     //loop over elements of block info that have nonzero gradChi
@@ -84,14 +84,14 @@ struct KernelComputeForces : public ObstacleVisitor
       info.pos(p, ix, iy, iz);
 
       //shear stresses
-      const double normX = o->surface[i]->dchidx; //*h^3 (multiplied in dchidx)
-      const double normY = o->surface[i]->dchidy; //*h^3 (multiplied in dchidy)
-      const double normZ = o->surface[i]->dchidz; //*h^3 (multiplied in dchidz)
+      const Real normX = o->surface[i]->dchidx; //*h^3 (multiplied in dchidx)
+      const Real normY = o->surface[i]->dchidy; //*h^3 (multiplied in dchidy)
+      const Real normZ = o->surface[i]->dchidz; //*h^3 (multiplied in dchidz)
       const Real norm = 1.0/std::sqrt(normX*normX+normY*normY+normZ*normZ);
 
-      double dx = normX*norm;
-      double dy = normY*norm;
-      double dz = normZ*norm;
+      Real dx = normX*norm;
+      Real dy = normY*norm;
+      Real dz = normZ*norm;
 
       int x = ix;
       int y = iy;
@@ -107,44 +107,44 @@ struct KernelComputeForces : public ObstacleVisitor
         if (l(x,y,z).chi < 0.3 ) found ++;
       }
 
-      double dudx1 = normX > 0 ? (l(x+1,y,z).u-l(x,y,z).u) : (l(x,y,z).u-l(x-1,y,z).u);
-      double dvdx1 = normX > 0 ? (l(x+1,y,z).v-l(x,y,z).v) : (l(x,y,z).v-l(x-1,y,z).v);
-      double dwdx1 = normX > 0 ? (l(x+1,y,z).w-l(x,y,z).w) : (l(x,y,z).w-l(x-1,y,z).w);
-      double dudy1 = normY > 0 ? (l(x,y+1,z).u-l(x,y,z).u) : (l(x,y,z).u-l(x,y-1,z).u);
-      double dvdy1 = normY > 0 ? (l(x,y+1,z).v-l(x,y,z).v) : (l(x,y,z).v-l(x,y-1,z).v);
-      double dwdy1 = normY > 0 ? (l(x,y+1,z).w-l(x,y,z).w) : (l(x,y,z).w-l(x,y-1,z).w);
-      double dudz1 = normY > 0 ? (l(x,y,z+1).u-l(x,y,z).u) : (l(x,y,z).u-l(x,y,z-1).u);
-      double dvdz1 = normY > 0 ? (l(x,y,z+1).v-l(x,y,z).v) : (l(x,y,z).v-l(x,y,z-1).v);
-      double dwdz1 = normY > 0 ? (l(x,y,z+1).w-l(x,y,z).w) : (l(x,y,z).w-l(x,y,z-1).w);
-      double dudx2 = 0.0;
-      double dvdx2 = 0.0;
-      double dwdx2 = 0.0;
-      double dudy2 = 0.0;
-      double dvdy2 = 0.0;
-      double dwdy2 = 0.0;
-      double dudz2 = 0.0;
-      double dvdz2 = 0.0;
-      double dwdz2 = 0.0;
+      Real dudx1 = normX > 0 ? (l(x+1,y,z).u-l(x,y,z).u) : (l(x,y,z).u-l(x-1,y,z).u);
+      Real dvdx1 = normX > 0 ? (l(x+1,y,z).v-l(x,y,z).v) : (l(x,y,z).v-l(x-1,y,z).v);
+      Real dwdx1 = normX > 0 ? (l(x+1,y,z).w-l(x,y,z).w) : (l(x,y,z).w-l(x-1,y,z).w);
+      Real dudy1 = normY > 0 ? (l(x,y+1,z).u-l(x,y,z).u) : (l(x,y,z).u-l(x,y-1,z).u);
+      Real dvdy1 = normY > 0 ? (l(x,y+1,z).v-l(x,y,z).v) : (l(x,y,z).v-l(x,y-1,z).v);
+      Real dwdy1 = normY > 0 ? (l(x,y+1,z).w-l(x,y,z).w) : (l(x,y,z).w-l(x,y-1,z).w);
+      Real dudz1 = normY > 0 ? (l(x,y,z+1).u-l(x,y,z).u) : (l(x,y,z).u-l(x,y,z-1).u);
+      Real dvdz1 = normY > 0 ? (l(x,y,z+1).v-l(x,y,z).v) : (l(x,y,z).v-l(x,y,z-1).v);
+      Real dwdz1 = normY > 0 ? (l(x,y,z+1).w-l(x,y,z).w) : (l(x,y,z).w-l(x,y,z-1).w);
+      Real dudx2 = 0.0;
+      Real dvdx2 = 0.0;
+      Real dwdx2 = 0.0;
+      Real dudy2 = 0.0;
+      Real dvdy2 = 0.0;
+      Real dwdy2 = 0.0;
+      Real dudz2 = 0.0;
+      Real dvdz2 = 0.0;
+      Real dwdz2 = 0.0;
 
-      double dudx3 = 0.0;
-      double dvdx3 = 0.0;
-      double dwdx3 = 0.0;
-      double dudy3 = 0.0;
-      double dvdy3 = 0.0;
-      double dwdy3 = 0.0;
-      double dudz3 = 0.0;
-      double dvdz3 = 0.0;
-      double dwdz3 = 0.0;
+      Real dudx3 = 0.0;
+      Real dvdx3 = 0.0;
+      Real dwdx3 = 0.0;
+      Real dudy3 = 0.0;
+      Real dvdy3 = 0.0;
+      Real dwdy3 = 0.0;
+      Real dudz3 = 0.0;
+      Real dvdz3 = 0.0;
+      Real dwdz3 = 0.0;
 
-      double dudxdy1 = 0.0;
-      double dvdxdy1 = 0.0;
-      double dwdxdy1 = 0.0;
-      double dudxdz1 = 0.0;
-      double dvdxdz1 = 0.0;
-      double dwdxdz1 = 0.0;
-      double dudydz1 = 0.0;
-      double dvdydz1 = 0.0;
-      double dwdydz1 = 0.0;
+      Real dudxdy1 = 0.0;
+      Real dvdxdy1 = 0.0;
+      Real dwdxdy1 = 0.0;
+      Real dudxdz1 = 0.0;
+      Real dvdxdz1 = 0.0;
+      Real dwdxdz1 = 0.0;
+      Real dudydz1 = 0.0;
+      Real dvdydz1 = 0.0;
+      Real dwdydz1 = 0.0;
 
       dudxdy1 = 0.25*(l(x+1,y+1,z).u+l(x-1,y-1,z).u-l(x+1,y-1,z).u-l(x-1,y+1,z).u);
       dvdxdy1 = 0.25*(l(x+1,y+1,z).v+l(x-1,y-1,z).v-l(x+1,y-1,z).v-l(x-1,y+1,z).v);
@@ -393,29 +393,29 @@ struct KernelComputeForces : public ObstacleVisitor
         dwdz3 =  l(x,y,z).w - 3*l(x,y,z-1).w + 3*l(x,y,z-2).w - l(x,y,z-3).w;
       }
 
-      const double dudx = dudx1 + dudx2*(ix-x) + dudxdy1*(iy-y) + dudxdz1*(iz-z) + 0.5*dudx3*(ix-x)*(ix-x);
-      const double dvdx = dvdx1 + dvdx2*(ix-x) + dvdxdy1*(iy-y) + dvdxdz1*(iz-z) + 0.5*dvdx3*(ix-x)*(ix-x);
-      const double dwdx = dwdx1 + dwdx2*(ix-x) + dwdxdy1*(iy-y) + dwdxdz1*(iz-z) + 0.5*dwdx3*(ix-x)*(ix-x);
-      const double dudy = dudy1 + dudy2*(iy-y) + dudydz1*(iz-z) + dudxdy1*(ix-x) + 0.5*dudy3*(iy-y)*(iy-y);
-      const double dvdy = dvdy1 + dvdy2*(iy-y) + dvdydz1*(iz-z) + dvdxdy1*(ix-x) + 0.5*dvdy3*(iy-y)*(iy-y);
-      const double dwdy = dwdy1 + dwdy2*(iy-y) + dwdydz1*(iz-z) + dwdxdy1*(ix-x) + 0.5*dwdy3*(iy-y)*(iy-y);
-      const double dudz = dudz1 + dudz2*(iz-z) + dudxdz1*(ix-x) + dudydz1*(iy-y) + 0.5*dudz3*(iz-z)*(iz-z);
-      const double dvdz = dvdz1 + dvdz2*(iz-z) + dvdxdz1*(ix-x) + dvdydz1*(iy-y) + 0.5*dvdz3*(iz-z)*(iz-z);
-      const double dwdz = dwdz1 + dwdz2*(iz-z) + dwdxdz1*(ix-x) + dwdydz1*(iy-y) + 0.5*dwdz3*(iz-z)*(iz-z);       
+      const Real dudx = dudx1 + dudx2*(ix-x) + dudxdy1*(iy-y) + dudxdz1*(iz-z) + 0.5*dudx3*(ix-x)*(ix-x);
+      const Real dvdx = dvdx1 + dvdx2*(ix-x) + dvdxdy1*(iy-y) + dvdxdz1*(iz-z) + 0.5*dvdx3*(ix-x)*(ix-x);
+      const Real dwdx = dwdx1 + dwdx2*(ix-x) + dwdxdy1*(iy-y) + dwdxdz1*(iz-z) + 0.5*dwdx3*(ix-x)*(ix-x);
+      const Real dudy = dudy1 + dudy2*(iy-y) + dudydz1*(iz-z) + dudxdy1*(ix-x) + 0.5*dudy3*(iy-y)*(iy-y);
+      const Real dvdy = dvdy1 + dvdy2*(iy-y) + dvdydz1*(iz-z) + dvdxdy1*(ix-x) + 0.5*dvdy3*(iy-y)*(iy-y);
+      const Real dwdy = dwdy1 + dwdy2*(iy-y) + dwdydz1*(iz-z) + dwdxdy1*(ix-x) + 0.5*dwdy3*(iy-y)*(iy-y);
+      const Real dudz = dudz1 + dudz2*(iz-z) + dudxdz1*(ix-x) + dudydz1*(iy-y) + 0.5*dudz3*(iz-z)*(iz-z);
+      const Real dvdz = dvdz1 + dvdz2*(iz-z) + dvdxdz1*(ix-x) + dvdydz1*(iy-y) + 0.5*dvdz3*(iz-z)*(iz-z);
+      const Real dwdz = dwdz1 + dwdz2*(iz-z) + dwdxdz1*(ix-x) + dwdydz1*(iy-y) + 0.5*dwdz3*(iz-z)*(iz-z);       
 
       //normals computed with Towers 2009
       // Actually using the volume integral, since (\iint -P \hat{n} dS) = (\iiint -\nabla P dV). Also, P*\nabla\Chi = \nabla P
       // penalty-accel and surf-force match up if resolution is high enough (200 points per fish)
-      const double P = l(ix,iy,iz).p;
-      //const double fXV = D11 * normX + D12 * normY + D13 * normZ;
-      //const double fYV = D12 * normX + D22 * normY + D23 * normZ;
-      //const double fZV = D13 * normX + D23 * normY + D33 * normZ;
-      const double fXV = _1oH * (dudx * normX + dudy * normY + dudz * normZ);
-      const double fYV = _1oH * (dvdx * normX + dvdy * normY + dvdz * normZ);
-      const double fZV = _1oH * (dwdx * normX + dwdy * normY + dwdz * normZ);
+      const Real P = l(ix,iy,iz).p;
+      //const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
+      //const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
+      //const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
+      const Real fXV = _1oH * (dudx * normX + dudy * normY + dudz * normZ);
+      const Real fYV = _1oH * (dvdx * normX + dvdy * normY + dvdz * normZ);
+      const Real fZV = _1oH * (dwdx * normX + dwdy * normY + dwdz * normZ);
 
-      const double fXP = -P * normX, fYP = -P * normY, fZP = -P * normZ;
-      const double fXT = fXV+fXP, fYT = fYV+fYP, fZT = fZV+fZP;
+      const Real fXP = -P * normX, fYP = -P * normY, fZP = -P * normZ;
+      const Real fXT = fXV+fXP, fYT = fYV+fYP, fZT = fZV+fZP;
 
       //store:
       o->ss[i] = o->sectionMarker[iz][iy][ix];
@@ -440,28 +440,28 @@ struct KernelComputeForces : public ObstacleVisitor
       o->torquez  += (p[0]-CM[0])*fYT - (p[1]-CM[1])*fXT;
       /*
       if(tempIt->second->sectionMarker[iz][iy][ix] > 0){
-        const double * const pHinge2 = tempIt->second->hinge2LabFrame;
+        const Real * const pHinge2 = tempIt->second->hinge2LabFrame;
         (*measures)[19] += (p[1]-pHinge2[1])*fZT - (p[2]-pHinge2[2])*fYT;
         (*measures)[20] += (p[2]-pHinge2[2])*fXT - (p[0]-pHinge2[0])*fZT;
         (*measures)[21] += (p[0]-pHinge2[0])*fYT - (p[1]-pHinge2[1])*fXT;
       }
       */
       //thrust, drag:
-      const double forcePar= fXT*velUnit[0] +fYT*velUnit[1] +fZT*velUnit[2];
+      const Real forcePar= fXT*velUnit[0] +fYT*velUnit[1] +fZT*velUnit[2];
       o->thrust += .5*(forcePar + std::fabs(forcePar));
       o->drag   -= .5*(forcePar - std::fabs(forcePar));
 
       //power output (and negative definite variant which ensures no elastic energy absorption)
       // This is total power, for overcoming not only deformation, but also the oncoming velocity. Work done by fluid, not by the object (for that, just take -ve)
-      const double powOut = fXT * o->vX[i] + fYT * o->vY[i] + fZT * o->vZ[i];
+      const Real powOut = fXT * o->vX[i] + fYT * o->vY[i] + fZT * o->vZ[i];
       //deformation power output (and negative definite variant which ensures no elastic energy absorption)
-      const double powDef = fXT*o->vxDef[i] + fYT*o->vyDef[i] + fZT*o->vzDef[i];
-      o->Pout        += powOut; o->PoutBnd     += std::min((double)0, powOut);
-      o->defPower    += powDef; o->defPowerBnd += std::min((double)0, powDef);
+      const Real powDef = fXT*o->vxDef[i] + fYT*o->vyDef[i] + fZT*o->vzDef[i];
+      o->Pout        += powOut; o->PoutBnd     += std::min((Real)0, powOut);
+      o->defPower    += powDef; o->defPowerBnd += std::min((Real)0, powDef);
 
       // Compute P_locomotion = Force*(uTrans + uRot)
-      const double rVec[3] = {p[0]-CM[0], p[1]-CM[1], p[2]-CM[2]};
-      const double uSolid[3] = {
+      const Real rVec[3] = {p[0]-CM[0], p[1]-CM[1], p[2]-CM[2]};
+      const Real uSolid[3] = {
 	        uTrans[0] + omega[1]*rVec[2] - rVec[1]*omega[2],
 	        uTrans[1] + omega[2]*rVec[0] - rVec[2]*omega[0],
 	        uTrans[2] + omega[0]*rVec[1] - rVec[0]*omega[1]
@@ -473,7 +473,7 @@ struct KernelComputeForces : public ObstacleVisitor
 
 }
 
-void ComputeForces::operator()(const double dt)
+void ComputeForces::operator()(const Real dt)
 {
   //if (sim.step >= 500 && sim.step % 10 != 0) return; //it's expensive to compute forces! Do it once every 10 timesteps.
   if(sim.obstacle_vector->nObstacles() == 0) return;

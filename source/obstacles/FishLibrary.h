@@ -111,7 +111,7 @@ class FishMidlineData
   }
 
  public:
-  FishMidlineData(double L, double Tp, double phi, double _h, double _ampFac=1):
+  FishMidlineData(Real L, Real Tp, Real phi, Real _h, Real _ampFac=1):
    length(L), Tperiod(Tp), phaseShift(phi), h(_h), amplitudeFactor(_ampFac),
    rS    (_alloc(Nm)),
    rX    (_alloc(Nm)), rY   (_alloc(Nm)), rZ   (_alloc(Nm)),
@@ -215,10 +215,10 @@ class FishMidlineData
 
   // Derived class should provide the following function, which is responsible for defining 
   // rX,rY,rZ,norX,norY,norZ,binX,binY,biZ,vX,vY,vZ,vNorX,vNorY,vNorZ,vBinX,vBinY,vBinZ 
-  virtual void computeMidline(const double time, const double dt) = 0;
+  virtual void computeMidline(const Real time, const Real dt) = 0;
 
   // used in RL
-  virtual void execute(const double time, const double l_tnext, const std::vector<double>& input) {}
+  virtual void execute(const Real time, const Real l_tnext, const std::vector<Real>& input) {}
 };
 
 struct VolumeSegment_OBB
@@ -238,7 +238,7 @@ struct VolumeSegment_OBB
 
   void normalizeNormals();
 
-  void changeToComputationalFrame(const double position[3], const double quaternion[4]);
+  void changeToComputationalFrame(const Real position[3], const Real quaternion[4]);
 
   bool isIntersectingWithAABB(const Real start[3],const Real end[3]) const;
 };
@@ -246,11 +246,11 @@ struct VolumeSegment_OBB
 struct PutFishOnBlocks
 {
   FishMidlineData * cfish;
-  const double position[3];
-  const double quaternion[4];
-  const double Rmatrix3D[3][3];
+  const Real position[3];
+  const Real quaternion[4];
+  const Real Rmatrix3D[3][3];
 
-  PutFishOnBlocks(FishMidlineData* _cfish, const double p[3], const double q[4]): cfish(_cfish), position{p[0],p[1],p[2]},
+  PutFishOnBlocks(FishMidlineData* _cfish, const Real p[3], const Real q[4]): cfish(_cfish), position{p[0],p[1],p[2]},
   quaternion{q[0],q[1],q[2],q[3]},
   Rmatrix3D{
   {1-2*(q[2]*q[2]+q[3]*q[3]), 2*(q[1]*q[2]-q[3]*q[0]), 2*(q[1]*q[3]+q[2]*q[0])},
@@ -305,13 +305,13 @@ struct PutFishOnBlocks
     x[2]=Rmatrix3D[0][2]*p[0] + Rmatrix3D[1][2]*p[1] + Rmatrix3D[2][2]*p[2];
   }
 
-  void operator()(const double , const double , const double , const double,
+  void operator()(const Real , const Real , const Real , const Real,
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const;
-  virtual void constructSurface(const double , const double , const double , const double,
+  virtual void constructSurface(const Real , const Real , const Real , const Real,
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const;
-  virtual void constructInternl(const double , const double , const double , const double,
+  virtual void constructInternl(const Real , const Real , const Real , const Real,
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const;
   virtual void signedDistanceSqrt(ObstacleBlock*const) const;
@@ -319,14 +319,14 @@ struct PutFishOnBlocks
 
 struct PutNacaOnBlocks: public PutFishOnBlocks
 {
-  PutNacaOnBlocks(FishMidlineData* _cfish, const double p[3], const double q[4]): PutFishOnBlocks(_cfish, p, q) { }
+  PutNacaOnBlocks(FishMidlineData* _cfish, const Real p[3], const Real q[4]): PutFishOnBlocks(_cfish, p, q) { }
 
   Real getSmallerDistToMidLPlanar(const int start_s, const Real x[3], int & final_s) const;
 
-  void constructSurface(const double , const double , const double , const double,
+  void constructSurface(const Real , const Real , const Real , const Real,
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const override;
-  void constructInternl(const double , const double , const double , const double,
+  void constructInternl(const Real , const Real , const Real , const Real,
                   ObstacleBlock*const,
                   const std::vector<VolumeSegment_OBB*>&) const override;
 };

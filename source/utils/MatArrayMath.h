@@ -11,16 +11,16 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-using SymM = std::array<double,6>;
-using GenM = std::array<double,9>;
-using GenV = std::array<double,3>;
+using SymM = std::array<Real,6>;
+using GenM = std::array<Real,9>;
+using GenV = std::array<Real,3>;
 
 static inline SymM invertSym(const SymM J)
 {
-  const double detJ = J[0] * (J[1] * J[2] - J[5] * J[5])+
+  const Real detJ = J[0] * (J[1] * J[2] - J[5] * J[5])+
                       J[3] * (J[4] * J[5] - J[2] * J[3])+
                       J[4] * (J[3] * J[5] - J[1] * J[4]);
-  if( std::fabs(detJ) <= std::numeric_limits<double>::min() ) // really zero
+  if( std::fabs(detJ) <= std::numeric_limits<Real>::min() ) // really zero
   {
     return SymM {{ 0, 0, 0, 0, 0, 0 }};
   }
@@ -72,10 +72,10 @@ static inline GenM multSyms(const SymM J, const SymM G)
 
 static inline GenM invertGen(const GenM S)
 {
-  const double detS =  S[0]*S[4]*S[8] - S[0]*S[5]*S[7]
+  const Real detS =  S[0]*S[4]*S[8] - S[0]*S[5]*S[7]
                      + S[1]*S[5]*S[6] - S[1]*S[3]*S[8]
                      + S[2]*S[3]*S[7] - S[2]*S[4]*S[6];
-  if( std::fabs(detS) <= std::numeric_limits<double>::min() ) // really zero
+  if( std::fabs(detS) <= std::numeric_limits<Real>::min() ) // really zero
   {
     return GenM {{ 0, 0, 0, 0, 0, 0, 0, 0, 0 }};
   }

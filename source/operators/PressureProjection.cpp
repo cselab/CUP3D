@@ -20,7 +20,7 @@ class KernelGradP
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_P} };
 
-  KernelGradP(double _dt): dt(_dt) {}
+  KernelGradP(Real _dt): dt(_dt) {}
 
   ~KernelGradP() {}
 
@@ -123,7 +123,7 @@ PressureProjection::PressureProjection(SimulationData & s) : Operator(s)
   sim.pressureSolver = pressureSolver;
 }
 
-void PressureProjection::operator()(const double dt)
+void PressureProjection::operator()(const Real dt)
 {
   //The initial guess is contained in vInfoPoisson -> s
   //The rhs is contained in vInfoPoisson -> lhs
@@ -151,7 +151,7 @@ void PressureProjection::operator()(const double dt)
   #pragma omp parallel for
   for(size_t i=0; i<vInfo.size(); i++)
   {
-    const double fac = 1.0/(vInfo[i].h*vInfo[i].h*vInfo[i].h);
+    const Real fac = 1.0/(vInfo[i].h*vInfo[i].h*vInfo[i].h);
     FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)

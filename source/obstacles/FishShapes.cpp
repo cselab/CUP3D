@@ -15,11 +15,11 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
-void MidlineShapes::integrateBSpline(const double*const xc,
-  const double*const yc, const int n, const double length,
+void MidlineShapes::integrateBSpline(const Real*const xc,
+  const Real*const yc, const int n, const Real length,
   Real*const rS, Real*const res, const int Nm)
 {
-  double len = 0;
+  Real len = 0;
   for (int i=0; i<n-1; i++) {
     len += std::sqrt(std::pow(xc[i]-xc[i+1],2) +
                      std::pow(yc[i]-yc[i+1],2));
@@ -31,13 +31,13 @@ void MidlineShapes::integrateBSpline(const double*const xc,
   B = gsl_vector_alloc(n);
   gsl_bspline_knots_uniform(0.0, len, bw);
 
-  double ti = 0;
+  Real ti = 0;
   for(int i=0; i<Nm; ++i) {
     res[i] = 0;
     if (rS[i]>0 and rS[i]<length) {
-      const double dtt = (rS[i]-rS[i-1])/1e3;
+      const Real dtt = (rS[i]-rS[i-1])/1e3;
       while (true) {
-        double xi = 0;
+        Real xi = 0;
         gsl_bspline_eval(ti, B, bw);
         for (int j=0; j<n; j++) xi += xc[j]*gsl_vector_get(B, j);
         if (xi >= rS[i]) break;
@@ -52,7 +52,7 @@ void MidlineShapes::integrateBSpline(const double*const xc,
   gsl_vector_free(B);
 }
 
-void MidlineShapes::naca_width(const double t_ratio, const double L,
+void MidlineShapes::naca_width(const Real t_ratio, const Real L,
   Real*const rS, Real*const res, const int Nm)
 {
   const Real a =  0.2969;
@@ -82,12 +82,12 @@ void MidlineShapes::naca_width(const double t_ratio, const double L,
   }
 }
 
-void MidlineShapes::stefan_width(const double L, Real*const rS, Real*const res, const int Nm)
+void MidlineShapes::stefan_width(const Real L, Real*const rS, Real*const res, const int Nm)
 {
-  const double sb = .04*L;
-  const double st = .95*L;
-  const double wt = .01*L;
-  const double wh = .04*L;
+  const Real sb = .04*L;
+  const Real st = .95*L;
+  const Real wt = .01*L;
+  const Real wh = .04*L;
 
   for(int i=0; i<Nm; ++i)
   {
@@ -101,10 +101,10 @@ void MidlineShapes::stefan_width(const double L, Real*const rS, Real*const res, 
   }
 }
 
-void MidlineShapes::stefan_height(const double L, Real*const rS, Real*const res, const int Nm)
+void MidlineShapes::stefan_height(const Real L, Real*const rS, Real*const res, const int Nm)
 {
-  const double a=0.51*L;
-  const double b=0.08*L;
+  const Real a=0.51*L;
+  const Real b=0.08*L;
 
   for(int i=0; i<Nm; ++i)
   {
@@ -116,11 +116,11 @@ void MidlineShapes::stefan_height(const double L, Real*const rS, Real*const res,
   }
 }
 
-void MidlineShapes::danio_width(const double L, Real*const rS, Real*const res, const int Nm)
+void MidlineShapes::danio_width(const Real L, Real*const rS, Real*const res, const int Nm)
 {
 	const int nBreaksW = 11;
-	const double breaksW[nBreaksW] = {0, 0.005, 0.01, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95, 1.0};
-	const double coeffsW[nBreaksW-1][4] = {
+	const Real breaksW[nBreaksW] = {0, 0.005, 0.01, 0.05, 0.1, 0.2, 0.4, 0.6, 0.8, 0.95, 1.0};
+	const Real coeffsW[nBreaksW-1][4] = {
 		{0.0015713,       2.6439,            0,       -15410},
 		{ 0.012865,       1.4882,      -231.15,        15598},
 		{0.016476,      0.34647,       2.8156,      -39.328},
@@ -138,7 +138,7 @@ void MidlineShapes::danio_width(const double L, Real*const rS, Real*const res, c
 		if ( rS[i]<=0 or rS[i]>=L ) res[i] = 0;
 		else {
 
-			const double sNormalized = rS[i]/L;
+			const Real sNormalized = rS[i]/L;
 
 			// Find current segment
 			int currentSegW = 1;
@@ -148,19 +148,19 @@ void MidlineShapes::danio_width(const double L, Real*const rS, Real*const res, c
 
 
 			// Declare pointer for easy access
-			const double *paramsW = coeffsW[currentSegW];
+			const Real *paramsW = coeffsW[currentSegW];
 			// Reconstruct cubic
-			const double xxW = sNormalized - breaksW[currentSegW];
+			const Real xxW = sNormalized - breaksW[currentSegW];
 			res[i] = L*(paramsW[0] + paramsW[1]*xxW + paramsW[2]*pow(xxW,2) + paramsW[3]*pow(xxW,3));
 		}
 	}
 }
 
-void MidlineShapes::danio_height(const double L, Real*const rS, Real*const res, const int Nm)
+void MidlineShapes::danio_height(const Real L, Real*const rS, Real*const res, const int Nm)
 {
 	const int nBreaksH = 15;
-	const double breaksH[nBreaksH] = {0, 0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.8, 0.85, 0.87, 0.9, 0.993, 0.996, 0.998, 1};
-	const double coeffsH[nBreaksH-1][4] = {
+	const Real breaksH[nBreaksH] = {0, 0.01, 0.05, 0.1, 0.3, 0.5, 0.7, 0.8, 0.85, 0.87, 0.9, 0.993, 0.996, 0.998, 1};
+	const Real coeffsH[nBreaksH-1][4] = {
 		{0.0011746,        1.345,   2.2204e-14,      -578.62},
 		{0.014046,       1.1715,      -17.359,        128.6},
 		{0.041361,     0.40004,      -1.9268 ,      9.7029},
@@ -182,7 +182,7 @@ void MidlineShapes::danio_height(const double L, Real*const rS, Real*const res, 
 		if ( rS[i]<=0 or rS[i]>=L ) res[i] = 0;
 		else {
 
-			const double sNormalized = rS[i]/L;
+			const Real sNormalized = rS[i]/L;
 
 			// Find current segment
 			int currentSegH = 1;
@@ -191,9 +191,9 @@ void MidlineShapes::danio_height(const double L, Real*const rS, Real*const res, 
 			//if(rS[i]==L) currentSegH = nBreaksH-2; Not necessary - excluded by the if conditional
 
 			// Declare pointer for easy access
-			const double *paramsH = coeffsH[currentSegH];
+			const Real *paramsH = coeffsH[currentSegH];
 			// Reconstruct cubic
-			const double xxH = sNormalized - breaksH[currentSegH];
+			const Real xxH = sNormalized - breaksH[currentSegH];
 			res[i] = L*(paramsH[0] + paramsH[1]*xxH + paramsH[2]*pow(xxH,2) + paramsH[3]*pow(xxH,3));
 		}
 	}
@@ -202,7 +202,7 @@ void MidlineShapes::danio_height(const double L, Real*const rS, Real*const res, 
 void MidlineShapes::computeWidthsHeights(
     const std::string &heightName,
     const std::string &widthName,
-    const double L,
+    const Real L,
     Real* const rS,
     Real* const height,
     Real* const width,
@@ -220,20 +220,20 @@ void MidlineShapes::computeWidthsHeights(
     if ( heightName.compare("largefin") == 0 ) {
       if(!mpirank)
         cout<<"Building object's height according to 'largefin' profile."<<endl;
-      double xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
-      double yh[8] = {0, .055*L, .18*L, .2*L, .064*L, .002*L, .325*L, 0};
+      Real xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
+      Real yh[8] = {0, .055*L, .18*L, .2*L, .064*L, .002*L, .325*L, 0};
       // TODO read second to last number from factory
       integrateBSpline(xh, yh, 8, L, rS, height, nM);
     } else
     if ( heightName.compare("tunaclone") == 0 ) {
       if(!mpirank)
         cout<<"Building object's height according to 'tunaclone' profile."<<endl;
-      double xh[9] = {0, 0, 0.2*L, .4*L, .6*L, .9*L, .96*L, L, L};
-      double yh[9] = {0, .05*L, .14*L, .15*L, .11*L, 0, .1*L, .2*L, 0};
+      Real xh[9] = {0, 0, 0.2*L, .4*L, .6*L, .9*L, .96*L, L, L};
+      Real yh[9] = {0, .05*L, .14*L, .15*L, .11*L, 0, .1*L, .2*L, 0};
       integrateBSpline(xh, yh, 9, L, rS, height, nM);
     } else
     if ( heightName.compare(0, 4, "naca") == 0 ) {
-      double t_naca = std::stoi( heightName.substr(5), nullptr, 10 ) * 0.01;
+      Real t_naca = std::stoi( heightName.substr(5), nullptr, 10 ) * 0.01;
       if(!mpirank)
         cout<<"Building object's height according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
       naca_width(t_naca, L, rS, height, nM);
@@ -250,8 +250,8 @@ void MidlineShapes::computeWidthsHeights(
     } else {
       if(!mpirank)
         cout<<"Building object's height according to baseline profile."<<endl;
-      double xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
-      double yh[8] = {0, .055*L, .068*L, .076*L, .064*L, .0072*L, .11*L, 0};
+      Real xh[8] = {0, 0, .2*L, .4*L, .6*L, .8*L, L, L};
+      Real yh[8] = {0, .055*L, .068*L, .076*L, .064*L, .0072*L, .11*L, 0};
       integrateBSpline(xh, yh, 8, L, rS, height, nM);
     }
   }
@@ -262,12 +262,12 @@ void MidlineShapes::computeWidthsHeights(
     if ( widthName.compare("fatter") == 0 ) {
       if(!mpirank)
         cout<<"Building object's width according to 'fatter' profile."<<endl;
-      double xw[6] = {0, 0, L/3., 2*L/3., L, L};
-      double yw[6] = {0, 8.9e-2*L, 7.0e-2*L, 3.0e-2*L, 2.0e-2*L, 0};
+      Real xw[6] = {0, 0, L/3., 2*L/3., L, L};
+      Real yw[6] = {0, 8.9e-2*L, 7.0e-2*L, 3.0e-2*L, 2.0e-2*L, 0};
       integrateBSpline(xw, yw, 6, L, rS, width, nM);
     } else
     if ( widthName.compare(0, 4, "naca") == 0 ) {
-      double t_naca = std::stoi( widthName.substr(5), nullptr, 10 ) * 0.01;
+      Real t_naca = std::stoi( widthName.substr(5), nullptr, 10 ) * 0.01;
       if(!mpirank)
         cout<<"Building object's width according to naca profile with adim. thickness param set to "<<t_naca<<" ."<<endl;
       naca_width(t_naca, L, rS, width, nM);
@@ -284,8 +284,8 @@ void MidlineShapes::computeWidthsHeights(
     } else {
       if(!mpirank)
         cout<<"Building object's width according to baseline profile."<<endl;
-      double xw[6] = {0, 0, L/3., 2*L/3., L, L};
-      double yw[6] = {0, 8.9e-2*L, 1.7e-2*L, 1.6e-2*L, 1.3e-2*L, 0};
+      Real xw[6] = {0, 0, L/3., 2*L/3., L, L};
+      Real yw[6] = {0, 8.9e-2*L, 1.7e-2*L, 1.6e-2*L, 1.3e-2*L, 0};
       integrateBSpline(xw, yw, 6, L, rS, width, nM);
     }
   }

@@ -55,17 +55,17 @@ struct SimulationData
   PoissonSolverAMR * pressureSolver = nullptr;
 
   // Timestepping
-  double dt      = 0;//current timestep
-  double dt_old  = 0;//previous timestep
-  double CFL     = 0;//Courant number
-  double time    = 0;//current time
+  Real dt      = 0;//current timestep
+  Real dt_old  = 0;//previous timestep
+  Real CFL     = 0;//Courant number
+  Real time    = 0;//current time
   int step       = 0;//currect step number
-  double endTime = 0;//stop simulation at t=endTime (=0 means inactive)
+  Real endTime = 0;//stop simulation at t=endTime (=0 means inactive)
   int nsteps     = 0;//stop simulation after nsteps (=0 means inactive)
   int rampup;        //exponential CFL rampup for the first 'rampup' steps
   int step_2nd_start;//explicit Euler for the first 'step_2nd_start' steps 
                      //(to initialize u_{n-1} for n=1)
-  double coefU[3] = {1.5,-2.0,0.5};//used for 2nd order time integration 
+  Real coefU[3] = {1.5,-2.0,0.5};//used for 2nd order time integration 
                                    //of obstacle positions
   // MPI
   MPI_Comm app_comm;
@@ -75,21 +75,21 @@ struct SimulationData
   int bpdx, bpdy, bpdz;                //blocks per dimension at refinement level 0
   int levelStart;                      //initial refinement level
   int levelMax;                        //max refinement level
-  double Rtol;                         //mesh refinement tolerance
-  double Ctol;                         //mesh compression tolerance
-  std::array<double, 3> extent;        //simulation cubic domain extents
-  double maxextent ;                   //max(extent[0],extent[1],extent[2])
-  double hmin, hmax;                   //max and min grid spacing
-  std::array<double, 3> uinf = {0,0,0};//velocity of Frame of Reference
+  Real Rtol;                         //mesh refinement tolerance
+  Real Ctol;                         //mesh compression tolerance
+  std::array<Real, 3> extent;        //simulation cubic domain extents
+  Real maxextent ;                   //max(extent[0],extent[1],extent[2])
+  Real hmin, hmax;                   //max and min grid spacing
+  std::array<Real, 3> uinf = {0,0,0};//velocity of Frame of Reference
 
   //Other stuff
-  double uMax_measured = 0;         //max velocity at current timestep
-  double nu;                        //fluid kinematic viscosity
-  double lambda;                    //penalisation coefficient
+  Real uMax_measured = 0;         //max velocity at current timestep
+  Real nu;                        //fluid kinematic viscosity
+  Real lambda;                    //penalisation coefficient
   bool bImplicitPenalization = true;//explicit/implicit Penalisation
-  double DLM=0;                     // if DLM>0 then lambda=DLM/dt
-  double PoissonErrorTol;           //Poisson solver absolute error tolerance
-  double PoissonErrorTolRel;        //Poisson solver relative error tolerance
+  Real DLM=0;                     // if DLM>0 then lambda=DLM/dt
+  Real PoissonErrorTol;           //Poisson solver absolute error tolerance
+  Real PoissonErrorTolRel;        //Poisson solver relative error tolerance
   bool bCollision = false;          //indicator for collision between obstacles
   BCflag BCx_flag = freespace;      //boundary conditions in X
   BCflag BCy_flag = freespace;      //boundary conditions in Y
@@ -114,8 +114,8 @@ struct SimulationData
   bool bDump = false;
   bool verbose = false;
   bool muteAll = false;
-  double saveTime=0;
-  double nextSaveTime=0;
+  Real saveTime=0;
+  Real nextSaveTime=0;
   std::string path4serialization = "./";
   bool dumpP;
   bool dumpChi;
