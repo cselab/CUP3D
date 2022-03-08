@@ -371,7 +371,6 @@ bool Simulation::timestep(const double dt)
 
   if( sim.bDump ) _serialize();
 
-  if (sim.step % 50 == 0 && sim.verbose) sim.printResetProfiler();
   if ((sim.endTime>0 && sim.time>sim.endTime) ||
       (sim.nsteps!=0 && sim.step>=sim.nsteps) ) {
     if(sim.verbose)
