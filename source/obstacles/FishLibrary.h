@@ -152,10 +152,11 @@ class FishMidlineData
   {
     char buf[500];
     sprintf(buf, "%s_midline_%07d.txt", filename.c_str(), step_id);
-    FILE * f = fopen(buf, "w");
+    FILE * f = fopen(buf, "a");
     fprintf(f, "s x y z vX vY vZ\n");
     for (int i=0; i<Nm; i++)
       fprintf(f, "%g %g %g %g %g %g %g\n", rS[i],rX[i],rY[i],rZ[i],vX[i],vY[i],vZ[i]);
+    fclose(f);
   }
 
   void SurfaceNormal(const int idx, const Real theta, Real & nx, Real & ny, Real &nz)
