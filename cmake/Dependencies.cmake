@@ -1,9 +1,8 @@
-# Look for HDF5, FFTW and GSL, all required dependencies.
+# Look for HDF5 and GSL, all required dependencies.
 # If not found, but if the CUP_AUTO_INSTALL_DEPENDENCIES is set, the
 # ./install_dependencies.sh script will be run automatically.
 
 set(_CUP_HDF5_BUILD_DIR "${DEP_BUILD_DIR}/hdf5-1.10.1")
-set(_CUP_FFTW_BUILD_DIR "${DEP_BUILD_DIR}/fftw-3.3.7")
 set(_CUP_GSL_BUILD_DIR "${DEP_BUILD_DIR}/gsl-2.1")
 
 set(_missing_dep)
@@ -13,9 +12,6 @@ set(_dep_install_flags)
 macro(_update_dirs)
     if (NOT HDF5_DIR AND EXISTS "${_CUP_HDF5_BUILD_DIR}")
         set(HDF5_DIR "${_CUP_HDF5_BUILD_DIR}")
-    endif()
-    if (NOT FTTW_DIR AND NOT DEFINED ENV{FFTWDIR} AND EXISTS "${_CUP_FFTW_BUILD_DIR}")
-        set(FFTW_DIR "${_CUP_FFTW_BUILD_DIR}")
     endif()
     if (NOT GSL_ROOT_DIR AND NOT DEFINED ENV{GSL_ROOT_DIR} AND EXISTS "${_CUP_GSL_BUILD_DIR}")
         set(GSL_ROOT_DIR "${_CUP_GSL_BUILD_DIR}")
@@ -35,10 +31,6 @@ _update_dirs()
 
 set(HDF5_PREFER_PARALLEL ON)
 _find_package(HDF5 "--hdf5")
-
-# TODO: FFTW single precision
-# set(FFTW_USE_STATIC_LIBS 1)
-_find_package(FFTW "--fftw")
 
 _find_package(GSL "--gsl")
 
@@ -69,9 +61,6 @@ endif()
 
 if (NOT HDF5_FOUND)
     find_package(HDF5 REQUIRED)
-endif()
-if (NOT FFTW_FOUND)
-    find_package(FFTW REQUIRED)
 endif()
 if (NOT GSL_FOUND)
     find_package(GSL REQUIRED)

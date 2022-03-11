@@ -1,7 +1,6 @@
 #include "Utils.h"
 #include <mpi.h>
 #include <stdexcept>
-#include <Cubism/MyClock.h>
 
 namespace cubismup3d {
 

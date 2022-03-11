@@ -71,5 +71,14 @@ public:
   }
 };
 
+/** Create a Simulation object from a vector of command-line arguments.
+
+    The argv vector should NOT contain the argv[0] argument, it is filled with
+    a dummy value instead.
+*/
+std::shared_ptr<Simulation> createSimulation(
+    MPI_Comm comm,
+    const std::vector<std::string> &argv);
+
 CubismUP_3D_NAMESPACE_END
 #endif // CubismUP_3D_Simulation_h

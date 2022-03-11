@@ -68,7 +68,6 @@ CubismUP requires the following 3rd party libraries:
 
 | Dependency            | Environment variable pointing to the existing installation |
 |-----------------------|-----------------------------------------------|
-| FFTW (3.3.7) (\*)     | `$FFTW_ROOT`, `$FFTW_ROOT_DIR` or `$FFTW_DIR` |
 | HDF5 (1.10.1) (\*)    | `$HDF5_ROOT` or `$HDF5ROOT`                   |
 | GSL (2.1) (\*)        | `$GSL_ROOT_DIR`                               |
 | MPI                   | [See instructions][mpi-path] (\*\*)           |
@@ -86,12 +85,7 @@ Installing all dependencies may require up to half an hour.
 #### Piz Daint:
 ```shell
 module swap PrgEnv-cray PrgEnv-gnu
-module load daint-gpu cray-python/3.6.1.1 cray-hdf5-parallel cray-fftw cray-petsc/3.8.4.0 cudatoolkit/9.2.148_3.19-6.0.7.1_2.1__g3d9acc8 CrayGNU/.18.08 GSL/2.5-CrayGNU-18.08 CMake/3.12.0
-```
-Then install accFFT
-```shell
-git clone https://github.com/novatig/accfft accfft
-cd accfft
+module load daint-gpu cray-python/3.6.1.1 cray-hdf5-parallel cray-petsc/3.8.4.0 cudatoolkit/9.2.148_3.19-6.0.7.1_2.1__g3d9acc8 CrayGNU/.18.08 GSL/2.5-CrayGNU-18.08 CMake/3.12.0
 ```
 and follow the instructions in README.md
 
@@ -99,8 +93,7 @@ and follow the instructions in README.md
 #### Euler:
 First, load the following modules:
 ```shell
-module load new modules gcc/6.3.0 open_mpi/2.1.1 fftw/3.3.4 binutils/2.25 gsl/1.16 hwloc/1.11.0
-# For the single precision FFTW, load `fftw_sp/3.3.4` instead of `fftw/3.3.4`.
+module load new modules gcc/6.3.0 open_mpi/2.1.1 binutils/2.25 gsl/1.16 hwloc/1.11.0
 ```
 Then, manually install HDF5 using the provided script and add the required paths to your `.bashrc`:
 ```shell
@@ -135,8 +128,8 @@ make
 
 ### Other options and further information
 
-The `--all` flag installs all dependencies known to the script (FFTW, HDF5, GSL, as well as CMake itself).
-If only some dependencies are missing, pass instead flags like `--cmake`, `--fftw` and othes.
+The `--all` flag installs all dependencies known to the script (HDF5, GSL, as well as CMake itself).
+If only some dependencies are missing, pass instead flags like `--cmake` and others.
 Run `./install_dependencies.sh` to get the full list of available flags.
 
 All dependencies are installed in the folder `dependencies/`.
@@ -155,7 +148,6 @@ users can customize the generated executable with the following options:
 
 | Option                      | Default | Description                                                                                                                                                                                         |
 |-----------------------------|---------|-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `CUP_UNBOUNDED_FFT`         | OFF     | This option enables an FFT based Poisson solver for isolated systems (see Hockney 1970).  Enabling this option will result in an improvement of accuracy at the cost of larger memory requirements. |
 | `CUP_ASYNC_DUMP`            | ON      | This option enables asynchronous data dumps. If you run on a system with limited memory, this option can be disabled to reduce the memory footprint. Available only if MPI implementation is multithreaded (detected automatically). |
 | `CUP_DUMP_SURFACE_BINARY`   | OFF     | Enabling this option dumps additional surface data for each obstacle in binary format.                                                                                                              |
 | `CUP_SINGLE_PRECISION`      | OFF     | Run simulation in single precison.                                                                                                                                                                  |
@@ -163,7 +155,7 @@ users can customize the generated executable with the following options:
 | `CUP_RK2`                   | OFF     | Enables a second order Runge-Kutta time integrator.                                                                                                                                                 |
 
 These options can be enabled either on the command line with, e.g., `cmake
--DCUP_UNBOUNDED_FFT=ON` or with graphical tools such as `ccmake`.
+-DCUP_ASYNC_DUMP=ON` or with TUIs such as `ccmake`.
 
 ## Compiling on Mac
 

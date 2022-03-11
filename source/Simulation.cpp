@@ -31,6 +31,19 @@
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
+std::shared_ptr<Simulation> createSimulation(
+    const MPI_Comm comm,
+    const std::vector<std::string> &argv)
+{
+  std::vector<char *> cargv(argv.size() + 1);
+  char cmd[] = "prg";
+  cargv[0] = cmd;
+  for (size_t i = 0; i < argv.size(); ++i)
+    cargv[i + 1] = const_cast<char *>(argv[i].data());
+  ArgumentParser parser((int)cargv.size(), cargv.data());
+  return std::make_shared<Simulation>(comm, parser);
+}
+
 Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm, parser) {
   // Make sure given arguments are valid
   if( sim.verbose )
@@ -172,28 +185,28 @@ void Simulation::setupOperators()
   // Here we also compute obstacles' centres of mass which are computed from
   // the char func on the grid. This is different from "position" which is
   // the quantity that is advected and used to construct shape.
-  sim.pipeline.push_back(new CreateObstacles(sim));
+  sim.pipeline.push_back(std::make_shared<CreateObstacles>(sim));
 
   // Performs:
   // \tilde{u} = u_t + \delta t (\nu \nabla^2 u_t - (u_t \cdot \nabla) u_t )
-  sim.pipeline.push_back(new AdvectionDiffusion(sim));
+  sim.pipeline.push_back(std::make_shared<AdvectionDiffusion>(sim));
 
   // Update obstacle velocities and penalize velocity
-  sim.pipeline.push_back(new UpdateObstacles(sim));
-  sim.pipeline.push_back(new Penalization(sim));
+  sim.pipeline.push_back(std::make_shared<UpdateObstacles>(sim));
+  sim.pipeline.push_back(std::make_shared<Penalization>(sim));
 
   // Places Udef on the grid and computes the RHS of the Poisson Eq
   // overwrites tmpU, tmpV, tmpW and pressure solver's RHS
-  sim.pipeline.push_back(new PressureRHS(sim));
+  sim.pipeline.push_back(std::make_shared<PressureRHS>(sim));
 
   // Solves the Poisson Eq to get the pressure and finalizes the velocity
-  sim.pipeline.push_back(new PressureProjection(sim));
+  sim.pipeline.push_back(std::make_shared<PressureProjection>(sim));
 
   // With finalized velocity and pressure, compute forces and dissipation
-  sim.pipeline.push_back(new ComputeForces(sim));
-  sim.pipeline.push_back(new ComputeDissipation(sim));
+  sim.pipeline.push_back(std::make_shared<ComputeForces>(sim));
+  sim.pipeline.push_back(std::make_shared<ComputeDissipation>(sim));
 
-  //sim.pipeline.push_back(new ComputeDivergence(sim));
+  //sim.pipeline.push_back(std::make_shared<ComputeDivergence>(sim));
   if(sim.rank==0) {
     printf("[CUP3D] Operator ordering:\n");
     for (size_t c=0; c<sim.pipeline.size(); c++)

@@ -8,13 +8,9 @@
 #define CUP_BLOCK_SIZE ${CUP_BLOCK_SIZE}
 #define CUBISM_USE_HDF
 
-#cmakedefine01 CUP_IS_MPI_THREAD_UNSAFE
-#if !(CUP_IS_MPI_THREAD_UNSAFE)
-// Async hdf5 dump disabled if MPI is not thread safe.
+// Note: async dump only available if MPI supports multithreading.
 #cmakedefine CUP_ASYNC_DUMP
-#endif
 #cmakedefine CUP_DUMP_SURFACE_BINARY
-#cmakedefine CUP_SINGLE_PRECISION
 #cmakedefine CUP_HDF5_DOUBLE_PRECISION
 #cmakedefine CUP_VERBOSE
 

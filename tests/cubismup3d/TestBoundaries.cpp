@@ -1,6 +1,6 @@
-#include "Utils.h"
 #include "../../source/Simulation.h"
-#include "../../source/operators/CellwiseOperator.h"
+#include "CellwiseOperator.h"
+#include "Utils.h"
 
 using namespace cubism;
 using namespace cubismup3d;
@@ -16,7 +16,7 @@ static double getElementValue(int abs_ix, int abs_iy, int abs_iz)
 }
 
 /* Test one stencil on periodic boundaries with a ready simulation object. */
-void _testPeriodicBoundaries(Simulation &s, StencilInfo stencil, int dx, int dy, int dz)
+static void _testPeriodicBoundaries(Simulation &s, StencilInfo stencil, int dx, int dy, int dz)
 {
   // Reset the grid to some initial vlaue.
   applyKernel(s.sim, [](CellInfo info, FluidElement &e) {
@@ -55,7 +55,7 @@ void _testPeriodicBoundaries(Simulation &s, StencilInfo stencil, int dx, int dy,
 }
 
 /* Test stencils on periodic boundaries. */
-bool testPeriodicBoundaries()
+static void testPeriodicBoundaries(int levelMax, int levelStart)
 {
   const std::vector<std::string> argv{
     "-cfl", "0.1",
@@ -65,6 +65,8 @@ bool testPeriodicBoundaries()
     "-bpdx", computeNumBlocksArg(CELLS_X, FluidBlock::sizeX),
     "-bpdy", computeNumBlocksArg(CELLS_Y, FluidBlock::sizeY),
     "-bpdz", computeNumBlocksArg(CELLS_Z, FluidBlock::sizeZ),
+    "-levelMax", std::to_string(levelMax),
+    "-levelStart", std::to_string(levelStart),
   };
   auto s = createSimulation(MPI_COMM_WORLD, argv);
 
@@ -77,15 +79,26 @@ bool testPeriodicBoundaries()
   _testPeriodicBoundaries(*s, StencilInfo(-1, -1, -1, 2, 2, 2, false, {{FE_U}}), 0, 0, +1);
   _testPeriodicBoundaries(*s, StencilInfo(-1, -1, -1, 2, 2, 2, false, {{FE_U}}), +1, 0, 0);
   _testPeriodicBoundaries(*s, StencilInfo(-2, -2, -2, 3, 3, 3, true,  {{FE_U}}), -1, +1, +2);
-
-  return true;
 }
 
 int main(int argc, char **argv)
 {
+  int levelMax = 1;
+  // TODO: Test for levelMax >= 2 (requires AMR-aware CellInfo).
+  /*
+  if (argc >= 3) {
+    fprintf(stderr, "usage: %s [levelMax]\n", argv[0]);
+    return 1;
+  }
+  if (argc >= 2 && 1 != sscanf(argv[1], "%d", &levelMax)) {
+    fprintf(stderr, "expected int, got '%s'\n", argv[1]);
+    return 1;
+  }
+  */
+
   initMPI(&argc, &argv);
 
-  CUP_RUN_TEST(testPeriodicBoundaries);
+  testPeriodicBoundaries(levelMax, levelMax - 1);
 
   finalizeMPI();
 }

@@ -158,11 +158,6 @@ SimulationData::~SimulationData()
   delete obstacle_vector;
   delete amr;
   delete amr2;
-  while(!pipeline.empty()) {
-    auto * g = pipeline.back();
-    pipeline.pop_back();
-    delete g;
-  }
 }
 
 void SimulationData::startProfiler(std::string name) const

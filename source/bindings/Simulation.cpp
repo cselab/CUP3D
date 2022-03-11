@@ -2,12 +2,11 @@
 #include "../Simulation.h"
 #include "../obstacles/Obstacle.h"
 #include "../obstacles/Sphere.h"
-#include "../operators/Checkpoint.h"
+#include "../operators/Operator.h"
 
 #include <mpi.h>
 
 using namespace cubismup3d;
-using namespace cubismup3d::pybindings;
 using namespace pybind11::literals;
 namespace py = pybind11;
 
@@ -56,13 +55,34 @@ static void bindSimulationData(py::module &m)
 }
 
 /// Checkpoint listener that stops the simulation if Ctrl-C was pressed.
-struct SIGINTHandler {
-  void operator()(double /* dt */) const {
+struct SIGINTHandler : Operator
+{
+  using Operator::Operator;
+  void operator()(double /* dt */) override
+  {
     // https://pybind11.readthedocs.io/en/stable/faq.html#how-can-i-properly-handle-ctrl-c-in-long-running-functions
     if (PyErr_CheckSignals() != 0)
       throw py::error_already_set();
   }
+
+  std::string getName() override
+  {
+    return "SIGINTHandler";
+  }
 };
+
+
+static std::shared_ptr<Simulation> pyCreateSimulation(
+    const std::vector<std::string> &argv,
+    uintptr_t commPtr)
+{
+  // https://stackoverflow.com/questions/49259704/pybind11-possible-to-use-mpi4py
+  // In Python, pass `MPI._addressof(comm)` as the value of the `comm` argument.
+  MPI_Comm comm = commPtr ? *(MPI_Comm *)commPtr : MPI_COMM_WORLD;
+  auto sim = createSimulation(comm, argv);
+  sim->sim.pipeline.push_back(std::make_shared<SIGINTHandler>(sim->sim));
+  return sim;
+}
 
 PYBIND11_MODULE(libcubismup3d, m)
 {
@@ -73,14 +93,7 @@ PYBIND11_MODULE(libcubismup3d, m)
 
   /* Simulation */
   py::class_<Simulation, std::shared_ptr<Simulation>>(m, "Simulation")
-      .def(py::init([](const std::vector<std::string> &argv, uintptr_t commPtr) {
-          // https://stackoverflow.com/questions/49259704/pybind11-possible-to-use-mpi4py
-          // In Python, pass `MPI._addressof(comm)` as the value of the `comm` argument.
-          MPI_Comm comm = commPtr ? *(MPI_Comm *)commPtr : MPI_COMM_WORLD;
-          auto sim = createSimulation(comm, argv);
-          sim->checkpointPreObstacles->addListener(SIGINTHandler{});
-          return sim;
-      }), "argv"_a, "comm"_a = 0)
+      .def(py::init(&pyCreateSimulation), "argv"_a, "comm"_a = 0)
       .def_readonly("sim", &Simulation::sim, py::return_value_policy::reference_internal)
       .def("run", &Simulation::run)
       .def("add_obstacle", &Simulation_addObstacle)

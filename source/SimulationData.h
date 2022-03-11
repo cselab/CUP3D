@@ -49,7 +49,7 @@ struct SimulationData
   ObstacleVector * obstacle_vector = nullptr;
 
   // Operator Pipeline
-  std::vector<Operator*> pipeline;
+  std::vector<std::shared_ptr<Operator>> pipeline;
 
   // Pressure solver to be shared between PressureRHS and PressureProjection
   PoissonSolverAMR * pressureSolver = nullptr;
