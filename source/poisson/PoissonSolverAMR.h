@@ -25,8 +25,9 @@ class ComputeLHS : public Operator
     KernelLHSPoisson(const SimulationData&s) : sim(s) {}
   
     const StencilInfo stencil{-1,-1,-1,2,2,2,false,{0}};
-    void operator()(LabMPIPoisson & lab, const BlockInfo& info, FluidBlockPoisson& o) const
+    void operator()(LabMPIPoisson & lab, const BlockInfo& info) const
     {
+      FluidBlockPoisson & __restrict__ o  = *(FluidBlockPoisson*) info.ptrBlock;
       const Real h = info.h; 
       for(int iz=0; iz<FluidBlockPoisson::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlockPoisson::sizeY; ++iy)
@@ -120,9 +121,9 @@ class ComputeLHS : public Operator
   ComputeLHS(SimulationData & s) : Operator(s) { }
   void operator()(const Real dt)
   {
-    std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson->getBlocksInfo();
-    const KernelLHSPoisson KPoisson(sim);
-    computePoisson<KernelLHSPoisson>(KPoisson,true);
+    std::vector<cubism::BlockInfo>& vInfoPoisson = sim.gridPoisson->getBlocksInfo();
+    KernelLHSPoisson KPoisson(sim);
+    compute<KernelLHSPoisson,FluidGridMPIPoisson,LabMPIPoisson,FluidGridMPIPoisson>(KPoisson,sim.gridPoisson,sim.gridPoisson);
 
     if (sim.bMeanConstraint == 0) return;
 

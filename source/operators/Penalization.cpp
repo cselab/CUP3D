@@ -627,7 +627,7 @@ void Penalization::preventCollidingObstacles() const
         buffer[20*i + 19] = coll.jvecZ;
 
     }
-    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, grid->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, sim.grid->getCartComm());
     for (size_t i = 0 ; i < N ; i++)
     {
         auto & coll = collisions[i];
@@ -694,7 +694,7 @@ void Penalization::preventCollidingObstacles() const
         if (iForcedX || iForcedY || iForcedZ || jForcedX || jForcedY || jForcedZ)
         {
             std::cout << "Forced objects not supported for collision." << std::endl;
-            MPI_Abort(grid->getCartComm(),1);
+            MPI_Abort(sim.grid->getCartComm(),1);
         }
 
         Real ho1[3];

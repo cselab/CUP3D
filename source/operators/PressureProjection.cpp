@@ -24,9 +24,9 @@ class KernelGradP
 
   ~KernelGradP() {}
 
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  void operator()(LabMPI & lab, const BlockInfo& info) const
   {
+    FluidBlock& o = *(FluidBlock*)info.ptrBlock;
     const Real fac = -0.5*dt*info.h*info.h;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -36,13 +36,13 @@ class KernelGradP
       o(ix,iy,iz).tmpV = fac*(lab(ix,iy+1,iz).p-lab(ix,iy-1,iz).p);
       o(ix,iy,iz).tmpW = fac*(lab(ix,iy,iz+1).p-lab(ix,iy,iz-1).p);
     }
-    BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
-    typename BlockType::ElementType * faceXm = nullptr;
-    typename BlockType::ElementType * faceXp = nullptr;
-    typename BlockType::ElementType * faceYm = nullptr;
-    typename BlockType::ElementType * faceYp = nullptr;
-    typename BlockType::ElementType * faceZp = nullptr;
-    typename BlockType::ElementType * faceZm = nullptr;
+    BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
+    typename FluidBlock::ElementType * faceXm = nullptr;
+    typename FluidBlock::ElementType * faceXp = nullptr;
+    typename FluidBlock::ElementType * faceYm = nullptr;
+    typename FluidBlock::ElementType * faceYp = nullptr;
+    typename FluidBlock::ElementType * faceZp = nullptr;
+    typename FluidBlock::ElementType * faceZm = nullptr;
     if (tempCase != nullptr)
     {
       faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
@@ -145,8 +145,8 @@ void PressureProjection::operator()(const Real dt)
   }
 
   //pressure correction dudt* = - grad P / rho
-  KernelGradP K(dt);
-  compute<KernelGradP>(K,true);
+  const KernelGradP K(dt);
+  compute<KernelGradP,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
 
   #pragma omp parallel for
   for(size_t i=0; i<vInfo.size(); i++)

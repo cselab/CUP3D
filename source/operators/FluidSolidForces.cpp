@@ -30,7 +30,7 @@ struct KernelComputeForces : public ObstacleVisitor
   KernelComputeForces(Real _nu, Real _dt, ObstacleVector* ov) :
     obstacle_vector(ov), nu(_nu), dt(_dt) { }
 
-  void operator()(LabMPI&lab,const BlockInfo&info,const FluidBlock&block)
+  void operator()(LabMPI&lab,const BlockInfo&info)
   {
     // first store the lab and info, then do visitor
     lab_ptr = & lab;
@@ -478,7 +478,7 @@ void ComputeForces::operator()(const Real dt)
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
   KernelComputeForces K(sim.nu,sim.dt,sim.obstacle_vector);
-  compute<KernelComputeForces>(K);
+  compute<KernelComputeForces,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
 
   // do the final reductions and so on
   sim.obstacle_vector->computeForces();

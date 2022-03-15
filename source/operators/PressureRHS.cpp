@@ -26,10 +26,9 @@ struct KernelDivPressure
 
   KernelDivPressure(const SimulationData& s) :sim(s) {}
 
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o) const
+  void operator()(LabMPI & lab, const BlockInfo& info) const 
   {
-    BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
+    FluidBlock & __restrict__ b  = *(FluidBlock*) info.ptrBlock;
     const Real fac = info.h;
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -38,13 +37,13 @@ struct KernelDivPressure
                              +lab(ix,iy+1,iz).p+lab(ix,iy-1,iz).p
                              +lab(ix,iy,iz+1).p+lab(ix,iy,iz-1).p - 6.0*lab(ix,iy,iz).p);
 
-    BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
-    typename BlockType::ElementType * faceXm = nullptr;
-    typename BlockType::ElementType * faceXp = nullptr;
-    typename BlockType::ElementType * faceYm = nullptr;
-    typename BlockType::ElementType * faceYp = nullptr;
-    typename BlockType::ElementType * faceZp = nullptr;
-    typename BlockType::ElementType * faceZm = nullptr;
+    BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
+    typename FluidBlock::ElementType * faceXm = nullptr;
+    typename FluidBlock::ElementType * faceXp = nullptr;
+    typename FluidBlock::ElementType * faceYm = nullptr;
+    typename FluidBlock::ElementType * faceYp = nullptr;
+    typename FluidBlock::ElementType * faceZp = nullptr;
+    typename FluidBlock::ElementType * faceZm = nullptr;
     if (tempCase != nullptr)
     {
       faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
@@ -134,11 +133,10 @@ struct KernelPressureRHS : public ObstacleVisitor
 
   KernelPressureRHS(SimulationData& s) :sim(s) {}
 
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o)
+  void operator()(LabMPI & lab, const BlockInfo& info)
   {
     const Real h = info.h, fac = 0.5*h*h/dt;
-    BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
+    FluidBlock & __restrict__ b  = *(FluidBlock*) info.ptrBlock;
 
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for(int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -149,13 +147,13 @@ struct KernelPressureRHS : public ObstacleVisitor
       b(ix,iy,iz).p = fac*(LE.u-LW.u + LN.v-LS.v + LB.w-LF.w);
     }
 
-    BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
-    typename BlockType::ElementType * faceXm = nullptr;
-    typename BlockType::ElementType * faceXp = nullptr;
-    typename BlockType::ElementType * faceYm = nullptr;
-    typename BlockType::ElementType * faceYp = nullptr;
-    typename BlockType::ElementType * faceZp = nullptr;
-    typename BlockType::ElementType * faceZm = nullptr;
+    BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
+    typename FluidBlock::ElementType * faceXm = nullptr;
+    typename FluidBlock::ElementType * faceXp = nullptr;
+    typename FluidBlock::ElementType * faceYm = nullptr;
+    typename FluidBlock::ElementType * faceYp = nullptr;
+    typename FluidBlock::ElementType * faceZp = nullptr;
+    typename FluidBlock::ElementType * faceZm = nullptr;
     if (tempCase != nullptr)
     {
       faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
@@ -384,8 +382,8 @@ PressureRHS::PressureRHS(SimulationData & s) : Operator(s) {}
 
 void PressureRHS::operator()(const Real dt)
 {
-  const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& vInfo = sim.grid->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& vInfoPoisson = sim.gridPoisson->getBlocksInfo();
 
   //1. Compute pRHS
   {
@@ -410,13 +408,13 @@ void PressureRHS::operator()(const Real dt)
     const size_t nShapes = sim.obstacle_vector->nObstacles();
     if(nShapes > 0)
     {
-      ObstacleVisitor* visitor = new PressureRHSObstacleVisitor(grid);
+      ObstacleVisitor* visitor = new PressureRHSObstacleVisitor(sim.grid);
       sim.obstacle_vector->Accept(visitor);
       delete visitor;
     }
 
     KernelPressureRHS K(sim);
-    compute<KernelPressureRHS> (K,true);
+    compute<KernelPressureRHS,FluidGridMPI,LabMPI,FluidGridMPI> (K,sim.grid,sim.grid);
 
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++)
@@ -437,7 +435,7 @@ void PressureRHS::operator()(const Real dt)
   if (sim.step> sim.step_2nd_start)
   {
     const KernelDivPressure K(sim);
-    compute(K,true);
+    compute<KernelDivPressure,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
     #pragma omp parallel for
     for(size_t i=0; i<vInfo.size(); i++)
     {

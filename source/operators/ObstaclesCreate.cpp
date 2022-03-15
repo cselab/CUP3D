@@ -383,7 +383,7 @@ void CreateObstacles::operator()(const Real dt)
   }
 
   { // compute actual CoM given the CHI on the grid
-    ObstacleVisitor* visitor = new KernelComputeGridCoM(grid);
+    ObstacleVisitor* visitor = new KernelComputeGridCoM(sim.grid);
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
   }
@@ -398,13 +398,13 @@ void CreateObstacles::operator()(const Real dt)
   }
 
   { // reduce momenta across blocks and MPI
-    ObstacleVisitor* visitor = new KernelAccumulateUdefMomenta(grid);
+    ObstacleVisitor* visitor = new KernelAccumulateUdefMomenta(sim.grid);
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
   }
 
   { // remove momenta from udef
-    ObstacleVisitor* visitor = new KernelRemoveUdefMomenta(grid);
+    ObstacleVisitor* visitor = new KernelRemoveUdefMomenta(sim.grid);
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
   }

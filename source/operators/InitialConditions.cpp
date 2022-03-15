@@ -223,7 +223,7 @@ void InitialConditions::operator()(const Real dt)
       }
     }
     //store deformation velocities onto tmp fields:
-    ObstacleVisitor* visitor = new InitialPenalization(grid, dt, sim.uinf.data());
+    ObstacleVisitor* visitor = new InitialPenalization(sim.grid, dt, sim.uinf.data());
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
   }

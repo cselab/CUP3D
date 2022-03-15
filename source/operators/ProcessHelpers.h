@@ -48,9 +48,9 @@ class KernelVorticity
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
+  void operator()(LabMPI & lab, const cubism::BlockInfo& info) const
   {
+    FluidBlock& o = *(FluidBlock*)info.ptrBlock;
     const Real inv2h = .5 * info.h * info.h;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -62,13 +62,13 @@ class KernelVorticity
       o(ix,iy,iz).tmpV = inv2h * ( (LB.u-LF.u) - (LE.w-LW.w) );
       o(ix,iy,iz).tmpW = inv2h * ( (LE.v-LW.v) - (LN.u-LS.u) );
     }
-    BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
-    typename BlockType::ElementType * faceXm = nullptr;
-    typename BlockType::ElementType * faceXp = nullptr;
-    typename BlockType::ElementType * faceYm = nullptr;
-    typename BlockType::ElementType * faceYp = nullptr;
-    typename BlockType::ElementType * faceZp = nullptr;
-    typename BlockType::ElementType * faceZm = nullptr;
+    BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
+    typename FluidBlock::ElementType * faceXm = nullptr;
+    typename FluidBlock::ElementType * faceXp = nullptr;
+    typename FluidBlock::ElementType * faceYm = nullptr;
+    typename FluidBlock::ElementType * faceYp = nullptr;
+    typename FluidBlock::ElementType * faceZp = nullptr;
+    typename FluidBlock::ElementType * faceZm = nullptr;
     if (tempCase != nullptr)
     {
         faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
@@ -165,8 +165,8 @@ class ComputeVorticity : public Operator
   ComputeVorticity(SimulationData & s) : Operator(s) { }
   void operator()(const Real dt)
   {
-    KernelVorticity K;
-    compute<KernelVorticity>(K,true);
+    const KernelVorticity K;
+    compute<KernelVorticity,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
     const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
     #pragma omp parallel for
     for(size_t i=0; i<myInfo.size(); i++)
@@ -194,9 +194,9 @@ class KernelQcriterion
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
+  void operator()(LabMPI & lab, const cubism::BlockInfo& info) const
   {
+    FluidBlock& o = *( FluidBlock *)info.ptrBlock;
     const Real inv2h = .5 / info.h;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -226,8 +226,8 @@ class ComputeQcriterion : public Operator
   ComputeQcriterion(SimulationData & s) : Operator(s) { }
   void operator()(const Real dt)
   {
-    KernelQcriterion K;
-    compute<KernelQcriterion>(K);
+    const KernelQcriterion K;
+    compute<KernelQcriterion,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
     check("Qcriterion");
   }
   std::string getName() { return "Qcriterion"; }
@@ -241,9 +241,9 @@ class KernelDivergence
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W,FE_TMPU}};
 
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const cubism::BlockInfo& info, BlockType& o) const
+  void operator()(LabMPI & lab, const cubism::BlockInfo& info) const
   {
+    FluidBlock& o = *( FluidBlock *)info.ptrBlock;
     const Real fac=0.5*info.h*info.h;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -254,13 +254,13 @@ class KernelDivergence
                                                          lab(ix,iy,iz+1).w - lab(ix,iy,iz-1).w );
     }
 
-    BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
-    typename BlockType::ElementType * faceXm = nullptr;
-    typename BlockType::ElementType * faceXp = nullptr;
-    typename BlockType::ElementType * faceYm = nullptr;
-    typename BlockType::ElementType * faceYp = nullptr;
-    typename BlockType::ElementType * faceZp = nullptr;
-    typename BlockType::ElementType * faceZm = nullptr;
+    BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
+    typename FluidBlock::ElementType * faceXm = nullptr;
+    typename FluidBlock::ElementType * faceXp = nullptr;
+    typename FluidBlock::ElementType * faceYm = nullptr;
+    typename FluidBlock::ElementType * faceYp = nullptr;
+    typename FluidBlock::ElementType * faceZp = nullptr;
+    typename FluidBlock::ElementType * faceZm = nullptr;
     if (tempCase != nullptr)
     {
       faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
@@ -339,8 +339,8 @@ class ComputeDivergence : public Operator
   ComputeDivergence(SimulationData & s) : Operator(s) { }
   void operator()(const Real dt)
   {
-    KernelDivergence K(sim);
-    compute<KernelDivergence>(K,true);
+    const KernelDivergence K(sim);
+    compute<KernelDivergence,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
 
     Real div_loc = 0.0;
     const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();

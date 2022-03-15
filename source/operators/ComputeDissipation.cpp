@@ -35,8 +35,7 @@ class KernelDissipation
   KernelDissipation(Real _dt, const Real ext[3], Real _nu)
   : dt(_dt), nu(_nu), center{ext[0]/2, ext[1]/2, ext[2]/2} { }
 
-  template <typename Lab, typename BlockType>
-  void operator()(Lab & lab, const BlockInfo& info, BlockType& o)
+  void operator()(LabMPI & lab, const BlockInfo& info)
   {
     const Real h = info.h;
     const Real hCube = std::pow(h,3), inv2h = .5 / h, invHh = 1/(h*h);
@@ -113,7 +112,7 @@ void ComputeDissipation::operator()(const Real dt)
   if(sim.freqDiagnostics == 0 || sim.step % sim.freqDiagnostics) return;
 
   KernelDissipation diss(dt, sim.extent.data(), sim.nu);
-  compute<KernelDissipation>(diss);
+  compute<KernelDissipation,FluidGridMPI,LabMPI,FluidGridMPI>(diss,sim.grid,sim.grid);
 
   Real RDX[20] = { 0.0 };
   RDX[ 0] = diss.circulation[0];
@@ -137,7 +136,7 @@ void ComputeDissipation::operator()(const Real dt)
   RDX[18] = diss.kineticEn;
   RDX[19] = diss.enstrophy;
 
-  MPI_Allreduce(MPI_IN_PLACE, RDX, 20,MPI_Real, MPI_SUM,grid->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, RDX, 20,MPI_Real, MPI_SUM,sim.grid->getCartComm());
 
   size_t loc = sim.vInfo().size();
   size_t tot;

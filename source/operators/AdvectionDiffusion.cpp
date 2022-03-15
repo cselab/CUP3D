@@ -36,8 +36,9 @@ struct KernelAdvectDiffuse : public Discretization
                               this->getStencilBeg(), this->getStencilEnd(),
                               this->getStencilEnd(), this->getStencilEnd(), false, {FE_U, FE_V, FE_W}};
 
-    void operator()(LabMPI & lab, const BlockInfo& info, FluidBlock& o) const
+    void operator()(LabMPI & lab, const BlockInfo& info) const
     {
+        FluidBlock& o = *(FluidBlock*)info.ptrBlock;
         const Real h3   = info.h*info.h*info.h;
         const Real facA = -dt/(6*info.h);
         const Real facD = (mu/info.h)*(dt/info.h);
@@ -223,7 +224,7 @@ void AdvectionDiffusion::operator()(const Real dt)
 
     //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
     const KernelAdvectDiffuse<Upwind3rd> step1(sim,0.5);
-    compute(step1,true);
+    compute<KernelAdvectDiffuse<Upwind3rd>,FluidGridMPI,LabMPI,FluidGridMPI>(step1,sim.grid,sim.grid);
 
     //   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
     #pragma omp parallel for
@@ -247,7 +248,7 @@ void AdvectionDiffusion::operator()(const Real dt)
     // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
     //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
     const KernelAdvectDiffuse<Upwind3rd> step2(sim,1.0);
-    compute(step2,true);
+    compute<KernelAdvectDiffuse<Upwind3rd>,FluidGridMPI,LabMPI,FluidGridMPI>(step2,sim.grid,sim.grid);
 
     //   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
     #pragma omp parallel for
