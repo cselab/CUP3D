@@ -267,7 +267,6 @@ void AdvectionDiffusion::operator()(const Real dt)
     }
     /********************************************************************/
 
-    check("AdvectionDiffusion");
 }
 
 CubismUP_3D_NAMESPACE_END

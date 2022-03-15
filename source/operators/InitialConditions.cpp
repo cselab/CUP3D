@@ -227,8 +227,6 @@ void InitialConditions::operator()(const Real dt)
     sim.obstacle_vector->Accept(visitor);
     delete visitor;
   }
-
-  check("InitialConditions");
 }
 
 CubismUP_3D_NAMESPACE_END

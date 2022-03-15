@@ -163,7 +163,6 @@ void PressureProjection::operator()(const Real dt)
     }
   }
 
-  check("PressureProjection");
 }
 
 CubismUP_3D_NAMESPACE_END

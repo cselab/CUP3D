@@ -229,8 +229,6 @@ void UpdateObstacles::operator()(const Real dt)
     sim.obstacle_vector->Accept(K); // accept you son of a french cow
     delete K;
   }
-
-  check("UpdateObstacles");
 }
 
 CubismUP_3D_NAMESPACE_END

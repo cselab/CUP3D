@@ -15,8 +15,6 @@ class Operator
   protected:
    SimulationData & sim;
 
-   void check (std::string msg){}
-
    template <typename Kernel, typename TGrid, typename Lab, typename TGrid_corr = TGrid>
    void compute(Kernel & kernel, TGrid * g, TGrid_corr * g_corr = nullptr)
    {

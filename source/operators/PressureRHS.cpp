@@ -462,7 +462,6 @@ void PressureRHS::operator()(const Real dt)
       b(ix,iy,iz).p = 0.0;
     }
   }
-  check("PressureRHS");
 }
 
 CubismUP_3D_NAMESPACE_END

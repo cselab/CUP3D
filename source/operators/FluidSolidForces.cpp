@@ -482,7 +482,6 @@ void ComputeForces::operator()(const Real dt)
 
   // do the final reductions and so on
   sim.obstacle_vector->computeForces();
-  check("ComputeForces");
 }
 
 CubismUP_3D_NAMESPACE_END

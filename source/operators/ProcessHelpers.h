@@ -228,7 +228,6 @@ class ComputeQcriterion : public Operator
   {
     const KernelQcriterion K;
     compute<KernelQcriterion,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
-    check("Qcriterion");
   }
   std::string getName() { return "Qcriterion"; }
 };

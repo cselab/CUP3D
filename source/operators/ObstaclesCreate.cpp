@@ -410,7 +410,6 @@ void CreateObstacles::operator()(const Real dt)
   }
 
   sim.obstacle_vector->finalize(); // whatever else the obstacle needs
-  check("CreateObstacles");
 }
 
 CubismUP_3D_NAMESPACE_END

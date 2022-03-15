@@ -156,8 +156,6 @@ void ComputeDissipation::operator()(const Real dt)
     RDX[15]<<" "<<RDX[16]<<" "<<RDX[17]<<" "<<RDX[18]<<" "<<RDX[19]<<" "<< tot << std::endl;
     outfile.close();
   }
-
-  check("ComputeDissipation");
 }
 
 CubismUP_3D_NAMESPACE_END

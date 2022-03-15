@@ -805,8 +805,6 @@ void Penalization::operator()(const Real dt)
   ObstacleVisitor*K = new KernelFinalizePenalizationForce(sim.grid);
   sim.obstacle_vector->Accept(K); // accept you son of a french cow
   delete K;
-
-  check("Penalization");
 }
 
 CubismUP_3D_NAMESPACE_END
