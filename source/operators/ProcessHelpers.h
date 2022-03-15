@@ -165,7 +165,7 @@ class ComputeVorticity : public Operator
   ComputeVorticity(SimulationData & s) : Operator(s) { }
   void operator()(const Real dt)
   {
-    const KernelVorticity K;
+    KernelVorticity K;
     compute<KernelVorticity>(K,true);
     const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
     #pragma omp parallel for
@@ -226,7 +226,7 @@ class ComputeQcriterion : public Operator
   ComputeQcriterion(SimulationData & s) : Operator(s) { }
   void operator()(const Real dt)
   {
-    const KernelQcriterion K;
+    KernelQcriterion K;
     compute<KernelQcriterion>(K);
     check("Qcriterion");
   }
@@ -339,8 +339,7 @@ class ComputeDivergence : public Operator
   ComputeDivergence(SimulationData & s) : Operator(s) { }
   void operator()(const Real dt)
   {
-
-    const KernelDivergence K(sim);
+    KernelDivergence K(sim);
     compute<KernelDivergence>(K,true);
 
     Real div_loc = 0.0;

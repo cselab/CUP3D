@@ -389,8 +389,6 @@ void PressureRHS::operator()(const Real dt)
 
   //1. Compute pRHS
   {
-    const int nthreads = omp_get_max_threads();
-
     //dataOld[3] -> store p
     //p -> store RHS
     #pragma omp parallel for schedule(static)
@@ -417,10 +415,9 @@ void PressureRHS::operator()(const Real dt)
       delete visitor;
     }
 
-    std::vector< KernelPressureRHS *> K(nthreads, nullptr);
-    for(int i=0;i<nthreads;++i) K[i] = new KernelPressureRHS (sim);
-    compute< KernelPressureRHS  >(K,true);//true: apply FluxCorrection
-    for(int i=0; i<nthreads; i++) delete K[i];
+    KernelPressureRHS K(sim);
+    compute<KernelPressureRHS> (K,true);
+
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++)
     {

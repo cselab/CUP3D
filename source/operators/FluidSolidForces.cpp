@@ -475,18 +475,11 @@ struct KernelComputeForces : public ObstacleVisitor
 
 void ComputeForces::operator()(const Real dt)
 {
-  //if (sim.step >= 500 && sim.step % 10 != 0) return; //it's expensive to compute forces! Do it once every 10 timesteps.
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
-  const int nthreads = omp_get_max_threads();
-  std::vector<KernelComputeForces*> K(nthreads, nullptr);
-  #pragma omp parallel for schedule(static,1)
-  for(int i=0; i<nthreads; ++i)
-    K[i] = new KernelComputeForces(sim.nu, sim.dt, sim.obstacle_vector);
-
+  KernelComputeForces K(sim.nu,sim.dt,sim.obstacle_vector);
   compute<KernelComputeForces>(K);
 
-  for(int i=0; i<nthreads; i++) delete K[i];
   // do the final reductions and so on
   sim.obstacle_vector->computeForces();
   check("ComputeForces");

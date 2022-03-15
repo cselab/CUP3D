@@ -145,7 +145,7 @@ void PressureProjection::operator()(const Real dt)
   }
 
   //pressure correction dudt* = - grad P / rho
-  const KernelGradP K(dt);
+  KernelGradP K(dt);
   compute<KernelGradP>(K,true);
 
   #pragma omp parallel for

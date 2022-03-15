@@ -96,69 +96,8 @@ class Operator
     #endif
   }
 
-  /// Execute kernel for each block, where a different kernel instance is
-  /// provided for each thread.
   template <typename Kernel>
-  void compute(const std::vector<Kernel*>& kernels, const bool applyFluxCorrection = false, const bool FluxIntegration = false)
-  {
-    if (applyFluxCorrection) sim.grid->Corrector.prepare(*sim.grid);
-
-    cubism::SynchronizerMPI_AMR<Real,FluidGridMPI>& Synch = *grid->sync(*(kernels[0]));
-    const int nthreads = omp_get_max_threads();
-    LabMPI * labs = new LabMPI[nthreads];
-    #pragma omp parallel for schedule(static, 1)
-    for(int i = 0; i < nthreads; ++i) {
-      labs[i].setBC(sim.BCx_flag, sim.BCy_flag, sim.BCz_flag);
-      labs[i].prepare(* sim.grid, Synch);
-    }
-
-    std::vector<cubism::BlockInfo*> avail0 = Synch.avail_inner();
-    const int Ninner = avail0.size();
-
-    #pragma omp parallel
-    {
-      int tid = omp_get_thread_num();
-      Kernel& kernel = * (kernels[tid]); LabMPI& lab = labs[tid];
-
-      #pragma omp for schedule(static)
-      for(int i=0; i<Ninner; i++) {
-        const cubism::BlockInfo& I = *avail0[i];
-        FluidBlock& b = *(FluidBlock*)I.ptrBlock;
-        lab.load(I, 0);
-        kernel(lab, I, b);
-      }
-    }
-
-    if(sim.nprocs>1)
-    {
-      std::vector<cubism::BlockInfo*> avail1 = Synch.avail_halo();
-      const int Nhalo = avail1.size();
-
-      #pragma omp parallel
-      {
-        int tid = omp_get_thread_num();
-        Kernel& kernel = * (kernels[tid]); LabMPI& lab = labs[tid];
-
-        #pragma omp for schedule(static)
-        for(int i=0; i<Nhalo; i++) {
-          const cubism::BlockInfo& I = *avail1[i];
-          FluidBlock& b = *(FluidBlock*)I.ptrBlock;
-          lab.load(I, 0);
-          kernel(lab, I, b);
-        }
-      }
-    }
-
-    if(labs!=NULL) {
-      delete [] labs;
-      labs=NULL;
-    }
-
-    if (applyFluxCorrection) sim.grid->Corrector.FillBlockCases(FluxIntegration);
-  }
-
-  template <typename Kernel>
-  void compute(const Kernel& kernel, const bool applyFluxCorrection = false, const bool FluxIntegration = false)
+  void compute(Kernel& kernel, const bool applyFluxCorrection = false, const bool FluxIntegration = false)
   {
     if (applyFluxCorrection) sim.grid->Corrector.prepare(*sim.grid);
     cubism::SynchronizerMPI_AMR<Real,FluidGridMPI>& Synch = *grid->sync(kernel);

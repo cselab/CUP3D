@@ -17,13 +17,6 @@ namespace {
 class KernelDissipation
 {
   public:
-  /* Wake power derived by div. theorem applied to pressure and visc forces:
-    P_{wake} = 1-\chi \iiint \left(
-      - \nabla P \cdot \bm{u}            // Term 1: presPow
-      + \mu \bm{u} \cdot \nabla^2\bm{u}  // Term 2: viscPow
-      + 2\mu\bm{D} : \bm{D}              // Term 2: viscPow
-    \right) dV
-  */
   Real circulation[3] = {0,0,0};
   Real linImpulse[3] = {0,0,0};
   Real linMomentum[3] = {0,0,0};
@@ -34,7 +27,6 @@ class KernelDissipation
   Real helicity = 0;
   Real kineticEn = 0;
   Real enstrophy = 0;
-  //Real maxvorSq = 0;
 
   const Real dt, nu, center[3];
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
@@ -68,7 +60,6 @@ class KernelDissipation
       const Real dPdx = inv2h * (LE.p - LW.p);
       const Real dPdy = inv2h * (LN.p - LS.p);
       const Real dPdz = inv2h * (LB.p - LF.p);
-      presPow -= (1-X) * hCube * ( dPdx * L.u + dPdy * L.v + dPdz * L.w);
       //  + \mu \bm{u} \cdot \nabla^2 \bm{u}
       const Real lapU = invHh * ( LE.u+LW.u+LN.u+LS.u+LB.u+LF.u -6*L.u );
       const Real lapV = invHh * ( LE.v+LW.v+LN.v+LS.v+LB.v+LF.v -6*L.v );
@@ -82,35 +73,36 @@ class KernelDissipation
       const Real D13 = inv2h*(LB.u - LF.u + LE.w - LW.w)/2; // shear stresses
       const Real D23 = inv2h*(LN.w - LS.w + LB.v - LF.v)/2; // shear stresses
       const Real V2 = D11*D11 +D22*D22 +D33*D33 +2*(D12*D12 +D13*D13 +D23*D23);
-      viscPow += (1-X) * hCube*nu * ( V1 + 2*V2 );
 
-      // three linear invariants (conserved in inviscid and viscous flows)
-      // conservation of vorticity: int w dx = 0
-      circulation[0] += hCube * WX;
-      circulation[1] += hCube * WY;
-      circulation[2] += hCube * WZ;
-      // conservation of linear impulse: int u dx = 0.5 int (x cross w) dx
-      linImpulse[0] += hCube/2 * ( PY * WZ - PZ * WY );
-      linImpulse[1] += hCube/2 * ( PZ * WX - PX * WZ );
-      linImpulse[2] += hCube/2 * ( PX * WY - PY * WX );
-      linMomentum[0] += hCube * L.u;
-      linMomentum[1] += hCube * L.v;
-      linMomentum[2] += hCube * L.w;
-      //conserve ang imp.: int (x cross u)dx = 1/3 int (x cross (x cross w) )dx
-      // = 1/3 int x (w \cdot x) - w (x \cdot x) ) dx (some terms cancel)
-      angImpulse[0] += hCube/3 * ( PX*(PY*WY + PZ*WZ) - WX*(PY*PY + PZ*PZ) );
-      angImpulse[1] += hCube/3 * ( PY*(PX*WX + PZ*WZ) - WY*(PX*PX + PZ*PZ) );
-      angImpulse[2] += hCube/3 * ( PZ*(PX*WX + PY*WY) - WZ*(PX*PX + PY*PY) );
-      angMomentum[0] += hCube * ( PY * L.w - PZ * L.v );
-      angMomentum[1] += hCube * ( PZ * L.u - PX * L.w );
-      angMomentum[2] += hCube * ( PX * L.v - PY * L.u );
-      // two quadratic invariants: kinetic energy (from solver) and helicity (conserved in inviscid flows)
-      helicity += hCube * ( WX * L.u + WY * L.v + WZ * L.w );
-      kineticEn += hCube * ( L.u*L.u + L.v*L.v + L.w*L.w )/2;
-      // two more important: maxvor and enstrophy
-      const Real omegasq = hCube*std::sqrt(WX * WX + WY * WY + WZ * WZ);
-      enstrophy += omegasq;
-      //maxVorSq = std::max(maxVorSq, omegasq);
+      #pragma omp critical
+      {
+        presPow -= (1-X) * hCube * ( dPdx * L.u + dPdy * L.v + dPdz * L.w);
+        viscPow += (1-X) * hCube*nu * ( V1 + 2*V2 );
+        // three linear invariants (conserved in inviscid and viscous flows)
+        // conservation of vorticity: int w dx = 0
+        circulation[0] += hCube * WX;
+        circulation[1] += hCube * WY;
+        circulation[2] += hCube * WZ;
+        // conservation of linear impulse: int u dx = 0.5 int (x cross w) dx
+        linImpulse[0] += hCube/2 * ( PY * WZ - PZ * WY );
+        linImpulse[1] += hCube/2 * ( PZ * WX - PX * WZ );
+        linImpulse[2] += hCube/2 * ( PX * WY - PY * WX );
+        linMomentum[0] += hCube * L.u;
+        linMomentum[1] += hCube * L.v;
+        linMomentum[2] += hCube * L.w;
+        //conserve ang imp.: int (x cross u)dx = 1/3 int (x cross (x cross w) )dx
+        // = 1/3 int x (w \cdot x) - w (x \cdot x) ) dx (some terms cancel)
+        angImpulse[0] += hCube/3 * ( PX*(PY*WY + PZ*WZ) - WX*(PY*PY + PZ*PZ) );
+        angImpulse[1] += hCube/3 * ( PY*(PX*WX + PZ*WZ) - WY*(PX*PX + PZ*PZ) );
+        angImpulse[2] += hCube/3 * ( PZ*(PX*WX + PY*WY) - WZ*(PX*PX + PY*PY) );
+        angMomentum[0] += hCube * ( PY * L.w - PZ * L.v );
+        angMomentum[1] += hCube * ( PZ * L.u - PX * L.w );
+        angMomentum[2] += hCube * ( PX * L.v - PY * L.u );
+        // two quadratic invariants: kinetic energy (from solver) and helicity (conserved in inviscid flows)
+        helicity  += hCube * ( WX * L.u + WY * L.v + WZ * L.w );
+        kineticEn += hCube * ( L.u*L.u + L.v*L.v + L.w*L.w )/2;
+        enstrophy += hCube*std::sqrt(WX * WX + WY * WY + WZ * WZ);
+      }
     }
   }
 };
@@ -120,38 +112,30 @@ void ComputeDissipation::operator()(const Real dt)
 {
   if(sim.freqDiagnostics == 0 || sim.step % sim.freqDiagnostics) return;
 
-  const int nthreads = omp_get_max_threads();
-  std::vector<KernelDissipation*> diss(nthreads, nullptr);
-  #pragma omp parallel for schedule(static, 1)
-  for(int i=0; i<nthreads; ++i)
-    diss[i] = new KernelDissipation(dt, sim.extent.data(), sim.nu);
-
+  KernelDissipation diss(dt, sim.extent.data(), sim.nu);
   compute<KernelDissipation>(diss);
 
   Real RDX[20] = { 0.0 };
-  for(int i=0; i<nthreads; i++) {
-    RDX[ 0] += diss[i]->circulation[0];
-    RDX[ 1] += diss[i]->circulation[1];
-    RDX[ 2] += diss[i]->circulation[2];
-    RDX[ 3] += diss[i]->linImpulse[0];
-    RDX[ 4] += diss[i]->linImpulse[1];
-    RDX[ 5] += diss[i]->linImpulse[2];
-    RDX[ 6] += diss[i]->linMomentum[0];
-    RDX[ 7] += diss[i]->linMomentum[1];
-    RDX[ 8] += diss[i]->linMomentum[2];
-    RDX[ 9] += diss[i]->angImpulse[0];
-    RDX[10] += diss[i]->angImpulse[1];
-    RDX[11] += diss[i]->angImpulse[2];
-    RDX[12] += diss[i]->angMomentum[0];
-    RDX[13] += diss[i]->angMomentum[1];
-    RDX[14] += diss[i]->angMomentum[2];
-    RDX[15] += diss[i]->presPow;
-    RDX[16] += diss[i]->viscPow;
-    RDX[17] += diss[i]->helicity;
-    RDX[18] += diss[i]->kineticEn;
-    RDX[19] += diss[i]->enstrophy;
-    delete diss[i];
-  }
+  RDX[ 0] = diss.circulation[0];
+  RDX[ 1] = diss.circulation[1];
+  RDX[ 2] = diss.circulation[2];
+  RDX[ 3] = diss.linImpulse[0];
+  RDX[ 4] = diss.linImpulse[1];
+  RDX[ 5] = diss.linImpulse[2];
+  RDX[ 6] = diss.linMomentum[0];
+  RDX[ 7] = diss.linMomentum[1];
+  RDX[ 8] = diss.linMomentum[2];
+  RDX[ 9] = diss.angImpulse[0];
+  RDX[10] = diss.angImpulse[1];
+  RDX[11] = diss.angImpulse[2];
+  RDX[12] = diss.angMomentum[0];
+  RDX[13] = diss.angMomentum[1];
+  RDX[14] = diss.angMomentum[2];
+  RDX[15] = diss.presPow;
+  RDX[16] = diss.viscPow;
+  RDX[17] = diss.helicity;
+  RDX[18] = diss.kineticEn;
+  RDX[19] = diss.enstrophy;
 
   MPI_Allreduce(MPI_IN_PLACE, RDX, 20,MPI_Real, MPI_SUM,grid->getCartComm());
 
