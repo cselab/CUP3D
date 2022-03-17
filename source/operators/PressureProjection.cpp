@@ -146,7 +146,7 @@ void PressureProjection::operator()(const Real dt)
 
   //pressure correction dudt* = - grad P / rho
   const KernelGradP K(dt);
-  compute<KernelGradP,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
+  cubism::compute<LabMPI>(K,sim.grid,sim.grid);
 
   #pragma omp parallel for
   for(size_t i=0; i<vInfo.size(); i++)

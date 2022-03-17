@@ -415,7 +415,7 @@ void PressureRHS::operator()(const Real dt)
     }
 
     KernelPressureRHS K(sim);
-    compute<KernelPressureRHS,FluidGridMPI,LabMPI,FluidGridMPI> (K,sim.grid,sim.grid);
+    cubism::compute<LabMPI> (K,sim.grid,sim.grid);
 
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<vInfo.size(); i++)
@@ -436,7 +436,7 @@ void PressureRHS::operator()(const Real dt)
   if (sim.step> sim.step_2nd_start)
   {
     const KernelDivPressure K(sim);
-    compute<KernelDivPressure,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
+    cubism::compute<LabMPI>(K,sim.grid,sim.grid);
     #pragma omp parallel for
     for(size_t i=0; i<vInfo.size(); i++)
     {

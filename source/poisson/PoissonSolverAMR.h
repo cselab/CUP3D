@@ -125,7 +125,7 @@ class ComputeLHS : public Operator
     std::vector<BlockInfo> & vInfo_lhs = sim.lhs->getBlocksInfo();
     std::vector<BlockInfo> & vInfo_z   = sim.z  ->getBlocksInfo();
     KernelLHSPoisson KPoisson(sim);
-    compute<KernelLHSPoisson,ScalarGrid,ScalarLab,ScalarGrid>(KPoisson,sim.z,sim.lhs);
+    cubism::compute<ScalarLab>(KPoisson,sim.z,sim.lhs);
 
     if (sim.bMeanConstraint == 0) return;
 

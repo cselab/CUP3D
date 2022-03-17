@@ -478,7 +478,7 @@ void ComputeForces::operator()(const Real dt)
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
   KernelComputeForces K(sim.nu,sim.dt,sim.obstacle_vector);
-  compute<KernelComputeForces,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
+  cubism::compute<LabMPI>(K,sim.grid,sim.grid);
 
   // do the final reductions and so on
   sim.obstacle_vector->computeForces();

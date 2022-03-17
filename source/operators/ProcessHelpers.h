@@ -166,7 +166,7 @@ class ComputeVorticity : public Operator
   void operator()(const Real dt)
   {
     const KernelVorticity K;
-    compute<KernelVorticity,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
+    cubism::compute<LabMPI>(K,sim.grid,sim.grid);
     const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();
     #pragma omp parallel for
     for(size_t i=0; i<myInfo.size(); i++)
@@ -227,7 +227,7 @@ class ComputeQcriterion : public Operator
   void operator()(const Real dt)
   {
     const KernelQcriterion K;
-    compute<KernelQcriterion,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
+    cubism::compute<LabMPI>(K,sim.grid,sim.grid);
   }
   std::string getName() { return "Qcriterion"; }
 };
@@ -339,7 +339,7 @@ class ComputeDivergence : public Operator
   void operator()(const Real dt)
   {
     const KernelDivergence K(sim);
-    compute<KernelDivergence,FluidGridMPI,LabMPI,FluidGridMPI>(K,sim.grid,sim.grid);
+    cubism::compute<LabMPI>(K,sim.grid,sim.grid);
 
     Real div_loc = 0.0;
     const std::vector<cubism::BlockInfo>& myInfo = sim.vInfo();

@@ -112,7 +112,7 @@ void ComputeDissipation::operator()(const Real dt)
   if(sim.freqDiagnostics == 0 || sim.step % sim.freqDiagnostics) return;
 
   KernelDissipation diss(dt, sim.extent.data(), sim.nu);
-  compute<KernelDissipation,FluidGridMPI,LabMPI,FluidGridMPI>(diss,sim.grid,sim.grid);
+  cubism::compute<LabMPI>(diss,sim.grid,sim.grid);
 
   Real RDX[20] = { 0.0 };
   RDX[ 0] = diss.circulation[0];
