@@ -16,7 +16,10 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
-
+  
+BCflag cubismBCX; 
+BCflag cubismBCY; 
+BCflag cubismBCZ; 
 SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_comm(mpicomm)
 {
   // Initialize MPI related variables
@@ -88,6 +91,10 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   BCy_flag = string2BCflag(BC_y);
   BCz_flag = string2BCflag(BC_z);
 
+  cubismBCX = BCx_flag;
+  cubismBCY = BCy_flag;
+  cubismBCZ = BCz_flag;
+
   // OUTPUT
   muteAll = parser("-muteAll").asInt(0);
   verbose = muteAll ? false : parser("-verbose").asInt(1) && rank == 0;
@@ -153,11 +160,13 @@ void SimulationData::_preprocessArguments()
 SimulationData::~SimulationData()
 {
   delete grid;
-  delete gridPoisson;
   delete profiler;
   delete obstacle_vector;
   delete amr;
-  delete amr2;
+  delete lhs;
+  delete z;
+  delete lhs_amr;
+  delete z_amr;
 }
 
 void SimulationData::startProfiler(std::string name) const

@@ -101,9 +101,11 @@ void Simulation::refineGrid()
 
     // Compression of Grid
     sim.amr->Tag();
-    sim.amr2->TagLike(sim.vInfo());
+    sim.lhs_amr->TagLike(sim.vInfo());
+    sim.z_amr  ->TagLike(sim.vInfo());
     sim.amr->Adapt(sim.time,sim.verbose,false);
-    sim.amr2->Adapt(sim.time,false,true);
+    sim.lhs_amr->Adapt(sim.time,false,true);
+    sim.z_amr  ->Adapt(sim.time,false,true);
 
     //This may not be needed but has zero cost 
     if (l != 3*sim.levelMax-1) touch();
@@ -145,7 +147,6 @@ void Simulation::_icFromH5(std::string h5File)
 
 void Simulation::setupGrid()
 {
-  // if(sim.rank==0) printf("Grid of sizes: %f %f %f\n", sim.extent[0],sim.extent[1],sim.extent[2]);
   sim.grid = new FluidGridMPI(1, //these arguments are not used in Cubism-AMR
                               1, //these arguments are not used in Cubism-AMR
                               1, //these arguments are not used in Cubism-AMR
@@ -157,9 +158,8 @@ void Simulation::setupGrid()
                               (sim.BCx_flag == periodic),
                               (sim.BCy_flag == periodic),
                               (sim.BCz_flag == periodic));
-  assert(sim.grid != nullptr);
 
-  sim.gridPoisson = new FluidGridMPIPoisson(1, //these arguments are not used in Cubism-AMR
+  sim.lhs         = new ScalarGrid         (1, //these arguments are not used in Cubism-AMR
                                             1, //these arguments are not used in Cubism-AMR
                                             1, //these arguments are not used in Cubism-AMR
                                             sim.bpdx,
@@ -171,9 +171,21 @@ void Simulation::setupGrid()
                                             (sim.BCy_flag == periodic),
                                             (sim.BCz_flag == periodic));
 
+  sim.z           = new ScalarGrid         (1, //these arguments are not used in Cubism-AMR
+                                            1, //these arguments are not used in Cubism-AMR
+                                            1, //these arguments are not used in Cubism-AMR
+                                            sim.bpdx,
+                                            sim.bpdy,
+                                            sim.bpdz,
+                                            sim.maxextent,
+                                            sim.levelStart,sim.levelMax,sim.app_comm,
+                                            (sim.BCx_flag == periodic),
+                                            (sim.BCy_flag == periodic),
+                                            (sim.BCz_flag == periodic));
   //Refine/compress only according to chi field for now
   sim.amr = new AMR( *(sim.grid),sim.Rtol,sim.Ctol);
-  sim.amr2 = new AMR2( *(sim.gridPoisson),sim.Rtol,sim.Ctol);
+  sim.lhs_amr = new ScalarAMR( *(sim.lhs),sim.Rtol,sim.Ctol);
+  sim.z_amr   = new ScalarAMR( *(sim.z  ),sim.Rtol,sim.Ctol);
 }
 
 void Simulation::setupOperators()
@@ -375,9 +387,11 @@ bool Simulation::timestep(const Real dt)
   {
     sim.startProfiler("Mesh refinement");
     sim.amr->Tag();
-    sim.amr2->TagLike(sim.vInfo());
+    sim.lhs_amr->TagLike(sim.vInfo());
+    sim.z_amr  ->TagLike(sim.vInfo());
     sim.amr->Adapt(sim.time,sim.verbose,false);
-    sim.amr2->Adapt(sim.time,false,true);
+    sim.lhs_amr->Adapt(sim.time,false,true);
+    sim.z_amr  ->Adapt(sim.time,false,true);
     sim.stopProfiler();
   }
   sim.step++;

@@ -26,7 +26,6 @@ class Operator
      #pragma omp parallel
      {
          Lab lab;
-         lab.setBC(sim.BCx_flag, sim.BCy_flag, sim.BCz_flag);
          lab.prepare(*g, Synch);
 
          #pragma omp for nowait
@@ -62,7 +61,6 @@ class Operator
      #pragma omp parallel
      {
          Lab lab;
-         lab.setBC(sim.BCx_flag, sim.BCy_flag, sim.BCz_flag);
          lab.prepare(*g, Synch);
 
          #pragma omp for nowait

@@ -10,13 +10,11 @@
 
 namespace cubismup3d {
 
-PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s),findLHS(s)
-{
-}
+PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s),findLHS(s){}
 
 void PoissonSolverAMR::getZ()
 {
-  const std::vector<cubism::BlockInfo>& vInfo = gridPoisson.getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& vInfo = sim.z->getBlocksInfo();
   const size_t Nblocks = vInfo.size();
 
   #pragma omp parallel
@@ -29,14 +27,14 @@ void PoissonSolverAMR::getZ()
     const int nz2 = nz + 2;
     const int N = nx*ny*nz;
     const int N2 = nx2*ny2*nz2;
-    std::vector<Real> p (N2,0.0);
-    std::vector<Real> r (N ,0.0);
-    std::vector<Real> Ax(N ,0.0);
+    std::vector<Real> p (N2 ,0.0);
+    std::vector<Real> r (N2 ,0.0);
+    std::vector<Real> Ax(N2 ,0.0);
 
     #pragma omp for
     for (size_t i=0; i < Nblocks; i++)
     {
-        BlockTypePoisson & __restrict__ b  = *(BlockTypePoisson*) vInfo[i].ptrBlock;
+        ScalarBlock & __restrict__ b  = *(ScalarBlock*) vInfo[i].ptrBlock;
         const Real invh = 1.0/vInfo[i].h;
         Real norm0 = 0;
         Real rr = 0;
@@ -46,55 +44,56 @@ void PoissonSolverAMR::getZ()
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            r[ix+iy*nx+iz*nx*ny] = invh*b(ix,iy,iz).s;
-            norm0 += r[ix+iy*nx+iz*nx*ny]*r[ix+iy*nx+iz*nx*ny];
-            p[(ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2)] = r[ix+iy*nx+iz*nx*ny];
-            rr += r[ix+iy*nx+iz*nx*ny]*r[ix+iy*nx+iz*nx*ny];
-	    b(ix,iy,iz).s = 0.0;
+            const int J = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
+            r[J] = invh*b(ix,iy,iz).s;
+            norm0 += r[J]*r[J];
+            p[J] = r[J];
+            rr += r[J]*r[J];
+            b(ix,iy,iz).s = 0.0;
         }
         norm0 = sqrt(norm0)/N;
         Real norm = 0;
+
         if (norm0 > 1e-16)
         for (int k = 0 ; k < 100 ; k ++)
         {
-            a2 = 0;
+            a2 = 0;        
+            
             for(int iz=0; iz<nz; iz++)
             for(int iy=0; iy<ny; iy++)
             for(int ix=0; ix<nx; ix++)
             {
-                const int index1 = ix+iy*nx+iz*nx*ny;
-                const int index2 = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
-                Ax[index1] = p[index2 + 1] + p[index2 - 1] + p[index2 + nx2] + p[index2 - nx2] + p[index2 + nx2*ny2] + p[index2 - nx2*ny2] - 6.0*p[index2];
-                a2 += p[index2]*Ax[index1];
+                const int J = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
+                Ax[J] = p[J + 1] + p[J - 1] + p[J + nx2] + p[J - nx2] + p[J + nx2*ny2] + p[J - nx2*ny2] - 6.0*p[J];
+                a2 += p[J]*Ax[J];
             }
             const Real a = rr/(a2+1e-55);
-            Real norm_new = 0;
+
+            norm = 0;
             beta = 0;
+
             for(int iz=0; iz<nz; iz++)
             for(int iy=0; iy<ny; iy++)
             for(int ix=0; ix<nx; ix++)
             {
-                const int index1 = ix+iy*nx+iz*nx*ny;
-                const int index2 = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
-	        b(ix,iy,iz).s += a*p [index2];
-                r[index1] -= a*Ax[index1];
-                norm_new += r[index1]*r[index1];
+                const int J = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
+                b(ix,iy,iz).s += a*p [J];
+                r[J] -= a*Ax[J];
+                norm += r[J]*r[J];
             }
-            beta = norm_new;
-            norm_new = sqrt(norm_new)/N;
-            //if (k>max(max(nx,ny),nz) && std::fabs(norm/norm_new - 1.0) < 1e-7) break;
-            norm = norm_new;
-            if (norm/norm0< 1e-7) break;
-            Real temp = rr;
-            rr = beta;
-            beta /= (temp+1e-55);
+
+            beta = norm / (rr + 1e-55);
+            rr = norm;
+            norm = sqrt(norm)/N;
+
+            if (norm/norm0< 1e-7 || norm < 1e-16) break;
+
             for(int iz=0; iz<nz; iz++)
             for(int iy=0; iy<ny; iy++)
             for(int ix=0; ix<nx; ix++)
             {
-                const int index1 = ix+iy*nx+iz*nx*ny;
-                const int index2 = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
-                p[index2] =r[index1] + beta*p[index2];
+                const int J = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
+                p[J] =r[J] + beta*p[J];
             }
         }
     }    
@@ -113,25 +112,27 @@ void PoissonSolverAMR::solve()
     std::vector<Real> v   (N,0.0);
     std::vector<Real> s   (N,0.0);
     std::vector<Real> rhat(N,0.0);
-    std::vector<cubism::BlockInfo>& vInfoPoisson = gridPoisson.getBlocksInfo();
+    std::vector<cubism::BlockInfo>& vInfo_lhs = sim.lhs->getBlocksInfo();
+    std::vector<cubism::BlockInfo>& vInfo_z   = sim.z  ->getBlocksInfo();
 
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
-        BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
+        ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
+        ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
 	if (sim.bMeanConstraint == 1 || sim.bMeanConstraint > 2)
-        if (vInfoPoisson[i].index[0] == 0 && 
-            vInfoPoisson[i].index[1] == 0 && 
-            vInfoPoisson[i].index[2] == 0)
-            bPoisson(0,0,0).lhs = 0.0;
+        if (vInfo_z[i].index[0] == 0 && 
+            vInfo_z[i].index[1] == 0 && 
+            vInfo_z[i].index[2] == 0)
+            LHS(0,0,0).s = 0.0;
 
         for(int iz=0; iz<BlockType::sizeZ; iz++)
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
-            x[src_index] = bPoisson(ix,iy,iz).s;
-            r[src_index] = bPoisson(ix,iy,iz).lhs;//this is the rhs now
+            const size_t src_index = _dest(vInfo_lhs[i], iz, iy, ix);
+            x[src_index] = Z(ix,iy,iz).s;
+            r[src_index] = LHS(ix,iy,iz).s;//this is the rhs now
         }
     }
 
@@ -146,13 +147,13 @@ void PoissonSolverAMR::solve()
     #pragma omp parallel for reduction (+:norm)
     for(size_t i=0; i< Nblocks; i++)
     {
-        BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
+        ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
         for(int iz=0; iz<BlockType::sizeZ; iz++)
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
-            r[src_index] -= bPoisson(ix,iy,iz).lhs;
+            const size_t src_index = _dest(vInfo_z[i], iz, iy, ix);
+            r[src_index] -= LHS(ix,iy,iz).s;
             rhat[src_index] = r[src_index];
             norm+= r[src_index]*r[src_index];
         }
@@ -228,14 +229,14 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for
         for (size_t i=0; i < Nblocks; i++)
         {
-            BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
+            ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
-                const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
+                const size_t src_index = _dest(vInfo_z[i], iz, iy, ix);
                 p[src_index] = r[src_index] + beta*(p[src_index]-omega*v[src_index]);
-                bPoisson(ix,iy,iz).s = p[src_index];
+                Z(ix,iy,iz).s = p[src_index];
             }
         }
         getZ();
@@ -247,13 +248,13 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for reduction(+:alpha)
         for (size_t i=0; i < Nblocks; i++)
         {
-            BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
+            ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
-                const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
-                v[src_index] = bPoisson(ix,iy,iz).lhs;
+                const size_t src_index = _dest(vInfo_lhs[i], iz, iy, ix);
+                v[src_index] = LHS(ix,iy,iz).s;
                 alpha += rhat[src_index] * v[src_index];
             }
         }  
@@ -266,15 +267,15 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for
         for (size_t i=0; i < Nblocks; i++)
         {
-            BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
+            ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
-                const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
-                x[src_index] += alpha * bPoisson(ix,iy,iz).s;
+                const size_t src_index = _dest(vInfo_z[i], iz, iy, ix);
+                x[src_index] += alpha * Z(ix,iy,iz).s;
                 s[src_index] = r[src_index] - alpha * v[src_index];
-                bPoisson(ix,iy,iz).s = s[src_index];
+                Z(ix,iy,iz).s = s[src_index];
             }
         }
         getZ();
@@ -288,14 +289,14 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for reduction (+:aux1,aux2)
         for (size_t i=0; i < Nblocks; i++)
         {
-            BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
+            ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
-                const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
-                aux1 += bPoisson(ix,iy,iz).lhs * s[src_index];
-                aux2 += bPoisson(ix,iy,iz).lhs * bPoisson(ix,iy,iz).lhs;
+                const size_t src_index = _dest(vInfo_lhs[i], iz, iy, ix);
+                aux1 += LHS(ix,iy,iz).s * s[src_index];
+                aux2 += LHS(ix,iy,iz).s * LHS(ix,iy,iz).s;
             }
         }
         Real aux_12[2] = {aux1,aux2};
@@ -311,14 +312,15 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for reduction(+:norm)
         for (size_t i=0; i < Nblocks; i++)
         {
-            BlockTypePoisson & __restrict__ bPoisson  = *(BlockTypePoisson*) vInfoPoisson[i].ptrBlock;
+            ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+            ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
             for(int iz=0; iz<BlockType::sizeZ; iz++)
             for(int iy=0; iy<BlockType::sizeY; iy++)
             for(int ix=0; ix<BlockType::sizeX; ix++)
             {
-                const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
-                x[src_index] += omega * bPoisson(ix,iy,iz).s;
-                r[src_index] = s[src_index]-omega*bPoisson(ix,iy,iz).lhs;
+                const size_t src_index = _dest(vInfo_z[i], iz, iy, ix);
+                x[src_index] += omega * Z(ix,iy,iz).s;
+                r[src_index] = s[src_index]-omega*LHS(ix,iy,iz).s;
                 norm+= r[src_index]*r[src_index];
             }
         }
@@ -360,15 +362,15 @@ void PoissonSolverAMR::solve()
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
-        const int m = vInfoPoisson[i].level;
-        const long long n = vInfoPoisson[i].Z;
+        const int m = vInfo_z[i].level;
+        const long long n = vInfo_z[i].Z;
         const BlockInfo & info = grid.getBlockInfoAll(m,n);
         BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
         for(int iz=0; iz<BlockType::sizeZ; iz++)
         for(int iy=0; iy<BlockType::sizeY; iy++)
         for(int ix=0; ix<BlockType::sizeX; ix++)
         {
-            const size_t src_index = _dest(vInfoPoisson[i], iz, iy, ix);
+            const size_t src_index = _dest(vInfo_z[i], iz, iy, ix);
             b(ix,iy,iz).p = xsol[src_index];
         }
     }

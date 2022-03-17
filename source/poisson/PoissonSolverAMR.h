@@ -23,28 +23,29 @@ class ComputeLHS : public Operator
   {
     const SimulationData & sim;
     KernelLHSPoisson(const SimulationData&s) : sim(s) {}
+    std::vector<BlockInfo> & vInfo_lhs = sim.lhs->getBlocksInfo();
   
     const StencilInfo stencil{-1,-1,-1,2,2,2,false,{0}};
-    void operator()(LabMPIPoisson & lab, const BlockInfo& info) const
+    void operator()(ScalarLab & lab, const BlockInfo& info) const
     {
-      FluidBlockPoisson & __restrict__ o  = *(FluidBlockPoisson*) info.ptrBlock;
+      ScalarBlock & __restrict__ o  = *(ScalarBlock*) vInfo_lhs[info.blockID].ptrBlock;
       const Real h = info.h; 
-      for(int iz=0; iz<FluidBlockPoisson::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlockPoisson::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlockPoisson::sizeX; ++ix)
+      for(int iz=0; iz<ScalarBlock::sizeZ; ++iz)
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-        o(ix,iy,iz).lhs = h*( lab(ix-1,iy,iz).s + lab(ix+1,iy,iz).s + 
+        o(ix,iy,iz).s   = h*( lab(ix-1,iy,iz).s + lab(ix+1,iy,iz).s + 
                               lab(ix,iy-1,iz).s + lab(ix,iy+1,iz).s +
                               lab(ix,iy,iz-1).s + lab(ix,iy,iz+1).s - 6.0*lab(ix,iy,iz).s);
       }
 
-      BlockCase<FluidBlockPoisson> * tempCase = (BlockCase<FluidBlockPoisson> *)(info.auxiliary);
-      FluidBlockPoisson::ElementType * faceXm = nullptr;
-      FluidBlockPoisson::ElementType * faceXp = nullptr;
-      FluidBlockPoisson::ElementType * faceYm = nullptr;
-      FluidBlockPoisson::ElementType * faceYp = nullptr;
-      FluidBlockPoisson::ElementType * faceZp = nullptr;
-      FluidBlockPoisson::ElementType * faceZm = nullptr;
+      BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(info.auxiliary);
+      ScalarBlock::ElementType * faceXm = nullptr;
+      ScalarBlock::ElementType * faceXp = nullptr;
+      ScalarBlock::ElementType * faceYm = nullptr;
+      ScalarBlock::ElementType * faceYp = nullptr;
+      ScalarBlock::ElementType * faceZp = nullptr;
+      ScalarBlock::ElementType * faceZm = nullptr;
       if (tempCase != nullptr)
       {
         faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
@@ -61,7 +62,7 @@ class ComputeLHS : public Operator
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         {
           faceXm[iy + FluidBlock::sizeY * iz].clear();
-          faceXm[iy + FluidBlock::sizeY * iz].lhs = h*(lab(ix,iy,iz).s - lab(ix-1,iy,iz).s);
+          faceXm[iy + FluidBlock::sizeY * iz].s = h*(lab(ix,iy,iz).s - lab(ix-1,iy,iz).s);
         }
       }
       if (faceXp != nullptr)
@@ -71,7 +72,7 @@ class ComputeLHS : public Operator
         for(int iy=0; iy<FluidBlock::sizeY; ++iy)
         {
           faceXp[iy + FluidBlock::sizeY * iz].clear();
-          faceXp[iy + FluidBlock::sizeY * iz].lhs = h*(lab(ix,iy,iz).s - lab(ix+1,iy,iz).s);
+          faceXp[iy + FluidBlock::sizeY * iz].s = h*(lab(ix,iy,iz).s - lab(ix+1,iy,iz).s);
         }
       }
       if (faceYm != nullptr)
@@ -81,7 +82,7 @@ class ComputeLHS : public Operator
         for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         {
           faceYm[ix + FluidBlock::sizeX * iz].clear();
-          faceYm[ix + FluidBlock::sizeX * iz].lhs = h*(lab(ix,iy,iz).s - lab(ix,iy-1,iz).s);
+          faceYm[ix + FluidBlock::sizeX * iz].s = h*(lab(ix,iy,iz).s - lab(ix,iy-1,iz).s);
         }
       }
       if (faceYp != nullptr)
@@ -91,7 +92,7 @@ class ComputeLHS : public Operator
         for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         {
           faceYp[ix + FluidBlock::sizeX * iz].clear();
-          faceYp[ix + FluidBlock::sizeX * iz].lhs = h*(lab(ix,iy,iz).s - lab(ix,iy+1,iz).s);
+          faceYp[ix + FluidBlock::sizeX * iz].s = h*(lab(ix,iy,iz).s - lab(ix,iy+1,iz).s);
         }
       }
       if (faceZm != nullptr)
@@ -101,7 +102,7 @@ class ComputeLHS : public Operator
         for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         {
           faceZm[ix + FluidBlock::sizeX * iy].clear();
-          faceZm[ix + FluidBlock::sizeX * iy].lhs = h*(lab(ix,iy,iz).s - lab(ix,iy,iz-1).s);
+          faceZm[ix + FluidBlock::sizeX * iy].s = h*(lab(ix,iy,iz).s - lab(ix,iy,iz-1).s);
         }
       }
       if (faceZp != nullptr)
@@ -111,7 +112,7 @@ class ComputeLHS : public Operator
         for(int ix=0; ix<FluidBlock::sizeX; ++ix)
         {
           faceZp[ix + FluidBlock::sizeX * iy].clear();
-          faceZp[ix + FluidBlock::sizeX * iy].lhs = h*(lab(ix,iy,iz).s - lab(ix,iy,iz+1).s);
+          faceZp[ix + FluidBlock::sizeX * iy].s = h*(lab(ix,iy,iz).s - lab(ix,iy,iz+1).s);
         }
       }
 
@@ -121,9 +122,10 @@ class ComputeLHS : public Operator
   ComputeLHS(SimulationData & s) : Operator(s) { }
   void operator()(const Real dt)
   {
-    std::vector<cubism::BlockInfo>& vInfoPoisson = sim.gridPoisson->getBlocksInfo();
+    std::vector<BlockInfo> & vInfo_lhs = sim.lhs->getBlocksInfo();
+    std::vector<BlockInfo> & vInfo_z   = sim.z  ->getBlocksInfo();
     KernelLHSPoisson KPoisson(sim);
-    compute<KernelLHSPoisson,FluidGridMPIPoisson,LabMPIPoisson,FluidGridMPIPoisson>(KPoisson,sim.gridPoisson,sim.gridPoisson);
+    compute<KernelLHSPoisson,ScalarGrid,ScalarLab,ScalarGrid>(KPoisson,sim.z,sim.lhs);
 
     if (sim.bMeanConstraint == 0) return;
 
@@ -132,50 +134,51 @@ class ComputeLHS : public Operator
        Real avgP = 0;
        int index = -1;
        #pragma omp parallel for reduction(+ : avgP)
-       for(size_t i=0; i<vInfoPoisson.size(); ++i)
+       for(size_t i=0; i<vInfo_lhs.size(); ++i)
        {
-          FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
-          const Real h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
-          if (vInfoPoisson[i].index[0] == 0 && 
-              vInfoPoisson[i].index[1] == 0 && 
-              vInfoPoisson[i].index[2] == 0)
+          ScalarBlock & __restrict__ Z  = *(ScalarBlock*) vInfo_z[i].ptrBlock;
+          const Real h3 = vInfo_z[i].h*vInfo_z[i].h*vInfo_z[i].h;
+          if (vInfo_z[i].index[0] == 0 && 
+              vInfo_z[i].index[1] == 0 && 
+              vInfo_z[i].index[2] == 0)
             index = i;
           for(int iz=0; iz<FluidBlock::sizeZ; iz++)
           for(int iy=0; iy<FluidBlock::sizeY; iy++)
           for(int ix=0; ix<FluidBlock::sizeX; ix++)
-            avgP += bPoisson(ix,iy,iz).s*h3;
+            avgP += Z(ix,iy,iz).s*h3;
       }
       MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPI_Real, MPI_SUM, sim.grid->getCartComm());
 
       if (sim.bMeanConstraint == 1 && index != -1)
       {
-         FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[index].ptrBlock;
-         bPoisson(0,0,0).lhs = avgP;
+         ScalarBlock & __restrict__ LHS = *(ScalarBlock*) vInfo_lhs[index].ptrBlock;
+         LHS(0,0,0).s = avgP;
       }
       else if (sim.bMeanConstraint == 2)
       {
          #pragma omp parallel for reduction(+ : avgP)
-         for(size_t i=0; i<vInfoPoisson.size(); ++i)
+         for(size_t i=0; i<vInfo_lhs.size(); ++i)
 	 {
-            FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
-            const Real h3 = vInfoPoisson[i].h*vInfoPoisson[i].h*vInfoPoisson[i].h;
+            ScalarBlock & __restrict__ LHS = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+            const Real h3 = vInfo_lhs[i].h*vInfo_lhs[i].h*vInfo_lhs[i].h;
             for(int iz=0; iz<FluidBlock::sizeZ; iz++)
             for(int iy=0; iy<FluidBlock::sizeY; iy++)
             for(int ix=0; ix<FluidBlock::sizeX; ix++)
-               bPoisson(ix,iy,iz).lhs += avgP*h3;
+               LHS(ix,iy,iz).s += avgP*h3;
 	 }
       }
     }
     else // > 2
     {
        #pragma omp parallel for
-       for(size_t i=0; i<vInfoPoisson.size(); ++i)
+       for(size_t i=0; i<vInfo_lhs.size(); ++i)
        {
-          FluidBlockPoisson & __restrict__ bPoisson  = *(FluidBlockPoisson*) vInfoPoisson[i].ptrBlock;
-          if (vInfoPoisson[i].index[0] == 0 && 
-              vInfoPoisson[i].index[1] == 0 && 
-              vInfoPoisson[i].index[2] == 0)
-          bPoisson(0,0,0).lhs = bPoisson(0,0,0).s;
+          ScalarBlock & __restrict__ LHS = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+          ScalarBlock & __restrict__ Z   = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
+          if (vInfo_lhs[i].index[0] == 0 && 
+              vInfo_lhs[i].index[1] == 0 && 
+              vInfo_lhs[i].index[2] == 0)
+          LHS(0,0,0).s = Z(0,0,0).s;
       }
     }
   }
@@ -186,10 +189,8 @@ class PoissonSolverAMR
 {
  protected:
   typedef typename FluidGridMPI::BlockType BlockType;
-  typedef typename FluidGridMPIPoisson::BlockType BlockTypePoisson;
   SimulationData & sim;
   FluidGridMPI& grid = * sim.grid;
-  FluidGridMPIPoisson& gridPoisson = * sim.gridPoisson;
   ComputeLHS findLHS;
   void getZ();
   size_t _dest(const cubism::BlockInfo &info , const int z, const int y, const int x) const

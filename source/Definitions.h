@@ -18,6 +18,7 @@
 #include <Cubism/BlockInfo.h>
 #include <Cubism/BlockLab.h>
 #include <Cubism/BlockLabMPI.h>
+#include <Cubism/Definitions.h>
 
 #ifndef CUP_BLOCK_SIZEX
 #define CUP_BLOCK_SIZEX 8
@@ -32,85 +33,6 @@
 #include "MeshAdaptation_CUP.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
-
-struct PoissonElement
-{
-  using RealType = Real;
-  Real s = 0;
-  Real lhs = 0;
-  inline void clear() { s = 0; lhs=0;}
-  inline void set(const Real v) { s = v; }
-  inline void copy(const PoissonElement& c) { s = c.s; }
-
-  PoissonElement& operator=(const PoissonElement& c) = default;
-
-  PoissonElement &operator*=(const Real a)
-  {
-    this->s*=a;
-    this->lhs*=a;
-    return *this;
-  }
-  PoissonElement &operator+=(const PoissonElement &rhs)
-  {
-    this->s+=rhs.s;
-    this->lhs+=rhs.s;
-    return *this;
-  }
-  PoissonElement &operator-=(const PoissonElement &rhs)
-  {
-    this->s-=rhs.s;
-    this->lhs-=rhs.s;
-    return *this;
-  }
-  PoissonElement &operator/=(const PoissonElement &rhs)
-  {
-    this->s/=rhs.s;
-    this->lhs/=rhs.s;
-    return *this;
-  }
-  friend PoissonElement operator*(const Real a, PoissonElement el)
-  {
-      return (el *= a);
-  }
-  friend PoissonElement operator+(PoissonElement lhs1, const PoissonElement &rhs)
-  {
-      return (lhs1 += rhs);
-  }
-  friend PoissonElement operator-(PoissonElement lhs1, const PoissonElement &rhs)
-  {
-      return (lhs1 -= rhs);
-  }
-  friend PoissonElement operator/(PoissonElement lhs1, const PoissonElement &rhs)
-  {
-      return (lhs1 /= rhs);
-  }
-  bool operator<(const PoissonElement &other) const
-  {
-     return (s < other.s);
-  }
-  bool operator>(const PoissonElement &other) const
-  {
-     return (s > other.s);
-  }
-  bool operator<=(const PoissonElement &other) const
-  {
-     return (s <= other.s);
-  }
-  bool operator>=(const PoissonElement &other) const
-  {
-     return (s >= other.s);
-  }
-  Real magnitude()
-  {
-    return s;
-  }
-
-  Real & member(int i)
-  {
-    return (i==0) ? s : lhs;
-  }
-  static constexpr int DIM = 2;
-};
 
 enum { FE_CHI = 0, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW };
 struct FluidElement
@@ -211,6 +133,11 @@ inline BCflag string2BCflag(const std::string &strFlag)
   }
 }
 
+//CAREFUL THESE ARE GLOBAL VARIABLES!
+extern BCflag cubismBCX;
+extern BCflag cubismBCY;
+extern BCflag cubismBCZ;
+
 template <typename TElement>
 struct BaseBlock
 {
@@ -257,49 +184,6 @@ struct BaseBlock
       for(int iy=0; iy<sizeY; iy++)
         for(int ix=0; ix<sizeX; ix++)
           streamer.operate(data[iz][iy][ix], output);
-  }
-
-  template <typename Streamer>
-  inline void Read(std::ifstream& input, Streamer streamer)
-  {
-    for(int iz=0; iz<sizeZ; iz++)
-      for(int iy=0; iy<sizeY; iy++)
-        for(int ix=0; ix<sizeX; ix++)
-          streamer.operate(input, data[iz][iy][ix]);
-  }
-};
-
-template <typename TElement>
-struct BaseBlockPoisson
-{
-  static constexpr int sizeX = CUP_BLOCK_SIZEX;
-  static constexpr int sizeY = CUP_BLOCK_SIZEY;
-  static constexpr int sizeZ = CUP_BLOCK_SIZEZ;
-  typedef TElement ElementType;
-  typedef Real RealType;
-  TElement data[sizeZ][sizeY][sizeX];
-
-  void clear()
-  {
-      TElement * entry = &data[0][0][0];
-      const int N = sizeX*sizeY*sizeZ;
-      for(int i=0; i<N; ++i) entry[i].clear();
-  }
-
-  TElement& operator()(int ix, int iy=0, int iz=0)
-  {
-    assert(ix>=0); assert(ix<sizeX);
-    assert(iy>=0); assert(iy<sizeY);
-    assert(iz>=0); assert(iz<sizeZ);
-    return data[iz][iy][ix];
-  }
-
-  const TElement& operator()(int ix, int iy = 0, int iz = 0) const
-  {
-    assert(ix>=0); assert(ix<sizeX);
-    assert(iy>=0); assert(iy<sizeY);
-    assert(iz>=0); assert(iz<sizeZ);
-    return data[iz][iy][ix];
   }
 };
 
@@ -430,10 +314,6 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   static constexpr int sizeX = BlockType::sizeX;
   static constexpr int sizeY = BlockType::sizeY;
   static constexpr int sizeZ = BlockType::sizeZ;
-
-  BCflag BCX = freespace;
-  BCflag BCY = freespace;
-  BCflag BCZ = freespace;
 
   // Used for Boundary Conditions:
   // Apply bc on face of direction dir and side side (0 or 1):
@@ -726,12 +606,10 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
  public:
 
   typedef typename BlockType::ElementType ElementType;
-  void setBC(const BCflag _BCX, const BCflag _BCY, const BCflag _BCZ) {
-    BCX=_BCX; BCY=_BCY; BCZ=_BCZ;
-  }
-  bool is_xperiodic() { return BCX == periodic; }
-  bool is_yperiodic() { return BCY == periodic; }
-  bool is_zperiodic() { return BCZ == periodic; }
+
+  virtual bool is_xperiodic() override { return cubismBCX == periodic; }
+  virtual bool is_yperiodic() override { return cubismBCY == periodic; }
+  virtual bool is_zperiodic() override { return cubismBCZ == periodic; }
 
   BlockLabBC() = default;
   BlockLabBC(const BlockLabBC&) = delete;
@@ -742,6 +620,9 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   // freespace means normal velocity=0, dp/dn=0 and d(tangential velocities)/dn=0
   void _apply_bc(const cubism::BlockInfo& info, const Real t=0, const bool coarse = false)
   {
+    const BCflag BCX = cubismBCX;
+    const BCflag BCY = cubismBCY;
+    const BCflag BCZ = cubismBCZ;
     if (BCX == wall && ElementTypeBlock::DIM==FluidElement::DIM)//wall only makes sense for FluidElement
     {
       if(info.index[0]==0 )          this->template applyBCfaceWall<0,0>(coarse);
@@ -781,19 +662,17 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   }
 };
 
-using FluidBlock = BaseBlock<FluidElement>;
-using FluidGrid    = cubism::Grid<FluidBlock, aligned_allocator>;
-using FluidGridMPI = cubism::GridMPI<FluidGrid>;
-using Lab          = BlockLabBC<FluidBlock, aligned_allocator>;
-using LabMPI       = cubism::BlockLabMPI<Lab,FluidGridMPI>;
+using FluidBlock    = BaseBlock<FluidElement>;
+using FluidGrid     = cubism::Grid<FluidBlock, aligned_allocator>;
+using FluidGridMPI  = cubism::GridMPI<FluidGrid>;
+using Lab           = BlockLabBC<FluidBlock, aligned_allocator>;
+using LabMPI        = cubism::BlockLabMPI<Lab,FluidGridMPI>;
+using AMR           = MeshAdaptation_CUP<FluidGridMPI,LabMPI>;
 
-using AMR = MeshAdaptation_CUP<FluidGridMPI,LabMPI>;
-
-using FluidBlockPoisson = BaseBlockPoisson<PoissonElement>;
-using FluidGridPoisson  = cubism::Grid<FluidBlockPoisson, aligned_allocator>;
-using FluidGridMPIPoisson = cubism::GridMPI<FluidGridPoisson>;
-using LabPoisson          = BlockLabBC<FluidBlockPoisson, aligned_allocator>;
-using LabMPIPoisson       = cubism::BlockLabMPI<LabPoisson,FluidGridMPIPoisson>;
-using AMR2 = MeshAdaptationMPI<FluidGridMPIPoisson,LabMPIPoisson,FluidGridMPI>;
+using ScalarElement = cubism::ScalarElement<Real>;
+using ScalarBlock   = cubism::GridBlock<CUP_BLOCK_SIZEX,3,ScalarElement>;
+using ScalarGrid    = cubism::GridMPI<cubism::Grid<ScalarBlock, aligned_allocator>>;
+using ScalarLab     = cubism::BlockLabMPI<BlockLabBC<ScalarBlock, aligned_allocator>, ScalarGrid>;
+using ScalarAMR     = MeshAdaptationMPI<ScalarGrid,ScalarLab,FluidGridMPI>;
 
 CubismUP_3D_NAMESPACE_END

@@ -29,21 +29,18 @@ struct SimulationData
 
   // Grids for Velocity and Pressure
   FluidGridMPI * grid = nullptr;
-  FluidGridMPIPoisson * gridPoisson = nullptr;
+  ScalarGrid * lhs = nullptr;
+  ScalarGrid * z   = nullptr;
+  ScalarAMR * lhs_amr;
+  ScalarAMR * z_amr;
 
   // Get velocity blocks on current rank
   inline std::vector<cubism::BlockInfo>& vInfo() {
     return grid->getBlocksInfo();
   }
 
-  // Get pressure blocks on current rank
-  inline std::vector<cubism::BlockInfo>& vInfoPoisson() {
-    return gridPoisson->getBlocksInfo();
-  }
-
   // Mesh Adaptation
   AMR * amr;
-  AMR2 * amr2;
 
   // Container holding the obstacles
   ObstacleVector * obstacle_vector = nullptr;

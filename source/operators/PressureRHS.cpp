@@ -383,7 +383,8 @@ PressureRHS::PressureRHS(SimulationData & s) : Operator(s) {}
 void PressureRHS::operator()(const Real dt)
 {
   const std::vector<cubism::BlockInfo>& vInfo = sim.grid->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& vInfoPoisson = sim.gridPoisson->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& vInfo_lhs = sim.lhs->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& vInfo_z   = sim.z  ->getBlocksInfo();
 
   //1. Compute pRHS
   {
@@ -420,12 +421,12 @@ void PressureRHS::operator()(const Real dt)
     for(size_t i=0; i<vInfo.size(); i++)
     {
       FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      FluidBlockPoisson& bPoisson = *(FluidBlockPoisson*)vInfoPoisson[i].ptrBlock;
+      ScalarBlock & LHS = *(ScalarBlock *)vInfo_lhs[i].ptrBlock;
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix)
       {
-        bPoisson(ix,iy,iz).lhs = b(ix,iy,iz).p;
+        LHS(ix,iy,iz).s = b(ix,iy,iz).p;
         b(ix,iy,iz).p = b.dataOld[iz][iy][ix][3];
       }
     }
@@ -440,11 +441,11 @@ void PressureRHS::operator()(const Real dt)
     for(size_t i=0; i<vInfo.size(); i++)
     {
       FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      FluidBlockPoisson& bPoisson = *(FluidBlockPoisson*)vInfoPoisson[i].ptrBlock;
+      ScalarBlock & LHS = *(ScalarBlock *)vInfo_lhs[i].ptrBlock;
       for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for (int iy=0; iy<FluidBlock::sizeY; ++iy)
       for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-        bPoisson(ix,iy,iz).lhs -= b(ix,iy,iz).tmpU;
+        LHS(ix,iy,iz).s -= b(ix,iy,iz).tmpU;
     }
   }
 
@@ -453,12 +454,12 @@ void PressureRHS::operator()(const Real dt)
   for(size_t i=0; i<vInfo.size(); i++)
   {
     FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-    FluidBlockPoisson& bPoisson = *(FluidBlockPoisson*)vInfoPoisson[i].ptrBlock;
+    ScalarBlock & Z = *(ScalarBlock *)vInfo_z[i].ptrBlock;
     for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
     for (int iy=0; iy<FluidBlock::sizeY; ++iy)
     for (int ix=0; ix<FluidBlock::sizeX; ++ix)
     {
-      bPoisson(ix,iy,iz).s = 0.0;//pass initial guess to solver
+      Z(ix,iy,iz).s = 0.0;//pass initial guess to solver
       b(ix,iy,iz).p = 0.0;
     }
   }
