@@ -22,7 +22,6 @@ ifneq "$(findstring eu-,$(shell hostname))" ""
 endif
 
 # this only affects amount of memory allocated by block processing:
-nthreads ?= 24 # needs to be modified if user wants to use more threads per rank
 config ?= prod
 precision ?= double
 precision_dump ?= single
@@ -32,7 +31,6 @@ bsx ?= 8
 bsy ?= 8
 bsz ?= 8
 hdf ?= true
-zlib ?= 0
 verbose ?= false
 dump_surface_binary ?= false
 
@@ -76,11 +74,6 @@ endif
 
 ifeq "$(verbose)" "true"
 	CPPFLAGS += -DCUP_VERBOSE
-endif
-
-ifeq "$(zlib)" "1"
-	CPPFLAGS += -D_USE_ZLIB_ -D_USE_WAVZ_
-	LIBS +=  -lz -lrt -lstdc++
 endif
 
 ifeq "$(precision)" "single"

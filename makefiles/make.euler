@@ -1,4 +1,3 @@
 CXX=mpic++
 MPICXX=mpicxx
 LD=mpic++
-HDF5_ROOT=/cluster/home/novatig/hdf5-1.10.1/gnu630_ompi30/

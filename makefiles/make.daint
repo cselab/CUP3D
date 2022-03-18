@@ -1,15 +1,2 @@
 CXX=CC
 LD=CC
-
-ifeq "$(compiler)" "intel"
-#CPPFLAGS += -dynamic
-else
-#CPPFLAGS += -static
-endif
-
-ifeq "$(hypre)" "true"
-CPPFLAGS+= -I/users/novatig/hypre/build/include/
-LIBS+= -L/users/novatig/hypre/build/lib/
-endif
-
-#CPPFLAGS += -DCUP_ASYNC_DUMP
