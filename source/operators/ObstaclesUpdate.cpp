@@ -22,11 +22,11 @@ using CHIMAT =  Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
 
 template<bool implicitPenalization>
-struct KernelIntegrateFluidMomenta : public ObstacleVisitor
+struct KernelIntegrateFluidMomenta
 {
   const Real lambda, dt;
   ObstacleVector * const obstacle_vector;
-  const cubism::BlockInfo * info_ptr = nullptr;
+
   Real dvol(const BlockInfo&I, const int x, const int y, const int z) const {
     return I.h * I.h * I.h;
   }
@@ -34,21 +34,14 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
   KernelIntegrateFluidMomenta(Real _dt, Real _lambda, ObstacleVector* ov)
     : lambda(_lambda), dt(_dt), obstacle_vector(ov) {}
 
-  void operator()(const cubism::BlockInfo& info)
+  void operator()(const cubism::BlockInfo& info) const
   {
-    // first store the lab and info, then do visitor
-    assert(info_ptr == nullptr);
-    info_ptr = & info;
-    ObstacleVisitor* const base = static_cast<ObstacleVisitor*> (this);
-    assert( base not_eq nullptr );
-    obstacle_vector->Accept( base );
-    info_ptr = nullptr;
+    for (const auto &obstacle : obstacle_vector->getObstacleVector())
+      visit(info, obstacle.get());
   }
 
-  void visit(Obstacle* const op)
+  void visit(const BlockInfo& info, Obstacle* const op) const
   {
-    const BlockInfo& info = * info_ptr;
-    assert(info_ptr not_eq nullptr);
     const std::vector<ObstacleBlock*>& obstblocks = op->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;
@@ -129,17 +122,13 @@ struct KernelIntegrateFluidMomenta : public ObstacleVisitor
   }
 };
 
+}  // Anonymous namespace.
+
 template<bool implicitPenalization>
-struct KernelFinalizeObstacleVel : public ObstacleVisitor
+static void kernelFinalizeObstacleVel(SimulationData& sim, const Real dt)
 {
-  const Real dt, lambda;
-  FluidGridMPI * const grid;
-
-  KernelFinalizeObstacleVel(Real _dt, Real _lambda, FluidGridMPI*g) :
-    dt(_dt), lambda(_lambda), grid(g) { }
-
-  void visit(Obstacle* const obst)
-  {
+  // TODO: Refactor to use only one omp parallel and one MPI_Allreduce.
+  for (const auto &obst : sim.obstacle_vector->getObstacleVector()) {
     static constexpr int nQoI = 29;
     Real M[nQoI] = { 0 };
     const auto& oBlock = obst->getObstacleBlocks();
@@ -162,7 +151,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
       assert(k==29);
       } else  assert(k==13);
     }
-    const auto comm = grid->getCartComm();
+    const auto comm = sim.grid->getCartComm();
     MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_Real, MPI_SUM, comm);
 
     #ifndef NDEBUG
@@ -194,9 +183,7 @@ struct KernelFinalizeObstacleVel : public ObstacleVisitor
 
     obst->computeVelocities();
   }
-};
-
-}  // Anonymous namespace.
+}
 
 void UpdateObstacles::operator()(const Real dt)
 {
@@ -205,7 +192,7 @@ void UpdateObstacles::operator()(const Real dt)
   { // integrate momenta by looping over grid
     std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
     #pragma omp parallel
-    { // each thread needs to call its own non-const operator() function
+    {
       //if(0) {
       if(sim.bImplicitPenalization) {
         KernelIntegrateFluidMomenta<1> K(dt, sim.lambda, sim.obstacle_vector);
@@ -221,13 +208,9 @@ void UpdateObstacles::operator()(const Real dt)
 
   //if(0) {
   if(sim.bImplicitPenalization) {
-    ObstacleVisitor*K= new KernelFinalizeObstacleVel<1>(dt,sim.lambda,sim.grid);
-    sim.obstacle_vector->Accept(K); // accept you son of a french cow
-    delete K;
+    kernelFinalizeObstacleVel<1>(sim, dt);
   } else {
-    ObstacleVisitor*K= new KernelFinalizeObstacleVel<0>(dt,sim.lambda,sim.grid);
-    sim.obstacle_vector->Accept(K); // accept you son of a french cow
-    delete K;
+    kernelFinalizeObstacleVel<0>(sim, dt);
   }
 }
 

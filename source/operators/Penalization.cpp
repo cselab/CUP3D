@@ -18,29 +18,22 @@ using CHIMAT =  Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
 
 template<bool implicitPenalization>
-struct KernelPenalization : public ObstacleVisitor
+struct KernelPenalization
 {
   const Real dt, invdt = 1.0/dt, lambda;
   ObstacleVector * const obstacle_vector;
-  const cubism::BlockInfo * info_ptr = nullptr;
 
   KernelPenalization(Real _dt, Real _lambda, ObstacleVector* ov) :
     dt(_dt), lambda(_lambda), obstacle_vector(ov) {}
 
-  void operator()(const cubism::BlockInfo& info)
+  void operator()(const cubism::BlockInfo& info) const
   {
-    // first store the lab and info, then do visitor
-    info_ptr = & info;
-    ObstacleVisitor* const base = static_cast<ObstacleVisitor*> (this);
-    assert( base not_eq nullptr );
-    obstacle_vector->Accept( base );
-    info_ptr = nullptr;
+    for (const auto &obstacle : obstacle_vector->getObstacleVector())
+      visit(info, obstacle.get());
   }
 
-  void visit(Obstacle* const obstacle)
+  void visit(const BlockInfo& info, Obstacle* const obstacle) const
   {
-    const BlockInfo& info = * info_ptr;
-    assert(info_ptr not_eq nullptr);
     const auto& obstblocks = obstacle->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;
@@ -96,14 +89,10 @@ struct KernelPenalization : public ObstacleVisitor
   }
 };
 
-struct KernelFinalizePenalizationForce : public ObstacleVisitor
+static void kernelFinalizePenalizationForce(SimulationData& sim)
 {
-  FluidGridMPI * const grid;
-
-  KernelFinalizePenalizationForce(FluidGridMPI*g) : grid(g) { }
-
-  void visit(Obstacle* const obst)
-  {
+  // TODO: Refactor to use only one omp parallel and MPI_Allreduce.
+  for (const auto &obst : sim.obstacle_vector->getObstacleVector()) {
     static constexpr int nQoI = 6;
     Real M[nQoI] = { 0 };
     const auto& oBlock = obst->getObstacleBlocks();
@@ -113,12 +102,12 @@ struct KernelFinalizePenalizationForce : public ObstacleVisitor
       M[0] += oBlock[i]->FX; M[1] += oBlock[i]->FY; M[2] += oBlock[i]->FZ;
       M[3] += oBlock[i]->TX; M[4] += oBlock[i]->TY; M[5] += oBlock[i]->TZ;
     }
-    const auto comm = grid->getCartComm();
+    const auto comm = sim.grid->getCartComm();
     MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_Real, MPI_SUM, comm);
     obst->force[0]  = M[0]; obst->force[1]  = M[1]; obst->force[2]  = M[2];
     obst->torque[0] = M[3]; obst->torque[1] = M[4]; obst->torque[2] = M[5];
   }
-};
+}
 
 #if 0
 void ElasticCollision(const Real m1,
@@ -802,9 +791,7 @@ void Penalization::operator()(const Real dt)
     }
   }
 
-  ObstacleVisitor*K = new KernelFinalizePenalizationForce(sim.grid);
-  sim.obstacle_vector->Accept(K); // accept you son of a french cow
-  delete K;
+  kernelFinalizePenalizationForce(sim);
 }
 
 CubismUP_3D_NAMESPACE_END

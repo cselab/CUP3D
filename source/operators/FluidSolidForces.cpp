@@ -14,12 +14,10 @@ using namespace cubism;
 
 namespace {
 
-struct KernelComputeForces : public ObstacleVisitor
+struct KernelComputeForces
 {
   ObstacleVector * const obstacle_vector;
   const Real nu, dt;
-  LabMPI * lab_ptr = nullptr;
-  const BlockInfo * info_ptr = nullptr;
 
   const int big   = 5;
   const int small = -4;
@@ -30,24 +28,14 @@ struct KernelComputeForces : public ObstacleVisitor
   KernelComputeForces(Real _nu, Real _dt, ObstacleVector* ov) :
     obstacle_vector(ov), nu(_nu), dt(_dt) { }
 
-  void operator()(LabMPI&lab,const BlockInfo&info)
+  void operator()(LabMPI& lab, const BlockInfo& info) const
   {
-    // first store the lab and info, then do visitor
-    lab_ptr = & lab;
-    info_ptr = & info;
-    ObstacleVisitor* const base = static_cast<ObstacleVisitor*> (this);
-    assert( base not_eq nullptr );
-    obstacle_vector->Accept( base );
-    lab_ptr = nullptr;
-    info_ptr = nullptr;
+    for (const auto &obstacle : obstacle_vector->getObstacleVector())
+      visit(lab, info, obstacle.get());
   }
 
-  void visit(Obstacle* const op)
+  void visit(LabMPI& l, const BlockInfo& info, Obstacle* const op) const
   {
-
-    LabMPI& l = * lab_ptr;
-    const BlockInfo& info = * info_ptr;
-    assert(lab_ptr not_eq nullptr && info_ptr not_eq nullptr);
     const std::vector<ObstacleBlock*>& obstblocks = op->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;

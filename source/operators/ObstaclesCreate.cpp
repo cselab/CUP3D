@@ -132,15 +132,14 @@ class KernelCharacteristicFunction
   }
 };
 
-struct KernelComputeGridCoM : public ObstacleVisitor
+}  // anonymous namespace
+
+
+/// Compute chi-based center of mass for each obstacle.
+static void kernelComputeGridCoM(SimulationData &sim)
 {
-  FluidGridMPI * const grid;
-  const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
-
-  KernelComputeGridCoM(FluidGridMPI*g) : grid(g) { }
-
-  void visit(Obstacle* const obstacle)
-  {
+  // TODO: Refactor to use only one omp parallel and only one MPI_Allreduce.
+  for (const auto &obstacle : sim.obstacle_vector->getObstacleVector()) {
     Real com[4] = {0.0, 0.0, 0.0, 0.0};
     const auto& obstblocks = obstacle->getObstacleBlocks();
     #pragma omp parallel for schedule(static,1) reduction(+ : com[:4])
@@ -151,40 +150,22 @@ struct KernelComputeGridCoM : public ObstacleVisitor
       com[2] += obstblocks[i]->CoM_y;
       com[3] += obstblocks[i]->CoM_z;
     }
-    MPI_Allreduce(MPI_IN_PLACE, com, 4,MPI_Real,MPI_SUM, grid->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, com, 4,MPI_Real,MPI_SUM, sim.grid->getCartComm());
 
     assert(com[0]>std::numeric_limits<Real>::epsilon());
     obstacle->centerOfMass[0] = com[1]/com[0];
     obstacle->centerOfMass[1] = com[2]/com[0];
     obstacle->centerOfMass[2] = com[3]/com[0];
   }
-};
+}
 
-struct KernelIntegrateUdefMomenta : public ObstacleVisitor
+static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& info)
 {
-  ObstacleVector * const obstacle_vector;
-  const cubism::BlockInfo * info_ptr = nullptr;
-  inline Real dvol(const cubism::BlockInfo&info, const int x, const int y, const int z) const {
+  auto dvol = [](const BlockInfo& info, const int x, const int y, const int z) {
     return info.h * info.h * info.h;
-  }
+  };
 
-  KernelIntegrateUdefMomenta(ObstacleVector* ov) : obstacle_vector(ov) {}
-
-  void operator()(const cubism::BlockInfo& info)
-  {
-    // first store the lab and info, then do visitor
-    assert(info_ptr == nullptr);
-    info_ptr = & info;
-    ObstacleVisitor* const base = static_cast<ObstacleVisitor*> (this);
-    assert( base not_eq nullptr );
-    obstacle_vector->Accept( base );
-    info_ptr = nullptr;
-  }
-
-  void visit(Obstacle* const obstacle)
-  {
-    const BlockInfo& info = * info_ptr;
-    assert(info_ptr not_eq nullptr);
+  for (const auto &obstacle : sim.obstacle_vector->getObstacleVector()) {
     const auto& obstblocks = obstacle->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;
@@ -233,19 +214,22 @@ struct KernelIntegrateUdefMomenta : public ObstacleVisitor
       J2 += X * ( p[0]*p[0]+p[1]*p[1] ) * dv; J5 -= X * p[1]*p[2] * dv;
     }
   }
-};
+}
 
-struct KernelAccumulateUdefMomenta : public ObstacleVisitor
+/// Integrate momenta over the grid.
+static void kernelIntegrateUdefMomenta(SimulationData& sim)
 {
-  FluidGridMPI * const grid;
-  const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
-  const bool justDebug = false;
+  const std::vector<cubism::BlockInfo>& vInfo = sim.grid->getBlocksInfo();
+  #pragma omp parallel for schedule(dynamic, 1)
+  for (size_t i = 0; i < vInfo.size(); ++i)
+    _kernelIntegrateUdefMomenta(sim, vInfo[i]);
+}
 
-  KernelAccumulateUdefMomenta(FluidGridMPI*g, bool dbg = false) :
-    grid(g), justDebug(dbg) {}
-
-  void visit(Obstacle* const obst)
-  {
+/// Reduce momenta across blocks and MPI.
+static void kernelAccumulateUdefMomenta(SimulationData& sim, bool justDebug = false)
+{
+  // TODO: Refactor to use only one omp parallel and one MPI_Allreduce.
+  for (const auto &obst : sim.obstacle_vector->getObstacleVector()) {
     Real M[13] = {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
     const auto& oBlock = obst->getObstacleBlocks();
     #pragma omp parallel for schedule(static,1) reduction(+ : M[:13])
@@ -257,7 +241,7 @@ struct KernelAccumulateUdefMomenta : public ObstacleVisitor
       M[ 7] += oBlock[i]->J0; M[ 8] += oBlock[i]->J1; M[ 9] += oBlock[i]->J2;
       M[10] += oBlock[i]->J3; M[11] += oBlock[i]->J4; M[12] += oBlock[i]->J5;
     }
-    const auto comm = grid->getCartComm();
+    const auto comm = sim.grid->getCartComm();
     MPI_Allreduce(MPI_IN_PLACE, M, 13, MPI_Real, MPI_SUM, comm);
     assert(M[0] > EPS);
 
@@ -285,27 +269,17 @@ struct KernelAccumulateUdefMomenta : public ObstacleVisitor
       obst->angVel_correction[2] = invJ[4]*AM[0] +invJ[5]*AM[1] +invJ[2]*AM[2];
     }
   }
-};
+}
 
-struct KernelRemoveUdefMomenta : public ObstacleVisitor
+/// Remove momenta from udef.
+static void kernelRemoveUdefMomenta(SimulationData& sim, bool justDebug = false)
 {
-  FluidGridMPI * const grid;
-  const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
+  const std::vector<BlockInfo>& vInfo = sim.grid->getBlocksInfo();
 
-  KernelRemoveUdefMomenta(FluidGridMPI*g) : grid(g) { }
-
-  void visit(Obstacle* const obstacle)
-  {
-    const std::array<Real,3> angVel_correction = {{
-      obstacle->angVel_correction[0],
-      obstacle->angVel_correction[1],
-      obstacle->angVel_correction[2]
-    }};
-    const std::array<Real,3> transVel_correction = {{
-      obstacle->transVel_correction[0],
-      obstacle->transVel_correction[1],
-      obstacle->transVel_correction[2]
-    }};
+  // TODO: Refactor to use only one omp parallel.
+  for (const auto &obstacle : sim.obstacle_vector->getObstacleVector()) {
+    const std::array<Real, 3> angVel_correction = obstacle->angVel_correction;
+    const std::array<Real, 3> transVel_correction = obstacle->transVel_correction;
 
     #ifdef CUP_VERBOSE
      if(sim.rank==0)
@@ -341,15 +315,13 @@ struct KernelRemoveUdefMomenta : public ObstacleVisitor
       }
     }
   }
-};
-
 }
 
 void CreateObstacles::operator()(const Real dt)
 {
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
-  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+  std::vector<BlockInfo>& vInfo = sim.vInfo();
   #pragma omp parallel for schedule(static)
   for (size_t i = 0; i < vInfo.size(); ++i)
   {
@@ -382,33 +354,11 @@ void CreateObstacles::operator()(const Real dt)
     }
   }
 
-  { // compute actual CoM given the CHI on the grid
-    ObstacleVisitor* visitor = new KernelComputeGridCoM(sim.grid);
-    sim.obstacle_vector->Accept(visitor);
-    delete visitor;
-  }
-
-  { // integrate momenta by looping over grid
-    #pragma omp parallel
-    { // each thread needs to call its own non-const operator() function
-      KernelIntegrateUdefMomenta K(sim.obstacle_vector);
-      #pragma omp for schedule(dynamic, 1)
-      for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
-    }
-  }
-
-  { // reduce momenta across blocks and MPI
-    ObstacleVisitor* visitor = new KernelAccumulateUdefMomenta(sim.grid);
-    sim.obstacle_vector->Accept(visitor);
-    delete visitor;
-  }
-
-  { // remove momenta from udef
-    ObstacleVisitor* visitor = new KernelRemoveUdefMomenta(sim.grid);
-    sim.obstacle_vector->Accept(visitor);
-    delete visitor;
-  }
-
+  // compute actual CoM given the CHI on the grid
+  kernelComputeGridCoM(sim);
+  kernelIntegrateUdefMomenta(sim);
+  kernelAccumulateUdefMomenta(sim);
+  kernelRemoveUdefMomenta(sim);
   sim.obstacle_vector->finalize(); // whatever else the obstacle needs
 }
 
