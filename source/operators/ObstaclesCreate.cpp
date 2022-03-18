@@ -161,10 +161,6 @@ static void kernelComputeGridCoM(SimulationData &sim)
 
 static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& info)
 {
-  auto dvol = [](const BlockInfo& info, const int x, const int y, const int z) {
-    return info.h * info.h * info.h;
-  };
-
   for (const auto &obstacle : sim.obstacle_vector->getObstacleVector()) {
     const auto& obstblocks = obstacle->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
@@ -195,7 +191,7 @@ static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& in
     {
       if (CHI[iz][iy][ix] <= 0) continue;
       Real p[3]; info.pos(p, ix, iy, iz);
-      const Real dv = dvol(info, ix, iy, iz), X = CHI[iz][iy][ix];
+      const Real dv = info.h*info.h*info.h, X = CHI[iz][iy][ix];
       p[0] -= CM[0];
       p[1] -= CM[1];
       p[2] -= CM[2];
