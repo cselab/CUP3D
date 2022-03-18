@@ -34,14 +34,14 @@ struct SIGINTHandler : Operator
 void bindSimulationData(py::module &m)
 {
   py::class_<SimulationData>(m, "SimulationData")
-      .def_readonly("CFL", &SimulationData::CFL)
-      .def_readonly("BCx_flag", &SimulationData::BCx_flag, "boundary condition in x-axis")
-      .def_readonly("BCy_flag", &SimulationData::BCy_flag, "boundary condition in y-axis")
-      .def_readonly("BCz_flag", &SimulationData::BCz_flag, "boundary condition in z-axis")
-      .def_readonly("extent", &SimulationData::extent)
-      .def_readonly("uinf", &SimulationData::uinf)
-      .def_readonly("nsteps", &SimulationData::nsteps)
-      .def_readonly("time", &SimulationData::time);
+    .def_readonly("CFL", &SimulationData::CFL)
+    .def_readonly("BCx_flag", &SimulationData::BCx_flag, "boundary condition in x-axis")
+    .def_readonly("BCy_flag", &SimulationData::BCy_flag, "boundary condition in y-axis")
+    .def_readonly("BCz_flag", &SimulationData::BCz_flag, "boundary condition in z-axis")
+    .def_readonly("extent", &SimulationData::extent)
+    .def_readonly("uinf", &SimulationData::uinf)
+    .def_readonly("nsteps", &SimulationData::nsteps)
+    .def_readonly("time", &SimulationData::time);
 }
 
 static std::shared_ptr<Simulation> pyCreateSimulation(
@@ -59,14 +59,15 @@ static std::shared_ptr<Simulation> pyCreateSimulation(
 void bindSimulation(py::module &m)
 {
   py::class_<Simulation, std::shared_ptr<Simulation>>(m, "Simulation")
-      .def(py::init(&pyCreateSimulation), "argv"_a, "comm"_a = 0)
-      .def_readonly("data", &Simulation::sim,
-                    py::return_value_policy::reference_internal)
-      .def_property_readonly("obstacles", &Simulation::getObstacleVector)
-      .def("run", &Simulation::run)
-      .def("add_obstacle", &pySimulationAddObstacle)
-      .def("add_obstacle", &pySimulationParseAndAddObstacle)
-      .def("insert_operator", &Simulation::insertOperator, "op"_a);
+    .def(py::init(&pyCreateSimulation), "argv"_a, "comm"_a = 0)
+    .def_readonly("data", &Simulation::sim,
+                  py::return_value_policy::reference_internal)
+    .def_property_readonly("fields", [](Simulation *sim) { return PyFieldsView{sim}; })
+    .def_property_readonly("obstacles", &Simulation::getObstacleVector)
+    .def("run", &Simulation::run)
+    .def("add_obstacle", &pySimulationAddObstacle)
+    .def("add_obstacle", &pySimulationParseAndAddObstacle)
+    .def("insert_operator", &Simulation::insertOperator, "op"_a);
 }
 
 CubismUP_3D_NAMESPACE_END

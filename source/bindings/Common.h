@@ -10,10 +10,16 @@ CubismUP_3D_NAMESPACE_BEGIN
 class Obstacle;
 class Simulation;
 
-void bindSimulationData(pybind11::module &m);
-void bindSimulation(pybind11::module &m);
+struct PyFieldsView
+{
+  Simulation *sim;
+};
+
+void bindFields(pybind11::module &m);
 void bindObstacles(pybind11::module &m);
 void bindOperators(pybind11::module &m);
+void bindSimulation(pybind11::module &m);
+void bindSimulationData(pybind11::module &m);
 void pySimulationAddObstacle(Simulation &s, std::shared_ptr<Obstacle>);
 void pySimulationParseAndAddObstacle(Simulation &S, pybind11::object obstacle_args);
 

@@ -112,6 +112,7 @@ set(_PRIVATE_RELEASE_FLAGS
     -fstrict-aliasing
     -ffast-math
     -falign-functions=32)
+target_compile_features(${PRIVATEDEP} INTERFACE cxx_std_17)
 target_compile_options(${PRIVATEDEP} INTERFACE
                        ${_PRIVATE_FLAGS}
                        $<$<CONFIG:RelWithDebInfo>:${_PRIVATE_RELEASE_FLAGS}>
@@ -156,10 +157,12 @@ if (CUP_BUILD_PY)
     pybind11_add_module(
         ${PYLIB}
         MODULE
-        ${SRC_DIR}/bindings/Bindings.cpp
-        ${SRC_DIR}/bindings/Obstacles.cpp
-        ${SRC_DIR}/bindings/Operators.cpp
-        ${SRC_DIR}/bindings/Simulation.cpp
+        "${SRC_DIR}/operators/ImportExport.cpp"
+        "${SRC_DIR}/bindings/Bindings.cpp"
+        "${SRC_DIR}/bindings/Fields.cpp"
+        "${SRC_DIR}/bindings/Obstacles.cpp"
+        "${SRC_DIR}/bindings/Operators.cpp"
+        "${SRC_DIR}/bindings/Simulation.cpp"
     )
     # Manually add pybind11 include dirs before those from Python.
     target_include_directories(${PYLIB} BEFORE PUBLIC ${pybind11_INCLUDE_DIRS})

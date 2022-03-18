@@ -43,14 +43,13 @@ struct FluidElement
   
   void clear() { chi =0; u =0; v =0; w =0; p =0; tmpU =0; tmpV =0; tmpW =0; }
 
-  ~FluidElement() {}
-
-  FluidElement& operator=(const FluidElement& c) = default;
-
-  Real & member(int i)
+  Real &member(int i)
   {
-    Real * tmp = & this->chi;
-    return *(tmp + i);
+    return *(&this->chi + i);
+  }
+  const Real &member(int i) const
+  {
+    return *(&this->chi + i);
   }
   Real magnitude()//used in TagLoadedBlock, to adapt the mesh
   {

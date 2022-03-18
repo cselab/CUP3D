@@ -42,6 +42,7 @@ PYBIND11_MODULE(libcubismup3d, m)
 {
   m.doc() = "CubismUP3D solver for incompressible Navier-Stokes";
 
+  bindFields(m);
   bindSimulationData(m);
   bindSimulation(m);
   bindObstacles(m);

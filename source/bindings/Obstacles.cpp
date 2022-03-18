@@ -38,8 +38,8 @@ static SphereArguments popSphereArguments(py::object &kwargs_pop)
 #undef ATTR_FROM_KWARGS
 
 static std::shared_ptr<ObstacleAndSphereArguments> createObstacleAndSphereArguments(
-      double radius, double umax, double tmax, bool accel_decel, bool bHemi,
-      py::kwargs kwargs)
+    double radius, double umax, double tmax, bool accel_decel, bool bHemi,
+    py::kwargs kwargs)
 {
   // for (const auto &item : kwargs) {
   //   fprintf(stderr, "[%s]=%s\n",
@@ -72,12 +72,12 @@ void bindObstacles(py::module &m)
 {
   /* ObstacleArguments */
   py::class_<ObstacleArguments, std::shared_ptr<ObstacleArguments>>(m, "ObstacleArguments")
-      .def_readwrite("length", &ObstacleArguments::length)
-      .def_readwrite("position", &ObstacleArguments::position)
-      .def_readwrite("enforcedVelocity", &ObstacleArguments::enforcedVelocity)
-      .def_readwrite("bForcedInSimFrame", &ObstacleArguments::bForcedInSimFrame)
-      .def_readwrite("bFixFrameOfRef", &ObstacleArguments::bFixFrameOfRef)
-      .def_readwrite("bFixToPlanar", &ObstacleArguments::bFixToPlanar);
+    .def_readwrite("length", &ObstacleArguments::length)
+    .def_readwrite("position", &ObstacleArguments::position)
+    .def_readwrite("enforcedVelocity", &ObstacleArguments::enforcedVelocity)
+    .def_readwrite("bForcedInSimFrame", &ObstacleArguments::bForcedInSimFrame)
+    .def_readwrite("bFixFrameOfRef", &ObstacleArguments::bFixFrameOfRef)
+    .def_readwrite("bFixToPlanar", &ObstacleArguments::bFixToPlanar);
 
   /* Obstacle */
   py::class_<Obstacle, std::shared_ptr<Obstacle>>(m, "Obstacle");
@@ -85,11 +85,11 @@ void bindObstacles(py::module &m)
   /* SphereArguments */
   SphereArguments sa(0.1);  // Default arguments.
   py::class_<SphereArguments, std::shared_ptr<SphereArguments>>(m, "SphereArguments")
-      .def_readonly("radius", &SphereArguments::radius)
-      .def_readwrite("umax", &SphereArguments::umax)
-      .def_readwrite("tmax", &SphereArguments::tmax)
-      .def_readwrite("accel_decel", &SphereArguments::accel_decel)
-      .def_readwrite("bHemi", &SphereArguments::bHemi);
+    .def_readonly("radius", &SphereArguments::radius)
+    .def_readwrite("umax", &SphereArguments::umax)
+    .def_readwrite("tmax", &SphereArguments::tmax)
+    .def_readwrite("accel_decel", &SphereArguments::accel_decel)
+    .def_readwrite("bHemi", &SphereArguments::bHemi);
 
   /* ObstacleAndSphereArguments */
   py::class_<ObstacleAndSphereArguments,
@@ -105,7 +105,7 @@ void bindObstacles(py::module &m)
 
   /* Sphere */
   py::class_<Sphere, Obstacle, std::shared_ptr<Sphere>>(m, "SphereObstacle")
-      .def(py::init<SimulationData &, ObstacleAndSphereArguments>());
+    .def(py::init<SimulationData &, ObstacleAndSphereArguments>());
 }
 
 void pySimulationAddObstacle(Simulation &s, std::shared_ptr<Obstacle> obstacle)
