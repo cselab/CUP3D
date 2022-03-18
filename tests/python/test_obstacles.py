@@ -20,7 +20,6 @@ class TestObstacles(TestCaseEx):
         ]
 
         s = cup3d.Simulation(argv)
-        s.add_obstacle(cup3d.Sphere(position=[40.0, 10.0, 10.0], radius=8.0))
 
         # For now test only that nothing crashes.
         s.run()

@@ -12,7 +12,7 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-/** Struct passed to kernels in `apply_kernel` and `apply_stencil_kernel` functions.
+/** Struct passed to kernels in `applyKernel` and `applyStencilKernel` functions.
 
     Ideally, we would put all interesting quantities as struct members and let
     compiler optimize away unused ones. Although some basic tests show that
@@ -24,14 +24,14 @@ CubismUP_3D_NAMESPACE_BEGIN
 */
 struct CellInfo
 {
-  const cubism::BlockInfo &block_info;
+  const cubism::BlockInfo &blockInfo;
   int ix, iy, iz;
 
   // TODO: Refactor for AMR mesh.
-  std::array<Real, 3> get_pos() const { return block_info.pos<Real>(ix, iy, iz); }
-  int get_abs_ix() const { return ix + block_info.index[0] * FluidBlock::sizeX; }
-  int get_abs_iy() const { return iy + block_info.index[1] * FluidBlock::sizeY; }
-  int get_abs_iz() const { return iz + block_info.index[2] * FluidBlock::sizeZ; }
+  std::array<Real, 3> get_pos() const { return blockInfo.pos<Real>(ix, iy, iz); }
+  int getAbsIX() const { return ix + blockInfo.index[0] * FluidBlock::sizeX; }
+  int getAbsIY() const { return iy + blockInfo.index[1] * FluidBlock::sizeY; }
+  int getAbsIZ() const { return iz + blockInfo.index[2] * FluidBlock::sizeZ; }
 };
 
 
@@ -94,14 +94,15 @@ void applyStencilKernel(SimulationData &sim, cubism::StencilInfo stencil, Func f
     const cubism::StencilInfo stencil;
     Func func;
 
-    void operator()(LabMPI &lab, const cubism::BlockInfo &block_info, FluidBlock &out) const
+    void operator()(LabMPI &lab, const cubism::BlockInfo &blockInfo) const
     {
+      FluidBlock &out = *(FluidBlock *)blockInfo.ptrBlock;
       for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
       for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
       for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
-        StencilKernelLab lab_wrapper{lab, ix, iy, iz};
-        CellInfo info{block_info, ix, iy, iz};
-        func(lab_wrapper, info, out(ix, iy, iz));
+        StencilKernelLab labWrapper{lab, ix, iy, iz};
+        CellInfo info{blockInfo, ix, iy, iz};
+        func(labWrapper, info, out(ix, iy, iz));
       }
     }
   };
@@ -112,8 +113,9 @@ void applyStencilKernel(SimulationData &sim, cubism::StencilInfo stencil, Func f
     CellwiseOperator(SimulationData &s, const cubism::StencilInfo &stencil, Func func)
         : Operator(s), kernel{stencil, func} {}
 
-    void operator()(const Real /* dt */) override {
-      compute(kernel);
+    void operator()(const Real /* dt */) override
+    {
+      compute<LabMPI>(kernel, sim.grid, sim.grid);
     }
 
     std::string getName() { return "apply_stencil_kernel::CellwiseOperator"; }

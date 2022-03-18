@@ -20,7 +20,7 @@ static void _testPeriodicBoundaries(Simulation &s, StencilInfo stencil, int dx, 
 {
   // Reset the grid to some initial vlaue.
   applyKernel(s.sim, [](CellInfo info, FluidElement &e) {
-    e.u = getElementValue(info.get_abs_ix(), info.get_abs_iy(), info.get_abs_iz());
+    e.u = getElementValue(info.getAbsIX(), info.getAbsIY(), info.getAbsIZ());
   });
 
   // Shift everything in the direction (dx, dy, dz);
@@ -34,19 +34,19 @@ static void _testPeriodicBoundaries(Simulation &s, StencilInfo stencil, int dx, 
 
   // Check if everything is correct now.
   applyKernel(s.sim, [dx, dy, dz](CellInfo info, FluidElement &e) {
-    int aix = (info.get_abs_ix() - dx + CELLS_X) % CELLS_X;
-    int aiy = (info.get_abs_iy() - dy + CELLS_Y) % CELLS_Y;
-    int aiz = (info.get_abs_iz() - dz + CELLS_Z) % CELLS_Z;
+    int aix = (info.getAbsIX() - dx + CELLS_X) % CELLS_X;
+    int aiy = (info.getAbsIY() - dy + CELLS_Y) % CELLS_Y;
+    int aiz = (info.getAbsIZ() - dz + CELLS_Z) % CELLS_Z;
     double expected = getElementValue(aix, aiy, aiz);
     if (expected != e.tmpU) {
       fprintf(stderr, "local=(%d %d %d) global=(%d %d %d) block=(%d %d %d) is %f instead of %f\n",
               info.ix, info.iy, info.iz,
-              info.get_abs_ix(),
-              info.get_abs_iy(),
-              info.get_abs_iz(),
-              info.block_info.index[0],
-              info.block_info.index[1],
-              info.block_info.index[2],
+              info.getAbsIX(),
+              info.getAbsIY(),
+              info.getAbsIZ(),
+              info.blockInfo.index[0],
+              info.blockInfo.index[1],
+              info.blockInfo.index[2],
               e.tmpU, expected);
       fprintf(stderr, "Failed at shift (%d, %d, %d)\n", dx, dy, dz);;
       exit(1);
