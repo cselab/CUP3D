@@ -62,17 +62,7 @@ public:
   /// Insert the operator at the end of the pipeline.
   void insertOperator(std::shared_ptr<Operator> op);
 
-  inline void touch()
-  {
-    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
-    #pragma omp parallel for schedule(static)
-    for (int i = 0; i < (int)vInfo.size(); ++i)
-    {
-      const cubism::BlockInfo & info = vInfo[i];
-      FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-      b.clear();
-    }
-  }
+  void touch();
 };
 
 /** Create a Simulation object from a vector of command-line arguments.

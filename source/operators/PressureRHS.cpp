@@ -8,6 +8,7 @@
 
 #include "PressureRHS.h"
 #include "../obstacles/ObstacleVector.h"
+#include "../poisson/PoissonSolverAMR.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -379,6 +380,15 @@ struct PressureRHSObstacleVisitor : public ObstacleVisitor
 }
 
 PressureRHS::PressureRHS(SimulationData & s) : Operator(s) {}
+
+PressureRHS::~PressureRHS()
+{
+  if (sim.pressureSolver != nullptr)
+  {
+      delete sim.pressureSolver;
+      sim.pressureSolver = nullptr;
+  }
+}
 
 void PressureRHS::operator()(const Real dt)
 {

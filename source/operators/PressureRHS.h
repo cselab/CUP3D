@@ -10,24 +10,15 @@
 
 #include "Operator.h"
 
-#include "../poisson/PoissonSolverAMR.h"
-
 CubismUP_3D_NAMESPACE_BEGIN
 
 class PressureRHS : public Operator
 {
  public:
   PressureRHS(SimulationData & s);
-  ~PressureRHS()
-  {
-    if (sim.pressureSolver != nullptr)
-    {
-        delete sim.pressureSolver;
-        sim.pressureSolver = nullptr;
-    }
-  };
+  ~PressureRHS();
 
-  void operator()(const Real dt);
+  void operator()(Real dt) override;
 
   std::string getName() { return "PressureRHS"; }
 };

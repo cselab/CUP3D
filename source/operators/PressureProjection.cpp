@@ -7,6 +7,7 @@
 //
 
 #include "PressureProjection.h"
+#include "../poisson/PoissonSolverAMR.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -122,6 +123,15 @@ PressureProjection::PressureProjection(SimulationData & s) : Operator(s)
   pressureSolver = new PoissonSolverAMR(sim);
   sim.pressureSolver = pressureSolver;
 }
+
+PressureProjection::~PressureProjection()
+{
+  if (sim.pressureSolver != nullptr)
+  {
+    delete sim.pressureSolver;
+    sim.pressureSolver = nullptr;
+  }
+};
 
 void PressureProjection::operator()(const Real dt)
 {

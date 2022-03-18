@@ -417,4 +417,16 @@ void Simulation::insertOperator(std::shared_ptr<Operator> op)
   sim.pipeline.push_back(std::move(op));
 }
 
+void Simulation::touch()
+{
+  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+  #pragma omp parallel for schedule(static)
+  for (int i = 0; i < (int)vInfo.size(); ++i)
+  {
+    const cubism::BlockInfo & info = vInfo[i];
+    FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+    b.clear();
+  }
+}
+
 CubismUP_3D_NAMESPACE_END
