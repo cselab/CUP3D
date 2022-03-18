@@ -36,7 +36,6 @@ class ObstacleVector : public Obstacle
 
     void create() override;
     void finalize() override;
-    void Accept(ObstacleVisitor * visitor) override;
 
     std::vector<std::array<int, 2>> collidingObstacles();
 

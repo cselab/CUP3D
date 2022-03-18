@@ -108,20 +108,15 @@ class KernelIC_channelrandom
   }
 };
 
-struct InitialPenalization : public ObstacleVisitor
+}  // anonymous namespace
+
+static void initialPenalization(SimulationData& sim, const Real dt)
 {
-  FluidGridMPI * const grid;
-  const Real dt;
-  const Real * const uInf;
-  const std::vector<BlockInfo>& vInfo = grid->getBlocksInfo();
-
-  InitialPenalization(FluidGridMPI*g, const Real _dt,
-    const Real*const u) : grid(g), dt(_dt), uInf(u) { }
-
-  void visit(Obstacle* const obstacle)
-  {
+  const std::vector<BlockInfo>& vInfo = sim.grid->getBlocksInfo();
+  for (const auto& obstacle : sim.obstacle_vector->getObstacleVector()) {
     using CHI_MAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
     using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
+    // TODO: Refactor to use only one omp parallel.
     #pragma omp parallel
     {
       const auto& obstblocks = obstacle->getObstacleBlocks();
@@ -165,8 +160,6 @@ struct InitialPenalization : public ObstacleVisitor
       }
     }
   }
-};
-
 }
 
 void InitialConditions::operator()(const Real dt)
@@ -223,9 +216,7 @@ void InitialConditions::operator()(const Real dt)
       }
     }
     //store deformation velocities onto tmp fields:
-    ObstacleVisitor* visitor = new InitialPenalization(sim.grid, dt, sim.uinf.data());
-    sim.obstacle_vector->Accept(visitor);
-    delete visitor;
+    initialPenalization(sim, dt);
   }
 }
 

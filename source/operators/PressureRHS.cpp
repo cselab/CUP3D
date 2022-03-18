@@ -117,7 +117,7 @@ struct KernelDivPressure
   }
 };
 
-struct KernelPressureRHS : public ObstacleVisitor
+struct KernelPressureRHS
 {
   typedef typename FluidGridMPI::BlockType BlockType;
   SimulationData & sim;
@@ -125,16 +125,13 @@ struct KernelPressureRHS : public ObstacleVisitor
   PoissonSolverAMR * const solver = sim.pressureSolver;
   ObstacleVector * const obstacle_vector = sim.obstacle_vector;
   const int nShapes = obstacle_vector->nObstacles();
-  // modified before going into accept
-  const cubism::BlockInfo * info_ptr = nullptr;
-  Lab * lab_ptr = nullptr;
 
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
   const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, {FE_U, FE_V, FE_W, FE_TMPU, FE_TMPV, FE_TMPW});
 
   KernelPressureRHS(SimulationData& s) :sim(s) {}
 
-  void operator()(LabMPI & lab, const BlockInfo& info)
+  void operator()(LabMPI& lab, const BlockInfo& info) const
   {
     const Real h = info.h, fac = 0.5*h*h/dt;
     FluidBlock & __restrict__ b  = *(FluidBlock*) info.ptrBlock;
@@ -226,20 +223,12 @@ struct KernelPressureRHS : public ObstacleVisitor
     }
     if(nShapes == 0) return; // no need to account for obstacles
 
-    // first store the lab and info, then do visitor
-    assert(info_ptr == nullptr && lab_ptr == nullptr);
-    info_ptr =  & info; lab_ptr =   & lab;
-    ObstacleVisitor* const base = static_cast<ObstacleVisitor*> (this);
-    assert( base not_eq nullptr );
-    obstacle_vector->Accept( base );
-    info_ptr = nullptr; lab_ptr = nullptr;
+    for (const auto &obstacle : obstacle_vector->getObstacleVector())
+      visit(lab, info, obstacle.get());
   }
 
-  void visit(Obstacle* const obstacle)
+  void visit(Lab& lab, const BlockInfo& info, Obstacle* const obstacle) const
   {
-    assert(info_ptr not_eq nullptr && lab_ptr not_eq nullptr);
-    const BlockInfo& info = * info_ptr;
-    Lab& lab = * lab_ptr;
     const auto& obstblocks = obstacle->getObstacleBlocks();
     if (obstblocks[info.blockID] == nullptr) return;
 
@@ -334,18 +323,15 @@ struct KernelPressureRHS : public ObstacleVisitor
   }
 };
 
-struct PressureRHSObstacleVisitor : public ObstacleVisitor
+}  // anonymous namespace
+
+/// Add obstacle's udef to tmpU, tmpV and tmpW.
+static void kernelUpdateTmpUVW(SimulationData& sim)
 {
-  typedef typename FluidGridMPI::BlockType BlockType;
-  FluidGridMPI * const grid;
-  const std::vector<cubism::BlockInfo>& vInfo = grid->getBlocksInfo();
-
-  PressureRHSObstacleVisitor(FluidGridMPI*g) : grid(g) { }
-
-  void visit(Obstacle* const obstacle)
+  const std::vector<cubism::BlockInfo>& vInfo = sim.grid->getBlocksInfo();
+  #pragma omp parallel
   {
-    #pragma omp parallel
-    {
+    for (const auto &obstacle : sim.obstacle_vector->getObstacleVector()) {
       const auto& obstblocks = obstacle->getObstacleBlocks();
       #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < vInfo.size(); ++i)
@@ -375,8 +361,6 @@ struct PressureRHSObstacleVisitor : public ObstacleVisitor
       }
     }
   }
-};
-
 }
 
 PressureRHS::PressureRHS(SimulationData & s) : Operator(s) {}
@@ -418,11 +402,7 @@ void PressureRHS::operator()(const Real dt)
     //place Udef on tmpU,tmpV,tmpW
     const size_t nShapes = sim.obstacle_vector->nObstacles();
     if(nShapes > 0)
-    {
-      ObstacleVisitor* visitor = new PressureRHSObstacleVisitor(sim.grid);
-      sim.obstacle_vector->Accept(visitor);
-      delete visitor;
-    }
+      kernelUpdateTmpUVW(sim);
 
     KernelPressureRHS K(sim);
     cubism::compute<LabMPI> (K,sim.grid,sim.grid);

@@ -72,13 +72,6 @@ struct ObstacleArguments
   ObstacleArguments(const SimulationData & sim, cubism::ArgumentParser &parser);
 };
 
-
-struct ObstacleVisitor
-{
-  virtual ~ObstacleVisitor() {}
-  virtual void visit(Obstacle* const obstacle) = 0;
-};
-
 class Obstacle
 {
 protected:
@@ -159,8 +152,6 @@ public:
   Obstacle(SimulationData& s, const ObstacleArguments &args);
   Obstacle(SimulationData& s, cubism::ArgumentParser &parser);
   Obstacle(SimulationData& s) : sim(s) {  }
-
-  virtual void Accept(ObstacleVisitor * visitor);
 
   virtual void computeVelocities();//solve the 6x6 linear system to get transVel and angvel
   virtual void computeForces();    //compute quantities of interest for this obstacle

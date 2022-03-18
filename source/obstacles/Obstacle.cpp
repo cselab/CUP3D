@@ -488,11 +488,6 @@ void Obstacle::restart(std::string filename)
   }
 }
 
-void Obstacle::Accept(ObstacleVisitor * visitor)
-{
- visitor->visit(this);
-}
-
 void Obstacle::_writeComputedVelToFile()
 {
   if(sim.rank!=0 || sim.muteAll) return;

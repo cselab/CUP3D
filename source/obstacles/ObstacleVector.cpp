@@ -94,10 +94,4 @@ void ObstacleVector::restart(std::string filename)
     }
 }
 
-void ObstacleVector::Accept(ObstacleVisitor * visitor)
-{
-  for(size_t i=0;i<obstacles.size();++i)
-    obstacles[i]->Accept(visitor);
-}
-
 CubismUP_3D_NAMESPACE_END
