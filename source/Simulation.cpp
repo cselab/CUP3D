@@ -412,4 +412,9 @@ bool Simulation::timestep(const Real dt)
   return false;  // Not yet finished.
 }
 
+void Simulation::insertOperator(std::shared_ptr<Operator> op)
+{
+  sim.pipeline.push_back(std::move(op));
+}
+
 CubismUP_3D_NAMESPACE_END

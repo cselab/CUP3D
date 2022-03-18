@@ -1,58 +1,15 @@
 #include "Common.h"
-#include "../Simulation.h"
 #include "../obstacles/Obstacle.h"
-#include "../obstacles/Sphere.h"
+#include "../Simulation.h"
+#include "../SimulationData.h"
 #include "../operators/Operator.h"
 
-#include <mpi.h>
+CubismUP_3D_NAMESPACE_BEGIN
 
-using namespace cubismup3d;
-using namespace pybind11::literals;
 namespace py = pybind11;
+using namespace py::literals;
 
 namespace {
-
-/* Ensure that we load highest thread level we need. */
-struct CUPMPILoader
-{
-  CUPMPILoader()
-  {
-    int flag, provided;
-    MPI_Initialized(&flag);
-    if (!flag) {
-      MPI_Init_thread(0, nullptr, MPI_THREAD_MULTIPLE, &provided);
-    } else {
-      MPI_Query_thread(&provided);
-    }
-#ifdef CUP_ASYNC_DUMP
-    const auto SECURITY = MPI_THREAD_MULTIPLE;
-#else
-    const auto SECURITY = MPI_THREAD_FUNNELED;
-#endif
-    if (provided >= SECURITY)
-      return;
-    if (!flag)
-      fprintf(stderr, "Error: MPI implementation does not have the required thread support!\n");
-    else
-      fprintf(stderr, "Error: MPI does not implement or not initialized with the required thread support!\n");
-    fflush(stderr);
-    MPI_Abort(MPI_COMM_WORLD, 1);
-  }
-} cup_mpi_loader;
-
-}  // anonymous namespace
-
-static void bindSimulationData(py::module &m)
-{
-  py::class_<SimulationData>(m, "SimulationData")
-      .def_readonly("CFL", &SimulationData::CFL)
-      .def_readonly("BCx_flag", &SimulationData::BCx_flag, "Boundary condition in x-axis.")
-      .def_readonly("BCy_flag", &SimulationData::BCy_flag, "Boundary condition in y-axis.")
-      .def_readonly("BCz_flag", &SimulationData::BCz_flag, "Boundary condition in z-axis.")
-      .def_readonly("extent", &SimulationData::extent)
-      .def_readonly("uinf", &SimulationData::uinf)
-      .def_readonly("nsteps", &SimulationData::nsteps);
-}
 
 /// Checkpoint listener that stops the simulation if Ctrl-C was pressed.
 struct SIGINTHandler : Operator
@@ -71,6 +28,21 @@ struct SIGINTHandler : Operator
   }
 };
 
+}  // anonymous namespace
+
+
+void bindSimulationData(py::module &m)
+{
+  py::class_<SimulationData>(m, "SimulationData")
+      .def_readonly("CFL", &SimulationData::CFL)
+      .def_readonly("BCx_flag", &SimulationData::BCx_flag, "boundary condition in x-axis")
+      .def_readonly("BCy_flag", &SimulationData::BCy_flag, "boundary condition in y-axis")
+      .def_readonly("BCz_flag", &SimulationData::BCz_flag, "boundary condition in z-axis")
+      .def_readonly("extent", &SimulationData::extent)
+      .def_readonly("uinf", &SimulationData::uinf)
+      .def_readonly("nsteps", &SimulationData::nsteps)
+      .def_readonly("time", &SimulationData::time);
+}
 
 static std::shared_ptr<Simulation> pyCreateSimulation(
     const std::vector<std::string> &argv,
@@ -84,20 +56,17 @@ static std::shared_ptr<Simulation> pyCreateSimulation(
   return sim;
 }
 
-PYBIND11_MODULE(libcubismup3d, m)
+void bindSimulation(py::module &m)
 {
-  using namespace py::literals;
-  m.doc() = "CubismUP3D solver for incompressible Navier-Stokes";
-
-  bindSimulationData(m);
-
-  /* Simulation */
   py::class_<Simulation, std::shared_ptr<Simulation>>(m, "Simulation")
       .def(py::init(&pyCreateSimulation), "argv"_a, "comm"_a = 0)
-      .def_readonly("sim", &Simulation::sim, py::return_value_policy::reference_internal)
+      .def_readonly("data", &Simulation::sim,
+                    py::return_value_policy::reference_internal)
+      .def_property_readonly("obstacles", &Simulation::getObstacleVector)
       .def("run", &Simulation::run)
-      .def("add_obstacle", &Simulation_addObstacle)
-      .def("add_obstacle", &Simulation_parseAndAddObstacle);
-
-  bindObstacles(m);
+      .def("add_obstacle", &pySimulationAddObstacle)
+      .def("add_obstacle", &pySimulationParseAndAddObstacle)
+      .def("insert_operator", &Simulation::insertOperator, "op"_a);
 }
+
+CubismUP_3D_NAMESPACE_END

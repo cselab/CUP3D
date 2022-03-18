@@ -6,18 +6,16 @@
 
 #pragma once
 #include "../SimulationData.h"
-#include <Cubism/FluxCorrectionMPI.h>
 
 CubismUP_3D_NAMESPACE_BEGIN
 
 class Operator
 {
-  protected:
-   SimulationData & sim;
   public:
-   Operator(SimulationData & s) : sim(s) {  }
-   virtual ~Operator() = default;
-   virtual void operator()(const Real dt) = 0;
-   virtual std::string getName() = 0;
+  SimulationData& sim;
+  Operator(SimulationData& s) noexcept : sim(s) {  }
+  virtual ~Operator() = default;
+  virtual void operator()(Real dt) = 0;
+  virtual std::string getName() = 0;
 };
 CubismUP_3D_NAMESPACE_END

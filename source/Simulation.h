@@ -58,6 +58,10 @@ public:
    * Returns true if the simulation is finished.
    */
   bool timestep(Real dt);
+
+  /// Insert the operator at the end of the pipeline.
+  void insertOperator(std::shared_ptr<Operator> op);
+
   inline void touch()
   {
     std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
@@ -81,4 +85,5 @@ std::shared_ptr<Simulation> createSimulation(
     const std::vector<std::string> &argv);
 
 CubismUP_3D_NAMESPACE_END
+
 #endif // CubismUP_3D_Simulation_h

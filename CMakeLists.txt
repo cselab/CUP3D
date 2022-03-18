@@ -156,9 +156,13 @@ if (CUP_BUILD_PY)
     pybind11_add_module(
         ${PYLIB}
         MODULE
+        ${SRC_DIR}/bindings/Bindings.cpp
         ${SRC_DIR}/bindings/Obstacles.cpp
+        ${SRC_DIR}/bindings/Operators.cpp
         ${SRC_DIR}/bindings/Simulation.cpp
     )
+    # Manually add pybind11 include dirs before those from Python.
+    target_include_directories(${PYLIB} BEFORE PUBLIC ${pybind11_INCLUDE_DIRS})
     target_link_libraries(${PYLIB} PUBLIC ${CORE})
     target_link_libraries(${PYLIB} PRIVATE ${PRIVATEDEP})
 

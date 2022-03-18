@@ -50,9 +50,9 @@ static std::shared_ptr<ObstacleAndSphereArguments> createObstacleAndSphereArgume
 
   double length = py::cast<double>(kwargs_pop("length", 0.0));
   if (radius > 0 && length > 0 && radius != 0.5 * length) {
-    throw std::invalid_argument("Cannot specify both `radius` and `length`.");
+    throw std::invalid_argument("cannot specify both `radius` and `length`");
   } else if (radius <= 0 && length <= 0) {
-    throw std::invalid_argument("Expected a `radius` or `length`.");
+    throw std::invalid_argument("expected a `radius` or `length`");
   } else if (radius > 0) {
     length = 2.0 * radius;
   } else {
@@ -108,12 +108,12 @@ void bindObstacles(py::module &m)
       .def(py::init<SimulationData &, ObstacleAndSphereArguments>());
 }
 
-void Simulation_addObstacle(Simulation &s, std::shared_ptr<Obstacle> obstacle)
+void pySimulationAddObstacle(Simulation &s, std::shared_ptr<Obstacle> obstacle)
 {
   s.sim.obstacle_vector->addObstacle(std::move(obstacle));
 }
 
-void Simulation_parseAndAddObstacle(Simulation &S, pybind11::object obstacle_args)
+void pySimulationParseAndAddObstacle(Simulation &S, pybind11::object obstacle_args)
 {
   if (py::isinstance<ObstacleAndSphereArguments>(obstacle_args)) {
     auto args = py::cast<ObstacleAndSphereArguments>(obstacle_args);
