@@ -27,11 +27,6 @@ struct KernelAdvectDiffuse : public Discretization
     const Real mu = sim.nu;
     const Real coef;
     const std::array<Real, 3>& uInf = sim.uinf;
-    const int loopBeg = this->getStencilBeg();
-    const int loopEndX = CUP_BLOCK_SIZEX-1 + this->getStencilEnd();
-    const int loopEndY = CUP_BLOCK_SIZEY-1 + this->getStencilEnd();
-    const int loopEndZ = CUP_BLOCK_SIZEZ-1 + this->getStencilEnd();
-    const Real norUinf = 1 / std::max({std::fabs(uInf[0]), std::fabs(uInf[1]), std::fabs(uInf[2]), EPS});
     const StencilInfo stencil{this->getStencilBeg(), this->getStencilBeg(),
                               this->getStencilBeg(), this->getStencilEnd(),
                               this->getStencilEnd(), this->getStencilEnd(), false, {FE_U, FE_V, FE_W}};
