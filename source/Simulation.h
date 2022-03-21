@@ -26,7 +26,7 @@ public:
 
   SimulationData sim;
 
-  void refineGrid();
+  void initialGridRefinement();
   void _serialize(const std::string append = std::string());
   void _deserialize();
 
@@ -45,6 +45,9 @@ public:
   virtual ~Simulation() = default;
 
   virtual void run();
+
+  /// Manually trigger mesh adaptation.
+  void adaptMesh();
 
   /* Get reference to the obstacle container. */
   const std::vector<std::shared_ptr<Obstacle>> &getObstacleVector() const;

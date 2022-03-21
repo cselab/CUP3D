@@ -86,12 +86,11 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
   // Initial refinement of Grid
   if( sim.verbose )
     std::cout << "[CUP3D] Performing Initial Refinement of Grid.. " << std::endl;
-  refineGrid();
+  initialGridRefinement();
 }
 
-void Simulation::refineGrid()
+void Simulation::initialGridRefinement()
 {
-  // Initial Compression of Grid
   for (int l = 0 ; l < 3*sim.levelMax ; l++)
   {
     if( sim.verbose )
@@ -99,20 +98,27 @@ void Simulation::refineGrid()
     // CreateObstacles
     (*sim.pipeline[0])(0);
 
-    // Compression of Grid
-    sim.amr->Tag();
-    sim.lhs_amr->TagLike(sim.vInfo());
-    sim.z_amr  ->TagLike(sim.vInfo());
-    sim.amr->Adapt(sim.time,sim.verbose,false);
-    sim.lhs_amr->Adapt(sim.time,false,true);
-    sim.z_amr  ->Adapt(sim.time,false,true);
+    // Refinement or compression of Grid
+    adaptMesh();
 
-    //This may not be needed but has zero cost 
+    //This may not be needed but has zero cost
     if (l != 3*sim.levelMax-1) touch();
   }
 
   // Save Initial Flow Field to File
   if ( sim.saveFreq>0 || sim.saveTime>0 ) _serialize("init");
+}
+
+void Simulation::adaptMesh()
+{
+  sim.startProfiler("Mesh refinement");
+  sim.amr->Tag();
+  sim.lhs_amr->TagLike(sim.vInfo());
+  sim.z_amr  ->TagLike(sim.vInfo());
+  sim.amr->Adapt(sim.time,sim.verbose,false);
+  sim.lhs_amr->Adapt(sim.time,false,true);
+  sim.z_amr  ->Adapt(sim.time,false,true);
+  sim.stopProfiler();
 }
 
 const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() const
@@ -384,16 +390,7 @@ bool Simulation::timestep(const Real dt)
     sim.stopProfiler();
   }
   if (sim.step % 5 == 0 || sim.step < 10)
-  {
-    sim.startProfiler("Mesh refinement");
-    sim.amr->Tag();
-    sim.lhs_amr->TagLike(sim.vInfo());
-    sim.z_amr  ->TagLike(sim.vInfo());
-    sim.amr->Adapt(sim.time,sim.verbose,false);
-    sim.lhs_amr->Adapt(sim.time,false,true);
-    sim.z_amr  ->Adapt(sim.time,false,true);
-    sim.stopProfiler();
-  }
+    adaptMesh();
   sim.step++;
   sim.time += dt;
 
