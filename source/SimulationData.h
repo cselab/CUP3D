@@ -107,6 +107,7 @@ struct SimulationData
 
   // Dump Settingas
   int freqDiagnostics = 0;
+  int freqProfiler = 0;
   int saveFreq = 0;
   bool bDump = false;
   bool verbose = false;

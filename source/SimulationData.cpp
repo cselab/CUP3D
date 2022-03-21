@@ -77,6 +77,9 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   // DISSIPATION DIAGNOSTIC
   freqDiagnostics = parser("-freqDiagnostics").asInt(100);
 
+  // PROFILER
+  freqProfiler = parser("-freqProfiler").asInt(0);
+
   // POISSON SOLVER
   PoissonErrorTol = parser("-poissonTol").asDouble(1e-6); // absolute error
   PoissonErrorTolRel = parser("-poissonTolRel").asDouble(1e-4); // relative error

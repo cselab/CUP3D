@@ -62,6 +62,9 @@ public:
    */
   bool timestep(Real dt);
 
+  /// Compute vorticity and store to tmpU, tmpV and tmpW.
+  void computeVorticity();
+
   /// Insert the operator at the end of the pipeline.
   void insertOperator(std::shared_ptr<Operator> op);
 

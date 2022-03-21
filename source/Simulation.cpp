@@ -242,10 +242,7 @@ void Simulation::_serialize(const std::string append)
   name<<std::setfill('0')<<std::setw(9)<<sim.step;
   auto * grid2Dump = sim.grid;
   if (sim.dumpOmega || sim.dumpOmegaX || sim.dumpOmegaY || sim.dumpOmegaZ)
-  {
-    ComputeVorticity  FindOmega(sim);
-    FindOmega(0);
-  }
+    computeVorticity();
   if (sim.dumpP        ) DumpHDF5_MPI<StreamerPressure      , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerPressure       ::prefix() + name.str(),sim.path4serialization);
   if (sim.dumpChi      ) DumpHDF5_MPI<StreamerChi           , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerChi            ::prefix() + name.str(),sim.path4serialization);
   if (sim.dumpOmega    ) DumpHDF5_MPI<StreamerTmpVector     , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVector      ::prefix() + name.str(),sim.path4serialization);
@@ -357,7 +354,10 @@ Real Simulation::calcMaxTimestep()
 
   if( sim.rank == 0 ) {
     printf("=======================================================================\n");
-    printf("[CUP3D] step: %d, time: %f, dt: %.2e, uinf: {%f %f %f}, maxU:%f, minH:%f, CFL:%.2e, lambda:%.2e, collision?: %d \n",sim.step,sim.time, sim.dt, sim.uinf[0],sim.uinf[1],sim.uinf[2], sim.uMax_measured, hMin, CFL, sim.lambda, sim.bCollision);
+    printf("[CUP3D] step: %d, time: %f, dt: %.2e, uinf: {%f %f %f}, maxU:%f, minH:%f, CFL:%.2e, lambda:%.2e, collision?:%d, blocks:%zu\n",
+           sim.step,sim.time, sim.dt, sim.uinf[0], sim.uinf[1], sim.uinf[2],
+           sim.uMax_measured, hMin, CFL, sim.lambda, sim.bCollision,
+           sim.vInfo().size());
   }
 
   if (sim.step > sim.step_2nd_start)
@@ -396,6 +396,9 @@ bool Simulation::timestep(const Real dt)
 
   if( sim.bDump ) _serialize();
 
+  if (sim.freqProfiler > 0 && sim.step % sim.freqProfiler == 0)
+    sim.printResetProfiler();
+
   if ((sim.endTime>0 && sim.time>sim.endTime) ||
       (sim.nsteps!=0 && sim.step>=sim.nsteps) ) {
     if(sim.verbose)
@@ -407,6 +410,12 @@ bool Simulation::timestep(const Real dt)
   }
 
   return false;  // Not yet finished.
+}
+
+void Simulation::computeVorticity()
+{
+  ComputeVorticity findOmega(sim);
+  findOmega(0);
 }
 
 void Simulation::insertOperator(std::shared_ptr<Operator> op)
