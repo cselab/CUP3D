@@ -157,7 +157,7 @@ if (CUP_BUILD_PY)
     pybind11_add_module(
         ${PYLIB}
         MODULE
-        "${SRC_DIR}/operators/ImportExport.cpp"
+        "${SRC_DIR}/operators/ImportExportUniform.cpp"
         "${SRC_DIR}/bindings/Bindings.cpp"
         "${SRC_DIR}/bindings/Fields.cpp"
         "${SRC_DIR}/bindings/Obstacles.cpp"

@@ -40,8 +40,8 @@ void bindSimulationData(py::module &m)
     .def_readonly("BCz_flag", &SimulationData::BCz_flag, "boundary condition in z-axis")
     .def_readonly("extent", &SimulationData::extent)
     .def_readonly("uinf", &SimulationData::uinf)
-    .def_readonly("nsteps", &SimulationData::nsteps)
-    .def_readonly("time", &SimulationData::time);
+    .def_readwrite("nsteps", &SimulationData::nsteps)
+    .def_readwrite("time", &SimulationData::time);
 }
 
 static std::shared_ptr<Simulation> pyCreateSimulation(
@@ -64,10 +64,13 @@ void bindSimulation(py::module &m)
                   py::return_value_policy::reference_internal)
     .def_property_readonly("fields", [](Simulation *sim) { return PyFieldsView{sim}; })
     .def_property_readonly("obstacles", &Simulation::getObstacleVector)
-    .def("run", &Simulation::run)
     .def("add_obstacle", &pySimulationAddObstacle)
     .def("add_obstacle", &pySimulationParseAndAddObstacle)
-    .def("insert_operator", &Simulation::insertOperator, "op"_a);
+    .def("adapt_mesh", &Simulation::adaptMesh)
+    .def("compute_vorticity", &Simulation::computeVorticity,
+         "compute vorticity and store to tmpU, tmpV and tmpW fields")
+    .def("insert_operator", &Simulation::insertOperator, "op"_a)
+    .def("run", &Simulation::run);
 }
 
 CubismUP_3D_NAMESPACE_END

@@ -101,7 +101,7 @@ public:
   std::array<bool, 3> bFixFrameOfRef    = {{false, false, false}};//set to true if 'camera' will follow the obstacle in that direction
   std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};//set to true if obstacle is forced
   std::array<bool, 3> bBlockRotation    = {{false, false, false}};//set to true if obstacle is not allowed to rotate (forced)
-  Real transVel_imposed[3]= {0,0,0}; //prescribed velocity (if the obstacle is forced)
+  std::array<Real, 3> transVel_imposed  = {{0,0,0}}; //prescribed velocity (if the obstacle is forced)
 
   //auxiliary arrays used for 2nd order time integration of obstacle's position
   Real old_position  [3] =   {0,0,0};

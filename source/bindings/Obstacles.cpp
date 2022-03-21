@@ -10,6 +10,11 @@ namespace py = pybind11;
 
 CubismUP_3D_NAMESPACE_BEGIN
 
+// TODO: Fix the init phase. Currently it is not really possible to add
+// obstaces dynamically, because they have to be initialized in the middle of
+// Simulation::init(). The solution would be to split init() in half.
+// TODO: Refactor the complicated ObstacleArguments interface.
+
 #define ATTR_FROM_KWARGS(o, item) \
       do { \
         (o).item = py::cast<decltype((o).item)>(kwargs_pop(#item, (o).item)); \
@@ -80,7 +85,8 @@ void bindObstacles(py::module &m)
     .def_readwrite("bFixToPlanar", &ObstacleArguments::bFixToPlanar);
 
   /* Obstacle */
-  py::class_<Obstacle, std::shared_ptr<Obstacle>>(m, "Obstacle");
+  py::class_<Obstacle, std::shared_ptr<Obstacle>>(m, "Obstacle")
+    .def_readwrite("v_imposed", &Obstacle::transVel_imposed);
 
   /* SphereArguments */
   SphereArguments sa(0.1);  // Default arguments.

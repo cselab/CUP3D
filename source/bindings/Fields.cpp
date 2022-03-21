@@ -11,6 +11,23 @@ using namespace py::literals;
 
 namespace {
 
+/// View into all blocks of one of the 8 fluid component.
+/// TODO: __getitem__ etc. once needed
+struct PyBlocksView
+{
+  Simulation *sim;
+  int component;
+
+  py::str str() const
+  {
+    return py::str("_BlocksView(sim={}, component={})").format(sim, component);
+  }
+  size_t numBlocks() const
+  {
+    return sim->sim.grid->getBlocksInfo().size();
+  }
+};
+
 /// View into one of the 8 fluid components.
 struct PyFieldView
 {
@@ -62,9 +79,23 @@ static auto fieldViewProperty(int which)
 
 void bindFields(py::module &m)
 {
+  m.attr("BLOCK_SIZE") = py::make_tuple(
+      (int)FluidBlock::sizeX,
+      (int)FluidBlock::sizeY,
+      (int)FluidBlock::sizeZ);
+
+  // TODO: __getitem__ and PyBlockView.
+  py::class_<PyBlocksView>(m, "_BlocksView")
+    .def("__str__", &PyBlocksView::str)
+    .def("__repr__", &PyBlocksView::str)
+    .def("__len__", &PyBlocksView::numBlocks, "number of blocks of a grid");
+
   py::class_<PyFieldView>(m, "_FieldView")
     .def("__str__", &PyFieldView::str)
     .def("__repr__", &PyFieldView::str)
+    .def_property_readonly(
+        "blocks",
+        [](PyFieldView view) { return PyBlocksView{view.sim, view.component}; })
     .def("load_uniform", &PyFieldView::loadUniform, "field"_a.noconvert(),
          "Import field from a contiguous matrix representing the fully "
          "refined uniform grid. This function does not affect the AMR mesh "
@@ -86,4 +117,3 @@ void bindFields(py::module &m)
 }
 
 CubismUP_3D_NAMESPACE_END
-
