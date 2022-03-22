@@ -1,25 +1,15 @@
 #!/bin/bash
-SETTINGSNAME=$1
-BASENAME=$2
 if [ $# -lt 2 ] ; then
   echo "Usage "$0" SETTINGSNAME BASENAME"
   exit 1
 fi
+SETTINGSNAME=$1
+BASENAME=$2
 BASEPATH=${SCRATCH}/RUNS/
-#BASEPATH=~/RUNS/
 
-INTERACTIVE=0
-NNODE=1
-
-if [ ! -f $SETTINGSNAME ];then
-    echo ${SETTINGSNAME}" not found! - exiting"
-    exit -1
-fi
 source $SETTINGSNAME
-
 FOLDER=${BASEPATH}${BASENAME}
 mkdir -p ${FOLDER}
-
 cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
 cp ../bin/simulation ${FOLDER}/simulation
@@ -31,4 +21,4 @@ export OMP_NUM_THREADS=1
 echo $OPTIONS > settings.txt
 export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH
 
-mpirun -n 128 --map-by core:PE=1 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
+mpirun -n 36 --map-by core:PE=1 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
