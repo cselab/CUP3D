@@ -363,6 +363,7 @@ int main(int argc, char **argv)
     }
   }
   std::sort(filenames.begin(),filenames.end());
+  MPI_Barrier(MPI_COMM_WORLD);
   for (size_t i = 0 ; i < filenames.size(); i+= size)
   {
     if (i+rank >= filenames.size()) continue;
