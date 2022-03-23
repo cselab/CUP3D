@@ -78,7 +78,12 @@ class CurvatureDefinedFishData : public FishMidlineData
   CurvatureDefinedFishData(Real L, Real T, Real phi, Real _h, const Real _ampFac)
   : FishMidlineData(L, T, phi, _h, _ampFac),
     rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm)),
-    rT(_alloc(Nm)),vT(_alloc(Nm)), rC_T(_alloc(Nm)),vC_T(_alloc(Nm)), rB_T(_alloc(Nm)),vB_T(_alloc(Nm)) { }
+    rT(_alloc(Nm)),vT(_alloc(Nm)), rC_T(_alloc(Nm)),vC_T(_alloc(Nm)), rB_T(_alloc(Nm)),vB_T(_alloc(Nm))
+    {
+      Tman_start = -1;
+      Tman_finish = -1;
+      Lman = 0;
+    }
 
   void correctTrajectory(const Real dtheta, const Real vtheta)
   {
@@ -121,16 +126,37 @@ class CurvatureDefinedFishData : public FishMidlineData
 void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext,
                                        const std::vector<Real>& input)
 {
-  if (input.size()>1) {
-    // printf("Turning by %g at tsim %g with tact %g.\n", input[0], time, l_tnext);
+  if (input.size()==3) //actions are tail-beat frequency, midline curvature and pitching motion
+  {
+    //1.midline curvature
+    rlBendingScheduler.Turn(input[0], l_tnext);
+
+    //2.tail-beat frequency
+    //first, shift time to  previous turn node
+    timeshift += (l_tnext-time0)/periodPIDval;
+    time0 = l_tnext;
+    periodPIDval = Tperiod*(1.+input[1]);
+    periodPIDdif = 0;
+
+    //3.pitching motion
+    if (time > Tman_finish)
+    {
+      Tman_start = time;
+      Tman_finish = time + 0.25*Tperiod;
+      Lman = input[2];
+    }
+  }
+  else if (input.size()==2) //actions are tail-beat frequency and midline curvature
+  {
     rlBendingScheduler.Turn(input[0], l_tnext);
     //first, shift time to  previous turn node
     timeshift += (l_tnext-time0)/periodPIDval;
     time0 = l_tnext;
     periodPIDval = Tperiod*(1.+input[1]);
     periodPIDdif = 0;
-  } else if (input.size()>0) {
-    // printf("Turning by %g at tsim %g with tact %g.\n", input[0], time, l_tnext);
+  }
+  else if (input.size() == 1) //action is midline curvature
+  {
     rlBendingScheduler.Turn(input[0], l_tnext);
   }
 }
@@ -186,6 +212,9 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
   // solve frenet to compute midline parameters
   //Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
   Frenet3D::solve(Nm, rS, rK, vK, rT, vT, rX, rY, rZ, vX, vY, vZ, norX, norY, norZ, vNorX, vNorY, vNorZ, binX, binY, binZ, vBinX, vBinY, vBinZ);
+
+  if (std::fabs(Lman) > 1e-6*length)
+    performPitchingMotion(t);
 }
 
 void CurvatureDefinedFishData::performPitchingMotion(const Real t)
