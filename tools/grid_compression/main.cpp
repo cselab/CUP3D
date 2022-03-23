@@ -105,16 +105,15 @@ void convert_to_float(std::string filename)
   for (size_t i = 0 ; i < blocks ; i++)
   {
     int C=1;
-    if (levels[i] == 6) C = 2;
-    //if (levels[i] == 5) C = 2;
+    //if (levels[i] == 6) C = 2;
     for (int z = 0 ; z < nz ; z+=C)
     for (int y = 0 ; y < ny ; y+=C)
     for (int x = 0 ; x < nx ; x+=C)
     {
       bool store = true;
+      std::vector<float> bbb;
       for (int j = 0 ; j < NCHANNELS; j++)
       {
-	//data_c[(i*nx/C*ny/C+y/C*nx/C+x/C)*NCHANNELS+j] = 0.0;
 	float element = 0.0;
         for (int zl = z; zl < z+C; zl++)
         for (int yl = y; yl < y+C; yl++)
@@ -125,9 +124,10 @@ void convert_to_float(std::string filename)
         element /= (C*C*C);
 	if (std::abs(element) < 1e-4) store = false;
 	if (store)
-		data_c.push_back(element);
+                bbb.push_back(element);
       }
-      if (!store) continue;
+      if (bbb.size() != NCHANNELS) continue;
+      for (int j = 0 ; j < NCHANNELS; j++) data_c.push_back(bbb[j]);
 
       const size_t bbase000 = (i*ny*nx*nz+ z     *nx*ny+ y     *nx+x    )*ptsPerElement*dimension;
       const size_t bbase100 = (i*ny*nx*nz+ z     *nx*ny+ y     *nx+x+C-1)*ptsPerElement*dimension;
