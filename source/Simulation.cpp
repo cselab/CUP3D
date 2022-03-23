@@ -383,14 +383,15 @@ bool Simulation::timestep(const Real dt)
   if (bDumpTime) sim.nextSaveTime += sim.saveTime;
   sim.bDump = (bDumpFreq || bDumpTime);
 
+  //The mesh be adapted before objects are placed on grid
+  if (sim.step % 5 == 0 || sim.step < 10) adaptMesh();
+
   for (size_t c=0; c< sim.pipeline.size() ; c++)
   {
     sim.startProfiler(sim.pipeline[c]->getName());
     (*sim.pipeline[c])(dt);
     sim.stopProfiler();
   }
-  if (sim.step % 5 == 0 || sim.step < 10)
-    adaptMesh();
   sim.step++;
   sim.time += dt;
 
