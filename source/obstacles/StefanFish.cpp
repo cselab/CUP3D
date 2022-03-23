@@ -47,6 +47,18 @@ class CurvatureDefinedFishData : public FishMidlineData
   // next scheduler is used for midline-bending control points for RL:
   Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
 
+  // pitching motion parameters 
+  // (used to make the fish move in three dimensions and allow it to leave the plane it started on)
+  Real Tman_start ; //pitching motion start time
+  Real Tman_finish; //pitching motion final time
+  Real Lman;        //pitching motion is perfomed by taking the midline computed from the Frenet 
+                    //equations and wrapping it around a cylinder that is parallel to the y-axis
+                    //This cylinder has radius = Lman * length.
+                    //Sharper turns have smaller radius.
+  //this controls the transition of the cylinder radius from infinity to Lman*length and then
+  //back to infinity, when Tman_start < t < Tman_finish
+  Schedulers::ParameterSchedulerVector<1> turnZScheduler; 
+
  protected:
   Real * const rK; //curvature kappa(s,t) of midline
   Real * const vK; //time derivative of curvature
@@ -100,6 +112,10 @@ class CurvatureDefinedFishData : public FishMidlineData
   }
 
   void computeMidline(const Real time, const Real dt) override;
+
+  void performPitchingMotion(const Real time);
+
+  void recomputeNormalVectors();
 };
 
 void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext,
@@ -160,18 +176,169 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
     assert(not std::isinf(vK[i]));
   }
 
-  //need to come up with something for midline torsion here, use zero values for now
-  for(int i=0; i<Nm; ++i)
-  {
-    //const Real s = rS[i];
-    //rT[i] = A*(exp(-30*s)-K*exp(-100*(s-0.2)*(s-0.2)));
-    rT[i] = 0.0;
-    vT[i] = 0.0;
-  }
+  //could come up with something for midline torsion here, use zero values for now
+  //for(int i=0; i<Nm; ++i)
+  //{
+  //  rT[i] = ...
+  //  vT[i] = ...
+  //}
 
   // solve frenet to compute midline parameters
   //Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
   Frenet3D::solve(Nm, rS, rK, vK, rT, vT, rX, rY, rZ, vX, vY, vZ, norX, norY, norZ, vNorX, vNorY, vNorZ, binX, binY, binZ, vBinX, vBinY, vBinZ);
+}
+
+void CurvatureDefinedFishData::performPitchingMotion(const Real t)
+{
+  const int sgn = Lman > 0 ? +1:-1;
+  const Real Rbig = sgn * 50.0 * length; //"infinite" radius for the cylinder 
+  const Real p    = 0.2;//For the first 20% of the total pitching motion time, the cylinder radius 
+                        //goes from Rbig to Lman*length. For the next 60% it stays constant and for
+                        //the last 20% it transitions back to Rbig. 
+  if (t > Tman_finish || t < Tman_start) return;
+
+  //The Scheduler class only works with std::array, so we had to do the following:
+  std::array<Real,1> R;
+  std::array<Real,1> Rdot;
+  const Real dT = Tman_finish - Tman_start;
+
+  if ( t <= Tman_start + p * dT ) 
+  {
+     const std::array<Real,1> RZero {Rbig};
+     const std::array<Real,1> Rvalue{Lman*length};
+     turnZScheduler.transition(t, Tman_start, Tman_start + p*dT, RZero, Rvalue);
+  }
+  else if ( t >= Tman_finish - p*dT)
+  {
+     const std::array<Real,1> Rvalue{Rbig};
+     const std::array<Real,1> RZero{Lman*length};
+     turnZScheduler.transition(t,Tman_finish - p*dT,Tman_finish, RZero, Rvalue);
+  }
+
+  turnZScheduler.gimmeValues(t,R,Rdot); 
+
+  //for a given cylinder with radius R and Rdot = dR/dt, compute the new midline
+  //we do this by wrapping it around the cylinder. 
+  //All y-related quantities do not change. The last point (tail of fish, s=Nm-1) does not move.
+  for(int i=0; i<Nm; i++)
+  {
+    const Real d     = length - rS[i];
+    const Real theta = d/R[0];
+    const Real cos_theta = cos(theta);
+    const Real sin_theta = sin(theta);
+
+    rX[i] = rX[i] + d-R[0]*sin_theta;
+    rZ[i] = rZ[i] + R[0]*(1.0-cos_theta);
+
+    //This is how a vector (vX,0) gets rotated and wrapped around the cylinder
+    const Real vxF =  vX[i]*cos_theta;
+    const Real vzF = -vX[i]*sin_theta;
+
+    //The final velocities are the rotated vector plus the d/dt contribution of R(t)
+    vX[i] = vxF + Rdot[0]*(theta*cos_theta - sin_theta);
+    vZ[i] = vzF + Rdot[0]*(1.0 - cos_theta - sin_theta * theta);
+  }
+
+  recomputeNormalVectors();
+}
+
+void CurvatureDefinedFishData::recomputeNormalVectors()
+{
+  //compute normal and binormal vectors for a given midline
+  for(int i=1; i<Nm-1; i++)
+  {
+    //2nd order finite difference for non-uniform grid
+    const Real hp = rS[i+1]-rS[i];
+    const Real hm = rS[i]-rS[i-1];
+    const Real frac = hp/hm;
+    const Real am = -frac*frac;
+    const Real a  =  frac*frac -1.0;
+    const Real ap = 1.0;
+    const Real denom = 1.0 / ( hp * (1.0 + frac) );
+    const Real tX  = (am * rX[i-1] + a * rX[i] + ap * rX[i+1])*denom;
+    const Real tY  = (am * rY[i-1] + a * rY[i] + ap * rY[i+1])*denom;
+    const Real tZ  = (am * rZ[i-1] + a * rZ[i] + ap * rZ[i+1])*denom;
+    const Real dtX = (am * vX[i-1] + a * vX[i] + ap * vX[i+1])*denom;
+    const Real dtY = (am * vY[i-1] + a * vY[i] + ap * vY[i+1])*denom;
+    const Real dtZ = (am * vZ[i-1] + a * vZ[i] + ap * vZ[i+1])*denom;
+    const Real BDx = norX[i];
+    const Real BDy = norY[i];
+    const Real BDz = norZ[i];
+    const Real dBDx = vNorX[i];
+    const Real dBDy = vNorY[i];
+    const Real dBDz = vNorZ[i];
+    const Real dot = BDx*tX+BDy*tY+BDz*tZ;
+    const Real ddot = dBDx*tX+dBDy*tY+dBDz*tZ + BDx*dtX+BDy*dtY+BDz*dtZ;
+
+    //Project the normal vector computed by the Frenet equations onto (-ty,tx,tz) which is
+    //a vector on the plane that is perpendicular to the tangent vector t.
+    //This projection defines the new normal vector.
+    norX[i] = BDx - dot*tX;
+    norY[i] = BDy - dot*tY;
+    norZ[i] = BDz - dot*tZ;
+    const Real inormn = 1.0/sqrt(norX[i]*norX[i]+norY[i]*norY[i]+norZ[i]*norZ[i]);
+    norX[i] *= inormn;
+    norY[i] *= inormn;
+    norZ[i] *= inormn;
+    vNorX[i] = dBDx - ddot*tX - dot*dtX;
+    vNorY[i] = dBDy - ddot*tY - dot*dtY;
+    vNorZ[i] = dBDz - ddot*tZ - dot*dtZ;
+    //Compute the bi-normal vector as t x n
+    binX[i] =  tY*norZ[i]-tZ*norY[i];
+    binY[i] =  tZ*norX[i]-tX*norZ[i];
+    binZ[i] =  tX*norY[i]-tY*norX[i];
+    const Real inormb = 1.0/sqrt(binX[i]*binX[i]+binY[i]*binY[i]+binZ[i]*binZ[i]);
+    binX[i] *= inormb;
+    binY[i] *= inormb;
+    binZ[i] *= inormb;
+    vBinX[i] =  (dtY*norZ[i]+tY*vNorZ[i])-(dtZ*norY[i]+tZ*vNorY[i]);
+    vBinY[i] =  (dtZ*norX[i]+tZ*vNorX[i])-(dtX*norZ[i]+tX*vNorZ[i]);
+    vBinZ[i] =  (dtX*norY[i]+tX*vNorY[i])-(dtY*norX[i]+tY*vNorX[i]);
+  }
+
+  //take care of first and last point
+  for (int i = 0 ; i <= Nm-1; i+= Nm-1)
+  {
+      const int ipm = (i == Nm - 1) ? i-1:i+1;
+      const Real ids  = 1.0/(rS[ipm]-rS[i]);
+      const Real tX  = (rX[ipm]-rX[i])*ids;
+      const Real tY  = (rY[ipm]-rY[i])*ids;
+      const Real tZ  = (rZ[ipm]-rZ[i])*ids;
+      const Real dtX = (vX[ipm]-vX[i])*ids;
+      const Real dtY = (vY[ipm]-vY[i])*ids;
+      const Real dtZ = (vZ[ipm]-vZ[i])*ids;
+
+      const Real BDx = norX[i];
+      const Real BDy = norY[i];
+      const Real BDz = norZ[i];
+      const Real dBDx = vNorX[i];
+      const Real dBDy = vNorY[i];
+      const Real dBDz = vNorZ[i];
+      const Real dot = BDx*tX+BDy*tY+BDz*tZ;
+      const Real ddot = dBDx*tX+dBDy*tY+dBDz*tZ + BDx*dtX+BDy*dtY+BDz*dtZ;
+
+      norX[i] = BDx - dot*tX;
+      norY[i] = BDy - dot*tY;
+      norZ[i] = BDz - dot*tZ;
+      const Real inormn = 1.0/sqrt(norX[i]*norX[i]+norY[i]*norY[i]+norZ[i]*norZ[i]);
+      norX[i] *= inormn;
+      norY[i] *= inormn;
+      norZ[i] *= inormn;
+      vNorX[i] = dBDx - ddot*tX - dot*dtX;
+      vNorY[i] = dBDy - ddot*tY - dot*dtY;
+      vNorZ[i] = dBDz - ddot*tZ - dot*dtZ;
+
+      binX[i] =  tY*norZ[i]-tZ*norY[i];
+      binY[i] =  tZ*norX[i]-tX*norZ[i];
+      binZ[i] =  tX*norY[i]-tY*norX[i];
+      const Real inormb = 1.0/sqrt(binX[i]*binX[i]+binY[i]*binY[i]+binZ[i]*binZ[i]);
+      binX[i] *= inormb;
+      binY[i] *= inormb;
+      binZ[i] *= inormb;
+      vBinX[i] =  (dtY*norZ[i]+tY*vNorZ[i])-(dtZ*norY[i]+tZ*vNorY[i]);
+      vBinY[i] =  (dtZ*norX[i]+tZ*vNorX[i])-(dtX*norZ[i]+tX*vNorZ[i]);
+      vBinZ[i] =  (dtX*norY[i]+tX*vNorY[i])-(dtY*norX[i]+tY*vNorX[i]);
+  }
 }
 
 void StefanFish::save(std::string filename)
