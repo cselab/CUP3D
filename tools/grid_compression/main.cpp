@@ -11,7 +11,7 @@
 #include <variant>
 namespace fs = std::filesystem;
 
-void convert_to_float(std::string filename)
+void convert_to_float(std::string filename,std::string gridname)
 {
   const int dimension = 3;
   const int ptsPerElement = 8;
@@ -23,7 +23,7 @@ void convert_to_float(std::string filename)
 
   H5open();
 
-  hid_t file_id = H5Fopen((filename+".h5").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
+  hid_t file_id      = H5Fopen((filename+".h5").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
 
   std::vector<short int>levels;
   {
@@ -67,11 +67,14 @@ void convert_to_float(std::string filename)
     H5Sclose(fspace_id);
     blocks = dim / nx / ny / nz;
   }
+
+
+  hid_t file_id_grid = H5Fopen((gridname+".h5").c_str(), H5F_ACC_RDWR, H5P_DEFAULT);
   std::vector<float>vertices;
   {
     hid_t dataset_id, fspace_id;
     hsize_t dim;
-    dataset_id = H5Dopen2(file_id, "vertices", H5P_DEFAULT);
+    dataset_id = H5Dopen2(file_id_grid, "vertices", H5P_DEFAULT);
     fspace_id = H5Dget_space(dataset_id);
     H5Sget_simple_extent_dims(fspace_id, &dim, NULL);
     hid_t dtype =  H5Dget_type(dataset_id);
@@ -94,6 +97,7 @@ void convert_to_float(std::string filename)
     H5Sclose(fspace_id);
   }
   H5Fclose(file_id);
+  H5Fclose(file_id_grid);
 
   const int NCHANNELS =  (vertices.size() == amr.size()*ptsPerElement*dimension) ? 1 : 3;
   blocks /= NCHANNELS;
@@ -126,7 +130,7 @@ void convert_to_float(std::string filename)
 	if (store)
                 bbb.push_back(element);
       }
-      if (bbb.size() != NCHANNELS) continue;
+      if (bbb.size() != (size_t)NCHANNELS) continue;
       for (int j = 0 ; j < NCHANNELS; j++) data_c.push_back(bbb[j]);
 
       const size_t bbase000 = (i*ny*nx*nz+ z     *nx*ny+ y     *nx+x    )*ptsPerElement*dimension;
@@ -349,6 +353,7 @@ int main(int argc, char **argv)
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
   std::vector<std::string> filenames;
+  std::vector<std::string> gridnames;
   std::string path("./");
   std::string ext(".h5");
   for (auto &p : fs::recursive_directory_iterator(path))
@@ -356,19 +361,39 @@ int main(int argc, char **argv)
     if (p.path().extension() == ext)
     {
       std::string s = p.path().stem().string();
-      if ( s.back() != 's' && s.back() != 'm')
+      std::string g = p.path().stem().string();
+      g.resize(4);
+      if ( s.back() != 's' && s.back() != 'm' && g != "grid")
       {
         filenames.push_back(p.path().stem().string());
+      }
+      
+      if ( g  == "grid" )
+      {
+        gridnames.push_back(p.path().stem().string());
       }
     }
   }
   std::sort(filenames.begin(),filenames.end());
+  std::sort(gridnames.begin(),gridnames.end());
   MPI_Barrier(MPI_COMM_WORLD);
-  for (size_t i = 0 ; i < filenames.size(); i+= size)
+  if (filenames.size() % gridnames.size() != 0)
   {
-    if (i+rank >= filenames.size()) continue;
-    std::cout << "converting " << filenames[i+rank]<< ":"<< i+rank << " /" << filenames.size() << std::endl;
-    convert_to_float(filenames[i+rank]);
+    std::cerr << "Number of files and grids are not compatible. " << std::endl;
+    MPI_Abort(MPI_COMM_WORLD,1);
+  }
+  const size_t fields = filenames.size() / gridnames.size();
+  for (size_t f = 0; f < fields ; f++)
+  {
+     MPI_Barrier(MPI_COMM_WORLD);
+     for (size_t g = 0 ; g < gridnames.size(); g+= size)
+     {
+       const size_t i = f * gridnames.size() + g;
+       if (i+rank >= filenames.size()) continue;
+       if (g+rank >= gridnames.size()) continue;
+       std::cout << "converting " << filenames[i+rank]<< ":"<< i+rank << " /" << filenames.size() << std::endl;
+       convert_to_float(filenames[i+rank],gridnames[g+rank]);
+     }
   }
   MPI_Finalize();
   return 0;
