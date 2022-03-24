@@ -106,7 +106,7 @@ void Simulation::initialGridRefinement()
   }
 
   // Save Initial Flow Field to File
-  if ( sim.saveFreq>0 || sim.saveTime>0 ) _serialize("init");
+  //if ( sim.saveFreq>0 || sim.saveTime>0 ) _serialize("init");
 }
 
 void Simulation::adaptMesh()
