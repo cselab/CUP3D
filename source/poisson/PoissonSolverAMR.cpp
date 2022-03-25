@@ -35,10 +35,10 @@ static void getZImplParallel(
     // so we don't hardcode such fine-tunings here.
     // char offset[0xec0];
     Block r;
-    // Ensure p[0+1][0+1][0+xShift] is 64B-aligned for AVX-512 to work.
-    char padding1[64 - xShift * sizeof(Real)];
+    // Ensure p[0+1][0+1][0+xPad] is 64B-aligned for AVX-512 to work.
+    char padding1[64 - xPad * sizeof(Real)];
     PaddedBlock p;
-    char padding2[xShift * sizeof(Real)];
+    char padding2[xPad * sizeof(Real)];
     Block Ax;
   };
   alignas(64) Tmp tmp{};  // See the kernels cpp file for required alignments.
@@ -60,7 +60,7 @@ static void getZImplParallel(
     for (int ix = 0; ix < NX; ++ix) {
       r[iz][iy][ix] = invh * block[iz][iy][ix];
       rrPartial[ix] += r[iz][iy][ix] * r[iz][iy][ix];
-      p[iz + 1][iy + 1][ix + xShift] = r[iz][iy][ix];
+      p[iz + 1][iy + 1][ix + xPad] = r[iz][iy][ix];
       block[iz][iy][ix] = 0;
     }
     Real rr = sum(rrPartial);
@@ -74,6 +74,7 @@ static void getZImplParallel(
     const Real *pE = &p[0][0][0] + 1;
 
     for (int k = 0; k < 100; ++k) {
+      // rr = kernelPoissonGetZInnerReference(p,Ax, r, block, sqrNorm0, rr);
       rr = kernelPoissonGetZInner(p, pW, pE, Ax, r, block, sqrNorm0, rr);
       if (rr == 0)
         break;

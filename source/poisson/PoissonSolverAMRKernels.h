@@ -9,12 +9,12 @@ static constexpr int NX = ScalarBlock::sizeX;
 static constexpr int NY = ScalarBlock::sizeY;
 static constexpr int NZ = ScalarBlock::sizeZ;
 static constexpr int N = NX * NY * NZ;
-static constexpr int xShift = 4;
 using Block = Real[NZ][NY][NX];
 
-// Pad not with +/-1 but with +/-4 to reduce the number of unaligned memory
-// accesses, which are up to 2x slower than aligned ones.
-using PaddedBlock = Real[NZ + 2][NY + 2][NX + 8];
+// Assuming NX == 8, pad not with +/-1 but with +/-4 to reduce the number of
+// unaligned memory accesses, which are up to 2x slower than aligned ones.
+static constexpr int xPad = 4;
+using PaddedBlock = Real[NZ + 2][NY + 2][NX + 2 * xPad];
 
 template <int N>
 static inline Real sum(const Real (&a)[N])
@@ -25,7 +25,16 @@ static inline Real sum(const Real (&a)[N])
   return s;
 }
 
-// See the alignment requirements in the code!
+// Simple implementation of the kernel.
+Real kernelPoissonGetZInnerReference(
+    PaddedBlock & __restrict__ p_,
+    Block & __restrict__ Ax_,
+    Block & __restrict__ r_,
+    Block & __restrict__ block_,
+    const Real sqrNorm0,
+    const Real rr);
+
+// Optimized implementation. See the alignment requirements in the code!
 Real kernelPoissonGetZInner(
     PaddedBlock &p,
     const Real *pW,
