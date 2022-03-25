@@ -661,17 +661,22 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   }
 };
 
+// The alignmnet of 32 is sufficient for AVX-256, but we put 64 to cover AVX-512.
+static constexpr int kBlockAlignment = 64;
+template <typename T>
+using aligned_block_allocator = aligned_allocator<T, kBlockAlignment>;
+
 using FluidBlock    = BaseBlock<FluidElement>;
-using FluidGrid     = cubism::Grid<FluidBlock, aligned_allocator>;
+using FluidGrid     = cubism::Grid<FluidBlock, aligned_block_allocator>;
 using FluidGridMPI  = cubism::GridMPI<FluidGrid>;
-using Lab           = BlockLabBC<FluidBlock, aligned_allocator>;
+using Lab           = BlockLabBC<FluidBlock, aligned_block_allocator>;
 using LabMPI        = cubism::BlockLabMPI<Lab,FluidGridMPI>;
 using AMR           = MeshAdaptation_CUP<FluidGridMPI,LabMPI>;
 
 using ScalarElement = cubism::ScalarElement<Real>;
 using ScalarBlock   = cubism::GridBlock<CUP_BLOCK_SIZEX,3,ScalarElement>;
-using ScalarGrid    = cubism::GridMPI<cubism::Grid<ScalarBlock, aligned_allocator>>;
-using ScalarLab     = cubism::BlockLabMPI<BlockLabBC<ScalarBlock, aligned_allocator>, ScalarGrid>;
+using ScalarGrid    = cubism::GridMPI<cubism::Grid<ScalarBlock, aligned_block_allocator>>;
+using ScalarLab     = cubism::BlockLabMPI<BlockLabBC<ScalarBlock, aligned_block_allocator>, ScalarGrid>;
 using ScalarAMR     = MeshAdaptationMPI<ScalarGrid,ScalarLab,FluidGridMPI>;
 
 CubismUP_3D_NAMESPACE_END

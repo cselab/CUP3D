@@ -10,13 +10,9 @@
 #include <cstdlib>
 #include <memory>
 
-//#include <malloc.h>
-// ALIGNMENT must be a power of 2 !
-static constexpr int ALIGNMENT = 32;
-
 CubismUP_3D_NAMESPACE_BEGIN
 
-template <typename T>
+template <typename T, int kAlignment>
 class aligned_allocator {
   public:
     typedef T*              pointer;
@@ -28,19 +24,19 @@ class aligned_allocator {
     typedef std::ptrdiff_t  difference_type;
 
     template <typename U>
-    struct rebind { typedef aligned_allocator<U> other; };
+    struct rebind { typedef aligned_allocator<U, kAlignment> other; };
 
     aligned_allocator() noexcept { }
 
     aligned_allocator(aligned_allocator const& a) noexcept { }
 
     template <typename S>
-    aligned_allocator(aligned_allocator<S> const& b) noexcept { }
+    aligned_allocator(aligned_allocator<S, kAlignment> const& b) noexcept { }
 
     pointer allocate(size_type n)
     {
       pointer p;
-      if(posix_memalign(reinterpret_cast<void**>(&p), ALIGNMENT, n*sizeof(T) ))
+      if(posix_memalign(reinterpret_cast<void**>(&p), kAlignment, n*sizeof(T) ))
           throw std::bad_alloc();
       return p;
     }
@@ -67,10 +63,10 @@ class aligned_allocator {
     bool operator != (aligned_allocator const & a2) const noexcept { return 0; }
 
     template <typename S>
-    bool operator == (aligned_allocator<S> const&b) const noexcept { return 0; }
+    bool operator == (aligned_allocator<S, kAlignment> const&b) const noexcept { return 0; }
 
     template <typename S>
-    bool operator != (aligned_allocator<S> const&b) const noexcept { return 1; }
+    bool operator != (aligned_allocator<S, kAlignment> const&b) const noexcept { return 1; }
 };
 
 CubismUP_3D_NAMESPACE_END

@@ -90,6 +90,7 @@ set(COMMON_SOURCES           # Common for app and lib.
     "${SRC_DIR}/operators/PressureProjection.cpp"
     "${SRC_DIR}/operators/PressureRHS.cpp"
     "${SRC_DIR}/poisson/PoissonSolverAMR.cpp"
+    "${SRC_DIR}/poisson/PoissonSolverAMRKernels.cpp"
     "${SRC_DIR}/utils/BufferedLogger.cpp"
     "${SRC_DIR}/Simulation.cpp"
     "${SRC_DIR}/SimulationData.cpp"
@@ -157,6 +158,7 @@ if (CUP_BUILD_PY)
     pybind11_add_module(
         ${PYLIB}
         MODULE
+        NO_EXTRAS  # No -flto, it makes linking stage annoyingly slow.
         "${SRC_DIR}/operators/ImportExportUniform.cpp"
         "${SRC_DIR}/bindings/Bindings.cpp"
         "${SRC_DIR}/bindings/Fields.cpp"

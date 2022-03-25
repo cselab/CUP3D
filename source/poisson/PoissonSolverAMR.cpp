@@ -7,97 +7,89 @@
 //
 
 #include "PoissonSolverAMR.h"
+#include "PoissonSolverAMRKernels.h"
 
 namespace cubismup3d {
 
 PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s),findLHS(s){}
 
-void PoissonSolverAMR::getZ()
+static void getZImplParallel(
+    SimulationData &sim,
+    const std::vector<cubism::BlockInfo>& vInfo)
 {
-  const std::vector<cubism::BlockInfo>& vInfo = sim.z->getBlocksInfo();
+  using namespace cubismup3d::poisson_kernels;
   const size_t Nblocks = vInfo.size();
 
+  // We could enable this, we don't really care about denormals.
+  // _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
+
+  // A struct to enforce relative alignment between matrices. The relative
+  // alignment of Ax and r MUST NOT be a multiple of 4KB due to cache bank
+  // conflicts. See "Haswell and Broadwell pipeline", section
+  // "Cache and memory access" here:
+  // https://www.agner.org/optimize/microarchitecture.pdf
+  struct Tmp {
+    // It seems like some offsets with respect to the page boundary of 4KB are
+    // faster than the others. (This is accomplished by adding an offset here
+    // and using alignas(4096) below). However, this is likely CPU-dependent,
+    // so we don't hardcode such fine-tunings here.
+    // char offset[0xec0];
+    Block r;
+    // Ensure p[0+1][0+1][0+xShift] is 64B-aligned for AVX-512 to work.
+    char padding1[64 - xShift * sizeof(Real)];
+    PaddedBlock p;
+    char padding2[xShift * sizeof(Real)];
+    Block Ax;
+  };
+  alignas(64) Tmp tmp{};  // See the kernels cpp file for required alignments.
+  Block &r = tmp.r;
+  Block &Ax = tmp.Ax;
+  PaddedBlock &p = tmp.p;
+
+  #pragma omp for
+  for (size_t i = 0; i < Nblocks; ++i) {
+    static_assert(sizeof(ScalarBlock) == sizeof(Block));
+    assert((uintptr_t)vInfo[i].ptrBlock % kBlockAlignment == 0);
+    Block &block = *(Block *)__builtin_assume_aligned(
+        vInfo[i].ptrBlock, kBlockAlignment);
+
+    const Real invh = 1 / vInfo[i].h;
+    Real rrPartial[NX] = {};
+    for (int iz = 0; iz < NZ; ++iz)
+    for (int iy = 0; iy < NY; ++iy)
+    for (int ix = 0; ix < NX; ++ix) {
+      r[iz][iy][ix] = invh * block[iz][iy][ix];
+      rrPartial[ix] += r[iz][iy][ix] * r[iz][iy][ix];
+      p[iz + 1][iy + 1][ix + xShift] = r[iz][iy][ix];
+      block[iz][iy][ix] = 0;
+    }
+    Real rr = sum(rrPartial);
+
+    const Real sqrNorm0 = (Real)1 / (N * N) * rr;
+
+    if (sqrNorm0 < 1e-32)
+      continue;
+
+    const Real *pW = &p[0][0][0] - 1;
+    const Real *pE = &p[0][0][0] + 1;
+
+    for (int k = 0; k < 100; ++k) {
+      rr = kernelPoissonGetZInner(p, pW, pE, Ax, r, block, sqrNorm0, rr);
+      if (rr == 0)
+        break;
+    }
+  }
+}
+
+
+void PoissonSolverAMR::getZ()
+{
+  sim.startProfiler("getZ");
   #pragma omp parallel
   {
-    const int nx = BlockType::sizeX;
-    const int ny = BlockType::sizeY;
-    const int nz = BlockType::sizeZ;
-    const int nx2 = nx + 2;
-    const int ny2 = ny + 2;
-    const int nz2 = nz + 2;
-    const int N = nx*ny*nz;
-    const int N2 = nx2*ny2*nz2;
-    std::vector<Real> p (N2 ,0.0);
-    std::vector<Real> r (N2 ,0.0);
-    std::vector<Real> Ax(N2 ,0.0);
-
-    #pragma omp for
-    for (size_t i=0; i < Nblocks; i++)
-    {
-        ScalarBlock & __restrict__ b  = *(ScalarBlock*) vInfo[i].ptrBlock;
-        const Real invh = 1.0/vInfo[i].h;
-        Real norm0 = 0;
-        Real rr = 0;
-        Real a2 = 0;
-        Real beta = 0;
-        for(int iz=0; iz<BlockType::sizeZ; iz++)
-        for(int iy=0; iy<BlockType::sizeY; iy++)
-        for(int ix=0; ix<BlockType::sizeX; ix++)
-        {
-            const int J = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
-            r[J] = invh*b(ix,iy,iz).s;
-            norm0 += r[J]*r[J];
-            p[J] = r[J];
-            rr += r[J]*r[J];
-            b(ix,iy,iz).s = 0.0;
-        }
-        norm0 = sqrt(norm0)/N;
-        Real norm = 0;
-
-        if (norm0 > 1e-16)
-        for (int k = 0 ; k < 100 ; k ++)
-        {
-            a2 = 0;        
-            
-            for(int iz=0; iz<nz; iz++)
-            for(int iy=0; iy<ny; iy++)
-            for(int ix=0; ix<nx; ix++)
-            {
-                const int J = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
-                Ax[J] = p[J + 1] + p[J - 1] + p[J + nx2] + p[J - nx2] + p[J + nx2*ny2] + p[J - nx2*ny2] - 6.0*p[J];
-                a2 += p[J]*Ax[J];
-            }
-            const Real a = rr/(a2+1e-55);
-
-            norm = 0;
-            beta = 0;
-
-            for(int iz=0; iz<nz; iz++)
-            for(int iy=0; iy<ny; iy++)
-            for(int ix=0; ix<nx; ix++)
-            {
-                const int J = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
-                b(ix,iy,iz).s += a*p [J];
-                r[J] -= a*Ax[J];
-                norm += r[J]*r[J];
-            }
-
-            beta = norm / (rr + 1e-55);
-            rr = norm;
-            norm = sqrt(norm)/N;
-
-            if (norm/norm0< 1e-7 || norm < 1e-16) break;
-
-            for(int iz=0; iz<nz; iz++)
-            for(int iy=0; iy<ny; iy++)
-            for(int ix=0; ix<nx; ix++)
-            {
-                const int J = (ix+1)+(iy+1)*(nx+2)+(iz+1)*(nx+2)*(ny+2);
-                p[J] =r[J] + beta*p[J];
-            }
-        }
-    }    
+    getZImplParallel(sim, sim.z->getBlocksInfo());
   }
+  sim.stopProfiler();
 }
 
 void PoissonSolverAMR::solve()
