@@ -1,18 +1,14 @@
-#CPPFLAGS+= -std=c++17 -fopenmp -Wall -lstdc++fs -g
-#CPPFLAGS+= -std=c++17 -Wall -lstdc++fs -g -Wno-unknown-pragmas
-CPPFLAGS+= -std=c++17 -Wall -g -Wno-unknown-pragmas
+#CPPFLAGS+= -std=c++17 -fopenmp -g
+CPPFLAGS+= -std=c++17 -g
 LIBS+= -fopenmp
 
-CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual
-#CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
-CPPFLAGS+= -Wmissing-declarations -Wredundant-decls -Wshadow
-CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter #-Wno-cpp
-CPPFLAGS+= -Wno-float-equal
+CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings
+
+CPPFLAGS+= -Wno-unused-parameter -Wno-unknown-pragmas
 
 ifeq "$(findstring prod,$(config))" ""
 
 CPPFLAGS+= -g -O0
-NVFLAGS+= -O0 -g
 
 ifeq "$(config)" "segf"
 CPPFLAGS+= -fsanitize=address -static-libasan
@@ -27,8 +23,6 @@ $(info *** WARNING! Compiling with debug flags. Use config=prod for optimized co
 
 else
 
-NVFLAGS+= -DNDEBUG -O3 --use_fast_math
 CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions -ftree-vectorize -fmerge-all-constants
-#CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -falign-functions -ftree-vectorize -fmerge-all-constants
 
 endif
