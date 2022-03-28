@@ -164,7 +164,7 @@ static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& in
   for (const auto &obstacle : sim.obstacle_vector->getObstacleVector()) {
     const auto& obstblocks = obstacle->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
-    if (o == nullptr) return;
+    if (o == nullptr) continue;
 
     const std::array<Real,3> CM = obstacle->getCenterOfMass();
     //We use last momentum computed by this method to stabilize the computation
