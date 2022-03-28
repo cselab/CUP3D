@@ -15,7 +15,7 @@ namespace {
 struct SIGINTHandler : Operator
 {
   using Operator::Operator;
-  void operator()(double /* dt */) override
+  void operator()(Real /* dt */) override
   {
     // https://pybind11.readthedocs.io/en/stable/faq.html#how-can-i-properly-handle-ctrl-c-in-long-running-functions
     if (PyErr_CheckSignals() != 0)
