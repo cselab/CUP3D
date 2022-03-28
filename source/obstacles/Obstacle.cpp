@@ -558,7 +558,7 @@ void Obstacle::_writeDiagForcesToFile()
 {
   if(sim.rank!=0 || sim.muteAll) return;
   std::stringstream fnameF;
-  fnameF<<"forceValues_"<<obstacleID<<".dat";
+  fnameF<<"forceValues_penalization_"<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());
   const std::string tab("\t");
   if(sim.step==0) {
