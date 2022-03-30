@@ -76,7 +76,7 @@ static void getZImplParallel(
     for (int k = 0; k < 100; ++k) {
       // rr = kernelPoissonGetZInnerReference(p,Ax, r, block, sqrNorm0, rr);
       rr = kernelPoissonGetZInner(p, pW, pE, Ax, r, block, sqrNorm0, rr);
-      if (rr == 0)
+      if (rr <= 0)
         break;
     }
   }

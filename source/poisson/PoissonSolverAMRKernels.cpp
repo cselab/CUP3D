@@ -250,7 +250,7 @@ Real kernelPoissonGetZInner(
   const Real sqrNorm = (Real)1 / (N * N) * sqrSum;
 
   if (sqrNorm < kSqrNormRelCriterion * sqrNorm0 || sqrNorm < kSqrNormAbsCriterion)
-    return 0;
+    return -1.0;
 
   // Kernel: 2 reads + 1 write + 2 FLOPs per cell -> limit is L1 cache.
   // Broadwell: 6.5 FLOP/cycle, 52+26 B/cycle
