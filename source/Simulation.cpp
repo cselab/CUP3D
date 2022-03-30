@@ -397,7 +397,7 @@ bool Simulation::timestep(const Real dt)
 
   if( sim.bDump ) _serialize();
 
-  if (sim.freqProfiler > 0 && sim.step % sim.freqProfiler == 0)
+  if (sim.rank == 0 && sim.freqProfiler > 0 && sim.step % sim.freqProfiler == 0)
     sim.printResetProfiler();
 
   if ((sim.endTime>0 && sim.time>sim.endTime) ||

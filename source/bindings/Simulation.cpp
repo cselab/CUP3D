@@ -38,10 +38,12 @@ void bindSimulationData(py::module &m)
     .def_readonly("BCx_flag", &SimulationData::BCx_flag, "boundary condition in x-axis")
     .def_readonly("BCy_flag", &SimulationData::BCy_flag, "boundary condition in y-axis")
     .def_readonly("BCz_flag", &SimulationData::BCz_flag, "boundary condition in z-axis")
-    .def_readonly("extent", &SimulationData::extent)
-    .def_readonly("uinf", &SimulationData::uinf)
-    .def_readwrite("nsteps", &SimulationData::nsteps)
-    .def_readwrite("time", &SimulationData::time);
+    .def_readonly("extent", &SimulationData::extent, "domain size")
+    .def_readonly("uinf", &SimulationData::uinf, "frame of reference velocity")
+    .def_readonly("nu", &SimulationData::nu, "kinematic viscosity")
+    .def_readwrite("nsteps", &SimulationData::nsteps, "maximum number of steps")
+    .def_readwrite("step", &SimulationData::step, "current step")
+    .def_readwrite("time", &SimulationData::time, "current time");
 }
 
 static std::shared_ptr<Simulation> pyCreateSimulation(
