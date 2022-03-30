@@ -34,16 +34,16 @@ set(PYLIB "libcubismup3d")
 set(CUP_BLOCK_SIZE "8" CACHE STRING "Number of grid points in a block, per dimension")
 set(CUP_ROOT_DIR "${ROOT_DIR}" CACHE INTERNAL "CubismUP_3D repository root path")
 set(CUP_BUILD_DIR "${BUILD_DIR}" CACHE INTERNAL "CubismUP_3D build path")
-option(CUP_TESTS "Enable tests" OFF)
 option(CUP_BUILD_EXE "Build the executable" OFF)
 option(CUP_BUILD_LIB "Build the static library" OFF)
 option(CUP_BUILD_PY "Build Python bindings" ON)
-option(CUP_AUTO_INSTALL_DEPENDENCIES "Automatically install missing dependencies" OFF)
+option(CUP_TESTS "Enable tests" OFF)
 
 # Compile-time settings. Stored in a configuration file CubismUP3DMacros.h and imported by Definitions.h.
 option(CUP_ASYNC_DUMP "Use asynchronous data dumps (uses additional memory, requires multithreaded MPI)" ON)
 option(CUP_DUMP_SURFACE_BINARY "Dump binary surface data for each obstacle" OFF)
 option(CUP_HDF5_DOUBLE_PRECISION "Dump HDF5 data in double precision" OFF)
+option(CUP_OPENMP "Build with OpenMP" ON)
 option(CUP_VERBOSE "Be verbose" OFF)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
@@ -65,7 +65,7 @@ find_package(OpenMP REQUIRED)
 include("${ROOT_DIR}/cmake/Dependencies.cmake")
 
 # Targets.
-set(COMMON_SOURCES           # Common for app and lib.
+set(CORE_SOURCE
     "${SRC_DIR}/obstacles/CarlingFish.cpp"
     "${SRC_DIR}/obstacles/Cylinder.cpp"
     "${SRC_DIR}/obstacles/Ellipsoid.cpp"
@@ -98,16 +98,22 @@ set(COMMON_SOURCES           # Common for app and lib.
 
 add_library(${PUBLICDEP} INTERFACE)
 target_compile_definitions(${PUBLICDEP} INTERFACE -D_DOUBLE_PRECISION_)
-target_link_libraries(${PUBLICDEP} INTERFACE OpenMP::OpenMP_CXX)
 target_link_libraries(${PUBLICDEP} INTERFACE MPI::MPI_CXX)
 target_link_libraries(${PUBLICDEP} INTERFACE Cubism::Cubism)
 target_link_libraries(${PUBLICDEP} INTERFACE GSL::gsl)
 target_link_libraries(${PUBLICDEP} INTERFACE ${HDF5_LIBRARIES})
 target_include_directories(${PUBLICDEP} INTERFACE ${HDF5_INCLUDE_DIRS})
 target_include_directories(${PUBLICDEP} INTERFACE ${GENERATED_DIR})
+if (CUP_OPENMP)
+    target_link_libraries(${PUBLICDEP} INTERFACE OpenMP::OpenMP_CXX)
+    set(_PRIVATE_FLAGS "")
+else()
+    target_link_libraries(${PUBLICDEP} INTERFACE ${OpenMP_CXX_LIBRARIES})
+    set(_PRIVATE_FLAGS -Wno-unknown-pragmas)
+endif()
 
 add_library(${PRIVATEDEP} INTERFACE)
-set(_PRIVATE_FLAGS -Wall -Wextra -Wno-unused-parameter -Wno-maybe-uninitialized -fmax-errors=3)
+set(_PRIVATE_FLAGS -Wall -Wextra -Wno-unused-parameter -Wno-maybe-uninitialized -fmax-errors=3 ${_PRIVATE_FLAGS})
 set(_PRIVATE_RELEASE_FLAGS
     -march=native
     -fstrict-aliasing
@@ -119,7 +125,7 @@ target_compile_options(${PRIVATEDEP} INTERFACE
                        $<$<CONFIG:RelWithDebInfo>:${_PRIVATE_RELEASE_FLAGS}>
                        $<$<CONFIG:Release>:${_PRIVATE_RELEASE_FLAGS}>)
 
-add_library(${CORE} STATIC EXCLUDE_FROM_ALL ${COMMON_SOURCES})
+add_library(${CORE} STATIC EXCLUDE_FROM_ALL ${CORE_SOURCE})
 add_library(cubismup3d::core ALIAS ${CORE})
 set_property(TARGET ${CORE} PROPERTY CXX_EXTENSIONS OFF)
 # PIC affects performance but is needed for compiling shared objects.
