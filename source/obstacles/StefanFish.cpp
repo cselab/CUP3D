@@ -224,7 +224,7 @@ void CurvatureDefinedFishData::performPitchingMotion(const Real t)
   const Real p    = 0.2;//For the first 20% of the total pitching motion time, the cylinder radius 
                         //goes from Rbig to Lman*length. For the next 60% it stays constant and for
                         //the last 20% it transitions back to Rbig. 
-  if (t > Tman_finish || t < Tman_start) return;
+  if (t > Tman_finish || t < Tman_start) {Lman = 0; return;}
 
   //The Scheduler class only works with std::array, so we had to do the following:
   std::array<Real,1> R;
