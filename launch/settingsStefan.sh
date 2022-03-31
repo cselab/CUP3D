@@ -10,7 +10,7 @@ FACTORY='StefanFish L=0.2 T=1 xpos=0.3 bFixToPlanar=1 bFixFrameOfRef=1 Correct=1
 
 OPTIONS=
 OPTIONS+=" -bpdx 16 -bpdy 8 -bpdz 8"
-OPTIONS+=" -tdump 0.1 -tend 5"
+OPTIONS+=" -tdump 0.0 -tend 1.0"
 OPTIONS+=" -CFL 0.4 -nu ${NU}"
 OPTIONS+=" -levelMax 5 -levelStart 1 -Rtol 4.00 -Ctol 1.00"
 OPTIONS+=" -extentx 2.0 "
