@@ -18,4 +18,4 @@ cp ../bin/${EXEC} ${FOLDER}/simulation
 
 cd ${FOLDER}
 
-srun --ntasks-per-node=12 --nodes=$SLURM_NNODES --cpus-per-task=1 simulation ${OPTIONS} -factory-content $"${FACTORY}" | tee out.log
+srun --ntasks-per-node=12 --nodes=$SLURM_NNODES --cpus-per-task=1 simulation ${OPTIONS} -factory-content $"${FACTORY}" | tee -a out.log
