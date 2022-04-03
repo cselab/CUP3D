@@ -203,11 +203,11 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
   }
 
   //could come up with something for midline torsion here, use zero values for now
-  //for(int i=0; i<Nm; ++i)
-  //{
-  //  rT[i] = ...
-  //  vT[i] = ...
-  //}
+  for(int i=0; i<Nm; ++i)
+  {
+    rT[i] = 0;
+    vT[i] = 0;
+  }
 
   // solve frenet to compute midline parameters
   //Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
@@ -592,6 +592,20 @@ std::vector<Real> StefanFish::state() const
   S[15] = cFish->lastCurv;
   S[16] = cFish->oldrCurv;
 #else
+   std::vector<Real> S(7,0);
+   const double theta      = 2.0*std::acos(quaternion[0]);
+   const double sin_theta  = sin(0.5*theta) + 1e-10;
+   const double ux = quaternion[1] / sin_theta;
+   const double uy = quaternion[2] / sin_theta;
+   const double uz = quaternion[3] / sin_theta;
+   S[0 ] = absPos[0];
+   S[1 ] = absPos[1];
+   S[2 ] = absPos[2];
+   S[3 ] = ux;
+   S[4 ] = uy;
+   S[5 ] = uz;
+   S[6 ] = theta;
+   /*
   std::vector<Real> S(13,0);
   S[0 ] = ( absPos[0] - origC[0] )/ length;
   S[1 ] = ( absPos[1] - origC[1] )/ length;
@@ -606,6 +620,7 @@ std::vector<Real> StefanFish::state() const
   S[10] = angVel[0] * Tperiod;
   S[11] = angVel[1] * Tperiod;
   S[12] = angVel[2] * Tperiod;
+  */
 #endif
   return S;
   #if 0
