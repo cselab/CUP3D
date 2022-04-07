@@ -551,7 +551,9 @@ void StefanFish::act(const Real t_rlAction, const std::vector<Real>& a) const
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
-  cFish->execute(sim.time, t_rlAction, a);
+  std::vector <Real> actions = a;
+  if (bForcedInSimFrame[2] && a.size() == 3) actions[2] = 0;
+  cFish->execute(sim.time, t_rlAction, actions);
 }
 
 Real StefanFish::getLearnTPeriod() const
@@ -593,18 +595,19 @@ std::vector<Real> StefanFish::state() const
   S[16] = cFish->oldrCurv;
 #else
    std::vector<Real> S(7,0);
-   const double theta      = 2.0*std::acos(quaternion[0]);
-   const double sin_theta  = sin(0.5*theta) + 1e-10;
-   const double ux = quaternion[1] / sin_theta;
-   const double uy = quaternion[2] / sin_theta;
-   const double uz = quaternion[3] / sin_theta;
-   S[0 ] = absPos[0];
-   S[1 ] = absPos[1];
-   S[2 ] = absPos[2];
-   S[3 ] = ux;
-   S[4 ] = uy;
-   S[5 ] = uz;
-   S[6 ] = theta;
+   const double norm = sqrt(quaternion[1]*quaternion[1]+quaternion[2]*quaternion[2]+quaternion[3]*quaternion[3]);
+   const double ax   = quaternion[1]/norm;
+   const double ay   = quaternion[2]/norm;
+   const double az   = quaternion[3]/norm;
+   const double th   = 2.0*atan2(norm,quaternion[0]);
+   S[0] = absPos[0];
+   S[1] = absPos[1];
+   S[2] = absPos[2];
+   S[3] = ax;
+   S[4] = ay;
+   S[5] = az;
+   S[6] = th;
+
    /*
   std::vector<Real> S(13,0);
   S[0 ] = ( absPos[0] - origC[0] )/ length;
