@@ -109,8 +109,8 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o \
 	AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
-	ObstaclesCreate.o ObstaclesUpdate.o \
-	FishShapes.o ArgumentParser.o PoissonSolverAMR.o PoissonSolverAMRKernels.o
+	ObstaclesCreate.o ObstaclesUpdate.o FishShapes.o ArgumentParser.o \
+	PoissonSolverBase.o PoissonSolverAMR.o PoissonSolverAMRKernels.o
 
 #################################################
 # HDF5

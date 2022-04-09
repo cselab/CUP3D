@@ -10,6 +10,7 @@
 #include <array>
 #include <vector>
 #include <random>
+#include <memory>
 
 namespace cubism {
   class Profiler;
@@ -20,7 +21,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class Operator;
 class ObstacleVector;
-class PoissonSolverAMR;
+class PoissonSolverBase;
 
 struct SimulationData
 {
@@ -49,7 +50,7 @@ struct SimulationData
   std::vector<std::shared_ptr<Operator>> pipeline;
 
   // Pressure solver to be shared between PressureRHS and PressureProjection
-  PoissonSolverAMR * pressureSolver = nullptr;
+  std::shared_ptr<PoissonSolverBase> pressureSolver;
 
   // Timestepping
   Real dt      = 0;//current timestep
@@ -87,6 +88,7 @@ struct SimulationData
   Real DLM=0;                     // if DLM>0 then lambda=DLM/dt
   Real PoissonErrorTol;           //Poisson solver absolute error tolerance
   Real PoissonErrorTolRel;        //Poisson solver relative error tolerance
+  std::string poissonSolver;      // Type of backed solver for poisson equation
   bool bCollision = false;          //indicator for collision between obstacles
   BCflag BCx_flag = freespace;      //boundary conditions in X
   BCflag BCy_flag = freespace;      //boundary conditions in Y

@@ -8,7 +8,6 @@
 
 #include "PressureRHS.h"
 #include "../obstacles/ObstacleVector.h"
-#include "../poisson/PoissonSolverAMR.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -122,7 +121,6 @@ struct KernelPressureRHS
   typedef typename FluidGridMPI::BlockType BlockType;
   SimulationData & sim;
   const Real dt = sim.dt;
-  PoissonSolverAMR * const solver = sim.pressureSolver;
   ObstacleVector * const obstacle_vector = sim.obstacle_vector;
   const int nShapes = obstacle_vector->nObstacles();
 
@@ -364,15 +362,6 @@ static void kernelUpdateTmpUVW(SimulationData& sim)
 }
 
 PressureRHS::PressureRHS(SimulationData & s) : Operator(s) {}
-
-PressureRHS::~PressureRHS()
-{
-  if (sim.pressureSolver != nullptr)
-  {
-      delete sim.pressureSolver;
-      sim.pressureSolver = nullptr;
-  }
-}
 
 void PressureRHS::operator()(const Real dt)
 {

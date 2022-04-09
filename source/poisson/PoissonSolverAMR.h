@@ -10,6 +10,7 @@
 
 #include "../SimulationData.h"
 #include "../operators/Operator.h"
+#include "PoissonSolverBase.h"
 #include <Cubism/BlockInfo.h>
 #include <vector>
 #include <cassert>
@@ -185,7 +186,7 @@ class ComputeLHS : public Operator
   std::string getName() { return "ComputeLHS"; }
 };
 
-class PoissonSolverAMR
+class PoissonSolverAMR : public PoissonSolverBase
 {
  protected:
   typedef typename FluidGridMPI::BlockType BlockType;
