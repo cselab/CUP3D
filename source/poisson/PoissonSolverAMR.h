@@ -189,7 +189,6 @@ class ComputeLHS : public Operator
 class PoissonSolverAMR : public PoissonSolverBase
 {
  protected:
-  typedef typename FluidGridMPI::BlockType BlockType;
   SimulationData & sim;
   FluidGridMPI& grid = * sim.grid;
   ComputeLHS findLHS;

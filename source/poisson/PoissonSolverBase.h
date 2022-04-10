@@ -10,8 +10,10 @@ struct SimulationData;
 class PoissonSolverBase
 {
 public:
-  ~PoissonSolverBase() = default;
+  virtual ~PoissonSolverBase() = default;
   virtual void solve() = 0;
+protected:
+  typedef typename FluidGridMPI::BlockType BlockType;
 };
 
 std::shared_ptr<PoissonSolverBase> makePoissonSolver(SimulationData& s);
