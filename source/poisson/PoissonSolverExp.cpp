@@ -35,22 +35,23 @@ double PoissonSolverExp::getA_local(const int& i, const int& j)
 }
 
 PoissonSolverExp::PoissonSolverExp(SimulationData& s)
-  : sim(s), m_comm_(sim.app_comm)
+  : sim(s), m_comm_(sim.app_comm), GenericCell(*this), 
+    XminCell(*this), XmaxCell(*this), YminCell(*this), YmaxCell(*this), ZminCell(*this), ZmaxCell(*this),
+    faceIndexers {&XminCell, &XmaxCell, &YminCell, &YmaxCell, &ZminCell, &ZmaxCell}
 {
   // MPI
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
 
-//  Nblocks_xcumsum_.resize(comm_size_ + 1);
-//  Nrows_xcumsum_.resize(comm_size_ + 1);
+  Nblocks_xcumsum_.resize(comm_size_ + 1);
+  Nrows_xcumsum_.resize(comm_size_ + 1);
 
   std::vector<std::vector<double>> L; // lower triangular matrix of Cholesky decomposition
   std::vector<std::vector<double>> L_inv; // inverse of L
 
-  static constexpr int nlen = nx_ * ny_ * nz_;
-  L.resize(nlen);
-  L_inv.resize(nlen);
-  for (int i(0); i<nlen ; i++)
+  L.resize(nxyz_);
+  L_inv.resize(nxyz_);
+  for (int i(0); i<nxyz_ ; i++)
   {
     L[i].resize(i+1);
     L_inv[i].resize(i+1);
@@ -61,13 +62,13 @@ PoissonSolverExp::PoissonSolverExp(SimulationData& s)
   }
 
   // compute the Cholesky decomposition of the preconditioner with Cholesky-Crout
-  for (int i(0); i<nlen ; i++)
+  for (int i(0); i<nxyz_ ; i++)
   {
     double s1 = 0;
     for (int k(0); k<=i-1; k++)
       s1 += L[i][k]*L[i][k];
     L[i][i] = sqrt(getA_local(i,i) - s1);
-    for (int j(i+1); j<nlen; j++)
+    for (int j(i+1); j<nxyz_; j++)
     {
       double s2 = 0;
       for (int k(0); k<=i-1; k++)
@@ -79,13 +80,13 @@ PoissonSolverExp::PoissonSolverExp(SimulationData& s)
   /* Compute the inverse of the Cholesky decomposition L using Gauss-Jordan elimination.
      L will act as the left block (it does not need to be modified in the process), 
      L_inv will act as the right block and at the end of the algo will contain the inverse */
-  for (int br(0); br<nlen; br++)
+  for (int br(0); br<nxyz_; br++)
   { // 'br' - base row in which all columns up to L_lb[br][br] are already zero
     const double bsf = 1. / L[br][br];
     for (int c(0); c<=br; c++)
       L_inv[br][c] *= bsf;
 
-    for (int wr(br+1); wr<nlen; wr++)
+    for (int wr(br+1); wr<nxyz_; wr++)
     { // 'wr' - working row where elements below L_lb[br][br] will be set to zero
       const double wsf = L[wr][br];
       for (int c(0); c<=br; c++)
@@ -94,21 +95,166 @@ PoissonSolverExp::PoissonSolverExp(SimulationData& s)
   }
 
   // P_inv_ holds inverse preconditionner in row major order!
-  std::vector<double> P_inv(nlen * nlen);
-  for (int i(0); i<nlen; i++)
-  for (int j(0); j<nlen; j++)
+  std::vector<double> P_inv(nxyz_ * nxyz_);
+  for (int i(0); i<nxyz_; i++)
+  for (int j(0); j<nxyz_; j++)
   {
     double aux = 0.;
-    for (int k(0); k<nlen; k++) // P_inv_ = (L^T)^{-1} L^{-1}
+    for (int k(0); k<nxyz_; k++) // P_inv_ = (L^T)^{-1} L^{-1}
       aux += (i <= k && j <=k) ? L_inv[k][i] * L_inv[k][j] : 0.;
 
-    P_inv[i*nlen+j] = -aux; // Up to now Cholesky of negative P to avoid complex numbers
+    P_inv[i*nxyz_+j] = -aux; // Up to now Cholesky of negative P to avoid complex numbers
   }
 
   // Create Linear system and backend solver objects
-  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, nlen, P_inv);
+  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, nxyz_, P_inv);
 }
  
+void PoissonSolverExp::makeFlux(
+    const BlockInfo& rhs_info,
+    const int &ix, const int &iy, const int &iz,
+    const bool &isBoundary,
+    const BlockInfo &rhsNei,
+    const FaceCellIndexer& indexer,
+    SpRowInfo &row) const
+{
+
+}
+
+void PoissonSolverExp::getMat()
+{
+
+  // Update blockID's for blocks from other ranks
+  sim.lhs->UpdateBlockInfoAll_States(true); 
+  // This returns an array with the blocks that the coarsest possible 
+  // mesh would have (i.e. all blocks are at level 0)
+  std::array<int, 3> blocksPerDim = sim.lhs->getMaxBlocks();
+
+  //Get a vector of all BlockInfos of the grid we're interested in
+  std::vector<cubism::BlockInfo>&  RhsInfo = sim.lhs->getBlocksInfo();
+  const int Nblocks = RhsInfo.size();
+  const int N = Nblocks * nxyz_;
+
+  // Reserve sufficient memory for LS proper to the rank
+  LocalLS_->reserve(N);
+
+  // Calculate cumulative sums for blocks and rows for correct global indexing
+  const long long Nblocks_long = Nblocks;
+  MPI_Allgather(&Nblocks_long, 1, MPI_LONG_LONG, Nblocks_xcumsum_.data(), 1, MPI_LONG_LONG, m_comm_);
+  for (int i(Nblocks_xcumsum_.size()-1); i > 0; i--)
+    Nblocks_xcumsum_[i] = Nblocks_xcumsum_[i-1]; // shift to right for rank 'i+1' to have cumsum of rank 'i'
+  
+  // Set cumsum for rank 0 to zero
+  Nblocks_xcumsum_[0] = 0;
+  Nrows_xcumsum_[0] = 0;
+
+  // Perform cumulative sum
+  for (size_t i(1); i < Nblocks_xcumsum_.size(); i++)
+  {
+    Nblocks_xcumsum_[i] += Nblocks_xcumsum_[i-1];
+    Nrows_xcumsum_[i] = Nblocks_xcumsum_[i] * nxyz_;
+  }
+
+
+  // No parallel for to ensure COO are ordered at construction
+  for(int i=0; i<Nblocks; i++)
+  {    
+    const BlockInfo &rhs_info = RhsInfo[i];
+
+    //1.Check if this is a boundary block
+    const int aux = 1 << rhs_info.level; // = 2^level
+    const int MAX_X_BLOCKS = blocksPerDim[0]*aux - 1; //this means that if level 0 has blocksPerDim[0] blocks in the x-direction, level rhs.level will have this many blocks
+    const int MAX_Y_BLOCKS = blocksPerDim[1]*aux - 1;
+    const int MAX_Z_BLOCKS = blocksPerDim[2]*aux - 1;
+
+    std::array<bool, 6> isBoundary;
+    isBoundary[0] = (rhs_info.index[0] == 0           ); // Xm, same order as faceIndexers made in constructor!
+    isBoundary[1] = (rhs_info.index[0] == MAX_X_BLOCKS); // Xp
+    isBoundary[2] = (rhs_info.index[1] == 0           ); // Ym
+    isBoundary[3] = (rhs_info.index[1] == MAX_Y_BLOCKS); // Yp
+    isBoundary[4] = (rhs_info.index[2] == 0           ); // Zm
+    isBoundary[5] = (rhs_info.index[2] == MAX_Z_BLOCKS); // Zp
+
+    //2.Access the block's neighbors (for the Poisson solve in two dimensions we care about four neighbors in total)
+    std::array<long long, 6> Z;
+    Z[0] = rhs_info.Znei[1-1][1][1]; // Xm
+    Z[1] = rhs_info.Znei[1+1][1][1]; // Xp
+    Z[2] = rhs_info.Znei[1][1-1][1]; // Ym
+    Z[3] = rhs_info.Znei[1][1+1][1]; // Yp
+    Z[4] = rhs_info.Znei[1][1][1-1]; // Zm
+    Z[5] = rhs_info.Znei[1][1][1+1]; // Zp
+    //rhs.Z == rhs.Znei[1][1][1] is true always
+
+    std::array<const BlockInfo*, 6> rhsNei;
+    rhsNei[0] = &(this->sim.lhs->getBlockInfoAll(rhs_info.level, Z[0]));
+    rhsNei[1] = &(this->sim.lhs->getBlockInfoAll(rhs_info.level, Z[1]));
+    rhsNei[2] = &(this->sim.lhs->getBlockInfoAll(rhs_info.level, Z[2]));
+    rhsNei[3] = &(this->sim.lhs->getBlockInfoAll(rhs_info.level, Z[3]));
+    rhsNei[4] = &(this->sim.lhs->getBlockInfoAll(rhs_info.level, Z[4]));
+    rhsNei[5] = &(this->sim.lhs->getBlockInfoAll(rhs_info.level, Z[5]));
+
+    for (int iz(0); iz<nz_; iz++)
+    for (int iy(0); iz<ny_; iz++)
+    for (int ix(0); iz<nx_; iz++)
+    { /* Logic needs to be in 'for' loop to consruct cooRows in order
+         Cases to consider:
+          - inner cells
+          - inner cells on 6  faces of cube
+          - inner cells on 12 edges of cube
+          - inner cells on 8 vertices of cube
+      */
+      const long long sfc_idx = GenericCell.This(rhs_info, ix, iy, iz);  
+      if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
+      { // Inner cells
+
+        // Push back in ascending order for column index
+        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiZm(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiYm(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiXm(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(-6, sfc_idx, sfc_idx);
+        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiXp(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiYp(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiZp(rhs_info, ix, iy, iz));
+      }
+      else
+      {
+        std::array<bool, 6> validNei;
+        validNei[0] = GenericCell.validXm(ix, iy, iz); 
+        validNei[1] = GenericCell.validXp(ix, iy, iz); 
+        validNei[2] = GenericCell.validYm(ix, iy, iz); 
+        validNei[3] = GenericCell.validYp(ix, iy, iz); 
+        validNei[4] = GenericCell.validZm(ix, iy, iz); 
+        validNei[5] = GenericCell.validZp(ix, iy, iz); 
+
+        std::array<long long, 6> idxNei;
+        idxNei[0] = GenericCell.neiXm(rhs_info, ix, iy, iz);
+        idxNei[1] = GenericCell.neiXp(rhs_info, ix, iy, iz);
+        idxNei[2] = GenericCell.neiYm(rhs_info, ix, iy, iz);
+        idxNei[3] = GenericCell.neiYp(rhs_info, ix, iy, iz);
+        idxNei[4] = GenericCell.neiZm(rhs_info, ix, iy, iz);
+        idxNei[5] = GenericCell.neiZp(rhs_info, ix, iy, iz);
+
+        SpRowInfo row(sim.lhs->Tree(rhs_info).rank(), sfc_idx, 16);
+
+        for (int j(0); j < 6; j++)
+        { // Iterate over each face of cell
+          if (validNei[j])
+          { // This face is 'inner' wrt to the block
+            row.mapColVal(idxNei[j], 1.);
+            row.mapColVal(sfc_idx, -1.);  // diagonal element
+          }
+          else if (!isBoundary[j]) // outer face and not boundary
+            this->makeFlux(rhs_info, ix, iy, iz, isBoundary[j], *rhsNei[j], *faceIndexers[j], row);
+        }
+
+        LocalLS_->cooPushBackRow(row);
+      } // if else
+    } // for ix iy iz
+  } // for(int i=0; i< Nblocks; i++)
+
+  LocalLS_->make(Nrows_xcumsum_);
+}
+
 void PoissonSolverExp::solve() 
 {
   std::cerr << "Hello PoissonSolverExp!\n";

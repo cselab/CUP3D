@@ -35,13 +35,255 @@ class PoissonSolverExp : public PoissonSolverBase
   static constexpr int nx_ = BlockType::sizeX;
   static constexpr int ny_ = BlockType::sizeY;
   static constexpr int nz_ = BlockType::sizeZ;
+  static constexpr int nxyz_ = nx_ * ny_ * nz_;
 
   // Returns element of preconditioner negative K_{i,j}
   double getA_local(const int& i, const int& j);
 
+  // Method construct flux accross block boundaries
+  class FaceCellIndexer; // forward declaration
+  void makeFlux(
+      const cubism::BlockInfo &rhs_info,
+      const int &ix, const int &iy, const int &iz,
+      const bool &isBoundary,
+      const cubism::BlockInfo &rhsNei,
+      const FaceCellIndexer &indexer,
+      SpRowInfo &row) const;
+
+  // Method to compute A and b for the current mesh
+  void getMat(); // update LHS and RHS after refinement
+  void getVec(); // update initial guess and RHS vecs only
+
   // Distributed linear system with local indexing
   std::unique_ptr<LocalSpMatDnVec> LocalLS_;
 
+  std::vector<long long> Nblocks_xcumsum_;
+  std::vector<long long> Nrows_xcumsum_;
+
+  class CellIndexer
+  {
+    public:
+      CellIndexer(const PoissonSolverExp& pSolver) : ps(pSolver) {}
+      ~CellIndexer() = default;
+
+      long long This(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz) const
+      { return blockOffset(info) + (long long)(iz*ny*nx + iy*nx + ix); }
+
+      long long neiXp(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
+      { return blockOffset(info) + (long long)(iz*ny*nx + iy*nx + ix+dist); }
+      long long neiXm(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
+      { return blockOffset(info) + (long long)(iz*ny*nx + iy*nx + ix-dist); }
+      long long neiYp(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
+      { return blockOffset(info) + (long long)(iz*ny*nx + (iy+dist)*nx + ix); }
+      long long neiYm(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
+      { return blockOffset(info) + (long long)(iz*ny*nx + (iy-dist)*nx + ix); }
+      long long neiZp(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
+      { return blockOffset(info) + (long long)((iz+dist)*ny*nx + iy*nx + ix); }
+      long long neiZm(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
+      { return blockOffset(info) + (long long)((iz-dist)*ny*nx + iy*nx + ix); }
+
+
+      static bool validXp(const int &ix, const int &iy, const int &iz)
+      { return ix < nx_ - 1; }
+      static bool validXm(const int &ix, const int &iy, const int &iz)
+      { return ix > 0; }
+      static bool validYp(const int &ix, const int &iy, const int &iz)
+      { return iy < ny_ - 1; }
+      static bool validYm(const int &ix, const int &iy, const int &iz)
+      { return iy > 0; }
+      static bool validZp(const int &ix, const int &iy, const int &iz)
+      { return iz < nz_ - 1; }
+      static bool validZm(const int &ix, const int &iy, const int &iz)
+      { return iz > 0; }
+
+      long long Xmax(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int offset = 0) const
+      { return blockOffset(info) + (long long)(iz*ny*nx + iy*nx + (nx-1-offset)); }
+      long long Xmin(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int offset = 0) const
+      { return blockOffset(info) + (long long)(iz*ny*nx + iy*nx + offset); }
+      long long Ymax(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int offset = 0) const
+      { return blockOffset(info) + (long long)(iz*ny*nx + (ny-1-offset)*nx + ix); }
+      long long Ymin(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int offset = 0) const
+      { return blockOffset(info) + (long long)(iz*ny*nx + offset*nx + ix); }
+      long long Zmax(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int offset = 0) const
+      { return blockOffset(info) + (long long)((nz-1-offset)*ny*nx + iy*nx + ix); }
+      long long Zmin(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int offset = 0) const
+      { return blockOffset(info) + (long long)(offset*ny*nx + iy*nx + ix); }
+
+    protected:
+      long long blockOffset(const cubism::BlockInfo &info) const
+      { return (info.blockID + ps.Nblocks_xcumsum_[ps.sim.lhs->Tree(info).rank()])*nlen; }
+
+      const PoissonSolverExp &ps;
+      static constexpr int nx = BlockType::sizeX;
+      static constexpr int ny = BlockType::sizeY;
+      static constexpr int nz = BlockType::sizeZ;
+      static constexpr long long nlen = nx * ny * nz;
+  };
+
+  /*
+    Class to help with indexing of neighbours for cell located at a face of a block.
+    To provide a generic API for flux constructors at block faces, static polymorphism determines how indexing 
+    will be carried out with methods overloaded in [XYZ]{max,min}Indexer.
+
+    -------------------- naming convetions ---------------------
+    Suppose the case of YminIndexer which helps with indexing for cells located at iy = 0:
+
+      - 'inblock_nds0' stands for inblock_n(eighbour)d(imension)s(hift)0 
+         will refer to the neighbor which is opposite of the face, or in most simple terms:
+         - in case of YminIndexer this is the neiYp cell
+         - in case of ZmaxIndexer this is the neiZm cell
+         - etc
+
+      - 'inblock_nds2p' stands for inblock_n(eighbour)d(imension)s(hift)2p(lus)
+        this applies a circular shift of two to the dimension perpendicular to the face and gives a neighbour in
+        a positive/negative direction.  Using the example of YminIndexer, the circular shift of two in (X,Y,Z) 
+        starting from Y is X.
+
+      - neiblock_n stands for nei(ghbouring)block_n(eighbour) gives the index of the cell across the face
+
+    Define [XYZ]{max,min}Indexer using an inheritence model which needs 10 class definitions instead of 6, 
+    but method reuse makes it less error prone
+  */
+
+  // Abstract base class
+  class FaceCellIndexer : public CellIndexer
+  {
+    public:
+      FaceCellIndexer(const PoissonSolverExp& pSolver) : CellIndexer(pSolver) {}
+
+      virtual long long inblock_nds0(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
+      virtual long long inblock_nds1p(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
+      virtual long long inblock_nds1m(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
+      virtual long long inblock_nds2p(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
+      virtual long long inblock_nds2m(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
+      virtual long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const = 0;
+
+  };
+
+  // ------------------------------------------- Faces perpendicular to x-axis -----------------------------------------------
+  class XbaseIndexer : public FaceCellIndexer
+  {
+    public:
+      XbaseIndexer(const PoissonSolverExp& pSolver) : FaceCellIndexer(pSolver) {}
+
+      long long inblock_nds1p(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiYp(info, ix, iy, iz, dist); }
+      long long inblock_nds1m(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiYm(info, ix, iy, iz, dist); }
+      long long inblock_nds2p(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiZp(info, ix, iy, iz, dist); }
+      long long inblock_nds2m(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiZm(info, ix, iy, iz, dist); }
+  };
+
+  class XminIndexer : public XbaseIndexer
+  {
+    public:
+      XminIndexer(const PoissonSolverExp& pSolver) : XbaseIndexer(pSolver) {}
+
+      long long inblock_nds0(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiXp(info, ix, iy, iz, dist); }
+      long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmax(nei_info, ix, iy, iz, offset); }
+  };
+
+  class XmaxIndexer : public XbaseIndexer
+  {
+    public:
+      XmaxIndexer(const PoissonSolverExp& pSolver) : XbaseIndexer(pSolver) {}
+
+      long long inblock_nds0(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiXm(info, ix, iy, iz, dist); }
+      long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmin(nei_info, ix, iy, iz, offset); }
+  };
+
+  // ------------------------------------------- Faces perpendicular to y-axis -----------------------------------------------
+  class YbaseIndexer : public FaceCellIndexer
+  {
+    public:
+      YbaseIndexer(const PoissonSolverExp& pSolver) : FaceCellIndexer(pSolver) {}
+
+      long long inblock_nds1p(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiZp(info, ix, iy, iz, dist); }
+      long long inblock_nds1m(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiZm(info, ix, iy, iz, dist); }
+      long long inblock_nds2p(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiXp(info, ix, iy, iz, dist); }
+      long long inblock_nds2m(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiXm(info, ix, iy, iz, dist); }
+  };
+
+  class YminIndexer : public YbaseIndexer
+  {
+    public:
+      YminIndexer(const PoissonSolverExp& pSolver) : YbaseIndexer(pSolver) {}
+
+      long long inblock_nds0(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiYp(info, ix, iy, iz, dist); }
+      long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymax(nei_info, ix, iy, iz, offset); }
+  };
+
+  class YmaxIndexer : public YbaseIndexer
+  {
+    public:
+      YmaxIndexer(const PoissonSolverExp& pSolver) : YbaseIndexer(pSolver) {}
+
+      long long inblock_nds0(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiYm(info, ix, iy, iz, dist); }
+      long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymin(nei_info, ix, iy, iz, offset); }
+  };
+
+  // ------------------------------------------- Faces perpendicular to z-axis -----------------------------------------------
+  class ZbaseIndexer : public FaceCellIndexer
+  {
+    public:
+      ZbaseIndexer(const PoissonSolverExp& pSolver) : FaceCellIndexer(pSolver) {}
+
+      long long inblock_nds1p(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiXp(info, ix, iy, iz, dist); }
+      long long inblock_nds1m(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiXm(info, ix, iy, iz, dist); }
+      long long inblock_nds2p(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiYp(info, ix, iy, iz, dist); }
+      long long inblock_nds2m(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiYm(info, ix, iy, iz, dist); }
+  };
+
+  class ZminIndexer : public ZbaseIndexer
+  {
+    public:
+      ZminIndexer(const PoissonSolverExp& pSolver) : ZbaseIndexer(pSolver) {}
+
+      long long inblock_nds0(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiZp(info, ix, iy, iz, dist); }
+      long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmax(nei_info, ix, iy, iz, offset); }
+  };
+
+  class ZmaxIndexer : public ZbaseIndexer
+  {
+    public:
+      ZmaxIndexer(const PoissonSolverExp& pSolver) : ZbaseIndexer(pSolver) {}
+
+      long long inblock_nds0(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
+      { return neiZm(info, ix, iy, iz, dist); }
+      long long neiblock_n(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmin(nei_info, ix, iy, iz, offset); }
+  };
+
+  // Cell indexers
+  CellIndexer GenericCell;
+  XminIndexer XminCell;
+  XmaxIndexer XmaxCell;
+  YminIndexer YminCell;
+  YmaxIndexer YmaxCell;
+  ZminIndexer ZminCell;
+  ZmaxIndexer ZmaxCell;
+  // Array of the indexers above upcast to their parent class for polymorphism in makeFlux
+  std::array<const FaceCellIndexer*, 6> faceIndexers;
 };
 
 }//namespace cubismup3d
