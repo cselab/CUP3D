@@ -69,6 +69,7 @@ class PoissonSolverExp : public PoissonSolverBase
       long long This(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz) const
       { return blockOffset(info) + (long long)(iz*ny*nx + iy*nx + ix); }
 
+      // Return indices of neighbouring cells
       long long neiXp(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
       { return blockOffset(info) + (long long)(iz*ny*nx + iy*nx + ix+dist); }
       long long neiXm(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
@@ -82,7 +83,7 @@ class PoissonSolverExp : public PoissonSolverBase
       long long neiZm(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
       { return blockOffset(info) + (long long)((iz-dist)*ny*nx + iy*nx + ix); }
 
-
+      // Check if neighbouring cells are in this block
       static bool validXp(const int &ix, const int &iy, const int &iz)
       { return ix < nx_ - 1; }
       static bool validXm(const int &ix, const int &iy, const int &iz)

@@ -205,8 +205,8 @@ void PoissonSolverExp::getMat()
     rhsNei[5] = &(this->sim.lhs->getBlockInfoAll(rhs_info.level, Z[5]));
 
     for (int iz(0); iz<nz_; iz++)
-    for (int iy(0); iz<ny_; iz++)
-    for (int ix(0); iz<nx_; iz++)
+    for (int iy(0); iz<ny_; iy++)
+    for (int ix(0); iz<nx_; ix++)
     { // Logic needs to be in 'for' loop to consruct cooRows in order
       const long long sfc_idx = GenericCell.This(rhs_info, ix, iy, iz);  
       if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
@@ -223,6 +223,7 @@ void PoissonSolverExp::getMat()
       }
       else
       {
+        // See if face is shared with a cell from different block
         std::array<bool, 6> validNei;
         validNei[0] = GenericCell.validXm(ix, iy, iz); 
         validNei[1] = GenericCell.validXp(ix, iy, iz); 
@@ -231,6 +232,7 @@ void PoissonSolverExp::getMat()
         validNei[4] = GenericCell.validZm(ix, iy, iz); 
         validNei[5] = GenericCell.validZp(ix, iy, iz); 
 
+        // Get index of cell accross the face
         std::array<long long, 6> idxNei;
         idxNei[0] = GenericCell.neiXm(rhs_info, ix, iy, iz);
         idxNei[1] = GenericCell.neiXp(rhs_info, ix, iy, iz);
@@ -280,8 +282,8 @@ void PoissonSolverExp::getVec()
     const ScalarBlock & __restrict__ p = *(ScalarBlock*)zInfo[i].ptrBlock;
 
     for (int iz(0); iz<nz_; iz++)
-    for (int iy(0); iz<ny_; iz++)
-    for (int ix(0); iz<nx_; iz++)
+    for (int iy(0); iz<ny_; iy++)
+    for (int ix(0); iz<nx_; ix++)
     {
       const long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy, iz) + shift;
       b[sfc_loc] = rhs(ix, iy, iz).s;
@@ -324,8 +326,8 @@ void PoissonSolverExp::solve()
   {
     ScalarBlock& p  = *(ScalarBlock*) zInfo[i].ptrBlock;
     for (int iz(0); iz<nz_; iz++)
-    for (int iy(0); iz<ny_; iz++)
-    for (int ix(0); iz<nx_; iz++)
+    for (int iy(0); iz<ny_; iy++)
+    for (int ix(0); iz<nx_; ix++)
     {
         p(ix,iy,iz).s = x[i*nxyz_ + iz*ny_*nx_ + iy*nx_ + ix];
     }
