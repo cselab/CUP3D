@@ -118,7 +118,18 @@ void PoissonSolverExp::makeFlux(
     const FaceCellIndexer& indexer,
     SpRowInfo &row) const
 {
+  const long long sfc_idx = indexer.This(rhs_info, ix, iy, iz);
 
+  if (this->sim.lhs->Tree(rhsNei).Exists())
+  { 
+    const int nei_rank = sim.lhs->Tree(rhsNei).rank();
+    const long long nei_idx = indexer.neiblock_n(rhsNei, ix, iy, iz);
+
+    // Map flux associated to out-of-block edges at the same level of refinement
+    row.mapColVal(nei_rank, nei_idx, 1.);
+    row.mapColVal(sfc_idx, -1.);
+  }
+  else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
 }
 
 void PoissonSolverExp::getMat()
@@ -196,13 +207,7 @@ void PoissonSolverExp::getMat()
     for (int iz(0); iz<nz_; iz++)
     for (int iy(0); iz<ny_; iz++)
     for (int ix(0); iz<nx_; iz++)
-    { /* Logic needs to be in 'for' loop to consruct cooRows in order
-         Cases to consider:
-          - inner cells
-          - inner cells on 6  faces of cube
-          - inner cells on 12 edges of cube
-          - inner cells on 8 vertices of cube
-      */
+    { // Logic needs to be in 'for' loop to consruct cooRows in order
       const long long sfc_idx = GenericCell.This(rhs_info, ix, iy, iz);  
       if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
       { // Inner cells
@@ -255,9 +260,75 @@ void PoissonSolverExp::getMat()
   LocalLS_->make(Nrows_xcumsum_);
 }
 
+void PoissonSolverExp::getVec()
+{
+  //Get a vector of all BlockInfos of the grid we're interested in
+  std::vector<cubism::BlockInfo>&  RhsInfo = sim.lhs->getBlocksInfo();
+  std::vector<cubism::BlockInfo>&  zInfo = sim.z->getBlocksInfo();
+  const int Nblocks = RhsInfo.size();
+  const int N = Nblocks * nxyz_;
+
+  std::vector<double>& x = LocalLS_->get_x();
+  std::vector<double>& b = LocalLS_->get_b();
+  const long long shift = -Nrows_xcumsum_[rank_];
+
+  // Copy RHS and LHS vec initial guess, if LS was updated getMat reallocates sufficient memory
+  #pragma omp parallel for
+  for (int i=0; i<Nblocks; i++)
+  {
+    const ScalarBlock & __restrict__ rhs = *(ScalarBlock*)RhsInfo[i].ptrBlock;
+    const ScalarBlock & __restrict__ p = *(ScalarBlock*)zInfo[i].ptrBlock;
+
+    for (int iz(0); iz<nz_; iz++)
+    for (int iy(0); iz<ny_; iz++)
+    for (int ix(0); iz<nx_; iz++)
+    {
+      const long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy, iz) + shift;
+      b[sfc_loc] = rhs(ix, iy, iz).s;
+      x[sfc_loc] = p(ix, iy, iz).s;
+    }
+  }
+}
+
 void PoissonSolverExp::solve() 
 {
-  std::cerr << "Hello PoissonSolverExp!\n";
-  throw;
+  if (rank_ == 0)
+    std::cout << "--------------------- Calling on ExpAMRSolver.solve() ------------------------ \n";
+
+  const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonErrorTol;
+  const double max_rel_error = this->sim.step < 10 ? 0.0 : sim.PoissonErrorTolRel;
+  //const int max_restarts = this->sim.step < 10 ? 100 : sim.maxPoissonRestarts;
+  const int max_restarts = 100;
+
+  if (sim.z->UpdateFluxCorrection)
+  {
+    sim.z->UpdateFluxCorrection = false;
+    this->getMat();
+    this->getVec();
+    LocalLS_->solveWithUpdate(max_error, max_rel_error, max_restarts);
+  }
+  else
+  {
+    this->getVec();
+    LocalLS_->solveNoUpdate(max_error, max_rel_error, max_restarts);
+  }
+
+  //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
+  //This can be done because the solver only cares about grad(P) = grad(P-mean(P))
+  std::vector<cubism::BlockInfo>&  zInfo = sim.z->getBlocksInfo();
+  const int Nblocks = zInfo.size();
+  const std::vector<double>& x = LocalLS_->get_x();
+
+  #pragma omp parallel for 
+  for(int i=0; i< Nblocks; i++)
+  {
+    ScalarBlock& p  = *(ScalarBlock*) zInfo[i].ptrBlock;
+    for (int iz(0); iz<nz_; iz++)
+    for (int iy(0); iz<ny_; iz++)
+    for (int ix(0); iz<nx_; iz++)
+    {
+        p(ix,iy,iz).s = x[i*nxyz_ + iz*ny_*nx_ + iy*nx_ + ix];
+    }
+  }
 }
 }//namespace cubismup3d
