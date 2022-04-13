@@ -166,7 +166,6 @@ void PoissonSolverExp::getMat()
     Nrows_xcumsum_[i] = Nblocks_xcumsum_[i] * nxyz_;
   }
 
-
   // No parallel for to ensure COO are ordered at construction
   for(int i=0; i<Nblocks; i++)
   {    
@@ -205,10 +204,11 @@ void PoissonSolverExp::getMat()
     rhsNei[5] = &(this->sim.lhs->getBlockInfoAll(rhs_info.level, Z[5]));
 
     for (int iz(0); iz<nz_; iz++)
-    for (int iy(0); iz<ny_; iy++)
-    for (int ix(0); iz<nx_; ix++)
+    for (int iy(0); iy<ny_; iy++)
+    for (int ix(0); ix<nx_; ix++)
     { // Logic needs to be in 'for' loop to consruct cooRows in order
       const long long sfc_idx = GenericCell.This(rhs_info, ix, iy, iz);  
+      //std::cerr << "Constructing row: " << sfc_idx << std::endl;
       if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
       { // Inner cells
 
@@ -282,8 +282,8 @@ void PoissonSolverExp::getVec()
     const ScalarBlock & __restrict__ p = *(ScalarBlock*)zInfo[i].ptrBlock;
 
     for (int iz(0); iz<nz_; iz++)
-    for (int iy(0); iz<ny_; iy++)
-    for (int ix(0); iz<nx_; ix++)
+    for (int iy(0); iy<ny_; iy++)
+    for (int ix(0); ix<nx_; ix++)
     {
       const long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy, iz) + shift;
       b[sfc_loc] = rhs(ix, iy, iz).s;
@@ -297,9 +297,11 @@ void PoissonSolverExp::solve()
   if (rank_ == 0)
     std::cout << "--------------------- Calling on ExpAMRSolver.solve() ------------------------ \n";
 
-  const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonErrorTol;
-  const double max_rel_error = this->sim.step < 10 ? 0.0 : sim.PoissonErrorTolRel;
+  //const double max_error = this->sim.step < 10 ? 0.0 : sim.PoissonErrorTol;
+  //const double max_rel_error = this->sim.step < 10 ? 0.0 : sim.PoissonErrorTolRel;
   //const int max_restarts = this->sim.step < 10 ? 100 : sim.maxPoissonRestarts;
+  const double max_error = sim.PoissonErrorTol;
+  const double max_rel_error = sim.PoissonErrorTolRel;
   const int max_restarts = 100;
 
   if (sim.z->UpdateFluxCorrection)
@@ -326,8 +328,8 @@ void PoissonSolverExp::solve()
   {
     ScalarBlock& p  = *(ScalarBlock*) zInfo[i].ptrBlock;
     for (int iz(0); iz<nz_; iz++)
-    for (int iy(0); iz<ny_; iy++)
-    for (int ix(0); iz<nx_; ix++)
+    for (int iy(0); iy<ny_; iy++)
+    for (int ix(0); ix<nx_; ix++)
     {
         p(ix,iy,iz).s = x[i*nxyz_ + iz*ny_*nx_ + iy*nx_ + ix];
     }
