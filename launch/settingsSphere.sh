@@ -18,7 +18,6 @@ FACTORY='Sphere L=0.125 xpos=0.6 xvel=0.125 bForcedInSimFrame=1 bFixFrameOfRef=1
 
 OPTIONS=
 OPTIONS+=" -tdump 0 -tend 10" # -fdump 1
-OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"
 OPTIONS+=" -CFL ${CFL} -dt ${DT} -lambda ${LAMBDA} -use-dlm ${DLM} -nu ${NU}"
 OPTIONS+=" -levelMax ${LEVELS} -levelStart 1 -Rtol 4.00 -Ctol 1.00"
 OPTIONS+=" -extentx 4.0 " # -extentx 2.0
