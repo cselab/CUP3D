@@ -33,11 +33,13 @@ public:
 
   ~DeviceProfiler() 
   {
+#ifdef BICGSTAB_PROFILER
     for (auto &[key, prof] : profs_)
     {
       checkCudaErrors(cudaEventDestroy(prof.start));
       checkCudaErrors(cudaEventDestroy(prof.stop));
     }
+#endif
   }
 
   void startProfiler(std::string tag, cudaStream_t s)
