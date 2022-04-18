@@ -124,10 +124,11 @@ void PoissonSolverExp::makeFlux(
   { 
     const int nei_rank = sim.lhs->Tree(rhsNei).rank();
     const long long nei_idx = indexer.neiblock_n(rhsNei, ix, iy, iz);
+    const double h = rhsNei.h;
 
     // Map flux associated to out-of-block edges at the same level of refinement
-    row.mapColVal(nei_rank, nei_idx, 1.);
-    row.mapColVal(sfc_idx, -1.);
+    row.mapColVal(nei_rank, nei_idx, h);
+    row.mapColVal(sfc_idx, -h);
   }
   else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
 }
@@ -208,18 +209,26 @@ void PoissonSolverExp::getMat()
     for (int ix(0); ix<nx_; ix++)
     { // Logic needs to be in 'for' loop to consruct cooRows in order
       const long long sfc_idx = GenericCell.This(rhs_info, ix, iy, iz);  
-      //std::cerr << "Constructing row: " << sfc_idx << std::endl;
-      if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
+      const double h = rhs_info.h;
+      if (rhs_info.index[0] == 0 &&
+          rhs_info.index[1] == 0 &&
+          rhs_info.index[2] == 0 &&
+          ix == 0 && iy == 0 && iz == 0)
+          
+      {
+        LocalLS_->cooPushBackVal(h, sfc_idx, sfc_idx);
+      }
+      else if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
       { // Inner cells
 
         // Push back in ascending order for column index
-        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiZm(rhs_info, ix, iy, iz));
-        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiYm(rhs_info, ix, iy, iz));
-        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiXm(rhs_info, ix, iy, iz));
-        LocalLS_->cooPushBackVal(-6, sfc_idx, sfc_idx);
-        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiXp(rhs_info, ix, iy, iz));
-        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiYp(rhs_info, ix, iy, iz));
-        LocalLS_->cooPushBackVal(1., sfc_idx, GenericCell.neiZp(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiZm(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiYm(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiXm(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(-6.*h, sfc_idx, sfc_idx);
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiXp(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiYp(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiZp(rhs_info, ix, iy, iz));
       }
       else
       {
@@ -247,8 +256,8 @@ void PoissonSolverExp::getMat()
         { // Iterate over each face of cell
           if (validNei[j])
           { // This face is 'inner' wrt to the block
-            row.mapColVal(idxNei[j], 1.);
-            row.mapColVal(sfc_idx, -1.);  // diagonal element
+            row.mapColVal(idxNei[j], h);
+            row.mapColVal(sfc_idx, -h);  // diagonal element
           }
           else if (!isBoundary[j]) // outer face and not boundary
             this->makeFlux(rhs_info, ix, iy, iz, isBoundary[j], *rhsNei[j], *faceIndexers[j], row);
@@ -321,7 +330,9 @@ void PoissonSolverExp::solve()
   //This can be done because the solver only cares about grad(P) = grad(P-mean(P))
   std::vector<cubism::BlockInfo>&  zInfo = sim.z->getBlocksInfo();
   const int Nblocks = zInfo.size();
+
   const std::vector<double>& x = LocalLS_->get_x();
+  const long long shift = -Nrows_xcumsum_[rank_];
 
   #pragma omp parallel for 
   for(int i=0; i< Nblocks; i++)
@@ -331,8 +342,24 @@ void PoissonSolverExp::solve()
     for (int iy(0); iy<ny_; iy++)
     for (int ix(0); ix<nx_; ix++)
     {
-        p(ix,iy,iz).s = x[i*nxyz_ + iz*ny_*nx_ + iy*nx_ + ix];
+      const long long sfc_loc = GenericCell.This(zInfo[i], ix, iy, iz) + shift;
+      p(ix,iy,iz).s = x[sfc_loc];
     }
   }
+//  #pragma omp parallel for
+//  for (size_t i=0; i < Nblocks; i++)
+//  {
+//    const int m = zInfo[i].level;
+//    const long long n = zInfo[i].Z;
+//    const BlockInfo & info = sim.grid->getBlockInfoAll(m,n);
+//    BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
+//    for(int iz=0; iz<BlockType::sizeZ; iz++)
+//    for(int iy=0; iy<BlockType::sizeY; iy++)
+//    for(int ix=0; ix<BlockType::sizeX; ix++)
+//    {
+//      const long long sfc_loc = GenericCell.This(zInfo[i], ix, iy, iz) + shift;
+//      b(ix,iy,iz).p = x[sfc_loc];
+//    }
+//  }
 }
 }//namespace cubismup3d
