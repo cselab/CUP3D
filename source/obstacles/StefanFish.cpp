@@ -125,18 +125,13 @@ class CurvatureDefinedFishData : public FishMidlineData
 
 void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, const std::vector<Real>& input)
 {
-  if (input.size() == 0)
-  {
-     std::cerr << "No actions given to CurvatureDefinedFishData::execute\n";
-     MPI_Abort(sim.app_comm,1);
-  }
 
   //1.midline curvature
   rlBendingScheduler.Turn(input[0], l_tnext);
   if (input.size() == 1) return;
 
   //2.pitching motion
-  if (time > Tman_finish && bFixToPlanar == false)
+  if (time > Tman_finish)
   {
      Tman_start = time;
      Tman_finish = time + 0.25*Tperiod;
@@ -543,7 +538,12 @@ void StefanFish::act(const Real t_rlAction, const std::vector<Real>& a) const
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
   std::vector <Real> actions = a;
-  if (bForcedInSimFrame[2] && a.size() == 3) actions[2] = 0;
+  if (actions.size() == 0)
+  {
+     std::cerr << "No actions given to CurvatureDefinedFishData::execute\n";
+     MPI_Abort(sim.app_comm,1);
+  }
+  if (bForcedInSimFrame[2] == true && a.size() > 1) actions[1] = 0; //no pitching
   cFish->execute(sim.time, t_rlAction, actions);
 }
 
