@@ -123,42 +123,33 @@ class CurvatureDefinedFishData : public FishMidlineData
   void recomputeNormalVectors();
 };
 
-void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext,
-                                       const std::vector<Real>& input)
+void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, const std::vector<Real>& input)
 {
-  if (input.size()==3) //actions are tail-beat frequency, midline curvature and pitching motion
+  if (input.size() == 0)
   {
-    //1.midline curvature
-    rlBendingScheduler.Turn(input[0], l_tnext);
+     std::cerr << "No actions given to CurvatureDefinedFishData::execute\n";
+     MPI_Abort(sim.app_comm,1);
+  }
 
-    //2.tail-beat frequency
-    //first, shift time to  previous turn node
-    timeshift += (l_tnext-time0)/periodPIDval;
-    time0 = l_tnext;
-    periodPIDval = Tperiod*(1.+input[1]);
-    periodPIDdif = 0;
+  //1.midline curvature
+  rlBendingScheduler.Turn(input[0], l_tnext);
+  if (input.size() == 1) return;
 
-    //3.pitching motion
-    if (time > Tman_finish)
-    {
-      Tman_start = time;
-      Tman_finish = time + 0.25*Tperiod;
-      Lman = input[2];
-    }
-  }
-  else if (input.size()==2) //actions are tail-beat frequency and midline curvature
+  //2.pitching motion
+  if (time > Tman_finish && bFixToPlanar == false)
   {
-    rlBendingScheduler.Turn(input[0], l_tnext);
-    //first, shift time to  previous turn node
-    timeshift += (l_tnext-time0)/periodPIDval;
-    time0 = l_tnext;
-    periodPIDval = Tperiod*(1.+input[1]);
-    periodPIDdif = 0;
+     Tman_start = time;
+     Tman_finish = time + 0.25*Tperiod;
+     Lman = 0;
+     if (std::fabs(input[1]) > 0.01) Lman = 1.0/input[2];
   }
-  else if (input.size() == 1) //action is midline curvature
-  {
-    rlBendingScheduler.Turn(input[0], l_tnext);
-  }
+  if (input.size() == 2) return;
+
+  //3.tail-beat frequency. First shift time to previous turn node
+  timeshift += (l_tnext-time0)/periodPIDval;
+  time0 = l_tnext;
+  periodPIDval = Tperiod*(1.+input[2]);
+  periodPIDdif = 0;
 }
 
 void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
