@@ -21,11 +21,11 @@ double PoissonSolverExp::getA_local(const int& i, const int& j)
 
   static constexpr int nxny = nx_ * ny_;
   const int ix = i % nx_;
-  const int iy = i / nx_;
+  const int iy = (i / nx_) % ny_;
   const int iz = i / nxny;
 
   const int jx = j % nx_;
-  const int jy = j / nx_;
+  const int jy = (j / nx_) % ny_;
   const int jz = j / nxny;
 
   if ((abs(ix-jx) + abs(iy-jy) + abs(iz-jz)) == 1)
@@ -132,11 +132,36 @@ void PoissonSolverExp::makeFlux(
   }
   else if (this->sim.lhs->Tree(rhsNei).CheckCoarser())
   {
-  
+    const BlockInfo &rhsNei_c = sim.lhs->getBlockInfoAll(rhs_info.level - 1 , rhsNei.Zparent);
+    const int nei_rank = sim.lhs->Tree(rhsNei_c).rank();
+    const long long nei_idx = indexer.neiCoarse(rhsNei_c, ix, iy, iz);
+    const double h = rhsNei_c.h;
+      
+    row.mapColVal(nei_rank, nei_idx, h);
+    row.mapColVal(sfc_idx, -h);
   }
   else if (this->sim.lhs->Tree(rhsNei).CheckFiner())
   {
+    const BlockInfo &rhsNei_f = this->sim.lhs->getBlockInfoAll(rhs_info.level + 1, indexer.Zchild(rhsNei, ix, iy, iz));
+    const int nei_rank = sim.lhs->Tree(rhsNei_f).rank();
+    const double h = rhsNei_f.h;
   
+    // F1
+    long long nei_idx = indexer.neiFine1(rhsNei_f, ix, iy, iz);
+    row.mapColVal(nei_rank, nei_idx, h);
+    row.mapColVal(sfc_idx, -h);
+    // F2
+    nei_idx = indexer.neiFine2(rhsNei_f, ix, iy, iz);
+    row.mapColVal(nei_rank, nei_idx, h);
+    row.mapColVal(sfc_idx, -h);
+    // F3
+    nei_idx = indexer.neiFine3(rhsNei_f, ix, iy, iz);
+    row.mapColVal(nei_rank, nei_idx, h);
+    row.mapColVal(sfc_idx, -h);
+    // F4
+    nei_idx = indexer.neiFine4(rhsNei_f, ix, iy, iz);
+    row.mapColVal(nei_rank, nei_idx, h);
+    row.mapColVal(sfc_idx, -h);
   }
   else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
 }

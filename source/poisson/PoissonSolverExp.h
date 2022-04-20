@@ -113,6 +113,15 @@ class PoissonSolverExp : public PoissonSolverBase
     protected:
       long long blockOffset(const cubism::BlockInfo &info) const
       { return (info.blockID + ps.Nblocks_xcumsum_[ps.sim.lhs->Tree(info).rank()])*nlen; }
+      static int ix_c(const cubism::BlockInfo &info, const int &ix)
+      { return (info.index[0] % 2 == 0) ? (ix/2) : (ix/2 + nx_/2); }
+      static int iy_c(const cubism::BlockInfo &info, const int &iy)
+      { return (info.index[1] % 2 == 0) ? (iy/2) : (iy/2 + ny_/2); }
+      static int iz_c(const cubism::BlockInfo &info, const int &iz)
+      { return (info.index[2] % 2 == 0) ? (iz/2) : (iz/2 + nz_/2); }
+      static int ix_f(const int &ix) { return (ix % (nx/2)) * 2; }
+      static int iy_f(const int &iy) { return (iy % (ny/2)) * 2; }
+      static int iz_f(const int &iz) { return (iz % (nz/2)) * 2; }
 
       const PoissonSolverExp &ps;
       static constexpr int nx = BlockType::sizeX;
@@ -139,6 +148,13 @@ class PoissonSolverExp : public PoissonSolverBase
       FaceCellIndexer(const PoissonSolverExp& pSolver) : CellIndexer(pSolver) {}
 
       virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const = 0;
+      virtual long long neiCoarse(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const = 0;
+      virtual long long neiFine1(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const = 0;
+      virtual long long neiFine2(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const = 0;
+      virtual long long neiFine3(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const = 0;
+      virtual long long neiFine4(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const = 0;
+
+      virtual long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const = 0;
 
   };
 
@@ -156,6 +172,19 @@ class PoissonSolverExp : public PoissonSolverBase
 
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Xmax(nei_info, ix, iy, iz, offset); }
+      long long neiCoarse(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmax(nei_info, ix_c(nei_info, ix), iy_c(nei_info, iy), iz_c(nei_info, iz), offset); }
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmax(nei_info, ix_f(ix), iy_f(iy), iz_f(iz), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmax(nei_info, ix_f(ix), iy_f(iy)+1, iz_f(iz), offset); }
+      long long neiFine3(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmax(nei_info, ix_f(ix), iy_f(iy), iz_f(iz)+1, offset); }
+      long long neiFine4(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmax(nei_info, ix_f(ix), iy_f(iy)+1, iz_f(iz)+1, offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return nei_info.Zchild[1][int(iy >= ny_/2)][int(iz >= nz_/2)];}
   };
 
   class XmaxIndexer : public XbaseIndexer
@@ -165,6 +194,19 @@ class PoissonSolverExp : public PoissonSolverBase
 
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Xmin(nei_info, ix, iy, iz, offset); }
+      long long neiCoarse(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmin(nei_info, ix_c(nei_info, ix), iy_c(nei_info, iy), iz_c(nei_info, iz), offset); }
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmin(nei_info, ix_f(ix), iy_f(iy), iz_f(iz), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmin(nei_info, ix_f(ix), iy_f(iy)+1, iz_f(iz), offset); }
+      long long neiFine3(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmin(nei_info, ix_f(ix), iy_f(iy), iz_f(iz)+1, offset); }
+      long long neiFine4(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Xmin(nei_info, ix_f(ix), iy_f(iy)+1, iz_f(iz)+1, offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return nei_info.Zchild[0][int(iy >= ny_/2)][int(iz >= nz_/2)];}
   };
 
   // ------------------------------------------- Faces perpendicular to y-axis -----------------------------------------------
@@ -181,6 +223,19 @@ class PoissonSolverExp : public PoissonSolverBase
 
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Ymax(nei_info, ix, iy, iz, offset); }
+      long long neiCoarse(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymax(nei_info, ix_c(nei_info, ix), iy_c(nei_info, iy), iz_c(nei_info, iz), offset); }
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymax(nei_info, ix_f(ix), iy_f(iy), iz_f(iz), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymax(nei_info, ix_f(ix)+1, iy_f(iy), iz_f(iz), offset); }
+      long long neiFine3(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymax(nei_info, ix_f(ix), iy_f(iy), iz_f(iz)+1, offset); }
+      long long neiFine4(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymax(nei_info, ix_f(ix)+1, iy_f(iy), iz_f(iz)+1, offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return nei_info.Zchild[int(ix >= nx_/2)][1][int(iz >= nz_/2)];}
   };
 
   class YmaxIndexer : public YbaseIndexer
@@ -190,6 +245,19 @@ class PoissonSolverExp : public PoissonSolverBase
 
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Ymin(nei_info, ix, iy, iz, offset); }
+      long long neiCoarse(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymin(nei_info, ix_c(nei_info, ix), iy_c(nei_info, iy), iz_c(nei_info, iz), offset); }
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymin(nei_info, ix_f(ix), iy_f(iy), iz_f(iz), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymin(nei_info, ix_f(ix)+1, iy_f(iy), iz_f(iz), offset); }
+      long long neiFine3(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymin(nei_info, ix_f(ix), iy_f(iy), iz_f(iz)+1, offset); }
+      long long neiFine4(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Ymin(nei_info, ix_f(ix)+1, iy_f(iy), iz_f(iz)+1, offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return nei_info.Zchild[int(ix >= nx_/2)][0][int(iz >= nz_/2)];}
   };
 
   // ------------------------------------------- Faces perpendicular to z-axis -----------------------------------------------
@@ -206,6 +274,19 @@ class PoissonSolverExp : public PoissonSolverBase
 
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Zmax(nei_info, ix, iy, iz, offset); }
+      long long neiCoarse(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmax(nei_info, ix_c(nei_info, ix), iy_c(nei_info, iy), iz_c(nei_info, iz), offset); }
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmax(nei_info, ix_f(ix), iy_f(iy), iz_f(iz), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmax(nei_info, ix_f(ix)+1, iy_f(iy), iz_f(iz), offset); }
+      long long neiFine3(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmax(nei_info, ix_f(ix), iy_f(iy)+1, iz_f(iz), offset); }
+      long long neiFine4(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmax(nei_info, ix_f(ix)+1, iy_f(iy)+1, iz_f(iz), offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return nei_info.Zchild[int(ix >= nx_/2)][int(iy >= ny_/2)][1];}
   };
 
   class ZmaxIndexer : public ZbaseIndexer
@@ -215,6 +296,19 @@ class PoissonSolverExp : public PoissonSolverBase
 
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Zmin(nei_info, ix, iy, iz, offset); }
+      long long neiCoarse(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmin(nei_info, ix_c(nei_info, ix), iy_c(nei_info, iy), iz_c(nei_info, iz), offset); }
+      long long neiFine1(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmin(nei_info, ix_f(ix), iy_f(iy), iz_f(iz), offset); }
+      long long neiFine2(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmin(nei_info, ix_f(ix)+1, iy_f(iy), iz_f(iz), offset); }
+      long long neiFine3(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmin(nei_info, ix_f(ix), iy_f(iy)+1, iz_f(iz), offset); }
+      long long neiFine4(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
+      { return Zmin(nei_info, ix_f(ix)+1, iy_f(iy)+1, iz_f(iz), offset); }
+
+      long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return nei_info.Zchild[int(ix >= nx_/2)][int(iy >= ny_/2)][0];}
   };
 
   // Cell indexers
