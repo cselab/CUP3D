@@ -114,6 +114,7 @@ private:
   double* d_x_opt_;
   double* d_r_;
   double* d_P_inv_;
+  double* d_pScale_;
   // Device-side intermediate variables for BiCGSTAB
   double* d_rhat_;
   double* d_p_;

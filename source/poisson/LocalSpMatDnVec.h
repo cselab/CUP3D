@@ -71,6 +71,7 @@ class LocalSpMatDnVec
     // Modifiable references for x and b for setting and getting initial conditions/solution
     std::vector<double>& get_x() { return x_; }
     std::vector<double>& get_b() { return b_; }
+    std::vector<double>& get_pScale() { return pScale_; }
 
     // Expose private variables to friendly solver
     friend class BiCGSTABSolver;
@@ -79,6 +80,7 @@ class LocalSpMatDnVec
     int rank_;
     MPI_Comm m_comm_;
     int comm_size_; 
+    const int BLEN_; // number of cells in a block
 
     int m_;
     int halo_;
@@ -91,6 +93,7 @@ class LocalSpMatDnVec
     std::vector<long long> loc_cooColA_long_;
     std::vector<double> x_;
     std::vector<double> b_;
+    std::vector<double> pScale_; // post-preconditioning scaling factor for each block
 
     // Non-local rows with columns belonging to halo using rank-local indexing
     std::vector<double> bd_cooValA_;

@@ -6,7 +6,7 @@
 #include "BiCGSTAB.cuh"
 
 LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vector<double>& P_inv) 
-  : m_comm_(m_comm)
+  : m_comm_(m_comm), BLEN_(BLEN)
 {
   // MPI
   MPI_Comm_rank(m_comm_, &rank_);
@@ -34,15 +34,16 @@ void LocalSpMatDnVec::reserve(const int &N)
   for (size_t i(0); i < bd_recv_set_.size(); i++)
     bd_recv_set_[i].clear();
 
-  loc_cooValA_.clear(); loc_cooValA_.reserve(6*N);
-  loc_cooRowA_long_.clear(); loc_cooRowA_long_.reserve(6*N);
-  loc_cooColA_long_.clear(); loc_cooColA_long_.reserve(6*N);
+  loc_cooValA_.clear(); loc_cooValA_.reserve(10*N);
+  loc_cooRowA_long_.clear(); loc_cooRowA_long_.reserve(10*N);
+  loc_cooColA_long_.clear(); loc_cooColA_long_.reserve(10*N);
   bd_cooValA_.clear(); bd_cooValA_.reserve(N);
   bd_cooRowA_long_.clear(); bd_cooRowA_long_.reserve(N);
   bd_cooColA_long_.clear(); bd_cooColA_long_.reserve(N);
 
   x_.resize(N);
   b_.resize(N);
+  pScale_.resize(N/BLEN_); // grid-spacing per block
 }
 
 void LocalSpMatDnVec::cooPushBackVal(const double &val, const long long &row, const long long &col)

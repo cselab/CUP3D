@@ -101,6 +101,7 @@ void BiCGSTABSolver::freeLast()
     checkCudaErrors(cudaFree(d_x_)); 
     checkCudaErrors(cudaFree(d_x_opt_)); 
     checkCudaErrors(cudaFree(d_r_));
+    checkCudaErrors(cudaFree(d_pScale_));
     // Cleanup memory allocated for BiCGSTAB arrays
     checkCudaErrors(cudaFree(d_rhat_));
     checkCudaErrors(cudaFree(d_p_));
@@ -141,6 +142,7 @@ void BiCGSTABSolver::updateAll()
   loc_nnz_ = LocalLS_.loc_nnz_ ;
   bd_nnz_ = LocalLS_.bd_nnz_ ;
   send_buff_sz_ = LocalLS_.send_pack_idx_.size();
+  const int Nblocks = m_ / BLEN_;
   
   // Allocate device memory for local linear system
   checkCudaErrors(cudaMalloc(&dloc_cooValA_, loc_nnz_ * sizeof(double)));
@@ -149,6 +151,7 @@ void BiCGSTABSolver::updateAll()
   checkCudaErrors(cudaMalloc(&d_x_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_x_opt_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_r_, m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_pScale_, Nblocks * sizeof(double)));
   // Allocate arrays for BiCGSTAB storage
   checkCudaErrors(cudaMalloc(&d_rhat_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_p_, m_ * sizeof(double)));
@@ -171,6 +174,7 @@ void BiCGSTABSolver::updateAll()
   checkCudaErrors(cudaMemcpyAsync(dloc_cooValA_, LocalLS_.loc_cooValA_.data(), loc_nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(dloc_cooRowA_, LocalLS_.loc_cooRowA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(dloc_cooColA_, LocalLS_.loc_cooColA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_pScale_, LocalLS_.pScale_.data(), Nblocks * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   if (comm_size_ > 1)
   {
     checkCudaErrors(cudaMemcpyAsync(d_send_pack_idx_, LocalLS_.send_pack_idx_.data(), send_buff_sz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
@@ -270,6 +274,13 @@ __global__ void set_omega(BiCGSTABScalars* coeffs)
 __global__ void set_rho(BiCGSTABScalars* coeffs)
 {
   coeffs->rho_prev = coeffs->rho_curr;
+}
+
+__global__ void precScaleBlocks(const int m, const int BLEN, const double* const pScale, double* const vec)
+{
+  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < m; i += blockDim.x * gridDim.x)
+    vec[i] = pScale[i/BLEN] * vec[i];
+
 }
 
 __global__ void send_buff_pack(
@@ -470,6 +481,8 @@ void BiCGSTABSolver::main(
     // 4. z <- K_2^{-1} * p_i
     prof_.startProfiler("Prec", solver_stream_);
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BLEN_, m_ / BLEN_, BLEN_, d_eye_, d_P_inv_, BLEN_, d_p_, BLEN_, d_nil_, d_z_, BLEN_));
+    precScaleBlocks<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, d_pScale_, d_z_);
+    checkCudaErrors(cudaGetLastError());
     prof_.stopProfiler("Prec", solver_stream_);
 
     // 5. nu_i = A * z
@@ -495,6 +508,8 @@ void BiCGSTABSolver::main(
     // 10. z <- K_2^{-1} * s
     prof_.startProfiler("Prec", solver_stream_);
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BLEN_, m_ / BLEN_, BLEN_, d_eye_, d_P_inv_, BLEN_, d_r_, BLEN_, d_nil_, d_z_, BLEN_));
+    precScaleBlocks<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, d_pScale_, d_z_);
+    checkCudaErrors(cudaGetLastError());
     prof_.stopProfiler("Prec", solver_stream_);
 
     // 11. t = A * z

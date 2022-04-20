@@ -280,10 +280,10 @@ void PoissonSolverExp::getVec()
   std::vector<cubism::BlockInfo>&  RhsInfo = sim.lhs->getBlocksInfo();
   std::vector<cubism::BlockInfo>&  zInfo = sim.z->getBlocksInfo();
   const int Nblocks = RhsInfo.size();
-  const int N = Nblocks * nxyz_;
 
   std::vector<double>& x = LocalLS_->get_x();
   std::vector<double>& b = LocalLS_->get_b();
+  std::vector<double>& pScale = LocalLS_->get_pScale();
   const long long shift = -Nrows_xcumsum_[rank_];
 
   // Copy RHS and LHS vec initial guess, if LS was updated getMat reallocates sufficient memory
@@ -293,6 +293,7 @@ void PoissonSolverExp::getVec()
     const ScalarBlock & __restrict__ rhs = *(ScalarBlock*)RhsInfo[i].ptrBlock;
     const ScalarBlock & __restrict__ p = *(ScalarBlock*)zInfo[i].ptrBlock;
 
+    pScale[i] = 1. / RhsInfo[i].h;
     for (int iz(0); iz<nz_; iz++)
     for (int iy(0); iy<ny_; iy++)
     for (int ix(0); ix<nx_; ix++)
