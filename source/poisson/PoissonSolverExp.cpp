@@ -123,12 +123,20 @@ void PoissonSolverExp::makeFlux(
   if (this->sim.lhs->Tree(rhsNei).Exists())
   { 
     const int nei_rank = sim.lhs->Tree(rhsNei).rank();
-    const long long nei_idx = indexer.neiblock_n(rhsNei, ix, iy, iz);
+    const long long nei_idx = indexer.neiUnif(rhsNei, ix, iy, iz);
     const double h = rhsNei.h;
 
     // Map flux associated to out-of-block edges at the same level of refinement
     row.mapColVal(nei_rank, nei_idx, h);
     row.mapColVal(sfc_idx, -h);
+  }
+  else if (this->sim.lhs->Tree(rhsNei).CheckCoarser())
+  {
+  
+  }
+  else if (this->sim.lhs->Tree(rhsNei).CheckFiner())
+  {
+  
   }
   else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
 }
