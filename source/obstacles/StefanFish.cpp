@@ -136,7 +136,7 @@ void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, cons
      Tman_start = time;
      Tman_finish = time + 0.25*Tperiod;
      Lman = 0;
-     if (std::fabs(input[1]) > 0.01) Lman = 1.0/input[2];
+     if (std::fabs(input[1]) > 0.01) Lman = 1.0/input[1];
   }
   if (input.size() == 2) return;
 
