@@ -134,8 +134,8 @@ void PoissonSolverExp::makeFlux(
   {
     const BlockInfo &rhsNei_c = sim.lhs->getBlockInfoAll(rhs_info.level - 1 , rhsNei.Zparent);
     const int nei_rank = sim.lhs->Tree(rhsNei_c).rank();
-    const long long nei_idx = indexer.neiCoarse(rhsNei_c, ix, iy, iz);
-    const double h = rhsNei_c.h;
+    const long long nei_idx = indexer.neiCoarse(rhs_info, rhsNei_c, ix, iy, iz);
+    const double h = rhs_info.h;
       
     row.mapColVal(nei_rank, nei_idx, h);
     row.mapColVal(sfc_idx, -h);
