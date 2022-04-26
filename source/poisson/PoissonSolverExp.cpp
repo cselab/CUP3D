@@ -244,15 +244,7 @@ void PoissonSolverExp::getMat()
     { // Logic needs to be in 'for' loop to consruct cooRows in order
       const long long sfc_idx = GenericCell.This(rhs_info, ix, iy, iz);  
       const double h = rhs_info.h;
-      if (sim.bMeanConstraint > 2 &&
-          rhs_info.index[0] == 0 &&
-          rhs_info.index[1] == 0 &&
-          rhs_info.index[2] == 0 &&
-          ix == 0 && iy == 0 && iz == 0)
-      {
-        LocalLS_->cooPushBackVal(h, sfc_idx, sfc_idx);
-      }
-      else if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
+      if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
       { // Inner cells
 
         // Push back in ascending order for column index
@@ -332,20 +324,8 @@ void PoissonSolverExp::getVec()
     for (int ix(0); ix<nx_; ix++)
     {
       const long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy, iz) + shift;
-      if (sim.bMeanConstraint > 2 &&
-          RhsInfo[i].index[0] == 0 &&
-          RhsInfo[i].index[1] == 0 &&
-          RhsInfo[i].index[2] == 0 &&
-          ix == 0 && iy == 0 && iz == 0)
-      {
-        b[sfc_loc] = 0.;
-        x[sfc_loc] = 0.;
-      }
-      else
-      {
-        b[sfc_loc] = rhs(ix, iy, iz).s;
-        x[sfc_loc] = p(ix, iy, iz).s;
-      }
+      b[sfc_loc] = rhs(ix, iy, iz).s;
+      x[sfc_loc] = p(ix, iy, iz).s;
     }
   }
 }
