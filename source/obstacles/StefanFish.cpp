@@ -70,6 +70,13 @@ class CurvatureDefinedFishData : public FishMidlineData
   //back to infinity, when Tman_start < t < Tman_finish
   Schedulers::ParameterSchedulerVector<1> turnZScheduler; 
 
+  // next scheduler is used to ramp-up the period
+  Schedulers::ParameterSchedulerScalar periodScheduler;
+  Real current_period    = Tperiod;
+  Real next_period       = Tperiod;
+  Real transition_start  = 0.0;
+  Real transition_duration = 0.2*Tperiod;
+
  protected:
   Real * const rK; //curvature kappa(s,t) of midline
   Real * const vK; //time derivative of curvature
@@ -141,47 +148,61 @@ void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, cons
      //1.midline curvature
      rlBendingScheduler.Turn(input[0], l_tnext);
   }
-  else if (input.size() == 2)
+  else if (input.size() == 3)
   {
      assert (control_torsion == false);
 
      //1.midline curvature
      rlBendingScheduler.Turn(input[0], l_tnext);
 
-     //2.pitching motion
+     //2.swimming period
+     if (TperiodPID) std::cout << "Warning: PID controller should not be used with RL." << std::endl;
+     current_period = periodPIDval;
+     next_period = Tperiod * (1 + input[1]);
+     transition_start = l_tnext;
+
+     //3.pitching motion
      if (time > Tman_finish)
      {
         Tman_start = time;
         Tman_finish = time + 0.25*Tperiod;
         Lman = 0;
-        if (std::fabs(input[1]) > 0.01) Lman = 1.0/input[1];
+        if (std::fabs(input[2]) > 0.01) Lman = 1.0/input[2];
      }
   }
-  else if (input.size() == 7)
+  else if (input.size() == 8)
   {
      assert (control_torsion == true);
 
      //1.midline curvature
      rlBendingScheduler.Turn(input[0], l_tnext);
-     //2.midline torsion
+
+     //2.swimming period
+     if (TperiodPID) std::cout << "Warning: PID controller should not be used with RL." << std::endl;
+     current_period = periodPIDval;
+     next_period = Tperiod * (1 + input[1]);
+     transition_start = l_tnext;
+
+     //3.midline torsion
      for (int i = 0 ; i < 6 ; i++)
      {
 	  torsionValues_previous [i] = torsionValues[i];
-	  torsionValues[i] = input[i+1];
+	  torsionValues[i] = input[i+2];
      }
      Ttorsion_start = time;
   }
-  #if 0
-  //3.tail-beat frequency. First shift time to previous turn node
-  timeshift += (l_tnext-time0)/periodPIDval;
-  time0 = l_tnext;
-  periodPIDval = Tperiod*(1.+input[2]);
-  periodPIDdif = 0;
-  #endif
 }
 
 void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
 {
+  periodScheduler.transition(t,transition_start,transition_start+transition_duration,current_period,next_period);
+  periodScheduler.gimmeValues(t,periodPIDval,periodPIDdif);
+  if (transition_start < t && t < transition_start+transition_duration)//timeshift also rampedup
+  {
+          timeshift = (t - time0)/periodPIDval + timeshift;
+          time0 = t;
+  }
+
   const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).15*length,
     (Real).4*length, (Real).65*length, (Real).9*length, length
   };
