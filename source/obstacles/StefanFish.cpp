@@ -47,7 +47,18 @@ class CurvatureDefinedFishData : public FishMidlineData
   // next scheduler is used for midline-bending control points for RL:
   Schedulers::ParameterSchedulerLearnWave<7> rlBendingScheduler;
 
-  // pitching motion parameters 
+  // pitching can be performed either by controling the midline torsion OR 
+  // by performing a pitching motion by wrapping the fish around a cylinder
+  bool control_torsion{true};
+  // 
+  // I.Torsion control parameters: torsion is a natural cubic spline passing through
+  //   six points. Actions modify the torsion values directly.
+  Schedulers::ParameterSchedulerVector<6>    torsionScheduler;
+  std::array<Real,6> torsionValues          = {0,0,0,0,0,0};
+  std::array<Real,6> torsionValues_previous = {0,0,0,0,0,0};
+  Real Ttorsion_start = 0.0;
+
+  // II. Pitching motion parameters 
   // (used to make the fish move in three dimensions and allow it to leave the plane it started on)
   Real Tman_start ; //pitching motion start time
   Real Tman_finish; //pitching motion final time
@@ -125,26 +136,48 @@ class CurvatureDefinedFishData : public FishMidlineData
 
 void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, const std::vector<Real>& input)
 {
-
-  //1.midline curvature
-  rlBendingScheduler.Turn(input[0], l_tnext);
-  if (input.size() == 1) return;
-
-  //2.pitching motion
-  if (time > Tman_finish)
+  if (input.size() == 1)
   {
-     Tman_start = time;
-     Tman_finish = time + 0.25*Tperiod;
-     Lman = 0;
-     if (std::fabs(input[1]) > 0.01) Lman = 1.0/input[1];
+     //1.midline curvature
+     rlBendingScheduler.Turn(input[0], l_tnext);
   }
-  if (input.size() == 2) return;
+  else if (input.size() == 2)
+  {
+     assert (control_torsion == false);
 
+     //1.midline curvature
+     rlBendingScheduler.Turn(input[0], l_tnext);
+
+     //2.pitching motion
+     if (time > Tman_finish)
+     {
+        Tman_start = time;
+        Tman_finish = time + 0.25*Tperiod;
+        Lman = 0;
+        if (std::fabs(input[1]) > 0.01) Lman = 1.0/input[1];
+     }
+  }
+  else if (input.size() == 7)
+  {
+     assert (control_torsion == true);
+
+     //1.midline curvature
+     rlBendingScheduler.Turn(input[0], l_tnext);
+     //2.midline torsion
+     for (int i = 0 ; i < 6 ; i++)
+     {
+	  torsionValues_previous [i] = torsionValues[i];
+	  torsionValues[i] = input[i+1];
+     }
+     Ttorsion_start = time;
+  }
+  #if 0
   //3.tail-beat frequency. First shift time to previous turn node
   timeshift += (l_tnext-time0)/periodPIDval;
   time0 = l_tnext;
   periodPIDval = Tperiod*(1.+input[2]);
   periodPIDdif = 0;
+  #endif
 }
 
 void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
@@ -194,12 +227,20 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
     rT[i] = 0;
     vT[i] = 0;
   }
+  if (control_torsion)
+  {
+     const std::array<Real ,6> torsionPoints = { (Real)0, (Real).15*length,
+       (Real).4*length, (Real).65*length, (Real).9*length, length
+     };
+     torsionScheduler.transition (t,Ttorsion_start,Ttorsion_start+0.10*Tperiod,torsionValues_previous,torsionValues);
+     torsionScheduler.gimmeValues(t,torsionPoints,Nm,rS,rT,vT);
+  }
 
   // solve frenet to compute midline parameters
   //Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
   Frenet3D::solve(Nm, rS, rK, vK, rT, vT, rX, rY, rZ, vX, vY, vZ, norX, norY, norZ, vNorX, vNorY, vNorZ, binX, binY, binZ, vBinX, vBinY, vBinZ);
 
-  if (std::fabs(Lman) > 1e-6*length)
+  if (std::fabs(Lman) > 1e-6*length && control_torsion == false)
     performPitchingMotion(t);
 }
 
@@ -525,7 +566,7 @@ void StefanFish::create()
 
     cFish->correctTrajectory(totalTerm, totalDiff);
   }
-
+  bBlockRotation[0] = true;
   Fish::create();
 }
 
