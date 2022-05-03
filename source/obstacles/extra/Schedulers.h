@@ -81,11 +81,6 @@ struct ParameterScheduler
     std::array<Real, Npoints> dparameters;
     gimmeValues(tstart,parameters,dparameters);
 
-    /*
-            if (Npoints == 7)
-                printf("[t0 t1] were [%f %f], will be [%f %f], parameters %f dpdt %f param end %f\n",
-                    t0,t1,tstart,tend,parameters[3],dparameters[3], parameters_tend[3]);
-     */
 
     // fill my members
     t0 = tstart;
@@ -137,6 +132,14 @@ struct ParameterSchedulerScalar : ParameterScheduler<1>
   {
     const std::array<Real, 1> myParameter = {parameter_tend};
     return ParameterScheduler<1>::transition(t,tstart,tend,myParameter,UseCurrentDerivative);
+  }
+
+  void transition(const Real t, const Real tstart, const Real tend,
+                   const Real parameter_tstart, const Real parameter_tend)
+  {
+     const std::array<Real, 1> myParameterStart = {parameter_tstart};
+     const std::array<Real, 1> myParameterEnd = {parameter_tend};
+     return ParameterScheduler<1>::transition(t,tstart,tend,myParameterStart,myParameterEnd);
   }
 
   void gimmeValues(const Real t, Real & parameter, Real & dparameter)
