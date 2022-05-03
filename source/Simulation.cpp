@@ -125,6 +125,10 @@ const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() co
 {
     return sim.obstacle_vector->getObstacleVector();
 }
+const std::vector<std::shared_ptr<Obstacle>>& Simulation::getShapes() const
+{
+    return sim.obstacle_vector->getObstacleVector();
+}
 
 void Simulation::_ic()
 {
