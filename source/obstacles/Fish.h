@@ -16,8 +16,6 @@ struct VolumeSegment_OBB;
 class Fish: public Obstacle
 {
  protected:
-  FishMidlineData * myFish = nullptr;
-
   void integrateMidline();
 
   // first how to create blocks of segments:
@@ -36,6 +34,7 @@ class Fish: public Obstacle
   void save(std::string filename = std::string()) override;
   void restart(std::string filename = std::string()) override;
   virtual void create() override;
+  FishMidlineData * myFish = nullptr;
 
   struct BlockID
   {
