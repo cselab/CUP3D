@@ -496,8 +496,8 @@ std::vector<Real> StefanFish::state() const
 {
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   if( cFish == nullptr ) { printf("Someone touched my fish\n"); abort(); }
-  const Real Tperiod = cFish->Tperiod;
 #if 0
+  const Real Tperiod = cFish->Tperiod;
   std::vector<Real> S(17,0);
   S[0 ] = ( position[0] - origC[0] )/ length;
   S[1 ] = ( position[1] - origC[1] )/ length;
