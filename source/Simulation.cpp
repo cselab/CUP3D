@@ -331,7 +331,7 @@ Real Simulation::calcMaxTimestep()
 
   if( CFL > 0 )
   {
-    const Real dtDiffusion = (1./ 6.) * ( hMin * hMin / sim.nu );
+    const Real dtDiffusion = (1.0/6.0)*hMin*hMin/(sim.nu+(1.0/6.0)*hMin*sim.uMax_measured);
     const Real dtAdvection = hMin / ( sim.uMax_measured + 1e-8 );
     if ( sim.step < sim.rampup )
     {
