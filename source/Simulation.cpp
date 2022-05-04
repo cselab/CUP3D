@@ -140,13 +140,7 @@ void Simulation::_icFromH5(std::string h5File)
 {
   if (sim.rank==0) std::cout << "Extracting Initial Conditions from " << h5File << std::endl;
 
-  #ifdef CUBISM_USE_HDF
-    ReadHDF5_MPI<StreamerVelocityVector, Real>(* sim.grid,
-      h5File, sim.path4serialization);
-  #else
-    printf("Unable to restart without  HDF5 library. Aborting...\n");
-    fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
-  #endif
+  ReadHDF5_MPI<StreamerVelocityVector, Real>(* sim.grid, h5File, sim.path4serialization);
 
   sim.obstacle_vector->restart(sim.path4serialization+"/"+sim.icFromH5);
 
@@ -297,13 +291,7 @@ void Simulation::_deserialize()
   ssR<<"restart_"<<std::setfill('0')<<std::setw(9)<<sim.step;
   if (sim.rank==0) std::cout << "Restarting from " << ssR.str() << "\n";
 
-  #ifdef CUBISM_USE_HDF
-    ReadHDF5_MPI<StreamerVelocityVector, Real>(* sim.grid,
-      StreamerVelocityVector::prefix()+ssR.str(), sim.path4serialization);
-  #else
-    printf("Unable to restart without  HDF5 library. Aborting...\n");
-    fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
-  #endif
+  ReadHDF5_MPI<StreamerVelocityVector, Real>(* sim.grid, StreamerVelocityVector::prefix()+ssR.str(), sim.path4serialization);
 
   sim.obstacle_vector->restart(sim.path4serialization+"/"+ssR.str());
 

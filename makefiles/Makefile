@@ -128,7 +128,6 @@ ifeq "$(hdf)" "true"
 		CPPFLAGS += -I$(HDF5_ROOT)/include
 	endif
 	LIBS     += -lhdf5
-	CPPFLAGS += -DCUBISM_USE_HDF
 endif
 
 LIBS += -lgsl -lgslcblas
