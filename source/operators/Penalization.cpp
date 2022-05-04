@@ -683,7 +683,8 @@ void Penalization::preventCollidingObstacles() const
         if (iForcedX || iForcedY || iForcedZ || jForcedX || jForcedY || jForcedZ)
         {
             std::cout << "Forced objects not supported for collision." << std::endl;
-            MPI_Abort(sim.grid->getCartComm(),1);
+            return;
+            //MPI_Abort(sim.grid->getCartComm(),1);
         }
 
         Real ho1[3];
