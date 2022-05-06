@@ -680,12 +680,15 @@ void Penalization::preventCollidingObstacles() const
         const bool jForcedX = shapes[j]->bForcedInSimFrame[0];
         const bool jForcedY = shapes[j]->bForcedInSimFrame[1];
         const bool jForcedZ = shapes[j]->bForcedInSimFrame[2];
-        if (iForcedX || iForcedY || iForcedZ || jForcedX || jForcedY || jForcedZ)
-        {
-            std::cout << "Forced objects not supported for collision." << std::endl;
-            return;
-            //MPI_Abort(sim.grid->getCartComm(),1);
-        }
+	const bool iforced = iForcedX || iForcedY || iForcedZ;
+	const bool jforced = jForcedX || jForcedY || jForcedZ;
+
+        //if (iForcedX || iForcedY || iForcedZ || jForcedX || jForcedY || jForcedZ)
+        //{
+        //    std::cout << "Forced objects not supported for collision." << std::endl;
+        //    return;
+        //    //MPI_Abort(sim.grid->getCartComm(),1);
+        //}
 
         Real ho1[3];
         Real ho2[3];
@@ -730,7 +733,9 @@ void Penalization::preventCollidingObstacles() const
         const Real CZ = 0.5*(iPZ+jPZ);
 
         //3. Take care of the collision. Assume elastic collision (kinetic energy is conserved)
-        ElasticCollision1(m1,m2,I1,I2,v1,v2,o1,o2,hv1,hv2,ho1,ho2,C1,C2,NX,NY,NZ,CX,CY,CZ,vc1,vc2);
+	const double m1_i = iforced ? 1e10*m1 : m1;
+	const double m2_j = jforced ? 1e10*m2 : m2;
+	ElasticCollision1(m1_i,m2_j,I1,I2,v1,v2,o1,o2,hv1,hv2,ho1,ho2,C1,C2,NX,NY,NZ,CX,CY,CZ,vc1,vc2);
         shapes[i]->transVel[0] = hv1[0];
         shapes[i]->transVel[1] = hv1[1];
         shapes[i]->transVel[2] = hv1[2];
