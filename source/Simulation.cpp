@@ -241,16 +241,16 @@ void Simulation::_serialize(const std::string append)
   auto * grid2Dump = sim.grid;
   if (sim.dumpOmega || sim.dumpOmegaX || sim.dumpOmegaY || sim.dumpOmegaZ)
     computeVorticity();
-  if (sim.dumpP        ) DumpHDF5_MPI<StreamerPressure      , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerPressure       ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpChi      ) DumpHDF5_MPI<StreamerChi           , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerChi            ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmega    ) DumpHDF5_MPI<StreamerTmpVector     , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVector      ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaX   ) DumpHDF5_MPI<StreamerTmpVectorX    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorX     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaY   ) DumpHDF5_MPI<StreamerTmpVectorY    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorY     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaZ   ) DumpHDF5_MPI<StreamerTmpVectorZ    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorZ     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocity ) DumpHDF5_MPI<StreamerVelocityVector, Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelocityVector ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityX) DumpHDF5_MPI<StreamerVelVectorX    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorX     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityY) DumpHDF5_MPI<StreamerVelVectorY    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorY     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityZ) DumpHDF5_MPI<StreamerVelVectorZ    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorZ     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpP        ) DumpHDF5_MPI2<StreamerPressure      , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerPressure       ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpChi      ) DumpHDF5_MPI2<StreamerChi           , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerChi            ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmega    ) DumpHDF5_MPI2<StreamerTmpVector     , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVector      ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaX   ) DumpHDF5_MPI2<StreamerTmpVectorX    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorX     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaY   ) DumpHDF5_MPI2<StreamerTmpVectorY    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorY     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaZ   ) DumpHDF5_MPI2<StreamerTmpVectorZ    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorZ     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocity ) DumpHDF5_MPI2<StreamerVelocityVector, Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelocityVector ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityX) DumpHDF5_MPI2<StreamerVelVectorX    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorX     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityY) DumpHDF5_MPI2<StreamerVelVectorY    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorY     ::prefix() + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityZ) DumpHDF5_MPI2<StreamerVelVectorZ    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorZ     ::prefix() + name.str(),sim.path4serialization);
 
   sim.stopProfiler();
 }
