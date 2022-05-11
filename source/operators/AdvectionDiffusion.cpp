@@ -35,7 +35,7 @@ struct KernelAdvectDiffuse : public Discretization
     {
         FluidBlock& o = *(FluidBlock*)info.ptrBlock;
         const Real h3   = info.h*info.h*info.h;
-        const Real facA = -dt/(6*info.h);
+        const Real facA = -dt/info.h;
         const Real facD = (mu/info.h)*(dt/info.h);
         for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
         for (int iy=0; iy<FluidBlock::sizeY; ++iy)
@@ -148,6 +148,7 @@ template<> inline Real& inp<2>(LabMPI& L, const int ix, const int iy, const int 
 struct Upwind3rd
 {
     const SimulationData& sim;
+    const double coef{1.0/6.0};
     Upwind3rd(const SimulationData& s) : sim(s) {}
 
     template<int dir>
@@ -158,7 +159,7 @@ struct Upwind3rd
         const Real um2 = inp<dir>(L,ix-2,iy,iz);
         const Real up1 = inp<dir>(L,ix+1,iy,iz);
         const Real up2 = inp<dir>(L,ix+2,iy,iz);
-        return uAbs[0]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+        return coef * (uAbs[0]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1);
     }
     template<int dir>
     inline Real diffy(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
@@ -168,7 +169,7 @@ struct Upwind3rd
         const Real um2 = inp<dir>(L,ix,iy-2,iz);
         const Real up1 = inp<dir>(L,ix,iy+1,iz);
         const Real up2 = inp<dir>(L,ix,iy+2,iz);
-        return uAbs[1]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+        return coef*(uAbs[1]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1);
     }
     template<int dir>
     inline Real diffz(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
@@ -178,7 +179,7 @@ struct Upwind3rd
         const Real um2 = inp<dir>(L,ix,iy,iz-2);
         const Real up1 = inp<dir>(L,ix,iy,iz+1);
         const Real up2 = inp<dir>(L,ix,iy,iz+2);
-        return uAbs[2]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1;
+        return coef*(uAbs[2]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1);
     }
     template<int dir>
     inline Real   lap(LabMPI& L, const FluidBlock& o, const int ix, const int iy, const int iz) const
@@ -189,6 +190,119 @@ struct Upwind3rd
     }
     int getStencilBeg() const { return -2; }
     int getStencilEnd() const { return  3; }
+};
+
+struct WENO
+{
+    const SimulationData& sim;
+    WENO(const SimulationData& s) : sim(s) {}
+
+    Real weno5_plus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2) const
+    {
+      const Real exponent = 2;
+      const Real e = 1e-6;
+      const Real b1 = 13.0/12.0*pow((um2+u)-2*um1,2)+0.25*pow((um2+3*u)-4*um1,2);
+      const Real b2 = 13.0/12.0*pow((um1+up1)-2*u,2)+0.25*pow(um1-up1,2);
+      const Real b3 = 13.0/12.0*pow((u+up2)-2*up1,2)+0.25*pow((3*u+up2)-4*up1,2);
+      const Real g1 = 0.1;
+      const Real g2 = 0.6;
+      const Real g3 = 0.3;
+      const Real what1 = g1/pow(b1+e,exponent);
+      const Real what2 = g2/pow(b2+e,exponent);
+      const Real what3 = g3/pow(b3+e,exponent);
+      const Real aux = 1.0/((what1+what3)+what2);
+      const Real w1 = what1*aux;
+      const Real w2 = what2*aux;
+      const Real w3 = what3*aux;
+      const Real f1 = (11.0/6.0)*u + ( ( 1.0/3.0)*um2- (7.0/6.0)*um1);
+      const Real f2 = (5.0 /6.0)*u + ( (-1.0/6.0)*um1+ (1.0/3.0)*up1);
+      const Real f3 = (1.0 /3.0)*u + ( (+5.0/6.0)*up1- (1.0/6.0)*up2);
+      return (w1*f1+w3*f3)+w2*f2;
+    }
+    Real weno5_minus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2) const
+    {
+      const Real exponent = 2;
+      const Real e = 1e-6;
+      const Real b1 = 13.0/12.0*pow((um2+u)-2*um1,2)+0.25*pow((um2+3*u)-4*um1,2);
+      const Real b2 = 13.0/12.0*pow((um1+up1)-2*u,2)+0.25*pow(um1-up1,2);
+      const Real b3 = 13.0/12.0*pow((u+up2)-2*up1,2)+0.25*pow((3*u+up2)-4*up1,2);
+      const Real g1 = 0.3;
+      const Real g2 = 0.6;
+      const Real g3 = 0.1;
+      const Real what1 = g1/pow(b1+e,exponent);
+      const Real what2 = g2/pow(b2+e,exponent);
+      const Real what3 = g3/pow(b3+e,exponent);
+      const Real aux = 1.0/((what1+what3)+what2);
+      const Real w1 = what1*aux;
+      const Real w2 = what2*aux;
+      const Real w3 = what3*aux;
+      const Real f1 = ( 1.0/3.0)*u + ( (-1.0/6.0)*um2+ (5.0/6.0)*um1);
+      const Real f2 = ( 5.0/6.0)*u + ( ( 1.0/3.0)*um1- (1.0/6.0)*up1);
+      const Real f3 = (11.0/6.0)*u + ( (-7.0/6.0)*up1+ (1.0/3.0)*up2);
+      return (w1*f1+w3*f3)+w2*f2;
+    }
+    Real derivative(const Real U, const Real um3, const Real um2, const Real um1,
+                    const Real u, const Real up1, const Real up2, const Real up3) const
+    {
+      Real fp = 0.0;
+      Real fm = 0.0;
+      if (U > 0)
+      {
+        fp = weno5_plus (um2,um1,u,up1,up2);
+        fm = weno5_plus (um3,um2,um1,u,up1);
+      }
+      else
+      {
+        fp = weno5_minus(um1,u,up1,up2,up3);
+        fm = weno5_minus(um2,um1,u,up1,up2);
+      }
+      return (fp-fm);
+    }
+    template<int dir>
+    inline Real diffx(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
+    {
+        const Real ucc = inp<dir>(L,ix,iy,iz);
+        const Real um1 = inp<dir>(L,ix-1,iy,iz);
+        const Real um2 = inp<dir>(L,ix-2,iy,iz);
+        const Real um3 = inp<dir>(L,ix-3,iy,iz);
+        const Real up1 = inp<dir>(L,ix+1,iy,iz);
+        const Real up2 = inp<dir>(L,ix+2,iy,iz);
+        const Real up3 = inp<dir>(L,ix+3,iy,iz);
+        return derivative(uAbs[0], um3, um2, um1, ucc, up1, up2, up3);
+    }
+    template<int dir>
+    inline Real diffy(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
+    {
+        const Real ucc = inp<dir>(L,ix,iy,iz);
+        const Real um1 = inp<dir>(L,ix,iy-1,iz);
+        const Real um2 = inp<dir>(L,ix,iy-2,iz);
+        const Real um3 = inp<dir>(L,ix,iy-3,iz);
+        const Real up1 = inp<dir>(L,ix,iy+1,iz);
+        const Real up2 = inp<dir>(L,ix,iy+2,iz);
+        const Real up3 = inp<dir>(L,ix,iy+3,iz);
+        return derivative(uAbs[1], um3, um2, um1, ucc, up1, up2, up3);
+    }
+    template<int dir>
+    inline Real diffz(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
+    {
+        const Real ucc = inp<dir>(L,ix,iy,iz);
+        const Real um1 = inp<dir>(L,ix,iy,iz-1);
+        const Real um2 = inp<dir>(L,ix,iy,iz-2);
+        const Real um3 = inp<dir>(L,ix,iy,iz-3);
+        const Real up1 = inp<dir>(L,ix,iy,iz+1);
+        const Real up2 = inp<dir>(L,ix,iy,iz+2);
+        const Real up3 = inp<dir>(L,ix,iy,iz+3);
+        return derivative(uAbs[2], um3, um2, um1, ucc, up1, up2, up3);
+    }
+    template<int dir>
+    inline Real   lap(LabMPI& L, const FluidBlock& o, const int ix, const int iy, const int iz) const
+    {
+        return  inp<dir>(L,ix+1,iy,iz) + inp<dir>(L,ix-1,iy,iz)
+              + inp<dir>(L,ix,iy+1,iz) + inp<dir>(L,ix,iy-1,iz)
+              + inp<dir>(L,ix,iy,iz+1) + inp<dir>(L,ix,iy,iz-1) - 6 * inp<dir>(L,ix,iy,iz);
+    }
+    int getStencilBeg() const { return -3; }
+    int getStencilEnd() const { return  4; }
 };
 
 }
@@ -218,7 +332,8 @@ void AdvectionDiffusion::operator()(const Real dt)
     // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
 
     //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
-    const KernelAdvectDiffuse<Upwind3rd> step1(sim,0.5);
+    //const KernelAdvectDiffuse<Upwind3rd> step1(sim,0.5);
+    const KernelAdvectDiffuse<WENO> step1(sim,0.5);
     cubism::compute<LabMPI>(step1,sim.grid,sim.grid);
 
     //   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
@@ -242,7 +357,8 @@ void AdvectionDiffusion::operator()(const Real dt)
     /********************************************************************/
     // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
     //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
-    const KernelAdvectDiffuse<Upwind3rd> step2(sim,1.0);
+    //const KernelAdvectDiffuse<Upwind3rd> step2(sim,1.0);
+    const KernelAdvectDiffuse<WENO> step2(sim,1.0);
     cubism::compute<LabMPI>(step2,sim.grid,sim.grid);
 
     //   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
