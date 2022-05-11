@@ -36,7 +36,7 @@ _createObstacle(SimulationData &sim,
 {
   if (objectName == "Sphere")
     return std::make_shared<Sphere>(sim, lineParser);
-  if (objectName == "StefanFish")
+  if (objectName == "StefanFish" || objectName == "stefanfish")
     return std::make_shared<StefanFish>(sim, lineParser);
   if (objectName == "CarlingFish")
     return std::make_shared<CarlingFish>(sim, lineParser);
@@ -98,7 +98,8 @@ void ObstacleFactory::addObstacles(cubism::ArgumentParser &parser)
   // Read parser information
   parser.unset_strict_mode();
   const std::string factory_filename = parser("-factory").asString("factory");
-  const std::string factory_content = parser("-factory-content").asString("");
+  std::string factory_content = parser("-factory-content").asString("");
+  if (factory_content.compare("") != 0) factory_content = parser("-shapes").asString("");
 
   std::stringstream stream(factory_content);
   if (!factory_filename.empty()) {
