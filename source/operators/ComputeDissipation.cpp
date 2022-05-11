@@ -7,7 +7,7 @@
 //
 
 #include "ComputeDissipation.h"
-#include "../utils/BufferedLogger.h"
+#include "../Utils/BufferedLogger.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

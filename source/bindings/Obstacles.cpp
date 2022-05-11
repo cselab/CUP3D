@@ -1,7 +1,7 @@
 #include "Common.h"
 #include "../Simulation.h"
-#include "../obstacles/ObstacleVector.h"
-#include "../obstacles/Sphere.h"
+#include "../Obstacles/ObstacleVector.h"
+#include "../Obstacles/Sphere.h"
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 

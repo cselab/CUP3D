@@ -11,7 +11,7 @@
 
 #include "Base.h"
 
-#include "utils/AlignedAllocator.h"
+#include "Utils/AlignedAllocator.h"
 
 #include <Cubism/Grid.h>
 #include <Cubism/GridMPI.h>

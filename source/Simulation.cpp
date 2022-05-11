@@ -18,8 +18,8 @@
 #include "operators/FluidSolidForces.h"
 #include "operators/ProcessHelpers.h"
 
-#include "obstacles/ObstacleVector.h"
-#include "obstacles/ObstacleFactory.h"
+#include "Obstacles/ObstacleVector.h"
+#include "Obstacles/ObstacleFactory.h"
 
 #include <Cubism/HDF5Dumper_MPI.h>
 #include <Cubism/ArgumentParser.h>

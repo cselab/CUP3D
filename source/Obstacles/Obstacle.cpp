@@ -7,7 +7,7 @@
 //
 
 #include "Obstacle.h"
-#include "../utils/BufferedLogger.h"
+#include "../Utils/BufferedLogger.h"
 
 #include <Cubism/ArgumentParser.h>
 #include <gsl/gsl_linalg.h>

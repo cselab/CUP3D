@@ -10,7 +10,7 @@
 
 #include "SimulationData.h"
 #include "operators/Operator.h"
-#include "obstacles/ObstacleVector.h"
+#include "Obstacles/ObstacleVector.h"
 #include <Cubism/ArgumentParser.h>
 #include <Cubism/Profiler.h>
 

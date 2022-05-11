@@ -7,7 +7,7 @@
 //
 
 #include "FluidSolidForces.h"
-#include "../obstacles/ObstacleVector.h"
+#include "../Obstacles/ObstacleVector.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;

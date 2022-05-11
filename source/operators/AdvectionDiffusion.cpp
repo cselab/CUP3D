@@ -6,7 +6,7 @@
 //
 
 #include "AdvectionDiffusion.h"
-#include "../obstacles/ObstacleVector.h"
+#include "../Obstacles/ObstacleVector.h"
 #include "../poisson/PoissonSolverAMR.h"
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
