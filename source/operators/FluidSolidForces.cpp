@@ -89,6 +89,11 @@ struct KernelComputeForces
       {
         if ((int)abs(kk*dx) > 3 || (int)abs(kk*dy) > 3 || (int)abs(kk*dz) > 3) break; //3 means we moved too far
         if (l(x,y,z).chi <0.3 && found == 0) break;
+
+	if (ix + kk*dx + 1 >= FluidBlock::sizeX + big-1 || ix + kk*dx -1 < small) break;
+	if (iy + kk*dy + 1 >= FluidBlock::sizeY + big-1 || iy + kk*dy -1 < small) break;
+	if (iz + kk*dz + 1 >= FluidBlock::sizeZ + big-1 || iz + kk*dz -1 < small) break;
+
         x  = ix + kk*dx; 
         y  = iy + kk*dy;
         z  = iz + kk*dz;
