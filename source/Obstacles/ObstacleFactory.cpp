@@ -99,7 +99,7 @@ void ObstacleFactory::addObstacles(cubism::ArgumentParser &parser)
   parser.unset_strict_mode();
   const std::string factory_filename = parser("-factory").asString("factory");
   std::string factory_content = parser("-factory-content").asString("");
-  if (factory_content.compare("") != 0) factory_content = parser("-shapes").asString("");
+  if (factory_content.compare("") == 0) factory_content = parser("-shapes").asString("");
 
   std::stringstream stream(factory_content);
   if (!factory_filename.empty()) {
