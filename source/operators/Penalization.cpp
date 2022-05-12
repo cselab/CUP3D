@@ -476,6 +476,7 @@ void Penalization::preventCollidingObstacles() const
     const auto & shapes = sim.obstacle_vector->getObstacleVector();
     const auto & infos  = sim.grid->getBlocksInfo();
     const size_t N = sim.obstacle_vector->nObstacles();
+    sim.bCollisionID.clear();
 
     struct CollisionInfo // hitter and hittee, symmetry but we do things twice
     {
@@ -673,6 +674,8 @@ void Penalization::preventCollidingObstacles() const
 
         // A collision happened!
         sim.bCollision = true;
+	sim.bCollisionID.push_back(i);
+	sim.bCollisionID.push_back(j);
 
         const bool iForcedX = shapes[i]->bForcedInSimFrame[0];
         const bool iForcedY = shapes[i]->bForcedInSimFrame[1];
