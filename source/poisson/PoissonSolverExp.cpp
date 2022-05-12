@@ -109,6 +109,44 @@ PoissonSolverExp::PoissonSolverExp(SimulationData& s)
   // Create Linear system and backend solver objects
   LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, nxyz_, P_inv);
 }
+void PoissonSolverExp::interpolate(
+    const cubism::BlockInfo &info_c, const int ix_c, const int iy_c, const int iz_c,
+    const cubism::BlockInfo &info_f, const long long fine_close_idx, const long long fine_far_idx,
+    const double sign, const double sign_ds1, const double sign_ds2,
+    const FaceCellIndexer &indexer, SpRowInfo& row) const
+{
+  const int rank_c = sim.lhs->Tree(info_c).rank();
+  const int rank_f = sim.lhs->Tree(info_f).rank();
+  const double h = info_f.h;
+
+  // 2./3.*p_fine_close_idx - 1./5.*p_fine_far_idx
+  row.mapColVal(rank_f, fine_close_idx, sign * h * 2./3.);
+  row.mapColVal(rank_f, fine_far_idx,  -sign * h * 1./5.);
+
+  // 8./15 * p_T, constant term
+  const double tf = sign * h * 8./15.; // common factor for all terms of Taylor expansion
+  row.mapColVal(rank_c, indexer.This(info_c, ix_c, iy_c, iz_c), tf);
+
+  // first derivative terms
+  std::array<std::pair<long long, double>, 3> D;
+
+  D = D1_ds1(info_c, indexer, ix_c, iy_c, iz_c);
+  for (int i(0); i < 3; i++)
+    row.mapColVal(rank_c, D[i].first, sign_ds1 * tf * D[i].second);
+
+  D = D1_ds2(info_c, indexer, ix_c, iy_c, iz_c);
+  for (int i(0); i < 3; i++)
+    row.mapColVal(rank_c, D[i].first, sign_ds2 * tf * D[i].second);
+  
+  // second derivative terms
+  D = D2_ds1(info_c, indexer, ix_c, iy_c, iz_c);
+  for (int i(0); i < 3; i++)
+    row.mapColVal(rank_c, D[i].first, tf * D[i].second);
+
+  D = D2_ds2(info_c, indexer, ix_c, iy_c, iz_c);
+  for (int i(0); i < 3; i++)
+    row.mapColVal(rank_c, D[i].first, tf * D[i].second);
+}
  
 void PoissonSolverExp::makeFlux(
     const BlockInfo& rhs_info,
@@ -133,11 +171,15 @@ void PoissonSolverExp::makeFlux(
   else if (this->sim.lhs->Tree(rhsNei).CheckCoarser())
   {
     const BlockInfo &rhsNei_c = sim.lhs->getBlockInfoAll(rhs_info.level - 1 , rhsNei.Zparent);
-    const int nei_rank = sim.lhs->Tree(rhsNei_c).rank();
-    const long long nei_idx = indexer.neiCoarse(rhs_info, rhsNei_c, ix, iy, iz);
+    const int ix_c = indexer.ix_c(rhs_info, ix);
+    const int iy_c = indexer.iy_c(rhs_info, iy);
+    const int iz_c = indexer.iz_c(rhs_info, iz);
+    const long long inward_idx = indexer.neiInward(rhs_info, ix, iy, iz);
+    const double sign_ds1 = indexer.sign_ds1(ix, iy, iz);
+    const double sign_ds2 = indexer.sign_ds2(ix, iy, iz);
     const double h = rhs_info.h;
       
-    row.mapColVal(nei_rank, nei_idx, h);
+    interpolate(rhsNei_c, ix_c, iy_c, iz_c, rhs_info, sfc_idx, inward_idx, 1., sign_ds1, sign_ds2, indexer, row);
     row.mapColVal(sfc_idx, -h);
   }
   else if (this->sim.lhs->Tree(rhsNei).CheckFiner())
@@ -147,21 +189,25 @@ void PoissonSolverExp::makeFlux(
     const double h = rhsNei_f.h;
   
     // F1
-    long long nei_idx = indexer.neiFine1(rhsNei_f, ix, iy, iz);
-    row.mapColVal(nei_rank, nei_idx, h);
-    row.mapColVal(sfc_idx, -h);
+    long long fine_close_idx = indexer.neiFine1(rhsNei_f, ix, iy, iz, 0);
+    long long fine_far_idx   = indexer.neiFine1(rhsNei_f, ix, iy, iz, 1);
+    row.mapColVal(nei_rank, fine_close_idx, h);
+    interpolate(rhs_info, ix, iy, iz, rhsNei_f, fine_close_idx, fine_far_idx, -1., -1., -1., indexer, row);
     // F2
-    nei_idx = indexer.neiFine2(rhsNei_f, ix, iy, iz);
-    row.mapColVal(nei_rank, nei_idx, h);
-    row.mapColVal(sfc_idx, -h);
+    fine_close_idx = indexer.neiFine2(rhsNei_f, ix, iy, iz, 0);
+    fine_far_idx   = indexer.neiFine2(rhsNei_f, ix, iy, iz, 1);
+    row.mapColVal(nei_rank, fine_close_idx, h);
+    interpolate(rhs_info, ix, iy, iz, rhsNei_f, fine_close_idx, fine_far_idx, -1., 1., -1., indexer, row);
     // F3
-    nei_idx = indexer.neiFine3(rhsNei_f, ix, iy, iz);
-    row.mapColVal(nei_rank, nei_idx, h);
-    row.mapColVal(sfc_idx, -h);
+    fine_close_idx = indexer.neiFine3(rhsNei_f, ix, iy, iz, 0);
+    fine_far_idx   = indexer.neiFine3(rhsNei_f, ix, iy, iz, 1);
+    row.mapColVal(nei_rank, fine_close_idx, h);
+    interpolate(rhs_info, ix, iy, iz, rhsNei_f, fine_close_idx, fine_far_idx, -1., -1., 1., indexer, row);
     // F4
-    nei_idx = indexer.neiFine4(rhsNei_f, ix, iy, iz);
-    row.mapColVal(nei_rank, nei_idx, h);
-    row.mapColVal(sfc_idx, -h);
+    fine_close_idx = indexer.neiFine4(rhsNei_f, ix, iy, iz, 0);
+    fine_far_idx   = indexer.neiFine4(rhsNei_f, ix, iy, iz, 1);
+    row.mapColVal(nei_rank, fine_close_idx, h);
+    interpolate(rhs_info, ix, iy, iz, rhsNei_f, fine_close_idx, fine_far_idx, -1., 1., 1., indexer, row);
   }
   else { throw std::runtime_error("Neighbour doesn't exist, isn't coarser, nor finer..."); }
 }
