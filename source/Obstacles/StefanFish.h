@@ -36,12 +36,11 @@ public:
   //Reinforcement Learning functions
   void act(const Real lTact, const std::vector<Real>& a) const; //get vector of actions that will be taken at time lTact
   std::vector<Real> state() const;                              //return vector of state
+  Real getPhase(const Real time) const;
   Real getLearnTPeriod() const; //take actions once every 0.5*getLearnTPeriod() time
   //// Helpers for state function
-  //ssize_t holdingBlockID(const std::array<Real,3> pos, const std::vector<cubism::BlockInfo>& velInfo) const;
-  //std::array<int, 3> safeIdInBlock(const std::array<Real,3> pos, const std::array<Real,3> org, const Real invh ) const;
-  //std::array<Real, 2> getShear(const std::array<Real,3> pSurf, const std::array<Real,3> normSurf, const std::vector<cubism::BlockInfo>& velInfo) const;
-  //#endif
+  ssize_t holdingBlockID(const std::array<Real,3> pos) const;
+  std::array<Real, 3> getShear(const std::array<Real,3> pSurf) const;
 };
 
 

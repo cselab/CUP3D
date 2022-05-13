@@ -500,11 +500,6 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
   cfish->sensorLocation[0] = myP[0];
   cfish->sensorLocation[1] = myP[1];
   cfish->sensorLocation[2] = myP[2];
-  cfish->SurfaceNormal(0,0,cfish->sensorNormals[0*3+0],cfish->sensorNormals[0*3+1],cfish->sensorNormals[0*3+2]);
-  changeVelocityToComputationalFrame(&cfish->sensorNormals[0*3+0]);
-  cfish->sensorDelta[0] = 0;
-  cfish->sensorDelta[1] = 0;
-  cfish->sensorDelta[2] = 0;
 
   //Loop over vSegments of this block. 
   for(size_t i=0; i<vSegments.size(); ++i)
@@ -552,22 +547,12 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
             cfish->sensorLocation[1*3+0] = myP[0];
             cfish->sensorLocation[1*3+1] = myP[1];
             cfish->sensorLocation[1*3+2] = myP[2];
-            cfish->SurfaceNormal(ss,theta,cfish->sensorNormals[1*3+0],cfish->sensorNormals[1*3+1],cfish->sensorNormals[1*3+2]);
-            changeVelocityToComputationalFrame(&cfish->sensorNormals[1*3+0]);
-            cfish->sensorDelta[1*3+0] = rX[ss+1] +width[ss+1]*costh*norX[ss+1]+height[ss+1]*sinth*binX[ss+1] - cfish->sensorLocation[1*3+0];
-            cfish->sensorDelta[1*3+1] = rY[ss+1] +width[ss+1]*costh*norY[ss+1]+height[ss+1]*sinth*binY[ss+1] - cfish->sensorLocation[1*3+1];
-            cfish->sensorDelta[1*3+2] = rZ[ss+1] +width[ss+1]*costh*norZ[ss+1]+height[ss+1]*sinth*binZ[ss+1] - cfish->sensorLocation[1*3+2];
           }
           if( tt == (int)Ntheta/2 )
           {
             cfish->sensorLocation[2*3+0] = myP[0];
             cfish->sensorLocation[2*3+1] = myP[1];
             cfish->sensorLocation[2*3+2] = myP[2];
-            cfish->SurfaceNormal(ss,theta,cfish->sensorNormals[2*3+0],cfish->sensorNormals[2*3+1],cfish->sensorNormals[2*3+2]);
-            changeVelocityToComputationalFrame(&cfish->sensorNormals[2*3+0]);
-            cfish->sensorDelta[2*3+0] = rX[ss+1] +width[ss+1]*costh*norX[ss+1]+height[ss+1]*sinth*binX[ss+1] - cfish->sensorLocation[2*3+0];
-            cfish->sensorDelta[2*3+1] = rY[ss+1] +width[ss+1]*costh*norY[ss+1]+height[ss+1]*sinth*binY[ss+1] - cfish->sensorLocation[2*3+1];
-            cfish->sensorDelta[2*3+2] = rZ[ss+1] +width[ss+1]*costh*norZ[ss+1]+height[ss+1]*sinth*binZ[ss+1] - cfish->sensorLocation[2*3+2];
           }
         }
 

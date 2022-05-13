@@ -413,6 +413,10 @@ struct KernelComputeForces
       //store:
       o->pX[i] = p[0]; o->pY[i] = p[1]; o->pZ[i] = p[2];
       o->P[i] = P; o->fX[i] = fXT; o->fY[i] = fYT; o->fZ[i] = fZT;
+      o->fxV[i] = _1oH * (dudx * dx + dudy * dy + dudz * dz); 
+      o->fyV[i] = _1oH * (dvdx * dx + dvdy * dy + dvdz * dz); 
+      o->fzV[i] = _1oH * (dwdx * dx + dwdy * dy + dwdz * dz); 
+
       o->vxDef[i] = o->udef[iz][iy][ix][0]; o->vX[i] = l(ix,iy,iz).u;
       o->vyDef[i] = o->udef[iz][iy][ix][1]; o->vY[i] = l(ix,iy,iz).v;
       o->vzDef[i] = o->udef[iz][iy][ix][2]; o->vZ[i] = l(ix,iy,iz).w;

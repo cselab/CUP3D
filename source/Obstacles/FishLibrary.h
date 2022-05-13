@@ -69,8 +69,6 @@ class FishMidlineData
   Real * const height;
 
   std::array<Real, 9> sensorLocation; //Shear stress sensor locations (for RL)
-  std::array<Real, 9> sensorNormals;  //Shear stress sensor surface (unit) normal vectors (for RL)
-  std::array<Real, 9> sensorDelta;
 
   // Midline has an orientation in space which is defined from the following quaternion.
   // When midline is defined, we change the frame of reference so that its origin is at the midline
