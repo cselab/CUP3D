@@ -12,7 +12,6 @@ CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
 using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
-using MARKMAT = int [CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 using CHIMAT = Real [CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 
 
@@ -478,7 +477,6 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
   //These are typically 8x8x8 (blocksize=8) matrices that are filled here.
   CHIMAT & __restrict__ CHI = defblock->chi;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
-  MARKMAT & __restrict__ MARK = defblock->sectionMarker;
 
   //This is an (8+2)x(8+2)x(8+2) matrix with the SDF. We compute the sdf for the 8x8x8 block
   //but we also add +-1 grid points of ghost values. That way there is no need for communication
@@ -652,7 +650,6 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
                                sx - 1 >=0 && sx - 1 < FluidBlock::sizeX);
           if (inRange)
           {
-            MARK[sz-1][sy-1][sx-1] = close_s;
             UDEF[sz-1][sy-1][sx-1][0] = W * udef[0];
             UDEF[sz-1][sy-1][sx-1][1] = W * udef[1];
             UDEF[sz-1][sy-1][sx-1][2] = W * udef[2];
@@ -897,7 +894,6 @@ void PutNacaOnBlocks::constructSurface(const Real h, const Real ox, const Real o
   CHIMAT & __restrict__ CHI = defblock->chi;
   auto & __restrict__ SDFLAB = defblock->sdfLab;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
-  MARKMAT & __restrict__ MARK = defblock->sectionMarker;
 
   // construct the shape (P2M with min(distance) as kernel) onto defblocks
   for(size_t i=0; i< vSegments.size(); ++i) {
@@ -1000,7 +996,6 @@ void PutNacaOnBlocks::constructSurface(const Real h, const Real ox, const Real o
                                    sx - 1 >=0 && sx - 1 < FluidBlock::sizeX);
               if (inRange)
               {
-                MARK[sz-1][sy-1][sx-1] = close_s;
                 UDEF[sz-1][sy-1][sx-1][0] = udef[0];
                 UDEF[sz-1][sy-1][sx-1][1] = udef[1];
                 UDEF[sz-1][sy-1][sx-1][2] = udef[2];

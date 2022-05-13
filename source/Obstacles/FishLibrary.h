@@ -78,10 +78,6 @@ class FishMidlineData
   Real quaternion_internal[4]={1,0,0,0};
   Real angvel_internal[3]={0,0,0};
 
-  //probably deprecated, keep for now
-  //start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
-  //Schedulers::ParameterSchedulerVector<6> curvScheduler;
-
  protected:
 
   //computes derivative d/ds of given quantity
@@ -127,7 +123,7 @@ class FishMidlineData
     int k = 0;
     for(int i=0; i<Nend; ++i, k++) //fish head
       rS[k+1] = rS[k] + dSref +(dSmid-dSref) *         i /((Real)Nend-1.);
-    for(int i=0; i<Nmid; ++i, k++) //interion points
+    for(int i=0; i<Nmid; ++i, k++) //interior points
       rS[k+1] = rS[k] + dSmid;
     for(int i=0; i<Nend; ++i, k++) //fish tail
       rS[k+1] = rS[k] + dSref +(dSmid-dSref) * (Nend-i-1)/((Real)Nend-1.);

@@ -33,7 +33,6 @@ struct surface_data
 
 struct ObstacleBlock
 {
-  //static constexpr int BS = FluidBlock::BS;
   static constexpr int sizeX = FluidBlock::sizeX;
   static constexpr int sizeY = FluidBlock::sizeY;
   static constexpr int sizeZ = FluidBlock::sizeZ;
@@ -42,13 +41,11 @@ struct ObstacleBlock
   Real          chi[sizeZ][sizeY][sizeX];
   Real         udef[sizeZ][sizeY][sizeX][3];
   Real          sdfLab[sizeZ+2][sizeY+2][sizeX+2];
-  int sectionMarker[sizeZ][sizeY][sizeX];
 
   //surface quantities:
   int nPoints = 0;
   bool filled = false;
   std::vector<surface_data*> surface;
-  int *ss  = nullptr;
   Real *pX  = nullptr, *pY  = nullptr, *pZ  = nullptr, *P = nullptr;
   Real *fX  = nullptr, *fY  = nullptr, *fZ  = nullptr;
   Real *fxP = nullptr, *fyP = nullptr, *fzP = nullptr;
@@ -73,8 +70,6 @@ struct ObstacleBlock
   Real  forcex_V = 0,  forcey_V = 0,  forcez_V = 0;
   Real torquex   = 0, torquey   = 0, torquez   = 0;
   Real  gammax   = 0,  gammay   = 0,  gammaz   = 0;
-  //Real torquex_P = 0, torquey_P = 0, torquez_P = 0;
-  //Real torquex_V = 0, torquey_V = 0, torquez_V = 0;
   Real drag = 0, thrust = 0, Pout=0, PoutBnd=0, defPower=0, defPowerBnd = 0, pLocom = 0;
   static const int nQoI = 22;
 
@@ -114,8 +109,6 @@ struct ObstacleBlock
     forcex_V = forcey_V = forcez_V =0;
     gammax   = gammay   = gammaz   =0;
     torquex  = torquey  = torquez  =0;
-    //torquex_P=torquey_P=torquez_P=0;
-    //torquex_V=torquey_V=torquez_V=0;
     mass=drag=thrust=Pout=PoutBnd=defPower=defPowerBnd=0;
 
     for (auto & trash : surface) {
@@ -143,7 +136,6 @@ struct ObstacleBlock
     if(vxDef   not_eq nullptr){free(vxDef);   vxDef=nullptr;  }
     if(vyDef   not_eq nullptr){free(vyDef);   vyDef=nullptr;  }
     if(vzDef   not_eq nullptr){free(vzDef);   vzDef=nullptr;  }
-    if(ss      not_eq nullptr){free(ss);      ss=nullptr;     }
   }
 
   virtual void clear()
@@ -151,7 +143,6 @@ struct ObstacleBlock
     clear_surface();
     memset(chi,  0, sizeof(Real)*sizeX*sizeY*sizeZ);
     memset(udef, 0, sizeof(Real)*sizeX*sizeY*sizeZ*3);
-    memset(sectionMarker, 0, sizeof(int)*sizeX*sizeY*sizeZ);
     memset(sdfLab,  0, sizeof(Real)*(sizeX+2)*(sizeY+2)*(sizeZ+2));
   }
 
@@ -182,7 +173,7 @@ struct ObstacleBlock
     fxV  =init<Real>(nPoints); fyV  =init<Real>(nPoints);
     fzV  =init<Real>(nPoints); vxDef=init<Real>(nPoints);
     vyDef=init<Real>(nPoints); vzDef=init<Real>(nPoints);
-    P    =init<Real>(nPoints); ss   =init<int>(nPoints);
+    P    =init<Real>(nPoints);
   }
 
   template <typename T>
@@ -201,21 +192,6 @@ struct ObstacleBlock
     assert(ptr != nullptr);
     memset(ptr, 0, N * sizeof(T));
     return ptr;
-  }
-
-  void print(FILE* pFile)
-  {
-    assert(filled);
-    for (int i = 0; i < nPoints; ++i) {
-      float buf[] = {
-        (float)ss[i], (float)pX[i], (float)pY[i], (float)pZ[i], (float)fX[i],
-        (float)fY[i], (float)fZ[i], (float)vY[i], (float)vY[i], (float)vZ[i],
-        (float)vxDef[i], (float)vyDef[i], (float)vzDef[i],
-        (float)surface[i]->dchidx, (float)surface[i]->dchidy,
-        (float)surface[i]->dchidz
-      };
-      fwrite (buf, sizeof(float), 16, pFile);
-    }
   }
 };
 
