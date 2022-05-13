@@ -452,8 +452,8 @@ class PoissonSolverExp : public PoissonSolverBase
               std::make_pair<long long, double>(indexer.forward_ds1(info, ix, iy, iz, 1),  1./2.), 
               std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),           -3./8.)};
 
-    return {std::make_pair<long long, double>(indexer.backward_ds1(info, ix, iy, iz, 1), -1./2.), 
-            std::make_pair<long long, double>(indexer.forward_ds1(info, ix, iy, iz, 1),   1./2.), 
+    return {std::make_pair<long long, double>(indexer.backward_ds1(info, ix, iy, iz, 1), -1./8.), 
+            std::make_pair<long long, double>(indexer.forward_ds1(info, ix, iy, iz, 1),   1./8.), 
             std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),             0.)};
   }
 
@@ -469,8 +469,8 @@ class PoissonSolverExp : public PoissonSolverBase
               std::make_pair<long long, double>(indexer.forward_ds2(info, ix, iy, iz, 1),  1./2.), 
               std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),           -3./8.)};
 
-    return {std::make_pair<long long, double>(indexer.backward_ds2(info, ix, iy, iz, 1), -1./2.), 
-            std::make_pair<long long, double>(indexer.forward_ds2(info, ix, iy, iz, 1),   1./2.), 
+    return {std::make_pair<long long, double>(indexer.backward_ds2(info, ix, iy, iz, 1), -1./8.), 
+            std::make_pair<long long, double>(indexer.forward_ds2(info, ix, iy, iz, 1),   1./8.), 
             std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),             0.)};
   }
 
