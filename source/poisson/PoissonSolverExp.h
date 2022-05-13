@@ -141,7 +141,7 @@ class PoissonSolverExp : public PoissonSolverBase
       virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const = 0;
 
       // When I am finer than neighbouring block
-      virtual long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 0) const = 0;
+      virtual long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
       virtual double sign_ds1(const int &ix, const int &iy, const int &iz) const = 0;
       virtual double sign_ds2(const int &ix, const int &iy, const int &iz) const = 0;
 
@@ -213,7 +213,7 @@ class PoissonSolverExp : public PoissonSolverBase
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Xmax(nei_info, ix, iy, iz, offset); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 0) const override
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
       { return neiXp(info, ix, iy, iz, dist); }
 
       int ix_c(const cubism::BlockInfo &info, const int &ix) const override
@@ -240,7 +240,7 @@ class PoissonSolverExp : public PoissonSolverBase
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Xmin(nei_info, ix, iy, iz, offset); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 0) const override
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
       { return neiXm(info, ix, iy, iz, dist); }
 
       int ix_c(const cubism::BlockInfo &info, const int &ix) const override
@@ -298,7 +298,7 @@ class PoissonSolverExp : public PoissonSolverBase
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Ymax(nei_info, ix, iy, iz, offset); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 0) const override
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
       { return neiYp(info, ix, iy, iz, dist); }
 
       int iy_c(const cubism::BlockInfo &info, const int &iy) const override
@@ -325,7 +325,7 @@ class PoissonSolverExp : public PoissonSolverBase
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Ymin(nei_info, ix, iy, iz, offset); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 0) const override
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
       { return neiYm(info, ix, iy, iz, dist); }
 
       int iy_c(const cubism::BlockInfo &info, const int &iy) const override
@@ -383,7 +383,7 @@ class PoissonSolverExp : public PoissonSolverBase
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Zmax(nei_info, ix, iy, iz, offset); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 0) const override
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
       { return neiZp(info, ix, iy, iz, dist); }
 
       int iz_c(const cubism::BlockInfo &info, const int &iz) const override
@@ -410,7 +410,7 @@ class PoissonSolverExp : public PoissonSolverBase
       long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
       { return Zmin(nei_info, ix, iy, iz, offset); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 0) const override
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
       { return neiZm(info, ix, iy, iz, dist); }
 
       int iz_c(const cubism::BlockInfo &info, const int &iz) const override
