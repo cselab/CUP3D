@@ -187,13 +187,13 @@ class PoissonSolverExp : public PoissonSolverBase
       { return iz % 2 == 0 ? -1. : 1.; }
 
       bool isBD_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return iy == 0; }
-      bool isFD_ds1(const int &ix, const int &iy, const int &iz) const override
       { return iy == ny_-1; }
+      bool isFD_ds1(const int &ix, const int &iy, const int &iz) const override
+      { return iy == 0; }
       bool isBD_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return iz == 0; }
-      bool isFD_ds2(const int &ix, const int &iy, const int &iz) const override
       { return iz == nz_-1; }
+      bool isFD_ds2(const int &ix, const int &iy, const int &iz) const override
+      { return iz == 0; }
       long long backward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
       { return neiYm(info, ix, iy, iz, dist); }
       long long forward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
@@ -272,13 +272,13 @@ class PoissonSolverExp : public PoissonSolverBase
       { return ix % 2 == 0 ? -1. : 1.; }
 
       bool isBD_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return iz == 0; }
-      bool isFD_ds1(const int &ix, const int &iy, const int &iz) const override
       { return iz == nz_-1; }
+      bool isFD_ds1(const int &ix, const int &iy, const int &iz) const override
+      { return iz == 0; }
       bool isBD_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return ix == 0; }
-      bool isFD_ds2(const int &ix, const int &iy, const int &iz) const override
       { return ix == nx_-1; }
+      bool isFD_ds2(const int &ix, const int &iy, const int &iz) const override
+      { return ix == 0; }
       long long backward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
       { return neiZm(info, ix, iy, iz, dist); }
       long long forward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
@@ -357,13 +357,13 @@ class PoissonSolverExp : public PoissonSolverBase
       { return iy % 2 == 0 ? -1. : 1.; }
 
       bool isBD_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return ix == 0; }
-      bool isFD_ds1(const int &ix, const int &iy, const int &iz) const override
       { return ix == nx_-1; }
+      bool isFD_ds1(const int &ix, const int &iy, const int &iz) const override
+      { return ix == 0; }
       bool isBD_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return iy == 0; }
-      bool isFD_ds2(const int &ix, const int &iy, const int &iz) const override
       { return iy == ny_-1; }
+      bool isFD_ds2(const int &ix, const int &iy, const int &iz) const override
+      { return iy == 0; }
       long long backward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
       { return neiXm(info, ix, iy, iz, dist); }
       long long forward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
