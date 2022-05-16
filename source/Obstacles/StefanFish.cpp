@@ -509,9 +509,9 @@ std::vector<Real> StefanFish::state() const
   assert( cFish != nullptr);
   const Real Tperiod = cFish->Tperiod;
   std::vector<Real> S(26,0);
-  S[0 ] = ( position[0] - origC[0] )/ length;
-  S[1 ] = ( position[1] - origC[1] )/ length;
-  S[2 ] = ( position[2] - origC[2] )/ length;
+  S[0 ] = position[0];
+  S[1 ] = position[1];
+  S[2 ] = position[2];
   S[3 ] = quaternion[0];
   S[4 ] = quaternion[1];
   S[5 ] = quaternion[2];
@@ -585,7 +585,7 @@ std::array<Real, 3> StefanFish::getShear(const std::array<Real,3> pSurf) const
     const auto & skinBinfo = velInfo[blockIdSurf];
 
     // check whether obstacle block exists
-    if(obstacleBlocks[blockIdSurf] == nullptr )
+    if(obstacleBlocks[blockIdSurf] != nullptr )
     {
       Real dmin = 1e10;
       ObstacleBlock * const O = obstacleBlocks[blockIdSurf];
@@ -608,19 +608,7 @@ std::array<Real, 3> StefanFish::getShear(const std::array<Real,3> pSurf) const
   }
   MPI_Allreduce(MPI_IN_PLACE, myF, 3, MPI_Real, MPI_SUM, sim.grid->getCartComm());
 
-  // DEBUG purposes
-  #if 1
-    MPI_Allreduce(MPI_IN_PLACE, &blockIdSurf, 1, MPI_INT64_T, MPI_MAX, sim.grid->getCartComm());
-    if( sim.rank == 0 && blockIdSurf == -1 )
-    {
-      printf("ABORT: coordinate (%g,%g) could not be associated to ANY obstacle block\n", (double)pSurf[0], (double)pSurf[1]);
-      fflush(0);
-      abort();
-    }
-  #endif
-
-  // return shear
-  return std::array<Real, 3>{{myF[0],myF[1],myF[2]}};
+  return std::array<Real, 3>{{myF[0],myF[1],myF[2]}};// return shear
 };
 
 CubismUP_3D_NAMESPACE_END
