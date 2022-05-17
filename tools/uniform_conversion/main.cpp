@@ -311,8 +311,8 @@ void convert_to_uniform(std::string filename,int tttt)
     hsize_t dims[3]  = { (hsize_t)points[2]/Cfactor,(hsize_t)points[1]/Cfactor,(hsize_t)points[0]/Cfactor };
 
     ////compressed dataset
-    /*
     hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
+    /*
     hsize_t cdims[3];
     cdims[0] = dims[0] / 64;
     cdims[1] = dims[1] / 64;
