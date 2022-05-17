@@ -69,20 +69,6 @@ class PoissonSolverExp : public PoissonSolverBase
       long long This(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz) const
       { return blockOffset(info) + (long long)(iz*ny_*nx_ + iy*nx_ + ix); }
 
-      // Return indices of neighbouring cells
-      long long neiXp(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
-      { return blockOffset(info) + (long long)(iz*ny_*nx_ + iy*nx_ + ix+dist); }
-      long long neiXm(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
-      { return blockOffset(info) + (long long)(iz*ny_*nx_ + iy*nx_ + ix-dist); }
-      long long neiYp(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
-      { return blockOffset(info) + (long long)(iz*ny_*nx_ + (iy+dist)*nx_ + ix); }
-      long long neiYm(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
-      { return blockOffset(info) + (long long)(iz*ny_*nx_ + (iy-dist)*nx_ + ix); }
-      long long neiZp(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
-      { return blockOffset(info) + (long long)((iz+dist)*ny_*nx_ + iy*nx_ + ix); }
-      long long neiZm(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const
-      { return blockOffset(info) + (long long)((iz-dist)*ny_*nx_ + iy*nx_ + ix); }
-
       // Check if neighbouring cells are in this block
       static bool validXp(const int &ix, const int &iy, const int &iz)
       { return ix < nx_ - 1; }
@@ -138,12 +124,10 @@ class PoissonSolverExp : public PoissonSolverBase
       FaceCellIndexer(const PoissonSolverExp& pSolver) : CellIndexer(pSolver) {}
 
       // When I am uniform with the neighbouring block
-      virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const = 0;
+      virtual long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const = 0;
 
       // When I am finer than neighbouring block
-      virtual long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
-      virtual double sign_ds1(const int &ix, const int &iy, const int &iz) const = 0;
-      virtual double sign_ds2(const int &ix, const int &iy, const int &iz) const = 0;
+      virtual long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz) const = 0;
 
       virtual int ix_c(const cubism::BlockInfo &info, const int &ix) const
       { return (info.index[0] % 2 == 0) ? (ix/2) : (ix/2 + nx_/2); }
@@ -160,14 +144,10 @@ class PoissonSolverExp : public PoissonSolverBase
       virtual long long neiFine4(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const = 0;
 
       // Indexing aids for derivatives in taylor approximation, info, ix, iy, iz of a coarse cell
-      virtual bool isBD_ds1(const int &ix, const int &iy, const int &iz) const = 0;
-      virtual bool isFD_ds1(const int &ix, const int &iy, const int &iz) const = 0;
-      virtual bool isBD_ds2(const int &ix, const int &iy, const int &iz) const = 0;
-      virtual bool isFD_ds2(const int &ix, const int &iy, const int &iz) const = 0;
-      virtual long long backward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
-      virtual long long forward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
-      virtual long long backward_ds2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
-      virtual long long forward_ds2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const = 0;
+      virtual double taylorSign(const int &ix, const int &iy, const int &iz, const int dimShift) const = 0;
+      virtual bool isBD(const int &ix, const int &iy, const int &iz, const int dimShift) const = 0;
+      virtual bool isFD(const int &ix, const int &iy, const int &iz, const int dimShift) const = 0;
+      virtual long long Nei(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist1, const int dist2) const = 0;
 
       // When I am coarses and need to determine which Zchild I'm next to
       virtual long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const = 0;
@@ -181,27 +161,14 @@ class PoissonSolverExp : public PoissonSolverBase
     public:
       XbaseIndexer(const PoissonSolverExp& pSolver) : FaceCellIndexer(pSolver) {}
 
-      double sign_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return iy % 2 == 0 ? -1. : 1.; }
-      double sign_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return iz % 2 == 0 ? -1. : 1.; }
-
-      bool isBD_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return iy == ny_-1; }
-      bool isFD_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return iy == 0; }
-      bool isBD_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return iz == nz_-1; }
-      bool isFD_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return iz == 0; }
-      long long backward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiYm(info, ix, iy, iz, dist); }
-      long long forward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiYp(info, ix, iy, iz, dist); }
-      long long backward_ds2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiZm(info, ix, iy, iz, dist); }
-      long long forward_ds2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiZp(info, ix, iy, iz, dist); }
+      double taylorSign(const int &ix, const int &iy, const int &iz, const int dimShift) const override
+      { return dimShift == 1 ? (iy % 2 == 0 ? -1. : 1.) : (iz % 2 == 0 ? -1. : 1.); }
+      bool isBD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
+      { return dimShift == 1 ? (iy == ny_-1) : (iz == nz_-1); }
+      bool isFD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
+      { return dimShift == 1 ? (iy == 0) : (iz == 0); }
+      long long Nei(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist1, const int dist2) const override
+      { return This(info, ix, iy+dist1, iz+dist2); }
 
   };
 
@@ -210,11 +177,11 @@ class PoissonSolverExp : public PoissonSolverBase
     public:
       XminIndexer(const PoissonSolverExp& pSolver) : XbaseIndexer(pSolver) {}
 
-      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
-      { return Xmax(nei_info, ix, iy, iz, offset); }
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return Xmax(nei_info, ix, iy, iz); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiXp(info, ix, iy, iz, dist); }
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz) const override
+      { return This(info, ix+1, iy, iz); }
 
       int ix_c(const cubism::BlockInfo &info, const int &ix) const override
       { return nx_ - 1; }
@@ -237,11 +204,11 @@ class PoissonSolverExp : public PoissonSolverBase
     public:
       XmaxIndexer(const PoissonSolverExp& pSolver) : XbaseIndexer(pSolver) {}
 
-      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
-      { return Xmin(nei_info, ix, iy, iz, offset); }
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return Xmin(nei_info, ix, iy, iz); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiXm(info, ix, iy, iz, dist); }
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz) const override
+      { return This(info, ix-1, iy, iz); }
 
       int ix_c(const cubism::BlockInfo &info, const int &ix) const override
       { return 0; }
@@ -266,27 +233,14 @@ class PoissonSolverExp : public PoissonSolverBase
     public:
       YbaseIndexer(const PoissonSolverExp& pSolver) : FaceCellIndexer(pSolver) {}
 
-      double sign_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return iz % 2 == 0 ? -1. : 1.; }
-      double sign_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return ix % 2 == 0 ? -1. : 1.; }
-
-      bool isBD_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return iz == nz_-1; }
-      bool isFD_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return iz == 0; }
-      bool isBD_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return ix == nx_-1; }
-      bool isFD_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return ix == 0; }
-      long long backward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiZm(info, ix, iy, iz, dist); }
-      long long forward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiZp(info, ix, iy, iz, dist); }
-      long long backward_ds2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiXm(info, ix, iy, iz, dist); }
-      long long forward_ds2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiXp(info, ix, iy, iz, dist); }
+      double taylorSign(const int &ix, const int &iy, const int &iz, const int dimShift) const override
+      { return dimShift == 1 ? (iz % 2 == 0 ? -1. : 1.) : (ix % 2 == 0 ? -1. : 1.); }
+      bool isBD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
+      { return dimShift == 1 ? (iz == nz_-1) : (ix == nx_-1); }
+      bool isFD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
+      { return dimShift == 1 ? (iz == 0) : (ix == 0); }
+      long long Nei(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist1, const int dist2) const override
+      { return This(info, ix+dist2, iy, iz+dist1); }
 
   };
 
@@ -295,11 +249,11 @@ class PoissonSolverExp : public PoissonSolverBase
     public:
       YminIndexer(const PoissonSolverExp& pSolver) : YbaseIndexer(pSolver) {}
 
-      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
-      { return Ymax(nei_info, ix, iy, iz, offset); }
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return Ymax(nei_info, ix, iy, iz); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiYp(info, ix, iy, iz, dist); }
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz) const override
+      { return This(info, ix, iy+1, iz); }
 
       int iy_c(const cubism::BlockInfo &info, const int &iy) const override
       { return ny_ - 1; }
@@ -322,11 +276,11 @@ class PoissonSolverExp : public PoissonSolverBase
     public:
       YmaxIndexer(const PoissonSolverExp& pSolver) : YbaseIndexer(pSolver) {}
 
-      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
-      { return Ymin(nei_info, ix, iy, iz, offset); }
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return Ymin(nei_info, ix, iy, iz); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiYm(info, ix, iy, iz, dist); }
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz) const override
+      { return This(info, ix, iy-1, iz); }
 
       int iy_c(const cubism::BlockInfo &info, const int &iy) const override
       { return 0; }
@@ -351,27 +305,14 @@ class PoissonSolverExp : public PoissonSolverBase
     public:
       ZbaseIndexer(const PoissonSolverExp& pSolver) : FaceCellIndexer(pSolver) {}
 
-      double sign_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return ix % 2 == 0 ? -1. : 1.; }
-      double sign_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return iy % 2 == 0 ? -1. : 1.; }
-
-      bool isBD_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return ix == nx_-1; }
-      bool isFD_ds1(const int &ix, const int &iy, const int &iz) const override
-      { return ix == 0; }
-      bool isBD_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return iy == ny_-1; }
-      bool isFD_ds2(const int &ix, const int &iy, const int &iz) const override
-      { return iy == 0; }
-      long long backward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiXm(info, ix, iy, iz, dist); }
-      long long forward_ds1(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiXp(info, ix, iy, iz, dist); }
-      long long backward_ds2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiYm(info, ix, iy, iz, dist); }
-      long long forward_ds2(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiYp(info, ix, iy, iz, dist); }
+      double taylorSign(const int &ix, const int &iy, const int &iz, const int dimShift) const override
+      { return dimShift == 1 ? (ix % 2 == 0 ? -1. : 1.) : (iy % 2 == 0 ? -1. : 1.); }
+      bool isBD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
+      { return dimShift == 1 ? (ix == nx_-1) : (iy == ny_-1); }
+      bool isFD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
+      { return dimShift == 1 ? (ix == 0) : (iy == 0); }
+      long long Nei(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist1, const int dist2) const override
+      { return This(info, ix+dist1, iy+dist2, iz); }
 
   };
 
@@ -380,11 +321,11 @@ class PoissonSolverExp : public PoissonSolverBase
     public:
       ZminIndexer(const PoissonSolverExp& pSolver) : ZbaseIndexer(pSolver) {}
 
-      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
-      { return Zmax(nei_info, ix, iy, iz, offset); }
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return Zmax(nei_info, ix, iy, iz); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiZp(info, ix, iy, iz, dist); }
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz) const override
+      { return This(info, ix, iy, iz+1); }
 
       int iz_c(const cubism::BlockInfo &info, const int &iz) const override
       { return nz_ - 1; }
@@ -407,11 +348,11 @@ class PoissonSolverExp : public PoissonSolverBase
     public:
       ZmaxIndexer(const PoissonSolverExp& pSolver) : ZbaseIndexer(pSolver) {}
 
-      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz, const int offset = 0) const override
-      { return Zmin(nei_info, ix, iy, iz, offset); }
+      long long neiUnif(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const override
+      { return Zmin(nei_info, ix, iy, iz); }
 
-      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist = 1) const override
-      { return neiZm(info, ix, iy, iz, dist); }
+      long long neiInward(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz) const override
+      { return This(info, ix, iy, iz-1); }
 
       int iz_c(const cubism::BlockInfo &info, const int &iz) const override
       { return 0; }
@@ -440,72 +381,50 @@ class PoissonSolverExp : public PoissonSolverBase
   // Array of the indexers above pointed to by a base pointer for polymorphism in makeFlux
   std::array<const FaceCellIndexer*, 6> faceIndexers;
 
-  std::array<std::pair<long long, double>, 3> D1_ds1(const cubism::BlockInfo &info, const FaceCellIndexer &indexer, const int ix, const int iy, const int iz) const
+  std::array<std::pair<long long, double>, 3> D1(const cubism::BlockInfo &info, const FaceCellIndexer &indexer, const int ix, const int iy, const int iz, const int dimShift) const
   {
+    bool ds1 = dimShift == 1;
+    std::array<int, 2> b2{ds1 ? -2 : 0, ds1 ? 0 : -2};
+    std::array<int, 2> b1{ds1 ? -1 : 0, ds1 ? 0 : -1};
+    std::array<int, 2> f1{ds1 ?  1 : 0, ds1 ? 0 :  1};
+    std::array<int, 2> f2{ds1 ?  2 : 0, ds1 ? 0 :  2};
+
     // Scale D1 by h^l/4
-    if (indexer.isBD_ds1(ix, iy, iz)) 
-      return {std::make_pair<long long, double>(indexer.backward_ds1(info, ix, iy, iz, 2),  1./8.), 
-              std::make_pair<long long, double>(indexer.backward_ds1(info, ix, iy, iz, 1), -1./2.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),             3./8.)};
-    else if (indexer.isFD_ds1(ix, iy, iz)) 
-      return {std::make_pair<long long, double>(indexer.forward_ds1(info, ix, iy, iz, 2), -1./8.), 
-              std::make_pair<long long, double>(indexer.forward_ds1(info, ix, iy, iz, 1),  1./2.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),           -3./8.)};
+    if (indexer.isBD(ix, iy, iz, dimShift)) 
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b2[0], b2[1]),  1./8.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b1[0], b1[1]), -1./2.), 
+              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),               3./8.)};
+    else if (indexer.isFD(ix, iy, iz, dimShift)) 
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f2[0], f2[1]), -1./8.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f1[0], f1[1]),  1./2.), 
+              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),              -3./8.)};
 
-    return {std::make_pair<long long, double>(indexer.backward_ds1(info, ix, iy, iz, 1), -1./8.), 
-            std::make_pair<long long, double>(indexer.forward_ds1(info, ix, iy, iz, 1),   1./8.), 
-            std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),             0.)};
+    return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b1[0], b1[1]), -1./8.), 
+            std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f1[0], f1[1]),  1./8.), 
+            std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),               0.)};
   }
 
-  std::array<std::pair<long long, double>, 3> D1_ds2(const cubism::BlockInfo &info, const FaceCellIndexer &indexer, const int ix, const int iy, const int iz) const
+  std::array<std::pair<long long, double>, 3> D2(const cubism::BlockInfo &info, const FaceCellIndexer &indexer, const int ix, const int iy, const int iz, const int dimShift) const
   {
-    // Scale D1 by h^l/4
-    if (indexer.isBD_ds2(ix, iy, iz)) 
-      return {std::make_pair<long long, double>(indexer.backward_ds2(info, ix, iy, iz, 2),  1./8.), 
-              std::make_pair<long long, double>(indexer.backward_ds2(info, ix, iy, iz, 1), -1./2.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),             3./8.)};
-    else if (indexer.isFD_ds2(ix, iy, iz)) 
-      return {std::make_pair<long long, double>(indexer.forward_ds2(info, ix, iy, iz, 2), -1./8.), 
-              std::make_pair<long long, double>(indexer.forward_ds2(info, ix, iy, iz, 1),  1./2.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),           -3./8.)};
+    bool ds1 = dimShift == 1;
+    std::array<int, 2> b2{ds1 ? -2 : 0, ds1 ? 0 : -2};
+    std::array<int, 2> b1{ds1 ? -1 : 0, ds1 ? 0 : -1};
+    std::array<int, 2> f1{ds1 ?  1 : 0, ds1 ? 0 :  1};
+    std::array<int, 2> f2{ds1 ?  2 : 0, ds1 ? 0 :  2};
 
-    return {std::make_pair<long long, double>(indexer.backward_ds2(info, ix, iy, iz, 1), -1./8.), 
-            std::make_pair<long long, double>(indexer.forward_ds2(info, ix, iy, iz, 1),   1./8.), 
-            std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),             0.)};
-  }
-
-  std::array<std::pair<long long, double>, 3> D2_ds1(const cubism::BlockInfo &info, const FaceCellIndexer &indexer, const int ix, const int iy, const int iz) const
-  {
     // Scale D2 by 0.5*(h^l/4)^2
-    if (indexer.isBD_ds1(ix, iy, iz)) 
-      return {std::make_pair<long long, double>(indexer.backward_ds1(info, ix, iy, iz, 2),  1./32.), 
-              std::make_pair<long long, double>(indexer.backward_ds1(info, ix, iy, iz, 1), -1./16.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),             1./32.)};
-    else if (indexer.isFD_ds1(ix, iy, iz)) 
-      return {std::make_pair<long long, double>(indexer.forward_ds1(info, ix, iy, iz, 2),  1./32.), 
-              std::make_pair<long long, double>(indexer.forward_ds1(info, ix, iy, iz, 1), -1./16.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),            1./32.)};
+    if (indexer.isBD(ix, iy, iz, dimShift)) 
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b2[0], b2[1]),  1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b1[0], b1[1]), -1./16.), 
+              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),               1./32.)};
+    else if (indexer.isFD(ix, iy, iz, dimShift)) 
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f2[0], f2[1]),  1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f1[0], f1[1]), -1./16.), 
+              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),               1./32.)};
 
-    return {std::make_pair<long long, double>(indexer.backward_ds1(info, ix, iy, iz, 1),  1./32.), 
-            std::make_pair<long long, double>(indexer.forward_ds1(info, ix, iy, iz, 1),   1./32.), 
-            std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),            -1./16.)};
-  }
-
-  std::array<std::pair<long long, double>, 3> D2_ds2(const cubism::BlockInfo &info, const FaceCellIndexer &indexer, const int ix, const int iy, const int iz) const
-  {
-    // Scale D2 by 0.5*(h^l/4)^2
-    if (indexer.isBD_ds2(ix, iy, iz)) 
-      return {std::make_pair<long long, double>(indexer.backward_ds2(info, ix, iy, iz, 2),  1./32.), 
-              std::make_pair<long long, double>(indexer.backward_ds2(info, ix, iy, iz, 1), -1./16.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),             1./32.)};
-    else if (indexer.isFD_ds2(ix, iy, iz)) 
-      return {std::make_pair<long long, double>(indexer.forward_ds2(info, ix, iy, iz, 2),  1./32.), 
-              std::make_pair<long long, double>(indexer.forward_ds2(info, ix, iy, iz, 1), -1./16.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),            1./32.)};
-
-    return {std::make_pair<long long, double>(indexer.backward_ds2(info, ix, iy, iz, 1),  1./32.), 
-            std::make_pair<long long, double>(indexer.forward_ds2(info, ix, iy, iz, 1),   1./32.), 
-            std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),            -1./16.)};
+    return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b1[0], b1[1]),  1./32.), 
+            std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f1[0], f1[1]),  1./32.), 
+            std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),              -1./16.)};
   }
 
   void interpolate(

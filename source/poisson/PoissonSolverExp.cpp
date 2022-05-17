@@ -130,20 +130,20 @@ void PoissonSolverExp::interpolate(
   // first derivative terms
   std::array<std::pair<long long, double>, 3> D;
 
-  D = D1_ds1(info_c, indexer, ix_c, iy_c, iz_c);
+  D = D1(info_c, indexer, ix_c, iy_c, iz_c, 1);
   for (int i(0); i < 3; i++)
     row.mapColVal(rank_c, D[i].first, sign_ds1 * tf * D[i].second);
 
-  D = D1_ds2(info_c, indexer, ix_c, iy_c, iz_c);
+  D = D1(info_c, indexer, ix_c, iy_c, iz_c, 2);
   for (int i(0); i < 3; i++)
     row.mapColVal(rank_c, D[i].first, sign_ds2 * tf * D[i].second);
   
   // second derivative terms
-  D = D2_ds1(info_c, indexer, ix_c, iy_c, iz_c);
+  D = D2(info_c, indexer, ix_c, iy_c, iz_c, 1);
   for (int i(0); i < 3; i++)
     row.mapColVal(rank_c, D[i].first, tf * D[i].second);
 
-  D = D2_ds2(info_c, indexer, ix_c, iy_c, iz_c);
+  D = D2(info_c, indexer, ix_c, iy_c, iz_c, 2);
   for (int i(0); i < 3; i++)
     row.mapColVal(rank_c, D[i].first, tf * D[i].second);
 }
@@ -175,8 +175,8 @@ void PoissonSolverExp::makeFlux(
     const int iy_c = indexer.iy_c(rhs_info, iy);
     const int iz_c = indexer.iz_c(rhs_info, iz);
     const long long inward_idx = indexer.neiInward(rhs_info, ix, iy, iz);
-    const double sign_ds1 = indexer.sign_ds1(ix, iy, iz);
-    const double sign_ds2 = indexer.sign_ds2(ix, iy, iz);
+    const double sign_ds1 = indexer.taylorSign(ix, iy, iz, 1);
+    const double sign_ds2 = indexer.taylorSign(ix, iy, iz, 2);
     const double h = rhs_info.h;
       
     interpolate(rhsNei_c, ix_c, iy_c, iz_c, rhs_info, sfc_idx, inward_idx, 1., sign_ds1, sign_ds2, indexer, row);
@@ -294,13 +294,13 @@ void PoissonSolverExp::getMat()
       { // Inner cells
 
         // Push back in ascending order for column index
-        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiZm(rhs_info, ix, iy, iz));
-        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiYm(rhs_info, ix, iy, iz));
-        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiXm(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.This(rhs_info, ix, iy, iz-1));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.This(rhs_info, ix, iy-1, iz));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.This(rhs_info, ix-1, iy, iz));
         LocalLS_->cooPushBackVal(-6.*h, sfc_idx, sfc_idx);
-        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiXp(rhs_info, ix, iy, iz));
-        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiYp(rhs_info, ix, iy, iz));
-        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.neiZp(rhs_info, ix, iy, iz));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.This(rhs_info, ix+1, iy, iz));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.This(rhs_info, ix, iy+1, iz));
+        LocalLS_->cooPushBackVal(h, sfc_idx, GenericCell.This(rhs_info, ix, iy, iz+1));
       }
       else
       {
@@ -315,12 +315,12 @@ void PoissonSolverExp::getMat()
 
         // Get index of cell accross the face
         std::array<long long, 6> idxNei;
-        idxNei[0] = GenericCell.neiXm(rhs_info, ix, iy, iz);
-        idxNei[1] = GenericCell.neiXp(rhs_info, ix, iy, iz);
-        idxNei[2] = GenericCell.neiYm(rhs_info, ix, iy, iz);
-        idxNei[3] = GenericCell.neiYp(rhs_info, ix, iy, iz);
-        idxNei[4] = GenericCell.neiZm(rhs_info, ix, iy, iz);
-        idxNei[5] = GenericCell.neiZp(rhs_info, ix, iy, iz);
+        idxNei[0] = GenericCell.This(rhs_info, ix-1, iy, iz);
+        idxNei[1] = GenericCell.This(rhs_info, ix+1, iy, iz);
+        idxNei[2] = GenericCell.This(rhs_info, ix, iy-1, iz);
+        idxNei[3] = GenericCell.This(rhs_info, ix, iy+1, iz);
+        idxNei[4] = GenericCell.This(rhs_info, ix, iy, iz-1);
+        idxNei[5] = GenericCell.This(rhs_info, ix, iy, iz+1);
 
         SpRowInfo row(sim.lhs->Tree(rhs_info).rank(), sfc_idx, 16);
 
