@@ -146,6 +146,12 @@ void PoissonSolverExp::interpolate(
   D = D2(info_c, indexer, ix_c, iy_c, iz_c, 2);
   for (int i(0); i < 3; i++)
     row.mapColVal(rank_c, D[i].first, tf * D[i].second);
+
+  // mixed derivative terms
+  std::array<std::pair<long long, double>, 4> Dm = Dmixed(info_c, indexer, ix_c, iy_c, iz_c);
+  for (int i(0); i < 4; i++)
+    row.mapColVal(rank_c, Dm[i].first, sign_ds1 * sign_ds2 * tf * Dm[i].second);
+
 }
  
 void PoissonSolverExp::makeFlux(

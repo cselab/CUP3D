@@ -149,7 +149,7 @@ class PoissonSolverExp : public PoissonSolverBase
       virtual bool isFD(const int &ix, const int &iy, const int &iz, const int dimShift) const = 0;
       virtual long long Nei(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist1, const int dist2) const = 0;
 
-      // When I am coarses and need to determine which Zchild I'm next to
+      // When I am coarser and need to determine which Zchild I'm next to
       virtual long long Zchild(const cubism::BlockInfo &nei_info, const int &ix, const int &iy, const int &iz) const = 0;
 
   };
@@ -425,6 +425,56 @@ class PoissonSolverExp : public PoissonSolverBase
     return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b1[0], b1[1]),  1./32.), 
             std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f1[0], f1[1]),  1./32.), 
             std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),              -1./16.)};
+  }
+
+  std::array<std::pair<long long, double>, 4> Dmixed(const cubism::BlockInfo &info, const FaceCellIndexer &indexer, const int ix, const int iy, const int iz) const
+  {
+    // Scale Dmixed by (h^l/4)^2
+    if (indexer.isBD(ix, iy, iz, 1) && indexer.isBD(ix, iy, iz, 2))
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 0),  1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1,-1),  1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 0), -1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0,-1), -1./16.)};
+    else if (indexer.isFD(ix, iy, iz, 1) && indexer.isBD(ix, iy, iz, 2))
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 0),  1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0,-1),  1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1,-1), -1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 0), -1./16.)};
+    else if (indexer.isBD(ix, iy, iz, 1) && indexer.isFD(ix, iy, iz, 2))
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 1),  1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 0),  1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 1), -1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 0), -1./16.)};
+    else if (indexer.isFD(ix, iy, iz, 1) && indexer.isFD(ix, iy, iz, 2))
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 1),  1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 0),  1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 0), -1./16.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 1), -1./16.)};
+    else if (indexer.isBD(ix, iy, iz, 1))
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 1),  1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1,-1),  1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0,-1), -1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 1), -1./32.)};
+    else if (indexer.isFD(ix, iy, iz, 1))
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 1),  1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0,-1),  1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1,-1), -1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 1), -1./32.)};
+    else if (indexer.isBD(ix, iy, iz, 2))
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 0),  1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1,-1),  1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 0), -1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1,-1), -1./32.)};
+    else if (indexer.isFD(ix, iy, iz, 2))
+      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 1),  1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 0),  1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 1), -1./32.), 
+              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 0), -1./32.)};
+
+    return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 1),  1./64.), 
+            std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1,-1),  1./64.), 
+            std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1,-1), -1./64.), 
+            std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 1), -1./64.)};
   }
 
   void interpolate(
