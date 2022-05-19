@@ -674,8 +674,11 @@ void Penalization::preventCollidingObstacles() const
 
         // A collision happened!
         sim.bCollision = true;
-	sim.bCollisionID.push_back(i);
-	sim.bCollisionID.push_back(j);
+        #pragma omp critical
+	{
+	  sim.bCollisionID.push_back(i);
+	  sim.bCollisionID.push_back(j);
+	}
 
         const bool iForcedX = shapes[i]->bForcedInSimFrame[0];
         const bool iForcedY = shapes[i]->bForcedInSimFrame[1];
