@@ -80,9 +80,9 @@ class CurvatureDefinedFishData : public FishMidlineData
   // 
   // I.Torsion control parameters: torsion is a natural cubic spline passing through
   //   six points. Actions modify the torsion values directly.
-  Schedulers::ParameterSchedulerVector<6>    torsionScheduler;
-  std::array<Real,6> torsionValues          = {0,0,0,0,0,0};
-  std::array<Real,6> torsionValues_previous = {0,0,0,0,0,0};
+  Schedulers::ParameterSchedulerVector<3>    torsionScheduler;
+  std::array<Real,3> torsionValues          = {0,0,0};
+  std::array<Real,3> torsionValues_previous = {0,0,0};
   Real Ttorsion_start = 0.0;
 
   // II. Pitching motion parameters 
@@ -191,7 +191,7 @@ class CurvatureDefinedFishData : public FishMidlineData
   }
   void action_torsion(const Real time, const Real l_tnext, const Real * action)
   {
-    for (int i = 0 ; i < 6 ; i++)
+    for (int i = 0 ; i < 3 ; i++)
     {
       torsionValues_previous [i] = torsionValues[i];
       torsionValues[i] = action[i];

@@ -46,7 +46,7 @@ void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, cons
         if (std::fabs(input[2]) > 0.01) Lman = 1.0/input[2];
      }
   }
-  else if (input.size() == 8)
+  else if (input.size() == 5)
   {
      assert (control_torsion == true);
 
@@ -60,7 +60,7 @@ void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, cons
      transition_start = l_tnext;
 
      //3.midline torsion
-     for (int i = 0 ; i < 6 ; i++)
+     for (int i = 0 ; i < 3 ; i++)
      {
 	  torsionValues_previous [i] = torsionValues[i];
 	  torsionValues[i] = input[i+2];
@@ -126,9 +126,7 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
   }
   if (control_torsion)
   {
-     const std::array<Real ,6> torsionPoints = { (Real)0, (Real).15*length,
-       (Real).4*length, (Real).65*length, (Real).9*length, length
-     };
+     const std::array<Real ,3> torsionPoints = { 0.0, 0.5*length, length };
      torsionScheduler.transition (t,Ttorsion_start,Ttorsion_start+0.10*Tperiod,torsionValues_previous,torsionValues);
      torsionScheduler.gimmeValues(t,torsionPoints,Nm,rS,rT,vT);
   }
@@ -508,24 +506,28 @@ std::vector<Real> StefanFish::state() const
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   assert( cFish != nullptr);
   const Real Tperiod = cFish->Tperiod;
-  std::vector<Real> S(26,0);
+  std::vector<Real> S(25);
   S[0 ] = position[0];
   S[1 ] = position[1];
   S[2 ] = position[2];
+
   S[3 ] = quaternion[0];
   S[4 ] = quaternion[1];
   S[5 ] = quaternion[2];
   S[6 ] = quaternion[3];
+
   S[7 ] = getPhase(sim.time);
+
   S[8 ] = transVel[0] * Tperiod / length;
   S[9 ] = transVel[1] * Tperiod / length;
   S[10] = transVel[2] * Tperiod / length;
+
   S[11] = angVel[0] * Tperiod;
   S[12] = angVel[1] * Tperiod;
   S[13] = angVel[2] * Tperiod;
-  S[14] = cFish->lastTact;
-  S[15] = cFish->lastCurv;
-  S[16] = cFish->oldrCurv;
+
+  S[14] = cFish->lastCurv;
+  S[15] = cFish->oldrCurv;
 
   //sensor locations
   const std::array<Real,3> locFront = {cFish->sensorLocation[0*3+0],cFish->sensorLocation[0*3+1],cFish->sensorLocation[0*3+2]};
@@ -535,15 +537,15 @@ std::vector<Real> StefanFish::state() const
   std::array<Real,3> shearFront = getShear( locFront );
   std::array<Real,3> shearUpper = getShear( locLower );
   std::array<Real,3> shearLower = getShear( locUpper );
-  S[17] = shearFront[0] * Tperiod / length;
-  S[18] = shearFront[1] * Tperiod / length;
-  S[19] = shearFront[2] * Tperiod / length;
-  S[20] = shearUpper[0] * Tperiod / length;
-  S[21] = shearUpper[1] * Tperiod / length;
-  S[22] = shearUpper[2] * Tperiod / length;
-  S[23] = shearLower[0] * Tperiod / length;
-  S[24] = shearLower[1] * Tperiod / length;
-  S[25] = shearLower[2] * Tperiod / length;
+  S[16] = shearFront[0] * Tperiod / length;
+  S[17] = shearFront[1] * Tperiod / length;
+  S[18] = shearFront[2] * Tperiod / length;
+  S[19] = shearUpper[0] * Tperiod / length;
+  S[20] = shearUpper[1] * Tperiod / length;
+  S[21] = shearUpper[2] * Tperiod / length;
+  S[22] = shearLower[0] * Tperiod / length;
+  S[23] = shearLower[1] * Tperiod / length;
+  S[24] = shearLower[2] * Tperiod / length;
   return S;
 }
 
