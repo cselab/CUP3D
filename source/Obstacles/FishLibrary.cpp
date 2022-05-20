@@ -12,7 +12,6 @@ CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
 
 using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
-using MARKMAT = int [CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 using CHIMAT = Real [CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 
 
@@ -478,7 +477,6 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
   //These are typically 8x8x8 (blocksize=8) matrices that are filled here.
   CHIMAT & __restrict__ CHI = defblock->chi;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
-  MARKMAT & __restrict__ MARK = defblock->sectionMarker;
 
   //This is an (8+2)x(8+2)x(8+2) matrix with the SDF. We compute the sdf for the 8x8x8 block
   //but we also add +-1 grid points of ghost values. That way there is no need for communication
@@ -487,7 +485,7 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
   auto & __restrict__ SDFLAB = defblock->sdfLab;
 
   //Origin of the block, displaced by (-h,-h,-h). This is where the first ghost cell is.
-  Real org[3] = {ox-h,oy-h,oz-h};
+  const Real org[3] = {ox-h,oy-h,oz-h};
 
   const Real invh = 1.0/h;
   const int BS[3] = {FluidBlock::sizeX+2, FluidBlock::sizeY+2, FluidBlock::sizeZ+2};
@@ -502,10 +500,6 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
   cfish->sensorLocation[0] = myP[0];
   cfish->sensorLocation[1] = myP[1];
   cfish->sensorLocation[2] = myP[2];
-  cfish->SurfaceNormal(0,0,cfish->sensorNormals[0*3+0],cfish->sensorNormals[0*3+1],cfish->sensorNormals[0*3+2]);
-  cfish->sensorDelta[0] = 0;
-  cfish->sensorDelta[1] = 0;
-  cfish->sensorDelta[2] = 0;
 
   //Loop over vSegments of this block. 
   for(size_t i=0; i<vSegments.size(); ++i)
@@ -553,20 +547,12 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
             cfish->sensorLocation[1*3+0] = myP[0];
             cfish->sensorLocation[1*3+1] = myP[1];
             cfish->sensorLocation[1*3+2] = myP[2];
-            cfish->SurfaceNormal(ss,theta,cfish->sensorNormals[1*3+0],cfish->sensorNormals[1*3+1],cfish->sensorNormals[1*3+2]);
-            cfish->sensorDelta[1*3+0] = rX[ss+1] +width[ss+1]*costh*norX[ss+1]+height[ss+1]*sinth*binX[ss+1] - cfish->sensorLocation[1*3+0];
-            cfish->sensorDelta[1*3+1] = rY[ss+1] +width[ss+1]*costh*norY[ss+1]+height[ss+1]*sinth*binY[ss+1] - cfish->sensorLocation[1*3+1];
-            cfish->sensorDelta[1*3+2] = rZ[ss+1] +width[ss+1]*costh*norZ[ss+1]+height[ss+1]*sinth*binZ[ss+1] - cfish->sensorLocation[1*3+2];
           }
           if( tt == (int)Ntheta/2 )
           {
             cfish->sensorLocation[2*3+0] = myP[0];
             cfish->sensorLocation[2*3+1] = myP[1];
             cfish->sensorLocation[2*3+2] = myP[2];
-            cfish->SurfaceNormal(ss,theta,cfish->sensorNormals[2*3+0],cfish->sensorNormals[2*3+1],cfish->sensorNormals[2*3+2]);
-            cfish->sensorDelta[2*3+0] = rX[ss+1] +width[ss+1]*costh*norX[ss+1]+height[ss+1]*sinth*binX[ss+1] - cfish->sensorLocation[2*3+0];
-            cfish->sensorDelta[2*3+1] = rY[ss+1] +width[ss+1]*costh*norY[ss+1]+height[ss+1]*sinth*binY[ss+1] - cfish->sensorLocation[2*3+1];
-            cfish->sensorDelta[2*3+2] = rZ[ss+1] +width[ss+1]*costh*norZ[ss+1]+height[ss+1]*sinth*binZ[ss+1] - cfish->sensorLocation[2*3+2];
           }
         }
 
@@ -649,7 +635,6 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
                                sx - 1 >=0 && sx - 1 < FluidBlock::sizeX);
           if (inRange)
           {
-            MARK[sz-1][sy-1][sx-1] = close_s;
             UDEF[sz-1][sy-1][sx-1][0] = W * udef[0];
             UDEF[sz-1][sy-1][sx-1][1] = W * udef[1];
             UDEF[sz-1][sy-1][sx-1][2] = W * udef[2];
@@ -894,7 +879,6 @@ void PutNacaOnBlocks::constructSurface(const Real h, const Real ox, const Real o
   CHIMAT & __restrict__ CHI = defblock->chi;
   auto & __restrict__ SDFLAB = defblock->sdfLab;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
-  MARKMAT & __restrict__ MARK = defblock->sectionMarker;
 
   // construct the shape (P2M with min(distance) as kernel) onto defblocks
   for(size_t i=0; i< vSegments.size(); ++i) {
@@ -997,7 +981,6 @@ void PutNacaOnBlocks::constructSurface(const Real h, const Real ox, const Real o
                                    sx - 1 >=0 && sx - 1 < FluidBlock::sizeX);
               if (inRange)
               {
-                MARK[sz-1][sy-1][sx-1] = close_s;
                 UDEF[sz-1][sy-1][sx-1][0] = udef[0];
                 UDEF[sz-1][sy-1][sx-1][1] = udef[1];
                 UDEF[sz-1][sy-1][sx-1][2] = udef[2];

@@ -90,6 +90,7 @@ struct SimulationData
   Real PoissonErrorTolRel;        //Poisson solver relative error tolerance
   std::string poissonSolver;      // Type of backed solver for poisson equation
   bool bCollision = false;          //indicator for collision between obstacles
+  std::vector<int> bCollisionID;    //vector with indices of colliding obstacles
   BCflag BCx_flag = freespace;      //boundary conditions in X
   BCflag BCy_flag = freespace;      //boundary conditions in Y
   BCflag BCz_flag = freespace;      //boundary conditions in Z

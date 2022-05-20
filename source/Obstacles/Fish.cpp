@@ -334,7 +334,6 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
             recv_obstacles[r][j].d[                    kounter] = block.udef[iz][iy][ix][0];
             recv_obstacles[r][j].d[sizeZ*sizeY*sizeX  +kounter] = block.udef[iz][iy][ix][1];
             recv_obstacles[r][j].d[sizeZ*sizeY*sizeX*2+kounter] = block.udef[iz][iy][ix][2];
-            recv_obstacles[r][j].i[                    kounter] = block.sectionMarker[iz][iy][ix];
             kounter ++;
           }
           kounter = 0;
@@ -407,7 +406,6 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
         block->udef[iz][iy][ix][0]       = send_obstacles[r][i].d[                    kounter];
         block->udef[iz][iy][ix][1]       = send_obstacles[r][i].d[sizeZ*sizeY*sizeX  +kounter];
         block->udef[iz][iy][ix][2]       = send_obstacles[r][i].d[sizeZ*sizeY*sizeX*2+kounter];
-        block->sectionMarker[iz][iy][ix] = send_obstacles[r][i].i[                    kounter];
         kounter ++;
       }
       kounter = 0;

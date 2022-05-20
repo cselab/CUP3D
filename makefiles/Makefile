@@ -24,7 +24,6 @@ endif
 # this only affects amount of memory allocated by block processing:
 config ?= prod
 precision ?= double
-precision_dump ?= single
 usemap ?= true
 bs ?= 8
 bsx ?= 8
@@ -68,21 +67,9 @@ ifeq "$(usemap)" "true"
 	CPPFLAGS += -DCUBISM_USE_MAP
 endif
 
-ifeq "$(dump_surface_binary)" "true"
-	CPPFLAGS += -DCUP_DUMP_SURFACE_BINARY
-endif
-
-ifeq "$(verbose)" "true"
-	CPPFLAGS += -DCUP_VERBOSE
-endif
-
 ifeq "$(precision)" "single"
 	CPPFLAGS += -DCUP_SINGLE_PRECISION
 	NVFLAGS += -DCUP_SINGLE_PRECISION
-endif
-
-ifeq "$(precision_dump)" "double"
-	CPPFLAGS += -DCUP_HDF5_DOUBLE_PRECISION
 endif
 
 CPPFLAGS += -DCUP_ALIGNMENT=64
@@ -92,10 +79,7 @@ CPPFLAGS += -DCUP_BLOCK_SIZEY=$(bsy)
 CPPFLAGS += -DCUP_BLOCK_SIZEZ=$(bsz)
 CPPFLAGS += -DCUP_NO_MACROS_HEADER
 NVFLAGS  += -DCUP_NO_MACROS_HEADER
-#CPPFLAGS += -lm
-#CPPFLAGS += -I${HDF5_INCLUDE_OPTS}
 CPPFLAGS += -I../Cubism/include/
-#CPPFLAGS += -D_USE_FPZIP_  -I../tools/fpzip/inc
 
 LDFLAGS = $(CPPFLAGS)
 
@@ -128,7 +112,6 @@ ifeq "$(hdf)" "true"
 		CPPFLAGS += -I$(HDF5_ROOT)/include
 	endif
 	LIBS     += -lhdf5
-	CPPFLAGS += -DCUBISM_USE_HDF
 endif
 
 LIBS += -lgsl -lgslcblas

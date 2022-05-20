@@ -1,4 +1,5 @@
 #!/bin/bash
+<<<<<<< HEAD
 NNODE=${NNODE:-4}
 LEVELS=${LEVELS:-1}
 PT=${PT:-1e-8}

@@ -2,7 +2,6 @@ CXX=CC
 LD=CC
 CPPFLAGS+= -std=c++17 -fopenmp -Wall
 LIBS+= -fopenmp
-#CPPFLAGS+= -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings -Wno-unused-parameter -Wno-float-equal
 CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions -ftree-vectorize -fmerge-all-constants
 
 
@@ -30,4 +29,4 @@ convert: $(OBJECTS)
 
 
 clean:
-	rm -f $(OBJECTS)
+	rm -f $(OBJECTS) convert

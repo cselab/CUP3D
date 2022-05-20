@@ -51,6 +51,7 @@ public:
 
   /* Get reference to the obstacle container. */
   const std::vector<std::shared_ptr<Obstacle>> &getObstacleVector() const;
+  const std::vector<std::shared_ptr<Obstacle>> &getShapes() const; //same as getObstacleVector, just different name
 
   /* Calculate maximum allowed time step, including CFL and ramp-up. */
   Real calcMaxTimestep();
@@ -61,6 +62,7 @@ public:
    * Returns true if the simulation is finished.
    */
   bool timestep(Real dt);
+  bool advance(Real dt){return timestep(dt);};
 
   /// Compute vorticity and store to tmpU, tmpV and tmpW.
   void computeVorticity();

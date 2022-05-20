@@ -40,7 +40,7 @@ class ComputeLHS : public Operator
                               lab(ix,iy,iz-1).s + lab(ix,iy,iz+1).s - 6.0*lab(ix,iy,iz).s);
       }
 
-      BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(info.auxiliary);
+      BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(vInfo_lhs[info.blockID].auxiliary);
       ScalarBlock::ElementType * faceXm = nullptr;
       ScalarBlock::ElementType * faceXp = nullptr;
       ScalarBlock::ElementType * faceYm = nullptr;

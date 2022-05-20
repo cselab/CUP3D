@@ -7,7 +7,7 @@
 //
 
 #include "InitialConditions.h"
-#include "../obstacles/ObstacleVector.h"
+#include "../Obstacles/ObstacleVector.h"
 
 #include <random>
 

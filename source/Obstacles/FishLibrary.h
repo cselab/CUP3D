@@ -69,18 +69,12 @@ class FishMidlineData
   Real * const height;
 
   std::array<Real, 9> sensorLocation; //Shear stress sensor locations (for RL)
-  std::array<Real, 9> sensorNormals;  //Shear stress sensor surface (unit) normal vectors (for RL)
-  std::array<Real, 9> sensorDelta;
 
   // Midline has an orientation in space which is defined from the following quaternion.
   // When midline is defined, we change the frame of reference so that its origin is at the midline
   // center of mass and its linear and angular momentums are zero.
   Real quaternion_internal[4]={1,0,0,0};
   Real angvel_internal[3]={0,0,0};
-
-  //probably deprecated, keep for now
-  //start and end indices in the arrays where the fish starts and ends (to ignore the extensions when interpolating the shapes)
-  //Schedulers::ParameterSchedulerVector<6> curvScheduler;
 
  protected:
 
@@ -127,7 +121,7 @@ class FishMidlineData
     int k = 0;
     for(int i=0; i<Nend; ++i, k++) //fish head
       rS[k+1] = rS[k] + dSref +(dSmid-dSref) *         i /((Real)Nend-1.);
-    for(int i=0; i<Nmid; ++i, k++) //interion points
+    for(int i=0; i<Nmid; ++i, k++) //interior points
       rS[k+1] = rS[k] + dSmid;
     for(int i=0; i<Nend; ++i, k++) //fish tail
       rS[k+1] = rS[k] + dSref +(dSmid-dSref) * (Nend-i-1)/((Real)Nend-1.);

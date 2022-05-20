@@ -9,6 +9,7 @@
 #include <filesystem>
 #include <algorithm>    // std::sort
 #include <variant>
+#define USE_MPI
 namespace fs = std::filesystem;
 
 void convert_to_float(std::string filename,std::string gridname)
@@ -109,12 +110,36 @@ void convert_to_float(std::string filename,std::string gridname)
   for (size_t i = 0 ; i < blocks ; i++)
   {
     int C=1;
-    //if (levels[i] == 6) C = 2;
+    bool store = false;
     for (int z = 0 ; z < nz ; z+=C)
     for (int y = 0 ; y < ny ; y+=C)
     for (int x = 0 ; x < nx ; x+=C)
     {
-      bool store = true;
+      for (int j = 0 ; j < NCHANNELS; j++)
+      {
+	float element = 0.0;
+        for (int zl = z; zl < z+C; zl++)
+        for (int yl = y; yl < y+C; yl++)
+        for (int xl = x; xl < x+C; xl++)
+        {
+          element += (float)amr[(i*nx*ny*nz+zl*ny*nx+yl*nx+xl)*NCHANNELS+j];
+        }
+        element /= (C*C*C);
+	if (std::abs(element) > 1e-8)
+	{
+		store = true;
+	}
+      }
+      if (store) break;
+    }
+
+    if (!store) continue;
+
+    for (int z = 0 ; z < nz ; z+=C)
+    for (int y = 0 ; y < ny ; y+=C)
+    for (int x = 0 ; x < nx ; x+=C)
+    {
+      //bool store = true;
       std::vector<float> bbb;
       for (int j = 0 ; j < NCHANNELS; j++)
       {
@@ -126,8 +151,8 @@ void convert_to_float(std::string filename,std::string gridname)
           element += (float)amr[(i*nx*ny*nz+zl*ny*nx+yl*nx+xl)*NCHANNELS+j];
         }
         element /= (C*C*C);
-	if (std::abs(element) < 1e-4) store = false;
-	if (store)
+	//if (std::abs(element) < 1e-4) store = false;
+	//if (store)
                 bbb.push_back(element);
       }
       if (bbb.size() != (size_t)NCHANNELS) continue;
@@ -348,10 +373,15 @@ void convert_to_float(std::string filename,std::string gridname)
 
 int main(int argc, char **argv)
 {
+#ifdef USE_MPI
   MPI_Init(&argc, &argv);
+#endif
   int rank,size;
+  rank = 0 ; size = 1;
+#ifdef USE_MPI
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
   MPI_Comm_size(MPI_COMM_WORLD,&size);
+#endif
   std::vector<std::string> filenames;
   std::vector<std::string> gridnames;
   std::string path("./");
@@ -376,16 +406,22 @@ int main(int argc, char **argv)
   }
   std::sort(filenames.begin(),filenames.end());
   std::sort(gridnames.begin(),gridnames.end());
+#ifdef USE_MPI
   MPI_Barrier(MPI_COMM_WORLD);
+#endif
   if (filenames.size() % gridnames.size() != 0)
   {
     std::cerr << "Number of files and grids are not compatible. " << std::endl;
+#ifdef USE_MPI
     MPI_Abort(MPI_COMM_WORLD,1);
+#endif
   }
   const size_t fields = filenames.size() / gridnames.size();
   for (size_t f = 0; f < fields ; f++)
   {
+#ifdef USE_MPI
      MPI_Barrier(MPI_COMM_WORLD);
+#endif
      for (size_t g = 0 ; g < gridnames.size(); g+= size)
      {
        const size_t i = f * gridnames.size() + g;
@@ -395,6 +431,8 @@ int main(int argc, char **argv)
        convert_to_float(filenames[i+rank],gridnames[g+rank]);
      }
   }
+#ifdef USE_MPI
   MPI_Finalize();
+#endif
   return 0;
 }

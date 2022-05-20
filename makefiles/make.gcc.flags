@@ -1,10 +1,8 @@
-#CPPFLAGS+= -std=c++17 -fopenmp -g
+#CPPFLAGS+= -std=c++17 -fopenmp 
 CPPFLAGS+= -std=c++17 -g
 LIBS+= -fopenmp
 
-CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings
-
-CPPFLAGS+= -Wno-unused-parameter -Wno-unknown-pragmas
+CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings -Wno-unused-parameter -Wno-unknown-pragmas
 
 ifeq "$(findstring prod,$(config))" ""
 

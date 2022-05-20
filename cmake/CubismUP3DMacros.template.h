@@ -6,7 +6,6 @@
 
 #define CUP_ALIGNMENT  64
 #define CUP_BLOCK_SIZE ${CUP_BLOCK_SIZE}
-#define CUBISM_USE_HDF
 
 // Note: async dump only available if MPI supports multithreading.
 #cmakedefine CUP_ASYNC_DUMP

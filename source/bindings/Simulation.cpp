@@ -1,5 +1,5 @@
 #include "Common.h"
-#include "../obstacles/Obstacle.h"
+#include "../Obstacles/Obstacle.h"
 #include "../Simulation.h"
 #include "../SimulationData.h"
 #include "../operators/Operator.h"

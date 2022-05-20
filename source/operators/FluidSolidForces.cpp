@@ -7,7 +7,7 @@
 //
 
 #include "FluidSolidForces.h"
-#include "../obstacles/ObstacleVector.h"
+#include "../Obstacles/ObstacleVector.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -89,6 +89,11 @@ struct KernelComputeForces
       {
         if ((int)abs(kk*dx) > 3 || (int)abs(kk*dy) > 3 || (int)abs(kk*dz) > 3) break; //3 means we moved too far
         if (l(x,y,z).chi <0.3 && found == 0) break;
+
+	if (ix + kk*dx + 1 >= FluidBlock::sizeX + big-1 || ix + kk*dx -1 < small) break;
+	if (iy + kk*dy + 1 >= FluidBlock::sizeY + big-1 || iy + kk*dy -1 < small) break;
+	if (iz + kk*dz + 1 >= FluidBlock::sizeZ + big-1 || iz + kk*dz -1 < small) break;
+
         x  = ix + kk*dx; 
         y  = iy + kk*dy;
         z  = iz + kk*dz;
@@ -406,15 +411,17 @@ struct KernelComputeForces
       const Real fXT = fXV+fXP, fYT = fYV+fYP, fZT = fZV+fZP;
 
       //store:
-      o->ss[i] = o->sectionMarker[iz][iy][ix];
       o->pX[i] = p[0]; o->pY[i] = p[1]; o->pZ[i] = p[2];
       o->P[i] = P; o->fX[i] = fXT; o->fY[i] = fYT; o->fZ[i] = fZT;
+      o->fxV[i] = _1oH * (dudx * dx + dudy * dy + dudz * dz); 
+      o->fyV[i] = _1oH * (dvdx * dx + dvdy * dy + dvdz * dz); 
+      o->fzV[i] = _1oH * (dwdx * dx + dwdy * dy + dwdz * dz); 
+
       o->vxDef[i] = o->udef[iz][iy][ix][0]; o->vX[i] = l(ix,iy,iz).u;
       o->vyDef[i] = o->udef[iz][iy][ix][1]; o->vY[i] = l(ix,iy,iz).v;
       o->vzDef[i] = o->udef[iz][iy][ix][2]; o->vZ[i] = l(ix,iy,iz).w;
 
       //additive quantities:
-      // o->surface += o->surface[i]->delta;
       o->gammax += normY*o->vZ[i] - normZ*o->vY[i];
       o->gammay += normZ*o->vX[i] - normX*o->vZ[i];
       o->gammaz += normX*o->vY[i] - normY*o->vX[i];
@@ -426,14 +433,6 @@ struct KernelComputeForces
       o->torquex  += (p[1]-CM[1])*fZT - (p[2]-CM[2])*fYT;
       o->torquey  += (p[2]-CM[2])*fXT - (p[0]-CM[0])*fZT;
       o->torquez  += (p[0]-CM[0])*fYT - (p[1]-CM[1])*fXT;
-      /*
-      if(tempIt->second->sectionMarker[iz][iy][ix] > 0){
-        const Real * const pHinge2 = tempIt->second->hinge2LabFrame;
-        (*measures)[19] += (p[1]-pHinge2[1])*fZT - (p[2]-pHinge2[2])*fYT;
-        (*measures)[20] += (p[2]-pHinge2[2])*fXT - (p[0]-pHinge2[0])*fZT;
-        (*measures)[21] += (p[0]-pHinge2[0])*fYT - (p[1]-pHinge2[1])*fXT;
-      }
-      */
       //thrust, drag:
       const Real forcePar= fXT*velUnit[0] +fYT*velUnit[1] +fZT*velUnit[2];
       o->thrust += .5*(forcePar + std::fabs(forcePar));
