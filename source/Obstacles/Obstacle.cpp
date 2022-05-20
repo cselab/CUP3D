@@ -299,19 +299,6 @@ void Obstacle::computeForces()
   EffPDef    = Pthrust/(Pthrust-std::min(defPower,(Real)0)+EPS);
   EffPDefBnd = Pthrust/(Pthrust-         defPowerBnd        +EPS);
 
-  #ifdef CUP_DUMP_SURFACE_BINARY
-  if (sim.bDump) {
-    char buf[500];
-    sprintf(buf,"surface_%02d_%07d_rank%03d.raw",obstacleID,sim.step,sim.rank);
-    FILE * pFile = fopen (buf, "wb");
-    for(auto & block : obstacleBlocks) {
-      if(block == nullptr) continue;
-      block->print(pFile);
-    }
-    fflush(pFile);
-    fclose(pFile);
-  }
-  #endif
   _writeSurfForcesToFile();
   _writeDiagForcesToFile();
 }
@@ -492,27 +479,22 @@ void Obstacle::_writeComputedVelToFile()
 {
   if(sim.rank!=0 || sim.muteAll) return;
   std::stringstream ssR;
-  ssR<<"computedVelocity_"<<obstacleID<<".dat";
+  ssR<<"velocity_"<<obstacleID<<".dat";
   std::stringstream &savestream = logger.get_stream(ssR.str());
-  const std::string tab("\t");
 
   if(sim.step==0 && not printedHeaderVels) {
     printedHeaderVels = true;
-    savestream<<"step"<<tab<<"time"<<tab<<"CMx"<<tab<<"CMy"<<tab<<"CMz"<<tab
-    <<"quat_0"<<tab<<"quat_1"<<tab<<"quat_2"<<tab<<"quat_3"<<tab
-    <<"vel_x"<<tab<<"vel_y"<<tab<<"vel_z"<<tab
-    <<"angvel_x"<<tab<<"angvel_y"<<tab<<"angvel_z"<<tab<<"mass"<<tab
-    <<"J0"<<tab<<"J1"<<tab<<"J2"<<tab<<"J3"<<tab<<"J4"<<tab<<"J5"<<std::endl;
+    savestream<<"step time CMx CMy CMz quat_0 quat_1 quat_2 quat_3 vel_x vel_y vel_z angvel_x angvel_y angvel_z mass J0 J1 J2 J3 J4 J5"<<std::endl;
   }
 
-  savestream<<sim.step<<tab;
+  savestream<<sim.step<<" ";
   savestream.setf(std::ios::scientific);
   savestream.precision(std::numeric_limits<float>::digits10 + 1);
-  savestream <<sim.time<<tab<<absPos[0]<<tab<<absPos[1]<<tab<<absPos[2]<<tab
-    <<quaternion[0]<<tab<<quaternion[1]<<tab<<quaternion[2]<<tab<<quaternion[3]
-    <<tab<<transVel[0]<<tab<<transVel[1]<<tab<<transVel[2]
-    <<tab<<angVel[0]<<tab<<angVel[1]<<tab<<angVel[2]<<tab<<mass<<tab
-    <<J[0]<<tab<<J[1]<<tab<<J[2]<<tab<<J[3]<<tab<<J[4]<<tab<<J[5]<<std::endl;
+  savestream <<sim.time<<" "<<absPos[0]<<" "<<absPos[1]<<" "<<absPos[2]<<" "
+    <<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]
+    <<" "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]
+    <<" "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<" "<<mass<<" "
+    <<J[0]<<" "<<J[1]<<" "<<J[2]<<" "<<J[3]<<" "<<J[4]<<" "<<J[5]<<std::endl;
 }
 
 void Obstacle::_writeSurfForcesToFile()
@@ -521,37 +503,30 @@ void Obstacle::_writeSurfForcesToFile()
   std::stringstream fnameF, fnameP;
   fnameF<<"forceValues_"<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());
-  const std::string tab("\t");
   if(sim.step==0) {
-    ssF<<"step"<<tab<<"time"<<tab<<"mass"<<tab<<"force_x"<<tab<<"force_y"
-    <<tab<<"force_z"<<tab<<"torque_x"<<tab<<"torque_y"<<tab<<"torque_z"
-    <<tab<<"presF_x"<<tab<<"presF_y"<<tab<<"presF_z"<<tab<<"viscF_x"
-    <<tab<<"viscF_y"<<tab<<"viscF_z"<<tab<<"gamma_x"<<tab<<"gamma_y"
-    <<tab<<"gamma_z"<<tab<<"drag"<<tab<<"thrust"<<std::endl;
+    ssF<<"step time mass force_x force_y force_z torque_x torque_y torque_z presF_x presF_y presF_z viscF_x viscF_y viscF_z gamma_x gamma_y gamma_z drag thrust"<<std::endl;
   }
 
-  ssF << sim.step << tab;
+  ssF << sim.step << " ";
   ssF.setf(std::ios::scientific);
   ssF.precision(std::numeric_limits<float>::digits10 + 1);
-  ssF<<sim.time<<tab<<mass<<tab<<surfForce[0]<<tab<<surfForce[1]<<tab<<surfForce[2]
-     <<tab<<surfTorque[0]<<tab<<surfTorque[1]<<tab<<surfTorque[2]<<tab
-     <<presForce[0]<<tab<<presForce[1]<<tab<<presForce[2]<<tab<<viscForce[0]
-     <<tab<<viscForce[1]<<tab<<viscForce[2]<<tab<<gamma[0]<<tab<<gamma[1]
-     <<tab<<gamma[2]<<tab<<drag<<tab<<thrust<<std::endl;
+  ssF<<sim.time<<" "<<mass<<" "<<surfForce[0]<<" "<<surfForce[1]<<" "<<surfForce[2]
+     <<" "<<surfTorque[0]<<" "<<surfTorque[1]<<" "<<surfTorque[2]<<" "
+     <<presForce[0]<<" "<<presForce[1]<<" "<<presForce[2]<<" "<<viscForce[0]
+     <<" "<<viscForce[1]<<" "<<viscForce[2]<<" "<<gamma[0]<<" "<<gamma[1]
+     <<" "<<gamma[2]<<" "<<drag<<" "<<thrust<<std::endl;
 
   fnameP<<"powerValues_"<<obstacleID<<".dat";
   std::stringstream &ssP = logger.get_stream(fnameP.str());
   if(sim.step==0) {
-    ssP<<"step"<<tab<<"time"<<tab<<"Pthrust"<<tab<<"Pdrag"<<tab
-       <<"Pout"<<tab<<"pDef"<<tab<<"etaPDef"<<tab<<"pLocom"<<tab
-       <<"PoutBnd"<<tab<<"defPowerBnd"<<tab<<"etaPDefBnd"<<std::endl;
+    ssP<<"step time Pthrust Pdrag Pout pDef etaPDef pLocom PoutBnd defPowerBnd etaPDefBnd"<<std::endl;
   }
-  ssP << sim.step << tab;
+  ssP << sim.step << " ";
   ssP.setf(std::ios::scientific);
   ssP.precision(std::numeric_limits<float>::digits10 + 1);
   // Output defpowers to text file with the correct sign
-  ssP<<sim.time<<tab<<Pthrust<<tab<<Pdrag<<tab<<Pout<<tab<<-defPower<<tab<<EffPDef
-     <<tab<<pLocom<<tab<<PoutBnd<<tab<<-defPowerBnd<<tab<<EffPDefBnd<<std::endl;
+  ssP<<sim.time<<" "<<Pthrust<<" "<<Pdrag<<" "<<Pout<<" "<<-defPower<<" "<<EffPDef
+     <<" "<<pLocom<<" "<<PoutBnd<<" "<<-defPowerBnd<<" "<<EffPDefBnd<<std::endl;
 }
 
 void Obstacle::_writeDiagForcesToFile()
@@ -560,32 +535,22 @@ void Obstacle::_writeDiagForcesToFile()
   std::stringstream fnameF;
   fnameF<<"forceValues_penalization_"<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());
-  const std::string tab("\t");
   if(sim.step==0) {
-    ssF << "step" << tab << "time" << tab << "mass" << tab
-    << "force_x" << tab << "force_y" << tab << "force_z" << tab
-    << "torque_x" << tab << "torque_y" << tab << "torque_z"<< tab
-    << "penalLmom_x" << tab << "penalLmom_y" << tab << "penalLmom_z" << tab
-    << "penalAmom_x" << tab << "penalAmom_y" << tab << "penalAmom_z" << tab
-    << "penalCM_x" << tab << "penalCM_y" << tab << "penalCM_z" << tab
-   << "linVel_comp_x" << tab << "linVel_comp_y" << tab << "linVel_comp_z" << tab
-   << "angVel_comp_x" << tab << "angVel_comp_y" << tab << "angVel_comp_z" << tab
-   << "penalM"<<tab << "penalJ0" << tab << "penalJ1" << tab << "penalJ2" << tab
-   << "penalJ3" << tab << "penalJ4" << tab << "penalJ5" << std::endl;
+    ssF << "step time mass force_x force_y force_z torque_x torque_y torque_z penalLmom_x penalLmom_y penalLmom_z penalAmom_x penalAmom_y penalAmom_z penalCM_x penalCM_y penalCM_z linVel_comp_x linVel_comp_y linVel_comp_z angVel_comp_x angVel_comp_y angVel_comp_z penalM penalJ0 penalJ1 penalJ2 penalJ3 penalJ4 penalJ5" << std::endl;
   }
 
-  ssF << sim.step << tab;
+  ssF << sim.step << " ";
   ssF.setf(std::ios::scientific);
   ssF.precision(std::numeric_limits<float>::digits10 + 1);
-  ssF<<sim.time<<tab<<mass<<tab<<force[0]<<tab<<force[1]<<tab<<force[2]<<tab
-     <<torque[0]<<tab<<torque[1]<<tab<<torque[2]
-     <<tab<<penalLmom[0]<<tab<<penalLmom[1]<<tab<<penalLmom[2]
-     <<tab<<penalAmom[0]<<tab<<penalAmom[1]<<tab<<penalAmom[2]
-     <<tab<<penalCM[0]<<tab<<penalCM[1]<<tab<<penalCM[2]
-     <<tab<<transVel_computed[0]<<tab<<transVel_computed[1]<<tab<<transVel_computed[2]
-     <<tab<<angVel_computed[0]<<tab<<angVel_computed[1]<<tab<<angVel_computed[2]
-     <<tab<<penalM<<tab<<penalJ[0]<<tab<<penalJ[1]<<tab<<penalJ[2]
-     <<tab<<penalJ[3]<<tab<<penalJ[4]<<tab<<penalJ[5] <<std::endl;
+  ssF<<sim.time<<" "<<mass<<" "<<force[0]<<" "<<force[1]<<" "<<force[2]<<" "
+     <<torque[0]<<" "<<torque[1]<<" "<<torque[2]
+     <<" "<<penalLmom[0]<<" "<<penalLmom[1]<<" "<<penalLmom[2]
+     <<" "<<penalAmom[0]<<" "<<penalAmom[1]<<" "<<penalAmom[2]
+     <<" "<<penalCM[0]<<" "<<penalCM[1]<<" "<<penalCM[2]
+     <<" "<<transVel_computed[0]<<" "<<transVel_computed[1]<<" "<<transVel_computed[2]
+     <<" "<<angVel_computed[0]<<" "<<angVel_computed[1]<<" "<<angVel_computed[2]
+     <<" "<<penalM<<" "<<penalJ[0]<<" "<<penalJ[1]<<" "<<penalJ[2]
+     <<" "<<penalJ[3]<<" "<<penalJ[4]<<" "<<penalJ[5] <<std::endl;
 }
 
 CubismUP_3D_NAMESPACE_END

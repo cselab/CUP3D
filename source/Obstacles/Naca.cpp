@@ -172,8 +172,6 @@ void Naca::update()
   else
     position[1] = sim.extent[1]/2 + Aheave * std::cos(2*M_PI*Fheave*sim.time);
   position[2] += sim.dt * ( transVel[2] + sim.uinf[2] );
-
-  _writeComputedVelToFile();
 }
 
 void Naca::computeVelocities()
