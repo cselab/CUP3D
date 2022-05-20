@@ -277,14 +277,6 @@ static void kernelRemoveUdefMomenta(SimulationData& sim, bool justDebug = false)
     const std::array<Real, 3> angVel_correction = obstacle->angVel_correction;
     const std::array<Real, 3> transVel_correction = obstacle->transVel_correction;
 
-    #ifdef CUP_VERBOSE
-     if(sim.rank==0)
-        printf("Obstacle %d moment corrections lin:[%f %f %f] ang:[%f %f %f]\n",
-          obstacle->obstacleID, transVel_correction[0], transVel_correction[1],
-          transVel_correction[2], angVel_correction[0], angVel_correction[1],
-          angVel_correction[2]);
-    #endif
-
     const std::array<Real,3> CM = obstacle->getCenterOfMass();
     const auto & obstacleBlocks = obstacle->getObstacleBlocks();
 
