@@ -391,17 +391,17 @@ class PoissonSolverExp : public PoissonSolverBase
 
     // Scale D1 by h^l/4
     if (indexer.isBD(ix, iy, iz, dimShift)) 
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b2[0], b2[1]),  1./8.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b1[0], b1[1]), -1./2.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),               3./8.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, b2[0], b2[1]),  1./8.}, 
+                {indexer.Nei(info, ix, iy, iz, b1[0], b1[1]), -1./2.}, 
+                {indexer.This(info, ix, iy, iz),               3./8.} }};
     else if (indexer.isFD(ix, iy, iz, dimShift)) 
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f2[0], f2[1]), -1./8.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f1[0], f1[1]),  1./2.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),              -3./8.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, f2[0], f2[1]), -1./8.}, 
+                {indexer.Nei(info, ix, iy, iz, f1[0], f1[1]),  1./2.}, 
+                {indexer.This(info, ix, iy, iz),              -3./8.} }};
 
-    return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b1[0], b1[1]), -1./8.), 
-            std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f1[0], f1[1]),  1./8.), 
-            std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),               0.)};
+    return {{ {indexer.Nei(info, ix, iy, iz, b1[0], b1[1]), -1./8.}, 
+              {indexer.Nei(info, ix, iy, iz, f1[0], f1[1]),  1./8.}, 
+              {indexer.This(info, ix, iy, iz),               0.} }};
   }
 
   std::array<std::pair<long long, double>, 3> D2(const cubism::BlockInfo &info, const FaceCellIndexer &indexer, const int ix, const int iy, const int iz, const int dimShift) const
@@ -414,67 +414,67 @@ class PoissonSolverExp : public PoissonSolverBase
 
     // Scale D2 by 0.5*(h^l/4)^2
     if (indexer.isBD(ix, iy, iz, dimShift)) 
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b2[0], b2[1]),  1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b1[0], b1[1]), -1./16.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),               1./32.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, b2[0], b2[1]),  1./32.}, 
+                {indexer.Nei(info, ix, iy, iz, b1[0], b1[1]), -1./16.}, 
+                {indexer.This(info, ix, iy, iz),               1./32.} }};
     else if (indexer.isFD(ix, iy, iz, dimShift)) 
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f2[0], f2[1]),  1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f1[0], f1[1]), -1./16.), 
-              std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),               1./32.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, f2[0], f2[1]),  1./32.}, 
+                {indexer.Nei(info, ix, iy, iz, f1[0], f1[1]), -1./16.}, 
+                {indexer.This(info, ix, iy, iz),               1./32.} }};
 
-    return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, b1[0], b1[1]),  1./32.), 
-            std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, f1[0], f1[1]),  1./32.), 
-            std::make_pair<long long, double>(indexer.This(info, ix, iy, iz),              -1./16.)};
+    return {{ {indexer.Nei(info, ix, iy, iz, b1[0], b1[1]),  1./32.}, 
+              {indexer.Nei(info, ix, iy, iz, f1[0], f1[1]),  1./32.}, 
+              {indexer.This(info, ix, iy, iz),              -1./16.} }};
   }
 
   std::array<std::pair<long long, double>, 4> Dmixed(const cubism::BlockInfo &info, const FaceCellIndexer &indexer, const int ix, const int iy, const int iz) const
   {
     // Scale Dmixed by (h^l/4)^2
     if (indexer.isBD(ix, iy, iz, 1) && indexer.isBD(ix, iy, iz, 2))
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 0),  1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1,-1),  1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 0), -1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0,-1), -1./16.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, 0, 0),  1./16.}, 
+                {indexer.Nei(info, ix, iy, iz,-1,-1),  1./16.}, 
+                {indexer.Nei(info, ix, iy, iz,-1, 0), -1./16.}, 
+                {indexer.Nei(info, ix, iy, iz, 0,-1), -1./16.} }};
     else if (indexer.isFD(ix, iy, iz, 1) && indexer.isBD(ix, iy, iz, 2))
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 0),  1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0,-1),  1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1,-1), -1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 0), -1./16.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, 1, 0),  1./16.}, 
+                {indexer.Nei(info, ix, iy, iz, 0,-1),  1./16.}, 
+                {indexer.Nei(info, ix, iy, iz, 1,-1), -1./16.}, 
+                {indexer.Nei(info, ix, iy, iz, 0, 0), -1./16.} }};
     else if (indexer.isBD(ix, iy, iz, 1) && indexer.isFD(ix, iy, iz, 2))
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 1),  1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 0),  1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 1), -1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 0), -1./16.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, 0, 1),  1./16.}, 
+                {indexer.Nei(info, ix, iy, iz,-1, 0),  1./16.}, 
+                {indexer.Nei(info, ix, iy, iz,-1, 1), -1./16.}, 
+                {indexer.Nei(info, ix, iy, iz, 0, 0), -1./16.} }};
     else if (indexer.isFD(ix, iy, iz, 1) && indexer.isFD(ix, iy, iz, 2))
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 1),  1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 0),  1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 0), -1./16.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 1), -1./16.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, 1, 1),  1./16.}, 
+                {indexer.Nei(info, ix, iy, iz, 0, 0),  1./16.}, 
+                {indexer.Nei(info, ix, iy, iz, 1, 0), -1./16.}, 
+                {indexer.Nei(info, ix, iy, iz, 0, 1), -1./16.} }};
     else if (indexer.isBD(ix, iy, iz, 1))
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 1),  1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1,-1),  1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0,-1), -1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 1), -1./32.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, 0, 1),  1./32.}, 
+                {indexer.Nei(info, ix, iy, iz,-1,-1),  1./32.}, 
+                {indexer.Nei(info, ix, iy, iz, 0,-1), -1./32.}, 
+                {indexer.Nei(info, ix, iy, iz,-1, 1), -1./32.} }};
     else if (indexer.isFD(ix, iy, iz, 1))
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 1),  1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0,-1),  1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1,-1), -1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 0, 1), -1./32.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, 1, 1),  1./32.}, 
+                {indexer.Nei(info, ix, iy, iz, 0,-1),  1./32.}, 
+                {indexer.Nei(info, ix, iy, iz, 1,-1), -1./32.}, 
+                {indexer.Nei(info, ix, iy, iz, 0, 1), -1./32.} }};
     else if (indexer.isBD(ix, iy, iz, 2))
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 0),  1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1,-1),  1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 0), -1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1,-1), -1./32.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, 1, 0),  1./32.}, 
+                {indexer.Nei(info, ix, iy, iz,-1,-1),  1./32.}, 
+                {indexer.Nei(info, ix, iy, iz,-1, 0), -1./32.}, 
+                {indexer.Nei(info, ix, iy, iz, 1,-1), -1./32.} }};
     else if (indexer.isFD(ix, iy, iz, 2))
-      return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 1),  1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 0),  1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 1), -1./32.), 
-              std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 0), -1./32.)};
+      return {{ {indexer.Nei(info, ix, iy, iz, 1, 1),  1./32.}, 
+                {indexer.Nei(info, ix, iy, iz,-1, 0),  1./32.}, 
+                {indexer.Nei(info, ix, iy, iz,-1, 1), -1./32.}, 
+                {indexer.Nei(info, ix, iy, iz, 1, 0), -1./32.} }};
 
-    return {std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1, 1),  1./64.), 
-            std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1,-1),  1./64.), 
-            std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz, 1,-1), -1./64.), 
-            std::make_pair<long long, double>(indexer.Nei(info, ix, iy, iz,-1, 1), -1./64.)};
+    return {{ {indexer.Nei(info, ix, iy, iz, 1, 1),  1./64.}, 
+              {indexer.Nei(info, ix, iy, iz,-1,-1),  1./64.}, 
+              {indexer.Nei(info, ix, iy, iz, 1,-1), -1./64.}, 
+              {indexer.Nei(info, ix, iy, iz,-1, 1), -1./64.} }};
   }
 
   void interpolate(
