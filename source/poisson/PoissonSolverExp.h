@@ -164,9 +164,9 @@ class PoissonSolverExp : public PoissonSolverBase
       double taylorSign(const int &ix, const int &iy, const int &iz, const int dimShift) const override
       { return dimShift == 1 ? (iy % 2 == 0 ? -1. : 1.) : (iz % 2 == 0 ? -1. : 1.); }
       bool isBD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
-      { return dimShift == 1 ? (iy == ny_-1) : (iz == nz_-1); }
+      { return dimShift == 1 ? (iy == ny_ - 1 || iy == ny_/2 - 1) : (iz == nz_ - 1 || iz == nz_/2 - 1); }
       bool isFD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
-      { return dimShift == 1 ? (iy == 0) : (iz == 0); }
+      { return dimShift == 1 ? (iy == 0 || iy == ny_/2) : (iz == 0 || iz == nz_/2); }
       long long Nei(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist1, const int dist2) const override
       { return This(info, ix, iy+dist1, iz+dist2); }
 
@@ -236,9 +236,9 @@ class PoissonSolverExp : public PoissonSolverBase
       double taylorSign(const int &ix, const int &iy, const int &iz, const int dimShift) const override
       { return dimShift == 1 ? (iz % 2 == 0 ? -1. : 1.) : (ix % 2 == 0 ? -1. : 1.); }
       bool isBD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
-      { return dimShift == 1 ? (iz == nz_-1) : (ix == nx_-1); }
+      { return dimShift == 1 ? (iz == nz_ - 1 || iz == nz_/2 - 1) : (ix == nx_ - 1 || ix == nx_/2 - 1); }
       bool isFD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
-      { return dimShift == 1 ? (iz == 0) : (ix == 0); }
+      { return dimShift == 1 ? (iz == 0 || iz == nz_/2) : (ix == 0 || ix == nx_/2); }
       long long Nei(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist1, const int dist2) const override
       { return This(info, ix+dist2, iy, iz+dist1); }
 
@@ -308,9 +308,9 @@ class PoissonSolverExp : public PoissonSolverBase
       double taylorSign(const int &ix, const int &iy, const int &iz, const int dimShift) const override
       { return dimShift == 1 ? (ix % 2 == 0 ? -1. : 1.) : (iy % 2 == 0 ? -1. : 1.); }
       bool isBD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
-      { return dimShift == 1 ? (ix == nx_-1) : (iy == ny_-1); }
+      { return dimShift == 1 ? (ix == nx_ - 1 || ix == nx_/2 - 1) : (iy == ny_ - 1 || iy == ny_/2 - 1); }
       bool isFD(const int &ix, const int &iy, const int &iz, const int dimShift) const override
-      { return dimShift == 1 ? (ix == 0) : (iy == 0); }
+      { return dimShift == 1 ? (ix == 0 || ix == nx_/2) : (iy == 0 || iy == ny_/2); }
       long long Nei(const cubism::BlockInfo &info, const int &ix, const int &iy, const int &iz, const int dist1, const int dist2) const override
       { return This(info, ix+dist1, iy+dist2, iz); }
 
