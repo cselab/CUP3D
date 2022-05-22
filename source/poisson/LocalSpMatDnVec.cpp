@@ -26,7 +26,7 @@ LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vec
 
 LocalSpMatDnVec::~LocalSpMatDnVec() {}
 
-void LocalSpMatDnVec::reserve(const int &N)
+void LocalSpMatDnVec::reserve(const int N)
 {
   m_ = N;
 
@@ -46,7 +46,7 @@ void LocalSpMatDnVec::reserve(const int &N)
   pScale_.resize(N/BLEN_); // grid-spacing per block
 }
 
-void LocalSpMatDnVec::cooPushBackVal(const double &val, const long long &row, const long long &col)
+void LocalSpMatDnVec::cooPushBackVal(const double val, const long long row, const long long col)
 {
   loc_cooValA_.push_back(val);  
   loc_cooRowA_long_.push_back(row);

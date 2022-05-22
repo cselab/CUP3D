@@ -156,7 +156,7 @@ void PoissonSolverExp::interpolate(
  
 void PoissonSolverExp::makeFlux(
     const BlockInfo& rhs_info,
-    const int &ix, const int &iy, const int &iz,
+    const int ix, const int iy, const int iz,
     const bool &isBoundary,
     const BlockInfo &rhsNei,
     const FaceCellIndexer& indexer,

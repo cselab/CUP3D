@@ -16,17 +16,17 @@ class SpRowInfo
     // neirank_cols_[i] holds {rank of non-local col, idx of non-local col}
     std::vector<std::pair<int,long long>> neirank_cols_;
 
-    SpRowInfo(const int &rank, const long long &row_idx, const int &neirank_max) : rank_(rank), idx_(row_idx) 
+    SpRowInfo(const int rank, const long long row_idx, const int neirank_max) : rank_(rank), idx_(row_idx) 
     { 
       neirank_cols_.reserve(neirank_max); 
     }
     ~SpRowInfo() = default;
 
-    void mapColVal(const long long &col_idx, const double &val) 
+    void mapColVal(const long long col_idx, const double val) 
     { 
       loc_colval_[col_idx] += val; 
     }
-    void mapColVal(const int &rank, const long long &col_idx, const double &val) 
+    void mapColVal(const int rank, const long long col_idx, const double val) 
     {
       if (rank == rank_)
         mapColVal(col_idx, val);
@@ -48,9 +48,9 @@ class LocalSpMatDnVec
     ~LocalSpMatDnVec();
 
     // Reserve space for linear system
-    void reserve(const int &N);
+    void reserve(const int N);
     // Push back value to COO matrix, up to user to insure ordering of row and column elements
-    void cooPushBackVal(const double &val, const long long &row, const long long &col);
+    void cooPushBackVal(const double val, const long long row, const long long col);
     // Push back row to COO matrix, up to user to ensure ordering of rows
     void cooPushBackRow(const SpRowInfo &row);
     // Make the distributed linear system for solver
