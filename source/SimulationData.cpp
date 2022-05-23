@@ -102,13 +102,12 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   muteAll = parser("-muteAll").asInt(0);
   verbose = muteAll ? false : parser("-verbose").asInt(1) && rank == 0;
   int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
-  Real dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
+  dumpTime = parser("-tdump").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
   saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
-  saveTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
+  dumpTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
 
   // TEMP: Removed distinction saving-dumping. Backward compatibility:
   if (saveFreq <= 0 && dumpFreq > 0) saveFreq = dumpFreq;
-  if (saveTime <= 0 && dumpTime > 0) saveTime = dumpTime;
   path4serialization = parser("-serialization").asString("./");
 
   // Dumping
@@ -157,7 +156,7 @@ void SimulationData::_preprocessArguments()
   assert(nu >= 0);
   assert(lambda > 0 || DLM > 0);
   assert(saveFreq >= 0.0);
-  assert(saveTime >= 0.0);
+  assert(dumpTime >= 0.0);
 }
 
 SimulationData::~SimulationData()

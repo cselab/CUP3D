@@ -113,7 +113,7 @@ struct SimulationData
   bool bDump = false;
   bool verbose = false;
   bool muteAll = false;
-  Real saveTime=0;
+  Real dumpTime=0;
   Real nextSaveTime=0;
   std::string path4serialization = "./";
   bool dumpP;
