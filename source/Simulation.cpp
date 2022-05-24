@@ -301,7 +301,7 @@ void Simulation::run()
   for (;;) {
     const Real dt = calcMaxTimestep();
 
-    if (timestep(dt)) break;
+    if (advance(dt)) break;
   }
 }
 
@@ -364,7 +364,7 @@ Real Simulation::calcMaxTimestep()
   return sim.dt;
 }
 
-bool Simulation::timestep(const Real dt)
+bool Simulation::advance(const Real dt)
 {
   const bool bDumpFreq = (sim.saveFreq>0 && (sim.step+ 1)%sim.saveFreq==0);
   const bool bDumpTime = (sim.dumpTime>0 && (sim.time+dt)>sim.nextSaveTime);

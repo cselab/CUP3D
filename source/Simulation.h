@@ -60,8 +60,7 @@ public:
    *
    * Returns true if the simulation is finished.
    */
-  bool timestep(Real dt);
-  bool advance(Real dt){return timestep(dt);};
+  bool advance(Real dt);
 
   /// Compute vorticity and store to tmpU, tmpV and tmpW.
   void computeVorticity();
