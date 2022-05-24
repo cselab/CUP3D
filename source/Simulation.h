@@ -50,8 +50,7 @@ public:
   void adaptMesh();
 
   /* Get reference to the obstacle container. */
-  const std::vector<std::shared_ptr<Obstacle>> &getObstacleVector() const;
-  const std::vector<std::shared_ptr<Obstacle>> &getShapes() const; //same as getObstacleVector, just different name
+  const std::vector<std::shared_ptr<Obstacle>> &getShapes() const;
 
   /* Calculate maximum allowed time step, including CFL and ramp-up. */
   Real calcMaxTimestep();

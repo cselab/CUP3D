@@ -121,10 +121,6 @@ void Simulation::adaptMesh()
   sim.stopProfiler();
 }
 
-const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() const
-{
-    return sim.obstacle_vector->getObstacleVector();
-}
 const std::vector<std::shared_ptr<Obstacle>>& Simulation::getShapes() const
 {
     return sim.obstacle_vector->getObstacleVector();
