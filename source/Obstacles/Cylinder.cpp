@@ -100,7 +100,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 Cylinder::Cylinder(
     SimulationData&s, ArgumentParser &p)
     : Obstacle(s, p), radius(.5 * length),
-      halflength(p("-halflength").asDouble(.5 * sim.extent[2]))
+      halflength(p("-halflength").asDouble(.5 * sim.extents[2]))
 {
   section = p("-section").asString("circular");
   accel = p("-accel").asBool(false);

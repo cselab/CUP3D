@@ -27,8 +27,8 @@ ObstacleArguments::ObstacleArguments(
 {
   length = parser("-L").asDouble();          // Mandatory.
   position[0] = parser("-xpos").asDouble();  // Mandatory.
-  position[1] = parser("-ypos").asDouble(sim.extent[1] / 2);
-  position[2] = parser("-zpos").asDouble(sim.extent[2] / 2);
+  position[1] = parser("-ypos").asDouble(sim.extents[1] / 2);
+  position[2] = parser("-zpos").asDouble(sim.extents[2] / 2);
   quaternion[0] = parser("-quat0").asDouble(0.0);
   quaternion[1] = parser("-quat1").asDouble(0.0);
   quaternion[2] = parser("-quat2").asDouble(0.0);

@@ -35,7 +35,7 @@ class KernelIC_taylorGreen
   const Real a = 2*M_PI / ext[0], b = 2*M_PI / ext[1], c = 2*M_PI / ext[2];
   const Real A = uMax, B = - uMax * ext[1] / ext[0];
  public:
-  KernelIC_taylorGreen(const std::array<Real, 3> &extent, const Real U): ext{extent}, uMax(U) {}
+  KernelIC_taylorGreen(const std::array<Real, 3> &extents, const Real U): ext{extents}, uMax(U) {}
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
     for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
@@ -57,8 +57,8 @@ class KernelIC_channel
   const Real uMax, H = ext[dir], FAC = 4*uMax/H/H; // FAC = 0.5*G/mu
   //umax =  0.5*G/mu * 0.25*H*H
  public:
-  KernelIC_channel(const std::array<Real, 3> &extent, const Real U, const int _dir):
-    dir(_dir), ext{extent}, uMax(U) {}
+  KernelIC_channel(const std::array<Real, 3> &extents, const Real U, const int _dir):
+    dir(_dir), ext{extents}, uMax(U) {}
 
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
@@ -80,8 +80,8 @@ class KernelIC_channelrandom
   //const Real delta_tau = 5.0/180;
   //umax =  0.5*G/mu * 0.25*H*H
  public:
-  KernelIC_channelrandom(const std::array<Real, 3> &extent, const Real U, const int _dir):
-    dir(_dir), ext{extent}, uMax(U) {}
+  KernelIC_channelrandom(const std::array<Real, 3> &extents, const Real U, const int _dir):
+    dir(_dir), ext{extents}, uMax(U) {}
 
   void operator()(const BlockInfo& info, FluidBlock& block) const
   {
@@ -170,7 +170,7 @@ void InitialConditions::operator()(const Real dt)
   }
   if(sim.initCond == "taylorGreen") {
     if(sim.verbose) printf("[CUP3D] - Taylor Green vortex initial conditions.\n");
-    run(KernelIC_taylorGreen(sim.extent, sim.uMax_forced));
+    run(KernelIC_taylorGreen(sim.extents, sim.uMax_forced));
   }
   if(sim.initCond == "channelRandom")
   {
@@ -185,7 +185,7 @@ void InitialConditions::operator()(const Real dt)
       fflush(0); abort();
     }
     const int dir = channelY? 1 : 2;
-    run(KernelIC_channelrandom(sim.extent, sim.uMax_forced, dir));
+    run(KernelIC_channelrandom(sim.extents, sim.uMax_forced, dir));
   }
   if(sim.initCond == "channel")
   {
@@ -200,7 +200,7 @@ void InitialConditions::operator()(const Real dt)
       fflush(0); abort();
     }
     const int dir = channelY? 1 : 2;
-    run(KernelIC_channel(sim.extent, sim.uMax_forced, dir));
+    run(KernelIC_channel(sim.extents, sim.uMax_forced, dir));
   }
   {
     std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
