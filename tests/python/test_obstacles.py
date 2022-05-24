@@ -25,7 +25,7 @@ class TestObstacles(TestCaseEx):
         ]
 
         s = cup3d.Simulation(argv)
-        s.run()
+        s.simulate()
 
         with self.assertRaises(TypeError):
             out = np.empty((64, 64, 128), dtype=np.float32)

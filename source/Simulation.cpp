@@ -296,7 +296,7 @@ void Simulation::_deserialize()
   sim.nextSaveTime = sim.time + sim.dumpTime;
 }
 
-void Simulation::run()
+void Simulation::simulate()
 {
   for (;;) {
     const Real dt = calcMaxTimestep();

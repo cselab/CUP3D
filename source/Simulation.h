@@ -3,15 +3,10 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati (novatig@ethz.ch).
-//
 
-#ifndef CubismUP_3D_Simulation_h
-#define CubismUP_3D_Simulation_h
+#pragma once
 
 #include "SimulationData.h"
-
-#include <memory>
 
 // Forward declarations.
 namespace cubism { class ArgumentParser; }
@@ -44,7 +39,7 @@ public:
 
   virtual ~Simulation() = default;
 
-  virtual void run();
+  virtual void simulate();
 
   /// Manually trigger mesh adaptation.
   void adaptMesh();
@@ -81,5 +76,3 @@ std::shared_ptr<Simulation> createSimulation(
     const std::vector<std::string> &argv);
 
 CubismUP_3D_NAMESPACE_END
-
-#endif // CubismUP_3D_Simulation_h

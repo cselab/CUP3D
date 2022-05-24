@@ -38,7 +38,7 @@ int main(int argc, char **argv)
   double t1 = MPI_Wtime();
   cubism::ArgumentParser parser(argc, argv);
   cubismup3d::Simulation *sim = new cubismup3d::Simulation(MPI_COMM_WORLD, parser);
-  sim->run();
+  sim->simulate();
   delete sim;
   MPI_Barrier(MPI_COMM_WORLD);
   double t2 = MPI_Wtime();
