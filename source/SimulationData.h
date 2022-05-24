@@ -19,6 +19,7 @@ namespace cubism {
 CubismUP_3D_NAMESPACE_BEGIN
 
 class Operator;
+class Obstacle;
 class ObstacleVector;
 class PoissonSolverAMR;
 

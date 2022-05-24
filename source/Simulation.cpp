@@ -104,9 +104,6 @@ void Simulation::initialGridRefinement()
     //This may not be needed but has zero cost
     if (l != 3*sim.levelMax-1) touch();
   }
-
-  // Save Initial Flow Field to File
-  //if ( sim.saveFreq>0 || sim.dumpTime>0 ) _serialize("init");
 }
 
 void Simulation::adaptMesh()

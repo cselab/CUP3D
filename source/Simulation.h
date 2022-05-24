@@ -8,38 +8,24 @@
 
 #include "SimulationData.h"
 
-// Forward declarations.
-namespace cubism { class ArgumentParser; }
-
 CubismUP_3D_NAMESPACE_BEGIN
-
-class Obstacle;
 
 class Simulation
 {
 public:
-
   SimulationData sim;
 
   void initialGridRefinement();
   void _serialize(const std::string append = std::string());
   void _deserialize();
-
-  void _argumentsSanityCheck();
   void setupOperators();
   void setupGrid();
   void _ic();
   void _icFromH5(std::string h5File);
 
   Simulation(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
-  Simulation(const Simulation &) = delete;
-  Simulation(Simulation &&) = delete;
-  Simulation &operator=(const Simulation &) = delete;
-  Simulation &operator=(Simulation &&) = delete;
 
-  virtual ~Simulation() = default;
-
-  virtual void simulate();
+  void simulate();
 
   /// Manually trigger mesh adaptation.
   void adaptMesh();
