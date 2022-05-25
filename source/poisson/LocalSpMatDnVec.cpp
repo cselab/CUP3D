@@ -5,7 +5,7 @@
 #include "LocalSpMatDnVec.h"
 #include "BiCGSTAB.cuh"
 
-LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vector<double>& P_inv) 
+LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const int bMeanConstraint, const std::vector<double>& P_inv) 
   : m_comm_(m_comm), BLEN_(BLEN)
 {
   // MPI
@@ -21,7 +21,7 @@ LocalSpMatDnVec::LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vec
   send_offset_.reserve(comm_size_); 
   send_sz_.reserve(comm_size_); 
 
-  solver_ = std::make_unique<BiCGSTABSolver>(m_comm, *this, BLEN, P_inv);
+  solver_ = std::make_unique<BiCGSTABSolver>(m_comm, *this, BLEN, bMeanConstraint, P_inv);
 }
 
 LocalSpMatDnVec::~LocalSpMatDnVec() {}
@@ -29,6 +29,7 @@ LocalSpMatDnVec::~LocalSpMatDnVec() {}
 void LocalSpMatDnVec::reserve(const int N)
 {
   m_ = N;
+  bMeanRow_ = -1; // default value
 
   // Clear previous contents and reserve excess memory
   for (size_t i(0); i < bd_recv_set_.size(); i++)
@@ -43,7 +44,8 @@ void LocalSpMatDnVec::reserve(const int N)
 
   x_.resize(N);
   b_.resize(N);
-  pScale_.resize(N/BLEN_); // grid-spacing per block
+  h3_.resize(N/BLEN_);    // grid-spacing per block
+  invh_.resize(N/BLEN_); 
 }
 
 void LocalSpMatDnVec::cooPushBackVal(const double val, const long long row, const long long col)

@@ -38,7 +38,7 @@ class PoissonSolverExp : public PoissonSolverBase
   static constexpr int nxyz_ = nx_ * ny_ * nz_;
 
   // Returns element of preconditioner negative K_{i,j}
-  double getA_local(const int& i, const int& j);
+  double getA_local(const int i, const int j);
 
   // Method construct flux accross block boundaries
   class FaceCellIndexer; // forward declaration

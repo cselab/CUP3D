@@ -1,6 +1,7 @@
 #include <iostream>
 
 #include <cuda_runtime.h>
+#include <cub/cub.cuh>
 
 #include "BiCGSTAB.cuh"
 
@@ -8,8 +9,9 @@ BiCGSTABSolver::BiCGSTABSolver(
     MPI_Comm m_comm,
     LocalSpMatDnVec& LocalLS,
     const int BLEN, 
+    const int bMeanConstraint, 
     const std::vector<double>& P_inv)
-  : m_comm_(m_comm), BLEN_(BLEN), LocalLS_(LocalLS), prof_(m_comm)
+  : m_comm_(m_comm), BLEN_(BLEN), bMeanConstraint_(bMeanConstraint), LocalLS_(LocalLS), prof_(m_comm)
 {
   // MPI
   MPI_Comm_rank(m_comm_, &rank_);
@@ -101,7 +103,10 @@ void BiCGSTABSolver::freeLast()
     checkCudaErrors(cudaFree(d_x_)); 
     checkCudaErrors(cudaFree(d_x_opt_)); 
     checkCudaErrors(cudaFree(d_r_));
-    checkCudaErrors(cudaFree(d_pScale_));
+    checkCudaErrors(cudaFree(d_h3_));
+    checkCudaErrors(cudaFree(d_invh_));
+    checkCudaErrors(cudaFree(d_red_));
+    checkCudaErrors(cudaFree(d_red_res_));
     // Cleanup memory allocated for BiCGSTAB arrays
     checkCudaErrors(cudaFree(d_rhat_));
     checkCudaErrors(cudaFree(d_p_));
@@ -151,7 +156,10 @@ void BiCGSTABSolver::updateAll()
   checkCudaErrors(cudaMalloc(&d_x_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_x_opt_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_r_, m_ * sizeof(double)));
-  checkCudaErrors(cudaMalloc(&d_pScale_, Nblocks * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_h3_, Nblocks * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_invh_, Nblocks * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_red_, m_ * sizeof(double)));
+  checkCudaErrors(cudaMalloc(&d_red_res_, sizeof(double)));
   // Allocate arrays for BiCGSTAB storage
   checkCudaErrors(cudaMalloc(&d_rhat_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_p_, m_ * sizeof(double)));
@@ -174,7 +182,8 @@ void BiCGSTABSolver::updateAll()
   checkCudaErrors(cudaMemcpyAsync(dloc_cooValA_, LocalLS_.loc_cooValA_.data(), loc_nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(dloc_cooRowA_, LocalLS_.loc_cooRowA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(dloc_cooColA_, LocalLS_.loc_cooColA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
-  checkCudaErrors(cudaMemcpyAsync(d_pScale_, LocalLS_.pScale_.data(), Nblocks * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_h3_, LocalLS_.h3_.data(), Nblocks * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+  checkCudaErrors(cudaMemcpyAsync(d_invh_, LocalLS_.invh_.data(), Nblocks * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   if (comm_size_ > 1)
   {
     checkCudaErrors(cudaMemcpyAsync(d_send_pack_idx_, LocalLS_.send_pack_idx_.data(), send_buff_sz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
@@ -265,21 +274,27 @@ __global__ void set_rho(BiCGSTABScalars* coeffs)
   coeffs->rho_prev = coeffs->rho_curr;
 }
 
-__global__ void precScaleBlocks(const int m, const int BLEN, const double* const pScale, double* const vec)
+__global__ void blockDscal(const int m, const int BLEN, const double* __restrict__ const alpha, double* __restrict__ const x)
 {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < m; i += blockDim.x * gridDim.x)
-    vec[i] = pScale[i/BLEN] * vec[i];
+    x[i] = alpha[i/BLEN] * x[i];
 
 }
 
 __global__ void send_buff_pack(
     int buff_sz, 
     const int* const pack_idx, 
-    double* const buff, 
-    const double* const source)
+    double* __restrict__ const buff, 
+    const double* __restrict__ const source)
 {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < buff_sz; i += blockDim.x * gridDim.x)
     buff[i] = source[pack_idx[i]];
+}
+
+__global__ void bMean2Apply(const int m, const double red_res, double* const x)
+{
+  for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < m; i += blockDim.x * gridDim.x)
+    x[i] = x[i] + m;
 }
 
 void BiCGSTABSolver::hd_cusparseSpMV(
@@ -358,6 +373,31 @@ void BiCGSTABSolver::hd_cusparseSpMV(
           CUSPARSE_MV_ALG_DEFAULT, 
           bdSpMVBuff_)); 
     prof_.stopProfiler("HaloSpMV", solver_stream_);
+  }
+
+  if (bMeanConstraint_ == 1 || bMeanConstraint_ == 2)
+  {
+    // Copy result to reduction buffer and scale by h_i^3
+    checkCudaErrors(cudaMemcpyAsync(d_red_, d_res_hd, m_ * sizeof(double), cudaMemcpyDeviceToDevice, solver_stream_));
+    blockDscal<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, d_h3_, d_red_);
+    checkCudaErrors(cudaGetLastError());
+
+    void *d_temp_storage = NULL;
+    size_t temp_storage_bytes = 0;
+    cub::DeviceReduce::Sum<double*, double*>(d_temp_storage, temp_storage_bytes, d_red_, d_red_res_, m_, solver_stream_);
+
+    double h_red_res;
+    checkCudaErrors(cudaMemcpyAsync(&h_red_res, d_red_res_, sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
+    checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+    MPI_Allreduce(MPI_IN_PLACE, &h_red_res, 1, MPI_DOUBLE, MPI_SUM, m_comm_);
+    
+    if (bMeanConstraint_ == 1 && bMeanRow_ >= 0)
+      checkCudaErrors(cudaMemcpyAsync(&d_res_hd[bMeanRow_], &h_red_res, sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
+    else if (bMeanConstraint_ == 2)
+    {
+      bMean2Apply<<<8*56, 128, 0, solver_stream_>>>(m_, h_red_res, d_res_hd); 
+      checkCudaErrors(cudaGetLastError());
+    }
   }
 }
 
@@ -472,7 +512,7 @@ void BiCGSTABSolver::main(
     // 4. z <- K_2^{-1} * p_i
     prof_.startProfiler("Prec", solver_stream_);
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BLEN_, m_ / BLEN_, BLEN_, d_eye_, d_P_inv_, BLEN_, d_p_, BLEN_, d_nil_, d_z_, BLEN_));
-    precScaleBlocks<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, d_pScale_, d_z_);
+    blockDscal<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, d_invh_, d_z_);
     checkCudaErrors(cudaGetLastError());
     prof_.stopProfiler("Prec", solver_stream_);
 
@@ -499,7 +539,7 @@ void BiCGSTABSolver::main(
     // 10. z <- K_2^{-1} * s
     prof_.startProfiler("Prec", solver_stream_);
     checkCudaErrors(cublasDgemm(cublas_handle_, CUBLAS_OP_T, CUBLAS_OP_N, BLEN_, m_ / BLEN_, BLEN_, d_eye_, d_P_inv_, BLEN_, d_r_, BLEN_, d_nil_, d_z_, BLEN_));
-    precScaleBlocks<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, d_pScale_, d_z_);
+    blockDscal<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, d_invh_, d_z_);
     checkCudaErrors(cudaGetLastError());
     prof_.stopProfiler("Prec", solver_stream_);
 

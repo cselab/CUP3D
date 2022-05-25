@@ -26,6 +26,7 @@ public:
       MPI_Comm m_comm,
       LocalSpMatDnVec& LocalLS,
       const int BLEN, 
+      const int bMeanConstraint, 
       const std::vector<double>& P_inv);  
   ~BiCGSTABSolver();  
 
@@ -33,7 +34,7 @@ public:
   void solveWithUpdate(
     const double max_error,
     const double max_rel_error,
-    const int max_restarts); 
+    const int max_restarts);
 
   // Solve method without update to LHS matrix
   void solveNoUpdate(
@@ -83,6 +84,8 @@ private:
   int bd_nnz_;
   int hd_m_; // haloed number of row
   const int BLEN_; // block length (i.e no. of rows in preconditioner)
+  const int bMeanConstraint_; // type of bMeanConstraint to apply
+  int bMeanRow_; // in case of bMeanConstraint == 1, which row to modify
 
   // Reference to owner LocalLS
   LocalSpMatDnVec& LocalLS_;
@@ -113,7 +116,10 @@ private:
   double* d_x_opt_;
   double* d_r_;
   double* d_P_inv_;
-  double* d_pScale_;
+  double* d_h3_;
+  double* d_invh_;
+  double* d_red_;     // auxilarry buffer for carrying out reductions
+  double* d_red_res_; // auxilarry buffer for reduction result
   // Device-side intermediate variables for BiCGSTAB
   double* d_rhat_;
   double* d_p_;

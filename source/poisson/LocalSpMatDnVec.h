@@ -44,7 +44,7 @@ class BiCGSTABSolver;
 class LocalSpMatDnVec 
 {
   public:
-    LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const std::vector<double>& P_inv); 
+    LocalSpMatDnVec(MPI_Comm m_comm, const int BLEN, const int bMeanConstraint, const std::vector<double>& P_inv); 
     ~LocalSpMatDnVec();
 
     // Reserve space for linear system
@@ -60,7 +60,7 @@ class LocalSpMatDnVec
     void solveWithUpdate(
       const double max_error,
       const double max_rel_error,
-      const int max_restarts); 
+      const int max_restarts);
 
     // Solve method without update to LHS matrix
     void solveNoUpdate(
@@ -68,10 +68,12 @@ class LocalSpMatDnVec
       const double max_rel_error,
       const int max_restarts); 
 
+    void set_bMeanRow(int bMeanRow) { bMeanRow_ = bMeanRow; }
     // Modifiable references for x and b for setting and getting initial conditions/solution
     std::vector<double>& get_x() { return x_; }
     std::vector<double>& get_b() { return b_; }
-    std::vector<double>& get_pScale() { return pScale_; }
+    std::vector<double>& get_h3() { return h3_; }
+    std::vector<double>& get_invh() { return invh_; }
 
     // Expose private variables to friendly solver
     friend class BiCGSTABSolver;
@@ -86,6 +88,7 @@ class LocalSpMatDnVec
     int halo_;
     int loc_nnz_;
     int bd_nnz_;
+    int bMeanRow_;
 
     // Local rows of linear system + dense vecs
     std::vector<double> loc_cooValA_;
@@ -93,7 +96,8 @@ class LocalSpMatDnVec
     std::vector<long long> loc_cooColA_long_;
     std::vector<double> x_;
     std::vector<double> b_;
-    std::vector<double> pScale_; // post-preconditioning scaling factor for each block
+    std::vector<double> h3_;    // grid-spacing of each block
+    std::vector<double> invh_; // post-preconditioning scaling factor for each block
 
     // Non-local rows with columns belonging to halo using rank-local indexing
     std::vector<double> bd_cooValA_;

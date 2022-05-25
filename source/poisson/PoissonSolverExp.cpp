@@ -14,7 +14,7 @@
 
 namespace cubismup3d {
 
-double PoissonSolverExp::getA_local(const int& i, const int& j)
+double PoissonSolverExp::getA_local(const int i, const int j)
 {
   if (i==j)
     return 6.;
@@ -111,7 +111,7 @@ PoissonSolverExp::PoissonSolverExp(SimulationData& s)
   }
 
   // Create Linear system and backend solver objects
-  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, nxyz_, P_inv);
+  LocalLS_ = std::make_unique<LocalSpMatDnVec>(m_comm_, nxyz_, sim.bMeanConstraint, P_inv);
 }
 void PoissonSolverExp::interpolate(
     const cubism::BlockInfo &info_c, const int ix_c, const int iy_c, const int iz_c,
@@ -299,23 +299,26 @@ void PoissonSolverExp::getMat()
     rhsNei[4] = &(this->sim.lhs->getBlockInfoAll(rhs_info.level, Z[4]));
     rhsNei[5] = &(this->sim.lhs->getBlockInfoAll(rhs_info.level, Z[5]));
 
+    // Record local index of row which is to be modified with bMeanConstraint == 1
+    if (sim.bMeanConstraint == 1 &&
+        rhs_info.index[0] == 0 && 
+        rhs_info.index[0] == 0 && 
+        rhs_info.index[0] == 0)
+      LocalLS_->set_bMeanRow(GenericCell.This(rhs_info, 0, 0, 0) - Nrows_xcumsum_[rank_]);
+
     for (int iz(0); iz<nz_; iz++)
     for (int iy(0); iy<ny_; iy++)
     for (int ix(0); ix<nx_; ix++)
     { // Logic needs to be in 'for' loop to consruct cooRows in order
       const long long sfc_idx = GenericCell.This(rhs_info, ix, iy, iz);  
       const double h = rhs_info.h;
-      if ((sim.bMeanConstraint == 1 || sim.bMeanConstraint == 3) &&
-           RhsInfo[i].index[0] == 0 && 
-           RhsInfo[i].index[0] == 0 && 
-           RhsInfo[i].index[0] == 0 &&
-           ix == 0 && iy == 0 && iz == 0)
+      if (sim.bMeanConstraint == 3 &&
+          rhs_info.index[0] == 0 && 
+          rhs_info.index[0] == 0 && 
+          rhs_info.index[0] == 0 &&
+          ix == 0 && iy == 0 && iz == 0)
       {
-        if (sim.bMeanConstraint == 1)
-        for (long long c(0); c < Nrows_xcumsum_[Nrows_xcumsum_.size()-1]; c++) 
-          LocalLS_->cooPushBackVal(h, sfc_idx, c);
-        else if (sim.bMeanConstraint == 3)
-          LocalLS_->cooPushBackVal(h, sfc_idx, sfc_idx);
+        LocalLS_->cooPushBackVal(h, sfc_idx, sfc_idx);
       }
       else if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
       { // Inner cells
@@ -382,7 +385,8 @@ void PoissonSolverExp::getVec()
 
   std::vector<double>& x = LocalLS_->get_x();
   std::vector<double>& b = LocalLS_->get_b();
-  std::vector<double>& pScale = LocalLS_->get_pScale();
+  std::vector<double>& h3 = LocalLS_->get_h3();
+  std::vector<double>& invh = LocalLS_->get_invh();
   const long long shift = -Nrows_xcumsum_[rank_];
 
   // Copy RHS and LHS vec initial guess, if LS was updated getMat reallocates sufficient memory
@@ -392,7 +396,8 @@ void PoissonSolverExp::getVec()
     const ScalarBlock & __restrict__ rhs = *(ScalarBlock*)RhsInfo[i].ptrBlock;
     const ScalarBlock & __restrict__ p = *(ScalarBlock*)zInfo[i].ptrBlock;
 
-    pScale[i] = 1. / RhsInfo[i].h;
+    h3[i]   = RhsInfo[i].h * RhsInfo[i].h * RhsInfo[i].h;
+    invh[i] = 1. / RhsInfo[i].h;
     for (int iz(0); iz<nz_; iz++)
     for (int iy(0); iy<ny_; iy++)
     for (int ix(0); ix<nx_; ix++)
