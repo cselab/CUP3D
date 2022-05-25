@@ -272,6 +272,11 @@ void PoissonSolverExp::getMat()
     isBoundary[4] = (rhs_info.index[2] == 0           ); // Zm
     isBoundary[5] = (rhs_info.index[2] == MAX_Z_BLOCKS); // Zp
 
+    std::array<bool, 3> isPeriodic; // same dimension ordering as isBoundary
+    isPeriodic[0] = (cubsimBCX == periodic);
+    isPeriodic[1] = (cubsimBCY == periodic);
+    isPeriodic[2] = (cubsimBCZ == periodic);
+
     //2.Access the block's neighbors (for the Poisson solve in two dimensions we care about four neighbors in total)
     std::array<long long, 6> Z;
     Z[0] = rhs_info.Znei[1-1][1][1]; // Xm
@@ -337,7 +342,8 @@ void PoissonSolverExp::getMat()
             row.mapColVal(idxNei[j], h);
             row.mapColVal(sfc_idx, -h);  // diagonal element
           }
-          else if (!isBoundary[j]) // outer face and not boundary
+          // Outer face, do nothing is non periodic BC
+          else if (!isBoundary[j] || (isBoundary[j] && isPeriodic[j/2]))
             this->makeFlux(rhs_info, ix, iy, iz, isBoundary[j], *rhsNei[j], *faceIndexers[j], row);
         }
 
