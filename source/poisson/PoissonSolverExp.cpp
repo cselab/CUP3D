@@ -39,6 +39,10 @@ PoissonSolverExp::PoissonSolverExp(SimulationData& s)
     XminCell(*this), XmaxCell(*this), YminCell(*this), YmaxCell(*this), ZminCell(*this), ZmaxCell(*this),
     faceIndexers {&XminCell, &XmaxCell, &YminCell, &YmaxCell, &ZminCell, &ZmaxCell}
 {
+  if (sim.bMeanConstraint == 2)
+    throw std::invalid_argument( 
+        "Poisson solver: \"" + s.poissonSolver + "\" is not implemented with bMeanConstraint == 2!" );
+
   // MPI
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
@@ -301,7 +305,19 @@ void PoissonSolverExp::getMat()
     { // Logic needs to be in 'for' loop to consruct cooRows in order
       const long long sfc_idx = GenericCell.This(rhs_info, ix, iy, iz);  
       const double h = rhs_info.h;
-      if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
+      if ((sim.bMeanConstraint == 1 || sim.bMeanConstraint == 3) &&
+           RhsInfo[i].index[0] == 0 && 
+           RhsInfo[i].index[0] == 0 && 
+           RhsInfo[i].index[0] == 0 &&
+           ix == 0 && iy == 0 && iz == 0)
+      {
+        if (sim.bMeanConstraint == 1)
+        for (long long c(0); c < Nrows_xcumsum_[Nrows_xcumsum_.size()-1]; c++) 
+          LocalLS_->cooPushBackVal(h, sfc_idx, c);
+        else if (sim.bMeanConstraint == 3)
+          LocalLS_->cooPushBackVal(h, sfc_idx, sfc_idx);
+      }
+      else if ((ix > 0 && ix<nx_-1) && (iy > 0 && iy<ny_-1) && (iz > 0 && iz<nz_-1))
       { // Inner cells
 
         // Push back in ascending order for column index
@@ -342,7 +358,7 @@ void PoissonSolverExp::getMat()
             row.mapColVal(idxNei[j], h);
             row.mapColVal(sfc_idx, -h);  // diagonal element
           }
-          // Outer face, do nothing is non periodic BC
+          // Outer face, do nothing if non-periodic BC
           else if (!isBoundary[j] || (isBoundary[j] && isPeriodic[j/2]))
             this->makeFlux(rhs_info, ix, iy, iz, isBoundary[j], *rhsNei[j], *faceIndexers[j], row);
         }
@@ -382,8 +398,20 @@ void PoissonSolverExp::getVec()
     for (int ix(0); ix<nx_; ix++)
     {
       const long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy, iz) + shift;
-      b[sfc_loc] = rhs(ix, iy, iz).s;
-      x[sfc_loc] = p(ix, iy, iz).s;
+      if ((sim.bMeanConstraint == 1 || sim.bMeanConstraint == 3) &&
+           RhsInfo[i].index[0] == 0 && 
+           RhsInfo[i].index[0] == 0 && 
+           RhsInfo[i].index[0] == 0 &&
+           ix == 0 && iy == 0 && iz == 0)
+      {
+        b[sfc_loc] = 0.;
+        x[sfc_loc] = 0.;
+      }
+      else
+      {
+        b[sfc_loc] = rhs(ix, iy, iz).s;
+        x[sfc_loc] = p(ix, iy, iz).s;
+      }
     }
   }
 }
@@ -422,7 +450,7 @@ void PoissonSolverExp::solve()
   const long long shift = -Nrows_xcumsum_[rank_];
 
   #pragma omp parallel for
-  for (size_t i=0; i < Nblocks; i++)
+  for (int i=0; i < Nblocks; i++)
   {
     const int m = zInfo[i].level;
     const long long n = zInfo[i].Z;
