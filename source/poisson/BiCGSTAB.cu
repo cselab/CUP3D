@@ -291,10 +291,10 @@ __global__ void send_buff_pack(
     buff[i] = source[pack_idx[i]];
 }
 
-__global__ void bMean2Apply(const int m, const double red_res, double* const x)
+__global__ void bMean2Apply(const int m, const int BLEN, const double red_res, const double* __restrict__ const h3, double* const x)
 {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < m; i += blockDim.x * gridDim.x)
-    x[i] = x[i] + m;
+    x[i] = x[i] + m*h3[i/BLEN];
 }
 
 void BiCGSTABSolver::hd_cusparseSpMV(
@@ -395,7 +395,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
       checkCudaErrors(cudaMemcpyAsync(&d_res_hd[bMeanRow_], &h_red_res, sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
     else if (bMeanConstraint_ == 2)
     {
-      bMean2Apply<<<8*56, 128, 0, solver_stream_>>>(m_, h_red_res, d_res_hd); 
+      bMean2Apply<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, h_red_res, d_h3_, d_res_hd); 
       checkCudaErrors(cudaGetLastError());
     }
   }

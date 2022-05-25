@@ -39,10 +39,6 @@ PoissonSolverExp::PoissonSolverExp(SimulationData& s)
     XminCell(*this), XmaxCell(*this), YminCell(*this), YmaxCell(*this), ZminCell(*this), ZmaxCell(*this),
     faceIndexers {&XminCell, &XmaxCell, &YminCell, &YmaxCell, &ZminCell, &ZmaxCell}
 {
-  if (sim.bMeanConstraint == 2)
-    throw std::invalid_argument( 
-        "Poisson solver: \"" + s.poissonSolver + "\" is not implemented with bMeanConstraint == 2!" );
-
   // MPI
   MPI_Comm_rank(m_comm_, &rank_);
   MPI_Comm_size(m_comm_, &comm_size_);
@@ -302,8 +298,8 @@ void PoissonSolverExp::getMat()
     // Record local index of row which is to be modified with bMeanConstraint == 1
     if (sim.bMeanConstraint == 1 &&
         rhs_info.index[0] == 0 && 
-        rhs_info.index[0] == 0 && 
-        rhs_info.index[0] == 0)
+        rhs_info.index[1] == 0 && 
+        rhs_info.index[2] == 0)
       LocalLS_->set_bMeanRow(GenericCell.This(rhs_info, 0, 0, 0) - Nrows_xcumsum_[rank_]);
 
     for (int iz(0); iz<nz_; iz++)
@@ -314,8 +310,8 @@ void PoissonSolverExp::getMat()
       const double h = rhs_info.h;
       if (sim.bMeanConstraint == 3 &&
           rhs_info.index[0] == 0 && 
-          rhs_info.index[0] == 0 && 
-          rhs_info.index[0] == 0 &&
+          rhs_info.index[1] == 0 && 
+          rhs_info.index[2] == 0 &&
           ix == 0 && iy == 0 && iz == 0)
       {
         LocalLS_->cooPushBackVal(h, sfc_idx, sfc_idx);
@@ -405,8 +401,8 @@ void PoissonSolverExp::getVec()
       const long long sfc_loc = GenericCell.This(RhsInfo[i], ix, iy, iz) + shift;
       if ((sim.bMeanConstraint == 1 || sim.bMeanConstraint == 3) &&
            RhsInfo[i].index[0] == 0 && 
-           RhsInfo[i].index[0] == 0 && 
-           RhsInfo[i].index[0] == 0 &&
+           RhsInfo[i].index[1] == 0 && 
+           RhsInfo[i].index[2] == 0 &&
            ix == 0 && iy == 0 && iz == 0)
       {
         b[sfc_loc] = 0.;
