@@ -18,7 +18,6 @@ struct BiCGSTABScalars {
   double rho_curr; // reductions happen along these three, make contigious
   double buff_1;
   double buff_2;
-  int amax_idx;
 };
 
 class BiCGSTABSolver {

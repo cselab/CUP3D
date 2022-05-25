@@ -232,11 +232,6 @@ void BiCGSTABSolver::updateVec()
   prof_.stopProfiler("Memcpy", solver_stream_);
 }
 
-__global__ void set_squared(double* const val)
-{
-  val[0] *= val[0];
-}
-
 __global__ void set_negative(double* const dest, double* const source)
 {
   dest[0] = -source[0];
@@ -514,10 +509,9 @@ void BiCGSTABSolver::main(
     // 12. omega_i = (t,s)/(t,t), variables alpha & beta no longer in use this iter
     checkCudaErrors(cublasDdot(cublas_handle_, m_, d_t_, 1, d_r_, 1, &(d_coeffs_->buff_1)));
     checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_t_, 1, &(d_coeffs_->buff_2)));
-    set_squared<<<1, 1, 0, solver_stream_>>>(&(d_coeffs_->buff_2));
-    checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaMemcpyAsync(&(h_coeffs_->buff_1), &(d_coeffs_->buff_1), 2 * sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));
     checkCudaErrors(cudaStreamSynchronize(solver_stream_));
+    h_coeffs_->buff_2 *= h_coeffs_->buff_2;
     MPI_Allreduce(MPI_IN_PLACE, &(h_coeffs_->buff_1), 2, MPI_DOUBLE, MPI_SUM, m_comm_);
     checkCudaErrors(cudaMemcpyAsync(&(d_coeffs_->buff_1), &(h_coeffs_->buff_1), 2 * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
     set_omega<<<1, 1, 0, solver_stream_>>>(d_coeffs_);
