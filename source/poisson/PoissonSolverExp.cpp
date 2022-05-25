@@ -273,9 +273,9 @@ void PoissonSolverExp::getMat()
     isBoundary[5] = (rhs_info.index[2] == MAX_Z_BLOCKS); // Zp
 
     std::array<bool, 3> isPeriodic; // same dimension ordering as isBoundary
-    isPeriodic[0] = (cubsimBCX == periodic);
-    isPeriodic[1] = (cubsimBCY == periodic);
-    isPeriodic[2] = (cubsimBCZ == periodic);
+    isPeriodic[0] = (sim.BCx_flag == periodic);
+    isPeriodic[1] = (sim.BCy_flag == periodic);
+    isPeriodic[2] = (sim.BCz_flag == periodic);
 
     //2.Access the block's neighbors (for the Poisson solve in two dimensions we care about four neighbors in total)
     std::array<long long, 6> Z;
