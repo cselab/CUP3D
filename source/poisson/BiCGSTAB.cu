@@ -103,10 +103,7 @@ void BiCGSTABSolver::freeLast()
     checkCudaErrors(cudaFree(d_x_)); 
     checkCudaErrors(cudaFree(d_x_opt_)); 
     checkCudaErrors(cudaFree(d_r_));
-    checkCudaErrors(cudaFree(d_h3_));
     checkCudaErrors(cudaFree(d_invh_));
-    checkCudaErrors(cudaFree(d_red_));
-    checkCudaErrors(cudaFree(d_red_res_));
     // Cleanup memory allocated for BiCGSTAB arrays
     checkCudaErrors(cudaFree(d_rhat_));
     checkCudaErrors(cudaFree(d_p_));
@@ -131,6 +128,13 @@ void BiCGSTABSolver::freeLast()
       checkCudaErrors(cudaFree(bdSpMVBuff_));
       checkCudaErrors(cusparseDestroySpMat(spDescrBdA_));
       checkCudaErrors(cusparseDestroyDnVec(spDescrBdZ_));
+    }
+    if (bMeanConstraint_ == 1 || bMeanConstraint_ == 2)
+    {
+      checkCudaErrors(cudaFree(d_h3_));
+      checkCudaErrors(cudaFree(d_red_));
+      checkCudaErrors(cudaFree(d_red_res_));
+      checkCudaErrors(cudaFree(d_red_temp_storage_));
     }
   }
   dirty_ = true;
@@ -157,16 +161,24 @@ void BiCGSTABSolver::updateAll()
   checkCudaErrors(cudaMalloc(&d_x_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_x_opt_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_r_, m_ * sizeof(double)));
-  checkCudaErrors(cudaMalloc(&d_h3_, Nblocks * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_invh_, Nblocks * sizeof(double)));
-  checkCudaErrors(cudaMalloc(&d_red_, m_ * sizeof(double)));
-  checkCudaErrors(cudaMalloc(&d_red_res_, sizeof(double)));
   // Allocate arrays for BiCGSTAB storage
   checkCudaErrors(cudaMalloc(&d_rhat_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_p_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_nu_, m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_t_,  m_ * sizeof(double)));
   checkCudaErrors(cudaMalloc(&d_z_,  hd_m_ * sizeof(double)));
+  if (bMeanConstraint_ == 1 || bMeanConstraint_ == 2)
+  {
+    checkCudaErrors(cudaMalloc(&d_h3_, Nblocks * sizeof(double)));
+    checkCudaErrors(cudaMalloc(&d_red_, m_ * sizeof(double)));
+    checkCudaErrors(cudaMalloc(&d_red_res_, sizeof(double)));
+    // Allocate temporary storage for reductions
+    d_red_temp_storage_ = NULL;
+    red_temp_storage_bytes_ = 0;
+    cub::DeviceReduce::Sum<double*, double*>(d_red_temp_storage_, red_temp_storage_bytes_, d_red_, d_red_res_, m_, solver_stream_);
+    checkCudaErrors(cudaMalloc(&d_red_temp_storage_, red_temp_storage_bytes_));
+  }
   if (comm_size_ > 1)
   {
     checkCudaErrors(cudaMalloc(&d_send_pack_idx_, send_buff_sz_ * sizeof(int)));
@@ -183,7 +195,6 @@ void BiCGSTABSolver::updateAll()
   checkCudaErrors(cudaMemcpyAsync(dloc_cooValA_, LocalLS_.loc_cooValA_.data(), loc_nnz_ * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(dloc_cooRowA_, LocalLS_.loc_cooRowA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(dloc_cooColA_, LocalLS_.loc_cooColA_int_.data(), loc_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
-  checkCudaErrors(cudaMemcpyAsync(d_h3_, LocalLS_.h3_.data(), Nblocks * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   checkCudaErrors(cudaMemcpyAsync(d_invh_, LocalLS_.invh_.data(), Nblocks * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   if (comm_size_ > 1)
   {
@@ -192,6 +203,8 @@ void BiCGSTABSolver::updateAll()
     checkCudaErrors(cudaMemcpyAsync(dbd_cooRowA_, LocalLS_.bd_cooRowA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
     checkCudaErrors(cudaMemcpyAsync(dbd_cooColA_, LocalLS_.bd_cooColA_int_.data(), bd_nnz_ * sizeof(int), cudaMemcpyHostToDevice, solver_stream_));
   }
+  if (bMeanConstraint_ == 1 || bMeanConstraint_ == 2)
+    checkCudaErrors(cudaMemcpyAsync(d_h3_, LocalLS_.h3_.data(), Nblocks * sizeof(double), cudaMemcpyHostToDevice, solver_stream_));
   prof_.stopProfiler("Memcpy", solver_stream_);
 
   // Create descriptors for variables that will pass through cuSPARSE
@@ -383,9 +396,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
     blockDscal<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, d_h3_, d_red_);
     checkCudaErrors(cudaGetLastError());
 
-    void *d_temp_storage = NULL;
-    size_t temp_storage_bytes = 0;
-    cub::DeviceReduce::Sum<double*, double*>(d_temp_storage, temp_storage_bytes, d_red_, d_red_res_, m_, solver_stream_);
+    cub::DeviceReduce::Sum<double*, double*>(d_red_temp_storage_, red_temp_storage_bytes_, d_red_, d_red_res_, m_, solver_stream_);
 
     double h_red_res;
     checkCudaErrors(cudaMemcpyAsync(&h_red_res, d_red_res_, sizeof(double), cudaMemcpyDeviceToHost, solver_stream_));

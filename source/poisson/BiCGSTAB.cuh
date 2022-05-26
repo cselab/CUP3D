@@ -116,8 +116,11 @@ private:
   double* d_x_opt_;
   double* d_r_;
   double* d_P_inv_;
-  double* d_h3_;
   double* d_invh_;
+
+  void* d_red_temp_storage_;
+  size_t red_temp_storage_bytes_;
+  double* d_h3_;
   double* d_red_;     // auxilarry buffer for carrying out reductions
   double* d_red_res_; // auxilarry buffer for reduction result
   // Device-side intermediate variables for BiCGSTAB
