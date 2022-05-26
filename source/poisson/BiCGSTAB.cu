@@ -308,7 +308,7 @@ __global__ void send_buff_pack(
 __global__ void bMean2Apply(const int m, const int BLEN, const double red_res, const double* __restrict__ const h3, double* const x)
 {
   for (int i = blockIdx.x * blockDim.x + threadIdx.x; i < m; i += blockDim.x * gridDim.x)
-    x[i] = x[i] + m*h3[i/BLEN];
+    x[i] = x[i] + red_res*h3[i/BLEN];
 }
 
 void BiCGSTABSolver::hd_cusparseSpMV(
