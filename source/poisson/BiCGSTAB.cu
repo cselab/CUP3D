@@ -392,7 +392,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
   if (bMeanConstraint_ == 1 || bMeanConstraint_ == 2)
   {
     // Copy result to reduction buffer and scale by h_i^3
-    checkCudaErrors(cudaMemcpyAsync(d_red_, d_res_hd, m_ * sizeof(double), cudaMemcpyDeviceToDevice, solver_stream_));
+    checkCudaErrors(cudaMemcpyAsync(d_red_, d_op_hd, m_ * sizeof(double), cudaMemcpyDeviceToDevice, solver_stream_));
     blockDscal<<<8*56, 128, 0, solver_stream_>>>(m_, BLEN_, d_h3_, d_red_);
     checkCudaErrors(cudaGetLastError());
 
