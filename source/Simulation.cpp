@@ -104,9 +104,6 @@ void Simulation::initialGridRefinement()
     //This may not be needed but has zero cost
     if (l != 3*sim.levelMax-1) touch();
   }
-
-  // Save Initial Flow Field to File
-  //if ( sim.saveFreq>0 || sim.saveTime>0 ) _serialize("init");
 }
 
 void Simulation::adaptMesh()
@@ -121,10 +118,6 @@ void Simulation::adaptMesh()
   sim.stopProfiler();
 }
 
-const std::vector<std::shared_ptr<Obstacle>>& Simulation::getObstacleVector() const
-{
-    return sim.obstacle_vector->getObstacleVector();
-}
 const std::vector<std::shared_ptr<Obstacle>>& Simulation::getShapes() const
 {
     return sim.obstacle_vector->getObstacleVector();
@@ -145,7 +138,7 @@ void Simulation::_icFromH5(std::string h5File)
   sim.obstacle_vector->restart(sim.path4serialization+"/"+sim.icFromH5);
 
   // prepare time for next save
-  sim.nextSaveTime = sim.time + sim.saveTime;
+  sim.nextSaveTime = sim.time + sim.dumpTime;
   MPI_Barrier(sim.app_comm);
 }
 
@@ -297,15 +290,15 @@ void Simulation::_deserialize()
 
   printf("DESERIALIZATION: time is %f and step id is %d\n", sim.time, sim.step);
   // prepare time for next save
-  sim.nextSaveTime = sim.time + sim.saveTime;
+  sim.nextSaveTime = sim.time + sim.dumpTime;
 }
 
-void Simulation::run()
+void Simulation::simulate()
 {
   for (;;) {
     const Real dt = calcMaxTimestep();
 
-    if (timestep(dt)) break;
+    if (advance(dt)) break;
   }
 }
 
@@ -368,11 +361,11 @@ Real Simulation::calcMaxTimestep()
   return sim.dt;
 }
 
-bool Simulation::timestep(const Real dt)
+bool Simulation::advance(const Real dt)
 {
   const bool bDumpFreq = (sim.saveFreq>0 && (sim.step+ 1)%sim.saveFreq==0);
-  const bool bDumpTime = (sim.saveTime>0 && (sim.time+dt)>sim.nextSaveTime);
-  if (bDumpTime) sim.nextSaveTime += sim.saveTime;
+  const bool bDumpTime = (sim.dumpTime>0 && (sim.time+dt)>sim.nextSaveTime);
+  if (bDumpTime) sim.nextSaveTime += sim.dumpTime;
   sim.bDump = (bDumpFreq || bDumpTime);
 
   //The mesh be adapted before objects are placed on grid

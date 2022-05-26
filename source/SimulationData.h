@@ -20,6 +20,7 @@ namespace cubism {
 CubismUP_3D_NAMESPACE_BEGIN
 
 class Operator;
+class Obstacle;
 class ObstacleVector;
 class PoissonSolverBase;
 
@@ -75,8 +76,8 @@ struct SimulationData
   int levelMax;                        //max refinement level
   Real Rtol;                         //mesh refinement tolerance
   Real Ctol;                         //mesh compression tolerance
-  std::array<Real, 3> extent;        //simulation cubic domain extents
-  Real maxextent ;                   //max(extent[0],extent[1],extent[2])
+  std::array<Real, 3> extents;       //simulation cubic domain extents
+  Real maxextent ;                   //max(extents[0],extents[1],extents[2])
   Real hmin, hmax;                   //max and min grid spacing
   std::array<Real, 3> uinf = {0,0,0};//velocity of Frame of Reference
 
@@ -115,7 +116,7 @@ struct SimulationData
   bool bDump = false;
   bool verbose = false;
   bool muteAll = false;
-  Real saveTime=0;
+  Real dumpTime=0;
   Real nextSaveTime=0;
   std::string path4serialization = "./";
   bool dumpP;

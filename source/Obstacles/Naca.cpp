@@ -148,7 +148,7 @@ Naca::Naca(SimulationData&s, ArgumentParser&p) : Fish(s, p)
     Ppitch, Mpitch, Fheave, Aheave);
   bBlockRotation[0] = true;
   bBlockRotation[1] = true;
-  myFish = new NacaMidlineData(length, sim.hmin, sim.extent[2], thickness);
+  myFish = new NacaMidlineData(length, sim.hmin, sim.extents[2], thickness);
 }
 
 void Naca::update()
@@ -170,7 +170,7 @@ void Naca::update()
   if(bFixFrameOfRef[1])
     position[1] += sim.dt * ( transVel[1] + sim.uinf[1] );
   else
-    position[1] = sim.extent[1]/2 + Aheave * std::cos(2*M_PI*Fheave*sim.time);
+    position[1] = sim.extents[1]/2 + Aheave * std::cos(2*M_PI*Fheave*sim.time);
   position[2] += sim.dt * ( transVel[2] + sim.uinf[2] );
 }
 

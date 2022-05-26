@@ -43,7 +43,7 @@ int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
   }
 
   cubismup3d::Simulation sim(app_comm, parser);
-  sim.run();
+  sim.simulate();
 
   return 0;
 }

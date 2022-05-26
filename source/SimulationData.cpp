@@ -42,9 +42,9 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   Ctol = parser("-Ctol").asDouble();
 
   // SIMULATION DOMAIN
-  extent[0] = parser("extentx").asDouble(1);
-  extent[1] = parser("extenty").asDouble(0);
-  extent[2] = parser("extentz").asDouble(0);
+  extents[0] = parser("extentx").asDouble(1);
+  extents[1] = parser("extenty").asDouble(0);
+  extents[2] = parser("extentz").asDouble(0);
 
   // SPEED OF FRAME OF REFERENCE
   uinf[0] = parser("-uinfx").asDouble(0.0);
@@ -103,13 +103,12 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   muteAll = parser("-muteAll").asInt(0);
   verbose = muteAll ? false : parser("-verbose").asInt(1) && rank == 0;
   int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
-  Real dumpTime = parser("-tdump").asDouble(0.0);  // dumpTime==0 means dump freq (in time)   is not active
+  dumpTime = parser("-tdump").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
   saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
-  saveTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
+  dumpTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
 
   // TEMP: Removed distinction saving-dumping. Backward compatibility:
   if (saveFreq <= 0 && dumpFreq > 0) saveFreq = dumpFreq;
-  if (saveTime <= 0 && dumpTime > 0) saveTime = dumpTime;
   path4serialization = parser("-serialization").asString("./");
 
   // Dumping
@@ -141,24 +140,24 @@ void SimulationData::_preprocessArguments()
       (Real) bpdz * aux * FluidBlock::sizeZ,
   };
   const Real maxbpd = std::max({NFE[0], NFE[1], NFE[2]});
-  maxextent = std::max({extent[0], extent[1], extent[2]});
-  if( extent[0] <= 0 || extent[1] <= 0 || extent[2] <= 0 )
+  maxextent = std::max({extents[0], extents[1], extents[2]});
+  if( extents[0] <= 0 || extents[1] <= 0 || extents[2] <= 0 )
   {
-    extent[0] = (NFE[0]/maxbpd) * maxextent;
-    extent[1] = (NFE[1]/maxbpd) * maxextent;
-    extent[2] = (NFE[2]/maxbpd) * maxextent;
+    extents[0] = (NFE[0]/maxbpd) * maxextent;
+    extents[1] = (NFE[1]/maxbpd) * maxextent;
+    extents[2] = (NFE[2]/maxbpd) * maxextent;
   }
   else
   {
-    fprintf(stderr, "Invalid extent: %f x %f x %f\n", extent[0], extent[1], extent[2]);
+    fprintf(stderr, "Invalid extent: %f x %f x %f\n", extents[0], extents[1], extents[2]);
     fflush(0); abort();
   }
-  hmin = extent[0] / NFE[0];
-  hmax = extent[0] * aux / NFE[0];
+  hmin = extents[0] / NFE[0];
+  hmax = extents[0] * aux / NFE[0];
   assert(nu >= 0);
   assert(lambda > 0 || DLM > 0);
   assert(saveFreq >= 0.0);
-  assert(saveTime >= 0.0);
+  assert(dumpTime >= 0.0);
 }
 
 SimulationData::~SimulationData()

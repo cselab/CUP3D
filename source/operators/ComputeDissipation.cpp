@@ -111,7 +111,7 @@ void ComputeDissipation::operator()(const Real dt)
 {
   if(sim.freqDiagnostics == 0 || sim.step % sim.freqDiagnostics) return;
 
-  KernelDissipation diss(dt, sim.extent.data(), sim.nu);
+  KernelDissipation diss(dt, sim.extents.data(), sim.nu);
   cubism::compute<LabMPI>(diss,sim.grid,sim.grid);
 
   Real RDX[20] = { 0.0 };
