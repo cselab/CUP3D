@@ -148,6 +148,7 @@ void BiCGSTABSolver::updateAll()
   bd_nnz_ = LocalLS_.bd_nnz_ ;
   send_buff_sz_ = LocalLS_.send_pack_idx_.size();
   const int Nblocks = m_ / BLEN_;
+  bMeanRow_ = LocalLS_.bMeanRow_;
   
   // Allocate device memory for local linear system
   checkCudaErrors(cudaMalloc(&dloc_cooValA_, loc_nnz_ * sizeof(double)));
