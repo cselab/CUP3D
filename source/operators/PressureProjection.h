@@ -8,21 +8,22 @@
 
 #pragma once
 
+#include <memory>
 #include "Operator.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-class PoissonSolverAMR;
+class PoissonSolverBase;
 
 class PressureProjection : public Operator
 {
  protected:
   // Alias of sim.pressureSolver.
-  PoissonSolverAMR * pressureSolver;
+ std::shared_ptr<PoissonSolverBase> pressureSolver;
 
  public:
   PressureProjection(SimulationData & s); 
-  ~PressureProjection();
+  ~PressureProjection() = default;
 
   void operator()(Real dt) override;
 

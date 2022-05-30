@@ -30,6 +30,10 @@ bsx ?= 8
 bsy ?= 8
 bsz ?= 8
 hdf ?= true
+verbose ?= false
+dump_surface_binary ?= false
+gpu ?= false
+profile ?= false
 
 precision ?= double
 ifeq "$(precision)" "single"
@@ -57,8 +61,6 @@ compiler=intel
 include make.icc.flags
 endif
 
-NVCC?=nvcc
-NVFLAGS?=-std=c++14 -code=sm_60 -arch=compute_60
 LD=$(CXX)
 
 ifeq "$(usemap)" "true"
@@ -91,8 +93,8 @@ OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
 	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o \
 	AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
-	ObstaclesCreate.o ObstaclesUpdate.o \
-	FishShapes.o ArgumentParser.o PoissonSolverAMR.o PoissonSolverAMRKernels.o
+	ObstaclesCreate.o ObstaclesUpdate.o FishShapes.o ArgumentParser.o \
+	PoissonSolverBase.o PoissonSolverAMR.o PoissonSolverAMRKernels.o
 
 #################################################
 # HDF5
@@ -113,6 +115,23 @@ ifeq "$(hdf)" "true"
 endif
 
 LIBS += -lgsl -lgslcblas
+
+#################################################
+# CUDA
+#################################################
+NVCC ?= nvcc
+NVFLAGS ?= -code=sm_60 -arch=compute_60
+
+ifeq "$(gpu)" "true"
+	OBJECTS += PoissonSolverExp.o LocalSpMatDnVec.o BiCGSTAB.o
+	CPPFLAGS += -fopenmp -DGPU_POISSON
+	NVFLAGS = -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
+	LIBS += -lcudart -lcublas -lcusparse
+	
+	ifeq "$(profile)" "true"
+		NVFLAGS += -DBICGSTAB_PROFILER
+	endif
+endif
 
 #################################################
 ifneq ($(ERROR),)
@@ -143,6 +162,9 @@ cup.libs.txt:
 	echo $(LIBS) > cup.libs.txt
 
 # COMPILATION INSTRUCTIONS FOR OBJECT FILES
+%.o: %.cu
+	$(NVCC) -ccbin=$(CXX) $(NVFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
+
 %.o: %.cpp
 	$(CXX) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
 

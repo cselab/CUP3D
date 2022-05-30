@@ -16,7 +16,7 @@ class PressureRHS : public Operator
 {
  public:
   PressureRHS(SimulationData & s);
-  ~PressureRHS();
+  ~PressureRHS() = default;
 
   void operator()(Real dt) override;
 

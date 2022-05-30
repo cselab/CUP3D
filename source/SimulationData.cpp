@@ -84,6 +84,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_co
   PoissonErrorTol = parser("-poissonTol").asDouble(1e-6); // absolute error
   PoissonErrorTolRel = parser("-poissonTolRel").asDouble(1e-4); // relative error
   bMeanConstraint = parser("-bMeanConstraint").asInt(1); //zero mean constraint 
+  poissonSolver = parser("-poissonSolver").asString("iterative");
 
   // BOUNDARY CONDITIONS
   // accepted periodic, freespace or wall

@@ -14,6 +14,19 @@ BASEPATH="${SCRATCH}/CubismUP3D/"
 
 source $SETTINGSNAME
 
+if [ ${PSOLVER:0:4} == 'cuda' ] ; then
+  export OMP_PLACES=cores
+  export OMP_PROC_BIND=close
+  export TASKS_PER_NODE=1
+  if [ "${TASKS_PER_NODE}" -gt "1" ] ; then
+    export CRAY_CUDA_MPS=1
+  fi
+  export OMP_NUM_THREADS=$(expr 12 / $TASKS_PER_NODE)
+else
+  export TASKS_PER_NODE=12
+  export OMP_NUM_THREADS=1
+fi
+
 FOLDER=${BASEPATH}${BASENAME}
 mkdir -p ${FOLDER}
 
@@ -38,12 +51,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --partition=${PARTITION}
 #SBATCH --constraint=gpu
 #SBATCH --nodes=${NNODE}
-#SBATCH --ntasks-per-node=12
-#SBATCH --ntasks-per-core=1
-#SBATCH --cpus-per-task=1
-#SBATCH --hint=nomultithread
-
-export OMP_NUM_THREADS=1
+#SBATCH --ntasks-per-node=${TASKS_PER_NODE}
+#SBATCH --cpus-per-task=${OMP_NUM_THREADS}
 
 srun ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
 
