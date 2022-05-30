@@ -328,7 +328,7 @@ void BiCGSTABSolver::hd_cusparseSpMV(
 
   if (comm_size_ > 1)
   {
-    send_buff_pack<<<8*56,32, 0, solver_stream_>>>(send_buff_sz_, d_send_pack_idx_, d_send_buff_, d_op_hd);
+    send_buff_pack<<<8*56, 128, 0, solver_stream_>>>(send_buff_sz_, d_send_pack_idx_, d_send_buff_, d_op_hd);
     checkCudaErrors(cudaGetLastError());
     checkCudaErrors(cudaEventRecord(sync_event_, solver_stream_)); // event to sync up for MPI comm
 
@@ -454,8 +454,8 @@ void BiCGSTABSolver::main(
 
   if (rank_ == 0)
   {
-    std::cout << "  [BiCGSTAB]: || A*x_0 || = " << h_coeffs_->buff_1 << std::endl;
-    std::cout << "  [BiCGSTAB]: Initial norm: " << h_coeffs_->buff_2 << std::endl;
+    std::cout << "  [BiCGSTAB]: || A*x_0 || = " << h_coeffs_->buff_1 << '\n'; 
+    std::cout << "  [BiCGSTAB]: Initial norm: " << h_coeffs_->buff_2 << '\n'; 
   }
   // Set initial error and x_opt
   error = h_coeffs_->buff_2;
@@ -499,7 +499,7 @@ void BiCGSTABSolver::main(
       }
       if (rank_ == 0)
       {
-        std::cout << "  [BiCGSTAB]: Restart at iteration: " << k << " norm: " << error <<" Initial norm: " << error_init << std::endl;
+        std::cout << "  [BiCGSTAB]: Restart at iteration: " << k << " norm: " << error <<" Initial norm: " << error_init << '\n';
       }
       checkCudaErrors(cudaMemcpyAsync(d_rhat_, d_r_, m_ * sizeof(double), cudaMemcpyDeviceToDevice, solver_stream_));
       checkCudaErrors(cublasDnrm2(cublas_handle_, m_, d_rhat_, 1, &(d_coeffs_->rho_curr)));
@@ -595,7 +595,7 @@ void BiCGSTABSolver::main(
       if((error <= max_error) || (error / error_init <= max_rel_error))
       {
         if (rank_ == 0)
-          std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations" << std::endl;;
+          std::cout << "  [BiCGSTAB]: Converged after " << k << " iterations\n";
 
         bConverged = true;
         break;
@@ -613,11 +613,11 @@ void BiCGSTABSolver::main(
   {
     if( bConverged )
       std::cout <<  "  [BiCGSTAB] Error norm (relative) = " << error_opt << "/" << max_error 
-                << " (" << error_opt/error_init  << "/" << max_rel_error << ")" << std::endl;
+                << " (" << error_opt/error_init  << "/" << max_rel_error << ")\n" << std::flush;
     else
       std::cout <<  "  [BiCGSTAB]: Iteration " << max_iter 
                 << ". Error norm (relative) = " << error_opt << "/" << max_error 
-                << " (" << error_opt/error_init  << "/" << max_rel_error << ")" << std::endl;
+                << " (" << error_opt/error_init  << "/" << max_rel_error << ")\n" << std::flush;
   }
 
   prof_.startProfiler("Memcpy", solver_stream_);

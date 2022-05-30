@@ -185,8 +185,8 @@ void LocalSpMatDnVec::make(const std::vector<long long> &Nrows_xcumsum)
   for (size_t i=0; i < send_pack_idx_.size(); i++)
     send_pack_idx_[i] = (int)(send_pack_idx_long[i] + shift);
 
-  if (rank_ == 0)
-    std::cerr << "  [LocalLS]: Rank: " << rank_ << ", m: " << m_ << ", halo: " << halo_ << std::endl;
+//  if (rank_ == 0)
+//    std::cerr << "  [LocalLS]: Rank: " << rank_ << ", m: " << m_ << ", halo: " << halo_ << std::endl;
 }
 
 // Solve method with update to LHS matrix
