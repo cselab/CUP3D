@@ -289,7 +289,7 @@ void MidlineShapes::computeWidthsHeights(
       integrateBSpline(xw, yw, 6, L, rS, width, nM);
     }
   }
-
+  #if 0
   if(!mpirank) {
     FILE * heightWidth;
     heightWidth = fopen("widthHeight.dat","w");
@@ -297,6 +297,7 @@ void MidlineShapes::computeWidthsHeights(
       fprintf(heightWidth,"%.8e \t %.8e \t %.8e \n", rS[i], width[i], height[i]);
     fclose(heightWidth);
   }
+  #endif
 }
 
 CubismUP_3D_NAMESPACE_END
