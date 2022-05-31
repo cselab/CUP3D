@@ -15,189 +15,17 @@ static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 
 namespace {
 
-// input : field with ghosts from which finite differences are computed
-template<int i> Real& inp(LabMPI& L, const int ix, const int iy, const int iz);
-
-template<typename Discretization>
-struct KernelAdvectDiffuse : public Discretization
+struct KernelAdvectDiffuse
 {
-    KernelAdvectDiffuse(const SimulationData&s, const Real a_coef) : Discretization(s), sim(s), coef(a_coef) {}
+    KernelAdvectDiffuse(const SimulationData&s, const Real a_coef) : sim(s), coef(a_coef) {}
     const SimulationData & sim;
     const Real dt = sim.dt;
     const Real mu = sim.nu;
     const Real coef;
     const std::array<Real, 3>& uInf = sim.uinf;
-    const StencilInfo stencil{this->getStencilBeg(), this->getStencilBeg(),
-                              this->getStencilBeg(), this->getStencilEnd(),
-                              this->getStencilEnd(), this->getStencilEnd(), false, {FE_U, FE_V, FE_W}};
+    const StencilInfo stencil{-3,-3,-3,4,4,4,false, {FE_U, FE_V, FE_W}};
 
-    void operator()(LabMPI & lab, const BlockInfo& info) const
-    {
-        FluidBlock& o = *(FluidBlock*)info.ptrBlock;
-        const Real h3   = info.h*info.h*info.h;
-        const Real facA = -dt/info.h;
-        const Real facD = (mu/info.h)*(dt/info.h);
-        for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-        {
-            const Real uAbs[3] = { lab(ix,iy,iz).u + uInf[0], lab(ix,iy,iz).v + uInf[1], lab(ix,iy,iz).w + uInf[2] };
-            const Real dudx = this->template diffx<0>(lab, o, uAbs, ix, iy, iz);
-            const Real dvdx = this->template diffx<1>(lab, o, uAbs, ix, iy, iz);
-            const Real dwdx = this->template diffx<2>(lab, o, uAbs, ix, iy, iz);
-            const Real dudy = this->template diffy<0>(lab, o, uAbs, ix, iy, iz);
-            const Real dvdy = this->template diffy<1>(lab, o, uAbs, ix, iy, iz);
-            const Real dwdy = this->template diffy<2>(lab, o, uAbs, ix, iy, iz);
-            const Real dudz = this->template diffz<0>(lab, o, uAbs, ix, iy, iz);
-            const Real dvdz = this->template diffz<1>(lab, o, uAbs, ix, iy, iz);
-            const Real dwdz = this->template diffz<2>(lab, o, uAbs, ix, iy, iz);
-            const Real duD = this->template lap<0>(lab, o, ix, iy, iz);
-            const Real dvD = this->template lap<1>(lab, o, ix, iy, iz);
-            const Real dwD = this->template lap<2>(lab, o, ix, iy, iz);
-            const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
-            const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
-            const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-            o(ix,iy,iz).tmpU = coef * h3*( facA*duA + facD*duD );
-            o(ix,iy,iz).tmpV = coef * h3*( facA*dvA + facD*dvD );
-            o(ix,iy,iz).tmpW = coef * h3*( facA*dwA + facD*dwD );
-        }
-
-        BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
-        typename FluidBlock::ElementType * faceXm = nullptr;
-        typename FluidBlock::ElementType * faceXp = nullptr;
-        typename FluidBlock::ElementType * faceYm = nullptr;
-        typename FluidBlock::ElementType * faceYp = nullptr;
-        typename FluidBlock::ElementType * faceZp = nullptr;
-        typename FluidBlock::ElementType * faceZm = nullptr;
-        if (tempCase != nullptr)
-        {
-          faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
-          faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
-          faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
-          faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
-          faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
-          faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
-        }
-        if (faceXm != nullptr)
-        {
-          int ix = 0;
-          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-          {
-            faceXm[iy + FluidBlock::sizeY * iz].clear();
-            faceXm[iy + FluidBlock::sizeY * iz].tmpU = h3*facD*(lab(ix,iy,iz).u - lab(ix-1,iy,iz).u);
-          }
-        }
-        if (faceXp != nullptr)
-        {
-          int ix = FluidBlock::sizeX-1;
-          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-          {
-            faceXp[iy + FluidBlock::sizeY * iz].clear();
-            faceXp[iy + FluidBlock::sizeY * iz].tmpU = h3*facD*(lab(ix,iy,iz).u - lab(ix+1,iy,iz).u);
-          }
-        }
-        if (faceYm != nullptr)
-        {
-          int iy = 0;
-          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-          for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-          {
-            faceYm[ix + FluidBlock::sizeX * iz].clear();
-            faceYm[ix + FluidBlock::sizeX * iz].tmpV = h3*facD*(lab(ix,iy,iz).v - lab(ix,iy-1,iz).v);
-          }
-        }
-        if (faceYp != nullptr)
-        {
-          int iy = FluidBlock::sizeY-1;
-          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-          for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-          {
-            faceYp[ix + FluidBlock::sizeX * iz].clear();
-            faceYp[ix + FluidBlock::sizeX * iz].tmpV = h3*facD*(lab(ix,iy,iz).v - lab(ix,iy+1,iz).v);
-          }
-        }
-        if (faceZm != nullptr)
-        {
-          int iz = 0;
-          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-          for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-          {
-            faceZm[ix + FluidBlock::sizeX * iy].clear();
-            faceZm[ix + FluidBlock::sizeX * iy].tmpW = h3*facD*(lab(ix,iy,iz).w - lab(ix,iy,iz-1).w);
-          }
-        }
-        if (faceZp != nullptr)
-        {
-          int iz = FluidBlock::sizeZ-1;
-          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-          for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-          {
-            faceZp[ix + FluidBlock::sizeX * iy].clear();
-            faceZp[ix + FluidBlock::sizeX * iy].tmpW = h3*facD*(lab(ix,iy,iz).w - lab(ix,iy,iz+1).w);
-          }
-        }
-    }
-};
-
-template<> inline Real& inp<0>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).u; }
-template<> inline Real& inp<1>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).v; }
-template<> inline Real& inp<2>(LabMPI& L, const int ix, const int iy, const int iz) { return L(ix,iy,iz).w; }
-
-struct Upwind3rd
-{
-    const SimulationData& sim;
-    const double coef{1.0/6.0};
-    Upwind3rd(const SimulationData& s) : sim(s) {}
-
-    template<int dir>
-    inline Real diffx(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
-    {
-        const Real ucc = inp<dir>(L,ix,iy,iz);
-        const Real um1 = inp<dir>(L,ix-1,iy,iz);
-        const Real um2 = inp<dir>(L,ix-2,iy,iz);
-        const Real up1 = inp<dir>(L,ix+1,iy,iz);
-        const Real up2 = inp<dir>(L,ix+2,iy,iz);
-        return coef * (uAbs[0]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1);
-    }
-    template<int dir>
-    inline Real diffy(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
-    {
-        const Real ucc = inp<dir>(L,ix,iy,iz);
-        const Real um1 = inp<dir>(L,ix,iy-1,iz);
-        const Real um2 = inp<dir>(L,ix,iy-2,iz);
-        const Real up1 = inp<dir>(L,ix,iy+1,iz);
-        const Real up2 = inp<dir>(L,ix,iy+2,iz);
-        return coef*(uAbs[1]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1);
-    }
-    template<int dir>
-    inline Real diffz(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
-    {
-        const Real ucc = inp<dir>(L,ix,iy,iz);
-        const Real um1 = inp<dir>(L,ix,iy,iz-1);
-        const Real um2 = inp<dir>(L,ix,iy,iz-2);
-        const Real up1 = inp<dir>(L,ix,iy,iz+1);
-        const Real up2 = inp<dir>(L,ix,iy,iz+2);
-        return coef*(uAbs[2]>0? 2*up1 +3*ucc -6*um1 +um2 : -up2 +6*up1 -3*ucc -2*um1);
-    }
-    template<int dir>
-    inline Real   lap(LabMPI& L, const FluidBlock& o, const int ix, const int iy, const int iz) const
-    {
-        return  inp<dir>(L,ix+1,iy,iz) + inp<dir>(L,ix-1,iy,iz)
-              + inp<dir>(L,ix,iy+1,iz) + inp<dir>(L,ix,iy-1,iz)
-              + inp<dir>(L,ix,iy,iz+1) + inp<dir>(L,ix,iy,iz-1) - 6 * inp<dir>(L,ix,iy,iz);
-    }
-    int getStencilBeg() const { return -2; }
-    int getStencilEnd() const { return  3; }
-};
-
-struct WENO
-{
-    const SimulationData& sim;
-    WENO(const SimulationData& s) : sim(s) {}
-
-    Real weno5_plus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2) const
+    inline Real weno5_plus(const Real & um2, const Real & um1, const Real & u, const Real & up1, const Real & up2) const
     {
       const Real exponent = 2;
       const Real e = 1e-6;
@@ -219,7 +47,7 @@ struct WENO
       const Real f3 = (1.0 /3.0)*u + ( (+5.0/6.0)*up1- (1.0/6.0)*up2);
       return (w1*f1+w3*f3)+w2*f2;
     }
-    Real weno5_minus(const Real um2, const Real um1, const Real u, const Real up1, const Real up2) const
+    inline Real weno5_minus(const Real & um2, const Real & um1, const Real & u, const Real & up1, const Real & up2) const
     {
       const Real exponent = 2;
       const Real e = 1e-6;
@@ -241,8 +69,8 @@ struct WENO
       const Real f3 = (11.0/6.0)*u + ( (-7.0/6.0)*up1+ (1.0/3.0)*up2);
       return (w1*f1+w3*f3)+w2*f2;
     }
-    Real derivative(const Real U, const Real um3, const Real um2, const Real um1,
-                    const Real u, const Real up1, const Real up2, const Real up3) const
+    inline Real derivative(const Real & U, const Real & um3, const Real & um2, const Real & um1,
+                           const Real & u, const Real & up1, const Real & up2, const Real & up3) const
     {
       Real fp = 0.0;
       Real fm = 0.0;
@@ -258,51 +86,123 @@ struct WENO
       }
       return (fp-fm);
     }
-    template<int dir>
-    inline Real diffx(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
+
+
+    void operator()(LabMPI & lab, const BlockInfo& info) const
     {
-        const Real ucc = inp<dir>(L,ix,iy,iz);
-        const Real um1 = inp<dir>(L,ix-1,iy,iz);
-        const Real um2 = inp<dir>(L,ix-2,iy,iz);
-        const Real um3 = inp<dir>(L,ix-3,iy,iz);
-        const Real up1 = inp<dir>(L,ix+1,iy,iz);
-        const Real up2 = inp<dir>(L,ix+2,iy,iz);
-        const Real up3 = inp<dir>(L,ix+3,iy,iz);
-        return derivative(uAbs[0], um3, um2, um1, ucc, up1, up2, up3);
+        FluidBlock& o = *(FluidBlock*)info.ptrBlock;
+        const Real h3   = info.h*info.h*info.h;
+        const Real facA = -dt/info.h * h3 * coef;
+        const Real facD = (mu/info.h)*(dt/info.h) * h3 * coef;
+
+        for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
+        for (int iy=0; iy<FluidBlock::sizeY; ++iy)
+        for (int ix=0; ix<FluidBlock::sizeX; ++ix)
+        {
+            const Real uAbs[3] = { lab(ix,iy,iz).u + uInf[0], lab(ix,iy,iz).v + uInf[1], lab(ix,iy,iz).w + uInf[2] };
+            const Real dudx = derivative(uAbs[0],lab(ix-3,iy,iz).u,lab(ix-2,iy,iz).u,lab(ix-1,iy,iz).u,lab(ix,iy,iz).u,lab(ix+1,iy,iz).u,lab(ix+2,iy,iz).u,lab(ix+3,iy,iz).u);
+            const Real dvdx = derivative(uAbs[0],lab(ix-3,iy,iz).v,lab(ix-2,iy,iz).v,lab(ix-1,iy,iz).v,lab(ix,iy,iz).v,lab(ix+1,iy,iz).v,lab(ix+2,iy,iz).v,lab(ix+3,iy,iz).v);
+            const Real dwdx = derivative(uAbs[0],lab(ix-3,iy,iz).w,lab(ix-2,iy,iz).w,lab(ix-1,iy,iz).w,lab(ix,iy,iz).w,lab(ix+1,iy,iz).w,lab(ix+2,iy,iz).w,lab(ix+3,iy,iz).w);
+            const Real dudy = derivative(uAbs[1],lab(ix,iy-3,iz).u,lab(ix,iy-2,iz).u,lab(ix,iy-1,iz).u,lab(ix,iy,iz).u,lab(ix,iy+1,iz).u,lab(ix,iy+2,iz).u,lab(ix,iy+3,iz).u);
+            const Real dvdy = derivative(uAbs[1],lab(ix,iy-3,iz).v,lab(ix,iy-2,iz).v,lab(ix,iy-1,iz).v,lab(ix,iy,iz).v,lab(ix,iy+1,iz).v,lab(ix,iy+2,iz).v,lab(ix,iy+3,iz).v);
+            const Real dwdy = derivative(uAbs[1],lab(ix,iy-3,iz).w,lab(ix,iy-2,iz).w,lab(ix,iy-1,iz).w,lab(ix,iy,iz).w,lab(ix,iy+1,iz).w,lab(ix,iy+2,iz).w,lab(ix,iy+3,iz).w);
+            const Real dudz = derivative(uAbs[2],lab(ix,iy,iz-3).u,lab(ix,iy,iz-2).u,lab(ix,iy,iz-1).u,lab(ix,iy,iz).u,lab(ix,iy,iz+1).u,lab(ix,iy,iz+2).u,lab(ix,iy,iz+3).u);
+            const Real dvdz = derivative(uAbs[2],lab(ix,iy,iz-3).v,lab(ix,iy,iz-2).v,lab(ix,iy,iz-1).v,lab(ix,iy,iz).v,lab(ix,iy,iz+1).v,lab(ix,iy,iz+2).v,lab(ix,iy,iz+3).v);
+            const Real dwdz = derivative(uAbs[2],lab(ix,iy,iz-3).w,lab(ix,iy,iz-2).w,lab(ix,iy,iz-1).w,lab(ix,iy,iz).w,lab(ix,iy,iz+1).w,lab(ix,iy,iz+2).w,lab(ix,iy,iz+3).w);
+            const Real duD =  lab(ix+1,iy,iz).u + lab(ix-1,iy,iz).u
+                            + lab(ix,iy+1,iz).u + lab(ix,iy-1,iz).u
+                            + lab(ix,iy,iz+1).u + lab(ix,iy,iz-1).u - 6 * lab(ix,iy,iz).u;
+            const Real dvD =  lab(ix+1,iy,iz).v + lab(ix-1,iy,iz).v
+                            + lab(ix,iy+1,iz).v + lab(ix,iy-1,iz).v
+                            + lab(ix,iy,iz+1).v + lab(ix,iy,iz-1).v - 6 * lab(ix,iy,iz).v;
+            const Real dwD =  lab(ix+1,iy,iz).w + lab(ix-1,iy,iz).w
+                            + lab(ix,iy+1,iz).w + lab(ix,iy-1,iz).w
+                            + lab(ix,iy,iz+1).w + lab(ix,iy,iz-1).w - 6 * lab(ix,iy,iz).w;
+            const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
+            const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
+            const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
+            o(ix,iy,iz).tmpU =  facA*duA + facD*duD ;
+            o(ix,iy,iz).tmpV =  facA*dvA + facD*dvD ;
+            o(ix,iy,iz).tmpW =  facA*dwA + facD*dwD ;
+        }
+
+        BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
+        typename FluidBlock::ElementType * faceXm = nullptr;
+        typename FluidBlock::ElementType * faceXp = nullptr;
+        typename FluidBlock::ElementType * faceYm = nullptr;
+        typename FluidBlock::ElementType * faceYp = nullptr;
+        typename FluidBlock::ElementType * faceZp = nullptr;
+        typename FluidBlock::ElementType * faceZm = nullptr;
+        if (tempCase != nullptr)
+        {
+          faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+          faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+          faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+          faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+          faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
+          faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
+        }
+        if (faceXm != nullptr)
+        {
+          const int ix = 0;
+          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+          {
+            faceXm[iy + FluidBlock::sizeY * iz].clear();
+            faceXm[iy + FluidBlock::sizeY * iz].tmpU = facD*(lab(ix,iy,iz).u - lab(ix-1,iy,iz).u);
+          }
+        }
+        if (faceXp != nullptr)
+        {
+          const int ix = FluidBlock::sizeX-1;
+          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+          {
+            faceXp[iy + FluidBlock::sizeY * iz].clear();
+            faceXp[iy + FluidBlock::sizeY * iz].tmpU = facD*(lab(ix,iy,iz).u - lab(ix+1,iy,iz).u);
+          }
+        }
+        if (faceYm != nullptr)
+        {
+          const int iy = 0;
+          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+          for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+          {
+            faceYm[ix + FluidBlock::sizeX * iz].clear();
+            faceYm[ix + FluidBlock::sizeX * iz].tmpV = facD*(lab(ix,iy,iz).v - lab(ix,iy-1,iz).v);
+          }
+        }
+        if (faceYp != nullptr)
+        {
+          const int iy = FluidBlock::sizeY-1;
+          for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
+          for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+          {
+            faceYp[ix + FluidBlock::sizeX * iz].clear();
+            faceYp[ix + FluidBlock::sizeX * iz].tmpV = facD*(lab(ix,iy,iz).v - lab(ix,iy+1,iz).v);
+          }
+        }
+        if (faceZm != nullptr)
+        {
+          const int iz = 0;
+          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+          for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+          {
+            faceZm[ix + FluidBlock::sizeX * iy].clear();
+            faceZm[ix + FluidBlock::sizeX * iy].tmpW = facD*(lab(ix,iy,iz).w - lab(ix,iy,iz-1).w);
+          }
+        }
+        if (faceZp != nullptr)
+        {
+          const int iz = FluidBlock::sizeZ-1;
+          for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+          for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+          {
+            faceZp[ix + FluidBlock::sizeX * iy].clear();
+            faceZp[ix + FluidBlock::sizeX * iy].tmpW = facD*(lab(ix,iy,iz).w - lab(ix,iy,iz+1).w);
+          }
+        }
     }
-    template<int dir>
-    inline Real diffy(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
-    {
-        const Real ucc = inp<dir>(L,ix,iy,iz);
-        const Real um1 = inp<dir>(L,ix,iy-1,iz);
-        const Real um2 = inp<dir>(L,ix,iy-2,iz);
-        const Real um3 = inp<dir>(L,ix,iy-3,iz);
-        const Real up1 = inp<dir>(L,ix,iy+1,iz);
-        const Real up2 = inp<dir>(L,ix,iy+2,iz);
-        const Real up3 = inp<dir>(L,ix,iy+3,iz);
-        return derivative(uAbs[1], um3, um2, um1, ucc, up1, up2, up3);
-    }
-    template<int dir>
-    inline Real diffz(LabMPI& L, const FluidBlock& o, const Real uAbs[3], const int ix, const int iy, const int iz) const
-    {
-        const Real ucc = inp<dir>(L,ix,iy,iz);
-        const Real um1 = inp<dir>(L,ix,iy,iz-1);
-        const Real um2 = inp<dir>(L,ix,iy,iz-2);
-        const Real um3 = inp<dir>(L,ix,iy,iz-3);
-        const Real up1 = inp<dir>(L,ix,iy,iz+1);
-        const Real up2 = inp<dir>(L,ix,iy,iz+2);
-        const Real up3 = inp<dir>(L,ix,iy,iz+3);
-        return derivative(uAbs[2], um3, um2, um1, ucc, up1, up2, up3);
-    }
-    template<int dir>
-    inline Real   lap(LabMPI& L, const FluidBlock& o, const int ix, const int iy, const int iz) const
-    {
-        return  inp<dir>(L,ix+1,iy,iz) + inp<dir>(L,ix-1,iy,iz)
-              + inp<dir>(L,ix,iy+1,iz) + inp<dir>(L,ix,iy-1,iz)
-              + inp<dir>(L,ix,iy,iz+1) + inp<dir>(L,ix,iy,iz-1) - 6 * inp<dir>(L,ix,iy,iz);
-    }
-    int getStencilBeg() const { return -3; }
-    int getStencilEnd() const { return  4; }
 };
 
 }
@@ -332,8 +232,7 @@ void AdvectionDiffusion::operator()(const Real dt)
     // 2. Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
 
     //   2a) Compute 0.5*dt*RHS(u^{n}) and store it to tmpU,tmpV,tmpW
-    //const KernelAdvectDiffuse<Upwind3rd> step1(sim,0.5);
-    const KernelAdvectDiffuse<WENO> step1(sim,0.5);
+    const KernelAdvectDiffuse step1(sim,0.5);
     cubism::compute<LabMPI>(step1,sim.grid,sim.grid);
 
     //   2b) Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
@@ -357,8 +256,7 @@ void AdvectionDiffusion::operator()(const Real dt)
     /********************************************************************/
     // 3. Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
     //   3a) Compute dt*RHS(u^{n+1/2}) and store it to tmpU,tmpV,tmpW
-    //const KernelAdvectDiffuse<Upwind3rd> step2(sim,1.0);
-    const KernelAdvectDiffuse<WENO> step2(sim,1.0);
+    const KernelAdvectDiffuse step2(sim,1.0);
     cubism::compute<LabMPI>(step2,sim.grid,sim.grid);
 
     //   3b) Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
