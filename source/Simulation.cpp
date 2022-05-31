@@ -45,6 +45,16 @@ std::shared_ptr<Simulation> createSimulation(
 }
 
 Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm, parser) {
+
+  if( sim.verbose )
+  {
+    #pragma omp parallel
+    {
+          int numThreads = omp_get_num_threads();
+          #pragma omp master
+          printf("[CUP2D] Running with %d rank(s) and %d thread(s).\n", size, numThreads);
+    }
+  }
   // Make sure given arguments are valid
   if( sim.verbose )
     std::cout << "[CUP3D] Parsing Arguments.. " << std::endl;
