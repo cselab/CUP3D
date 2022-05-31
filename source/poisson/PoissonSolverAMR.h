@@ -157,7 +157,7 @@ class ComputeLHS : public Operator
       }
       else if (sim.bMeanConstraint == 2)
       {
-         #pragma omp parallel for reduction(+ : avgP)
+         #pragma omp parallel for
          for(size_t i=0; i<vInfo_lhs.size(); ++i)
 	 {
             ScalarBlock & __restrict__ LHS = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
