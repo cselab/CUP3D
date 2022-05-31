@@ -85,12 +85,12 @@ static void getZImplParallel(
 
 void PoissonSolverAMR::getZ()
 {
-  sim.startProfiler("getZ");
+  //sim.startProfiler("getZ");
   #pragma omp parallel
   {
     getZImplParallel(sim, sim.z->getBlocksInfo());
   }
-  sim.stopProfiler();
+  //sim.stopProfiler();
 }
 
 void PoissonSolverAMR::solve()

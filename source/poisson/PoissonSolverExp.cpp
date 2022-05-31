@@ -220,7 +220,7 @@ void PoissonSolverExp::makeFlux(
 
 void PoissonSolverExp::getMat()
 {
-  sim.startProfiler("Make LHS");
+  //sim.startProfiler("Make LHS");
 
   // Update blockID's for blocks from other ranks
   sim.lhs->UpdateBlockInfoAll_States(true); 
@@ -369,7 +369,7 @@ void PoissonSolverExp::getMat()
 
   LocalLS_->make(Nrows_xcumsum_);
 
-  sim.stopProfiler();
+  //sim.stopProfiler();
 }
 
 void PoissonSolverExp::getVec()
