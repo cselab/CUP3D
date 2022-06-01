@@ -150,6 +150,8 @@ struct KernelAdvectDiffuse
           {
             faceXm[iy + FluidBlock::sizeY * iz].clear();
             faceXm[iy + FluidBlock::sizeY * iz].tmpU = facD*(lab(ix,iy,iz).u - lab(ix-1,iy,iz).u);
+            faceXm[iy + FluidBlock::sizeY * iz].tmpV = facD*(lab(ix,iy,iz).v - lab(ix-1,iy,iz).v);
+            faceXm[iy + FluidBlock::sizeY * iz].tmpW = facD*(lab(ix,iy,iz).w - lab(ix-1,iy,iz).w);
           }
         }
         if (faceXp != nullptr)
@@ -160,6 +162,8 @@ struct KernelAdvectDiffuse
           {
             faceXp[iy + FluidBlock::sizeY * iz].clear();
             faceXp[iy + FluidBlock::sizeY * iz].tmpU = facD*(lab(ix,iy,iz).u - lab(ix+1,iy,iz).u);
+            faceXp[iy + FluidBlock::sizeY * iz].tmpV = facD*(lab(ix,iy,iz).v - lab(ix+1,iy,iz).v);
+            faceXp[iy + FluidBlock::sizeY * iz].tmpW = facD*(lab(ix,iy,iz).w - lab(ix+1,iy,iz).w);
           }
         }
         if (faceYm != nullptr)
@@ -169,7 +173,9 @@ struct KernelAdvectDiffuse
           for(int ix=0; ix<FluidBlock::sizeX; ++ix)
           {
             faceYm[ix + FluidBlock::sizeX * iz].clear();
+            faceYm[ix + FluidBlock::sizeX * iz].tmpU = facD*(lab(ix,iy,iz).u - lab(ix,iy-1,iz).u);
             faceYm[ix + FluidBlock::sizeX * iz].tmpV = facD*(lab(ix,iy,iz).v - lab(ix,iy-1,iz).v);
+            faceYm[ix + FluidBlock::sizeX * iz].tmpW = facD*(lab(ix,iy,iz).w - lab(ix,iy-1,iz).w);
           }
         }
         if (faceYp != nullptr)
@@ -179,7 +185,9 @@ struct KernelAdvectDiffuse
           for(int ix=0; ix<FluidBlock::sizeX; ++ix)
           {
             faceYp[ix + FluidBlock::sizeX * iz].clear();
+            faceYp[ix + FluidBlock::sizeX * iz].tmpU = facD*(lab(ix,iy,iz).u - lab(ix,iy+1,iz).u);
             faceYp[ix + FluidBlock::sizeX * iz].tmpV = facD*(lab(ix,iy,iz).v - lab(ix,iy+1,iz).v);
+            faceYp[ix + FluidBlock::sizeX * iz].tmpW = facD*(lab(ix,iy,iz).w - lab(ix,iy+1,iz).w);
           }
         }
         if (faceZm != nullptr)
@@ -189,6 +197,8 @@ struct KernelAdvectDiffuse
           for(int ix=0; ix<FluidBlock::sizeX; ++ix)
           {
             faceZm[ix + FluidBlock::sizeX * iy].clear();
+            faceZm[ix + FluidBlock::sizeX * iy].tmpU = facD*(lab(ix,iy,iz).u - lab(ix,iy,iz-1).u);
+            faceZm[ix + FluidBlock::sizeX * iy].tmpV = facD*(lab(ix,iy,iz).v - lab(ix,iy,iz-1).v);
             faceZm[ix + FluidBlock::sizeX * iy].tmpW = facD*(lab(ix,iy,iz).w - lab(ix,iy,iz-1).w);
           }
         }
@@ -199,6 +209,8 @@ struct KernelAdvectDiffuse
           for(int ix=0; ix<FluidBlock::sizeX; ++ix)
           {
             faceZp[ix + FluidBlock::sizeX * iy].clear();
+            faceZp[ix + FluidBlock::sizeX * iy].tmpU = facD*(lab(ix,iy,iz).u - lab(ix,iy,iz+1).u);
+            faceZp[ix + FluidBlock::sizeX * iy].tmpV = facD*(lab(ix,iy,iz).v - lab(ix,iy,iz+1).v);
             faceZp[ix + FluidBlock::sizeX * iy].tmpW = facD*(lab(ix,iy,iz).w - lab(ix,iy,iz+1).w);
           }
         }
