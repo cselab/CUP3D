@@ -124,7 +124,7 @@ NVFLAGS ?= -code=sm_60 -arch=compute_60
 
 ifeq "$(gpu)" "true"
 	OBJECTS += PoissonSolverExp.o LocalSpMatDnVec.o BiCGSTAB.o
-	CPPFLAGS += -fopenmp -DGPU_POISSON
+	CPPFLAGS += -fopenmp -DGPU_POISSON -Wno-shadow -Wno-undef -Wno-float-equal -Wno-redundant-decls
 	NVFLAGS = -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
 	LIBS += -lcudart -lcublas -lcusparse
 	
