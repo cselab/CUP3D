@@ -235,10 +235,10 @@ class ComputeQcriterion : public Operator
 class KernelDivergence
 {
   public:
-      SimulationData & sim;
+  SimulationData & sim;
   KernelDivergence(SimulationData & s): sim(s){}
   const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W,FE_TMPU}};
+  const cubism::StencilInfo stencil{-1,-1,-1, 2,2,2, false, {FE_U,FE_V,FE_W}};
 
   void operator()(LabMPI & lab, const cubism::BlockInfo& info) const
   {
