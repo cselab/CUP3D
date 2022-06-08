@@ -69,9 +69,8 @@ struct ObstacleBlock
   Real  forcex_P = 0,  forcey_P = 0,  forcez_P = 0;
   Real  forcex_V = 0,  forcey_V = 0,  forcez_V = 0;
   Real torquex   = 0, torquey   = 0, torquez   = 0;
-  Real  gammax   = 0,  gammay   = 0,  gammaz   = 0;
   Real drag = 0, thrust = 0, Pout=0, PoutBnd=0, defPower=0, defPowerBnd = 0, pLocom = 0;
-  static const int nQoI = 22;
+  static const int nQoI = 19;
 
   virtual void sumQoI(std::vector<Real>& sum)
   {
@@ -81,7 +80,6 @@ struct ObstacleBlock
     sum[k++] += forcex_P; sum[k++] += forcey_P; sum[k++] += forcez_P;
     sum[k++] += forcex_V; sum[k++] += forcey_V; sum[k++] += forcez_V;
     sum[k++] += torquex;  sum[k++] += torquey;  sum[k++] += torquez;
-    sum[k++] += gammax;   sum[k++] += gammay;   sum[k++] += gammaz;
     sum[k++] += drag;     sum[k++] += thrust;   sum[k++] += Pout;
     sum[k++] += PoutBnd;  sum[k++] += defPower; sum[k++] += defPowerBnd;
     sum[k++] += pLocom;
@@ -107,7 +105,6 @@ struct ObstacleBlock
     forcex   = forcey   = forcez   =0;
     forcex_P = forcey_P = forcez_P =0;
     forcex_V = forcey_V = forcez_V =0;
-    gammax   = gammay   = gammaz   =0;
     torquex  = torquey  = torquez  =0;
     mass=drag=thrust=Pout=PoutBnd=defPower=defPowerBnd=0;
 

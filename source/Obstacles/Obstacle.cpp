@@ -285,7 +285,6 @@ void Obstacle::computeForces()
   presForce[0]  = sum[k++]; presForce[1]  = sum[k++]; presForce[2]  = sum[k++];
   viscForce[0]  = sum[k++]; viscForce[1]  = sum[k++]; viscForce[2]  = sum[k++];
   surfTorque[0] = sum[k++]; surfTorque[1] = sum[k++]; surfTorque[2] = sum[k++];
-  gamma[0]      = sum[k++]; gamma[1]      = sum[k++]; gamma[2]      = sum[k++];
   drag          = sum[k++]; thrust        = sum[k++]; Pout          = sum[k++];
   PoutBnd       = sum[k++]; defPower      = sum[k++]; defPowerBnd   = sum[k++];
   pLocom        = sum[k++];
@@ -504,29 +503,25 @@ void Obstacle::_writeSurfForcesToFile()
   fnameF<<"forceValues_"<<obstacleID<<".dat";
   std::stringstream &ssF = logger.get_stream(fnameF.str());
   if(sim.step==0) {
-    ssF<<"step time mass force_x force_y force_z torque_x torque_y torque_z presF_x presF_y presF_z viscF_x viscF_y viscF_z gamma_x gamma_y gamma_z drag thrust"<<std::endl;
+    ssF<<"step time Fx Fy Fz torque_x torque_y torque_z FxPres FyPres FzPres FxVisc FyVisc FzVisc drag thrust"<<std::endl;
   }
 
   ssF << sim.step << " ";
   ssF.setf(std::ios::scientific);
   ssF.precision(std::numeric_limits<float>::digits10 + 1);
-  ssF<<sim.time<<" "<<mass<<" "<<surfForce[0]<<" "<<surfForce[1]<<" "<<surfForce[2]
+  ssF<<sim.time<<" "<<surfForce[0]<<" "<<surfForce[1]<<" "<<surfForce[2]
      <<" "<<surfTorque[0]<<" "<<surfTorque[1]<<" "<<surfTorque[2]<<" "
      <<presForce[0]<<" "<<presForce[1]<<" "<<presForce[2]<<" "<<viscForce[0]
-     <<" "<<viscForce[1]<<" "<<viscForce[2]<<" "<<gamma[0]<<" "<<gamma[1]
-     <<" "<<gamma[2]<<" "<<drag<<" "<<thrust<<std::endl;
+     <<" "<<viscForce[1]<<" "<<viscForce[2]<<" "<<drag<<" "<<thrust<<std::endl;
 
   fnameP<<"powerValues_"<<obstacleID<<".dat";
   std::stringstream &ssP = logger.get_stream(fnameP.str());
   if(sim.step==0) {
-    ssP<<"step time Pthrust Pdrag Pout pDef etaPDef pLocom PoutBnd defPowerBnd etaPDefBnd"<<std::endl;
+    ssP<<"time Pthrust Pdrag PoutBnd Pout PoutNew defPowerBnd defPower EffPDefBnd EffPDef"<<std::endl;
   }
-  ssP << sim.step << " ";
   ssP.setf(std::ios::scientific);
   ssP.precision(std::numeric_limits<float>::digits10 + 1);
-  // Output defpowers to text file with the correct sign
-  ssP<<sim.time<<" "<<Pthrust<<" "<<Pdrag<<" "<<Pout<<" "<<-defPower<<" "<<EffPDef
-     <<" "<<pLocom<<" "<<PoutBnd<<" "<<-defPowerBnd<<" "<<EffPDefBnd<<std::endl;
+  ssP<<sim.time<<" "<<Pthrust<<" "<<Pdrag<<" "<<PoutBnd<<" "<<Pout<<" "<<pLocom<<" "<<defPowerBnd<<" "<<defPower<<" "<<EffPDefBnd<<" "<<EffPDef<<std::endl;
 }
 
 void Obstacle::_writeDiagForcesToFile()

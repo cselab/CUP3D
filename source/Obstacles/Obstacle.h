@@ -131,7 +131,6 @@ public:
   //Quantities of Interest (forces, drag etc.)
   std::array<Real,3> force  = {0,0,0};
   std::array<Real,3> torque = {0,0,0};
-  Real gamma[3]={0,0,0};
   Real surfForce[3]={0,0,0};
   Real presForce[3]={0,0,0};
   Real viscForce[3]={0,0,0};
