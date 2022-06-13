@@ -16,10 +16,10 @@
 
 using std::cout;
 
-int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
+int cubism_main (const MPI_Comm comm, int argc, char **argv)
 {
   int rank;
-  MPI_Comm_rank(app_comm, &rank);
+  MPI_Comm_rank(comm, &rank);
 
   cubism::ArgumentParser parser(argc,argv);
   parser.set_strict_mode();
@@ -42,7 +42,7 @@ int cubism_main (const MPI_Comm app_comm, int argc, char **argv)
     cout << "====================================================================================================================\n";
   }
 
-  cubismup3d::Simulation sim(app_comm, parser);
+  cubismup3d::Simulation sim(comm, parser);
   sim.simulate();
 
   return 0;

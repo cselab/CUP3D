@@ -35,7 +35,7 @@ double PoissonSolverExp::getA_local(const int i, const int j)
 }
 
 PoissonSolverExp::PoissonSolverExp(SimulationData& s)
-  : sim(s), m_comm_(sim.app_comm), GenericCell(*this), 
+  : sim(s), m_comm_(sim.comm), GenericCell(*this), 
     XminCell(*this), XmaxCell(*this), YminCell(*this), YmaxCell(*this), ZminCell(*this), ZmaxCell(*this),
     faceIndexers {&XminCell, &XmaxCell, &YminCell, &YmaxCell, &ZminCell, &ZmaxCell}
 {
@@ -229,7 +229,7 @@ void PoissonSolverExp::getMat()
   std::array<int, 3> blocksPerDim = sim.lhs->getMaxBlocks();
 
   //Get a vector of all BlockInfos of the grid we're interested in
-  std::vector<cubism::BlockInfo>&  RhsInfo = sim.lhs->getBlocksInfo();
+  std::vector<cubism::BlockInfo>&  RhsInfo = sim.lhsInfo();
   const int Nblocks = RhsInfo.size();
   const int N = Nblocks * nxyz_;
 
@@ -375,8 +375,8 @@ void PoissonSolverExp::getMat()
 void PoissonSolverExp::getVec()
 {
   //Get a vector of all BlockInfos of the grid we're interested in
-  std::vector<cubism::BlockInfo>&  RhsInfo = sim.lhs->getBlocksInfo();
-  std::vector<cubism::BlockInfo>&  zInfo = sim.z->getBlocksInfo();
+  std::vector<cubism::BlockInfo>&  RhsInfo = sim.lhsInfo();
+  std::vector<cubism::BlockInfo>&  zInfo = sim.presInfo();
   const int Nblocks = RhsInfo.size();
 
   std::vector<double>& x = LocalLS_->get_x();
@@ -434,9 +434,9 @@ void PoissonSolverExp::solve()
   const double max_rel_error = sim.PoissonErrorTolRel;
   const int max_restarts = 100;
 
-  if (sim.z->UpdateFluxCorrection)
+  if (sim.pres->UpdateFluxCorrection)
   {
-    sim.z->UpdateFluxCorrection = false;
+    sim.pres->UpdateFluxCorrection = false;
     this->getMat();
     this->getVec();
     LocalLS_->solveWithUpdate(max_error, max_rel_error, max_restarts);
@@ -449,7 +449,7 @@ void PoissonSolverExp::solve()
 
   //Now that we found the solution, we just substract the mean to get a zero-mean solution. 
   //This can be done because the solver only cares about grad(P) = grad(P-mean(P))
-  std::vector<cubism::BlockInfo>&  zInfo = sim.z->getBlocksInfo();
+  std::vector<cubism::BlockInfo>&  zInfo = sim.presInfo();
   const int Nblocks = zInfo.size();
 
   const std::vector<double>& x = LocalLS_->get_x();
@@ -460,14 +460,14 @@ void PoissonSolverExp::solve()
   {
     const int m = zInfo[i].level;
     const long long n = zInfo[i].Z;
-    const BlockInfo & info = sim.grid->getBlockInfoAll(m,n);
-    BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
+    const BlockInfo & info = sim.pres->getBlockInfoAll(m,n);
+    ScalarBlock & __restrict__ b  = *(ScalarBlock*) info.ptrBlock;
     for(int iz=0; iz<BlockType::sizeZ; iz++)
     for(int iy=0; iy<BlockType::sizeY; iy++)
     for(int ix=0; ix<BlockType::sizeX; ix++)
     {
       const long long sfc_loc = GenericCell.This(zInfo[i], ix, iy, iz) + shift;
-      b(ix,iy,iz).p = x[sfc_loc];
+      b(ix,iy,iz).s = x[sfc_loc];
     }
   }
 }

@@ -277,7 +277,7 @@ void Obstacle::computeForces()
     block->sumQoI(sum);
   }
 
-  MPI_Allreduce(MPI_IN_PLACE, sum.data(), nQoI, MPI_Real, MPI_SUM, grid->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, sum.data(), nQoI, MPI_Real, MPI_SUM, sim.comm);
 
   //additive quantities: (check against order in sumQoI of ObstacleBlocks.h )
   unsigned k = 0;

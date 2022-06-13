@@ -6,8 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_3D_AdvectionDiffusion_h
-#define CubismUP_3D_AdvectionDiffusion_h
+#pragma once
 
 #include "Operator.h"
 
@@ -26,4 +25,3 @@ public:
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif

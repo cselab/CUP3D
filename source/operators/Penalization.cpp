@@ -3,8 +3,6 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
-//
 
 #include "Penalization.h"
 #include "../Obstacles/ObstacleVector.h"
@@ -26,13 +24,13 @@ struct KernelPenalization
   KernelPenalization(Real _dt, Real _lambda, ObstacleVector* ov) :
     dt(_dt), lambda(_lambda), obstacle_vector(ov) {}
 
-  void operator()(const cubism::BlockInfo& info) const
+  void operator()(const cubism::BlockInfo& info,const BlockInfo& ChiInfo) const
   {
     for (const auto &obstacle : obstacle_vector->getObstacleVector())
-      visit(info, obstacle.get());
+      visit(info, ChiInfo, obstacle.get());
   }
 
-  void visit(const BlockInfo& info, Obstacle* const obstacle) const
+  void visit(const BlockInfo& info, const BlockInfo& ChiInfo, Obstacle* const obstacle) const
   {
     const auto& obstblocks = obstacle->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
@@ -40,7 +38,8 @@ struct KernelPenalization
 
     const CHIMAT & __restrict__ CHI = o->chi;
     const UDEFMAT & __restrict__ UDEF = o->udef;
-    FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+    VectorBlock& b = *(VectorBlock*)info.ptrBlock;
+    ScalarBlock& bChi = *(ScalarBlock*)ChiInfo.ptrBlock;
     const std::array<Real,3> CM = obstacle->getCenterOfMass();
     const std::array<Real,3> vel = obstacle->getTranslationVelocity();
     const std::array<Real,3> omega = obstacle->getAngularVelocity();
@@ -54,13 +53,13 @@ struct KernelPenalization
     Real &TX = o->TX, &TY = o->TY, &TZ = o->TZ;
     FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
 
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+    for(int iz=0; iz<VectorBlock::sizeZ; ++iz)
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
       // What if multiple obstacles share a block? Do not write udef onto
       // grid if CHI stored on the grid is greater than obst's CHI.
-      if(b(ix,iy,iz).chi > CHI[iz][iy][ix]) continue;
+      if(bChi(ix,iy,iz).s > CHI[iz][iy][ix]) continue;
       if(CHI[iz][iy][ix] <= 0) continue; // no need to do anything
       Real p[3]; info.pos(p, ix, iy, iz);
       p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
@@ -72,14 +71,14 @@ struct KernelPenalization
       };
       const Real X = CHI[iz][iy][ix];
       const Real penalFac = implicitPenalization? X*lambdaFac/(1+X*lambdaFac*dt):X*lambdaFac;
-      const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u);
-      const Real FPY = penalFac * (U_TOT[1] - b(ix,iy,iz).v);
-      const Real FPZ = penalFac * (U_TOT[2] - b(ix,iy,iz).w);
+      const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u[0]);
+      const Real FPY = penalFac * (U_TOT[1] - b(ix,iy,iz).u[1]);
+      const Real FPZ = penalFac * (U_TOT[2] - b(ix,iy,iz).u[2]);
       // What if two obstacles overlap? Let's plus equal. We will need a
       // repulsion term of the velocity at some point in the code.
-      b(ix,iy,iz).u = b(ix,iy,iz).u + dt * FPX;
-      b(ix,iy,iz).v = b(ix,iy,iz).v + dt * FPY;
-      b(ix,iy,iz).w = b(ix,iy,iz).w + dt * FPZ;
+      b(ix,iy,iz).u[0] = b(ix,iy,iz).u[0] + dt * FPX;
+      b(ix,iy,iz).u[1] = b(ix,iy,iz).u[1] + dt * FPY;
+      b(ix,iy,iz).u[2] = b(ix,iy,iz).u[2] + dt * FPZ;
 
       FX += dv * FPX; FY += dv * FPY; FZ += dv * FPZ;
       TX += dv * ( p[1] * FPZ - p[2] * FPY );
@@ -102,7 +101,7 @@ static void kernelFinalizePenalizationForce(SimulationData& sim)
       M[0] += oBlock[i]->FX; M[1] += oBlock[i]->FY; M[2] += oBlock[i]->FZ;
       M[3] += oBlock[i]->TX; M[4] += oBlock[i]->TY; M[5] += oBlock[i]->TZ;
     }
-    const auto comm = sim.grid->getCartComm();
+    const auto comm = sim.comm;
     MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_Real, MPI_SUM, comm);
     obst->force[0]  = M[0]; obst->force[1]  = M[1]; obst->force[2]  = M[2];
     obst->torque[0] = M[3]; obst->torque[1] = M[4]; obst->torque[2] = M[5];
@@ -474,7 +473,7 @@ void ElasticCollision1(const Real  m1,const Real  m2,
 void Penalization::preventCollidingObstacles() const
 {
     const auto & shapes = sim.obstacle_vector->getObstacleVector();
-    const auto & infos  = sim.grid->getBlocksInfo();
+    const auto & infos  = sim.chiInfo();
     const size_t N = sim.obstacle_vector->nObstacles();
     sim.bCollisionID.clear();
 
@@ -550,9 +549,9 @@ void Penalization::preventCollidingObstacles() const
             const UDEFMAT & iUDEF = iBlocks[k]->udef;
             const UDEFMAT & jUDEF = jBlocks[k]->udef;
 
-            for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-            for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-            for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+            for(int iz=0; iz<VectorBlock::sizeZ; ++iz)
+            for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+            for(int ix=0; ix<VectorBlock::sizeX; ++ix)
             {
                 if(iChi[iz][iy][ix] <= 0.0 || jChi[iz][iy][ix] <= 0.0 ) continue;
 
@@ -617,7 +616,7 @@ void Penalization::preventCollidingObstacles() const
         buffer[20*i + 19] = coll.jvecZ;
 
     }
-    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, sim.grid->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, buffer.data(), buffer.size(), MPI_Real, MPI_SUM, sim.comm);
     for (size_t i = 0 ; i < N ; i++)
     {
         auto & coll = collisions[i];
@@ -693,7 +692,7 @@ void Penalization::preventCollidingObstacles() const
         //{
         //    std::cout << "Forced objects not supported for collision." << std::endl;
         //    return;
-        //    //MPI_Abort(sim.grid->getCartComm(),1);
+        //    //MPI_Abort(sim.comm,1);
         //}
 
         Real ho1[3];
@@ -786,20 +785,21 @@ void Penalization::operator()(const Real dt)
 
   preventCollidingObstacles();
 
-  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+  std::vector<cubism::BlockInfo>& chiInfo = sim.chiInfo();
+  std::vector<cubism::BlockInfo>& velInfo = sim.velInfo();
   #pragma omp parallel
   { // each thread needs to call its own non-const operator() function
     if(sim.bImplicitPenalization)
     {
       KernelPenalization<1> K(sim.dt, sim.lambda, sim.obstacle_vector);
       #pragma omp for schedule(dynamic, 1)
-      for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
+      for (size_t i = 0; i < chiInfo.size(); ++i) K(velInfo[i],chiInfo[i]);
     }
     else
     {
       KernelPenalization<0> K(sim.dt, sim.lambda, sim.obstacle_vector);
       #pragma omp for schedule(dynamic, 1)
-      for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
+      for (size_t i = 0; i < chiInfo.size(); ++i) K(velInfo[i],chiInfo[i]);
     }
   }
 

@@ -76,7 +76,6 @@ class Obstacle
 {
 protected:
   SimulationData & sim;
-  FluidGridMPI * const grid = sim.grid;
   bool printedHeaderVels = false;
 public:
   std::vector<ObstacleBlock*> obstacleBlocks;
@@ -187,13 +186,13 @@ public:
       delete entry;
       entry = nullptr;
     }
-    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
-    obstacleBlocks.resize(vInfo.size(), nullptr);
+    std::vector<cubism::BlockInfo>& chiInfo = sim.chiInfo();
+    obstacleBlocks.resize(chiInfo.size(), nullptr);
 
     #pragma omp parallel for schedule(dynamic, 1)
-    for(size_t i=0; i<vInfo.size(); i++) {
-      const cubism::BlockInfo& info = vInfo[i];
-      const FluidBlock &b = *(FluidBlock *)info.ptrBlock;
+    for(size_t i=0; i<chiInfo.size(); i++) {
+      const cubism::BlockInfo& info = chiInfo[i];
+      const ScalarBlock &b = *(ScalarBlock *)info.ptrBlock;
       if(kernel.isTouching(info, b)) {
         assert(obstacleBlocks[info.blockID] == nullptr);
         obstacleBlocks[info.blockID] = new ObstacleBlock();

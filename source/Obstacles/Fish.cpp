@@ -113,8 +113,8 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
       MySegments[j].clear();
   MySegments.clear();
 
-  const std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
-  std::vector<std::vector<VolumeSegment_OBB*>> ret(vInfo.size());
+  const std::vector<cubism::BlockInfo>& chiInfo = sim.chiInfo();
+  std::vector<std::vector<VolumeSegment_OBB*>> ret(chiInfo.size());
 
   // clear deformation velocities
   for(auto & entry : obstacleBlocks) {
@@ -122,12 +122,12 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
     delete entry;
     entry = nullptr;
   }
-  obstacleBlocks.resize(vInfo.size(), nullptr);
+  obstacleBlocks.resize(chiInfo.size(), nullptr);
 
   //#pragma omp parallel for schedule(dynamic, 1)
-  for(size_t i=0; i<vInfo.size(); ++i)
+  for(size_t i=0; i<chiInfo.size(); ++i)
   {
-    const BlockInfo & info = vInfo[i];
+    const BlockInfo & info = chiInfo[i];
     Real MINP[3], MAXP[3];
     info.pos(MINP, 0, 0, 0);
     info.pos(MAXP, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);

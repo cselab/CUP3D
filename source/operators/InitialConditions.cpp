@@ -20,11 +20,11 @@ class KernelIC
 {
  public:
   KernelIC(const Real u) {}
-  void operator()(const BlockInfo& info, FluidBlock& block) const
+  void operator()(const BlockInfo& info, VectorBlock& block) const
   {
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) block(ix,iy,iz).clear();
+    for(int iz=0; iz<VectorBlock::sizeZ; ++iz)
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix) block(ix,iy,iz).clear();
   }
 };
 
@@ -36,16 +36,16 @@ class KernelIC_taylorGreen
   const Real A = uMax, B = - uMax * ext[1] / ext[0];
  public:
   KernelIC_taylorGreen(const std::array<Real, 3> &extents, const Real U): ext{extents}, uMax(U) {}
-  void operator()(const BlockInfo& info, FluidBlock& block) const
+  void operator()(const BlockInfo& info, VectorBlock& block) const
   {
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+    for(int iz=0; iz<VectorBlock::sizeZ; ++iz)
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
       block(ix,iy,iz).clear();
       Real p[3]; info.pos(p, ix, iy, iz);
-      block(ix,iy,iz).u = A*std::cos(a*p[0])*std::sin(b*p[1])*std::sin(c*p[2]);
-      block(ix,iy,iz).v = B*std::sin(a*p[0])*std::cos(b*p[1])*std::sin(c*p[2]);
+      block(ix,iy,iz).u[0] = A*std::cos(a*p[0])*std::sin(b*p[1])*std::sin(c*p[2]);
+      block(ix,iy,iz).u[1] = B*std::sin(a*p[0])*std::cos(b*p[1])*std::sin(c*p[2]);
     }
   }
 };
@@ -60,14 +60,14 @@ class KernelIC_channel
   KernelIC_channel(const std::array<Real, 3> &extents, const Real U, const int _dir):
     dir(_dir), ext{extents}, uMax(U) {}
 
-  void operator()(const BlockInfo& info, FluidBlock& block) const
+  void operator()(const BlockInfo& info, VectorBlock& block) const
   {
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+    for(int iz=0; iz<VectorBlock::sizeZ; ++iz)
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
       block(ix,iy,iz).clear();
       Real p[3]; info.pos(p, ix, iy, iz);
-      block(ix,iy,iz).u = FAC * p[dir] * (H-p[dir]);
+      block(ix,iy,iz).u[0] = FAC * p[dir] * (H-p[dir]);
     }
   }
 };
@@ -83,16 +83,16 @@ class KernelIC_channelrandom
   KernelIC_channelrandom(const std::array<Real, 3> &extents, const Real U, const int _dir):
     dir(_dir), ext{extents}, uMax(U) {}
 
-  void operator()(const BlockInfo& info, FluidBlock& block) const
+  void operator()(const BlockInfo& info, VectorBlock& block) const
   {
     std::random_device seed;
     std::mt19937 gen(seed());
     std::normal_distribution<Real> dist(0.0, 0.01);
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+    for(int iz=0; iz<VectorBlock::sizeZ; ++iz)
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
       block(ix,iy,iz).clear();
-      block(ix,iy,iz).u = dist(gen);
+      block(ix,iy,iz).u[0] = dist(gen);
     }
     //If we set block(ix,iy,iz).u = U*(1.0+dist(gen)) the compiler gives 
     //an annoying warning. Doing this slower approach with two loops makes
@@ -103,7 +103,7 @@ class KernelIC_channelrandom
     for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
       Real p[3]; info.pos(p, ix, iy, iz);
       const Real U = FAC * p[dir] * (H-p[dir]);
-      block(ix,iy,iz).u = U * ( block(ix,iy,iz).u + 1.0 );
+      block(ix,iy,iz).u[0] = U * ( block(ix,iy,iz).u[0] + 1.0 );
     }
   }
 };
@@ -112,7 +112,7 @@ class KernelIC_channelrandom
 
 static void initialPenalization(SimulationData& sim, const Real dt)
 {
-  const std::vector<BlockInfo>& vInfo = sim.grid->getBlocksInfo();
+  const std::vector<BlockInfo>& velInfo = sim.velInfo();
   for (const auto& obstacle : sim.obstacle_vector->getObstacleVector()) {
     using CHI_MAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
     using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
@@ -125,19 +125,19 @@ static void initialPenalization(SimulationData& sim, const Real dt)
       const std::array<Real,3> omegaBody = obstacle->getAngularVelocity();
 
       #pragma omp for schedule(dynamic)
-      for (size_t i = 0; i < vInfo.size(); ++i)
+      for (size_t i = 0; i < velInfo.size(); ++i)
       {
-        const BlockInfo& info = vInfo[i];
+        const BlockInfo& info = velInfo[i];
         const auto pos = obstblocks[info.blockID];
         if(pos == nullptr) continue;
 
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+        VectorBlock& b = *(VectorBlock*)info.ptrBlock;
         CHI_MAT & __restrict__ CHI = pos->chi;
         UDEFMAT & __restrict__ UDEF = pos->udef;
 
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        for(int iz=0; iz<VectorBlock::sizeZ; ++iz)
+        for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+        for(int ix=0; ix<VectorBlock::sizeX; ++ix)
         {
           Real p[3]; info.pos(p, ix, iy, iz);
           p[0]-=centerOfMass[0]; p[1]-=centerOfMass[1]; p[2]-=centerOfMass[2];
@@ -153,9 +153,9 @@ static void initialPenalization(SimulationData& sim, const Real dt)
           };
           // what if multiple obstacles share a block??
           // let's plus equal and wake up during the night to stress about it
-          b(ix,iy,iz).u += CHI[iz][iy][ix] * ( U_TOT[0] - b(ix,iy,iz).u );
-          b(ix,iy,iz).v += CHI[iz][iy][ix] * ( U_TOT[1] - b(ix,iy,iz).v );
-          b(ix,iy,iz).w += CHI[iz][iy][ix] * ( U_TOT[2] - b(ix,iy,iz).w );
+          b(ix,iy,iz).u[0] += CHI[iz][iy][ix] * ( U_TOT[0] - b(ix,iy,iz).u[0] );
+          b(ix,iy,iz).u[1] += CHI[iz][iy][ix] * ( U_TOT[1] - b(ix,iy,iz).u[1] );
+          b(ix,iy,iz).u[2] += CHI[iz][iy][ix] * ( U_TOT[2] - b(ix,iy,iz).u[2] );
         }
       }
     }
@@ -203,16 +203,19 @@ void InitialConditions::operator()(const Real dt)
     run(KernelIC_channel(sim.extents, sim.uMax_forced, dir));
   }
   {
-    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+    std::vector<cubism::BlockInfo>& chiInfo  = sim.chiInfo();
+    std::vector<cubism::BlockInfo>& presInfo = sim.presInfo();
     //zero fields, going to contain Udef:
     #pragma omp parallel for schedule(static)
-    for(unsigned i=0; i<vInfo.size(); i++)
+    for(unsigned i=0; i<chiInfo.size(); i++)
     {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
+      ScalarBlock& CHI  = *(ScalarBlock*) chiInfo[i].ptrBlock;
+      ScalarBlock& PRES = *(ScalarBlock*)presInfo[i].ptrBlock;
       for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
       for(int iy=0; iy<FluidBlock::sizeY; ++iy)
       for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        b(ix,iy,iz).tmpU = 0; b(ix,iy,iz).tmpV = 0; b(ix,iy,iz).tmpW = 0;
+        CHI(ix,iy,iz).s = 0;
+        PRES(ix,iy,iz).s = 0;
       }
     }
     //store deformation velocities onto tmp fields:

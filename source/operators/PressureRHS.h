@@ -9,6 +9,8 @@
 #pragma once
 
 #include "Operator.h"
+#include "../Obstacles/ObstacleVector.h"
+#include "../poisson/PoissonSolverAMR.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 

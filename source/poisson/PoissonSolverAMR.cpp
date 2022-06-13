@@ -85,43 +85,39 @@ static void getZImplParallel(
 
 void PoissonSolverAMR::getZ()
 {
-  //sim.startProfiler("getZ");
   #pragma omp parallel
   {
-    getZImplParallel(sim, sim.z->getBlocksInfo());
+    getZImplParallel(sim, sim.presInfo());
   }
-  //sim.stopProfiler();
 }
 
 void PoissonSolverAMR::solve()
 {
-    std::vector<cubism::BlockInfo>& vInfo = grid.getBlocksInfo();
+    const std::vector<BlockInfo>& vInfo_lhs = sim.lhsInfo();
+    const std::vector<BlockInfo>& vInfo_z   = sim.presInfo();
     const Real eps = 1e-21;
-    const size_t Nblocks = vInfo.size();
+    const size_t Nblocks = vInfo_z.size();
     const size_t N = BlockType::sizeX*BlockType::sizeY*BlockType::sizeZ*Nblocks;
+    const int Nx = ScalarBlock::sizeX;
+    const int Ny = ScalarBlock::sizeY;
+    const int Nz = ScalarBlock::sizeZ;
     std::vector<Real> x   (N,0.0);
     std::vector<Real> r   (N,0.0);
     std::vector<Real> p   (N,0.0);
     std::vector<Real> v   (N,0.0);
     std::vector<Real> s   (N,0.0);
     std::vector<Real> rhat(N,0.0);
-    std::vector<cubism::BlockInfo>& vInfo_lhs = sim.lhs->getBlocksInfo();
-    std::vector<cubism::BlockInfo>& vInfo_z   = sim.z  ->getBlocksInfo();
 
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
-        ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
+        const ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
         ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
 	if (sim.bMeanConstraint == 1 || sim.bMeanConstraint > 2)
-        if (vInfo_z[i].index[0] == 0 && 
-            vInfo_z[i].index[1] == 0 && 
-            vInfo_z[i].index[2] == 0)
-            LHS(0,0,0).s = 0.0;
-
-        for(int iz=0; iz<BlockType::sizeZ; iz++)
-        for(int iy=0; iy<BlockType::sizeY; iy++)
-        for(int ix=0; ix<BlockType::sizeX; ix++)
+          if (vInfo_z[i].index[0] == 0 && vInfo_z[i].index[1] == 0 && vInfo_z[i].index[2] == 0) LHS(0,0,0).s = 0.0;
+        for(int iz=0; iz<Nz; iz++)
+        for(int iy=0; iy<Ny; iy++)
+        for(int ix=0; ix<Nx; ix++)
         {
             const size_t src_index = _dest(vInfo_lhs[i], iz, iy, ix);
             x[src_index] = Z(ix,iy,iz).s;
@@ -140,10 +136,10 @@ void PoissonSolverAMR::solve()
     #pragma omp parallel for reduction (+:norm)
     for(size_t i=0; i< Nblocks; i++)
     {
-        ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
-        for(int iz=0; iz<BlockType::sizeZ; iz++)
-        for(int iy=0; iy<BlockType::sizeY; iy++)
-        for(int ix=0; ix<BlockType::sizeX; ix++)
+        const ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+        for(int iz=0; iz<Nz; iz++)
+        for(int iy=0; iy<Ny; iy++)
+        for(int ix=0; ix<Nx; ix++)
         {
             const size_t src_index = _dest(vInfo_z[i], iz, iy, ix);
             r[src_index] -= LHS(ix,iy,iz).s;
@@ -151,7 +147,7 @@ void PoissonSolverAMR::solve()
             norm+= r[src_index]*r[src_index];
         }
     }
-    MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_SUM,grid.getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_SUM,sim.comm);
     norm = std::sqrt(norm);
 
     Real rho = 1.0;
@@ -185,7 +181,7 @@ void PoissonSolverAMR::solve()
             norm_2 += rhat[i]*rhat[i];
         }
         Real aux_norm [3] = {rho,norm_1,norm_2};
-        MPI_Allreduce(MPI_IN_PLACE,&aux_norm,3,MPI_Real,MPI_SUM,grid.getCartComm());
+        MPI_Allreduce(MPI_IN_PLACE,&aux_norm,3,MPI_Real,MPI_SUM,sim.comm);
         rho = aux_norm[0];
         norm_1 = aux_norm[1];
         norm_2 = aux_norm[2];
@@ -210,7 +206,7 @@ void PoissonSolverAMR::solve()
             if (sim.rank==0) 
                 std::cout << "  [Poisson solver]: restart at iteration:" << k << 
                              "  norm:"<< norm <<" init_norm:" << init_norm << std::endl;
-            MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_Real,MPI_SUM,grid.getCartComm());
+            MPI_Allreduce(MPI_IN_PLACE,&rho,1,MPI_Real,MPI_SUM,sim.comm);
             alpha = 1.;
             omega = 1.;
             rho_m1 = 1.;
@@ -223,9 +219,9 @@ void PoissonSolverAMR::solve()
         for (size_t i=0; i < Nblocks; i++)
         {
             ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
+            for(int iz=0; iz<Nz; iz++)
+            for(int iy=0; iy<Ny; iy++)
+            for(int ix=0; ix<Nx; ix++)
             {
                 const size_t src_index = _dest(vInfo_z[i], iz, iy, ix);
                 p[src_index] = r[src_index] + beta*(p[src_index]-omega*v[src_index]);
@@ -241,17 +237,17 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for reduction(+:alpha)
         for (size_t i=0; i < Nblocks; i++)
         {
-            ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
+            const ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+            for(int iz=0; iz<Nz; iz++)
+            for(int iy=0; iy<Ny; iy++)
+            for(int ix=0; ix<Nx; ix++)
             {
                 const size_t src_index = _dest(vInfo_lhs[i], iz, iy, ix);
                 v[src_index] = LHS(ix,iy,iz).s;
                 alpha += rhat[src_index] * v[src_index];
             }
         }  
-        MPI_Allreduce(MPI_IN_PLACE,&alpha,1,MPI_Real,MPI_SUM,grid.getCartComm());
+        MPI_Allreduce(MPI_IN_PLACE,&alpha,1,MPI_Real,MPI_SUM,sim.comm);
         alpha = rho / (alpha + eps);
         //7. x += a z
         //8. 
@@ -261,9 +257,9 @@ void PoissonSolverAMR::solve()
         for (size_t i=0; i < Nblocks; i++)
         {
             ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
+            for(int iz=0; iz<Nz; iz++)
+            for(int iy=0; iy<Ny; iy++)
+            for(int ix=0; ix<Nx; ix++)
             {
                 const size_t src_index = _dest(vInfo_z[i], iz, iy, ix);
                 x[src_index] += alpha * Z(ix,iy,iz).s;
@@ -282,10 +278,10 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for reduction (+:aux1,aux2)
         for (size_t i=0; i < Nblocks; i++)
         {
-            ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
+            const ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+            for(int iz=0; iz<Nz; iz++)
+            for(int iy=0; iy<Ny; iy++)
+            for(int ix=0; ix<Nx; ix++)
             {
                 const size_t src_index = _dest(vInfo_lhs[i], iz, iy, ix);
                 aux1 += LHS(ix,iy,iz).s * s[src_index];
@@ -293,7 +289,7 @@ void PoissonSolverAMR::solve()
             }
         }
         Real aux_12[2] = {aux1,aux2};
-        MPI_Allreduce(MPI_IN_PLACE,&aux_12,2,MPI_Real,MPI_SUM,grid.getCartComm());
+        MPI_Allreduce(MPI_IN_PLACE,&aux_12,2,MPI_Real,MPI_SUM,sim.comm);
         aux1 = aux_12[0];
         aux2 = aux_12[1];
         omega = aux1 / (aux2+eps); 
@@ -305,11 +301,11 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for reduction(+:norm)
         for (size_t i=0; i < Nblocks; i++)
         {
-            ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
-            ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
-            for(int iz=0; iz<BlockType::sizeZ; iz++)
-            for(int iy=0; iy<BlockType::sizeY; iy++)
-            for(int ix=0; ix<BlockType::sizeX; ix++)
+            const ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+            const ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
+            for(int iz=0; iz<Nz; iz++)
+            for(int iy=0; iy<Ny; iy++)
+            for(int ix=0; ix<Nx; ix++)
             {
                 const size_t src_index = _dest(vInfo_z[i], iz, iy, ix);
                 x[src_index] += omega * Z(ix,iy,iz).s;
@@ -317,7 +313,7 @@ void PoissonSolverAMR::solve()
                 norm+= r[src_index]*r[src_index];
             }
         }
-        MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_SUM,grid.getCartComm());
+        MPI_Allreduce(MPI_IN_PLACE,&norm,1,MPI_Real,MPI_SUM,sim.comm);
         norm = std::sqrt(norm);
 
         if (norm < min_norm)
@@ -357,14 +353,14 @@ void PoissonSolverAMR::solve()
     {
         const int m = vInfo_z[i].level;
         const long long n = vInfo_z[i].Z;
-        const BlockInfo & info = grid.getBlockInfoAll(m,n);
-        BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-        for(int iz=0; iz<BlockType::sizeZ; iz++)
-        for(int iy=0; iy<BlockType::sizeY; iy++)
-        for(int ix=0; ix<BlockType::sizeX; ix++)
+        const BlockInfo & info = sim.pres->getBlockInfoAll(m,n);
+        ScalarBlock & __restrict__ b  = *(ScalarBlock*) info.ptrBlock;
+        for(int iz=0; iz<Nz; iz++)
+        for(int iy=0; iy<Ny; iy++)
+        for(int ix=0; ix<Nx; ix++)
         {
             const size_t src_index = _dest(vInfo_z[i], iz, iy, ix);
-            b(ix,iy,iz).p = xsol[src_index];
+            b(ix,iy,iz).s = xsol[src_index];
         }
     }
   

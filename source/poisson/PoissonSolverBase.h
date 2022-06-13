@@ -13,7 +13,7 @@ public:
   virtual ~PoissonSolverBase() = default;
   virtual void solve() = 0;
 protected:
-  typedef typename FluidGridMPI::BlockType BlockType;
+  typedef typename ScalarGrid::BlockType BlockType;
 };
 
 std::shared_ptr<PoissonSolverBase> makePoissonSolver(SimulationData& s);

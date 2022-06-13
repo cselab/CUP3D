@@ -3,8 +3,7 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Written by Guido Novati (novatig@ethz.ch).
-//
+
 #include "Simulation.h"
 
 #include "operators/InitialConditions.h"
@@ -17,13 +16,10 @@
 #include "operators/ComputeDissipation.h"
 #include "operators/FluidSolidForces.h"
 #include "operators/ProcessHelpers.h"
-
 #include "Obstacles/ObstacleVector.h"
 #include "Obstacles/ObstacleFactory.h"
-
 #include <Cubism/HDF5Dumper_MPI.h>
 #include <Cubism/ArgumentParser.h>
-
 #include <iomanip>
 #include <iostream>
 #include <sstream>
@@ -44,7 +40,8 @@ std::shared_ptr<Simulation> createSimulation(
   return std::make_shared<Simulation>(comm, parser);
 }
 
-Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm, parser) {
+Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm, parser)
+{
 
   if( sim.verbose )
   {
@@ -66,7 +63,6 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
   if( sim.verbose )
     std::cout << "[CUP3D] Allocating Grid.. " << std::endl;
   setupGrid();
-  touch();
 
   // Setup Computational Pipeline
   if( sim.verbose )
@@ -90,8 +86,6 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
   const bool bRestart = parser("-restart").asBool(false);
   if (bRestart)
     _deserialize();
-  else if (sim.icFromH5 != "")
-    _icFromH5(sim.icFromH5);
   else
     _ic();
 
@@ -112,21 +106,32 @@ void Simulation::initialGridRefinement()
 
     // Refinement or compression of Grid
     adaptMesh();
-
-    //This may not be needed but has zero cost
-    if (l != 3*sim.levelMax-1) touch();
   }
 }
 
 void Simulation::adaptMesh()
 {
   sim.startProfiler("Mesh refinement");
-  sim.amr->Tag();
-  sim.lhs_amr->TagLike(sim.vInfo());
-  sim.z_amr  ->TagLike(sim.vInfo());
-  sim.amr->Adapt(sim.time,sim.verbose,false);
-  sim.lhs_amr->Adapt(sim.time,false,true);
-  sim.z_amr  ->Adapt(sim.time,false,true);
+
+  computeVorticity();
+  compute<ScalarLab>(GradChiOnTmp(sim),sim.chi);
+
+  sim.tmpV_amr->Tag();
+  sim.lhs_amr ->TagLike(sim.tmpVInfo());
+  sim.vel_amr ->TagLike(sim.tmpVInfo());
+  sim.chi_amr ->TagLike(sim.tmpVInfo());
+  sim.vOld_amr->TagLike(sim.tmpVInfo());
+  sim.pres_amr->TagLike(sim.tmpVInfo());
+  sim.pOld_amr->TagLike(sim.tmpVInfo());
+
+  sim.chi_amr ->Adapt(sim.time,sim.verbose,false);
+  sim.lhs_amr ->Adapt(sim.time,false,true);
+  sim.vOld_amr->Adapt(sim.time,false,true);
+  sim.tmpV_amr->Adapt(sim.time,false,true);
+  sim.pres_amr->Adapt(sim.time,false,false);
+  sim.pOld_amr->Adapt(sim.time,false,false);
+  sim. vel_amr->Adapt(sim.time,false,false);
+
   sim.stopProfiler();
 }
 
@@ -141,60 +146,25 @@ void Simulation::_ic()
   coordIC(0);
 }
 
-void Simulation::_icFromH5(std::string h5File)
-{
-  if (sim.rank==0) std::cout << "Extracting Initial Conditions from " << h5File << std::endl;
-
-  ReadHDF5_MPI<StreamerVelocityVector, Real>(* sim.grid, h5File, sim.path4serialization);
-
-  sim.obstacle_vector->restart(sim.path4serialization+"/"+sim.icFromH5);
-
-  // prepare time for next save
-  sim.nextSaveTime = sim.time + sim.dumpTime;
-  MPI_Barrier(sim.app_comm);
-}
-
 void Simulation::setupGrid()
 {
-  sim.grid = new FluidGridMPI(1, //these arguments are not used in Cubism-AMR
-                              1, //these arguments are not used in Cubism-AMR
-                              1, //these arguments are not used in Cubism-AMR
-                              sim.bpdx,
-                              sim.bpdy,
-                              sim.bpdz,
-                              sim.maxextent,
-                              sim.levelStart,sim.levelMax,sim.app_comm,
-                              (sim.BCx_flag == periodic),
-                              (sim.BCy_flag == periodic),
-                              (sim.BCz_flag == periodic));
+  //The first three arguments are not used in Cubism-AMR
+  sim.chi  = new ScalarGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.lhs  = new ScalarGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.pres = new ScalarGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.pOld = new ScalarGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.vel  = new VectorGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.tmpV = new VectorGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.vOld = new VectorGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
 
-  sim.lhs         = new ScalarGrid         (1, //these arguments are not used in Cubism-AMR
-                                            1, //these arguments are not used in Cubism-AMR
-                                            1, //these arguments are not used in Cubism-AMR
-                                            sim.bpdx,
-                                            sim.bpdy,
-                                            sim.bpdz,
-                                            sim.maxextent,
-                                            sim.levelStart,sim.levelMax,sim.app_comm,
-                                            (sim.BCx_flag == periodic),
-                                            (sim.BCy_flag == periodic),
-                                            (sim.BCz_flag == periodic));
-
-  sim.z           = new ScalarGrid         (1, //these arguments are not used in Cubism-AMR
-                                            1, //these arguments are not used in Cubism-AMR
-                                            1, //these arguments are not used in Cubism-AMR
-                                            sim.bpdx,
-                                            sim.bpdy,
-                                            sim.bpdz,
-                                            sim.maxextent,
-                                            sim.levelStart,sim.levelMax,sim.app_comm,
-                                            (sim.BCx_flag == periodic),
-                                            (sim.BCy_flag == periodic),
-                                            (sim.BCz_flag == periodic));
   //Refine/compress only according to chi field for now
-  sim.amr = new AMR( *(sim.grid),sim.Rtol,sim.Ctol);
-  sim.lhs_amr = new ScalarAMR( *(sim.lhs),sim.Rtol,sim.Ctol);
-  sim.z_amr   = new ScalarAMR( *(sim.z  ),sim.Rtol,sim.Ctol);
+  sim.chi_amr  = new ScalarAMR( *(sim.chi ),sim.Rtol,sim.Ctol);
+  sim.lhs_amr  = new ScalarAMR( *(sim.lhs ),sim.Rtol,sim.Ctol);
+  sim.pres_amr = new ScalarAMR( *(sim.pres),sim.Rtol,sim.Ctol);
+  sim.pOld_amr = new ScalarAMR( *(sim.pOld),sim.Rtol,sim.Ctol);
+  sim.vel_amr  = new VectorAMR( *(sim.vel ),sim.Rtol,sim.Ctol);
+  sim.tmpV_amr = new VectorAMR( *(sim.tmpV),sim.Rtol,sim.Ctol);
+  sim.vOld_amr = new VectorAMR( *(sim.vOld),sim.Rtol,sim.Ctol);
 }
 
 void Simulation::setupOperators()
@@ -243,19 +213,23 @@ void Simulation::_serialize(const std::string append)
   if (append == "") name<<"restart_";
   else name<<append;
   name<<std::setfill('0')<<std::setw(9)<<sim.step;
-  auto * grid2Dump = sim.grid;
+
   if (sim.dumpOmega || sim.dumpOmegaX || sim.dumpOmegaY || sim.dumpOmegaZ)
     computeVorticity();
-  if (sim.dumpP        ) DumpHDF5_MPI2<StreamerPressure      , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerPressure       ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpChi      ) DumpHDF5_MPI2<StreamerChi           , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerChi            ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmega    ) DumpHDF5_MPI2<StreamerTmpVector     , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVector      ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaX   ) DumpHDF5_MPI2<StreamerTmpVectorX    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorX     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaY   ) DumpHDF5_MPI2<StreamerTmpVectorY    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorY     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaZ   ) DumpHDF5_MPI2<StreamerTmpVectorZ    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerTmpVectorZ     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocity ) DumpHDF5_MPI2<StreamerVelocityVector, Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelocityVector ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityX) DumpHDF5_MPI2<StreamerVelVectorX    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorX     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityY) DumpHDF5_MPI2<StreamerVelVectorY    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorY     ::prefix() + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityZ) DumpHDF5_MPI2<StreamerVelVectorZ    , Real, FluidGridMPI, LabMPI> (*grid2Dump, sim.time, StreamerVelVectorZ     ::prefix() + name.str(),sim.path4serialization);
+
+  //dump multi-block datasets with scalar quantities or magnitude of vector quantities
+  if (sim.dumpP        ) DumpHDF5_MPI2<cubism::StreamerScalar,Real,ScalarGrid,ScalarLab> (*sim.pres, sim.time, "pres" + name.str(),sim.path4serialization);
+  if (sim.dumpChi      ) DumpHDF5_MPI2<cubism::StreamerScalar,Real,ScalarGrid,ScalarLab> (*sim.chi , sim.time, "chi"  + name.str(),sim.path4serialization);
+  if (sim.dumpOmega    ) DumpHDF5_MPI2<cubism::StreamerVector,Real,VectorGrid,VectorLab> (*sim.tmpV, sim.time, "tmp"  + name.str(),sim.path4serialization);
+  if (sim.dumpVelocity ) DumpHDF5_MPI2<cubism::StreamerVector,Real,VectorGrid,VectorLab> (*sim.vel , sim.time, "vel"  + name.str(),sim.path4serialization);
+
+  //dump components of vectors
+  if (sim.dumpOmegaX   ) DumpHDF5_MPI2<StreamerVectorX,Real,VectorGrid,VectorLab> (*sim.tmpV, sim.time, "tmpX" + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaY   ) DumpHDF5_MPI2<StreamerVectorY,Real,VectorGrid,VectorLab> (*sim.tmpV, sim.time, "tmpY" + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaZ   ) DumpHDF5_MPI2<StreamerVectorZ,Real,VectorGrid,VectorLab> (*sim.tmpV, sim.time, "tmpZ" + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityX) DumpHDF5_MPI2<StreamerVectorX,Real,VectorGrid,VectorLab> (*sim.vel, sim.time, "velX" + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityY) DumpHDF5_MPI2<StreamerVectorY,Real,VectorGrid,VectorLab> (*sim.vel, sim.time, "velY" + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityZ) DumpHDF5_MPI2<StreamerVectorZ,Real,VectorGrid,VectorLab> (*sim.vel, sim.time, "velZ" + name.str(),sim.path4serialization);
 
   sim.stopProfiler();
 }
@@ -288,7 +262,7 @@ void Simulation::_deserialize()
     fclose(f);
     if( (not ret) || sim.step<0 || sim.time<0) {
       printf("Error reading restart file. Aborting...\n");
-      fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
+      fflush(0); MPI_Abort(sim.comm, 1);
     }
   }
 
@@ -296,7 +270,7 @@ void Simulation::_deserialize()
   ssR<<"restart_"<<std::setfill('0')<<std::setw(9)<<sim.step;
   if (sim.rank==0) std::cout << "Restarting from " << ssR.str() << "\n";
 
-  ReadHDF5_MPI<StreamerVelocityVector, Real>(* sim.grid, StreamerVelocityVector::prefix()+ssR.str(), sim.path4serialization);
+  //ReadHDF5_MPI<StreamerVelocityVector, Real>(* sim.grid, StreamerVelocityVector::prefix()+ssR.str(), sim.path4serialization);
 
   sim.obstacle_vector->restart(sim.path4serialization+"/"+ssR.str());
 
@@ -342,7 +316,7 @@ Real Simulation::calcMaxTimestep()
 
   if( sim.dt <= 0 ){
     fprintf(stderr, "dt <= 0. CFL=%f, hMin=%f, sim.uMax_measured=%f. Aborting...\n", CFL, hMin, sim.uMax_measured);
-    fflush(0); MPI_Abort(sim.grid->getCartComm(), 1);
+    fflush(0); MPI_Abort(sim.comm, 1);
   }
 
 
@@ -354,7 +328,7 @@ Real Simulation::calcMaxTimestep()
     printf("[CUP3D] step: %d, time: %f, dt: %.2e, uinf: {%f %f %f}, maxU:%f, minH:%f, CFL:%.2e, lambda:%.2e, collision?:%d, blocks:%zu\n",
            sim.step,sim.time, sim.dt, sim.uinf[0], sim.uinf[1], sim.uinf[2],
            sim.uMax_measured, hMin, CFL, sim.lambda, sim.bCollision,
-           sim.vInfo().size());
+           sim.velInfo().size());
   }
 
   if (sim.step > sim.step_2nd_start)
@@ -419,18 +393,6 @@ void Simulation::computeVorticity()
 void Simulation::insertOperator(std::shared_ptr<Operator> op)
 {
   sim.pipeline.push_back(std::move(op));
-}
-
-void Simulation::touch()
-{
-  std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
-  #pragma omp parallel for schedule(static)
-  for (int i = 0; i < (int)vInfo.size(); ++i)
-  {
-    const cubism::BlockInfo & info = vInfo[i];
-    FluidBlock& b = *(FluidBlock*)info.ptrBlock;
-    b.clear();
-  }
 }
 
 CubismUP_3D_NAMESPACE_END

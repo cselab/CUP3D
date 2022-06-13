@@ -26,23 +26,39 @@ class PoissonSolverBase;
 
 struct SimulationData
 {
+  // MPI
+  MPI_Comm comm;
+  int rank;
+
   // Profiler
   cubism::Profiler * profiler = nullptr;
 
-  // Grids for Velocity and Pressure
-  FluidGridMPI * grid = nullptr;
-  ScalarGrid * lhs = nullptr;
-  ScalarGrid * z   = nullptr;
-  ScalarAMR * lhs_amr;
-  ScalarAMR * z_amr;
+  // declare grids
+  ScalarGrid * chi  = nullptr;
+  ScalarGrid * pres = nullptr;
+  VectorGrid * vel  = nullptr;
+  VectorGrid * tmpV = nullptr;
+  VectorGrid * vOld = nullptr;
+  ScalarGrid * lhs  = nullptr;
+  ScalarGrid * pOld = nullptr;
 
-  // Get velocity blocks on current rank
-  inline std::vector<cubism::BlockInfo>& vInfo() {
-    return grid->getBlocksInfo();
-  }
+  // mesh refinement
+  ScalarAMR *  chi_amr;
+  ScalarAMR * pres_amr;
+  VectorAMR *  vel_amr;
+  VectorAMR * tmpV_amr;
+  VectorAMR * vOld_amr;
+  ScalarAMR *  lhs_amr;
+  ScalarAMR * pOld_amr;
 
-  // Mesh Adaptation
-  AMR * amr;
+  // Get blocks on current rank
+  inline std::vector<cubism::BlockInfo>&  chiInfo() const {return  chi->getBlocksInfo();}
+  inline std::vector<cubism::BlockInfo>& presInfo() const {return pres->getBlocksInfo();}
+  inline std::vector<cubism::BlockInfo>&  velInfo() const {return  vel->getBlocksInfo();}
+  inline std::vector<cubism::BlockInfo>& tmpVInfo() const {return tmpV->getBlocksInfo();}
+  inline std::vector<cubism::BlockInfo>& vOldInfo() const {return vOld->getBlocksInfo();}
+  inline std::vector<cubism::BlockInfo>&  lhsInfo() const {return  lhs->getBlocksInfo();}
+  inline std::vector<cubism::BlockInfo>& pOldInfo() const {return pOld->getBlocksInfo();}
 
   // Container holding the obstacles
   ObstacleVector * obstacle_vector = nullptr;
@@ -58,22 +74,17 @@ struct SimulationData
   Real dt_old  = 0;//previous timestep
   Real CFL     = 0;//Courant number
   Real time    = 0;//current time
-  int step       = 0;//currect step number
+  int step     = 0;//currect step number
   Real endTime = 0;//stop simulation at t=endTime (=0 means inactive)
-  int nsteps     = 0;//stop simulation after nsteps (=0 means inactive)
+  int nsteps   = 0;//stop simulation after nsteps (=0 means inactive)
   int rampup;        //exponential CFL rampup for the first 'rampup' steps
-  int step_2nd_start;//explicit Euler for the first 'step_2nd_start' steps 
-                     //(to initialize u_{n-1} for n=1)
-  Real coefU[3] = {1.5,-2.0,0.5};//used for 2nd order time integration 
-                                   //of obstacle positions
-  // MPI
-  MPI_Comm app_comm;
-  int rank, nprocs;
+  int step_2nd_start;//explicit Euler for the first 'step_2nd_start' steps (to initialize u_{n-1} for n=1)
+  Real coefU[3] = {1.5,-2.0,0.5};//used for 2nd order time integration of obstacle positions
 
   //AMR & simulation domain
-  int bpdx, bpdy, bpdz;                //blocks per dimension at refinement level 0
-  int levelStart;                      //initial refinement level
-  int levelMax;                        //max refinement level
+  int bpdx, bpdy, bpdz;              //blocks per dimension at refinement level 0
+  int levelStart;                    //initial refinement level
+  int levelMax;                      //max refinement level
   Real Rtol;                         //mesh refinement tolerance
   Real Ctol;                         //mesh compression tolerance
   std::array<Real, 3> extents;       //simulation cubic domain extents

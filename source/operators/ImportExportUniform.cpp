@@ -15,7 +15,7 @@ void exportGridFieldToUniformMatrix(FluidGridMPI *grid, int component, Real *out
 {
   exportGridToUniformMatrix<LabMPI>(
       grid,
-      [component](const FluidElement &element) {
+      [component](const LabMPI::ElementType &element) {
         return element.member(component);
       },            // Getter.
       {component},  // Components vector.
@@ -27,7 +27,7 @@ void importGridFieldFromUniformMatrix(
 {
   importGridFromUniformMatrix(
       grid,
-      [component](FluidElement &element, Real in) {
+      [component](LabMPI::ElementType &element, Real in) {
         element.member(component) = in;
       },  // Setter.
       in);

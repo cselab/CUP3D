@@ -19,6 +19,9 @@
 #include <Cubism/BlockLab.h>
 #include <Cubism/BlockLabMPI.h>
 #include <Cubism/Definitions.h>
+#include <Cubism/AMR_MeshAdaptationMPI.h>
+
+using namespace cubism;
 
 #ifndef CUP_BLOCK_SIZEX
 #define CUP_BLOCK_SIZEX 8
@@ -30,93 +33,7 @@
 #include <iosfwd>
 #include <string>
 
-#include "MeshAdaptation_CUP.h"
-
 CubismUP_3D_NAMESPACE_BEGIN
-
-enum { FE_CHI = 0, FE_U, FE_V, FE_W, FE_P, FE_TMPU, FE_TMPV, FE_TMPW };
-struct FluidElement
-{
-  static constexpr int DIM = 8;
-  typedef Real RealType;
-  Real chi=0, u=0, v=0, w=0, p=0, tmpU=0, tmpV=0, tmpW=0;
-  
-  void clear() { chi =0; u =0; v =0; w =0; p =0; tmpU =0; tmpV =0; tmpW =0; }
-
-  Real &member(int i)
-  {
-    return *(&this->chi + i);
-  }
-  const Real &member(int i) const
-  {
-    return *(&this->chi + i);
-  }
-  Real magnitude()//used in TagLoadedBlock, to adapt the mesh
-  {
-      return chi;
-  }
-  FluidElement &operator*=(const Real a)
-  {
-    this->chi  *= a;
-    this->u    *= a;
-    this->v    *= a;
-    this->w    *= a;
-    this->p    *= a;
-    this->tmpU *= a;
-    this->tmpV *= a;
-    this->tmpW *= a;
-    return *this;
-  }
-  FluidElement &operator+=(const FluidElement &rhs)
-  {
-    this->chi  += rhs.chi ;
-    this->u    += rhs.u   ;
-    this->v    += rhs.v   ;
-    this->w    += rhs.w   ;
-    this->p    += rhs.p   ;
-    this->tmpU += rhs.tmpU;
-    this->tmpV += rhs.tmpV;
-    this->tmpW += rhs.tmpW;
-    return *this;
-  }
-  FluidElement &operator-=(const FluidElement &rhs)
-  {
-    this->chi  -= rhs.chi ;
-    this->u    -= rhs.u   ;
-    this->v    -= rhs.v   ;
-    this->w    -= rhs.w   ;
-    this->p    -= rhs.p   ;
-    this->tmpU -= rhs.tmpU;
-    this->tmpV -= rhs.tmpV;
-    this->tmpW -= rhs.tmpW;
-    return *this;
-  }
-  //only for debug
-  FluidElement &operator=(const Real a)
-  {
-    this->chi  = a;
-    this->u    = a;
-    this->v    = a;
-    this->w    = a;
-    this->p    = a;
-    this->tmpU = a;
-    this->tmpV = a;
-    this->tmpW = a;
-    return *this;
-  }
-  friend FluidElement operator*(const Real a, FluidElement el)
-  {
-    return (el *= a);
-  }
-  friend FluidElement operator+(FluidElement lhs, const FluidElement &rhs)
-  {
-    return (lhs += rhs);
-  }
-  friend FluidElement operator-(FluidElement lhs, const FluidElement &rhs)
-  {
-    return (lhs -= rhs);
-  }
-};
 
 enum BCflag {freespace, periodic, wall};
 inline BCflag string2BCflag(const std::string &strFlag)
@@ -137,175 +54,6 @@ extern BCflag cubismBCX;
 extern BCflag cubismBCY;
 extern BCflag cubismBCZ;
 
-template <typename TElement>
-struct BaseBlock
-{
-  //these identifiers are required by cubism!
-  static constexpr int sizeX = CUP_BLOCK_SIZEX;
-  static constexpr int sizeY = CUP_BLOCK_SIZEY;
-  static constexpr int sizeZ = CUP_BLOCK_SIZEZ;
-  typedef TElement ElementType;
-  typedef Real   RealType;
-  //__attribute__((aligned(32)))
-  TElement data[sizeZ][sizeY][sizeX];
-  Real  dataOld[sizeZ][sizeY][sizeX][4];//contains (u,v,w,p) from the previous timestep
-
-  //required from Grid.h
-  void clear()
-  {
-      TElement * entry = &data[0][0][0];
-      const int N = sizeX*sizeY*sizeZ;
-      for(int i=0; i<N; ++i) entry[i].clear();
-      Real * entry1 = &dataOld[0][0][0][0];
-      for(int i=0; i<4*N; ++i) entry1[i] = 0.0;
-  }
-
-  TElement& operator()(int ix, int iy=0, int iz=0)
-  {
-    assert(ix>=0); assert(ix<sizeX);
-    assert(iy>=0); assert(iy<sizeY);
-    assert(iz>=0); assert(iz<sizeZ);
-    return data[iz][iy][ix];
-  }
-
-  const TElement& operator()(int ix, int iy = 0, int iz = 0) const
-  {
-    assert(ix>=0); assert(ix<sizeX);
-    assert(iy>=0); assert(iy<sizeY);
-    assert(iz>=0); assert(iz<sizeZ);
-    return data[iz][iy][ix];
-  }
-
-  template <typename Streamer>
-  inline void Write(std::ofstream& output, Streamer streamer) const
-  {
-    for(int iz=0; iz<sizeZ; iz++)
-      for(int iy=0; iy<sizeY; iy++)
-        for(int ix=0; ix<sizeX; ix++)
-          streamer.operate(data[iz][iy][ix], output);
-  }
-};
-
-struct StreamerChi
-{
-    static const int NCHANNELS = 1;
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
-    {
-      output[0] = b(ix,iy,iz).chi;
-    }
-    static std::string prefix() {return std::string("chi_");}
-    static const char * getAttributeName() { return "Scalar"; }
-};
-
-struct StreamerVelocityVector
-{
-    static const int NCHANNELS = 3;
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
-    {
-        output[0] = b(ix,iy,iz).u; output[1] = b(ix,iy,iz).v; output[2] = b(ix,iy,iz).w;
-    }
-    static std::string prefix(){return std::string("vel_");}
-    static const char * getAttributeName() { return "Vector"; }
-};
-
-struct StreamerTmpVector
-{
-    static const int NCHANNELS = 3;
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
-    {
-        output[0] = b(ix,iy,iz).tmpU; output[1] = b(ix,iy,iz).tmpV; output[2] = b(ix,iy,iz).tmpW;
-    }
-    static std::string prefix(){return std::string("tmp_");}
-    static const char * getAttributeName() { return "Vector"; }
-};
-
-struct StreamerPressure
-{
-    static const int NCHANNELS = 1;
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
-    {
-      output[0] = b(ix,iy,iz).p;
-    }
-    static std::string prefix(){return std::string("pres_");}
-    static const char * getAttributeName() { return "Scalar"; }
-};
-
-struct StreamerTmpVectorX
-{
-    static const int NCHANNELS = 1;
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
-    {
-      output[0] = b(ix,iy,iz).tmpU;
-    }
-    static std::string prefix(){return std::string("tmpU_");}
-    static const char * getAttributeName() { return "Scalar"; }
-};
-
-struct StreamerTmpVectorY
-{
-    static const int NCHANNELS = 1;
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
-    {
-      output[0] = b(ix,iy,iz).tmpV;
-    }
-    static std::string prefix(){return std::string("tmpV_");}
-    static const char * getAttributeName() { return "Scalar"; }
-};
-
-struct StreamerTmpVectorZ
-{
-    static const int NCHANNELS = 1;
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
-    {
-      output[0] = b(ix,iy,iz).tmpW;
-    }
-    static std::string prefix(){return std::string("tmpW_");}
-    static const char * getAttributeName() { return "Scalar"; }
-};
-
-struct StreamerVelVectorX
-{
-    static const int NCHANNELS = 1;
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
-    {
-      output[0] = b(ix,iy,iz).u;
-    }
-    static std::string prefix(){return std::string("u_");}
-    static const char * getAttributeName() { return "Scalar"; }
-};
-
-struct StreamerVelVectorY
-{
-    static const int NCHANNELS = 1;
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
-    {
-      output[0] = b(ix,iy,iz).v;
-    }
-    static std::string prefix(){return std::string("v_");}
-    static const char * getAttributeName() { return "Scalar"; }
-};
-
-struct StreamerVelVectorZ
-{
-    static const int NCHANNELS = 1;
-    template <typename TBlock, typename T>
-    static inline void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
-    {
-      output[0] = b(ix,iy,iz).w;
-    }
-    static std::string prefix(){return std::string("w_");}
-    static const char * getAttributeName() { return "Scalar"; }
-};
-
 template<typename BlockType, template<typename X> class allocator=std::allocator>
 class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
 {
@@ -319,7 +67,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   template<int dir, int side> void applyBCfaceOpen(const bool coarse = false)
   {
     //First we apply zero Neumann BCs to all variables. Then, if we are dealing with a 
-    //FluidElement (which has DIM=8), we set the normal velocity to zero.
+    //VectorElement (which has DIM=3), we set the normal velocity to zero.
     //Second order Neumann   BCs mean than u_{i} = u_{i+1}
     //Second order Dirichlet BCs mean than u_{i} = -u_{i+1}
     if (!coarse)
@@ -338,22 +86,20 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
       for(int iz=s[2]; iz<e[2]; iz++)
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
+      {
         cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = cb->Access
           (
             ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
             ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
             ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
           );      
-      if (ElementTypeBlock::DIM==8) // (u,v,w)*(nx,ny,nz) = 0
-      for(int iz=s[2]; iz<e[2]; iz++)
-      for(int iy=s[1]; iy<e[1]; iy++)
-      for(int ix=s[0]; ix<e[0]; ix++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) = (-1.)*cb->Access
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = (-1.)*cb->Access
           (
             ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
             ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
             ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
-          ).member(1+dir);      
+          ).member(dir);      
+      }
 
       //tensorial edges and corners also filled
       const int aux = coarse ? 2:1;
@@ -378,25 +124,10 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
           cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) : (dir==1?
           cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]) :
           cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]));
-        }
-      }
-
-      if (ElementTypeBlock::DIM==8) // (u,v,w)*(nx,ny,nz) = 0
-      for(int b=0; b<2; ++b)
-      for(int a=0; a<2; ++a)
-      {
-        s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
-        s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
-        e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
-        e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
-        for(int iz=s_[2]; iz<e_[2]; iz++)
-        for(int iy=s_[1]; iy<e_[1]; iy++)
-        for(int ix=s_[0]; ix<e_[0]; ix++)
-        {
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) = dir==0?
-          (-1.)*cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) : (dir==1?
-          (-1.)*cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(1+dir) :
-          (-1.)*cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(1+dir));
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = dir==0?
+          (-1.)*cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) : (dir==1?
+          (-1.)*cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(dir) :
+          (-1.)*cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(dir));
         }
       }
     }
@@ -428,17 +159,10 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
           ( ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
             ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
             ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]);
-      }
-
-      if (ElementTypeBlock::DIM==8) // (u,v,w)*(nx,ny,nz) = 0
-      for(int iz=s[2]; iz<e[2]; iz++)
-      for(int iy=s[1]; iy<e[1]; iy++)
-      for(int ix=s[0]; ix<e[0]; ix++)
-      {
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) = (-1.)*cb->Access
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = (-1.)*cb->Access
           ( ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
             ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
-            ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]).member(1+dir);
+            ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]).member(dir);
       }
 
       //tensorial edges and corners also filled (this is necessary for the coarse block!)
@@ -464,34 +188,16 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
           cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) : (dir==1?
           cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]) :
           cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]));
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = dir==0?
+          (-1.)*cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) : (dir==1?
+          (-1.)*cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(dir) :
+          (-1.)*cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(dir));
         }
       }
-
-      if (ElementTypeBlock::DIM==8) // (u,v,w)*(nx,ny,nz) = 0
-      for(int b=0; b<2; ++b)
-      for(int a=0; a<2; ++a)
-      {
-        s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
-        s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
-        e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
-        e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
-        for(int iz=s_[2]; iz<e_[2]; iz++)
-        for(int iy=s_[1]; iy<e_[1]; iy++)
-        for(int ix=s_[0]; ix<e_[0]; ix++)
-        {
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) = dir==0?
-          (-1.)*cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(1+dir) : (dir==1?
-          (-1.)*cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(1+dir) :
-          (-1.)*cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(1+dir));
-        }
-      }
-
     }
   }
   template<int dir, int side> void applyBCfaceWall(const bool coarse=false)
   {
-    assert (ElementTypeBlock::DIM==FluidElement::DIM);
-    const int mask [8] = {-1,-1,-1,-1,+1,-1,-1,-1};//apply zero Dirichlet to all variables except pressure
     if (!coarse)
     {
       auto * const cb = this->m_cacheBlock;
@@ -508,7 +214,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
       for(int iy=s[1]; iy<e[1]; iy++)
       for(int ix=s[0]; ix<e[0]; ix++)
       for(int k=0; k<ElementTypeBlock::DIM; k++)
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = mask[k]*cb->Access
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = (-1.0)*cb->Access
           (
             ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
             ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
@@ -535,10 +241,10 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
         for(int ix=s_[0]; ix<e_[0]; ix++)
         for(int k=0; k<ElementTypeBlock::DIM; k++)
         {
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = mask[k] * dir==0?
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = (-1.0) * (dir==0?
           cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) : (dir==1?
           cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(k):
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(k));
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(k)));
         }
       }
     }
@@ -567,7 +273,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
       for(int ix=s[0]; ix<e[0]; ix++)
       for(int k=0; k<ElementTypeBlock::DIM; k++)
       {
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = mask[k]*cb->Access
+        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = (-1.0)*cb->Access
           ( ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
             ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
             ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]).member(k);
@@ -593,10 +299,10 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
         for(int ix=s_[0]; ix<e_[0]; ix++)
         for(int k=0; k<ElementTypeBlock::DIM; k++)
         {
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = mask[k] * dir==0?
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) = (-1.0) * (dir==0?
           cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(k) : (dir==1?
           cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(k) :
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(k));
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(k)));
         }
       }
     }
@@ -622,7 +328,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
     const BCflag BCX = cubismBCX;
     const BCflag BCY = cubismBCY;
     const BCflag BCZ = cubismBCZ;
-    if (BCX == wall && ElementTypeBlock::DIM==FluidElement::DIM)//wall only makes sense for FluidElement
+    if (BCX == wall)
     {
       if(info.index[0]==0 )          this->template applyBCfaceWall<0,0>(coarse);
       if(info.index[0]==this->NX-1 ) this->template applyBCfaceWall<0,1>(coarse);
@@ -634,7 +340,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
       if(info.index[0]==0 )          this->template applyBCfaceOpen<0,0>(coarse);
       if(info.index[0]==this->NX-1 ) this->template applyBCfaceOpen<0,1>(coarse);
     }
-    if (BCY == wall && ElementTypeBlock::DIM==FluidElement::DIM)//wall only makes sense for FluidElement
+    if (BCY == wall)
     {
       if(info.index[1]==0 )          this->template applyBCfaceWall<1,0>(coarse);
       if(info.index[1]==this->NY-1 ) this->template applyBCfaceWall<1,1>(coarse);
@@ -646,7 +352,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
       if(info.index[1]==0 )          this->template applyBCfaceOpen<1,0>(coarse);
       if(info.index[1]==this->NY-1 ) this->template applyBCfaceOpen<1,1>(coarse);
     }
-    if (BCZ == wall && ElementTypeBlock::DIM==FluidElement::DIM)//wall only makes sense for FluidElement
+    if (BCZ == wall)
     {
       if(info.index[2]==0 )          this->template applyBCfaceWall<2,0>(coarse);
       if(info.index[2]==this->NZ-1 ) this->template applyBCfaceWall<2,1>(coarse);
@@ -661,22 +367,89 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
   }
 };
 
+
+template<typename BlockType, template<typename X> class allocator = std::allocator>
+class BlockLabNeumann3D: public cubism::BlockLabNeumann<BlockType, 3, allocator>
+{
+ public:
+   using cubismLab = cubism::BlockLabNeumann<BlockType, 3, allocator>;
+   virtual bool is_xperiodic() override{ return cubismBCX == periodic; }
+   virtual bool is_yperiodic() override{ return cubismBCY == periodic; }
+   virtual bool is_zperiodic() override{ return cubismBCZ == periodic; }
+
+   // Called by Cubism:
+   void _apply_bc(const cubism::BlockInfo& info, const Real t = 0, const bool coarse = false) override
+   {
+       if (is_xperiodic() == false)
+       {
+        if(info.index[0]==0 )          cubismLab::template Neumann3D<0,0>(coarse);
+        if(info.index[0]==this->NX-1 ) cubismLab::template Neumann3D<0,1>(coarse);
+       }
+       if (is_yperiodic() == false)
+       {
+        if(info.index[1]==0 )          cubismLab::template Neumann3D<1,0>(coarse);
+        if(info.index[1]==this->NY-1 ) cubismLab::template Neumann3D<1,1>(coarse);
+       }
+       if (is_zperiodic() == false)
+       {
+        if(info.index[2]==0 )          cubismLab::template Neumann3D<2,0>(coarse);
+        if(info.index[2]==this->NZ-1 ) cubismLab::template Neumann3D<2,1>(coarse);
+       }
+   }
+};
+
+struct StreamerVectorX
+{
+  static constexpr int NCHANNELS = 1;
+  template <typename TBlock, typename T>
+  static void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+  {
+      output[0] = b(ix,iy,iz).u[0];
+  }
+  static std::string prefix() { return std::string(""); }
+  static const char * getAttributeName() { return "VectorX"; }
+};
+struct StreamerVectorY
+{
+  static constexpr int NCHANNELS = 1;
+  template <typename TBlock, typename T>
+  static void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+  {
+      output[0] = b(ix,iy,iz).u[1];
+  }
+  static std::string prefix() { return std::string(""); }
+  static const char * getAttributeName() { return "VectorY"; }
+};
+struct StreamerVectorZ
+{
+  static constexpr int NCHANNELS = 1;
+  template <typename TBlock, typename T>
+  static void operate(TBlock& b, const int ix, const int iy, const int iz, T output[NCHANNELS])
+  {
+      output[0] = b(ix,iy,iz).u[2];
+  }
+  static std::string prefix() { return std::string(""); }
+  static const char * getAttributeName() { return "VectorZ"; }
+};
+
 // The alignmnet of 32 is sufficient for AVX-256, but we put 64 to cover AVX-512.
 static constexpr int kBlockAlignment = 64;
 template <typename T>
 using aligned_block_allocator = aligned_allocator<T, kBlockAlignment>;
 
-using FluidBlock    = BaseBlock<FluidElement>;
-using FluidGrid     = cubism::Grid<FluidBlock, aligned_block_allocator>;
-using FluidGridMPI  = cubism::GridMPI<FluidGrid>;
-using Lab           = BlockLabBC<FluidBlock, aligned_block_allocator>;
-using LabMPI        = cubism::BlockLabMPI<Lab,FluidGridMPI>;
-using AMR           = MeshAdaptation_CUP<FluidGridMPI,LabMPI>;
-
 using ScalarElement = cubism::ScalarElement<Real>;
 using ScalarBlock   = cubism::GridBlock<CUP_BLOCK_SIZEX,3,ScalarElement>;
 using ScalarGrid    = cubism::GridMPI<cubism::Grid<ScalarBlock, aligned_block_allocator>>;
-using ScalarLab     = cubism::BlockLabMPI<BlockLabBC<ScalarBlock, aligned_block_allocator>, ScalarGrid>;
-using ScalarAMR     = MeshAdaptationMPI<ScalarGrid,ScalarLab,FluidGridMPI>;
+using ScalarLab     = cubism::BlockLabMPI<BlockLabNeumann3D <ScalarBlock, aligned_block_allocator>,ScalarGrid>;
+
+using VectorElement = cubism::VectorElement<3,Real>;
+using VectorBlock   = cubism::GridBlock<CUP_BLOCK_SIZEX,3,VectorElement>;
+using VectorGrid    = cubism::GridMPI<cubism::Grid<VectorBlock, aligned_block_allocator>>;
+using VectorLab     = cubism::BlockLabMPI<BlockLabBC<VectorBlock, aligned_block_allocator>, VectorGrid>;
+
+using ScalarAMR     = cubism::MeshAdaptationMPI<ScalarGrid,ScalarLab,ScalarGrid>;
+using VectorAMR     = cubism::MeshAdaptationMPI<VectorGrid,VectorLab,ScalarGrid>;
+
+using FluidBlock    = ScalarBlock;
 
 CubismUP_3D_NAMESPACE_END

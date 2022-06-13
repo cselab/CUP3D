@@ -47,7 +47,7 @@ struct KernelIntegrateFluidMomenta
     if (o == nullptr) return;
 
     const std::array<Real,3> CM = op->getCenterOfMass();
-    const FluidBlock &b = *(FluidBlock *)info.ptrBlock;
+    const VectorBlock &b = *(VectorBlock *)info.ptrBlock;
     const CHIMAT & __restrict__ CHI = o->chi;
     Real &VV = o->V;
     Real &FX = o->FX, &FY = o->FY, &FZ = o->FZ;
@@ -69,9 +69,9 @@ struct KernelIntegrateFluidMomenta
       o->GaX = 0; o->GaY = 0; o->GaZ = 0;
     }
 
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+    for(int iz=0; iz<VectorBlock::sizeZ; ++iz)
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix)
     {
       if (CHI[iz][iy][ix] <= 0) continue;
       Real p[3]; info.pos(p, ix, iy, iz);
@@ -86,12 +86,12 @@ struct KernelIntegrateFluidMomenta
       J4 -= X * dv * p[0]*p[2];
       J5 -= X * dv * p[1]*p[2];
 
-      FX += X * dv * b(ix,iy,iz).u;
-      FY += X * dv * b(ix,iy,iz).v;
-      FZ += X * dv * b(ix,iy,iz).w;
-      TX += X * dv * ( p[1] * b(ix,iy,iz).w - p[2] * b(ix,iy,iz).v );
-      TY += X * dv * ( p[2] * b(ix,iy,iz).u - p[0] * b(ix,iy,iz).w );
-      TZ += X * dv * ( p[0] * b(ix,iy,iz).v - p[1] * b(ix,iy,iz).u );
+      FX += X * dv * b(ix,iy,iz).u[0];
+      FY += X * dv * b(ix,iy,iz).u[1];
+      FZ += X * dv * b(ix,iy,iz).u[2];
+      TX += X * dv * ( p[1] * b(ix,iy,iz).u[2] - p[2] * b(ix,iy,iz).u[1] );
+      TY += X * dv * ( p[2] * b(ix,iy,iz).u[0] - p[0] * b(ix,iy,iz).u[2] );
+      TZ += X * dv * ( p[0] * b(ix,iy,iz).u[1] - p[1] * b(ix,iy,iz).u[0] );
 
       if(implicitPenalization)
       {
@@ -107,9 +107,9 @@ struct KernelIntegrateFluidMomenta
         o->Gj4 -= penalFac * p[0]*p[2];
         o->Gj5 -= penalFac * p[1]*p[2];
         const Real DiffU[3] = {
-          b(ix,iy,iz).u - UDEF[iz][iy][ix][0],
-          b(ix,iy,iz).v - UDEF[iz][iy][ix][1],
-          b(ix,iy,iz).w - UDEF[iz][iy][ix][2]
+          b(ix,iy,iz).u[0] - UDEF[iz][iy][ix][0],
+          b(ix,iy,iz).u[1] - UDEF[iz][iy][ix][1],
+          b(ix,iy,iz).u[2] - UDEF[iz][iy][ix][2]
         };
         o->GuX += penalFac * DiffU[0];
         o->GuY += penalFac * DiffU[1];
@@ -151,7 +151,7 @@ static void kernelFinalizeObstacleVel(SimulationData& sim, const Real dt)
       assert(k==29);
       } else  assert(k==13);
     }
-    const auto comm = sim.grid->getCartComm();
+    const auto comm = sim.comm;
     MPI_Allreduce(MPI_IN_PLACE, M, nQoI, MPI_Real, MPI_SUM, comm);
 
     #ifndef NDEBUG
@@ -190,18 +190,18 @@ void UpdateObstacles::operator()(const Real dt)
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
   { // integrate momenta by looping over grid
-    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();
+    std::vector<cubism::BlockInfo>& velInfo = sim.velInfo();
     #pragma omp parallel
     {
       //if(0) {
       if(sim.bImplicitPenalization) {
         KernelIntegrateFluidMomenta<1> K(dt, sim.lambda, sim.obstacle_vector);
         #pragma omp for schedule(dynamic, 1)
-        for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
+        for (size_t i = 0; i < velInfo.size(); ++i) K(velInfo[i]);
       } else {
         KernelIntegrateFluidMomenta<0> K(dt, sim.lambda, sim.obstacle_vector);
         #pragma omp for schedule(dynamic, 1)
-        for (size_t i = 0; i < vInfo.size(); ++i) K(vInfo[i]);
+        for (size_t i = 0; i < velInfo.size(); ++i) K(velInfo[i]);
       }
     }
   }

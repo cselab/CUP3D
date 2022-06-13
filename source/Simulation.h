@@ -21,7 +21,6 @@ public:
   void setupOperators();
   void setupGrid();
   void _ic();
-  void _icFromH5(std::string h5File);
 
   Simulation(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
 
@@ -48,8 +47,6 @@ public:
 
   /// Insert the operator at the end of the pipeline.
   void insertOperator(std::shared_ptr<Operator> op);
-
-  void touch();
 };
 
 /** Create a Simulation object from a vector of command-line arguments.

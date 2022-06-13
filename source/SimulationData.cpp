@@ -3,8 +3,6 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
-//
 
 #include <unistd.h>
 
@@ -20,11 +18,10 @@ using namespace cubism;
 BCflag cubismBCX; 
 BCflag cubismBCY; 
 BCflag cubismBCZ; 
-SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): app_comm(mpicomm)
+SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(mpicomm)
 {
   // Initialize MPI related variables
-  MPI_Comm_rank(app_comm, &rank);
-  MPI_Comm_size(app_comm, &nprocs);
+  MPI_Comm_rank(comm, &rank);
 
   // Print parser content
   if (rank == 0) parser.print_args();
@@ -133,7 +130,7 @@ void SimulationData::_preprocessArguments()
     fprintf(stderr, "Invalid bpd: %d x %d x %d\n", bpdx, bpdy, bpdz);
     fflush(0); abort();
   }
-  int aux = 1 << (levelMax -1);
+  const int aux = 1 << (levelMax -1);
   const Real NFE[3] = {
       (Real) bpdx * aux * FluidBlock::sizeX,
       (Real) bpdy * aux * FluidBlock::sizeY,
@@ -162,14 +159,22 @@ void SimulationData::_preprocessArguments()
 
 SimulationData::~SimulationData()
 {
-  delete grid;
   delete profiler;
   delete obstacle_vector;
-  delete amr;
+  delete chi;
+  delete vel;
   delete lhs;
-  delete z;
+  delete tmpV;
+  delete vOld;
+  delete pres;
+  delete pOld;
+  delete chi_amr;
+  delete vel_amr;
   delete lhs_amr;
-  delete z_amr;
+  delete tmpV_amr;
+  delete vOld_amr;
+  delete pres_amr;
+  delete pOld_amr;
 }
 
 void SimulationData::startProfiler(std::string name) const

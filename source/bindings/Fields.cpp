@@ -24,7 +24,7 @@ struct PyBlocksView
   }
   size_t numBlocks() const
   {
-    return sim->sim.grid->getBlocksInfo().size();
+    return sim->sim.chiInfo().size();
   }
 };
 

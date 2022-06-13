@@ -286,18 +286,18 @@ void ExternalObstacle::create()
 {
   BlocksToTriangles.clear();
 
-  const std::vector<cubism::BlockInfo> vInfo = sim.vInfo();
+  const std::vector<cubism::BlockInfo> chiInfo = sim.chiInfo();
 
-  BlocksToTriangles.resize(vInfo.size()); //each block has a set of indices(triangles) that are inside it
+  BlocksToTriangles.resize(chiInfo.size()); //each block has a set of indices(triangles) that are inside it
 
   //int total = 0;
   const int BS = std::max({FluidBlock::sizeX,FluidBlock::sizeY,FluidBlock::sizeZ});
   for (size_t j = 0 ; j < indices.size() ; j++) //loop over all triangles
   {
     int found = 0;
-    for (size_t b = 0 ; b < vInfo.size(); b++)
+    for (size_t b = 0 ; b < chiInfo.size(); b++)
     {
-      const cubism::BlockInfo & info = vInfo[b];
+      const cubism::BlockInfo & info = chiInfo[b];
 
       Real center[3];
       info.pos(center,FluidBlock::sizeX/2,FluidBlock::sizeY/2,FluidBlock::sizeZ/2);
@@ -337,7 +337,7 @@ void ExternalObstacle::create()
       abort();
     }
   }
-  //int blocks = vInfo.size();
+  //int blocks = chiInfo.size();
   //MPI_Allreduce(MPI_IN_PLACE,&blocks,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
   //MPI_Allreduce(MPI_IN_PLACE,&total ,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
   //if (sim.rank == 0)

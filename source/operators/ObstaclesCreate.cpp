@@ -3,12 +3,8 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
-//
 
 #include "ObstaclesCreate.h"
-#include "../Obstacles/ObstacleVector.h"
-#include "../Utils/MatArrayMath.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -19,25 +15,17 @@ using CHIMAT =  Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
 
-class KernelCharacteristicFunction
+struct KernelCharacteristicFunction
 {
   using v_v_ob = std::vector<std::vector<ObstacleBlock*>*>;
   const v_v_ob & vec_obstacleBlocks;
+  const int Nx = VectorBlock::sizeX;
+  const int Ny = VectorBlock::sizeY;
+  const int Nz = VectorBlock::sizeZ;
 
-  public:
   KernelCharacteristicFunction(const v_v_ob& v) : vec_obstacleBlocks(v) {}
 
-  Real J(const Real x) const
-  {
-    return (x > 0.0) ? 0.5*x*x : 0.0;
-  }
-  Real I(const Real x) const
-  {
-    return std::max(x,(Real)0.0);
-  }
-
-  template <typename BlockType>
-  void operate(const BlockInfo& info, BlockType& b) const
+  void operate(const BlockInfo & info, ScalarBlock & b) const
   {
     const Real h = info.h, inv2h = .5/h, fac1 = .5*h*h, vol = h*h*h;
     const int gp = 1;
@@ -54,24 +42,24 @@ class KernelCharacteristicFunction
       // FDMH_1 computation to approximate Heaviside function H(SDF(x,y,z))
       // Reference: John D.Towers, "Finite difference methods for approximating Heaviside functions", eq.(14)
       //////////////////////////
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      for(int z=0; z<Nz; ++z)
+      for(int y=0; y<Ny; ++y)
+      for(int x=0; x<Nx; ++x)
       {
         #if 1
         // here I read fist from SDF to deal with obstacles sharing block
-        if (SDFLAB[iz+1][iy+1][ix+1] > +gp*h || SDFLAB[iz+1][iy+1][ix+1] < -gp*h)
+        if (SDFLAB[z+1][y+1][x+1] > +gp*h || SDFLAB[z+1][y+1][x+1] < -gp*h)
         {
-          CHI[iz][iy][ix] = SDFLAB[iz+1][iy+1][ix+1] > 0 ? 1 : 0;
+          CHI[z][y][x] = SDFLAB[z+1][y+1][x+1] > 0 ? 1 : 0;
         }
         else
         {
-          const Real distPx = SDFLAB[iz+1][iy+1][ix+1+1];
-          const Real distMx = SDFLAB[iz+1][iy+1][ix+1-1];
-          const Real distPy = SDFLAB[iz+1][iy+1+1][ix+1];
-          const Real distMy = SDFLAB[iz+1][iy+1-1][ix+1];
-          const Real distPz = SDFLAB[iz+1+1][iy+1][ix+1];
-          const Real distMz = SDFLAB[iz+1-1][iy+1][ix+1];
+          const Real distPx = SDFLAB[z+1][y+1][x+1+1];
+          const Real distMx = SDFLAB[z+1][y+1][x+1-1];
+          const Real distPy = SDFLAB[z+1][y+1+1][x+1];
+          const Real distMy = SDFLAB[z+1][y+1-1][x+1];
+          const Real distPz = SDFLAB[z+1+1][y+1][x+1];
+          const Real distMz = SDFLAB[z+1-1][y+1][x+1];
           // gradU
           const Real gradUX = inv2h*(distPx - distMx);
           const Real gradUY = inv2h*(distPy - distMy);
@@ -88,44 +76,44 @@ class KernelCharacteristicFunction
           const Real gradIY = inv2h*(IplusY - IminuY);
           const Real gradIZ = inv2h*(IplusZ - IminuZ);
           const Real numH = gradIX*gradUX + gradIY*gradUY + gradIZ*gradUZ;
-          CHI[iz][iy][ix] = numH/gradUSq;
+          CHI[z][y][x] = numH/gradUSq;
         }
         #else
-          CHI[iz][iy][ix] = SDFLAB[iz+1][iy+1][ix+1] > 0 ? 1 : 0;
+          CHI[z][y][x] = SDFLAB[z+1][y+1][x+1] > 0 ? 1 : 0;
         #endif
-        Real p[3]; info.pos(p, ix,iy,iz);
-        b(ix,iy,iz).chi = std::max(CHI[iz][iy][ix], b(ix,iy,iz).chi);
-        o->CoM_x += CHI[iz][iy][ix] * vol * p[0];
-        o->CoM_y += CHI[iz][iy][ix] * vol * p[1];
-        o->CoM_z += CHI[iz][iy][ix] * vol * p[2];
-        o->mass  += CHI[iz][iy][ix] * vol;
+        Real p[3]; info.pos(p,x,y,z);
+        b(x,y,z).s = std::max(CHI[z][y][x], b(x,y,z).s);
+        o->CoM_x += CHI[z][y][x] * vol * p[0];
+        o->CoM_y += CHI[z][y][x] * vol * p[1];
+        o->CoM_z += CHI[z][y][x] * vol * p[2];
+        o->mass  += CHI[z][y][x] * vol;
       }
 
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      for(int z=0; z<Nz; ++z)
+      for(int y=0; y<Ny; ++y)
+      for(int x=0; x<Nx; ++x)
       {
-          const Real distPx = SDFLAB[iz+1][iy+1][ix+1+1];
-          const Real distMx = SDFLAB[iz+1][iy+1][ix+1-1];
-          const Real distPy = SDFLAB[iz+1][iy+1+1][ix+1];
-          const Real distMy = SDFLAB[iz+1][iy+1-1][ix+1];
-          const Real distPz = SDFLAB[iz+1+1][iy+1][ix+1];
-          const Real distMz = SDFLAB[iz+1-1][iy+1][ix+1];
+          const Real distPx = SDFLAB[z+1][y+1][x+1+1];
+          const Real distMx = SDFLAB[z+1][y+1][x+1-1];
+          const Real distPy = SDFLAB[z+1][y+1+1][x+1];
+          const Real distMy = SDFLAB[z+1][y+1-1][x+1];
+          const Real distPz = SDFLAB[z+1+1][y+1][x+1];
+          const Real distMz = SDFLAB[z+1-1][y+1][x+1];
           // gradU
           const Real gradUX = inv2h*(distPx - distMx);
           const Real gradUY = inv2h*(distPy - distMy);
           const Real gradUZ = inv2h*(distPz - distMz);
           const Real gradUSq = gradUX*gradUX+gradUY*gradUY+gradUZ*gradUZ + EPS;
 
-          const Real gradHX = (ix == 0) ? 2.0*(-0.5*CHI[iz][iy][ix+2]+2.0*CHI[iz][iy][ix+1]-1.5*CHI[iz][iy][ix]) : ( (ix==FluidBlock::sizeX-1) ? 2.0*(1.5*CHI[iz][iy][ix]-2.0*CHI[iz][iy][ix-1]+0.5*CHI[iz][iy][ix-2]) : (CHI[iz][iy][ix+1]-CHI[iz][iy][ix-1]));
-          const Real gradHY = (iy == 0) ? 2.0*(-0.5*CHI[iz][iy+2][ix]+2.0*CHI[iz][iy+1][ix]-1.5*CHI[iz][iy][ix]) : ( (iy==FluidBlock::sizeY-1) ? 2.0*(1.5*CHI[iz][iy][ix]-2.0*CHI[iz][iy-1][ix]+0.5*CHI[iz][iy-2][ix]) : (CHI[iz][iy+1][ix]-CHI[iz][iy-1][ix]));
-          const Real gradHZ = (iz == 0) ? 2.0*(-0.5*CHI[iz+2][iy][ix]+2.0*CHI[iz+1][iy][ix]-1.5*CHI[iz][iy][ix]) : ( (iz==FluidBlock::sizeZ-1) ? 2.0*(1.5*CHI[iz][iy][ix]-2.0*CHI[iz-1][iy][ix]+0.5*CHI[iz-2][iy][ix]) : (CHI[iz+1][iy][ix]-CHI[iz-1][iy][ix]));
+          const Real gradHX = (x == 0) ? 2.0*(-0.5*CHI[z][y][x+2]+2.0*CHI[z][y][x+1]-1.5*CHI[z][y][x]) : ( (x==Nx-1) ? 2.0*(1.5*CHI[z][y][x]-2.0*CHI[z][y][x-1]+0.5*CHI[z][y][x-2]) : (CHI[z][y][x+1]-CHI[z][y][x-1]));
+          const Real gradHY = (y == 0) ? 2.0*(-0.5*CHI[z][y+2][x]+2.0*CHI[z][y+1][x]-1.5*CHI[z][y][x]) : ( (y==Ny-1) ? 2.0*(1.5*CHI[z][y][x]-2.0*CHI[z][y-1][x]+0.5*CHI[z][y-2][x]) : (CHI[z][y+1][x]-CHI[z][y-1][x]));
+          const Real gradHZ = (z == 0) ? 2.0*(-0.5*CHI[z+2][y][x]+2.0*CHI[z+1][y][x]-1.5*CHI[z][y][x]) : ( (z==Nz-1) ? 2.0*(1.5*CHI[z][y][x]-2.0*CHI[z-1][y][x]+0.5*CHI[z-2][y][x]) : (CHI[z+1][y][x]-CHI[z-1][y][x]));
 
           if (gradHX*gradHX + gradHY*gradHY + gradHZ*gradHZ < 1e-12) continue;
 
           const Real numD = gradHX*gradUX + gradHY*gradUY + gradHZ*gradUZ;
           const Real Delta = fac1 * numD/gradUSq; //h^3 * Delta
-          if (Delta>EPS) o->write(ix, iy, iz, Delta, gradUX, gradUY, gradUZ);
+          if (Delta>EPS) o->write(x,y,z,Delta,gradUX,gradUY,gradUZ);
       }
       o->allocate_surface();
     }
@@ -150,7 +138,7 @@ static void kernelComputeGridCoM(SimulationData &sim)
       com[2] += obstblocks[i]->CoM_y;
       com[3] += obstblocks[i]->CoM_z;
     }
-    MPI_Allreduce(MPI_IN_PLACE, com, 4,MPI_Real,MPI_SUM, sim.grid->getCartComm());
+    MPI_Allreduce(MPI_IN_PLACE, com, 4,MPI_Real,MPI_SUM, sim.comm);
 
     assert(com[0]>std::numeric_limits<Real>::epsilon());
     obstacle->centerOfMass[0] = com[1]/com[0];
@@ -161,6 +149,9 @@ static void kernelComputeGridCoM(SimulationData &sim)
 
 static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& info)
 {
+  const int Nx = VectorBlock::sizeX;
+  const int Ny = VectorBlock::sizeY;
+  const int Nz = VectorBlock::sizeZ;
   for (const auto &obstacle : sim.obstacle_vector->getObstacleVector()) {
     const auto& obstblocks = obstacle->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
@@ -185,23 +176,23 @@ static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& in
     VV = 0; FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
     J0 = 0; J1 = 0; J2 = 0; J3 = 0; J4 = 0; J5 = 0;
 
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+    for(int z=0; z<Nz; ++z)
+    for(int y=0; y<Ny; ++y)
+    for(int x=0; x<Nx; ++x)
     {
-      if (CHI[iz][iy][ix] <= 0) continue;
-      Real p[3]; info.pos(p, ix, iy, iz);
-      const Real dv = info.h*info.h*info.h, X = CHI[iz][iy][ix];
+      if (CHI[z][y][x] <= 0) continue;
+      Real p[3]; info.pos(p,x,y,z);
+      const Real dv = info.h*info.h*info.h, X = CHI[z][y][x];
       p[0] -= CM[0];
       p[1] -= CM[1];
       p[2] -= CM[2];
-      const Real dUs = UDEF[iz][iy][ix][0] - oldCorrVel[0];
-      const Real dVs = UDEF[iz][iy][ix][1] - oldCorrVel[1];
-      const Real dWs = UDEF[iz][iy][ix][2] - oldCorrVel[2];
+      const Real dUs = UDEF[z][y][x][0] - oldCorrVel[0];
+      const Real dVs = UDEF[z][y][x][1] - oldCorrVel[1];
+      const Real dWs = UDEF[z][y][x][2] - oldCorrVel[2];
       VV += X * dv;
-      FX += X * UDEF[iz][iy][ix][0] * dv;
-      FY += X * UDEF[iz][iy][ix][1] * dv;
-      FZ += X * UDEF[iz][iy][ix][2] * dv;
+      FX += X * UDEF[z][y][x][0] * dv;
+      FY += X * UDEF[z][y][x][1] * dv;
+      FZ += X * UDEF[z][y][x][2] * dv;
       TX += X * ( p[1]*dWs - p[2]*dVs ) * dv;
       TY += X * ( p[2]*dUs - p[0]*dWs ) * dv;
       TZ += X * ( p[0]*dVs - p[1]*dUs ) * dv;
@@ -215,10 +206,10 @@ static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& in
 /// Integrate momenta over the grid.
 static void kernelIntegrateUdefMomenta(SimulationData& sim)
 {
-  const std::vector<cubism::BlockInfo>& vInfo = sim.grid->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& chiInfo = sim.chiInfo();
   #pragma omp parallel for schedule(dynamic, 1)
-  for (size_t i = 0; i < vInfo.size(); ++i)
-    _kernelIntegrateUdefMomenta(sim, vInfo[i]);
+  for (size_t i = 0; i < chiInfo.size(); ++i)
+    _kernelIntegrateUdefMomenta(sim, chiInfo[i]);
 }
 
 /// Reduce momenta across blocks and MPI.
@@ -237,7 +228,7 @@ static void kernelAccumulateUdefMomenta(SimulationData& sim, bool justDebug = fa
       M[ 7] += oBlock[i]->J0; M[ 8] += oBlock[i]->J1; M[ 9] += oBlock[i]->J2;
       M[10] += oBlock[i]->J3; M[11] += oBlock[i]->J4; M[12] += oBlock[i]->J5;
     }
-    const auto comm = sim.grid->getCartComm();
+    const auto comm = sim.comm;
     MPI_Allreduce(MPI_IN_PLACE, M, 13, MPI_Real, MPI_SUM, comm);
     assert(M[0] > EPS);
 
@@ -270,7 +261,10 @@ static void kernelAccumulateUdefMomenta(SimulationData& sim, bool justDebug = fa
 /// Remove momenta from udef.
 static void kernelRemoveUdefMomenta(SimulationData& sim, bool justDebug = false)
 {
-  const std::vector<BlockInfo>& vInfo = sim.grid->getBlocksInfo();
+  const int Nx = VectorBlock::sizeX;
+  const int Ny = VectorBlock::sizeY;
+  const int Nz = VectorBlock::sizeZ;
+  const std::vector<BlockInfo>& chiInfo = sim.chiInfo();
 
   // TODO: Refactor to use only one omp parallel.
   for (const auto &obstacle : sim.obstacle_vector->getObstacleVector()) {
@@ -281,25 +275,26 @@ static void kernelRemoveUdefMomenta(SimulationData& sim, bool justDebug = false)
     const auto & obstacleBlocks = obstacle->getObstacleBlocks();
 
     #pragma omp parallel for schedule(dynamic, 1)
-    for(size_t i=0; i < vInfo.size(); i++)
+    for(size_t i=0; i < chiInfo.size(); i++)
     {
-      const BlockInfo& info = vInfo[i];
+      const BlockInfo& info = chiInfo[i];
       const auto pos = obstacleBlocks[info.blockID];
       if(pos == nullptr) continue;
       UDEFMAT & __restrict__ UDEF = pos->udef;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-        Real p[3]; info.pos(p, ix, iy, iz);
+      for(int z=0; z<Nz; ++z)
+      for(int y=0; y<Ny; ++y)
+      for(int x=0; x<Nx; ++x)
+      {
+        Real p[3]; info.pos(p,x,y,z);
         p[0] -= CM[0]; p[1] -= CM[1]; p[2] -= CM[2];
         const Real rotVel_correction[3] = {
           angVel_correction[1]*p[2] - angVel_correction[2]*p[1],
           angVel_correction[2]*p[0] - angVel_correction[0]*p[2],
           angVel_correction[0]*p[1] - angVel_correction[1]*p[0]
         };
-        UDEF[iz][iy][ix][0] -= transVel_correction[0] + rotVel_correction[0];
-        UDEF[iz][iy][ix][1] -= transVel_correction[1] + rotVel_correction[1];
-        UDEF[iz][iy][ix][2] -= transVel_correction[2] + rotVel_correction[2];
+        UDEF[z][y][x][0] -= transVel_correction[0] + rotVel_correction[0];
+        UDEF[z][y][x][1] -= transVel_correction[1] + rotVel_correction[1];
+        UDEF[z][y][x][2] -= transVel_correction[2] + rotVel_correction[2];
       }
     }
   }
@@ -309,15 +304,12 @@ void CreateObstacles::operator()(const Real dt)
 {
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
-  std::vector<BlockInfo>& vInfo = sim.vInfo();
+  std::vector<BlockInfo>& chiInfo = sim.chiInfo();
   #pragma omp parallel for schedule(static)
-  for (size_t i = 0; i < vInfo.size(); ++i)
+  for (size_t i = 0; i < chiInfo.size(); ++i)
   {
-    FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      b(ix,iy,iz).chi = 0; // will be accessed by max with pos def qtity
+    ScalarBlock& CHI = *(ScalarBlock*)chiInfo[i].ptrBlock;
+    CHI.clear();
   }
 
   // Obstacles' advection must be done after we perform penalization:
@@ -334,10 +326,10 @@ void CreateObstacles::operator()(const Real dt)
       auto vecOB = sim.obstacle_vector->getAllObstacleBlocks();
       const KernelCharacteristicFunction K(vecOB);
       #pragma omp for
-      for (size_t i = 0; i < vInfo.size(); ++i)
+      for (size_t i = 0; i < chiInfo.size(); ++i)
       {
-        FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-        K.operate<FluidBlock>(vInfo[i],b);
+        ScalarBlock& CHI = *(ScalarBlock*)chiInfo[i].ptrBlock;
+        K.operate(chiInfo[i],CHI);
       }
     }
   }

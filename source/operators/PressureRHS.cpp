@@ -7,355 +7,226 @@
 //
 
 #include "PressureRHS.h"
-#include "../Obstacles/ObstacleVector.h"
-#include "../poisson/PoissonSolverAMR.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
-
-namespace {
 
 using CHIMAT =  Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
 
 struct KernelDivPressure
 {
-  typedef typename FluidGridMPI::BlockType BlockType;
   const SimulationData & sim;
-  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, {FE_P});
+  const StencilInfo stencil = StencilInfo(-1,-1,-1,2,2,2,false,{0});
+  const std::vector<BlockInfo>& tmpVInfo = sim.tmpVInfo();
+  const int Nx = VectorBlock::sizeX;
+  const int Ny = VectorBlock::sizeY;
+  const int Nz = VectorBlock::sizeZ;
 
   KernelDivPressure(const SimulationData& s) :sim(s) {}
 
-  void operator()(LabMPI & lab, const BlockInfo& info) const 
+  void operator()(const ScalarLab & lab, const BlockInfo& info) const 
   {
-    FluidBlock & __restrict__ b  = *(FluidBlock*) info.ptrBlock;
+    VectorBlock & __restrict__ b = *(VectorBlock*) tmpVInfo[info.blockID].ptrBlock;
     const Real fac = info.h;
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      b(ix,iy,iz).tmpU = fac*(lab(ix+1,iy,iz).p+lab(ix-1,iy,iz).p
-                             +lab(ix,iy+1,iz).p+lab(ix,iy-1,iz).p
-                             +lab(ix,iy,iz+1).p+lab(ix,iy,iz-1).p - 6.0*lab(ix,iy,iz).p);
+    for(int z=0; z<Nz; ++z)
+    for(int y=0; y<Ny; ++y)
+    for(int x=0; x<Nx; ++x)
+      b(x,y,z).u[0] = fac*(lab(x+1,y,z).s+lab(x-1,y,z).s
+                          +lab(x,y+1,z).s+lab(x,y-1,z).s
+                          +lab(x,y,z+1).s+lab(x,y,z-1).s - 6.0*lab(x,y,z).s);
 
-    BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
-    typename FluidBlock::ElementType * faceXm = nullptr;
-    typename FluidBlock::ElementType * faceXp = nullptr;
-    typename FluidBlock::ElementType * faceYm = nullptr;
-    typename FluidBlock::ElementType * faceYp = nullptr;
-    typename FluidBlock::ElementType * faceZp = nullptr;
-    typename FluidBlock::ElementType * faceZm = nullptr;
-    if (tempCase != nullptr)
-    {
-      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
-      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
-      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
-      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
-      faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
-      faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
-    }
+    BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
+
+    if (tempCase == nullptr) return; //no flux corrections needed for this block
+
+    VectorElement * const faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+    VectorElement * const faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+    VectorElement * const faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+    VectorElement * const faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+    VectorElement * const faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
+    VectorElement * const faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
+
     if (faceXm != nullptr)
     {
-      int ix = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      {
-        faceXm[iy + FluidBlock::sizeY * iz].clear();
-        faceXm[iy + FluidBlock::sizeY * iz].tmpU = fac *(lab(ix,iy,iz).p - lab(ix-1,iy,iz).p);
-      }
+      const int x = 0;
+      for(int z=0; z<Nz; ++z)
+      for(int y=0; y<Ny; ++y)
+        faceXm[y + Ny * z].u[0] = fac *(lab(x,y,z).s - lab(x-1,y,z).s);
     }
     if (faceXp != nullptr)
     {
-      int ix = FluidBlock::sizeX-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      {
-        faceXp[iy + FluidBlock::sizeY * iz].clear();
-        faceXp[iy + FluidBlock::sizeY * iz].tmpU = - fac *(lab(ix+1,iy,iz).p - lab(ix,iy,iz).p);
-      }
+      const int x = Nx-1;
+      for(int z=0; z<Nz; ++z)
+      for(int y=0; y<Ny; ++y)
+        faceXp[y + Ny * z].u[0] = - fac *(lab(x+1,y,z).s - lab(x,y,z).s);
     }
     if (faceYm != nullptr)
     {
-      int iy = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceYm[ix + FluidBlock::sizeX * iz].clear();
-        faceYm[ix + FluidBlock::sizeX * iz].tmpU = fac *(lab(ix,iy,iz).p - lab(ix,iy-1,iz).p);
-      }
+      const int y = 0;
+      for(int z=0; z<Nz; ++z)
+      for(int x=0; x<Nx; ++x)
+        faceYm[x + Nx * z].u[0] = fac *(lab(x,y,z).s - lab(x,y-1,z).s);
     }
     if (faceYp != nullptr)
     {
-      int iy = FluidBlock::sizeY-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceYp[ix + FluidBlock::sizeX * iz].clear();
-        faceYp[ix + FluidBlock::sizeX * iz].tmpU = - fac *(lab(ix,iy+1,iz).p - lab(ix,iy,iz).p);
-      }
+      const int y = Ny-1;
+      for(int z=0; z<Nz; ++z)
+      for(int x=0; x<Nx; ++x)
+        faceYp[x + Nx * z].u[0] = - fac *(lab(x,y+1,z).s - lab(x,y,z).s);
     }
     if (faceZm != nullptr)
     {
-      int iz = 0;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceZm[ix + FluidBlock::sizeX * iy].clear();
-        faceZm[ix + FluidBlock::sizeX * iy].tmpU = fac *(lab(ix,iy,iz).p - lab(ix,iy,iz-1).p);
-      }
+      const int z = 0;
+      for(int y=0; y<Ny; ++y)
+      for(int x=0; x<Nx; ++x)
+        faceZm[x + Nx * y].u[0] = fac *(lab(x,y,z).s - lab(x,y,z-1).s);
     }
     if (faceZp != nullptr)
     {
-      int iz = FluidBlock::sizeZ-1;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceZp[ix + FluidBlock::sizeX * iy].clear();
-        faceZp[ix + FluidBlock::sizeX * iy].tmpU = - fac *(lab(ix,iy,iz+1).p - lab(ix,iy,iz).p);
-      }
+      const int z = Nz-1;
+      for(int y=0; y<Ny; ++y)
+      for(int x=0; x<Nx; ++x)
+        faceZp[x + Nx * y].u[0] = - fac *(lab(x,y,z+1).s - lab(x,y,z).s);
     }
   }
 };
 
 struct KernelPressureRHS
 {
-  typedef typename FluidGridMPI::BlockType BlockType;
   SimulationData & sim;
   const Real dt = sim.dt;
   ObstacleVector * const obstacle_vector = sim.obstacle_vector;
   const int nShapes = obstacle_vector->nObstacles();
-
-  const std::array<int, 3> stencil_start = {-1,-1,-1}, stencil_end = {2, 2, 2};
-  const StencilInfo stencil = StencilInfo(-1,-1,-1, 2,2,2, false, {FE_U, FE_V, FE_W, FE_TMPU, FE_TMPV, FE_TMPW});
+  StencilInfo stencil  = StencilInfo(-1,-1,-1, 2,2,2, false, {0,1,2});
+  StencilInfo stencil2 = StencilInfo(-1,-1,-1, 2,2,2, false, {0,1,2});
+  const std::vector<BlockInfo>& lhsInfo = sim.lhsInfo();
+  const std::vector<BlockInfo>& chiInfo = sim.chiInfo();
+  const int Nx = VectorBlock::sizeX;
+  const int Ny = VectorBlock::sizeY;
+  const int Nz = VectorBlock::sizeZ;
 
   KernelPressureRHS(SimulationData& s) :sim(s) {}
 
-  void operator()(LabMPI& lab, const BlockInfo& info) const
+  void operator()(const VectorLab & lab, const VectorLab & uDefLab, const BlockInfo& info, const BlockInfo& info2) const
   {
     const Real h = info.h, fac = 0.5*h*h/dt;
-    FluidBlock & __restrict__ b  = *(FluidBlock*) info.ptrBlock;
+    const ScalarBlock & __restrict__ c  = *(ScalarBlock*) chiInfo[info2.blockID].ptrBlock;
+    ScalarBlock & __restrict__ p  = *(ScalarBlock*) lhsInfo[info2.blockID].ptrBlock;
 
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
-      const FluidElement &LW = lab(ix-1,iy,  iz  ), &LE = lab(ix+1,iy,  iz  );
-      const FluidElement &LS = lab(ix,  iy-1,iz  ), &LN = lab(ix,  iy+1,iz  );
-      const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
-      b(ix,iy,iz).p = fac*(LE.u-LW.u + LN.v-LS.v + LB.w-LF.w);
-    }
-
-    BlockCase<FluidBlock> * tempCase = (BlockCase<FluidBlock> *)(info.auxiliary);
-    typename FluidBlock::ElementType * faceXm = nullptr;
-    typename FluidBlock::ElementType * faceXp = nullptr;
-    typename FluidBlock::ElementType * faceYm = nullptr;
-    typename FluidBlock::ElementType * faceYp = nullptr;
-    typename FluidBlock::ElementType * faceZp = nullptr;
-    typename FluidBlock::ElementType * faceZm = nullptr;
-    if (tempCase != nullptr)
+    for(int z=0; z<Nz; ++z)
+    for(int y=0; y<Ny; ++y)
+    for(int x=0; x<Nx; ++x)
     {
-      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
-      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
-      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
-      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
-      faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
-      faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
+      {
+        const VectorElement &LW = lab(x-1,y,  z  ), &LE = lab(x+1,y,  z  );
+        const VectorElement &LS = lab(x,  y-1,z  ), &LN = lab(x,  y+1,z  );
+        const VectorElement &LF = lab(x,  y,  z-1), &LB = lab(x,  y,  z+1);
+        p(x,y,z).s = fac*(LE.u[0]-LW.u[0] + LN.u[1]-LS.u[1] + LB.u[2]-LF.u[2]);
+      }
+      {
+        const VectorElement &LW = uDefLab(x-1,y,  z  ), &LE = uDefLab(x+1,y,  z  );
+        const VectorElement &LS = uDefLab(x,  y-1,z  ), &LN = uDefLab(x,  y+1,z  );
+        const VectorElement &LF = uDefLab(x,  y,  z-1), &LB = uDefLab(x,  y,  z+1);
+        const Real divUs = LE.u[0]-LW.u[0] + LN.u[1]-LS.u[1] + LB.u[2]-LF.u[2];
+        p(x,y,z).s += - c(x,y,z).s * fac * divUs;
+      }
     }
+
+    BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(lhsInfo[info2.blockID].auxiliary);
+
+    if (tempCase == nullptr) return; //no flux corrections needed for this block
+
+    ScalarElement * const faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+    ScalarElement * const faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+    ScalarElement * const faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+    ScalarElement * const faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+    ScalarElement * const faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
+    ScalarElement * const faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
+
     if (faceXm != nullptr)
     {
-      int ix = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      {
-        faceXm[iy + FluidBlock::sizeY * iz].clear();
-        faceXm[iy + FluidBlock::sizeY * iz].p = fac *(lab(ix-1,iy,iz).u + lab(ix,iy,iz).u);
-      }
+      const int x = 0;
+      for(int z=0; z<Nz; ++z)
+      for(int y=0; y<Ny; ++y)
+        faceXm[y + Ny * z].s =  fac*(lab(x-1,y,z).u[0] + lab(x,y,z).u[0]) - c(x,y,z).s*fac*(uDefLab(x-1,y,z).u[0] + uDefLab(x,y,z).u[0]);
     }
     if (faceXp != nullptr)
     {
-      int ix = FluidBlock::sizeX-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      {
-        faceXp[iy + FluidBlock::sizeY * iz].clear();
-        faceXp[iy + FluidBlock::sizeY * iz].p = - fac *(lab(ix+1,iy,iz).u + lab(ix,iy,iz).u);
-      }
+      const int x = Nx-1;
+      for(int z=0; z<Nz; ++z)
+      for(int y=0; y<Ny; ++y)
+        faceXp[y + Ny * z].s = -fac*(lab(x+1,y,z).u[0] + lab(x,y,z).u[0]) + c(x,y,z).s*fac*(uDefLab(x+1,y,z).u[0] + uDefLab(x,y,z).u[0]);
     }
     if (faceYm != nullptr)
     {
-      int iy = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceYm[ix + FluidBlock::sizeX * iz].clear();
-        faceYm[ix + FluidBlock::sizeX * iz].p = fac *(lab(ix,iy-1,iz).v + lab(ix,iy,iz).v);
-      }
+      const int y = 0;
+      for(int z=0; z<Nz; ++z)
+      for(int x=0; x<Nx; ++x)
+        faceYm[x + Nx * z].s =  fac*(lab(x,y-1,z).u[1] + lab(x,y,z).u[1]) - c(x,y,z).s*fac*(uDefLab(x,y-1,z).u[1] + uDefLab(x,y,z).u[1]);
     }
     if (faceYp != nullptr)
     {
-      int iy = FluidBlock::sizeY-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceYp[ix + FluidBlock::sizeX * iz].clear();
-        faceYp[ix + FluidBlock::sizeX * iz].p = - fac *(lab(ix,iy+1,iz).v + lab(ix,iy,iz).v);
-      }
+      const int y = Ny-1;
+      for(int z=0; z<Nz; ++z)
+      for(int x=0; x<Nx; ++x)
+        faceYp[x + Nx * z].s = -fac*(lab(x,y+1,z).u[1] + lab(x,y,z).u[1]) + c(x,y,z).s*fac*(uDefLab(x,y+1,z).u[1] + uDefLab(x,y,z).u[1]);
     }
     if (faceZm != nullptr)
     {
-      int iz = 0;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceZm[ix + FluidBlock::sizeX * iy].clear();
-        faceZm[ix + FluidBlock::sizeX * iy].p = fac *(lab(ix,iy,iz-1).w + lab(ix,iy,iz).w);
-      }
+      const int z = 0;
+      for(int y=0; y<Ny; ++y)
+      for(int x=0; x<Nx; ++x)
+        faceZm[x + Nx * y].s =  fac*(lab(x,y,z-1).u[2] + lab(x,y,z).u[2]) - c(x,y,z).s*fac*(uDefLab(x,y,z-1).u[2] + uDefLab(x,y,z).u[2]);
     }
     if (faceZp != nullptr)
     {
-      int iz = FluidBlock::sizeZ-1;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceZp[ix + FluidBlock::sizeX * iy].clear();
-        faceZp[ix + FluidBlock::sizeX * iy].p = - fac *(lab(ix,iy,iz+1).w + lab(ix,iy,iz).w);
-      }
-    }
-    if(nShapes == 0) return; // no need to account for obstacles
-
-    for (const auto &obstacle : obstacle_vector->getObstacleVector())
-      visit(lab, info, obstacle.get());
-  }
-
-  void visit(Lab& lab, const BlockInfo& info, Obstacle* const obstacle) const
-  {
-    const auto& obstblocks = obstacle->getObstacleBlocks();
-    if (obstblocks[info.blockID] == nullptr) return;
-
-    const CHIMAT & __restrict__ CHI = obstblocks[info.blockID]->chi;
-
-    const Real h = info.h, fac = 0.5*h*h/dt;
-
-    BlockType & __restrict__ b  = *(BlockType*) info.ptrBlock;
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-    {
-      if (lab(ix,iy,iz).chi > CHI[iz][iy][ix]) continue;
-      const FluidElement &LW = lab(ix-1,iy,  iz  ), &LE = lab(ix+1,iy,  iz  );
-      const FluidElement &LS = lab(ix,  iy-1,iz  ), &LN = lab(ix,  iy+1,iz  );
-      const FluidElement &LF = lab(ix,  iy,  iz-1), &LB = lab(ix,  iy,  iz+1);
-      const Real divUs = LE.tmpU-LW.tmpU + LN.tmpV-LS.tmpV + LB.tmpW-LF.tmpW;
-      const Real srcBulk = - CHI[iz][iy][ix] * fac * divUs;
-      b(ix,iy,iz).p += srcBulk;
-    }
-
-    BlockCase<BlockType> * tempCase = (BlockCase<BlockType> *)(info.auxiliary);
-    typename BlockType::ElementType * faceXm = nullptr;
-    typename BlockType::ElementType * faceXp = nullptr;
-    typename BlockType::ElementType * faceYm = nullptr;
-    typename BlockType::ElementType * faceYp = nullptr;
-    typename BlockType::ElementType * faceZp = nullptr;
-    typename BlockType::ElementType * faceZm = nullptr;
-    if (tempCase != nullptr)
-    {
-      faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
-      faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
-      faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
-      faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
-      faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
-      faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
-    }
-    if (faceXm != nullptr)
-    {
-      int ix = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      {
-        faceXm[iy + FluidBlock::sizeY * iz].p += - CHI[iz][iy][ix]* fac *(lab(ix-1,iy,iz).tmpU + lab(ix,iy,iz).tmpU);
-      }
-    }
-    if (faceXp != nullptr)
-    {
-      int ix = FluidBlock::sizeX-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      {
-        faceXp[iy + FluidBlock::sizeY * iz].p +=   CHI[iz][iy][ix] * fac *(lab(ix+1,iy,iz).tmpU + lab(ix,iy,iz).tmpU);
-      }
-    }
-    if (faceYm != nullptr)
-    {
-      int iy = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceYm[ix + FluidBlock::sizeX * iz].p += - CHI[iz][iy][ix] * fac *(lab(ix,iy-1,iz).tmpV + lab(ix,iy,iz).tmpV);
-      }
-    }
-    if (faceYp != nullptr)
-    {
-      int iy = FluidBlock::sizeY-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceYp[ix + FluidBlock::sizeX * iz].p +=  CHI[iz][iy][ix]* fac *(lab(ix,iy+1,iz).tmpV + lab(ix,iy,iz).tmpV);
-      }
-    }
-    if (faceZm != nullptr)
-    {
-      int iz = 0;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceZm[ix + FluidBlock::sizeX * iy].p += - CHI[iz][iy][ix] *fac *(lab(ix,iy,iz-1).tmpW + lab(ix,iy,iz).tmpW);
-      }
-    }
-    if (faceZp != nullptr)
-    {
-      int iz = FluidBlock::sizeZ-1;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
-      {
-        faceZp[ix + FluidBlock::sizeX * iy].p +=  CHI[iz][iy][ix]*fac *(lab(ix,iy,iz+1).tmpW + lab(ix,iy,iz).tmpW);
-      }
+      const int z = Nz-1;
+      for(int y=0; y<Ny; ++y)
+      for(int x=0; x<Nx; ++x)
+        faceZp[x + Nx * y].s = -fac*(lab(x,y,z+1).u[2] + lab(x,y,z).u[2]) + c(x,y,z).s*fac*(uDefLab(x,y,z+1).u[2] + uDefLab(x,y,z).u[2]);
     }
   }
 };
 
-}  // anonymous namespace
-
-/// Add obstacle's udef to tmpU, tmpV and tmpW.
-static void kernelUpdateTmpUVW(SimulationData& sim)
+/// Add obstacle's udef to tmpV
+static void kernelUpdateTmpV(SimulationData& sim)
 {
-  const std::vector<cubism::BlockInfo>& vInfo = sim.grid->getBlocksInfo();
+  const int Nx = VectorBlock::sizeX;
+  const int Ny = VectorBlock::sizeY;
+  const int Nz = VectorBlock::sizeZ;
+  const std::vector<BlockInfo>& chiInfo = sim.chiInfo();
+  const std::vector<BlockInfo>& tmpVInfo = sim.tmpVInfo();
   #pragma omp parallel
   {
-    for (const auto &obstacle : sim.obstacle_vector->getObstacleVector()) {
+    for (const auto &obstacle : sim.obstacle_vector->getObstacleVector())
+    {
       const auto& obstblocks = obstacle->getObstacleBlocks();
       #pragma omp for schedule(dynamic, 1)
-      for (size_t i = 0; i < vInfo.size(); ++i)
+      for (size_t i = 0; i < chiInfo.size(); ++i)
       {
-        const cubism::BlockInfo& info = vInfo[i];
+        const BlockInfo& info = chiInfo[i];
         const auto pos = obstblocks[info.blockID];
         if(pos == nullptr) continue;
 
-        FluidBlock& b = *(FluidBlock*)info.ptrBlock;
+        const ScalarBlock& c = *(ScalarBlock*)info.ptrBlock;
+        VectorBlock& b = *(VectorBlock*)tmpVInfo[i].ptrBlock;
         const UDEFMAT & __restrict__ UDEF = pos->udef;
         const CHIMAT & __restrict__ CHI = pos->chi;
 
-        for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-        for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-        for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+        for(int z=0; z<Nz; ++z)
+        for(int y=0; y<Ny; ++y)
+        for(int x=0; x<Nx; ++x)
         {
           // What if multiple obstacles share a block? Do not write udef onto
           // grid if CHI stored on the grid is greater than obst's CHI.
-          if(b(ix,iy,iz).chi > CHI[iz][iy][ix]) continue;
+          if(c(x,y,z).s > CHI[z][y][x]) continue;
           // What if two obstacles overlap? Let's plus equal. After all here
           // we are computing divUs, maybe one obstacle has divUs 0. We will
           // need a repulsion term of the velocity at some point in the code.
-          b(ix,iy,iz).tmpU += UDEF[iz][iy][ix][0];
-          b(ix,iy,iz).tmpV += UDEF[iz][iy][ix][1];
-          b(ix,iy,iz).tmpW += UDEF[iz][iy][ix][2];
+          b(x,y,z).u[0] += UDEF[z][y][x][0];
+          b(x,y,z).u[1] += UDEF[z][y][x][1];
+          b(x,y,z).u[2] += UDEF[z][y][x][2];
         }
       }
     }
@@ -366,81 +237,67 @@ PressureRHS::PressureRHS(SimulationData & s) : Operator(s) {}
 
 void PressureRHS::operator()(const Real dt)
 {
-  const std::vector<cubism::BlockInfo>& vInfo = sim.grid->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& vInfo_lhs = sim.lhs->getBlocksInfo();
-  const std::vector<cubism::BlockInfo>& vInfo_z   = sim.z  ->getBlocksInfo();
-
+  const int Nx = VectorBlock::sizeX;
+  const int Ny = VectorBlock::sizeY;
+  const int Nz = VectorBlock::sizeZ;
+  const std::vector<BlockInfo>& lhsInfo = sim.lhsInfo();
+  const std::vector<BlockInfo>& presInfo = sim.presInfo();
+  const std::vector<BlockInfo>& pOldInfo = sim.pOldInfo();
+  const std::vector<BlockInfo>& tmpVInfo = sim.tmpVInfo();
   //1. Compute pRHS
   {
-    //dataOld[3] -> store p
+    //pOld -> store p
     //p -> store RHS
     #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<vInfo.size(); i++)
+    for(size_t i=0; i<presInfo.size(); i++)
     {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      const ScalarBlock& p = *(ScalarBlock*)presInfo[i].ptrBlock;
+      VectorBlock& tmpV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
+      ScalarBlock& pOld = *(ScalarBlock*)pOldInfo[i].ptrBlock;
+      for(int z=0; z<Nz; ++z)
+      for(int y=0; y<Ny; ++y)
+      for(int x=0; x<Nx; ++x)
       {
-	b.dataOld[iz][iy][ix][3] = b(ix,iy,iz).p;//store old pressure where it should be stored
-        b(ix,iy,iz).tmpU = 0; 
-	b(ix,iy,iz).tmpV = 0;
-	b(ix,iy,iz).tmpW = 0;
+        pOld(x,y,z) = p(x,y,z);
+        tmpV(x,y,z).u[0] = 0; 
+        tmpV(x,y,z).u[1] = 0;
+        tmpV(x,y,z).u[2] = 0;
       }
     }
 
-    //place Udef on tmpU,tmpV,tmpW
-    const size_t nShapes = sim.obstacle_vector->nObstacles();
-    if(nShapes > 0)
-      kernelUpdateTmpUVW(sim);
+    //place Udef on tmpV
+    if(sim.obstacle_vector->nObstacles() > 0) kernelUpdateTmpV(sim);
 
     KernelPressureRHS K(sim);
-    cubism::compute<LabMPI> (K,sim.grid,sim.grid);
+    compute<KernelPressureRHS,VectorGrid,VectorLab,VectorGrid,VectorLab,ScalarGrid>(K,*sim.vel,*sim.tmpV,true,sim.lhs);
+  }
 
-    #pragma omp parallel for schedule(static)
-    for(size_t i=0; i<vInfo.size(); i++)
+  ////2. Add div(p_old) to rhs and set initial guess phi = 0, i.e. p^{n+1}=p^{n}
+  if (sim.step> sim.step_2nd_start)
+  {
+    compute<ScalarLab>(KernelDivPressure(sim),sim.pres,sim.tmpV);
+    #pragma omp parallel for
+    for(size_t i=0; i<presInfo.size(); i++)
     {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      ScalarBlock & LHS = *(ScalarBlock *)vInfo_lhs[i].ptrBlock;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      const VectorBlock& b = *(VectorBlock*)tmpVInfo[i].ptrBlock;
+      ScalarBlock & LHS = *(ScalarBlock *)lhsInfo[i].ptrBlock;
+      ScalarBlock& p = *(ScalarBlock*)presInfo[i].ptrBlock;
+      for(int z=0; z<Nz; ++z)
+      for(int y=0; y<Ny; ++y)
+      for(int x=0; x<Nx; ++x)
       {
-        LHS(ix,iy,iz).s = b(ix,iy,iz).p;
-        b(ix,iy,iz).p = b.dataOld[iz][iy][ix][3];
+        LHS(x,y,z).s -= b(x,y,z).u[0];
+	p(x,y,z).s = 0;
       }
     }
   }
-
-  ////2. Add div(p_old) to rhs
-  if (sim.step> sim.step_2nd_start)
+  else // just set initial guess phi = 0, i.e. p^{n+1}=p^{n}
   {
-    const KernelDivPressure K(sim);
-    cubism::compute<LabMPI>(K,sim.grid,sim.grid);
     #pragma omp parallel for
-    for(size_t i=0; i<vInfo.size(); i++)
+    for(size_t i=0; i<presInfo.size(); i++)
     {
-      FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-      ScalarBlock & LHS = *(ScalarBlock *)vInfo_lhs[i].ptrBlock;
-      for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-        LHS(ix,iy,iz).s -= b(ix,iy,iz).tmpU;
-    }
-  }
-
-  //initial guess phi = 0, i.e. p^{n+1}=p^{n}
-  #pragma omp parallel for
-  for(size_t i=0; i<vInfo.size(); i++)
-  {
-    FluidBlock& b = *(FluidBlock*)vInfo[i].ptrBlock;
-    ScalarBlock & Z = *(ScalarBlock *)vInfo_z[i].ptrBlock;
-    for (int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for (int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for (int ix=0; ix<FluidBlock::sizeX; ++ix)
-    {
-      Z(ix,iy,iz).s = 0.0;//pass initial guess to solver
-      b(ix,iy,iz).p = 0.0;
+      ScalarBlock& p = *(ScalarBlock*)presInfo[i].ptrBlock;
+      p.clear();
     }
   }
 }

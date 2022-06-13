@@ -20,10 +20,10 @@ class InitialConditions : public Operator
 
   template<typename K>
   inline void run(const K kernel) {
-    std::vector<cubism::BlockInfo>& vInfo = sim.vInfo();    
+    std::vector<cubism::BlockInfo>& vInfo = sim.velInfo();
     #pragma omp parallel for schedule(static)
     for (size_t i=0; i<vInfo.size(); i++)
-      kernel(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
+      kernel(vInfo[i], *(VectorBlock*)vInfo[i].ptrBlock);
   }
 
   void operator()(const Real dt);

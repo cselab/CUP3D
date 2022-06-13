@@ -477,7 +477,7 @@ void StefanFish::act(const Real t_rlAction, const std::vector<Real>& a) const
   if (actions.size() == 0)
   {
      std::cerr << "No actions given to CurvatureDefinedFishData::execute\n";
-     MPI_Abort(sim.app_comm,1);
+     MPI_Abort(sim.comm,1);
   }
   if (bForcedInSimFrame[2] == true && a.size() > 1) actions[1] = 0; //no pitching
   cFish->execute(sim.time, t_rlAction, actions);
@@ -551,12 +551,12 @@ std::vector<Real> StefanFish::state() const
 
 ssize_t StefanFish::holdingBlockID(const std::array<Real,3> pos) const
 {
-  const std::vector<cubism::BlockInfo>& velInfo = sim.vInfo();
+  const std::vector<cubism::BlockInfo>& velInfo = sim.velInfo();
   for(size_t i=0; i<velInfo.size(); ++i)
   {
     // compute lower left and top right corners of block (+- 0.5 h because pos returns cell centers)
     std::array<Real,3> MIN = velInfo[i].pos<Real>(0                  , 0                 ,  0                  );
-    std::array<Real,3> MAX = velInfo[i].pos<Real>(FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    std::array<Real,3> MAX = velInfo[i].pos<Real>(ScalarBlock::sizeX-1, ScalarBlock::sizeY-1, ScalarBlock::sizeZ-1);
     MIN[0] -= 0.5 * velInfo[i].h;
     MIN[1] -= 0.5 * velInfo[i].h;
     MIN[2] -= 0.5 * velInfo[i].h;
@@ -576,7 +576,7 @@ ssize_t StefanFish::holdingBlockID(const std::array<Real,3> pos) const
 // returns shear at given surface location
 std::array<Real, 3> StefanFish::getShear(const std::array<Real,3> pSurf) const
 {
-  const std::vector<cubism::BlockInfo>& velInfo = sim.vInfo(); 
+  const std::vector<cubism::BlockInfo>& velInfo = sim.velInfo(); 
 
   Real myF[3] = {0,0,0};
   
@@ -608,7 +608,7 @@ std::array<Real, 3> StefanFish::getShear(const std::array<Real,3> pSurf) const
       }
     }
   }
-  MPI_Allreduce(MPI_IN_PLACE, myF, 3, MPI_Real, MPI_SUM, sim.grid->getCartComm());
+  MPI_Allreduce(MPI_IN_PLACE, myF, 3, MPI_Real, MPI_SUM, sim.comm);
 
   return std::array<Real, 3>{{myF[0],myF[1],myF[2]}};// return shear
 };

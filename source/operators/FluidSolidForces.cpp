@@ -3,11 +3,8 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
-//
 
 #include "FluidSolidForces.h"
-#include "../Obstacles/ObstacleVector.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -23,19 +20,24 @@ struct KernelComputeForces
   const int small = -4;
 
   const int stencil_start[3] = {small,small,small}, stencil_end[3] = {big,big,big};
-  StencilInfo stencil{small,small,small, big,big,big, true, {FE_CHI,FE_U,FE_V,FE_W}};
+  StencilInfo stencil{small,small,small, big,big,big, true, {0,1,2}};
+  StencilInfo stencil2{small,small,small, big,big,big, true, {0}};
+  SimulationData & sim;
 
-  KernelComputeForces(Real _nu, Real _dt, ObstacleVector* ov) :
-    obstacle_vector(ov), nu(_nu), dt(_dt) { }
+  const std::vector<cubism::BlockInfo>& presInfo = sim.chiInfo();
 
-  void operator()(LabMPI& lab, const BlockInfo& info) const
+  KernelComputeForces(Real _nu, Real _dt, ObstacleVector* ov, SimulationData& s) :
+    obstacle_vector(ov), nu(_nu), dt(_dt), sim(s) { }
+
+  void operator()(VectorLab& lab, ScalarLab& chiLab, const BlockInfo& info, const BlockInfo& info2) const
   {
     for (const auto &obstacle : obstacle_vector->getObstacleVector())
-      visit(lab, info, obstacle.get());
+      visit(lab, chiLab, info, info2, obstacle.get());
   }
 
-  void visit(LabMPI& l, const BlockInfo& info, Obstacle* const op) const
+  void visit(VectorLab& l, ScalarLab& chiLab, const BlockInfo& info, const BlockInfo& info2, Obstacle* const op) const
   {
+    const ScalarBlock & presBlock = *(ScalarBlock*)presInfo[info.blockID].ptrBlock;
     const std::vector<ObstacleBlock*>& obstblocks = op->getObstacleBlocks();
     ObstacleBlock*const o = obstblocks[info.blockID];
     if (o == nullptr) return;
@@ -56,7 +58,6 @@ struct KernelComputeForces
     }
 
     const Real _1oH = nu / info.h;
-    //const Real _h3 = std::pow(info.h,3);
 
     //loop over elements of block info that have nonzero gradChi
     for(int i=0; i<o->nPoints; i++)
@@ -65,9 +66,6 @@ struct KernelComputeForces
       const int ix = o->surface[i]->ix;
       const int iy = o->surface[i]->iy;
       const int iz = o->surface[i]->iz;
-
-      // WAS A SOURCE OF HUGE BUG - due to unzeroed values in surfData arrays. The kid had forgotten to initialize allocated arrays in surfData to zero!!
-      //if(o->chi[iz][iy][ix] < 1e-16) continue;
 
       info.pos(p, ix, iy, iz);
 
@@ -88,27 +86,27 @@ struct KernelComputeForces
       for (int kk = 1 ; kk < 10 ; kk++) //10 is arbitrary
       {
         if ((int)abs(kk*dx) > 3 || (int)abs(kk*dy) > 3 || (int)abs(kk*dz) > 3) break; //3 means we moved too far
-        if (l(x,y,z).chi <0.3 && found == 0) break;
+        if (chiLab(x,y,z).s <0.3 && found == 0) break;
 
-	if (ix + kk*dx + 1 >= FluidBlock::sizeX + big-1 || ix + kk*dx -1 < small) break;
-	if (iy + kk*dy + 1 >= FluidBlock::sizeY + big-1 || iy + kk*dy -1 < small) break;
-	if (iz + kk*dz + 1 >= FluidBlock::sizeZ + big-1 || iz + kk*dz -1 < small) break;
+	if (ix + kk*dx + 1 >= ScalarBlock::sizeX + big-1 || ix + kk*dx -1 < small) break;
+	if (iy + kk*dy + 1 >= ScalarBlock::sizeY + big-1 || iy + kk*dy -1 < small) break;
+	if (iz + kk*dz + 1 >= ScalarBlock::sizeZ + big-1 || iz + kk*dz -1 < small) break;
 
         x  = ix + kk*dx; 
         y  = iy + kk*dy;
         z  = iz + kk*dz;
-        if (l(x,y,z).chi < 0.3 ) found ++;
+        if (chiLab(x,y,z).s < 0.3 ) found ++;
       }
 
-      Real dudx1 = normX > 0 ? (l(x+1,y,z).u-l(x,y,z).u) : (l(x,y,z).u-l(x-1,y,z).u);
-      Real dvdx1 = normX > 0 ? (l(x+1,y,z).v-l(x,y,z).v) : (l(x,y,z).v-l(x-1,y,z).v);
-      Real dwdx1 = normX > 0 ? (l(x+1,y,z).w-l(x,y,z).w) : (l(x,y,z).w-l(x-1,y,z).w);
-      Real dudy1 = normY > 0 ? (l(x,y+1,z).u-l(x,y,z).u) : (l(x,y,z).u-l(x,y-1,z).u);
-      Real dvdy1 = normY > 0 ? (l(x,y+1,z).v-l(x,y,z).v) : (l(x,y,z).v-l(x,y-1,z).v);
-      Real dwdy1 = normY > 0 ? (l(x,y+1,z).w-l(x,y,z).w) : (l(x,y,z).w-l(x,y-1,z).w);
-      Real dudz1 = normY > 0 ? (l(x,y,z+1).u-l(x,y,z).u) : (l(x,y,z).u-l(x,y,z-1).u);
-      Real dvdz1 = normY > 0 ? (l(x,y,z+1).v-l(x,y,z).v) : (l(x,y,z).v-l(x,y,z-1).v);
-      Real dwdz1 = normY > 0 ? (l(x,y,z+1).w-l(x,y,z).w) : (l(x,y,z).w-l(x,y,z-1).w);
+      Real dudx1 = normX > 0 ? (l(x+1,y,z).u[0]-l(x,y,z).u[0]) : (l(x,y,z).u[0]-l(x-1,y,z).u[0]);
+      Real dvdx1 = normX > 0 ? (l(x+1,y,z).u[1]-l(x,y,z).u[1]) : (l(x,y,z).u[1]-l(x-1,y,z).u[1]);
+      Real dwdx1 = normX > 0 ? (l(x+1,y,z).u[2]-l(x,y,z).u[2]) : (l(x,y,z).u[2]-l(x-1,y,z).u[2]);
+      Real dudy1 = normY > 0 ? (l(x,y+1,z).u[0]-l(x,y,z).u[0]) : (l(x,y,z).u[0]-l(x,y-1,z).u[0]);
+      Real dvdy1 = normY > 0 ? (l(x,y+1,z).u[1]-l(x,y,z).u[1]) : (l(x,y,z).u[1]-l(x,y-1,z).u[1]);
+      Real dwdy1 = normY > 0 ? (l(x,y+1,z).u[2]-l(x,y,z).u[2]) : (l(x,y,z).u[2]-l(x,y-1,z).u[2]);
+      Real dudz1 = normY > 0 ? (l(x,y,z+1).u[0]-l(x,y,z).u[0]) : (l(x,y,z).u[0]-l(x,y,z-1).u[0]);
+      Real dvdz1 = normY > 0 ? (l(x,y,z+1).u[1]-l(x,y,z).u[1]) : (l(x,y,z).u[1]-l(x,y,z-1).u[1]);
+      Real dwdz1 = normY > 0 ? (l(x,y,z+1).u[2]-l(x,y,z).u[2]) : (l(x,y,z).u[2]-l(x,y,z-1).u[2]);
       Real dudx2 = 0.0;
       Real dvdx2 = 0.0;
       Real dwdx2 = 0.0;
@@ -139,251 +137,251 @@ struct KernelComputeForces
       Real dvdydz1 = 0.0;
       Real dwdydz1 = 0.0;
 
-      dudxdy1 = 0.25*(l(x+1,y+1,z).u+l(x-1,y-1,z).u-l(x+1,y-1,z).u-l(x-1,y+1,z).u);
-      dvdxdy1 = 0.25*(l(x+1,y+1,z).v+l(x-1,y-1,z).v-l(x+1,y-1,z).v-l(x-1,y+1,z).v);
-      dwdxdy1 = 0.25*(l(x+1,y+1,z).w+l(x-1,y-1,z).w-l(x+1,y-1,z).w-l(x-1,y+1,z).w);
+      dudxdy1 = 0.25*(l(x+1,y+1,z).u[0]+l(x-1,y-1,z).u[0]-l(x+1,y-1,z).u[0]-l(x-1,y+1,z).u[0]);
+      dvdxdy1 = 0.25*(l(x+1,y+1,z).u[1]+l(x-1,y-1,z).u[1]-l(x+1,y-1,z).u[1]-l(x-1,y+1,z).u[1]);
+      dwdxdy1 = 0.25*(l(x+1,y+1,z).u[2]+l(x-1,y-1,z).u[2]-l(x+1,y-1,z).u[2]-l(x-1,y+1,z).u[2]);
       if (normX > 0 && normY > 0)
       {
-        dudxdy1 = (l(x+1,y+1,z).u+l(x,y,z).u-l(x+1,y,z).u-l(x,y+1,z).u);
-        dvdxdy1 = (l(x+1,y+1,z).v+l(x,y,z).v-l(x+1,y,z).v-l(x,y+1,z).v);
-        dwdxdy1 = (l(x+1,y+1,z).w+l(x,y,z).w-l(x+1,y,z).w-l(x,y+1,z).w);
+        dudxdy1 = (l(x+1,y+1,z).u[0]+l(x,y,z).u[0]-l(x+1,y,z).u[0]-l(x,y+1,z).u[0]);
+        dvdxdy1 = (l(x+1,y+1,z).u[1]+l(x,y,z).u[1]-l(x+1,y,z).u[1]-l(x,y+1,z).u[1]);
+        dwdxdy1 = (l(x+1,y+1,z).u[2]+l(x,y,z).u[2]-l(x+1,y,z).u[2]-l(x,y+1,z).u[2]);
         if ((x+2 < big) && (y+2 < big))
         {
-           dudxdy1 = -0.5*( -1.5*l(x+2,y,z).u+2*l(x+2,y+1,z).u-0.5*l(x+2,y+2,z).u ) + 2*(-1.5*l(x+1,y,z).u+2*l(x+1,y+1,z).u-0.5*l(x+1,y+2,z).u) -1.5*(-1.5*l(x,y,z).u+2*l(x,y+1,z).u-0.5*l(x,y+2,z).u);
-           dvdxdy1 = -0.5*( -1.5*l(x+2,y,z).v+2*l(x+2,y+1,z).v-0.5*l(x+2,y+2,z).v ) + 2*(-1.5*l(x+1,y,z).v+2*l(x+1,y+1,z).v-0.5*l(x+1,y+2,z).v) -1.5*(-1.5*l(x,y,z).v+2*l(x,y+1,z).v-0.5*l(x,y+2,z).v);
-           dwdxdy1 = -0.5*( -1.5*l(x+2,y,z).w+2*l(x+2,y+1,z).w-0.5*l(x+2,y+2,z).w ) + 2*(-1.5*l(x+1,y,z).w+2*l(x+1,y+1,z).w-0.5*l(x+1,y+2,z).w) -1.5*(-1.5*l(x,y,z).w+2*l(x,y+1,z).w-0.5*l(x,y+2,z).w);
+           dudxdy1 = -0.5*( -1.5*l(x+2,y,z).u[0]+2*l(x+2,y+1,z).u[0]-0.5*l(x+2,y+2,z).u[0] ) + 2*(-1.5*l(x+1,y,z).u[0]+2*l(x+1,y+1,z).u[0]-0.5*l(x+1,y+2,z).u[0]) -1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y+1,z).u[0]-0.5*l(x,y+2,z).u[0]);
+           dvdxdy1 = -0.5*( -1.5*l(x+2,y,z).u[1]+2*l(x+2,y+1,z).u[1]-0.5*l(x+2,y+2,z).u[1] ) + 2*(-1.5*l(x+1,y,z).u[1]+2*l(x+1,y+1,z).u[1]-0.5*l(x+1,y+2,z).u[1]) -1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y+1,z).u[1]-0.5*l(x,y+2,z).u[1]);
+           dwdxdy1 = -0.5*( -1.5*l(x+2,y,z).u[2]+2*l(x+2,y+1,z).u[2]-0.5*l(x+2,y+2,z).u[2] ) + 2*(-1.5*l(x+1,y,z).u[2]+2*l(x+1,y+1,z).u[2]-0.5*l(x+1,y+2,z).u[2]) -1.5*(-1.5*l(x,y,z).u[2]+2*l(x,y+1,z).u[2]-0.5*l(x,y+2,z).u[2]);
         }
       }
       if (normX < 0 && normY > 0)
       {
-        dudxdy1 = (l(x,y+1,z).u+l(x-1,y,z).u-l(x,y,z).u-l(x-1,y+1,z).u);
-        dvdxdy1 = (l(x,y+1,z).v+l(x-1,y,z).v-l(x,y,z).v-l(x-1,y+1,z).v);
-        dwdxdy1 = (l(x,y+1,z).w+l(x-1,y,z).w-l(x,y,z).w-l(x-1,y+1,z).w);
+        dudxdy1 = (l(x,y+1,z).u[0]+l(x-1,y,z).u[0]-l(x,y,z).u[0]-l(x-1,y+1,z).u[0]);
+        dvdxdy1 = (l(x,y+1,z).u[1]+l(x-1,y,z).u[1]-l(x,y,z).u[1]-l(x-1,y+1,z).u[1]);
+        dwdxdy1 = (l(x,y+1,z).u[2]+l(x-1,y,z).u[2]-l(x,y,z).u[2]-l(x-1,y+1,z).u[2]);
         if ((y+2 < big) && (x-2 >= small))
         {
-           dudxdy1 = 0.5*( -1.5*l(x-2,y,z).u+2*l(x-2,y+1,z).u-0.5*l(x-2,y+2,z).u ) - 2*(-1.5*l(x-1,y,z).u+2*l(x-1,y+1,z).u-0.5*l(x-1,y+2,z).u)+1.5*(-1.5*l(x,y,z).u+2*l(x,y+1,z).u-0.5*l(x,y+2,z).u);
-           dvdxdy1 = 0.5*( -1.5*l(x-2,y,z).v+2*l(x-2,y+1,z).v-0.5*l(x-2,y+2,z).v ) - 2*(-1.5*l(x-1,y,z).v+2*l(x-1,y+1,z).v-0.5*l(x-1,y+2,z).v)+1.5*(-1.5*l(x,y,z).v+2*l(x,y+1,z).v-0.5*l(x,y+2,z).v);
-           dwdxdy1 = 0.5*( -1.5*l(x-2,y,z).w+2*l(x-2,y+1,z).w-0.5*l(x-2,y+2,z).w ) - 2*(-1.5*l(x-1,y,z).w+2*l(x-1,y+1,z).w-0.5*l(x-1,y+2,z).w)+1.5*(-1.5*l(x,y,z).w+2*l(x,y+1,z).w-0.5*l(x,y+2,z).w);
+           dudxdy1 = 0.5*( -1.5*l(x-2,y,z).u[0]+2*l(x-2,y+1,z).u[0]-0.5*l(x-2,y+2,z).u[0] ) - 2*(-1.5*l(x-1,y,z).u[0]+2*l(x-1,y+1,z).u[0]-0.5*l(x-1,y+2,z).u[0])+1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y+1,z).u[0]-0.5*l(x,y+2,z).u[0]);
+           dvdxdy1 = 0.5*( -1.5*l(x-2,y,z).u[1]+2*l(x-2,y+1,z).u[1]-0.5*l(x-2,y+2,z).u[1] ) - 2*(-1.5*l(x-1,y,z).u[1]+2*l(x-1,y+1,z).u[1]-0.5*l(x-1,y+2,z).u[1])+1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y+1,z).u[1]-0.5*l(x,y+2,z).u[1]);
+           dwdxdy1 = 0.5*( -1.5*l(x-2,y,z).u[2]+2*l(x-2,y+1,z).u[2]-0.5*l(x-2,y+2,z).u[2] ) - 2*(-1.5*l(x-1,y,z).u[2]+2*l(x-1,y+1,z).u[2]-0.5*l(x-1,y+2,z).u[2])+1.5*(-1.5*l(x,y,z).u[2]+2*l(x,y+1,z).u[2]-0.5*l(x,y+2,z).u[2]);
         }
       }
       if (normX > 0 && normY < 0)
       {
-        dudxdy1 = (l(x+1,y,z).u+l(x,y-1,z).u-l(x+1,y-1,z).u-l(x,y,z).u);
-        dvdxdy1 = (l(x+1,y,z).v+l(x,y-1,z).v-l(x+1,y-1,z).v-l(x,y,z).v);
-        dwdxdy1 = (l(x+1,y,z).w+l(x,y-1,z).w-l(x+1,y-1,z).w-l(x,y,z).w);
+        dudxdy1 = (l(x+1,y,z).u[0]+l(x,y-1,z).u[0]-l(x+1,y-1,z).u[0]-l(x,y,z).u[0]);
+        dvdxdy1 = (l(x+1,y,z).u[1]+l(x,y-1,z).u[1]-l(x+1,y-1,z).u[1]-l(x,y,z).u[1]);
+        dwdxdy1 = (l(x+1,y,z).u[2]+l(x,y-1,z).u[2]-l(x+1,y-1,z).u[2]-l(x,y,z).u[2]);
         if ((x+2 < big) && (y-2 >= small))
         {
-           dudxdy1 = -0.5*( 1.5*l(x+2,y,z).u-2*l(x+2,y-1,z).u+0.5*l(x+2,y-2,z).u ) + 2*(1.5*l(x+1,y,z).u-2*l(x+1,y-1,z).u+0.5*l(x+1,y-2,z).u) -1.5*(1.5*l(x,y,z).u-2*l(x,y-1,z).u+0.5*l(x,y-2,z).u);
-           dvdxdy1 = -0.5*( 1.5*l(x+2,y,z).v-2*l(x+2,y-1,z).v+0.5*l(x+2,y-2,z).v ) + 2*(1.5*l(x+1,y,z).v-2*l(x+1,y-1,z).v+0.5*l(x+1,y-2,z).v) -1.5*(1.5*l(x,y,z).v-2*l(x,y-1,z).v+0.5*l(x,y-2,z).v);
-           dwdxdy1 = -0.5*( 1.5*l(x+2,y,z).w-2*l(x+2,y-1,z).w+0.5*l(x+2,y-2,z).w ) + 2*(1.5*l(x+1,y,z).w-2*l(x+1,y-1,z).w+0.5*l(x+1,y-2,z).w) -1.5*(1.5*l(x,y,z).w-2*l(x,y-1,z).w+0.5*l(x,y-2,z).w);
+           dudxdy1 = -0.5*( 1.5*l(x+2,y,z).u[0]-2*l(x+2,y-1,z).u[0]+0.5*l(x+2,y-2,z).u[0] ) + 2*(1.5*l(x+1,y,z).u[0]-2*l(x+1,y-1,z).u[0]+0.5*l(x+1,y-2,z).u[0]) -1.5*(1.5*l(x,y,z).u[0]-2*l(x,y-1,z).u[0]+0.5*l(x,y-2,z).u[0]);
+           dvdxdy1 = -0.5*( 1.5*l(x+2,y,z).u[1]-2*l(x+2,y-1,z).u[1]+0.5*l(x+2,y-2,z).u[1] ) + 2*(1.5*l(x+1,y,z).u[1]-2*l(x+1,y-1,z).u[1]+0.5*l(x+1,y-2,z).u[1]) -1.5*(1.5*l(x,y,z).u[1]-2*l(x,y-1,z).u[1]+0.5*l(x,y-2,z).u[1]);
+           dwdxdy1 = -0.5*( 1.5*l(x+2,y,z).u[2]-2*l(x+2,y-1,z).u[2]+0.5*l(x+2,y-2,z).u[2] ) + 2*(1.5*l(x+1,y,z).u[2]-2*l(x+1,y-1,z).u[2]+0.5*l(x+1,y-2,z).u[2]) -1.5*(1.5*l(x,y,z).u[2]-2*l(x,y-1,z).u[2]+0.5*l(x,y-2,z).u[2]);
         }
       }
       if (normX < 0 && normY < 0)
       {
-        dudxdy1 = (l(x,y,z).u+l(x-1,y-1,z).u-l(x,y-1,z).u-l(x-1,y,z).u);
-        dvdxdy1 = (l(x,y,z).v+l(x-1,y-1,z).v-l(x,y-1,z).v-l(x-1,y,z).v);
-        dwdxdy1 = (l(x,y,z).w+l(x-1,y-1,z).w-l(x,y-1,z).w-l(x-1,y,z).w);
+        dudxdy1 = (l(x,y,z).u[0]+l(x-1,y-1,z).u[0]-l(x,y-1,z).u[0]-l(x-1,y,z).u[0]);
+        dvdxdy1 = (l(x,y,z).u[1]+l(x-1,y-1,z).u[1]-l(x,y-1,z).u[1]-l(x-1,y,z).u[1]);
+        dwdxdy1 = (l(x,y,z).u[2]+l(x-1,y-1,z).u[2]-l(x,y-1,z).u[2]-l(x-1,y,z).u[2]);
         if ((x-2 >= small) && (y-2 >= small))
         {
-           dudxdy1 = 0.5*( 1.5*l(x-2,y,z).u-2*l(x-2,y-1,z).u+0.5*l(x-2,y-2,z).u ) - 2*(1.5*l(x-1,y,z).u-2*l(x-1,y-1,z).u+0.5*l(x-1,y-2,z).u) +1.5*(1.5*l(x,y,z).u-2*l(x,y-1,z).u+0.5*l(x,y-2,z).u);
-           dvdxdy1 = 0.5*( 1.5*l(x-2,y,z).v-2*l(x-2,y-1,z).v+0.5*l(x-2,y-2,z).v ) - 2*(1.5*l(x-1,y,z).v-2*l(x-1,y-1,z).v+0.5*l(x-1,y-2,z).v) +1.5*(1.5*l(x,y,z).v-2*l(x,y-1,z).v+0.5*l(x,y-2,z).v);
-           dwdxdy1 = 0.5*( 1.5*l(x-2,y,z).w-2*l(x-2,y-1,z).w+0.5*l(x-2,y-2,z).w ) - 2*(1.5*l(x-1,y,z).w-2*l(x-1,y-1,z).w+0.5*l(x-1,y-2,z).w) +1.5*(1.5*l(x,y,z).w-2*l(x,y-1,z).w+0.5*l(x,y-2,z).w);
+           dudxdy1 = 0.5*( 1.5*l(x-2,y,z).u[0]-2*l(x-2,y-1,z).u[0]+0.5*l(x-2,y-2,z).u[0] ) - 2*(1.5*l(x-1,y,z).u[0]-2*l(x-1,y-1,z).u[0]+0.5*l(x-1,y-2,z).u[0]) +1.5*(1.5*l(x,y,z).u[0]-2*l(x,y-1,z).u[0]+0.5*l(x,y-2,z).u[0]);
+           dvdxdy1 = 0.5*( 1.5*l(x-2,y,z).u[1]-2*l(x-2,y-1,z).u[1]+0.5*l(x-2,y-2,z).u[1] ) - 2*(1.5*l(x-1,y,z).u[1]-2*l(x-1,y-1,z).u[1]+0.5*l(x-1,y-2,z).u[1]) +1.5*(1.5*l(x,y,z).u[1]-2*l(x,y-1,z).u[1]+0.5*l(x,y-2,z).u[1]);
+           dwdxdy1 = 0.5*( 1.5*l(x-2,y,z).u[2]-2*l(x-2,y-1,z).u[2]+0.5*l(x-2,y-2,z).u[2] ) - 2*(1.5*l(x-1,y,z).u[2]-2*l(x-1,y-1,z).u[2]+0.5*l(x-1,y-2,z).u[2]) +1.5*(1.5*l(x,y,z).u[2]-2*l(x,y-1,z).u[2]+0.5*l(x,y-2,z).u[2]);
         }
       }
 
-      dudxdz1 = 0.25*(l(x+1,y,z+1).u+l(x-1,y,z-1).u-l(x+1,y,z-1).u-l(x-1,y,z+1).u);
-      dvdxdz1 = 0.25*(l(x+1,y,z+1).v+l(x-1,y,z-1).v-l(x+1,y,z-1).v-l(x-1,y,z+1).v);
-      dwdxdz1 = 0.25*(l(x+1,y,z+1).w+l(x-1,y,z-1).w-l(x+1,y,z-1).w-l(x-1,y,z+1).w);
+      dudxdz1 = 0.25*(l(x+1,y,z+1).u[0]+l(x-1,y,z-1).u[0]-l(x+1,y,z-1).u[0]-l(x-1,y,z+1).u[0]);
+      dvdxdz1 = 0.25*(l(x+1,y,z+1).u[1]+l(x-1,y,z-1).u[1]-l(x+1,y,z-1).u[1]-l(x-1,y,z+1).u[1]);
+      dwdxdz1 = 0.25*(l(x+1,y,z+1).u[2]+l(x-1,y,z-1).u[2]-l(x+1,y,z-1).u[2]-l(x-1,y,z+1).u[2]);
       if (normX > 0 && normZ > 0)
       {
-        dudxdz1 = (l(x+1,y,z+1).u+l(x,y,z).u-l(x+1,y,z).u-l(x,y,z+1).u);
-        dvdxdz1 = (l(x+1,y,z+1).v+l(x,y,z).v-l(x+1,y,z).v-l(x,y,z+1).v);
-        dwdxdz1 = (l(x+1,y,z+1).w+l(x,y,z).w-l(x+1,y,z).w-l(x,y,z+1).w);
+        dudxdz1 = (l(x+1,y,z+1).u[0]+l(x,y,z).u[0]-l(x+1,y,z).u[0]-l(x,y,z+1).u[0]);
+        dvdxdz1 = (l(x+1,y,z+1).u[1]+l(x,y,z).u[1]-l(x+1,y,z).u[1]-l(x,y,z+1).u[1]);
+        dwdxdz1 = (l(x+1,y,z+1).u[2]+l(x,y,z).u[2]-l(x+1,y,z).u[2]-l(x,y,z+1).u[2]);
         if ((x+2 < big) && (z+2 < big))
         {
-           dudxdz1 = -0.5*( -1.5*l(x+2,y,z).u+2*l(x+2,y,z+1).u-0.5*l(x+2,y,z+2).u ) + 2*(-1.5*l(x+1,y,z).u+2*l(x+1,y,z+1).u-0.5*l(x+1,y,z+2).u) -1.5*(-1.5*l(x,y,z).u+2*l(x,y,z+1).u-0.5*l(x,y,z+2).u);
-           dvdxdz1 = -0.5*( -1.5*l(x+2,y,z).v+2*l(x+2,y,z+1).v-0.5*l(x+2,y,z+2).v ) + 2*(-1.5*l(x+1,y,z).v+2*l(x+1,y,z+1).v-0.5*l(x+1,y,z+2).v) -1.5*(-1.5*l(x,y,z).v+2*l(x,y,z+1).v-0.5*l(x,y,z+2).v);
-           dwdxdz1 = -0.5*( -1.5*l(x+2,y,z).w+2*l(x+2,y,z+1).w-0.5*l(x+2,y,z+2).w ) + 2*(-1.5*l(x+1,y,z).w+2*l(x+1,y,z+1).w-0.5*l(x+1,y,z+2).w) -1.5*(-1.5*l(x,y,z).w+2*l(x,y,z+1).w-0.5*l(x,y,z+2).w);
+           dudxdz1 = -0.5*( -1.5*l(x+2,y,z).u[0]+2*l(x+2,y,z+1).u[0]-0.5*l(x+2,y,z+2).u[0] ) + 2*(-1.5*l(x+1,y,z).u[0]+2*l(x+1,y,z+1).u[0]-0.5*l(x+1,y,z+2).u[0]) -1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y,z+1).u[0]-0.5*l(x,y,z+2).u[0]);
+           dvdxdz1 = -0.5*( -1.5*l(x+2,y,z).u[1]+2*l(x+2,y,z+1).u[1]-0.5*l(x+2,y,z+2).u[1] ) + 2*(-1.5*l(x+1,y,z).u[1]+2*l(x+1,y,z+1).u[1]-0.5*l(x+1,y,z+2).u[1]) -1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y,z+1).u[1]-0.5*l(x,y,z+2).u[1]);
+           dwdxdz1 = -0.5*( -1.5*l(x+2,y,z).u[2]+2*l(x+2,y,z+1).u[2]-0.5*l(x+2,y,z+2).u[2] ) + 2*(-1.5*l(x+1,y,z).u[2]+2*l(x+1,y,z+1).u[2]-0.5*l(x+1,y,z+2).u[2]) -1.5*(-1.5*l(x,y,z).u[2]+2*l(x,y,z+1).u[2]-0.5*l(x,y,z+2).u[2]);
         }
       }
       if (normX < 0 && normZ > 0)
       {
-        dudxdz1 = (l(x,y,z+1).u+l(x-1,y,z).u-l(x,y,z).u-l(x-1,y,z+1).u);
-        dvdxdz1 = (l(x,y,z+1).v+l(x-1,y,z).v-l(x,y,z).v-l(x-1,y,z+1).v);
-        dwdxdz1 = (l(x,y,z+1).w+l(x-1,y,z).w-l(x,y,z).w-l(x-1,y,z+1).w);
+        dudxdz1 = (l(x,y,z+1).u[0]+l(x-1,y,z).u[0]-l(x,y,z).u[0]-l(x-1,y,z+1).u[0]);
+        dvdxdz1 = (l(x,y,z+1).u[1]+l(x-1,y,z).u[1]-l(x,y,z).u[1]-l(x-1,y,z+1).u[1]);
+        dwdxdz1 = (l(x,y,z+1).u[2]+l(x-1,y,z).u[2]-l(x,y,z).u[2]-l(x-1,y,z+1).u[2]);
         if ((z+2 < big) && (x-2 >= small))
         {
-           dudxdz1 = 0.5*( -1.5*l(x-2,y,z).u+2*l(x-2,y,z+1).u-0.5*l(x-2,y,z+2).u ) - 2*(-1.5*l(x-1,y,z).u+2*l(x-1,y,z+1).u-0.5*l(x-1,y,z+2).u)+1.5*(-1.5*l(x,y,z).u+2*l(x,y,z+1).u-0.5*l(x,y,z+2).u);
-           dvdxdz1 = 0.5*( -1.5*l(x-2,y,z).v+2*l(x-2,y,z+1).v-0.5*l(x-2,y,z+2).v ) - 2*(-1.5*l(x-1,y,z).v+2*l(x-1,y,z+1).v-0.5*l(x-1,y,z+2).v)+1.5*(-1.5*l(x,y,z).v+2*l(x,y,z+1).v-0.5*l(x,y,z+2).v);
-           dwdxdz1 = 0.5*( -1.5*l(x-2,y,z).w+2*l(x-2,y,z+1).w-0.5*l(x-2,y,z+2).w ) - 2*(-1.5*l(x-1,y,z).w+2*l(x-1,y,z+1).w-0.5*l(x-1,y,z+2).w)+1.5*(-1.5*l(x,y,z).w+2*l(x,y,z+1).w-0.5*l(x,y,z+2).w);
+           dudxdz1 = 0.5*( -1.5*l(x-2,y,z).u[0]+2*l(x-2,y,z+1).u[0]-0.5*l(x-2,y,z+2).u[0] ) - 2*(-1.5*l(x-1,y,z).u[0]+2*l(x-1,y,z+1).u[0]-0.5*l(x-1,y,z+2).u[0])+1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y,z+1).u[0]-0.5*l(x,y,z+2).u[0]);
+           dvdxdz1 = 0.5*( -1.5*l(x-2,y,z).u[1]+2*l(x-2,y,z+1).u[1]-0.5*l(x-2,y,z+2).u[1] ) - 2*(-1.5*l(x-1,y,z).u[1]+2*l(x-1,y,z+1).u[1]-0.5*l(x-1,y,z+2).u[1])+1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y,z+1).u[1]-0.5*l(x,y,z+2).u[1]);
+           dwdxdz1 = 0.5*( -1.5*l(x-2,y,z).u[2]+2*l(x-2,y,z+1).u[2]-0.5*l(x-2,y,z+2).u[2] ) - 2*(-1.5*l(x-1,y,z).u[2]+2*l(x-1,y,z+1).u[2]-0.5*l(x-1,y,z+2).u[2])+1.5*(-1.5*l(x,y,z).u[2]+2*l(x,y,z+1).u[2]-0.5*l(x,y,z+2).u[2]);
         }
       }
       if (normX > 0 && normZ < 0)
       {
-        dudxdz1 = (l(x+1,y,z).u+l(x,y,z-1).u-l(x+1,y,z-1).u-l(x,y,z).u);
-        dvdxdz1 = (l(x+1,y,z).v+l(x,y,z-1).v-l(x+1,y,z-1).v-l(x,y,z).v);
-        dwdxdz1 = (l(x+1,y,z).w+l(x,y,z-1).w-l(x+1,y,z-1).w-l(x,y,z).w);
+        dudxdz1 = (l(x+1,y,z).u[0]+l(x,y,z-1).u[0]-l(x+1,y,z-1).u[0]-l(x,y,z).u[0]);
+        dvdxdz1 = (l(x+1,y,z).u[1]+l(x,y,z-1).u[1]-l(x+1,y,z-1).u[1]-l(x,y,z).u[1]);
+        dwdxdz1 = (l(x+1,y,z).u[2]+l(x,y,z-1).u[2]-l(x+1,y,z-1).u[2]-l(x,y,z).u[2]);
         if ((x+2 < big) && (z-2 >= small))
         {
-           dudxdz1 = -0.5*( 1.5*l(x+2,y,z).u-2*l(x+2,y,z-1).u+0.5*l(x+2,y,z-2).u ) + 2*(1.5*l(x+1,y,z).u-2*l(x+1,y,z-1).u+0.5*l(x+1,y,z-2).u) -1.5*(1.5*l(x,y,z).u-2*l(x,y,z-1).u+0.5*l(x,y,z-2).u);
-           dvdxdz1 = -0.5*( 1.5*l(x+2,y,z).v-2*l(x+2,y,z-1).v+0.5*l(x+2,y,z-2).v ) + 2*(1.5*l(x+1,y,z).v-2*l(x+1,y,z-1).v+0.5*l(x+1,y,z-2).v) -1.5*(1.5*l(x,y,z).v-2*l(x,y,z-1).v+0.5*l(x,y,z-2).v);
-           dwdxdz1 = -0.5*( 1.5*l(x+2,y,z).w-2*l(x+2,y,z-1).w+0.5*l(x+2,y,z-2).w ) + 2*(1.5*l(x+1,y,z).w-2*l(x+1,y,z-1).w+0.5*l(x+1,y,z-2).w) -1.5*(1.5*l(x,y,z).w-2*l(x,y,z-1).w+0.5*l(x,y,z-2).w);
+           dudxdz1 = -0.5*( 1.5*l(x+2,y,z).u[0]-2*l(x+2,y,z-1).u[0]+0.5*l(x+2,y,z-2).u[0] ) + 2*(1.5*l(x+1,y,z).u[0]-2*l(x+1,y,z-1).u[0]+0.5*l(x+1,y,z-2).u[0]) -1.5*(1.5*l(x,y,z).u[0]-2*l(x,y,z-1).u[0]+0.5*l(x,y,z-2).u[0]);
+           dvdxdz1 = -0.5*( 1.5*l(x+2,y,z).u[1]-2*l(x+2,y,z-1).u[1]+0.5*l(x+2,y,z-2).u[1] ) + 2*(1.5*l(x+1,y,z).u[1]-2*l(x+1,y,z-1).u[1]+0.5*l(x+1,y,z-2).u[1]) -1.5*(1.5*l(x,y,z).u[1]-2*l(x,y,z-1).u[1]+0.5*l(x,y,z-2).u[1]);
+           dwdxdz1 = -0.5*( 1.5*l(x+2,y,z).u[2]-2*l(x+2,y,z-1).u[2]+0.5*l(x+2,y,z-2).u[2] ) + 2*(1.5*l(x+1,y,z).u[2]-2*l(x+1,y,z-1).u[2]+0.5*l(x+1,y,z-2).u[2]) -1.5*(1.5*l(x,y,z).u[2]-2*l(x,y,z-1).u[2]+0.5*l(x,y,z-2).u[2]);
         }
       }
       if (normX < 0 && normZ < 0)
       {
-        dudxdz1 = (l(x,y,z).u+l(x-1,y,z-1).u-l(x,y,z-1).u-l(x-1,y,z).u);
-        dvdxdz1 = (l(x,y,z).v+l(x-1,y,z-1).v-l(x,y,z-1).v-l(x-1,y,z).v);
-        dwdxdz1 = (l(x,y,z).w+l(x-1,y,z-1).w-l(x,y,z-1).w-l(x-1,y,z).w);
+        dudxdz1 = (l(x,y,z).u[0]+l(x-1,y,z-1).u[0]-l(x,y,z-1).u[0]-l(x-1,y,z).u[0]);
+        dvdxdz1 = (l(x,y,z).u[1]+l(x-1,y,z-1).u[1]-l(x,y,z-1).u[1]-l(x-1,y,z).u[1]);
+        dwdxdz1 = (l(x,y,z).u[2]+l(x-1,y,z-1).u[2]-l(x,y,z-1).u[2]-l(x-1,y,z).u[2]);
         if ((x-2 >= small) && (z-2 >= small))
         {
-           dudxdz1 = 0.5*( 1.5*l(x-2,y,z).u-2*l(x-2,y,z-1).u+0.5*l(x-2,y,z-2).u ) - 2*(1.5*l(x-1,y,z).u-2*l(x-1,y,z-1).u+0.5*l(x-1,y,z-2).u) +1.5*(1.5*l(x,y,z).u-2*l(x,y,z-1).u+0.5*l(x,y,z-2).u);
-           dvdxdz1 = 0.5*( 1.5*l(x-2,y,z).v-2*l(x-2,y,z-1).v+0.5*l(x-2,y,z-2).v ) - 2*(1.5*l(x-1,y,z).v-2*l(x-1,y,z-1).v+0.5*l(x-1,y,z-2).v) +1.5*(1.5*l(x,y,z).v-2*l(x,y,z-1).v+0.5*l(x,y,z-2).v);
-           dwdxdz1 = 0.5*( 1.5*l(x-2,y,z).w-2*l(x-2,y,z-1).w+0.5*l(x-2,y,z-2).w ) - 2*(1.5*l(x-1,y,z).w-2*l(x-1,y,z-1).w+0.5*l(x-1,y,z-2).w) +1.5*(1.5*l(x,y,z).w-2*l(x,y,z-1).w+0.5*l(x,y,z-2).w);
+           dudxdz1 = 0.5*( 1.5*l(x-2,y,z).u[0]-2*l(x-2,y,z-1).u[0]+0.5*l(x-2,y,z-2).u[0] ) - 2*(1.5*l(x-1,y,z).u[0]-2*l(x-1,y,z-1).u[0]+0.5*l(x-1,y,z-2).u[0]) +1.5*(1.5*l(x,y,z).u[0]-2*l(x,y,z-1).u[0]+0.5*l(x,y,z-2).u[0]);
+           dvdxdz1 = 0.5*( 1.5*l(x-2,y,z).u[1]-2*l(x-2,y,z-1).u[1]+0.5*l(x-2,y,z-2).u[1] ) - 2*(1.5*l(x-1,y,z).u[1]-2*l(x-1,y,z-1).u[1]+0.5*l(x-1,y,z-2).u[1]) +1.5*(1.5*l(x,y,z).u[1]-2*l(x,y,z-1).u[1]+0.5*l(x,y,z-2).u[1]);
+           dwdxdz1 = 0.5*( 1.5*l(x-2,y,z).u[2]-2*l(x-2,y,z-1).u[2]+0.5*l(x-2,y,z-2).u[2] ) - 2*(1.5*l(x-1,y,z).u[2]-2*l(x-1,y,z-1).u[2]+0.5*l(x-1,y,z-2).u[2]) +1.5*(1.5*l(x,y,z).u[2]-2*l(x,y,z-1).u[2]+0.5*l(x,y,z-2).u[2]);
         }
       }
 
-      dudydz1 = 0.25*(l(x,y+1,z+1).u+l(x,y-1,z-1).u-l(x,y+1,z-1).u-l(x,y-1,z+1).u);
-      dvdydz1 = 0.25*(l(x,y+1,z+1).v+l(x,y-1,z-1).v-l(x,y+1,z-1).v-l(x,y-1,z+1).v);
-      dwdydz1 = 0.25*(l(x,y+1,z+1).w+l(x,y-1,z-1).w-l(x,y+1,z-1).w-l(x,y-1,z+1).w);
+      dudydz1 = 0.25*(l(x,y+1,z+1).u[0]+l(x,y-1,z-1).u[0]-l(x,y+1,z-1).u[0]-l(x,y-1,z+1).u[0]);
+      dvdydz1 = 0.25*(l(x,y+1,z+1).u[1]+l(x,y-1,z-1).u[1]-l(x,y+1,z-1).u[1]-l(x,y-1,z+1).u[1]);
+      dwdydz1 = 0.25*(l(x,y+1,z+1).u[2]+l(x,y-1,z-1).u[2]-l(x,y+1,z-1).u[2]-l(x,y-1,z+1).u[2]);
       if (normY > 0 && normZ > 0)
       {
-        dudydz1 = (l(x,y+1,z+1).u+l(x,y,z).u-l(x,y+1,z).u-l(x,y,z+1).u);
-        dvdydz1 = (l(x,y+1,z+1).v+l(x,y,z).v-l(x,y+1,z).v-l(x,y,z+1).v);
-        dwdydz1 = (l(x,y+1,z+1).w+l(x,y,z).w-l(x,y+1,z).w-l(x,y,z+1).w);
+        dudydz1 = (l(x,y+1,z+1).u[0]+l(x,y,z).u[0]-l(x,y+1,z).u[0]-l(x,y,z+1).u[0]);
+        dvdydz1 = (l(x,y+1,z+1).u[1]+l(x,y,z).u[1]-l(x,y+1,z).u[1]-l(x,y,z+1).u[1]);
+        dwdydz1 = (l(x,y+1,z+1).u[2]+l(x,y,z).u[2]-l(x,y+1,z).u[2]-l(x,y,z+1).u[2]);
         if ((y+2 < big) && (z+2 < big))
         {
-           dudydz1 = -0.5*( -1.5*l(x,y+2,z).u+2*l(x,y+2,z+1).u-0.5*l(x,y+2,z+2).u ) + 2*(-1.5*l(x,y+1,z).u+2*l(x,y+1,z+1).u-0.5*l(x,y+1,z+2).u) -1.5*(-1.5*l(x,y,z).u+2*l(x,y,z+1).u-0.5*l(x,y,z+2).u);
-           dvdydz1 = -0.5*( -1.5*l(x,y+2,z).v+2*l(x,y+2,z+1).v-0.5*l(x,y+2,z+2).v ) + 2*(-1.5*l(x,y+1,z).v+2*l(x,y+1,z+1).v-0.5*l(x,y+1,z+2).v) -1.5*(-1.5*l(x,y,z).v+2*l(x,y,z+1).v-0.5*l(x,y,z+2).v);
-           dwdydz1 = -0.5*( -1.5*l(x,y+2,z).w+2*l(x,y+2,z+1).w-0.5*l(x,y+2,z+2).w ) + 2*(-1.5*l(x,y+1,z).w+2*l(x,y+1,z+1).w-0.5*l(x,y+1,z+2).w) -1.5*(-1.5*l(x,y,z).w+2*l(x,y,z+1).w-0.5*l(x,y,z+2).w);
+           dudydz1 = -0.5*( -1.5*l(x,y+2,z).u[0]+2*l(x,y+2,z+1).u[0]-0.5*l(x,y+2,z+2).u[0] ) + 2*(-1.5*l(x,y+1,z).u[0]+2*l(x,y+1,z+1).u[0]-0.5*l(x,y+1,z+2).u[0]) -1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y,z+1).u[0]-0.5*l(x,y,z+2).u[0]);
+           dvdydz1 = -0.5*( -1.5*l(x,y+2,z).u[1]+2*l(x,y+2,z+1).u[1]-0.5*l(x,y+2,z+2).u[1] ) + 2*(-1.5*l(x,y+1,z).u[1]+2*l(x,y+1,z+1).u[1]-0.5*l(x,y+1,z+2).u[1]) -1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y,z+1).u[1]-0.5*l(x,y,z+2).u[1]);
+           dwdydz1 = -0.5*( -1.5*l(x,y+2,z).u[2]+2*l(x,y+2,z+1).u[2]-0.5*l(x,y+2,z+2).u[2] ) + 2*(-1.5*l(x,y+1,z).u[2]+2*l(x,y+1,z+1).u[2]-0.5*l(x,y+1,z+2).u[2]) -1.5*(-1.5*l(x,y,z).u[2]+2*l(x,y,z+1).u[2]-0.5*l(x,y,z+2).u[2]);
         }
       }
       if (normY < 0 && normZ > 0)
       {
-        dudydz1 = (l(x,y,z+1).u+l(x,y-1,z).u-l(x,y,z).u-l(x,y-1,z+1).u);
-        dvdydz1 = (l(x,y,z+1).v+l(x,y-1,z).v-l(x,y,z).v-l(x,y-1,z+1).v);
-        dwdydz1 = (l(x,y,z+1).w+l(x,y-1,z).w-l(x,y,z).w-l(x,y-1,z+1).w);
+        dudydz1 = (l(x,y,z+1).u[0]+l(x,y-1,z).u[0]-l(x,y,z).u[0]-l(x,y-1,z+1).u[0]);
+        dvdydz1 = (l(x,y,z+1).u[1]+l(x,y-1,z).u[1]-l(x,y,z).u[1]-l(x,y-1,z+1).u[1]);
+        dwdydz1 = (l(x,y,z+1).u[2]+l(x,y-1,z).u[2]-l(x,y,z).u[2]-l(x,y-1,z+1).u[2]);
         if ((z+2 < big) && (y-2 >= small))
         {
-           dudydz1 = 0.5*( -1.5*l(x,y-2,z).u+2*l(x,y-2,z+1).u-0.5*l(x,y-2,z+2).u ) - 2*(-1.5*l(x,y-1,z).u+2*l(x,y-1,z+1).u-0.5*l(x,y-1,z+2).u)+1.5*(-1.5*l(x,y,z).u+2*l(x,y,z+1).u-0.5*l(x,y,z+2).u);
-           dvdydz1 = 0.5*( -1.5*l(x,y-2,z).v+2*l(x,y-2,z+1).v-0.5*l(x,y-2,z+2).v ) - 2*(-1.5*l(x,y-1,z).v+2*l(x,y-1,z+1).v-0.5*l(x,y-1,z+2).v)+1.5*(-1.5*l(x,y,z).v+2*l(x,y,z+1).v-0.5*l(x,y,z+2).v);
-           dwdydz1 = 0.5*( -1.5*l(x,y-2,z).w+2*l(x,y-2,z+1).w-0.5*l(x,y-2,z+2).w ) - 2*(-1.5*l(x,y-1,z).w+2*l(x,y-1,z+1).w-0.5*l(x,y-1,z+2).w)+1.5*(-1.5*l(x,y,z).w+2*l(x,y,z+1).w-0.5*l(x,y,z+2).w);
+           dudydz1 = 0.5*( -1.5*l(x,y-2,z).u[0]+2*l(x,y-2,z+1).u[0]-0.5*l(x,y-2,z+2).u[0] ) - 2*(-1.5*l(x,y-1,z).u[0]+2*l(x,y-1,z+1).u[0]-0.5*l(x,y-1,z+2).u[0])+1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y,z+1).u[0]-0.5*l(x,y,z+2).u[0]);
+           dvdydz1 = 0.5*( -1.5*l(x,y-2,z).u[1]+2*l(x,y-2,z+1).u[1]-0.5*l(x,y-2,z+2).u[1] ) - 2*(-1.5*l(x,y-1,z).u[1]+2*l(x,y-1,z+1).u[1]-0.5*l(x,y-1,z+2).u[1])+1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y,z+1).u[1]-0.5*l(x,y,z+2).u[1]);
+           dwdydz1 = 0.5*( -1.5*l(x,y-2,z).u[2]+2*l(x,y-2,z+1).u[2]-0.5*l(x,y-2,z+2).u[2] ) - 2*(-1.5*l(x,y-1,z).u[2]+2*l(x,y-1,z+1).u[2]-0.5*l(x,y-1,z+2).u[2])+1.5*(-1.5*l(x,y,z).u[2]+2*l(x,y,z+1).u[2]-0.5*l(x,y,z+2).u[2]);
         }
       }
       if (normY > 0 && normZ < 0)
       {
-        dudydz1 = (l(x,y+1,z).u+l(x,y,z-1).u-l(x,y+1,z-1).u-l(x,y,z).u);
-        dvdydz1 = (l(x,y+1,z).v+l(x,y,z-1).v-l(x,y+1,z-1).v-l(x,y,z).v);
-        dwdydz1 = (l(x,y+1,z).w+l(x,y,z-1).w-l(x,y+1,z-1).w-l(x,y,z).w);
+        dudydz1 = (l(x,y+1,z).u[0]+l(x,y,z-1).u[0]-l(x,y+1,z-1).u[0]-l(x,y,z).u[0]);
+        dvdydz1 = (l(x,y+1,z).u[1]+l(x,y,z-1).u[1]-l(x,y+1,z-1).u[1]-l(x,y,z).u[1]);
+        dwdydz1 = (l(x,y+1,z).u[2]+l(x,y,z-1).u[2]-l(x,y+1,z-1).u[2]-l(x,y,z).u[2]);
         if ((y+2 < big) && (z-2 >= small))
         {
-           dudydz1 = -0.5*( 1.5*l(x,y+2,z).u-2*l(x,y+2,z-1).u+0.5*l(x,y+2,z-2).u ) + 2*(1.5*l(x,y+1,z).u-2*l(x,y+1,z-1).u+0.5*l(x,y+1,z-2).u) -1.5*(1.5*l(x,y,z).u-2*l(x,y,z-1).u+0.5*l(x,y,z-2).u);
-           dvdydz1 = -0.5*( 1.5*l(x,y+2,z).v-2*l(x,y+2,z-1).v+0.5*l(x,y+2,z-2).v ) + 2*(1.5*l(x,y+1,z).v-2*l(x,y+1,z-1).v+0.5*l(x,y+1,z-2).v) -1.5*(1.5*l(x,y,z).v-2*l(x,y,z-1).v+0.5*l(x,y,z-2).v);
-           dwdydz1 = -0.5*( 1.5*l(x,y+2,z).w-2*l(x,y+2,z-1).w+0.5*l(x,y+2,z-2).w ) + 2*(1.5*l(x,y+1,z).w-2*l(x,y+1,z-1).w+0.5*l(x,y+1,z-2).w) -1.5*(1.5*l(x,y,z).w-2*l(x,y,z-1).w+0.5*l(x,y,z-2).w);
+           dudydz1 = -0.5*( 1.5*l(x,y+2,z).u[0]-2*l(x,y+2,z-1).u[0]+0.5*l(x,y+2,z-2).u[0] ) + 2*(1.5*l(x,y+1,z).u[0]-2*l(x,y+1,z-1).u[0]+0.5*l(x,y+1,z-2).u[0]) -1.5*(1.5*l(x,y,z).u[0]-2*l(x,y,z-1).u[0]+0.5*l(x,y,z-2).u[0]);
+           dvdydz1 = -0.5*( 1.5*l(x,y+2,z).u[1]-2*l(x,y+2,z-1).u[1]+0.5*l(x,y+2,z-2).u[1] ) + 2*(1.5*l(x,y+1,z).u[1]-2*l(x,y+1,z-1).u[1]+0.5*l(x,y+1,z-2).u[1]) -1.5*(1.5*l(x,y,z).u[1]-2*l(x,y,z-1).u[1]+0.5*l(x,y,z-2).u[1]);
+           dwdydz1 = -0.5*( 1.5*l(x,y+2,z).u[2]-2*l(x,y+2,z-1).u[2]+0.5*l(x,y+2,z-2).u[2] ) + 2*(1.5*l(x,y+1,z).u[2]-2*l(x,y+1,z-1).u[2]+0.5*l(x,y+1,z-2).u[2]) -1.5*(1.5*l(x,y,z).u[2]-2*l(x,y,z-1).u[2]+0.5*l(x,y,z-2).u[2]);
         }
       }
       if (normY < 0 && normZ < 0)
       {
-        dudydz1 = (l(x,y,z).u+l(x,y-1,z-1).u-l(x,y,z-1).u-l(x,y-1,z).u);
-        dvdydz1 = (l(x,y,z).v+l(x,y-1,z-1).v-l(x,y,z-1).v-l(x,y-1,z).v);
-        dwdydz1 = (l(x,y,z).w+l(x,y-1,z-1).w-l(x,y,z-1).w-l(x,y-1,z).w);
+        dudydz1 = (l(x,y,z).u[0]+l(x,y-1,z-1).u[0]-l(x,y,z-1).u[0]-l(x,y-1,z).u[0]);
+        dvdydz1 = (l(x,y,z).u[1]+l(x,y-1,z-1).u[1]-l(x,y,z-1).u[1]-l(x,y-1,z).u[1]);
+        dwdydz1 = (l(x,y,z).u[2]+l(x,y-1,z-1).u[2]-l(x,y,z-1).u[2]-l(x,y-1,z).u[2]);
         if ((y-2 >= small) && (z-2 >= small))
         {
-           dudydz1 = 0.5*( 1.5*l(x,y-2,z).u-2*l(x,y-2,z-1).u+0.5*l(x,y-2,z-2).u ) - 2*(1.5*l(x,y-1,z).u-2*l(x,y-1,z-1).u+0.5*l(x,y-1,z-2).u) +1.5*(1.5*l(x,y,z).u-2*l(x,y,z-1).u+0.5*l(x,y,z-2).u);
-           dvdydz1 = 0.5*( 1.5*l(x,y-2,z).v-2*l(x,y-2,z-1).v+0.5*l(x,y-2,z-2).v ) - 2*(1.5*l(x,y-1,z).v-2*l(x,y-1,z-1).v+0.5*l(x,y-1,z-2).v) +1.5*(1.5*l(x,y,z).v-2*l(x,y,z-1).v+0.5*l(x,y,z-2).v);
-           dwdydz1 = 0.5*( 1.5*l(x,y-2,z).w-2*l(x,y-2,z-1).w+0.5*l(x,y-2,z-2).w ) - 2*(1.5*l(x,y-1,z).w-2*l(x,y-1,z-1).w+0.5*l(x,y-1,z-2).w) +1.5*(1.5*l(x,y,z).w-2*l(x,y,z-1).w+0.5*l(x,y,z-2).w);
+           dudydz1 = 0.5*( 1.5*l(x,y-2,z).u[0]-2*l(x,y-2,z-1).u[0]+0.5*l(x,y-2,z-2).u[0] ) - 2*(1.5*l(x,y-1,z).u[0]-2*l(x,y-1,z-1).u[0]+0.5*l(x,y-1,z-2).u[0]) +1.5*(1.5*l(x,y,z).u[0]-2*l(x,y,z-1).u[0]+0.5*l(x,y,z-2).u[0]);
+           dvdydz1 = 0.5*( 1.5*l(x,y-2,z).u[1]-2*l(x,y-2,z-1).u[1]+0.5*l(x,y-2,z-2).u[1] ) - 2*(1.5*l(x,y-1,z).u[1]-2*l(x,y-1,z-1).u[1]+0.5*l(x,y-1,z-2).u[1]) +1.5*(1.5*l(x,y,z).u[1]-2*l(x,y,z-1).u[1]+0.5*l(x,y,z-2).u[1]);
+           dwdydz1 = 0.5*( 1.5*l(x,y-2,z).u[2]-2*l(x,y-2,z-1).u[2]+0.5*l(x,y-2,z-2).u[2] ) - 2*(1.5*l(x,y-1,z).u[2]-2*l(x,y-1,z-1).u[2]+0.5*l(x,y-1,z-2).u[2]) +1.5*(1.5*l(x,y,z).u[2]-2*l(x,y,z-1).u[2]+0.5*l(x,y,z-2).u[2]);
         }
       }
 
       if (normX > 0 && x+2 <    big)
       {
-        dudx1 = -1.5*l(x,y,z).u+2.0*l(x+1,y,z).u-0.5*l(x+2,y,z).u;
-        dvdx1 = -1.5*l(x,y,z).v+2.0*l(x+1,y,z).v-0.5*l(x+2,y,z).v;
-        dwdx1 = -1.5*l(x,y,z).w+2.0*l(x+1,y,z).w-0.5*l(x+2,y,z).w;
-        dudx2 =      l(x,y,z).u-2.0*l(x+1,y,z).u+    l(x+2,y,z).u;
-        dvdx2 =      l(x,y,z).v-2.0*l(x+1,y,z).v+    l(x+2,y,z).v;
-        dwdx2 =      l(x,y,z).w-2.0*l(x+1,y,z).w+    l(x+2,y,z).w;
+        dudx1 = -1.5*l(x,y,z).u[0]+2.0*l(x+1,y,z).u[0]-0.5*l(x+2,y,z).u[0];
+        dvdx1 = -1.5*l(x,y,z).u[1]+2.0*l(x+1,y,z).u[1]-0.5*l(x+2,y,z).u[1];
+        dwdx1 = -1.5*l(x,y,z).u[2]+2.0*l(x+1,y,z).u[2]-0.5*l(x+2,y,z).u[2];
+        dudx2 =      l(x,y,z).u[0]-2.0*l(x+1,y,z).u[0]+    l(x+2,y,z).u[0];
+        dvdx2 =      l(x,y,z).u[1]-2.0*l(x+1,y,z).u[1]+    l(x+2,y,z).u[1];
+        dwdx2 =      l(x,y,z).u[2]-2.0*l(x+1,y,z).u[2]+    l(x+2,y,z).u[2];
       }
       if (normX < 0 && x-2 >= small)
       {
-        dudx1 =  1.5*l(x,y,z).u-2.0*l(x-1,y,z).u+0.5*l(x-2,y,z).u;
-        dvdx1 =  1.5*l(x,y,z).v-2.0*l(x-1,y,z).v+0.5*l(x-2,y,z).v;
-        dwdx1 =  1.5*l(x,y,z).w-2.0*l(x-1,y,z).w+0.5*l(x-2,y,z).w;
-        dudx2 =      l(x,y,z).u-2.0*l(x-1,y,z).u+    l(x-2,y,z).u;
-        dvdx2 =      l(x,y,z).v-2.0*l(x-1,y,z).v+    l(x-2,y,z).v;
-        dwdx2 =      l(x,y,z).w-2.0*l(x-1,y,z).w+    l(x-2,y,z).w;
+        dudx1 =  1.5*l(x,y,z).u[0]-2.0*l(x-1,y,z).u[0]+0.5*l(x-2,y,z).u[0];
+        dvdx1 =  1.5*l(x,y,z).u[1]-2.0*l(x-1,y,z).u[1]+0.5*l(x-2,y,z).u[1];
+        dwdx1 =  1.5*l(x,y,z).u[2]-2.0*l(x-1,y,z).u[2]+0.5*l(x-2,y,z).u[2];
+        dudx2 =      l(x,y,z).u[0]-2.0*l(x-1,y,z).u[0]+    l(x-2,y,z).u[0];
+        dvdx2 =      l(x,y,z).u[1]-2.0*l(x-1,y,z).u[1]+    l(x-2,y,z).u[1];
+        dwdx2 =      l(x,y,z).u[2]-2.0*l(x-1,y,z).u[2]+    l(x-2,y,z).u[2];
       }
       if (normY > 0 && y+2 <    big)
       {
-        dudy1 = -1.5*l(x,y,z).u+2.0*l(x,y+1,z).u-0.5*l(x,y+2,z).u;
-        dvdy1 = -1.5*l(x,y,z).v+2.0*l(x,y+1,z).v-0.5*l(x,y+2,z).v;
-        dwdy1 = -1.5*l(x,y,z).w+2.0*l(x,y+1,z).w-0.5*l(x,y+2,z).w;
-        dudy2 =      l(x,y,z).u-2.0*l(x,y+1,z).u+    l(x,y+2,z).u;
-        dvdy2 =      l(x,y,z).v-2.0*l(x,y+1,z).v+    l(x,y+2,z).v;
-        dwdy2 =      l(x,y,z).w-2.0*l(x,y+1,z).w+    l(x,y+2,z).w;
+        dudy1 = -1.5*l(x,y,z).u[0]+2.0*l(x,y+1,z).u[0]-0.5*l(x,y+2,z).u[0];
+        dvdy1 = -1.5*l(x,y,z).u[1]+2.0*l(x,y+1,z).u[1]-0.5*l(x,y+2,z).u[1];
+        dwdy1 = -1.5*l(x,y,z).u[2]+2.0*l(x,y+1,z).u[2]-0.5*l(x,y+2,z).u[2];
+        dudy2 =      l(x,y,z).u[0]-2.0*l(x,y+1,z).u[0]+    l(x,y+2,z).u[0];
+        dvdy2 =      l(x,y,z).u[1]-2.0*l(x,y+1,z).u[1]+    l(x,y+2,z).u[1];
+        dwdy2 =      l(x,y,z).u[2]-2.0*l(x,y+1,z).u[2]+    l(x,y+2,z).u[2];
       }
       if (normY < 0 && y-2 >= small)
       {
-        dudy1 =  1.5*l(x,y,z).u-2.0*l(x,y-1,z).u+0.5*l(x,y-2,z).u;
-        dvdy1 =  1.5*l(x,y,z).v-2.0*l(x,y-1,z).v+0.5*l(x,y-2,z).v;
-        dwdy1 =  1.5*l(x,y,z).w-2.0*l(x,y-1,z).w+0.5*l(x,y-2,z).w;
-        dudy2 =      l(x,y,z).u-2.0*l(x,y-1,z).u+    l(x,y-2,z).u;
-        dvdy2 =      l(x,y,z).v-2.0*l(x,y-1,z).v+    l(x,y-2,z).v;
-        dwdy2 =      l(x,y,z).w-2.0*l(x,y-1,z).w+    l(x,y-2,z).w;
+        dudy1 =  1.5*l(x,y,z).u[0]-2.0*l(x,y-1,z).u[0]+0.5*l(x,y-2,z).u[0];
+        dvdy1 =  1.5*l(x,y,z).u[1]-2.0*l(x,y-1,z).u[1]+0.5*l(x,y-2,z).u[1];
+        dwdy1 =  1.5*l(x,y,z).u[2]-2.0*l(x,y-1,z).u[2]+0.5*l(x,y-2,z).u[2];
+        dudy2 =      l(x,y,z).u[0]-2.0*l(x,y-1,z).u[0]+    l(x,y-2,z).u[0];
+        dvdy2 =      l(x,y,z).u[1]-2.0*l(x,y-1,z).u[1]+    l(x,y-2,z).u[1];
+        dwdy2 =      l(x,y,z).u[2]-2.0*l(x,y-1,z).u[2]+    l(x,y-2,z).u[2];
       }
       if (normZ > 0 && z+2 <    big)
       {
-        dudz1 = -1.5*l(x,y,z).u+2.0*l(x,y,z+1).u-0.5*l(x,y,z+2).u;
-        dvdz1 = -1.5*l(x,y,z).v+2.0*l(x,y,z+1).v-0.5*l(x,y,z+2).v;
-        dwdz1 = -1.5*l(x,y,z).w+2.0*l(x,y,z+1).w-0.5*l(x,y,z+2).w;
-        dudz2 =      l(x,y,z).u-2.0*l(x,y,z+1).u+    l(x,y,z+2).u;
-        dvdz2 =      l(x,y,z).v-2.0*l(x,y,z+1).v+    l(x,y,z+2).v;
-        dwdz2 =      l(x,y,z).w-2.0*l(x,y,z+1).w+    l(x,y,z+2).w;
+        dudz1 = -1.5*l(x,y,z).u[0]+2.0*l(x,y,z+1).u[0]-0.5*l(x,y,z+2).u[0];
+        dvdz1 = -1.5*l(x,y,z).u[1]+2.0*l(x,y,z+1).u[1]-0.5*l(x,y,z+2).u[1];
+        dwdz1 = -1.5*l(x,y,z).u[2]+2.0*l(x,y,z+1).u[2]-0.5*l(x,y,z+2).u[2];
+        dudz2 =      l(x,y,z).u[0]-2.0*l(x,y,z+1).u[0]+    l(x,y,z+2).u[0];
+        dvdz2 =      l(x,y,z).u[1]-2.0*l(x,y,z+1).u[1]+    l(x,y,z+2).u[1];
+        dwdz2 =      l(x,y,z).u[2]-2.0*l(x,y,z+1).u[2]+    l(x,y,z+2).u[2];
       }
       if (normZ < 0 && z-2 >= small)
       {
-        dudz1 =  1.5*l(x,y,z).u-2.0*l(x,y,z-1).u+0.5*l(x,y,z-2).u;
-        dvdz1 =  1.5*l(x,y,z).v-2.0*l(x,y,z-1).v+0.5*l(x,y,z-2).v;
-        dwdz1 =  1.5*l(x,y,z).w-2.0*l(x,y,z-1).w+0.5*l(x,y,z-2).w;
-        dudz2 =      l(x,y,z).u-2.0*l(x,y,z-1).u+    l(x,y,z-2).u;
-        dvdz2 =      l(x,y,z).v-2.0*l(x,y,z-1).v+    l(x,y,z-2).v;
-        dwdz2 =      l(x,y,z).w-2.0*l(x,y,z-1).w+    l(x,y,z-2).w;
+        dudz1 =  1.5*l(x,y,z).u[0]-2.0*l(x,y,z-1).u[0]+0.5*l(x,y,z-2).u[0];
+        dvdz1 =  1.5*l(x,y,z).u[1]-2.0*l(x,y,z-1).u[1]+0.5*l(x,y,z-2).u[1];
+        dwdz1 =  1.5*l(x,y,z).u[2]-2.0*l(x,y,z-1).u[2]+0.5*l(x,y,z-2).u[2];
+        dudz2 =      l(x,y,z).u[0]-2.0*l(x,y,z-1).u[0]+    l(x,y,z-2).u[0];
+        dvdz2 =      l(x,y,z).u[1]-2.0*l(x,y,z-1).u[1]+    l(x,y,z-2).u[1];
+        dwdz2 =      l(x,y,z).u[2]-2.0*l(x,y,z-1).u[2]+    l(x,y,z-2).u[2];
       }
       if (normX > 0 && x+3 <    big)
       {
-        dudx3 = -l(x,y,z).u + 3*l(x+1,y,z).u - 3*l(x+2,y,z).u + l(x+3,y,z).u; 
-        dvdx3 = -l(x,y,z).v + 3*l(x+1,y,z).v - 3*l(x+2,y,z).v + l(x+3,y,z).v;
-        dwdx3 = -l(x,y,z).w + 3*l(x+1,y,z).w - 3*l(x+2,y,z).w + l(x+3,y,z).w;
+        dudx3 = -l(x,y,z).u[0] + 3*l(x+1,y,z).u[0] - 3*l(x+2,y,z).u[0] + l(x+3,y,z).u[0]; 
+        dvdx3 = -l(x,y,z).u[1] + 3*l(x+1,y,z).u[1] - 3*l(x+2,y,z).u[1] + l(x+3,y,z).u[1];
+        dwdx3 = -l(x,y,z).u[2] + 3*l(x+1,y,z).u[2] - 3*l(x+2,y,z).u[2] + l(x+3,y,z).u[2];
       }
       if (normX < 0 && x-3 >= small)
       {
-        dudx3 =  l(x,y,z).u - 3*l(x-1,y,z).u + 3*l(x-2,y,z).u - l(x-3,y,z).u; 
-        dvdx3 =  l(x,y,z).v - 3*l(x-1,y,z).v + 3*l(x-2,y,z).v - l(x-3,y,z).v;
-        dwdx3 =  l(x,y,z).w - 3*l(x-1,y,z).w + 3*l(x-2,y,z).w - l(x-3,y,z).w;
+        dudx3 =  l(x,y,z).u[0] - 3*l(x-1,y,z).u[0] + 3*l(x-2,y,z).u[0] - l(x-3,y,z).u[0]; 
+        dvdx3 =  l(x,y,z).u[1] - 3*l(x-1,y,z).u[1] + 3*l(x-2,y,z).u[1] - l(x-3,y,z).u[1];
+        dwdx3 =  l(x,y,z).u[2] - 3*l(x-1,y,z).u[2] + 3*l(x-2,y,z).u[2] - l(x-3,y,z).u[2];
       }
       if (normY > 0 && y+3 <    big) 
       {
-        dudy3 = -l(x,y,z).u + 3*l(x,y+1,z).u - 3*l(x,y+2,z).u + l(x,y+3,z).u;
-        dvdy3 = -l(x,y,z).v + 3*l(x,y+1,z).v - 3*l(x,y+2,z).v + l(x,y+3,z).v;
-        dwdy3 = -l(x,y,z).w + 3*l(x,y+1,z).w - 3*l(x,y+2,z).w + l(x,y+3,z).w;
+        dudy3 = -l(x,y,z).u[0] + 3*l(x,y+1,z).u[0] - 3*l(x,y+2,z).u[0] + l(x,y+3,z).u[0];
+        dvdy3 = -l(x,y,z).u[1] + 3*l(x,y+1,z).u[1] - 3*l(x,y+2,z).u[1] + l(x,y+3,z).u[1];
+        dwdy3 = -l(x,y,z).u[2] + 3*l(x,y+1,z).u[2] - 3*l(x,y+2,z).u[2] + l(x,y+3,z).u[2];
       }
       if (normY < 0 && y-3 >= small)
       {
-        dudy3 =  l(x,y,z).u - 3*l(x,y-1,z).u + 3*l(x,y-2,z).u - l(x,y-3,z).u;
-        dvdy3 =  l(x,y,z).v - 3*l(x,y-1,z).v + 3*l(x,y-2,z).v - l(x,y-3,z).v;
-        dwdy3 =  l(x,y,z).w - 3*l(x,y-1,z).w + 3*l(x,y-2,z).w - l(x,y-3,z).w;
+        dudy3 =  l(x,y,z).u[0] - 3*l(x,y-1,z).u[0] + 3*l(x,y-2,z).u[0] - l(x,y-3,z).u[0];
+        dvdy3 =  l(x,y,z).u[1] - 3*l(x,y-1,z).u[1] + 3*l(x,y-2,z).u[1] - l(x,y-3,z).u[1];
+        dwdy3 =  l(x,y,z).u[2] - 3*l(x,y-1,z).u[2] + 3*l(x,y-2,z).u[2] - l(x,y-3,z).u[2];
       }
       if (normZ > 0 && z+3 <    big) 
       {
-        dudz3 = -l(x,y,z).u + 3*l(x,y,z+1).u - 3*l(x,y,z+2).u + l(x,y,z+3).u;
-        dvdz3 = -l(x,y,z).v + 3*l(x,y,z+1).v - 3*l(x,y,z+2).v + l(x,y,z+3).v;
-        dwdz3 = -l(x,y,z).w + 3*l(x,y,z+1).w - 3*l(x,y,z+2).w + l(x,y,z+3).w;
+        dudz3 = -l(x,y,z).u[0] + 3*l(x,y,z+1).u[0] - 3*l(x,y,z+2).u[0] + l(x,y,z+3).u[0];
+        dvdz3 = -l(x,y,z).u[1] + 3*l(x,y,z+1).u[1] - 3*l(x,y,z+2).u[1] + l(x,y,z+3).u[1];
+        dwdz3 = -l(x,y,z).u[2] + 3*l(x,y,z+1).u[2] - 3*l(x,y,z+2).u[2] + l(x,y,z+3).u[2];
       }
       if (normZ < 0 && z-3 >= small)
       {
-        dudz3 =  l(x,y,z).u - 3*l(x,y,z-1).u + 3*l(x,y,z-2).u - l(x,y,z-3).u;
-        dvdz3 =  l(x,y,z).v - 3*l(x,y,z-1).v + 3*l(x,y,z-2).v - l(x,y,z-3).v;
-        dwdz3 =  l(x,y,z).w - 3*l(x,y,z-1).w + 3*l(x,y,z-2).w - l(x,y,z-3).w;
+        dudz3 =  l(x,y,z).u[0] - 3*l(x,y,z-1).u[0] + 3*l(x,y,z-2).u[0] - l(x,y,z-3).u[0];
+        dvdz3 =  l(x,y,z).u[1] - 3*l(x,y,z-1).u[1] + 3*l(x,y,z-2).u[1] - l(x,y,z-3).u[1];
+        dwdz3 =  l(x,y,z).u[2] - 3*l(x,y,z-1).u[2] + 3*l(x,y,z-2).u[2] - l(x,y,z-3).u[2];
       }
 
       const Real dudx = dudx1 + dudx2*(ix-x) + dudxdy1*(iy-y) + dudxdz1*(iz-z) + 0.5*dudx3*(ix-x)*(ix-x);
@@ -399,7 +397,7 @@ struct KernelComputeForces
       //normals computed with Towers 2009
       // Actually using the volume integral, since (\iint -P \hat{n} dS) = (\iiint -\nabla P dV). Also, P*\nabla\Chi = \nabla P
       // penalty-accel and surf-force match up if resolution is high enough (200 points per fish)
-      const Real P = l(ix,iy,iz).p;
+      const Real P = presBlock(ix,iy,iz).s;
       //const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
       //const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
       //const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
@@ -417,10 +415,14 @@ struct KernelComputeForces
       o->fyV[i] = _1oH * (dvdx * dx + dvdy * dy + dvdz * dz); 
       o->fzV[i] = _1oH * (dwdx * dx + dwdy * dy + dwdz * dz); 
 
-      o->vxDef[i] = o->udef[iz][iy][ix][0]; o->vX[i] = l(ix,iy,iz).u;
-      o->vyDef[i] = o->udef[iz][iy][ix][1]; o->vY[i] = l(ix,iy,iz).v;
-      o->vzDef[i] = o->udef[iz][iy][ix][2]; o->vZ[i] = l(ix,iy,iz).w;
+      o->vxDef[i] = o->udef[iz][iy][ix][0]; o->vX[i] = l(ix,iy,iz).u[0];
+      o->vyDef[i] = o->udef[iz][iy][ix][1]; o->vY[i] = l(ix,iy,iz).u[1];
+      o->vzDef[i] = o->udef[iz][iy][ix][2]; o->vZ[i] = l(ix,iy,iz).u[2];
 
+      //additive quantities:
+      o->gammax += normY*o->vZ[i] - normZ*o->vY[i];
+      o->gammay += normZ*o->vX[i] - normX*o->vZ[i];
+      o->gammaz += normX*o->vY[i] - normY*o->vX[i];
       //forces (total, visc, pressure):
       o->forcex   += fXT; o->forcey   += fYT; o->forcez   += fZT;
       o->forcex_V += fXV; o->forcey_V += fYV; o->forcez_V += fZV;
@@ -460,9 +462,8 @@ void ComputeForces::operator()(const Real dt)
 {
   if(sim.obstacle_vector->nObstacles() == 0) return;
 
-  KernelComputeForces K(sim.nu,sim.dt,sim.obstacle_vector);
-  cubism::compute<LabMPI>(K,sim.grid,sim.grid);
-
+  KernelComputeForces K(sim.nu,sim.dt,sim.obstacle_vector,sim);
+  cubism::compute<KernelComputeForces,VectorGrid,VectorLab,ScalarGrid,ScalarLab>(K,*sim.vel,*sim.chi);
   // do the final reductions and so on
   sim.obstacle_vector->computeForces();
 }
