@@ -39,9 +39,10 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(m
   Ctol = parser("-Ctol").asDouble();
 
   // SIMULATION DOMAIN
-  extents[0] = parser("extentx").asDouble(1);
+  extents[0] = parser("extentx").asDouble(0);
   extents[1] = parser("extenty").asDouble(0);
   extents[2] = parser("extentz").asDouble(0);
+  if (extents[0] + extents[1] + extents[2] < 1e-21) extents[0] = parser("extent").asDouble(1);
 
   // SPEED OF FRAME OF REFERENCE
   uinf[0] = parser("-uinfx").asDouble(0.0);
