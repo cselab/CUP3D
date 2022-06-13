@@ -32,4 +32,5 @@ cp ../bin/${EXEC} ${FOLDER}/simulation
 
 cd ${FOLDER}
 
-srun --ntasks-per-node=$TASKS_PER_NODE --nodes=$SLURM_NNODES --cpus-per-task=$OMP_NUM_THREADS simulation ${OPTIONS} -factory-content $"${FACTORY}" | tee -a out.log
+srun --hint=nomultithread --ntasks-per-node=$TASKS_PER_NODE --nodes=$SLURM_NNODES --cpus-per-task=$OMP_NUM_THREADS --threads-per-core=1 simulation ${OPTIONS} -factory-content $"${FACTORY}" | tee -a out.log
+#srun --ntasks-per-node=$TASKS_PER_NODE --nodes=$SLURM_NNODES simulation ${OPTIONS} -factory-content $"${FACTORY}" | tee -a out.log
