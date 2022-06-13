@@ -24,7 +24,7 @@ struct KernelComputeForces
   StencilInfo stencil2{small,small,small, big,big,big, true, {0}};
   SimulationData & sim;
 
-  const std::vector<cubism::BlockInfo>& presInfo = sim.chiInfo();
+  const std::vector<cubism::BlockInfo>& presInfo = sim.presInfo();
 
   KernelComputeForces(Real _nu, Real _dt, ObstacleVector* ov, SimulationData& s) :
     obstacle_vector(ov), nu(_nu), dt(_dt), sim(s) { }
@@ -419,10 +419,6 @@ struct KernelComputeForces
       o->vyDef[i] = o->udef[iz][iy][ix][1]; o->vY[i] = l(ix,iy,iz).u[1];
       o->vzDef[i] = o->udef[iz][iy][ix][2]; o->vZ[i] = l(ix,iy,iz).u[2];
 
-      //additive quantities:
-      o->gammax += normY*o->vZ[i] - normZ*o->vY[i];
-      o->gammay += normZ*o->vX[i] - normX*o->vZ[i];
-      o->gammaz += normX*o->vY[i] - normY*o->vX[i];
       //forces (total, visc, pressure):
       o->forcex   += fXT; o->forcey   += fYT; o->forcez   += fZT;
       o->forcex_V += fXV; o->forcey_V += fYV; o->forcez_V += fZV;
