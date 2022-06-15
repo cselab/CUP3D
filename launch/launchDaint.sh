@@ -53,6 +53,8 @@ cat <<EOF >daint_sbatch
 #SBATCH --nodes=${NNODE}
 #SBATCH --ntasks-per-node=${TASKS_PER_NODE}
 #SBATCH --cpus-per-task=${OMP_NUM_THREADS}
+#SBATCH --threads-per-core=1
+#SBATCH --hint=nomultithread
 
 srun ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
 
