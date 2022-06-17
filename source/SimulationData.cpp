@@ -133,9 +133,9 @@ void SimulationData::_preprocessArguments()
   }
   const int aux = 1 << (levelMax -1);
   const Real NFE[3] = {
-      (Real) bpdx * aux * FluidBlock::sizeX,
-      (Real) bpdy * aux * FluidBlock::sizeY,
-      (Real) bpdz * aux * FluidBlock::sizeZ,
+      (Real) bpdx * aux * ScalarBlock::sizeX,
+      (Real) bpdy * aux * ScalarBlock::sizeY,
+      (Real) bpdz * aux * ScalarBlock::sizeZ,
   };
   const Real maxbpd = std::max({NFE[0], NFE[1], NFE[2]});
   maxextent = std::max({extents[0], extents[1], extents[2]});

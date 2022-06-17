@@ -29,11 +29,11 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   FillBlocks(const Real _radius, const Real max_dx, const Real pos[3]):
   radius(_radius), h(max_dx), position{pos[0],pos[1],pos[2]} {}
 
-  inline bool isTouching(const BlockInfo& info, const FluidBlock&b) const
+  inline bool isTouching(const BlockInfo& info, const ScalarBlock&b) const
   {
     Real MINP[3], MAXP[3];
     info.pos(MINP, 0, 0, 0);
-    info.pos(MAXP, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    info.pos(MAXP, ScalarBlock::sizeX-1, ScalarBlock::sizeY-1, ScalarBlock::sizeZ-1);
     const Real intersect[3][2] = {
       {std::max(MINP[0], box[0][0]), std::min(MAXP[0], box[0][1]) },
       {std::max(MINP[1], box[1][0]), std::min(MAXP[1], box[1][1]) },
@@ -67,11 +67,11 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
   FillBlocks(const Real _radius, const Real max_dx, const Real pos[3]):
   radius(_radius), h(max_dx), position{pos[0],pos[1],pos[2]} {}
 
-  inline bool isTouching(const BlockInfo& info, const FluidBlock&b) const
+  inline bool isTouching(const BlockInfo& info, const ScalarBlock&b) const
   {
     Real MINP[3], MAXP[3];
     info.pos(MINP, 0, 0, 0);
-    info.pos(MAXP, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    info.pos(MAXP, ScalarBlock::sizeX-1, ScalarBlock::sizeY-1, ScalarBlock::sizeZ-1);
     const Real intersect[3][2] = {
       {std::max(MINP[0], box[0][0]), std::min(MAXP[0], box[0][1]) },
       {std::max(MINP[1], box[1][0]), std::min(MAXP[1], box[1][1]) },

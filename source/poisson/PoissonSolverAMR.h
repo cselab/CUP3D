@@ -32,7 +32,7 @@ class ComputeLHS : public Operator
 
     void operator()(const ScalarLab & lab, const BlockInfo& info) const
     {
-      ScalarBlock & __restrict__ o  = *(ScalarBlock*) lhsInfo[info.blockID].ptrBlock;
+      ScalarBlock & __restrict__ o  = (*sim.lhs)(info.blockID);
       const Real h = info.h; 
       for(int z=0; z<Nz; ++z)
       for(int y=0; y<Ny; ++y)
@@ -120,7 +120,7 @@ class ComputeLHS : public Operator
        #pragma omp parallel for reduction(+ : avgP)
        for(size_t i=0; i<vInfo_lhs.size(); ++i)
        {
-          const ScalarBlock & __restrict__ Z  = *(ScalarBlock*) vInfo_z[i].ptrBlock;
+          const ScalarBlock & __restrict__ Z  = (*sim.pres)(i);
           const Real h3 = vInfo_z[i].h*vInfo_z[i].h*vInfo_z[i].h;
           if (vInfo_z[i].index[0] == 0 && vInfo_z[i].index[1] == 0 &&  vInfo_z[i].index[2] == 0) index = i;
           for(int z=0; z<Nz; ++z)
@@ -132,7 +132,7 @@ class ComputeLHS : public Operator
 
       if (sim.bMeanConstraint == 1 && index != -1)
       {
-         ScalarBlock & __restrict__ LHS = *(ScalarBlock*) vInfo_lhs[index].ptrBlock;
+         ScalarBlock & __restrict__ LHS  = (*sim.lhs)(index);
          LHS(0,0,0).s = avgP;
       }
       else if (sim.bMeanConstraint == 2)
@@ -140,7 +140,7 @@ class ComputeLHS : public Operator
          #pragma omp parallel for
          for(size_t i=0; i<vInfo_lhs.size(); ++i)
 	 {
-            ScalarBlock & __restrict__ LHS = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+            ScalarBlock & __restrict__ LHS = (*sim.lhs)(i);
             const Real h3 = vInfo_lhs[i].h*vInfo_lhs[i].h*vInfo_lhs[i].h;
             for(int z=0; z<Nz; ++z)
             for(int y=0; y<Ny; ++y)
@@ -154,8 +154,8 @@ class ComputeLHS : public Operator
        #pragma omp parallel for
        for(size_t i=0; i<vInfo_lhs.size(); ++i)
        {
-          ScalarBlock & __restrict__ LHS = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
-          const ScalarBlock & __restrict__ Z   = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
+          ScalarBlock & __restrict__ LHS = (*sim.lhs)(i);
+          const ScalarBlock & __restrict__ Z = (*sim.pres)(i);
           if (vInfo_lhs[i].index[0] == 0 && vInfo_lhs[i].index[1] == 0 && vInfo_lhs[i].index[2] == 0) LHS(0,0,0).s = Z(0,0,0).s;
       }
     }

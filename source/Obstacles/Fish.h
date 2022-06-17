@@ -51,9 +51,9 @@ class Fish: public Obstacle
   //MPI stuff, for ObstaclesCreate
   struct MPI_Obstacle
   {
-    Real d [FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX*3 
-           + (FluidBlock::sizeZ+2)*(FluidBlock::sizeY+2)*(FluidBlock::sizeX+2)];
-    int     i[FluidBlock::sizeZ*FluidBlock::sizeY*FluidBlock::sizeX];
+    Real d [ScalarBlock::sizeZ*ScalarBlock::sizeY*ScalarBlock::sizeX*3 
+           + (ScalarBlock::sizeZ+2)*(ScalarBlock::sizeY+2)*(ScalarBlock::sizeX+2)];
+    int     i[ScalarBlock::sizeZ*ScalarBlock::sizeY*ScalarBlock::sizeX];
   };
   MPI_Datatype MPI_BLOCKID;
   MPI_Datatype MPI_OBSTACLE;

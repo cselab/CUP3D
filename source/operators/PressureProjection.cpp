@@ -26,7 +26,7 @@ struct KernelGradP
 
   void operator()(const ScalarLab & lab, const BlockInfo& info) const
   {
-    VectorBlock& o = *(VectorBlock*)tmpVInfo[info.blockID].ptrBlock;
+    VectorBlock& o = (*sim.tmpV)(info.blockID);
     const Real fac = -0.5*dt*info.h*info.h;
     for(int z=0; z<Nz; ++z)
     for(int y=0; y<Ny; ++y)
@@ -111,17 +111,14 @@ void PressureProjection::operator()(const Real dt)
   const int Ny = VectorBlock::sizeY;
   const int Nz = VectorBlock::sizeZ;
   const std::vector<BlockInfo>& velInfo  = sim.velInfo();
-  const std::vector<BlockInfo>& tmpVInfo = sim.tmpVInfo();
-  const std::vector<BlockInfo>& presInfo = sim.presInfo();
-  const std::vector<BlockInfo>& pOldInfo = sim.pOldInfo();
 
   if (sim.step > sim.step_2nd_start) //recover p^{n+1} = phi + p^{n}
   {
     #pragma omp parallel for
-    for(size_t i=0; i<presInfo.size(); i++)
+    for(size_t i=0; i<velInfo.size(); i++)
     {
-      ScalarBlock& p          = *(ScalarBlock*)presInfo[i].ptrBlock;
-      const ScalarBlock& pOld = *(ScalarBlock*)pOldInfo[i].ptrBlock;
+      ScalarBlock& p          = (*sim.pres)(i);
+      const ScalarBlock& pOld = (*sim.pOld)(i);
       for (int z=0; z<Nz; ++z)
       for (int y=0; y<Ny; ++y)
       for (int x=0; x<Nx; ++x)
@@ -137,8 +134,8 @@ void PressureProjection::operator()(const Real dt)
   for(size_t i=0; i<velInfo.size(); i++)
   {
     const Real fac = 1.0/(velInfo[i].h*velInfo[i].h*velInfo[i].h);
-    const VectorBlock& gradP = *(VectorBlock*)tmpVInfo[i].ptrBlock;
-    VectorBlock& v = *(VectorBlock*)velInfo[i].ptrBlock;
+    const VectorBlock& gradP = (*sim.tmpV)(i);
+    VectorBlock& v = (*sim.vel)(i);
     for (int z=0; z<Nz; ++z)
     for (int y=0; y<Ny; ++y)
     for (int x=0; x<Nx; ++x)

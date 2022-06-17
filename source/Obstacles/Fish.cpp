@@ -23,9 +23,9 @@ Fish::Fish(SimulationData&s, ArgumentParser&p) : Obstacle(s, p)
   MPI_Datatype array_of_types[2]     = {MPI_Real, MPI_LONG};
   MPI_Type_create_struct(2, array_of_blocklengths, array_of_displacements, array_of_types, &MPI_BLOCKID);
   MPI_Type_commit(&MPI_BLOCKID);
-  const int Z = FluidBlock::sizeZ;
-  const int Y = FluidBlock::sizeY;
-  const int X = FluidBlock::sizeX;
+  const int Z = ScalarBlock::sizeZ;
+  const int Y = ScalarBlock::sizeY;
+  const int X = ScalarBlock::sizeX;
   int array_of_blocklengths1[2]       = {Z*Y*X*3 + (Z+2)*(Y+2)*(X+2), Z*Y*X};
   MPI_Aint array_of_displacements1[2] = {0, (Z*Y*X*3 + (Z+2)*(Y+2)*(X+2)) * sizeof(Real)};
   MPI_Datatype array_of_types1[2]     = {MPI_Real, MPI_INT};
@@ -130,7 +130,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
     const BlockInfo & info = chiInfo[i];
     Real MINP[3], MAXP[3];
     info.pos(MINP, 0, 0, 0);
-    info.pos(MAXP, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    info.pos(MAXP, ScalarBlock::sizeX-1, ScalarBlock::sizeY-1, ScalarBlock::sizeZ-1);
 
     bool hasSegments = false;
     for(size_t s=0; s<vSegments.size(); ++s)
@@ -265,9 +265,9 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
 
 
   //allocate buffers for the actual data that will be sent/received
-  const int sizeZ = FluidBlock::sizeZ;
-  const int sizeY = FluidBlock::sizeY;
-  const int sizeX = FluidBlock::sizeX;
+  const int sizeZ = ScalarBlock::sizeZ;
+  const int sizeY = ScalarBlock::sizeY;
+  const int sizeX = ScalarBlock::sizeX;
   std::vector< std::vector<MPI_Obstacle> > send_obstacles(size);
   std::vector< std::vector<MPI_Obstacle> > recv_obstacles(size);
   for (int r = 0 ; r < size ; r++)
@@ -291,9 +291,9 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
       for(size_t s=0; s<vSegments.size(); ++s)
       {
         Real min_pos [3] = {info.origin_x + 0.5*info.h,info.origin_y + 0.5*info.h,info.origin_z + 0.5*info.h};
-        Real max_pos [3] = {info.origin_x + (0.5+FluidBlock::sizeX-1)*info.h,
-                              info.origin_y + (0.5+FluidBlock::sizeY-1)*info.h,
-                              info.origin_z + (0.5+FluidBlock::sizeZ-1)*info.h};
+        Real max_pos [3] = {info.origin_x + (0.5+ScalarBlock::sizeX-1)*info.h,
+                              info.origin_y + (0.5+ScalarBlock::sizeY-1)*info.h,
+                              info.origin_z + (0.5+ScalarBlock::sizeZ-1)*info.h};
         if(vSegments[s].isIntersectingWithAABB(min_pos, max_pos))
         {
           if (!hasSegments)

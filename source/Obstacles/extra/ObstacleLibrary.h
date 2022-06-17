@@ -23,7 +23,7 @@ CubismUP_3D_NAMESPACE_BEGIN
  *
  * and are required to implement following member functions:
  *
- * bool isTouching(const BlockInfo &info, const FluidBlock &block) const;
+ * bool isTouching(const BlockInfo &info, const ScalarBlock &block) const;
  *      Returns if the given blocks intersects or touches the object.
  *      False positives are acceptable.
  *
@@ -40,17 +40,17 @@ CubismUP_3D_NAMESPACE_BEGIN
 template <typename Derived>
 struct FillBlocksBase
 {
-  using CHIMAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX];
+  using CHIMAT = Real[ScalarBlock::sizeZ][ScalarBlock::sizeY][ScalarBlock::sizeX];
   void operator()(const cubism::BlockInfo &info, ObstacleBlock* const o) const
   {
     // TODO: Remove `isTouching` check and verify that all dependencies are
     //       using this function properly.
-    FluidBlock &b = *(FluidBlock *)info.ptrBlock;
+    ScalarBlock &b = *(ScalarBlock *)info.ptrBlock;
     if (!derived()->isTouching(info, b)) return;
     auto & SDFLAB = o->sdfLab;
-    for (int iz = -1; iz < FluidBlock::sizeZ+1; ++iz)
-    for (int iy = -1; iy < FluidBlock::sizeY+1; ++iy)
-    for (int ix = -1; ix < FluidBlock::sizeX+1; ++ix) {
+    for (int iz = -1; iz < ScalarBlock::sizeZ+1; ++iz)
+    for (int iy = -1; iy < ScalarBlock::sizeY+1; ++iy)
+    for (int ix = -1; ix < ScalarBlock::sizeX+1; ++ix) {
       Real p[3];
       info.pos(p, ix, iy, iz);
       const Real dist = derived()->signedDistance(p[0], p[1], p[2]);

@@ -66,11 +66,11 @@ struct FillBlocks
     }};
   }
 
-  inline bool isTouching(const BlockInfo& info, const FluidBlock&b) const
+  inline bool isTouching(const BlockInfo& info, const ScalarBlock&b) const
   {
     Real MINP[3], MAXP[3];
     info.pos(MINP, 0, 0, 0);
-    info.pos(MAXP, FluidBlock::sizeX-1, FluidBlock::sizeY-1, FluidBlock::sizeZ-1);
+    info.pos(MAXP, ScalarBlock::sizeX-1, ScalarBlock::sizeY-1, ScalarBlock::sizeZ-1);
     const Real intersect[3][2] = {
       {std::max(MINP[0], box[0][0]), std::min(MAXP[0], box[0][1]) },
       {std::max(MINP[1], box[1][0]), std::min(MAXP[1], box[1][1]) },
@@ -194,15 +194,15 @@ struct FillBlocks
     abort();
   }
 
-  using CHIMAT = Real[FluidBlock::sizeZ][FluidBlock::sizeY][FluidBlock::sizeX];
+  using CHIMAT = Real[ScalarBlock::sizeZ][ScalarBlock::sizeY][ScalarBlock::sizeX];
   void operator()(const cubism::BlockInfo &info, ObstacleBlock* const o) const
   {
-    FluidBlock &b = *(FluidBlock *)info.ptrBlock;
+    ScalarBlock &b = *(ScalarBlock *)info.ptrBlock;
     if (!isTouching(info, b)) return;
     auto & SDFLAB = o->sdfLab;
-    for (int iz = -1; iz < FluidBlock::sizeZ+1; ++iz)
-    for (int iy = -1; iy < FluidBlock::sizeY+1; ++iy)
-    for (int ix = -1; ix < FluidBlock::sizeX+1; ++ix)
+    for (int iz = -1; iz < ScalarBlock::sizeZ+1; ++iz)
+    for (int iy = -1; iy < ScalarBlock::sizeY+1; ++iy)
+    for (int ix = -1; ix < ScalarBlock::sizeX+1; ++ix)
     {
       Real p[3];
       info.pos(p, ix, iy, iz);
@@ -291,7 +291,7 @@ void ExternalObstacle::create()
   BlocksToTriangles.resize(chiInfo.size()); //each block has a set of indices(triangles) that are inside it
 
   //int total = 0;
-  const int BS = std::max({FluidBlock::sizeX,FluidBlock::sizeY,FluidBlock::sizeZ});
+  const int BS = std::max({ScalarBlock::sizeX,ScalarBlock::sizeY,ScalarBlock::sizeZ});
   for (size_t j = 0 ; j < indices.size() ; j++) //loop over all triangles
   {
     int found = 0;
@@ -300,7 +300,7 @@ void ExternalObstacle::create()
       const cubism::BlockInfo & info = chiInfo[b];
 
       Real center[3];
-      info.pos(center,FluidBlock::sizeX/2,FluidBlock::sizeY/2,FluidBlock::sizeZ/2);
+      info.pos(center,ScalarBlock::sizeX/2,ScalarBlock::sizeY/2,ScalarBlock::sizeZ/2);
 
       Vector3<Real> t0;
       t0[0] = position[0] + coordinates[indices[j][0]][0];

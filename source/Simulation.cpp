@@ -148,14 +148,13 @@ void Simulation::_ic()
 
 void Simulation::setupGrid()
 {
-  //The first three arguments are not used in Cubism-AMR
-  sim.chi  = new ScalarGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
-  sim.lhs  = new ScalarGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
-  sim.pres = new ScalarGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
-  sim.pOld = new ScalarGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
-  sim.vel  = new VectorGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
-  sim.tmpV = new VectorGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
-  sim.vOld = new VectorGrid(1,1,1,sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.chi  = new ScalarGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.lhs  = new ScalarGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.pres = new ScalarGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.pOld = new ScalarGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.vel  = new VectorGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.tmpV = new VectorGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
+  sim.vOld = new VectorGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
 
   //Refine/compress only according to chi field for now
   sim.chi_amr  = new ScalarAMR( *(sim.chi ),sim.Rtol,sim.Ctol);
@@ -218,18 +217,18 @@ void Simulation::_serialize(const std::string append)
     computeVorticity();
 
   //dump multi-block datasets with scalar quantities or magnitude of vector quantities
-  if (sim.dumpP        ) DumpHDF5_MPI2<cubism::StreamerScalar,Real,ScalarGrid,ScalarLab> (*sim.pres, sim.time, "pres" + name.str(),sim.path4serialization);
-  if (sim.dumpChi      ) DumpHDF5_MPI2<cubism::StreamerScalar,Real,ScalarGrid,ScalarLab> (*sim.chi , sim.time, "chi"  + name.str(),sim.path4serialization);
-  if (sim.dumpOmega    ) DumpHDF5_MPI2<cubism::StreamerVector,Real,VectorGrid,VectorLab> (*sim.tmpV, sim.time, "tmp"  + name.str(),sim.path4serialization);
-  if (sim.dumpVelocity ) DumpHDF5_MPI2<cubism::StreamerVector,Real,VectorGrid,VectorLab> (*sim.vel , sim.time, "vel"  + name.str(),sim.path4serialization);
+  if (sim.dumpP        ) DumpHDF5_MPI2<cubism::StreamerScalar,Real,ScalarGrid> (*sim.pres, sim.time, "pres" + name.str(),sim.path4serialization);
+  if (sim.dumpChi      ) DumpHDF5_MPI2<cubism::StreamerScalar,Real,ScalarGrid> (*sim.chi , sim.time, "chi"  + name.str(),sim.path4serialization);
+  if (sim.dumpOmega    ) DumpHDF5_MPI2<cubism::StreamerVector,Real,VectorGrid> (*sim.tmpV, sim.time, "tmp"  + name.str(),sim.path4serialization);
+  if (sim.dumpVelocity ) DumpHDF5_MPI2<cubism::StreamerVector,Real,VectorGrid> (*sim.vel , sim.time, "vel"  + name.str(),sim.path4serialization);
 
   //dump components of vectors
-  if (sim.dumpOmegaX   ) DumpHDF5_MPI2<StreamerVectorX,Real,VectorGrid,VectorLab> (*sim.tmpV, sim.time, "tmpX" + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaY   ) DumpHDF5_MPI2<StreamerVectorY,Real,VectorGrid,VectorLab> (*sim.tmpV, sim.time, "tmpY" + name.str(),sim.path4serialization);
-  if (sim.dumpOmegaZ   ) DumpHDF5_MPI2<StreamerVectorZ,Real,VectorGrid,VectorLab> (*sim.tmpV, sim.time, "tmpZ" + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityX) DumpHDF5_MPI2<StreamerVectorX,Real,VectorGrid,VectorLab> (*sim.vel, sim.time, "velX" + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityY) DumpHDF5_MPI2<StreamerVectorY,Real,VectorGrid,VectorLab> (*sim.vel, sim.time, "velY" + name.str(),sim.path4serialization);
-  if (sim.dumpVelocityZ) DumpHDF5_MPI2<StreamerVectorZ,Real,VectorGrid,VectorLab> (*sim.vel, sim.time, "velZ" + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaX   ) DumpHDF5_MPI2<StreamerVectorX,Real,VectorGrid> (*sim.tmpV, sim.time, "tmpX" + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaY   ) DumpHDF5_MPI2<StreamerVectorY,Real,VectorGrid> (*sim.tmpV, sim.time, "tmpY" + name.str(),sim.path4serialization);
+  if (sim.dumpOmegaZ   ) DumpHDF5_MPI2<StreamerVectorZ,Real,VectorGrid> (*sim.tmpV, sim.time, "tmpZ" + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityX) DumpHDF5_MPI2<StreamerVectorX,Real,VectorGrid> (*sim.vel, sim.time, "velX" + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityY) DumpHDF5_MPI2<StreamerVectorY,Real,VectorGrid> (*sim.vel, sim.time, "velY" + name.str(),sim.path4serialization);
+  if (sim.dumpVelocityZ) DumpHDF5_MPI2<StreamerVectorZ,Real,VectorGrid> (*sim.vel, sim.time, "velZ" + name.str(),sim.path4serialization);
 
   sim.stopProfiler();
 }

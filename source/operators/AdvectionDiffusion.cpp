@@ -87,7 +87,7 @@ struct KernelAdvectDiffuse
 
     void operator()(const VectorLab & lab, const BlockInfo& info) const
     {
-	VectorBlock& o = *(VectorBlock*)tmpVInfo[info.blockID].ptrBlock;
+	VectorBlock & o = (*sim.tmpV)(info.blockID);
 
         const Real h3   = info.h*info.h*info.h;
         const Real facA = -dt/info.h * h3 * coef;
@@ -208,8 +208,6 @@ void AdvectionDiffusion::operator()(const Real dt)
     //Perform midpoint integration of equation: du/dt = - (u * nabla) u + nu Delta u
 
     const std::vector<BlockInfo> &  velInfo = sim.velInfo();
-    const std::vector<BlockInfo> & tmpVInfo = sim.tmpVInfo();
-    const std::vector<BlockInfo> & vOldInfo = sim.vOldInfo();
     const int Nx = VectorBlock::sizeX;
     const int Ny = VectorBlock::sizeY;
     const int Nz = VectorBlock::sizeZ;
@@ -219,8 +217,8 @@ void AdvectionDiffusion::operator()(const Real dt)
     #pragma omp parallel for
     for(size_t i=0; i<Nblocks; i++)
     {
-        const VectorBlock & V = *(VectorBlock*) velInfo[i].ptrBlock;
-        VectorBlock & Vold = *(VectorBlock*) vOldInfo[i].ptrBlock;
+        const VectorBlock & V = (*sim.vel)(i);
+        VectorBlock & Vold = (*sim.vOld)(i);
         for (int z=0; z<Nz; ++z)
         for (int y=0; y<Ny; ++y)
         for (int x=0; x<Nx; ++x)
@@ -238,9 +236,10 @@ void AdvectionDiffusion::operator()(const Real dt)
     for(size_t i=0; i<Nblocks; i++)//Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
     {
         const Real ih3 = 1.0/(velInfo[i].h*velInfo[i].h*velInfo[i].h);
-        const VectorBlock & tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-        const VectorBlock & Vold = *(VectorBlock*) vOldInfo[i].ptrBlock;
-        VectorBlock & V = *(VectorBlock*) velInfo[i].ptrBlock;
+        const VectorBlock & tmpV = (*sim.tmpV)(i);
+        const VectorBlock & Vold = (*sim.vOld)(i);
+        VectorBlock & V          = (*sim.vel )(i);
+
         for (int z=0; z<Nz; ++z)
         for (int y=0; y<Ny; ++y)
         for (int x=0; x<Nx; ++x)
@@ -258,9 +257,9 @@ void AdvectionDiffusion::operator()(const Real dt)
     for(size_t i=0; i<Nblocks; i++)//Set u^{n+1} = u^{n} + dt*RHS(u^{n+1/2})
     {
         const Real ih3 = 1.0/(velInfo[i].h*velInfo[i].h*velInfo[i].h);
-        const VectorBlock & tmpV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
-        const VectorBlock & Vold = *(VectorBlock*) vOldInfo[i].ptrBlock;
-        VectorBlock & V = *(VectorBlock*) velInfo[i].ptrBlock;
+        const VectorBlock & tmpV = (*sim.tmpV)(i);
+        const VectorBlock & Vold = (*sim.vOld)(i);
+        VectorBlock & V          = (*sim.vel )(i);
         for (int z=0; z<Nz; ++z)
         for (int y=0; y<Ny; ++y)
         for (int x=0; x<Nx; ++x)

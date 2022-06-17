@@ -27,7 +27,7 @@ struct KernelDivPressure
 
   void operator()(const ScalarLab & lab, const BlockInfo& info) const 
   {
-    VectorBlock & __restrict__ b = *(VectorBlock*) tmpVInfo[info.blockID].ptrBlock;
+    VectorBlock & __restrict__ b = (*sim.tmpV)(info.blockID);
     const Real fac = info.h;
     for(int z=0; z<Nz; ++z)
     for(int y=0; y<Ny; ++y)
@@ -111,8 +111,8 @@ struct KernelPressureRHS
   void operator()(const VectorLab & lab, const VectorLab & uDefLab, const BlockInfo& info, const BlockInfo& info2) const
   {
     const Real h = info.h, fac = 0.5*h*h/dt;
-    const ScalarBlock & __restrict__ c  = *(ScalarBlock*) chiInfo[info2.blockID].ptrBlock;
-    ScalarBlock & __restrict__ p  = *(ScalarBlock*) lhsInfo[info2.blockID].ptrBlock;
+    const ScalarBlock & __restrict__ c  = (*sim.chi)(info2.blockID);
+    ScalarBlock & __restrict__ p  = (*sim.lhs)(info2.blockID);
 
     for(int z=0; z<Nz; ++z)
     for(int y=0; y<Ny; ++y)
@@ -196,7 +196,6 @@ static void kernelUpdateTmpV(SimulationData& sim)
   const int Ny = VectorBlock::sizeY;
   const int Nz = VectorBlock::sizeZ;
   const std::vector<BlockInfo>& chiInfo = sim.chiInfo();
-  const std::vector<BlockInfo>& tmpVInfo = sim.tmpVInfo();
   #pragma omp parallel
   {
     for (const auto &obstacle : sim.obstacle_vector->getObstacleVector())
@@ -209,8 +208,8 @@ static void kernelUpdateTmpV(SimulationData& sim)
         const auto pos = obstblocks[info.blockID];
         if(pos == nullptr) continue;
 
-        const ScalarBlock& c = *(ScalarBlock*)info.ptrBlock;
-        VectorBlock& b = *(VectorBlock*)tmpVInfo[i].ptrBlock;
+        const ScalarBlock& c = (*sim.chi)(i);
+        VectorBlock& b = (*sim.tmpV)(i);
         const UDEFMAT & __restrict__ UDEF = pos->udef;
         const CHIMAT & __restrict__ CHI = pos->chi;
 
@@ -240,10 +239,7 @@ void PressureRHS::operator()(const Real dt)
   const int Nx = VectorBlock::sizeX;
   const int Ny = VectorBlock::sizeY;
   const int Nz = VectorBlock::sizeZ;
-  const std::vector<BlockInfo>& lhsInfo = sim.lhsInfo();
   const std::vector<BlockInfo>& presInfo = sim.presInfo();
-  const std::vector<BlockInfo>& pOldInfo = sim.pOldInfo();
-  const std::vector<BlockInfo>& tmpVInfo = sim.tmpVInfo();
   //1. Compute pRHS
   {
     //pOld -> store p
@@ -251,9 +247,9 @@ void PressureRHS::operator()(const Real dt)
     #pragma omp parallel for schedule(static)
     for(size_t i=0; i<presInfo.size(); i++)
     {
-      const ScalarBlock& p = *(ScalarBlock*)presInfo[i].ptrBlock;
-      VectorBlock& tmpV = *(VectorBlock*)tmpVInfo[i].ptrBlock;
-      ScalarBlock& pOld = *(ScalarBlock*)pOldInfo[i].ptrBlock;
+      const ScalarBlock& p = (*sim.pres)(i);
+      VectorBlock& tmpV    = (*sim.tmpV)(i);
+      ScalarBlock& pOld    = (*sim.pOld)(i);
       for(int z=0; z<Nz; ++z)
       for(int y=0; y<Ny; ++y)
       for(int x=0; x<Nx; ++x)
@@ -279,9 +275,9 @@ void PressureRHS::operator()(const Real dt)
     #pragma omp parallel for
     for(size_t i=0; i<presInfo.size(); i++)
     {
-      const VectorBlock& b = *(VectorBlock*)tmpVInfo[i].ptrBlock;
-      ScalarBlock & LHS = *(ScalarBlock *)lhsInfo[i].ptrBlock;
-      ScalarBlock& p = *(ScalarBlock*)presInfo[i].ptrBlock;
+      const VectorBlock& b = (*sim.tmpV)(i);
+      ScalarBlock & LHS    = (*sim.lhs )(i);
+      ScalarBlock& p       = (*sim.pres)(i);
       for(int z=0; z<Nz; ++z)
       for(int y=0; y<Ny; ++y)
       for(int x=0; x<Nx; ++x)
@@ -296,7 +292,7 @@ void PressureRHS::operator()(const Real dt)
     #pragma omp parallel for
     for(size_t i=0; i<presInfo.size(); i++)
     {
-      ScalarBlock& p = *(ScalarBlock*)presInfo[i].ptrBlock;
+      ScalarBlock& p = (*sim.pres)(i);
       p.clear();
     }
   }

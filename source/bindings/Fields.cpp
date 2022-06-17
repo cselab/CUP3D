@@ -80,9 +80,9 @@ static auto fieldViewProperty(int which)
 void bindFields(py::module &m)
 {
   m.attr("BLOCK_SIZE") = py::make_tuple(
-      (int)FluidBlock::sizeX,
-      (int)FluidBlock::sizeY,
-      (int)FluidBlock::sizeZ);
+      (int)ScalarBlock::sizeX,
+      (int)ScalarBlock::sizeY,
+      (int)ScalarBlock::sizeZ);
 
   // TODO: __getitem__ and PyBlockView.
   py::class_<PyBlocksView>(m, "_BlocksView")

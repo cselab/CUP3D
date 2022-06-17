@@ -19,10 +19,9 @@ struct GradChiOnTmp
   GradChiOnTmp(const SimulationData & s) : sim(s) {}
   const SimulationData & sim;
   const StencilInfo stencil{-2, -2, -2, 3, 3, 3, true, {0}};
-  const std::vector<cubism::BlockInfo>& tmpInfo = sim.tmpVInfo();
   void operator()(ScalarLab & lab, const BlockInfo& info) const
   {
-    auto& __restrict__ TMP = *(VectorBlock*) tmpInfo[info.blockID].ptrBlock;
+    auto& __restrict__ TMP = (*sim.tmpV)(info.blockID);
     const int offset = (info.level == sim.chi->getlevelMax()-1) ? 2 : 1;
     for(int z=-offset; z<VectorBlock::sizeZ+offset; ++z)
     for(int y=-offset; y<VectorBlock::sizeY+offset; ++y)
@@ -265,7 +264,7 @@ class KernelDivergence
   void operator()(VectorLab & lab, const cubism::BlockInfo& info) const
   {
     VectorBlock& o = *( VectorBlock *)vInfo[info.blockID].ptrBlock;
-    FluidBlock& c = *( FluidBlock *)chiInfo[info.blockID].ptrBlock;
+    ScalarBlock& c = *( ScalarBlock *)chiInfo[info.blockID].ptrBlock;
     const Real fac=0.5*info.h*info.h;
     for (int iz=0; iz<VectorBlock::sizeZ; ++iz)
     for (int iy=0; iy<VectorBlock::sizeY; ++iy)
@@ -295,61 +294,61 @@ class KernelDivergence
     if (faceXm != nullptr)
     {
       int ix = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      for(int iz=0; iz<ScalarBlock::sizeZ; ++iz)
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       {
-        faceXm[iy + FluidBlock::sizeY * iz].clear();
-        faceXm[iy + FluidBlock::sizeY * iz].u[0] = (1.0 - c(ix,iy,iz).s)*fac *(lab(ix-1,iy,iz).u[0] + lab(ix,iy,iz).u[0]);
+        faceXm[iy + ScalarBlock::sizeY * iz].clear();
+        faceXm[iy + ScalarBlock::sizeY * iz].u[0] = (1.0 - c(ix,iy,iz).s)*fac *(lab(ix-1,iy,iz).u[0] + lab(ix,iy,iz).u[0]);
       }
     }
     if (faceXp != nullptr)
     {
-      int ix = FluidBlock::sizeX-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
+      int ix = ScalarBlock::sizeX-1;
+      for(int iz=0; iz<ScalarBlock::sizeZ; ++iz)
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       {
-        faceXp[iy + FluidBlock::sizeY * iz].clear();
-        faceXp[iy + FluidBlock::sizeY * iz].u[0] = - (1.0 - c(ix,iy,iz).s)*fac *(lab(ix+1,iy,iz).u[0] + lab(ix,iy,iz).u[0]);
+        faceXp[iy + ScalarBlock::sizeY * iz].clear();
+        faceXp[iy + ScalarBlock::sizeY * iz].u[0] = - (1.0 - c(ix,iy,iz).s)*fac *(lab(ix+1,iy,iz).u[0] + lab(ix,iy,iz).u[0]);
       }
     }
     if (faceYm != nullptr)
     {
       int iy = 0;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      for(int iz=0; iz<ScalarBlock::sizeZ; ++iz)
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-        faceYm[ix + FluidBlock::sizeX * iz].clear();
-        faceYm[ix + FluidBlock::sizeX * iz].u[0] = (1.0 - c(ix,iy,iz).s)*fac *(lab(ix,iy-1,iz).u[1] + lab(ix,iy,iz).u[1]);
+        faceYm[ix + ScalarBlock::sizeX * iz].clear();
+        faceYm[ix + ScalarBlock::sizeX * iz].u[0] = (1.0 - c(ix,iy,iz).s)*fac *(lab(ix,iy-1,iz).u[1] + lab(ix,iy,iz).u[1]);
       }
     }
     if (faceYp != nullptr)
     {
-      int iy = FluidBlock::sizeY-1;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      int iy = ScalarBlock::sizeY-1;
+      for(int iz=0; iz<ScalarBlock::sizeZ; ++iz)
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-        faceYp[ix + FluidBlock::sizeX * iz].clear();
-        faceYp[ix + FluidBlock::sizeX * iz].u[0] = - (1.0 - c(ix,iy,iz).s)*fac *(lab(ix,iy+1,iz).u[1] + lab(ix,iy,iz).u[1]);
+        faceYp[ix + ScalarBlock::sizeX * iz].clear();
+        faceYp[ix + ScalarBlock::sizeX * iz].u[0] = - (1.0 - c(ix,iy,iz).s)*fac *(lab(ix,iy+1,iz).u[1] + lab(ix,iy,iz).u[1]);
       }
     }
     if (faceZm != nullptr)
     {
       int iz = 0;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-        faceZm[ix + FluidBlock::sizeX * iy].clear();
-        faceZm[ix + FluidBlock::sizeX * iy].u[0] = (1.0 - c(ix,iy,iz).s)*fac *(lab(ix,iy,iz-1).u[2] + lab(ix,iy,iz).u[2]);
+        faceZm[ix + ScalarBlock::sizeX * iy].clear();
+        faceZm[ix + ScalarBlock::sizeX * iy].u[0] = (1.0 - c(ix,iy,iz).s)*fac *(lab(ix,iy,iz-1).u[2] + lab(ix,iy,iz).u[2]);
       }
     }
     if (faceZp != nullptr)
     {
-      int iz = FluidBlock::sizeZ-1;
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix)
+      int iz = ScalarBlock::sizeZ-1;
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix)
       {
-        faceZp[ix + FluidBlock::sizeX * iy].clear();
-        faceZp[ix + FluidBlock::sizeX * iy].u[0] = - (1.0 - c(ix,iy,iz).s)*fac *(lab(ix,iy,iz+1).u[2] + lab(ix,iy,iz).u[2]);
+        faceZp[ix + ScalarBlock::sizeX * iy].clear();
+        faceZp[ix + ScalarBlock::sizeX * iy].u[0] = - (1.0 - c(ix,iy,iz).s)*fac *(lab(ix,iy,iz+1).u[2] + lab(ix,iy,iz).u[2]);
       }
     }
   }

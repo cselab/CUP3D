@@ -450,6 +450,4 @@ using VectorLab     = cubism::BlockLabMPI<BlockLabBC<VectorBlock, aligned_block_
 using ScalarAMR     = cubism::MeshAdaptationMPI<ScalarGrid,ScalarLab,ScalarGrid>;
 using VectorAMR     = cubism::MeshAdaptationMPI<VectorGrid,VectorLab,ScalarGrid>;
 
-using FluidBlock    = ScalarBlock;
-
 CubismUP_3D_NAMESPACE_END

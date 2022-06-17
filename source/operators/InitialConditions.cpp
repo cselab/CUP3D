@@ -98,9 +98,9 @@ class KernelIC_channelrandom
     //an annoying warning. Doing this slower approach with two loops makes
     //the warning disappear. This won't impact performance as it's done
     //onle once per simulation (initial conditions).
-    for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-    for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-    for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+    for(int iz=0; iz<ScalarBlock::sizeZ; ++iz)
+    for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+    for(int ix=0; ix<ScalarBlock::sizeX; ++ix) {
       Real p[3]; info.pos(p, ix, iy, iz);
       const Real U = FAC * p[dir] * (H-p[dir]);
       block(ix,iy,iz).u[0] = U * ( block(ix,iy,iz).u[0] + 1.0 );
@@ -131,7 +131,7 @@ static void initialPenalization(SimulationData& sim, const Real dt)
         const auto pos = obstblocks[info.blockID];
         if(pos == nullptr) continue;
 
-        VectorBlock& b = *(VectorBlock*)info.ptrBlock;
+        VectorBlock& b = (*sim.vel)(i);
         CHI_MAT & __restrict__ CHI = pos->chi;
         UDEFMAT & __restrict__ UDEF = pos->udef;
 
@@ -204,16 +204,15 @@ void InitialConditions::operator()(const Real dt)
   }
   {
     std::vector<cubism::BlockInfo>& chiInfo  = sim.chiInfo();
-    std::vector<cubism::BlockInfo>& presInfo = sim.presInfo();
     //zero fields, going to contain Udef:
     #pragma omp parallel for schedule(static)
     for(unsigned i=0; i<chiInfo.size(); i++)
     {
-      ScalarBlock& CHI  = *(ScalarBlock*) chiInfo[i].ptrBlock;
-      ScalarBlock& PRES = *(ScalarBlock*)presInfo[i].ptrBlock;
-      for(int iz=0; iz<FluidBlock::sizeZ; ++iz)
-      for(int iy=0; iy<FluidBlock::sizeY; ++iy)
-      for(int ix=0; ix<FluidBlock::sizeX; ++ix) {
+      ScalarBlock& CHI  = (*sim.chi )(i);
+      ScalarBlock& PRES = (*sim.pres)(i);
+      for(int iz=0; iz<ScalarBlock::sizeZ; ++iz)
+      for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
+      for(int ix=0; ix<ScalarBlock::sizeX; ++ix) {
         CHI(ix,iy,iz).s = 0;
         PRES(ix,iy,iz).s = 0;
       }

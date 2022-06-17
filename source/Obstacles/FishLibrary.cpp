@@ -421,9 +421,9 @@ bool VolumeSegment_OBB::isIntersectingWithAABB(const Real start[3],const Real en
 void PutFishOnBlocks::operator()(const Real h, const Real ox, const Real oy, const Real oz, ObstacleBlock* const oblock, const std::vector<VolumeSegment_OBB*>& vSegments) const
 {
   auto & sdf_array = oblock->sdfLab;
-  for(int iz=0; iz<FluidBlock::sizeZ+2; ++iz)
-  for(int iy=0; iy<FluidBlock::sizeY+2; ++iy)
-  for(int ix=0; ix<FluidBlock::sizeX+2; ++ix)
+  for(int iz=0; iz<ScalarBlock::sizeZ+2; ++iz)
+  for(int iy=0; iy<ScalarBlock::sizeY+2; ++iy)
+  for(int ix=0; ix<ScalarBlock::sizeX+2; ++ix)
     sdf_array[iz][iy][ix] = -1;
   constructSurface  (h, ox, oy, oz, oblock, vSegments);
   constructInternl  (h, ox, oy, oz, oblock, vSegments);
@@ -488,7 +488,7 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
   const Real org[3] = {ox-h,oy-h,oz-h};
 
   const Real invh = 1.0/h;
-  const int BS[3] = {FluidBlock::sizeX+2, FluidBlock::sizeY+2, FluidBlock::sizeZ+2};
+  const int BS[3] = {ScalarBlock::sizeX+2, ScalarBlock::sizeY+2, ScalarBlock::sizeZ+2};
 
   // needed variables to store sensor location
   const Real *const rS = cfish->rS;
@@ -630,9 +630,9 @@ void PutFishOnBlocks::constructSurface(const Real h, const Real ox, const Real o
           // multiply distance from midline instead of entire half-width.
           // Remember that uder will become udef / chi, so W simplifies out.
           const Real W = std::max(1 - std::sqrt(dist1) * (invh / 3), (Real)0);
-          const bool inRange =(sz - 1 >=0 && sz - 1 < FluidBlock::sizeZ &&
-                               sy - 1 >=0 && sy - 1 < FluidBlock::sizeY &&
-                               sx - 1 >=0 && sx - 1 < FluidBlock::sizeX);
+          const bool inRange =(sz - 1 >=0 && sz - 1 < ScalarBlock::sizeZ &&
+                               sy - 1 >=0 && sy - 1 < ScalarBlock::sizeY &&
+                               sx - 1 >=0 && sx - 1 < ScalarBlock::sizeX);
           if (inRange)
           {
             UDEF[sz-1][sy-1][sx-1][0] = W * udef[0];
@@ -752,7 +752,7 @@ void PutFishOnBlocks::constructInternl(const Real h, const Real ox, const Real o
   CHIMAT & __restrict__ CHI = defblock->chi;
   auto & __restrict__ SDFLAB = defblock->sdfLab;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
-  static constexpr int BS[3] = {FluidBlock::sizeX+2, FluidBlock::sizeY+2, FluidBlock::sizeZ+2};
+  static constexpr int BS[3] = {ScalarBlock::sizeX+2, ScalarBlock::sizeY+2, ScalarBlock::sizeZ+2};
   const Real *const rX = cfish->rX, *const norX  = cfish->norX , *const vBinX = cfish->vBinX;
   const Real *const rY = cfish->rY, *const norY  = cfish->norY , *const vBinY = cfish->vBinY;
   const Real *const rZ = cfish->rZ, *const norZ  = cfish->norZ , *const vBinZ = cfish->vBinZ;
@@ -818,9 +818,9 @@ void PutFishOnBlocks::constructInternl(const Real h, const Real ox, const Real o
           const Real wxwywz = wghts[2][sz] * wghts[1][sy] * wghts[0][sx];
           assert(wxwywz>=0 && wxwywz<=1);
 
-          if (idz -1 >=0 && idz-1 < FluidBlock::sizeZ &&
-              idy -1 >=0 && idy-1 < FluidBlock::sizeY &&
-              idx -1 >=0 && idx-1 < FluidBlock::sizeX)
+          if (idz -1 >=0 && idz-1 < ScalarBlock::sizeZ &&
+              idy -1 >=0 && idy-1 < ScalarBlock::sizeY &&
+              idx -1 >=0 && idx-1 < ScalarBlock::sizeX)
           {
                UDEF[idz-1][idy-1][idx-1][0] += wxwywz*udef[0];
                UDEF[idz-1][idy-1][idx-1][1] += wxwywz*udef[1];
@@ -843,11 +843,11 @@ void PutFishOnBlocks::signedDistanceSqrt(ObstacleBlock* const defblock) const
   auto & __restrict__ CHI    = defblock->chi;
   auto & __restrict__ UDEF   = defblock->udef;
   auto & __restrict__ SDFLAB = defblock->sdfLab;
-  for(int iz=0; iz<FluidBlock::sizeZ+2; iz++)
-  for(int iy=0; iy<FluidBlock::sizeY+2; iy++)
-  for(int ix=0; ix<FluidBlock::sizeX+2; ix++)
+  for(int iz=0; iz<ScalarBlock::sizeZ+2; iz++)
+  for(int iy=0; iy<ScalarBlock::sizeY+2; iy++)
+  for(int ix=0; ix<ScalarBlock::sizeX+2; ix++)
   {
-    if (iz < FluidBlock::sizeZ && iy < FluidBlock::sizeY && ix < FluidBlock::sizeX)
+    if (iz < ScalarBlock::sizeZ && iy < ScalarBlock::sizeY && ix < ScalarBlock::sizeX)
     {
       if (CHI[iz][iy][ix] > eps)
       {
@@ -875,7 +875,7 @@ void PutNacaOnBlocks::constructSurface(const Real h, const Real ox, const Real o
   const Real* const vNorY = cfish->vNorY;
   const Real* const width = cfish->width;
   const Real* const height = cfish->height;
-  static constexpr int BS[3] = {FluidBlock::sizeX+2, FluidBlock::sizeY+2, FluidBlock::sizeZ+2};
+  static constexpr int BS[3] = {ScalarBlock::sizeX+2, ScalarBlock::sizeY+2, ScalarBlock::sizeZ+2};
   CHIMAT & __restrict__ CHI = defblock->chi;
   auto & __restrict__ SDFLAB = defblock->sdfLab;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
@@ -976,9 +976,9 @@ void PutNacaOnBlocks::constructSurface(const Real h, const Real ox, const Real o
 
             if(std::fabs(SDFLAB[sz][sy][sx]) > dist3D) {
               SDFLAB[sz][sy][sx] = dist3D;
-              const bool inRange =(sz - 1 >=0 && sz - 1 < FluidBlock::sizeZ &&
-                                   sy - 1 >=0 && sy - 1 < FluidBlock::sizeY &&
-                                   sx - 1 >=0 && sx - 1 < FluidBlock::sizeX);
+              const bool inRange =(sz - 1 >=0 && sz - 1 < ScalarBlock::sizeZ &&
+                                   sy - 1 >=0 && sy - 1 < ScalarBlock::sizeY &&
+                                   sx - 1 >=0 && sx - 1 < ScalarBlock::sizeX);
               if (inRange)
               {
                 UDEF[sz-1][sy-1][sx-1][0] = udef[0];
@@ -1005,7 +1005,7 @@ void PutNacaOnBlocks::constructInternl(const Real h, const Real ox, const Real o
   CHIMAT & __restrict__ CHI = defblock->chi;
   auto & __restrict__ SDFLAB = defblock->sdfLab;
   UDEFMAT & __restrict__ UDEF = defblock->udef;
-  static constexpr int BS[3] = {FluidBlock::sizeX+2, FluidBlock::sizeY+2, FluidBlock::sizeZ+2};
+  static constexpr int BS[3] = {ScalarBlock::sizeX+2, ScalarBlock::sizeY+2, ScalarBlock::sizeZ+2};
 
   // construct the deformation velocities (P2M with hat function as kernel)
   for(size_t i=0; i < vSegments.size(); ++i)
@@ -1062,9 +1062,9 @@ void PutNacaOnBlocks::constructInternl(const Real h, const Real ox, const Real o
           assert(idx>=0 && idx<BS[0]);
           assert(idy>=0 && idy<BS[1]);
           assert(wxwywz>=0 && wxwywz<=1);
-          if (idz -1 >=0 && idz-1 < FluidBlock::sizeZ &&
-              idy -1 >=0 && idy-1 < FluidBlock::sizeY &&
-              idx -1 >=0 && idx-1 < FluidBlock::sizeX)
+          if (idz -1 >=0 && idz-1 < ScalarBlock::sizeZ &&
+              idy -1 >=0 && idy-1 < ScalarBlock::sizeY &&
+              idx -1 >=0 && idx-1 < ScalarBlock::sizeX)
           {
             UDEF[idz-1][idy-1][idx-1][0] += wxwywz*udef[0];
             UDEF[idz-1][idy-1][idx-1][1] += wxwywz*udef[1];

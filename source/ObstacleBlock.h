@@ -33,9 +33,9 @@ struct surface_data
 
 struct ObstacleBlock
 {
-  static constexpr int sizeX = FluidBlock::sizeX;
-  static constexpr int sizeY = FluidBlock::sizeY;
-  static constexpr int sizeZ = FluidBlock::sizeZ;
+  static constexpr int sizeX = ScalarBlock::sizeX;
+  static constexpr int sizeY = ScalarBlock::sizeY;
+  static constexpr int sizeZ = ScalarBlock::sizeZ;
 
   // bulk quantities:
   Real          chi[sizeZ][sizeY][sizeX];

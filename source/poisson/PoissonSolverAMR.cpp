@@ -111,8 +111,8 @@ void PoissonSolverAMR::solve()
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
-        const ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
-        ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+        const ScalarBlock & __restrict__ Z = (*sim.pres)(i);
+        ScalarBlock & __restrict__ LHS  = (*sim.lhs)(i);
 	if (sim.bMeanConstraint == 1 || sim.bMeanConstraint > 2)
           if (vInfo_z[i].index[0] == 0 && vInfo_z[i].index[1] == 0 && vInfo_z[i].index[2] == 0) LHS(0,0,0).s = 0.0;
         for(int iz=0; iz<Nz; iz++)
@@ -136,7 +136,7 @@ void PoissonSolverAMR::solve()
     #pragma omp parallel for reduction (+:norm)
     for(size_t i=0; i< Nblocks; i++)
     {
-        const ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+        const ScalarBlock & __restrict__ LHS  = (*sim.lhs)(i);
         for(int iz=0; iz<Nz; iz++)
         for(int iy=0; iy<Ny; iy++)
         for(int ix=0; ix<Nx; ix++)
@@ -218,7 +218,7 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for
         for (size_t i=0; i < Nblocks; i++)
         {
-            ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
+            ScalarBlock & __restrict__ Z = (*sim.pres)(i);
             for(int iz=0; iz<Nz; iz++)
             for(int iy=0; iy<Ny; iy++)
             for(int ix=0; ix<Nx; ix++)
@@ -237,7 +237,7 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for reduction(+:alpha)
         for (size_t i=0; i < Nblocks; i++)
         {
-            const ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+            const ScalarBlock & __restrict__ LHS  = (*sim.lhs)(i);
             for(int iz=0; iz<Nz; iz++)
             for(int iy=0; iy<Ny; iy++)
             for(int ix=0; ix<Nx; ix++)
@@ -256,7 +256,7 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for
         for (size_t i=0; i < Nblocks; i++)
         {
-            ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
+            ScalarBlock & __restrict__ Z = (*sim.pres)(i);
             for(int iz=0; iz<Nz; iz++)
             for(int iy=0; iy<Ny; iy++)
             for(int ix=0; ix<Nx; ix++)
@@ -278,7 +278,7 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for reduction (+:aux1,aux2)
         for (size_t i=0; i < Nblocks; i++)
         {
-            const ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
+            const ScalarBlock & __restrict__ LHS  = (*sim.lhs)(i);
             for(int iz=0; iz<Nz; iz++)
             for(int iy=0; iy<Ny; iy++)
             for(int ix=0; ix<Nx; ix++)
@@ -301,8 +301,8 @@ void PoissonSolverAMR::solve()
         #pragma omp parallel for reduction(+:norm)
         for (size_t i=0; i < Nblocks; i++)
         {
-            const ScalarBlock & __restrict__ LHS  = *(ScalarBlock*) vInfo_lhs[i].ptrBlock;
-            const ScalarBlock & __restrict__ Z    = *(ScalarBlock*) vInfo_z  [i].ptrBlock;
+            const ScalarBlock & __restrict__ LHS = (*sim.lhs)(i);
+            const ScalarBlock & __restrict__ Z   = (*sim.pres)(i);
             for(int iz=0; iz<Nz; iz++)
             for(int iy=0; iy<Ny; iy++)
             for(int ix=0; ix<Nx; ix++)
@@ -351,10 +351,7 @@ void PoissonSolverAMR::solve()
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
     {
-        const int m = vInfo_z[i].level;
-        const long long n = vInfo_z[i].Z;
-        const BlockInfo & info = sim.pres->getBlockInfoAll(m,n);
-        ScalarBlock & __restrict__ b  = *(ScalarBlock*) info.ptrBlock;
+        ScalarBlock & __restrict__ b  = (*sim.pres)(i);
         for(int iz=0; iz<Nz; iz++)
         for(int iy=0; iy<Ny; iy++)
         for(int ix=0; ix<Nx; ix++)
