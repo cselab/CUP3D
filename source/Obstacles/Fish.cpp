@@ -180,9 +180,9 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
   }
 #else //load-balancing - there's a bug with message tags here!!!
 
-  MPI_Comm comm = grid->getCartComm();
-  const int rank = grid->rank();
-  const int size = grid->get_world_size();
+  MPI_Comm comm = sim.chi->getWorldComm();
+  const int rank = sim.chi->rank();
+  const int size = sim.chi->get_world_size();
   std::vector<std::vector<int>> OtherSegments;
 
   //Each MPI rank owns two arrays: 
