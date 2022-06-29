@@ -7,9 +7,12 @@
 //
 
 #include "InitialConditions.h"
+#include "ProcessHelpers.h"
 #include "../Obstacles/ObstacleVector.h"
-
+#include "../poisson/PoissonSolverBase.h"
 #include <random>
+
+class PoissonSolverBase;
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -108,6 +111,186 @@ class KernelIC_channelrandom
   }
 };
 
+class IC_vorticity
+{
+ public:
+  SimulationData& sim;
+  const int Ncoil = 90;
+  std::vector<Real> phi_coil;
+  std::vector<Real> x_coil;
+  std::vector<Real> y_coil;
+  std::vector<Real> z_coil;
+
+  std::vector<Real> dx_coil; //tangent vector 
+  std::vector<Real> dy_coil; //tangent vector 
+  std::vector<Real> dz_coil; //tangent vector 
+
+  IC_vorticity(SimulationData & s) : sim(s)
+  {
+    phi_coil.resize(Ncoil);
+    x_coil.resize(Ncoil);
+    y_coil.resize(Ncoil);
+    z_coil.resize(Ncoil);
+    const int m = 2;
+    const Real dphi = 2.0*M_PI / Ncoil;
+    for (int i = 0; i < Ncoil; i++)
+    {
+      const Real phi = i * dphi;
+      phi_coil[i] = phi;
+      const Real R = 0.05*sin(m*phi);
+      x_coil[i] = R* cos(phi)   + 1.0;
+      y_coil[i] = R* sin(phi)   + 1.0;
+      z_coil[i] = R* cos(m*phi) + 1.0;
+    }
+
+    dx_coil.resize(Ncoil);
+    dy_coil.resize(Ncoil);
+    dz_coil.resize(Ncoil);
+    for (int i = 0; i < Ncoil; i++)
+    {
+      const Real phi = i * dphi;
+      phi_coil[i] = phi;
+      const Real R = 0.05*sin(m*phi);
+      const Real dR = 0.05* m * cos(m*phi);
+      const Real sinphi = sin(phi);
+      const Real cosphi = cos(phi);
+      dx_coil[i] = dR* cosphi - R * sinphi;
+      dy_coil[i] = dR* sinphi + R * cosphi;
+      dz_coil[i] = dR* cos(m*phi) - m * R * sin(m*phi);
+      const Real norm = 1.0 / pow(dx_coil[i]*dx_coil[i]+
+                                  dy_coil[i]*dy_coil[i]+
+                                  dz_coil[i]*dz_coil[i]+1e-21,0.5);
+      dx_coil[i] *= norm;
+      dy_coil[i] *= norm;
+      dz_coil[i] *= norm;
+    }
+  }
+
+  int nearestCoil(const Real x, const Real y, const Real z)
+  {
+    int retval = -1;
+    Real d = 1e10;
+    for (int i = 0; i < Ncoil; i++)
+    {
+      const Real dtest = (x_coil[i] - x)*(x_coil[i] - x)+
+                         (y_coil[i] - y)*(y_coil[i] - y)+
+                         (z_coil[i] - z)*(z_coil[i] - z);
+      if (dtest < d)
+      {
+        retval = i;
+        d = dtest;
+      }
+    }
+    return retval;
+  }
+
+  ~IC_vorticity() = default;
+
+  void vort(const Real x, const Real y, const Real z, Real & omega_x, Real & omega_y, Real & omega_z)
+  {
+    const int idx = nearestCoil(x,y,z);
+    const Real r2 = (x_coil[idx] - x)*(x_coil[idx] - x)+
+                    (y_coil[idx] - y)*(y_coil[idx] - y)+
+                    (z_coil[idx] - z)*(z_coil[idx] - z);
+    const Real mag = 1.0/(r2+1)/(r2+1); 
+
+    omega_x = mag * dx_coil[idx];
+    omega_y = mag * dy_coil[idx];
+    omega_z = mag * dz_coil[idx];
+  }
+
+  void run()
+  {
+    //1. Fill vel with vorticity values
+    const int nz = VectorBlock::sizeZ;
+    const int ny = VectorBlock::sizeY;
+    const int nx = VectorBlock::sizeX;
+    std::vector<BlockInfo>& velInfo = sim.velInfo();
+    #pragma omp parallel for
+    for(size_t i=0; i<velInfo.size(); i++)
+    {
+      Real p[3];
+      VectorBlock & VEL = (*sim.vel)(i);
+      for(int iz=0; iz<nz; ++iz)
+      for(int iy=0; iy<ny; ++iy)
+      for(int ix=0; ix<nx; ++ix)
+      {
+        velInfo[i].pos(p,ix,iy,iz);
+        vort(p[0],p[1],p[2],VEL(ix,iy,iz).u[0],VEL(ix,iy,iz).u[1],VEL(ix,iy,iz).u[2]);
+      }
+    }
+
+    //2. Compute curl(omega)
+    //   Here we use the "ComputeVorticity" function from ProcessHelpers.h
+    //   This computes the curl of whatever is stored in sim.vel (currently the vorticity field)
+    //   and saves it to tmpV.
+    {
+      ComputeVorticity findOmega(sim);
+      findOmega(0);
+    }
+
+    //3. Solve nabla^2 u = - curl(omega)
+    std::shared_ptr<PoissonSolverBase> pressureSolver;
+    pressureSolver = makePoissonSolver(sim);
+
+    Real PoissonErrorTol    = sim.PoissonErrorTol;
+    Real PoissonErrorTolRel = sim.PoissonErrorTolRel;
+    sim.PoissonErrorTol    = 0; //we are solving this once, so we set tolerance = 0
+    sim.PoissonErrorTolRel = 0; //we are solving this once, so we set tolerance = 0
+    for (int d = 0 ; d < 3 ; d ++)
+    {
+      //3a. Fill RHS with -omega[d] and set initial guess to zero.
+      #pragma omp parallel for
+      for(size_t i=0; i<velInfo.size(); i++)
+      {
+        const VectorBlock & TMPV = (*sim.tmpV)(i);
+        ScalarBlock & PRES = (*sim.pres)(i);
+        ScalarBlock & LHS  = (*sim.lhs )(i);
+        for(int iz=0; iz<nz; ++iz)
+        for(int iy=0; iy<ny; ++iy)
+        for(int ix=0; ix<nx; ++ix)
+        {
+          PRES(ix,iy,iz).s = 0.0;
+          LHS (ix,iy,iz).s = -TMPV(ix,iy,iz).u[d];
+        }
+      }
+
+      //3b. solve poisson equation
+      pressureSolver->solve();
+
+      //3c. Fill vel
+      #pragma omp parallel for
+      for(size_t i=0; i<velInfo.size(); i++)
+      {
+        VectorBlock & VEL = (*sim.vel)(i);
+        ScalarBlock & PRES = (*sim.pres)(i);
+        for(int iz=0; iz<nz; ++iz)
+        for(int iy=0; iy<ny; ++iy)
+        for(int ix=0; ix<nx; ++ix)
+        {
+          VEL(ix,iy,iz).u[d] = PRES(ix,iy,iz).s;
+        }
+      }
+    }
+    sim.PoissonErrorTol    = PoissonErrorTol   ; //recover tolerance for pressure projection
+    sim.PoissonErrorTolRel = PoissonErrorTolRel; //recover tolerance for pressure projection
+
+    #pragma omp parallel for
+    for(size_t i=0; i<velInfo.size(); i++)
+    {
+      VectorBlock & TMPV = (*sim.tmpV)(i);
+      for(int iz=0; iz<nz; ++iz)
+      for(int iy=0; iy<ny; ++iy)
+      for(int ix=0; ix<nx; ++ix)
+      {
+        TMPV(ix,iy,iz).u[0] = 0.0;
+        TMPV(ix,iy,iz).u[1] = 0.0;
+        TMPV(ix,iy,iz).u[2] = 0.0;
+      }
+    }
+  }
+};
+
 }  // anonymous namespace
 
 static void initialPenalization(SimulationData& sim, const Real dt)
@@ -202,6 +385,12 @@ void InitialConditions::operator()(const Real dt)
     const int dir = channelY? 1 : 2;
     run(KernelIC_channel(sim.extents, sim.uMax_forced, dir));
   }
+  if(sim.initCond == "vorticity") {
+    if(sim.verbose) printf("[CUP3D] - Vorticity initial conditions.\n");
+    IC_vorticity ic_vorticity(sim);
+    ic_vorticity.run();
+  }
+
   {
     std::vector<cubism::BlockInfo>& chiInfo  = sim.chiInfo();
     //zero fields, going to contain Udef:
