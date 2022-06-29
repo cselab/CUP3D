@@ -62,7 +62,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(m
 
   // IC
   initCond = parser("-initCond").asString("zero");
-  icFromH5 = parser("-icFromH5").asString("");
 
   // SPEED FOR CHANNEL FLOW
   uMax_forced = parser("-uMax_forced").asDouble(0.0);

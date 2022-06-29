@@ -115,7 +115,6 @@ struct SimulationData
 
   // Initial conditions
   std::string initCond = "zero";
-  std::string icFromH5 = "";
 
   // uMax Channel flow
   Real uMax_forced = 0;
