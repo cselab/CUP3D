@@ -7,89 +7,8 @@
 //
 
 #include "PoissonSolverAMR.h"
-#include "PoissonSolverAMRKernels.h"
 
 namespace cubismup3d {
-
-PoissonSolverAMR::PoissonSolverAMR(SimulationData& s): sim(s),findLHS(s){}
-
-static void getZImplParallel(
-    SimulationData &sim,
-    const std::vector<cubism::BlockInfo>& vInfo)
-{
-  using namespace cubismup3d::poisson_kernels;
-  const size_t Nblocks = vInfo.size();
-
-  // We could enable this, we don't really care about denormals.
-  // _MM_SET_DENORMALS_ZERO_MODE(_MM_DENORMALS_ZERO_ON);
-
-  // A struct to enforce relative alignment between matrices. The relative
-  // alignment of Ax and r MUST NOT be a multiple of 4KB due to cache bank
-  // conflicts. See "Haswell and Broadwell pipeline", section
-  // "Cache and memory access" here:
-  // https://www.agner.org/optimize/microarchitecture.pdf
-  struct Tmp {
-    // It seems like some offsets with respect to the page boundary of 4KB are
-    // faster than the others. (This is accomplished by adding an offset here
-    // and using alignas(4096) below). However, this is likely CPU-dependent,
-    // so we don't hardcode such fine-tunings here.
-    // char offset[0xec0];
-    Block r;
-    // Ensure p[0+1][0+1][0+xPad] is 64B-aligned for AVX-512 to work.
-    char padding1[64 - xPad * sizeof(Real)];
-    PaddedBlock p;
-    char padding2[xPad * sizeof(Real)];
-    Block Ax;
-  };
-  alignas(64) Tmp tmp{};  // See the kernels cpp file for required alignments.
-  Block &r = tmp.r;
-  Block &Ax = tmp.Ax;
-  PaddedBlock &p = tmp.p;
-
-  #pragma omp for
-  for (size_t i = 0; i < Nblocks; ++i) {
-    static_assert(sizeof(ScalarBlock) == sizeof(Block));
-    assert((uintptr_t)vInfo[i].ptrBlock % kBlockAlignment == 0);
-    Block &block = *(Block *)__builtin_assume_aligned(
-        vInfo[i].ptrBlock, kBlockAlignment);
-
-    const Real invh = 1 / vInfo[i].h;
-    Real rrPartial[NX] = {};
-    for (int iz = 0; iz < NZ; ++iz)
-    for (int iy = 0; iy < NY; ++iy)
-    for (int ix = 0; ix < NX; ++ix) {
-      r[iz][iy][ix] = invh * block[iz][iy][ix];
-      rrPartial[ix] += r[iz][iy][ix] * r[iz][iy][ix];
-      p[iz + 1][iy + 1][ix + xPad] = r[iz][iy][ix];
-      block[iz][iy][ix] = 0;
-    }
-    Real rr = sum(rrPartial);
-
-    const Real sqrNorm0 = (Real)1 / (N * N) * rr;
-
-    if (sqrNorm0 < 1e-32)
-      continue;
-
-    const Real *pW = &p[0][0][0] - 1;
-    const Real *pE = &p[0][0][0] + 1;
-
-    for (int k = 0; k < 100; ++k) {
-      // rr = kernelPoissonGetZInnerReference(p,Ax, r, block, sqrNorm0, rr);
-      rr = kernelPoissonGetZInner(p, pW, pE, Ax, r, block, sqrNorm0, rr);
-      if (rr <= 0)
-        break;
-    }
-  }
-}
-
-
-void PoissonSolverAMR::getZ()
-{
-  #pragma omp parallel
-  {
-    getZImplParallel(sim, sim.presInfo());
-  }
-}
 
 void PoissonSolverAMR::solve()
 {
