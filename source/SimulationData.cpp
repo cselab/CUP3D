@@ -102,7 +102,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(m
   int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
   dumpTime = parser("-tdump").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
   saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
-  dumpTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
 
   // TEMP: Removed distinction saving-dumping. Backward compatibility:
   if (saveFreq <= 0 && dumpFreq > 0) saveFreq = dumpFreq;
