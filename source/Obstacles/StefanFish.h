@@ -102,7 +102,7 @@ class CurvatureDefinedFishData : public FishMidlineData
   Real current_period    = Tperiod;
   Real next_period       = Tperiod;
   Real transition_start  = 0.0;
-  Real transition_duration = 0.2*Tperiod;
+  Real transition_duration = 0.1*Tperiod;
 
  protected:
   Real * const rK; //curvature kappa(s,t) of midline
