@@ -23,6 +23,7 @@ namespace Schedulers
 template<int Npoints>
 struct ParameterScheduler
 {
+  static constexpr int npoints = Npoints;
   std::array<Real, Npoints> parameters_t0; // parameters at t0
   std::array<Real, Npoints> parameters_t1; // parameters at t1
   std::array<Real, Npoints> dparameters_t0; // derivative at t0
