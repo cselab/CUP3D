@@ -154,8 +154,8 @@ public:
   virtual void computeVelocities();//solve the 6x6 linear system to get transVel and angvel
   virtual void computeForces();    //compute quantities of interest for this obstacle
   virtual void update();           //time integration of position and orientation
-  virtual void save(std::string filename = std::string());   //save information for restart
-  virtual void restart(std::string filename = std::string());//read information for restart
+  virtual void saveRestart( FILE * f );//functions needed for restarting the simulation
+  virtual void loadRestart( FILE * f );
   virtual void create();  //additional stuff to be done when creating an obstacle (optional)
   virtual void finalize();//additional stuff to be done when deleting an obstacle (optional)
   std::array<Real,3> getTranslationVelocity() const;

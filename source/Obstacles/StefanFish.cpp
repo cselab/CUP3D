@@ -13,6 +13,7 @@
 #include <array>
 #include <cmath>
 #include <sstream>
+#include <iomanip>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -135,7 +136,7 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
   //Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
   Frenet3D::solve(Nm, rS, rK, vK, rT, vT, rX, rY, rZ, vX, vY, vZ, norX, norY, norZ, vNorX, vNorY, vNorZ, binX, binY, binZ, vBinX, vBinY, vBinZ);
 
-  if (std::fabs(Lman) > 1e-6*length && control_torsion == false)
+  if (std::fabs(Lman) > 1e-6*length)// && control_torsion == false)
     performPitchingMotion(t);
 }
 
@@ -292,66 +293,181 @@ void CurvatureDefinedFishData::recomputeNormalVectors()
   }
 }
 
-void StefanFish::save(std::string filename)
+void StefanFish::saveRestart( FILE * f )
 {
-  auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
-  if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
+  assert(f != NULL);
+  Fish::saveRestart(f);
+  CurvatureDefinedFishData * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+  std::stringstream ss;
+  ss<<std::setfill('0')<<std::setw(7)<<"_"<<obstacleID<<"_";
+  std::string filename = "Schedulers"+ ss.str() + ".restart";
+  {
+     std::ofstream savestream;
+     savestream.setf(std::ios::scientific);
+     savestream.precision(std::numeric_limits<Real>::digits10 + 1);
+     savestream.open(filename);
+     {
+       const auto & c = cFish->curvatureScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     {
+       const auto & c = cFish->periodScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     {
+      const auto & c = cFish->rlBendingScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     {
+       const auto & c = cFish->torsionScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     {
+       const auto & c = cFish->turnZScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     savestream.close();
+  }
 
-  //assert(std::abs(t-sim_time)<std::numeric_limits<Real>::epsilon());
-  std::ofstream savestream;
-  savestream.setf(std::ios::scientific);
-  savestream.precision(std::numeric_limits<Real>::digits10 + 1);
-  savestream.open(filename + ".txt");
-
-  //const Real timeshift = myFish->timeshift;
-  //const Real time0 = myFish->time0;
-  //const Real l_Tp = myFish->l_Tp;
-
-  savestream<<sim.time<<"\t"<<sim.dt<<std::endl;
-  savestream<<position[0]<<"\t"<<position[1]<<"\t"<<position[2]<<std::endl;
-  savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
-  savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
-  savestream<<angVel[0]<<"\t"<<angVel[1]<<"\t"<<angVel[2]<<std::endl;
-  savestream.close();
-
-  cFish->curvatureScheduler.save(filename+"_curv");
-  cFish->rlBendingScheduler.save(filename+"_control");
+  //Save these numbers for PID controller and other stuff. Maybe not all of them are needed
+  //but we don't care, it's only a few numbers.
+  fprintf(f, "origC_x: %20.20e\n", (double)origC[0]);
+  fprintf(f, "origC_y: %20.20e\n", (double)origC[1]);
+  fprintf(f, "origC_z: %20.20e\n", (double)origC[2]);
+  fprintf(f, "origAng: %20.20e\n", (double)origAng );
+  fprintf(f,"curv_PID_fac             : %20.20e\n",(double)cFish->curv_PID_fac             );
+  fprintf(f,"curv_PID_dif             : %20.20e\n",(double)cFish->curv_PID_dif             );
+  fprintf(f,"avgDeltaY                : %20.20e\n",(double)cFish->avgDeltaY                );
+  fprintf(f,"avgDangle                : %20.20e\n",(double)cFish->avgDangle                );
+  fprintf(f,"avgAngVel                : %20.20e\n",(double)cFish->avgAngVel                );
+  fprintf(f,"lastTact                 : %20.20e\n",(double)cFish->lastTact                 );
+  fprintf(f,"lastCurv                 : %20.20e\n",(double)cFish->lastCurv                 );
+  fprintf(f,"oldrCurv                 : %20.20e\n",(double)cFish->oldrCurv                 );
+  fprintf(f,"periodPIDval             : %20.20e\n",(double)cFish->periodPIDval             );
+  fprintf(f,"periodPIDdif             : %20.20e\n",(double)cFish->periodPIDdif             );
+  fprintf(f,"time0                    : %20.20e\n",(double)cFish->time0                    );
+  fprintf(f,"timeshift                : %20.20e\n",(double)cFish->timeshift                );
+  fprintf(f,"lastTime                 : %20.20e\n",(double)cFish->lastTime                 );
+  fprintf(f,"lastAvel                 : %20.20e\n",(double)cFish->lastAvel                 );
+  fprintf(f,"Ttorsion_start           : %20.20e\n",(double)cFish->Ttorsion_start           );
+  fprintf(f,"Tman_start               : %20.20e\n",(double)cFish->Tman_start               );
+  fprintf(f,"Tman_finish              : %20.20e\n",(double)cFish->Tman_finish              );
+  fprintf(f,"Lman;                    : %20.20e\n",(double)cFish->Lman                     );
+  fprintf(f,"current_period           : %20.20e\n",(double)cFish->current_period           );
+  fprintf(f,"next_period              : %20.20e\n",(double)cFish->next_period              );
+  fprintf(f,"transition_start         : %20.20e\n",(double)cFish->transition_start         );
+  fprintf(f,"transition_duration      : %20.20e\n",(double)cFish->transition_duration      );
+  fprintf(f,"torsionValues[0]         : %20.20e\n",(double)cFish->torsionValues[0]         );
+  fprintf(f,"torsionValues[1]         : %20.20e\n",(double)cFish->torsionValues[1]         );
+  fprintf(f,"torsionValues[2]         : %20.20e\n",(double)cFish->torsionValues[2]         );
+  fprintf(f,"torsionValues_previous[0]: %20.20e\n",(double)cFish->torsionValues_previous[0]);
+  fprintf(f,"torsionValues_previous[1]: %20.20e\n",(double)cFish->torsionValues_previous[1]);
+  fprintf(f,"torsionValues_previous[2]: %20.20e\n",(double)cFish->torsionValues_previous[2]);
+  fprintf(f,"TperiodPID               : %d\n"     ,(int)   cFish->TperiodPID               );
+  fprintf(f,"control_torsion          : %d\n"     ,(int)   cFish->control_torsion          );
 }
 
-void StefanFish::restart(std::string filename)
-{
-  auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
-  if(cFish == nullptr) { printf("Someone touched my fish\n"); abort(); }
-
-  Real restarted_time, restarted_dt; // timeshift, time0, l_Tp,
+void StefanFish::loadRestart( FILE * f ) {
+  assert(f != NULL);
+  Fish::loadRestart(f);
+  CurvatureDefinedFishData* const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+  std::stringstream ss;
+  ss<<std::setfill('0')<<std::setw(7)<<"_"<<obstacleID<<"_";
   std::ifstream restartstream;
-  restartstream.open(filename+".txt");
-  if(!restartstream.good()){
-    printf("Could not restart from file\n");
-    return;
+  std::string filename = "Schedulers"+ ss.str() + ".restart";
+  restartstream.open(filename);
+  {
+     auto & c = cFish->curvatureScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
   }
-  restartstream >> restarted_time >> restarted_dt;
-  restartstream >> position[0] >> position[1] >> position[2];
-  restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
-  restartstream >> transVel[0] >> transVel[1] >> transVel[2];
-  restartstream >> angVel[0] >> angVel[1] >> angVel[2];
+  {
+     auto & c = cFish->periodScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
+  {
+     auto & c = cFish->rlBendingScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
+  {
+     auto & c = cFish->torsionScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
+  {
+     auto & c = cFish->turnZScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
   restartstream.close();
 
-  cFish->curvatureScheduler.restart(filename+"_curv");
-  cFish->rlBendingScheduler.restart(filename+"_control");
-
-  //myFish->timeshift = timeshift;
-  //myFish->time0 = time0;
-  //myFish->l_Tp = l_Tp;
-
-  if(!sim.rank)
-  {
-  std::cout<<"RESTARTED FISH: "<<std::endl;
-  std::cout<<"TIME, DT: "<<restarted_time<<" "<<restarted_dt<<std::endl;
-  std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
-  std::cout<<"ANGLE: "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
-  std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
-  std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
+  bool ret = true;
+  double temp;
+  int temp1;
+  ret = ret && 1==fscanf(f, "origC_x: %le\n", &temp); origC[0] = temp;
+  ret = ret && 1==fscanf(f, "origC_y: %le\n", &temp); origC[1] = temp;
+  ret = ret && 1==fscanf(f, "origC_z: %le\n", &temp); origC[2] = temp;
+  ret = ret && 1==fscanf(f, "origAng: %le\n", &temp); origAng  = temp;
+  ret = ret && 1==fscanf(f, "curv_PID_fac             : %le\n", &temp); cFish->curv_PID_fac              = temp;
+  ret = ret && 1==fscanf(f, "curv_PID_dif             : %le\n", &temp); cFish->curv_PID_dif              = temp;
+  ret = ret && 1==fscanf(f, "avgDeltaY                : %le\n", &temp); cFish->avgDeltaY                 = temp;
+  ret = ret && 1==fscanf(f, "avgDangle                : %le\n", &temp); cFish->avgDangle                 = temp;
+  ret = ret && 1==fscanf(f, "avgAngVel                : %le\n", &temp); cFish->avgAngVel                 = temp;
+  ret = ret && 1==fscanf(f, "lastTact                 : %le\n", &temp); cFish->lastTact                  = temp;
+  ret = ret && 1==fscanf(f, "lastCurv                 : %le\n", &temp); cFish->lastCurv                  = temp;
+  ret = ret && 1==fscanf(f, "oldrCurv                 : %le\n", &temp); cFish->oldrCurv                  = temp;
+  ret = ret && 1==fscanf(f, "periodPIDval             : %le\n", &temp); cFish->periodPIDval              = temp;
+  ret = ret && 1==fscanf(f, "periodPIDdif             : %le\n", &temp); cFish->periodPIDdif              = temp;
+  ret = ret && 1==fscanf(f, "time0                    : %le\n", &temp); cFish->time0                     = temp;
+  ret = ret && 1==fscanf(f, "timeshift                : %le\n", &temp); cFish->timeshift                 = temp;
+  ret = ret && 1==fscanf(f, "lastTime                 : %le\n", &temp); cFish->lastTime                  = temp;
+  ret = ret && 1==fscanf(f, "lastAvel                 : %le\n", &temp); cFish->lastAvel                  = temp;
+  ret = ret && 1==fscanf(f, "Ttorsion_start           : %le\n", &temp); cFish->Ttorsion_start            = temp;
+  ret = ret && 1==fscanf(f, "Tman_start               : %le\n", &temp); cFish->Tman_start                = temp;
+  ret = ret && 1==fscanf(f, "Tman_finish              : %le\n", &temp); cFish->Tman_finish               = temp;
+  ret = ret && 1==fscanf(f, "Lman;                    : %le\n", &temp); cFish->Lman                      = temp;
+  ret = ret && 1==fscanf(f, "current_period           : %le\n", &temp); cFish->current_period            = temp;
+  ret = ret && 1==fscanf(f, "next_period              : %le\n", &temp); cFish->next_period               = temp;
+  ret = ret && 1==fscanf(f, "transition_start         : %le\n", &temp); cFish->transition_start          = temp;
+  ret = ret && 1==fscanf(f, "transition_duration      : %le\n", &temp); cFish->transition_duration       = temp;
+  ret = ret && 1==fscanf(f, "torsionValues[0]         : %le\n", &temp); cFish->torsionValues[0]          = temp;
+  ret = ret && 1==fscanf(f, "torsionValues[1]         : %le\n", &temp); cFish->torsionValues[1]          = temp;
+  ret = ret && 1==fscanf(f, "torsionValues[2]         : %le\n", &temp); cFish->torsionValues[2]          = temp;
+  ret = ret && 1==fscanf(f, "torsionValues_previous[0]: %le\n", &temp); cFish->torsionValues_previous[0] = temp;
+  ret = ret && 1==fscanf(f, "torsionValues_previous[1]: %le\n", &temp); cFish->torsionValues_previous[1] = temp;
+  ret = ret && 1==fscanf(f, "torsionValues_previous[2]: %le\n", &temp); cFish->torsionValues_previous[2] = temp;
+  ret = ret && 1==fscanf(f, "TperiodPID               : %d\n", &temp1); cFish->TperiodPID      = temp1;
+  ret = ret && 1==fscanf(f, "control_torsion          : %d\n", &temp1); cFish->control_torsion = temp1;
+  if( (not ret) ) {
+    printf("Error reading restart file. Aborting...\n");
+    fflush(0); abort();
   }
 }
 

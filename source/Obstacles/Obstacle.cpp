@@ -426,52 +426,76 @@ std::array<Real,3> Obstacle::getCenterOfMass() const
   return std::array<Real,3> {{centerOfMass[0],centerOfMass[1],centerOfMass[2]}};
 }
 
-void Obstacle::save(std::string filename)
+void Obstacle::saveRestart( FILE * f )
 {
-  if(sim.rank!=0 || sim.muteAll) return;
-  std::ofstream savestream;
-  savestream.setf(std::ios::scientific);
-  savestream.precision(std::numeric_limits<Real>::digits10 + 1);
-  savestream.open(filename+".txt");
-  if (!savestream) {
-    fprintf(stderr, "Couldn't open \"%s.txt\".\n", filename.c_str());
-    fflush(0); exit(1);
-  }
-  savestream<<sim.time<<std::endl;
-  savestream<<position[0]<<"\t"<<position[1]<<"\t"<<position[2]<<std::endl;
-  savestream<<absPos[0]<<"\t"<<absPos[1]<<"\t"<<absPos[2]<<std::endl;
-  savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
-  savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
-  savestream<<angVel[0]<<"\t"<<angVel[1]<<"\t"<<angVel[2]<<std::endl;
+  assert(f != NULL);
+  fprintf(f, "x:       %20.20e\n", (double)  position[0]);
+  fprintf(f, "y:       %20.20e\n", (double)  position[1]);
+  fprintf(f, "z:       %20.20e\n", (double)  position[2]);
+  fprintf(f, "xAbs:    %20.20e\n", (double)    absPos[0]);
+  fprintf(f, "yAbs:    %20.20e\n", (double)    absPos[1]);
+  fprintf(f, "zAbs:    %20.20e\n", (double)    absPos[2]);
+  fprintf(f, "quat_0:  %20.20e\n", (double)quaternion[0]);
+  fprintf(f, "quat_1:  %20.20e\n", (double)quaternion[1]);
+  fprintf(f, "quat_2:  %20.20e\n", (double)quaternion[2]);
+  fprintf(f, "quat_3:  %20.20e\n", (double)quaternion[3]);
+  fprintf(f, "u_x:     %20.20e\n", (double)  transVel[0]);
+  fprintf(f, "u_y:     %20.20e\n", (double)  transVel[1]);
+  fprintf(f, "u_z:     %20.20e\n", (double)  transVel[2]);
+  fprintf(f, "omega_x: %20.20e\n", (double)    angVel[0]);
+  fprintf(f, "omega_y: %20.20e\n", (double)    angVel[1]);
+  fprintf(f, "omega_z: %20.20e\n", (double)    angVel[2]);
+  fprintf(f, "old_position_0:    %20.20e\n", (double)old_position  [0]);
+  fprintf(f, "old_position_1:    %20.20e\n", (double)old_position  [1]);
+  fprintf(f, "old_position_2:    %20.20e\n", (double)old_position  [2]);
+  fprintf(f, "old_absPos_0:      %20.20e\n", (double)old_absPos    [0]);
+  fprintf(f, "old_absPos_1:      %20.20e\n", (double)old_absPos    [1]);
+  fprintf(f, "old_absPos_2:      %20.20e\n", (double)old_absPos    [2]);
+  fprintf(f, "old_quaternion_0:  %20.20e\n", (double)old_quaternion[0]);
+  fprintf(f, "old_quaternion_1:  %20.20e\n", (double)old_quaternion[1]);
+  fprintf(f, "old_quaternion_2:  %20.20e\n", (double)old_quaternion[2]);
+  fprintf(f, "old_quaternion_3:  %20.20e\n", (double)old_quaternion[3]);
 }
 
-void Obstacle::restart(std::string filename)
+void Obstacle::loadRestart( FILE * f )
 {
-  std::ifstream restartstream;
-  restartstream.open(filename+".txt");
-  if(!restartstream.good()){
-    printf("Could not restart from file\n");
-    return;
-  }
-  Real restart_time;
-  restartstream >> restart_time;
-  restartstream>>position[0]>>position[1]>>position[2];
-  restartstream>>absPos[0]>>absPos[1]>>absPos[2];
-  restartstream>>quaternion[0]>>quaternion[1]>>quaternion[2]>>quaternion[3];
-  restartstream>>transVel[0]>>transVel[1]>>transVel[2];
-  restartstream>>angVel[0]>>angVel[1]>>angVel[2];
-  restartstream.close();
+  assert(f != NULL);
+  bool ret = true;
+  double temp;
+  ret = ret && 1==fscanf(f, "x:       %le\n", &temp);   position[0] = temp;
+  ret = ret && 1==fscanf(f, "y:       %le\n", &temp);   position[1] = temp;
+  ret = ret && 1==fscanf(f, "z:       %le\n", &temp);   position[2] = temp;
+  ret = ret && 1==fscanf(f, "xAbs:    %le\n", &temp);     absPos[0] = temp;
+  ret = ret && 1==fscanf(f, "yAbs:    %le\n", &temp);     absPos[1] = temp;
+  ret = ret && 1==fscanf(f, "zAbs:    %le\n", &temp);     absPos[2] = temp;
+  ret = ret && 1==fscanf(f, "quat_0:  %le\n", &temp); quaternion[0] = temp;
+  ret = ret && 1==fscanf(f, "quat_1:  %le\n", &temp); quaternion[1] = temp;
+  ret = ret && 1==fscanf(f, "quat_2:  %le\n", &temp); quaternion[2] = temp;
+  ret = ret && 1==fscanf(f, "quat_3:  %le\n", &temp); quaternion[3] = temp;
+  ret = ret && 1==fscanf(f, "u_x:     %le\n", &temp);   transVel[0] = temp;
+  ret = ret && 1==fscanf(f, "u_y:     %le\n", &temp);   transVel[1] = temp;
+  ret = ret && 1==fscanf(f, "u_z:     %le\n", &temp);   transVel[2] = temp;
+  ret = ret && 1==fscanf(f, "omega_x: %le\n", &temp);     angVel[0] = temp;
+  ret = ret && 1==fscanf(f, "omega_y: %le\n", &temp);     angVel[1] = temp;
+  ret = ret && 1==fscanf(f, "omega_z: %le\n", &temp);     angVel[2] = temp;
+  ret = ret && 1==fscanf(f, "old_position_0:    %le\n", &temp); old_position  [0] = temp;
+  ret = ret && 1==fscanf(f, "old_position_1:    %le\n", &temp); old_position  [1] = temp;
+  ret = ret && 1==fscanf(f, "old_position_2:    %le\n", &temp); old_position  [2] = temp;
+  ret = ret && 1==fscanf(f, "old_absPos_0:      %le\n", &temp); old_absPos    [0] = temp;
+  ret = ret && 1==fscanf(f, "old_absPos_1:      %le\n", &temp); old_absPos    [1] = temp;
+  ret = ret && 1==fscanf(f, "old_absPos_2:      %le\n", &temp); old_absPos    [2] = temp;
+  ret = ret && 1==fscanf(f, "old_quaternion_0:  %le\n", &temp); old_quaternion[0] = temp;
+  ret = ret && 1==fscanf(f, "old_quaternion_1:  %le\n", &temp); old_quaternion[1] = temp;
+  ret = ret && 1==fscanf(f, "old_quaternion_2:  %le\n", &temp); old_quaternion[2] = temp;
+  ret = ret && 1==fscanf(f, "old_quaternion_3:  %le\n", &temp); old_quaternion[3] = temp;
 
+  if( (not ret) )
   {
-  printf("RESTARTED BODY:\n");
-  printf("TIME: \t%lf\n", restart_time);
-  printf("POS:  \t%lf %lf %lf\n", position[0], position[1], position[2]);
-  printf("ABS POS: \t%lf %lf %lf\n", absPos[0], absPos[1], absPos[2]);
-  printf("ANGLE:\t%lf %lf %lf %lf\n", quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
-  printf("TVEL: \t%lf %lf %lf\n", transVel[0], transVel[1], transVel[2]);
-  printf("AVEL: \t%lf %lf %lf\n", angVel[0], angVel[1], angVel[2]);
-  fflush(stdout);
+    printf("Error reading restart file. Aborting...\n");
+    fflush(0); abort();
   }
+  if (sim.verbose == 0 && sim.rank == 0)
+    printf("Restarting Object.. x: %le, y: %le, z: %le, u_x: %le, u_y: %le, u_z: %le\n",(double)absPos[0],(double)absPos[1],(double)absPos[2],transVel[0],(double)transVel[1],(double)transVel[2]);
 }
 
 void Obstacle::_writeComputedVelToFile()

@@ -30,8 +30,8 @@ public:
   Real origAng = 0;//initial planar angle (in xy plane)
 
   void create() override;
-  void save(std::string filename = std::string()) override;
-  void restart(std::string filename) override;
+  virtual void saveRestart( FILE * f ) override;
+  virtual void loadRestart( FILE * f ) override;
 
   //Reinforcement Learning functions
   void act(const Real lTact, const std::vector<Real>& a) const; //get vector of actions that will be taken at time lTact

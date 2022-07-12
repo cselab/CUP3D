@@ -461,44 +461,36 @@ void Fish::create()
   writeSDFOnBlocks(vSegments);
 }
 
-void Fish::save(std::string filename)
-{
-    std::ofstream savestream;
-    savestream.setf(std::ios::scientific);
-    savestream.precision(std::numeric_limits<Real>::digits10 + 1);
-    savestream.open(filename + ".txt");
+void Fish::saveRestart( FILE * f ) {
+  assert(f != NULL);
+  Obstacle::saveRestart(f);
 
-    savestream<<sim.time<<"\t"<<sim.dt<<std::endl;
-    savestream<<position[0]<<"\t"<<position[1]<<"\t"<<position[2]<<std::endl;
-    savestream<<quaternion[0]<<"\t"<<quaternion[1]<<"\t"<<quaternion[2]<<"\t"<<quaternion[3]<<std::endl;
-    savestream<<transVel[0]<<"\t"<<transVel[1]<<"\t"<<transVel[2]<<std::endl;
-    savestream<<angVel[0]<<"\t"<<angVel[1]<<"\t"<<angVel[2]<<std::endl;
-    savestream.close();
+  fprintf(f, "angvel_internal_x: %20.20e\n",  (double)myFish->angvel_internal[0]);
+  fprintf(f, "angvel_internal_y: %20.20e\n",  (double)myFish->angvel_internal[1]);
+  fprintf(f, "angvel_internal_z: %20.20e\n",  (double)myFish->angvel_internal[2]);
+  fprintf(f, "quaternion_internal_0: %20.20e\n",  (double)myFish->quaternion_internal[0]);
+  fprintf(f, "quaternion_internal_1: %20.20e\n",  (double)myFish->quaternion_internal[1]);
+  fprintf(f, "quaternion_internal_2: %20.20e\n",  (double)myFish->quaternion_internal[2]);
+  fprintf(f, "quaternion_internal_3: %20.20e\n",  (double)myFish->quaternion_internal[3]);
 }
 
-void Fish::restart(std::string filename)
-{
-  std::ifstream restartstream;
-  restartstream.open(filename+".txt");
-  if(!restartstream.good()){
-    printf("Could not restart from file\n");
-    return;
+void Fish::loadRestart( FILE * f ) {
+  assert(f != NULL);
+  Obstacle::loadRestart(f);
+  bool ret = true;
+  double temp;
+  ret = ret && 1==fscanf(f, "angvel_internal_x: %le\n"     ,&temp); myFish->angvel_internal[0] = temp;
+  ret = ret && 1==fscanf(f, "angvel_internal_y: %le\n"     ,&temp); myFish->angvel_internal[1] = temp;
+  ret = ret && 1==fscanf(f, "angvel_internal_z: %le\n"     ,&temp); myFish->angvel_internal[2] = temp;
+  ret = ret && 1==fscanf(f, "quaternion_internal_0: %le\n",&temp); myFish->quaternion_internal[0] = temp;
+  ret = ret && 1==fscanf(f, "quaternion_internal_1: %le\n",&temp); myFish->quaternion_internal[1] = temp;
+  ret = ret && 1==fscanf(f, "quaternion_internal_2: %le\n",&temp); myFish->quaternion_internal[2] = temp;
+  ret = ret && 1==fscanf(f, "quaternion_internal_3: %le\n",&temp); myFish->quaternion_internal[3] = temp;
+  if( (not ret) )
+  {
+    printf("Error reading restart file. Aborting...\n");
+    fflush(0); abort();
   }
-  Real restart_time, restart_dt;
-  restartstream >> restart_time >> restart_dt;
-  restartstream >> position[0] >> position[1] >> position[2];
-  restartstream >> quaternion[0] >> quaternion[1] >> quaternion[2] >> quaternion[3];
-  restartstream >> transVel[0] >> transVel[1] >> transVel[2];
-  restartstream >> angVel[0] >> angVel[1] >> angVel[2];
-  restartstream.close();
-
-  std::cout<<"RESTARTED FISH: "<<std::endl;
-  std::cout<<"TIME, DT: "<<restart_time<<" "<<restart_dt<<std::endl;
-  std::cout<<"POS: "<<position[0]<<" "<<position[1]<<" "<<position[2]<<std::endl;
-  std::cout<<"ANGLE: "<<quaternion[0]<<" "<<quaternion[1]
-           <<" "<<quaternion[2]<<" "<<quaternion[3]<<std::endl;
-  std::cout<<"TVEL: "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]<<std::endl;
-  std::cout<<"AVEL: "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<std::endl;
 }
 
 CubismUP_3D_NAMESPACE_END
