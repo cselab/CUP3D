@@ -88,7 +88,7 @@ BUILDDIR = .
 SRC_DIR = $(sort $(dir $(wildcard $(BUILDDIR)/../source/*/)))
 CUBISM_DIR = $(BUILDDIR)/../Cubism/src/
 
-OBJECTS = ObstacleFactory.o Obstacle.o ObstacleVector.o Ellipsoid.o Cylinder.o \
+OBJECTS = ObstacleFactory.o Obstacle.o Ellipsoid.o Cylinder.o \
 	Fish.o StefanFish.o CarlingFish.o Sphere.o Plate.o ExternalObstacle.o Naca.o \
 	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o \
 	AdvectionDiffusion.o ComputeDissipation.o PressureRHS.o \

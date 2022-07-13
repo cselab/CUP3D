@@ -31,8 +31,8 @@ class Fish: public Obstacle
  public:
   Fish(SimulationData&s, cubism::ArgumentParser&p);
   ~Fish() override;
-  void save(std::string filename = std::string()) override;
-  void restart(std::string filename = std::string()) override;
+  virtual void saveRestart( FILE * f ) override;
+  virtual void loadRestart( FILE * f ) override;
   virtual void create() override;
   FishMidlineData * myFish = nullptr;
 

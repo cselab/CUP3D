@@ -6,8 +6,7 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_3D_ObstacleVector_h
-#define CubismUP_3D_ObstacleVector_h
+#pragma once 
 
 #include "Obstacle.h"
 
@@ -27,17 +26,6 @@ class ObstacleVector : public Obstacle
       return obstacles[ind].get();
     }
     int nObstacles() const {return obstacles.size();}
-    void computeVelocities() override;
-    void update() override;
-    void restart(std::string filename = std::string()) override;
-    void save(std::string filename = std::string()) override;
-
-    void computeForces() override;
-
-    void create() override;
-    void finalize() override;
-
-    std::vector<std::array<int, 2>> collidingObstacles();
 
     void addObstacle(std::shared_ptr<Obstacle> obstacle)
     {
@@ -45,9 +33,34 @@ class ObstacleVector : public Obstacle
         obstacles.emplace_back(std::move(obstacle));
     }
 
+    void update() override
+    {
+      for(const auto & obstacle_ptr : obstacles) obstacle_ptr->update();
+    }
+    
+    void create() override
+    {
+      for(const auto & obstacle_ptr : obstacles) obstacle_ptr->create();
+    }
+    
+    void finalize() override
+    {
+      for(const auto & obstacle_ptr : obstacles) obstacle_ptr->finalize();
+    }
+    
+    void computeVelocities() override
+    {
+      for(const auto & obstacle_ptr : obstacles) obstacle_ptr->computeVelocities();
+    }
+    
+    void computeForces() override
+    {
+      for(const auto & obstacle_ptr : obstacles) obstacle_ptr->computeForces();
+    }
+
     const VectorType& getObstacleVector() const
     {
-        return obstacles;
+      return obstacles;
     }
 
     std::vector<std::vector<ObstacleBlock*>*> getAllObstacleBlocks() const
@@ -73,9 +86,6 @@ class ObstacleVector : public Obstacle
       if(nSum[1]>0) uSum[1] = uSum[1] / nSum[1];
       if(nSum[2]>0) uSum[2] = uSum[2] / nSum[2];
       return uSum;
-      //if(rank == 0) if(nSum[0] || nSum[1] || nSum[2])
-      //  printf("New Uinf %g %g %g (from %d %d %d)\n",
-      //  uInf[0],uInf[1],uInf[2],nSum[0],nSum[1],nSum[2]);
     }
 
  protected:
@@ -83,4 +93,3 @@ class ObstacleVector : public Obstacle
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_ObstacleVector_h

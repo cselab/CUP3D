@@ -87,12 +87,12 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
   if (bRestart)
     _deserialize();
   else
+  {
     _ic();
-
-  // Initial refinement of Grid
-  if( sim.verbose )
-    std::cout << "[CUP3D] Performing Initial Refinement of Grid.. " << std::endl;
-  initialGridRefinement();
+    if( sim.verbose )
+      std::cout << "[CUP3D] Performing Initial Refinement of Grid.. " << std::endl;
+    initialGridRefinement();
+  }
 }
 
 void Simulation::initialGridRefinement()
@@ -209,7 +209,7 @@ void Simulation::_serialize(const std::string append)
   sim.startProfiler("DumpHDF5_MPI");
 
   std::stringstream name;
-  if (append == "") name<<"restart_";
+  if (append == "") name<<"_";
   else name<<append;
   name<<std::setfill('0')<<std::setw(9)<<sim.step;
 
@@ -235,47 +235,44 @@ void Simulation::_serialize(const std::string append)
 
 void Simulation::_deserialize()
 {
+  // create filename from step
+  sim.readRestartFiles();
+  std::stringstream ss;
+  ss<<"restart_"<<std::setfill('0')<<std::setw(9)<<sim.step;
+
+  const std::vector<BlockInfo>&  chiInfo = sim.chi ->getBlocksInfo();
+  const std::vector<BlockInfo>&  velInfo = sim.vel ->getBlocksInfo();
+  const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
+  const std::vector<BlockInfo>&  lhsInfo = sim.lhs ->getBlocksInfo();
+  const std::vector<BlockInfo>& pOldInfo = sim.pOld->getBlocksInfo();
+
+  //The only field that is needed for restarting is velocity. Chi is derived from the files we
+  //read for obstacles. Here we also read pres so that the Poisson solver has the same
+  //initial guess, which in turn leads to restarted simulations having the exact same result
+  //as non-restarted ones (we also read pres because we need to read at least
+  //one ScalarGrid, see hack below).
+  ReadHDF5_MPI<StreamerVector, Real>(*(sim.vel ), "vel_"  + ss.str(), sim.path4serialization);
+  ReadHDF5_MPI<StreamerScalar, Real>(*(sim.pres), "pres_" + ss.str(), sim.path4serialization);
+
+  //hack: need to "read" the other grids too, so that the mesh is the same for every grid.
+  //So we read VectorGrids from "vel" and ScalarGrids from "pres". We don't care about the
+  //grid point values (those are set to zero below), we only care about the grid structure,
+  //i.e. refinement levels etc.
+  ReadHDF5_MPI<StreamerScalar, Real>(*(sim.pOld), "pres_" + ss.str(), sim.path4serialization);
+  ReadHDF5_MPI<StreamerScalar, Real>(*(sim.chi ), "pres_" + ss.str(), sim.path4serialization);
+  ReadHDF5_MPI<StreamerScalar, Real>(*(sim.lhs ), "pres_" + ss.str(), sim.path4serialization);
+  ReadHDF5_MPI<StreamerVector, Real>(*(sim.tmpV),  "vel_" + ss.str(), sim.path4serialization);
+  ReadHDF5_MPI<StreamerVector, Real>(*(sim.vOld),  "vel_" + ss.str(), sim.path4serialization);
+  #pragma omp parallel for
+  for (size_t i=0; i < velInfo.size(); i++)
   {
-    std::string restartfile = sim.path4serialization+"/restart.status";
-    FILE * f = fopen(restartfile.c_str(), "r");
-    if (f == NULL) {
-      printf("Could not restart... starting a new sim.\n");
-      return;
-    }
-    assert(f != NULL);
-    bool ret = true;
-    #ifdef _DOUBLE_PRECISION_
-    ret = ret && 1==fscanf(f, "time: %le\n",   &sim.time);
-    ret = ret && 1==fscanf(f, "stepid: %d\n", &sim.step);
-    ret = ret && 1==fscanf(f, "uinfx: %le\n", &sim.uinf[0]);
-    ret = ret && 1==fscanf(f, "uinfy: %le\n", &sim.uinf[1]);
-    ret = ret && 1==fscanf(f, "uinfz: %le\n", &sim.uinf[2]);
-    #endif
-    #ifdef _FLOAT_PRECISION_
-    ret = ret && 1==fscanf(f, "time: %e\n",   &sim.time);
-    ret = ret && 1==fscanf(f, "stepid: %d\n", &sim.step);
-    ret = ret && 1==fscanf(f, "uinfx: %e\n", &sim.uinf[0]);
-    ret = ret && 1==fscanf(f, "uinfy: %e\n", &sim.uinf[1]);
-    ret = ret && 1==fscanf(f, "uinfz: %e\n", &sim.uinf[2]);
-    #endif
-    fclose(f);
-    if( (not ret) || sim.step<0 || sim.time<0) {
-      printf("Error reading restart file. Aborting...\n");
-      fflush(0); MPI_Abort(sim.comm, 1);
-    }
+    ScalarBlock& CHI  = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
+    ScalarBlock& POLD = *(ScalarBlock*) pOldInfo[i].ptrBlock; POLD.clear();
+    ScalarBlock& LHS  = *(ScalarBlock*)  lhsInfo[i].ptrBlock;  LHS.clear();
+    VectorBlock& TMPV = *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
+    VectorBlock& VOLD = *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();
   }
-
-  std::stringstream ssR;
-  ssR<<"restart_"<<std::setfill('0')<<std::setw(9)<<sim.step;
-  if (sim.rank==0) std::cout << "Restarting from " << ssR.str() << "\n";
-
-  //ReadHDF5_MPI<StreamerVelocityVector, Real>(* sim.grid, StreamerVelocityVector::prefix()+ssR.str(), sim.path4serialization);
-
-  sim.obstacle_vector->restart(sim.path4serialization+"/"+ssR.str());
-
-  printf("DESERIALIZATION: time is %f and step id is %d\n", sim.time, sim.step);
-  // prepare time for next save
-  sim.nextSaveTime = sim.time + sim.dumpTime;
 }
 
 void Simulation::simulate()
@@ -366,6 +363,14 @@ bool Simulation::advance(const Real dt)
   sim.time += dt;
 
   if( sim.bDump ) _serialize();
+  if (sim.step % sim.checkpoint_steps == 0)  //checkpoint for restarting
+  {
+    sim.writeRestartFiles();
+    std::stringstream name;
+    name<<"restart_"<<std::setfill('0')<<std::setw(9)<<sim.step;
+    DumpHDF5_MPI<StreamerScalar, Real> (*sim.pres, sim.time, "pres_" + name.str(),sim.path4serialization);
+    DumpHDF5_MPI<StreamerVector, Real> (*sim.vel , sim.time, "vel_"  + name.str(),sim.path4serialization);
+  }
 
   if (sim.rank == 0 && sim.freqProfiler > 0 && sim.step % sim.freqProfiler == 0)
     sim.printResetProfiler();

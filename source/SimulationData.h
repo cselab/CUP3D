@@ -116,10 +116,13 @@ struct SimulationData
   // Initial conditions
   std::string initCond = "zero";
 
+  bool bRestart; //restart the simulation from last dumped timestep?
+  int checkpoint_steps;
+
   // uMax Channel flow
   Real uMax_forced = 0;
 
-  // Dump Settingas
+  // Dump Settings
   int freqDiagnostics = 0;
   int freqProfiler = 0;
   int saveFreq = 0;
@@ -134,10 +137,13 @@ struct SimulationData
   bool dumpOmega,dumpOmegaX,dumpOmegaY,dumpOmegaZ;
   bool dumpVelocity,dumpVelocityX,dumpVelocityY,dumpVelocityZ;
 
+
   void startProfiler(std::string name) const;
   void stopProfiler() const;
   void printResetProfiler();
   void _preprocessArguments();
+  void writeRestartFiles();
+  void readRestartFiles();
   ~SimulationData();
   SimulationData() = delete;
   SimulationData(const SimulationData &) = delete;

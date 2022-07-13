@@ -27,6 +27,11 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(m
   if (rank == 0) parser.print_args();
 
   // ========== PARSE ARGUMENTS ==========
+
+  // restart the simulation?
+  bRestart = parser("-restart").asBool(false);
+  checkpoint_steps = parser("-checkpointsteps").asInt(1000);
+
   // BLOCKS PER DIMENSION
   bpdx = parser("-bpdx").asInt();
   bpdy = parser("-bpdy").asInt();
@@ -102,7 +107,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(m
   int dumpFreq = parser("-fdump").asDouble(0);       // dumpFreq==0 means dump freq (in #steps) is not active
   dumpTime = parser("-tdump").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
   saveFreq = parser("-fsave").asInt(0);         // dumpFreq==0 means dump freq (in #steps) is not active
-  dumpTime = parser("-tsave").asDouble(0.0);    // dumpTime==0 means dump freq (in time)   is not active
 
   // TEMP: Removed distinction saving-dumping. Backward compatibility:
   if (saveFreq <= 0 && dumpFreq > 0) saveFreq = dumpFreq;
@@ -189,6 +193,105 @@ void SimulationData::printResetProfiler()
 {
   profiler->printSummary();
   profiler->reset();
+}
+
+void SimulationData::writeRestartFiles()
+{
+  // write restart file for field
+  if (rank == 0)
+  {
+     std::stringstream ssR;
+     ssR << path4serialization + "/field.restart";
+     FILE * fField = fopen(ssR.str().c_str(), "w");
+     if (fField == NULL)
+     {
+        printf("Could not write %s. Aborting...\n", "field.restart");
+        fflush(0); abort();
+     }
+     assert(fField != NULL);
+     fprintf(fField, "time: %20.20e\n",  (double)time);
+     fprintf(fField, "stepid: %d\n",     step);
+     fprintf(fField, "uinfx: %20.20e\n", (double)uinf[0]);
+     fprintf(fField, "uinfy: %20.20e\n", (double)uinf[1]);
+     fprintf(fField, "uinfz: %20.20e\n", (double)uinf[2]);
+     fprintf(fField, "dt: %20.20e\n",    (double)dt);
+     fclose(fField);
+  }
+
+  // write restart file for shapes
+  int size;
+  MPI_Comm_size(comm,&size);
+  const size_t tasks = obstacle_vector->nObstacles();
+  size_t my_share = tasks / size;
+  if (tasks % size != 0 && rank == size - 1) //last rank gets what's left
+  {
+   my_share += tasks % size;
+  }
+  const size_t my_start = rank * (tasks/ size);
+  const size_t my_end   = my_start + my_share;
+
+  #pragma omp parallel for schedule(static,1)
+  for(size_t j = my_start ; j < my_end ; j++)
+  {
+    auto & shape = obstacle_vector->getObstacleVector()[j];
+    std::stringstream ssR;
+    ssR << path4serialization + "/shape_" << shape->obstacleID << ".restart";
+    FILE * fShape = fopen(ssR.str().c_str(), "w");
+    if (fShape == NULL)
+    {
+      printf("Could not write %s. Aborting...\n", ssR.str().c_str());
+      fflush(0); abort();
+    }
+    shape->saveRestart( fShape );
+    fclose(fShape);
+  }
+}
+
+void SimulationData::readRestartFiles()
+{
+  // read restart file for field
+  FILE * fField = fopen("field.restart", "r");
+  if (fField == NULL) {
+    printf("Could not read %s. Aborting...\n", "field.restart");
+    fflush(0); abort();
+  }
+  assert(fField != NULL);
+  if (rank == 0 && verbose) printf("Reading %s...\n", "field.restart");
+  bool ret = true;
+  double in_time, in_uinfx, in_uinfy, in_uinfz, in_dt;
+  ret = ret && 1==fscanf(fField, "time: %le\n",   &in_time);
+  ret = ret && 1==fscanf(fField, "stepid: %d\n",  &step);
+  ret = ret && 1==fscanf(fField, "uinfx: %le\n",  &in_uinfx);
+  ret = ret && 1==fscanf(fField, "uinfy: %le\n",  &in_uinfy);
+  ret = ret && 1==fscanf(fField, "uinfz: %le\n",  &in_uinfz);
+  ret = ret && 1==fscanf(fField, "dt: %le\n",     &in_dt);
+  time  = (Real) in_time ;
+  uinf[0] = (Real) in_uinfx;
+  uinf[1] = (Real) in_uinfy;
+  uinf[2] = (Real) in_uinfz;
+  dt    = (Real) in_dt   ;
+  fclose(fField);
+  if( (not ret) || step<0 || time<0) {
+    printf("Error reading restart file. Aborting...\n");
+    fflush(0); abort();
+  }
+  if (rank == 0 && verbose) printf("Restarting flow.. time: %le, stepid: %d, uinfx: %le, uinfy: %le, uinfz: %le\n", (double)time, step, (double)uinf[0], (double)uinf[1], (double)uinf[2]);
+  nextSaveTime = time + dumpTime;
+
+  // read restart file for shapes
+  for (auto &shape : obstacle_vector->getObstacleVector())
+  {
+    std::stringstream ssR;
+    ssR << "shape_" << shape->obstacleID << ".restart";
+    FILE * fShape = fopen(ssR.str().c_str(), "r");
+    if (fShape == NULL) {
+      printf("Could not read %s. Aborting...\n", ssR.str().c_str());
+      fflush(0); abort();
+    }
+    if (rank == 0 && verbose) printf("Reading %s...\n", ssR.str().c_str());
+    shape->loadRestart( fShape );
+    fclose(fShape);
+  }
 }
 
 CubismUP_3D_NAMESPACE_END
