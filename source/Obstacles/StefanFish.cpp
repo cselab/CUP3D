@@ -387,7 +387,8 @@ void StefanFish::saveRestart( FILE * f )
   fprintf(f,"control_torsion          : %d\n"     ,(int)   cFish->control_torsion          );
 }
 
-void StefanFish::loadRestart( FILE * f ) {
+void StefanFish::loadRestart( FILE * f )
+{
   assert(f != NULL);
   Fish::loadRestart(f);
   CurvatureDefinedFishData* const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
@@ -478,6 +479,7 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   bCorrectTrajectory = p("-Correct").asBool(false);
   bCorrectPosition = p("-bCorrectPosition").asBool(false);
+  bCorrectZ = p("-bCorrectZ").asBool(false);
 
   myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift, sim.hmin, ampFac);
 
@@ -530,6 +532,20 @@ void StefanFish::create()
   if (bCorrectPosition || bCorrectTrajectory)
     assert(origAng<2e-16 && "TODO: rotate pos and vel to fish POV to enable \
                              PID to work even for non-zero angles");
+
+  //control position in Z plane with PD controller
+  if (bCorrectZ)
+  {
+    const Real e = (origC[2] - absPos[2])/length;
+    if (std::fabs(e) > 1e-21)
+    {
+      const Real dedt = -transVel[2]/length;
+      const Real u = 0.8 * e + 5.0 * dedt; // these numbers were picked for and work well with length=0.2
+      cFish->action_torsion_pitching_radius(sim.time, sim.time, -10.0/length*u);
+      //cFish->control_torsion = false;
+      //cFish->action_pitching(sim.time, sim.time, u);
+    }
+  }
 
   if (bCorrectPosition && sim.dt>0)
   {

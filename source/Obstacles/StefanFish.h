@@ -25,7 +25,7 @@ public:
   StefanFish(SimulationData&s, cubism::ArgumentParser&p);
 
   //Used for PID controller (which tries to maintain the initial fish position)
-  bool bCorrectTrajectory, bCorrectPosition;
+  bool bCorrectTrajectory, bCorrectPosition, bCorrectZ;
   Real origC[3];   //initial location
   Real origAng = 0;//initial planar angle (in xy plane)
 
@@ -197,6 +197,17 @@ class CurvatureDefinedFishData : public FishMidlineData
       torsionValues[i] = action[i];
     }
     Ttorsion_start = time;
+  }
+  void action_torsion_pitching_radius(const Real time, const Real l_tnext, const Real action)
+  {
+    //Set torsion values so that a pitching motion is performed. This is similar to pitching for
+    //a given cylinder radius R (as in action_pitching), but what is specified here is the 
+    //midline torsion. The 'action' parameter is proportional to 1/R.
+    const Real sq = 1.0/pow(2.0,0.5);
+    const Real ar [3] = { action * ( norX[0     ] * 0.000 + norZ[0     ] * 1.000) ,
+                          action * ( norX[Nm/2-1] * sq    + norZ[Nm/2-1] * sq   ) ,
+                          action * ( norX[Nm-1  ] * 1.000 + norZ[Nm-1  ] * 0.000) };
+    action_torsion(time, l_tnext, ar);
   }
 };
 
