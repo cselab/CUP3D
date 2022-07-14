@@ -541,9 +541,9 @@ void StefanFish::create()
     {
       const Real dedt = -transVel[2]/length;
       const Real u = 0.8 * e + 5.0 * dedt; // these numbers were picked for and work well with length=0.2
-      cFish->action_torsion_pitching_radius(sim.time, sim.time, -10.0/length*u);
-      //cFish->control_torsion = false;
-      //cFish->action_pitching(sim.time, sim.time, u);
+      //cFish->action_torsion_pitching_radius(sim.time, sim.time, -10.0/length*u);
+      cFish->control_torsion = false;
+      cFish->action_pitching(sim.time, sim.time, u);
     }
   }
 
