@@ -13,7 +13,7 @@
 namespace fs = std::filesystem;
 
 #define BS 8
-#define Cfactor 4
+#define Cfactor 1
 
 struct BlockGroup
 {
@@ -355,7 +355,9 @@ void convert_to_uniform(std::string filename,int tttt)
     H5Fclose(file_id);
     H5Pclose(plist_id);
     H5close();
+#if Cfactor > 1
     delete [] uniform_grid_coarse;
+#endif
   } 
   delete [] uniform_grid;
 }
