@@ -1,6 +1,6 @@
 CXX=CC
 LD=CC
-CPPFLAGS+= -std=c++17 -fopenmp -Wall
+CPPFLAGS+= -std=c++17 -g -fopenmp -Wall
 LIBS+= -fopenmp
 CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions -ftree-vectorize -fmerge-all-constants
 

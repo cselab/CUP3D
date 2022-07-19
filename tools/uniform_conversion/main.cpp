@@ -13,7 +13,7 @@
 namespace fs = std::filesystem;
 
 #define BS 8
-#define Cfactor 1
+#define Cfactor 4
 
 struct BlockGroup
 {
@@ -201,7 +201,9 @@ void convert_to_uniform(std::string filename,int tttt)
 
   //the uniform domain is decomposed in the z-direction only!
   decompose_1D(points[2],my_start,my_end,Cfactor);
-  std::vector<float> uniform_grid((my_end-my_start)*points[1]*points[0]);
+  size_t un = (my_end-my_start);
+  un *= points[1]*points[0];
+  float * uniform_grid = new float[un];
 
   #pragma omp parallel for
   for (size_t i = 0 ; i < allGroups.size() ; i++)
@@ -276,10 +278,12 @@ void convert_to_uniform(std::string filename,int tttt)
 
   //dump uniform grid
   {
-    float * data_to_dump = uniform_grid.data();
+    float * data_to_dump = uniform_grid;
     #if Cfactor > 1
       MPI_Barrier(MPI_COMM_WORLD);
-      std::vector<float> uniform_grid_coarse((my_end-my_start)*points[1]*points[0]/Cfactor/Cfactor/Cfactor,0);
+      size_t unc = (my_end-my_start)/Cfactor;
+      unc *= points[1]*points[0]/Cfactor/Cfactor;
+      float * uniform_grid_coarse = new float[unc];
       #pragma omp parallel for collapse(3)
       for (int z = 0 ; z < my_end-my_start ; z += Cfactor)
       for (int y = 0 ; y < points[1]       ; y += Cfactor)
@@ -294,7 +298,7 @@ void convert_to_uniform(std::string filename,int tttt)
         uniform_grid_coarse[i] /= (Cfactor*Cfactor*Cfactor);
       }
       MPI_Barrier(MPI_COMM_WORLD);
-      data_to_dump = uniform_grid_coarse.data();
+      data_to_dump = uniform_grid_coarse;
       if (rank == 0)
         std::cout << "uniform compressed domain size=" << points[0]/Cfactor << " x " << points[1]/Cfactor << " x " << points[2]/Cfactor << std::endl;
     #endif
@@ -351,7 +355,9 @@ void convert_to_uniform(std::string filename,int tttt)
     H5Fclose(file_id);
     H5Pclose(plist_id);
     H5close();
+    delete [] uniform_grid_coarse;
   } 
+  delete [] uniform_grid;
 }
 
 
