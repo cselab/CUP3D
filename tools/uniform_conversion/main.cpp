@@ -13,7 +13,7 @@
 namespace fs = std::filesystem;
 
 #define BS 8
-#define Cfactor 1
+#define Cfactor 4
 
 struct BlockGroup
 {
@@ -121,7 +121,25 @@ std::vector<float> get_amr_dataset(std::string filename)
 
   //Allocate vector to read dataset
   std::vector<float> amr(dim);
-  H5Dread(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, amr.data());
+
+  #if 1 //large datasets are read like this. HDF5 complains otherwise.
+    const int max_chunk = 8;
+    for (int chunk = 0 ; chunk < max_chunk ; chunk ++)
+    {
+      hsize_t count[1] = {dim/max_chunk};
+      hsize_t base_tmp[1] = {chunk*count[0]};
+  
+      hid_t mspace_id = H5Screate_simple(1, count, NULL);
+  
+      H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, base_tmp, NULL, count, NULL);
+  
+      H5Dread(dataset_id, H5T_NATIVE_FLOAT, mspace_id, fspace_id, H5P_DEFAULT, amr.data()+base_tmp[0]);
+  
+      H5Sclose(mspace_id);
+    }
+  #else
+    H5Dread(dataset_id, H5T_NATIVE_FLOAT, H5S_ALL, H5S_ALL, H5P_DEFAULT, amr.data());
+  #endif
 
   H5Dclose(dataset_id);
   H5Sclose(fspace_id);
@@ -129,30 +147,6 @@ std::vector<float> get_amr_dataset(std::string filename)
   H5close();
   return amr;
 }
-
-
-double M1D(double x)
-{
-    double s = std::fabs(x);
-    #if 0
-    if (s < 0.5) return 1.0-s*s;
-    if (s < 1.5) return 0.5*(1.0-s)*(2.0-s);
-    return 0.0;
-    #else
-    if (s < 1.0) return 1.0-2.5*s*s+1.5*s*s*s;
-    if (s < 2.0) return 0.5*(1.0-s)*(2.0-s)*(2.0-s);
-    return 0.0;
-    //if      (s<1) return 1.0 - s*s*(15 + s*(35-63*s+25*s*s) ) /12.0;
-    //else if (s<2) return -4.0 + s*( 18.75 + s*( -30.625 + s*(   (545.+ 25.0*s*s)/24.  -7.875*s ) ) );
-    //else if (s<3) return 18.0 + s*( -38.25  + s*(31.875 + s*(  (-313. -5.0*s*s)/24.   +2.625*s) )   );
-    //else          return 0.0;
-    #endif
-}
-double M6(double x,double y)
-{
-    return M1D(x)*M1D(y);
-}
-
 
 void convert_to_uniform(std::string filename,int tttt)
 {
@@ -196,14 +190,14 @@ void convert_to_uniform(std::string filename,int tttt)
   }
   MPI_Allreduce(MPI_IN_PLACE, &points, 3, MPI_INT , MPI_MAX, MPI_COMM_WORLD);
 
-  if (rank == 0)
-    std::cout << "uniform domain size=" << points[0] << " x " << points[1] << " x " << points[2] << std::endl;
-
   //the uniform domain is decomposed in the z-direction only!
   decompose_1D(points[2],my_start,my_end,Cfactor);
-  size_t un = (my_end-my_start);
-  un *= points[1]*points[0];
-  float * uniform_grid = new float[un];
+
+  size_t unc = (my_end-my_start)/Cfactor;
+  unc *= points[1]*points[0]/Cfactor/Cfactor;
+  std::vector<float> uniform_grid(unc);
+
+  const double coef = 1.0 / Cfactor / Cfactor / Cfactor;
 
   #pragma omp parallel for
   for (size_t i = 0 ; i < allGroups.size() ; i++)
@@ -223,7 +217,7 @@ void convert_to_uniform(std::string filename,int tttt)
     for (int y = 0; y < group.ny; y++)
     for (int x = 0; x < group.nx; x++)
     {
-      const float value = amr[base[i] + x + y * group.nx + z*group.nx*group.ny];
+      const float value = coef * amr[base[i] + x + y * group.nx + z*group.nx*group.ny];
 
       for (int z_up = aux * z; z_up < aux * (z+1); z_up++)
       for (int y_up = aux * y; y_up < aux * (y+1); y_up++)
@@ -234,18 +228,17 @@ void convert_to_uniform(std::string filename,int tttt)
         const int uniform_x = start_x + x_up;
         if (uniform_z >= my_start && uniform_z < my_end)
         {
-          const int base_up = uniform_x + uniform_y*points[0] + (uniform_z- my_start)*points[0]*points[1];        
-          uniform_grid[base_up] = value;
+          const int base = uniform_x/Cfactor + (uniform_y/Cfactor)*(points[0]/Cfactor) + ((uniform_z- my_start)/Cfactor)*(points[0]/Cfactor)*(points[1]/Cfactor);        
+          uniform_grid[base] += value;
         }
       }
     }
   }
 
   if (rank == 0)
-    std::cout << "Finished upsampling."<< std::endl;
-
-  if (rank == 0)
   {
+    std::cout << "uniform domain size=" << points[0] /Cfactor << " x " << points[1] /Cfactor << " x " << points[2] /Cfactor << std::endl;
+
     std::stringstream s;
     s << "<?xml version=\"1.0\" ?>\n";
     s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
@@ -278,31 +271,6 @@ void convert_to_uniform(std::string filename,int tttt)
 
   //dump uniform grid
   {
-    float * data_to_dump = uniform_grid;
-    #if Cfactor > 1
-      MPI_Barrier(MPI_COMM_WORLD);
-      size_t unc = (my_end-my_start)/Cfactor;
-      unc *= points[1]*points[0]/Cfactor/Cfactor;
-      float * uniform_grid_coarse = new float[unc];
-      #pragma omp parallel for collapse(3)
-      for (int z = 0 ; z < my_end-my_start ; z += Cfactor)
-      for (int y = 0 ; y < points[1]       ; y += Cfactor)
-      for (int x = 0 ; x < points[0]       ; x += Cfactor)
-      {
-        const int i = (x/Cfactor) + (y/Cfactor)*points[0]/Cfactor + (z/Cfactor)*points[0]/Cfactor*points[1]/Cfactor;
-        const int base = x + y*points[0] + z*points[0]*points[1];
-        for (int iz = 0 ; iz < Cfactor ; iz++)
-        for (int iy = 0 ; iy < Cfactor ; iy++)
-        for (int ix = 0 ; ix < Cfactor ; ix++)
-          uniform_grid_coarse[i] += uniform_grid[base + ix + iy*points[0] + iz*points[0]*points[1] ];
-        uniform_grid_coarse[i] /= (Cfactor*Cfactor*Cfactor);
-      }
-      MPI_Barrier(MPI_COMM_WORLD);
-      data_to_dump = uniform_grid_coarse;
-      if (rank == 0)
-        std::cout << "uniform compressed domain size=" << points[0]/Cfactor << " x " << points[1]/Cfactor << " x " << points[2]/Cfactor << std::endl;
-    #endif
-
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
@@ -316,24 +284,24 @@ void convert_to_uniform(std::string filename,int tttt)
 
     ////compressed dataset
     hid_t plist_id = H5Pcreate(H5P_DATASET_CREATE);
-    /*
-    hsize_t cdims[3];
-    cdims[0] = dims[0] / 64;
-    cdims[1] = dims[1] / 64;
-    cdims[2] = dims[2] / 64;
-    if (dims[0] % 64 == 0 && dims[1] % 64 == 0 && dims[2] % 64 == 0)
-    {
-      H5Pset_chunk(plist_id, 3, cdims);
-      H5Pset_deflate(plist_id, 5);
-      if (rank == 0)
-        std::cout << " -> data compression enabled." << std::endl;
-    }
-    else
-    {
-      if (rank == 0)
-        std::cout << " -> data compression disabled." << std::endl;
-    }
-    */
+    #if 0
+        hsize_t cdims[3];
+        cdims[0] = dims[0] / 8;//64;
+        cdims[1] = dims[1] / 8;//64;
+        cdims[2] = dims[2] / 8;//64;
+        if (dims[0] % 64 == 0 && dims[1] % 64 == 0 && dims[2] % 64 == 0)
+        {
+          H5Pset_chunk(plist_id, 3, cdims);
+          H5Pset_deflate(plist_id, 5);
+          if (rank == 0)
+            std::cout << " -> data compression enabled." << std::endl;
+        }
+        else
+        {
+          if (rank == 0)
+            std::cout << " -> data compression disabled." << std::endl;
+        }
+    #endif
 
     fspace_id        = H5Screate_simple(3, dims, NULL);
     dataset_id       = H5Dcreate (file_id, "data", H5T_NATIVE_FLOAT ,fspace_id,H5P_DEFAULT,plist_id,H5P_DEFAULT);
@@ -346,7 +314,7 @@ void convert_to_uniform(std::string filename,int tttt)
 
     mspace_id = H5Screate_simple(3, count, NULL);
     H5Sselect_hyperslab(fspace_id, H5S_SELECT_SET, base_tmp, NULL, count, NULL);
-    H5Dwrite(dataset_id, H5T_NATIVE_FLOAT,mspace_id,fspace_id,fapl_id,data_to_dump);
+    H5Dwrite(dataset_id, H5T_NATIVE_FLOAT,mspace_id,fspace_id,fapl_id,uniform_grid.data());
 
     H5Sclose(mspace_id);
     H5Sclose(fspace_id);
@@ -355,11 +323,7 @@ void convert_to_uniform(std::string filename,int tttt)
     H5Fclose(file_id);
     H5Pclose(plist_id);
     H5close();
-#if Cfactor > 1
-    delete [] uniform_grid_coarse;
-#endif
   } 
-  delete [] uniform_grid;
 }
 
 
