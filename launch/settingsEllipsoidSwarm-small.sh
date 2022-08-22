@@ -1,50 +1,40 @@
 #!/bin/bash
-NNODE=${NNODE:-32}
-PT=${PT:-1e-5}
-PTR=${PTR:-1e-3}
-
+NNODE=${NNODE:-64}
 PSOLVER="iterative"
-#PSOLVER="cuda_iterative"
-
-# L=0.2 stefanfish Re=1'000 <-> NU=0.00004
-#NU=${NU:-0.00004}
-NU=${NU:-0.00001}
 
 FACTORY=
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.44203111357100755 ypos=0.553707267494575 zpos=0.5150228924008031 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan bFixFrameOfRef=1 
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.44203111357100755 ypos=0.55370726749457500 zpos=1.01502289240080310 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan bFixFrameOfRef=1 
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.3831634682290578 ypos=0.5298091854157021 zpos=0.43056922629181105 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.38316346822905780 ypos=0.52980918541570210 zpos=0.93056922629181105 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.5336218294486462 ypos=0.5877606002632008 zpos=0.47829225652189866 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.53362182944864620 ypos=0.58776060026320080 zpos=0.97829225652189866 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.7875976084981433 ypos=0.5289913392250897 zpos=0.48747954242131875 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.78759760849814330 ypos=0.52899133922508970 zpos=0.98747954242131875 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.7151360457123023 ypos=0.4683734992041756 zpos=0.5349900112799744 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.71513604571230230 ypos=0.46837349920417560 zpos=1.03499001127997440 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.7479936903547912 ypos=0.5753697621285049 zpos=0.44655904358958987 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.74799369035479120 ypos=0.57536976212850490 zpos=0.94655904358958987 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.9157064375391348 ypos=0.4540178145236272 zpos=0.5074154600413379 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.91570643753913480 ypos=0.45401781452362720 zpos=1.00741546004133790 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.7305006445318668 ypos=0.5449869126610296 zpos=0.5565664875593824 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.73050064453186680 ypos=0.54498691266102960 zpos=1.05656648755938240 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.4868532167605708 ypos=0.48157722279993964 zpos=0.40717860796179134 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.48685321676057080 ypos=0.48157722279993964 zpos=0.90717860796179134 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.282360888743479 ypos=0.512856952308338 zpos=0.5575555216625814 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.28236088874347900 ypos=0.51285695230833800 zpos=1.05755552166258140 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.3852349783552834 ypos=0.447380486027519 zpos=0.4417914896442429 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.38523497835528340 ypos=0.44738048602751900 zpos=0.94179148964424290 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.8106370274160579 ypos=0.49844297201454113 zpos=0.4366296965361509 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.81063702741605790 ypos=0.49844297201454113 zpos=0.93662969653615090 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
-FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.49370783500755977 ypos=0.49150427869243907 zpos=0.47127784895166175 Correct=true bCorrectZ=true heightProfile=stefan widthProfile=stefan
+FACTORY+="StefanFish L=0.2 T=1.0 xpos=0.49370783500755977 ypos=0.49150427869243907 zpos=0.97127784895166175 Correct=true bCorrectPosition=true bCorrectZ=true heightProfile=danio widthProfile=stefan
 "
 
 OPTIONS=
 OPTIONS+=" -poissonSolver ${PSOLVER}"
-OPTIONS+=" -poissonTol ${PT} -poissonTolRel ${PTR}"
-OPTIONS+=" -extent 2.0"
-OPTIONS+=" -bpdx 4 -bpdy 2 -bpdz 2"
-OPTIONS+=" -tdump 0.1 -tend 100.0"
-OPTIONS+=" -CFL 0.4 -nu ${NU}"
-OPTIONS+=" -levelMax 6 -levelStart 3 -Rtol 20.0 -Ctol 1.0"
-OPTIONS+=" -verbose 1"
-OPTIONS+=" -restart 0 -checkpointsteps 1000 "
+OPTIONS+=" -poissonTol 1e-5 -poissonTolRel 1e-3"
+OPTIONS+=" -extent 2.0 -bpdx 4 -bpdy 2 -bpdz 4"
+OPTIONS+=" -tdump 0.0 -tend 100.0 -fsave 100"
+OPTIONS+=" -CFL 0.7 -nu 0.00001 -verbose 1 -restart 0 -checkpointsteps 1000 "
+OPTIONS+=" -levelMax 6 -levelStart 4 -Rtol 20.0 -Ctol 1.0"
+###OPTIONS+=" -implicitPenalization true"
