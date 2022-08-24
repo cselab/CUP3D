@@ -387,15 +387,18 @@ void Obstacle::update()
 
   if (sim.verbose && sim.time > 0)
   {
-    const Real ang = 2 * std::atan2(quaternion[3], quaternion[0]); //planar angle (xy plane)
-    printf("pos:[%.2f %.2f %.2f], vel:[%.2f %.2f %.2f], angvel:[%.2f %.2f %.2f], angle: %.2f \n",
-           absPos[0],absPos[1],absPos[2],transVel[0],transVel[1],transVel[2],angVel[0],angVel[1],angVel[2],ang);
+    const Real rad2deg = 180./M_PI;
+    const Real roll  = atan2(      2.0 * (quaternion[3] * quaternion[2] + quaternion[0] * quaternion[1]) ,
+                             1.0 - 2.0 * (quaternion[1] * quaternion[1] + quaternion[2] * quaternion[2]))*rad2deg;
+    const Real pitch = asin (      2.0 * (quaternion[2] * quaternion[0] - quaternion[3] * quaternion[1]))*rad2deg;
+    const Real yaw   = atan2(      2.0 * (quaternion[3] * quaternion[0] + quaternion[1] * quaternion[2]) ,
+                            -1.0 + 2.0 * (quaternion[0] * quaternion[0] + quaternion[1] * quaternion[1]))*rad2deg;
+
+    printf("pos:[%.2f %.2f %.2f], vel:[%.2f %.2f %.2f], angvel:[%.2f %.2f %.2f], yaw: %.1f, pitch: %.1f, roll: %.1f \n",
+           absPos[0],absPos[1],absPos[2],transVel[0],transVel[1],transVel[2],angVel[0],angVel[1],angVel[2],yaw,pitch,roll);
   }
   #ifndef NDEBUG
-  const Real q_length=std::sqrt(quaternion[0]*quaternion[0]
-        +  quaternion[1]*quaternion[1]
-        +  quaternion[2]*quaternion[2]
-        +  quaternion[3]*quaternion[3]);
+  const Real q_length=std::sqrt(quaternion[0]*quaternion[0]+quaternion[1]*quaternion[1]+quaternion[2]*quaternion[2]+quaternion[3]*quaternion[3]);
   assert(std::abs(q_length-1.0) < 5*EPS);
   #endif
 
