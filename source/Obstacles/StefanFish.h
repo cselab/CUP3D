@@ -24,10 +24,14 @@ class StefanFish: public Fish
 public:
   StefanFish(SimulationData&s, cubism::ArgumentParser&p);
 
-  //Used for PID controller (which tries to maintain the initial fish position)
-  bool bCorrectTrajectory, bCorrectPosition, bCorrectZ;
-  Real origC[3];   //initial location
-  Real origAng = 0;//initial planar angle (in xy plane)
+  //PID controller options
+  bool bCorrectTrajectory ; //control yaw angle 
+  bool bCorrectTrajectoryZ; //control pitch angle
+  bool bCorrectPosition   ; //control yaw angle and position in x-y plane
+  bool bCorrectPositionZ  ; //control pitch angle and position in z
+  bool bCorrectRoll       ; //prevent rolling angle 
+
+  Real origC[3]; //initial location for PID controller
 
   void create() override;
   virtual void saveRestart( FILE * f ) override;
@@ -41,12 +45,19 @@ public:
   //// Helpers for state function
   ssize_t holdingBlockID(const std::array<Real,3> pos) const;
   std::array<Real, 3> getShear(const std::array<Real,3> pSurf) const;
+
+  virtual void computeVelocities() override;
 };
 
 
 class CurvatureDefinedFishData : public FishMidlineData
 {
  public:
+
+  //PD controller for Z position and/or pitch angle
+  Real errP=0;
+  Real errD=0;
+
   // PID controller of body curvature:
   Real curv_PID_fac = 0;
   Real curv_PID_dif = 0;

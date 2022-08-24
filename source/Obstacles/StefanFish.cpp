@@ -22,51 +22,51 @@ void CurvatureDefinedFishData::execute(const Real time, const Real l_tnext, cons
 {
   if (input.size() == 1)
   {
-     //1.midline curvature
-     rlBendingScheduler.Turn(input[0], l_tnext);
+    //1.midline curvature
+    rlBendingScheduler.Turn(input[0], l_tnext);
   }
   else if (input.size() == 3)
   {
-     assert (control_torsion == false);
+    assert (control_torsion == false);
 
-     //1.midline curvature
-     rlBendingScheduler.Turn(input[0], l_tnext);
+    //1.midline curvature
+    rlBendingScheduler.Turn(input[0], l_tnext);
 
-     //2.swimming period
-     if (TperiodPID) std::cout << "Warning: PID controller should not be used with RL." << std::endl;
-     current_period = periodPIDval;
-     next_period = Tperiod * (1 + input[1]);
-     transition_start = l_tnext;
+    //2.swimming period
+    if (TperiodPID) std::cout << "Warning: PID controller should not be used with RL." << std::endl;
+    current_period = periodPIDval;
+    next_period = Tperiod * (1 + input[1]);
+    transition_start = l_tnext;
 
-     //3.pitching motion
-     if (time > Tman_finish)
-     {
-        Tman_start = time;
-        Tman_finish = time + 0.25*Tperiod;
-        Lman = 0;
-        if (std::fabs(input[2]) > 0.01) Lman = 1.0/input[2];
-     }
+    //3.pitching motion
+    if (time > Tman_finish)
+    {
+      Tman_start = time;
+      Tman_finish = time + 0.25*Tperiod;
+      Lman = 0;
+      if (std::fabs(input[2]) > 0.01) Lman = 1.0/input[2];
+    }
   }
   else if (input.size() == 5)
   {
-     assert (control_torsion == true);
+    assert (control_torsion == true);
 
-     //1.midline curvature
-     rlBendingScheduler.Turn(input[0], l_tnext);
+    //1.midline curvature
+    rlBendingScheduler.Turn(input[0], l_tnext);
 
-     //2.swimming period
-     if (TperiodPID) std::cout << "Warning: PID controller should not be used with RL." << std::endl;
-     current_period = periodPIDval;
-     next_period = Tperiod * (1 + input[1]);
-     transition_start = l_tnext;
+    //2.swimming period
+    if (TperiodPID) std::cout << "Warning: PID controller should not be used with RL." << std::endl;
+    current_period = periodPIDval;
+    next_period = Tperiod * (1 + input[1]);
+    transition_start = l_tnext;
 
-     //3.midline torsion
-     for (int i = 0 ; i < 3 ; i++)
-     {
-	  torsionValues_previous [i] = torsionValues[i];
-	  torsionValues[i] = input[i+2];
-     }
-     Ttorsion_start = time;
+    //3.midline torsion
+    for (int i = 0 ; i < 3 ; i++)
+    {
+	    torsionValues_previous [i] = torsionValues[i];
+	    torsionValues[i] = input[i+2];
+    }
+    Ttorsion_start = time;
   }
 }
 
@@ -76,19 +76,17 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
   periodScheduler.gimmeValues(t,periodPIDval,periodPIDdif);
   if (transition_start < t && t < transition_start+transition_duration)//timeshift also rampedup
   {
-          timeshift = (t - time0)/periodPIDval + timeshift;
-          time0 = t;
+    timeshift = (t - time0)/periodPIDval + timeshift;
+    time0 = t;
   }
 
-  const std::array<Real ,6> curvaturePoints = { (Real)0, (Real).15*length,
-    (Real).4*length, (Real).65*length, (Real).9*length, length
-  };
-  const std::array<Real,7> bendPoints = {(Real)-.5, (Real)-.25, (Real)0,
-    (Real).25, (Real).5, (Real).75, (Real)1};
-  const std::array<Real ,6> curvatureValues = {
+  const std::array<Real,6> curvaturePoints = { (Real)0         , (Real).15*length, (Real).4*length, 
+                                               (Real).65*length, (Real).9 *length, length};
+  const std::array<Real,7>      bendPoints = { (Real)-.5, (Real)-.25, (Real)0, (Real).25, 
+                                               (Real).5 , (Real) .75, (Real)1};
+  const std::array<Real,6> curvatureValues = {
       (Real)0.82014/length, (Real)1.46515/length, (Real)2.57136/length,
-      (Real)3.75425/length, (Real)5.09147/length, (Real)5.70449/length
-  };
+      (Real)3.75425/length, (Real)5.09147/length, (Real)5.70449/length};
 
   #if 1 // ramp-up over Tperiod
   const std::array<Real,6> curvatureZeros = std::array<Real, 6>();
@@ -107,16 +105,17 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
   const Real darg = 2*M_PI/periodPIDval * diffT;
   const Real arg0 = 2*M_PI*((t-time0)/periodPIDval +timeshift) +M_PI*phaseShift;
 
-  #pragma omp parallel for schedule(static)
-  for(int i=0; i<Nm; ++i) {
+  #pragma omp parallel for
+  for(int i=0; i<Nm; ++i)
+  {
     const Real arg = arg0 - 2*M_PI*rS[i]/length/waveLength;
     rK[i] = amplitudeFactor* rC[i]*(std::sin(arg)     + rB[i] +curv_PID_fac);
     vK[i] = amplitudeFactor*(vC[i]*(std::sin(arg)     + rB[i] +curv_PID_fac)
                             +rC[i]*(std::cos(arg)*darg+ vB[i] +curv_PID_dif));
-    assert(not std::isnan(rK[i]));
-    assert(not std::isinf(rK[i]));
-    assert(not std::isnan(vK[i]));
-    assert(not std::isinf(vK[i]));
+    assert(!std::isnan(rK[i]));
+    assert(!std::isinf(rK[i]));
+    assert(!std::isnan(vK[i]));
+    assert(!std::isinf(vK[i]));
   }
 
   //could come up with something for midline torsion here, use zero values for now
@@ -127,23 +126,23 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
   }
   if (control_torsion)
   {
-     const std::array<Real ,3> torsionPoints = { 0.0, 0.5*length, length };
-     torsionScheduler.transition (t,Ttorsion_start,Ttorsion_start+0.10*Tperiod,torsionValues_previous,torsionValues);
-     torsionScheduler.gimmeValues(t,torsionPoints,Nm,rS,rT,vT);
+    const std::array<Real ,3> torsionPoints = { 0.0, 0.5*length, length };
+    torsionScheduler.transition (t,Ttorsion_start,Ttorsion_start+0.10*Tperiod,torsionValues_previous,torsionValues);
+    torsionScheduler.gimmeValues(t,torsionPoints,Nm,rS,rT,vT);
   }
 
   // solve frenet to compute midline parameters
   //Frenet2D::solve(Nm, rS, rK, vK, rX, rY, vX, vY, norX, norY, vNorX, vNorY);
   Frenet3D::solve(Nm, rS, rK, vK, rT, vT, rX, rY, rZ, vX, vY, vZ, norX, norY, norZ, vNorX, vNorY, vNorZ, binX, binY, binZ, vBinX, vBinY, vBinZ);
 
-  if (std::fabs(Lman) > 1e-6*length)// && control_torsion == false)
+  if (std::fabs(Lman) > 1e-6*length && control_torsion == false)
     performPitchingMotion(t);
 }
 
 void CurvatureDefinedFishData::performPitchingMotion(const Real t)
 {
   const int sgn = Lman > 0 ? +1:-1;
-  const Real Rbig = sgn * 50.0 * length; //"infinite" radius for the cylinder 
+  const Real Rbig = sgn * 1000.0 * length; //"infinite" radius for the cylinder 
   const Real p    = 0.2;//For the first 20% of the total pitching motion time, the cylinder radius 
                         //goes from Rbig to Lman*length. For the next 60% it stays constant and for
                         //the last 20% it transitions back to Rbig. 
@@ -354,7 +353,8 @@ void StefanFish::saveRestart( FILE * f )
   fprintf(f, "origC_x: %20.20e\n", (double)origC[0]);
   fprintf(f, "origC_y: %20.20e\n", (double)origC[1]);
   fprintf(f, "origC_z: %20.20e\n", (double)origC[2]);
-  fprintf(f, "origAng: %20.20e\n", (double)origAng );
+  fprintf(f, "errP: %20.20e\n", (double)cFish->errP);
+  fprintf(f, "errD: %20.20e\n", (double)cFish->errD);
   fprintf(f,"curv_PID_fac             : %20.20e\n",(double)cFish->curv_PID_fac             );
   fprintf(f,"curv_PID_dif             : %20.20e\n",(double)cFish->curv_PID_dif             );
   fprintf(f,"avgDeltaY                : %20.20e\n",(double)cFish->avgDeltaY                );
@@ -435,7 +435,8 @@ void StefanFish::loadRestart( FILE * f )
   ret = ret && 1==fscanf(f, "origC_x: %le\n", &temp); origC[0] = temp;
   ret = ret && 1==fscanf(f, "origC_y: %le\n", &temp); origC[1] = temp;
   ret = ret && 1==fscanf(f, "origC_z: %le\n", &temp); origC[2] = temp;
-  ret = ret && 1==fscanf(f, "origAng: %le\n", &temp); origAng  = temp;
+  ret = ret && 1==fscanf(f, "errP: %le\n", &temp); cFish->errP = temp;
+  ret = ret && 1==fscanf(f, "errD: %le\n", &temp); cFish->errD = temp;
   ret = ret && 1==fscanf(f, "curv_PID_fac             : %le\n", &temp); cFish->curv_PID_fac              = temp;
   ret = ret && 1==fscanf(f, "curv_PID_dif             : %le\n", &temp); cFish->curv_PID_dif              = temp;
   ret = ret && 1==fscanf(f, "avgDeltaY                : %le\n", &temp); cFish->avgDeltaY                 = temp;
@@ -477,9 +478,11 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
   const Real Tperiod = p("-T").asDouble(1.0);
   const Real phaseShift = p("-phi").asDouble(0.0);
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
-  bCorrectTrajectory = p("-Correct").asBool(false);
-  bCorrectPosition = p("-bCorrectPosition").asBool(false);
-  bCorrectZ = p("-bCorrectZ").asBool(false);
+  bCorrectTrajectory  = p("-Correct" ).asBool(false);
+  bCorrectTrajectoryZ = p("-CorrectZ").asBool(false);
+  bCorrectPosition    = p("-bCorrectPosition" ).asBool(false);
+  bCorrectPositionZ   = p("-bCorrectPositionZ").asBool(false);
+  bCorrectRoll        = p("-bCorrectRoll").asBool(false);
 
   myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift, sim.hmin, ampFac);
 
@@ -490,111 +493,180 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
   origC[0] = position[0];
   origC[1] = position[1];
   origC[2] = position[2];
-  origAng = 2 * std::atan2(quaternion[3], quaternion[0]);
+
+  if ( (bCorrectTrajectory || bCorrectTrajectoryZ || 
+        bCorrectPosition   || bCorrectPositionZ || bCorrectRoll ) && std::fabs(quaternion[0]-1) > 1e-6)
+  {
+    std::cout << "PID controller only works for zero initial angles." << std::endl;
+    MPI_Abort(sim.comm,1);
+  }
 
   if(sim.rank==0) printf("nMidline=%d, length=%f, Tperiod=%f, phaseShift=%f\n",myFish->Nm, length, Tperiod, phaseShift);
 }
 
 void StefanFish::create()
 {
-  auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
-  const Real Tperiod = cFish->Tperiod;
+  const Real q[4] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]}; 
 
-  const Real DT = sim.dt/Tperiod;
+  const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
+  const Real angle_pitch = asin (2.0 * (q[2] * q[0] - q[3] * q[1]));
+  const Real angle_yaw   = atan2(2.0 * (q[3] * q[0] + q[1] * q[2]) , - 1.0 + 2.0 * (q[0] * q[0] + q[1] * q[1]));
+
   // Control pos diffs
-  const Real   xDiff = (position[0] - origC[0])/length;
-  const Real   yDiff = (position[1] - origC[1])/length;
-  const Real angDiff =  2 * std::atan2(quaternion[3], quaternion[0]) - origAng;
+  const double xDiff = (position[0] - origC[0])/length;
+  const double yDiff = (position[1] - origC[1])/length;
   const Real relU = (transVel[0] + sim.uinf[0]) / length;
   const Real relV = (transVel[1] + sim.uinf[1]) / length;
-  const Real aVelZ = angVel[2], lastAngVel = cFish->lastAvel;
-  // compute ang vel at t - 1/2 dt such that we have a better derivative:
-  const Real aVelMidP = (aVelZ + lastAngVel)*Tperiod/2;
-  const Real aVelDiff = (aVelZ - lastAngVel)*Tperiod/sim.dt;
-  cFish->lastAvel = aVelZ; // store for next time
 
+  auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+
+  const Real Tperiod = cFish->Tperiod;
+  const Real angDiff = angle_yaw;// - origAng;
+  const Real lastAngVel = cFish->lastAvel;
+  // compute ang vel at t - 1/2 dt such that we have a better derivative:
+  const Real aVelMidP = (angVel[2] + lastAngVel)*Tperiod/2;
+  const Real aVelDiff = (angVel[2] - lastAngVel)*Tperiod/sim.dt;
+  cFish->lastAvel = angVel[2]; // store for next time
+  const Real DT = sim.dt/Tperiod;
   // derivatives of following 2 exponential averages:
-  const Real velDAavg = (angDiff-cFish->avgDangle)/Tperiod + DT * aVelZ;
+  const Real velDAavg = (angDiff-cFish->avgDangle)/Tperiod + DT * angVel[2];
   const Real velDYavg = (  yDiff-cFish->avgDeltaY)/Tperiod + DT * relV;
   const Real velAVavg = 10*((aVelMidP-cFish->avgAngVel)/Tperiod +DT*aVelDiff);
+
   // exponential averages
-  cFish->avgDangle = (1.0 -DT) * cFish->avgDangle +    DT * angDiff;
-  cFish->avgDeltaY = (1.0 -DT) * cFish->avgDeltaY +    DT *   yDiff;
-  // faster average:
-  cFish->avgAngVel = (1-10*DT) * cFish->avgAngVel + 10*DT *aVelMidP;
-  const Real avgDangle = cFish->avgDangle, avgDeltaY = cFish->avgDeltaY;
+  cFish->avgDangle = (1.0-   DT) * cFish->avgDangle +    DT * angDiff;
+  cFish->avgDeltaY = (1.0-   DT) * cFish->avgDeltaY +    DT *   yDiff;
+  cFish->avgAngVel = (1.0-10*DT) * cFish->avgAngVel + 10*DT *aVelMidP; //faster average
+  const Real avgDangle = cFish->avgDangle;
+  const Real avgDeltaY = cFish->avgDeltaY;
 
-  // integral (averaged) and proportional absolute DY and their derivative
-  const Real absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
-  const Real velAbsPy =     yDiff>0 ? relV     : -relV;
-  const Real velAbsIy = avgDeltaY>0 ? velDYavg : -velDYavg;
-
-  if (bCorrectPosition || bCorrectTrajectory)
-    assert(origAng<2e-16 && "TODO: rotate pos and vel to fish POV to enable \
-                             PID to work even for non-zero angles");
-
-  //control position in Z plane with PD controller
-  if (bCorrectZ)
-  {
-    const Real e = (origC[2] - absPos[2])/length;
-    if (std::fabs(e) > 1e-21)
-    {
-      const Real dedt = -transVel[2]/length;
-      const Real u = 0.8 * e + 5.0 * dedt; // these numbers were picked for and work well with length=0.2
-      //cFish->action_torsion_pitching_radius(sim.time, sim.time, -10.0/length*u);
-      cFish->control_torsion = false;
-      cFish->action_pitching(sim.time, sim.time, u);
-    }
-  }
-
+  //control yaw angle and positin in xy plane - not tested very well!
   if (bCorrectPosition && sim.dt>0)
   {
+    // integral (averaged) and proportional absolute DY and their derivative
+    const Real absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
+    const Real velAbsPy =     yDiff>0 ? relV     : -relV;
+    const Real velAbsIy = avgDeltaY>0 ? velDYavg : -velDYavg;
+
+    const Real IangPdy = avgDangle * absPy;
+    const Real PangIdy = angDiff   * absIy;
+    const Real IangIdy = avgDangle * absIy;
+    //time derivatives of above three terms:
+    const Real velIangPdy = velAbsPy * avgDangle + absPy * velDAavg;
+    const Real velPangIdy = velAbsIy * angDiff   + absIy * angVel[2];
+    const Real velIangIdy = velAbsIy * avgDangle + absIy * velDAavg;
     //If angle is positive: positive curvature only if Dy<0 (must go up)
     //If angle is negative: negative curvature only if Dy>0 (must go down)
-    const Real IangPdy = (avgDangle *     yDiff < 0)? avgDangle * absPy : 0;
-    const Real PangIdy = (angDiff   * avgDeltaY < 0)? angDiff   * absIy : 0;
-    const Real IangIdy = (avgDangle * avgDeltaY < 0)? avgDangle * absIy : 0;
-
-    // derivatives multiplied by 0 when term is inactive later:
-    const Real velIangPdy = velAbsPy * avgDangle + absPy * velDAavg;
-    const Real velPangIdy = velAbsIy * angDiff   + absIy * aVelZ;
-    const Real velIangIdy = velAbsIy * avgDangle + absIy * velDAavg;
-
-    //zero also the derivatives when appropriate
+    //when appropriate, coefficients are set to zero.
     const Real coefIangPdy = avgDangle *     yDiff < 0 ? 1 : 0;
     const Real coefPangIdy = angDiff   * avgDeltaY < 0 ? 1 : 0;
     const Real coefIangIdy = avgDangle * avgDeltaY < 0 ? 1 : 0;
-
-    const Real valIangPdy = coefIangPdy *    IangPdy;
-    const Real difIangPdy = coefIangPdy * velIangPdy;
-    const Real valPangIdy = coefPangIdy *    PangIdy;
-    const Real difPangIdy = coefPangIdy * velPangIdy;
-    const Real valIangIdy = coefIangIdy *    IangIdy;
-    const Real difIangIdy = coefIangIdy * velIangIdy;
+    const Real totalTerm = coefIangPdy *    IangPdy + coefPangIdy *    PangIdy + coefIangIdy *    IangIdy;
+    const Real totalDiff = coefIangPdy * velIangPdy + coefPangIdy * velPangIdy + coefIangIdy * velIangIdy;
+    cFish->correctTrajectory(totalTerm, totalDiff);
     const Real periodFac = 1.0 - xDiff;
     const Real periodVel =     - relU;
-
-    const Real totalTerm = valIangPdy + valPangIdy + valIangIdy;
-    const Real totalDiff = difIangPdy + difPangIdy + difIangIdy;
-    cFish->correctTrajectory(totalTerm, totalDiff);
     cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
   }
-  // if absIy<EPS then we have just one fish that the simulation box follows
-  // therefore we control the average angle but not the Y disp (which is 0)
+  //control yaw angle
   else if (bCorrectTrajectory && sim.dt>0)
   {
     const Real avgAngVel = cFish->avgAngVel, absAngVel = std::fabs(avgAngVel);
     const Real absAvelDiff = avgAngVel>0? velAVavg : -velAVavg;
     const Real coefInst = angDiff*avgAngVel>0 ? 0.01 : 1, coefAvg = 0.1;
     const Real termInst = angDiff*absAngVel;
-    const Real diffInst = angDiff*absAvelDiff + aVelZ*absAngVel;
-    const Real totalTerm = coefInst*termInst + coefAvg*avgDangle;
-    const Real totalDiff = coefInst*diffInst + coefAvg*velDAavg;
-
+    const Real diffInst = angDiff*absAvelDiff + angVel[2]*absAngVel;
+    Real totalTerm = coefInst*termInst + coefAvg*avgDangle;
+    Real totalDiff = coefInst*diffInst + coefAvg*velDAavg;
+    if (totalTerm >  0.2) {totalTerm =  0.2; totalDiff = 0;}
+    if (totalTerm < -0.2) {totalTerm = -0.2; totalDiff = 0;}
     cFish->correctTrajectory(totalTerm, totalDiff);
   }
-  bBlockRotation[0] = true;
+
+  //const Real periodFac = 1.0 - xDiff;
+  //const Real periodVel =     - relU;
+  //cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
+  //if (sim.rank == 0 && sim.step % 1 == 0)
+  //{
+  //  char buf[500];
+  //  sprintf(buf, "angles_%d.dat", obstacleID);
+  //  FILE * f = fopen(buf, "a");
+  //  fprintf(f, "%g %g %g %g \n",sim.time,angle_roll*180/M_PI,angle_pitch*180/M_PI,angle_yaw*180/M_PI);
+  //  fclose(f);
+  //}
+
+  //control pitching
+  if (!bCorrectPositionZ && bCorrectTrajectoryZ && sim.dt > 0)
+  {
+    const Real dqdt[4] = { 0.5*( - angVel[0]*q[1] - angVel[1]*q[2] - angVel[2]*q[3] ),
+                           0.5*( + angVel[0]*q[0] + angVel[1]*q[3] - angVel[2]*q[2] ),
+                           0.5*( - angVel[0]*q[3] + angVel[1]*q[0] + angVel[2]*q[1] ),
+                           0.5*( + angVel[0]*q[2] - angVel[1]*q[1] + angVel[2]*q[0] )};
+
+    const Real arg_aux = 2.0 * (q[2] * q[0] - q[3] * q[1]);
+
+    const Real dpitch_dt = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dqdt[0]+dqdt[2]*q[0]-q[3]*dqdt[1]-dqdt[3]*q[1]);
+
+    const Real rel = min(1.,100*sim.dt/Tperiod);
+
+    cFish->errP = - angle_pitch;
+    cFish->errD = (1-rel) * cFish->errD + rel * (-dpitch_dt);
+
+    const Real u = 4.0*cFish->errP + 5.0*cFish->errD;
+    //if (std::fabs(u) > 5.) u = u > 0 ? 5. : -5.;
+    cFish->action_torsion_pitching_radius(sim.time, sim.time, -u/length);
+  }
+  //control position in Z plane and pitching with PD controller - not tested very well!
+  else if (bCorrectPositionZ) 
+  {
+    const Real dqdt[4] = { 0.5*( - angVel[0]*q[1] - angVel[1]*q[2] - angVel[2]*q[3] ),
+                           0.5*( + angVel[0]*q[0] + angVel[1]*q[3] - angVel[2]*q[2] ),
+                           0.5*( - angVel[0]*q[3] + angVel[1]*q[0] + angVel[2]*q[1] ),
+                           0.5*( + angVel[0]*q[2] - angVel[1]*q[1] + angVel[2]*q[0] )};
+
+    const Real arg_aux = 2.0 * (q[2] * q[0] - q[3] * q[1]);
+
+    const Real dpitch_dt = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dqdt[0]+dqdt[2]*q[0]-q[3]*dqdt[1]-dqdt[3]*q[1]);
+
+    const Real rel = min(1.,100*sim.dt/Tperiod);
+
+    cFish->errP = - angle_pitch + 0.1*(origC[2] - position[2])/length;
+    cFish->errD = (1-rel) * cFish->errD + rel * (-dpitch_dt - 0.1*transVel[2]/length);
+
+    const Real u = 4.0*cFish->errP + 5.0*cFish->errD;
+    cFish->action_torsion_pitching_radius(sim.time, sim.time, -u/length);
+  }
+
   Fish::create();
+}
+
+void StefanFish::computeVelocities()
+{
+  Obstacle::computeVelocities();
+
+  if (bCorrectRoll) //kill angVel component the causes rolling
+  {
+    const Real q[4] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]}; 
+    const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
+
+    const Real R[3] = { 1.0 - 2*(q[2]*q[2]+q[3]*q[3]), 
+                                2*(q[1]*q[2]+q[3]*q[0]), 
+                                2*(q[1]*q[3]-q[2]*q[0])}; 
+    //const Real R[3] = {       2*(q[1]*q[2]-q[3]*q[0]), 
+    //                      1.0 - 2*(q[1]*q[1]+q[3]*q[3]),
+    //                            2*(q[2]*q[3]+q[1]*q[0])}; 
+    //const Real R[3] = {       2*(q[1]*q[3]+q[2]*q[0]), 
+    //                            2*(q[2]*q[3]-q[1]*q[0]), 
+    //                      1.0 - 2*(q[1]*q[1]+q[2]*q[2])};
+    const Real unit_vector[3] = {R[0],R[1],R[2]};
+
+    //kill angVel in unit_vector direction
+    const Real mag = angVel[0]*unit_vector[0] + angVel[1]*unit_vector[1] + angVel[2]*unit_vector[2];
+    const Real angVel_projection[3] = {mag*unit_vector[0],mag*unit_vector[1],mag*unit_vector[2]};
+    angVel[0] = angVel[0] - angVel_projection[0] - angle_roll/sim.dt*unit_vector[0];
+    angVel[1] = angVel[1] - angVel_projection[1] - angle_roll/sim.dt*unit_vector[1];
+    angVel[2] = angVel[2] - angVel_projection[2] - angle_roll/sim.dt*unit_vector[2];
+  }
 }
 
 //////////////////////////////////
