@@ -480,9 +480,9 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
   const Real ampFac = p("-amplitudeFactor").asDouble(1.0);
   bCorrectTrajectory  = p("-Correct" ).asBool(false);
   bCorrectTrajectoryZ = p("-CorrectZ").asBool(false);
-  bCorrectPosition    = p("-bCorrectPosition" ).asBool(false);
-  bCorrectPositionZ   = p("-bCorrectPositionZ").asBool(false);
-  bCorrectRoll        = p("-bCorrectRoll").asBool(false);
+  bCorrectPosition    = p("-CorrectPosition" ).asBool(false);
+  bCorrectPositionZ   = p("-CorrectPositionZ").asBool(false);
+  bCorrectRoll        = p("-CorrectRoll").asBool(false);
 
   myFish = new CurvatureDefinedFishData(length, Tperiod, phaseShift, sim.hmin, ampFac);
 
