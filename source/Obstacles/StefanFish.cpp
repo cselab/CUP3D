@@ -508,7 +508,7 @@ void StefanFish::create()
 {
   const Real q[4] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]}; 
 
-  const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
+  //const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
   const Real angle_pitch = asin (2.0 * (q[2] * q[0] - q[3] * q[1]));
   const Real angle_yaw   = atan2(2.0 * (q[3] * q[0] + q[1] * q[2]) , - 1.0 + 2.0 * (q[0] * q[0] + q[1] * q[1]));
 
