@@ -161,6 +161,7 @@ public:
   std::array<Real,3> getTranslationVelocity() const;
   std::array<Real,3> getAngularVelocity() const;
   std::array<Real,3> getCenterOfMass() const;
+  std::array<Real,3> getYawPitchRoll() const;
 
   std::vector<ObstacleBlock*>  getObstacleBlocks() const {return  obstacleBlocks;}
   std::vector<ObstacleBlock*>* getObstacleBlocksPtr()    {return &obstacleBlocks;}

@@ -388,14 +388,15 @@ void Obstacle::update()
   if (sim.verbose && sim.time > 0)
   {
     const Real rad2deg = 180./M_PI;
-    const Real roll  = atan2(      2.0 * (quaternion[3] * quaternion[2] + quaternion[0] * quaternion[1]) ,
-                             1.0 - 2.0 * (quaternion[1] * quaternion[1] + quaternion[2] * quaternion[2]))*rad2deg;
-    const Real pitch = asin (      2.0 * (quaternion[2] * quaternion[0] - quaternion[3] * quaternion[1]))*rad2deg;
-    const Real yaw   = atan2(      2.0 * (quaternion[3] * quaternion[0] + quaternion[1] * quaternion[2]) ,
-                            -1.0 + 2.0 * (quaternion[0] * quaternion[0] + quaternion[1] * quaternion[1]))*rad2deg;
-
-    printf("pos:[%.2f %.2f %.2f], vel:[%.2f %.2f %.2f], angvel:[%.2f %.2f %.2f], yaw: %.1f, pitch: %.1f, roll: %.1f \n",
-           absPos[0],absPos[1],absPos[2],transVel[0],transVel[1],transVel[2],angVel[0],angVel[1],angVel[2],yaw,pitch,roll);
+    std::array<Real,3> ypr = getYawPitchRoll();
+    ypr[0] *= rad2deg;
+    ypr[1] *= rad2deg;
+    ypr[2] *= rad2deg;
+    printf("pos:[%+.2f %+.2f %+.2f], u:[%+.2f %+.2f %+.2f], omega:[%+.2f %+.2f %+.2f], yaw: %+.1f, pitch: %+.1f, roll: %+.1f \n",
+           absPos  [0],absPos  [1],absPos  [2],
+           transVel[0],transVel[1],transVel[2],
+           angVel  [0],angVel  [1],angVel  [2],
+           ypr     [0],ypr     [1],ypr     [2]);
   }
   #ifndef NDEBUG
   const Real q_length=std::sqrt(quaternion[0]*quaternion[0]+quaternion[1]*quaternion[1]+quaternion[2]*quaternion[2]+quaternion[3]*quaternion[3]);
@@ -427,6 +428,16 @@ std::array<Real,3> Obstacle::getAngularVelocity() const
 std::array<Real,3> Obstacle::getCenterOfMass() const
 {
   return std::array<Real,3> {{centerOfMass[0],centerOfMass[1],centerOfMass[2]}};
+}
+
+std::array<Real,3> Obstacle::getYawPitchRoll() const
+{
+  const Real roll  = atan2(      2.0 * (quaternion[3] * quaternion[2] + quaternion[0] * quaternion[1]) ,
+                           1.0 - 2.0 * (quaternion[1] * quaternion[1] + quaternion[2] * quaternion[2]));
+  const Real pitch = asin (      2.0 * (quaternion[2] * quaternion[0] - quaternion[3] * quaternion[1]));
+  const Real yaw   = atan2(      2.0 * (quaternion[3] * quaternion[0] + quaternion[1] * quaternion[2]) ,
+                          -1.0 + 2.0 * (quaternion[0] * quaternion[0] + quaternion[1] * quaternion[1]));
+  return std::array<Real,3> {{yaw,pitch,roll}};
 }
 
 void Obstacle::saveRestart( FILE * f )
@@ -510,17 +521,25 @@ void Obstacle::_writeComputedVelToFile()
 
   if(sim.step==0 && not printedHeaderVels) {
     printedHeaderVels = true;
-    savestream<<"step time CMx CMy CMz quat_0 quat_1 quat_2 quat_3 vel_x vel_y vel_z angvel_x angvel_y angvel_z mass J0 J1 J2 J3 J4 J5"<<std::endl;
+    savestream<<"step time CMx CMy CMz quat_0 quat_1 quat_2 quat_3 vel_x vel_y vel_z angvel_x angvel_y angvel_z mass J0 J1 J2 J3 J4 J5 yaw pitch roll"<<std::endl;
   }
+
+  const Real rad2deg = 180./M_PI;
+  std::array<Real,3> ypr = getYawPitchRoll();
+  ypr[0] *= rad2deg;
+  ypr[1] *= rad2deg;
+  ypr[2] *= rad2deg;
 
   savestream<<sim.step<<" ";
   savestream.setf(std::ios::scientific);
   savestream.precision(std::numeric_limits<float>::digits10 + 1);
-  savestream <<sim.time<<" "<<absPos[0]<<" "<<absPos[1]<<" "<<absPos[2]<<" "
-    <<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]
-    <<" "<<transVel[0]<<" "<<transVel[1]<<" "<<transVel[2]
-    <<" "<<angVel[0]<<" "<<angVel[1]<<" "<<angVel[2]<<" "<<mass<<" "
-    <<J[0]<<" "<<J[1]<<" "<<J[2]<<" "<<J[3]<<" "<<J[4]<<" "<<J[5]<<std::endl;
+  savestream <<sim.time
+    <<" "<<absPos    [0]<<" "<<absPos    [1]<<" "<<absPos    [2]
+    <<" "<<quaternion[0]<<" "<<quaternion[1]<<" "<<quaternion[2]<<" "<<quaternion[3]
+    <<" "<<transVel  [0]<<" "<<transVel  [1]<<" "<<transVel  [2]
+    <<" "<<angVel    [0]<<" "<<angVel    [1]<<" "<<angVel    [2]
+    <<" "<<mass<<" "<<J[0]<<" "<<J[1]<<" "<<J[2]<<" "<<J[3]<<" "<<J[4]<<" "<<J[5]
+    <<" "<<ypr[0]<<" "<<ypr[1]<<" "<<ypr[2]<<std::endl;
 }
 
 void Obstacle::_writeSurfForcesToFile()
