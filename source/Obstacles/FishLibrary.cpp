@@ -116,29 +116,26 @@ void FishMidlineData::integrateAngularMomentum(const Real dt)
     const Real M22 = 0.25*width[i]*height[i]*height[i]*height[i];
 
     const Real cR = c0*x0dot + c1*x1dot + c2*x2dot;
-    const Real cN = (c0*n0dot + c1*n1dot + c2*n2dot)*M11;
-    const Real cB = (c0*b0dot + c1*b1dot + c2*b2dot)*M22;
+    const Real cN = c0*n0dot + c1*n1dot + c2*n2dot;
+    const Real cB = c0*b0dot + c1*b1dot + c2*b2dot;
 
-    const Real XX = cR* (rX[i]*rX[i]*M00 + norX[i]*norX[i]*M11 + binX[i]*binX[i]*M22) + cN* (rX[i]*norX[i] + rX[i]*norX[i]) + cB* (rX[i]*binX[i] + rX[i]*binX[i]);
-    const Real YY = cR* (rY[i]*rY[i]*M00 + norY[i]*norY[i]*M11 + binY[i]*binY[i]*M22) + cN* (rY[i]*norY[i] + rY[i]*norY[i]) + cB* (rY[i]*binY[i] + rY[i]*binY[i]);
-    const Real ZZ = cR* (rZ[i]*rZ[i]*M00 + norZ[i]*norZ[i]*M11 + binZ[i]*binZ[i]*M22) + cN* (rZ[i]*norZ[i] + rZ[i]*norZ[i]) + cB* (rZ[i]*binZ[i] + rZ[i]*binZ[i]);
-    const Real XY = cR* (rX[i]*rY[i]*M00 + norX[i]*norY[i]*M11 + binX[i]*binY[i]*M22) + cN* (rX[i]*norY[i] + rY[i]*norX[i]) + cB* (rX[i]*binY[i] + rY[i]*binX[i]);
-    const Real ZX = cR* (rZ[i]*rX[i]*M00 + norZ[i]*norX[i]*M11 + binZ[i]*binX[i]*M22) + cN* (rZ[i]*norX[i] + rX[i]*norZ[i]) + cB* (rZ[i]*binX[i] + rX[i]*binZ[i]);
-    const Real YZ = cR* (rY[i]*rZ[i]*M00 + norY[i]*norZ[i]*M11 + binY[i]*binZ[i]*M22) + cN* (rY[i]*norZ[i] + rZ[i]*norY[i]) + cB* (rY[i]*binZ[i] + rZ[i]*binY[i]);
+    JXY += -ds*(cR* (rX[i]*rY[i]*M00 + norX[i]*norY[i]*M11 + binX[i]*binY[i]*M22) + cN*M11*(rX[i]*norY[i] + rY[i]*norX[i]) + cB*M22*(rX[i]*binY[i] + rY[i]*binX[i]));
+    JZX += -ds*(cR* (rZ[i]*rX[i]*M00 + norZ[i]*norX[i]*M11 + binZ[i]*binX[i]*M22) + cN*M11*(rZ[i]*norX[i] + rX[i]*norZ[i]) + cB*M22*(rZ[i]*binX[i] + rX[i]*binZ[i]));
+    JYZ += -ds*(cR* (rY[i]*rZ[i]*M00 + norY[i]*norZ[i]*M11 + binY[i]*binZ[i]*M22) + cN*M11*(rY[i]*norZ[i] + rZ[i]*norY[i]) + cB*M22*(rY[i]*binZ[i] + rZ[i]*binY[i]));
 
-    const Real xd_y = cR* (vX[i]*rY[i]*M00 + vNorX[i]*norY[i]*M11 + vBinX[i]*binY[i]*M22) + cN* (vX[i]*norY[i] + rY[i]*vNorX[i]) + cB* (vX[i]*binY[i] + rY[i]*vBinX[i]);
-    const Real x_yd = cR* (rX[i]*vY[i]*M00 + norX[i]*vNorY[i]*M11 + binX[i]*vBinY[i]*M22) + cN* (rX[i]*vNorY[i] + rY[i]*norX[i]) + cB* (rX[i]*vBinY[i] + vY[i]*binX[i]);
-    const Real xd_z = cR* (rZ[i]*vX[i]*M00 + norZ[i]*vNorX[i]*M11 + binZ[i]*vBinX[i]*M22) + cN* (rZ[i]*vNorX[i] + vX[i]*norZ[i]) + cB* (rZ[i]*vBinX[i] + vX[i]*binZ[i]);
-    const Real x_zd = cR* (vZ[i]*rX[i]*M00 + vNorZ[i]*norX[i]*M11 + vBinZ[i]*binX[i]*M22) + cN* (vZ[i]*norX[i] + rX[i]*vNorZ[i]) + cB* (vZ[i]*binX[i] + rX[i]*vBinZ[i]);
-    const Real yd_z = cR* (vY[i]*rZ[i]*M00 + vNorY[i]*norZ[i]*M11 + vBinY[i]*binZ[i]*M22) + cN* (vY[i]*norZ[i] + rZ[i]*vNorY[i]) + cB* (vY[i]*binZ[i] + rZ[i]*vBinY[i]);
-    const Real y_zd = cR* (rY[i]*vZ[i]*M00 + norY[i]*vNorZ[i]*M11 + binY[i]*vBinZ[i]*M22) + cN* (rY[i]*vNorZ[i] + vZ[i]*norY[i]) + cB* (rY[i]*vBinZ[i] + vZ[i]*binY[i]);
+    const Real XX = ds*(cR* (rX[i]*rX[i]*M00 + norX[i]*norX[i]*M11 + binX[i]*binX[i]*M22) + cN*M11* (rX[i]*norX[i] + rX[i]*norX[i]) + cB*M22* (rX[i]*binX[i] + rX[i]*binX[i]));
+    const Real YY = ds*(cR* (rY[i]*rY[i]*M00 + norY[i]*norY[i]*M11 + binY[i]*binY[i]*M22) + cN*M11* (rY[i]*norY[i] + rY[i]*norY[i]) + cB*M22* (rY[i]*binY[i] + rY[i]*binY[i]));
+    const Real ZZ = ds*(cR* (rZ[i]*rZ[i]*M00 + norZ[i]*norZ[i]*M11 + binZ[i]*binZ[i]*M22) + cN*M11* (rZ[i]*norZ[i] + rZ[i]*norZ[i]) + cB*M22* (rZ[i]*binZ[i] + rZ[i]*binZ[i]));
+    JXX += YY + ZZ;
+    JYY += ZZ + XX;
+    JZZ += YY + XX;
 
-    JXX += ds*(YY + ZZ);
-    JYY += ds*(ZZ + XX);
-    JZZ += ds*(YY + XX);
-    JXY -= ds*XY;
-    JZX -= ds*ZX;
-    JYZ -= ds*YZ;
+    const Real xd_y = cR* (vX[i]*rY[i]*M00 + vNorX[i]*norY[i]*M11 + vBinX[i]*binY[i]*M22) + cN*M11* (vX[i]*norY[i] + rY[i]*vNorX[i]) + cB*M22* (vX[i]*binY[i] + rY[i]*vBinX[i]);
+    const Real x_yd = cR* (rX[i]*vY[i]*M00 + norX[i]*vNorY[i]*M11 + binX[i]*vBinY[i]*M22) + cN*M11* (rX[i]*vNorY[i] + rY[i]*norX[i]) + cB*M22* (rX[i]*vBinY[i] + vY[i]*binX[i]);
+    const Real xd_z = cR* (rZ[i]*vX[i]*M00 + norZ[i]*vNorX[i]*M11 + binZ[i]*vBinX[i]*M22) + cN*M11* (rZ[i]*vNorX[i] + vX[i]*norZ[i]) + cB*M22* (rZ[i]*vBinX[i] + vX[i]*binZ[i]);
+    const Real x_zd = cR* (vZ[i]*rX[i]*M00 + vNorZ[i]*norX[i]*M11 + vBinZ[i]*binX[i]*M22) + cN*M11* (vZ[i]*norX[i] + rX[i]*vNorZ[i]) + cB*M22* (vZ[i]*binX[i] + rX[i]*vBinZ[i]);
+    const Real yd_z = cR* (vY[i]*rZ[i]*M00 + vNorY[i]*norZ[i]*M11 + vBinY[i]*binZ[i]*M22) + cN*M11* (vY[i]*norZ[i] + rZ[i]*vNorY[i]) + cB*M22* (vY[i]*binZ[i] + rZ[i]*vBinY[i]);
+    const Real y_zd = cR* (rY[i]*vZ[i]*M00 + norY[i]*vNorZ[i]*M11 + binY[i]*vBinZ[i]*M22) + cN*M11* (rY[i]*vNorZ[i] + vZ[i]*norY[i]) + cB*M22* (rY[i]*vBinZ[i] + vZ[i]*binY[i]);
 
     AM_X += (y_zd - yd_z)*ds;
     AM_Y += (xd_z - x_zd)*ds;
