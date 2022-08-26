@@ -506,9 +506,11 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
 
 void StefanFish::create()
 {
-  const Real q[4] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]}; 
+  const double roll_threshold = 45.0*M_PI/180.;
 
-  //const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
+  const Real q[4] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]};
+
+  const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
   const Real angle_pitch = asin (2.0 * (q[2] * q[0] - q[3] * q[1]));
   const Real angle_yaw   = atan2(2.0 * (q[3] * q[0] + q[1] * q[2]) , - 1.0 + 2.0 * (q[0] * q[0] + q[1] * q[1]));
 
@@ -540,8 +542,8 @@ void StefanFish::create()
   const Real avgDangle = cFish->avgDangle;
   const Real avgDeltaY = cFish->avgDeltaY;
 
-  //control yaw angle and positin in xy plane - not tested very well!
-  if (bCorrectPosition && sim.dt>0)
+  //control yaw angle and position in xy plane
+  if (bCorrectPosition)
   {
     // integral (averaged) and proportional absolute DY and their derivative
     const Real absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
@@ -561,15 +563,29 @@ void StefanFish::create()
     const Real coefIangPdy = avgDangle *     yDiff < 0 ? 1 : 0;
     const Real coefPangIdy = angDiff   * avgDeltaY < 0 ? 1 : 0;
     const Real coefIangIdy = avgDangle * avgDeltaY < 0 ? 1 : 0;
-    const Real totalTerm = coefIangPdy *    IangPdy + coefPangIdy *    PangIdy + coefIangIdy *    IangIdy;
-    const Real totalDiff = coefIangPdy * velIangPdy + coefPangIdy * velPangIdy + coefIangIdy * velIangIdy;
+
+    Real totalTerm = coefIangPdy *    IangPdy + coefPangIdy *    PangIdy + coefIangIdy *    IangIdy;
+    Real totalDiff = coefIangPdy * velIangPdy + coefPangIdy * velPangIdy + coefIangIdy * velIangIdy;
+    if (totalTerm >  0.025) {totalTerm =  0.025; totalDiff = 0;}
+    if (totalTerm < -0.025) {totalTerm = -0.025; totalDiff = 0;}
+
+    Real periodFac = 1.0 - xDiff;
+    Real periodVel =     - relU;
+    if (periodFac < 0) periodFac = 0;
+    if (periodFac > 2) periodFac = 2;
+
+    if (std::fabs(angle_roll) > roll_threshold)
+    {
+      totalTerm = 0;
+      totalDiff = 0;
+      periodFac = 1.0;
+      periodVel = 0.0;
+    }
     cFish->correctTrajectory(totalTerm, totalDiff);
-    const Real periodFac = 1.0 - xDiff;
-    const Real periodVel =     - relU;
     cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
   }
   //control yaw angle
-  else if (bCorrectTrajectory && sim.dt>0)
+  else if (bCorrectTrajectory)
   {
     const Real avgAngVel = cFish->avgAngVel, absAngVel = std::fabs(avgAngVel);
     const Real absAvelDiff = avgAngVel>0? velAVavg : -velAVavg;
@@ -578,46 +594,17 @@ void StefanFish::create()
     const Real diffInst = angDiff*absAvelDiff + angVel[2]*absAngVel;
     Real totalTerm = coefInst*termInst + coefAvg*avgDangle;
     Real totalDiff = coefInst*diffInst + coefAvg*velDAavg;
-    if (totalTerm >  0.2) {totalTerm =  0.2; totalDiff = 0;}
-    if (totalTerm < -0.2) {totalTerm = -0.2; totalDiff = 0;}
+    if (totalTerm >  0.025) {totalTerm =  0.025; totalDiff = 0;}
+    if (totalTerm < -0.025) {totalTerm = -0.025; totalDiff = 0;}
+    if (std::fabs(angle_roll) > roll_threshold)
+    {
+     totalTerm = 0;
+     totalDiff = 0;
+    }
     cFish->correctTrajectory(totalTerm, totalDiff);
   }
-
-  //const Real periodFac = 1.0 - xDiff;
-  //const Real periodVel =     - relU;
-  //cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
-  //if (sim.rank == 0 && sim.step % 1 == 0)
-  //{
-  //  char buf[500];
-  //  sprintf(buf, "angles_%d.dat", obstacleID);
-  //  FILE * f = fopen(buf, "a");
-  //  fprintf(f, "%g %g %g %g \n",sim.time,angle_roll*180/M_PI,angle_pitch*180/M_PI,angle_yaw*180/M_PI);
-  //  fclose(f);
-  //}
-
-  //control pitching
-  if (!bCorrectPositionZ && bCorrectTrajectoryZ && sim.dt > 0)
-  {
-    const Real dqdt[4] = { 0.5*( - angVel[0]*q[1] - angVel[1]*q[2] - angVel[2]*q[3] ),
-                           0.5*( + angVel[0]*q[0] + angVel[1]*q[3] - angVel[2]*q[2] ),
-                           0.5*( - angVel[0]*q[3] + angVel[1]*q[0] + angVel[2]*q[1] ),
-                           0.5*( + angVel[0]*q[2] - angVel[1]*q[1] + angVel[2]*q[0] )};
-
-    const Real arg_aux = 2.0 * (q[2] * q[0] - q[3] * q[1]);
-
-    const Real dpitch_dt = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dqdt[0]+dqdt[2]*q[0]-q[3]*dqdt[1]-dqdt[3]*q[1]);
-
-    const Real rel = min(1.,100*sim.dt/Tperiod);
-
-    cFish->errP = - angle_pitch;
-    cFish->errD = (1-rel) * cFish->errD + rel * (-dpitch_dt);
-
-    const Real u = 4.0*cFish->errP + 5.0*cFish->errD;
-    //if (std::fabs(u) > 5.) u = u > 0 ? 5. : -5.;
-    cFish->action_torsion_pitching_radius(sim.time, sim.time, -u/length);
-  }
   //control position in Z plane and pitching with PD controller - not tested very well!
-  else if (bCorrectPositionZ) 
+  if (bCorrectPositionZ) 
   {
     const Real dqdt[4] = { 0.5*( - angVel[0]*q[1] - angVel[1]*q[2] - angVel[2]*q[3] ),
                            0.5*( + angVel[0]*q[0] + angVel[1]*q[3] - angVel[2]*q[2] ),
@@ -628,12 +615,37 @@ void StefanFish::create()
 
     const Real dpitch_dt = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dqdt[0]+dqdt[2]*q[0]-q[3]*dqdt[1]-dqdt[3]*q[1]);
 
-    const Real rel = min(1.,100*sim.dt/Tperiod);
+    const Real rel = min(1.,10*sim.dt/Tperiod);
 
     cFish->errP = - angle_pitch + 0.1*(origC[2] - position[2])/length;
     cFish->errD = (1-rel) * cFish->errD + rel * (-dpitch_dt - 0.1*transVel[2]/length);
 
     const Real u = 4.0*cFish->errP + 5.0*cFish->errD;
+    cFish->action_torsion_pitching_radius(sim.time, sim.time, -u/length);
+  }
+  //control pitching
+  else if (bCorrectTrajectoryZ)
+  {
+    const Real pitch_threshold = 10.0*M_PI/180;
+    const Real dqdt[4] = { 0.5*( - angVel[0]*q[1] - angVel[1]*q[2] - angVel[2]*q[3] ),
+                           0.5*( + angVel[0]*q[0] + angVel[1]*q[3] - angVel[2]*q[2] ),
+                           0.5*( - angVel[0]*q[3] + angVel[1]*q[0] + angVel[2]*q[1] ),
+                           0.5*( + angVel[0]*q[2] - angVel[1]*q[1] + angVel[2]*q[0] )};
+
+    const Real arg_aux = 2.0 * (q[2] * q[0] - q[3] * q[1]);
+
+    Real dpitch_dt = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dqdt[0]+dqdt[2]*q[0]-q[3]*dqdt[1]-dqdt[3]*q[1]);
+    if (std::fabs(angle_pitch) > pitch_threshold) dpitch_dt = 0;
+    const Real rel = min(1.,10*sim.dt/Tperiod);
+    cFish->errD = (1-rel) * cFish->errD + rel * (-dpitch_dt);
+
+    cFish->errP = - angle_pitch;
+    if (cFish->errP >  pitch_threshold) cFish->errP =  pitch_threshold;
+    if (cFish->errP < -pitch_threshold) cFish->errP = -pitch_threshold;
+
+    Real u = cFish->errP + 3.0*cFish->errD;
+    if (std::fabs(angle_roll) > roll_threshold) u = 0; //if roll angle is too big, control that first
+
     cFish->action_torsion_pitching_radius(sim.time, sim.time, -u/length);
   }
 
@@ -644,28 +656,38 @@ void StefanFish::computeVelocities()
 {
   Obstacle::computeVelocities();
 
-  if (bCorrectRoll) //kill angVel component the causes rolling
+  //Compute angular velocity component on the rolling axis of the fish and set it to 0.
+  //Then, impose rolling angular velocity that will make the rolling angle go to zero after 
+  //0.5Tperiod time has passed.
+  //Important: this assumes an initial orientation (q = (1,0,0,0)) along the x-axis for the fish
+  //           where the head is facing the (-1,0,0) direction 
+  //           (this is the default initial orientation for fish). 
+  if (bCorrectRoll)
   {
+    auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
     const Real q[4] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]}; 
     const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
 
-    const Real R[3] = { 1.0 - 2*(q[2]*q[2]+q[3]*q[3]), 
-                                2*(q[1]*q[2]+q[3]*q[0]), 
-                                2*(q[1]*q[3]-q[2]*q[0])}; 
-    //const Real R[3] = {       2*(q[1]*q[2]-q[3]*q[0]), 
-    //                      1.0 - 2*(q[1]*q[1]+q[3]*q[3]),
-    //                            2*(q[2]*q[3]+q[1]*q[0])}; 
-    //const Real R[3] = {       2*(q[1]*q[3]+q[2]*q[0]), 
-    //                            2*(q[2]*q[3]-q[1]*q[0]), 
-    //                      1.0 - 2*(q[1]*q[1]+q[2]*q[2])};
-    const Real unit_vector[3] = {R[0],R[1],R[2]};
+    //1st column of rotation matrix
+    const Real R0[3] = { 1.0 - 2*(q[2]*q[2]+q[3]*q[3]), 
+                               2*(q[1]*q[2]+q[3]*q[0]), 
+                               2*(q[1]*q[3]-q[2]*q[0])}; 
+    //const Real R1[3] = {       2*(q[1]*q[2]-q[3]*q[0]), 
+    //                     1.0 - 2*(q[1]*q[1]+q[3]*q[3]),
+    //                           2*(q[2]*q[3]+q[1]*q[0])}; 
+    //const Real R2[3] = {       2*(q[1]*q[3]+q[2]*q[0]), 
+    //                           2*(q[2]*q[3]-q[1]*q[0]), 
+    //                     1.0 - 2*(q[1]*q[1]+q[2]*q[2])};
 
-    //kill angVel in unit_vector direction
+    //current orientation is R * (1,0,0), where (1,0,0) is the initial (assumed) orientation
+    //with which we only need the first column of R.
+    const Real unit_vector[3] = {R0[0],R0[1],R0[2]};
+
     const Real mag = angVel[0]*unit_vector[0] + angVel[1]*unit_vector[1] + angVel[2]*unit_vector[2];
     const Real angVel_projection[3] = {mag*unit_vector[0],mag*unit_vector[1],mag*unit_vector[2]};
-    angVel[0] = angVel[0] - angVel_projection[0] - angle_roll/sim.dt*unit_vector[0];
-    angVel[1] = angVel[1] - angVel_projection[1] - angle_roll/sim.dt*unit_vector[1];
-    angVel[2] = angVel[2] - angVel_projection[2] - angle_roll/sim.dt*unit_vector[2];
+    angVel[0] = angVel[0] - angVel_projection[0] - angle_roll/(0.5*cFish->Tperiod)*unit_vector[0];
+    angVel[1] = angVel[1] - angVel_projection[1] - angle_roll/(0.5*cFish->Tperiod)*unit_vector[1];
+    angVel[2] = angVel[2] - angVel_projection[2] - angle_roll/(0.5*cFish->Tperiod)*unit_vector[2];
   }
 }
 
