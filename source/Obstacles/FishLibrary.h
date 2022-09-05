@@ -153,6 +153,30 @@ class FishMidlineData
     fclose(f);
   }
 
+  void writeMidline2File(const int step_id, std::string filename, const double q[4], const double position[3])
+  {
+    const double Rmatrix3D[3][3] = {
+    {1-2*(q[2]*q[2]+q[3]*q[3]), 2*(q[1]*q[2]-q[3]*q[0]), 2*(q[1]*q[3]+q[2]*q[0])},
+    {2*(q[1]*q[2]+q[3]*q[0]), 1-2*(q[1]*q[1]+q[3]*q[3]), 2*(q[2]*q[3]-q[1]*q[0])},
+    {2*(q[1]*q[3]-q[2]*q[0]), 2*(q[2]*q[3]+q[1]*q[0]), 1-2*(q[1]*q[1]+q[2]*q[2])}};
+
+    char buf[500];
+    sprintf(buf, "%s_midline_%07d.txt", filename.c_str(), step_id);
+    FILE * f = fopen(buf, "a");
+    fprintf(f, "x y z s\n");
+    for (int i=0; i<Nm; i++)
+    {
+      double x[3];
+      x[0]=position[0] + Rmatrix3D[0][0]*rX[i] + Rmatrix3D[0][1]*rY[i] + Rmatrix3D[0][2]*rZ[i];
+      x[1]=position[1] + Rmatrix3D[1][0]*rX[i] + Rmatrix3D[1][1]*rY[i] + Rmatrix3D[1][2]*rZ[i];
+      x[2]=position[2] + Rmatrix3D[2][0]*rX[i] + Rmatrix3D[2][1]*rY[i] + Rmatrix3D[2][2]*rZ[i];
+      fprintf(f, "%g %g %g %g \n", x[0],x[1],x[2],rS[i]);
+    }
+    fclose(f);
+  }
+
+
+
   void SurfaceNormal(const int idx, const Real theta, Real & nx, Real & ny, Real &nz)
   {
     //Surface is given from:
