@@ -37,9 +37,9 @@ def FishSamples(a,b,c,fish,L):
   xvalid=[]
   yvalid=[]
   zvalid=[]
-  xL = 1.10
-  yL = 0.25
-  zL = 0.25
+  xL = 1.0
+  yL = 1.0
+  zL = 1.0
   for i in range(xyz.shape[1]):
     xtest = xyz[0,i]
     ytest = xyz[1,i]
@@ -68,12 +68,13 @@ if __name__ == "__main__":
   fish = args['fish']
 
   L = 0.2
-  x,y,z = FishSamples(2.0,1.0,1.0,fish,0.2)
-  x = 3.0 + np.asarray(x) + 0.5*L
+  #x,y,z = FishSamples(0.8,0.6,0.6,fish,0.2)
+  x,y,z = FishSamples(1.4,0.8,0.8,fish,0.2)
+  x = 3.0 + np.asarray(x)
   y = 2.0 + np.asarray(y)
   z = 2.0 + np.asarray(z)
 
-  f = open("settingsEllipsoidSwarm.sh", "w")
+  f = open("settingsEllipsoidSwarm1.sh", "w")
   f.write(\
 "#!/bin/bash\n\
 NNODE=256\n\
@@ -81,22 +82,23 @@ BPDX=${BPDX:-8}\n\
 BPDY=${BPDY:-4}\n\
 BPDZ=${BPDZ:-4}\n\
 NU=${NU:-0.00001}\n\
-BC=${BC:-freespace}\n\
+PSOLVER=\"cuda_iterative\"\n\
 \n\
 \n\
 FACTORY=\n")
   for j in range(fish):
     if j==0:
-      f.write('FACTORY+="StefanFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bCorrectPosition=true heightProfile=stefan widthProfile=stefan bFixFrameOfRef=1 \n\"\n'.format(x[j],y[j],z[j]))
+      f.write('FACTORY+="StefanFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} CorrectPosition=true CorrectZ=true CorrectRoll=true heightProfile=danio widthProfile=stefan bFixFrameOfRef=1 \n\"\n'.format(x[j],y[j],z[j]))
     else:
-      f.write('FACTORY+="StefanFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} bCorrectPosition=true heightProfile=stefan widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
+      f.write('FACTORY+="StefanFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} CorrectPosition=true CorrectZ=true CorrectRoll=true heightProfile=danio widthProfile=stefan\n\"\n'.format(x[j],y[j],z[j]))
 
   # WRITE SOLVER SETTINGS
   f.write('\nOPTIONS=\n\
 OPTIONS+=" -extentx 8.0"\n\
 OPTIONS+=" -bpdx ${BPDX} -bpdy ${BPDY} -bpdz ${BPDZ}"\n\
-OPTIONS+=" -dump2D 0 -dump3D 1 -tdump 0.1 -tend 100.0 "\n\
-OPTIONS+=" -BC_x ${BC} -BC_y ${BC} -BC_z ${BC}"\n\
-OPTIONS+=" -CFL 0.3 -use-dlm -1 -nu ${NU}"\n\
-OPTIONS+=" -levelMax 7 -levelStart 4 -Rtol 0.1 -Ctol 0.01"\n\
-OPTIONS+=" -TimeOrder 2"\n')
+OPTIONS+=" -tdump 0.1 -tend 0.00000001 "\n\
+OPTIONS+=" -CFL 0.4 -nu ${NU}"\n\
+OPTIONS+=" -levelMax 7 -levelStart 4 -Rtol 5.0 -Ctol 0.1"\n\
+OPTIONS+=" -bMeanConstraint 2 "\n\
+OPTIONS+=" -poissonSolver ${PSOLVER}"\n')
+
