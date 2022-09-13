@@ -14,6 +14,7 @@ cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
 cp ../bin/simulation ${FOLDER}/simulation
 
+cp -r ../source ${FOLDER}/
 cd $FOLDER
 unset LSB_AFFINITY_HOSTFILE
 export MV2_ENABLE_AFFINITY=0
@@ -21,4 +22,4 @@ export OMP_NUM_THREADS=1
 echo $OPTIONS > settings.txt
 export LD_LIBRARY_PATH=/cluster/home/novatig/hdf5-1.10.1/gcc_6.3.0_openmpi_2.1/lib/:$LD_LIBRARY_PATH
 
-mpirun -n 36 --map-by core:PE=1 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
+mpirun -n 360 --map-by core:PE=1 ./simulation ${OPTIONS} -factory-content "${FACTORY}"
