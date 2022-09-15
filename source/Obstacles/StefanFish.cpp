@@ -5,15 +5,6 @@
 //
 
 #include "StefanFish.h"
-#include "FishLibrary.h"
-#include "FishShapes.h"
-
-#include <Cubism/ArgumentParser.h>
-
-#include <array>
-#include <cmath>
-#include <sstream>
-#include <iomanip>
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -105,13 +96,17 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
   const Real darg = 2*M_PI/periodPIDval * diffT;
   const Real arg0 = 2*M_PI*((t-time0)/periodPIDval +timeshift) +M_PI*phaseShift;
 
+  betaScheduler.transition (t,transition_start_beta,transition_start_beta+0.1*Tperiod,beta_previous,beta_next);
+  betaScheduler.gimmeValues(t,curv_PID_fac,curv_PID_dif);
+
   #pragma omp parallel for
   for(int i=0; i<Nm; ++i)
   {
     const Real arg = arg0 - 2*M_PI*rS[i]/length/waveLength;
-    rK[i] = amplitudeFactor* rC[i]*(std::sin(arg)     + rB[i] +curv_PID_fac);
-    vK[i] = amplitudeFactor*(vC[i]*(std::sin(arg)     + rB[i] +curv_PID_fac)
-                            +rC[i]*(std::cos(arg)*darg+ vB[i] +curv_PID_dif));
+    const Real  curv = std::sin(arg) + rB[i] +curv_PID_fac;
+    const Real dcurv = std::cos(arg)*darg+ vB[i] +curv_PID_dif;
+    rK[i] = alpha*amplitudeFactor* rC[i]*curv;
+    vK[i] = alpha*amplitudeFactor*(vC[i]*curv + rC[i]*dcurv)+ dalpha*amplitudeFactor*rC[i]*curv;
     assert(!std::isnan(rK[i]));
     assert(!std::isinf(rK[i]));
     assert(!std::isnan(vK[i]));
@@ -127,7 +122,7 @@ void CurvatureDefinedFishData::computeMidline(const Real t, const Real dt)
   if (control_torsion)
   {
     const std::array<Real ,3> torsionPoints = { 0.0, 0.5*length, length };
-    torsionScheduler.transition (t,Ttorsion_start,Ttorsion_start+0.10*Tperiod,torsionValues_previous,torsionValues);
+    torsionScheduler.transition (t,Ttorsion_start,Ttorsion_start+0.01*Tperiod,torsionValues_previous,torsionValues);
     torsionScheduler.gimmeValues(t,torsionPoints,Nm,rS,rT,vT);
   }
 
@@ -322,6 +317,14 @@ void StefanFish::saveRestart( FILE * f )
                     << c.dparameters_t0[i] << std::endl;
      }
      {
+       const auto & c = cFish->betaScheduler;
+       savestream << c.t0 << "\t" << c.t1 << std::endl;
+       for(int i=0;i<c.npoints;++i)
+         savestream << c.parameters_t0[i]  << "\t"
+                    << c.parameters_t1[i]  << "\t"
+                    << c.dparameters_t0[i] << std::endl;
+     }
+     {
       const auto & c = cFish->rlBendingScheduler;
        savestream << c.t0 << "\t" << c.t1 << std::endl;
        for(int i=0;i<c.npoints;++i)
@@ -405,6 +408,12 @@ void StefanFish::loadRestart( FILE * f )
   }
   {
      auto & c = cFish->periodScheduler;
+     restartstream >> c.t0 >> c.t1;
+     for(int i=0;i<c.npoints;++i)
+       restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
+  }
+  {
+     auto & c = cFish->betaScheduler;
      restartstream >> c.t0 >> c.t1;
      for(int i=0;i<c.npoints;++i)
        restartstream >> c.parameters_t0[i] >> c.parameters_t1[i] >> c.dparameters_t0[i];
@@ -506,6 +515,134 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
 
 void StefanFish::create()
 {
+#if 0
+  const auto & fish = sim.obstacle_vector;
+  const int nFish = fish->nObstacles();
+
+  std::vector<double>  dFish(nFish);
+
+  for(int j = 0 ; j < nFish ; j++)
+  {
+    const auto & shape = fish->getObstacleVector()[j];
+    const double x = shape->position[0];
+    const double y = shape->position[1];
+    const double z = shape->position[2];
+    dFish[j] = (x-position[0])*(x-position[0])+(y-position[1])*(y-position[1])+(z-position[2])*(z-position[2]);
+  }
+  dFish[obstacleID] = 1e6;
+
+  //four nearest neighbors
+  std::vector<int> obstacleIDs(4);
+  std::vector<double> distances(4);
+  for (int nn = 0; nn < 4; nn++)
+  {
+    double dmin = 1e6;
+    int id = -1;
+    for(int j = 0 ; j < nFish ; j++)
+    {
+      if (dFish[j] < dmin)
+      {
+        dmin = dFish[j];
+        id = fish->getObstacleVector()[j]->obstacleID;
+      }
+    }
+    obstacleIDs[nn] = id;
+    distances  [nn] = sqrt(dmin);
+    if (id >=0) dFish[id] = 1e6;
+  }
+
+  /* CASES:
+   *
+   *  repulsion  zone:  0 < d <  L
+   *  parallel   zone:  L < d < 3L
+   *  attraction zone: 3L < d 
+   *  1. If nearest neighbor is in repulsion zone (<L), then swim away
+   *  2. else, if there are neighbors in the parallel zone, swim parallel to them
+   *  3. else, swim towards neighbors in the attraction zone
+   *
+   */
+
+  double   yaw_tar = 0;
+  double pitch_tar = 0;
+  {
+    int tot = 0;
+    for (int nn = 0; nn < 1; nn++)
+    {
+      //neighbor
+      const auto & nei = fish->getObstacleVector()[obstacleIDs[nn]];
+
+      if (distances[nn] < 0.5*length) //nearest neighbor is in repulsion zone
+      {
+       //        //orientation vector of nearest neighbor
+       //        const Real nnvec[3] = { 1.0 - 2*(nei->quaternion[2]*nei->quaternion[2]+nei->quaternion[3]*nei->quaternion[3]), 
+       //                                      2*(nei->quaternion[1]*nei->quaternion[2]+nei->quaternion[3]*nei->quaternion[0]), 
+       //                                      2*(nei->quaternion[1]*nei->quaternion[3]-nei->quaternion[2]*nei->quaternion[0])};
+       //        //orientation vector of this fish
+       //        const Real myvec[3] = { 1.0 - 2*(     quaternion[2]*     quaternion[2]+     quaternion[3]*     quaternion[3]), 
+       //                                      2*(     quaternion[1]*     quaternion[2]+     quaternion[3]*     quaternion[0]), 
+       //                                      2*(     quaternion[1]*     quaternion[3]-     quaternion[2]*     quaternion[0])};
+       //    
+       //        //project myvec to plane defined by nnvec
+       //        const Real prod = nnvec[0]*myvec[0]+nnvec[1]*myvec[1]+nnvec[2]*myvec[2]; 
+       //        Real vec[3] = {myvec[0] - prod*nnvec[0],myvec[1] - prod*nnvec[1],myvec[2] - prod*nnvec[2]};
+       //        const Real inorm = 1.0 / ( sqrt(vec[0]*vec[0]+vec[1]*vec[1]+vec[2]*vec[2]) + 1e-21);
+       //        vec[0] *= inorm;
+       //        vec[1] *= inorm;
+       //        vec[2] *= inorm;
+       //    
+       //        //yaw_tar   += atan2(vec[1],vec[0]);
+       //        //pitch_tar += asin(-vec[2]);
+       //        yaw_tar   -= atan2(vec[1],vec[0]);
+       //        pitch_tar -= asin(-vec[2]);
+
+
+        const double dirx = -(position[0] - nei->position[0]);
+        const double diry = -(position[1] - nei->position[1]);
+        const double dirz = -(position[2] - nei->position[2]);
+        const double inormR = 1.0 / ( sqrt(dirx*dirx+diry*diry+dirz*dirz) + 1e-21);
+        const double Runit[3] = {dirx*inormR,diry*inormR,dirz*inormR};
+        yaw_tar   = atan2(Runit[1],Runit[0]);
+        pitch_tar = asin(-Runit[2]);
+        tot ++;  
+      }
+      /*
+      else if (true)//(distances[nn] < 2*length)
+      {
+        const double qn[4] = {nei->quaternion[0],nei->quaternion[1],nei->quaternion[2],nei->quaternion[3]};
+        pitch_tar += asin (2.0 * (qn[2] * qn[0] - qn[3] * qn[1]));
+        yaw_tar   += atan2(2.0 * (qn[3] * qn[0] + qn[1] * qn[2]) , - 1.0 + 2.0 * (qn[0] * qn[0] + qn[1] * qn[1]));
+        tot ++;
+      }
+      else //swim towards school
+      {
+        const double dirx = (position[0] - nei->position[0]);
+        const double diry = (position[1] - nei->position[1]);
+        const double dirz = (position[2] - nei->position[2]);
+        const double inorm = 1.0 / ( sqrt(dirx*dirx+diry*diry+dirz*dirz) + 1e-21);
+        const double Runit[3] = {dirx*inorm,diry*inorm,dirz*inorm};
+        yaw_tar   += atan2(Runit[1],Runit[0]);
+        pitch_tar += asin(-Runit[2]);
+        tot ++;
+      }
+      */
+    }
+    //pitch_tar /= tot;
+    //yaw_tar   /= tot;
+    if (sim.rank == 0)
+    {
+      std::cout << "obstacle: " << obstacleID 
+      << " yaw_tar:"   <<   yaw_tar*180/M_PI 
+      << " pitch_tar:" << pitch_tar*180/M_PI 
+      << " repulsion distance = " << distances[0]/length << std::endl;
+    }
+  }
+#else
+  double   yaw_tar = 0;
+  double pitch_tar = 0;
+#endif
+
+  //Specify xDiff,yDiff and pitch-target
+
   const double roll_threshold = 45.0*M_PI/180.;
 
   const Real q[4] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]};
@@ -514,66 +651,63 @@ void StefanFish::create()
   const Real angle_pitch = asin (2.0 * (q[2] * q[0] - q[3] * q[1]));
   const Real angle_yaw   = atan2(2.0 * (q[3] * q[0] + q[1] * q[2]) , - 1.0 + 2.0 * (q[0] * q[0] + q[1] * q[1]));
 
-  // Control pos diffs
-  const double xDiff = (position[0] - origC[0])/length;
-  const double yDiff = (position[1] - origC[1])/length;
-  const Real relU = (transVel[0] + sim.uinf[0]) / length;
-  const Real relV = (transVel[1] + sim.uinf[1]) / length;
+  const Real yDiff = (position[1] - origC[1])/length;
 
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
-
   const Real Tperiod = cFish->Tperiod;
-  const Real angDiff = angle_yaw;// - origAng;
+  const Real angDiff = angle_yaw - yaw_tar;
   const Real lastAngVel = cFish->lastAvel;
+  const Real DT = sim.dt/Tperiod;
+
   // compute ang vel at t - 1/2 dt such that we have a better derivative:
   const Real aVelMidP = (angVel[2] + lastAngVel)*Tperiod/2;
   const Real aVelDiff = (angVel[2] - lastAngVel)*Tperiod/sim.dt;
-  cFish->lastAvel = angVel[2]; // store for next time
-  const Real DT = sim.dt/Tperiod;
   // derivatives of following 2 exponential averages:
   const Real velDAavg = (angDiff-cFish->avgDangle)/Tperiod + DT * angVel[2];
-  const Real velDYavg = (  yDiff-cFish->avgDeltaY)/Tperiod + DT * relV;
   const Real velAVavg = 10*((aVelMidP-cFish->avgAngVel)/Tperiod +DT*aVelDiff);
 
   // exponential averages
   cFish->avgDangle = (1.0-   DT) * cFish->avgDangle +    DT * angDiff;
   cFish->avgDeltaY = (1.0-   DT) * cFish->avgDeltaY +    DT *   yDiff;
-  cFish->avgAngVel = (1.0-10*DT) * cFish->avgAngVel + 10*DT *aVelMidP; //faster average
-  const Real avgDangle = cFish->avgDangle;
-  const Real avgDeltaY = cFish->avgDeltaY;
 
   //control yaw angle and position in xy plane
   if (bCorrectPosition)
   {
-    // integral (averaged) and proportional absolute DY and their derivative
-    const Real absPy = std::fabs(yDiff), absIy = std::fabs(avgDeltaY);
-    const Real velAbsPy =     yDiff>0 ? relV     : -relV;
-    const Real velAbsIy = avgDeltaY>0 ? velDYavg : -velDYavg;
+   #if 0 //old controller
+    const Real xDiff = (position[0] - origC[0])/length;
+    const Real relU = (transVel[0] + sim.uinf[0]) / length;
+    const Real relV = (transVel[1] + sim.uinf[1]) / length;
 
-    const Real IangPdy = avgDangle * absPy;
+    const Real velDYavg = (  yDiff-cFish->avgDeltaY)/Tperiod + DT * relV;
+    cFish->avgAngVel = (1.0-10*DT) * cFish->avgAngVel + 10*DT *aVelMidP; //faster average
+
+    cFish->alpha=1;
+    cFish->dalpha=0;
+
+    // integral (averaged) and proportional absolute DY and their derivative
+    const Real absPy = std::fabs(yDiff), absIy = std::fabs(cFish->avgDeltaY);
+    const Real velAbsPy =     yDiff>0 ? relV     : -relV;
+    const Real velAbsIy = cFish->avgDeltaY>0 ? velDYavg : -velDYavg;
+
+    const Real IangPdy = cFish->avgDangle * absPy;
     const Real PangIdy = angDiff   * absIy;
-    const Real IangIdy = avgDangle * absIy;
+    const Real IangIdy = cFish->avgDangle * absIy;
     //time derivatives of above three terms:
-    const Real velIangPdy = velAbsPy * avgDangle + absPy * velDAavg;
+    const Real velIangPdy = velAbsPy * cFish->avgDangle + absPy * velDAavg;
     const Real velPangIdy = velAbsIy * angDiff   + absIy * angVel[2];
-    const Real velIangIdy = velAbsIy * avgDangle + absIy * velDAavg;
+    const Real velIangIdy = velAbsIy * cFish->avgDangle + absIy * velDAavg;
     //If angle is positive: positive curvature only if Dy<0 (must go up)
     //If angle is negative: negative curvature only if Dy>0 (must go down)
     //when appropriate, coefficients are set to zero.
-    const Real coefIangPdy = avgDangle *     yDiff < 0 ? 1 : 0;
-    const Real coefPangIdy = angDiff   * avgDeltaY < 0 ? 1 : 0;
-    const Real coefIangIdy = avgDangle * avgDeltaY < 0 ? 1 : 0;
+    const Real coefIangPdy = cFish->avgDangle *     yDiff < 0 ? 1 : 0;
+    const Real coefPangIdy = angDiff   * cFish->avgDeltaY < 0 ? 1 : 0;
+    const Real coefIangIdy = cFish->avgDangle * cFish->avgDeltaY < 0 ? 1 : 0;
 
     Real totalTerm = coefIangPdy *    IangPdy + coefPangIdy *    PangIdy + coefIangIdy *    IangIdy;
     Real totalDiff = coefIangPdy * velIangPdy + coefPangIdy * velPangIdy + coefIangIdy * velIangIdy;
-    if (totalTerm >  0.025) {totalTerm =  0.025; totalDiff = 0;}
-    if (totalTerm < -0.025) {totalTerm = -0.025; totalDiff = 0;}
 
     Real periodFac = 1.0 - xDiff;
     Real periodVel =     - relU;
-    if (periodFac < 0) periodFac = 0;
-    if (periodFac > 2) periodFac = 2;
-
     if (std::fabs(angle_roll) > roll_threshold)
     {
       totalTerm = 0;
@@ -583,16 +717,41 @@ void StefanFish::create()
     }
     cFish->correctTrajectory(totalTerm, totalDiff);
     cFish->correctTailPeriod(periodFac, periodVel, sim.time, sim.dt);
+   #else //controller from PNAS paper
+    const Real theta   = angle_yaw;
+    const Real y       = absPos[1];
+    const Real ytgt    =  origC[1];
+    cFish->avgAngVel     = (1.0 - DT) * cFish->avgAngVel + DT *angVel[2];
+    const Real f1 = 1.0;
+    const Real f2 = theta            * (ytgt-y) > 0 ? 50.0 : 0.0;
+    const Real f3 = cFish->avgDangle * (ytgt-y) > 0 ? 20.0 : 0.0;
+    const int signTheta    = theta > 0 ? 1:-1;
+    const int signThetaHat = cFish->avgDangle > 0 ? 1:-1;
+    Real beta  = (ytgt-          y)/length*(f2*   std::fabs(theta)+f3*   std::fabs(cFish->avgDangle));
+    Real dbeta = (    -transVel[1])/length*(f2*   std::fabs(theta)+f3*   std::fabs(cFish->avgDangle))
+                    +  (ytgt-          y)/length*(f2*signTheta*angVel[2]+f3*signThetaHat*cFish->avgAngVel);
+    cFish->time_beta += sim.dt;
+    if (cFish->time_beta > 0.1)
+    {
+      cFish->time_beta = 0;
+      cFish->transition_start_beta = sim.time;
+      cFish->beta_previous = cFish->beta_next;
+      cFish->beta_next     = beta;
+    }
+    cFish->correctTrajectory(beta,dbeta);
+    cFish->alpha  = 1.0 + f1 * (position[0]               - origC[0])/length;
+    cFish->dalpha =       f1 * (transVel[0] + sim.uinf[0]           )/length;
+   #endif
   }
   //control yaw angle
-  else if (bCorrectTrajectory)
+  else if (bCorrectTrajectory && sim.dt > 0)
   {
     const Real avgAngVel = cFish->avgAngVel, absAngVel = std::fabs(avgAngVel);
     const Real absAvelDiff = avgAngVel>0? velAVavg : -velAVavg;
     const Real coefInst = angDiff*avgAngVel>0 ? 0.01 : 1, coefAvg = 0.1;
     const Real termInst = angDiff*absAngVel;
     const Real diffInst = angDiff*absAvelDiff + angVel[2]*absAngVel;
-    Real totalTerm = coefInst*termInst + coefAvg*avgDangle;
+    Real totalTerm = coefInst*termInst + coefAvg*cFish->avgDangle;
     Real totalDiff = coefInst*diffInst + coefAvg*velDAavg;
     if (totalTerm >  0.025) {totalTerm =  0.025; totalDiff = 0;}
     if (totalTerm < -0.025) {totalTerm = -0.025; totalDiff = 0;}
@@ -606,22 +765,14 @@ void StefanFish::create()
   //control position in Z plane and pitching with PD controller - not tested very well!
   if (bCorrectPositionZ) 
   {
-    const Real dqdt[4] = { 0.5*( - angVel[0]*q[1] - angVel[1]*q[2] - angVel[2]*q[3] ),
-                           0.5*( + angVel[0]*q[0] + angVel[1]*q[3] - angVel[2]*q[2] ),
-                           0.5*( - angVel[0]*q[3] + angVel[1]*q[0] + angVel[2]*q[1] ),
-                           0.5*( + angVel[0]*q[2] - angVel[1]*q[1] + angVel[2]*q[0] )};
-
-    const Real arg_aux = 2.0 * (q[2] * q[0] - q[3] * q[1]);
-
-    const Real dpitch_dt = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dqdt[0]+dqdt[2]*q[0]-q[3]*dqdt[1]-dqdt[3]*q[1]);
-
-    const Real rel = min(1.,10*sim.dt/Tperiod);
-
-    cFish->errP = - angle_pitch + 0.1*(origC[2] - position[2])/length;
-    cFish->errD = (1-rel) * cFish->errD + rel * (-dpitch_dt - 0.1*transVel[2]/length);
-
-    const Real u = 4.0*cFish->errP + 5.0*cFish->errD;
-    cFish->action_torsion_pitching_radius(sim.time, sim.time, -u/length);
+    const Real z    = absPos[2];
+    const Real ztgt = origC[2];
+    const Real fphi1 = 1000;
+    const Real fphi2 = angle_pitch * (ztgt-z) >= 0 ? 0 : 10.0;
+    Real  gamma = fphi1*(ztgt-z)/length*( fphi2*std::fabs(angle_pitch-pitch_tar) );
+    if (gamma >  4) gamma =  4;
+    if (gamma < -4) gamma = -4;
+    cFish->action_torsion_pitching_radius(sim.time, sim.time, -gamma);
   }
   //control pitching
   else if (bCorrectTrajectoryZ)
@@ -635,11 +786,11 @@ void StefanFish::create()
     const Real arg_aux = 2.0 * (q[2] * q[0] - q[3] * q[1]);
 
     Real dpitch_dt = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dqdt[0]+dqdt[2]*q[0]-q[3]*dqdt[1]-dqdt[3]*q[1]);
-    if (std::fabs(angle_pitch) > pitch_threshold) dpitch_dt = 0;
+    if (std::fabs(angle_pitch - pitch_tar) > pitch_threshold) dpitch_dt = 0;
     const Real rel = min(1.,10*sim.dt/Tperiod);
     cFish->errD = (1-rel) * cFish->errD + rel * (-dpitch_dt);
 
-    cFish->errP = - angle_pitch;
+    cFish->errP = - (angle_pitch - pitch_tar);
     if (cFish->errP >  pitch_threshold) cFish->errP =  pitch_threshold;
     if (cFish->errP < -pitch_threshold) cFish->errP = -pitch_threshold;
 

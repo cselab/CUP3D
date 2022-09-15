@@ -10,12 +10,14 @@
 #include "StefanFish.h"
 #include "FishLibrary.h"
 #include "FishShapes.h"
+#include "ObstacleVector.h"
 
 #include <Cubism/ArgumentParser.h>
 
 #include <array>
 #include <cmath>
 #include <sstream>
+#include <iomanip>
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -57,6 +59,15 @@ class CurvatureDefinedFishData : public FishMidlineData
   //PD controller for Z position and/or pitch angle
   Real errP=0;
   Real errD=0;
+
+  //PI controller from PNAS paper for curvature
+  Real alpha = 0;
+  Real dalpha = 0;
+  Real time_beta = 0;
+  Schedulers::ParameterSchedulerScalar betaScheduler;
+  Real transition_start_beta = 0.0;
+  Real beta_previous = 0.0;
+  Real beta_next     = 0.0;
 
   // PID controller of body curvature:
   Real curv_PID_fac = 0;
