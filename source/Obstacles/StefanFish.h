@@ -61,7 +61,7 @@ class CurvatureDefinedFishData : public FishMidlineData
   Real errD=0;
 
   //PI controller from PNAS paper for curvature
-  Real alpha = 0;
+  Real alpha = 1;
   Real dalpha = 0;
   Real time_beta = 0;
   Schedulers::ParameterSchedulerScalar betaScheduler;
