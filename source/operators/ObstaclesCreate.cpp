@@ -175,7 +175,7 @@ static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& in
     Real &J3 = o->J3, &J4 = o->J4, &J5 = o->J5;
     VV = 0; FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
     J0 = 0; J1 = 0; J2 = 0; J3 = 0; J4 = 0; J5 = 0;
-
+#if 0
     for(int z=0; z<Nz; ++z)
     for(int y=0; y<Ny; ++y)
     for(int x=0; x<Nx; ++x)
@@ -200,6 +200,44 @@ static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& in
       J1 += X * ( p[0]*p[0]+p[2]*p[2] ) * dv; J4 -= X * p[0]*p[2] * dv;
       J2 += X * ( p[0]*p[0]+p[1]*p[1] ) * dv; J5 -= X * p[1]*p[2] * dv;
     }
+#else 
+    /*
+       Here we want to numerically compute the integral I = A/B 
+       where A = integral(chi * u) and B = integral(chi)
+       If chi is treated as a discontinous Heaviside function for A
+       and as a mollified Heaviside for B (following Towers), we get:
+       I = [A+O(h) / B + O(h^2)]
+
+       Surprisingly, this can be more accurate than 
+       I = [A+O(h^2) / B + O(h^2)]
+       when "intermediatelly" small grid spacings h are used.
+
+    */
+    for(int z=0; z<Nz; ++z)
+    for(int y=0; y<Ny; ++y)
+    for(int x=0; x<Nx; ++x)
+    {
+      if (CHI[z][y][x] <= 0) continue;
+      Real p[3]; info.pos(p,x,y,z);
+      const Real dv = info.h*info.h*info.h, X = CHI[z][y][x];
+      p[0] -= CM[0];
+      p[1] -= CM[1];
+      p[2] -= CM[2];
+      const Real dUs = UDEF[z][y][x][0];
+      const Real dVs = UDEF[z][y][x][1];
+      const Real dWs = UDEF[z][y][x][2];
+      VV += X * dv;
+      FX += UDEF[z][y][x][0] * dv;
+      FY += UDEF[z][y][x][1] * dv;
+      FZ += UDEF[z][y][x][2] * dv;
+      TX += ( p[1]*dWs - p[2]*dVs ) * dv;
+      TY += ( p[2]*dUs - p[0]*dWs ) * dv;
+      TZ += ( p[0]*dVs - p[1]*dUs ) * dv;
+      J0 += X * ( p[1]*p[1]+p[2]*p[2] ) * dv; J3 -= X * p[0]*p[1] * dv;
+      J1 += X * ( p[0]*p[0]+p[2]*p[2] ) * dv; J4 -= X * p[0]*p[2] * dv;
+      J2 += X * ( p[0]*p[0]+p[1]*p[1] ) * dv; J5 -= X * p[1]*p[2] * dv;
+    }
+#endif
   }
 }
 
