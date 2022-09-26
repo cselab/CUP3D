@@ -158,13 +158,6 @@ static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& in
     if (o == nullptr) continue;
 
     const std::array<Real,3> CM = obstacle->getCenterOfMass();
-    //We use last momentum computed by this method to stabilize the computation
-    //of the ang vel. This is because J is really tiny.
-    const std::array<Real,3> oldCorrVel = {{
-      obstacle->transVel_correction[0],
-      obstacle->transVel_correction[1],
-      obstacle->transVel_correction[2]
-    }};
 
     const CHIMAT & __restrict__ CHI = o->chi;
     const UDEFMAT & __restrict__ UDEF = o->udef;
@@ -176,6 +169,14 @@ static void _kernelIntegrateUdefMomenta(SimulationData& sim, const BlockInfo& in
     VV = 0; FX = 0; FY = 0; FZ = 0; TX = 0; TY = 0; TZ = 0;
     J0 = 0; J1 = 0; J2 = 0; J3 = 0; J4 = 0; J5 = 0;
 #if 0
+    //We use last momentum computed by this method to stabilize the computation
+    //of the ang vel. This is because J is really tiny.
+    const std::array<Real,3> oldCorrVel = {{
+      obstacle->transVel_correction[0],
+      obstacle->transVel_correction[1],
+      obstacle->transVel_correction[2]
+    }};
+
     for(int z=0; z<Nz; ++z)
     for(int y=0; y<Ny; ++y)
     for(int x=0; x<Nx; ++x)
