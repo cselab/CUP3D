@@ -20,12 +20,20 @@ void PoissonSolverAMR::solve()
     const int Nx = ScalarBlock::sizeX;
     const int Ny = ScalarBlock::sizeY;
     const int Nz = ScalarBlock::sizeZ;
-    std::vector<Real> x   (N,0.0);
-    std::vector<Real> r   (N,0.0);
-    std::vector<Real> p   (N,0.0);
-    std::vector<Real> v   (N,0.0);
-    std::vector<Real> s   (N,0.0);
-    std::vector<Real> rhat(N,0.0);
+    //std::vector<Real> x   (N,0.0);
+    //std::vector<Real> r   (N,0.0);
+    //std::vector<Real> p   (N,0.0);
+    //std::vector<Real> v   (N,0.0);
+    //std::vector<Real> s   (N,0.0);
+    //std::vector<Real> rhat(N,0.0);
+    x   .resize(N,0.0);
+    r   .resize(N,0.0);
+    p   .resize(N,0.0);
+    v   .resize(N,0.0);
+    s   .resize(N,0.0);
+    rhat.resize(N,0.0);
+
+
 
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
@@ -78,13 +86,13 @@ void PoissonSolverAMR::solve()
     bool useXopt = false;
     Real min_norm = 1e50;
     Real init_norm=norm;
-    const Real max_error     = sim.PoissonErrorTol;
-    const Real max_rel_error = sim.PoissonErrorTolRel;
+    const Real max_error     = 0;//sim.PoissonErrorTol;
+    const Real max_rel_error = 0;//sim.PoissonErrorTolRel;
     bool serious_breakdown = false;
     int iter_opt = 0;
 
     //5. for k = 1,2,...
-    for (size_t k = 1; k < 1000; k++)
+    for (size_t k = 1; k < 20; k++)
     {
         //1. rho_i = (rhat_0,r_{k-1})
         //2. beta = rho_{i}/rho_{i-1} * alpha/omega_{i-1}

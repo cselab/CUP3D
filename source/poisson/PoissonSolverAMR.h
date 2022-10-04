@@ -243,13 +243,19 @@ class PoissonSolverAMR : public PoissonSolverBase
       getZImplParallel(sim, sim.presInfo());
     }
   }
+  std::vector<Real> x   ;
+  std::vector<Real> r   ;
+  std::vector<Real> p   ;
+  std::vector<Real> v   ;
+  std::vector<Real> s   ;
+  std::vector<Real> rhat;
 
-  size_t _dest(const BlockInfo &info , const int z, const int y, const int x) const
+  size_t _dest(const BlockInfo &info , const int iz, const int iy, const int ix) const
   {
-    return BlockType::sizeX * ( BlockType::sizeY * (info.blockID * BlockType::sizeZ  + z) + y) + x;
+    return BlockType::sizeX * ( BlockType::sizeY * (info.blockID * BlockType::sizeZ  + iz) + iy) + ix;
   }
  public:
-  PoissonSolverAMR(SimulationData& s): sim(s),findLHS(s){}
+  PoissonSolverAMR(SimulationData& ss): sim(ss),findLHS(ss){}
   PoissonSolverAMR(const PoissonSolverAMR& c) = delete; 
   void solve();
 };
