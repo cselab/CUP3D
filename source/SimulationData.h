@@ -40,7 +40,6 @@ struct SimulationData
   VectorGrid * tmpV = nullptr;
   VectorGrid * vOld = nullptr;
   ScalarGrid * lhs  = nullptr;
-  ScalarGrid * pOld = nullptr;
 
   // mesh refinement
   ScalarAMR *  chi_amr;
@@ -49,7 +48,6 @@ struct SimulationData
   VectorAMR * tmpV_amr;
   VectorAMR * vOld_amr;
   ScalarAMR *  lhs_amr;
-  ScalarAMR * pOld_amr;
 
   // Get blocks on current rank
   inline std::vector<cubism::BlockInfo>&  chiInfo() const {return  chi->getBlocksInfo();}
@@ -58,7 +56,6 @@ struct SimulationData
   inline std::vector<cubism::BlockInfo>& tmpVInfo() const {return tmpV->getBlocksInfo();}
   inline std::vector<cubism::BlockInfo>& vOldInfo() const {return vOld->getBlocksInfo();}
   inline std::vector<cubism::BlockInfo>&  lhsInfo() const {return  lhs->getBlocksInfo();}
-  inline std::vector<cubism::BlockInfo>& pOldInfo() const {return pOld->getBlocksInfo();}
 
   // Container holding the obstacles
   ObstacleVector * obstacle_vector = nullptr;
@@ -66,7 +63,7 @@ struct SimulationData
   // Operator Pipeline
   std::vector<std::shared_ptr<Operator>> pipeline;
 
-  // Pressure solver to be shared between PressureRHS and PressureProjection
+  // Pressure solver for PressureProjection
   std::shared_ptr<PoissonSolverBase> pressureSolver;
 
   // Timestepping

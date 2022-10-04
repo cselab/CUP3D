@@ -171,14 +171,12 @@ SimulationData::~SimulationData()
   delete tmpV;
   delete vOld;
   delete pres;
-  delete pOld;
   delete chi_amr;
   delete vel_amr;
   delete lhs_amr;
   delete tmpV_amr;
   delete vOld_amr;
   delete pres_amr;
-  delete pOld_amr;
 }
 
 void SimulationData::startProfiler(std::string name) const

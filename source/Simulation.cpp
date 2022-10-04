@@ -11,7 +11,6 @@
 #include "operators/AdvectionDiffusion.h"
 #include "operators/ObstaclesUpdate.h"
 #include "operators/Penalization.h"
-#include "operators/PressureRHS.h"
 #include "operators/PressureProjection.h"
 #include "operators/ComputeDissipation.h"
 #include "operators/FluidSolidForces.h"
@@ -122,14 +121,11 @@ void Simulation::adaptMesh()
   sim.chi_amr ->TagLike(sim.tmpVInfo());
   sim.vOld_amr->TagLike(sim.tmpVInfo());
   sim.pres_amr->TagLike(sim.tmpVInfo());
-  sim.pOld_amr->TagLike(sim.tmpVInfo());
-
   sim.chi_amr ->Adapt(sim.time,sim.verbose,false);
   sim.lhs_amr ->Adapt(sim.time,false,true);
   sim.vOld_amr->Adapt(sim.time,false,true);
   sim.tmpV_amr->Adapt(sim.time,false,true);
   sim.pres_amr->Adapt(sim.time,false,false);
-  sim.pOld_amr->Adapt(sim.time,false,false);
   sim. vel_amr->Adapt(sim.time,false,false);
 
   sim.stopProfiler();
@@ -151,16 +147,13 @@ void Simulation::setupGrid()
   sim.chi  = new ScalarGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
   sim.lhs  = new ScalarGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
   sim.pres = new ScalarGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
-  sim.pOld = new ScalarGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
   sim.vel  = new VectorGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
   sim.tmpV = new VectorGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
   sim.vOld = new VectorGrid(sim.bpdx,sim.bpdy,sim.bpdz,sim.maxextent,sim.levelStart,sim.levelMax,sim.comm,(sim.BCx_flag == periodic),(sim.BCy_flag == periodic),(sim.BCz_flag == periodic));
-
   //Refine/compress only according to chi field for now
   sim.chi_amr  = new ScalarAMR( *(sim.chi ),sim.Rtol,sim.Ctol);
   sim.lhs_amr  = new ScalarAMR( *(sim.lhs ),sim.Rtol,sim.Ctol);
   sim.pres_amr = new ScalarAMR( *(sim.pres),sim.Rtol,sim.Ctol);
-  sim.pOld_amr = new ScalarAMR( *(sim.pOld),sim.Rtol,sim.Ctol);
   sim.vel_amr  = new VectorAMR( *(sim.vel ),sim.Rtol,sim.Ctol);
   sim.tmpV_amr = new VectorAMR( *(sim.tmpV),sim.Rtol,sim.Ctol);
   sim.vOld_amr = new VectorAMR( *(sim.vOld),sim.Rtol,sim.Ctol);
@@ -186,9 +179,7 @@ void Simulation::setupOperators()
   sim.pipeline.push_back(std::make_shared<Penalization>(sim));
 
   // Places Udef on the grid and computes the RHS of the Poisson Eq
-  // overwrites tmpU, tmpV, tmpW and pressure solver's RHS
-  sim.pipeline.push_back(std::make_shared<PressureRHS>(sim));
-
+  // overwrites tmpU, tmpV, tmpW and pressure solver's RHS. Then,
   // Solves the Poisson Eq to get the pressure and finalizes the velocity
   sim.pipeline.push_back(std::make_shared<PressureProjection>(sim));
 
@@ -245,7 +236,6 @@ void Simulation::_deserialize()
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
   const std::vector<BlockInfo>& vOldInfo = sim.vOld->getBlocksInfo();
   const std::vector<BlockInfo>&  lhsInfo = sim.lhs ->getBlocksInfo();
-  const std::vector<BlockInfo>& pOldInfo = sim.pOld->getBlocksInfo();
 
   //The only field that is needed for restarting is velocity. Chi is derived from the files we
   //read for obstacles. Here we also read pres so that the Poisson solver has the same
@@ -259,7 +249,6 @@ void Simulation::_deserialize()
   //So we read VectorGrids from "vel" and ScalarGrids from "pres". We don't care about the
   //grid point values (those are set to zero below), we only care about the grid structure,
   //i.e. refinement levels etc.
-  ReadHDF5_MPI<StreamerScalar, Real>(*(sim.pOld), "pres_" + ss.str(), sim.path4serialization);
   ReadHDF5_MPI<StreamerScalar, Real>(*(sim.chi ), "pres_" + ss.str(), sim.path4serialization);
   ReadHDF5_MPI<StreamerScalar, Real>(*(sim.lhs ), "pres_" + ss.str(), sim.path4serialization);
   ReadHDF5_MPI<StreamerVector, Real>(*(sim.tmpV),  "vel_" + ss.str(), sim.path4serialization);
@@ -268,7 +257,6 @@ void Simulation::_deserialize()
   for (size_t i=0; i < velInfo.size(); i++)
   {
     ScalarBlock& CHI  = *(ScalarBlock*)  chiInfo[i].ptrBlock;  CHI.clear();
-    ScalarBlock& POLD = *(ScalarBlock*) pOldInfo[i].ptrBlock; POLD.clear();
     ScalarBlock& LHS  = *(ScalarBlock*)  lhsInfo[i].ptrBlock;  LHS.clear();
     VectorBlock& TMPV = *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
     VectorBlock& VOLD = *(VectorBlock*) vOldInfo[i].ptrBlock; VOLD.clear();

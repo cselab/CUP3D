@@ -88,7 +88,6 @@ set(CORE_SOURCE
     "${SRC_DIR}/operators/ObstaclesUpdate.cpp"
     "${SRC_DIR}/operators/Penalization.cpp"
     "${SRC_DIR}/operators/PressureProjection.cpp"
-    "${SRC_DIR}/operators/PressureRHS.cpp"
     "${SRC_DIR}/poisson/PoissonSolverAMR.cpp"
     "${SRC_DIR}/poisson/PoissonSolverAMRKernels.cpp"
     "${SRC_DIR}/utils/BufferedLogger.cpp"

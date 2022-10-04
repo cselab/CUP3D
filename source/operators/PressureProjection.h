@@ -11,6 +11,8 @@
 #include <memory>
 #include "Operator.h"
 #include "../poisson/PoissonSolverBase.h"
+#include "../Obstacles/ObstacleVector.h"
+#include "../poisson/PoissonSolverAMR.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -21,6 +23,7 @@ class PressureProjection : public Operator
  protected:
   // Alias of sim.pressureSolver.
  std::shared_ptr<PoissonSolverBase> pressureSolver;
+ std::vector<Real> pOld;
 
  public:
   PressureProjection(SimulationData & s); 

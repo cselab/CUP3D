@@ -385,7 +385,6 @@ void InitialConditions::operator()(const Real dt)
     {
       ScalarBlock& CHI  = (*sim.chi )(i);
       ScalarBlock& PRES = (*sim.pres)(i);
-      ScalarBlock& POLD = (*sim.pOld)(i);
       ScalarBlock& LHS  = (*sim.lhs )(i);
       VectorBlock& TMPV = (*sim.tmpV)(i);
       VectorBlock& VOLD = (*sim.vOld)(i);
@@ -394,14 +393,13 @@ void InitialConditions::operator()(const Real dt)
       for(int ix=0; ix<ScalarBlock::sizeX; ++ix) {
         CHI (ix,iy,iz).s = 0;
         PRES(ix,iy,iz).s = 0;
-	POLD(ix,iy,iz).s = 0;
-	LHS (ix,iy,iz).s = 0;
-	TMPV(ix,iy,iz).u[0] = 0;
-	TMPV(ix,iy,iz).u[1] = 0;
-	TMPV(ix,iy,iz).u[2] = 0;
-	VOLD(ix,iy,iz).u[0] = 0;
-	VOLD(ix,iy,iz).u[1] = 0;
-	VOLD(ix,iy,iz).u[2] = 0;
+	      LHS (ix,iy,iz).s = 0;
+	      TMPV(ix,iy,iz).u[0] = 0;
+	      TMPV(ix,iy,iz).u[1] = 0;
+	      TMPV(ix,iy,iz).u[2] = 0;
+        VOLD(ix,iy,iz).u[0] = 0;
+        VOLD(ix,iy,iz).u[1] = 0;
+        VOLD(ix,iy,iz).u[2] = 0;
       }
     }
     //store deformation velocities onto tmp fields:
