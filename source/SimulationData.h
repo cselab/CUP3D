@@ -38,7 +38,6 @@ struct SimulationData
   ScalarGrid * pres = nullptr;
   VectorGrid * vel  = nullptr;
   VectorGrid * tmpV = nullptr;
-  VectorGrid * vOld = nullptr;
   ScalarGrid * lhs  = nullptr;
 
   // mesh refinement
@@ -46,7 +45,6 @@ struct SimulationData
   ScalarAMR * pres_amr;
   VectorAMR *  vel_amr;
   VectorAMR * tmpV_amr;
-  VectorAMR * vOld_amr;
   ScalarAMR *  lhs_amr;
 
   // Get blocks on current rank
@@ -54,7 +52,6 @@ struct SimulationData
   inline std::vector<cubism::BlockInfo>& presInfo() const {return pres->getBlocksInfo();}
   inline std::vector<cubism::BlockInfo>&  velInfo() const {return  vel->getBlocksInfo();}
   inline std::vector<cubism::BlockInfo>& tmpVInfo() const {return tmpV->getBlocksInfo();}
-  inline std::vector<cubism::BlockInfo>& vOldInfo() const {return vOld->getBlocksInfo();}
   inline std::vector<cubism::BlockInfo>&  lhsInfo() const {return  lhs->getBlocksInfo();}
 
   // Container holding the obstacles

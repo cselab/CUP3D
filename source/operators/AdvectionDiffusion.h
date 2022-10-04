@@ -14,6 +14,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class AdvectionDiffusion : public Operator
 {
+  std::vector<Real> vOld;
 public:
   AdvectionDiffusion(SimulationData & s) : Operator(s) { }
 

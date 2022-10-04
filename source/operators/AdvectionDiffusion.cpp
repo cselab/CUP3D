@@ -213,19 +213,21 @@ void AdvectionDiffusion::operator()(const Real dt)
     const int Nz = VectorBlock::sizeZ;
     const size_t Nblocks = velInfo.size();
 
+    vOld.resize(Nx*Ny*Nz*Nblocks*3);
+
     //1.Save u^{n} to Vold
     #pragma omp parallel for
     for(size_t i=0; i<Nblocks; i++)
     {
         const VectorBlock & V = (*sim.vel)(i);
-        VectorBlock & Vold = (*sim.vOld)(i);
         for (int z=0; z<Nz; ++z)
         for (int y=0; y<Ny; ++y)
         for (int x=0; x<Nx; ++x)
         {
-          Vold(x,y,z).u[0] = V(x,y,z).u[0];
-          Vold(x,y,z).u[1] = V(x,y,z).u[1];
-          Vold(x,y,z).u[2] = V(x,y,z).u[2];
+          const int idx = i*Nx*Ny*Nz*3+z*Ny*Nx*3+y*Nx*3+x*3;
+          vOld[idx  ] = V(x,y,z).u[0];
+          vOld[idx+1] = V(x,y,z).u[1];
+          vOld[idx+2] = V(x,y,z).u[2];
         }
     }
 
@@ -237,16 +239,16 @@ void AdvectionDiffusion::operator()(const Real dt)
     {
         const Real ih3 = 1.0/(velInfo[i].h*velInfo[i].h*velInfo[i].h);
         const VectorBlock & tmpV = (*sim.tmpV)(i);
-        const VectorBlock & Vold = (*sim.vOld)(i);
         VectorBlock & V          = (*sim.vel )(i);
 
         for (int z=0; z<Nz; ++z)
         for (int y=0; y<Ny; ++y)
         for (int x=0; x<Nx; ++x)
         {
-            V(x,y,z).u[0] = Vold(x,y,z).u[0] + tmpV(x,y,z).u[0]*ih3;
-            V(x,y,z).u[1] = Vold(x,y,z).u[1] + tmpV(x,y,z).u[1]*ih3;
-            V(x,y,z).u[2] = Vold(x,y,z).u[2] + tmpV(x,y,z).u[2]*ih3;
+          const int idx = i*Nx*Ny*Nz*3+z*Ny*Nx*3+y*Nx*3+x*3;
+          V(x,y,z).u[0] = vOld[idx  ] + tmpV(x,y,z).u[0]*ih3;
+          V(x,y,z).u[1] = vOld[idx+1] + tmpV(x,y,z).u[1]*ih3;
+          V(x,y,z).u[2] = vOld[idx+2] + tmpV(x,y,z).u[2]*ih3;
         }
     }
 
@@ -258,15 +260,15 @@ void AdvectionDiffusion::operator()(const Real dt)
     {
         const Real ih3 = 1.0/(velInfo[i].h*velInfo[i].h*velInfo[i].h);
         const VectorBlock & tmpV = (*sim.tmpV)(i);
-        const VectorBlock & Vold = (*sim.vOld)(i);
         VectorBlock & V          = (*sim.vel )(i);
         for (int z=0; z<Nz; ++z)
         for (int y=0; y<Ny; ++y)
         for (int x=0; x<Nx; ++x)
         {
-            V(x,y,z).u[0] = Vold(x,y,z).u[0] + tmpV(x,y,z).u[0]*ih3;
-            V(x,y,z).u[1] = Vold(x,y,z).u[1] + tmpV(x,y,z).u[1]*ih3;
-            V(x,y,z).u[2] = Vold(x,y,z).u[2] + tmpV(x,y,z).u[2]*ih3;
+          const int idx = i*Nx*Ny*Nz*3+z*Ny*Nx*3+y*Nx*3+x*3;
+          V(x,y,z).u[0] = vOld[idx  ] + tmpV(x,y,z).u[0]*ih3;
+          V(x,y,z).u[1] = vOld[idx+1] + tmpV(x,y,z).u[1]*ih3;
+          V(x,y,z).u[2] = vOld[idx+2] + tmpV(x,y,z).u[2]*ih3;
         }
     }
 }
