@@ -164,7 +164,7 @@ intersect_t Fish::prepare_segPerBlock(vecsegm_t& vSegments)
 
 void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
 {
-#if 1 //no load-balancing here
+#if 0 //no load-balancing here
   #pragma omp parallel
   {
     PutFishOnBlocks putfish(myFish, position, quaternion);
