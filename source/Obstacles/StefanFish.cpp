@@ -787,7 +787,7 @@ void StefanFish::create()
 
     Real dpitch_dt = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dqdt[0]+dqdt[2]*q[0]-q[3]*dqdt[1]-dqdt[3]*q[1]);
     if (std::fabs(angle_pitch - pitch_tar) > pitch_threshold) dpitch_dt = 0;
-    const Real rel = min(1.,10*sim.dt/Tperiod);
+    const Real rel = min((Real)1.,(Real)10*sim.dt/Tperiod);
     cFish->errD = (1-rel) * cFish->errD + rel * (-dpitch_dt);
 
     cFish->errP = - (angle_pitch - pitch_tar);
