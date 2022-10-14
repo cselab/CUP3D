@@ -16,8 +16,8 @@ public:
   SimulationData sim;
 
   void initialGridRefinement();
-  void _serialize(const std::string append = std::string());
-  void _deserialize();
+  void serialize(const std::string append = std::string());
+  void deserialize();
   void setupOperators();
   void setupGrid();
   void _ic();

@@ -41,7 +41,6 @@ std::shared_ptr<Simulation> createSimulation(
 
 Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm, parser)
 {
-
   if( sim.verbose )
   {
     #pragma omp parallel
@@ -84,7 +83,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
     std::cout << "[CUP3D] Initializing Flow Field.. " << std::endl;
   const bool bRestart = parser("-restart").asBool(false);
   if (bRestart)
-    _deserialize();
+    deserialize();
   else
   {
     _ic();
@@ -191,7 +190,7 @@ void Simulation::setupOperators()
   }
 }
 
-void Simulation::_serialize(const std::string append)
+void Simulation::serialize(const std::string append)
 {
   sim.startProfiler("DumpHDF5_MPI");
 
@@ -220,7 +219,7 @@ void Simulation::_serialize(const std::string append)
   sim.stopProfiler();
 }
 
-void Simulation::_deserialize()
+void Simulation::deserialize()
 {
   // create filename from step
   sim.readRestartFiles();
@@ -343,7 +342,7 @@ bool Simulation::advance(const Real dt)
   sim.step++;
   sim.time += dt;
 
-  if( sim.bDump ) _serialize();
+  if( sim.bDump ) serialize();
   if (sim.step % sim.checkpoint_steps == 0)  //checkpoint for restarting
   {
     sim.writeRestartFiles();
