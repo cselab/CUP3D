@@ -34,6 +34,7 @@ verbose ?= false
 dump_surface_binary ?= false
 gpu ?= false
 profile ?= false
+onetbb ?= true
 
 precision ?= double
 ifeq "$(precision)" "single"
@@ -95,6 +96,18 @@ OBJECTS = ObstacleFactory.o Obstacle.o Ellipsoid.o Cylinder.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
 	ObstaclesCreate.o ObstaclesUpdate.o FishShapes.o ArgumentParser.o \
 	PoissonSolverBase.o PoissonSolverAMR.o PoissonSolverAMRKernels.o
+
+
+#################################################
+# oneTBB
+#################################################
+ifeq "$(onetbb)" "true"
+	LIBS     += -L$(ONETBBROOT)/lib64 -ltbb
+	CPPFLAGS += -I$(ONETBBROOT)/include
+	CPPFLAGS += -DCUBISM_USE_ONETBB
+	#LIBS     += -L/users/chatzima/my_installed_onetbb/lib64 -ltbb
+	#CPPFLAGS += -I/users/chatzima/my_installed_onetbb/include
+endif
 
 #################################################
 # HDF5

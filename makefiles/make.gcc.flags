@@ -2,7 +2,7 @@ CPPFLAGS+= -std=c++20 -g -fopenmp
 #CPPFLAGS+= -std=c++20 -g
 LIBS+= -fopenmp
 
-CPPFLAGS+= -Wall -Wextra -Wfloat-equal -Wundef -Wcast-align -Woverloaded-virtual -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings -Wno-unused-parameter -Wno-unknown-pragmas
+CPPFLAGS+= -Wall -Wextra -Wno-float-equal -Wno-undef -Wcast-align -Woverloaded-virtual -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow -Wwrite-strings -Wno-unused-parameter -Wno-unknown-pragmas
 
 ifeq "$(findstring prod,$(config))" ""
 
