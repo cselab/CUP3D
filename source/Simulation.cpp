@@ -49,7 +49,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
 	  int size;
 	  MPI_Comm_size(mpicomm,&size);
           #pragma omp master
-	  std::cout << "[CUP2D] Running with " << size  << " rank(s) and " << numThreads <<  "thread(s)." << std::endl;
+	  std::cout << "[CUP3D] Running with " << size  << " rank(s) and " << numThreads <<  " thread(s)." << std::endl;
     }
   }
   // Make sure given arguments are valid
