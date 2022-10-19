@@ -33,7 +33,7 @@ OPTIONS+=" -bpdx 8 -bpdy 4 -bpdz 4"\n\
 OPTIONS+=" -tdump 0.25 -tend 50.0"\n\
 OPTIONS+=" -CFL 0.5 -nu 0.000008 -lambda 1e12"\n\
 OPTIONS+=" -poissonTol 1e-6 -poissonTolRel 1e-4"\n\
-OPTIONS+=" -levelMax 9 -levelStart 4 -Rtol 3.0 -Ctol 0.1"\n\
+OPTIONS+=" -levelMax 9 -levelStart 4 -levelMaxVorticity 8 -Rtol 3.0 -Ctol 0.1"\n\
 OPTIONS+=" -poissonSolver ${PSOLVER}"')
 
 '''

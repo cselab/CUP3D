@@ -22,6 +22,19 @@ struct GradChiOnTmp
   void operator()(ScalarLab & lab, const BlockInfo& info) const
   {
     auto& __restrict__ TMP = (*sim.tmpV)(info.blockID);
+    if (info.level == sim.levelMaxVorticity-1 && sim.levelMaxVorticity < sim.levelMax) //allow for refinement up to levelMaxVorticity for vorticity (and up to levelMax-1 for grad chi)
+      for(int z=0; z<VectorBlock::sizeZ; ++z)
+      for(int y=0; y<VectorBlock::sizeY; ++y)
+      for(int x=0; x<VectorBlock::sizeX; ++x)
+      {
+        if (TMP(x,y,z).magnitude() >= sim.Rtol)
+        {
+           //set to a value that will not cause refinement or compression
+           TMP(x,y,z).u[0] = 0.5*(sim.Rtol+sim.Ctol);
+           TMP(x,y,z).u[1] = 0.0;
+           TMP(x,y,z).u[2] = 0.0;
+        }
+      }
     const int offset = (info.level == sim.chi->getlevelMax()-1) ? 2 : 1;
     for(int z=-offset; z<VectorBlock::sizeZ+offset; ++z)
     for(int y=-offset; y<VectorBlock::sizeY+offset; ++y)
@@ -35,6 +48,12 @@ struct GradChiOnTmp
         TMP(VectorBlock::sizeY/2,VectorBlock::sizeY/2,VectorBlock::sizeY/2).u[1] = 1e10; 
         TMP(VectorBlock::sizeX/2,VectorBlock::sizeX/2,VectorBlock::sizeX/2).u[2] = 1e10; 
         break;
+      }
+      else if (lab(x,y,z).s > 0.9 && z >= 0 && z <VectorBlock::sizeZ && y >= 0 && y <VectorBlock::sizeY && x >= 0 && x <VectorBlock::sizeX) //compress the grid if inside an obstacle
+      {
+        TMP(x,y,z).u[0] = 0.0;
+        TMP(x,y,z).u[1] = 0.0;
+        TMP(x,y,z).u[2] = 0.0;
       }
     }
   }

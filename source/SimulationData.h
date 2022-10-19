@@ -85,6 +85,7 @@ struct SimulationData
   Real maxextent ;                   //max(extents[0],extents[1],extents[2])
   Real hmin, hmax;                   //max and min grid spacing
   std::array<Real, 3> uinf = {0,0,0};//velocity of Frame of Reference
+  int levelMaxVorticity;             //mesh refinement due to vorticity magnitude is allowed only up to levelMaxVorticity levels (default value is levelMax)
 
   //Other stuff
   Real uMax_measured = 0;         //max velocity at current timestep
