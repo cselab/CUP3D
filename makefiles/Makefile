@@ -183,11 +183,7 @@ cup.libs.txt:
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
-	rm -f $(EXEOBJ) $(LIBOBJ)
-	rm -f $(DEPS) *.d *.o
-	rm -f PoissonSolver*.o PoissonSolver*.d
-	rm -f ../bin/simulation ../lib/libcubismup3d.a rlHIT PoissonSolverScalar*.o
-	rm -f cup.cflags.txt cup.libs.txt libcup.a
+	rm -f *.d *.o ../bin/simulation ../lib/libcubismup3d.a cup.cflags.txt cup.libs.txt libcup.a
 	rmdir ../bin 2> /dev/null || true
 	rmdir ../lib 2> /dev/null || true
 
