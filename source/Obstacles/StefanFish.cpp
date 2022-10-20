@@ -727,8 +727,8 @@ void StefanFish::create()
     const Real f3 = cFish->avgDangle * (ytgt-y) > 0 ? 20.0 : 0.0;
     const int signTheta    = theta > 0 ? 1:-1;
     const int signThetaHat = cFish->avgDangle > 0 ? 1:-1;
-    Real beta  = (ytgt-          y)/length*(f2*   std::fabs(theta)+f3*   std::fabs(cFish->avgDangle));
-    Real dbeta = (    -transVel[1])/length*(f2*   std::fabs(theta)+f3*   std::fabs(cFish->avgDangle))
+    Real beta  = (ytgt-          y)/length*(1.+f2*   std::fabs(theta)+f3*   std::fabs(cFish->avgDangle));
+    Real dbeta = (    -transVel[1])/length*(1.+f2*   std::fabs(theta)+f3*   std::fabs(cFish->avgDangle))
                     +  (ytgt-          y)/length*(f2*signTheta*angVel[2]+f3*signThetaHat*cFish->avgAngVel);
     cFish->time_beta += sim.dt;
     if (cFish->time_beta > 0.1)
@@ -763,13 +763,14 @@ void StefanFish::create()
     cFish->correctTrajectory(totalTerm, totalDiff);
   }
   //control position in Z plane and pitching with PD controller - not tested very well!
-  if (bCorrectPositionZ) 
+  if (bCorrectPositionZ)
   {
     const Real z    = absPos[2];
     const Real ztgt = origC[2];
     const Real fphi1 = 1000;
-    const Real fphi2 = angle_pitch * (ztgt-z) >= 0 ? 0 : 10.0;
-    Real  gamma = fphi1*(ztgt-z)/length*( fphi2*std::fabs(angle_pitch-pitch_tar) );
+    const Real fphi2 = angle_pitch * (ztgt-z) >= 0 ? 0.0 : 10.0;
+    Real gamma = fphi1*(ztgt-z)/length*( .1 + fphi2*std::fabs(angle_pitch-pitch_tar) );
+
     if (gamma >  4) gamma =  4;
     if (gamma < -4) gamma = -4;
     cFish->action_torsion_pitching_radius(sim.time, sim.time, -gamma);
@@ -836,9 +837,9 @@ void StefanFish::computeVelocities()
 
     const Real mag = angVel[0]*unit_vector[0] + angVel[1]*unit_vector[1] + angVel[2]*unit_vector[2];
     const Real angVel_projection[3] = {mag*unit_vector[0],mag*unit_vector[1],mag*unit_vector[2]};
-    angVel[0] = angVel[0] - angVel_projection[0] - angle_roll/(0.5*cFish->Tperiod)*unit_vector[0];
-    angVel[1] = angVel[1] - angVel_projection[1] - angle_roll/(0.5*cFish->Tperiod)*unit_vector[1];
-    angVel[2] = angVel[2] - angVel_projection[2] - angle_roll/(0.5*cFish->Tperiod)*unit_vector[2];
+    angVel[0] = angVel[0] - angVel_projection[0] - angle_roll/(sim.dt)*unit_vector[0];
+    angVel[1] = angVel[1] - angVel_projection[1] - angle_roll/(sim.dt)*unit_vector[1];
+    angVel[2] = angVel[2] - angVel_projection[2] - angle_roll/(sim.dt)*unit_vector[2];
   }
 }
 
