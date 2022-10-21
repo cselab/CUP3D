@@ -18,6 +18,7 @@ if [ ${PSOLVER:0:4} == 'cuda' ] ; then
   export OMP_PLACES=cores
   export OMP_PROC_BIND=close
   export TASKS_PER_NODE=1
+  export HINT=multithread
   if [ "${TASKS_PER_NODE}" -gt "1" ] ; then
     export CRAY_CUDA_MPS=1
   fi
@@ -25,6 +26,7 @@ if [ ${PSOLVER:0:4} == 'cuda' ] ; then
 else
   export TASKS_PER_NODE=12
   export OMP_NUM_THREADS=1
+  export HINT=nomultithread
 fi
 
 FOLDER=${BASEPATH}${BASENAME}
@@ -43,7 +45,7 @@ cd ${FOLDER}
 cat <<EOF >daint_sbatch
 #!/bin/bash -l
 
-#SBATCH --account=s929
+#SBATCH --account=s1160
 #SBATCH --job-name="${BASENAME}"
 #SBATCH --output=${BASENAME}_out_%j.txt
 #SBATCH --error=${BASENAME}_err_%j.txt
@@ -54,7 +56,10 @@ cat <<EOF >daint_sbatch
 #SBATCH --ntasks-per-node=${TASKS_PER_NODE}
 #SBATCH --cpus-per-task=${OMP_NUM_THREADS}
 #SBATCH --threads-per-core=1
-#SBATCH --hint=nomultithread
+#SBATCH --hint=${HINT}
+export OMP_PLACES=cores
+export OMP_PROC_BIND=close
+export OMP_NUM_THREADS=\$SLURM_CPUS_PER_TASK
 
 srun ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
 

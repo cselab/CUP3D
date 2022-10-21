@@ -7,8 +7,8 @@ def launch_script(dx,dy,dz,name,levels):
 	f = open(name + ".sh", "w")
 	f.write(
 '#!/bin/bash\n\
-NNODE=32\n\
-PSOLVER=\"iterative\"\n\
+NNODE=64\n\
+PSOLVER=\"cuda_iterative\"\n\
 FACTORY=\n\
 FACTORY+=\"StefanFish L=0.2 T=1.0 xpos=0.5 ypos=2.0 zpos=2.0 CorrectPosition=true CorrectPositionZ=true CorrectRoll=true heightProfile=baseline widthProfile=baseline bFixFrameOfRef=1\n\"\n')
 
@@ -28,8 +28,8 @@ FACTORY+=\"StefanFish L=0.2 T=1.0 xpos=0.5 ypos=2.0 zpos=2.0 CorrectPosition=tru
  
 	# WRITE SOLVER SETTINGS
 	f.write('\nOPTIONS=\n\
-OPTIONS+=" -extentx 8.0"\n\
-OPTIONS+=" -bpdx 8 -bpdy 4 -bpdz 4"\n\
+OPTIONS+=" -extentx 4.0"\n\
+OPTIONS+=" -bpdx 4 -bpdy 4 -bpdz 4"\n\
 OPTIONS+=" -tdump 0.25 -tend 50.0"\n\
 OPTIONS+=" -CFL 0.5 -nu 0.000008 -lambda 1e12"\n\
 OPTIONS+=" -poissonTol 1e-6 -poissonTolRel 1e-4"\n\
