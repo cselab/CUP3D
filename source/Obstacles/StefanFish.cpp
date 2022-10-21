@@ -816,7 +816,7 @@ void StefanFish::computeVelocities()
   //           (this is the default initial orientation for fish). 
   if (bCorrectRoll)
   {
-    auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+    //auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
     const Real q[4] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]}; 
     const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
 
