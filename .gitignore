@@ -34,6 +34,7 @@ __pycache__
 /utils/
 
 /launch/test.sh
+/launch/levels*.sh
 
 /makefiles/cup.libs.txt
 /makefiles/cup.cflags.txt
