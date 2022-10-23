@@ -816,10 +816,10 @@ void StefanFish::computeVelocities()
   //           (this is the default initial orientation for fish). 
   if (bCorrectRoll)
   {
-    //auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+    auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
+    const Real T = cFish->Tperiod;
     const Real q[4] = {quaternion[0],quaternion[1],quaternion[2],quaternion[3]}; 
     const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
-
     //1st column of rotation matrix
     const Real R0[3] = { 1.0 - 2*(q[2]*q[2]+q[3]*q[3]), 
                                2*(q[1]*q[2]+q[3]*q[0]), 
@@ -835,11 +835,14 @@ void StefanFish::computeVelocities()
     //with which we only need the first column of R.
     const Real unit_vector[3] = {R0[0],R0[1],R0[2]};
 
-    const Real mag = angVel[0]*unit_vector[0] + angVel[1]*unit_vector[1] + angVel[2]*unit_vector[2];
-    const Real angVel_projection[3] = {mag*unit_vector[0],mag*unit_vector[1],mag*unit_vector[2]};
-    angVel[0] = angVel[0] - angVel_projection[0] - angle_roll/(sim.dt)*unit_vector[0];
-    angVel[1] = angVel[1] - angVel_projection[1] - angle_roll/(sim.dt)*unit_vector[1];
-    angVel[2] = angVel[2] - angVel_projection[2] - angle_roll/(sim.dt)*unit_vector[2];
+    //const Real mag = angVel[0]*unit_vector[0] + angVel[1]*unit_vector[1] + angVel[2]*unit_vector[2];
+    //const Real angVel_projection[3] = {mag*unit_vector[0],mag*unit_vector[1],mag*unit_vector[2]};
+    //angVel[0] = angVel[0] - angVel_projection[0] - angle_roll/(sim.dt)*unit_vector[0];
+    //angVel[1] = angVel[1] - angVel_projection[1] - angle_roll/(sim.dt)*unit_vector[1];
+    //angVel[2] = angVel[2] - angVel_projection[2] - angle_roll/(sim.dt)*unit_vector[2];
+    angVel[0] = angVel[0] - angle_roll/(.25*T)*unit_vector[0];
+    angVel[1] = angVel[1] - angle_roll/(.25*T)*unit_vector[1];
+    angVel[2] = angVel[2] - angle_roll/(.25*T)*unit_vector[2];
   }
 }
 
