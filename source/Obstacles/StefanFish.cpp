@@ -388,6 +388,12 @@ void StefanFish::saveRestart( FILE * f )
   fprintf(f,"torsionValues_previous[2]: %20.20e\n",(double)cFish->torsionValues_previous[2]);
   fprintf(f,"TperiodPID               : %d\n"     ,(int)   cFish->TperiodPID               );
   fprintf(f,"control_torsion          : %d\n"     ,(int)   cFish->control_torsion          );
+  fprintf(f,"alpha                    : %20.20e\n",(double)cFish->alpha                );
+  fprintf(f,"dalpha                   : %20.20e\n",(double)cFish->dalpha               );
+  fprintf(f,"time_beta                : %20.20e\n",(double)cFish->time_beta            );
+  fprintf(f,"transition_start_beta    : %20.20e\n",(double)cFish->transition_start_beta);
+  fprintf(f,"beta_previous            : %20.20e\n",(double)cFish->beta_previous        );
+  fprintf(f,"beta_next                : %20.20e\n",(double)cFish->beta_next            );
 }
 
 void StefanFish::loadRestart( FILE * f )
@@ -476,6 +482,13 @@ void StefanFish::loadRestart( FILE * f )
   ret = ret && 1==fscanf(f, "torsionValues_previous[2]: %le\n", &temp); cFish->torsionValues_previous[2] = temp;
   ret = ret && 1==fscanf(f, "TperiodPID               : %d\n", &temp1); cFish->TperiodPID      = temp1;
   ret = ret && 1==fscanf(f, "control_torsion          : %d\n", &temp1); cFish->control_torsion = temp1;
+  ret = ret && 1==fscanf(f, "alpha                    : %le\n", &temp); cFish->alpha                     = temp;
+  ret = ret && 1==fscanf(f, "dalpha                   : %le\n", &temp); cFish->dalpha                    = temp;
+  ret = ret && 1==fscanf(f, "time_beta                : %le\n", &temp); cFish->time_beta                 = temp;
+  ret = ret && 1==fscanf(f, "transition_start_beta    : %le\n", &temp); cFish->transition_start_beta     = temp;
+  ret = ret && 1==fscanf(f, "beta_previous            : %le\n", &temp); cFish->beta_previous             = temp;
+  ret = ret && 1==fscanf(f, "beta_next                : %le\n", &temp); cFish->beta_next                 = temp;
+
   if( (not ret) ) {
     printf("Error reading restart file. Aborting...\n");
     fflush(0); abort();
@@ -769,7 +782,8 @@ void StefanFish::create()
     const Real ztgt = origC[2];
     const Real fphi1 = 1000;
     const Real fphi2 = angle_pitch * (ztgt-z) >= 0 ? 0.0 : 10.0;
-    Real gamma = fphi1*(ztgt-z)/length*( .1 + fphi2*std::fabs(angle_pitch-pitch_tar) );
+    const Real fphi3 = std::fabs(angle_pitch-pitch_tar) < M_PI/180. ? 0.1:0.0;
+    Real gamma = fphi1*(ztgt-z)/length*( fphi3 + fphi2*std::fabs(angle_pitch-pitch_tar) );
 
     if (gamma >  4) gamma =  4;
     if (gamma < -4) gamma = -4;
@@ -834,15 +848,12 @@ void StefanFish::computeVelocities()
     //current orientation is R * (1,0,0), where (1,0,0) is the initial (assumed) orientation
     //with which we only need the first column of R.
     const Real unit_vector[3] = {R0[0],R0[1],R0[2]};
-
-    //const Real mag = angVel[0]*unit_vector[0] + angVel[1]*unit_vector[1] + angVel[2]*unit_vector[2];
-    //const Real angVel_projection[3] = {mag*unit_vector[0],mag*unit_vector[1],mag*unit_vector[2]};
-    //angVel[0] = angVel[0] - angVel_projection[0] - angle_roll/(sim.dt)*unit_vector[0];
-    //angVel[1] = angVel[1] - angVel_projection[1] - angle_roll/(sim.dt)*unit_vector[1];
-    //angVel[2] = angVel[2] - angVel_projection[2] - angle_roll/(sim.dt)*unit_vector[2];
-    angVel[0] = angVel[0] - angle_roll/(.25*T)*unit_vector[0];
-    angVel[1] = angVel[1] - angle_roll/(.25*T)*unit_vector[1];
-    angVel[2] = angVel[2] - angle_roll/(.25*T)*unit_vector[2];
+    const double angVel_mag = sqrt(angVel[0]*angVel[0]+angVel[1]*angVel[1]+angVel[2]*angVel[2]);
+    const double correction_magnitude = std::min( std::fabs(angle_roll)/(0.25*T) , 0.01*angVel_mag);
+    const int sign_roll = angle_roll > 0 ? 1:-1;
+    angVel[0] = angVel[0] - sign_roll * correction_magnitude*unit_vector[0];
+    angVel[1] = angVel[1] - sign_roll * correction_magnitude*unit_vector[1];
+    angVel[2] = angVel[2] - sign_roll * correction_magnitude*unit_vector[2];
   }
 }
 
