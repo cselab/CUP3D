@@ -69,8 +69,8 @@ struct KernelPenalization
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
-      const Real X = CHI[iz][iy][ix];
-      const Real penalFac = implicitPenalization? X*lambdaFac/(1+X*lambdaFac*dt):X*lambdaFac;
+      const Real X = CHI[iz][iy][ix]>0.5?1.0:0.0;
+      const Real penalFac = implicitPenalization? X*lambdaFac/(1+ X*lambdaFac*dt):X*lambdaFac;
       const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u[0]);
       const Real FPY = penalFac * (U_TOT[1] - b(ix,iy,iz).u[1]);
       const Real FPZ = penalFac * (U_TOT[2] - b(ix,iy,iz).u[2]);
@@ -791,13 +791,13 @@ void Penalization::operator()(const Real dt)
   { // each thread needs to call its own non-const operator() function
     if(sim.bImplicitPenalization)
     {
-      KernelPenalization<1> K(sim.dt, sim.lambda, sim.obstacle_vector);
+      KernelPenalization<1> K(dt, sim.lambda, sim.obstacle_vector);
       #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < chiInfo.size(); ++i) K(velInfo[i],chiInfo[i]);
     }
     else
     {
-      KernelPenalization<0> K(sim.dt, sim.lambda, sim.obstacle_vector);
+      KernelPenalization<0> K(dt, sim.lambda, sim.obstacle_vector);
       #pragma omp for schedule(dynamic, 1)
       for (size_t i = 0; i < chiInfo.size(); ++i) K(velInfo[i],chiInfo[i]);
     }

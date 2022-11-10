@@ -95,7 +95,8 @@ struct KernelIntegrateFluidMomenta
 
       if(implicitPenalization)
       {
-        const Real penalFac = dv * lambdt * X / ( 1 + X * lambdt );
+        const Real X1 = CHI[iz][iy][ix]>0.5?1.0:0.0;
+        const Real penalFac = dv * lambdt * X1 / ( 1 +  X1 * lambdt );
         o->GfX += penalFac;
         o->GpX += penalFac * p[0];
         o->GpY += penalFac * p[1];
