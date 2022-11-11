@@ -92,6 +92,7 @@ struct KernelAdvectDiffuse
     {
       if (U > 0) return(-2*um3+15*um2-60*um1+20*u+30*up1-3*up2)/60.;
       else       return( 2*up3-15*up2+60*up1-20*u-30*um1+3*um2)/60.;
+    }
   #endif
 
     void operator()(const VectorLab & lab, const BlockInfo& info) const
