@@ -9,6 +9,8 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
+//#define WENO
+
 struct KernelAdvectDiffuse
 {
     KernelAdvectDiffuse(const SimulationData&s, const Real a_coef) : sim(s), coef(a_coef) {}
@@ -22,7 +24,7 @@ struct KernelAdvectDiffuse
     const int Nx = VectorBlock::sizeX;
     const int Ny = VectorBlock::sizeY;
     const int Nz = VectorBlock::sizeZ;
-
+  #ifdef WENO
     inline Real weno5_plus(const Real & um2, const Real & um1, const Real & u, const Real & up1, const Real & up2) const
     {
       const Real exponent = 2;
@@ -84,10 +86,17 @@ struct KernelAdvectDiffuse
       }
       return (fp-fm);
     }
+  #else
+    inline Real derivative(const Real & U, const Real & um3, const Real & um2, const Real & um1,
+                           const Real & u, const Real & up1, const Real & up2, const Real & up3) const
+    {
+      if (U > 0) return(-2*um3+15*um2-60*um1+20*u+30*up1-3*up2)/60.;
+      else       return( 2*up3-15*up2+60*up1-20*u-30*um1+3*um2)/60.;
+  #endif
 
     void operator()(const VectorLab & lab, const BlockInfo& info) const
     {
-	VectorBlock & o = (*sim.tmpV)(info.blockID);
+	      VectorBlock & o = (*sim.tmpV)(info.blockID);
 
         const Real h3   = info.h*info.h*info.h;
         const Real facA = -dt/info.h * h3 * coef;
@@ -119,9 +128,9 @@ struct KernelAdvectDiffuse
             const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
             const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
             const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
-            o(x,y,z).u[0] =  facA*duA + facD*duD ;
-            o(x,y,z).u[1] =  facA*dvA + facD*dvD ;
-            o(x,y,z).u[2] =  facA*dwA + facD*dwD ;
+            o(x,y,z).u[0] +=  facA*duA + facD*duD ;
+            o(x,y,z).u[1] +=  facA*dvA + facD*dvD ;
+            o(x,y,z).u[2] +=  facA*dwA + facD*dwD ;
         }
 
         BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
@@ -134,7 +143,7 @@ struct KernelAdvectDiffuse
         VectorElement * const faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
         VectorElement * const faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
         VectorElement * const faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
-	if (faceXm != nullptr)
+	      if (faceXm != nullptr)
         {
           const int x = 0;
           for(int z=0; z<Nz; ++z)
@@ -205,13 +214,14 @@ struct KernelAdvectDiffuse
 
 void AdvectionDiffusion::operator()(const Real dt)
 {
-    //Perform midpoint integration of equation: du/dt = - (u * nabla) u + nu Delta u
+  const std::vector<BlockInfo> &  velInfo = sim.velInfo();
+  const int Nx = VectorBlock::sizeX;
+  const int Ny = VectorBlock::sizeY;
+  const int Nz = VectorBlock::sizeZ;
+  const size_t Nblocks = velInfo.size();
 
-    const std::vector<BlockInfo> &  velInfo = sim.velInfo();
-    const int Nx = VectorBlock::sizeX;
-    const int Ny = VectorBlock::sizeY;
-    const int Nz = VectorBlock::sizeZ;
-    const size_t Nblocks = velInfo.size();
+  #if 0
+    //Perform midpoint integration of equation: du/dt = - (u * nabla) u + nu Delta u
 
     vOld.resize(Nx*Ny*Nz*Nblocks*3);
 
@@ -271,6 +281,42 @@ void AdvectionDiffusion::operator()(const Real dt)
           V(x,y,z).u[2] = vOld[idx+2] + tmpV(x,y,z).u[2]*ih3;
         }
     }
+  #else
+    //Low-storage 3rd-order Runge Kutta
+    const KernelAdvectDiffuse step(sim,1.0);
+    const Real alpha[3] = { 1.0/3.0,  15.0/ 16.0,8.0/15.0}; 
+    const Real  beta[3] = {-5.0/9.0,-153.0/128.0,0.0     }; 
+
+    #pragma omp parallel for
+    for(size_t i=0; i<Nblocks; i++)
+    {
+      VectorBlock & tmpV = (*sim.tmpV)(i);
+      tmpV.clear();
+    }
+
+    for (int RKstep = 0; RKstep < 3; RKstep ++)
+    {
+      compute<VectorLab>(step,sim.vel,sim.tmpV); //Store dt*RHS(u) to tmpV
+      #pragma omp parallel for
+      for(size_t i=0; i<Nblocks; i++)
+      {
+        const Real ih3 = alpha[RKstep]/(velInfo[i].h*velInfo[i].h*velInfo[i].h);
+        VectorBlock & tmpV = (*sim.tmpV)(i);
+        VectorBlock & V    = (*sim.vel )(i);
+        for (int z=0; z<Nz; ++z)
+        for (int y=0; y<Ny; ++y)
+        for (int x=0; x<Nx; ++x)
+        {
+          V(x,y,z).u[0] += tmpV(x,y,z).u[0] * ih3;
+          V(x,y,z).u[1] += tmpV(x,y,z).u[1] * ih3;
+          V(x,y,z).u[2] += tmpV(x,y,z).u[2] * ih3;
+          tmpV(x,y,z).u[0] *= beta[RKstep];
+          tmpV(x,y,z).u[1] *= beta[RKstep];
+          tmpV(x,y,z).u[2] *= beta[RKstep];
+        }
+      }
+    }
+  #endif
 }
 
 CubismUP_3D_NAMESPACE_END
