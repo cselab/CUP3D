@@ -94,7 +94,7 @@ struct KernelDivPressure
 struct KernelPressureRHS
 {
   SimulationData & sim;
-  const Real dt = sim.dt;
+  const Real dt;
   ObstacleVector * const obstacle_vector = sim.obstacle_vector;
   const int nShapes = obstacle_vector->nObstacles();
   StencilInfo stencil  = StencilInfo(-1,-1,-1, 2,2,2, false, {0,1,2});
@@ -105,7 +105,7 @@ struct KernelPressureRHS
   const int Ny = VectorBlock::sizeY;
   const int Nz = VectorBlock::sizeZ;
 
-  KernelPressureRHS(SimulationData& s) :sim(s) {}
+  KernelPressureRHS(SimulationData& s, const Real a_dt) :sim(s), dt(a_dt) {}
 
   void operator()(const VectorLab & lab, const VectorLab & uDefLab, const BlockInfo& info, const BlockInfo& info2) const
   {
@@ -236,12 +236,12 @@ struct KernelGradP
   const StencilInfo stencil{-1,-1,-1,2,2,2,false,{0}};
   SimulationData & sim;
   const std::vector<BlockInfo>& tmpVInfo = sim.tmpVInfo();
-  const Real dt = sim.dt;
+  const Real dt;
   const int Nx = VectorBlock::sizeX;
   const int Ny = VectorBlock::sizeY;
   const int Nz = VectorBlock::sizeZ;
 
-  KernelGradP(SimulationData & s): sim(s) {}
+  KernelGradP(SimulationData & s, const Real a_dt): sim(s), dt(a_dt) {}
 
   ~KernelGradP() {}
 
@@ -350,7 +350,7 @@ void PressureProjection::operator()(const Real dt)
     //place Udef on tmpV
     if(sim.obstacle_vector->nObstacles() > 0) kernelUpdateTmpV(sim);
 
-    KernelPressureRHS K(sim);
+    KernelPressureRHS K(sim,dt);
     compute<KernelPressureRHS,VectorGrid,VectorLab,VectorGrid,VectorLab,ScalarGrid>(K,*sim.vel,*sim.tmpV,true,sim.lhs);
   }
 
@@ -407,7 +407,7 @@ void PressureProjection::operator()(const Real dt)
   }
 
   //Compute grad(P) and put it to the vector tmpV
-  compute<ScalarLab>(KernelGradP(sim),sim.pres,sim.tmpV);
+  compute<ScalarLab>(KernelGradP(sim,dt),sim.pres,sim.tmpV);
 
   //Perform the projection and set u^{n+1} = u - grad(P)*dt
   #pragma omp parallel for
