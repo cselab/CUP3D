@@ -27,15 +27,15 @@ public:
   StefanFish(SimulationData&s, cubism::ArgumentParser&p);
 
   //PID controller options
-  bool bCorrectTrajectory ; //control yaw angle 
-  bool bCorrectTrajectoryZ; //control pitch angle
-  bool bCorrectPosition   ; //control yaw angle and position in x-y plane
-  bool bCorrectPositionZ  ; //control pitch angle and position in z
-  bool bCorrectRoll       ; //prevent rolling angle 
-
-  Real origC[3]; //initial location for PID controller
+  bool bCorrectPosition ; //control yaw angle and position in x-y plane
+  bool bCorrectPositionZ; //control pitch angle and position in z
+  bool bCorrectRoll     ; //prevent rolling angle 
+  Real origC[3]         ; //initial location for PID controller
+  Real wyp,wyd,wyi      ; //weights for y-control
+  Real wzp,wzd,wzi      ; //weights for z-control
 
   void create() override;
+  virtual void computeVelocities() override;
   virtual void saveRestart( FILE * f ) override;
   virtual void loadRestart( FILE * f ) override;
 
@@ -47,35 +47,12 @@ public:
   //// Helpers for state function
   ssize_t holdingBlockID(const std::array<Real,3> pos) const;
   std::array<Real, 3> getShear(const std::array<Real,3> pSurf) const;
-
-  virtual void computeVelocities() override;
 };
 
 
 class CurvatureDefinedFishData : public FishMidlineData
 {
  public:
-
-  //PD controller for Z position and/or pitch angle
-  Real errP=0;
-  Real errD=0;
-
-  //PI controller from PNAS paper for curvature
-  Real alpha = 1;
-  Real dalpha = 0;
-  Real time_beta = 0;
-  Schedulers::ParameterSchedulerScalar betaScheduler;
-  Real transition_start_beta = 0.0;
-  Real beta_previous = 0.0;
-  Real beta_next     = 0.0;
-
-  // PID controller of body curvature:
-  Real curv_PID_fac = 0;
-  Real curv_PID_dif = 0;
-  // exponential averages:
-  Real avgDeltaY = 0;
-  Real avgDangle = 0;
-  Real avgAngVel = 0;
   // stored past action for RL state:
   Real lastTact = 0;
   Real lastCurv = 0;
@@ -84,12 +61,10 @@ class CurvatureDefinedFishData : public FishMidlineData
   Real periodPIDval = Tperiod;
   Real periodPIDdif = 0;
   bool TperiodPID = false;
+  Real lastTime = 0;
   // quantities needed for rl:
   Real time0 = 0;
   Real timeshift = 0;
-  // aux quantities for PID controllers:
-  Real lastTime = 0;
-  Real lastAvel = 0;
 
   // next scheduler is used to ramp-up the curvature from 0 during first period:
   Schedulers::ParameterSchedulerVector<6>    curvatureScheduler;
@@ -98,7 +73,7 @@ class CurvatureDefinedFishData : public FishMidlineData
 
   // pitching can be performed either by controling the midline torsion OR 
   // by performing a pitching motion by wrapping the fish around a cylinder
-  bool control_torsion{true};
+  bool control_torsion{false};
   // 
   // I.Torsion control parameters: torsion is a natural cubic spline passing through
   //   six points. Actions modify the torsion values directly.
@@ -107,17 +82,18 @@ class CurvatureDefinedFishData : public FishMidlineData
   std::array<Real,3> torsionValues_previous = {0,0,0};
   Real Ttorsion_start = 0.0;
 
-  // II. Pitching motion parameters 
-  // (used to make the fish move in three dimensions and allow it to leave the plane it started on)
-  Real Tman_start ; //pitching motion start time
-  Real Tman_finish; //pitching motion final time
-  Real Lman;        //pitching motion is perfomed by taking the midline computed from the Frenet 
-                    //equations and wrapping it around a cylinder that is parallel to the y-axis
-                    //This cylinder has radius = Lman * length.
-                    //Sharper turns have smaller radius.
-  //this controls the transition of the cylinder radius from infinity to Lman*length and then
-  //back to infinity, when Tman_start < t < Tman_finish
-  Schedulers::ParameterSchedulerVector<1> turnZScheduler; 
+  Real  alpha     = 1;
+  Real dalpha     = 0;
+  Real  beta      = 0;
+  Real  beta_old  = 0;
+  Real dbeta      = 0;
+  Real  gamma     = 0;
+  Real  gamma_old = 0;
+  Real dgamma     = 0;
+  std::vector<double>ierror_beta;
+  std::vector<double>terror_beta;
+  std::vector<double>ierror;
+  std::vector<double>terror;
 
   // next scheduler is used to ramp-up the period
   Schedulers::ParameterSchedulerScalar periodScheduler;
@@ -146,17 +122,7 @@ class CurvatureDefinedFishData : public FishMidlineData
   : FishMidlineData(L, T, phi, _h, _ampFac),
     rK(_alloc(Nm)),vK(_alloc(Nm)), rC(_alloc(Nm)),vC(_alloc(Nm)), rB(_alloc(Nm)),vB(_alloc(Nm)),
     rT(_alloc(Nm)),vT(_alloc(Nm)), rC_T(_alloc(Nm)),vC_T(_alloc(Nm)), rB_T(_alloc(Nm)),vB_T(_alloc(Nm))
-    {
-      Tman_start = -1;
-      Tman_finish = -1;
-      Lman = 0;
-    }
-
-  void correctTrajectory(const Real dtheta, const Real vtheta)
-  {
-    curv_PID_fac = dtheta;
-    curv_PID_dif = vtheta;
-  }
+    {}
 
   void correctTailPeriod(const Real periodFac, const Real periodVel, const Real t, const Real dt)
   {
@@ -200,16 +166,6 @@ class CurvatureDefinedFishData : public FishMidlineData
     current_period = periodPIDval;
     next_period = Tperiod * (1 + action);
     transition_start = l_tnext;
-  }
-  void action_pitching(const Real time, const Real l_tnext, const Real action)
-  {
-    if (time > Tman_finish)
-    {
-      Tman_start = time;
-      Tman_finish = time + 0.25*Tperiod;
-      Lman = 0;
-      if (std::fabs(action) > 0.01) Lman = 1.0/action;
-    }
   }
   void action_torsion(const Real time, const Real l_tnext, const Real * action)
   {
