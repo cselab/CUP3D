@@ -85,7 +85,7 @@ inline Real findMaxU(SimulationData& sim)
   {
       if (sim.rank == 0)
       {
-         std::cerr << "maxU = " << maxU << " exceeded uMax_allowed = " << uMax_allowed << ". Aborting...\n";
+         std::cerr << "maxU = " << maxU << " exceeded uMax_allowed = " << sim.uMax_allowed << ". Aborting...\n";
          MPI_Abort(sim.comm,1);
       }
   }
