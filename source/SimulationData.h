@@ -89,6 +89,7 @@ struct SimulationData
 
   //Other stuff
   Real uMax_measured = 0;         //max velocity at current timestep
+  Real uMax_allowed;              //if uMax_measured > uMax_allowed simulation will abort
   Real nu;                        //fluid kinematic viscosity
   Real lambda;                    //penalisation coefficient
   bool bImplicitPenalization = true;//explicit/implicit Penalisation

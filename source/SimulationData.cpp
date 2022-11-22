@@ -89,6 +89,8 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(m
   bMeanConstraint = parser("-bMeanConstraint").asInt(1); //zero mean constraint 
   poissonSolver = parser("-poissonSolver").asString("iterative");
 
+  uMax_allowed = parser("-umax").asDouble(10.0);
+
   // BOUNDARY CONDITIONS
   // accepted periodic, freespace or wall
   std::string BC_x = parser("-BC_x").asString("freespace");
