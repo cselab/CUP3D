@@ -88,14 +88,14 @@ struct KernelComputeForces
         if ((int)abs(kk*dx) > 3 || (int)abs(kk*dy) > 3 || (int)abs(kk*dz) > 3) break; //3 means we moved too far
         if (chiLab(x,y,z).s <0.3 && found == 0) break;
 
-        if (ix + kk*dx + 1 >= ScalarBlock::sizeX + big-1 || ix + kk*dx -1 < small) break;
-        if (iy + kk*dy + 1 >= ScalarBlock::sizeY + big-1 || iy + kk*dy -1 < small) break;
-        if (iz + kk*dz + 1 >= ScalarBlock::sizeZ + big-1 || iz + kk*dz -1 < small) break;
+	if (ix + kk*dx + 1 >= ScalarBlock::sizeX + big-1 || ix + kk*dx -1 < small) break;
+	if (iy + kk*dy + 1 >= ScalarBlock::sizeY + big-1 || iy + kk*dy -1 < small) break;
+	if (iz + kk*dz + 1 >= ScalarBlock::sizeZ + big-1 || iz + kk*dz -1 < small) break;
 
         x  = ix + kk*dx; 
         y  = iy + kk*dy;
         z  = iz + kk*dz;
-        if (chiLab(x,y,z).s < 0.3 ) found ++;
+        if (chiLab(x,y,z).s < 0.3 ) {found ++; break;}
       }
 
       Real dudx1 = normX > 0 ? (l(x+1,y,z).u[0]-l(x,y,z).u[0]) : (l(x,y,z).u[0]-l(x-1,y,z).u[0]);
@@ -116,6 +116,17 @@ struct KernelComputeForces
       Real dudz2 = 0.0;
       Real dvdz2 = 0.0;
       Real dwdz2 = 0.0;
+
+      Real dudx3 = 0.0;
+      Real dvdx3 = 0.0;
+      Real dwdx3 = 0.0;
+      Real dudy3 = 0.0;
+      Real dvdy3 = 0.0;
+      Real dwdy3 = 0.0;
+      Real dudz3 = 0.0;
+      Real dvdz3 = 0.0;
+      Real dwdz3 = 0.0;
+
       Real dudxdy1 = 0.0;
       Real dvdxdy1 = 0.0;
       Real dwdxdy1 = 0.0;
@@ -336,6 +347,42 @@ struct KernelComputeForces
         dvdz2 =      l(x,y,z).u[1]-2.0*l(x,y,z-1).u[1]+    l(x,y,z-2).u[1];
         dwdz2 =      l(x,y,z).u[2]-2.0*l(x,y,z-1).u[2]+    l(x,y,z-2).u[2];
       }
+      if (normX > 0 && x+3 <    big)
+      {
+        dudx3 = -l(x,y,z).u[0] + 3*l(x+1,y,z).u[0] - 3*l(x+2,y,z).u[0] + l(x+3,y,z).u[0]; 
+        dvdx3 = -l(x,y,z).u[1] + 3*l(x+1,y,z).u[1] - 3*l(x+2,y,z).u[1] + l(x+3,y,z).u[1];
+        dwdx3 = -l(x,y,z).u[2] + 3*l(x+1,y,z).u[2] - 3*l(x+2,y,z).u[2] + l(x+3,y,z).u[2];
+      }
+      if (normX < 0 && x-3 >= small)
+      {
+        dudx3 =  l(x,y,z).u[0] - 3*l(x-1,y,z).u[0] + 3*l(x-2,y,z).u[0] - l(x-3,y,z).u[0]; 
+        dvdx3 =  l(x,y,z).u[1] - 3*l(x-1,y,z).u[1] + 3*l(x-2,y,z).u[1] - l(x-3,y,z).u[1];
+        dwdx3 =  l(x,y,z).u[2] - 3*l(x-1,y,z).u[2] + 3*l(x-2,y,z).u[2] - l(x-3,y,z).u[2];
+      }
+      if (normY > 0 && y+3 <    big) 
+      {
+        dudy3 = -l(x,y,z).u[0] + 3*l(x,y+1,z).u[0] - 3*l(x,y+2,z).u[0] + l(x,y+3,z).u[0];
+        dvdy3 = -l(x,y,z).u[1] + 3*l(x,y+1,z).u[1] - 3*l(x,y+2,z).u[1] + l(x,y+3,z).u[1];
+        dwdy3 = -l(x,y,z).u[2] + 3*l(x,y+1,z).u[2] - 3*l(x,y+2,z).u[2] + l(x,y+3,z).u[2];
+      }
+      if (normY < 0 && y-3 >= small)
+      {
+        dudy3 =  l(x,y,z).u[0] - 3*l(x,y-1,z).u[0] + 3*l(x,y-2,z).u[0] - l(x,y-3,z).u[0];
+        dvdy3 =  l(x,y,z).u[1] - 3*l(x,y-1,z).u[1] + 3*l(x,y-2,z).u[1] - l(x,y-3,z).u[1];
+        dwdy3 =  l(x,y,z).u[2] - 3*l(x,y-1,z).u[2] + 3*l(x,y-2,z).u[2] - l(x,y-3,z).u[2];
+      }
+      if (normZ > 0 && z+3 <    big) 
+      {
+        dudz3 = -l(x,y,z).u[0] + 3*l(x,y,z+1).u[0] - 3*l(x,y,z+2).u[0] + l(x,y,z+3).u[0];
+        dvdz3 = -l(x,y,z).u[1] + 3*l(x,y,z+1).u[1] - 3*l(x,y,z+2).u[1] + l(x,y,z+3).u[1];
+        dwdz3 = -l(x,y,z).u[2] + 3*l(x,y,z+1).u[2] - 3*l(x,y,z+2).u[2] + l(x,y,z+3).u[2];
+      }
+      if (normZ < 0 && z-3 >= small)
+      {
+        dudz3 =  l(x,y,z).u[0] - 3*l(x,y,z-1).u[0] + 3*l(x,y,z-2).u[0] - l(x,y,z-3).u[0];
+        dvdz3 =  l(x,y,z).u[1] - 3*l(x,y,z-1).u[1] + 3*l(x,y,z-2).u[1] - l(x,y,z-3).u[1];
+        dwdz3 =  l(x,y,z).u[2] - 3*l(x,y,z-1).u[2] + 3*l(x,y,z-2).u[2] - l(x,y,z-3).u[2];
+      }
 
       const Real dudx = dudx1 + dudx2*(ix-x) + dudxdy1*(iy-y) + dudxdz1*(iz-z);
       const Real dvdx = dvdx1 + dvdx2*(ix-x) + dvdxdy1*(iy-y) + dvdxdz1*(iz-z);
@@ -393,9 +440,9 @@ struct KernelComputeForces
       // Compute P_locomotion = Force*(uTrans + uRot)
       const Real rVec[3] = {p[0]-CM[0], p[1]-CM[1], p[2]-CM[2]};
       const Real uSolid[3] = {
-                uTrans[0] + omega[1]*rVec[2] - rVec[1]*omega[2],
-                uTrans[1] + omega[2]*rVec[0] - rVec[2]*omega[0],
-                uTrans[2] + omega[0]*rVec[1] - rVec[0]*omega[1]
+	        uTrans[0] + omega[1]*rVec[2] - rVec[1]*omega[2],
+	        uTrans[1] + omega[2]*rVec[0] - rVec[2]*omega[0],
+	        uTrans[2] + omega[0]*rVec[1] - rVec[0]*omega[1]
       };
       o->pLocom += fXT*uSolid[0] + fYT*uSolid[1] + fZT*uSolid[2];
     }
