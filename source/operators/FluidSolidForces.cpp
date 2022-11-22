@@ -117,16 +117,6 @@ struct KernelComputeForces
       Real dvdz2 = 0.0;
       Real dwdz2 = 0.0;
 
-      Real dudx3 = 0.0;
-      Real dvdx3 = 0.0;
-      Real dwdx3 = 0.0;
-      Real dudy3 = 0.0;
-      Real dvdy3 = 0.0;
-      Real dwdy3 = 0.0;
-      Real dudz3 = 0.0;
-      Real dvdz3 = 0.0;
-      Real dwdz3 = 0.0;
-
       Real dudxdy1 = 0.0;
       Real dvdxdy1 = 0.0;
       Real dwdxdy1 = 0.0;
@@ -346,42 +336,6 @@ struct KernelComputeForces
         dudz2 =      l(x,y,z).u[0]-2.0*l(x,y,z-1).u[0]+    l(x,y,z-2).u[0];
         dvdz2 =      l(x,y,z).u[1]-2.0*l(x,y,z-1).u[1]+    l(x,y,z-2).u[1];
         dwdz2 =      l(x,y,z).u[2]-2.0*l(x,y,z-1).u[2]+    l(x,y,z-2).u[2];
-      }
-      if (normX > 0 && x+3 <    big)
-      {
-        dudx3 = -l(x,y,z).u[0] + 3*l(x+1,y,z).u[0] - 3*l(x+2,y,z).u[0] + l(x+3,y,z).u[0]; 
-        dvdx3 = -l(x,y,z).u[1] + 3*l(x+1,y,z).u[1] - 3*l(x+2,y,z).u[1] + l(x+3,y,z).u[1];
-        dwdx3 = -l(x,y,z).u[2] + 3*l(x+1,y,z).u[2] - 3*l(x+2,y,z).u[2] + l(x+3,y,z).u[2];
-      }
-      if (normX < 0 && x-3 >= small)
-      {
-        dudx3 =  l(x,y,z).u[0] - 3*l(x-1,y,z).u[0] + 3*l(x-2,y,z).u[0] - l(x-3,y,z).u[0]; 
-        dvdx3 =  l(x,y,z).u[1] - 3*l(x-1,y,z).u[1] + 3*l(x-2,y,z).u[1] - l(x-3,y,z).u[1];
-        dwdx3 =  l(x,y,z).u[2] - 3*l(x-1,y,z).u[2] + 3*l(x-2,y,z).u[2] - l(x-3,y,z).u[2];
-      }
-      if (normY > 0 && y+3 <    big) 
-      {
-        dudy3 = -l(x,y,z).u[0] + 3*l(x,y+1,z).u[0] - 3*l(x,y+2,z).u[0] + l(x,y+3,z).u[0];
-        dvdy3 = -l(x,y,z).u[1] + 3*l(x,y+1,z).u[1] - 3*l(x,y+2,z).u[1] + l(x,y+3,z).u[1];
-        dwdy3 = -l(x,y,z).u[2] + 3*l(x,y+1,z).u[2] - 3*l(x,y+2,z).u[2] + l(x,y+3,z).u[2];
-      }
-      if (normY < 0 && y-3 >= small)
-      {
-        dudy3 =  l(x,y,z).u[0] - 3*l(x,y-1,z).u[0] + 3*l(x,y-2,z).u[0] - l(x,y-3,z).u[0];
-        dvdy3 =  l(x,y,z).u[1] - 3*l(x,y-1,z).u[1] + 3*l(x,y-2,z).u[1] - l(x,y-3,z).u[1];
-        dwdy3 =  l(x,y,z).u[2] - 3*l(x,y-1,z).u[2] + 3*l(x,y-2,z).u[2] - l(x,y-3,z).u[2];
-      }
-      if (normZ > 0 && z+3 <    big) 
-      {
-        dudz3 = -l(x,y,z).u[0] + 3*l(x,y,z+1).u[0] - 3*l(x,y,z+2).u[0] + l(x,y,z+3).u[0];
-        dvdz3 = -l(x,y,z).u[1] + 3*l(x,y,z+1).u[1] - 3*l(x,y,z+2).u[1] + l(x,y,z+3).u[1];
-        dwdz3 = -l(x,y,z).u[2] + 3*l(x,y,z+1).u[2] - 3*l(x,y,z+2).u[2] + l(x,y,z+3).u[2];
-      }
-      if (normZ < 0 && z-3 >= small)
-      {
-        dudz3 =  l(x,y,z).u[0] - 3*l(x,y,z-1).u[0] + 3*l(x,y,z-2).u[0] - l(x,y,z-3).u[0];
-        dvdz3 =  l(x,y,z).u[1] - 3*l(x,y,z-1).u[1] + 3*l(x,y,z-2).u[1] - l(x,y,z-3).u[1];
-        dwdz3 =  l(x,y,z).u[2] - 3*l(x,y,z-1).u[2] + 3*l(x,y,z-2).u[2] - l(x,y,z-3).u[2];
       }
 
       const Real dudx = dudx1 + dudx2*(ix-x) + dudxdy1*(iy-y) + dudxdz1*(iz-z);
