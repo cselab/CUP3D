@@ -88,9 +88,9 @@ struct KernelComputeForces
         if ((int)abs(kk*dx) > 3 || (int)abs(kk*dy) > 3 || (int)abs(kk*dz) > 3) break; //3 means we moved too far
         if (chiLab(x,y,z).s <0.3 && found == 0) break;
 
-	if (ix + kk*dx + 1 >= ScalarBlock::sizeX + big-1 || ix + kk*dx -1 < small) break;
-	if (iy + kk*dy + 1 >= ScalarBlock::sizeY + big-1 || iy + kk*dy -1 < small) break;
-	if (iz + kk*dz + 1 >= ScalarBlock::sizeZ + big-1 || iz + kk*dz -1 < small) break;
+        if (ix + kk*dx + 1 >= ScalarBlock::sizeX + big-1 || ix + kk*dx -1 < small) break;
+        if (iy + kk*dy + 1 >= ScalarBlock::sizeY + big-1 || iy + kk*dy -1 < small) break;
+        if (iz + kk*dz + 1 >= ScalarBlock::sizeZ + big-1 || iz + kk*dz -1 < small) break;
 
         x  = ix + kk*dx; 
         y  = iy + kk*dy;
@@ -116,17 +116,6 @@ struct KernelComputeForces
       Real dudz2 = 0.0;
       Real dvdz2 = 0.0;
       Real dwdz2 = 0.0;
-
-      Real dudx3 = 0.0;
-      Real dvdx3 = 0.0;
-      Real dwdx3 = 0.0;
-      Real dudy3 = 0.0;
-      Real dvdy3 = 0.0;
-      Real dwdy3 = 0.0;
-      Real dudz3 = 0.0;
-      Real dvdz3 = 0.0;
-      Real dwdz3 = 0.0;
-
       Real dudxdy1 = 0.0;
       Real dvdxdy1 = 0.0;
       Real dwdxdy1 = 0.0;
@@ -347,60 +336,21 @@ struct KernelComputeForces
         dvdz2 =      l(x,y,z).u[1]-2.0*l(x,y,z-1).u[1]+    l(x,y,z-2).u[1];
         dwdz2 =      l(x,y,z).u[2]-2.0*l(x,y,z-1).u[2]+    l(x,y,z-2).u[2];
       }
-      if (normX > 0 && x+3 <    big)
-      {
-        dudx3 = -l(x,y,z).u[0] + 3*l(x+1,y,z).u[0] - 3*l(x+2,y,z).u[0] + l(x+3,y,z).u[0]; 
-        dvdx3 = -l(x,y,z).u[1] + 3*l(x+1,y,z).u[1] - 3*l(x+2,y,z).u[1] + l(x+3,y,z).u[1];
-        dwdx3 = -l(x,y,z).u[2] + 3*l(x+1,y,z).u[2] - 3*l(x+2,y,z).u[2] + l(x+3,y,z).u[2];
-      }
-      if (normX < 0 && x-3 >= small)
-      {
-        dudx3 =  l(x,y,z).u[0] - 3*l(x-1,y,z).u[0] + 3*l(x-2,y,z).u[0] - l(x-3,y,z).u[0]; 
-        dvdx3 =  l(x,y,z).u[1] - 3*l(x-1,y,z).u[1] + 3*l(x-2,y,z).u[1] - l(x-3,y,z).u[1];
-        dwdx3 =  l(x,y,z).u[2] - 3*l(x-1,y,z).u[2] + 3*l(x-2,y,z).u[2] - l(x-3,y,z).u[2];
-      }
-      if (normY > 0 && y+3 <    big) 
-      {
-        dudy3 = -l(x,y,z).u[0] + 3*l(x,y+1,z).u[0] - 3*l(x,y+2,z).u[0] + l(x,y+3,z).u[0];
-        dvdy3 = -l(x,y,z).u[1] + 3*l(x,y+1,z).u[1] - 3*l(x,y+2,z).u[1] + l(x,y+3,z).u[1];
-        dwdy3 = -l(x,y,z).u[2] + 3*l(x,y+1,z).u[2] - 3*l(x,y+2,z).u[2] + l(x,y+3,z).u[2];
-      }
-      if (normY < 0 && y-3 >= small)
-      {
-        dudy3 =  l(x,y,z).u[0] - 3*l(x,y-1,z).u[0] + 3*l(x,y-2,z).u[0] - l(x,y-3,z).u[0];
-        dvdy3 =  l(x,y,z).u[1] - 3*l(x,y-1,z).u[1] + 3*l(x,y-2,z).u[1] - l(x,y-3,z).u[1];
-        dwdy3 =  l(x,y,z).u[2] - 3*l(x,y-1,z).u[2] + 3*l(x,y-2,z).u[2] - l(x,y-3,z).u[2];
-      }
-      if (normZ > 0 && z+3 <    big) 
-      {
-        dudz3 = -l(x,y,z).u[0] + 3*l(x,y,z+1).u[0] - 3*l(x,y,z+2).u[0] + l(x,y,z+3).u[0];
-        dvdz3 = -l(x,y,z).u[1] + 3*l(x,y,z+1).u[1] - 3*l(x,y,z+2).u[1] + l(x,y,z+3).u[1];
-        dwdz3 = -l(x,y,z).u[2] + 3*l(x,y,z+1).u[2] - 3*l(x,y,z+2).u[2] + l(x,y,z+3).u[2];
-      }
-      if (normZ < 0 && z-3 >= small)
-      {
-        dudz3 =  l(x,y,z).u[0] - 3*l(x,y,z-1).u[0] + 3*l(x,y,z-2).u[0] - l(x,y,z-3).u[0];
-        dvdz3 =  l(x,y,z).u[1] - 3*l(x,y,z-1).u[1] + 3*l(x,y,z-2).u[1] - l(x,y,z-3).u[1];
-        dwdz3 =  l(x,y,z).u[2] - 3*l(x,y,z-1).u[2] + 3*l(x,y,z-2).u[2] - l(x,y,z-3).u[2];
-      }
 
-      const Real dudx = dudx1 + dudx2*(ix-x) + dudxdy1*(iy-y) + dudxdz1*(iz-z) + 0.5*dudx3*(ix-x)*(ix-x);
-      const Real dvdx = dvdx1 + dvdx2*(ix-x) + dvdxdy1*(iy-y) + dvdxdz1*(iz-z) + 0.5*dvdx3*(ix-x)*(ix-x);
-      const Real dwdx = dwdx1 + dwdx2*(ix-x) + dwdxdy1*(iy-y) + dwdxdz1*(iz-z) + 0.5*dwdx3*(ix-x)*(ix-x);
-      const Real dudy = dudy1 + dudy2*(iy-y) + dudydz1*(iz-z) + dudxdy1*(ix-x) + 0.5*dudy3*(iy-y)*(iy-y);
-      const Real dvdy = dvdy1 + dvdy2*(iy-y) + dvdydz1*(iz-z) + dvdxdy1*(ix-x) + 0.5*dvdy3*(iy-y)*(iy-y);
-      const Real dwdy = dwdy1 + dwdy2*(iy-y) + dwdydz1*(iz-z) + dwdxdy1*(ix-x) + 0.5*dwdy3*(iy-y)*(iy-y);
-      const Real dudz = dudz1 + dudz2*(iz-z) + dudxdz1*(ix-x) + dudydz1*(iy-y) + 0.5*dudz3*(iz-z)*(iz-z);
-      const Real dvdz = dvdz1 + dvdz2*(iz-z) + dvdxdz1*(ix-x) + dvdydz1*(iy-y) + 0.5*dvdz3*(iz-z)*(iz-z);
-      const Real dwdz = dwdz1 + dwdz2*(iz-z) + dwdxdz1*(ix-x) + dwdydz1*(iy-y) + 0.5*dwdz3*(iz-z)*(iz-z);       
+      const Real dudx = dudx1 + dudx2*(ix-x) + dudxdy1*(iy-y) + dudxdz1*(iz-z);
+      const Real dvdx = dvdx1 + dvdx2*(ix-x) + dvdxdy1*(iy-y) + dvdxdz1*(iz-z);
+      const Real dwdx = dwdx1 + dwdx2*(ix-x) + dwdxdy1*(iy-y) + dwdxdz1*(iz-z);
+      const Real dudy = dudy1 + dudy2*(iy-y) + dudydz1*(iz-z) + dudxdy1*(ix-x);
+      const Real dvdy = dvdy1 + dvdy2*(iy-y) + dvdydz1*(iz-z) + dvdxdy1*(ix-x);
+      const Real dwdy = dwdy1 + dwdy2*(iy-y) + dwdydz1*(iz-z) + dwdxdy1*(ix-x);
+      const Real dudz = dudz1 + dudz2*(iz-z) + dudxdz1*(ix-x) + dudydz1*(iy-y);
+      const Real dvdz = dvdz1 + dvdz2*(iz-z) + dvdxdz1*(ix-x) + dvdydz1*(iy-y);
+      const Real dwdz = dwdz1 + dwdz2*(iz-z) + dwdxdz1*(ix-x) + dwdydz1*(iy-y);
 
       //normals computed with Towers 2009
       // Actually using the volume integral, since (\iint -P \hat{n} dS) = (\iiint -\nabla P dV). Also, P*\nabla\Chi = \nabla P
       // penalty-accel and surf-force match up if resolution is high enough (200 points per fish)
       const Real P = presBlock(ix,iy,iz).s;
-      //const Real fXV = D11 * normX + D12 * normY + D13 * normZ;
-      //const Real fYV = D12 * normX + D22 * normY + D23 * normZ;
-      //const Real fZV = D13 * normX + D23 * normY + D33 * normZ;
       const Real fXV = _1oH * (dudx * normX + dudy * normY + dudz * normZ);
       const Real fYV = _1oH * (dvdx * normX + dvdy * normY + dvdz * normZ);
       const Real fZV = _1oH * (dwdx * normX + dwdy * normY + dwdz * normZ);
@@ -443,9 +393,9 @@ struct KernelComputeForces
       // Compute P_locomotion = Force*(uTrans + uRot)
       const Real rVec[3] = {p[0]-CM[0], p[1]-CM[1], p[2]-CM[2]};
       const Real uSolid[3] = {
-	        uTrans[0] + omega[1]*rVec[2] - rVec[1]*omega[2],
-	        uTrans[1] + omega[2]*rVec[0] - rVec[2]*omega[0],
-	        uTrans[2] + omega[0]*rVec[1] - rVec[0]*omega[1]
+                uTrans[0] + omega[1]*rVec[2] - rVec[1]*omega[2],
+                uTrans[1] + omega[2]*rVec[0] - rVec[2]*omega[0],
+                uTrans[2] + omega[0]*rVec[1] - rVec[0]*omega[1]
       };
       o->pLocom += fXT*uSolid[0] + fYT*uSolid[1] + fZT*uSolid[2];
     }
