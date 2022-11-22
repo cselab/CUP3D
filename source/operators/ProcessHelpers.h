@@ -81,7 +81,7 @@ inline Real findMaxU(SimulationData& sim)
   }
   MPI_Allreduce(MPI_IN_PLACE, & maxU, 1, MPI_Real, MPI_MAX, sim.comm);
   assert(maxU >= 0);
-  if (maxU > uMax_allowed)
+  if (maxU > sim.uMax_allowed)
   {
       if (sim.rank == 0)
       {
