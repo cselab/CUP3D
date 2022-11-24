@@ -117,18 +117,12 @@ struct KernelAdvectDiffuse
             const Real dudz = derivative(uAbs[2],lab(x,y,z-3).u[0],lab(x,y,z-2).u[0],lab(x,y,z-1).u[0],lab(x,y,z).u[0],lab(x,y,z+1).u[0],lab(x,y,z+2).u[0],lab(x,y,z+3).u[0]);
             const Real dvdz = derivative(uAbs[2],lab(x,y,z-3).u[1],lab(x,y,z-2).u[1],lab(x,y,z-1).u[1],lab(x,y,z).u[1],lab(x,y,z+1).u[1],lab(x,y,z+2).u[1],lab(x,y,z+3).u[1]);
             const Real dwdz = derivative(uAbs[2],lab(x,y,z-3).u[2],lab(x,y,z-2).u[2],lab(x,y,z-1).u[2],lab(x,y,z).u[2],lab(x,y,z+1).u[2],lab(x,y,z+2).u[2],lab(x,y,z+3).u[2]);
-            const Real duD =  lab(x+1,y,z).u[0] + lab(x-1,y,z).u[0]
-                            + lab(x,y+1,z).u[0] + lab(x,y-1,z).u[0]
-                            + lab(x,y,z+1).u[0] + lab(x,y,z-1).u[0] - 6 * lab(x,y,z).u[0];
-            const Real dvD =  lab(x+1,y,z).u[1] + lab(x-1,y,z).u[1]
-                            + lab(x,y+1,z).u[1] + lab(x,y-1,z).u[1]
-                            + lab(x,y,z+1).u[1] + lab(x,y,z-1).u[1] - 6 * lab(x,y,z).u[1];
-            const Real dwD =  lab(x+1,y,z).u[2] + lab(x-1,y,z).u[2]
-                            + lab(x,y+1,z).u[2] + lab(x,y-1,z).u[2]
-                            + lab(x,y,z+1).u[2] + lab(x,y,z-1).u[2] - 6 * lab(x,y,z).u[2];
-            const Real duA = uAbs[0] * dudx + uAbs[1] * dudy + uAbs[2] * dudz;
-            const Real dvA = uAbs[0] * dvdx + uAbs[1] * dvdy + uAbs[2] * dvdz;
-            const Real dwA = uAbs[0] * dwdx + uAbs[1] * dwdy + uAbs[2] * dwdz;
+            const Real duD =( (lab(x+1,y,z).u[0] + lab(x-1,y,z).u[0]) + ((lab(x,y+1,z).u[0] + lab(x,y-1,z).u[0]) + (lab(x,y,z+1).u[0] + lab(x,y,z-1).u[0])) )- 6 * lab(x,y,z).u[0];
+            const Real dvD =( (lab(x,y+1,z).u[1] + lab(x,y-1,z).u[1]) + ((lab(x,y,z+1).u[1] + lab(x,y,z-1).u[1]) + (lab(x+1,y,z).u[1] + lab(x-1,y,z).u[1])) )- 6 * lab(x,y,z).u[1];
+            const Real dwD =( (lab(x,y,z+1).u[2] + lab(x,y,z-1).u[2]) + ((lab(x+1,y,z).u[2] + lab(x-1,y,z).u[2]) + (lab(x,y+1,z).u[2] + lab(x,y-1,z).u[2])) )- 6 * lab(x,y,z).u[2];
+            const Real duA = uAbs[0] * dudx + (uAbs[1] * dudy + uAbs[2] * dudz);
+            const Real dvA = uAbs[1] * dvdy + (uAbs[2] * dvdz + uAbs[0] * dvdx);
+            const Real dwA = uAbs[2] * dwdz + (uAbs[0] * dwdx + uAbs[1] * dwdy);
             o(x,y,z).u[0] +=  facA*duA + facD*duD ;
             o(x,y,z).u[1] +=  facA*dvA + facD*dvD ;
             o(x,y,z).u[2] +=  facA*dwA + facD*dwD ;
