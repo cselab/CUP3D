@@ -41,6 +41,9 @@ void PoissonSolverAMR::solve()
         for(int ix=0; ix<Nx; ix++)
         {
             const size_t src_index = _dest(vInfo_lhs[i], iz, iy, ix);
+            p[src_index] = 0.0;
+            v[src_index] = 0.0;
+            s[src_index] = 0.0;
             x[src_index] = Z(ix,iy,iz).s;
             r[src_index] = LHS(ix,iy,iz).s;//this is the rhs now
         }
