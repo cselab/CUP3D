@@ -69,7 +69,7 @@ struct KernelPenalization
           vel[1] + omega[2]*p[0] - omega[0]*p[2] + UDEF[iz][iy][ix][1],
           vel[2] + omega[0]*p[1] - omega[1]*p[0] + UDEF[iz][iy][ix][2]
       };
-      const Real X = CHI[iz][iy][ix]>0.5?1.0:0.0;
+      const Real X = implicitPenalization? (CHI[iz][iy][ix]>0.5?1.0:0.0) : CHI[iz][iy][ix];
       const Real penalFac = implicitPenalization? X*lambdaFac/(1+ X*lambdaFac*dt):X*lambdaFac;
       const Real FPX = penalFac * (U_TOT[0] - b(ix,iy,iz).u[0]);
       const Real FPY = penalFac * (U_TOT[1] - b(ix,iy,iz).u[1]);
