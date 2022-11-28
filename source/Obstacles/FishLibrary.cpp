@@ -391,12 +391,12 @@ void PutFishOnBlocks::operator()(const Real h, const Real ox, const Real oy, con
   const int nz = ScalarBlock::sizeZ;
   const int ny = ScalarBlock::sizeY;
   const int nx = ScalarBlock::sizeX;
-  auto & sdf  = oblock->sdfLab;
+  Real * const sdf = &oblock->sdfLab[0][0][0];
   auto & chi  = oblock->chi;
   auto & udef = oblock->udef;
   memset(chi ,  0, sizeof(Real)* nx*    ny*    nz     );
   memset(udef,  0, sizeof(Real)* nx*    ny*    nz   *3);
-  memset(sdf , -1, sizeof(Real)*(nx+2)*(ny+2)*(nz+2)  );
+  std::fill(sdf,sdf+(nz+2)*(ny+2)*(nx+2),-1.);
   constructInternl  (h, ox, oy, oz, oblock, vSegments);
   constructSurface  (h, ox, oy, oz, oblock, vSegments);
   signedDistanceSqrt(oblock);
