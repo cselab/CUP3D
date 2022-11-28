@@ -34,7 +34,7 @@ cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
 cp ../bin/${EXEC} ${FOLDER}/simulation
 cp -r ../source ${FOLDER}/
-cp -r ../Cubism ${FOLDER}/
+cp -r ../Cubism/include/Cubism ${FOLDER}/
 cp $0 ${FOLDER}
 git diff HEAD > ${FOLDER}/gitdiff.diff
 
