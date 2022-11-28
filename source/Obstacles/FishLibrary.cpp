@@ -388,13 +388,17 @@ bool VolumeSegment_OBB::isIntersectingWithAABB(const Real start[3],const Real en
 
 void PutFishOnBlocks::operator()(const Real h, const Real ox, const Real oy, const Real oz, ObstacleBlock* const oblock, const std::vector<VolumeSegment_OBB*>& vSegments) const
 {
-  auto & sdf_array = oblock->sdfLab;
-  for(int iz=0; iz<ScalarBlock::sizeZ+2; ++iz)
-  for(int iy=0; iy<ScalarBlock::sizeY+2; ++iy)
-  for(int ix=0; ix<ScalarBlock::sizeX+2; ++ix)
-    sdf_array[iz][iy][ix] = -1;
-  constructSurface  (h, ox, oy, oz, oblock, vSegments);
+  const int nz = ScalarBlock::sizeZ;
+  const int ny = ScalarBlock::sizeY;
+  const int nx = ScalarBlock::sizeX;
+  auto & sdf  = oblock->sdfLab;
+  auto & chi  = oblock->chi;
+  auto & udef = oblock->udef;
+  memset(chi ,  0, sizeof(Real)* nx*    ny*    nz     );
+  memset(udef,  0, sizeof(Real)* nx*    ny*    nz   *3);
+  memset(sdf , -1, sizeof(Real)*(nx+2)*(ny+2)*(nz+2)  );
   constructInternl  (h, ox, oy, oz, oblock, vSegments);
+  constructSurface  (h, ox, oy, oz, oblock, vSegments);
   signedDistanceSqrt(oblock);
 }
 
