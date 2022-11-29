@@ -115,7 +115,7 @@ void CurvatureDefinedFishData::performPitchingMotion(const Real t)
   Real R,Rdot;
 
   if (std::fabs(gamma) > 1e-10) {R = 1.0/gamma; Rdot = - 1.0/gamma/gamma * dgamma;}
-  else return;
+  else {R= gamma >= 0 ? 1e10:-1e10; Rdot=0.0;}
 
   const Real x0N    = rX[Nm-1];
   const Real y0N    = rY[Nm-1];
