@@ -29,52 +29,14 @@ FACTORY+=\"StefanFish L=0.2 T=1.0 xpos=0.5 ypos=2.0 zpos=2.0 CorrectPosition=tru
 	# WRITE SOLVER SETTINGS
 	f.write('\nOPTIONS=\n\
 OPTIONS+=" -extentx 4.0"\n\
-OPTIONS+=" -bpdx 4 -bpdy 4 -bpdz 4"\n\
-OPTIONS+=" -tdump 0.2 -tend 50.0"\n\
-OPTIONS+=" -CFL 0.5 -nu 0.000008 -lambda 1e12"\n\
+OPTIONS+=" -checkpointsteps 10000000 "\n\
+OPTIONS+=" -bpdx 6 -bpdy 6 -bpdz 6"\n\
+OPTIONS+=" -tdump 0.25 -tend 100.0"\n\
+OPTIONS+=" -CFL 0.4 -nu 0.000008 -lambda 1e10"\n\
 OPTIONS+=" -poissonTol 1e-6 -poissonTolRel 1e-4"\n\
-OPTIONS+=" -levelMax 9 -levelStart 4 -levelMaxVorticity 8 -Rtol 1.0 -Ctol 0.1"\n\
+OPTIONS+=" -levelMax 8 -levelStart 4 -levelMaxVorticity 7 -Rtol 1.0 -Ctol 0.1"\n\
 OPTIONS+=" -poissonSolver ${PSOLVER}"')
 
-'''
-parser = argparse.ArgumentParser()
-parser.add_argument('--levels', help='number of levels'      , default=2,     type=int  )
-parser.add_argument('--dx'    , help='x spacing between fish', required=True, type=float)
-parser.add_argument('--dy'    , help='y spacing between fish', required=True, type=float)
-parser.add_argument('--dz'    , help='z spacing between fish', default=0.   , type=float)
-parser.add_argument('--name'  , help='name of settings file' , required=True, type=str  )
-args = vars(parser.parse_args())
-dx   = args['dx']
-dy   = args['dy']
-dz   = args['dz']
-name = args['name']
-levels = args['levels']
-launch_script(dx,dy,dz,name,levels)
-'''
-
-'''
-DeltaX = np.linspace(0.30,0.50,8)
-DeltaY = np.linspace(0.05,0.20,8)
-dz     = 0.0
-levels = 4
-kount = 1
-dx_array = []
-dy_array = []
-dx_array.append(0.3285714285714285)
-dy_array.append(0.05)
-dx_array.append(0.3857142857142857)
-dy_array.append(0.05)
-dx_array.append(0)
-dy_array.append(0)
-for dx in DeltaX:
-	for dy in DeltaY:
-		name = 'test'+str(kount)
-		dx_array[2] = dx
-		dy_array[2] = dy
-		print(kount,dx,dy)
-		launch_script(dx_array,dy_array,dz,name,levels)
-		kount += 1
-'''
 dx=0.45
 dy=0.075
 dz=0.0
