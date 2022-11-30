@@ -1,9 +1,9 @@
 #!/bin/bash
-NNODE=512
+NNODE=128
 BPDX=${BPDX:-32}
 BPDY=${BPDY:-16}
 BPDZ=${BPDZ:-16}
-NU=${NU:-0.000004}
+PSOLVER="iterative"
 
 FACTORY=
 FACTORY+="StefanFish L=0.2 T=1.0 CorrectPosition=1 CorrectPositionZ=1 CorrectRoll=1 xpos=5.826625385337721 ypos=2.390220494302034 zpos=2.1516843428127133 bFixFrameOfRef=1
@@ -609,9 +609,9 @@ FACTORY+="StefanFish L=0.2 T=1.0 CorrectPosition=1 CorrectPositionZ=1 CorrectRol
 
 OPTIONS=
 OPTIONS+=" -poissonSolver ${PSOLVER}"
-OPTIONS+=" -extent 8.0 -bpdx 16 -bpdy 8 -bpdz 8"
+OPTIONS+=" -extent 8.0 -bpdx 12 -bpdy 6 -bpdz 6"
 OPTIONS+=" -tdump 0.1 -tend 100.0"
-OPTIONS+=" -CFL 0.3 -nu 0.000008 -lambda 1e10 "
+OPTIONS+=" -CFL 0.4 -nu 0.000008 -lambda 1e10 "
 OPTIONS+=" -poissonTol 1e-6 -poissonTolRel 1e-4 "
 OPTIONS+=" -levelMax 7 -levelStart 3 -levelMaxVorticity 6 -Rtol 1.0 -Ctol 0.1"
-OPTIONS+=" -restart 0 -checkpointsteps 1000 "
+OPTIONS+=" -restart 0 -checkpointsteps 1000000 "
