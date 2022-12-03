@@ -560,7 +560,7 @@ void StefanFish::create()
     //const Real rel = 0.05;
     const Real rel = 10.0*sim.dt/Tperiod;
     const Real g    = rel * (wzp*P+wzi*I+wzd*D) + (1.0 - rel) * cFish->gamma;
-    const Real dgdt = (std::fabs(g)>1e-6 && sim.step < 100) ? (sim.coefU[0]*g + sim.coefU[1]*cFish->gamma + sim.coefU[2]*cFish->gamma_old)/sim.dt : 0;
+    const Real dgdt = (std::fabs(g)>1e-6 && sim.step > 100) ? (sim.coefU[0]*g + sim.coefU[1]*cFish->gamma + sim.coefU[2]*cFish->gamma_old)/sim.dt : 0;
 
     const Real gmax = 10.0;
     cFish-> gamma_old = cFish->gamma;
