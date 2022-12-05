@@ -458,6 +458,7 @@ void StefanFish::create()
                        0.5*( + angVel[0]*q[2] - angVel[1]*q[1] + angVel[2]*q[0] )};
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   const Real Tperiod = cFish->Tperiod;
+  const Real rel  = 10*sim.dt/Tperiod;
 
   if (bCorrectPosition)
   {
@@ -500,16 +501,13 @@ void StefanFish::create()
       ti += cFish->terror_beta[i];
       if (ti >= 10.0*Tperiod) break;
     }
-
     const Real I = ei;
-    //const double rel = 0.05;
-    //const double rel = 0.1;
-    const Real rel = 10.0*sim.dt/Tperiod;
-    const Real g    = rel * (wyp*P+wyi*I+wyd*D) + (1.0 - rel) * cFish->beta;
-    const Real dgdt = ( std::fabs(g)>1e-6 && sim.step > 100) ? (sim.coefU[0]*g + sim.coefU[1]*cFish->beta + sim.coefU[2]*cFish->beta_old)/sim.dt : 0;
+
+    const Real g    = (wyp*P+wyi*I) +  wyd * ( rel * D + (1.0 - rel) * cFish->beta_old );
+    const Real dgdt = (g - cFish->beta)/sim.dt;
+    cFish-> beta_old = D;
 
     const Real gmax = 1.0;
-    cFish-> beta_old = cFish->beta;
     if (std::fabs(g) < gmax)
     {
       cFish-> beta = g;
@@ -533,8 +531,8 @@ void StefanFish::create()
 
     const Real z    = absPos[2];
     const Real ztgt =  origC[2];
-    const Real  pitch_tgt = 0;//(ztgt-z          )/length * 5*M_PI/180.0;
-    const Real dpitch_tgt = 0;//(    -transVel[2])/length * 5*M_PI/180.0;
+    const Real  pitch_tgt = 0;
+    const Real dpitch_tgt = 0;
     const Real dz     = (ztgt-z          )/length;
     const Real dzdt   = (    -transVel[2])/length;
     const Real signZ  = dz > 0 ? 1 : -1;
@@ -556,14 +554,12 @@ void StefanFish::create()
       if (ti >= 10.0*Tperiod) break;
     }
     const Real I = ei;
-    //const double rel = 0.1;
-    //const Real rel = 0.05;
-    const Real rel = 10.0*sim.dt/Tperiod;
-    const Real g    = rel * (wzp*P+wzi*I+wzd*D) + (1.0 - rel) * cFish->gamma;
-    const Real dgdt = (std::fabs(g)>1e-6 && sim.step > 100) ? (sim.coefU[0]*g + sim.coefU[1]*cFish->gamma + sim.coefU[2]*cFish->gamma_old)/sim.dt : 0;
+
+    const Real g    = (wzp*P+wzi*I) +  wzd * ( rel * D + (1.0 - rel) * cFish->gamma_old );
+    const Real dgdt = (g - cFish->gamma)/sim.dt;
+    cFish-> gamma_old = D;
 
     const Real gmax = 10.0;
-    cFish-> gamma_old = cFish->gamma;
     if (std::fabs(g) < gmax)
     {
       cFish-> gamma = g;
