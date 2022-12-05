@@ -504,7 +504,7 @@ void StefanFish::create()
     const Real I = ei;
 
     const Real g    = (wyp*P+wyi*I) +  wyd * ( rel * D + (1.0 - rel) * cFish->beta_old );
-    const Real dgdt = (g - cFish->beta)/sim.dt;
+    const Real dgdt = sim.step > 1 ? (g - cFish->beta)/sim.dt : 0;
     cFish-> beta_old = D;
 
     const Real gmax = 1.0;
@@ -556,7 +556,7 @@ void StefanFish::create()
     const Real I = ei;
 
     const Real g    = (wzp*P+wzi*I) +  wzd * ( rel * D + (1.0 - rel) * cFish->gamma_old );
-    const Real dgdt = (g - cFish->gamma)/sim.dt;
+    const Real dgdt = sim.step > 1 ? (g - cFish->gamma)/sim.dt : 0.0;
     cFish-> gamma_old = D;
 
     const Real gmax = 10.0;
