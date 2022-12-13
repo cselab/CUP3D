@@ -1,6 +1,7 @@
 #pragma once
 
 #include "../Definitions.h"
+#include <Cubism/BlockInfo.h>
 
 namespace cubismup3d {
 namespace poisson_kernels {
@@ -44,6 +45,8 @@ Real kernelPoissonGetZInner(
     Block & __restrict__ block,
     Real sqrNorm0,
     Real rr);
+
+void getZImplParallel(const std::vector<cubism::BlockInfo>& vInfo);
 
 }  // namespace poisson_kernels
 }  // namespace cubismup3d
