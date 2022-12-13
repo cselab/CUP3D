@@ -33,16 +33,12 @@ class ComputeLHS : public Operator
 
     void operator()(const ScalarLab & lab, const BlockInfo& info) const
     {
-      ScalarBlock & __restrict__ o  = (*sim.lhs)(info.blockID);
+      ScalarBlock & __restrict__ o = (*sim.lhs)(info.blockID);
       const Real h = info.h; 
       for(int z=0; z<Nz; ++z)
       for(int y=0; y<Ny; ++y)
       for(int x=0; x<Nx; ++x)
-      {
-        o(x,y,z)   = h*( lab(x-1,y,z) + lab(x+1,y,z) + 
-                         lab(x,y-1,z) + lab(x,y+1,z) +
-                         lab(x,y,z-1) + lab(x,y,z+1) - 6.0*lab(x,y,z));
-      }
+        o(x,y,z) = h*( lab(x-1,y,z) + lab(x+1,y,z) + lab(x,y-1,z) + lab(x,y+1,z) +lab(x,y,z-1) + lab(x,y,z+1) - 6.0*lab(x,y,z));
 
       BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(lhsInfo[info.blockID].auxiliary);
 
@@ -100,11 +96,14 @@ class ComputeLHS : public Operator
 
     }
   };
+
   public:
   ComputeLHS(SimulationData & s) : Operator(s) { }
   void operator()(const Real dt)
   {
-    compute<ScalarLab>(KernelLHSPoisson(sim),sim.pres,sim.lhs);
+    Real avgP = 0;
+    int index = -1;
+    MPI_Request request;
 
     const std::vector<BlockInfo> & vInfo_lhs = sim.lhsInfo();
     const std::vector<BlockInfo> & vInfo_z   = sim.presInfo();
@@ -112,52 +111,56 @@ class ComputeLHS : public Operator
     const int Ny = ScalarBlock::sizeY;
     const int Nz = ScalarBlock::sizeZ;
 
+    if (sim.bMeanConstraint <= 2)
+    {
+      #pragma omp parallel for reduction(+ : avgP)
+      for(size_t i=0; i<vInfo_z.size(); ++i)
+      {
+        const ScalarBlock & __restrict__ Z  = (*sim.pres)(i);
+        const Real h3 = vInfo_z[i].h*vInfo_z[i].h*vInfo_z[i].h;
+        if (vInfo_z[i].index[0] == 0 && vInfo_z[i].index[1] == 0 &&  vInfo_z[i].index[2] == 0) index = i;
+        for(int z=0; z<Nz; ++z)
+        for(int y=0; y<Ny; ++y)
+        for(int x=0; x<Nx; ++x)
+          avgP += Z(x,y,z).s*h3;
+      }
+      MPI_Iallreduce(MPI_IN_PLACE, &avgP, 1, MPI_Real, MPI_SUM, sim.comm, &request);
+    }
+
+    compute<ScalarLab>(KernelLHSPoisson(sim),sim.pres,sim.lhs);
+
     if (sim.bMeanConstraint == 0) return;
 
     if (sim.bMeanConstraint <= 2)
     {
-       Real avgP = 0;
-       int index = -1;
-       #pragma omp parallel for reduction(+ : avgP)
-       for(size_t i=0; i<vInfo_lhs.size(); ++i)
-       {
-          const ScalarBlock & __restrict__ Z  = (*sim.pres)(i);
-          const Real h3 = vInfo_z[i].h*vInfo_z[i].h*vInfo_z[i].h;
-          if (vInfo_z[i].index[0] == 0 && vInfo_z[i].index[1] == 0 &&  vInfo_z[i].index[2] == 0) index = i;
-          for(int z=0; z<Nz; ++z)
-          for(int y=0; y<Ny; ++y)
-          for(int x=0; x<Nx; ++x)
-            avgP += Z(x,y,z).s*h3;
-      }
-      MPI_Allreduce(MPI_IN_PLACE, &avgP, 1, MPI_Real, MPI_SUM, sim.comm);
-
+      MPI_Waitall(1,&request,MPI_STATUSES_IGNORE);
       if (sim.bMeanConstraint == 1 && index != -1)
       {
-         ScalarBlock & __restrict__ LHS  = (*sim.lhs)(index);
-         LHS(0,0,0).s = avgP;
+        ScalarBlock & __restrict__ LHS  = (*sim.lhs)(index);
+        LHS(0,0,0).s = avgP;
       }
       else if (sim.bMeanConstraint == 2)
       {
-         #pragma omp parallel for
-         for(size_t i=0; i<vInfo_lhs.size(); ++i)
-	 {
-            ScalarBlock & __restrict__ LHS = (*sim.lhs)(i);
-            const Real h3 = vInfo_lhs[i].h*vInfo_lhs[i].h*vInfo_lhs[i].h;
-            for(int z=0; z<Nz; ++z)
-            for(int y=0; y<Ny; ++y)
-            for(int x=0; x<Nx; ++x)
-               LHS(x,y,z).s += avgP*h3;
-	 }
+        #pragma omp parallel for
+        for(size_t i=0; i<vInfo_lhs.size(); ++i)
+	      {
+          ScalarBlock & __restrict__ LHS = (*sim.lhs)(i);
+          const Real h3 = vInfo_lhs[i].h*vInfo_lhs[i].h*vInfo_lhs[i].h;
+          for(int z=0; z<Nz; ++z)
+          for(int y=0; y<Ny; ++y)
+          for(int x=0; x<Nx; ++x)
+            LHS(x,y,z).s += avgP*h3;
+	      }
       }
     }
     else // > 2
     {
-       #pragma omp parallel for
-       for(size_t i=0; i<vInfo_lhs.size(); ++i)
-       {
-          ScalarBlock & __restrict__ LHS = (*sim.lhs)(i);
-          const ScalarBlock & __restrict__ Z = (*sim.pres)(i);
-          if (vInfo_lhs[i].index[0] == 0 && vInfo_lhs[i].index[1] == 0 && vInfo_lhs[i].index[2] == 0) LHS(0,0,0).s = Z(0,0,0).s;
+      #pragma omp parallel for
+      for(size_t i=0; i<vInfo_lhs.size(); ++i)
+      {
+        ScalarBlock & __restrict__ LHS = (*sim.lhs)(i);
+        const ScalarBlock & __restrict__ Z = (*sim.pres)(i);
+        if (vInfo_lhs[i].index[0] == 0 && vInfo_lhs[i].index[1] == 0 && vInfo_lhs[i].index[2] == 0) LHS(0,0,0).s = Z(0,0,0).s;
       }
     }
   }
@@ -167,8 +170,110 @@ class ComputeLHS : public Operator
 class PoissonSolverAMR : public PoissonSolverBase
 {
  protected:
-  SimulationData & sim;
+  SimulationData& sim;
   ComputeLHS findLHS;
+
+#if 1
+  void _preconditioner(const std::vector<Real> & input, std::vector<Real> & output)
+  {
+    auto &  zInfo         = sim.pres->getBlocksInfo(); //used for preconditioning
+    const size_t Nblocks  = zInfo.size();
+    const int BSX         = VectorBlock::sizeX;
+    const int BSY         = VectorBlock::sizeY;
+    const int BSZ         = VectorBlock::sizeZ;
+
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      ScalarBlock & __restrict__ bb = (*sim.pres)(i);
+      for(int iz=0; iz<BSZ; iz++)
+      for(int iy=0; iy<BSY; iy++)
+      for(int ix=0; ix<BSX; ix++)
+      {
+        const int j = i*BSX*BSY*BSZ+iz*BSX*BSY+iy*BSX+ix;
+        bb(ix,iy,iz).s = input[j];
+      }
+    }
+
+    #pragma omp parallel
+    {
+      cubismup3d::poisson_kernels::getZImplParallel(sim.presInfo());
+    }
+
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      const ScalarBlock & __restrict__ bb = (*sim.pres)(i);
+      for(int iz=0; iz<BSZ; iz++)
+      for(int iy=0; iy<BSY; iy++)
+      for(int ix=0; ix<BSX; ix++)
+      {
+        const int j = i*BSX*BSY*BSZ+iz*BSX*BSY+iy*BSX+ix;
+        output[j] = bb(ix,iy,iz).s;;
+      }
+    }
+
+  }
+
+  void _lhs(std::vector<Real> & input, std::vector<Real> & output)
+  {
+    auto &  zInfo         = sim.pres->getBlocksInfo(); //used for preconditioning
+    auto & AxInfo         = sim.lhs ->getBlocksInfo(); //will store the LHS result
+    const size_t Nblocks  = zInfo.size();
+    const int BSX         = VectorBlock::sizeX;
+    const int BSY         = VectorBlock::sizeY;
+    const int BSZ         = VectorBlock::sizeZ;
+
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      ScalarBlock & __restrict__ zz = *(ScalarBlock*) zInfo[i].ptrBlock;
+      for(int iz=0; iz<BSZ; iz++)
+      for(int iy=0; iy<BSY; iy++)
+      for(int ix=0; ix<BSX; ix++)
+      {
+        const int j = i*BSX*BSY*BSZ+iz*BSX*BSY+iy*BSX+ix;
+        zz(ix,iy,iz).s  = input[j];
+      }
+    }
+
+    findLHS(0);
+
+    #pragma omp parallel for
+    for (size_t i=0; i < Nblocks; i++)
+    {
+      ScalarBlock & __restrict__ Ax = *(ScalarBlock*) AxInfo[i].ptrBlock;
+      for(int iz=0; iz<BSZ; iz++)
+      for(int iy=0; iy<BSY; iy++)
+      for(int ix=0; ix<BSX; ix++)
+      {
+        const int j = i*BSX*BSY*BSZ+iz*BSX*BSY+iy*BSX+ix;
+        output[j]   = Ax(ix,iy,iz).s;
+      }
+    }
+  }
+
+  std::vector<Real> b;
+  std::vector<Real> phat;
+  std::vector<Real> rhat;
+  std::vector<Real> shat;
+  std::vector<Real> what;
+  std::vector<Real> zhat;
+  std::vector<Real> qhat;
+  std::vector<Real> s;
+  std::vector<Real> w;
+  std::vector<Real> z;
+  std::vector<Real> t;
+  std::vector<Real> v;
+  std::vector<Real> q;
+  std::vector<Real> r;
+  std::vector<Real> y;
+  std::vector<Real> x;
+  std::vector<Real> r0;
+  std::vector<Real> x_opt;
+
+#else //non-pipelined version
+
   void getZ()
   {
     #pragma omp parallel
@@ -187,6 +292,9 @@ class PoissonSolverAMR : public PoissonSolverBase
   {
     return BlockType::sizeX * ( BlockType::sizeY * (info.blockID * BlockType::sizeZ  + iz) + iy) + ix;
   }
+
+#endif
+
  public:
   PoissonSolverAMR(SimulationData& ss): sim(ss),findLHS(ss){}
   PoissonSolverAMR(const PoissonSolverAMR& c) = delete; 
@@ -194,3 +302,9 @@ class PoissonSolverAMR : public PoissonSolverBase
 };
 
 }//namespace cubismup3d
+
+
+
+
+
+
