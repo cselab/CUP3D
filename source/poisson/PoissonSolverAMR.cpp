@@ -533,7 +533,6 @@ void PoissonSolverAMR::solve()
     MPI_Request request2;
     MPI_Iallreduce(MPI_IN_PLACE,&quantities,6,MPI_Real,MPI_SUM,m_comm,&request );
     MPI_Iallreduce(MPI_IN_PLACE,&norm      ,1,MPI_Real,MPI_SUM,m_comm,&request2);
-    norm = std::sqrt(norm);
 
     //(*22*) computation what = M^{-1}*w
     _preconditioner(w,what);
@@ -561,6 +560,7 @@ void PoissonSolverAMR::solve()
 
     r0r_prev = r0r;
     MPI_Waitall(1,&request2,MPI_STATUSES_IGNORE);
+    norm = std::sqrt(norm);
     //Check if restart should be made. If so, current solution estimate is used as an initial
     //guess and solver starts again.
     serious_breakdown = r0r * r0r < 1e-16 * norm_1 * norm_2;
