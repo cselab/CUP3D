@@ -440,13 +440,37 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
 
   if(sim.rank==0) printf("nMidline=%d, length=%f, Tperiod=%f, phaseShift=%f\n",myFish->Nm, length, Tperiod, phaseShift);
 
-  wyp = p("-wyp").asDouble(0.42813323987193935);
-  wyi = p("-wyi").asDouble(0.1  );
-  wyd = p("-wyd").asDouble(1.7782794100389228);
+  wyp = p("-wyp").asDouble(1.0);
+  wyi = p("-wyi").asDouble(0.0);
+  wyd = p("-wyd").asDouble(0.0);
 
-  wzp = p("-wzp").asDouble(0.1);
+  wzp = p("-wzp").asDouble(1.0);
   wzi = p("-wzi").asDouble(0.0);
-  wzd = p("-wzd").asDouble(0.5);
+  wzd = p("-wzd").asDouble(0.0);
+}
+
+static void clip_quantities(const Real fmax, const Real dfmax, const Real dt, const bool zero, const Real fcandidate, const Real dfcandidate, Real & f, Real & df)
+{
+    if (zero)
+    {
+      f = 0;
+      df = 0;
+    }
+    else if (std::fabs(dfcandidate) > dfmax)
+    {
+      df = dfcandidate > 0 ? +dfmax : -dfmax;
+      f  = f + dt * df;
+    }
+    else if (std::fabs(fcandidate) < fmax)
+    {
+      f  =  fcandidate;
+      df = dfcandidate;
+    }
+    else
+    {
+      f = fcandidate > 0 ? fmax : -fmax;
+      df = 0;
+    }
 }
 
 void StefanFish::create()
@@ -459,6 +483,9 @@ void StefanFish::create()
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
   const Real Tperiod = cFish->Tperiod;
   const Real rel  = 10*sim.dt/Tperiod;
+
+  const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
+  const bool roll_is_small = std::fabs(angle_roll) < 20* M_PI/180.;
 
   if (bCorrectPosition)
   {
@@ -484,40 +511,38 @@ void StefanFish::create()
       dyaw = 1.0/(1.0+arg*arg)*darg; 
     }
 
-    const Real dy     = (ytgt-y          )/length;
-    const Real dydt   = (    -transVel[1])/length;
+    Real dy     = (ytgt-y          )/length;
+    Real dydt   = (    -transVel[1])/length;
     const Real signY  = dy > 0 ? 1 : -1;
-    const Real dphi   =  yaw- yaw_tgt;
-    const Real dphidt = dyaw-dyaw_tgt;
-    const Real P      = signY * dy * dphi;
-    const Real D      = signY * (dydt * dphi + dy * dphidt);
+    Real dphi   =  yaw- yaw_tgt;
+    Real dphidt = dyaw-dyaw_tgt;
+
+    const Real P  = signY * dy * dphi;
+    const Real D  = signY * (dydt * dphi + dy * dphidt);
     cFish->ierror_beta.push_back(P*sim.dt);
     cFish->terror_beta.push_back(sim.dt);
     Real ei=0;
     Real ti=0;
-    for (int i = cFish->ierror_beta.size()-1; i >=0; i--)
-    {
-      ei += cFish->ierror_beta[i];
-      ti += cFish->terror_beta[i];
-      if (ti >= 10.0*Tperiod) break;
-    }
+    if (std::fabs(wyi)>1e-10)
+      for (int i = cFish->ierror_beta.size()-1; i >=0; i--)
+      {
+        ei += cFish->ierror_beta[i];
+        ti += cFish->terror_beta[i];
+        if (ti >= 10.0*Tperiod) break;
+      }
     const Real I = ei;
 
     const Real g    = (wyp*P+wyi*I) +  wyd * ( rel * D + (1.0 - rel) * cFish->beta_old );
     const Real dgdt = sim.step > 1 ? (g - cFish->beta)/sim.dt : 0;
     cFish-> beta_old = D;
 
-    const Real gmax = 1.0;
-    if (std::fabs(g) < gmax)
+    clip_quantities(0.5,0.1,sim.dt,!roll_is_small,g,dgdt,cFish->beta,cFish->dbeta);
+    if (roll_is_small == false)
     {
-      cFish-> beta = g;
-      cFish->dbeta = dgdt;
+      cFish-> alpha = 1.0;
+      cFish->dalpha = 0.0;
     }
-    else
-    {
-      cFish-> beta = g > 0 ? gmax : -gmax;
-      cFish->dbeta = 0;
-    }
+
   }
   if (bCorrectPositionZ)
   {
@@ -530,46 +555,41 @@ void StefanFish::create()
     }
 
     const Real z    = absPos[2];
-    const Real ztgt =  origC[2];
+    const Real ztgt = origC[2];
     const Real  pitch_tgt = 0;
     const Real dpitch_tgt = 0;
-    const Real dz     = (ztgt-z          )/length;
-    const Real dzdt   = (    -transVel[2])/length;
+    Real dz     = (ztgt-z          )/length;
+    Real dzdt   = (    -transVel[2])/length;
+    Real dphi   =  pitch- pitch_tgt;
+    Real dphidt = dpitch-dpitch_tgt;
     const Real signZ  = dz > 0 ? 1 : -1;
-    const Real dphi   =  pitch- pitch_tgt;
-    const Real dphidt = dpitch-dpitch_tgt;
 
     //PID controller terms
     //TODO: resize ierror_z properly
-    const Real P = - signZ * dz * dphi;
-    const Real D = - signZ * (dzdt * dphi + dz * dphidt);
+    const Real P =  signZ * dz * dphi;
+    const Real D =  signZ * (dzdt * dphi + dz * dphidt);
+
     cFish->ierror.push_back(P*sim.dt);
     cFish->terror.push_back(sim.dt);
     Real ei=0;
     Real ti=0;
-    for (int i = cFish->ierror.size()-1; i >=0; i--)
-    {
-      ei += cFish->ierror[i];
-      ti += cFish->terror[i];
-      if (ti >= 10.0*Tperiod) break;
-    }
+    if (std::fabs(wzi)>1e-10)
+      for (int i = cFish->ierror.size()-1; i >=0; i--)
+      {
+        ei += cFish->ierror[i];
+        ti += cFish->terror[i];
+        if (ti >= 10.0*Tperiod) break;
+      }
     const Real I = ei;
 
-    const Real g    = (wzp*P+wzi*I) +  wzd * ( rel * D + (1.0 - rel) * cFish->gamma_old );
-    const Real dgdt = sim.step > 1 ? (g - cFish->gamma)/sim.dt : 0.0;
+    Real g    = (wzp*P+wzi*I) +  wzd * ( rel * D + (1.0 - rel) * cFish->gamma_old );
+    Real dgdt = sim.step > 1 ? (g - cFish->gamma)/sim.dt : 0.0;
     cFish-> gamma_old = D;
 
-    const Real gmax = 10.0;
-    if (std::fabs(g) < gmax)
-    {
-      cFish-> gamma = g;
-      cFish->dgamma = dgdt;
-    }
-    else
-    {
-      cFish-> gamma = g > 0 ? gmax : -gmax;
-      cFish->dgamma = 0;
-    }
+    const Real gmax = 5.0; // = 1/L for L = 0.2
+    const Real dRdtmax = 0.2; // = 1 L / T
+    const Real dgdtmax = -g*g*dRdtmax;
+    clip_quantities(gmax,dgdtmax,sim.dt,false,g,dgdt,cFish->gamma,cFish->dgamma);
 
     //if (sim.rank == 0)
     //{
