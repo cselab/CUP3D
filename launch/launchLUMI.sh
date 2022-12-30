@@ -7,7 +7,7 @@ fi
 SETTINGSNAME=$1
 BASENAME=$2
 
-WCLOCK=${WCLOCK:-24:00:00}
+WCLOCK=${WCLOCK:-48:00:00}
 PARTITION=${PARTITION:-standard}
 EXEC=${EXEC:-simulation}
 BASEPATH="${SCRATCH}/CubismUP3D/"
@@ -35,7 +35,6 @@ cp $SETTINGSNAME ${FOLDER}/settings.sh
 cp ../bin/${EXEC} ${FOLDER}/simulation
 cp -r ../source ${FOLDER}/
 cp -r ../Cubism/include/Cubism ${FOLDER}/
-cp $0 ${FOLDER}
 git diff HEAD > ${FOLDER}/gitdiff.diff
 
 cd ${FOLDER}
@@ -45,8 +44,6 @@ cat <<EOF >lumi_sbatch
 
 #SBATCH --account=${ACCOUNT}
 #SBATCH --job-name="${BASENAME}"
-#SBATCH --output=${BASENAME}_out_%j.txt
-#SBATCH --error=${BASENAME}_err_%j.txt
 #SBATCH --time=${WCLOCK}
 #SBATCH --partition=${PARTITION}
 #SBATCH --nodes=${NNODE}
@@ -54,7 +51,7 @@ cat <<EOF >lumi_sbatch
 #SBATCH --cpus-per-task=${OMP_NUM_THREADS}
 #SBATCH --threads-per-core=1
 #SBATCH --hint=nomultithread
-
+export FI_CXI_RX_MATCH_MODE=hybrid
 srun ./simulation ${OPTIONS} -factory-content $(printf "%q" "${FACTORY}")
 
 EOF
