@@ -552,6 +552,32 @@ void StefanFish::create()
       pitch = asin (2.0 * (q[2] * q[0] - q[3] * q[1]));
       const Real arg_aux = 2.0 * (q[2] * q[0] - q[3] * q[1]);
       dpitch = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dq[0]+dq    [2]*q[0]-q[3]*dq[1]-dq[3]*q[1]);
+
+    const double Rmatrix3D[3][3] = {
+    {1-2*(q[2]*q[2]+q[3]*q[3]), 2*(q[1]*q[2]-q[3]*q[0]), 2*(q[1]*q[3]+q[2]*q[0])},
+    {2*(q[1]*q[2]+q[3]*q[0]), 1-2*(q[1]*q[1]+q[3]*q[3]), 2*(q[2]*q[3]-q[1]*q[0])},
+    {2*(q[1]*q[3]-q[2]*q[0]), 2*(q[2]*q[3]+q[1]*q[0]), 1-2*(q[1]*q[1]+q[2]*q[2])}};
+
+      const int    Nm = cFish->Nm;
+      const double x1 = cFish->rX[0];
+      const double y1 = cFish->rY[0];
+      const double z1 = cFish->rZ[0];
+      const double x2 = cFish->rX[Nm/2];
+      const double y2 = cFish->rY[Nm/2];
+      const double z2 = cFish->rZ[Nm/2];
+      const double d1 = x1-x2;
+      const double d2 = y1-y2;
+      const double d3 = z1-z2;
+      const double dn = pow(d1*d1+d2*d2+d3*d3,0.5)+1e-6;
+      const double vx = d1/dn;
+      const double vy = d2/dn;
+      const double vz = d3/dn;
+      double xx[3];
+      xx[0]=Rmatrix3D[0][0]*vx + Rmatrix3D[0][1]*vy + Rmatrix3D[0][2]*vz;
+      xx[1]=Rmatrix3D[1][0]*vx + Rmatrix3D[1][1]*vy + Rmatrix3D[1][2]*vz;
+      xx[2]=Rmatrix3D[2][0]*vx + Rmatrix3D[2][1]*vy + Rmatrix3D[2][2]*vz;
+      const double pitch_test = asin(xx[2]);
+      pitch = pitch_test;
     }
 
     const Real z    = absPos[2];
@@ -566,8 +592,8 @@ void StefanFish::create()
 
     //PID controller terms
     //TODO: resize ierror_z properly
-    const Real P =  signZ * dz * dphi;
-    const Real D =  signZ * (dzdt * dphi + dz * dphidt);
+    const Real P = - signZ * dz * dphi;
+    const Real D = - signZ * (dzdt * dphi + dz * dphidt);
 
     cFish->ierror.push_back(P*sim.dt);
     cFish->terror.push_back(sim.dt);
@@ -588,18 +614,22 @@ void StefanFish::create()
 
     const Real gmax = 5.0; // = 1/L for L = 0.2
     const Real dRdtmax = 0.2; // = 1 L / T
-    const Real dgdtmax = -g*g*dRdtmax;
+    //const Real dgdtmax = std::fabs(-g*g*dRdtmax);
+    const Real dgdtmax = std::fabs(25*dRdtmax);
     clip_quantities(gmax,dgdtmax,sim.dt,false,g,dgdt,cFish->gamma,cFish->dgamma);
 
-    //if (sim.rank == 0)
-    //{
-    //  char buf[500];
-    //  sprintf(buf, "gamma%d.txt",obstacleID);
-    //  FILE * f = fopen(buf, "a");
-    //  fprintf(f, "%g %g %g %g %g \n",sim.time,cFish->beta,cFish->dbeta,cFish->gamma,cFish->dgamma);
-    //  fclose(f);
-    //}
   }
+
+  #if 0
+  if (sim.rank == 0)
+  {
+      char buf[500];
+      sprintf(buf, "gamma%d.txt",obstacleID);
+      FILE * f = fopen(buf, "a");
+      fprintf(f, "%g %g %g %g %g \n",sim.time,cFish->beta,cFish->dbeta,cFish->gamma,cFish->dgamma);
+      fclose(f);
+  }
+  #endif
 
   Fish::create();
 }
@@ -657,13 +687,16 @@ void StefanFish::computeVelocities()
                             +unit_vector[1]*angVel[1]
                             +unit_vector[2]*angVel[2];
 
-    if (angVel_roll < 0) return;
+    //if (angVel_roll < 0) return;
 
-    const Real P = std::fabs(angle_roll)/(0.25*T);
-    const Real correction_magnitude = std::min(P,0.1*angVel_mag);
+    const Real P = std::fabs(angle_roll)/(0.1*T);
+    const Real correction_magnitude = P;
+    //const Real P = std::fabs(angle_roll)/(10.0*sim.dt);
     angVel[0] = angVel[0] - correction_magnitude*unit_vector[0];
     angVel[1] = angVel[1] - correction_magnitude*unit_vector[1];
     angVel[2] = angVel[2] - correction_magnitude*unit_vector[2];
+
+
   }
 }
 
