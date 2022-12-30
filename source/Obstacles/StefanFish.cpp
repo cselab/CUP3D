@@ -327,10 +327,8 @@ void StefanFish::saveRestart( FILE * f )
   fprintf(f,"alpha                    : %20.20e\n",(double)cFish->alpha                    );
   fprintf(f,"dalpha                   : %20.20e\n",(double)cFish->dalpha                   );
   fprintf(f,"beta                     : %20.20e\n",(double)cFish->beta                     );
-  fprintf(f,"beta_old                 : %20.20e\n",(double)cFish->beta_old                 );
   fprintf(f,"dbeta                    : %20.20e\n",(double)cFish->dbeta                    );
   fprintf(f,"gamma                    : %20.20e\n",(double)cFish->gamma                    );
-  fprintf(f,"gamma_old                : %20.20e\n",(double)cFish->gamma_old                );
   fprintf(f,"dgamma                   : %20.20e\n",(double)cFish->dgamma                   );
   //TODO:save vector of integral terms for error in PID
 }
@@ -400,10 +398,8 @@ void StefanFish::loadRestart( FILE * f )
   ret = ret && 1==fscanf(f, "alpha                    : %le\n", &temp); cFish->alpha                     = temp;
   ret = ret && 1==fscanf(f, "dalpha                   : %le\n", &temp); cFish->dalpha                    = temp;
   ret = ret && 1==fscanf(f, "beta                     : %le\n", &temp); cFish->beta                      = temp;
-  ret = ret && 1==fscanf(f, "beta_old                 : %le\n", &temp); cFish->beta_old                  = temp;
   ret = ret && 1==fscanf(f, "dbeta                    : %le\n", &temp); cFish->dbeta                     = temp;
   ret = ret && 1==fscanf(f, "gamma                    : %le\n", &temp); cFish->gamma                     = temp;
-  ret = ret && 1==fscanf(f, "gamma_old                : %le\n", &temp); cFish->gamma_old                 = temp;
   ret = ret && 1==fscanf(f, "dgamma                   : %le\n", &temp); cFish->dgamma                    = temp;
   //TODO: read integral terms for PID
 
@@ -441,12 +437,7 @@ StefanFish::StefanFish(SimulationData & s, ArgumentParser&p) : Fish(s, p)
   if(sim.rank==0) printf("nMidline=%d, length=%f, Tperiod=%f, phaseShift=%f\n",myFish->Nm, length, Tperiod, phaseShift);
 
   wyp = p("-wyp").asDouble(1.0);
-  wyi = p("-wyi").asDouble(0.0);
-  wyd = p("-wyd").asDouble(0.0);
-
   wzp = p("-wzp").asDouble(1.0);
-  wzi = p("-wzi").asDouble(0.0);
-  wzd = p("-wzd").asDouble(0.0);
 }
 
 static void clip_quantities(const Real fmax, const Real dfmax, const Real dt, const bool zero, const Real fcandidate, const Real dfcandidate, Real & f, Real & df)
@@ -481,9 +472,6 @@ void StefanFish::create()
                        0.5*( - angVel[0]*q[3] + angVel[1]*q[0] + angVel[2]*q[1] ),
                        0.5*( + angVel[0]*q[2] - angVel[1]*q[1] + angVel[2]*q[0] )};
   auto * const cFish = dynamic_cast<CurvatureDefinedFishData*>( myFish );
-  const Real Tperiod = cFish->Tperiod;
-  const Real rel  = 10*sim.dt/Tperiod;
-
   const Real angle_roll  = atan2(2.0 * (q[3] * q[2] + q[0] * q[1]) ,   1.0 - 2.0 * (q[1] * q[1] + q[2] * q[2]));
   const bool roll_is_small = std::fabs(angle_roll) < 20* M_PI/180.;
 
@@ -499,42 +487,23 @@ void StefanFish::create()
     const Real yaw_tgt = 0;
     const Real dyaw_tgt = 0;
 
-    Real yaw,dyaw;
-    {
-      const Real   nom =         2.0 * (q[3] * q[0] + q[1] * q[2]);
-      const Real denom = - 1.0 + 2.0 * (q[0] * q[0] + q[1] * q[1]);
-      yaw   = atan2( nom , denom);
-      const Real dnom = 2.0 * (dq[3] * q[0] + dq[0] * q[3]+q[1] * dq[2] + q[2] * dq[1]);
-      const Real ddenom = 2.0 * (2.0*q[0] * dq[0] + 2.0*q[1] * dq[1]);
-      const Real  arg = nom/denom;
-      const Real darg = (dnom*denom-nom*ddenom)/denom/denom;
-      dyaw = 1.0/(1.0+arg*arg)*darg; 
-    }
+    const Real   nom  =         2.0 * (q[3] * q[0] + q[1] * q[2]);
+    const Real denom  = - 1.0 + 2.0 * (q[0] * q[0] + q[1] * q[1]);
+    const Real yaw    = atan2( nom , denom);
+    const Real dnom   = 2.0 * (dq[3] * q[0] + dq[0] * q[3]+q[1] * dq[2] + q[2] * dq[1]);
+    const Real ddenom = 2.0 * (2.0*q[0] * dq[0] + 2.0*q[1] * dq[1]);
+    const Real  arg   = nom/denom;
+    const Real darg   = (dnom*denom-nom*ddenom)/denom/denom;
+    const Real dyaw   = 1.0/(1.0+arg*arg)*darg; 
 
-    Real dy     = (ytgt-y          )/length;
-    Real dydt   = (    -transVel[1])/length;
+    const Real dy     = (ytgt-y          )/length;
+    const Real dydt   = (    -transVel[1])/length;
     const Real signY  = dy > 0 ? 1 : -1;
-    Real dphi   =  yaw- yaw_tgt;
-    Real dphidt = dyaw-dyaw_tgt;
-
-    const Real P  = signY * dy * dphi;
-    const Real D  = signY * (dydt * dphi + dy * dphidt);
-    cFish->ierror_beta.push_back(P*sim.dt);
-    cFish->terror_beta.push_back(sim.dt);
-    Real ei=0;
-    Real ti=0;
-    if (std::fabs(wyi)>1e-10)
-      for (int i = cFish->ierror_beta.size()-1; i >=0; i--)
-      {
-        ei += cFish->ierror_beta[i];
-        ti += cFish->terror_beta[i];
-        if (ti >= 10.0*Tperiod) break;
-      }
-    const Real I = ei;
-
-    const Real g    = (wyp*P+wyi*I) +  wyd * ( rel * D + (1.0 - rel) * cFish->beta_old );
-    const Real dgdt = sim.step > 1 ? (g - cFish->beta)/sim.dt : 0;
-    cFish-> beta_old = D;
+    const Real dphi   =  yaw- yaw_tgt;
+    const Real dphidt = dyaw-dyaw_tgt;
+    const Real g      = wyp* signY * dy * dphi;
+    const Real dgdt   = signY*(dydt*dphi + dy*dphidt);
+    //const Real dgdt   = sim.step > 1 ? (g - cFish->beta)/sim.dt : 0;
 
     clip_quantities(0.5,0.1,sim.dt,!roll_is_small,g,dgdt,cFish->beta,cFish->dbeta);
     if (roll_is_small == false)
@@ -580,44 +549,24 @@ void StefanFish::create()
       pitch = pitch_test;
     }
 
-    const Real z    = absPos[2];
-    const Real ztgt = origC[2];
+    const Real z          = absPos[2];
+    const Real ztgt       = origC[2];
     const Real  pitch_tgt = 0;
     const Real dpitch_tgt = 0;
-    Real dz     = (ztgt-z          )/length;
-    Real dzdt   = (    -transVel[2])/length;
-    Real dphi   =  pitch- pitch_tgt;
-    Real dphidt = dpitch-dpitch_tgt;
-    const Real signZ  = dz > 0 ? 1 : -1;
-
-    //PID controller terms
-    //TODO: resize ierror_z properly
-    const Real P = - signZ * dz * dphi;
-    const Real D = - signZ * (dzdt * dphi + dz * dphidt);
-
-    cFish->ierror.push_back(P*sim.dt);
-    cFish->terror.push_back(sim.dt);
-    Real ei=0;
-    Real ti=0;
-    if (std::fabs(wzi)>1e-10)
-      for (int i = cFish->ierror.size()-1; i >=0; i--)
-      {
-        ei += cFish->ierror[i];
-        ti += cFish->terror[i];
-        if (ti >= 10.0*Tperiod) break;
-      }
-    const Real I = ei;
-
-    Real g    = (wzp*P+wzi*I) +  wzd * ( rel * D + (1.0 - rel) * cFish->gamma_old );
-    Real dgdt = sim.step > 1 ? (g - cFish->gamma)/sim.dt : 0.0;
-    cFish-> gamma_old = D;
+    const Real dz         = (ztgt-z          )/length;
+    const Real dzdt       = (    -transVel[2])/length;
+    const Real dphi       =  pitch- pitch_tgt;
+    const Real dphidt     = dpitch-dpitch_tgt;
+    const Real signZ      = dz > 0 ? 1 : -1;
+    const Real D          = - signZ * (dzdt * dphi + dz * dphidt);
+    const Real g          = wzp*(- signZ * dz * dphi);
+    const Real dgdt       = sim.step > 1 ? (g - cFish->gamma)/sim.dt : 0.0;
 
     const Real gmax = 5.0; // = 1/L for L = 0.2
     const Real dRdtmax = 0.2; // = 1 L / T
     //const Real dgdtmax = std::fabs(-g*g*dRdtmax);
     const Real dgdtmax = std::fabs(25*dRdtmax);
     clip_quantities(gmax,dgdtmax,sim.dt,false,g,dgdt,cFish->gamma,cFish->dgamma);
-
   }
 
   #if 0
@@ -677,21 +626,13 @@ void StefanFish::computeVelocities()
     //current orientation is R * (1,0,0), where (1,0,0) is the initial (assumed) orientation
     //with which we only need the first column of R.
 
-    const Real angVel_mag = sqrt(angVel[0]*angVel[0]+angVel[1]*angVel[1]+angVel[2]*angVel[2]);
-
-    const int sign_roll = angle_roll > 0 ? 1:-1;
-
+    const int sign_roll       = angle_roll > 0 ? 1:-1;
     const Real unit_vector[3] = {sign_roll*R0[0],sign_roll*R0[1],sign_roll*R0[2]};
 
-    const Real angVel_roll = unit_vector[0]*angVel[0]
-                            +unit_vector[1]*angVel[1]
-                            +unit_vector[2]*angVel[2];
-
+    //const Real angVel_roll = unit_vector[0]*angVel[0]+unit_vector[1]*angVel[1]+unit_vector[2]*angVel[2];
     //if (angVel_roll < 0) return;
 
-    const Real P = std::fabs(angle_roll)/(0.1*T);
-    const Real correction_magnitude = P;
-    //const Real P = std::fabs(angle_roll)/(10.0*sim.dt);
+    const Real correction_magnitude = std::fabs(angle_roll)/(0.1*T);
     angVel[0] = angVel[0] - correction_magnitude*unit_vector[0];
     angVel[1] = angVel[1] - correction_magnitude*unit_vector[1];
     angVel[2] = angVel[2] - correction_magnitude*unit_vector[2];

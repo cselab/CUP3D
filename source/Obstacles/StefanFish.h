@@ -31,8 +31,8 @@ public:
   bool bCorrectPositionZ; //control pitch angle and position in z
   bool bCorrectRoll     ; //prevent rolling angle 
   Real origC[3]         ; //initial location for PID controller
-  Real wyp,wyd,wyi      ; //weights for y-control
-  Real wzp,wzd,wzi      ; //weights for z-control
+  Real wyp              ; //weight for y-control
+  Real wzp              ; //weight for z-control
 
   void create() override;
   virtual void computeVelocities() override;
@@ -85,15 +85,9 @@ class CurvatureDefinedFishData : public FishMidlineData
   Real  alpha     = 1;
   Real dalpha     = 0;
   Real  beta      = 0;
-  Real  beta_old  = 0;
   Real dbeta      = 0;
   Real  gamma     = 0;
-  Real  gamma_old = 0;
   Real dgamma     = 0;
-  std::vector<double>ierror_beta;
-  std::vector<double>terror_beta;
-  std::vector<double>ierror;
-  std::vector<double>terror;
 
   // next scheduler is used to ramp-up the period
   Schedulers::ParameterSchedulerScalar periodScheduler;
