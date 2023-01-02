@@ -401,7 +401,6 @@ void StefanFish::loadRestart( FILE * f )
   ret = ret && 1==fscanf(f, "dbeta                    : %le\n", &temp); cFish->dbeta                     = temp;
   ret = ret && 1==fscanf(f, "gamma                    : %le\n", &temp); cFish->gamma                     = temp;
   ret = ret && 1==fscanf(f, "dgamma                   : %le\n", &temp); cFish->dgamma                    = temp;
-  //TODO: read integral terms for PID
 
   if( (not ret) )
    {
@@ -480,73 +479,70 @@ void StefanFish::create()
     //1.control position in x
     cFish->alpha  = 1.0 + (position[0]               - origC[0])/length;
     cFish->dalpha =       (transVel[0] + sim.uinf[0]           )/length;
-
-    //2.control position in y and yaw angle
-    const Real y    = absPos[1];
-    const Real ytgt =  origC[1];
-    const Real yaw_tgt = 0;
-    const Real dyaw_tgt = 0;
-
-    const Real   nom  =         2.0 * (q[3] * q[0] + q[1] * q[2]);
-    const Real denom  = - 1.0 + 2.0 * (q[0] * q[0] + q[1] * q[1]);
-    const Real yaw    = atan2( nom , denom);
-    const Real dnom   = 2.0 * (dq[3] * q[0] + dq[0] * q[3]+q[1] * dq[2] + q[2] * dq[1]);
-    const Real ddenom = 2.0 * (2.0*q[0] * dq[0] + 2.0*q[1] * dq[1]);
-    const Real  arg   = nom/denom;
-    const Real darg   = (dnom*denom-nom*ddenom)/denom/denom;
-    const Real dyaw   = 1.0/(1.0+arg*arg)*darg; 
-
-    const Real dy     = (ytgt-y          )/length;
-    const Real dydt   = (    -transVel[1])/length;
-    const Real signY  = dy > 0 ? 1 : -1;
-    const Real dphi   =  yaw- yaw_tgt;
-    const Real dphidt = dyaw-dyaw_tgt;
-    const Real g      = wyp* signY * dy * dphi;
-    const Real dgdt   = signY*(dydt*dphi + dy*dphidt);
-    //const Real dgdt   = sim.step > 1 ? (g - cFish->beta)/sim.dt : 0;
-
-    clip_quantities(0.5,0.1,sim.dt,!roll_is_small,g,dgdt,cFish->beta,cFish->dbeta);
     if (roll_is_small == false)
     {
       cFish-> alpha = 1.0;
       cFish->dalpha = 0.0;
     }
 
+    //2.control position in y and yaw angle
+    const Real y        = absPos[1];
+    const Real ytgt     =  origC[1];
+    const Real dy       = (ytgt-y          )/length;
+    const Real dydt     = (    -transVel[1])/length;
+    const Real signY    = dy > 0 ? 1 : -1;
+    const Real  yaw_tgt = 0;
+    const Real dyaw_tgt = 0;
+    const Real    nom   =         2.0 * (q[3] * q[0] + q[1] * q[2]);
+    const Real  denom   = - 1.0 + 2.0 * (q[0] * q[0] + q[1] * q[1]);
+    const Real    yaw   = atan2( nom , denom);
+    const Real   dphi   =  yaw- yaw_tgt;
+    const Real   dnom   = 2.0 * (dq[3] * q[0] + dq[0] * q[3]+q[1] * dq[2] + q[2] * dq[1]);
+    const Real ddenom   = 2.0 * (2.0*q[0] * dq[0] + 2.0*q[1] * dq[1]);
+    const Real    arg   = nom/denom;
+    const Real   darg   = (dnom*denom-nom*ddenom)/denom/denom;
+    const Real   dyaw   = 1.0/(1.0+arg*arg)*darg; 
+    const Real dphidt   = dyaw-dyaw_tgt;
+    const Real b        = wyp * signY * dy * dphi;
+    const Real dbdt     = wyp * signY *(dydt*dphi + dy*dphidt);
+    clip_quantities(0.5,0.1,sim.dt,!roll_is_small,b,dbdt,cFish->beta,cFish->dbeta);
   }
   if (bCorrectPositionZ)
   {
     //compute pitch and d(pitch)/dt
     Real pitch,dpitch;
     {
-      pitch = asin (2.0 * (q[2] * q[0] - q[3] * q[1]));
-      const Real arg_aux = 2.0 * (q[2] * q[0] - q[3] * q[1]);
-      dpitch = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dq[0]+dq    [2]*q[0]-q[3]*dq[1]-dq[3]*q[1]);
+      //pitch = asin (2.0 * (q[2] * q[0] - q[3] * q[1]));
+      //const Real arg_aux = 2.0 * (q[2] * q[0] - q[3] * q[1]);
+      //dpitch = 2.0 / ( sqrt(1.0 - arg_aux*arg_aux) + 1e-21 ) * (q[2]*dq[0]+dq    [2]*q[0]-q[3]*dq[1]-dq[3]*q[1]);
 
-    const double Rmatrix3D[3][3] = {
-    {1-2*(q[2]*q[2]+q[3]*q[3]), 2*(q[1]*q[2]-q[3]*q[0]), 2*(q[1]*q[3]+q[2]*q[0])},
-    {2*(q[1]*q[2]+q[3]*q[0]), 1-2*(q[1]*q[1]+q[3]*q[3]), 2*(q[2]*q[3]-q[1]*q[0])},
-    {2*(q[1]*q[3]-q[2]*q[0]), 2*(q[2]*q[3]+q[1]*q[0]), 1-2*(q[1]*q[1]+q[2]*q[2])}};
+      const int  Nm = cFish->Nm;
 
-      const int    Nm = cFish->Nm;
-      const double x1 = cFish->rX[0];
-      const double y1 = cFish->rY[0];
-      const double z1 = cFish->rZ[0];
-      const double x2 = cFish->rX[Nm/2];
-      const double y2 = cFish->rY[Nm/2];
-      const double z2 = cFish->rZ[Nm/2];
-      const double d1 = x1-x2;
-      const double d2 = y1-y2;
-      const double d3 = z1-z2;
-      const double dn = pow(d1*d1+d2*d2+d3*d3,0.5)+1e-6;
-      const double vx = d1/dn;
-      const double vy = d2/dn;
-      const double vz = d3/dn;
-      double xx[3];
-      xx[0]=Rmatrix3D[0][0]*vx + Rmatrix3D[0][1]*vy + Rmatrix3D[0][2]*vz;
-      xx[1]=Rmatrix3D[1][0]*vx + Rmatrix3D[1][1]*vy + Rmatrix3D[1][2]*vz;
-      xx[2]=Rmatrix3D[2][0]*vx + Rmatrix3D[2][1]*vy + Rmatrix3D[2][2]*vz;
-      const double pitch_test = asin(xx[2]);
-      pitch = pitch_test;
+      const Real Rmatrix3D[3] = {2*(q[1]*q[3]-q[2]*q[0]), 
+                                 2*(q[2]*q[3]+q[1]*q[0]),
+                               1-2*(q[1]*q[1]+q[2]*q[2])};
+      const Real d1 = cFish->rX[0]-cFish->rX[Nm/2];
+      const Real d2 = cFish->rY[0]-cFish->rY[Nm/2];
+      const Real d3 = cFish->rZ[0]-cFish->rZ[Nm/2];
+      const Real dn = pow(d1*d1+d2*d2+d3*d3,0.5)+1e-21;
+      const Real vx = d1/dn;
+      const Real vy = d2/dn;
+      const Real vz = d3/dn;
+      const Real xx2 = Rmatrix3D[0]*vx + Rmatrix3D[1]*vy + Rmatrix3D[2]*vz;
+      pitch = asin(xx2);
+
+      const Real dR[3] = {2*(dq[1]*q[3]-dq[2]*q[0] + q[1]*dq[3]-q[2]*dq[0]), 
+                          2*(dq[2]*q[3]+dq[1]*q[0] + q[2]*dq[3]+q[1]*dq[0]), 
+                         -2*(dq[1]*q[1]+dq[2]*q[2] + q[1]*dq[1]+q[2]*dq[2])};
+      const Real dd1 = cFish->vX[0]-cFish->vX[Nm/2];
+      const Real dd2 = cFish->vY[0]-cFish->vY[Nm/2];
+      const Real dd3 = cFish->vZ[0]-cFish->vZ[Nm/2];
+      const Real ddn = pow(d1*d1+d2*d2+d3*d3,-0.5)*(d1*dd1+d2*dd2+d3*dd3);
+      const Real dvx = (dd1*dn-d1*ddn)/(dn*dn);
+      const Real dvy = (dd2*dn-d2*ddn)/(dn*dn);
+      const Real dvz = (dd3*dn-d3*ddn)/(dn*dn);
+      const Real dxx2 = dR[0]*vx+dR[1]*vy+dR[2]*vz+ Rmatrix3D[0]*dvx + Rmatrix3D[1]*dvy + Rmatrix3D[2]*dvz;
+      dpitch = 1.0 / ( sqrt(1.0 - xx2*xx2) + 1e-21) * dxx2;
     }
 
     const Real z          = absPos[2];
@@ -558,14 +554,11 @@ void StefanFish::create()
     const Real dphi       =  pitch- pitch_tgt;
     const Real dphidt     = dpitch-dpitch_tgt;
     const Real signZ      = dz > 0 ? 1 : -1;
-    const Real D          = - signZ * (dzdt * dphi + dz * dphidt);
-    const Real g          = wzp*(- signZ * dz * dphi);
-    const Real dgdt       = sim.step > 1 ? (g - cFish->gamma)/sim.dt : 0.0;
-
-    const Real gmax = 5.0; // = 1/L for L = 0.2
-    const Real dRdtmax = 0.2; // = 1 L / T
-    //const Real dgdtmax = std::fabs(-g*g*dRdtmax);
-    const Real dgdtmax = std::fabs(25*dRdtmax);
+    const Real g          = -wzp * signZ * dz * dphi;
+    const Real dgdt       = -wzp * signZ * (dzdt * dphi + dz * dphidt);
+    const Real gmax       = 1.0/length;
+    const Real dRdtmax    = length/cFish->Tperiod;
+    const Real dgdtmax    = std::fabs(gmax*gmax*dRdtmax);
     clip_quantities(gmax,dgdtmax,sim.dt,false,g,dgdt,cFish->gamma,cFish->dgamma);
   }
 
@@ -633,11 +626,9 @@ void StefanFish::computeVelocities()
     //if (angVel_roll < 0) return;
 
     const Real correction_magnitude = std::fabs(angle_roll)/(0.1*T);
-    angVel[0] = angVel[0] - correction_magnitude*unit_vector[0];
-    angVel[1] = angVel[1] - correction_magnitude*unit_vector[1];
-    angVel[2] = angVel[2] - correction_magnitude*unit_vector[2];
-
-
+    angVel[0] -= correction_magnitude*unit_vector[0];
+    angVel[1] -= correction_magnitude*unit_vector[1];
+    angVel[2] -= correction_magnitude*unit_vector[2];
   }
 }
 
