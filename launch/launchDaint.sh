@@ -36,7 +36,7 @@ cp $SETTINGSNAME ${FOLDER}/settings.sh
 [[ -n "${FFACTORY}" ]] && cp ${FFACTORY} ${FOLDER}/factory
 cp ../bin/${EXEC} ${FOLDER}/simulation
 cp -r ../source ${FOLDER}/
-cp -r ../Cubism ${FOLDER}/
+cp -r ../Cubism/include/Cubism ${FOLDER}/
 cp $0 ${FOLDER}
 git diff HEAD > ${FOLDER}/gitdiff.diff
 
@@ -47,8 +47,6 @@ cat <<EOF >daint_sbatch
 
 #SBATCH --account=s1160
 #SBATCH --job-name="${BASENAME}"
-#SBATCH --output=${BASENAME}_out_%j.txt
-#SBATCH --error=${BASENAME}_err_%j.txt
 #SBATCH --time=${WCLOCK}
 #SBATCH --partition=${PARTITION}
 #SBATCH --constraint=gpu
