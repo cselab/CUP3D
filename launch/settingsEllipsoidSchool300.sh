@@ -1,8 +1,5 @@
 #!/bin/bash
 NNODE=128
-BPDX=${BPDX:-32}
-BPDY=${BPDY:-16}
-BPDZ=${BPDZ:-16}
 PSOLVER="iterative"
 
 FACTORY=
