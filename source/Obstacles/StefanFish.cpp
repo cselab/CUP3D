@@ -471,6 +471,16 @@ void StefanFish::create()
       cFish-> alpha = 1.0;
       cFish->dalpha = 0.0;
     }
+    if (cFish->alpha < 0.0)
+    {
+      cFish-> alpha = 0.0;
+      cFish->dalpha = 0.0;
+    }
+    if (cFish->alpha > 2.0)
+    {
+      cFish-> alpha = 2.0;
+      cFish->dalpha = 0.0;
+    }
 
     //2.control position in y and yaw angle
     const Real y        = absPos[1];
@@ -555,7 +565,7 @@ void StefanFish::create()
       char buf[500];
       sprintf(buf, "gamma%d.txt",obstacleID);
       FILE * f = fopen(buf, "a");
-      fprintf(f, "%g %g %g %g %g \n",sim.time,cFish->beta,cFish->dbeta,cFish->gamma,cFish->dgamma);
+      fprintf(f, "%g %g %g %g %g %g %g \n",sim.time,cFish->alpha,cFish->dalpha,cFish->beta,cFish->dbeta,cFish->gamma,cFish->dgamma);
       fclose(f);
   }
   #endif
