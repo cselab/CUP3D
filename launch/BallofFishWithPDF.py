@@ -108,11 +108,13 @@ if __name__ == "__main__":
   parser.add_argument('--b'   , required=True, type=float)
   parser.add_argument('--c'   , required=True, type=float)
   parser.add_argument('--name', required=True, type=str  )
+  parser.add_argument('--leader', required=True, type=int)
   args = vars(parser.parse_args())
   a = args['a']
   b = args['b']
   c = args['c']
   name = args['name']
+  leader = args['leader']
 
   random.seed(0)
   np.random.seed(0)
@@ -124,6 +126,7 @@ if __name__ == "__main__":
   x = 3.0 + np.asarray(x)
   y = 2.0 + np.asarray(y)
   z = 2.0 + np.asarray(z)
+  idx = np.argmin(x)
 
   f = open(name+".sh", "w")
   f.write(\
@@ -134,7 +137,10 @@ PSOLVER=\"iterative\"\n\
 \n\
 FACTORY=\n")
   for j in range(fish):
-      f.write('FACTORY+="StefanFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} CorrectPosition=true CorrectPositionZ=true CorrectRoll=true bFixFrameOfRef=1 \n\"\n'.format(x[j],y[j],z[j]))
+      leader1 = (j == idx) 
+      if leader != 1:
+         leader1 = True
+      f.write('FACTORY+="StefanFish L='+str(L)+' T=1.0 xpos={} ypos={} zpos={} CorrectPosition=true CorrectPositionZ=true CorrectRoll=true bFixFrameOfRef={} \n\"\n'.format(x[j],y[j],z[j],leader1))
 
   # WRITE SOLVER SETTINGS
   f.write('\nOPTIONS=\n\
