@@ -34,7 +34,7 @@ verbose ?= false
 dump_surface_binary ?= false
 gpu ?= false
 profile ?= false
-onetbb ?= true
+onetbb ?= false
 
 precision ?= double
 ifeq "$(precision)" "single"
