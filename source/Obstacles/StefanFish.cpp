@@ -324,6 +324,12 @@ void StefanFish::saveRestart( FILE * f )
   fprintf(f,"torsionValues_previous[2]: %20.20e\n",(double)cFish->torsionValues_previous[2]);
   fprintf(f,"TperiodPID               : %d\n"     ,(int)   cFish->TperiodPID               );
   fprintf(f,"control_torsion          : %d\n"     ,(int)   cFish->control_torsion          );
+  fprintf(f,"alpha                    : %20.20e\n",(double)cFish->alpha                    );
+  fprintf(f,"dalpha                   : %20.20e\n",(double)cFish->dalpha                   );
+  fprintf(f,"beta                     : %20.20e\n",(double)cFish->beta                     );
+  fprintf(f,"dbeta                    : %20.20e\n",(double)cFish->dbeta                    );
+  fprintf(f,"gamma                    : %20.20e\n",(double)cFish->gamma                    );
+  fprintf(f,"dgamma                   : %20.20e\n",(double)cFish->dgamma                   );
 }
 
 void StefanFish::loadRestart( FILE * f )
@@ -388,6 +394,12 @@ void StefanFish::loadRestart( FILE * f )
   ret = ret && 1==fscanf(f, "torsionValues_previous[2]: %le\n", &temp); cFish->torsionValues_previous[2] = temp;
   ret = ret && 1==fscanf(f, "TperiodPID               : %d\n", &temp1); cFish->TperiodPID      = temp1;
   ret = ret && 1==fscanf(f, "control_torsion          : %d\n", &temp1); cFish->control_torsion = temp1;
+  ret = ret && 1==fscanf(f, "alpha                    : %le\n", &temp); cFish->alpha                     = temp;
+  ret = ret && 1==fscanf(f, "dalpha                   : %le\n", &temp); cFish->dalpha                    = temp;
+  ret = ret && 1==fscanf(f, "beta                     : %le\n", &temp); cFish->beta                      = temp;
+  ret = ret && 1==fscanf(f, "dbeta                    : %le\n", &temp); cFish->dbeta                     = temp;
+  ret = ret && 1==fscanf(f, "gamma                    : %le\n", &temp); cFish->gamma                     = temp;
+  ret = ret && 1==fscanf(f, "dgamma                   : %le\n", &temp); cFish->dgamma                    = temp;
 
   if( (not ret) )
    {
