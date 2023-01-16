@@ -119,7 +119,7 @@ void Simulation::adaptMesh()
   sim.vel_amr ->TagLike(sim.tmpVInfo());
   sim.chi_amr ->TagLike(sim.tmpVInfo());
   sim.pres_amr->TagLike(sim.tmpVInfo());
-  sim.chi_amr ->Adapt(sim.time,sim.verbose,false);
+  sim.chi_amr ->Adapt(sim.time,sim.verbose,true);
   sim.lhs_amr ->Adapt(sim.time,false,true);
   sim.tmpV_amr->Adapt(sim.time,false,true);
   sim.pres_amr->Adapt(sim.time,false,false);
