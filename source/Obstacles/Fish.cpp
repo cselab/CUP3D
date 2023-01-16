@@ -178,8 +178,9 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
       putfish(MyBlockIDs[j].h, MyBlockIDs[j].origin_x, MyBlockIDs[j].origin_y, MyBlockIDs[j].origin_z, block, S);
     }
   }
-#else //load-balancing - there's a bug with message tags here!!!
+#else //load-balancing
 
+  const int tag = 34;
   MPI_Comm comm = sim.chi->getWorldComm();
   const int rank = sim.chi->rank();
   const int size = sim.chi->get_world_size();
@@ -243,7 +244,7 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
   {
     MPI_Request req;
     recv_request.push_back(req);
-    MPI_Irecv(recv_blocks[r].data(), recv_blocks[r].size(), MPI_BLOCKID, r, r*size+rank, comm, &recv_request.back());
+    MPI_Irecv(recv_blocks[r].data(), recv_blocks[r].size(), MPI_BLOCKID, r, tag, comm, &recv_request.back());
   }
   std::vector<MPI_Request> send_request;
   int counter = 0;
@@ -260,7 +261,7 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
     counter += send_blocks[r].size();
     MPI_Request req;
     send_request.push_back(req);
-    MPI_Isend(send_blocks[r].data(), send_blocks[r].size(), MPI_BLOCKID, r, r +rank*size, comm, &send_request.back());
+    MPI_Isend(send_blocks[r].data(), send_blocks[r].size(), MPI_BLOCKID, r, tag, comm, &send_request.back());
   }
 
 
@@ -355,14 +356,14 @@ void Fish::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
   {
      MPI_Request req;
      recv_request_obs.push_back(req);
-     MPI_Irecv(send_obstacles[r].data(), send_obstacles[r].size(), MPI_OBSTACLE, r, r*size+rank, comm, &recv_request_obs.back());
+     MPI_Irecv(send_obstacles[r].data(), send_obstacles[r].size(), MPI_OBSTACLE, r, tag, comm, &recv_request_obs.back());
   }
   std::vector<MPI_Request> send_request_obs;
   for (int r = 0 ; r < size ; r ++) if (recv_obstacles[r].size() != 0)
   {
      MPI_Request req;
      send_request_obs.push_back(req);
-     MPI_Isend(recv_obstacles[r].data(), recv_obstacles[r].size(), MPI_OBSTACLE, r, r +rank*size, comm, &send_request_obs.back());
+     MPI_Isend(recv_obstacles[r].data(), recv_obstacles[r].size(), MPI_OBSTACLE, r, tag, comm, &send_request_obs.back());
   }
 
   //Compute my own blocks (that I did not send), while waiting for communication
