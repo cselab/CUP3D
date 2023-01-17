@@ -345,11 +345,11 @@ bool Simulation::advance(const Real dt)
   if( sim.bDump ) serialize();
   if (sim.step % sim.checkpoint_steps == 0)  //checkpoint for restarting
   {
-    sim.writeRestartFiles();
     std::stringstream name;
     name<<"restart_"<<std::setfill('0')<<std::setw(9)<<sim.step;
-    DumpHDF5_MPI<StreamerScalar, Real> (*sim.pres, sim.time, "pres_" + name.str(),sim.path4serialization);
-    DumpHDF5_MPI<StreamerVector, Real> (*sim.vel , sim.time, "vel_"  + name.str(),sim.path4serialization);
+    DumpHDF5_MPI<StreamerScalar, Real> (*sim.pres, sim.time, "pres_" + name.str(),sim.path4serialization, false);
+    DumpHDF5_MPI<StreamerVector, Real> (*sim.vel , sim.time, "vel_"  + name.str(),sim.path4serialization, false);
+    sim.writeRestartFiles();
   }
 
   if (sim.rank == 0 && sim.freqProfiler > 0 && sim.step % sim.freqProfiler == 0)
