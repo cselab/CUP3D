@@ -81,15 +81,19 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
   // Initialize Flow Field
   if( sim.verbose )
     std::cout << "[CUP3D] Initializing Flow Field.. " << std::endl;
-  const bool bRestart = parser("-restart").asBool(false);
-  if (bRestart)
-    deserialize();
+
+  FILE * fField = fopen("field.restart", "r");
+  if (fField == NULL)
+  {
+      _ic();
+      if( sim.verbose )
+        std::cout << "[CUP3D] Performing Initial Refinement of Grid.. " << std::endl;
+      initialGridRefinement();
+  }
   else
   {
-    _ic();
-    if( sim.verbose )
-      std::cout << "[CUP3D] Performing Initial Refinement of Grid.. " << std::endl;
-    initialGridRefinement();
+     fclose(fField);
+     deserialize();
   }
 }
 
@@ -221,7 +225,6 @@ void Simulation::serialize(const std::string append)
 
 void Simulation::deserialize()
 {
-  // create filename from step
   sim.readRestartFiles();
   std::stringstream ss;
   ss<<"restart_"<<std::setfill('0')<<std::setw(9)<<sim.step;
@@ -253,6 +256,8 @@ void Simulation::deserialize()
     ScalarBlock& LHS  = *(ScalarBlock*)  lhsInfo[i].ptrBlock;  LHS.clear();
     VectorBlock& TMPV = *(VectorBlock*) tmpVInfo[i].ptrBlock; TMPV.clear();
   }
+  (*sim.pipeline[0])(0);
+  sim.readRestartFiles();
 }
 
 void Simulation::simulate()
