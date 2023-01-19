@@ -42,7 +42,7 @@ struct GradChiOnTmp
     {
       lab(x,y,z).s = std::min(lab(x,y,z).s,(Real)1.0);
       lab(x,y,z).s = std::max(lab(x,y,z).s,(Real)0.0);
-      if (lab(x,y,z).s > 0.0 && lab(x,y,z).s < 0.9)
+      if (lab(x,y,z).s > 0.00001 && lab(x,y,z).s < 0.9)
       {
         TMP(VectorBlock::sizeZ/2,VectorBlock::sizeZ/2,VectorBlock::sizeZ/2).u[0] = 1e10; 
         TMP(VectorBlock::sizeY/2,VectorBlock::sizeY/2,VectorBlock::sizeY/2).u[1] = 1e10; 
