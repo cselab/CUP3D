@@ -111,7 +111,7 @@ class ComputeLHS : public Operator
     const int Ny = ScalarBlock::sizeY;
     const int Nz = ScalarBlock::sizeZ;
 
-    if (sim.bMeanConstraint <= 2)
+    if (sim.bMeanConstraint <= 2 && sim.bMeanConstraint > 0)
     {
       #pragma omp parallel for reduction(+ : avgP)
       for(size_t i=0; i<vInfo_z.size(); ++i)
@@ -131,7 +131,7 @@ class ComputeLHS : public Operator
 
     if (sim.bMeanConstraint == 0) return;
 
-    if (sim.bMeanConstraint <= 2)
+    if (sim.bMeanConstraint <= 2 && sim.bMeanConstraint > 0)
     {
       MPI_Waitall(1,&request,MPI_STATUSES_IGNORE);
       if (sim.bMeanConstraint == 1 && index != -1)
@@ -143,14 +143,14 @@ class ComputeLHS : public Operator
       {
         #pragma omp parallel for
         for(size_t i=0; i<vInfo_lhs.size(); ++i)
-	      {
+	{
           ScalarBlock & __restrict__ LHS = (*sim.lhs)(i);
           const Real h3 = vInfo_lhs[i].h*vInfo_lhs[i].h*vInfo_lhs[i].h;
           for(int z=0; z<Nz; ++z)
           for(int y=0; y<Ny; ++y)
           for(int x=0; x<Nx; ++x)
             LHS(x,y,z).s += avgP*h3;
-	      }
+	}
       }
     }
     else // > 2
