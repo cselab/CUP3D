@@ -4,9 +4,6 @@ CPPFLAGS+= -std=c++17 -g -fopenmp -Wall
 LIBS+= -fopenmp
 CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions -ftree-vectorize -fmerge-all-constants
 
-
-OBJECTS = main.o
-
 #################################################
 # HDF5
 #################################################
@@ -22,11 +19,13 @@ endif
 LIBS     += -lhdf5
 #################################################
 
-
-convert: $(OBJECTS)
-	$(CXX) $(CPPFLAGS) $(OBJECTS) $(LIBS) -o $@
+convert: main.o
+	$(CXX) $(CPPFLAGS) main.o $(LIBS) -o $@
 	rm main.o
 
+convert-fast: main-fast.o
+	$(CXX) $(CPPFLAGS) main-fast.o $(LIBS) -o $@
+	rm main-fast.o
 
 clean:
-	rm -f $(OBJECTS) convert
+	rm -f main.o main-fast.o convert convert-fast
