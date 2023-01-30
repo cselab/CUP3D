@@ -31,9 +31,11 @@ struct KernelDivPressure
     for(int z=0; z<Nz; ++z)
     for(int y=0; y<Ny; ++y)
     for(int x=0; x<Nx; ++x)
-      b(x,y,z).u[0] = fac*(lab(x+1,y,z).s+lab(x-1,y,z).s
-                          +lab(x,y+1,z).s+lab(x,y-1,z).s
-                          +lab(x,y,z+1).s+lab(x,y,z-1).s - 6.0*lab(x,y,z).s);
+        #ifdef PRESERVE_SYMMETRY
+              b(x,y,z).u[0] = fac*( ConsistentSum(lab(x+1,y,z).s+lab(x-1,y,z).s,lab(x,y+1,z).s+lab(x,y-1,z).s,lab(x,y,z+1).s+lab(x,y,z-1).s) - 6.0*lab(x,y,z).s);
+        #else
+              b(x,y,z).u[0] = fac*(lab(x+1,y,z).s+lab(x-1,y,z).s +lab(x,y+1,z).s+lab(x,y-1,z).s +lab(x,y,z+1).s+lab(x,y,z-1).s - 6.0*lab(x,y,z).s);
+        #endif
 
     BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
 
@@ -121,13 +123,21 @@ struct KernelPressureRHS
         const VectorElement &LW = lab(x-1,y,  z  ), &LE = lab(x+1,y,  z  );
         const VectorElement &LS = lab(x,  y-1,z  ), &LN = lab(x,  y+1,z  );
         const VectorElement &LF = lab(x,  y,  z-1), &LB = lab(x,  y,  z+1);
+        #ifdef PRESERVE_SYMMETRY
+        p(x,y,z).s = fac*ConsistentSum(LE.u[0]-LW.u[0], LN.u[1]-LS.u[1], LB.u[2]-LF.u[2]);
+        #else
         p(x,y,z).s = fac*(LE.u[0]-LW.u[0] + LN.u[1]-LS.u[1] + LB.u[2]-LF.u[2]);
+        #endif
       }
       {
         const VectorElement &LW = uDefLab(x-1,y,  z  ), &LE = uDefLab(x+1,y,  z  );
         const VectorElement &LS = uDefLab(x,  y-1,z  ), &LN = uDefLab(x,  y+1,z  );
         const VectorElement &LF = uDefLab(x,  y,  z-1), &LB = uDefLab(x,  y,  z+1);
+        #ifdef PRESERVE_SYMMETRY
+        const Real divUs = ConsistentSum(LE.u[0]-LW.u[0], LN.u[1]-LS.u[1], LB.u[2]-LF.u[2]);
+        #else
         const Real divUs = LE.u[0]-LW.u[0] + LN.u[1]-LS.u[1] + LB.u[2]-LF.u[2];
+        #endif
         p(x,y,z).s += - c(x,y,z).s * fac * divUs;
       }
     }

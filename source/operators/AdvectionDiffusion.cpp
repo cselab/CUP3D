@@ -10,6 +10,11 @@
 CubismUP_3D_NAMESPACE_BEGIN
 
 //#define WENO
+#ifdef PRESERVE_SYMMETRY
+#define DISABLE_OPTIMIZATIONS __attribute__((optimize("-O1")))
+#else
+#define DISABLE_OPTIMIZATIONS
+#endif
 
 struct KernelAdvectDiffuse
 {
@@ -25,6 +30,7 @@ struct KernelAdvectDiffuse
     const int Ny = VectorBlock::sizeY;
     const int Nz = VectorBlock::sizeZ;
   #ifdef WENO
+    DISABLE_OPTIMIZATIONS
     inline Real weno5_plus(const Real & um2, const Real & um1, const Real & u, const Real & up1, const Real & up2) const
     {
       const Real exponent = 2;
@@ -47,6 +53,7 @@ struct KernelAdvectDiffuse
       const Real f3 = (1.0 /3.0)*u + ( (+5.0/6.0)*up1- (1.0/6.0)*up2);
       return (w1*f1+w3*f3)+w2*f2;
     }
+    DISABLE_OPTIMIZATIONS
     inline Real weno5_minus(const Real & um2, const Real & um1, const Real & u, const Real & up1, const Real & up2) const
     {
       const Real exponent = 2;
