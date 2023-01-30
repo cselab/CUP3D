@@ -122,7 +122,7 @@ void ComputeDissipation::operator()(const Real dt)
   size_t loc = sim.velInfo().size();
   size_t tot;
   MPI_Reduce(&loc, &tot, 1, MPI_LONG, MPI_SUM, 0, sim.comm);
-  if(sim.rank==0)
+  if(sim.rank==0 && sim.muteAll == false)
   {
     std::ofstream outfile;
     outfile.open("diagnostics.dat", std::ios_base::app);
