@@ -38,7 +38,13 @@ class ComputeLHS : public Operator
       for(int z=0; z<Nz; ++z)
       for(int y=0; y<Ny; ++y)
       for(int x=0; x<Nx; ++x)
+      {
+        #ifdef PRESERVE_SYMMETRY
+        o(x,y,z).s = h * ( ConsistentSum(lab(x-1,y,z).s + lab(x+1,y,z).s, lab(x,y-1,z).s + lab(x,y+1,z).s , lab(x,y,z-1).s + lab(x,y,z+1).s) - 6.0*lab(x,y,z).s );
+        #else
         o(x,y,z) = h*( lab(x-1,y,z) + lab(x+1,y,z) + lab(x,y-1,z) + lab(x,y+1,z) +lab(x,y,z-1) + lab(x,y,z+1) - 6.0*lab(x,y,z));
+        #endif
+      }
 
       BlockCase<ScalarBlock> * tempCase = (BlockCase<ScalarBlock> *)(lhsInfo[info.blockID].auxiliary);
 
