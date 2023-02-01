@@ -35,18 +35,27 @@ struct GradChiOnTmp
            TMP(x,y,z).u[2] = 0.0;
         }
       }
+
+    bool done = false;
     const int offset = (info.level == sim.chi->getlevelMax()-1) ? 2 : 1;
     for(int z=-offset; z<VectorBlock::sizeZ+offset; ++z)
     for(int y=-offset; y<VectorBlock::sizeY+offset; ++y)
     for(int x=-offset; x<VectorBlock::sizeX+offset; ++x)
     {
+      if (done) break;
       lab(x,y,z).s = std::min(lab(x,y,z).s,(Real)1.0);
       lab(x,y,z).s = std::max(lab(x,y,z).s,(Real)0.0);
       if (lab(x,y,z).s > 0.00001 && lab(x,y,z).s < 0.9)
       {
-        TMP(VectorBlock::sizeZ/2,VectorBlock::sizeZ/2,VectorBlock::sizeZ/2).u[0] = 1e10; 
-        TMP(VectorBlock::sizeY/2,VectorBlock::sizeY/2,VectorBlock::sizeY/2).u[1] = 1e10; 
-        TMP(VectorBlock::sizeX/2,VectorBlock::sizeX/2,VectorBlock::sizeX/2).u[2] = 1e10; 
+        TMP(VectorBlock::sizeX/2-1,VectorBlock::sizeY/2-1,VectorBlock::sizeZ/2-1).u[0] = 1e10;
+        TMP(VectorBlock::sizeX/2  ,VectorBlock::sizeY/2-1,VectorBlock::sizeZ/2-1).u[0] = 1e10;
+        TMP(VectorBlock::sizeX/2-1,VectorBlock::sizeY/2  ,VectorBlock::sizeZ/2-1).u[0] = 1e10;
+        TMP(VectorBlock::sizeX/2  ,VectorBlock::sizeY/2-1,VectorBlock::sizeZ/2-1).u[0] = 1e10;
+        TMP(VectorBlock::sizeX/2-1,VectorBlock::sizeY/2-1,VectorBlock::sizeZ/2  ).u[0] = 1e10;
+        TMP(VectorBlock::sizeX/2  ,VectorBlock::sizeY/2  ,VectorBlock::sizeZ/2  ).u[0] = 1e10;
+        TMP(VectorBlock::sizeX/2-1,VectorBlock::sizeY/2-1,VectorBlock::sizeZ/2  ).u[0] = 1e10;
+        TMP(VectorBlock::sizeX/2  ,VectorBlock::sizeY/2-1,VectorBlock::sizeZ/2  ).u[0] = 1e10;
+        done = true;
         break;
       }
       else if (lab(x,y,z).s > 0.9 && z >= 0 && z <VectorBlock::sizeZ && y >= 0 && y <VectorBlock::sizeY && x >= 0 && x <VectorBlock::sizeX) //compress the grid if inside an obstacle
@@ -212,7 +221,12 @@ class ComputeVorticity : public Operator
     const KernelVorticity K(sim);
     compute<VectorLab>(K,sim.vel,sim.tmpV);
     const std::vector<BlockInfo>& myInfo = sim.tmpVInfo();
+    #ifdef PRESERVE_SYMMETRY
+    Real omega_max_min [6] = {0.};
+    #pragma omp parallel for reduction (max:omega_max_min[:6])
+    #else
     #pragma omp parallel for
+    #endif
     for(size_t i=0; i<myInfo.size(); i++)
     {
       const BlockInfo& info = myInfo[i];
@@ -225,8 +239,25 @@ class ComputeVorticity : public Operator
         b(x,y,z).u[0] *=fac;
         b(x,y,z).u[1] *=fac;
         b(x,y,z).u[2] *=fac;
+        #ifdef PRESERVE_SYMMETRY
+        omega_max_min[0] = std::max(omega_max_min[0], b(x,y,z).u[0]);
+        omega_max_min[1] = std::max(omega_max_min[1], b(x,y,z).u[1]);
+        omega_max_min[2] = std::max(omega_max_min[2], b(x,y,z).u[2]);
+        omega_max_min[3] = std::max(omega_max_min[3],-b(x,y,z).u[0]);
+        omega_max_min[4] = std::max(omega_max_min[4],-b(x,y,z).u[1]);
+        omega_max_min[5] = std::max(omega_max_min[5],-b(x,y,z).u[2]);
+        #endif
       }
     }
+    #ifdef PRESERVE_SYMMETRY
+    MPI_Reduce(sim.rank == 0 ? MPI_IN_PLACE: omega_max_min, omega_max_min, 6, MPI_Real, MPI_MAX, 0, sim.comm);
+    if (sim.rank == 0 && sim.verbose)
+    {
+       std::cout << "Vorticity (x): max=" << omega_max_min[0] << " min=" << -omega_max_min[3] << " difference: " << omega_max_min[0]-omega_max_min[3] << std::endl;
+       std::cout << "Vorticity (y): max=" << omega_max_min[1] << " min=" << -omega_max_min[4] << " difference: " << omega_max_min[1]-omega_max_min[4] << std::endl;
+       std::cout << "Vorticity (z): max=" << omega_max_min[2] << " min=" << -omega_max_min[5] << " difference: " << omega_max_min[2]-omega_max_min[5] << std::endl;
+    }
+    #endif
   }
   std::string getName() { return "Vorticity"; }
 };
