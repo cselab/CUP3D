@@ -1,4 +1,0 @@
-CXX=mpic++
-GSL_ROOT_DIR=$(wildcard /usr/local/Cellar/gsl/*)
-HYPRE_ROOT=$(wildcard /usr/local/Cellar/hypre/*)
-HDF5_ROOT=$(wildcard /usr/local/Cellar/hdf5/*)

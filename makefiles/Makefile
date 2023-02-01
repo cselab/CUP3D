@@ -1,24 +1,26 @@
 ifeq ($(shell uname -s), Darwin)
-include make.macos
+CXX=mpic++
+GSL_ROOT_DIR=$(wildcard /usr/local/Cellar/gsl/*)
+HDF5_ROOT=$(wildcard /usr/local/Cellar/hdf5/*)
 endif
 
 ifneq "$(findstring nid,$(shell hostname))" ""
-	include make.daint
+CXX=CC
 endif
 ifneq "$(findstring daint,$(shell hostname))" ""
-	include make.daint
+CXX=CC
 endif
 ifneq "$(findstring panda,$(shell hostname))" ""
-	include make.panda
+CXX=mpic++
 endif
 ifneq "$(findstring falcon,$(shell hostname))" ""
-	include make.panda
+CXX=mpic++
 endif
 ifneq "$(findstring euler,$(shell hostname))" ""
-	include make.euler
+CXX=mpic++
 endif
 ifneq "$(findstring eu-,$(shell hostname))" ""
-	include make.euler
+CXX=mpic++
 endif
 
 # this only affects amount of memory allocated by block processing:
@@ -48,6 +50,14 @@ ifeq "$(precision)" "long_double"
 CPPFLAGS += -D_LONG_DOUBLE_PRECISION_
 endif
 
+weno ?= false
+ifeq "$(weno)" "true"
+	CPPFLAGS += -DWENO
+endif
+symmetry ?= false
+ifeq "$(symmetry)" "true"
+	CPPFLAGS += -DPRESERVE_SYMMETRY
+endif
 
 ifeq "$(shell $(CXX) --version | grep -ci 'icpc')" "0"
 ifeq "$(shell $(CXX) --version | grep -ci 'llvm')" "0"

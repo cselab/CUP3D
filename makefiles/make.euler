@@ -1,3 +1,0 @@
-CXX=mpic++
-MPICXX=mpicxx
-LD=mpic++
