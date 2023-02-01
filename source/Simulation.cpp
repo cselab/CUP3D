@@ -89,6 +89,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
       if( sim.verbose )
         std::cout << "[CUP3D] Performing Initial Refinement of Grid.. " << std::endl;
       initialGridRefinement();
+      _ic();
   }
   else
   {
