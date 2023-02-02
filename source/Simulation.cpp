@@ -85,11 +85,9 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
   FILE * fField = fopen("field.restart", "r");
   if (fField == NULL)
   {
-      _ic();
       if( sim.verbose )
         std::cout << "[CUP3D] Performing Initial Refinement of Grid.. " << std::endl;
       initialGridRefinement();
-      _ic();
   }
   else
   {
@@ -100,6 +98,7 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
 
 void Simulation::initialGridRefinement()
 {
+  _ic();
   for (int l = 0 ; l < 3*sim.levelMax ; l++)
   {
     if( sim.verbose )
@@ -110,6 +109,8 @@ void Simulation::initialGridRefinement()
     // Refinement or compression of Grid
     adaptMesh();
   }
+  _ic(); //set initial conditions again. If this is not done, we start with the refined (interpolated) version of the ic, which is less accurate
+  (*sim.pipeline[0])(0);
 }
 
 void Simulation::adaptMesh()
