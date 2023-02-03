@@ -82,20 +82,29 @@ struct KernelComputeForces
       int x = ix;
       int y = iy;
       int z = iz;
-      int found = 0;
-      for (int kk = 1 ; kk < 10 ; kk++) //10 is arbitrary
+
+      Real dudx= 0;
+      Real dvdx= 0;
+      Real dwdx= 0;
+      Real dudy= 0;
+      Real dvdy= 0;
+      Real dwdy= 0;
+      Real dudz= 0;
+      Real dvdz= 0;
+      Real dwdz= 0;
+      Real mag = 0;
+
+      const int bigg = ScalarBlock::sizeX + big-1 ;
+
+      for (int kk = 0 ; kk < 5 ; kk++) //5 is arbitrary
       {
-        if ((int)abs(kk*dx) > 3 || (int)abs(kk*dy) > 3 || (int)abs(kk*dz) > 3) break; //3 means we moved too far
-        if (chiLab(x,y,z).s <0.3 && found == 0) break;
-
-	if (ix + kk*dx + 1 >= ScalarBlock::sizeX + big-1 || ix + kk*dx -1 < small) break;
-	if (iy + kk*dy + 1 >= ScalarBlock::sizeY + big-1 || iy + kk*dy -1 < small) break;
-	if (iz + kk*dz + 1 >= ScalarBlock::sizeZ + big-1 || iz + kk*dz -1 < small) break;
-
-        x  = ix + kk*dx; 
-        y  = iy + kk*dy;
-        z  = iz + kk*dz;
-        if (chiLab(x,y,z).s < 0.3 ) {found ++; break;}
+	      if (ix + round(kk*dx) + 1 >= ScalarBlock::sizeX + big-1 || ix + round(kk*dx) -1 < small) continue;
+	      if (iy + round(kk*dy) + 1 >= ScalarBlock::sizeY + big-1 || iy + round(kk*dy) -1 < small) continue;
+	      if (iz + round(kk*dz) + 1 >= ScalarBlock::sizeZ + big-1 || iz + round(kk*dz) -1 < small) continue;
+        x  = ix + round(kk*dx); 
+        y  = iy + round(kk*dy);
+        z  = iz + round(kk*dz);
+        if (chiLab(x,y,z).s < 0.01 ) break;
       }
 
       Real dudx1 = normX > 0 ? (l(x+1,y,z).u[0]-l(x,y,z).u[0]) : (l(x,y,z).u[0]-l(x-1,y,z).u[0]);
@@ -107,6 +116,7 @@ struct KernelComputeForces
       Real dudz1 = normY > 0 ? (l(x,y,z+1).u[0]-l(x,y,z).u[0]) : (l(x,y,z).u[0]-l(x,y,z-1).u[0]);
       Real dvdz1 = normY > 0 ? (l(x,y,z+1).u[1]-l(x,y,z).u[1]) : (l(x,y,z).u[1]-l(x,y,z-1).u[1]);
       Real dwdz1 = normY > 0 ? (l(x,y,z+1).u[2]-l(x,y,z).u[2]) : (l(x,y,z).u[2]-l(x,y,z-1).u[2]);
+
       Real dudx2 = 0.0;
       Real dvdx2 = 0.0;
       Real dwdx2 = 0.0;
@@ -135,7 +145,7 @@ struct KernelComputeForces
         dudxdy1 = (l(x+1,y+1,z).u[0]+l(x,y,z).u[0]-l(x+1,y,z).u[0]-l(x,y+1,z).u[0]);
         dvdxdy1 = (l(x+1,y+1,z).u[1]+l(x,y,z).u[1]-l(x+1,y,z).u[1]-l(x,y+1,z).u[1]);
         dwdxdy1 = (l(x+1,y+1,z).u[2]+l(x,y,z).u[2]-l(x+1,y,z).u[2]-l(x,y+1,z).u[2]);
-        if ((x+2 < big) && (y+2 < big))
+        if ((x+2 < bigg) && (y+2 < bigg))
         {
            dudxdy1 = -0.5*( -1.5*l(x+2,y,z).u[0]+2*l(x+2,y+1,z).u[0]-0.5*l(x+2,y+2,z).u[0] ) + 2*(-1.5*l(x+1,y,z).u[0]+2*l(x+1,y+1,z).u[0]-0.5*l(x+1,y+2,z).u[0]) -1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y+1,z).u[0]-0.5*l(x,y+2,z).u[0]);
            dvdxdy1 = -0.5*( -1.5*l(x+2,y,z).u[1]+2*l(x+2,y+1,z).u[1]-0.5*l(x+2,y+2,z).u[1] ) + 2*(-1.5*l(x+1,y,z).u[1]+2*l(x+1,y+1,z).u[1]-0.5*l(x+1,y+2,z).u[1]) -1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y+1,z).u[1]-0.5*l(x,y+2,z).u[1]);
@@ -147,7 +157,7 @@ struct KernelComputeForces
         dudxdy1 = (l(x,y+1,z).u[0]+l(x-1,y,z).u[0]-l(x,y,z).u[0]-l(x-1,y+1,z).u[0]);
         dvdxdy1 = (l(x,y+1,z).u[1]+l(x-1,y,z).u[1]-l(x,y,z).u[1]-l(x-1,y+1,z).u[1]);
         dwdxdy1 = (l(x,y+1,z).u[2]+l(x-1,y,z).u[2]-l(x,y,z).u[2]-l(x-1,y+1,z).u[2]);
-        if ((y+2 < big) && (x-2 >= small))
+        if ((y+2 < bigg) && (x-2 >= small))
         {
            dudxdy1 = 0.5*( -1.5*l(x-2,y,z).u[0]+2*l(x-2,y+1,z).u[0]-0.5*l(x-2,y+2,z).u[0] ) - 2*(-1.5*l(x-1,y,z).u[0]+2*l(x-1,y+1,z).u[0]-0.5*l(x-1,y+2,z).u[0])+1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y+1,z).u[0]-0.5*l(x,y+2,z).u[0]);
            dvdxdy1 = 0.5*( -1.5*l(x-2,y,z).u[1]+2*l(x-2,y+1,z).u[1]-0.5*l(x-2,y+2,z).u[1] ) - 2*(-1.5*l(x-1,y,z).u[1]+2*l(x-1,y+1,z).u[1]-0.5*l(x-1,y+2,z).u[1])+1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y+1,z).u[1]-0.5*l(x,y+2,z).u[1]);
@@ -159,7 +169,7 @@ struct KernelComputeForces
         dudxdy1 = (l(x+1,y,z).u[0]+l(x,y-1,z).u[0]-l(x+1,y-1,z).u[0]-l(x,y,z).u[0]);
         dvdxdy1 = (l(x+1,y,z).u[1]+l(x,y-1,z).u[1]-l(x+1,y-1,z).u[1]-l(x,y,z).u[1]);
         dwdxdy1 = (l(x+1,y,z).u[2]+l(x,y-1,z).u[2]-l(x+1,y-1,z).u[2]-l(x,y,z).u[2]);
-        if ((x+2 < big) && (y-2 >= small))
+        if ((x+2 < bigg) && (y-2 >= small))
         {
            dudxdy1 = -0.5*( 1.5*l(x+2,y,z).u[0]-2*l(x+2,y-1,z).u[0]+0.5*l(x+2,y-2,z).u[0] ) + 2*(1.5*l(x+1,y,z).u[0]-2*l(x+1,y-1,z).u[0]+0.5*l(x+1,y-2,z).u[0]) -1.5*(1.5*l(x,y,z).u[0]-2*l(x,y-1,z).u[0]+0.5*l(x,y-2,z).u[0]);
            dvdxdy1 = -0.5*( 1.5*l(x+2,y,z).u[1]-2*l(x+2,y-1,z).u[1]+0.5*l(x+2,y-2,z).u[1] ) + 2*(1.5*l(x+1,y,z).u[1]-2*l(x+1,y-1,z).u[1]+0.5*l(x+1,y-2,z).u[1]) -1.5*(1.5*l(x,y,z).u[1]-2*l(x,y-1,z).u[1]+0.5*l(x,y-2,z).u[1]);
@@ -187,7 +197,7 @@ struct KernelComputeForces
         dudxdz1 = (l(x+1,y,z+1).u[0]+l(x,y,z).u[0]-l(x+1,y,z).u[0]-l(x,y,z+1).u[0]);
         dvdxdz1 = (l(x+1,y,z+1).u[1]+l(x,y,z).u[1]-l(x+1,y,z).u[1]-l(x,y,z+1).u[1]);
         dwdxdz1 = (l(x+1,y,z+1).u[2]+l(x,y,z).u[2]-l(x+1,y,z).u[2]-l(x,y,z+1).u[2]);
-        if ((x+2 < big) && (z+2 < big))
+        if ((x+2 < bigg) && (z+2 < bigg))
         {
            dudxdz1 = -0.5*( -1.5*l(x+2,y,z).u[0]+2*l(x+2,y,z+1).u[0]-0.5*l(x+2,y,z+2).u[0] ) + 2*(-1.5*l(x+1,y,z).u[0]+2*l(x+1,y,z+1).u[0]-0.5*l(x+1,y,z+2).u[0]) -1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y,z+1).u[0]-0.5*l(x,y,z+2).u[0]);
            dvdxdz1 = -0.5*( -1.5*l(x+2,y,z).u[1]+2*l(x+2,y,z+1).u[1]-0.5*l(x+2,y,z+2).u[1] ) + 2*(-1.5*l(x+1,y,z).u[1]+2*l(x+1,y,z+1).u[1]-0.5*l(x+1,y,z+2).u[1]) -1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y,z+1).u[1]-0.5*l(x,y,z+2).u[1]);
@@ -199,7 +209,7 @@ struct KernelComputeForces
         dudxdz1 = (l(x,y,z+1).u[0]+l(x-1,y,z).u[0]-l(x,y,z).u[0]-l(x-1,y,z+1).u[0]);
         dvdxdz1 = (l(x,y,z+1).u[1]+l(x-1,y,z).u[1]-l(x,y,z).u[1]-l(x-1,y,z+1).u[1]);
         dwdxdz1 = (l(x,y,z+1).u[2]+l(x-1,y,z).u[2]-l(x,y,z).u[2]-l(x-1,y,z+1).u[2]);
-        if ((z+2 < big) && (x-2 >= small))
+        if ((z+2 < bigg) && (x-2 >= small))
         {
            dudxdz1 = 0.5*( -1.5*l(x-2,y,z).u[0]+2*l(x-2,y,z+1).u[0]-0.5*l(x-2,y,z+2).u[0] ) - 2*(-1.5*l(x-1,y,z).u[0]+2*l(x-1,y,z+1).u[0]-0.5*l(x-1,y,z+2).u[0])+1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y,z+1).u[0]-0.5*l(x,y,z+2).u[0]);
            dvdxdz1 = 0.5*( -1.5*l(x-2,y,z).u[1]+2*l(x-2,y,z+1).u[1]-0.5*l(x-2,y,z+2).u[1] ) - 2*(-1.5*l(x-1,y,z).u[1]+2*l(x-1,y,z+1).u[1]-0.5*l(x-1,y,z+2).u[1])+1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y,z+1).u[1]-0.5*l(x,y,z+2).u[1]);
@@ -211,7 +221,7 @@ struct KernelComputeForces
         dudxdz1 = (l(x+1,y,z).u[0]+l(x,y,z-1).u[0]-l(x+1,y,z-1).u[0]-l(x,y,z).u[0]);
         dvdxdz1 = (l(x+1,y,z).u[1]+l(x,y,z-1).u[1]-l(x+1,y,z-1).u[1]-l(x,y,z).u[1]);
         dwdxdz1 = (l(x+1,y,z).u[2]+l(x,y,z-1).u[2]-l(x+1,y,z-1).u[2]-l(x,y,z).u[2]);
-        if ((x+2 < big) && (z-2 >= small))
+        if ((x+2 < bigg) && (z-2 >= small))
         {
            dudxdz1 = -0.5*( 1.5*l(x+2,y,z).u[0]-2*l(x+2,y,z-1).u[0]+0.5*l(x+2,y,z-2).u[0] ) + 2*(1.5*l(x+1,y,z).u[0]-2*l(x+1,y,z-1).u[0]+0.5*l(x+1,y,z-2).u[0]) -1.5*(1.5*l(x,y,z).u[0]-2*l(x,y,z-1).u[0]+0.5*l(x,y,z-2).u[0]);
            dvdxdz1 = -0.5*( 1.5*l(x+2,y,z).u[1]-2*l(x+2,y,z-1).u[1]+0.5*l(x+2,y,z-2).u[1] ) + 2*(1.5*l(x+1,y,z).u[1]-2*l(x+1,y,z-1).u[1]+0.5*l(x+1,y,z-2).u[1]) -1.5*(1.5*l(x,y,z).u[1]-2*l(x,y,z-1).u[1]+0.5*l(x,y,z-2).u[1]);
@@ -239,7 +249,7 @@ struct KernelComputeForces
         dudydz1 = (l(x,y+1,z+1).u[0]+l(x,y,z).u[0]-l(x,y+1,z).u[0]-l(x,y,z+1).u[0]);
         dvdydz1 = (l(x,y+1,z+1).u[1]+l(x,y,z).u[1]-l(x,y+1,z).u[1]-l(x,y,z+1).u[1]);
         dwdydz1 = (l(x,y+1,z+1).u[2]+l(x,y,z).u[2]-l(x,y+1,z).u[2]-l(x,y,z+1).u[2]);
-        if ((y+2 < big) && (z+2 < big))
+        if ((y+2 < bigg) && (z+2 < bigg))
         {
            dudydz1 = -0.5*( -1.5*l(x,y+2,z).u[0]+2*l(x,y+2,z+1).u[0]-0.5*l(x,y+2,z+2).u[0] ) + 2*(-1.5*l(x,y+1,z).u[0]+2*l(x,y+1,z+1).u[0]-0.5*l(x,y+1,z+2).u[0]) -1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y,z+1).u[0]-0.5*l(x,y,z+2).u[0]);
            dvdydz1 = -0.5*( -1.5*l(x,y+2,z).u[1]+2*l(x,y+2,z+1).u[1]-0.5*l(x,y+2,z+2).u[1] ) + 2*(-1.5*l(x,y+1,z).u[1]+2*l(x,y+1,z+1).u[1]-0.5*l(x,y+1,z+2).u[1]) -1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y,z+1).u[1]-0.5*l(x,y,z+2).u[1]);
@@ -251,7 +261,7 @@ struct KernelComputeForces
         dudydz1 = (l(x,y,z+1).u[0]+l(x,y-1,z).u[0]-l(x,y,z).u[0]-l(x,y-1,z+1).u[0]);
         dvdydz1 = (l(x,y,z+1).u[1]+l(x,y-1,z).u[1]-l(x,y,z).u[1]-l(x,y-1,z+1).u[1]);
         dwdydz1 = (l(x,y,z+1).u[2]+l(x,y-1,z).u[2]-l(x,y,z).u[2]-l(x,y-1,z+1).u[2]);
-        if ((z+2 < big) && (y-2 >= small))
+        if ((z+2 < bigg) && (y-2 >= small))
         {
            dudydz1 = 0.5*( -1.5*l(x,y-2,z).u[0]+2*l(x,y-2,z+1).u[0]-0.5*l(x,y-2,z+2).u[0] ) - 2*(-1.5*l(x,y-1,z).u[0]+2*l(x,y-1,z+1).u[0]-0.5*l(x,y-1,z+2).u[0])+1.5*(-1.5*l(x,y,z).u[0]+2*l(x,y,z+1).u[0]-0.5*l(x,y,z+2).u[0]);
            dvdydz1 = 0.5*( -1.5*l(x,y-2,z).u[1]+2*l(x,y-2,z+1).u[1]-0.5*l(x,y-2,z+2).u[1] ) - 2*(-1.5*l(x,y-1,z).u[1]+2*l(x,y-1,z+1).u[1]-0.5*l(x,y-1,z+2).u[1])+1.5*(-1.5*l(x,y,z).u[1]+2*l(x,y,z+1).u[1]-0.5*l(x,y,z+2).u[1]);
@@ -263,7 +273,7 @@ struct KernelComputeForces
         dudydz1 = (l(x,y+1,z).u[0]+l(x,y,z-1).u[0]-l(x,y+1,z-1).u[0]-l(x,y,z).u[0]);
         dvdydz1 = (l(x,y+1,z).u[1]+l(x,y,z-1).u[1]-l(x,y+1,z-1).u[1]-l(x,y,z).u[1]);
         dwdydz1 = (l(x,y+1,z).u[2]+l(x,y,z-1).u[2]-l(x,y+1,z-1).u[2]-l(x,y,z).u[2]);
-        if ((y+2 < big) && (z-2 >= small))
+        if ((y+2 < bigg) && (z-2 >= small))
         {
            dudydz1 = -0.5*( 1.5*l(x,y+2,z).u[0]-2*l(x,y+2,z-1).u[0]+0.5*l(x,y+2,z-2).u[0] ) + 2*(1.5*l(x,y+1,z).u[0]-2*l(x,y+1,z-1).u[0]+0.5*l(x,y+1,z-2).u[0]) -1.5*(1.5*l(x,y,z).u[0]-2*l(x,y,z-1).u[0]+0.5*l(x,y,z-2).u[0]);
            dvdydz1 = -0.5*( 1.5*l(x,y+2,z).u[1]-2*l(x,y+2,z-1).u[1]+0.5*l(x,y+2,z-2).u[1] ) + 2*(1.5*l(x,y+1,z).u[1]-2*l(x,y+1,z-1).u[1]+0.5*l(x,y+1,z-2).u[1]) -1.5*(1.5*l(x,y,z).u[1]-2*l(x,y,z-1).u[1]+0.5*l(x,y,z-2).u[1]);
@@ -283,70 +293,108 @@ struct KernelComputeForces
         }
       }
 
-      if (normX > 0 && x+2 <    big)
+      if (normX > 0 && x+2 <    bigg)
       {
         dudx1 = -1.5*l(x,y,z).u[0]+2.0*l(x+1,y,z).u[0]-0.5*l(x+2,y,z).u[0];
         dvdx1 = -1.5*l(x,y,z).u[1]+2.0*l(x+1,y,z).u[1]-0.5*l(x+2,y,z).u[1];
         dwdx1 = -1.5*l(x,y,z).u[2]+2.0*l(x+1,y,z).u[2]-0.5*l(x+2,y,z).u[2];
-        dudx2 =      l(x,y,z).u[0]-2.0*l(x+1,y,z).u[0]+    l(x+2,y,z).u[0];
-        dvdx2 =      l(x,y,z).u[1]-2.0*l(x+1,y,z).u[1]+    l(x+2,y,z).u[1];
-        dwdx2 =      l(x,y,z).u[2]-2.0*l(x+1,y,z).u[2]+    l(x+2,y,z).u[2];
       }
       if (normX < 0 && x-2 >= small)
       {
         dudx1 =  1.5*l(x,y,z).u[0]-2.0*l(x-1,y,z).u[0]+0.5*l(x-2,y,z).u[0];
         dvdx1 =  1.5*l(x,y,z).u[1]-2.0*l(x-1,y,z).u[1]+0.5*l(x-2,y,z).u[1];
         dwdx1 =  1.5*l(x,y,z).u[2]-2.0*l(x-1,y,z).u[2]+0.5*l(x-2,y,z).u[2];
-        dudx2 =      l(x,y,z).u[0]-2.0*l(x-1,y,z).u[0]+    l(x-2,y,z).u[0];
-        dvdx2 =      l(x,y,z).u[1]-2.0*l(x-1,y,z).u[1]+    l(x-2,y,z).u[1];
-        dwdx2 =      l(x,y,z).u[2]-2.0*l(x-1,y,z).u[2]+    l(x-2,y,z).u[2];
       }
-      if (normY > 0 && y+2 <    big)
+      if (normY > 0 && y+2 <    bigg)
       {
         dudy1 = -1.5*l(x,y,z).u[0]+2.0*l(x,y+1,z).u[0]-0.5*l(x,y+2,z).u[0];
         dvdy1 = -1.5*l(x,y,z).u[1]+2.0*l(x,y+1,z).u[1]-0.5*l(x,y+2,z).u[1];
         dwdy1 = -1.5*l(x,y,z).u[2]+2.0*l(x,y+1,z).u[2]-0.5*l(x,y+2,z).u[2];
-        dudy2 =      l(x,y,z).u[0]-2.0*l(x,y+1,z).u[0]+    l(x,y+2,z).u[0];
-        dvdy2 =      l(x,y,z).u[1]-2.0*l(x,y+1,z).u[1]+    l(x,y+2,z).u[1];
-        dwdy2 =      l(x,y,z).u[2]-2.0*l(x,y+1,z).u[2]+    l(x,y+2,z).u[2];
       }
       if (normY < 0 && y-2 >= small)
       {
         dudy1 =  1.5*l(x,y,z).u[0]-2.0*l(x,y-1,z).u[0]+0.5*l(x,y-2,z).u[0];
         dvdy1 =  1.5*l(x,y,z).u[1]-2.0*l(x,y-1,z).u[1]+0.5*l(x,y-2,z).u[1];
         dwdy1 =  1.5*l(x,y,z).u[2]-2.0*l(x,y-1,z).u[2]+0.5*l(x,y-2,z).u[2];
-        dudy2 =      l(x,y,z).u[0]-2.0*l(x,y-1,z).u[0]+    l(x,y-2,z).u[0];
-        dvdy2 =      l(x,y,z).u[1]-2.0*l(x,y-1,z).u[1]+    l(x,y-2,z).u[1];
-        dwdy2 =      l(x,y,z).u[2]-2.0*l(x,y-1,z).u[2]+    l(x,y-2,z).u[2];
       }
-      if (normZ > 0 && z+2 <    big)
+      if (normZ > 0 && z+2 <    bigg)
       {
         dudz1 = -1.5*l(x,y,z).u[0]+2.0*l(x,y,z+1).u[0]-0.5*l(x,y,z+2).u[0];
         dvdz1 = -1.5*l(x,y,z).u[1]+2.0*l(x,y,z+1).u[1]-0.5*l(x,y,z+2).u[1];
         dwdz1 = -1.5*l(x,y,z).u[2]+2.0*l(x,y,z+1).u[2]-0.5*l(x,y,z+2).u[2];
-        dudz2 =      l(x,y,z).u[0]-2.0*l(x,y,z+1).u[0]+    l(x,y,z+2).u[0];
-        dvdz2 =      l(x,y,z).u[1]-2.0*l(x,y,z+1).u[1]+    l(x,y,z+2).u[1];
-        dwdz2 =      l(x,y,z).u[2]-2.0*l(x,y,z+1).u[2]+    l(x,y,z+2).u[2];
       }
       if (normZ < 0 && z-2 >= small)
       {
         dudz1 =  1.5*l(x,y,z).u[0]-2.0*l(x,y,z-1).u[0]+0.5*l(x,y,z-2).u[0];
         dvdz1 =  1.5*l(x,y,z).u[1]-2.0*l(x,y,z-1).u[1]+0.5*l(x,y,z-2).u[1];
         dwdz1 =  1.5*l(x,y,z).u[2]-2.0*l(x,y,z-1).u[2]+0.5*l(x,y,z-2).u[2];
-        dudz2 =      l(x,y,z).u[0]-2.0*l(x,y,z-1).u[0]+    l(x,y,z-2).u[0];
-        dvdz2 =      l(x,y,z).u[1]-2.0*l(x,y,z-1).u[1]+    l(x,y,z-2).u[1];
-        dwdz2 =      l(x,y,z).u[2]-2.0*l(x,y,z-1).u[2]+    l(x,y,z-2).u[2];
       }
 
-      const Real dudx = dudx1 + dudx2*(ix-x) + dudxdy1*(iy-y) + dudxdz1*(iz-z);
-      const Real dvdx = dvdx1 + dvdx2*(ix-x) + dvdxdy1*(iy-y) + dvdxdz1*(iz-z);
-      const Real dwdx = dwdx1 + dwdx2*(ix-x) + dwdxdy1*(iy-y) + dwdxdz1*(iz-z);
-      const Real dudy = dudy1 + dudy2*(iy-y) + dudydz1*(iz-z) + dudxdy1*(ix-x);
-      const Real dvdy = dvdy1 + dvdy2*(iy-y) + dvdydz1*(iz-z) + dvdxdy1*(ix-x);
-      const Real dwdy = dwdy1 + dwdy2*(iy-y) + dwdydz1*(iz-z) + dwdxdy1*(ix-x);
-      const Real dudz = dudz1 + dudz2*(iz-z) + dudxdz1*(ix-x) + dudydz1*(iy-y);
-      const Real dvdz = dvdz1 + dvdz2*(iz-z) + dvdxdz1*(ix-x) + dvdydz1*(iy-y);
-      const Real dwdz = dwdz1 + dwdz2*(iz-z) + dwdxdz1*(ix-x) + dwdydz1*(iy-y);
+      dudx2 = l(x-1,y,z).u[0]-2.0*l(x,y,z).u[0]+ l(x+1,y,z).u[0];
+      dvdx2 = l(x-1,y,z).u[1]-2.0*l(x,y,z).u[1]+ l(x+1,y,z).u[1];
+      dwdx2 = l(x-1,y,z).u[2]-2.0*l(x,y,z).u[2]+ l(x+1,y,z).u[2];
+      dudy2 = l(x,y-1,z).u[0]-2.0*l(x,y,z).u[0]+ l(x,y+1,z).u[0];
+      dvdy2 = l(x,y-1,z).u[1]-2.0*l(x,y,z).u[1]+ l(x,y+1,z).u[1];
+      dwdy2 = l(x,y-1,z).u[2]-2.0*l(x,y,z).u[2]+ l(x,y+1,z).u[2];
+      dudz2 = l(x,y,z-1).u[0]-2.0*l(x,y,z).u[0]+ l(x,y,z+1).u[0];
+      dvdz2 = l(x,y,z-1).u[1]-2.0*l(x,y,z).u[1]+ l(x,y,z+1).u[1];
+      dwdz2 = l(x,y,z-1).u[2]-2.0*l(x,y,z).u[2]+ l(x,y,z+1).u[2];
+
+
+
+
+      const double c0 = -137./60.;
+      const double c1 =    5.    ;
+      const double c2 = -  5.    ;
+      const double c3 =   10./ 3.;
+      const double c4 = -  5./ 4.;
+      const double c5 =    1./ 5.;
+      if (normX > 0 && x+5 <    bigg)
+      {
+        dudx1 = c0*l(x,y,z).u[0]+c1*l(x+1,y,z).u[0]+c2*l(x+2,y,z).u[0]+c3*l(x+3,y,z).u[0]+c4*l(x+4,y,z).u[0]+c5*l(x+5,y,z).u[0];
+        dvdx1 = c0*l(x,y,z).u[1]+c1*l(x+1,y,z).u[1]+c2*l(x+2,y,z).u[1]+c3*l(x+3,y,z).u[1]+c4*l(x+4,y,z).u[1]+c5*l(x+5,y,z).u[1];
+        dwdx1 = c0*l(x,y,z).u[2]+c1*l(x+1,y,z).u[2]+c2*l(x+2,y,z).u[2]+c3*l(x+3,y,z).u[2]+c4*l(x+4,y,z).u[2]+c5*l(x+5,y,z).u[2];
+      }
+      if (normY > 0 && y+5 <    bigg)
+      {
+        dudy1 = c0*l(x,y,z).u[0]+c1*l(x,y+1,z).u[0]+c2*l(x,y+2,z).u[0]+c3*l(x,y+3,z).u[0]+c4*l(x,y+4,z).u[0]+c5*l(x,y+5,z).u[0];
+        dvdy1 = c0*l(x,y,z).u[1]+c1*l(x,y+1,z).u[1]+c2*l(x,y+2,z).u[1]+c3*l(x,y+3,z).u[1]+c4*l(x,y+4,z).u[1]+c5*l(x,y+5,z).u[1];
+        dwdy1 = c0*l(x,y,z).u[2]+c1*l(x,y+1,z).u[2]+c2*l(x,y+2,z).u[2]+c3*l(x,y+3,z).u[2]+c4*l(x,y+4,z).u[2]+c5*l(x,y+5,z).u[2];
+      }
+      if (normZ > 0 && z+5 <    bigg)
+      {
+        dudz1 = c0*l(x,y,z).u[0]+c1*l(x,y,z+1).u[0]+c2*l(x,y,z+2).u[0]+c3*l(x,y,z+3).u[0]+c4*l(x,y,z+4).u[0]+c5*l(x,y,z+5).u[0];
+        dvdz1 = c0*l(x,y,z).u[1]+c1*l(x,y,z+1).u[1]+c2*l(x,y,z+2).u[1]+c3*l(x,y,z+3).u[1]+c4*l(x,y,z+4).u[1]+c5*l(x,y,z+5).u[1];
+        dwdz1 = c0*l(x,y,z).u[2]+c1*l(x,y,z+1).u[2]+c2*l(x,y,z+2).u[2]+c3*l(x,y,z+3).u[2]+c4*l(x,y,z+4).u[2]+c5*l(x,y,z+5).u[2];
+      }
+      if (normX < 0 && x-5 >= small)
+      {
+        dudx1 = -(c0*l(x,y,z).u[0]+c1*l(x-1,y,z).u[0]+c2*l(x-2,y,z).u[0]+c3*l(x-3,y,z).u[0]+c4*l(x-4,y,z).u[0]+c5*l(x-5,y,z).u[0]);
+        dvdx1 = -(c0*l(x,y,z).u[1]+c1*l(x-1,y,z).u[1]+c2*l(x-2,y,z).u[1]+c3*l(x-3,y,z).u[1]+c4*l(x-4,y,z).u[1]+c5*l(x-5,y,z).u[1]);
+        dwdx1 = -(c0*l(x,y,z).u[2]+c1*l(x-1,y,z).u[2]+c2*l(x-2,y,z).u[2]+c3*l(x-3,y,z).u[2]+c4*l(x-4,y,z).u[2]+c5*l(x-5,y,z).u[2]);
+      }
+      if (normY < 0 && y-5 >= small)
+      {
+        dudy1 = -(c0*l(x,y,z).u[0]+c1*l(x,y-1,z).u[0]+c2*l(x,y-2,z).u[0]+c3*l(x,y-3,z).u[0]+c4*l(x,y-4,z).u[0]+c5*l(x,y-5,z).u[0]);
+        dvdy1 = -(c0*l(x,y,z).u[1]+c1*l(x,y-1,z).u[1]+c2*l(x,y-2,z).u[1]+c3*l(x,y-3,z).u[1]+c4*l(x,y-4,z).u[1]+c5*l(x,y-5,z).u[1]);
+        dwdy1 = -(c0*l(x,y,z).u[2]+c1*l(x,y-1,z).u[2]+c2*l(x,y-2,z).u[2]+c3*l(x,y-3,z).u[2]+c4*l(x,y-4,z).u[2]+c5*l(x,y-5,z).u[2]);
+      }
+      if (normZ < 0 && z-5 >= small)
+      {
+        dudz1 = -(c0*l(x,y,z).u[0]+c1*l(x,y,z-1).u[0]+c2*l(x,y,z-2).u[0]+c3*l(x,y,z-3).u[0]+c4*l(x,y,z-4).u[0]+c5*l(x,y,z-5).u[0]);
+        dvdz1 = -(c0*l(x,y,z).u[1]+c1*l(x,y,z-1).u[1]+c2*l(x,y,z-2).u[1]+c3*l(x,y,z-3).u[1]+c4*l(x,y,z-4).u[1]+c5*l(x,y,z-5).u[1]);
+        dwdz1 = -(c0*l(x,y,z).u[2]+c1*l(x,y,z-1).u[2]+c2*l(x,y,z-2).u[2]+c3*l(x,y,z-3).u[2]+c4*l(x,y,z-4).u[2]+c5*l(x,y,z-5).u[2]);
+      }
+
+      dudx = dudx1 + dudx2*(ix-x) + dudxdy1*(iy-y) + dudxdz1*(iz-z);
+      dvdx = dvdx1 + dvdx2*(ix-x) + dvdxdy1*(iy-y) + dvdxdz1*(iz-z);
+      dwdx = dwdx1 + dwdx2*(ix-x) + dwdxdy1*(iy-y) + dwdxdz1*(iz-z);
+      dudy = dudy1 + dudy2*(iy-y) + dudydz1*(iz-z) + dudxdy1*(ix-x);
+      dvdy = dvdy1 + dvdy2*(iy-y) + dvdydz1*(iz-z) + dvdxdy1*(ix-x);
+      dwdy = dwdy1 + dwdy2*(iy-y) + dwdydz1*(iz-z) + dwdxdy1*(ix-x);
+      dudz = dudz1 + dudz2*(iz-z) + dudxdz1*(ix-x) + dudydz1*(iy-y);
+      dvdz = dvdz1 + dvdz2*(iz-z) + dvdxdz1*(ix-x) + dvdydz1*(iy-y);
+      dwdz = dwdz1 + dwdz2*(iz-z) + dwdxdz1*(ix-x) + dwdydz1*(iy-y);
 
       //normals computed with Towers 2009
       // Actually using the volume integral, since (\iint -P \hat{n} dS) = (\iiint -\nabla P dV). Also, P*\nabla\Chi = \nabla P
