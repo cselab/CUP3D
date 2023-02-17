@@ -13,7 +13,8 @@
 namespace fs = std::filesystem;
 
 #define BS 8
-#define Cfactor 4
+#define Cfactor 8
+#define RANKS_PER_FILE 1
 
 struct BlockGroup
 {
@@ -24,14 +25,14 @@ struct BlockGroup
   int index[3];
 };
 
-void decompose_1D(int tasks, int & my_start, int & my_end, const int compression=1)
+void decompose_1D(int tasks, int & my_start, int & my_end, MPI_Comm & comm, const int compression=1)
 {
   int rank,size;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(comm,&rank);
+  MPI_Comm_size(comm,&size);
   if (tasks % compression != 0){
 	  std::cout << "Tasks must be divisible by Cfactor.\n";
-	  MPI_Abort(MPI_COMM_WORLD,1);
+	  MPI_Abort(comm,1);
   }
 
   int my_share = tasks / compression / size;
@@ -44,7 +45,7 @@ void decompose_1D(int tasks, int & my_start, int & my_end, const int compression
   my_end = my_start + my_share*compression;
 }
 
-std::vector<BlockGroup> get_amr_groups(std::string filename)
+std::vector<BlockGroup> get_amr_groups(std::string filename, MPI_Comm & comm)
 {
   hid_t file_id,  fapl_id;
   hid_t dataset_origins, fspace_origins;
@@ -54,7 +55,7 @@ std::vector<BlockGroup> get_amr_groups(std::string filename)
 
   //open amr raw data - every rank will read that
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-  H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+  H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
   file_id = H5Fopen((filename+"-groups.h5").c_str(), H5F_ACC_RDONLY, fapl_id);
   H5Pclose(fapl_id);
 
@@ -100,7 +101,7 @@ std::vector<BlockGroup> get_amr_groups(std::string filename)
   return groups;
 }
 
-std::vector<float> get_amr_dataset(std::string filename)
+std::vector<float> get_amr_dataset(std::string filename, MPI_Comm comm)
 {
   hid_t file_id, dataset_id, fspace_id, fapl_id;
 
@@ -108,7 +109,7 @@ std::vector<float> get_amr_dataset(std::string filename)
 
   //open amr raw data - every rank will read that
   fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-  H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+  H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
   file_id = H5Fopen((filename+".h5").c_str(), H5F_ACC_RDONLY, fapl_id);
   H5Pclose(fapl_id);
 
@@ -148,15 +149,16 @@ std::vector<float> get_amr_dataset(std::string filename)
   return amr;
 }
 
-void convert_to_uniform(std::string filename,int tttt)
+void convert_to_uniform(std::string filename,int tttt, MPI_Comm comm)
 {
   int rank,size;
-  MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-  MPI_Comm_size(MPI_COMM_WORLD,&size);
+  MPI_Comm_rank(comm,&rank);
+  MPI_Comm_size(comm,&size);
 
-  std::vector<float> amr = get_amr_dataset(filename);
+  std::vector<float> amr = get_amr_dataset(filename,comm);
 
-  std::vector<BlockGroup> allGroups = get_amr_groups(filename);
+  std::vector<BlockGroup> allGroups = get_amr_groups(filename,comm);
+  std::cout << "rank " << rank << " ok\n ";
   std::vector<int> base(allGroups.size());
   base[0] = 0;
   for (size_t i = 1 ; i < allGroups.size() ; i++)
@@ -170,7 +172,7 @@ void convert_to_uniform(std::string filename,int tttt)
   int    points[3] = {0,0,0};
 
   int my_start,my_end;
-  decompose_1D(allGroups.size(),my_start,my_end);
+  decompose_1D(allGroups.size(),my_start,my_end,comm);
 
   for (int i = my_start ; i < my_end ; i++)
   {
@@ -178,8 +180,8 @@ void convert_to_uniform(std::string filename,int tttt)
     levelMax = std::max(allGroups[i].level,levelMax);
   }
   levelMax ++;
-  MPI_Allreduce(MPI_IN_PLACE, &minh    , 1, MPI_DOUBLE, MPI_MIN, MPI_COMM_WORLD);
-  MPI_Allreduce(MPI_IN_PLACE, &levelMax, 1, MPI_INT   , MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &minh    , 1, MPI_DOUBLE, MPI_MIN, comm);
+  MPI_Allreduce(MPI_IN_PLACE, &levelMax, 1, MPI_INT   , MPI_MAX, comm);
 
   for (int i = my_start ; i < my_end ; i++)
   {
@@ -188,10 +190,10 @@ void convert_to_uniform(std::string filename,int tttt)
     points[1] = std::max(points[1], (allGroups[i].index[1]*BS + allGroups[i].ny)*aux );
     points[2] = std::max(points[2], (allGroups[i].index[2]*BS + allGroups[i].nz)*aux );
   }
-  MPI_Allreduce(MPI_IN_PLACE, &points, 3, MPI_INT , MPI_MAX, MPI_COMM_WORLD);
+  MPI_Allreduce(MPI_IN_PLACE, &points, 3, MPI_INT , MPI_MAX, comm);
 
   //the uniform domain is decomposed in the z-direction only!
-  decompose_1D(points[2],my_start,my_end,Cfactor);
+  decompose_1D(points[2],my_start,my_end,comm,Cfactor);
 
   size_t unc = (my_end-my_start)/Cfactor;
   unc *= points[1]*points[0]/Cfactor/Cfactor;
@@ -238,7 +240,6 @@ void convert_to_uniform(std::string filename,int tttt)
   if (rank == 0)
   {
     std::cout << "uniform domain size=" << points[0] /Cfactor << " x " << points[1] /Cfactor << " x " << points[2] /Cfactor << std::endl;
-
     std::stringstream s;
     s << "<?xml version=\"1.0\" ?>\n";
     s << "<!DOCTYPE Xdmf SYSTEM \"Xdmf.dtd\" []>\n";
@@ -274,7 +275,7 @@ void convert_to_uniform(std::string filename,int tttt)
     hid_t file_id, dataset_id, fspace_id, fapl_id, mspace_id;
     H5open();
     fapl_id = H5Pcreate(H5P_FILE_ACCESS);
-    H5Pset_fapl_mpio(fapl_id, MPI_COMM_WORLD, MPI_INFO_NULL);
+    H5Pset_fapl_mpio(fapl_id, comm, MPI_INFO_NULL);
     file_id = H5Fcreate((filename+"-uniform.h5").c_str(), H5F_ACC_TRUNC, H5P_DEFAULT, fapl_id);        
     H5Pclose(fapl_id);
     fapl_id = H5Pcreate(H5P_DATASET_XFER);
@@ -332,36 +333,92 @@ int main(int argc, char **argv)
   int provided;
   const auto SECURITY = MPI_THREAD_FUNNELED;
   MPI_Init_thread(&argc, &argv, SECURITY, &provided);
-  if (provided < SECURITY ) {
+  if (provided < SECURITY )
+  {
     printf("ERROR: MPI implementation does not have required thread support\n");
     fflush(0); MPI_Abort(MPI_COMM_WORLD, 1);
   }
-  int rank;
+
+  int rank, size;
   MPI_Comm_rank(MPI_COMM_WORLD,&rank);
+  MPI_Comm_size(MPI_COMM_WORLD,&size);
 
   std::vector<std::string> filenames;
+  std::vector<std::string> donenames;
   std::string path("./");
   std::string ext(".h5");
-  for (auto &p : fs::recursive_directory_iterator(path))
+  std::string done("-uniform");
+
+  //iterate through all files in the current directory
+  for (auto &p : fs::directory_iterator(path))
   {
-    if (p.path().extension() == ext)
+    const auto file_name = p.path().stem().string();
+    const auto file_extension = p.path().extension();
+
+    //check if the file extension is ".h5"
+    if (file_extension == ext)
     {
-        std::string s = p.path().stem().string();
-        if ( s.back() != 's' && s.back() != 'm')
+
+      //if file ends in '-uniform', add it to the list of completed conversions
+      if (done.length() < file_name.length())
+        if (file_name.substr( file_name.length() - done.length() ) == done)
         {
-          filenames.push_back(p.path().stem().string());
+          donenames.push_back(file_name);
+          continue;
         }
+
+      //if file does not end in 'm' (from 'uniform') or 's' (from 'groups'),
+      //add it to the list of files to be converted
+      if ( file_name.back() != 's' && file_name.back() != 'm') filenames.push_back(file_name);
     }
   }
-  std::sort(filenames.begin(),filenames.end());
 
-  for (int i = filenames.size()-1 ; i >= 0  ; i --)
+  //sort all files
+  std::sort(filenames.begin(),filenames.end());
+  std::sort(donenames.begin(),donenames.end());
+
+  //remove substring '-uniform' from list of completed conversions
+  for (auto & sdone : donenames)
+      sdone.resize(sdone.length() - done.length());
+
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  if (size % RANKS_PER_FILE != 0)
   {
     if (rank == 0)
-	    std::cout << "processing files: " << filenames[i] << std::endl;
-    convert_to_uniform(filenames[i],i);
+      std::cerr << RANKS_PER_FILE << " ranks per file are incopatible with size:" << size << "\n";
     MPI_Barrier(MPI_COMM_WORLD);
+    MPI_Abort(MPI_COMM_WORLD,1);
   }
+
+  //create communicators with RANKS_PER_FILE ranks
+  MPI_Comm comm;
+  MPI_Comm_split(MPI_COMM_WORLD, rank / RANKS_PER_FILE, rank, &comm);
+
+
+  //distribute list of files to MPI ranks, each rank converts one file
+  for (size_t i = rank/RANKS_PER_FILE; i < filenames.size(); i+= size/RANKS_PER_FILE)
+  {
+
+    //check if the file is already converted
+    bool isdone = false;
+    for (auto sdone : donenames)
+    {
+      if (filenames[i] == sdone)
+      {
+        isdone = true;
+        break;
+      }
+    }
+    if (isdone == true)
+    {
+      std::cout << "Will skip file:" << filenames[i] << std::endl;
+      continue;
+    }
+    std::cout << "processing file: " << filenames[i] << " i=" << i << " /" << filenames.size() << std::endl;
+    convert_to_uniform(filenames[i],i,comm);
+  }
+
   MPI_Finalize();
   return 0;
 }
