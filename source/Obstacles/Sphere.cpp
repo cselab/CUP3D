@@ -90,8 +90,7 @@ struct FillBlocks : FillBlocksBase<FillBlocks>
 };
 }
 
-Sphere::Sphere(SimulationData& s, ArgumentParser& p)
-    : Obstacle(s, p), SphereArguments(0.5 * length)
+Sphere::Sphere(SimulationData& s, ArgumentParser& p): Obstacle(s, p), radius(0.5 * length)
 {
   accel_decel = p("-accel").asBool(false);
   bHemi = p("-hemisphere").asBool(false);

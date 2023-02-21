@@ -13,9 +13,9 @@
 
 CubismUP_3D_NAMESPACE_BEGIN
 
-
-struct SphereArguments
+class Sphere : public Obstacle
 {
+ public:
   const Real radius;
   Real umax = 0;
   Real tmax = 1;
@@ -23,14 +23,6 @@ struct SphereArguments
   bool accel_decel = false;
   bool bHemi = false;
 
-  SphereArguments(Real R) : radius(R) {}
-  SphereArguments(Real R, Real _umax, Real _tmax, bool _ad, bool _bHemi)
-      : radius(R), umax(_umax), tmax(_tmax), accel_decel(_ad), bHemi(_bHemi) { }
-};
-
-class Sphere : public Obstacle, private SphereArguments
-{
-public:
   Sphere(SimulationData&s,cubism::ArgumentParser&p);
   void create() override;
   void finalize() override;
