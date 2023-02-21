@@ -27,9 +27,6 @@ class Cylinder : public Obstacle
 
 public:
   Cylinder(SimulationData&s, cubism::ArgumentParser &p);
-  Cylinder(SimulationData&s, ObstacleArguments &args,
-                                 Real radius, Real halflength);
-
   void _init(void);
   void create() override;
   void finalize() override;

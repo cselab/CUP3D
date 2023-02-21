@@ -104,32 +104,6 @@ Sphere::Sphere(SimulationData& s, ArgumentParser& p)
   }
 }
 
-
-Sphere::Sphere(
-    SimulationData& s,
-    ObstacleArguments &args,
-    const Real R)
-    : Obstacle(s, args), SphereArguments(R) { }
-
-
-Sphere::Sphere(
-    SimulationData& s,
-    ObstacleArguments &args,
-    const Real R,
-    const Real _umax,
-    const Real _tmax)
-    : Obstacle(s, args), SphereArguments(R)
-{
-  umax = _umax;
-  tmax = _tmax;
-}
-
-Sphere::Sphere(
-    SimulationData &s,
-    const ObstacleAndSphereArguments &args)
-    : Obstacle(s, args), SphereArguments(args) { }  // Object slicing.
-
-
 void Sphere::create()
 {
   const Real h = sim.hmin;

@@ -11,39 +11,6 @@
 
 #include <array>
 
-/*
- * HOW OBSTACLES WORK
- *
- * Each obstacle type T defines 1) an operator `T`, 2) an arguments struct
- * `TArguments` and 3) a struct `ObstacleAndTArguments` combined struct.
- *
- * 1) The operator `T` derives from a base operator `Obstacle` and from the
- *    struct `TArguments`.
- * 2) The struct `TArguments` is a stand-alone struct that defines only the
- *    additional properties of the obstacle type T.
- * 3) The struct `ObstacleAndTArguments`, used only for construction (from
- *    Python bindings), derives from `ObstacleArguments` and `TArguments`, and
- *    defined a constructor these two components.
- *
- * The operator `T` then defines the following constructor:
- *      T(SimulationData &s, const ObstacleAndTArguments &args)
- *        : Obstacle(s, args), TArguments(args) { ... }
- *
- * See `Sphere.h` for an example.
- *
- *
- * POTENTIAL ALTERNATIVE IMPLEMENTATION
- *
- * Make `TArguments` a derived class of `ObstacleArguments`.
- * With that, `Obstacle` must be a template class, e.g.
- *      `class Sphere : ObstacleImpl<Sphere, SphereArguments> { ... }`.
- *
- * Where `ObstacleImpl<>` derives from an abstract `Obstacle`.
- */
-
-
-// forward declaration of derived class for visitor
-
 namespace cubism { class ArgumentParser; }
 
 CubismUP_3D_NAMESPACE_BEGIN
@@ -51,26 +18,6 @@ CubismUP_3D_NAMESPACE_BEGIN
 class Obstacle;
 class ObstacleVector;
 
-/*
- * Structure containing all externally configurable parameters of a base obstacle.
- */
-struct ObstacleArguments
-{
-  Real length = 0.0;
-  Real planarAngle = 0.0;
-  std::array<Real, 3> position = {{0.0, 0.0, 0.0}};
-  std::array<Real, 4> quaternion = {{1.0, 0.0, 0.0, 0.0}};
-  std::array<Real, 3> enforcedVelocity = {{0.0, 0.0, 0.0}};  // Only if bForcedInSimFrame.
-  std::array<bool, 3> bForcedInSimFrame = {{false, false, false}};
-  std::array<bool, 3> bFixFrameOfRef = {{false, false, false}};
-  bool bFixToPlanar = false;
-  bool bBreakSymmetry = false;
-
-  ObstacleArguments() = default;
-
-  /* Convert human-readable format into internal representation of parameters. */
-  ObstacleArguments(const SimulationData & sim, cubism::ArgumentParser &parser);
-};
 
 class Obstacle
 {
@@ -147,7 +94,6 @@ protected:
   virtual void _writeSurfForcesToFile();
 
 public:
-  Obstacle(SimulationData& s, const ObstacleArguments &args);
   Obstacle(SimulationData& s, cubism::ArgumentParser &parser);
   Obstacle(SimulationData& s) : sim(s) {  }
 

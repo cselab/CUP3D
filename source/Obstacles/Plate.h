@@ -59,13 +59,6 @@ class Plate : public Obstacle
 
 public:
   Plate(SimulationData &s, cubism::ArgumentParser &p);
-  Plate(SimulationData &s, ObstacleArguments &args,
-        Real a, Real b, Real thickness,
-        Real alpha);  // Alpha in radians.
-  Plate(SimulationData &s, ObstacleArguments &args,
-        Real a, Real b, Real thickness,
-        Real nx, Real ny, Real nz, Real ax, Real ay, Real az);
-
   void create() override;
   void finalize() override;
 };
