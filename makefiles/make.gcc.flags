@@ -22,5 +22,6 @@ $(info *** WARNING! Compiling with debug flags. Use config=prod for optimized co
 else
 
 CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -ffast-math -falign-functions -ftree-vectorize -fmerge-all-constants
+#CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -falign-functions -ftree-vectorize -fmerge-all-constants -DPRESERVE_SYMMETRY -DWENO
 
 endif
