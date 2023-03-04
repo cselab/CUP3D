@@ -203,40 +203,6 @@ Plate::Plate(SimulationData & s, ArgumentParser &p) : Obstacle(s, p)
   _init();
 }
 
-Plate::Plate(
-    SimulationData & s,
-    ObstacleArguments &args,
-    const Real a,
-    const Real b,
-    const Real thickness,
-    const Real alpha)
-  : Obstacle(s, args),
-    half_a(.5 * a),
-    half_b(.5 * b),
-    half_thickness(.5 * thickness)
-{
-  _from_alpha(alpha);
-  _init();
-}
-
-Plate::Plate(
-    SimulationData & s,
-    ObstacleArguments &args,
-    const Real a,
-    const Real b,
-    const Real thickness,
-    const Real _nx, const Real _ny, const Real _nz,
-    const Real _ax, const Real _ay, const Real _az)
-  : Obstacle(s, args),
-    nx(_nx), ny(_ny), nz(_nz),
-    ax(_ax), ay(_ay), az(_az),
-    half_a(.5 * a),
-    half_b(.5 * b),
-    half_thickness(.5 * thickness)
-{
-  _init();
-}
-
 void Plate::_from_alpha(const Real alpha)
 {
   nx = std::cos(alpha);

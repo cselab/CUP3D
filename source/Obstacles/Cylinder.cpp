@@ -116,16 +116,6 @@ Cylinder::Cylinder(
   _init();
 }
 
-Cylinder::Cylinder(
-    SimulationData& s,
-    ObstacleArguments &args,
-    const Real radius_,
-    const Real halflength_)
-    : Obstacle(s, args), radius(radius_), halflength(halflength_)
-{
-  _init();
-}
-
 void Cylinder::_init(void)
 {
   if (sim.verbose) printf("Created Cylinder with radius %f and halflength %f\n", radius, halflength);
