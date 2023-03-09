@@ -10,6 +10,7 @@
 
 #include "../SimulationData.h"
 #include "../operators/Operator.h"
+#include "../poisson/DiffusionSolverAMRKernels.h"
 #include <Cubism/BlockInfo.h>
 #include <vector>
 #include <cassert>
@@ -21,6 +22,7 @@ class DiffusionSolver
 {
  public: 
   int mydirection = 0;
+  Real dt;
  protected:
   SimulationData& sim;
 
@@ -28,8 +30,9 @@ class DiffusionSolver
   struct KernelLHSDiffusion
   {
     const SimulationData & sim;
-    KernelLHSDiffusion(const SimulationData&s) : sim(s) {}
+    KernelLHSDiffusion(const SimulationData&s, const Real _dt) : sim(s), dt(_dt) {}
     const std::vector<BlockInfo> & lhsInfo = sim.lhsInfo();
+    const Real dt;
     const int Nx = ScalarBlock::sizeX;
     const int Ny = ScalarBlock::sizeY;
     const int Nz = ScalarBlock::sizeZ;
@@ -39,7 +42,7 @@ class DiffusionSolver
     {
       ScalarBlock & __restrict__ o = (*sim.lhs)(info.blockID);
       const Real h = info.h; 
-      const Real coef = -1.0/(sim.dt*sim.nu)*h*h*h;
+      const Real coef = -1.0/(dt*sim.nu)*h*h*h;
       for(int z=0; z<Nz; ++z)
       for(int y=0; y<Ny; ++y)
       for(int x=0; x<Nx; ++x)
@@ -125,10 +128,10 @@ class DiffusionSolver
       }
     }
 
-    //#pragma omp parallel
-    //{
-    //  cubismup3d::poisson_kernels::getZImplParallel(sim.presInfo());
-    //}
+    #pragma omp parallel
+    {
+      cubismup3d::diffusion_kernels::getZImplParallel(sim.presInfo(),sim.nu,dt);
+    }
 
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
@@ -171,9 +174,9 @@ class DiffusionSolver
     using Lab1 = cubism::BlockLabMPI<BlockLabBC<ScalarBlock, aligned_block_allocator,1>, ScalarGrid>;
     using Lab2 = cubism::BlockLabMPI<BlockLabBC<ScalarBlock, aligned_block_allocator,2>, ScalarGrid>;
 
-    if (mydirection == 0) compute<Lab0>(KernelLHSDiffusion<Lab0>(sim),sim.pres,sim.lhs);
-    if (mydirection == 1) compute<Lab1>(KernelLHSDiffusion<Lab1>(sim),sim.pres,sim.lhs);
-    if (mydirection == 2) compute<Lab2>(KernelLHSDiffusion<Lab2>(sim),sim.pres,sim.lhs);
+    if (mydirection == 0) compute<Lab0>(KernelLHSDiffusion<Lab0>(sim,dt),sim.pres,sim.lhs);
+    if (mydirection == 1) compute<Lab1>(KernelLHSDiffusion<Lab1>(sim,dt),sim.pres,sim.lhs);
+    if (mydirection == 2) compute<Lab2>(KernelLHSDiffusion<Lab2>(sim,dt),sim.pres,sim.lhs);
 
     #pragma omp parallel for
     for (size_t i=0; i < Nblocks; i++)
@@ -564,12 +567,14 @@ class DiffusionSolver
 class AdvectionDiffusionImplicit : public Operator
 {
   std::vector<Real> pressure;
+  std::vector<Real> velocity;
 public:
   AdvectionDiffusionImplicit(SimulationData & s) : Operator(s) { }
 
   ~AdvectionDiffusionImplicit() { }
 
   void operator()(const Real dt);
+  void euler(const Real dt);
 
   std::string getName() { return "AdvectionDiffusionImplicit"; }
 };

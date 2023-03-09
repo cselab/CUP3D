@@ -16,11 +16,119 @@ CubismUP_3D_NAMESPACE_BEGIN
 #define DISABLE_OPTIMIZATIONS
 #endif
 
+struct KernelDiffusionRHS
+{
+  SimulationData & sim;
+  StencilInfo stencil  = StencilInfo(-1,-1,-1, 2,2,2, false, {0,1,2});
+  const int Nx = VectorBlock::sizeX;
+  const int Ny = VectorBlock::sizeY;
+  const int Nz = VectorBlock::sizeZ;
+  const std::vector<BlockInfo> &  tmpVInfo = sim.tmpVInfo();
+
+  KernelDiffusionRHS(SimulationData& s) :sim(s){}
+
+  void operator()(const VectorLab & lab, const BlockInfo& info) const
+  {
+    VectorBlock & __restrict__ TMPV  = (*sim.tmpV)(info.blockID);
+    const Real facD = info.h;
+
+    for(int z=0; z<Nz; ++z)
+    for(int y=0; y<Ny; ++y)
+    for(int x=0; x<Nx; ++x)
+    {
+      const Real duD =( (lab(x+1,y,z).u[0] + lab(x-1,y,z).u[0]) + ((lab(x,y+1,z).u[0] + lab(x,y-1,z).u[0]) + (lab(x,y,z+1).u[0] + lab(x,y,z-1).u[0])) )- 6 * lab(x,y,z).u[0];
+      const Real dvD =( (lab(x,y+1,z).u[1] + lab(x,y-1,z).u[1]) + ((lab(x,y,z+1).u[1] + lab(x,y,z-1).u[1]) + (lab(x+1,y,z).u[1] + lab(x-1,y,z).u[1])) )- 6 * lab(x,y,z).u[1];
+      const Real dwD =( (lab(x,y,z+1).u[2] + lab(x,y,z-1).u[2]) + ((lab(x+1,y,z).u[2] + lab(x-1,y,z).u[2]) + (lab(x,y+1,z).u[2] + lab(x,y-1,z).u[2])) )- 6 * lab(x,y,z).u[2];
+      TMPV(x,y,z).u[0] = facD * duD;
+      TMPV(x,y,z).u[1] = facD * dvD;
+      TMPV(x,y,z).u[2] = facD * dwD;
+    }
+
+        BlockCase<VectorBlock> * tempCase = (BlockCase<VectorBlock> *)(tmpVInfo[info.blockID].auxiliary);
+
+        if (tempCase == nullptr) return; //no flux corrections needed for this block
+
+        VectorElement * const faceXm = tempCase -> storedFace[0] ?  & tempCase -> m_pData[0][0] : nullptr;
+        VectorElement * const faceXp = tempCase -> storedFace[1] ?  & tempCase -> m_pData[1][0] : nullptr;
+        VectorElement * const faceYm = tempCase -> storedFace[2] ?  & tempCase -> m_pData[2][0] : nullptr;
+        VectorElement * const faceYp = tempCase -> storedFace[3] ?  & tempCase -> m_pData[3][0] : nullptr;
+        VectorElement * const faceZm = tempCase -> storedFace[4] ?  & tempCase -> m_pData[4][0] : nullptr;
+        VectorElement * const faceZp = tempCase -> storedFace[5] ?  & tempCase -> m_pData[5][0] : nullptr;
+        if (faceXm != nullptr)
+        {
+          const int x = 0;
+          for(int z=0; z<Nz; ++z)
+          for(int y=0; y<Ny; ++y)
+          {
+            faceXm[y + Ny * z].u[0] = facD*(lab(x,y,z).u[0] - lab(x-1,y,z).u[0]);
+            faceXm[y + Ny * z].u[1] = facD*(lab(x,y,z).u[1] - lab(x-1,y,z).u[1]);
+            faceXm[y + Ny * z].u[2] = facD*(lab(x,y,z).u[2] - lab(x-1,y,z).u[2]);
+          }
+        }
+        if (faceXp != nullptr)
+        {
+          const int x = Nx-1;
+          for(int z=0; z<Nz; ++z)
+          for(int y=0; y<Ny; ++y)
+          {
+            faceXp[y + Ny * z].u[0] = facD*(lab(x,y,z).u[0] - lab(x+1,y,z).u[0]);
+            faceXp[y + Ny * z].u[1] = facD*(lab(x,y,z).u[1] - lab(x+1,y,z).u[1]);
+            faceXp[y + Ny * z].u[2] = facD*(lab(x,y,z).u[2] - lab(x+1,y,z).u[2]);
+          }
+        }
+        if (faceYm != nullptr)
+        {
+          const int y = 0;
+          for(int z=0; z<Nz; ++z)
+          for(int x=0; x<Nx; ++x)
+          {
+            faceYm[x + Nx * z].u[0] = facD*(lab(x,y,z).u[0] - lab(x,y-1,z).u[0]);
+            faceYm[x + Nx * z].u[1] = facD*(lab(x,y,z).u[1] - lab(x,y-1,z).u[1]);
+            faceYm[x + Nx * z].u[2] = facD*(lab(x,y,z).u[2] - lab(x,y-1,z).u[2]);
+          }
+        }
+        if (faceYp != nullptr)
+        {
+          const int y = Ny-1;
+          for(int z=0; z<Nz; ++z)
+          for(int x=0; x<Nx; ++x)
+          {
+            faceYp[x + Nx * z].u[0] = facD*(lab(x,y,z).u[0] - lab(x,y+1,z).u[0]);
+            faceYp[x + Nx * z].u[1] = facD*(lab(x,y,z).u[1] - lab(x,y+1,z).u[1]);
+            faceYp[x + Nx * z].u[2] = facD*(lab(x,y,z).u[2] - lab(x,y+1,z).u[2]);
+          }
+        }
+        if (faceZm != nullptr)
+        {
+          const int z = 0;
+          for(int y=0; y<Ny; ++y)
+          for(int x=0; x<Nx; ++x)
+          {
+            faceZm[x + Nx * y].u[0] = facD*(lab(x,y,z).u[0] - lab(x,y,z-1).u[0]);
+            faceZm[x + Nx * y].u[1] = facD*(lab(x,y,z).u[1] - lab(x,y,z-1).u[1]);
+            faceZm[x + Nx * y].u[2] = facD*(lab(x,y,z).u[2] - lab(x,y,z-1).u[2]);
+          }
+        }
+        if (faceZp != nullptr)
+        {
+          const int z = Nz-1;
+          for(int y=0; y<Ny; ++y)
+          for(int x=0; x<Nx; ++x)
+          {
+            faceZp[x + Nx * y].u[0] = facD*(lab(x,y,z).u[0] - lab(x,y,z+1).u[0]);
+            faceZp[x + Nx * y].u[1] = facD*(lab(x,y,z).u[1] - lab(x,y,z+1).u[1]);
+            faceZp[x + Nx * y].u[2] = facD*(lab(x,y,z).u[2] - lab(x,y,z+1).u[2]);
+          }
+        }
+
+  }
+};
+
 struct KernelAdvect
 {
-    KernelAdvect(const SimulationData&s) : sim(s){}
+    KernelAdvect(const SimulationData&s, const Real _dt) : sim(s), dt(_dt){}
     const SimulationData & sim;
-    const Real dt = sim.dt;
+    const Real dt;
     const Real mu = sim.nu;
     const std::array<Real, 3>& uInf = sim.uinf;
     const std::vector<BlockInfo> &tmpVInfo = sim.tmpVInfo();
@@ -217,7 +325,7 @@ struct KernelAdvect
     }
 };
 
-void AdvectionDiffusionImplicit::operator()(const Real dt)
+void AdvectionDiffusionImplicit::euler(const Real dt)
 {
   const std::vector<BlockInfo> &  velInfo = sim.velInfo();
   const int Nx = VectorBlock::sizeX;
@@ -226,44 +334,70 @@ void AdvectionDiffusionImplicit::operator()(const Real dt)
   const size_t Nblocks = velInfo.size();
 
   pressure.resize(Nblocks*Nx*Ny*Nz);
+  velocity.resize(Nblocks*Nx*Ny*Nz*3);
 
   //Explicit Euler timestep for advection terms. We also store pressure field.
-  compute<VectorLab>(KernelAdvect(sim),sim.vel,sim.tmpV);
+  compute<VectorLab>(KernelAdvect(sim,dt),sim.vel,sim.tmpV);
   #pragma omp parallel for
   for(size_t i=0; i<Nblocks; i++)
   {
-    const VectorBlock & tmpV = (*sim.tmpV)(i);
+    const VectorBlock & TMPV = (*sim.tmpV)(i);
     const ScalarBlock & P    = (*sim.pres)(i);
     VectorBlock & V          = (*sim.vel )(i);
+    const Real ih3 = 1.0/(velInfo[i].h*velInfo[i].h*velInfo[i].h);
     for (int z=0; z<Nz; ++z)
     for (int y=0; y<Ny; ++y)
     for (int x=0; x<Nx; ++x)
     {
       const int idx = i*Nx*Ny*Nz+z*Ny*Nx+y*Nx+x;
       pressure[idx] = P(x,y,z).s;
+      velocity[3*idx+0] = V(x,y,z).u[0];
+      velocity[3*idx+1] = V(x,y,z).u[1];
+      velocity[3*idx+2] = V(x,y,z).u[2];
+      V(x,y,z).u[0] = TMPV(x,y,z).u[0]*ih3 + V(x,y,z).u[0];
+      V(x,y,z).u[1] = TMPV(x,y,z).u[1]*ih3 + V(x,y,z).u[1];
+      V(x,y,z).u[2] = TMPV(x,y,z).u[2]*ih3 + V(x,y,z).u[2];
     }
   }
+
+  compute<VectorLab>(KernelDiffusionRHS(sim),sim.vel,sim.tmpV);
+
+  #pragma omp parallel for
+  for(size_t i=0; i<Nblocks; i++)
+  {
+    VectorBlock & V    = (*sim.vel )(i);
+    VectorBlock & TMPV = (*sim.tmpV)(i);
+    const Real ih3 = 1.0/(velInfo[i].h*velInfo[i].h*velInfo[i].h);
+    for (int z=0; z<Nz; ++z)
+    for (int y=0; y<Ny; ++y)
+    for (int x=0; x<Nx; ++x)
+    {
+      const int idx = i*Nx*Ny*Nz+z*Ny*Nx+y*Nx+x;
+      TMPV(x,y,z).u[0] = -TMPV(x,y,z).u[0]*ih3 + (V(x,y,z).u[0]- velocity[3*idx+0])/(dt*sim.nu);
+      TMPV(x,y,z).u[1] = -TMPV(x,y,z).u[1]*ih3 + (V(x,y,z).u[1]- velocity[3*idx+1])/(dt*sim.nu);
+      TMPV(x,y,z).u[2] = -TMPV(x,y,z).u[2]*ih3 + (V(x,y,z).u[2]- velocity[3*idx+2])/(dt*sim.nu);
+    }
+  }
+
 
   DiffusionSolver mmysolver(sim);
   for (int index = 0 ; index < 3; index ++)
   {
     mmysolver.mydirection = index;
+    mmysolver.dt = dt;
     #pragma omp parallel for
     for(size_t i=0; i<Nblocks; i++)//Set u^{n+1/2} = u^{n} + 0.5*dt*RHS(u^{n})
     {
         const Real h3 = (velInfo[i].h*velInfo[i].h*velInfo[i].h);
-        const Real ih3 = 1.0/(velInfo[i].h*velInfo[i].h*velInfo[i].h);
         ScalarBlock & RHS = (*sim.lhs)(i);
         ScalarBlock & P   = (*sim.pres)(i);
-        const VectorBlock & V = (*sim.vel )(i);
         const VectorBlock & TMPV = (*sim.tmpV)(i);
-        const Real coef = -h3/sim.nu/sim.dt;
         for (int z=0; z<Nz; ++z)
         for (int y=0; y<Ny; ++y)
         for (int x=0; x<Nx; ++x)
         {
-          P(x,y,z).s = TMPV(x,y,z).u[index]*ih3 + V(x,y,z).u[index];
-          RHS(x,y,z).s = coef*V(x,y,z).u[index];
+          P(x,y,z).s = 0;
+          RHS(x,y,z).s = h3*TMPV(x,y,z).u[index];
         }
     }
     mmysolver.solve();
@@ -276,11 +410,10 @@ void AdvectionDiffusionImplicit::operator()(const Real dt)
       for (int y=0; y<Ny; ++y)
       for (int x=0; x<Nx; ++x)
       {
-        V(x,y,z).u[index] =  P(x,y,z).s;
+        V(x,y,z).u[index] += P(x,y,z).s;
       }
     }  
   }
-
 
   #pragma omp parallel for
   for(size_t i=0; i<Nblocks; i++)
@@ -294,6 +427,11 @@ void AdvectionDiffusionImplicit::operator()(const Real dt)
       P(x,y,z).s = pressure[idx];
     }
   }
+}
+
+void AdvectionDiffusionImplicit::operator()(const Real dt)
+{
+  euler(sim.dt);
 }
 
 CubismUP_3D_NAMESPACE_END
