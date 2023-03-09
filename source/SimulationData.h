@@ -133,6 +133,9 @@ struct SimulationData
   bool dumpOmega,dumpOmegaX,dumpOmegaY,dumpOmegaZ;
   bool dumpVelocity,dumpVelocityX,dumpVelocityY,dumpVelocityZ;
 
+  bool implicitDiffusion;
+  Real DiffusionErrorTol;
+  Real DiffusionErrorTolRel;
 
   void startProfiler(std::string name) const;
   void stopProfiler() const;
