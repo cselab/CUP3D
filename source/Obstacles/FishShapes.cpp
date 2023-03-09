@@ -116,6 +116,47 @@ void MidlineShapes::stefan_height(const Real L, Real*const rS, Real*const res, c
   }
 }
 
+void MidlineShapes::larval_width(const Real L, Real*const rS, Real*const res, const int Nm)
+{
+  const Real sb = .0862*L;
+  const Real st = .3448*L;
+  const Real wh = .0635*L;
+  const Real wt = .0254*L;
+
+  for(int i=0; i<Nm; ++i)
+  {
+    if(rS[i]<=0 or rS[i]>=L) res[i] = 0;
+    else {
+      const Real s = rS[i];
+      res[i] = s<sb ? wh * std::sqrt( 1 - std::pow(( sb - s ) / sb , 2)) :
+               ( s<st ? (-2 * (wt - wh) - wt * (st - sb)) * std::pow( (s - sb) / (st - sb), 3 ) + (3 * (wt - wh) + wt * (st - sb)) * std::pow( (s - sb) / (st - sb), 2 ) + wh : 
+               ( wt - wt * (s-st) / (L-st) ));
+    }
+  }
+}
+
+void MidlineShapes::larval_height(const Real L, Real*const rS, Real*const res, const int Nm)
+{
+  const Real s1 = 0.287*L;
+  const Real h1 = 0.072*L;
+  const Real s2 = 0.844*L;
+  const Real h2 = 0.041*L;
+  const Real s3 = 0.957*L;
+  const Real h3 = 0.071*L;
+
+  for(int i=0; i<Nm; ++i)
+  {
+    if(rS[i]<=0 or rS[i]>=L) res[i] = 0;
+    else {
+      const Real s = rS[i];
+      res[i] = s<s1 ? (h1 * std::sqrt( 1 - std::pow( (s - s1) / s1, 2 ))) :
+               ( s<s2 ? -2 * (h2 - h1) * std::pow( (s - s1) / (s2 - s1), 3) + 3 * (h2 - h1) * std::pow( (s - s1) / (s2 - s1), 2) + h1 : 
+               ( s<s3 ? -2 * (h3 - h2) * std::pow( (s - s2) / (s3 - s2), 3) + 3 * (h3 - h2) * std::pow( (s - s2) / (s3 - s2), 2) + h2 :
+               ( h3 * std::sqrt( 1 - std::pow( (s - s3) / (L - s3), 3))) ));
+    }
+  }
+}
+
 void MidlineShapes::danio_width(const Real L, Real*const rS, Real*const res, const int Nm)
 {
 	const int nBreaksW = 11;
@@ -247,6 +288,11 @@ void MidlineShapes::computeWidthsHeights(
       if(!mpirank)
         cout<<"Building object's height according to Stefan profile"<<endl;
       stefan_height(L, rS, height, nM);
+    } else
+    if ( heightName.compare("larval") == 0 ) {
+      if(!mpirank)
+        cout<<"Building object's height according to Larval profile"<<endl;
+      larval_height(L, rS, height, nM);
     } else {
       if(!mpirank)
         cout<<"Building object's height according to baseline profile."<<endl;
@@ -281,6 +327,11 @@ void MidlineShapes::computeWidthsHeights(
       if(!mpirank)
         cout<<"Building object's width according to Stefan profile"<<endl;
       stefan_width(L, rS, width, nM);
+    } else
+    if ( widthName.compare("larval") == 0 ) {
+      if(!mpirank)
+        cout<<"Building object's width according to Larval profile"<<endl;
+      larval_width(L, rS, width, nM);
     } else {
       if(!mpirank)
         cout<<"Building object's width according to baseline profile."<<endl;

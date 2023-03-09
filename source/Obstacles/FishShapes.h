@@ -28,6 +28,8 @@ namespace MidlineShapes
     Real*const res, const int Nm);
   void stefan_width(const Real L, Real*const rS, Real*const res, const int Nm);
   void stefan_height(const Real L, Real*const rS, Real*const res, const int Nm);
+  void larval_width(const Real L, Real*const rS, Real*const res, const int Nm);
+  void larval_height(const Real L, Real*const rS, Real*const res, const int Nm);
   void danio_width(const Real L, Real*const rS, Real*const res, const int Nm);
   void danio_height(const Real L, Real*const rS, Real*const res, const int Nm);
 
