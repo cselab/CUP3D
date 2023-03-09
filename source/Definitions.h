@@ -54,7 +54,7 @@ extern BCflag cubismBCX;
 extern BCflag cubismBCY;
 extern BCflag cubismBCZ;
 
-template<typename BlockType, template<typename X> class allocator=std::allocator>
+template<typename BlockType, template<typename X> class allocator=std::allocator, int direction = 0>
 class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
 {
   typedef typename BlockType::ElementType ElementTypeBlock;
@@ -83,22 +83,41 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
       e[0] =  dir==0 ? (side==0 ? 0 : sizeX + stenEnd[0]-1 ) : sizeX;
       e[1] =  dir==1 ? (side==0 ? 0 : sizeY + stenEnd[1]-1 ) : sizeY;
       e[2] =  dir==2 ? (side==0 ? 0 : sizeZ + stenEnd[2]-1 ) : sizeZ;
-      for(int iz=s[2]; iz<e[2]; iz++)
-      for(int iy=s[1]; iy<e[1]; iy++)
-      for(int ix=s[0]; ix<e[0]; ix++)
+
+      if (ElementTypeBlock::DIM == 1)
       {
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = cb->Access
-          (
-            ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
-            ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
-            ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
-          );      
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = (-1.)*cb->Access
-          (
-            ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
-            ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
-            ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
-          ).member(dir);      
+        const int coef = (dir == direction) ? -1 : +1;
+        for(int iz=s[2]; iz<e[2]; iz++)
+        for(int iy=s[1]; iy<e[1]; iy++)
+        for(int ix=s[0]; ix<e[0]; ix++)
+        {
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = coef*cb->Access
+            (
+              ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
+              ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
+              ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
+            );
+        }
+      }
+      else
+      {
+        for(int iz=s[2]; iz<e[2]; iz++)
+        for(int iy=s[1]; iy<e[1]; iy++)
+        for(int ix=s[0]; ix<e[0]; ix++)
+        {
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = cb->Access
+            (
+              ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
+              ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
+              ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
+            );      
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = (-1.)*cb->Access
+            (
+              ( dir==0 ? (side==0 ? 0 : sizeX-1 ) : ix ) - stenBeg[0],
+              ( dir==1 ? (side==0 ? 0 : sizeY-1 ) : iy ) - stenBeg[1],
+              ( dir==2 ? (side==0 ? 0 : sizeZ-1 ) : iz ) - stenBeg[2]
+            ).member(dir);      
+        }
       }
 
       //tensorial edges and corners also filled
@@ -109,25 +128,50 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
       e_[dir] = (bsize[dir]-1+stenEnd[dir])*side;
       const int d1 = (dir + 1) % 3;
       const int d2 = (dir + 2) % 3;
-      for(int b=0; b<2; ++b)
-      for(int a=0; a<2; ++a)
+
+      if (ElementTypeBlock::DIM == 1)
       {
-        s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
-        s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
-        e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
-        e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
-        for(int iz=s_[2]; iz<e_[2]; iz++)
-        for(int iy=s_[1]; iy<e_[1]; iy++)
-        for(int ix=s_[0]; ix<e_[0]; ix++)
+        const int coef = (dir == direction) ? -1 : +1;
+        for(int b=0; b<2; ++b)
+        for(int a=0; a<2; ++a)
         {
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = dir==0?
-          cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) : (dir==1?
-          cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]) :
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]));
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = dir==0?
-          (-1.)*cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) : (dir==1?
-          (-1.)*cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(dir) :
-          (-1.)*cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(dir));
+          s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
+          s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
+          e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
+          e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
+          for(int iz=s_[2]; iz<e_[2]; iz++)
+          for(int iy=s_[1]; iy<e_[1]; iy++)
+          for(int ix=s_[0]; ix<e_[0]; ix++)
+          {
+            cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = coef * (dir==0)?
+            cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) : (dir==1?
+            cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]) :
+            cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]));
+          }
+        }
+      }
+      else
+      {
+        for(int b=0; b<2; ++b)
+        for(int a=0; a<2; ++a)
+        {
+          s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
+          s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
+          e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
+          e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
+          for(int iz=s_[2]; iz<e_[2]; iz++)
+          for(int iy=s_[1]; iy<e_[1]; iy++)
+          for(int ix=s_[0]; ix<e_[0]; ix++)
+          {
+            cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = dir==0?
+            cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) : (dir==1?
+            cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]) :
+            cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]));
+            cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = dir==0?
+            (-1.)*cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) : (dir==1?
+            (-1.)*cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(dir) :
+            (-1.)*cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(dir));
+          }
         }
       }
     }
@@ -151,18 +195,36 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
       e[0] =  dir==0 ? (side==0 ? 0 : sizeX/2 + stenEnd[0]-1 ) : sizeX/2;
       e[1] =  dir==1 ? (side==0 ? 0 : sizeY/2 + stenEnd[1]-1 ) : sizeY/2;
       e[2] =  dir==2 ? (side==0 ? 0 : sizeZ/2 + stenEnd[2]-1 ) : sizeZ/2;
-      for(int iz=s[2]; iz<e[2]; iz++)
-      for(int iy=s[1]; iy<e[1]; iy++)
-      for(int ix=s[0]; ix<e[0]; ix++)
+
+      if (ElementTypeBlock::DIM == 1)
       {
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = cb->Access
-          ( ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
-            ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
-            ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]);
-        cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = (-1.)*cb->Access
-          ( ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
-            ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
-            ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]).member(dir);
+        const int coef = (dir == direction) ? -1 : +1;
+        for(int iz=s[2]; iz<e[2]; iz++)
+        for(int iy=s[1]; iy<e[1]; iy++)
+        for(int ix=s[0]; ix<e[0]; ix++)
+        {
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = coef * cb->Access
+            ( ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
+              ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
+              ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]);
+        }
+      }
+      else
+      {
+        for(int iz=s[2]; iz<e[2]; iz++)
+        for(int iy=s[1]; iy<e[1]; iy++)
+        for(int ix=s[0]; ix<e[0]; ix++)
+        {
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = cb->Access
+            ( ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
+              ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
+              ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]);
+          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = (-1.)*cb->Access
+            ( ( dir==0 ? (side==0 ? 0 : sizeX/2-1 ) : ix ) - stenBeg[0],
+              ( dir==1 ? (side==0 ? 0 : sizeY/2-1 ) : iy ) - stenBeg[1],
+              ( dir==2 ? (side==0 ? 0 : sizeZ/2-1 ) : iz ) - stenBeg[2]).member(dir);
+        }
+
       }
 
       //tensorial edges and corners also filled (this is necessary for the coarse block!)
@@ -173,27 +235,53 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
       e_[dir] = (bsize[dir]-1+stenEnd[dir])*side;
       const int d1 = (dir + 1) % 3;
       const int d2 = (dir + 2) % 3;
-      for(int b=0; b<2; ++b)
-      for(int a=0; a<2; ++a)
+
+      if (ElementTypeBlock::DIM == 1)
       {
-        s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
-        s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
-        e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
-        e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
-        for(int iz=s_[2]; iz<e_[2]; iz++)
-        for(int iy=s_[1]; iy<e_[1]; iy++)
-        for(int ix=s_[0]; ix<e_[0]; ix++)
+        const int coef = (dir == direction) ? -1 : +1;
+        for(int b=0; b<2; ++b)
+        for(int a=0; a<2; ++a)
         {
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = dir==0?
-          cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) : (dir==1?
-          cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]) :
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]));
-          cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = dir==0?
-          (-1.)*cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) : (dir==1?
-          (-1.)*cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(dir) :
-          (-1.)*cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(dir));
+          s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
+          s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
+          e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
+          e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
+          for(int iz=s_[2]; iz<e_[2]; iz++)
+          for(int iy=s_[1]; iy<e_[1]; iy++)
+          for(int ix=s_[0]; ix<e_[0]; ix++)
+          {
+            cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = coef * (dir==0)?
+            cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) : (dir==1?
+            cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]) :
+            cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]));
+          }
         }
       }
+      else
+      {
+        for(int b=0; b<2; ++b)
+        for(int a=0; a<2; ++a)
+        {
+          s_[d1] = stenBeg[d1] + a*b*(bsize[d1] - stenBeg[d1]);
+          s_[d2] = stenBeg[d2] + (a-a*b)*(bsize[d2] - stenBeg[d2]);
+          e_[d1] = (1-b+a*b)*(bsize[d1] - 1 + stenEnd[d1]);
+          e_[d2] = (a+b-a*b)*(bsize[d2] - 1 + stenEnd[d2]);
+          for(int iz=s_[2]; iz<e_[2]; iz++)
+          for(int iy=s_[1]; iy<e_[1]; iy++)
+          for(int ix=s_[0]; ix<e_[0]; ix++)
+          {
+            cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) = dir==0?
+            cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]) : (dir==1?
+            cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]) :
+            cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]));
+            cb->Access(ix-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) = dir==0?
+            (-1.)*cb->Access(side*(bsize[0]-1)-stenBeg[0], iy-stenBeg[1], iz-stenBeg[2]).member(dir) : (dir==1?
+            (-1.)*cb->Access(ix-stenBeg[0], side*(bsize[1]-1)-stenBeg[1], iz-stenBeg[2]).member(dir) :
+            (-1.)*cb->Access(ix-stenBeg[0], iy-stenBeg[1], side*(bsize[2]-1)-stenBeg[2]).member(dir));
+          }
+        }
+      }
+
     }
   }
   template<int dir, int side> void applyBCfaceWall(const bool coarse=false)

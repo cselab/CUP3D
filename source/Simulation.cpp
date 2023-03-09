@@ -9,6 +9,7 @@
 #include "operators/InitialConditions.h"
 #include "operators/ObstaclesCreate.h"
 #include "operators/AdvectionDiffusion.h"
+#include "operators/AdvectionDiffusionImplicit.h"
 #include "operators/ObstaclesUpdate.h"
 #include "operators/Penalization.h"
 #include "operators/PressureProjection.h"
@@ -173,7 +174,10 @@ void Simulation::setupOperators()
 
   // Performs:
   // \tilde{u} = u_t + \delta t (\nu \nabla^2 u_t - (u_t \cdot \nabla) u_t )
-  sim.pipeline.push_back(std::make_shared<AdvectionDiffusion>(sim));
+  if (sim.implicitDiffusion)
+    sim.pipeline.push_back(std::make_shared<AdvectionDiffusionImplicit>(sim));
+  else
+    sim.pipeline.push_back(std::make_shared<AdvectionDiffusion>(sim));
 
   // Update obstacle velocities and penalize velocity
   sim.pipeline.push_back(std::make_shared<UpdateObstacles>(sim));
@@ -281,7 +285,7 @@ Real Simulation::calcMaxTimestep()
 
   if( CFL > 0 )
   {
-    const Real dtDiffusion = (1.0/6.0)*hMin*hMin/(sim.nu+(1.0/6.0)*hMin*sim.uMax_measured);
+    const Real dtDiffusion = (sim.implicitDiffusion && sim.step > 10) ? 0.1 : (1.0/6.0)*hMin*hMin/(sim.nu+(1.0/6.0)*hMin*sim.uMax_measured);
     const Real dtAdvection = hMin / ( sim.uMax_measured + 1e-8 );
     if ( sim.step < sim.rampup )
     {
