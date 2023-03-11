@@ -89,6 +89,11 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(m
   bMeanConstraint = parser("-bMeanConstraint").asInt(1); //zero mean constraint 
   poissonSolver = parser("-poissonSolver").asString("iterative");
 
+  // IMPLICIT DIFFUSION SOLVER
+  implicitDiffusion = parser("-implicitDiffusion").asBool(false);
+  DiffusionErrorTol = parser("-diffusionTol").asDouble(1e-6); // absolute error
+  DiffusionErrorTolRel = parser("diffusionTolRel").asDouble(1e-4); // relative error
+
   uMax_allowed = parser("-umax").asDouble(10.0);
 
   // BOUNDARY CONDITIONS
