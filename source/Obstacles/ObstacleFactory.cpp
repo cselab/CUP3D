@@ -48,7 +48,7 @@ _createObstacle(SimulationData &sim,
   if (objectName == "Plate")
     return std::make_shared<Plate>(sim, lineParser);
   if (objectName == "Pipe")
-    return std::make_shared<Plate>(sim, lineParser);
+    return std::make_shared<Pipe>(sim, lineParser);
   if (objectName == "Ellipsoid")
     return std::make_shared<Ellipsoid>(sim, lineParser);
   if (objectName == "ExternalObstacle")

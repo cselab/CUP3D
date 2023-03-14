@@ -6,8 +6,8 @@
 //  Created by Guido Novati (novatig@ethz.ch).
 //
 
-#ifndef CubismUP_3D_Cylinder_h
-#define CubismUP_3D_Cylinder_h
+#ifndef CubismUP_3D_Pipe_h
+#define CubismUP_3D_Pipe_h
 
 #include "Obstacle.h"
 
@@ -34,4 +34,4 @@ public:
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_Cylinder_h
+#endif // CubismUP_3D_Pipe_h
