@@ -112,6 +112,15 @@ public:
   std::vector<ObstacleBlock*>  getObstacleBlocks() const {return  obstacleBlocks;}
   std::vector<ObstacleBlock*>* getObstacleBlocksPtr()    {return &obstacleBlocks;}
 
+  //imposed velocities for 1-2 timesteps after a collision with another Obstacle
+  Real  collision_counter = 0;
+  Real  u_collision;
+  Real  v_collision;
+  Real  w_collision;
+  Real ox_collision;
+  Real oy_collision;
+  Real oz_collision;
+
   virtual ~Obstacle()
   {
     for(auto & entry : obstacleBlocks) {

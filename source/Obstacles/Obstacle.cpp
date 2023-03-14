@@ -34,7 +34,11 @@ Obstacle::Obstacle(SimulationData& s,  ArgumentParser& parser): sim(s)
   Real planarAngle = parser("-planarAngle").asDouble(0.0) / 180 * M_PI;
   const Real q_length = std::sqrt(quaternion[0]*quaternion[0] + quaternion[1]*quaternion[1] 
                                 + quaternion[2]*quaternion[2] + quaternion[3]*quaternion[3]);
-  if(std::fabs(q_length-1.0) > 5*EPS)
+  quaternion[0] /= q_length;
+  quaternion[1] /= q_length;
+  quaternion[2] /= q_length;
+  quaternion[3] /= q_length;
+  if(std::fabs(q_length-1.0) > 100*EPS)
   {
     quaternion[0] = std::cos(0.5*planarAngle);
     quaternion[1] = 0;
@@ -243,6 +247,18 @@ void Obstacle::computeVelocities()
     assert( std::fabs(angVel[2] - 0) < 1e-12 );
     angVel[2] = 0;
   } else angVel[2] = angVel_computed[2];
+
+  if (collision_counter > 0)
+  {
+      collision_counter -= sim.dt;
+      transVel[0] = u_collision;
+      transVel[1] = v_collision;
+      transVel[2] = w_collision;
+      angVel[0] = ox_collision;
+      angVel[1] = oy_collision;
+      angVel[2] = oz_collision;
+  }
+
 }
 
 void Obstacle::computeForces()
