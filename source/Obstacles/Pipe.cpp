@@ -3,8 +3,6 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
-//
 
 #include "Pipe.h"
 #include "extra/ObstacleLibrary.h"
@@ -70,16 +68,6 @@ Pipe::Pipe(
     wmax = - p("-zvel").asDouble(0.0);
     tmax = p("-T").asDouble(1.0);
   }
-  _init();
-}
-
-Pipe::Pipe(
-    SimulationData& s,
-    ObstacleArguments &args,
-    const Real radius_,
-    const Real halflength_)
-    : Obstacle(s, args), radius(radius_), halflength(halflength_)
-{
   _init();
 }
 

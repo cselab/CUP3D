@@ -27,9 +27,6 @@ class Pipe : public Obstacle
 
 public:
   Pipe(SimulationData&s, cubism::ArgumentParser &p);
-  Pipe(SimulationData&s, ObstacleArguments &args,
-                                 Real radius, Real halflength);
-
   void _init(void);
   void create() override;
   void finalize() override;
