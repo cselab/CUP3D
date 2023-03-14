@@ -19,11 +19,8 @@ using namespace cubism;
 using UDEFMAT = Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX][3];
 using CHIMAT =  Real[CUP_BLOCK_SIZEZ][CUP_BLOCK_SIZEY][CUP_BLOCK_SIZEX];
 static constexpr Real EPS = std::numeric_limits<Real>::epsilon();
-static constexpr Real DBLEPS = std::numeric_limits<Real>::epsilon();
 
-ObstacleArguments::ObstacleArguments(
-        const SimulationData & sim,
-        ArgumentParser &parser)
+Obstacle::Obstacle(SimulationData& s,  ArgumentParser& parser): sim(s)
 {
   length = parser("-L").asDouble();          // Mandatory.
   position[0] = parser("-xpos").asDouble();  // Mandatory.
@@ -33,68 +30,50 @@ ObstacleArguments::ObstacleArguments(
   quaternion[1] = parser("-quat1").asDouble(0.0);
   quaternion[2] = parser("-quat2").asDouble(0.0);
   quaternion[3] = parser("-quat3").asDouble(0.0);
-  planarAngle = parser("-planarAngle").asDouble(0.0) / 180 * M_PI;
-  const Real q_length = std::sqrt(quaternion[0]*quaternion[0]
-                                 +  quaternion[1]*quaternion[1]
-                                 +  quaternion[2]*quaternion[2]
-                                 +  quaternion[3]*quaternion[3]);
 
-  if(std::fabs(q_length-1.0) > 5*EPS) {
+  Real planarAngle = parser("-planarAngle").asDouble(0.0) / 180 * M_PI;
+  const Real q_length = std::sqrt(quaternion[0]*quaternion[0] + quaternion[1]*quaternion[1] 
+                                + quaternion[2]*quaternion[2] + quaternion[3]*quaternion[3]);
+  if(std::fabs(q_length-1.0) > 5*EPS)
+  {
     quaternion[0] = std::cos(0.5*planarAngle);
     quaternion[1] = 0;
     quaternion[2] = 0;
     quaternion[3] = std::sin(0.5*planarAngle);
-  } else {
+  } 
+  else
+  {
     if(std::fabs(planarAngle) > 0 && sim.rank == 0)
-      printf("WARNING: Obstacle arguments include both quaternions and "
-             "planarAngle. Quaterion arguments have priority and therefore "
-             "planarAngle will be ignored.");
-
+      std::cout << "WARNING: Obstacle arguments include both quaternions and planarAngle." <<
+                   "Quaterion arguments have priority and therefore planarAngle will be ignored.\n";
     planarAngle = 2 * std::atan2(quaternion[3], quaternion[0]);
   }
 
   // if true, obstacle will never change its velocity:
-  // bForcedInLabFrame = parser("-bForcedInLabFrame").asBool(false);
   bool bFSM_alldir = parser("-bForcedInSimFrame").asBool(false);
   bForcedInSimFrame[0] = bFSM_alldir || parser("-bForcedInSimFrame_x").asBool(false);
   bForcedInSimFrame[1] = bFSM_alldir || parser("-bForcedInSimFrame_y").asBool(false);
   bForcedInSimFrame[2] = bFSM_alldir || parser("-bForcedInSimFrame_z").asBool(false);
-
   // only active if corresponding bForcedInLabFrame is true:
+  Real enforcedVelocity [3];
   enforcedVelocity[0] = -parser("-xvel").asDouble(0.0);
   enforcedVelocity[1] = -parser("-yvel").asDouble(0.0);
   enforcedVelocity[2] = -parser("-zvel").asDouble(0.0);
-
-  bFixToPlanar = parser("-bFixToPlanar").asBool(false);
-
+  const bool bFixToPlanar = parser("-bFixToPlanar").asBool(false);
   // this is different, obstacle can change the velocity, but sim frame will follow:
   bool bFOR_alldir = parser("-bFixFrameOfRef").asBool(false);
   bFixFrameOfRef[0] = bFOR_alldir || parser("-bFixFrameOfRef_x").asBool(false);
   bFixFrameOfRef[1] = bFOR_alldir || parser("-bFixFrameOfRef_y").asBool(false);
   bFixFrameOfRef[2] = bFOR_alldir || parser("-bFixFrameOfRef_z").asBool(false);
-
   // boolean to break symmetry to trigger vortex shedding
   bBreakSymmetry = parser("-bBreakSymmetry").asBool(false);
-}
 
-Obstacle::Obstacle(SimulationData&s, ArgumentParser&p)
-    : Obstacle( s, ObstacleArguments(s, p) ) { }
+  absPos[0] = position[0]; 
+  absPos[1] = position[1]; 
+  absPos[2] = position[2];
 
-Obstacle::Obstacle(
-    SimulationData& s, const ObstacleArguments &args)
-    : Obstacle(s)
-{
-  length = args.length;
-  position[0] = args.position[0];
-  position[1] = args.position[1];
-  position[2] = args.position[2];
-  absPos[0] = position[0]; absPos[1] = position[1]; absPos[2] = position[2];
-  quaternion[0] = args.quaternion[0];
-  quaternion[1] = args.quaternion[1];
-  quaternion[2] = args.quaternion[2];
-  quaternion[3] = args.quaternion[3];
-
-  if (!sim.rank) {
+  if (!sim.rank)
+  {
     printf("Obstacle L=%g, pos=[%g %g %g], q=[%g %g %g %g]\n",
            length, position[0], position[1], position[2],
            quaternion[0], quaternion[1], quaternion[2], quaternion[3]);
@@ -104,50 +83,48 @@ Obstacle::Obstacle(
           quaternion[0] * quaternion[0] + quaternion[1] * quaternion[1]
         + quaternion[2] * quaternion[2] + quaternion[3] * quaternion[3]);
 
-  if (std::fabs(one - 1.0) > 5 * DBLEPS) {
+  if (std::fabs(one - 1.0) > 5 * EPS)
+  {
     printf("Parsed quaternion length is not equal to one. It really ought to be.\n");
     fflush(0);
     abort();
   }
-  if (length < 5 * EPS) {
+  if (length < 5 * EPS)
+  {
     printf("Parsed length is equal to zero. It really ought not to be.\n");
     fflush(0);
     abort();
   }
 
-  for (int d = 0; d < 3; ++d) {
-    bForcedInSimFrame[d] = args.bForcedInSimFrame[d];
-    if (bForcedInSimFrame[d]) {
-      transVel_imposed[d] = transVel[d] = args.enforcedVelocity[d];
-      if (!sim.rank) {
-         printf("Obstacle forced to move relative to sim domain with constant %c-vel: %f\n",
-                "xyz"[d], transVel[d]);
-      }
+  for (int d = 0; d < 3; ++d)
+  {
+    bForcedInSimFrame[d] = bForcedInSimFrame[d];
+    if (bForcedInSimFrame[d])
+    {
+      transVel_imposed[d] = transVel[d] = enforcedVelocity[d];
+      if (!sim.rank)
+        printf("Obstacle forced to move relative to sim domain with constant %c-vel: %f\n","xyz"[d], transVel[d]);
     }
   }
 
   const bool anyVelForced = bForcedInSimFrame[0] || bForcedInSimFrame[1] || bForcedInSimFrame[2];
-  if(anyVelForced) {
+  if(anyVelForced)
+  {
     if (!sim.rank) printf("Obstacle has no angular velocity.\n");
     bBlockRotation[0] = true;
     bBlockRotation[1] = true;
     bBlockRotation[2] = true;
   }
-  const bool bFixToPlanar = args.bFixToPlanar;
-  if(bFixToPlanar) {
+
+  if(bFixToPlanar)
+  {
     if (!sim.rank) printf("Obstacle motion restricted to constant Z-plane.\n");
     bForcedInSimFrame[2] = true;
     transVel_imposed[2] = 0;
-    //bBlockRotation[2] = true;
     bBlockRotation[1] = true;
     bBlockRotation[0] = true;
   }
 
-  bFixFrameOfRef[0] = args.bFixFrameOfRef[0];
-  bFixFrameOfRef[1] = args.bFixFrameOfRef[1];
-  bFixFrameOfRef[2] = args.bFixFrameOfRef[2];
-
-  bBreakSymmetry = args.bBreakSymmetry;
   if( bBreakSymmetry )
     if (!sim.rank) printf("Symmetry broken by imposing sinusodial y-velocity in t=[1,2].\n");
 }
@@ -373,7 +350,7 @@ void Obstacle::update()
   const Real DQ[4] = { dqdt[0]*dt, dqdt[1]*dt, dqdt[2]*dt, dqdt[3]*dt };
   const Real DQn = std::sqrt(DQ[0]*DQ[0]+DQ[1]*DQ[1]+DQ[2]*DQ[2]+DQ[3]*DQ[3]);
 
-  if(DQn>DBLEPS)// && currentRKstep == 0)
+  if(DQn>EPS)// && currentRKstep == 0)
   {
     const Real tanF = std::tan(DQn)/DQn;
     const Real D[4] = {
