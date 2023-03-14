@@ -14,6 +14,7 @@
 #include "Cylinder.h"
 #include "Ellipsoid.h"
 #include "Naca.h"
+#include "Pipe.h"
 #include "Plate.h"
 #include "Sphere.h"
 #include "StefanFish.h"
@@ -45,6 +46,8 @@ _createObstacle(SimulationData &sim,
   if (objectName == "Cylinder")
     return std::make_shared<Cylinder>(sim, lineParser);
   if (objectName == "Plate")
+    return std::make_shared<Plate>(sim, lineParser);
+  if (objectName == "Pipe")
     return std::make_shared<Plate>(sim, lineParser);
   if (objectName == "Ellipsoid")
     return std::make_shared<Ellipsoid>(sim, lineParser);
