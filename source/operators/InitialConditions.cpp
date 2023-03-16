@@ -10,6 +10,7 @@
 #include "ProcessHelpers.h"
 #include "../Obstacles/ObstacleVector.h"
 #include "../poisson/PoissonSolverBase.h"
+#include "../Obstacles/Pipe.h"
 #include <random>
 
 class PoissonSolverBase;
@@ -107,6 +108,40 @@ class KernelIC_channelrandom
       Real p[3]; info.pos(p, ix, iy, iz);
       const Real U = FAC * p[dir] * (H-p[dir]);
       block(ix,iy,iz).u[0] = U * ( block(ix,iy,iz).u[0] + 1.0 );
+    }
+  }
+};
+
+class KernelIC_pipe
+{
+  const Real mu, R, uMax, G = (16 * mu * uMax) / (3 * R * R);
+  Real position[3] = {0,0,0};
+ public:
+  KernelIC_pipe(const Real _mu, const Real _R, const int _uMax, Real _pos[] ):
+     mu(_mu), R(_R), uMax(_uMax) 
+  {
+    for( size_t i = 0; i < 3; i++ )
+      position[i] = _pos[i];
+  }
+
+  void operator()(const BlockInfo& info, VectorBlock& block) const
+  {
+    for(int iz=0; iz<VectorBlock::sizeZ; ++iz)
+    for(int iy=0; iy<VectorBlock::sizeY; ++iy)
+    for(int ix=0; ix<VectorBlock::sizeX; ++ix) {
+      // Compute 
+      Real p[3]; info.pos(p, ix, iy, iz);
+      const Real dxSq = (position[0] - p[0]) * (position[0] - p[0]);
+      const Real dySq = (position[1] - p[1]) * (position[1] - p[1]);
+      const Real rSq = dxSq + dySq;
+
+      // Set Poiseuille flow
+      block(ix,iy,iz).clear();
+      const Real RSq = R*R;
+      if( rSq < RSq )
+        block(ix,iy,iz).u[2] = G / (4 * mu) * ( RSq - rSq );
+      else
+        block(ix,iy,iz).u[2] = 0.0;
     }
   }
 };
@@ -370,6 +405,22 @@ void InitialConditions::operator()(const Real dt)
     }
     const int dir = channelY? 1 : 2;
     run(KernelIC_channel(sim.extents, sim.uMax_forced, dir));
+  }
+  if(sim.initCond == "pipe")
+  {
+    // Make sure periodic boundary conditions are set in z-direction
+    if(sim.verbose) printf("[CUP3D] - Channel flow initial conditions.\n");
+    if( sim.BCz_flag != periodic ) {
+      printf("ERROR: pipe flow must be periodic in z.\n");
+      fflush(0); abort();
+    }
+
+    // Get obstacle and need quantities from pipe
+    const auto& obstacles = sim.obstacle_vector->getObstacleVector();
+    Pipe * pipe = dynamic_cast<Pipe *>(obstacles[0].get());
+
+    // Set initial conditions
+    run(KernelIC_pipe(sim.nu, pipe->length/2.0, sim.uMax_forced, pipe->position ));
   }
   if(sim.initCond == "vorticity") {
     if(sim.verbose) printf("[CUP3D] - Vorticity initial conditions.\n");

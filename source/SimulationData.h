@@ -117,6 +117,7 @@ struct SimulationData
 
   // uMax Channel flow
   Real uMax_forced = 0;
+  bool bFixMassFlux = false;
 
   // Dump Settings
   int freqDiagnostics = 0;

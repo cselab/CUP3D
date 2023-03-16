@@ -71,6 +71,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(m
 
   // SPEED FOR CHANNEL FLOW
   uMax_forced = parser("-uMax_forced").asDouble(0.0);
+  bFixMassFlux = parser("-bFixMassFlux").asBool(false);
 
   // PENALIZATION
   bImplicitPenalization = parser("-implicitPenalization").asBool(true);

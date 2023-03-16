@@ -10,6 +10,8 @@
 #include "operators/ObstaclesCreate.h"
 #include "operators/AdvectionDiffusion.h"
 #include "operators/AdvectionDiffusionImplicit.h"
+#include "operators/ExternalForcing.h"
+#include "operators/FixMassFlux.h"
 #include "operators/ObstaclesUpdate.h"
 #include "operators/Penalization.h"
 #include "operators/PressureProjection.h"
@@ -178,6 +180,15 @@ void Simulation::setupOperators()
     sim.pipeline.push_back(std::make_shared<AdvectionDiffusionImplicit>(sim));
   else
     sim.pipeline.push_back(std::make_shared<AdvectionDiffusion>(sim));
+
+  // Apply pressure gradient to drive flow
+  if( sim.uMax_forced > 0 )
+  {
+    if ( sim.bFixMassFlux ) // Fix mass flux
+      sim.pipeline.push_back(std::make_shared<FixMassFlux>(sim));
+    else // apply uniform gradient
+      sim.pipeline.push_back(std::make_shared<ExternalForcing>(sim));
+  }
 
   // Update obstacle velocities and penalize velocity
   sim.pipeline.push_back(std::make_shared<UpdateObstacles>(sim));

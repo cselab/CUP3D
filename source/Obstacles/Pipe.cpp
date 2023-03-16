@@ -16,11 +16,11 @@ namespace PipeObstacle
 {
 struct FillBlocks : FillBlocksBase<FillBlocks>
 {
-  const Real radius, halflength, h, safety = (2+SURFDH)*h;
+  const Real radius, halflength, h, safety = (8+SURFDH)*h;
   const Real position[3];
   const Real box[3][2] = {
-    {(Real)position[0] - std::sqrt(2) / 2 * radius + safety, (Real)position[0] + std::sqrt(2) / 2 * radius - safety},
-    {(Real)position[1] - std::sqrt(2) / 2 * radius + safety, (Real)position[1] + std::sqrt(2) / 2 * radius - safety},
+    {(Real)position[0] - (std::sqrt(2) / 2 * radius) + safety, (Real)position[0] + (std::sqrt(2) / 2 * radius) - safety},
+    {(Real)position[1] - (std::sqrt(2) / 2 * radius) + safety, (Real)position[1] + (std::sqrt(2) / 2 * radius) - safety},
     {(Real)position[2] - halflength-safety, (Real)position[2]+halflength+safety}
   };
 
