@@ -1,11 +1,10 @@
 //
 //  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2023 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
 
-#ifndef CubismUP_3D_FixMassFlux_h
-#define CubismUP_3D_FixMassFlux_h
+#pragma once
 
 #include "Operator.h"
 
@@ -22,5 +21,3 @@ public:
 };
 
 CubismUP_3D_NAMESPACE_END
-
-#endif // CubismUP_3D_FixMassFlux_h

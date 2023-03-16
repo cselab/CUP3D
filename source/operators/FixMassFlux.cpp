@@ -1,6 +1,6 @@
 //
 //  Cubism3D
-//  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
+//  Copyright (c) 2023 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
 
@@ -8,8 +8,7 @@
 
 CubismUP_3D_NAMESPACE_BEGIN using namespace cubism;
 
-static Real avgUx_nonUniform(const std::vector<BlockInfo>& myInfo,
-                             const Real* const uInf, const Real volume)
+static Real avgUx_nonUniform(const std::vector<BlockInfo>& myInfo, const Real* const uInf, const Real volume)
 {
   // Average Ux on the simulation volume :
   //   Sum on the xz-plane (uniform)
@@ -22,64 +21,43 @@ static Real avgUx_nonUniform(const std::vector<BlockInfo>& myInfo,
   Real avgUx = 0.;
   const int nBlocks = myInfo.size();
 
-  #pragma omp parallel for schedule(static) reduction(+ : avgUx)
-  for (int i = 0; i < nBlocks; i++) {
+  #pragma omp parallel for reduction(+ : avgUx)
+  for (int i = 0; i < nBlocks; i++)
+  {
     const BlockInfo& info = myInfo[i];
-    const FluidBlock& b = *(const FluidBlock*)info.ptrBlock;
-
-    for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
-    for (int iy = 0; iy < FluidBlock::sizeY; ++iy)
-    for (int ix = 0; ix < FluidBlock::sizeX; ++ix) {
-      Real h[3]; info.spacing(h, ix, iy, iz);
-      avgUx += (b(ix, iy, iz).u + uInf[0]) * h[0] * h[1] * h[2];
+    const VectorBlock& b = *(const VectorBlock*)info.ptrBlock;
+    const Real h3 = info.h*info.h*info.h;
+    for (int z = 0; z < VectorBlock::sizeZ; ++z)
+    for (int y = 0; y < VectorBlock::sizeY; ++y)
+    for (int x = 0; x < VectorBlock::sizeX; ++x)
+    {
+      avgUx += (b(x,y,z).u[0] + uInf[0]) * h3;
     }
   }
   avgUx = avgUx / volume;
   return avgUx;
 }
 
-class KernelFixMassFlux
-{
-  const Real dt, scale, y_max;
-
- public:
-  KernelFixMassFlux(double _dt, double _scale, double _y_max)
-      : dt(_dt), scale(_scale), y_max(_y_max) { }
-
-  void operator()(const BlockInfo& info, FluidBlock& o) const
-  {
-    for (int iz = 0; iz < FluidBlock::sizeZ; ++iz)
-    for (int iy = 0; iy < FluidBlock::sizeY; ++iy) {
-      Real p[3]; info.pos(p, 0, iy, 0);
-      const Real y = p[1];
-      for (int ix = 0; ix < FluidBlock::sizeX; ++ix)
-          o(ix, iy, iz).u += 6 * scale * y/y_max * (1.0 - y/y_max);
-    }
-  }
-};
-
-FixMassFlux::FixMassFlux(SimulationData& s)
-    : Operator(s) {}
+FixMassFlux::FixMassFlux(SimulationData& s): Operator(s) {}
 
 void FixMassFlux::operator()(const double dt)
 {
   sim.startProfiler("FixedMassFlux");
 
+  const std::vector<BlockInfo> &  velInfo = sim.velInfo();
+
   // fix base_u_avg and y_max AD HOC for channel flow
-  Real u_avg_msr, delta_u;
-  const Real volume = sim.extent[0]*sim.extent[1]*sim.extent[2];
-  const Real y_max = sim.extent[1];
+  const Real volume = sim.extents[0]*sim.extents[1]*sim.extents[2];
+  const Real y_max = sim.extents[1];
   const Real u_avg = 2.0/3.0 * sim.uMax_forced;
-
-  u_avg_msr = avgUx_nonUniform(vInfo, sim.uinf.data(), volume);
-  MPI_Allreduce(MPI_IN_PLACE, &u_avg_msr, 1, MPI_DOUBLE, MPI_SUM,
-                grid->getCartComm());
-
-  delta_u = u_avg - u_avg_msr;
+  Real u_avg_msr = avgUx_nonUniform(velInfo, sim.uinf.data(), volume);
+  MPI_Allreduce(MPI_IN_PLACE, &u_avg_msr, 1, MPI_Real, MPI_SUM, sim.comm);
+  const Real delta_u = u_avg - u_avg_msr;
   const Real reTau = std::sqrt(std::fabs(delta_u/sim.dt)) / sim.nu;
-
   const Real scale = 6*delta_u;
-  if (sim.rank == 0) {
+
+  if (sim.rank == 0)
+  {
     printf(
         "Measured <Ux>_V = %25.16e,\n"
         "target   <Ux>_V = %25.16e,\n"
@@ -88,13 +66,23 @@ void FixMassFlux::operator()(const double dt)
         "Re_tau          = %25.16e,\n",
         u_avg_msr, u_avg, delta_u, scale, reTau);
   }
-  KernelFixedMassFlux_nonUniform K(sim.dt, scale, y_max);
-  #pragma omp parallel for schedule(static)
-  for(size_t i=0; i<vInfo.size(); i++)
-    K(vInfo[i], *(FluidBlock*)vInfo[i].ptrBlock);
+ 
+  #pragma omp parallel for
+  for(size_t i=0; i<velInfo.size(); i++)
+  {
+      VectorBlock& v = *(VectorBlock*)velInfo[i].ptrBlock;
+      for (int z = 0; z < VectorBlock::sizeZ; ++z)
+      for (int y = 0; y < VectorBlock::sizeY; ++y)
+      {
+           Real p[3];
+           velInfo[i].pos(p, 0, y, 0);
+           const Real aux = 6 * scale * p[1]/y_max * (1.0 - p[1]/y_max);
+           for (int x = 0; x < VectorBlock::sizeX; ++x)
+                v(x,y,z).u[0] += aux;
+      }
+  }
 
   sim.stopProfiler();
-  check("FixedMassFlux");
 }
 
 CubismUP_3D_NAMESPACE_END
