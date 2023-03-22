@@ -97,6 +97,7 @@ public:
   Obstacle(SimulationData& s, cubism::ArgumentParser &parser);
   Obstacle(SimulationData& s) : sim(s) {  }
 
+  virtual void updateLabVelocity( int nSum[3], Real uSum[3] );
   virtual void computeVelocities();//solve the 6x6 linear system to get transVel and angvel
   virtual void computeForces();    //compute quantities of interest for this obstacle
   virtual void update();           //time integration of position and orientation

@@ -33,60 +33,27 @@ class NacaMidlineData : public FishMidlineData
     MidlineShapes::naca_width(t_ratio, length, rS, width, Nm);
 
     computeMidline(0.0, 0.0);
-
-    #if 1
-      int rank;
-      MPI_Comm_rank(MPI_COMM_WORLD,&rank);
-      if (rank!=0) return;
-      FILE * f = fopen("fish_profile","w");
-      for (int i=0; i<Nm; ++i) fprintf(f, "%g %g %g %g %g\n",
-      rX[i],rY[i],rS[i],width[i],height[i]);
-      fflush(f); fclose(f);
-    #endif
   }
 
   void computeMidline(const Real time, const Real dt) override
   {
     #if 1
-      rX[0] = rY[0] = vX[0] = vY[0] = 0;
-      for(int i=1; i<Nm; ++i) {
-        rY[i] = vX[i] = vY[i] = 0;
+      rX[0] = rY[0] = rZ[0] = 0.0;
+      vX[0] = vY[0] = vZ[0] = 0.0;
+      norX[0] = 0.0; norY[0] = 1.0; norZ[0] = 0.0;
+      binX[0] = 0.0; binY[0] = 0.0; binZ[0] = 1.0;
+      vNorX[0] = vNorY[0] = vNorZ[0] = 0.0;
+      vBinX[0] = vBinY[0] = vBinZ[0] = 0.0;
+      for(int i=1; i<Nm; ++i)
+      {
+        rY[i] = rZ[i] = 0.0;
+        vX[i] = vY[i] = vZ[i] = 0.0;
         rX[i] = rX[i-1] + std::fabs(rS[i]-rS[i-1]);
-  rZ[i] = 0;
-  vZ[i] = 0;
+        norX[i] = 0.0; norY[i] = 1.0; norZ[i] = 0.0;
+        binX[i] = 0.0; binY[i] = 0.0; binZ[i] = 1.0;
+        vNorX[i] = vNorY[i] = vNorZ[i] = 0.0;
+        vBinX[i] = vBinY[i] = vBinZ[i] = 0.0;
       }
-      #pragma omp parallel for schedule(static)
-      for(int i=0; i<Nm-1; i++) {
-        const Real ds = rS[i+1]-rS[i];
-        const Real tX = rX[i+1]-rX[i];
-        const Real tY = rY[i+1]-rY[i];
-        const Real tVX = vX[i+1]-vX[i];
-        const Real tVY = vY[i+1]-vY[i];
-        norX[i] = -tY/ds;
-        norY[i] =  tX/ds;
-        norZ[i] =  0.0;
-        vNorX[i] = -tVY/ds;
-        vNorY[i] =  tVX/ds;
-        vNorZ[i] = 0.0;
-        binX[i] =  0.0;
-        binY[i] =  0.0;
-        binZ[i] =  1.0;
-        vBinX[i] = 0.0;
-        vBinY[i] = 0.0;
-        vBinZ[i] = 0.0;
-      }
-      norX[Nm-1] = norX[Nm-2];
-      norY[Nm-1] = norY[Nm-2];
-      norZ[Nm-1] = norZ[Nm-2];
-      vNorX[Nm-1] = vNorX[Nm-2];
-      vNorY[Nm-1] = vNorY[Nm-2];
-      vNorZ[Nm-1] = vNorZ[Nm-2];
-      binX[Nm-1] = binX[Nm-2];
-      binY[Nm-1] = binY[Nm-2];
-      binZ[Nm-1] = binZ[Nm-2];
-      vBinX[Nm-1] = vBinX[Nm-2];
-      vBinY[Nm-1] = vBinY[Nm-2];
-      vBinZ[Nm-1] = vBinZ[Nm-2];
     #else // 2d stefan swimmer
       const std::array<Real ,6> curvature_points = {
           0, .15*length, .4*length, .65*length, .9*length, length
@@ -114,79 +81,48 @@ class NacaMidlineData : public FishMidlineData
 
 Naca::Naca(SimulationData&s, ArgumentParser&p) : Fish(s, p)
 {
-  absPos[0] = 0;
-  #if 1
-      Apitch = p("-Apitch").asDouble(0.0); //aplitude of sinusoidal pitch angle
-      Fpitch = p("-Fpitch").asDouble(0.0); //frequency
-      Ppitch = p("-Ppitch").asDouble(0.0); //phase wrt to rowing motion
-      Mpitch = p("-Mpitch").asDouble(0.0); //mean angle
-      Fheave = p("-Fheave").asDouble(0.0); //frequency of rowing motion
-      Aheave = p("-Aheave").asDouble(0.0); //amplitude (NON DIMENSIONAL)
-  #else
-      ifstream reader("params.txt");
-      if (reader.is_open()) {
-        Apitch=0.0; Fpitch=0.0; Ppitch=0.0; Mpitch=0.0; Fheave=0.0; Aheave=0.0;
-        reader >> Apitch; //aplitude of sinusoidal pitch angle
-        reader >> Fpitch; //frequency
-        reader >> Ppitch; //phase wrt to rowing motion
-        reader >> Mpitch; //mean angle
-        reader >> Fheave; //frequency of rowing motion
-        reader >> Aheave; //amplitude of rowing motion
-        reader.close();
-      } else {
-        cout << "Could not open params.txt" << endl;
-        abort();
-      }
-  #endif
-  Aheave *= length;
-
-  const Real thickness = p("-thickness").asDouble(0.12); // (NON DIMENSIONAL)
-
-  if(!sim.rank)
-    printf("Naca: pos=%3.3f, Apitch=%3.3f, Fpitch=%3.3f,Ppitch=%3.3f, "
-    "Mpitch=%3.3f, Frow=%3.3f, Arow=%3.3f\n", position[0], Apitch, Fpitch,
-    Ppitch, Mpitch, Fheave, Aheave);
+  Apitch = p("-Apitch").asDouble(0.0)*M_PI/180; //aplitude of sinusoidal pitch angle
+  Fpitch = p("-Fpitch").asDouble(0.0)         ; //frequency
+  Mpitch = p("-Mpitch").asDouble(0.0)*M_PI/180; //mean angle
+  Fheave = p("-Fheave").asDouble(0.0)         ; //frequency of rowing motion
+  Aheave = p("-Aheave").asDouble(0.0)*length  ; //amplitude (NON DIMENSIONAL)
+  tAccel = p("-tAccel").asDouble(-1);
+  fixedCenterDist = p("-fixedCenterDist").asDouble(0);
+  const Real thickness = p("-tRatio").asDouble(0.12);
+  myFish = new NacaMidlineData(length, sim.hmin, sim.extents[2], thickness);
+  if( sim.rank == 0 && sim.verbose) printf("[CUP3D] - NacaData Nm=%d L=%f t=%f A=%f w=%f xvel=%f yvel=%f tAccel=%f fixedCenterDist=%f\n",myFish->Nm, (double)length, (double)thickness, (double)Apitch, (double)Fpitch, (double)transVel_imposed[0], (double)transVel_imposed[1], (double)tAccel, (double)fixedCenterDist);
+  //only allow rotation around z-axis and translation in xy-plane
   bBlockRotation[0] = true;
   bBlockRotation[1] = true;
-  myFish = new NacaMidlineData(length, sim.hmin, sim.extents[2], thickness);
-}
-
-void Naca::update()
-{
-  const Real angle_2D =  Mpitch + Apitch * std::cos( 2*M_PI * (Fpitch*sim.time + Ppitch) );
-  quaternion[0] = std::cos(0.5*angle_2D);
-  quaternion[1] = 0;
-  quaternion[2] = 0;
-  quaternion[3] = std::sin(0.5*angle_2D);
-
-  absPos[0] += sim.dt * transVel[0];
-  absPos[1] += sim.dt * transVel[1];
-  absPos[2] += sim.dt * transVel[2];
-
-  position[0] += sim.dt * ( transVel[0] + sim.uinf[0] );
-  // if user wants to keep airfoil in the mid plane then we just integrate
-  // relative velocity (should be 0), otherwise we know that y velocity
-  // is sinusoidal, therefore we can just use analytical form
-  if(bFixFrameOfRef[1])
-    position[1] += sim.dt * ( transVel[1] + sim.uinf[1] );
-  else
-    position[1] = sim.extents[1]/2 + Aheave * std::cos(2*M_PI*Fheave*sim.time);
-  position[2] += sim.dt * ( transVel[2] + sim.uinf[2] );
+  bForcedInSimFrame[2] = true;
 }
 
 void Naca::computeVelocities()
 {
-  Obstacle::computeVelocities();
-
-  // x velocity can be either fixed from the start (then we follow the obst op
-  // pattern) or self propelled, here we do not touch it.
-  const Real argv = 2*M_PI * Fheave * sim.time;
-  transVel[1] = -2*M_PI * Fheave * Aheave * std::sin(argv);
-  transVel[2] = 0;
+  const Real omegaAngle = 2*M_PI*Fpitch;
+  const Real angle = Mpitch + Apitch*std::sin(omegaAngle*sim.time);
+  const Real omega = Apitch*omegaAngle*std::cos(omegaAngle*sim.time);
+  // angular velocity
   angVel[0] = 0;
   angVel[1] = 0;
-  const Real arga = 2*M_PI * ( Fpitch * sim.time + Ppitch );
-  angVel[2] = -2*M_PI * Fpitch * Apitch * std::sin(arga);
+  angVel[2] = omega;
+
+  // heaving motion
+  const Real v_heave = -2.0*M_PI*Fheave*Aheave*std::sin(2*M_PI*Fheave*sim.time);
+  if( sim.time < tAccel )
+  {
+    // linear velocity (due to rotation-axis != CoM)
+    transVel[0] = (sim.time/tAccel)*transVel_imposed[0] - fixedCenterDist*length*omega*std::sin(angle);
+    transVel[1] = (sim.time/tAccel)*transVel_imposed[1] + fixedCenterDist*length*omega*std::cos(angle) + v_heave;
+    transVel[2] = 0.0;
+  }
+  else
+  {
+    // linear velocity (due to rotation-axis != CoM)
+    transVel[0] = transVel_imposed[0] - fixedCenterDist*length*omega*std::sin(angle);
+    transVel[1] = transVel_imposed[1] + fixedCenterDist*length*omega*std::cos(angle) + v_heave;
+    transVel[2] = 0.0;
+  }
 }
 
 using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;
@@ -214,6 +150,31 @@ void Naca::writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments)
       }
     }
   }
+}
+
+void Naca::updateLabVelocity( int nSum[3], Real uSum[3] )
+{
+  // heaving motion
+  const Real v_heave = -2.0*M_PI*Fheave*Aheave*std::sin(2*M_PI*Fheave*sim.time);
+
+  if(bFixFrameOfRef[0])
+  {
+   (nSum[0])++; 
+   if( sim.time < tAccel ) uSum[0] -= (sim.time/tAccel)*transVel_imposed[0];
+   else                    uSum[0] -=                   transVel_imposed[0];
+  }
+  if(bFixFrameOfRef[1])
+  {
+   (nSum[1])++; 
+   if( sim.time < tAccel )uSum[1] -= (sim.time/tAccel)*transVel_imposed[1] + v_heave;
+   else                   uSum[1] -=                   transVel_imposed[1] + v_heave; 
+  }
+  if(bFixFrameOfRef[2])
+  {
+   (nSum[2])++; 
+   uSum[2] -= transVel[2]; 
+  }
+
 }
 
 CubismUP_3D_NAMESPACE_END

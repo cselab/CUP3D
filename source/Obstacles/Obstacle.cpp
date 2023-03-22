@@ -133,6 +133,13 @@ Obstacle::Obstacle(SimulationData& s,  ArgumentParser& parser): sim(s)
     if (!sim.rank) printf("Symmetry broken by imposing sinusodial y-velocity in t=[1,2].\n");
 }
 
+void Obstacle::updateLabVelocity( int nSum[3], Real uSum[3] )
+{
+  if (bFixFrameOfRef[0]) { nSum[0]+=1; uSum[0] -= transVel[0]; }
+  if (bFixFrameOfRef[1]) { nSum[1]+=1; uSum[1] -= transVel[1]; }
+  if (bFixFrameOfRef[2]) { nSum[2]+=1; uSum[2] -= transVel[2]; }
+}
+
 void Obstacle::computeVelocities()
 {
   std::vector<double> A(36);//need to use double (not Real) for GSL
