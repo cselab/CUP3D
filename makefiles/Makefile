@@ -106,7 +106,7 @@ OBJECTS = ObstacleFactory.o Obstacle.o Ellipsoid.o Cylinder.o Pipe.o \
 	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
 	ObstaclesCreate.o ObstaclesUpdate.o FishShapes.o ArgumentParser.o \
 	PoissonSolverBase.o PoissonSolverAMR.o PoissonSolverAMRKernels.o DiffusionSolverAMRKernels.o \
-	FixMassFlux.o ExternalForcing.o
+	FixMassFlux.o ExternalForcing.o SmartNaca.o
 
 
 #################################################

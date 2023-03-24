@@ -14,6 +14,7 @@
 #include "Cylinder.h"
 #include "Ellipsoid.h"
 #include "Naca.h"
+#include "SmartNaca.h"
 #include "Pipe.h"
 #include "Plate.h"
 #include "Sphere.h"
@@ -43,6 +44,8 @@ _createObstacle(SimulationData &sim,
     return std::make_shared<CarlingFish>(sim, lineParser);
   if (objectName == "Naca")
     return std::make_shared<Naca>(sim, lineParser);
+  if (objectName == "SmartNaca")
+    return std::make_shared<SmartNaca>(sim, lineParser);
   if (objectName == "Cylinder")
     return std::make_shared<Cylinder>(sim, lineParser);
   if (objectName == "Plate")
