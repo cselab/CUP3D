@@ -7,11 +7,6 @@
 //
 
 #include "Naca.h"
-#include "FishLibrary.h"
-#include "FishShapes.h"
-
-#include <Cubism/ArgumentParser.h>
-#include <Cubism/HDF5Dumper_MPI.h>
 
 #include <cmath>
 

@@ -7,6 +7,9 @@
 #pragma once
 
 #include "Fish.h"
+#include "FishLibrary.h"
+#include "FishShapes.h"
+#include <Cubism/ArgumentParser.h>
 
 CubismUP_3D_NAMESPACE_BEGIN
 
