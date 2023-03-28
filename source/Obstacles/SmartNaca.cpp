@@ -67,7 +67,7 @@ void SmartNaca::finalize()
   }
   #endif
 
-  const Real transition_duration = 0.1;
+  const Real transition_duration = 1.0;
   Real tot = 0.0;
   for (size_t idx = 0 ; idx < actuators.size(); idx++)
   {
@@ -174,9 +174,9 @@ void SmartNaca::finalize()
   {
     if(obstacleBlocks[info.blockID] == nullptr) continue; //obst not in block
     ObstacleBlock& o = * obstacleBlocks[info.blockID];
-    auto & __restrict__ UDEF = o.udef;
-    auto & __restrict__ SDF  = o.sdfLab;
-    auto & __restrict__ CHI  = o.chi;
+    const auto & __restrict__ UDEF = o.udef;
+    const auto & __restrict__ SDF  = o.sdfLab;
+    const auto & __restrict__ CHI  = o.chi;
     const Real invh = 1.0/info.h;
     const Real h3 = info.h*info.h*info.h;
 
