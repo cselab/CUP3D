@@ -11,6 +11,27 @@ using namespace cubism;
 
 CubismUP_3D_NAMESPACE_BEGIN
 
+struct GradScalarOnTmpV
+{
+  GradScalarOnTmpV(const SimulationData & s) : sim(s) {}
+  const SimulationData & sim;
+  const StencilInfo stencil{-1, -1, -1, 2, 2, 2, false, {0}};
+  const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  void operator()(ScalarLab & lab, const BlockInfo& info) const
+  {
+    auto & __restrict__ TMPV = *(VectorBlock*) tmpVInfo[info.blockID].ptrBlock;
+    const Real ih = 0.5/info.h;
+    for(int z=0; z<ScalarBlock::sizeZ; ++z)
+    for(int y=0; y<ScalarBlock::sizeY; ++y)
+    for(int x=0; x<ScalarBlock::sizeX; ++x)
+    {
+      TMPV(x,y,z).u[0] = ih * (lab(x+1,y,z).s-lab(x-1,y,z).s);
+      TMPV(x,y,z).u[1] = ih * (lab(x,y+1,z).s-lab(x,y-1,z).s);
+      TMPV(x,y,z).u[2] = ih * (lab(x,y,z+1).s-lab(x,y,z-1).s);
+    }
+  }
+};
+
 SmartNaca::SmartNaca(SimulationData&s, ArgumentParser&p): Naca(s,p), Nactuators ( p("-Nactuators").asInt(2)),actuator_ds( p("-actuatords").asDouble(0.05)),thickness(p("-tRatio").asDouble(0.12))
 {
   actuators.resize(Nactuators,0.);
@@ -22,19 +43,18 @@ SmartNaca::SmartNaca(SimulationData&s, ArgumentParser&p): Naca(s,p), Nactuators 
 void SmartNaca::finalize()
 {
   const Real * const rS = myFish->rS;
-  /*const*/ Real * const rX = myFish->rX;
-  /*const*/ Real * const rY = myFish->rY;
-  /*const*/ Real * const rZ = myFish->rZ;
-  /*const*/ Real * const norX = myFish->norX;
-  /*const*/ Real * const norY = myFish->norY;
-  /*const*/ Real * const norZ = myFish->norZ;
-  /*const*/ Real * const binX = myFish->binX;
-  /*const*/ Real * const binY = myFish->binY;
-  /*const*/ Real * const binZ = myFish->binZ;
+  Real * const rX = myFish->rX;
+  Real * const rY = myFish->rY;
+  Real * const rZ = myFish->rZ;
+  Real * const norX = myFish->norX;
+  Real * const norY = myFish->norY;
+  Real * const norZ = myFish->norZ;
+  Real * const binX = myFish->binX;
+  Real * const binY = myFish->binY;
+  Real * const binZ = myFish->binZ;
   const Real * const width = myFish->width;
-  //const Real * const height = myFish->height;
-
   PutFishOnBlocks putfish(myFish, position, quaternion);
+  #pragma omp parallel for
   for (int ss = 0 ; ss < myFish->Nm; ss++)
   {
     Real x[3] = {rX[ss],rY[ss],rZ[ss]};
@@ -54,15 +74,16 @@ void SmartNaca::finalize()
     binZ[ss] = b[2]; 
   }
 
-  #if 1
+  #if 0
   //dummy actuator values for testing
   static bool visited = false;
-  #if 1
   if (sim.time > 2.0 && visited == false)
   {
     visited = true;
     std::vector<Real> q(actuators.size());
     for (int i = 0 ; i < (int)actuators.size(); i ++) q[i] = 0.25*(2*(i+1)%2-1);
+    q[0] = 0.5;
+    q[1] = -0.25;
     act(q,0);
   }
   #endif
@@ -80,7 +101,46 @@ void SmartNaca::finalize()
   fx_integral += -std::fabs(cd)*sim.dt;
   if (tot < 1e-21) return;
 
+  //Compute gradient of chi and of signed-distance-function here.
+  //Used later for the actuators
+  const std::vector<cubism::BlockInfo>& tmpInfo  = sim.lhs ->getBlocksInfo();
+  const std::vector<cubism::BlockInfo>& tmpVInfo = sim.tmpV->getBlocksInfo();
+  const size_t Nblocks = tmpVInfo.size();
+  const int Nz = ScalarBlock::sizeZ;
+  const int Ny = ScalarBlock::sizeY;
+  const int Nx = ScalarBlock::sizeX;
 
+  //store grad(chi) in a vector and grad(SDF) in tmpV
+  cubism::compute<ScalarLab>(GradScalarOnTmpV(sim),sim.chi);
+  std::vector<double> gradChi(Nx*Ny*Nz*Nblocks*3);
+  #pragma omp parallel for
+  for (size_t i = 0 ; i < Nblocks; i++)
+  {
+    auto & __restrict__ TMP  = *(ScalarBlock*) tmpInfo [i].ptrBlock;
+    auto & __restrict__ TMPV = *(VectorBlock*) tmpVInfo[i].ptrBlock;
+    for(int iz=0; iz<Nz; iz++)
+    for(int iy=0; iy<Ny; iy++)
+    for(int ix=0; ix<Nx; ix++)
+    {
+      const size_t idx = i*Nz*Ny*Nx + iz*Ny*Nx + iy*Nx + ix;
+      gradChi[3*idx+0] = TMPV(ix,iy,iz).u[0];
+      gradChi[3*idx+1] = TMPV(ix,iy,iz).u[1];
+      gradChi[3*idx+2] = TMPV(ix,iy,iz).u[2];
+      TMP(ix,iy,iz).s = 0;
+    }
+    if(obstacleBlocks[i] == nullptr) continue; //obst not in block
+    ObstacleBlock& o = * obstacleBlocks[i];
+    const auto & __restrict__ SDF  = o.sdfLab;
+    for(int iz=0; iz<Nz; iz++)
+    for(int iy=0; iy<Ny; iy++)
+    for(int ix=0; ix<Nx; ix++)
+    {
+      TMP(ix,iy,iz).s = SDF[iz+1][iy+1][ix+1];
+    }
+  }
+  cubism::compute<ScalarLab>(GradScalarOnTmpV(sim),sim.lhs);
+
+  std::vector<int>      idx_store;
   std::vector<int>       ix_store;
   std::vector<int>       iy_store;
   std::vector<int>       iz_store;
@@ -88,13 +148,19 @@ void SmartNaca::finalize()
   std::vector<Real>      nx_store;
   std::vector<Real>      ny_store;
   std::vector<Real>      nz_store;
+  std::vector<Real>      cc_store;
+  Real surface   = 0.0;
+  Real surface_c   = 0.0;
+  Real mass_flux = 0.0;
 
+  #pragma omp parallel for reduction(+: surface,surface_c,mass_flux)
   for (const auto & info : sim.vel->getBlocksInfo())
   {
     if(obstacleBlocks[info.blockID] == nullptr) continue; //obst not in block
     ObstacleBlock& o = * obstacleBlocks[info.blockID];
     auto & __restrict__ UDEF = o.udef;
-    auto & __restrict__ SDF  = o.sdfLab;
+    const auto & __restrict__ SDF  = o.sdfLab;
+    const auto & __restrict__ TMPV = *(VectorBlock*) tmpVInfo[info.blockID].ptrBlock;
 
     for(int iz=0; iz<ScalarBlock::sizeZ; iz++)
     for(int iy=0; iy<ScalarBlock::sizeY; iy++)
@@ -141,68 +207,50 @@ void SmartNaca::finalize()
       int idx = (current_s / ds); //this is the closest actuator
       const Real s0 = 0.5*ds + idx * ds;
       if (sign_min == -1) idx += Nactuators/2;
+      const Real h3 = info.h*info.h*info.h;
 
       if (std::fabs( current_s - s0 ) < 0.5*actuator_ds*length)
       {
-        Real nx = 0.5*(SDF[iz+1][iy+1][ix+2]-SDF[iz+1][iy+1][ix+0]);
-        Real ny = 0.5*(SDF[iz+1][iy+2][ix+1]-SDF[iz+1][iy+0][ix+1]);
-        Real nz = 0.5*(SDF[iz+2][iy+1][ix+1]-SDF[iz+0][iy+1][ix+1]);
+        const size_t index = info.blockID*Nz*Ny*Nx + iz*Ny*Nx + iy*Nx + ix;
+        const Real dchidx = gradChi[3*index  ];
+        const Real dchidy = gradChi[3*index+1];
+        const Real dchidz = gradChi[3*index+2];
+        Real nx = TMPV(ix,iy,iz).u[0];
+        Real ny = TMPV(ix,iy,iz).u[1];
+        Real nz = TMPV(ix,iy,iz).u[2];
         const Real nn = pow(nx*nx+ny*ny+nz*nz+1e-21,-0.5);
         nx *= nn;
         ny *= nn;
         nz *= nn;
-        const double c = 1.0 - std::fabs(current_s - s0)/ (0.5*actuator_ds*length);
+        const double c0 = std::fabs(current_s - s0)/ (0.5*actuator_ds*length);
+        const double c = 1.0 - c0*c0;
         UDEF[iz][iy][ix][0] = c*actuators[idx]*nx;
         UDEF[iz][iy][ix][1] = c*actuators[idx]*ny;
         UDEF[iz][iy][ix][2] = c*actuators[idx]*nz;
-        ix_store.push_back(ix);
-        iy_store.push_back(iy);
-        iz_store.push_back(iz);
-        id_store.push_back(info.blockID);
-        nx_store.push_back(nx);
-        ny_store.push_back(ny);
-        nz_store.push_back(nz);
+        #pragma omp critical
+        {
+          ix_store.push_back(ix);
+          iy_store.push_back(iy);
+          iz_store.push_back(iz);
+          id_store.push_back(info.blockID);
+          nx_store.push_back(nx);
+          ny_store.push_back(ny);
+          nz_store.push_back(nz);
+          cc_store.push_back(c);
+          idx_store.push_back(idx);
+        }
+        const Real fac = (dchidx*nx+dchidy*ny+dchidz*nz)*h3;
+        mass_flux += fac*(UDEF[iz][iy][ix][0]*nx+UDEF[iz][iy][ix][1]*ny+UDEF[iz][iy][ix][2]*nz);
+        surface   += fac;
+        surface_c += fac*c;
       }
     }
   }
 
-  //Compute surface and total mass flux
-  Real surface   = 0.0;
-  Real mass_flux = 0.0;
-  #pragma omp parallel for reduction(+: surface,mass_flux)
-  for (const auto & info : sim.vel->getBlocksInfo())
-  {
-    if(obstacleBlocks[info.blockID] == nullptr) continue; //obst not in block
-    ObstacleBlock& o = * obstacleBlocks[info.blockID];
-    const auto & __restrict__ UDEF = o.udef;
-    const auto & __restrict__ SDF  = o.sdfLab;
-    const auto & __restrict__ CHI  = o.chi;
-    const Real invh = 1.0/info.h;
-    const Real h3 = info.h*info.h*info.h;
-
-    for(int iz=0; iz<ScalarBlock::sizeZ; iz++)
-    for(int iy=0; iy<ScalarBlock::sizeY; iy++)
-    for(int ix=0; ix<ScalarBlock::sizeX; ix++)
-    {
-      Real nx = 0.5*(SDF[iz+1][iy+1][ix+2]-SDF[iz+1][iy+1][ix+0]);
-      Real ny = 0.5*(SDF[iz+1][iy+2][ix+1]-SDF[iz+1][iy+0][ix+1]);
-      Real nz = 0.5*(SDF[iz+2][iy+1][ix+1]-SDF[iz+0][iy+1][ix+1]);
-      const Real nn = pow(nx*nx+ny*ny+nz*nz+1e-21,-0.5);
-      nx *= nn;
-      ny *= nn;
-      nz *= nn;
-      const Real dchidx = invh * ( (ix > 0 && ix < ScalarBlock::sizeX-1) ? 0.5*(CHI[iz][iy][ix+1]-CHI[iz][iy][ix-1]):(ix == 0 ? (-1.5*CHI[iz][iy][ix]+2.0*CHI[iz][iy][ix+1]-0.5*CHI[iz][iy][ix+2]) : (1.5*CHI[iz][iy][ix]-2.0*CHI[iz][iy][ix-1]+0.5*CHI[iz][iy][ix-2]) ) );
-      const Real dchidy = invh * ( (iy > 0 && iy < ScalarBlock::sizeY-1) ? 0.5*(CHI[iz][iy+1][ix]-CHI[iz][iy-1][ix]):(iy == 0 ? (-1.5*CHI[iz][iy][ix]+2.0*CHI[iz][iy+1][ix]-0.5*CHI[iz][iy+2][ix]) : (1.5*CHI[iz][iy][ix]-2.0*CHI[iz][iy-1][ix]+0.5*CHI[iz][iy-2][ix]) ) );
-      const Real dchidz = invh * ( (iz > 0 && iz < ScalarBlock::sizeZ-1) ? 0.5*(CHI[iz+1][iy][ix]-CHI[iz-1][iy][ix]):(iz == 0 ? (-1.5*CHI[iz][iy][ix]+2.0*CHI[iz+1][iy][ix]-0.5*CHI[iz+2][iy][ix]) : (1.5*CHI[iz][iy][ix]-2.0*CHI[iz-1][iy][ix]+0.5*CHI[iz-2][iy][ix]) ) );
-      const Real fac = (dchidx*nx+dchidy*ny+dchidz*nz)*h3;
-      mass_flux += fac*(UDEF[iz][iy][ix][0]*nx+UDEF[iz][iy][ix][1]*ny+UDEF[iz][iy][ix][2]*nz);
-      surface   += fac;
-    }
-  }
-  Real Qtot [2] = {mass_flux,surface};
-  MPI_Allreduce(MPI_IN_PLACE,Qtot,2,MPI_Real,MPI_SUM,sim.comm);
-  const Real uMean = Qtot[0]/Qtot[1];
-  //if (sim.rank == 0) std::cout << "Q=" << Qtot[0] << " " <<  Qtot[1] << std::endl;
+  Real Qtot [3] = {mass_flux,surface,surface_c};
+  MPI_Allreduce(MPI_IN_PLACE,Qtot,3,MPI_Real,MPI_SUM,sim.comm);
+  //const Real uMean = Qtot[0]/Qtot[1];
+  const Real qqqqq = Qtot[0]/Qtot[2];
 
   //Substract total mass flux (divided by surface) from actuator velocities
   #pragma omp parallel for
@@ -215,13 +263,14 @@ void SmartNaca::finalize()
     const Real nx           = nx_store[idx];
     const Real ny           = ny_store[idx];
     const Real nz           = nz_store[idx];
+    const int idx_st        =idx_store[idx];
+    const Real c            = cc_store[idx];
     ObstacleBlock& o = * obstacleBlocks[blockID];
     auto & __restrict__ UDEF = o.udef;
-    UDEF[iz][iy][ix][0] -= uMean*nx;
-    UDEF[iz][iy][ix][1] -= uMean*ny;
-    UDEF[iz][iy][ix][2] -= uMean*nz;
+    UDEF[iz][iy][ix][0] = c*(actuators[idx_st]-qqqqq)*nx;
+    UDEF[iz][iy][ix][1] = c*(actuators[idx_st]-qqqqq)*ny;
+    UDEF[iz][iy][ix][2] = c*(actuators[idx_st]-qqqqq)*nz;
   }
-  #endif
 }
 
 void SmartNaca::act( std::vector<Real> action, const int agentID)
