@@ -42,6 +42,7 @@ class Naca: public Fish
 
  public:
   Naca(SimulationData&s, cubism::ArgumentParser&p);
+  void update() override;
   void computeVelocities() override;
   using intersect_t = std::vector<std::vector<VolumeSegment_OBB*>>;
   void writeSDFOnBlocks(std::vector<VolumeSegment_OBB> & vSegments) override;

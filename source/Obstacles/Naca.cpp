@@ -172,4 +172,27 @@ void Naca::updateLabVelocity( int nSum[3], Real uSum[3] )
 
 }
 
+void Naca::update()
+{
+  const Real angle_2D =  Mpitch + Apitch * std::cos( 2*M_PI * (Fpitch*sim.time) );
+  quaternion[0] = std::cos(0.5*angle_2D);
+  quaternion[1] = 0;
+  quaternion[2] = 0;
+  quaternion[3] = std::sin(0.5*angle_2D);
+
+  absPos[0] += sim.dt * transVel[0];
+  absPos[1] += sim.dt * transVel[1];
+  absPos[2] += sim.dt * transVel[2];
+
+  position[0] += sim.dt * ( transVel[0] + sim.uinf[0] );
+  // if user wants to keep airfoil in the mid plane then we just integrate
+  // relative velocity (should be 0), otherwise we know that y velocity
+  // is sinusoidal, therefore we can just use analytical form
+  if(bFixFrameOfRef[1])
+    position[1] += sim.dt * ( transVel[1] + sim.uinf[1] );
+  else
+    position[1] = sim.extents[1]/2 + Aheave * std::cos(2*M_PI*Fheave*sim.time);
+  position[2] += sim.dt * ( transVel[2] + sim.uinf[2] );
+}
+
 CubismUP_3D_NAMESPACE_END
