@@ -15,6 +15,7 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class Cylinder : public Obstacle
 {
+public:
   const Real radius;
   const Real halflength;
   std::string section = "circular"; // or whatever
