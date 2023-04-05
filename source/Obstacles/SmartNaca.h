@@ -13,7 +13,6 @@ CubismUP_3D_NAMESPACE_BEGIN
 
 class SmartNaca: public Naca
 {
-  std::vector<Real> actuators;
   std::vector<Real> actuators_prev_value;
   std::vector<Real> actuators_next_value;
   const int Nactuators;
@@ -29,6 +28,7 @@ class SmartNaca: public Naca
   void act( std::vector<Real> action, const int agentID);
   Real reward(const int agentID);
   std::vector<Real> state(const int agentID);
+  std::vector<Real> actuators;
 };
 
 CubismUP_3D_NAMESPACE_END
