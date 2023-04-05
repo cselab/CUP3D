@@ -22,7 +22,7 @@ CylinderNozzle::CylinderNozzle(SimulationData&s, ArgumentParser &p):
     actuatorSchedulers.resize(Nactuators);
     actuators_prev_value.resize(Nactuators);
     actuators_next_value.resize(Nactuators);
-    #if 1
+    #if 0
     if (sim.rank == 0)
     {
       std::string line;
@@ -70,14 +70,14 @@ void CylinderNozzle::finalize()
     actuatorSchedulers[idx].gimmeValues(sim.time,actuators[idx],dummy);
   }
 
-  if (sim.time >= t_action_taken[curr_idx])
-  {
-    std::vector<Real> a (actuators.size());
-    for (size_t i = 0 ; i < actuators.size(); i++)
-      a[i] = action_taken[curr_idx*actuators.size()+i];
-    act(a,0);
-    curr_idx++;
-  }
+//  if (sim.time >= t_action_taken[curr_idx])
+//  {
+//    std::vector<Real> a (actuators.size());
+//    for (size_t i = 0 ; i < actuators.size(); i++)
+//      a[i] = action_taken[curr_idx*actuators.size()+i];
+//    act(a,0);
+//    curr_idx++;
+//  }
 
   const auto & vInfo = sim.vel->getBlocksInfo();
   const Real dtheta = 2*M_PI/Nactuators;
@@ -166,9 +166,8 @@ Real CylinderNozzle::reward(const int agentID)
 std::vector<Real> CylinderNozzle::state(const int agentID)
 {
   std::vector<Real> S;
-  #if 0
-  const int bins = actuators.size();
-
+  const int bins = 16;
+  const Real bins_theta = 10*M_PI/180.0;
   const Real dtheta = 2.*M_PI / bins;
   std::vector<int>   n_s   (bins,0.0);
   std::vector<Real>  p_s   (bins,0.0);
@@ -176,26 +175,33 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
   std::vector<Real> fY_s   (bins,0.0);
   for(auto & block : obstacleBlocks) if(block not_eq nullptr)
   {
-    for(size_t i=0; i<block->n_surfPoints; i++)
+    for(int i=0; i<block->nPoints; i++)
     {
-      const Real x     = block->x_s[i] - origC[0];
-      const Real y     = block->y_s[i] - origC[1];
-      const Real ang   = atan2(y,x);
-      const Real theta = ang < 0 ? ang + 2*M_PI : ang;
-      const Real p     = block->p_s[i];
-      const Real fx    = block->fX_s[i];
-      const Real fy    = block->fY_s[i];
-      const int idx = theta / dtheta;
-      n_s [idx] ++;
-      p_s [idx] += p;
-      fX_s[idx] += fx;
-      fY_s[idx] += fy;
+      const Real x = block->pX[i] - position[0];
+      const Real y = block->pY[i] - position[1];
+      Real theta = atan2(y,x);
+      if (theta < 0) theta += 2.*M_PI;
+      int idx = round(theta / dtheta); //this is the closest actuator
+      if (idx == bins) idx = 0;  //periodic around the cylinder
+      const Real theta0 = idx * dtheta;
+      const Real phi = theta - theta0;
+      if ( std::fabs(phi) < 0.5*bins_theta || (idx == 0 && std::fabs(phi-2*M_PI) < 0.5*bins_theta))
+      {
+        const Real p     = block->P[i];
+        const Real fx    = block->fX[i];
+        const Real fy    = block->fY[i];
+        n_s [idx] ++;
+        p_s [idx] += p;
+        fX_s[idx] += fx;
+        fY_s[idx] += fy;
+      }
     }
   }
 
   MPI_Allreduce(MPI_IN_PLACE,n_s.data(),n_s.size(),MPI_INT ,MPI_SUM,sim.comm);
   for (int idx = 0 ; idx < bins; idx++)
   {
+    if (n_s[idx] == 0) continue;
     p_s [idx] /= n_s[idx];
     fX_s[idx] /= n_s[idx];
     fY_s[idx] /= n_s[idx];
@@ -205,13 +211,11 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
   for (int idx = 0 ; idx < bins; idx++) S.push_back(fX_s[idx]);
   for (int idx = 0 ; idx < bins; idx++) S.push_back(fY_s[idx]);
   MPI_Allreduce(MPI_IN_PLACE,  S.data(),  S.size(),MPI_Real,MPI_SUM,sim.comm);
-  S.push_back(forcex);
-  S.push_back(forcey);
-  S.push_back(torque);
+  S.push_back(force[0]);
+  S.push_back(force[1]);
 
   if (sim.rank ==0 )
     for (size_t i = 0 ; i < S.size() ; i++) std::cout << S[i] << " ";
-  #endif
 
   return S;
 }
