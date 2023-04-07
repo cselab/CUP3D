@@ -1,7 +1,6 @@
 #pragma once
 
 #include "../Definitions.h"
-#include <Cubism/BlockInfo.h>
 
 namespace cubismup3d {
 namespace diffusion_kernels {
