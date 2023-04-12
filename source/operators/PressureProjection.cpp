@@ -401,6 +401,35 @@ void PressureProjection::operator()(const Real dt)
   //Here we solve for phi := p^{n+1}-p^{n} if step < step_2nd_start
   pressureSolver->solve();
 
+  Real avg = 0;
+  Real avg1 = 0;
+  #pragma omp parallel for reduction (+:avg,avg1)
+  for(size_t i=0; i< presInfo.size(); i++)
+  {
+    ScalarBlock& P  = (*sim.pres)(i);
+    const Real vv = presInfo[i].h*presInfo[i].h*presInfo[i].h;
+    for(int iz=0; iz<Nz; iz++)
+    for(int iy=0; iy<Ny; iy++)
+    for(int ix=0; ix<Nx; ix++)
+    {
+      avg += P(ix,iy,iz).s * vv;
+      avg1 += vv;
+    }
+  }
+  Real quantities[2] = {avg,avg1};
+  MPI_Allreduce(MPI_IN_PLACE,&quantities,2,MPI_Real,MPI_SUM,sim.comm);
+  avg = quantities[0]; avg1 = quantities[1] ;
+  avg = avg/avg1;
+  #pragma omp parallel for
+  for(size_t i=0; i< presInfo.size(); i++)
+  {
+    ScalarBlock & __restrict__ P  = (*sim.pres)(i);
+    for(int iz=0; iz<Nz; iz++)
+    for(int iy=0; iy<Ny; iy++)
+    for(int ix=0; ix<Nx; ix++)
+      P(ix,iy,iz).s -= avg;
+  }
+
   const std::vector<BlockInfo>& velInfo  = sim.velInfo();
 
   if (sim.step > sim.step_2nd_start) //recover p^{n+1} = phi + p^{n}

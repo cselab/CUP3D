@@ -343,36 +343,17 @@ void PoissonSolverAMR::solve()
   }
 
   Real * solution = useXopt ? x_opt.data() : x.data();
-
-  Real avg = 0;
-  Real avg1 = 0;
-  #pragma omp parallel for reduction (+:avg,avg1)
+  #pragma omp parallel for
   for(size_t i=0; i< Nblocks; i++)
   {
     ScalarBlock& P  = (*sim.pres)(i);
-    const Real vv = zInfo[i].h*zInfo[i].h*zInfo[i].h;
     for(int iz=0; iz<BSZ; iz++)
     for(int iy=0; iy<BSY; iy++)
     for(int ix=0; ix<BSX; ix++)
     {
       const int j = i*BSX*BSY*BSZ+iz*BSX*BSY+iy*BSX+ix;
       P(ix,iy,iz).s = solution[j];
-      avg += P(ix,iy,iz).s * vv;
-      avg1 += vv;
     }
-  }
-  Real quantities[2] = {avg,avg1};
-  MPI_Allreduce(MPI_IN_PLACE,&quantities,2,MPI_Real,MPI_SUM,m_comm);
-  avg = quantities[0]; avg1 = quantities[1] ;
-  avg = avg/avg1;
-  #pragma omp parallel for
-  for(size_t i=0; i< Nblocks; i++)
-  {
-    ScalarBlock & __restrict__ P  = (*sim.pres)(i);
-    for(int iz=0; iz<BSZ; iz++)
-    for(int iy=0; iy<BSY; iy++)
-    for(int ix=0; ix<BSX; ix++)
-      P(ix,iy,iz).s -= avg;
   }
 }
 }//namespace cubismup3d
