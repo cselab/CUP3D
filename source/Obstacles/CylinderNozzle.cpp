@@ -105,7 +105,7 @@ void CylinderNozzle::finalize()
       const Real z = p[2]-Cz;
       const Real r = x*x+y*y;
       if (r > (radius+2*info.h)*(radius+2*info.h) || r < (radius-2*info.h)*(radius-2*info.h)) continue;
-      if (std::fabs(z) > 0.4*halflength) continue;
+      if (std::fabs(z) > 0.495*halflength) continue;
 
       Real theta = atan2(y,x);
       if (theta < 0) theta += 2.*M_PI;
@@ -179,6 +179,10 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
     {
       const Real x = block->pX[i] - position[0];
       const Real y = block->pY[i] - position[1];
+
+      const Real z = block->pZ[i] - position[2];
+      if (std::fabs(z) > 0.15*halflength) continue;
+
       Real theta = atan2(y,x);
       if (theta < 0) theta += 2.*M_PI;
       int idx = round(theta / dtheta); //this is the closest actuator
@@ -211,15 +215,13 @@ std::vector<Real> CylinderNozzle::state(const int agentID)
   for (int idx = 0 ; idx < bins; idx++) S.push_back(fX_s[idx]);
   for (int idx = 0 ; idx < bins; idx++) S.push_back(fY_s[idx]);
   MPI_Allreduce(MPI_IN_PLACE,  S.data(),  S.size(),MPI_Real,MPI_SUM,sim.comm);
-  S.push_back(force[0]);
-  S.push_back(force[1]);
+  S.push_back(-force[0]/(2*halflength));
+  S.push_back(-force[1]/(2*halflength));
 
   if (sim.rank ==0 )
     for (size_t i = 0 ; i < S.size() ; i++) std::cout << S[i] << " ";
 
   return S;
 }
-
-
 
 CubismUP_3D_NAMESPACE_END
