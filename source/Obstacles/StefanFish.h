@@ -18,6 +18,7 @@
 #include <cmath>
 #include <sstream>
 #include <iomanip>
+#include <queue>
 
 CubismUP_3D_NAMESPACE_BEGIN
 
@@ -33,6 +34,8 @@ public:
   Real origC[3]         ; //initial location for PID controller
   Real wyp              ; //weight for y-control
   Real wzp              ; //weight for z-control
+
+  std::deque<std::array<Real,4>> r_axis;
 
   void create() override;
   virtual void computeVelocities() override;
