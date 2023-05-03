@@ -25,6 +25,7 @@
 #include <iomanip>
 #include <iostream>
 #include <sstream>
+#include "Utils/BufferedLogger.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 using namespace cubism;
@@ -215,6 +216,15 @@ void Simulation::serialize(const std::string append)
 {
   sim.startProfiler("DumpHDF5_MPI");
 
+  {
+    logger.flush();
+    std::stringstream name;
+    name<<"restart_"<<std::setfill('0')<<std::setw(9)<<sim.step;
+    DumpHDF5_MPI<StreamerScalar, Real> (*sim.pres, sim.time, "pres_" + name.str(),sim.path4serialization, false);
+    DumpHDF5_MPI<StreamerVector, Real> (*sim.vel , sim.time, "vel_"  + name.str(),sim.path4serialization, false);
+    sim.writeRestartFiles();
+  }
+
   std::stringstream name;
   if (append == "") name<<"_";
   else name<<append;
@@ -365,14 +375,6 @@ bool Simulation::advance(const Real dt)
   sim.time += dt;
 
   if( sim.bDump ) serialize();
-  if (sim.step % sim.checkpoint_steps == 0)  //checkpoint for restarting
-  {
-    std::stringstream name;
-    name<<"restart_"<<std::setfill('0')<<std::setw(9)<<sim.step;
-    DumpHDF5_MPI<StreamerScalar, Real> (*sim.pres, sim.time, "pres_" + name.str(),sim.path4serialization, false);
-    DumpHDF5_MPI<StreamerVector, Real> (*sim.vel , sim.time, "vel_"  + name.str(),sim.path4serialization, false);
-    sim.writeRestartFiles();
-  }
 
   if (sim.rank == 0 && sim.freqProfiler > 0 && sim.step % sim.freqProfiler == 0)
     sim.printResetProfiler();

@@ -28,10 +28,6 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(m
 
   // ========== PARSE ARGUMENTS ==========
 
-  // restart the simulation?
-  bRestart = parser("-restart").asBool(false);
-  checkpoint_steps = parser("-checkpointsteps").asInt(1000);
-
   // BLOCKS PER DIMENSION
   bpdx = parser("-bpdx").asInt();
   bpdy = parser("-bpdy").asInt();

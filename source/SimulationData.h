@@ -112,9 +112,6 @@ struct SimulationData
   // Initial conditions
   std::string initCond = "zero";
 
-  bool bRestart; //restart the simulation from last dumped timestep?
-  int checkpoint_steps;
-
   // uMax Channel flow
   Real uMax_forced = 0;
   bool bFixMassFlux = false;
