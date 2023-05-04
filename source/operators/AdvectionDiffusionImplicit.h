@@ -170,9 +170,9 @@ class DiffusionSolver
       }
     }
 
-    using Lab0 = cubism::BlockLabMPI<BlockLabBC<ScalarBlock, aligned_block_allocator,0>, ScalarGrid>;
-    using Lab1 = cubism::BlockLabMPI<BlockLabBC<ScalarBlock, aligned_block_allocator,1>, ScalarGrid>;
-    using Lab2 = cubism::BlockLabMPI<BlockLabBC<ScalarBlock, aligned_block_allocator,2>, ScalarGrid>;
+    using Lab0 = cubism::BlockLabMPI<BlockLabBC<ScalarGrid, aligned_block_allocator,0>>;
+    using Lab1 = cubism::BlockLabMPI<BlockLabBC<ScalarGrid, aligned_block_allocator,1>>;
+    using Lab2 = cubism::BlockLabMPI<BlockLabBC<ScalarGrid, aligned_block_allocator,2>>;
 
     if (mydirection == 0) compute<Lab0>(KernelLHSDiffusion<Lab0>(sim,dt),sim.pres,sim.lhs);
     if (mydirection == 1) compute<Lab1>(KernelLHSDiffusion<Lab1>(sim,dt),sim.pres,sim.lhs);

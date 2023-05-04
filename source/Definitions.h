@@ -19,7 +19,7 @@
 #include <Cubism/BlockLab.h>
 #include <Cubism/BlockLabMPI.h>
 #include <Cubism/Definitions.h>
-#include <Cubism/AMR_MeshAdaptationMPI.h>
+#include <Cubism/AMR_MeshAdaptation.h>
 
 using namespace cubism;
 
@@ -54,13 +54,13 @@ extern BCflag cubismBCX;
 extern BCflag cubismBCY;
 extern BCflag cubismBCZ;
 
-template<typename BlockType, template<typename X> class allocator=std::allocator, int direction = 0>
-class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
+template<typename TGrid, template<typename X> class allocator=std::allocator, int direction = 0>
+class BlockLabBC: public cubism::BlockLab<TGrid,allocator>
 {
-  typedef typename BlockType::ElementType ElementTypeBlock;
-  static constexpr int sizeX = BlockType::sizeX;
-  static constexpr int sizeY = BlockType::sizeY;
-  static constexpr int sizeZ = BlockType::sizeZ;
+  static constexpr int sizeX = TGrid::BlockType::sizeX;
+  static constexpr int sizeY = TGrid::BlockType::sizeY;
+  static constexpr int sizeZ = TGrid::BlockType::sizeZ;
+  typedef typename TGrid::BlockType::ElementType ElementTypeBlock;
 
   // Used for Boundary Conditions:
   // Apply bc on face of direction dir and side side (0 or 1):
@@ -398,7 +398,7 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
 
  public:
 
-  typedef typename BlockType::ElementType ElementType;
+  typedef typename TGrid::BlockType::ElementType ElementType;
 
   virtual bool is_xperiodic() override { return cubismBCX == periodic; }
   virtual bool is_yperiodic() override { return cubismBCY == periodic; }
@@ -456,11 +456,11 @@ class BlockLabBC: public cubism::BlockLab<BlockType,allocator>
 };
 
 
-template<typename BlockType, template<typename X> class allocator = std::allocator>
-class BlockLabNeumann3D: public cubism::BlockLabNeumann<BlockType, 3, allocator>
+template<typename TGrid, template<typename X> class allocator = std::allocator>
+class BlockLabNeumann3D: public cubism::BlockLabNeumann<TGrid, 3, allocator>
 {
  public:
-   using cubismLab = cubism::BlockLabNeumann<BlockType, 3, allocator>;
+   using cubismLab = cubism::BlockLabNeumann<TGrid, 3, allocator>;
    virtual bool is_xperiodic() override{ return cubismBCX == periodic; }
    virtual bool is_yperiodic() override{ return cubismBCY == periodic; }
    virtual bool is_zperiodic() override{ return cubismBCZ == periodic; }
@@ -528,14 +528,14 @@ using aligned_block_allocator = aligned_allocator<T, kBlockAlignment>;
 using ScalarElement = cubism::ScalarElement<Real>;
 using ScalarBlock   = cubism::GridBlock<CUP_BLOCK_SIZEX,3,ScalarElement>;
 using ScalarGrid    = cubism::GridMPI<cubism::Grid<ScalarBlock, aligned_block_allocator>>;
-using ScalarLab     = cubism::BlockLabMPI<BlockLabNeumann3D <ScalarBlock, aligned_block_allocator>,ScalarGrid>;
+using ScalarLab     = cubism::BlockLabMPI<BlockLabNeumann3D <ScalarGrid, aligned_block_allocator>>;
 
 using VectorElement = cubism::VectorElement<3,Real>;
 using VectorBlock   = cubism::GridBlock<CUP_BLOCK_SIZEX,3,VectorElement>;
 using VectorGrid    = cubism::GridMPI<cubism::Grid<VectorBlock, aligned_block_allocator>>;
-using VectorLab     = cubism::BlockLabMPI<BlockLabBC<VectorBlock, aligned_block_allocator>, VectorGrid>;
+using VectorLab     = cubism::BlockLabMPI<BlockLabBC<VectorGrid, aligned_block_allocator>>;
 
-using ScalarAMR     = cubism::MeshAdaptationMPI<ScalarGrid,ScalarLab,ScalarGrid>;
-using VectorAMR     = cubism::MeshAdaptationMPI<VectorGrid,VectorLab,ScalarGrid>;
+using ScalarAMR     = cubism::MeshAdaptation<ScalarLab>;
+using VectorAMR     = cubism::MeshAdaptation<VectorLab>;
 
 CubismUP_3D_NAMESPACE_END
