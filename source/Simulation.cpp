@@ -20,7 +20,7 @@
 #include "operators/ProcessHelpers.h"
 #include "Obstacles/ObstacleVector.h"
 #include "Obstacles/ObstacleFactory.h"
-#include <Cubism/HDF5Dumper_MPI.h>
+#include <Cubism/HDF5Dumper.h>
 #include <Cubism/ArgumentParser.h>
 #include <iomanip>
 #include <iostream>
