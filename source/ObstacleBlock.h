@@ -52,6 +52,7 @@ struct ObstacleBlock
   Real *fxV = nullptr, *fyV = nullptr, *fzV = nullptr;
   Real *vX  = nullptr, *vY  = nullptr, *vZ  = nullptr;
   Real *vxDef = nullptr, *vyDef = nullptr, *vzDef = nullptr;
+  Real *omegaX  = nullptr, *omegaY  = nullptr, *omegaZ  = nullptr;
 
   //additive quantities:
   // construct CHI & center of mass interpolated on grid:
@@ -133,6 +134,9 @@ struct ObstacleBlock
     if(vxDef   not_eq nullptr){free(vxDef);   vxDef=nullptr;  }
     if(vyDef   not_eq nullptr){free(vyDef);   vyDef=nullptr;  }
     if(vzDef   not_eq nullptr){free(vzDef);   vzDef=nullptr;  }
+    if(omegaX  not_eq nullptr){free(omegaX);  omegaX=nullptr; }
+    if(omegaY  not_eq nullptr){free(omegaY);  omegaY=nullptr; }
+    if(omegaZ  not_eq nullptr){free(omegaZ);  omegaZ=nullptr; }
   }
 
   virtual void clear()
@@ -171,6 +175,9 @@ struct ObstacleBlock
     fzV  =init<Real>(nPoints); vxDef=init<Real>(nPoints);
     vyDef=init<Real>(nPoints); vzDef=init<Real>(nPoints);
     P    =init<Real>(nPoints);
+    omegaX =init<Real>(nPoints);
+    omegaY =init<Real>(nPoints);
+    omegaZ =init<Real>(nPoints);
   }
 
   template <typename T>

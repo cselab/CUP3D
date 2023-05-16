@@ -25,6 +25,7 @@ class CylinderNozzle : public Cylinder
   std::vector < Schedulers::ParameterSchedulerScalar > actuatorSchedulers;
   Real t_change = 0;
   const Real regularizer;
+  const Real ccoef;
 public:
   CylinderNozzle(SimulationData&s, cubism::ArgumentParser &p);
   void finalize() override;
@@ -32,6 +33,13 @@ public:
   Real reward(const int agentID);
   std::vector<Real> state(const int agentID);
   std::vector<Real> actuators;
+  void computeVelocities() override
+  {
+       Obstacle::computeVelocities();
+       constexpr Real t1 = 0.25;
+       constexpr Real t2 = 0.50;
+       angVel[2] = (sim.time > t1 && sim.time < t2) ? transVel[0]*2*radius*sin(2*M_PI*(sim.time-t1)/(t2-t1)) : 0.0;
+  }
 };
 
 CubismUP_3D_NAMESPACE_END

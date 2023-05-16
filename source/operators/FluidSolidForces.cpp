@@ -164,6 +164,10 @@ struct KernelComputeForces
       o->fyV[i] = _1oH * (dvdx * dx + dvdy * dy + dvdz * dz); 
       o->fzV[i] = _1oH * (dwdx * dx + dwdy * dy + dwdz * dz); 
 
+      o->omegaX[i] = (dwdy - dvdz)/info.h;
+      o->omegaY[i] = (dudz - dwdx)/info.h;
+      o->omegaZ[i] = (dvdx - dudy)/info.h;
+
       o->vxDef[i] = o->udef[iz][iy][ix][0]; o->vX[i] = l(ix,iy,iz).u[0];
       o->vyDef[i] = o->udef[iz][iy][ix][1]; o->vY[i] = l(ix,iy,iz).u[1];
       o->vzDef[i] = o->udef[iz][iy][ix][2]; o->vZ[i] = l(ix,iy,iz).u[2];
