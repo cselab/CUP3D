@@ -66,7 +66,8 @@ void CylinderNozzle::finalize()
       const Real z = p[2]-Cz;
       const Real r = x*x+y*y;
       if (r > (radius+2*info.h)*(radius+2*info.h) || r < (radius-2*info.h)*(radius-2*info.h)) continue;
-      if (std::fabs(z) > 0.99*halflength) continue;
+      //if (std::fabs(z) > 0.99*halflength) continue;
+      if (std::fabs(z) > 0.75*halflength) continue;
 
       Real theta = atan2(y,x);
       if (theta < 0) theta += 2.*M_PI;
