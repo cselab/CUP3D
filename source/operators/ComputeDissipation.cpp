@@ -127,7 +127,7 @@ void ComputeDissipation::operator()(const Real dt)
     std::ofstream outfile;
     outfile.open("diagnostics.dat", std::ios_base::app);
     if(sim.step==0)
-      outfile<<"step_id time circ_x circ_y circ_y linImp_x linImp_y linImp_z "
+      outfile<<"step_id time circ_x circ_y circ_z linImp_x linImp_y linImp_z "
       "linMom_x linMom_y linMom_z angImp_x angImp_y angImp_z angMom_x angMom_y "
       "angMom_z presPow viscPow helicity kineticEn enstrophy blocks"<<std::endl;
     outfile<<sim.step<<" "<<sim.time<<" "<<
