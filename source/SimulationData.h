@@ -108,6 +108,10 @@ struct SimulationData
 				    // which is mathematically equivalent to the zero-mean 
 				    // solution of nabla^2 P = RHS (for zero Neumann BCs of course)
 				    // if >2, we set one grid point to p=0
+  bool StaticObstacles = false; //if true, obstacles do not change shape or location.
+                                //Useful when obstacle creation is expensive (for ExternalObstacle for example)
+                                //as it skips obstacle creation whenever the mesh is not refined
+  bool MeshChanged = true; //becomes true when the mesh is refined/compressed or when load balancing occurs
 
   // Initial conditions
   std::string initCond = "zero";

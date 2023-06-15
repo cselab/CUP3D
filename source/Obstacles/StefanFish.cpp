@@ -543,9 +543,17 @@ void StefanFish::create()
     //3. control pitch
     const Real pitch_tgt = 0;
     const Real dphi      = pitch- pitch_tgt;
-    const Real g         = (roll_is_small && yaw_is_small) ? -wzp * dphi : 0.0;
+    //const Real g         = (roll_is_small && yaw_is_small) ? -wzp * dphi : 0.0;
+
+   const Real z       = absPos[2];
+   const Real ztgt    =  origC[2];
+   const Real dz     = (ztgt-z          )/length;
+   const Real signZ  = dz > 0 ? 1 : -1;
+   const Real P = - signZ * dz * dphi;
+   const Real g         = (roll_is_small && yaw_is_small) ? -wzp * dphi * dz * signZ : 0.0;
+
     const Real dgdt      = sim.step > 1 ? (g - cFish->gamma)/sim.dt : 0.0;
-    const Real gmax      = 0.05/length;
+    const Real gmax      = 0.10/length;
     const Real dRdtmax   = 0.1*length/cFish->Tperiod;
     const Real dgdtmax   = std::fabs(gmax*gmax*dRdtmax);
     clip_quantities(gmax,dgdtmax,sim.dt,false,g,dgdt,cFish->gamma,cFish->dgamma);

@@ -26,43 +26,30 @@ inline bool exists (const std::string& name) {
   return (stat (name.c_str(), &buffer) == 0); 
 }
 
-//struct FillBlocks : FillBlocksBase<FillBlocks>
 struct FillBlocks
 {
-  const Real safety;
-  const Real position[3], quaternion[4];
-  Mesh mesh;
-  std::vector<Vector3<Real>> randomNormals;
-  const Real w=quaternion[0], x=quaternion[1], y=quaternion[2], z=quaternion[3];
-  const Real Rmatrix[3][3] = {
-      {1-2*(y*y+z*z),   2*(x*y+z*w),   2*(x*z-y*w)},
-      {  2*(x*y-z*w), 1-2*(x*x+z*z),   2*(y*z+x*w)},
-      {  2*(x*z+y*w),   2*(y*z-x*w), 1-2*(x*x+y*y)}
-  };
+  ExternalObstacle * obstacle;
   std::array<std::array<Real,2>,3> box;
-  std::vector<std::vector<int>> BlocksToTriangles;
-  Real length;
 
-  FillBlocks(Real _h, const Real p[3], const Real q[4], Mesh &_mesh, std::vector<Vector3<Real>> _randomNomals, std::vector<std::vector<int>> _BlocksToTriangles, Real _length): 
-  safety((2+SURFDH)*_h), position{p[0],p[1],p[2]}, quaternion{q[0],q[1],q[2],q[3]}, mesh(_mesh), randomNormals(_randomNomals), BlocksToTriangles(_BlocksToTriangles), length(_length)
+  FillBlocks(ExternalObstacle * _obstacle)
   {
-    mesh.rotate( Rmatrix, position );
+    obstacle = _obstacle;
+
     // Compute maximal extents
     Real MIN = std::numeric_limits<Real>::min();
     Real MAX = std::numeric_limits<Real>::max();
     Vector3<Real> min = { MAX, MAX, MAX };
     Vector3<Real> max = { MIN, MIN, MIN };
-    for( const auto& point: mesh.x_ )
+    for( const auto& point: obstacle->x_ )
     for( size_t i = 0; i<3; i++ )
     {
       if( point[i] < min[i] ) min[i] = point[i];
       if( point[i] > max[i] ) max[i] = point[i];
     }
-    Vector3<Real> diff = max-min;
     box = {{
-     {(Real)position[0]-(diff[0]+safety), (Real)position[0]+(diff[0]+safety)},
-     {(Real)position[1]-(diff[1]+safety), (Real)position[1]+(diff[1]+safety)},
-     {(Real)position[2]-(diff[2]+safety), (Real)position[2]+(diff[2]+safety)}
+     {min[0], max[0]},
+     {min[1], max[1]},
+     {min[2], max[2]}
     }};
   }
 
@@ -83,41 +70,50 @@ struct FillBlocks
 
   inline Real signedDistance(const Real px, const Real py, const Real pz, const int id) const
   {
-    const std::vector<int> & myTriangles = BlocksToTriangles[id];
+    const std::vector<int> & myTriangles = obstacle->BlocksToTriangles[id];
+
     if (myTriangles.size() == 0) return -1; //very far
+
+    const auto & x_ = obstacle->x_;
+    const auto & tri_ = obstacle->tri_;
+    const auto & length = obstacle->length;
 
     // Find the closest triangles and the distance to them.
     Vector3<Real> p = { px, py, pz };
+    Vector3<Real> dummy;
     Real minSqrDist = 1e10;
-    std::vector<Vector3<Vector3<Real>>> closest{};
+    std::vector<int> closest;
     for (size_t index = 0; index < myTriangles.size(); ++index)
     {
       const int i = myTriangles[index];
-      Vector3<Vector3<Real>> t{mesh.x_[mesh.tri_[i][0]],mesh.x_[mesh.tri_[i][1]],mesh.x_[mesh.tri_[i][2]],};
-      const Real sqrDist = pointTriangleSqrDistance(t[0],t[1],t[2], p);
-      if (std::fabs(sqrDist- minSqrDist)< length * 0.001)
+      Vector3<Vector3<Real>> t{x_[tri_[i][0]],x_[tri_[i][1]],x_[tri_[i][2]],};
+      const Real sqrDist = pointTriangleSqrDistance(t[0],t[1],t[2], p, dummy);
+      if (std::fabs(sqrDist- minSqrDist)< length * 0.01 * length * 0.01)
       {
         if (sqrDist < minSqrDist) minSqrDist = sqrDist;
-        closest.push_back(t);
+        closest.push_back(i);
       }
       else if (sqrDist < minSqrDist)
       {
         minSqrDist = sqrDist;
         closest.clear();
-        closest.push_back(t);
+        closest.push_back(i);
       }
     }
-    const Real dist = minSqrDist;
+
+    const Real dist = std::sqrt(minSqrDist);
 
     bool trust = true;    
     Real side = -1;
     for (size_t c = 0; c<closest.size(); c++)
     {
+      const int i = closest[c];
+      Vector3<Vector3<Real>> t{x_[tri_[i][0]],x_[tri_[i][1]],x_[tri_[i][2]],};
       Vector3<Real> n{};
-      n = cross(closest[c][1] - closest[c][0], closest[c][2] - closest[c][0]);
-      const Real delta0 = n[0]*closest[c][0][0]+n[1]*closest[c][0][1]+n[2]*closest[c][0][2];
-      const Real delta1 = n[0]*closest[c][1][0]+n[1]*closest[c][1][1]+n[2]*closest[c][1][2];
-      const Real delta2 = n[0]*closest[c][2][0]+n[1]*closest[c][2][1]+n[2]*closest[c][2][2];
+      n = cross(t[1] - t[0], t[2] - t[0]);
+      const Real delta0 = n[0]*t[0][0]+n[1]*t[0][1]+n[2]*t[0][2];
+      const Real delta1 = n[0]*t[1][0]+n[1]*t[1][1]+n[2]*t[1][2];
+      const Real delta2 = n[0]*t[2][0]+n[1]*t[2][1]+n[2]*t[2][2];
       const Real delta_max = std::max({delta0,delta1,delta2});
       const Real delta_min = std::min({delta0,delta1,delta2});
       const Real delta = std::fabs(delta_max) > std::fabs(delta_min) ? delta_max : delta_min;   
@@ -127,65 +123,110 @@ struct FillBlocks
       side = newside;
       if (!trust) break;
     }
-    if (trust) return std::copysign(dist, side);
-    else return isInner(p) ? dist : -dist;
+
+    if (trust)
+    {
+      return std::copysign(dist, side);
+    }
+    else
+    {
+      return isInner(p) ? dist : -dist;
+    }
   }
 
-  inline bool isInner(Vector3<Real> p) const
+  inline bool isInner(const Vector3<Real> & p) const
   {
-    std::vector<size_t> numIntersections(randomNormals.size(),0   );
-    std::vector<bool  > validRay        (randomNormals.size(),true);
-    for( size_t i = 0; i<randomNormals.size(); i++ )
+    const auto & x_ = obstacle->x_;
+    const auto & tri_ = obstacle->tri_;
+    const auto & randomNormals = obstacle->randomNormals;
+
+    for( const auto & randomNormal : randomNormals)
     {
-        numIntersections[i] = 0;
+      size_t numIntersections = 0;
+      bool validRay = true;
+      #if 1
+      for( const auto& tri: tri_ )
+      {
+        Vector3<Vector3<Real>> t{x_[tri[0]],x_[tri[1]],x_[tri[2]]};
 
-        std::vector<Vector3<int>> my_triangles;
-        Vector3<Real> ray_start = p;
-        Vector3<Real> ray_end;
-        const Real LL = 3.0;
-        ray_end = p + LL*randomNormals[i];
-        for( const auto& tri: mesh.tri_ )
+        //Send ray. Return 0 for miss, 1 for hit, -1 for parallel triangle, -2 for line intersection
+        Vector3<Real> intersectionPoint{};
+        const int intersection = rayIntersectsTriangle( p, randomNormal, t, intersectionPoint );
+
+        if( intersection > 0 )
         {
-          Vector3<Vector3<Real>> t{mesh.x_[tri[0]],mesh.x_[tri[1]],mesh.x_[tri[2]]};
-          Vector3<Real> C = (1.0/3.0)*(t[0] + t[1] + t[2]);
-          Vector3<Real> proj = ProjectToLine(ray_start, ray_end, C);
-          const Real d2= (C[0]-proj[0])*(C[0]-proj[0])
-                          +(C[1]-proj[1])*(C[1]-proj[1])
-                          +(C[2]-proj[2])*(C[2]-proj[2]);
-          if (d2 < (0.5*length)*(0.5*length)) my_triangles.push_back(tri);
+          numIntersections += intersection;
         }
-
-        for( const auto& tri: my_triangles )
+        else if (intersection == -3) // check whether ray is invalid (corner or edge intersection)
         {
-          Vector3<Vector3<Real>> t{mesh.x_[tri[0]],mesh.x_[tri[1]],mesh.x_[tri[2]]};
+          validRay = false;
+          break;
+        }
+      }
+      #else
+      const auto & position = obstacle->position;
+      const auto & IJKToTriangles = obstacle->IJKToTriangles;
+      const int n = obstacle->nIJK;
+      const Real h = obstacle->hIJK;
+      const Real extent = 0.5*n*h;
+      const Real h2 = 0.5*h;
 
-          // send ray
-          // returns 0 for miss, 1 for hit, -1 for parallel triangle, and -2 for line intersection
-          Vector3<Real> intersectionPoint{};
-          const int intersection = rayIntersectsTriangle( p, randomNormals[i], t, intersectionPoint );
-
-          // check whether ray is invalid (corner or edge intersection)
-          if( intersection >= 0 )
+      Vector3<Real> Ray = {p[0]-position[0],p[1]-position[1],p[2]-position[2]};
+      std::vector<bool> block_visited(n*n*n,false);
+      int i = -1;
+      int j = -1;
+      int k = -1;
+      bool done = false;
+      while(done == false)
+      {
+        Ray = Ray + (0.10 * h) * randomNormal;
+        i =  round( (extent-h2+Ray[0])/h );
+        j =  round( (extent-h2+Ray[1])/h );
+        k =  round( (extent-h2+Ray[2])/h );
+        i = std::min(i,n-1);
+        j = std::min(j,n-1);
+        k = std::min(k,n-1);
+        i = std::max(i,0);
+        j = std::max(j,0);
+        k = std::max(k,0);
+        const int b = i+j*n+k*n*n;
+        if (!block_visited[b])
+        {
+          block_visited[b] = true;
+          Vector3<Real> centerV;
+          centerV[0] = -extent + h2 + i*h + position[0];
+          centerV[1] = -extent + h2 + j*h + position[1];
+          centerV[2] = -extent + h2 + k*h + position[2];
+          for (auto & tr : IJKToTriangles[b])
           {
-            for( size_t j = 0; j<3; j++ )
+            Vector3<Vector3<Real>> t{x_[tri_[tr][0]],x_[tri_[tr][1]],x_[tri_[tr][2]],};
+            Vector3<Real> intersectionPoint{};
+            const int intersection = rayIntersectsTriangle( p, randomNormal, t, intersectionPoint );
+            if( intersection > 0 )
             {
-              if( std::fabs(t[j][0] - intersectionPoint[0]) < 1e-10 && 
-                  std::fabs(t[j][1] - intersectionPoint[1]) < 1e-10 &&
-                  std::fabs(t[j][2] - intersectionPoint[2]) < 1e-10 ) validRay[i] = false;
-              Vector3<Real> vecA= t[(j+1)%3] - intersectionPoint;
-              Vector3<Real> vecB= intersectionPoint - t[j];
-              Vector3<Real> vecC= t[(j+1)%3] - t[j];
-              Real normA = norm( vecA );
-              Real normB = norm( vecB );
-              Real normC = norm( vecC );
-              if( std::fabs( normA+normB - normC) < 1e-10) validRay[i] = false;
+              if((std::fabs(intersectionPoint[0]-centerV[0]) <= h2) &&
+                 (std::fabs(intersectionPoint[1]-centerV[1]) <= h2) &&
+                 (std::fabs(intersectionPoint[2]-centerV[2]) <= h2) )
+              {
+                numIntersections += intersection;
+              }
             }
-            numIntersections[i] += intersection;
+            else if (intersection == -3)
+            {
+              validRay = false;
+              done = true;
+              break;
+            }
           }
         }
-        if( validRay[i] && numIntersections[i]%2 == 0) return false; //definetely outside
-        if( validRay[i] && numIntersections[i]%2 == 1) return true;
+        done = (std::fabs(Ray[0]) > extent || std::fabs(Ray[1]) > extent || std::fabs(Ray[2]) > extent);
+      }
+
+      #endif
+
+      if (validRay) return (numIntersections%2 == 1);
     }
+
     std::cout << "Point " << p[0] << " " << p[1] << " " << p[2] << " has no valid rays!" << std::endl;
     for( size_t i = 0; i<randomNormals.size(); i++ )
     {
@@ -197,9 +238,6 @@ struct FillBlocks
   using CHIMAT = Real[ScalarBlock::sizeZ][ScalarBlock::sizeY][ScalarBlock::sizeX];
   void operator()(const cubism::BlockInfo &info, ObstacleBlock* const o) const
   {
-    ScalarBlock &b = *(ScalarBlock *)info.ptrBlock;
-    if (!isTouching(info, b)) return;
-    auto & SDFLAB = o->sdfLab;
     for (int iz = -1; iz < ScalarBlock::sizeZ+1; ++iz)
     for (int iy = -1; iy < ScalarBlock::sizeY+1; ++iy)
     for (int ix = -1; ix < ScalarBlock::sizeX+1; ++ix)
@@ -207,7 +245,7 @@ struct FillBlocks
       Real p[3];
       info.pos(p, ix, iy, iz);
       const Real dist = signedDistance(p[0], p[1], p[2], info.blockID);
-      SDFLAB[iz+1][iy+1][ix+1] = dist;
+      o->sdfLab[iz+1][iy+1][ix+1] = dist;
     }
   }
 };
@@ -215,154 +253,259 @@ struct FillBlocks
 
 ExternalObstacle::ExternalObstacle(SimulationData& s, ArgumentParser& p): Obstacle(s, p)
 {
-  // reading coordinates / indices from file
   path = p("-externalObstaclePath").asString();
   if( ExternalObstacleObstacle::exists(path) )
   {
     if( sim.rank == 0 )
-        std::cout << "[ExternalObstacle] Reading mesh from " << path << std::endl;
+      std::cout << "[ExternalObstacle] Reading mesh from " << path << std::endl;
 
-    // Construct the data object by reading from file
+    //1.Construct the data object by reading from file and get mesh-style data from the object read
     happly::PLYData plyIn(path);
-
-    // Get mesh-style data from the object
     std::vector<std::array<Real, 3>> vPos = plyIn.getVertexPositions();
     std::vector<std::vector<int>> fInd = plyIn.getFaceIndices<int>();
 
-    // Compute maximal extent
+    //2.Compute maximal extent and ExternalObstacle's center of mass
     Real MIN = std::numeric_limits<Real>::min();
     Real MAX = std::numeric_limits<Real>::max();
     Vector3<Real> min = { MAX, MAX, MAX };
     Vector3<Real> max = { MIN, MIN, MIN };
+    Vector3<Real> mean = { 0,0,0 };
     for(const auto& point: vPos)
     for( size_t i = 0; i<3; i++ )
     {
+      mean[i] += point[i];
       if( point[i] < min[i] ) min[i] = point[i];
       if( point[i] > max[i] ) max[i] = point[i];
     }
+    mean[0] /= vPos.size();
+    mean[1] /= vPos.size();
+    mean[2] /= vPos.size();
     Vector3<Real> diff = max-min;
-    Real maxSize = std::max({diff[0], diff[1], diff[2]});
-    Real scalingFac = length / maxSize;
-    if( sim.rank == 0 )
-      std::cout << "[ExternalObstacle] Largest extent = " << maxSize << ", target length = " << length << ", scaling factor = " << scalingFac << std::endl;
+    const Real maxSize = std::max({diff[0], diff[1], diff[2]});
+    const Real scalingFac = length / maxSize;
 
-    // Initialize vectors of Vector3 required by triangleMeshSDF
+    //3.Initialize vectors of Vector3 required by triangleMeshSDF
     for(const auto& point: vPos)
     {
-      Vector3<Real> pt = { scalingFac*point[0], scalingFac*point[1], scalingFac*point[2] };
-      coordinates.push_back(pt);
+      Vector3<Real> pt = { scalingFac*(point[0]-mean[0]), scalingFac*(point[1]-mean[1]), scalingFac*(point[2]-mean[2]) };
+      x_.push_back(pt);
     }
-
     for(const auto& indx: fInd)
     {
       Vector3<int> id = { indx[0], indx[1], indx[2] };
-      indices.push_back(id);
+      tri_.push_back(id);
     }
+
     if( sim.rank == 0 )
-      std::cout << "[ExternalObstacle] Read grid with nPoints = " << coordinates.size() << ", nTriangles = " << indices.size() << std::endl;
+    {
+      std::cout << "[ExternalObstacle] Largest extent = " << maxSize << ", target length = " << length << ", scaling factor = " << scalingFac << std::endl;
+      std::cout << "[ExternalObstacle] Read grid with nPoints = " << vPos.size() << ", nTriangles = " << fInd.size() << std::endl;      
+    }
   }
-  else{
+  else
+  {
     fprintf(stderr, "[ExternalObstacle] ERROR: Unable to find %s file\n", path.c_str());
     fflush(0); abort();
   }
+
   // create 10 random vectors to determine if point is inside obstacle
   gen = std::mt19937();
   normalDistribution = std::normal_distribution<Real>(0.0, 1.0);
-  for( size_t i = 0; i< 10; i++ ) {
+  for( size_t i = 0; i< 10; i++ )
+  {
     Real normRandomNormal = 0.0;
     Vector3<Real> randomNormal;
-    while ( std::fabs(normRandomNormal) < 1e-7 ) {
-      randomNormal = { normalDistribution(gen), 
-                       normalDistribution(gen), 
-                       normalDistribution(gen) };
-      normRandomNormal = norm( randomNormal );
+    while ( std::fabs(normRandomNormal) < 1e-7 )
+    {
+      randomNormal = { normalDistribution(gen), normalDistribution(gen), normalDistribution(gen) };
+      normRandomNormal = std::sqrt(dot( randomNormal, randomNormal )); //norm of the vector
     }
     randomNormal = ( 1/normRandomNormal )*randomNormal;
     randomNormals.push_back(randomNormal);
   }
+
+  rotate();
 }
 
 void ExternalObstacle::create()
 {
+  const std::vector<cubism::BlockInfo> & chiInfo = sim.chiInfo();
   BlocksToTriangles.clear();
-
-  const std::vector<cubism::BlockInfo> chiInfo = sim.chiInfo();
-
   BlocksToTriangles.resize(chiInfo.size()); //each block has a set of indices(triangles) that are inside it
-
-  //int total = 0;
   const int BS = std::max({ScalarBlock::sizeX,ScalarBlock::sizeY,ScalarBlock::sizeZ});
-  for (size_t j = 0 ; j < indices.size() ; j++) //loop over all triangles
+
+  #pragma omp parallel for
+  for (size_t b = 0 ; b < chiInfo.size(); b++)
   {
-    int found = 0;
-    for (size_t b = 0 ; b < chiInfo.size(); b++)
+    Vector3<Real> dummy;
+    const cubism::BlockInfo & info = chiInfo[b];
+    Real center[3];
+    info.pos(center,ScalarBlock::sizeX/2,ScalarBlock::sizeY/2,ScalarBlock::sizeZ/2);
+    Vector3<Real> centerV;
+    centerV[0] = center[0]-0.5*info.h;
+    centerV[1] = center[1]-0.5*info.h;
+    centerV[2] = center[2]-0.5*info.h;
+
+    for (size_t tr = 0 ; tr < tri_.size() ; tr++) //loop over all triangles
     {
-      const cubism::BlockInfo & info = chiInfo[b];
-
-      Real center[3];
-      info.pos(center,ScalarBlock::sizeX/2,ScalarBlock::sizeY/2,ScalarBlock::sizeZ/2);
-
-      Vector3<Real> t0;
-      t0[0] = position[0] + coordinates[indices[j][0]][0];
-      t0[1] = position[1] + coordinates[indices[j][0]][1];
-      t0[2] = position[2] + coordinates[indices[j][0]][2];
-
-      Vector3<Real> t1;
-      t1[0] = position[0] + coordinates[indices[j][1]][0];
-      t1[1] = position[1] + coordinates[indices[j][1]][1];
-      t1[2] = position[2] + coordinates[indices[j][1]][2];
-
-      Vector3<Real> t2;
-      t2[0] = position[0] + coordinates[indices[j][2]][0];
-      t2[1] = position[1] + coordinates[indices[j][2]][1];
-      t2[2] = position[2] + coordinates[indices[j][2]][2];
-
-      Vector3<Real> centerV;
-      centerV[0] = center[0];
-      centerV[1] = center[1];
-      centerV[2] = center[2];
-
-      const Real sqrDist = pointTriangleSqrDistance(t0,t1,t2, centerV);
-      if (sqrDist < BS * info.h) // info.h * BS/2 * sqrt(3), sqrt(3)/2=0.86, we use 1.0 to be on the safe side 
+      const int v0 = tri_[tr][0];
+      const int v1 = tri_[tr][1];
+      const int v2 = tri_[tr][2];
+      const Vector3<Real> & t0 = x_[v0];
+      const Vector3<Real> & t1 = x_[v1];
+      const Vector3<Real> & t2 = x_[v2];
+      const Real sqrDist = pointTriangleSqrDistance(t0,t1,t2, centerV, dummy);
+      if (sqrDist < BS * info.h * BS * info.h * 0.75) // = (info.h * BS/2 * sqrt(3))^2
       {
-        //total ++;
-        found ++;
-        BlocksToTriangles[b].push_back(j);
+        #pragma omp critical
+        {
+          BlocksToTriangles[b].push_back(tr);
+        }
       }
     }
-    MPI_Allreduce(MPI_IN_PLACE,&found,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
-    if (found == 0)
+  }
+  /*
+  nIJK = 32;
+  hIJK = 1.1*length/nIJK; // about 3% of the object's length, arbitrary choice
+  const Real extent = nIJK*hIJK;
+  #if 0 //serial implementation
+  if (IJKToTriangles.size() == 0)
+  {
+    IJKToTriangles.resize(nIJK*nIJK*nIJK);
+    #pragma omp parallel for collapse (3)
+    for (int k = 0 ; k < nIJK; k++)
+    for (int j = 0 ; j < nIJK; j++)
+    for (int i = 0 ; i < nIJK; i++)
     {
-      std::cout << "There is a triangle that has no nearest blocks, this is impossible." << std::endl;
-      abort();
+      const int idx = i + nIJK*(j + nIJK*k);
+      Vector3<Real> centerV;
+      Vector3<Real> rpt;
+      rpt[0]=0;
+      rpt[1]=0;
+      rpt[2]=0;
+      centerV[0] = -0.5*extent + 0.5*hIJK + i*hIJK + position[0];
+      centerV[1] = -0.5*extent + 0.5*hIJK + j*hIJK + position[1];
+      centerV[2] = -0.5*extent + 0.5*hIJK + k*hIJK + position[2];
+      for (size_t tr = 0 ; tr < tri_.size() ; tr++) //loop over all triangles
+      {
+        const int v0 = tri_[tr][0];
+        const int v1 = tri_[tr][1];
+        const int v2 = tri_[tr][2];
+        const Vector3<Real> & t0 = x_[v0];
+        const Vector3<Real> & t1 = x_[v1];
+        const Vector3<Real> & t2 = x_[v2];
+        pointTriangleSqrDistance(t0,t1,t2,centerV,rpt);
+        if((std::fabs(rpt[0]-centerV[0]) < 0.51*hIJK) &&
+           (std::fabs(rpt[1]-centerV[1]) < 0.51*hIJK) &&
+           (std::fabs(rpt[2]-centerV[2]) < 0.51*hIJK) )
+        {
+          #pragma omp critical
+          {
+            IJKToTriangles[idx].push_back(tr);
+          }
+        }
+      }
     }
   }
-  //int blocks = chiInfo.size();
-  //MPI_Allreduce(MPI_IN_PLACE,&blocks,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
-  //MPI_Allreduce(MPI_IN_PLACE,&total ,1,MPI_INT,MPI_SUM,MPI_COMM_WORLD);
-  //if (sim.rank == 0)
-  //  std::cout << " Average triangles per block = " << ((Real) total)/blocks << std::endl;
-  //after this loop, each block will have a set of triangles associated with it
+  #else //MPI implementation
+  if (IJKToTriangles.size() == 0)
+  {
+    int size;
+    MPI_Comm_size(sim.comm,&size);
+    int rank = sim.rank;
 
-  const Real h = sim.hmin;
-  Mesh mesh(coordinates, indices);
+    const int total_load = nIJK*nIJK*nIJK;
+    const int my_load = (rank < total_load % size) ? (total_load / size + 1) : (total_load / size);
+    int mystart = (total_load / size) * rank;
+    mystart += (rank < (total_load % size)) ? rank : (total_load % size);
+    const int myend = mystart + my_load;
 
-  ExternalObstacleObstacle::FillBlocks K(h, position, quaternion, mesh, randomNormals, BlocksToTriangles, length);
+    //Create a local vector of vectors
+    std::vector<std::vector<int>> local_data(my_load);
+
+    #pragma omp parallel for
+    for (int idx = mystart ; idx < myend ; idx++)
+    {
+      const int k = idx/(nIJK*nIJK);
+      const int j = (idx - k*nIJK*nIJK)/nIJK;
+      const int i = (idx - k*nIJK*nIJK-j*nIJK)%nIJK;
+      Vector3<Real> centerV;
+      Vector3<Real> rpt;
+      rpt[0]=0;
+      rpt[1]=0;
+      rpt[2]=0;
+      centerV[0] = -0.5*extent + 0.5*hIJK + i*hIJK + position[0];
+      centerV[1] = -0.5*extent + 0.5*hIJK + j*hIJK + position[1];
+      centerV[2] = -0.5*extent + 0.5*hIJK + k*hIJK + position[2];
+      for (size_t tr = 0 ; tr < tri_.size() ; tr++) //loop over all triangles
+      {
+        const int v0 = tri_[tr][0];
+        const int v1 = tri_[tr][1];
+        const int v2 = tri_[tr][2];
+        const Vector3<Real> & t0 = x_[v0];
+        const Vector3<Real> & t1 = x_[v1];
+        const Vector3<Real> & t2 = x_[v2];
+        pointTriangleSqrDistance(t0,t1,t2,centerV,rpt);
+        if((std::fabs(rpt[0]-centerV[0]) < 0.51*hIJK) &&
+           (std::fabs(rpt[1]-centerV[1]) < 0.51*hIJK) &&
+           (std::fabs(rpt[2]-centerV[2]) < 0.51*hIJK) )
+        {
+          #pragma omp critical
+          {
+            local_data[idx-mystart].push_back(tr);
+          }
+        }
+      }
+    }
+
+    // Flatten the local vectors for communication
+    std::vector<int> send_data;
+    for (const auto& vec : local_data)
+      send_data.insert(send_data.end(), vec.begin(), vec.end());
+
+    // Communicate the local vectors among ranks
+    std::vector<int> recv_counts(size);
+    const int send_count = send_data.size();
+    MPI_Allgather(&send_count, 1, MPI_INT, recv_counts.data(), 1, MPI_INT, sim.comm);
+
+    std::vector<int> displacements(size);
+    int total_size = 0;
+    for (int i = 0; i < size; i++)
+    {
+      displacements[i] = total_size;
+      total_size += recv_counts[i];
+    }
+
+    // Allocate memory for the received global vectors
+    std::vector<int> recv_data(total_size);
+
+    // Communicate the local vectors and receive the global vectors
+    MPI_Allgatherv(send_data.data(), send_data.size(), MPI_INT, recv_data.data(), recv_counts.data(), displacements.data(), MPI_INT, sim.comm);
+
+    std::vector<int> vector_displacements(total_load,0);
+    for (int idx = mystart ; idx < myend ; idx++)
+    {
+      vector_displacements[idx] = local_data[idx-mystart].size();
+    }
+    MPI_Allreduce(MPI_IN_PLACE, vector_displacements.data(), vector_displacements.size(), MPI_INT, MPI_SUM, sim.comm);
+
+    //Reconstruct the global vector of vectors
+    size_t current_pos = 0;
+    for (int idx = 0; idx < total_load; idx++)
+    {
+      int count = vector_displacements[idx];
+      std::vector<int> vec(recv_data.begin() + current_pos, recv_data.begin() + current_pos + count);
+      IJKToTriangles.push_back(vec);
+      current_pos += count;
+    }
+  }
+  #endif
+  */
+  ExternalObstacleObstacle::FillBlocks K(this);
 
   create_base<ExternalObstacleObstacle::FillBlocks>(K);
 }
 
-void ExternalObstacle::finalize()
-{
-  // this method allows any computation that requires the char function
-  // to be computed. E.g. compute the effective center of mass or removing
-  // momenta from udef
-}
-
-
-void ExternalObstacle::computeVelocities()
-{
-  Obstacle::computeVelocities();
-}
-
 CubismUP_3D_NAMESPACE_END
+
+

@@ -51,6 +51,17 @@ struct KernelComputeForces
     if (o == nullptr) return;
     if (o->nPoints == 0) return;
     assert(o->filled);
+    o->forcex   = 0;
+    o->forcex_V = 0;
+    o->forcex_P = 0;
+    o->torquex  = 0;
+    o->torquey  = 0;
+    o->torquez  = 0;
+    o->thrust   = 0;
+    o->drag     = 0;
+    o->Pout     = 0;
+    o->defPower = 0;
+    o->pLocom   = 0;
 
     const std::array<Real,3> CM = op->getCenterOfMass();
     const std::array<Real,3> omega = op->getAngularVelocity();

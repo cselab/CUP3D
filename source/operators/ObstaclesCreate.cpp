@@ -303,6 +303,8 @@ static void kernelRemoveUdefMomenta(SimulationData& sim, bool justDebug = false)
 void CreateObstacles::operator()(const Real dt)
 {
   if(sim.obstacle_vector->nObstacles() == 0) return;
+  if(sim.MeshChanged == false && sim.StaticObstacles) return;
+  sim.MeshChanged = false;
 
   std::vector<BlockInfo>& chiInfo = sim.chiInfo();
   #pragma omp parallel for schedule(static)

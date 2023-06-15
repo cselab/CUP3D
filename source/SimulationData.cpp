@@ -39,6 +39,7 @@ SimulationData::SimulationData(MPI_Comm mpicomm, ArgumentParser &parser): comm(m
   Rtol = parser("-Rtol").asDouble();
   Ctol = parser("-Ctol").asDouble();
   levelMaxVorticity = parser("-levelMaxVorticity").asInt(levelMax);
+  StaticObstacles = parser("-StaticObstacles").asBool(false);
 
   // SIMULATION DOMAIN
   extents[0] = parser("extentx").asDouble(0);

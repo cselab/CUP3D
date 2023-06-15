@@ -102,19 +102,24 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
 
 void Simulation::initialGridRefinement()
 {
+  // CreateObstacles and set initial conditions
+  (*sim.pipeline[0])(0);
   _ic();
-  for (int l = 0 ; l < 3*sim.levelMax ; l++)
+
+  const int lmax = sim.StaticObstacles ? sim.levelMax : 3*sim.levelMax;
+  for (int l = 0 ; l < lmax ; l++)
   {
     if( sim.verbose )
-      std::cout << "[CUP3D] - refinement " << l << "/" << 3*sim.levelMax-1 << std::endl;
-    // CreateObstacles
-    (*sim.pipeline[0])(0);
+      std::cout << "[CUP3D] - refinement " << l << "/" << lmax-1 << std::endl;
 
     // Refinement or compression of Grid
     adaptMesh();
+
+    //set initial conditions again. If this is not done, we start with the refined (interpolated) 
+    //version of the ic, which is less accurate
+    (*sim.pipeline[0])(0);
+    _ic();
   }
-  _ic(); //set initial conditions again. If this is not done, we start with the refined (interpolated) version of the ic, which is less accurate
-  (*sim.pipeline[0])(0);
 }
 
 void Simulation::adaptMesh()
@@ -134,6 +139,8 @@ void Simulation::adaptMesh()
   sim.tmpV_amr->Adapt(sim.time,false,true);
   sim.pres_amr->Adapt(sim.time,false,false);
   sim. vel_amr->Adapt(sim.time,false,false);
+
+  sim.MeshChanged = sim.pres->UpdateFluxCorrection;
 
   sim.stopProfiler();
 }

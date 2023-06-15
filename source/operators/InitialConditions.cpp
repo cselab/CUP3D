@@ -434,14 +434,12 @@ void InitialConditions::operator()(const Real dt)
     #pragma omp parallel for schedule(static)
     for(unsigned i=0; i<chiInfo.size(); i++)
     {
-      ScalarBlock& CHI  = (*sim.chi )(i);
       ScalarBlock& PRES = (*sim.pres)(i);
       ScalarBlock& LHS  = (*sim.lhs )(i);
       VectorBlock& TMPV = (*sim.tmpV)(i);
       for(int iz=0; iz<ScalarBlock::sizeZ; ++iz)
       for(int iy=0; iy<ScalarBlock::sizeY; ++iy)
       for(int ix=0; ix<ScalarBlock::sizeX; ++ix) {
-        CHI (ix,iy,iz).s = 0;
         PRES(ix,iy,iz).s = 0;
 	      LHS (ix,iy,iz).s = 0;
 	      TMPV(ix,iy,iz).u[0] = 0;

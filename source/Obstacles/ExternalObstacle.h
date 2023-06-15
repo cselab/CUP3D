@@ -41,14 +41,9 @@ struct Vector3
         };
     }
 
-    friend auto dot(Vector3 a, Vector3 b)
+    friend auto dot(const Vector3 & a, const Vector3 & b)
     {
         return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
-    }
-
-    friend auto norm(Vector3 &a)
-    {
-        return std::sqrt( dot(a,a) );
     }
 
     T x_[3];
@@ -57,32 +52,38 @@ struct Vector3
 // Müller-Trumbore algorithm (from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm)
 inline int rayIntersectsTriangle(const Vector3<Real> &rayOrigin, const Vector3<Real> &rayVector, const Vector3<Vector3<Real>> &triangle, Vector3<Real> &intersectionPoint )
 {
+    const Real eps = 1e-6;//1e-10;
+
     // compute triangle edges
-    Vector3<Real> edge1 = triangle[1] - triangle[0];
-    Vector3<Real> edge2 = triangle[2] - triangle[0];
+    const Vector3<Real> edge1 = triangle[1] - triangle[0];
+    const Vector3<Real> edge2 = triangle[2] - triangle[0];
 
     // compute determinant
-    Vector3<Real> h = cross( rayVector, edge2 );
-    Real a = dot( edge1, h );
+    const Vector3<Real> h = cross( rayVector, edge2 );
+    const Real a = dot( edge1, h );
 
     // if cos(theta) is close to zero (theta is the angle between edge1 and h, triangle is parallel
-    if (std::abs(a) <= norm(edge1) * norm(h) * 1e-10) return -1;
+    if (std::abs(a*a) <= dot(edge1,edge1) * dot(h,h) * eps * eps) return -1;
 
     // invert determinant
-    Real f = 1.0/a;
+    const Real f = 1.0/a;
 
     // solve for u and return if miss
-    Vector3<Real> s = rayOrigin - triangle[0];
-    Real u = f * dot( s, h );
+    const Vector3<Real> s = rayOrigin - triangle[0];
+    const Real u = f * dot( s, h );
     if (u < 0.0 || u > 1.0) return 0;
 
     // solve for v and return if miss
-    Vector3<Real> q = cross( s, edge1 );
-    Real v = f * dot( rayVector, q );
+    const Vector3<Real> q = cross( s, edge1 );
+    const Real v = f * dot( rayVector, q );
     if (v < 0.0 || u + v > 1.0) return 0;
 
+    //check if ray intersects with a vertex or an edge of the triangle (unlikely, but possible)
+    const Real w = 1.0 - u - v;
+    if (u < eps || v < eps || w < eps) return -3;
+
     // compute t and intersection point
-    Real t = f * dot( edge2, q );
+    const Real t = f * dot( edge2, q );
 
     // ray is in back
     if ( t < 0 ) return -2;
@@ -92,16 +93,17 @@ inline int rayIntersectsTriangle(const Vector3<Real> &rayOrigin, const Vector3<R
     return 1;
 }
 
-inline Vector3<Real> ProjectToLine(const Vector3<Real> a, const Vector3<Real> b, const Vector3<Real> p)
+inline Vector3<Real> ProjectToLine(const Vector3<Real> & a, const Vector3<Real> & b, const Vector3<Real> & p)
 {
-    const Real norm_ab = std::sqrt((b[0]-a[0])*(b[0]-a[0])+(b[1]-a[1])*(b[1]-a[1])+(b[2]-a[2])*(b[2]-a[2]));
-    const Real proj_a = std::fabs(dot(p-a,b-a))/norm_ab;
-    const Real proj_b = std::fabs(dot(p-b,b-a))/norm_ab;
+    const Real norm_ab =(b[0]-a[0])*(b[0]-a[0])+(b[1]-a[1])*(b[1]-a[1])+(b[2]-a[2])*(b[2]-a[2]);
+    const Real proj_a = std::fabs(dot(p-a,b-a));
+    const Real proj_b = std::fabs(dot(p-b,b-a));
     if (proj_a <= norm_ab && proj_b <= norm_ab) return a + (proj_a/norm_ab) * (b-a); //point is between a and b
     else if (proj_a < proj_b) return a;
     else return b;
 }
-inline Real pointTriangleSqrDistance( const Vector3<Real> a, const Vector3<Real> b, const Vector3<Real> c, const Vector3<Real> r)
+
+inline Real pointTriangleSqrDistance( const Vector3<Real> & a, const Vector3<Real> & b, const Vector3<Real> & c, const Vector3<Real> & r, Vector3<Real> & rpt)
 {
     // 1. project in 2D plane containing the triangle
     const auto ac = c - a;
@@ -126,7 +128,6 @@ inline Real pointTriangleSqrDistance( const Vector3<Real> a, const Vector3<Real>
     w = (d00 * d21 - d01 * d20) / denom;
     u = 1.0 - v - w;
 
-    Vector3<Real> rpt;
 
     if (std::fabs(denom) < 1e-23) //then triangle is a line 
     {
@@ -149,55 +150,50 @@ inline Real pointTriangleSqrDistance( const Vector3<Real> a, const Vector3<Real>
     else if (v < 0) rpt = ProjectToLine(a,c,rp);
     else if (w < 0) rpt = ProjectToLine(a,b,rp);
 
-    Real retval = std::sqrt((r[0]-rpt[0])*(r[0]-rpt[0])+(r[1]-rpt[1])*(r[1]-rpt[1])+(r[2]-rpt[2])*(r[2]-rpt[2]));
+    Real retval = (r[0]-rpt[0])*(r[0]-rpt[0])+(r[1]-rpt[1])*(r[1]-rpt[1])+(r[2]-rpt[2])*(r[2]-rpt[2]);
     return retval;
 }
 
-class Mesh
+class ExternalObstacle : public Obstacle
 {
-  public:
-    Mesh(const std::vector<Vector3<Real>> &x, const std::vector<Vector3<int>>  &tri) : x_{x}, tri_{tri}{}
+    std::string path;
+    std::mt19937 gen;
+    std::normal_distribution<Real> normalDistribution;
 
-    void rotate( const Real Rmatrix[3][3], const Real position[3])
+  public:
+    std::vector<std::vector<int>> BlocksToTriangles;
+    std::vector<std::vector<int>> IJKToTriangles;
+    std::vector<Vector3<Real>> randomNormals;
+    std::vector<Vector3<Real>> x_;
+    std::vector<Vector3<int>> tri_;
+    int nIJK;
+    Real hIJK;
+
+    ExternalObstacle(SimulationData&s,cubism::ArgumentParser&p);
+
+    void create() override;
+
+    void rotate()
     {
+        const Real w=quaternion[0], x=quaternion[1], y=quaternion[2], z=quaternion[3];
+        const Real Rmatrix[3][3] = {
+          {1-2*(y*y+z*z),   2*(x*y+z*w),   2*(x*z-y*w)},
+          {  2*(x*y-z*w), 1-2*(x*x+z*z),   2*(y*z+x*w)},
+          {  2*(x*z+y*w),   2*(y*z-x*w), 1-2*(x*x+y*y)}
+        };
         for( auto& pt: x_ )
         {
-            // printf( "Before transformation [%f, %f, %f]\n", pt[0], pt[1], pt[2] );
             // rotate point
             Vector3<Real> pRot = {
               Rmatrix[0][0]*pt[0] + Rmatrix[1][0]*pt[1] + Rmatrix[2][0]*pt[2],
               Rmatrix[0][1]*pt[0] + Rmatrix[1][1]*pt[1] + Rmatrix[2][1]*pt[2],
               Rmatrix[0][2]*pt[0] + Rmatrix[1][2]*pt[1] + Rmatrix[2][2]*pt[2]
             };
-            // printf( "after rotation [%f, %f, %f]\n", pt[0], pt[1], pt[2] );
             // translate point
             pt = { pRot[0]+position[0], pRot[1]+position[1], pRot[2]+position[2] };
-            // printf( "after transformation [%f, %f, %f]\n", pt[0], pt[1], pt[2] );
         }
     }
-    std::vector<Vector3<Real>> x_;
-    std::vector<Vector3<int>> tri_;
-};
-
-class ExternalObstacle : public Obstacle
-{
-  std::string path;
-  std::vector<Vector3<Real>> coordinates;
-  std::vector<Vector3<int>> indices;
-
-  std::mt19937 gen;
-  std::normal_distribution<Real> normalDistribution;
-  std::vector<Vector3<Real>> randomNormals;
-
-public:
-  ExternalObstacle(SimulationData&s,cubism::ArgumentParser&p);
-
-  void create() override;
-  void finalize() override;
-  void computeVelocities() override;
-
-  std::vector<std::vector<int>> BlocksToTriangles;
 };
 
 CubismUP_3D_NAMESPACE_END
-#endif // CubismUP_3D_ExternalObstacle_h
+#endif // CubismUP_3D_ExternalObstacle_
