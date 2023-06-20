@@ -300,6 +300,7 @@ void Obstacle::computeForces()
 
   _writeSurfForcesToFile();
   _writeDiagForcesToFile();
+  _writeComputedVelToFile();
 }
 
 void Obstacle::update()
@@ -403,7 +404,6 @@ void Obstacle::update()
   assert(std::abs(q_length-1.0) < 5*EPS);
   #endif
 
-  if (sim.dt > 0) _writeComputedVelToFile();
 }
 
 void Obstacle::create()
