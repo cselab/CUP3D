@@ -310,6 +310,15 @@ Real Simulation::calcMaxTimestep()
   const Real hMin = sim.hmin;
   Real CFL = sim.CFL;
   sim.uMax_measured = findMaxU(sim);
+  if (sim.uMax_measured > sim.uMax_allowed)
+  {
+      serialize();//save last timestep before aborting
+      if (sim.rank == 0)
+      {
+         std::cerr << "maxU = " << sim.uMax_measured << " exceeded uMax_allowed = " << sim.uMax_allowed << ". Aborting...\n";
+         MPI_Abort(sim.comm,1);
+      }
+  }
 
   if( CFL > 0 )
   {
