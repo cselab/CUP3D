@@ -46,7 +46,7 @@ struct Vector3
         return a[0] * b[0] + a[1] * b[1] + a[2] * b[2];
     }
 
-    T x_[3];
+    T x_[3] = {0};
 };
 
 // Müller-Trumbore algorithm (from https://en.wikipedia.org/wiki/M%C3%B6ller%E2%80%93Trumbore_intersection_algorithm)
