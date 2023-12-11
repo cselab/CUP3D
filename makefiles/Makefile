@@ -1,8 +1,4 @@
-ifeq ($(shell uname -s), Darwin)
 CXX=mpic++
-GSL_ROOT_DIR=$(wildcard /usr/local/Cellar/gsl/*)
-HDF5_ROOT=$(wildcard /usr/local/Cellar/hdf5/*)
-endif
 
 ifneq "$(findstring nid,$(shell hostname))" ""
 CXX=CC
