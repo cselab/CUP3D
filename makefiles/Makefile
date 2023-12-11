@@ -1,109 +1,44 @@
-CXX=mpic++
-
-ifneq "$(findstring nid,$(shell hostname))" ""
-CXX=CC
-endif
-ifneq "$(findstring daint,$(shell hostname))" ""
-CXX=CC
-endif
-ifneq "$(findstring panda,$(shell hostname))" ""
-CXX=mpic++
-endif
-ifneq "$(findstring falcon,$(shell hostname))" ""
-CXX=mpic++
-endif
-ifneq "$(findstring euler,$(shell hostname))" ""
-CXX=mpic++
-endif
-ifneq "$(findstring eu-,$(shell hostname))" ""
-CXX=mpic++
-endif
-
-# this only affects amount of memory allocated by block processing:
-config ?= prod
+config ?= production
 precision ?= double
-usemap ?= true
 bs ?= 8
-bsx ?= 8
-bsy ?= 8
-bsz ?= 8
-hdf ?= true
-verbose ?= false
-dump_surface_binary ?= false
 gpu ?= false
+openmp ?= false
 profile ?= false
 onetbb ?= false
-
-precision ?= double
-ifeq "$(precision)" "single"
-CPPFLAGS += -D_FLOAT_PRECISION_
-CPPFLAGS += -Wno-narrowing
-endif
-ifeq "$(precision)" "double"
-CPPFLAGS += -D_DOUBLE_PRECISION_
-endif
-ifeq "$(precision)" "long_double"
-CPPFLAGS += -D_LONG_DOUBLE_PRECISION_
-endif
-
-weno ?= false
-ifeq "$(weno)" "true"
-	CPPFLAGS += -DWENO
-endif
 symmetry ?= false
-ifeq "$(symmetry)" "true"
-	CPPFLAGS += -DPRESERVE_SYMMETRY
-endif
 
-ifeq "$(shell $(CXX) --version | grep -ci 'icpc')" "0"
-ifeq "$(shell $(CXX) --version | grep -ci 'llvm')" "0"
-compiler=gnu
-include make.gcc.flags
+# SET FLAGS FOR COMPILER
+ifneq ($(MPICXX),)
+	CXX=$(MPICXX)
 else
-compiler=llvm
-include make.llvm.flags
-endif
-else
-compiler=intel
-include make.icc.flags
+	CXX=mpic++
 endif
 
-LD=$(CXX)
+# LOAD FLAGS -- GCC NEEDED
+CPPFLAGS+= -std=c++17 -Wall -g
+CPPFLAGS+= -Wextra -Wfloat-equal -Wcast-align -Woverloaded-virtual
+CPPFLAGS+= -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wshadow
+CPPFLAGS+= -Wwrite-strings -Wno-unused-parameter
+CPPFLAGS+= -Wno-float-equal
+CPPFLAGS+= -Wno-redundant-decls
 
-ifeq "$(usemap)" "true"
-	CPPFLAGS += -DCUBISM_USE_MAP
+ifeq "$(openmp)" "true"
+	CPPFLAGS+= -fopenmp
 endif
 
-ifeq "$(precision)" "single"
-	CPPFLAGS += -DCUP_SINGLE_PRECISION
-	NVFLAGS += -DCUP_SINGLE_PRECISION
+# FLAGS FOR EXTERNAL LIBRARIES
+LIBS+= -lgsl -lgslcblas -fopenmp -lhdf5
+
+# ADD LIBRARY PATHS IF GIVEN
+ifneq ($(HDF5_ROOT),)
+	LIBS     += -L$(HDF5_ROOT)/lib
+	CPPFLAGS += -I$(HDF5_ROOT)/include
 endif
 
-CPPFLAGS += -DCUP_ALIGNMENT=64
-#CPPFLAGS += -DCUP_BLOCK_SIZE=$(bs)
-CPPFLAGS += -DCUP_BLOCK_SIZEX=$(bsx)
-CPPFLAGS += -DCUP_BLOCK_SIZEY=$(bsy)
-CPPFLAGS += -DCUP_BLOCK_SIZEZ=$(bsz)
-CPPFLAGS += -DCUP_NO_MACROS_HEADER
-NVFLAGS  += -DCUP_NO_MACROS_HEADER
-CPPFLAGS += -I../Cubism/include/
-
-LDFLAGS = $(CPPFLAGS)
-
-BUILDDIR = .
-#SRC_DIR = $(BUILDDIR)/../source/
-SRC_DIR = $(sort $(dir $(wildcard $(BUILDDIR)/../source/*/)))
-CUBISM_DIR = $(BUILDDIR)/../Cubism/src/
-
-OBJECTS = ObstacleFactory.o Obstacle.o Ellipsoid.o Cylinder.o Pipe.o \
-	Fish.o StefanFish.o CarlingFish.o Sphere.o Plate.o ExternalObstacle.o Naca.o \
-	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o \
-	AdvectionDiffusion.o AdvectionDiffusionImplicit.o ComputeDissipation.o \
-	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
-	ObstaclesCreate.o ObstaclesUpdate.o FishShapes.o ArgumentParser.o \
-	PoissonSolverBase.o PoissonSolverAMR.o PoissonSolverAMRKernels.o DiffusionSolverAMRKernels.o \
-	FixMassFlux.o ExternalForcing.o SmartNaca.o CylinderNozzle.o
-
+ifneq ($(GSL_ROOT),)
+	CPPFLAGS += -I$(GSL_ROOT)/include
+	LIBS += -L$(GSL_ROOT)/lib
+endif
 
 #################################################
 # oneTBB
@@ -116,88 +51,104 @@ ifeq "$(onetbb)" "true"
 	#CPPFLAGS += -I/users/chatzima/my_installed_onetbb/include
 endif
 
-#################################################
-# HDF5
-#################################################
-ifeq "$(hdf)" "true"
-	# If you have issues with linking HDF5 so files, add $HDF5_ROOT/lib to your LD_LIBRARY_PATH.
-	# For that reason we do not automatically check ../dependencies/build/hdf5-*.
-	ifneq ($(HDF5_ROOT),)
-		# OK, do not overwrite HDF5_ROOT
-	else ifneq ($(HDF5ROOT),)
-		HDF5_ROOT = $(HDF5ROOT)
+# ENABLE OPTIMIZATION/DEBUG FLAGS IF WISHED
+ifeq "$(findstring prod,$(config))" ""
+	CPPFLAGS+= -O0
+	ifeq "$(config)" "segf"
+		CPPFLAGS+= -fsanitize=address
+		LIBS+= -fsanitize=address -static-libasan
 	endif
-	ifneq ($(HDF5_ROOT),)
-		LIBS     += -L$(HDF5_ROOT)/lib
-		CPPFLAGS += -I$(HDF5_ROOT)/include
+	ifeq "$(config)" "nans"
+		CPPFLAGS+= -fsanitize=undefined
+		LIBS+= -fsanitize=undefined
 	endif
-	LIBS     += -lhdf5
+else
+	CPPFLAGS+= -DNDEBUG -O3 -fstrict-aliasing -march=native -mtune=native -falign-functions -ftree-vectorize -fmerge-all-constants
 endif
 
-LIBS += -lgsl -lgslcblas
+# SET FLOATING POINT ACCURACY
+ifeq "$(precision)" "single"
+	CPPFLAGS += -D_FLOAT_PRECISION_
+else ifeq "$(precision)" "double"
+	CPPFLAGS += -D_DOUBLE_PRECISION_
+else ifeq "$(precision)" "long_double"
+	CPPFLAGS += -D_LONG_DOUBLE_PRECISION_
+endif
+
+# SET VPATH FOR MAKE TO SEARCH FOR FILES
+BUILDDIR = .
+DIRS = $(sort $(dir $(wildcard ../source/*) $(wildcard ../source/*/)))
+VPATH := $(DIRS) $(BUILDDIR)/../Cubism/src/
+
+ifeq "$(symmetry)" "true"
+	CPPFLAGS += -DPRESERVE_SYMMETRY
+else ifneq "$(findstring prod,$(config))" ""
+	CPPFLAGS+= -ffast-math
+endif
+
+weno ?= false
+ifeq "$(weno)" "true"
+	CPPFLAGS += -DWENO
+endif
+
+# SET FLAGS FOR CUBISM
+CPPFLAGS += -DCUP_ALIGNMENT=64 -DCUP_BLOCK_SIZEX=$(bs) -DCUP_BLOCK_SIZEY=$(bs) -DCUP_BLOCK_SIZEZ=$(bs) -DCUP_NO_MACROS_HEADER
+CPPFLAGS += -I$(BUILDDIR)/../Cubism/include/ -DDIMENSION=3
+
+OBJECTS = ObstacleFactory.o Obstacle.o Ellipsoid.o Cylinder.o Pipe.o \
+	Fish.o StefanFish.o CarlingFish.o Sphere.o Plate.o ExternalObstacle.o Naca.o \
+	FishLibrary.o BufferedLogger.o SimulationData.o Simulation.o \
+	AdvectionDiffusion.o AdvectionDiffusionImplicit.o ComputeDissipation.o \
+	PressureProjection.o Penalization.o InitialConditions.o FluidSolidForces.o \
+	ObstaclesCreate.o ObstaclesUpdate.o FishShapes.o ArgumentParser.o \
+	PoissonSolverBase.o PoissonSolverAMR.o PoissonSolverAMRKernels.o DiffusionSolverAMRKernels.o \
+	FixMassFlux.o ExternalForcing.o SmartNaca.o CylinderNozzle.o
 
 #################################################
 # CUDA
 #################################################
 NVCC ?= nvcc
-NVFLAGS ?= -code=sm_60 -arch=compute_60
-
-ifeq "$(gpu)" "true"
+NVCCFLAGS ?= -code=sm_60 -arch=compute_60
+ifeq ("$(gpu)","true")
 	OBJECTS += PoissonSolverExp.o LocalSpMatDnVec.o BiCGSTAB.o
 	CPPFLAGS += -fopenmp -DGPU_POISSON -Wno-shadow -Wno-undef -Wno-float-equal -Wno-redundant-decls
-	NVFLAGS = -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
+	NVCCFLAGS += -std=c++17 -O3 --use_fast_math -Xcompiler "$(CPPFLAGS)" -DGPU_POISSON
 	LIBS += -lcudart -lcublas -lcusparse
-	
-	ifeq "$(profile)" "true"
-		NVFLAGS += -DBICGSTAB_PROFILER
+	ifeq ("$(profile)", "true")
+		NVCCFLAGS += -DBICGSTAB_PROFILER
 	endif
+else
+	CPPFLAGS += -Wno-unknown-pragmas
 endif
 
-#################################################
-ifneq ($(ERROR),)
-$(error $(ERROR))  # Easiest way I found to avoid unindenting the code above...
-endif
-
-EXEOBJ = $(OBJECTS) main.o
-LIBOBJ = $(OBJECTS) cubism_main.o CubismUP_3D.o
-VPATH := $(VPATH):$(SRC_DIR):$(CUBISM_DIR)
-ALLOBJ := $(sort $(EXEOBJ) $(LIBOBJ) $(NVOBJECTS))  # `sort` removes duplicates.
-DEPS := $(ALLOBJ:%.o=%.d)
-
+# DEFINE COMPILATION TARGETS
 all: ../bin/simulation libcup.a cup.cflags.txt cup.libs.txt
 .DEFAULT : all
 
-# COMPILATION INSTRUCTIONS FOR APPLICATION AND LIBRARY
-../bin/simulation: $(EXEOBJ) $(NVOBJECTS)
-	mkdir -p ../bin
-	$(LD) $(EXEOBJ) $(NVOBJECTS) $(LDFLAGS) $(LIBS) -o $@
 
+# COMPILATION INSTRUCTIONS FOR APPLICATION AND LIBRARY
+../bin/simulation: main.o $(OBJECTS)
+	mkdir -p ../bin
+	$(CXX) main.o $(OBJECTS) $(LIBS) -o $@
 libcup.a: $(OBJECTS)
 	ar rcs $@ $(OBJECTS)
-
 cup.cflags.txt:
-	echo $(CPPFLAGS) > cup.cflags.txt
-
+	echo '$(CPPFLAGS)' > cup.cflags.txt
 cup.libs.txt:
-	echo $(LIBS) > cup.libs.txt
+	echo '$(LIBS)' > cup.libs.txt
 
 # COMPILATION INSTRUCTIONS FOR OBJECT FILES
 %.o: %.cu
-	$(NVCC) -ccbin=$(CXX) $(NVFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
-
+	$(NVCC) -ccbin=$(CXX) $(NVCCFLAGS) -c $< -o $@
+%.d: %.cu
+	$(NVCC) -ccbin=$(CXX) $(NVCCFLAGS) -c -MD $<
 %.o: %.cpp
-	$(CXX) $(CPPFLAGS) -MMD -MF $(patsubst %.o,%.d,$@) -c $< -o $@
+	$(CXX) $(CPPFLAGS) -c $< -o $@
+%.d: %.cpp
+	$(CXX) $(CPPFLAGS) -c -MD $<
 
 # COMPILATION INSTRUCTION FOR CLEANING BUILD
 clean:
 	rm -f *.d *.o ../bin/simulation ../lib/libcubismup3d.a cup.cflags.txt cup.libs.txt libcup.a
 	rmdir ../bin 2> /dev/null || true
 	rmdir ../lib 2> /dev/null || true
-
-# WARN USER FOR NOT USING PRODUCTION FLAGS
-ifeq "$(config)" "prod"
-else
-	#RED='\033[0;31m'
-	#NC='\033[0m' # No Color
-	$(info *** WARNING! Compiling with debug flags. Use config=prod for optimized code ***)
-endif
