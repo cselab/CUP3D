@@ -6,12 +6,15 @@
 
 #pragma once
 
+#include <Cubism/ArgumentParser.h>
 #include "SimulationData.h"
 
 CubismUP_3D_NAMESPACE_BEGIN
 
 class Simulation
 {
+protected:
+  cubism::ArgumentParser parser;
 public:
   SimulationData sim;
 
@@ -22,7 +25,10 @@ public:
   void setupGrid();
   void _ic();
 
-  Simulation(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
+  //Simulation(MPI_Comm mpicomm, cubism::ArgumentParser &parser);
+  Simulation(int argc, char ** argv, MPI_Comm comm);
+
+  void init();
 
   void simulate();
 

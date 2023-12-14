@@ -39,11 +39,10 @@ std::shared_ptr<Simulation> createSimulation(
   cargv[0] = cmd;
   for (size_t i = 0; i < argv.size(); ++i)
     cargv[i + 1] = const_cast<char *>(argv[i].data());
-  ArgumentParser parser((int)cargv.size(), cargv.data());
-  return std::make_shared<Simulation>(comm, parser);
+  return std::make_shared<Simulation>((int)cargv.size(), cargv.data(),comm);
 }
 
-Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm, parser)
+Simulation::Simulation(int argc, char ** argv, MPI_Comm comm) : parser(argc,argv), sim(comm, parser)
 {
   if( sim.verbose )
   {
@@ -51,11 +50,15 @@ Simulation::Simulation(MPI_Comm mpicomm, ArgumentParser & parser) : sim(mpicomm,
     {
           int numThreads = omp_get_num_threads();
 	  int size;
-	  MPI_Comm_size(mpicomm,&size);
+	  MPI_Comm_size(comm,&size);
           #pragma omp master
 	  std::cout << "[CUP3D] Running with " << size  << " rank(s) and " << numThreads <<  " thread(s)." << std::endl;
     }
   }
+}
+
+void Simulation::init()
+{
   // Make sure given arguments are valid
   if( sim.verbose )
     std::cout << "[CUP3D] Parsing Arguments.. " << std::endl;

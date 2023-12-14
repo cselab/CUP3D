@@ -3,13 +3,8 @@
 //  Copyright (c) 2018 CSE-Lab, ETH Zurich, Switzerland.
 //  Distributed under the terms of the MIT license.
 //
-//  Created by Guido Novati (novatig@ethz.ch).
-//
 
 #include "Simulation.h"
-
-#include <Cubism/ArgumentParser.h>
-
 #include <iostream>
 int main(int argc, char **argv)
 {
@@ -36,8 +31,8 @@ int main(int argc, char **argv)
  
   MPI_Barrier(MPI_COMM_WORLD);
   double t1 = MPI_Wtime();
-  cubism::ArgumentParser parser(argc, argv);
-  cubismup3d::Simulation *sim = new cubismup3d::Simulation(MPI_COMM_WORLD, parser);
+  cubismup3d::Simulation *sim = new cubismup3d::Simulation(argc,argv,MPI_COMM_WORLD);
+  sim->init();
   sim->simulate();
   delete sim;
   MPI_Barrier(MPI_COMM_WORLD);
